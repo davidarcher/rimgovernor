@@ -16,7 +16,7 @@ public sealed record PasteSiteRequest
     public Fact<PowerTopology> Power { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class PasteSiteRules
 {
     /// <summary>
     /// Paste shares site admission with growing infrastructure. The conservative clear apron leaves room for
@@ -29,7 +29,7 @@ public static partial class PolicyFunctions
         MealTierReview review;
         try
         {
-            review = ReviewMealTier(v.Meals, v.Benches);
+            review = MealRules.ReviewMealTier(v.Meals, v.Benches);
         }
         catch (DomainException)
         {
@@ -39,7 +39,7 @@ public static partial class PolicyFunctions
         {
             return null;
         }
-        if (review.Tier != MealTier.Paste || !Positive(hopper.Available) || size.Width <= 0 || size.Height <= 0 || size.Width > 6 || size.Height > 6)
+        if (review.Tier != MealTier.Paste || !RoundsRules.Positive(hopper.Available) || size.Width <= 0 || size.Height <= 0 || size.Width > 6 || size.Height > 6)
         {
             return null;
         }
@@ -49,9 +49,9 @@ public static partial class PolicyFunctions
         foreach (var c in r.Field.Site.Cells)
         {
             var zk = c.Zone.TryGetValue(out var zone);
-            cells[c.Cell] = Positive(c.Walkable) && !c.Occupied() && zk && !zone;
+            cells[c.Cell] = RoundsRules.Positive(c.Walkable) && !c.Occupied() && zk && !zone;
             listed.Add(c.Cell);
-            rock[c.Cell] = RockCell(c);
+            rock[c.Cell] = TunnelSiteRules.RockCell(c);
         }
         foreach (var c in r.Field.Site.Protected)
         {

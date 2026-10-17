@@ -304,7 +304,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                     {
                         break;
                     }
-                    var gate = PolicyApi.ResearchGate([PolicyApi.StoneShellResearch], read.Projection.Facts.Research);
+                    var gate = ResearchRules.ResearchGate([PolicyApi.StoneShellResearch], read.Projection.Facts.Research);
                     if (gate != "")
                     {
                         return new RoundsDefenseLayoutResult { Verdict = ResearchWait(gate), Tier = name.Value };

@@ -58,7 +58,7 @@ public static partial class PolicyFunctions
         {
             furniture[r.Id] = r;
         }
-        foreach (var s in SoloBedrooms(obs).OrderBy(s => s.Room, StringComparer.Ordinal))
+        foreach (var s in RoomQualityRules.SoloBedrooms(obs).OrderBy(s => s.Room, StringComparer.Ordinal))
         {
             if (!furniture.TryGetValue(s.Room, out var room) || owed.GetValueOrDefault(s.Owner) == 0)
             {
@@ -69,7 +69,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var (cell, rot, found) = FreeSpot(room, spot.Size);
+            var (cell, rot, found) = RoomQualityRules.FreeSpot(room, spot.Size);
             if (found)
             {
                 return (new RoomUpgrade { Room = s.Room, Slot = "companion-bed-" + (have + 1), Def = spot.Def, Anchor = cell, Rot = rot }, true);

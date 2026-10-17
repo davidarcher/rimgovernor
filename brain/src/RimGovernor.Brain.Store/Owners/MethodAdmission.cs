@@ -220,7 +220,7 @@ public sealed partial class Store
         // hunts toward its floors (#3303) and the medical/reserves Need harvests healroot (#3258).
         var held = owner.Need;
         var bound = (held == MilitaryFamily.Pests || held == FoodSupplyNeed || held == JoinersFamily.Decrees || held == EconomyFamily.Resource
-                || held == MedicalReservesNeed);
+                || held == MedicalRules.MedicalReservesNeed);
         if (!bound)
         {
             throw new ConflictException();

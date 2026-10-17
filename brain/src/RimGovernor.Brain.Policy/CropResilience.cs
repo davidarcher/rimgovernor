@@ -30,7 +30,7 @@ public static partial class PolicyFunctions
             {
                 return default;
             }
-            var profile = BuildProfile(pawn);
+            var profile = PawnRules.BuildProfile(pawn);
             foreach (var row in work)
             {
                 if (row.Disabled || !profile.Capable(row.Work, 0))
@@ -57,7 +57,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static List<FarmSiteTerm> CropChoiceTerms(FieldRequest r, CropChoice crop, int cells)
     {
-        var unit = CropRate(crop, 1) * cells;
+        var unit = SiteRules.CropRate(crop, 1) * cells;
         var terms = new List<FarmSiteTerm>();
         var wk = crop.HarvestWork.TryGetValue(out var work);
         var yk = crop.HarvestNutrition.TryGetValue(out var yield);
@@ -90,11 +90,11 @@ public static partial class PolicyFunctions
             }
         }
         var pk = cell.Polluted.TryGetValue(out var pollution);
-        if (Positive(crop.RequiresPollution) && (!pk || !pollution))
+        if (RoundsRules.Positive(crop.RequiresPollution) && (!pk || !pollution))
         {
             return false;
         }
-        if (Positive(crop.RequiresCleanSoil) && (!pk || pollution))
+        if (RoundsRules.Positive(crop.RequiresCleanSoil) && (!pk || pollution))
         {
             return false;
         }
@@ -104,7 +104,7 @@ public static partial class PolicyFunctions
     /// <summary>Indoor resilience is credited only for an observed threat. Feasibility (power, heat, crop and cells) is established before these terms are added.</summary>
     internal static List<FarmSiteTerm> SiteRiskTerms(FieldRequest r, CropChoice crop, int cells)
     {
-        var unit = CropRate(crop, 1) * cells;
+        var unit = SiteRules.CropRate(crop, 1) * cells;
         var terms = new List<FarmSiteTerm>();
         if (ToxicFalloutActive(r.Conditions).TryGetValue(out var fallout) && fallout)
         {

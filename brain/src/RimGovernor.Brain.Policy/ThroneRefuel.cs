@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class ThroneRules
 {
     /// <summary>
     /// The definitions the title wants lit: every def of its Glowing requirement sets and of its any-of count

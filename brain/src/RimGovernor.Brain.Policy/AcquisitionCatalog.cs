@@ -138,7 +138,7 @@ public static partial class PolicyFunctions
                 }
 
                 line = Math.Max(0, row.Reserve);
-                if (row.ConsumptionPerDay.TryGetValue(out var rate) && Finite(rate) && rate > 0)
+                if (row.ConsumptionPerDay.TryGetValue(out var rate) && TradePolicyRules.Finite(rate) && rate > 0)
                 {
                     line += Math.Ceiling(rate * MaintenanceHorizonDays);
                 }
@@ -235,7 +235,7 @@ public static partial class PolicyFunctions
 
         candidate = SourceCandidate(
             CandidateKind.Trade,
-            TradeCandidateID(trader, resource),
+            TradePolicyRules.TradeCandidateID(trader, resource),
             Known(price * units * TradeLaborPerSilver),
             Known(0.0),
             false,

@@ -13,13 +13,13 @@ public sealed class EssentialServicesTests
     /// <summary>Sleeping rooms inside the comfort band: the shelter/temperature Need is met (#3257).</summary>
     private static RoundsFacts Warm() => Facts() with { SleepingMin = Known(20.0), SleepingMax = Known(22.0) };
     private static EssentialServiceReview Review(RoundsFacts facts, int budget = 128) =>
-        ReviewEssentialServices(facts, DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick },
+        ReviewEssentialServices(facts, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick },
             MaterialAvailability = Known<IReadOnlyDictionary<Resource, Fact<double>>>(new Dictionary<Resource, Fact<double>> { [new("grain")] = Known(20.0) }) }, budget);
 
     [Fact]
     public void NormalInspectionExposesEveryServiceWithoutTreatingUnknownStressAsBaselineFailure()
     {
-        var normal = InspectRounds(new(), new(), DefaultRoundsPolicy());
+        var normal = RoundsRules.InspectRounds(new(), new(), RoundsRules.DefaultRoundsPolicy());
         Assert.NotNull(normal.EssentialServices);
         Assert.Equal(Enum.GetValues<EssentialService>(), normal.EssentialServices.Coverage.Select(c => c.Service).Distinct().Order().ToArray());
         var known = Review(Warm());
@@ -52,7 +52,7 @@ public sealed class EssentialServicesTests
         Assert.True(limited.Truncated);
         Assert.Single(limited.Stress);
         Assert.Equal(limited, Review(Facts(), 1));
-        Assert.Throws<DomainException>(() => ReviewEssentialServices(Facts(), DefaultRoundsPolicy(), new(), 1));
+        Assert.Throws<DomainException>(() => ReviewEssentialServices(Facts(), RoundsRules.DefaultRoundsPolicy(), new(), 1));
     }
 
     private static CarePawn Patient(params (string Id, double Chance)[] doctors) => new()
@@ -169,7 +169,7 @@ public sealed class EssentialServicesTests
             new() { Id = "heater", Fuel = Known(0.0), Target = Known(10.0), OutOfFuel = Known(true), Fuels = [new("fuel")],
                 Burn = Known(new FuelBurn { PerDay = 1, UnitsPerItem = 1 }) }]) };
         // The materials row is the economy/resource Need's, unmet while a derived target is short of stock (#3303).
-        var review = ReviewEssentialServices(facts, DefaultRoundsPolicy(), new()
+        var review = ReviewEssentialServices(facts, RoundsRules.DefaultRoundsPolicy(), new()
         {
             Work = new() { Tick = facts.Tick },
             MaterialAvailability = Known<IReadOnlyDictionary<Resource, Fact<double>>>(new Dictionary<Resource, Fact<double>> { [new("grain")] = Known(20.0) }),

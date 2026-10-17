@@ -17,7 +17,7 @@ public static partial class PolicyConstants
     internal const int PrisonWeaponClearance = 6;
 }
 
-public static partial class PolicyFunctions
+public static partial class PrisonLayoutRules
 {
     /// <summary>The cell just outside a room's door and the direction out; false when the door does not border the interior.</summary>
     internal static (Cell Front, Cell Out, bool Ok) PrisonDoorOutside(PlannedRoom r)
@@ -42,7 +42,7 @@ public static partial class PolicyFunctions
         var blocked = new HashSet<Cell>();
         foreach (var r in plan.Rooms)
         {
-            foreach (var c in RectCells(Pad(r.Region.Bounds(), 1)))
+            foreach (var c in PlannedRules.RectCells(Pad(r.Region.Bounds(), 1)))
             {
                 blocked.Add(c);
             }
@@ -150,7 +150,7 @@ public static partial class PolicyFunctions
         {
             if (r.Role == PlannedPrison)
             {
-                output.AddRange(RectCells(Pad(r.Region.Bounds(), 1)));
+                output.AddRange(PlannedRules.RectCells(Pad(r.Region.Bounds(), 1)));
             }
         }
         return output;

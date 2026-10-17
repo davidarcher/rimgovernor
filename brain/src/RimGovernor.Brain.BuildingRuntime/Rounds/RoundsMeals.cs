@@ -10,7 +10,7 @@ public sealed partial class Rounder
         MealTierReview review;
         try
         {
-            review = PolicyFunctions.ReviewMealTier(request, p.ProductionBenches);
+            review = MealRules.ReviewMealTier(request, p.ProductionBenches);
         }
         catch (DomainException)
         {

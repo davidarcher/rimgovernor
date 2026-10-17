@@ -27,7 +27,7 @@ public static partial class PolicyFunctions
         var bounds = r.Region.Bounds();
         return r with
         {
-            Region = RectRegion(new Rectangle(bounds.Z, bounds.X, bounds.Height, bounds.Width)),
+            Region = RegionRules.RectRegion(new Rectangle(bounds.Z, bounds.X, bounds.Height, bounds.Width)),
             Door = TransposeCell(r.Door),
             DoorRot = r.DoorRot is { } dr ? TransposeRot(dr) : null,
             Facing = r.Facing is { } fc ? TransposeRot(fc) : null,

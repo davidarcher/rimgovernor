@@ -69,7 +69,7 @@ public sealed partial class Rounder
         CancellationToken call, CancellationToken epoch)
     {
         if (!Needs.Contains(AdminFamily.WorkAssignments)) return;
-        var pawns = PolicyFunctions.StandbyPawnsOf(facts, actions, taken);
+        var pawns = StandbyAssignmentsRules.StandbyPawnsOf(facts, actions, taken);
         if (pawns.Count == 0) return;
         Player.Current(call, epoch);
         if (Player.Session.State().Snapshot != snapshot) throw new ControlException("standby scope changed");
@@ -81,7 +81,7 @@ public sealed partial class Rounder
             {
                 var commit = Player.Journal.CommitClaimedMethod(AdminFamily.WorkAssignments, snapshot, method, "explicit idle: nothing selected",
                     new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"),
-                        PolicyFunctions.StandbyActivity(pawn, snapshot.Native.Value, method.Value))]), call);
+                        StandbyAssignmentsRules.StandbyActivity(pawn, snapshot.Native.Value, method.Value))]), call);
                 Tel.Decide(new Decision { Kind = "standby", Component = "rounds", Target = pawn,
                     Verdict = commit.Outcome == ClaimOutcome.Conflict ? "deferred" : "selected",
                     Reason = commit.Conflict?.Reason ?? "nothing_selected", Attrs = new Dictionary<string, object?> { ["method"] = method.Value } });
@@ -101,9 +101,9 @@ public sealed partial class Rounder
     internal static PlannedSelection PlannedSelectionReviewed(PlannedSelection previous, ColonyProjection colony, ForecastCoupledSelection? selection)
     {
         var facts = colony.Facts;
-        var latest = PolicyFunctions.PlannedSelectionOf(facts.CoupledAlternatives, selection, facts.PlannedSites, facts.Tick.Value);
+        var latest = PlannedRules.PlannedSelectionOf(facts.CoupledAlternatives, selection, facts.PlannedSites, facts.Tick.Value);
         var rooms = colony.LayoutPlan.TryGetValue(out var plan) ? plan.Rooms.DistinctBy(r => r.Id).ToDictionary(r => r.Id) : [];
-        return PolicyFunctions.PlannedSelectionMemory(previous, latest,
+        return PlannedRules.PlannedSelectionMemory(previous, latest,
             room => rooms.TryGetValue(room, out var planned) && RoundsBuildingPlanner.PlannedRoomStartedOf(colony, plan!, planned) == true);
     }
 

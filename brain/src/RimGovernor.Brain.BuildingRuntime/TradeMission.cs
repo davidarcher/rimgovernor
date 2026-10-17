@@ -37,25 +37,25 @@ partial class RoundsTradePlanner
             throw new DomainException("settlement_unavailable");
         }
         var sk = facts.Silver().TryGetValue(out var silver);
-        var (reserve, rk) = Pol.PolicyFunctions.TradeSilverReserve(facts.Colonists);
+        var (reserve, rk) = Pol.TradePolicyRules.TradeSilverReserve(facts.Colonists);
         if (!sk || !rk || silverBudget <= 0 || silverBudget > int.MaxValue || silver < reserve || silverBudget > silver - reserve)
         {
             throw new DomainException("insufficient_silver");
         }
-        var (crew, crewSkip) = Pol.PolicyFunctions.TradeMissionCrew(facts, claimed ?? []);
+        var (crew, crewSkip) = Pol.TradePolicyRules.TradeMissionCrew(facts, claimed ?? []);
         if (!crewSkip.IsNone)
         {
             throw new DomainException(crewSkip.Value);
         }
         var domainCrew = crew.Select(p => p).ToList();
-        var (capacity, capacityKnown) = Pol.PolicyFunctions.TradeMissionCarryCapacity(facts, crew);
+        var (capacity, capacityKnown) = Pol.TradePolicyRules.TradeMissionCarryCapacity(facts, crew);
         if (!capacityKnown)
         {
             throw new DomainException("mass_unknown");
         }
         // Native packing requires a day of food before it returns route estimates. Seed with that legal minimum;
         // native measures silver mass rather than Go inventing a unit weight for modded definitions.
-        var (seedFood, seedSkip) = Pol.PolicyFunctions.TradeMissionFood(facts, crew, 1, capacity, thresholds);
+        var (seedFood, seedSkip) = Pol.TradePolicyRules.TradeMissionFood(facts, crew, 1, capacity, thresholds);
         if (!seedSkip.IsNone)
         {
             throw new DomainException(seedSkip.Value);
@@ -82,7 +82,7 @@ async
         }
 
         var seed = await PreviewAsync(departure).ConfigureAwait(false);
-        var (days, daysKnown) = Pol.PolicyFunctions.TradeMissionRouteDays(seed, homeTile, settlement.Tile);
+        var (days, daysKnown) = Pol.TradePolicyRules.TradeMissionRouteDays(seed, homeTile, settlement.Tile);
         if (!daysKnown || seed.MassUsage is null || seed.MassCapacity is null
             || double.IsNaN(seed.MassUsage.GetValueOrDefault()) || double.IsNaN(seed.MassCapacity.GetValueOrDefault())
             || double.IsInfinity(seed.MassUsage.GetValueOrDefault()) || double.IsInfinity(seed.MassCapacity.GetValueOrDefault()) || seed.MassUsage.GetValueOrDefault() < 0)
@@ -109,7 +109,7 @@ async
             }
             seedFoodMass += mass * item.Count;
         }
-        var (food, foodSkip) = Pol.PolicyFunctions.TradeMissionFood(facts, crew, days, seed.MassCapacity.GetValueOrDefault() - seed.MassUsage.GetValueOrDefault() + seedFoodMass, thresholds);
+        var (food, foodSkip) = Pol.TradePolicyRules.TradeMissionFood(facts, crew, days, seed.MassCapacity.GetValueOrDefault() - seed.MassUsage.GetValueOrDefault() + seedFoodMass, thresholds);
         if (!foodSkip.IsNone)
         {
             throw new DomainException(foodSkip.Value);
@@ -120,7 +120,7 @@ async
             throw new DomainException("invalid_trade_pack");
         }
         var final = await PreviewAsync(departure).ConfigureAwait(false);
-        if (!Pol.PolicyFunctions.SafeTradeMissionPack(final, homeTile, settlement.Tile))
+        if (!Pol.TradePolicyRules.SafeTradeMissionPack(final, homeTile, settlement.Tile))
         {
             throw new DomainException("unsafe_trade_pack");
         }
@@ -145,7 +145,7 @@ async
             ReturnHome = true,
         };
         m.Validate();
-        (days, _) = Pol.PolicyFunctions.TradeMissionRouteDays(final, homeTile, settlement.Tile);
+        (days, _) = Pol.TradePolicyRules.TradeMissionRouteDays(final, homeTile, settlement.Tile);
         var option = new Pol.TradeAcquisitionOption
         {
             ID = "settlement:" + settlement.Id,

@@ -26,7 +26,7 @@ public sealed class ForecastObservedMealTests
                     Routes = [new("pawn", new(1, 1), new(1, 1), Known(0d)) { FromStart = true }] },
             },
         };
-        facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Day)!;
         Assert.Contains(candidates.Context.NeedTasks, n => n.Target == "meal-stack");
         return ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), 1, facts, 

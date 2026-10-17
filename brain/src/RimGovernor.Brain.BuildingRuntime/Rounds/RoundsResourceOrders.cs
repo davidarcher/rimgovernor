@@ -16,7 +16,7 @@ public sealed partial class RoundsResourcePlanner
                 var wort = projection.Facts.Items.Wort;
                 if (wort.Value == "")
                 {
-                    return PolicyFunctions.Abstaining(Cause.UnreadWort);
+                    return WorkRules.Abstaining(Cause.UnreadWort);
                 }
 
                 floors.Add(new ResourceFloor { Resource = wort, Target = target, Reserve = true });
@@ -26,6 +26,6 @@ public sealed partial class RoundsResourcePlanner
             floors.Add(new ResourceFloor { Resource = resource, Target = target });
         }
 
-        return PolicyFunctions.DeclareResourceOrders(new ResourceOrderRequest { Floors = [.. floors], Stock = projection.Resources, Benches = Known<EquatableArray<GearBench>>([.. benches]) });
+        return ResourceRules.DeclareResourceOrders(new ResourceOrderRequest { Floors = [.. floors], Stock = projection.Resources, Benches = Known<EquatableArray<GearBench>>([.. benches]) });
     }
 }

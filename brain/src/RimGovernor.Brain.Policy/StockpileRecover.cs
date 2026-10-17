@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Policy;
 // replacement is created with the declared filter and priority before the old zone is deleted, matched by
 // position), and a room that shrinks, or whose floor furniture now stands on, loses exactly those cells here.
 // Stock on a given-up cell drains by vanilla hauling: no haul action, no fill memory.
-public static partial class PolicyFunctions
+public static partial class StockpileRules
 {
     /// <summary>
     /// Reports a cell holding furniture a zone must stay off: a building, blueprint or frame that is not a
@@ -17,7 +17,7 @@ public static partial class PolicyFunctions
     {
         foreach (var t in c.Things)
         {
-            if ((t.Flags & (ThingMarks.Edifice | ThingMarks.Blueprint | ThingMarks.Frame)) != 0 && t.Def != ShelfDefinition)
+            if ((t.Flags & (ThingMarks.Edifice | ThingMarks.Blueprint | ThingMarks.Frame)) != 0 && t.Def != StorageRules.ShelfDefinition)
             {
                 return true;
             }
@@ -55,7 +55,7 @@ public static partial class PolicyFunctions
                     continue;
                 }
                 whole = true;
-                foreach (var c in WithoutCells(site.Footprint(), site.Avoid))
+                foreach (var c in StoreRules.WithoutCells(site.Footprint(), site.Avoid))
                 {
                     keep.Add(c);
                 }

@@ -86,7 +86,7 @@ public sealed record PermitIntent
     public PawnSettings Setting() => PawnSettings.NewChoosePermitSetting(Holder, Faction, Permit);
 }
 
-public static partial class PolicyFunctions
+public static partial class PermitChoiceRules
 {
     /// <summary>
     /// Classifies a permit by its worker class. A permit with no worker of its own (the passive trade
@@ -158,7 +158,7 @@ public static partial class PolicyFunctions
         var psycaster = f.Psycasts.Values.Any(casts => casts.Count > 0);
         var names = f.Permits.Keys.OrderBy(n => n, StringComparer.Ordinal).ToList();
         var result = new List<PermitChoice>();
-        foreach (var holder in SortedHolders(f.Holders))
+        foreach (var holder in TitleClaimRules.SortedHolders(f.Holders))
         {
             foreach (var h in f.Holders[holder])
             {

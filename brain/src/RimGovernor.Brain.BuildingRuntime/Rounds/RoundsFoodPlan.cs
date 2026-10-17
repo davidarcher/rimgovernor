@@ -98,7 +98,7 @@ public sealed partial class Rounder
     {
         var tk = p.Facts.Traders.TryGetValue(out var traders);
         var sk = p.Facts.Silver().TryGetValue(out var silver);
-        var (reserve, rk) = PolicyFunctions.TradeSilverReserve(p.Facts.Colonists);
+        var (reserve, rk) = TradePolicyRules.TradeSilverReserve(p.Facts.Colonists);
         var output = new FoodTrade { Revision = TradeOffers.Version() };
         if (tk && sk && rk)
         {
@@ -141,7 +141,7 @@ partial class Rounder
         var wk = p.Workers.TryGetValue(out var workers);
         if (p.WorkPawns.TryGetValue(out var workPawns))
         {
-            wk = PolicyFunctions.RoundsWorkers(workPawns).TryGetValue(out workers);
+            wk = ResearchRules.RoundsWorkers(workPawns).TryGetValue(out workers);
         }
 
         if (!wk)
@@ -168,9 +168,9 @@ partial class Rounder
         var hunters = 0;
         if (p.WorkPawns.TryGetValue(out var pawns))
         {
-            var profiles = PolicyFunctions.Profiles(pawns);
+            var profiles = PawnRules.Profiles(pawns);
             gunners = PolicyFunctions.ArmedHunters(profiles);
-            hunters = PolicyFunctions.Hunters(profiles);
+            hunters = PawnRules.Hunters(profiles);
         }
 
         var channels = new List<SupplyCandidate>();
@@ -232,7 +232,7 @@ partial class Rounder
             channels.AddRange(PolicyFunctions.AnimalProductChannels(PolicyFunctions.WithFeed(animals.AnimalProducts(), p.Facts.AnimalUpkeep.Animals)));
         }
 
-        channels.AddRange(PolicyFunctions.StockIngredientChannels(supply));
+        channels.AddRange(MealRules.StockIngredientChannels(supply));
         if (p.FoodFields.TryGetValue(out var fields))
         {
             channels.AddRange(PolicyFunctions.CropChannels(
@@ -279,7 +279,7 @@ partial class Rounder
                 offers.AddRange(PolicyFunctions.SlaughterFoodChannels(animals.Slaughter, p.Facts.AnimalUpkeep.Animals, HerdPlans.HerdPolicyOf(p.Facts, plan)));
             }
 
-            offers.AddRange(PolicyFunctions.TradeFoodChannels(trade.Offers, trade.Silver, trade.Reserve, plan.GapPerDay * plan.HorizonDays));
+            offers.AddRange(TradePolicyRules.TradeFoodChannels(trade.Offers, trade.Silver, trade.Reserve, plan.GapPerDay * plan.HorizonDays));
             var acquire = new AnimalAcquisition
             {
                 Races = p.Facts.AnimalUpkeep.AnimalRaces,

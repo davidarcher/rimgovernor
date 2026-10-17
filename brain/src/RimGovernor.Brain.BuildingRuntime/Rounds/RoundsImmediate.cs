@@ -115,7 +115,7 @@ public sealed partial class Rounder
             projection = projection with { LayoutPlan = Known(layoutPlan) };
             if (projection.Rooms.TryGetValue(out var rooms))
             {
-                projection = projection with { Rooms = Known(PolicyFunctions.MarkEnemyDoors(rooms, layoutPlan.KillboxCells())) };
+                projection = projection with { Rooms = Known(RoomsRules.MarkEnemyDoors(rooms, layoutPlan.KillboxCells())) };
             }
         }
 
@@ -132,7 +132,7 @@ public sealed partial class Rounder
         f = f with { DangerSeeds = SafeAreaMemory.DangerSeedFact(f.Hostiles, reading.Emergency.Threats) };
         f.DangerSeeds.TryGetValue(out var seeds);
         f = f with { DangerWindow = SafeArea.DangerWindow(RoundsStockpilePlanner.StockpileWorld(state.Snapshot), f.Hostiles, seeds, expected.Tick) };
-        f = f with { DangerHaulers = PolicyFunctions.DangerHaulers(projection.WorkPawns) };
+        f = f with { DangerHaulers = ShelterRules.DangerHaulers(projection.WorkPawns) };
         f = f with { Tick = expected.Tick };
         f = f with { Dash = PolicyFunctions.ReviewDash(previous.Latches.Dash, f, projection.WorkPawns, expected.Tick, PolicyFunctions.PublishedHypothermiaTuning) };
         f = f with { AvailableNeeds = AvailableNeeds };

@@ -18,7 +18,7 @@ public sealed class SleepingPlannerTests
 
     private static Rectangle Rect(int x, int width, int height) => new() { X = x, Z = 0, Width = width, Height = height };
 
-    private static PlannedRoom Planned(int id, PlannedRole role, Rectangle r) => new() { Id = id, Role = role, Region = RectRegion(r) };
+    private static PlannedRoom Planned(int id, PlannedRole role, Rectangle r) => new() { Id = id, Role = role, Region = RegionRules.RectRegion(r) };
 
     /// <summary>The planned room standing enclosed in the census, as a native Bedroom (a suite reads as one too).</summary>
     private static Room Standing(string id, PlannedRoom room, params string[] beds) => new()
@@ -34,7 +34,7 @@ public sealed class SleepingPlannerTests
     private static SleepingPerson Person(PawnId id, string bed) => new() { Id = id, OwnedBed = Known(bed) };
 
     private static BedroomStep Step(LayoutPlan plan, Room[] rooms, SleepingObservation sleeping, Dictionary<string, RoomTarget>? targets = null) =>
-        NextBedroomStep(plan, new RoomObservation { Rooms = [.. rooms] }, sleeping, targets ?? [], new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());
+        SleepingRules.NextBedroomStep(plan, new RoomObservation { Rooms = [.. rooms] }, sleeping, targets ?? [], new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());
 
     // sleeping/bedrooms: a shelter for two, then two bedroom-wing rooms in plan order.
     private static readonly PlannedRoom Shelter = Planned(1, PlannedShelter, Rect(0, 5, 5));
@@ -105,7 +105,7 @@ public sealed class SleepingPlannerTests
         var greedyTargets = new Dictionary<string, RoomTarget> { ["std"] = Target("std", 50, "greedy", "tier") };
 
         // The standard room cannot hold the floor Greedy needs: the suite is shelled first.
-        var claim = Assert.Single(SuiteClaims(plan, new RoomObservation { Rooms = [standard] }, greedy, greedyTargets, new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>()));
+        var claim = Assert.Single(RoomQualityRules.SuiteClaims(plan, new RoomObservation { Rooms = [standard] }, greedy, greedyTargets, new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>()));
         Assert.Equal((A, SuiteClaimReason.Floor), (claim.Pawn, claim.Reason));
         var shell = Step(plan, [standard], greedy, greedyTargets);
         Assert.Equal((BedroomStepKind.Reconcile, Suite.Id), (shell.Kind, shell.Room.Id));
@@ -127,9 +127,9 @@ public sealed class SleepingPlannerTests
             Rooms = Known<EquatableArray<UpkeepRoom>>([Quality("std", 30), Quality("suite", 55)]),
         };
         var baron = new Dictionary<string, RoomTarget> { ["suite"] = Target("suite", 70, "greedy", "tier", "title") };
-        var outgrown = Assert.Single(SuiteClaims(plan, rooms, inSuite, baron, new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>()));
+        var outgrown = Assert.Single(RoomQualityRules.SuiteClaims(plan, rooms, inSuite, baron, new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>()));
         Assert.Equal((A, "b2", SuiteClaimReason.TooSmall), (outgrown.Pawn, outgrown.Bed, outgrown.Reason));
-        Assert.Equal([new SuiteWish(70, Suite.Region.Area())], SuiteWishes(plan, rooms, inSuite, baron, [outgrown]));
+        Assert.Equal([new SuiteWish(70, Suite.Region.Area())], RoomQualityRules.SuiteWishes(plan, rooms, inSuite, baron, [outgrown]));
 
         // With the larger successor planned, it is the one shelled; the first suite is not touched and, slept in, stays
         // held where it stands, its plan row unchanged.
@@ -137,7 +137,7 @@ public sealed class SleepingPlannerTests
         var second = Step(replanned, [.. rooms.Rooms], inSuite, baron);
         Assert.Equal((BedroomStepKind.Reconcile, Larger.Id), (second.Kind, second.Room.Id));
         Assert.True(Larger.Region.Area() > Suite.Region.Area());
-        var slept = SleptBedrooms(replanned, Known(rooms), Known(inSuite));
+        var slept = SleepingRules.SleptBedrooms(replanned, Known(rooms), Known(inSuite));
         Assert.Equal([Suite.Id], slept);
         Assert.Contains(Suite.Id, TilePinned(replanned, new RoomGrowth { Fixed = [], Slept = slept }));
 

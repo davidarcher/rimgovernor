@@ -130,7 +130,7 @@ public sealed record MonolithAdvance
 /// containment is stable and no threat stands. An unread fact is a loud issue and holds the order, never a guess.
 /// The awakening quest already under way is walked at any stage.
 /// </summary>
-public static partial class PolicyFunctions
+public static partial class MonolithRules
 {
     /// <summary>MonolithLevelDefOf.VoidAwakened, the level whose activation is the awakening.</summary>
     public const string MonolithLevelVoidAwakened = "VoidAwakened";

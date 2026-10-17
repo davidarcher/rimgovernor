@@ -175,7 +175,7 @@ public sealed class BiotechRoyaltyFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-royalty-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
         Colony? colony = null;
         var runner = new FamilyRunner<RoyaltyFamilyFacts>(new RoyaltyFamily(true, false), (_, _) => Task.FromResult(colony!.Facts), RoyaltyRounds.Schedule);
         colony = new Colony { Journal = journal, Runner = runner };
@@ -238,7 +238,7 @@ public sealed class BiotechRoyaltyFamilyTests
     {
         var owed = Polluted(2, Pack("w1"));
         var plan = Assert.Single(new BiotechFamily(AllBiotech).Propose([Biotech(owed, BiotechFamily.Pollution)], owed)).Plan(new PlanId("p"));
-        var claims = MethodClaimsOf(new WorkAdmissionEvidence(), [.. plan.Actions.Select(a => new WorkAction(plan.Id, a, new ProgressView { Action = a.Id, Stage = Stage.Pending }))]);
+        var claims = MethodClaimsRules.MethodClaimsOf(new WorkAdmissionEvidence(), [.. plan.Actions.Select(a => new WorkAction(plan.Id, a, new ProgressView { Action = a.Id, Stage = Stage.Pending }))]);
         Assert.Contains("w1", claims.Targets);
         Assert.Contains(claims.Targets, t => t.StartsWith("area/pollution", StringComparison.Ordinal));
     }

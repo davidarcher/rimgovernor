@@ -48,9 +48,9 @@ public sealed record RefrigerationCooler
     /// <summary>The typed thermal-side fact when the reader supplies it; otherwise the hot cell is classified from the site cells and rooms.</summary>
     public Fact<bool> HotIndoors { get; init; }
 
-    public Cell Cold() => PolicyFunctions.Step(Position, PolicyFunctions.Facing(Rotation), -1);
+    public Cell Cold() => RefrigerationRules.Step(Position, RefrigerationRules.Facing(Rotation), -1);
 
-    public Cell Hot() => PolicyFunctions.Step(Position, PolicyFunctions.Facing(Rotation), 1);
+    public Cell Hot() => RefrigerationRules.Step(Position, RefrigerationRules.Facing(Rotation), 1);
 }
 
 public sealed record RefrigerationObservation
@@ -156,7 +156,7 @@ public sealed record RefrigerationProposal
     public double TargetC { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class RefrigerationRules
 {
     /// <summary>
     /// A stock's contribution to the review: known perishable, unrotted, roofed, with a known room, whose

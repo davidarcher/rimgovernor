@@ -12,7 +12,7 @@ internal static class ColonyPlanCut
         var output = new PerimeterWall(Unknown<double>(), Unknown<double>());
         foreach (var d in projection.Definitions)
         {
-            if (d.Name != PolicyFunctions.PerimeterDefs().WallDef)
+            if (d.Name != PerimeterCutRules.PerimeterDefs().WallDef)
             {
                 continue;
             }
@@ -47,7 +47,7 @@ internal static class ColonyPlanCut
     /// </summary>
     public static void LogPerimeterCut(LayoutPlan plan, MapSurvey survey, PerimeterWall wall, int colonists)
     {
-        foreach (var d in PolicyFunctions.PlanPerimeterCut(plan, survey, wall).Decisions)
+        foreach (var d in PerimeterCutRules.PlanPerimeterCut(plan, survey, wall).Decisions)
         {
             var attrs = new Dictionary<string, object?> { ["colonists"] = colonists };
             foreach (var (k, v) in d.Attrs)

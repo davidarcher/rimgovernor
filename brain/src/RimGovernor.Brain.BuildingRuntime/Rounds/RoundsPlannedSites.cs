@@ -19,18 +19,18 @@ public sealed partial class Rounder
         var sites = new List<PlannedBuildSite>(roomSites);
         if (shelves.Count > 0)
         {
-            var stuff = colony.BuildStuff(PolicyApi.ShelfDefinition);
-            sites.AddRange(PolicyApi.ShelfPlannedSites(shelves, PlannedRingPrice(colony, PolicyApi.ShelfDefinition, stuff)));
+            var stuff = colony.BuildStuff(StorageRules.ShelfDefinition);
+            sites.AddRange(PlannedRules.ShelfPlannedSites(shelves, PlannedRingPrice(colony, StorageRules.ShelfDefinition, stuff)));
         }
-        var asked = PolicyApi.PlannedSiteRequest(sites);
+        var asked = PlannedRules.PlannedSiteRequest(sites);
         var read = asked.Count == 0 ? null
             : await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Planned = asked }, ct).ConfigureAwait(false);
-        var joined = PolicyApi.JoinPlannedSites(sites, read);
+        var joined = PlannedRules.JoinPlannedSites(sites, read);
         // Routes between the answered sites (#3313): their sources and clearing are known only once the sites are.
-        var probes = PolicyApi.PlannedRouteProbes(joined.Sites);
+        var probes = PlannedRules.PlannedRouteProbes(joined.Sites);
         var routes = probes.Count == 0 ? null
             : await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Routes = probes }, ct).ConfigureAwait(false);
-        return Known(PolicyApi.JoinPlannedRoutes(joined, probes, routes));
+        return Known(PlannedRules.JoinPlannedRoutes(joined, probes, routes));
     }
 
     /// <summary>One construction activity read of planned sites or routes; null without the read.</summary>
@@ -42,7 +42,7 @@ public sealed partial class Rounder
     /// <summary>The plan's owed operations as planned sites (PlannedSitesOf), unread; null while the plan or the construction census is unknown.</summary>
     internal static IReadOnlyList<PlannedBuildSite>? PlannedRoomSitesOf(ColonyProjection colony, FlooringPolicy flooring) =>
         PlannedOwedOf(colony, flooring) is not { } owed ? null
-            : PolicyApi.PlannedSitesOf(owed.Sited, room => PlannedRingStuffsOf(colony, room),
+            : PlannedRules.PlannedSitesOf(owed.Sited, room => PlannedRingStuffsOf(colony, room),
                 (def, stuff) => PlannedRingPrice(colony, def, stuff), def => PlannedPiecePrice(colony, def), owed.FloorPrice,
                 ClimateDefs().VentDef, owed.Placed);
 
@@ -90,7 +90,7 @@ public sealed partial class Rounder
         {
             return [];
         }
-        return PolicyApi.PlannedRingStuffs(options);
+        return PlannedRules.PlannedRingStuffs(options);
     }
 
     /// <summary>The stuff def is built from for a wanted stuff ("" for a def made from no stuff) and its cost list; null where the def is unavailable or cannot be made from it.</summary>

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class SafetyOverlayRules
 {
     /// <summary>The overlay layer the safety assessment draws on.</summary>
     public const string SafetyLayer = "safety";

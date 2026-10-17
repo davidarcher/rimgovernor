@@ -77,7 +77,7 @@ public sealed class UnsafeLootSafeguard : ISafeguard
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class SafeguardsRules
 {
     /// <summary>The veto registry: every admission Safeguard, asked in order.</summary>
     public static readonly IReadOnlyList<ISafeguard> Safeguards = [new PauseSafeguard(), new UnsafeLootSafeguard()];

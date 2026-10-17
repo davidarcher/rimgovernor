@@ -53,7 +53,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         List<PerimeterSection> sections;
         try
         {
-            sections = PolicyApi.PerimeterPrisonTurrets(plan, q.Definition, q.Stuff, q.Conduit, q.Transmitters).ToList();
+            sections = PrisonLayoutRules.PerimeterPrisonTurrets(plan, q.Definition, q.Stuff, q.Conduit, q.Transmitters).ToList();
         }
         catch (DomainException)
         {

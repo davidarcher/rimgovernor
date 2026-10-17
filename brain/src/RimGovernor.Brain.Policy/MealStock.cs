@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Ports <c>meal_stock.go</c>.</summary>
-public static partial class PolicyFunctions
+public static partial class MealRules
 {
     /// <summary>
     /// Reports accessible ingredients without inventing a replenishment rate or counting stored nutrition twice in FoodPlan.
@@ -89,7 +89,7 @@ public static partial class PolicyFunctions
         {
             foreach (var bill in bench.Bills)
             {
-                if (!Positive(bill.Active))
+                if (!RoundsRules.Positive(bill.Active))
                 {
                     continue;
                 }
@@ -102,7 +102,7 @@ public static partial class PolicyFunctions
                     }
                     var product = recipe.Products[0];
                     var nk = product.Nutrition.TryGetValue(out var n);
-                    if (!nk || !FieldPositive(n) || !Positive(product.Edible))
+                    if (!nk || !FieldPositive(n) || !RoundsRules.Positive(product.Edible))
                     {
                         continue;
                     }
@@ -123,7 +123,7 @@ public static partial class PolicyFunctions
         {
             foreach (var bill in bench.Bills)
             {
-                if (!Positive(bill.Active))
+                if (!RoundsRules.Positive(bill.Active))
                 {
                     continue;
                 }

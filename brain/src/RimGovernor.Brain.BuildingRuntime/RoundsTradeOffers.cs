@@ -60,7 +60,7 @@ internal sealed partial class TradeOfferBook
                     _revision++;
                     continue;
                 }
-                if (t.CanTrade && Pol.PolicyFunctions.TradeOffersFresh(record, now, silver, t.GoodsStacks))
+                if (t.CanTrade && Pol.TradePolicyRules.TradeOffersFresh(record, now, silver, t.GoodsStacks))
                 {
                     output.Add(record);
                 }
@@ -165,7 +165,7 @@ partial class TradeOfferBook
         {
             Food = need.Food with { Nutrition = food },
             Shortfall = kept,
-            ComponentShortfall = Math.Min(need.ComponentShortfall, planned.GetValueOrDefault(Pol.PolicyFunctions.ComponentResource)),
+            ComponentShortfall = Math.Min(need.ComponentShortfall, planned.GetValueOrDefault(Pol.TradePolicyRules.ComponentResource)),
         };
     }
 }

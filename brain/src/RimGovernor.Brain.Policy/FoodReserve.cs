@@ -281,7 +281,7 @@ public static partial class PolicyFunctions
                             continue;
                         }
                         exists = true;
-                        if (other.Id == bench.Id && !BillAdequate(bill, selected) && FoodId(bill.Id) && (selected.Replace.Length == 0 || string.CompareOrdinal(bill.Id, selected.Replace) < 0))
+                        if (other.Id == bench.Id && !ProductionRules.BillAdequate(bill, selected) && FoodId(bill.Id) && (selected.Replace.Length == 0 || string.CompareOrdinal(bill.Id, selected.Replace) < 0))
                         {
                             selected = selected with { Replace = bill.Id };
                         }

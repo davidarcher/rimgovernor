@@ -20,7 +20,7 @@ public sealed class UnfinishedMaterialTests
     private static ProductionBatchState State(int remaining, string item = "unfinished") => new("bill", Known(true), Known(remaining), Known(false), Known(false))
     { UnfinishedWork = Known(new ProductionUnfinishedWork(item, item.Length == 0 ? [] : [new(Material, 10)])) };
     private static Fact<EquatableArray<ForecastCommitment>> Promises(ProductionBatchState state, ProductionBatch? batch = null) =>
-        ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([batch ?? Batch]), Known<EquatableArray<ProductionBatchState>>([state]));
+        ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([batch ?? Batch]), Known<EquatableArray<ProductionBatchState>>([state]));
     private static RoundsFacts Facts(ProductionBatchState state, long loose = 90) => new()
     {
         ProductionPromises = Promises(state), BillReservations = Known(default(EquatableArray<IngredientReservation>)),
@@ -31,14 +31,14 @@ public sealed class UnfinishedMaterialTests
     [Fact]
     public void StartingWorkMovesInputsOutOfStockWithoutChargingTheIterationAgain()
     {
-        var before = ResourceDemandOf(Facts(State(3, ""), 100), DefaultRoundsPolicy(), new());
-        var started = ResourceDemandOf(Facts(State(3)), DefaultRoundsPolicy(), new());
+        var before = ResourceRules.ResourceDemandOf(Facts(State(3, ""), 100), RoundsRules.DefaultRoundsPolicy(), new());
+        var started = ResourceRules.ResourceDemandOf(Facts(State(3)), RoundsRules.DefaultRoundsPolicy(), new());
         Assert.Equal(30, before.MaterialAvailability.Value[Material].Value);
         Assert.Equal(30, started.MaterialAvailability.Value[Material].Value);
         Assert.Equal(60, started.Needs[Material]);
         Assert.Equal(60, started.Retained.Value[Material]);
-        Assert.True(MaterialBudgetCovers(started.MaterialAvailability.Value, [new(Material, 30)], 1));
-        Assert.False(MaterialBudgetCovers(started.MaterialAvailability.Value, [new(Material, 31)], 1));
+        Assert.True(ProductionRules.MaterialBudgetCovers(started.MaterialAvailability.Value, [new(Material, 30)], 1));
+        Assert.False(ProductionRules.MaterialBudgetCovers(started.MaterialAvailability.Value, [new(Material, 31)], 1));
     }
 
     [Fact]
@@ -58,10 +58,10 @@ public sealed class UnfinishedMaterialTests
         var cancelled = Batch with { Progress = Batch.Progress with { Stage = Stage.Cancelled } };
         Assert.Equal(20, Promises(State(3), cancelled).Value[0].MaterialClaims[0].Units.Value);
         // Destroying only the unfinished item restores the full remaining obligation; recovery is observed stock only.
-        var lost = ResourceDemandOf(Facts(State(3, "")), DefaultRoundsPolicy(), new());
+        var lost = ResourceRules.ResourceDemandOf(Facts(State(3, "")), RoundsRules.DefaultRoundsPolicy(), new());
         Assert.Equal(20, lost.MaterialAvailability.Value[Material].Value);
-        var removed = ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([cancelled]), Known(default(EquatableArray<ProductionBatchState>)));
-        var demand = ResourceDemandOf(Facts(State(3)) with { ProductionPromises = removed }, DefaultRoundsPolicy(), new());
+        var removed = ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([cancelled]), Known(default(EquatableArray<ProductionBatchState>)));
+        var demand = ResourceRules.ResourceDemandOf(Facts(State(3)) with { ProductionPromises = removed }, RoundsRules.DefaultRoundsPolicy(), new());
         Assert.Equal(50, demand.MaterialAvailability.Value[Material].Value);
     }
 
@@ -86,9 +86,9 @@ public sealed class UnfinishedMaterialTests
     {
         var facts = Facts(State(3)) with { BillReservations = Known<EquatableArray<IngredientReservation>>([
             new() { Bill = Known("bill"), Pawn = new RimGovernor.Brain.Domain.PawnId("worker"), Items = [new(Material, 10)] }]) };
-        Assert.Equal(30, ResourceDemandOf(facts, DefaultRoundsPolicy(), new()).MaterialAvailability.Value[Material].Value);
+        Assert.Equal(30, ResourceRules.ResourceDemandOf(facts, RoundsRules.DefaultRoundsPolicy(), new()).MaterialAvailability.Value[Material].Value);
         var last = facts with { ProductionPromises = Promises(State(1)) };
-        Assert.Equal(40, ResourceDemandOf(last, DefaultRoundsPolicy(), new()).MaterialAvailability.Value[Material].Value);
+        Assert.Equal(40, ResourceRules.ResourceDemandOf(last, RoundsRules.DefaultRoundsPolicy(), new()).MaterialAvailability.Value[Material].Value);
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public sealed class UnfinishedMaterialTests
     {
         Assert.False(Promises(State(3) with { UnfinishedWork = default }).Value[0].MaterialClaims[0].Units.IsKnown);
         var second = Batch with { Progress = Batch.Progress with { Action = new ActionId("second"), Bill = Known("second-bill") } };
-        Assert.Throws<DomainException>(() => ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([Batch, second]),
+        Assert.Throws<DomainException>(() => ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([Batch, second]),
             Known<EquatableArray<ProductionBatchState>>([State(3), State(3) with { Id = "second-bill" }])));
         var malformed = State(3) with { UnfinishedWork = Known(new ProductionUnfinishedWork("", [new(Material, 10)])) };
         Assert.Throws<DomainException>(() => Promises(malformed));

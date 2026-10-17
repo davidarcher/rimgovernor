@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class SocialCropsRules
 {
     public static bool BrewingFinished(Fact<ResearchFacts> research)
     {

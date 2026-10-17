@@ -247,7 +247,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static Fact<DashWindow> ReviewDash(DashWindow held, RoundsFacts f, Fact<EquatableArray<WorkPawn>> pawns, Tick now, HypothermiaTuning tuning)
     {
-        var hk = OutdoorHazardsOf(f).TryGetValue(out var hazards);
+        var hk = OutdoorHazardRules.OutdoorHazardsOf(f).TryGetValue(out var hazards);
         var ok = f.Hostiles.TryGetValue(out var hostiles);
         var pk = pawns.TryGetValue(out var rows);
         if (!hk || !ok || !pk)

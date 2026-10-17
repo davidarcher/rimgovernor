@@ -34,7 +34,7 @@ public static partial class PolicyFunctions
     /// <summary>The temperature range pawns are comfortable in: the temperature planner's cold and hot limits.</summary>
     public static Band ComfortBand()
     {
-        var p = DefaultRoundsPolicy();
+        var p = RoundsRules.DefaultRoundsPolicy();
         return new Band { MinC = p.ColdEnter, MaxC = p.HotEnter };
     }
 
@@ -65,6 +65,6 @@ public static partial class PolicyFunctions
         }
 
         // an outdoor room holds no roof
-        return new RoofResult { Roofed = RegionOf([.. cells.Where(c => !outdoor.Contains(c))]) };
+        return new RoofResult { Roofed = RegionRules.RegionOf([.. cells.Where(c => !outdoor.Contains(c))]) };
     }
 }

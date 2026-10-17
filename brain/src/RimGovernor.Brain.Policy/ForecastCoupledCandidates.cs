@@ -32,10 +32,10 @@ public sealed partial record ForecastCoupledCandidates
                 && !resources.Claims.Targets.Contains(o.Source) && !resources.Claims.Targets.Contains(o.Bench)
                 && !resources.Claims.Targets.Contains(o.Bill)))
         };
-        if (!NeedEnabled(FoodSupplyNeed) || OutdoorAcquisitionHeld(facts))
+        if (!NeedEnabled(FoodSupplyNeed) || OutdoorHazardRules.OutdoorAcquisitionHeld(facts))
             read = read with { Food = read.Food with { Options = [] }, FoodConversions = [] };
         // An unplaced planned shelter's cells and planned heater come from the round's planned thermal read (#3323).
-        read = read with { Thermal = WithPlannedThermal(read.Thermal, facts.PlannedThermal) };
+        read = read with { Thermal = PlannedRules.WithPlannedThermal(read.Thermal, facts.PlannedThermal) };
         var shelterEnabled = NeedEnabled(ShelterFamily.Starter) || NeedEnabled(ShelterFamily.Sleeping) || NeedEnabled(ShelterFamily.Expansion)
             || NeedEnabled(ShelterFamily.SafeArea) || NeedEnabled(ShelterFamily.Temperature);
         if (!shelterEnabled)
@@ -49,7 +49,7 @@ public sealed partial record ForecastCoupledCandidates
         var plannedFindings = new List<string>();
         var plannedSites = shelterEnabled && facts.PlannedSites.TryGetValue(out var plannedFacts) ? plannedFacts.Sites : [];
         if (shelterEnabled && !facts.PlannedSites.IsKnown) plannedFindings.Add("planned_sites_unknown");
-        var plannedAlternatives = PlannedRoomAlternatives(plannedSites);
+        var plannedAlternatives = PlannedRules.PlannedRoomAlternatives(plannedSites);
         plannedFindings.AddRange(plannedAlternatives.Findings);
         var planned = Methods.Generation.PlannedRoomCandidates.Generate(plannedSites, plannedAlternatives.Alternatives,
             shelterEnabled && facts.PlannedSites.TryGetValue(out var plannedRoutes) ? plannedRoutes.Routes : [], read.Thermal, resources,

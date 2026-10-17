@@ -202,7 +202,7 @@ public static class RoundsReads
                 Facts = p.Facts with
                 {
                     MoodPawns = Known<EquatableArray<MoodPawn>>([]),
-                    MoodLedger = Known(PolicyFunctions.BuildMoodLedger([], new Dictionary<string, ThoughtFacts>())),
+                    MoodLedger = Known(MoodRules.BuildMoodLedger([], new Dictionary<string, ThoughtFacts>())),
                 },
             };
         }
@@ -211,14 +211,14 @@ public static class RoundsReads
         {
             Facts = p.Facts with
             {
-                MechChargerOwed = PolicyFunctions.MechChargerNeed(p.Mechs, BiotechColonyReads.MechChargerFact(p.Biotech)),
+                MechChargerOwed = MechRules.MechChargerNeed(p.Mechs, BiotechColonyReads.MechChargerFact(p.Biotech)),
                 GeneBankOwed = PolicyFunctions.GeneBankNeed(BiotechColonyReads.GeneBankFact(p.Biotech)),
                 RecoveryWorkers = ColonyFramesReads.RecoveryWorkers(p.Facts.MoodPawns),
                 Gear = ColonyGearReads.RoundsGear(p.Facts.Gear, emergency),
                 Research = FrameResearch(frame.Research),
             },
         };
-        p = p with { TechTier = PolicyFunctions.SelectTechTier(FinishedResearch(p.Facts.Research), p.PlayerTechLevel) };
+        p = p with { TechTier = TechTierRules.SelectTechTier(FinishedResearch(p.Facts.Research), p.PlayerTechLevel) };
         p = p with
         {
             Facts = p.Facts with
@@ -325,7 +325,7 @@ public static class RoundsReads
                     temperature = Known(planned);
                 }
             }
-            var (sleepingMin, sleepingMax) = PolicyFunctions.TemperatureRange(temperature);
+            var (sleepingMin, sleepingMax) = TemperatureMethodRules.TemperatureRange(temperature);
             p = p with
             {
                 Rooms = temperature,

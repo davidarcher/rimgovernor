@@ -31,7 +31,7 @@ public sealed record GearStore
         {
             throw new NoArmorDefsException();
         }
-        var (weapons, apparel) = PolicyFunctions.GearFilters(items.Armor);
+        var (weapons, apparel) = StoreRules.GearFilters(items.Armor);
         return new GearStore { Weapons = weapons, Apparel = apparel };
     }
 }
@@ -45,17 +45,17 @@ public readonly record struct GearPatches(Rectangle? Apparel, Rectangle? Weapons
         var cells = new List<Cell>();
         if (Apparel is { } a)
         {
-            cells.AddRange(PolicyFunctions.RectCells(a));
+            cells.AddRange(PlannedRules.RectCells(a));
         }
         if (Weapons is { } w)
         {
-            cells.AddRange(PolicyFunctions.RectCells(w));
+            cells.AddRange(PlannedRules.RectCells(w));
         }
         return cells;
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class StoreRules
 {
     /// <summary>The side of a gear zone's square patch.</summary>
     internal const int GearPatchSize = 3;
@@ -68,15 +68,15 @@ public static partial class PolicyFunctions
     /// </summary>
     public static GearPatches GearPatchesOf(LayoutPlan plan)
     {
-        var prisons = PrisonCells(plan);
+        var prisons = PrisonLayoutRules.PrisonCells(plan);
         var rooms = plan.Rooms.Where(p => p.Role == PlannedRole.Storage).ToList();
         Rectangle? apparel = null;
         Rectangle? weapons = null;
         foreach (var room in rooms)
         {
-            var floor = CellSet(room.Region.Cells());
+            var floor = StockpileRules.CellSet(room.Region.Cells());
             apparel ??= FirstSquare(floor, [], []);
-            weapons ??= FirstSquare(floor, apparel is { } a ? RectCells(a) : [], prisons);
+            weapons ??= FirstSquare(floor, apparel is { } a ? PlannedRules.RectCells(a) : [], prisons);
         }
         return new GearPatches(apparel, weapons);
     }
@@ -84,12 +84,12 @@ public static partial class PolicyFunctions
     /// <summary>The first GearPatchSize square, in row order, whose cells all lie in floor, none in taken and none near a prison.</summary>
     private static Rectangle? FirstSquare(HashSet<Cell> floor, IReadOnlyList<Cell> taken, IReadOnlyList<Cell> prisons)
     {
-        var skip = CellSet(taken);
+        var skip = StockpileRules.CellSet(taken);
         foreach (var origin in floor.OrderBy(c => c.Z).ThenBy(c => c.X))
         {
             var square = new Rectangle(origin.X, origin.Z, GearPatchSize, GearPatchSize);
-            var cells = RectCells(square);
-            if (cells.All(floor.Contains) && !cells.Any(skip.Contains) && (prisons.Count == 0 || !NearPrison(cells, prisons)))
+            var cells = PlannedRules.RectCells(square);
+            if (cells.All(floor.Contains) && !cells.Any(skip.Contains) && (prisons.Count == 0 || !PrisonLayoutRules.NearPrison(cells, prisons)))
             {
                 return square;
             }

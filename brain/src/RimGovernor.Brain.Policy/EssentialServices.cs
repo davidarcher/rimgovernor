@@ -114,18 +114,18 @@ public static partial class PolicyFunctions
         // The medical family's Needs (#3258): the critical census as one row (the review counts the patients, it
         // does not name them), then surgery and reserves; medicineActive is the review's medicine latch.
         var medical = MedicalFacts.From(facts, policy, medicineActive);
-        NeedOwner(EssentialService.Medical, CriticalCensusNeedOf(facts.CriticalPatients));
-        NeedOwner(EssentialService.Medical, SurgeryNeedOf(medical));
-        NeedOwner(EssentialService.Medical, MedicalReservesNeedOf(medical));
+        NeedOwner(EssentialService.Medical, MedicalRules.CriticalCensusNeedOf(facts.CriticalPatients));
+        NeedOwner(EssentialService.Medical, MedicalRules.SurgeryNeedOf(medical));
+        NeedOwner(EssentialService.Medical, MedicalRules.MedicalReservesNeedOf(medical));
         var shelter = ShelterFacts.From(facts, policy);
-        NeedOwner(EssentialService.Shelter, StarterShelterNeedOf(shelter));
-        NeedOwner(EssentialService.Shelter, SleepingNeedOf(shelter, true));
-        NeedOwner(EssentialService.Shelter, ExpansionNeedOf(shelter, true, true));
-        NeedOwner(EssentialService.Shelter, SafeAreaNeedOf(shelter));
-        NeedOwner(EssentialService.Temperature, TemperatureNeedOf(shelter));
+        NeedOwner(EssentialService.Shelter, ShelterRules.StarterShelterNeedOf(shelter));
+        NeedOwner(EssentialService.Shelter, ShelterRules.SleepingNeedOf(shelter, true));
+        NeedOwner(EssentialService.Shelter, ShelterRules.ExpansionNeedOf(shelter, true, true));
+        NeedOwner(EssentialService.Shelter, ShelterRules.SafeAreaNeedOf(shelter));
+        NeedOwner(EssentialService.Temperature, ShelterRules.TemperatureNeedOf(shelter));
         NeedOwner(EssentialService.Food, FoodStorageNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
         NeedOwner(EssentialService.Food, RefrigerationNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
-        NeedOwner(EssentialService.Power, PowerNeedOf(PowerFacts.From(facts)));
+        NeedOwner(EssentialService.Power, PowerRules.PowerNeedOf(PowerFacts.From(facts)));
         NeedOwner(EssentialService.Logistics, LayoutFamily.RoutesNeed(Known(LayoutFamily.RoutesStandingOf(facts.Upkeep.Routes, facts.Upkeep.Rooms, policy))));
         NeedOwner(EssentialService.Materials, ResourceNeedOf(ResourceFacts.From(facts, demand)));
 
@@ -252,11 +252,11 @@ public static partial class PolicyFunctions
         foreach (var patient in patients.OrderBy(p => p.Id.Value, StringComparer.Ordinal))
         {
             if (patient.QuestProtected || !patient.Dead.TryGetValue(out var dead) || dead || !patient.Operations.TryGetValue(out var operations)) continue;
-            foreach (var group in operations.Where(o => ServedSurgery(patient, o) is { Known: true, Weight: > 0 })
+            foreach (var group in operations.Where(o => SurgeryRules.ServedSurgery(patient, o) is { Known: true, Weight: > 0 })
                 .GroupBy(o => o.PartIndex.IsKnown ? o.PartIndex.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "whole")
                 .OrderBy(g => g.Key, StringComparer.Ordinal))
             {
-                var target = new ServiceTarget(SurgeryNeed.FilingKey, patient.Id.Value + "/" + group.Key, "served_procedure_feasible", default);
+                var target = new ServiceTarget(MedicalRules.SurgeryNeed.FilingKey, patient.Id.Value + "/" + group.Key, "served_procedure_feasible", default);
                 var options = group.ToArray();
                 (ServiceCoverage, EquatableArray<string>) Assess(string excluded)
                 {
@@ -273,7 +273,7 @@ public static partial class PolicyFunctions
                             var chances = operation.DoctorChances.Where(d => d.Key.Value != excluded).Select(d => d.Value).ToArray();
                             current = operation with { EligibleDoctors = Known(chances.Length), SuccessChance = chances.Length > 0 ? Known(chances.Max()) : default };
                         }
-                        if (SurgeryAcceptable(current, RestoreFailureCap)) return (ServiceCoverage.Adequate, []);
+                        if (SurgeryRules.SurgeryAcceptable(current, SurgeryRules.RestoreFailureCap)) return (ServiceCoverage.Adequate, []);
                         if (!current.EligibleDoctors.IsKnown || current.EligibleDoctors.Value > 0 && !current.SuccessChance.IsKnown) unknown = true;
                     }
                     return unknown ? (ServiceCoverage.Unknown, ["procedure_eligibility_ingredients_or_doctor_chances"]) : (ServiceCoverage.Shortfall, []);
@@ -325,7 +325,7 @@ public static partial class PolicyFunctions
         {
             scenario(ServiceTarget.ForNeed(PowerFamily.Basic, "", "owner_power_coverage"), "facility/" + generator.Id, () =>
             {
-                var coverage = PowerCoverage([.. power.Buildings.Where(b => b.Id != generator.Id)]);
+                var coverage = PowerRules.PowerCoverage([.. power.Buildings.Where(b => b.Id != generator.Id)]);
                 if (!coverage.Headroom.IsKnown) return (ServiceCoverage.Unknown, ["power_network_output"]);
                 return (coverage.Headroom.Value >= 0 ? ServiceCoverage.Adequate : ServiceCoverage.Shortfall, []);
             });

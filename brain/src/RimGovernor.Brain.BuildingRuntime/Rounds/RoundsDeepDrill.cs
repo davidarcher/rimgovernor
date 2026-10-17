@@ -271,7 +271,7 @@ partial class RoundsResourcePlanner
         var known = f.DeepResources.TryGetValue(out var deep);
         var ak = f.DefinitionAvailable("DeepDrill").TryGetValue(out var available);
         var planned = f.Center().TryGetValue(out var center);
-        if (!planned || !known || PolicyApi.ResearchGate(["DeepDrilling", "GroundPenetratingScanner"], f.Facts.Research) != "" || !ak || !available)
+        if (!planned || !known || ResearchRules.ResearchGate(["DeepDrilling", "GroundPenetratingScanner"], f.Facts.Research) != "" || !ak || !available)
         {
             return [];
         }

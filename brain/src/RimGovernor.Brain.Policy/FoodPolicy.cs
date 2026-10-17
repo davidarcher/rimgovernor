@@ -383,7 +383,7 @@ public static partial class PolicyFunctions
             PawnSettings? assign = null;
             try
             {
-                if (own.Count == 0 || !SortedCopy(own[0].Allowed).SequenceEqual(row.Want, StringComparer.Ordinal))
+                if (own.Count == 0 || !ReadingPolicyRules.SortedCopy(own[0].Allowed).SequenceEqual(row.Want, StringComparer.Ordinal))
                 {
                     write = new FoodPolicy(name, row.Want);
                 }

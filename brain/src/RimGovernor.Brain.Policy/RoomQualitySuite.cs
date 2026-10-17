@@ -39,7 +39,7 @@ public sealed record SuiteClaim
     public SuiteClaimReason Reason { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class RoomQualityRules
 {
     /// <summary>The interior area whose space alone meets target (see SuiteSize), before snapping.</summary>
     internal static int SuiteCells(double target)
@@ -139,7 +139,7 @@ public static partial class PolicyFunctions
             }
             output.Add(new SuiteClaim { Pawn = s.Owner, Bed = s.Bed, Target = t.Min, Reason = reason });
         }
-        return OrderSuiteClaims(output, pressure);
+        return SuitePriorityRules.OrderSuiteClaims(output, pressure);
     }
 
     /// <summary>Whether Greedy, Jealous or a title raised the target above the tier baseline (RoomQualityTargets names them only then).</summary>

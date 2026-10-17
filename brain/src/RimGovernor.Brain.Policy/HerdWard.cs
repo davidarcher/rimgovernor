@@ -31,12 +31,12 @@ public sealed partial record LayoutPlan
         var set = new HashSet<Cell>();
         foreach (var room in Hospitals())
         {
-            foreach (var c in PolicyFunctions.RectCells(room.Region.Bounds()))
+            foreach (var c in PlannedRules.RectCells(room.Region.Bounds()))
             {
                 set.Add(c);
             }
         }
-        return PolicyFunctions.SortedCells(set);
+        return PlannedRules.SortedCells(set);
     }
 
     /// <summary>The plan's hospital rooms, in plan order.</summary>
@@ -124,7 +124,7 @@ public static partial class PolicyFunctions
         var blocked = new HashSet<Cell>();
         foreach (var p in human.Pieces)
         {
-            foreach (var c in RectCells(p.Rect))
+            foreach (var c in PlannedRules.RectCells(p.Rect))
             {
                 blocked.Add(c);
             }
@@ -153,7 +153,7 @@ public static partial class PolicyFunctions
         var @out = new List<InteriorPiece>();
         foreach (var r in ordered)
         {
-            var cells = RectCells(r);
+            var cells = PlannedRules.RectCells(r);
             var free = true;
             foreach (var c in cells)
             {
@@ -184,7 +184,7 @@ public static partial class PolicyFunctions
         var beds = new List<IReadOnlyList<Cell>> { cells };
         foreach (var p in placed)
         {
-            beds.Add(RectCells(p.Rect));
+            beds.Add(PlannedRules.RectCells(p.Rect));
         }
         foreach (var bed in beds)
         {
@@ -209,7 +209,7 @@ public static partial class PolicyFunctions
     {
         foreach (var b in built)
         {
-            if (b.Building!.Definition != def || b.Cells.Count == 0 || !RectInside(room.Region.Bounds(), CellsRectangle(b.Cells)))
+            if (b.Building!.Definition != def || b.Cells.Count == 0 || !RectInside(room.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells)))
             {
                 continue;
             }
@@ -242,7 +242,7 @@ public static partial class PolicyFunctions
             }
             foreach (var b in built)
             {
-                if (b.Building!.Definition != animalBed || b.Cells.Count == 0 || !RectInside(room.Region.Bounds(), CellsRectangle(b.Cells)))
+                if (b.Building!.Definition != animalBed || b.Cells.Count == 0 || !RectInside(room.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells)))
                 {
                     continue;
                 }
@@ -285,9 +285,9 @@ public static partial class PolicyFunctions
         var standing = new List<WantedPiece>();
         foreach (var b in built)
         {
-            if (b.Building!.Definition == bed.Def && b.Cells.Count > 0 && RectInside(room.Region.Bounds(), CellsRectangle(b.Cells)))
+            if (b.Building!.Definition == bed.Def && b.Cells.Count > 0 && RectInside(room.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells)))
             {
-                var r = CellsRectangle(b.Cells);
+                var r = PlacementSearchRules.CellsRectangle(b.Cells);
                 standing.Add(
                     new WantedPiece
                     {
@@ -307,7 +307,7 @@ public static partial class PolicyFunctions
             {
                 break;
             }
-            if (RectCells(p.Rect).Any(taken.Contains))
+            if (PlannedRules.RectCells(p.Rect).Any(taken.Contains))
             {
                 continue;
             }

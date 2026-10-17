@@ -336,7 +336,7 @@ public static partial class PolicyFunctions
         }
         if (bunkDef == string.Empty)
         {
-            bunkDef = SleepingSpotDefinition;
+            bunkDef = SleepingRules.SleepingSpotDefinition;
         }
         var n = room.Occupants;
         if (n <= 0)

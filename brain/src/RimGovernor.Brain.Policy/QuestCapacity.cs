@@ -135,7 +135,7 @@ public static class QuestCapacity
                     return result with { Reason = "gift_def_unsupported" };
                 }
                 var def = new Resource(request.Def);
-                if (!f.Items.Market.TryGetValue(def, out var value) || !Finite(value) || value <= 0)
+                if (!f.Items.Market.TryGetValue(def, out var value) || !TradePolicyRules.Finite(value) || value <= 0)
                 {
                     return result with { Reason = "gift_value_unknown" };
                 }
@@ -250,7 +250,7 @@ public static class QuestCapacity
             {
                 return ([], 0, false);
             }
-            if (Positive(state.Dead) || Positive(state.Downed) || Positive(state.Drafted) || Positive(state.Mental))
+            if (RoundsRules.Positive(state.Dead) || RoundsRules.Positive(state.Downed) || RoundsRules.Positive(state.Drafted) || RoundsRules.Positive(state.Mental))
             {
                 continue;
             }
@@ -306,6 +306,6 @@ public static class QuestCapacity
         {
             return Unknown<bool>();
         }
-        return CombatCleared(f);
+        return RoundsRules.CombatCleared(f);
     }
 }

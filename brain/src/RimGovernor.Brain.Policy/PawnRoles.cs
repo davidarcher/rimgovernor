@@ -15,7 +15,7 @@ public static partial class PolicyConstants
     public const int MaxHuntRows = 48;
 }
 
-public static partial class PolicyFunctions
+public static partial class PawnRules
 {
     internal readonly record struct RoleCandidate(PawnId Id, double Score);
 

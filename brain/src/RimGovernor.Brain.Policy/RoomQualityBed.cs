@@ -82,7 +82,7 @@ public sealed record BedReplacement
     public Rotation Rot { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class RoomQualityRules
 {
     /// <summary>The QualityCategory ordinal of Normal.</summary>
     private const int NormalQuality = 2;
@@ -300,7 +300,7 @@ public static partial class PolicyFunctions
         var blocked = new HashSet<Cell>();
         foreach (var p in room.Pieces)
         {
-            foreach (var c in RectCells(p.Rect))
+            foreach (var c in PlannedRules.RectCells(p.Rect))
             {
                 blocked.Add(c);
             }
@@ -317,7 +317,7 @@ public static partial class PolicyFunctions
                     {
                         continue;
                     }
-                    var cells = RectCells(r);
+                    var cells = PlannedRules.RectCells(r);
                     var free = true;
                     foreach (var c in cells)
                     {

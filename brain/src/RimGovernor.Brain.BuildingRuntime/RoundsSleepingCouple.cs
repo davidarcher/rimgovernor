@@ -46,7 +46,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             return none;
         }
         var packed = CouplePacked(goal, call);
-        facts.DefinitionAvailable(SleepingCoupleBedDefinition).TryGetValue(out var buildable);
+        facts.DefinitionAvailable(SleepingRules.SleepingCoupleBedDefinition).TryGetValue(out var buildable);
         facts.LayoutPlan.TryGetValue(out var plan);
         if (NextCoupleBed(obs!, plan!, CoupleBedRooms(rooms!, census, facts.Cells), packed, buildable) is not { } step)
         {

@@ -48,7 +48,7 @@ public sealed record OrderSpec
     public string Key()
     {
         var ing = Ingredients.Items.Order(StringComparer.Ordinal);
-        return string.Join("|", BenchKind, Recipe, PolicyFunctions.BillModeName(PolicyFunctions.WireClass(Mode)), Target.ToString(CultureInfo.InvariantCulture), Worker, string.Join(",", ing));
+        return string.Join("|", BenchKind, Recipe, WorkRules.BillModeName(WorkRules.WireClass(Mode)), Target.ToString(CultureInfo.InvariantCulture), Worker, string.Join(",", ing));
     }
 }
 
@@ -169,7 +169,7 @@ public sealed record LedgerPlan
 /// <summary>A wanted order assigned to the bench that will carry it.</summary>
 public sealed record LedgerPlacement(string Bench, OrderSpec Spec);
 
-public static partial class PolicyFunctions
+public static partial class WorkRules
 {
     /// <summary>
     /// How many consecutive Rounds a bill that no planner declared must stay undeclared before Reconcile removes it.

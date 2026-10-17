@@ -128,7 +128,7 @@ public sealed class BiotechFamily(BiotechNeeds needs) : IFamily<BiotechFacts>
     internal static NeedMethod? PollutionMethod(PollutionFacts pollution, BiotechFacts facts)
     {
         var refused = facts.PollutionRefused.ToDictionary(id => id, _ => true, StringComparer.Ordinal);
-        var work = PolicyFunctions.SelectPollutionWork(pollution, refused, [.. facts.PollutedCells]);
+        var work = PollutionRules.SelectPollutionWork(pollution, refused, [.. facts.PollutedCells]);
         if (work.Allow.Count > 0)
         {
             return NeedMethod.Held(Pollution, UnsupportedWastepackAllow, "A forbidden wastepack's allow is not admitted for the pollution Need.");
@@ -166,7 +166,7 @@ public sealed class BiotechFamily(BiotechNeeds needs) : IFamily<BiotechFacts>
 
     /// <summary>Whether the mechs Need is ready this read: derived, unmet, and its charger precondition met.</summary>
     public bool MechsReady(BiotechFacts facts) =>
-        PolicyFunctions.NeedStandings(FamilyId, Derive(facts)).Any(s => s.Need.Id == Mechs && s.Readiness == NeedReadiness.Ready);
+        NeedsRules.NeedStandings(FamilyId, Derive(facts)).Any(s => s.Need.Id == Mechs && s.Readiness == NeedReadiness.Ready);
 
     private static Need Owed(NeedId id, NeedTier tier, string fact, Fact<bool> owed) => new()
     {
@@ -186,7 +186,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static Need PollutionNeedOf(BiotechFacts facts)
     {
-        var deficit = PollutionDeficit(facts.Pollution);
+        var deficit = PollutionRules.PollutionDeficit(facts.Pollution);
         var known = deficit.TryGetValue(out var owed);
         var uncovered = facts.Pollution.TryGetValue(out var f) && f.UncoveredCells.TryGetValue(out var cells) ? Known(cells.ToString(CultureInfo.InvariantCulture)) : Unknown<string>();
         return new Need

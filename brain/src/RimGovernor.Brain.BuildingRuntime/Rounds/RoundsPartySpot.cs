@@ -26,7 +26,7 @@ partial class RoundsBuildingPlanner
     internal static Fact<PartySpotNeed> PartySpotReview(ColonyProjection facts, Func<bool, string, bool>? spent)
     {
         var qualities = facts.Facts.Sleeping.TryGetValue(out var sleeping) ? sleeping.Rooms : Unknown<EquatableArray<UpkeepRoom>>();
-        return PolicyFunctions.ReviewPartySpot(new PartySpotInput
+        return PartySpotRules.ReviewPartySpot(new PartySpotInput
         {
             Rooms = facts.Rooms,
             Qualities = qualities,

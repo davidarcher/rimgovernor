@@ -27,7 +27,7 @@ public sealed record PowerModel
     internal double BatteryRoomCapacityWD()
     {
         var table = PolicyFunctions.RoomSizes;
-        var room = new PlannedRoom { Role = PolicyFunctions.PlannedBattery, Region = PolicyFunctions.RectRegion(new Rectangle { Width = table.Battery[0], Height = table.Battery[1] }), DoorRot = Rotation.South };
+        var room = new PlannedRoom { Role = PolicyFunctions.PlannedBattery, Region = RegionRules.RectRegion(new Rectangle { Width = table.Battery[0], Height = table.Battery[1] }), DoorRot = Rotation.South };
         return PolicyFunctions.BatterySlots(room).Count * Battery.CapacityWD;
     }
 }
@@ -80,7 +80,7 @@ public static partial class PolicyFunctions
     {
         try
         {
-            var steel = f.Items.MarketValue(SiteSteelUnit);
+            var steel = f.Items.MarketValue(SiteRules.SiteSteelUnit);
             return QuestCapacityForecast.FinitePositive(steel) ? steel : null;
         }
         catch (DomainException)
@@ -96,7 +96,7 @@ public static partial class PolicyFunctions
         {
             return null;
         }
-        var w = DefaultSiteTypeWeights();
+        var w = SiteRules.DefaultSiteTypeWeights();
         var p = f.Catalog.Power;
         return new SitePrice { Weights = w, WindW = p.Wind.NominalW * p.Wind.Profile.Daily, ConduitW = BuildW(w, p.Conduit, steel), WallW = BuildW(w, p.Wall, steel) };
     }
@@ -158,7 +158,7 @@ public static partial class PolicyFunctions
     {
         var p = f.Catalog.Power;
         var steel = SteelValue(f) ?? 0;
-        var w = DefaultSiteTypeWeights();
+        var w = SiteRules.DefaultSiteTypeWeights();
         double windBuild = BuildW(w, p.Wind.Build, steel), solarBuild = BuildW(w, p.Solar.Build, steel);
         var solarW = p.Solar.NominalW * p.Solar.Profile.Daily;
         int turbines = 0, plots = 0;
@@ -226,7 +226,7 @@ public static partial class PolicyFunctions
                 producers.Add(new PowerProducer { Definition = SolarDefinition, NominalW = p.Solar.NominalW, Profile = p.Solar.Profile });
             }
         }
-        var input = new PowerBudgetInput { DemandW = demand, CapacityWD = p.BatteryRoomCapacityWD(), ChargeEfficiency = p.Battery.Efficiency, StorageMargin = DefaultPowerPlanning().StorageMargin, Producers = producers };
-        return ComputePowerBudget(input);
+        var input = new PowerBudgetInput { DemandW = demand, CapacityWD = p.BatteryRoomCapacityWD(), ChargeEfficiency = p.Battery.Efficiency, StorageMargin = PowerRules.DefaultPowerPlanning().StorageMargin, Producers = producers };
+        return PowerRules.ComputePowerBudget(input);
     }
 }

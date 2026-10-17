@@ -141,10 +141,10 @@ public sealed record SiteTypePlan
     {
         var b = new StringBuilder();
         var inv = CultureInfo.InvariantCulture;
-        b.Append(inv, $"{PolicyFunctions.KindName(Kind)} {Crop.Name} needed={Needed} urgent={(Urgent ? "true" : "false")} buildings={Buildings.Count}");
+        b.Append(inv, $"{SiteRules.KindName(Kind)} {Crop.Name} needed={Needed} urgent={(Urgent ? "true" : "false")} buildings={Buildings.Count}");
         foreach (var c in Candidates)
         {
-            b.Append(inv, $"\n {PolicyFunctions.KindName(c.Kind)} {c.Crop.Name} needed={c.Needed} cells={c.Cells} score={c.Score:F4}");
+            b.Append(inv, $"\n {SiteRules.KindName(c.Kind)} {c.Crop.Name} needed={c.Needed} cells={c.Cells} score={c.Score:F4}");
             foreach (var t in c.Terms)
             {
                 b.Append(inv, $" {t.Name}={t.Value:F4}");
@@ -158,7 +158,7 @@ public sealed record SiteTypePlan
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class SiteRules
 {
     /// <summary>The construction material a building's cost is counted in.</summary>
     public static readonly Resource SiteSteelUnit = new("Steel");
@@ -261,7 +261,7 @@ public static partial class PolicyFunctions
     {
         if (r.Paste is not null)
         {
-            return PlanPasteSite(r) is { } pasted ? (pasted, true) : (new SiteTypePlan(), false);
+            return PasteSiteRules.PlanPasteSite(r) is { } pasted ? (pasted, true) : (new SiteTypePlan(), false);
         }
         var w = r.Weights;
         if (w == default)
@@ -372,7 +372,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Sums the selected patches' terms by name.</summary>
-    private static List<FarmSiteTerm> SiteTerms(FarmSitePlan sites)
+    internal static List<FarmSiteTerm> SiteTerms(FarmSitePlan sites)
     {
         var totals = new Dictionary<string, double>(StringComparer.Ordinal);
         var order = new List<string>();
@@ -416,7 +416,7 @@ public static partial class PolicyFunctions
         var found = false;
         foreach (var n in env.Networks)
         {
-            if (!Positive(n.ActiveSource))
+            if (!RoundsRules.Positive(n.ActiveSource))
             {
                 continue;
             }
@@ -490,7 +490,7 @@ public static partial class PolicyFunctions
             }
             var hk = r.Heater.TryGetValue(out var heater);
             var dk = heater.PowerW.TryGetValue(out var draw);
-            if (!hk || !Positive(heater.Available) || !dk || !FoodNumber(draw))
+            if (!hk || !RoundsRules.Positive(heater.Available) || !dk || !FoodNumber(draw))
             {
                 reason = "room too cold and no heater available";
                 return false;
@@ -501,7 +501,7 @@ public static partial class PolicyFunctions
                 var n = env.Network(network);
                 var room = 0.0;
                 var rk = n is not null && n.CalmNightHeadroomW().TryGetValue(out room);
-                if (n is null || !Positive(n.ActiveSource) || !rk || room < total)
+                if (n is null || !RoundsRules.Positive(n.ActiveSource) || !rk || room < total)
                 {
                     reason = "no night power headroom for heating";
                     return false;
@@ -526,7 +526,7 @@ public static partial class PolicyFunctions
             return true;
         }
 
-        static bool RoofedIndoorSoil(SiteCell s) => Positive(s.Roofed) && Positive(s.Indoors);
+        static bool RoofedIndoorSoil(SiteCell s) => RoundsRules.Positive(s.Roofed) && RoundsRules.Positive(s.Indoors);
 
         var cells = 0;
         var sites = new FarmSitePlan();
@@ -534,7 +534,7 @@ public static partial class PolicyFunctions
         switch (kind)
         {
             case SiteKind.Hydroponics:
-                if (Positive(v.Crop.RequiresPollution) || GrowsInDark(v.Crop))
+                if (RoundsRules.Positive(v.Crop.RequiresPollution) || GrowsInDark(v.Crop))
                 {
                     return c with { Reason = "crop needs a compatible soil or dark site" };
                 }
@@ -545,7 +545,7 @@ public static partial class PolicyFunctions
                 {
                     return c with { Reason = "no running sun lamp" };
                 }
-                sites = SitePick(r.Field.Site, v, s => lit.ContainsKey(s.Cell) && Positive(s.Roofed), null, true);
+                sites = SitePick(r.Field.Site, v, s => lit.ContainsKey(s.Cell) && RoundsRules.Positive(s.Roofed), null, true);
                 cells = sites.Cells;
                 if (cells == 0)
                 {
@@ -556,7 +556,7 @@ public static partial class PolicyFunctions
                 var network = "";
                 foreach (var patch in sites.Patches)
                 {
-                    foreach (var cell in RectCells(patch))
+                    foreach (var cell in PlannedRules.RectCells(patch))
                     {
                         lamps.TryGetValue(lit.GetValueOrDefault(cell) ?? "", out var lamp);
                         if (lamp is not null && lamp.Network.TryGetValue(out var id) && network == "")
@@ -601,7 +601,7 @@ public static partial class PolicyFunctions
             {
                 var lk = r.Lamp.TryGetValue(out var lamp);
                 var dk = lamp.PowerW.TryGetValue(out var draw);
-                if (!lk || !Positive(lamp.Available) || !dk || !FoodNumber(draw) || lamp.Name == "")
+                if (!lk || !RoundsRules.Positive(lamp.Available) || !dk || !FoodNumber(draw) || lamp.Name == "")
                 {
                     return c with { Reason = "sun lamp unavailable" };
                 }
@@ -684,7 +684,7 @@ public static partial class PolicyFunctions
         var bk = r.Basin.TryGetValue(out var basin);
         var dk = basin.PowerW.TryGetValue(out var draw);
         var fk = basin.Fertility.TryGetValue(out var fertility);
-        if (!bk || !Positive(basin.Available) || !dk || !FoodNumber(draw) || !fk || !FieldPositive(fertility) || basin.Name == "")
+        if (!bk || !RoundsRules.Positive(basin.Available) || !dk || !FoodNumber(draw) || !fk || !FieldPositive(fertility) || basin.Name == "")
         {
             return c with { Reason = "hydroponics basin unavailable" };
         }
@@ -808,7 +808,7 @@ public static partial class PolicyFunctions
     /// interior, rooms nearest the anchor first; otherwise (a new lamp's growth circle) they form one set.
     /// Picked cells merge into rectangles so the plan keeps its patch shape.
     /// </summary>
-    private static FarmSitePlan SitePick(FarmSiteRequest site, ViableCrop v, Func<SiteCell, bool> keep, IReadOnlyList<Cell>? protectedCells, bool byRoom)
+    internal static FarmSitePlan SitePick(FarmSiteRequest site, ViableCrop v, Func<SiteCell, bool> keep, IReadOnlyList<Cell>? protectedCells, bool byRoom)
     {
         v.Crop.FertilityMin.TryGetValue(out var minimum);
         var blocked = new HashSet<Cell>(site.Protected);
@@ -854,7 +854,7 @@ public static partial class PolicyFunctions
             near[k] = -1;
             foreach (var c in g)
             {
-                var d = RectDist(c, anchor);
+                var d = RectPickRules.RectDist(c, anchor);
                 if (near[k] < 0 || d < near[k])
                 {
                     near[k] = d;
@@ -869,7 +869,7 @@ public static partial class PolicyFunctions
             {
                 break;
             }
-            foreach (var c in PickRect(groups[k], anchor, v.Needed - picked.Count))
+            foreach (var c in RectPickRules.PickRect(groups[k], anchor, v.Needed - picked.Count))
             {
                 picked.Add(c);
             }
@@ -883,7 +883,7 @@ public static partial class PolicyFunctions
         {
             double reward = 0;
             var walk = 0;
-            foreach (var c in RectCells(patch))
+            foreach (var c in PlannedRules.RectCells(patch))
             {
                 reward += Rate(soil[c]);
                 walk += SiteManhattan(c, anchor);
@@ -907,7 +907,7 @@ public static partial class PolicyFunctions
     {
         var done = new HashSet<Cell>();
         var output = new List<Rectangle>();
-        foreach (var c in RectSorted(cells))
+        foreach (var c in RectPickRules.RectSorted(cells))
         {
             if (done.Contains(c))
             {
@@ -937,7 +937,7 @@ public static partial class PolicyFunctions
                 }
             }
             var rect = new Rectangle(c.X, c.Z, w, h);
-            foreach (var rc in RectCells(rect))
+            foreach (var rc in PlannedRules.RectCells(rect))
             {
                 done.Add(rc);
             }

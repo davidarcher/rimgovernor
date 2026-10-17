@@ -191,7 +191,7 @@ public sealed record JoinerLetterOffer
     public bool CanAccept { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class PopulationRules
 {
     /// <summary>
     /// The food runway one more colonist is admitted against: 3 days for a colony of one, rising linearly to

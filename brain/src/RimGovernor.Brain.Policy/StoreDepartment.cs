@@ -35,7 +35,7 @@ public sealed record Store
         {
             return z.Role == Site.Role;
         }
-        return PolicyFunctions.StockpileRolePrefix(z.Role) == PolicyFunctions.StockpileRolePrefix(Site.Role);
+        return StockpileRules.StockpileRolePrefix(z.Role) == StockpileRules.StockpileRolePrefix(Site.Role);
     }
 }
 
@@ -63,7 +63,7 @@ public sealed record StoreDeclaration
     public RoomDemand Demand { get; init; } = new();
 }
 
-public static partial class PolicyFunctions
+public static partial class StoreRules
 {
     /// <summary>The one registry of departments that declare stores.</summary>
     private static readonly IReadOnlyList<IStoreOwner> StoreOwners =
@@ -177,7 +177,7 @@ public static partial class PolicyFunctions
         var touched = new HashSet<string>(StringComparer.Ordinal);
         var edits = new List<StockpileEdit>();
         var live = stores.Where(s => !s.Retired).Select(s => s.Site).ToList();
-        foreach (var e in StoreSiteMoves(zones, live))
+        foreach (var e in StockpileRules.StoreSiteMoves(zones, live))
         {
             touched.Add(e.Zone);
             edits.Add(e);
@@ -193,7 +193,7 @@ public static partial class PolicyFunctions
                 if (s.Retired || s.Serves(z))
                 {
                     touched.Add(z.Id);
-                    if (StockpileSettingsEdit(s, z) is { } e)
+                    if (StockpileRules.StockpileSettingsEdit(s, z) is { } e)
                     {
                         edits.Add(e);
                     }
@@ -201,14 +201,14 @@ public static partial class PolicyFunctions
                 }
             }
         }
-        var shrinks = StoreShrinkEdits(zones, live, open, edits);
+        var shrinks = StockpileRules.StoreShrinkEdits(zones, live, open, edits);
         edits.AddRange(shrinks);
         foreach (var e in shrinks)
         {
             touched.Add(e.Zone);
         }
-        edits.AddRange(StoreGeometryEdits(zones, live, open, edits.ToList()));
-        edits.AddRange(StoreSiteEdits(zones, live, open));
+        edits.AddRange(StockpileRules.StoreGeometryEdits(zones, live, open, edits.ToList()));
+        edits.AddRange(StockpileRules.StoreSiteEdits(zones, live, open));
         return (edits, touched);
     }
 

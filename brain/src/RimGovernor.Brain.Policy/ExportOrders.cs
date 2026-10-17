@@ -183,7 +183,7 @@ internal sealed class HorizonGuard
                 {
                     have = Math.Min(have, stock);
                 }
-                if (!row.ConsumptionPerDay.TryGetValue(out var rate) || !PolicyFunctions.Finite(rate) || row.Reserve < 0)
+                if (!row.ConsumptionPerDay.TryGetValue(out var rate) || !TradePolicyRules.Finite(rate) || row.Reserve < 0)
                 {
                     return (0, false);
                 }
@@ -286,7 +286,7 @@ public static partial class PolicyFunctions
     private static bool ExportProduct(ExportRequest r, Resource product)
     {
         var i = r.Items;
-        if (product.IsEmpty || product == i.Currency || product == ComponentResource || i.IsStoneBlocks(product))
+        if (product.IsEmpty || product == i.Currency || product == TradePolicyRules.ComponentResource || i.IsStoneBlocks(product))
         {
             return false;
         }
@@ -321,7 +321,7 @@ public static partial class PolicyFunctions
     {
         var nk = need.TryGetValue(out var n);
         var rk = resources.TryGetValue(out var rows);
-        if (!nk || !rk || products.Count == 0 || !Positive(SilverShort(items, need, SilverStock(items, resources), colonists)))
+        if (!nk || !rk || products.Count == 0 || !RoundsRules.Positive(SilverGapRules.SilverShort(items, need, SilverGapRules.SilverStock(items, resources), colonists)))
         {
             return need;
         }
@@ -395,7 +395,7 @@ public static partial class PolicyFunctions
                 // stuff); an unpriced one is simply not ranked.
                 var work = recipe.WorkAmount.ValueOrDefault;
                 var qk = recipe.RequiredWork.TryGetValue(out var required);
-                if (!sk || !qk || !Finite(work))
+                if (!sk || !qk || !TradePolicyRules.Finite(work))
                 {
                     unread = true;
                     continue;
@@ -580,7 +580,7 @@ public static partial class PolicyFunctions
         double value;
         if (!v.Stuff.IsEmpty)
         {
-            value = raw + (work.Value * ValuePerWorkTick);
+            value = raw + (work.Value * SilverGapRules.ValuePerWorkTick);
         }
         else if (items.Market.TryGetValue(e.Product, out var basePrice))
         {
@@ -626,7 +626,7 @@ public static partial class PolicyFunctions
         }
         foreach (var s in r.Items.Sculptures)
         {
-            if (new Resource(s.Def) == e.Product && s.Work > 0 && Finite(s.Work))
+            if (new Resource(s.Def) == e.Product && s.Work > 0 && TradePolicyRules.Finite(s.Work))
             {
                 return s.Work;
             }
@@ -634,7 +634,7 @@ public static partial class PolicyFunctions
         if (r.WorkFor is not null)
         {
             var (work, ok) = r.WorkFor(e.Product, stuff);
-            if (ok && work > 0 && Finite(work))
+            if (ok && work > 0 && TradePolicyRules.Finite(work))
             {
                 return work;
             }
@@ -642,7 +642,7 @@ public static partial class PolicyFunctions
         return null;
     }
 
-    private static double BenchSpeed(GearBench b) => b.WorkSpeed.TryGetValue(out var speed) && speed > 0 && Finite(speed) ? speed : 1;
+    private static double BenchSpeed(GearBench b) => b.WorkSpeed.TryGetValue(out var speed) && speed > 0 && TradePolicyRules.Finite(speed) ? speed : 1;
 
     /// <summary>
     /// The active pinned finite batches on the benches that make an export product: placed and unfinished goods

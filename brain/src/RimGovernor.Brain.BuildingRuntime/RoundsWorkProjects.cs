@@ -314,7 +314,7 @@ partial record struct RoundsProjectBill
     /// </summary>
     internal static IReadOnlyList<Pol.WorkRequirement> RoundsResearchWork(IReadOnlyList<string> needs, Fact<Pol.ResearchFacts> research)
     {
-        var (target, _) = ResearchConcern(needs, research);
+        var (target, _) = ResearchRules.ResearchConcern(needs, research);
         if (target == "")
         {
             return [];

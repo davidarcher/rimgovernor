@@ -20,7 +20,7 @@ public static partial class PolicyConstants
     public const long PrisonerSurgeryHerbal = 2;
 }
 
-public static partial class PolicyFunctions
+public static partial class PrisonerMedicineRules
 {
     private readonly record struct CareOp(PawnId Pawn, string Recipe, int Part);
 
@@ -54,7 +54,7 @@ public static partial class PolicyFunctions
             for (var j = 0; j < copied.Count; j++)
             {
                 var op = copied[j];
-                if (Positive(op.CareLimited))
+                if (RoundsRules.Positive(op.CareLimited))
                 {
                     copied[j] = op with { IngredientsOnMap = Known(true) };
                     op.Recipe.TryGetValue(out var recipe);
@@ -69,7 +69,7 @@ public static partial class PolicyFunctions
             return null;
         }
         var relaxedFacts = Known(EquatableArray.From(relaxed));
-        var h = SelectOrganHarvest(relaxedFacts, colony, needs, inFlight) ?? SelectPartRecovery(relaxedFacts, colony, parts, inFlight, facts);
+        var h = OrganHarvestRules.SelectOrganHarvest(relaxedFacts, colony, needs, inFlight) ?? OrganHarvestRules.SelectPartRecovery(relaxedFacts, colony, parts, inFlight, facts);
         return h is not null && limited.Contains(new CareOp((PawnId)h.Prisoner, h.Recipe, h.Part)) ? h : null;
     }
 
@@ -87,7 +87,7 @@ public static partial class PolicyFunctions
                 stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
             }
         }
-        var sale = OrganNeeds(Unknown<EquatableArray<CarePawn>>(), [], Positive(silverShort), stock, f.Recipes);
+        var sale = OrganHarvestRules.OrganNeeds(Unknown<EquatableArray<CarePawn>>(), [], RoundsRules.Positive(silverShort), stock, f.Recipes);
         if (CareLimitedHarvest(f.Prisoners, f.PrisonerColony, sale, [], null, f.Recipes) is null)
         {
             return needs;
@@ -101,6 +101,6 @@ public static partial class PolicyFunctions
         {
             return needs;
         }
-        return ResourceConcernTargets(needs, new Dictionary<Resource, long> { [herbal] = PolicyConstants.PrisonerSurgeryHerbal });
+        return ResourceRules.ResourceConcernTargets(needs, new Dictionary<Resource, long> { [herbal] = PolicyConstants.PrisonerSurgeryHerbal });
     }
 }

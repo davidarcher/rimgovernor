@@ -214,7 +214,7 @@ internal sealed class WallInterior
                 cs.Add(new Cell(Box.X + (i % Box.Width), Box.Z + (i / Box.Width)));
             }
         }
-        return PolicyFunctions.RegionOf(cs);
+        return RegionRules.RegionOf(cs);
     }
 }
 
@@ -425,7 +425,7 @@ public static partial class PolicyFunctions
         }
         foreach (var r in rooms)
         {
-            foreach (var c in RectCells(r.Region.Bounds()))
+            foreach (var c in PlannedRules.RectCells(r.Region.Bounds()))
             {
                 Seed(c);
             }

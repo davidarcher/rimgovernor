@@ -169,7 +169,7 @@ partial class StockpileZones
                     storeCells.AddRange(s.Cells);
                 }
             }
-            var (capacity, used) = Pol.PolicyFunctions.StorageStacks(storeCells, census);
+            var (capacity, used) = Pol.StockpileRules.StorageStacks(storeCells, census);
             var zone = new Pol.StockpileZone { Id = z.Id, Role = z.Role, Cells = entry, Capacity = capacity, Used = used, Filter = zoneFilter, Priority = z.Priority ?? default };
             if (patches is not null && patches.TryGetValue(z.Id, out var patch) && patch.Kind == StorageTargetKind.Zone)
             {

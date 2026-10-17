@@ -178,7 +178,7 @@ public sealed partial class Store
         var result = new List<RoundsMoodMethod>();
         foreach (var state in h.States)
         {
-            var p = PolicyFunctions.SelectMoodMethod(state, []);
+            var p = MoodRules.SelectMoodMethod(state, []);
             result.Add(
                 new RoundsMoodMethod
                 {

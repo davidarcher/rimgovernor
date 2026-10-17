@@ -19,7 +19,7 @@ public sealed partial class Store
             return (f.EventLoot, []);
         }
         var (released, held) = PolicyFunctions.FilterLootRelease(f.EventLoot, f.DangerSeeds);
-        var (census, reach) = PolicyFunctions.FilterLootReach(released, PolicyFunctions.LootContext(f));
+        var (census, reach) = RemoteRules.FilterLootReach(released, RemoteRules.LootContext(f));
         return (census, [.. held.Concat(reach).OrderBy(hold => hold.Thing, StringComparer.Ordinal)]);
     }
 }

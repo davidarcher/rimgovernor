@@ -2,7 +2,7 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class PlannedRules
 {
     /// <summary>Planned shelters one planned thermal read samples: the coupled shelter generator's own room bound.</summary>
     public const int PlannedThermalRooms = 4;

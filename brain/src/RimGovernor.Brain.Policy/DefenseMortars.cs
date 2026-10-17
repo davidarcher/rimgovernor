@@ -136,7 +136,7 @@ public static class DefenseMortarsPolicy
                 foreach (var o in offsets)
                 {
                     var c = DefenseLayout.AddCell(row, DefenseLayout.Scale(p, o));
-                    if (!s.Cells.TryGetValue(c, out var cell) || taken.Contains(c) || !s.Free(c) || !Negative(cell.Roofed))
+                    if (!s.Cells.TryGetValue(c, out var cell) || taken.Contains(c) || !s.Free(c) || !RoundsRules.Negative(cell.Roofed))
                     {
                         continue;
                     }

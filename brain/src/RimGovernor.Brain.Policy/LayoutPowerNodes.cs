@@ -27,7 +27,7 @@ public sealed class WindGround
             {
                 continue;
             }
-            Add(PolicyFunctions.RectRegion(PolicyFunctions.Pad(b.Interior, 1)));
+            Add(RegionRules.RectRegion(PolicyFunctions.Pad(b.Interior, 1)));
         }
     }
 
@@ -114,8 +114,8 @@ public static partial class PolicyFunctions
         {
             var pad = t.Turned ? new Rectangle { Width = 2, Height = WindPathWidth } : new Rectangle { Width = WindPathWidth, Height = 2 };
             var (centre, rot) = TurbinePlacement(pad, t.LowRow);
-            var lane = new SiteLane { Id = "wind", Region = RegionOf(TurbineWindCells(centre, rot)), Reason = ReasonWindLane, Wind = true };
-            shapes.Add(new SiteNode { Id = id, Footprint = RectRegion(pad), Lanes = [lane], Rotation = rot });
+            var lane = new SiteLane { Id = "wind", Region = RegionRules.RegionOf(TurbineWindCells(centre, rot)), Reason = ReasonWindLane, Wind = true };
+            shapes.Add(new SiteNode { Id = id, Footprint = RegionRules.RectRegion(pad), Lanes = [lane], Rotation = rot });
         }
         return shapes[0] with { Alts = shapes.Skip(1).ToList(), Kind = NodeTurbine, Reason = ReasonPowerSite };
     }
@@ -150,7 +150,7 @@ public static partial class PolicyFunctions
 
     /// <summary>Solar plot i: a free square.</summary>
     internal static SiteNode SolarNode(string id) =>
-        new() { Id = id, Kind = NodeSolar, Footprint = RectRegion(new Rectangle { Width = SolarSide, Height = SolarSide }), Reason = ReasonPowerSite };
+        new() { Id = id, Kind = NodeSolar, Footprint = RegionRules.RectRegion(new Rectangle { Width = SolarSide, Height = SolarSide }), Reason = ReasonPowerSite };
 
     /// <summary>
     /// The site nodes for the plan's power sites: a node per turbine, solar plot and geothermal enclosure, ids numbered
@@ -177,7 +177,7 @@ public static partial class PolicyFunctions
             }
             n++;
             var area = r.Area.Bounds();
-            nodes.Add(new SiteNode { Id = GeothermalNodeId(n), Footprint = RectRegion(new Rectangle { Width = area.Width, Height = area.Height }), Anchor = new Cell(area.X, area.Z), Reason = ReasonPowerSite });
+            nodes.Add(new SiteNode { Id = GeothermalNodeId(n), Footprint = RegionRules.RectRegion(new Rectangle { Width = area.Width, Height = area.Height }), Anchor = new Cell(area.X, area.Z), Reason = ReasonPowerSite });
         }
         return nodes;
     }

@@ -45,7 +45,7 @@ public sealed class RoundsArtPlanner : IPurposeReporter
         };
         if (projection.WorkPawns.TryGetValue(out var pawns))
         {
-            var profiles = PolicyApi.Profiles(pawns);
+            var profiles = PawnRules.Profiles(pawns);
             request = request with { Profiles = Known<EquatableArray<PawnProfile>>([.. profiles]) };
             request = request with { Demand = ArtDemand(projection, profiles) };
         }
@@ -86,6 +86,6 @@ public sealed class RoundsArtPlanner : IPurposeReporter
             return PolicyApi.NewArtDemand(Unknown<SleepingObservation>(), new Dictionary<string, RoomTarget>(), [], stock, profiles, facts.Facts.Items);
         }
         facts.TechTier.TryGetValue(out var tier);
-        return PolicyApi.NewArtDemand(facts.Facts.Sleeping, PolicyApi.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), PolicyApi.FurnitureRooms(rooms, census, facts.Cells), stock, profiles, facts.Facts.Items);
+        return PolicyApi.NewArtDemand(facts.Facts.Sleeping, RoomQualityRules.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), PolicyApi.FurnitureRooms(rooms, census, facts.Cells), stock, profiles, facts.Facts.Items);
     }
 }

@@ -553,7 +553,7 @@ public static partial class PolicyFunctions
         return (new GearMethod(), false);
     }
 
-    private static void ValidateGearProduction(IReadOnlyList<GearBench> benches)
+    internal static void ValidateGearProduction(IReadOnlyList<GearBench> benches)
     {
         var ids = new HashSet<string>(StringComparer.Ordinal);
         static bool Products(IReadOnlyList<Resource> v)
@@ -583,7 +583,7 @@ public static partial class PolicyFunctions
                 DomainException.Require(FoodId(recipe.Definition) && names.Add(recipe.Definition) && Products(recipe.Products), "invalid gear recipe");
                 if (recipe.RequiredWork.TryGetValue(out var work))
                 {
-                    AssignWork([], work);
+                    WorkRules.AssignWork([], work);
                 }
                 foreach (var slot in recipe.Ingredients.ValueOrDefault)
                 {
@@ -602,7 +602,7 @@ public static partial class PolicyFunctions
     /// The stuffs a bill never draws on unless the loadout names them: the currency and the favor-sale gold. A
     /// judgment table (DefTables): no row marks a stuff as currency or as the favor trade's.
     /// </summary>
-    internal static IReadOnlyList<Resource> GearValuableDefs => [new Resource("Silver"), FavorSaleResource];
+    internal static IReadOnlyList<Resource> GearValuableDefs => [new Resource("Silver"), TradePolicyRules.FavorSaleResource];
 
     private static bool GearValuable(Resource r) => GearValuableDefs.Contains(r);
 

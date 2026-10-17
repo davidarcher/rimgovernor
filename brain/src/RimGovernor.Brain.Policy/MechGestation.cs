@@ -50,7 +50,7 @@ public sealed record MechChoice
 /// their own waste or any wastepack is uncleared; colonist need decides what the free bandwidth buys
 /// (MechRoleNext); chargers come before more mechs; one gestation at a time.
 /// </summary>
-public static partial class PolicyFunctions
+public static partial class MechRules
 {
     /// <summary>The biotech/mechs Need's bill purpose: one single-count gestation bill (BillMode.GearBatch, target 1) on a gestator.</summary>
     public static readonly BillPurpose MechGestationBill = new("mech_gestation");

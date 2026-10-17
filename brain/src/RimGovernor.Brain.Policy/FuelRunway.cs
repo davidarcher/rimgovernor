@@ -62,7 +62,7 @@ public sealed record FuelConsumer
     /// </summary>
     internal Fact<double> PerDay()
     {
-        if (!Burn.TryGetValue(out var burn) || burn.UseDriven || burn.InRain || !PolicyFunctions.Finite(burn.PerDay) || burn.PerDay < 0)
+        if (!Burn.TryGetValue(out var burn) || burn.UseDriven || burn.InRain || !TradePolicyRules.Finite(burn.PerDay) || burn.PerDay < 0)
         {
             return Unknown<double>();
         }
@@ -176,7 +176,7 @@ public static partial class PolicyFunctions
             var bk = c.Burn.TryGetValue(out var burn);
             var fk = c.Fuel.TryGetValue(out var fuel);
             var (item, ik) = c.FuelItem(input.Stock);
-            if (!bk || !fk || !ik || !Finite(fuel) || !(burn!.UnitsPerItem > 0))
+            if (!bk || !fk || !ik || !TradePolicyRules.Finite(fuel) || !(burn!.UnitsPerItem > 0))
             {
                 complete = false;
                 continue;
@@ -191,7 +191,7 @@ public static partial class PolicyFunctions
             else if (ek && empty)
             {
                 var tk = c.Target.TryGetValue(out var target);
-                if (!tk || !Finite(target))
+                if (!tk || !TradePolicyRules.Finite(target))
                 {
                     complete = false;
                     continue;

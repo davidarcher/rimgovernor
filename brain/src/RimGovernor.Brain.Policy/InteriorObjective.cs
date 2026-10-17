@@ -239,7 +239,7 @@ public static partial class PolicyFunctions
         foreach (var p in input.Pieces)
         {
             counts[p.Def] = counts.GetValueOrDefault(p.Def) + 1;
-            foreach (var c in RectCells(p.Rect))
+            foreach (var c in PlannedRules.RectCells(p.Rect))
             {
                 if (!g.Contains(c))
                 {
@@ -338,7 +338,7 @@ public static partial class PolicyFunctions
                 stand[p.Slot] = [ic];
                 continue;
             }
-            foreach (var c in RectCells(p.Rect))
+            foreach (var c in PlannedRules.RectCells(p.Rect))
             {
                 foreach (var n in Neighbours(c))
                 {
@@ -597,7 +597,7 @@ public static partial class PolicyFunctions
         }
         if (l.Adjacent)
         {
-            foreach (var c in RectCells(f.Rect))
+            foreach (var c in PlannedRules.RectCells(f.Rect))
             {
                 if (Neighbours(c).Any(n => RectContains(t.Rect, n)))
                 {

@@ -83,7 +83,7 @@ partial class RoundsStockpilePlanner
         storage = storage with { Benches = benches };
         var (stands, rings) = MilitaryRounds.TrainingDemand(projection);
         storage = storage with { TrainingStands = stands, TrainingRings = rings };
-        var declared = Pol.PolicyFunctions.DeclareStores(storage);
+        var declared = Pol.StoreRules.DeclareStores(storage);
         request = request with { Stores = declared.Stores };
         request = request with { RoomDemand = declared.Demand };
         return request;
@@ -106,7 +106,7 @@ partial class RoundsStockpilePlanner
     /// </summary>
     internal static Fact<Pol.StorageBuildCost> ShelfCost(Observation.ColonyProjection projection)
     {
-        if (!projection.TryDefinition(ShelfDefinition, out var d))
+        if (!projection.TryDefinition(StorageRules.ShelfDefinition, out var d))
         {
             return Unknown<Pol.StorageBuildCost>();
         }
@@ -116,7 +116,7 @@ partial class RoundsStockpilePlanner
                 ? Known(new Pol.StorageBuildCost { Costs = [.. costs], WorkTicks = d.WorkToBuild })
                 : Unknown<Pol.StorageBuildCost>();
         }
-        var stuff = projection.BuildStuff(ShelfDefinition);
+        var stuff = projection.BuildStuff(StorageRules.ShelfDefinition);
         if (d.StuffOptions.FirstOrDefault(o => o.Stuff == stuff) is not { } option)
         {
             return Unknown<Pol.StorageBuildCost>();
@@ -158,7 +158,7 @@ partial class RoundsStockpilePlanner
             }
             var (work, roof) = room.Unfenced() ? (Known(0.0), false)
                 : sites is null || floors is null ? (Unknown<double>(), false)
-                : PlannedRoomWork(sites, room.Id, site => Rounder.PlannedSiteWork(projection, floors, site));
+                : PlannedRules.PlannedRoomWork(sites, room.Id, site => Rounder.PlannedSiteWork(projection, floors, site));
             output.Add(new Pol.PlannedStoreRoom
             {
                 Room = room.Id, Role = room.Role, Cells = [.. room.Region.Cells()], Outdoor = room.Outdoor, Material = material,
@@ -173,7 +173,7 @@ partial class RoundsStockpilePlanner
     {
         foreach (var d in projection.Definitions)
         {
-            if (d.Name == ShelfDefinition)
+            if (d.Name == StorageRules.ShelfDefinition)
             {
                 return d.Available.TryGetValue(out var available) && available;
             }
@@ -195,7 +195,7 @@ public sealed partial class Rounder
         {
             return projection;
         }
-        return projection with { Facts = projection.Facts with { StockpileZones = Known<EquatableArray<Pol.StockpileRoleCount>>([.. Pol.PolicyFunctions.StockpileRoleCounts(StockpileZones.OwnedStockpileZones(projection, owned, null, ShelfPlans(snapshot, owned, projection, ct).Shelves))]) } };
+        return projection with { Facts = projection.Facts with { StockpileZones = Known<EquatableArray<Pol.StockpileRoleCount>>([.. Pol.StockpileRules.StockpileRoleCounts(StockpileZones.OwnedStockpileZones(projection, owned, null, ShelfPlans(snapshot, owned, projection, ct).Shelves))]) } };
     }
 
     /// <summary>
@@ -215,7 +215,7 @@ public sealed partial class Rounder
             return [];
         }
         Stockpiles.SetDemand(RoundsStockpilePlanner.StockpileWorld(snapshot), request.RoomDemand);
-        var review = Pol.PolicyFunctions.PlanStockpileMaintenance(request);
+        var review = Pol.StockpileRules.PlanStockpileMaintenance(request);
         Stockpiles.SetActive(snapshot, review.Known ? Known(review.Active) : Unknown<bool>());
         foreach (var e in review.Edits)
         {
@@ -233,7 +233,7 @@ public sealed partial class Rounder
             return Unknown<int>();
         }
         var catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
-        if (catalog is null || !catalog.StationCatalog().Stations.TryGetValue(ShelfDefinition, out var shelf) || shelf.Capacity.Kind != Pol.CapacityKind.Items)
+        if (catalog is null || !catalog.StationCatalog().Stations.TryGetValue(StorageRules.ShelfDefinition, out var shelf) || shelf.Capacity.Kind != Pol.CapacityKind.Items)
         {
             return Unknown<int>();
         }
@@ -266,7 +266,7 @@ public sealed partial class Rounder
         var request = RoundsStockpilePlanner.StockpileRequest(projection, owned, patches, plans, Known<IReadOnlyDictionary<string, bool>>(benches), StockpileBenchInputs.BenchInputs(census, projection), gear, protectedCells);
         var canBuild = Native is IRoundsBuildingSource;
         request = request with { ShelfAvailable = canBuild && RoundsStockpilePlanner.ShelfAvailable(projection) };
-        request = request with { Walkways = projection.LayoutPlan.TryGetValue(out var layout) ? Pol.PolicyFunctions.PlannedWalkways(layout) : Unknown<EquatableArray<Cell>>() };
+        request = request with { Walkways = projection.LayoutPlan.TryGetValue(out var layout) ? Pol.StorageRules.PlannedWalkways(layout) : Unknown<EquatableArray<Cell>>() };
         request = request with { ShelfStacks = await ShelfStacksAsync(snapshot, ct).ConfigureAwait(false) };
         var cells = StockpileZones.CensusByCell(projection);
         var shelfSpent = new Dictionary<string, bool>();
@@ -283,7 +283,7 @@ public sealed partial class Rounder
                 {
                     continue;
                 }
-                var (capacity, used) = Pol.PolicyFunctions.StorageStacks(s.Cells, cells);
+                var (capacity, used) = Pol.StockpileRules.StorageStacks(s.Cells, cells);
                 var shelf = new Pol.StockpileShelf { Building = s.Building, Zone = z.Id, Capacity = capacity, Used = used };
                 if (patches.TryGetValue(s.Building, out var applied) && applied.Kind == StorageTargetKind.Building)
                 {
@@ -298,7 +298,7 @@ public sealed partial class Rounder
         request = request with { ShelfRecords = shelfRecords };
         request = request with { Shelves = shelfRows };
         request = request with { Occupancy = await StorageOccupancyAsync(request, tick, ct).ConfigureAwait(false) };
-        request = request with { RoomDemand = request.RoomDemand with { Yard = Pol.PolicyFunctions.YardDemand(request) } };
+        request = request with { RoomDemand = request.RoomDemand with { Yard = Pol.StoreRules.YardDemand(request) } };
         request = request with { ShelfCost = RoundsStockpilePlanner.ShelfCost(projection), StoreRooms = RoundsStockpilePlanner.StoreRooms(projection, Policy.Flooring), Items = projection.Facts.Items };
         return (request, "");
     }
@@ -328,7 +328,7 @@ public sealed partial class Rounder
         }
         try
         {
-            return Known(await reader.ReadStorageOccupancyAsync(groups, Pol.PolicyFunctions.StoreInflowSinceHour(tick), ct).ConfigureAwait(false));
+            return Known(await reader.ReadStorageOccupancyAsync(groups, Pol.StoreRules.StoreInflowSinceHour(tick), ct).ConfigureAwait(false));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -489,7 +489,7 @@ internal sealed partial class RoundsStockpilePlanner
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         // The medicine store reads the medical beds, so the census carries them. The planned rooms are shelled from
         // the same reading, so the census carries the wall and door definitions.
-        string[] definitions = [ShellWallDefinition, ShellDoorDefinition, PenFenceDefinition, PenGateDefinition, ShelfDefinition];
+        string[] definitions = [ShellWallDefinition, ShellDoorDefinition, PenFenceDefinition, PenGateDefinition, StorageRules.ShelfDefinition];
         var read = _reviewer.RoomsEnabled()
             ? await _reviewer.ObserveRoomsAsync((Observation.IRoundsSource)_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false)
             : await _reviewer.ObserveOwnedAsync((Observation.IRoundsSource)_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false);
@@ -499,7 +499,7 @@ internal sealed partial class RoundsStockpilePlanner
         {
             return FieldUnavailable(missing);
         }
-        var proposal = Pol.PolicyFunctions.PlanStockpileMaintenance(request);
+        var proposal = Pol.StockpileRules.PlanStockpileMaintenance(request);
         if (!proposal.Active)
         {
             return BuildingReasonNoDeficit;

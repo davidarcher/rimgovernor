@@ -62,7 +62,7 @@ internal static class StockpileSitedRoles
             return null;
         }
         // The meal is what the active bills cook; none cooked, no warm spot.
-        var (meal, nutrition, cooked) = Pol.PolicyFunctions.ObservedMeal(benches);
+        var (meal, nutrition, cooked) = Pol.MealRules.ObservedMeal(benches);
         if (!cooked)
         {
             return retired;

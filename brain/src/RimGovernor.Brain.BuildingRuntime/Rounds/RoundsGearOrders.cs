@@ -13,7 +13,7 @@ partial class RoundsGearPlanner
     internal static Declared AbstainOnRead(Cause fact, Exception? cause = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        return PolicyFunctions.Abstaining(fact);
+        return WorkRules.Abstaining(fact);
     }
 }
 
@@ -42,12 +42,12 @@ public sealed partial class RoundsArmoryPlanner
         var known = projection.Facts.Gear.TryGetValue(out var census);
         if (_native is not FacadeNativeClient)
         {
-            return PolicyFunctions.Abstaining(Cause.UnreadNativeRead);
+            return WorkRules.Abstaining(Cause.UnreadNativeRead);
         }
 
         if (!known)
         {
-            return PolicyFunctions.Abstaining(Cause.UnreadGearDemand);
+            return WorkRules.Abstaining(Cause.UnreadGearDemand);
         }
 
         var ids = census!.Pawns.Select(p => p.Pawn.Value).ToList();

@@ -57,7 +57,7 @@ internal static class ShelterServiceInvestment
                 {
                     Id = 1,
                     Role = PlannedRole.Shelter,
-                    Region = RectRegion(new(room.X, room.Z, 3, 3)),
+                    Region = RegionRules.RectRegion(new(room.X, room.Z, 3, 3)),
                     Door = new(room.DoorX, room.DoorZ),
                     DoorRot = Rotation.East,
                 },

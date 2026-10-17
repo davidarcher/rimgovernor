@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: trade_mission.go.
 
-public static partial class PolicyFunctions
+public static partial class TradePolicyRules
 {
     /// <summary>
     /// Selects one healthy negotiator, retaining the existing departure policy's last work owners, home staffing

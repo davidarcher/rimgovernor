@@ -86,7 +86,7 @@ public sealed partial class FoodStoresRounds
         }
         var facts = FoodStoresFacts.From(reading.Projection.Facts) with
         {
-            Haulers = PolicyFunctions.DangerHaulers(reading.Projection.WorkPawns),
+            Haulers = ShelterRules.DangerHaulers(reading.Projection.WorkPawns),
             WarmRooms = warm,
             MealClosetOwed = closet,
         };
@@ -139,7 +139,7 @@ public sealed partial class FoodStoresRounds
         var f = projection.Facts;
         if (!PolicyFunctions.FoodPlanSupport(f.FoodPlan, CandidateKind.Reserve, "stock-protection"))
         {
-            return PolicyFunctions.Abstaining(Cause.UnreadFoodPlan);
+            return WorkRules.Abstaining(Cause.UnreadFoodPlan);
         }
 
         var standing = PolicyFunctions.StandingStockOrders(benches, FoodStorageResourceDefinition);
@@ -159,7 +159,7 @@ public sealed partial class FoodStoresRounds
         }
         catch (DomainException)
         {
-            return PolicyFunctions.Abstaining(Cause.UnreadFoodStorage);
+            return WorkRules.Abstaining(Cause.UnreadFoodStorage);
         }
 
         if (!storage.Active)
@@ -174,13 +174,13 @@ public sealed partial class FoodStoresRounds
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return PolicyFunctions.Abstaining(Cause.UnreadFoodStorage);
+            return WorkRules.Abstaining(Cause.UnreadFoodStorage);
         }
 
         switch (choice.Kind)
         {
             case FoodStorageMethodKind.Unknown:
-                return PolicyFunctions.Abstaining(Cause.UnreadFoodStorage);
+                return WorkRules.Abstaining(Cause.UnreadFoodStorage);
             case FoodStorageMethodKind.Produce:
                 OrderSpec spec;
                 MedicineMethodKind kind;
@@ -191,12 +191,12 @@ public sealed partial class FoodStoresRounds
                 }
                 catch (DomainException)
                 {
-                    return PolicyFunctions.Abstaining(Cause.UnreadRecipes);
+                    return WorkRules.Abstaining(Cause.UnreadRecipes);
                 }
 
                 if (kind == MedicineMethodKind.Unknown)
                 {
-                    return PolicyFunctions.Abstaining(Cause.UnreadRecipes);
+                    return WorkRules.Abstaining(Cause.UnreadRecipes);
                 }
 
                 if (ok)

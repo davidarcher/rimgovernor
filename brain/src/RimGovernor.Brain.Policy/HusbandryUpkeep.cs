@@ -420,7 +420,7 @@ public static partial class PolicyFunctions
                 foreach (var a in candidates)
                 {
                     var minimum = a.MinimumHandlingSkill.ValueOrDefault;
-                    var ok = TamerFor(profiles, minimum) is not null;
+                    var ok = PawnRules.TamerFor(profiles, minimum) is not null;
                     if (!short_ && ok)
                     {
                         return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.Tame };

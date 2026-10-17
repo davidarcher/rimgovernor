@@ -43,7 +43,7 @@ public sealed record RescuePatientFacts
     public Fact<string> ExistingJobDef { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class RescueRules
 {
     /// <summary>
     /// Pairs the first available undrafted rescuer with the first downed, not-yet-bedded patient (by ID for a
@@ -79,7 +79,7 @@ public static partial class PolicyFunctions
         {
             return (default, default, false);
         }
-        var rescuer = rescuerPool.OrderBy(r => OrderedWorkCost(r.PlayerForced, r.QueuedJobs)).ThenBy(r => r.Pawn).First();
+        var rescuer = rescuerPool.OrderBy(r => OrderedWorkRules.OrderedWorkCost(r.PlayerForced, r.QueuedJobs)).ThenBy(r => r.Pawn).First();
         var patient = patientPool.OrderBy(p => p.Pawn).First();
         return (rescuer.Pawn, patient.Pawn, true);
     }

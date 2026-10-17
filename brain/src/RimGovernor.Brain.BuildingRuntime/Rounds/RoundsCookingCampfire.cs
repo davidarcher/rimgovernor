@@ -155,7 +155,7 @@ partial class RoundsBuildingPlanner
     }
 
     internal static Fact<bool> TemperatureOwed(ColonyProjection facts) =>
-        Known(PolicyApi.TemperatureOwed(facts.Rooms, TemperatureCooling(facts)));
+        Known(TemperatureMethodRules.TemperatureOwed(facts.Rooms, TemperatureCooling(facts)));
 
     internal static Fact<bool> CampfireRetireOwed(ColonyProjection facts)
     {

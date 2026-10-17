@@ -18,7 +18,7 @@ public sealed class CombatNeedTests
 
     private static RoundsResult Reviewed(Journal journal, GenerationSnapshot world, long hostiles, long tick, CancellationToken ct) => journal.ReviewRounds(new()
     {
-        Current = world, Tick = new(tick), Enabled = true, Policy = DefaultRoundsPolicy(), Revision = journal.LoadRounds(ct).Revision,
+        Current = world, Tick = new(tick), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Revision = journal.LoadRounds(ct).Revision,
         Facts = WorkResourceTestFacts.Create("a", "b") with { Hostiles = Known(hostiles), Tick = new(tick) },
     }, ct);
 

@@ -51,7 +51,7 @@ public sealed class ForecastPortfolioChoiceTests
                 },
             },
         };
-        return ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        return WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
     }
     internal static CoupledFoodConversion Conversion(string source, string resource, string recipe, double work) =>
         new(source, "pawn", "bench", recipe, resource, 4, "Meal", 1, Source, Bench, Destination,

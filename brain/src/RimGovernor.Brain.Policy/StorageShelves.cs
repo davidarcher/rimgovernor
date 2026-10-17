@@ -80,7 +80,7 @@ public sealed record ShelfCandidate
 // (ZoneManager.Notify_NoZoneOverlapThingSpawned), so a shelf sited inside a zone trades its two floor stacks for
 // six shelf stacks. Its default settings (Preferred, every category) are replaced by the served zone's desired
 // filter and priority by the admin/stockpiles Need (StockpileEditKind.ShelfPatch).
-public static partial class PolicyFunctions
+public static partial class StorageRules
 {
     public const string ShelfDefinition = "Shelf";
 
@@ -155,13 +155,13 @@ public static partial class PolicyFunctions
         }
         foreach (var z in r.Zones.OrderBy(z => z.Id, StringComparer.Ordinal))
         {
-            if (StoreOfZone(r.Stores, z) is not { Retired: false } store || !ShelfHolds(store.Site.Filter))
+            if (StoreRules.StoreOfZone(r.Stores, z) is not { Retired: false } store || !ShelfHolds(store.Site.Filter))
             {
                 continue;
             }
             foreach (var piece in ShelfSites(z.Cells, r.Cells, avoid))
             {
-                var (floor, _) = StorageStacks(RectCells(piece.Rect), census);
+                var (floor, _) = StockpileRules.StorageStacks(PlannedRules.RectCells(piece.Rect), census);
                 var stacks = r.ShelfStacks.TryGetValue(out var shelf) && floor.TryGetValue(out var given) ? Known(shelf - given) : Unknown<int>();
                 output.Add(new ShelfCandidate { Zone = z.Id, Role = store.Role, Piece = piece, Stacks = stacks });
             }
@@ -206,7 +206,7 @@ public static partial class PolicyFunctions
     public static Fact<EquatableArray<Cell>> PlannedWalkways(LayoutPlan plan)
     {
         var routes = CheckRoutes(plan);
-        return routes.Ok ? Known(EquatableArray.From(StockpileSorted(routes.Traffic.Keys))) : Unknown<EquatableArray<Cell>>();
+        return routes.Ok ? Known(EquatableArray.From(StockpileRules.StockpileSorted(routes.Traffic.Keys))) : Unknown<EquatableArray<Cell>>();
     }
 
     /// <summary>

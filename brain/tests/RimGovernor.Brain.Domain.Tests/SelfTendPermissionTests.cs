@@ -21,7 +21,7 @@ public sealed class SelfTendPermissionTests
         facts = facts with { WorkCoverage = Fact.Known(false), ForecastObserved = facts.ForecastObserved with
         { WorkPawns = Fact.Known<EquatableArray<WorkPawn>>([new() { Id = new("patient"), Available = Fact.Known(true) }]) } };
         _ = journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         var plan = new PlanSpec(new("obsolete-setting"), new(1),
             [DomainAction.NewPawnSettingsAction(new("setting"), PawnSettings.NewSelfTendSetting(new("patient"), proposed))]);
         // The admin/work-assignments Need's Method is refused: self-treatment is an observed permission (#3304).

@@ -236,7 +236,7 @@ public sealed class ForecastActivityCompositionTests
                     FoodUses = [new("pawn", "Meal", new(2, 1), Known(true), Known(.8), Known(10d), 1, Known(1000d))] },
             },
         };
-        facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300));
         var recipes = generated.Context.Activities.Activities.Where(t => t.Id.Contains("/recipe/", StringComparison.Ordinal)).ToArray();
         Assert.NotEmpty(recipes);
@@ -313,7 +313,7 @@ public sealed class ForecastActivityCompositionTests
         facts = facts with
         {
             Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 2)]),
-            PlannedShelters = [new() { Id = 1, Region = RectRegion(new(1, 1, 1, 1)) }],
+            PlannedShelters = [new() { Id = 1, Region = RegionRules.RectRegion(new(1, 1, 1, 1)) }],
             ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
             {
                 Food = new(), FoodUses = [],
@@ -329,7 +329,7 @@ public sealed class ForecastActivityCompositionTests
                 },
             } },
         };
-        facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300));
         Assert.Equal(2, generated.Alternatives.Count(c => c.ExclusiveOutcome == "shelter/planned/1"));
         var roof = generated.Context.Activities.Activities.Where(a => a.Id.StartsWith("roof/", StringComparison.Ordinal)).ToArray();

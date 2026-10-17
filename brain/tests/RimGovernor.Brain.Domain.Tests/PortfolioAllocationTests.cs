@@ -52,7 +52,7 @@ public sealed class PortfolioAllocationTests
                 }
             }
         };
-        return ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        return WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
     }
 
     internal static ColonyForecastRequest Request(RoundsFacts facts, ForecastCoupledCandidates generated) =>

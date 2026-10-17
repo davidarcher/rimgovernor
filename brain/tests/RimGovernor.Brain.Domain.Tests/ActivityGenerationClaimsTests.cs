@@ -23,7 +23,7 @@ public sealed class ActivityGenerationClaimsTests
         { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 20)]),
             Colonists = Known(1L), IndoorCapacity = Known(0L), BedCapacity = Known(0L) };
         var review = journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         var activity = DomainAction.NewPawnActivitiesAction(new("delivery"), new(1,
             [new("pawn", "assignment", "method", 0, 1, false,
                 [new(PawnActivityKind.Deliver, "rice-stack", "", "", 6, 500) { Destination = new(2, 2) }])
@@ -45,11 +45,11 @@ public sealed class ActivityGenerationClaimsTests
         Assert.Equal(8, journal.WorkResources(world, ct).Materials.Value[new("Rice")].Value);
         var changed = world with { Native = new(2) };
         journal.ReviewRounds(new() { Revision = review.Review.Revision, Current = changed, Tick = new(110), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = facts with { Tick = new(110) } }, ct);
+            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts with { Tick = new(110) } }, ct);
         var remaining = journal.WorkResources(changed, ct);
         Assert.Empty(remaining.Claims.Pawns);
         Assert.DoesNotContain("rice-stack", remaining.Claims.Targets);
-        Assert.Contains(BuildingClaimTarget(building.Building!), remaining.Claims.Targets);
+        Assert.Contains(WorkRules.BuildingClaimTarget(building.Building!), remaining.Claims.Targets);
         Assert.Equal(14, remaining.Materials.Value[new("Rice")].Value);
         Assert.False(journal.LoadPlan(plan.Id, ct).Retired); // Historical intent is not an unauthorized release order.
         Assert.False(journal.LoadPlan(construction.Id, ct).Retired);
@@ -92,7 +92,7 @@ public sealed class ActivityGenerationClaimsTests
         { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 20)]),
             Colonists = Known(1L), IndoorCapacity = Known(0L), BedCapacity = Known(0L) };
         journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         var activity = DomainAction.NewPawnActivitiesAction(new("delivery"), new(1,
             [new("pawn", "assignment", "method", 0, 1, false,
                 [new(PawnActivityKind.Deliver, "rice-stack", "", "", 6, 500) { Destination = new(2, 2) }])

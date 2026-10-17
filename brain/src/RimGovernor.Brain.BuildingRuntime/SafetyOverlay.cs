@@ -40,7 +40,7 @@ public sealed partial class Rounder
         if (LayoutOverlay)
         {
             projection.Facts.EventLoot.TryGetValue(out var loot);
-            layer = Pol.PolicyFunctions.SafetyOverlay(emergency.Threats, loot, projection.Bounds);
+            layer = Pol.SafetyOverlayRules.SafetyOverlay(emergency.Threats, loot, projection.Bounds);
         }
         var tick = projection.Identity.Tick;
         if (layer.Layers.Count == 0)
@@ -49,7 +49,7 @@ public sealed partial class Rounder
             {
                 try
                 {
-                    await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.PolicyFunctions.SafetyLayer, new Pol.LayoutOverlay(), false, ct).ConfigureAwait(false);
+                    await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.SafetyOverlayRules.SafetyLayer, new Pol.LayoutOverlay(), false, ct).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -65,7 +65,7 @@ public sealed partial class Rounder
         }
         try
         {
-            await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.PolicyFunctions.SafetyLayer, layer, true, ct).ConfigureAwait(false);
+            await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.SafetyOverlayRules.SafetyLayer, layer, true, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

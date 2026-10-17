@@ -15,8 +15,8 @@ public sealed class PlannedShellDemandTests
     {
         Rooms =
         [
-            new PlannedRoom { Id = 1, Role = PlannedShelter, Region = RectRegion(Rect(0, 0)) },
-            new PlannedRoom { Id = 2, Role = PlannedKitchen, Region = RectRegion(Rect(4, 0)) },
+            new PlannedRoom { Id = 1, Role = PlannedShelter, Region = RegionRules.RectRegion(Rect(0, 0)) },
+            new PlannedRoom { Id = 2, Role = PlannedKitchen, Region = RegionRules.RectRegion(Rect(4, 0)) },
         ],
     };
 
@@ -28,7 +28,7 @@ public sealed class PlannedShellDemandTests
         Func<Cell, string>? wantedFloor = null, IReadOnlyList<ClearanceTarget>? rows = null,
         IReadOnlySet<(string, Cell)>? placed = null)
     {
-        var owed = plan.Rooms.Select(room => (room, Reconcile(new ReconcileInput
+        var owed = plan.Rooms.Select(room => (room, ReconcileRules.Reconcile(new ReconcileInput
         {
             Plan = plan,
             Room = room,
@@ -37,7 +37,7 @@ public sealed class PlannedShellDemandTests
             Furniture = plan.Pieces.TryGetValue(room.Id, out var pieces) ? [.. pieces.Select(p => p.Wanted())] : [],
             WantedFloor = wantedFloor,
         }).Owed)).ToList();
-        return PlannedTotal(PlannedOwedCost(owed, shell, piece ?? NoPrice, floor ?? NoPrice, "Vent", placed ?? new HashSet<(string, Cell)>()).Values);
+        return PlannedRules.PlannedTotal(PlannedRules.PlannedOwedCost(owed, shell, piece ?? NoPrice, floor ?? NoPrice, "Vent", placed ?? new HashSet<(string, Cell)>()).Values);
     }
 
     private static IReadOnlyList<Amount>? Price(string def) => [new Amount(Wood, 5)];
@@ -83,9 +83,9 @@ public sealed class PlannedShellDemandTests
         {
             ground.Walls.Add(c);
         }
-        var owed = Reconcile(new ReconcileInput { Plan = plan, Room = room, Ground = ground, Rows = [], Unroofed = room.Region.Cells().ToHashSet() }).Owed;
+        var owed = ReconcileRules.Reconcile(new ReconcileInput { Plan = plan, Room = room, Ground = ground, Rows = [], Unroofed = room.Region.Cells().ToHashSet() }).Owed;
         Assert.Equal(9, owed.Single(o => o.Kind == OpKind.RoofIn).Cells.Count);
-        Assert.Empty(PlannedOwedCost([(room, owed)], Price, Price, Price, "Vent", new HashSet<(string, Cell)>()));
+        Assert.Empty(PlannedRules.PlannedOwedCost([(room, owed)], Price, Price, Price, "Vent", new HashSet<(string, Cell)>()));
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public sealed class PlannedShellDemandTests
     public void FloorsAreDemandedBeforeTheColonyCanPayForThem()
     {
         // Nothing is paid for yet, and the bedroom's nine floor cells are demanded in full.
-        var plan = new LayoutPlan { Rooms = [new PlannedRoom { Id = 1, Role = PlannedBedroom, Region = RectRegion(Rect(0, 0)) }] };
+        var plan = new LayoutPlan { Rooms = [new PlannedRoom { Id = 1, Role = PlannedBedroom, Region = RegionRules.RectRegion(Rect(0, 0)) }] };
         var demand = Owed(plan, new GroundCensus(), NoPrice, null, name => [new Amount(Wood, 2)], _ => "WoodPlankFloor");
         Assert.Equal(9 * 2, demand[Wood]);
     }
@@ -116,7 +116,7 @@ public sealed class PlannedShellDemandTests
         var bench = new InteriorPiece { Slot = "bench", Def = "TableButcher", Size = new Cell(1, 1), Rect = new Rectangle { X = 1, Z = 1, Width = 1, Height = 1 } };
         var plan = new LayoutPlan
         {
-            Rooms = [new PlannedRoom { Id = 1, Role = PlannedKitchen, Region = RectRegion(Rect(0, 0)) }],
+            Rooms = [new PlannedRoom { Id = 1, Role = PlannedKitchen, Region = RegionRules.RectRegion(Rect(0, 0)) }],
             Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [1] = [bench, bench with { Slot = "bench2", Rect = new Rectangle { X = 2, Z = 1, Width = 1, Height = 1 } }] },
         };
         IReadOnlyList<Amount>? price(string def) => [new Amount(Wood, 20)];

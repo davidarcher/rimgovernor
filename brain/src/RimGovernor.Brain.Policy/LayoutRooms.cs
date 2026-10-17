@@ -174,7 +174,7 @@ public static partial class PolicyFunctions
         {
             if (origins.Contains(new Cell(r.Region.Bounds().X, r.Region.Bounds().Z)) || (ids?.Contains(r.Id) ?? false))
             {
-                output.UnionWith(RectCells(RoomWalls(r)));
+                output.UnionWith(PlannedRules.RectCells(RoomWalls(r)));
             }
         }
         return output;

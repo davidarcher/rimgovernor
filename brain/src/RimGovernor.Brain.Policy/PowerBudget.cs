@@ -98,7 +98,7 @@ public sealed record PowerBudget
     public double StorageShortfallWD { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class PowerRules
 {
     /// <summary>
     /// A wind turbine's delivery profile in a weather whose wind factor is factor, from the catalog's

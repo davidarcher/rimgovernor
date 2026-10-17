@@ -120,7 +120,7 @@ public sealed class HomeUpkeepFamilyTests
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-home-upkeep-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with { Colonists = Known(3L), IndoorCapacity = Known(3L), BedCapacity = Known(3L), FieldCoverage = Known(1.0) };
-        var review = new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts };
+        var review = new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts };
         journal.ReviewRounds(review, ct);
         Colony? colony = null;
         var runner = new FamilyRunner<HomeUpkeepFacts>(new HomeUpkeepFamily(), (_, _) => Task.FromResult(colony!.Facts),
@@ -286,7 +286,7 @@ public sealed class HomeUpkeepFamilyTests
         var plan = new PlanId("p");
         var roof = DomainAction.NewRemoveRoofAction(new("p-0"), new RemoveRoof([new Cell(2, 3)]));
         var floor = DomainAction.NewFloorRemovalAction(new("p-1"), new FloorRemoval("WoodPlankFloor", new(4, 5)));
-        var claims = MethodClaimsOf(new WorkAdmissionEvidence(),
+        var claims = MethodClaimsRules.MethodClaimsOf(new WorkAdmissionEvidence(),
             [new WorkAction(plan, roof, new ProgressView { Action = roof.Id, Stage = Stage.Pending }), new WorkAction(plan, floor, new ProgressView { Action = floor.Id, Stage = Stage.Pending })]);
         Assert.Contains("roof/2/3", claims.Targets);
         Assert.Contains("floor/4/5", claims.Targets);

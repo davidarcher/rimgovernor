@@ -24,7 +24,7 @@ public sealed class ProductionPromisesTests
     private static ProductionBatch Placed => Batch with
     { Progress = Batch.Progress with { Attempt = new AttemptId(1), Stage = Stage.Completed, Bill = Known("bill") } };
     private static Fact<EquatableArray<ForecastCommitment>> Promises(ProductionBatch batch, Fact<EquatableArray<ProductionBatchState>> census = default) =>
-        ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([batch]), census);
+        ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([batch]), census);
     private static Fact<EquatableArray<IngredientReservation>> Reserved(string bill) => Known<EquatableArray<IngredientReservation>>([
         new() { Pawn = new RimGovernor.Brain.Domain.PawnId("cook"), Bill = Known(bill), Items = [new(Material, 10)] }]);
     private static RoundsFacts Facts(Fact<EquatableArray<ForecastCommitment>> promises) => new()
@@ -39,30 +39,30 @@ public sealed class ProductionPromisesTests
     public void PendingBatchAndConstructionAddInsteadOfCompetingStockFloors()
     {
         var facts = Facts(Promises(Batch));
-        var demand = ResourceDemandOf(facts, DefaultRoundsPolicy(), new());
+        var demand = ResourceRules.ResourceDemandOf(facts, RoundsRules.DefaultRoundsPolicy(), new());
         Assert.Equal(110, demand.Needs[Material]);
         Assert.Equal(110, demand.Retained.Value[Material]);
         Assert.Equal(-10, demand.MaterialAvailability.Value[Material].Value);
-        Assert.False(MaterialBudgetCovers(demand.MaterialAvailability.Value, [new(Material, 5)], 1));
-        Assert.True(MaterialBudgetCovers(demand.MaterialAvailability.Value, [new(Other, 5)], 4));
+        Assert.False(ProductionRules.MaterialBudgetCovers(demand.MaterialAvailability.Value, [new(Material, 5)], 1));
+        Assert.True(ProductionRules.MaterialBudgetCovers(demand.MaterialAvailability.Value, [new(Other, 5)], 4));
         Assert.Equal(20, demand.MaterialAvailability.Value[Other].Value);
         Assert.Equal(facts.ProductionPromises, demand.Work.ProductionPromises);
         // Changing the output's name does not change ingredient contention; this applies to a cooking batch too.
         var cooking = Batch with { Order = new ProductionBill("stove", "TestCookingRecipe", BillMode.GearBatch, 5, Material.Value) };
-        Assert.Equal(demand.Needs[Material], ResourceDemandOf(Facts(Promises(cooking)), DefaultRoundsPolicy(), new()).Needs[Material]);
+        Assert.Equal(demand.Needs[Material], ResourceRules.ResourceDemandOf(Facts(Promises(cooking)), RoundsRules.DefaultRoundsPolicy(), new()).Needs[Material]);
     }
 
     [Fact]
     public void ExactNativeHandoffCountsOnceAndCompletedIterationsReduceThePromise()
     {
         var facts = Facts(Promises(Placed, Census())) with { BillReservations = Reserved("bill") };
-        var demand = ResourceDemandOf(facts, DefaultRoundsPolicy(), new());
+        var demand = ResourceRules.ResourceDemandOf(facts, RoundsRules.DefaultRoundsPolicy(), new());
         Assert.Equal(110, demand.Needs[Material]);
         Assert.Equal(-10, demand.MaterialAvailability.Value[Material].Value);
-        var remaining = ResourceDemandOf(facts with { ProductionPromises = Promises(Placed, Census(2)) }, DefaultRoundsPolicy(), new());
+        var remaining = ResourceRules.ResourceDemandOf(facts with { ProductionPromises = Promises(Placed, Census(2)) }, RoundsRules.DefaultRoundsPolicy(), new());
         Assert.Equal(80, remaining.Needs[Material]);
         Assert.Equal(20, remaining.MaterialAvailability.Value[Material].Value);
-        var unrelated = ResourceDemandOf(facts with { BillReservations = Reserved("another-bill") }, DefaultRoundsPolicy(), new());
+        var unrelated = ResourceRules.ResourceDemandOf(facts with { BillReservations = Reserved("another-bill") }, RoundsRules.DefaultRoundsPolicy(), new());
         Assert.Equal(120, unrelated.Needs[Material]);
     }
 
@@ -80,15 +80,15 @@ public sealed class ProductionPromisesTests
         var suspended = Known<EquatableArray<ProductionBatchState>>([Census().Value[0] with { Suspended = Known(true) }]);
         Assert.Empty(Promises(Placed, suspended).Value);
         // A lingering native job still owns its materials after the future promise ends.
-        Assert.Equal(10, ProductionMaterialHoldsOf(Promises(Placed, Census(0)), Reserved("bill")).Value[Material].Value);
+        Assert.Equal(10, ProductionRules.ProductionMaterialHoldsOf(Promises(Placed, Census(0)), Reserved("bill")).Value[Material].Value);
     }
 
     [Fact]
     public void UnknownReadbackIsNotCompletionAndUnknownChoicesAreResourceLocal()
     {
-        var unread = ResourceDemandOf(Facts(Promises(Placed)), DefaultRoundsPolicy(), new());
+        var unread = ResourceRules.ResourceDemandOf(Facts(Promises(Placed)), RoundsRules.DefaultRoundsPolicy(), new());
         Assert.False(unread.MaterialAvailability.Value[Material].IsKnown);
-        Assert.False(MaterialBudgetCovers(unread.MaterialAvailability.Value, [new(Material, 1)], 1));
+        Assert.False(ProductionRules.MaterialBudgetCovers(unread.MaterialAvailability.Value, [new(Material, 1)], 1));
         Assert.Equal(20, unread.MaterialAvailability.Value[Other].Value);
         Assert.False(unread.Retained.IsKnown);
         var ambiguous = Batch with
@@ -100,8 +100,8 @@ public sealed class ProductionPromisesTests
         Assert.False(Promises(Batch with { Slots = default }).IsKnown);
         Assert.Equal(50, Promises(Batch with { UsesUnfinishedItem = Known(true) }).Value[0].MaterialClaims[0].Units.Value);
         Assert.False(Promises(Batch with { UsesUnfinishedItem = default }).Value[0].MaterialClaims[0].Units.IsKnown);
-        Assert.False(ProductionPromisesOf(default, Census()).IsKnown);
-        Assert.False(ResourceDemandOf(Facts(default), DefaultRoundsPolicy(), new()).MaterialAvailability.IsKnown);
+        Assert.False(ProductionRules.ProductionPromisesOf(default, Census()).IsKnown);
+        Assert.False(ResourceRules.ResourceDemandOf(Facts(default), RoundsRules.DefaultRoundsPolicy(), new()).MaterialAvailability.IsKnown);
     }
 
     [Fact]
@@ -110,9 +110,9 @@ public sealed class ProductionPromisesTests
         var batch = Batch with { Slots = Known<EquatableArray<EquatableArray<Amount>>>([[new(Material, 10)], [new(Material, 2)]]) };
         Assert.Equal(60, Promises(batch).Value[0].MaterialClaims[0].Units.Value);
         var second = Batch with { Progress = Batch.Progress with { Action = new ActionId("second") } };
-        var promises = ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([Batch, second]), default);
-        Assert.Equal(100, ProductionMaterialHoldsOf(promises, EmptyReservations).Value[Material].Value);
-        Assert.Throws<DomainException>(() => ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([Placed, Placed]), Census()));
+        var promises = ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([Batch, second]), default);
+        Assert.Equal(100, ProductionRules.ProductionMaterialHoldsOf(promises, EmptyReservations).Value[Material].Value);
+        Assert.Throws<DomainException>(() => ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([Placed, Placed]), Census()));
     }
 
     [Fact]
@@ -148,7 +148,7 @@ public sealed class ProductionPromisesTests
             WorkAdmission = new() { Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", Batch.Slots, Known(false))]),
                 Bills = Known(default(EquatableArray<ProductionBatchState>)) },
         };
-        var review = journal.ReviewRounds(new RoundsRequest { Current = world, Tick = facts.Tick, Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, lifetime.Token);
+        var review = journal.ReviewRounds(new RoundsRequest { Current = world, Tick = facts.Tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, lifetime.Token);
         Assert.True(review.Review.Enabled);
         Assert.Empty(journal.ProductionBatches(world, facts.Tick, lifetime.Token).Value);
         var action = DomainAction.NewProductionBillAction(new ActionId("batch"), Batch.Order);

@@ -79,7 +79,7 @@ public sealed record WorkshopChoice
     public IReadOnlyList<string> Research { get; init; } = [];
 }
 
-public static partial class PolicyFunctions
+public static partial class WorkRules
 {
     /// <summary>How many colonists justify each bench of one kind beyond the first: the cap on a kind is 1 + colonists/this.</summary>
     public const int ColonistsPerExtraBench = 4;

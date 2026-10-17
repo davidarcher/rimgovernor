@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Store;
 internal static class RoundsSafeguards
 {
     public static (SafeguardRefusal Refusal, bool Refused) Refuse(this Rounds rounds, SafeguardProposal proposal) =>
-        PolicyFunctions.RefuseProposal(new SafeguardContext { Enabled = rounds.Enabled, Unsafe = rounds.Unsafe }, proposal);
+        SafeguardsRules.RefuseProposal(new SafeguardContext { Enabled = rounds.Enabled, Unsafe = rounds.Unsafe }, proposal);
 
     public static (SafeguardRefusal Refusal, bool Refused) RefuseNeed(this Rounds rounds, ConcernId need) =>
         rounds.Refuse(new SafeguardProposal { Need = need });

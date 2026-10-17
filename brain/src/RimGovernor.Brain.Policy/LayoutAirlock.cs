@@ -15,7 +15,7 @@ public static partial class PolicyFunctions
         return new PlannedRoom
         {
             Role = PlannedRole.Airlock,
-            Region = RectRegion(new Rectangle(v.X, v.Z, 1, 1)),
+            Region = RegionRules.RectRegion(new Rectangle(v.X, v.Z, 1, 1)),
             Door = Outside(v, rot),
             DoorRot = rot,
         };

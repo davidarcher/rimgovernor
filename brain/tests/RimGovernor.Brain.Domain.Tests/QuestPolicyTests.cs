@@ -37,19 +37,19 @@ public sealed class QuestPolicyTests
     public void AJoinerOfferIsAcceptedWithRoomAndLeftWithoutIt()
     {
         var f = Calm(JoinerOffer("q9"), JoinerOffer("q2"));
-        var capacity = JoinerCapacity(f.JoinerCapacity());
+        var capacity = PopulationRules.JoinerCapacity(f.JoinerCapacity());
         Assert.True(capacity.TryGetValue(out var room) && room);
 
         // The lowest quest id, on its first reward choice.
-        var choice = SelectJoinerMethod(f.QuestOffers, capacity, f);
+        var choice = PopulationRules.SelectJoinerMethod(f.QuestOffers, capacity, f);
         Assert.Equal((new QuestId("q2"), 0, JoinerPlanReason.None), (choice.Quest, choice.RewardChoice, choice.Reason));
 
         // No spare bed is no room; a raid the colony cannot defend is turned away; an unread census decides nothing.
         var full = f with { Sleeping = Known(new SleepingObservation()) };
-        Assert.Equal(JoinerPlanReason.NoCapacity, SelectJoinerMethod(full.QuestOffers, JoinerCapacity(full.JoinerCapacity()), full).Reason);
+        Assert.Equal(JoinerPlanReason.NoCapacity, PopulationRules.SelectJoinerMethod(full.QuestOffers, PopulationRules.JoinerCapacity(full.JoinerCapacity()), full).Reason);
         var outgunned = Calm(JoinerOffer("q2", threat: 900));
-        Assert.Equal(JoinerPlanReason.NoCapacity, SelectJoinerMethod(outgunned.QuestOffers, capacity, outgunned).Reason);
-        Assert.Equal(JoinerPlanReason.CensusUnknown, SelectJoinerMethod(default, capacity, f).Reason);
+        Assert.Equal(JoinerPlanReason.NoCapacity, PopulationRules.SelectJoinerMethod(outgunned.QuestOffers, capacity, outgunned).Reason);
+        Assert.Equal(JoinerPlanReason.CensusUnknown, PopulationRules.SelectJoinerMethod(default, capacity, f).Reason);
     }
 
     private static readonly QuestObjective Produce = new()

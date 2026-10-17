@@ -19,7 +19,7 @@ public sealed record MechChargerSiteFacts
 /// (PollutionSites) over free ground, never by a definition name: the catalog's mech_charger flag finds the
 /// definition.
 /// </summary>
-public static partial class PolicyFunctions
+public static partial class MechRules
 {
     /// <summary>RoundsFacts.MechChargerOwed's value: whether the colony owes one more charger, unknown while the mechs or the charger list are unread.</summary>
     public static Fact<bool> MechChargerNeed(Fact<MechFleet> fleet, Fact<EquatableArray<MechCharger>> chargers)
@@ -89,7 +89,7 @@ public static partial class PolicyFunctions
                 continue;
             }
             var whole = true;
-            foreach (var cell in RectCells(r))
+            foreach (var cell in PlannedRules.RectCells(r))
             {
                 whole = whole && free.GetValueOrDefault(cell);
             }
@@ -108,6 +108,6 @@ public static partial class PolicyFunctions
             LivingCells = livingCells,
             Candidates = candidates,
         };
-        return PollutionSites(req);
+        return PollutionRules.PollutionSites(req);
     }
 }

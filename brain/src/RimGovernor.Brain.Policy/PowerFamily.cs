@@ -12,7 +12,7 @@ public sealed record PowerFacts
     /// <summary>The facts a review already holds.</summary>
     public static PowerFacts From(RoundsFacts f) => new()
     {
-        Standing = PolicyFunctions.FootholdPower(f),
+        Standing = RoundsRules.FootholdPower(f),
         OutageHeld = PolicyFunctions.PowerOutageHold(f.DisasterConditions),
     };
 }
@@ -37,7 +37,7 @@ public sealed class PowerFamily : IFamily<PowerFacts>
 
     public IReadOnlyList<FactFamily> SeriousHarmReads { get; } = [];
 
-    public IReadOnlyList<Need> Derive(PowerFacts facts) => [PolicyFunctions.PowerNeedOf(facts)];
+    public IReadOnlyList<Need> Derive(PowerFacts facts) => [PowerRules.PowerNeedOf(facts)];
 
     /// <summary>A flare holds the ready Need; otherwise every Method is the work step's.</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, PowerFacts facts) =>
@@ -46,7 +46,7 @@ public sealed class PowerFamily : IFamily<PowerFacts>
             : [];
 }
 
-public static partial class PolicyFunctions
+public static partial class PowerRules
 {
     /// <summary>The colony's power, a plain threshold: met while the grid stands, unmet while it is known short, otherwise unknown. Its deficit is whole.</summary>
     public static Need PowerNeedOf(PowerFacts f) => new()

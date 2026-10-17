@@ -109,23 +109,23 @@ public sealed partial class DefinitionCatalog
             MoveSpeed = moveSpeed,
             RearRanged = rearRanged,
             FrontLine = frontLine,
-            Execution = Listed(ThoughtPrisonerDied, false),
-            HumanButcher = Listed(ThoughtButcheredHuman, false),
-            Nudist = Listed(ThoughtNaked, false),
-            MeleeOnly = Listed(ThoughtRangedCarried, true),
-            SurgeonSafe = Listed(ThoughtOrganHarvested, false),
-            Greedy = Listed(ThoughtGreedy, true),
-            Ascetic = Listed(ThoughtAscetic, true),
-            Jealous = Listed(ThoughtJealous, true),
-            NightShift = Listed(ThoughtNightOwl, true),
-            Pyromaniac = Listed(ThoughtPyromaniac, true),
-            ChemicalInterest = RequireRow<ThoughtDef>(ThoughtDrugDesire).requiredTraits.Seq().Any(t => t.defName == name) ? degree : 0,
+            Execution = Listed(P.TraitWorthRules.ThoughtPrisonerDied, false),
+            HumanButcher = Listed(P.TraitWorthRules.ThoughtButcheredHuman, false),
+            Nudist = Listed(P.TraitWorthRules.ThoughtNaked, false),
+            MeleeOnly = Listed(P.TraitWorthRules.ThoughtRangedCarried, true),
+            SurgeonSafe = Listed(P.TraitWorthRules.ThoughtOrganHarvested, false),
+            Greedy = Listed(P.TraitWorthRules.ThoughtGreedy, true),
+            Ascetic = Listed(P.TraitWorthRules.ThoughtAscetic, true),
+            Jealous = Listed(P.TraitWorthRules.ThoughtJealous, true),
+            NightShift = Listed(P.TraitWorthRules.ThoughtNightOwl, true),
+            Pyromaniac = Listed(P.TraitWorthRules.ThoughtPyromaniac, true),
+            ChemicalInterest = RequireRow<ThoughtDef>(P.TraitWorthRules.ThoughtDrugDesire).requiredTraits.Seq().Any(t => t.defName == name) ? degree : 0,
             QuickSleeper = rest > 0,
             Undergrounder = undergrounder,
             Cannibal = cannibal,
             DisabledWork = disabled,
             Gourmand = data.hungerRateFactor > 1,
-            Sociable = P.PolicyFunctions.TraitSociable(name),
+            Sociable = P.TraitWorthRules.TraitSociable(name),
         };
     }
 
@@ -217,11 +217,11 @@ public sealed partial class DefinitionCatalog
             NullifyingPrecepts = [.. row.nullifyingPrecepts.Seq().Select(p => p.defName)],
             RequiredTraits = [.. row.requiredTraits.Seq().Select(t => t.defName)],
             MinExpectation = row.minExpectation?.defName ?? string.Empty,
-            Dependency = ThoughtUnclassified,
+            Dependency = P.ThoughtFactsRules.ThoughtUnclassified,
             Stages = stages,
             WorstOffset = worst,
         };
-        return P.PolicyFunctions.ThoughtAuditRow(name) is ({ } audit, true) ? facts with { Dependency = audit.Dependency, Owner = audit.Owner } : facts;
+        return P.ThoughtFactsRules.ThoughtAuditRow(name) is ({ } audit, true) ? facts with { Dependency = audit.Dependency, Owner = audit.Owner } : facts;
     }
 
     /// <summary><see cref="ThoughtFacts"/> for every ThoughtDef row, by defName.</summary>

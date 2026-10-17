@@ -51,7 +51,7 @@ public sealed partial record StoreView
                 {
                     Site = new StoreSite
                     {
-                        Role = PolicyFunctions.PlannedKey(StockpileRolesConstants.MealsRolePrefix, bounds),
+                        Role = StoreRules.PlannedKey(StockpileRolesConstants.MealsRolePrefix, bounds),
                         Interior = bounds,
                         Region = closet.Region,
                         Filter = StockpileFilter.MealShelfFilter(),
@@ -73,7 +73,7 @@ public sealed partial record StoreView
             Retired = meals.Retired,
             Site = new StoreSite
             {
-                Role = PolicyFunctions.PlannedKey(StockpileRolesConstants.MealsRolePrefix, meals.Dining),
+                Role = StoreRules.PlannedKey(StockpileRolesConstants.MealsRolePrefix, meals.Dining),
                 Interior = meals.Dining,
                 Width = 1,
                 Height = 1,
@@ -120,7 +120,7 @@ public sealed partial record StoreView
                     {
                         Site = new StoreSite
                         {
-                            Role = PolicyFunctions.PlannedKey(StockpileRolesConstants.MealsRolePrefix, bounds),
+                            Role = StoreRules.PlannedKey(StockpileRolesConstants.MealsRolePrefix, bounds),
                             Interior = bounds,
                             Width = 2,
                             Height = 2,
@@ -165,7 +165,7 @@ public sealed partial record StoreView
             if (shelf.Prefix == StockpileRolesConstants.CorpsesRolePrefix)
             {
                 // Carcasses stay by the butcher's door into the freezer.
-                var (door, hasDoor) = PolicyFunctions.ButcheryDoor(Layout);
+                var (door, hasDoor) = StoreRules.ButcheryDoor(Layout);
                 if (hasDoor)
                 {
                     at = door;
@@ -175,7 +175,7 @@ public sealed partial record StoreView
             {
                 Site = new StoreSite
                 {
-                    Role = PolicyFunctions.PlannedKey(shelf.Prefix, bounds),
+                    Role = StoreRules.PlannedKey(shelf.Prefix, bounds),
                     Interior = bounds,
                     Width = 2,
                     Height = 2,
@@ -189,7 +189,7 @@ public sealed partial record StoreView
         {
             Site = new StoreSite
             {
-                Role = PolicyFunctions.PlannedKey(StockpileRolesConstants.PerishablesRolePrefix, bounds),
+                Role = StoreRules.PlannedKey(StockpileRolesConstants.PerishablesRolePrefix, bounds),
                 Interior = bounds,
                 Filter = StockpileFilter.PerishablesFilter(),
                 Priority = StockpilePriority.Preferred,
@@ -199,7 +199,7 @@ public sealed partial record StoreView
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class StoreRules
 {
     /// <summary>Names a planned room's zone role by its interior, the identity the zone is matched to.</summary>
     internal static string PlannedKey(string prefix, Rectangle interior) =>
@@ -207,7 +207,7 @@ public static partial class PolicyFunctions
 
     internal static List<Cell> WithoutCells(IEnumerable<Cell> cells, IEnumerable<Cell> drop)
     {
-        var skip = CellSet(drop);
+        var skip = StockpileRules.CellSet(drop);
         return [.. cells.Where(c => !skip.Contains(c))];
     }
 }

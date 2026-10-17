@@ -148,7 +148,7 @@ public sealed record SupplyCandidate
     /// <summary>The candidate's nutrition yield: the first yield when it is nutrition, else the zero (unknown) yield.</summary>
     public CandidateYield Nutrition()
     {
-        if (Yields.Count > 0 && Yields[0].Good == NutritionKey)
+        if (Yields.Count > 0 && Yields[0].Good == SupplyPlanRules.NutritionKey)
         {
             return Yields[0];
         }
@@ -159,7 +159,7 @@ public sealed record SupplyCandidate
     /// <summary>This candidate with its nutrition rate replaced; a shared candidate is never edited in place.</summary>
     public SupplyCandidate WithNutritionPerDay(Fact<double> perDay)
     {
-        if (Yields.Count == 0 || Yields[0].Good != NutritionKey)
+        if (Yields.Count == 0 || Yields[0].Good != SupplyPlanRules.NutritionKey)
         {
             return this;
         }
@@ -172,7 +172,7 @@ public sealed record SupplyCandidate
     /// <summary>The goods a food candidate yields beside its nutrition (a hunted deer's leather).</summary>
     public IReadOnlyList<CandidateYield> Products()
     {
-        if (Yields.Count > 1 && Yields[0].Good == NutritionKey)
+        if (Yields.Count > 1 && Yields[0].Good == SupplyPlanRules.NutritionKey)
         {
             return Yields.Skip(1).ToArray();
         }
@@ -195,7 +195,7 @@ public static partial class PolicyFunctions
         {
             Kind = kind,
             Id = id,
-            Yields = EquatableArray.From([new CandidateYield { Good = NutritionKey, PerDay = perDay, StockCap = Unknown<long>() }]),
+            Yields = EquatableArray.From([new CandidateYield { Good = SupplyPlanRules.NutritionKey, PerDay = perDay, StockCap = Unknown<long>() }]),
         };
 
     /// <summary>A food candidate's standing: Delivering when open, else Designated when committed, else Closed; unknown when open is.</summary>

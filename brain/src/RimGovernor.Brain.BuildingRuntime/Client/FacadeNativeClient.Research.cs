@@ -52,7 +52,7 @@ public sealed partial class FacadeNativeClient
             facts = facts with { LockReasons = row.LockReasons, Census = row.CanStart is not null };
             foreach (var reason in row.LockReasons)
             {
-                if (reason == Policy.PolicyFunctions.ResearchLockHidden)
+                if (reason == Policy.ResearchRules.ResearchLockHidden)
                 {
                     facts = facts with { Hidden = true };
                 }

@@ -23,7 +23,7 @@ public sealed class ActivityContinuationTests
     {
         IntentActionRules.RegisterIntentKinds();
         _ = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
+            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
         var owner = TestNeed.Commit(journal, Root, new("method"), plan, ct);
         TestNeed.File(journal, met: false, new("method"), ct);
         var scope = Root with { Plan = plan.Id };
@@ -157,7 +157,7 @@ public sealed class ActivityContinuationTests
         using var journal = Open(ct);
         IntentActionRules.RegisterIntentKinds();
         _ = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
+            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
         var need = AdminFamily.WorkAssignments;
         var initial = Plan("need-initial", Batch);
         Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(need, Root, new("method"), "", initial, ct).Outcome);

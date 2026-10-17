@@ -16,7 +16,7 @@ public static class QuestSelection
         var output = new List<QuestSkip>();
         foreach (var offer in rows)
         {
-            if (ClaimAnswerable(offer, f.TitleClaimQuests) && QuestRewards.SelectQuestReward(offer, f).Reason.IsNone)
+            if (PopulationRules.ClaimAnswerable(offer, f.TitleClaimQuests) && QuestRewards.SelectQuestReward(offer, f).Reason.IsNone)
             {
                 continue;
             }
@@ -49,11 +49,11 @@ public static class QuestSelection
         {
             return "colony_busy";
         }
-        if (!offer.ThreatPoints.TryGetValue(out var threat) || !Finite(threat) || threat < 0)
+        if (!offer.ThreatPoints.TryGetValue(out var threat) || !TradePolicyRules.Finite(threat) || threat < 0)
         {
             return "threat_unknown";
         }
-        if (!facts.DefenseCapacity.TryGetValue(out var defense) || !Finite(defense) || defense < 0)
+        if (!facts.DefenseCapacity.TryGetValue(out var defense) || !TradePolicyRules.Finite(defense) || defense < 0)
         {
             return "defense_unknown";
         }
@@ -300,7 +300,7 @@ public static class QuestSelection
             {
                 return "food_unknown";
             }
-            if (days < JoinerFoodFloorDays(home))
+            if (days < PopulationRules.JoinerFoodFloorDays(home))
             {
                 return "food_capacity";
             }
@@ -349,7 +349,7 @@ public static class QuestSelection
         JoinerOffer? best = null;
         foreach (var offer in rows)
         {
-            if (ClaimAnswerable(offer, f.TitleClaimQuests) && QuestRewards.SelectQuestReward(offer, f).Reason.IsNone && (best is null || offer.Quest.CompareTo(best.Quest) < 0))
+            if (PopulationRules.ClaimAnswerable(offer, f.TitleClaimQuests) && QuestRewards.SelectQuestReward(offer, f).Reason.IsNone && (best is null || offer.Quest.CompareTo(best.Quest) < 0))
             {
                 best = offer;
             }

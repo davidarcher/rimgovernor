@@ -118,8 +118,8 @@ partial class Rounder
     /// <summary>The surgery parts the care pawns want and the production benches that could fabricate them.</summary>
     internal static async Task<(IReadOnlyList<SurgeryPart> Parts, IReadOnlyList<ProductionBench> Benches)> SurgeryPartDemandAsync(object native, C.Identity identity, Fact<EquatableArray<CarePawn>> pawns, SurgeryContext ctx, CancellationToken call)
     {
-        var parts = PolicyApi.SurgeryParts(PolicyApi.SelectSurgery(pawns, new HashSet<PawnId>(), new SurgeryContext()).Wants);
-        var chosen = PolicyApi.ChosenElectives(pawns, ctx);
+        var parts = SurgeryRules.SurgeryParts(SurgeryRules.SelectSurgery(pawns, new HashSet<PawnId>(), new SurgeryContext()).Wants);
+        var chosen = SurgeryRules.ChosenElectives(pawns, ctx);
         if (parts.Count == 0 && chosen.Count == 0)
         {
             return (parts, []);
@@ -135,14 +135,14 @@ partial class Rounder
 
     internal static (IReadOnlyList<SurgeryPart> Parts, IReadOnlyList<ProductionBench> Benches) SurgeryPartsOn(Fact<EquatableArray<CarePawn>> pawns, SurgeryContext ctx, IReadOnlyList<GearBench> benches)
     {
-        var parts = PolicyApi.SurgeryParts(PolicyApi.SelectSurgery(pawns, new HashSet<PawnId>(), new SurgeryContext()).Wants).ToList();
-        var chosen = PolicyApi.ChosenElectives(pawns, ctx);
+        var parts = SurgeryRules.SurgeryParts(SurgeryRules.SelectSurgery(pawns, new HashSet<PawnId>(), new SurgeryContext()).Wants).ToList();
+        var chosen = SurgeryRules.ChosenElectives(pawns, ctx);
         if (parts.Count == 0 && chosen.Count == 0)
         {
             return (parts, []);
         }
         var productions = PartBenches(benches);
-        parts.AddRange(PolicyApi.ElectiveParts(chosen, PolicyApi.FabricableParts(productions)));
+        parts.AddRange(SurgeryRules.ElectiveParts(chosen, SurgeryRules.FabricableParts(productions)));
         return (parts, productions);
     }
 

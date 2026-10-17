@@ -162,13 +162,13 @@ public sealed partial record PrisonerFacts
             return Unknown<double>();
         }
         Resistance.TryGetValue(out var resistance);
-        return Known(PolicyFunctions.PrisonerWorth(p, resistance, c));
+        return Known(PopulationRules.PrisonerWorth(p, resistance, c));
     }
 
     internal bool WorthRecruiting(PrisonerProspect p, PrisonerColony c)
     {
         Resistance.TryGetValue(out var resistance);
-        return PolicyFunctions.PrisonerWorth(p, resistance, c) >= PolicyFunctions.RecruitThreshold(c.Colonists);
+        return PopulationRules.PrisonerWorth(p, resistance, c) >= PopulationRules.RecruitThreshold(c.Colonists);
     }
 
     /// <summary>
@@ -188,7 +188,7 @@ public sealed partial record PrisonerFacts
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class PopulationRules
 {
     /// <summary>
     /// Scores a prospect against the colony: +1 per usable skill at 8+, +1 more at 12+, +1 per major and

@@ -60,7 +60,7 @@ public sealed class ForecastCoupledSelectionTests
                 },
             },
         };
-        facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
     }
     private static string SourceTask(RoundsFacts facts, string target) => facts.CoupledAlternatives!.Context.Activities.Activities
@@ -84,7 +84,7 @@ public sealed class ForecastCoupledSelectionTests
             Needs = facts.ForecastObserved.Needs with { Pawns = [pawn, pawn with { Pawn = "helper" }] },
             Coupled = facts.ForecastObserved.Coupled! with { Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [] }
         } };
-        facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
         var selected = Select(facts);
         Assert.NotEmpty(selected.Selected.Plan.Allocations);
@@ -92,7 +92,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Contains(selected.Selection.Findings, f => f.StartsWith("conflicting_selected_target_owners:", StringComparison.Ordinal));
         var batch = ForecastCoupledSelection.StartCoupledActivity(selected, facts.CoupledAlternatives!, 1, "service-method", 100);
         Assert.NotNull(batch);
-        Assert.True(WorkResourcesFit(facts.WorkView!, new(new("selected-service"), new(1),
+        Assert.True(WorkRules.WorkResourcesFit(facts.WorkView!, new(new("selected-service"), new(1),
             [DomainAction.NewPawnActivitiesAction(new("service-action"), batch)])));
     }
     private static ForecastCoupledSelection Select(RoundsFacts facts, int budget = 16384, params ForecastCommitment[] incumbent)
@@ -604,7 +604,7 @@ public sealed class ForecastCoupledSelectionTests
         facts = facts with
         {
             Gear = Known(census),
-            WorkView = WorkResourcesOf(WorkAdmissionEvidenceOf(roster, Known<EquatableArray<ProductionBatch>>([])), Known<EquatableArray<ProductionBatch>>([]), []),
+            WorkView = WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(roster, Known<EquatableArray<ProductionBatch>>([])), Known<EquatableArray<ProductionBatch>>([]), []),
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = facts.ForecastObserved.Needs with { Pawns = [template, template with { Pawn = "tailor" }] },

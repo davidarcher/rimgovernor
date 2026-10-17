@@ -45,7 +45,7 @@ public sealed partial class SafeAreaMemory
             areas[key] = a;
         }
 
-        var planned = PolicyFunctions.PlanBotArea(key, want, a.Current, a.Known);
+        var planned = SafeAreaRules.PlanBotArea(key, want, a.Current, a.Known);
         a.Want = want;
         edits.AddRange(planned);
     }
@@ -69,7 +69,7 @@ public sealed partial class SafeAreaMemory
         {
             Enter(newWorld);
             edits = [];
-            Plan(PolicyFunctions.SafeAreaKey, PolicyFunctions.SafeAreaCells(rooms, [.. killbox, .. isolation]));
+            Plan(SafeAreaRules.SafeAreaKey, SafeAreaRules.SafeAreaCells(rooms, [.. killbox, .. isolation]));
             if (hospital.Count > 0)
             {
                 Plan(PolicyFunctions.HospitalAreaKey, hospital);
@@ -82,7 +82,7 @@ public sealed partial class SafeAreaMemory
 
             if (projection.Facts.HomeCoverage.TryGetValue(out var census) && census.Home.TryGetValue(out var home) && home.Count > 0)
             {
-                Plan(PolicyFunctions.NoDangerAreaKey, PolicyFunctions.NoDangerCells(home, killbox, SafeAreaMemory.SortedSeeds(danger)));
+                Plan(ShelterRules.NoDangerAreaKey, ShelterRules.NoDangerCells(home, killbox, SafeAreaMemory.SortedSeeds(danger)));
             }
 
             reviewed = true;
@@ -138,7 +138,7 @@ public sealed partial class SafeAreaMemory
                 lastKnown = true;
             }
 
-            var window = PolicyFunctions.DangerWindowOf(hostiles, last, lastKnown, tick);
+            var window = ShelterRules.DangerWindowOf(hostiles, last, lastKnown, tick);
             if (window.TryGetValue(out var open) && open)
             {
                 danger ??= [];
@@ -160,7 +160,7 @@ public sealed partial class SafeAreaMemory
 partial class SafeAreaMemory
 {
     internal static Fact<EquatableArray<Cell>> DangerSeedFact(Fact<long> hostiles, IReadOnlyList<EmergencyThreat> threats) =>
-        hostiles.IsKnown ? Known<EquatableArray<Cell>>([.. PolicyFunctions.DangerSeeds(threats)]) : Unknown<EquatableArray<Cell>>();
+        hostiles.IsKnown ? Known<EquatableArray<Cell>>([.. ShelterRules.DangerSeeds(threats)]) : Unknown<EquatableArray<Cell>>();
 
     internal static IReadOnlyList<Cell> SortedSeeds(HashSet<Cell>? set) =>
         set is null ? [] : [.. set.OrderBy(c => c.Z).ThenBy(c => c.X)];

@@ -649,7 +649,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var handled = TamerFor(profiles, minimum) is not null;
+            var handled = PawnRules.TamerFor(profiles, minimum) is not null;
             if (!handled)
             {
                 gap = true;
@@ -671,7 +671,7 @@ public static partial class PolicyFunctions
             }
             _ = input.Races.Race(a.Definition, out var race);
             var known = race.MinimumHandlingSkill.TryGetValue(out var minimum);
-            var handled = TamerFor(profiles, minimum) is not null;
+            var handled = PawnRules.TamerFor(profiles, minimum) is not null;
             if (!known || !handled)
             {
                 continue;
@@ -722,7 +722,7 @@ public static partial class PolicyFunctions
     {
         var bk = input.Budget.TryGetValue(out var headroom);
         var wk = input.Wealth.TryGetValue(out var w);
-        if (!bk || !wk || !Finite(headroom) || !Finite(w!.Total))
+        if (!bk || !wk || !TradePolicyRules.Finite(headroom) || !TradePolicyRules.Finite(w!.Total))
         {
             return (0, false);
         }
@@ -756,7 +756,7 @@ public static partial class PolicyFunctions
     /// headroom, so the defense keeps pace with the wealth the animals add. Held war animals are kept (and cut by
     /// the budget ceiling) whatever this says.
     /// </summary>
-    private static bool HerdWarWanted(HerdPlanInput input) => input.Budget.TryGetValue(out var headroom) && Finite(headroom) && headroom >= 0;
+    private static bool HerdWarWanted(HerdPlanInput input) => input.Budget.TryGetValue(out var headroom) && TradePolicyRules.Finite(headroom) && headroom >= 0;
 
     /// <summary>
     /// The races ranked for the job. War candidates the colony does not own also need a handler whose Animals
@@ -776,7 +776,7 @@ public static partial class PolicyFunctions
         {
             _ = input.Races.Race(def, out var race);
             var known = race.MinimumHandlingSkill.TryGetValue(out var minimum);
-            var handled = TamerFor(profiles, minimum) is not null;
+            var handled = PawnRules.TamerFor(profiles, minimum) is not null;
             if (owned.ContainsKey(def) || (known && handled))
             {
                 @out.Add(def);

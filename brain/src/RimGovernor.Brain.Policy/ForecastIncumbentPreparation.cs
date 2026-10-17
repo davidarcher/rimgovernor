@@ -100,7 +100,7 @@ public static class ForecastIncumbentPreparation
         }
         // Ambiguous/mixed owners remain protected, including duplicate current journal rows.
         eligible = eligible.Where(e => eligible.Count(x => x.Owner.Pawn == e.Owner.Pawn) == 1).ToList();
-        eligible = eligible.Where(e => !WorkClaimsOf(original.Evidence, actions.Actions.Where(a =>
+        eligible = eligible.Where(e => !WorkRules.WorkClaimsOf(original.Evidence, actions.Actions.Where(a =>
             a.Plan != e.Row.Plan || a.Action.Id != e.Row.Action.Id)).Pawns.Contains(e.Owner.Pawn)).ToList();
         var truncated = eligible.Count > 4;
         var chosen = eligible.Take(4).ToArray();
@@ -109,7 +109,7 @@ public static class ForecastIncumbentPreparation
         var releasedPawns = chosen.Select(e => e.Owner.Pawn).ToHashSet(StringComparer.Ordinal);
         var evidence = original.Evidence with { Pawns = Known(EquatableArray.From(availability.Select(p =>
             releasedPawns.Contains(p.Pawn) ? p with { Occupied = Known(false) } : p))) };
-        var conditional = WorkResourcesOf(evidence, batches,
+        var conditional = WorkRules.WorkResourcesOf(evidence, batches,
             actions.Actions.Where(a => !omitted.Contains((a.Plan, a.Action.Id))), actions.Truncated);
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { WorkView = conditional, WorkClaims = conditional.Claims });
         if (generated is null) return Protected();

@@ -22,7 +22,7 @@ public sealed record StoreOccupancy
     public IReadOnlyDictionary<string, EquatableArray<OccupancySample>> Groups { get; init; } = new Dictionary<string, EquatableArray<OccupancySample>>();
 }
 
-public static partial class PolicyFunctions
+public static partial class StoreRules
 {
     /// <summary>The window a store's inflow is read over: recent enough to follow a change in hauling.</summary>
     public const int StoreInflowWindowDays = 3;
@@ -31,7 +31,7 @@ public static partial class PolicyFunctions
     public const int StoreInflowMinHours = 24;
 
     /// <summary>The last hour an inflow read does not need, for the read at <paramref name="tick"/>.</summary>
-    public static int StoreInflowSinceHour(Tick tick) => (int)(tick.Value / ConsumptionHourTicks) - (StoreInflowWindowDays * 24);
+    public static int StoreInflowSinceHour(Tick tick) => (int)(tick.Value / ResourceRules.ConsumptionHourTicks) - (StoreInflowWindowDays * 24);
 
     /// <summary>
     /// The store's net inflow in stacks per day: the sum, over the zones serving it and their built shelves, of each

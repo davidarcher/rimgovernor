@@ -398,7 +398,7 @@ internal sealed class CombatInputs
         foreach (var pawn in colonists)
         {
             var work = RoundsWorkReads.WorkPawnRow(Rows[pawn.Id.Value], arms.Catalog, arms.Things);
-            Profiles[pawn.Id] = PolicyApi.BuildProfile(work);
+            Profiles[pawn.Id] = PawnRules.BuildProfile(work);
         }
     }
 }
@@ -523,7 +523,7 @@ partial class RoundsDefensePlanner
             var profile = inp.Profiles[pawn.Id];
             profiles.Add(profile);
         }
-        var (front, _) = PolicyApi.FrontLine(profiles);
+        var (front, _) = PawnRules.FrontLine(profiles);
         var holds = new HashSet<PawnId>(front);
         defenders = [.. defenders.Select(d => d with { FrontLine = holds.Contains(d.Id) })];
         var threats = new List<SquadThreatFacts>();

@@ -44,7 +44,7 @@ internal static class RoundsRefusalBudget
             return (default, true);
         }
 
-        if (why.Code == PolicyFunctions.BudgetWaiting)
+        if (why.Code == RefusalBudgetRules.BudgetWaiting)
         {
             return (RetryBudgetWait(subject, ReasonToken(why.Reason)), false);
         }

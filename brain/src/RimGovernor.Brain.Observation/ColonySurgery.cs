@@ -9,13 +9,13 @@ public sealed partial record ColonyProjection
     public SurgeryContext SurgeryContext()
     {
         var ctx = new SurgeryContext();
-        if (PolicyFunctions.HospitalBedReady(Facts.Sleeping).TryGetValue(out var bed) && bed)
+        if (SurgeryRules.HospitalBedReady(Facts.Sleeping).TryGetValue(out var bed) && bed)
         {
             ctx = ctx with { HospitalBed = true };
         }
         if (WorkPawns.TryGetValue(out var pawns))
         {
-            ctx = ctx with { Profiles = PolicyFunctions.Profiles(pawns) };
+            ctx = ctx with { Profiles = PawnRules.Profiles(pawns) };
         }
         return ctx;
     }

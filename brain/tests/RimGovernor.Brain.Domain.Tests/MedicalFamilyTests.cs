@@ -27,19 +27,19 @@ public sealed class MedicalFamilyTests
     public void ACriticalNeedStandsPerPatientAndAnUnreadCensusIsOneUnknownNeed()
     {
         var unknown = Assert.Single(Derive(new MedicalFacts(), critical: true));
-        Assert.Equal((CriticalCensusNeed, NeedTier.SeriousHarm, Satisfaction.Unknown), (unknown.Id, unknown.Tier, unknown.Satisfaction));
+        Assert.Equal((MedicalRules.CriticalCensusNeed, NeedTier.SeriousHarm, Satisfaction.Unknown), (unknown.Id, unknown.Tier, unknown.Satisfaction));
 
         var patients = Derive(new MedicalFacts { Critical = Known(EquatableArray.From([P1, P2])) }, critical: true);
-        Assert.Equal([CriticalNeed(P1), CriticalNeed(P2)], patients.Select(n => n.Id));
+        Assert.Equal([MedicalRules.CriticalNeed(P1), MedicalRules.CriticalNeed(P2)], patients.Select(n => n.Id));
         Assert.All(patients, n => Assert.Equal((NeedTier.SeriousHarm, Satisfaction.Unmet), (n.Tier, n.Satisfaction)));
-        Assert.True(IsCriticalNeed(patients[0].Id, out var who) && who == P1);
-        Assert.False(IsCriticalNeed(MedicalCareNeed, out _));
+        Assert.True(MedicalRules.IsCriticalNeed(patients[0].Id, out var who) && who == P1);
+        Assert.False(MedicalRules.IsCriticalNeed(MedicalRules.MedicalCareNeed, out _));
 
         // Met: nobody is a patient, so no critical Need stands; the census row reads it as met.
         Assert.Empty(Derive(new MedicalFacts { Critical = Known(EquatableArray.From(Array.Empty<PawnId>())) }, critical: true));
-        Assert.Equal(Satisfaction.Met, CriticalCensusNeedOf(Known(0L)).Satisfaction);
-        Assert.Equal(Satisfaction.Unmet, CriticalCensusNeedOf(Known(2L)).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, CriticalCensusNeedOf(Unknown<long>()).Satisfaction);
+        Assert.Equal(Satisfaction.Met, MedicalRules.CriticalCensusNeedOf(Known(0L)).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, MedicalRules.CriticalCensusNeedOf(Known(2L)).Satisfaction);
+        Assert.Equal(Satisfaction.Unknown, MedicalRules.CriticalCensusNeedOf(Unknown<long>()).Satisfaction);
     }
 
     [Theory]
@@ -51,7 +51,7 @@ public sealed class MedicalFamilyTests
         var fact = value is { } v ? Known(v) : Unknown<bool>();
         var facts = new MedicalFacts { CareRecovered = fact, ReservesCovered = fact, SurgeryRecovered = fact, MedicineStock = Known(2L), MedicineTarget = Known(8L) };
         var needs = Derive(facts, care: true, reserves: true, surgery: true);
-        Assert.Equal([MedicalCareNeed, MedicalReservesNeed, SurgeryNeed], needs.Select(n => n.Id));
+        Assert.Equal([MedicalRules.MedicalCareNeed, MedicalRules.MedicalReservesNeed, MedicalRules.SurgeryNeed], needs.Select(n => n.Id));
         Assert.All(needs, n => Assert.Equal((NeedTier.Wellbeing, expected), (n.Tier, n.Satisfaction)));
         var reserves = needs[1];
         Assert.Equal(expected switch { Satisfaction.Met => Known(0.0), Satisfaction.Unmet => Known(0.75), _ => Unknown<double>() }, reserves.Deficit);
@@ -90,18 +90,18 @@ public sealed class MedicalFamilyTests
     {
         // p2 bleeds out first, so it gets the better doctor; p1 the next.
         var care = new CriticalCare { Doctors = [Doctor("d1", 10), Doctor("d2", 5)], TendPatients = [Patient(P1), Patient(P2, 4)], Reach = Everyone("d1", "d2") };
-        Assert.Equal((new PawnId("d1"), true), TendDoctorFor(care, P2));
-        Assert.Equal((new PawnId("d2"), true), TendDoctorFor(care, P1));
+        Assert.Equal((new PawnId("d1"), true), MedicalRules.TendDoctorFor(care, P2));
+        Assert.Equal((new PawnId("d2"), true), MedicalRules.TendDoctorFor(care, P1));
 
         // An open tend holds its doctor and patient: the rest pair among themselves.
         var busy = care with { Busy = [new("d1"), P2] };
-        Assert.Equal((new PawnId("d2"), true), TendDoctorFor(busy, P1));
-        Assert.False(TendDoctorFor(busy, P2).Ok);
+        Assert.Equal((new PawnId("d2"), true), MedicalRules.TendDoctorFor(busy, P1));
+        Assert.False(MedicalRules.TendDoctorFor(busy, P2).Ok);
 
         // One doctor, two patients: only the more urgent one is paired.
         var one = care with { Doctors = [Doctor("d1", 10)] };
-        Assert.True(TendDoctorFor(one, P2).Ok);
-        Assert.False(TendDoctorFor(one, P1).Ok);
+        Assert.True(MedicalRules.TendDoctorFor(one, P2).Ok);
+        Assert.False(MedicalRules.TendDoctorFor(one, P1).Ok);
     }
 
     [Fact]
@@ -114,10 +114,10 @@ public sealed class MedicalFamilyTests
         };
         static RescuePatientFacts Downed(PawnId id) => new() { Pawn = id, Dead = Known(false), Downed = Known(true), InBed = Known(false), ExistingJobDef = Known("") };
         var care = new CriticalCare { Rescuers = [Rescuer("r1"), Rescuer("r2")], RescuePatients = [Downed(P1), Downed(P2)] };
-        Assert.Equal((new PawnId("r1"), true), RescuerFor(care, P1));
-        Assert.Equal((new PawnId("r2"), true), RescuerFor(care, P2));
-        Assert.Equal((new PawnId("r2"), true), RescuerFor(care with { Busy = [new("r1")] }, P1));
-        Assert.False(RescuerFor(care with { Busy = [new("r1"), new("r2")] }, P1).Ok);
+        Assert.Equal((new PawnId("r1"), true), MedicalRules.RescuerFor(care, P1));
+        Assert.Equal((new PawnId("r2"), true), MedicalRules.RescuerFor(care, P2));
+        Assert.Equal((new PawnId("r2"), true), MedicalRules.RescuerFor(care with { Busy = [new("r1")] }, P1));
+        Assert.False(MedicalRules.RescuerFor(care with { Busy = [new("r1"), new("r2")] }, P1).Ok);
     }
 
     private sealed class Colony : IDisposable
@@ -148,14 +148,14 @@ public sealed class MedicalFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-medical-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("d1", "d2", "r1") }, ct);
+        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("d1", "d2", "r1") }, ct);
         Colony? colony = null;
         var runner = new FamilyRunner<MedicalFacts>(new MedicalFamily(true, true, true, true), (_, _) => Task.FromResult(colony!.Facts),
             MedicalRounds.Schedule,
             (work, _, call) =>
             {
                 colony!.Worked.Add(work.Need.Id);
-                if (IsCriticalNeed(work.Need.Id, out var patient) && colony.Orders.TryGetValue(patient, out var order))
+                if (MedicalRules.IsCriticalNeed(work.Need.Id, out var patient) && colony.Orders.TryGetValue(patient, out var order))
                 {
                     return Task.FromResult(RoundsBuildingPlanner.OwnerCommitVerdict(journal.CommitOwnerWork(work.Owner, new MethodId(order.Method), "", Plan(order.Action), call)));
                 }
@@ -176,17 +176,17 @@ public sealed class MedicalFamilyTests
         var run = colony.Run(immediate: true);
         Assert.Equal(2, run.Methods.Count);
         Assert.All(run.Methods, m => Assert.Equal(ClaimOutcome.Admitted, m.Outcome));
-        Assert.Equal([CriticalNeed(P1), CriticalNeed(P2)], run.Methods.Select(m => m.Need).Order());
+        Assert.Equal([MedicalRules.CriticalNeed(P1), MedicalRules.CriticalNeed(P2)], run.Methods.Select(m => m.Need).Order());
         Assert.Equal(2, run.SeriousHarmPlans.Count);
 
         // The immediate pass judges only the critical Needs; the Wellbeing Needs wait for the ordinary pass.
-        Assert.Equal([CriticalNeed(P1), CriticalNeed(P2)], colony.Worked.Order());
+        Assert.Equal([MedicalRules.CriticalNeed(P1), MedicalRules.CriticalNeed(P2)], colony.Worked.Order());
         Assert.False(run.Complete);
 
         // The same MethodId again continues the open tend; nothing new is written.
         var again = colony.Run(immediate: true);
         Assert.All(again.Methods, m => Assert.Equal(ClaimOutcome.Continued, m.Outcome));
-        Assert.Single(colony.Journal.LoadNeed(CriticalNeed(P1), World, ct).Methods);
+        Assert.Single(colony.Journal.LoadNeed(MedicalRules.CriticalNeed(P1), World, ct).Methods);
     }
 
     [Fact]
@@ -199,10 +199,10 @@ public sealed class MedicalFamilyTests
         // p2's rescue would take d1, whom p1's tend already holds.
         colony.Orders[P2] = ("rescue-p2", Rescue("d1", P2));
         var run = colony.Run(immediate: true);
-        Assert.Equal(ClaimOutcome.Admitted, Assert.Single(run.Methods, m => m.Need == CriticalNeed(P1)).Outcome);
-        var refused = Assert.Single(run.Reports, r => r.Need == CriticalNeed(P2)).Verdict;
+        Assert.Equal(ClaimOutcome.Admitted, Assert.Single(run.Methods, m => m.Need == MedicalRules.CriticalNeed(P1)).Outcome);
+        var refused = Assert.Single(run.Reports, r => r.Need == MedicalRules.CriticalNeed(P2)).Verdict;
         Assert.True(refused.Is(Cause.Claim), refused.ToString());
-        Assert.Empty(colony.Journal.LoadNeed(CriticalNeed(P2), World, ct).Methods);
+        Assert.Empty(colony.Journal.LoadNeed(MedicalRules.CriticalNeed(P2), World, ct).Methods);
     }
 
     [Fact]
@@ -215,26 +215,26 @@ public sealed class MedicalFamilyTests
         };
         var run = colony.Run();
         Assert.True(run.Complete);
-        Assert.Equal([CriticalNeed(P1), MedicalCareNeed, MedicalReservesNeed], colony.Worked);
+        Assert.Equal([MedicalRules.CriticalNeed(P1), MedicalRules.MedicalCareNeed, MedicalRules.MedicalReservesNeed], colony.Worked);
     }
 
     [Fact]
     public void TheForecastMedicalRowsAreTheFamilysNeeds()
     {
         var facts = new RoundsFacts { Tick = new(100), Colonists = Known(2L), Fuel = Known<EquatableArray<FuelConsumer>>([]), CriticalPatients = Known(1L) };
-        var review = ReviewEssentialServices(facts, DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick } });
+        var review = ReviewEssentialServices(facts, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick } });
         var medical = review.Coverage.Where(c => c.Service == EssentialService.Medical).ToArray();
-        Assert.Contains(medical, c => c.Target.Owner == CriticalCensusNeed.FilingKey && c.Coverage == ServiceCoverage.Shortfall);
-        Assert.Contains(medical, c => c.Target.Owner == SurgeryNeed.FilingKey);
-        Assert.Contains(medical, c => c.Target.Owner == MedicalReservesNeed.FilingKey);
-        var calm = ReviewEssentialServices(facts with { CriticalPatients = Known(0L) }, DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick } });
-        Assert.Contains(calm.Coverage, c => c.Target.Owner == CriticalCensusNeed.FilingKey && c.Coverage == ServiceCoverage.Adequate);
+        Assert.Contains(medical, c => c.Target.Owner == MedicalRules.CriticalCensusNeed.FilingKey && c.Coverage == ServiceCoverage.Shortfall);
+        Assert.Contains(medical, c => c.Target.Owner == MedicalRules.SurgeryNeed.FilingKey);
+        Assert.Contains(medical, c => c.Target.Owner == MedicalRules.MedicalReservesNeed.FilingKey);
+        var calm = ReviewEssentialServices(facts with { CriticalPatients = Known(0L) }, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick } });
+        Assert.Contains(calm.Coverage, c => c.Target.Owner == MedicalRules.CriticalCensusNeed.FilingKey && c.Coverage == ServiceCoverage.Adequate);
     }
 
     [Fact]
     public void ACriticalNeedReadsAsMedicalInOperationIntents()
     {
-        Assert.Equal("Medical", OperationIntent.ConcernLabel(CriticalNeed(P1).FilingKey));
-        Assert.Equal("Medicine", OperationIntent.ConcernLabel(MedicalReservesNeed.FilingKey));
+        Assert.Equal("Medical", OperationIntent.ConcernLabel(MedicalRules.CriticalNeed(P1).FilingKey));
+        Assert.Equal("Medicine", OperationIntent.ConcernLabel(MedicalRules.MedicalReservesNeed.FilingKey));
     }
 }

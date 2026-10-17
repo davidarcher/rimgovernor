@@ -50,9 +50,9 @@ public sealed partial class Store
         if (!review.Enabled || review.Snapshot != current || review.WorkEvidence is not { } evidence)
             return new(new(), new([], [], [], ["work_resource_review_unavailable"]), default);
         if (!exclude.IsEmpty && LoadIn(tx, exclude).Spec.Actions.SingleOrDefault()?.PawnActivities is { } continuation)
-            evidence = PolicyFunctions.WorkContinuationEvidence(evidence, continuation, observed);
+            evidence = WorkRules.WorkContinuationEvidence(evidence, continuation, observed);
         var actions = WorkActionsIn(tx, current, exclude);
-        return PolicyFunctions.WorkResourcesOf(evidence, ProductionBatchesIn(tx, current, null), actions.Actions, actions.Truncated);
+        return WorkRules.WorkResourcesOf(evidence, ProductionBatchesIn(tx, current, null), actions.Actions, actions.Truncated);
     }
 
     public WorkResourceView WorkResources(GenerationSnapshot current, CancellationToken ct, PlanId exclude = default,
@@ -73,9 +73,9 @@ public sealed partial class Store
         var committed = ProductionBatchesIn(tx, owner.Snapshot, null);
         if (proposed.Length != 0 && (!committed.TryGetValue(out var batches) || batches.Count + proposed.Length > MaxProductionClaims))
             throw new ProductionMaterialException();
-        if (proposed.Length != 0 && !PolicyFunctions.ProductionAdmissionFits(view.Evidence,
+        if (proposed.Length != 0 && !ProductionRules.ProductionAdmissionFits(view.Evidence,
             committed, EquatableArray.From(proposed), view.Claims.Materials))
             throw new ProductionMaterialException();
-        if (PolicyFunctions.WorkResourcesRefusal(view, plan) is { } refusal) throw new NotAdmittedException("work_resource_conflict_or_unknown: " + refusal);
+        if (WorkRules.WorkResourcesRefusal(view, plan) is { } refusal) throw new NotAdmittedException("work_resource_conflict_or_unknown: " + refusal);
     }
 }

@@ -109,14 +109,14 @@ internal sealed partial class DefenseSite
             move = DefenseCorridorRoutes.PathMoveDiagonal;
             foreach (var corner in new[] { new Cell(to.X, from.Z), new Cell(from.X, to.Z) })
             {
-                if (k.Closed.Contains(corner) || !Passable(corner) || k.Full.Contains(corner) || (Cells.TryGetValue(corner, out var row) && Positive(row.Door)))
+                if (k.Closed.Contains(corner) || !Passable(corner) || k.Full.Contains(corner) || (Cells.TryGetValue(corner, out var row) && RoundsRules.Positive(row.Door)))
                 {
                     return -1;
                 }
             }
         }
         var priced = k.Cost.TryGetValue(to, out var extra);
-        if (!priced && Cells.TryGetValue(to, out var target) && Positive(target.Door))
+        if (!priced && Cells.TryGetValue(to, out var target) && RoundsRules.Positive(target.Door))
         {
             extra = DefenseCorridorRoutes.PathWoodDoorCost;
         }
@@ -195,7 +195,7 @@ internal sealed partial class DefenseSite
         var goals = new List<Cell>();
         foreach (var (c, row) in Cells)
         {
-            if (Positive(row.EdgeReachable) && OnBorder(c))
+            if (RoundsRules.Positive(row.EdgeReachable) && OnBorder(c))
             {
                 goals.Add(c);
             }

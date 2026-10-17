@@ -31,7 +31,7 @@ public static partial class PolicyFunctions
     internal static PlannedRoom RingFromBlock(Rectangle block, int markers)
     {
         var ins = new Rectangle { X = block.X + 1, Z = block.Z + 1, Width = RingSide, Height = RingSide };
-        return new PlannedRoom { Role = PlannedSparringRing, Region = RectRegion(ins), Outdoor = true, Markers = markers };
+        return new PlannedRoom { Role = PlannedSparringRing, Region = RegionRules.RectRegion(ins), Outdoor = true, Markers = markers };
     }
 
     /// <summary>

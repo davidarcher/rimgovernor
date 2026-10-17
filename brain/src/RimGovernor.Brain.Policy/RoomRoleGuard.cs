@@ -24,7 +24,7 @@ public sealed record RoleMismatch
     public IReadOnlyDictionary<RoomRole, double> Scores { get; init; } = new Dictionary<RoomRole, double>();
 }
 
-public static partial class PolicyFunctions
+public static partial class RoomRoleRules
 {
     /// <summary>The stable reason a mismatch is recorded under (telemetry.Decide reason).</summary>
     public const string RoleMismatchReason = "native_role_differs_from_predicted";

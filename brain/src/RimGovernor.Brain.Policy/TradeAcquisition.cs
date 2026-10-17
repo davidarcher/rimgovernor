@@ -93,7 +93,7 @@ public sealed record TradeAcquisitionPlan
     public TradeAcquisitionProposal? Proposal { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class TradePolicyRules
 {
     /// <summary>
     /// Selects one attempt by known lead, known labor and stable ID. A pending attempt earns no supply credit and

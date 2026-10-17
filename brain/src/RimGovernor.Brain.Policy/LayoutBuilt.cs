@@ -140,7 +140,7 @@ internal sealed partial class Embedder
                 sizes = [.. _shapes[i]];
             }
             var richHere = Rich.Sum(h);
-            var threshold = (double)PolicyFunctions.SwitchThreshold(new PlannedRoom { Region = PolicyFunctions.RectRegion(h) });
+            var threshold = (double)PolicyFunctions.SwitchThreshold(new PlannedRoom { Region = RegionRules.RectRegion(h) });
             RelocateMove? bestBad = null;
             RelocateMove? bestGain = null;
             var any = false;
@@ -235,7 +235,7 @@ internal sealed partial class Embedder
                 }
                 else
                 {
-                    output.Price = PolicyFunctions.SwitchThreshold(new PlannedRoom { Region = PolicyFunctions.RectRegion(_home[i]) });
+                    output.Price = PolicyFunctions.SwitchThreshold(new PlannedRoom { Region = RegionRules.RectRegion(_home[i]) });
                 }
             }
             else if (trigger.TryGetValue(i, out var tr) && tr.Group == i && tr.Rect.Width > 0)

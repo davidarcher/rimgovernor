@@ -45,7 +45,7 @@ public sealed record BedroomStep
     public int Unhoused { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class SleepingRules
 {
     /// <summary>The beds standing in the starter shell, the planned shelter.</summary>
     public static HashSet<string> ShellBedIds(LayoutPlan plan, RoomObservation rooms)
@@ -172,7 +172,7 @@ public static partial class PolicyFunctions
         // Once the standard rooms have nothing to do, a qualifying pawn is walked into a suite.
         BedroomStep SuiteStep()
         {
-            var step = NextSuiteStep(plan, rooms, sleeping, SuiteClaims(plan, rooms, sleeping, targets!, traits!, pressure!));
+            var step = RoomQualityRules.NextSuiteStep(plan, rooms, sleeping, RoomQualityRules.SuiteClaims(plan, rooms, sleeping, targets!, traits!, pressure!));
             return step with { Unhoused = unhoused.Count };
         }
         if (unhoused.Count == 0)

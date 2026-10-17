@@ -27,7 +27,7 @@ public sealed partial class RoundsBuildingPlanner
 
     internal async Task<(RoundsBuildingPlanner? Planner, Verdict Verdict)> SelectRefrigerationAsync(ColonyProjection facts, bool allowance, CancellationToken ct)
     {
-        var review = PolicyFunctions.ReviewRefrigeration(facts.Facts.FoodStorageUpkeep, Reviewer.Policy.FoodStorage);
+        var review = RefrigerationRules.ReviewRefrigeration(facts.Facts.FoodStorageUpkeep, Reviewer.Policy.FoodStorage);
         review = review.WithWarmRooms(RoundsBurialFacts.WarmCoolingRooms(facts));
         if (!review.Active)
         {
@@ -36,7 +36,7 @@ public sealed partial class RoundsBuildingPlanner
 
         var coolers = await RefrigerationReads.ReadRefrigerationCoolers((IRefrigerationSource)Native, facts.Identity, facts.PowerPlanning, ct).ConfigureAwait(false);
         var fact = RefrigerationReads.RefrigerationFacts(facts, coolers);
-        var proposal = PolicyFunctions.SelectRefrigerationMethod(review, fact, Reviewer.Policy.FoodStorage, allowance);
+        var proposal = RefrigerationRules.SelectRefrigerationMethod(review, fact, Reviewer.Policy.FoodStorage, allowance);
         switch (proposal.Method)
         {
             case RefrigerationMethod.Build:

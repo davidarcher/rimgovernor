@@ -31,7 +31,7 @@ public sealed record WorkResourceView(WorkAdmissionEvidence Evidence, WorkResour
     public IReadOnlyDictionary<string, ForecastCapacityResult> Capacity { get; init; } = new Dictionary<string, ForecastCapacityResult>();
 }
 
-public static partial class PolicyFunctions
+public static partial class WorkRules
 {
     public static Fact<EquatableArray<ForecastCommitment>> CreditCarriedBillInputs(Fact<EquatableArray<ForecastCommitment>> promises,
         Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>> observation)
@@ -78,7 +78,7 @@ public static partial class PolicyFunctions
     public static RoundsFacts ReviewWorkResources(RoundsFacts facts, Fact<EquatableArray<ProductionBatch>> batches,
         WorkActionCensus actions)
     {
-        var evidence = WorkAdmissionEvidenceOf(facts, batches);
+        var evidence = ProductionRules.WorkAdmissionEvidenceOf(facts, batches);
         var view = WorkResourcesOf(evidence, batches, actions.Actions, actions.Truncated);
         var claims = view.Claims;
         var production = evidence.ForecastPromises;
@@ -155,7 +155,7 @@ public static partial class PolicyFunctions
                 if (evidence.Standing.TryGetValue(out var standing) && standing.Contains(building)) continue;
                 if (!progress.Unresolved && progress.Stage is Stage.Completed or Stage.Cancelled or Stage.Unsuccessful && progress.Tick < evidence.Tick
                     && evidence.Standing.IsKnown) continue;
-                if (footprint) foreach (var cell in BuildingClaimTargets(evidence, building)) Take(cell);
+                if (footprint) foreach (var cell in MethodClaimsRules.BuildingClaimTargets(evidence, building)) Take(cell);
                 else Take(BuildingClaimTarget(building));
                 var cost = evidence.Buildings.TryGetValue(out var costs)
                     ? costs.SingleOrDefault(c => c.Definition == building.Definition && c.Stuff == building.Stuff) : null;
@@ -331,7 +331,7 @@ public static partial class PolicyFunctions
         IEnumerable<WorkAction> actions, bool truncated = false)
     {
         var claims = WorkClaimsOf(evidence, actions) with { Truncated = truncated };
-        var materials = ProductionAdmissionBudget(evidence, batches, claims.Materials);
+        var materials = ProductionRules.ProductionAdmissionBudget(evidence, batches, claims.Materials);
         // An unpriced commitment can consume any material. Keep pawn/target accounting usable independently.
         if (claims.Findings.Count != 0 || truncated) materials = default;
         var view = new WorkResourceView(evidence, claims, materials);
@@ -408,7 +408,7 @@ public static partial class PolicyFunctions
         if (candidate.Targets.FirstOrDefault(t => t.Length != 0 && (capacityTargets.Contains(t) ? Crowded(t, false) : Occupied(t, false))) is not null) return "native_target_claimed";
         var bills = proposed.Actions.Where(a => a.ProductionBill is { Mode: BillMode.GearBatch })
             .Select(a => new ProductionBatch(a.ProductionBill!, new ProgressView { Action = a.Id, Stage = Stage.Pending }));
-        var production = ProductionPromisesOf(PriceProductionBatches(Known(EquatableArray.From(bills)), view.Evidence.Recipes), default);
+        var production = ProductionRules.ProductionPromisesOf(ProductionRules.PriceProductionBatches(Known(EquatableArray.From(bills)), view.Evidence.Recipes), default);
         if (!production.TryGetValue(out var promises)) return "production_promises_unknown";
         var needed = candidate.Materials.Concat(promises).SelectMany(c => c.MaterialClaims).GroupBy(c => c.Resource);
         foreach (var group in needed)

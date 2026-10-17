@@ -81,7 +81,7 @@ public sealed partial class RoundsSurgeryPlanner
             return new RoundsSurgeryResult { Verdict = FieldUnavailable("medical_pawns") };
         }
         var surgery = read.Projection.SurgeryContext();
-        var selection = SelectSurgery(read.Projection.Facts.MedicalPawns, inFlight.Keys.ToHashSet(), surgery);
+        var selection = SurgeryRules.SelectSurgery(read.Projection.Facts.MedicalPawns, inFlight.Keys.ToHashSet(), surgery);
         var result = new RoundsSurgeryResult { Wants = selection.Wants };
         var queue = new List<Pol.SurgeryChoice>();
         foreach (var choice in selection.Queue)
@@ -101,14 +101,14 @@ public sealed partial class RoundsSurgeryPlanner
                 stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
             }
         }
-        RoundsSilverShort(read.Projection.Facts, _reviewer.Policy, review.Latches.MedicalReserve).TryGetValue(out var shortfall);
-        var needs = OrganNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, shortfall, stock, read.Projection.Facts.Recipes);
-        var harvest = SelectOrganHarvest(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, needs, inFlight);
+        SilverGapRules.RoundsSilverShort(read.Projection.Facts, _reviewer.Policy, review.Latches.MedicalReserve).TryGetValue(out var shortfall);
+        var needs = OrganHarvestRules.OrganNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, shortfall, stock, read.Projection.Facts.Recipes);
+        var harvest = OrganHarvestRules.SelectOrganHarvest(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, needs, inFlight);
         if (harvest is null)
         {
             // Artificial part recovery: the same one-at-a-time slot.
-            var parts = PartRecoveryNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, read.Projection.Facts.Recipes);
-            harvest = SelectPartRecovery(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, parts, inFlight, read.Projection.Facts.Recipes);
+            var parts = OrganHarvestRules.PartRecoveryNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, read.Projection.Facts.Recipes);
+            harvest = OrganHarvestRules.SelectPartRecovery(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, parts, inFlight, read.Projection.Facts.Recipes);
         }
         // Prisoners stay on herbal: a cut only better medicine could serve is refused; the review asks for herbal instead.
         if (harvest is null)

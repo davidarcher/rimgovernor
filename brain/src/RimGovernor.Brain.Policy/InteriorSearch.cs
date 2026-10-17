@@ -100,7 +100,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static InteriorSearchResult SearchInterior(RegionPlacement req, InteriorSearch s)
     {
-        var (floor, seats) = SplitSeats(req.Wants);
+        var (floor, seats) = RegionRules.SplitSeats(req.Wants);
         req = req with { Wants = [.. floor] };
         var pinned = new List<InteriorPiece>(s.Pinned);
         var movable = new List<InteriorPiece>();
@@ -118,11 +118,11 @@ public static partial class PolicyFunctions
         var reserved = new List<Cell>(req.Reserved);
         foreach (var p in pinned.Concat(movable))
         {
-            reserved.AddRange(RectCells(p.Rect));
+            reserved.AddRange(PlannedRules.RectCells(p.Rect));
             reserved.AddRange(p.Reserves());
         }
         var greedy = req with { Search = null, Reserved = EquatableArray.From(reserved) };
-        var placed = PlaceInRegion(greedy);
+        var placed = RegionRules.PlaceInRegion(greedy);
         IReadOnlyList<InteriorPiece> pieces = [.. pinned, .. movable, .. placed];
         var required = new Dictionary<string, int>();
         foreach (var p in pinned.Concat(movable))
@@ -149,7 +149,7 @@ public static partial class PolicyFunctions
         var seedScore = cur;
         var free = pinned.Count;
         var moves = new List<SearchMove>();
-        InteriorSearchResult Seated(InteriorSearchResult res) => res with { Pieces = [.. SeatAll(req.Region, [.. res.Pieces], seats)] };
+        InteriorSearchResult Seated(InteriorSearchResult res) => res with { Pieces = [.. RegionRules.SeatAll(req.Region, [.. res.Pieces], seats)] };
         if (req.Doors.Count == 0 || pieces.Count == free)
         {
             return Seated(new InteriorSearchResult { Pieces = pieces, Seed = cur, Score = cur, Fixed = free });

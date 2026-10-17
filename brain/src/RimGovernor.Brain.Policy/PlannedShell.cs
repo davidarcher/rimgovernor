@@ -96,7 +96,7 @@ public static class SiteCellExtensions
         c.Terrain.TryGetValue(out var name) && light[name];
 }
 
-public static partial class PolicyFunctions
+public static partial class PlannedRules
 {
     internal static List<Cell> SortedCells(IReadOnlyCollection<Cell> set)
     {

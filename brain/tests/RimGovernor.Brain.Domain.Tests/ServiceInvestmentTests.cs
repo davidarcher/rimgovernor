@@ -106,25 +106,25 @@ public sealed class ServiceInvestmentTests
         var batch = new PawnActivities(1, [new("pawn", "assignment", "coupled-method", 0, 1, false, [task.Step]) { Task = task.Id }]) { Tasks = [task] };
         var action = DomainAction.NewPawnActivitiesAction(new("supply-action"), batch);
         var row = new WorkAction(new("plan"), action, new() { Action = action.Id, Stage = Stage.Pending });
-        var view = WorkResourcesOf(evidence, Known<EquatableArray<ProductionBatch>>([]), [row, row]);
+        var view = WorkRules.WorkResourcesOf(evidence, Known<EquatableArray<ProductionBatch>>([]), [row, row]);
         Assert.Equal(0, view.Materials.Value[new("Rice")].Value);
         Assert.Equal(100, view.Claims.Materials.SelectMany(c => c.MaterialClaims).Sum(c => c.Units.Value));
         var partial = batch with { Orders = [batch.Orders[0] with { Steps = [task.Step with { Count = 40 }] }] };
         var partialAction = DomainAction.NewPawnActivitiesAction(new("partial"), partial);
         var completedTrip = evidence with { WorkResources = Known<EquatableArray<WorkResourcePawn>>([
             new("pawn", "assignment", 1, "completed", "", "", 0)]) };
-        var partialView = WorkResourcesOf(completedTrip, Known<EquatableArray<ProductionBatch>>([]),
+        var partialView = WorkRules.WorkResourcesOf(completedTrip, Known<EquatableArray<ProductionBatch>>([]),
             [new(new("plan"), partialAction, new() { Action = partialAction.Id, Stage = Stage.Pending })]);
         Assert.Equal(60, partialView.Claims.Materials.SelectMany(c => c.MaterialClaims).Sum(c => c.Units.Value));
         var displaced = completedTrip with { WorkResources = Known<EquatableArray<WorkResourcePawn>>([
             new("pawn", "player", 2, "started", "", "", 0)]) };
-        var displacedView = WorkResourcesOf(displaced, Known<EquatableArray<ProductionBatch>>([]),
+        var displacedView = WorkRules.WorkResourcesOf(displaced, Known<EquatableArray<ProductionBatch>>([]),
             [new(new("plan"), partialAction, new() { Action = partialAction.Id, Stage = Stage.Completed, Attempt = new(1), Tick = new(99) })]);
         Assert.Empty(displacedView.Claims.Materials);
-        Assert.True(WorkResourcesFit(facts.WorkView, new(new("new-plan"), new(1), [action])));
+        Assert.True(WorkRules.WorkResourcesFit(facts.WorkView, new(new("new-plan"), new(1), [action])));
         var scarce = facts with { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 99)]) };
-        var poor = WorkResourcesOf(WorkAdmissionEvidenceOf(scarce, Known<EquatableArray<ProductionBatch>>([])), Known<EquatableArray<ProductionBatch>>([]), []);
-        Assert.False(WorkResourcesFit(poor, new(new("new-plan"), new(1), [action])));
+        var poor = WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(scarce, Known<EquatableArray<ProductionBatch>>([])), Known<EquatableArray<ProductionBatch>>([]), []);
+        Assert.False(WorkRules.WorkResourcesFit(poor, new(new("new-plan"), new(1), [action])));
     }
 
     [Fact]

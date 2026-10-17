@@ -371,7 +371,7 @@ public static partial class PolicyFunctions
             {
                 return false;
             }
-            foreach (var c in RectCells(kb))
+            foreach (var c in PlannedRules.RectCells(kb))
             {
                 if (!enc.Inside(c) || (strict && fields.Contains(c)) || Built(c))
                 {
@@ -440,7 +440,7 @@ public static partial class PolicyFunctions
             for (var z = enc.Bbox.Z; z < enc.Bbox.Z + enc.Bbox.Height; z++)
             {
                 var c = new Cell(x, z);
-                if (enc.Inside(c) && site.Passable(c) && (!found || SquaredDistance(c, mid) < SquaredDistance(origin, mid)))
+                if (enc.Inside(c) && site.Passable(c) && (!found || PlannedRules.SquaredDistance(c, mid) < PlannedRules.SquaredDistance(origin, mid)))
                 {
                     (origin, found) = (c, true);
                 }
@@ -565,7 +565,7 @@ public static partial class PolicyFunctions
                 {
                     sites[kind] = list = [];
                 }
-                list.Add(RectRegion(r));
+                list.Add(RegionRules.RectRegion(r));
             }
         }
         var killbox = new Rectangle();
@@ -664,7 +664,7 @@ public static partial class PolicyFunctions
                 CloseCell(c);
             }
         }
-        Region InMap(HashSet<Cell> set) => RegionOf([.. SortedCells(set).Where(c => c.X >= 0 && c.Z >= 0 && c.X < w && c.Z < h)]);
+        Region InMap(HashSet<Cell> set) => RegionRules.RegionOf([.. PlannedRules.SortedCells(set).Where(c => c.X >= 0 && c.Z >= 0 && c.X < w && c.Z < h)]);
         var ring = NewSite("perimeter-ring", NodeRing, InMap(walls), ReasonRingTraced);
         var facts = new RingFacts { Light = InMap(light), Bridged = InMap(bridges), Gaps = InMap(gaps), Opening = openingReason };
 
@@ -683,11 +683,11 @@ public static partial class PolicyFunctions
         bool PumpSite(Cell c, bool kept) =>
             cells.TryGetValue(c, out var sc) && enc.Inside(c) && !sc.Hazard && ((sc.Walkable && !sc.Built) || (kept && sc.Built)) && !sc.Rock && sc.Footing == Footing.Firm
             && !Built(c) && !Contains(killbox, c) && !detour.Contains(c) && !shut.Contains(c);
-        int Drying(Cell pump) => dries.Count(d => SquaredDistance(pump, d) <= PumpRadiusSq);
+        int Drying(Cell pump) => dries.Count(d => PlannedRules.SquaredDistance(pump, d) <= PumpRadiusSq);
         void Cover(Cell pump)
         {
             pumps.Add(pump);
-            dries.RemoveWhere(d => SquaredDistance(pump, d) <= PumpRadiusSq);
+            dries.RemoveWhere(d => PlannedRules.SquaredDistance(pump, d) <= PumpRadiusSq);
         }
         foreach (var old in plan.LiveSites(NodePump))
         {
@@ -730,7 +730,7 @@ public static partial class PolicyFunctions
             candidates.Remove(best);
             Cover(best);
         }
-        foreach (var c in SortedCells(pumps))
+        foreach (var c in PlannedRules.SortedCells(pumps))
         {
             AddSite(NodePump, RectOf(c, c));
         }

@@ -45,7 +45,7 @@ internal static class LayoutFieldShrink
         }
         foreach (var crop in RoundsSocialFields.SocialCrops(projection))
         {
-            output[crop.Name] = PolicyFunctions.SocialCropCells;
+            output[crop.Name] = SocialCropsRules.SocialCropCells;
         }
         return output;
     }

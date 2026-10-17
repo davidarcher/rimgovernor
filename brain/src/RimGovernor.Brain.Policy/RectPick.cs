@@ -27,7 +27,7 @@ public sealed partial record LayoutPlan
                 {
                     var c = new Cell(x, r.Z);
                     cells.Add(c);
-                    var d = PolicyFunctions.RectDist(c, anchor);
+                    var d = RectPickRules.RectDist(c, anchor);
                     if (near < 0 || d < near)
                     {
                         near = d;
@@ -38,7 +38,7 @@ public sealed partial record LayoutPlan
             {
                 continue;
             }
-            blocks.Add((cells, near, PolicyFunctions.RectSorted(cells)[0]));
+            blocks.Add((cells, near, RectPickRules.RectSorted(cells)[0]));
         }
         return blocks
             .OrderByDescending(b => b.Cells.Count)
@@ -50,7 +50,7 @@ public sealed partial record LayoutPlan
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class RectPickRules
 {
     /// <summary>
     /// Returns up to want cells of cells as a rectangle-ish block nearest anchor: it seeds at the candidate

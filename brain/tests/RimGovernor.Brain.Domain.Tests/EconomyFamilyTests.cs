@@ -82,7 +82,7 @@ public sealed class EconomyFamilyTests
         var next = ResearchStepOf(Facts(["Smithing"], projects: [Project("Smithing", ["Stonecutting"]), Project("Stonecutting")]));
         Assert.Equal(new ResearchStep("Stonecutting", null, false, true), next);
 
-        var bench = ResearchStepOf(Facts(["Smithing"], projects: Project("Smithing", locks: [ResearchLockBench])));
+        var bench = ResearchStepOf(Facts(["Smithing"], projects: Project("Smithing", locks: [ResearchRules.ResearchLockBench])));
         Assert.Equal(("", "research_bench", "Smithing", true, true), (bench.Select, bench.Hold!.Subject, bench.Hold.Detail, bench.Bench, bench.BuildAhead));
 
         var current = ResearchStepOf(Facts(["Smithing"], current: "Smithing", projects: Project("Smithing")));
@@ -113,7 +113,7 @@ public sealed class EconomyFamilyTests
     public void AResearchSelectionClaimsItsProject()
     {
         var action = DomainAction.NewResearchSelectAction(new("r"), new ResearchSelect("Smithing"));
-        var claims = MethodClaimsOf(new WorkAdmissionEvidence(), [new WorkAction(new("p"), action, new() { Action = action.Id, Stage = Stage.Pending })]);
+        var claims = MethodClaimsRules.MethodClaimsOf(new WorkAdmissionEvidence(), [new WorkAction(new("p"), action, new() { Action = action.Id, Stage = Stage.Pending })]);
         Assert.Equal(["research/Smithing"], claims.Targets);
     }
 
@@ -123,7 +123,7 @@ public sealed class EconomyFamilyTests
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-economy-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         var economy = Facts(["Smithing"], projects: [Project("Smithing", ["Stonecutting"]), Project("Stonecutting")]);
         var runner = new FamilyRunner<EconomyFacts>(new EconomyFamily(), (_, _) => Task.FromResult(economy));
         FamilyRun Run() => runner.RunAsync(new FamilyStep { Journal = journal, World = World }, ct).GetAwaiter().GetResult();
@@ -209,7 +209,7 @@ public sealed class EconomyFamilyTests
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-economy-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         var methods = new List<(string Method, DomainAction Action)>
         {
             ("fields-hay", Zone("z1", (10, 10), (10, 11))),
@@ -276,7 +276,7 @@ public sealed class EconomyFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-caravan-claim-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
         var participant = new TradeParticipant(TradeParticipantKind.Settlement, "settlement", "caravan");
         PlanSpec Open(string plan, string pawn) => new(new(plan), new(1), [DomainAction.NewTradeAction(new(plan + "-trade"),
             Trade.NewTradeOpen(participant.Key(), new(pawn), false).WithParticipant(participant))]);

@@ -51,7 +51,7 @@ public static partial class PolicyFunctions
         }
         foreach (var r in plan.Rooms)
         {
-            foreach (var c in RectCells(RoomWalls(r)))
+            foreach (var c in PlannedRules.RectCells(RoomWalls(r)))
             {
                 used.Add(c);
             }
@@ -104,7 +104,7 @@ public static partial class PolicyFunctions
             }
             var live = (plan with { Sites = sites }).LiveSites(NodeKind.PocketWall).Count;
             var id = string.Create(CultureInfo.InvariantCulture, $"{Wire.Name(NodeKind.PocketWall)}-{live:D2}");
-            sites.Add(NewSite(id, NodeKind.PocketWall, RegionOfRuns(CellRuns(patch)), ReasonPocketBesideBase));
+            sites.Add(NewSite(id, NodeKind.PocketWall, RegionRules.RegionOfRuns(CellRuns(patch)), ReasonPocketBesideBase));
         }
         return plan with { Sites = sites };
     }

@@ -31,7 +31,7 @@ internal sealed partial class RoundsStockpilePlanner
         var goal = work.Owner;
         var epoch = work.Epoch;
         var facts = reading.Projection;
-        var stuff = facts.BuildStuff(ShelfDefinition);
+        var stuff = facts.BuildStuff(StorageRules.ShelfDefinition);
         var snapshot = state.Snapshot with { Plan = PlanIds.MintPlanId(), Revision = new PlanRevision(1) };
         void Check()
         {
@@ -41,7 +41,7 @@ internal sealed partial class RoundsStockpilePlanner
                 throw new ControlException("build: p.session.State() != state");
             }
         }
-        var building = new RoundsBuildingPlanner { Reviewer = _reviewer, Native = _building!.Native, Concern = AdminFamily.Stockpiles.FilingKey, Need = AdminFamily.Stockpiles, Definition = ShelfDefinition };
+        var building = new RoundsBuildingPlanner { Reviewer = _reviewer, Native = _building!.Native, Concern = AdminFamily.Stockpiles.FilingKey, Need = AdminFamily.Stockpiles, Definition = StorageRules.ShelfDefinition };
         foreach (var piece in step.Pieces)
         {
             Check();
@@ -55,13 +55,13 @@ internal sealed partial class RoundsStockpilePlanner
                     planned.Add(new Pol.RoleCell { Cell = new Cell(x, z), Role = Pol.RockRole.NeedsFloor });
                 }
             }
-            var dig = Pol.PolicyFunctions.RockStep(planned, facts.Cells).Dig;
+            var dig = Pol.RockStepRules.RockStep(planned, facts.Cells).Dig;
             if (dig.Count > 0)
             {
-                var (access, ok) = Pol.PolicyFunctions.RockAccess(dig, facts.Cells);
+                var (access, ok) = Pol.RockStepRules.RockAccess(dig, facts.Cells);
                 if (!ok)
                 {
-                    return RockNotDug(ShelfDefinition, "no_open_cell_beside_footprint");
+                    return RockNotDug(StorageRules.ShelfDefinition, "no_open_cell_beside_footprint");
                 }
                 var rockMethod = ShelfMethod(shelfZone, index);
                 var (dug, handled) = await building.AdmitRockStepAsync(new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts, Read = reading.Reading }, planned, access, rockMethod, [value], Check, call, epoch).ConfigureAwait(false);

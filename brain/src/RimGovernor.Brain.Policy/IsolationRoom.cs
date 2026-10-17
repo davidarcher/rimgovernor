@@ -93,11 +93,11 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            foreach (var c in RectCells(room.Region.Bounds()))
+            foreach (var c in PlannedRules.RectCells(room.Region.Bounds()))
             {
                 set.Add(c);
             }
         }
-        return SortedCells(set);
+        return PlannedRules.SortedCells(set);
     }
 }

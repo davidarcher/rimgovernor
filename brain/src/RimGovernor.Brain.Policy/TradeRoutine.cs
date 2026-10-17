@@ -99,7 +99,7 @@ public sealed record TradeNeed
         || Food.Missing.Count > 0;
 }
 
-public static partial class PolicyFunctions
+public static partial class TradePolicyRules
 {
     /// <summary>The one component definition the trade goal buys and the resource family produces toward under the derived component need.</summary>
     public static readonly Resource ComponentResource = new("ComponentIndustrial");

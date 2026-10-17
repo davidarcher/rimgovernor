@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 // harvestable growth (the species' harvestMinGrowth), when a tree yields harvestYield * 0.5 wood
 // (Plant.YieldNow at growth == harvestMinGrowth). Species rank by wood per cell-day of land at lattice density.
 
-public static partial class PolicyFunctions
+public static partial class TreePlantationRules
 {
     /// <summary>Whether crop is a tree plantation species: a plant whose harvest fells it and whose neighbours the native sower keeps clear.</summary>
     public static bool IsTreeCrop(CropChoice crop)
@@ -17,7 +17,7 @@ public static partial class PolicyFunctions
 
     // The fell fraction of crop's growth (its harvestMinGrowth), the wood one tree gives then, and the wood per
     // cell-day of land it earns. False when a crop fact is unknown.
-    private static (double Fraction, double Wood, double Price, bool Ok) TreePricing(CropChoice crop)
+    internal static (double Fraction, double Wood, double Price, bool Ok) TreePricing(CropChoice crop)
     {
         var gk = crop.GrowDays.TryGetValue(out var days);
         var yk = crop.UnitsPerCell.TryGetValue(out var yield);
@@ -34,7 +34,7 @@ public static partial class PolicyFunctions
 
     // Why crop cannot be sown as a plantation here, empty when it can: not researched, no colonist at the sow
     // skill (the best Plants level among those who sow), or wild-only and not native to the biome.
-    private static string TreeSowable(CropChoice crop, Fact<string> biome, Fact<int> skill)
+    internal static string TreeSowable(CropChoice crop, Fact<string> biome, Fact<int> skill)
     {
         var reason = CropSowable(crop, skill);
         if (reason.Length != 0)
@@ -54,7 +54,7 @@ public static partial class PolicyFunctions
     }
 
     // The availability and sow-skill gate of any resource crop.
-    private static string CropSowable(CropChoice crop, Fact<int> skill)
+    internal static string CropSowable(CropChoice crop, Fact<int> skill)
     {
         if (!crop.Available.TryGetValue(out var available) || !available)
         {
@@ -138,7 +138,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var profile = BuildProfile(pawn);
+            var profile = PawnRules.BuildProfile(pawn);
             foreach (var row in work!)
             {
                 if (row.Work != WorkType.Growing || row.Disabled || !profile.Capable(row.Work, 0))

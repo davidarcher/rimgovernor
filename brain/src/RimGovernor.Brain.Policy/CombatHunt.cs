@@ -44,7 +44,7 @@ public static partial class CombatHuntRules
                 continue;
             }
 
-            if (roster.Contains(d.Id) && SquadDefenderEligible(d) && S(d.Id).WeaponFacts.Hunts())
+            if (roster.Contains(d.Id) && SquadDefenseRules.SquadDefenderEligible(d) && S(d.Id).WeaponFacts.Hunts())
             {
                 gunners.Add(d);
             }
@@ -183,7 +183,7 @@ public static partial class CombatHuntRules
                 continue;
             }
 
-            var reasons = SquadDefenderReasons(d);
+            var reasons = SquadDefenseRules.SquadDefenderReasons(d);
             var state = states.GetValueOrDefault(id) ?? new CombatPawnState();
             if (state.WeaponRange > 0 && state.WeaponRange < preyRange)
             {

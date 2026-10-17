@@ -185,7 +185,7 @@ internal sealed partial class Tiler
             List<ClimateOption> options;
             try
             {
-                options = ClimateOptions(m, DefaultSiteTypeWeights(), In.SteelValue, curve!, new ClimateRoom { Cells = room.Region.Area(), Band = band },
+                options = ClimateOptions(m, SiteRules.DefaultSiteTypeWeights(), In.SteelValue, curve!, new ClimateRoom { Cells = room.Region.Area(), Band = band },
                     new ClimateSide { Outdoors = true }, movements.GetValueOrDefault(room.Id), [Opening.Door, Opening.Airlock]);
             }
             catch (DomainException)

@@ -70,7 +70,7 @@ public sealed partial class Rounder
             var thresholds = Seasonal(p.Facts);
             try
             {
-                var d = Pol.PolicyFunctions.NutritionDemand(new Pol.NutritionDemandInput { Forecast = plan.Forecast, MinDays = thresholds.FoodMinDays, TargetDays = thresholds.FoodTargetDays });
+                var d = Pol.SupplyPlanRules.NutritionDemand(new Pol.NutritionDemandInput { Forecast = plan.Forecast, MinDays = thresholds.FoodMinDays, TargetDays = thresholds.FoodTargetDays });
                 demands.Add(new Pol.SupplyDemandResult(d, plan.DeliveredPerDay, plan.GapPerDay));
             }
             catch (Exception e) when (e is not OperationCanceledException)
@@ -140,9 +140,9 @@ public sealed partial class Rounder
                 }
             }
         }
-        var (reserve, known) = Pol.PolicyFunctions.TradeSilverReserve(p.Facts.Colonists);
+        var (reserve, known) = Pol.TradePolicyRules.TradeSilverReserve(p.Facts.Colonists);
         var rf = known ? Known(reserve) : Unknown<long>();
-        var plan = Pol.PolicyFunctions.PlanTradeAcquisition(new Pol.TradeAcquisitionRequest { Demands = demands, Options = options, Silver = p.Facts.Silver(), Reserve = rf, ActiveID = active });
+        var plan = Pol.TradePolicyRules.PlanTradeAcquisition(new Pol.TradeAcquisitionRequest { Demands = demands, Options = options, Silver = p.Facts.Silver(), Reserve = rf, ActiveID = active });
         lock (m.Mu)
         {
             m.Proposals[owner] = plan;

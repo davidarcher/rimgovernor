@@ -51,11 +51,11 @@ public sealed record FoodFacts
             Cooking = f.Cooking,
             CampfireRetireOwed = f.CampfireRetireOwed,
             HumanFoodSettled = Fact.Known(!PolicyFunctions.HumanFoodPending(f.FoodPlan)),
-            FootholdFood = PolicyFunctions.FootholdFood(f, p),
-            FootholdProduction = PolicyFunctions.FootholdProduction(f),
-            FieldsCovered = PolicyFunctions.Measured(f.FieldCoverage, v => v >= 1 - 1e-9),
-            ButcherFacility = PolicyFunctions.ButcherFacilityMet(f),
-            ReserveCovered = PolicyFunctions.Measured(f.FoodDays, v => v >= p.FoodTargetDays),
+            FootholdFood = RoundsRules.FootholdFood(f, p),
+            FootholdProduction = RoundsRules.FootholdProduction(f),
+            FieldsCovered = RoundsRules.Measured(f.FieldCoverage, v => v >= 1 - 1e-9),
+            ButcherFacility = RoundsRules.ButcherFacilityMet(f),
+            ReserveCovered = RoundsRules.Measured(f.FoodDays, v => v >= p.FoodTargetDays),
             BabyFeeding = f.BabyFeeding,
             Blight = f.Blight,
         };
@@ -141,7 +141,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static Need FoodSupplyNeedOf(FoodFacts f)
     {
-        var met = AllFacts(f.HumanFoodSettled, f.FootholdFood, f.FootholdProduction, f.FieldsCovered, f.ButcherFacility, f.ReserveCovered);
+        var met = RoundsRules.AllFacts(f.HumanFoodSettled, f.FootholdFood, f.FootholdProduction, f.FieldsCovered, f.ButcherFacility, f.ReserveCovered);
         var satisfaction = met.TryGetValue(out var known) ? known ? Satisfaction.Met : Satisfaction.Unmet : Satisfaction.Unknown;
         static NeedEvidence Check(string key, Fact<bool> fact, string ok, string shortfall) =>
             new(key, fact.TryGetValue(out var v) ? Known(v ? ok : shortfall) : Unknown<string>());
@@ -170,7 +170,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static Need CookingNeedOf(FoodFacts f)
     {
-        var retire = Positive(f.CampfireRetireOwed);
+        var retire = RoundsRules.Positive(f.CampfireRetireOwed);
         var satisfaction = retire ? Satisfaction.Unmet : f.Cooking.TryGetValue(out var ready) ? ready ? Satisfaction.Met : Satisfaction.Unmet : Satisfaction.Unknown;
         return new Need
         {

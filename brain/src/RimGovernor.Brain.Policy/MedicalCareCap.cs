@@ -19,7 +19,7 @@ public sealed record CarePatient
 /// harvest targets: HerbalOrWorse. Guests: NormalOrWorse. Animals: HerbalOrWorse; bonded or combat animals
 /// NormalOrWorse.
 /// </summary>
-public static partial class PolicyFunctions
+public static partial class MedicalRules
 {
     /// <summary>
     /// A condition worth one more medicine tier: a native life threat, plague, malaria past half severity, a wound
@@ -28,7 +28,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static (bool Serious, bool Known) SeriousCondition(Fact<EquatableArray<CareCondition>> conditions, Fact<bool> life)
     {
-        if (Positive(life))
+        if (RoundsRules.Positive(life))
         {
             return (true, true);
         }

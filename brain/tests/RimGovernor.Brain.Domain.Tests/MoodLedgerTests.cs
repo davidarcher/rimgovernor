@@ -27,7 +27,7 @@ public sealed class MoodLedgerTests
             Expectation = Known("Moderate"),
         };
 
-        var ledger = PolicyFunctions.BuildMoodLedger([pawn], new Dictionary<string, ThoughtFacts>());
+        var ledger = MoodRules.BuildMoodLedger([pawn], new Dictionary<string, ThoughtFacts>());
 
         Assert.Equal([Free, Owned], ledger.Sources.Select(s => s.Def));
         var free = ledger.Sources[0];

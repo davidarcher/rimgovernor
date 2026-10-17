@@ -102,7 +102,7 @@ public sealed class ExpeditionIncomingHandoffTests
     {
         IntentActionRules.RegisterIntentKinds();
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-expedition-handoff-" + Guid.NewGuid().ToString("N") + ".db"), Ct);
-        _ = journal.ReviewRounds(new RoundsRequest { Current = Home, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create(Pawn) }, Ct);
+        _ = journal.ReviewRounds(new RoundsRequest { Current = Home, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create(Pawn) }, Ct);
         var plan = new PlanSpec(new("expedition-plan"), new(1),
             [DomainAction.NewCaravanDepartureAction(new("expedition-action"), new CaravanDeparture([new(Pawn)], [], DestinationTile))]);
         _ = TestNeed.Commit(journal, Home, new("quest-expedition-q1-site1-a"), plan, Ct);

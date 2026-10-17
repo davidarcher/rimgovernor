@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class ResourceRules
 {
     /// <summary>
     /// The daily budget after selected or retained food commitments. Unknown commitment state or cost leaves

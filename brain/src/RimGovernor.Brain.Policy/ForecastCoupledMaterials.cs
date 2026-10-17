@@ -9,7 +9,7 @@ public static class ForecastCoupledMaterials
     {
         var context = request.Coupled!; var evidence = context.Resources.Evidence;
         if (!evidence.Construction.TryGetValue(out var construction) || !evidence.ForecastPromises.TryGetValue(out var production)) return default;
-        var held = MergeWorkMaterialPromises(production).ToDictionary(c => c.Id, StringComparer.Ordinal);
+        var held = WorkRules.MergeWorkMaterialPromises(production).ToDictionary(c => c.Id, StringComparer.Ordinal);
         // The delta addresses declared identities. Native holds still enter through the shared owner's reservations.
         foreach (var original in request.Commitments.Where(c => !commitments.ContainsKey(c.Id))) held.Remove(original.Id);
         foreach (var commitment in commitments.Values.Where(c => c.ActivityCompletions.Count == 0 && c.MaterialClaims.Count != 0)) held[commitment.Id] = commitment;
@@ -30,7 +30,7 @@ public static class ForecastCoupledMaterials
                     ? m with { Units = Known(Math.Max(0, m.Units.Value - units)) } : m))
             };
         }
-        var protectedMaterials = ProductionMaterialHoldsOf(Known(MergeWorkMaterialPromises(held.Values)), evidence.Reservations);
+        var protectedMaterials = ProductionRules.ProductionMaterialHoldsOf(Known(WorkRules.MergeWorkMaterialPromises(held.Values)), evidence.Reservations);
         if (!protectedMaterials.TryGetValue(out var holds)) return default;
         var adjusted = new Dictionary<Resource, Fact<double>>(holds);
         var tasks = problem.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal);
@@ -46,6 +46,6 @@ public static class ForecastCoupledMaterials
                 var credit = Math.Min(resource.Sum(i => i.Units.Value), Math.Max(native, promised.Select(p => p.Units.Value).DefaultIfEmpty(0).Max()));
                 adjusted[resource.Key] = Known(Math.Max(0, before.Value - credit));
             }
-        return SharedMaterialBudgetOf(evidence.Stock, Known<IReadOnlyDictionary<Resource, long>>(owed), Known<IReadOnlyDictionary<Resource, Fact<double>>>(adjusted));
+        return ProductionRules.SharedMaterialBudgetOf(evidence.Stock, Known<IReadOnlyDictionary<Resource, long>>(owed), Known<IReadOnlyDictionary<Resource, Fact<double>>>(adjusted));
     }
 }

@@ -215,7 +215,7 @@ public sealed partial class Store
         {
             throw new DomainException("recovery selection lost need ownership");
         }
-        var selection = PolicyFunctions.SelectRecoveryMethods(v.Planning(), r.Disaster, v.Used, v.Selection.Tick);
+        var selection = RecoveryRules.SelectRecoveryMethods(v.Planning(), r.Disaster, v.Used, v.Selection.Tick);
         if (!string.Equals(StoreJson.Serialize(v.Selection), StoreJson.Serialize(selection), StringComparison.Ordinal))
         {
             throw new DomainException("recovery proposal differs from observed inputs");
@@ -240,7 +240,7 @@ public sealed partial class Store
             World = new World(review.Snapshot.Colony, review.Snapshot.Load, review.Snapshot.Map),
             Used = RecoveryMethodsUsed(owner),
         };
-        return r with { Selection = PolicyFunctions.SelectRecoveryMethods(r.Planning(), h, r.Used, tick) };
+        return r with { Selection = RecoveryRules.SelectRecoveryMethods(r.Planning(), h, r.Used, tick) };
     }
 
     /// <summary>

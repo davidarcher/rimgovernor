@@ -27,7 +27,7 @@ public sealed partial class RoundsBuildingPlanner
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectRoutes(Observation.ColonyProjection facts)
     {
         var p = Reviewer.Policy.Routes;
-        var review = ReviewRoutes(facts.Facts.Upkeep.Routes, p);
+        var review = RoutesRules.ReviewRoutes(facts.Facts.Upkeep.Routes, p);
         if (!review.Active)
         {
             return (null, BuildingReasonNoDeficit);
@@ -44,7 +44,7 @@ public sealed partial class RoundsBuildingPlanner
                 routes = routes with { DoorAvailable = d.Available };
             }
         }
-        var proposal = SelectRoutesMethod(review, routes, p);
+        var proposal = RoutesRules.SelectRoutesMethod(review, routes, p);
         switch (proposal.Method)
         {
             case Pol.RoutesMethod.Build:

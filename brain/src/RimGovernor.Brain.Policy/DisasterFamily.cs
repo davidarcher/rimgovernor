@@ -24,10 +24,10 @@ public sealed record DisasterFacts
     /// <summary>The family's facts from one reading of the colony and the review's <paramref name="history"/>.</summary>
     public static DisasterFacts From(RoundsFacts f, DisasterHistory? history)
     {
-        var (_, known) = PolicyFunctions.ShelterTriggerOf(f);
+        var (_, known) = ShelterRules.ShelterTriggerOf(f);
         return new DisasterFacts
         {
-            Changes = known ? Fact.Known(EquatableArray.From(PolicyFunctions.PlanSheltering(f))) : default,
+            Changes = known ? Fact.Known(EquatableArray.From(ShelterRules.PlanSheltering(f))) : default,
             Disaster = history,
             ConditionsKnown = f.DisasterConditions.IsKnown,
             Planning = new RecoveryPlanning { Safety = f.RecoverySafety, Workers = f.RecoveryWorkers, Buildings = f.RecoveryBuildings },
@@ -90,7 +90,7 @@ public sealed class DisasterFamily : IFamily<DisasterFacts>
     /// </summary>
     public static Need ServicesNeed(DisasterHistory? history, bool conditionsKnown)
     {
-        var finding = history is null && !conditionsKnown ? Finding.Unclear : PolicyFunctions.RecoveryNeed(history);
+        var finding = history is null && !conditionsKnown ? Finding.Unclear : RecoveryRules.RecoveryNeed(history);
         var phase = history is null ? (conditionsKnown ? Fact.Known("none") : default) : Fact.Known(Wire.Name(history.Phase));
         var need = new Need { Id = Services, Tier = NeedTier.Wellbeing, Evidence = [new("disaster_phase", phase)], Preconditions = [Sheltering] };
         return finding switch

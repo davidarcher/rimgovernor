@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class RemoteRules
 {
     // Remote work (loot recovery, ruin salvage, surface mining outside the base extent) is held for one of
     // explicit reasons. Selection reports them on the review's hold rows; dispatch mirrors them as the
@@ -135,7 +135,7 @@ public static partial class PolicyFunctions
         {
             return RemoteHoldThreat;
         }
-        if (OutdoorHazardHeldDash(r.Hazard, r.DashOpen))
+        if (OutdoorHazardRules.OutdoorHazardHeldDash(r.Hazard, r.DashOpen))
         {
             return RemoteHoldHazard;
         }

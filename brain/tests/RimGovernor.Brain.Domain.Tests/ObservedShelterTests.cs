@@ -19,7 +19,7 @@ public sealed class ObservedShelterTests
         return facts with
         {
             Upkeep = facts.Upkeep with { Rooms = Known(new RoomObservation { Rooms = [Physical] }) },
-            PlannedShelters = [new() { Id = 7, Region = RectRegion(new(20, 20, 2, 3)) }],
+            PlannedShelters = [new() { Id = 7, Region = RegionRules.RectRegion(new(20, 20, 2, 3)) }],
             ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
             {
                 Food = facts.ForecastObserved.Coupled!.Food with { Options = [] }, FoodUses = [],
@@ -53,7 +53,7 @@ public sealed class ObservedShelterTests
     [Fact]
     public void MatchingPlannedAndPhysicalFootprintsProduceOneShelter()
     {
-        var facts = Facts() with { PlannedShelters = [new() { Id = 7, Region = RectRegion(new(1, 1, 2, 3)) }] };
+        var facts = Facts() with { PlannedShelters = [new() { Id = 7, Region = RegionRules.RectRegion(new(1, 1, 2, 3)) }] };
         var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300));
         var room = Assert.Single(generated.Context.Shelters);
         Assert.Equal(ForecastShelterSource.Observed, room.Room.Source);

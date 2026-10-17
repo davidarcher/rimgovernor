@@ -252,7 +252,7 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            if (TamerFor(profiles, minimum) is null)
+            if (PawnRules.TamerFor(profiles, minimum) is null)
             {
                 continue;
             }
@@ -303,7 +303,7 @@ public static partial class PolicyFunctions
                     || row.Count < 1
                     || gender == RimGovernor.Contracts.Wire.Defs.Gender.None
                     || row.Def.Contains('/', StringComparison.Ordinal)
-                    || !Finite(row.Price)
+                    || !TradePolicyRules.Finite(row.Price)
                     || row.Price <= 0
                     || row.Price > silver - reserve
                     || !input.Room(race.Def)
@@ -365,7 +365,7 @@ public static partial class PolicyFunctions
             foreach (var a in rows)
             {
                 a.MinimumHandlingSkill.TryGetValue(out var minimum);
-                if (TamerFor(profiles, minimum) is not null && e.Channel.Id == "tame:" + a.Id)
+                if (PawnRules.TamerFor(profiles, minimum) is not null && e.Channel.Id == "tame:" + a.Id)
                 {
                     if (a.Tame.TryGetValue(out var designated) && !designated)
                     {

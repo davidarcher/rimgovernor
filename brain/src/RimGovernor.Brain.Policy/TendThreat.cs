@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class TendRules
 {
     /// <summary>
     /// How close (Chebyshev cells) a live hostile pawn must stand to a patient for the tend to wait: a

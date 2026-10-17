@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: trade_pawn.go.
 
-public static partial class PolicyFunctions
+public static partial class TradePolicyRules
 {
     /// <summary>Scores an offered pawn from its skills and passions: each usable skill's level weighted by how fast its passion grows it. A disabled skill adds nothing.</summary>
     public static double PawnPurchaseValue(IReadOnlyList<ProfileSkill> skills)

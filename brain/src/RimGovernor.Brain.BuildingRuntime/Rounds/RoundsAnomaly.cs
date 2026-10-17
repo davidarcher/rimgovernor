@@ -86,7 +86,7 @@ public sealed partial class AnomalyRounds
     internal async Task<Verdict> WorkAsync(NeedWork work, AnomalyFacts facts, CancellationToken call)
     {
         var idle = Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
-        if (work.Need.Id != AnomalyFamily.Lance || work.Immediate || PolicyFunctions.LanceCandidate(facts.Rounds) is not { } target || target.Value == "")
+        if (work.Need.Id != AnomalyFamily.Lance || work.Immediate || PopulationRules.LanceCandidate(facts.Rounds) is not { } target || target.Value == "")
         {
             return idle;
         }
@@ -146,7 +146,7 @@ public sealed partial class AnomalyRounds
         }
 
         var things = await RoundsGear.FrameThingsOfAsync(_native, identity, call).ConfigureAwait(false);
-        return PolicyFunctions.SelectLanceUse(target, AnomalyRounds.LanceUsers(observed.Pawns, things)) is not null;
+        return PopulationRules.SelectLanceUse(target, AnomalyRounds.LanceUsers(observed.Pawns, things)) is not null;
     }
 
     /// <summary>Reports each containment, bioferrite and monolith fact the rules could not decide: a loud issue, never a pass.</summary>
@@ -161,9 +161,9 @@ public sealed partial class AnomalyRounds
         {
             DefensePipeline.DefenseAction(Component, TelemetryLevel.Warn, "refused", "bioferrite_harvest_unread", "bioferrite", new Dictionary<string, object?> { ["detail"] = reason }, ct);
         }
-        if (PolicyFunctions.MonolithInPlay(f.Monolith))
+        if (MonolithRules.MonolithInPlay(f.Monolith))
         {
-            foreach (var issue in PolicyFunctions.MonolithAdvanceOwed(f.Monolith, PolicyFunctions.MonolithGate(f)).Issues)
+            foreach (var issue in MonolithRules.MonolithAdvanceOwed(f.Monolith, MonolithRules.MonolithGate(f)).Issues)
             {
                 DefensePipeline.DefenseAction(Component, TelemetryLevel.Warn, "refused", "monolith_advance_unread", "monolith", new Dictionary<string, object?> { ["detail"] = issue }, ct);
             }

@@ -18,7 +18,7 @@ public sealed class YardMergeTests
     {
         Id = 1,
         Role = PlannedRole.Storage,
-        Region = RectRegion(new Rectangle { X = 10, Z = 10, Width = 5, Height = 5 }),
+        Region = RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 5, Height = 5 }),
         Door = new Cell(12, 9),
         DoorRot = Rotation.South,
     };
@@ -27,7 +27,7 @@ public sealed class YardMergeTests
     {
         Id = 2,
         Role = PlannedRole.Yard,
-        Region = RectRegion(new Rectangle { X = 30, Z = 10, Width = 13, Height = 9 }),
+        Region = RegionRules.RectRegion(new Rectangle { X = 30, Z = 10, Width = 13, Height = 9 }),
         Outdoor = true,
     };
 
@@ -35,7 +35,7 @@ public sealed class YardMergeTests
     public void TheYardStoreUsesTheOutdoorSafeWastePreset()
     {
         var plan = new LayoutPlan { Rooms = [Storeroom, Yard], NextRoomId = 3 };
-        var yard = Assert.Single(DeclareStores(new StoreView { Layout = plan }).Stores, s => s.Role == StockpileRolesConstants.YardRole);
+        var yard = Assert.Single(StoreRules.DeclareStores(new StoreView { Layout = plan }).Stores, s => s.Role == StockpileRolesConstants.YardRole);
         var filter = Assert.IsType<StockpileFilter>(yard.Site.Filter);
         Assert.Equal(StockpileFilter.YardFilter(), filter);
         Assert.Equal(FilterBase.OutdoorSafeWaste, filter.Base);

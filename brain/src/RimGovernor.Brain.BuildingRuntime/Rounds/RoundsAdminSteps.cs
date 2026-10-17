@@ -167,7 +167,7 @@ public sealed partial class AdminRounds
         {
             return FieldUnavailable("construction");
         }
-        if (census.Sites.Any(s => s.Building?.Definition == PolicyApi.GraveDefinition))
+        if (census.Sites.Any(s => s.Building?.Definition == TombRules.GraveDefinition))
         {
             return BuildingReasonExistingWork;
         }
@@ -184,7 +184,7 @@ public sealed partial class AdminRounds
         var unknown = false;
         foreach (var site in sites.Take(GraveSiteTries))
         {
-            var building = new Building(PolicyApi.GraveDefinition, PolicyApi.AnchorForRect(site, size, Rotation.North), Rotation.North, "");
+            var building = new Building(TombRules.GraveDefinition, PolicyApi.AnchorForRect(site, size, Rotation.North), Rotation.North, "");
             var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, ConstructionTier.Expand);
             var got = await _building!.Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var pv = got.Preview;

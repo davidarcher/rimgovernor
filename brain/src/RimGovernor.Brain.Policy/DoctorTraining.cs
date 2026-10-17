@@ -110,7 +110,7 @@ public static partial class PolicyFunctions
         RecipeFacts facts,
         IReadOnlyDictionary<PawnId, bool>? inFlight)
     {
-        if (!prisoners.TryGetValue(out var rows) || !colony.TryGetValue(out var c) || SurgeryInFlight(rows, inFlight))
+        if (!prisoners.TryGetValue(out var rows) || !colony.TryGetValue(out var c) || OrganHarvestRules.SurgeryInFlight(rows, inFlight))
         {
             return null;
         }
@@ -120,7 +120,7 @@ public static partial class PolicyFunctions
         {
             foreach (var step in PegCycleSteps(row, c, food, p, perXP, cycles, facts))
             {
-                if (best is null || BetterHarvest(step, best))
+                if (best is null || OrganHarvestRules.BetterHarvest(step, best))
                 {
                     best = step;
                 }
@@ -131,7 +131,7 @@ public static partial class PolicyFunctions
 
     /// <summary>Reports whether a peg-leg step would be queued now; it keeps the medical/surgery Need unmet.</summary>
     public static bool PegCycleWanted(RoundsFacts f, PrisonerPolicy p) =>
-        SelectPegCycle(f.Prisoners, f.PrisonerColony, f.FoodDays, p, SelectSurgery(f.MedicalPawns, null, new SurgeryContext()).Wants, f.Recipes, null) is not null;
+        SelectPegCycle(f.Prisoners, f.PrisonerColony, f.FoodDays, p, SurgeryRules.SelectSurgery(f.MedicalPawns, null, new SurgeryContext()).Wants, f.Recipes, null) is not null;
 
     /// <summary>Every leg of a human body (two) is missing.</summary>
     internal static bool Legless(this PrisonerFacts row)
@@ -156,7 +156,7 @@ public static partial class PolicyFunctions
     /// <summary>The row's acceptable steps: a reinstall, a control removal and a training step, each only when it applies and pays off.</summary>
     private static List<OrganHarvest> PegCycleSteps(PrisonerFacts row, PrisonerColony c, Fact<double> food, PrisonerPolicy p, double perXP, double cycles, RecipeFacts facts)
     {
-        var (intent, unknown) = PrisonerIntent(row, c, food, p);
+        var (intent, unknown) = PopulationRules.PrisonerIntent(row, c, food, p);
         var dk = row.Dead.TryGetValue(out var dead);
         var ok = row.Operations.TryGetValue(out var ops);
         var mk = row.MissingParts.TryGetValue(out var missing);
@@ -192,7 +192,7 @@ public static partial class PolicyFunctions
             op.Recipe.TryGetValue(out var recipe);
             var ak = op.AddedPart.TryGetValue(out var added);
             var sk = op.IngredientsOnMap.TryGetValue(out var stocked);
-            if (!HarvestAcceptable(op))
+            if (!OrganHarvestRules.HarvestAcceptable(op))
             {
                 continue;
             }
@@ -315,7 +315,7 @@ public static partial class PolicyFunctions
             foreach (var op in cuts)
             {
                 op.PartDefName.TryGetValue(out var body);
-                var (harvestCost, harvestOk) = HarvestCost(c, goodwill, false);
+                var (harvestCost, harvestOk) = OrganHarvestRules.HarvestCost(c, goodwill, false);
                 if (!harvestOk || cycles <= 0)
                 {
                     continue;
@@ -347,7 +347,7 @@ public static partial class PolicyFunctions
         }
         foreach (var (doctor, chance) in chances)
         {
-            if (!c.Medicine.TryGetValue((PawnId)doctor, out var level) || level >= DoctorTrainingFloor || !double.IsFinite(chance) || 1 - chance > RestoreFailureCap + 1e-9)
+            if (!c.Medicine.TryGetValue((PawnId)doctor, out var level) || level >= DoctorTrainingFloor || !double.IsFinite(chance) || 1 - chance > SurgeryRules.RestoreFailureCap + 1e-9)
             {
                 continue;
             }

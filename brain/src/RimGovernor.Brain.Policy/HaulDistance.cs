@@ -25,7 +25,7 @@ public static partial class PolicyFunctions
         var walkable = new Dictionary<Cell, bool>(cells.Count);
         foreach (var c in cells)
         {
-            walkable[c.Cell] = Positive(c.Walkable);
+            walkable[c.Cell] = RoundsRules.Positive(c.Walkable);
         }
         bool Walkable(Cell c) => walkable.GetValueOrDefault(c);
         var total = new Dictionary<Cell, long>();
@@ -94,7 +94,7 @@ public static partial class PolicyFunctions
         {
             long cost = 0;
             var ok = false;
-            foreach (var c in RectCells(sites[i]))
+            foreach (var c in PlannedRules.RectCells(sites[i]))
             {
                 if (costs.TryGetValue(c, out var v) && (!ok || v < cost))
                 {

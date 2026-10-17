@@ -48,7 +48,7 @@ public sealed record TradeFoodGood
     public bool Crop { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class TradePolicyRules
 {
     /// <summary>
     /// Uses the shared tick plan and the observed active meal recipe. One day's ingredient buffer bridges a
@@ -94,7 +94,7 @@ public static partial class PolicyFunctions
         var supported = new HashSet<FoodIngredientClass> { FoodIngredientClass.Meat, FoodIngredientClass.AnimalProduct, FoodIngredientClass.Vegetable };
         foreach (var bench in rows!)
         {
-            if (bench.Butcher || !Positive(bench.Usable))
+            if (bench.Butcher || !RoundsRules.Positive(bench.Usable))
             {
                 continue;
             }
@@ -108,7 +108,7 @@ public static partial class PolicyFunctions
                     }
                     var mk = recipe.Mood.TryGetValue(out var mood);
                     var sk = recipe.IngredientClasses.TryGetValue(out var slots);
-                    if (!mk || !Finite(mood) || mood < 5 || !sk || !MealSlotsSupported(slots!, supported))
+                    if (!mk || !Finite(mood) || mood < 5 || !sk || !MealRules.MealSlotsSupported(slots!, supported))
                     {
                         continue;
                     }
@@ -137,7 +137,7 @@ public static partial class PolicyFunctions
         {
             return new TradeFoodNeed();
         }
-        var (sources, _, valid) = MealIngredientSources(plan!);
+        var (sources, _, valid) = MealRules.MealIngredientSources(plan!);
         if (!valid)
         {
             return new TradeFoodNeed();
@@ -162,14 +162,14 @@ public static partial class PolicyFunctions
         }
         var known = r.DesiredIngredients.TryGetValue(out var slots);
         var all = new HashSet<FoodIngredientClass> { FoodIngredientClass.Meat, FoodIngredientClass.Vegetable, FoodIngredientClass.AnimalProduct };
-        if (!known || !MealSlotsSupported(slots!, all))
+        if (!known || !MealRules.MealSlotsSupported(slots!, all))
         {
             return need;
         }
         var missing = new List<FoodIngredientSlot>();
         foreach (var slot in slots!)
         {
-            if (MealSlotsSupported([slot], sources!))
+            if (MealRules.MealSlotsSupported([slot], sources!))
             {
                 continue;
             }
@@ -268,7 +268,7 @@ public static partial class PolicyFunctions
             foreach (var row in candidates)
             {
                 var g = row.Food.ValueOrDefault!;
-                if (slot is not null && (g.Prepared || !MealSlotsSupported([slot], new HashSet<FoodIngredientClass> { g.Class })))
+                if (slot is not null && (g.Prepared || !MealRules.MealSlotsSupported([slot], new HashSet<FoodIngredientClass> { g.Class })))
                 {
                     continue;
                 }
@@ -297,7 +297,7 @@ public static partial class PolicyFunctions
             foreach (var row in rows)
             {
                 var known = row.Food.TryGetValue(out var g);
-                if (known && ValidTradeFood(g!) && !g!.Prepared && row.ColonyCount > 0 && counts[row.DefName] == 1 && MealSlotsSupported([missing], new HashSet<FoodIngredientClass> { g.Class }))
+                if (known && ValidTradeFood(g!) && !g!.Prepared && row.ColonyCount > 0 && counts[row.DefName] == 1 && MealRules.MealSlotsSupported([missing], new HashSet<FoodIngredientClass> { g.Class }))
                 {
                     remaining -= row.ColonyCount * g.Nutrition;
                 }

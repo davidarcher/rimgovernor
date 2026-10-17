@@ -57,7 +57,7 @@ public sealed record PartySpotNeed
     public bool Owed => HasRetire || Place;
 }
 
-public static partial class PolicyFunctions
+public static partial class PartySpotRules
 {
     private sealed record PartyCandidate(string Id, int Stage, int Size, IReadOnlyList<Cell> Cells);
 

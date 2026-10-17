@@ -38,12 +38,12 @@ public sealed record MoodPawn
         }
         foreach (var f in new[] { Mood, Threshold, Target, Food, Rest, Joy })
         {
-            if (!PolicyFunctions.MoodNumber(f))
+            if (!MoodRules.MoodNumber(f))
             {
                 throw new DomainException("nonfinite mood evidence");
             }
         }
-        PolicyFunctions.ValidateMoodThoughts(Thoughts);
+        MoodRules.ValidateMoodThoughts(Thoughts);
     }
 }
 
@@ -116,16 +116,16 @@ public sealed record MoodHistory
             {
                 throw new DomainException("invalid mood history");
             }
-            PolicyFunctions.ValidateMoodProvision(s.Provision);
+            MoodRules.ValidateMoodProvision(s.Provision);
             for (var i = 0; i < s.Unowned.Count; i++)
             {
                 var t = s.Unowned[i];
-                if (PolicyFunctions.ThoughtOwners(t.Def).Count > 0 || t.Offset >= 0 || (i > 0 && s.Unowned[i - 1].Offset > t.Offset))
+                if (MoodRules.ThoughtOwners(t.Def).Count > 0 || t.Offset >= 0 || (i > 0 && s.Unowned[i - 1].Offset > t.Offset))
                 {
                     throw new DomainException("invalid mood unowned thought");
                 }
             }
-            PolicyFunctions.ValidateMoodThoughts(Known(EquatableArray.From(s.Unowned)));
+            MoodRules.ValidateMoodThoughts(Known(EquatableArray.From(s.Unowned)));
             if (s.Provision.Count > 0 && s.Unowned.Count > 0)
             {
                 throw new DomainException("mood state both provisioned and unowned");
@@ -142,7 +142,7 @@ public sealed record MoodHistory
             var causes = new HashSet<MoodNeed>();
             foreach (var c in s.Causes)
             {
-                if ((c.Need != MoodNeed.Food && c.Need != MoodNeed.Rest && c.Need != MoodNeed.Joy) || causes.Contains(c.Need) || !PolicyFunctions.MoodNumber(c.Level))
+                if ((c.Need != MoodNeed.Food && c.Need != MoodNeed.Rest && c.Need != MoodNeed.Joy) || causes.Contains(c.Need) || !MoodRules.MoodNumber(c.Level))
                 {
                     throw new DomainException("invalid mood cause");
                 }
@@ -203,7 +203,7 @@ public sealed record MoodProposal
 }
 
 /// <summary>Ports <c>mood.go</c>.</summary>
-public static partial class PolicyFunctions
+public static partial class MoodRules
 {
     internal static bool MoodNumber(Fact<double> f) => !f.TryGetValue(out var v) || (!double.IsNaN(v) && !double.IsInfinity(v));
 

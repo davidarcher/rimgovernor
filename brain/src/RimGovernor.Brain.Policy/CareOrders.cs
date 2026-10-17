@@ -50,7 +50,7 @@ public static partial class PolicyFunctions
         var spec = SelectionOrder(s, benches);
         if (spec is null)
         {
-            return Abstaining(Cause.UnreadBenchDef);
+            return WorkRules.Abstaining(Cause.UnreadBenchDef);
         }
 
         var output = new Declared();
@@ -68,7 +68,7 @@ public static partial class PolicyFunctions
         switch (m.Kind)
         {
             case MedicineMethodKind.Unknown:
-                return Abstaining(Cause.UnreadMedicine);
+                return WorkRules.Abstaining(Cause.UnreadMedicine);
             case MedicineMethodKind.Produce:
                 return DeclareSelection(
                     new BillSelection

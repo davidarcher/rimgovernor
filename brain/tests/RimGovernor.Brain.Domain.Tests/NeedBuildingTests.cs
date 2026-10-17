@@ -245,13 +245,13 @@ public sealed class NeedBuildingTests
                     new("SimpleResearchBench", "WoodLog", Known<EquatableArray<Amount>>([new(new("WoodLog"), 75)])) { Size = Known(new Cell(1, 1)) }]),
             },
         };
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         var timeout = TimeSpan.FromSeconds(10);
         var player = Player.Create(new PlayerConfig(timeout, timeout), journal, new Session(), new Worlds(), ct);
         var native = DispatchProxy.Create<ITestNative, Native>();
         var planner = new RoundsBuildingPlanner
         {
-            Reviewer = new Rounder(player, native, new Clock(), DefaultRoundsPolicy(), TimeSpan.FromSeconds(30)),
+            Reviewer = new Rounder(player, native, new Clock(), RoundsRules.DefaultRoundsPolicy(), TimeSpan.FromSeconds(30)),
             Native = native,
         };
         var reading = new RoundsReading

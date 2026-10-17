@@ -26,16 +26,16 @@ public sealed record TraitBalance
     public double Worth()
     {
         var worth =
-            (HungerRate * PolicyFunctions.TraitHungerWeight)
-            + (Mood * PolicyFunctions.TraitMoodWeight)
-            + (DisabledWork * PolicyFunctions.TraitDisabledWorkWeight)
-            + (Sociable * PolicyFunctions.TraitSociableWeight);
+            (HungerRate * TraitWorthRules.TraitHungerWeight)
+            + (Mood * TraitWorthRules.TraitMoodWeight)
+            + (DisabledWork * TraitWorthRules.TraitDisabledWorkWeight)
+            + (Sociable * TraitWorthRules.TraitSociableWeight);
         // Summed in ordinal stat order: float addition is not associative, and Go's map order is random.
         foreach (var stat in Stats.Keys.Order(StringComparer.Ordinal))
         {
-            worth += Stats[stat] * PolicyFunctions.TraitStatWeights.GetValueOrDefault(stat);
+            worth += Stats[stat] * TraitWorthRules.TraitStatWeights.GetValueOrDefault(stat);
         }
-        if (worth > -PolicyFunctions.TraitWorthEpsilon && worth < PolicyFunctions.TraitWorthEpsilon)
+        if (worth > -TraitWorthRules.TraitWorthEpsilon && worth < TraitWorthRules.TraitWorthEpsilon)
         {
             return 0;
         }
@@ -43,7 +43,7 @@ public sealed record TraitBalance
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class TraitWorthRules
 {
     /// <summary>
     /// The worth of one unit of change in a StatDef by a trait degree: a stat offset counts as it is, a stat

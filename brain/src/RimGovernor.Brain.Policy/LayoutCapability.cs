@@ -81,7 +81,7 @@ public static partial class PolicyFunctions
                 }
                 try
                 {
-                    if (Facility(home).Hosts(room))
+                    if (RoomsRules.Facility(home).Hosts(room))
                     {
                         hosted.Add(c);
                     }

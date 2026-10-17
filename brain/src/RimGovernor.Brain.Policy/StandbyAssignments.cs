@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class StandbyAssignmentsRules
 {
     /// <summary>The standby step: no target, no deadline. Native offers its own colony wander, never a work giver.</summary>
     public static PawnActivityStep StandbyStep() => new(PawnActivityKind.Standby, "", "", "", 0, long.MaxValue);

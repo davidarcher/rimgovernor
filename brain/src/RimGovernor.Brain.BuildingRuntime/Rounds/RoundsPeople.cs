@@ -142,7 +142,7 @@ public sealed class PeopleRounds
         {
             return FieldUnavailable(need.Value);
         }
-        var proposal = PolicyFunctions.MoodNeedProposal(pawn, [.. facts.Working]);
+        var proposal = MoodRules.MoodNeedProposal(pawn, [.. facts.Working]);
         return proposal.Reason switch
         {
             MoodMethodReason.Provisioned => WaitFor(Cause.WaitingOnNeed, proposal.Provider.Value),

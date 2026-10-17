@@ -33,7 +33,7 @@ public sealed class BedroomTraitTargetTests
     };
 
     private static RoomTarget Target(TraitEffects owner, double otherRoom = 0, TraitEffects? other = null) =>
-        RoomQualityTargets(
+        RoomQualityRules.RoomQualityTargets(
             Bedrooms(0, otherRoom),
             new Dictionary<PawnId, TraitEffects> { [Owner] = owner, [Other] = other ?? new TraitEffects() },
             TechTier.Camp,
@@ -61,7 +61,7 @@ public sealed class BedroomTraitTargetTests
     [Fact]
     public void AsceticRoomIsCappedBelowDecentAndNeverUpgraded()
     {
-        var targets = RoomQualityTargets(
+        var targets = RoomQualityRules.RoomQualityTargets(
             Bedrooms(0, 35),
             new Dictionary<PawnId, TraitEffects> { [Owner] = new() { Jealous = true }, [Other] = new() { Ascetic = true } },
             TechTier.Camp,

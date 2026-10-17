@@ -103,7 +103,7 @@ public static partial class PolicyFunctions
         IReadOnlyList<EquipCandidateWeapon> weapons
     )
     {
-        var pairs = AssignEquip(pawns, weapons);
+        var pairs = WeaponAssignmentRules.AssignEquip(pawns, weapons);
         if (pairs.Count == 0)
         {
             return null;

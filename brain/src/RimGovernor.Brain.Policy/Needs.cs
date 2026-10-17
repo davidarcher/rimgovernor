@@ -213,7 +213,7 @@ public interface IFamily<in TFacts> : IFamily
     IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, TFacts facts);
 }
 
-public static partial class PolicyFunctions
+public static partial class NeedsRules
 {
     /// <summary>
     /// Where each derived Need stands, ordered by tier and then the family's derivation order. A Need is met or

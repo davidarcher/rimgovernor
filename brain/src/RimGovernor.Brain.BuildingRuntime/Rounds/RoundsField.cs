@@ -106,7 +106,7 @@ public sealed partial class RoundsFieldPlanner
         }
         var reserveDays = _reviewer.Seasonal(projection.Facts).FoodTargetDays;
         var (request, choices) = FieldSiteRequest(projection, protectedCells, reserveDays);
-        var (selection, known) = PolicyApi.PlanSiteType(request);
+        var (selection, known) = SiteRules.PlanSiteType(request);
         if (projection.Environment.TryGetValue(out var env))
         {
             var recrops = PolicyApi.PlanGrowerCrops(new GrowerCropRequest { Choices = choices, Growers = env.Growers, Urgent = selection.Urgent, Field = request.Field });
@@ -182,7 +182,7 @@ public sealed partial class RoundsFieldPlanner
         {
             output.Add(new FieldShortfall(rgoal, [hay], "hay"));
         }
-        if (review.BrewingFinished && PolicyApi.BrewingFinished(projection.Facts.Research))
+        if (review.BrewingFinished && SocialCropsRules.BrewingFinished(projection.Facts.Research))
         {
             var (opts, known) = RoundsSocialFields.SocialShortfalls(projection);
             if (known && opts.Count > 0)

@@ -33,9 +33,9 @@ public sealed class ProductionAdmissionTests
         },
     };
     private static WorkAdmissionEvidence Evidence(RoundsFacts? facts = null, params ProductionBatch[] reviewed) =>
-        WorkAdmissionEvidenceOf(facts ?? Facts, Known(EquatableArray.From(reviewed)));
+        ProductionRules.WorkAdmissionEvidenceOf(facts ?? Facts, Known(EquatableArray.From(reviewed)));
     private static bool Fits(WorkAdmissionEvidence evidence, ProductionBatch[] committed, params ProductionBatch[] proposed) =>
-        ProductionAdmissionFits(evidence, Known(EquatableArray.From(committed)), EquatableArray.From(proposed));
+        ProductionRules.ProductionAdmissionFits(evidence, Known(EquatableArray.From(committed)), EquatableArray.From(proposed));
     private static PlanSpec Plan(string id) => new(new PlanId(id), new PlanRevision(1),
         [DomainAction.NewProductionBillAction(new ActionId(id), Batch(id).Order)]);
 
@@ -93,7 +93,7 @@ public sealed class ProductionAdmissionTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-admission-world-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        var request = new RoundsRequest { Current = World, Tick = Facts.Tick, Enabled = true, Policy = DefaultRoundsPolicy(), Facts = Facts };
+        var request = new RoundsRequest { Current = World, Tick = Facts.Tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = Facts };
         var full = journal.ReviewRounds(request, ct);
         var immediate = journal.ReviewRounds(request with { Revision = full.Review.Revision, Immediate = true, Tick = new Tick(101), Facts = new() }, ct);
         Assert.Equal(60, journal.LoadRounds(ct).WorkEvidence!.Stock.Value[0].Count);
@@ -109,7 +109,7 @@ public sealed class ProductionAdmissionTests
         var ct = TestContext.Current.CancellationToken;
         var path = Path.Combine(Path.GetTempPath(), "rg-admission-" + Guid.NewGuid().ToString("N") + ".db");
         using var first = Journal.Open(path, ct);
-        first.ReviewRounds(new() { Current = World, Tick = Facts.Tick, Enabled = true, Policy = DefaultRoundsPolicy(), Facts = Facts }, ct);
+        first.ReviewRounds(new() { Current = World, Tick = Facts.Tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = Facts }, ct);
         // Two admin/work-ledger Methods, one per connection, compete for the same material.
         void Commit(Journal store, int i) =>
             store.CommitClaimedMethod(AdminFamily.WorkLedger, World, new MethodId("batch-" + i), "", Plan("candidate-" + i), ct);

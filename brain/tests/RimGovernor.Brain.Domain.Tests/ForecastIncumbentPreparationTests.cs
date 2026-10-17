@@ -36,7 +36,7 @@ public sealed class ForecastIncumbentPreparationTests
             WorkResources = native,
             Pawns = Known(EquatableArray.From(facts.WorkView.Evidence.Pawns.Value.Select(p => p with { Occupied = Known(true) })))
         };
-        var view = WorkResourcesOf(evidence, NoBatches, [row]);
+        var view = WorkRules.WorkResourcesOf(evidence, NoBatches, [row]);
         var needs = facts.ForecastObserved.Needs!;
         facts = facts with
         {
@@ -137,7 +137,7 @@ public sealed class ForecastIncumbentPreparationTests
         var native = new List<WorkResourcePawn> { new("pawn", order.Assignment, order.Revision, "holding", "", "", 0) };
         if (tombstone) native.Add(new("helper", "new-independent-idle", 1, "holding", "", "", 0));
         var evidence = facts.WorkView!.Evidence with { WorkResources = Known(EquatableArray.From(native)) };
-        var view = WorkResourcesOf(evidence, NoBatches, [row]);
+        var view = WorkRules.WorkResourcesOf(evidence, NoBatches, [row]);
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
         {
             CurrentService = null, SleepThreshold = Known(.9), WakeThreshold = Known(1d),
@@ -219,7 +219,7 @@ public sealed class ForecastIncumbentPreparationTests
             capacity.Add(facts.WorkView!.Evidence.Pawns.Value[0] with { Pawn = pawn });
         }
         var evidence = facts.WorkView!.Evidence with { Pawns = Known(EquatableArray.From(capacity)), WorkResources = Known(EquatableArray.From(native)) };
-        var view = WorkResourcesOf(evidence, NoBatches, rows);
+        var view = WorkRules.WorkResourcesOf(evidence, NoBatches, rows);
         facts = facts with { WorkView = view, WorkClaims = view.Claims, ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(needs) },

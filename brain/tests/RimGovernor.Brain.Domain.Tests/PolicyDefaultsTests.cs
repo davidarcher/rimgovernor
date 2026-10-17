@@ -21,7 +21,7 @@ public sealed class PolicyDefaultsTests
     {
         var f = new RoundsFacts();
         Assert.NotNull(f.ResourceNeeds);
-        var demand = PolicyFunctions.ResourceDemandOf(f, PolicyFunctions.DefaultRoundsPolicy(), new RoundsLatches());
+        var demand = ResourceRules.ResourceDemandOf(f, RoundsRules.DefaultRoundsPolicy(), new RoundsLatches());
         Assert.NotNull(demand.Needs);
     }
 

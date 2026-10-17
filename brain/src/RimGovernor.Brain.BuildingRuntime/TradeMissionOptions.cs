@@ -73,7 +73,7 @@ public sealed partial class Rounder
         {
             return [];
         }
-        if (!Pol.PolicyFunctions.TradeMissionBudget(p.Facts.Silver(), p.Facts.Colonists).TryGetValue(out var budget) || budget <= 0)
+        if (!Pol.TradePolicyRules.TradeMissionBudget(p.Facts.Silver(), p.Facts.Colonists).TryGetValue(out var budget) || budget <= 0)
         {
             return [];
         }
@@ -86,7 +86,7 @@ public sealed partial class Rounder
                 compatibleFacts[d.Demand.Good] = catalog.TraderKindCanSupply(settlement.TraderKind, d.Demand.Good);
             }
             var definitions = new List<Pol.MissionSupplyDefinition>();
-            if (compatibleFacts.ContainsKey(Pol.PolicyFunctions.NutritionKey))
+            if (compatibleFacts.ContainsKey(Pol.SupplyPlanRules.NutritionKey))
             {
                 foreach (var name in catalog.ThingDefs.Keys.Order(StringComparer.Ordinal))
                 {
@@ -110,7 +110,7 @@ public sealed partial class Rounder
                     });
                 }
             }
-            var (cargo, compatible) = Pol.PolicyFunctions.TradeMissionCargo(demands, compatibleFacts, definitions, Policy.FoodTargetDays);
+            var (cargo, compatible) = Pol.TradePolicyRules.TradeMissionCargo(demands, compatibleFacts, definitions, Policy.FoodTargetDays);
             if (cargo.Count == 0)
             {
                 continue;

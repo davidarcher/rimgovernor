@@ -269,7 +269,7 @@ public static partial class CombatGroupsRules
             s.Cells = cells.GetRange(0, n);
             foreach (var c in s.Cells)
             {
-                s.Fallback.Add(new Cell(c.X + Sign(home.X - c.X), c.Z + Sign(home.Z - c.Z)));
+                s.Fallback.Add(new Cell(c.X + TradePolicyRules.Sign(home.X - c.X), c.Z + TradePolicyRules.Sign(home.Z - c.Z)));
             }
         }
         finally

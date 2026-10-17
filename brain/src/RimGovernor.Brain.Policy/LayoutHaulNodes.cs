@@ -107,8 +107,8 @@ internal sealed partial class GraphBuilder
         }
         var model = In.Catalog.Haul;
         HaulSources(model.Mined, PolicyConstants.HaulJudgment.MinerOwners);
-        HaulSources(model.Chopped, PolicyFunctions.BaselineDemand(WorkType.PlantCutting, colonists, new WorkDemand()));
-        HaulHunt(PolicyFunctions.BaselineDemand(WorkType.Hunting, colonists, new WorkDemand()));
+        HaulSources(model.Chopped, WorkRules.BaselineDemand(WorkType.PlantCutting, colonists, new WorkDemand()));
+        HaulHunt(WorkRules.BaselineDemand(WorkType.Hunting, colonists, new WorkDemand()));
     }
 
     /// <summary>

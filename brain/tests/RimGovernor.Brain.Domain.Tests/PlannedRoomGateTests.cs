@@ -25,7 +25,7 @@ public sealed class PlannedRoomGateTests
     /// <summary>Room 1: a 3x3 interior at (5,5), its ring from (4,4) to (8,8), the door south at (6,4).</summary>
     private static readonly PlannedRoom Room = new()
     {
-        Id = 1, Role = PlannedRole.Bedroom, Region = RectRegion(new Rectangle { X = 5, Z = 5, Width = 3, Height = 3 }),
+        Id = 1, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new Rectangle { X = 5, Z = 5, Width = 3, Height = 3 }),
         Door = new Cell(6, 4), DoorRot = Rotation.South,
     };
 
@@ -154,13 +154,13 @@ public sealed class PlannedRoomGateTests
                     new(ShellDoorDefinition, "BlocksGranite", Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("BlocksGranite"), 25)])) { Size = Known(new Cell(1, 1)) }]),
             },
         };
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         var timeout = TimeSpan.FromSeconds(10);
         var player = Player.Create(new PlayerConfig(timeout, timeout), journal, new Session(), new Worlds(), ct);
         var native = DispatchProxy.Create<ITestNative, Native>();
         var planner = new RoundsBuildingPlanner
         {
-            Reviewer = new Rounder(player, native, new Clock(), DefaultRoundsPolicy(), TimeSpan.FromSeconds(30)),
+            Reviewer = new Rounder(player, native, new Clock(), RoundsRules.DefaultRoundsPolicy(), TimeSpan.FromSeconds(30)),
             Native = native,
         };
         var projection = new ColonyProjection

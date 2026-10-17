@@ -102,10 +102,10 @@ public static partial class PolicyFunctions
         var output = new List<Region>();
         foreach (var r in plan.GroundRooms(ground))
         {
-            output.Add(RectRegion(RoomGround(r.Region.Bounds())));
+            output.Add(RegionRules.RectRegion(RoomGround(r.Region.Bounds())));
             foreach (var c in plan.ChildrenOf(r.Id))
             {
-                output.Add(RectRegion(c.AttachedGround()));
+                output.Add(RegionRules.RectRegion(c.AttachedGround()));
             }
         }
 
@@ -114,7 +114,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>A room's interior and wall ring, clipped to the map's origin.</summary>
-    private static Rectangle RoomGround(Rectangle room)
+    internal static Rectangle RoomGround(Rectangle room)
     {
         var g = new Rectangle
         {
@@ -332,7 +332,7 @@ public static partial class PolicyFunctions
     /// ground: the roof the native deconstruct guard waits on. A room reaching outside is the guard's
     /// refusal, not a roof to remove.
     /// </summary>
-    private static List<Cell> EnclosedRoof(IReadOnlyList<ClearanceTarget> walls, IReadOnlyList<Region> ground, RoomObservation rooms)
+    internal static List<Cell> EnclosedRoof(IReadOnlyList<ClearanceTarget> walls, IReadOnlyList<Region> ground, RoomObservation rooms)
     {
         var seen = new HashSet<Cell>();
         var output = new List<Cell>();
@@ -404,9 +404,9 @@ public static partial class PolicyFunctions
 
     internal static bool OnRing(Cell c, Rectangle g) => Inside(c, g) && (c.X == g.X || c.X == g.X + g.Width - 1 || c.Z == g.Z || c.Z == g.Z + g.Height - 1);
 
-    private static bool Overlaps(ClearanceTarget row, Region g) =>
+    internal static bool Overlaps(ClearanceTarget row, Region g) =>
         g.Overlaps(
-            RectRegion(
+            RegionRules.RectRegion(
                 new Rectangle
                 {
                     X = row.Minimum.X,

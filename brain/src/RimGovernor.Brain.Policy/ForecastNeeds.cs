@@ -38,7 +38,7 @@ public static class ForecastNeeds
     /// <summary>Native timetable is descriptive here. Only actual current work and journal ownership protect time.
     /// Explicit player obligations can be supplied to ForecastNeedsTimeline; legacy timetable writers are retired by #3135.</summary>
     public static ForecastCapacityResult NeedsWorkCapacity(WorkResourceView view, string pawn, double horizon)
-        => WorkCapacityOf(view, pawn, horizon, protectTimetable: false);
+        => WorkRules.WorkCapacityOf(view, pawn, horizon, protectTimetable: false);
 
     public static ForecastNeedsCandidates GenerateNeedsAlternatives(NeedsForecastPawn pawn, ForecastCapacityResult capacity,
         double horizon, int budget = 256)

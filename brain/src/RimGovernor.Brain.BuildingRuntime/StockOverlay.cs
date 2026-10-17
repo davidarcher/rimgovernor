@@ -43,7 +43,7 @@ public sealed partial class Rounder
                     stockByResource[row.Resource] = stockByResource.GetValueOrDefault(row.Resource) + row.Count;
                 }
             }
-            layer = Pol.PolicyFunctions.StockOverlay(zones, levels, projection.Bounds);
+            layer = Pol.StockOverlayRules.StockOverlay(zones, levels, projection.Bounds);
         }
         var on = layer.Layers.Count > 0 || layer.Labels.Count > 0;
         var tick = projection.Identity.Tick;
@@ -53,7 +53,7 @@ public sealed partial class Rounder
             {
                 try
                 {
-                    await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.PolicyFunctions.StockLayer, new Pol.LayoutOverlay(), false, ct).ConfigureAwait(false);
+                    await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.StockOverlayRules.StockLayer, new Pol.LayoutOverlay(), false, ct).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -69,7 +69,7 @@ public sealed partial class Rounder
         }
         try
         {
-            await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.PolicyFunctions.StockLayer, layer, true, ct).ConfigureAwait(false);
+            await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.StockOverlayRules.StockLayer, layer, true, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

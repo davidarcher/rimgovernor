@@ -21,7 +21,7 @@ public static partial class CombatTankRules
         var tanks = new List<SquadDefenderFacts>();
         foreach (var d in view.Defenders)
         {
-            if (charged.Contains(d.Id) && SquadDefenderEligible(d))
+            if (charged.Contains(d.Id) && SquadDefenseRules.SquadDefenderEligible(d))
             {
                 tanks.Add(d);
             }

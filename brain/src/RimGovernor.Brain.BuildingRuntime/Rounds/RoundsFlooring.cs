@@ -117,7 +117,7 @@ public sealed partial class RoundsBuildingPlanner
             }
         }
 
-        foreach (var cell in PolicyFunctions.RockStep(role, facts.Cells).Left)
+        foreach (var cell in RockStepRules.RockStep(role, facts.Cells).Left)
         {
             guarded.Add(cell);
         }
@@ -183,7 +183,7 @@ partial class RoundsBuildingPlanner
             return;
         }
 
-        var lines = PolicyFunctions.TrafficFindings(v).Select(f => f.ToString()).ToList();
+        var lines = TrafficRules.TrafficFindings(v).Select(f => f.ToString()).ToList();
         var joined = string.Join("; ", lines);
         bool changed;
         lock (TrafficFindingsLoggedLock)

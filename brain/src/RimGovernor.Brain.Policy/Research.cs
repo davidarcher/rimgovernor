@@ -59,7 +59,7 @@ public sealed record ResearchProjectFacts
     public double Cost { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class ResearchRules
 {
     /// <summary>Bounds the returned prerequisite queue -- the native research UI cannot usefully preview more.</summary>
     public const int ResearchQueueMax = 8;

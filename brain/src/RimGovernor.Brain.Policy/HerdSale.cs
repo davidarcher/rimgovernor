@@ -48,7 +48,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static Fact<TradeNeed> AnimalSaleNeed(ItemFacts items, Fact<TradeNeed> need, IReadOnlySet<PawnId> sale, Fact<long> silver, Fact<long> colonists)
     {
-        if (!need.TryGetValue(out var n) || sale.Count == 0 || !Positive(SilverShort(items, need, silver, colonists)))
+        if (!need.TryGetValue(out var n) || sale.Count == 0 || !RoundsRules.Positive(SilverGapRules.SilverShort(items, need, silver, colonists)))
         {
             return need;
         }

@@ -80,7 +80,7 @@ public sealed class MilitaryRounds
     };
 
     /// <summary>The definitions the range step reads availability and stuff for: the range's own buildings.</summary>
-    internal static readonly string[] TrainingDefinitions = [RangeDefNames[RangePieceKind.Stand], RangeDefNames[RangePieceKind.Dummy], RingMarkerDef];
+    internal static readonly string[] TrainingDefinitions = [TrainingRules.RangeDefNames[RangePieceKind.Stand], TrainingRules.RangeDefNames[RangePieceKind.Dummy], RingMarkerDef];
 
     /// <summary>
     /// Reads the family's facts in <paramref name="scope"/>'s world. Throws when the scope is another world or older
@@ -164,7 +164,7 @@ public sealed class MilitaryRounds
         var journal = _reviewer.Player.Journal;
         var (_, projection) = await _reviewer.AcquisitionReadingAsync(world, review, call).ConfigureAwait(false);
         var wild = projection.Facts.AnimalUpkeep.WildAnimals;
-        var pests = PolicyApi.PestCensus(wild);
+        var pests = PestRules.PestCensus(wild);
         var owner = journal.LoadNeed(MilitaryFamily.Pests, world, call);
         var stale = new List<StaleHunt>();
         var undispatched = new HashSet<string>(StringComparer.Ordinal);
@@ -176,7 +176,7 @@ public sealed class MilitaryRounds
             stale.AddRange(RoundsAcquisitionPlanner.GonePestHunts(plan.Progress, wild).Select(action => new StaleHunt(method.Plan, action)));
             undispatched.UnionWith(RoundsAcquisitionPlanner.UndispatchedAcquisitions(plan.Progress));
         }
-        facts = facts with { Pests = pests, StaleHunts = [.. stale], HuntingHeld = PolicyApi.OutdoorAcquisitionHeld(projection.Facts) };
+        facts = facts with { Pests = pests, StaleHunts = [.. stale], HuntingHeld = OutdoorHazardRules.OutdoorAcquisitionHeld(projection.Facts) };
         if (!pests.TryGetValue(out var count) || count == 0)
         {
             return facts;
@@ -188,7 +188,7 @@ public sealed class MilitaryRounds
         IReadOnlyList<AcquisitionSource> selected;
         try
         {
-            selected = PolicyApi.SelectPestAcquisition(projection.Acquisition, pests, held, slots);
+            selected = PestRules.SelectPestAcquisition(projection.Acquisition, pests, held, slots);
         }
         catch (DomainException)
         {
@@ -365,7 +365,7 @@ public sealed class MilitaryRounds
     /// <summary>The range's stands and the ring's markers the review wants, read from the projection's work pawns; unknown while they are.</summary>
     internal static (Fact<int> Stands, Fact<int> Rings) TrainingDemand(Observation.ColonyProjection facts)
     {
-        if (!facts.WorkPawns.TryGetValue(out _) || !ReviewTraining(facts.Facts).TryGetValue(out var review))
+        if (!facts.WorkPawns.TryGetValue(out _) || !TrainingRules.ReviewTraining(facts.Facts).TryGetValue(out var review))
         {
             return (Unknown<int>(), Unknown<int>());
         }

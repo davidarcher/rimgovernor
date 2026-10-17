@@ -124,7 +124,7 @@ public static partial class PolicyFunctions
     /// <summary>The share of the day a colonist is not on the Sleep block of the fixed layout occupancy assumption.</summary>
     internal static double AwakeShare()
     {
-        var slots = EnvironmentOccupancyBaseline();
+        var slots = PawnRules.EnvironmentOccupancyBaseline();
         var awake = slots.Count(s => s != PolicyConstants.ScheduleSleep);
         return (double)awake / slots.Length;
     }

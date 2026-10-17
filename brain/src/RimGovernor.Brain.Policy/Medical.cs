@@ -61,14 +61,14 @@ public sealed record MedicalFacts
     public static MedicalFacts From(RoundsFacts f, RoundsPolicy policy, bool medicineActive)
     {
         var p = policy.Seasonal(f.Calendar, f.DisasterConditions);
-        var reserve = PolicyFunctions.MedicalReserveAtTarget(f.MedicalReserve with { Colonists = f.Colonists }, p.MedicalReserve);
+        var reserve = MedicalRules.MedicalReserveAtTarget(f.MedicalReserve with { Colonists = f.Colonists }, p.MedicalReserve);
         return new()
         {
             CareRecovered = f.MedicalCareRecovered,
             ReservesCovered = reserve is { } r && r.Stock.IsKnown ? Fact.Known(!r.Active) : Fact.Unknown<bool>(),
             MedicineStock = reserve?.Stock ?? default,
             MedicineTarget = reserve?.Target ?? default,
-            SurgeryRecovered = PolicyFunctions.SurgeryNeedRecovered(f, policy, medicineActive),
+            SurgeryRecovered = MedicalRules.SurgeryNeedRecovered(f, policy, medicineActive),
         };
     }
 }
@@ -93,7 +93,7 @@ public sealed record MedicalFacts
 /// </summary>
 public sealed class MedicalFamily(bool critical, bool care, bool reserves, bool surgery) : IFamily<MedicalFacts>
 {
-    public string Id => PolicyFunctions.MedicalFamilyId;
+    public string Id => MedicalRules.MedicalFamilyId;
 
     /// <summary>The colony census and the room census the hospital stands in, the pawns the care and surgery census read, and the emergency census the patients are counted from.</summary>
     public IReadOnlyList<FactFamily> Reads { get; } = [FactFamily.Colony, FactFamily.Pawns, FactFamily.Rooms, FactFamily.Emergency];
@@ -103,17 +103,17 @@ public sealed class MedicalFamily(bool critical, bool care, bool reserves, bool 
 
     public IReadOnlyList<Need> Derive(MedicalFacts facts) =>
     [
-        .. critical ? PolicyFunctions.CriticalNeedsOf(facts) : Array.Empty<Need>(),
-        .. care ? [PolicyFunctions.MedicalCareNeedOf(facts)] : Array.Empty<Need>(),
-        .. reserves ? [PolicyFunctions.MedicalReservesNeedOf(facts)] : Array.Empty<Need>(),
-        .. surgery ? [PolicyFunctions.SurgeryNeedOf(facts)] : Array.Empty<Need>(),
+        .. critical ? MedicalRules.CriticalNeedsOf(facts) : Array.Empty<Need>(),
+        .. care ? [MedicalRules.MedicalCareNeedOf(facts)] : Array.Empty<Need>(),
+        .. reserves ? [MedicalRules.MedicalReservesNeedOf(facts)] : Array.Empty<Need>(),
+        .. surgery ? [MedicalRules.SurgeryNeedOf(facts)] : Array.Empty<Need>(),
     ];
 
     /// <summary>None: every medical Method is runtime work (pairs under the step's arbiter, native reads, ledger bills).</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, MedicalFacts facts) => [];
 }
 
-public static partial class PolicyFunctions
+public static partial class MedicalRules
 {
     public const string MedicalFamilyId = "medical";
 
@@ -243,8 +243,8 @@ public static partial class PolicyFunctions
     /// </summary>
     public static Fact<bool> SurgeryNeedRecovered(RoundsFacts f, RoundsPolicy p, bool medicineActive)
     {
-        var recovered = AllFacts(SurgeryRecovered(f.MedicalPawns), Measured(ElectiveSurgeryOwed(f.MedicalPawns, f.SurgeryContextOf(), f.FabricableParts), owed => !owed));
-        if (SaleHarvestWanted(f, RoundsSilverShort(f, p, medicineActive)) || PartRecoveryWanted(f) || PegCycleWanted(f, p.Prisoners()))
+        var recovered = RoundsRules.AllFacts(SurgeryRules.SurgeryRecovered(f.MedicalPawns), RoundsRules.Measured(SurgeryRules.ElectiveSurgeryOwed(f.MedicalPawns, f.SurgeryContextOf(), f.FabricableParts), owed => !owed));
+        if (OrganHarvestRules.SaleHarvestWanted(f, SilverGapRules.RoundsSilverShort(f, p, medicineActive)) || OrganHarvestRules.PartRecoveryWanted(f) || PegCycleWanted(f, p.Prisoners()))
         {
             return Known(false);
         }
@@ -276,7 +276,7 @@ public static partial class PolicyFunctions
         var pairs = new List<(PawnId, PawnId)>();
         while (true)
         {
-            var (doctor, patient, ok) = SelectTend(d, p, reach);
+            var (doctor, patient, ok) = TendRules.SelectTend(d, p, reach);
             if (!ok)
             {
                 return pairs;
@@ -327,7 +327,7 @@ public static partial class PolicyFunctions
         var pairs = new List<(PawnId, PawnId)>();
         while (true)
         {
-            var (rescuer, patient, ok) = SelectRescue(r, p);
+            var (rescuer, patient, ok) = RescueRules.SelectRescue(r, p);
             if (!ok)
             {
                 return pairs;

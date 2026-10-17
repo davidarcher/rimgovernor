@@ -31,7 +31,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static (int Width, int Depth) SuiteSize(double target)
     {
-        var cells = SuiteCells(target);
+        var cells = RoomQualityRules.SuiteCells(target);
         int bw = SuiteMaxWidth, bd = SuiteMaxDepth;
         for (var w = SuiteMinWidth; w <= SuiteMaxWidth; w++)
         {

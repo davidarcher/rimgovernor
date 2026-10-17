@@ -143,7 +143,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             var stock = RoundsResourcePlanner.ResourceStockFacts(observed);
             var wanted = Reviewer.ResourceTargets(state.Snapshot);
-            var (picked, _, found) = SelectResourceTarget(wanted, stock);
+            var (picked, _, found) = ResourceRules.SelectResourceTarget(wanted, stock);
             if (!found)
             {
                 return (null, BuildingReasonNoDeficit);
@@ -178,13 +178,13 @@ public sealed partial class RoundsBuildingPlanner
             var hosts = defs.Catalog.RecipeHosts(product.ToString(), finished);
             var request = new Pol.WorkshopRequest { Resource = product, Benches = Known<EquatableArray<Pol.GearBench>>([.. benches]), Hosts = hosts, Further = selection.Further };
             SnapshotPlannerReplay.NoteWorkshop(request);
-            var choice = SelectWorkshopBench(request);
+            var choice = WorkRules.SelectWorkshopBench(request);
             if (choice.Method == Pol.WorkshopMethod.Existing)
             {
                 RecordWorkshopLadder(state, review, product, choice, call);
                 return (null, BuildingReasonExistingFacility);
             }
-            var candidatesFor = WorkshopResearchCandidates(product, hosts);
+            var candidatesFor = WorkRules.WorkshopResearchCandidates(product, hosts);
             if (candidatesFor.Count == 0)
             {
                 continue;
@@ -250,7 +250,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (null, BuildingReasonWorkshopUnavailable);
             }
-            var barrelFacility = Facility(Pol.RoomRole.Workshop);
+            var barrelFacility = Pol.RoomsRules.Facility(Pol.RoomRole.Workshop);
             var barrel = Copy();
             barrel.Definition = "FermentingBarrel";
             barrel.Environment = Pol.PlacementEnvironment.Indoors;
@@ -278,11 +278,11 @@ public sealed partial class RoundsBuildingPlanner
                 Hosts = product.Hosts,
                 Definitions = definitions,
                 Power = GeneratorAvailable(available),
-                BuilderSkill = BuilderSkill(facts.WorkPawns),
+                BuilderSkill = WorkRules.BuilderSkill(facts.WorkPawns),
                 Further = Workshop.Further,
             };
             SnapshotPlannerReplay.NoteWorkshop(request);
-            var candidate = SelectWorkshopBench(request);
+            var candidate = WorkRules.SelectWorkshopBench(request);
             if (candidate.Method == Pol.WorkshopMethod.Build || candidate.Method == Pol.WorkshopMethod.Existing)
             {
                 choice = candidate;
@@ -310,7 +310,7 @@ public sealed partial class RoundsBuildingPlanner
             case Pol.WorkshopMethod.Unavailable:
                 return (null, BuildingReasonWorkshopUnavailable);
         }
-        var facility = Facility(Pol.RoomRole.Workshop);
+        var facility = Pol.RoomsRules.Facility(Pol.RoomRole.Workshop);
         var resolved = Copy();
         var selected = Workshop.Copy();
         selected.Resource = resource;

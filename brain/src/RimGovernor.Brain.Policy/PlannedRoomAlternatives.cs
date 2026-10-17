@@ -18,7 +18,7 @@ public enum PlannedScope
 /// </summary>
 public sealed record PlannedRoomAlternative(int Room, string Id, string Stuff, PlannedScope Scope, EquatableArray<string> Sites);
 
-public static partial class PolicyFunctions
+public static partial class PlannedRules
 {
     /// <summary>The kinds of operation a scope builds; Full is every kind the plan owes.</summary>
     private static bool InScope(PlannedScope scope, OpKind kind) => kind switch

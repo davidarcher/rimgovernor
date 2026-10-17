@@ -122,7 +122,7 @@ public sealed class PrisonersFamilyTests
     {
         var plan = new PlanId("p");
         var action = DomainAction.NewPrisonerInteractionAction(new("p-0"), new PrisonerInteraction(new("a"), PrisonerInteractionMode.Recruit));
-        var claims = MethodClaimsOf(new WorkAdmissionEvidence(), [new WorkAction(plan, action, new ProgressView { Action = action.Id, Stage = Stage.Pending })]);
+        var claims = MethodClaimsRules.MethodClaimsOf(new WorkAdmissionEvidence(), [new WorkAction(plan, action, new ProgressView { Action = action.Id, Stage = Stage.Pending })]);
         Assert.Contains("prisoner/a", claims.Targets);
     }
 
@@ -153,7 +153,7 @@ public sealed class PrisonersFamilyTests
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-prisoners-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with { Colonists = Known(3L), IndoorCapacity = Known(3L), BedCapacity = Known(3L), FieldCoverage = Known(1.0) };
-        var review = new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts };
+        var review = new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts };
         journal.ReviewRounds(review, ct);
         Colony? colony = null;
         var runner = new FamilyRunner<PrisonersFacts>(new PrisonersFamily(Policy), (_, _) => Task.FromResult(colony!.Facts), PrisonersRounds.Schedule);
@@ -229,14 +229,14 @@ public sealed class PrisonersFamilyTests
     private static readonly NeedId[] OwnerNeeds =
     [
         HomeUpkeepFamily.Repairs, HomeUpkeepFamily.Clearance, FoodStorageNeed, CookingNeed, PrisonersFamily.Recruit, PrisonersFamily.Custody, MilitaryFamily.Equipment, ShelterFamily.Sleeping, ShelterFamily.Temperature,
-        RoomsFamily.Comfort, RoomsFamily.Lighting, MedicalCareNeed,
+        RoomsFamily.Comfort, RoomsFamily.Lighting, MedicalRules.MedicalCareNeed,
     ];
 
     /// <summary>The owner column names NeedIds only (#3304): a mood defers to the owner Need while it is at work.</summary>
     [Fact]
     public void EveryThoughtTriggerOwnerIsAKnownNeed()
     {
-        var owners = ThoughtAuditOwners();
+        var owners = ThoughtFactsRules.ThoughtAuditOwners();
         Assert.NotEmpty(owners);
         var needs = OwnerNeeds.Select(n => n.Value).ToHashSet(StringComparer.Ordinal);
         Assert.All(owners, owner => Assert.True(new NeedId(owner).IsValid && needs.Contains(owner),

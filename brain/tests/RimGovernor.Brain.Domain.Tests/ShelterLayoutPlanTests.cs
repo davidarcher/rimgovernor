@@ -56,7 +56,7 @@ public sealed class ShelterLayoutPlanTests
             },
         },
         Furniture = new RoomFurniture(),
-        Items = new ItemFacts { Market = new Dictionary<Resource, double> { [SiteSteelUnit] = 1.9 } },
+        Items = new ItemFacts { Market = new Dictionary<Resource, double> { [SiteRules.SiteSteelUnit] = 1.9 } },
         Races = new AnimalRaceCatalog(),
         Colonists = Fact.Known(colonists),
         Survey = s,
@@ -101,7 +101,7 @@ public sealed class ShelterLayoutPlanTests
         var plan = FirstPlan(climate, 3);
         var shelter = Assert.Single(plan.RoomsOf(PlannedShelter));
         var bounds = shelter.Region.Bounds();
-        var (room, ok) = PolicyFunctions.ShelterRoom(shelter, [], Shapes, 3, ShelterCampfires(plan.Cold), ShelterCoolers(plan.Hot), []);
+        var (room, ok) = ShelterRules.ShelterRoom(shelter, [], Shapes, 3, ShelterCampfires(plan.Cold), ShelterCoolers(plan.Hot), []);
         Assert.True(ok);
         var (pieces, planned) = PlanRoomInterior(room, new InteriorPieceDef());
         Assert.True(planned);

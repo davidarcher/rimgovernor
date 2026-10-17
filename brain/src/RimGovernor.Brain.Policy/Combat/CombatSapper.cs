@@ -172,11 +172,11 @@ public static partial class CombatSapperRules
         var rest = new List<SquadDefenderFacts>();
         foreach (var d in view.Defenders)
         {
-            if (!SquadDefenderEligible(d) || !Positive(d.Armed))
+            if (!SquadDefenseRules.SquadDefenderEligible(d) || !RoundsRules.Positive(d.Armed))
             {
                 continue;
             }
-            if (Positive(d.RangedEquipped))
+            if (RoundsRules.Positive(d.RangedEquipped))
             {
                 gunners.Add(d);
             }

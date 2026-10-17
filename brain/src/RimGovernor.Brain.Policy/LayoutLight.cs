@@ -243,7 +243,7 @@ public static partial class PolicyFunctions
         var w = input.Weights;
         if (w == default)
         {
-            w = DefaultSiteTypeWeights();
+            w = SiteRules.DefaultSiteTypeWeights();
         }
         if (!input.Model.Standing.Priced() || !QuestCapacityForecast.FinitePositive(input.SteelValue)
             || !QuestCapacityForecast.FinitePositive(input.UpkeepPerDay) || !QuestCapacityForecast.FinitePositive(input.UnitNutrition) || !QuestCapacityForecast.FinitePositive(input.Climate.TicksPerSecond) || !QuestCapacityForecast.FinitePositive(w.Power))
@@ -305,7 +305,7 @@ public static partial class PolicyFunctions
         double unit = 0;
         foreach (var crop in f.Crops)
         {
-            unit = Math.Max(unit, CropRate(crop, 1));
+            unit = Math.Max(unit, SiteRules.CropRate(crop, 1));
         }
         return (nutrition / colonists, unit, true);
     }
@@ -318,7 +318,7 @@ public static partial class PolicyFunctions
         {
             return 0;
         }
-        return UnitsW(DefaultSiteTypeWeights(), upkeep / unit);
+        return UnitsW(SiteRules.DefaultSiteTypeWeights(), upkeep / unit);
     }
 
     /// <summary>
@@ -497,7 +497,7 @@ public static partial class PolicyFunctions
             foreach (var piece in t.Out.Pieces.GetValueOrDefault(room.Id) ?? [])
             {
                 var (s, known) = t.In.Catalog.Station(piece.Def);
-                foreach (var c in RectCells(piece.Rect))
+                foreach (var c in PlannedRules.RectCells(piece.Rect))
                 {
                     taken.Add(c);
                     if (!known || s.FillsCell)

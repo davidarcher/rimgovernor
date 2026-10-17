@@ -41,7 +41,7 @@ public sealed partial class Rounder
         {
             return Unknown<bool>();
         }
-        var standing = census.Buildings.Any(b => b.Building?.Definition == PolicyApi.CraftingSpotDefinition);
+        var standing = census.Buildings.Any(b => b.Building?.Definition == RoundsRules.CraftingSpotDefinition);
         if (!standing)
         {
             return Known(false);
@@ -54,7 +54,7 @@ public sealed partial class Rounder
         foreach (var read in reads)
         {
             read.Bench.Usable.TryGetValue(out var usable);
-            if (usable && read.Bench.Def != PolicyApi.CraftingSpotDefinition && RoundsArmoryPlanner.WeaponBenchHosted([read.Bench]))
+            if (usable && read.Bench.Def != RoundsRules.CraftingSpotDefinition && RoundsArmoryPlanner.WeaponBenchHosted([read.Bench]))
             {
                 return Known(true);
             }

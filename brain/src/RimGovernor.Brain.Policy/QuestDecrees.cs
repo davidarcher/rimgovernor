@@ -281,7 +281,7 @@ public static class QuestDecrees
     {
         if (!r.Offers.TryGetValue(out var offers))
         {
-            return Abstaining(Cause.UnreadQuestOffers);
+            return WorkRules.Abstaining(Cause.UnreadQuestOffers);
         }
         var output = new Declared();
         foreach (var offer in offers.OrderBy(o => o.Quest))

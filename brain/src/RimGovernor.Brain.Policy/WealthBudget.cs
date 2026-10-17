@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: wealth_budget.go.
 
-public static partial class PolicyFunctions
+public static partial class WealthBudgetRules
 {
     /// <summary>The storyteller's raid-point floor (vanilla minimum, 35): a tiny reading never makes the budget divide by a vanishing threat.</summary>
     internal const double WealthBudgetMinRaidPoints = 35.0;
@@ -18,7 +18,7 @@ public static partial class PolicyFunctions
         var pk = raidPoints.TryGetValue(out var points);
         var ck = capacity.TryGetValue(out var strength);
         var wk = wealth.TryGetValue(out var w);
-        if (!pk || !ck || !wk || !Finite(points) || !Finite(strength) || !Finite(w!.Total) || points < 0 || strength < 0 || w.Total < 0)
+        if (!pk || !ck || !wk || !TradePolicyRules.Finite(points) || !TradePolicyRules.Finite(strength) || !TradePolicyRules.Finite(w!.Total) || points < 0 || strength < 0 || w.Total < 0)
         {
             return Unknown<double>();
         }

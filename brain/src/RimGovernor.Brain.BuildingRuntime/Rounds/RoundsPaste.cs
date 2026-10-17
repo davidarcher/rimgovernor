@@ -10,7 +10,7 @@ public sealed partial class RoundsBuildingPlanner
         MealTierReview review;
         try
         {
-            review = PolicyFunctions.ReviewMealTier(meals, p.ProductionBenches);
+            review = MealRules.ReviewMealTier(meals, p.ProductionBenches);
         }
         catch (DomainException)
         {
@@ -51,7 +51,7 @@ public sealed partial class RoundsBuildingPlanner
             return (this, BuildingReasonNoLayoutPlan);
         }
 
-        var (site, ok) = PolicyFunctions.PlanSiteType(new SiteTypeRequest { Paste = request, Field = new FieldRequest { Site = new FarmSiteRequest { Cells = p.Cells, Anchor = anchor } } });
+        var (site, ok) = SiteRules.PlanSiteType(new SiteTypeRequest { Paste = request, Field = new FieldRequest { Site = new FarmSiteRequest { Cells = p.Cells, Anchor = anchor } } });
         if (!ok)
         {
             return (this, NoSpace("paste_dispenser_site"));
@@ -113,13 +113,13 @@ public sealed partial class RoundsBuildingPlanner
             planned.Add(new RoleCell { Cell = site.Cell, Role = RockRole.NeedsFloor });
         }
 
-        var dig = PolicyFunctions.RockStep(planned, s.Facts.Cells).Dig;
+        var dig = RockStepRules.RockStep(planned, s.Facts.Cells).Dig;
         if (dig.Count == 0)
         {
             return (new RoundsBuildingResult(), false);
         }
 
-        var (access, ok) = PolicyFunctions.RockAccess(dig, s.Facts.Cells);
+        var (access, ok) = RockStepRules.RockAccess(dig, s.Facts.Cells);
         if (!ok)
         {
             return (new RoundsBuildingResult { Verdict = RockNotDug(Definition, "no_open_cell_beside_footprint") }, true);

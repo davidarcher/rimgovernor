@@ -42,7 +42,7 @@ public static partial class PolicyFunctions
             {
                 reason = LootHoldSpawnForbidden;
             }
-            else if (NearDanger(danger, row.Supply.Cell))
+            else if (ShelterRules.NearDanger(danger, row.Supply.Cell))
             {
                 reason = LootHoldDanger;
             }

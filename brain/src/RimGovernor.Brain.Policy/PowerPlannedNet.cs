@@ -56,7 +56,7 @@ public sealed record PlannedNet
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class PowerRules
 {
     /// <summary>The net the plan holds.</summary>
     public static PlannedNet PlannedNetOf(LayoutPlan plan)

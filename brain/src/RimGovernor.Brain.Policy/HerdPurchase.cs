@@ -98,7 +98,7 @@ public static partial class PolicyFunctions
                 {
                     continue;
                 }
-                if (!row.BuyPriceKnown || !Finite(row.BuyPrice) || row.BuyPrice <= 0 || row.BuyPrice > budget)
+                if (!row.BuyPriceKnown || !TradePolicyRules.Finite(row.BuyPrice) || row.BuyPrice <= 0 || row.BuyPrice > budget)
                 {
                     continue;
                 }

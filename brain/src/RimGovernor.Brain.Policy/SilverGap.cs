@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class SilverGapRules
 {
     // The silver gap the economy/trade Need answers with export orders: a purchase need the colony's silver, after
     // TradeSilverReserve, does not cover. Sold goods leave colony wealth, so raid headroom does not gate this
@@ -44,7 +44,7 @@ public static partial class PolicyFunctions
         }
         if (n.ComponentShortfall > 0)
         {
-            var component = items.MarketValue(ComponentResource);
+            var component = items.MarketValue(TradePolicyRules.ComponentResource);
             price += n.ComponentShortfall * component;
         }
         var nutrition = Math.Max(0, n.Food.Nutrition) + (n.Food.Missing.Count * Math.Max(0, n.Food.IngredientNutrition));
@@ -69,7 +69,7 @@ public static partial class PolicyFunctions
     {
         var nk = need.TryGetValue(out var n);
         var sk = silver.TryGetValue(out var s);
-        var (reserve, rk) = TradeSilverReserve(colonists);
+        var (reserve, rk) = TradePolicyRules.TradeSilverReserve(colonists);
         if (!nk || !sk || !rk)
         {
             return Unknown<double>();
@@ -107,9 +107,9 @@ public static partial class PolicyFunctions
 
     /// <summary>The review's purchase need as the silver decisions read it.</summary>
     private static Fact<TradeNeed> ReviewTradeNeedOf(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) =>
-        ReviewTradeNeed(f.Items, medicine, f.Resources, demand.Needs, RoundsTradeFloors(p, null), f.Wealth, demand.Retained, RoundsTradeFood(f, p));
+        TradePolicyRules.ReviewTradeNeed(f.Items, medicine, f.Resources, demand.Needs, TradePolicyRules.RoundsTradeFloors(p, null), f.Wealth, demand.Retained, TradePolicyRules.RoundsTradeFood(f, p));
 
-    private static Fact<double> ReviewSilverGap(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) =>
+    internal static Fact<double> ReviewSilverGap(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) =>
         SilverGap(f.Items, ReviewTradeNeedOf(f, p, medicine, demand), f.Silver(), f.Colonists);
 
     private static Fact<bool> ReviewSilverShort(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) =>
@@ -123,7 +123,7 @@ public static partial class PolicyFunctions
     {
         p = p.Seasonal(f.Calendar, f.DisasterConditions);
         var facts = f.MedicalReserve with { Colonists = f.Colonists };
-        var medicine = ReviewMedicalReserve(facts, medicineActive, p.MedicalReserve);
+        var medicine = MedicalRules.ReviewMedicalReserve(facts, medicineActive, p.MedicalReserve);
         return (p, medicine);
     }
 
@@ -133,7 +133,7 @@ public static partial class PolicyFunctions
         try
         {
             var (policy, medicine) = RoundsMedicineReview(f, p, medicineActive);
-            return ReviewSilverShort(f, policy, medicine, ResourceDemandOf(f, policy, new RoundsLatches()));
+            return ReviewSilverShort(f, policy, medicine, ResourceRules.ResourceDemandOf(f, policy, new RoundsLatches()));
         }
         catch (DomainException)
         {
@@ -147,7 +147,7 @@ public static partial class PolicyFunctions
         try
         {
             var (policy, medicine) = RoundsMedicineReview(f, p, medicineActive);
-            var demand = ResourceDemandOf(f, policy, new RoundsLatches());
+            var demand = ResourceRules.ResourceDemandOf(f, policy, new RoundsLatches());
             return (ReviewSilverGap(f, policy, medicine, demand), demand);
         }
         catch (DomainException)

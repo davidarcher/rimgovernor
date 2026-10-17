@@ -23,7 +23,7 @@ internal static class RoundsSocialFields
                     RequiresCleanSoil = d.RequiresCleanSoil,
                 },
                 d);
-            if (PolicyFunctions.IsSocialCrop(crop))
+            if (SocialCropsRules.IsSocialCrop(crop))
             {
                 output.Add(crop);
             }
@@ -53,7 +53,7 @@ internal static class RoundsSocialFields
                     cells += (int)n;
                 }
             }
-            var needed = PolicyFunctions.PlanSocialCrop(crop, projection.CropClimate, cells);
+            var needed = SocialCropsRules.PlanSocialCrop(crop, projection.CropClimate, cells);
             if (needed > 0)
             {
                 output.Add(new Pol.FieldBlockOption(crop, needed));

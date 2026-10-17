@@ -154,7 +154,7 @@ public sealed partial class RoundsResourcePlanner
 
         var targets = reviewer.ResourceTargets(state.Snapshot);
         var supply = await reviewer.ResourceSupplyAsync(state, review, goal, call).ConfigureAwait(false);
-        var ranked = PolicyFunctions.RankResourceTargets(PolicyFunctions.ResourceConcernTargets(targets, supply.Derived), stock);
+        var ranked = ResourceRules.RankResourceTargets(ResourceRules.ResourceConcernTargets(targets, supply.Derived), stock);
         var have = new StockReader(stock, Unknown<long>());
         RoundsResourceResult? first = null;
         var sourceless = new List<Resource>();
@@ -214,7 +214,7 @@ public sealed partial class RoundsResourcePlanner
 
         var request = new ResourceMethodRequest { Resource = resource, Target = target, Benches = Known<EquatableArray<GearBench>>([.. benches]) };
         SnapshotPlannerReplay.NoteResourceMethod(request);
-        return (PolicyFunctions.SelectResourceMethod(request), supply);
+        return (ResourceRules.SelectResourceMethod(request), supply);
     }
 
     internal async Task<RoundsResourceResult> DispatchResourceConcernAsync(ControlState state, NeedOwner goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
@@ -371,7 +371,7 @@ public sealed partial class RoundsResourcePlanner
             return (default, false);
         }
 
-        var selected = PolicyFunctions.SelectReachableResourceSources(sources, target, have, remote);
+        var selected = ResourceRules.SelectReachableResourceSources(sources, target, have, remote);
         var output = new SourceSelection { Selected = selected, Storage = storage, None = sources.Count == 0 };
         foreach (var s in sources)
         {
@@ -398,7 +398,7 @@ public sealed partial class RoundsResourcePlanner
         f = f with { UrgentPatients = PolicyFunctions.UrgentPatients(emergency, state.Snapshot, expected.Tick) };
         f = f with { UrgentPatients = PolicyFunctions.AmputationNeeds(emergency, f.MedicalPawns, Unknown<long>(), f.UrgentPatients).Urgent };
         var extent = PolicyFunctions.DeriveColonyExtent(new ColonyExtentRequest { Bounds = f.MapBounds, Construction = f.CurrentConstruction, Claims = f.ConstructionClaims, Home = f.HomeCoverage });
-        var request = new RemoteWorkRequest { Safety = PolicyFunctions.LootSafety(f), Extent = extent, Competition = PolicyFunctions.RemoteCompetition(f) };
+        var request = new RemoteWorkRequest { Safety = RemoteRules.LootSafety(f), Extent = extent, Competition = RemoteRules.RemoteCompetition(f) };
         var (layout, ok) = await reviewer.LayoutPlanAsync(state.Snapshot, expected.Tick, ct).ConfigureAwait(false);
         if (ok)
         {
@@ -410,7 +410,7 @@ public sealed partial class RoundsResourcePlanner
 
     internal static (RoundsResourceResult Result, bool Handled) MaterialStorageBlocked(IReadOnlyList<ResourceSource> selected, ResourceStorage storage)
     {
-        var blocked = PolicyFunctions.ResourceStorageBlocked(selected, storage);
+        var blocked = ResourceRules.ResourceStorageBlocked(selected, storage);
         if (!blocked)
         {
             return (default, false);

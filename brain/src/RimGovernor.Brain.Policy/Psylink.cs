@@ -25,7 +25,7 @@ public static partial class PolicyConstants
     public const int MaxPsylinkLevel = 6;
 }
 
-public static partial class PolicyFunctions
+public static partial class PsylinkRules
 {
     /// <summary>
     /// The colonists willing to take a psylink: available (alive, standing, undrafted, out of a mental
@@ -126,7 +126,7 @@ public static partial class PolicyFunctions
         {
             return needs;
         }
-        return ResourceConcernTargets(needs, new Dictionary<Resource, long> { [new Resource(PolicyConstants.PsylinkNeuroformer)] = 1 });
+        return ResourceRules.ResourceConcernTargets(needs, new Dictionary<Resource, long> { [new Resource(PolicyConstants.PsylinkNeuroformer)] = 1 });
     }
 
     /// <summary>

@@ -947,7 +947,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static RoleCondition PieceState(StationPurpose purpose, Station st)
     {
-        if (!HumanlikeBed(st))
+        if (!RoomRoleRules.HumanlikeBed(st))
         {
             return RoleCondition.Always;
         }
@@ -1060,13 +1060,13 @@ internal sealed class Clusterer
     public GroupEval Eval(IReadOnlyList<ClusterUnit> us)
     {
         var pieces = Pieces(us);
-        var pred = PolicyFunctions.PredictRole(_in.Catalog, pieces);
+        var pred = RoomRoleRules.PredictRole(_in.Catalog, pieces);
         var e = new GroupEval { Role = pred.Role };
         var intended = new List<RoomRole>();
         var sleepers = new Dictionary<RoomRole, int>(); // sleepers whose bed is for the role
         foreach (var p in pieces)
         {
-            var alone = PolicyFunctions.PredictRole(_in.Catalog, [p]);
+            var alone = RoomRoleRules.PredictRole(_in.Catalog, [p]);
             if (!intended.Contains(alone.Role))
             {
                 intended.Add(alone.Role);
@@ -1079,7 +1079,7 @@ internal sealed class Clusterer
         }
         foreach (var role in intended)
         {
-            foreach (var l in PolicyFunctions.LostEffects(_in.Catalog, role, pieces))
+            foreach (var l in RoomRoleRules.LostEffects(_in.Catalog, role, pieces))
             {
                 var key = $"{Wire.Name(l.Effect)}|{Wire.Name(l.Role)}|{l.Def}";
                 if (!e.Lost.Contains(key) && l.Effect != RoleEffect.BenchSpeed)

@@ -101,7 +101,7 @@ public sealed class AdminFamilyTests
         LootItem Unsafe(StartingSupply s) => new() { Supply = s with { Forbid = false }, Forbidden = false, SafeToHaul = false, SafetyKnown = true };
         var stacks = new[] { Stack("s1", 1, true), Stack("s2", 2, true), Stack("s3", 3, true) };
         var facts = WorkResourceTestFacts.Create("a", "b", "c") with { EventLoot = Known(EquatableArray.From(stacks.Select(Unsafe))) };
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         Assert.Equal(["s1", "s2", "s3"], journal.LoadRounds(ct).EventLoot.Pending.Select(p => p.Thing));
 
         var first = journal.CommitClaimedMethod(AdminFamily.SupplySafety, World, new MethodId("supply-a"), "", Forbid(stacks[0]), ct);
@@ -163,7 +163,7 @@ public sealed class AdminFamilyTests
         var ct = TestContext.Current.CancellationToken;
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-admin-stockpiles-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
 
         var create = journal.CommitClaimedMethod(AdminFamily.Stockpiles, World, new MethodId("stockpile-create-a"), "", Bills(Store((1, 1), (1, 2))), ct);
         Assert.Equal(ClaimOutcome.Admitted, create.Outcome);
@@ -194,7 +194,7 @@ public sealed class AdminFamilyTests
         var ct = TestContext.Current.CancellationToken;
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-admin-ledger-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
         Func<ActionId, DomainAction> Place(string bench) => a => DomainAction.NewProductionBillAction(a, new ProductionBill(bench, "TestRecipe", BillMode.StockTarget, 1, "Rice"));
         Func<ActionId, DomainAction> Remove(string bench, string bill) => a => DomainAction.NewRemoveProductionBillAction(a, new RemoveProductionBill(bench, bill));
 
@@ -249,7 +249,7 @@ public sealed class AdminFamilyTests
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), name + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         Colony? colony = null;
         var runner = new FamilyRunner<AdminFacts>(new AdminFamily(), (_, _) => Task.FromResult(new AdminFacts { CreepJoiners = colony!.Work }), AdminRounds.Schedule,
             (work, facts, call) => Task.FromResult(AdminRounds.CreepJoinerStep(colony!.Journal, work, facts.CreepJoiners!, call)));

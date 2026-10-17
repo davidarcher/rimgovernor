@@ -322,7 +322,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
 
     /// <summary>The routes standing of one read: the census reviewed fresh, and the traffic door changes (not heat) owed.</summary>
     public static RoutesStanding RoutesStandingOf(Fact<RoutesObservation> routes, Fact<RoomObservation> rooms, RoundsPolicy p) =>
-        new(PolicyFunctions.ReviewRoutes(routes, p.Routes), PolicyFunctions.DoorChanges(rooms, routes, p).Any(d => !d.Heat));
+        new(RoutesRules.ReviewRoutes(routes, p.Routes), PolicyFunctions.DoorChanges(rooms, routes, p).Any(d => !d.Heat));
 
     private static Fact<string> Flag(bool b) => Fact.Known(b ? "true" : "false");
 

@@ -38,7 +38,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         }
         var p = Reviewer.Player;
         facts.LayoutPlan.TryGetValue(out var plan);
-        var shell = ShellBedIds(plan!, rooms!);
+        var shell = SleepingRules.ShellBedIds(plan!, rooms!);
         // empty beds first, then an owner's
         var vacant = obs!.Beds
             .Where(b => shell.Contains(b.Id) && b.Definition.Value == shellBed)

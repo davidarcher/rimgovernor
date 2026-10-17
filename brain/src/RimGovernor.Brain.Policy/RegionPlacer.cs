@@ -83,7 +83,7 @@ public sealed record RegionPlacement
     public InteriorSearch? Search { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class RegionRules
 {
     private static readonly Rotation[] AllRotations = [Rotation.North, Rotation.East, Rotation.South, Rotation.West];
 
@@ -109,7 +109,7 @@ public static partial class PolicyFunctions
         var covered = new HashSet<Cell>();
         foreach (var p in pieces)
         {
-            foreach (var c in RectCells(p.Rect))
+            foreach (var c in PlannedRules.RectCells(p.Rect))
             {
                 covered.Add(c);
             }
@@ -176,7 +176,7 @@ public static partial class PolicyFunctions
         var b = new HashSet<Cell>(blocked);
         var k = new HashSet<Cell>(keep);
         var ring = new List<Cell>();
-        foreach (var c in RectCells(p.Rect))
+        foreach (var c in PlannedRules.RectCells(p.Rect))
         {
             b.Add(c);
             foreach (var n in Neighbours(c))
@@ -200,7 +200,7 @@ public static partial class PolicyFunctions
             {
                 break;
             }
-            foreach (var c in RectCells(s.Rect))
+            foreach (var c in PlannedRules.RectCells(s.Rect))
             {
                 b.Add(c);
             }
@@ -417,7 +417,7 @@ public static partial class PolicyFunctions
                 {
                     break;
                 }
-                foreach (var c in RectCells(piece.Rect))
+                foreach (var c in PlannedRules.RectCells(piece.Rect))
                 {
                     blocked.Add(c);
                 }
@@ -503,7 +503,7 @@ public static partial class PolicyFunctions
     {
         var touches = false;
         var placed = new HashSet<Cell>();
-        foreach (var c in RectCells(p.Rect))
+        foreach (var c in PlannedRules.RectCells(p.Rect))
         {
             if (!g.Contains(c) || blocked.Contains(c) || keep.Contains(c))
             {

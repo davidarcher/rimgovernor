@@ -79,7 +79,7 @@ public sealed record BlockPricing
             }
             value += m * a.Count;
         }
-        result = BuildW(DefaultSiteTypeWeights(), value, SteelValue);
+        result = BuildW(SiteRules.DefaultSiteTypeWeights(), value, SteelValue);
         return true;
     }
 
@@ -214,12 +214,12 @@ public static class DefenseBlock
     /// </summary>
     public static Fact<double> ColonistWorkTicksPerDay(IReadOnlyList<WorkPawn> pawns)
     {
-        var workers = DispatchWorkers(pawns, []);
+        var workers = WorkRules.DispatchWorkers(pawns, []);
         if (workers.Count == 0)
         {
             return Unknown<double>();
         }
-        var mean = AverageWorker(workers);
+        var mean = WorkRules.AverageWorker(workers);
         if (!mean.WorkHoursPerDay.TryGetValue(out var hours) || !mean.WorkSpeed.TryGetValue(out var speed) || !QuestCapacityForecast.FinitePositive(hours * speed))
         {
             return Unknown<double>();
@@ -326,7 +326,7 @@ public static class DefenseBlock
     /// </summary>
     public static BlockPricing NewBlockPricing(StationFacts f, IReadOnlyDictionary<string, EquatableArray<Amount>> unitCosts, IReadOnlyDictionary<string, ClearRow> rows)
     {
-        var steel = f.Items.Market.GetValueOrDefault(SiteSteelUnit); // Go drops the missing-value error: an unpriced steel stays 0
+        var steel = f.Items.Market.GetValueOrDefault(SiteRules.SiteSteelUnit); // Go drops the missing-value error: an unpriced steel stays 0
         var p = new BlockPricing { Work = StationWorkPrice(f), SteelValue = steel, Market = f.Items.Market, UnitCosts = unitCosts, Rows = rows };
         if (f.WorkPawns.TryGetValue(out var pawns) && ColonistWorkTicksPerDay(pawns).TryGetValue(out var ticks))
         {

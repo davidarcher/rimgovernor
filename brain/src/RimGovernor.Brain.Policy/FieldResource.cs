@@ -96,7 +96,7 @@ public static partial class PolicyFunctions
         var uk = plan.Crop.UnitsPerCell.TryGetValue(out var units);
         var wk = plan.Crop.HarvestWork.TryGetValue(out var work);
         var cells = plan.Sites.Cells;
-        if (IsTreeCrop(plan.Crop))
+        if (TreePlantationRules.IsTreeCrop(plan.Crop))
         {
             return TreeFieldCandidate(resource, plan);
         }
@@ -124,7 +124,7 @@ public static partial class PolicyFunctions
     /// </summary>
     private static SupplyCandidate? TreeFieldCandidate(Resource resource, FieldPlan plan)
     {
-        var (fraction, wood, _, ok) = TreePricing(plan.Crop);
+        var (fraction, wood, _, ok) = TreePlantationRules.TreePricing(plan.Crop);
         var days = plan.Crop.GrowDays.ValueOrDefault;
         var sow = plan.Crop.SowWork.ValueOrDefault;
         var fell = plan.Crop.HarvestWork.ValueOrDefault;
@@ -157,9 +157,9 @@ public static partial class PolicyFunctions
         var hk = crop.Harvests.TryGetValue(out var harvests);
         var uk = crop.UnitsPerCell.TryGetValue(out var units);
         var nk = cells.TryGetValue(out var n);
-        if (IsTreeCrop(crop) && hk && harvests == resource && nk)
+        if (TreePlantationRules.IsTreeCrop(crop) && hk && harvests == resource && nk)
         {
-            var (_, wood, _, ok) = TreePricing(crop);
+            var (_, wood, _, ok) = TreePlantationRules.TreePricing(crop);
             return ok ? wood * (n / (uint)ZoneCreateConstants.TreeCellsPerTree) : 0;
         }
         if (!hk || !uk || !nk || harvests != resource || !FieldPositive(units))
@@ -188,12 +188,12 @@ public static partial class PolicyFunctions
         {
             return (new ViableCrop(), "crop needs a dark room");
         }
-        var sowReason = CropSowable(crop, r.GrowerSkill);
+        var sowReason = TreePlantationRules.CropSowable(crop, r.GrowerSkill);
         if (sowReason.Length != 0)
         {
             return (new ViableCrop(), sowReason);
         }
-        if (IsTreeCrop(crop))
+        if (TreePlantationRules.IsTreeCrop(crop))
         {
             return TreeViable(crop, deficit, r);
         }
@@ -215,12 +215,12 @@ public static partial class PolicyFunctions
     /// </summary>
     private static (ViableCrop Crop, string Reason) TreeViable(CropChoice crop, double deficit, ResourceFieldRequest r)
     {
-        var sowReason = TreeSowable(crop, r.Climate.Biome, r.GrowerSkill);
+        var sowReason = TreePlantationRules.TreeSowable(crop, r.Climate.Biome, r.GrowerSkill);
         if (sowReason.Length != 0)
         {
             return (new ViableCrop(), sowReason);
         }
-        var (_, wood, price, ok) = TreePricing(crop);
+        var (_, wood, price, ok) = TreePlantationRules.TreePricing(crop);
         if (!ok)
         {
             return (new ViableCrop(), "incomplete crop facts");

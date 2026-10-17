@@ -8,7 +8,7 @@ Policy/CombatGrenade.cs|CombatGrenadeRules.BestGround|double.MaxValue
 Policy/CombatHunt.cs|CombatHuntRules.HuntFormation|double.MaxValue
 Policy/FoodStorageUpkeep.cs|PolicyFunctions.ReviewFoodStorage|double.MaxValue
 Policy/HerdPlan.cs|PolicyFunctions.HerdLevelingRace|double.MaxValue
-Policy/PowerMethod.cs|PolicyFunctions.SelectPowerMethod|sentinel 1e12
-Policy/ResourceCandidates.cs|PolicyFunctions.FiniteAcquisitionCost|sentinel 1e12
-Policy/SupplyPlan.cs|PolicyFunctions.NewSupplyCand|double.MaxValue
-Policy/SupplyPlan.cs|PolicyFunctions.NewSupplyCand|sentinel 1e12
+Policy/PowerMethod.cs|PowerRules.SelectPowerMethod|sentinel 1e12
+Policy/ResourceCandidates.cs|ResourceRules.FiniteAcquisitionCost|sentinel 1e12
+Policy/SupplyPlan.cs|SupplyPlanRules.NewSupplyCand|double.MaxValue
+Policy/SupplyPlan.cs|SupplyPlanRules.NewSupplyCand|sentinel 1e12

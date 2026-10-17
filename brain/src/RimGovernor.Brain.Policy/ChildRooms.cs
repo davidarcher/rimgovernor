@@ -382,9 +382,9 @@ public static partial class PolicyFunctions
                 var count = 0;
                 foreach (var b in built)
                 {
-                    if (count < p.Count && b.Cells.Count > 0 && RectInside(room.Region.Bounds(), CellsRectangle(b.Cells.Items)) && p.Defs.Contains(b.Building!.Definition))
+                    if (count < p.Count && b.Cells.Count > 0 && RectInside(room.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells.Items)) && p.Defs.Contains(b.Building!.Definition))
                     {
-                        var r = CellsRectangle(b.Cells.Items);
+                        var r = PlacementSearchRules.CellsRectangle(b.Cells.Items);
                         template.Add(
                             new WantedPiece
                             {
@@ -415,7 +415,7 @@ public static partial class PolicyFunctions
                         continue;
                     }
 
-                    foreach (var c in RectCells(slot.Rect))
+                    foreach (var c in PlannedRules.RectCells(slot.Rect))
                     {
                         taken.Add(c);
                     }
@@ -451,7 +451,7 @@ public static partial class PolicyFunctions
         return new ChildRoomStep();
     }
 
-    private static bool CellsTaken(Rectangle r, HashSet<Cell> taken) => RectCells(r).Any(taken.Contains);
+    private static bool CellsTaken(Rectangle r, HashSet<Cell> taken) => PlannedRules.RectCells(r).Any(taken.Contains);
 
     /// <summary>The buildings of any of <paramref name="defs"/> inside the room's interior.</summary>
     internal static int StandingChildPieces(PlannedRoom r, IReadOnlyCollection<string> defs, IEnumerable<CurrentBuilding> built)
@@ -459,7 +459,7 @@ public static partial class PolicyFunctions
         var n = 0;
         foreach (var b in built)
         {
-            if (b.Cells.Count > 0 && RectInside(r.Region.Bounds(), CellsRectangle(b.Cells.Items)) && defs.Contains(b.Building!.Definition))
+            if (b.Cells.Count > 0 && RectInside(r.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells.Items)) && defs.Contains(b.Building!.Definition))
             {
                 n++;
             }

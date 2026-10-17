@@ -51,7 +51,7 @@ public sealed class ClaimAdmissionTests
                     new("TestBed", "Rice", Known<EquatableArray<Amount>>([new(new("Rice"), 1)])) { Size = Known(new Cell(1, 2)) }]),
             },
         };
-        var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         return new() { Journal = journal, Review = review };
     }
 
@@ -200,18 +200,18 @@ public sealed class ClaimAdmissionTests
         var evidence = new WorkAdmissionEvidence();
         WorkAction Row(DomainAction a) => new(new("p"), a, new() { Action = a.Id, Stage = Stage.Pending });
         var bill = DomainAction.NewProductionBillAction(new("bill"), new("bench", "TestRecipe", BillMode.GearBatch, 1, "Rice"));
-        var claims = MethodClaimsOf(evidence, [Row(Dress("d", "a")), Row(Forage("f", "berry")), Row(Field("z", (1, 1)))]);
+        var claims = MethodClaimsRules.MethodClaimsOf(evidence, [Row(Dress("d", "a")), Row(Forage("f", "berry")), Row(Field("z", (1, 1)))]);
         Assert.Contains("gear/a", claims.Targets);
         Assert.Contains("berry", claims.Targets);
         Assert.Contains("cell/1/1", claims.Targets);
-        Assert.Contains(MethodClaimsOf(evidence, [Row(bill)]).Targets, t => t.StartsWith("bill/bench/", StringComparison.Ordinal));
+        Assert.Contains(MethodClaimsRules.MethodClaimsOf(evidence, [Row(bill)]).Targets, t => t.StartsWith("bill/bench/", StringComparison.Ordinal));
         // Settled work claims nothing.
         var done = new WorkAction(new("p"), Forage("f", "berry"), new() { Action = new("f"), Stage = Stage.Completed });
-        Assert.Empty(MethodClaimsOf(evidence, [done]).Targets);
+        Assert.Empty(MethodClaimsRules.MethodClaimsOf(evidence, [done]).Targets);
         // Unpriced buildings fall back to the anchor.
-        Assert.Equal(["cell/4/4"], BuildingClaimTargets(evidence, Build("w", "Unknown", 4, 4).Building!));
+        Assert.Equal(["cell/4/4"], MethodClaimsRules.BuildingClaimTargets(evidence, Build("w", "Unknown", 4, 4).Building!));
         var held = new MethodClaims([], ["bed-1"], [new WorkTargetClaim("bed-1", "x", "t", 0)]);
-        Assert.Null(MethodClaimOverlap(held with { Shared = [new WorkTargetClaim("bed-1", "y", "u", 0)] }, held));
-        Assert.Equal("bed-1", MethodClaimOverlap(held with { Shared = [] }, held));
+        Assert.Null(MethodClaimsRules.MethodClaimOverlap(held with { Shared = [new WorkTargetClaim("bed-1", "y", "u", 0)] }, held));
+        Assert.Equal("bed-1", MethodClaimsRules.MethodClaimOverlap(held with { Shared = [] }, held));
     }
 }

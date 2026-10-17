@@ -52,7 +52,7 @@ public static partial class PolicyFunctions
             {
                 return false;
             }
-            return Positive(c.Walkable) && !c.Occupied() && Positive(Measured(c.Zone, v => !v)) && c.SupportsLight(r.Light);
+            return RoundsRules.Positive(c.Walkable) && !c.Occupied() && RoundsRules.Positive(RoundsRules.Measured(c.Zone, v => !v)) && c.SupportsLight(r.Light);
         }
         var sites = new List<(long Score, Cell Cell)>();
         foreach (var c in ordered)
@@ -62,11 +62,11 @@ public static partial class PolicyFunctions
                 continue;
             }
             var rect = new Rectangle { X = c.X, Z = c.Z, Width = width, Height = height };
-            if (!RectCells(rect).All(Free))
+            if (!PlannedRules.RectCells(rect).All(Free))
             {
                 continue;
             }
-            sites.Add((SquaredDistance(new Cell(c.X + (width / 2), c.Z + (height / 2)), r.Anchor), c));
+            sites.Add((PlannedRules.SquaredDistance(new Cell(c.X + (width / 2), c.Z + (height / 2)), r.Anchor), c));
         }
         // Stable sort: ties keep the cell order established above.
         return

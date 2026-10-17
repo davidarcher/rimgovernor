@@ -167,7 +167,7 @@ public sealed class RoomsRounds
             floors = Known(floorReview);
         }
         var profiles = projection.WorkPawns.TryGetValue(out var pawns)
-            ? Known<EquatableArray<PawnProfile>>([.. PolicyApi.Profiles(pawns)])
+            ? Known<EquatableArray<PawnProfile>>([.. PawnRules.Profiles(pawns)])
             : Unknown<EquatableArray<PawnProfile>>();
         var hosting = PolicyApi.ReviewComfort(projection.Facts.Comfort, history, projection.Identity.Tick);
         return new RoomsFacts

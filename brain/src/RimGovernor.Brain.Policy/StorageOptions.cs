@@ -90,7 +90,7 @@ public sealed record StorageOption
     public EquatableArray<string> Findings { get; init; }
 
     /// <summary>The option's lead time in days (StorageLeadDays over WorkTicks); unknown while the work is.</summary>
-    public Fact<double> LeadDays => PolicyFunctions.StorageLeadDays(WorkTicks);
+    public Fact<double> LeadDays => StoreRules.StorageLeadDays(WorkTicks);
 }
 
 /// <summary>One standing store's capacity facts and its options: the store's role, the zones serving it (by id), its StoreCapacity and every option.</summary>
@@ -105,7 +105,7 @@ public sealed record StoreOptions
     public IReadOnlyList<StorageOption> Options { get; init; } = [];
 }
 
-public static partial class PolicyFunctions
+public static partial class StorageRules
 {
     /// <summary>A shelf build cost the catalog does not give (no Shelf def, or no cost row for its stuff).</summary>
     public const string FindingShelfCostUnknown = "shelf_cost_unknown";
@@ -160,7 +160,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var stranded = StrandedRows(r, store);
+            var stranded = StoreRules.StrandedRows(r, store);
             var options = new List<StorageOption>();
             if (ZoneGrowthOption(r, store, zones[0], stranded, census) is { } growth)
             {
@@ -174,7 +174,7 @@ public static partial class PolicyFunctions
                     options.Add(ShelfOption(r, c, stranded, census));
                 }
             }
-            var prefix = StockpileRolePrefix(store.Role);
+            var prefix = StockpileRules.StockpileRolePrefix(store.Role);
             if (prefix == StockpileRolesConstants.GeneralRole)
             {
                 options.AddRange(RoomOptions(r, StorageOptionKind.SuccessorRoom, PlannedRole.Storage, prefix, stranded, census));
@@ -187,7 +187,7 @@ public static partial class PolicyFunctions
             {
                 Role = store.Role,
                 Zones = EquatableArray.From(zones.Select(z => z.Id).ToList()),
-                Capacity = StoreCapacity(r, store),
+                Capacity = StoreRules.StoreCapacity(r, store),
                 Options = options,
             });
         }
@@ -201,7 +201,7 @@ public static partial class PolicyFunctions
         {
             return null;
         }
-        var (add, _, _) = StoreGrowth(store.Site, keep, NewStockpileOpen(r));
+        var (add, _, _) = StockpileRules.StoreGrowth(store.Site, keep, StockpileRules.NewStockpileOpen(r));
         if (add.Count == 0)
         {
             return null;
@@ -225,7 +225,7 @@ public static partial class PolicyFunctions
     /// <summary>A shelf on a candidate site: the catalog Shelf's cost from its build stuff and its WorkToBuild; its cells' floor stacks lost; the candidate's stacks.</summary>
     private static StorageOption ShelfOption(StockpileRequest r, ShelfCandidate c, Fact<List<LootItem>> stranded, Dictionary<Cell, SiteCell> census)
     {
-        var cells = RectCells(c.Piece.Rect).Count;
+        var cells = PlannedRules.RectCells(c.Piece.Rect).Count;
         var costKnown = r.ShelfCost.TryGetValue(out var cost);
         var material = costKnown ? Known<IReadOnlyDictionary<Resource, long>>(MaterialOf(cost!.Costs)) : Unknown<IReadOnlyDictionary<Resource, long>>();
         var work = costKnown ? cost!.WorkTicks : Unknown<double>();
@@ -266,7 +266,7 @@ public static partial class PolicyFunctions
         var zoned = new HashSet<Cell>();
         foreach (var z in r.Zones)
         {
-            if (StockpileRolePrefix(z.Role) == prefix)
+            if (StockpileRules.StockpileRolePrefix(z.Role) == prefix)
             {
                 zoned.UnionWith(z.Cells);
             }
@@ -278,7 +278,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var work = role == PlannedRole.Yard ? Known(FurtherYardWorkTicks) : room.Work;
+            var work = role == PlannedRole.Yard ? Known(StoreRules.FurtherYardWorkTicks) : room.Work;
             var slots = Enumerable.Repeat(Known(room.Outdoor ? 1.0 : 0.0), room.Cells.Count).ToList();
             var avoided = DeteriorationAvoided(r.Items, stranded, Known(room.Cells.Count), slots, false, census);
             output.Add(new StorageOption

@@ -131,7 +131,7 @@ public sealed partial class DefinitionCatalog
 
     private static void Score(List<P.RoleScore> into, P.RoomRole role, P.RoleCondition when)
     {
-        if (P.PolicyFunctions.TryRoomRoleScore(role, when, out var score))
+        if (P.StationCatalogRules.TryRoomRoleScore(role, when, out var score))
         {
             into.Add(score);
         }
@@ -188,7 +188,7 @@ public sealed partial class DefinitionCatalog
             Score(scores, P.RoomRole.Playroom, P.RoleCondition.Always);
         }
 
-        if (RoomRoleNamedDefs.TryGetValue(row.defName, out var named))
+        if (P.StationCatalogRules.RoomRoleNamedDefs.TryGetValue(row.defName, out var named))
         {
             Score(scores, named, P.RoleCondition.Always);
         }

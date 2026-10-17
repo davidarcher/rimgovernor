@@ -44,7 +44,7 @@ public sealed record RoomUpgrade
     public string Stuff { get; init; } = "";
 }
 
-public static partial class PolicyFunctions
+public static partial class RoomQualityRules
 {
     /// <summary>
     /// Divides each stat by the native normaliser RoomStatWorker_Impressiveness uses before combining (wealth

@@ -20,8 +20,8 @@ internal static class RoundsMech
             hostile = hostile || (t.Kind == ThreatKind.Hostile && !dead && !downed);
         }
 
-        var chargerReady = read.Projection.Biotech.TryGetValue(out var biotech) && PolicyFunctions.MechChargerReady(biotech.MechChargerRows());
-        return PolicyFunctions.PlanMechControl(MechCatalogOf(read.Catalog), fleet.Mechanitors, fleet.Mechs, hostile, chargerReady);
+        var chargerReady = read.Projection.Biotech.TryGetValue(out var biotech) && MechRules.MechChargerReady(biotech.MechChargerRows());
+        return MechRules.PlanMechControl(MechCatalogOf(read.Catalog), fleet.Mechanitors, fleet.Mechs, hostile, chargerReady);
     }
 
     internal static MechGuardPlan CombatMechGuards(Combat combat, IReadOnlyList<string> hostileIds, IReadOnlyDictionary<string, O.PawnState> rows)
@@ -46,6 +46,6 @@ internal static class RoundsMech
             }
         }
 
-        return PolicyFunctions.PlanMechGuards(MechCatalogOf(combat.Catalog), fleet.Mechanitors, fleet.Mechs, hostiles);
+        return MechRules.PlanMechGuards(MechCatalogOf(combat.Catalog), fleet.Mechanitors, fleet.Mechs, hostiles);
     }
 }

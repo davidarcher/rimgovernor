@@ -33,7 +33,7 @@ public static class DefenseIEDs
         }
         foreach (var c in keepOff)
         {
-            if (SquaredDistance(at, c) <= radius * radius)
+            if (PlannedRules.SquaredDistance(at, c) <= radius * radius)
             {
                 return false;
             }
@@ -75,7 +75,7 @@ internal sealed partial class DefenseSite
         keepOff.AddRange(R.Entrances);
         foreach (var (c, row) in Cells)
         {
-            if (Positive(row.Door))
+            if (RoundsRules.Positive(row.Door))
             {
                 keepOff.Add(c);
             }
@@ -91,7 +91,7 @@ internal sealed partial class DefenseSite
         var buildings = new List<Cell>(keepOff);
         foreach (var (c, row) in Cells)
         {
-            if (Positive(row.PlayerOwned))
+            if (RoundsRules.Positive(row.PlayerOwned))
             {
                 buildings.Add(c);
             }

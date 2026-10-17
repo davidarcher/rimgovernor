@@ -52,7 +52,7 @@ public sealed class FoodFamilyTests
     [Fact]
     public void TheForecastFoodRowReadsTheSupplyNeedWithTheSameAssessmentForTheSameFacts()
     {
-        var policy = DefaultRoundsPolicy();
+        var policy = RoundsRules.DefaultRoundsPolicy();
         var facts = new RoundsFacts { Tick = new(100), Colonists = Known(2L), Fuel = Known<EquatableArray<FuelConsumer>>([]) };
         var met = facts with
         {
@@ -110,7 +110,7 @@ public sealed class FoodFamilyTests
     {
         var facts = new RoundsFacts { Tick = new(100), Colonists = Known(2L), Fuel = Known<EquatableArray<FuelConsumer>>([]) };
         ServiceCoverage Coverage(RoundsFacts f) => Assert.Single(
-            ReviewEssentialServices(f, DefaultRoundsPolicy(), new() { Work = new() { Tick = f.Tick } }).Coverage,
+            ReviewEssentialServices(f, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = f.Tick } }).Coverage,
             c => c.Service == EssentialService.Cooking && c.Target == ServiceTarget.ForNeed(CookingNeed)).Coverage;
         Assert.Equal(ServiceCoverage.Adequate, Coverage(facts with { Cooking = Known(true), CampfireRetireOwed = Known(false) }));
         Assert.Equal(ServiceCoverage.Shortfall, Coverage(facts with { Cooking = Known(false) }));
@@ -203,7 +203,7 @@ public sealed class FoodFamilyTests
                     new("Cooler", "", Known<EquatableArray<Amount>>([new(new("WoodLog"), 10)])) { Size = Known(new Cell(1, 1)) }]),
             },
         };
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         return journal;
     }
 
@@ -492,7 +492,7 @@ public sealed class FoodFamilyTests
             var tick = new Tick(200 + i);
             journal.ReviewRounds(new()
             {
-                Revision = journal.LoadRounds(ct).Revision, Current = World, Tick = tick, Enabled = true, Policy = DefaultRoundsPolicy(),
+                Revision = journal.LoadRounds(ct).Revision, Current = World, Tick = tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(),
                 Facts = WorkResourceTestFacts.Create("a", "b", "c") with { Tick = tick },
             }, ct);
         }

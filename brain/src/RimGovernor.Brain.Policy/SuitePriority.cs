@@ -3,13 +3,13 @@ namespace RimGovernor.Brain.Policy;
 // Suite priority: the suite queue is served most unhappy first. A claim's pressure is the current summed
 // negative mood offset of its pawn's bedroom, space and jealousy thoughts; no history is kept. Thoughts only
 // order the queue: which pawns claim a suite and the size each needs stay SuiteClaims' trait targets.
-public static partial class PolicyFunctions
+public static partial class SuitePriorityRules
 {
     /// <summary>
     /// The vanilla ThoughtDef defNames a suite relieves (confirmed against Assembly-CSharp ThoughtDefOf and the
     /// Core/Royalty ThoughtDefs XML).
     /// </summary>
-    private static readonly HashSet<string> SuitePressureThoughts = new(StringComparer.Ordinal)
+    internal static readonly HashSet<string> SuitePressureThoughts = new(StringComparer.Ordinal)
     {
         "SleptInBedroom", // bedroom impressiveness memory (awful/dull stages)
         "SleptInBarracks", // slept in barracks

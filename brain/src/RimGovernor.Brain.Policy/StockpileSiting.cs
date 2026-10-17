@@ -57,7 +57,7 @@ public sealed record StoreSite
             var cells = new List<Cell>();
             foreach (var r in Regions)
             {
-                cells.AddRange(PolicyFunctions.RectCells(r));
+                cells.AddRange(PlannedRules.RectCells(r));
             }
             return cells;
         }
@@ -65,7 +65,7 @@ public sealed record StoreSite
         {
             return [.. Region.Cells()];
         }
-        return [.. PolicyFunctions.RectCells(Interior)];
+        return [.. PlannedRules.RectCells(Interior)];
     }
 
     /// <summary>Reports a store that covers its whole ground rather than a patch of it.</summary>
@@ -81,11 +81,11 @@ public sealed record StoreSite
         {
             return false;
         }
-        if ((Exact && z.Role != Role) || (!Exact && PolicyFunctions.StockpileRolePrefix(z.Role) != PolicyFunctions.StockpileRolePrefix(Role)))
+        if ((Exact && z.Role != Role) || (!Exact && StockpileRules.StockpileRolePrefix(z.Role) != StockpileRules.StockpileRolePrefix(Role)))
         {
             return false;
         }
-        return PolicyFunctions.StockpileTouches(z.Cells, PolicyFunctions.CellSet(Footprint()));
+        return StockpileRules.StockpileTouches(z.Cells, StockpileRules.CellSet(Footprint()));
     }
 
     /// <summary>
@@ -113,7 +113,7 @@ public sealed record StoreSite
         {
             IReadOnlyList<Rectangle> regions = Regions ?? [Interior];
             // Only policy exclusions change the drag. Native handles obstacles.
-            var allowed = PolicyFunctions.CellSet(PolicyFunctions.WithoutCells(Footprint(), Avoid));
+            var allowed = StockpileRules.CellSet(StoreRules.WithoutCells(Footprint(), Avoid));
             var changed = Avoid.Count != 0 || Reshaped();
             foreach (var c in allowed.ToList())
             {
@@ -130,20 +130,20 @@ public sealed record StoreSite
             var output = new List<Rectangle>();
             foreach (var r in regions)
             {
-                if (PolicyFunctions.CoverCells(open, PolicyFunctions.RectCells(r)).Count > 0)
+                if (StockpileRules.CoverCells(open, PlannedRules.RectCells(r)).Count > 0)
                 {
                     output.Add(r);
                 }
             }
             return output;
         }
-        var within = open with { Only = PolicyFunctions.CellSet(PolicyFunctions.WithoutCells(Footprint(), Avoid)) };
+        var within = open with { Only = StockpileRules.CellSet(StoreRules.WithoutCells(Footprint(), Avoid)) };
         Func<SiteCell, bool>? allow = null;
         if (Roofed)
         {
             allow = c => c.Roofed.TryGetValue(out var roofed) && roofed;
         }
-        return PolicyFunctions.RectangleSites(within, Anchor, Width, Height, allow, 1);
+        return StockpileRules.RectangleSites(within, Anchor, Width, Height, allow, 1);
     }
 
     /// <summary>Estimates usable ground for capacity. It does not choose components.</summary>
@@ -152,13 +152,13 @@ public sealed record StoreSite
         var cells = new List<Cell>();
         foreach (var r in Rectangles(open))
         {
-            cells.AddRange(PolicyFunctions.CoverCells(open, PolicyFunctions.RectCells(r)));
+            cells.AddRange(StockpileRules.CoverCells(open, PlannedRules.RectCells(r)));
         }
-        return PolicyFunctions.StockpileSorted(cells);
+        return StockpileRules.StockpileSorted(cells);
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class StockpileRules
 {
     internal static bool StoreServed(IReadOnlyList<StockpileZone> zones, StoreSite site) => zones.Any(site.Serves);
 
@@ -179,13 +179,13 @@ public static partial class PolicyFunctions
         {
             var site = new Rectangle(p.X, p.Z, width, height);
             var ok = true;
-            foreach (var c in RectCells(site))
+            foreach (var c in PlannedRules.RectCells(site))
             {
                 ok = ok && open.Ok(c) && (allow is null || allow(open.Cells[c]));
             }
             if (ok)
             {
-                found.Add(new ScoredSite(site, SquaredDistance(new Cell(p.X + (width / 2), p.Z + (height / 2)), anchor)));
+                found.Add(new ScoredSite(site, PlannedRules.SquaredDistance(new Cell(p.X + (width / 2), p.Z + (height / 2)), anchor)));
             }
         }
         return [.. found.OrderBy(f => f.Score).Take(Math.Min(found.Count, limit)).Select(f => f.Site)];
@@ -288,7 +288,7 @@ public static partial class PolicyFunctions
             }
             foreach (var r in rects)
             {
-                open.Taken.Claim(RectCells(r));
+                open.Taken.Claim(PlannedRules.RectCells(r));
                 output.Add(new StockpileEdit
                 {
                     Kind = StockpileEditKind.Create,

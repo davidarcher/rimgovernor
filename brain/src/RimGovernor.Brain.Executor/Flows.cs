@@ -208,7 +208,7 @@ public sealed partial class Executor
                 {
                     minimum = inspection.Facts.PreviewTick;
                 }
-                var decision = PolicyFunctions.EvaluateTrade(new TradeRequest { Action = action, Progress = flow.Result.Progress!, Current = expected, MinimumTick = minimum, Facts = inspection.Facts });
+                var decision = TradePolicyRules.EvaluateTrade(new TradeRequest { Action = action, Progress = flow.Result.Progress!, Current = expected, MinimumTick = minimum, Facts = inspection.Facts });
                 flow.Result = flow.Result with { Refused = [.. decision.Refused] };
                 if (!decision.Admitted)
                 {

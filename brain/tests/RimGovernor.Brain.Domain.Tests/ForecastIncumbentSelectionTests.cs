@@ -12,7 +12,7 @@ public sealed class ForecastIncumbentSelectionTests
     private static (ColonyForecastRequest Request, ForecastCoupledCandidates Candidates) Problem(double food, double fall, bool meal = true)
     {
         var facts = ForecastCoupledSelectionTests.Review(food, fall);
-        facts = ReviewWorkResources(facts with { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 1)]) },
+        facts = WorkRules.ReviewWorkResources(facts with { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 1)]) },
             Known<EquatableArray<ProductionBatch>>([]), new([]));
         var original = facts.CoupledAlternatives!;
         var pawn = original.Context.Needs.Pawns[0] with
@@ -79,7 +79,7 @@ public sealed class ForecastIncumbentSelectionTests
     {
         var (request, candidates) = Problem(1, 0, meal: false);
         var roster = WorkResourceTestFacts.Create("pawn", "helper");
-        roster = ReviewWorkResources(roster, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        roster = WorkRules.ReviewWorkResources(roster, Known<EquatableArray<ProductionBatch>>([]), new([]));
         var context = candidates.Context;
         context = context with
         {
@@ -108,7 +108,7 @@ public sealed class ForecastIncumbentSelectionTests
     {
         var (request, candidates) = Problem(1, 0, meal: false);
         var names = Enumerable.Range(1, helpers).Select(i => "helper" + i).ToArray();
-        var roster = ReviewWorkResources(WorkResourceTestFacts.Create(["pawn", .. names]), Known<EquatableArray<ProductionBatch>>([]), new([]));
+        var roster = WorkRules.ReviewWorkResources(WorkResourceTestFacts.Create(["pawn", .. names]), Known<EquatableArray<ProductionBatch>>([]), new([]));
         var context = candidates.Context;
         ForecastNeedTask Claim(string task, string pawn) => new(task, pawn, kind, target, new(""), count, Known(.2), [])
             { MaxPawns = maxPawns, AvailableCount = stock };

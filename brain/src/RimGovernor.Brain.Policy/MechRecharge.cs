@@ -19,7 +19,7 @@ public sealed record MechCharger
 /// more mechs: MechChargerOwed answers whether the colony needs one more before gestation adds a mech. Charger
 /// waste disposal belongs to waste management.
 /// </summary>
-public static partial class PolicyFunctions
+public static partial class MechRules
 {
     /// <summary>
     /// The mode a planned group should run: the catalog's Recharge mode while the group is low (or still charging

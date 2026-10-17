@@ -37,7 +37,7 @@ public sealed record FoodStoresFacts
     {
         Storage = f.FoodStorageUpkeep,
         Reserve = f.FoodReserve,
-        Stockpile = PolicyFunctions.FoodStorageStanding(f),
+        Stockpile = StockpileRules.FoodStorageStanding(f),
         StockProtection = PolicyFunctions.FoodPlanSupport(f.FoodPlan, CandidateKind.Reserve, "stock-protection"),
         Haulers = f.DangerHaulers,
         WarmRooms = f.WarmRooms,
@@ -160,7 +160,7 @@ public static partial class PolicyFunctions
         var reserveKnown = f.Reserve.TryGetValue(out var reserve);
         var access = ReserveAccessPending(f.Reserve);
         var refill = reserveKnown && !reserve!.Emergency && reserve.DeficitNutrition > 0;
-        var stockpileMissing = Negative(f.Stockpile);
+        var stockpileMissing = RoundsRules.Negative(f.Stockpile);
         FoodStorageReview? storage;
         try
         {
@@ -218,7 +218,7 @@ public static partial class PolicyFunctions
         RefrigerationReview review;
         try
         {
-            review = ReviewRefrigeration(f.Storage, p).WithWarmRooms(f.WarmRooms);
+            review = RefrigerationRules.ReviewRefrigeration(f.Storage, p).WithWarmRooms(f.WarmRooms);
         }
         catch (DomainException)
         {
@@ -226,7 +226,7 @@ public static partial class PolicyFunctions
             review = new RefrigerationReview { WarmNutrition = Unknown<double>() };
         }
         var nutritionKnown = review.WarmNutrition.TryGetValue(out var nutrition);
-        var closet = Positive(f.MealClosetOwed);
+        var closet = RoundsRules.Positive(f.MealClosetOwed);
         var satisfaction = review.Active || closet ? Satisfaction.Unmet : nutritionKnown ? Satisfaction.Met : Satisfaction.Unknown;
         var deficit = 0.0;
         if (satisfaction == Satisfaction.Unmet)

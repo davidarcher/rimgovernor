@@ -111,17 +111,17 @@ public static class DefensePositions
             return ([], "no live hostiles");
         }
         live = live.OrderBy(t => t.Id.Value, StringComparer.Ordinal).ToList();
-        var pool = defenders.Where(d => SquadDefenderEligible(d) && Positive(d.RangedEquipped)).ToList();
+        var pool = defenders.Where(d => SquadDefenseRules.SquadDefenderEligible(d) && RoundsRules.Positive(d.RangedEquipped)).ToList();
         if (pool.Count == 0)
         {
             var ranged = 0;
             var why = new List<string>();
             foreach (var d in defenders)
             {
-                if (Positive(d.RangedEquipped))
+                if (RoundsRules.Positive(d.RangedEquipped))
                 {
                     ranged++;
-                    why.Add(d.Id + ": " + string.Join(", ", SquadDefenderReasons(d)));
+                    why.Add(d.Id + ": " + string.Join(", ", SquadDefenseRules.SquadDefenderReasons(d)));
                 }
             }
             return ([], $"no eligible ranged defender among {defenders.Count} ({ranged} ranged-equipped: {string.Join("; ", why)})");
@@ -135,7 +135,7 @@ public static class DefensePositions
         var output = new List<DefensivePosition>();
         foreach (var cell in firing)
         {
-            if (seen.Contains(cell) || output.Count == pool.Count || output.Count == MaxSquadDefenders)
+            if (seen.Contains(cell) || output.Count == pool.Count || output.Count == SquadDefenseRules.MaxSquadDefenders)
             {
                 continue;
             }

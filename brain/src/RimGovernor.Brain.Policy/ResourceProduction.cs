@@ -144,7 +144,7 @@ public sealed record ResourceMethodRequest
     public Fact<EquatableArray<GearBench>> Benches { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class ResourceRules
 {
     // Native mine-source safety verdicts that permit excavation: open ground, or a roofed deposit whose
     // removal keeps the roof supported.
@@ -162,7 +162,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static (ResourceSource Source, bool Found) BuriedResourceSource(IReadOnlyList<ResourceSource> sources, RemoteWorkRequest r)
     {
-        if (RemoteThreatHold(r.Safety).Length != 0 || r.Competition.Urgent)
+        if (RemoteRules.RemoteThreatHold(r.Safety).Length != 0 || r.Competition.Urgent)
         {
             return (new ResourceSource(), false);
         }
@@ -188,11 +188,11 @@ public static partial class PolicyFunctions
     {
         if (!MineSafe(s.Safety) || s.Buried)
         {
-            return RemoteHoldRoofSupport;
+            return RemoteRules.RemoteHoldRoofSupport;
         }
         if (!s.Reachable.TryGetValue(out var route) || !route)
         {
-            return RemoteHoldRouteUnsafe;
+            return RemoteRules.RemoteHoldRouteUnsafe;
         }
         return "";
     }
@@ -218,15 +218,15 @@ public static partial class PolicyFunctions
             }
             if (source.Method == ResourceSourceMethod.Mine)
             {
-                var reason = RemoteThreatHold(r.Safety);
+                var reason = RemoteRules.RemoteThreatHold(r.Safety);
                 if (reason.Length == 0 && r.Competition.Urgent)
                 {
-                    reason = RemoteHoldUrgentWork;
+                    reason = RemoteRules.RemoteHoldUrgentWork;
                 }
                 if (reason.Length == 0 && source.Buried)
                 {
                     // Native confirmed its support; it waits on a corridor.
-                    reason = RemoteHoldBuried;
+                    reason = RemoteRules.RemoteHoldBuried;
                 }
                 if (reason.Length == 0)
                 {

@@ -74,7 +74,7 @@ public sealed record MedicinePlanningRequest
 }
 
 /// <summary>Ports <c>medical_reserve.go</c>.</summary>
-public static partial class PolicyFunctions
+public static partial class MedicalRules
 {
     /// <summary>
     /// Preserves the latch through unavailable reads. Equal entry stock does not activate it; equal recovery stock

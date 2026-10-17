@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: traffic_overlay.go.
 
-public static partial class PolicyFunctions
+public static partial class TrafficRules
 {
     /// <summary>Every counted layer in overlay order: the heat layers draw as "heat.&lt;layer&gt;".</summary>
     public static readonly IReadOnlyList<TrafficLayer> TrafficLayers =

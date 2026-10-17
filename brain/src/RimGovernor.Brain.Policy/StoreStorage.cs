@@ -18,7 +18,7 @@ internal sealed class StorageOwner : IStoreOwner
             return [];
         }
         var output = new List<Store>();
-        var gear = PolicyFunctions.GearPatchesOf(v.Layout).Cells();
+        var gear = StoreRules.GearPatchesOf(v.Layout).Cells();
         foreach (var room in v.PlannedStorageRooms())
         {
             output.Add(new Store

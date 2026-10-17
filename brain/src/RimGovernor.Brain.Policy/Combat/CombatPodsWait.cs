@@ -23,7 +23,7 @@ public static partial class CombatPodsRules
         double theirs = 0;
         foreach (var d in view.Defenders)
         {
-            if (SquadDefenderEligible(d) && Positive(d.Armed))
+            if (SquadDefenseRules.SquadDefenderEligible(d) && RoundsRules.Positive(d.Armed))
             {
                 d.HealthFraction.TryGetValue(out var h);
                 ours += h;
@@ -39,7 +39,7 @@ public static partial class CombatPodsRules
         }
         foreach (var t in view.Positional)
         {
-            if (!Positive(t.Dead) && !Positive(t.Downed) && !down.Contains(t.Id))
+            if (!RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed) && !down.Contains(t.Id))
             {
                 theirs++;
             }
@@ -60,7 +60,7 @@ public static partial class CombatPodsRules
         }
         foreach (var t in view.Positional)
         {
-            if (t.LordToilClass.TryGetValue(out var toil) && PodStrikeToils.Contains(toil) && !Positive(t.Dead) && !Positive(t.Downed))
+            if (t.LordToilClass.TryGetValue(out var toil) && PodStrikeToils.Contains(toil) && !RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed))
             {
                 return true;
             }

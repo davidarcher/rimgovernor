@@ -424,7 +424,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The limb infection an amputation removes; non-limb infections are out of scope.</summary>
-    private const string WoundInfection = "WoundInfection";
+    internal const string WoundInfection = "WoundInfection";
 
     /// <summary>
     /// Go <c>LifeSavingAmputations</c>: lists, for a living colonist, the amputation of the part carrying each

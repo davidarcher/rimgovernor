@@ -27,7 +27,7 @@ public sealed record TradeRequest
     public TradeAdmissionFacts Facts { get; init; } = new();
 }
 
-public static partial class PolicyFunctions
+public static partial class TradePolicyRules
 {
     /// <summary>
     /// Re-validates one already-selected trade intent immediately before dispatch: the canonical action, its

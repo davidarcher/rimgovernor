@@ -35,12 +35,12 @@ public sealed record StoreCapacity
             {
                 return Unknown<double>();
             }
-            return Known(PolicyFunctions.StoreRunwayDays(free, inflow));
+            return Known(StoreRules.StoreRunwayDays(free, inflow));
         }
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class StoreRules
 {
     /// <summary>The build work of a further yard: zoning outdoor ground builds nothing.</summary>
     public const double FurtherYardWorkTicks = 0;

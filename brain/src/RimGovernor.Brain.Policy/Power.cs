@@ -67,7 +67,7 @@ public sealed record PowerNetworkFact
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class PowerRules
 {
     /// <summary>Requires actual roof coverage of rain-sensitive equipment. Empty batteries still need shelter before the network charges them.</summary>
     public static bool PowerWeatherSafe(IReadOnlyList<PowerBuilding> buildings) =>

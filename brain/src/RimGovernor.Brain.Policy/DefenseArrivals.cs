@@ -164,7 +164,7 @@ internal sealed partial class DefenseSite
         var ordered = new List<Cell>();
         foreach (var c in distance.Keys)
         {
-            if (OnBorder(c) && Positive(Cells[c].EdgeReachable))
+            if (OnBorder(c) && RoundsRules.Positive(Cells[c].EdgeReachable))
             {
                 edge.Add(c);
                 ordered.Add(c);
@@ -225,7 +225,7 @@ internal sealed partial class DefenseSite
                 var nearest = (long)((DefenseArrivalRoutes.DefenseArrivalSnap * DefenseArrivalRoutes.DefenseArrivalSnap) + 1);
                 foreach (var c in ordered)
                 {
-                    var d = SquaredDistance(c, a.Edge);
+                    var d = PlannedRules.SquaredDistance(c, a.Edge);
                     if (d < nearest)
                     {
                         i = byCell[c];
@@ -304,7 +304,7 @@ internal sealed partial class DefenseSite
         }
         foreach (var (c, row) in Cells)
         {
-            if (Positive(row.Door) && Positive(row.PlayerOwned))
+            if (RoundsRules.Positive(row.Door) && RoundsRules.Positive(row.PlayerOwned))
             {
                 closed.Add(c);
             }
@@ -349,7 +349,7 @@ internal sealed partial class DefenseSite
             var inRange = false;
             foreach (var f in l.Firing)
             {
-                if (SquaredDistance(c, f.Cell) <= rangeLimit * rangeLimit)
+                if (PlannedRules.SquaredDistance(c, f.Cell) <= rangeLimit * rangeLimit)
                 {
                     inRange = true;
                     break;
@@ -368,7 +368,7 @@ internal sealed partial class DefenseSite
                 var start = Math.Max(0, route.Count - DefenseArrivalRoutes.DefenseRouteTail);
                 for (var j = start; j < route.Count; j++)
                 {
-                    var dist = SquaredDistance(c, route[j]);
+                    var dist = PlannedRules.SquaredDistance(c, route[j]);
                     if ((forward || dist <= 2) && dist < nearest)
                     {
                         sectorIndex = i;
@@ -381,11 +381,11 @@ internal sealed partial class DefenseSite
                 continue;
             }
             var hold = "";
-            if (Positive(row.NaturalRock) && (c.X == 0 || c.Z == 0 || c.X == R.Bounds.Width - 1 || c.Z == R.Bounds.Height - 1))
+            if (RoundsRules.Positive(row.NaturalRock) && (c.X == 0 || c.Z == 0 || c.X == R.Bounds.Width - 1 || c.Z == R.Bounds.Height - 1))
             {
                 hold = "map_edge_rock";
             }
-            if (Positive(row.NaturalRock) && hold == "")
+            if (RoundsRules.Positive(row.NaturalRock) && hold == "")
             {
                 var exposed = false;
                 foreach (var delta in DefenseLayout.Directions)
@@ -397,14 +397,14 @@ internal sealed partial class DefenseSite
                     hold = "mountain_interior";
                 }
             }
-            if (Positive(row.NaturalRock) && hold == "")
+            if (RoundsRules.Positive(row.NaturalRock) && hold == "")
             {
                 // A rock face is terrain: mining one cell of a mass exposes the next, and the mass may be the wall
                 // the layout leans on. Only a lone rock (no natural rock beside it) is orderable.
                 foreach (var delta in DefenseLayout.Directions)
                 {
                     var n = DefenseLayout.AddCell(c, delta);
-                    if (Cells.TryGetValue(n, out var nrow) && Positive(nrow.NaturalRock) && !Passable(n))
+                    if (Cells.TryGetValue(n, out var nrow) && RoundsRules.Positive(nrow.NaturalRock) && !Passable(n))
                     {
                         hold = "rock_face";
                         break;
@@ -416,7 +416,7 @@ internal sealed partial class DefenseSite
         // Nearest the entry first: the cover a raider would take at the line is cleared before the cover farther up the approach.
         var sortedCover = cover
             .OrderBy(x => x.Sector)
-            .ThenBy(x => SquaredDistance(x.Cell, l.Entry))
+            .ThenBy(x => PlannedRules.SquaredDistance(x.Cell, l.Entry))
             .ThenBy(x => x.Cell.Z)
             .ThenBy(x => x.Cell.X)
             .ToList();

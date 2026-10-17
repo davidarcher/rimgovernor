@@ -17,7 +17,7 @@ internal static class RoundsTierStyle
 
     /// <summary>Whether one ResearchProjectDef is finished; an unknown census reads as unfinished.</summary>
     internal static bool StyleResearchFinished(Observation.ColonyProjection facts, string project) =>
-        ResearchGate([project], facts.Facts.Research) == "";
+        ResearchRules.ResearchGate([project], facts.Facts.Research) == "";
 
     /// <summary>Whether any observed power network generates: unknown without a power topology.</summary>
     internal static Fact<bool> PoweredSource(Observation.ColonyProjection facts)
@@ -56,8 +56,8 @@ internal static class RoundsTierStyle
             }
         }
         var wall = "WoodLog";
-        bool Guarded(string stuff) => stuff == GuardedWallStuff && !SteelResupplied(facts);
-        var bulk = facts.BulkBuildStuffExcept(style.WallDef, ShellWallBudget, Guarded);
+        bool Guarded(string stuff) => stuff == TierStyleRules.GuardedWallStuff && !SteelResupplied(facts);
+        var bulk = facts.BulkBuildStuffExcept(style.WallDef, TierStyleRules.ShellWallBudget, Guarded);
         if (bulk != "")
         {
             wall = bulk;
@@ -67,7 +67,7 @@ internal static class RoundsTierStyle
 
     /// <summary>An observed source of steel (a deposit or salvage); an unread acquisition census reads as none, so steel stays guarded.</summary>
     internal static bool SteelResupplied(Observation.ColonyProjection facts) =>
-        facts.Acquisition.TryGetValue(out var sources) && sources.Any(s => s.Resource == GuardedWallStuff && !s.Tree);
+        facts.Acquisition.TryGetValue(out var sources) && sources.Any(s => s.Resource == TierStyleRules.GuardedWallStuff && !s.Tree);
 
     /// <summary>The floor rule the flooring planner prefers per room role before it scores the census: null at Camp, where no floor is styled.</summary>
     internal static Func<Pol.RoomRole, (string Def, bool Ok)>? FloorStyle(Observation.ColonyProjection facts)
@@ -81,20 +81,20 @@ internal static class RoundsTierStyle
         var costs = new Dictionary<string, IReadOnlyList<Pol.Amount>>(StringComparer.Ordinal);
         foreach (var d in facts.Definitions)
         {
-            if (d.Costs.TryGetValue(out var known) && (d.Name == Carpet || d.Name == SterileTile || d.Name == StrawMatting))
+            if (d.Costs.TryGetValue(out var known) && (d.Name == TierStyleRules.Carpet || d.Name == TierStyleRules.SterileTile || d.Name == TierStyleRules.StrawMatting))
             {
                 costs[d.Name] = known;
             }
         }
         var research = new Pol.FloorStyleFacts { CarpetMaking = StyleResearchFinished(facts, "CarpetMaking"), SterileMaterials = StyleResearchFinished(facts, "SterileMaterials"), Costs = costs };
-        return role => FloorDef(tier, role, stock, research);
+        return role => TierStyleRules.FloorDef(tier, role, stock, research);
     }
 
     /// <summary>The fixture the lighting planner prefers for a work cell: the module lighting rule for a non-farm module, empty when the tier styles no lamp.</summary>
     internal static string LampStyle(Observation.ColonyProjection facts)
     {
         PoweredSource(facts).TryGetValue(out var powered);
-        var (lamp, ok) = PlannedLighting(StyleTier(facts), false, StyleStock(facts), powered);
+        var (lamp, ok) = TierStyleRules.PlannedLighting(StyleTier(facts), false, StyleStock(facts), powered);
         return ok ? lamp.Definition : "";
     }
 }

@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record MethodClaims(EquatableArray<string> Pawns, EquatableArray<string> Targets, EquatableArray<WorkTargetClaim> Shared);
 
-public static partial class PolicyFunctions
+public static partial class MethodClaimsRules
 {
     /// <summary>
     /// The claims of one Method's actions. Labor, buildings and gear batches are <see cref="WorkClaimsOf"/>'s; the
@@ -50,7 +50,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static MethodClaims MethodClaimsOf(WorkAdmissionEvidence evidence, IReadOnlyCollection<WorkAction> actions)
     {
-        var work = WorkClaimsOf(evidence, actions, footprint: true);
+        var work = WorkRules.WorkClaimsOf(evidence, actions, footprint: true);
         var targets = new HashSet<string>(work.Targets, StringComparer.Ordinal);
         foreach (var row in actions)
         {
@@ -90,7 +90,7 @@ public static partial class PolicyFunctions
             var rect = OccupiedRect(building.Cell, known, building.Rotation);
             if (rect.Width > 0 && rect.Height > 0) return [.. RectangleCells(rect).Select(CellClaimTarget)];
         }
-        return [BuildingClaimTarget(building)];
+        return [WorkRules.BuildingClaimTarget(building)];
     }
 
     private static string CellClaimTarget(Cell c) => "cell/" + c.X + "/" + c.Z;

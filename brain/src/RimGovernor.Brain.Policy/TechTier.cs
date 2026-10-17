@@ -17,7 +17,7 @@ public enum TechTier
     Spacer,
 }
 
-public static partial class PolicyFunctions
+public static partial class TechTierRules
 {
     /// <summary>
     /// Derives the tech tier from the finished research and the faction tech level. A faction floor satisfies

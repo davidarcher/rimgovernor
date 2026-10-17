@@ -18,7 +18,7 @@ internal sealed class ReservedGround : HashSet<Cell>
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class StockpileRules
 {
     /// <summary>
     /// Reports a warehouse zone's role: every warehouse site is a general store, the first planned room's
@@ -130,7 +130,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static (List<Cell> Add, HashSet<Cell> Reached, Func<Cell, bool> Allowed) StoreGrowth(StoreSite site, StockpileZone keep, StockpileOpen open)
     {
-        var footprint = CellSet(WithoutCells(site.Footprint(), site.Avoid));
+        var footprint = CellSet(StoreRules.WithoutCells(site.Footprint(), site.Avoid));
         var owned = CellSet(keep.Cells);
 
         bool Allowed(Cell cell)

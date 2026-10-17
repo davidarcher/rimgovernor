@@ -71,11 +71,11 @@ public sealed partial class BiotechRounds
             MechChargerOwed = projection.Facts.MechChargerOwed,
             GeneBankOwed = projection.Facts.GeneBankOwed,
             Pollution = projection.Facts.Pollution,
-            PollutedCells = [.. PolicyFunctions.PollutedWindowCells(projection.Cells)],
+            PollutedCells = [.. PollutionRules.PollutedWindowCells(projection.Cells)],
         };
         if (_needs.Mechs && await Rounder.MechGestationAsync(_reviewer.Native, Boundary.Identity(scope.World), projection, ct).ConfigureAwait(false) is { } gestation)
         {
-            facts = facts with { MechsOwed = PolicyFunctions.MechGestationOwed(gestation) };
+            facts = facts with { MechsOwed = MechRules.MechGestationOwed(gestation) };
         }
         if (_needs.Pollution)
         {
@@ -197,7 +197,7 @@ public sealed partial class BiotechRounds
             Rooms = f.Rooms,
             Disposal = [.. biotech.Atomizers.Select(a => a.Position)],
         };
-        var sites = PolicyFunctions.MechChargerSites(siteFacts, size.Width, size.Height).Select(s => s.Site);
+        var sites = MechRules.MechChargerSites(siteFacts, size.Width, size.Height).Select(s => s.Site);
         var verdict = await PlaceAsync(work, f, definition, method, size, sites, int.MaxValue, "mech_charger_preview", started, call).ConfigureAwait(false);
         return verdict ?? NoSpace("charger_cell");
     }
@@ -333,7 +333,7 @@ public sealed class MechBillDeclarer : IOrderDeclarer
         var review = _reviewer.Player.Journal.LoadRounds(ct);
         if (!review.Enabled || review.Snapshot != snapshot)
         {
-            return PolicyFunctions.Abstaining(Cause.UnreadReview);
+            return WorkRules.Abstaining(Cause.UnreadReview);
         }
         MechGestation? gestation;
         try
@@ -346,7 +346,7 @@ public sealed class MechBillDeclarer : IOrderDeclarer
         }
         if (gestation is null)
         {
-            return PolicyFunctions.Abstaining(Cause.UnreadMechs);
+            return WorkRules.Abstaining(Cause.UnreadMechs);
         }
         return Declare(_family, projection, gestation, benches);
     }
@@ -354,12 +354,12 @@ public sealed class MechBillDeclarer : IOrderDeclarer
     /// <summary>The gestation bill while the mechs Need is ready over <paramref name="gestation"/> and the projection's charger fact, else nothing.</summary>
     internal static Declared Declare(BiotechFamily family, ColonyProjection projection, MechGestation gestation, IReadOnlyList<GearBench> benches)
     {
-        var facts = new BiotechFacts { MechsOwed = PolicyFunctions.MechGestationOwed(gestation), MechChargerOwed = projection.Facts.MechChargerOwed };
+        var facts = new BiotechFacts { MechsOwed = MechRules.MechGestationOwed(gestation), MechChargerOwed = projection.Facts.MechChargerOwed };
         if (!family.MechsReady(facts))
         {
             return new Declared();
         }
-        var (selected, gap) = PolicyFunctions.SelectMechGestationBill(Rounder.MechBenches(benches), gestation);
+        var (selected, gap) = MechRules.SelectMechGestationBill(Rounder.MechBenches(benches), gestation);
         return PolicyFunctions.DeclareSelection(selected, gap == default, benches);
     }
 }

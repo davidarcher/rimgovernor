@@ -37,9 +37,9 @@ public sealed class ShelfCandidatesTests
         {
             var (role, filter) = Kinds[i];
             var room = Room(i);
-            zones.Add(new StockpileZone { Id = $"Zone_{i}", Role = role, Cells = RectCells(room), Filter = filter });
+            zones.Add(new StockpileZone { Id = $"Zone_{i}", Role = role, Cells = PlannedRules.RectCells(room), Filter = filter });
             stores.Add(new Policy.Store { Site = new StoreSite { Role = role, Interior = room, Filter = filter } });
-            foreach (var c in RectCells(room))
+            foreach (var c in PlannedRules.RectCells(room))
             {
                 cells.Add(new SiteCell { Cell = c, Walkable = Known(true), Doorway = Known(doors.Contains(c)), StorageCapacity = Known(1), StorageStacks = Known(0) });
             }
@@ -52,7 +52,7 @@ public sealed class ShelfCandidatesTests
     [Fact]
     public void EveryStoreAShelfCanHoldGetsCandidatesWorthFourStacks()
     {
-        var candidates = ShelfCandidates(Request(NoWalkways));
+        var candidates = StorageRules.ShelfCandidates(Request(NoWalkways));
 
         var roles = candidates.Select(c => c.Role).ToHashSet();
         Assert.Equal(["yard", "bench:Stove_1", "meals", "medicine", "general", "weapons"], Kinds.Select(k => k.Role).Where(roles.Contains));
@@ -63,11 +63,11 @@ public sealed class ShelfCandidatesTests
     [Fact]
     public void ShelfHoldsNoChunkOnlyOrPlantOrBuildingOnlyFilter()
     {
-        Assert.False(ShelfHolds(ChunkFilter));
-        Assert.False(ShelfHolds(new StockpileFilter(FilterBase.Nothing, [FilterSelector.CategoryDef("Plants"), FilterSelector.CategoryDef("Buildings")])));
-        Assert.False(ShelfHolds(new StockpileFilter(FilterBase.Nothing, [FilterSelector.SpecialFilter("AllowFresh")])));
-        Assert.True(ShelfHolds(StockpileFilter.OpeningStoreFilter()));
-        Assert.True(ShelfHolds(new StockpileFilter(FilterBase.Nothing, [FilterSelector.ThingDef("Steel")])));
+        Assert.False(StorageRules.ShelfHolds(ChunkFilter));
+        Assert.False(StorageRules.ShelfHolds(new StockpileFilter(FilterBase.Nothing, [FilterSelector.CategoryDef("Plants"), FilterSelector.CategoryDef("Buildings")])));
+        Assert.False(StorageRules.ShelfHolds(new StockpileFilter(FilterBase.Nothing, [FilterSelector.SpecialFilter("AllowFresh")])));
+        Assert.True(StorageRules.ShelfHolds(StockpileFilter.OpeningStoreFilter()));
+        Assert.True(StorageRules.ShelfHolds(new StockpileFilter(FilterBase.Nothing, [FilterSelector.ThingDef("Steel")])));
     }
 
     [Fact]
@@ -76,12 +76,12 @@ public sealed class ShelfCandidatesTests
         // The warehouse (zone 4, x 40..43) has a walkway down its middle row and a doorway at its corner.
         var walk = Enumerable.Range(40, 4).Select(x => new Cell(x, 1)).ToList();
         var door = new Cell(40, 0);
-        var candidates = ShelfCandidates(Request(Known(EquatableArray.From(walk)), door)).Where(c => c.Role == "general").ToList();
+        var candidates = StorageRules.ShelfCandidates(Request(Known(EquatableArray.From(walk)), door)).Where(c => c.Role == "general").ToList();
 
         Assert.NotEmpty(candidates);
         foreach (var c in candidates)
         {
-            foreach (var cell in RectCells(c.Piece.Rect))
+            foreach (var cell in PlannedRules.RectCells(c.Piece.Rect))
             {
                 Assert.DoesNotContain(cell, walk);
                 Assert.False(Math.Abs(cell.X - door.X) <= 1 && Math.Abs(cell.Z - door.Z) <= 1, $"{c.Piece.Slot} stands beside the doorway");
@@ -92,9 +92,9 @@ public sealed class ShelfCandidatesTests
     [Fact]
     public void UnknownWalkwaysYieldNoCandidateAndUnknownShelfStacksAnUnknownEffect()
     {
-        Assert.Empty(ShelfCandidates(Request(Unknown<EquatableArray<Cell>>())));
+        Assert.Empty(StorageRules.ShelfCandidates(Request(Unknown<EquatableArray<Cell>>())));
 
-        var unknown = ShelfCandidates(Request(NoWalkways) with { ShelfStacks = Unknown<int>() });
+        var unknown = StorageRules.ShelfCandidates(Request(NoWalkways) with { ShelfStacks = Unknown<int>() });
         Assert.NotEmpty(unknown);
         Assert.All(unknown, c => Assert.False(c.Stacks.IsKnown));
     }
@@ -105,6 +105,6 @@ public sealed class ShelfCandidatesTests
         var request = Request(NoWalkways);
         request = request with { Stores = [.. request.Stores.Select(s => s.Role == "yard" ? s with { Retired = true } : s)] };
 
-        Assert.DoesNotContain(ShelfCandidates(request), c => c.Role == "yard");
+        Assert.DoesNotContain(StorageRules.ShelfCandidates(request), c => c.Role == "yard");
     }
 }

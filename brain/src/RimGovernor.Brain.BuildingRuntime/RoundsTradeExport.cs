@@ -173,7 +173,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             return RoundsGearPlanner.AbstainOnRead(Pol.Cause.UnreadReview, e, ct);
         }
         var f = projection.Facts;
-        var (gap, demand) = Pol.PolicyFunctions.RoundsSilverGap(f, rd.Policy, review.Latches.MedicalReserve);
+        var (gap, demand) = Pol.SilverGapRules.RoundsSilverGap(f, rd.Policy, review.Latches.MedicalReserve);
         lock (_gate)
         {
             _gap = gap;
@@ -186,7 +186,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             Items = f.Items,
             Gap = gap,
             Demand = demand,
-            Floors = Pol.PolicyFunctions.RoundsTradeFloors(rd.Policy, null),
+            Floors = Pol.TradePolicyRules.RoundsTradeFloors(rd.Policy, null),
             Packed = Unknown<long>(),
             Buys = new Dictionary<Pol.Resource, Fact<bool>>(),
             CashCap = Unknown<long>(),
@@ -194,7 +194,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         };
         if (projection.WorkPawns.TryGetValue(out var pawns))
         {
-            request = request with { Profiles = Known<EquatableArray<Pol.PawnProfile>>([.. Pol.PolicyFunctions.Profiles(pawns)]) };
+            request = request with { Profiles = Known<EquatableArray<Pol.PawnProfile>>([.. Pol.PawnRules.Profiles(pawns)]) };
         }
         var (stock, stockKnown) = ExportStock(f);
         request = request with { Stock = stock ?? new Dictionary<Pol.Resource, long>() };
@@ -215,10 +215,10 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         // The sale path learns the rankable goods even when this Round abstains.
         var ranked = Pol.PolicyFunctions.DeclareExportOrders(request);
         rd.Exports.SetPlan(snapshot, Pol.PolicyFunctions.ExportSaleProducts(f.Items, ranked.Products), apparel, apparelKnown);
-        rd.Exports.SetView(snapshot, Pol.PolicyFunctions.NewExportView(ranked, gap));
+        rd.Exports.SetView(snapshot, Pol.WorkRules.NewExportView(ranked, gap));
         if (!stockKnown)
         {
-            return Pol.PolicyFunctions.Abstaining(Pol.Cause.UnreadStock);
+            return Pol.WorkRules.Abstaining(Pol.Cause.UnreadStock);
         }
         if (!gap.TryGetValue(out var g) || !(g > 0))
         {
@@ -228,7 +228,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         var resource = rd.ResourceNative ?? rd.Native as FacadeNativeClient;
         if (native is null || resource is null)
         {
-            return Pol.PolicyFunctions.Abstaining(Pol.Cause.UnreadNativeRead);
+            return Pol.WorkRules.Abstaining(Pol.Cause.UnreadNativeRead);
         }
         var identity = Boundary.Identity(snapshot);
         Bridge.DefinitionCatalog? catalog;
@@ -282,7 +282,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             var mines = new List<Pol.ResourceSource>();
             foreach (var row in rows)
             {
-                if (row.Method == Pol.ResourceSourceMethod.Mine && !row.Taken && Pol.PolicyFunctions.MineSafe(row.Safety))
+                if (row.Method == Pol.ResourceSourceMethod.Mine && !row.Taken && Pol.ResourceRules.MineSafe(row.Safety))
                 {
                     mines.Add(row);
                 }
@@ -311,7 +311,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             // An unread packed count leaves the fact unknown, as Go ignores the error.
         }
         var plan = Pol.PolicyFunctions.DeclareExportOrders(request);
-        rd.Exports.SetView(snapshot, Pol.PolicyFunctions.NewExportView(plan, gap));
+        rd.Exports.SetView(snapshot, Pol.WorkRules.NewExportView(plan, gap));
         SetWorking(plan.Declared.Orders.Count > 0);
         return plan.Declared;
     }

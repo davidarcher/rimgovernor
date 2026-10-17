@@ -67,7 +67,7 @@ public static class QuestSurvey
         site = site with { HoldTicks = Known(duration) };
         var fk = offer.ThreatPoints.TryGetValue(out var forced);
         var ik = site.ThreatPoints.TryGetValue(out var initial);
-        if (!fk || !ik || !Finite(forced) || !Finite(initial) || forced < 0 || initial < 0)
+        if (!fk || !ik || !TradePolicyRules.Finite(forced) || !TradePolicyRules.Finite(initial) || forced < 0 || initial < 0)
         {
             return (site, "threat_unknown");
         }
@@ -81,7 +81,7 @@ public static class QuestSurvey
         {
             return "site_unknown";
         }
-        return PlanSurvey(offer, site, f, f.AnimalUpkeep.Food, DefaultRoundsPolicy()).Reason;
+        return PlanSurvey(offer, site, f, f.AnimalUpkeep.Food, RoundsRules.DefaultRoundsPolicy()).Reason;
     }
 
     /// <summary>
@@ -256,7 +256,7 @@ public static class QuestSurvey
         var xk = site.Extraction.TryGetValue(out var extraction);
         var runway = 0.0;
         var rk = xk && extraction!.InventoryFoodDays.TryGetValue(out runway);
-        if (!xk || !rk || !Finite(runway) || runway < 0)
+        if (!xk || !rk || !TradePolicyRules.Finite(runway) || runway < 0)
         {
             return result with { Reason = "survey_supply_unknown" };
         }

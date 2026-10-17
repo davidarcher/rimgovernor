@@ -81,7 +81,7 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return (ceremony, true);
         }
-        return NextThroneNeed(royalty);
+        return ThroneRules.NextThroneNeed(royalty);
     }
 
     /// <summary>
@@ -110,7 +110,7 @@ partial class RoundsSleepingUpkeepPlanner
                 }
             }
         }
-        var claim = NextTitleClaim(new Pol.TitleClaimFacts
+        var claim = TitleClaimRules.NextTitleClaim(new Pol.TitleClaimFacts
         {
             Royalty = royalty!,
             Sleeping = sleeping,
@@ -149,7 +149,7 @@ partial class RoundsSleepingUpkeepPlanner
             return new Pol.ThroneStep();
         }
         facts.Royalty.TryGetValue(out var royalty);
-        var step = NextThroneStep(plan!, rooms!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census.Buildings, need, defs, royalty!.Thrones);
+        var step = ThroneRules.NextThroneStep(plan!, rooms!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census.Buildings, need, defs, royalty!.Thrones);
         if (step.Kind != Pol.ThroneStepKind.None)
         {
             return step;
@@ -161,7 +161,7 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return step;
         }
-        return NextThroneRefuel(plan, rooms!, need, lighting!.Lamps, workers!);
+        return ThroneRules.NextThroneRefuel(plan, rooms!, need, lighting!.Lamps, workers!);
     }
 
     /// <summary>Adds the throne room's impressiveness target to the room quality targets, so the room upgrade and the beauty upgrade furnish it.</summary>
@@ -175,7 +175,7 @@ partial class RoundsSleepingUpkeepPlanner
             return targets;
         }
         targets ??= new Dictionary<string, Pol.RoomTarget>(StringComparer.Ordinal);
-        foreach (var (id, t) in ThroneRoomTargets(plan!, rooms!, need))
+        foreach (var (id, t) in ThroneRules.ThroneRoomTargets(plan!, rooms!, need))
         {
             targets[id] = t;
         }

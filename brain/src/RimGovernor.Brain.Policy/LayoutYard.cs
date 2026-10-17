@@ -4,7 +4,7 @@ public sealed partial record LayoutPlan
 {
     /// <summary>The materials yard an outline holds: an Outdoor room on the outline less its one-cell margin.</summary>
     internal static PlannedRoom YardRoom(Rectangle outline) =>
-        new() { Role = PolicyFunctions.PlannedYard, Region = PolicyFunctions.RectRegion(PolicyFunctions.Pad(outline, -1)), Outdoor = true };
+        new() { Role = PolicyFunctions.PlannedYard, Region = RegionRules.RectRegion(PolicyFunctions.Pad(outline, -1)), Outdoor = true };
 }
 
 /// <summary>Ports <c>layout_yard.go</c>: the materials yard, a planned Outdoor room beside the core.</summary>

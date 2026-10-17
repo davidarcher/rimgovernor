@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class RefusalBudgetRules
 {
     // Budget verdict codes. A planner journals the Code as the stable reason of its decision and the Reason beside it.
 
@@ -85,15 +85,15 @@ public sealed record RefusalBudget
             switch (e.Class)
             {
                 case RefusalClass.Permanent:
-                    return (false, new BudgetVerdict { Code = BudgetSpent, Reason = e.Reason, Class = e.Class });
+                    return (false, new BudgetVerdict { Code = RefusalBudgetRules.BudgetSpent, Reason = e.Reason, Class = e.Class });
                 case RefusalClass.Transient:
                     if (e.World == world && waiting.Code.Length == 0)
                     {
-                        waiting = new BudgetVerdict { Code = BudgetWaiting, Reason = e.Reason, Class = e.Class };
+                        waiting = new BudgetVerdict { Code = RefusalBudgetRules.BudgetWaiting, Reason = e.Reason, Class = e.Class };
                     }
                     break;
                 default:
-                    unknown = new BudgetVerdict { Code = BudgetUnknown, Reason = e.Reason, Class = RefusalClass.Unknown };
+                    unknown = new BudgetVerdict { Code = RefusalBudgetRules.BudgetUnknown, Reason = e.Reason, Class = RefusalClass.Unknown };
                     break;
             }
         }

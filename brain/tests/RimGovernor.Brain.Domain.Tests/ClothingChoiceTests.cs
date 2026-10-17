@@ -48,8 +48,8 @@ public sealed class ClothingChoiceTests
     { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options) };
     private static RoundsFacts Facts(double cloth = 30, double wool = 30) => WorkResourceTestFacts.Create("tailor", "helper") with
     { Resources = Known<EquatableArray<Amount>>([new(new("Cloth"), (long)cloth), new(new("Wool"), (long)wool)]) };
-    private static WorkResourceView Resources(double cloth = 30, double wool = 30) => WorkResourcesOf(
-        WorkAdmissionEvidenceOf(Facts(cloth, wool), Known(default(EquatableArray<ProductionBatch>))), Known(default(EquatableArray<ProductionBatch>)), []);
+    private static WorkResourceView Resources(double cloth = 30, double wool = 30) => WorkRules.WorkResourcesOf(
+        ProductionRules.WorkAdmissionEvidenceOf(Facts(cloth, wool), Known(default(EquatableArray<ProductionBatch>))), Known(default(EquatableArray<ProductionBatch>)), []);
     private static PawnActivities? Start(GearObservation census, RecipeActivityRead read, WorkResourceView resources,
         out ForecastActivityOutcomeComparison? comparison)
     {
@@ -77,12 +77,12 @@ public sealed class ClothingChoiceTests
         var census = Census(0); var read = Read(Option("Cloth"), Option("Wool"));
         Assert.Equal("Cloth", Recipe(Start(census, read, Resources(), out _)!).Stuff);
         var facts = Facts() with { ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("Cloth")] = 30 }) };
-        var resources = WorkResourcesOf(WorkAdmissionEvidenceOf(facts, Known(default(EquatableArray<ProductionBatch>))), Known(default(EquatableArray<ProductionBatch>)), []);
+        var resources = WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(facts, Known(default(EquatableArray<ProductionBatch>))), Known(default(EquatableArray<ProductionBatch>)), []);
         Assert.Equal("Cloth", Recipe(Start(census, read, resources, out _)!).Stuff); // A standing site is optional.
-        var evidence = WorkAdmissionEvidenceOf(Facts(), Known(default(EquatableArray<ProductionBatch>))) with
+        var evidence = ProductionRules.WorkAdmissionEvidenceOf(Facts(), Known(default(EquatableArray<ProductionBatch>))) with
         { Buildings = Known<EquatableArray<WorkBuildingCost>>([new("TestWall", "Cloth", Known<EquatableArray<Amount>>([new(new("Cloth"), 30)]))]) };
         var wall = DomainAction.NewBuildingAction(new("competing-wall"), new("TestWall", new(3, 3), Rotation.North, "Cloth"), ConstructionTier.Survive);
-        var committed = WorkResourcesOf(evidence, Known(default(EquatableArray<ProductionBatch>)),
+        var committed = WorkRules.WorkResourcesOf(evidence, Known(default(EquatableArray<ProductionBatch>)),
             [new(new("construction-method"), wall, new() { Action = wall.Id, Stage = Stage.Pending })]);
         Assert.Equal("Wool", Recipe(Start(census, read, committed, out _)!).Stuff);
         Assert.Null(Start(census, read, Resources(0, 0), out _));
@@ -139,15 +139,15 @@ public sealed class ClothingChoiceTests
         var empty = Resources(0, 0).Evidence with
         { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("existing", [new(new("Cloth"), Known(10.0), Known("standing-bill"))])]) };
         Assert.Null(Start(Census(), Read(Option("Cloth") with { Bill = "standing-bill" }),
-            WorkResourcesOf(empty, Known(default(EquatableArray<ProductionBatch>)), []), out _));
+            WorkRules.WorkResourcesOf(empty, Known(default(EquatableArray<ProductionBatch>)), []), out _));
         var evidence = Resources(10, 0).Evidence with { Promises = empty.Promises };
-        var resources = WorkResourcesOf(evidence, Known(default(EquatableArray<ProductionBatch>)), []);
+        var resources = WorkRules.WorkResourcesOf(evidence, Known(default(EquatableArray<ProductionBatch>)), []);
         var selected = Start(Census(), Read(Option("Cloth") with { Bill = "standing-bill" }), resources, out _)!;
         Assert.Equal("standing-bill", Recipe(selected).Bill);
         Assert.Null(Start(Census(), Read(Option("Cloth")), resources, out _));
         evidence = Resources(100, 0).Evidence with
         { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("existing", [new(new("Cloth"), Known(100.0), Known("standing-bill"))])]) };
-        resources = WorkResourcesOf(evidence, Known(default(EquatableArray<ProductionBatch>)), []);
+        resources = WorkRules.WorkResourcesOf(evidence, Known(default(EquatableArray<ProductionBatch>)), []);
         var other = Option("Cloth", "Pants", pawn: "helper", bench: "other-bench") with
         { Inputs = [Input("other-stack", "Cloth")], Destination = new(16, 15) };
         var bundle = Start(Census(20, Garment("Shirt", "Cloth"), Garment("Pants", "Cloth", group: "Legs")),
@@ -201,7 +201,7 @@ public sealed class ClothingChoiceTests
             Current = world,
             Tick = new(100),
             Enabled = true,
-            Policy = DefaultRoundsPolicy(),
+            Policy = RoundsRules.DefaultRoundsPolicy(),
             Facts = Facts() with { Gear = Known(Census()) }
         }, ct);
         var batch = Start(Census(), Read(Option("Cloth")), journal.WorkResources(world, ct), out _)!;

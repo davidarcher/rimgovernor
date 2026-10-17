@@ -41,7 +41,7 @@ public sealed record ControlledEnvironment
         var result = new Dictionary<Cell, string>();
         foreach (var l in Lights)
         {
-            if (!Positive(l.LitNow))
+            if (!RoundsRules.Positive(l.LitNow))
             {
                 continue;
             }

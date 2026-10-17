@@ -25,7 +25,7 @@ public static partial class PolicyFunctions
         }
 
         var wanted = new HashSet<Resource>();
-        if (Positive(review.Recovered))
+        if (RoundsRules.Positive(review.Recovered))
         {
             return (wanted, true);
         }

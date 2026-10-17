@@ -67,7 +67,7 @@ public sealed partial record LayoutPlan
         return new PlannedRoom
         {
             Role = role,
-            Region = PolicyFunctions.RectRegion(inner),
+            Region = RegionRules.RectRegion(inner),
             Outdoor = role.IsOutdoor(),
             Herd = herd,
             Door = new Cell(inner.X + (inner.Width / 2), inner.Z - 1),

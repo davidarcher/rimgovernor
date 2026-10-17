@@ -20,11 +20,11 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>The planner resolved to the power method the policy picked, or the verdict that says why none applies.</summary>
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectPower(ColonyProjection facts, IReadOnlyList<string> pendingConsumers)
     {
-        var planning = PolicyFunctions.DefaultPowerPlanning();
+        var planning = PowerRules.DefaultPowerPlanning();
         var crops = RoundsFieldPlanner.CropChoices(facts);
         var biome = facts.CropClimate.Biome;
-        var skill = PolicyFunctions.GrowerSkill(facts.WorkPawns);
-        var generators = facts.GeneratorOptions(fuel => PolicyFunctions.ResourceGrowable(crops, fuel, biome, skill));
+        var skill = TreePlantationRules.GrowerSkill(facts.WorkPawns);
+        var generators = facts.GeneratorOptions(fuel => TreePlantationRules.ResourceGrowable(crops, fuel, biome, skill));
         planning = planning with
         {
             Generators = generators,
@@ -38,10 +38,10 @@ public sealed partial class RoundsBuildingPlanner
         };
         if (facts.LayoutPlan.TryGetValue(out var plan))
         {
-            planning = planning with { Net = PolicyFunctions.PlannedNetOf(plan) };
+            planning = planning with { Net = PowerRules.PlannedNetOf(plan) };
         }
 
-        var proposal = PolicyFunctions.SelectPowerMethod(facts.PowerPlanning, facts.Bounds, facts.Cells, [], planning);
+        var proposal = PowerRules.SelectPowerMethod(facts.PowerPlanning, facts.Bounds, facts.Cells, [], planning);
         switch (proposal.Method)
         {
             case PowerMethod.Unknown:
@@ -52,7 +52,7 @@ public sealed partial class RoundsBuildingPlanner
                 return (null, NoSpace("power_route"));
             case PowerMethod.NoGenerator:
             {
-                var gate = PolicyFunctions.ResearchGate(RoundsBuildingPlanner.GeneratorResearch(facts), facts.Facts.Research);
+                var gate = ResearchRules.ResearchGate(RoundsBuildingPlanner.GeneratorResearch(facts), facts.Facts.Research);
                 if (gate != "")
                 {
                     return (null, ResearchWait(gate));
@@ -400,7 +400,7 @@ partial class RoundsBuildingPlanner
         var output = new List<string>();
         foreach (var h in held)
         {
-            if (h.Progress.Action.Building is not { } b || !RoundsPendingWork.PendingWork(h.Progress) || PolicyFunctions.PowerFamilyDefinitions().Contains(b.Definition))
+            if (h.Progress.Action.Building is not { } b || !RoundsPendingWork.PendingWork(h.Progress) || PowerRules.PowerFamilyDefinitions().Contains(b.Definition))
             {
                 continue;
             }
@@ -471,7 +471,7 @@ partial class RoundsBuildingPlanner
     }
 
     internal static bool PowerDefinition(string name) =>
-        name is "PowerConduit" or "HiddenConduit" or "WaterproofConduit" || PolicyFunctions.PowerFamilyDefinitions().Contains(name);
+        name is "PowerConduit" or "HiddenConduit" or "WaterproofConduit" || PowerRules.PowerFamilyDefinitions().Contains(name);
 
     internal static IReadOnlySet<Cell> PorchCells(ColonyProjection facts)
     {

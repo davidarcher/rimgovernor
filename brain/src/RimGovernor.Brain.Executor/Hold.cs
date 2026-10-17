@@ -27,10 +27,10 @@ public sealed partial class Executor
         [Reason.NativeIneligible] = HeldReason.NativeIneligible,
         [PolicyFunctions.ExcavationUnsupported] = HeldReason.ExcavationUnsupported,
         [PolicyFunctions.ExcavationGeometryChanged] = HeldReason.ExcavationGeometryChanged,
-        [PolicyFunctions.UnsafeRoute] = HeldReason.UnsafeRoute,
-        [PolicyFunctions.RoofSupportRisk] = HeldReason.RoofSupportRisk,
-        [PolicyFunctions.StorageMissing] = HeldReason.StorageMissing,
-        [PolicyFunctions.UrgentCompetingWork] = HeldReason.UrgentCompetingWork,
+        [RemoteRules.UnsafeRoute] = HeldReason.UnsafeRoute,
+        [RemoteRules.RoofSupportRisk] = HeldReason.RoofSupportRisk,
+        [RemoteRules.StorageMissing] = HeldReason.StorageMissing,
+        [RemoteRules.UrgentCompetingWork] = HeldReason.UrgentCompetingWork,
     }.ToFrozenDictionary();
 
     // Durably records a refused-but-not-yet-dispatched action's admission-refusal reasons via the journal's

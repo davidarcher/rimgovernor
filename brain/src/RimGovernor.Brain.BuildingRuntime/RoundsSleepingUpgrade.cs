@@ -35,13 +35,13 @@ partial class RoundsSleepingUpkeepPlanner
             return (new Pol.RoomUpgrade(), false);
         }
         facts.TechTier.TryGetValue(out var tier);
-        var targets = RoomQualityTargets(obs!, traits, tier, facts.Impressiveness);
-        foreach (var (id, t) in CommonRoomTargets(obs!, tier, facts.Impressiveness))
+        var targets = RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness);
+        foreach (var (id, t) in RoomQualityRules.CommonRoomTargets(obs!, tier, facts.Impressiveness))
         {
             targets.TryAdd(id, t);
         }
         targets = WithThroneTargets(facts, targets);
-        return NextRoomUpgrade(obs!, UpgradeTargetsOf(facts, targets), FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def));
+        return RoomQualityRules.NextRoomUpgrade(obs!, UpgradeTargetsOf(facts, targets), FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def));
     }
 
     /// <summary>The next bed replacement step, read from the same census as RoomUpgradeOf.</summary>
@@ -83,7 +83,7 @@ partial class RoundsSleepingUpkeepPlanner
                 }
             }
         }
-        return NextBedReplacement(obs!, UpgradeTargetsOf(facts, RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), materials);
+        return RoomQualityRules.NextBedReplacement(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), materials);
     }
 
     /// <summary>The next unmet royal bedroom thing.</summary>
@@ -96,7 +96,7 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return (new Pol.RoomUpgrade(), false);
         }
-        return NextTitleFurniture(obs!, FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def));
+        return RoomQualityRules.NextTitleFurniture(obs!, FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def));
     }
 
     /// <summary>The next animal sleeping spot for a master's solo bedroom: none while the definition is unavailable or unsized.</summary>
@@ -142,7 +142,7 @@ partial class RoundsSleepingUpkeepPlanner
         {
             definitions[d.Name] = new Pol.FloorDefinition { Available = d.Available, Terrain = d.Terrain, Cleanliness = d.Cleanliness, Beauty = d.Beauty, Flammability = d.Flammability, PathCost = d.PathCost, Costs = d.Costs, WorkToBuild = d.WorkToBuild };
         }
-        return NextBeautyUpgrade(obs!, UpgradeTargetsOf(facts, WithThroneTargets(facts, RoomQualityTargets(obs!, traits, tier, facts.Impressiveness))), FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), facts.Facts.Upkeep.Flooring, floors);
+        return RoomQualityRules.NextBeautyUpgrade(obs!, UpgradeTargetsOf(facts, WithThroneTargets(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness))), FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), facts.Facts.Upkeep.Flooring, floors);
     }
 }
 
@@ -158,7 +158,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "old_bed_removal") };
         }
         // A real bed is packed, not deconstructed: the stored bed furnishes the next bedroom or bed spot (PackShellBed, ReinstallStoredBed).
-        if (rep.Def == "Bed" || rep.Def == SleepingCoupleBedDefinition)
+        if (rep.Def == "Bed" || rep.Def == SleepingRules.SleepingCoupleBedDefinition)
         {
             var value = new MoveBuilding(rep.Bed, rep.Def, rep.Cell, Rotation.South);
             var id = PlanIds.MintPlanId();

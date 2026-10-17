@@ -27,7 +27,7 @@ public sealed record MedicineCarryPawn
 /// reserve target: medicine already carried counts back into the budget, so the decision does not flip once pawns
 /// pick it up.
 /// </summary>
-public static partial class PolicyFunctions
+public static partial class MedicineCarryRules
 {
     public const int DoctorMaxCarry = PawnSettingsConstants.MaxMedicineCarry;
     public const int FieldMaxCarry = 2;

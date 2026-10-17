@@ -66,7 +66,7 @@ public sealed class ConsumptionLedger
         _first = p.FirstHour;
         foreach (var hour in _hours.Keys.ToList())
         {
-            if (hour <= _through - ConsumptionWindowHours)
+            if (hour <= _through - ResourceRules.ConsumptionWindowHours)
             {
                 _hours.Remove(hour);
             }
@@ -95,7 +95,7 @@ public sealed class ConsumptionLedger
             }
             foreach (var row in rows)
             {
-                if (PolicyFunctions.RecurringReasons.Contains(row.Reason))
+                if (ResourceRules.RecurringReasons.Contains(row.Reason))
                 {
                     recurring[row.Resource] = recurring.GetValueOrDefault(row.Resource) + row.Count;
                 }
@@ -109,7 +109,7 @@ public sealed class ConsumptionLedger
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class ResourceRules
 {
     /// <summary>One ring hour.</summary>
     public const int ConsumptionHourTicks = 2500;

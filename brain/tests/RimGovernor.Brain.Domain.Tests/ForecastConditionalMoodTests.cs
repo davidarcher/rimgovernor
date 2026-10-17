@@ -282,7 +282,7 @@ public sealed class ForecastConditionalMoodTests
             Needs = new() { Tick = 100, Pawns = [pawn] },
             Coupled = new() { Tick = 100, Food = new() { Known = true }, Routes = [new("pawn", new(1, 1), new(1, 1), Known(0d)) { FromStart = true }] },
         } };
-        facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)!;
         facts = facts with { CoupledAlternatives = candidates };
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,

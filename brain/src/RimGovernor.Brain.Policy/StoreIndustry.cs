@@ -37,7 +37,7 @@ internal sealed class IndustryOwner : IStoreOwner
                     {
                         Role = StockpileRolesConstants.IngredientsPrefix + input.Bench,
                         Exact = true,
-                        Regions = PolicyFunctions.CellRects(PolicyFunctions.CellSet(room!.Cells)),
+                        Regions = PolicyFunctions.CellRects(StockpileRules.CellSet(room!.Cells)),
                         Width = BenchStoreSize,
                         Height = BenchStoreSize,
                         Roofed = true,

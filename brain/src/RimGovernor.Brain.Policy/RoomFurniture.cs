@@ -89,7 +89,7 @@ public sealed partial record RoomFurniture
     /// The beds the hospital planner stages, the sleeping beds except a bedroll, which only the sleeping
     /// planner stages (it checks the stuff on hand, the hospital planner does not).
     /// </summary>
-    public IReadOnlyList<string> HospitalBeds() => SleepingBeds().Where(def => !PolicyFunctions.SleepingBedrolls.Contains(def)).ToList();
+    public IReadOnlyList<string> HospitalBeds() => SleepingBeds().Where(def => !SleepingRules.SleepingBedrolls.Contains(def)).ToList();
 
     /// <summary>The single bed the planners stage first (the jail's bed, the bedroom and hospital templates' default bed); empty when the catalog has none.</summary>
     public string PrimaryBed()

@@ -133,7 +133,7 @@ public static partial class PolicyFunctions
                 {
                     context = context with { Ingredients = HumanCookingIngredients(supply, humans.Consumers, f.FoodPlan, HumanMeatRoute.Meals) };
                 }
-                var (selected, known) = SelectProductionBill(PolicyConstants.CookFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays, context);
+                var (selected, known) = ProductionRules.SelectProductionBill(PolicyConstants.CookFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays, context);
                 if (known)
                 {
                     selections.Add(selected);
@@ -150,7 +150,7 @@ public static partial class PolicyFunctions
                 {
                     return Gap(FoodOrderGap.Field, "food_reserve");
                 }
-                var (selected, known) = SelectProductionBill(PolicyConstants.PreserveFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays, new ProductionBillContext { Reserve = reserve });
+                var (selected, known) = ProductionRules.SelectProductionBill(PolicyConstants.PreserveFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays, new ProductionBillContext { Reserve = reserve });
                 if (known)
                 {
                     selections.Add(selected);
@@ -173,7 +173,7 @@ public static partial class PolicyFunctions
                 {
                     return dk ? Gap(FoodOrderGap.NoDeficit, "") : Gap(FoodOrderGap.Field, "food_days");
                 }
-                var (selected, known) = SelectProductionBill(PolicyConstants.ButcherFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays);
+                var (selected, known) = ProductionRules.SelectProductionBill(PolicyConstants.ButcherFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays);
                 if (known)
                 {
                     selections.Add(selected);
@@ -197,7 +197,7 @@ public static partial class PolicyFunctions
                 {
                     return Gap(FoodOrderGap.NoDeficit, "");
                 }
-                var (selected, known) = SelectProductionBill(PolicyConstants.CookAheadFood, census, f.Colonists, f.FoodDays, r.Warm, r.TargetDays);
+                var (selected, known) = ProductionRules.SelectProductionBill(PolicyConstants.CookAheadFood, census, f.Colonists, f.FoodDays, r.Warm, r.TargetDays);
                 if (known)
                 {
                     selections.Add(selected);
@@ -226,11 +226,11 @@ public static partial class PolicyFunctions
         var order = SelectFoodOrder(r);
         if (order.Gap == FoodOrderGap.Field)
         {
-            return Abstaining(Cause.UnreadFoodFacts);
+            return WorkRules.Abstaining(Cause.UnreadFoodFacts);
         }
         if (order.Gap == FoodOrderGap.Plan)
         {
-            return Abstaining(Cause.UnreadFoodPlan);
+            return WorkRules.Abstaining(Cause.UnreadFoodPlan);
         }
         _ = r.Benches.TryGetValue(out var census);
         var kinds = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -243,12 +243,12 @@ public static partial class PolicyFunctions
         {
             if (!kinds.TryGetValue(selected.Bench, out var kind) || kind.Length == 0)
             {
-                return Abstaining(Cause.UnreadBenchDef);
+                return WorkRules.Abstaining(Cause.UnreadBenchDef);
             }
             var (spec, known) = AdequateOrder(selected.Order(kind), benches);
             if (!known)
             {
-                return Abstaining(Cause.UnreadBills);
+                return WorkRules.Abstaining(Cause.UnreadBills);
             }
             orders.Add(spec);
         }
@@ -257,7 +257,7 @@ public static partial class PolicyFunctions
             return new Declared { Orders = orders };
         }
         var (standing, standingKnown) = StandingOrders(benches, FoodFamily(r.Purpose));
-        return AbstainUnless(UnreadIf(!standingKnown, Cause.UnreadBills), standing);
+        return WorkRules.AbstainUnless(WorkRules.UnreadIf(!standingKnown, Cause.UnreadBills), standing);
     }
 
     /// <summary>Whether a bill belongs to a purpose's family.</summary>
@@ -301,7 +301,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static (OrderSpec Spec, bool Known) AdequateOrder(OrderSpec want, IReadOnlyList<GearBench> benches)
     {
-        if (WireClass(want.Mode) != BillMode.StockTarget)
+        if (WorkRules.WireClass(want.Mode) != BillMode.StockTarget)
         {
             return (want, true);
         }
@@ -320,7 +320,7 @@ public static partial class PolicyFunctions
                     return (new OrderSpec(), false);
                 }
                 if (bill.Spent || bill.Kind != LedgerBillKind.Production || spec.BenchKind != want.BenchKind || spec.Recipe != want.Recipe
-                    || WireClass(spec.Mode) != BillMode.StockTarget || spec.Worker != want.Worker || spec.Target < want.Target
+                    || WorkRules.WireClass(spec.Mode) != BillMode.StockTarget || spec.Worker != want.Worker || spec.Target < want.Target
                     || !SameSet(spec.Ingredients, want.Ingredients))
                 {
                     continue;
@@ -346,7 +346,7 @@ public static partial class PolicyFunctions
     public static (OrderSpec Spec, MedicineMethodKind Kind, bool Ok) FoodStorageMealOrder(FoodStorageMethod choice, IReadOnlyList<GearBench> benches)
     {
         var bare = benches.Select(b => b with { Bills = Known<EquatableArray<GearBill>>([]) }).ToList();
-        var picked = SelectMedicineMethod(
+        var picked = MedicalRules.SelectMedicineMethod(
             new MedicinePlanningRequest
             {
                 Review = new MedicalReserveReview { Active = true, Target = Known(choice.Target) },
@@ -375,6 +375,6 @@ public static partial class PolicyFunctions
     public static Declared StandingStockOrders(IReadOnlyList<GearBench> benches, Resource resource)
     {
         var (orders, known) = StandingOrders(benches, b => b.Products.Contains(resource));
-        return AbstainUnless(UnreadIf(!known, Cause.UnreadBills), orders);
+        return WorkRules.AbstainUnless(WorkRules.UnreadIf(!known, Cause.UnreadBills), orders);
     }
 }

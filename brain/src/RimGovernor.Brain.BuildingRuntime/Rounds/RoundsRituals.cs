@@ -10,7 +10,7 @@ public sealed partial class Rounder
         {
             var emergency = EmergencySnapshot.New(snapshot, tick, reading.Emergency);
             var (hostiles, patients) = PolicyFunctions.EmergencyNeeds(emergency, snapshot, tick);
-            return PolicyFunctions.RitualCalm(hostiles, patients);
+            return RitualRules.RitualCalm(hostiles, patients);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

@@ -10,7 +10,7 @@ public sealed record IngredientReservation
 }
 
 /// <summary>Ports <c>material_budget.go</c>.</summary>
-public static partial class PolicyFunctions
+public static partial class MaterialBudgetRules
 {
     /// <summary>
     /// What free stock already owes elsewhere: every standing blueprint's and frame's undelivered material, and

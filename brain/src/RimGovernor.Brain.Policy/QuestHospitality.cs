@@ -85,7 +85,7 @@ public static class QuestHospitality
             }
             if (profile.Family != QuestFamily.HospitalityAnimals && profile.Family != QuestFamily.HospitalityPrisoners && profile.Family != QuestFamily.ShuttleRescue)
             {
-                var review = ReviewSleeping(f.Sleeping, new SleepingHistory(), tick);
+                var review = SleepingRules.ReviewSleeping(f.Sleeping, new SleepingHistory(), tick);
                 if (review.Targets.TryGetValue(out var targets))
                 {
                     f.Sleeping.TryGetValue(out var sleeping);

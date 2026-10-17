@@ -36,7 +36,7 @@ public sealed record WorkAdmissionEvidence
         ? Known(EquatableArray.From(rows.Select(p => new ForecastCommitment(p.Id, default) { MaterialClaims = p.Claims }))) : default;
 }
 
-public static partial class PolicyFunctions
+public static partial class ProductionRules
 {
     public static Fact<EquatableArray<ProductionBatch>> PriceProductionBatches(
         Fact<EquatableArray<ProductionBatch>> batches, Fact<EquatableArray<ProductionRecipeInput>> recipes)
@@ -51,7 +51,7 @@ public static partial class PolicyFunctions
         Fact<EquatableArray<ProductionBatch>> batches)
     {
         var priced = PriceProductionBatches(batches, facts.WorkAdmission.Recipes);
-        var promises = CreditCarriedBillInputs(ProductionPromisesOf(priced, facts.WorkAdmission.Bills), facts.WorkResources);
+        var promises = WorkRules.CreditCarriedBillInputs(ProductionPromisesOf(priced, facts.WorkAdmission.Bills), facts.WorkResources);
         return new()
         {
             Tick = facts.Tick, Buildings = facts.WorkAdmission.Buildings, WorkResources = facts.WorkResources,
@@ -113,6 +113,6 @@ public static partial class PolicyFunctions
         held.AddRange(pendingClaims);
         held.AddRange(work);
         return SharedMaterialBudgetOf(evidence.Stock, evidence.Construction,
-            ProductionMaterialHoldsOf(Known(MergeWorkMaterialPromises(held)), evidence.Reservations));
+            ProductionMaterialHoldsOf(Known(WorkRules.MergeWorkMaterialPromises(held)), evidence.Reservations));
     }
 }

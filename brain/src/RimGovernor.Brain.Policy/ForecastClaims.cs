@@ -61,7 +61,7 @@ public static class ForecastClaims
                 }
             }
         }
-        if (!MaterialBudget(stock, Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()), reservations, default)
+        if (!MaterialBudgetRules.MaterialBudget(stock, Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()), reservations, default)
             .TryGetValue(out var free)) return default;
         var result = free.ToDictionary(p => p.Key, p => Known((double)p.Value));
         void Hold(Resource resource, Fact<double> units)

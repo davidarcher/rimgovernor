@@ -356,7 +356,7 @@ public static class WorkPawnProfileExtensions
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class PawnRules
 {
     /// <summary>
     /// Reads the profile from a WorkPawn; unknown traits, incapable rows or age leave those parts empty

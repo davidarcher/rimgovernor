@@ -191,7 +191,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         try
         {
-            return (v, PolicyApi.ParseExcavationKey(key), true);
+            return (v, TunnelSiteRules.ParseExcavationKey(key), true);
         }
         catch (DomainException)
         {

@@ -47,7 +47,7 @@ public static partial class PolicyFunctions
             var mk = f.MeleeEquipped.TryGetValue(out var melee);
             var ak = f.Armed.TryGetValue(out var armed);
             var ck = c.Cell.IsKnown;
-            if (c.ID != target.Id && SquadDefenderEligible(f) && mk && melee && rk && !ranged && ak && armed && ck)
+            if (c.ID != target.Id && SquadDefenseRules.SquadDefenderEligible(f) && mk && melee && rk && !ranged && ak && armed && ck)
             {
                 pool.Add(c);
             }

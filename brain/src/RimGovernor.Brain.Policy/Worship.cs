@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Policy;
 // shared template's slots. Names come from the ideoligion and footprints from the native catalog, never constants
 // here. The ideology read carries no room-quality requirement, so none is staged.
 
-public static partial class PolicyFunctions
+public static partial class WorshipRules
 {
     /// <summary>The worship room the ideoligion owes; Ok is false when it requires no building.</summary>
     public static (ChildRoomNeed Need, bool Ok) WorshipRoomNeed(Ideoligion ideo)

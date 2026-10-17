@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Policy;
 // "title" reason and flooring is the rooms/flooring Need's living tier; the minimum area is not a lever (a room is
 // not enlarged).
 
-public static partial class PolicyFunctions
+public static partial class RoomQualityRules
 {
     /// <summary>The North footprints of the non-bed royal bedroom things the closer places.</summary>
     internal static readonly IReadOnlyDictionary<Resource, Cell> TitleFurnitureSizes = new Dictionary<Resource, Cell>

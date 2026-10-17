@@ -85,9 +85,9 @@ Policy/Hostility.cs|PolicyFunctions.HostilityChanges
 Policy/LayoutCapability.cs|PolicyFunctions.DeriveRoleCapabilities
 Policy/LayoutMining.cs|PolicyFunctions.RoomRock
 Policy/LayoutRooms.cs|LayoutPlan.PlannedShells
-Policy/MedicalCareCap.cs|PolicyFunctions.MedicalCareChanges
-Policy/MedicineCarry.cs|PolicyFunctions.MedicineCarryChanges
-Policy/PawnNames.cs|PolicyFunctions.NicknameChanges
+Policy/MedicalCareCap.cs|MedicalRules.MedicalCareChanges
+Policy/MedicineCarry.cs|MedicineCarryRules.MedicineCarryChanges
+Policy/PawnNames.cs|PawnRules.NicknameChanges
 Policy/QuestCoreSite.cs|QuestCoreSite.CoreSiteJoiner
 Policy/QuestDecrees.cs|QuestDecrees.PlanDecreeProduction
 Policy/QuestMonument.cs|QuestMonument.SelectQuestMonument

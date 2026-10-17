@@ -28,7 +28,7 @@ public static partial class PolicyConstants
     public const string RemoteHoldHazard = "outdoor_hazard";
 }
 
-public static partial class PolicyFunctions
+public static partial class OutdoorHazardRules
 {
     /// <summary>
     /// Derives the active hazards: toxic fallout from the condition census, cold and heat from the outdoor

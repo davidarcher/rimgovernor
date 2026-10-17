@@ -98,7 +98,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
         }
 
         var facts = ColonyFramesReads.ColonyMedicalReserve(observed, tables, await CatalogAsync(identity, call).ConfigureAwait(false)) with { Catalog = items };
-        var medicalReview = PolicyFunctions.ReviewMedicalReserve(facts, true, reviewer.Policy.MedicalReserve);
+        var medicalReview = MedicalRules.ReviewMedicalReserve(facts, true, reviewer.Policy.MedicalReserve);
         if (!medicalReview.Active)
         {
             return new RoundsMedicalResult { Verdict = Verdict.BuildingReasonNoDeficit };
@@ -107,7 +107,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
         var seen = owner.Methods.Select(m => m.Method).ToList();
         var census = await native.ReadGearBenchesAsync(identity, call).ConfigureAwait(false);
         var benches = census.Select(row => row.Bench).ToList();
-        var choice = PolicyFunctions.SelectMedicineMethod(new MedicinePlanningRequest { Review = medicalReview, Resource = medicineResource, Seen = seen, Benches = Known<EquatableArray<GearBench>>([.. benches]) });
+        var choice = MedicalRules.SelectMedicineMethod(new MedicinePlanningRequest { Review = medicalReview, Resource = medicineResource, Seen = seen, Benches = Known<EquatableArray<GearBench>>([.. benches]) });
         if (choice.Kind == MedicineMethodKind.Blocked)
         {
             return await HarvestMedicineAsync(work, observed, tables, medicalReview, facts, medicineResource, stalledSources, started, call).ConfigureAwait(false);
@@ -138,7 +138,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
     }
 
     public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        Task.FromResult(Declare(reviewer.Policy, projection, benches).For(PolicyFunctions.MedicalReservesNeed.FilingKey.Value));
+        Task.FromResult(Declare(reviewer.Policy, projection, benches).For(MedicalRules.MedicalReservesNeed.FilingKey.Value));
 
     /// <summary>
     /// The reserves Need's medicine bill: while the stock is below the target bar, the stock-target bill
@@ -148,10 +148,10 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
     internal static Declared Declare(RoundsPolicy policy, ColonyProjection projection, IReadOnlyList<GearBench> benches)
     {
         var f = projection.Facts;
-        var reserve = PolicyFunctions.MedicalReserveAtTarget(f.MedicalReserve with { Colonists = f.Colonists }, policy.Seasonal(f.Calendar, f.DisasterConditions).MedicalReserve);
+        var reserve = MedicalRules.MedicalReserveAtTarget(f.MedicalReserve with { Colonists = f.Colonists }, policy.Seasonal(f.Calendar, f.DisasterConditions).MedicalReserve);
         if (reserve is null || !reserve.Stock.IsKnown)
         {
-            return PolicyFunctions.Abstaining(Cause.UnreadMedicine);
+            return WorkRules.Abstaining(Cause.UnreadMedicine);
         }
 
         if (!reserve.Active)
@@ -166,10 +166,10 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
         }
         catch (DomainException)
         {
-            return PolicyFunctions.Abstaining(Cause.UnreadMedicine);
+            return WorkRules.Abstaining(Cause.UnreadMedicine);
         }
 
-        var choice = PolicyFunctions.SelectMedicineMethod(new MedicinePlanningRequest { Review = reserve, Resource = medicine, Benches = Known<EquatableArray<GearBench>>([.. benches]) });
+        var choice = MedicalRules.SelectMedicineMethod(new MedicinePlanningRequest { Review = reserve, Resource = medicine, Benches = Known<EquatableArray<GearBench>>([.. benches]) });
         return PolicyFunctions.DeclareMedicine(choice, benches);
     }
 

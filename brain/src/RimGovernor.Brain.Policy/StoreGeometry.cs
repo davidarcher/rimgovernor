@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class StoreRules
 {
     /// <summary>The free roofed walkable cells inside room, never on avoid: what the freezer's catch-all zone may cover.</summary>
     internal static List<Cell> RoomPool(IReadOnlyList<Cell> room, IReadOnlyList<SiteCell> cells, IReadOnlyList<Cell> avoid)

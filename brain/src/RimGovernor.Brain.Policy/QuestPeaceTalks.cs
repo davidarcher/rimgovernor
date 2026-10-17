@@ -12,7 +12,7 @@ public static class QuestPeaceTalksPolicy
         {
             return "site_unknown";
         }
-        return PlanPeaceTalks(offer, site, f, f.AnimalUpkeep.Food, DefaultRoundsPolicy()).Reason;
+        return PlanPeaceTalks(offer, site, f, f.AnimalUpkeep.Food, RoundsRules.DefaultRoundsPolicy()).Reason;
     }
 
     public static ExpeditionPlan PlanPeaceTalks(JoinerOffer offer, ExpeditionSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p)
@@ -119,7 +119,7 @@ public static class QuestPeaceTalksPolicy
         var dk = f.QuestDeparturePawns.TryGetValue(out var departures);
         var ck = f.DefenseCapacity.TryGetValue(out var capacity);
         var rk = f.RaidPoints.TryGetValue(out var raid);
-        if (!sk || !dk || !ck || !rk || !Finite(capacity) || !Finite(raid) || capacity < 0 || raid < 0)
+        if (!sk || !dk || !ck || !rk || !TradePolicyRules.Finite(capacity) || !TradePolicyRules.Finite(raid) || capacity < 0 || raid < 0)
         {
             return (default, "capacity_unknown");
         }
@@ -146,7 +146,7 @@ public static class QuestPeaceTalksPolicy
                 {
                     continue;
                 }
-                if (!departure.DefensePoints.TryGetValue(out var strength) || !Finite(strength) || strength < 0)
+                if (!departure.DefensePoints.TryGetValue(out var strength) || !TradePolicyRules.Finite(strength) || strength < 0)
                 {
                     return (default, "defense_unknown");
                 }

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class RoomRoleRules
 {
     /// <summary>
     /// Builds GuardNativeRoles' input from what the colony observes: for each planned room standing enclosed

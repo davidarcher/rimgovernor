@@ -461,9 +461,9 @@ public static partial class PolicyFunctions
                     // No wall to walk round: the margin a range or ring keeps free of buildings is open ground.
                     block = r.Region.Bounds();
                 }
-                walled.UnionWith(RectCells(block));
+                walled.UnionWith(PlannedRules.RectCells(block));
             }
-            foreach (var c in RectCells(Pad(fp, 1)))
+            foreach (var c in PlannedRules.RectCells(Pad(fp, 1)))
             {
                 if (!walk.ContainsKey(c) && !walled.Contains(c))
                 {

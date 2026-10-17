@@ -25,7 +25,7 @@ public static partial class PolicyFunctions
         }
 
         var sorted = rows.OrderBy(a => a.Id).ToList();
-        var (front, _) = FrontLine(roster);
+        var (front, _) = PawnRules.FrontLine(roster);
         foreach (var a in sorted)
         {
             if (!herd.Roles.TryGetValue(a.Definition, out var role) || role.Retiring)
@@ -135,16 +135,16 @@ public static partial class PolicyFunctions
     /// <summary>The fitting colonist with the highest Animals skill.</summary>
     private static PawnId? HerdBestMaster(IReadOnlyList<PawnProfile> roster, HashSet<PawnId> fit)
     {
-        var candidates = new List<RoleCandidate>();
+        var candidates = new List<PawnRules.RoleCandidate>();
         foreach (var p in roster)
         {
             if (fit.Contains(p.Id))
             {
-                candidates.Add(new RoleCandidate(p.Id, p.SkillFor(WorkType.Handling).Level));
+                candidates.Add(new PawnRules.RoleCandidate(p.Id, p.SkillFor(WorkType.Handling).Level));
             }
         }
 
-        return BestRole(candidates);
+        return PawnRules.BestRole(candidates);
     }
 
     /// <summary>The set of an animal's bond partners on the roster and the first of them by id.</summary>

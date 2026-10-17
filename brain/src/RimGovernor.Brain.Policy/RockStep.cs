@@ -62,7 +62,7 @@ public sealed class UnknownRoofException(RockStepResult result, string roofs) : 
     public RockStepResult Result { get; } = result;
 }
 
-public static partial class PolicyFunctions
+public static partial class RockStepRules
 {
     /// <summary>
     /// Classifies a planned structure's cells against the terrain facts in the frame. A needs-floor cell on
@@ -155,13 +155,13 @@ public static partial class PolicyFunctions
                     }
                     unroof.Add(cell);
                 }
-                if (RockCell(c!))
+                if (TunnelSiteRules.RockCell(c!))
                 {
                     dig.Add(cell);
                 }
                 continue;
             }
-            if (listed && !RockCell(c!))
+            if (listed && !TunnelSiteRules.RockCell(c!))
             {
                 continue;
             }

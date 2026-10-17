@@ -69,14 +69,14 @@ public static partial class PolicyFunctions
         DefTable.Of("threatKinds", "Verse.PawnKindDef", SortedKeys(CombatThreatRules.ThreatKinds)),
         DefTable.Of("threatWeapons", "Verse.ThingDef", SortedKeys(CombatThreatRules.ThreatWeapons)),
         DefTable.Of("gearValuables", "Verse.ThingDef", ResourceKeys(GearValuableDefs)),
-        DefTable.Of("traitStatWeights", "RimWorld.StatDef", SortedKeys(TraitStatWeights)),
-        DefTable.Of("sociableTraits", "RimWorld.TraitDef", SortedKeys(SociableTraits)),
-        DefTable.Of("traitThoughts", "RimWorld.ThoughtDef", TraitThoughts),
-        DefTable.Of("suitePressureThoughts", "RimWorld.ThoughtDef", SortedKeys(SuitePressureThoughts)),
+        DefTable.Of("traitStatWeights", "RimWorld.StatDef", SortedKeys(TraitWorthRules.TraitStatWeights)),
+        DefTable.Of("sociableTraits", "RimWorld.TraitDef", SortedKeys(TraitWorthRules.SociableTraits)),
+        DefTable.Of("traitThoughts", "RimWorld.ThoughtDef", TraitWorthRules.TraitThoughts),
+        DefTable.Of("suitePressureThoughts", "RimWorld.ThoughtDef", SortedKeys(SuitePriorityRules.SuitePressureThoughts)),
         DefTable.Of("GameRoomRoleDefs", "Verse.ThingDef", SortedKeys(GameRoomRoleDefs)),
-        DefTable.Of("roomRoleScores", "Verse.RoomRoleDef", RoomRoleScoreRoles()),
-        DefTable.Of("RoomRoleNamedDefs", "Verse.ThingDef", SortedKeys(RoomRoleNamedDefs)),
-        DefTable.Of("roleEffects", "Verse.RoomRoleDef", RoleEffectRoles()),
+        DefTable.Of("roomRoleScores", "Verse.RoomRoleDef", StationCatalogRules.RoomRoleScoreRoles()),
+        DefTable.Of("RoomRoleNamedDefs", "Verse.ThingDef", SortedKeys(StationCatalogRules.RoomRoleNamedDefs)),
+        DefTable.Of("roleEffects", "Verse.RoomRoleDef", RoomRoleRules.RoleEffectRoles()),
         DefTable.Of("NonFleshMeatDefs", "Verse.ThingDef", NonFleshMeatDefs),
         DefTable.Of("MortarProbeShells", "Verse.ThingDef", MortarProbeShells),
         DefTable.Of("QuestGiftDefs", "Verse.ThingDef", QuestGiftDefs),
@@ -122,7 +122,7 @@ public static partial class PolicyFunctions
         // WindTurbineUtility.CalculateWindCells's, read with ilspycmd; keyed by the turbine def so a rename
         // fails the gate. perimeterTable: DetourBudgetTicks is the one judgment of the perimeter cut's
         // sapper-derived thickness (perimeter_cut.go); the wall def is the building the cut is walled with.
-        DefTable.Of("perimeterTable", "Verse.ThingDef", [PerimeterDefs().WallDef]),
+        DefTable.Of("perimeterTable", "Verse.ThingDef", [PerimeterCutRules.PerimeterDefs().WallDef]),
         DefTable.Of("windPath", "Verse.ThingDef", [WindTurbineDefinition]),
         // interiorTable (#2956): the shelf and lamp the region interior wants beside benches and beds;
         // KitchenStoves is the judgment explained on InteriorDefs().

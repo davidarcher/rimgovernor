@@ -10,7 +10,7 @@ public static partial class PolicyConstants
     // bench is a workspace whose cleanliness the game reads for food poisoning.
     internal static readonly IReadOnlySet<Resource> CookingDefinitions = new HashSet<Resource> { new("Campfire"), new("FueledStove"), new("ElectricStove") };
 
-    internal static readonly IReadOnlySet<Resource> ButcherDefinitions = new HashSet<Resource> { new(ButcherSpotDefinition), new(ButcherTableDefinition) };
+    internal static readonly IReadOnlySet<Resource> ButcherDefinitions = new HashSet<Resource> { new(RoundsRules.ButcherSpotDefinition), new(ButcherTableDefinition) };
 
     internal static readonly IReadOnlySet<Resource> SleepingDefinitions =
         new HashSet<Resource> { new("SleepingSpot"), new("DoubleSleepingSpot"), new("Bed"), new("DoubleBed"), new("RoyalBed") };

@@ -401,7 +401,7 @@ public sealed partial class BrainComposition
     // must declare that goal here, or the review ranks it method_unavailable and the planner never runs.
     internal static (RoundsPolicy Thresholds, RoundsCapabilities Capabilities) RoundsCapabilitiesFor(BrainFamilies sc, bool layoutOverlay)
     {
-        var thresholds = DefaultRoundsPolicy();
+        var thresholds = RoundsRules.DefaultRoundsPolicy();
         // The migrated Needs whose facts the review reads: refrigeration's rooms, training's range and ring definitions,
         // food supply's plan, fields and butchery, cooking's kitchen and meal review, equipment's gear census, the
         // rooms family's room census, beauty definitions, floors and sculpture rooms, and psylink's royalty read and

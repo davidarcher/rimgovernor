@@ -83,7 +83,7 @@ public static partial class CombatPodsRules
         var civilians = new List<SquadDefenderFacts>();
         foreach (var d in view.Defenders.Items)
         {
-            if (SquadDefenderEligible(d) && Positive(d.Armed))
+            if (SquadDefenseRules.SquadDefenderEligible(d) && RoundsRules.Positive(d.Armed))
             {
                 armed.Add(d);
             }
@@ -117,7 +117,7 @@ public static partial class CombatPodsRules
 
                 var d = pool.Dequeue();
                 taken.Add(d.Id);
-                roles.Add(new CombatRole { Pawn = d.Id, Cell = cell, Target = CombatMechRules.NearestHostile(view, cell), Ranged = Positive(d.RangedEquipped), Duty = CombatDuty.Doorway });
+                roles.Add(new CombatRole { Pawn = d.Id, Cell = cell, Target = CombatMechRules.NearestHostile(view, cell), Ranged = RoundsRules.Positive(d.RangedEquipped), Duty = CombatDuty.Doorway });
                 held = true;
             }
 
@@ -129,7 +129,7 @@ public static partial class CombatPodsRules
 
         armed.RemoveAll(d => taken.Contains(d.Id));
         armed = PolicySort.ByLess(armed, (a, b) => Near(a.Id) < Near(b.Id));
-        var n = Math.Max(Math.Min(Math.Max(PodRespondersPerPod * pods.Landing.Count, PodRespondersPerPod), MaxSquadDefenders) - taken.Count, 0);
+        var n = Math.Max(Math.Min(Math.Max(PodRespondersPerPod * pods.Landing.Count, PodRespondersPerPod), SquadDefenseRules.MaxSquadDefenders) - taken.Count, 0);
         if (armed.Count > n)
         {
             armed = armed.GetRange(0, n);
@@ -144,7 +144,7 @@ public static partial class CombatPodsRules
         foreach (var d in armed)
         {
             at.TryGetValue(d.Id, out var from);
-            var role = new CombatRole { Pawn = d.Id, Target = CombatMechRules.NearestHostile(view, from), Ranged = Positive(d.RangedEquipped) };
+            var role = new CombatRole { Pawn = d.Id, Target = CombatMechRules.NearestHostile(view, from), Ranged = RoundsRules.Positive(d.RangedEquipped) };
             if (inner.Count > 0)
             {
                 var i = CombatManhunterRules.NearestIndex(from, inner);
@@ -167,7 +167,7 @@ public static partial class CombatPodsRules
     /// </summary>
     private static List<SquadDefenderFacts> CloseRange(List<SquadDefenderFacts> armed, Dictionary<PawnId, double> reach, Func<PawnId, long> near)
     {
-        static bool Melee(SquadDefenderFacts d) => Positive(d.MeleeEquipped) && !Positive(d.RangedEquipped);
+        static bool Melee(SquadDefenderFacts d) => RoundsRules.Positive(d.MeleeEquipped) && !RoundsRules.Positive(d.RangedEquipped);
         double Range(SquadDefenderFacts d) => reach.TryGetValue(d.Id, out var r) && r > 0 ? r : 1 << 20;
 
         return PolicySort.ByLess(
@@ -427,9 +427,9 @@ public static partial class CombatPodsRules
     /// <summary>A colonist the pods tactic moves but never fights with: alive, up, sane and free, but unarmed or incapable of violence.</summary>
     private static bool Evacuable(SquadDefenderFacts d)
     {
-        var (busy, known) = SquadDraftBusy(d);
-        return !Positive(d.Dead) && !Positive(d.Downed) && !d.MentalState && known && !busy
-            && (!Positive(d.ViolenceCapable) || !Positive(d.Armed));
+        var (busy, known) = SquadDefenseRules.SquadDraftBusy(d);
+        return !RoundsRules.Positive(d.Dead) && !RoundsRules.Positive(d.Downed) && !d.MentalState && known && !busy
+            && (!RoundsRules.Positive(d.ViolenceCapable) || !RoundsRules.Positive(d.Armed));
     }
 
     /// <summary>
@@ -515,7 +515,7 @@ public static partial class CombatPodsRules
                 return true;
             }
 
-            if (view.Positional.Items.Any(t => t.Id == r.Target && (Positive(t.Dead) || Positive(t.Downed))))
+            if (view.Positional.Items.Any(t => t.Id == r.Target && (RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed))))
             {
                 return true;
             }

@@ -155,7 +155,7 @@ partial class RoundsBuildingPlanner
         }
         var sites = census.Sites.Where(s => s.Building is not null).Select(s => s.Building!.Cell);
         var standing = census.Buildings.Where(b => b.Building is not null).Select(b => (b.Building!.Definition, b.Building.Cell)).ToHashSet();
-        return PlannedRoomStarted(plan, room, ground, sites, standing);
+        return PlannedRules.PlannedRoomStarted(plan, room, ground, sites, standing);
     }
 
     /// <summary>The mirror cells inside ground: the room's foreign things are read from them.</summary>
@@ -170,7 +170,7 @@ partial class RoundsBuildingPlanner
         {
             return false;
         }
-        foreach (var op in Reconcile(input).Owed)
+        foreach (var op in ReconcileRules.Reconcile(input).Owed)
         {
             if (op.Kind == Pol.OpKind.WallIn || op.Kind == Pol.OpKind.DoorIn)
             {
@@ -421,7 +421,7 @@ public sealed partial class Rounder
             (throne, _) = plan.ThroneRoomFor(need.MinArea);
             tags = need.FloorTags;
         }
-        return FlooringRoomFloors(room => room.Same(throne) ? tags : [], RoundsBuildingPlanner.FlooringFactsOf(facts), Policy.Flooring);
+        return WantedFloorRules.FlooringRoomFloors(room => room.Same(throne) ? tags : [], RoundsBuildingPlanner.FlooringFactsOf(facts), Policy.Flooring);
     }
 }
 
@@ -445,12 +445,12 @@ public sealed partial class RoundsBuildingPlanner
             return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
         }
         // An unstarted planned room the portfolio assessed is placed only as it selected (#3278).
-        var (gate, selected) = PlannedRoomGateOf(Reviewer.RoomSelection.Get(review.Snapshot), rr.Room.Id, PlannedRoomStartedOf(facts, plan, rr.Room) != false);
+        var (gate, selected) = PlannedRules.PlannedRoomGateOf(Reviewer.RoomSelection.Get(review.Snapshot), rr.Room.Id, PlannedRoomStartedOf(facts, plan, rr.Room) != false);
         if (gate == Pol.PlannedRoomGate.Hold)
         {
             return new RoundsBuildingResult { Verdict = AwaitingPlan("portfolio_selection", rr.Name) };
         }
-        if (gate == Pol.PlannedRoomGate.Selected && SelectedRingStuff(selected) is { } ring)
+        if (gate == Pol.PlannedRoomGate.Selected && PlannedRules.SelectedRingStuff(selected) is { } ring)
         {
             rr = rr with { Stuff = (_, _) => (ring.Wall, ring.Door, default, true) };
         }
@@ -467,7 +467,7 @@ public sealed partial class RoundsBuildingPlanner
                 return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
             }
             var (_, player) = SplitGroundRows(census.Targets);
-            input = input with { Rows = OwnRows(HomeUpkeepReader.StampPacking(player, facts), rr.Template, rr.Forbidden), Floors = census.Floors, Furniture = rr.Template };
+            input = input with { Rows = ReconcileRules.OwnRows(HomeUpkeepReader.StampPacking(player, facts), rr.Template, rr.Forbidden), Floors = census.Floors, Furniture = rr.Template };
             var want = RoundsTierStyle.ShellStyleOf(facts).WallStuff;
             if (want != "" && !rr.Room.Outdoor)
             {
@@ -475,7 +475,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             if (!rr.Room.Outdoor)
             {
-                var (wanted, kept) = FlooringRoomFloors(_ => rr.Tags, FlooringFactsOf(facts), Reviewer.Policy.Flooring)(rr.Room);
+                var (wanted, kept) = WantedFloorRules.FlooringRoomFloors(_ => rr.Tags, FlooringFactsOf(facts), Reviewer.Policy.Flooring)(rr.Room);
                 input = input with { WantedFloor = wanted, FloorKept = kept };
             }
             var items = stock is null ? null : await stock.ItemsAsync(PackedFurnitureDefinition, call).ConfigureAwait(false);
@@ -489,10 +489,10 @@ public sealed partial class RoundsBuildingPlanner
             }
             input = input with { Stock = left };
         }
-        var (ops, holds) = ReconcileRoomHolds(input);
+        var (ops, holds) = ReconcileRules.ReconcileRoomHolds(input);
         if (gate == Pol.PlannedRoomGate.Selected)
         {
-            ops = SelectedPlannedOps(ops, selected);
+            ops = PlannedRules.SelectedPlannedOps(ops, selected);
         }
         if (rr.ClimateOnly)
         {

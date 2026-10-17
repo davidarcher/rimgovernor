@@ -63,7 +63,7 @@ public sealed partial class Store
     /// awaiting_observation rather than ready (Go <c>readyWorkOf</c>).
     /// </summary>
     internal static ReadyWorkReport ReadyWorkOf(RoundsRequest r, IReadOnlyList<RoundsPlan> plans, IReadOnlyList<ConcernId> unserved) =>
-        PolicyFunctions.ProjectReadyWork(
+        ReadyWorkRules.ProjectReadyWork(
             new ReadyRequest
             {
                 Snapshot = r.Current,

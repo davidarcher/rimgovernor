@@ -26,7 +26,7 @@ public sealed record StockZone
     {
         var prefix = Role.Split(':', 2)[0];
         var food = FoodStorage || prefix == "meals" || prefix == "rawfood" || prefix == "ingredients";
-        var general = IsWarehouseRole(Role);
+        var general = StockpileRules.IsWarehouseRole(Role);
         if (!Filter.TryGetValue(out var filter))
         {
             return (food, general, null);
@@ -73,7 +73,7 @@ public sealed record StockLevels
     public double FoodTargetDays { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class StockOverlayRules
 {
     /// <summary>The overlay layer the stockpile shortfall tint draws on.</summary>
     public const string StockLayer = "stock";
@@ -97,7 +97,7 @@ public static partial class PolicyFunctions
         var bands = new List<Cell>[] { [], [], [] };
         foreach (var z in sorted)
         {
-            var cells = z.Cells.Where(c => InBounds(c, bounds)).ToList();
+            var cells = z.Cells.Where(c => SafetyOverlayRules.InBounds(c, bounds)).ToList();
             if (cells.Count == 0)
             {
                 continue;

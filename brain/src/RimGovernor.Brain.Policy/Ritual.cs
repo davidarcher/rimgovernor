@@ -45,7 +45,7 @@ public sealed record RitualPlan
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class RitualRules
 {
     /// <summary>Whether the colony is calm enough to hold a ritual: known no hostile threat and no critical patient. Unknown stays unknown.</summary>
     public static Fact<bool> RitualCalm(Fact<long> hostiles, Fact<long> patients)

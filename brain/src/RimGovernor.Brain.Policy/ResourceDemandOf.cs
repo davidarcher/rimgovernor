@@ -30,7 +30,7 @@ public sealed record DerivedDemand
     public Fact<IReadOnlyDictionary<Resource, long>> Retained { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class ResourceRules
 {
     /// <summary>
     /// Derives the review's resource demand from its facts, in one merge: the evidence needs other goals
@@ -42,8 +42,8 @@ public static partial class PolicyFunctions
     {
         var clothing = f.ClothingRunway();
         var works = ConstructionDemandOf(f, p, l);
-        var holds = ProductionMaterialHoldsOf(f.ProductionPromises, f.BillReservations);
-        var material = SharedMaterialBudgetOf(f.Resources, f.ConstructionDeficit, holds);
+        var holds = ProductionRules.ProductionMaterialHoldsOf(f.ProductionPromises, f.BillReservations);
+        var material = ProductionRules.SharedMaterialBudgetOf(f.Resources, f.ConstructionDeficit, holds);
         if (holds.TryGetValue(out var held))
         {
             works = new Dictionary<Resource, long>(works);
@@ -77,7 +77,7 @@ public static partial class PolicyFunctions
             Works = works,
             Serves = clothing.Serves,
             Retained = holds.TryGetValue(out var knownHolds) && knownHolds.Values.All(a => a.IsKnown)
-                ? TradeRetained(f.ResourceConsumption, f.ResourceRunways, works) : default,
+                ? TradePolicyRules.TradeRetained(f.ResourceConsumption, f.ResourceRunways, works) : default,
         };
     }
 

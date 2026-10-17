@@ -12,7 +12,7 @@ public sealed record SurgeryPart
     public double Value { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class SurgeryRules
 {
     /// <summary>
     /// The medical/surgery Need's bill purpose: one batch bill fabricating a part a restore operation lacks, at a bench
@@ -282,7 +282,7 @@ public static partial class PolicyFunctions
                 var weight = PartWeight(name ?? "");
                 if (profiles.TryGetValue(pawn.Id, out var profile))
                 {
-                    weight *= UpgradeRoleWeight(profile, name ?? "");
+                    weight *= PawnRules.UpgradeRoleWeight(profile, name ?? "");
                 }
                 group[0].Recipe.TryGetValue(out var top);
                 var value = (group[0].Tier - 1) * weight;

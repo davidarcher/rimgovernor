@@ -30,7 +30,7 @@ public static partial class CombatInfestationRules
         var n = 0;
         foreach (var t in view.Threats.Items)
         {
-            if (t.Building || Positive(t.Dead) || Positive(t.Downed) || down.Contains(CombatDecideRules.ThreatPawn(t)))
+            if (t.Building || RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed) || down.Contains(CombatDecideRules.ThreatPawn(t)))
             {
                 continue;
             }
@@ -230,7 +230,7 @@ public static partial class CombatInfestationRules
             }
 
             var lead = m.EffectiveTuning().KiteLeadRange;
-            to = new Cell(at.X + (lead * Sign(at.X - nearest.X)), at.Z + (lead * Sign(at.Z - nearest.Z)));
+            to = new Cell(at.X + (lead * TradePolicyRules.Sign(at.X - nearest.X)), at.Z + (lead * TradePolicyRules.Sign(at.Z - nearest.Z)));
         }
 
         if (m.Kiter == m.Driller)

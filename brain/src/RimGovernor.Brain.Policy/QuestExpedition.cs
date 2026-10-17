@@ -98,7 +98,7 @@ public static class QuestExpedition
                 var ck = security.Known.TryGetValue(out var complete);
                 var ik = security.InitialPoints.TryGetValue(out var initial);
                 var pk = security.PendingRaidPoints.TryGetValue(out var pending);
-                if (ck && complete && ik && pk && Finite(initial) && Finite(pending) && initial >= 0 && pending >= 0)
+                if (ck && complete && ik && pk && TradePolicyRules.Finite(initial) && TradePolicyRules.Finite(pending) && initial >= 0 && pending >= 0)
                 {
                     threat = Known(initial + pending);
                 }
@@ -234,7 +234,7 @@ public static class QuestExpedition
         {
             return "site_unknown";
         }
-        return PlanExpedition(offer, site, f, f.AnimalUpkeep.Food, DefaultRoundsPolicy()).Reason;
+        return PlanExpedition(offer, site, f, f.AnimalUpkeep.Food, RoundsRules.DefaultRoundsPolicy()).Reason;
     }
 
     /// <summary>
@@ -286,7 +286,7 @@ public static class QuestExpedition
         {
             return Fail("route_unreachable");
         }
-        if (!site.ThreatPoints.TryGetValue(out var threat) || !Finite(threat) || threat < 0)
+        if (!site.ThreatPoints.TryGetValue(out var threat) || !TradePolicyRules.Finite(threat) || threat < 0)
         {
             return Fail("threat_unknown");
         }
@@ -314,7 +314,7 @@ public static class QuestExpedition
         var strength = new Dictionary<PawnId, double>();
         foreach (var pawn in rows)
         {
-            if (pawn.DefensePoints.TryGetValue(out var value) && Finite(value) && value >= 0)
+            if (pawn.DefensePoints.TryGetValue(out var value) && TradePolicyRules.Finite(value) && value >= 0)
             {
                 strength[pawn.Id] = value;
             }
@@ -402,7 +402,7 @@ public static class QuestExpedition
                 }
                 var ck = pawn.CarryCapacity.TryGetValue(out var carry);
                 var mk = pawn.CarriedMass.TryGetValue(out var mass);
-                if (!ck || !mk || !Finite(carry) || !Finite(mass) || carry < 0 || mass < 0)
+                if (!ck || !mk || !TradePolicyRules.Finite(carry) || !TradePolicyRules.Finite(mass) || carry < 0 || mass < 0)
                 {
                     return Fail("mass_unknown");
                 }
@@ -424,7 +424,7 @@ public static class QuestExpedition
     internal static (IReadOnlyList<CargoItem> Cargo, QuestSkipReason Reason) ExpeditionFood(FoodSupply supply, IReadOnlyList<PawnId> crew, double days, double homeDays, double capacity)
     {
         IReadOnlyList<CargoItem> none = [];
-        if (!supply.Complete.TryGetValue(out var complete) || !complete || !Finite(days) || days < 1)
+        if (!supply.Complete.TryGetValue(out var complete) || !complete || !TradePolicyRules.Finite(days) || days < 1)
         {
             return (none, "food_unknown");
         }
@@ -436,7 +436,7 @@ public static class QuestExpedition
             if (crew.Contains(consumer.Id))
             {
                 crewSeen.Add(consumer.Id);
-                if (!consumer.NutritionPerDay.TryGetValue(out var rate) || !Finite(rate) || rate <= 0)
+                if (!consumer.NutritionPerDay.TryGetValue(out var rate) || !TradePolicyRules.Finite(rate) || rate <= 0)
                 {
                     return (none, "food_unknown");
                 }
@@ -466,8 +466,8 @@ public static class QuestExpedition
             var rotk = stock.RotTicks.TryGetValue(out var rot);
             var fk = stock.Forbidden.TryGetValue(out var forbidden);
             var mk = stock.UnitMass.TryGetValue(out var mass);
-            if (!owned || !holder.IsEmpty || !ck || count <= 0 || !nk || !Finite(nutrition) || nutrition <= 0 || !pk || stock.Corpse || stock.IsHumanMeat || stock.RawMeat
-                || !fk || forbidden || stock.Reserve || stock.DefName.Value.Length == 0 || !mk || !Finite(mass) || mass < 0)
+            if (!owned || !holder.IsEmpty || !ck || count <= 0 || !nk || !TradePolicyRules.Finite(nutrition) || nutrition <= 0 || !pk || stock.Corpse || stock.IsHumanMeat || stock.RawMeat
+                || !fk || forbidden || stock.Reserve || stock.DefName.Value.Length == 0 || !mk || !TradePolicyRules.Finite(mass) || mass < 0)
             {
                 continue;
             }

@@ -110,7 +110,7 @@ public sealed record TendPatientFacts
     public bool Threatened { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class TendRules
 {
     /// <summary>
     /// Ports medical_triage.treatment_pairs: rank eligible doctors by interruption cost, then descending
@@ -197,7 +197,7 @@ public static partial class PolicyFunctions
         doctorPool =
         [
             .. doctorPool
-                .OrderBy(d => OrderedWorkCost(d.PlayerForced, d.QueuedJobs))
+                .OrderBy(d => OrderedWorkRules.OrderedWorkCost(d.PlayerForced, d.QueuedJobs))
                 .ThenByDescending(d =>
                 {
                     d.MedicineSkill.TryGetValue(out var skill);

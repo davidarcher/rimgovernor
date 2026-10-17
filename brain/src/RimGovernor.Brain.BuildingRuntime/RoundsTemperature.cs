@@ -37,7 +37,7 @@ public sealed partial class RoundsBuildingPlanner
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectTemperature(Observation.ColonyProjection facts)
     {
         var cooling = TemperatureCooling(facts);
-        var proposal = SelectTemperatureMethod(facts.Rooms, cooling, Reviewer.Policy);
+        var proposal = TemperatureMethodRules.SelectTemperatureMethod(facts.Rooms, cooling, Reviewer.Policy);
         switch (proposal.Method)
         {
             case Pol.TemperatureMethod.Heat or Pol.TemperatureMethod.HeatElectric or Pol.TemperatureMethod.Cool or Pol.TemperatureMethod.CoolPowered or Pol.TemperatureMethod.RefuelOff or Pol.TemperatureMethod.RefuelOn:
@@ -123,7 +123,7 @@ partial class RoundsBuildingPlanner
             }
         }
         // Campfires burn wood: a finite stock unless a tree species can be sown.
-        return cooling with { HeatFuelFinite = !ResourceGrowable(RoundsFieldPlanner.CropChoices(facts), PolicyFunctions.ConstructionWoodLog, facts.CropClimate.Biome, GrowerSkill(facts.WorkPawns)) };
+        return cooling with { HeatFuelFinite = !TreePlantationRules.ResourceGrowable(RoundsFieldPlanner.CropChoices(facts), PolicyFunctions.ConstructionWoodLog, facts.CropClimate.Biome, TreePlantationRules.GrowerSkill(facts.WorkPawns)) };
     }
 
     /// <summary>The planning definitions the temperature planner reads: every method it can place, so availability and draw are known before one is chosen.</summary>

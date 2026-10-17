@@ -17,11 +17,11 @@ public sealed partial class RoundsBuildingPlanner
         foreach (var cell in routes.Breaches)
         {
             var planned = new[] { new Pol.RoleCell { Cell = cell, Role = Pol.RockRole.NeedsFloor } };
-            if (protectedCells.Contains(cell) || PolicyFunctions.RockStep(planned, s.Facts.Cells).Dig.Count == 0)
+            if (protectedCells.Contains(cell) || RockStepRules.RockStep(planned, s.Facts.Cells).Dig.Count == 0)
             {
                 continue;
             }
-            var (access, reachable) = PolicyFunctions.RockAccess([cell], s.Facts.Cells);
+            var (access, reachable) = RockStepRules.RockAccess([cell], s.Facts.Cells);
             if (!reachable)
             {
                 continue;

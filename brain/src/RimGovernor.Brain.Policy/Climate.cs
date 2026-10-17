@@ -671,10 +671,10 @@ public static partial class PolicyFunctions
         var band = new Band(double.NegativeInfinity, f.FullRotRateC);
         try
         {
-            steel = f.Items.MarketValue(SiteSteelUnit);
+            steel = f.Items.MarketValue(SiteRules.SiteSteelUnit);
             options = ClimateOptions(
                 m,
-                DefaultSiteTypeWeights(),
+                SiteRules.DefaultSiteTypeWeights(),
                 steel,
                 curve!,
                 new ClimateRoom

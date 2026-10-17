@@ -124,7 +124,7 @@ public static partial class CombatBlockingRules
 
     /// <summary>The eligible melee-only defenders, best armored first (unknown armor last), then by id.</summary>
     internal static List<SquadDefenderFacts> Brawlers(IEnumerable<SquadDefenderFacts> defenders) =>
-        ByArmor([.. defenders.Where(d => SquadDefenderEligible(d) && Positive(d.MeleeEquipped) && !Positive(d.RangedEquipped))]);
+        ByArmor([.. defenders.Where(d => SquadDefenseRules.SquadDefenderEligible(d) && RoundsRules.Positive(d.MeleeEquipped) && !RoundsRules.Positive(d.RangedEquipped))]);
 
     /// <summary>Sorts defenders best armored first (unknown armor last), then by id.</summary>
     internal static List<SquadDefenderFacts> ByArmor(List<SquadDefenderFacts> output) =>

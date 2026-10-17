@@ -477,11 +477,11 @@ internal sealed partial class DefenseSite
         var allowed = new HashSet<Cell>();
         foreach (var (c, row) in Cells)
         {
-            if ((taken.Contains(c) && !underWall.Contains(c)) || Protect.Contains(c) || Positive(row.Door) || Positive(row.NaturalRock))
+            if ((taken.Contains(c) && !underWall.Contains(c)) || Protect.Contains(c) || RoundsRules.Positive(row.Door) || RoundsRules.Positive(row.NaturalRock))
             {
                 continue;
             }
-            if (Positive(row.Walkable) || (Positive(row.PlayerOwned) && row.Edifice != ""))
+            if (RoundsRules.Positive(row.Walkable) || (RoundsRules.Positive(row.PlayerOwned) && row.Edifice != ""))
             {
                 allowed.Add(c);
             }

@@ -20,7 +20,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>One bunk slot: the anchor and rotation a building order names (the footprint is BunkRect).</summary>
 internal readonly record struct ShelterBunk(Cell Anchor, Rotation Rot)
 {
-    public Pol.Rectangle Rect() => BunkRect(Anchor, Rot);
+    public Pol.Rectangle Rect() => ShelterRules.BunkRect(Anchor, Rot);
 }
 
 /// <summary>One review's context for siting the initial shelter.</summary>
@@ -62,7 +62,7 @@ partial class RoundsBuildingPlanner
     /// <summary>The placement method and the clearing method of a bunk definition; a spot has no clearing step.</summary>
     internal static (MethodId Place, MethodId Clear) ShelterRung(string definition)
     {
-        if (definition == SleepingBedrollDefinition)
+        if (definition == SleepingRules.SleepingBedrollDefinition)
         {
             return (ShelterBedrollsMethodId, ShelterClearBedrollsMethodId);
         }
@@ -75,7 +75,7 @@ partial class RoundsBuildingPlanner
 
     /// <summary>Orders the ladder: spot, bedroll, bed.</summary>
     internal static int BunkRank(string definition) =>
-        definition == SleepingBedrollDefinition ? 1 : definition == ShelterBedDefinition ? 2 : 0;
+        definition == SleepingRules.SleepingBedrollDefinition ? 1 : definition == ShelterBedDefinition ? 2 : 0;
 
     /// <summary>The template's bunk slots for the site as orders.</summary>
     internal static List<ShelterBunk> ShelterBunkSlots(Pol.PlannedRoom room, Observation.ColonyProjection facts, int occupants)
@@ -85,7 +85,7 @@ partial class RoundsBuildingPlanner
         {
             return output;
         }
-        foreach (var p in PlanShelterBunks(room, plan.RoomRock(room, facts.Cells).Dig, facts.Shapes, occupants, ShelterCampfires(facts), ShelterCoolers(facts), []))
+        foreach (var p in ShelterRules.PlanShelterBunks(room, plan.RoomRock(room, facts.Cells).Dig, facts.Shapes, occupants, ShelterCampfires(facts), ShelterCoolers(facts), []))
         {
             output.Add(new ShelterBunk(p.Anchor(), p.Rot));
         }
@@ -102,12 +102,12 @@ partial class RoundsBuildingPlanner
         {
             return (ShelterBedDefinition, slots);
         }
-        facts.DefinitionAvailable(SleepingBedrollDefinition).TryGetValue(out var bedroll);
+        facts.DefinitionAvailable(SleepingRules.SleepingBedrollDefinition).TryGetValue(out var bedroll);
         if (bedroll)
         {
-            if (facts.StockedStuff(SleepingBedrollDefinition) is { } stocked)
+            if (facts.StockedStuff(SleepingRules.SleepingBedrollDefinition) is { } stocked)
             {
-                return (SleepingBedrollDefinition, slots.Take((int)Math.Min(slots.Count, stocked.Count)).ToList());
+                return (SleepingRules.SleepingBedrollDefinition, slots.Take((int)Math.Min(slots.Count, stocked.Count)).ToList());
             }
         }
         return (ShelterBedDefinition, slots);
@@ -129,7 +129,7 @@ partial class RoundsBuildingPlanner
     {
         foreach (var b in bunks)
         {
-            if (BunkCells(b.Anchor, b.Rot).Contains(cell))
+            if (ShelterRules.BunkCells(b.Anchor, b.Rot).Contains(cell))
             {
                 return true;
             }
@@ -356,7 +356,7 @@ public sealed partial class RoundsBuildingPlanner
         var standing = new List<Pol.SleepingBed>();
         foreach (var b in obs.Beds)
         {
-            if ((b.Definition.Value == SleepingSpotDefinition || b.Definition.Value == SleepingBedrollDefinition) && BunkRank(b.Definition.ToString()) < BunkRank(definition) && OnBunkSlot(b.Cell, bunks))
+            if ((b.Definition.Value == SleepingRules.SleepingSpotDefinition || b.Definition.Value == SleepingRules.SleepingBedrollDefinition) && BunkRank(b.Definition.ToString()) < BunkRank(definition) && OnBunkSlot(b.Cell, bunks))
             {
                 standing.Add(b);
             }
@@ -377,7 +377,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             var b = standing[i];
             var id = new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{i}"));
-            if (b.Definition.Value == SleepingSpotDefinition)
+            if (b.Definition.Value == SleepingRules.SleepingSpotDefinition)
             {
                 actions.Add(DomainAction.NewDeconstructionAction(id, new Deconstruction(b.Id, b.Definition.ToString(), b.Cell)));
             }

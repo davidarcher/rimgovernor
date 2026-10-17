@@ -160,7 +160,7 @@ public sealed record SleepingReview
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class SleepingRules
 {
     /// <summary>The bed definitions two partners can own together.</summary>
     public static readonly IReadOnlySet<Resource> SleepingDoubleBeds = new HashSet<Resource>
@@ -519,7 +519,7 @@ public static partial class PolicyFunctions
             var n = 0;
             foreach (var thing in t.BedroomThings)
             {
-                if (IsReplacementBed(thing.AnyOf) && thing.AnyOf.Contains(b.Definition))
+                if (RoomQualityRules.IsReplacementBed(thing.AnyOf) && thing.AnyOf.Contains(b.Definition))
                 {
                     n++;
                 }

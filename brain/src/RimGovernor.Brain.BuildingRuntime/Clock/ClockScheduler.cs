@@ -20,7 +20,7 @@ partial class ClockScheduler
 
     /// <summary>The shelter-held fact over the review's facts: unknown without an enabled review.</summary>
     internal static Fact<bool> ClockShelterHeld(RoundsResult? review) =>
-        review?.Detection is { } detection ? Known(PolicyFunctions.ShelterHeld(detection.Facts)) : Unknown<bool>();
+        review?.Detection is { } detection ? Known(ShelterRules.ShelterHeld(detection.Facts)) : Unknown<bool>();
 }
 
 /// <summary>The native reads a scheduler step makes.</summary>

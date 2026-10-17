@@ -205,7 +205,7 @@ public sealed record FacilityRequirement
     public bool Hosts(RoomRole role) => role == Role || Compatible.Contains(role);
 }
 
-public static partial class PolicyFunctions
+public static partial class RoomsRules
 {
     /// <summary>The cells of the plan's killbox reservation; empty when the plan reserves none.</summary>
     public static List<Cell> KillboxCells(this LayoutPlan p)

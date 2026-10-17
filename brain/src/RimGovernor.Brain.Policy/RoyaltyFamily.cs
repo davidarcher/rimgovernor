@@ -45,7 +45,7 @@ public sealed class RoyaltyFamily(bool permits = true, bool psylink = true) : IF
         var output = new List<Need>(2);
         if (permits)
         {
-            output.Add(PolicyFunctions.PermitsNeedOf(facts.Royalty));
+            output.Add(RoyaltyFamilyRules.PermitsNeedOf(facts.Royalty));
         }
         if (psylink)
         {
@@ -66,7 +66,7 @@ public sealed class RoyaltyFamily(bool permits = true, bool psylink = true) : IF
         var output = new List<NeedMethod>();
         foreach (var need in ready)
         {
-            if (need.Id == Permits && PolicyFunctions.NextPermitOf(facts.Royalty) is { } choice)
+            if (need.Id == Permits && PermitChoiceRules.NextPermitOf(facts.Royalty) is { } choice)
             {
                 output.Add(PermitMethod(choice.Intent()));
             }
@@ -84,12 +84,12 @@ public sealed class RoyaltyFamily(bool permits = true, bool psylink = true) : IF
             new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnSettingsAction(new ActionId($"{id.Value}-0"), intent.Setting())]));
 }
 
-public static partial class PolicyFunctions
+public static partial class RoyaltyFamilyRules
 {
     /// <summary>The permits Need: met once no worthwhile permit is takeable now (PermitsSpent), unmet while one is, unknown without the royalty read.</summary>
     public static Need PermitsNeedOf(Fact<RoyaltyFacts> royalty)
     {
-        var spent = PermitsSpent(royalty);
+        var spent = PermitChoiceRules.PermitsSpent(royalty);
         var known = spent.TryGetValue(out var done);
         return new Need
         {
@@ -97,7 +97,7 @@ public static partial class PolicyFunctions
             Tier = NeedTier.Development,
             Satisfaction = !known ? Satisfaction.Unknown : done ? Satisfaction.Met : Satisfaction.Unmet,
             Deficit = known ? Known(done ? 0.0 : 1.0) : Unknown<double>(),
-            Evidence = [new("next_permit", known ? Known(NextPermitOf(royalty) is { } next ? $"{next.Holder}/{next.Permit}" : "none") : Unknown<string>())],
+            Evidence = [new("next_permit", known ? Known(PermitChoiceRules.NextPermitOf(royalty) is { } next ? $"{next.Holder}/{next.Permit}" : "none") : Unknown<string>())],
         };
     }
 }

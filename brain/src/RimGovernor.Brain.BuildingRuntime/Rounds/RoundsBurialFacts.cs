@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 internal static class RoundsBurialFacts
 {
-    internal static readonly string[] BurialDefinitions = ["Wall", "Door", PolicyApi.GraveDefinition];
+    internal static readonly string[] BurialDefinitions = ["Wall", "Door", TombRules.GraveDefinition];
 
     /// <summary>The method name of a planned room reconcile: the role and the room's id.</summary>
     internal static string RoomName(string role, PlannedRoom room) =>
@@ -18,11 +18,11 @@ internal static class RoundsBurialFacts
         facts.LayoutPlan.TryGetValue(out var plan);
         facts.Facts.Waste.TryGetValue(out var waste);
         facts.Facts.CurrentConstruction.TryGetValue(out var built);
-        return PolicyApi.NextTombStep(plan ?? new LayoutPlan(), waste, built?.Buildings ?? [], facts.Shapes, available);
+        return TombRules.NextTombStep(plan ?? new LayoutPlan(), waste, built?.Buildings ?? [], facts.Shapes, available);
     }
 
     internal static Fact<bool> TombOwed(ColonyProjection facts) =>
-        PolicyApi.TombOwed(facts.Shapes, SarcophagusAvailable(facts), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction);
+        TombRules.TombOwed(facts.Shapes, SarcophagusAvailable(facts), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction);
 
     internal static Fact<bool> SarcophagusAvailable(ColonyProjection facts)
     {
@@ -50,7 +50,7 @@ internal static class RoundsBurialFacts
         {
             return (new PlannedRoom(), false);
         }
-        var room = PolicyApi.MorgueRoomOwed(plan!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), waste!);
+        var room = MorgueRules.MorgueRoomOwed(plan!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), waste!);
         return room is null ? (new PlannedRoom(), false) : (room, true);
     }
 
@@ -84,5 +84,5 @@ internal static class RoundsBurialFacts
     internal static Fact<bool> MealClosetOwed(ColonyProjection facts) => PlannedMealCloset(facts).Owed;
 
     internal static Fact<EquatableArray<string>> WarmCoolingRooms(ColonyProjection facts) =>
-        PolicyApi.WarmCoolingRooms(facts.DefinitionAvailable("Cooler"), facts.LayoutPlan, facts.Rooms);
+        TombRules.WarmCoolingRooms(facts.DefinitionAvailable("Cooler"), facts.LayoutPlan, facts.Rooms);
 }

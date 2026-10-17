@@ -45,7 +45,7 @@ public static partial class CombatWaitRules
         double theirs = 0;
         foreach (var d in view.Defenders)
         {
-            if (SquadDefenderEligible(d) && Positive(d.Armed))
+            if (SquadDefenseRules.SquadDefenderEligible(d) && RoundsRules.Positive(d.Armed))
             {
                 if (!d.HealthFraction.TryGetValue(out var h))
                 {
@@ -57,7 +57,7 @@ public static partial class CombatWaitRules
         var down = CombatManhunterRules.DownPawns(view);
         foreach (var t in view.Threats)
         {
-            if (t.Building || Positive(t.Dead) || Positive(t.Downed) || down.Contains(t.Id))
+            if (t.Building || RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed) || down.Contains(t.Id))
             {
                 continue;
             }
@@ -93,12 +93,12 @@ public static partial class CombatWaitRules
         var n = 0;
         foreach (var t in view.Threats)
         {
-            if (t.Building || Positive(t.Dead) || Positive(t.Downed) || down.Contains(t.Id))
+            if (t.Building || RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed) || down.Contains(t.Id))
             {
                 continue;
             }
             // A shambler is humanlike but fights as a pack of its own.
-            if (!Positive(t.Humanlike) || CombatAnomalyRules.Anomalous(t))
+            if (!RoundsRules.Positive(t.Humanlike) || CombatAnomalyRules.Anomalous(t))
             {
                 return false;
             }

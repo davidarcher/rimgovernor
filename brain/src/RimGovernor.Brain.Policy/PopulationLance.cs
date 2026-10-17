@@ -21,7 +21,7 @@ public static partial class PolicyConstants
     };
 }
 
-public static partial class PolicyFunctions
+public static partial class PopulationRules
 {
     /// <summary>Ranks a standing target by its skills: the sum of its non-disabled skill levels.</summary>
     internal static int LanceScore(PrisonerProspect p)

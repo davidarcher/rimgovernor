@@ -23,7 +23,7 @@ public sealed class TombTests
     {
         Id = 1,
         Role = PlannedRole.Tomb,
-        Region = RectRegion(new Rectangle { X = 10, Z = 10, Width = 5, Height = 4 }),
+        Region = RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 5, Height = 4 }),
         Door = new Cell(12, 9),
         DoorRot = Rotation.South,
     };
@@ -44,12 +44,12 @@ public sealed class TombTests
     };
 
     private static Fact<bool> Owed(params WasteItem[] waste) =>
-        TombOwed(Shapes, Known(true), Known(Plan), Known(new RoomObservation()), Known<EquatableArray<WasteItem>>([.. waste]), Known(new CurrentConstruction { Colony = true }));
+        TombRules.TombOwed(Shapes, Known(true), Known(Plan), Known(new RoomObservation()), Known<EquatableArray<WasteItem>>([.. waste]), Known(new CurrentConstruction { Colony = true }));
 
     [Fact]
     public void AColonistCorpseIsStagedIntoAFreeTombSlot()
     {
-        var step = NextTombStep(Plan, [Corpse(CorpseOf.Colonist)], [], Shapes, true);
+        var step = TombRules.NextTombStep(Plan, [Corpse(CorpseOf.Colonist)], [], Shapes, true);
         Assert.Equal(TombStepKind.Reconcile, step.Kind);
         Assert.Equal(TombRoom.Id, step.Room.Id);
         Assert.Equal(Sarcophagus, Assert.Single(step.Template).DefName);
@@ -60,7 +60,7 @@ public sealed class TombTests
     [Fact]
     public void AStrangerCorpseIsOwedNoTomb()
     {
-        Assert.Equal(TombStepKind.None, NextTombStep(Plan, [Corpse(CorpseOf.Stranger)], [], Shapes, true).Kind);
+        Assert.Equal(TombStepKind.None, TombRules.NextTombStep(Plan, [Corpse(CorpseOf.Stranger)], [], Shapes, true).Kind);
         Assert.True(Owed(Corpse(CorpseOf.Stranger)).TryGetValue(out var o) && !o);
     }
 
@@ -68,7 +68,7 @@ public sealed class TombTests
     public void ABuriedStrangerFillsItsSarcophagus()
     {
         var built = new[] { Standing("s1", 10, 11) };
-        var step = NextTombStep(Plan, [Buried(CorpseOf.Stranger, "s1"), Corpse(CorpseOf.Colonist)], built, Shapes, true);
+        var step = TombRules.NextTombStep(Plan, [Buried(CorpseOf.Stranger, "s1"), Corpse(CorpseOf.Colonist)], built, Shapes, true);
         Assert.Equal(TombStepKind.Reconcile, step.Kind);
         Assert.Equal(0, step.Empty);
     }

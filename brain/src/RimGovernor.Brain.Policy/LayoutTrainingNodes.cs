@@ -16,7 +16,7 @@ public static partial class PolicyFunctions
         if (stands > 0)
         {
             var n = Math.Min(Math.Max(stands, RangeMinStands), RangeMaxStands);
-            nodes.Add(new RoomNode { Id = Wire.Name(PlannedTrainingRange), Role = PlannedTrainingRange, Area = n * (RangeDistance + 1), Width = RangeDistance + 1, Reason = ReasonTrainingRoom });
+            nodes.Add(new RoomNode { Id = Wire.Name(PlannedTrainingRange), Role = PlannedTrainingRange, Area = n * (TrainingRules.RangeDistance + 1), Width = TrainingRules.RangeDistance + 1, Reason = ReasonTrainingRoom });
         }
         if (markers > 0)
         {

@@ -55,7 +55,7 @@ public static partial class CombatMechRules
         foreach (var t in view.Positional.Items)
         {
             var id = t.Id;
-            if (!t.Position.TryGetValue(out var c) || Positive(t.Dead) || Positive(t.Downed) || down.Contains(id))
+            if (!t.Position.TryGetValue(out var c) || RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed) || down.Contains(id))
             {
                 continue;
             }

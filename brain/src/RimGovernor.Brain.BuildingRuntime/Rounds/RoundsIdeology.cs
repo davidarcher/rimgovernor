@@ -63,7 +63,7 @@ public sealed class IdeologyReader
         {
             facts = facts with
             {
-                Rituals = PolicyFunctions.PlanRituals(projection.Facts.Ideology, projection.WorkPawns, projection.Facts.RitualSites, projection.Identity.Tick, Rounder.RoundsCalm(read, scope.World)),
+                Rituals = RitualRules.PlanRituals(projection.Facts.Ideology, projection.WorkPawns, projection.Facts.RitualSites, projection.Identity.Tick, Rounder.RoundsCalm(read, scope.World)),
             };
         }
         if (_reform)

@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // The thing records themselves (Thing, ThingMarks and the rest) are declared in the contracts assembly, beside the
 // cell grid that carries them.
-public static partial class PolicyFunctions
+public static partial class SiteRules
 {
     private const ThingMarks OccupyingFlags = ThingMarks.Edifice | ThingMarks.Blueprint | ThingMarks.Frame;
 

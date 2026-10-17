@@ -169,7 +169,7 @@ public sealed partial class Store
     internal static void VetoAction(StoreTransaction tx, DomainAction a)
     {
         var review = LoadRounds(tx);
-        var (refusal, vetoed) = PolicyFunctions.RefuseAction(new SafeguardContext { Enabled = review.Enabled, Unsafe = review.Unsafe }, a);
+        var (refusal, vetoed) = SafeguardsRules.RefuseAction(new SafeguardContext { Enabled = review.Enabled, Unsafe = review.Unsafe }, a);
         if (vetoed)
         {
             throw new ActionVetoedException($"action {a.Id.Value}: {refusal.Safeguard}: {refusal.Reason}");

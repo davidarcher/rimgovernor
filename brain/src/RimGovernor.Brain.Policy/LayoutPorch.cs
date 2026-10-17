@@ -55,7 +55,7 @@ public static partial class PolicyFunctions
             Rotation.East => new Rectangle { X = ins.X - 2, Z = ins.Z, Width = 1, Height = PorchLength },
             _ => new Rectangle { X = ins.X + ins.Width + 1, Z = ins.Z, Width = 1, Height = PorchLength },
         };
-        return new PlannedRoom { Role = PlannedPorch, Region = RectRegion(strip), DoorRot = rot };
+        return new PlannedRoom { Role = PlannedPorch, Region = RegionRules.RectRegion(strip), DoorRot = rot };
     }
 
     /// <summary>The cells to designate in the Build Roof area for every porch in the plan, in plan order.</summary>

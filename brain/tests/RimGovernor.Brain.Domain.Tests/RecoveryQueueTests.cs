@@ -37,7 +37,7 @@ public sealed class RecoveryQueueTests
     public void RuinWithCoveredYieldIsStillAdmitted()
     {
         // Nothing short: stock covers demand.
-        var q = PolicyFunctions.RankRecovery(new RecoveryRequest { Things = [Ruin("Thing_AncientWall1")], Threat = Known(false), Urgent = Known(false) });
+        var q = RecoveryRules.RankRecovery(new RecoveryRequest { Things = [Ruin("Thing_AncientWall1")], Threat = Known(false), Urgent = Known(false) });
 
         var e = Assert.Single(q.Entries);
         Assert.Equal(RecoveryTier.Rest, e.Tier);
@@ -50,22 +50,22 @@ public sealed class RecoveryQueueTests
     [Fact]
     public void CensusWideThreatHoldsRuinAndAdmitsNothing()
     {
-        var q = PolicyFunctions.RankRecovery(new RecoveryRequest { Things = [Ruin("Thing_AncientWall1")], Threat = Known(true) });
+        var q = RecoveryRules.RankRecovery(new RecoveryRequest { Things = [Ruin("Thing_AncientWall1")], Threat = Known(true) });
 
         var e = Assert.Single(q.Entries);
         Assert.Equal(RecoveryStatus.Held, e.Status);
-        Assert.Equal(PolicyFunctions.RemoteHoldThreat, e.Reason);
+        Assert.Equal(RemoteRules.RemoteHoldThreat, e.Reason);
         Assert.Equal("", q.Admitted);
     }
 
     [Fact]
     public void UnsafeRouteHoldsThing()
     {
-        var q = PolicyFunctions.RankRecovery(new RecoveryRequest { Things = [Ruin("Thing_AncientWall1") with { RouteSafe = Known(false) }], Threat = Known(false) });
+        var q = RecoveryRules.RankRecovery(new RecoveryRequest { Things = [Ruin("Thing_AncientWall1") with { RouteSafe = Known(false) }], Threat = Known(false) });
 
         var e = Assert.Single(q.Entries);
         Assert.Equal(RecoveryStatus.Held, e.Status);
-        Assert.Equal(PolicyFunctions.RemoteHoldRouteUnsafe, e.Reason);
+        Assert.Equal(RemoteRules.RemoteHoldRouteUnsafe, e.Reason);
         Assert.Equal("", q.Admitted);
     }
 
@@ -82,11 +82,11 @@ public sealed class RecoveryQueueTests
             PathLength = Known(40.0),
             StorageHeadroom = Known(200L),
         };
-        var (thing, ok) = PolicyFunctions.RecoveryLootThing(row);
+        var (thing, ok) = RecoveryRules.RecoveryLootThing(row);
         Assert.True(ok);
         Assert.Equal(RemoteWorkKind.Loot, thing.Kind);
 
-        var q = PolicyFunctions.RankRecovery(new RecoveryRequest { Things = [thing], Threat = Known(false), Urgent = Known(false) });
+        var q = RecoveryRules.RankRecovery(new RecoveryRequest { Things = [thing], Threat = Known(false), Urgent = Known(false) });
 
         var e = Assert.Single(q.Entries);
         Assert.Equal(RecoveryTier.Rest, e.Tier);
@@ -149,16 +149,16 @@ public sealed class RecoveryQueueTests
         ];
 
         // Roof up: the stage is roof, the thin roof cells come off and no ruin is admitted yet.
-        var first = PolicyFunctions.PlanRecoveryBatch(new RecoveryBatchRequest { Grid = ClusterGrid(roofed: true), Rules = rules, Targets = targets });
+        var first = RecoveryRules.PlanRecoveryBatch(new RecoveryBatchRequest { Grid = ClusterGrid(roofed: true), Rules = rules, Targets = targets });
 
         Assert.Equal(RecoveryBatchStage.Roof, first.Stage);
         Assert.Equal(new[] { new Cell(4, 5), new Cell(5, 5) }, first.Roof);
         Assert.Empty(first.Batch);
         Assert.Empty(first.Held);
-        Assert.Equal(PolicyFunctions.RoofBlockerUnsupported, first.Blocker);
+        Assert.Equal(RoofSupportRules.RoofBlockerUnsupported, first.Blocker);
 
         // Roof down: every ruin of the cluster comes down in one batch.
-        var second = PolicyFunctions.PlanRecoveryBatch(new RecoveryBatchRequest { Grid = ClusterGrid(roofed: false), Rules = rules, Targets = targets });
+        var second = RecoveryRules.PlanRecoveryBatch(new RecoveryBatchRequest { Grid = ClusterGrid(roofed: false), Rules = rules, Targets = targets });
 
         Assert.Equal(RecoveryBatchStage.Removal, second.Stage);
         Assert.Empty(second.Roof);

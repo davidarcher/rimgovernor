@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 // a time into the other bedrooms. The move is not a bedroom deficit: the unhoused count, BedroomsOwed and the
 // bed research request ignore it.
 
-public static partial class PolicyFunctions
+public static partial class SleepingRules
 {
     /// <summary>The bedrooms whose pawns migrate: those a successor replaces.</summary>
     internal static List<PlannedRoom> RetiringBedrooms(LayoutPlan plan)

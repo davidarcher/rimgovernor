@@ -80,10 +80,10 @@ public static partial class PolicyFunctions
                     continue;
                 }
 
-                var (need, needOk) = RungRequirement(rung);
+                var (need, needOk) = ThroneRules.RungRequirement(rung);
                 if (needOk)
                 {
-                    return need with { Holder = c.Pawn, Titled = HoldsTitle(f, c.Pawn) };
+                    return need with { Holder = c.Pawn, Titled = ThroneRules.HoldsTitle(f, c.Pawn) };
                 }
             }
         }

@@ -140,7 +140,7 @@ public sealed partial class Rounder
     {
         lock (Ledger.Mu)
         {
-            return PolicyFunctions.FurtherBenchKinds(Ledger.Unmet, benches, Ledger.Colonists);
+            return WorkRules.FurtherBenchKinds(Ledger.Unmet, benches, Ledger.Colonists);
         }
     }
 
@@ -178,7 +178,7 @@ public sealed partial class Rounder
             l.Unmet = [];
             l.Colonists = 0;
             l.BenchKinds = null;
-            l.View = PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewInactive);
+            l.View = WorkRules.NewLedgerView(WorkRules.LedgerViewInactive);
         }
 
         if (declarers.Count == 0 || Native is not IRoundsWorkBenchSource native)
@@ -196,7 +196,7 @@ public sealed partial class Rounder
             call.ThrowIfCancellationRequested();
             lock (l.Mu)
             {
-                l.View = PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewUnread);
+                l.View = WorkRules.NewLedgerView(WorkRules.LedgerViewUnread);
                 foreach (var d in declarers)
                 {
                     var (purpose, ok) = PurposeOf(d, true);
@@ -225,7 +225,7 @@ public sealed partial class Rounder
             }
         }
 
-        var (actual, known) = PolicyFunctions.LedgerActuals(benches);
+        var (actual, known) = WorkRules.LedgerActuals(benches);
         lock (l.Mu)
         {
             l.Reports = purposes;
@@ -233,21 +233,21 @@ public sealed partial class Rounder
             l.NoteBatches(declared);
             if (!known)
             {
-                l.View = PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewUnread);
-                l.View = l.View with { Declarers = [.. named.Select(d => PolicyFunctions.DeclarerView(d.Name, d.Declared))] };
+                l.View = WorkRules.NewLedgerView(WorkRules.LedgerViewUnread);
+                l.View = l.View with { Declarers = [.. named.Select(d => WorkRules.DeclarerView(d.Name, d.Declared))] };
 
                 return Unknown<bool>();
             }
 
             EquatableArray<WorkPawn> pawns = projection.WorkPawns.TryGetValue(out var rows) ? rows : [];
             var (copies, dispatched) = l.Dispatch.Dispatch(new DispatchInputs { Declared = declared, Benches = benches, Pawns = pawns, Stock = projection.Resources, Tick = projection.Identity.Tick.Value });
-            var plan = PolicyFunctions.ReconcileLedger(declared, actual, l.Orphans ?? new Dictionary<string, int>(), copies);
+            var plan = WorkRules.ReconcileLedger(declared, actual, l.Orphans ?? new Dictionary<string, int>(), copies);
             l.Orphans = plan.Orphans;
-            var (placed, unplaced) = PolicyFunctions.PlaceLedgerOrders(plan.Place, benches);
-            var (wanted, _) = PolicyFunctions.WantedOrders(declared);
+            var (placed, unplaced) = WorkRules.PlaceLedgerOrders(plan.Place, benches);
+            var (wanted, _) = WorkRules.WantedOrders(declared);
             l.Unmet = [.. l.Dispatch.Unmet(dispatched, wanted, unplaced, benches)];
             l.Colonists = pawns.Count;
-            l.View = PolicyFunctions.BuildLedgerView(new LedgerViewInput
+            l.View = WorkRules.BuildLedgerView(new LedgerViewInput
             {
                 Declarers = named,
                 Plan = plan,
@@ -257,9 +257,9 @@ public sealed partial class Rounder
                 Memory = l.Dispatch,
                 Stock = projection.Resources,
                 Unmet = l.Unmet,
-                Further = PolicyFunctions.FurtherBenchKinds(l.Unmet, benches, l.Colonists),
+                Further = WorkRules.FurtherBenchKinds(l.Unmet, benches, l.Colonists),
             });
-            var owed = PolicyFunctions.LedgerDiffOwed(plan);
+            var owed = WorkRules.LedgerDiffOwed(plan);
             if (owed)
             {
                 l.Pending = new LedgerPending { Snapshot = snapshot, Remove = plan.Remove, Place = placed, Unplaced = unplaced };
@@ -381,7 +381,7 @@ public sealed partial class AdminRounds
             r.Ledger.Pending = new LedgerPending { Snapshot = pending.Snapshot,
                 Remove = pending.Remove.Skip(removed).ToArray(),
                 Place = pending.Place.Where(p => !committed.Any(c => c.Bench == p.Bench
-                    && (c.Spec.Key() == p.Spec.Key() || PolicyFunctions.IsMaterialSpecialization(p.Spec, c.Spec)))).ToArray(), Unplaced = pending.Unplaced };
+                    && (c.Spec.Key() == p.Spec.Key() || WorkRules.IsMaterialSpecialization(p.Spec, c.Spec)))).ToArray(), Unplaced = pending.Unplaced };
         }
 
         foreach (var action in actions)

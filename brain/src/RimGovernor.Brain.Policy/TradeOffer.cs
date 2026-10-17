@@ -43,7 +43,7 @@ public sealed record TradeOffer
     public Fact<TradeFoodGood> Food { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class TradePolicyRules
 {
     /// <summary>A record is read again once it is older than this (a few game hours)...</summary>
     public static readonly Tick TradeOffersMaxAgeTicks = new(3L * GameTime.TicksPerHour);

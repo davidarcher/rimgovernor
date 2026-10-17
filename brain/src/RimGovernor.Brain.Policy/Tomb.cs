@@ -55,7 +55,7 @@ public sealed record TombStep
     public int Graves { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class TombRules
 {
     /// <summary>
     /// The memory vanilla gives every colonist when a sarcophagus takes its first body through TryAcceptThing; no haul
@@ -135,7 +135,7 @@ public static partial class PolicyFunctions
         }
         foreach (var p in interior.Pieces)
         {
-            if (RectCells(p.Rect).Any(taken.Contains))
+            if (PlannedRules.RectCells(p.Rect).Any(taken.Contains))
             {
                 continue;
             }

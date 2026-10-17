@@ -18,7 +18,7 @@ public sealed record TrainingReview
     public int MeleeBelow { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class TrainingRules
 {
     /// <summary>
     /// The military/training predicate's review (#3259): the assigned combat-capability holders forecast below their

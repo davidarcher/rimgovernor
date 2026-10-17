@@ -170,7 +170,7 @@ public static partial class PolicyFunctions
             spare[def] = spare.GetValueOrDefault(def) + 1;
         }
 
-        foreach (var pair in AssignEquip(pawns, weapons))
+        foreach (var pair in WeaponAssignmentRules.AssignEquip(pawns, weapons))
         {
             assigned.Add((Domain.PawnId)pair.Pawn);
             var def = new Resource(pair.Weapon.Definition);
@@ -200,7 +200,7 @@ public static partial class PolicyFunctions
                 var weaponClass = current.Ranged ? WeaponClass.Ranged : WeaponClass.Melee;
                 lacks = !current.Facts.Hunts();
                 floor =
-                    ScoreWeapon(p, new EquipCandidateWeapon { Definition = current.Definition, Class = weaponClass, Facts = current.Facts })
+                    WeaponAssignmentRules.ScoreWeapon(p, new EquipCandidateWeapon { Definition = current.Definition, Class = weaponClass, Facts = current.Facts })
                     * WeaponQualityMultiplier(current.Quality);
             }
             else if (reach == ArmoryTier.Unknown)
@@ -267,7 +267,7 @@ public static partial class PolicyFunctions
         var bestScore = 0.0;
         foreach (var recipe in recipes)
         {
-            if (!WeaponRecipe(recipe) || recipe.Armory > reach || !Positive(recipe.Available) || !Positive(recipe.AvailableOn))
+            if (!WeaponAssignmentRules.WeaponRecipe(recipe) || recipe.Armory > reach || !RoundsRules.Positive(recipe.Available) || !RoundsRules.Positive(recipe.AvailableOn))
             {
                 continue;
             }
@@ -280,7 +280,7 @@ public static partial class PolicyFunctions
                 }
 
                 var weaponClass = facts.Ranged ? WeaponClass.Ranged : WeaponClass.Melee;
-                var score = ScoreWeapon(p, new EquipCandidateWeapon { Definition = def.Value, Class = weaponClass, Facts = facts });
+                var score = WeaponAssignmentRules.ScoreWeapon(p, new EquipCandidateWeapon { Definition = def.Value, Class = weaponClass, Facts = facts });
                 if (score > bestScore || (score > 0 && score == bestScore && def < best))
                 {
                     best = def;

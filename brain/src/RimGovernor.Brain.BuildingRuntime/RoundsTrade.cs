@@ -209,7 +209,7 @@ public sealed partial class RoundsTradePlanner
             // A settled caravan is waited out: the occurrence closes when it leaves, and only game time takes it away.
             waiting = waiting || (over && row.CanTrade);
         }
-        var (trader, ok) = Pol.PolicyFunctions.SelectTrader(traders, settled);
+        var (trader, ok) = Pol.TradePolicyRules.SelectTrader(traders, settled);
         if (!ok)
         {
             if (waiting)
@@ -244,7 +244,7 @@ public sealed partial class RoundsTradePlanner
             return eligible[0];
         }
         var ids = eligible.Select(row => new PawnId(row.Id)).ToList();
-        if (Pol.PolicyFunctions.TraderFor(Pol.PolicyFunctions.Among(Pol.PolicyFunctions.Profiles(pawns), ids)) is not { } chosen)
+        if (Pol.PawnRules.TraderFor(Pol.PawnRules.Among(Pol.PawnRules.Profiles(pawns), ids)) is not { } chosen)
         {
             return eligible[0];
         }
@@ -318,22 +318,22 @@ public sealed partial class RoundsTradePlanner
         if (facts.Favor)
         {
             // The tribute collector pays favor: only gold sells, with no silver budget, reserve or purchase.
-            selection = Pol.PolicyFunctions.SelectFavorSale(facts, facts.FavorKeep);
+            selection = Pol.TradePolicyRules.SelectFavorSale(facts, facts.FavorKeep);
         }
         else if (economic.Targets.Count == 0 && facts.SaleArt.Count + facts.SaleAnimals.Count + facts.SaleGear.Count == 0)
         {
             // Nothing to buy or sell by the resource catalog: only a pawn purchase can still stage, against the same silver reserve.
-            var (currency, _) = Pol.PolicyFunctions.TradeCurrency(facts.Rows);
+            var (currency, _) = Pol.TradePolicyRules.TradeCurrency(facts.Rows);
             selection = new Pol.TradeSelection { SilverReserve = Math.Max(economic.SilverReserve, facts.Floors.GetValueOrDefault(currency)) };
         }
         else
         {
-            selection = Pol.PolicyFunctions.SelectTrade(economic, facts);
+            selection = Pol.TradePolicyRules.SelectTrade(economic, facts);
         }
         // A pawn buy is its own line beside the resource lines.
         if (!selection.Refused && facts.SilverKnown && !facts.Favor)
         {
-            var (pawn, pawnOk) = Pol.PolicyFunctions.SelectPawnPurchase(capacity, facts.Rows, facts.ColonySilver, selection.SilverReserve, selection.Selected);
+            var (pawn, pawnOk) = Pol.TradePolicyRules.SelectPawnPurchase(capacity, facts.Rows, facts.ColonySilver, selection.SilverReserve, selection.Selected);
             if (pawnOk)
             {
                 selection = selection with { Selected = [.. selection.Selected, pawn] };
@@ -406,7 +406,7 @@ public sealed partial class RoundsTradePlanner
             : null;
         var medicalFacts = ColonyFramesReads.ColonyMedicalReserve(observed, tables, catalog);
         medicalFacts = medicalFacts with { Catalog = items };
-        var medical = Pol.PolicyFunctions.ReviewMedicalReserve(medicalFacts, review.Latches.MedicalReserve, Reviewer.Policy.MedicalReserve);
+        var medical = Pol.MedicalRules.ReviewMedicalReserve(medicalFacts, review.Latches.MedicalReserve, Reviewer.Policy.MedicalReserve);
         var projection = ColonyDecodeReads.DecodeColony(reply, new Observation.Identity { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map, Tick = new Tick(observed.Context?.Tick ?? 0) }, tables, catalog);
         projection = projection with { Facts = projection.Facts with { Items = items } };
         var zoneNative = Native as Observation.IZonesNative;
@@ -424,7 +424,7 @@ public sealed partial class RoundsTradePlanner
         {
             throw new ControlException($"selection: err != nil: {e.Message}");
         }
-        var floors = Pol.PolicyFunctions.RoundsTradeFloors(seasonal, construction.StillNeed);
+        var floors = Pol.TradePolicyRules.RoundsTradeFloors(seasonal, construction.StillNeed);
         // The economy/resource Need's floors (the wood floor, shortfall edges) are the catalog's trade demand: a caravan selling one buys it.
         var targets = Reviewer.ResourceTargets(state.Snapshot);
         // A wealth-driven sale keeps what the review's demand retains: the stock the trade detector held the sale to.
@@ -454,26 +454,26 @@ public sealed partial class RoundsTradePlanner
         planInput = planInput with { Offers = Pol.PolicyFunctions.HerdOffers(rows, projection.Facts.AnimalUpkeep.AnimalRaces) };
         var herd = Pol.PolicyFunctions.PlanHerd(planInput);
         var saleAnimals = Pol.PolicyFunctions.HerdSaleAnimals(projection.Facts.AnimalUpkeep.Animals, herd.Policy);
-        var food = Pol.PolicyFunctions.RoundsTradeFood(projection.Facts, seasonal);
-        var reviewed = Pol.PolicyFunctions.ReviewTradeNeed(projection.Facts.Items, medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, retained, food);
+        var food = Pol.TradePolicyRules.RoundsTradeFood(projection.Facts, seasonal);
+        var reviewed = Pol.TradePolicyRules.ReviewTradeNeed(projection.Facts.Items, medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, retained, food);
         var exportSurplus = Pol.PolicyFunctions.ExportSaleSurplus(projection.Facts.Items, reviewed, medicalFacts.Resources, projection.Facts.Colonists, Reviewer.Exports.Products(state.Snapshot));
-        var organSurplus = Pol.PolicyFunctions.OrganSaleSurplus(projection.Facts.Items, exportSurplus, medicalFacts.Resources, projection.Facts.Colonists, projection.Facts.Recipes);
-        var reserved = Pol.PolicyFunctions.ReserveSurgeryStock(organSurplus, projection.Facts.MedicalPawns);
-        var surgery = Pol.PolicyFunctions.SurgeryTradeNeed(reserved, Pol.PolicyFunctions.SurgeryPurchaseParts(projection.Facts.MedicalPawns, projection.SurgeryContext(), parts, Pol.PolicyFunctions.FabricableParts(benches)));
-        var shed = Pol.PolicyFunctions.ShedArtNeed(surgery, headroom, artCount);
+        var organSurplus = Pol.OrganHarvestRules.OrganSaleSurplus(projection.Facts.Items, exportSurplus, medicalFacts.Resources, projection.Facts.Colonists, projection.Facts.Recipes);
+        var reserved = Pol.OrganHarvestRules.ReserveSurgeryStock(organSurplus, projection.Facts.MedicalPawns);
+        var surgery = Pol.SurgeryRules.SurgeryTradeNeed(reserved, Pol.SurgeryRules.SurgeryPurchaseParts(projection.Facts.MedicalPawns, projection.SurgeryContext(), parts, Pol.SurgeryRules.FabricableParts(benches)));
+        var shed = Pol.TradePolicyRules.ShedArtNeed(surgery, headroom, artCount);
         if (!Pol.PolicyFunctions.AnimalSaleNeed(projection.Facts.Items, shed, saleAnimals, projection.Facts.Silver(), projection.Facts.Colonists).TryGetValue(out var need))
         {
             throw new ControlException("selection: !known");
         }
         // A resource is bought only as far as the supply plan opened this trader's offer for it.
         var planned = await PlannedPurchasesAsync(state, review, trader, call).ConfigureAwait(false);
-        need = TradeOfferBook.RestrictToPlan(need, planned, Pol.PolicyFunctions.PlannedTradeNutrition(projection.Facts.FoodPlan, trader));
-        var economic = Pol.PolicyFunctions.RoundsTradeTargets(projection.Facts.Items, need, rows, targets, projection.Facts.Colonists);
+        need = TradeOfferBook.RestrictToPlan(need, planned, Pol.TradePolicyRules.PlannedTradeNutrition(projection.Facts.FoodPlan, trader));
+        var economic = Pol.TradePolicyRules.RoundsTradeTargets(projection.Facts.Items, need, rows, targets, projection.Facts.Colonists);
         var (colonySilver, traderSilver, silverKnown) = TradeSheetSilver(sheet.Rows);
-        var facts = new Pol.TradeSelectionFacts { Complete = true, Rows = rows, Floors = floors, CropSurplusFloors = Pol.PolicyFunctions.CropSurplusFloors(need), ColonySilver = colonySilver, TraderSilver = traderSilver, SilverKnown = silverKnown };
+        var facts = new Pol.TradeSelectionFacts { Complete = true, Rows = rows, Floors = floors, CropSurplusFloors = Pol.TradePolicyRules.CropSurplusFloors(need), ColonySilver = colonySilver, TraderSilver = traderSilver, SilverKnown = silverKnown };
         facts = facts with { MaxSilverSpend = Math.Max(0, facts.ColonySilver) };
         facts = facts with { Favor = sheet.FavorCurrency };
-        facts = facts with { FavorKeep = Pol.PolicyFunctions.FavorGoldKeep(targets, floors, retained) };
+        facts = facts with { FavorKeep = Pol.TradePolicyRules.FavorGoldKeep(targets, floors, retained) };
         facts = facts with { SaleArt = saleArt ?? [] };
         if (facts.Favor)
         {
@@ -490,10 +490,10 @@ public sealed partial class RoundsTradePlanner
                 warehouses.Add(z.Id);
             }
         }
-        var saleGear = Pol.PolicyFunctions.SaleGear(rows, warehouses);
+        var saleGear = Pol.TradePolicyRules.SaleGear(rows, warehouses);
         // While the silver gap is open, gear above demand sells too, cheapest first until the prices cover the
         // gap (the economy/trade Need's sale path).
-        if (Pol.PolicyFunctions.SilverGap(projection.Facts.Items, Known(need), projection.Facts.Silver(), projection.Facts.Colonists).TryGetValue(out var gap) && gap > 0)
+        if (Pol.SilverGapRules.SilverGap(projection.Facts.Items, Known(need), projection.Facts.Silver(), projection.Facts.Colonists).TryGetValue(out var gap) && gap > 0)
         {
             var (surplus, surplusOk) = Reviewer.Exports.Surplus(state.Snapshot);
             if (surplusOk)
@@ -512,7 +512,7 @@ public sealed partial class RoundsTradePlanner
         }
         var hk = headroom.TryGetValue(out var h);
         facts = facts with { ArtFirst = hk && h < 0 };
-        Pol.PolicyFunctions.JoinerCapacity(projection.Facts.JoinerCapacity()).TryGetValue(out var capacity);
+        Pol.PopulationRules.JoinerCapacity(projection.Facts.JoinerCapacity()).TryGetValue(out var capacity);
         return (economic, facts, capacity);
     }
 
@@ -528,7 +528,7 @@ public sealed partial class RoundsTradePlanner
             throw new ControlException("favorPrisoners: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
         var read = await Reviewer.ObserveOwnedAsync((Observation.IRoundsSource)Reviewer.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), call).ConfigureAwait(false);
-        Pol.PolicyFunctions.RoundsSilverShort(read.Projection.Facts, Reviewer.Policy, review.Latches.MedicalReserve).TryGetValue(out var shortage);
+        Pol.SilverGapRules.RoundsSilverShort(read.Projection.Facts, Reviewer.Policy, review.Latches.MedicalReserve).TryGetValue(out var shortage);
         return read.Projection.Facts.SurplusPrisoners(shortage);
     }
 

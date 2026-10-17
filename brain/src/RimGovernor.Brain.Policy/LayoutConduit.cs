@@ -380,7 +380,7 @@ public static partial class PolicyFunctions
             {
                 if (draws.Contains(p.Def))
                 {
-                    cells.AddRange(RectRegion(p.Rect).Cells());
+                    cells.AddRange(RegionRules.RectRegion(p.Rect).Cells());
                 }
             }
             if (cells.Count == 0)

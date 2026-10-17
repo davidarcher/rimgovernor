@@ -115,7 +115,7 @@ public sealed record WantedPiece
     /// <summary>The cell a native order names for the piece's footprint.</summary>
     public Cell Anchor() => PolicyFunctions.AnchorForRect(Footprint, Size, Rot);
 
-    internal List<Cell> Cells() => PolicyFunctions.RectCells(Footprint);
+    internal List<Cell> Cells() => PlannedRules.RectCells(Footprint);
 }
 
 /// <summary>
@@ -231,7 +231,7 @@ internal sealed class ReconcileItem
     public bool Ready { get; set; }
 }
 
-public static partial class PolicyFunctions
+public static partial class ReconcileRules
 {
     private static readonly OpKind[] OpKindsInOrder =
     [
@@ -283,7 +283,7 @@ public static partial class PolicyFunctions
         var innerWalls = new List<ClearanceTarget>();
         void Cover(ClearanceTarget row)
         {
-            foreach (var c in RectCells(new Rectangle(row.Minimum.X, row.Minimum.Z, row.Maximum.X - row.Minimum.X + 1, row.Maximum.Z - row.Minimum.Z + 1)))
+            foreach (var c in PlannedRules.RectCells(new Rectangle(row.Minimum.X, row.Minimum.Z, row.Maximum.X - row.Minimum.X + 1, row.Maximum.Z - row.Minimum.Z + 1)))
             {
                 covered.Add(c);
             }
@@ -352,7 +352,7 @@ public static partial class PolicyFunctions
         var removalCells = new HashSet<Cell>(foreign.Blocked);
         foreach (var row in removedRows)
         {
-            foreach (var c in RectCells(new Rectangle(row.Minimum.X, row.Minimum.Z, row.Maximum.X - row.Minimum.X + 1, row.Maximum.Z - row.Minimum.Z + 1)))
+            foreach (var c in PlannedRules.RectCells(new Rectangle(row.Minimum.X, row.Minimum.Z, row.Maximum.X - row.Minimum.X + 1, row.Maximum.Z - row.Minimum.Z + 1)))
             {
                 removalCells.Add(c);
             }
@@ -694,7 +694,7 @@ public static partial class PolicyFunctions
         public Operation Build() => new() { Kind = kind, Label = KindLabel(kind), Cells = Cells, Targets = Targets, Floors = Floors, Pieces = Pieces };
     }
 
-    private static GroundPhase KindLabel(OpKind k) => k switch
+    internal static GroundPhase KindLabel(OpKind k) => k switch
     {
         OpKind.Pack or OpKind.PackInUse => GroundPhase.Pack,
         OpKind.DoorOut or OpKind.DoorIn => GroundPhase.Doors,

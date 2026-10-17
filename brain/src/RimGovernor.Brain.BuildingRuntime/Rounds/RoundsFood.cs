@@ -190,13 +190,13 @@ public sealed class BabyFoodDeclarer : IOrderDeclarer
     {
         if (!projection.Facts.BabyFeeding.TryGetValue(out var babies))
         {
-            return PolicyFunctions.Abstaining(Cause.UnreadBabyFeeding);
+            return WorkRules.Abstaining(Cause.UnreadBabyFeeding);
         }
         if (PolicyFunctions.BabyFeedingNeedOf(new FoodFacts { BabyFeeding = projection.Facts.BabyFeeding }).Satisfaction == Satisfaction.Met)
         {
             return new Declared();
         }
-        var (selected, ok) = PolicyFunctions.SelectProductionBill(PolicyFunctions.BabyFoodBill, projection.ProductionBenches, projection.Facts.Colonists,
+        var (selected, ok) = ProductionRules.SelectProductionBill(PolicyFunctions.BabyFoodBill, projection.ProductionBenches, projection.Facts.Colonists,
             default(Fact<double>), default(Fact<double>), 1, new ProductionBillContext { BabyFeeding = babies });
         return PolicyFunctions.DeclareSelection(selected, ok, benches);
     }

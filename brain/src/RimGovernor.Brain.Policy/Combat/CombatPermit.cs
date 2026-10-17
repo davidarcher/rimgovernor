@@ -19,7 +19,7 @@ public static partial class CombatPermitRules
         {
             return PermitFightKind.StrikeCall;
         }
-        if (PermitCategoryOf(new RoyalPermit { Name = name }) == PermitCategory.Aid && !name.Contains("Laborer", StringComparison.Ordinal))
+        if (PermitChoiceRules.PermitCategoryOf(new RoyalPermit { Name = name }) == PermitCategory.Aid && !name.Contains("Laborer", StringComparison.Ordinal))
         {
             return PermitFightKind.AidCall;
         }
@@ -63,7 +63,7 @@ public static partial class CombatPermitRules
         var down = CombatManhunterRules.DownPawns(view);
         var calls = new List<CombatOrder>();
         var permitted = m.Permitted.ToList();
-        foreach (var holder in SortedHolders(royalty.Holders))
+        foreach (var holder in TitleClaimRules.SortedHolders(royalty.Holders))
         {
             var pawn = holder;
             if (down.Contains(pawn) || !view.Defenders.Any(d => d.Id == pawn))
@@ -95,7 +95,7 @@ public static partial class CombatPermitRules
 
     /// <summary>Outmatched with a known eligible armed defender: with none the comparison measures missing facts, not the fight.</summary>
     internal static bool OutmatchedKnown(CombatView view) =>
-        view.Defenders.Any(d => SquadDefenderEligible(d) && Positive(d.Armed)) && CombatWaitRules.Outmatched(view);
+        view.Defenders.Any(d => SquadDefenseRules.SquadDefenderEligible(d) && RoundsRules.Positive(d.Armed)) && CombatWaitRules.Outmatched(view);
 
     /// <summary>The cells of the live hostile pawns, in view order.</summary>
     internal static List<Cell> LiveHostileCells(CombatView view)

@@ -85,7 +85,7 @@ public sealed class NeedFamilyTests
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-need-family-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with { Colonists = Known(3L), IndoorCapacity = Known(3L), BedCapacity = Known(3L), FieldCoverage = Known(1.0) };
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         var family = new CareFamily();
         Colony? colony = null;
         var runner = new FamilyRunner<CareFacts>(family, (scope, _) =>
@@ -214,7 +214,7 @@ public sealed class NeedFamilyTests
         var a = NeedId.Of("fam", "a");
         var b = NeedId.Of("fam", "b");
         var missing = NeedId.Of("other", "x");
-        var standings = NeedStandings("fam",
+        var standings = NeedsRules.NeedStandings("fam",
         [
             new Need { Id = a, Tier = NeedTier.Development, Satisfaction = Satisfaction.Unmet, Preconditions = [b] },
             new Need { Id = b, Tier = NeedTier.SeriousHarm, Satisfaction = Satisfaction.Met },
@@ -223,9 +223,9 @@ public sealed class NeedFamilyTests
         Assert.Equal([NeedReadiness.Met, NeedReadiness.Waiting, NeedReadiness.Ready], standings.Select(s => s.Readiness));
         Assert.Equal(missing, standings[1].WaitingOn);
 
-        Assert.Throws<DomainException>(() => NeedStandings("fam", [new Need { Id = a, Tier = NeedTier.Wellbeing }, new Need { Id = a, Tier = NeedTier.Wellbeing }]));
-        Assert.Throws<DomainException>(() => NeedStandings("other", [new Need { Id = a, Tier = NeedTier.Wellbeing }]));
-        Assert.Throws<DomainException>(() => NeedStandings("fam", [new Need { Id = a, Tier = NeedTier.Wellbeing, Preconditions = [a] }]));
+        Assert.Throws<DomainException>(() => NeedsRules.NeedStandings("fam", [new Need { Id = a, Tier = NeedTier.Wellbeing }, new Need { Id = a, Tier = NeedTier.Wellbeing }]));
+        Assert.Throws<DomainException>(() => NeedsRules.NeedStandings("other", [new Need { Id = a, Tier = NeedTier.Wellbeing }]));
+        Assert.Throws<DomainException>(() => NeedsRules.NeedStandings("fam", [new Need { Id = a, Tier = NeedTier.Wellbeing, Preconditions = [a] }]));
         Assert.Equal(Satisfaction.Unknown, new Need { Id = a, Tier = NeedTier.Wellbeing }.Satisfaction);
     }
 

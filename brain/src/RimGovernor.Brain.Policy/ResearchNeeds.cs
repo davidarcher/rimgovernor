@@ -16,7 +16,7 @@ public sealed record KnowledgeSlot
     public ResearchProjectId Current { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class ResearchRules
 {
     /// <summary>
     /// The knowledge project to put in the first empty knowledge slot (by category name) that has a project to

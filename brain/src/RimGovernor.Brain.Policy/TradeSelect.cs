@@ -171,7 +171,7 @@ public sealed record TradeReserveFacts
     public IReadOnlyDictionary<string, long> Construction { get; init; } = new Dictionary<string, long>();
 }
 
-public static partial class PolicyFunctions
+public static partial class TradePolicyRules
 {
     /// <summary>The surplus sale's MinSellPrice (RoundsTradeTargets): any positive price.</summary>
     internal const double ArtMinSellPrice = double.Epsilon;

@@ -47,11 +47,11 @@ public static partial class PolicyFunctions
         }
         foreach (var z in plan.Zones)
         {
-            output.UnionWith(RegionOfRuns(z.Runs).Cells());
+            output.UnionWith(RegionRules.RegionOfRuns(z.Runs).Cells());
         }
         foreach (var e in plan.Entrances)
         {
-            output.UnionWith(RectCells(new Rectangle { X = e.X - 1, Z = e.Z - 1, Width = 3, Height = 3 }));
+            output.UnionWith(PlannedRules.RectCells(new Rectangle { X = e.X - 1, Z = e.Z - 1, Width = 3, Height = 3 }));
         }
         return output;
     }
@@ -83,6 +83,6 @@ public static partial class PolicyFunctions
         }, 1, 2);
         IReadOnlyList<Cell> from = plan.Entrances.Count > 0 ? plan.Entrances : [core];
         var costs = HaulCosts(input.Cells, [new HaulConsumer { Cells = from, Weight = 1 }]);
-        return [.. RankSitesByHaul(sites, costs).Where(s => RectCells(s).Any(costs.ContainsKey))];
+        return [.. RankSitesByHaul(sites, costs).Where(s => PlannedRules.RectCells(s).Any(costs.ContainsKey))];
     }
 }

@@ -17,7 +17,7 @@ public sealed record MoodThought(string Def, double Offset);
 /// </summary>
 public sealed record MoodProvision(NeedId Need, double Offset);
 
-public static partial class PolicyFunctions
+public static partial class MoodRules
 {
     private static List<MoodProvision> SortProvision(IEnumerable<MoodProvision> rows) =>
         [.. rows.OrderBy(r => r.Offset).ThenBy(r => r.Need)];

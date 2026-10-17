@@ -81,7 +81,7 @@ public static partial class CombatLoadoutRules
         var hostile = new Dictionary<PawnId, bool>();
         foreach (var t in view.Threats.Items)
         {
-            hostile[CombatDecideRules.ThreatPawn(t)] = !t.Building && !Positive(t.Dead) && !Positive(t.Downed);
+            hostile[CombatDecideRules.ThreatPawn(t)] = !t.Building && !RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed);
         }
 
         var tribal = false;
@@ -135,7 +135,7 @@ public static partial class CombatLoadoutRules
             for (var i = 0; i < weapons.Count; i++)
             {
                 var w = weapons[i];
-                if (used.Contains(w.Thing) || !fits(w) || (ScoreWeapon(LoadoutPawn(d), w) <= 0 && !w.Facts.EMP))
+                if (used.Contains(w.Thing) || !fits(w) || (WeaponAssignmentRules.ScoreWeapon(LoadoutPawn(d), w) <= 0 && !w.Facts.EMP))
                 {
                     continue;
                 }

@@ -26,7 +26,7 @@ public sealed class TierStyleStock(IReadOnlyDictionary<Resource, long> counts)
     /// </summary>
     public (Resource Stone, bool Ok) QuarriedStone()
     {
-        var blocks = counts.Where(kv => kv.Value > 0 && PolicyFunctions.StoneSuffix(kv.Key).Length > 0).Select(kv => kv.Key).ToList();
+        var blocks = counts.Where(kv => kv.Value > 0 && TierStyleRules.StoneSuffix(kv.Key).Length > 0).Select(kv => kv.Key).ToList();
         if (blocks.Count == 0)
         {
             return (default, false);
@@ -79,7 +79,7 @@ public enum LightingScope
 /// <summary>A lighting proposal for one module.</summary>
 public sealed record LightingStyle(string Definition, LightingScope Scope);
 
-public static partial class PolicyFunctions
+public static partial class TierStyleRules
 {
     /// <summary>
     /// The wall placements a shell and its rooms run to: a stuff builds the walls only when the stock, with the
@@ -92,7 +92,7 @@ public static partial class PolicyFunctions
     /// from, and wall material does not change heat equalization, so walls take the cheapest other stuff. Steel
     /// walls are allowed only where the map resupplies steel (a steel acquisition source).
     /// </summary>
-    public static string GuardedWallStuff => SteelResource.Value;
+    public static string GuardedWallStuff => SiteRules.SteelResource.Value;
 
     /// <summary>The generated Core carpet definition the soft rooms take; one colour keeps the proposal deterministic.</summary>
     public const string Carpet = "CarpetRed";

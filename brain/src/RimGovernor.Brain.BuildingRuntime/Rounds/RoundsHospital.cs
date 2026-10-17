@@ -26,7 +26,7 @@ public sealed partial class RoundsHospitalPlanner
             throw new ControlException("NewRoundsHospitalPlanner: native is not a rounds source");
         }
 
-        var building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyFunctions.MedicalCareNeed.FilingKey, Need = PolicyFunctions.MedicalCareNeed };
+        var building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = MedicalRules.MedicalCareNeed.FilingKey, Need = MedicalRules.MedicalCareNeed };
         return new RoundsHospitalPlanner { Reviewer = reviewer, Native = source, Building = building };
     }
 }
@@ -58,7 +58,7 @@ partial class RoundsHospitalPlanner
             BedCapacity = f.BedCapacity,
             IndoorCapacity = f.IndoorCapacity,
             Doctors = doctors,
-            Surgical = PolicyFunctions.SurgeryBedShortPatients(f.MedicalPawns),
+            Surgical = SurgeryRules.SurgeryBedShortPatients(f.MedicalPawns),
         };
     }
 }
@@ -82,7 +82,7 @@ public sealed partial class RoundsBuildingPlanner
                 return (null, BuildingReasonHospitalUnavailable);
         }
 
-        var facility = PolicyFunctions.Facility(Policy.RoomRole.Hospital);
+        var facility = RoomsRules.Facility(Policy.RoomRole.Hospital);
         var resolved = Copy();
         resolved.Definition = choice.Definition;
         resolved.Environment = PlacementEnvironment.Indoors;
@@ -124,7 +124,7 @@ public sealed partial class RoundsHospitalPlanner
 
         var reading = await Reviewer.ObserveRoomsAsync((IRoundsSource)Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
         var facts = reading.Projection;
-        PlannerSnapshot.RecordStepRead("hospital", PolicyFunctions.MedicalCareNeed.FilingKey, state.Snapshot, facts);
+        PlannerSnapshot.RecordStepRead("hospital", MedicalRules.MedicalCareNeed.FilingKey, state.Snapshot, facts);
         var choice = PolicyFunctions.SelectHospitalBed(HospitalRequestOf(facts));
         switch (choice.Method)
         {

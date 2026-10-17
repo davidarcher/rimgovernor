@@ -35,7 +35,7 @@ internal sealed class ShelterOwner : IStoreOwner
                 Rectangle patch;
                 try
                 {
-                    patch = PolicyFunctions.StarterStorage(room.Footprint());
+                    patch = PlannedRules.StarterStorage(room.Footprint());
                 }
                 catch (DomainException)
                 {

@@ -64,7 +64,7 @@ public static partial class PolicyConstants
     internal const int PenCellsCap = 900;
 }
 
-public static partial class PolicyFunctions
+public static partial class PenFoodRules
 {
     /// <summary>
     /// The nutrition per day the animals of ceilings eat: the adult feed of each race (the figure

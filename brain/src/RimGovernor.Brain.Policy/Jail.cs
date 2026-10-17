@@ -142,7 +142,7 @@ public static partial class PolicyFunctions
         }
         foreach (var p in interior.Pieces)
         {
-            if (!RectCells(p.Rect).Any(taken.Contains))
+            if (!PlannedRules.RectCells(p.Rect).Any(taken.Contains))
             {
                 return (p, true);
             }

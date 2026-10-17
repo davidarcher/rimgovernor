@@ -77,7 +77,7 @@ public sealed class PlannedShelterTests
         };
         facts = facts with
         {
-            PlannedShelters = [new() { Id = 1, Region = RectRegion(new(1, 1, 1, 1)), Door = DoorCell }],
+            PlannedShelters = [new() { Id = 1, Region = RegionRules.RectRegion(new(1, 1, 1, 1)), Door = DoorCell }],
             // The planned-site read's routes between the sites (#3313): the roof is worked at its own cell.
             PlannedSites = Known(new PlannedSiteFacts { Sites = EquatableArray.From(planned), Routes = EquatableArray.From(cells
                 .SelectMany(a => cells.Where(b => a != b).Select(b => new CoupledRoute("pawn", a, b, Known(1d))))
@@ -95,7 +95,7 @@ public sealed class PlannedShelterTests
                 },
             },
         };
-        facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
     }
 
@@ -183,12 +183,12 @@ public sealed class PlannedShelterTests
         var shelter = Assert.Single(candidates.Alternatives, c => c.Id.StartsWith("shelter/planned/1", StringComparison.Ordinal)).Id;
         string[] sites = ["planned/room1/build/Heater/1/1", "planned/room1/door/WoodLog", "planned/room1/roof", "planned/room1/wall/WoodLog"];
         PlannedSelection Record(params string[] roots) =>
-            PlannedSelectionOf(candidates, result with { Selection = result.Selection with { Selected = roots } }, facts.PlannedSites, 100)!;
+            PlannedRules.PlannedSelectionOf(candidates, result with { Selection = result.Selection with { Selected = roots } }, facts.PlannedSites, 100)!;
 
         var record = Record(shelter);
         Assert.Equal(sites, record.Sites.Select(s => s.Id));
         Assert.Equal(record, Record([.. sites.Where(id => candidates.Alternatives.Any(c => c.Id == id))]));
-        var (gate, selected) = PlannedRoomGateOf(record, 1, started: false);
+        var (gate, selected) = PlannedRules.PlannedRoomGateOf(record, 1, started: false);
         Assert.Equal(PlannedRoomGate.Selected, gate);
         var heater = new WantedPiece { DefName = "Heater", Minimum = Inside, Maximum = Inside, Size = new(1, 1), Rot = Rotation.North };
         IReadOnlyList<Operation> ops =
@@ -199,7 +199,7 @@ public sealed class PlannedShelterTests
             new() { Kind = OpKind.Build, Pieces = [heater] },
             new() { Kind = OpKind.FloorIn, Floors = [new() { Cell = Inside, DefName = "WoodPlankFloor" }] },
         ];
-        Assert.Equal([OpKind.WallIn, OpKind.DoorIn, OpKind.RoofIn, OpKind.Build], SelectedPlannedOps(ops, selected).Select(o => o.Kind));
+        Assert.Equal([OpKind.WallIn, OpKind.DoorIn, OpKind.RoofIn, OpKind.Build], PlannedRules.SelectedPlannedOps(ops, selected).Select(o => o.Kind));
     }
 
     [Fact]
@@ -227,15 +227,15 @@ public sealed class PlannedShelterTests
             new PlannedBuildSite("planned/room2/wall/WoodLog", 2, OpKind.WallIn, "Wall", "WoodLog", Rotation.North, [new(10, 9)]),
             new PlannedBuildSite("planned/room1/build/Bed/1/1", 1, OpKind.Build, "Bed", "WoodLog", Rotation.North, [Inside]) };
         PlannedRoom[] rooms = [
-            new() { Id = 1, Region = RectRegion(new(1, 1, 1, 1)), Door = DoorCell },
-            new() { Id = 2, Region = RectRegion(new(10, 10, 11, 3)) }, // wider than the shelter roof bound
-            new() { Id = 3, Region = RectRegion(new(20, 20, 2, 2)) },  // nothing owed: already built
-            new() { Id = 4, Region = RectRegion(new(30, 30, 2, 2)), Outdoor = true }];
-        var request = PlannedThermalRequestOf(rooms, sites, "Heater")!;
+            new() { Id = 1, Region = RegionRules.RectRegion(new(1, 1, 1, 1)), Door = DoorCell },
+            new() { Id = 2, Region = RegionRules.RectRegion(new(10, 10, 11, 3)) }, // wider than the shelter roof bound
+            new() { Id = 3, Region = RegionRules.RectRegion(new(20, 20, 2, 2)) },  // nothing owed: already built
+            new() { Id = 4, Region = RegionRules.RectRegion(new(30, 30, 2, 2)), Outdoor = true }];
+        var request = PlannedRules.PlannedThermalRequestOf(rooms, sites, "Heater")!;
         Assert.Equal([new PlannedThermalRoom("1", Inside, 1, 1)], request.Rooms);
         Assert.Equal([new PlannedThermalHeater(HeaterSite, "Heater", Inside)], request.Heaters);
-        Assert.Empty(PlannedThermalRequestOf(rooms, sites, "")!.Heaters);
-        Assert.Null(PlannedThermalRequestOf(rooms.Skip(1), sites, "Heater"));
+        Assert.Empty(PlannedRules.PlannedThermalRequestOf(rooms, sites, "")!.Heaters);
+        Assert.Null(PlannedRules.PlannedThermalRequestOf(rooms.Skip(1), sites, "Heater"));
     }
 
     [Fact]
@@ -248,12 +248,12 @@ public sealed class PlannedShelterTests
             Cells = [Row(Inside, -10), Row(WallCell, -10)],
             Sources = [new("heater", Inside, false, default, default, default), new(HeaterSite, Inside, false, Known(.35), Known(20d), default)],
         };
-        var joined = WithPlannedThermal(observed, planned)!;
+        var joined = PlannedRules.WithPlannedThermal(observed, planned)!;
         Assert.Equal([Row(Inside, 5), Row(WallCell, -10)], joined.Cells);
         Assert.Equal(["heater", HeaterSite], joined.Sources.Select(s => s.Target));
         Assert.True(joined.Sources[0].Complete);
-        Assert.Same(observed, WithPlannedThermal(observed, null));
-        Assert.Same(planned, WithPlannedThermal(null, planned));
+        Assert.Same(observed, PlannedRules.WithPlannedThermal(observed, null));
+        Assert.Same(planned, PlannedRules.WithPlannedThermal(null, planned));
     }
 
     [Fact]

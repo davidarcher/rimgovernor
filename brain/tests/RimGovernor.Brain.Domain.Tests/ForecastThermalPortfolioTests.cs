@@ -39,7 +39,7 @@ public sealed class ForecastThermalPortfolioTests
         };
         facts = facts with
         {
-            PlannedShelters = demand ? [new() { Id = 1, Region = RectRegion(new(1, 1, 1, 1)) }] : [],
+            PlannedShelters = demand ? [new() { Id = 1, Region = RegionRules.RectRegion(new(1, 1, 1, 1)) }] : [],
             ConstructionDeficit = demand ? facts.ConstructionDeficit : Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
             ForecastObserved = facts.ForecastObserved with
             {
@@ -53,7 +53,7 @@ public sealed class ForecastThermalPortfolioTests
                 },
             },
         };
-        facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
     }
     internal static ForecastCoupledSelection Select(RoundsFacts facts) => ForecastCoupledSelection.CompareActivityOutcomes(

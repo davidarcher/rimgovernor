@@ -134,7 +134,7 @@ public sealed record RoofSupportGrid
             var row = Cell(b.Cell);
             if (row is null)
             {
-                return (PolicyFunctions.RoofBlockerUnknownGeom, 0);
+                return (RoofSupportRules.RoofBlockerUnknownGeom, 0);
             }
             var holder = false;
             foreach (var t in row.Things)
@@ -168,7 +168,7 @@ public sealed record RoofSupportGrid
     {
         if (removed.Count == 0)
         {
-            return (PolicyFunctions.RoofBlockerNoSupportCells, 0);
+            return (RoofSupportRules.RoofBlockerNoSupportCells, 0);
         }
         var excluded = new HashSet<Cell>(removed);
         var roots = new List<Cell>();
@@ -187,11 +187,11 @@ public sealed record RoofSupportGrid
                     }
                     if (!InBounds(near))
                     {
-                        return (PolicyFunctions.RoofBlockerUnknownGeom, 0);
+                        return (RoofSupportRules.RoofBlockerUnknownGeom, 0);
                     }
                     if (Row(near).Unknown)
                     {
-                        return (PolicyFunctions.RoofBlockerUnknownGeom, 0);
+                        return (RoofSupportRules.RoofBlockerUnknownGeom, 0);
                     }
                     if (Roofed(near) && rootSet.Add(near))
                     {
@@ -206,7 +206,7 @@ public sealed record RoofSupportGrid
             checkedRoofs++;
             if (CollapsePending is not null && CollapsePending(root))
             {
-                return (PolicyFunctions.RoofBlockerCollapse, checkedRoofs);
+                return (RoofSupportRules.RoofBlockerCollapse, checkedRoofs);
             }
             var seen = new HashSet<Cell> { root };
             var queue = new Queue<Cell>();
@@ -257,14 +257,14 @@ public sealed record RoofSupportGrid
             }
             if (!supported)
             {
-                return (unknown ? PolicyFunctions.RoofBlockerUnknownAlt : PolicyFunctions.RoofBlockerUnsupported, checkedRoofs);
+                return (unknown ? RoofSupportRules.RoofBlockerUnknownAlt : RoofSupportRules.RoofBlockerUnsupported, checkedRoofs);
             }
         }
         return ("", checkedRoofs);
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class RoofSupportRules
 {
     // Roof blocker verdicts, the same words as the native check.
     public const string RoofBlockerNoSupportCells = "No occupied support cells";

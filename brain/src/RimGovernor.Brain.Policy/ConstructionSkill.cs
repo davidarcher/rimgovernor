@@ -30,7 +30,7 @@ public static partial class PolicyFunctions
             {
                 return [];
             }
-            var profile = BuildProfile(pawn);
+            var profile = PawnRules.BuildProfile(pawn);
             if (profile.Forbidden(WorkType.Construction) || profile.Incapable.GetValueOrDefault(WorkType.Construction))
             {
                 continue;
@@ -93,7 +93,7 @@ public static partial class PolicyFunctions
         foreach (var site in observed.Sites)
         {
             var cell = site.Building!.Cell;
-            var claim = CellClaim(cell);
+            var claim = ReadyWorkRules.CellClaim(cell);
             var row = new ReadyWork
             {
                 Stage = "building:" + site.Building.Definition,

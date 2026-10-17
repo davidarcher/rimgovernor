@@ -15,7 +15,7 @@ public sealed record LootHold
     public string Reason { get; init; } = "";
 }
 
-public static partial class PolicyFunctions
+public static partial class RemoteRules
 {
     /// <summary>A colonist's ordinary carrying capacity in item units.</summary>
     internal const int LootUnitsPerTrip = 75;
@@ -108,7 +108,7 @@ public static partial class PolicyFunctions
     /// <summary>Assembles the outdoor safety from the review facts. Unknown hostiles stay unknown.</summary>
     public static RemoteSafety LootSafety(RoundsFacts f)
     {
-        var r = new RemoteSafety { Hazard = OutdoorHazardsOf(f), DashOpen = f.DashOpen() };
+        var r = new RemoteSafety { Hazard = OutdoorHazardRules.OutdoorHazardsOf(f), DashOpen = f.DashOpen() };
         if (f.Hostiles.TryGetValue(out var hostiles))
         {
             r = r with { Threat = Known(hostiles > 0) };

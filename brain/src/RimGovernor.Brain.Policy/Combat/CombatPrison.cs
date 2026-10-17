@@ -145,11 +145,11 @@ public static partial class CombatPrisonRules
         foreach (var d in CombatBlockingRules.ByArmor(view.Defenders.ToList()))
         {
             facts.TryGetValue(d.Id, out var f);
-            if (!SquadDefenderEligible(d))
+            if (!SquadDefenseRules.SquadDefenderEligible(d))
             {
                 continue;
             }
-            if (Positive(d.RangedEquipped) || (f?.Ranged ?? false))
+            if (RoundsRules.Positive(d.RangedEquipped) || (f?.Ranged ?? false))
             {
                 if (f is not null && PrisonSafeRanged(f))
                 {
@@ -167,7 +167,7 @@ public static partial class CombatPrisonRules
             {
                 return 0;
             }
-            if ((weapon.GetValueOrDefault(d.Id) ?? "").Length == 0 && !Positive(d.Armed))
+            if ((weapon.GetValueOrDefault(d.Id) ?? "").Length == 0 && !RoundsRules.Positive(d.Armed))
             {
                 return 1;
             }

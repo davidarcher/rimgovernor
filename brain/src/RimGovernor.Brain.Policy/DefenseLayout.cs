@@ -236,11 +236,11 @@ internal sealed partial class DefenseSite
         return c.X >= reg.X && c.Z >= reg.Z && c.X < reg.X + reg.Width && c.Z < reg.Z + reg.Height;
     }
 
-    internal bool Passable(Cell c) => Cells.TryGetValue(c, out var row) && Positive(row.Passable);
+    internal bool Passable(Cell c) => Cells.TryGetValue(c, out var row) && RoundsRules.Positive(row.Passable);
 
     /// <summary>Buildable: walkable, unprotected, no edifice, not a door.</summary>
     internal bool Free(Cell c) =>
-        Cells.TryGetValue(c, out var row) && !Protect.Contains(c) && Positive(row.Walkable) && row.Edifice == "" && !Positive(row.Door) && !Positive(row.PlayerOwned);
+        Cells.TryGetValue(c, out var row) && !Protect.Contains(c) && RoundsRules.Positive(row.Walkable) && row.Edifice == "" && !RoundsRules.Positive(row.Door) && !RoundsRules.Positive(row.PlayerOwned);
 
     /// <summary>A cell known to stop raiders: observed impassable rock or wall.</summary>
     internal bool Blocking(Cell c) => Cells.TryGetValue(c, out var row) && row.Passable.TryGetValue(out var v) && !v;
@@ -551,11 +551,11 @@ public sealed partial record DefenseLayout
         var output = new List<RoleCell>();
         foreach (var c in want)
         {
-            if (!s.Cells.TryGetValue(c.Cell, out var row) || Positive(row.Passable))
+            if (!s.Cells.TryGetValue(c.Cell, out var row) || RoundsRules.Positive(row.Passable))
             {
                 continue;
             }
-            if (row.Passable.IsKnown && !Positive(row.NaturalRock))
+            if (row.Passable.IsKnown && !RoundsRules.Positive(row.NaturalRock))
             {
                 continue; // a wall or building, not rock
             }
@@ -784,7 +784,7 @@ public sealed partial record DefenseLayout
                 {
                     continue;
                 }
-                if (Math.Sqrt(SquaredDistance(shooter, exit)) > minRange)
+                if (Math.Sqrt(PlannedRules.SquaredDistance(shooter, exit)) > minRange)
                 {
                     continue;
                 }

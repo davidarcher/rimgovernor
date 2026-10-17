@@ -104,7 +104,7 @@ internal sealed class VentPricer(Tiler t, ClimateModel m, IReadOnlyList<double> 
             Failed = e;
             return double.PositiveInfinity;
         }
-        var cost = w.MeanW + m.PlantsW(DefaultSiteTypeWeights(), t.In.SteelValue, w);
+        var cost = w.MeanW + m.PlantsW(SiteRules.DefaultSiteTypeWeights(), t.In.SteelValue, w);
         memo[key] = cost;
         return cost;
     }
@@ -216,7 +216,7 @@ internal sealed partial class Tiler
             return;
         }
         In.VentAvailable.TryGetValue(out var available);
-        var ventW = BuildW(DefaultSiteTypeWeights(), m.Build.Vent, In.SteelValue);
+        var ventW = BuildW(SiteRules.DefaultSiteTypeWeights(), m.Build.Vent, In.SteelValue);
         var p = new VentPricer(this, m, curve!);
         var used = new HashSet<Cell>();
         for (var i = 0; i < Rooms.Count; i++)
@@ -371,7 +371,7 @@ internal sealed partial class Tiler
         var output = new List<PlannedSite>(vents.Count);
         foreach (var v in vents)
         {
-            var site = NewSite($"vent_{v.Cell.X}_{v.Cell.Z}", NodeVent, RectRegion(new Rectangle { X = v.Cell.X, Z = v.Cell.Z, Width = 1, Height = 1 }), v.Reason);
+            var site = NewSite($"vent_{v.Cell.X}_{v.Cell.Z}", NodeVent, RegionRules.RectRegion(new Rectangle { X = v.Cell.X, Z = v.Cell.Z, Width = 1, Height = 1 }), v.Reason);
             var (rot, _) = DoorSide(Rooms[v.Room].Rect, v.Cell);
             output.Add(site with { Rotation = rot });
         }

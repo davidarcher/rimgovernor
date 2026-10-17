@@ -80,7 +80,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             role = Pol.RoomRole.RecRoom;
         }
-        resolved.Facility = PolicyApi.Facility(role);
+        resolved.Facility = RoomsRules.Facility(role);
         if (v.Furniture.IsChair(method.Value))
         {
             var adjacent = new List<Cell>(Adjacent);
@@ -109,7 +109,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (method == Pol.ComfortMethod.NoMethod && review.MissingVariety > 0)
         {
-            method = PolicyApi.SelectRecreationVariety(v, m =>
+            method = RecreationRules.SelectRecreationVariety(v, m =>
             {
                 if (m.PowerW > 0)
                 {

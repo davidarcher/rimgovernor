@@ -45,7 +45,7 @@ public sealed class PawnActivityMethodTests
         var world = new GenerationSnapshot(new ColonyId("colony"), new MapId(1), new LoadId("load"),
             new PlanId("review"), new PlanRevision(1), default);
         _ = journal.ReviewRounds(new RoundsRequest { Current = world, Tick = new Tick(100),
-            Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
+            Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
         return world;
     }
 

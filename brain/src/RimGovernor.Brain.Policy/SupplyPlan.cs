@@ -263,7 +263,7 @@ internal sealed class SupplyCand
     public required SupplyEntry Entry { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class SupplyPlanRules
 {
     /// <summary>The demand and yield key of nutrition.</summary>
     public static ResourceKey NutritionKey { get; } = new() { Def = CandidateNutrition };
@@ -375,7 +375,7 @@ public static partial class PolicyFunctions
     }
 
     private static int AcquisitionKeyCompare(ResourceKey a, ResourceKey b) =>
-        AcquisitionKeyLess(a, b) ? -1 : AcquisitionKeyLess(b, a) ? 1 : 0;
+        ResourceRules.AcquisitionKeyLess(a, b) ? -1 : ResourceRules.AcquisitionKeyLess(b, a) ? 1 : 0;
 
     /// <summary>
     /// The one ranker over a demand vector and unified candidates. It budgets projected rates and unit
@@ -413,9 +413,9 @@ public static partial class PolicyFunctions
         for (var i = 0; i < demands.Count; i++)
         {
             var d = demands[i];
-            if (!ValidAcquisitionKey(d.Good)
+            if (!ResourceRules.ValidAcquisitionKey(d.Good)
                 || !FoodNumber(d.PerDay)
-                || !ValidAcquisitionCount(d.Units)
+                || !ResourceRules.ValidAcquisitionCount(d.Units)
                 || (d.PerDay > 0 && d.Units > 0)
                 || !FoodNumber(d.HorizonDays)
                 || !FoodNumber(d.Cover)
@@ -434,7 +434,7 @@ public static partial class PolicyFunctions
         var usable = new Dictionary<ResourceKey, long>();
         foreach (var q in r.Usable)
         {
-            if (usable.ContainsKey(q.Key) || !ValidAcquisitionKey(q.Key) || !ValidAcquisitionCount(q.Count))
+            if (usable.ContainsKey(q.Key) || !ResourceRules.ValidAcquisitionKey(q.Key) || !ResourceRules.ValidAcquisitionCount(q.Count))
             {
                 throw new SupplyPlanFactsException();
             }
@@ -558,7 +558,7 @@ public static partial class PolicyFunctions
             || !FoodId(row.Id)
             || identities.Contains((row.Kind, row.Id))
             || row.Yields.Count == 0
-            || !ValidAcquisitionCount(row.UnitsPerTrip)
+            || !ResourceRules.ValidAcquisitionCount(row.UnitsPerTrip)
             || (row.NeedsHaul && row.UnitsPerTrip == 0))
         {
             throw new SupplyPlanFactsException();
@@ -580,7 +580,7 @@ public static partial class PolicyFunctions
         Num(row.DistanceSquared, double.MaxValue);
         foreach (var q in row.UpfrontCost.Resources)
         {
-            if (!ValidAcquisitionKey(q.Key) || !ValidAcquisitionCount(q.Count))
+            if (!ResourceRules.ValidAcquisitionKey(q.Key) || !ResourceRules.ValidAcquisitionCount(q.Count))
             {
                 throw new SupplyPlanFactsException();
             }
@@ -594,10 +594,10 @@ public static partial class PolicyFunctions
             var (_, rateKnown) = Num(y.PerDay, double.MaxValue);
             var capKnown = y.StockCap.TryGetValue(out var stock);
             var roomKnown = y.Headroom.TryGetValue(out var headroom);
-            if (!ValidAcquisitionKey(y.Good)
-                || (capKnown && !ValidAcquisitionCount(stock))
-                || (roomKnown && !ValidAcquisitionCount(headroom))
-                || !FiniteAcquisitionCost(y.UnitValue)
+            if (!ResourceRules.ValidAcquisitionKey(y.Good)
+                || (capKnown && !ResourceRules.ValidAcquisitionCount(stock))
+                || (roomKnown && !ResourceRules.ValidAcquisitionCount(headroom))
+                || !ResourceRules.FiniteAcquisitionCost(y.UnitValue)
                 || (i > 0 && yields[i - 1].Good == y.Good))
             {
                 throw new SupplyPlanFactsException();

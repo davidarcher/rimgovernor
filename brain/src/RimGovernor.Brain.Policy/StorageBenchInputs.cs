@@ -15,7 +15,7 @@ public sealed record BenchInput
     public IReadOnlyList<string> Inputs { get; init; } = [];
 }
 
-public static partial class PolicyFunctions
+public static partial class StorageRules
 {
     /// <summary>
     /// Lists, in bench order, every bench with an active bill and its inputs: the union of every ingredient

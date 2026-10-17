@@ -129,7 +129,7 @@ public static partial class CombatPeelRules
         Cell? gunner = null;
         foreach (var d in view.Defenders)
         {
-            if (!Positive(d.RangedEquipped))
+            if (!RoundsRules.Positive(d.RangedEquipped))
             {
                 continue;
             }
@@ -166,7 +166,7 @@ public sealed partial record CombatView
         {
             foreach (var t in Threats)
             {
-                if (t.Id == id && (Positive(t.Dead) || Positive(t.Downed)))
+                if (t.Id == id && (RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed)))
                 {
                     return true;
                 }

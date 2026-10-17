@@ -275,7 +275,7 @@ public sealed record RoutesFacts
     public Fact<bool> DoorAvailable { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class RoutesRules
 {
     public static RoutesPolicy DefaultRoutesPolicy() => new() { Door = "Door", Stuff = "WoodLog", MaxBreaches = 4 };
 

@@ -143,7 +143,7 @@ public sealed record MedicalCareHistory
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class MedicalRules
 {
 
     public static MedicalCareHistory ReviewMedicalCare(Fact<EquatableArray<CarePawn>> observed, MedicalCareHistory previous)

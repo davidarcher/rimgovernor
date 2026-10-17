@@ -42,7 +42,7 @@ public sealed record ResourceDemandInput
     public Fact<EquatableArray<ResourceQuantity>> Stock { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class ResourceRules
 {
     internal const long MaxAcquisitionCount = 1_000_000_000;
 

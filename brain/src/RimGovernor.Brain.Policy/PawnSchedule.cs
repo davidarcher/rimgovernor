@@ -9,7 +9,7 @@ public static partial class PolicyConstants
     public const string ScheduleMeditate = "Meditate";
 }
 
-public static partial class PolicyFunctions
+public static partial class PawnRules
 {
     /// <summary>Fixed occupancy assumption for the independent layout comfort estimate only.
     /// This is neither a pawn schedule nor a selected needs timeline.</summary>

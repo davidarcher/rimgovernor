@@ -32,6 +32,6 @@ internal static class StockpileBenchInputs
         {
             benches.Add(row.Bench);
         }
-        return Pol.PolicyFunctions.DeriveBenchInputs(benches, at, excluded);
+        return Pol.StorageRules.DeriveBenchInputs(benches, at, excluded);
     }
 }

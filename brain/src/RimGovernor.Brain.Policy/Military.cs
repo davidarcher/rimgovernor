@@ -83,8 +83,8 @@ public sealed record MilitaryFacts
         Hostiles = f.Hostiles,
         Armed = f.Armed,
         Unarmed = f.Unarmed,
-        Foothold = PolicyFunctions.FootholdCount(f),
-        Training = PolicyFunctions.ReviewTraining(f),
+        Foothold = RoundsRules.FootholdCount(f),
+        Training = TrainingRules.ReviewTraining(f),
         Gear = f.Gear,
         CraftingSpotRetireOwed = f.CraftingSpotRetireOwed,
         ShellsShort = f.ShellsShort,
@@ -326,8 +326,8 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     /// </summary>
     public static Fact<bool> DefenseMet(MilitaryFacts f)
     {
-        var armed = f.Foothold.TryGetValue(out var n) ? Measured(f.Armed, v => v >= Math.Min(2, n)) : Unknown<bool>();
-        return PolicyFunctions.BasicDefenseRecovered(AllFacts(armed, Measured(f.Hostiles, v => v == 0)), f.Unarmed);
+        var armed = f.Foothold.TryGetValue(out var n) ? RoundsRules.Measured(f.Armed, v => v >= Math.Min(2, n)) : Unknown<bool>();
+        return PolicyFunctions.BasicDefenseRecovered(RoundsRules.AllFacts(armed, RoundsRules.Measured(f.Hostiles, v => v == 0)), f.Unarmed);
     }
 
     private static Need DefenseNeed(MilitaryFacts f)
@@ -342,7 +342,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
         if (!ok && f.Foothold.TryGetValue(out var n) && f.Armed.TryGetValue(out var stock) && n > 0)
         {
             // The armed shortfall's share of the target; with the target armed, the unarmed share of the fighters.
-            var target = PolicyFunctions.ArmedTarget(n);
+            var target = RoundsRules.ArmedTarget(n);
             var share = Math.Max(0, (double)(target - stock) / target);
             if (f.Unarmed.TryGetValue(out var unarmed) && unarmed > 0 && share == 0)
             {
@@ -367,7 +367,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
         {
             return Known(true);
         }
-        return Measured(f.Hostiles, n => n > 0);
+        return RoundsRules.Measured(f.Hostiles, n => n > 0);
     }
 
     private static Need RestoreWorkersNeed(MilitaryFacts f)
@@ -394,7 +394,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     private static Need CombatNeed(MilitaryFacts f)
     {
         var evidence = EquatableArray.From<NeedEvidence>([new("hostiles", Text(f.Hostiles)), new("hunt_prey", Count(f.HuntPrey.Count))]);
-        var situation = PolicyFunctions.CombatSituation(f.Hostiles, f.HuntPrey.Count);
+        var situation = RoundsRules.CombatSituation(f.Hostiles, f.HuntPrey.Count);
         if (situation == Situation.Unclear || !f.Hostiles.TryGetValue(out var hostiles))
         {
             return new Need { Id = Combat, Tier = NeedTier.SeriousHarm, Evidence = evidence };

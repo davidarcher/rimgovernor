@@ -302,7 +302,7 @@ public static class RoundsMoodReads
             }
             pawns.Add(pawn);
         }
-        return Known(PolicyFunctions.BuildMoodLedger(pawns, facts));
+        return Known(MoodRules.BuildMoodLedger(pawns, facts));
     }
 
     // rounds_pawns.go

@@ -262,7 +262,7 @@ public sealed record StationNode
 public readonly record struct SuiteWish(double Target, int Kept)
 {
     /// <summary>The interior cells the wish asks for: what meets the target (no size snap), never less than the suite that stands.</summary>
-    public int Floor() => Math.Max((int)PolicyFunctions.SuiteCells(Target), Kept);
+    public int Floor() => Math.Max((int)RoomQualityRules.SuiteCells(Target), Kept);
 }
 
 /// <summary>The wish that two nodes stand together. Weight is the movements a day (items or pawn trips) between them. A Required edge is a link the environment needs demand (cold storage beside the stove).</summary>
@@ -485,7 +485,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
                 {
                     var w = suites[i];
                     var id = string.Create(CultureInfo.InvariantCulture, $"{PolicyFunctions.NodeId(k.Def, k.Purpose)}/suite{i}");
-                    Nodes[id] = new StationNode { Id = id, Def = k.Def, Purpose = k.Purpose, Count = 1, Floor = (int)PolicyFunctions.SuiteCells(w.Target), Kept = w.Kept };
+                    Nodes[id] = new StationNode { Id = id, Def = k.Def, Purpose = k.Purpose, Count = 1, Floor = (int)RoomQualityRules.SuiteCells(w.Target), Kept = w.Kept };
                     people -= Math.Max(s.Capacity.Slots, 1);
                 }
                 if (people <= 0)

@@ -18,7 +18,7 @@ public sealed class StoreInflowTests
     private static readonly Policy.Store Warehouse = new() { Site = new StoreSite { Role = "general", Interior = WarehouseRoom } };
 
     private static StockpileZone Zone(string id, string role, Rectangle room) =>
-        new() { Id = id, Role = role, Cells = RectCells(room), Filter = new StockpileFilter(FilterBase.Nothing) };
+        new() { Id = id, Role = role, Cells = PlannedRules.RectCells(room), Filter = new StockpileFilter(FilterBase.Nothing) };
 
     private static StockpileRequest Request(Dictionary<string, EquatableArray<OccupancySample>> groups) => new()
     {
@@ -42,9 +42,9 @@ public sealed class StoreInflowTests
         // Two stacks an hour inside the window; samples older than the window are ignored.
         var request = Request(new()
         {
-            ["Zone_yard"] = Ring(0, Now, h => h <= Now - (StoreInflowWindowDays * 24) ? 500 - h : 2 * h),
+            ["Zone_yard"] = Ring(0, Now, h => h <= Now - (StoreRules.StoreInflowWindowDays * 24) ? 500 - h : 2 * h),
         });
-        Assert.Equal(48, Rate(StoreInflow(request, Yard)), 6);
+        Assert.Equal(48, Rate(StoreRules.StoreInflow(request, Yard)), 6);
     }
 
     [Fact]
@@ -55,22 +55,22 @@ public sealed class StoreInflowTests
             ["Zone_warehouse"] = Ring(Now - 71, Now, h => 300 - h),
             ["Shelf_7"] = Ring(Now - 71, Now, _ => 6),
         });
-        Assert.Equal(-24, Rate(StoreInflow(request, Warehouse)), 6);
+        Assert.Equal(-24, Rate(StoreRules.StoreInflow(request, Warehouse)), 6);
     }
 
     [Fact]
     public void UnderADayOfSamplesReadsUnknownNotZero()
     {
         var request = Request(new() { ["Zone_yard"] = Ring(Now - 10, Now, h => h) });
-        Assert.False(StoreInflow(request, Yard).IsKnown);
+        Assert.False(StoreRules.StoreInflow(request, Yard).IsKnown);
     }
 
     [Fact]
     public void AStoreWhoseGroupHasNoSamplesReadsUnknown()
     {
         var request = Request(new() { ["Zone_yard"] = Ring(Now - 71, Now, _ => 3) });
-        Assert.Equal(0, Rate(StoreInflow(request, Yard)), 6);
-        Assert.False(StoreInflow(request, Warehouse).IsKnown);
+        Assert.Equal(0, Rate(StoreRules.StoreInflow(request, Yard)), 6);
+        Assert.False(StoreRules.StoreInflow(request, Warehouse).IsKnown);
     }
 
     [Fact]
@@ -81,14 +81,14 @@ public sealed class StoreInflowTests
             ["Zone_warehouse"] = Ring(Now - 71, Now, _ => 10),
             ["Shelf_7"] = Ring(Now - 40, Now, h => h - (Now - 40)),
         });
-        Assert.Equal(24, Rate(StoreInflow(request, Warehouse)), 6);
+        Assert.Equal(24, Rate(StoreRules.StoreInflow(request, Warehouse)), 6);
 
         var young = Request(new()
         {
             ["Zone_warehouse"] = Ring(Now - 71, Now, _ => 10),
             ["Shelf_7"] = Ring(Now - 5, Now, h => h),
         });
-        Assert.False(StoreInflow(young, Warehouse).IsKnown);
+        Assert.False(StoreRules.StoreInflow(young, Warehouse).IsKnown);
     }
 
     [Fact]
@@ -100,19 +100,19 @@ public sealed class StoreInflowTests
             ["Zone_yard"] = Ring(Now - 71, Now, _ => 4),
             ["Zone_old"] = Ring(Now - 71, Now, h => 10 * h),
         });
-        Assert.Equal(0, Rate(StoreInflow(request, Yard)), 6);
+        Assert.Equal(0, Rate(StoreRules.StoreInflow(request, Yard)), 6);
     }
 
     [Fact]
     public void AnUnreadRingReadsUnknown()
     {
         var request = Request([]) with { Occupancy = Unknown<StoreOccupancy>() };
-        Assert.False(StoreInflow(request, Yard).IsKnown);
+        Assert.False(StoreRules.StoreInflow(request, Yard).IsKnown);
     }
 
     [Fact]
     public void TheReadAsksForTheInflowWindow()
     {
-        Assert.Equal(Now - (StoreInflowWindowDays * 24), StoreInflowSinceHour(new Tick(((long)Now * ConsumptionHourTicks) + 7)));
+        Assert.Equal(Now - (StoreRules.StoreInflowWindowDays * 24), StoreRules.StoreInflowSinceHour(new Tick(((long)Now * ResourceRules.ConsumptionHourTicks) + 7)));
     }
 }

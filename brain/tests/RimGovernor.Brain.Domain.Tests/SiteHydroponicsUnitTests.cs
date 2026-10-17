@@ -68,7 +68,7 @@ public sealed class SiteHydroponicsUnitTests
             LampGrowthRadius = 5,
         };
 
-        var (plan, _) = PlanSiteType(request);
+        var (plan, _) = SiteRules.PlanSiteType(request);
 
         var unit = plan.Candidates.Single(c => c.Kind == SiteKind.Hydroponics);
         Assert.Equal("room too cold and no heater available", unit.Reason);

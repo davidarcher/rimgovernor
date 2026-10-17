@@ -2,7 +2,7 @@ using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class ProductionRules
 {
     /// <summary>
     /// Sums the nutrition target already committed to existing TargetCount bills. It stays distinct from

@@ -75,7 +75,7 @@ public sealed partial class RoundsWorkPlanner
         }
         var resourceTargets = _reviewer.ResourceTargets(state.Snapshot);
         // The resource targets are in deficit when the economy/resource Need's threshold reads short now.
-        var deficit = PolicyApi.ResourceTargetNeed(resourceTargets, read.Projection.Facts.Resources).Recovered.TryGetValue(out var recovered) && !recovered;
+        var deficit = ResearchRules.ResourceTargetNeed(resourceTargets, read.Projection.Facts.Resources).Recovered.TryGetValue(out var recovered) && !recovered;
         var targets = RoundsProjectBill.RoundsDeficitTargets(resourceTargets, deficit, read.Projection.Facts.Gear);
         var benchWork = await RoundsProjectBill.RoundsBenchWorkAsync(_reviewer.BenchSource(_benches, expected, false), state.Snapshot, plans, playerPlans, targets, targets.Count > 0, read.Projection.Facts.Items.Wort, call).ConfigureAwait(false);
         if (!benchWork.TryGetValue(out var benchRows))
@@ -95,7 +95,7 @@ public sealed partial class RoundsWorkPlanner
         var demand = RoundsDisease.RoundsDiseaseDemand(read.Projection, definitions, review, state.Snapshot);
         var sharedWork = p.Journal.WorkResources(state.Snapshot, call);
         demand = demand with { CommittedPawns = sharedWork.Claims.Pawns, WorkClaimsTruncated = sharedWork.Claims.Truncated };
-        var decision = PolicyApi.PlanWork(pawns, required, demand);
+        var decision = WorkRules.PlanWork(pawns, required, demand);
         if (!decision.Capacity.IsKnown)
         {
             return Existing(FieldUnavailable("work_capacity"));
@@ -111,7 +111,7 @@ public sealed partial class RoundsWorkPlanner
             {
                 continue;
             }
-            var (changed, changedOk) = PolicyApi.WorkChanges(pawn, assignment);
+            var (changed, changedOk) = WorkRules.WorkChanges(pawn, assignment);
             if (!changedOk)
             {
                 throw new ControlException("step: !ok");
@@ -119,13 +119,13 @@ public sealed partial class RoundsWorkPlanner
             if (changed.Count > 0) work.Add(WorkAssignment.NewWorkAssignment(assignment.Pawn, changed));
         }
         var settings = new List<PawnSettings>(PolicyApi.HostilityChanges(HostilityRows(pawns), read.Emergency.Threats));
-        var reserve = PolicyApi.ReviewMedicalReserve(read.Projection.Facts.MedicalReserve, false, _reviewer.Policy.MedicalReserve);
-        settings.AddRange(PolicyApi.MedicineCarryChanges(PolicyApi.MedicineCarryRows(pawns), reserve.Stock, reserve.Target));
+        var reserve = MedicalRules.ReviewMedicalReserve(read.Projection.Facts.MedicalReserve, false, _reviewer.Policy.MedicalReserve);
+        settings.AddRange(MedicineCarryRules.MedicineCarryChanges(MedicineCarryRules.MedicineCarryRows(pawns), reserve.Stock, reserve.Target));
         if (read.Projection.Facts.OwnedNames.TryGetValue(out var ownedNames))
         {
-            settings.AddRange(PolicyApi.NicknameChanges(ownedNames));
+            settings.AddRange(PawnRules.NicknameChanges(ownedNames));
         }
-        var care = PolicyApi.MedicalCareChanges(read.Projection.Facts, _reviewer.Policy.MedicalReserve).ToList();
+        var care = MedicalRules.MedicalCareChanges(read.Projection.Facts, _reviewer.Policy.MedicalReserve).ToList();
         if (care.Count > 8)
         {
             care = care[..8];
@@ -334,7 +334,7 @@ partial class RoundsWorkPlanner
             return [];
         }
         var entries = p.Reading.Select(e => new ReadingPolicyEntry { Id = e.ID, Label = e.Label, Pawns = e.Pawns, Allowed = e.Allowed }).ToList();
-        return PolicyApi.ReadingPolicyChanges(pawns, owned, entries, p.Books);
+        return ReadingPolicyRules.ReadingPolicyChanges(pawns, owned, entries, p.Books);
     }
 
     /// <summary>The food-policy writes and assignments the review's policies and reserve call for.</summary>

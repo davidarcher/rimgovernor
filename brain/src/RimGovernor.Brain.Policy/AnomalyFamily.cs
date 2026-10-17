@@ -77,7 +77,7 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
         var entities = p.Entities.TryGetValue(out _);
         var doors = PolicyFunctions.ContainmentDoorUpkeep(p).CloseDoors.Count;
         var harvest = PolicyFunctions.BioferriteHarvestOwed(p, f.Research);
-        var monolith = PolicyFunctions.MonolithAdvanceOwed(f.Monolith, PolicyFunctions.MonolithGate(f));
+        var monolith = MonolithRules.MonolithAdvanceOwed(f.Monolith, MonolithRules.MonolithGate(f));
         return
         [
             Counted(Doors, NeedTier.Wellbeing, holders ? doors : null, "doors_to_close"),
@@ -87,7 +87,7 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
             // An unread fact that kept the rule from deciding leaves the Need unknown, never met.
             Counted(Bioferrite, NeedTier.Development, entities && (harvest.Enable.Count > 0 || harvest.Issues.Count == 0) ? harvest.Enable.Count : null, "entities_to_extract"),
             Counted(Monolith, NeedTier.Development,
-                f.Monolith.TryGetValue(out _) && (monolith.Order != MonolithOrder.None || !PolicyFunctions.MonolithInPlay(f.Monolith) || monolith.Issues.Count == 0)
+                f.Monolith.TryGetValue(out _) && (monolith.Order != MonolithOrder.None || !MonolithRules.MonolithInPlay(f.Monolith) || monolith.Issues.Count == 0)
                     ? (monolith.Order == MonolithOrder.None ? 0 : 1) : null,
                 "monolith_advance"),
         ];
@@ -148,7 +148,7 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
         {
             return null;
         }
-        if (!PolicyFunctions.LanceWorn(f.Gear))
+        if (!PopulationRules.LanceWorn(f.Gear))
         {
             return 0;
         }
@@ -156,7 +156,7 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
         {
             return null;
         }
-        return PolicyFunctions.LanceCandidate(f) is null ? 0 : 1;
+        return PopulationRules.LanceCandidate(f) is null ? 0 : 1;
     }
 
     private static Need Counted(NeedId id, NeedTier tier, int? owed, string fact)

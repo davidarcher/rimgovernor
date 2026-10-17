@@ -28,7 +28,7 @@ public sealed record ResourceOrderRequest
     public Fact<EquatableArray<GearBench>> Benches { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class ResourceRules
 {
     /// <summary>
     /// the economy/resource Need's wanted bench orders. A floor below its target declares the first producing recipe's
@@ -44,11 +44,11 @@ public static partial class PolicyFunctions
         var benchesKnown = r.Benches.TryGetValue(out var benches);
         if (!knownStock)
         {
-            return Abstaining(Cause.UnreadStock);
+            return WorkRules.Abstaining(Cause.UnreadStock);
         }
         if (!benchesKnown)
         {
-            return Abstaining(Cause.UnreadBenches);
+            return WorkRules.Abstaining(Cause.UnreadBenches);
         }
         var floors = r.Floors.OrderBy(f => f.Resource).ToList();
         var output = new Declared();

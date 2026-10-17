@@ -19,7 +19,7 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
         var output = new List<ConcernId>();
         if (_surgery)
         {
-            output.Add(PolicyApi.SurgeryNeed.FilingKey);
+            output.Add(MedicalRules.SurgeryNeed.FilingKey);
         }
         return output;
     }
@@ -33,7 +33,7 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
         {
             foreach (var c in Concerns())
             {
-                output.Merge(PolicyApi.Abstaining(Cause.UnreadReview).For(c.Value));
+                output.Merge(WorkRules.Abstaining(Cause.UnreadReview).For(c.Value));
             }
             return Task.FromResult(output);
         }
@@ -41,14 +41,14 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
         {
             // The medical/surgery Need's part bill (#3258): declared while the Need is unmet, nothing while it is met,
             // an abstain while the care census is unread.
-            var standing = PolicyApi.SurgeryNeedOf(MedicalFacts.From(projection.Facts, _reviewer.Policy, review.Latches.MedicalReserve)).Satisfaction;
+            var standing = MedicalRules.SurgeryNeedOf(MedicalFacts.From(projection.Facts, _reviewer.Policy, review.Latches.MedicalReserve)).Satisfaction;
             var one = standing switch
             {
-                Satisfaction.Unknown => PolicyApi.Abstaining(Cause.UnreadMedicine),
+                Satisfaction.Unknown => WorkRules.Abstaining(Cause.UnreadMedicine),
                 Satisfaction.Met => new Declared(),
                 _ => SurgeryPartBill(projection, benches),
             };
-            output.Merge(one.For(PolicyApi.SurgeryNeed.FilingKey.Value));
+            output.Merge(one.For(MedicalRules.SurgeryNeed.FilingKey.Value));
         }
         return Task.FromResult(output);
     }
@@ -57,7 +57,7 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
     private static Declared SurgeryPartBill(ColonyProjection projection, IReadOnlyList<GearBench> benches)
     {
         var (parts, productions) = Rounder.SurgeryPartsOn(projection.Facts.MedicalPawns, projection.SurgeryContext(), benches);
-        var (selected, gap) = PolicyApi.SelectSurgeryPartBill(productions, parts);
+        var (selected, gap) = SurgeryRules.SelectSurgeryPartBill(productions, parts);
         return PolicyApi.DeclareSelection(selected, gap == default, benches);
     }
 }

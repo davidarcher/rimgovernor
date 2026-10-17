@@ -342,7 +342,7 @@ internal static class StationFactsBuilder
             Items = projection.Facts.Items,
             Colonists = projection.Facts.Colonists,
             Patients = projection.Facts.MedicalPawns,
-            Surgical = PolicyFunctions.SurgeryBedShortPatients(projection.Facts.MedicalPawns),
+            Surgical = SurgeryRules.SurgeryBedShortPatients(projection.Facts.MedicalPawns),
             Prisoners = Unknown<int>(),
             Herds = projection.Facts.PenHerds(),
             Races = projection.Facts.AnimalUpkeep.AnimalRaces,
@@ -385,7 +385,7 @@ internal static class StationFactsBuilder
         }
         // An inactive ledger (no planner declares into it) wants no order: a known empty list, where an
         // unreviewed or unread one is unknown.
-        if (ledger.Status is PolicyFunctions.LedgerViewReconciled or PolicyFunctions.LedgerViewInactive)
+        if (ledger.Status is WorkRules.LedgerViewReconciled or WorkRules.LedgerViewInactive)
         {
             var orders = ledger.Orders.Select(o => new OrderSpec
             {
@@ -412,7 +412,7 @@ internal static class StationFactsBuilder
     {
         var f = StationFactsOf(projection, new LayoutPlan(), survey, needs, ledger) with { Derive = true };
         var (need, owed) = RoundsSleepingUpkeepPlanner.ThroneNeed(projection);
-        return f with { ThroneArea = Known(PolicyFunctions.ThroneAreaOwed(new LayoutPlan(), need, owed)) };
+        return f with { ThroneArea = Known(ThroneRules.ThroneAreaOwed(new LayoutPlan(), need, owed)) };
     }
 
     /// <summary>

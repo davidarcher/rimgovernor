@@ -20,7 +20,7 @@ public sealed class StandbyTests
     private static RoundsFacts Facts(WorkPawnAvailability[] pawns, WorkResourcePawn[] native, WorkAction[] actions)
     {
         var evidence = new WorkAdmissionEvidence { Tick = Now, Pawns = Known(EquatableArray.From(pawns)), WorkResources = Known(EquatableArray.From(native)) };
-        return new RoundsFacts { Tick = Now, WorkView = PolicyFunctions.WorkResourcesOf(evidence, default, actions) };
+        return new RoundsFacts { Tick = Now, WorkView = WorkRules.WorkResourcesOf(evidence, default, actions) };
     }
 
     private static WorkAction Action(string plan, PawnActivities batch, Stage stage, ulong attempt = 0) =>
@@ -38,9 +38,9 @@ public sealed class StandbyTests
             [Native("idle"), Native("drafted"), Native("assigned", "work-1/assigned", 1), Native("busy")], []);
         var census = new WorkActionCensus([]);
 
-        Assert.Equal(["idle"], PolicyFunctions.StandbyPawnsOf(facts, census, new HashSet<string>()));
+        Assert.Equal(["idle"], StandbyAssignmentsRules.StandbyPawnsOf(facts, census, new HashSet<string>()));
 
-        var standby = PolicyFunctions.StandbyActivity("idle", 7, "standby-1");
+        var standby = StandbyAssignmentsRules.StandbyActivity("idle", 7, "standby-1");
         standby.Validate();
         var order = Assert.Single(standby.Orders);
         Assert.True(PawnActivities.IsStandby(order));
@@ -56,25 +56,25 @@ public sealed class StandbyTests
             [Native("selected"), Native("queued"), Native("free")], [pending]);
         var census = new WorkActionCensus([pending]);
 
-        Assert.Equal(["free"], PolicyFunctions.StandbyPawnsOf(facts, census, new HashSet<string>(["selected"])));
+        Assert.Equal(["free"], StandbyAssignmentsRules.StandbyPawnsOf(facts, census, new HashSet<string>(["selected"])));
     }
 
     [Fact]
     public void StandbyClaimsNothingSoSelectedWorkIsAdmittedOverIt()
     {
-        var standby = Action("standby-1", PolicyFunctions.StandbyActivity("pawn", 7, "standby-1"), Stage.Completed, attempt: 1);
+        var standby = Action("standby-1", StandbyAssignmentsRules.StandbyActivity("pawn", 7, "standby-1"), Stage.Completed, attempt: 1);
         var evidence = new WorkAdmissionEvidence { Tick = Now, WorkResources = Known(EquatableArray.From([Native("pawn", "standby-1/pawn", 1)])) };
 
-        Assert.Empty(PolicyFunctions.WorkClaimsOf(evidence, [standby]).Pawns);
-        var held = PolicyFunctions.MethodClaimsOf(evidence, [standby]);
-        var candidate = PolicyFunctions.MethodClaimsOf(evidence, [Action("work-3", Work("pawn", "work-3"), Stage.Pending)]);
-        Assert.Null(PolicyFunctions.MethodClaimOverlap(candidate, held));
+        Assert.Empty(WorkRules.WorkClaimsOf(evidence, [standby]).Pawns);
+        var held = MethodClaimsRules.MethodClaimsOf(evidence, [standby]);
+        var candidate = MethodClaimsRules.MethodClaimsOf(evidence, [Action("work-3", Work("pawn", "work-3"), Stage.Pending)]);
+        Assert.Null(MethodClaimsRules.MethodClaimOverlap(candidate, held));
     }
 
     [Fact]
     public void StandbyHoldsUntilWorkReplacesIt()
     {
-        var batch = PolicyFunctions.StandbyActivity("pawn", 7, "standby-1");
+        var batch = StandbyAssignmentsRules.StandbyActivity("pawn", 7, "standby-1");
 
         // No Concern, no deadline: a satisfied or unknown Need never releases standby into an unassigned hold.
         var held = PolicyFunctions.ReviewActivityOwnership(batch, Known(false), 900_000, [new("pawn", "standby-1/pawn", "standby-1", 1, "started")]);
@@ -89,7 +89,7 @@ public sealed class StandbyTests
     [Fact]
     public void StandbyIsTheOrdersOnlyTargetlessStep()
     {
-        var step = PolicyFunctions.StandbyStep();
+        var step = StandbyAssignmentsRules.StandbyStep();
         Assert.Throws<DomainException>(() => new PawnActivities(7, [new("pawn", "a/pawn", "a", 0, 1, false, [step, step])]).Validate());
         Assert.Throws<DomainException>(() => new PawnActivities(7, [new("pawn", "a/pawn", "a", 0, 1, false, [step with { Target = "bed" }])]).Validate());
         Assert.False(PawnActivities.IsStandby(new("pawn", "a/pawn", "a", 1, 2, true, [])));

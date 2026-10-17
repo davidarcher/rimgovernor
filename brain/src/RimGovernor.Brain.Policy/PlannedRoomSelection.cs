@@ -32,7 +32,7 @@ public enum PlannedRoomGate
     Selected,
 }
 
-public static partial class PolicyFunctions
+public static partial class PlannedRules
 {
     /// <summary>
     /// The planned-room selection of one comparison (#3278, #3342); null when the review compared nothing (no candidates

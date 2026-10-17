@@ -57,7 +57,7 @@ public static partial class PolicyFunctions
         SetNeeds([WorkType.Hauling], AdminFamily.Stockpiles);
 
         // A medicine bill at a crafting bench, or a wild healroot harvest.
-        SetNeeds([WorkType.Crafting, WorkType.PlantCutting], MedicalReservesNeed);
+        SetNeeds([WorkType.Crafting, WorkType.PlantCutting], MedicalRules.MedicalReservesNeed);
         return table;
     });
 

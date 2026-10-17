@@ -14,7 +14,7 @@ public sealed record SalvageEvidence
     public int AgeTicks { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class RemoteRules
 {
     /// <summary>
     /// The one salvage yield pricing function: the native cost-list evidence as a CandidateSalvage row for the

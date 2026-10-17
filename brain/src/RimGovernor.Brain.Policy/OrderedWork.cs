@@ -2,7 +2,7 @@ using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class OrderedWorkRules
 {
     /// <summary>
     /// Ranks interruption evidence without excluding a pawn from Auto planning. Unknown provenance is

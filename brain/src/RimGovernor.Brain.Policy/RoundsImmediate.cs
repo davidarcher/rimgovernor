@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class RoundsRules
 {
     /// <summary>
     /// The immediate (safety-scope) review. It judges no Concern: every SeriousHarm Need is its family's to judge in

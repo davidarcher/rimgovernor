@@ -30,7 +30,7 @@ public sealed record PackedSculpture
     public double MarketValue { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class RoomQualityRules
 {
     /// <summary>The plant pot the beauty lever places.</summary>
     public const string PlantPotDefinition = "PlantPot";

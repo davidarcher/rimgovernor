@@ -60,7 +60,7 @@ public sealed partial class RoundsAcquisitionPlanner
 
         var (expected, projection) = await _reviewer.AcquisitionReadingAsync(state, review, call).ConfigureAwait(false);
         // An outdoor hazard holds chop, hunt and forage like it holds remote work.
-        if (PolicyApi.OutdoorAcquisitionHeld(projection.Facts))
+        if (OutdoorHazardRules.OutdoorAcquisitionHeld(projection.Facts))
         {
             return new RoundsAcquisitionResult { Verdict = WaitFor(Cause.RoomTemperature, PolicyConstants.RemoteHoldHazard) };
         }

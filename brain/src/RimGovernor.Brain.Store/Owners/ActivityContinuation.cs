@@ -106,7 +106,7 @@ public sealed partial class Store
             AdmitRoundsSafeguards(tx, needOwner);
             var retained = batch.Orders.Where(o => old.Orders.Any(p => PawnActivities.SameOrder(p, o)))
                 .Select(o => o.Pawn).ToHashSet(StringComparer.Ordinal);
-            if (!WorkResourcesFit(WorkResourcesIn(tx, current, previous, observed), next, retained))
+            if (!WorkRules.WorkResourcesFit(WorkResourcesIn(tx, current, previous, observed), next, retained))
                 return ActivityContinuationAdmission.ResourcesUnavailable;
         }
         CreatePlanIn(tx, next);

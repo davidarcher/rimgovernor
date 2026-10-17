@@ -30,7 +30,7 @@ public sealed class HomeFireTests
                 new() { Work = WorkType.Firefighter, Order = 1, Priority = 0, Disabled = pyromaniac },
                 new() { Work = WorkType.Construction, Skill = "Construction", Order = 5, Priority = 3 }]),
         };
-        var decision = PlanWork([Pawn("a", false), Pawn("b", false), Pawn("pyro", true)], [], new());
+        var decision = WorkRules.PlanWork([Pawn("a", false), Pawn("b", false), Pawn("pyro", true)], [], new());
         int Firefighter(string pawn) => decision.Assignments.Single(a => a.Pawn.Value == pawn).Priorities.SingleOrDefault(p => p.Work == WorkType.Firefighter)?.Priority ?? 0;
         Assert.Equal(1, Firefighter("a"));
         Assert.Equal(1, Firefighter("b"));

@@ -19,7 +19,7 @@ public enum RangePieceKind
 /// <summary>One building and the cell it stands on. Column is the zero-based position along the row of a stand or dummy; a stand and the dummy facing it share one.</summary>
 public sealed record RangePiece(RangePieceKind Kind, Cell Cell, int Column);
 
-public static partial class PolicyFunctions
+public static partial class TrainingRules
 {
     /// <summary>The cells from a stand to the dummy facing it. It keeps the shot inside the bow's short-accuracy band.</summary>
     public const int RangeDistance = 8;

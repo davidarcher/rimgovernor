@@ -18,7 +18,7 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return new Pol.BedroomStep();
         }
-        return NextBedroomStep(plan!, rooms!, sleeping!, BedroomTargets(facts), SleepingTraits(facts), SuitePressure(facts));
+        return SleepingRules.NextBedroomStep(plan!, rooms!, sleeping!, BedroomTargets(facts), SleepingTraits(facts), SuitePressure(facts));
     }
 
     /// <summary>The projection's next wing migration step: none without the layout plan, the room census or the sleeping census.</summary>
@@ -31,7 +31,7 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return new Pol.BedroomStep();
         }
-        return NextMigrateStep(plan!, rooms!, sleeping!);
+        return SleepingRules.NextMigrateStep(plan!, rooms!, sleeping!);
     }
 
     /// <summary>The rooms' quality targets, so a bedroom move leaves an ascetic's NeverUpgrade room alone; null while the census is unknown.</summary>
@@ -44,7 +44,7 @@ partial class RoundsSleepingUpkeepPlanner
             return null;
         }
         facts.TechTier.TryGetValue(out var tier);
-        return RoomQualityTargets(obs!, traits, tier, facts.Impressiveness);
+        return RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness);
     }
 
     /// <summary>
@@ -61,8 +61,8 @@ partial class RoundsSleepingUpkeepPlanner
             return null;
         }
         var targets = BedroomTargets(facts) ?? new Dictionary<string, Pol.RoomTarget>();
-        var claims = SuiteClaims(plan, rooms!, sleeping!, targets, traits, SuitePressure(facts) ?? new Dictionary<PawnId, double>());
-        return SuiteWishes(plan, rooms!, sleeping!, targets, claims);
+        var claims = RoomQualityRules.SuiteClaims(plan, rooms!, sleeping!, targets, traits, SuitePressure(facts) ?? new Dictionary<PawnId, double>());
+        return RoomQualityRules.SuiteWishes(plan, rooms!, sleeping!, targets, claims);
     }
 
     /// <summary>Excludes pawns awaiting a suite; their current rooms receive no in-place quality upgrade.</summary>
@@ -76,8 +76,8 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return targets ?? new Dictionary<string, Pol.RoomTarget>();
         }
-        var claims = SuiteClaims(plan!, rooms!, sleeping!, BedroomTargets(facts) ?? new Dictionary<string, Pol.RoomTarget>(), traits, SuitePressure(facts) ?? new Dictionary<PawnId, double>());
-        return UpgradeTargets(targets ?? new Dictionary<string, Pol.RoomTarget>(), sleeping!, claims);
+        var claims = RoomQualityRules.SuiteClaims(plan!, rooms!, sleeping!, BedroomTargets(facts) ?? new Dictionary<string, Pol.RoomTarget>(), traits, SuitePressure(facts) ?? new Dictionary<PawnId, double>());
+        return RoomQualityRules.UpgradeTargets(targets ?? new Dictionary<string, Pol.RoomTarget>(), sleeping!, claims);
     }
 
     /// <summary>
@@ -86,7 +86,7 @@ partial class RoundsSleepingUpkeepPlanner
     /// </summary>
     internal static Fact<bool> BedroomsOwedOf(Observation.ColonyProjection facts)
     {
-        var owed = BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, BedroomTargets(facts), SleepingTraits(facts), SuitePressure(facts));
+        var owed = SleepingRules.BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, BedroomTargets(facts), SleepingTraits(facts), SuitePressure(facts));
         if (owed.TryGetValue(out var v) && !v)
         {
             if (BedroomSwapOf(facts).Ok)
@@ -138,7 +138,7 @@ partial class RoundsSleepingUpkeepPlanner
 
     /// <summary>Orders the suite queue by the pawns' current bedroom, space and jealousy thoughts; null (pawn-id order) while the mood census is unknown.</summary>
     internal static Dictionary<PawnId, double>? SuitePressure(Observation.ColonyProjection facts) =>
-        facts.Facts.MoodPawns.TryGetValue(out var pawns) ? PolicyFunctions.SuitePressure(pawns) : null;
+        facts.Facts.MoodPawns.TryGetValue(out var pawns) ? SuitePriorityRules.SuitePressure(pawns) : null;
 }
 
 public sealed partial class RoundsSleepingUpkeepPlanner
@@ -163,7 +163,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             }
         }
         var request = SleepingRequest(facts, review);
-        var (bed, method) = SleepingDefinition(facts.Shapes.Furniture, request.Definitions, request.Stocked, false, true);
+        var (bed, method) = SleepingRules.SleepingDefinition(facts.Shapes.Furniture, request.Definitions, request.Stocked, false, true);
         if (method == Pol.SleepingMethod.Unknown)
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("bed_definitions") };
@@ -176,7 +176,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("room_census") };
         }
-        if (BedroomTemplate(step.Room, rooms.Shapes, bed) is not { } template)
+        if (SleepingRules.BedroomTemplate(step.Room, rooms.Shapes, bed) is not { } template)
         {
             return new RoundsBuildingResult { Verdict = NoSpace("bedroom_template") };
         }

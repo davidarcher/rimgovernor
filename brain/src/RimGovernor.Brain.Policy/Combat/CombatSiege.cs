@@ -35,7 +35,7 @@ public static partial class CombatSiegeRules
             t.LordJobClass.TryGetValue(out var job);
             t.LordToilClass.TryGetValue(out var toil);
             var id = t.Id;
-            if (job != SiegeLordJob || Positive(t.Dead) || Positive(t.Downed) || down.Contains(id))
+            if (job != SiegeLordJob || RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed) || down.Contains(id))
             {
                 continue;
             }
@@ -130,11 +130,11 @@ public static partial class CombatSiegeRules
         var i = 0;
         foreach (var d in view.Defenders)
         {
-            if (!SquadDefenderEligible(d) || !Positive(d.Armed))
+            if (!SquadDefenseRules.SquadDefenderEligible(d) || !RoundsRules.Positive(d.Armed))
             {
                 continue;
             }
-            var ranged = Positive(d.RangedEquipped);
+            var ranged = RoundsRules.Positive(d.RangedEquipped);
             var role = new CombatRole { Pawn = d.Id, Ranged = ranged };
             if (mode == SiegeMode.Sortie || mode == SiegeMode.Sneak)
             {

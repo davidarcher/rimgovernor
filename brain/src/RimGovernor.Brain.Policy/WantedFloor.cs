@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public delegate (Func<Cell, string> Wanted, Func<string, string, bool> Kept) RoomFloors(PlannedRoom room);
 
-public static partial class PolicyFunctions
+public static partial class WantedFloorRules
 {
     /// <summary>
     /// The flooring review's decision read per cell of a PlannedRoom, the reconciler's WantedFloor: the floor def each
@@ -61,7 +61,7 @@ public static partial class PolicyFunctions
         {
             (tier, ok) = (FloorTier.Throne, true);
         }
-        var d = new FloorDeficit { Tier = tier, Role = role, Cells = RectCells(room.Region.Bounds()) };
+        var d = new FloorDeficit { Tier = tier, Role = role, Cells = PlannedRules.RectCells(room.Region.Bounds()) };
         if (tier == FloorTier.Throne)
         {
             d = d with { Tags = EquatableArray.From(tags) };

@@ -37,7 +37,7 @@ public sealed class PowerMethodTests
         var stove = Site("stove", "ElectricStove", new(8, 2), -350, 0, powered: false);
         var topology = new PowerTopology { Buildings = [generator, stove], Blackout = Known(false), Eclipse = Known(false) };
 
-        var proposal = SelectPowerMethod(Known(topology), new Bounds(20, 20), [], [], Planning);
+        var proposal = PowerRules.SelectPowerMethod(Known(topology), new Bounds(20, 20), [], [], Planning);
 
         Assert.Equal(PowerMethod.WaitFuel, proposal.Method);
         Assert.Equal("stove", proposal.Target);

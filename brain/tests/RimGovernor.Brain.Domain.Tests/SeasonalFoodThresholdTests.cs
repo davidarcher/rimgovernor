@@ -25,7 +25,7 @@ public sealed class SeasonalFoodThresholdTests
         NonGrowingDays = NonGrowing,
     };
 
-    private static RoundsPolicy Seasonal(Calendar calendar) => DefaultRoundsPolicy().Seasonal(Known(calendar), NoConditions);
+    private static RoundsPolicy Seasonal(Calendar calendar) => RoundsRules.DefaultRoundsPolicy().Seasonal(Known(calendar), NoConditions);
 
     [Fact]
     public void ThresholdsDoNotJumpAtTheFrost()
@@ -37,7 +37,7 @@ public sealed class SeasonalFoodThresholdTests
 
         Assert.Equal(before.FoodMinDays, after.FoodMinDays, 9);
         Assert.Equal(before.FoodTargetDays, after.FoodTargetDays, 9);
-        Assert.True(after.FoodMinDays > DefaultRoundsPolicy().FoodMinDays);
+        Assert.True(after.FoodMinDays > RoundsRules.DefaultRoundsPolicy().FoodMinDays);
     }
 
     [Fact]

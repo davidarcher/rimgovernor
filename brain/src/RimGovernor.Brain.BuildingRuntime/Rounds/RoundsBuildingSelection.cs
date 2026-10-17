@@ -143,7 +143,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             return (1, new MethodId("workshop-" + Definition), default);
         }
-        if (c == PolicyApi.MedicalCareNeed.FilingKey)
+        if (c == MedicalRules.MedicalCareNeed.FilingKey)
         {
             return (1, new MethodId("hospital-" + Definition), default);
         }
@@ -355,7 +355,7 @@ partial class RoundsBuildingPlanner
         }
         foreach (var bench in benches)
         {
-            if (bench.Definition != PolicyApi.ButcherSpotDefinition)
+            if (bench.Definition != RoundsRules.ButcherSpotDefinition)
             {
                 continue;
             }
@@ -371,7 +371,7 @@ partial class RoundsBuildingPlanner
     }
 
     internal static bool ButcherBenchDefinition(string definition) =>
-        definition == PolicyConstants.ButcherTableDefinition || definition == PolicyApi.ButcherSpotDefinition;
+        definition == PolicyConstants.ButcherTableDefinition || definition == RoundsRules.ButcherSpotDefinition;
 
     internal static (CurrentBuilding Building, bool Retire) StandingCraftingSpot(ColonyProjection facts)
     {
@@ -381,7 +381,7 @@ partial class RoundsBuildingPlanner
         }
         foreach (var b in census.Buildings)
         {
-            if (b.Building?.Definition == PolicyApi.CraftingSpotDefinition && b.Cells.Count > 0)
+            if (b.Building?.Definition == RoundsRules.CraftingSpotDefinition && b.Cells.Count > 0)
             {
                 return (b, true);
             }

@@ -60,7 +60,7 @@ public sealed record TitleClaimFacts
     public IReadOnlyDictionary<string, double> Impressiveness { get; init; } = new Dictionary<string, double>();
 }
 
-public static partial class PolicyFunctions
+public static partial class TitleClaimRules
 {
     /// <summary>The rung a holding would claim next: the first rung above the held title (the first rung for none), false at the top of the ladder.</summary>
     internal static (RoyalRung Rung, bool Ok) NextClaim(EquatableArray<RoyalRung> ladder, string held)
@@ -104,7 +104,7 @@ public static partial class PolicyFunctions
         {
             furniture[r.Id] = r;
         }
-        foreach (var s in SoloBedrooms(f.Sleeping))
+        foreach (var s in RoomQualityRules.SoloBedrooms(f.Sleeping))
         {
             if (s.Owner != holder)
             {
@@ -121,7 +121,7 @@ public static partial class PolicyFunctions
             }
             foreach (var thing in rung.BedroomThings)
             {
-                if (IsReplacementBed(thing.AnyOf))
+                if (RoomQualityRules.IsReplacementBed(thing.AnyOf))
                 {
                     continue;
                 }
@@ -152,7 +152,7 @@ public static partial class PolicyFunctions
     /// </summary>
     private static Fact<bool> ThroneMet(TitleClaimFacts f, RoyalRung rung)
     {
-        var (need, asks) = RungRequirement(rung);
+        var (need, asks) = ThroneRules.RungRequirement(rung);
         if (!asks)
         {
             return Known(true);
@@ -164,7 +164,7 @@ public static partial class PolicyFunctions
         }
         // Census: impressiveness is read by the room's id.
         var (standing, censused) = CensusRoomIn(room, f.Rooms);
-        var (_, stands) = StandingThroneIn(room, need, f.Built);
+        var (_, stands) = ThroneRules.StandingThroneIn(room, need, f.Built);
         if (!censused || !stands)
         {
             return Known(false);

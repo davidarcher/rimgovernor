@@ -58,7 +58,7 @@ internal static class ShelterRetirement
         await TypedLayoutPlan.InjectAsync(s, new LayoutPlan
         {
             NextRoomId = 1,
-            RetiredGround = [RectRegion(new Rectangle { X = site.X, Z = site.Z, Width = 7, Height = 7 })],
+            RetiredGround = [RegionRules.RectRegion(new Rectangle { X = site.X, Z = site.Z, Width = 7, Height = 7 })],
         }, cancellationToken).ConfigureAwait(false);
         _ = await s.ServeUntilAsync("retired-ground", s.TicksLeft, async ct =>
         {

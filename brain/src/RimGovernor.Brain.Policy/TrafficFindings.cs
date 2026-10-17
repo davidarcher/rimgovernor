@@ -34,7 +34,7 @@ public sealed record TrafficFinding
     public override string ToString() => $"{Wire.Name(Kind)} room={Room} role={Wire.Name(Role)} layer={Wire.Name(Layer)} steps={Steps}";
 }
 
-public static partial class PolicyFunctions
+public static partial class TrafficRules
 {
     // Busiest-cell step counts a room must reach before it is flagged. A resident walking to their own bed stays
     // well under the colonist bound on the two-day half-life; visitors have no business in these rooms at all.

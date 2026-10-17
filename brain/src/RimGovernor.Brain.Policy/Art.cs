@@ -93,7 +93,7 @@ public static partial class PolicyFunctions
         var output = new List<BillSelection>();
         foreach (var artist in artists)
         {
-            var (s, ok) = SelectProductionBill(
+            var (s, ok) = ProductionRules.SelectProductionBill(
                 ArtBill,
                 benches,
                 colonists,
@@ -346,7 +346,7 @@ public static partial class PolicyFunctions
 
         for (var side = biggest; side > 1; side--)
         {
-            var (_, _, ok) = FreeSpotFacing(due[0].Room, new Cell(side, side), Rotation.North);
+            var (_, _, ok) = RoomQualityRules.FreeSpotFacing(due[0].Room, new Cell(side, side), Rotation.North);
             if (ok)
             {
                 d = d with { Fits = side };
@@ -385,7 +385,7 @@ public static partial class PolicyFunctions
             }
         }
 
-        foreach (var id in BeautyRooms(obs, targets))
+        foreach (var id in RoomQualityRules.BeautyRooms(obs, targets))
         {
             foreach (var room in rooms)
             {
@@ -394,7 +394,7 @@ public static partial class PolicyFunctions
                     continue;
                 }
 
-                var (_, _, ok) = FreeSpotFacing(room, new Cell(1, 1), Rotation.North);
+                var (_, _, ok) = RoomQualityRules.FreeSpotFacing(room, new Cell(1, 1), Rotation.North);
                 if (ok)
                 {
                     output.Add(new SculptureRoom(id, room, gaps.GetValueOrDefault(id)));

@@ -22,7 +22,7 @@ public sealed class WorkOccupancyTests
     private static WorkPawn Cooking(WorkPawn pawn) => pawn with { Job = Known(new PawnJob { Def = "TestCook", Work = WorkType.Cooking }) };
     private static int Priority(WorkDecision decision, string pawn, WorkType work) =>
         decision.Assignments.Single(a => a.Pawn.Value == pawn).Priorities.Single(p => p.Work == work).Priority;
-    private static WorkDecision Plan(params WorkPawn[] pawns) => PlanWork(pawns, [], new());
+    private static WorkDecision Plan(params WorkPawn[] pawns) => WorkRules.PlanWork(pawns, [], new());
     private static WorkPawn Apply(WorkPawn pawn, WorkDecision decision) => pawn with
     {
         Work = Known(EquatableArray.From(pawn.Work.Value.Select(w => w with { Priority = Priority(decision, pawn.Id.Value, w.Work) }))),
@@ -63,7 +63,7 @@ public sealed class WorkOccupancyTests
     public void ChangedRequirementsOrDisabledReadbackRemoveOngoingRoleProtection()
     {
         var pawn = Cooking(Pawn("both", cooking: 6));
-        var raised = PlanWork([pawn], [new() { Work = WorkType.Cooking, Skill = "Cooking", Minimum = 8 }], new());
+        var raised = WorkRules.PlanWork([pawn], [new() { Work = WorkType.Cooking, Skill = "Cooking", Minimum = 8 }], new());
         Assert.Equal(1, Priority(raised, "both", WorkType.Construction));
         Assert.Equal(0, Priority(raised, "both", WorkType.Cooking));
         var disabled = pawn with { Work = Known(EquatableArray.From(pawn.Work.Value.Select(w =>
@@ -126,13 +126,13 @@ public sealed class WorkOccupancyTests
         var pawns = new[] { Pawn("cook", cooking: 15, building: 5), Pawn("builder", cooking: 5, building: 15) };
         string Step(string[] claimed)
         {
-            var decision = PlanWork(pawns, [], new() { CommittedPawns = EquatableArray.From(claimed) });
+            var decision = WorkRules.PlanWork(pawns, [], new() { CommittedPawns = EquatableArray.From(claimed) });
             var wrote = false;
             for (var i = 0; i < pawns.Length; i++)
             {
                 var assignment = decision.Assignments.SingleOrDefault(a => a.Pawn == pawns[i].Id);
                 if (assignment is null) continue;
-                var (changed, ok) = WorkChanges(pawns[i], assignment);
+                var (changed, ok) = WorkRules.WorkChanges(pawns[i], assignment);
                 Assert.True(ok);
                 if (changed.Count == 0) continue;
                 Assert.DoesNotContain(pawns[i].Id.Value, claimed);
@@ -147,7 +147,7 @@ public sealed class WorkOccupancyTests
         var rounds = Enumerable.Range(0, 8).Select(i => Step(i / 2 % 2 == 0 ? ["cook"] : [])).ToList();
         Assert.All(rounds, r => Assert.Equal("field_unavailable", r));
         Assert.Equal(1, pawns[0].Work.Value.Single(w => w.Work == WorkType.Cooking).Priority);
-        var claimed = PlanWork(pawns, [], new() { CommittedPawns = ["cook"] });
+        var claimed = WorkRules.PlanWork(pawns, [], new() { CommittedPawns = ["cook"] });
         Assert.True(claimed.Matches.Value);
         Assert.Equal(1, claimed.Coverage.Single(c => c.Work == WorkType.Cooking).Owners);
     }
@@ -163,7 +163,7 @@ public sealed class WorkOccupancyTests
             Skills = Known<EquatableArray<WorkSkill>>([.. pawn.Skills.Value, new() { Name = "Medicine", Level = 10 }]),
         };
         Assert.Equal(1, Priority(Plan(pawn), "doctor", WorkType.Doctor));
-        var rest = PlanWork([pawn], [], new() { Resting = [new(pawn.Id, ["TestDisease"])] });
+        var rest = WorkRules.PlanWork([pawn], [], new() { Resting = [new(pawn.Id, ["TestDisease"])] });
         Assert.Equal(0, Priority(rest, "doctor", WorkType.Cooking));
         Assert.Equal(0, Priority(rest, "doctor", WorkType.Construction));
     }

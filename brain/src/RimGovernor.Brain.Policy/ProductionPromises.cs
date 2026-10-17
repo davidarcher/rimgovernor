@@ -18,7 +18,7 @@ public sealed record ProductionBatchState(string Id, Fact<bool> Unchanged, Fact<
 /// <summary>One initialized, bound iteration. Empty Item is observed absence; embedded inputs are never free stock.</summary>
 public sealed record ProductionUnfinishedWork(string Item, EquatableArray<Amount> Ingredients);
 
-public static partial class PolicyFunctions
+public static partial class ProductionRules
 {
     /// <summary>Project existing Method intent into the forecast's claims. No extra reservation owner or ledger.</summary>
     public static Fact<EquatableArray<ForecastCommitment>> ProductionPromisesOf(

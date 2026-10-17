@@ -20,7 +20,7 @@ public static partial class CombatDoorRules
             return null;
         }
 
-        if (CombatBlockingRules.Brawlers(view.Defenders.Items).Count == 0|| CombatThreatRules.RankThreats(view).Count == 0 || !view.Defenders.Items.Any(d => SquadDefenderEligible(d) && Positive(d.RangedEquipped)))
+        if (CombatBlockingRules.Brawlers(view.Defenders.Items).Count == 0|| CombatThreatRules.RankThreats(view).Count == 0 || !view.Defenders.Items.Any(d => SquadDefenseRules.SquadDefenderEligible(d) && RoundsRules.Positive(d.RangedEquipped)))
         {
             return null;
         }
@@ -28,7 +28,7 @@ public static partial class CombatDoorRules
         var down = CombatManhunterRules.DownPawns(view);
         foreach (var threat in view.Threats.Items)
         {
-            if (Positive(threat.Dead) || Positive(threat.Downed) || down.Contains(CombatDecideRules.ThreatPawn(threat)))
+            if (RoundsRules.Positive(threat.Dead) || RoundsRules.Positive(threat.Downed) || down.Contains(CombatDecideRules.ThreatPawn(threat)))
             {
                 continue;
             }
@@ -220,7 +220,7 @@ public static partial class CombatDoorRules
         var next = 0;
         foreach (var defender in view.Defenders.Items)
         {
-            if (!SquadDefenderEligible(defender) || !Positive(defender.RangedEquipped) || next >= support.Count)
+            if (!SquadDefenseRules.SquadDefenderEligible(defender) || !RoundsRules.Positive(defender.RangedEquipped) || next >= support.Count)
             {
                 continue;
             }
@@ -266,7 +266,7 @@ public static partial class CombatDoorRules
 
             var pawn = view.Pawns.Items.FirstOrDefault(p => p.Id == role.Pawn);
             var defender = view.Defenders.Items.FirstOrDefault(p => p.Id == role.Pawn);
-            if (pawn is null || defender is null || !SquadDefenderEligible(defender) || !view.Orderable.Items.Contains(role.Pawn) || role.Retreat || role.Cell is null)
+            if (pawn is null || defender is null || !SquadDefenseRules.SquadDefenderEligible(defender) || !view.Orderable.Items.Contains(role.Pawn) || role.Retreat || role.Cell is null)
             {
                 ready = false;
                 continue;

@@ -32,7 +32,7 @@ public static partial class PolicyFunctions
     /// <summary>Whether a seasonal outdoor temperature curve peaks above the temperature planner's HotEnter. An empty curve is not hot.</summary>
     public static bool HotMapCurve(IEnumerable<double> curve)
     {
-        var hot = DefaultRoundsPolicy().HotEnter;
+        var hot = RoundsRules.DefaultRoundsPolicy().HotEnter;
         return curve.Any(t => t > hot);
     }
 
@@ -71,7 +71,7 @@ public static partial class PolicyFunctions
     {
         int cx = ins.X + (ins.Width / 2), cz = ins.Z + (ins.Height / 2);
         int dx = seed.X - cx, dz = seed.Z - cz;
-        var r = new PlannedRoom { Role = PlannedShelter, Region = RectRegion(ins) };
+        var r = new PlannedRoom { Role = PlannedShelter, Region = RegionRules.RectRegion(ins) };
         if (Abs32(dx) > Abs32(dz) && dx > 0)
         {
             return r with { Door = new Cell(ins.X + ins.Width, cz), DoorRot = Rotation.East };
@@ -175,7 +175,7 @@ public static partial class PolicyFunctions
             foreach (var p in sleeping.People)
             {
                 p.OwnedBed.TryGetValue(out var bed);
-                if (bed is null || !bedroomOf.TryGetValue(bed, out var r) || !Positive(r.TemperatureControl))
+                if (bed is null || !bedroomOf.TryGetValue(bed, out var r) || !RoundsRules.Positive(r.TemperatureControl))
                 {
                     return false;
                 }

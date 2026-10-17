@@ -368,7 +368,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static IReadOnlyList<EnvSegment> EnvDay(double sleepTarget, IReadOnlyList<EnvSpot> spots)
     {
-        var slots = EnvironmentOccupancyBaseline();
+        var slots = PawnRules.EnvironmentOccupancyBaseline();
         var wake = 0;
         for (var h = 0; h < slots.Length; h++)
         {

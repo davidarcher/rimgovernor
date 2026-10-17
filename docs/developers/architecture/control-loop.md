@@ -182,7 +182,7 @@ unchanged ([Method continuation](../contracts/method-continuation.md)).
 
 **Implemented (#3249).** An owner commits through `Store.CommitClaimedMethod`,
 which returns a `ClaimCommit` (Admitted, Continued or Conflict with its
-`ClaimConflict`). Claims come from `PolicyFunctions.MethodClaimsOf`:
+`ClaimConflict`). Claims come from `MethodClaimsRules.MethodClaimsOf`:
 
 - `WorkClaimsOf(..., footprint: true)` supplies labor pawns, gear-batch benches
   and workers, activity targets and every cell of a building's rotated
@@ -495,7 +495,7 @@ watch only on its own SeriousHarm plans.
 incident: a SeriousHarm Need, one per map, unmet while a hostile stands or the held
 food plan requests a roster hunt (deficit hostiles plus prey), met when neither does,
 unknown while the hostile census is unread. One policy function,
-`PolicyFunctions.CombatSituation`, gives Active, Clear or Unclear for the review's
+`RoundsRules.CombatSituation`, gives Active, Clear or Unclear for the review's
 combat standing (`Rounds.Combat`), the Need's predicate and `CombatCleared`. The
 review files the standing while it is active or the Need still holds open work; a
 clear cancels the Need's undispatched Methods, and the executor refuses a combat plan

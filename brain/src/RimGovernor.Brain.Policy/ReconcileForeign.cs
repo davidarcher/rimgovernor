@@ -34,7 +34,7 @@ internal sealed class ForeignWork
     public List<ReconcileHold> Holds { get; } = [];
 }
 
-public static partial class PolicyFunctions
+public static partial class ReconcileRules
 {
     /// <summary>
     /// The cut wave of a furniture slot the native preview refused naming a plant: every plant, passable or
@@ -58,7 +58,7 @@ public static partial class PolicyFunctions
                 anyPlant = true;
             }
         }
-        var slot = new HashSet<Cell>(RectCells(piece.Rect));
+        var slot = new HashSet<Cell>(PlannedRules.RectCells(piece.Rect));
         var (interaction, ok) = piece.Interaction();
         if (ok)
         {

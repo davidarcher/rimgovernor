@@ -265,7 +265,7 @@ public sealed record StationCooling
     public bool Cools() => HeatPerSecond > 0;
 }
 
-public static partial class PolicyFunctions
+public static partial class StationCatalogRules
 {
     /// <summary>
     /// The weights of the game's RoomRoleWorker.GetScore (and GetScoreDeltaIfBuildingPlaced) per building. They

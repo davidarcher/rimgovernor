@@ -50,13 +50,13 @@ public sealed record ShelterFacts
         {
             ColdExit = p.ColdExit,
             HotExit = p.HotExit,
-            Indoor = PolicyFunctions.FootholdShelter(f),
-            Beds = PolicyFunctions.FootholdSleeping(f),
+            Indoor = RoundsRules.FootholdShelter(f),
+            Beds = RoundsRules.FootholdSleeping(f),
             SleepingRecovered = f.SleepingRecovered,
             Colonists = f.Colonists,
             IndoorCapacity = f.IndoorCapacity,
-            SleepingMin = PolicyFunctions.Fallback(f.SleepingMin, f.OutdoorTemperature),
-            SleepingMax = PolicyFunctions.Fallback(f.SleepingMax, f.OutdoorTemperature),
+            SleepingMin = RoundsRules.Fallback(f.SleepingMin, f.OutdoorTemperature),
+            SleepingMax = RoundsRules.Fallback(f.SleepingMax, f.OutdoorTemperature),
             TemperatureOwed = f.TemperatureOwed,
             HeatDoorOwed = f.Upkeep.Rooms.IsKnown ? Known(PolicyFunctions.DoorChanges(f.Upkeep.Rooms, f.Upkeep.Routes, p).Any(d => d.Heat)) : Unknown<bool>(),
             SafeAreaOwed = f.SafeAreaOwed,
@@ -108,23 +108,23 @@ public sealed class ShelterFamily(bool starter, bool sleeping, bool expansion, b
         var needs = new List<Need>(5);
         if (safeArea)
         {
-            needs.Add(PolicyFunctions.SafeAreaNeedOf(facts));
+            needs.Add(ShelterRules.SafeAreaNeedOf(facts));
         }
         if (starter)
         {
-            needs.Add(PolicyFunctions.StarterShelterNeedOf(facts));
+            needs.Add(ShelterRules.StarterShelterNeedOf(facts));
         }
         if (sleeping)
         {
-            needs.Add(PolicyFunctions.SleepingNeedOf(facts, starter));
+            needs.Add(ShelterRules.SleepingNeedOf(facts, starter));
         }
         if (expansion)
         {
-            needs.Add(PolicyFunctions.ExpansionNeedOf(facts, starter, sleeping));
+            needs.Add(ShelterRules.ExpansionNeedOf(facts, starter, sleeping));
         }
         if (temperature)
         {
-            needs.Add(PolicyFunctions.TemperatureNeedOf(facts));
+            needs.Add(ShelterRules.TemperatureNeedOf(facts));
         }
         return needs;
     }
@@ -133,7 +133,7 @@ public sealed class ShelterFamily(bool starter, bool sleeping, bool expansion, b
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, ShelterFacts facts) => [];
 }
 
-public static partial class PolicyFunctions
+public static partial class ShelterRules
 {
     /// <summary>
     /// The starter shelter, a plain threshold: met while a sleeping and an indoor place stand for every colonist
@@ -141,7 +141,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static Need StarterShelterNeedOf(ShelterFacts f)
     {
-        var met = AllFacts(f.Indoor, f.Beds);
+        var met = RoundsRules.AllFacts(f.Indoor, f.Beds);
         return new Need
         {
             Id = ShelterFamily.Starter,
@@ -209,8 +209,8 @@ public static partial class PolicyFunctions
     /// </summary>
     public static Need TemperatureNeedOf(ShelterFacts f)
     {
-        var band = AllFacts(Measured(f.SleepingMin, v => v >= f.ColdExit), Measured(f.SleepingMax, v => v <= f.HotExit));
-        var met = Positive(f.TemperatureOwed) || Positive(f.HeatDoorOwed) ? Known(false) : band;
+        var band = RoundsRules.AllFacts(RoundsRules.Measured(f.SleepingMin, v => v >= f.ColdExit), RoundsRules.Measured(f.SleepingMax, v => v <= f.HotExit));
+        var met = RoundsRules.Positive(f.TemperatureOwed) || RoundsRules.Positive(f.HeatDoorOwed) ? Known(false) : band;
         return new Need
         {
             Id = ShelterFamily.Temperature,
@@ -235,7 +235,7 @@ public static partial class PolicyFunctions
     {
         Id = ShelterFamily.SafeArea,
         Tier = NeedTier.SeriousHarm,
-        Satisfaction = Satisfy(NotFact(f.SafeAreaOwed)),
+        Satisfaction = Satisfy(RoundsRules.NotFact(f.SafeAreaOwed)),
         Deficit = f.SafeAreaOwed.TryGetValue(out var owed) ? Known(owed ? 1.0 : 0.0) : Unknown<double>(),
         Evidence = [new("area_edits", Owed(f.SafeAreaOwed))],
     };
@@ -244,7 +244,7 @@ public static partial class PolicyFunctions
     /// Whether the starter shelter holds the colony's Construction labor this review (<see cref="ConstructionLaborHeld"/>):
     /// the foothold sleeping and indoor places are not both known standing. A plain per-review value, not a latch.
     /// </summary>
-    internal static bool StarterShelterOwed(RoundsFacts f) => !Positive(AllFacts(FootholdShelter(f), FootholdSleeping(f)));
+    internal static bool StarterShelterOwed(RoundsFacts f) => !RoundsRules.Positive(RoundsRules.AllFacts(RoundsRules.FootholdShelter(f), RoundsRules.FootholdSleeping(f)));
 
     private static Satisfaction Satisfy(Fact<bool> met) =>
         met.TryGetValue(out var v) ? v ? Satisfaction.Met : Satisfaction.Unmet : Satisfaction.Unknown;

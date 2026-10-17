@@ -20,7 +20,7 @@ public sealed record ResearchFacts
     public ResearchProjectId KnowledgePick { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class ResearchRules
 {
     /// <summary>Counts observed available workers, preserving incomplete facts.</summary>
     public static Fact<int> RoundsWorkers(IReadOnlyList<WorkPawn> pawns)
@@ -178,7 +178,7 @@ public static partial class PolicyFunctions
         bool ok;
         try
         {
-            (resource, target, ok) = SelectResourceTarget(targets, stock);
+            (resource, target, ok) = ResourceRules.SelectResourceTarget(targets, stock);
         }
         catch (DomainException)
         {

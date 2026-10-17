@@ -42,7 +42,7 @@ public sealed record ResourceRunway
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class ResourceRules
 {
     /// <summary>
     /// Reads the resource's recurring spend over the consumption window (resource_consumption.go). A window

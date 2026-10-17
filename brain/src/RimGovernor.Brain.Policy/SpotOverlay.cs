@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class SpotOverlayRules
 {
     /// <summary>The overlay layer the outdoor stand-in work spots draw on.</summary>
     public const string SpotLayer = "spots";
@@ -30,7 +30,7 @@ public static partial class PolicyFunctions
             {
                 return;
             }
-            var kept = cells.Where(c => InBounds(c, bounds)).ToList();
+            var kept = cells.Where(c => SafetyOverlayRules.InBounds(c, bounds)).ToList();
             if (kept.Count == 0)
             {
                 return;

@@ -60,7 +60,7 @@ public static partial class PolicyFunctions
                 input = input with { WantedFloor = wanted, FloorKept = kept };
             }
 
-            output.Add(new ClearedRoom(r, Reconcile(input)));
+            output.Add(new ClearedRoom(r, ReconcileRules.Reconcile(input)));
         }
 
         return output;
@@ -180,7 +180,7 @@ public static partial class PolicyFunctions
 
             return new GroundStep
             {
-                Phase = KindLabel(kind),
+                Phase = ReconcileRules.KindLabel(kind),
                 Targets = EquatableArray.From(targets),
                 Floors = EquatableArray.From(groundFloors),
                 Roof = EquatableArray.From(roof),

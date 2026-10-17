@@ -14,7 +14,7 @@ partial class RoundsSleepingUpkeepPlanner
             return Unknown<bool>();
         }
         facts.TechTier.TryGetValue(out var tier);
-        return SculptureRoomsOwed(facts.Facts.Sleeping, UpgradeTargetsOf(facts, RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRooms(rooms!, census, facts.Cells));
+        return SculptureRoomsOwed(facts.Facts.Sleeping, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRooms(rooms!, census, facts.Cells));
     }
 
     /// <summary>The policy view of packed sculpture stock.</summary>
@@ -44,9 +44,9 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return null;
         }
-        var items = await native.ReadPackedItemsAsync(identity, PackedSculptureDefinition, ct).ConfigureAwait(false);
+        var items = await native.ReadPackedItemsAsync(identity, RoomQualityRules.PackedSculptureDefinition, ct).ConfigureAwait(false);
         facts.TechTier.TryGetValue(out var tier);
-        return SaleSculptures(obs!, RoomQualityTargets(obs!, traits, tier, facts.Impressiveness), FurnitureRooms(rooms!, census, facts.Cells), PackedSculptures(items, facts.Facts.Items), facts.Facts.Items);
+        return RoomQualityRules.SaleSculptures(obs!, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness), FurnitureRooms(rooms!, census, facts.Cells), PackedSculptures(items, facts.Facts.Items), facts.Facts.Items);
     }
 
     /// <summary>
@@ -94,7 +94,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             return none;
         }
         facts.TechTier.TryGetValue(out var tier);
-        if (await stock.ItemsAsync(PackedSculptureDefinition, call).ConfigureAwait(false) is not { } items)
+        if (await stock.ItemsAsync(RoomQualityRules.PackedSculptureDefinition, call).ConfigureAwait(false) is not { } items)
         {
             return none;
         }
@@ -104,7 +104,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             inner[item.Id] = item;
         }
-        var (step, due) = NextSculpture(obs!, UpgradeTargetsOf(facts, RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRooms(rooms!, census, facts.Cells), packed, facts.Facts.Items);
+        var (step, due) = RoomQualityRules.NextSculpture(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRooms(rooms!, census, facts.Cells), packed, facts.Facts.Items);
         if (!due)
         {
             return none;

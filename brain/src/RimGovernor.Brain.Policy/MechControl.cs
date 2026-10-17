@@ -143,7 +143,7 @@ public sealed record MechGroup
 /// With one control group the group mode follows threat over work: Escort while a hostile is on the map or when
 /// the group holds only guards, Work otherwise.
 /// </summary>
-public static partial class PolicyFunctions
+public static partial class MechRules
 {
     /// <summary>How far from its overseer a mech can be ordered (Mechanitor wiki: 25 tiles; the game's own check, MechanitorUtility.InMechanitorCommandRange, stays authoritative).</summary>
     public const int MechCommandRange = 25;

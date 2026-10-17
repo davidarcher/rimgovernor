@@ -84,7 +84,7 @@ public sealed record CustodyChoice
     public CustodyDecision Decision { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class PopulationRules
 {
     internal static (CustodyDecision Decision, bool Ok) CustodyEligible(CustodyFacts row)
     {

@@ -45,7 +45,7 @@ public sealed record MoodLedger
 }
 
 /// <summary>Ports <c>mood_ledger.go</c>.</summary>
-public static partial class PolicyFunctions
+public static partial class MoodRules
 {
     /// <summary>
     /// The Needs whose facility removes the thought: the audit table's hand-kept owner column (thought_triggers.tsv,
@@ -53,7 +53,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static IReadOnlyList<NeedId> ThoughtOwners(string def)
     {
-        var (row, ok) = ThoughtAuditRow(def);
+        var (row, ok) = ThoughtFactsRules.ThoughtAuditRow(def);
         if (!ok || row.Owner == "")
         {
             return [];

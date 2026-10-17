@@ -67,7 +67,7 @@ public sealed partial class Store
     {
         var review = LoadRounds(tx);
         var evidence = review.Snapshot == current && review.WorkEvidence is { } known ? known : new WorkAdmissionEvidence();
-        var candidate = PolicyFunctions.MethodClaimsOf(evidence,
+        var candidate = MethodClaimsRules.MethodClaimsOf(evidence,
             [.. plan.Actions.Select(a => new WorkAction(plan.Id, a, new ProgressView { Action = a.Id, Stage = Stage.Pending }))]);
         if (candidate.Pawns.Count == 0 && candidate.Targets.Count == 0) return null;
         var links = tx.Query("""
@@ -86,7 +86,7 @@ public sealed partial class Store
                 // Native authority rollover ends activity assignments, as in the work resource census.
                 .Where(p => p.Action.PawnActivities is not { } activity || activity.AuthorityGeneration == current.Native.Value)
                 .Select(p => new WorkAction(link.Plan, p.Action, p.View)).ToArray();
-            if (PolicyFunctions.MethodClaimOverlap(candidate, PolicyFunctions.MethodClaimsOf(evidence, rows)) is { } claim)
+            if (MethodClaimsRules.MethodClaimOverlap(candidate, MethodClaimsRules.MethodClaimsOf(evidence, rows)) is { } claim)
                 return new(link.Holder, link.Method, claim);
         }
         return null;

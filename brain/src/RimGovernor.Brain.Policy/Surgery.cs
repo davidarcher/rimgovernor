@@ -20,7 +20,7 @@ public static class RoundsFactsSurgeryExtensions
         return new SurgeryContext
         {
             Profiles = profiles,
-            HospitalBed = PolicyFunctions.Positive(PolicyFunctions.HospitalBedReady(f.Sleeping)),
+            HospitalBed = RoundsRules.Positive(SurgeryRules.HospitalBedReady(f.Sleeping)),
         };
     }
 }
@@ -95,7 +95,7 @@ public sealed record SurgerySelection
     public IReadOnlyList<SurgeryWant> Wants { get; init; } = [];
 }
 
-public static partial class PolicyFunctions
+public static partial class SurgeryRules
 {
     /// <summary>The highest native failure chance a restore or a chronic cure may carry for the best eligible doctor.</summary>
     public const double RestoreFailureCap = 0.20;
@@ -144,7 +144,7 @@ public static partial class PolicyFunctions
     /// part; a cure recipe or a replacement part on a part carrying a chronic condition weighs the condition.
     /// Known is false when a cure's conditions are unread.
     /// </summary>
-    private static (double Weight, bool Known) ServedSurgery(CarePawn pawn, SurgeryOperation op)
+    internal static (double Weight, bool Known) ServedSurgery(CarePawn pawn, SurgeryOperation op)
     {
         op.PartDefName.TryGetValue(out var name);
         switch (op.Kind)
@@ -326,7 +326,7 @@ public static partial class PolicyFunctions
                 }
                 if (profiled)
                 {
-                    weight *= UpgradeRoleWeight(profile!, name ?? "");
+                    weight *= PawnRules.UpgradeRoleWeight(profile!, name ?? "");
                 }
                 if (!parts.TryGetValue(part, out var group))
                 {
@@ -458,7 +458,7 @@ public static partial class PolicyFunctions
     private static double OpTier(SurgeryOperation op) => op.Kind == SurgeryKind.Cure ? 1 : op.Tier;
 
     /// <summary>Some eligible doctor performs it within the failure cap, and it is neither a violation nor lethal. Unknown facts refuse.</summary>
-    private static bool SurgeryAcceptable(SurgeryOperation op, double failureCap)
+    internal static bool SurgeryAcceptable(SurgeryOperation op, double failureCap)
     {
         var dk = op.EligibleDoctors.TryGetValue(out var doctors);
         var ck = op.SuccessChance.TryGetValue(out var chance);

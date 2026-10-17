@@ -271,8 +271,8 @@ public static partial class PolicyFunctions
     /// </summary>
     public static ComfortObservation HostedComfort(ComfortObservation v, RoomObservation rooms)
     {
-        var dining = Facility(RoomRole.DiningRoom);
-        var recreation = Facility(RoomRole.RecRoom);
+        var dining = RoomsRules.Facility(RoomRole.DiningRoom);
+        var recreation = RoomsRules.Facility(RoomRole.RecRoom);
         bool Hosted(FacilityRequirement f, string roomId)
         {
             var (room, roomFound) = rooms.Room(roomId);

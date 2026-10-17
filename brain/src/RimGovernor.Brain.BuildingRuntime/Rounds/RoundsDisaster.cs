@@ -55,7 +55,7 @@ public sealed partial class DisasterRounds
         f = f with
         {
             DangerWindow = _reviewer.SafeArea.DangerWindow(RoundsStockpilePlanner.StockpileWorld(scope.World), f.Hostiles, seeds, expected.Tick),
-            DangerHaulers = PolicyFunctions.DangerHaulers(read.Projection.WorkPawns),
+            DangerHaulers = ShelterRules.DangerHaulers(read.Projection.WorkPawns),
             Tick = expected.Tick,
             Dash = Known(review.Latches.Dash),
             ShelterCombatants = ShelterCombatants(journal, new StoreWorld(scope.World.Colony, scope.World.Load, scope.World.Map), call),
@@ -160,7 +160,7 @@ public sealed partial class DisasterRounds
         }
         foreach (var service in applied)
         {
-            if (!PolicyFunctions.RecoveryWorkContinuing(service, facts.Planning.Buildings, facts.Workers).TryGetValue(out var continuing))
+            if (!RecoveryRules.RecoveryWorkContinuing(service, facts.Planning.Buildings, facts.Workers).TryGetValue(out var continuing))
             {
                 return FieldUnavailable("recovery_work");
             }
@@ -169,7 +169,7 @@ public sealed partial class DisasterRounds
                 return BuildingReasonExistingWork;
             }
         }
-        var selection = PolicyFunctions.SelectRecoveryMethods(facts.Planning, review.Disaster, StoreJournal.RecoveryMethodsUsed(work.Owner), review.Tick);
+        var selection = RecoveryRules.SelectRecoveryMethods(facts.Planning, review.Disaster, StoreJournal.RecoveryMethodsUsed(work.Owner), review.Tick);
         selection.Validate();
         var chosen = selection.Candidates.FirstOrDefault(c => c.Kind == RecoveryProposalKind.ServiceWork);
         if (chosen is null)

@@ -18,7 +18,7 @@ public sealed class HerdRoomsArePlanRoomsTests
     };
 
     private static PlannedRoom Shelter(int id, int x, int z) =>
-        new() { Id = id, Role = PlannedShelter, Region = RectRegion(new Rectangle { X = x, Z = z, Width = 5, Height = 5 }), Door = new Cell(x + 2, z - 1), DoorRot = Rotation.South };
+        new() { Id = id, Role = PlannedShelter, Region = RegionRules.RectRegion(new Rectangle { X = x, Z = z, Width = 5, Height = 5 }), Door = new Cell(x + 2, z - 1), DoorRot = Rotation.South };
 
     private static string Json<T>(T value)
     {
@@ -43,7 +43,7 @@ public sealed class HerdRoomsArePlanRoomsTests
         });
         Assert.Equal(nodes.Count, nodes.Select(n => n.Id).Distinct().Count());
         // A standing pen is a node of its own floor and keeps its herd's key; a herd it holds asks for no more.
-        var pen = new PlannedRoom { Id = 2, Role = PlannedRole.Pen, Herd = "Muffalo", Outdoor = true, Region = RectRegion(new Rectangle { X = 10, Z = 10, Width = 6, Height = 5 }), Door = new Cell(12, 9), DoorRot = Rotation.South };
+        var pen = new PlannedRoom { Id = 2, Role = PlannedRole.Pen, Herd = "Muffalo", Outdoor = true, Region = RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 6, Height = 5 }), Door = new Cell(12, 9), DoorRot = Rotation.South };
         var held = HerdRoomNodes(plan with { Rooms = [.. plan.Rooms, pen] }, [new PenWant("Muffalo", 30)]);
         Assert.Equal([("Muffalo", 30)], held.Select(n => (n.Herd, n.Area)));
     }
@@ -52,8 +52,8 @@ public sealed class HerdRoomsArePlanRoomsTests
     public void APlanSavedWithReservationsLoadsThePenAsARoomAndDropsTheBarn()
     {
         var plan = Core(Shelter(1, 38, 38));
-        var area = Json(RectRegion(new Rectangle { X = 10, Z = 10, Width = 8, Height = 8 }));
-        var pen = Json(RectRegion(new Rectangle { X = 17, Z = 10, Width = 6, Height = 8 }));
+        var area = Json(RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 8, Height = 8 }));
+        var pen = Json(RegionRules.RectRegion(new Rectangle { X = 17, Z = 10, Width = 6, Height = 8 }));
         var json = Json(plan).Replace("\"Reservations\":[]", $"\"Reservations\":[{{\"Kind\":\"barn\",\"Area\":{area},\"Herd\":\"Muffalo\"}},{{\"Kind\":\"pen\",\"Area\":{pen},\"Herd\":\"Muffalo\"}}]", StringComparison.Ordinal);
         Assert.Contains("\"barn\"", json, StringComparison.Ordinal);
         using var doc = JsonDocument.Parse(json);
@@ -68,7 +68,7 @@ public sealed class HerdRoomsArePlanRoomsTests
     [Fact]
     public void APlanSavedWithABarnRoomLoadsWithoutIt()
     {
-        var plan = Core(Shelter(1, 38, 38), new PlannedRoom { Id = 2, Role = PlannedRole.Pen, Herd = "Muffalo", Region = RectRegion(new Rectangle { X = 10, Z = 10, Width = 6, Height = 5 }), Door = new Cell(12, 9), DoorRot = Rotation.South });
+        var plan = Core(Shelter(1, 38, 38), new PlannedRoom { Id = 2, Role = PlannedRole.Pen, Herd = "Muffalo", Region = RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 6, Height = 5 }), Door = new Cell(12, 9), DoorRot = Rotation.South });
         var json = Json(plan with { Links = [new RoomLink { A = 1, B = 2, Cell = new Cell(12, 9) }] }).Replace("\"Role\":\"pen\"", "\"Role\":\"barn\"", StringComparison.Ordinal);
         Assert.Contains("\"barn\"", json, StringComparison.Ordinal);
         using var doc = JsonDocument.Parse(json);

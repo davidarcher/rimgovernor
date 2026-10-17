@@ -138,7 +138,7 @@ public sealed record Calibration
     public double ShortPerDay { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class WorkRules
 {
     /// <summary>The calibration window: one game day.</summary>
     public const long ThroughputWindowTicks = GameTime.TicksPerDay;
@@ -266,7 +266,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var profile = BuildProfile(p);
+            var profile = PawnRules.BuildProfile(p);
             var w = new BenchWorker { WorkHoursPerDay = Unknown<double>(), WorkSpeed = Known(Math.Max(1 + profile.Effects.WorkSpeed, 0)) };
             if (profile.WorkHours.TryGetValue(out var h))
             {

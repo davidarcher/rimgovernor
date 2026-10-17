@@ -124,12 +124,12 @@ public sealed class MaterialChoiceTests
         var selection = SelectLedgerMaterials([Flexible, Machine], View());
         var actual = selection.Selected.Select((p, i) => new ActualBill { Id = "bill-" + i, Bench = p.Bench, Spec = p.Spec }).ToArray();
         var declared = new[] { new Declared { Orders = [Flexible.Spec, Machine.Spec] } };
-        var plan = ReconcileLedger(declared, actual, actual.ToDictionary(b => b.Id, _ => OrphanGraceRounds), new Dictionary<string, int>());
+        var plan = WorkRules.ReconcileLedger(declared, actual, actual.ToDictionary(b => b.Id, _ => WorkRules.OrphanGraceRounds), new Dictionary<string, int>());
         Assert.Empty(plan.Place);
         Assert.Empty(plan.Remove);
         Assert.Equal(2, plan.Matched.Count);
-        Assert.False(IsMaterialSpecialization(Flexible.Spec with { Ingredients = [Metal.Value] }, actual.Single(b => b.Spec.Recipe == Flexible.Spec.Recipe).Spec));
-        Assert.False(IsMaterialSpecialization(Flexible.Spec, actual[0].Spec with { Worker = "different-worker" }));
+        Assert.False(WorkRules.IsMaterialSpecialization(Flexible.Spec with { Ingredients = [Metal.Value] }, actual.Single(b => b.Spec.Recipe == Flexible.Spec.Recipe).Spec));
+        Assert.False(WorkRules.IsMaterialSpecialization(Flexible.Spec, actual[0].Spec with { Worker = "different-worker" }));
     }
 
     [Theory]
@@ -139,8 +139,8 @@ public sealed class MaterialChoiceTests
     {
         var anchor = new ActualBill { Id = "private-execution", Bench = "tailoring", Spec = Flexible.Spec, Kind = LedgerBillKind.ActivityExecution };
         var ordinary = anchor with { Id = "ordinary-orphan", Spec = Machine.Spec, Kind = LedgerBillKind.Production };
-        var plan = ReconcileLedger(declared ? [new Declared { Orders = [Flexible.Spec] }] : [],
-            [anchor, ordinary], new Dictionary<string, int> { [anchor.Id] = OrphanGraceRounds, [ordinary.Id] = OrphanGraceRounds }, new Dictionary<string, int>());
+        var plan = WorkRules.ReconcileLedger(declared ? [new Declared { Orders = [Flexible.Spec] }] : [],
+            [anchor, ordinary], new Dictionary<string, int> { [anchor.Id] = WorkRules.OrphanGraceRounds, [ordinary.Id] = WorkRules.OrphanGraceRounds }, new Dictionary<string, int>());
         Assert.Equal(anchor, Assert.Single(plan.Excluded));
         Assert.Equal(anchor, Assert.Single(plan.Keep));
         Assert.Equal(ordinary, Assert.Single(plan.Remove));
@@ -161,7 +161,7 @@ public sealed class MaterialChoiceTests
             ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
             BillReservations = Known(default(EquatableArray<IngredientReservation>)),
             WorkAdmission = new() { Recipes = View().Recipes, Bills = Known(default(EquatableArray<ProductionBatchState>)) } };
-        var review = journal.ReviewRounds(new() { Current = world, Tick = facts.Tick, Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        var review = journal.ReviewRounds(new() { Current = world, Tick = facts.Tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         Assert.True(review.Review.Enabled);
         var selected = SelectLedgerMaterials([Flexible, Machine], journal.ProductionMaterials(world, ct));
         var batches = selected.Selected.Select((p, i) => Batch(p, "action-" + i)).ToArray();
@@ -169,7 +169,7 @@ public sealed class MaterialChoiceTests
         journal.CommitClaimedMethod(AdminFamily.WorkLedger, world, new MethodId("joint"), "", spec, ct);
         var committed = journal.ProductionBatches(world, facts.Tick, ct);
         Assert.Equal(2, committed.Value.Count);
-        var claims = ProductionPromisesOf(PriceProductionBatches(committed, View().Recipes), default).Value.SelectMany(p => p.MaterialClaims).ToArray();
+        var claims = ProductionRules.ProductionPromisesOf(ProductionRules.PriceProductionBatches(committed, View().Recipes), default).Value.SelectMany(p => p.MaterialClaims).ToArray();
         Assert.Equal(10, Assert.Single(claims, c => c.Resource == Metal).Units.Value);
         Assert.Equal(10, Assert.Single(claims, c => c.Resource == Timber).Units.Value);
         Assert.Empty(SelectLedgerMaterials([Flexible], journal.ProductionMaterials(world, ct)).Selected);

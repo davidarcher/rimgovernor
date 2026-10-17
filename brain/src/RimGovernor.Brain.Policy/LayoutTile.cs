@@ -246,7 +246,7 @@ public static partial class PolicyFunctions
     {
         if (req.Search is null)
         {
-            return (PlaceInRegion(req), []);
+            return (RegionRules.PlaceInRegion(req), []);
         }
         var res = SearchInterior(req, req.Search);
         return (res.Stood(), res.Moves);
@@ -328,7 +328,7 @@ internal sealed partial class Tiler(TileInput input)
                 Id = b.Built,
                 Replaces = b.Replaces,
                 Role = role,
-                Region = RectRegion(b.Interior),
+                Region = RegionRules.RectRegion(b.Interior),
                 Crossing = CrossingOf(g),
                 Outdoor = role.IsOutdoor(),
                 Markers = g.Markers,
@@ -541,7 +541,7 @@ internal sealed partial class Tiler(TileInput input)
         long cz = 0;
         foreach (var r in Rooms)
         {
-            foreach (var c in RectCells(Pad(r.Rect, 1)))
+            foreach (var c in PlannedRules.RectCells(Pad(r.Rect, 1)))
             {
                 occupied.Add(c);
             }
@@ -576,8 +576,8 @@ internal sealed partial class Tiler(TileInput input)
             cands.RemoveAll(c => !open.Contains(c.Out));
             cands.Sort((a, b) =>
             {
-                var da = SquaredDistance(a.Door, centre);
-                var db = SquaredDistance(b.Door, centre);
+                var da = PlannedRules.SquaredDistance(a.Door, centre);
+                var db = PlannedRules.SquaredDistance(b.Door, centre);
                 if (da != db)
                 {
                     return da < db ? -1 : 1;
@@ -646,7 +646,7 @@ internal sealed partial class Tiler(TileInput input)
         var (wants, _) = Wants(i);
         try
         {
-            PlaceInRegion(new RegionPlacement { Region = RectRegion(Rooms[i].Rect), Doors = EquatableArray.From(doors), Wants = EquatableArray.From(wants) });
+            RegionRules.PlaceInRegion(new RegionPlacement { Region = RegionRules.RectRegion(Rooms[i].Rect), Doors = EquatableArray.From(doors), Wants = EquatableArray.From(wants) });
             return true;
         }
         catch (DomainException)

@@ -357,7 +357,7 @@ public static class DefenseTiersPolicy
                 Pinned = pinned.ContainsKey(tier.Name),
                 Places = EquatableArray.From(places.Select(b => new TierPlacement(b.Definition, b.Cell, b.Rotation, b.Stuff))),
             };
-            var site = NewSite($"{under}-{Wire.Name(kind)}", kind, RegionOf(cells), "");
+            var site = NewSite($"{under}-{Wire.Name(kind)}", kind, RegionRules.RegionOf(cells), "");
             output.Add(site with { Tier = facts });
         }
 

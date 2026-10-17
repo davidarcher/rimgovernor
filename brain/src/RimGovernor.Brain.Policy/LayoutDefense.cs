@@ -118,10 +118,10 @@ public static partial class PolicyFunctions
                 break;
         }
         PlannedSite Site(string id, NodeKind kind, Rectangle r) =>
-            new() { Node = id, Footprint = RectRegion(r), Kind = kind };
+            new() { Node = id, Footprint = RegionRules.RectRegion(r), Kind = kind };
         return new LayoutPlan
         {
-            Rooms = [new PlannedRoom { Id = 1, Role = PlannedRole.Storage, Region = RectRegion(new Rectangle(10, 10, 6, 4)), Door = new Cell(12, 14), DoorRot = Rotation.South }],
+            Rooms = [new PlannedRoom { Id = 1, Role = PlannedRole.Storage, Region = RegionRules.RectRegion(new Rectangle(10, 10, 6, 4)), Door = new Cell(12, 14), DoorRot = Rotation.South }],
             NextRoomId = 2,
             Sites = [Site("killbox", NodeKind.Killbox, killbox), Site("killbox_approach-00", NodeKind.Approach, approach)],
         };
@@ -320,7 +320,7 @@ public static partial class PolicyFunctions
                 var n = Math.Min(PerimeterSectionRun, length - off);
                 var a = horizontal ? new Rectangle(r.X + off, r.Z, n, r.Height) : new Rectangle(r.X, r.Z + off, r.Width, n);
                 var mid = new Cell(a.X + (a.Width / 2), a.Z + (a.Height / 2));
-                pieces.Add((a, SquaredDistance(mid, centre)));
+                pieces.Add((a, PlannedRules.SquaredDistance(mid, centre)));
             }
         }
         pieces = pieces.SortedBy((a, b) => a.Dist < b.Dist || (a.Dist == b.Dist && (a.Area.X < b.Area.X || (a.Area.X == b.Area.X && a.Area.Z < b.Area.Z))));
@@ -330,7 +330,7 @@ public static partial class PolicyFunctions
         foreach (var p in pieces)
         {
             var under = Next();
-            foreach (var c in RectCells(p.Area))
+            foreach (var c in PlannedRules.RectCells(p.Area))
             {
                 if (!bridged.Contains(c))
                 {
@@ -343,7 +343,7 @@ public static partial class PolicyFunctions
                 output.Add(under);
             }
             var section = Next();
-            foreach (var c in RectCells(p.Area))
+            foreach (var c in PlannedRules.RectCells(p.Area))
             {
                 if (airlock.Contains(c))
                 {
@@ -400,7 +400,7 @@ public static partial class PolicyFunctions
                 doorway.Add(c);
             }
             var s = new PerimeterSection { Name = TierGeothermal, Nodes = [geothermalID] };
-            foreach (var c in RectCells(geothermal))
+            foreach (var c in PlannedRules.RectCells(geothermal))
             {
                 if (Contains(gen, c))
                 {

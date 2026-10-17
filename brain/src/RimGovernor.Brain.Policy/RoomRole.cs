@@ -87,7 +87,7 @@ public sealed record RolePrediction
     public IReadOnlyDictionary<RoomRole, double> Scores { get; init; } = new Dictionary<RoomRole, double>();
 }
 
-public static partial class PolicyFunctions
+public static partial class RoomRoleRules
 {
     /// <summary>
     /// The roles that carry a gameplay effect in the game, found by reading every consumer of Room.Role in the

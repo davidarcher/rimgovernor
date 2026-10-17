@@ -263,7 +263,7 @@ public sealed partial class Rounder
     {
         var growth = new RoomGrowth { Pens = projection.Facts.PenWants(), Demand = demand };
         var (need, owed) = RoundsSleepingUpkeepPlanner.ThroneNeed(projection);
-        growth = growth with { ThroneArea = PolicyFunctions.ThroneAreaOwed(plan, need, owed) };
+        growth = growth with { ThroneArea = ThroneRules.ThroneAreaOwed(plan, need, owed) };
         if (projection.Facts.Pasture.TryGetValue(out var pasture))
         {
             growth = growth with { Grazing = PolicyFunctions.GrazingGround(survey, pasture) };
@@ -295,7 +295,7 @@ public sealed partial class Rounder
             // Open plans unknown: no shelter is dropped over work in flight.
             growth = growth with { RetireShelter = false };
         }
-        growth = growth with { Slept = PolicyFunctions.SleptBedrooms(plan, projection.Rooms, projection.Facts.Sleeping) };
+        growth = growth with { Slept = SleepingRules.SleptBedrooms(plan, projection.Rooms, projection.Facts.Sleeping) };
         // The ring is laid around what the defense record holds of it.
         return growth with { Perimeter = await PerimeterHoldAsync(snapshot, ct).ConfigureAwait(false) };
     }
@@ -505,9 +505,9 @@ public sealed partial class Rounder
         }
         try
         {
-            foreach (var layer in PolicyFunctions.TrafficLayers)
+            foreach (var layer in TrafficRules.TrafficLayers)
             {
-                var heat = on && census is not null ? PolicyFunctions.TrafficOverlay(census.Traffic, layer, projection.Bounds) : new LayoutOverlay();
+                var heat = on && census is not null ? TrafficRules.TrafficOverlay(census.Traffic, layer, projection.Bounds) : new LayoutOverlay();
                 await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), "heat." + Wire.Name(layer), heat, on && heat.Layers.Count > 0, ct).ConfigureAwait(false);
             }
         }

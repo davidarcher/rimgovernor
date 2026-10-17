@@ -143,7 +143,7 @@ public static class ColonyDecodeReads
             r = r with
             {
                 GeneratorRows = generatorRows,
-                ComponentSteel = catalog.ProductInputCost(ComponentResource.Value, SteelResource.Value),
+                ComponentSteel = catalog.ProductInputCost(TradePolicyRules.ComponentResource.Value, SiteRules.SteelResource.Value),
             };
             if (catalog.FindThing(PolicyConstants.BatteryDefinition) is not null)
             {
@@ -174,7 +174,7 @@ public static class ColonyDecodeReads
         {
             MapBounds = Known(r.Bounds),
             ShelterArea = PoliciesReads.ShelterArea(r.Policies),
-            NoDangerArea = PoliciesReads.AllowedAreaID(r.Policies, NoDangerAreaLabel),
+            NoDangerArea = PoliciesReads.AllowedAreaID(r.Policies, ShelterRules.NoDangerAreaLabel),
             AnimalWard = f.AnimalWard with { Area = PoliciesReads.AllowedAreaID(r.Policies, HospitalAreaLabel) },
             IsolationArea = PoliciesReads.AllowedAreaID(r.Policies, PolicyConstants.IsolationAreaLabel),
             RaidPoints = r.Threat.RaidPoints,
@@ -312,13 +312,13 @@ public static class ColonyDecodeReads
             }
             r = r with { DefenseTurrets = Known(EquatableArray.From(turrets)) };
             f = f with { Fuel = Known(EquatableArray.From(fuel)) };
-            var (required, headroom, disabled) = PolicyFunctions.PowerCoverage(power);
+            var (required, headroom, disabled) = PowerRules.PowerCoverage(power);
             f = f with
             {
                 PowerRequired = required,
                 PowerHeadroom = headroom,
                 DisabledConsumers = disabled,
-                PowerWeatherSafe = Known(unsafeConduits.Count == 0 && PolicyFunctions.PowerWeatherSafe(power)),
+                PowerWeatherSafe = Known(unsafeConduits.Count == 0 && PowerRules.PowerWeatherSafe(power)),
             };
             if (development.ShortCircuitTick is not null)
             {
@@ -359,7 +359,7 @@ public static class ColonyDecodeReads
         AcquisitionReads.ApplyAcquisition(v, tables, catalog, ref r);
         f = ColonyProductionReads.ColonyProduction(v, f);
         r = r with { ProductionBenches = ColonyProductionReads.ColonyProductionBenches(v, buildings, tables.Pawns, catalog) };
-        f = f with { TradeMealIngredients = PolicyFunctions.TradeMealIngredients(r.ProductionBenches) };
+        f = f with { TradeMealIngredients = TradePolicyRules.TradeMealIngredients(r.ProductionBenches) };
         if (!HasIssue(v.Issues, "butchering") && Headed(buildings, v.Butchering, b => b.Bench))
         {
             var benches = new List<CookingBench>();

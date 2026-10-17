@@ -126,7 +126,7 @@ public static partial class PolicyFunctions
     /// (ringBlock, rangeBlock, the interior).
     /// </summary>
     internal static Region WallRing(this PlannedRoom r) =>
-        r.Unfenced() ? RectRegion(RoomWalls(r)).Perimeter() : r.Region.Walls();
+        r.Unfenced() ? RegionRules.RectRegion(RoomWalls(r)).Perimeter() : r.Region.Walls();
 
     /// <summary>
     /// The region cell nearest its bounding-box centre (ties to the first in cell order): the centre of a

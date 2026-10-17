@@ -142,8 +142,8 @@ public sealed class ForecastWorkInputsTests
     [Fact]
     public void LiveReviewDemandCarriesClaimsAndAssignmentUsesThatSameValue()
     {
-        var facts = Facts(); var policy = DefaultRoundsPolicy();
-        var demand = ResourceDemandOf(facts, policy, new());
+        var facts = Facts(); var policy = RoundsRules.DefaultRoundsPolicy();
+        var demand = ResourceRules.ResourceDemandOf(facts, policy, new());
         var commitment = Assert.Single(demand.Work.ConstructionCommitments.Value);
         Assert.Equal("construction/action", commitment.Id);
         Assert.False(commitment.AlternativeLaborCost.IsKnown);
@@ -174,7 +174,7 @@ public sealed class ForecastWorkInputsTests
             PlannedConstruction = Known<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>(
                 new Dictionary<int, IReadOnlyDictionary<Resource, long>> { [1] = new Dictionary<Resource, long> { [resource] = 50 } }),
         };
-        var work = ResourceDemandOf(facts, DefaultRoundsPolicy(), new()).Work;
+        var work = ResourceRules.ResourceDemandOf(facts, RoundsRules.DefaultRoundsPolicy(), new()).Work;
         Assert.Contains(promise, work.ProductionPromises.Value);
         // Planned rooms are construction activities in the coupled portfolio (#3276), not a material-only claim.
         Assert.DoesNotContain(work.ConstructionCommitments.Value, c => c.Id.StartsWith("planned/", StringComparison.Ordinal));

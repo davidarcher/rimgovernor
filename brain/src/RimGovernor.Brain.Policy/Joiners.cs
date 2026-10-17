@@ -67,13 +67,13 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
     public IReadOnlyList<Need> Derive(JoinersFacts facts)
     {
         var f = facts.Rounds;
-        var capacity = PolicyFunctions.JoinerCapacity(f.JoinerCapacity());
+        var capacity = PopulationRules.JoinerCapacity(f.JoinerCapacity());
         var known = f.QuestOffers.TryGetValue(out var offers);
         var count = known ? offers.Count : 0;
         return
         [
-            FromFact(Offers, PolicyFunctions.JoinerDeficit(f.QuestOffers, capacity, f), "quest_offers", known ? Count(count) : default),
-            FromFact(Letters, PolicyFunctions.JoinerLetterDeficit(f.JoinerLetters, capacity), "joiner_letters",
+            FromFact(Offers, PopulationRules.JoinerDeficit(f.QuestOffers, capacity, f), "quest_offers", known ? Count(count) : default),
+            FromFact(Letters, PopulationRules.JoinerLetterDeficit(f.JoinerLetters, capacity), "joiner_letters",
                 f.JoinerLetters.TryGetValue(out var letters) ? Count(letters.Count) : default),
             Ceremonies(f.Royalty),
             Quest(Quests, known, () => QuestSelection.QuestDeficit(f).ValueOrDefault || QuestRefugees.RefugeeDeficit(f), count),
@@ -88,16 +88,16 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, JoinersFacts facts)
     {
         var f = facts.Rounds;
-        var capacity = PolicyFunctions.JoinerCapacity(f.JoinerCapacity());
+        var capacity = PopulationRules.JoinerCapacity(f.JoinerCapacity());
         var output = new List<NeedMethod>();
-        var joiner = PolicyFunctions.SelectJoinerMethod(f.QuestOffers, capacity, f);
+        var joiner = PopulationRules.SelectJoinerMethod(f.QuestOffers, capacity, f);
         foreach (var need in ready)
         {
             if (need.Id == Offers && joiner.Reason == JoinerPlanReason.None)
             {
                 output.Add(Accept(Offers, AcceptMethod("joiner", joiner.Quest), joiner));
             }
-            else if (need.Id == Letters && PolicyFunctions.SelectJoinerLetter(f.JoinerLetters, capacity) is (var letter, true))
+            else if (need.Id == Letters && PopulationRules.SelectJoinerLetter(f.JoinerLetters, capacity) is (var letter, true))
             {
                 var answer = DialogAnswer.NewJoinerLetterAnswer(letter.Id, letter.Label, letter.Token);
                 output.Add(new NeedMethod(Letters, LetterMethod(letter.Id), "",

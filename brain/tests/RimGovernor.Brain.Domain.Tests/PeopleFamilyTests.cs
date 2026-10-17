@@ -49,7 +49,7 @@ public sealed class PeopleFamilyTests
         var ct = TestContext.Current.CancellationToken;
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-people-dialog-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
 
         var answer = journal.CommitClaimedMethod(PeopleFamily.Dialog, World, new MethodId("dialog-a"), "", Answer(new DialogAnswer(7, 0, "OK")), ct);
         Assert.Equal(ClaimOutcome.Admitted, answer.Outcome);
@@ -90,13 +90,13 @@ public sealed class PeopleFamilyTests
     public void AMoodDefersToItsOwnerNeedOnlyWhileThatNeedIsAtWork()
     {
         var provisioned = AtRisk("a") with { Provision = [new MoodProvision(ShelterFamily.Sleeping, -10)] };
-        var deferred = MoodNeedProposal(provisioned, [ShelterFamily.Sleeping]);
+        var deferred = MoodRules.MoodNeedProposal(provisioned, [ShelterFamily.Sleeping]);
         Assert.Equal(MoodMethodReason.Provisioned, deferred.Reason);
         Assert.Equal(ShelterFamily.Sleeping, deferred.Provider);
-        Assert.Equal(MoodMethodReason.NoCause, MoodNeedProposal(provisioned, [RoomsFamily.Comfort]).Reason);
+        Assert.Equal(MoodMethodReason.NoCause, MoodRules.MoodNeedProposal(provisioned, [RoomsFamily.Comfort]).Reason);
         var hungry = provisioned with { Causes = [new MoodCause { Need = MoodNeed.Food, Level = Known(.1) }] };
-        Assert.Equal(MoodMethodReason.Relief, MoodNeedProposal(hungry, []).Reason);
-        Assert.Equal(MoodMethodReason.Provisioned, MoodNeedProposal(hungry, [ShelterFamily.Sleeping]).Reason);
+        Assert.Equal(MoodMethodReason.Relief, MoodRules.MoodNeedProposal(hungry, []).Reason);
+        Assert.Equal(MoodMethodReason.Provisioned, MoodRules.MoodNeedProposal(hungry, [ShelterFamily.Sleeping]).Reason);
     }
 
     /// <summary>
@@ -108,7 +108,7 @@ public sealed class PeopleFamilyTests
     {
         MoodPawn Pawn(double mood) => AtRisk("a").Pawn with { Mood = Known(.15 + mood), Target = Known(.15 + mood) };
         bool Review(double mood, bool prior) =>
-            ReviewMood(Known<EquatableArray<MoodPawn>>([Pawn(mood)]),
+            MoodRules.ReviewMood(Known<EquatableArray<MoodPawn>>([Pawn(mood)]),
                 new MoodHistory { States = prior ? [AtRisk("a")] : [] }).States.Any(s => s.Active);
 
         Assert.True(Review(.12, prior: false));
@@ -118,9 +118,9 @@ public sealed class PeopleFamilyTests
         // A need between the cause bar and the old retained bar is no cause, even for a pawn active before.
         var rested = Pawn(.12) with { Rest = Known(.4) };
         var tired = new MoodHistory { States = [AtRisk("a") with { Causes = [new MoodCause { Need = MoodNeed.Rest, Level = Known(.2) }] }] };
-        Assert.Empty(Assert.Single(ReviewMood(Known<EquatableArray<MoodPawn>>([rested]), tired).States).Causes);
+        Assert.Empty(Assert.Single(MoodRules.ReviewMood(Known<EquatableArray<MoodPawn>>([rested]), tired).States).Causes);
         var unread = Pawn(.12) with { Rest = Unknown<double>() };
-        Assert.Equal(MoodNeed.Rest, Assert.Single(Assert.Single(ReviewMood(Known<EquatableArray<MoodPawn>>([unread]), tired).States).Causes).Need);
+        Assert.Equal(MoodNeed.Rest, Assert.Single(Assert.Single(MoodRules.ReviewMood(Known<EquatableArray<MoodPawn>>([unread]), tired).States).Causes).Need);
     }
 
     private static MoodState AtRisk(string pawn) => new()

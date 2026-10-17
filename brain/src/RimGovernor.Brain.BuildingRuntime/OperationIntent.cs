@@ -25,10 +25,10 @@ public static class OperationIntent
         [MilitaryFamily.Defense.FilingKey] = "Defense",
         [MilitaryFamily.Pests.FilingKey] = "Clear pests",
         [LayoutFamily.Defense.FilingKey] = "Defense layout",
-        [CriticalCensusNeed.FilingKey] = "Medical",
-        [MedicalCareNeed.FilingKey] = "Medical care",
-        [MedicalReservesNeed.FilingKey] = "Medicine",
-        [SurgeryNeed.FilingKey] = "Surgery",
+        [MedicalRules.CriticalCensusNeed.FilingKey] = "Medical",
+        [MedicalRules.MedicalCareNeed.FilingKey] = "Medical care",
+        [MedicalRules.MedicalReservesNeed.FilingKey] = "Medicine",
+        [MedicalRules.SurgeryNeed.FilingKey] = "Surgery",
         [RefrigerationNeed.FilingKey] = "Refrigeration",
         [RoomsFamily.Comfort.FilingKey] = "Comfort",
         [RoomsFamily.Hosting.FilingKey] = "Hosting rooms",
@@ -91,7 +91,7 @@ public static class OperationIntent
             return label;
         }
         // A patient's critical Need (medical/critical/<pawn>) reads as the medical emergency it is (#3258).
-        if (kind.Value.StartsWith(CriticalCensusNeed.Value + "/", StringComparison.Ordinal))
+        if (kind.Value.StartsWith(MedicalRules.CriticalCensusNeed.Value + "/", StringComparison.Ordinal))
         {
             return "Medical";
         }

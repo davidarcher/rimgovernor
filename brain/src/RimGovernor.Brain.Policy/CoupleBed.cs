@@ -57,7 +57,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var template = BedroomTemplate(planned, room.Room.Shapes, SleepingCoupleBedDefinition);
+            var template = SleepingRules.BedroomTemplate(planned, room.Room.Shapes, SleepingRules.SleepingCoupleBedDefinition);
             return template is not null ? (planned, template) : null;
         }
         return null;
@@ -76,7 +76,7 @@ public static partial class PolicyFunctions
         IReadOnlyList<Cell> packed,
         bool buildable)
     {
-        var couples = SleepingCouples(obs.People);
+        var couples = SleepingRules.SleepingCouples(obs.People);
         var owned = new Dictionary<PawnId, string>();
         foreach (var p in obs.People)
         {
@@ -111,7 +111,7 @@ public static partial class PolicyFunctions
             {
                 var only = b.Owners.All(o => o == p || o == q);
                 var humanlike = b.Humanlike;
-                shared = shared || (SleepingDoubleBeds.Contains(b.Definition) && humanlike && only);
+                shared = shared || (SleepingRules.SleepingDoubleBeds.Contains(b.Definition) && humanlike && only);
             }
             if (shared)
             {
@@ -122,7 +122,7 @@ public static partial class PolicyFunctions
             var pack = new List<FurniturePiece>();
             foreach (var pawn in new[] { p, q })
             {
-                if (!beds.TryGetValue(owned.GetValueOrDefault(pawn, ""), out var b) || SleepingDoubleBeds.Contains(b.Definition))
+                if (!beds.TryGetValue(owned.GetValueOrDefault(pawn, ""), out var b) || SleepingRules.SleepingDoubleBeds.Contains(b.Definition))
                 {
                     continue;
                 }
@@ -179,7 +179,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The first free anchor in room where a bed of def fits (the bed replacement's placement), for reinstalling a stored bed.</summary>
-    public static (Cell Cell, Rotation Rotation)? BedSpot(FurnitureRoom room, Resource def) => BedSpotCore(room, def);
+    public static (Cell Cell, Rotation Rotation)? BedSpot(FurnitureRoom room, Resource def) => RoomQualityRules.BedSpotCore(room, def);
 
     /// <summary>
     /// FurnitureRooms for the couple bed lever. Packing the couple's beds leaves their room bedless, and native

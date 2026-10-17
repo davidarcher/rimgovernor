@@ -196,7 +196,7 @@ public sealed partial class RoundsBuildingPlanner
                 // Fields, foraging and hunts share the goal and run for days: only a pending bench is the planner's own work (the ring is its own wave).
                 foreach (var progress in plan.Progress)
                 {
-                    if (PendingFacility(progress, "TableButcher") || PendingFacility(progress, ButcherSpotDefinition))
+                    if (PendingFacility(progress, "TableButcher") || PendingFacility(progress, RoundsRules.ButcherSpotDefinition))
                     {
                         return new RoundsBuildingResult { Verdict = BuildingReasonExistingWork };
                     }
@@ -274,7 +274,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (r.ButcherFacility())
         {
-            definitions = ["TableButcher", ButcherSpotDefinition];
+            definitions = ["TableButcher", RoundsRules.ButcherSpotDefinition];
         }
         Pol.DiningFurniture furniture = default!;
         if (r.Phase == Pol.Phase.ComfortRanked || r.Phase == Pol.Phase.ComfortBasic)
@@ -299,7 +299,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             definitions = r.Workshop!.Candidates;
         }
-        if (r.Concern == MedicalCareNeed.FilingKey || r.Phase == Pol.Phase.HousingSleeping || r.Concern == EconomyFamily.Research.FilingKey)
+        if (r.Concern == MedicalRules.MedicalCareNeed.FilingKey || r.Phase == Pol.Phase.HousingSleeping || r.Concern == EconomyFamily.Research.FilingKey)
         {
             // The beds and the research bench are the furniture rules', read with every catalog (ColonyProjection.Shapes).
             definitions = [];
@@ -310,7 +310,7 @@ public sealed partial class RoundsBuildingPlanner
             // The consumers other goals' admitted plans are about to build join the census request so the budget can price their draw.
             var held = p.Journal.BuildingReservations(state.Snapshot, call);
             pendingConsumers = PendingBuildingDefinitions(held);
-            definitions = [.. new[] { "Wall", "Door" }, .. PowerFamilyDefinitions(), .. pendingConsumers];
+            definitions = [.. new[] { "Wall", "Door" }, .. PowerRules.PowerFamilyDefinitions(), .. pendingConsumers];
         }
         if (r.Concern == ShelterFamily.Temperature.FilingKey)
         {
@@ -337,7 +337,7 @@ public sealed partial class RoundsBuildingPlanner
         IReadOnlyList<string> observed = definitions;
         if (r.Shelter && r.Phase == Pol.Phase.HousingShelter)
         {
-            observed = [.. definitions, "SleepingSpot", ShelterBedDefinition, SleepingBedrollDefinition];
+            observed = [.. definitions, "SleepingSpot", ShelterBedDefinition, SleepingRules.SleepingBedrollDefinition];
         }
         if (r.Concern == CookingNeed.FilingKey || r.ButcherFacility())
         {
@@ -440,7 +440,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 (resolved, reason) = r.SelectWorkshop(state, review, facts, call);
             }
-            else if (r.Concern == MedicalCareNeed.FilingKey)
+            else if (r.Concern == MedicalRules.MedicalCareNeed.FilingKey)
             {
                 (resolved, reason) = r.SelectHospital(facts);
             }
@@ -513,7 +513,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 // The free spot stands in the planned butchery until the table is built.
                 var spot = r.Copy();
-                spot.Definition = ButcherSpotDefinition;
+                spot.Definition = RoundsRules.ButcherSpotDefinition;
                 spot.Stuff = "";
                 r = spot;
                 break;
@@ -743,7 +743,7 @@ public sealed partial class RoundsBuildingPlanner
                 }
                 if (pendingPlanner.Concern == PowerFamily.Basic.FilingKey)
                 {
-                    foreach (var name in PowerFamilyDefinitions())
+                    foreach (var name in PowerRules.PowerFamilyDefinitions())
                     {
                         if (PendingFacility(progress, name))
                         {
@@ -752,7 +752,7 @@ public sealed partial class RoundsBuildingPlanner
                     }
                     return PendingFacility(progress, "PowerConduit") || PendingFacility(progress, "HiddenConduit") || PendingFacility(progress, "WaterproofConduit");
                 }
-                if (pendingPlanner.Phase == Pol.Phase.HousingExpansion || pendingPlanner.Concern == MedicalCareNeed.FilingKey || pendingPlanner.Phase == Pol.Phase.HousingSleeping)
+                if (pendingPlanner.Phase == Pol.Phase.HousingExpansion || pendingPlanner.Concern == MedicalRules.MedicalCareNeed.FilingKey || pendingPlanner.Phase == Pol.Phase.HousingSleeping)
                 {
                     return PendingFacility(progress, "SleepingSpot") || PendingFacility(progress, "Bed") || PendingFacility(progress, "DoubleBed") || PendingFacility(progress, "RoyalBed");
                 }
@@ -1179,7 +1179,7 @@ public sealed partial class RoundsBuildingPlanner
             Bounds = facts.Bounds,
             Center = center,
             Cells = cells,
-            Protected = [.. protectedSet, .. DoorwayAisles(facts.Bounds, facts.Cells)],
+            Protected = [.. protectedSet, .. PlacementSearchRules.DoorwayAisles(facts.Bounds, facts.Cells)],
             Environment = Pol.PlacementEnvironment.Indoors,
             Radius = Math.Max(facts.Bounds.Width, facts.Bounds.Height),
             Limit = 64,
@@ -1411,7 +1411,7 @@ public sealed partial class RoundsBuildingPlanner
                 var slotAnchors = slots.Select(s => s.Anchor()).ToList();
                 var request = searchRequest with
                 {
-                    Protected = [.. slotProtected, .. DoorwayAisles(facts.Bounds, facts.Cells)],
+                    Protected = [.. slotProtected, .. PlacementSearchRules.DoorwayAisles(facts.Bounds, facts.Cells)],
                     Anchors = slotAnchors,
                     Limit = Math.Min(slots.Count, 64),
                 };
@@ -1442,7 +1442,7 @@ public sealed partial class RoundsBuildingPlanner
                     if (!ok && strictSlot && refusedSlot is null && lastPreview is { } shown)
                     {
                         refusedSlot = ReportRefused(new RoomBuild { Def = Definition, Cell = slot.Anchor() }, shown, call);
-                        SlotCuts = SlotPlantCuts(facts.Cells, slot, shown.Blockers);
+                        SlotCuts = ReconcileRules.SlotPlantCuts(facts.Cells, slot, shown.Blockers);
                     }
                     if (ok && !Overlaps(choice!.Choice))
                     {

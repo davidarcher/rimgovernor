@@ -17,22 +17,22 @@ public static partial class PolicyFunctions
         var (review, v, unread) = GearOrderCensus(r);
         if (unread is { } cause)
         {
-            return Abstaining(cause);
+            return WorkRules.Abstaining(cause);
         }
         var clothing = v!.Pawns.SelectMany(p => p.LoadoutModel.ValueOrDefault?.Options ?? [])
             .Select(o => o.Definition).Where(d => !ArmoryArmor(d)).ToHashSet();
         var orders = new List<OrderSpec>();
         foreach (var bench in r.Benches.Value)
         {
-            if (!bench.Bills.TryGetValue(out var bills)) return Abstaining(Cause.UnreadBills);
+            if (!bench.Bills.TryGetValue(out var bills)) return WorkRules.Abstaining(Cause.UnreadBills);
             foreach (var bill in bills.Where(b => !b.Spent && b.Products.Any(clothing.Contains)))
             {
-                if (!bill.Active.TryGetValue(out var active) || !bill.Spec.TryGetValue(out var spec)) return Abstaining(Cause.UnreadBills);
+                if (!bill.Active.TryGetValue(out var active) || !bill.Spec.TryGetValue(out var spec)) return WorkRules.Abstaining(Cause.UnreadBills);
                 if (active) orders.Add(spec);
             }
         }
         // New ordinary clothing is selected as executable activities, never pre-pinned ledger bills.
-        return AbstainUnless(null, orders);
+        return WorkRules.AbstainUnless(null, orders);
     }
     /// <summary>
     /// The armory's wanted orders at tier: the weapon batches (weapons is ArmoryWeaponDemand), the armor ladder the
@@ -44,7 +44,7 @@ public static partial class PolicyFunctions
         var (review, v, unread) = GearOrderCensus(r);
         if (unread is { } cause)
         {
-            return Abstaining(cause);
+            return WorkRules.Abstaining(cause);
         }
         r.Benches.TryGetValue(out var benches);
 
@@ -78,7 +78,7 @@ public static partial class PolicyFunctions
         {
             if (!p.Replacements.TryGetValue(out var replacements))
             {
-                return Abstaining(Cause.UnreadGearNeeds);
+                return WorkRules.Abstaining(Cause.UnreadGearNeeds);
             }
             foreach (var n in replacements)
             {
@@ -213,7 +213,7 @@ public static partial class PolicyFunctions
         return (orders, unknown);
     }
 
-    private static string GearBenchDef(IReadOnlyList<GearBench> benches, string id)
+    internal static string GearBenchDef(IReadOnlyList<GearBench> benches, string id)
     {
         foreach (var b in benches)
         {

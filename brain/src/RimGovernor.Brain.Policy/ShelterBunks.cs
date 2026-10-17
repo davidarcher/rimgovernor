@@ -7,13 +7,13 @@ namespace RimGovernor.Brain.Policy;
 // footprint at the slot's rotation, off the cell inside the door, the starter storage patch and the cells the
 // plan digs. Fewer bunks than asked for is not an error: the shell is small, and whatever fits is placed.
 
-public static partial class PolicyFunctions
+public static partial class ShelterRules
 {
     /// <summary>The footprint a bunk anchored at anchor occupies at a rotation.</summary>
     public static Rectangle BunkRect(Cell anchor, Rotation rot) => OccupiedRect(anchor, ShelterBunkSize, rot);
 
     /// <summary>The two cells of BunkRect.</summary>
-    public static IReadOnlyList<Cell> BunkCells(Cell anchor, Rotation rot) => RectCells(BunkRect(anchor, rot));
+    public static IReadOnlyList<Cell> BunkCells(Cell anchor, Rotation rot) => PlannedRules.RectCells(BunkRect(anchor, rot));
 
     /// <summary>
     /// Reads a planned shelter room as the shelter template's input: its interior, the door, and the cells
@@ -59,7 +59,7 @@ public static partial class PolicyFunctions
         {
             return (new InteriorRoom(), false);
         }
-        var keep = new List<Cell>(RectCells(StarterStorage(shell)));
+        var keep = new List<Cell>(PlannedRules.RectCells(PlannedRules.StarterStorage(shell)));
         keep.AddRange(mined);
         keep.AddRange(reserved);
         return (interior with { Reserved = EquatableArray.From(keep) }, true);

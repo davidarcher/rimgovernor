@@ -90,10 +90,10 @@ public sealed class MilitaryFamilyTests
         Assert.Equal(Satisfaction.Unknown, unknown.Satisfaction);
         Assert.False(unknown.Deficit.IsKnown);
 
-        Assert.Equal(Situation.Active, CombatSituation(Known(1L), 0));
-        Assert.Equal(Situation.Active, CombatSituation(Known(0L), 1));
-        Assert.Equal(Situation.Clear, CombatSituation(Known(0L), 0));
-        Assert.Equal(Situation.Unclear, CombatSituation(Unknown<long>(), 0));
+        Assert.Equal(Situation.Active, RoundsRules.CombatSituation(Known(1L), 0));
+        Assert.Equal(Situation.Active, RoundsRules.CombatSituation(Known(0L), 1));
+        Assert.Equal(Situation.Clear, RoundsRules.CombatSituation(Known(0L), 0));
+        Assert.Equal(Situation.Unclear, RoundsRules.CombatSituation(Unknown<long>(), 0));
     }
 
     [Fact]
@@ -223,7 +223,7 @@ public sealed class MilitaryFamilyTests
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-military-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with { Colonists = Known(3L), IndoorCapacity = Known(3L), BedCapacity = Known(3L), FieldCoverage = Known(1.0) };
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         Colony? colony = null;
         var runner = new FamilyRunner<MilitaryFacts>(new MilitaryFamily(), (_, _) => Task.FromResult(colony!.Facts), MilitaryRounds.Schedule);
         colony = new Colony { Journal = journal, Runner = runner };

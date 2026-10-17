@@ -157,11 +157,11 @@ public static class QuestReturn
         var mk = extraction.CarriedMass.TryGetValue(out var carried);
         var fk = extraction.InventoryFoodDays.TryGetValue(out var inventoryFood);
         var rk = extraction.CrewNutritionPerDay.TryGetValue(out var rate);
-        if (!ck || !mk || !Finite(capacity) || !Finite(carried) || capacity < 0 || carried < 0)
+        if (!ck || !mk || !TradePolicyRules.Finite(capacity) || !TradePolicyRules.Finite(carried) || capacity < 0 || carried < 0)
         {
             return (none, "mass_unknown");
         }
-        if (!fk || !rk || !Finite(inventoryFood) || !Finite(rate) || inventoryFood < 0 || rate <= 0)
+        if (!fk || !rk || !TradePolicyRules.Finite(inventoryFood) || !TradePolicyRules.Finite(rate) || inventoryFood < 0 || rate <= 0)
         {
             return (none, "food_unknown");
         }
@@ -200,7 +200,7 @@ public static class QuestReturn
             var hk = row.Held.TryGetValue(out var held);
             var nk = row.Count.TryGetValue(out var count);
             var uk = row.UnitMass.TryGetValue(out var mass);
-            if (!hk || !nk || !uk || count < 0 || !Finite(mass) || mass < 0)
+            if (!hk || !nk || !uk || count < 0 || !TradePolicyRules.Finite(mass) || mass < 0)
             {
                 return (none, "cargo_unknown");
             }
@@ -243,7 +243,7 @@ public static class QuestReturn
             var count = left.GetValueOrDefault(row.Id);
             var nk = row.Nutrition.TryGetValue(out var nutrition);
             row.UnitMass.TryGetValue(out var mass);
-            if (count == 0 || !nk || !Finite(nutrition) || nutrition <= 0)
+            if (count == 0 || !nk || !TradePolicyRules.Finite(nutrition) || nutrition <= 0)
             {
                 continue;
             }
@@ -266,7 +266,7 @@ public static class QuestReturn
             var count = left.GetValueOrDefault(row.Id);
             var vk = row.MarketValue.TryGetValue(out var value);
             row.UnitMass.TryGetValue(out var mass);
-            if (count == 0 || !vk || !Finite(value) || value <= 0)
+            if (count == 0 || !vk || !TradePolicyRules.Finite(value) || value <= 0)
             {
                 continue;
             }

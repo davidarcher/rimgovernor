@@ -31,12 +31,12 @@ public sealed partial class RoundsBuildingPlanner
             planned.Add(new RoleCell { Cell = c, Role = RockRole.NeedsFloor });
         }
 
-        if (PolicyFunctions.RockStep(planned, s.Facts.Cells).Dig.Count == 0)
+        if (RockStepRules.RockStep(planned, s.Facts.Cells).Dig.Count == 0)
         {
             return (new RoundsBuildingResult(), false);
         }
 
-        var (access, ok) = PolicyFunctions.RockAccess(footprint, s.Facts.Cells);
+        var (access, ok) = RockStepRules.RockAccess(footprint, s.Facts.Cells);
         if (!ok)
         {
             return (new RoundsBuildingResult { Verdict = RockNotDug(Definition, "no_open_cell_beside_footprint") }, true);
@@ -86,7 +86,7 @@ public sealed partial class RoundsBuildingPlanner
                 cells.Add(new RoleCell { Cell = lane, Role = RockRole.NeedsSky });
             }
 
-            var step = PolicyFunctions.RockStepRoofs(cells, s.Facts.Cells, roofs);
+            var step = RockStepRules.RockStepRoofs(cells, s.Facts.Cells, roofs);
             if (footprint.Any(taken.Contains))
             {
                 if (step.Unroof.Count > 0)
@@ -120,7 +120,7 @@ public sealed partial class RoundsBuildingPlanner
 
         check();
         var rockCells = pickCells.Select(c => c.Cell).ToList();
-        var (access, ok) = PolicyFunctions.RockAccess(rockCells, s.Facts.Cells);
+        var (access, ok) = RockStepRules.RockAccess(rockCells, s.Facts.Cells);
         if (!ok)
         {
             return (new RoundsBuildingResult { Verdict = RockNotDug(Definition, "no_open_cell_beside_site") }, true);

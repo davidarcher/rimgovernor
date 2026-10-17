@@ -78,7 +78,7 @@ public sealed class OrphanStandardTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-old-mission-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        source.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a") }, ct);
+        source.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RimGovernor.Brain.Policy.RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a") }, ct);
         var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct), StringComparer.Ordinal);
 
         // An older save's trade-mission Standard: Kind trade-mission, its intent in a Mission field the codec no longer reads.

@@ -82,8 +82,8 @@ public static partial class PolicyFunctions
                             (hot, cool, from, to) = (far, room, there, here);
                         }
                         hot.Role.TryGetValue(out var hotRole);
-                        if (from > threshold && to < from && to >= p.ColdExit && !Positive(cool.TemperatureControl)
-                            && !(hotRole == RoomRole.Storeroom && Positive(hot.TemperatureControl)) && (hot.Pawns.Count > 0 || hot.Beds.Count > 0))
+                        if (from > threshold && to < from && to >= p.ColdExit && !RoundsRules.Positive(cool.TemperatureControl)
+                            && !(hotRole == RoomRole.Storeroom && RoundsRules.Positive(hot.TemperatureControl)) && (hot.Pawns.Count > 0 || hot.Beds.Count > 0))
                         {
                             change = change with
                             {
@@ -95,7 +95,7 @@ public static partial class PolicyFunctions
                             };
                         }
                         else if (travelled.Contains(door.Cell) && LogisticsRoom(room) && LogisticsRoom(far)
-                            && !Positive(room.TemperatureControl) && !Positive(far.TemperatureControl)
+                            && !RoundsRules.Positive(room.TemperatureControl) && !RoundsRules.Positive(far.TemperatureControl)
                             && here >= p.ColdExit && here <= p.HotExit && there >= p.ColdExit && there <= p.HotExit)
                         {
                             change = change with { HoldOpen = true, Passage = !open };

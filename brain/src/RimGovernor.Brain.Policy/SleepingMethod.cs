@@ -80,7 +80,7 @@ public sealed record SleepingChoice
     public EquatableArray<Cell> Cells { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class SleepingRules
 {
     /// <summary>Staged first when a waiting colonist has a couple partner.</summary>
     public const string SleepingCoupleBedDefinition = "DoubleBed";
@@ -282,7 +282,7 @@ public static partial class PolicyFunctions
         {
             return choice with { Method = SleepingMethod.NoDemand };
         }
-        var facility = Facility(RoomRole.Bedroom);
+        var facility = RoomsRules.Facility(RoomRole.Bedroom);
         if (!r.Rooms.TryGetValue(out var rooms))
         {
             return choice with { Method = SleepingMethod.Unknown, Missing = "rooms" };

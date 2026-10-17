@@ -29,7 +29,7 @@ public enum WeaponRole
 
 public sealed record EquipAssignment(PawnId Pawn, EquipCandidateWeapon Weapon, double Score);
 
-public static partial class PolicyFunctions
+public static partial class WeaponAssignmentRules
 {
     /// <summary>
     /// Scores skill at an accuracy-weighted engagement range, then applies role fit and the known armor census.

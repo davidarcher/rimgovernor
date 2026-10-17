@@ -187,16 +187,16 @@ public sealed partial class Store
         // Stopping routine work must not depend on a successful native observation.
         if (request.Enabled && !request.Immediate)
         {
-            workEvidence = PolicyFunctions.WorkAdmissionEvidenceOf(facts,
+            workEvidence = ProductionRules.WorkAdmissionEvidenceOf(facts,
                 ProductionBatchesIn(tx, request.Current, request.Tick));
-            facts = PolicyFunctions.ReviewWorkResources(facts, ProductionBatchesIn(tx, request.Current, request.Tick),
+            facts = WorkRules.ReviewWorkResources(facts, ProductionBatchesIn(tx, request.Current, request.Tick),
                 WorkActionsIn(tx, request.Current));
             facts = facts with
             {
                 ResourceRunways = ResourceRunways(request),
                 ConstructionClaims = ConstructionClaimsIn(tx, request.Current, request.Tick),
             };
-            var sleepingReview = PolicyFunctions.ReviewSleeping(facts.Sleeping, sleeping, request.Tick);
+            var sleepingReview = SleepingRules.ReviewSleeping(facts.Sleeping, sleeping, request.Tick);
             sleeping = sleepingReview.History;
             facts = facts with { SleepingRecovered = sleepingReview.Recovered() };
             if (facts.BedroomsOwed.TryGetValue(out var owed) && owed)
@@ -215,30 +215,30 @@ public sealed partial class Store
             loot = loot with { Pending = EquatableArray.From(PolicyFunctions.DropReserveHeld(loot.Pending, facts.FoodReserve)) };
             if (facts.Upkeep.Clearance.TryGetValue(out var rows))
             {
-                var req = PolicyFunctions.ReviewRecoveryRequest(request.Policy, facts, rows, facts.Upkeep.RoomObstructions);
+                var req = RecoveryRules.ReviewRecoveryRequest(request.Policy, facts, rows, facts.Upkeep.RoomObstructions);
                 recovery = req;
                 // Only candidates that pass safety and storage checks are owed.
                 var working = new Dictionary<string, bool>(StringComparer.Ordinal);
-                foreach (var e in PolicyFunctions.RankRecovery(req).Entries)
+                foreach (var e in RecoveryRules.RankRecovery(req).Entries)
                 {
                     working[e.ID] = e.Status is RecoveryStatus.Admitted or RecoveryStatus.Queued;
                 }
                 var workable = rows.Where(row => working.TryGetValue(row.EntityId, out var ok) && ok).ToList();
                 facts = facts with { Upkeep = facts.Upkeep with { Clearance = Known(EquatableArray.From(workable)) } };
             }
-            medical = PolicyFunctions.ReviewMedicalCare(facts.MedicalPawns, medical);
+            medical = MedicalRules.ReviewMedicalCare(facts.MedicalPawns, medical);
             facts = facts with { MedicalCareRecovered = medical.Recovered() };
-            mood = PolicyFunctions.ReviewMood(facts.MoodPawns, mood);
+            mood = MoodRules.ReviewMood(facts.MoodPawns, mood);
             facts = facts with { Disaster = disaster, DisasterTick = request.Tick };
             detection = new RoundsDetection(facts, latches, request.Policy);
-            needs = PolicyFunctions.InspectRounds(facts, latches, request.Policy);
+            needs = RoundsRules.InspectRounds(facts, latches, request.Policy);
             disaster = needs.Disaster;
         }
         if (request.Enabled && request.Immediate)
         {
             facts = facts with { Disaster = disaster, DisasterTick = reset ? new Tick(0) : previous.OrdinaryTick };
             detection = new RoundsDetection(facts, latches, request.Policy);
-            needs = PolicyFunctions.InspectImmediateRounds(facts, latches, request.Policy);
+            needs = RoundsRules.InspectImmediateRounds(facts, latches, request.Policy);
         }
         request = request with { Facts = facts };
         if (request.Enabled && !request.Immediate)
@@ -260,7 +260,7 @@ public sealed partial class Store
         {
             r = r with { OrdinaryTick = request.Tick };
         }
-        r = r with { MedicalCare = medical, BrewingFinished = PolicyFunctions.BrewingFinished(request.Facts.Research), EventLoot = loot };
+        r = r with { MedicalCare = medical, BrewingFinished = SocialCropsRules.BrewingFinished(request.Facts.Research), EventLoot = loot };
         if (request.Facts.EventLoot.TryGetValue(out var lootRows))
         {
             r = r with { Unsafe = EquatableArray.From(PolicyFunctions.UnsafeLoot(lootRows)) };
@@ -352,8 +352,8 @@ public sealed partial class Store
         if (!request.Immediate && request.Facts.Upkeep.Clearance.TryGetValue(out var clearance))
         {
             // A disabled review never filtered the census.
-            recovery ??= PolicyFunctions.ReviewRecoveryRequest(request.Policy, request.Facts, clearance, request.Facts.Upkeep.RoomObstructions);
-            r = r with { RecoveryQueue = PolicyFunctions.RankRecovery(recovery) };
+            recovery ??= RecoveryRules.ReviewRecoveryRequest(request.Policy, request.Facts, clearance, request.Facts.Upkeep.RoomObstructions);
+            r = r with { RecoveryQueue = RecoveryRules.RankRecovery(recovery) };
         }
         else if (!reset)
         {

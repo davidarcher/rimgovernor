@@ -74,7 +74,7 @@ public sealed partial class LayoutRounds
         // nothing cuts the blocks a stone wall needs.
         if (unstocked)
         {
-            var gate = ResearchGate([StoneShellResearch], projection.Facts.Research);
+            var gate = ResearchRules.ResearchGate([StoneShellResearch], projection.Facts.Research);
             if (gate != "")
             {
                 return ResearchWait(gate);
@@ -139,7 +139,7 @@ public sealed partial class LayoutRounds
         {
             foreach (var option in materials)
             {
-                if (MaterialBudgetCovers(available, option.Costs.Select(c => new Pol.Amount(new Pol.Resource(c.Resource), c.Units)), backupCount + 1))
+                if (ProductionRules.MaterialBudgetCovers(available, option.Costs.Select(c => new Pol.Amount(new Pol.Resource(c.Resource), c.Units)), backupCount + 1))
                 {
                     material = option;
                     funded = true;

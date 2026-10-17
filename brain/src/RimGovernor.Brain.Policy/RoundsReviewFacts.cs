@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class RoundsRules
 {
     internal static Fact<bool> NotFact(Fact<bool> f) => Measured(f, v => !v);
 
@@ -28,7 +28,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static TradeReview TradeReviewOf(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) => new()
     {
-        SilverGap = ReviewSilverGap(f, p, medicine, demand),
+        SilverGap = SilverGapRules.ReviewSilverGap(f, p, medicine, demand),
         CaravanRecovered = CaravanRecoveredOf(f, p, medicine, demand),
     };
 
@@ -41,14 +41,14 @@ public static partial class PolicyFunctions
     {
         var tradeNeed = AnimalSaleNeed(
             f.Items,
-            ShedArtNeed(
-                SurgeryTradeNeed(
-                    ReserveSurgeryStock(
-                        OrganSaleSurplus(
+            TradePolicyRules.ShedArtNeed(
+                SurgeryRules.SurgeryTradeNeed(
+                    OrganHarvestRules.ReserveSurgeryStock(
+                        OrganHarvestRules.OrganSaleSurplus(
                             f.Items,
                             ExportSaleSurplus(
                                 f.Items,
-                                ReviewTradeNeed(f.Items, medicine, f.Resources, demand.Needs, RoundsTradeFloors(p, null), f.Wealth, demand.Retained, RoundsTradeFood(f, p)),
+                                TradePolicyRules.ReviewTradeNeed(f.Items, medicine, f.Resources, demand.Needs, TradePolicyRules.RoundsTradeFloors(p, null), f.Wealth, demand.Retained, TradePolicyRules.RoundsTradeFood(f, p)),
                                 f.Resources,
                                 f.Colonists,
                                 f.ExportProducts),
@@ -56,15 +56,15 @@ public static partial class PolicyFunctions
                             f.Colonists,
                             f.Recipes),
                         f.MedicalPawns),
-                    SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContextOf(), SurgeryParts(SelectSurgery(f.MedicalPawns, null, new SurgeryContext()).Wants), f.FabricableParts ?? new HashSet<Resource>())),
+                    SurgeryRules.SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContextOf(), SurgeryRules.SurgeryParts(SurgeryRules.SelectSurgery(f.MedicalPawns, null, new SurgeryContext()).Wants), f.FabricableParts ?? new HashSet<Resource>())),
                 f.WealthBudget(),
                 f.SaleArt),
             f.SaleAnimals(),
             f.Silver(),
             f.Colonists);
-        tradeNeed = FavorGoldNeed(tradeNeed, f.Traders, f.Resources, demand.Needs, RoundsTradeFloors(p, null), demand.Retained);
-        var shortage = RoundsSilverShort(f, p, medicine.Active).TryGetValue(out var silverShort) && silverShort;
-        tradeNeed = FavorPrisonerNeed(tradeNeed, f.Traders, f.SurplusPrisoners(shortage));
-        return TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity())));
+        tradeNeed = TradePolicyRules.FavorGoldNeed(tradeNeed, f.Traders, f.Resources, demand.Needs, TradePolicyRules.RoundsTradeFloors(p, null), demand.Retained);
+        var shortage = SilverGapRules.RoundsSilverShort(f, p, medicine.Active).TryGetValue(out var silverShort) && silverShort;
+        tradeNeed = TradePolicyRules.FavorPrisonerNeed(tradeNeed, f.Traders, f.SurplusPrisoners(shortage));
+        return TradePolicyRules.TradeRecovered(f.Traders, TradePolicyRules.PopulationTradeNeed(tradeNeed, PopulationRules.JoinerCapacity(f.JoinerCapacity())));
     }
 }

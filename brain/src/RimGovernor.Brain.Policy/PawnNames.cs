@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>One owned named pawn: its short name and thingIDNumber, which orders pawns by creation.</summary>
 public sealed record OwnedName(PawnId Pawn, string Short, int ThingId);
 
-public static partial class PolicyFunctions
+public static partial class PawnRules
 {
     /// <summary>The renames owed: every pawn whose short name an older owned pawn already holds, compared case-insensitively.</summary>
     public static IReadOnlyList<PawnSettings> NicknameChanges(IReadOnlyList<OwnedName> names)

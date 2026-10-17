@@ -114,7 +114,7 @@ public sealed record LedgerView
         }
         static string Join(IEnumerable<string> s) => string.Join(", ", s);
         Add(
-            PolicyFunctions.LedgerSectionRound,
+            WorkRules.LedgerSectionRound,
             new()
             {
                 ["status"] = Status,
@@ -156,12 +156,12 @@ public sealed record LedgerView
                 c["attempt_code"] = a.Code;
                 c["attempt_reason"] = a.Reason;
             }
-            Add(PolicyFunctions.LedgerSectionOrder, c);
+            Add(WorkRules.LedgerSectionOrder, c);
         }
         foreach (var b in Orphans)
         {
             Add(
-                PolicyFunctions.LedgerSectionOrphan,
+                WorkRules.LedgerSectionOrphan,
                 new()
                 {
                     ["bench"] = b.Bench,
@@ -179,7 +179,7 @@ public sealed record LedgerView
         foreach (var u in Unmet)
         {
             Add(
-                PolicyFunctions.LedgerSectionUnmet,
+                WorkRules.LedgerSectionUnmet,
                 new()
                 {
                     ["bench_kind"] = u.BenchKind,
@@ -207,18 +207,18 @@ public sealed record LedgerView
                 {
                     c["observed_gain"] = gain;
                 }
-                Add(PolicyFunctions.LedgerSectionWindow, c);
+                Add(WorkRules.LedgerSectionWindow, c);
             }
         }
         foreach (var b in Excluded)
         {
-            Add(PolicyFunctions.LedgerSectionExcluded, new() { ["bench"] = b.Bench, ["recipe"] = b.Recipe, ["kind"] = b.Kind, ["target"] = b.Target });
+            Add(WorkRules.LedgerSectionExcluded, new() { ["bench"] = b.Bench, ["recipe"] = b.Recipe, ["kind"] = b.Kind, ["target"] = b.Target });
         }
         foreach (var d in Declarers)
         {
             var why = d.Abstains.Select(a => a.Concern + ": " + PolicyFunctions.Wording(a.Fact, ""));
             Add(
-                PolicyFunctions.LedgerSectionDeclarer,
+                WorkRules.LedgerSectionDeclarer,
                 new()
                 {
                     ["planner"] = d.Name,
@@ -229,11 +229,11 @@ public sealed record LedgerView
         }
         if (Export is { } e)
         {
-            Add(PolicyFunctions.LedgerSectionExportGap, new() { ["gap_known"] = e.GapKnown, ["gap"] = e.Gap, ["in_flight"] = e.InFlight, ["remaining"] = e.Remaining });
+            Add(WorkRules.LedgerSectionExportGap, new() { ["gap_known"] = e.GapKnown, ["gap"] = e.Gap, ["in_flight"] = e.InFlight, ["remaining"] = e.Remaining });
             foreach (var c in e.Candidates)
             {
                 Add(
-                    PolicyFunctions.LedgerSectionExportCandidate,
+                    WorkRules.LedgerSectionExportCandidate,
                     new()
                     {
                         ["recipe"] = c.Recipe,
@@ -248,7 +248,7 @@ public sealed record LedgerView
             }
             foreach (var d in e.Dropped)
             {
-                Add(PolicyFunctions.LedgerSectionExportDrop, new() { ["reason"] = Wire.Name(d.Reason), ["count"] = d.Count });
+                Add(WorkRules.LedgerSectionExportDrop, new() { ["reason"] = Wire.Name(d.Reason), ["count"] = d.Count });
             }
         }
         return rows;
@@ -399,7 +399,7 @@ public sealed record ExportCandidateView
     public bool Ordered { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class WorkRules
 {
     // Ledger view statuses.
 

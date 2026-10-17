@@ -136,7 +136,7 @@ public static partial class PolicyFunctions
         {
             return choice with { Method = HospitalMethod.Unavailable };
         }
-        var facility = Facility(RoomRole.Hospital);
+        var facility = RoomsRules.Facility(RoomRole.Hospital);
         var sk = r.Sleeping.TryGetValue(out var sleeping);
         var rk = r.Rooms.TryGetValue(out var rooms);
         if (!sk || !rk)
@@ -217,7 +217,7 @@ public static partial class PolicyFunctions
         var unknown = false;
         foreach (var name in r.Furniture.HospitalBeds())
         {
-            if (surgical && name == SleepingSpotDefinition)
+            if (surgical && name == SleepingRules.SleepingSpotDefinition)
             {
                 continue;
             }

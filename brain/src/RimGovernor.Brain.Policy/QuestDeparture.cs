@@ -155,7 +155,7 @@ public static class QuestDeparture
         });
         var capk = f.DefenseCapacity.TryGetValue(out var capacity);
         var raidk = f.RaidPoints.TryGetValue(out var raid);
-        if (profile.Family == QuestFamily.BanditCamp && (!capk || !raidk || !Finite(capacity) || !Finite(raid) || capacity < 0 || raid < 0))
+        if (profile.Family == QuestFamily.BanditCamp && (!capk || !raidk || !TradePolicyRules.Finite(capacity) || !TradePolicyRules.Finite(raid) || capacity < 0 || raid < 0))
         {
             return (none, "defense_unknown");
         }
@@ -178,7 +178,7 @@ public static class QuestDeparture
             }
             if (profile.Family == QuestFamily.BanditCamp)
             {
-                if (!pawn.DefensePoints.TryGetValue(out var points) || !Finite(points) || points < 0)
+                if (!pawn.DefensePoints.TryGetValue(out var points) || !TradePolicyRules.Finite(points) || points < 0)
                 {
                     return (none, "defense_unknown");
                 }
@@ -245,11 +245,11 @@ public static class QuestDeparture
                         continue;
                     }
                 }
-                if (!dk || !Finite(defense) || defense < 0)
+                if (!dk || !TradePolicyRules.Finite(defense) || defense < 0)
                 {
                     return (none, "defense_unknown");
                 }
-                if (capacity - defense < Math.Max(raid, WealthBudgetMinRaidPoints))
+                if (capacity - defense < Math.Max(raid, WealthBudgetRules.WealthBudgetMinRaidPoints))
                 {
                     continue;
                 }

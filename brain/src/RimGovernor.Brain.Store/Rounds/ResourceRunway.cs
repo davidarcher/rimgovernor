@@ -45,7 +45,7 @@ public sealed partial class Store
                 }
             }
             var ore = facts.ResourceSurfaceOre is { } surface && surface.TryGetValue(resource, out var known) ? known : default;
-            result.Add(PolicyFunctions.ForecastResourceRunway(resource, stock, ore, reserves[resource], r.Tick, facts.ResourceConsumption));
+            result.Add(ResourceRules.ForecastResourceRunway(resource, stock, ore, reserves[resource], r.Tick, facts.ResourceConsumption));
         }
         return EquatableArray.From(result);
     }

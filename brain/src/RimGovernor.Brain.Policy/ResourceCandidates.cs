@@ -9,7 +9,7 @@ public sealed record AcquisitionCompetition
     public bool Urgent { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class ResourceRules
 {
     internal static bool FiniteAcquisitionCost(double v) => !double.IsNaN(v) && !double.IsInfinity(v) && v >= 0 && v <= 1e12;
 }

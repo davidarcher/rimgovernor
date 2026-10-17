@@ -55,7 +55,7 @@ partial class RoundsTradePlanner
                 break;
             }
         }
-        return Pol.PolicyFunctions.TradeMissionReturnSafe(input);
+        return Pol.TradePolicyRules.TradeMissionReturnSafe(input);
     }
 }
 
@@ -335,7 +335,7 @@ public sealed partial class RoundsTradePlanner
         }
         var (silver, _, known) = TradeSheetSilver(sheet.Rows);
         if (!SameTradeLines(lines, TradeStagedLines(sheet)) || !sheet.ColonyCanAfford
-            || !Pol.PolicyFunctions.TradeMissionPaymentSafe(m.SilverBudget, MissionOptional(silver, known), MissionOptional(sheet.Balance, sheet.BalanceKnown))
+            || !Pol.TradePolicyRules.TradeMissionPaymentSafe(m.SilverBudget, MissionOptional(silver, known), MissionOptional(sheet.Balance, sheet.BalanceKnown))
             || sheet.DealSignature.Length == 0)
         {
             return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
@@ -393,7 +393,7 @@ public sealed partial class RoundsTradePlanner
             });
         }
         var (silver, _, known) = TradeSheetSilver(sheet.Rows);
-        return Pol.PolicyFunctions.PlanTradeMissionPurchases(new Pol.MissionPurchaseRequest
+        return Pol.TradePolicyRules.PlanTradeMissionPurchases(new Pol.MissionPurchaseRequest
         {
             Mission = m,
             Targets = targets,

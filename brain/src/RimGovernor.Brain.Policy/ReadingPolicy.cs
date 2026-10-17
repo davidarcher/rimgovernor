@@ -48,7 +48,7 @@ public sealed record ReadingPolicyChange
     public PawnSettings? Assign { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class ReadingPolicyRules
 {
     /// <summary>
     /// The book definitions pawn should be allowed: a child learning books (textbooks) only; an adult novels

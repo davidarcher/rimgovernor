@@ -32,15 +32,15 @@ public sealed class WorkAssignmentsNeedTests
     public void WorkIsOwedForUncoveredWorkIdlePawnsOwedSettingsOrCoupledWorkAndUnknownWhileCoverageIsUnread()
     {
         var covered = WorkResourceTestFacts.Create("pawn") with { WorkCoverage = Known(true), CleanupPawns = Known(false) };
-        Assert.Equal(Known(false), WorkAssignmentsOwed(covered, null));
-        Assert.Equal(Known(true), WorkAssignmentsOwed(covered with { WorkCoverage = Known(false) }, null));
-        Assert.Equal(Known(true), WorkAssignmentsOwed(covered with { CleanupPawns = Known(true) }, null));
-        Assert.Equal(Known(true), WorkAssignmentsOwed(covered with { HostilityOwed = Known(true) }, null));
-        Assert.Equal(Known(true), WorkAssignmentsOwed(covered with { NamesOwed = Known(true) }, null));
-        Assert.Equal(Known(true), WorkAssignmentsOwed(covered with { CoupledWorkActive = true }, null));
-        Assert.False(WorkAssignmentsOwed(covered with { WorkCoverage = default }, null).IsKnown);
+        Assert.Equal(Known(false), RoundsRules.WorkAssignmentsOwed(covered, null));
+        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { WorkCoverage = Known(false) }, null));
+        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { CleanupPawns = Known(true) }, null));
+        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { HostilityOwed = Known(true) }, null));
+        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { NamesOwed = Known(true) }, null));
+        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { CoupledWorkActive = true }, null));
+        Assert.False(RoundsRules.WorkAssignmentsOwed(covered with { WorkCoverage = default }, null).IsKnown);
         // An owed setting is owed whatever the coverage read says.
-        Assert.Equal(Known(true), WorkAssignmentsOwed(covered with { WorkCoverage = default, MedicalCareOwed = Known(true) }, null));
+        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { WorkCoverage = default, MedicalCareOwed = Known(true) }, null));
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public sealed class WorkAssignmentsNeedTests
         var ct = TestContext.Current.CancellationToken;
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-work-assignments-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
         static PlanSpec Plan(params Func<ActionId, DomainAction>[] actions)
         {
             var id = PlanIds.MintPlanId();

@@ -117,7 +117,7 @@ public static partial class PolicyFunctions
                 Add(d.Threshold);
             }
         }
-        return RockStep(planned, cells);
+        return RockStepRules.RockStep(planned, cells);
     }
 
     /// <summary>The other room whose wall holds one of room's link doors.</summary>
@@ -153,7 +153,7 @@ public static partial class PolicyFunctions
         {
             planned.Add(new RoleCell { Cell = c, Role = RockRole.NeedsFloor });
         }
-        return (RockStep(planned, cells), true);
+        return (RockStepRules.RockStep(planned, cells), true);
     }
 
     internal static bool ZoneHas(LayoutZone z, Cell cell)

@@ -78,7 +78,7 @@ public sealed class ShelterFamilyTests
     public void PreconditionsHoldSleepingAndExpansionBehindAnUnmetStarter()
     {
         var needs = new ShelterFamily(true, true, true, false, false).Derive(Housed with { Beds = Known(false), SleepingRecovered = Known(false), IndoorCapacity = Known(0L) });
-        var standings = NeedStandings(ShelterFamily.FamilyId, needs);
+        var standings = NeedsRules.NeedStandings(ShelterFamily.FamilyId, needs);
         Assert.Equal([NeedReadiness.Ready, NeedReadiness.Waiting, NeedReadiness.Waiting], standings.Select(s => s.Readiness));
         Assert.Equal(ShelterFamily.Starter, standings[1].WaitingOn);
     }

@@ -22,7 +22,7 @@ public sealed class CoupledActivityIntegrationTests
             { Food = observed.Food with { Options = [observed.Food.Options[0] with { Destination = new(2, 1) }] },
                 FoodUses = EquatableArray.From(observed.FoodUses.Select(u => u with { Location = new(2, 1) })) } } };
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay) };
-        var findings = InspectRounds(facts, new(), DefaultRoundsPolicy());
+        var findings = RoundsRules.InspectRounds(facts, new(), RoundsRules.DefaultRoundsPolicy());
         var selection = Assert.IsType<ForecastCoupledSelection>(findings.CoupledSelection);
         Assert.NotEmpty(selection.Selection.Selected);
         Assert.True(selection.SelectedVector.Urgent[0].Value < selection.BaselineVector.Urgent[0].Value);
@@ -73,7 +73,7 @@ public sealed class CoupledActivityIntegrationTests
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-independent-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         var firstPlan = new PlanSpec(new("first"), new(1), [DomainAction.NewPawnActivitiesAction(new("first-action"), first)]);
         TestNeed.Commit(journal, Root, new("coupled-observed"), firstPlan, ct);
         Send(journal, firstPlan, 100, ct);
@@ -86,11 +86,11 @@ public sealed class CoupledActivityIntegrationTests
             Coupled = observed with { Food = observed.Food with { Options = [observed.Food.Options[0], other] },
                 FoodUses = [observed.FoodUses[0], observed.FoodUses[0] with { Pawn = "helper", Location = new(4, 1) }] },
         } };
-        facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), journal.WorkActions(Root, ct));
+        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), journal.WorkActions(Root, ct));
         Assert.Contains("pawn", facts.WorkView!.Claims.Pawns);
         Assert.Contains("plant-a", facts.WorkView.Claims.Targets);
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay) };
-        var inspected = InspectRounds(facts, new(), DefaultRoundsPolicy());
+        var inspected = RoundsRules.InspectRounds(facts, new(), RoundsRules.DefaultRoundsPolicy());
         var choice = Assert.IsType<ForecastCoupledSelection>(inspected.CoupledSelection);
         var next = ForecastCoupledSelection.StartCoupledActivity(choice, facts.CoupledAlternatives!, 1, "coupled-independent", 100);
         Assert.NotNull(next);
@@ -142,7 +142,7 @@ public sealed class CoupledActivityIntegrationTests
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-coupled-integration-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var reviewed = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         var plan = new PlanSpec(new("selected"), new(1), [DomainAction.NewPawnActivitiesAction(new("selected-action"), batch)]);
         TestNeed.Commit(journal, Root, new("coupled-observed"), plan, ct);
         TestNeed.File(journal, met: false, new("coupled-observed"), ct);
@@ -166,7 +166,7 @@ public sealed class CoupledActivityIntegrationTests
             WorkResources = Known<EquatableArray<WorkResourcePawn>>([new(active.Pawn, active.Assignment, active.Revision,
                 "completed", "", "", 0) { LocalHour = 6 }]) };
         var refreshed = journal.ReviewRounds(new RoundsRequest { Revision = reviewed.Review.Revision, Current = Root, Tick = new(completedAt), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         Assert.False(journal.LoadPlan(plan.Id, ct).Retired); // Accepted assignment still owns unfinished graph work.
         var continuation = Continue(journal, plan, batch, next, completedAt, "delivery", ct);
         var sent = Send(journal, continuation, completedAt, ct);
@@ -188,7 +188,7 @@ public sealed class CoupledActivityIntegrationTests
             var released = Assert.Single(retry.Orders);
             Assert.True(released.Release);
             journal.ReviewRounds(new RoundsRequest { Revision = refreshed.Review.Revision, Current = Root,
-                Tick = new(completedAt + 20), Enabled = true, Policy = DefaultRoundsPolicy(),
+                Tick = new(completedAt + 20), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(),
                 Facts = facts with { Tick = new(completedAt + 20), CoupledWorkActive = false,
                     WorkResources = Known<EquatableArray<WorkResourcePawn>>([new(released.Pawn, "", 0, "", "", "", 0) { LocalHour = 6 }]) } }, ct);
             Assert.True(journal.LoadPlan(recovered.Id, ct).Retired); // Accepted release must not become a permanent hold.

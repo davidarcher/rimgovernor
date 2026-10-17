@@ -146,7 +146,7 @@ internal static class ShelterSheltering
         var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
         var policies = facts.Policies?.Outcome?.Observed ?? throw new AcceptanceException($"{label}: policy facts unavailable");
         return policies.AllowedAreas.Items
-            .Where(a => a.Label == PolicyFunctions.SafeAreaLabel)
+            .Where(a => a.Label == ShelterRules.SafeAreaLabel)
             .SelectMany(a => a.PawnIds.Items)
             .ToHashSet(StringComparer.Ordinal);
     }

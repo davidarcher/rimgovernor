@@ -33,7 +33,7 @@ public static partial class PolicyFunctions
     public static InteriorTable InteriorDefs() => InteriorTableValue;
 
     /// <summary>The room's floor: its Region when set, else the Interior rectangle.</summary>
-    public static Region Floor(this InteriorRoom r) => r.Region is { } g && !g.Empty() ? g : RectRegion(r.Interior);
+    public static Region Floor(this InteriorRoom r) => r.Region is { } g && !g.Empty() ? g : RegionRules.RectRegion(r.Interior);
 
     /// <summary>
     /// The room's floor seen from its entrance. A floor that is not a rectangle is measured by its bounding
@@ -99,7 +99,7 @@ public static partial class PolicyFunctions
         var reserved = new List<Cell>(room.Reserved);
         foreach (var p in room.Built)
         {
-            reserved.AddRange(RectCells(p.Rect));
+            reserved.AddRange(PlannedRules.RectCells(p.Rect));
             reserved.AddRange(p.Reserves());
         }
         return (new RegionPlacement { Region = room.Floor(), Doors = EquatableArray.From(room.Doors), Reserved = EquatableArray.From(reserved), Wants = EquatableArray.From(wants) }, true);
@@ -183,7 +183,7 @@ public static partial class PolicyFunctions
         IReadOnlyList<InteriorPiece> pieces;
         try
         {
-            pieces = PlaceInRegion(req);
+            pieces = RegionRules.PlaceInRegion(req);
         }
         catch (DomainException)
         {

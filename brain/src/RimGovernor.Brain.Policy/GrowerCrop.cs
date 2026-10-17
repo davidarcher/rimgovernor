@@ -49,7 +49,7 @@ public static partial class PolicyFunctions
             var tk = g.SowTag.TryGetValue(out var tag);
             var ck = g.Crop.TryGetValue(out var current);
             var fk = g.Fertility.TryGetValue(out var fertility);
-            if (!Positive(g.CanSow) || !tk || tag!.Length == 0 || !ck || !fk || !FieldPositive(fertility) || g.Id.Length == 0)
+            if (!RoundsRules.Positive(g.CanSow) || !tk || tag!.Length == 0 || !ck || !fk || !FieldPositive(fertility) || g.Id.Length == 0)
             {
                 continue;
             }
@@ -76,7 +76,7 @@ public static partial class PolicyFunctions
             var tk = crop.SowTags.TryGetValue(out var tags);
             var yk = crop.HarvestNutrition.IsKnown;
             var sk = crop.FertilitySensitivity.IsKnown;
-            if (SiteKnownFalse(crop.DietAllowed) || Positive(crop.RequiresPollution) || GrowsInDark(crop))
+            if (SiteRules.SiteKnownFalse(crop.DietAllowed) || RoundsRules.Positive(crop.RequiresPollution) || GrowsInDark(crop))
             {
                 c = c with { Reason = "crop needs a compatible soil or dark site" };
             }
@@ -94,7 +94,7 @@ public static partial class PolicyFunctions
             }
             else
             {
-                var score = CropRate(crop, fertility);
+                var score = SiteRules.CropRate(crop, fertility);
                 foreach (var term in CropChoiceTerms(field, crop, 1))
                 {
                     score += term.Value;

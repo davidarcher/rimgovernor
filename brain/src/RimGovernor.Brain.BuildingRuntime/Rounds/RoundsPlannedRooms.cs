@@ -295,8 +295,8 @@ partial class RoundsBuildingPlanner
             return [];
         }
 
-        var contents = PolicyFunctions.ObservedRoomContents(facts.Stations, plan, rooms, construction.Buildings, sleeping!);
-        return PolicyFunctions.GuardNativeRoles(facts.Stations, plan, rooms, contents);
+        var contents = RoomRoleRules.ObservedRoomContents(facts.Stations, plan, rooms, construction.Buildings, sleeping!);
+        return RoomRoleRules.GuardNativeRoles(facts.Stations, plan, rooms, contents);
     }
 
     internal static void RecordRoleMismatches(ColonyProjection facts, CancellationToken ct)
@@ -329,7 +329,7 @@ partial class RoundsBuildingPlanner
                 Kind = "layout_role_guard",
                 Component = "layout",
                 Verdict = "mismatch",
-                Reason = PolicyFunctions.RoleMismatchReason,
+                Reason = RoomRoleRules.RoleMismatchReason,
                 Target = m.Room.ToString(CultureInfo.InvariantCulture),
                 Attrs = new Dictionary<string, object?> { ["native"] = Wire.Name(m.Native), ["predicted"] = Wire.Name(m.Predicted), ["scores"] = scores },
             });

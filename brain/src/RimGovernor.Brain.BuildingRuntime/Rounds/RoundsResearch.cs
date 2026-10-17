@@ -288,7 +288,7 @@ public sealed partial class RoundsBuildingPlanner
             return (null, BuildingReasonResearchBenchUnavailable);
         }
 
-        var facility = PolicyFunctions.Facility(Pol.RoomRole.Laboratory);
+        var facility = RoomsRules.Facility(Pol.RoomRole.Laboratory);
         var resolved = Copy();
         resolved.Definition = bench;
         resolved.Environment = PlacementEnvironment.Indoors;

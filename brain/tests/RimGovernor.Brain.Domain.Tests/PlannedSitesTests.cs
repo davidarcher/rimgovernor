@@ -14,7 +14,7 @@ public sealed class PlannedSitesTests
     private static readonly HashSet<(string, Cell)> NonePlaced = [];
 
     private static PlannedRoom Room(int id, int x) =>
-        new() { Id = id, Role = PlannedShelter, Region = RectRegion(new Rectangle { X = x, Z = 0, Width = 3, Height = 3 }) };
+        new() { Id = id, Role = PlannedShelter, Region = RegionRules.RectRegion(new Rectangle { X = x, Z = 0, Width = 3, Height = 3 }) };
 
     /// <summary>A def made from WoodLog (5) or Steel (2); anything else is unavailable.</summary>
     private static (string, IReadOnlyList<Amount>)? Ring(string def, string stuff) => stuff switch
@@ -29,7 +29,7 @@ public sealed class PlannedSitesTests
     private static IReadOnlyList<Amount>? Floor(string def) => [new Amount(Wood, 1)];
 
     private static IReadOnlyList<PlannedBuildSite> Sites(IEnumerable<(PlannedRoom, IReadOnlyList<Operation>)> rooms, IReadOnlySet<(string, Cell)>? placed = null) =>
-        PlannedSitesOf(rooms, _ => ["WoodLog", "Steel"], Ring, Piece, Floor, "Vent", placed ?? NonePlaced);
+        PlannedRules.PlannedSitesOf(rooms, _ => ["WoodLog", "Steel"], Ring, Piece, Floor, "Vent", placed ?? NonePlaced);
 
     private static readonly WantedPiece Bench = new()
     {
@@ -67,7 +67,7 @@ public sealed class PlannedSitesTests
         Assert.All(sites, s => Assert.False(s.CanPlace.IsKnown));
 
         // The roof has no native placement: everything else is asked, in one read.
-        var asked = PlannedSiteRequest(sites);
+        var asked = PlannedRules.PlannedSiteRequest(sites);
         Assert.Equal(6, asked.Count);
         Assert.DoesNotContain(asked, a => a.Id == "planned/room1/roof");
         Assert.Equal("WoodPlankFloor", asked.Single(a => a.Id == "planned/room1/floor/WoodPlankFloor").Definition);
@@ -94,7 +94,7 @@ public sealed class PlannedSitesTests
                 },
             ],
         };
-        var facts = JoinPlannedSites(sites, answered);
+        var facts = PlannedRules.JoinPlannedSites(sites, answered);
         var wall = facts.Sites.Single(s => s.Id == "planned/room1/wall/Steel");
         Assert.Equal(Known(false), wall.CanPlace);
         Assert.Equal([row], wall.Options);
@@ -107,7 +107,7 @@ public sealed class PlannedSitesTests
         Assert.False(facts.Sites.Single(s => s.Id == "planned/room1/wall/WoodLog").CanPlace.IsKnown);
         Assert.Equal(["planned_quality_minimum_unset"], facts.Findings);
         // A read that never came leaves every site unknown, saying so.
-        var missing = JoinPlannedSites(sites, null);
+        var missing = PlannedRules.JoinPlannedSites(sites, null);
         Assert.All(missing.Sites, s => Assert.False(s.CanPlace.IsKnown));
         Assert.Equal(["planned_site_read_unknown"], missing.Findings);
     }
@@ -119,13 +119,13 @@ public sealed class PlannedSitesTests
         var room = Room(1, 0);
         var plan = new LayoutPlan { Rooms = [room], Roofed = room.Region };
         var input = new ReconcileInput { Plan = plan, Room = room, Ground = new GroundCensus(), Rows = [], Unroofed = room.Region.Cells().ToHashSet() };
-        var now = Reconcile(input).Owed;
+        var now = ReconcileRules.Reconcile(input).Owed;
         Assert.DoesNotContain(now, o => o.Kind == OpKind.RoofIn);
-        var stood = RingStandsGround(input.Ground, now);
+        var stood = PlannedRules.RingStandsGround(input.Ground, now);
         Assert.Equal(now.Where(o => o.Kind is OpKind.WallIn).SelectMany(o => o.Cells).ToHashSet(), stood.Walls.ToHashSet());
         Assert.Empty(input.Ground.Walls);
-        var stands = Reconcile(input with { Ground = stood }).Owed;
-        var sited = PlannedSitedOps(now, stands);
+        var stands = ReconcileRules.Reconcile(input with { Ground = stood }).Owed;
+        var sited = PlannedRules.PlannedSitedOps(now, stands);
         Assert.Equal(9, sited.Single(o => o.Kind == OpKind.RoofIn).Cells.Count);
         Assert.Equal(now.Where(o => o.Kind == OpKind.WallIn), sited.Where(o => o.Kind == OpKind.WallIn));
         Assert.Contains(Sites([(room, sited)]), s => s.Id == "planned/room1/roof" && s.Positions.Count == 9);
@@ -135,8 +135,8 @@ public sealed class PlannedSitesTests
     public void ASharedWallBelongsToTheLowerRoomOnly()
     {
         var plan = new LayoutPlan { Rooms = [Room(2, 4), Room(1, 0)] };
-        var owed = plan.Rooms.Select(room => (room, Reconcile(new ReconcileInput { Plan = plan, Room = room, Ground = new GroundCensus(), Rows = [] }).Owed));
-        var sites = PlannedSitesOf(owed, _ => ["WoodLog"], Ring, Piece, Floor, "Vent", NonePlaced);
+        var owed = plan.Rooms.Select(room => (room, ReconcileRules.Reconcile(new ReconcileInput { Plan = plan, Room = room, Ground = new GroundCensus(), Rows = [] }).Owed));
+        var sites = PlannedRules.PlannedSitesOf(owed, _ => ["WoodLog"], Ring, Piece, Floor, "Vent", NonePlaced);
         var ring = sites.Where(s => s.Op is OpKind.WallIn or OpKind.DoorIn).ToList();
         // Two 3x3 rooms with a wall between: 16 + 16 - 5 shared ring cells, as PlannedOwedCost counts them.
         Assert.Equal(27, ring.Sum(s => s.Positions.Count));
@@ -159,20 +159,20 @@ public sealed class PlannedSitesTests
     {
         var cells = Enumerable.Range(0, 200).Select(x => new Cell(x, -1)).ToArray();
         var sites = Sites([(Room(1, 0), [new Operation { Kind = OpKind.WallIn, Cells = cells }])]);
-        var asked = PlannedSiteRequest(sites);
+        var asked = PlannedRules.PlannedSiteRequest(sites);
         Assert.NotEmpty(asked);
         Assert.All(asked, s => Assert.Equal(200, s.Positions.Count));
     }
     [Fact]
     public void RingStuffsAreTheCheapestStockedFirstElseTheCheapest()
     {
-        Assert.Equal(["Steel", "WoodLog"], PlannedRingStuffs(
+        Assert.Equal(["Steel", "WoodLog"], PlannedRules.PlannedRingStuffs(
         [
             new PlannedRingStuff("Plasteel", 1, false), new PlannedRingStuff("WoodLog", 5, true),
             new PlannedRingStuff("Steel", 3, true), new PlannedRingStuff("BlocksGranite", 9, true),
         ]));
-        Assert.Equal(["Plasteel"], PlannedRingStuffs([new PlannedRingStuff("Steel", 3, false), new PlannedRingStuff("Plasteel", 1, false)]));
-        Assert.Equal([""], PlannedRingStuffs([]));
+        Assert.Equal(["Plasteel"], PlannedRules.PlannedRingStuffs([new PlannedRingStuff("Steel", 3, false), new PlannedRingStuff("Plasteel", 1, false)]));
+        Assert.Equal([""], PlannedRules.PlannedRingStuffs([]));
     }
 
     [Fact]
@@ -181,13 +181,13 @@ public sealed class PlannedSitesTests
         var candidate = new ShelfCandidate
         {
             Zone = "Zone_3", Role = "general",
-            Piece = new InteriorPiece { Slot = "shelf", Def = ShelfDefinition, Size = new Cell(2, 1), Rect = new Rectangle { X = 4, Z = 2, Width = 2, Height = 1 } },
+            Piece = new InteriorPiece { Slot = "shelf", Def = StorageRules.ShelfDefinition, Size = new Cell(2, 1), Rect = new Rectangle { X = 4, Z = 2, Width = 2, Height = 1 } },
         };
-        var site = Assert.Single(ShelfPlannedSites([candidate, candidate], ("Steel", [new Amount(Steel, 10)])));
-        Assert.Equal((0, "Zone_3", OpKind.Build, ShelfDefinition, "Steel"), (site.Room, site.Zone, site.Op, site.Definition, site.Stuff));
+        var site = Assert.Single(PlannedRules.ShelfPlannedSites([candidate, candidate], ("Steel", [new Amount(Steel, 10)])));
+        Assert.Equal((0, "Zone_3", OpKind.Build, StorageRules.ShelfDefinition, "Steel"), (site.Room, site.Zone, site.Op, site.Definition, site.Stuff));
         Assert.Equal([candidate.Piece.Wanted().Anchor()], site.Positions);
         Assert.Equal([new Amount(Steel, 10)], site.Material);
-        Assert.Empty(ShelfPlannedSites([candidate], null));
+        Assert.Empty(PlannedRules.ShelfPlannedSites([candidate], null));
     }
 
     /// <summary>A room 1 site at cells with one native row delivering from origin (count 0: no material) and the given clearing.</summary>
@@ -214,7 +214,7 @@ public sealed class PlannedSitesTests
         var door = Answered("planned/room1/door/WoodLog", OpKind.DoorIn, [new(1, 0)], new Cell(1, 0), 0);
         var roof = new PlannedBuildSite("planned/room1/roof", 1, OpKind.RoofIn, "", "", Rotation.North, [new(1, 1)]);
         var unanswered = new PlannedBuildSite("planned/room2/wall/WoodLog", 2, OpKind.WallIn, "Wall", "WoodLog", Rotation.North, [new(10, 0)]);
-        var probes = PlannedRouteProbes([wall, door, roof, unanswered]);
+        var probes = PlannedRules.PlannedRouteProbes([wall, door, roof, unanswered]);
         // The roof from each pawn's start, reaching its nearest cell.
         var start = Assert.Single(probes, p => p.FromStart);
         Assert.Equal((new Cell(1, 1), new Cell(1, 1)), (start.From, start.To));
@@ -239,12 +239,12 @@ public sealed class PlannedSitesTests
         var fromStart = new O.CoupledRoute("Pawn_1", new(7, 7), new(1, 1), Known(12d)) { FromStart = true };
         var read = new O.ConstructionActivityRead { Known = true, Routes = [known, fromStart], Findings = ["planned_route_out_of_bounds"] };
         var sites = new PlannedSiteFacts { Findings = ["planned_site_read_unknown"] };
-        var facts = JoinPlannedRoutes(sites, asked, read);
+        var facts = PlannedRules.JoinPlannedRoutes(sites, asked, read);
         Assert.Equal([known, fromStart], facts.Routes);
         Assert.Equal(["planned_route_out_of_bounds", "planned_site_read_unknown"], facts.Findings);
-        var missing = JoinPlannedRoutes(sites, asked, null);
+        var missing = PlannedRules.JoinPlannedRoutes(sites, asked, null);
         Assert.Empty(missing.Routes);
         Assert.Equal(["planned_route_read_unknown", "planned_site_read_unknown"], missing.Findings);
-        Assert.Equal(["planned_site_read_unknown"], JoinPlannedRoutes(sites, [], null).Findings);
+        Assert.Equal(["planned_site_read_unknown"], PlannedRules.JoinPlannedRoutes(sites, [], null).Findings);
     }
 }

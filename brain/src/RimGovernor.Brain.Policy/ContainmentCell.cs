@@ -195,13 +195,13 @@ public static partial class PolicyFunctions
     /// Credits observed terrain and outstanding floor orders once each, then prices only the room's remaining
     /// tiles against accessible stock. Unknown observations cannot supply credit; an unrelated room supplies none.
     /// </summary>
-    private static bool ContainmentRoomFloorLaid(ContainmentFloor floor, FlooringFacts facts, PlannedRoom room)
+    internal static bool ContainmentRoomFloorLaid(ContainmentFloor floor, FlooringFacts facts, PlannedRoom room)
     {
         if (floor.Def.Length == 0)
         {
             return false;
         }
-        var remaining = new HashSet<Cell>(RectCells(room.Region.Bounds()));
+        var remaining = new HashSet<Cell>(PlannedRules.RectCells(room.Region.Bounds()));
         if (remaining.Count == 0)
         {
             return false;

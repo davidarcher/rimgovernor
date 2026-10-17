@@ -64,20 +64,20 @@ public sealed class MechGestationPlanningTests
     [Fact]
     public void FreeBandwidthOwesAMech()
     {
-        Assert.Equal(Known(true), MechGestationOwed(Gestation(Overseer(Known(6), 0))));
+        Assert.Equal(Known(true), MechRules.MechGestationOwed(Gestation(Overseer(Known(6), 0))));
     }
 
     [Fact]
     public void UsedUpBandwidthOwesNoMech()
     {
-        Assert.Equal(Known(false), MechGestationOwed(Gestation(Overseer(Known(6), 6))));
+        Assert.Equal(Known(false), MechRules.MechGestationOwed(Gestation(Overseer(Known(6), 6))));
     }
 
     [Fact]
     public void UnreadBandwidthOwesNoMech()
     {
         // An unread budget cannot certify bandwidth to spare: the goal reads no deficit rather than an unknown one.
-        Assert.Equal(Known(false), MechGestationOwed(Gestation(Overseer(Unknown<int>(), 0))));
+        Assert.Equal(Known(false), MechRules.MechGestationOwed(Gestation(Overseer(Unknown<int>(), 0))));
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public sealed class MechGestationPlanningTests
         // Two bandwidth free: the centurion (6) does not fit, the militor (1) does.
         var bench = Gestator(Recipe("Mech_Centurion"), Recipe("Mech_Militor"));
 
-        var (selection, gap) = SelectMechGestationBill([bench], Gestation(Overseer(Known(6), 4)));
+        var (selection, gap) = MechRules.SelectMechGestationBill([bench], Gestation(Overseer(Known(6), 4)));
 
         Assert.Equal(BillGap.None, gap);
         Assert.Equal("gestator", selection.Bench);
@@ -100,7 +100,7 @@ public sealed class MechGestationPlanningTests
     {
         var bench = Gestator(Recipe("Mech_Centurion"));
 
-        var (selection, gap) = SelectMechGestationBill([bench], Gestation(Overseer(Known(6), 6)));
+        var (selection, gap) = MechRules.SelectMechGestationBill([bench], Gestation(Overseer(Known(6), 6)));
 
         Assert.Equal(BillGap.NothingWanted, gap);
         Assert.Equal("", selection.Recipe);
@@ -118,7 +118,7 @@ public sealed class MechGestationPlanningTests
         var lifter = Mech("lifter", "Mech_Lifter");
         var militor = Mech("militor", "Mech_Militor");
 
-        var plan = PlanMechControl(Catalog, [Overseer(Known(6), 2, groups: 2)], [lifter, militor], hostile: false, chargerReady: false);
+        var plan = MechRules.PlanMechControl(Catalog, [Overseer(Known(6), 2, groups: 2)], [lifter, militor], hostile: false, chargerReady: false);
 
         Assert.Equal(
             [

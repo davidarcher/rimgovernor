@@ -77,7 +77,7 @@ public sealed class DisasterFamilyTests
     [Fact]
     public void AnAreaOnlyAssignmentClaimsOnlyThePawnsAllowedArea()
     {
-        static MethodClaims Claims(DomainAction action) => MethodClaimsOf(new WorkAdmissionEvidence(),
+        static MethodClaims Claims(DomainAction action) => MethodClaimsRules.MethodClaimsOf(new WorkAdmissionEvidence(),
             [new WorkAction(new PlanId("plan"), action, new ProgressView { Action = action.Id, Stage = Stage.Pending })]);
 
         var area = Claims(DomainAction.NewWorkAssignmentAction(new("move"), WorkAssignment.NewAreaAssignment(new("a"), false, "Safe")));
@@ -94,7 +94,7 @@ public sealed class DisasterFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-disaster-claims-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
 
         var service = journal.CommitClaimedMethod(DisasterFamily.Services, World, new("recovery-a"), "",
             Plan(id => DomainAction.NewRecoveryServiceAction(id, new(new("a"), "battery", RecoveryMethod.Repair))), ct);
@@ -124,7 +124,7 @@ public sealed class DisasterFamilyTests
         };
         RoundsResult Review(Journal journal, long tick) => journal.ReviewRounds(new RoundsRequest
         {
-            Current = World, Tick = new(tick), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts, Revision = journal.LoadRounds(ct).Revision,
+            Current = World, Tick = new(tick), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts, Revision = journal.LoadRounds(ct).Revision,
         }, ct);
         using (var journal = Journal.Open(path, ct))
         {
@@ -166,7 +166,7 @@ public sealed class DisasterFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-disaster-progress-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a") }, ct);
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a") }, ct);
         var facts = new DisasterFacts { Changes = Known<EquatableArray<AllowedAreaChange>>([Move("a", "Safe")]), Disaster = Disrupted() };
         var runner = new FamilyRunner<DisasterFacts>(new DisasterFamily(), (_, _) => Task.FromResult(facts), DisasterRounds.Schedule);
 

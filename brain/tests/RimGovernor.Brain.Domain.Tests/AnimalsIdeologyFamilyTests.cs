@@ -154,7 +154,7 @@ public sealed class AnimalsIdeologyFamilyTests
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-" + name + "-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         return journal;
     }
 
@@ -227,7 +227,7 @@ public sealed class AnimalsIdeologyFamilyTests
             DomainAction.NewRitualAction(new("p-1"), new Ritual(new("a"), RitualKind.Bestowing, RitualVerb.Start)),
             DomainAction.NewIdeoligionReformAction(new("p-2"), new IdeoligionReform("ideo-1", Current, Target, 0)),
         ];
-        var claims = MethodClaimsOf(new WorkAdmissionEvidence(), [.. actions.Select(a => new WorkAction(plan, a, new ProgressView { Action = a.Id, Stage = Stage.Pending }))]);
+        var claims = MethodClaimsRules.MethodClaimsOf(new WorkAdmissionEvidence(), [.. actions.Select(a => new WorkAction(plan, a, new ProgressView { Action = a.Id, Stage = Stage.Pending }))]);
         Assert.Contains("cow", claims.Targets);
         Assert.Contains("ritual/bestowing", claims.Targets);
         Assert.Contains("ideoligion/ideo-1", claims.Targets);
@@ -261,7 +261,7 @@ public sealed class AnimalsIdeologyFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-legacy-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        source.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        source.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
         var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct));
         var key = Journal.LegacyStandardKeyPrefix + "std-reform";
 

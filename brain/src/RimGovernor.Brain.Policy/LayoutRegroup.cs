@@ -195,7 +195,7 @@ internal sealed class Regrouper(RegroupInput input)
             RoomRole role;
             try
             {
-                role = PolicyFunctions.PredictRole(cat, [new RoomPiece { Def = s.Def, State = PolicyFunctions.PieceState(s.Purpose, cat.Stations[s.Def]) }]).Role;
+                role = RoomRoleRules.PredictRole(cat, [new RoomPiece { Def = s.Def, State = PolicyFunctions.PieceState(s.Purpose, cat.Stations[s.Def]) }]).Role;
             }
             catch (DomainException)
             {
@@ -234,7 +234,7 @@ internal sealed class Regrouper(RegroupInput input)
                 {
                     output[g.Id] = list = [];
                 }
-                list.Add(new LostRoleEffect(PolicyFunctions.RoleEffects[mm.Predicted], mm.Predicted, mm.Native, Sleepers(g)));
+                list.Add(new LostRoleEffect(RoomRoleRules.RoleEffects[mm.Predicted], mm.Predicted, mm.Native, Sleepers(g)));
             }
         }
         return output;

@@ -71,8 +71,8 @@ public sealed class RoyaltyRounds
     /// </summary>
     internal static async Task<Fact<bool>> PsylinkOwedAsync(FacadeNativeClient native, C.Identity identity, ColonyProjection projection, CancellationToken ct)
     {
-        var candidates = PolicyFunctions.PsylinkCandidates(projection.Royalty, projection.WorkPawns);
-        var levelUps = PolicyFunctions.PsylinkLevelUps(projection.Royalty, projection.WorkPawns);
+        var candidates = PsylinkRules.PsylinkCandidates(projection.Royalty, projection.WorkPawns);
+        var levelUps = PsylinkRules.PsylinkLevelUps(projection.Royalty, projection.WorkPawns);
         var items = Unknown<EquatableArray<string>>();
         if (candidates.TryGetValue(out var first) && levelUps.TryGetValue(out var up) && first.Count + up.Count > 0 && projection.Royalty.TryGetValue(out var royalty))
         {
@@ -94,6 +94,6 @@ public sealed class RoyaltyRounds
                 }
             }
         }
-        return PolicyFunctions.PsylinkOwed(candidates, levelUps, items);
+        return PsylinkRules.PsylinkOwed(candidates, levelUps, items);
     }
 }

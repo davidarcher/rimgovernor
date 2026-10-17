@@ -193,7 +193,7 @@ public static partial class PolicyFunctions
         {
             return (null, false);
         }
-        var rect = CellsRectangle(room.Cells);
+        var rect = PlacementSearchRules.CellsRectangle(room.Cells);
         var seen = new HashSet<Cell>(room.Cells);
         if (seen.Count != (long)rect.Width * rect.Height)
         {
@@ -392,7 +392,7 @@ public static partial class PolicyFunctions
         var edifice = new Dictionary<Cell, string>();
         foreach (var c in cells)
         {
-            if (Positive(c.Doorway))
+            if (RoundsRules.Positive(c.Doorway))
             {
                 doorways.Add(c.Cell);
             }
@@ -471,7 +471,7 @@ public static partial class PolicyFunctions
         var r = room.Interior;
         bool Inside(Cell c) => c.X >= r.X && c.Z >= r.Z && c.X < r.X + r.Width && c.Z < r.Z + r.Height;
         var snap = new Dictionary<Cell, bool>();
-        foreach (var c in RectCells(r))
+        foreach (var c in PlannedRules.RectCells(r))
         {
             int u = c.X - r.X, v = c.Z - r.Z;
             var band = u == 0 || v == 0 || u == r.Width - 1 || v == r.Height - 1;

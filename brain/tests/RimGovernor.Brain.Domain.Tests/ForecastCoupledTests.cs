@@ -51,7 +51,7 @@ public sealed class ForecastCoupledTests
                 },
             }
         };
-        return ForecastCoupledCandidates.ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        return ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
     }
     private static ColonyForecast Evaluate(RoundsFacts facts, params ForecastCommitment[] selected)
     {
@@ -165,7 +165,7 @@ public sealed class ForecastCoupledTests
                 }
             }
         };
-        return ForecastCoupledCandidates.ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        return ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
     }
 
     [Fact]
@@ -238,7 +238,7 @@ public sealed class ForecastCoupledTests
         };
         facts = facts with
         {
-            PlannedShelters = [new() { Id = 1, Region = RectRegion(new(1, 1, 3, 3)) }],
+            PlannedShelters = [new() { Id = 1, Region = RegionRules.RectRegion(new(1, 1, 3, 3)) }],
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = facts.ForecastObserved.Needs! with
@@ -254,7 +254,7 @@ public sealed class ForecastCoupledTests
                 }
             }
         };
-        facts = ForecastCoupledCandidates.ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
         var shelter = facts.CoupledAlternatives!.Alternatives.Single(c => c.ExclusiveOutcome == "shelter/planned/1");
         Assert.Equal(10, shelter.ActivityCompletions.Count);
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world", 100), 1000.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = [shelter] });
@@ -284,7 +284,7 @@ public sealed class ForecastCoupledTests
                 }
             }
         };
-        facts = ForecastCoupledCandidates.ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
         var generated = facts.CoupledAlternatives!;
         Assert.DoesNotContain(generated.Context.Activities.Activities, t => t.Id.StartsWith("harvest/", StringComparison.Ordinal));
         var batch = generated.Alternatives.Single(c => c.Id.StartsWith("food/", StringComparison.Ordinal) && c.ActivityCompletions.Count == 2);
@@ -403,7 +403,7 @@ public sealed class ForecastCoupledTests
                 { Pawns = [facts.ForecastObserved.Needs!.Pawns[0] with { Memories = Known<EquatableArray<NeedMemory>>([new("happy", 10, Known(expiry), false)]) }] }
             }
         };
-        facts = ForecastCoupledCandidates.ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
         Assert.Equal(expected, Evaluate(facts).Proposed.Coupled!.Alternatives.Single().Needs["pawn"].MemoryAdjustedMoodTarget.Value, 8);
     }
 
@@ -462,7 +462,7 @@ public sealed class ForecastCoupledTests
                     { Clothing = new() { Context = Context, Known = true, Options = [Recipe("Rice"), Recipe("Cloth")] } }
                 }
             };
-            facts = ForecastCoupledCandidates.ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+            facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
             var generated = facts.CoupledAlternatives!;
             var wall = generated.Alternatives.Single(c => Original(c, "site-0-finish"));
             foreach (var stuff in new[] { "Rice", "Cloth" })
@@ -507,7 +507,7 @@ public sealed class ForecastCoupledTests
                 }
             }
         };
-        facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         if (obligated) facts = facts with { WorkView = facts.WorkView! with { Claims = facts.WorkView!.Claims with { Pawns = ["helper"] } } };
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(facts);
         var batch = facts.CoupledAlternatives!.Alternatives.Single(c => c.Id.StartsWith("food/", StringComparison.Ordinal) && !c.Id.Contains("/eat/", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal));
@@ -541,7 +541,7 @@ public sealed class ForecastCoupledTests
                 { Pawns = [facts.ForecastObserved.Needs!.Pawns[0] with { Memories = default }] }
             }
         };
-        facts = ForecastCoupledCandidates.ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
         var wall = facts.CoupledAlternatives!.Alternatives.Single(c => Original(c, "site-0-finish"));
         var result = Evaluate(facts, wall).Proposed.Coupled!.Alternatives.Single(p => p.Feasible == Known(true));
         Assert.False(result.Needs["pawn"].MemoryAdjustedMoodTarget.IsKnown);
@@ -583,7 +583,7 @@ public sealed class ForecastCoupledTests
         facts = facts with
         {
             PlannedShelters = EquatableArray.From(Enumerable.Range(1, 5).Select(id =>
-            new PlannedRoom { Id = id, Region = RectRegion(new(id * 10, 1, 3, 3)) }))
+            new PlannedRoom { Id = id, Region = RegionRules.RectRegion(new(id * 10, 1, 3, 3)) }))
         };
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(facts);
         Assert.True(facts.CoupledAlternatives!.Truncated);
@@ -603,7 +603,7 @@ public sealed class ForecastCoupledTests
                 { FoodSources = [new("rice", "Rice", new(1, 1), 10, Known(10.0))] }
             }
         };
-        facts = ForecastCoupledCandidates.ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world", 100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
             [new("external", [new(new("Rice"), Known(20.0 / GameTime.TicksPerDay), Known(-10.0))])], new());
         var result = ForecastColony(request).Proposed.Coupled!.Alternatives.Single();

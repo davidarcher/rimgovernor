@@ -258,7 +258,7 @@ public static partial class PolicyFunctions
         return (rest, fields);
     }
 
-    internal static Region UnionRegions(Region a, Region b) => RegionOfRuns([.. a.Runs, .. b.Runs]);
+    internal static Region UnionRegions(Region a, Region b) => RegionRules.RegionOfRuns([.. a.Runs, .. b.Runs]);
 
     internal static OverlayStyleOf? RoomOverlayStyle(PlannedRole role) => OverlayTables.Room.TryGetValue(role, out var s) ? s : null;
 

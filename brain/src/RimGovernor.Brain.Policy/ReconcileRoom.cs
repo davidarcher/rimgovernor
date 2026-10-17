@@ -45,7 +45,7 @@ public sealed partial record LayoutPlan
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class ReconcileRules
 {
     /// <summary>
     /// The room's next operations: every ready operation of Reconcile except the ring's removals (door and
@@ -96,7 +96,7 @@ public static partial class PolicyFunctions
 
     /// <summary>The rectangle a planned room's ring and interior cover, the ground an owner reads the census on.</summary>
     public static Rectangle RoomGround(this PlannedRoom r) =>
-        r.Unfenced() ? r.Region.Bounds() : RoomGround(r.Region.Bounds());
+        r.Unfenced() ? r.Region.Bounds() : PolicyFunctions.RoomGround(r.Region.Bounds());
 
     /// <summary>The template piece for p: its slot's cells, size and rotation.</summary>
     public static WantedPiece Wanted(this InteriorPiece p) => new()
@@ -121,6 +121,6 @@ public static partial class PolicyFunctions
         }
         var cells = new List<Cell>(r.Region.Cells());
         cells.AddRange(r.Region.Walls().Cells());
-        return RegionOf(cells);
+        return RegionRules.RegionOf(cells);
     }
 }

@@ -62,11 +62,11 @@ public sealed class StorageOptionsTests
     private static StockpileRequest Request()
     {
         var cells = new List<SiteCell>();
-        var zone = RectCells(Warehouse).Where(c => c.X <= 1).ToList();
-        cells.AddRange(RectCells(Warehouse).Select(c => Floor(c, zone.Contains(c), true)));
-        cells.AddRange(RectCells(NextStorage).Select(c => Floor(c, false, true)));
-        cells.AddRange(RectCells(Yard).Select(c => Floor(c, true, false)));
-        cells.AddRange(RectCells(NextYard).Select(c => Floor(c, false, false)));
+        var zone = PlannedRules.RectCells(Warehouse).Where(c => c.X <= 1).ToList();
+        cells.AddRange(PlannedRules.RectCells(Warehouse).Select(c => Floor(c, zone.Contains(c), true)));
+        cells.AddRange(PlannedRules.RectCells(NextStorage).Select(c => Floor(c, false, true)));
+        cells.AddRange(PlannedRules.RectCells(Yard).Select(c => Floor(c, true, false)));
+        cells.AddRange(PlannedRules.RectCells(NextYard).Select(c => Floor(c, false, false)));
         cells.AddRange(Enumerable.Range(20, 3).Select(x => Floor(new Cell(x, 0), false, false)));
         return new StockpileRequest
         {
@@ -75,7 +75,7 @@ public sealed class StorageOptionsTests
             Zones =
             [
                 new StockpileZone { Id = "Zone_w", Role = StockpileRolesConstants.GeneralRole, Cells = zone, Filter = StockpileFilter.GeneralFilter(), Capacity = Known(6), Used = Known(6) },
-                new StockpileZone { Id = "Zone_y", Role = StockpileRolesConstants.YardRole, Cells = RectCells(Yard), Filter = StockpileFilter.YardFilter(), Capacity = Known(12), Used = Known(3) },
+                new StockpileZone { Id = "Zone_y", Role = StockpileRolesConstants.YardRole, Cells = PlannedRules.RectCells(Yard), Filter = StockpileFilter.YardFilter(), Capacity = Known(12), Used = Known(3) },
             ],
             Stores =
             [
@@ -87,10 +87,10 @@ public sealed class StorageOptionsTests
             ShelfCost = Known(new StorageBuildCost { Stuff = Wood.Value, Costs = [new Amount(Wood, 25)], WorkTicks = Known(1200.0) }),
             StoreRooms = Known<IReadOnlyList<PlannedStoreRoom>>(
             [
-                new PlannedStoreRoom { Room = 3, Role = PlannedRole.Storage, Cells = RectCells(Warehouse), Material = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()) },
-                new PlannedStoreRoom { Room = 7, Role = PlannedRole.Storage, Cells = RectCells(NextStorage), Material = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [Steel] = 40 }) },
-                new PlannedStoreRoom { Room = 4, Role = PlannedRole.Yard, Cells = RectCells(Yard), Outdoor = true, Material = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()) },
-                new PlannedStoreRoom { Room = 8, Role = PlannedRole.Yard, Cells = RectCells(NextYard), Outdoor = true, Material = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()) },
+                new PlannedStoreRoom { Room = 3, Role = PlannedRole.Storage, Cells = PlannedRules.RectCells(Warehouse), Material = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()) },
+                new PlannedStoreRoom { Room = 7, Role = PlannedRole.Storage, Cells = PlannedRules.RectCells(NextStorage), Material = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [Steel] = 40 }) },
+                new PlannedStoreRoom { Room = 4, Role = PlannedRole.Yard, Cells = PlannedRules.RectCells(Yard), Outdoor = true, Material = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()) },
+                new PlannedStoreRoom { Room = 8, Role = PlannedRole.Yard, Cells = PlannedRules.RectCells(NextYard), Outdoor = true, Material = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()) },
             ]),
             Loot = Known(EquatableArray.From(new List<LootItem>
             {
@@ -102,7 +102,7 @@ public sealed class StorageOptionsTests
         };
     }
 
-    private static List<StoreOptions> Report(StockpileRequest r) => StorageOptions(r, ShelfCandidates(r));
+    private static List<StoreOptions> Report(StockpileRequest r) => StorageRules.StorageOptions(r, StorageRules.ShelfCandidates(r));
 
     private static StoreOptions Store(List<StoreOptions> report, string role) => Assert.Single(report, s => s.Role == role);
 
@@ -152,7 +152,7 @@ public sealed class StorageOptionsTests
         Assert.Equal(40, room.Material.ValueOrDefault![Steel]);
         Assert.False(room.WorkTicks.IsKnown);
         Assert.False(room.LeadDays.IsKnown);
-        Assert.Contains(FindingRoomWorkUnknown, room.Findings);
+        Assert.Contains(StorageRules.FindingRoomWorkUnknown, room.Findings);
         Assert.Equal(Known(9), room.CellsTaken);
         Assert.Equal(Known(9), room.Stacks);
     }
@@ -167,8 +167,8 @@ public sealed class StorageOptionsTests
 
         Assert.Equal(Known(3000.0), room.WorkTicks);
         Assert.True(room.LeadDays.IsKnown);
-        Assert.DoesNotContain(FindingRoomWorkUnknown, room.Findings);
-        Assert.Contains(FindingRoomRoofWorkUnassessed, room.Findings);
+        Assert.DoesNotContain(StorageRules.FindingRoomWorkUnknown, room.Findings);
+        Assert.Contains(StorageRules.FindingRoomRoofWorkUnassessed, room.Findings);
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public sealed class StorageOptionsTests
         Assert.Equal(Known(0.0), yard.DeteriorationAvoided);
 
         var unsized = Assert.Single(Store(Report(Request() with { StoreRooms = Known<IReadOnlyList<PlannedStoreRoom>>([]) }), StockpileRolesConstants.GeneralRole).Options, o => o.Kind == StorageOptionKind.SuccessorRoom);
-        Assert.Equal([FindingRoomUnsized], unsized.Findings);
+        Assert.Equal([StorageRules.FindingRoomUnsized], unsized.Findings);
         Assert.False(unsized.Material.IsKnown);
         Assert.False(unsized.Stacks.IsKnown);
         Assert.False(unsized.LeadDays.IsKnown);
@@ -198,11 +198,11 @@ public sealed class StorageOptionsTests
 
         Assert.True(shelf.Material.IsKnown);
         Assert.False(shelf.LeadDays.IsKnown);
-        Assert.Equal([FindingWorkUnknown], shelf.Findings);
+        Assert.Equal([StorageRules.FindingWorkUnknown], shelf.Findings);
 
         var priced = Store(Report(Request() with { ShelfCost = Unknown<StorageBuildCost>() }), StockpileRolesConstants.GeneralRole).Options.First(o => o.Kind == StorageOptionKind.Shelf);
         Assert.False(priced.Material.IsKnown);
-        Assert.Contains(FindingShelfCostUnknown, priced.Findings);
+        Assert.Contains(StorageRules.FindingShelfCostUnknown, priced.Findings);
     }
 
     [Fact]
@@ -210,7 +210,7 @@ public sealed class StorageOptionsTests
     {
         var noRate = Store(Report(Request() with { Items = Items(clothRate: false) }), StockpileRolesConstants.GeneralRole);
         Assert.All(noRate.Options, o => Assert.False(o.DeteriorationAvoided.IsKnown));
-        Assert.Contains(FindingDeteriorationUnknown, noRate.Options.First(o => o.Kind == StorageOptionKind.Shelf).Findings);
+        Assert.Contains(StorageRules.FindingDeteriorationUnknown, noRate.Options.First(o => o.Kind == StorageOptionKind.Shelf).Findings);
 
         var noCensus = Store(Report(Request() with { Loot = Unknown<EquatableArray<LootItem>>() }), StockpileRolesConstants.GeneralRole);
         Assert.All(noCensus.Options, o => Assert.False(o.DeteriorationAvoided.IsKnown));
@@ -220,7 +220,7 @@ public sealed class StorageOptionsTests
     public void OnlyTheWorstRowsUpToTheStacksGainedCount()
     {
         // One stack gained takes the worst stranded row only: cloth at 2 HP/day.
-        var avoided = DeteriorationAvoided(Items(), StrandedRows(Request(), Request().Stores[0]), Known(1), [Known(0.0)], false, Request().Cells.ToDictionary(c => c.Cell));
+        var avoided = StorageRules.DeteriorationAvoided(Items(), StoreRules.StrandedRows(Request(), Request().Stores[0]), Known(1), [Known(0.0)], false, Request().Cells.ToDictionary(c => c.Cell));
         Assert.Equal(Known(2.0), avoided);
     }
 }

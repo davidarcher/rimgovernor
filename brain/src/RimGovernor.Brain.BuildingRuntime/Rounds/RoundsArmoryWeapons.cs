@@ -65,7 +65,7 @@ public sealed partial class RoundsArmoryPlanner
             recipes.AddRange(rows);
             foreach (var recipe in rows)
             {
-                if (!PolicyApi.WeaponRecipe(recipe))
+                if (!WeaponAssignmentRules.WeaponRecipe(recipe))
                 {
                     continue;
                 }
@@ -77,7 +77,7 @@ public sealed partial class RoundsArmoryPlanner
         }
         var (fighters, hunters) = PolicyApi.ArmoryWeaponDemand(tier, pawns, primaries, candidates, recipes, products);
         _reviewer.Exports.SetWeapons(snapshot, PolicyApi.SpareWeaponCounts(tier, pawns, primaries, candidates, recipes, products));
-        return (fighters, hunters, PolicyApi.UnarmedFighters(pawns, candidates));
+        return (fighters, hunters, WeaponAssignmentRules.UnarmedFighters(pawns, candidates));
     }
 
     /// <summary>
@@ -169,7 +169,7 @@ partial class RoundsArmoryPlanner
             b.Recipes.TryGetValue(out var rows);
             foreach (var recipe in rows)
             {
-                if (PolicyApi.WeaponRecipe(recipe))
+                if (WeaponAssignmentRules.WeaponRecipe(recipe))
                 {
                     return true;
                 }

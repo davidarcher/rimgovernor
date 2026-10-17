@@ -73,7 +73,7 @@ internal static class StrangerSarcophagus
         {
             if (!colonist.Mood || colonist.Memories != 0)
             {
-                throw new AcceptanceException($"colonist {colonist.Id} has {colonist.Memories} {PolicyFunctions.KnowBuriedInSarcophagusThought} memories (mood need {colonist.Mood}), want 0");
+                throw new AcceptanceException($"colonist {colonist.Id} has {colonist.Memories} {TombRules.KnowBuriedInSarcophagusThought} memories (mood need {colonist.Mood}), want 0");
             }
         }
 

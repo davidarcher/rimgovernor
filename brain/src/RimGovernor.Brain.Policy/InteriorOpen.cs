@@ -45,7 +45,7 @@ public static partial class PolicyFunctions
     }
 
     internal static InteriorReading ReadInterior(Rectangle interior, Func<Cell, (SiteCell? Cell, bool Ok)> lookup) =>
-        ReadCells(RectCells(interior), lookup);
+        ReadCells(PlannedRules.RectCells(interior), lookup);
 
     /// <summary>ReadInterior over an exact cell list (a non-rectangular region).</summary>
     internal static InteriorReading ReadCells(IReadOnlyList<Cell> cells, Func<Cell, (SiteCell? Cell, bool Ok)> lookup)
@@ -70,7 +70,7 @@ public static partial class PolicyFunctions
             {
                 open.Add(cell);
             }
-            else if (RockCell(c!))
+            else if (TunnelSiteRules.RockCell(c!))
             {
                 dig.Add(cell);
             }
@@ -90,7 +90,7 @@ public static partial class PolicyFunctions
     internal static IReadOnlyList<Cell> LargestComponent(IReadOnlyList<Cell> cells)
     {
         var member = new HashSet<Cell>(cells);
-        var sorted = StockpileSorted(cells);
+        var sorted = StockpileRules.StockpileSorted(cells);
         var seen = new HashSet<Cell>();
         List<Cell> best = [];
         foreach (var start in sorted)
@@ -105,7 +105,7 @@ public static partial class PolicyFunctions
             while (queue.Count > 0)
             {
                 var c = queue.Dequeue();
-                foreach (var n in StockpileNeighbours(c))
+                foreach (var n in StockpileRules.StockpileNeighbours(c))
                 {
                     if (member.Contains(n) && seen.Add(n))
                     {

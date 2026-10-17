@@ -170,7 +170,7 @@ public sealed class FoodStoresFamilyTests
             FoodStorageUpkeep = census,
             FoodReserve = Known(Reserve("pem-1")),
         };
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         Colony? colony = null;
         var runner = new FamilyRunner<FoodStoresFacts>(new FoodStoresFamily(Policy, true, false), (_, _) => Task.FromResult(colony!.Facts),
             new FamilySchedule { Kinds = [ActionKind.Haul, ActionKind.SupplyAllow, ActionKind.SupplyForbid] });
@@ -221,7 +221,7 @@ public sealed class FoodStoresFamilyTests
         Assert.Equal(("food-reserve", true), (row.Method, row.Open));
 
         // The review rebuild keeps the row; a complete run that no longer derives the Need prunes it.
-        colony.Journal.ReviewRounds(new() { Current = World, Tick = new(200), Enabled = true, Policy = DefaultRoundsPolicy(), Revision = colony.Journal.LoadRounds(ct).Revision,
+        colony.Journal.ReviewRounds(new() { Current = World, Tick = new(200), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Revision = colony.Journal.LoadRounds(ct).Revision,
             Facts = WorkResourceTestFacts.Create("a", "b", "c") with { Colonists = Known(3L), IndoorCapacity = Known(3L), BedCapacity = Known(3L), FieldCoverage = Known(1.0) } }, ct);
         Assert.Equal(row, Row(colony));
         colony.Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [new FamilyProgress("food-stores", true, [])], ct);

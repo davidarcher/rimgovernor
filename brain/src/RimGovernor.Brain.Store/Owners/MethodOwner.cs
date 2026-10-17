@@ -53,7 +53,7 @@ public sealed partial class Store
     internal static RoundsCombat? ReviewCombat(StoreTransaction tx, RoundsRequest request)
     {
         var hunt = PolicyFunctions.HuntRequest(request.Facts.FoodPlan);
-        var situation = PolicyFunctions.CombatSituation(request.Facts.Hostiles, hunt.Count);
+        var situation = RoundsRules.CombatSituation(request.Facts.Hostiles, hunt.Count);
         var owner = LoadNeedIn(tx, MilitaryFamily.Combat, request.Current);
         if (situation == Situation.Clear)
         {

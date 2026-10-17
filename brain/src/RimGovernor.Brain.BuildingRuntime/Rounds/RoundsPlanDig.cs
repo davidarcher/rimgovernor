@@ -8,7 +8,7 @@ public sealed partial class RoundsBuildingPlanner
     internal async Task<(RoundsBuildingResult Result, bool Handled)> AdmitRockStepAsync(ExcavationStep s, IReadOnlyList<RoleCell> planned, Cell access, MethodId method, IReadOnlyList<Building> buildings, Action check, CancellationToken call, CancellationToken epoch)
     {
         var roofs = await RoofRulesForAsync(s.State.Snapshot, planned, call).ConfigureAwait(false);
-        var step = PolicyFunctions.RockStepRoofs(planned, s.Facts.Cells, roofs);
+        var step = RockStepRules.RockStepRoofs(planned, s.Facts.Cells, roofs);
         if (step.Unfit.Count > 0)
         {
             return (new RoundsBuildingResult { Verdict = RockNotDug(method.Value, $"{step.Unfit.Count}_cells_thick_or_unseen_roof") }, true);

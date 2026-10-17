@@ -73,7 +73,7 @@ public sealed record PollutionWork
     public bool Empty => Allow.Count == 0 && Haul.Count == 0 && Area.Count == 0;
 }
 
-public static partial class PolicyFunctions
+public static partial class PollutionRules
 {
     /// <summary>
     /// The binary pollution signal. Any known exposed or forbidden pack, or polluted cell outside the
@@ -167,7 +167,7 @@ public static partial class PolicyFunctions
                 result.Add(c.Cell);
             }
         }
-        result.Sort(LessComparer<Cell>(CombatManhunterRules.CellLess));
+        result.Sort(PlannedRules.LessComparer<Cell>(CombatManhunterRules.CellLess));
         return result;
     }
 }

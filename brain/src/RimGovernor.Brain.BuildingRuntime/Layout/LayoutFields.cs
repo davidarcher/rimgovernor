@@ -110,7 +110,7 @@ internal static class LayoutFieldPlanning
         HashSet<Cell> FreeFor(HashSet<Cell> block, CropChoice crop)
         {
             crop.FertilityMin.TryGetValue(out var floor);
-            var other = PolicyFunctions.IsTreeCrop(crop) ? cropZone : treeZone;
+            var other = TreePlantationRules.IsTreeCrop(crop) ? cropZone : treeZone;
             var free = new HashSet<Cell>();
             foreach (var cell in block)
             {

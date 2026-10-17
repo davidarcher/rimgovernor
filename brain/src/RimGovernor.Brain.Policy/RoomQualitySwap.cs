@@ -30,7 +30,7 @@ public sealed record BedroomSwap
     public string PreviousBed { get; init; } = "";
 }
 
-public static partial class PolicyFunctions
+public static partial class RoomQualityRules
 {
     internal static List<SoloBedroom> SoloBedrooms(SleepingObservation obs)
     {

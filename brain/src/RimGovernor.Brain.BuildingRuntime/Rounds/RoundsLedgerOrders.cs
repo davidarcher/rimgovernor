@@ -45,7 +45,7 @@ public sealed partial class Rounder
 
         if (view is null || view.Status == "")
         {
-            view = PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewNone);
+            view = WorkRules.NewLedgerView(WorkRules.LedgerViewNone);
         }
 
         view = view with { Export = Exports.View(world) };
@@ -183,7 +183,7 @@ public sealed partial class Rounder
 
     internal static PlacementAttempt AttemptOf(ProgressView v)
     {
-        var a = new PlacementAttempt { Tick = v.Tick.Value, Outcome = PolicyFunctions.AttemptPending };
+        var a = new PlacementAttempt { Tick = v.Tick.Value, Outcome = WorkRules.AttemptPending };
         if (!v.Receipt.TryGetValue(out var receipt))
         {
             return a;
@@ -192,10 +192,10 @@ public sealed partial class Rounder
         switch (receipt)
         {
             case Domain.Receipt.Accepted:
-                a = a with { Outcome = PolicyFunctions.AttemptAccepted };
+                a = a with { Outcome = WorkRules.AttemptAccepted };
                 break;
             case Domain.Receipt.Refused:
-                a = a with { Outcome = PolicyFunctions.AttemptRefused };
+                a = a with { Outcome = WorkRules.AttemptRefused };
                 if (v.Refusal.TryGetValue(out var refusal))
                 {
                     a = a with { Code = refusal.Code, Reason = refusal.Reason };
@@ -203,7 +203,7 @@ public sealed partial class Rounder
 
                 break;
             default:
-                a = a with { Outcome = PolicyFunctions.AttemptUnconfirmed };
+                a = a with { Outcome = WorkRules.AttemptUnconfirmed };
                 break;
         }
 

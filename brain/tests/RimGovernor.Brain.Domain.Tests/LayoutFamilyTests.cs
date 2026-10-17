@@ -200,14 +200,14 @@ public sealed class LayoutFamilyTests
             Facilities = [new() { Id = "store", Kind = "storage", Travel = [new() { Pawn = "a", Reachable = reachable }] }],
         };
         LayoutFacts Facts(RoutesObservation census) =>
-            new() { Routes = Known(LayoutFamily.RoutesStandingOf(Known(census), default, DefaultRoundsPolicy())) };
+            new() { Routes = Known(LayoutFamily.RoutesStandingOf(Known(census), default, RoundsRules.DefaultRoundsPolicy())) };
 
         var unmet = Single(composed, Facts(Census(reachable: false)));
         Assert.Equal((LayoutFamily.Routes, NeedTier.Development, Satisfaction.Unmet, Known(1.0)), (unmet.Id, unmet.Tier, unmet.Satisfaction, unmet.Deficit));
         var met = Single(composed, Facts(Census(reachable: true)));
         Assert.Equal((Satisfaction.Met, Known(0.0)), (met.Satisfaction, met.Deficit));
         Assert.Equal(Satisfaction.Unknown, Single(composed, new()).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Single(composed, new() { Routes = Known(LayoutFamily.RoutesStandingOf(default, default, DefaultRoundsPolicy())) }).Satisfaction);
+        Assert.Equal(Satisfaction.Unknown, Single(composed, new() { Routes = Known(LayoutFamily.RoutesStandingOf(default, default, RoundsRules.DefaultRoundsPolicy())) }).Satisfaction);
         Assert.Equal([WorkType.Construction], NeedLabor(LayoutFamily.Routes));
     }
 
@@ -219,7 +219,7 @@ public sealed class LayoutFamilyTests
             DomainAction.NewFoundationRemovalAction(new("f"), new FoundationRemoval("TestBridge", new(3, 4))),
             DomainAction.NewExcavationAction(new("d"), new Excavation(new(5, 6), "TestRock")),
         };
-        var claims = MethodClaimsOf(new WorkAdmissionEvidence(), [.. actions.Select(a => new WorkAction(new("p"), a, new ProgressView { Action = a.Id, Stage = Stage.Pending }))]);
+        var claims = MethodClaimsRules.MethodClaimsOf(new WorkAdmissionEvidence(), [.. actions.Select(a => new WorkAction(new("p"), a, new ProgressView { Action = a.Id, Stage = Stage.Pending }))]);
         Assert.Contains("foundation/3/4", claims.Targets);
         Assert.Contains("dig/5/6", claims.Targets);
     }
@@ -279,7 +279,7 @@ public sealed class LayoutFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-layout-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b", "c") }, ct);
+        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b", "c") }, ct);
         Colony? colony = null;
         var runner = new FamilyRunner<LayoutFacts>(new LayoutFamily(composed), (_, _) => Task.FromResult(colony!.Facts), LayoutRounds.Schedule,
             (work, _, _) => Task.FromResult(Verdict.AwaitingPlan(work.Need.Id.Value, "no_method")));

@@ -24,7 +24,7 @@ public sealed class PlannedRoomAlternativesTests
     [Fact]
     public void EveryScopeOfTheFirstStuffThenEachFurtherStuffAtFullAndSitesAreShared()
     {
-        var (alternatives, findings) = PlannedRoomAlternatives(Room());
+        var (alternatives, findings) = PlannedRules.PlannedRoomAlternatives(Room());
         Assert.Empty(findings);
         Assert.Equal(["planned/room1/Steel/Shell", "planned/room1/Steel/ShellFloor", "planned/room1/Steel/Full", "planned/room1/WoodLog/Full"],
             alternatives.Select(a => a.Id));
@@ -41,29 +41,29 @@ public sealed class PlannedRoomAlternativesTests
     [Fact]
     public void ScopesThatOweTheSameSitesCollapseAndShelfCandidatesAreNoRoom()
     {
-        var (alternatives, _) = PlannedRoomAlternatives(
+        var (alternatives, _) = PlannedRules.PlannedRoomAlternatives(
             [Site("wall", OpKind.WallIn, "", 12), new PlannedBuildSite("shelf/0/0", 0, OpKind.Build, "Shelf", "WoodLog", Rotation.North, [new Cell(0, 0)])]);
         Assert.Equal(["planned/room1/Shell"], alternatives.Select(a => a.Id));
-        Assert.Empty(PlannedRoomAlternatives([]).Alternatives);
+        Assert.Empty(PlannedRules.PlannedRoomAlternatives([]).Alternatives);
     }
 
     [Fact]
     public void AlternativesPastTheCapAreNamed()
     {
         var sites = Room().Concat([Site("wall/Granite", OpKind.WallIn, "BlocksGranite", 12)]).ToList();
-        var (alternatives, findings) = PlannedRoomAlternatives(sites);
-        Assert.Equal(PlannedAlternativesPerRoom, alternatives.Count);
+        var (alternatives, findings) = PlannedRules.PlannedRoomAlternatives(sites);
+        Assert.Equal(PlannedRules.PlannedAlternativesPerRoom, alternatives.Count);
         Assert.Equal(["planned_room_alternatives_truncated"], findings);
     }
 
     [Fact]
     public void RoomWorkSumsTheFirstStuffFullSitesPerPieceAndNamesTheRoofApart()
     {
-        var (work, roof) = PlannedRoomWork(Room(), 1, s => Known(s.Op == OpKind.FloorIn ? 85.0 : s.Op == OpKind.Build ? 600.0 : 135.0));
+        var (work, roof) = PlannedRules.PlannedRoomWork(Room(), 1, s => Known(s.Op == OpKind.FloorIn ? 85.0 : s.Op == OpKind.Build ? 600.0 : 135.0));
         // 12 steel walls and a steel door at 135, nine floors at 85, one bench at 600; the roof is left out.
         Assert.Equal(Known(13 * 135.0 + 9 * 85.0 + 600.0), work);
         Assert.True(roof);
-        Assert.False(PlannedRoomWork(Room(), 1, s => s.Op == OpKind.Build ? Unknown<double>() : Known(1.0)).Work.IsKnown);
-        Assert.Equal((Known(0.0), false), PlannedRoomWork(Room(), 2, _ => Known(1.0)));
+        Assert.False(PlannedRules.PlannedRoomWork(Room(), 1, s => s.Op == OpKind.Build ? Unknown<double>() : Known(1.0)).Work.IsKnown);
+        Assert.Equal((Known(0.0), false), PlannedRules.PlannedRoomWork(Room(), 2, _ => Known(1.0)));
     }
 }

@@ -108,7 +108,7 @@ public sealed class MedicalRounds
             }
             var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), ct).ConfigureAwait(false);
             var f = reading.Projection.Facts;
-            f = f with { MedicalCareRecovered = PolicyFunctions.ReviewMedicalCare(f.MedicalPawns, review.MedicalCare).Recovered() };
+            f = f with { MedicalCareRecovered = MedicalRules.ReviewMedicalCare(f.MedicalPawns, review.MedicalCare).Recovered() };
             facts = MedicalFacts.From(f, _reviewer.Policy, review.Latches.MedicalReserve);
             medicalPawns = f.MedicalPawns;
             emergency = EmergencySnapshot.New(scope.World, expected.Tick, reading.Emergency);
@@ -181,7 +181,7 @@ public sealed class MedicalRounds
             var ids = workers.Union(eligible).Select(pawn => pawn.Value).Order(StringComparer.Ordinal).ToList();
             var reply = await _tend.ReadTendPawnsAsync(identity, ids, ct).ConfigureAwait(false);
             var observed = PawnRows(reply.Outcome?.Observed, world, ids, "tend");
-            var threatened = PolicyFunctions.ThreatenedPatients(emergency);
+            var threatened = TendRules.ThreatenedPatients(emergency);
             var doctors = new List<TendDoctorFacts>();
             var tendPatients = new List<TendPatientFacts>();
             foreach (var row in observed.Pawns)
@@ -260,7 +260,7 @@ public sealed class MedicalRounds
         var held = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var patient in patients)
         {
-            foreach (var method in journal.LoadNeed(PolicyFunctions.CriticalNeed(patient), world, ct).Methods)
+            foreach (var method in journal.LoadNeed(MedicalRules.CriticalNeed(patient), world, ct).Methods)
             {
                 var plan = journal.LoadPlan(method.Plan, ct);
                 if (plan.Retired)
@@ -292,7 +292,7 @@ public sealed class MedicalRounds
     /// <summary>The work of a ready Need: a critical patient's care, the hospital, the medicine restock or the operations.</summary>
     internal async Task<Verdict> WorkAsync(NeedWork work, MedicalFacts facts, CancellationToken call)
     {
-        if (PolicyFunctions.IsCriticalNeed(work.Need.Id, out var patient))
+        if (MedicalRules.IsCriticalNeed(work.Need.Id, out var patient))
         {
             return await CriticalAsync(work, facts, patient, call).ConfigureAwait(false);
         }
@@ -300,15 +300,15 @@ public sealed class MedicalRounds
         {
             return Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
         }
-        if (work.Need.Id == PolicyFunctions.MedicalCareNeed && _hospital is not null)
+        if (work.Need.Id == MedicalRules.MedicalCareNeed && _hospital is not null)
         {
             return (await _hospital.StepAsync(work, call).ConfigureAwait(false)).Verdict;
         }
-        if (work.Need.Id == PolicyFunctions.MedicalReservesNeed && _medical is not null)
+        if (work.Need.Id == MedicalRules.MedicalReservesNeed && _medical is not null)
         {
             return (await _medical.RestockAsync(work, call).ConfigureAwait(false)).Verdict;
         }
-        if (work.Need.Id == PolicyFunctions.SurgeryNeed && _surgery is not null)
+        if (work.Need.Id == MedicalRules.SurgeryNeed && _surgery is not null)
         {
             return (await _surgery.StepAsync(work, call).ConfigureAwait(false)).Verdict;
         }
@@ -348,7 +348,7 @@ public sealed class MedicalRounds
         }
         if (_tend is not null)
         {
-            var (doctor, ok) = PolicyFunctions.TendDoctorFor(care, patient);
+            var (doctor, ok) = MedicalRules.TendDoctorFor(care, patient);
             if (ok && work.Arbiter!.TryClaim([doctor, patient]))
             {
                 var tend = new Domain.Tend(doctor, patient);
@@ -357,7 +357,7 @@ public sealed class MedicalRounds
         }
         if (_rescue is not null)
         {
-            var (rescuer, ok) = PolicyFunctions.RescuerFor(care, patient);
+            var (rescuer, ok) = MedicalRules.RescuerFor(care, patient);
             if (ok && work.Arbiter!.TryClaim([rescuer, patient]))
             {
                 var rescue = new Rescue((Domain.PawnId)rescuer, (Domain.PawnId)patient);

@@ -333,7 +333,7 @@ internal sealed class CutInput(CutGrid grid, double[] hp, bool[] hardToWall, boo
     public bool[] KeepOffWalls { get; } = keepOffWalls;
 }
 
-public static partial class PolicyFunctions
+public static partial class PerimeterCutRules
 {
     /// <summary>The eight cells around one.</summary>
     private static readonly Cell[] Neighbours8 = [new(-1, -1), new(0, -1), new(1, -1), new(-1, 0), new(1, 0), new(-1, 1), new(0, 1), new(1, 1)];
@@ -595,7 +595,7 @@ public static partial class PolicyFunctions
             }
         }
         var cutCells = cut.Select(g.CellAt).ToList();
-        var wallCells = SortedCells(walls);
+        var wallCells = PlannedRules.SortedCells(walls);
 
         var decisions = new List<PerimeterCutDecision>();
         var verdict = PolicyConstants.EmbedPlace;

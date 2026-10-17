@@ -188,7 +188,7 @@ public static partial class PolicyFunctions
         var slaughter = FoodSlaughterChoice(f.FoodPlan, f.Animals, f.Herd).Method == HusbandryMethod.Slaughter;
         var tame = FoodTameChoice(f.FoodPlan, f.Wild, f.FeedShort, f.Handlers).Method == HusbandryMethod.Tame;
         var master = HerdMasterChoice(f.Animals, f.Herd, f.Handlers).Method is not null;
-        var owed = Positive(deficit) || removal.Method is not null || slaughter || tame || master;
+        var owed = RoundsRules.Positive(deficit) || removal.Method is not null || slaughter || tame || master;
         var satisfaction = owed ? Satisfaction.Unmet
             : deficit.IsKnown && HerdChoice(f).Reason != HusbandryPlanReason.Unknown ? Satisfaction.Met
             : Satisfaction.Unknown;

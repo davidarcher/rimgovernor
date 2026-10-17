@@ -74,7 +74,7 @@ public sealed record RecoveryBatch
     public string Blocker { get; init; } = "";
 }
 
-public static partial class PolicyFunctions
+public static partial class RecoveryRules
 {
     /// <summary>Bounds one removal batch.</summary>
     public const int DefaultRecoveryBatch = 12;
@@ -198,7 +198,7 @@ public static partial class PolicyFunctions
             var (b, ok) = BuildingAt(req.Grid, t.Cell, t.ID);
             if (!ok)
             {
-                held.Add(new RecoveryBatchHold(t.ID, RemoteHoldRoofSupport));
+                held.Add(new RecoveryBatchHold(t.ID, RemoteRules.RemoteHoldRoofSupport));
                 continue;
             }
             var next = new List<RemovedBuilding>(kept) { new() { Cell = t.Cell, Id = b.Id } };
@@ -213,10 +213,10 @@ public static partial class PolicyFunctions
             {
                 blockerWord = blocker;
             }
-            var cells = blocker == RoofBlockerUnsupported ? RemovableRoofs(req.Grid, t.Cell, b.Id, req.Rules) : [];
+            var cells = blocker == RoofSupportRules.RoofBlockerUnsupported ? RemovableRoofs(req.Grid, t.Cell, b.Id, req.Rules) : [];
             if (cells.Count == 0)
             {
-                held.Add(new RecoveryBatchHold(t.ID, RemoteHoldRoofSupport));
+                held.Add(new RecoveryBatchHold(t.ID, RemoteRules.RemoteHoldRoofSupport));
                 continue;
             }
             foreach (var c in cells)

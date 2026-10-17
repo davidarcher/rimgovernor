@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Policy;
 // shell: a walled-in room already keeps corpses out of sight, and cold only slows rot (the
 // food-stores/refrigeration Need cools it like any standing cooling room, WarmRooms). Vanilla haulers carry the
 // corpses; nothing here hauls.
-public static partial class PolicyFunctions
+public static partial class MorgueRules
 {
     /// <summary>Reports a human corpse lying unburied.</summary>
     public static bool MorgueWaiting(IReadOnlyList<WasteItem> waste) =>

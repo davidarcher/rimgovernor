@@ -61,29 +61,29 @@ public static partial class PolicyFunctions
     /// <summary>The footprint of a range of stands stands in the given orientation.</summary>
     internal static (int W, int H) RangeBlockSize(int stands, bool horizontal)
     {
-        var (w, h) = (stands + 2, RangeDistance + 1 + 2);
+        var (w, h) = (stands + 2, TrainingRules.RangeDistance + 1 + 2);
         return horizontal ? (w, h) : (h, w);
     }
 
     /// <summary>The planned range whose blocked footprint is block.</summary>
     internal static PlannedRoom RangeFromBlock(Rectangle block, Rotation facing, int stands)
     {
-        var ins = new Rectangle { X = block.X + 1, Z = block.Z + 1, Width = stands, Height = RangeDistance + 1 };
+        var ins = new Rectangle { X = block.X + 1, Z = block.Z + 1, Width = stands, Height = TrainingRules.RangeDistance + 1 };
         if (facing == Rotation.East || facing == Rotation.West)
         {
-            ins = ins with { Width = RangeDistance + 1, Height = stands };
+            ins = ins with { Width = TrainingRules.RangeDistance + 1, Height = stands };
         }
-        return new PlannedRoom { Role = PlannedTrainingRange, Region = RectRegion(ins), Outdoor = true, Facing = facing };
+        return new PlannedRoom { Role = PlannedTrainingRange, Region = RegionRules.RectRegion(ins), Outdoor = true, Facing = facing };
     }
 
     /// <summary>The furniture template of a planned range: RangeLayout, one WantedPiece per building.</summary>
     public static List<WantedPiece> RangeTemplate(PlannedRoom room)
     {
-        var layout = RangeLayout(room);
+        var layout = TrainingRules.RangeLayout(room);
         var output = new List<WantedPiece>(layout.Count);
         foreach (var p in layout)
         {
-            output.Add(new WantedPiece { DefName = RangeDefNames[p.Kind], Minimum = p.Cell, Maximum = p.Cell, Slot = $"{p.Kind}-{p.Column}", Size = new Cell(1, 1), Rot = Rotation.North });
+            output.Add(new WantedPiece { DefName = TrainingRules.RangeDefNames[p.Kind], Minimum = p.Cell, Maximum = p.Cell, Slot = $"{p.Kind}-{p.Column}", Size = new Cell(1, 1), Rot = Rotation.North });
         }
         return output;
     }

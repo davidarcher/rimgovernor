@@ -221,7 +221,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
         }
 
         var facts = await ReadAudited(step, call).ConfigureAwait(false);
-        var standings = PolicyFunctions.NeedStandings(_family.Id, _family.Derive(facts.Facts));
+        var standings = NeedsRules.NeedStandings(_family.Id, _family.Derive(facts.Facts));
         if (step.Immediate)
         {
             standings = [.. standings.Where(s => s.Need.Tier == NeedTier.SeriousHarm)];

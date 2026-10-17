@@ -35,20 +35,20 @@ public sealed class DispatchMemory
     /// </summary>
     public (IReadOnlyDictionary<string, int> Copies, IReadOnlyDictionary<string, OrderDispatch> Dispatch) Dispatch(DispatchInputs input)
     {
-        var (wanted, abstain) = PolicyFunctions.WantedOrders(input.Declared);
+        var (wanted, abstain) = WorkRules.WantedOrders(input.Declared);
         var copies = new Dictionary<string, int>();
         var dispatch = new Dictionary<string, OrderDispatch>();
         foreach (var k in wanted.Keys.Order(StringComparer.Ordinal))
         {
             var order = wanted[k];
-            var d = PolicyFunctions.DispatchOrder(order, input.Stock, input.Benches, input.Pawns, Widen.GetValueOrDefault(k));
+            var d = WorkRules.DispatchOrder(order, input.Stock, input.Benches, input.Pawns, Widen.GetValueOrDefault(k));
             dispatch[k] = d;
             copies[k] = d.Copies;
             if (!order.Stocked())
             {
                 continue;
             }
-            var (window, cal) = PolicyFunctions.CalibrateThroughput(Windows.GetValueOrDefault(k) ?? new ThroughputWindow(), PolicyFunctions.ObserveOrder(order, d, input));
+            var (window, cal) = WorkRules.CalibrateThroughput(Windows.GetValueOrDefault(k) ?? new ThroughputWindow(), WorkRules.ObserveOrder(order, d, input));
             Windows[k] = window;
             if (cal.Closed && cal.Widen)
             {
@@ -102,12 +102,12 @@ public sealed class DispatchMemory
                 items.Add(new UnmetThroughput { BenchKind = wanted[k].BenchKind, ShortPerDay = dispatch[k].NoBenchShort, Reason = UnmetReason.NoBench });
             }
         }
-        items.AddRange(PolicyFunctions.UnplacedUnmet(unplaced, benches, dispatch));
-        return PolicyFunctions.MergeUnmet(items);
+        items.AddRange(WorkRules.UnplacedUnmet(unplaced, benches, dispatch));
+        return WorkRules.MergeUnmet(items);
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class WorkRules
 {
     /// <summary>Reads one stock-target order off the Round: the benches carrying it, whether its bills are active and a pawn works them, and whether the recipe's ingredients are in stock.</summary>
     public static ThroughputObservation ObserveOrder(OrderSpec order, OrderDispatch d, DispatchInputs input)

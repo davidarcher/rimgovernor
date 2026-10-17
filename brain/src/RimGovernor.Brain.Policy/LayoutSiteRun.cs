@@ -12,7 +12,7 @@ public sealed record SitePrice
     public double ConduitW { get; init; }
     public double WallW { get; init; }
 
-    internal SiteTypeWeights WeightsOrDefault() => Weights == new SiteTypeWeights() ? PolicyFunctions.DefaultSiteTypeWeights() : Weights;
+    internal SiteTypeWeights WeightsOrDefault() => Weights == new SiteTypeWeights() ? SiteRules.DefaultSiteTypeWeights() : Weights;
 }
 
 /// <summary>The cheapest placement of a node: the turn and origin, the cells blocked in its own lane and the price in watts, split into what the wind loses (LaneW, its own lane and the lanes it blocks) and the rest.</summary>

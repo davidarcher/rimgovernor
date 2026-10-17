@@ -20,7 +20,7 @@ internal static class RoundsHay
                     MinGlow = d.GrowMinGlow,
                 },
                 d);
-            if (PolicyFunctions.IsHayCrop(crop))
+            if (SocialCropsRules.IsHayCrop(crop))
             {
                 return (crop, true);
             }

@@ -29,7 +29,7 @@ internal sealed class ConsumptionMemory : IDisposable
             }
 
             ledger.Merge(page);
-            return ledger.Window(PolicyFunctions.ResourceRateWindowDays);
+            return ledger.Window(ResourceRules.ResourceRateWindowDays);
         }
         finally
         {
@@ -58,12 +58,12 @@ public sealed partial class Rounder : IDisposable
             return output;
         }
 
-        foreach (var resource in PolicyFunctions.MaterialRunwayKeys(items, consumptionFact))
+        foreach (var resource in ResourceRules.MaterialRunwayKeys(items, consumptionFact))
         {
             try
             {
                 var (rows, _) = await reader.ReadResourceSourcesAsync(Boundary.Identity(snapshot), resource.Value, ct).ConfigureAwait(false);
-                output[resource] = PolicyFunctions.SurfaceOre(rows);
+                output[resource] = ResourceRules.SurfaceOre(rows);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {

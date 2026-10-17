@@ -190,13 +190,13 @@ public sealed record ThroneStep
 /// <summary>One counted piece requirement of the title: Count buildings of any of Things, planned in slots named Key.0, Key.1 and so on.</summary>
 internal sealed record ThroneWant(string Key, IReadOnlyList<string> Things, int Count);
 
-public static partial class PolicyFunctions
+public static partial class ThroneRules
 {
     /// <summary>The throne room's slot name for the throne itself (throneWants).</summary>
     internal const string ThroneSlot = "throne";
 
     /// <summary>The rung's throne requirement, false for a title that asks for no throne or whose requirement is not read.</summary>
-    private static (ThroneNeed Need, bool Ok) RungRequirement(RoyalRung rung)
+    internal static (ThroneNeed Need, bool Ok) RungRequirement(RoyalRung rung)
     {
         if (!rung.Throne.TryGetValue(out var req) || req.Things.Count == 0 || req.MinArea <= 0)
         {
@@ -282,7 +282,7 @@ public static partial class PolicyFunctions
         {
             return output;
         }
-        var inside = new HashSet<Cell>(RectCells(room.Region.Bounds()));
+        var inside = new HashSet<Cell>(PlannedRules.RectCells(room.Region.Bounds()));
         foreach (var b in built)
         {
             if (!need.Forbids(b.Building!.Definition))
@@ -354,11 +354,11 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The standing throne of need inside r's interior.</summary>
-    private static (CurrentBuilding? Building, bool Ok) StandingThroneIn(PlannedRoom r, ThroneNeed need, IReadOnlyList<CurrentBuilding> built)
+    internal static (CurrentBuilding? Building, bool Ok) StandingThroneIn(PlannedRoom r, ThroneNeed need, IReadOnlyList<CurrentBuilding> built)
     {
         foreach (var b in built)
         {
-            if (b.Cells.Count == 0 || !RectInside(r.Region.Bounds(), CellsRectangle(b.Cells)))
+            if (b.Cells.Count == 0 || !RectInside(r.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells)))
             {
                 continue;
             }
@@ -374,7 +374,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Whether id holds an Empire title now.</summary>
-    private static bool HoldsTitle(RoyaltyFacts f, PawnId id)
+    internal static bool HoldsTitle(RoyaltyFacts f, PawnId id)
     {
         if (!f.Holders.TryGetValue(id, out var holdings))
         {
@@ -516,10 +516,10 @@ public static partial class PolicyFunctions
                 taken.Add(c);
             }
         }
-        bool Free(InteriorPiece p) => RectCells(p.Rect).All(c => !taken.Contains(c));
+        bool Free(InteriorPiece p) => PlannedRules.RectCells(p.Rect).All(c => !taken.Contains(c));
         WantedPiece StandingPiece(CurrentBuilding b)
         {
-            var r = CellsRectangle(b.Cells);
+            var r = PlacementSearchRules.CellsRectangle(b.Cells);
             return new WantedPiece
             {
                 DefName = b.Building!.Definition,
@@ -554,7 +554,7 @@ public static partial class PolicyFunctions
             var count = 0;
             foreach (var b in built)
             {
-                if (count < w.Count && b.Cells.Count > 0 && RectInside(room.Region.Bounds(), CellsRectangle(b.Cells)) && w.Things.Contains(b.Building!.Definition))
+                if (count < w.Count && b.Cells.Count > 0 && RectInside(room.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells)) && w.Things.Contains(b.Building!.Definition))
                 {
                     template.Add(StandingPiece(b));
                     count++;
@@ -586,7 +586,7 @@ public static partial class PolicyFunctions
         var n = 0;
         foreach (var b in built)
         {
-            if (b.Cells.Count > 0 && RectInside(r.Region.Bounds(), CellsRectangle(b.Cells)) && things.Contains(b.Building!.Definition))
+            if (b.Cells.Count > 0 && RectInside(r.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells)) && things.Contains(b.Building!.Definition))
             {
                 n++;
             }

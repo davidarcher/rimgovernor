@@ -80,7 +80,7 @@ public sealed record MealTierReview
 /// <summary>Go's <c>ErrMealTierFacts</c>.</summary>
 public sealed class MealTierFactsException() : DomainException("meal tier inputs unavailable or invalid");
 
-public static partial class PolicyFunctions
+public static partial class MealRules
 {
     /// <summary>
     /// Upgrades half a day above the target (or half the min/target gap when narrower), and retains an advanced
@@ -123,7 +123,7 @@ public static partial class PolicyFunctions
             Reason = "raw surplus or qualified recipe unavailable",
             Terms = [new CandidateTerm("raw_runway_days", days), new CandidateTerm("upgrade_days", r.TargetDays + margin), new CandidateTerm("downgrade_days", r.TargetDays)],
         };
-        var constrained = Positive(r.CookLaborConstrained) || (ck && cooks.Count == 0);
+        var constrained = RoundsRules.Positive(r.CookLaborConstrained) || (ck && cooks.Count == 0);
         var pasteNeeded = constrained || days < r.MinDays || (r.Previous == MealTier.Paste && days < r.MinDays + margin);
         if (pasteNeeded && sources!.Count > 0)
         {
@@ -149,7 +149,7 @@ public static partial class PolicyFunctions
         {
             maxTier = MealTier.Fine;
             var lavishSurplus = days >= r.TargetDays + margin || (r.Previous == MealTier.Lavish && days > r.TargetDays);
-            if (Positive(r.HighExpectations) && lavishSurplus)
+            if (RoundsRules.Positive(r.HighExpectations) && lavishSurplus)
             {
                 maxTier = MealTier.Lavish;
             }
@@ -165,7 +165,7 @@ public static partial class PolicyFunctions
                 throw new MealTierFactsException();
             }
             seenBenches.Add(bench.Id);
-            if (bench.Butcher || !Positive(bench.Usable))
+            if (bench.Butcher || !RoundsRules.Positive(bench.Usable))
             {
                 continue;
             }
@@ -229,7 +229,7 @@ public static partial class PolicyFunctions
     /// A proposed Open channel is not yet an ingredient source. Hold preserves an observed-open source; Close and
     /// Unknown never satisfy a recipe slot.
     /// </summary>
-    private static (HashSet<FoodIngredientClass>? Sources, bool Protein, bool Ok) MealIngredientSources(FoodPlan p)
+    internal static (HashSet<FoodIngredientClass>? Sources, bool Protein, bool Ok) MealIngredientSources(FoodPlan p)
     {
         var sources = new HashSet<FoodIngredientClass>();
         if (!FieldPositive(p.DemandPerDay) || !FoodNumber(p.DeliveredPerDay) || double.IsNaN(p.GapPerDay) || double.IsInfinity(p.GapPerDay))
@@ -247,7 +247,7 @@ public static partial class PolicyFunctions
                 return (null, false, false);
             }
             seen.Add(key);
-            if (e.Decision == FoodPlanDecision.Close || !Positive(c.Open()) || (e.DeliveredPerDay <= 0 && !MealStockAvailable(c)))
+            if (e.Decision == FoodPlanDecision.Close || !RoundsRules.Positive(c.Open()) || (e.DeliveredPerDay <= 0 && !MealStockAvailable(c)))
             {
                 continue;
             }
@@ -283,13 +283,13 @@ public static partial class PolicyFunctions
         var wk = r.WorkPerNutrition.TryGetValue(out var work);
         var powerKnown = r.NeedsPower.IsKnown;
         var ik = r.IngredientClasses.TryGetValue(out var classes);
-        if (!Positive(r.Available) || !fk || floor < 0 || floor > 20 || skill < floor || !mk || !FoodNumber(mood) || !ek || !FieldPositive(efficiency) || !wk || !FoodNumber(work) || !powerKnown || !ik || !MealSlotsSupported(classes!, sources) || r.Products.Count != 1)
+        if (!RoundsRules.Positive(r.Available) || !fk || floor < 0 || floor > 20 || skill < floor || !mk || !FoodNumber(mood) || !ek || !FieldPositive(efficiency) || !wk || !FoodNumber(work) || !powerKnown || !ik || !MealSlotsSupported(classes!, sources) || r.Products.Count != 1)
         {
             return (choice, MealTier.None, false);
         }
         var product = r.Products[0];
         var nk = product.Nutrition.TryGetValue(out var nutrition);
-        if (!Positive(product.Edible) || !nk || !FieldPositive(nutrition))
+        if (!RoundsRules.Positive(product.Edible) || !nk || !FieldPositive(nutrition))
         {
             return (choice, MealTier.None, false);
         }
@@ -355,7 +355,7 @@ public static partial class PolicyFunctions
     {
         var ik = r.Paste.TryGetValue(out var infra);
         var ek = r.Environment.TryGetValue(out var env);
-        if (!ik || !ek || !infra!.PowerW.TryGetValue(out var watts) || !FoodId(infra.Name) || !Positive(infra.Available) || !FieldPositive(watts))
+        if (!ik || !ek || !infra!.PowerW.TryGetValue(out var watts) || !FoodId(infra.Name) || !RoundsRules.Positive(infra.Available) || !FieldPositive(watts))
         {
             return ("", 0, false);
         }
@@ -369,7 +369,7 @@ public static partial class PolicyFunctions
                 return ("", 0, false);
             }
             seen.Add(network.Id);
-            if (!network.CalmNightHeadroomW().TryGetValue(out var margin) || !Positive(network.ActiveSource) || margin < watts)
+            if (!network.CalmNightHeadroomW().TryGetValue(out var margin) || !RoundsRules.Positive(network.ActiveSource) || margin < watts)
             {
                 continue;
             }
@@ -381,7 +381,7 @@ public static partial class PolicyFunctions
         return (best, watts, best != "");
     }
 
-    private static (BillSelection Selection, bool Ok) SelectMealBill(
+    internal static (BillSelection Selection, bool Ok) SelectMealBill(
         Fact<EquatableArray<ProductionBench>> benches,
         Fact<long> colonists,
         MealTierRequest request,
@@ -435,7 +435,7 @@ public static partial class PolicyFunctions
         {
             var bench = byBench.GetValueOrDefault(choice.Bench) ?? new ProductionBench();
             bench = bench with { Recipes = [recipes.GetValueOrDefault((choice.Bench, choice.Recipe)) ?? new ProductionRecipe()] };
-            var (selected, ok) = SelectProductionBill(CookFood, Known<EquatableArray<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
+            var (selected, ok) = ProductionRules.SelectProductionBill(CookFood, Known<EquatableArray<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
             if (ok && selected.Replace != "")
             {
                 return (selected, true);
@@ -446,7 +446,7 @@ public static partial class PolicyFunctions
             var bench = byBench.GetValueOrDefault(choice.Bench);
             foreach (var bill in bench?.Bills ?? [])
             {
-                if (bill.Recipe == choice.Recipe && !bill.Humanlike && BillAdequate(bill, wanted))
+                if (bill.Recipe == choice.Recipe && !bill.Humanlike && ProductionRules.BillAdequate(bill, wanted))
                 {
                     return (new BillSelection(), false);
                 }
@@ -456,7 +456,7 @@ public static partial class PolicyFunctions
         {
             var bench = byBench.GetValueOrDefault(choice.Bench) ?? new ProductionBench();
             bench = bench with { Recipes = [recipes.GetValueOrDefault((choice.Bench, choice.Recipe)) ?? new ProductionRecipe()] };
-            var (selected, ok) = SelectProductionBill(CookFood, Known<EquatableArray<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
+            var (selected, ok) = ProductionRules.SelectProductionBill(CookFood, Known<EquatableArray<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
             if (!ok)
             {
                 if (existing.Contains((choice.Bench, choice.Recipe)))

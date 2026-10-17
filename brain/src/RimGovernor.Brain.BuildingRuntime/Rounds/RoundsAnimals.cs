@@ -53,7 +53,7 @@ public sealed class AnimalsReader
         var projection = reading.Projection;
         var f = projection.Facts;
         var handlers = projection.WorkPawns.TryGetValue(out var pawns)
-            ? Known<EquatableArray<PawnProfile>>([.. PolicyFunctions.Profiles(pawns)])
+            ? Known<EquatableArray<PawnProfile>>([.. PawnRules.Profiles(pawns)])
             : Unknown<EquatableArray<PawnProfile>>();
         Fact<EquatableArray<PawnId>> uncontained;
         try

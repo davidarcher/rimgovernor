@@ -337,13 +337,13 @@ public static partial class PolicyFunctions
     internal static FieldCandidate FieldCandidateFor(FieldRequest r, ViableCrop v, bool urgent)
     {
         var site = r.Site;
-        var sites = SitePick(site, v, s => SiteKnownFalse(s.Roofed) && (site.Fields is null || site.Fields.Contains(s.Cell)), null, false);
+        var sites = SiteRules.SitePick(site, v, s => SiteRules.SiteKnownFalse(s.Roofed) && (site.Fields is null || site.Fields.Contains(s.Cell)), null, false);
         var c = new FieldCandidate { Crop = v.Crop, Needed = v.Needed, Sites = sites, Urgent = urgent, Price = v.Price };
         if (sites.Cells == 0)
         {
             return c with { Reason = "no plantable soil" };
         }
-        var terms = new List<FarmSiteTerm>(SiteTerms(sites));
+        var terms = new List<FarmSiteTerm>(SiteRules.SiteTerms(sites));
         if (v.Units == 0)
         {
             terms.AddRange(CropChoiceTerms(r, v.Crop, sites.Cells));

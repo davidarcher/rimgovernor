@@ -395,7 +395,7 @@ public static partial class PolicyFunctions
     {
         try
         {
-            return f.Items.MarketValue(SiteSteelUnit);
+            return f.Items.MarketValue(SiteRules.SiteSteelUnit);
         }
         catch (DomainException)
         {

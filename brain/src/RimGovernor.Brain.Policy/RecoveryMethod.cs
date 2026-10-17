@@ -122,7 +122,7 @@ public sealed record RecoveryCandidate
             + ",\"Building\":" + PolicyFunctions.GoJsonString(Building)
             + ",\"Method\":" + PolicyFunctions.GoJsonString(Wire.Name(Method))
             + ",\"HitPoints\":" + (HitPoints is { } h ? h.ToString(CultureInfo.InvariantCulture) : "null")
-            + ",\"Fuel\":" + (Fuel is { } f ? PolicyFunctions.GoJsonFloat(f) : "null")
+            + ",\"Fuel\":" + (Fuel is { } f ? RecoveryRules.GoJsonFloat(f) : "null")
             + ",\"PriorArea\":" + (PriorArea is { } a ? PolicyFunctions.GoJsonString(a) : "null") + "}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(json));
         return new MethodId("recovery-" + Convert.ToHexStringLower(hash.AsSpan(0, 16)));
@@ -174,7 +174,7 @@ public sealed record RecoverySelection
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class RecoveryRules
 {
     /// <summary>Go's json.Marshal float64 text: shortest round-trip digits, exponent form outside [1e-6, 1e21).</summary>
     internal static string GoJsonFloat(double d)
@@ -381,7 +381,7 @@ public static partial class PolicyFunctions
                 available.Add(w);
             }
         }
-        available = available.OrderBy(w => OrderedWorkCost(w.PlayerForced)).ThenBy(w => w.Pawn).ToList();
+        available = available.OrderBy(w => OrderedWorkRules.OrderedWorkCost(w.PlayerForced)).ThenBy(w => w.Pawn).ToList();
         if (available.Count == 0)
         {
             return unknownWorker ? output : output with { Reason = RecoverySelectionReason.NoWorker };

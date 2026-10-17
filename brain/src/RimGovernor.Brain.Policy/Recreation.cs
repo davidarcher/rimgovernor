@@ -76,7 +76,7 @@ public sealed partial record ComfortObservation
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class RecreationRules
 {
     /// <summary>
     /// A second reachable kind is maintenance for a multi-colonist colony, or for a lone colonist bored with

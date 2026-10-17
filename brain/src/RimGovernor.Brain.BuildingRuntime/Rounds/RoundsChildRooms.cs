@@ -73,7 +73,7 @@ partial class RoundsSleepingUpkeepPlanner
         }
         if (facts.Facts.Ideology.TryGetValue(out var ideology))
         {
-            var (need, owed) = PolicyApi.WorshipRoomNeed(ideology);
+            var (need, owed) = WorshipRules.WorshipRoomNeed(ideology);
             if (owed)
             {
                 needs.Add(need);

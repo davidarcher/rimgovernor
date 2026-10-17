@@ -151,7 +151,7 @@ public sealed record CropKitchen
             usable++;
             foreach (var r in b.Recipes)
             {
-                if (r.Role != RecipeRole.OrdinaryMeal || !PolicyFunctions.Positive(r.Available))
+                if (r.Role != RecipeRole.OrdinaryMeal || !RoundsRules.Positive(r.Available))
                 {
                     continue;
                 }
@@ -163,7 +163,7 @@ public sealed record CropKitchen
                     unknown = true;
                     continue;
                 }
-                if (!PolicyFunctions.MealSlotsSupported(classes!, new HashSet<FoodIngredientClass> { FoodIngredientClass.Vegetable }))
+                if (!MealRules.MealSlotsSupported(classes!, new HashSet<FoodIngredientClass> { FoodIngredientClass.Vegetable }))
                 {
                     continue;
                 }
@@ -212,7 +212,7 @@ public static partial class PolicyFunctions
         SupplyPlan plan;
         try
         {
-            demand = NutritionDemand(new NutritionDemandInput
+            demand = SupplyPlanRules.NutritionDemand(new NutritionDemandInput
             {
                 Forecast = r.Demand,
                 ReserveDays = r.ReserveDays,
@@ -225,14 +225,14 @@ public static partial class PolicyFunctions
             {
                 foreach (var c in rows)
                 {
-                    if (!ValidFoodChannelKind(c.Kind) || c.Yields.Count == 0 || c.Yields[0].Good != NutritionKey)
+                    if (!ValidFoodChannelKind(c.Kind) || c.Yields.Count == 0 || c.Yields[0].Good != SupplyPlanRules.NutritionKey)
                     {
                         throw new FoodPlanFactsException();
                     }
                 }
                 req = req with { Candidates = Known(rows) };
             }
-            plan = PlanSupply(req);
+            plan = SupplyPlanRules.PlanSupply(req);
         }
         catch (DomainException e) when (e is not FoodPlanFactsException)
         {
@@ -269,8 +269,8 @@ public static partial class PolicyFunctions
         return new FoodPlan
         {
             Forecast = r.Demand,
-            GapPerDay = plan.Gap(NutritionKey),
-            DeliveredPerDay = plan.Delivered(NutritionKey),
+            GapPerDay = plan.Gap(SupplyPlanRules.NutritionKey),
+            DeliveredPerDay = plan.Delivered(SupplyPlanRules.NutritionKey),
             HorizonDays = demand.Window,
             DemandPerDay = demandPerDay,
             Portfolio = View(plan.Portfolio),
@@ -278,7 +278,7 @@ public static partial class PolicyFunctions
         };
     }
 
-    private static bool ValidFoodChannelKind(CandidateKind k) =>
+    internal static bool ValidFoodChannelKind(CandidateKind k) =>
         k is CandidateKind.Forage or CandidateKind.Hunt or CandidateKind.Slaughter or CandidateKind.Crop or CandidateKind.AnimalProduct or CandidateKind.Fishing
             or CandidateKind.Trade or CandidateKind.Tame or CandidateKind.AnimalBuy or CandidateKind.Corpse or CandidateKind.Reserve or CandidateKind.Cook;
 

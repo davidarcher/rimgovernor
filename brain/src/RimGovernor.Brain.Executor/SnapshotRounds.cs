@@ -47,8 +47,8 @@ public sealed class SnapshotRounds
     /// <summary>Replays the review's need detection over the recorded facts.</summary>
     public RoundsFindings Detect() =>
         Immediate
-            ? PolicyFunctions.InspectImmediateRounds(Facts, Latches, Policy)
-            : PolicyFunctions.InspectRounds(Facts, Latches, Policy);
+            ? RoundsRules.InspectImmediateRounds(Facts, Latches, Policy)
+            : RoundsRules.InspectRounds(Facts, Latches, Policy);
 
     /// <summary>Drops the planning window's site cells, most of a recording's size: a committed snapshot keeps them only when its test runs a site search.</summary>
     public void TrimCells()

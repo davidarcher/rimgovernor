@@ -110,7 +110,7 @@ public sealed partial class Rounder
                 && p.Rooms.TryGetValue(out var rooms)
                 && p.Facts.Sleeping.TryGetValue(out var sleeping))
             {
-                needs = PolicyFunctions.BedResearchRequest(needs, layout, rooms, sleeping, RoundsSleepingUpkeepPlanner.BedroomTargets(p));
+                needs = SleepingRules.BedResearchRequest(needs, layout, rooms, sleeping, RoundsSleepingUpkeepPlanner.BedroomTargets(p));
             }
 
             return needs;

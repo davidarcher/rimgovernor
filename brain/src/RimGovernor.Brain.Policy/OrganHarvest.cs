@@ -91,7 +91,7 @@ public sealed record OrganHarvest(
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class OrganHarvestRules
 {
     /// <summary>
     /// The colony mood points a harvest costs: the precept rule's verdict on the HarvestedOrgan event, plus
@@ -172,7 +172,7 @@ public static partial class PolicyFunctions
                 {
                     continue;
                 }
-                var (weight, _) = ServedSurgery(pawn, op);
+                var (weight, _) = SurgeryRules.ServedSurgery(pawn, op);
                 if (weight * PolicyConstants.SilverPerCapacity > best.Gain)
                 {
                     best = new OrganNeed(organ, pawn.Id, weight * PolicyConstants.SilverPerCapacity);
@@ -253,7 +253,7 @@ public static partial class PolicyFunctions
                     var gain = need.Gain;
                     if (need.For.Value.Length == 0)
                     {
-                        if (!op.YieldValue.TryGetValue(out var value) || !Finite(value))
+                        if (!op.YieldValue.TryGetValue(out var value) || !TradePolicyRules.Finite(value))
                         {
                             continue;
                         }
@@ -322,7 +322,7 @@ public static partial class PolicyFunctions
         var sk = op.IngredientsOnMap.TryGetValue(out var stocked);
         var pk = op.PartIndex.TryGetValue(out _);
         var rk = op.Recipe.TryGetValue(out _);
-        return dk && ck && lk && sk && pk && rk && doctors > 0 && stocked && !lethal && 1 - chance <= RestoreFailureCap + 1e-9;
+        return dk && ck && lk && sk && pk && rk && doctors > 0 && stocked && !lethal && 1 - chance <= SurgeryRules.RestoreFailureCap + 1e-9;
     }
 
     /// <summary>
@@ -331,7 +331,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static bool SaleHarvestWanted(RoundsFacts f, Fact<bool> silverShort)
     {
-        if (!Positive(silverShort))
+        if (!RoundsRules.Positive(silverShort))
         {
             return false;
         }
@@ -358,7 +358,7 @@ public static partial class PolicyFunctions
         RecipeFacts facts)
     {
         if (!need.TryGetValue(out var n) || !resources.TryGetValue(out var rows)
-            || !Positive(SilverShort(items, need, SilverStock(items, resources), colonists)))
+            || !RoundsRules.Positive(SilverGapRules.SilverShort(items, need, SilverGapRules.SilverStock(items, resources), colonists)))
         {
             return need;
         }
@@ -415,7 +415,7 @@ public static partial class PolicyFunctions
                 {
                     continue;
                 }
-                var (weight, _) = ServedSurgery(pawn, op);
+                var (weight, _) = SurgeryRules.ServedSurgery(pawn, op);
                 if (weight > 0)
                 {
                     result.Add(new OrganNeed(item.Value, pawn.Id, weight * PolicyConstants.SilverPerCapacity));
@@ -469,7 +469,7 @@ public static partial class PolicyFunctions
                 var vk = op.YieldValue.TryGetValue(out var value);
                 op.PartDefName.TryGetValue(out var body);
                 body ??= "";
-                if (op.Kind != SurgeryKind.Amputate || !hk || !ik || !vk || !Finite(value) || PolicyConstants.UnrecoveredParts.Contains(hediff!)
+                if (op.Kind != SurgeryKind.Amputate || !hk || !ik || !vk || !TradePolicyRules.Finite(value) || PolicyConstants.UnrecoveredParts.Contains(hediff!)
                     || facts.KeptPart(body) || (body == "Leg" && legless) || !HarvestAcceptable(op))
                 {
                     continue;
@@ -508,7 +508,7 @@ public static partial class PolicyFunctions
         double cost = 0;
         if (op.MedicineValue.TryGetValue(out var medicine))
         {
-            if (!Finite(medicine))
+            if (!TradePolicyRules.Finite(medicine))
             {
                 return (0, false);
             }
@@ -546,7 +546,7 @@ public static partial class PolicyFunctions
         {
             return need;
         }
-        var s = SelectSurgery(pawns, null, new SurgeryContext());
+        var s = SurgeryRules.SelectSurgery(pawns, null, new SurgeryContext());
         var options = new List<IReadOnlyList<Resource>>(s.Wants.Count + s.Queue.Count);
         foreach (var want in s.Wants)
         {

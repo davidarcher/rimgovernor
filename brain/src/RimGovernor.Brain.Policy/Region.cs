@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class RegionRules
 {
     /// <summary>The region of every cell in r; empty when r has no area.</summary>
     public static Region RectRegion(Rectangle r)
@@ -161,7 +161,7 @@ public sealed record Region
                 runs.Add(new RowRun { Z = r.Z + dz, X = r.X - 1, Length = r.Length + 2 });
             }
         }
-        return new Region { Runs = EquatableArray.From(PolicyFunctions.CanonicalRuns(runs)) }.Minus(this);
+        return new Region { Runs = EquatableArray.From(RegionRules.CanonicalRuns(runs)) }.Minus(this);
     }
 
     /// <summary>The region's own edge: its cells that have an orthogonal neighbour outside the region.</summary>
@@ -179,7 +179,7 @@ public sealed record Region
                 }
             }
         }
-        return PolicyFunctions.RegionOf(output);
+        return RegionRules.RegionOf(output);
     }
 
     /// <summary>Whether the regions share a cell.</summary>
@@ -300,11 +300,11 @@ public sealed record Region
                 runs.Add(new RowRun { Z = r.Z + dz, X = r.X - n, Length = r.Length + (2 * n) });
             }
         }
-        return new Region { Runs = EquatableArray.From(PolicyFunctions.CanonicalRuns(runs)) };
+        return new Region { Runs = EquatableArray.From(RegionRules.CanonicalRuns(runs)) };
     }
 
     /// <summary>Whether the region shares a cell with r. A ring does not overlap a rectangle lying wholly in its hole.</summary>
-    public bool OverlapsRect(Rectangle r) => Overlaps(PolicyFunctions.RectRegion(r));
+    public bool OverlapsRect(Rectangle r) => Overlaps(RegionRules.RectRegion(r));
 
     private static Cell[] Neighbours(Cell c) =>
         [new Cell(c.X + 1, c.Z), new Cell(c.X - 1, c.Z), new Cell(c.X, c.Z + 1), new Cell(c.X, c.Z - 1)];

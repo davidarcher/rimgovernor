@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 // Need takes the room beside its food rooms, reuses or builds a cooler (the planned one over the room's exhaust
 // reservation first) and sets it to FreezerTargetC. Cooling never gates a room's shell.
 
-public static partial class PolicyFunctions
+public static partial class TombRules
 {
     /// <summary>The warmest a standing cooling room may measure before it owes cooling: corpses stop rotting at freezing.</summary>
     public const double TombMaxC = 0.0;

@@ -65,7 +65,7 @@ public static class QuestRewards
         {
             foreach (var holding in holdings)
             {
-                var (rung, more) = NextClaim(royalty.Ladder, holding.Title);
+                var (rung, more) = TitleClaimRules.NextClaim(royalty.Ladder, holding.Title);
                 var fk = holding.Favor.TryGetValue(out var favor);
                 var nk = rung.FavorNeeded.TryGetValue(out var needed);
                 if (more && fk && nk && favor < needed)
@@ -161,15 +161,15 @@ public static class QuestRewards
                     quantities[item.Resource] = quantities.GetValueOrDefault(item.Resource) + item.Count;
                 }
                 benefits += Math.Max(0, row.Goodwill);
-                benefits += (double)row.Psylink * PermitValue(PermitCategory.Psycast, true);
-                benefits += (double)row.PermitPoints * PermitValue(PermitCategory.Aid, false);
+                benefits += (double)row.Psylink * PermitChoiceRules.PermitValue(PermitCategory.Psycast, true);
+                benefits += (double)row.PermitPoints * PermitChoiceRules.PermitValue(PermitCategory.Aid, false);
                 if (royaltyKnown)
                 {
                     foreach (var name in row.Permits)
                     {
                         if (royalty!.Permits.TryGetValue(name, out var permit))
                         {
-                            benefits += PermitValue(PermitCategoryOf(permit), royalty.Casters.Count > 0);
+                            benefits += PermitChoiceRules.PermitValue(PermitChoiceRules.PermitCategoryOf(permit), royalty.Casters.Count > 0);
                         }
                     }
                 }
@@ -186,7 +186,7 @@ public static class QuestRewards
                 }
                 benefits += count * price;
                 needed += Math.Min(count, need.GetValueOrDefault(def)) * price;
-                if (f.FoodDays.TryGetValue(out var days) && days < JoinerFoodFloorDays(hosted))
+                if (f.FoodDays.TryGetValue(out var days) && days < PopulationRules.JoinerFoodFloorDays(hosted))
                 {
                     needed += count * f.Items.Nutrition.GetValueOrDefault(def);
                 }

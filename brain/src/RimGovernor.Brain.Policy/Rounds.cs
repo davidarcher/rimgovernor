@@ -582,7 +582,7 @@ public sealed record RoundsFindings
     public EssentialServiceReview? EssentialServices { get; set; }
 }
 
-public static partial class PolicyFunctions
+public static partial class RoundsRules
 {
     /// <summary>Supplies the routine inspection targets and budgets. Individual planners bound their orders; vanilla priorities schedule pawn work.</summary>
     public static RoundsPolicy DefaultRoundsPolicy() => new()
@@ -591,7 +591,7 @@ public static partial class PolicyFunctions
         FoodStorage = DefaultFoodStoragePolicy(),
         Lighting = LightingPolicy.Default(),
         Flooring = DefaultFlooringPolicy(),
-        Routes = DefaultRoutesPolicy(),
+        Routes = RoutesRules.DefaultRoutesPolicy(),
         FoodMinDays = 3,
         FoodTargetDays = 7,
         FootholdFoodDays = 3,
@@ -668,7 +668,7 @@ public static partial class PolicyFunctions
         [DisasterService.Temperature] = FootholdTemperature(f, p),
         [DisasterService.Cooking] = f.Cooking,
         [DisasterService.Power] = FootholdPower(f),
-        [DisasterService.Storage] = FoodStorageStanding(f),
+        [DisasterService.Storage] = StockpileRules.FoodStorageStanding(f),
     };
 
     /// <summary>
@@ -752,7 +752,7 @@ public static partial class PolicyFunctions
             throw new DomainException("invalid calendar fact");
         }
         p = p.Seasonal(f.Calendar, f.DisasterConditions);
-        var medicine = ReviewMedicalReserve(f.MedicalReserve with { Colonists = f.Colonists }, previous.MedicalReserve, p.MedicalReserve);
+        var medicine = MedicalRules.ReviewMedicalReserve(f.MedicalReserve with { Colonists = f.Colonists }, previous.MedicalReserve, p.MedicalReserve);
         p.Validate();
         foreach (var fact in new[] { f.Colonists, f.HousingTarget, f.BedCapacity, f.IndoorCapacity, f.GrowingCells, f.Armed, f.Unarmed, f.Wood, f.Hostiles, f.CriticalPatients, f.UrgentPatients })
         {
@@ -779,9 +779,9 @@ public static partial class PolicyFunctions
         {
             MedicalReserve = medicine.Active,
             Dash = DashLatch(f.Dash),
-            Housing = StarterShelterOwed(f) ? Phase.HousingShelter : Phase.None,
+            Housing = ShelterRules.StarterShelterOwed(f) ? Phase.HousingShelter : Phase.None,
         };
-        var demand = ResourceDemandOf(f, p, latches);
+        var demand = ResourceRules.ResourceDemandOf(f, p, latches);
         var r = new RoundsFindings { Latches = latches, ResourceDemand = demand };
         if (f.CoupledAlternatives is { } coupled)
             r.CoupledSelection = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("observed-review", f.Tick.Value),
@@ -860,5 +860,5 @@ public sealed record ButcherBench
 public static partial class PolicyConstants
 {
     /// <summary>The crafting spot def, as the constants class names it for the building runtime (the value lives with the rounds that stand it).</summary>
-    public const string CraftingSpotDefinition = PolicyFunctions.CraftingSpotDefinition;
+    public const string CraftingSpotDefinition = RoundsRules.CraftingSpotDefinition;
 }

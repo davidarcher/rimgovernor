@@ -53,7 +53,7 @@ public sealed partial class DefinitionCatalog
     {
         var speeds = GameMembers.WindSpeedRange(null);
         var weather = DefRow<WeatherDef>(ClearWeather) ?? throw new CatalogException($"catalog has no {ClearWeather} weather row");
-        var profile = P.PolicyFunctions.WindProfile(speeds.min, speeds.max, weather.windSpeedFactor);
+        var profile = P.PowerRules.WindProfile(speeds.min, speeds.max, weather.windSpeedFactor);
         return profile == default
             ? throw new CatalogException($"wind speed range {speeds.min}-{speeds.max} and {ClearWeather} factor {weather.windSpeedFactor} give no wind profile")
             : profile;

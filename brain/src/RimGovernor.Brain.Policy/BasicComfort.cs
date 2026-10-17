@@ -91,7 +91,7 @@ public static partial class PolicyFunctions
         };
         if (observed.TryGetValue(out var v))
         {
-            r = r with { MissingVariety = RecreationVarietyMissing(v), VarietyKnown = v.Joy is not null };
+            r = r with { MissingVariety = RecreationRules.RecreationVarietyMissing(v), VarietyKnown = v.Joy is not null };
         }
 
         return r;

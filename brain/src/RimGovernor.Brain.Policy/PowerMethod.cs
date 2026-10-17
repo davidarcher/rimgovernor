@@ -247,7 +247,7 @@ public sealed record PowerProposal
     public bool FixedSite() => Method == PowerMethod.Generate && Definition == PolicyConstants.GeothermalDefinition;
 }
 
-public static partial class PolicyFunctions
+public static partial class PowerRules
 {
     /// <summary>Every definition the power family compiles: the conduit, each generator, the geothermal generator and the battery.</summary>
     public static IReadOnlyList<string> PowerFamilyDefinitions() =>
@@ -297,11 +297,11 @@ public static partial class PolicyFunctions
         var steel = 0.0;
         foreach (var c in o.Costs)
         {
-            if (c.Resource == SiteSteelUnit)
+            if (c.Resource == SiteRules.SiteSteelUnit)
             {
                 steel += c.Count;
             }
-            else if (c.Resource == ComponentResource)
+            else if (c.Resource == TradePolicyRules.ComponentResource)
             {
                 if (!componentSteel.TryGetValue(out var rate))
                 {
@@ -548,7 +548,7 @@ public static partial class PolicyFunctions
                 return live;
             }
             var upgrade = v.UnsafeConduits.ToList();
-            upgrade.Sort(LessComparer<Cell>(CombatManhunterRules.CellLess));
+            upgrade.Sort(PlannedRules.LessComparer<Cell>(CombatManhunterRules.CellLess));
             return new PowerProposal { Method = PowerMethod.Connect, Cells = upgrade, Key = PowerMethodKey("upgrade", GoFormat(upgrade)) };
         }
         var producers = new List<PowerSite>();
@@ -804,7 +804,7 @@ public static partial class PolicyFunctions
         {
             observed[c.Cell] = c;
         }
-        foreach (var p in RectCells(r))
+        foreach (var p in PlannedRules.RectCells(r))
         {
             if (protectedCells.Contains(p))
             {
@@ -814,8 +814,8 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            if (!observed.TryGetValue(p, out var c) || !Positive(c.Walkable) || !c.SupportsLight(light) || c.Occupied()
-                || !Positive(Measured(c.Zone, v => !v)))
+            if (!observed.TryGetValue(p, out var c) || !RoundsRules.Positive(c.Walkable) || !c.SupportsLight(light) || c.Occupied()
+                || !RoundsRules.Positive(RoundsRules.Measured(c.Zone, v => !v)))
             {
                 return (default, false);
             }

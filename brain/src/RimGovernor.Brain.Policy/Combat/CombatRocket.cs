@@ -22,7 +22,7 @@ public static partial class CombatRocketRules
         var hostile = new Dictionary<PawnId, bool>();
         foreach (var t in view.Threats)
         {
-            hostile[t.Id] = !t.Building && !Positive(t.Dead) && !Positive(t.Downed);
+            hostile[t.Id] = !t.Building && !RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed);
         }
         var colonist = new HashSet<PawnId>();
         foreach (var d in view.Defenders)

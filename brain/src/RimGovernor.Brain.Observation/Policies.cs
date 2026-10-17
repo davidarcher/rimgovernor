@@ -142,7 +142,7 @@ public static class PoliciesReads
     }
 
     /// <summary>The Safe allowed area's load id, "" when the map has none.</summary>
-    internal static Fact<string> ShelterArea(Fact<Policies> p) => AllowedAreaID(p, SafeAreaLabel);
+    internal static Fact<string> ShelterArea(Fact<Policies> p) => AllowedAreaID(p, ShelterRules.SafeAreaLabel);
 
     /// <summary>The load id of the allowed area labelled <paramref name="label"/>, "" when the map has none.</summary>
     internal static Fact<string> AllowedAreaID(Fact<Policies> p, string label)

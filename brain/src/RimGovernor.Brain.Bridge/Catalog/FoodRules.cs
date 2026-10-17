@@ -62,7 +62,7 @@ public sealed partial class DefinitionCatalog
             return P.FoodKind.Kibble;
         }
 
-        if (row.defName == HayResource.Value)
+        if (row.defName == P.SocialCropsRules.HayResource.Value)
         {
             return P.FoodKind.Hay;
         }

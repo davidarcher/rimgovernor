@@ -38,7 +38,7 @@ public sealed record PollutionSiteRequest
 /// </summary>
 public sealed record PollutionSite(Rectangle Site, long ClearanceSquared, long DisposalSquared);
 
-public static partial class PolicyFunctions
+public static partial class PollutionRules
 {
     /// <summary>
     /// Ranks the candidates: farthest from fields, bedrooms, living rooms and polluted cells first, then
@@ -77,14 +77,14 @@ public static partial class PolicyFunctions
             {
                 throw new DomainException("pollution site candidate out of bounds");
             }
-            var cells = RectCells(c);
+            var cells = PlannedRules.RectCells(c);
             sites.Add(new PollutionSite(c, NearestSquared(cells, avoid), NearestSquared(cells, r.Disposal)));
         }
         // OrderBy is stable, matching sort.SliceStable.
         return [.. sites
             .OrderByDescending(s => s.ClearanceSquared)
             .ThenBy(s => s.DisposalSquared)
-            .ThenBy(s => new Cell(s.Site.X, s.Site.Z), LessComparer<Cell>(CombatManhunterRules.CellLess))];
+            .ThenBy(s => new Cell(s.Site.X, s.Site.Z), PlannedRules.LessComparer<Cell>(CombatManhunterRules.CellLess))];
     }
 
     /// <summary>The smallest squared distance from any cell to any target, -1 when there is no target. A target inside the footprint is 0.</summary>
@@ -95,7 +95,7 @@ public static partial class PolicyFunctions
         {
             foreach (var c in cells)
             {
-                var d = SquaredDistance(c, t);
+                var d = PlannedRules.SquaredDistance(c, t);
                 if (best < 0 || d < best)
                 {
                     best = d;

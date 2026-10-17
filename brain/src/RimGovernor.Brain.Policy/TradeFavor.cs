@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 // row's sell price is the item's favor value and the trader's count is a placeholder, never a silver budget. The
 // bot sells it surplus gold and surplus prisoners.
 
-public static partial class PolicyFunctions
+public static partial class TradePolicyRules
 {
     /// <summary>The trader kind of the Empire's tribute collector.</summary>
     public const string TributeCollectorKind = "Empire_Caravan_TributeCollector";
@@ -107,9 +107,9 @@ public static partial class PolicyFunctions
         {
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }
-        var wants = SelectSurgery(f.MedicalPawns, null, f.SurgeryContextOf()).Wants;
-        var needs = OrganNeeds(f.MedicalPawns, wants, silverShort, stock, f.Recipes);
-        var parts = PartRecoveryNeeds(f.MedicalPawns, wants, f.Recipes);
+        var wants = SurgeryRules.SelectSurgery(f.MedicalPawns, null, f.SurgeryContextOf()).Wants;
+        var needs = OrganHarvestRules.OrganNeeds(f.MedicalPawns, wants, silverShort, stock, f.Recipes);
+        var parts = OrganHarvestRules.PartRecoveryNeeds(f.MedicalPawns, wants, f.Recipes);
         var output = new HashSet<PawnId>();
         foreach (var row in rows!)
         {
@@ -119,8 +119,8 @@ public static partial class PolicyFunctions
             }
             Fact<EquatableArray<PrisonerFacts>> one = Known<EquatableArray<PrisonerFacts>>([row]);
             var col = Known(colony!);
-            var harvest = SelectOrganHarvest(one, col, needs, null) is not null;
-            var recovery = SelectPartRecovery(one, col, parts, null, f.Recipes) is not null;
+            var harvest = OrganHarvestRules.SelectOrganHarvest(one, col, needs, null) is not null;
+            var recovery = OrganHarvestRules.SelectPartRecovery(one, col, parts, null, f.Recipes) is not null;
             if (!harvest && !recovery)
             {
                 output.Add(row.Pawn);
@@ -141,7 +141,7 @@ public static partial class PolicyFunctions
         {
             return false;
         }
-        return !(colony.SlaveryAllowed() && !row.WildMan && CanLabor(prospect!));
+        return !(colony.SlaveryAllowed() && !row.WildMan && PopulationRules.CanLabor(prospect!));
     }
 
     /// <summary>Adds the prisoner-sale reason to the need: a tribute collector is present or arriving and some prisoner is surplus.</summary>

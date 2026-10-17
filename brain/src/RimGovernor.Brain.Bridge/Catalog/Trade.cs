@@ -24,7 +24,7 @@ public sealed partial class DefinitionCatalog
 
         var items = ItemFacts();
         var names = new List<string> { good.Def.Value };
-        if (good == NutritionKey)
+        if (good == P.SupplyPlanRules.NutritionKey)
         {
             names = [.. items.Nutrition.Where(pair => pair.Value > 0 && TradeFood(pair.Key.Value) is not null).Select(pair => pair.Key.Value)];
             if (names.Count == 0)

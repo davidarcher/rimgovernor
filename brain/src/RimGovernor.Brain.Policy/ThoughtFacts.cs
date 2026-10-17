@@ -37,7 +37,7 @@ public sealed record ThoughtFacts
 /// <summary>One row of thought_triggers.tsv.</summary>
 public sealed record ThoughtAudit(string Dependency, string Owner);
 
-public static partial class PolicyFunctions
+public static partial class ThoughtFactsRules
 {
     /// <summary>The dependency of a def the audit table has no row for (a modded thought, a def new since the last regeneration, or a name that is not a ThoughtDef).</summary>
     public const string ThoughtUnclassified = "unclassified";

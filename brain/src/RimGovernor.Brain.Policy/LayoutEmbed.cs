@@ -253,7 +253,7 @@ internal partial class EmbedFixed
         var retired = new HashSet<Cell>();
         foreach (var g in input.RetiredGround)
         {
-            foreach (var c in PolicyFunctions.RectCells(g.Bounds()))
+            foreach (var c in PlannedRules.RectCells(g.Bounds()))
             {
                 retired.Add(c);
             }

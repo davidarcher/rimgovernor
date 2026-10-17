@@ -98,7 +98,7 @@ public sealed class PlacementSearch
                 throw new DomainException("invalid placement cell census");
             }
             var zoneKnown = row.Zone.TryGetValue(out var zone);
-            if (blocked.Contains(c) || !Positive(row.Walkable) || row.Occupied() || !zoneKnown || (zone && !StockpileCell(row, r.StockpileZones)))
+            if (blocked.Contains(c) || !RoundsRules.Positive(row.Walkable) || row.Occupied() || !zoneKnown || (zone && !PlacementSearchRules.StockpileCell(row, r.StockpileZones)))
             {
                 continue;
             }
@@ -121,7 +121,7 @@ public sealed class PlacementSearch
         }
         _sites.Sort((a, b) =>
         {
-            long da = SquaredDistance(a, r.Center), db = SquaredDistance(b, r.Center);
+            long da = PlannedRules.SquaredDistance(a, r.Center), db = PlannedRules.SquaredDistance(b, r.Center);
             if (da != db)
             {
                 return da < db ? -1 : 1;
@@ -149,7 +149,7 @@ public sealed class PlacementSearch
     /// <summary>The score Select gives a footprint anchored at the cell, for logs and tests.</summary>
     public PlacementScore Score(Cell anchor, IReadOnlyList<Cell> footprint)
     {
-        var distance = Math.Sqrt(SquaredDistance(anchor, _center));
+        var distance = Math.Sqrt(PlannedRules.SquaredDistance(anchor, _center));
         return new PlacementScore(anchor, distance, distance);
     }
 
@@ -177,7 +177,7 @@ public sealed class PlacementSearch
             {
                 throw new DomainException("unrequested placement anchor");
             }
-            if (!Positive(p.CanPlace) || !Positive(p.SafeToPlace) || !p.Footprint.TryGetValue(out var cells) || cells.Count == 0)
+            if (!RoundsRules.Positive(p.CanPlace) || !RoundsRules.Positive(p.SafeToPlace) || !p.Footprint.TryGetValue(out var cells) || cells.Count == 0)
             {
                 continue;
             }
@@ -219,7 +219,7 @@ public sealed class PlacementSearch
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class PlacementSearchRules
 {
     /// <summary>
     /// Lists the four cells beside every observed doorway so indoor furnishing never blocks a room's
@@ -231,7 +231,7 @@ public static partial class PolicyFunctions
         var aisles = new List<Cell>();
         foreach (var row in cells)
         {
-            if (!Positive(row.Doorway))
+            if (!RoundsRules.Positive(row.Doorway))
             {
                 continue;
             }

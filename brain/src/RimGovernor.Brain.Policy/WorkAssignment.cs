@@ -367,7 +367,7 @@ internal sealed class WorkWorker(WorkPawn pawn, PawnProfile profile)
 
 internal sealed record WorkCandidate(WorkWorker Worker, double Fitness, int Level);
 
-public static partial class PolicyFunctions
+public static partial class WorkRules
 {
     /// <summary>The loot census count of unforbidden, safe stacks with storage headroom that makes a haul backlog.</summary>
     private const int HaulBacklogStacks = 20;
@@ -501,7 +501,7 @@ public static partial class PolicyFunctions
                     throw new DomainException("duplicate work skill");
                 }
             }
-            var w = new WorkWorker(pawn, BuildProfile(pawn)) { Committed = committed };
+            var w = new WorkWorker(pawn, PawnRules.BuildProfile(pawn)) { Committed = committed };
             foreach (var value in work)
             {
                 if (!ValidResource(new Resource(Wire.Name(value.Work))) || value.Priority < 0 || value.Priority > 4)

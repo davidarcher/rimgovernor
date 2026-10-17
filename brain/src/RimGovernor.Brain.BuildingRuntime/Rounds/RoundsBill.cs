@@ -132,7 +132,7 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
         }
         else if (_purpose == PolicyConstants.CookAheadFood)
         {
-            var refrigeration = PolicyApi.ReviewRefrigeration(projection.Facts.FoodStorageUpkeep, _reviewer.Policy.FoodStorage);
+            var refrigeration = RefrigerationRules.ReviewRefrigeration(projection.Facts.FoodStorageUpkeep, _reviewer.Policy.FoodStorage);
             request = request with { Warm = refrigeration.WarmNutrition };
         }
         return request;

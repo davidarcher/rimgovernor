@@ -66,10 +66,10 @@ public sealed partial record HerdPlan
         var @out = new List<PenWant>();
         foreach (var unit in keys)
         {
-            var (demand, known) = PolicyFunctions.PenDemand(races, units[unit]);
+            var (demand, known) = PenFoodRules.PenDemand(races, units[unit]);
             if (known)
             {
-                @out.Add(new PenWant(unit, PolicyFunctions.PenCells(demand, perCell)));
+                @out.Add(new PenWant(unit, PenFoodRules.PenCells(demand, perCell)));
             }
         }
         return @out;
@@ -178,7 +178,7 @@ public static partial class PolicyFunctions
         {
             if (b.Building!.Definition == PenMarkerDefinition && b.Cells.Count > 0 && room.Region.Contains(b.Cells[0]))
             {
-                var r = CellsRectangle(b.Cells);
+                var r = PlacementSearchRules.CellsRectangle(b.Cells);
                 return (
                     new WantedPiece
                     {
@@ -208,7 +208,7 @@ public static partial class PolicyFunctions
         foreach (var c in room.Region.Cells())
         {
             var fits = true;
-            foreach (var m in RectCells(new Rectangle { X = c.X, Z = c.Z, Width = size.X, Height = size.Z }))
+            foreach (var m in PlannedRules.RectCells(new Rectangle { X = c.X, Z = c.Z, Width = size.X, Height = size.Z }))
             {
                 fits = fits && room.Region.Contains(m) && !taken.Contains(m);
             }

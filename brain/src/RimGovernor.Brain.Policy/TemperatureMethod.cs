@@ -168,7 +168,7 @@ public sealed record TemperatureCooling
             }
             foreach (var rotation in new[] { Rotation.North, Rotation.East, Rotation.South, Rotation.West })
             {
-                if (inside.Contains(PolicyFunctions.Step(b.Cell, PolicyFunctions.Facing(rotation), 1)))
+                if (inside.Contains(RefrigerationRules.Step(b.Cell, RefrigerationRules.Facing(rotation), 1)))
                 {
                     return true;
                 }
@@ -213,7 +213,7 @@ public sealed record ThermalShelter
     public bool Hot { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class TemperatureMethodRules
 {
     /// <summary>
     /// The intersection of the comfortable ranges of the people owning a bed in room: apparel, traits and genes
@@ -674,7 +674,7 @@ public static partial class PolicyFunctions
             {
                 // A vented wall cell hosts the powered cooler; a room with no such wall (rock-bound, or ringed
                 // by other rooms) keeps the passive cooler.
-                var (cell, rotation, ok) = VentedWall(choice.Room, cellRoom, cells, new HashSet<Cell>());
+                var (cell, rotation, ok) = RefrigerationRules.VentedWall(choice.Room, cellRoom, cells, new HashSet<Cell>());
                 if (ok)
                 {
                     return new TemperatureProposal

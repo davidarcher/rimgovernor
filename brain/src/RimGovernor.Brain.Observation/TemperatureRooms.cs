@@ -50,7 +50,7 @@ public static class TemperatureRoomsReads
                 Doors = EquatableArray.From(doors),
             });
         }
-        return Known(PolicyFunctions.MarkEnemyDoors(result with { Rooms = EquatableArray.From(output) }, []));
+        return Known(RoomsRules.MarkEnemyDoors(result with { Rooms = EquatableArray.From(output) }, []));
     }
 
     /// <summary>Reads one named native room stat; a missing or unavailable stat is unknown, never zero.</summary>

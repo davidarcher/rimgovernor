@@ -61,7 +61,7 @@ public sealed record ExcavationTarget
     public string Key() => string.Create(CultureInfo.InvariantCulture, $"{Access.X}.{Access.Z}.{Direction.X}.{Direction.Z}.{Corridor.Count}");
 }
 
-public static partial class PolicyFunctions
+public static partial class TunnelSiteRules
 {
     /// <summary>Matches NativeExcavationSite.MaxCells so a whole target fits in one site read.</summary>
     private const int ExcavationMaxCells = 64;
@@ -134,7 +134,7 @@ public static partial class PolicyFunctions
 
     // A visible natural rock cell: solid, impassable natural rock, roofed or not (the rim of a mountain carries no
     // roof, and a miner reaches the rock behind it only by mining it).
-    private static bool RockCell(SiteCell c) => c.Occupied() && c.Walkable.TryGetValue(out var walkable) && !walkable && c.NaturalRock();
+    internal static bool RockCell(SiteCell c) => c.Occupied() && c.Walkable.TryGetValue(out var walkable) && !walkable && c.NaturalRock();
 
     // Open ground still under a natural rock roof that is not part of a proper room: rock that has already been dug
     // (or a natural pocket), so a half-dug tunnel is re-planned over the same cells. Only a natural roof marks a cell
@@ -210,7 +210,7 @@ public static partial class PolicyFunctions
             }
             protectedCells.Add(c);
         }
-        bool Free(Cell p) => cells.TryGetValue(p, out var c) && !protectedCells.Contains(p) && Positive(c.Walkable) && !c.Occupied();
+        bool Free(Cell p) => cells.TryGetValue(p, out var c) && !protectedCells.Contains(p) && RoundsRules.Positive(c.Walkable) && !c.Occupied();
 
         // Diggable: unknown (fogged), visible rock or already excavated, never protected.
         bool Diggable(Cell p)
@@ -282,7 +282,7 @@ public static partial class PolicyFunctions
             }
 
             // Work already done outweighs distance: a half-dug tunnel wins over a fresh face a cell nearer.
-            return (SquaredDistance(t.Door, r.Anchor) + (4 * (long)t.Corridor.Count) - (done * 4096), true);
+            return (PlannedRules.SquaredDistance(t.Door, r.Anchor) + (4 * (long)t.Corridor.Count) - (done * 4096), true);
         }
 
         var targets = new List<ExcavationTarget>();

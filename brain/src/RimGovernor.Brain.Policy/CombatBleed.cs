@@ -67,7 +67,7 @@ public static partial class CombatBleedRules
             }
 
             var hs = state.GetValueOrDefault(h);
-            if (!Positive(t.Dead) && !Positive(t.Downed) && !(hs?.Dead ?? false) && !(hs?.Downed ?? false) && !Fleeing(h))
+            if (!RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed) && !(hs?.Dead ?? false) && !(hs?.Downed ?? false) && !Fleeing(h))
             {
                 return false;
             }
@@ -111,7 +111,7 @@ public static partial class CombatBleedRules
         foreach (var t in view.Threats.Items)
         {
             var id = CombatDecideRules.ThreatPawn(t);
-            if (!state.TryGetValue(id, out var s) || t.Building || !Positive(t.Humanlike) || Positive(t.Dead) || Positive(t.Downed) || s.Dead || s.Downed)
+            if (!state.TryGetValue(id, out var s) || t.Building || !RoundsRules.Positive(t.Humanlike) || RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed) || s.Dead || s.Downed)
             {
                 continue;
             }
@@ -151,7 +151,7 @@ public static partial class CombatBleedRules
         foreach (var t in view.Threats.Items)
         {
             var id = CombatDecideRules.ThreatPawn(t);
-            if (!state.TryGetValue(id, out var s) || t.Building || !Positive(t.Humanlike) || Positive(t.Dead) || Positive(t.Downed) || s.Dead || s.Downed)
+            if (!state.TryGetValue(id, out var s) || t.Building || !RoundsRules.Positive(t.Humanlike) || RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed) || s.Dead || s.Downed)
             {
                 continue;
             }
@@ -178,7 +178,7 @@ public static partial class CombatBleedRules
         var free = new List<SquadDefenderFacts>();
         foreach (var d in view.Defenders.Items)
         {
-            if (!orderable.Contains(d.Id) || !SquadDefenderEligible(d) || Positive(d.RangedEquipped) || next.Rescue?.Carrying(d.Id) == true)
+            if (!orderable.Contains(d.Id) || !SquadDefenseRules.SquadDefenderEligible(d) || RoundsRules.Positive(d.RangedEquipped) || next.Rescue?.Carrying(d.Id) == true)
             {
                 continue;
             }
@@ -252,7 +252,7 @@ public static partial class CombatBleedRules
         var down = CombatManhunterRules.DownPawns(view);
         foreach (var t in view.Threats.Items)
         {
-            if (!Positive(t.Dead) && !Positive(t.Downed) && !down.Contains(CombatDecideRules.ThreatPawn(t)))
+            if (!RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed) && !down.Contains(CombatDecideRules.ThreatPawn(t)))
             {
                 return false;
             }

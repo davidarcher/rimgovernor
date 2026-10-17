@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Policy;
 // that eats trees); native's NativeHuntAcquisition.PestRace applies the same rule to decide which animals the
 // hunt census offers as pest rows, and this decides which rows of the wild-animal census count toward the Need.s
 // deficit.
-public static partial class PolicyFunctions
+public static partial class PestRules
 {
     /// <summary>
     /// Counts the pests in the wild-animal census (every living factionless animal on the map, so a pest

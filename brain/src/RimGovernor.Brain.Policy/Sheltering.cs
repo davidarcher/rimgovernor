@@ -29,10 +29,10 @@ public enum ShelterTrigger
     Temperature,
 }
 
-public static partial class PolicyFunctions
+public static partial class ShelterRules
 {
     /// <summary>The native label of the bot-owned Safe allowed area; AreaIntent labels an area with its plain key.</summary>
-    public const string SafeAreaLabel = SafeAreaKey;
+    public const string SafeAreaLabel = SafeAreaRules.SafeAreaKey;
 
     /// <summary>The bot area key of the NoDanger allowed area: the home area minus the danger cells.</summary>
     public const string NoDangerAreaKey = "NoDanger";
@@ -113,7 +113,7 @@ public static partial class PolicyFunctions
                 set.Add(c);
             }
         }
-        return SortedCells(set);
+        return PlannedRules.SortedCells(set);
     }
 
     /// <summary>Whether cell lies within ThreatReachCells of a seed.</summary>
@@ -121,7 +121,7 @@ public static partial class PolicyFunctions
     {
         foreach (var s in seeds)
         {
-            if (Math.Abs(cell.X - s.X) <= ThreatReachCells && Math.Abs(cell.Z - s.Z) <= ThreatReachCells)
+            if (Math.Abs(cell.X - s.X) <= SafetyOverlayRules.ThreatReachCells && Math.Abs(cell.Z - s.Z) <= SafetyOverlayRules.ThreatReachCells)
             {
                 return true;
             }
@@ -141,7 +141,7 @@ public static partial class PolicyFunctions
                 set.Add(c);
             }
         }
-        return SortedCells(set);
+        return PlannedRules.SortedCells(set);
     }
 
     /// <summary>
@@ -296,7 +296,7 @@ public static partial class PolicyFunctions
         {
             foreach (var animal in animals)
             {
-                if (!Positive(animal.SupportsAreas) || !AreaKnownFalse(animal.RequiresPen))
+                if (!RoundsRules.Positive(animal.SupportsAreas) || !AreaKnownFalse(animal.RequiresPen))
                 {
                     continue;
                 }

@@ -74,7 +74,7 @@ public sealed record MissionPurchaseRequest
     public Fact<double> Capacity { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class TradePolicyRules
 {
     /// <summary>Sizes saved authorization from the owning supply gaps.</summary>
     public static (IReadOnlyList<CargoItem> Cargo, IReadOnlyList<ResourceKey> Goods) TradeMissionCargo(
@@ -96,7 +96,7 @@ public static partial class PolicyFunctions
             }
             var def = d.Demand.Good.Def.Value;
             var count = Math.Ceiling(d.Gap);
-            if (d.Demand.Good == NutritionKey)
+            if (d.Demand.Good == SupplyPlanRules.NutritionKey)
             {
                 def = "";
                 foreach (var row in ordered)
@@ -176,7 +176,7 @@ public static partial class PolicyFunctions
             resourceTargets.Add(new ResourceDemand { Key = new ResourceKey { Def = def }, Count = target });
         }
         var stockFact = known ? Known(EquatableArray.From(quantities)) : Unknown<EquatableArray<ResourceQuantity>>();
-        var demand = BuildResourceDemand(new ResourceDemandInput { Targets = EquatableArray.From(resourceTargets), Stock = stockFact });
+        var demand = ResourceRules.BuildResourceDemand(new ResourceDemandInput { Targets = EquatableArray.From(resourceTargets), Stock = stockFact });
         if (!demand.TryGetValue(out var needs))
         {
             return (noLines, noCargo);
@@ -246,7 +246,7 @@ public static partial class PolicyFunctions
                 wanted[row.DefName] -= count;
             }
         }
-        var plan = PlanSupply(
+        var plan = SupplyPlanRules.PlanSupply(
             new SupplyPlanRequest
             {
                 Demands = Known(EquatableArray.From(demands)),

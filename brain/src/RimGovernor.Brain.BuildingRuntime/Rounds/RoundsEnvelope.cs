@@ -66,7 +66,7 @@ partial class LayoutRounds
             {
                 return ([], false);
             }
-            if (PolicyApi.EnvelopeOps(PolicyApi.ReconcileRoom(input)).Count > 0)
+            if (PolicyApi.EnvelopeOps(ReconcileRules.ReconcileRoom(input)).Count > 0)
             {
                 rooms.Add(room);
             }

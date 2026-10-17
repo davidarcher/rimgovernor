@@ -9,7 +9,7 @@ public static partial class CombatShelterRules
     internal static List<CombatRole> ShelterRoles(CombatView view, GeometryReply geometry, IReadOnlyList<Cell> unreachable) =>
         ShelterRolesFor(view, geometry, unreachable, d =>
         {
-            var (busy, known) = SquadDraftBusy(d);
+            var (busy, known) = SquadDefenseRules.SquadDraftBusy(d);
             return known && !busy;
         });
 
@@ -20,7 +20,7 @@ public static partial class CombatShelterRules
         var down = CombatManhunterRules.DownPawns(view);
         foreach (var t in view.Positional)
         {
-            if (t.Position.TryGetValue(out var c) && !Positive(t.Dead) && !Positive(t.Downed) && !down.Contains(t.Id))
+            if (t.Position.TryGetValue(out var c) && !RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed) && !down.Contains(t.Id))
             {
                 hostiles.Add(c);
             }
@@ -34,7 +34,7 @@ public static partial class CombatShelterRules
         {
             if (r.Roofed && !hostiles.Any(r.Contains))
             {
-                safeCells.AddRange(RectCells(r.Interior));
+                safeCells.AddRange(PlannedRules.RectCells(r.Interior));
             }
         }
         var safe = safeCells
@@ -58,7 +58,7 @@ public static partial class CombatShelterRules
         var taken = new List<Cell>();
         foreach (var d in view.Defenders)
         {
-            if (!at.TryGetValue(d.Id, out var c) || !pick(d) || Positive(d.Dead) || Positive(d.Downed) || d.MentalState)
+            if (!at.TryGetValue(d.Id, out var c) || !pick(d) || RoundsRules.Positive(d.Dead) || RoundsRules.Positive(d.Downed) || d.MentalState)
             {
                 continue;
             }
@@ -122,7 +122,7 @@ public static partial class CombatShelterRules
                 }
                 foreach (var hostile in view.Positional)
                 {
-                    if (!hostile.Position.TryGetValue(out var cell) || Positive(hostile.Dead) || Positive(hostile.Downed))
+                    if (!hostile.Position.TryGetValue(out var cell) || RoundsRules.Positive(hostile.Dead) || RoundsRules.Positive(hostile.Downed))
                     {
                         continue;
                     }
@@ -168,7 +168,7 @@ public static partial class CombatShelterRules
         {
             if (room.Roofed)
             {
-                foreach (var c in RectCells(room.Interior))
+                foreach (var c in PlannedRules.RectCells(room.Interior))
                 {
                     Add(c);
                 }
@@ -183,7 +183,7 @@ public static partial class CombatShelterRules
             var hostiles = new List<Cell>();
             foreach (var h in view.Positional)
             {
-                if (h.Position.TryGetValue(out var c) && !Positive(h.Dead) && !Positive(h.Downed))
+                if (h.Position.TryGetValue(out var c) && !RoundsRules.Positive(h.Dead) && !RoundsRules.Positive(h.Downed))
                 {
                     hostiles.Add(c);
                 }

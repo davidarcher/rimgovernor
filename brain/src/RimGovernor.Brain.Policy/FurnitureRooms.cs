@@ -56,7 +56,7 @@ public static partial class PolicyFunctions
         var doorways = new List<Cell>();
         foreach (var c in cells)
         {
-            if (Positive(c.Doorway))
+            if (RoundsRules.Positive(c.Doorway))
             {
                 doorways.Add(c.Cell);
             }
@@ -81,7 +81,7 @@ public static partial class PolicyFunctions
                 {
                     continue;
                 }
-                var rect = CellsRectangle(b.Cells);
+                var rect = PlacementSearchRules.CellsRectangle(b.Cells);
                 if (!RectInside(input.Interior, rect))
                 {
                     continue;

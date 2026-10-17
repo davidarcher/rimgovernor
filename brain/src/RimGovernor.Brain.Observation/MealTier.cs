@@ -117,7 +117,7 @@ public sealed partial record ColonyProjection
         }
         if (ProductionBenches.TryGetValue(out var benches))
         {
-            r = r with { Previous = PolicyFunctions.ObservedMealTier(benches) };
+            r = r with { Previous = MealRules.ObservedMealTier(benches) };
         }
         if (FoodChannels.TryGetValue(out var channels))
         {

@@ -28,7 +28,7 @@ public sealed class YardRunwayTests
             {
                 Id = "Zone_yard",
                 Role = StockpileRolesConstants.YardRole,
-                Cells = RectCells(YardRoom),
+                Cells = PlannedRules.RectCells(YardRoom),
                 Capacity = Known(100),
                 Used = Known(used),
                 Filter = new StockpileFilter(FilterBase.Nothing),
@@ -62,42 +62,42 @@ public sealed class YardRunwayTests
     {
         // Both yards are 90% full. Ten free stacks last two days at five a day, under the five-day lead time; at
         // one a day they last ten.
-        Assert.Equal(2, YardDemand(Request(90, 5)));
-        Assert.Equal(0, YardDemand(Request(90, 1)));
+        Assert.Equal(2, StoreRules.YardDemand(Request(90, 5)));
+        Assert.Equal(0, StoreRules.YardDemand(Request(90, 1)));
     }
 
     [Fact]
     public void AYardWithStrandedStacksAsksAtAnyFill()
     {
-        Assert.Equal(2, YardDemand(Request(10, null, Stranded())));
+        Assert.Equal(2, StoreRules.YardDemand(Request(10, null, Stranded())));
     }
 
     [Fact]
     public void UnknownInflowAndNoStrandedStockAsksNothing()
     {
-        Assert.Equal(0, YardDemand(Request(100, null)));
-        Assert.False(StoreCapacity(Request(100, null), Yard).RunwayDays.IsKnown);
+        Assert.Equal(0, StoreRules.YardDemand(Request(100, null)));
+        Assert.False(StoreRules.StoreCapacity(Request(100, null), Yard).RunwayDays.IsKnown);
     }
 
     [Fact]
     public void ADrainingYardAsksNothing()
     {
         var request = Request(99, -3);
-        Assert.Equal(0, YardDemand(request));
-        Assert.Equal(Known(double.PositiveInfinity), StoreCapacity(request, Yard).RunwayDays);
+        Assert.Equal(0, StoreRules.YardDemand(request));
+        Assert.Equal(Known(double.PositiveInfinity), StoreRules.StoreCapacity(request, Yard).RunwayDays);
     }
 
     [Fact]
     public void AYardWhoseZoneDoesNotStandWaits()
     {
-        Assert.Equal(0, YardDemand(Request(90, 5, Stranded()) with { Zones = [] }));
+        Assert.Equal(0, StoreRules.YardDemand(Request(90, 5, Stranded()) with { Zones = [] }));
     }
 
     [Fact]
     public void LeadTimeIsBuildWorkAtBaseSpeedPlusTheHorizon()
     {
-        Assert.Equal(Known(MaintenanceHorizonDays), StorageLeadDays(Known(FurtherYardWorkTicks)));
-        Assert.Equal(Known(MaintenanceHorizonDays + 0.5), StorageLeadDays(Known(GameTime.TicksPerDay / 2.0)));
-        Assert.False(StorageLeadDays(Unknown<double>()).IsKnown);
+        Assert.Equal(Known(MaintenanceHorizonDays), StoreRules.StorageLeadDays(Known(StoreRules.FurtherYardWorkTicks)));
+        Assert.Equal(Known(MaintenanceHorizonDays + 0.5), StoreRules.StorageLeadDays(Known(GameTime.TicksPerDay / 2.0)));
+        Assert.False(StoreRules.StorageLeadDays(Unknown<double>()).IsKnown);
     }
 }

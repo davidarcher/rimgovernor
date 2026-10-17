@@ -217,7 +217,7 @@ public static partial class CombatAnimalsRules
         var ours = new List<Cell>();
         foreach (var d in view.Defenders.Items)
         {
-            if (Positive(d.Dead) || Positive(d.Downed))
+            if (RoundsRules.Positive(d.Dead) || RoundsRules.Positive(d.Downed))
             {
                 continue;
             }
@@ -240,7 +240,7 @@ public static partial class CombatAnimalsRules
             }
 
             var to = ours[CombatManhunterRules.NearestIndex(at, ours)];
-            var c = new Cell(at.X + Sign(to.X - at.X), at.Z + Sign(to.Z - at.Z));
+            var c = new Cell(at.X + TradePolicyRules.Sign(to.X - at.X), at.Z + TradePolicyRules.Sign(to.Z - at.Z));
             if (c != at && c.X >= 0 && c.Z >= 0 && !output.Contains(c))
             {
                 output.Add(c);
@@ -290,7 +290,7 @@ public static partial class CombatAnimalsRules
         foreach (var t in view.Threats.Items)
         {
             var known = t.RangedEquipped.TryGetValue(out var ranged);
-            if (!t.Building && Positive(t.Humanlike) && known && !ranged && !Positive(t.Dead) && !Positive(t.Downed))
+            if (!t.Building && RoundsRules.Positive(t.Humanlike) && known && !ranged && !RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed))
             {
                 melee.Add(CombatDecideRules.ThreatPawn(t));
             }
@@ -320,7 +320,7 @@ public static partial class CombatAnimalsRules
         var humanlike = new HashSet<PawnId>();
         foreach (var t in view.Threats.Items)
         {
-            if (!t.Building && Positive(t.Humanlike) && !Positive(t.Dead) && !Positive(t.Downed))
+            if (!t.Building && RoundsRules.Positive(t.Humanlike) && !RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed))
             {
                 humanlike.Add(CombatDecideRules.ThreatPawn(t));
             }

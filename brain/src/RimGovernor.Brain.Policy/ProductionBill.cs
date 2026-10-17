@@ -184,13 +184,13 @@ public sealed record ProductionBillContext
     public ArtDemand? Art { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class ProductionRules
 {
     /// <summary>
     /// Preserves unknown fields, but any observed drift is enough to correct a matching bill. Target bills
     /// must cover the planned minimum; finite repeat counts cannot maintain stock. Forever remains adequate.
     /// </summary>
-    private static bool BillAdequate(ExistingProductionBill bill, BillSelection selection)
+    internal static bool BillAdequate(ExistingProductionBill bill, BillSelection selection)
     {
         var ak = bill.Active.TryGetValue(out var active);
         var fk = bill.Forever.TryGetValue(out var forever);
@@ -303,7 +303,7 @@ public static partial class PolicyFunctions
             {
                 return none;
             }
-            return SelectMealBill(benches, colonists, context[0].Meals!, context[0].Ingredients);
+            return MealRules.SelectMealBill(benches, colonists, context[0].Meals!, context[0].Ingredients);
         }
         if (purpose == PolicyConstants.PreserveFood)
         {

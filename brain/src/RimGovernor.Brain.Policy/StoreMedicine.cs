@@ -40,17 +40,17 @@ public sealed partial record StoreView
             {
                 foreach (var p in plan!.Pieces)
                 {
-                    avoid.AddRange(PolicyFunctions.RectCells(p.Rect));
+                    avoid.AddRange(PlannedRules.RectCells(p.Rect));
                     if (p.Row == "beds")
                     {
-                        beds.AddRange(PolicyFunctions.RectCells(p.Rect));
+                        beds.AddRange(PlannedRules.RectCells(p.Rect));
                     }
                 }
             }
         }
-        var open = PolicyFunctions.NewStockpileOpen(new StockpileRequest { Bounds = Bounds, Cells = Cells, Protected = Protected });
-        open = open with { Only = PolicyFunctions.CellSet(PolicyFunctions.WithoutCells(PolicyFunctions.RectCells(hospitalBounds), avoid)) };
-        var rects = PolicyFunctions.RectangleSites(open, hospital.Door, 2, 2, null, hospitalBounds.Width * hospitalBounds.Height);
+        var open = StockpileRules.NewStockpileOpen(new StockpileRequest { Bounds = Bounds, Cells = Cells, Protected = Protected });
+        open = open with { Only = StockpileRules.CellSet(StoreRules.WithoutCells(PlannedRules.RectCells(hospitalBounds), avoid)) };
+        var rects = StockpileRules.RectangleSites(open, hospital.Door, 2, 2, null, hospitalBounds.Width * hospitalBounds.Height);
         if (rects.Count == 0)
         {
             return (null, false);
@@ -79,7 +79,7 @@ public sealed partial record StoreView
             {
                 Site = new StoreSite
                 {
-                    Role = PolicyFunctions.PlannedKey(StockpileRolesConstants.MedicineRolePrefix, hospitalBounds),
+                    Role = StoreRules.PlannedKey(StockpileRolesConstants.MedicineRolePrefix, hospitalBounds),
                     Interior = hospitalBounds,
                     Width = 2,
                     Height = 2,

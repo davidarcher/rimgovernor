@@ -52,7 +52,7 @@ public sealed record PlannedSiteFacts
 /// <summary>A stuff a planned ring may be built from: its price (the cost list's market value) and whether the colony holds any.</summary>
 public sealed record PlannedRingStuff(string Stuff, double Value, bool Stocked);
 
-public static partial class PolicyFunctions
+public static partial class PlannedRules
 {
     /// <summary>The alternatives a planned room is compared on: every scope of the first stuff, then further stuffs.</summary>
     public const int PlannedAlternativesPerRoom = 4;
@@ -223,7 +223,7 @@ public static partial class PolicyFunctions
             var id = "planned/shelf/" + c.Zone + "/" + anchor.X + "/" + anchor.Z;
             if (ids.Add(id))
             {
-                sites.Add(new PlannedBuildSite(id, 0, OpKind.Build, ShelfDefinition, priced.Stuff, c.Piece.Rot, [anchor])
+                sites.Add(new PlannedBuildSite(id, 0, OpKind.Build, StorageRules.ShelfDefinition, priced.Stuff, c.Piece.Rot, [anchor])
                     { Zone = c.Zone, Material = Priced(priced.Costs, 1) });
             }
         }

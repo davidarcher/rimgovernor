@@ -29,7 +29,7 @@ internal static class EquipCandidates
             MentalState = row.MentalState is not null,
         };
         var work = RoundsWorkReads.WorkPawnRow(row, catalog, things);
-        facts = facts with { Profile = PolicyApi.BuildProfile(work) };
+        facts = facts with { Profile = PawnRules.BuildProfile(work) };
         if (work.Work.TryGetValue(out var rows))
         {
             foreach (var w in rows)

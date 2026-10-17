@@ -123,7 +123,7 @@ public sealed record RecoveryQueue
     public string Admitted { get; init; } = "";
 }
 
-public static partial class PolicyFunctions
+public static partial class RecoveryRules
 {
     private static List<Resource> RecoveryShort(SupplyCandidate c, IReadOnlySet<Resource> shortSet)
     {
@@ -162,9 +162,9 @@ public static partial class PolicyFunctions
     {
         if (r.Threat.TryGetValue(out var threat) && threat)
         {
-            return RemoteHoldThreat;
+            return RemoteRules.RemoteHoldThreat;
         }
-        if (OutdoorHazardHeldDash(r.Hazard, r.DashOpen))
+        if (OutdoorHazardRules.OutdoorHazardHeldDash(r.Hazard, r.DashOpen))
         {
             return RemoteHoldHazard;
         }
@@ -182,11 +182,11 @@ public static partial class PolicyFunctions
         }
         if (!t.RouteSafe.TryGetValue(out var safe) || !safe)
         {
-            return RemoteHoldRouteUnsafe;
+            return RemoteRules.RemoteHoldRouteUnsafe;
         }
         if (r.Urgent.TryGetValue(out var urgent) && urgent)
         {
-            return RemoteHoldUrgentWork;
+            return RemoteRules.RemoteHoldUrgentWork;
         }
         return "";
     }
@@ -263,7 +263,7 @@ public static partial class PolicyFunctions
             }
             else if (throttled[i])
             {
-                e = e with { Status = RecoveryStatus.Deferred, Reason = RemoteHoldMissingStorage };
+                e = e with { Status = RecoveryStatus.Deferred, Reason = RemoteRules.RemoteHoldMissingStorage };
             }
             else if (admitted.Length == 0)
             {
@@ -300,7 +300,7 @@ public static partial class PolicyFunctions
             Kind = RemoteWorkKind.Salvage,
             RoomObstruction = roomObstruction,
             Cell = new Cell((row.Minimum.X + row.Maximum.X) / 2, (row.Minimum.Z + row.Maximum.Z) / 2),
-            Hold = RemoteHoldReason(RemoteWorkKind.Salvage, ClearanceHoldReason(own)),
+            Hold = RemoteRules.RemoteHoldReason(RemoteWorkKind.Salvage, ClearanceHoldReason(own)),
             RouteSafe = Unknown<bool>(),
             Skipped = row.SalvageSkipped,
         };
@@ -308,7 +308,7 @@ public static partial class PolicyFunctions
         {
             t = t with
             {
-                Candidate = SalvagePriced(row.EntityId, row.Salvage).Candidate,
+                Candidate = RemoteRules.SalvagePriced(row.EntityId, row.Salvage).Candidate,
                 Evidenced = true,
                 RouteSafe = row.Salvage.Safe,
             };
@@ -330,7 +330,7 @@ public static partial class PolicyFunctions
             Kind = RemoteWorkKind.Loot,
             Cell = row.Supply.Cell,
             Evidenced = true,
-            Candidate = LootCandidate(row),
+            Candidate = RemoteRules.LootCandidate(row),
             RouteSafe = row.SafetyKnown ? Known(row.SafeToHaul) : Unknown<bool>(),
         };
         return (t, true);
@@ -387,7 +387,7 @@ public static partial class PolicyFunctions
             }
             input = input with { Stock = Known(EquatableArray.From(rows)) };
         }
-        var demand = BuildResourceDemand(input);
+        var demand = ResourceRules.BuildResourceDemand(input);
         var output = new HashSet<Resource>();
         if (demand.TryGetValue(out var demandRows))
         {
@@ -463,9 +463,9 @@ public static partial class PolicyFunctions
         return new RecoveryRequest
         {
             Short = shortSet,
-            Urgent = UrgentWorkCompeting(f),
+            Urgent = RemoteRules.UrgentWorkCompeting(f),
             Threat = threat,
-            Hazard = OutdoorHazardsOf(f),
+            Hazard = OutdoorHazardRules.OutdoorHazardsOf(f),
             DashOpen = f.DashOpen(),
             Origins = origins,
             Center = center,

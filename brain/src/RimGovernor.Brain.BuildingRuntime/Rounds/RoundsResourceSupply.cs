@@ -129,7 +129,7 @@ internal sealed class ResourceSupplyState
         {
             foreach (var e in Plan.Opened(resource))
             {
-                if (e.Candidate.Kind != CandidateKind.Trade || e.Candidate.Id != PolicyFunctions.TradeCandidateID(trader, resource))
+                if (e.Candidate.Kind != CandidateKind.Trade || e.Candidate.Id != TradePolicyRules.TradeCandidateID(trader, resource))
                 {
                     continue;
                 }
@@ -210,7 +210,7 @@ public sealed partial class Rounder
         var (expected, projection) = await AcquisitionReadingAsync(state, review, call).ConfigureAwait(false);
         var stock = projection.Facts.Resources;
         var targets = ResourceTargets(state.Snapshot);
-        var ranked = PolicyFunctions.RankResourceTargets(targets, stock).ToList();
+        var ranked = ResourceRules.RankResourceTargets(targets, stock).ToList();
         var serves = Demand.Get(state.Snapshot).Serves;
         var output = new ResourceSupplyState();
         var planner = ResourceNative is null ? null : RoundsResourcePlanner.NewRoundsResourcePlanner(this, ResourceNative);
@@ -239,7 +239,7 @@ public sealed partial class Rounder
         if (projection.Facts.Traders.TryGetValue(out var traders))
         {
             var silverKnown = projection.Facts.Silver().TryGetValue(out var silver);
-            var (reserveValue, reserveKnown) = PolicyFunctions.TradeSilverReserve(projection.Facts.Colonists);
+            var (reserveValue, reserveKnown) = TradePolicyRules.TradeSilverReserve(projection.Facts.Colonists);
             reserve = reserveValue;
             if (silverKnown && reserveKnown)
             {
@@ -367,7 +367,7 @@ public sealed partial class Rounder
             }
 
             candidates.AddRange(output.Drill.Candidates(resource, deficit, row));
-            candidates.AddRange(PolicyFunctions.TradeOfferCandidates(resource, offers, deficit, spendable, reserve));
+            candidates.AddRange(TradePolicyRules.TradeOfferCandidates(resource, offers, deficit, spendable, reserve));
             input = input with { Candidates = [.. candidates] };
             inputs.Add(input);
         }
@@ -375,7 +375,7 @@ public sealed partial class Rounder
         try
         {
             var labor = RoundsResourcePlanner.ResourceLabor(projection);
-            output.Plan = PolicyFunctions.PlanResourceSupply(inputs, labor);
+            output.Plan = ResourceRules.PlanResourceSupply(inputs, labor);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -394,10 +394,10 @@ public sealed partial class RoundsResourcePlanner
         var workers = p.Workers;
         if (p.WorkPawns.TryGetValue(out var pawns))
         {
-            workers = PolicyFunctions.RoundsWorkers(pawns);
+            workers = ResearchRules.RoundsWorkers(pawns);
         }
 
-        return PolicyFunctions.ResidualSupplyLabor(workers, p.Facts.FoodPlan);
+        return ResourceRules.ResidualSupplyLabor(workers, p.Facts.FoodPlan);
     }
 
     internal static (Fact<int> Slots, bool NoHunter) HuntSlots(ColonyProjection projection)
@@ -406,15 +406,15 @@ public sealed partial class RoundsResourcePlanner
         var pendingKnown = projection.PendingHunts.TryGetValue(out var pending);
         if (projection.WorkPawns.TryGetValue(out var pawns))
         {
-            var profiles = PolicyFunctions.Profiles(pawns);
-            if (PolicyFunctions.HunterFor(profiles) is null)
+            var profiles = PawnRules.Profiles(pawns);
+            if (PawnRules.HunterFor(profiles) is null)
             {
                 return (Known(0), true);
             }
 
             if (pendingKnown)
             {
-                slots = Known(PolicyFunctions.HuntBudget(profiles, pending!));
+                slots = Known(PawnRules.HuntBudget(profiles, pending!));
             }
         }
 

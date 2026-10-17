@@ -67,7 +67,7 @@ public sealed class StoreStacksTests
 
         Assert.Equal(Known(10), zone.Capacity);
         Assert.False(zone.Used.IsKnown);
-        var count = Assert.Single(PolicyFunctions.StockpileRoleCounts([zone]));
+        var count = Assert.Single(StockpileRules.StockpileRoleCounts([zone]));
         Assert.False(count.Used.IsKnown);
         Assert.Equal(Known(10), count.Capacity);
     }
@@ -75,7 +75,7 @@ public sealed class StoreStacksTests
     [Fact]
     public void ShelfCellMissingFromCensusIsUnknown()
     {
-        var (capacity, used) = PolicyFunctions.StorageStacks([new Cell(0, 0), new Cell(9, 9)], new Dictionary<Cell, SiteCell> { [new Cell(0, 0)] = Floor(0, 1) });
+        var (capacity, used) = StockpileRules.StorageStacks([new Cell(0, 0), new Cell(9, 9)], new Dictionary<Cell, SiteCell> { [new Cell(0, 0)] = Floor(0, 1) });
 
         Assert.False(capacity.IsKnown);
         Assert.False(used.IsKnown);

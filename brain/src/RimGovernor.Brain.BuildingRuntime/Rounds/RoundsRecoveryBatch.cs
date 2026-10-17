@@ -9,7 +9,7 @@ public sealed partial class HomeUpkeepReader
             return new GroundStep();
         }
 
-        var targets = PolicyFunctions.RecoveryBatchTargets(queue, rows);
+        var targets = RecoveryRules.RecoveryBatchTargets(queue, rows);
         if (targets.Count == 0)
         {
             return new GroundStep();
@@ -26,7 +26,7 @@ public sealed partial class HomeUpkeepReader
             return new GroundStep();
         }
 
-        var batch = PolicyFunctions.PlanRecoveryBatch(new RecoveryBatchRequest { Grid = ColonyRoofGrid(colony), Rules = roofs, Targets = targets });
+        var batch = RecoveryRules.PlanRecoveryBatch(new RecoveryBatchRequest { Grid = ColonyRoofGrid(colony), Rules = roofs, Targets = targets });
         Tel.Decide(RecoveryBatchDecision(targets.Count, batch));
         switch (batch.Stage)
         {

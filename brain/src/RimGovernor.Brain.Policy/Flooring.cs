@@ -362,9 +362,9 @@ public static partial class PolicyFunctions
         {
             Floors =
             [
-                StrawMatting, "SterileTile", "TileSandstone", "TileGranite", "TileLimestone", "TileSlate", "TileMarble",
+                TierStyleRules.StrawMatting, "SterileTile", "TileSandstone", "TileGranite", "TileLimestone", "TileSlate", "TileMarble",
                 "FlagstoneSandstone", "FlagstoneGranite", "FlagstoneLimestone", "FlagstoneSlate", "FlagstoneMarble",
-                Carpet, "PavedTile", "Concrete", "WoodPlankFloor",
+                TierStyleRules.Carpet, "PavedTile", "Concrete", "WoodPlankFloor",
             ],
             MaxCellsPerPlan = 24,
             Clean = new FloorWeights { Cleanliness = 10, Beauty = 1, PathCost = 1, Flammability = 1, Cost = 0.2 },
@@ -421,7 +421,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The tier a room role alone requires.</summary>
-    private static FloorTier? RoleFloorTier(RoomRole role) =>
+    internal static FloorTier? RoleFloorTier(RoomRole role) =>
         role switch
         {
             RoomRole.Kitchen or RoomRole.Hospital or RoomRole.Laboratory => FloorTier.Clean,
@@ -431,7 +431,7 @@ public static partial class PolicyFunctions
         };
 
     /// <summary>Reports whether tags holds any of want.</summary>
-    private static bool HasAnyTag(IReadOnlyList<string> tags, IReadOnlyList<string> want) => tags.Any(want.Contains);
+    internal static bool HasAnyTag(IReadOnlyList<string> tags, IReadOnlyList<string> want) => tags.Any(want.Contains);
 
     private static bool FloorDeficient(FloorTier tier, FloorTerrain t) =>
         tier switch
@@ -656,7 +656,7 @@ public static partial class PolicyFunctions
         };
 
     /// <summary>Prices one candidate for a tier; Ok is false when the floor fails the tier's requirement outright.</summary>
-    private static (double Score, bool Ok) FloorScore(FloorTier tier, FloorDefinition d, FloorWeights w)
+    internal static (double Score, bool Ok) FloorScore(FloorTier tier, FloorDefinition d, FloorWeights w)
     {
         var cleanliness = d.Cleanliness.ValueOrDefault;
         var beauty = d.Beauty.ValueOrDefault;

@@ -35,7 +35,7 @@ public sealed class LaborProfileTests
         { EconomyFamily.Trade.Value, [WorkType.Art, WorkType.Tailoring, WorkType.Smithing, WorkType.Crafting] },
         { AdminFamily.Burial.Value, [WorkType.Construction] },
         { AdminFamily.Stockpiles.Value, [WorkType.Hauling] },
-        { MedicalReservesNeed.Value, [WorkType.Crafting, WorkType.PlantCutting] },
+        { MedicalRules.MedicalReservesNeed.Value, [WorkType.Crafting, WorkType.PlantCutting] },
         { ShelterFamily.Starter.Value, [WorkType.Construction] },
         { ShelterFamily.Sleeping.Value, [WorkType.Construction] },
         { ShelterFamily.Expansion.Value, [WorkType.Construction] },

@@ -54,7 +54,7 @@ public static class ForecastMaterialChoices
                 foreach (var cost in option.Cost) next[cost.Resource] = checked(next.GetValueOrDefault(cost.Resource) + cost.Count);
                 if (next.Any(c => !budget.GetValueOrDefault(c.Key, Known(0.0)).IsKnown))
                 { findings.Add("unknown_material:" + option.Id); continue; }
-                if (!MaterialBudgetCovers(budget, next.Select(c => new Amount(c.Key, c.Value)), 1)) continue;
+                if (!ProductionRules.MaterialBudgetCovers(budget, next.Select(c => new Amount(c.Key, c.Value)), 1)) continue;
                 if (!double.IsFinite(value + benefit)) throw new DomainException("material value overflow");
                 selected.Add(option);
                 var evaluated = valuation is null ? null : ForecastMaterialValue.ValueMaterialPlan(selected, valuation, findings);

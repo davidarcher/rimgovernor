@@ -61,7 +61,7 @@ public sealed record ResourceSupply
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class ResourceRules
 {
     /// <summary>
     /// Runs PlanSupply over the deficits as stock demands wanted now, sharing one labor budget (work ticks per
@@ -81,7 +81,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var demand = SupplyDemandOfResource(new ResourceDemand { Key = new ResourceKey { Def = input.Resource }, Count = input.Deficit });
+            var demand = SupplyPlanRules.SupplyDemandOfResource(new ResourceDemand { Key = new ResourceKey { Def = input.Resource }, Count = input.Deficit });
             demands.Add(demand with { HorizonDays = input.HorizonDays });
             foreach (var q in input.Usable)
             {
@@ -104,7 +104,7 @@ public static partial class PolicyFunctions
             }
         }
         var spendable = keys.Select(k => new ResourceQuantity { Key = k, Count = usable[k] }).ToList();
-        var plan = PlanSupply(new SupplyPlanRequest
+        var plan = SupplyPlanRules.PlanSupply(new SupplyPlanRequest
         {
             Demands = Known(EquatableArray.From(demands)),
             Candidates = Known(EquatableArray.From(candidates)),

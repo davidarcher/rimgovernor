@@ -201,7 +201,7 @@ public sealed partial record CombatView
         var output = new Dictionary<PawnId, bool>();
         foreach (var d in Defenders.Items)
         {
-            output[d.Id] = !Positive(d.Dead) && !Positive(d.Downed) && !d.Deathresting;
+            output[d.Id] = !RoundsRules.Positive(d.Dead) && !RoundsRules.Positive(d.Downed) && !d.Deathresting;
         }
 
         foreach (var p in Pawns.Items)
@@ -1396,7 +1396,7 @@ public static partial class CombatDecideRules
         var down = CombatManhunterRules.DownPawns(view);
         foreach (var t in view.Threats.Items)
         {
-            if (Positive(t.Dead) || Positive(t.Downed))
+            if (RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed))
             {
                 down.Add(ThreatPawn(t));
             }
@@ -1620,14 +1620,14 @@ public static partial class CombatDecideRules
     {
         if (view.Threats.Count == 1)
         {
-            var (tribal, ok) = SelectTribalRaiderDefense(view.Threats.Items[0], view.Defenders.Items);
+            var (tribal, ok) = SquadDefenseRules.SelectTribalRaiderDefense(view.Threats.Items[0], view.Defenders.Items);
             if (ok)
             {
                 return (tribal.ToList(), true);
             }
         }
 
-        var (squad, squadOk) = SelectSquadDefense(CombatMechRules.MarkSquadMechs(view), view.Defenders.Items);
+        var (squad, squadOk) = SquadDefenseRules.SelectSquadDefense(CombatMechRules.MarkSquadMechs(view), view.Defenders.Items);
         return ([.. squad], squadOk);
     }
 

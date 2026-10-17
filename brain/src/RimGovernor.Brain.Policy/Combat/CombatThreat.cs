@@ -159,7 +159,7 @@ public static partial class CombatThreatRules
         {
             var id = t.Id;
             var s = state.TryGetValue(id, out var index) ? view.Pawns[index] : new CombatPawnState { Id = id };
-            if (t.Building || Positive(t.Dead) || Positive(t.Downed) || s.Dead || s.Downed || CombatAnomalyRules.HiddenFromPlayer(t))
+            if (t.Building || RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed) || s.Dead || s.Downed || CombatAnomalyRules.HiddenFromPlayer(t))
             {
                 continue;
             }

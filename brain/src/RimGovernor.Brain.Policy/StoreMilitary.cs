@@ -13,7 +13,7 @@ internal sealed class MilitaryOwner : IStoreOwner
         {
             return [];
         }
-        var patches = PolicyFunctions.GearPatchesOf(view.Layout);
+        var patches = StoreRules.GearPatchesOf(view.Layout);
         var output = new List<Store>();
         (string Role, Rectangle? Patch, StockpileFilter Filter)[] gears =
         [
@@ -43,5 +43,5 @@ internal sealed class MilitaryOwner : IStoreOwner
 
     /// <summary>The department's only ask of layout is the training range and ring.</summary>
     public RoomDemand RoomDemand(StoreView view) =>
-        new() { Ranges = PolicyFunctions.RangesWanted(view.TrainingStands), Rings = PolicyFunctions.RangesWanted(view.TrainingRings) };
+        new() { Ranges = TrainingRules.RangesWanted(view.TrainingStands), Rings = TrainingRules.RangesWanted(view.TrainingRings) };
 }

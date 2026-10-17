@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class SafeAreaRules
 {
     /// <summary>The bot area key of the Safe allowed area.</summary>
     public const string SafeAreaKey = "Safe";
@@ -42,7 +42,7 @@ public static partial class PolicyFunctions
                 }
             }
         }
-        return SortedCells(inner.Count == 0 ? exposed : inner);
+        return PlannedRules.SortedCells(inner.Count == 0 ? exposed : inner);
     }
 
     /// <summary>
@@ -97,7 +97,7 @@ public static partial class PolicyFunctions
         }
         if (removed.Count > 0)
         {
-            output.Add(new Area(AreaOperation.ClearCells, key, SortedCells(removed)));
+            output.Add(new Area(AreaOperation.ClearCells, key, PlannedRules.SortedCells(removed)));
         }
         return output;
     }

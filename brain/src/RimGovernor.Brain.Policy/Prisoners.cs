@@ -86,7 +86,7 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
                 // run side by side.
                 foreach (var row in rows.OrderBy(r => r.Pawn))
                 {
-                    if (PolicyFunctions.PrisonerUse(row, colony, facts.FoodDays, policy).Want is not { } mode)
+                    if (PopulationRules.PrisonerUse(row, colony, facts.FoodDays, policy).Want is not { } mode)
                     {
                         continue;
                     }
@@ -95,7 +95,7 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
                         id => new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPrisonerInteractionAction(new ActionId(id.Value + "-0"), interaction)])));
                 }
             }
-            else if (need.Id == Custody && PolicyFunctions.SelectCustodyMethod(facts.Custody) is { Reason: CustodyPlanReason.None } held)
+            else if (need.Id == Custody && PopulationRules.SelectCustodyMethod(facts.Custody) is { Reason: CustodyPlanReason.None } held)
             {
                 output.Add(held.Decision == CustodyDecision.Rescue
                     ? NeedMethod.Held(Custody, RescueHeld, "Critical eligible dependent rescue belongs to the patient's medical/critical Need; other custody transport requires shared forecast support.")
@@ -111,14 +111,14 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
 
     private static Need RecruitNeed(PrisonersFacts facts, PrisonerPolicy policy)
     {
-        if (!PolicyFunctions.PrisonerRecruitDeficit(facts.Prisoners, facts.Colony, facts.FoodDays, policy).TryGetValue(out var deficit))
+        if (!PopulationRules.PrisonerRecruitDeficit(facts.Prisoners, facts.Colony, facts.FoodDays, policy).TryGetValue(out var deficit))
         {
             return new Need { Id = Recruit, Tier = NeedTier.Development, Evidence = [new("prisoner_interactions_owed", default)] };
         }
         var owed = 0;
         if (deficit && facts.Prisoners.TryGetValue(out var rows) && facts.Colony.TryGetValue(out var colony))
         {
-            owed = rows.Count(row => PolicyFunctions.PrisonerUse(row, colony, facts.FoodDays, policy).Want is not null);
+            owed = rows.Count(row => PopulationRules.PrisonerUse(row, colony, facts.FoodDays, policy).Want is not null);
         }
         return new Need
         {
@@ -132,11 +132,11 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
 
     private static Need CustodyNeed(Fact<EquatableArray<CustodyFacts>> census)
     {
-        if (!PolicyFunctions.CustodyDeficit(census).TryGetValue(out var deficit) || !census.TryGetValue(out var rows))
+        if (!PopulationRules.CustodyDeficit(census).TryGetValue(out var deficit) || !census.TryGetValue(out var rows))
         {
             return new Need { Id = Custody, Tier = NeedTier.Wellbeing, Evidence = [new("custody_candidates", default)] };
         }
-        var candidates = rows.Count(row => PolicyFunctions.CustodyEligible(row).Ok);
+        var candidates = rows.Count(row => PopulationRules.CustodyEligible(row).Ok);
         return new Need
         {
             Id = Custody,

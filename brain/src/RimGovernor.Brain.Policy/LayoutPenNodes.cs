@@ -105,7 +105,7 @@ public static partial class PolicyFunctions
             return node;
         }
         var (perCell, _) = pasture.Weakest();
-        var shortfall = Math.Max(hunger - (PenCells(hunger, perCell) * perCell), 0);
+        var shortfall = Math.Max(hunger - (PenFoodRules.PenCells(hunger, perCell) * perCell), 0);
         if (shortfall <= 0)
         {
             return node;

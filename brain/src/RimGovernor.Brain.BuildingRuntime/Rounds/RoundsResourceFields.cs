@@ -52,7 +52,7 @@ public sealed partial class Rounder
         return new ResourceFieldPlanner(
             choices,
             projection.CropClimate,
-            PolicyFunctions.GrowerSkill(projection.WorkPawns),
+            TreePlantationRules.GrowerSkill(projection.WorkPawns),
             projection.Farms,
             () =>
             {
@@ -76,7 +76,7 @@ public sealed partial class Rounder
 
     internal double ChopMinGrowth(ColonyProjection projection)
     {
-        var (fraction, ok) = PolicyFunctions.TreeFellFraction(RoundsFieldPlanner.CropChoices(projection), new Resource("WoodLog"), projection.CropClimate.Biome, PolicyFunctions.GrowerSkill(projection.WorkPawns));
+        var (fraction, ok) = TreePlantationRules.TreeFellFraction(RoundsFieldPlanner.CropChoices(projection), new Resource("WoodLog"), projection.CropClimate.Biome, TreePlantationRules.GrowerSkill(projection.WorkPawns));
         return ok ? fraction : Policy.ChopMinGrowth;
     }
 }

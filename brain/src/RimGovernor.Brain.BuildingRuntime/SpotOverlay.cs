@@ -16,7 +16,7 @@ public sealed partial class Rounder
         var layer = new Pol.LayoutOverlay();
         if (projection.Facts.CurrentConstruction.TryGetValue(out var census) && LayoutOverlay)
         {
-            layer = Pol.PolicyFunctions.SpotOverlay(census, projection.Bounds);
+            layer = Pol.SpotOverlayRules.SpotOverlay(census, projection.Bounds);
         }
         var tick = projection.Identity.Tick;
         if (layer.Layers.Count == 0)
@@ -25,7 +25,7 @@ public sealed partial class Rounder
             {
                 try
                 {
-                    await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.PolicyFunctions.SpotLayer, new Pol.LayoutOverlay(), false, ct).ConfigureAwait(false);
+                    await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.SpotOverlayRules.SpotLayer, new Pol.LayoutOverlay(), false, ct).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -41,7 +41,7 @@ public sealed partial class Rounder
         }
         try
         {
-            await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.PolicyFunctions.SpotLayer, layer, true, ct).ConfigureAwait(false);
+            await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), Pol.SpotOverlayRules.SpotLayer, layer, true, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

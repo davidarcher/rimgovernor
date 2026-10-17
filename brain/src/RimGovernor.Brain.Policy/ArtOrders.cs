@@ -37,7 +37,7 @@ public static partial class PolicyFunctions
     {
         if (!r.Profiles.TryGetValue(out var profiles))
         {
-            return Abstaining(Cause.UnreadArtists);
+            return WorkRules.Abstaining(Cause.UnreadArtists);
         }
 
         var artists = Artists(profiles);

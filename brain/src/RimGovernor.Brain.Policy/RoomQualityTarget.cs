@@ -87,7 +87,7 @@ public sealed record RoomTarget
     public EquatableArray<string> Reasons { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class RoomQualityRules
 {
     /// <summary>
     /// A RoomTarget per dining and rec room, keyed by room id; empty while the room census is unknown. Every

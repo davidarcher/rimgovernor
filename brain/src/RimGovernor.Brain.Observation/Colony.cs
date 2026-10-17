@@ -401,7 +401,7 @@ public sealed partial record ColonyProjection
         {
             available[d.Name] = d.Available;
         }
-        return PolicyFunctions.DefaultGeneratorOptions(
+        return PowerRules.DefaultGeneratorOptions(
             name => available.TryGetValue(name, out var fact) ? fact : Unknown<bool>(),
             ResourceStock,
             renewable,

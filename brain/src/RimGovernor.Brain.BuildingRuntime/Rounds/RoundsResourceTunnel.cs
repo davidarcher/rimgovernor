@@ -127,7 +127,7 @@ public sealed partial class RoundsResourcePlanner
         }
 
         var remote = await MiningReachAsync(state, reviewTick, call).ConfigureAwait(false);
-        var (ore, ok) = PolicyFunctions.BuriedResourceSource(rows, remote);
+        var (ore, ok) = ResourceRules.BuriedResourceSource(rows, remote);
         if (!ok)
         {
             return (default, false);
@@ -184,7 +184,7 @@ public sealed partial class RoundsResourcePlanner
             Roofs = roofs,
         };
         SnapshotPlannerReplay.NoteExcavation(request);
-        var targets = PolicyFunctions.CorridorExcavationSites(request, ore.Cell);
+        var targets = TunnelSiteRules.CorridorExcavationSites(request, ore.Cell);
         var snapshot = state.Snapshot with { Revision = new PlanRevision(1) };
         for (var i = 0; i < targets.Count; i++)
         {

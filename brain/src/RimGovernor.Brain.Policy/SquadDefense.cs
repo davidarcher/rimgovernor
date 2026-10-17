@@ -117,7 +117,7 @@ public enum SquadMode : byte
 
 public sealed record SquadAssignment(PawnId Defender, PawnId Target, SquadMode Mode);
 
-public static partial class PolicyFunctions
+public static partial class SquadDefenseRules
 {
     private const int MaxSquadOpponents = 4;
     internal const int MaxSquadDefenders = 8;
@@ -138,7 +138,7 @@ public static partial class PolicyFunctions
         foreach (var d in defenders)
         {
             var pk = d.MeleePower.TryGetValue(out var power);
-            if (!pk || Positive(d.RangedEquipped))
+            if (!pk || RoundsRules.Positive(d.RangedEquipped))
             {
                 return true;
             }
@@ -236,7 +236,7 @@ public static partial class PolicyFunctions
     }
 
     private static IEnumerable<SquadDefenderFacts> OrderDefenders(IEnumerable<SquadDefenderFacts> pool) =>
-        pool.OrderBy(d => OrderedWorkCost(d.PlayerForced, d.QueuedJobs)).ThenBy(d => d.Id);
+        pool.OrderBy(d => OrderedWorkRules.OrderedWorkCost(d.PlayerForced, d.QueuedJobs)).ThenBy(d => d.Id);
 
     /// <summary>
     /// The bounded core of combat_method.squad_defense: at least two capable defenders per observed opponent,
@@ -521,7 +521,7 @@ public static partial class PolicyFunctions
         }
         var pool = defenders
             .Where(Eligible)
-            .OrderBy(d => OrderedWorkCost(d.PlayerForced, d.QueuedJobs))
+            .OrderBy(d => OrderedWorkRules.OrderedWorkCost(d.PlayerForced, d.QueuedJobs))
             .ThenByDescending(RangedOf)
             .ThenByDescending(d => d.FrontLine)
             .ThenBy(d => d.Id)

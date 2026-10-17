@@ -117,7 +117,7 @@ public static partial class PolicyFunctions
             var area = GeothermalArea(g);
             if (!RectangleCells(area).Any(c => !core.Contains(c)))
             {
-                output.Add(new LayoutReservation { Kind = ReservationKind.Geothermal, Area = RectRegion(area) });
+                output.Add(new LayoutReservation { Kind = ReservationKind.Geothermal, Area = RegionRules.RectRegion(area) });
             }
         }
         return output;
@@ -253,10 +253,10 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            output.Add(RectRegion(RoomGround(r.Region.Bounds())));
+            output.Add(RegionRules.RectRegion(RoomGround(r.Region.Bounds())));
             foreach (var c in prev.ChildrenOf(r.Id))
             {
-                output.Add(RectRegion(c.AttachedGround()));
+                output.Add(RegionRules.RectRegion(c.AttachedGround()));
             }
         }
         return output;

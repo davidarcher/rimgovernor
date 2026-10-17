@@ -69,7 +69,7 @@ public sealed record ResourceFacts
         Stock = f.Resources,
         Wood = f.Wood,
         Runways = f.ResourceRunways,
-        ResearchGate = PolicyFunctions.ResearchConcernTarget("", f.ResearchNeeds, f.Research),
+        ResearchGate = ResearchRules.ResearchConcernTarget("", f.ResearchNeeds, f.Research),
     };
 }
 
@@ -156,8 +156,8 @@ public sealed partial class EconomyFamily(bool research = true, bool resource = 
     {
         var needs = f.ResearchNeeds;
         var census = f.Research.TryGetValue(out var read) ? Known(PolicyFunctions.ResearchSummary(read!)) : Unknown<ResearchFacts>();
-        var (target, derived) = PolicyFunctions.ResearchConcern(needs, census);
-        var (recovered, deficit) = PolicyFunctions.ResearchTargetNeed(target, derived, census);
+        var (target, derived) = ResearchRules.ResearchConcern(needs, census);
+        var (recovered, deficit) = ResearchRules.ResearchTargetNeed(target, derived, census);
         var pick = census.TryGetValue(out var summary) ? summary!.KnowledgePick.Value : "";
         if (pick.Length != 0 && needs.Count != 0)
         {
@@ -202,12 +202,12 @@ public static partial class PolicyFunctions
     public static Need ResourceNeedOf(ResourceFacts f)
     {
         var census = new StockReader(f.Stock, f.Wood).Census(f.Targets);
-        var (recovered, deficit) = ResourceTargetNeed(f.Targets, census);
+        var (recovered, deficit) = ResearchRules.ResourceTargetNeed(f.Targets, census);
         var shortRunways = new List<string>();
         foreach (var runway in f.Runways)
         {
             var deficitKnown = runway.Deficit.TryGetValue(out var runwayDeficit);
-            if (!deficitKnown && runway.WindowDays >= 1 && Positive(recovered))
+            if (!deficitKnown && runway.WindowDays >= 1 && RoundsRules.Positive(recovered))
             {
                 recovered = Unknown<bool>();
                 deficit = Unknown<double>();
@@ -229,7 +229,7 @@ public static partial class PolicyFunctions
         {
             try
             {
-                var (resource, _, found) = SelectResourceTarget(f.Targets, census);
+                var (resource, _, found) = ResourceRules.SelectResourceTarget(f.Targets, census);
                 worst = Known(found ? resource.Value : "");
             }
             catch (DomainException)
@@ -262,10 +262,10 @@ public static partial class PolicyFunctions
         return new ResearchFacts
         {
             Current = new ResearchProjectId(read.Current),
-            CurrentBenchMissing = read.Current.Length != 0 && ResearchBenchNeeded(read.Projects.GetValueOrDefault(read.Current) ?? new ResearchProjectFacts()),
+            CurrentBenchMissing = read.Current.Length != 0 && ResearchRules.ResearchBenchNeeded(read.Projects.GetValueOrDefault(read.Current) ?? new ResearchProjectFacts()),
             Projects = EquatableArray.From(projects),
             Finished = [.. read.Finished.Select(name => new ResearchProjectId(name))],
-            KnowledgePick = new ResearchProjectId(KnowledgePick(read.Projects, read.Finished, read.Knowledge)),
+            KnowledgePick = new ResearchProjectId(ResearchRules.KnowledgePick(read.Projects, read.Finished, read.Knowledge)),
         };
     }
 
@@ -303,7 +303,7 @@ public static partial class PolicyFunctions
         {
             return new ResearchStep("", null, false, false);
         }
-        return ResearchBenchNeeded(read.Projects[next])
+        return ResearchRules.ResearchBenchNeeded(read.Projects[next])
             ? new ResearchStep("", new NeedHold("research_bench", next), true, true)
             : new ResearchStep(next, null, false, true);
     }
@@ -340,7 +340,7 @@ public static partial class PolicyFunctions
                 return ("", new NeedHold("field_unavailable", "research_knowledge_slot"));
             }
         }
-        return (KnowledgePick(read.Projects, read.Finished, read.Knowledge), null);
+        return (ResearchRules.KnowledgePick(read.Projects, read.Finished, read.Knowledge), null);
     }
 
     /// <summary>
@@ -349,7 +349,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static (string Project, NeedHold? Hold) ResearchNext(IReadOnlyList<string> needs, ResearchCensus read)
     {
-        var (target, _) = ResearchConcern(needs, Known(ResearchSummary(read)));
+        var (target, _) = ResearchRules.ResearchConcern(needs, Known(ResearchSummary(read)));
         if (target.Length == 0)
         {
             return ("", null);
@@ -362,7 +362,7 @@ public static partial class PolicyFunctions
         IReadOnlyList<ResearchProjectId> queue;
         try
         {
-            queue = ResearchPrerequisiteQueue(projects, [.. read.Finished.Select(name => new ResearchProjectId(name))], [new ResearchProjectId(target)]);
+            queue = ResearchRules.ResearchPrerequisiteQueue(projects, [.. read.Finished.Select(name => new ResearchProjectId(name))], [new ResearchProjectId(target)]);
         }
         catch (DomainException)
         {

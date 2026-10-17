@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class PlannedRules
 {
     /// <summary>The rooms a plan builds a ring and contents for: the herd rooms too, not the plan's unfenced or attached rooms or its root.</summary>
     public static IReadOnlyList<PlannedRoom> PlannedBuiltRooms(LayoutPlan plan) =>

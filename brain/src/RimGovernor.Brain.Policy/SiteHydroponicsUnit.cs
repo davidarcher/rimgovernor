@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class SiteRules
 {
     /// <summary>The roofed, walkable, unbuilt, unzoned and unprotected floor keep accepts: where a basin, lamp or heater may stand.</summary>
     private static HashSet<Cell> SiteFreeFloor(FarmSiteRequest site, Func<SiteCell, bool> keep)
@@ -9,7 +9,7 @@ public static partial class PolicyFunctions
         var free = new HashSet<Cell>();
         foreach (var s in site.Cells)
         {
-            if (keep(s) && !blocked.Contains(s.Cell) && Positive(s.Roofed) && Positive(s.Walkable) && !s.Occupied() && SiteKnownFalse(s.Zone))
+            if (keep(s) && !blocked.Contains(s.Cell) && RoundsRules.Positive(s.Roofed) && RoundsRules.Positive(s.Walkable) && !s.Occupied() && SiteKnownFalse(s.Zone))
             {
                 free.Add(s.Cell);
             }
@@ -84,7 +84,7 @@ public static partial class PolicyFunctions
     {
         var lk = r.Lamp.TryGetValue(out var lamp);
         var dk = lamp.PowerW.TryGetValue(out var lampDraw);
-        if (!lk || !Positive(lamp.Available) || !dk || !FoodNumber(lampDraw) || lamp.Name == "")
+        if (!lk || !RoundsRules.Positive(lamp.Available) || !dk || !FoodNumber(lampDraw) || lamp.Name == "")
         {
             return c with { Reason = "sun lamp unavailable" };
         }
@@ -93,7 +93,7 @@ public static partial class PolicyFunctions
         v.Crop.FertilityMin.TryGetValue(out var minimum);
         foreach (var s in site.Cells)
         {
-            if (FreeCropSoil(SiteUnroofed(s), minimum, null).Ok && Positive(s.Roofed) && Positive(s.Indoors))
+            if (FreeCropSoil(SiteUnroofed(s), minimum, null).Ok && RoundsRules.Positive(s.Roofed) && RoundsRules.Positive(s.Indoors))
             {
                 return c with { Reason = "free indoor soil: a greenhouse lamp is the cheaper kind" };
             }
@@ -107,7 +107,7 @@ public static partial class PolicyFunctions
             }
         }
         string RoomAt(Cell cell) => roomOf.TryGetValue(cell, out var room) ? room : "";
-        var free = SiteFreeFloor(site, s => Positive(s.Indoors));
+        var free = SiteFreeFloor(site, s => RoundsRules.Positive(s.Indoors));
         var cells = new List<Cell>(free.Count);
         foreach (var cell in free.ToList())
         {
@@ -171,7 +171,7 @@ public static partial class PolicyFunctions
         {
             var hk = r.Heater.TryGetValue(out heater);
             var hdk = heater.PowerW.TryGetValue(out heaterDraw);
-            if (!hk || !Positive(heater.Available) || !hdk || !FoodNumber(heaterDraw) || heater.Name == "")
+            if (!hk || !RoundsRules.Positive(heater.Available) || !hdk || !FoodNumber(heaterDraw) || heater.Name == "")
             {
                 return c with { Reason = "room too cold and no heater available" };
             }

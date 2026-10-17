@@ -197,7 +197,7 @@ public sealed record ReadyRequest
     public RecipeFacts Recipes { get; init; } = new();
 }
 
-public static partial class PolicyFunctions
+public static partial class ReadyWorkRules
 {
     // Deferral reasons, deterministic when a bound cuts the pass.
     public const string ReadyDeferredDiscovery = "discovery_bound";

@@ -71,13 +71,13 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             throw new ControlException("decide: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        List<string> definitions = ["Wall", "Door", .. RoomBeautyDefinitions(), .. Reviewer.RememberedThrones(), .. Reviewer.Census.RememberedWorship()];
+        List<string> definitions = ["Wall", "Door", .. RoomQualityRules.RoomBeautyDefinitions(), .. Reviewer.RememberedThrones(), .. Reviewer.Census.RememberedWorship()];
         var reading = await Reviewer.ObserveRoomsAsync((Observation.IRoundsSource)Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), [.. definitions], call).ConfigureAwait(false);
         var facts = reading.Projection;
         // One packed read per pass, shared by every owner of stored pieces.
         var stock = new PackedStock(Native, Boundary.Identity(state.Snapshot));
         var request = SleepingRequest(facts, review);
-        var choice = SelectSleepingMethod(request);
+        var choice = SleepingRules.SelectSleepingMethod(request);
         // swapping flags a bedroom swap: native evicts the bed's owner.
         var swapping = false;
         // A couple's double bed comes before any other bed change.
@@ -126,7 +126,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                         // The room's ring, floor and bed through the shared build side; a bed left empty in the starter shell is packed and reinstalled rather than built again.
                         return await ReconcileBedroomAsync(stock, state, review, goal, reading, step, call, epoch).ConfigureAwait(false);
                     case Pol.BedroomStepKind.Clear:
-                        return await RemoveOldBedAsync(state, review, goal, reading, new Pol.BedReplacement { Room = "shell", Bed = step.Bed, Def = SleepingSpotDefinition.ToString(), Cell = step.Cells[0] }, call, epoch).ConfigureAwait(false);
+                        return await RemoveOldBedAsync(state, review, goal, reading, new Pol.BedReplacement { Room = "shell", Bed = step.Bed, Def = SleepingRules.SleepingSpotDefinition.ToString(), Cell = step.Cells[0] }, call, epoch).ConfigureAwait(false);
                     default:
                     {
                         // The title's throne room: reconciled to the plan and its template, then furnished through the room upgrade below.
@@ -321,7 +321,7 @@ public sealed partial class RoundsBuildingPlanner
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectSleeping(Observation.ColonyProjection facts, Sto.Rounds review)
     {
         var request = RoundsSleepingUpkeepPlanner.SleepingRequest(facts, review);
-        var choice = SelectSleepingMethod(request);
+        var choice = SleepingRules.SelectSleepingMethod(request);
         switch (choice.Method)
         {
             case Pol.SleepingMethod.Unknown:
@@ -343,7 +343,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             return (null, NoSpace("sleeping_cells"));
         }
-        var facility = Facility(Pol.RoomRole.Bedroom);
+        var facility = Pol.RoomsRules.Facility(Pol.RoomRole.Bedroom);
         var resolved = Copy();
         resolved.Definition = choice.Definition;
         resolved.Environment = Pol.PlacementEnvironment.Indoors;
@@ -363,10 +363,10 @@ partial class RoundsSleepingUpkeepPlanner
     /// </summary>
     internal static Pol.SleepingRequest SleepingRequest(Observation.ColonyProjection facts, Sto.Rounds review)
     {
-        var sleeping = ReviewSleeping(facts.Facts.Sleeping, review.Sleeping, facts.Identity.Tick);
+        var sleeping = SleepingRules.ReviewSleeping(facts.Facts.Sleeping, review.Sleeping, facts.Identity.Tick);
         EquatableArray<Pol.BenchDefinition> definitions = [.. facts.Definitions.Select(d => new Pol.BenchDefinition { Name = d.Name, Available = d.Available, NeedsPower = d.NeedsPower, ConstructionSkill = d.ConstructionSkill })];
         var stocked = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var name in new[] { SleepingBedrollDefinition, SleepingCoupleBedrollDefinition })
+        foreach (var name in new[] { SleepingRules.SleepingBedrollDefinition, SleepingRules.SleepingCoupleBedrollDefinition })
         {
             if (facts.StockedStuff(name).HasValue)
             {
@@ -386,7 +386,7 @@ partial class RoundsSleepingUpkeepPlanner
         if (facts.Facts.Sleeping.TryGetValue(out var obs))
         {
             facts.TechTier.TryGetValue(out var tier);
-            request = request with { RoomTargets = RoomQualityTargets(obs, request.Traits ?? new Dictionary<PawnId, Pol.TraitEffects>(), tier, facts.Impressiveness) };
+            request = request with { RoomTargets = RoomQualityRules.RoomQualityTargets(obs, request.Traits ?? new Dictionary<PawnId, Pol.TraitEffects>(), tier, facts.Impressiveness) };
         }
         return request;
     }
@@ -401,7 +401,7 @@ partial class RoundsSleepingUpkeepPlanner
         var output = new Dictionary<PawnId, Pol.TraitEffects>(pawns.Count);
         foreach (var p in pawns)
         {
-            output[p.Id] = BuildProfile(p).Effects;
+            output[p.Id] = PawnRules.BuildProfile(p).Effects;
         }
         return output;
     }
@@ -419,7 +419,7 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return (new Pol.BedroomSwap(), false);
         }
-        return NextBedroomSwap(obs!, traits, SuiteRoomIds(plan, rooms));
+        return RoomQualityRules.NextBedroomSwap(obs!, traits, RoomQualityRules.SuiteRoomIds(plan, rooms));
     }
 
     /// <summary>
@@ -433,7 +433,7 @@ partial class RoundsSleepingUpkeepPlanner
     /// <summary>The stuff a bed step builds definition from: a bedroll's first stuff option in stock, else the cheapest the rows allow.</summary>
     internal static string BedStuff(Observation.ColonyProjection facts, string definition)
     {
-        if (definition == SleepingBedrollDefinition || definition == SleepingCoupleBedrollDefinition)
+        if (definition == SleepingRules.SleepingBedrollDefinition || definition == SleepingRules.SleepingCoupleBedrollDefinition)
         {
             if (facts.StockedStuff(definition) is { } stocked)
             {

@@ -161,7 +161,7 @@ public static partial class PolicyFunctions
             !nk
             || !FoodNumber(n)
             || n <= 0
-            || !IsHayCrop(crop)
+            || !SocialCropsRules.IsHayCrop(crop)
             || !yk
             || !FieldPositive(yield)
             || !dk

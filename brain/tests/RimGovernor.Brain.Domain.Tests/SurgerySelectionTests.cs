@@ -87,7 +87,7 @@ public sealed class SurgerySelectionTests
             Op(SurgeryKind.Restore, "InstallSimpleProstheticLeg", LegPart, "Leg", stocked: true, "SimpleProstheticLeg", tier: 0.85),
         ]);
 
-        var choice = Assert.Single(SelectSurgery(Census(pawn), null, new SurgeryContext()).Queue);
+        var choice = Assert.Single(SurgeryRules.SelectSurgery(Census(pawn), null, new SurgeryContext()).Queue);
 
         Assert.Equal((Colonist, "InstallSimpleProstheticLeg", LegPart, SurgeryKind.Restore, false), (choice.Pawn, choice.Recipe, choice.Part, choice.Kind, choice.Elective));
     }
@@ -99,11 +99,11 @@ public sealed class SurgerySelectionTests
             [Op(SurgeryKind.Install, "InstallBionicEye", EyePart, "Eye", stocked: true, "BionicEye", tier: 1.25)],
             [new CareCondition { DefName = Known("Cataract"), PartIndex = Known(EyePart) }]);
 
-        var choice = Assert.Single(SelectSurgery(Census(pawn), null, new SurgeryContext()).Queue);
+        var choice = Assert.Single(SurgeryRules.SelectSurgery(Census(pawn), null, new SurgeryContext()).Queue);
 
         Assert.Equal(("InstallBionicEye", EyePart, false), (choice.Recipe, choice.Part, choice.Elective));
         // Without the chronic condition a healthy eye is no served operation (and no elective without a hospital bed).
-        Assert.Empty(SelectSurgery(Census(pawn with { Conditions = Known(EquatableArray.From(new List<CareCondition>())) }), null, new SurgeryContext()).Queue);
+        Assert.Empty(SurgeryRules.SelectSurgery(Census(pawn with { Conditions = Known(EquatableArray.From(new List<CareCondition>())) }), null, new SurgeryContext()).Queue);
     }
 
     [Fact]
@@ -137,32 +137,32 @@ public sealed class SurgerySelectionTests
     public void AColonistMissingAKidneyHarvestsOneFromTheUnrecruitablePrisoner()
     {
         var pawns = Census(KidneyPatient());
-        var want = Assert.Single(SelectSurgery(pawns, null, new SurgeryContext()).Wants);
+        var want = Assert.Single(SurgeryRules.SelectSurgery(pawns, null, new SurgeryContext()).Wants);
         Assert.Equal(SurgeryWantReason.PartShort, want.Reason);
-        var needs = OrganNeeds(pawns, [want], false, new Dictionary<Resource, long>(), Recipes);
+        var needs = OrganHarvestRules.OrganNeeds(pawns, [want], false, new Dictionary<Resource, long>(), Recipes);
         Assert.Equal(("Kidney", Colonist), (Assert.Single(needs).Organ, needs[0].For));
 
-        var harvest = SelectOrganHarvest(Prisoners(Prisoner([Harvest(KidneyPart), Harvest(OtherKidneyPart)])), Known(Colony), needs, null);
+        var harvest = OrganHarvestRules.SelectOrganHarvest(Prisoners(Prisoner([Harvest(KidneyPart), Harvest(OtherKidneyPart)])), Known(Colony), needs, null);
 
         Assert.NotNull(harvest);
         Assert.Equal((Captive, "Harvest_Kidney", "Kidney", Colonist, true), (harvest.Prisoner, harvest.Recipe, harvest.Organ, harvest.For, harvest.Violation));
         Assert.True(harvest.Gain > harvest.Cost);
         // A stocked kidney leaves no need to harvest for.
-        Assert.Empty(OrganNeeds(pawns, [want], false, new Dictionary<Resource, long> { [new("Kidney")] = 1 }, Recipes));
+        Assert.Empty(OrganHarvestRules.OrganNeeds(pawns, [want], false, new Dictionary<Resource, long> { [new("Kidney")] = 1 }, Recipes));
     }
 
     [Fact]
     public void ACareLimitedHarvestIsRefusedAndReportedAsCareLimited()
     {
         var pawns = Census(KidneyPatient());
-        var needs = OrganNeeds(pawns, SelectSurgery(pawns, null, new SurgeryContext()).Wants, false, new Dictionary<Resource, long>(), Recipes);
+        var needs = OrganHarvestRules.OrganNeeds(pawns, SurgeryRules.SelectSurgery(pawns, null, new SurgeryContext()).Wants, false, new Dictionary<Resource, long>(), Recipes);
         var limited = Prisoners(Prisoner([
             Harvest(KidneyPart) with { IngredientsOnMap = Known(false), CareLimited = Known(true) },
             Harvest(OtherKidneyPart) with { IngredientsOnMap = Known(false), CareLimited = Known(true) },
         ]));
 
-        Assert.Null(SelectOrganHarvest(limited, Known(Colony), needs, null));
-        var blocked = CareLimitedHarvest(limited, Known(Colony), needs, [], null, Recipes);
+        Assert.Null(OrganHarvestRules.SelectOrganHarvest(limited, Known(Colony), needs, null));
+        var blocked = PrisonerMedicineRules.CareLimitedHarvest(limited, Known(Colony), needs, [], null, Recipes);
         Assert.NotNull(blocked);
         Assert.Equal((Captive, "Harvest_Kidney"), (blocked.Prisoner, blocked.Recipe));
     }
@@ -171,7 +171,7 @@ public sealed class SurgerySelectionTests
     public void AColonistMissingAnArmRecoversTheBionicArmFromTheUnrecruitablePrisoner()
     {
         var pawns = Census(Patient([Op(SurgeryKind.Restore, "InstallBionicArm", ArmPart, "Shoulder", stocked: false, "BionicArm", tier: 1.25)]));
-        var parts = PartRecoveryNeeds(pawns, SelectSurgery(pawns, null, new SurgeryContext()).Wants, Recipes);
+        var parts = OrganHarvestRules.PartRecoveryNeeds(pawns, SurgeryRules.SelectSurgery(pawns, null, new SurgeryContext()).Wants, Recipes);
         Assert.Equal(("BionicArm", Colonist), (Assert.Single(parts).Organ, parts[0].For));
         var removal = Op(SurgeryKind.Amputate, "RemoveBodyPart", ArmPart, "Shoulder", stocked: true) with
         {
@@ -181,7 +181,7 @@ public sealed class SurgerySelectionTests
             MedicineValue = Known(18.0),
         };
 
-        var recovery = SelectPartRecovery(Prisoners(Prisoner([removal])), Known(Colony), parts, null, Recipes);
+        var recovery = OrganHarvestRules.SelectPartRecovery(Prisoners(Prisoner([removal])), Known(Colony), parts, null, Recipes);
 
         Assert.NotNull(recovery);
         Assert.Equal((Captive, "RemoveBodyPart", ArmPart, "BionicArm", Colonist), (recovery.Prisoner, recovery.Recipe, recovery.Part, recovery.Organ, recovery.For));

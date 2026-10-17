@@ -94,7 +94,7 @@ public sealed record StockpileEdit
         {
             return [.. CellList];
         }
-        return PolicyFunctions.RectCells(Rectangle);
+        return PlannedRules.RectCells(Rectangle);
     }
 }
 
@@ -248,7 +248,7 @@ internal sealed record StockpileOpen
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class StockpileRules
 {
     /// <summary>
     /// Applies the stockpile zones the departments declare (DeclareStores): a zone is created once at its
@@ -279,7 +279,7 @@ public static partial class PolicyFunctions
             }
             StockpileFilter? filter = z.Filter;
             var priority = z.Priority;
-            if (StoreOfZone(stores, z) is { } store)
+            if (StoreRules.StoreOfZone(stores, z) is { } store)
             {
                 if (store.Retired)
                 {
@@ -296,7 +296,7 @@ public static partial class PolicyFunctions
             {
                 Kind = StockpileEditKind.ShelfPatch,
                 Zone = s.Building,
-                Role = ShelfRole(s.Building),
+                Role = StorageRules.ShelfRole(s.Building),
                 Filter = filter,
                 Priority = priority,
                 Explanation = string.Create(
@@ -417,7 +417,7 @@ public static partial class PolicyFunctions
             return false;
         }
 
-        var (declared, owned) = DeclaredStoreEdits(zones, r.Stores, open);
+        var (declared, owned) = StoreRules.DeclaredStoreEdits(zones, r.Stores, open);
         foreach (var e in declared)
         {
             if (e.Kind == StockpileEditKind.Create)
@@ -464,7 +464,7 @@ public static partial class PolicyFunctions
             }
         }
         var shelf = NextWarehouseShelf(r, zones);
-        var shelfSites = ShelfCandidates(r);
+        var shelfSites = StorageRules.ShelfCandidates(r);
         var active = edits.Count > 0 || r.Rooms.Count > 0 || shelf.Kind == ShelfStepKind.Build;
         return new StockpileReview
         {
@@ -473,7 +473,7 @@ public static partial class PolicyFunctions
             Edits = edits,
             Shelf = shelf,
             ShelfCandidates = shelfSites,
-            Options = StorageOptions(r, shelfSites),
+            Options = StorageRules.StorageOptions(r, shelfSites),
             Active = active,
         };
     }
@@ -497,7 +497,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            if (StoreOfZone(r.Stores, z) is { Retired: true })
+            if (StoreRules.StoreOfZone(r.Stores, z) is { Retired: true })
             {
                 continue;
             }
@@ -512,11 +512,11 @@ public static partial class PolicyFunctions
             Zones = shelfZones,
             Shelves = [.. r.ShelfRecords.Where(s => ids.Contains(s.Zone))],
         };
-        return NextShelfStep(request);
+        return StorageRules.NextShelfStep(request);
     }
 
     /// <summary>Deletes a zone whose store retired and retargets one whose store's filter or priority differ from those last applied.</summary>
-    private static StockpileEdit? StockpileSettingsEdit(Store s, StockpileZone z)
+    internal static StockpileEdit? StockpileSettingsEdit(Store s, StockpileZone z)
     {
         if (s.Retired)
         {
