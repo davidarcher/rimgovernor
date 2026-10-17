@@ -2,7 +2,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
@@ -15,15 +14,8 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeMineAcquisition
     {
-        internal static string Token(Common.Identity identity, string id, string resource, int x, int z, int hitPoints, int yield, bool designated)
-        {
-            using (var bytes = new MemoryStream())
-            {
-                using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
-                { writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId); writer.Write(id); writer.Write(resource); writer.Write(x); writer.Write(z); writer.Write(hitPoints); writer.Write(yield); writer.Write(designated); }
-                using (var hash = SHA256.Create()) return "mine-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
-            }
-        }
+        internal static string Token(Common.Identity identity, string id, string resource, int x, int z, int hitPoints, int yield, bool designated) =>
+            NativeSnapshotVersions.Token("mine", identity, id, w => { w.Write(resource); w.Write(x); w.Write(z); w.Write(hitPoints); w.Write(yield); w.Write(designated); });
         internal static Obs.SnapshotRef Snapshot(Mineable rock, Common.ObservationContext context) => new Obs.SnapshotRef {
             Context = context, EntityId = rock.GetUniqueLoadID(), Token = Token(context.Identity ?? throw new InvalidOperationException("Observation context has no identity."), rock.GetUniqueLoadID(),
                 rock.def.building.mineableThing.defName, rock.Position.x, rock.Position.z, rock.HitPoints, rock.def.building.mineableYield, ResourceAcquisitionTools.Designated(rock)) };

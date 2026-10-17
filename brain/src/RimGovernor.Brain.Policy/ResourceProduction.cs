@@ -1,6 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
-
 namespace RimGovernor.Brain.Policy;
 
 // economy/resource pure primitives: ingredient deficits, mining progress, resource method, and stock
@@ -468,13 +465,8 @@ public static partial class PolicyFunctions
         return unmet.OrderByDescending(u => u.Ratio).Select(u => u.Row).ToList();
     }
 
-    internal static MethodId ResourceMethodId(Resource resource, string bench, string recipe)
-    {
-        // Go hashed fmt.Sprintf("%v", struct{Resource; Bench, Recipe}); the same text keeps ids stable.
-        var text = $"{{{resource} {bench} {recipe}}}";
-        var sum = SHA256.HashData(Encoding.UTF8.GetBytes(text));
-        return new MethodId("resource-produce-" + Convert.ToHexStringLower(sum.AsSpan(0, 16)));
-    }
+    internal static MethodId ResourceMethodId(Resource resource, string bench, string recipe) =>
+        new($"resource-produce-{resource.Value}-{bench}-{recipe}");
 
     /// <summary>
     /// Proposes one repeat-count StockTarget bill that keeps at least Target units of Resource in stock,

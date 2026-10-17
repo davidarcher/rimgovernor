@@ -139,20 +139,23 @@ internal static class NativeProtoResearchProbe
             "\"projects\":[{\"project\":{\"defName\":\"Alpha\"},\"progress\":1,\"finished\":false,\"current\":true}]}";
         var baselineToken = TokenOf(Snapshot(baseline));
         Check(baselineToken == TokenOf(Snapshot(baseline)), "Identical research snapshot content yields identical CAS token");
-        Check(baselineToken != TokenOf(Snapshot(baseline.Replace("\"anomalyActive\":false", "\"anomalyActive\":true"))),
+        // A version token: a variant moves it from a fresh baseline read exactly when a documented field differs.
+        bool Moves(string json) { var before = TokenOf(Snapshot(baseline)); return before != TokenOf(Snapshot(json)); }
+        Check(Moves(baseline.Replace("\"anomalyActive\":false", "\"anomalyActive\":true")),
             "AnomalyActive change invalidates research CAS token");
-        Check(baselineToken != TokenOf(Snapshot(baseline.Replace("Neolithic", "Industrial"))),
+        Check(Moves(baseline.Replace("Neolithic", "Industrial")),
             "PlayerTechLevel change invalidates research CAS token");
-        Check(baselineToken != TokenOf(Snapshot(baseline.Replace("\"currentProject\":\"Alpha\"", "\"currentProject\":\"Beta\""))),
+        Check(Moves(baseline.Replace("\"currentProject\":\"Alpha\"", "\"currentProject\":\"Beta\"")),
             "Selected slot project change invalidates research CAS token");
-        Check(baselineToken != TokenOf(Snapshot(baseline.Replace("\"progress\":1", "\"progress\":2"))),
+        Check(Moves(baseline.Replace("\"progress\":1", "\"progress\":2")),
             "Project progress change invalidates research CAS token");
-        Check(baselineToken != TokenOf(Snapshot(baseline.Replace("\"finished\":false", "\"finished\":true"))),
+        Check(Moves(baseline.Replace("\"finished\":false", "\"finished\":true")),
             "Project finished change invalidates research CAS token");
-        Check(baselineToken != TokenOf(Snapshot(baseline.Replace("\"current\":true", "\"current\":false"))),
+        Check(Moves(baseline.Replace("\"current\":true", "\"current\":false")),
             "Project current-selection change invalidates research CAS token");
+        Check(baselineToken != TokenOf(Snapshot(baseline)), "A token read before a change never matches again once the facts move back");
         var withCompleteness = baseline.TrimEnd('}') + ",\"completeness\":{\"filtered\":9}}";
-        Check(baselineToken == TokenOf(Snapshot(withCompleteness)), "Token is scoped to documented fields only, not the whole reply");
+        Check(!Moves(withCompleteness), "Token is scoped to documented fields only, not the whole reply");
         var tokenRef = Call("Token", context, Snapshot(baseline));
         Check((string)Get(tokenRef, "EntityId") == "research-manager", "Research CAS token is scoped to the research manager entity");
         var returnedContext = Get(tokenRef, "Context");

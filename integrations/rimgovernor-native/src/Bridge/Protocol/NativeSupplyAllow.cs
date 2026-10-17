@@ -2,7 +2,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
@@ -28,19 +27,10 @@ namespace HomeBridge.BridgeTools
 
         internal static string Token(Common.Identity identity, string id, string definition,
             int x, int z, int count, bool forbidden, string faction)
-        {
-            using (var bytes = new MemoryStream())
-            {
-                using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
-                {
-                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId);
-                    writer.Write(id); writer.Write(definition); writer.Write(x); writer.Write(z);
-                    writer.Write(count); writer.Write(forbidden); writer.Write(faction);
-                }
-                using (var hash = SHA256.Create())
-                    return "allow-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
-            }
-        }
+            => NativeSnapshotVersions.Token("allow", identity, id, writer => {
+                writer.Write(definition); writer.Write(x); writer.Write(z);
+                writer.Write(count); writer.Write(forbidden); writer.Write(faction);
+            });
 
         internal static Obs.SnapshotRef? Snapshot(Thing thing, Common.ObservationContext context)
         {

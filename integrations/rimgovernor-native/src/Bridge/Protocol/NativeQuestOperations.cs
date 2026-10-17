@@ -1,7 +1,6 @@
 #nullable enable
 using System;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
@@ -18,17 +17,10 @@ namespace HomeBridge.BridgeTools
     // applied again without a second Accept.
     internal static class NativeQuestOperations
     {
-        private static string Hash(string text)
-        {
-            using (var hash = SHA256.Create())
-                return BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLowerInvariant();
-        }
-
         // Exact quest acceptance-relevant state, the snapshot token the
         // world-progression census reports.
-        internal static string Token(Quest quest) => "quest-" + Hash(string.Join("|",
-            quest.GetUniqueLoadID(), quest.State.ToString(), quest.acceptanceTick.ToString(),
-            QuestUtility.CanAcceptQuest(quest).Accepted.ToString()));
+        internal static string Token(Quest quest) => NativeSnapshotVersions.Token("quest", null, quest.GetUniqueLoadID(), string.Join("|",
+            quest.State.ToString(), quest.acceptanceTick.ToString(), QuestUtility.CanAcceptQuest(quest).Accepted.ToString()));
 
         internal static Quest? Find(string questId) => global::Verse.Find.QuestManager.QuestsListForReading
             .ById(questId) is Quest q && !q.hidden && !q.hiddenInUI ? q : null;

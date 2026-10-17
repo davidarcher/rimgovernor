@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -37,8 +36,7 @@ namespace HomeBridge.BridgeTools
             if (p.apparel != null && p.outfits != null)
                 parts.AddRange(p.apparel.WornApparel.OrderBy(a => a.thingIDNumber).Select(a =>
                     a.GetUniqueLoadID() + ":" + p.outfits.forcedHandler.AllowedToAutomaticallyDrop(a) + ":" + p.apparel.IsLocked(a)));
-            using (var hash = SHA256.Create())
-                return BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(string.Join("|", parts)))).Replace("-", "");
+            return NativeSnapshotVersions.Token("gear", null, p.GetUniqueLoadID(), string.Join("|", parts));
         }
 
         internal static object Gear(Thing t) => new {

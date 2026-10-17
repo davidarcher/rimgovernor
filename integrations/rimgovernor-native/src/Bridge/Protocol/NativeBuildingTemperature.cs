@@ -2,7 +2,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
@@ -26,19 +25,8 @@ namespace HomeBridge.BridgeTools
         internal static bool Eligible(Thing thing) => thing != null && !thing.Destroyed
             && thing.Spawned && ProtoBoundary.IsLoaded(thing.Map) && thing.TryGetComp<CompTempControl>() != null;
 
-        internal static string Token(Common.Identity identity, string id, float target)
-        {
-            using (var bytes = new MemoryStream())
-            {
-                using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
-                {
-                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId);
-                    writer.Write(id); writer.Write(target);
-                }
-                using (var hash = SHA256.Create())
-                    return "temp-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
-            }
-        }
+        internal static string Token(Common.Identity identity, string id, float target) =>
+            NativeSnapshotVersions.Token("temp", identity, id, w => w.Write(target));
 
         internal static Obs.SnapshotRef? Snapshot(Thing thing, Common.ObservationContext context)
         {

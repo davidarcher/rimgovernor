@@ -54,11 +54,8 @@ namespace HomeBridge.BridgeTools
         private static double MeatAmount(Pawn prey) => Math.Max(0, prey.GetStatValue(StatDefOf.MeatAmount));
         private static double Nutrition(Pawn prey) => Math.Max(0, prey.GetStatValue(StatDefOf.MeatAmount)) * prey.RaceProps.meatDef.GetStatValueAbstract(StatDefOf.Nutrition);
         private static Obs.SnapshotRef Snapshot(Pawn prey, Common.ObservationContext context) => new Obs.SnapshotRef {
-            // A hunt follows its animal: the token binds the animal,
-            // its corpse and its designation, not the cell or health the
-            // census read, which move every tick under a running clock.
-            Context = context, EntityId = prey.GetUniqueLoadID(), Token = NativeAcquisitionToken.Token(context.Identity,
-                prey.GetUniqueLoadID(), prey.RaceProps.corpseDef.defName, 0, 0, 0, 1, Designated(prey)) };
+            Context = context, EntityId = prey.GetUniqueLoadID(), Token = NativeAcquisitionToken.Hunt(context.Identity,
+                prey.GetUniqueLoadID(), prey.RaceProps.corpseDef.defName, Designated(prey)) };
         // A hunt row is a wild animal that bears a corpse and is a food source or a pest, whatever
         // policy then decides (policy.HuntGate): native states facts and keeps only physical validity.
         private static bool Candidate(Pawn prey) => prey.Spawned && !prey.Dead && prey.Faction == null && prey.RaceProps.Animal

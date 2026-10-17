@@ -3,7 +3,6 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using HarmonyLib;
 using RimWorld;
@@ -80,12 +79,6 @@ namespace HomeBridge.BridgeTools
         private static bool _arrivalHook;
         private const string ArrivalHookOwner = "homebridge.trade-arrival";
 
-        private static string Hash(string text)
-        {
-            using (var hash = SHA256.Create())
-                return BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLowerInvariant();
-        }
-
         private static bool SafeBool(Func<bool> f) { try { return f(); } catch { return false; } }
         private static int SafeInt(Func<int> f) { try { return f(); } catch { return 0; } }
         private static float SafeFloat(Func<float> f) { try { return f(); } catch { return 0f; } }
@@ -148,7 +141,7 @@ namespace HomeBridge.BridgeTools
             parts.Sort(StringComparer.Ordinal);
             var currency = deal != null ? SafeCurrencyTradeable(deal) : null;
             var net = currency != null ? SafeInt(() => currency.CountToTransfer).ToString(System.Globalization.CultureInfo.InvariantCulture) : "?";
-            return "trade-deal-" + Hash(string.Join(";", parts) + "|net=" + net);
+            return NativeSnapshotVersions.Token("trade-deal", null, _sessionId ?? "", string.Join(";", parts) + "|net=" + net);
         }
 
         internal readonly struct OpenSession

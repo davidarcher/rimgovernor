@@ -61,7 +61,7 @@ namespace HomeBridge.BridgeTools
         {
             var row = Project(thing);
             row = row with { Snapshot = row.Construction != null
-                ? NativeObservationSnapshot.Snapshot("building", context, (row.Building?.Id ?? ""), w => {
+                ? NativeObservationSnapshot.Snapshot("construction", context, (row.Building?.Id ?? ""), w => {
                     w.Write((int)row.Status.GetValueOrDefault()); w.Write(row.HitPoints.GetValueOrDefault()); w.Write(row.Burning.GetValueOrDefault());
                     w.Write(row.Construction.PercentComplete.GetValueOrDefault()); w.Write(row.Construction.ResourcesComplete.GetValueOrDefault());
                 })

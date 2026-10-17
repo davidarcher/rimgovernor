@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools
     // reports the fact that moved. The snapshot-token comparison is always
     // the last rule: it still refuses a changed world the rules did not
     // catch. A kind the controller dispatches under a running clock
-    // may omit the token, since the world it hashes moves every tick; the
+    // may omit the token, since the world it versions moves every tick; the
     // rules above it are then the whole check (Token with a sent flag).
     //
     // A rule that throws counts as failed with its own reason: the object it
@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
         internal ApplyPreconditions Present(Func<bool> rule, string reason) => Require(rule, reason, Common.FailureCode.NotFound, Common.RefusalClass.Transient);
 
         // Token is the closing CAS rule: the snapshot the controller read
-        // must still hash to the token it sent. It keeps the InvalidRequest
+        // must still be at the version its token names. It keeps the InvalidRequest
         // code the routine kinds always answered a stale token with.
         internal ApplyPreconditions Token(Func<bool> rule, string reason) => Require(rule, reason, Common.FailureCode.InvalidRequest, Common.RefusalClass.Transient);
 

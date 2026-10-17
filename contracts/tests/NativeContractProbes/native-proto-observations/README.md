@@ -24,10 +24,10 @@ Pawn rows expose available draft-control CAS and claims; these request/binder ch
 do not establish native hook behavior. Collection/reply overflow cannot truncate success.
 Root integration owns capability advertisement and fresh-game acceptance.
 
-N01.03: the shared stateless CAS/cursor helper (`NativeObservationSnapshot`) is
-exercised directly -- cursor round-trip, fail-closed on a changed seed or identity,
-malformed input refused rather than thrown, and snapshot token determinism/
-per-entity distinctness. Pawn/room/research/building `Validate` accept a
+N01.03: the shared row CAS helper (`NativeObservationSnapshot`, versioned by
+`NativeSnapshotVersions`) is exercised directly -- a token is stable for unchanged
+facts, distinct per entity, moves when a guarded fact moves, and a read before the
+move never matches again once the fact moves back. Pawn/room/research/building `Validate` accept a
 nonempty cursor up to 4096 bytes and refuse an oversized one. These are compiled boundary checks only; whether a
 resumed page actually returns the next rows against real map/pawn/research state is
 native acceptance and is not established here.

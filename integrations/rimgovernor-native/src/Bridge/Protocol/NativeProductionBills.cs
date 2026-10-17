@@ -14,7 +14,8 @@ using Operations=RimGovernor.Contracts.Wire.Operations;
 using Receipts=RimGovernor.Contracts.Wire.Receipts;
 namespace HomeBridge.BridgeTools {
  internal static class NativeProductionBills {
-  internal static string Hash(Action<BinaryWriter> write){using(var bytes=new MemoryStream()){using(var writer=new BinaryWriter(bytes,Encoding.UTF8,true))write(writer);using(var hash=SHA256.Create())return "bill-"+BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-","").ToLowerInvariant();}}
+  // A content digest for comparing two bills or filters (not a row token: NativeSnapshotVersions versions the bench).
+  private static string Hash(Action<BinaryWriter> write){using(var bytes=new MemoryStream()){using(var writer=new BinaryWriter(bytes,Encoding.UTF8,true))write(writer);using(var hash=SHA256.Create())return "bill-"+BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-","").ToLowerInvariant();}}
   internal static string Configuration(Bill bill,bool includeRemainingCount=true)=>Hash(raw=>{
    var w=new NativeBillConfiguration(raw);
    w.Write("socialBeer",bill is SocialBeerBill);
@@ -30,7 +31,7 @@ namespace HomeBridge.BridgeTools {
    w.Write("ingredients.hp.min",filter.AllowedHitPointsPercents.min);w.Write("ingredients.hp.max",filter.AllowedHitPointsPercents.max);w.Write("ingredients.quality.min",(int)filter.AllowedQualityLevels.min);w.Write("ingredients.quality.max",(int)filter.AllowedQualityLevels.max);w.Write("ingredients.mentalBreak.min",filter.AllowedMentalBreakChance.min);w.Write("ingredients.mentalBreak.max",filter.AllowedMentalBreakChance.max);
    w.Group("ingredients.special",g=>{foreach(var f in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.OrderBy(d=>d.defName,StringComparer.Ordinal)){g.Write(f.defName);g.Write(filter.Allows(f));}});
   });
-  internal static Obs.SnapshotRef Snapshot(Thing bench,IBillGiver giver,Common.ObservationContext context)=>new Obs.SnapshotRef{Context=context,EntityId=bench.GetUniqueLoadID(),Token=Hash(w=>{w.Write((context.Identity?.ColonyId ?? ""));w.Write((context.Identity?.LoadToken ?? ""));w.Write(context.Identity?.MapId ?? 0);w.Write(bench.GetUniqueLoadID());w.Write(giver.BillStack.Count);if(giver.BillStack.Count>BillStack.MaxCount)throw new InvalidOperationException("Bill stack bound");foreach(var b in giver.BillStack.Bills){w.Write(Configuration(b));w.Write(b is Bill_Production p&&p.paused);}})};
+  internal static Obs.SnapshotRef Snapshot(Thing bench,IBillGiver giver,Common.ObservationContext context)=>new Obs.SnapshotRef{Context=context,EntityId=bench.GetUniqueLoadID(),Token=NativeSnapshotVersions.Token("bench",context.Identity,bench.GetUniqueLoadID(),w=>{w.Write(giver.BillStack.Count);if(giver.BillStack.Count>BillStack.MaxCount)throw new InvalidOperationException("Bill stack bound");foreach(var b in giver.BillStack.Bills){w.Write(Configuration(b));w.Write(b is Bill_Production p&&p.paused);}})};
   internal static bool Usable(Thing bench)=>bench.Spawned&&ProtoBoundary.IsLoaded(bench.Map)&&bench.Faction==Faction.OfPlayer&&!bench.IsForbidden(Faction.OfPlayer)&&!bench.Position.Fogged(bench.Map)&&!bench.IsBurning()&&bench is IBillGiver g&&g.CurrentlyUsableForBills();
   // Players can queue work on an empty fueled bench; haulers refuel it once a bill waits.
   // CurrentlyUsableForBills rejects an unfueled bench, so admission relaxes only that condition.

@@ -166,7 +166,7 @@ Kept, reason recorded:
 | MainThreadAdmission.cs | 262 | state | Orders main-thread hops by admission class (control before observation) under a per-frame allowance. | DefaultAllowanceMs=4.0 StaleMs=250 (tuning) |  |
 | MainThreadWatchdog.cs | 117 | state | Background timer that logs main-thread hops that stalled queued or running. | StallSeconds SlowMillis (tuning) |  |
 | NativeAbilityOperations.cs | 390 | code | AbilityIntent handler: guards and uses a royal permit or ability via the game worker validation and favor/cooldown checks. |  |  |
-| NativeAcquisitionToken.cs | 31 | state | Hash token for acquisition snapshots covering resource, cell, harvestability and designation. |  |  |
+| NativeAcquisitionToken.cs | 31 | state | Version tokens for plant and hunt acquisition rows (resource, cell, harvestability, designation; corpse, designation). |  |  |
 | NativeActionDispatch.cs | 312 | state | Maps every Action arm to a handler and keeps a bounded replay LRU of results per idempotency key. | handler registry; ReplayCapacity=256 |  |
 | NativeAnomalyColony.cs | 112 | excluded | Anomaly colony facts section. |  |  |
 | NativeAnomalyFacts.cs | 327 | excluded | Anomaly catalog and per-pawn/building row blocks. |  |  |
@@ -252,7 +252,7 @@ Kept, reason recorded:
 | NativeMoveBuilding.cs | 121 | state | RelocateIntent: places reinstall or install blueprints for a building or packed item. |  |  |
 | NativeMovementOperations.cs | 69 | state | MoveIntent: Goto order for a drafted pawn with standable and reachable checks. |  |  |
 | NativeNotificationReadTools.cs | 278 | state | Reads letter stack, live messages and active alerts into the Notifications reply. |  | Limits (40/12/40, ceiling 256) are tool constants, not game constants |
-| NativeObservationSnapshot.cs | 36 | code | Stateless SHA256 row-level CAS token helper. |  |  |
+| NativeObservationSnapshot.cs | 36 | code | Row-level CAS snapshot reference whose token is a NativeSnapshotVersions version. |  |  |
 | NativeObservationTools.cs | 389 | mixed | Status, cells and excavation-site read tools plus the threat, pawn-row, job-row and thing-row builders. | HiveBoundaryCells=10 hardcoded hive trespass radius; HostileBuilding rule (building.combatPower>0 or IsMortar, or Hive) | GameConstants (#2626) for the hive boundary radius if it mirrors a game value (else Go policy constant); BuildingProperties.combatPower/isMortar rows for the hostile-building rule |
 | NativeOdysseyColony.cs | 89 | excluded | Odyssey colony reads (not read). |  |  |
 | NativeOdysseyFacts.cs | 100 | excluded | Odyssey building hack and portal state and colony-map mutators (state); the catalog biome-animal and stockpile-type reads were deleted in #2632. |  |  |
@@ -276,7 +276,7 @@ Kept, reason recorded:
 | NativeQuestHackGift.cs | 97 | state | Reads hack-target and beg-for-items quest objectives with eligible hackers and haulers. |  |  |
 | NativeQuestJoinerOperations.cs | 42 | state | Orders a colonist to take the OfferHelp job on a willing rescue joiner. |  |  |
 | NativeQuestMonuments.cs | 105 | state | Reads monument marker quest state: install cells, sketch pieces, costs, resources and eligible haulers. |  |  |
-| NativeQuestOperations.cs | 106 | state | Accepts a visible quest offer under the game's acceptance rules and hashes quest state tokens. |  |  |
+| NativeQuestOperations.cs | 106 | state | Accepts a visible quest offer under the game's acceptance rules and versions quest state tokens. |  |  |
 | NativeQuestRefugees.cs | 24 | state | Lists refugee pod pawns for rescue objectives. |  |  |
 | NativeQuestShuttleOperations.cs | 99 | state | Loads pawns into and launches a quest shuttle via vanilla gizmos. |  |  |
 | NativeQuestShuttles.cs | 48 | state | Reads quest shuttle loading state and lodger mood thresholds. |  |  |
@@ -304,6 +304,7 @@ Kept, reason recorded:
 | NativeRoyaltyColony.cs | 110 | mixed | Royalty colony section: player thrones, pending bestowing ceremonies, and neuroformer/neurotrainer stock. | ReadNeuroformers def enumeration (PsychicAmplifier plus ThingCategory NeurotrainersPsycast defs), TeachesPsycast from CompProperties_UseEffect_GainAbility, Craftable (any recipe product), Tradeable (def.tradeability), ~20 lines | ThingDef.thingCategories + ThingDef.comps (use-effect ability) + ThingDef.tradeability; Craftable = Go rule over RecipeDef.products; Held count and ceremonies stay state |
 | NativeSiteExtraction.cs | 62 | code | Quest site extraction facts: crew, exit cells, caravan carry capacity, food days, cargo and home routes via caravan dialog and path finders. |  |  |
 | NativeSiteSecurity.cs | 124 | mixed | Quest site security facts: initial threat points, active/dormant threat, traps, pending raid points from site parts and linked quests. | ClosedPart switch (about 14 SitePartDef defNames mapped to expected workerClass), LoadedGroundPart switch (8 opportunity-site defNames), InitialBudget special cases GravshipWreckage/BanditGang, SleepingMechCurve read by reflection from QuestPart_SleepingMechs; ~35 lines | SitePartDef.workerClass (defs.proto SitePartDef field 11) with a Go set of defNames; SleepingMechCurve and MinPointsToGenerate from GameConstants (#2626) |
+| NativeSnapshotVersions.cs | 55 | state | Process-wide monotonic version per guarded row; the row CAS token every snapshot carries. |  |  |
 | NativeSpatialAccessTool.cs | 146 | code | Single-frame pawn spatial access audit: BFS reachability over walkable cells with blocked cells vs native CanReach. |  |  |
 | NativeStockpilePatch.cs | 115 | state | Stockpile/storage-building settings patch handler plus storage snapshot token. |  |  |
 | NativeStockpilePlacement.cs | 107 | code | Stockpile placement preview and apply: flood-fills free zoneable cells into components and creates Zone_Stockpile with resolved filter. |  |  |

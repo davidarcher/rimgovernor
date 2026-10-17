@@ -52,38 +52,23 @@ internal static class NativeProtoObservationsProbe
             var bound=(object[])binder.Invoke(null,new object?[]{tools.GetMethod(methodName),new Dictionary<string,object?>{{"request",value}},null,CancellationToken.None})!;
             Check(ReferenceEquals(bound[2],value),"actual SDK raw value preserved: "+methodName);
         }
-        // ---- N01.03: shared stateless CAS/cursor helper (NativeObservationSnapshot).
+        // ---- N01.03: shared row CAS helper (NativeObservationSnapshot over NativeSnapshotVersions).
         var snapshotType=bridge.GetType("HomeBridge.BridgeTools.NativeObservationSnapshot",true)!;
-        var cursorType=snapshotType.GetNestedType("Cursor",Flags)!;
         object ParseCommon(string type,string json) {
             var commonType=typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire.Common."+type,true)!;
             return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize",new[]{typeof(string)})!.MakeGenericMethod(commonType).Invoke(null,new object[]{json})!;
         }
-        var identityA=ParseCommon("Identity","{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}");
-        var identityB=ParseCommon("Identity","{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":1}");
-        var encode=cursorType.GetMethod("Encode",Flags)!;
-        var tryDecode=cursorType.GetMethod("TryDecode",Flags)!;
-        var cursor=(string)encode.Invoke(null,new object?[]{identityA,"seed-1","row-42"})!;
-        Check(!string.IsNullOrEmpty(cursor),"cursor encodes to a nonempty opaque token");
-        var decodeArgs=new object?[]{identityA,"seed-1",cursor,null};
-        var decoded=(bool)tryDecode.Invoke(null,decodeArgs)!;
-        Check(decoded && (string?)decodeArgs[3]=="row-42","cursor round-trips its last-row key under the same identity/seed");
-        var mismatchedSeed=new object?[]{identityA,"seed-2",cursor,null};
-        Check(!(bool)tryDecode.Invoke(null,mismatchedSeed)!,"cursor fails closed when the caller's filters changed");
-        var mismatchedIdentity=new object?[]{identityB,"seed-1",cursor,null};
-        Check(!(bool)tryDecode.Invoke(null,mismatchedIdentity)!,"cursor fails closed when identity (map) differs");
-        foreach(var garbage in new[]{"","not-base64!!","AAAA"})
-            Check(!(bool)tryDecode.Invoke(null,new object?[]{identityA,"seed-1",garbage,null})!,"malformed cursor is refused, not thrown: "+garbage);
         var snapshotMethod=snapshotType.GetMethod("Snapshot",Flags)!;
         var writerParam=snapshotMethod.GetParameters().Last().ParameterType;
         var context=ParseCommon("ObservationContext","{\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0},\"tick\":1}");
-        var noOp=Delegate.CreateDelegate(writerParam,typeof(NativeProtoObservationsProbe).GetMethod(nameof(WriteNothing),Flags)!);
-        var tokenA=snapshotMethod.Invoke(null,new object?[]{"kind",context,"entity-1",noOp});
-        var tokenB=snapshotMethod.Invoke(null,new object?[]{"kind",context,"entity-1",noOp});
-        var tokenField=tokenA!.GetType().GetProperty("Token")!;
-        Check(Equals(tokenField.GetValue(tokenA),tokenField.GetValue(tokenB)),"stateless snapshot token is deterministic for identical inputs");
-        var tokenDifferentEntity=snapshotMethod.Invoke(null,new object?[]{"kind",context,"entity-2",noOp});
-        Check(!Equals(tokenField.GetValue(tokenA),tokenField.GetValue(tokenDifferentEntity)),"snapshot token differs by entity id");
+        Delegate Writer(string name)=>Delegate.CreateDelegate(writerParam,typeof(NativeProtoObservationsProbe).GetMethod(name,Flags)!);
+        var tokenField=snapshotMethod.ReturnType.GetProperty("Token")!;
+        object? Token(string entity,string writer)=>tokenField.GetValue(snapshotMethod.Invoke(null,new object?[]{"kind",context,entity,Writer(writer)}));
+        var tokenA=Token("entity-1",nameof(WriteNothing));
+        Check(Equals(tokenA,Token("entity-1",nameof(WriteNothing))),"snapshot token is stable for unchanged facts");
+        Check(!Equals(tokenA,Token("entity-2",nameof(WriteNothing))),"snapshot token differs by entity id");
+        Check(!Equals(tokenA,Token("entity-1",nameof(WriteOne))),"snapshot token moves when a guarded fact moves");
+        Check(!Equals(tokenA,Token("entity-1",nameof(WriteNothing))),"a read before the move never matches again, even once the fact moves back");
 
         // ---- N01.03: readers accept a cursor within the byte bound instead of refusing any nonempty cursor.
         var boundedCursor=new string('A',64);
@@ -104,4 +89,5 @@ internal static class NativeProtoObservationsProbe
         Console.WriteLine(checks+" compiled observation request/binder assertions passed; no gameplay assertions.");return 0;
     }
     private static void WriteNothing(BinaryWriter writer) { }
+    private static void WriteOne(BinaryWriter writer) => writer.Write(1);
 }

@@ -33,26 +33,15 @@ namespace HomeBridge.BridgeTools
     {
         internal const string ToolName = "rimgovernor/observations_read_world";
 
-        private static string Hash(string text)
-        {
-            using (var hash = System.Security.Cryptography.SHA256.Create())
-                return BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLowerInvariant();
-        }
+        // Versioned over the observed FactionState facts (player, goodwill,
+        // hostile).
+        internal static string FactionToken(Faction faction) => NativeSnapshotVersions.Token("faction", null, faction.GetUniqueLoadID(), string.Join("|",
+            faction.IsPlayer.ToString(), faction.IsPlayer ? "" : faction.PlayerGoodwill.ToString(), faction.HostileTo(Faction.OfPlayer).ToString()));
 
-        // Recomputable from already-observed FactionState facts (id, goodwill,
-        // hostile, player) alone: a caller can reproduce this hash from an
-        // ordinary world-progression/faction read without depending on this
-        // handler for the value, only for confirming freshness against native.
-        internal static string FactionToken(Faction faction) => "faction-" + Hash(string.Join("|",
-            faction.GetUniqueLoadID(), faction.IsPlayer.ToString(),
-            faction.IsPlayer ? "" : faction.PlayerGoodwill.ToString(), faction.HostileTo(Faction.OfPlayer).ToString()));
-
-        // Recomputable the same way from Settlement facts (id, tile, faction id,
-        // CanTradeNow), so a settlement whose trade eligibility changed reads a
-        // new token.
-        internal static string SettlementToken(Settlement settlement) => "settlement-" + Hash(string.Join("|",
-            settlement.GetUniqueLoadID(), settlement.Tile.tileId.ToString(),
-            settlement.Faction != null ? settlement.Faction.GetUniqueLoadID() : "", settlement.CanTradeNow.ToString()));
+        // Versioned over the Settlement facts (tile, faction id, CanTradeNow),
+        // so a settlement whose trade eligibility changed reads a new token.
+        internal static string SettlementToken(Settlement settlement) => NativeSnapshotVersions.Token("settlement", null, settlement.GetUniqueLoadID(), string.Join("|",
+            settlement.Tile.tileId.ToString(), settlement.Faction != null ? settlement.Faction.GetUniqueLoadID() : "", settlement.CanTradeNow.ToString()));
 
         internal static Obs.Settlement SettlementRow(Common.ObservationContext context, Settlement settlement, PlanetTile? from)
         {
