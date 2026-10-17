@@ -220,6 +220,15 @@ encounter, for every gunner). A roster with no estimate, a non-evidence predicti
 walk is refused with its reason, never ranked as zero risk. With no nutrition needed, or no usable roster, the
 choice is not to hunt. Return travel and corpse retrieval are not yet in the labor.
 
+The runtime side is `IHuntEstimates` (`HuntEstimateService` in the host). `HuntEncounterRequests.Build` states each
+roster as an `EncounterRequest`: the observed window as the map, the roster gunners each aimed at the nearest
+prey, 16 fixed seeds, a 2.4-hour horizon. The service asks the prediction service one request at a time in the
+background, never from the planner step, and keeps each answer as a `HuntEstimate` or a refusal. An estimate is
+reused for a day while its pawns have not been injured, re-geared or moved more than 8 cells; otherwise the
+roster is asked again. A busy, cancelled, timed-out or unavailable service is retried after an hour of game
+time; an unsupported roster stays refused. Policy sees only the view (estimates, refusals, rosters pending), so
+a roster that is pending, refused or unanswered is never ranked as safe.
+
 These are mechanics and current observations, not selected colony policy. Native
 does not spawn hypothetical food to estimate a future meal. Definition-based
 future ingestion facts do not claim ingredient-dependent memories or poisoning
