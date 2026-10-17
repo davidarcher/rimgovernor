@@ -47,9 +47,6 @@ public sealed partial class CheckpointRing
     private bool _busy;
     private Checkpoint? _failed;
 
-    // Why no further entry is taken (Cap): the case passed a point its body cannot resume after.
-    private string _capped = "";
-
     // Why the breakpoint fired; _nextBreakTick throttles a tick breakpoint's reads under a service.
     private string _tripped = "";
     private long _nextBreakTick;
@@ -169,33 +166,12 @@ public sealed partial class CheckpointRing
         }
     }
 
-    /// <summary>Why the ring stopped taking entries, "" while it still does.</summary>
-    public string Capped()
-    {
-        lock (_gate)
-        {
-            return _capped;
-        }
-    }
-
     /// <summary>The captures that failed, for the report.</summary>
     public IReadOnlyList<string> Errors()
     {
         lock (_gate)
         {
             return [.. _errors];
-        }
-    }
-
-    /// <summary>Stops taking any further entry (see <see cref="Checkpoints.Cap"/>).</summary>
-    internal void CapWith(string reason)
-    {
-        lock (_gate)
-        {
-            if (_capped.Length == 0)
-            {
-                _capped = reason;
-            }
         }
     }
 
@@ -256,7 +232,7 @@ public sealed partial class CheckpointRing
         lock (_gate)
         {
             var now = Now();
-            if (_capped.Length > 0 || _busy || Stopwatch.GetElapsedTime(_last, now) < Every || now < _nextCheck)
+            if (_busy || Stopwatch.GetElapsedTime(_last, now) < Every || now < _nextCheck)
             {
                 return TimeSpan.Zero;
             }
@@ -371,11 +347,6 @@ public sealed partial class CheckpointRing
     {
         lock (_gate)
         {
-            if (_capped.Length > 0)
-            {
-                throw new AcceptanceException($"ring capped: {_capped}");
-            }
-
             if (_busy)
             {
                 throw new AcceptanceException("a capture is already in progress");

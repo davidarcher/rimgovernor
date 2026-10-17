@@ -6,10 +6,7 @@ public static class DefenseCases
     public static void Register(CaseRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
-        registry.Register(DefensePerimeter.Case());
-        registry.Register(DefenseIeds.Case());
         registry.Register(DefenseSiteStuff.Case());
         registry.Register(DefenseThreat.Case());
-        registry.Register(DefenseUpgrade.Case());
     }
 }

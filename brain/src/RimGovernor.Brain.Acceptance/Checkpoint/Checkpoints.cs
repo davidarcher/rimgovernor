@@ -71,14 +71,6 @@ public static class Checkpoints
     /// </summary>
     public static void SetState(string key, JsonNode? value) => Active?.SetState(key, value);
 
-    /// <summary>
-    /// Stops the active ring taking any further entry, periodic or named, so a resume of a later failure replays from
-    /// the last entry before the cap: a case calls it at a point of no return its Run body cannot resume after
-    /// (defense/perimeter at its raid, whose sprung traps fail the pre-raid audit a resume replays). The failed bundle
-    /// is still taken. <paramref name="reason"/> goes on the report. Nothing happens when no ring is active.
-    /// </summary>
-    public static void Cap(string reason) => Active?.CapWith(reason);
-
     /// <summary>Reads the sidecar of the bundle at dir, with Path set.</summary>
     public static Checkpoint ReadCheckpoint(string dir) => Ring.ReadCheckpoint(dir);
 

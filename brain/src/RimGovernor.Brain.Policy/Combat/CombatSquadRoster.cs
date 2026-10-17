@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
 public static partial class PolicyFunctions
@@ -36,7 +37,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static bool SquadRosterChanged(CombatView view, StopEvent stop, CombatMemory m)
     {
-        if (stop.Kind == CombatStopKind.Downed && IsDefender(view, stop.Pawn))
+        if (stop.Kind == CombatEvent.Downed && IsDefender(view, stop.Pawn))
         {
             return true;
         }

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -186,11 +187,11 @@ public static partial class PolicyFunctions
         }
 
         Func<CombatRole, bool> who;
-        if (stop.Kind == CombatStopKind.Breach || HoldCompromised(layout.Firing.Items, layout.Toward, Unpeeled(view, stop, m)))
+        if (stop.Kind == CombatEvent.Breach || HoldCompromised(layout.Firing.Items, layout.Toward, Unpeeled(view, stop, m)))
         {
             who = _ => true;
         }
-        else if (stop.Kind == CombatStopKind.SeriousInjury && !stop.Pawn.IsEmpty)
+        else if (stop.Kind == CombatEvent.SeriousInjury && !stop.Pawn.IsEmpty)
         {
             who = r => r.Pawn == stop.Pawn;
         }

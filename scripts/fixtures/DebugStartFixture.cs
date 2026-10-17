@@ -79,39 +79,6 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("test/lab_stock", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: stock the loaded map with total units of one item def, laid as full stacks (the def's stack limit) and a remainder on the free cells nearest the given cell, joining a stack already there where one has room. Replies the units placed and the stacks laid. Use it for any case that needs a resource in quantity, never a spawn per stack.")]
-        public async Task<object> Stock(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Item ThingDef name, e.g. BlocksGranite.")] string def,
-            [ToolParameter(Description = "Units of the item to place.")] int total,
-            [ToolParameter(Description = "Cell x the stacks are laid nearest to.")] int x,
-            [ToolParameter(Description = "Cell z the stacks are laid nearest to.")] int z,
-            [ToolParameter(Description = "Stuff ThingDef for a stuffed item; empty takes the def's default.")] string stuff = "")
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded game with a current map is required.");
-                var thingDef = DefDatabase<ThingDef>.GetNamedSilentFail(def ?? "") ?? throw new ArgumentException($"No ThingDef named {def}.");
-                if (thingDef.category != ThingCategory.Item) throw new ArgumentException($"{def} is not an item.");
-                if (total < 1 || total > 1000000) throw new ArgumentException("total must be within 1..1000000.");
-                var cell = new IntVec3(x, 0, z);
-                if (!cell.InBounds(map)) throw new ArgumentException($"Cell {x},{z} is out of bounds.");
-                ThingDef stuffDef = null;
-                if (thingDef.MadeFromStuff)
-                    stuffDef = stuff == "" ? GenStuff.DefaultStuffFor(thingDef) : DefDatabase<ThingDef>.GetNamedSilentFail(stuff) ?? throw new ArgumentException($"No stuff named {stuff}.");
-                var placed = 0;
-                var stacks = 0;
-                while (placed < total)
-                {
-                    var thing = ThingMaker.MakeThing(thingDef, stuffDef);
-                    thing.stackCount = Math.Min(total - placed, thingDef.stackLimit);
-                    var units = thing.stackCount;
-                    if (!GenPlace.TryPlaceThing(thing, cell, map, ThingPlaceMode.Near)) throw new InvalidOperationException($"No room near {x},{z} for {def}: placed {placed} of {total}.");
-                    placed += units;
-                    stacks++;
-                }
-                return new { success = true, def = thingDef.defName, placed, stacks };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
         [Tool("test/lab_spawn", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#743): spawn one finished thing at a cell of the loaded map, the lab contract runner's single-building or single-pawn helper. def is a PawnKindDef (a generated pawn) or a ThingDef (a building, or an item stack of count). A pawn may be given a fixed gender and age. Replies the spawned thing's load id, kind and cell.")]
         public async Task<object> Spawn(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "PawnKindDef or ThingDef name.")] string def,

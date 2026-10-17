@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
 // Go: combat_decide.go
@@ -237,27 +238,11 @@ public sealed partial record CombatView
         spared.Count == 0 ? this : this with { Threats = EquatableArray.From(Threats.Items.Where(t => !spared.Contains(ThreatPawn(t)))) };
 }
 
-/// <summary>The combat event that stopped the clock, lower-cased (downed, raid_phase, ...); empty for the first decision or the backstop.</summary>
-public readonly partial record struct CombatStopKind(string Value)
-{
-    public string Value { get => field ?? string.Empty; } = Value;
-
-    public static readonly CombatStopKind RaidPhase = new("raid_phase");
-    public static readonly CombatStopKind Breach = new("breach");
-    public static readonly CombatStopKind SeriousInjury = new("serious_injury");
-    public static readonly CombatStopKind MeleeContact = new("melee_contact");
-    public static readonly CombatStopKind Downed = new("downed");
-    public static readonly CombatStopKind ShieldBroken = new("shield_broken");
-
-    public bool IsEmpty => Value.Length == 0;
-
-    public override string ToString() => Value;
-}
-
 /// <summary>The stop DecideCombat answers.</summary>
 public sealed record StopEvent
 {
-    public CombatStopKind Kind { get; init; }
+    /// <summary>The combat event that stopped the clock; unspecified for the first decision or the backstop.</summary>
+    public CombatEvent Kind { get; init; }
 
     public PawnId Pawn { get; init; }
 
@@ -1318,7 +1303,7 @@ public static partial class PolicyFunctions
     /// </summary>
     private static bool Reform(CombatView view, StopEvent stop, CombatMemory m)
     {
-        if (m.Roles.Count == 0 || stop.Kind == CombatStopKind.RaidPhase || stop.Kind == CombatStopKind.Breach)
+        if (m.Roles.Count == 0 || stop.Kind == CombatEvent.RaidPhase || stop.Kind == CombatEvent.Breach)
         {
             return true;
         }

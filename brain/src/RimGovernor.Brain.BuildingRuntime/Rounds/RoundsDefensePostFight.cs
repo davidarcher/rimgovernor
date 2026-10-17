@@ -99,11 +99,10 @@ public sealed partial class RoundsDefensePlanner
         var batch = CombatBatchPlan(fightPlan, label, drafts, orders);
         var (results, sent) = await SendCombatBatchAsync(state, fightPlan, label, drafts, orders, call).ConfigureAwait(false);
         (results, memory) = RecordDrafts(fightPlan, drafts, results, memory, call);
-        var (record, next) = CombatStopRecord(new CombatView { Tick = tick }, sent, results, memory);
-        record = record with { Batch = batch.Id };
-        if (record.Orders.Count > 0)
+        var next = CombatStopMemory(new CombatView { Tick = tick }, sent, results, memory);
+        if (sent.Count > 0)
         {
-            p.Journal.RecordCombatStop(fightPlan, record, next, call);
+            p.Journal.RecordCombatStop(fightPlan, batch.Id, sent.Count, next, call);
         }
         return new RoundsDefenseResult { Verdict = BuildingReasonCombatOrders, Plan = fightPlan };
     }

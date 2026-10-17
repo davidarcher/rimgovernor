@@ -64,14 +64,11 @@ internal static class CodecRegistry
         codecs.Register(new CombatGroupConverter());
         codecs.Register(new CombatMemoryConverter());
         codecs.Register(new CombatOrderConverter());
-        codecs.Register(new CombatOrderRecordConverter());
         codecs.Register(new CombatRescueConverter());
         codecs.Register(new CombatRestorationConverter());
         codecs.Register(new CombatResultConverter());
         codecs.Register(new CombatRoleConverter());
         codecs.Register(new CombatRosterConverter());
-        codecs.Register(new CombatStopKindConverter());
-        codecs.Register(new CombatStopRecordConverter());
         codecs.Register(new CombatTuningConverter());
         codecs.Register(new ComfortHistoryConverter());
         codecs.Register(new ComfortUseConverter());
@@ -232,7 +229,6 @@ internal static class CodecRegistry
         codecs.Register(new StatModifierConverter());
         codecs.Register(new StockpileFilterConverter());
         codecs.Register(new StockpilePatchConverter());
-        codecs.Register(new StopEventConverter());
         codecs.Register(new StoreAdmissionConverter());
         codecs.Register(new StripConverter());
         codecs.Register(new SubdueConverter());

@@ -249,7 +249,7 @@ public sealed partial class RoundsDefensePlanner
         }
         if (fight is null)
         {
-            var result = await AdmitFightAsync(state, started, arbiter, new FightAdmission { Combat = combat, In = inp, Held = held, Reply = recorded.Reply ?? new GeometryReply(), Stop = stop, Memory = next }, call, epoch).ConfigureAwait(false);
+            var result = await AdmitFightAsync(state, started, arbiter, new FightAdmission { Combat = combat, In = inp, Held = held, Reply = recorded.Reply ?? new GeometryReply(), Memory = next }, call, epoch).ConfigureAwait(false);
             if (result.Verdict == BuildingReasonAdmitted)
             {
                 recorded.Plan = result.Plan;
@@ -319,9 +319,8 @@ public sealed partial class RoundsDefensePlanner
             return new RoundsDefenseResult { Verdict = BuildingReasonExistingWork, Plan = id };
         }
         p.Current(call, epoch);
-        var (stopRecord, next3) = await IssueCombatOrdersAsync(state, id, view, drafts, allOrders, next, call).ConfigureAwait(false);
-        stopRecord = stopRecord with { Stop = stop };
-        p.Journal.RecordCombatStop(id, stopRecord, next3, call);
+        var (batch, sent, next3) = await IssueCombatOrdersAsync(state, id, view, drafts, allOrders, next, call).ConfigureAwait(false);
+        p.Journal.RecordCombatStop(id, batch, sent, next3, call);
         recorded.Evidence = true;
         RecordCombatStop(combat, recorded, call);
         return new RoundsDefenseResult { Verdict = BuildingReasonCombatOrders, Plan = id };

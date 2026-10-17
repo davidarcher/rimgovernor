@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>A door order's mode.</summary>
@@ -73,7 +74,7 @@ public static partial class PolicyFunctions
     {
         if (m.Rescue is null)
         {
-            if (stop.Kind != CombatStopKind.Downed || !IsDefender(view, stop.Pawn))
+            if (stop.Kind != CombatEvent.Downed || !IsDefender(view, stop.Pawn))
             {
                 return (m, [], null);
             }

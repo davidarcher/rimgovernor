@@ -406,11 +406,6 @@ public static class RingPlanning
 
         IReadOnlyList<Checkpoint> entries = ring.Entries();
         report["checkpoints"] = Rows(entries);
-        if (ring.Capped() is { Length: > 0 } capped)
-        {
-            report["checkpoint_capped"] = capped;
-        }
-
         if (ring.Errors() is { Count: > 0 } errs)
         {
             report["checkpoint_errors"] = Strings(errs);

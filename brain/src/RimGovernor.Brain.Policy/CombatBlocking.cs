@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
 // Go: combat_blocking.go
@@ -234,7 +235,7 @@ public static partial class PolicyFunctions
     /// </summary>
     private static bool RelieveBlocker(CombatView view, StopEvent stop, CombatMemory m)
     {
-        if (stop.Kind != CombatStopKind.SeriousInjury)
+        if (stop.Kind != CombatEvent.SeriousInjury)
         {
             return false;
         }

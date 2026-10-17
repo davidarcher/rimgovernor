@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
 public static partial class PolicyFunctions
@@ -53,7 +54,7 @@ public static partial class PolicyFunctions
     /// <summary>Reports a raid_phase stop with a live hostile fleeing or looting and leaving.</summary>
     internal static bool PodStrike(CombatView view, StopEvent stop)
     {
-        if (stop.Kind != CombatStopKind.RaidPhase)
+        if (stop.Kind != CombatEvent.RaidPhase)
         {
             return false;
         }

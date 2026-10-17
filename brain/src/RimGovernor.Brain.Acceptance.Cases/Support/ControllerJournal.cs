@@ -7,8 +7,8 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// A running service together with the controller journal it writes (Go: the <c>*store.Store</c> a case got from
-/// <c>service.Store(ctx)</c>). The player API shows a goal's method and plan but not its Finding, the defensive
-/// layout record or the combat evidence, so the cases that assert on those open the journal itself, read-only in
+/// <c>service.Store(ctx)</c>). The player API shows a goal's method and plan but not its Finding, so the cases
+/// that assert on it open the journal itself, read-only in
 /// practice: <c>&lt;output&gt;/service.sqlite</c>, the file the checkpoint ring and the postmortem already expect there.
 /// Where the in-mod brain keeps that file is the one thing this seam depends on; every case reaches it through
 /// <see cref="Open"/>.
@@ -36,16 +36,6 @@ internal sealed class ControllerJournal : IDisposable
         return new ControllerJournal(service, JournalStore.Open(path, cancellationToken));
     }
 
-    /// <summary>
-    /// Opens the case's journal file on its own, with no service beside it (Go: <c>store.Open(ctx, statePath)</c> for an
-    /// audit read between phases); the caller disposes it.
-    /// </summary>
-    internal static JournalStore OpenStore(ISession s, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(s);
-        return JournalStore.Open(ServiceJournal.PathOf(s.Config), cancellationToken);
-    }
-
     /// <summary>The stored review; an empty journal has the zero review.</summary>
     internal Task<StoreRounds> LoadRoundsAsync(CancellationToken cancellationToken) => Store.LoadRoundsAsync(cancellationToken);
 
@@ -64,7 +54,7 @@ internal sealed class ControllerJournal : IDisposable
     public void Dispose() => Store.Dispose();
 }
 
-/// <summary>The journal readings both the upkeep and defense families make of a goal.</summary>
+/// <summary>The journal readings the upkeep family makes of a goal.</summary>
 internal static class JournalReads
 {
     /// <summary>The node as an object, or an empty one (Go: a missing map reads as its zero value).</summary>

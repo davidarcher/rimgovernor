@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
 public static partial class PolicyFunctions
@@ -137,7 +138,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static CombatMemory PullBackTank(StopEvent stop, CombatMemory m)
     {
-        if (stop.Kind != CombatStopKind.ShieldBroken)
+        if (stop.Kind != CombatEvent.ShieldBroken)
         {
             return m;
         }

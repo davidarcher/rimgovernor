@@ -507,7 +507,6 @@ Policy|ColonyForecastScenario.Commitments
 Policy|ColonyForecastScenario.Construction
 Policy|ColonyForecastScenario.EquipmentAvailability
 Policy|ColonyForecastScenario.MaterialAvailability
-Policy|CombatStopKind.IsEmpty
 Policy|CombatTuning.IsValid
 Policy|CombatView.HiveTemperatureC
 Policy|ComfortModel.Beauty

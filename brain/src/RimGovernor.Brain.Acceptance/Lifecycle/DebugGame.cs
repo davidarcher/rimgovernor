@@ -30,22 +30,6 @@ public sealed record LabThing
     public double Age { get; init; }
 }
 
-/// <summary>Total units of one item def laid by <see cref="DebugGame.LabStockAsync"/>.</summary>
-public sealed record Stock
-{
-    public string Def { get; init; } = "";
-
-    public int Total { get; init; }
-
-    /// <summary>The cell the stacks are laid nearest to.</summary>
-    public int X { get; init; }
-
-    public int Z { get; init; }
-
-    /// <summary>The stuff of a stuffed item; empty takes the def's default.</summary>
-    public string Stuff { get; init; } = "";
-}
-
 /// <summary>Whether the harness's storyteller is quiet (Go <c>Harness.quiet</c>, set by the quiet op and read by the lab start).</summary>
 public static class HarnessQuiet
 {
@@ -82,8 +66,6 @@ public static class DebugGame
     public const string LabSpawnTool = "test/lab_spawn";
 
     public const string LabCrewTool = "test/lab_crew";
-
-    public const string LabStockTool = "test/lab_stock";
 
     /// <summary>The colony the acceptance debug start asks the op for.</summary>
     public const string DebugScenario = "Crashlanded";
@@ -309,43 +291,6 @@ public static class DebugGame
         return reply["success"].AsBool() == true
             ? ((int)reply["colonists"].AsNumber(), (int)reply["added"].AsNumber())
             : throw new AcceptanceException($"{LabCrewTool} refused: {reply.ToJson()}");
-    }
-
-    /// <summary>
-    /// Stocks the loaded map with <paramref name="stock"/> (<see cref="LabStockTool"/>): full stacks and a remainder
-    /// on the free cells nearest (X, Z), joining stacks that have room. It is the one way a case puts a resource on
-    /// the map in quantity: never one LabSpawn per stack, which merges into what is already on the cell. Returns the
-    /// units placed.
-    /// </summary>
-    public static async Task<int> LabStockAsync(Harness harness, Stock stock, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(harness);
-        ArgumentNullException.ThrowIfNull(stock);
-        var args = new JsonObject { ["def"] = stock.Def, ["total"] = stock.Total, ["x"] = stock.X, ["z"] = stock.Z };
-        if (stock.Stuff.Length > 0)
-        {
-            args["stuff"] = stock.Stuff;
-        }
-
-        JsonObject reply;
-        try
-        {
-            reply = await harness.CallAsync("lab-stock-" + stock.Def, LabStockTool, args, cancellationToken).ConfigureAwait(false);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"{LabStockTool} {stock.Def}: {e.Message}", e);
-        }
-
-        if (reply["success"].AsBool() != true)
-        {
-            throw new AcceptanceException($"{LabStockTool} {stock.Def} refused: {reply.ToJson()}");
-        }
-
-        var placed = (int)reply["placed"].AsNumber();
-        return placed != stock.Total
-            ? throw new AcceptanceException($"{LabStockTool} {stock.Def} placed {placed} of {stock.Total}")
-            : placed;
     }
 
     /// <summary>

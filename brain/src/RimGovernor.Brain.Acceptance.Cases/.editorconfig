@@ -180,15 +180,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Custody/CustodyPopulation.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Defense/Ieds.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Defense/Perimeter.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Defense/Upgrade.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/DevelopmentLifecycleCase.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 

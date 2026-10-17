@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
 public sealed record CombatSiteExit
@@ -21,7 +22,7 @@ public static partial class PolicyFunctions
             return (m, [], false);
         }
         var failed = m.Tactic == CombatTactic.SiteExit || m.Scattered;
-        if (stop.Kind == CombatStopKind.Downed && exit.Crew.Contains(stop.Pawn))
+        if (stop.Kind == CombatEvent.Downed && exit.Crew.Contains(stop.Pawn))
         {
             failed = true;
         }

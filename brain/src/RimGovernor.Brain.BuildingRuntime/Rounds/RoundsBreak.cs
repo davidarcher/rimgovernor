@@ -51,14 +51,12 @@ public sealed partial class RoundsDefensePlanner
                     }
                 }
             }
-            var stop = new StopEvent();
             foreach (var ev in combat.Events)
             {
                 var stopKind = ev.Stop.GetValueOrDefault();
                 if ((ev.At?.Tick).GetValueOrDefault() > fight.Memory.Tick.Value && participants.Contains(new Domain.PawnId((ev.ThingId ?? "")))
                     && (stopKind == K.CombatEvent.SeriousInjury || stopKind == K.CombatEvent.Downed))
                 {
-                    stop = new StopEvent { Kind = new CombatStopKind(stopKind == K.CombatEvent.SeriousInjury ? "serious_injury" : "downed"), Pawn = new PawnId((ev.ThingId ?? "")) };
                     active = false;
                 }
             }
@@ -132,23 +130,17 @@ public sealed partial class RoundsDefensePlanner
                     }
                 }
             }
-            var entries = new List<CombatOrderRecord>();
-            for (var i = 0; i < orders.Count; i++)
+            if (results is not null)
             {
-                var applied = false;
-                var refusal = "";
-                if (results is not null)
+                for (var i = 0; i < orders.Count; i++)
                 {
-                    applied = results[i].Applied;
-                    refusal = results[i].Refusal;
-                    confirmed = confirmed && (applied || refusal == BridgeConstants.CombatRefusalNotDrafted || refusal == BridgeConstants.CombatRefusalNotFound);
+                    var refusal = results[i].Refusal;
+                    confirmed = confirmed && (results[i].Applied || refusal == BridgeConstants.CombatRefusalNotDrafted || refusal == BridgeConstants.CombatRefusalNotFound);
                 }
-                entries.Add(new CombatOrderRecord(orders[i], applied, results is null, refusal));
             }
-            if (entries.Count > 0)
+            if (orders.Count > 0)
             {
-                var record = new CombatStopRecord(batch.Id, new Tick(combatContext.Tick), stop, [.. entries]);
-                p.Journal.RecordCombatStop(method.Plan, record, fight.Memory, call);
+                p.Journal.RecordCombatStop(method.Plan, batch.Id, orders.Count, fight.Memory, call);
             }
             if (confirmed && !unresolved)
             {

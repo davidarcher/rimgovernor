@@ -4,12 +4,6 @@ using RimGovernor.Brain.Store.Codec;
 
 namespace RimGovernor.Brain.Store;
 
-/// <summary>One order of a stop and its native outcome.</summary>
-public sealed record CombatOrderRecord(CombatOrder Order, bool Applied, bool Uncertain = false, string Refusal = "");
-
-/// <summary>One stop's changed orders.</summary>
-public sealed record CombatStopRecord(PlanId Batch, Tick Tick, StopEvent Stop, EquatableArray<CombatOrderRecord> Orders);
-
 /// <summary>
 /// A fight's state: open while it runs, the DecideCombat memory after its latest stop, and the roster of pawns it
 /// drafted in <see cref="World"/>.
@@ -54,9 +48,6 @@ public sealed record CombatAnimalRestoration(PawnId Pawn, string Area);
 
 public sealed partial class Store
 {
-    /// <summary>Bounds retained fight evidence to the newest stops; OTLP recordings retain the full history.</summary>
-    public const int CombatEvidenceStops = 32;
-
     public const string GovernorCombatRestorationKey = "family/combat_restoration";
 
     private const int MaxCombatRestorationBytes = 128 * 1024;
@@ -239,12 +230,12 @@ public sealed partial class Store
         Run(tx => tx.Execute("UPDATE combat_fights SET memory=$memory WHERE plan_id=$plan", ("$memory", StoreJson.Serialize(memory)), ("$plan", plan)), cancellationToken);
 
     /// <summary>
-    /// Appends one stop's orders to the plan's evidence, keeps the newest <see cref="CombatEvidenceStops"/> and saves
-    /// the memory after it. A stop with no orders is not recorded.
+    /// Saves the memory after a stop that sent <paramref name="orders"/> orders in <paramref name="batch"/>, and
+    /// supersedes the fight's earlier batches by it. A stop with no orders is not recorded.
     /// </summary>
-    public void RecordCombatStop(PlanId plan, CombatStopRecord stop, CombatMemory memory, CancellationToken cancellationToken)
+    public void RecordCombatStop(PlanId plan, PlanId batch, int orders, CombatMemory memory, CancellationToken cancellationToken)
     {
-        if (stop.Orders.Count == 0 || stop.Tick.Value < 0)
+        if (orders == 0)
         {
             throw new DomainException("combat stop records no orders");
         }
@@ -255,32 +246,14 @@ public sealed partial class Store
                 {
                     throw new DomainException("combat fight not recorded");
                 }
-                _ = tx.Execute(
-                    "INSERT INTO combat_evidence(plan_id,sequence,tick,payload) VALUES($plan,(SELECT COALESCE(MAX(sequence),0)+1 FROM combat_evidence WHERE plan_id=$plan),$tick,$payload)",
-                    ("$plan", plan),
-                    ("$tick", stop.Tick),
-                    ("$payload", StoreJson.Serialize(stop))
-                );
-                _ = tx.Execute(
-                    "DELETE FROM combat_evidence WHERE plan_id=$plan AND sequence<=(SELECT MAX(sequence) FROM combat_evidence WHERE plan_id=$plan)-$keep",
-                    ("$plan", plan),
-                    ("$keep", CombatEvidenceStops)
-                );
-                if (stop.Batch.Value.Length != 0)
+                if (batch.Value.Length != 0)
                 {
-                    SupersedeCombatBatches(tx, plan, stop.Batch, restored: false);
+                    SupersedeCombatBatches(tx, plan, batch, restored: false);
                 }
             },
             cancellationToken
         );
     }
-
-    /// <summary>The plan's recorded stops, oldest first.</summary>
-    public IReadOnlyList<CombatStopRecord> CombatEvidence(PlanId plan, CancellationToken cancellationToken) =>
-        Run(
-            tx => (IReadOnlyList<CombatStopRecord>)[.. tx.Query("SELECT payload FROM combat_evidence WHERE plan_id=$plan ORDER BY sequence", [("$plan", plan)], r => StoreJson.Deserialize<CombatStopRecord>(r.GetString(0)))],
-            cancellationToken
-        );
 
     // ---- batches -----------------------------------------------------------------------------------------
 
@@ -607,8 +580,7 @@ internal static partial class StoreSchema
     internal static readonly SchemaPart CombatFightsPart = new(
         """
         CREATE TABLE combat_fights(plan_id TEXT PRIMARY KEY REFERENCES plans(id), open INTEGER NOT NULL CHECK(open IN (0,1)), memory TEXT NOT NULL, roster TEXT NOT NULL) STRICT;
-        CREATE TABLE combat_evidence(plan_id TEXT NOT NULL REFERENCES combat_fights(plan_id), sequence INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), payload TEXT NOT NULL, PRIMARY KEY(plan_id,sequence)) STRICT;
         """,
-        ["SELECT plan_id,open,memory,roster FROM combat_fights LIMIT 0", "SELECT plan_id,sequence,tick,payload FROM combat_evidence LIMIT 0"]
+        ["SELECT plan_id,open,memory,roster FROM combat_fights LIMIT 0"]
     );
 }

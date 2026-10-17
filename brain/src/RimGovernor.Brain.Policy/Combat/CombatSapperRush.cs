@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
 public static partial class PolicyFunctions
@@ -32,7 +33,7 @@ public static partial class PolicyFunctions
             return m;
         }
         long rush = m.EffectiveTuning().RushRange;
-        if (near <= rush * rush || stop.Kind == CombatStopKind.Breach)
+        if (near <= rush * rush || stop.Kind == CombatEvent.Breach)
         {
             m = m with { Rushing = true };
         }

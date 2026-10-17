@@ -82,6 +82,6 @@ internal static partial class BuildingRuntimePackage
         {
             shaped.Add(new BridgeCombatOrderResult { Index = (int)(r.Index ?? 0), PawnId = r.PawnId ?? "", Applied = r.Applied == true, Refusal = r.Refusal ?? "" });
         }
-        return CombatStopRecord(step.View, step.Orders, shaped, step.Memory).Memory;
+        return CombatStopMemory(step.View, step.Orders, shaped, step.Memory);
     }
 }

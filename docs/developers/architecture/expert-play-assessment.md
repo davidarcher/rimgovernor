@@ -139,9 +139,9 @@ native pathing, actual pawn throughput or expert play.
    `issueCombatOrders` before `RecordCombatStop`. Exact batch execution therefore
    bypasses the ordinary executor's prepare/dispatch journal lifecycle.
 4. Results update refusals and combat memory; fight closure and the draft sweep
-   release the roster. Current `combatStopRecord` also sets `Applied` when the
-   result slice is nil, while its comment calls that receipt uncertain. The
-   target contract should represent uncertainty explicitly.
+   release the roster. `CombatStopMemory` leaves the memory unchanged when the
+   result slice is nil (an uncertain receipt). The target contract should
+   represent uncertainty explicitly.
 
 **Assessment:** keep pure tactics, incremental orders, native geometry and
 single-call batches. Bring their execution under the documented Hands owner

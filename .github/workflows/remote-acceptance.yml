@@ -14,7 +14,7 @@ on:
         required: false
         type: string
       label:
-        description: Free text shown in the run title, to tell concurrent runs apart (e.g. 1248 ied-lane)
+        description: Free text shown in the run title, to tell concurrent runs apart (e.g. 1248 site-stuff)
         required: false
         type: string
       tier:

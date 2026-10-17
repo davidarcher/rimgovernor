@@ -325,25 +325,6 @@ internal sealed class CombatOrderConverter : ObjectCodec<CombatOrder>
     }
 }
 
-internal sealed class CombatOrderRecordConverter : ObjectCodec<CombatOrderRecord>
-{
-    protected override CombatOrderRecord Read(JsonElement e, Codecs o) =>
-        new(
-            e.Get<CombatOrder>("Order", o),
-            e.Bool("Applied"),
-            e.Bool("Uncertain"),
-            e.Str("Refusal")
-        );
-
-    protected override void WriteFields(Utf8JsonWriter w, CombatOrderRecord v, Codecs o)
-    {
-        w.Put("Order", v.Order, o);
-        w.WriteBoolean("Applied", v.Applied);
-        w.WriteBoolean("Uncertain", v.Uncertain);
-        w.WriteString("Refusal", v.Refusal);
-    }
-}
-
 internal sealed class CombatRescueConverter : ObjectCodec<CombatRescue>
 {
     protected override CombatRescue Read(JsonElement e, Codecs o) =>
@@ -449,26 +430,6 @@ internal sealed class CombatRosterConverter : ObjectCodec<CombatRoster>
     {
         w.Put("World", v.World, o);
         w.Put("Pawns", v.Pawns, o);
-    }
-}
-
-internal sealed class CombatStopKindConverter() : StringCodec<CombatStopKind>(s => new(s), v => v.Value);
-internal sealed class CombatStopRecordConverter : ObjectCodec<CombatStopRecord>
-{
-    protected override CombatStopRecord Read(JsonElement e, Codecs o) =>
-        new(
-            e.Get<PlanId>("Batch", o),
-            e.Get<Tick>("Tick", o),
-            e.Get<StopEvent>("Stop", o),
-            e.Get<EquatableArray<CombatOrderRecord>>("Orders", o)
-        );
-
-    protected override void WriteFields(Utf8JsonWriter w, CombatStopRecord v, Codecs o)
-    {
-        w.Put("Batch", v.Batch, o);
-        w.Put("Tick", v.Tick, o);
-        w.Put("Stop", v.Stop, o);
-        w.Put("Orders", v.Orders, o);
     }
 }
 
@@ -2427,24 +2388,6 @@ internal sealed class StatModifierConverter : ObjectCodec<StatModifier>
     {
         w.WriteNumber("Offset", v.Offset);
         w.WriteNumber("Factor", v.Factor);
-    }
-}
-
-internal sealed class StopEventConverter : ObjectCodec<StopEvent>
-{
-    protected override StopEvent Read(JsonElement e, Codecs o) =>
-        new()
-        {
-            Kind = e.Get<CombatStopKind>("Kind", o),
-            Pawn = e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
-            Target = e.Get<RimGovernor.Brain.Domain.PawnId>("Target", o),
-        };
-
-    protected override void WriteFields(Utf8JsonWriter w, StopEvent v, Codecs o)
-    {
-        w.Put("Kind", v.Kind, o);
-        w.Put("Pawn", v.Pawn, o);
-        w.Put("Target", v.Target, o);
     }
 }
 

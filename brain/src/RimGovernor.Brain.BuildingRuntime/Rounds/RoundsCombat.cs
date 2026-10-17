@@ -11,7 +11,6 @@ internal sealed class FightAdmission
     public CombatInputs In = null!;
     public Fact<CombatLayout> Held;
     public GeometryReply Reply = null!;
-    public StopEvent Stop = new();
     public CombatMemory Memory = null!;
 }
 
@@ -105,17 +104,14 @@ public sealed partial class RoundsDefensePlanner
             return admitted;
         }
         (results, next) = RecordDrafts(id, drafts, results, next, call);
-        var (record, next2) = BuildingRuntimePackage.CombatStopRecord(view, orders, results, next);
-        next = next2;
-        if (record.Orders.Count == 0)
+        next = BuildingRuntimePackage.CombatStopMemory(view, orders, results, next);
+        if (orders.Count == 0)
         {
             p.Journal.SaveCombatMemory(id, next, call);
             return admitted;
         }
         var batchPlan = CombatBatchPlan(id, $"{id}-admit", drafts, orders);
-        record = record with { Batch = batchPlan.Id };
-        record = record with { Stop = a.Stop };
-        p.Journal.RecordCombatStop(id, record, next, call);
+        p.Journal.RecordCombatStop(id, batchPlan.Id, orders.Count, next, call);
         return admitted;
     }
 
@@ -158,15 +154,14 @@ public sealed partial class RoundsDefensePlanner
         return (results.Skip(pawns.Count).ToList(), memory);
     }
 
-    internal async Task<(CombatStopRecord Record, CombatMemory Memory)> IssueCombatOrdersAsync(ControlState state, PlanId plan, CombatView view, IReadOnlyList<PawnId> drafts, IReadOnlyList<CombatOrder> orders, CombatMemory memory, CancellationToken call)
+    internal async Task<(PlanId Batch, int Sent, CombatMemory Memory)> IssueCombatOrdersAsync(ControlState state, PlanId plan, CombatView view, IReadOnlyList<PawnId> drafts, IReadOnlyList<CombatOrder> orders, CombatMemory memory, CancellationToken call)
     {
         var label = $"{plan}-stop-{view.Tick}";
         var (results, sent) = await SendCombatBatchAsync(state, plan, label, drafts, orders, call).ConfigureAwait(false);
         (results, memory) = RecordDrafts(plan, drafts, results, memory, call);
-        var (record, next) = BuildingRuntimePackage.CombatStopRecord(view, sent, results, memory);
+        var next = BuildingRuntimePackage.CombatStopMemory(view, sent, results, memory);
         var batchPlan = CombatBatchPlan(plan, label, drafts, sent);
-        record = record with { Batch = batchPlan.Id };
-        return (record, next);
+        return (batchPlan.Id, sent.Count, next);
     }
 
     internal async Task<(IReadOnlyList<BridgeCombatOrderResult>? Results, IReadOnlyList<CombatOrder> Orders)> SendCombatBatchAsync(ControlState state, PlanId fight, string action, IReadOnlyList<PawnId> drafts, IReadOnlyList<CombatOrder>? orders, CancellationToken call)
@@ -501,27 +496,16 @@ internal static partial class BuildingRuntimePackage
         {
             return new StopEvent();
         }
-        return new StopEvent { Kind = new CombatStopKind(StopKindName(newest.Stop.GetValueOrDefault())), Pawn = new PawnId((newest.ThingId ?? "")), Target = new PawnId((newest.TargetId ?? "")) };
+        return new StopEvent { Kind = newest.Stop.GetValueOrDefault(), Pawn = new PawnId((newest.ThingId ?? "")), Target = new PawnId((newest.TargetId ?? "")) };
     }
 
-    /// <summary>The wire name of a combat stop event, lower snake case.</summary>
-    internal static string StopKindName(K.CombatEvent stop)
+    /// <summary>The memory after a stop's order results: each refused order is remembered by its refusal. Unknown results change nothing.</summary>
+    internal static CombatMemory CombatStopMemory(CombatView view, IReadOnlyList<CombatOrder> orders, IReadOnlyList<BridgeCombatOrderResult>? results, CombatMemory memory)
     {
-        var name = stop.ToString();
-        var sb = new StringBuilder();
-        for (var i = 0; i < name.Length; i++)
+        if (results is null)
         {
-            if (char.IsUpper(name[i]) && i > 0)
-            {
-                sb.Append('_');
-            }
-            sb.Append(char.ToLowerInvariant(name[i]));
+            return memory;
         }
-        return sb.ToString();
-    }
-
-    internal static (CombatStopRecord Record, CombatMemory Memory) CombatStopRecord(CombatView view, IReadOnlyList<CombatOrder> orders, IReadOnlyList<BridgeCombatOrderResult>? results, CombatMemory memory)
-    {
         var cells = new Dictionary<PawnId, Cell>();
         foreach (var p in view.Pawns)
         {
@@ -530,39 +514,37 @@ internal static partial class BuildingRuntimePackage
                 cells[p.Id] = c;
             }
         }
-        var rows = new List<CombatOrderRecord>();
         for (var i = 0; i < orders.Count; i++)
         {
             var order = orders[i];
-            var row = new CombatOrderRecord(order, false, results is null, "");
-            if (results is not null)
+            var refusal = results[i].Refusal;
+            if (results[i].Applied)
             {
-                row = row with { Applied = results[i].Applied };
-                row = row with { Refusal = results[i].Refusal };
+                continue;
             }
-            if (!row.Applied && results is not null && order.Kind == CombatOrderKind.Door && row.Refusal == BridgeConstants.CombatRefusalNotADoor)
+            if (order.Kind == CombatOrderKind.Door && refusal == BridgeConstants.CombatRefusalNotADoor)
             {
                 memory = memory.RefuseDoor(order.Cell);
             }
-            else if (!row.Applied && results is not null && order.Kind == CombatOrderKind.MortarFire)
+            else if (order.Kind == CombatOrderKind.MortarFire)
             {
-                memory = memory.RefuseFire(order, row.Refusal == BridgeConstants.CombatRefusalNoShell || row.Refusal == BridgeConstants.CombatRefusalUnknownShell);
+                memory = memory.RefuseFire(order, refusal == BridgeConstants.CombatRefusalNoShell || refusal == BridgeConstants.CombatRefusalUnknownShell);
             }
-            else if (!row.Applied && results is not null && !order.Pawn.IsEmpty)
+            else if (!order.Pawn.IsEmpty)
             {
                 if (PolicyApi.AnimalOrderKind(order.Kind))
                 {
-                    memory = memory.RefuseAnimal(order, row.Refusal);
+                    memory = memory.RefuseAnimal(order, refusal);
                 }
-                else if (cells.TryGetValue(order.Pawn, out var from) && row.Refusal == BridgeConstants.CombatRefusalCannotHit)
+                else if (cells.TryGetValue(order.Pawn, out var from) && refusal == BridgeConstants.CombatRefusalCannotHit)
                 {
                     memory = memory.RefuseHit(order, from);
                 }
-                else if (row.Refusal == BridgeConstants.CombatRefusalNoShell || row.Refusal == BridgeConstants.CombatRefusalUnknownShell)
+                else if (refusal == BridgeConstants.CombatRefusalNoShell || refusal == BridgeConstants.CombatRefusalUnknownShell)
                 {
                     memory = memory.RefuseShell(order);
                 }
-                else if (order.Kind == CombatOrderKind.Move && row.Refusal == BridgeConstants.CombatRefusalUnreachable)
+                else if (order.Kind == CombatOrderKind.Move && refusal == BridgeConstants.CombatRefusalUnreachable)
                 {
                     memory = memory.RefuseCell(order.Cell).Forget(order.Pawn);
                 }
@@ -571,9 +553,8 @@ internal static partial class BuildingRuntimePackage
                     memory = memory.Forget(order.Pawn);
                 }
             }
-            rows.Add(row);
         }
-        return (new CombatStopRecord(default, view.Tick, new StopEvent(), [.. rows]), memory);
+        return memory;
     }
 
     internal static List<CombatCommand> CombatBatchCommands(IReadOnlyList<PawnId> drafts, IReadOnlyList<CombatOrder> orders)
