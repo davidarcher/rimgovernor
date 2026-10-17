@@ -1,4 +1,12 @@
-namespace RimGovernor.Brain.Snapshot;
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Facts;
+using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Policy;
+using Cell = RimGovernor.Brain.Domain.Cell;
+using O = RimGovernor.Contracts.Wire.Observations;
+using static RimGovernor.Brain.Domain.Fact;
+namespace RimGovernor.Brain.Executor;
 
 /// <summary>
 /// One planner step's own colony read: the projection a building or bill planner decided from, which carries what

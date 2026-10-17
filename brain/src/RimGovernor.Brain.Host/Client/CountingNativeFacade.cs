@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using Authority = RimGovernor.Contracts.Wire.Authority;
 using Clock = RimGovernor.Contracts.Wire.Clock;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;

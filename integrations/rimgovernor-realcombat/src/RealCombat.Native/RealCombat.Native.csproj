@@ -17,6 +17,6 @@
     <!-- The live policy chain, so a fight is decided by the code that decides one in the game. -->
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Host/RimGovernor.Brain.Host.csproj" />
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.BuildingRuntime/RimGovernor.Brain.BuildingRuntime.csproj" />
-    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.NativeFacade/RimGovernor.Brain.NativeFacade.csproj" />
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Bridge/RimGovernor.Brain.Bridge.csproj" />
   </ItemGroup>
 </Project>

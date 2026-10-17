@@ -1,5 +1,5 @@
 using System.Globalization;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Contracts.Wire;
 using Wl = RimGovernor.Contracts.Wire.Lifecycle;
 

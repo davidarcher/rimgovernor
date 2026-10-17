@@ -7,6 +7,24 @@
         "resolved": "2.1.11",
         "contentHash": "PK0GLFkfhZzLQeR3PJf71FmhtHox+U3vcY6ZtswoMjrefkB9k6ErNJEnwXqc5KgXDSjige2XXrezqS39gkpQKA=="
       },
+      "rimgovernor.brain.bridge": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.bridge.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )",
+          "RimGovernor.Brain.Telemetry": "[1.0.0, )"
+        }
+      },
       "rimgovernor.brain.contracts": {
         "type": "Project",
         "dependencies": {
@@ -15,6 +33,16 @@
       },
       "rimgovernor.brain.domain": {
         "type": "Project"
+      },
+      "rimgovernor.brain.observation": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Bridge": "[1.0.0, )",
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )"
+        }
       },
       "rimgovernor.brain.policy": {
         "type": "Project",
@@ -33,6 +61,9 @@
           "SQLitePCLRaw.provider.e_sqlite3": "[2.1.11, )",
           "SourceGear.sqlite3": "[3.53.4, )"
         }
+      },
+      "rimgovernor.brain.telemetry": {
+        "type": "Project"
       },
       "Microsoft.Data.Sqlite.Core": {
         "type": "CentralTransitive",

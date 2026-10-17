@@ -711,7 +711,7 @@ quantity.
 Native trade sheets provide validated definition nutrition and ingredient
 classification; drugs, corpses, kibble and human meat are excluded. Typed native
 acceptance independently requires a raw protein purchase and positive retained
-floor for crop exports. Recorded colony snapshots (`RimGovernor.Brain.Snapshot`) replay the review's
+floor for crop exports. Recorded colony snapshots (`RimGovernor.Brain.Executor`) replay the review's
 food bridge and the above-target crop exchange with its missing protein.
 
 ## Fishing policy

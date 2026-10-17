@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Threading.Channels;
 using RimGovernor.Brain.Host;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using Xunit;
 using PbObservations = RimGovernor.Contracts.Wire.Observations;
 

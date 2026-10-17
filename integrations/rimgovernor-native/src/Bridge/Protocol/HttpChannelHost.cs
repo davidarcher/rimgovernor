@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RimGovernor.Brain.HttpChannel;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Host.Sdk;
 using Verse;
 

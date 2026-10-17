@@ -23,7 +23,7 @@ Before a slow check, name that claim and why a cheaper check cannot prove it.
 
 | Changed behavior | Cheapest useful evidence |
 | --- | --- |
-| Planner choice, ranking, admission or recovery decision | A bug-driven xUnit test in `brain/tests`, or a [recorded colony snapshot](colony-snapshots.md) replayed through `RimGovernor.Brain.Snapshot`. |
+| Planner choice, ranking, admission or recovery decision | A bug-driven xUnit test in `brain/tests`, or a [recorded colony snapshot](colony-snapshots.md) replayed through `RimGovernor.Brain.Executor`. |
 | Supply behavior across days, shocks and colony sizes | `RimGovernor.Brain.Simulation` (seeded offline stock-flow scenarios). |
 | Boundary decoding, journal or uncertain-write handling | Real decoder/storage tests and fault injection through typed fakes. |
 | Concurrency | A focused test that reproduces the race; repeat only to reproduce the relevant flake. Whole-module race/stress belongs to the nightly. |

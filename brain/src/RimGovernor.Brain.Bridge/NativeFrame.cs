@@ -1,7 +1,7 @@
 using System.Threading.Channels;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace RimGovernor.Brain.NativeFacade;
+namespace RimGovernor.Brain.Bridge;
 
 /// <summary>
 /// One captured frame handed to the planner worker: the whole <see cref="Obs.BundleSnapshot"/> (every section

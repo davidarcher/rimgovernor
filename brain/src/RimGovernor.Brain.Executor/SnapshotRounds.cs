@@ -1,7 +1,15 @@
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Facts;
+using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Policy;
+using Cell = RimGovernor.Brain.Domain.Cell;
+using O = RimGovernor.Contracts.Wire.Observations;
+using static RimGovernor.Brain.Domain.Fact;
 using StoreRounds = RimGovernor.Brain.Store.Rounds;
 using StoreRoundsResult = RimGovernor.Brain.Store.RoundsResult;
 
-namespace RimGovernor.Brain.Snapshot;
+namespace RimGovernor.Brain.Executor;
 
 /// <summary>
 /// One enabled rounds as recorded: the input the review passed policy DetectRounds and, optionally, the journal's

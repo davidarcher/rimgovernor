@@ -24,14 +24,14 @@ the rule.
 ## Gates
 
 1. **Layers (`RGARCH001`).** `Domain -> Contracts -> Policy -> Bridge
-   (Bridge.Contracts, Bridge) -> Observation -> Store -> Snapshot ->
+   (Bridge.Contracts, Bridge) -> Observation -> Store ->
    Executor -> BuildingRuntime -> PlayerApi -> Host`. The project references
    already form this order and Roslyn cannot compile a cycle; the analyzer
    reads the assembly references of each compilation and fails a reference that
-   climbs the order or is a role denial: store does not reference bridge,
-   `HttpChannel` or `NativeFacade`; executor does not reference store;
+   climbs the order or is a role denial: store does not reference bridge
+   or `HttpChannel`; executor does not reference store (it still does, baselined);
    `PlayerApi` does not reference `BuildingRuntime`. `Telemetry`, `Simulation`,
-   `HttpChannel`, `NativeFacade` and `Acceptance*` sit outside the order.
+   `HttpChannel` and `Acceptance*` sit outside the order.
    Bridge validates the wire, observation decodes, policy decides, store
    persists, buildingruntime sequences. Bridge returns Policy types by design, so
    no "bridge does not import policy" edge is denied.

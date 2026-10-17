@@ -1,6 +1,14 @@
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Facts;
+using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Policy;
+using Cell = RimGovernor.Brain.Domain.Cell;
+using O = RimGovernor.Contracts.Wire.Observations;
+using static RimGovernor.Brain.Domain.Fact;
 using StoreDefenseLayoutRecord = RimGovernor.Brain.Store.DefenseLayoutRecord;
 
-namespace RimGovernor.Brain.Snapshot;
+namespace RimGovernor.Brain.Executor;
 
 /// <summary>
 /// One native line-of-sight answer (observations_read_lines_of_fire) recorded beside the request it was read

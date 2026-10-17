@@ -4,7 +4,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.HttpChannel;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Contracts.Wire;
 using IdentityRequest = RimGovernor.Contracts.Wire.Lifecycle.IdentityRequest;
 

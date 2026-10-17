@@ -9,7 +9,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
@@ -26,7 +26,7 @@ namespace HomeBridge.BridgeTools
         private const int ForcePauseGraceMs = 20000;
         private static readonly object Gate = new object();
         // The colony events pushed to the brain (ColonyEventChannel): bounded, written without blocking, losses counted.
-        internal static readonly RimGovernor.Brain.NativeFacade.ColonyEventChannel ColonyEvents = new RimGovernor.Brain.NativeFacade.ColonyEventChannel();
+        internal static readonly RimGovernor.Brain.Bridge.ColonyEventChannel ColonyEvents = new RimGovernor.Brain.Bridge.ColonyEventChannel();
         private static State? _state;
         // Bumped by every Stop that enters a hold; a resume must quote it (ClockHoldSerial.cs).
         private static readonly ClockHoldSerial HoldSerial = new ClockHoldSerial();
@@ -1053,7 +1053,7 @@ namespace HomeBridge.BridgeTools
         /// What a hold carries: the hazard's own evidence, else the pause
         /// itself while its game is loaded (the letter vanilla paused for, the
         /// force-pausing dialog), else nothing beyond its reason.
-        private static HoldEvidence EvidenceOf(State s, HoldCause cause)
+        private static ColonyHoldEvidence EvidenceOf(State s, HoldCause cause)
         {
             if (cause.Evidence != null) return cause.Evidence;
             if (!ReferenceEquals(Current.Game, s.Session) || !ReferenceEquals(Find.CurrentMap, s.Map)) return new UnobservedEvidence();
@@ -1115,7 +1115,7 @@ namespace HomeBridge.BridgeTools
         /// Why a hold is entered: its reason and detail, the hazard's evidence
         /// and the tick it arose when the probe has them, and the letter a
         /// letter pause names. A hold without evidence carries the pause itself.
-        private sealed record HoldCause(Clock.HoldReason Reason, string Detail, HoldEvidence? Evidence = null,
+        private sealed record HoldCause(Clock.HoldReason Reason, string Detail, ColonyHoldEvidence? Evidence = null,
             long? OccurrenceTick = null, string? PauseLetterId = null);
 
         private sealed class InjurySnapshot

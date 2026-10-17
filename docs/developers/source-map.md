@@ -9,14 +9,13 @@
 | [brain/src/RimGovernor.Brain.Policy](../../brain/src/RimGovernor.Brain.Policy) | Pure decisions, demand, forecasts, placement and tactics |
 | [brain/src/RimGovernor.Brain.BuildingRuntime](../../brain/src/RimGovernor.Brain.BuildingRuntime) | Rounds, planner catalog/queue and runtime composition |
 | [brain/src/RimGovernor.Brain.Store](../../brain/src/RimGovernor.Brain.Store) | Admission, session journal and views rebuilt from saved intent |
-| [brain/src/RimGovernor.Brain.Executor](../../brain/src/RimGovernor.Brain.Executor) | Hands dispatch and reconciliation |
+| [brain/src/RimGovernor.Brain.Executor](../../brain/src/RimGovernor.Brain.Executor) | Hands dispatch and reconciliation, and the recorded-fact planner regression support |
 | [brain/src/RimGovernor.Brain.Observation](../../brain/src/RimGovernor.Brain.Observation) | Fact access and native-read decoding |
-| [brain/src/RimGovernor.Brain.Bridge](../../brain/src/RimGovernor.Brain.Bridge), [Bridge.Contracts](../../brain/src/RimGovernor.Brain.Bridge.Contracts) | Typed native boundary, definition catalog and guarded operations |
-| [brain/src/RimGovernor.Brain.NativeFacade](../../brain/src/RimGovernor.Brain.NativeFacade), [HttpChannel](../../brain/src/RimGovernor.Brain.HttpChannel) | The in-process native facade and the loopback HTTP channel ([native facade](architecture/native-facade.md), [HTTP channel](architecture/http-channel.md)) |
+| [brain/src/RimGovernor.Brain.Bridge](../../brain/src/RimGovernor.Brain.Bridge), [Bridge.Contracts](../../brain/src/RimGovernor.Brain.Bridge.Contracts) | Typed native boundary (including the in-process native facade), definition catalog and guarded operations |
+| [brain/src/RimGovernor.Brain.HttpChannel](../../brain/src/RimGovernor.Brain.HttpChannel) | The loopback HTTP channel ([native facade](architecture/native-facade.md), [HTTP channel](architecture/http-channel.md)) |
 | [brain/src/RimGovernor.Brain.Contracts](../../brain/src/RimGovernor.Brain.Contracts) | Wire records (the C# source of truth) and their System.Text.Json context |
 | [brain/src/RimGovernor.Brain.PlayerApi](../../brain/src/RimGovernor.Brain.PlayerApi) | Player API, lifecycle, reads, media and diagnostics |
 | [brain/src/RimGovernor.Brain.Simulation](../../brain/src/RimGovernor.Brain.Simulation) | Seeded offline stock-flow scenarios |
-| [brain/src/RimGovernor.Brain.Snapshot](../../brain/src/RimGovernor.Brain.Snapshot) | Recorded-fact planner regression support |
 | [brain/src/RimGovernor.Brain.Telemetry](../../brain/src/RimGovernor.Brain.Telemetry) | OTLP file telemetry: decisions, events, spans and metrics |
 | [brain/src/RimGovernor.Brain.Acceptance](../../brain/src/RimGovernor.Brain.Acceptance), [Acceptance.Cases](../../brain/src/RimGovernor.Brain.Acceptance.Cases) | Acceptance harness (`RimGovernor.cmd acceptance`), case registry, fixtures and gameplay evidence |
 | [brain/src/RimGovernor.Fixtures.Contracts](../../brain/src/RimGovernor.Fixtures.Contracts) | The typed stage spec and reply of `test/stage`: the harness references it, fixture builds of the mod compile it in, production never does |

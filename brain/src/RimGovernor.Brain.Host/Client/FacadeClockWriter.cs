@@ -1,6 +1,6 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 
 namespace RimGovernor.Brain.Host;
 

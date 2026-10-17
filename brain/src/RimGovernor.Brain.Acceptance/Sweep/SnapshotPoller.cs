@@ -1,4 +1,4 @@
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance;

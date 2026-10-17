@@ -1,5 +1,5 @@
 using System.Threading.Channels;
-using NativeEvents = RimGovernor.Brain.NativeFacade;
+using NativeEvents = RimGovernor.Brain.Bridge;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 

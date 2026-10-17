@@ -9,7 +9,7 @@ using Placement = RimGovernor.Contracts.Wire.Placement;
 using Presentation = RimGovernor.Contracts.Wire.Presentation;
 using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace RimGovernor.Brain.NativeFacade;
+namespace RimGovernor.Brain.Bridge;
 
 /// <summary>
 /// The brain's direct, in-memory call path to the native mod: the capabilities Go reached over a remote

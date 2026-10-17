@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.HttpChannel;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Wl = RimGovernor.Contracts.Wire.Lifecycle;
 

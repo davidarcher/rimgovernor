@@ -1,5 +1,5 @@
 using System.Globalization;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using Clock = RimGovernor.Contracts.Wire.Clock;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Control = RimGovernor.Contracts.Wire.Authority;

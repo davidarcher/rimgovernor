@@ -1,4 +1,12 @@
-namespace RimGovernor.Brain.Snapshot;
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Facts;
+using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Policy;
+using Cell = RimGovernor.Brain.Domain.Cell;
+using O = RimGovernor.Contracts.Wire.Observations;
+using static RimGovernor.Brain.Domain.Fact;
+namespace RimGovernor.Brain.Executor;
 
 // Port of Go internal/snapshot (#3052). The package records the colony facts a Rounds pass planned against so a
 // test can replay them. Recording is evidence for replay, never part of a decision.

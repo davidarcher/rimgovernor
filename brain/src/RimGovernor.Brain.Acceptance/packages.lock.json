@@ -41,6 +41,7 @@
         "type": "Project",
         "dependencies": {
           "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )"
         }
@@ -67,12 +68,6 @@
         "type": "Project",
         "dependencies": {
           "RimGovernor.Brain.Telemetry": "[1.0.0, )"
-        }
-      },
-      "rimgovernor.brain.nativefacade": {
-        "type": "Project",
-        "dependencies": {
-          "RimGovernor.Brain.Contracts": "[1.0.0, )"
         }
       },
       "rimgovernor.brain.policy": {

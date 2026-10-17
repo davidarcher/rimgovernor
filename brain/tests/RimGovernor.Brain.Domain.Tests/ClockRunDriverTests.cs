@@ -2,12 +2,12 @@ using System.Reflection;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Host;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using JournalStore = RimGovernor.Brain.Store.Store;
-using NativeEvents = RimGovernor.Brain.NativeFacade;
+using NativeEvents = RimGovernor.Brain.Bridge;
 using PbAuthority = RimGovernor.Contracts.Wire.Authority;
 using PbClock = RimGovernor.Contracts.Wire.Clock;
 using PbCommon = RimGovernor.Contracts.Wire.Common;
@@ -249,7 +249,7 @@ public sealed class ClockRunDriverTests
         }
 
         /// <summary>The supervisor holds the clock itself on a hazard, as a native watcher does; a held clock keeps its first reason.</summary>
-        public void Hazard(PbClock.HoldReason reason, NativeEvents.HoldEvidence evidence)
+        public void Hazard(PbClock.HoldReason reason, NativeEvents.ColonyHoldEvidence evidence)
         {
             lock (_mu)
             {
@@ -263,7 +263,7 @@ public sealed class ClockRunDriverTests
         public void HostileHazard() =>
             Hazard(PbClock.HoldReason.Hostile, new NativeEvents.PawnEvidence(new NativeEvents.EventPawn("raider-1", "Raider", 0, 0, "hostile within range")));
 
-        private void TakeHold(PbClock.HoldReason reason, NativeEvents.HoldEvidence evidence)
+        private void TakeHold(PbClock.HoldReason reason, NativeEvents.ColonyHoldEvidence evidence)
         {
             _held = true;
             _holdSerial++;

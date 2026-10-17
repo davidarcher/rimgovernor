@@ -32,7 +32,7 @@ namespace HomeBridge.BridgeTools
         private static readonly object Gate = new object();
 
         /// The in-process subscriber's slot (the native facade's frame channel): latest wins, whole frames.
-        internal static readonly RimGovernor.Brain.NativeFacade.FrameHandoff Handoff = new RimGovernor.Brain.NativeFacade.FrameHandoff();
+        internal static readonly RimGovernor.Brain.Bridge.FrameHandoff Handoff = new RimGovernor.Brain.Bridge.FrameHandoff();
         private static Obs.SnapshotStreamRequest subscription = new Obs.SnapshotStreamRequest();
 
         // The pull subscriber (the acceptance harness's observations_read_snapshot tool): the newest published
@@ -205,7 +205,7 @@ namespace HomeBridge.BridgeTools
                     {
                         lock (Gate) { pullFrame = captured; pullFrameWrites = w; pullHead++; }
                     }
-                    if (Handoff.Attached) Handoff.Publish(new RimGovernor.Brain.NativeFacade.NativeFrame(captured, w, captureMicros));
+                    if (Handoff.Attached) Handoff.Publish(new RimGovernor.Brain.Bridge.NativeFrame(captured, w, captureMicros));
                 }
                 catch (Exception e) { ModLog.Warn("snapshot", "frame publish failed: " + e.Message); }
                 finally { Interlocked.Exchange(ref pending, 0); }

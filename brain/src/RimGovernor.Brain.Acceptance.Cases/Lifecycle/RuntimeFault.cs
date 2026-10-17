@@ -1,5 +1,5 @@
 using System.Text.Json.Nodes;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using Clock = RimGovernor.Contracts.Wire.Clock;
 using Control = RimGovernor.Contracts.Wire.Authority;
 using Fx = RimGovernor.Fixtures.Contracts;

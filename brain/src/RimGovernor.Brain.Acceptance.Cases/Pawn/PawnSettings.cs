@@ -1,4 +1,4 @@
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using Observations = RimGovernor.Contracts.Wire.Observations;
 using Operations = RimGovernor.Contracts.Wire.Operations;
 using Receipts = RimGovernor.Contracts.Wire.Receipts;

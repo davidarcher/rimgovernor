@@ -15,12 +15,10 @@
     <ProjectReference Include="../RimGovernor.Brain.Observation/RimGovernor.Brain.Observation.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Store/RimGovernor.Brain.Store.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
-    <ProjectReference Include="../RimGovernor.Brain.Snapshot/RimGovernor.Brain.Snapshot.csproj" />
-    <ProjectReference Include="../RimGovernor.Brain.Executor/RimGovernor.Brain.Executor.csproj" />
+   <ProjectReference Include="../RimGovernor.Brain.Executor/RimGovernor.Brain.Executor.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Simulation/RimGovernor.Brain.Simulation.csproj" />
     <!-- The colony event records native pushes (ColonyEvents.cs) are what the event consumer reads. -->
-    <ProjectReference Include="../RimGovernor.Brain.NativeFacade/RimGovernor.Brain.NativeFacade.csproj" />
-  </ItemGroup>
+ </ItemGroup>
   <ItemGroup>
     <!-- Go's domain.Known / domain.Unknown read the same in C#. -->
     <Using Include="RimGovernor.Brain.Domain" />
@@ -31,8 +29,7 @@
     <Using Include="RimGovernor.Brain.Store" />
     <Using Include="RimGovernor.Brain.Bridge" />
     <Using Include="RimGovernor.Brain.Telemetry" />
-    <Using Include="RimGovernor.Brain.Snapshot" />
-    <Using Include="RimGovernor.Brain.Bridge.Contracts" />
+   <Using Include="RimGovernor.Brain.Bridge.Contracts" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.Result" Alias="BridgeResult" />
     <Using Include="RimGovernor.Brain.Executor" />
     <Using Include="RimGovernor.Brain.Facts" />
@@ -44,8 +41,8 @@
     <Using Include="RimGovernor.Brain.BuildingRuntime.Verdict" Static="true" />
     <!-- Namespace and class share a name in the unported packages, so the namespace shadows the class; these name the class. -->
     <Using Include="RimGovernor.Brain.Observation.ObservationPackage" Alias="ObservationApi" />
-    <Using Include="RimGovernor.Brain.Snapshot.SnapshotPackage" Alias="Snap" />
-    <Using Include="RimGovernor.Brain.Snapshot.SnapshotPackage" Alias="SnapshotApi" />
+    <Using Include="RimGovernor.Brain.Executor.SnapshotPackage" Alias="Snap" />
+    <Using Include="RimGovernor.Brain.Executor.SnapshotPackage" Alias="SnapshotApi" />
     <Using Include="RimGovernor.Brain.Store.Store" Alias="JournalStore" />
     <!-- Go's wire package aliases (a, c, k, n, o, r). -->
     <Using Include="RimGovernor.Contracts.Wire.Authority" Alias="PbAuthority" />

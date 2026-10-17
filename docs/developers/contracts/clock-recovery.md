@@ -46,7 +46,7 @@ about the clock is persisted: a restart finds native held (`NEVER_RUN` or the la
 
 ## Colony event queue
 
-Native pushes `ColonyEvent` records (plain in-process records in `Brain.NativeFacade`,
+Native pushes `ColonyEvent` records (plain in-process records in `Brain.Bridge`,
 built by their producers) onto `ColonyEventChannel`, a bounded queue of 1024 it owns
 in the game process, with a non-blocking `TryWrite` on the game thread. A write that
 finds the queue full is dropped and counted in `ColonyEventsLost`; it never pauses the game. The brain

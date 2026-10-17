@@ -3,7 +3,6 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Bridge;
 using PawnId = RimGovernor.Brain.Domain.PawnId;
 using RimGovernor.Brain.Host;
-using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Brain.Policy;
 using RimGovernor.RealCombat;
 using Verse;

@@ -1,6 +1,6 @@
 using System.Threading.Channels;
 
-namespace RimGovernor.Brain.NativeFacade;
+namespace RimGovernor.Brain.Bridge;
 
 /// <summary>
 /// The colony events native pushes to the brain: a bounded queue the native mod owns, written on the game thread

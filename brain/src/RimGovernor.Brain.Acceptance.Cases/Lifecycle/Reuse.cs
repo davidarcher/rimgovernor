@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Control = RimGovernor.Contracts.Wire.Authority;
 using Observations = RimGovernor.Contracts.Wire.Observations;

@@ -1,5 +1,5 @@
 using System.Text.Json.Nodes;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Control = RimGovernor.Contracts.Wire.Authority;
 using Fx = RimGovernor.Fixtures.Contracts;

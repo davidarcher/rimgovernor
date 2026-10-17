@@ -9,7 +9,7 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using RimGovernor.Brain.Domain;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Contracts.Wire;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Authority = RimGovernor.Contracts.Wire.Authority;

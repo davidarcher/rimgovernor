@@ -1,7 +1,7 @@
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.PlayerApi;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Telemetry;

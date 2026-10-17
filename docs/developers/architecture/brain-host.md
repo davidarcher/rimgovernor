@@ -181,7 +181,7 @@ Decided (user, 2026-10-13):
   `NativeCatalogFactory.StartingIdeoligion`; both run on the brain's threads, never the game thread.
 - **Clock native.** Nothing to build: `FacadeNativeClient` already implements `IClockDriverNative`.
 - **Loading.** The default load context, with the brain assemblies beside the Bridge, not a collectible one. The
-  package ships the Host's whole graph (Snapshot, Observation, Store, Executor, BuildingRuntime, PlayerApi,
+  package ships the Host's whole graph (Observation, Store, Executor, BuildingRuntime, PlayerApi,
   Simulation) and Store's native SQLite as a flat `e_sqlite3.dll` (win-x64 only) in `BridgeTools/RimGovernor`, because
   the runtime probes the requesting assembly's own directory, not `runtimes/<rid>/native`. Verified on a stock .NET 10
   runtime; not yet on the game's own CLR.

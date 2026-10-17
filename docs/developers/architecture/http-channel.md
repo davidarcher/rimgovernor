@@ -16,7 +16,7 @@ listener (`HttpListener`) the mod hosts, with route modules the brain publishes 
   POST must be `application/json`. Every reply carries `Cache-Control: no-store`, `nosniff` and a `default-src
   'none'` CSP. (`cross-site` and `same-site` are both refused.)
 - **Routes.** `POST /native/<op>` is a test-only route for the out-of-process acceptance harness. An op is a
-  `NativeOps` entry (brain `RimGovernor.Brain.NativeFacade`), named without the `rimgovernor/` prefix: the body is its JSON
+  `NativeOps` entry (brain `RimGovernor.Brain.Bridge`), named without the `rimgovernor/` prefix: the body is its JSON
   request record (empty means `{}`), deserialized with `WireJson` (a body that does not fit is a 400 `invalid_request`
   with the deserializer's message), and the reply body is its JSON reply record. A namespaced name
   (`POST /native/test/lab_start`) or any other name routes to the host's tool registry (the host's lifecycle tools and the

@@ -135,7 +135,7 @@ namespace HomeBridge.BridgeTools
             _combatPending = null;
             s.Typed.CombatEvent = hit.Event;
             Stop(s, new HoldCause(Clock.HoldReason.CombatEvent, EventName(hit.Event) + ": " + hit.Reason,
-                new RimGovernor.Brain.NativeFacade.CombatEvidence(hit.Event, hit.ThingId, hit.Reason), hit.Tick), true);
+                new RimGovernor.Brain.Bridge.CombatEvidence(hit.Event, hit.ThingId, hit.Reason), hit.Tick), true);
             return true;
         }
 

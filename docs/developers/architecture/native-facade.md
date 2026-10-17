@@ -6,13 +6,13 @@ for that path.
 ## Assemblies
 
 One set of wire records and one build graph. The native mod (`RimGovernor.Bridge`) references the brain
-assemblies `RimGovernor.Brain.Domain`, `RimGovernor.Brain.Contracts` and `RimGovernor.Brain.NativeFacade`
+assemblies `RimGovernor.Brain.Domain`, `RimGovernor.Brain.Contracts` and `RimGovernor.Brain.Bridge`
 by project reference. Contracts holds the plain C# records (`RimGovernor.Contracts.Wire`) and the
 source-generated `System.Text.Json` context; nothing is generated at build time.
 
 | Assembly | Holds | Depends on |
 | --- | --- | --- |
-| `RimGovernor.Brain.NativeFacade` | `INativeFacade`, `NativeFrame`, `FrameHandoff`, `ColonyEventChannel`, `NativeFacadeRegistry` | Contracts |
+| `RimGovernor.Brain.Bridge` | `INativeFacade`, `NativeFrame`, `FrameHandoff`, `ColonyEventChannel`, `NativeFacadeRegistry` | Contracts |
 | `RimGovernor.Bridge` (mod) | `InProcessNativeFacade`, `NativeStatTable`, the typed cores | all three, plus the game |
 
 The native build (`NativeModBuild`, `RimGovernor.cmd native-build`) copies the inputs
@@ -30,7 +30,7 @@ its registry. `Start` installs every patch and guard once, publishes the facade,
 in-process brain. The brain reads `NativeFacadeRegistry.Current`.
 
 Shared types must resolve from one place: the host's `AssemblyResolve` binds by simple name to an
-assembly already loaded, so the first copy of `RimGovernor.Brain.NativeFacade` wins. A collectible brain
+assembly already loaded, so the first copy of `RimGovernor.Brain.Bridge` wins. A collectible brain
 context (#3294) has to keep these three in the default context. The brain itself loads in the default context
 today (see [brain host](brain-host.md)).
 

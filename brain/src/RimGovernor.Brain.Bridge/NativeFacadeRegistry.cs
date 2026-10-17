@@ -1,4 +1,4 @@
-namespace RimGovernor.Brain.NativeFacade;
+namespace RimGovernor.Brain.Bridge;
 
 /// <summary>
 /// Where the native mod publishes its <see cref="INativeFacade"/> for the brain in the same process. The mod

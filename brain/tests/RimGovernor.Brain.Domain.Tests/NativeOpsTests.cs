@@ -1,5 +1,5 @@
 using System.Reflection;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;

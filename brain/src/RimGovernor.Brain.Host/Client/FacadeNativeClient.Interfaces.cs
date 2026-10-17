@@ -1,7 +1,7 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Domain;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Observation;
 using BridgeCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 using C = RimGovernor.Contracts.Wire.Common;

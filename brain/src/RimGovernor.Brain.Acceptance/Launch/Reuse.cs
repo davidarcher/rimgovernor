@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json.Nodes;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Contracts.Wire;
 using Wa = RimGovernor.Contracts.Wire.Authority;
 using Wo = RimGovernor.Contracts.Wire.Observations;

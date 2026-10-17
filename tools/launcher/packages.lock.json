@@ -44,10 +44,10 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Data.Sqlite.Core": "[10.0.0, )",
+          "RimGovernor.Brain.Bridge": "[1.0.0, )",
           "RimGovernor.Brain.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.HttpChannel": "[1.0.0, )",
-          "RimGovernor.Brain.NativeFacade": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )",
           "RimGovernor.Brain.Simulation": "[1.0.0, )",
           "RimGovernor.Brain.Store": "[1.0.0, )",
@@ -69,6 +69,7 @@
         "type": "Project",
         "dependencies": {
           "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )"
         }
@@ -90,11 +91,9 @@
           "RimGovernor.Brain.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Executor": "[1.0.0, )",
-          "RimGovernor.Brain.NativeFacade": "[1.0.0, )",
           "RimGovernor.Brain.Observation": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )",
           "RimGovernor.Brain.Simulation": "[1.0.0, )",
-          "RimGovernor.Brain.Snapshot": "[1.0.0, )",
           "RimGovernor.Brain.Store": "[1.0.0, )",
           "RimGovernor.Brain.Telemetry": "[1.0.0, )"
         }
@@ -111,7 +110,10 @@
       "rimgovernor.brain.executor": {
         "type": "Project",
         "dependencies": {
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Observation": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )",
           "RimGovernor.Brain.Store": "[1.0.0, )"
         }
@@ -126,11 +128,9 @@
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Executor": "[1.0.0, )",
           "RimGovernor.Brain.HttpChannel": "[1.0.0, )",
-          "RimGovernor.Brain.NativeFacade": "[1.0.0, )",
           "RimGovernor.Brain.Observation": "[1.0.0, )",
           "RimGovernor.Brain.PlayerApi": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )",
-          "RimGovernor.Brain.Snapshot": "[1.0.0, )",
           "RimGovernor.Brain.Store": "[1.0.0, )",
           "RimGovernor.Brain.Telemetry": "[1.0.0, )"
         }
@@ -139,12 +139,6 @@
         "type": "Project",
         "dependencies": {
           "RimGovernor.Brain.Telemetry": "[1.0.0, )"
-        }
-      },
-      "rimgovernor.brain.nativefacade": {
-        "type": "Project",
-        "dependencies": {
-          "RimGovernor.Brain.Contracts": "[1.0.0, )"
         }
       },
       "rimgovernor.brain.observation": {
@@ -184,17 +178,6 @@
           "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )"
-        }
-      },
-      "rimgovernor.brain.snapshot": {
-        "type": "Project",
-        "dependencies": {
-          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
-          "RimGovernor.Brain.Contracts": "[1.0.0, )",
-          "RimGovernor.Brain.Domain": "[1.0.0, )",
-          "RimGovernor.Brain.Observation": "[1.0.0, )",
-          "RimGovernor.Brain.Policy": "[1.0.0, )",
-          "RimGovernor.Brain.Store": "[1.0.0, )"
         }
       },
       "rimgovernor.brain.store": {

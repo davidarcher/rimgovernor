@@ -2,7 +2,6 @@ using System.Reflection;
 using System.Threading.Channels;
 using HomeBridge.BridgeTools;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.NativeFacade;
 using Mirror = RimGovernor.Contracts.Wire.Mirror;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 

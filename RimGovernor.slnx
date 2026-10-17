@@ -13,14 +13,12 @@
     <Project Path="brain/src/RimGovernor.Brain.Executor/RimGovernor.Brain.Executor.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.Host/RimGovernor.Brain.Host.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.HttpChannel/RimGovernor.Brain.HttpChannel.csproj" />
-    <Project Path="brain/src/RimGovernor.Brain.NativeFacade/RimGovernor.Brain.NativeFacade.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.Observation/RimGovernor.Brain.Observation.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.PlayerApi/RimGovernor.Brain.PlayerApi.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.RemoteAccept/RimGovernor.Brain.RemoteAccept.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.RemoteBundle/RimGovernor.Brain.RemoteBundle.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.Simulation/RimGovernor.Brain.Simulation.csproj" />
-    <Project Path="brain/src/RimGovernor.Brain.Snapshot/RimGovernor.Brain.Snapshot.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.Store/RimGovernor.Brain.Store.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
     <Project Path="brain/src/RimGovernor.Fixtures.Contracts/RimGovernor.Fixtures.Contracts.csproj" />

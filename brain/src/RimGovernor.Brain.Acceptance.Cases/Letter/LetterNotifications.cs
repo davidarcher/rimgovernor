@@ -1,4 +1,4 @@
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Presentation = RimGovernor.Contracts.Wire.Presentation;
 

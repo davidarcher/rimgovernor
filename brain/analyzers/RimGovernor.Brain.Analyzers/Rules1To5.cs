@@ -24,8 +24,7 @@ public sealed class LayersAnalyzer : GateAnalyzer
         new[] { "Bridge.Contracts", "Bridge" },
         new[] { "Observation" },
         new[] { "Store" },
-        new[] { "Snapshot" },
-        new[] { "Executor" },
+       new[] { "Executor" },
         new[] { "BuildingRuntime" },
         new[] { "PlayerApi" },
         new[] { "Host" },
@@ -41,8 +40,7 @@ public sealed class LayersAnalyzer : GateAnalyzer
         new[] { "Store", "Bridge.Contracts" },
         new[] { "Store", "Bridge" },
         new[] { "Store", "HttpChannel" },
-        new[] { "Store", "NativeFacade" },
-        new[] { "Executor", "Store" },
+       new[] { "Executor", "Store" },
         new[] { "PlayerApi", "BuildingRuntime" },
     };
 

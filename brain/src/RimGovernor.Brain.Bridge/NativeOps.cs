@@ -9,7 +9,7 @@ using Placement = RimGovernor.Contracts.Wire.Placement;
 using Presentation = RimGovernor.Contracts.Wire.Presentation;
 using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace RimGovernor.Brain.NativeFacade;
+namespace RimGovernor.Brain.Bridge;
 
 /// <summary>
 /// One named native operation: its request and reply records and, for an <see cref="INativeFacade"/> method, the

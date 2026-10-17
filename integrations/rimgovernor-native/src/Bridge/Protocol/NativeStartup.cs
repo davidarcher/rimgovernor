@@ -1,7 +1,7 @@
 #nullable enable
 using System;
 using System.Runtime.CompilerServices;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using Verse;
 
 namespace HomeBridge.BridgeTools

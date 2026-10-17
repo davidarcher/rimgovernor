@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 
 namespace RimGovernor.Brain.Host;
 

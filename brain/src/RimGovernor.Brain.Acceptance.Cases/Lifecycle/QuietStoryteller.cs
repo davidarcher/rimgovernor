@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 using Presentation = RimGovernor.Contracts.Wire.Presentation;

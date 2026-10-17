@@ -7,7 +7,7 @@ facts, never native behavior.
 
 ## Current state
 
-The recorder types live in `brain/src/RimGovernor.Brain.Snapshot`
+The recorder types live in `brain/src/RimGovernor.Brain.Executor`
 (`SnapshotRounds`, `SnapshotPlanner`, `SnapshotStep`, `SnapshotDefense`,
 `SnapshotLayout`, `SnapshotCombatStop`, `SnapshotFirebreak`, and the background
 queue `SnapshotLater`). Writing goes through `ISnapshotSink`

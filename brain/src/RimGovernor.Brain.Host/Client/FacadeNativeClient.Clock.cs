@@ -16,7 +16,7 @@ internal sealed partial class FacadeNativeClient
     }
 
     /// <summary>Opens the colony events native pushes, empty: each carries its original context; reading one acknowledges nothing.</summary>
-    internal Task<ChannelReader<RimGovernor.Brain.NativeFacade.ColonyEvent>> OpenColonyEventsAsync(CancellationToken cancellationToken) =>
+    internal Task<ChannelReader<RimGovernor.Brain.Bridge.ColonyEvent>> OpenColonyEventsAsync(CancellationToken cancellationToken) =>
         Facade.OpenColonyEventsAsync(cancellationToken);
 
     /// <summary>The colony events native dropped since the open.</summary>

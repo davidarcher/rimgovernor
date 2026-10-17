@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 using Authority = RimGovernor.Contracts.Wire.Authority;
 using Clock = RimGovernor.Contracts.Wire.Clock;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;

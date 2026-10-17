@@ -1,6 +1,6 @@
 using Clock = RimGovernor.Contracts.Wire.Clock;
 
-namespace RimGovernor.Brain.NativeFacade;
+namespace RimGovernor.Brain.Bridge;
 
 // The colony events native pushes to the brain (ColonyEventChannel) and writes as OTLP rows (otel-signals.md). Plain
 // in-process records, built directly by their native producers: nothing serializes them, so they carry no wire shape,
@@ -20,7 +20,7 @@ public abstract record ColonyEvent(ColonyEventOrigin Origin, string Detail);
 /// <param name="DetectedTick">The tick the hold was first raised at; the origin tick is the tick it took (a failed pause retries per frame).</param>
 /// <param name="OccurrenceTick">The tick the hazard arose, when the evidence carries one (a new wound's age).</param>
 /// <param name="StopAtUnixMs">Native's Unix ms when the hold took: the stamp Status reports as held-at.</param>
-public sealed record HoldEntered(ColonyEventOrigin Origin, string Detail, Clock.HoldReason Reason, HoldEvidence Evidence,
+public sealed record HoldEntered(ColonyEventOrigin Origin, string Detail, Clock.HoldReason Reason, ColonyHoldEvidence Evidence,
     long DetectedTick, long? OccurrenceTick, long StopAtUnixMs) : ColonyEvent(Origin, Detail);
 
 /// <summary>A Run took while held (the first Run of a loaded game included).</summary>
@@ -66,31 +66,31 @@ public sealed record ForcePauseCleared(ColonyEventOrigin Origin, string Detail) 
 public sealed record PauseFailed(ColonyEventOrigin Origin, string Detail, Clock.HoldReason Pending) : ColonyEvent(Origin, Detail);
 
 /// <summary>What a hold carries beyond its reason.</summary>
-public abstract record HoldEvidence;
+public abstract record ColonyHoldEvidence;
 
 /// <summary>The new stopping letters of a notification batch.</summary>
-public sealed record NotificationEvidence(IReadOnlyList<EventLetter> Letters) : HoldEvidence;
+public sealed record NotificationEvidence(IReadOnlyList<EventLetter> Letters) : ColonyHoldEvidence;
 
 /// <summary>The pawn a hostile, downed or predator hold names.</summary>
-public sealed record PawnEvidence(EventPawn Pawn) : HoldEvidence;
+public sealed record PawnEvidence(EventPawn Pawn) : ColonyHoldEvidence;
 
 /// <summary>A colonist injury hold.</summary>
-public sealed record InjuryEvidence(EventInjury Injury) : HoldEvidence;
+public sealed record InjuryEvidence(EventInjury Injury) : ColonyHoldEvidence;
 
 /// <summary>A combat health threshold crossing, with the policy fractions it crossed.</summary>
-public sealed record HealthEvidence(EventPawn Pawn, float MinHealthFraction, float HealthDropFraction) : HoldEvidence;
+public sealed record HealthEvidence(EventPawn Pawn, float MinHealthFraction, float HealthDropFraction) : ColonyHoldEvidence;
 
 /// <summary>
 /// The pause itself: whether the game is paused and the hold's pause took, the letter vanilla paused for (a letter
 /// pause) and the force-pausing dialog's title (a dialog pause).
 /// </summary>
-public sealed record PauseEvidence(bool ActualPaused, bool PauseVerified, EventLetter? Letter, string? DialogTitle) : HoldEvidence;
+public sealed record PauseEvidence(bool ActualPaused, bool PauseVerified, EventLetter? Letter, string? DialogTitle) : ColonyHoldEvidence;
 
 /// <summary>An armed combat event: the event, the thing it happened to or was raised by, and a diagnostic.</summary>
-public sealed record CombatEvidence(Clock.CombatEvent Event, string? ThingId, string Reason) : HoldEvidence;
+public sealed record CombatEvidence(Clock.CombatEvent Event, string? ThingId, string Reason) : ColonyHoldEvidence;
 
 /// <summary>The hold belongs to a game that is no longer loaded, so nothing beyond its reason and detail was observed.</summary>
-public sealed record UnobservedEvidence : HoldEvidence;
+public sealed record UnobservedEvidence : ColonyHoldEvidence;
 
 /// <summary>A pawn an event names, at its cell; <paramref name="Reason"/> is the hazard's diagnostic where one applies.</summary>
 public sealed record EventPawn(string PawnId, string Name, int X, int Z, string? Reason);

@@ -1,5 +1,5 @@
 using RimGovernor.Brain.HttpChannel;
-using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Bridge;
 
 namespace RimGovernor.Brain.Host;
 
