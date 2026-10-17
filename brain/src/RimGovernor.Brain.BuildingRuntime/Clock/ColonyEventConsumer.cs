@@ -13,7 +13,7 @@ public interface IClockEventNative
     /// <summary>One bare or identified step read; the consumer uses it only for the current world's context.</summary>
     Task<PbObservations.BundleSnapshot?> ReadStepAsync(BridgeApi.StepRequest request, CancellationToken ct);
 
-    /// <summary>Opens the native queue empty and returns its reading side; the loss counter restarts at zero.</summary>
+    /// <summary>Opens a fresh, empty native queue and returns its reading side; the loss counter restarts at zero and the previous reader completes.</summary>
     Task<ChannelReader<PbClock.ClockEvent>> OpenColonyEventsAsync(CancellationToken ct);
 
     /// <summary>The events native dropped since the open; any change forces a Full step.</summary>
@@ -86,6 +86,7 @@ internal sealed class ColonyEventConsumer(Session session, IClockEventNative nat
                 }
                 if (!await reader.WaitToReadAsync(ct).ConfigureAwait(false))
                 {
+                    // A newer open completed this queue (a restarted or reloaded brain took it over): shutdown, not a loss.
                     return;
                 }
                 batch.Clear();

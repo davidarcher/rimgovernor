@@ -1197,4 +1197,82 @@ public sealed class ClockRunDriverTests
         Assert.True(await reader.WaitToReadAsync(Ct));
         Assert.True(reader.TryRead(out _));
     }
+
+    [Fact]
+    public async Task AnOpenCompletesThePreviousReadersWaitAndNativeKeepsNothingOfIt()
+    {
+        // An unloaded brain's read waits with no write coming: native's queue holds its continuation.
+        var channel = new ColonyEventChannel();
+        var (reader, waiter, woke) = PendingWait(channel, CancellationToken.None);
+        Collect();
+        Assert.True(waiter.IsAlive);
+
+        // The next brain's open completes that wait (shutdown, not data) and native keeps neither the waiter nor the old queue.
+        var fresh = channel.Open();
+        Assert.False(await woke.WaitAsync(Ct));
+        Collect();
+        Assert.False(waiter.IsAlive);
+        Assert.False(reader.IsAlive);
+
+        // A write after the open reaches only the new reader.
+        channel.Publish(new PbClock.ClockEvent());
+        Assert.True(fresh.TryRead(out _));
+        Assert.Equal(0, channel.Lost);
+    }
+
+    [Fact]
+    public async Task AStoppedBrainsCancelledWaitLeavesTheQueueWithoutAWriteOrAnOpen()
+    {
+        // The brain stops by cancelling its read; System.Threading.Channels drops the waiter then, so stop needs no close.
+        var channel = new ColonyEventChannel();
+        using var stop = new CancellationTokenSource();
+        var (_, waiter, woke) = PendingWait(channel, stop.Token);
+        await stop.CancelAsync();
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => woke.WaitAsync(Ct));
+        Collect();
+        Assert.False(waiter.IsAlive);
+    }
+
+    private static void Collect()
+    {
+        for (var i = 0; i < 3; i++)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
+    }
+
+    // Opens the channel and starts one read wait whose continuation target is only reachable through the channel.
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static (WeakReference Reader, WeakReference Waiter, Task<bool> Woke) PendingWait(ColonyEventChannel channel, CancellationToken ct)
+    {
+        var reader = channel.Open();
+        var waiter = new ReadWaiter(reader.WaitToReadAsync(ct));
+        return (new WeakReference(reader), new WeakReference(waiter), waiter.Woke.Task);
+    }
+
+    private sealed class ReadWaiter
+    {
+        private readonly System.Runtime.CompilerServices.ConfiguredValueTaskAwaitable<bool>.ConfiguredValueTaskAwaiter _awaiter;
+
+        public ReadWaiter(ValueTask<bool> wait)
+        {
+            _awaiter = wait.ConfigureAwait(false).GetAwaiter();
+            _awaiter.OnCompleted(Continue);
+        }
+
+        public TaskCompletionSource<bool> Woke { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private void Continue()
+        {
+            try
+            {
+                Woke.SetResult(_awaiter.GetResult());
+            }
+            catch (Exception e)
+            {
+                Woke.SetException(e);
+            }
+        }
+    }
 }

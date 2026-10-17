@@ -106,8 +106,9 @@ public interface INativeFacade
     Task<Clock.StatusReply> ReadClockStatusAsync(Clock.StatusRequest request, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Opens the colony events native pushes (<see cref="ColonyEventChannel"/>): drops every queued event, clears
-    /// <see cref="ColonyEventsLost"/> and returns the reading side, so a started or reloaded brain begins empty. In
+    /// Opens the colony events native pushes (<see cref="ColonyEventChannel"/>): swaps in a fresh queue, completes the
+    /// previous reader, clears <see cref="ColonyEventsLost"/> and returns the new reading side, so a started or reloaded
+    /// brain begins empty and native keeps no reference to an earlier brain's read. In
     /// process only, so no op routes it; it does not need the game thread.
     /// </summary>
     Task<ChannelReader<Clock.ClockEvent>> OpenColonyEventsAsync(CancellationToken cancellationToken);

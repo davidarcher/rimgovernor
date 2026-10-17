@@ -935,8 +935,8 @@ Native pushes each colony event onto a bounded queue it owns
 (`ColonyEventChannel`, 1024 events) with a non-blocking `TryWrite` on the game
 thread. A full queue drops the event and counts it; any change in the loss
 counter makes the next step plan `full`. The brain's consumer opens the queue
-through `INativeFacade.OpenColonyEventsAsync`, which empties it and clears the
-counter, so a started or reloaded brain replays no backlog and plans `full`
+through `INativeFacade.OpenColonyEventsAsync`, which swaps in an empty queue,
+completes the previous reader (its consumer stops) and clears the counter, so a started or reloaded brain replays no backlog and plans `full`
 first. There is no ring, cursor or poll. Each batch is read against the current
 world's context: another world's event is ignored, and a context that does not
 match the held authority ends it. The OpenTelemetry event rows are written at
