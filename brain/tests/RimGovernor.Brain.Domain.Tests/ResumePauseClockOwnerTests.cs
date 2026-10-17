@@ -182,7 +182,7 @@ public sealed class ResumePauseClockOwnerTests
         public async Task RunClockAsync()
         {
             Assert.True(_player.State().Enabled);
-            var policy = BridgeFunctions.WithHazardThresholds(new PbClock.WatchPolicy
+            var policy = ClockExpectation.WithHazardThresholds(new PbClock.WatchPolicy
             {
                 Mode = PbClock.WatchMode.Colony,
                 HealthDropFraction = .1f,

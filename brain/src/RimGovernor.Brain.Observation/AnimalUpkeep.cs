@@ -77,7 +77,7 @@ public static partial class ObservationPackage
             };
             if (state.Conditions is not null)
             {
-                var (conditions, lifeThreatening) = CareConditions(state.Conditions);
+                var (conditions, lifeThreatening) = CareConditionsRules.CareConditions(state.Conditions);
                 animal = animal with { Conditions = conditions, LifeThreatening = lifeThreatening };
             }
             rows.Add(animal);

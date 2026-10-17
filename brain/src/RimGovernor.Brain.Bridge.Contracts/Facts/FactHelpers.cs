@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 // Go care_conditions.go (fact), policy_inputs.go (optionalFact), surgery_facts.go (surgeryFact, surgeryInt),
 // biotech.go (optionalInt), protobuf.go (validRef, optionalRef, RefIDs), combat_pawns.go (combatNumber),
 // defense_site.go (protoCell, fraction): the small lifting helpers every wire-to-policy projection shares.
-public static partial class BridgeFunctions
+public static class FactHelpers
 {
     /// <summary>Go's <c>fact</c>, <c>optionalFact</c> and <c>surgeryFact</c>: an optional wire field as a fact, unknown when absent.</summary>
     internal static Fact<T> OptionalFact<T>(bool present, T value) => present ? Known(value) : Unknown<T>();
@@ -38,7 +38,7 @@ public static partial class BridgeFunctions
     {
         if (message is null)
         {
-            throw Contract("missing building message");
+            throw BridgeContractException.Contract("missing building message");
         }
     }
 

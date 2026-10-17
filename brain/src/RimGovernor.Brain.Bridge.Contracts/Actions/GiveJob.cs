@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 
 // Go give_job.go (the GiveJobIntent builders and the draft arm) and recovery_service.go. Native checks the game
 // rules live and builds the game's own job; a pawn already running it on the targets applies again.
-public static partial class BridgeFunctions
+public static class GiveJobRules
 {
     // Vanilla JobDef names a GiveJobIntent orders.
     public const string JobInspectGravEngine = "InspectGravEngine";
@@ -43,24 +43,24 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>giveJobTo</c>: <paramref name="self"/> admits the pawn among the targets, for the one job that may target its own user (UseItem).</summary>
     private static Op.Action GiveJobTo(PawnId pawn, string job, bool self, params string[] targets)
     {
-        if (!IsValidId(pawn.Value) || !IsValidId(job) || targets.Length == 0)
+        if (!WireValidation.IsValidId(pawn.Value) || !WireValidation.IsValidId(job) || targets.Length == 0)
         {
-            throw Contract("give job intent requires a pawn, a job and a target");
+            throw BridgeContractException.Contract("give job intent requires a pawn, a job and a target");
         }
         foreach (var target in targets)
         {
-            if (!IsValidId(target) || (target == pawn.Value && !self))
+            if (!WireValidation.IsValidId(target) || (target == pawn.Value && !self))
             {
-                throw Contract("give job intent requires valid targets distinct from the pawn");
+                throw BridgeContractException.Contract("give job intent requires valid targets distinct from the pawn");
             }
         }
         return new Op.Action
         {
             Intent = new Op.GiveJobIntent
             {
-                Pawn = NewRef(pawn.Value),
+                Pawn = IntentActionRules.NewRef(pawn.Value),
                 Job = job,
-                Targets = [.. NewRefs(targets)],
+                Targets = [.. IntentActionRules.NewRefs(targets)],
             },
         };
     }
@@ -77,55 +77,55 @@ public static partial class BridgeFunctions
     }
 
     /// <summary>Go's <c>draftAction</c>: drafts one plan-owned pawn.</summary>
-    private static Op.Action DraftAction(DomainAction action)
+    internal static Op.Action DraftAction(DomainAction action)
     {
-        if (action.OwnedDraft is not { } v || !IsValidId(v.Pawn.Value))
+        if (action.OwnedDraft is not { } v || !WireValidation.IsValidId(v.Pawn.Value))
         {
-            throw Contract("not a draft action");
+            throw BridgeContractException.Contract("not a draft action");
         }
         return new Op.Action { Intent = new Op.DraftIntent { PawnId = v.Pawn.Value, Drafted = true } };
     }
 
-    private static Op.Action SubdueAction(DomainAction action)
+    internal static Op.Action SubdueAction(DomainAction action)
     {
-        var v = action.Subdue ?? throw Contract("not a subdue action");
+        var v = action.Subdue ?? throw BridgeContractException.Contract("not a subdue action");
         return GiveJob(v.Pawn, JobAttackMelee, v.Target.Value);
     }
 
-    private static Op.Action RepairAction(DomainAction action)
+    internal static Op.Action RepairAction(DomainAction action)
     {
-        var v = action.Repair ?? throw Contract("not a repair action");
+        var v = action.Repair ?? throw BridgeContractException.Contract("not a repair action");
         return GiveJob(v.Pawn, JobRepair, v.Structure);
     }
 
-    private static Op.Action CleanAction(DomainAction action)
+    internal static Op.Action CleanAction(DomainAction action)
     {
-        var v = action.Clean ?? throw Contract("not a clean action");
+        var v = action.Clean ?? throw BridgeContractException.Contract("not a clean action");
         return GiveJob(v.Pawn, JobClean, v.Filth);
     }
 
-    private static Op.Action TendAction(DomainAction action)
+    internal static Op.Action TendAction(DomainAction action)
     {
-        var v = action.Tend ?? throw Contract("not a tend action");
+        var v = action.Tend ?? throw BridgeContractException.Contract("not a tend action");
         return GiveJob(v.Doctor, JobTendPatient, v.Patient.Value);
     }
 
-    private static Op.Action EquipAction(DomainAction action)
+    internal static Op.Action EquipAction(DomainAction action)
     {
-        var v = action.Equip ?? throw Contract("not an equip action");
+        var v = action.Equip ?? throw BridgeContractException.Contract("not an equip action");
         return GiveJob(v.Pawn, JobEquip, v.Thing);
     }
 
     /// <summary>Go's <c>dropEquipmentAction</c>: orders a pawn to drop the weapon it holds; native checks the weapon is in the pawn's hands live.</summary>
-    private static Op.Action DropEquipmentAction(DomainAction action)
+    internal static Op.Action DropEquipmentAction(DomainAction action)
     {
-        var v = action.DropEquipment ?? throw Contract("not a drop equipment action");
+        var v = action.DropEquipment ?? throw BridgeContractException.Contract("not a drop equipment action");
         return GiveJob(v.Pawn, JobDropWeapon, v.Thing);
     }
 
-    private static Op.Action RescueAction(DomainAction action)
+    internal static Op.Action RescueAction(DomainAction action)
     {
-        var v = action.Rescue ?? throw Contract("not a rescue action");
+        var v = action.Rescue ?? throw BridgeContractException.Contract("not a rescue action");
         return GiveJob(v.Rescuer, JobRescue, v.Patient.Value);
     }
 
@@ -133,24 +133,24 @@ public static partial class BridgeFunctions
     /// Go's <c>captureAction</c>: a capture of a downed pawn, or, with a bed, an arrest of a standing one; the arrest
     /// rides the capturer's coupled owned draft.
     /// </summary>
-    private static Op.Action CaptureAction(DomainAction action)
+    internal static Op.Action CaptureAction(DomainAction action)
     {
-        var v = action.Capture ?? throw Contract("not a capture action");
+        var v = action.Capture ?? throw BridgeContractException.Contract("not a capture action");
         if (!v.Arrest)
         {
             return GiveJob(v.Capturer, JobCapture, v.Patient.Value);
         }
-        if (!IsValidId(v.Bed!))
+        if (!WireValidation.IsValidId(v.Bed!))
         {
-            throw Contract("arrest intent requires a valid bed");
+            throw BridgeContractException.Contract("arrest intent requires a valid bed");
         }
         return GiveJob(v.Capturer, JobArrest, v.Patient.Value, v.Bed!);
     }
 
     /// <summary>Go's <c>wearAction</c>: orders a pawn to wear one loose apparel item as ordered work, not a forced outfit entry.</summary>
-    private static Op.Action WearAction(DomainAction action)
+    internal static Op.Action WearAction(DomainAction action)
     {
-        var v = action.GearReplace ?? throw Contract("not a gear replace action");
+        var v = action.GearReplace ?? throw BridgeContractException.Contract("not a gear replace action");
         return GiveJob(v.Pawn, JobWear, v.Thing);
     }
 
@@ -158,12 +158,12 @@ public static partial class BridgeFunctions
     /// Go's <c>useItemAction</c>: one colonist uses one targetable item on one pawn, or its own CompUsable item on itself
     /// (a neuroformer: the target is the colonist); native validates the verb or use comp against the target live.
     /// </summary>
-    private static Op.Action UseItemAction(DomainAction action)
+    internal static Op.Action UseItemAction(DomainAction action)
     {
-        var v = action.UseItem ?? throw Contract("not a use item action");
+        var v = action.UseItem ?? throw BridgeContractException.Contract("not a use item action");
         if (v.Item == v.Target.Value)
         {
-            throw Contract("use item intent requires a distinct item and target");
+            throw BridgeContractException.Contract("use item intent requires a distinct item and target");
         }
         return GiveJobTo(v.Pawn, JobUseItem, v.SelfUse, v.Item, v.Target.Value);
     }
@@ -180,7 +180,7 @@ public static partial class BridgeFunctions
             RecoveryMethod.InvestigateMonolith => JobInvestigateMonolith,
             RecoveryMethod.ActivateMonolith => JobActivateMonolith,
             RecoveryMethod.Interact => JobInteractThing,
-            _ => throw Contract("recover intent requires a service method"),
+            _ => throw BridgeContractException.Contract("recover intent requires a service method"),
         };
 
     /// <summary>
@@ -188,9 +188,9 @@ public static partial class BridgeFunctions
     /// refuel). Native checks the pawn, the building and whether it still needs the service live, and the game's own
     /// WorkGiver builds the job.
     /// </summary>
-    private static Op.Action RecoverAction(DomainAction action)
+    internal static Op.Action RecoverAction(DomainAction action)
     {
-        var v = action.RecoveryService ?? throw Contract("not a recovery service action");
+        var v = action.RecoveryService ?? throw BridgeContractException.Contract("not a recovery service action");
         return GiveJob(v.Pawn, RecoveryServiceJob(v.Method), v.Thing);
     }
 }

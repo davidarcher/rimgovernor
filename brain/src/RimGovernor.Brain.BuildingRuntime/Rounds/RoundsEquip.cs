@@ -65,7 +65,7 @@ internal static class EquipCandidates
         {
             facts = facts with { Armed = Known(equipment.Armed) };
         }
-        facts = facts with { NoArms = catalog.CreepJoinerDownsides().ArmsHold(BridgeApi.CreepJoinerPawn(row)) };
+        facts = facts with { NoArms = catalog.CreepJoinerDownsides().ArmsHold(CreepJoinerFacts.CreepJoinerPawn(row)) };
         return facts;
     }
 }

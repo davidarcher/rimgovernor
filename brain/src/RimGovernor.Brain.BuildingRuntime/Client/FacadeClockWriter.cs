@@ -18,20 +18,20 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
     public async Task<PbClock.Status> RunAsync(PbClock.RunRequest request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        BridgeFunctions.AuthorityIdentity(request.Identity);
+        WireValidation.AuthorityIdentity(request.Identity);
         if (request.ExpectedGeneration is null || request.ExpectedGeneration.GetValueOrDefault() == 0)
         {
-            throw BridgeFunctions.Contract("clock run authority generation");
+            throw BridgeContractException.Contract("clock run authority generation");
         }
         if (request.Speed is null || (int)request.Speed.GetValueOrDefault() < 1 || (int)request.Speed.GetValueOrDefault() > 4)
         {
-            throw BridgeFunctions.Contract("clock run speed");
+            throw BridgeContractException.Contract("clock run speed");
         }
         if (request.PlannedHoldSerial is null)
         {
-            throw BridgeFunctions.Contract("clock run planned hold serial");
+            throw BridgeContractException.Contract("clock run planned hold serial");
         }
-        BridgeFunctions.ValidateClockPolicy(request.Policy);
+        ClockValidation.ValidateClockPolicy(request.Policy);
         var reply = await _facade.RunClockAsync(request, ct).ConfigureAwait(false);
         return FacadeWriteChecks.ClockStatusReply(reply);
     }
@@ -40,10 +40,10 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
     public async Task<PbClock.Status> HoldAsync(PbClock.HoldRequest request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        BridgeFunctions.AuthorityIdentity(request.Identity);
+        WireValidation.AuthorityIdentity(request.Identity);
         if (request.Reason is null)
         {
-            throw BridgeFunctions.Contract("clock hold reason");
+            throw BridgeContractException.Contract("clock hold reason");
         }
         var reply = await _facade.HoldClockAsync(request, ct).ConfigureAwait(false);
         return FacadeWriteChecks.ClockStatusReply(reply);
@@ -53,7 +53,7 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
     public async Task<PbClock.HeartbeatAck> HeartbeatAsync(PbClock.HeartbeatRequest request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        BridgeFunctions.AuthorityIdentity(request.Identity);
+        WireValidation.AuthorityIdentity(request.Identity);
         var reply = await _facade.HeartbeatClockAsync(request, ct).ConfigureAwait(false);
         if (reply.Outcome.Failure is { } failure)
         {

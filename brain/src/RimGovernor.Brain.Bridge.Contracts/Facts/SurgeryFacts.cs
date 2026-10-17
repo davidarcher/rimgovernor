@@ -23,7 +23,7 @@ public interface IPartCatalog
 }
 
 // Go surgery_facts.go.
-public static partial class BridgeFunctions
+public static class SurgeryFactsRules
 {
     private static PolicySurgeryKind SurgeryKindOf(WireSurgeryKind kind) => kind switch
     {
@@ -55,8 +55,8 @@ public static partial class BridgeFunctions
                 rows.Add(
                     new PolicyMissingPart
                     {
-                        PartIndex = OptionalInt(part.PartIndex is not null, part.PartIndex.GetValueOrDefault()),
-                        PartDefName = OptionalFact(part.PartDefName is not null, (part.PartDefName ?? "")),
+                        PartIndex = FactHelpers.OptionalInt(part.PartIndex is not null, part.PartIndex.GetValueOrDefault()),
+                        PartDefName = FactHelpers.OptionalFact(part.PartDefName is not null, (part.PartDefName ?? "")),
                     });
             }
             parts = Known(EquatableArray.From(rows));
@@ -77,24 +77,24 @@ public static partial class BridgeFunctions
     {
         var row = new PolicySurgeryOperation
         {
-            PartIndex = OptionalInt(op.PartIndex is not null, op.PartIndex.GetValueOrDefault()),
-            PartDefName = OptionalFact(op.PartDefName is not null, (op.PartDefName ?? "")),
+            PartIndex = FactHelpers.OptionalInt(op.PartIndex is not null, op.PartIndex.GetValueOrDefault()),
+            PartDefName = FactHelpers.OptionalFact(op.PartDefName is not null, (op.PartDefName ?? "")),
             Kind = SurgeryKindOf(op.Kind),
-            SuccessChance = OptionalFact(op.SuccessChance is not null, op.SuccessChance.GetValueOrDefault()),
-            DoctorSuccessChance = OptionalFact(op.DoctorSuccessChance is not null, op.DoctorSuccessChance.GetValueOrDefault()),
-            IngredientsOnMap = OptionalFact(op.IngredientsOnMap is not null, op.IngredientsOnMap.GetValueOrDefault()),
-            Violation = OptionalFact(op.Violation is not null, op.Violation.GetValueOrDefault()),
-            Lethal = OptionalFact(op.Lethal is not null, op.Lethal.GetValueOrDefault()),
-            YieldValue = OptionalFact(op.YieldMarketValue is not null, op.YieldMarketValue.GetValueOrDefault()),
-            AddedPart = OptionalFact(op.AddedPartHediff is not null, (op.AddedPartHediff ?? "")),
-            YieldThing = OptionalFact(op.YieldThingDef is not null, (op.YieldThingDef ?? "")),
-            MedicineValue = OptionalFact(op.MedicineMarketValue is not null, op.MedicineMarketValue.GetValueOrDefault()),
-            CareLimited = OptionalFact(op.MedicineCareLimited is not null, op.MedicineCareLimited.GetValueOrDefault()),
+            SuccessChance = FactHelpers.OptionalFact(op.SuccessChance is not null, op.SuccessChance.GetValueOrDefault()),
+            DoctorSuccessChance = FactHelpers.OptionalFact(op.DoctorSuccessChance is not null, op.DoctorSuccessChance.GetValueOrDefault()),
+            IngredientsOnMap = FactHelpers.OptionalFact(op.IngredientsOnMap is not null, op.IngredientsOnMap.GetValueOrDefault()),
+            Violation = FactHelpers.OptionalFact(op.Violation is not null, op.Violation.GetValueOrDefault()),
+            Lethal = FactHelpers.OptionalFact(op.Lethal is not null, op.Lethal.GetValueOrDefault()),
+            YieldValue = FactHelpers.OptionalFact(op.YieldMarketValue is not null, op.YieldMarketValue.GetValueOrDefault()),
+            AddedPart = FactHelpers.OptionalFact(op.AddedPartHediff is not null, (op.AddedPartHediff ?? "")),
+            YieldThing = FactHelpers.OptionalFact(op.YieldThingDef is not null, (op.YieldThingDef ?? "")),
+            MedicineValue = FactHelpers.OptionalFact(op.MedicineMarketValue is not null, op.MedicineMarketValue.GetValueOrDefault()),
+            CareLimited = FactHelpers.OptionalFact(op.MedicineCareLimited is not null, op.MedicineCareLimited.GetValueOrDefault()),
             EligibleDoctors = op.EligibleDoctors is not null ? Known((int)op.EligibleDoctors.GetValueOrDefault()) : Unknown<int>(),
         };
         if (op.Recipe is { } recipe)
         {
-            row = row with { Recipe = OptionalFact(recipe.DefName is not null, (recipe.DefName ?? "")) };
+            row = row with { Recipe = FactHelpers.OptionalFact(recipe.DefName is not null, (recipe.DefName ?? "")) };
             if (recipe.DefName is not null && catalog is not null)
             {
                 row = row with { Item = catalog.InstallItem((recipe.DefName ?? "")), Tier = catalog.PartTier((recipe.DefName ?? "")) };

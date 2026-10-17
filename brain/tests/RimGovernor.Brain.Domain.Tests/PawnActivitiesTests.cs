@@ -14,14 +14,14 @@ public sealed class PawnActivitiesTests
     [Fact]
     public void HandsIntentAndJournalRetainExactTargetsAndDeadlines()
     {
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         var action = DomainAction.NewPawnActivitiesAction(new ActionId("action"), Batch());
         Assert.True(RimGovernor.Brain.Executor.Executor.PlainIntent(action.Kind));
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream)) Codecs.Default.Write(writer, action);
         using var doc = JsonDocument.Parse(stream.ToArray());
         var decoded = Codecs.Default.Read<DomainAction>(doc.RootElement);
-        var wire = BridgeFunctions.IntentAction("action", decoded);
+        var wire = IntentActionRules.IntentAction("action", decoded);
         Assert.Equal("meal", wire.Intent!.PawnActivities!.Batch!.Orders[0].Steps[1].Target);
         Assert.Equal(1234, wire.Intent.PawnActivities.Batch.Orders[0].Steps[0].Deadline);
         Assert.Equal("method", wire.Intent.PawnActivities.Batch.Orders[0].Method);

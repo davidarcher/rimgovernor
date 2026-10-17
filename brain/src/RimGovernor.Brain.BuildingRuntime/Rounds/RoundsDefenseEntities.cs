@@ -57,7 +57,7 @@ partial class RoundsDefensePlanner
             {
                 continue;
             }
-            if (BridgeApi.PawnAnomaly(detail.Anomaly).TryGetValue(out var a) && RoundsBuildingPlanner.PositiveFact(a.Entity))
+            if (AnomalyFactsRules.PawnAnomaly(detail.Anomaly).TryGetValue(out var a) && RoundsBuildingPlanner.PositiveFact(a.Entity))
             {
                 output.Add(row);
             }

@@ -37,7 +37,7 @@ internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITr
         var output = new TradeInspection { StartedAt = Clock.Now() };
         try
         {
-            BridgeApi.IntentAction("inspect", target.Action);
+            IntentActionRules.IntentAction("inspect", target.Action);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

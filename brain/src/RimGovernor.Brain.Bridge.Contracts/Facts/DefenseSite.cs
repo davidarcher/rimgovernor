@@ -9,6 +9,15 @@ public readonly record struct CellRect(DomainCell Min, DomainCell Max)
 {
     /// <summary>Go's <c>Cells</c>: the inclusive cell count, zero for an inverted rectangle.</summary>
     public long Cells => Max.X < Min.X || Max.Z < Min.Z ? 0 : (long)(Max.X - Min.X + 1) * (Max.Z - Min.Z + 1);
+
+    /// <summary>Go's <c>validateDefenseRegion</c>: whether <paramref name="region"/> is a non-inverted rectangle on the defense map.</summary>
+    public static bool IsValidDefenseRegion(CellRect region) =>
+        region.Min.X >= 0
+        && region.Min.Z >= 0
+        && region.Max.X >= region.Min.X
+        && region.Max.Z >= region.Min.Z
+        && region.Max.X < DefenseSiteRules.MaxDefenseSiteExtent
+        && region.Max.Z < DefenseSiteRules.MaxDefenseSiteExtent;
 }
 
 /// <summary>
@@ -131,7 +140,7 @@ public sealed record LinesOfFire(ObservationContext? Context, IReadOnlyList<Line
 
 // Go defense_site.go. ReadDefenseSite, ReadLinesOfFire and the defense site / lines-of-fire reply validators are
 // wire plumbing and not ported; the raid-track decoder the colony threat projection needs is.
-public static partial class BridgeFunctions
+public static class DefenseSiteRules
 {
     /// <summary>Go's <c>maxDefenseSiteExtent</c>: bounds a defense-layout cell coordinate.</summary>
     internal const int MaxDefenseSiteExtent = 4096;
@@ -145,7 +154,7 @@ public static partial class BridgeFunctions
             var trail = new List<DomainCell>(row.Trail.Count);
             foreach (var at in row.Trail)
             {
-                trail.Add(ToDomainCell(at));
+                trail.Add(FactHelpers.ToDomainCell(at));
             }
             tracks.Add(
                 new RaidTrack
@@ -154,7 +163,7 @@ public static partial class BridgeFunctions
                     FactionDef = row.FactionDef ?? "",
                     SpawnTick = new Tick(row.SpawnTick.GetValueOrDefault()),
                     LastTick = new Tick(row.LastTick.GetValueOrDefault()),
-                    Spawn = ToDomainCell(row.Spawn),
+                    Spawn = FactHelpers.ToDomainCell(row.Spawn),
                     Ground = row.Ground.GetValueOrDefault(),
                     Trail = trail,
                 }
@@ -162,16 +171,4 @@ public static partial class BridgeFunctions
         }
         return tracks;
     }
-}
-
-public static partial class BridgeFunctions
-{
-    /// <summary>Go's <c>validateDefenseRegion</c>: whether <paramref name="region"/> is a non-inverted rectangle on the defense map.</summary>
-    public static bool IsValidDefenseRegion(CellRect region) =>
-        region.Min.X >= 0
-        && region.Min.Z >= 0
-        && region.Max.X >= region.Min.X
-        && region.Max.Z >= region.Min.Z
-        && region.Max.X < MaxDefenseSiteExtent
-        && region.Max.Z < MaxDefenseSiteExtent;
 }

@@ -63,13 +63,13 @@ partial record CombatReads
         // The permit and psycast calls leave the batch as Ability actions, as the defense round sends them.
         var (rest, calls) = RoundsDefensePlanner.SplitPermitCalls(orders);
         orders = rest;
-        var callActions = RoundsDefensePlanner.PermitCallActions(new PlanId(key), calls).Select((a, i) => BridgeApi.IntentAction($"{key}-c{i}", a)).ToList();
+        var callActions = RoundsDefensePlanner.PermitCallActions(new PlanId(key), calls).Select((a, i) => IntentActionRules.IntentAction($"{key}-c{i}", a)).ToList();
         var commands = RoundsDefensePlanner.CombatBatchCommands(drafts, orders);
         PbOperations.CombatOrders? batch = null;
         if (commands.Count > 0)
         {
             var action = DomainAction.NewCombatBatchAction(new ActionId(key), new CombatBatch(new PlanId(key), key, commands));
-            batch = BridgeApi.IntentAction(key, action).Intent is PbOperations.ActionIntent.CombatOrdersCase { Value: var wire } ? wire : null;
+            batch = IntentActionRules.IntentAction(key, action).Intent is PbOperations.ActionIntent.CombatOrdersCase { Value: var wire } ? wire : null;
         }
         return new CombatStep(view, orders, drafts, batch, next, callActions);
     }

@@ -6,26 +6,26 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 
 // Go reading_policy.go, drug_policy.go, food_policy.go, pawn_settings.go and rules.go (rulesAttachAction). The rules
 // attach, clear and status calls of rules.go are wire plumbing and are not part of this file.
-public static partial class BridgeFunctions
+public static class PolicyActions
 {
     /// <summary>Go's <c>readingPolicyAction</c>: the ReadingPolicyIntent of one per-pawn reading policy, the label and the allowed book definitions; native checks the definitions are books (NativeReadingPolicy.cs).</summary>
-    private static Op.Action ReadingPolicyAction(DomainAction action)
+    internal static Op.Action ReadingPolicyAction(DomainAction action)
     {
-        var v = action.ReadingPolicy ?? throw Contract("not a reading policy action");
+        var v = action.ReadingPolicy ?? throw BridgeContractException.Contract("not a reading policy action");
         return new Op.Action { Intent = new Op.ReadingPolicyIntent { Name = v.Name, AllowedDefs = [.. v.Definitions] } };
     }
 
     /// <summary>Go's <c>foodPolicyAction</c>: the FoodPolicyIntent of one per-pawn food policy, the label and the allowed food definitions.</summary>
-    private static Op.Action FoodPolicyAction(DomainAction action)
+    internal static Op.Action FoodPolicyAction(DomainAction action)
     {
-        var v = action.FoodPolicy ?? throw Contract("not a food policy action");
+        var v = action.FoodPolicy ?? throw BridgeContractException.Contract("not a food policy action");
         return new Op.Action { Intent = new Op.FoodPolicyIntent { Name = v.Name, AllowedDefs = [.. v.Definitions] } };
     }
 
     /// <summary>Go's <c>drugPolicyAction</c>: the DrugPolicyIntent of one per-pawn drug policy, the label and the entries that allow anything; native checks the drugs are the policy's (NativeDrugPolicy.cs).</summary>
-    private static Op.Action DrugPolicyAction(DomainAction action)
+    internal static Op.Action DrugPolicyAction(DomainAction action)
     {
-        var v = action.DrugPolicy ?? throw Contract("not a drug policy action");
+        var v = action.DrugPolicy ?? throw BridgeContractException.Contract("not a drug policy action");
         var intent = new Op.DrugPolicyIntent { Name = v.Name };
         foreach (var e in v.Entries)
         {
@@ -51,7 +51,7 @@ public static partial class BridgeFunctions
             DomainHostility.Ignore => Op.HostilityResponse.Ignore,
             DomainHostility.Attack => Op.HostilityResponse.Attack,
             DomainHostility.Flee => Op.HostilityResponse.Flee,
-            _ => throw Contract("unknown hostility response"),
+            _ => throw BridgeContractException.Contract("unknown hostility response"),
         };
 
     // Go medicalCareWire.
@@ -63,21 +63,21 @@ public static partial class BridgeFunctions
             DomainMedicalCare.Herbal => Op.MedicalCare.HerbalOrWorse,
             DomainMedicalCare.Normal => Op.MedicalCare.NormalOrWorse,
             DomainMedicalCare.Best => Op.MedicalCare.Best,
-            _ => throw Contract($"unknown medical care \"{Domain.Wire.Name(care)}\""),
+            _ => throw BridgeContractException.Contract($"unknown medical care \"{Domain.Wire.Name(care)}\""),
         };
 
     /// <summary>
     /// Go's <c>pawnSettingsAction</c>: the PawnSettingsIntent of one pawn and one setting. Native re-checks the pawn and
     /// the setting live; a setting that already holds applies again (NativePawnSettings.cs).
     /// </summary>
-    private static Op.Action PawnSettingsAction(DomainAction action)
+    internal static Op.Action PawnSettingsAction(DomainAction action)
     {
-        var v = action.PawnSettings ?? throw Contract("not a pawn settings action");
+        var v = action.PawnSettings ?? throw BridgeContractException.Contract("not a pawn settings action");
         var intent = new Op.PawnSettingsIntent { PawnId = v.Pawn.Value };
         switch (v.Kind)
         {
             case SettingKind.Hostility:
-                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.HostilityResponseCase(HostilityWire(v.Hostility ?? throw Contract("hostility setting without a mode"))) };
+                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.HostilityResponseCase(HostilityWire(v.Hostility ?? throw BridgeContractException.Contract("hostility setting without a mode"))) };
                 break;
             case SettingKind.SelfTend:
                 intent = intent with { Setting = new Op.PawnSettingsIntentSetting.SelfTendCase(v.SelfTend) };
@@ -89,7 +89,7 @@ public static partial class BridgeFunctions
                 intent = intent with { Setting = new Op.PawnSettingsIntentSetting.NicknameCase(v.LeaveName) };
                 break;
             case SettingKind.MedicalCare:
-                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.MedicalCareCase(MedicalCareWire(v.MedicalCare ?? throw Contract("medical care setting without a tier"))) };
+                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.MedicalCareCase(MedicalCareWire(v.MedicalCare ?? throw BridgeContractException.Contract("medical care setting without a tier"))) };
                 break;
             case SettingKind.ReadingPolicy:
                 intent = intent with { Setting = new Op.PawnSettingsIntentSetting.ReadingPolicyCase(v.ReadingPolicy ?? "") };
@@ -107,14 +107,14 @@ public static partial class BridgeFunctions
                 intent = intent with { Setting = new Op.PawnSettingsIntentSetting.MechControlGroupCase(v.MechControlGroup ?? 0) };
                 break;
             case SettingKind.ChoosePermit:
-                var (faction, permit) = v.ChoosePermit ?? throw Contract("choose permit setting without a permit");
+                var (faction, permit) = v.ChoosePermit ?? throw BridgeContractException.Contract("choose permit setting without a permit");
                 intent = intent with { Setting = new Op.PawnSettingsIntentSetting.ChoosePermitCase(new Op.PermitChoice { FactionDef = faction, Permit = permit }) };
                 break;
             case SettingKind.ExtractBioferrite:
                 intent = intent with { Setting = new Op.PawnSettingsIntentSetting.ExtractBioferriteCase(v.ExtractBioferrite ?? false) };
                 break;
             default:
-                throw Contract("unknown pawn setting");
+                throw BridgeContractException.Contract("unknown pawn setting");
         }
         return new Op.Action { Intent = intent };
     }

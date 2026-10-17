@@ -120,7 +120,7 @@ internal static class DraftNeeds
         {
             return;
         }
-        var actions = pawns.Select(pawn => BridgeApi.UndraftAction($"undraft-{pawn.Value}-{tick.Value}", pawn)).ToList();
+        var actions = pawns.Select(pawn => CombatCalls.UndraftAction($"undraft-{pawn.Value}-{tick.Value}", pawn)).ToList();
         var reply = await writer.ApplyAsync(identity, actions, ct).ConfigureAwait(false);
         for (var i = 0; i < reply.Results.Count; i++)
         {

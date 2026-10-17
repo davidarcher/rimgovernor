@@ -5,7 +5,7 @@ using PolicyCreepJoinerPawn = RimGovernor.Brain.Policy.CreepJoinerPawn;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 // Go creepjoiner_pawn.go.
-public static partial class BridgeFunctions
+public static class CreepJoinerFacts
 {
     /// <summary>
     /// Go's <c>CreepJoinerPawn</c>: lifts a combat-detail pawn row into the downside check's facts. A row with no
@@ -23,7 +23,7 @@ public static partial class BridgeFunctions
         if (row.Anomaly is { } anomaly)
         {
             // Go discards the fact's known flag: an unknown anomaly reads as the zero value, no creepjoiner fact.
-            if (PawnAnomaly(anomaly).TryGetValue(out var lifted))
+            if (AnomalyFactsRules.PawnAnomaly(anomaly).TryGetValue(out var lifted))
             {
                 result = result with { CreepJoiner = lifted.CreepJoiner };
             }

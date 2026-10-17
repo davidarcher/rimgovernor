@@ -147,7 +147,7 @@ public static partial class ObservationPackage
             {
                 w = w with { FoodRestriction = Known(new FoodRestriction { PolicyId = (food.PolicyId ?? ""), Allowed = [.. food.AllowedDefs] }) };
             }
-            w = w with { PolicyInputs = PawnPolicyInputs(s.PolicyInputs) };
+            w = w with { PolicyInputs = PolicyInputs.PawnPolicyInputs(s.PolicyInputs) };
             if (s.Body is { } b)
             {
                 w = w with
@@ -164,7 +164,7 @@ public static partial class ObservationPackage
             }
             if (s.MedicalCare is not null)
             {
-                w = w with { MedicalCare = Known(MedicalCareName(s.MedicalCare.GetValueOrDefault())) };
+                w = w with { MedicalCare = Known(WireEnums.MedicalCareName(s.MedicalCare.GetValueOrDefault())) };
             }
             w = w with { Applies = Optional(s.WorkApplies is not null, s.WorkApplies.GetValueOrDefault()), Manual = Optional(s.ManualWorkPriorities is not null, s.ManualWorkPriorities.GetValueOrDefault()) };
             // Native sends the 24 hourly slots hour 0 first, or none for a pawn without a timetable.
@@ -214,12 +214,12 @@ public static partial class ObservationPackage
             }
             w = w with { Incapable = Known(EquatableArray.From(incapable)), Age = Known(bio.BiologicalAgeYears) };
         }
-        w = w with { Inspiration = Optional(row.Inspiration is not null, (row.Inspiration ?? "")), Biotech = PawnBiotech(row.Biotech) };
+        w = w with { Inspiration = Optional(row.Inspiration is not null, (row.Inspiration ?? "")), Biotech = BiotechFactsRules.PawnBiotech(row.Biotech) };
         if (w.Biotech.TryGetValue(out var bt) && bt.IsDeathresting())
         {
             w = w with { Available = Known(false) };
         }
-        if (row.Settings is { } hs && hs.HostilityResponse is not null && HostilityName(hs.HostilityResponse.GetValueOrDefault()) is { } hostility)
+        if (row.Settings is { } hs && hs.HostilityResponse is not null && WireEnums.HostilityName(hs.HostilityResponse.GetValueOrDefault()) is { } hostility)
         {
             w = w with { Hostility = Known(hostility) };
         }
@@ -286,9 +286,9 @@ public static partial class ObservationPackage
     }
 
     /// <summary>The passion name policy reads; native sends "None" for no passion, which policy reads as "".</summary>
-    internal static string SkillPassion(O.Passion p) => p == O.Passion.None ? "" : PassionName(p);
+    internal static string SkillPassion(O.Passion p) => p == O.Passion.None ? "" : WireEnums.PassionName(p);
 
     /// <summary>The MedicalCareCategory name of an optional wire care tier.</summary>
     internal static Fact<string> CareName(Ops.MedicalCare? care) =>
-        care is null ? Unknown<string>() : Known(MedicalCareName(care.Value));
+        care is null ? Unknown<string>() : Known(WireEnums.MedicalCareName(care.Value));
 }

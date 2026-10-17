@@ -166,7 +166,7 @@ public static partial class ObservationPackage
         }
         foreach (var row in f.Facilities)
         {
-            var output = new RouteFacility { Id = row.Facility?.Id ?? "", Kind = RouteKindName(row.Kind.GetValueOrDefault()), Cell = CellOf(row.Cell) };
+            var output = new RouteFacility { Id = row.Facility?.Id ?? "", Kind = WireEnums.RouteKindName(row.Kind.GetValueOrDefault()), Cell = CellOf(row.Cell) };
             if (row.Room is not null)
             {
                 output = output with { Room = Known(row.Room.Id ?? "") };

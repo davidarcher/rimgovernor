@@ -4,7 +4,7 @@ using DomainCorpseOf = RimGovernor.Brain.Domain.CorpseOf;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 // Go corpse_class.go.
-public static partial class BridgeFunctions
+public static class CorpseClassRules
 {
     /// <summary>Go's <c>CorpseClass</c>: the wire class of a domain class.</summary>
     public static CorpseClass WireCorpseClass(DomainCorpseOf value) =>

@@ -51,7 +51,7 @@ public sealed record ExcavationSite
     public bool AccessReachable { get; init; }
 }
 
-public static partial class BridgeFunctions
+public static class ExcavationSiteRules
 {
     /// <summary>Go's <c>excavationCellValid</c>: whether the cell lies on the map grid.</summary>
     public static bool ExcavationCellValid(DomainCell cell) => cell.X >= 0 && cell.Z >= 0;

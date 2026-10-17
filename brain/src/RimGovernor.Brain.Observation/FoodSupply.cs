@@ -15,7 +15,7 @@ public static partial class ObservationPackage
     /// </summary>
     public static FoodSupply? DecodeFoodSupply(O.FoodSupplyFacts? v, Things things, DefinitionCatalog? catalog)
     {
-        if (v is null || BridgeFunctions.JoinFoodSupply(v, things) is not { } rows || catalog is null)
+        if (v is null || FoodSupplyRules.JoinFoodSupply(v, things) is not { } rows || catalog is null)
         {
             return null;
         }
@@ -123,7 +123,7 @@ public static partial class ObservationPackage
             if (!barred)
             {
                 var eaters = new List<PawnId>();
-                foreach (var id in RefIds(s.Eaters))
+                foreach (var id in FactHelpers.RefIds(s.Eaters))
                 {
                     eaters.Add(new PawnId(id));
                 }

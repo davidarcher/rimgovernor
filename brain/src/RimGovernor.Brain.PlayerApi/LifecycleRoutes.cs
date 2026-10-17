@@ -227,7 +227,7 @@ public static class LifecycleRoutes
 
         try
         {
-            BridgeFunctions.ValidateNewColonyRequest(decoded);
+            NewColonyValidation.ValidateNewColonyRequest(decoded);
         }
         catch (BridgeContractException e)
         {

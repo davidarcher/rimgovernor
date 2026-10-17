@@ -31,7 +31,7 @@ public static partial class ObservationPackage
             var doors = new List<Policy.RoomDoor>(room.Doors.Count);
             foreach (var door in room.Doors)
             {
-                doors.Add(RoomDoorFacts(door));
+                doors.Add(RoomDoorRules.RoomDoorFacts(door));
             }
             output.Add(new Room
             {

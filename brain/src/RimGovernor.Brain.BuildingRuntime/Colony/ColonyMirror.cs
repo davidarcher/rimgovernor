@@ -9,10 +9,10 @@ internal static class ColonyMirror
     /// </summary>
     public static Dictionary<string, ulong> PublishColony(FactStore m, FactScope scope, PbObservations.ColonyFactsSnapshot observed)
     {
-        var split = BridgeApi.SplitColonyFacts(observed);
+        var split = ColonyRows.SplitColonyFacts(observed);
         var tick = observed.Context?.Tick ?? 0;
         var versions = new Dictionary<string, ulong>(split.Count, StringComparer.Ordinal);
-        foreach (var name in BridgeApi.ColonySections())
+        foreach (var name in ColonyRows.ColonySections())
         {
             versions[name] = StoreTables.PutTable(m, scope, name, split[name], Watermark.At(tick)).Version;
         }
@@ -33,7 +33,7 @@ internal static class ColonyMirror
         }
         try
         {
-            return BridgeApi.JoinColonyFacts(tables);
+            return ColonyRows.JoinColonyFacts(tables);
         }
         catch (DomainException)
         {
@@ -66,7 +66,7 @@ public sealed partial class Rounder
         {
             if (!planning)
             {
-                mirrored = mirrored with { Planning = BridgeApi.NotRequestedPlanning() };
+                mirrored = mirrored with { Planning = Colony.NotRequestedPlanning() };
             }
             return new PbObservations.ColonyFactsReply { Outcome = mirrored };
         }

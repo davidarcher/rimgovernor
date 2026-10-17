@@ -177,7 +177,7 @@ public sealed class JoinersAnomalyFamilyTests
 
     private static Colony Open()
     {
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-anomaly-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");

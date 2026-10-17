@@ -288,7 +288,7 @@ public sealed class ClockRunDriverTests
         private PbClock.StatusReply Failure(PbCommon.FailureCode code) =>
             new() { Outcome = new PbClock.StatusReplyOutcome.FailureCase(new PbCommon.Failure { Code = code, Detail = "refused by the fake native", ObservedContext = Context() }) };
 
-        public async Task<PbObservations.BundleSnapshot?> ReadStepAsync(BridgeFunctions.StepRequest request, CancellationToken ct)
+        public async Task<PbObservations.BundleSnapshot?> ReadStepAsync(StepRequest request, CancellationToken ct)
         {
             if (!request.ClockStatus && ContextGate is { } gate)
             {
@@ -448,7 +448,7 @@ public sealed class ClockRunDriverTests
             var config = new ClockRunConfig
             {
                 TargetSpeed = rig.Target,
-                Policy = BridgeFunctions.WithHazardThresholds(new PbClock.WatchPolicy
+                Policy = ClockExpectation.WithHazardThresholds(new PbClock.WatchPolicy
                 {
                     Mode = PbClock.WatchMode.Colony,
                     HealthDropFraction = .1f,

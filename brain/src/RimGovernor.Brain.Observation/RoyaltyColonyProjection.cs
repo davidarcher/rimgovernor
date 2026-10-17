@@ -23,7 +23,7 @@ public static partial class ObservationPackage
         foreach (var row in v.Neuroformers)
         {
             var name = (row.DefName ?? "");
-            if (!BridgeFunctions.IsValidId(name) || row.Held.GetValueOrDefault() < 0)
+            if (!WireValidation.IsValidId(name) || row.Held.GetValueOrDefault() < 0)
             {
                 throw new BridgeContractException("invalid royalty neuroformer");
             }
@@ -38,8 +38,8 @@ public static partial class ObservationPackage
         {
             var pawn = row.Pawn?.Id ?? "";
             var faction = row.FactionDef is not null ? (row.FactionDef ?? "") : "";
-            if (!BridgeFunctions.IsValidId(pawn) || !BridgeFunctions.IsValidId((row.Quest ?? ""))
-                || (row.FactionDef is not null && !BridgeFunctions.IsValidId((row.FactionDef ?? ""))) || (row.Title is not null && !BridgeFunctions.IsValidId((row.Title ?? ""))) || !seen.Add(pawn + "/" + faction))
+            if (!WireValidation.IsValidId(pawn) || !WireValidation.IsValidId((row.Quest ?? ""))
+                || (row.FactionDef is not null && !WireValidation.IsValidId((row.FactionDef ?? ""))) || (row.Title is not null && !WireValidation.IsValidId((row.Title ?? ""))) || !seen.Add(pawn + "/" + faction))
             {
                 throw new BridgeContractException("invalid royalty ceremony");
             }
@@ -59,7 +59,7 @@ public static partial class ObservationPackage
         {
             var id = row.Thing?.Id ?? "";
             var owner = row.Owner?.Id ?? "";
-            if (!BridgeFunctions.IsValidId(id) || (owner != "" && !BridgeFunctions.IsValidId(owner)) || (row.DefName is not null && !BridgeFunctions.IsValidId((row.DefName ?? ""))) || !throneIds.Add(id))
+            if (!WireValidation.IsValidId(id) || (owner != "" && !WireValidation.IsValidId(owner)) || (row.DefName is not null && !WireValidation.IsValidId((row.DefName ?? ""))) || !throneIds.Add(id))
             {
                 throw new BridgeContractException("invalid royalty throne");
             }
@@ -89,7 +89,7 @@ public sealed partial record ColonyProjection
         }
         colony = catalog.WithNeuroformerDefs(colony);
         var projection = this with { RoyaltyColony = Known(colony) };
-        var facts = PawnRoyaltyFacts(pawns, catalog.Psycast);
+        var facts = RoyaltyFactsRules.PawnRoyaltyFacts(pawns, catalog.Psycast);
         var mirrored = catalog.WithTitleDefs(facts);
         return projection.WithRoyaltyColony(mirrored);
     }

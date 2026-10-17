@@ -491,7 +491,7 @@ public sealed partial class FacadeNativeClient : IDisposable
                             {
                                 return new FrameServed<T>(true, found.Value);
                             }
-                            if (prepared.World is not null && !BridgeFunctions.SameIdentity(prepared.World, identity))
+                            if (prepared.World is not null && !WireValidation.SameIdentity(prepared.World, identity))
                             {
                                 throw new BridgeRefusedException($"{name} asked for another world than the snapshot frames describe");
                             }

@@ -194,7 +194,7 @@ public sealed class ClothingChoiceTests
         var ct = TestContext.Current.CancellationToken;
         var world = new GenerationSnapshot(new("colony"), new(1), new("load"), new("root"), new(1), new(1));
         var path = Path.Combine(Path.GetTempPath(), "rg-clothing-" + Guid.NewGuid().ToString("N") + ".db");
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(path, ct);
         journal.ReviewRounds(new RoundsRequest
         {
@@ -209,7 +209,7 @@ public sealed class ClothingChoiceTests
         var plan = new PlanSpec(new("make-clothing"), new(1), [DomainAction.NewPawnActivitiesAction(new("recipe-action"), batch)]);
         Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(MilitaryFamily.Equipment, world, new("clothing"), "", plan, ct).Outcome);
         var stored = journal.LoadPlan(plan.Id, ct).Spec.Actions[0];
-        var intent = BridgeFunctions.IntentAction(stored.Id.Value, stored).Intent!.PawnActivities!.Batch!;
+        var intent = IntentActionRules.IntentAction(stored.Id.Value, stored).Intent!.PawnActivities!.Batch!;
         Assert.Equal("Cloth", Recipe(intent).Stuff);
         Assert.Equal(batch.Tasks, intent.Tasks);
         var output = batch.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver);

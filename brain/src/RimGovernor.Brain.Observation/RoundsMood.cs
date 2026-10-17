@@ -295,7 +295,7 @@ public static partial class ObservationPackage
                 {
                     pawn = pawn with { Expectation = Known((s.ExpectationDefName ?? "")) };
                 }
-                if (r.Settings is { } settings && PawnPolicyInputs(settings.PolicyInputs).TryGetValue(out var inputs))
+                if (r.Settings is { } settings && PolicyInputs.PawnPolicyInputs(settings.PolicyInputs).TryGetValue(out var inputs))
                 {
                     pawn = pawn with { Precepts = Known<EquatableArray<string>>([.. inputs.Precepts]) };
                 }
@@ -352,7 +352,7 @@ public static partial class ObservationPackage
             }
             // A colonist held back from arms (a creepjoiner whose downside has not shown) is owed no weapon:
             // counting it would hold military/defense unmet for good.
-            if (downsides.ArmsHold(CreepJoinerPawn(row)) != "")
+            if (downsides.ArmsHold(CreepJoinerFacts.CreepJoinerPawn(row)) != "")
             {
                 continue;
             }
@@ -400,7 +400,7 @@ public static partial class ObservationPackage
                 return unknown;
             }
             var d = new SquadDefenderFacts { Id = pawn.Id, Dead = pawn.Dead, Downed = pawn.Downed };
-            if (PawnBiotech(row.Biotech).TryGetValue(out var bt))
+            if (BiotechFactsRules.PawnBiotech(row.Biotech).TryGetValue(out var bt))
             {
                 d = d with { Deathresting = bt.IsDeathresting() };
             }

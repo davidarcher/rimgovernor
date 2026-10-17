@@ -1,11 +1,10 @@
 using RimGovernor.Brain.Bridge.Contracts;
-using static RimGovernor.Brain.Bridge.Contracts.BridgeFunctions;
 using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go world.go (Client.ReadWorld, worldSelected) and world_progression.go (Client.ReadWorldProgression,
-// worldProgressionRequest). The progression census decoder is BridgeFunctions.DecodeWorldProgressionSnapshot.
+// worldProgressionRequest). The progression census decoder is WorldProgressionRead.DecodeWorldProgressionSnapshot.
 public sealed partial class FacadeNativeClient
 {
     /// <summary>
@@ -16,7 +15,7 @@ public sealed partial class FacadeNativeClient
     {
         if (tile < 0 || settlementRadius < 0)
         {
-            throw Contract("invalid world read request");
+            throw BridgeContractException.Contract("invalid world read request");
         }
 
         var request = new PbObservations.WorldRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, Tile = tile, SettlementRadius = settlementRadius };
@@ -90,6 +89,6 @@ public sealed partial class FacadeNativeClient
             throw Unavailable(unavailable);
         }
 
-        return DecodeWorldProgressionSnapshot(outcome.Observed!);
+        return WorldProgressionRead.DecodeWorldProgressionSnapshot(outcome.Observed!);
     }
 }

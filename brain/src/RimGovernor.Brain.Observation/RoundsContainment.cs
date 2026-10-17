@@ -80,7 +80,7 @@ public static partial class ObservationPackage
         var demand = new ContainmentDemand();
         foreach (var row in rows)
         {
-            if (!PawnAnomaly(row.Anomaly).TryGetValue(out var a))
+            if (!AnomalyFactsRules.PawnAnomaly(row.Anomaly).TryGetValue(out var a))
             {
                 continue;
             }
@@ -122,7 +122,7 @@ public static partial class ObservationPackage
         var holders = new List<BuiltHolder>();
         foreach (var row in rows)
         {
-            if (!BuildingAnomaly(row).TryGetValue(out var b))
+            if (!AnomalyFactsRules.BuildingAnomaly(row).TryGetValue(out var b))
             {
                 continue;
             }
@@ -157,7 +157,7 @@ public static partial class ObservationPackage
         var output = new List<CapturableEntity>();
         foreach (var row in rows)
         {
-            if (!PawnAnomaly(row.Anomaly).TryGetValue(out var a))
+            if (!AnomalyFactsRules.PawnAnomaly(row.Anomaly).TryGetValue(out var a))
             {
                 continue;
             }
@@ -235,7 +235,7 @@ public static partial class ObservationPackage
             {
                 continue;
             }
-            if (!PawnBiotech(row.Biotech).TryGetValue(out var bt))
+            if (!BiotechFactsRules.PawnBiotech(row.Biotech).TryGetValue(out var bt))
             {
                 continue;
             }
@@ -298,11 +298,11 @@ public static partial class ObservationPackage
             }
             if (row.Health is { } h)
             {
-                var (_, operations) = SurgeryFacts(h.Surgery, parts);
-                p = p with { Operations = operations, QueuedSurgeries = QueuedSurgeries(h.Surgery) };
-                var recipes = QueuedSurgeryRecipes(h.Surgery) ?? [];
-                p = p with { QueuedItems = QueuedSurgeryItems(recipes, parts) };
-                var (conditions, lifeThreatening) = CareConditions(h);
+                var (_, operations) = SurgeryFactsRules.SurgeryFacts(h.Surgery, parts);
+                p = p with { Operations = operations, QueuedSurgeries = SurgeryFactsRules.QueuedSurgeries(h.Surgery) };
+                var recipes = SurgeryFactsRules.QueuedSurgeryRecipes(h.Surgery) ?? [];
+                p = p with { QueuedItems = SurgeryFactsRules.QueuedSurgeryItems(recipes, parts) };
+                var (conditions, lifeThreatening) = CareConditionsRules.CareConditions(h);
                 p = p with
                 {
                     Conditions = conditions,

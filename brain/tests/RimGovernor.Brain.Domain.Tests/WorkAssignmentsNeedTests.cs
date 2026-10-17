@@ -47,7 +47,7 @@ public sealed class WorkAssignmentsNeedTests
     public void AssignmentsCommitUnderTheNeedAloneAndAWrittenPolicyIsClaimed()
     {
         var ct = TestContext.Current.CancellationToken;
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-work-assignments-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
         static PlanSpec Plan(params Func<ActionId, DomainAction>[] actions)

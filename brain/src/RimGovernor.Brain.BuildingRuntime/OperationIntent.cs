@@ -189,7 +189,7 @@ public static class OperationIntent
     /// <summary>
     /// The plan's method intent for the writes the dispatch issues, or null: a plan no goal admitted, or a failed
     /// lookup, dispatches without one. Go carried it on the context; callers wrap the dispatch in
-    /// <c>BridgeApi.WithOperationIntent(intent)</c> when this is not null.
+    /// <c>bridge.WithOperationIntent(intent)</c> when this is not null.
     /// </summary>
     public static async Task<string?> PlanIntentAsync(JournalStore intents, PlanId plan, CancellationToken ct)
     {

@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 /// Go's <c>ErrContract</c>: a native reply or a request broke the bridge contract (Go's <c>contract(format, ...)</c>).
 /// Callers that tested <c>errors.Is(err, ErrContract)</c> catch this type.
 /// </summary>
-public sealed class BridgeContractException(string message) : Exception("bridge contract failure: " + message);
+public sealed partial class BridgeContractException(string message) : Exception("bridge contract failure: " + message);
 
 /// <summary>
 /// Go's <c>ErrRefused</c>: a native read was refused. <see cref="Refusal"/> and <see cref="NativeFailureException"/>

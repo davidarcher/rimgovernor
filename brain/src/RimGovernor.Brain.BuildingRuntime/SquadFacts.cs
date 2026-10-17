@@ -128,7 +128,7 @@ partial class Armament
             Humanlike = Fact.Known(row.Humanlike),
             Animal = Fact.Known(row.Animal),
         };
-        facts = facts with { Anomaly = BridgeApi.PawnAnomaly(row.Anomaly), RangedEquipped = ranged };
+        facts = facts with { Anomaly = AnomalyFactsRules.PawnAnomaly(row.Anomaly), RangedEquipped = ranged };
         // A row without the equipment detail leaves the weapon unknown; an animal
         // carries no ranged weapon either way, and neither does an entity whose attack native read as melee only.
         if (!facts.RangedEquipped.IsKnown && (facts.Animal == Fact.Known(true) || Pol.CombatAnomalyRules.MeleeEntity(facts)))
@@ -164,7 +164,7 @@ partial class Armament
             MentalState = row.MentalState is not null,
         };
         facts = facts with { DraftOwned = Fact.Known(needed.Contains(facts.Id)) };
-        if (BridgeApi.PawnBiotech(row.Biotech).TryGetValue(out var bt))
+        if (BiotechFactsRules.PawnBiotech(row.Biotech).TryGetValue(out var bt))
         {
             facts = facts with { Deathresting = bt.IsDeathresting() };
         }

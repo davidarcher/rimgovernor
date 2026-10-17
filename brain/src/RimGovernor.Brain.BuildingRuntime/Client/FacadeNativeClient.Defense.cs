@@ -20,9 +20,9 @@ public sealed partial class FacadeNativeClient
     /// <summary>Go <c>Client.ReadDefenseSite</c>: reads one inclusive rectangle; the read never samples or truncates.</summary>
     internal async Task<DefenseSite> ReadDefenseSiteAsync(PbCommon.Identity identity, CellRect region, CancellationToken cancellationToken)
     {
-        if (!BridgeFunctions.IsValidDefenseRegion(region))
+        if (!BridgeCellRect.IsValidDefenseRegion(region))
         {
-            throw BridgeFunctions.Contract("invalid defense site region");
+            throw BridgeContractException.Contract("invalid defense site region");
         }
         var request = new PbObservations.DefenseSiteRequest
         {
@@ -89,16 +89,16 @@ public sealed partial class FacadeNativeClient
             {
                 if (cell.X < 0 || cell.Z < 0 || cell.X >= DefenseMaxExtent || cell.Z >= DefenseMaxExtent || !seenCell.Add(cell))
                 {
-                    throw BridgeFunctions.Contract("invalid spatial access cell");
+                    throw BridgeContractException.Contract("invalid spatial access cell");
                 }
             }
         }
         var seenId = new HashSet<string>(StringComparer.Ordinal);
         foreach (var id in pawnIds)
         {
-            if (!BridgeFunctions.IsValidId(id) || !seenId.Add(id))
+            if (!WireValidation.IsValidId(id) || !seenId.Add(id))
             {
-                throw BridgeFunctions.Contract("invalid spatial access pawn id");
+                throw BridgeContractException.Contract("invalid spatial access pawn id");
             }
         }
         var request = new PbObservations.SpatialAccessRequest
@@ -128,14 +128,14 @@ public sealed partial class FacadeNativeClient
     {
         if (cells.Count < 1)
         {
-            throw BridgeFunctions.Contract("lines of fire needs at least one cell on each side");
+            throw BridgeContractException.Contract("lines of fire needs at least one cell on each side");
         }
         var seen = new HashSet<DomainCell>();
         foreach (var cell in cells)
         {
             if (cell.X < 0 || cell.Z < 0 || !seen.Add(cell))
             {
-                throw BridgeFunctions.Contract("invalid or duplicate line of fire cell");
+                throw BridgeContractException.Contract("invalid or duplicate line of fire cell");
             }
         }
     }
@@ -146,7 +146,7 @@ public sealed partial class FacadeNativeClient
         var cells = new List<BridgeDefenseCell>(v.Cells.Count);
         foreach (var row in v.Cells)
         {
-            BridgeFunctions.TryProtoCell(row.Cell, out var cell);
+            FactHelpers.TryProtoCell(row.Cell, out var cell);
             if (row.Fogged.GetValueOrDefault())
             {
                 // Unknown geometry carries no facts.
@@ -188,8 +188,8 @@ public sealed partial class FacadeNativeClient
         var lines = new List<LineOfFire>(v.Lines.Count);
         foreach (var row in v.Lines)
         {
-            BridgeFunctions.TryProtoCell(row.From, out var from);
-            BridgeFunctions.TryProtoCell(row.To, out var to);
+            FactHelpers.TryProtoCell(row.From, out var from);
+            FactHelpers.TryProtoCell(row.To, out var to);
             if (row.LineOfSight is not null)
             {
                 lines.Add(
@@ -220,18 +220,18 @@ public sealed partial class FacadeNativeClient
         foreach (var row in v.Pawns)
         {
             var pawnId = row.Pawn?.Id ?? "";
-            BridgeFunctions.TryProtoCell(row.Position, out var position);
+            FactHelpers.TryProtoCell(row.Position, out var position);
             if (row.Skipped.GetValueOrDefault())
             {
                 // Native left this colonist unaudited: position only, nothing else.
                 pawns.Add(new PawnAccess { Id = pawnId, Position = position, Skipped = true });
                 continue;
             }
-            var originKnown = BridgeFunctions.TryProtoCell(row.ProjectedOrigin, out var projectedOrigin);
+            var originKnown = FactHelpers.TryProtoCell(row.ProjectedOrigin, out var projectedOrigin);
             var accessTargets = new List<AccessTarget>(row.Targets.Count);
             foreach (var raw in row.Targets)
             {
-                BridgeFunctions.TryProtoCell(raw.Cell, out var cell);
+                FactHelpers.TryProtoCell(raw.Cell, out var cell);
                 accessTargets.Add(
                     new AccessTarget
                     {

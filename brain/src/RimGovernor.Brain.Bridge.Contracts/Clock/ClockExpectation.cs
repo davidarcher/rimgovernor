@@ -4,7 +4,7 @@ using RimGovernor.Contracts.Wire.Common;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 // Go clock_hazard.go: the hazard thresholds the brain authors into every Run.
-public static partial class BridgeFunctions
+public static class ClockExpectation
 {
     /// <summary>
     /// Go's <c>WithHazardThresholds</c>: sets the policy's Go-authored hazard thresholds and returns

@@ -58,7 +58,7 @@ public static partial class ObservationPackage
         {
             extent = await plans.PlanExtentAsync(cancellationToken).ConfigureAwait(false);
         }
-        var held = await source.PlanningWindowAsync(identity, PlanningWindowRect(projection.Bounds, extent), cancellationToken).ConfigureAwait(false);
+        var held = await source.PlanningWindowAsync(identity, PlanningWindowRules.PlanningWindowRect(projection.Bounds, extent), cancellationToken).ConfigureAwait(false);
         return projection with { Region = held.Value.Region, Cells = held.Value.Cells, Window = held };
     }
 

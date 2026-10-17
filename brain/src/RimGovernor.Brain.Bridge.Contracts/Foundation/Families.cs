@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 
 // Go families.go: the bridge's FactFamily IS the policy registry's FactFamily (a Go type alias), so the C#
 // type is RimGovernor.Brain.Policy.FactFamily and only the wire mapping lives here.
-public static partial class BridgeFunctions
+public static class Families
 {
     /// <summary>Go's <c>FactFamilies()</c>: every family, in wire order.</summary>
     public static IReadOnlyList<FactFamily> FactFamilies() => PolicyFunctions.FactFamilies();

@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 // Go combat_orders.go, combat_geometry.go and placement.go consts.
-public static partial class BridgeConstants
+public static class CombatConstants
 {
     /// <summary>Go's <c>PlacementBatchLimit</c>: the most placements one placement_preview request may carry.</summary>
     public const int PlacementBatchLimit = 64;

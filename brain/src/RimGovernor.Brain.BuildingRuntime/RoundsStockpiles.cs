@@ -125,7 +125,7 @@ partial class RoundsStockpilePlanner
         {
             Stuff = stuff,
             Costs = option.Costs,
-            WorkTicks = option.Stats.TryGetValue(BridgeConstants.StatWorkToBuild, out var work) ? Known(work) : Unknown<double>(),
+            WorkTicks = option.Stats.TryGetValue(Bridge.Contracts.StatDefNames.StatWorkToBuild, out var work) ? Known(work) : Unknown<double>(),
         });
     }
 

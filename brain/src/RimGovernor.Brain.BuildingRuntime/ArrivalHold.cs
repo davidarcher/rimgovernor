@@ -135,7 +135,7 @@ public sealed partial class Worker
         // A failed resend is retried at the next arrival read.
         try
         {
-            var action = BridgeApi.IntentAction(key, move.Action);
+            var action = IntentActionRules.IntentAction(key, move.Action);
             _ = await _config.Moves!.ApplyAsync(Boundary.Identity(current), [action], ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)

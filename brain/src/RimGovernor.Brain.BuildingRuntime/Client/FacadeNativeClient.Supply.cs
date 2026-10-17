@@ -17,7 +17,7 @@ public sealed partial class FacadeNativeClient
     {
         if (minimum.X < 0 || minimum.Z < 0 || maximum.X < minimum.X || maximum.Z < minimum.Z)
         {
-            throw BridgeFunctions.Contract("invalid equip scope");
+            throw BridgeContractException.Contract("invalid equip scope");
         }
         var request = new PbObservations.ListSuppliesRequest
         {
@@ -73,7 +73,7 @@ public sealed partial class FacadeNativeClient
     {
         if (cell.X < 0 || cell.Z < 0)
         {
-            throw BridgeFunctions.Contract("invalid supply scope");
+            throw BridgeContractException.Contract("invalid supply scope");
         }
         var request = new PbObservations.ListSuppliesRequest
         {

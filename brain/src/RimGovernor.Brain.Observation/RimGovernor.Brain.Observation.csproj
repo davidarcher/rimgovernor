@@ -27,8 +27,6 @@
     <Using Include="RimGovernor.Brain.Bridge.BiotechCatalog" Alias="BiotechCatalog" />
     <Using Include="RimGovernor.Brain.Bridge.CatalogStat" Alias="CatalogStat" />
     <Using Include="RimGovernor.Brain.Bridge.CatalogStats" Alias="CatalogStats" />
-    <Using Include="RimGovernor.Brain.Bridge.Contracts.BridgeConstants" Static="true" />
-    <Using Include="RimGovernor.Brain.Bridge.Contracts.BridgeFunctions" Static="true" />
     <!-- Wire namespaces under the short names the Go imports used (c, d, o, l, operationspb). -->
     <Using Include="RimGovernor.Contracts.Wire.Common" Alias="C" />
     <Using Include="RimGovernor.Contracts.Wire.Defs" Alias="D" />

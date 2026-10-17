@@ -123,10 +123,10 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<MapBounds> ReadMapBoundsAsync(PbCommon.Identity identity, Cell anchor, CancellationToken cancellationToken)
     {
-        BridgeFunctions.AuthorityIdentity(identity);
+        WireValidation.AuthorityIdentity(identity);
         if (anchor.X < 0 || anchor.Z < 0)
         {
-            throw BridgeFunctions.Contract("negative bounds anchor");
+            throw BridgeContractException.Contract("negative bounds anchor");
         }
         var rect = new P.Rectangle(anchor.X, anchor.Z, 1, 1);
         var request = new PbObservations.GetCellsRequest
@@ -158,10 +158,10 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<PlanningWindowRead> ReadPlanningWindowAsync(PbCommon.Identity identity, P.Rectangle rect, CancellationToken cancellationToken)
     {
-        BridgeFunctions.AuthorityIdentity(identity);
+        WireValidation.AuthorityIdentity(identity);
         if (rect.X < 0 || rect.Z < 0 || rect.Width < 1 || rect.Height < 1)
         {
-            throw BridgeFunctions.Contract("invalid planning window rect");
+            throw BridgeContractException.Contract("invalid planning window rect");
         }
         RequireFrames("the planning window");
         var served = await FrameReadAsync(
@@ -172,7 +172,7 @@ public sealed partial class FacadeNativeClient
             view => new FrameLookup<FrameView>(view.Snapshot.Grid is not null, view, view.Snapshot.Grid is not null),
             cancellationToken).ConfigureAwait(false);
         var frame = served.Value!;
-        if (frame.Grid is not { } grid || !BridgeFunctions.SameIdentity(frame.Snapshot.Context?.Identity, identity))
+        if (frame.Grid is not { } grid || !WireValidation.SameIdentity(frame.Snapshot.Context?.Identity, identity))
         {
             throw new BridgeUnavailableException("no snapshot frame grid for this world");
         }

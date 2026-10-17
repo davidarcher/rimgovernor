@@ -36,13 +36,13 @@ public sealed class FoodCookingContinuationTests
         var cooking = Cooking(supply);
         foreach (var batch in new[] { supply, cooking })
         {
-            BridgeFunctions.RegisterIntentKinds();
+            IntentActionRules.RegisterIntentKinds();
             var action = DomainAction.NewPawnActivitiesAction(new("food-action"), batch);
             using var stream = new MemoryStream();
             using (var writer = new Utf8JsonWriter(stream)) Codecs.Default.Write(writer, action);
             using var json = JsonDocument.Parse(stream.ToArray());
             var decoded = Codecs.Default.Read<DomainAction>(json.RootElement);
-            var intent = BridgeFunctions.IntentAction("food-action", decoded).Intent!.PawnActivities!.Batch!;
+            var intent = IntentActionRules.IntentAction("food-action", decoded).Intent!.PawnActivities!.Batch!;
             Assert.Equal(batch.Tasks, intent.Tasks);
             Assert.Equal(batch.Orders[0].Steps, intent.Orders[0].Steps);
             var wire = WireJson.Deserialize<ActivityTaskRequest>(WireJson.Serialize(new ActivityTaskRequest(new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, batch)));
@@ -80,13 +80,13 @@ public sealed class FoodCookingContinuationTests
         var supply = ActivityContinuationFixtures.Cooking();
         supply = supply with { Tasks = EquatableArray.From(supply.Tasks.Select(t => t.Step.Kind == PawnActivityKind.Recipe
             ? t with { ProductiveWorkTicks = Known(100d) } : t)) };
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         var action = DomainAction.NewPawnActivitiesAction(new("productive-action"), supply);
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream)) Codecs.Default.Write(writer, action);
         using var json = JsonDocument.Parse(stream.ToArray());
         var decoded = Codecs.Default.Read<DomainAction>(json.RootElement);
-        var intent = BridgeFunctions.IntentAction("productive-action", decoded).Intent!.PawnActivities!.Batch!;
+        var intent = IntentActionRules.IntentAction("productive-action", decoded).Intent!.PawnActivities!.Batch!;
         Assert.Equal(supply.Tasks, intent.Tasks);
         var recipe = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
         var binding = new ActivityTaskBinding(recipe.Id, recipe.Step with { Recipe = recipe.Step.Recipe! with { Ingredients = [new("observed-rice", 10)] } });

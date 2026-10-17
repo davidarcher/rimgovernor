@@ -28,12 +28,7 @@ public sealed record ColonyThreat
 
     /// <summary>The hostile lords seen on the map since load.</summary>
     public IReadOnlyList<RaidTrack> Raids { get; init; } = [];
-}
 
-// Go colony.go. The colony facts read is wire plumbing and not ported; the threat projection and the
-// not-requested planning answer are.
-public static partial class BridgeFunctions
-{
     /// <summary>Go's <c>ProjectColonyThreat</c>: reads the threat section of a census.</summary>
     public static ColonyThreat ProjectColonyThreat(ColonyFactsSnapshot census)
     {
@@ -55,9 +50,15 @@ public static partial class BridgeFunctions
             StorytellerWealth = Number(facts.StorytellerWealth),
             AdaptationFactor = Number(facts.AdaptationFactor),
             DifficultyThreatScale = Number(facts.DifficultyThreatScale),
-            Raids = DecodeRaidTracks(facts.Raids),
+            Raids = DefenseSiteRules.DecodeRaidTracks(facts.Raids),
         };
     }
+}
+
+// Go colony.go. The colony facts read is wire plumbing and not ported; the threat projection and the
+// not-requested planning answer are.
+public static class Colony
+{
 
     /// <summary>
     /// Go's <c>NotRequestedPlanning</c>: the planning section of a colony facts read that did not ask for planning,

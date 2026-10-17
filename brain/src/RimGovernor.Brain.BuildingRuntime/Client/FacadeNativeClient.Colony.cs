@@ -109,7 +109,7 @@ public sealed partial class FacadeNativeClient
     /// status the controller owns. A clock status that is unavailable leaves the snapshot's <c>ClockStatus</c> unset
     /// (Go returned the snapshot with the unavailable error).
     /// </summary>
-    internal async Task<PbObservations.BundleSnapshot?> ReadStepAsync(BridgeFunctions.StepRequest request, CancellationToken cancellationToken)
+    internal async Task<PbObservations.BundleSnapshot?> ReadStepAsync(StepRequest request, CancellationToken cancellationToken)
     {
         var tick = await TickAsync(cancellationToken).ConfigureAwait(false);
         var outcome = tick.Outcome;

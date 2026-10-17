@@ -90,8 +90,8 @@ internal static class PopulationDecoder
 
             if (person.Guest.GetValueOrDefault() && !pawn.Prisoner && !pawn.Dead && person.MedicalCare is not null)
             {
-                var (conditions, life) = BridgeFunctions.CareConditions(person.Conditions);
-                guests.Add(new P.CarePatient { Id = new Domain.PawnId(id), Care = Known(BridgeFunctions.MedicalCareName(person.MedicalCare.GetValueOrDefault())), Conditions = conditions, LifeThreatening = life });
+                var (conditions, life) = CareConditionsRules.CareConditions(person.Conditions);
+                guests.Add(new P.CarePatient { Id = new Domain.PawnId(id), Care = Known(WireEnums.MedicalCareName(person.MedicalCare.GetValueOrDefault())), Conditions = conditions, LifeThreatening = life });
             }
             if (person.Admitted.GetValueOrDefault() && !pawn.Dead)
             {
@@ -160,17 +160,17 @@ internal static class PopulationDecoder
         f = f with { Ideo = person.IdeoId ?? "", WildMan = person.WildMan.GetValueOrDefault(), Prospect = prospect };
         if (person.Surgery is { } health)
         {
-            var (parts, operations) = BridgeFunctions.SurgeryFacts(health, catalog is null ? null : new DefinitionPartCatalog(catalog));
+            var (parts, operations) = SurgeryFactsRules.SurgeryFacts(health, catalog is null ? null : new DefinitionPartCatalog(catalog));
             f = f with
             {
                 MissingParts = parts,
                 Operations = operations,
-                QueuedSurgeries = BridgeFunctions.QueuedSurgeries(health),
-                QueuedRecipes = BridgeFunctions.QueuedSurgeryRecipes(health) ?? [],
+                QueuedSurgeries = SurgeryFactsRules.QueuedSurgeries(health),
+                QueuedRecipes = SurgeryFactsRules.QueuedSurgeryRecipes(health) ?? [],
             };
         }
         f = f with { Kind = pawn.KindDefName, CreepJoiner = Unknown<bool>() };
-        if (BridgeFunctions.CreepJoinerPawn(pawn).CreepJoiner.TryGetValue(out var joiner))
+        if (CreepJoinerFacts.CreepJoinerPawn(pawn).CreepJoiner.TryGetValue(out var joiner))
         {
             f = f with { CreepJoiner = Known(joiner is not null) };
         }
@@ -180,15 +180,15 @@ internal static class PopulationDecoder
         }
         if (person.MedicalCare is { } care)
         {
-            f = f with { MedicalCare = Known(BridgeFunctions.MedicalCareName(care)) };
+            f = f with { MedicalCare = Known(WireEnums.MedicalCareName(care)) };
         }
-        var (conditions, life) = BridgeFunctions.CareConditions(person.Conditions);
+        var (conditions, life) = CareConditionsRules.CareConditions(person.Conditions);
         f = f with { Conditions = conditions, LifeThreatening = life, Executing = person.Interaction == "Execution" };
         if (person.Withdrawal is { } withdrawal)
         {
             f = f with { Withdrawal = Known(withdrawal) };
         }
-        if (person.Interaction is { } interaction && BridgeFunctions.TryPrisonerInteractionMode(interaction, out var mode))
+        if (person.Interaction is { } interaction && PrisonerCensusRules.TryPrisonerInteractionMode(interaction, out var mode))
         {
             f = f with { CurrentInteraction = Known(mode) };
         }
@@ -209,7 +209,7 @@ internal static class PopulationDecoder
         var skills = new List<P.PrisonerSkill>(bio.Skills.Count);
         foreach (var s in bio.Skills)
         {
-            skills.Add(new P.PrisonerSkill { Name = s.DefName, Level = s.Level, Passion = BridgeFunctions.PassionName(s.Passion), Disabled = s.Disabled });
+            skills.Add(new P.PrisonerSkill { Name = s.DefName, Level = s.Level, Passion = WireEnums.PassionName(s.Passion), Disabled = s.Disabled });
         }
         var traits = new List<P.PrisonerTrait>(bio.Traits.Count);
         foreach (var t in bio.Traits)

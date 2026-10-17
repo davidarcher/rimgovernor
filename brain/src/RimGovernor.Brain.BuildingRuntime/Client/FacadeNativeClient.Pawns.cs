@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Bridge.Contracts.BridgeFunctions;
 using PolicyMechInput = RimGovernor.Brain.Policy.MechInput;
 
 namespace RimGovernor.Brain.BuildingRuntime;
@@ -47,7 +46,7 @@ public sealed partial class FacadeNativeClient
     {
         if (ids.Count < 1 || ids.Count > 256)
         {
-            throw Contract("pawn IDs outside 1..256");
+            throw BridgeContractException.Contract("pawn IDs outside 1..256");
         }
         var copied = ids.ToArray();
 
@@ -168,11 +167,11 @@ public sealed partial class FacadeNativeClient
             var id = row.Pawn.Id ?? "";
             if (!row.Mechanoid)
             {
-                throw Contract($"mech {id}: not a mechanoid");
+                throw BridgeContractException.Contract($"mech {id}: not a mechanoid");
             }
-            if (!PawnBiotech(row.Biotech).TryGetValue(out var biotech) || !biotech.Mech.TryGetValue(out var mech) || mech is null)
+            if (!BiotechFactsRules.PawnBiotech(row.Biotech).TryGetValue(out var biotech) || !biotech.Mech.TryGetValue(out var mech) || mech is null)
             {
-                throw Contract($"mech {id}: no Biotech mech block");
+                throw BridgeContractException.Contract($"mech {id}: no Biotech mech block");
             }
             result.Add(new PolicyMechInput
             {

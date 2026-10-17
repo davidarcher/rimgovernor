@@ -14,15 +14,13 @@
     <ProjectReference Include="../RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Go's domain.Known / domain.Unknown, and the package-level consts and functions with no owner type. -->
+    <!-- Go's domain.Known / domain.Unknown. -->
     <Using Include="RimGovernor.Brain.Domain" />
     <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
     <!-- The wire messages share these names with domain values; this project names the wire message. -->
     <Using Include="RimGovernor.Contracts.Wire.Common.Identity" Alias="Identity" />
     <Using Include="RimGovernor.Contracts.Wire.Common.Cell" Alias="Cell" />
     <Using Include="RimGovernor.Contracts.Wire.Receipts.UnsuccessfulReason" Alias="UnsuccessfulReason" />
-    <Using Include="RimGovernor.Brain.Bridge.Contracts.BridgeConstants" Static="true" />
-    <Using Include="RimGovernor.Brain.Bridge.Contracts.BridgeFunctions" Static="true" />
   </ItemGroup>
   <ItemGroup>
     <!-- The host's native client (#3113) decodes and validates the replies this assembly's read models describe. -->

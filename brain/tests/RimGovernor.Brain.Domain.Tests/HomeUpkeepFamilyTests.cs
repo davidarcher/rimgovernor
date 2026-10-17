@@ -115,7 +115,7 @@ public sealed class HomeUpkeepFamilyTests
     {
         // The host registers the intent-mode kinds at startup; without it a refused deconstruction would stay
         // pending, and the result would depend on which test registered them first in this process.
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-home-upkeep-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");

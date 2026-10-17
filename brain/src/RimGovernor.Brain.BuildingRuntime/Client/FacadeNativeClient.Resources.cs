@@ -1,4 +1,3 @@
-using static RimGovernor.Brain.Bridge.Contracts.BridgeFunctions;
 using static RimGovernor.Brain.Domain.Fact;
 using BridgeCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 using Domain = RimGovernor.Brain.Domain;
@@ -82,9 +81,9 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(IReadOnlyList<Policy.ResourceSource> Rows, Policy.ResourceStorage Storage)> ReadResourceSourcesAsync(PbCommon.Identity identity, string resource, CancellationToken cancellationToken)
     {
-        if (!IsValidId(resource))
+        if (!WireValidation.IsValidId(resource))
         {
-            throw Contract("invalid resource source definition");
+            throw BridgeContractException.Contract("invalid resource source definition");
         }
 
         var request = new PbObservations.ResourceSourcesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, Resource = resource };
@@ -142,7 +141,7 @@ public sealed partial class FacadeNativeClient
         var stackLimit = catalog.StackLimit(resource);
         if (stackLimit <= 0)
         {
-            throw Contract("invalid resource storage stack limit");
+            throw BridgeContractException.Contract("invalid resource storage stack limit");
         }
 
         var cells = new List<Domain.Cell>(storage.Candidates.Count);

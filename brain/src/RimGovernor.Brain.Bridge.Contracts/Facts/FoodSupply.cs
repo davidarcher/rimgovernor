@@ -2,7 +2,7 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-public static partial class BridgeFunctions
+public static class FoodSupplyRules
 {
     /// <summary>
     /// Resolves the supply's stocks against <paramref name="things"/>, a frame's things table. Returns null when the

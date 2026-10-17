@@ -4,19 +4,19 @@ using RoomDoorWire = RimGovernor.Contracts.Wire.Observations.RoomDoor;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 // Go room_door.go.
-public static partial class BridgeFunctions
+public static class RoomDoorRules
 {
     /// <summary>Go's <c>RoomDoorFacts</c>: keeps absent native fields unknown for both routine and combat.</summary>
     public static PolicyRoomDoor RoomDoorFacts(RoomDoorWire door) =>
         new()
         {
-            Cell = ToDomainCell(door.Cell),
-            Outside = ToDomainCell(door.Outside),
-            Outdoors = OptionalFact(door.Outdoors is not null, door.Outdoors.GetValueOrDefault()),
-            PlayerOwned = OptionalFact(door.PlayerOwned is not null, door.PlayerOwned.GetValueOrDefault()),
-            Open = OptionalFact(door.Open is not null, door.Open.GetValueOrDefault()),
-            HoldOpen = OptionalFact(door.HoldOpen is not null, door.HoldOpen.GetValueOrDefault()),
-            BlockedOpen = OptionalFact(door.BlockedOpen is not null, door.BlockedOpen.GetValueOrDefault()),
-            Forbidden = OptionalFact(door.Forbidden is not null, door.Forbidden.GetValueOrDefault()),
+            Cell = FactHelpers.ToDomainCell(door.Cell),
+            Outside = FactHelpers.ToDomainCell(door.Outside),
+            Outdoors = FactHelpers.OptionalFact(door.Outdoors is not null, door.Outdoors.GetValueOrDefault()),
+            PlayerOwned = FactHelpers.OptionalFact(door.PlayerOwned is not null, door.PlayerOwned.GetValueOrDefault()),
+            Open = FactHelpers.OptionalFact(door.Open is not null, door.Open.GetValueOrDefault()),
+            HoldOpen = FactHelpers.OptionalFact(door.HoldOpen is not null, door.HoldOpen.GetValueOrDefault()),
+            BlockedOpen = FactHelpers.OptionalFact(door.BlockedOpen is not null, door.BlockedOpen.GetValueOrDefault()),
+            Forbidden = FactHelpers.OptionalFact(door.Forbidden is not null, door.Forbidden.GetValueOrDefault()),
         };
 }

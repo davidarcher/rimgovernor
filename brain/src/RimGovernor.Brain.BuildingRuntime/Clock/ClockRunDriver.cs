@@ -108,7 +108,7 @@ public sealed partial class ClockRunDriver : IDisposable
         {
             throw new ControlException("NewClockRunDriver: the base policy is not a plain colony watch");
         }
-        BridgeApi.ValidateClockPolicy(p);
+        ClockValidation.ValidateClockPolicy(p);
         if (config.CombatResumeBudget <= TimeSpan.Zero || !Enum.IsDefined(config.CombatFallbackSpeed) || config.CombatFallbackSpeed == PbClock.Speed.Unspecified)
         {
             throw new ControlException("NewClockRunDriver: the combat resume budget must be positive and the fallback speed a real speed");

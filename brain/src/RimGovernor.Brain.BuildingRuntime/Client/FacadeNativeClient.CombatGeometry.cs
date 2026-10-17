@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Bridge.Contracts.BridgeFunctions;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -36,15 +35,15 @@ public sealed partial class FacadeNativeClient
         {
             if (request is null)
             {
-                throw Contract("combat geometry request required");
+                throw BridgeContractException.Contract("combat geometry request required");
             }
             var min = 1;
             if (request.Propose is not null)
             {
                 min = 0;
-                if (request.Cells.Count >= BridgeConstants.CombatGeometryMaxCells)
+                if (request.Cells.Count >= CombatConstants.CombatGeometryMaxCells)
                 {
-                    throw Contract($"combat geometry propose leaves no room under {BridgeConstants.CombatGeometryMaxCells} cells");
+                    throw BridgeContractException.Contract($"combat geometry propose leaves no room under {CombatConstants.CombatGeometryMaxCells} cells");
                 }
             }
             GeometryCells(request.Cells, min);
@@ -56,25 +55,25 @@ public sealed partial class FacadeNativeClient
                 hostiles = 0;
             }
             var n = request.HostileIds.Count;
-            if (n < hostiles || n > BridgeConstants.CombatGeometryMaxHostiles)
+            if (n < hostiles || n > CombatConstants.CombatGeometryMaxHostiles)
             {
-                throw Contract($"combat geometry hostiles outside {hostiles}..{BridgeConstants.CombatGeometryMaxHostiles}");
+                throw BridgeContractException.Contract($"combat geometry hostiles outside {hostiles}..{CombatConstants.CombatGeometryMaxHostiles}");
             }
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var id in request.HostileIds)
             {
-                if (!IsValidId(id) || !seen.Add(id))
+                if (!WireValidation.IsValidId(id) || !seen.Add(id))
                 {
-                    throw Contract("invalid duplicate combat detail ID");
+                    throw BridgeContractException.Contract("invalid duplicate combat detail ID");
                 }
             }
-            if (request.PawnId is not null && !IsValidId(request.PawnId))
+            if (request.PawnId is not null && !WireValidation.IsValidId(request.PawnId))
             {
-                throw Contract("combat geometry pawn id invalid");
+                throw BridgeContractException.Contract("combat geometry pawn id invalid");
             }
             if (request.Propose?.Role?.RescuePath is not null && request.PawnId is null)
             {
-                throw Contract("combat geometry rescue_path needs a pawn");
+                throw BridgeContractException.Contract("combat geometry rescue_path needs a pawn");
             }
             if (request.Propose is not null)
             {
@@ -86,20 +85,20 @@ public sealed partial class FacadeNativeClient
         private static void GeometryCells(EquatableArray<PbCommon.Cell> cells, int min)
         {
             var n = cells.Count;
-            if (n < min || n > BridgeConstants.CombatGeometryMaxCells)
+            if (n < min || n > CombatConstants.CombatGeometryMaxCells)
             {
-                throw Contract($"combat geometry cells outside {min}..{BridgeConstants.CombatGeometryMaxCells}");
+                throw BridgeContractException.Contract($"combat geometry cells outside {min}..{CombatConstants.CombatGeometryMaxCells}");
             }
             var seen = new HashSet<(int, int)>();
             foreach (var cell in cells)
             {
                 if (!GeometryCell(cell))
                 {
-                    throw Contract("combat geometry cell invalid");
+                    throw BridgeContractException.Contract("combat geometry cell invalid");
                 }
                 if (!seen.Add((cell!.X, cell.Z)))
                 {
-                    throw Contract("combat geometry cell repeated");
+                    throw BridgeContractException.Contract("combat geometry cell repeated");
                 }
             }
         }
@@ -119,33 +118,33 @@ public sealed partial class FacadeNativeClient
                     var a = role.Value;
                     if (!GeometryCell(a?.Choke) || !GeometryCell(a?.OurSide) || Equals(a!.Choke, a.OurSide))
                     {
-                        throw Contract("combat geometry adjacent_to_choke needs a choke and a distinct our_side cell");
+                        throw BridgeContractException.Contract("combat geometry adjacent_to_choke needs a choke and a distinct our_side cell");
                     }
                     return;
                 case PbMirror.CombatGeometryProposeRole.RescuePathCase role:
                     if (!GeometryCell(role.Value?.To))
                     {
-                        throw Contract("combat geometry rescue_path needs a to cell");
+                        throw BridgeContractException.Contract("combat geometry rescue_path needs a to cell");
                     }
                     return;
                 case PbMirror.CombatGeometryProposeRole.FiringCellsCase role:
                     var f = role.Value;
                     if (!GeometryCell(f?.From))
                     {
-                        throw Contract("combat geometry firing_cells needs a from cell");
+                        throw BridgeContractException.Contract("combat geometry firing_cells needs a from cell");
                     }
-                    if (f!.Radius is not { } radius || radius < 1 || radius > BridgeConstants.CombatGeometryMaxRadius)
+                    if (f!.Radius is not { } radius || radius < 1 || radius > CombatConstants.CombatGeometryMaxRadius)
                     {
-                        throw Contract($"combat geometry firing_cells radius outside 1..{BridgeConstants.CombatGeometryMaxRadius}");
+                        throw BridgeContractException.Contract($"combat geometry firing_cells radius outside 1..{CombatConstants.CombatGeometryMaxRadius}");
                     }
-                    if (f.Targets.Count > BridgeConstants.CombatGeometryMaxHostiles)
+                    if (f.Targets.Count > CombatConstants.CombatGeometryMaxHostiles)
                     {
-                        throw Contract($"combat geometry firing_cells targets over {BridgeConstants.CombatGeometryMaxHostiles}");
+                        throw BridgeContractException.Contract($"combat geometry firing_cells targets over {CombatConstants.CombatGeometryMaxHostiles}");
                     }
                     GeometryCells(f.Targets, 1);
                     return;
             }
-            throw Contract("combat geometry propose without a role");
+            throw BridgeContractException.Contract("combat geometry propose without a role");
         }
     }
 
@@ -168,9 +167,9 @@ public sealed partial class FacadeNativeClient
         var crew = new HashSet<string>(StringComparer.Ordinal);
         foreach (var id in pawns)
         {
-            if (!IsValidId(id) || !crew.Add(id))
+            if (!WireValidation.IsValidId(id) || !crew.Add(id))
             {
-                throw Contract("invalid cargo crew");
+                throw BridgeContractException.Contract("invalid cargo crew");
             }
         }
         var reply = await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false);

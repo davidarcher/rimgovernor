@@ -91,10 +91,10 @@ public sealed class NeedFamilyTests
         var runner = new FamilyRunner<CareFacts>(family, (scope, _) =>
         {
             colony!.Reads.Add(scope);
-            BridgeFunctions.NoteRead(FactFamily.Emergency, "test.bleeding");
+            ReadNoteRules.NoteRead(FactFamily.Emergency, "test.bleeding");
             if (!scope.Immediate || colony.ImmediateReadsPawns)
             {
-                BridgeFunctions.NoteRead(FactFamily.Pawns, "test.rest");
+                ReadNoteRules.NoteRead(FactFamily.Pawns, "test.rest");
             }
             return Task.FromResult(scope.Immediate ? colony.Facts with { Rested = Unknown<bool>() } : colony.Facts);
         }, new FamilySchedule { Kinds = [ActionKind.PawnActivities] });

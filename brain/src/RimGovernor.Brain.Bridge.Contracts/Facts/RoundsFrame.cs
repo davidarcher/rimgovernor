@@ -64,7 +64,7 @@ public sealed record RoundsFrame
 }
 
 // Go frames.go. The frame stream, its seeding and the combat frame validators are wire plumbing and not ported.
-public static partial class BridgeFunctions
+public static class RoundsFrameRules
 {
     /// <summary>Go's <c>CombatBefore</c>: whether watermark <paramref name="a"/> is strictly before <paramref name="b"/>.</summary>
     public static bool CombatBefore(Watermark? a, Watermark? b)

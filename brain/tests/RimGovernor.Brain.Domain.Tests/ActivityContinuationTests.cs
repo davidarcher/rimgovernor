@@ -21,7 +21,7 @@ public sealed class ActivityContinuationTests
     /// <summary>Admits <paramref name="plan"/> under the test Need, filed unmet so a productive step continues (#3265).</summary>
     private static NeedOwner Admit(Journal journal, PlanSpec plan, CancellationToken ct, Receipt receipt = Receipt.Accepted)
     {
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         _ = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
         var owner = TestNeed.Commit(journal, Root, new("method"), plan, ct);
@@ -155,7 +155,7 @@ public sealed class ActivityContinuationTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Open(ct);
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         _ = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
         var need = AdminFamily.WorkAssignments;

@@ -16,7 +16,7 @@ public sealed class ActivityGenerationClaimsTests
     public void AuthorityRolloverEndsActivityClaimsWithoutDroppingPersistentConstruction(bool accepted)
     {
         var ct = TestContext.Current.CancellationToken;
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         var world = new GenerationSnapshot(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-generation-claims-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("pawn") with
@@ -84,7 +84,7 @@ public sealed class ActivityGenerationClaimsTests
     private static (Journal Journal, GenerationSnapshot World, string Path) OpenWithLiveActivityAndBuilding()
     {
         var ct = TestContext.Current.CancellationToken;
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         var world = new GenerationSnapshot(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
         var path = Path.Combine(Path.GetTempPath(), "rg-generation-claims-" + Guid.NewGuid().ToString("N") + ".db");
         var journal = Journal.Open(path, ct);

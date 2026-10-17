@@ -233,9 +233,9 @@ partial class RoundsDefensePlanner
         }
         static C.Cell Wire(Cell cell) => new() { X = cell.X, Z = cell.Z };
         var line = ask.Line.Select(Wire).ToList();
-        if (line.Count >= BridgeConstants.CombatGeometryMaxCells)
+        if (line.Count >= CombatConstants.CombatGeometryMaxCells)
         {
-            line = line.Take(BridgeConstants.CombatGeometryMaxCells - 1).ToList();
+            line = line.Take(CombatConstants.CombatGeometryMaxCells - 1).ToList();
         }
         M.CombatGeometryPropose? propose = null;
         if (ask.Propose == FormationRole.CoverBehindLine)
@@ -251,11 +251,11 @@ partial class RoundsDefensePlanner
         else if (ask.Propose == FormationRole.FiringCells)
         {
             var targets = ask.Targets.Select(Wire).ToList();
-            if (targets.Count > BridgeConstants.CombatGeometryMaxHostiles)
+            if (targets.Count > CombatConstants.CombatGeometryMaxHostiles)
             {
-                targets = targets.Take(BridgeConstants.CombatGeometryMaxHostiles).ToList();
+                targets = targets.Take(CombatConstants.CombatGeometryMaxHostiles).ToList();
             }
-            var firing = new M.CombatFiringCells { From = Wire(ask.From), Radius = BridgeConstants.CombatGeometryMaxRadius };
+            var firing = new M.CombatFiringCells { From = Wire(ask.From), Radius = CombatConstants.CombatGeometryMaxRadius };
             firing = firing with { Targets = [.. firing.Targets, .. targets] };
             propose = new M.CombatGeometryPropose { Role = firing };
         }
@@ -268,7 +268,7 @@ partial class RoundsDefensePlanner
                 named.Add(cell);
             }
         }
-        var limit = BridgeConstants.CombatGeometryMaxCells;
+        var limit = CombatConstants.CombatGeometryMaxCells;
         if (propose is not null)
         {
             limit--;
@@ -283,7 +283,7 @@ partial class RoundsDefensePlanner
         }
         var cells = named.Select(Wire).ToList();
         var hostiles = ask.Hostiles.Select(h => h.Value).ToList();
-        var request = BridgeApi.CombatGeometryAsk(identity, cells, hostiles, "");
+        var request = CombatCalls.CombatGeometryAsk(identity, cells, hostiles, "");
         request = request with { Propose = propose };
         M.CombatGeometry geometry;
         try
@@ -341,7 +341,7 @@ partial class RoundsDefensePlanner
         M.CombatGeometry geometry;
         try
         {
-            geometry = read(BridgeApi.CombatGeometryProposeAsk(identity, propose, hostiles, ask.Pawn.Value));
+            geometry = read(CombatCalls.CombatGeometryProposeAsk(identity, propose, hostiles, ask.Pawn.Value));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -378,7 +378,7 @@ partial class RoundsDefensePlanner
                     Weapon = (row.Weapon ?? ""),
                     WeaponFacts = facts ?? new(),
                     WeaponRange = facts?.Reach ?? 0,
-                    FireMode = BridgeApi.FireModeName(row.FireMode.GetValueOrDefault()),
+                    FireMode = WireEnums.FireModeName(row.FireMode.GetValueOrDefault()),
                     Job = row.Job ?? "",
                     TargetMortar = row.TargetMortar.GetValueOrDefault(),
                     ShieldBelt = row.ShieldBelt.GetValueOrDefault(),
@@ -487,7 +487,7 @@ partial class RoundsDefensePlanner
             {
                 continue;
             }
-            if (newest is null || BridgeApi.CombatBefore(newest.At, row.At))
+            if (newest is null || RoundsFrameRules.CombatBefore(newest.At, row.At))
             {
                 newest = row;
             }
@@ -522,13 +522,13 @@ partial class RoundsDefensePlanner
             {
                 continue;
             }
-            if (order.Kind == CombatOrderKind.Door && refusal == BridgeConstants.CombatRefusalNotADoor)
+            if (order.Kind == CombatOrderKind.Door && refusal == CombatConstants.CombatRefusalNotADoor)
             {
                 memory = memory.RefuseDoor(order.Cell);
             }
             else if (order.Kind == CombatOrderKind.MortarFire)
             {
-                memory = memory.RefuseFire(order, refusal == BridgeConstants.CombatRefusalNoShell || refusal == BridgeConstants.CombatRefusalUnknownShell);
+                memory = memory.RefuseFire(order, refusal == CombatConstants.CombatRefusalNoShell || refusal == CombatConstants.CombatRefusalUnknownShell);
             }
             else if (!order.Pawn.IsEmpty)
             {
@@ -536,15 +536,15 @@ partial class RoundsDefensePlanner
                 {
                     memory = memory.RefuseAnimal(order, refusal);
                 }
-                else if (cells.TryGetValue(order.Pawn, out var from) && refusal == BridgeConstants.CombatRefusalCannotHit)
+                else if (cells.TryGetValue(order.Pawn, out var from) && refusal == CombatConstants.CombatRefusalCannotHit)
                 {
                     memory = memory.RefuseHit(order, from);
                 }
-                else if (refusal == BridgeConstants.CombatRefusalNoShell || refusal == BridgeConstants.CombatRefusalUnknownShell)
+                else if (refusal == CombatConstants.CombatRefusalNoShell || refusal == CombatConstants.CombatRefusalUnknownShell)
                 {
                     memory = memory.RefuseShell(order);
                 }
-                else if (order.Kind == CombatOrderKind.Move && refusal == BridgeConstants.CombatRefusalUnreachable)
+                else if (order.Kind == CombatOrderKind.Move && refusal == CombatConstants.CombatRefusalUnreachable)
                 {
                     memory = memory.RefuseCell(order.Cell).Forget(order.Pawn);
                 }

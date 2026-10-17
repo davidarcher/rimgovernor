@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 // Go wire_enums.go: pawn-setting, skill, waste, bill, combat, route and quest enums on the wire map onto the
 // vanilla names the domain and policy layers use; an unspecified or unknown value maps to "" (null for a domain
 // enum with no empty member). Go's name maps are switches here; the domain enums carry their wire names.
-public static partial class BridgeFunctions
+public static class WireEnums
 {
     /// <summary>Go's <c>medicalCareWire</c> inverted: the domain care tier of a wire tier, null when unspecified or unknown.</summary>
     internal static DomainMedicalCare? MedicalCareOf(WireMedicalCare care) =>

@@ -65,7 +65,7 @@ public sealed partial record PlanningDefinition
         var price = UnstockedStuffChoice(StuffCriterion.LowestFlammability);
         foreach (var option in StuffOptions)
         {
-            if (option.Stuff == price.Stuff && option.Stats.TryGetValue(BridgeConstants.StatFlammability, out var flammability) && flammability > 0)
+            if (option.Stuff == price.Stuff && option.Stats.TryGetValue(StatDefNames.StatFlammability, out var flammability) && flammability > 0)
             {
                 throw new FlammableStuffException($"every allowed stuff of the definition is flammable: {Name}, least flammable {price.Stuff}");
             }
@@ -133,18 +133,18 @@ public sealed partial record PlanningDefinition
             case StuffCriterion.CheapestStuff:
                 return -option.Value;
             case StuffCriterion.MaxHitPointsPerCost:
-                var hp = Stat(BridgeConstants.StatMaxHitPoints);
+                var hp = Stat(StatDefNames.StatMaxHitPoints);
                 if (option.Value <= 0)
                 {
                     throw new NoStuffDataException($"the definition's rows do not state the stuff choice: {Name} made of {option.Stuff} has no cost value");
                 }
                 return hp / option.Value;
             case StuffCriterion.LowestFlammability:
-                return -Stat(BridgeConstants.StatFlammability);
+                return -Stat(StatDefNames.StatFlammability);
             case StuffCriterion.MaxRestEffectiveness:
-                return Stat(BridgeConstants.StatBedRestEffectiveness);
+                return Stat(StatDefNames.StatBedRestEffectiveness);
             case StuffCriterion.MaxDoorOpenSpeed:
-                return Stat(BridgeConstants.StatDoorOpenSpeed);
+                return Stat(StatDefNames.StatDoorOpenSpeed);
             default:
                 throw new NoStuffDataException($"the definition's rows do not state the stuff choice: unknown stuff criterion {(int)criterion}");
         }
@@ -205,19 +205,19 @@ public sealed partial record PlanningDefinition
         bool Shown(string stat) => !StuffOptions.Any(o => !o.Stats.ContainsKey(stat));
         var criteria = new List<StuffCriterion>();
         NeedsPower.TryGetValue(out var powered);
-        if (Shown(BridgeConstants.StatBedRestEffectiveness))
+        if (Shown(StatDefNames.StatBedRestEffectiveness))
         {
             criteria.Add(StuffCriterion.MaxRestEffectiveness);
         }
-        else if (Shown(BridgeConstants.StatDoorOpenSpeed) && !powered)
+        else if (Shown(StatDefNames.StatDoorOpenSpeed) && !powered)
         {
             criteria.Add(StuffCriterion.MaxDoorOpenSpeed);
         }
-        if (Shown(BridgeConstants.StatMaxHitPoints) && !StuffOptions.Any(o => o.Value <= 0))
+        if (Shown(StatDefNames.StatMaxHitPoints) && !StuffOptions.Any(o => o.Value <= 0))
         {
             criteria.Add(StuffCriterion.MaxHitPointsPerCost);
         }
-        if (Shown(BridgeConstants.StatFlammability))
+        if (Shown(StatDefNames.StatFlammability))
         {
             criteria.Add(StuffCriterion.LowestFlammability);
         }

@@ -21,7 +21,7 @@ internal enum WireKind
 /// row split and join, the clock enum walk, the "only these fields" checks). A oneof choice contributes one field per
 /// case, named after the case in snake_case, so a record reads like the message it replaced.
 /// </summary>
-internal sealed class WireField
+internal sealed partial class WireField
 {
     private readonly Func<object, object?> _get;
 

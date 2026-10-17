@@ -67,9 +67,9 @@ public sealed partial class FacadeNativeClient
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var name in defNames)
         {
-            if (!BridgeFunctions.IsValidId(name) || !names.Add(name))
+            if (!WireValidation.IsValidId(name) || !names.Add(name))
             {
-                throw BridgeFunctions.Contract("invalid supply stock def name");
+                throw BridgeContractException.Contract("invalid supply stock def name");
             }
         }
         var seenOut = new HashSet<string>(StringComparer.Ordinal);
@@ -224,7 +224,7 @@ public sealed partial class FacadeNativeClient
         }
         BillMode mode;
         var target = 0;
-        switch (BridgeFunctions.RepeatModeName(bill.RepeatMode.GetValueOrDefault()))
+        switch (WireEnums.RepeatModeName(bill.RepeatMode.GetValueOrDefault()))
         {
             case "Forever":
                 mode = BillMode.ButcherForever;

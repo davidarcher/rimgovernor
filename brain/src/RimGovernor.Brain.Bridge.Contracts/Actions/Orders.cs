@@ -9,13 +9,13 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 // caravan_departure.go, assign.go, husbandry.go and apparel_policy.go: the intents that name a pawn and a colony
 // decision. validateChoiceDialog and validateJoinerLetters of dialog.go validate census replies and belong to the
 // census port.
-public static partial class BridgeFunctions
+public static class Orders
 {
     /// <summary>Go's <c>researchAction</c>: the ResearchIntent of one research selection. Native judges the project against live research state when it applies.</summary>
-    private static Op.Action ResearchAction(DomainAction action)
+    internal static Op.Action ResearchAction(DomainAction action)
     {
-        var v = action.ResearchSelect ?? throw Contract("not a research select action");
-        ValidId(v.Project);
+        var v = action.ResearchSelect ?? throw BridgeContractException.Contract("not a research select action");
+        WireValidation.ValidId(v.Project);
         return new Op.Action { Intent = new Op.ResearchIntent { ProjectDef = v.Project } };
     }
 
@@ -23,12 +23,12 @@ public static partial class BridgeFunctions
     /// Go's <c>dialogAction</c>: the DialogIntent of one dialog answer, the exact observed window (or joiner letter) ID,
     /// option position and label, and for a joiner letter its snapshot token.
     /// </summary>
-    private static Op.Action DialogAction(DomainAction action)
+    internal static Op.Action DialogAction(DomainAction action)
     {
-        var v = action.DialogAnswer ?? throw Contract("not a dialog answer action");
-        if (v.WindowId < 0 || v.OptionIndex < 0 || !IsValidId(v.OptionLabel) || (v.LetterToken.Length != 0 && (v.OptionIndex != 0 || !IsValidId(v.LetterToken))))
+        var v = action.DialogAnswer ?? throw BridgeContractException.Contract("not a dialog answer action");
+        if (v.WindowId < 0 || v.OptionIndex < 0 || !WireValidation.IsValidId(v.OptionLabel) || (v.LetterToken.Length != 0 && (v.OptionIndex != 0 || !WireValidation.IsValidId(v.LetterToken))))
         {
-            throw Contract("invalid dialog target");
+            throw BridgeContractException.Contract("invalid dialog target");
         }
         var intent = new Op.DialogIntent { WindowId = v.WindowId, OptionIndex = v.OptionIndex, OptionLabel = v.OptionLabel };
         if (v.LetterToken.Length != 0)
@@ -56,12 +56,12 @@ public static partial class BridgeFunctions
     /// Go's <c>prisonerInteractionAction</c>: the PrisonerInteractionIntent of one prisoner custody order. Native checks
     /// the prisoner and the mode's eligibility live when it applies; a prisoner already set to the mode applies again.
     /// </summary>
-    private static Op.Action PrisonerInteractionAction(DomainAction action)
+    internal static Op.Action PrisonerInteractionAction(DomainAction action)
     {
-        var v = action.PrisonerInteraction ?? throw Contract("not a prisoner interaction action");
-        if (PrisonerInteractionWire(v.Interaction) is not { } wire || !IsValidId(v.Pawn.Value))
+        var v = action.PrisonerInteraction ?? throw BridgeContractException.Contract("not a prisoner interaction action");
+        if (PrisonerInteractionWire(v.Interaction) is not { } wire || !WireValidation.IsValidId(v.Pawn.Value))
         {
-            throw Contract("invalid prisoner interaction");
+            throw BridgeContractException.Contract("invalid prisoner interaction");
         }
         return new Op.Action { Intent = new Op.PrisonerInteractionIntent { PawnId = v.Pawn.Value, Interaction = wire } };
     }
@@ -70,12 +70,12 @@ public static partial class BridgeFunctions
     /// Go's <c>questAcceptAction</c>: the AcceptQuestIntent of one quest acceptance, the quest, the accepter when the
     /// quest requires one, and the reward option; native checks the game's own acceptance rules when it applies.
     /// </summary>
-    private static Op.Action QuestAcceptAction(DomainAction action)
+    internal static Op.Action QuestAcceptAction(DomainAction action)
     {
-        var accept = action.QuestAccept ?? throw Contract("not a quest accept action");
-        if (!IsValidId(accept.Quest.Value) || (accept.AccepterPawn.Value.Length != 0 && !IsValidId(accept.AccepterPawn.Value)) || accept.RewardChoice < -1)
+        var accept = action.QuestAccept ?? throw BridgeContractException.Contract("not a quest accept action");
+        if (!WireValidation.IsValidId(accept.Quest.Value) || (accept.AccepterPawn.Value.Length != 0 && !WireValidation.IsValidId(accept.AccepterPawn.Value)) || accept.RewardChoice < -1)
         {
-            throw Contract("quest accept requires a quest id");
+            throw BridgeContractException.Contract("quest accept requires a quest id");
         }
         var intent = new Op.AcceptQuestIntent { QuestId = accept.Quest.Value, RewardChoice = accept.RewardChoice };
         if (accept.AccepterPawn.Value.Length != 0)
@@ -85,9 +85,9 @@ public static partial class BridgeFunctions
         return new Op.Action { Intent = intent };
     }
 
-    private static Op.Action QuestShuttleAction(DomainAction action)
+    internal static Op.Action QuestShuttleAction(DomainAction action)
     {
-        var s = action.QuestShuttle ?? throw Contract("not a quest shuttle action");
+        var s = action.QuestShuttle ?? throw BridgeContractException.Contract("not a quest shuttle action");
         var intent = new Op.QuestShuttleIntent { QuestId = s.Quest.Value, Launch = s.Launch };
         switch (s.Loading)
         {
@@ -101,21 +101,21 @@ public static partial class BridgeFunctions
         return new Op.Action { Intent = intent };
     }
 
-    private static Op.Action HackDesignationAction(DomainAction action)
+    internal static Op.Action HackDesignationAction(DomainAction action)
     {
-        var h = action.HackDesignation ?? throw Contract("not a hack designation action");
-        return new Op.Action { Intent = new Op.HackDesignationIntent { Target = NewRef(h.Target), Enabled = h.Enabled } };
+        var h = action.HackDesignation ?? throw BridgeContractException.Contract("not a hack designation action");
+        return new Op.Action { Intent = new Op.HackDesignationIntent { Target = IntentActionRules.NewRef(h.Target), Enabled = h.Enabled } };
     }
 
-    private static Op.Action GiveItemAction(DomainAction action)
+    internal static Op.Action GiveItemAction(DomainAction action)
     {
-        var g = action.GiveItem ?? throw Contract("not a give item action");
+        var g = action.GiveItem ?? throw BridgeContractException.Contract("not a give item action");
         return new Op.Action
         {
             Intent = new Op.GiveItemIntent
             {
-                Hauler = NewRef(g.Hauler.Value),
-                Recipient = NewRef(g.Recipient.Value),
+                Hauler = IntentActionRules.NewRef(g.Hauler.Value),
+                Recipient = IntentActionRules.NewRef(g.Recipient.Value),
                 Definition = g.Definition,
                 ExpectedRemaining = g.ExpectedRemaining,
             },
@@ -127,16 +127,16 @@ public static partial class BridgeFunctions
     /// begin the organizer, the ritual precept, the spot and the exact role and spectator assignments; native checks the
     /// ritual waits for the command, or may begin, when it applies.
     /// </summary>
-    private static Op.Action RitualAction(DomainAction action)
+    internal static Op.Action RitualAction(DomainAction action)
     {
-        var ritual = action.Ritual ?? throw Contract("not a ritual action");
+        var ritual = action.Ritual ?? throw BridgeContractException.Contract("not a ritual action");
         var intent = new Op.RitualIntent { PawnId = ritual.Pawn.Value, Ritual = ritual.Kind.Value, Verb = Domain.Wire.Name(ritual.Verb) };
         switch (ritual.Verb)
         {
             case RitualVerb.Start:
                 break;
             case RitualVerb.Begin:
-                intent = intent with { Spot = WireCell(ritual.Spot) };
+                intent = intent with { Spot = IntentActionRules.WireCell(ritual.Spot) };
                 foreach (var slot in ritual.Slots)
                 {
                     intent = intent with { Roles = [.. intent.Roles, new Op.RitualRoleAssignment { Slot = slot.Slot, PawnIds = [.. slot.Pawns.Select(pawn => pawn.Value)] }] };
@@ -144,7 +144,7 @@ public static partial class BridgeFunctions
                 intent = intent with { SpectatorPawnIds = [.. intent.SpectatorPawnIds, .. ritual.Spectators.Select(pawn => pawn.Value)] };
                 break;
             default:
-                throw Contract("ritual requires a pawn, a known ritual and a known verb");
+                throw BridgeContractException.Contract("ritual requires a pawn, a known ritual and a known verb");
         }
         return new Op.Action { Intent = intent };
     }
@@ -152,9 +152,9 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>WireIdeoligionDesign</c>: the wire form of a domain ideoligion design.</summary>
     public static WireDesign WireIdeoligionDesign(IdeoligionDesign v) => new() { Memes = [.. v.Memes], Precepts = [.. v.Precepts], Fluid = v.Fluid };
 
-    private static Op.Action IdeoligionReformAction(DomainAction action)
+    internal static Op.Action IdeoligionReformAction(DomainAction action)
     {
-        var v = action.IdeoligionReform ?? throw Contract("not an ideoligion reform action");
+        var v = action.IdeoligionReform ?? throw BridgeContractException.Contract("not an ideoligion reform action");
         return new Op.Action
         {
             Intent = new Op.IdeoligionReformIntent
@@ -175,16 +175,16 @@ public static partial class BridgeFunctions
     {
         if (design is null || design.Fluid is null || design.Memes.Count == 0 || design.Memes.Count > 5 || design.Precepts.Count > 256)
         {
-            throw Contract("invalid ideoligion design");
+            throw BridgeContractException.Contract("invalid ideoligion design");
         }
         foreach (var names in new[] { design.Memes, design.Precepts })
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var name in names)
             {
-                if (!IsValidId(name) || !seen.Add(name))
+                if (!WireValidation.IsValidId(name) || !seen.Add(name))
                 {
-                    throw Contract("invalid or duplicate ideoligion selection");
+                    throw BridgeContractException.Contract("invalid or duplicate ideoligion selection");
                 }
             }
         }
@@ -194,9 +194,9 @@ public static partial class BridgeFunctions
     /// Go's <c>abilityAction</c>: the AbilityIntent of one ability use, the pawn, the source arm and the target arm.
     /// Native's guard for the source checks eligibility against live state when it applies.
     /// </summary>
-    private static Op.Action AbilityAction(DomainAction action)
+    internal static Op.Action AbilityAction(DomainAction action)
     {
-        var ability = action.Ability ?? throw Contract("not an ability action");
+        var ability = action.Ability ?? throw BridgeContractException.Contract("not an ability action");
         var intent = new Op.AbilityIntent { PawnId = ability.Pawn.Value };
         var source = ability.Source;
         switch (source.Kind)
@@ -208,7 +208,7 @@ public static partial class BridgeFunctions
                 intent = intent with { Source = new Op.AbilityIntentSource.PsycastCase(new Op.PsycastAbility { Ability = source.Def }) };
                 break;
             default:
-                throw Contract($"unsupported ability source \"{Domain.Wire.Name(source.Kind)}\"");
+                throw BridgeContractException.Contract($"unsupported ability source \"{Domain.Wire.Name(source.Kind)}\"");
         }
         var target = ability.Target;
         switch (target.Kind)
@@ -217,7 +217,7 @@ public static partial class BridgeFunctions
                 intent = intent with { Target = new Op.AbilityIntentTarget.NoTargetCase(new Op.AbilityNoTarget()) };
                 break;
             case AbilityTargetKind.Cell:
-                intent = intent with { Target = new Op.AbilityIntentTarget.CellCase(WireCell(target.Cell)) };
+                intent = intent with { Target = new Op.AbilityIntentTarget.CellCase(IntentActionRules.WireCell(target.Cell)) };
                 break;
             case AbilityTargetKind.Pawn:
                 intent = intent with { Target = new Op.AbilityIntentTarget.PawnCase(target.Id) };
@@ -226,23 +226,23 @@ public static partial class BridgeFunctions
                 intent = intent with { Target = new Op.AbilityIntentTarget.ThingCase(target.Id) };
                 break;
             default:
-                throw Contract($"unsupported ability target \"{Domain.Wire.Name(target.Kind)}\"");
+                throw BridgeContractException.Contract($"unsupported ability target \"{Domain.Wire.Name(target.Kind)}\"");
         }
         return new Op.Action { Intent = intent };
     }
 
     /// <summary>Go's <c>igniteAction</c>: the Actions/Apply ignite arm, the pawn throws a molotov at the cell. Room occupancy is policy (BurnOccupied).</summary>
-    private static Op.Action IgniteAction(DomainAction action)
+    internal static Op.Action IgniteAction(DomainAction action)
     {
-        var ignite = action.Ignite ?? throw Contract("not an ignite action");
-        return new Op.Action { Intent = new Op.IgniteIntent { PawnId = ignite.Pawn.Value, Cell = WireCell(ignite.Cell) } };
+        var ignite = action.Ignite ?? throw BridgeContractException.Contract("not an ignite action");
+        return new Op.Action { Intent = new Op.IgniteIntent { PawnId = ignite.Pawn.Value, Cell = IntentActionRules.WireCell(ignite.Cell) } };
     }
 
     /// <summary>Go's <c>gatheringAction</c>: the Actions/Apply gathering arm, the organizer starts one vanilla GatheringDef. The intent names no spot; the game chooses it.</summary>
-    private static Op.Action GatheringAction(DomainAction action)
+    internal static Op.Action GatheringAction(DomainAction action)
     {
-        var gathering = action.Gathering ?? throw Contract("not a gathering action");
-        return new Op.Action { Intent = new Op.GatheringIntent { GatheringDef = gathering.Def, Organizer = NewRef(gathering.Organizer.Value) } };
+        var gathering = action.Gathering ?? throw BridgeContractException.Contract("not a gathering action");
+        return new Op.Action { Intent = new Op.GatheringIntent { GatheringDef = gathering.Def, Organizer = IntentActionRules.NewRef(gathering.Organizer.Value) } };
     }
 
     /// <summary>
@@ -251,15 +251,15 @@ public static partial class BridgeFunctions
     /// (refusal not_a_door); the door facts the cell came from are read from that same door, so the next review sees a
     /// door still held open when an order did not take.
     /// </summary>
-    private static Op.Action DoorControlAction(DomainAction action)
+    internal static Op.Action DoorControlAction(DomainAction action)
     {
-        var door = action.DoorControl ?? throw Contract("not a door_control action");
+        var door = action.DoorControl ?? throw BridgeContractException.Contract("not a door_control action");
         var mode = door.HoldOpen ? Op.CombatDoorMode.HoldOpen : Op.CombatDoorMode.Close;
         var command = new Op.CombatOrders
         {
-            Orders = [new Op.CombatOrder { Order = new Op.CombatOrderOrder.DoorCase(new Op.CombatDoor { Cell = WireCell(door.Cell), Mode = mode }) }],
+            Orders = [new Op.CombatOrder { Order = new Op.CombatOrderOrder.DoorCase(new Op.CombatDoor { Cell = IntentActionRules.WireCell(door.Cell), Mode = mode }) }],
         };
-        ValidateCombatOrders(command);
+        CombatOrdersRules.ValidateCombatOrders(command);
         return new Op.Action { Intent = command };
     }
 
@@ -267,27 +267,27 @@ public static partial class BridgeFunctions
     /// Go's <c>caravanDepartureAction</c>: the FormCaravanIntent of one caravan departure, the crew, the whole pack by
     /// definition (journey food included) and the destination tile; native checks formation when it applies.
     /// </summary>
-    private static Op.Action CaravanDepartureAction(DomainAction action)
+    internal static Op.Action CaravanDepartureAction(DomainAction action)
     {
-        var departure = action.CaravanDeparture ?? throw Contract("not a caravan departure action");
+        var departure = action.CaravanDeparture ?? throw BridgeContractException.Contract("not a caravan departure action");
         if (departure.Crew.Count == 0 || departure.DestinationTile < 0)
         {
-            throw Contract("caravan departure requires a crew and a destination");
+            throw BridgeContractException.Contract("caravan departure requires a crew and a destination");
         }
         var intent = new Op.FormCaravanIntent { DestinationTile = departure.DestinationTile, Mode = (Op.CaravanMode)departure.Mode };
         foreach (var pawn in departure.Crew)
         {
-            if (!IsValidId(pawn.Value))
+            if (!WireValidation.IsValidId(pawn.Value))
             {
-                throw Contract("invalid caravan crew pawn");
+                throw BridgeContractException.Contract("invalid caravan crew pawn");
             }
             intent = intent with { PawnIds = [.. intent.PawnIds, pawn.Value] };
         }
         foreach (var item in departure.Cargo)
         {
-            if (!IsValidId(item.Definition) || item.Count == 0 || item.Count > int.MaxValue)
+            if (!WireValidation.IsValidId(item.Definition) || item.Count == 0 || item.Count > int.MaxValue)
             {
-                throw Contract("invalid caravan cargo item");
+                throw BridgeContractException.Contract("invalid caravan cargo item");
             }
             intent = intent with { Cargo = [.. intent.Cargo, new Op.DefCount { DefName = item.Definition, Count = (int)item.Count }] };
         }
@@ -299,9 +299,9 @@ public static partial class BridgeFunctions
     /// throne) and the thing of that kind the pawn owned when the planner chose (or none). Native checks the pawn, the
     /// thing and that previous ownership live when it applies; a pawn that already owns the thing applies again.
     /// </summary>
-    private static Op.Action AssignAction(DomainAction action)
+    internal static Op.Action AssignAction(DomainAction action)
     {
-        var v = action.Assign ?? throw Contract("not an assign action");
+        var v = action.Assign ?? throw BridgeContractException.Contract("not an assign action");
         var previous = v.Previous.Clear ? new Op.Assignment { Value = new Op.Clear() } : new Op.Assignment { Value = new Op.AssignmentValue.EntityIdCase(v.Previous.Id) };
         var intent = new Op.AssignIntent { PawnId = v.Pawn.Value, ThingId = v.Thing, ExpectedPrevious = previous };
         if (v.Swap)
@@ -333,12 +333,12 @@ public static partial class BridgeFunctions
     /// Go's <c>husbandryAction</c>: the HusbandryIntent of one animal order. Native checks the animal and the order's
     /// eligibility live when it applies; an order that already holds applies again.
     /// </summary>
-    private static Op.Action HusbandryAction(DomainAction action)
+    internal static Op.Action HusbandryAction(DomainAction action)
     {
-        var v = action.Husbandry ?? throw Contract("not a husbandry action");
-        if (HusbandryOrderWire(v.Method) is not { } order || !IsValidId(v.Animal.Value))
+        var v = action.Husbandry ?? throw BridgeContractException.Contract("not a husbandry action");
+        if (HusbandryOrderWire(v.Method) is not { } order || !WireValidation.IsValidId(v.Animal.Value))
         {
-            throw Contract("invalid husbandry order");
+            throw BridgeContractException.Contract("invalid husbandry order");
         }
         var intent = new Op.HusbandryIntent { AnimalId = v.Animal.Value, Order = order };
         switch (v.Method)
@@ -364,9 +364,9 @@ public static partial class BridgeFunctions
     /// Go's <c>apparelPolicyAction</c>: the ApparelPolicyIntent of a role apparel policy, the pawn and the complete
     /// filter. Native validates the pawn and the definitions live when it applies.
     /// </summary>
-    private static Op.Action ApparelPolicyAction(DomainAction action)
+    internal static Op.Action ApparelPolicyAction(DomainAction action)
     {
-        var v = action.ApparelPolicy ?? throw Contract("not an apparel policy action");
+        var v = action.ApparelPolicy ?? throw BridgeContractException.Contract("not an apparel policy action");
         var s = v.Spec;
         return new Op.Action
         {

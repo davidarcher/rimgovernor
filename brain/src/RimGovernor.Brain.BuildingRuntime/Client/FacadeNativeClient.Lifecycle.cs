@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Bridge.Contracts;
-using static RimGovernor.Brain.Bridge.Contracts.BridgeFunctions;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -32,9 +31,9 @@ public sealed partial class FacadeNativeClient
     /// <summary>Go <c>LifecycleLoad.ReadLoad</c>: polls for the outcome of a request a prior load started.</summary>
     internal async Task<PbLifecycle.LoadReply> ReadLoadAsync(string requestId, CancellationToken cancellationToken)
     {
-        if (!IsValidId(requestId ?? ""))
+        if (!WireValidation.IsValidId(requestId ?? ""))
         {
-            throw Contract("read load requires a request id");
+            throw BridgeContractException.Contract("read load requires a request id");
         }
 
         var reply = await Facade.PollLoadAsync(new PbLifecycle.RequestStatus { RequestId = requestId }, cancellationToken).ConfigureAwait(false);
@@ -48,7 +47,7 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<PbLifecycle.NewColonyReply> NewColonyAsync(PbLifecycle.NewColonyRequest request, CancellationToken cancellationToken)
     {
-        ValidateNewColonyRequest(request);
+        NewColonyValidation.ValidateNewColonyRequest(request);
         var spec = request.Spec!;
         if (spec.GovernorIdeoligion.GetValueOrDefault() && spec.Ideoligion is null)
         {
@@ -66,9 +65,9 @@ public sealed partial class FacadeNativeClient
     /// <summary>Go <c>LifecycleNewColony.ReadNewColony</c>: polls the outcome of a request a prior new colony started.</summary>
     internal async Task<PbLifecycle.NewColonyReply> ReadNewColonyAsync(string requestId, CancellationToken cancellationToken)
     {
-        if (!IsValidId(requestId ?? ""))
+        if (!WireValidation.IsValidId(requestId ?? ""))
         {
-            throw Contract("read new colony requires a request id");
+            throw BridgeContractException.Contract("read new colony requires a request id");
         }
 
         var reply = await Facade.PollNewColonyAsync(new PbLifecycle.RequestStatus { RequestId = requestId }, cancellationToken).ConfigureAwait(false);
@@ -82,14 +81,14 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<PbLifecycle.MenuReply> MenuAsync(PbLifecycle.MenuRequest request, CancellationToken cancellationToken)
     {
-        if (request?.RequestId is null || !IsValidId(request.RequestId))
+        if (request?.RequestId is null || !WireValidation.IsValidId(request.RequestId))
         {
-            throw Contract("menu request requires a request id");
+            throw BridgeContractException.Contract("menu request requires a request id");
         }
 
-        if (request.ExpectedPlayer?.RequestId is { } playerRequest && !IsValidId(playerRequest))
+        if (request.ExpectedPlayer?.RequestId is { } playerRequest && !WireValidation.IsValidId(playerRequest))
         {
-            throw Contract("menu request expected player request id invalid");
+            throw BridgeContractException.Contract("menu request expected player request id invalid");
         }
 
         var reply = await Facade.StartMenuAsync(request, cancellationToken).ConfigureAwait(false);
@@ -100,9 +99,9 @@ public sealed partial class FacadeNativeClient
     /// <summary>Polls the outcome of a request a prior <see cref="MenuAsync"/> started.</summary>
     internal async Task<PbLifecycle.MenuReply> ReadMenuAsync(string requestId, CancellationToken cancellationToken)
     {
-        if (!IsValidId(requestId ?? ""))
+        if (!WireValidation.IsValidId(requestId ?? ""))
         {
-            throw Contract("read menu requires a request id");
+            throw BridgeContractException.Contract("read menu requires a request id");
         }
 
         var reply = await Facade.PollMenuAsync(new PbLifecycle.RequestStatus { RequestId = requestId }, cancellationToken).ConfigureAwait(false);
@@ -115,35 +114,35 @@ public sealed partial class FacadeNativeClient
     {
         if (request is null)
         {
-            throw Contract("load request required");
+            throw BridgeContractException.Contract("load request required");
         }
 
-        if (request.RequestId is null || !IsValidId(request.RequestId))
+        if (request.RequestId is null || !WireValidation.IsValidId(request.RequestId))
         {
-            throw Contract("load request requires a request id");
+            throw BridgeContractException.Contract("load request requires a request id");
         }
 
-        if (request.SaveName is null || !IsValidId(request.SaveName))
+        if (request.SaveName is null || !WireValidation.IsValidId(request.SaveName))
         {
-            throw Contract("load request requires a save name");
+            throw BridgeContractException.Contract("load request requires a save name");
         }
 
         if (request.Readiness is { } readiness && !Enum.IsDefined(readiness))
         {
-            throw Contract("load request readiness invalid");
+            throw BridgeContractException.Contract("load request readiness invalid");
         }
 
         if (request.ExpectedPlayer is { } player)
         {
-            if (player.RequestId is not null && !IsValidId(player.RequestId))
+            if (player.RequestId is not null && !WireValidation.IsValidId(player.RequestId))
             {
-                throw Contract("load request expected player request id invalid");
+                throw BridgeContractException.Contract("load request expected player request id invalid");
             }
         }
 
-        if (request.ExpectedInstanceId is not null && !IsValidId(request.ExpectedInstanceId))
+        if (request.ExpectedInstanceId is not null && !WireValidation.IsValidId(request.ExpectedInstanceId))
         {
-            throw Contract("load request expected instance id invalid");
+            throw BridgeContractException.Contract("load request expected instance id invalid");
         }
     }
 

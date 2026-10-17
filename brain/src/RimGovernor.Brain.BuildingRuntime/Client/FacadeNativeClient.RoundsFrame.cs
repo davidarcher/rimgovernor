@@ -37,7 +37,7 @@ public sealed partial class FacadeNativeClient
             routine = routine with { Buildings = census with { Memo = _frameCensus } };
         }
         var grid = view.Grid;
-        if (grid is not null && BridgeFunctions.SameIdentity(view.Snapshot.Context?.Identity, identity))
+        if (grid is not null && WireValidation.SameIdentity(view.Snapshot.Context?.Identity, identity))
         {
             routine = routine with { RoomCells = RoomCellsOf(routine.Rooms, grid) };
         }
@@ -84,7 +84,7 @@ public sealed partial class FacadeNativeClient
         }
         if (v.WorldProgression is not null)
         {
-            output = output with { Quests = BridgeFunctions.DecodeWorldProgressionSnapshot(v.WorldProgression) };
+            output = output with { Quests = WorldProgressionRead.DecodeWorldProgressionSnapshot(v.WorldProgression) };
         }
         if (v.Ideology is not null)
         {
@@ -113,7 +113,7 @@ public sealed partial class FacadeNativeClient
         foreach (var row in events)
         {
             long open = row.OpenTick.GetValueOrDefault();
-            if (BridgeFunctions.DropPodArrival(row) && open >= censusTick && new Tick(open) > latest)
+            if (CombatCalls.DropPodArrival(row) && open >= censusTick && new Tick(open) > latest)
             {
                 latest = new Tick(open);
             }
@@ -165,7 +165,7 @@ public sealed partial class FacadeNativeClient
         }
         if (identity is null)
         {
-            throw BridgeFunctions.Contract("combat read without an identity");
+            throw BridgeContractException.Contract("combat read without an identity");
         }
         var view = await FrameSectionAsync(CombatFrameMethod, identity, anyFrame: false, frame => frame, cancellationToken).ConfigureAwait(false);
         var combat = DecodeCombat(view);
@@ -315,7 +315,7 @@ public sealed partial class FacadeNativeClient
         };
         if (v.WorldProgression is not null)
         {
-            output = output with { World = BridgeFunctions.DecodeWorldProgressionSnapshot(v.WorldProgression) };
+            output = output with { World = WorldProgressionRead.DecodeWorldProgressionSnapshot(v.WorldProgression) };
         }
         if (view.Prepared.Emergency is { } emergency)
         {
@@ -353,7 +353,7 @@ public sealed partial class FacadeNativeClient
         {
             foreach (var door in row.Doors)
             {
-                doorStates.Add(BridgeFunctions.RoomDoorFacts(door));
+                doorStates.Add(RoomDoorRules.RoomDoorFacts(door));
             }
             if (CombatRoom(row) is { } room)
             {

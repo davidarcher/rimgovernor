@@ -7,20 +7,20 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 // idempotent intent naming that session's trader and negotiator, sent through Actions/Apply: native validates it
 // against live state when it applies and refuses with a reason when the session is gone or held by a different
 // pair (NativeTradeOperations.cs). This file checks wire shape only.
-public static partial class BridgeFunctions
+public static class TradeRules
 {
     /// <summary>Go's <c>mapTradeTarget</c>: the wire target of a map trader.</summary>
     internal static WireCommon.TradeTarget MapTradeTarget(string id) => new() { Kind = new WireCommon.MapTradeTarget { TraderId = id } };
 
     /// <summary>Go's <c>tradeAction</c>: the Actions/Apply trade arm of one domain trade action.</summary>
-    private static Op.Action TradeAction(DomainAction action)
+    internal static Op.Action TradeAction(DomainAction action)
     {
-        var t = action.Trade ?? throw Contract("not a trade action");
+        var t = action.Trade ?? throw BridgeContractException.Contract("not a trade action");
         var participant = t.Participant;
         var negotiator = t.Negotiator.Value;
-        if (!participant.IsValid || !IsValidId(negotiator) || (participant.Kind == TradeParticipantKind.Map && participant.Id == negotiator))
+        if (!participant.IsValid || !WireValidation.IsValidId(negotiator) || (participant.Kind == TradeParticipantKind.Map && participant.Id == negotiator))
         {
-            throw Contract("invalid trade participants");
+            throw BridgeContractException.Contract("invalid trade participants");
         }
         WireCommon.TradeTarget? target = null;
         switch (participant.Kind)
@@ -46,22 +46,22 @@ public static partial class BridgeFunctions
                 var seen = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var line in t.Lines)
                 {
-                    if (!IsValidId(line.LineId) || !seen.Add(line.LineId))
+                    if (!WireValidation.IsValidId(line.LineId) || !seen.Add(line.LineId))
                     {
-                        throw Contract("invalid or duplicate trade line");
+                        throw BridgeContractException.Contract("invalid or duplicate trade line");
                     }
                     rows.Add(new Op.TradeLine { LineId = line.LineId, AbsoluteCount = line.AbsoluteCount });
                 }
                 if (rows.Count == 0)
                 {
-                    throw Contract("set trade lines requires lines");
+                    throw BridgeContractException.Contract("set trade lines requires lines");
                 }
                 intent = intent with { Step = new Op.TradeIntentStep.SetLinesCase(new Op.SetTradeLines { Lines = [.. rows], AllowPawns = t.AllowPawns }) };
                 break;
             case TradeOperationKind.Accept:
-                if (!IsValidId(t.ExpectedDealSignature))
+                if (!WireValidation.IsValidId(t.ExpectedDealSignature))
                 {
-                    throw Contract("accept trade requires a deal signature");
+                    throw BridgeContractException.Contract("accept trade requires a deal signature");
                 }
                 intent = intent with { Step = new Op.TradeIntentStep.AcceptCase(new Op.AcceptTrade { ExpectedDealSignature = t.ExpectedDealSignature, AllowEmpty = t.AllowEmpty, ReceiveQuest = t.ReceiveQuest }) };
                 break;
@@ -70,12 +70,12 @@ public static partial class BridgeFunctions
                 {
                     TradeEndKind.Cancel => Op.EndTradeKind.Cancel,
                     TradeEndKind.CloseDialog => Op.EndTradeKind.CloseDialog,
-                    _ => throw Contract("end trade requires cancel or close_dialog"),
+                    _ => throw BridgeContractException.Contract("end trade requires cancel or close_dialog"),
                 };
                 intent = intent with { Step = new Op.TradeIntentStep.EndCase(new Op.EndTrade { Kind = kind, ReceiveQuest = t.ReceiveQuest }) };
                 break;
             default:
-                throw Contract("unknown trade step");
+                throw BridgeContractException.Contract("unknown trade step");
         }
         return new Op.Action { Intent = intent };
     }

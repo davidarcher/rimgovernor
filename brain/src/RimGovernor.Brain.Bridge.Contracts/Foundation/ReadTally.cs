@@ -5,8 +5,8 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
 /// Go's <c>ReadTally</c>: counts the native round trips issued under one scope. Every native call the host makes
-/// while a tally is attached (<see cref="Begin"/>, <see cref="BridgeFunctions.WithReadTally"/>) is counted by the
-/// native facade method it called (<see cref="BridgeFunctions.CountNativeRead"/>), errors included. A scheduler step
+/// while a tally is attached (<see cref="Begin"/>, <see cref="ReadTallyScope.WithReadTally"/>) is counted by the
+/// native facade method it called (<see cref="ReadTallyRules.CountNativeRead"/>), errors included. A scheduler step
 /// attaches one at entry so the reads a full planner composition costs are visible per step and, through
 /// <see cref="Publish"/>, in the OTLP log ring the throughput profiler summarizes. It is safe for concurrent use;
 /// planners run in parallel under the same step scope.
@@ -94,8 +94,20 @@ public sealed class ReadTally
     }
 }
 
-public static partial class BridgeFunctions
+public static class ReadTallyRules
 {
+
+    /// <summary>The native call layer's hook: counts one round trip of <paramref name="nativeTool"/> on the attached tally, if any.</summary>
+    public static void CountNativeRead(string nativeTool) => ReadTally.Current?.Add(nativeTool);
+}
+
+/// <summary>A tally attached by <see cref="ReadTallyScope.WithReadTally"/>; disposing it restores the previous one.</summary>
+public sealed class ReadTallyScope(ReadTally tally, IDisposable restore) : IDisposable
+{
+    public ReadTally Tally { get; } = tally;
+
+    public void Dispose() => restore.Dispose();
+
     /// <summary>
     /// Go's <c>WithReadTally</c>: attaches a fresh tally to the current async flow until the scope is disposed; one
     /// already attached is replaced, never nested.
@@ -105,15 +117,4 @@ public static partial class BridgeFunctions
         var tally = new ReadTally();
         return new ReadTallyScope(tally, tally.Begin());
     }
-
-    /// <summary>The native call layer's hook: counts one round trip of <paramref name="nativeTool"/> on the attached tally, if any.</summary>
-    public static void CountNativeRead(string nativeTool) => ReadTally.Current?.Add(nativeTool);
-}
-
-/// <summary>A tally attached by <see cref="BridgeFunctions.WithReadTally"/>; disposing it restores the previous one.</summary>
-public sealed class ReadTallyScope(ReadTally tally, IDisposable restore) : IDisposable
-{
-    public ReadTally Tally { get; } = tally;
-
-    public void Dispose() => restore.Dispose();
 }

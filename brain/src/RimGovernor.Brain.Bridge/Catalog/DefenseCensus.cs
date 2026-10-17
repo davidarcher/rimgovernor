@@ -41,7 +41,7 @@ public sealed partial class DefinitionCatalog
         {
             throw new CatalogException("defense census needs the map bounds");
         }
-        if (!BridgeFunctions.IsValidDefenseRegion(region) || region.Max.X >= bounds.Width || region.Max.Z >= bounds.Height)
+        if (!CellRect.IsValidDefenseRegion(region) || region.Max.X >= bounds.Width || region.Max.Z >= bounds.Height)
         {
             throw new CatalogException("invalid defense site region");
         }

@@ -263,7 +263,7 @@ public static class Boundary
             {
                 throw new AuthorityException();
             }
-            actions[i] = BridgeApi.IntentAction(IntentKey(placements[i]), placements[i].Action);
+            actions[i] = IntentActionRules.IntentAction(IntentKey(placements[i]), placements[i].Action);
         }
         var reply = await writer.ApplyAsync(Identity(snapshot), actions, ct).ConfigureAwait(false);
         var results = reply.Results;
@@ -279,7 +279,7 @@ public static class Boundary
                 output[i].Kind = Domain.Receipt.Accepted;
                 if (placements[i].Action.Kind == ActionKind.CombatBatch)
                 {
-                    foreach (var r in BridgeApi.CombatOrderResults(appliedReceipt))
+                    foreach (var r in CombatCalls.CombatOrderResults(appliedReceipt))
                     {
                         RecordCombatOrder(r);
                         output[i].Combat.Add(new CombatResult { Index = r.Index, PawnId = r.PawnId, Applied = r.Applied, Refusal = r.Refusal, JobDef = r.JobDef });

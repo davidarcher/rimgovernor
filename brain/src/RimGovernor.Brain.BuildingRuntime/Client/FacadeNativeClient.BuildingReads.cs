@@ -29,9 +29,9 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<ZoneDeleteTarget> ReadZoneDeleteTargetAsync(PbCommon.Identity identity, string zone, CancellationToken cancellationToken)
     {
-        if (!BridgeFunctions.IsValidId(zone))
+        if (!WireValidation.IsValidId(zone))
         {
-            throw BridgeFunctions.Contract("invalid zone delete target identity");
+            throw BridgeContractException.Contract("invalid zone delete target identity");
         }
         var request = new PbObservations.ListZonesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, Ids = [zone] };
         var reply = await Facade.ListZonesAsync(request, cancellationToken).ConfigureAwait(false);
@@ -67,14 +67,14 @@ public sealed partial class FacadeNativeClient
     {
         if (ids.Count > 256)
         {
-            throw BridgeFunctions.Contract("building IDs exceed 256");
+            throw BridgeContractException.Contract("building IDs exceed 256");
         }
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var id in ids)
         {
-            if (!BridgeFunctions.IsValidId(id) || !seen.Add(id))
+            if (!WireValidation.IsValidId(id) || !seen.Add(id))
             {
-                throw BridgeFunctions.Contract("invalid requested building identity");
+                throw BridgeContractException.Contract("invalid requested building identity");
             }
         }
         var request = PlacementReads.ConstructionBuildingsRequest(identity, ids);
@@ -89,9 +89,9 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<StorageBuildingTarget> ReadStorageBuildingTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
-        if (!BridgeFunctions.IsValidId(thing))
+        if (!WireValidation.IsValidId(thing))
         {
-            throw BridgeFunctions.Contract("invalid storage building identity");
+            throw BridgeContractException.Contract("invalid storage building identity");
         }
         var request = new PbObservations.ListBuildingsRequest
         {
@@ -107,20 +107,20 @@ public sealed partial class FacadeNativeClient
     /// <summary>Go's <c>ReadBedUseTarget</c>: observes one exact bed's medical flag, owners and CAS token via the existing building lookup.</summary>
     internal async Task<BedUseTarget> ReadBedUseTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
-        if (!BridgeFunctions.IsValidId(thing))
+        if (!WireValidation.IsValidId(thing))
         {
-            throw BridgeFunctions.Contract("invalid bed medical target identity");
+            throw BridgeContractException.Contract("invalid bed medical target identity");
         }
         var reply = await ReadConstructionBuildingsAsync(identity, [thing], cancellationToken).ConfigureAwait(false);
         var v = reply.Outcome.Observed!;
         if (v.Buildings.Count != 1)
         {
-            throw BridgeFunctions.Contract("bed medical target missing or ambiguous");
+            throw BridgeContractException.Contract("bed medical target missing or ambiguous");
         }
         var settings = v.Buildings[0].Settings;
         if (settings.Medical is null)
         {
-            throw BridgeFunctions.Contract("building is not a bed");
+            throw BridgeContractException.Contract("building is not a bed");
         }
         return new BedUseTarget
         {
@@ -128,7 +128,7 @@ public sealed partial class FacadeNativeClient
             Thing = thing,
             Medical = settings.Medical.GetValueOrDefault(),
             Prisoners = settings.ForPrisoners.GetValueOrDefault(),
-            Owners = BridgeFunctions.RefIds(settings.AssignedPawns),
+            Owners = FactHelpers.RefIds(settings.AssignedPawns),
         };
     }
 
@@ -138,9 +138,9 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<ClaimBuildingTarget> ReadClaimBuildingTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
-        if (!BridgeFunctions.IsValidId(thing))
+        if (!WireValidation.IsValidId(thing))
         {
-            throw BridgeFunctions.Contract("invalid claim building target identity");
+            throw BridgeContractException.Contract("invalid claim building target identity");
         }
         var request = new PbObservations.ListBuildingsRequest
         {
@@ -153,12 +153,12 @@ public sealed partial class FacadeNativeClient
         var v = PlacementReads.UnwrapBuildings(reply);
         if (v.Buildings.Count != 1)
         {
-            throw BridgeFunctions.Contract("claim building target missing or ambiguous");
+            throw BridgeContractException.Contract("claim building target missing or ambiguous");
         }
         var settings = v.Buildings[0].Settings;
         if (settings.Snapshot is null || settings.PlayerOwned is null || settings.Medical is not null)
         {
-            throw BridgeFunctions.Contract("building is not claimable");
+            throw BridgeContractException.Contract("building is not claimable");
         }
         return new ClaimBuildingTarget { Context = v.Context, Thing = thing, Token = settings.Snapshot.Token ?? "", PlayerOwned = settings.PlayerOwned.GetValueOrDefault() };
     }
@@ -166,20 +166,20 @@ public sealed partial class FacadeNativeClient
     /// <summary>Go's <c>ReadGrowerCropTarget</c>: observes one exact grower's crop via the existing building lookup; the crop is empty when the grower has none.</summary>
     internal async Task<GrowerCropTarget> ReadGrowerCropTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
-        if (!BridgeFunctions.IsValidId(thing))
+        if (!WireValidation.IsValidId(thing))
         {
-            throw BridgeFunctions.Contract("invalid grower crop target identity");
+            throw BridgeContractException.Contract("invalid grower crop target identity");
         }
         var reply = await ReadConstructionBuildingsAsync(identity, [thing], cancellationToken).ConfigureAwait(false);
         var v = reply.Outcome.Observed!;
         if (v.Buildings.Count != 1)
         {
-            throw BridgeFunctions.Contract("grower crop target missing or ambiguous");
+            throw BridgeContractException.Contract("grower crop target missing or ambiguous");
         }
         var settings = v.Buildings[0].Settings;
         if (settings.Snapshot is null || settings.Medical is not null || settings.TargetTemperatureC is not null || settings.PlayerOwned is not null)
         {
-            throw BridgeFunctions.Contract("building is not a plant grower");
+            throw BridgeContractException.Contract("building is not a plant grower");
         }
         return new GrowerCropTarget { Context = v.Context, Thing = thing, Crop = settings.CropDefName ?? "" };
     }
@@ -215,9 +215,9 @@ public sealed partial class FacadeNativeClient
     /// <summary>Go's <c>ReadWallUpgradeSites</c>: lists current wall-upgrade candidate sites, optionally scoped to one original wall's identity.</summary>
     internal async Task<WallUpgradeSites> ReadWallUpgradeSitesAsync(PbCommon.Identity identity, string targetId, CancellationToken cancellationToken)
     {
-        if (targetId.Length != 0 && !BridgeFunctions.IsValidId(targetId))
+        if (targetId.Length != 0 && !WireValidation.IsValidId(targetId))
         {
-            throw BridgeFunctions.Contract("invalid wall upgrade target identity");
+            throw BridgeContractException.Contract("invalid wall upgrade target identity");
         }
         var request = new PbObservations.WallUpgradeSitesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
         if (targetId.Length != 0)

@@ -10,31 +10,31 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 // cover_clearance.go, wastepack_haul.go, cut_plant.go, supply_allow.go (supplyAction), strip.go, acquisition.go and
 // auto_home_area.go: the placement and designation arms. The supply census reads and decoders of supply_allow.go
 // are wire plumbing and are not part of this port.
-public static partial class BridgeFunctions
+public static class BuildingsRules
 {
     /// <summary>
     /// Go's <c>haulAction</c>: the Actions/Apply haul arm of one domain haul action, the pawn and the item and nothing
     /// else. Native checks both against live state, lets the game's Hauling WorkGiver pick the storage, and applies a
     /// resend to a pawn already hauling the item without a new order.
     /// </summary>
-    private static Op.Action HaulAction(DomainAction action)
+    internal static Op.Action HaulAction(DomainAction action)
     {
-        var h = action.Haul ?? throw Contract("not a haul action");
+        var h = action.Haul ?? throw BridgeContractException.Contract("not a haul action");
         var pawn = h.Pawn.Value;
         var thing = h.Thing;
-        if (!IsValidId(pawn) || !IsValidId(thing) || pawn == thing)
+        if (!WireValidation.IsValidId(pawn) || !WireValidation.IsValidId(thing) || pawn == thing)
         {
-            throw Contract("haul intent requires a distinct pawn and item");
+            throw BridgeContractException.Contract("haul intent requires a distinct pawn and item");
         }
         return new Op.Action { Intent = new Op.HaulIntent { PawnId = pawn, ThingId = thing } };
     }
 
     /// <summary>Go's <c>movementAction</c>: the Actions/Apply move arm of one domain movement.</summary>
-    private static Op.Action MovementAction(DomainAction action)
+    internal static Op.Action MovementAction(DomainAction action)
     {
-        var m = action.Movement ?? throw Contract("not a movement action");
-        ValidId(m.Pawn.Value);
-        var cell = WireCell(m.Destination);
+        var m = action.Movement ?? throw BridgeContractException.Contract("not a movement action");
+        WireValidation.ValidId(m.Pawn.Value);
+        var cell = IntentActionRules.WireCell(m.Destination);
         MovementCell(cell);
         return new Op.Action { Intent = new Op.MoveIntent { PawnId = m.Pawn.Value, Destination = cell } };
     }
@@ -44,25 +44,25 @@ public static partial class BridgeFunctions
     {
         if (cell is null || cell.X < 0 || cell.Z < 0)
         {
-            throw Contract("movement destination missing or invalid");
+            throw BridgeContractException.Contract("movement destination missing or invalid");
         }
-        BuildingUnknown(cell);
+        FactHelpers.BuildingUnknown(cell);
     }
 
     /// <summary>Go's <c>foundationRemovalAction</c>: the Actions/Apply remove_foundation arm of one foundation_removal.</summary>
-    private static Op.Action FoundationRemovalAction(DomainAction action)
+    internal static Op.Action FoundationRemovalAction(DomainAction action)
     {
-        var f = action.FoundationRemoval ?? throw Contract("not a foundation removal action");
-        ValidId(f.Definition);
-        return Designate(new Op.DesignateIntent { Designation = Op.ThingDesignation.RemoveFoundation, Cell = WireCell(f.Cell), ExpectedDef = f.Definition });
+        var f = action.FoundationRemoval ?? throw BridgeContractException.Contract("not a foundation removal action");
+        WireValidation.ValidId(f.Definition);
+        return Designate(new Op.DesignateIntent { Designation = Op.ThingDesignation.RemoveFoundation, Cell = IntentActionRules.WireCell(f.Cell), ExpectedDef = f.Definition });
     }
 
     /// <summary>Go's <c>floorRemovalAction</c>: the Actions/Apply remove_floor arm of one floor_removal.</summary>
-    private static Op.Action FloorRemovalAction(DomainAction action)
+    internal static Op.Action FloorRemovalAction(DomainAction action)
     {
-        var f = action.FloorRemoval ?? throw Contract("not a floor removal action");
-        ValidId(f.Definition);
-        return new Op.Action { Intent = new Op.RemoveFloorIntent { Cell = WireCell(f.Cell), DefName = f.Definition } };
+        var f = action.FloorRemoval ?? throw BridgeContractException.Contract("not a floor removal action");
+        WireValidation.ValidId(f.Definition);
+        return new Op.Action { Intent = new Op.RemoveFloorIntent { Cell = IntentActionRules.WireCell(f.Cell), DefName = f.Definition } };
     }
 
     // Go moveRotations / buildingAction's rotation table: the cardinal rotations only.
@@ -81,12 +81,12 @@ public static partial class BridgeFunctions
     /// building's definition, stuff and rotation at its cell. Native validates the placement at apply time and stamps
     /// what it places with the intent key (BuildingState.intent_key).
     /// </summary>
-    private static Op.Action BuildingAction(DomainAction action)
+    internal static Op.Action BuildingAction(DomainAction action)
     {
-        var b = action.Building ?? throw Contract("not a building action");
-        if (WireRotation(b.Rotation) is not { } rotation || !IsValidId(b.Definition))
+        var b = action.Building ?? throw BridgeContractException.Contract("not a building action");
+        if (WireRotation(b.Rotation) is not { } rotation || !WireValidation.IsValidId(b.Definition))
         {
-            throw Contract("building intent requires a definition and a cardinal rotation");
+            throw BridgeContractException.Contract("building intent requires a definition and a cardinal rotation");
         }
         var candidate = new WireCandidate { DefName = b.Definition, Stuff = b.Stuff, X = b.Cell.X, Z = b.Cell.Z, Rotation = rotation };
         var intent = new Op.BuildingIntent { Placement = candidate };
@@ -114,20 +114,20 @@ public static partial class BridgeFunctions
     /// blueprint for a packed item's inner id) or an uninstall (the Uninstall designation where the building stands).
     /// Native checks every rule live; applied means ordered and the next building read decides progress.
     /// </summary>
-    private static Op.Action RelocateAction(DomainAction action)
+    internal static Op.Action RelocateAction(DomainAction action)
     {
         if (action.Relocation is not { } relocation)
         {
-            throw Contract("not a relocation action");
+            throw BridgeContractException.Contract("not a relocation action");
         }
         var (m, uninstall) = relocation;
         if (WireRotation(m.Rotation) is not { } rotation)
         {
-            throw Contract("relocate intent requires a building, a destination and a rotation");
+            throw BridgeContractException.Contract("relocate intent requires a building, a destination and a rotation");
         }
         return new Op.Action
         {
-            Intent = new Op.RelocateIntent { ThingId = m.Thing, Destination = WireCell(m.Cell), Rotation = rotation, Uninstall = uninstall },
+            Intent = new Op.RelocateIntent { ThingId = m.Thing, Destination = IntentActionRules.WireCell(m.Cell), Rotation = rotation, Uninstall = uninstall },
         };
     }
 
@@ -136,25 +136,25 @@ public static partial class BridgeFunctions
     // set, and the next building read confirms it.
     private static Op.Action BuildingPatch(string thing, Op.BuildingPatchIntentChange change)
     {
-        if (!IsValidId(thing))
+        if (!WireValidation.IsValidId(thing))
         {
-            throw Contract("building patch requires an exact building");
+            throw BridgeContractException.Contract("building patch requires an exact building");
         }
         return new Op.Action { Intent = new Op.BuildingPatchIntent { ThingId = thing, Change = change } };
     }
 
-    private static Op.Action BuildingTemperatureAction(DomainAction action)
+    internal static Op.Action BuildingTemperatureAction(DomainAction action)
     {
         if (action.BuildingTemperature is not { } v || !double.IsFinite(v.Celsius))
         {
-            throw Contract("not a building temperature action");
+            throw BridgeContractException.Contract("not a building temperature action");
         }
         return BuildingPatch(v.Thing, new Op.BuildingPatchIntentChange.TargetTemperatureCase((float)v.Celsius));
     }
 
-    private static Op.Action BedUseAction(DomainAction action)
+    internal static Op.Action BedUseAction(DomainAction action)
     {
-        var v = action.BedUse ?? throw Contract("not a bed use action");
+        var v = action.BedUse ?? throw BridgeContractException.Contract("not a bed use action");
         Op.BuildingPatchIntentChange change = v.Prisoners
             ? new Op.BuildingPatchIntentChange.ForPrisonersCase(new Op.Clear())
             : v.Slaves
@@ -163,24 +163,24 @@ public static partial class BridgeFunctions
         return BuildingPatch(v.Thing, change);
     }
 
-    private static Op.Action GrowerCropAction(DomainAction action)
+    internal static Op.Action GrowerCropAction(DomainAction action)
     {
-        if (action.GrowerCrop is not { } v || !IsValidId(v.Crop))
+        if (action.GrowerCrop is not { } v || !WireValidation.IsValidId(v.Crop))
         {
-            throw Contract("not a grower crop action");
+            throw BridgeContractException.Contract("not a grower crop action");
         }
         return BuildingPatch(v.Thing, new Op.BuildingPatchIntentChange.PlantDefCase(v.Crop));
     }
 
-    private static Op.Action AutoRefuelAction(DomainAction action)
+    internal static Op.Action AutoRefuelAction(DomainAction action)
     {
-        var v = action.AutoRefuel ?? throw Contract("not an auto refuel action");
+        var v = action.AutoRefuel ?? throw BridgeContractException.Contract("not an auto refuel action");
         return BuildingPatch(v.Thing, new Op.BuildingPatchIntentChange.AutoRefuelCase(v.Allow));
     }
 
-    private static Op.Action ClaimBuildingAction(DomainAction action)
+    internal static Op.Action ClaimBuildingAction(DomainAction action)
     {
-        var v = action.ClaimBuilding ?? throw Contract("not a claim building action");
+        var v = action.ClaimBuilding ?? throw BridgeContractException.Contract("not a claim building action");
         return BuildingPatch(v.Thing, new Op.BuildingPatchIntentChange.ClaimCase(new Op.Clear()));
     }
 
@@ -192,14 +192,14 @@ public static partial class BridgeFunctions
     /// checks the target's safety and the game designator live when it applies; a designation already standing applies
     /// again, and revoking authority releases every guarded designation natively.
     /// </summary>
-    private static Op.Action DeconstructAction(DomainAction action)
+    internal static Op.Action DeconstructAction(DomainAction action)
     {
-        var v = action.Deconstruction ?? throw Contract("not a deconstruction action");
-        if (!IsValidId(v.Target))
+        var v = action.Deconstruction ?? throw BridgeContractException.Contract("not a deconstruction action");
+        if (!WireValidation.IsValidId(v.Target))
         {
-            throw Contract("deconstruction target invalid");
+            throw BridgeContractException.Contract("deconstruction target invalid");
         }
-        var intent = new Op.DesignateIntent { Designation = Op.ThingDesignation.Deconstruct, Target = NewRef(v.Target), Guard = Op.DesignationGuard.Enclosure };
+        var intent = new Op.DesignateIntent { Designation = Op.ThingDesignation.Deconstruct, Target = IntentActionRules.NewRef(v.Target), Guard = Op.DesignationGuard.Enclosure };
         if (v.ReplacesWithWall)
         {
             intent = intent with { ReplaceWithWall = true };
@@ -212,10 +212,10 @@ public static partial class BridgeFunctions
     /// rock, roof support and the game designator live when it applies, adopting a standing Mine designation; applied
     /// means designated, and the site read decides when the cell is cleared.
     /// </summary>
-    private static Op.Action ExcavateAction(DomainAction action)
+    internal static Op.Action ExcavateAction(DomainAction action)
     {
-        var v = action.Excavation ?? throw Contract("not an excavation action");
-        return Designate(new Op.DesignateIntent { Designation = Op.ThingDesignation.Mine, Cell = WireCell(v.Cell), ExpectedDef = v.Definition, Guard = Op.DesignationGuard.MineSafety });
+        var v = action.Excavation ?? throw BridgeContractException.Contract("not an excavation action");
+        return Designate(new Op.DesignateIntent { Designation = Op.ThingDesignation.Mine, Cell = IntentActionRules.WireCell(v.Cell), ExpectedDef = v.Definition, Guard = Op.DesignationGuard.MineSafety });
     }
 
     /// <summary>
@@ -223,13 +223,13 @@ public static partial class BridgeFunctions
     /// wall's cell and, for the original demolition, the wall identity the proposal observed. Native resolves the site
     /// live.
     /// </summary>
-    private static Op.Action WallRemovalAction(DomainAction action)
+    internal static Op.Action WallRemovalAction(DomainAction action)
     {
-        var w = action.WallRemoval ?? throw Contract("not a wall removal action");
-        var intent = new Op.DesignateIntent { Designation = Op.ThingDesignation.Deconstruct, Cell = WireCell(w.Cell), Guard = Op.DesignationGuard.WallUpgrade };
+        var w = action.WallRemoval ?? throw BridgeContractException.Contract("not a wall removal action");
+        var intent = new Op.DesignateIntent { Designation = Op.ThingDesignation.Deconstruct, Cell = IntentActionRules.WireCell(w.Cell), Guard = Op.DesignationGuard.WallUpgrade };
         if (w.Original.Length != 0)
         {
-            intent = intent with { Target = NewRef(w.Original) };
+            intent = intent with { Target = IntentActionRules.NewRef(w.Original) };
         }
         return new Op.Action { Intent = intent };
     }
@@ -239,9 +239,9 @@ public static partial class BridgeFunctions
     /// thing the defense census named standing at its cell. Native checks the thing and the guard live when it applies;
     /// one already standing applies again.
     /// </summary>
-    private static Op.Action CoverAction(DomainAction action)
+    internal static Op.Action CoverAction(DomainAction action)
     {
-        var v = action.CoverClearance ?? throw Contract("not a cover clearance action");
+        var v = action.CoverClearance ?? throw BridgeContractException.Contract("not a cover clearance action");
         // Go coverDesignations: the designation and guard that remove the thing.
         (Op.ThingDesignation Designation, Op.DesignationGuard Guard)? kind = v.Designation switch
         {
@@ -251,11 +251,11 @@ public static partial class BridgeFunctions
             CoverClearanceDesignation.Deconstruct => (Op.ThingDesignation.Deconstruct, Op.DesignationGuard.Enclosure),
             _ => null,
         };
-        if (!IsValidId(v.Thing) || kind is not { } known)
+        if (!WireValidation.IsValidId(v.Thing) || kind is not { } known)
         {
-            throw Contract("cover clearance target invalid");
+            throw BridgeContractException.Contract("cover clearance target invalid");
         }
-        var intent = new Op.DesignateIntent { Designation = known.Designation, Target = NewRef(v.Thing), Cell = WireCell(v.Cell) };
+        var intent = new Op.DesignateIntent { Designation = known.Designation, Target = IntentActionRules.NewRef(v.Thing), Cell = IntentActionRules.WireCell(v.Cell) };
         if (known.Guard != Op.DesignationGuard.Unspecified)
         {
             intent = intent with { Guard = known.Guard };
@@ -267,19 +267,19 @@ public static partial class BridgeFunctions
     /// Go's <c>wastepackHaulAction</c>: the DesignateIntent HAUL of one exact wastepack under the wastepack guard. Native
     /// checks the pack and the guard live when it applies; a designation already standing applies again.
     /// </summary>
-    private static Op.Action WastepackHaulAction(DomainAction action)
+    internal static Op.Action WastepackHaulAction(DomainAction action)
     {
-        var v = action.WastepackHaul ?? throw Contract("not a wastepack haul action");
-        if (!IsValidId(v.Thing))
+        var v = action.WastepackHaul ?? throw BridgeContractException.Contract("not a wastepack haul action");
+        if (!WireValidation.IsValidId(v.Thing))
         {
-            throw Contract("wastepack haul target invalid");
+            throw BridgeContractException.Contract("wastepack haul target invalid");
         }
         return Designate(
             new Op.DesignateIntent
             {
                 Designation = Op.ThingDesignation.Haul,
-                Target = NewRef(v.Thing),
-                Cell = WireCell(v.Cell),
+                Target = IntentActionRules.NewRef(v.Thing),
+                Cell = IntentActionRules.WireCell(v.Cell),
                 Guard = Op.DesignationGuard.Wastepack,
                 ExpectedDef = v.Definition,
             }
@@ -287,12 +287,12 @@ public static partial class BridgeFunctions
     }
 
     /// <summary>Go's <c>cutPlantAction</c>: the DesignateIntent that orders one exact blighted plant cut.</summary>
-    private static Op.Action CutPlantAction(DomainAction action)
+    internal static Op.Action CutPlantAction(DomainAction action)
     {
-        var v = action.CutPlant ?? throw Contract("not a cut plant action");
-        if (!IsValidId(v.Plant))
+        var v = action.CutPlant ?? throw BridgeContractException.Contract("not a cut plant action");
+        if (!WireValidation.IsValidId(v.Plant))
         {
-            throw Contract("cut plant target invalid");
+            throw BridgeContractException.Contract("cut plant target invalid");
         }
         return new Op.Action { Intent = new Op.DesignateIntent { ThingId = v.Plant, Designation = Op.ThingDesignation.CutPlant } };
     }
@@ -301,12 +301,12 @@ public static partial class BridgeFunctions
     /// Go's <c>supplyAction</c>: the DesignateIntent that allows or forbids one exact supply item. Native checks the item
     /// live when it applies; an item already in the wanted state applies again.
     /// </summary>
-    private static Op.Action SupplyAction(DomainAction action)
+    internal static Op.Action SupplyAction(DomainAction action)
     {
-        var v = action.SupplyAllow ?? throw Contract("not a supply action");
-        if (!IsValidId(v.Thing))
+        var v = action.SupplyAllow ?? throw BridgeContractException.Contract("not a supply action");
+        if (!WireValidation.IsValidId(v.Thing))
         {
-            throw Contract("supply target invalid");
+            throw BridgeContractException.Contract("supply target invalid");
         }
         var designation = v.Forbidden ? Op.ThingDesignation.Forbid : Op.ThingDesignation.Allow;
         return new Op.Action { Intent = new Op.DesignateIntent { ThingId = v.Thing, Designation = designation } };
@@ -316,12 +316,12 @@ public static partial class BridgeFunctions
     /// Go's <c>stripAction</c>: the DesignateIntent that places vanilla's Strip designation on one exact pawn or corpse.
     /// Native refuses a target that is not spawned, has nothing to strip, or is already designated.
     /// </summary>
-    private static Op.Action StripAction(DomainAction action)
+    internal static Op.Action StripAction(DomainAction action)
     {
-        var v = action.Strip ?? throw Contract("not a strip action");
-        if (!IsValidId(v.Target))
+        var v = action.Strip ?? throw BridgeContractException.Contract("not a strip action");
+        if (!WireValidation.IsValidId(v.Target))
         {
-            throw Contract("strip target invalid");
+            throw BridgeContractException.Contract("strip target invalid");
         }
         return new Op.Action { Intent = new Op.DesignateIntent { ThingId = v.Target, Designation = Op.ThingDesignation.Strip } };
     }
@@ -332,11 +332,11 @@ public static partial class BridgeFunctions
     /// acquisition, HUNT for a corpse resource, otherwise HARVEST_PLANT. Native checks the source live; a designation
     /// already in the requested state applies again, and the next census reads progress.
     /// </summary>
-    private static Op.Action AcquireAction(DomainAction action)
+    internal static Op.Action AcquireAction(DomainAction action)
     {
         if (action.AcquireIntent is not { } acquire)
         {
-            throw Contract("not an acquisition action");
+            throw BridgeContractException.Contract("not an acquisition action");
         }
         var (acquisition, withdraw) = acquire;
         var designation = Op.ThingDesignation.HarvestPlant;
@@ -351,8 +351,8 @@ public static partial class BridgeFunctions
         var intent = new Op.DesignateIntent
         {
             Designation = designation,
-            Target = NewRef(acquisition.Thing),
-            Cell = WireCell(acquisition.Cell),
+            Target = IntentActionRules.NewRef(acquisition.Thing),
+            Cell = IntentActionRules.WireCell(acquisition.Cell),
             Guard = Op.DesignationGuard.Acquisition,
             ExpectedDef = acquisition.Definition,
         };
@@ -364,9 +364,9 @@ public static partial class BridgeFunctions
     }
 
     /// <summary>Go's <c>autoHomeAreaAction</c>: the AutoHomeAreaIntent that sets the game's home-area auto-expand. A value that already holds applies again.</summary>
-    private static Op.Action AutoHomeAreaAction(DomainAction action)
+    internal static Op.Action AutoHomeAreaAction(DomainAction action)
     {
-        var enabled = action.AutoHomeArea ?? throw Contract("not an auto home area action");
+        var enabled = action.AutoHomeArea ?? throw BridgeContractException.Contract("not an auto home area action");
         return new Op.Action { Intent = new Op.AutoHomeAreaIntent { Enabled = enabled } };
     }
 }

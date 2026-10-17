@@ -90,8 +90,6 @@
     <Using Include="RimGovernor.Brain.Policy.PolicyFunctions" Alias="PolicyApi" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.PlanningWindow" Alias="PlanningWindowRead" />
     <Using Include="RimGovernor.Brain.Policy.DefenseCell" Alias="DefenseCell" />
-    <!-- Go's package qualifiers for functions with no owning type. -->
-    <Using Include="RimGovernor.Brain.Bridge.Contracts.BridgeFunctions" Alias="BridgeApi" />
   </ItemGroup>
   <ItemGroup>
     <!-- The host composes the native client and planners from this assembly's internal types. -->

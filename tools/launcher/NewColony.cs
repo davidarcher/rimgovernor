@@ -500,7 +500,7 @@ public static partial class NewColony
         var wire = ToWire(form with { SaveName = saveName }, seed);
         try
         {
-            BridgeFunctions.ValidateNewColonyRequest(new WireLifecycle.NewColonyRequest
+            NewColonyValidation.ValidateNewColonyRequest(new WireLifecycle.NewColonyRequest
             {
                 RequestId = "x", TimeoutMs = NewColonyBounds.MaxTimeoutMs, Spec = wire,
             });

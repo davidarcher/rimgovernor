@@ -47,7 +47,7 @@ public sealed class PeopleFamilyTests
     public void AnAnswerClaimsItsWindowAndOnlyTheDialogNeedAnswersAWindow()
     {
         var ct = TestContext.Current.CancellationToken;
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-people-dialog-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
 

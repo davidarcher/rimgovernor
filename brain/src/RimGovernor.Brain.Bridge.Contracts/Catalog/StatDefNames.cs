@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 /// classes they match by base class (never by name) and the room stat names. Spread over the Go catalog files;
 /// gathered here because they are data the stat evaluator and the fact projections share.
 /// </summary>
-public static partial class BridgeConstants
+public static class StatDefNames
 {
     // StatDefs (catalog_planning.go, catalog_terrain.go, catalog_items.go, catalog_races.go, race_rules.go, ...).
     public const string StatMaxHitPoints = "MaxHitPoints";

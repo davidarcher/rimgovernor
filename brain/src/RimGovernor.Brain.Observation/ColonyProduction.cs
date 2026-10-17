@@ -10,7 +10,7 @@ public static partial class ObservationPackage
 
     private static Fact<bool> BillForever(bool has, Ops.RepeatMode mode) => has ? Known(mode == Ops.RepeatMode.Forever) : Unknown<bool>();
 
-    private static Fact<string> RepeatModeFact(bool has, Ops.RepeatMode mode) => has ? Known(RepeatModeName(mode)) : Unknown<string>();
+    private static Fact<string> RepeatModeFact(bool has, Ops.RepeatMode mode) => has ? Known(WireEnums.RepeatModeName(mode)) : Unknown<string>();
 
     private static Fact<bool> BillActive(bool has, bool suspended) => has ? Known(!suspended) : Unknown<bool>();
 

@@ -5,7 +5,7 @@ using WirePolicyInputs = RimGovernor.Contracts.Wire.Observations.PawnPolicyInput
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 // Go policy_inputs.go.
-public static partial class BridgeFunctions
+public static class PolicyInputs
 {
     /// <summary>Go's <c>PawnPolicyInputs</c>: lifts a settings row's policy inputs; unknown when the producer carried none.</summary>
     public static Fact<Brain.Policy.PawnPolicyInputs> PawnPolicyInputs(WirePolicyInputs? inputs)
@@ -21,7 +21,7 @@ public static partial class BridgeFunctions
                 Ideo = inputs.IdeoId ?? "",
                 Precepts = [.. inputs.Precepts],
                 IdeoRole = inputs.IdeoRole ?? "",
-                IdeoCertainty = OptionalFact(inputs.IdeoCertainty is not null, inputs.IdeoCertainty.GetValueOrDefault()),
+                IdeoCertainty = FactHelpers.OptionalFact(inputs.IdeoCertainty is not null, inputs.IdeoCertainty.GetValueOrDefault()),
                 GuestStatus = inputs.GuestStatus,
                 InventoryStock = [.. inputs.InventoryStock.Select(stock => new InventoryStock((stock.Group ?? ""), stock.Count.GetValueOrDefault()))],
             }

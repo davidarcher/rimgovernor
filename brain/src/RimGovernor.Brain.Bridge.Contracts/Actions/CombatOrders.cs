@@ -4,20 +4,20 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 
 // Go combat_orders.go: ValidateCombatOrders and its optionalTokenEntity. The receipt decoding
 // (CombatOrderResults) and the combat call belong to the combat call port, not to the builders.
-public static partial class BridgeFunctions
+public static class CombatOrdersRules
 {
     /// <summary>Go's <c>optionalTokenEntity</c>: an exact entity whose snapshot token may be omitted (orders dispatched under a running clock).</summary>
     private static void OptionalTokenEntity(Op.EntityPrecondition? value)
     {
         if (value is null)
         {
-            throw Contract("combat order entity missing");
+            throw BridgeContractException.Contract("combat order entity missing");
         }
-        BuildingUnknown(value);
-        ValidId((value.EntityId ?? ""));
+        FactHelpers.BuildingUnknown(value);
+        WireValidation.ValidId((value.EntityId ?? ""));
         if (value.ExpectedSnapshotToken is not null)
         {
-            ValidId((value.ExpectedSnapshotToken ?? ""));
+            WireValidation.ValidId((value.ExpectedSnapshotToken ?? ""));
         }
     }
 
@@ -27,24 +27,24 @@ public static partial class BridgeFunctions
     {
         if (command is null)
         {
-            throw Contract("combat orders missing");
+            throw BridgeContractException.Contract("combat orders missing");
         }
-        BuildingUnknown(command);
+        FactHelpers.BuildingUnknown(command);
         if (command.Orders.Count < 1)
         {
-            throw Contract("combat orders need at least one order");
+            throw BridgeContractException.Contract("combat orders need at least one order");
         }
         for (var i = 0; i < command.Orders.Count; i++)
         {
-            var order = command.Orders[i] ?? throw Contract($"combat order {i} missing");
-            BuildingUnknown(order);
+            var order = command.Orders[i] ?? throw BridgeContractException.Contract($"combat order {i} missing");
+            FactHelpers.BuildingUnknown(order);
             var door = order.Order is Op.CombatOrderOrder.DoorCase { Value.Mode: not (Op.CombatDoorMode.Open or Op.CombatDoorMode.Shut) };
             var fire = order.Order is Op.CombatOrderOrder.MortarFireCase;
             if (door || fire)
             {
                 if (order.Pawn is not null)
                 {
-                    throw Contract($"combat order {i}: a door or mortar_fire order names no pawn");
+                    throw BridgeContractException.Contract($"combat order {i}: a door or mortar_fire order names no pawn");
                 }
             }
             else
@@ -55,78 +55,78 @@ public static partial class BridgeFunctions
             switch (order.Order)
             {
                 case Op.CombatOrderOrder.MoveCase { Value: var move }:
-                    Check(() => MovementCell(move), $"combat order {i} move");
+                    Check(() => BuildingsRules.MovementCell(move), $"combat order {i} move");
                     break;
                 case Op.CombatOrderOrder.AttackGroundCase { Value: var ground }:
-                    Check(() => MovementCell(ground), $"combat order {i} attack_ground");
+                    Check(() => BuildingsRules.MovementCell(ground), $"combat order {i} attack_ground");
                     break;
                 case Op.CombatOrderOrder.AttackCase { Value: var attack }:
                     Check(() => OptionalTokenEntity(attack), $"combat order {i} target");
                     if ((attack.EntityId ?? "") == pawn)
                     {
-                        throw Contract($"combat order {i} attacks its own pawn");
+                        throw BridgeContractException.Contract($"combat order {i} attacks its own pawn");
                     }
                     break;
                 case Op.CombatOrderOrder.FireModeCase { Value: var fireMode }:
                     if (fireMode is not (Op.CombatFireMode.AtWill or Op.CombatFireMode.Hold))
                     {
-                        throw Contract($"combat order {i} fire mode unsupported");
+                        throw BridgeContractException.Contract($"combat order {i} fire mode unsupported");
                     }
                     break;
                 case Op.CombatOrderOrder.DoorCase { Value: var doorOrder }:
-                    if (!Valid(() => MovementCell(doorOrder.Cell)))
+                    if (!Valid(() => BuildingsRules.MovementCell(doorOrder.Cell)))
                     {
-                        throw Contract($"combat order {i} door cell missing or invalid");
+                        throw BridgeContractException.Contract($"combat order {i} door cell missing or invalid");
                     }
                     if ((doorOrder.Mode ?? Op.CombatDoorMode.Unspecified) is < Op.CombatDoorMode.HoldOpen or > Op.CombatDoorMode.Shut)
                     {
-                        throw Contract($"combat order {i} door mode unsupported");
+                        throw BridgeContractException.Contract($"combat order {i} door mode unsupported");
                     }
                     break;
                 case Op.CombatOrderOrder.RescueCase { Value: var rescue }:
                     Check(() => OptionalTokenEntity(rescue.Downed), $"combat order {i} downed");
                     if ((rescue.Downed?.EntityId ?? "") == pawn)
                     {
-                        throw Contract($"combat order {i} rescues its own pawn");
+                        throw BridgeContractException.Contract($"combat order {i} rescues its own pawn");
                     }
-                    if (rescue.Dest is not null && !Valid(() => MovementCell(rescue.Dest)))
+                    if (rescue.Dest is not null && !Valid(() => BuildingsRules.MovementCell(rescue.Dest)))
                     {
-                        throw Contract($"combat order {i} rescue dest invalid");
+                        throw BridgeContractException.Contract($"combat order {i} rescue dest invalid");
                     }
                     break;
                 case Op.CombatOrderOrder.RepairCase { Value: var repair }:
-                    if (!Valid(() => MovementCell(repair.Cell)))
+                    if (!Valid(() => BuildingsRules.MovementCell(repair.Cell)))
                     {
-                        throw Contract($"combat order {i} repair cell missing or invalid");
+                        throw BridgeContractException.Contract($"combat order {i} repair cell missing or invalid");
                     }
                     break;
                 case Op.CombatOrderOrder.ManMortarCase { Value: var manMortar }:
-                    Check(() => MovementCell(manMortar), $"combat order {i} man_mortar");
+                    Check(() => BuildingsRules.MovementCell(manMortar), $"combat order {i} man_mortar");
                     break;
                 case Op.CombatOrderOrder.MortarFireCase { Value: var mortar }:
                     // No target clears the forced target, and names no shell.
-                    if (!Valid(() => MovementCell(mortar.Mortar)) || (mortar.Target is not null && !Valid(() => MovementCell(mortar.Target))) || (mortar.Target is null && mortar.Shell is not null))
+                    if (!Valid(() => BuildingsRules.MovementCell(mortar.Mortar)) || (mortar.Target is not null && !Valid(() => BuildingsRules.MovementCell(mortar.Target))) || (mortar.Target is null && mortar.Shell is not null))
                     {
-                        throw Contract($"combat order {i} mortar_fire mortar or target cell missing or invalid");
+                        throw BridgeContractException.Contract($"combat order {i} mortar_fire mortar or target cell missing or invalid");
                     }
                     break;
                 case Op.CombatOrderOrder.ReleaseCase { Value: var release }:
                     Check(() => OptionalTokenEntity(release), $"combat order {i} release target");
                     if ((release.EntityId ?? "") == pawn)
                     {
-                        throw Contract($"combat order {i} releases its animal on itself");
+                        throw BridgeContractException.Contract($"combat order {i} releases its animal on itself");
                     }
                     break;
                 case Op.CombatOrderOrder.AnimalAreaCase { Value: var animalArea }:
                     switch (animalArea.Area)
                     {
                         case Op.CombatAnimalAreaArea.CellCase { Value: var areaCell }:
-                            Check(() => MovementCell(areaCell), $"combat order {i} animal_area");
+                            Check(() => BuildingsRules.MovementCell(areaCell), $"combat order {i} animal_area");
                             break;
                         case Op.CombatAnimalAreaArea.ClearCase:
                             break;
                         default:
-                            throw Contract($"combat order {i} animal_area needs a cell or clear");
+                            throw BridgeContractException.Contract($"combat order {i} animal_area needs a cell or clear");
                     }
                     break;
                 case Op.CombatOrderOrder.HoldPositionCase:
@@ -134,13 +134,13 @@ public static partial class BridgeFunctions
                 case Op.CombatOrderOrder.DraftCase:
                     break;
                 case Op.CombatOrderOrder.CombatDrugCase { Value: var drug }:
-                    if (!IsValidId(drug ?? ""))
+                    if (!WireValidation.IsValidId(drug ?? ""))
                     {
-                        throw Contract($"combat order {i} combat_drug is not a def name");
+                        throw BridgeContractException.Contract($"combat order {i} combat_drug is not a def name");
                     }
                     break;
                 default:
-                    throw Contract($"combat order {i} has no order");
+                    throw BridgeContractException.Contract($"combat order {i} has no order");
             }
         }
     }
@@ -167,7 +167,7 @@ public static partial class BridgeFunctions
         }
         catch (BridgeContractException e)
         {
-            throw Contract($"{label}: {e.Message}");
+            throw BridgeContractException.Contract($"{label}: {e.Message}");
         }
     }
 }

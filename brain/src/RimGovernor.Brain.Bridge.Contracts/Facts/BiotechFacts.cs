@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 // Go biotech.go: the lift of a pawn's Biotech block. The block validator (validatePawnBiotech) belongs to the pawn
 // row decoder and is not ported. The gene effects and work minimum ages the lift leaves unknown are resolved
 // against the catalog by the caller.
-public static partial class BridgeFunctions
+public static class BiotechFactsRules
 {
     /// <summary>
     /// Go's <c>PawnBiotech</c>: lifts a pawn row's Biotech block; unknown when the row carries none (no Biotech).
@@ -22,13 +22,13 @@ public static partial class BridgeFunctions
         {
             return Unknown<PolicyPawnBiotech>();
         }
-        var failed = FailedFields(biotech.Issues);
+        var failed = FactHelpers.FailedFields(biotech.Issues);
         var result = new PolicyPawnBiotech
         {
-            LifeStage = OptionalFact(biotech.LifeStage is not null, (biotech.LifeStage ?? "")),
-            DevelopmentalStage = OptionalFact(biotech.DevelopmentalStage is not null, biotech.DevelopmentalStage.GetValueOrDefault()),
-            Learning = OptionalFact(biotech.Learning is not null, biotech.Learning.GetValueOrDefault()),
-            LearningCategory = OptionalFact(biotech.LearningCategory is not null, biotech.LearningCategory.GetValueOrDefault()),
+            LifeStage = FactHelpers.OptionalFact(biotech.LifeStage is not null, (biotech.LifeStage ?? "")),
+            DevelopmentalStage = FactHelpers.OptionalFact(biotech.DevelopmentalStage is not null, biotech.DevelopmentalStage.GetValueOrDefault()),
+            Learning = FactHelpers.OptionalFact(biotech.Learning is not null, biotech.Learning.GetValueOrDefault()),
+            LearningCategory = FactHelpers.OptionalFact(biotech.LearningCategory is not null, biotech.LearningCategory.GetValueOrDefault()),
         };
         if (!failed.Contains("genes") && biotech.XenotypeName is not null)
         {
@@ -42,7 +42,7 @@ public static partial class BridgeFunctions
                 Genes = Known(genes),
                 Xenotype = Known((biotech.Xenotype ?? "")),
                 XenotypeName = Known((biotech.XenotypeName ?? "")),
-                Hybrid = OptionalFact(biotech.Hybrid is not null, biotech.Hybrid.GetValueOrDefault()),
+                Hybrid = FactHelpers.OptionalFact(biotech.Hybrid is not null, biotech.Hybrid.GetValueOrDefault()),
             };
         }
         if (!failed.Contains("mechanitor"))
@@ -50,10 +50,10 @@ public static partial class BridgeFunctions
             PolicyPawnMechanitor? mechanitor = biotech.Mechanitor is { } v
                 ? new PolicyPawnMechanitor
                 {
-                    UsedBandwidth = OptionalInt(v.UsedBandwidth is not null, v.UsedBandwidth.GetValueOrDefault()),
-                    TotalBandwidth = OptionalInt(v.TotalBandwidth is not null, v.TotalBandwidth.GetValueOrDefault()),
-                    GestationBandwidth = OptionalInt(v.UsedBandwidthFromGestation is not null, v.UsedBandwidthFromGestation.GetValueOrDefault()),
-                    ControlGroups = OptionalInt(v.ControlGroups is not null, v.ControlGroups.GetValueOrDefault()),
+                    UsedBandwidth = FactHelpers.OptionalInt(v.UsedBandwidth is not null, v.UsedBandwidth.GetValueOrDefault()),
+                    TotalBandwidth = FactHelpers.OptionalInt(v.TotalBandwidth is not null, v.TotalBandwidth.GetValueOrDefault()),
+                    GestationBandwidth = FactHelpers.OptionalInt(v.UsedBandwidthFromGestation is not null, v.UsedBandwidthFromGestation.GetValueOrDefault()),
+                    ControlGroups = FactHelpers.OptionalInt(v.ControlGroups is not null, v.ControlGroups.GetValueOrDefault()),
                     ControlledMechs = [.. v.ControlledMechs.Select(mech => (mech.Id ?? ""))],
                 }
                 : null;
@@ -67,16 +67,16 @@ public static partial class BridgeFunctions
                 mech = new PolicyPawnMech
                 {
                     Overseer = v.Overseer?.Id ?? "",
-                    WorkMode = OptionalFact(v.WorkMode is not null, (v.WorkMode ?? "")),
-                    ControlGroup = OptionalInt(v.ControlGroup is not null, v.ControlGroup.GetValueOrDefault()),
-                    Energy = OptionalFact(v.Energy is not null, v.Energy.GetValueOrDefault()),
+                    WorkMode = FactHelpers.OptionalFact(v.WorkMode is not null, (v.WorkMode ?? "")),
+                    ControlGroup = FactHelpers.OptionalInt(v.ControlGroup is not null, v.ControlGroup.GetValueOrDefault()),
+                    Energy = FactHelpers.OptionalFact(v.Energy is not null, v.Energy.GetValueOrDefault()),
                 };
                 if (!failed.Contains("mech_thresholds"))
                 {
                     mech = mech with
                     {
-                        RechargeBelow = OptionalFact(v.RechargeBelow is not null, v.RechargeBelow.GetValueOrDefault()),
-                        RechargeAbove = OptionalFact(v.RechargeAbove is not null, v.RechargeAbove.GetValueOrDefault()),
+                        RechargeBelow = FactHelpers.OptionalFact(v.RechargeBelow is not null, v.RechargeBelow.GetValueOrDefault()),
+                        RechargeAbove = FactHelpers.OptionalFact(v.RechargeAbove is not null, v.RechargeAbove.GetValueOrDefault()),
                     };
                 }
             }
@@ -87,13 +87,13 @@ public static partial class BridgeFunctions
             PolicyPawnDeathrest? deathrest = biotech.Deathrest is { } v
                 ? new PolicyPawnDeathrest
                 {
-                    Deathresting = OptionalFact(v.Deathresting is not null, v.Deathresting.GetValueOrDefault()),
-                    Level = OptionalFact(v.Level is not null, v.Level.GetValueOrDefault()),
-                    LastDeathrestTick = OptionalInt(v.LastDeathrestTick is not null, v.LastDeathrestTick.GetValueOrDefault()),
-                    DeathrestPercent = OptionalFact(v.DeathrestPercent is not null, v.DeathrestPercent.GetValueOrDefault()),
-                    Capacity = OptionalInt(v.Capacity is not null, v.Capacity.GetValueOrDefault()),
-                    BoundBuildings = OptionalInt(v.BoundBuildings is not null, v.BoundBuildings.GetValueOrDefault()),
-                    AutoWake = OptionalFact(v.AutoWake is not null, v.AutoWake.GetValueOrDefault()),
+                    Deathresting = FactHelpers.OptionalFact(v.Deathresting is not null, v.Deathresting.GetValueOrDefault()),
+                    Level = FactHelpers.OptionalFact(v.Level is not null, v.Level.GetValueOrDefault()),
+                    LastDeathrestTick = FactHelpers.OptionalInt(v.LastDeathrestTick is not null, v.LastDeathrestTick.GetValueOrDefault()),
+                    DeathrestPercent = FactHelpers.OptionalFact(v.DeathrestPercent is not null, v.DeathrestPercent.GetValueOrDefault()),
+                    Capacity = FactHelpers.OptionalInt(v.Capacity is not null, v.Capacity.GetValueOrDefault()),
+                    BoundBuildings = FactHelpers.OptionalInt(v.BoundBuildings is not null, v.BoundBuildings.GetValueOrDefault()),
+                    AutoWake = FactHelpers.OptionalFact(v.AutoWake is not null, v.AutoWake.GetValueOrDefault()),
                 }
                 : null;
             result = result with { Deathrest = Known(deathrest) };
@@ -102,9 +102,9 @@ public static partial class BridgeFunctions
         {
             result = result with
             {
-                XenogermRegrowTicksLeft = OptionalInt(biotech.XenogermRegrowTicksLeft is not null, biotech.XenogermRegrowTicksLeft.GetValueOrDefault()),
-                XenogermComaTicksLeft = OptionalInt(biotech.XenogermComaTicksLeft is not null, biotech.XenogermComaTicksLeft.GetValueOrDefault()),
-                InExtractor = OptionalFact(biotech.InExtractor is not null, biotech.InExtractor.GetValueOrDefault()),
+                XenogermRegrowTicksLeft = FactHelpers.OptionalInt(biotech.XenogermRegrowTicksLeft is not null, biotech.XenogermRegrowTicksLeft.GetValueOrDefault()),
+                XenogermComaTicksLeft = FactHelpers.OptionalInt(biotech.XenogermComaTicksLeft is not null, biotech.XenogermComaTicksLeft.GetValueOrDefault()),
+                InExtractor = FactHelpers.OptionalFact(biotech.InExtractor is not null, biotech.InExtractor.GetValueOrDefault()),
             };
         }
         if (!failed.Contains("extractable") && biotech.Extractable is not null)

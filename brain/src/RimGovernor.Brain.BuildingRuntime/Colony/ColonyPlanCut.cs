@@ -19,7 +19,7 @@ internal static class ColonyPlanCut
             var (price, priced) = RoundsDefenseLayoutPlanner.DefenseUnitPrice(projection, d);
             foreach (var option in d.StuffOptions)
             {
-                if (!option.Stats.TryGetValue(BridgeConstants.StatMaxHitPoints, out var hp))
+                if (!option.Stats.TryGetValue(Bridge.Contracts.StatDefNames.StatMaxHitPoints, out var hp))
                 {
                     continue;
                 }

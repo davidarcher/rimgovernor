@@ -15,7 +15,7 @@ public sealed class CombatBatchActionTests
     [Fact]
     public void BatchBuildsOneCombatOrdersIntentThatRoundTripsTheWire()
     {
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         var action = Batch(
             new() { Kind = "draft", Pawn = new("p1") },
             new() { Kind = "move", Pawn = new("p1"), Cell = new(3, 4) },
@@ -29,7 +29,7 @@ public sealed class CombatBatchActionTests
         using var json = JsonDocument.Parse(stream.ToArray());
         var decoded = Codecs.Default.Read<DomainAction>(json.RootElement);
 
-        var wire = BridgeFunctions.IntentAction("combat-action", decoded);
+        var wire = IntentActionRules.IntentAction("combat-action", decoded);
         var orders = wire.Intent!.CombatOrders!.Orders;
         Assert.Equal(6, orders.Count);
         Assert.IsType<Op.CombatOrderOrder.DraftCase>(orders[0].Order);

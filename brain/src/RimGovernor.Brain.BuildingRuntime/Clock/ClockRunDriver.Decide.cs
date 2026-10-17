@@ -131,7 +131,7 @@ public sealed partial class ClockRunDriver
     {
         try
         {
-            return await _native.ReadStepAsync(new BridgeApi.StepRequest { ClockStatus = true }, call).ConfigureAwait(false)
+            return await _native.ReadStepAsync(new StepRequest { ClockStatus = true }, call).ConfigureAwait(false)
                 ?? throw new HeldException("step read returned nothing");
         }
         catch (Exception e) when (e is not OperationCanceledException)

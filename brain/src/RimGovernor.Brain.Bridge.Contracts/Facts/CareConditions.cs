@@ -4,7 +4,7 @@ using RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 // Go care_conditions.go.
-public static partial class BridgeFunctions
+public static class CareConditionsRules
 {
     /// <summary>
     /// Go's <c>CareConditions</c>: decodes a pawn's conditions and life threat, the inputs of the care planners.
@@ -28,11 +28,11 @@ public static partial class BridgeFunctions
                 new CareCondition
                 {
                     Severity = Known(condition.Severity),
-                    SeverityPerDay = OptionalFact(condition.SeverityPerDay is not null, condition.SeverityPerDay.GetValueOrDefault()),
-                    Immunity = OptionalFact(condition.Immunity is not null, condition.Immunity.GetValueOrDefault()),
-                    ImmunityPerDay = OptionalFact(condition.ImmunityPerDay is not null, condition.ImmunityPerDay.GetValueOrDefault()),
+                    SeverityPerDay = FactHelpers.OptionalFact(condition.SeverityPerDay is not null, condition.SeverityPerDay.GetValueOrDefault()),
+                    Immunity = FactHelpers.OptionalFact(condition.Immunity is not null, condition.Immunity.GetValueOrDefault()),
+                    ImmunityPerDay = FactHelpers.OptionalFact(condition.ImmunityPerDay is not null, condition.ImmunityPerDay.GetValueOrDefault()),
                     Tended = Known(condition.Tended),
-                    PartIndex = OptionalInt(condition.PartIndex is not null, condition.PartIndex.GetValueOrDefault()),
+                    PartIndex = FactHelpers.OptionalInt(condition.PartIndex is not null, condition.PartIndex.GetValueOrDefault()),
                     DefName = Known(condition.DefName),
                 }
             );

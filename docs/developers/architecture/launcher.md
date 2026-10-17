@@ -124,7 +124,7 @@ busy game's 503 asked again for up to 90 s), or closes the game and starts it
 afresh, then posts `POST /api/lifecycle/new` and polls
 `GET /api/lifecycle/new?requestId=` every 250 ms. Its elapsed timer advances between polls;
 failed polls mark retained values stale. The form is validated by the same
-`BridgeFunctions.ValidateNewColonyRequest` the game's route uses, and the spec
+`NewColonyValidation.ValidateNewColonyRequest` the game's route uses, and the spec
 embeds the scenario parts, so settings, page and wire share one shape. The
 part rows' choice lists live in the same file.
 

@@ -30,7 +30,7 @@ public sealed class FoodActivityContinuationTests
     {
         var ct = TestContext.Current.CancellationToken;
         var path = Path.Combine(Path.GetTempPath(), "rg-food-continuation-" + Guid.NewGuid().ToString("N") + ".db");
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(path, ct);
         journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
@@ -40,7 +40,7 @@ public sealed class FoodActivityContinuationTests
         TestNeed.File(journal, met: false, new("method"), ct);
         var stored = journal.LoadPlan(plan.Id, ct).Spec.Actions[0];
         Assert.Equal(harvest.Tasks, stored.PawnActivities!.Tasks);
-        Assert.Equal(PawnActivityKind.Work, BridgeFunctions.IntentAction(stored.Id.Value, stored).Intent!.PawnActivities!.Batch!.Orders[0].Steps[0].Kind);
+        Assert.Equal(PawnActivityKind.Work, IntentActionRules.IntentAction(stored.Id.Value, stored).Intent!.PawnActivities!.Batch!.Orders[0].Steps[0].Kind);
         var scope = Root with { Plan = plan.Id };
         journal.Prepare(plan.Id, stored.Id, scope, new(100), ct);
         var dispatched = journal.Dispatch(plan.Id, stored.Id, scope, new(100), ct);
@@ -49,7 +49,7 @@ public sealed class FoodActivityContinuationTests
         var next = new PlanSpec(new("delivery"), new(1), [DomainAction.NewPawnActivitiesAction(new("deliver-action"), ContinueCoordinatedActivity(harvest, Known(true), TaskRead(harvest, read))!)]);
         journal.ContinueActivityMethod(plan.Id, Root, new(110), [new("pawn", "method/pawn", "method", 1, "completed")], next, ct);
         journal.AuthorizeRoundsPlan(Root, Root with { Plan = next.Id }, ct);
-        var intent = BridgeFunctions.IntentAction(next.Actions[0].Id.Value, journal.LoadPlan(next.Id, ct).Spec.Actions[0]).Intent!.PawnActivities!.Batch!;
+        var intent = IntentActionRules.IntentAction(next.Actions[0].Id.Value, journal.LoadPlan(next.Id, ct).Spec.Actions[0]).Intent!.PawnActivities!.Batch!;
         Assert.Equal("observed-food", intent.Orders[0].Steps[0].Target);
         Assert.Equal(4, intent.Orders[0].Steps[0].Count);
         Assert.Equal("method", intent.Orders[0].Method);
@@ -116,7 +116,7 @@ public sealed class FoodActivityContinuationTests
         public Task<IReadOnlyList<RimGovernor.Brain.Executor.BatchItem>> RunBatchAsync(PlanId plan, IReadOnlyList<ActionId> actions, CancellationToken ct)
         {
             var action = journal.LoadPlan(plan, ct).Spec.Actions.Single(a => a.Id == actions[0]);
-            Sent.TrySetResult(BridgeFunctions.IntentAction(action.Id.Value, action).Intent!.PawnActivities!.Batch!);
+            Sent.TrySetResult(IntentActionRules.IntentAction(action.Id.Value, action).Intent!.PawnActivities!.Batch!);
             return Task.FromResult<IReadOnlyList<RimGovernor.Brain.Executor.BatchItem>>([]);
         }
     }
@@ -127,7 +127,7 @@ public sealed class FoodActivityContinuationTests
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         var ct = lifetime.Token;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-food-worker-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
         var batch = Harvest();

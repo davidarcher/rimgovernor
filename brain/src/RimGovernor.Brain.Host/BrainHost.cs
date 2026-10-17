@@ -115,7 +115,7 @@ public sealed class BrainHost : IAsyncDisposable
         var facade = options.Facade ?? NativeFacadeRegistry.Require();
         StartTelemetry();
         // The Go init() made explicit: no kind is intent-mode until this runs, and it must precede any progress.
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
 
         var (journal, movedAside) = await StoreJournal.OpenOrReplaceAsync(options.StatePath, startup).ConfigureAwait(false);
         _journal = journal;

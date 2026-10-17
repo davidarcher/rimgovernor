@@ -30,7 +30,7 @@ public sealed record PrisonerCensus
     public Fact<EquatableArray<OwnedName>> Names { get; init; }
 }
 
-public static partial class BridgeFunctions
+public static class PrisonerCensusRules
 {
     /// <summary>
     /// Go's <c>prisonerInteractionDefNames</c>: maps the open native defName a population person's interaction

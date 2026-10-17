@@ -68,7 +68,7 @@ Non-stopping observations (`alert_new`, `hostiles_cleared`,
 
 Native holds no literal for a hazard threshold. `WatchPolicy` carries each one
 (values from `HazardThresholds.cs`, attached by
-`BridgeFunctions.WithHazardThresholds`); `NativeClockRuntime.ValidPolicy` and the brain's
+`ClockExpectation.WithHazardThresholds`); `NativeClockRuntime.ValidPolicy` and the brain's
 clock policy both refuse a policy missing any or holding one that is not
 finite and positive (`injury_severity_floor_ticks` is 1 to int32 max). Only
 `hostile_within` (1 to 250) and the cooldown (0 to 1800000 ms) keep wire

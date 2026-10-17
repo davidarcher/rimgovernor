@@ -96,7 +96,7 @@ public sealed partial class BrainComposition(BrainCompositionOptions options) : 
         }
         var end = Trade.NewTradeEnd(session.Trader, new PawnId(session.Negotiator), TradeEndKind.Cancel, false);
         var action = DomainAction.NewTradeAction(new ActionId("orphan-trade-end"), end);
-        var wire = BridgeFunctions.IntentAction("orphan-trade-end", action);
+        var wire = IntentActionRules.IntentAction("orphan-trade-end", action);
         PbOperations.ApplyReply reply;
         try
         {

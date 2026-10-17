@@ -30,10 +30,10 @@ internal static class FacadeWriteChecks
     /// <summary>Go <c>authorityRequest</c>: a valid identity and a positive generation.</summary>
     internal static void WriteAuthorityRequest(PbCommon.Identity? identity, ulong? generation)
     {
-        BridgeFunctions.AuthorityIdentity(identity);
+        WireValidation.AuthorityIdentity(identity);
         if (generation is null || generation.GetValueOrDefault() == 0)
         {
-            throw BridgeFunctions.Contract("positive authority generation required");
+            throw BridgeContractException.Contract("positive authority generation required");
         }
     }
 

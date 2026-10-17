@@ -6,17 +6,15 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 /// Go's package-level functions of <c>internal/bridge</c> with no owner type. Imported everywhere in this project
 /// with a project-wide <c>using static</c>. Each ported Go file adds a part for what that file declared.
 /// </summary>
-public static partial class BridgeFunctions
+public static class WireValidation
 {
-    /// <summary>Go's <c>contract(format, ...)</c>: the error every validator returns, thrown here.</summary>
-    internal static BridgeContractException Contract(string message) => new(message);
 
     /// <summary>Go's <c>validID</c>: a native identifier is non-blank text.</summary>
     internal static void ValidId(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw Contract("invalid native identifier");
+            throw BridgeContractException.Contract("invalid native identifier");
         }
     }
 
@@ -31,7 +29,7 @@ public static partial class BridgeFunctions
     {
         if (value is null || value.MapId < 0)
         {
-            throw Contract("identity presence or map");
+            throw BridgeContractException.Contract("identity presence or map");
         }
         ValidId(value.ColonyId);
         ValidId(value.LoadToken);
@@ -48,4 +46,10 @@ public static partial class BridgeFunctions
     {
         ValidateIdentity(value);
     }
+}
+
+partial class BridgeContractException
+{
+    /// <summary>Go's <c>contract(format, ...)</c>: the error every validator returns, thrown here.</summary>
+    internal static BridgeContractException Contract(string message) => new(message);
 }

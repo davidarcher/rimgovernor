@@ -135,7 +135,7 @@ public sealed partial class RoundsDefensePlanner
                 for (var i = 0; i < orders.Count; i++)
                 {
                     var refusal = results[i].Refusal;
-                    confirmed = confirmed && (results[i].Applied || refusal == BridgeConstants.CombatRefusalNotDrafted || refusal == BridgeConstants.CombatRefusalNotFound);
+                    confirmed = confirmed && (results[i].Applied || refusal == CombatConstants.CombatRefusalNotDrafted || refusal == CombatConstants.CombatRefusalNotFound);
                 }
             }
             if (orders.Count > 0)

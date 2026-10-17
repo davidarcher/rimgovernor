@@ -18,7 +18,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <item>A Go method returning <c>(T, Result, error)</c> is <c>Task&lt;T&gt;</c>: nothing crosses a transport in this
 /// process, so there is no receipt to return.</item>
 /// <item>A failure arm throws what <see cref="Failure"/> builds, an unavailable arm what <see cref="Unavailable"/>
-/// builds, a malformed request what <see cref="BridgeFunctions.Contract"/> builds (Go <c>failure</c>, <c>unavailable</c>
+/// builds, a malformed request what <see cref="BridgeContractException.Contract"/> builds (Go <c>failure</c>, <c>unavailable</c>
 /// and <c>contract</c>). Cancellation is the token's <see cref="OperationCanceledException"/>.</item>
 /// <item>A reply is never mutated; values handed back are immutable by convention.</item>
 /// <item>The planners call these core methods directly. The few interfaces a test fake or a second implementer also

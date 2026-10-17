@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Bridge.Contracts;
-using static RimGovernor.Brain.Bridge.Contracts.BridgeFunctions;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -12,7 +11,7 @@ public sealed partial class FacadeNativeClient
     internal async Task<PbPresentation.CameraReply> ReadCameraAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ValidateIdentity(request.Identity);
+        WireValidation.ValidateIdentity(request.Identity);
         var reply = await Facade.ReadCameraAsync(request, cancellationToken).ConfigureAwait(false);
         if (reply.Outcome.Failure is { } failure)
         {
@@ -26,7 +25,7 @@ public sealed partial class FacadeNativeClient
     internal async Task<PbPresentation.SelectionReply> ReadSelectionAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ValidateIdentity(request.Identity);
+        WireValidation.ValidateIdentity(request.Identity);
         var reply = await Facade.ReadSelectionAsync(request, cancellationToken).ConfigureAwait(false);
         if (reply.Outcome.Failure is { } failure)
         {
@@ -40,10 +39,10 @@ public sealed partial class FacadeNativeClient
     internal async Task<PbPresentation.ColonistRosterReply> ReadColonistRosterAsync(PbPresentation.ColonistRosterRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ValidateIdentity(request.Identity);
+        WireValidation.ValidateIdentity(request.Identity);
         if (request.CurrentMapOnly is null)
         {
-            throw Contract("currentMapOnly presence required");
+            throw BridgeContractException.Contract("currentMapOnly presence required");
         }
 
         var reply = await Facade.ReadColonistsAsync(request, cancellationToken).ConfigureAwait(false);
@@ -62,7 +61,7 @@ public sealed partial class FacadeNativeClient
     internal async Task<PbPresentation.RenderReply> ReadRenderStateAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ValidateIdentity(request.Identity);
+        WireValidation.ValidateIdentity(request.Identity);
         var reply = await Facade.ReadRenderStateAsync(request, cancellationToken).ConfigureAwait(false);
         return PresentationRenderOutcome(reply);
     }
@@ -75,17 +74,17 @@ public sealed partial class FacadeNativeClient
     {
         if (request is null || request.Viewer is null)
         {
-            throw Contract("render demand viewer required");
+            throw BridgeContractException.Contract("render demand viewer required");
         }
 
-        if (request.Viewer.ViewerId is not null && !IsValidId(request.Viewer.ViewerId))
+        if (request.Viewer.ViewerId is not null && !WireValidation.IsValidId(request.Viewer.ViewerId))
         {
-            throw Contract("invalid viewer id");
+            throw BridgeContractException.Contract("invalid viewer id");
         }
 
         if (request.LeaseSeconds.GetValueOrDefault() > 30)
         {
-            throw Contract("render demand lease exceeds 30 seconds");
+            throw BridgeContractException.Contract("render demand lease exceeds 30 seconds");
         }
 
         var reply = await Facade.DemandRenderingAsync(request, cancellationToken).ConfigureAwait(false);
@@ -113,7 +112,7 @@ public sealed partial class FacadeNativeClient
         {
             if (limit is < 1)
             {
-                throw Contract("notification limit below 1");
+                throw BridgeContractException.Contract("notification limit below 1");
             }
         }
 

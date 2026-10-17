@@ -13,7 +13,7 @@ composed into live hunting selection until qualification and #3130 integration.
 ## Lifecycle
 
 `BrainHost.StartAsync(options, ct)` in order: validate options; start the OTLP file writer (a failure is reported and
-the rows go nowhere, it never stops the brain); register the intent kinds (`BridgeFunctions.RegisterIntentKinds`); open the state database (an incompatible one is moved aside); compose the session, the player and the
+the rows go nowhere, it never stops the brain); register the intent kinds (`IntentActionRules.RegisterIntentKinds`); open the state database (an incompatible one is moved aside); compose the session, the player and the
 planners; create the Worker; register the player routes; start the save-signal loop, the auto-resumer and the
 scheduler thread. A failure unwinds what was built and throws. `StopAsync` is idempotent and ends the loops, drains
 the Worker (closing player and session, bounded retries), closes the database and flushes telemetry; errors are
@@ -44,7 +44,7 @@ defense source, the writers, the session and player seams); those are bound to t
 `FacadeNativeClient.Interfaces*.cs`, with explicit implementations where the interface shape differs from the core method's. The PlayerApi seams (presentation, notifications, lifecycle) sit above BuildingRuntime, so Host binds them through the thin `FacadePlayerAdapter`. A failure or unavailable arm throws
 `NativeFailureException` / `NativeUnavailableException`; a malformed reply throws the contract exception. Writes go
 through `FacadeActionsWriter` (`IActionsWriter`) and `FacadeClockWriter` (`IClockWriter`). `CountingNativeFacade` wraps
-the facade so every native round trip is counted into the attached `ReadTally` (`BridgeFunctions.CountNativeRead`, under
+the facade so every native round trip is counted into the attached `ReadTally` (`ReadTallyRules.CountNativeRead`, under
 the brain's `rimgovernor/*` tool names), which is how a scheduler step reports its reads.
 
 `ClockRunDriver` (#3178) is the hold state machine of the clock: after each planning step it keeps the clock Running at the target

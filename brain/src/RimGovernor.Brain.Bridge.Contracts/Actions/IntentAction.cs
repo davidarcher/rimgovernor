@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 // Go actions.go: the intent-kind registry, IntentAction and the wire helpers every builder shares. The builders
 // themselves sit in the sibling files of this folder, one group per Go file family. The Actions/Apply writer
 // (ActionsWriter.Apply) is wire plumbing and is not part of this file.
-public static partial class BridgeFunctions
+public static class IntentActionRules
 {
     /// <summary>
     /// Go's <c>ActionsApplyMethod</c>: a batch of idempotent intents that native applies in order, each validated
@@ -20,80 +20,80 @@ public static partial class BridgeFunctions
     // operations.proto, a native IActionHandler for it in NativeActionDispatch.cs, and a builder listed here.
     private static readonly FrozenDictionary<ActionKind, Func<DomainAction, Op.Action>> IntentKinds = new Dictionary<ActionKind, Func<DomainAction, Op.Action>>
     {
-        [ActionKind.Trade] = TradeAction,
-        [ActionKind.Haul] = HaulAction,
-        [ActionKind.OwnedDraft] = DraftAction,
-        [ActionKind.Subdue] = SubdueAction,
-        [ActionKind.Building] = BuildingAction,
-        [ActionKind.Movement] = MovementAction,
-        [ActionKind.ApparelPolicy] = ApparelPolicyAction,
-        [ActionKind.ResearchSelect] = ResearchAction,
-        [ActionKind.DialogAnswer] = DialogAction,
-        [ActionKind.PrisonerInteraction] = PrisonerInteractionAction,
-        [ActionKind.QuestAccept] = QuestAcceptAction,
-        [ActionKind.QuestShuttle] = QuestShuttleAction,
-        [ActionKind.HackDesignation] = HackDesignationAction,
-        [ActionKind.GiveItem] = GiveItemAction,
-        [ActionKind.Ritual] = RitualAction,
-        [ActionKind.IdeoligionReform] = IdeoligionReformAction,
-        [ActionKind.Ability] = AbilityAction,
-        [ActionKind.Ignite] = IgniteAction,
-        [ActionKind.Gathering] = GatheringAction,
-        [ActionKind.RemoveProductionBill] = RemoveProductionBillAction,
-        [ActionKind.DoorControl] = DoorControlAction,
-        [ActionKind.CaravanDeparture] = CaravanDepartureAction,
-        [ActionKind.Assign] = AssignAction,
-        [ActionKind.WorkAssignment] = WorkSettingsAction,
-        [ActionKind.ProductionBill] = ProductionBillAction,
-        [ActionKind.Husbandry] = HusbandryAction,
-        [ActionKind.ZoneCreate] = ZoneCreateAction,
-        [ActionKind.ZoneDelete] = ZoneDeleteAction,
-        [ActionKind.ZoneCellEdit] = ZoneCellsAction,
-        [ActionKind.StockpilePatch] = StockpileAction,
-        [ActionKind.FoundationRemoval] = FoundationRemovalAction,
-        [ActionKind.FloorRemoval] = FloorRemovalAction,
-        [ActionKind.CoverClearance] = CoverAction,
-        [ActionKind.WastepackHaul] = WastepackHaulAction,
-        [ActionKind.CutPlant] = CutPlantAction,
-        [ActionKind.SupplyAllow] = SupplyAction,
-        [ActionKind.SupplyForbid] = SupplyAction,
-        [ActionKind.Deconstruction] = DeconstructAction,
-        [ActionKind.Excavation] = ExcavateAction,
-        [ActionKind.WallRemoval] = WallRemovalAction,
-        [ActionKind.RecoveryService] = RecoverAction,
-        [ActionKind.MoveBuilding] = RelocateAction,
-        [ActionKind.UninstallBuilding] = RelocateAction,
-        [ActionKind.Acquisition] = AcquireAction,
-        [ActionKind.MineAcquisition] = AcquireAction,
-        [ActionKind.AcquisitionWithdraw] = AcquireAction,
-        [ActionKind.BuildingTemperature] = BuildingTemperatureAction,
-        [ActionKind.BedUse] = BedUseAction,
-        [ActionKind.GrowerCrop] = GrowerCropAction,
-        [ActionKind.ClaimBuilding] = ClaimBuildingAction,
-        [ActionKind.AutoRefuel] = AutoRefuelAction,
-        [ActionKind.Surgery] = SurgeryAction,
-        [ActionKind.Area] = AreaAction,
-        [ActionKind.PolicyPrune] = PolicyPruneAction,
-        [ActionKind.RemoveRoof] = RemoveRoofAction,
-        [ActionKind.BuildRoof] = BuildRoofAction,
-        [ActionKind.AreaPlantCut] = AreaPlantCutAction,
-        [ActionKind.ReadingPolicy] = ReadingPolicyAction,
-        [ActionKind.DrugPolicy] = DrugPolicyAction,
-        [ActionKind.FoodPolicy] = FoodPolicyAction,
-        [ActionKind.PawnSettings] = PawnSettingsAction,
-        [ActionKind.AutoHomeArea] = AutoHomeAreaAction,
-        [ActionKind.Repair] = RepairAction,
+        [ActionKind.Trade] = TradeRules.TradeAction,
+        [ActionKind.Haul] = BuildingsRules.HaulAction,
+        [ActionKind.OwnedDraft] = GiveJobRules.DraftAction,
+        [ActionKind.Subdue] = GiveJobRules.SubdueAction,
+        [ActionKind.Building] = BuildingsRules.BuildingAction,
+        [ActionKind.Movement] = BuildingsRules.MovementAction,
+        [ActionKind.ApparelPolicy] = Orders.ApparelPolicyAction,
+        [ActionKind.ResearchSelect] = Orders.ResearchAction,
+        [ActionKind.DialogAnswer] = Orders.DialogAction,
+        [ActionKind.PrisonerInteraction] = Orders.PrisonerInteractionAction,
+        [ActionKind.QuestAccept] = Orders.QuestAcceptAction,
+        [ActionKind.QuestShuttle] = Orders.QuestShuttleAction,
+        [ActionKind.HackDesignation] = Orders.HackDesignationAction,
+        [ActionKind.GiveItem] = Orders.GiveItemAction,
+        [ActionKind.Ritual] = Orders.RitualAction,
+        [ActionKind.IdeoligionReform] = Orders.IdeoligionReformAction,
+        [ActionKind.Ability] = Orders.AbilityAction,
+        [ActionKind.Ignite] = Orders.IgniteAction,
+        [ActionKind.Gathering] = Orders.GatheringAction,
+        [ActionKind.RemoveProductionBill] = Production.RemoveProductionBillAction,
+        [ActionKind.DoorControl] = Orders.DoorControlAction,
+        [ActionKind.CaravanDeparture] = Orders.CaravanDepartureAction,
+        [ActionKind.Assign] = Orders.AssignAction,
+        [ActionKind.WorkAssignment] = Production.WorkSettingsAction,
+        [ActionKind.ProductionBill] = Production.ProductionBillAction,
+        [ActionKind.Husbandry] = Orders.HusbandryAction,
+        [ActionKind.ZoneCreate] = Zones.ZoneCreateAction,
+        [ActionKind.ZoneDelete] = Zones.ZoneDeleteAction,
+        [ActionKind.ZoneCellEdit] = Zones.ZoneCellsAction,
+        [ActionKind.StockpilePatch] = Zones.StockpileAction,
+        [ActionKind.FoundationRemoval] = BuildingsRules.FoundationRemovalAction,
+        [ActionKind.FloorRemoval] = BuildingsRules.FloorRemovalAction,
+        [ActionKind.CoverClearance] = BuildingsRules.CoverAction,
+        [ActionKind.WastepackHaul] = BuildingsRules.WastepackHaulAction,
+        [ActionKind.CutPlant] = BuildingsRules.CutPlantAction,
+        [ActionKind.SupplyAllow] = BuildingsRules.SupplyAction,
+        [ActionKind.SupplyForbid] = BuildingsRules.SupplyAction,
+        [ActionKind.Deconstruction] = BuildingsRules.DeconstructAction,
+        [ActionKind.Excavation] = BuildingsRules.ExcavateAction,
+        [ActionKind.WallRemoval] = BuildingsRules.WallRemovalAction,
+        [ActionKind.RecoveryService] = GiveJobRules.RecoverAction,
+        [ActionKind.MoveBuilding] = BuildingsRules.RelocateAction,
+        [ActionKind.UninstallBuilding] = BuildingsRules.RelocateAction,
+        [ActionKind.Acquisition] = BuildingsRules.AcquireAction,
+        [ActionKind.MineAcquisition] = BuildingsRules.AcquireAction,
+        [ActionKind.AcquisitionWithdraw] = BuildingsRules.AcquireAction,
+        [ActionKind.BuildingTemperature] = BuildingsRules.BuildingTemperatureAction,
+        [ActionKind.BedUse] = BuildingsRules.BedUseAction,
+        [ActionKind.GrowerCrop] = BuildingsRules.GrowerCropAction,
+        [ActionKind.ClaimBuilding] = BuildingsRules.ClaimBuildingAction,
+        [ActionKind.AutoRefuel] = BuildingsRules.AutoRefuelAction,
+        [ActionKind.Surgery] = Production.SurgeryAction,
+        [ActionKind.Area] = Zones.AreaAction,
+        [ActionKind.PolicyPrune] = Zones.PolicyPruneAction,
+        [ActionKind.RemoveRoof] = Zones.RemoveRoofAction,
+        [ActionKind.BuildRoof] = Zones.BuildRoofAction,
+        [ActionKind.AreaPlantCut] = Zones.AreaPlantCutAction,
+        [ActionKind.ReadingPolicy] = PolicyActions.ReadingPolicyAction,
+        [ActionKind.DrugPolicy] = PolicyActions.DrugPolicyAction,
+        [ActionKind.FoodPolicy] = PolicyActions.FoodPolicyAction,
+        [ActionKind.PawnSettings] = PolicyActions.PawnSettingsAction,
+        [ActionKind.AutoHomeArea] = BuildingsRules.AutoHomeAreaAction,
+        [ActionKind.Repair] = GiveJobRules.RepairAction,
         [ActionKind.PawnActivities] = a => new Op.Action { Intent = new Op.PawnActivitiesIntent { Batch = a.PawnActivities } },
-        [ActionKind.Clean] = CleanAction,
-        [ActionKind.Tend] = TendAction,
-        [ActionKind.Equip] = EquipAction,
-        [ActionKind.DropEquipment] = DropEquipmentAction,
-        [ActionKind.Rescue] = RescueAction,
-        [ActionKind.Capture] = CaptureAction,
-        [ActionKind.GearReplace] = WearAction,
-        [ActionKind.UseItem] = UseItemAction,
-        [ActionKind.Strip] = StripAction,
-        [ActionKind.CombatBatch] = CombatBatchAction,
+        [ActionKind.Clean] = GiveJobRules.CleanAction,
+        [ActionKind.Tend] = GiveJobRules.TendAction,
+        [ActionKind.Equip] = GiveJobRules.EquipAction,
+        [ActionKind.DropEquipment] = GiveJobRules.DropEquipmentAction,
+        [ActionKind.Rescue] = GiveJobRules.RescueAction,
+        [ActionKind.Capture] = GiveJobRules.CaptureAction,
+        [ActionKind.GearReplace] = GiveJobRules.WearAction,
+        [ActionKind.UseItem] = GiveJobRules.UseItemAction,
+        [ActionKind.Strip] = BuildingsRules.StripAction,
+        [ActionKind.CombatBatch] = CombatBatchActionRules.CombatBatchAction,
     }.ToFrozenDictionary();
 
     /// <summary>
@@ -115,11 +115,11 @@ public static partial class BridgeFunctions
     {
         if (!IntentKinds.TryGetValue(action.Kind, out var build))
         {
-            throw Contract($"{Domain.Wire.Name(action.Kind)} is not an intent-mode kind");
+            throw BridgeContractException.Contract($"{Domain.Wire.Name(action.Kind)} is not an intent-mode kind");
         }
-        if (!IsValidId(key))
+        if (!WireValidation.IsValidId(key))
         {
-            throw Contract("intent key invalid");
+            throw BridgeContractException.Contract("intent key invalid");
         }
         var wire = build(action);
         wire = wire with { Key = key };
@@ -132,7 +132,7 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>NewRefs</c>: points at each of <paramref name="ids"/>.</summary>
     public static IReadOnlyList<WireRef> NewRefs(IEnumerable<string> ids) => [.. ids.Select(id => new WireRef { Id = id })];
 
-    private static Cell WireCell(DomainCell cell) => new() { X = cell.X, Z = cell.Z };
+    internal static Cell WireCell(DomainCell cell) => new() { X = cell.X, Z = cell.Z };
 
-    private static IEnumerable<Cell> WireCells(IEnumerable<DomainCell> cells) => cells.Select(WireCell);
+    internal static IEnumerable<Cell> WireCells(IEnumerable<DomainCell> cells) => cells.Select(WireCell);
 }

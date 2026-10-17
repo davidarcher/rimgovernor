@@ -238,7 +238,7 @@ public static partial class ObservationPackage
     internal static CurrentBuilding CurrentBuildingOf(O.BuildingState row)
     {
         var building = new Building(row.Building.DefName, CellOf(row.Building.Position), RotationOf(row.Rotation), row.Stuff ?? "");
-        return new CurrentBuilding { Id = row.Building.Id, Building = building, Cells = EquatableArray.From(RectCells(row.Occupied)) };
+        return new CurrentBuilding { Id = row.Building.Id, Building = building, Cells = EquatableArray.From(CellsRules.RectCells(row.Occupied)) };
     }
 
     /// <summary>Projects one blueprint or frame row; ok is false for any other row.</summary>

@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Bridge.Contracts;
-using static RimGovernor.Brain.Bridge.Contracts.BridgeFunctions;
 using BridgeCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 
 namespace RimGovernor.Brain.BuildingRuntime;
@@ -44,7 +43,7 @@ public sealed partial class FacadeNativeClient
             var name = row.Project.DefName ?? "";
             if (!projects.TryGetValue(name, out var facts))
             {
-                throw Contract($"research project {name} outside the definition catalog");
+                throw BridgeContractException.Contract($"research project {name} outside the definition catalog");
             }
 
             // The census computes lock_reasons from the same predicates as the native CanStartNow; an absent list is a

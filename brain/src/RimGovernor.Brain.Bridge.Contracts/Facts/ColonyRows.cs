@@ -18,13 +18,22 @@ public sealed record ColonyRow(object? Part, IReadOnlyList<string> Order) : IEqu
     }
 
     public override int GetHashCode() => Part?.GetHashCode() ?? Order.Count;
+
+
+    /// <summary>Go's <c>partial</c>: <paramref name="parent"/> with only <paramref name="field"/> set. The records are immutable, so the value is shared.</summary>
+    internal static ColonyRow Partial(object parent, WireField field)
+    {
+        var result = WireMessage.Of(parent).New();
+        field.Set(result, field.Get(parent));
+        return new ColonyRow(result, []);
+    }
 }
 
 // Go colony_rows.go: a ColonyFactsSnapshot splits into sections of native rows, one section per sub-section that
 // holds keyed rows, and "colony" for the rest. SplitColonyFacts and JoinColonyFacts are ported; ParseColonyRow and
 // ColonyRow.MarshalJSON are the mirror's JSON (de)serialisation and are not ported. The walk is by wire field name
 // (snake_case) through WireMessage, so it reads like the descriptor walk it replaced.
-public static partial class BridgeFunctions
+public static class ColonyRows
 {
     /// <summary>Go's <c>ColonySection</c>: the root colony facts section.</summary>
     public const string ColonySection = "colony";
@@ -43,14 +52,14 @@ public static partial class BridgeFunctions
         var observed = new Dictionary<string, WireField>(StringComparer.Ordinal);
         foreach (var field in WireMessage.Of(typeof(ColonyFactsSnapshot)).Fields)
         {
-            if (!OwnSection(field))
+            if (!WireField.OwnSection(field))
             {
                 continue;
             }
             var name = ColonySection + "." + field.Name;
             names.Add(name);
             fields[name] = field;
-            if (ObservedOutcome(field) is { } outcome)
+            if (WireField.ObservedOutcome(field) is { } outcome)
             {
                 observed[name] = outcome;
             }
@@ -59,59 +68,20 @@ public static partial class BridgeFunctions
         return new ColonyLayoutValue([ColonySection, .. names], fields, observed);
     });
 
-    /// <summary>Whether the field holds a message (or a list of them), not a scalar, enum or map.</summary>
-    private static bool HoldsMessage(WireField field) =>
-        field.Kind == WireKind.Message || (field.Kind == WireKind.Repeated && WireMessage.IsRecord(field.ValueType));
-
-    /// <summary>
-    /// Go's <c>observedOutcome</c>: a sub-section's oneof "observed" field, when no field of the observed message
-    /// shares a name with the sub-section's own.
-    /// </summary>
-    private static WireField? ObservedOutcome(WireField field)
-    {
-        if (field.IsRepeated)
-        {
-            return null;
-        }
-        var section = WireMessage.Of(field.ValueType);
-        var observed = section.Find("observed");
-        if (observed is null || !observed.IsOneofCase || observed.Kind != WireKind.Message)
-        {
-            return null;
-        }
-        foreach (var inner in WireMessage.Of(observed.ValueType).Fields)
-        {
-            if (section.Find(inner.Name) is not null)
-            {
-                return null;
-            }
-        }
-        return observed;
-    }
-
     /// <summary>Go's <c>ColonySections</c>: names every colony facts section, the root first.</summary>
     public static IReadOnlyList<string> ColonySections() => [.. ColonyLayout.Value.Sections];
 
-    private static bool OwnSection(WireField field)
-    {
-        if (!HoldsMessage(field) || field.Name == "delta")
-        {
-            return false;
-        }
-        return field.IsRepeated ? Keyable(field.ValueType) : HoldsKeyed(field.ValueType, 0);
-    }
-
     /// <summary>Whether a list of <paramref name="message"/> can carry element keys.</summary>
-    private static bool Keyable(Type message)
+    internal static bool Keyable(Type message)
     {
         var schema = WireMessage.Of(message);
-        if (IdField(message) is not null)
+        if (WireField.IdField(message) is not null)
         {
             return true;
         }
         foreach (var field in schema.Fields)
         {
-            if (field.Kind == WireKind.Message && IdField(field.ValueType) is not null)
+            if (field.Kind == WireKind.Message && WireField.IdField(field.ValueType) is not null)
             {
                 return true;
             }
@@ -127,7 +97,7 @@ public static partial class BridgeFunctions
     }
 
     /// <summary>Whether <paramref name="message"/>, through singular message fields, holds a keyable list.</summary>
-    private static bool HoldsKeyed(Type message, int depth)
+    internal static bool HoldsKeyed(Type message, int depth)
     {
         if (depth > 8)
         {
@@ -135,7 +105,7 @@ public static partial class BridgeFunctions
         }
         foreach (var field in WireMessage.Of(message).Fields)
         {
-            if (!HoldsMessage(field))
+            if (!WireField.HoldsMessage(field))
             {
                 continue;
             }
@@ -147,16 +117,13 @@ public static partial class BridgeFunctions
         return false;
     }
 
-    private static WireField? IdField(Type message) =>
-        WireMessage.Of(message).Find("id") is { Kind: WireKind.Scalar } field && field.ValueType == typeof(string) ? field : null;
-
     // ---- row keys ----------------------------------------------------------------------------------------------
 
     /// <summary>Go's <c>elementKey</c>: a repeated element's string id, else the id of its first singular message field whose type has one.</summary>
     private static string ElementKey(object element)
     {
         var type = element.GetType();
-        if (IdField(type) is { } id)
+        if (WireField.IdField(type) is { } id)
         {
             return (string?)id.Get(element) ?? "";
         }
@@ -166,7 +133,7 @@ public static partial class BridgeFunctions
             {
                 continue;
             }
-            if (IdField(field.ValueType) is not { } inner)
+            if (WireField.IdField(field.ValueType) is not { } inner)
             {
                 continue;
             }
@@ -215,14 +182,6 @@ public static partial class BridgeFunctions
     /// <summary>Go's protoreflect <c>Range</c>: the populated fields of a message with their values, in declaration order.</summary>
     private static IEnumerable<(WireField Field, object Value)> PopulatedFields(object message) => WireMessage.PopulatedFields(message);
 
-    /// <summary>Go's <c>partial</c>: <paramref name="parent"/> with only <paramref name="field"/> set. The records are immutable, so the value is shared.</summary>
-    private static ColonyRow Partial(object parent, WireField field)
-    {
-        var result = WireMessage.Of(parent).New();
-        field.Set(result, field.Get(parent));
-        return new ColonyRow(result, []);
-    }
-
     /// <summary>
     /// Go's <c>SplitColonyFacts</c>: <paramref name="v"/>'s rows by section; every section is present, empty when
     /// <paramref name="v"/> holds none of it. <paramref name="v"/> is not modified.
@@ -244,7 +203,7 @@ public static partial class BridgeFunctions
             var name = ColonySection + "." + field.Name;
             if (!result.TryGetValue(name, out var rows))
             {
-                result[ColonySection][field.Name] = Partial(v, field);
+                result[ColonySection][field.Name] = ColonyRow.Partial(v, field);
             }
             else if (field.IsRepeated)
             {
@@ -264,7 +223,7 @@ public static partial class BridgeFunctions
                 if (rows.Count == 0)
                 {
                     // An empty sub-section is still present.
-                    result[ColonySection][field.Name] = Partial(v, field);
+                    result[ColonySection][field.Name] = ColonyRow.Partial(v, field);
                 }
             }
         }
@@ -282,7 +241,7 @@ public static partial class BridgeFunctions
     private static void SplitField(object parent, WireField field, object value, string prefix, Dictionary<string, ColonyRow> rows)
     {
         var key = prefix.Length == 0 ? field.Name : prefix + "." + field.Name;
-        if (HoldsMessage(field))
+        if (WireField.HoldsMessage(field))
         {
             if (field.IsRepeated)
             {
@@ -307,7 +266,7 @@ public static partial class BridgeFunctions
                 }
             }
         }
-        rows[key] = Partial(parent, field);
+        rows[key] = ColonyRow.Partial(parent, field);
     }
 
     // ---- join --------------------------------------------------------------------------------------------------
@@ -530,4 +489,50 @@ public static partial class BridgeFunctions
             list.Field.Set(list.Parent, list.Field.MakeArray(elements));
         }
     }
+}
+
+partial class WireField
+{
+
+    /// <summary>Whether the field holds a message (or a list of them), not a scalar, enum or map.</summary>
+    internal static bool HoldsMessage(WireField field) =>
+        field.Kind == WireKind.Message || (field.Kind == WireKind.Repeated && WireMessage.IsRecord(field.ValueType));
+
+    /// <summary>
+    /// Go's <c>observedOutcome</c>: a sub-section's oneof "observed" field, when no field of the observed message
+    /// shares a name with the sub-section's own.
+    /// </summary>
+    internal static WireField? ObservedOutcome(WireField field)
+    {
+        if (field.IsRepeated)
+        {
+            return null;
+        }
+        var section = WireMessage.Of(field.ValueType);
+        var observed = section.Find("observed");
+        if (observed is null || !observed.IsOneofCase || observed.Kind != WireKind.Message)
+        {
+            return null;
+        }
+        foreach (var inner in WireMessage.Of(observed.ValueType).Fields)
+        {
+            if (section.Find(inner.Name) is not null)
+            {
+                return null;
+            }
+        }
+        return observed;
+    }
+
+    internal static bool OwnSection(WireField field)
+    {
+        if (!HoldsMessage(field) || field.Name == "delta")
+        {
+            return false;
+        }
+        return field.IsRepeated ? ColonyRows.Keyable(field.ValueType) : ColonyRows.HoldsKeyed(field.ValueType, 0);
+    }
+
+    internal static WireField? IdField(Type message) =>
+        WireMessage.Of(message).Find("id") is { Kind: WireKind.Scalar } field && field.ValueType == typeof(string) ? field : null;
 }

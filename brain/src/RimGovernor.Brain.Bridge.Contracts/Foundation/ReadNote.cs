@@ -13,7 +13,7 @@ public delegate void ReadNote(FactFamily family, string source);
 /// <summary>
 /// Go's <c>WithReadNote(ctx, note)</c> and <c>NoteRead(ctx, family, source)</c>: carries a <see cref="ReadNote"/> on
 /// the ambient async context. Prefer passing the note explicitly; this exists for call chains that threaded it
-/// through <c>context.Context</c> (the facts store calls <see cref="BridgeFunctions.NoteRead"/> for a read of a held
+/// through <c>context.Context</c> (the facts store calls <see cref="ReadNoteRules.NoteRead"/> for a read of a held
 /// store section, which counts as a read although no native call was made).
 /// </summary>
 public static class ReadNoteScope
@@ -39,7 +39,7 @@ public static class ReadNoteScope
     }
 }
 
-public static partial class BridgeFunctions
+public static class ReadNoteRules
 {
     /// <summary>Reports a read of <paramref name="family"/> from <paramref name="source"/> to the context's note, if it carries one.</summary>
     public static void NoteRead(FactFamily family, string source) => ReadNoteScope.Get()?.Invoke(family, source);

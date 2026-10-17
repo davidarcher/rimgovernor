@@ -100,7 +100,7 @@ public sealed class ExpeditionIncomingHandoffTests
     /// <summary>A running control for the home map and an accepted departure of <see cref="Pawn"/> to the expedition tile.</summary>
     private static async Task<(Journal Journal, Player Player, Session Session)> RigAsync()
     {
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-expedition-handoff-" + Guid.NewGuid().ToString("N") + ".db"), Ct);
         _ = journal.ReviewRounds(new RoundsRequest { Current = Home, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create(Pawn) }, Ct);
         var plan = new PlanSpec(new("expedition-plan"), new(1),

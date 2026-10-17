@@ -69,7 +69,7 @@ internal static class RoundsCreepJoiner
         var hand = new CreepJoinerHand
         {
             Pawn = new PawnId(row.Pawn.Id ?? ""),
-            Facts = BridgeApi.CreepJoinerPawn(row),
+            Facts = CreepJoinerFacts.CreepJoinerPawn(row),
             Available = Unknown<bool>(),
             Weapon = Unknown<string>(),
             Operations = Unknown<EquatableArray<SurgeryOperation>>(),
@@ -82,9 +82,9 @@ internal static class RoundsCreepJoiner
             // The weapon drop and inspections read recipe names only, no part items.
             hand = hand with
             {
-                Operations = BridgeApi.SurgeryFacts(health.Surgery, null).Operations,
-                QueuedSurgeries = BridgeApi.QueuedSurgeries(health.Surgery),
-                QueuedRecipes = BridgeApi.QueuedSurgeryRecipes(health.Surgery) is { } recipes ? EquatableArray.From(recipes) : null,
+                Operations = SurgeryFactsRules.SurgeryFacts(health.Surgery, null).Operations,
+                QueuedSurgeries = SurgeryFactsRules.QueuedSurgeries(health.Surgery),
+                QueuedRecipes = SurgeryFactsRules.QueuedSurgeryRecipes(health.Surgery) is { } recipes ? EquatableArray.From(recipes) : null,
             };
         }
         // An unset allowed area is an unrestricted pawn (native AllowedArea).

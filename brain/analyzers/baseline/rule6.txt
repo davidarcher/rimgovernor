@@ -1,5 +1,5 @@
 # Rule 6 (game data): file|Type.Member|"DefName" or file|Type.Member|number outside Acceptance. Delete a line when fixed; never add one.
-Bridge.Contracts/Clock/ClockValidation.cs|BridgeFunctions.ClockPolicy|1800000
+Bridge.Contracts/Clock/ClockValidation.cs|ClockValidation.ClockPolicy|1800000
 Bridge.Contracts/Foundation/NewColonyValidation.cs|NewColonyBounds.MaxTimeoutMs|1800000
 BuildingRuntime/Colony/ColonyPlan.cs|LayoutPlanning.HeatRedrawEvery|2500
 BuildingRuntime/Colony/ColonyPlan.cs|LayoutPlanning.OverlayRedrawEvery|60000

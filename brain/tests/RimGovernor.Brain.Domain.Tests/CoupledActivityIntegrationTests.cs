@@ -48,7 +48,7 @@ public sealed class CoupledActivityIntegrationTests
         var action = Assert.Single(journal.LoadPlan(plan.Id, ct).Spec.Actions);
         journal.Prepare(plan.Id, action.Id, scope, new(tick), ct);
         var dispatched = journal.Dispatch(plan.Id, action.Id, scope, new(tick), ct);
-        var sent = BridgeFunctions.IntentAction(action.Id.Value, action).Intent!.PawnActivities!.Batch!;
+        var sent = IntentActionRules.IntentAction(action.Id.Value, action).Intent!.PawnActivities!.Batch!;
         journal.RecordReceipt(plan.Id, action.Id, dispatched.View.Attempt, Receipt.Accepted, ct);
         return sent;
     }
@@ -70,7 +70,7 @@ public sealed class CoupledActivityIntegrationTests
         var roster = WorkResourceTestFacts.Create("pawn", "helper");
         facts = facts with { WorkResources = roster.WorkResources,
             ForecastObserved = facts.ForecastObserved with { WorkPawns = roster.ForecastObserved.WorkPawns } };
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-independent-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
@@ -139,7 +139,7 @@ public sealed class CoupledActivityIntegrationTests
         var ct = TestContext.Current.CancellationToken;
         var (facts, batch) = SelectObserved();
         Assert.Contains(batch.Tasks.SelectMany(t => t.Inputs), input => input.Producers.Count > 0);
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-coupled-integration-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var reviewed = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = facts }, ct);

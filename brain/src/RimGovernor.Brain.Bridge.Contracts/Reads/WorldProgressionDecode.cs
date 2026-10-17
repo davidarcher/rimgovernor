@@ -5,9 +5,33 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 
 // Go world_progression_snapshot.go, world_progression.go (worldProgressionSelected), world_sites.go, quest_workers.go,
 // quest_monument.go and quest_hack_gift.go: the projection of a frame's world progression census.
-public static partial class BridgeFunctions
+public static class WorldProgressionDecode
 {
     private static bool MonumentCellKnown([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] Cell? cell) => cell is not null;
+
+    /// <summary>
+    /// Go's <c>validatedQuestMonument</c>: a marker that is neither packed nor installed (and not an offered unpacked
+    /// one), or an installed marker without a cell, is no executable construction target, so it is dropped.
+    /// </summary>
+    internal static QuestMonument? QuestMonumentTarget(QuestMonument? m)
+    {
+        if (m is null
+            || m.Packed is null
+            || m.Installed is null
+            || (m.Packed.GetValueOrDefault() == m.Installed.GetValueOrDefault() && !(m.Offered.GetValueOrDefault() && !m.Packed.GetValueOrDefault())))
+        {
+            return null;
+        }
+        if (m.Installed.GetValueOrDefault() && !MonumentCellKnown(m.Cell))
+        {
+            return null;
+        }
+        return m;
+    }
+}
+
+partial record WorldProgressionRead
+{
 
     /// <summary>Go's <c>DecodeWorldProgressionSnapshot</c>: projects the world census a frame carries.</summary>
     public static WorldProgressionRead DecodeWorldProgressionSnapshot(WorldProgressionSnapshot v)
@@ -41,9 +65,9 @@ public static partial class BridgeFunctions
                 HomeRoutes = [.. row.HomeRoutes.Select(route => new WorldRouteFact("", route.Destination.GetValueOrDefault(), route.Reachable.GetValueOrDefault(), route.EstimatedTicks.GetValueOrDefault(), route.EstimatedTicks is not null))],
                 Inventory = inventory,
                 SettlementRoutes = [.. row.SettlementRoutes.Select(route => new WorldRouteFact(route.SettlementId ?? "", route.Destination.GetValueOrDefault(), route.Reachable.GetValueOrDefault(), route.EstimatedTicks.GetValueOrDefault(), route.EstimatedTicks is not null))],
-                MassUsage = OptionalFact(row.MassUsage is not null, row.MassUsage.GetValueOrDefault()),
-                MassCapacity = OptionalFact(row.MassCapacity is not null, row.MassCapacity.GetValueOrDefault()),
-                FoodRotDays = OptionalFact(row.FoodRotDays is not null, row.FoodRotDays.GetValueOrDefault()),
+                MassUsage = FactHelpers.OptionalFact(row.MassUsage is not null, row.MassUsage.GetValueOrDefault()),
+                MassCapacity = FactHelpers.OptionalFact(row.MassCapacity is not null, row.MassCapacity.GetValueOrDefault()),
+                FoodRotDays = FactHelpers.OptionalFact(row.FoodRotDays is not null, row.FoodRotDays.GetValueOrDefault()),
                 Destination = row.Destination,
                 FoodDays = row.FoodDays.GetValueOrDefault(),
                 FoodDaysKnown = row.FoodDays is not null,
@@ -54,14 +78,18 @@ public static partial class BridgeFunctions
             Context = v.Context,
             Maps = maps,
             Caravans = caravans,
-            Quests = [.. v.Quests.Select(DecodeQuest)],
+            Quests = [.. v.Quests.Select(QuestOffer.DecodeQuest)],
             Factions = [.. v.Factions.Select(row => new FactionFact(row.Id ?? "", row.Player.GetValueOrDefault(), row.Hostile.GetValueOrDefault()))],
             Sites = [.. v.Sites],
             Assemblies = [.. v.Assemblies.Select(row => new CaravanAssemblyFact(row.Id ?? "", row.MapId.GetValueOrDefault(), [.. row.Pawns.Select(pawn => pawn.Id ?? "")]))],
         };
     }
+}
 
-    private static QuestOffer DecodeQuest(QuestState row)
+partial record QuestOffer
+{
+
+    internal static QuestOffer DecodeQuest(QuestState row)
     {
         var choices = new HashSet<uint>();
         var favor = new Dictionary<int, int>();
@@ -114,7 +142,7 @@ public static partial class BridgeFunctions
         {
             Id = row.Id ?? "",
             ScriptDef = row.ScriptDef ?? "",
-            State = QuestStatusName(row.State.GetValueOrDefault()),
+            State = WireEnums.QuestStatusName(row.State.GetValueOrDefault()),
             RequiresAccepter = row.RequiresAccepter.GetValueOrDefault(),
             CanAccept = row.CanAccept.GetValueOrDefault(),
             ChoiceCount = choices.Count,
@@ -131,14 +159,18 @@ public static partial class BridgeFunctions
             ThreatPoints = row.ThreatPoints,
             RewardChoiceParts = row.ChoicePartCount,
             Rewards = rewards,
-            Objectives = [.. row.Objectives.Select(DecodeObjective)],
+            Objectives = [.. row.Objectives.Select(QuestObjectiveFact.DecodeObjective)],
             Shuttles = shuttles,
             Favor = [.. favor.Select(pair => new QuestFavorFact(pair.Key, pair.Value)).OrderBy(fact => fact.Choice)],
             TradeRequests = [.. row.TradeRequests.Select(request => new QuestTradeRequestFact(request.Resource ?? "", request.Count.GetValueOrDefault(), request.Destination.GetValueOrDefault()))],
         };
     }
+}
 
-    private static QuestObjectiveFact DecodeObjective(QuestObjective objective) => new()
+partial record QuestObjectiveFact
+{
+
+    internal static QuestObjectiveFact DecodeObjective(QuestObjective objective) => new()
     {
         Kind = objective.Kind.GetValueOrDefault(),
         Def = objective.Def ?? "",
@@ -150,7 +182,7 @@ public static partial class BridgeFunctions
         PawnIds = [.. objective.PawnIds],
         Active = objective.Active,
         MinimumMood = objective.MinimumMood,
-        Monument = QuestMonumentTarget(objective.Monument),
+        Monument = WorldProgressionDecode.QuestMonumentTarget(objective.Monument),
         HackTargets = [.. objective.HackTargets],
         Gift = objective.GiftRequest,
         HackRisk = objective.HackRisk,
@@ -160,24 +192,4 @@ public static partial class BridgeFunctions
         Workload = objective.Workload,
         LodgerMoods = [.. objective.LodgerMoods.Select(mood => new QuestLodgerMoodFact(mood.Mood))],
     };
-
-    /// <summary>
-    /// Go's <c>validatedQuestMonument</c>: a marker that is neither packed nor installed (and not an offered unpacked
-    /// one), or an installed marker without a cell, is no executable construction target, so it is dropped.
-    /// </summary>
-    private static QuestMonument? QuestMonumentTarget(QuestMonument? m)
-    {
-        if (m is null
-            || m.Packed is null
-            || m.Installed is null
-            || (m.Packed.GetValueOrDefault() == m.Installed.GetValueOrDefault() && !(m.Offered.GetValueOrDefault() && !m.Packed.GetValueOrDefault())))
-        {
-            return null;
-        }
-        if (m.Installed.GetValueOrDefault() && !MonumentCellKnown(m.Cell))
-        {
-            return null;
-        }
-        return m;
-    }
 }

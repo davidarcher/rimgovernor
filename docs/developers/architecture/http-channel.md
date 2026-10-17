@@ -77,10 +77,10 @@ reloads. A route family whose provider is null is not registered, so it answers 
   blocking-attention acknowledgement is the writer's, not the route's. Request bodies are `StrictJson`-checked
   (duplicate keys and nesting beyond 8 are refused, as on the player routes), and field names match exactly,
   where the brain matched them case-insensitively. A new-colony body is decoded into the wire request and validated by
-  `BridgeFunctions.ValidateNewColonyRequest`; `ScenarioParts.ApplyRhadamant` is the port of `RhadamantParts`.
+  `NewColonyValidation.ValidateNewColonyRequest`; `ScenarioParts.ApplyRhadamant` is the port of `RhadamantParts`.
 - `ReadTally` (`Bridge.Contracts`) counts the native reads of one scope in an ambient tally; the clock scheduler
-  opens the scope with `BridgeFunctions.WithReadTally()` and the native call layer calls
-  `BridgeFunctions.CountNativeRead(tool)` (the #3082 host wires that call).
+  opens the scope with `ReadTallyScope.WithReadTally()` and the native call layer calls
+  `ReadTallyRules.CountNativeRead(tool)` (the #3082 host wires that call).
 
 `PlayerState`, `ControllerSnapshot` and `RoundsStatus` are the small projections the routes show; the brain host
 builds them from its own control state.

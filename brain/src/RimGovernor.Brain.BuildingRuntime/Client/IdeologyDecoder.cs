@@ -16,7 +16,7 @@ internal static class IdeologyDecoder
     internal static P.Ideoligion Decode(PbObservations.IdeologySnapshot v, BridgeCatalog catalog)
     {
         ArgumentNullException.ThrowIfNull(catalog);
-        var defs = catalog.IdeologyDefs() ?? throw BridgeFunctions.Contract("ideology section without catalog ideology defs");
+        var defs = catalog.IdeologyDefs() ?? throw BridgeContractException.Contract("ideology section without catalog ideology defs");
         var facts = new P.IdeoligionFacts
         {
             IdeoId = v.IdeoId ?? "",

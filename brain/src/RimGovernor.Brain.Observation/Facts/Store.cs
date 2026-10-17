@@ -184,7 +184,7 @@ public sealed class FactStore(TimeProvider? time = null)
     /// </summary>
     public static bool Read<T>(FactStore? store, Section section, out Held<T> held)
     {
-        BridgeFunctions.NoteRead(section.Family(), "held:" + Wire.Name(section));
+        ReadNoteRules.NoteRead(section.Family(), "held:" + Wire.Name(section));
         return TryGet(store, section, out held);
     }
 

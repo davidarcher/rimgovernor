@@ -62,7 +62,7 @@ public static partial class ObservationPackage
     }
 
     internal static Fact<bool> NativePresence(string? value, IEnumerable<O.ReadIssue> issues, string field) =>
-        CellPresence(value, issues, field, false);
+        PlanningWindowRules.CellPresence(value, issues, field, false);
 
     private static Cell CellOf(C.Cell? cell) => new(cell?.X ?? 0, cell?.Z ?? 0);
 
@@ -103,7 +103,7 @@ public static partial class ObservationPackage
             Identity = identity,
             Bounds = new Bounds((int)v.MapSize.Width, (int)v.MapSize.Height),
             PlayerTechLevel = v.PlayerTechLevel,
-            Threat = ProjectColonyThreat(v),
+            Threat = ColonyThreat.ProjectColonyThreat(v),
         };
         // The race rows are static for a load and come from the catalog; an unbuildable race table fails the reading.
         var races = RequireCatalog(catalog).AnimalRaces();
@@ -223,7 +223,7 @@ public static partial class ObservationPackage
                     Id = reference.Id,
                     Definition = reference.DefName,
                     Cell = CellOf(reference.Position),
-                    Occupied = RectCells(b.Occupied),
+                    Occupied = CellsRules.RectCells(b.Occupied),
                     BaseW = defs.PowerBaseW(def, tables.FinishedResearch),
                     OutputW = s.PowerOutputW.GetValueOrDefault(),
                     Powered = s.PowerOn.GetValueOrDefault(),

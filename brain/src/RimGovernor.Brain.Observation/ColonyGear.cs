@@ -385,7 +385,7 @@ public static partial class ObservationPackage
         for (var i = 0; i < stamped.Count; i++)
         {
             var g = stamped[i];
-            if (!rows.TryGetValue(g.Pawn.Value, out var row) || !downsides.Unrevealed(CreepJoinerPawn(row)))
+            if (!rows.TryGetValue(g.Pawn.Value, out var row) || !downsides.Unrevealed(CreepJoinerFacts.CreepJoinerPawn(row)))
             {
                 continue;
             }

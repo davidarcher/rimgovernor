@@ -96,7 +96,7 @@ public sealed class AdminFamilyTests
     public void SupplyBatchesAreAdmittedSideBySideUnderTheNeedAndAStackTwoShareIsAClaimConflict()
     {
         var ct = TestContext.Current.CancellationToken;
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-admin-supply-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         LootItem Unsafe(StartingSupply s) => new() { Supply = s with { Forbid = false }, Forbidden = false, SafeToHaul = false, SafetyKnown = true };
         var stacks = new[] { Stack("s1", 1, true), Stack("s2", 2, true), Stack("s3", 3, true) };
@@ -161,7 +161,7 @@ public sealed class AdminFamilyTests
     public void StockpileZonesAreTheStockpilesNeedsAloneAndEachEditClaimsItsZone()
     {
         var ct = TestContext.Current.CancellationToken;
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-admin-stockpiles-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
 
@@ -192,7 +192,7 @@ public sealed class AdminFamilyTests
     public void LedgerDiffsOverOtherBenchesAreAdmittedSideBySideAndASharedBenchRecipeIsAClaimConflict()
     {
         var ct = TestContext.Current.CancellationToken;
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-admin-ledger-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
         Func<ActionId, DomainAction> Place(string bench) => a => DomainAction.NewProductionBillAction(a, new ProductionBill(bench, "TestRecipe", BillMode.StockTarget, 1, "Rice"));
@@ -245,7 +245,7 @@ public sealed class AdminFamilyTests
 
     private static Colony Open(string name = "rg-admin-")
     {
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), name + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");

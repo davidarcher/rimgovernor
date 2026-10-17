@@ -12,7 +12,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public interface IColonyEventNative
 {
     /// <summary>One bare or identified step read; the consumer uses it only for the current world's context.</summary>
-    Task<PbObservations.BundleSnapshot?> ReadStepAsync(BridgeApi.StepRequest request, CancellationToken ct);
+    Task<PbObservations.BundleSnapshot?> ReadStepAsync(StepRequest request, CancellationToken ct);
 
     /// <summary>Opens a fresh, empty native queue and returns its reading side; the loss counter restarts at zero and the previous reader completes.</summary>
     Task<ChannelReader<NativeEvents.ColonyEvent>> OpenColonyEventsAsync(CancellationToken ct);
@@ -125,7 +125,7 @@ internal sealed partial class ColonyEventConsumer(Session session, IColonyEventN
     {
         using var bounded = CancellationTokenSource.CreateLinkedTokenSource(ct);
         bounded.CancelAfter(config.CallTimeout);
-        var snapshot = await native.ReadStepAsync(new BridgeApi.StepRequest(), bounded.Token).ConfigureAwait(false)
+        var snapshot = await native.ReadStepAsync(new StepRequest(), bounded.Token).ConfigureAwait(false)
             ?? throw new HeldException("events context read returned nothing");
         var context = snapshot.Context ?? throw new BridgeContractException("events context read carried no context");
         _ = context.Identity ?? throw new BridgeContractException("events context read carried no identity");

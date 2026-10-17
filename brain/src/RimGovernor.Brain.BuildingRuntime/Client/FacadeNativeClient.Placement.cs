@@ -19,7 +19,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go's <c>PreviewBuildings</c>: evaluates every action in one native call per <see cref="BridgeConstants.PlacementBatchLimit"/>
+    /// Go's <c>PreviewBuildings</c>: evaluates every action in one native call per <see cref="CombatConstants.PlacementBatchLimit"/>
     /// placements. Previews come back in action order, each bound to its own action; a failed row fails the whole read.
     /// Later chunks of an oversized sweep are separate calls, and each must observe the same native generation.
     /// </summary>
@@ -41,16 +41,16 @@ public sealed partial class FacadeNativeClient
     {
         if (!snapshot.IsValid || snapshot.Native.Value == 0)
         {
-            throw BridgeFunctions.Contract("building preview snapshot");
+            throw BridgeContractException.Contract("building preview snapshot");
         }
         if (actions.Count == 0)
         {
-            throw BridgeFunctions.Contract("building preview actions");
+            throw BridgeContractException.Contract("building preview actions");
         }
         var candidates = new List<PbPlacement.PlacementCandidate>(actions.Count);
         foreach (var action in actions)
         {
-            var b = action.Building ?? throw BridgeFunctions.Contract("building action required");
+            var b = action.Building ?? throw BridgeContractException.Contract("building action required");
             candidates.Add(new PbPlacement.PlacementCandidate
             {
                 DefName = b.Definition,
@@ -63,15 +63,15 @@ public sealed partial class FacadeNativeClient
         }
         var output = new List<BridgeBuildingPreview>(actions.Count);
         var identity = new PbCommon.Identity { ColonyId = snapshot.Colony.Value, LoadToken = snapshot.Load.Value, MapId = snapshot.Map.Value };
-        for (var start = 0; start < actions.Count; start += BridgeConstants.PlacementBatchLimit)
+        for (var start = 0; start < actions.Count; start += CombatConstants.PlacementBatchLimit)
         {
-            var end = Math.Min(start + BridgeConstants.PlacementBatchLimit, actions.Count);
+            var end = Math.Min(start + CombatConstants.PlacementBatchLimit, actions.Count);
             var request = new PbPlacement.PlacementRequest { Identity = identity, Placements = [.. candidates.Skip(start).Take(end - start)] };
             var batch = await PlacementPreviewsAsync(request, cancellationToken).ConfigureAwait(false);
             var context = batch.Context!;
             if (context.NativeGeneration is null || context.NativeGeneration.GetValueOrDefault() != snapshot.Native.Value)
             {
-                throw BridgeFunctions.Contract("building preview generation changed or unavailable");
+                throw BridgeContractException.Contract("building preview generation changed or unavailable");
             }
             for (var index = 0; index < batch.Results.Count; index++)
             {
@@ -101,11 +101,11 @@ public sealed partial class FacadeNativeClient
     /// <summary>Go's <c>PreviewZone</c>: a planner's siting preview of one zone; native checks the ground live, so no map census token rides along.</summary>
     internal async Task<PbOperations.ZonePreviewReply> PreviewZoneAsync(PbCommon.Identity identity, ZoneCreate zone, CancellationToken cancellationToken)
     {
-        if (!PlacementReads.Passes(() => BridgeFunctions.ValidateIdentity(identity)))
+        if (!PlacementReads.Passes(() => WireValidation.ValidateIdentity(identity)))
         {
-            throw BridgeFunctions.Contract("invalid zone preview");
+            throw BridgeContractException.Contract("invalid zone preview");
         }
-        var request = new PbOperations.ZonePreviewRequest { Identity = identity, Zone = BridgeFunctions.ZoneConfiguration(zone) };
+        var request = new PbOperations.ZonePreviewRequest { Identity = identity, Zone = Zones.ZoneConfiguration(zone) };
         var reply = await Facade.PreviewZoneAsync(request, cancellationToken).ConfigureAwait(false);
         if (reply.Outcome.Failure is { } failure)
         {
@@ -122,7 +122,7 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<PbPresentation.OverlayApplied> DrawOverlayAsync(PbCommon.Identity identity, string layerId, LayoutOverlay overlay, bool enabled, CancellationToken cancellationToken)
     {
-        BridgeFunctions.AuthorityIdentity(identity);
+        WireValidation.AuthorityIdentity(identity);
         var request = new PbPresentation.OverlayRequest { Identity = identity, LayerId = layerId, Enabled = enabled };
         if (enabled)
         {
@@ -153,9 +153,9 @@ public sealed partial class FacadeNativeClient
         /// <summary>Go's <c>validatePlacementRequest</c>.</summary>
         internal static void ValidatePlacementRequest(PbPlacement.PlacementRequest? request)
         {
-            if (request is null || request.Placements.Count < 1 || request.Placements.Count > BridgeConstants.PlacementBatchLimit)
+            if (request is null || request.Placements.Count < 1 || request.Placements.Count > CombatConstants.PlacementBatchLimit)
             {
-                throw BridgeFunctions.Contract("placement count");
+                throw BridgeContractException.Contract("placement count");
             }
             foreach (var v in request.Placements)
             {
@@ -169,12 +169,12 @@ public sealed partial class FacadeNativeClient
                     || v.Rotation.GetValueOrDefault() < PbPlacement.Rotation.North
                     || v.Rotation.GetValueOrDefault() > PbPlacement.Rotation.All)
                 {
-                    throw BridgeFunctions.Contract("placement candidate presence/coordinates/rotation");
+                    throw BridgeContractException.Contract("placement candidate presence/coordinates/rotation");
                 }
-                BridgeFunctions.ValidId(v.DefName);
+                WireValidation.ValidId(v.DefName);
                 if (!string.IsNullOrEmpty(v.Stuff))
                 {
-                    BridgeFunctions.ValidId(v.Stuff);
+                    WireValidation.ValidId(v.Stuff);
                 }
             }
         }

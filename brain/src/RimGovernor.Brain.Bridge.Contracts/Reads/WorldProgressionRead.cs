@@ -47,7 +47,7 @@ public sealed record CaravanJourney
 /// Go's <c>QuestOffer</c>: the validated subset of one world-progression quest row the quest-accept boundary
 /// needs. Absent optional fields stay null.
 /// </summary>
-public sealed record QuestOffer
+public sealed partial record QuestOffer
 {
     public double? ThreatPoints { get; init; }
 
@@ -124,7 +124,7 @@ public sealed record QuestRewardFact
 public sealed record QuestTradeItemFact(string Def, long Count);
 
 /// <summary>Go's <c>QuestObjectiveFact</c>: typed native progress; absent fields stay absent.</summary>
-public sealed record QuestObjectiveFact
+public sealed partial record QuestObjectiveFact
 {
     public QuestMonument? Monument { get; init; }
 
@@ -228,7 +228,7 @@ public sealed record CaravanAssemblyFact(string Id, int MapId, IReadOnlyList<str
 /// Go's <c>WorldProgressionRead</c>: the validated subset of one world progression census the world-site and
 /// quest boundaries need. The read and its decoders are wire plumbing and not ported.
 /// </summary>
-public sealed record WorldProgressionRead
+public sealed partial record WorldProgressionRead
 {
     public IReadOnlyList<CaravanAssemblyFact> Assemblies { get; init; } = [];
 

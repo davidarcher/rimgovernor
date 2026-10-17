@@ -41,7 +41,7 @@ public sealed class YardMergeTests
         Assert.Equal(FilterBase.OutdoorSafeWaste, filter.Base);
         Assert.Empty(filter.Allow);
         Assert.Empty(filter.Disallow);
-        Assert.Equal(Op.FilterPreset.OutdoorSafeWaste, BridgeFunctions.StockpileSettings(filter, StockpilePriority.Low).Preset);
+        Assert.Equal(Op.FilterPreset.OutdoorSafeWaste, Zones.StockpileSettings(filter, StockpilePriority.Low).Preset);
     }
 
     [Fact]

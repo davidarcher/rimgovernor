@@ -32,9 +32,9 @@ public sealed class PawnActivityMethodTests
         var action = DomainAction.NewPawnActivitiesAction(new("support-action"), batch);
         var plan = new PlanSpec(new("support-plan"), new(1), [action]);
         TestNeed.Commit(journal, world, new("support-method"), plan, ct);
-        BridgeFunctions.RegisterIntentKinds();
+        IntentActionRules.RegisterIntentKinds();
         var stored = Assert.Single(journal.LoadPlan(plan.Id, ct).Spec.Actions);
-        var intent = BridgeFunctions.IntentAction(stored.Id.Value, stored).Intent!.PawnActivities!.Batch!;
+        var intent = IntentActionRules.IntentAction(stored.Id.Value, stored).Intent!.PawnActivities!.Batch!;
         Assert.Equal(step, Assert.Single(Assert.Single(intent.Orders).Steps));
         Assert.Equal(batch.Tasks, intent.Tasks);
     }
@@ -69,8 +69,8 @@ public sealed class PawnActivityMethodTests
         var stored = journal.LoadPlan(plan.Id, ct);
         Assert.Equal(Stage.Pending, Assert.Single(stored.Progress).View.Stage);
         var persisted = Assert.Single(stored.Spec.Actions);
-        BridgeFunctions.RegisterIntentKinds();
-        var intent = BridgeFunctions.IntentAction(persisted.Id.Value, persisted).Intent!.PawnActivities!.Batch!;
+        IntentActionRules.RegisterIntentKinds();
+        var intent = IntentActionRules.IntentAction(persisted.Id.Value, persisted).Intent!.PawnActivities!.Batch!;
         Assert.Equal(2, intent.Orders.Length);
         Assert.All(intent.Orders, order => Assert.Equal("food-method", order.Method));
         Assert.Equal(action.PawnActivities!.Orders[1].Steps, intent.Orders[1].Steps);

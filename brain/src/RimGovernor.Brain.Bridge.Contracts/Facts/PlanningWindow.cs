@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 public sealed record PlanningWindow(ObservationContext? Context, Rectangle Region, IReadOnlyList<SiteCell> Cells, ulong Filtered);
 
 // Go planning_window.go. ReadPlanningWindow (a Client read of the snapshot stream) is wire plumbing and not ported.
-public static partial class BridgeFunctions
+public static class PlanningWindowRules
 {
     /// <summary>
     /// Go's <c>PlanningWindowRect</c>: the planning window on a map of bounds is the whole map. The window was the

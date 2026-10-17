@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 
 // Go cells.go. cellsRead, readCells and validateCells (the observations_get_cells read and its reply check) are
 // wire plumbing and not ported.
-public static partial class BridgeFunctions
+public static class CellsRules
 {
     /// <summary>
     /// Go's <c>RectCells</c>: an inclusive wire rectangle's cells, row-major; empty for a rectangle missing a

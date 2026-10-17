@@ -17,11 +17,11 @@ public sealed partial class FacadeNativeClient
     {
         ArgumentNullException.ThrowIfNull(request);
         FacadeWriteChecks.WriteAuthorityRequest(request.Identity, request.ExpectedGeneration);
-        BridgeFunctions.AuthorityIdentity(request.Target);
+        WireValidation.AuthorityIdentity(request.Target);
         if (!string.Equals(request.Identity!.ColonyId ?? "", request.Target!.ColonyId ?? "", StringComparison.Ordinal)
             || !string.Equals(request.Identity.LoadToken ?? "", request.Target.LoadToken ?? "", StringComparison.Ordinal))
         {
-            throw BridgeFunctions.Contract("focus-map requires same colony and load");
+            throw BridgeContractException.Contract("focus-map requires same colony and load");
         }
         cancellationToken.ThrowIfCancellationRequested();
         PbAuthority.ControlReply reply;
@@ -59,9 +59,9 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<PbLifecycle.SaveReply> ReadSaveAsync(string requestId, CancellationToken cancellationToken)
     {
-        if (!BridgeFunctions.IsValidId(requestId ?? ""))
+        if (!WireValidation.IsValidId(requestId ?? ""))
         {
-            throw BridgeFunctions.Contract("read save requires a request id");
+            throw BridgeContractException.Contract("read save requires a request id");
         }
         var reply = await Facade.PollSaveAsync(new PbLifecycle.RequestStatus { RequestId = requestId }, cancellationToken).ConfigureAwait(false);
         LifecycleSaveInterpret(reply);
@@ -86,24 +86,24 @@ public sealed partial class FacadeNativeClient
     {
         if (request is null || request.Player is null)
         {
-            throw BridgeFunctions.Contract("save request requires a player lifecycle context");
+            throw BridgeContractException.Contract("save request requires a player lifecycle context");
         }
         var player = request.Player;
-        if (player.RequestId is null || !BridgeFunctions.IsValidId(player.RequestId))
+        if (player.RequestId is null || !WireValidation.IsValidId(player.RequestId))
         {
-            throw BridgeFunctions.Contract("save request requires a request id");
+            throw BridgeContractException.Contract("save request requires a request id");
         }
         if (player.PlayerDirection is null || player.PlayerDirection.GetValueOrDefault() == 0)
         {
-            throw BridgeFunctions.Contract("save request requires a nonzero player direction");
+            throw BridgeContractException.Contract("save request requires a nonzero player direction");
         }
-        if (request.SaveName is null || !BridgeFunctions.IsValidId(request.SaveName))
+        if (request.SaveName is null || !WireValidation.IsValidId(request.SaveName))
         {
-            throw BridgeFunctions.Contract("save request requires a save name");
+            throw BridgeContractException.Contract("save request requires a save name");
         }
         if (request.ExpectedTick is not null && request.ExpectedTick.GetValueOrDefault() < 0)
         {
-            throw BridgeFunctions.Contract("save request expected tick must be non-negative");
+            throw BridgeContractException.Contract("save request expected tick must be non-negative");
         }
     }
 }

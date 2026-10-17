@@ -61,7 +61,7 @@ namespace HomeBridge.BridgeTools
                 var options = catalog.IdeoligionOptions(faction!);
                 if (!PolicyFunctions.ChooseStartingIdeoligion(options).TryGetValue(out var choice))
                     throw new InvalidOperationException("No supported legal ideoligion design can be established.");
-                return BridgeFunctions.WireIdeoligionDesign(choice.Design);
+                return Orders.WireIdeoligionDesign(choice.Design);
             }, cancellationToken);
 
         /// <summary>

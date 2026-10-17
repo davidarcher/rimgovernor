@@ -681,7 +681,7 @@ partial class RoundsTradePlanner
     {
         Id = pawn.Id,
         Gender = pawn.Gender,
-        Skills = [.. pawn.Skills.Select(s => new Pol.ProfileSkill { Name = s.DefName, Level = s.Level, Passion = RimGovernor.Brain.Bridge.Contracts.BridgeFunctions.PassionName(s.Passion), Disabled = s.Disabled })],
+        Skills = [.. pawn.Skills.Select(s => new Pol.ProfileSkill { Name = s.DefName, Level = s.Level, Passion = WireEnums.PassionName(s.Passion), Disabled = s.Disabled })],
         ViolenceCapable = pawn.ViolenceCapable,
         GuestStatus = pawn.GuestStatus,
         PrisonerSecure = pawn.PrisonerSecure,

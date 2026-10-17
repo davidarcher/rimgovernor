@@ -13,17 +13,17 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<ExcavationSite> ReadExcavationSiteAsync(PbCommon.Identity identity, IReadOnlyList<Cell> cells, Cell access, CancellationToken cancellationToken)
     {
-        if (cells.Count == 0 || !BridgeFunctions.ExcavationCellValid(access))
+        if (cells.Count == 0 || !ExcavationSiteRules.ExcavationCellValid(access))
         {
-            throw BridgeFunctions.Contract("invalid excavation site request");
+            throw BridgeContractException.Contract("invalid excavation site request");
         }
         var requested = new List<PbCommon.Cell>(cells.Count);
         var seen = new HashSet<Cell>();
         foreach (var cell in cells)
         {
-            if (!BridgeFunctions.ExcavationCellValid(cell) || !seen.Add(cell))
+            if (!ExcavationSiteRules.ExcavationCellValid(cell) || !seen.Add(cell))
             {
-                throw BridgeFunctions.Contract("invalid excavation site request");
+                throw BridgeContractException.Contract("invalid excavation site request");
             }
             requested.Add(new PbCommon.Cell { X = cell.X, Z = cell.Z });
         }
@@ -94,7 +94,7 @@ public sealed partial class FacadeNativeClient
         {
             if (!PlacementReads.RectangleValid(rect, 4096))
             {
-                throw BridgeFunctions.Contract("invalid planned ground rectangle");
+                throw BridgeContractException.Contract("invalid planned ground rectangle");
             }
         }
         var request = new PbObservations.ClearanceTargetsRequest

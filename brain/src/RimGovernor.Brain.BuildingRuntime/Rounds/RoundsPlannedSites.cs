@@ -65,7 +65,7 @@ public sealed partial class Rounder
             return def.StuffOptions.Count == 0 ? def.WorkToBuild : Unknown<double>();
         }
         return def.StuffOptions.FirstOrDefault(o => o.Stuff == site.Stuff) is { } option
-            && option.Stats.TryGetValue(BridgeConstants.StatWorkToBuild, out var work) ? Known(work) : Unknown<double>();
+            && option.Stats.TryGetValue(Bridge.Contracts.StatDefNames.StatWorkToBuild, out var work) ? Known(work) : Unknown<double>();
     }
 
     /// <summary>

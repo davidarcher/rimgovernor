@@ -146,8 +146,8 @@ public static partial class ObservationPackage
                     Id = f.Id ?? "",
                     RoomId = f.Room?.Id ?? "",
                     Kind = f.Kind ?? "",
-                    AccessibleTo = PawnIdArray(RefIds(f.AccessibleTo)),
-                    Users = PawnIdArray(RefIds(f.Users)),
+                    AccessibleTo = PawnIdArray(FactHelpers.RefIds(f.AccessibleTo)),
+                    Users = PawnIdArray(FactHelpers.RefIds(f.Users)),
                 });
             }
             return EquatableArray.From(rows);

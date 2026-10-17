@@ -166,7 +166,7 @@ partial class ColonyEventConsumer
                 case NativeEvents.ObservationInvalidated invalidated:
                     foreach (var wire in invalidated.Families)
                     {
-                        if (!BridgeApi.FactFamilyFromWire(wire, out var family))
+                        if (!Families.FactFamilyFromWire(wire, out var family))
                         {
                             // An unknown family can be anything: an authority-sized wake.
                             authority = true;
@@ -216,7 +216,7 @@ partial class ColonyEventConsumer
         var families = new List<FactFamily>();
         foreach (var wire in value.Families)
         {
-            if (!BridgeApi.FactFamilyFromWire(wire, out var family))
+            if (!Families.FactFamilyFromWire(wire, out var family))
             {
                 invalidation = new Facts.Invalidation();
                 return false;

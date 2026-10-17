@@ -40,7 +40,7 @@ internal enum CriticalWait
 internal sealed class PlannerGroup
 {
     /// <summary>Bounds how many planners a step runs at once. It matches the bridge's in-flight call cap so admission order, not gate queueing, decides whose native reads go first.</summary>
-    public static int PlannerWidth => BridgeApi.MaxConcurrentCalls;
+    public static int PlannerWidth => CombatCalls.MaxConcurrentCalls;
 
     private sealed record QueuedPlanner(string Name, PlannerClass Class, Func<Task> Run);
 

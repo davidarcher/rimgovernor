@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 // Go give_job.go (UndraftAction), frames.go (PodsStrategy, DropPodArrival), combat_orders.go (CombatOrderResults),
 // combat_geometry.go (CombatGeometryAsk, CombatGeometryProposeAsk) and client.go (MaxConcurrentCalls). The
 // RecordCombatOrder telemetry row is the caller's: the redesigned telemetry facade takes its emitter by instance.
-public static partial class BridgeFunctions
+public static class CombatCalls
 {
     /// <summary>
     /// Go's <c>MaxConcurrentCalls</c>: how many native calls one client may have in flight at once. Calls need not be single-flight; this cap is
@@ -23,9 +23,9 @@ public static partial class BridgeFunctions
     /// <exception cref="BridgeContractException">The key or the pawn is not a valid identifier.</exception>
     public static RimGovernor.Contracts.Wire.Operations.Action UndraftAction(string key, PawnId pawn)
     {
-        if (!IsValidId(key) || !IsValidId(pawn.Value))
+        if (!WireValidation.IsValidId(key) || !WireValidation.IsValidId(pawn.Value))
         {
-            throw Contract("undraft requires a key and a pawn");
+            throw BridgeContractException.Contract("undraft requires a key and a pawn");
         }
         return new RimGovernor.Contracts.Wire.Operations.Action { Key = key, Intent = new DraftIntent { PawnId = pawn.Value, Drafted = false } };
     }

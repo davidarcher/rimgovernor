@@ -624,7 +624,7 @@ partial class RoundsDefensePlanner
         M.CombatEventRow? newest = null;
         foreach (var row in combat.Events)
         {
-            if (BridgeApi.DropPodArrival(row) && (newest is null || BridgeApi.CombatBefore(newest.At, row.At)))
+            if (CombatCalls.DropPodArrival(row) && (newest is null || RoundsFrameRules.CombatBefore(newest.At, row.At)))
             {
                 newest = row;
             }

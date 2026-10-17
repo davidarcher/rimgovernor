@@ -31,7 +31,7 @@ public sealed partial class FacadeNativeClient
         {
             if (cell is null || cell.X < 0 || cell.Z < 0)
             {
-                throw BridgeFunctions.Contract("cell presence/coordinates");
+                throw BridgeContractException.Contract("cell presence/coordinates");
             }
         }
 

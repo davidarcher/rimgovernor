@@ -30,7 +30,7 @@ public sealed class HaulBoundary : IHaulBoundary
         var started = _clock.Now();
         try
         {
-            _ = BridgeApi.IntentAction("inspect", target.Action);
+            _ = IntentActionRules.IntentAction("inspect", target.Action);
         }
         catch (BridgeContractException e)
         {

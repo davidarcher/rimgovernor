@@ -19,14 +19,14 @@ internal sealed class FacadeActionsWriter(INativeFacade facade) : IActionsWriter
         ArgumentNullException.ThrowIfNull(actions);
         if (actions.Count == 0)
         {
-            throw BridgeFunctions.Contract("invalid actions batch");
+            throw BridgeContractException.Contract("invalid actions batch");
         }
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var action in actions)
         {
-            if (action is null || !BridgeFunctions.IsValidId(action.Key ?? "") || !seen.Add(action.Key ?? "") || action.Intent is null)
+            if (action is null || !WireValidation.IsValidId(action.Key ?? "") || !seen.Add(action.Key ?? "") || action.Intent is null)
             {
-                throw BridgeFunctions.Contract("action requires a unique key and an intent");
+                throw BridgeContractException.Contract("action requires a unique key and an intent");
             }
         }
         var request = new PbOperations.ApplyRequest

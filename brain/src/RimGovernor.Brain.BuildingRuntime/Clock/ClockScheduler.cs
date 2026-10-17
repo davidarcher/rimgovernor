@@ -26,7 +26,7 @@ partial class ClockScheduler
 /// <summary>The native reads a scheduler step makes.</summary>
 public interface IClockStepNative : IZonesNative, IPlanningWindowNative, IEntityNative
 {
-    Task<PbObservations.BundleSnapshot?> ReadStepAsync(BridgeApi.StepRequest request, CancellationToken ct);
+    Task<PbObservations.BundleSnapshot?> ReadStepAsync(StepRequest request, CancellationToken ct);
 
     /// <summary>The world progression census, read on demand by the incoming expedition handoff.</summary>
     Task<WorldProgressionRead> ReadWorldProgressionAsync(PbCommon.Identity identity, CancellationToken ct);
@@ -193,7 +193,7 @@ public sealed partial class ClockScheduler
         // The round trips that still cross the bridge (frame misses and writes) are tallied by tool so the cost of
         // the composition is visible per step: as a clock_step row in the OTLP log ring, which `rimgovernor phases`
         // reports as reads/step.
-        using var reads = BridgeApi.WithReadTally();
+        using var reads = ReadTallyScope.WithReadTally();
         try
         {
             // A wake's evidence lands on the due queue once, here, so it outlives a step that runs no planners.
@@ -209,7 +209,7 @@ public sealed partial class ClockScheduler
             var started = _clock.Now();
             // Taken before the clock read: evidence the consumer delivers from here on is evidence this step missed.
             result.EventsSeen = ColonyEventsSeen?.Invoke();
-            var loaded = await _native.ReadStepAsync(new BridgeApi.StepRequest { ClockStatus = true }, call).ConfigureAwait(false)
+            var loaded = await _native.ReadStepAsync(new StepRequest { ClockStatus = true }, call).ConfigureAwait(false)
                 ?? throw new HeldException("step read returned nothing");
             var loadedContext = loaded.Context ?? throw new BridgeContractException("step read carried no context");
             if (await _player.ExpeditionIncomingHandoffAsync(loaded, _native, call, epoch).ConfigureAwait(false))

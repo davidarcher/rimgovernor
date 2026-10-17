@@ -139,7 +139,7 @@ public sealed class ColonyStatus
             NutritionPerDay = observed.NutritionPerDay,
             FoodRunwayDays = OptionalFact(observed.FoodRunwayDays is not null, observed.FoodRunwayDays.GetValueOrDefault()),
             PendingFoodNutrition = OptionalFact(observed.PendingFoodNutrition is not null, observed.PendingFoodNutrition.GetValueOrDefault()),
-            Threat = BridgeApi.ProjectColonyThreat(observed),
+            Threat = ColonyThreat.ProjectColonyThreat(observed),
             PlayerTechLevel = observed.PlayerTechLevel,
             TechTier = Unknown<TechTier>(),
             Stockpiles = Unknown<EquatableArray<StockpileRoleCount>>(),

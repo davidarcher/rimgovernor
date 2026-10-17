@@ -380,7 +380,7 @@ public sealed partial class BrainComposition
         var config = new ClockRunConfig
         {
             TargetSpeed = testAcceleration ? new ClockTargetSpeed(PbClock.Speed.Ultrafast) : TargetSpeed,
-            Policy = BridgeFunctions.WithHazardThresholds(new PbClock.WatchPolicy
+            Policy = ClockExpectation.WithHazardThresholds(new PbClock.WatchPolicy
             {
                 Mode = PbClock.WatchMode.Colony,
                 HealthDropFraction = .1f,

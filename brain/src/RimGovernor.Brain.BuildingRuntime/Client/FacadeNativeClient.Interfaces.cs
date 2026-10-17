@@ -98,10 +98,10 @@ public sealed partial class FacadeNativeClient :
     Task<EntityRows<O.BillStackRow>> IEntityNative.ReadBillStacksAsync(C.Identity identity, CancellationToken ct) =>
         ReadBillStacksAsync(identity, ct);
 
-    Task<O.BundleSnapshot?> IColonyEventNative.ReadStepAsync(BridgeFunctions.StepRequest request, CancellationToken ct) =>
+    Task<O.BundleSnapshot?> IColonyEventNative.ReadStepAsync(StepRequest request, CancellationToken ct) =>
         ReadStepAsync(request, ct);
 
-    Task<O.BundleSnapshot?> IClockStepNative.ReadStepAsync(BridgeFunctions.StepRequest request, CancellationToken ct) =>
+    Task<O.BundleSnapshot?> IClockStepNative.ReadStepAsync(StepRequest request, CancellationToken ct) =>
         ReadStepAsync(request, ct);
 
     Task<WorldProgressionRead> IClockStepNative.ReadWorldProgressionAsync(C.Identity identity, CancellationToken ct) =>

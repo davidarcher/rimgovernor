@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Bridge.Contracts.BridgeFunctions;
 using static RimGovernor.Brain.Domain.Fact;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
 using PolicyEmergencyFacts = RimGovernor.Brain.Policy.EmergencyFacts;
@@ -214,7 +213,7 @@ public sealed partial class FacadeNativeClient
                 Animal = Known(false),
                 SnapshotToken = row.BuildingSnapshot.Token ?? "",
                 Definition = row.Building.DefName,
-                Cells = RectCells(row.Occupied),
+                Cells = CellsRules.RectCells(row.Occupied),
                 Passive = Known(row.Passive),
             };
             if (row.NearestColonistDistance is not null)

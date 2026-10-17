@@ -9,7 +9,7 @@ public sealed partial class FacadeNativeClient
     /// <summary>Go <c>Client.ReadClockStatus</c>: the clock status of the identity's world; a failure or unavailable status throws.</summary>
     internal async Task<PbClock.StatusReply> ReadClockStatusAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        BridgeFunctions.AuthorityIdentity(identity);
+        WireValidation.AuthorityIdentity(identity);
         var reply = await Facade.ReadClockStatusAsync(new PbClock.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
         FacadeWriteChecks.ClockStatusReply(reply);
         return reply;
