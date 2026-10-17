@@ -42,7 +42,7 @@ public sealed partial class Store
         using (var w = new Utf8JsonWriter(stream))
         {
             w.WriteStartObject();
-            w.WriteNumber("schemaVersion", GovernorStateSchemaVersion);
+            w.WriteNum("schemaVersion", GovernorStateSchemaVersion);
             body(w);
             w.WriteEndObject();
         }
@@ -56,8 +56,8 @@ public sealed partial class Store
             {
                 w.WriteStartObject("scope");
                 w.WriteString("colony", s.Colony);
-                w.WriteNumber("map", s.Map);
-                w.WriteNumber("tick", s.Tick);
+                w.WriteNum("map", s.Map);
+                w.WriteNum("tick", s.Tick);
                 w.WriteEndObject();
             }
             w.WritePropertyName("record");

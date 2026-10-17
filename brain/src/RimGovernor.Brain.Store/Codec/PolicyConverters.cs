@@ -81,9 +81,9 @@ internal sealed class CastMarkConverter : ObjectCodec<CastMark>
         w.Put("Pawn", v.Pawn, o);
         w.WriteString("Def", v.Def);
         w.Put("Tick", v.Tick, o);
-        w.WriteNumber("Psyfocus", v.Psyfocus);
-        w.WriteNumber("Entropy", v.Entropy);
-        w.WriteNumber("Cooldown", v.Cooldown);
+        w.WriteNum("Psyfocus", v.Psyfocus);
+        w.WriteNum("Entropy", v.Entropy);
+        w.WriteNum("Cooldown", v.Cooldown);
     }
 }
 
@@ -253,7 +253,7 @@ internal sealed class CombatMemoryConverter : ObjectCodec<CombatMemory>
         w.Put("WaitRooms", v.WaitRooms, o);
         w.WriteBoolean("Scattered", v.Scattered);
         w.Put("Repairs", v.Repairs, o);
-        w.WriteNumber("LineHeld", v.LineHeld);
+        w.WriteNum("LineHeld", v.LineHeld);
         if (v.SapperBreach is { } vSapperBreach)
         {
             w.Put("SapperBreach", vSapperBreach, o);
@@ -454,18 +454,18 @@ internal sealed class CombatTuningConverter : ObjectCodec<CombatTuning>
 
     protected override void WriteFields(Utf8JsonWriter w, CombatTuning v, Codecs o)
     {
-        w.WriteNumber("DoorCloseRange", v.DoorCloseRange);
-        w.WriteNumber("DoorOpenRange", v.DoorOpenRange);
-        w.WriteNumber("DoorGunners", v.DoorGunners);
-        w.WriteNumber("FlankMinDefenders", v.FlankMinDefenders);
-        w.WriteNumber("FlankSize", v.FlankSize);
-        w.WriteNumber("FlankLateral", v.FlankLateral);
-        w.WriteNumber("GroupGap", v.GroupGap);
-        w.WriteNumber("KiteLeadRange", v.KiteLeadRange);
-        w.WriteNumber("KiteSpeedRatio", v.KiteSpeedRatio);
-        w.WriteNumber("ScatterCells", v.ScatterCells);
-        w.WriteNumber("DoseMargin", v.DoseMargin);
-        w.WriteNumber("RushRange", v.RushRange);
+        w.WriteNum("DoorCloseRange", v.DoorCloseRange);
+        w.WriteNum("DoorOpenRange", v.DoorOpenRange);
+        w.WriteNum("DoorGunners", v.DoorGunners);
+        w.WriteNum("FlankMinDefenders", v.FlankMinDefenders);
+        w.WriteNum("FlankSize", v.FlankSize);
+        w.WriteNum("FlankLateral", v.FlankLateral);
+        w.WriteNum("GroupGap", v.GroupGap);
+        w.WriteNum("KiteLeadRange", v.KiteLeadRange);
+        w.WriteNum("KiteSpeedRatio", v.KiteSpeedRatio);
+        w.WriteNum("ScatterCells", v.ScatterCells);
+        w.WriteNum("DoseMargin", v.DoseMargin);
+        w.WriteNum("RushRange", v.RushRange);
     }
 }
 
@@ -528,7 +528,7 @@ internal sealed class ConcernProgressConverter : ObjectCodec<ConcernProgress>
         w.Put("Cooldowns", v.Cooldowns, o);
         if (v.Observed is { } vObserved)
         {
-            w.WriteNumber("Observed", vObserved);
+            w.WriteNum("Observed", vObserved);
         }
         w.Put("Planner", v.Planner, o);
         w.WriteString("PlannerSubject", v.PlannerSubject);
@@ -575,8 +575,8 @@ internal sealed class ConstructionHelpRecordConverter : ObjectCodec<Construction
         w.Put("Idle", v.Idle, o);
         w.Put("Helpers", v.Helpers, o);
         w.Put("DemandTick", v.DemandTick, o);
-        w.WriteNumber("Ready", v.Ready);
-        w.WriteNumber("Unmet", v.Unmet);
+        w.WriteNum("Ready", v.Ready);
+        w.WriteNum("Unmet", v.Unmet);
         w.WriteString("Reason", v.Reason);
         w.Put("Withheld", v.Withheld, o);
     }
@@ -610,8 +610,8 @@ internal sealed class DashTripConverter : ObjectCodec<DashTrip>
     protected override void WriteFields(Utf8JsonWriter w, DashTrip v, Codecs o)
     {
         w.WriteString("Id", v.Id);
-        w.WriteNumber("Value", v.Value);
-        w.WriteNumber("Exposure", v.Exposure);
+        w.WriteNum("Value", v.Value);
+        w.WriteNum("Exposure", v.Exposure);
     }
 }
 
@@ -691,7 +691,7 @@ internal sealed class DefenseLayoutRecordConverter : ObjectCodec<DefenseLayoutRe
         w.WriteString("VerifiedCombat", v.VerifiedCombat);
         w.Put("TurretsProbedTick", v.TurretsProbedTick, o);
         w.WriteString("PerimeterKey", v.PerimeterKey);
-        w.WriteNumber("PerimeterRevision", v.PerimeterRevision);
+        w.WriteNum("PerimeterRevision", v.PerimeterRevision);
         w.WriteString("PerimeterBridge", v.PerimeterBridge);
     }
 }
@@ -723,9 +723,9 @@ internal sealed class DefenseTierRecordConverter : ObjectCodec<DefenseTierRecord
         w.Put("Buildings", v.Buildings, o);
         w.Put("Refused", v.Refused, o);
         w.Put("Reserved", v.Reserved, o);
-        w.WriteNumber("Attempts", v.Attempts);
+        w.WriteNum("Attempts", v.Attempts);
         w.WriteBoolean("Built", v.Built);
-        w.WriteNumber("Reopened", v.Reopened);
+        w.WriteNum("Reopened", v.Reopened);
         w.WriteBoolean("Remove", v.Remove);
         w.WriteString("Bridge", v.Bridge);
         w.WriteBoolean("Foundation", v.Foundation);
@@ -752,7 +752,7 @@ internal sealed class DisasterConditionConverter : ObjectCodec<DisasterCondition
         w.WriteBoolean("Permanent", v.Permanent);
         if (v.TicksLeft is { } vTicksLeft)
         {
-            w.WriteNumber("TicksLeft", vTicksLeft);
+            w.WriteNum("TicksLeft", vTicksLeft);
         }
         w.WriteBoolean("DisablesPower", v.DisablesPower);
     }
@@ -794,7 +794,7 @@ internal sealed class DisasterHistoryConverter : ObjectCodec<DisasterHistory>
     {
         if (v.ShortCircuitTick is { } vShortCircuitTick)
         {
-            w.WriteNumber("ShortCircuitTick", vShortCircuitTick);
+            w.WriteNum("ShortCircuitTick", vShortCircuitTick);
         }
         w.WriteBoolean("WorkKnown", v.WorkKnown);
         w.Put("Work", v.Work, o);
@@ -1050,7 +1050,7 @@ internal sealed class LayoutPlanConverter : ObjectCodec<LayoutPlan>
         w.Put("Pieces", v.Pieces, o);
         w.WriteBoolean("Cold", v.Cold);
         w.WriteBoolean("Hot", v.Hot);
-        w.WriteNumber("NextRoomId", v.NextRoomId);
+        w.WriteNum("NextRoomId", v.NextRoomId);
     }
 }
 
@@ -1147,7 +1147,7 @@ internal sealed class MentalStateConverter : ObjectCodec<MentalState>
     {
         w.WriteString("DefName", v.DefName);
         w.WriteBoolean("IsAggro", v.IsAggro);
-        w.WriteNumber("TicksInState", v.TicksInState);
+        w.WriteNum("TicksInState", v.TicksInState);
     }
 }
 
@@ -1234,7 +1234,7 @@ internal sealed class MoodProvisionConverter : ObjectCodec<MoodProvision>
     protected override void WriteFields(Utf8JsonWriter w, MoodProvision v, Codecs o)
     {
         w.Put("Concern", v.Need.FilingKey, o);
-        w.WriteNumber("Offset", v.Offset);
+        w.WriteNum("Offset", v.Offset);
     }
 }
 
@@ -1275,7 +1275,7 @@ internal sealed class MoodThoughtConverter : ObjectCodec<MoodThought>
     protected override void WriteFields(Utf8JsonWriter w, MoodThought v, Codecs o)
     {
         w.WriteString("Def", v.Def);
-        w.WriteNumber("Offset", v.Offset);
+        w.WriteNum("Offset", v.Offset);
     }
 }
 
@@ -1331,8 +1331,8 @@ internal sealed class OutsideTripConverter : ObjectCodec<OutsideTrip>
 
     protected override void WriteFields(Utf8JsonWriter w, OutsideTrip v, Codecs o)
     {
-        w.WriteNumber("Room", v.Room);
-        w.WriteNumber("Weight", v.Weight);
+        w.WriteNum("Room", v.Room);
+        w.WriteNum("Weight", v.Weight);
     }
 }
 
@@ -1504,7 +1504,7 @@ internal sealed class PawnProfileConverter : ObjectCodec<PawnProfile>
         w.Put("Effects", v.Effects, o);
         w.Put("Incapable", v.Incapable, o);
         w.Put("WorkSkill", v.WorkSkill, o);
-        w.WriteNumber("Age", v.Age);
+        w.WriteNum("Age", v.Age);
         w.WriteBoolean("Child", v.Child);
         w.Put("Biotech", v.Biotech, o);
         w.Put("Genes", v.Genes, o);
@@ -1529,7 +1529,7 @@ internal sealed class PawnTraitConverter : ObjectCodec<PawnTrait>
     protected override void WriteFields(Utf8JsonWriter w, PawnTrait v, Codecs o)
     {
         w.WriteString("Name", v.Name);
-        w.WriteNumber("Degree", v.Degree);
+        w.WriteNum("Degree", v.Degree);
         w.Put("Effects", v.Effects, o);
     }
 }
@@ -1564,7 +1564,7 @@ internal sealed class InteriorPieceConverter : ObjectCodec<InteriorPiece>
         }
         w.WriteString("Row", v.Row);
         w.WriteString("Beside", v.Beside);
-        w.WriteNumber("Clear", v.Clear);
+        w.WriteNum("Clear", v.Clear);
     }
 }
 
@@ -1610,8 +1610,8 @@ internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
 
     protected override void WriteFields(Utf8JsonWriter w, PlannedRoom v, Codecs o)
     {
-        w.WriteNumber("Id", v.Id);
-        w.WriteNumber("Replaces", v.Replaces);
+        w.WriteNum("Id", v.Id);
+        w.WriteNum("Replaces", v.Replaces);
         w.Put("Role", v.Role, o);
         w.Put("Region", v.Region, o);
         w.Put("Door", v.Door, o);
@@ -1630,8 +1630,8 @@ internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
         {
             w.Put("Facing", vFacing, o);
         }
-        w.WriteNumber("Markers", v.Markers);
-        w.WriteNumber("Parent", v.Parent);
+        w.WriteNum("Markers", v.Markers);
+        w.WriteNum("Parent", v.Parent);
         w.WriteString("Herd", v.Herd);
         w.Put("WorkChairs", v.WorkChairs, o);
     }
@@ -1667,7 +1667,7 @@ internal sealed class PlannedSiteConverter : ObjectCodec<PlannedSite>
             w.Put("Rotation", vRotation, o);
         }
         w.WriteBoolean("Anchored", v.Anchored);
-        w.WriteNumber("Replaces", v.Replaces);
+        w.WriteNum("Replaces", v.Replaces);
         w.Put("Kind", v.Kind, o);
         w.Put("ReplacesSites", v.ReplacesSites, o);
         w.WriteString("Reason", v.Reason);
@@ -1768,8 +1768,8 @@ internal sealed class ProfileSkillConverter : ObjectCodec<ProfileSkill>
     protected override void WriteFields(Utf8JsonWriter w, ProfileSkill v, Codecs o)
     {
         w.WriteString("Name", v.Name);
-        w.WriteNumber("Level", v.Level);
-        w.WriteNumber("Stored", v.Stored);
+        w.WriteNum("Level", v.Level);
+        w.WriteNum("Stored", v.Stored);
         w.WriteString("Passion", v.Passion);
         w.WriteBoolean("Disabled", v.Disabled);
     }
@@ -1818,7 +1818,7 @@ internal sealed class ReadyDeferralConverter : ObjectCodec<ReadyDeferral>
     {
         w.Put("Concern", v.Concern, o);
         w.WriteString("Reason", v.Reason);
-        w.WriteNumber("Count", v.Count);
+        w.WriteNum("Count", v.Count);
     }
 }
 
@@ -1856,7 +1856,7 @@ internal sealed class ReadyWorkConverter : ObjectCodec<ReadyWork>
         w.Put("Requires", v.Requires, o);
         w.Put("Claims", v.Claims, o);
         w.WriteString("Alternative", v.Alternative);
-        w.WriteNumber("Parallelism", v.Parallelism);
+        w.WriteNum("Parallelism", v.Parallelism);
     }
 }
 
@@ -1908,7 +1908,7 @@ internal sealed class RecoveryEntryConverter : ObjectCodec<RecoveryEntry>
         w.WriteString("Def", v.Def);
         w.Put("Kind", v.Kind, o);
         w.Put("Tier", v.Tier, o);
-        w.WriteNumber("Distance", v.Distance);
+        w.WriteNum("Distance", v.Distance);
         w.Put("Status", v.Status, o);
         w.WriteString("Reason", v.Reason);
         w.Put("Short", v.Short, o);
@@ -1958,10 +1958,10 @@ internal sealed class RectangleConverter : ObjectCodec<Rectangle>
 
     protected override void WriteFields(Utf8JsonWriter w, Rectangle v, Codecs o)
     {
-        w.WriteNumber("X", v.X);
-        w.WriteNumber("Z", v.Z);
-        w.WriteNumber("Width", v.Width);
-        w.WriteNumber("Height", v.Height);
+        w.WriteNum("X", v.X);
+        w.WriteNum("Z", v.Z);
+        w.WriteNum("Width", v.Width);
+        w.WriteNum("Height", v.Height);
     }
 }
 
@@ -2019,7 +2019,7 @@ internal sealed class RingFactsConverter : ObjectCodec<RingFacts>
         w.Put("Inner", v.Inner, o);
         w.Put("Sealed", v.Sealed, o);
         w.WriteString("Opening", v.Opening);
-        w.WriteNumber("Revision", v.Revision);
+        w.WriteNum("Revision", v.Revision);
     }
 }
 
@@ -2036,7 +2036,7 @@ internal sealed class RoomCrossingConverter : ObjectCodec<RoomCrossing>
     protected override void WriteFields(Utf8JsonWriter w, RoomCrossing v, Codecs o)
     {
         w.WriteBoolean("Cold", v.Cold);
-        w.WriteNumber("Beds", v.Beds);
+        w.WriteNum("Beds", v.Beds);
         w.WriteBoolean("Clean", v.Clean);
     }
 }
@@ -2052,8 +2052,8 @@ internal sealed class RoomLinkConverter : ObjectCodec<RoomLink>
 
     protected override void WriteFields(Utf8JsonWriter w, RoomLink v, Codecs o)
     {
-        w.WriteNumber("A", v.A);
-        w.WriteNumber("B", v.B);
+        w.WriteNum("A", v.A);
+        w.WriteNum("B", v.B);
         w.Put("Cell", v.Cell, o);
     }
 }
@@ -2069,9 +2069,9 @@ internal sealed class RoomTripConverter : ObjectCodec<RoomTrip>
 
     protected override void WriteFields(Utf8JsonWriter w, RoomTrip v, Codecs o)
     {
-        w.WriteNumber("A", v.A);
-        w.WriteNumber("B", v.B);
-        w.WriteNumber("Weight", v.Weight);
+        w.WriteNum("A", v.A);
+        w.WriteNum("B", v.B);
+        w.WriteNum("Weight", v.Weight);
     }
 }
 
@@ -2134,7 +2134,7 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
         }
         w.Put("MoodMethods", v.MoodMethods, o);
         w.Put("Sleeping", v.Sleeping, o);
-        w.WriteNumber("Revision", v.Revision);
+        w.WriteNum("Revision", v.Revision);
         w.Put("Snapshot", v.Snapshot, o);
         w.Put("Tick", v.Tick, o);
         w.Put("OrdinaryTick", v.OrdinaryTick, o);
@@ -2189,9 +2189,9 @@ internal sealed class RowRunConverter : ObjectCodec<RowRun>
 
     protected override void WriteFields(Utf8JsonWriter w, RowRun v, Codecs o)
     {
-        w.WriteNumber("Z", v.Z);
-        w.WriteNumber("X", v.X);
-        w.WriteNumber("Length", v.Length);
+        w.WriteNum("Z", v.Z);
+        w.WriteNum("X", v.X);
+        w.WriteNum("Length", v.Length);
     }
 }
 
@@ -2227,7 +2227,7 @@ internal sealed class SiteLaneConverter : ObjectCodec<SiteLane>
         w.Put("Region", v.Region, o);
         w.WriteString("Reason", v.Reason);
         w.WriteBoolean("Wind", v.Wind);
-        w.WriteNumber("Blocked", v.Blocked);
+        w.WriteNum("Blocked", v.Blocked);
     }
 }
 
@@ -2369,8 +2369,8 @@ internal sealed class StatModifierConverter : ObjectCodec<StatModifier>
 
     protected override void WriteFields(Utf8JsonWriter w, StatModifier v, Codecs o)
     {
-        w.WriteNumber("Offset", v.Offset);
-        w.WriteNumber("Factor", v.Factor);
+        w.WriteNum("Offset", v.Offset);
+        w.WriteNum("Factor", v.Factor);
     }
 }
 
@@ -2450,9 +2450,9 @@ internal sealed class TraitEffectsConverter : ObjectCodec<TraitEffects>
 
     protected override void WriteFields(Utf8JsonWriter w, TraitEffects v, Codecs o)
     {
-        w.WriteNumber("WorkSpeed", v.WorkSpeed);
-        w.WriteNumber("LearnRate", v.LearnRate);
-        w.WriteNumber("MoveSpeed", v.MoveSpeed);
+        w.WriteNum("WorkSpeed", v.WorkSpeed);
+        w.WriteNum("LearnRate", v.LearnRate);
+        w.WriteNum("MoveSpeed", v.MoveSpeed);
         w.WriteBoolean("QuickSleeper", v.QuickSleeper);
         w.WriteBoolean("NightShift", v.NightShift);
         w.WriteBoolean("MeleeOnly", v.MeleeOnly);
@@ -2460,7 +2460,7 @@ internal sealed class TraitEffectsConverter : ObjectCodec<TraitEffects>
         w.WriteBoolean("RearRanged", v.RearRanged);
         w.Put("DisabledWork", v.DisabledWork, o);
         w.WriteBoolean("Pyromaniac", v.Pyromaniac);
-        w.WriteNumber("Sociable", v.Sociable);
+        w.WriteNum("Sociable", v.Sociable);
         w.WriteBoolean("Execution", v.Execution);
         w.WriteBoolean("SurgeonSafe", v.SurgeonSafe);
         w.WriteBoolean("HumanButcher", v.HumanButcher);
@@ -2468,7 +2468,7 @@ internal sealed class TraitEffectsConverter : ObjectCodec<TraitEffects>
         w.WriteBoolean("Ascetic", v.Ascetic);
         w.WriteBoolean("Cannibal", v.Cannibal);
         w.WriteBoolean("Gourmand", v.Gourmand);
-        w.WriteNumber("ChemicalInterest", v.ChemicalInterest);
+        w.WriteNum("ChemicalInterest", v.ChemicalInterest);
         w.WriteBoolean("Undergrounder", v.Undergrounder);
         w.WriteBoolean("Greedy", v.Greedy);
         w.WriteBoolean("Jealous", v.Jealous);
@@ -2547,9 +2547,9 @@ internal sealed class WorkCoverageConverter : ObjectCodec<WorkCoverage>
     protected override void WriteFields(Utf8JsonWriter w, WorkCoverage v, Codecs o)
     {
         w.Put("Work", v.Work, o);
-        w.WriteNumber("Demand", v.Demand);
-        w.WriteNumber("Owners", v.Owners);
-        w.WriteNumber("Capable", v.Capable);
+        w.WriteNum("Demand", v.Demand);
+        w.WriteNum("Owners", v.Owners);
+        w.WriteNum("Capable", v.Capable);
     }
 }
 

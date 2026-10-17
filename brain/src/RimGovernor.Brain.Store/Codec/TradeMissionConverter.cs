@@ -28,12 +28,12 @@ public sealed class TradeMissionConverter : ObjectCodec<TradeMission>
     {
         w.Put("HomeColony", v.HomeColony, o);
         w.Put("HomeMap", v.HomeMap, o);
-        w.WriteNumber("HomeTile", v.HomeTile);
+        w.WriteNum("HomeTile", v.HomeTile);
         w.WriteString("Settlement", v.Settlement);
-        w.WriteNumber("SettlementTile", v.SettlementTile);
+        w.WriteNum("SettlementTile", v.SettlementTile);
         w.Put("Crew", v.Crew, o);
         w.Put("Negotiator", v.Negotiator, o);
-        w.WriteNumber("SilverBudget", v.SilverBudget);
+        w.WriteNum("SilverBudget", v.SilverBudget);
         w.Put("Demand", v.Demand, o);
         w.Put("Pack", v.Pack, o);
         w.Put("Phase", v.Phase, o);

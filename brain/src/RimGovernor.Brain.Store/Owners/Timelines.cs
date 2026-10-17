@@ -350,19 +350,19 @@ internal static class LooseJson
                 w.WriteBooleanValue(b);
                 break;
             case int i:
-                w.WriteNumberValue(i);
+                w.WriteNumVal(i);
                 break;
             case long l:
-                w.WriteNumberValue(l);
+                w.WriteNumVal(l);
                 break;
             case ulong u:
-                w.WriteNumberValue(u);
+                w.WriteNumVal(u);
                 break;
             case double d:
-                w.WriteNumberValue(d);
+                w.WriteNumVal(d);
                 break;
             case float f:
-                w.WriteNumberValue(f);
+                w.WriteNumVal(f);
                 break;
             case IReadOnlyDictionary<string, object> map:
                 w.WriteStartObject();

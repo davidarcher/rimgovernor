@@ -28,7 +28,7 @@ public sealed class IdeoligionReformConverter : ObjectCodec<IdeoligionReform>
         w.WriteString("Ideo", v.IdeoId);
         w.Put("Expected", v.Expected, o);
         w.Put("Design", v.Design, o);
-        w.WriteNumber("Count", v.Count);
+        w.WriteNum("Count", v.Count);
     }
 }
 
@@ -113,7 +113,7 @@ public sealed class PawnSettingsConverter : ObjectCodec<PawnSettings>
                 w.WriteBoolean("SelfTend", v.SelfTend);
                 break;
             case SettingKind.MedicineCarry:
-                w.WriteNumber("MedicineCarry", v.MedicineCarry!.Value);
+                w.WriteNum("MedicineCarry", v.MedicineCarry!.Value);
                 break;
             case SettingKind.Nickname:
                 w.WriteString("LeaveName", v.LeaveName);
@@ -134,7 +134,7 @@ public sealed class PawnSettingsConverter : ObjectCodec<PawnSettings>
                 w.WriteString("MechWorkMode", v.MechWorkMode);
                 break;
             case SettingKind.MechControlGroup:
-                w.WriteNumber("MechControlGroup", v.MechControlGroup!.Value);
+                w.WriteNum("MechControlGroup", v.MechControlGroup!.Value);
                 break;
             case SettingKind.ChoosePermit:
                 w.WriteString("PermitFaction", v.ChoosePermit!.Value.Faction);
@@ -196,7 +196,7 @@ public sealed class ProductionBillConverter : ObjectCodec<ProductionBill>
         w.WriteString("Bench", v.Bench);
         w.WriteString("Recipe", v.Recipe);
         w.Put("Mode", v.Mode, o);
-        w.WriteNumber("Target", v.Target);
+        w.WriteNum("Target", v.Target);
         w.Put("Ingredients", v.Ingredients, o);
         w.WriteString("Worker", v.Worker);
         w.WriteString("Replaces", v.Replaces);
@@ -212,7 +212,7 @@ public sealed class QuestAcceptConverter : ObjectCodec<QuestAccept>
     {
         w.Put("Quest", v.Quest, o);
         w.Put("AccepterPawn", v.AccepterPawn, o);
-        w.WriteNumber("RewardChoice", v.RewardChoice);
+        w.WriteNum("RewardChoice", v.RewardChoice);
     }
 }
 
@@ -359,8 +359,8 @@ public sealed class HitPointRangeConverter : ObjectCodec<HitPointRange>
 
     protected override void WriteFields(Utf8JsonWriter w, HitPointRange v, Codecs o)
     {
-        w.WriteNumber("Min", v.Min);
-        w.WriteNumber("Max", v.Max);
+        w.WriteNum("Min", v.Min);
+        w.WriteNum("Max", v.Max);
     }
 }
 
@@ -416,8 +416,8 @@ public sealed class GroundRectConverter : ObjectCodec<GroundRect>
     protected override void WriteFields(Utf8JsonWriter w, GroundRect v, Codecs o)
     {
         w.Put("Origin", v.Origin, o);
-        w.WriteNumber("Width", v.Width);
-        w.WriteNumber("Height", v.Height);
+        w.WriteNum("Width", v.Width);
+        w.WriteNum("Height", v.Height);
     }
 }
 
@@ -496,7 +496,7 @@ public sealed class SurgeryConverter : ObjectCodec<Surgery>
     {
         w.Put("Pawn", v.Pawn, o);
         w.WriteString("Recipe", v.Recipe);
-        w.WriteNumber("Part", v.Part);
+        w.WriteNum("Part", v.Part);
         w.WriteBoolean("AcknowledgeViolation", v.AcknowledgeViolation);
         if (v.Surgeon is { } surgeon)
         {
@@ -535,7 +535,7 @@ public sealed class TradeLineConverter : ObjectCodec<TradeLine>
     protected override void WriteFields(Utf8JsonWriter w, TradeLine v, Codecs o)
     {
         w.WriteString("LineId", v.LineId);
-        w.WriteNumber("AbsoluteCount", v.AbsoluteCount);
+        w.WriteNum("AbsoluteCount", v.AbsoluteCount);
     }
 }
 
@@ -614,7 +614,7 @@ public sealed class WorkSettingConverter : ObjectCodec<WorkSetting>
     protected override void WriteFields(Utf8JsonWriter w, WorkSetting v, Codecs o)
     {
         w.WriteString("Definition", v.Definition);
-        w.WriteNumber("Priority", v.Priority);
+        w.WriteNum("Priority", v.Priority);
     }
 }
 

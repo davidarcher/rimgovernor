@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Text.Json;
 using RimGovernor.Brain.Domain;
 
@@ -201,6 +202,72 @@ public abstract class NumberCodec<T>(Func<JsonElement, T> read, Action<Utf8JsonW
     public void Encode(Utf8JsonWriter w, T value, Codecs codecs) => write(w, value);
 }
 
+/// <summary>
+/// Number writers for the journal. The game's Mono runtime formats a double at 15 significant digits, which does not
+/// round-trip, so a persisted value later compared with a recomputed one differs in the last digits. Floating-point
+/// values are therefore written as their own shortest round-tripping text; integers pass straight through.
+/// </summary>
+public static class JsonNumbers
+{
+    public static void WriteNumVal(this Utf8JsonWriter w, int value) => w.WriteNumberValue(value);
+
+    public static void WriteNumVal(this Utf8JsonWriter w, long value) => w.WriteNumberValue(value);
+
+    public static void WriteNumVal(this Utf8JsonWriter w, uint value) => w.WriteNumberValue(value);
+
+    public static void WriteNumVal(this Utf8JsonWriter w, ulong value) => w.WriteNumberValue(value);
+
+    public static void WriteNumVal(this Utf8JsonWriter w, double value)
+    {
+        if (!double.IsFinite(value))
+        {
+            w.WriteNumberValue(value); // throws, as JSON has no NaN or infinity
+            return;
+        }
+        var text = value.ToString("R", CultureInfo.InvariantCulture);
+        if (double.Parse(text, CultureInfo.InvariantCulture) != value)
+        {
+            text = value.ToString("G17", CultureInfo.InvariantCulture);
+        }
+        w.WriteRawValue(text, skipInputValidation: true);
+    }
+
+    public static void WriteNumVal(this Utf8JsonWriter w, float value)
+    {
+        if (!float.IsFinite(value))
+        {
+            w.WriteNumberValue(value);
+            return;
+        }
+        var text = value.ToString("R", CultureInfo.InvariantCulture);
+        if (float.Parse(text, CultureInfo.InvariantCulture) != value)
+        {
+            text = value.ToString("G9", CultureInfo.InvariantCulture);
+        }
+        w.WriteRawValue(text, skipInputValidation: true);
+    }
+
+    public static void WriteNum(this Utf8JsonWriter w, string name, int value) => w.WriteNumber(name, value);
+
+    public static void WriteNum(this Utf8JsonWriter w, string name, long value) => w.WriteNumber(name, value);
+
+    public static void WriteNum(this Utf8JsonWriter w, string name, uint value) => w.WriteNumber(name, value);
+
+    public static void WriteNum(this Utf8JsonWriter w, string name, ulong value) => w.WriteNumber(name, value);
+
+    public static void WriteNum(this Utf8JsonWriter w, string name, double value)
+    {
+        w.WritePropertyName(name);
+        w.WriteNumVal(value);
+    }
+
+    public static void WriteNum(this Utf8JsonWriter w, string name, float value)
+    {
+        w.WritePropertyName(name);
+        w.WriteNumVal(value);
+    }
+}
+
 /// <summary>Reading and writing helpers shared by the hand-written codecs.</summary>
 public static class JsonFields
 {
@@ -346,17 +413,17 @@ public sealed class WireEnumCodec<TEnum> : ICodec<TEnum>
 
 public sealed class StringValueCodec() : StringCodec<string>(s => s, s => s);
 
-public sealed class Int32Codec() : NumberCodec<int>(e => e.GetInt32(), (w, v) => w.WriteNumberValue(v));
+public sealed class Int32Codec() : NumberCodec<int>(e => e.GetInt32(), (w, v) => w.WriteNumVal(v));
 
-public sealed class Int64Codec() : NumberCodec<long>(e => e.GetInt64(), (w, v) => w.WriteNumberValue(v));
+public sealed class Int64Codec() : NumberCodec<long>(e => e.GetInt64(), (w, v) => w.WriteNumVal(v));
 
-public sealed class UInt32Codec() : NumberCodec<uint>(e => e.GetUInt32(), (w, v) => w.WriteNumberValue(v));
+public sealed class UInt32Codec() : NumberCodec<uint>(e => e.GetUInt32(), (w, v) => w.WriteNumVal(v));
 
-public sealed class UInt64Codec() : NumberCodec<ulong>(e => e.GetUInt64(), (w, v) => w.WriteNumberValue(v));
+public sealed class UInt64Codec() : NumberCodec<ulong>(e => e.GetUInt64(), (w, v) => w.WriteNumVal(v));
 
-public sealed class SingleCodec() : NumberCodec<float>(e => e.GetSingle(), (w, v) => w.WriteNumberValue(v));
+public sealed class SingleCodec() : NumberCodec<float>(e => e.GetSingle(), (w, v) => w.WriteNumVal(v));
 
-public sealed class DoubleCodec() : NumberCodec<double>(e => e.GetDouble(), (w, v) => w.WriteNumberValue(v));
+public sealed class DoubleCodec() : NumberCodec<double>(e => e.GetDouble(), (w, v) => w.WriteNumVal(v));
 
 public sealed class BooleanCodec : ICodec<bool>
 {

@@ -63,15 +63,15 @@ public sealed class ResourceRunwayRecordConverter : ObjectCodec<ResourceRunwayRe
     {
         w.WriteString("Resource", v.Resource.Value);
         w.Put("Tick", v.Tick, o);
-        w.WriteNumber("WindowDays", v.WindowDays);
-        w.WriteNumber("Reserve", v.Reserve);
+        w.WriteNum("WindowDays", v.WindowDays);
+        w.WriteNum("Reserve", v.Reserve);
         w.PutNullable("Stock", v.Stock, o);
         w.PutNullable("SurfaceOre", v.SurfaceOre, o);
         w.PutNullable("ConsumptionPerDay", v.ConsumptionPerDay, o);
         w.PutNullable("StockDays", v.StockDays, o);
         w.PutNullable("DaysLeft", v.DaysLeft, o);
         w.PutNullable("Deficit", v.Deficit, o);
-        w.WriteNumber("Target", v.Target);
+        w.WriteNum("Target", v.Target);
     }
 }
 
@@ -358,7 +358,7 @@ public sealed class RoundsMoodMethodConverter : ObjectCodec<RoundsMoodMethod>
         {
             w.WriteString("Thought", v.Thought);
         }
-        w.WriteNumber("Target", v.Target);
+        w.WriteNum("Target", v.Target);
         w.PutNullable("NeedBenefit", v.NeedBenefit, o);
         w.PutNullable("MoodBenefit", v.MoodBenefit, o);
     }

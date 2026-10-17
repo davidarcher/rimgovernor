@@ -8,7 +8,7 @@ internal sealed class AmountConverter : ObjectCodec<Amount>
 {
     protected override Amount Read(JsonElement e, Codecs o) => new(e.Get<Resource>("Resource", o), e.I64("Count"));
     protected override void WriteFields(Utf8JsonWriter w, Amount v, Codecs o)
-    { w.Put("Resource", v.Resource, o); w.WriteNumber("Count", v.Count); }
+    { w.Put("Resource", v.Resource, o); w.WriteNum("Count", v.Count); }
 }
 
 internal sealed class WorkAdmissionEvidenceConverter : ObjectCodec<WorkAdmissionEvidence>
@@ -67,8 +67,8 @@ internal sealed class WorkResourcePawnConverter : ObjectCodec<RimGovernor.Contra
     protected override RimGovernor.Contracts.Wire.Observations.WorkResourcePawn Read(JsonElement e, Codecs o) =>
         new(e.Str("Pawn"), e.Str("Assignment"), e.I64("Revision"), e.Str("State"), e.Str("CarriedThing"), e.Str("CarriedResource"), e.I32("CarriedCount")) { LocalHour = e.Get<double?>("LocalHour", o), Bill = e.Str("Bill"), Target = e.Str("Target") };
     protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Contracts.Wire.Observations.WorkResourcePawn v, Codecs o)
-    { w.WriteString("Pawn", v.Pawn); w.WriteString("Assignment", v.Assignment); w.WriteNumber("Revision", v.Revision);
-      w.WriteString("State", v.State); w.WriteString("CarriedThing", v.CarriedThing); w.WriteString("CarriedResource", v.CarriedResource); w.WriteNumber("CarriedCount", v.CarriedCount); w.Put("LocalHour", v.LocalHour, o); w.WriteString("Bill", v.Bill); w.WriteString("Target", v.Target); }
+    { w.WriteString("Pawn", v.Pawn); w.WriteString("Assignment", v.Assignment); w.WriteNum("Revision", v.Revision);
+      w.WriteString("State", v.State); w.WriteString("CarriedThing", v.CarriedThing); w.WriteString("CarriedResource", v.CarriedResource); w.WriteNum("CarriedCount", v.CarriedCount); w.Put("LocalHour", v.LocalHour, o); w.WriteString("Bill", v.Bill); w.WriteString("Target", v.Target); }
 }
 
 internal sealed class ProductionRecipeInputConverter : ObjectCodec<ProductionRecipeInput>

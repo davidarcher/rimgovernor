@@ -23,15 +23,15 @@ public sealed class MethodIdConverter() : StringCodec<MethodId>(s => new MethodI
 
 public sealed class DomainControllerSessionIdConverter() : StringCodec<RimGovernor.Brain.Domain.ControllerSessionId>(s => new RimGovernor.Brain.Domain.ControllerSessionId(s), v => v.Value);
 
-public sealed class MapIdConverter() : NumberCodec<MapId>(e => new MapId(e.GetInt32()), (w, v) => w.WriteNumberValue(v.Value));
+public sealed class MapIdConverter() : NumberCodec<MapId>(e => new MapId(e.GetInt32()), (w, v) => w.WriteNumVal(v.Value));
 
-public sealed class AttemptIdConverter() : NumberCodec<AttemptId>(e => new AttemptId(e.GetUInt64()), (w, v) => w.WriteNumberValue(v.Value));
+public sealed class AttemptIdConverter() : NumberCodec<AttemptId>(e => new AttemptId(e.GetUInt64()), (w, v) => w.WriteNumVal(v.Value));
 
-public sealed class PlanRevisionConverter() : NumberCodec<PlanRevision>(e => new PlanRevision(e.GetUInt64()), (w, v) => w.WriteNumberValue(v.Value));
+public sealed class PlanRevisionConverter() : NumberCodec<PlanRevision>(e => new PlanRevision(e.GetUInt64()), (w, v) => w.WriteNumVal(v.Value));
 
-public sealed class NativeGenerationConverter() : NumberCodec<NativeGeneration>(e => new NativeGeneration(e.GetUInt64()), (w, v) => w.WriteNumberValue(v.Value));
+public sealed class NativeGenerationConverter() : NumberCodec<NativeGeneration>(e => new NativeGeneration(e.GetUInt64()), (w, v) => w.WriteNumVal(v.Value));
 
-public sealed class TickConverter() : NumberCodec<Tick>(e => new Tick(e.GetInt64()), (w, v) => w.WriteNumberValue(v.Value));
+public sealed class TickConverter() : NumberCodec<Tick>(e => new Tick(e.GetInt64()), (w, v) => w.WriteNumVal(v.Value));
 
 public sealed class CellConverter : ObjectCodec<Cell>
 {
@@ -39,8 +39,8 @@ public sealed class CellConverter : ObjectCodec<Cell>
 
     protected override void WriteFields(Utf8JsonWriter w, Cell v, Codecs o)
     {
-        w.WriteNumber("X", v.X);
-        w.WriteNumber("Z", v.Z);
+        w.WriteNum("X", v.X);
+        w.WriteNum("Z", v.Z);
     }
 }
 

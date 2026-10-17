@@ -81,10 +81,10 @@ public sealed class ApparelPolicyConverter : ObjectCodec<ApparelPolicy>
         w.WriteString("Token", v.Spec.Token);
         w.WriteString("Name", v.Spec.Name);
         w.Put("Definitions", v.Spec.Definitions, o);
-        w.WriteNumber("MinHP", v.Spec.MinHP);
-        w.WriteNumber("MaxHP", v.Spec.MaxHP);
-        w.WriteNumber("MinQuality", v.Spec.MinQuality);
-        w.WriteNumber("MaxQuality", v.Spec.MaxQuality);
+        w.WriteNum("MinHP", v.Spec.MinHP);
+        w.WriteNum("MaxHP", v.Spec.MaxHP);
+        w.WriteNum("MinQuality", v.Spec.MinQuality);
+        w.WriteNum("MaxQuality", v.Spec.MaxQuality);
         w.WriteBoolean("AllowTainted", v.Spec.AllowTainted);
     }
 }
@@ -95,10 +95,10 @@ public sealed class AreaRectConverter : ObjectCodec<AreaRect>
 
     protected override void WriteFields(Utf8JsonWriter w, AreaRect v, Codecs o)
     {
-        w.WriteNumber("MinX", v.MinX);
-        w.WriteNumber("MinZ", v.MinZ);
-        w.WriteNumber("MaxX", v.MaxX);
-        w.WriteNumber("MaxZ", v.MaxZ);
+        w.WriteNum("MinX", v.MinX);
+        w.WriteNum("MinZ", v.MinZ);
+        w.WriteNum("MaxX", v.MaxX);
+        w.WriteNum("MaxZ", v.MaxZ);
     }
 }
 
@@ -204,7 +204,7 @@ public sealed class BuildingTemperatureConverter : ObjectCodec<BuildingTemperatu
     protected override void WriteFields(Utf8JsonWriter w, BuildingTemperature v, Codecs o)
     {
         w.WriteString("Thing", v.Thing);
-        w.WriteNumber("Celsius", v.Celsius);
+        w.WriteNum("Celsius", v.Celsius);
     }
 }
 
@@ -233,7 +233,7 @@ public sealed class CargoItemConverter : ObjectCodec<CargoItem>
     protected override void WriteFields(Utf8JsonWriter w, CargoItem v, Codecs o)
     {
         w.WriteString("Definition", v.Definition);
-        w.WriteNumber("Count", v.Count);
+        w.WriteNum("Count", v.Count);
     }
 }
 
@@ -246,7 +246,7 @@ public sealed class CaravanDepartureConverter : ObjectCodec<CaravanDeparture>
     {
         w.Put("Crew", v.Crew, o);
         w.Put("Cargo", v.Cargo, o);
-        w.WriteNumber("DestinationTile", v.DestinationTile);
+        w.WriteNum("DestinationTile", v.DestinationTile);
         w.Put("Mode", v.Mode, o);
     }
 }
@@ -329,7 +329,7 @@ public sealed class CombatResultConverter : ObjectCodec<CombatResult>
 
     protected override void WriteFields(Utf8JsonWriter w, CombatResult v, Codecs o)
     {
-        w.WriteNumber("Index", v.Index);
+        w.WriteNum("Index", v.Index);
         w.WriteString("PawnId", v.PawnId);
         w.WriteBoolean("Applied", v.Applied);
         w.WriteString("Refusal", v.Refusal);
@@ -349,7 +349,7 @@ public sealed class CommsTradeRequestConverter : ObjectCodec<CommsTradeRequest>
         w.WriteString("TraderKind", v.TraderKind);
         w.WriteString("Console", v.Console);
         w.WriteString("Negotiator", v.Negotiator);
-        w.WriteNumber("ExpectedLastRequestTick", v.ExpectedLastRequestTick);
+        w.WriteNum("ExpectedLastRequestTick", v.ExpectedLastRequestTick);
     }
 }
 
@@ -405,8 +405,8 @@ public sealed class DialogAnswerConverter : ObjectCodec<DialogAnswer>
 
     protected override void WriteFields(Utf8JsonWriter w, DialogAnswer v, Codecs o)
     {
-        w.WriteNumber("WindowId", v.WindowId);
-        w.WriteNumber("OptionIndex", v.OptionIndex);
+        w.WriteNum("WindowId", v.WindowId);
+        w.WriteNum("OptionIndex", v.OptionIndex);
         w.WriteString("OptionLabel", v.OptionLabel);
         w.WriteString("LetterToken", v.LetterToken);
     }
@@ -454,10 +454,10 @@ public sealed class DrugPolicyEntryConverter : ObjectCodec<DrugPolicyEntry>
         w.WriteBoolean("Joy", v.Joy);
         w.WriteBoolean("Addiction", v.Addiction);
         w.WriteBoolean("Scheduled", v.Scheduled);
-        w.WriteNumber("DaysFrequency", v.DaysFrequency);
-        w.WriteNumber("OnlyIfMoodBelow", v.OnlyIfMoodBelow);
-        w.WriteNumber("OnlyIfJoyBelow", v.OnlyIfJoyBelow);
-        w.WriteNumber("TakeToInventory", v.TakeToInventory);
+        w.WriteNum("DaysFrequency", v.DaysFrequency);
+        w.WriteNum("OnlyIfMoodBelow", v.OnlyIfMoodBelow);
+        w.WriteNum("OnlyIfJoyBelow", v.OnlyIfJoyBelow);
+        w.WriteNum("TakeToInventory", v.TakeToInventory);
     }
 }
 
@@ -563,7 +563,7 @@ public sealed class GiveItemConverter : ObjectCodec<GiveItem>
         w.Put("Hauler", v.Hauler, o);
         w.Put("Recipient", v.Recipient, o);
         w.WriteString("Definition", v.Definition);
-        w.WriteNumber("ExpectedRemaining", v.ExpectedRemaining);
+        w.WriteNum("ExpectedRemaining", v.ExpectedRemaining);
     }
 }
 
