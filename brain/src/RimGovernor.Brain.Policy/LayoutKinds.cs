@@ -222,9 +222,6 @@ public enum ReservationKind
     [WireName("geothermal")]
     Geothermal,
 
-    [WireName("cooler_exhaust")]
-    Exhaust,
-
     [WireName("perimeter_wall")]
     Ring,
 

@@ -45,9 +45,6 @@ public sealed record SurveyCell
     /// <summary>The soil's growing multiplier (0 for rock and floors).</summary>
     public double Fertility { get; init; }
 
-    /// <summary>The def of the terrain on the cell (a floor included); empty where unread.</summary>
-    public string Terrain { get; init; } = "";
-
     /// <summary>Rock holding a mineable resource.</summary>
     public bool Ore { get; init; }
 

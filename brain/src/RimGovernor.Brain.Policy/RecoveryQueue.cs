@@ -300,7 +300,7 @@ public static partial class RecoveryRules
             Kind = RemoteWorkKind.Salvage,
             RoomObstruction = roomObstruction,
             Cell = new Cell((row.Minimum.X + row.Maximum.X) / 2, (row.Minimum.Z + row.Maximum.Z) / 2),
-            Hold = RemoteRules.RemoteHoldReason(RemoteWorkKind.Salvage, ClearanceRules.ClearanceHoldReason(own)),
+            Hold = RemoteRules.RemoteHoldReason(ClearanceRules.ClearanceHoldReason(own)),
             RouteSafe = Unknown<bool>(),
             Skipped = row.SalvageSkipped,
         };

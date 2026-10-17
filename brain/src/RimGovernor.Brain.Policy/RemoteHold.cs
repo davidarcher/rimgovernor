@@ -81,10 +81,9 @@ public static partial class RemoteRules
 
     /// <summary>
     /// Folds an eligibility or demand reason into the explicit vocabulary above and returns any other reason
-    /// unchanged. An "ineligible" salvage or loot candidate failed native route safety; an ineligible mining
-    /// deposit failed the open-surface roof check.
+    /// unchanged. An "ineligible" salvage or loot candidate failed native route safety.
     /// </summary>
-    public static string RemoteHoldReason(RemoteWorkKind kind, string reason)
+    public static string RemoteHoldReason(string reason)
     {
         var baseReason = reason;
         if (baseReason.StartsWith("demand:", StringComparison.Ordinal))
@@ -111,7 +110,7 @@ public static partial class RemoteRules
             case "roof_blocker":
                 return RemoteHoldRoofSupport;
             case "ineligible":
-                return kind == RemoteWorkKind.Mining ? RemoteHoldRoofSupport : RemoteHoldRouteUnsafe;
+                return RemoteHoldRouteUnsafe;
             default:
                 return reason;
         }
@@ -143,7 +142,6 @@ public enum RemoteWorkKind
 {
     Loot,
     Salvage,
-    Mining,
 }
 
 /// <summary>

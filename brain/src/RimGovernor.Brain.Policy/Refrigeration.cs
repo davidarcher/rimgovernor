@@ -70,12 +70,6 @@ public sealed record RefrigerationObservation
     /// </summary>
     public Fact<bool> Blackout { get; init; }
 
-    /// <summary>
-    /// The layout plan's cooler sites; a room whose back wall holds one takes it over any other vented wall
-    /// once its hot side is open (the outer face, or a dug exhaust shaft).
-    /// </summary>
-    public EquatableArray<PlannedCoolerSite> Planned { get; init; }
-
     public void Validate()
     {
         new RoomObservation { Rooms = Rooms }.Validate();
@@ -142,8 +136,6 @@ public sealed record RefrigerationProposal
     public RefrigerationMethod Method { get; init; }
 
     public MethodId Key { get; init; }
-
-    public string Room { get; init; } = "";
 
     /// <summary>Cell and Rotation place a new cooler in the room's wall with its cold side facing the room.</summary>
     public Cell Cell { get; init; }
@@ -357,11 +349,7 @@ public static partial class RefrigerationRules
             {
                 taken.Add(cooler.Position);
             }
-            var (cell, rotation, ok) = PlannedWall(room, v.Planned, cells, taken);
-            if (!ok)
-            {
-                (cell, rotation, ok) = VentedWall(room, cellRoom, cells, taken);
-            }
+            var (cell, rotation, ok) = VentedWall(room, cellRoom, cells, taken);
             if (!ok)
             {
                 deferred = FirstReason(deferred, RefrigerationMethod.NoWall);
@@ -372,7 +360,6 @@ public static partial class RefrigerationRules
             {
                 Method = RefrigerationMethod.Build,
                 Key = new MethodId("refrigeration-" + Convert.ToHexStringLower(digest.AsSpan(0, 12))),
-                Room = id,
                 Cell = cell,
                 Rotation = rotation,
             };
@@ -431,7 +418,6 @@ public static partial class RefrigerationRules
                     {
                         Method = RefrigerationMethod.SetTarget,
                         Key = new MethodId("refrigeration-" + Convert.ToHexStringLower(digest.AsSpan(0, 12))),
-                        Room = room,
                         Cooler = cooler.Id,
                         TargetC = p.FreezerTargetC,
                     },
@@ -502,44 +488,6 @@ public static partial class RefrigerationRules
             }
         }
         return (false, false);
-    }
-
-    /// <summary>The first planned cooler site whose cold side is in room, not taken, standing in a known wall with a known walkable hot side.</summary>
-    internal static (Cell Cell, Rotation Rotation, bool Ok) PlannedWall(
-        Room room, IReadOnlyList<PlannedCoolerSite> planned, IReadOnlyDictionary<Cell, SiteCell> cells, ISet<Cell> taken)
-    {
-        var inside = new HashSet<Cell>(room.Cells);
-        foreach (var s in planned)
-        {
-            var cooler = new RefrigerationCooler { Position = s.Cell, Rotation = s.Rotation };
-            if (taken.Contains(s.Cell) || !inside.Contains(cooler.Cold()))
-            {
-                continue;
-            }
-            if (!cells.TryGetValue(s.Cell, out var w))
-            {
-                continue;
-            }
-            if (!w.Walkable.TryGetValue(out var walkable) || walkable)
-            {
-                continue;
-            }
-            if (w.NaturalRock())
-            {
-                // No cooler stands on rock; the exhaust dig mines the cell and places this planned cooler in one plan.
-                continue;
-            }
-            if (!cells.TryGetValue(cooler.Hot(), out var o))
-            {
-                continue;
-            }
-            if (!o.Walkable.TryGetValue(out var ow) || !ow)
-            {
-                continue;
-            }
-            return (s.Cell, s.Rotation, true);
-        }
-        return (default, default, false);
     }
 
     // Rotations order by their wire strings: east, north, south, west.

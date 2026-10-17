@@ -20,9 +20,6 @@ public sealed record PenNode
 /// <summary>Pens as outdoor nodes of the station graph.</summary>
 public static partial class LayoutPenNodesRules
 {
-    /// <summary>Why the graph holds a pen: the herd the plan keeps of a race.</summary>
-    public const string ReasonPenHerd = "pen_herd_of_race";
-
     /// <summary>The items the herds' pens move: their products and feed items. The caller reads their rot and stacks beside the recipes' items.</summary>
     public static List<Resource> PenItems(IEnumerable<StationHerd> herds, AnimalRaceCatalog races)
     {

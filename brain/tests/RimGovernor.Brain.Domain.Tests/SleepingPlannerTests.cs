@@ -86,7 +86,7 @@ public sealed class SleepingPlannerTests
     private static UpkeepRoom Quality(string id, double impressiveness) =>
         new() { Id = id, Quality = Known(new RoomQuality(impressiveness, 0, 0, 0, impressiveness)) };
 
-    private static RoomTarget Target(string room, double min, params string[] reasons) => new() { Room = room, Owners = [A], Min = min, Reasons = [.. reasons] };
+    private static RoomTarget Target(double min, params string[] reasons) => new() { Min = min, Reasons = [.. reasons] };
 
     [Fact]
     public void AGreedyColonistIsGivenASuiteAndATitleThatOutgrowsItGetsANewLargerSuiteWhileTheFirstStaysHeld()
@@ -101,7 +101,7 @@ public sealed class SleepingPlannerTests
             Beds = [Bed("b1", "std", A)],
             Rooms = Known<EquatableArray<UpkeepRoom>>([Quality("std", 30)]),
         };
-        var greedyTargets = new Dictionary<string, RoomTarget> { ["std"] = Target("std", 50, "greedy", "tier") };
+        var greedyTargets = new Dictionary<string, RoomTarget> { ["std"] = Target(50, "greedy", "tier") };
 
         // The standard room cannot hold the floor Greedy needs: the suite is shelled first.
         var claim = Assert.Single(RoomQualityRules.SuiteClaims(plan, new RoomObservation { Rooms = [standard] }, greedy, greedyTargets, new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>()));
@@ -125,7 +125,7 @@ public sealed class SleepingPlannerTests
             Beds = [Bed("b1", "std"), Bed("b2", "suite", A)],
             Rooms = Known<EquatableArray<UpkeepRoom>>([Quality("std", 30), Quality("suite", 55)]),
         };
-        var baron = new Dictionary<string, RoomTarget> { ["suite"] = Target("suite", 70, "greedy", "tier", "title") };
+        var baron = new Dictionary<string, RoomTarget> { ["suite"] = Target(70, "greedy", "tier", "title") };
         var outgrown = Assert.Single(RoomQualityRules.SuiteClaims(plan, rooms, inSuite, baron, new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>()));
         Assert.Equal((A, "b2", SuiteClaimReason.TooSmall), (outgrown.Pawn, outgrown.Bed, outgrown.Reason));
         Assert.Equal([new SuiteWish(70, Suite.Region.Area())], RoomQualityRules.SuiteWishes(plan, rooms, inSuite, baron, [outgrown]));

@@ -296,7 +296,6 @@ Contracts|Receipts.LookupReplyOutcome.Receipt
 Contracts|Receipts.LookupReplyOutcome.ReceiptCase.Value
 Contracts|Receipts.LookupReplyOutcome.Unknown
 Contracts|Receipts.NoChange.Detail
-Contracts|Receipts.PawnActivitiesEffect.Assignments
 Contracts|Receipts.PendingEffect.Evidence
 Contracts|Receipts.PrisonerEffect.Pawn
 Contracts|Receipts.Progress.Attempt
@@ -652,12 +651,7 @@ Policy|Regrouping.Pairs
 Policy|RescuePatientFacts.BedID
 Policy|RescuePatientFacts.SnapshotToken
 Policy|RescuerFacts.SnapshotToken
-Policy|RoomFlow.Reason
-Policy|RoomGrowth.Grazing
 Policy|RoomSizeTable.Holds
-Policy|RoomTarget.Owners
-Policy|RoomTarget.Room
-Policy|RoomUpgrade.Weakest
 Policy|RoundsFacts.NeedsAlternatives
 Policy|RoundsFindings.EssentialServices
 Policy|RouteFacility.Cell

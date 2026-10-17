@@ -58,7 +58,7 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>
     /// The refrigeration Need's work step (#3280), run by the food stores family for the ready Need under its owner.
     /// It reads the rooms, shells the owed meal closet, picks the cooler method, and commits the setpoint, or the
-    /// freezer's ring, the exhaust dig and the cooler itself. No whole-owner guard holds it: each target is
+    /// freezer's ring and the cooler itself. No whole-owner guard holds it: each target is
     /// committed once under the Need while its work is open or what it built stands (a destroyed cooler or ring is
     /// committed again, decision 19), and an overlapping footprint is held by the claim.
     /// </summary>
@@ -168,12 +168,6 @@ public sealed partial class RoundsBuildingPlanner
         // Building intents admitted on other owners' plans but not yet applied show nothing on the map; keep off their anchors.
         protectedCells.AddRange(p.Journal.PendingBuildingAnchors(snapshot, [.. goal.OpenMethods.Select(m => m.Plan)], call));
 
-        var excavation = new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts, Read = reading };
-        var (exhaust, dug) = await r.DigExhaustAsync(excavation, Check, call, epoch).ConfigureAwait(false);
-        if (dug)
-        {
-            return exhaust.Verdict;
-        }
         var (selected, stock, previewReason) = await r.PreviewRefrigerationAsync(snapshot, facts, protectedCells, Check, call).ConfigureAwait(false);
         if (!previewReason.IsZero)
         {

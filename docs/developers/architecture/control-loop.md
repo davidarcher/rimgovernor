@@ -294,7 +294,7 @@ the native cooling time they lent are gone: the cooling window runs only over
 coolers the Need itself recently committed in its world (`OwnerMethodHistory`). Its building
 work is the family runner's `work` step (`FoodStoresRounds.WorkAsync` calling
 `RoundsBuildingPlanner.RefrigerationStepAsync` with the Need owner): the meal
-closet ring, a cooler setpoint, the freezer ring, the exhaust dig and the cooler,
+closet ring, a cooler setpoint, the freezer ring and the cooler,
 each committed once under the Need while its attempt is open or what it built
 stands (a destroyed cooler or ring is committed again, decision 19), and held
 apart by claims, not by a whole-owner guard. With refrigeration on, the family reads the room census and

@@ -13,13 +13,6 @@ public sealed record PlannedPowerSite
     public Rectangle Block { get; init; }
 }
 
-/// <summary>A cooled room's planned cooler: the cell in its back wall in front of the exhaust reservation, turned so the hot side faces the exhaust and the cold side the room.</summary>
-public sealed record PlannedCoolerSite
-{
-    public Cell Cell { get; init; }
-    public Rotation Rotation { get; init; }
-}
-
 /// <summary>Marks the cells a utility site may not take.</summary>
 internal sealed partial class UtilityGrid
 {
@@ -130,16 +123,13 @@ internal sealed partial class UtilityGrid
 
 /// <summary>
 /// Utility reservations. The plan holds a battery room (a room like any other), wind
-/// turbines and solar plots as stored site nodes, a stone enclosure around each geyser's generator and an exhaust cell
-/// (or dug shaft) behind each room that needs cooling. The generator never builds over a reservation.
+/// turbines and solar plots as stored site nodes and a stone enclosure around each geyser's generator. The generator never
+/// builds over a reservation.
 /// </summary>
 public static partial class LayoutUtilityRules
 {
     /// <summary>The battery room: 5 wide, a 1-cell walkway from the door down the middle, batteries (1x2) along both sides with a stone block between each, roofed, stone door.</summary>
     public static PlannedRole PlannedBattery => PlannedRole.Battery;
-
-    /// <summary>The cells behind a cooled room's back wall the cooler dumps heat into: one open cell, or a shaft dug through rock to open ground.</summary>
-    public static ReservationKind ReserveExhaust => ReservationKind.Exhaust;
 
     // A turbine's long side is the wind path's width.
     internal const int TurbineWidth = 7;
@@ -164,9 +154,6 @@ public static partial class LayoutUtilityRules
         }
         return lowRow ? (new Cell(area.X + 3, area.Z), Rotation.North) : (new Cell(area.X + 3, area.Z + 1), Rotation.South);
     }
-
-    /// <summary>The rooms that need a cooler, most important first.</summary>
-    internal static PlannedRole[] CoolingRoles => [LayoutSurveyRules.PlannedFreezer, LayoutSurveyRules.PlannedTomb, LayoutSurveyRules.PlannedMorgue, PlannedRole.MealCloset];
 
     /// <summary>Lists r's cells row by row.</summary>
     public static List<Cell> RectangleCells(Rectangle r)
@@ -241,25 +228,6 @@ partial record PlannedRoom
             output.Add(new Rectangle { X = inner.X + inner.Width - 2, Z = z, Width = 2, Height = 1 });
         }
         return output;
-    }
-
-    /// <summary>A room's back wall cell (the middle of the wall facing away from its hallway), the step pointing out through it, and that direction.</summary>
-    internal static (Cell Wall, Cell Step, Rotation Rot) BackWall(PlannedRoom room)
-    {
-        var inner = room.Region.Bounds();
-        if (room.DoorRot == Rotation.North) // room south of an east-west hallway
-        {
-            return (new Cell(inner.X + (inner.Width / 2), inner.Z - 1), new Cell(0, -1), Rotation.South);
-        }
-        if (room.DoorRot == Rotation.East) // room west of a crossing
-        {
-            return (new Cell(inner.X - 1, inner.Z + (inner.Height / 2)), new Cell(-1, 0), Rotation.West);
-        }
-        if (room.DoorRot == Rotation.West)
-        {
-            return (new Cell(inner.X + inner.Width, inner.Z + (inner.Height / 2)), new Cell(1, 0), Rotation.East);
-        }
-        return (new Cell(inner.X + (inner.Width / 2), inner.Z + inner.Height), new Cell(0, 1), Rotation.North);
     }
 
     /// <summary>The cells a room's walls and interior take. A ring is its block, a range its range block; any other unfenced room blocks its interior.</summary>
@@ -363,27 +331,6 @@ partial record LayoutPlan
         return output;
     }
 
-    /// <summary>A cooler site per cooling room whose exhaust the plan reserved, in plan order.</summary>
-    public static List<PlannedCoolerSite> PlannedCoolerSites(LayoutPlan plan)
-    {
-        var output = new List<PlannedCoolerSite>();
-        foreach (var role in LayoutUtilityRules.CoolingRoles)
-        {
-            foreach (var r in plan.Rooms)
-            {
-                if (r.Role != role)
-                {
-                    continue;
-                }
-                if (plan.CoolerExhaust(r) is { } found)
-                {
-                    output.Add(found.Site);
-                }
-            }
-        }
-        return output;
-    }
-
     internal static UtilityGrid NewUtilityGrid(LayoutPlan plan) => new UtilityGrid(plan);
 
     /// <summary>The cells the turbine standing on area must keep clear: its own wind path, not the pair's whole lane area. Empty for a site that is not a turbine (a solar plot).</summary>
@@ -397,24 +344,5 @@ partial record LayoutPlan
             }
         }
         return [];
-    }
-}
-
-public sealed partial record LayoutPlan
-{
-    /// <summary>The cooler site in room's back wall and the exhaust the plan reserved behind it; null when the plan reserved none.</summary>
-    public (PlannedCoolerSite Site, Rectangle Exhaust)? CoolerExhaust(PlannedRoom room)
-    {
-        var (wall, step, rot) = PlannedRoom.BackWall(room);
-        var first = new Cell(wall.X + step.X, wall.Z + step.Z);
-        foreach (var e in Reservations)
-        {
-            var area = e.Area.Bounds();
-            if (e.Kind == LayoutUtilityRules.ReserveExhaust && (area.Width == 1 || area.Height == 1) && e.Area.Contains(first))
-            {
-                return (new PlannedCoolerSite { Cell = wall, Rotation = rot }, area);
-            }
-        }
-        return null;
     }
 }

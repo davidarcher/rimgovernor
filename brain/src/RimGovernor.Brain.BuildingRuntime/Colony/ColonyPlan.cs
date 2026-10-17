@@ -246,10 +246,9 @@ public sealed partial class Rounder
     /// </summary>
     internal async Task<(LayoutInputs Inputs, RoomGrowth Growth)> LayoutInputsOfAsync(GenerationSnapshot snapshot, ColonyProjection projection, HeldLayout layout, MapSurvey survey, DefinitionCatalog catalog, string grown, int pawns, IReadOnlyList<PowerGeyser> geysers, CancellationToken ct)
     {
-        var growth = await RoomGrowthAsync(snapshot, projection, layout.Plan, survey, Stockpiles.LayoutDemand(RoundsStockpilePlanner.StockpileWorld(snapshot)), ct).ConfigureAwait(false);
-        var keyed = growth with { Grazing = null };
+        var growth = await RoomGrowthAsync(snapshot, projection, layout.Plan, Stockpiles.LayoutDemand(RoundsStockpilePlanner.StockpileWorld(snapshot)), ct).ConfigureAwait(false);
         StationAdviceFor(snapshot, projection, layout.Plan, LayoutPlan.TilePinned(layout.Plan, growth), growth, growth.Demand, survey, catalog);
-        var key = string.Create(CultureInfo.InvariantCulture, $"{grown} {pawns} {string.Join(",", geysers)} {keyed} {StationInputs.Key}");
+        var key = string.Create(CultureInfo.InvariantCulture, $"{grown} {pawns} {string.Join(",", geysers)} {growth} {StationInputs.Key}");
         return (new LayoutInputs(layout.Tick, key, survey.Bounds, [.. survey.Cells]), growth);
     }
 
@@ -260,15 +259,11 @@ public sealed partial class Rounder
     /// use, the bedrooms a pawn still sleeps in, the herd and the ring's hold. Fixed stays null while the census
     /// or the plan catalog is unknown, which pins every room.
     /// </summary>
-    internal async Task<RoomGrowth> RoomGrowthAsync(GenerationSnapshot snapshot, ColonyProjection projection, LayoutPlan plan, MapSurvey survey, RoomDemand demand, CancellationToken ct)
+    internal async Task<RoomGrowth> RoomGrowthAsync(GenerationSnapshot snapshot, ColonyProjection projection, LayoutPlan plan, RoomDemand demand, CancellationToken ct)
     {
         var growth = new RoomGrowth { Pens = projection.Facts.PenWants(), Demand = demand };
         var (need, owed) = RoundsSleepingUpkeepPlanner.ThroneNeed(projection);
         growth = growth with { ThroneArea = ThroneRules.ThroneAreaOwed(plan, need, owed) };
-        if (projection.Facts.Pasture.TryGetValue(out var pasture))
-        {
-            growth = growth with { Grazing = HerdPenRules.GrazingGround(survey, pasture) };
-        }
         // A room whose need has ended and that is in use stays.
         if (projection.Facts.CurrentConstruction.TryGetValue(out var construction) && construction.Colony)
         {

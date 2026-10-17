@@ -615,7 +615,7 @@ public static partial class ThroneRules
         }
         return new Dictionary<string, RoomTarget>
         {
-            [standing!.Id] = new RoomTarget { Room = standing.Id, Min = need.MinImpressiveness, Reasons = ["title"] },
+            [standing!.Id] = new RoomTarget { Min = need.MinImpressiveness, Reasons = ["title"] },
         };
     }
 

@@ -85,13 +85,6 @@ public static class RefrigerationReads
         {
             result = result with { Blackout = topology.Blackout };
         }
-        if (projection.LayoutPlan.TryGetValue(out var plan))
-        {
-            if (projection.TechTier.TryGetValue(out var tier) && tier >= TechTier.Masonry)
-            {
-                result = result with { Planned = EquatableArray.From(LayoutPlan.PlannedCoolerSites(plan)) };
-            }
-        }
         foreach (var d in projection.Definitions)
         {
             if (d.Name == "Cooler")

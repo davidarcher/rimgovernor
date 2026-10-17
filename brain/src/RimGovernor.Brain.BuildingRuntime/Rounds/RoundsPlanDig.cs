@@ -208,47 +208,6 @@ public sealed partial class RoundsBuildingPlanner
         return await DigPlannedAsync(s, plan.RoomRock(room, s.Facts.Cells).Dig, shell.Threshold, RoundsBuildingPlanner.DigMethod("room", room), [], check, call, epoch).ConfigureAwait(false);
     }
 
-    internal async Task<(RoundsBuildingResult Result, bool Handled)> DigExhaustAsync(ExcavationStep s, Action check, CancellationToken call, CancellationToken epoch)
-    {
-        if (!s.Facts.LayoutPlan.TryGetValue(out var plan) || !s.Facts.Rooms.TryGetValue(out var rooms) || !s.Facts.TechTier.TryGetValue(out var tier) || tier < TechTier.Masonry)
-        {
-            return (new RoundsBuildingResult(), false);
-        }
-
-        foreach (var room in plan.Rooms)
-        {
-            if (plan.CoolerExhaust(room) is not { } exhaust)
-            {
-                continue;
-            }
-
-            var site = exhaust.Site;
-
-            var (standing, found) = PlannedRoom.CensusRoomIn(room, rooms);
-            if (!found || standing is null || standing.Id != Refrigeration?.Room)
-            {
-                continue;
-            }
-
-            var cooler = new RefrigerationCooler { Position = site.Cell, Rotation = site.Rotation };
-            var (step, _) = plan.ExhaustRock(room, s.Facts.Cells);
-            var rock = step.Dig;
-            var place = new List<Building>();
-            if (rock.Contains(site.Cell))
-            {
-                if (Native is not FacadeNativeClient)
-                {
-                    return (new RoundsBuildingResult(), false);
-                }
-
-                place.Add(new Building("Cooler", site.Cell, site.Rotation, ""));
-            }
-
-            return await DigPlannedAsync(s, rock, cooler.Cold(), RoundsBuildingPlanner.DigMethod("exhaust", room), place, check, call, epoch).ConfigureAwait(false);
-        }
-
-        return (new RoundsBuildingResult(), false);
-    }
 }
 
 partial class RoundsBuildingPlanner

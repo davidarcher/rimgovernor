@@ -33,7 +33,7 @@ public sealed class ShelterLayoutPlanTests
         Bounds = new Bounds(80, 80),
         Cells = [.. Enumerable.Range(0, 80).SelectMany(x => Enumerable.Range(0, 80).Select(z => new SurveyCell
         {
-            Cell = new Cell(x, z), Walkable = true, Footing = Footing.Firm, Fertility = 1, Terrain = "Soil",
+            Cell = new Cell(x, z), Walkable = true, Footing = Footing.Firm, Fertility = 1,
         }))],
         Cold = LayoutShelterRules.ColdMapCurve(Curve(climate)),
         Hot = LayoutShelterRules.HotMapCurve(Curve(climate)),

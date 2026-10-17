@@ -121,7 +121,6 @@ public sealed partial class DefinitionCatalog
             Hazard = terrain is { } t && (t.dangerous || t.burnDamage > 0 || t.heatPerTick > 0 || t.toxicBuildupFactor > 0),
             ThickRoof = thick,
             Fertility = cell.Fertility.ValueOrDefault,
-            Terrain = terrainName,
             Ore = ore,
             Tree = tree,
             // Occupied off rock, player edifice and clearable ruin is a standing prop.

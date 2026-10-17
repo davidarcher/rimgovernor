@@ -96,24 +96,6 @@ public static class HerdPenRules
     /// <summary>The marker's template slot.</summary>
     internal const string PenMarkerSlot = "pen.marker";
 
-    /// <summary>
-    /// The survey cells a pen may stand on: walkable open ground whose terrain grows grazing, with no rock, tree,
-    /// ore, ruin, prop or edifice on it and no hazard.
-    /// </summary>
-    public static HashSet<Cell> GrazingGround(MapSurvey s, PastureTable pasture)
-    {
-        var @out = new HashSet<Cell>();
-        foreach (var c in s.Cells)
-        {
-            var (_, grows) = pasture.PerCell(c.Terrain);
-            if (grows && c.Walkable && !c.Rock && !c.Hazard && !c.Tree && !c.Ore && !c.Ruin && !c.Prop && !c.Built)
-            {
-                @out.Add(c.Cell);
-            }
-        }
-        return @out;
-    }
-
     /// <summary>The near-square interior holding at least cells cells.</summary>
     internal static (int W, int H) PenSide(int cells)
     {

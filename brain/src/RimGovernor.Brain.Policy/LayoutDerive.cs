@@ -38,9 +38,6 @@ public sealed record RoomGrowth
     /// </summary>
     public IReadOnlyList<PenWant> Pens { get; init; } = [];
 
-    /// <summary>The survey cells the pens may stand on (GrazingGround); null while the pasture table is unread.</summary>
-    public HashSet<Cell>? Grazing { get; init; }
-
     /// <summary>The superseded bedrooms a pawn still owns a bed in (SleptBedrooms): they stay in the plan after their successor stands.</summary>
     public HashSet<int> Slept { get; init; } = [];
 

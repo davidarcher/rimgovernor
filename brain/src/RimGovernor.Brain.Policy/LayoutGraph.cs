@@ -284,8 +284,8 @@ public sealed record RoomNode
     public string Reason { get; init; } = string.Empty;
 }
 
-/// <summary>The trips a day (one way) between a room node and the station node With; Reason says what travels.</summary>
-public sealed record RoomFlow(string With, double Weight, string Reason);
+/// <summary>The trips a day (one way) between a room node and the station node With; </summary>
+public sealed record RoomFlow(string With, double Weight);
 
 /// <summary>The planner's input.</summary>
 public sealed partial class StationGraph
@@ -377,7 +377,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         return s!;
     }
 
-    public string AddNode(string def, StationPurpose purpose, int count, IReadOnlyList<EnvNeed> needs, string reason)
+    public string AddNode(string def, StationPurpose purpose, int count, IReadOnlyList<EnvNeed> needs)
     {
         var id = LayoutGraphRules.NodeId(def, purpose);
         Nodes[id] = new StationNode { Id = id, Def = def, Purpose = purpose, Count = count, Needs = needs };
@@ -424,12 +424,12 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         var f = In.Furniture;
         var nurseries = In.Catalog.Contributors(RoomRole.Nursery);
         var hospital = f.HospitalBeds();
-        (StationPurpose Purpose, int People, string Def, string Reason)[] kinds =
+        (StationPurpose Purpose, int People, string Def)[] kinds =
         [
-            (StationPurpose.Sleep, p.Colonists + LayoutGraphRules.HousingSparePlaces, f.PrimaryBed(), LayoutGraphRules.ReasonBedsPopulationReserve),
-            (StationPurpose.SleepMed, p.Injured, LayoutGraphRules.First(hospital), LayoutGraphRules.ReasonBedsPatients),
-            (StationPurpose.SleepPrison, p.Prisoners, f.PrimaryBed(), LayoutGraphRules.ReasonBedsPrisoners),
-            (StationPurpose.SleepBaby, p.Babies, LayoutGraphRules.First(nurseries), LayoutGraphRules.ReasonBedsBabies),
+            (StationPurpose.Sleep, p.Colonists + LayoutGraphRules.HousingSparePlaces, f.PrimaryBed()),
+            (StationPurpose.SleepMed, p.Injured, LayoutGraphRules.First(hospital)),
+            (StationPurpose.SleepPrison, p.Prisoners, f.PrimaryBed()),
+            (StationPurpose.SleepBaby, p.Babies, LayoutGraphRules.First(nurseries)),
         ];
         foreach (var k in kinds)
         {
@@ -459,7 +459,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
                     continue;
                 }
             }
-            AddNode(k.Def, k.Purpose, LayoutGraphRules.CeilDiv(people, Math.Max(s.Capacity.Slots, 1)), [], k.Reason);
+            AddNode(k.Def, k.Purpose, LayoutGraphRules.CeilDiv(people, Math.Max(s.Capacity.Slots, 1)), []);
         }
     }
 
@@ -584,7 +584,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         {
             var s = Station(def);
             var count = Math.Max(1, (int)Math.Ceiling(perStation[def] / (GameTime.TicksPerDay * Math.Max(s.Capacity.Slots, 1))));
-            var node = Nodes[AddNode(def, StationPurpose.Work, count, s.Needs, LayoutGraphRules.ReasonWorkNutrition)];
+            var node = Nodes[AddNode(def, StationPurpose.Work, count, s.Needs)];
             node.DailyWork = perStation[def];
             foreach (var l in output)
             {
@@ -689,7 +689,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         }
         var s = Station(table.Def);
         var seats = 2 * (table.Size.X + table.Size.Z);
-        AddNode(table.Def, StationPurpose.Dine, LayoutGraphRules.CeilDiv(eaters, seats), s.Needs, LayoutGraphRules.ReasonDineSeats);
+        AddNode(table.Def, StationPurpose.Dine, LayoutGraphRules.CeilDiv(eaters, seats), s.Needs);
     }
 
     /// <summary>The shelf a stock is stored on: the catalog's item store of the storeroom role holding the most stacks per cell, wanting cold when cold is asked for.</summary>
@@ -754,7 +754,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             var (def, s, ok) = StorageStation(true);
             if (ok)
             {
-                AddNode(def, StationPurpose.StoreCold, LayoutGraphRules.CeilDiv(coldStacks, s!.Capacity.Slots), LayoutGraphRules.ColdNeeds(s), LayoutGraphRules.ReasonStoreStock);
+                AddNode(def, StationPurpose.StoreCold, LayoutGraphRules.CeilDiv(coldStacks, s!.Capacity.Slots), LayoutGraphRules.ColdNeeds(s));
             }
             else
             {
@@ -768,7 +768,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             {
                 throw new StationGraphException("no item store in the catalog");
             }
-            AddNode(def, StationPurpose.Store, LayoutGraphRules.CeilDiv(plainStacks, s!.Capacity.Slots), LayoutGraphRules.WithoutCold(s.Needs), LayoutGraphRules.ReasonStoreStock);
+            AddNode(def, StationPurpose.Store, LayoutGraphRules.CeilDiv(plainStacks, s!.Capacity.Slots), LayoutGraphRules.WithoutCold(s.Needs));
         }
     }
 
@@ -947,7 +947,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
                 if (n.Purpose == StationPurpose.Dine)
                 {
                     var share = (double)Math.Min(In.Seed.Colonists, colonists) / colonists;
-                    rooms[i] = rooms[i] with { Flows = [.. rooms[i].Flows, new RoomFlow(n.Id, meals * share, LayoutGraphRules.ReasonFlowShelterMeal)] };
+                    rooms[i] = rooms[i] with { Flows = [.. rooms[i].Flows, new RoomFlow(n.Id, meals * share)] };
                 }
             }
         }
@@ -956,15 +956,6 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
 
 public static partial class LayoutGraphRules
 {
-    // Reasons a node or edge exists; the caller journals them as telemetry decision reasons.
-    public const string ReasonBedsPopulationReserve = "beds_population_plus_reserve";
-    public const string ReasonBedsPatients = "beds_injured";
-    public const string ReasonBedsPrisoners = "beds_prisoners";
-    public const string ReasonBedsBabies = "beds_babies";
-    public const string ReasonWorkNutrition = "work_nutrition_and_orders";
-    public const string ReasonStoreStock = "store_stock_demand";
-    public const string ReasonDineSeats = "dine_seats_of_table";
-
     /// <summary>The spare place the shelter/expansion Need keeps beyond the population: indoor capacity must exceed the colonist count. The station graph provides the same spare bed.</summary>
     public const int HousingSparePlaces = 1;
 
@@ -984,7 +975,6 @@ public static partial class LayoutGraphRules
     public const string OutsideNode = "outside";
 
     /// <summary>Why the shelter has a flow: the colonists sleeping in it walk to the table for each meal (sleepEat's bed-to-table trips).</summary>
-    public const string ReasonFlowShelterMeal = "flow_shelter_meal";
 
     internal static (string, string) OrderedPair(string a, string b) => string.CompareOrdinal(b, a) < 0 ? (b, a) : (a, b);
 

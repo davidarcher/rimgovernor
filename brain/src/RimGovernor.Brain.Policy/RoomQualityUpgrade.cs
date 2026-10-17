@@ -35,8 +35,6 @@ public sealed record RoomUpgrade
 
     public Rotation Rot { get; init; }
 
-    public RoomStat Weakest { get; init; }
-
     /// <summary>When set, places Def at each cell (a floor).</summary>
     public EquatableArray<Cell> Cells { get; init; }
 
@@ -145,7 +143,7 @@ public static partial class RoomQualityRules
                     {
                         continue;
                     }
-                    return (new RoomUpgrade { Room = id, Slot = slot, Def = piece.Def, Anchor = piece.Anchor(), Rot = piece.Rot, Weakest = weakest }, true);
+                    return (new RoomUpgrade { Room = id, Slot = slot, Def = piece.Def, Anchor = piece.Anchor(), Rot = piece.Rot }, true);
                 }
             }
         }

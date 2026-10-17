@@ -1,8 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 // Mine tiers order mining designations along the plan's mining zone: ore first, then the rock under dug rooms
-// (walls included) and the cooler exhaust shafts so the core's footprint is cleared ahead of growth, then the
-// remaining stone as demand calls for it. A dug store room (StoreRoom) ranks between ore and the other dug
+// (walls included) so the core's footprint is cleared ahead of growth, then the remaining stone as demand calls for it. A dug store room (StoreRoom) ranks between ore and the other dug
 // rooms: its zone waits on the dig and no stand-in store holds supplies meanwhile. A cell off the plan, or no
 // plan, is MineTierStone.
 public static partial class LayoutMiningRules
@@ -55,22 +54,13 @@ partial record LayoutPlan
                 return LayoutMiningRules.MineTierCore;
             }
         }
-        foreach (var e in this.Reservations)
-        {
-            if (e.Kind == ReservationKind.Exhaust && e.Area.Contains(cell))
-            {
-                return LayoutMiningRules.MineTierCore;
-            }
-        }
         return LayoutMiningRules.MineTierStone;
     }
 
     /// <summary>
-    /// The shared rock step (RockStep) over the cells a planned room's shell waits on: its door and interior
-    /// and, for a cooled room, its cooler's wall cell and exhaust shaft, mined before the ring so the ring walls
-    /// the cooler cell and the room is never left open, then the cell outside the door. All of them are built on
-    /// or walked, so each needs a floor; rock on the rest of the ring stays and walls the room. Dig is in that
-    /// priority order.
+    /// The shared rock step (RockStep) over the cells a planned room's shell waits on: its door and interior,
+    /// then the cell outside the door. All of them are built on or walked, so each needs a floor; rock on the
+    /// rest of the ring stays and walls the room. Dig is in that priority order.
     /// </summary>
     public RockStepResult RoomRock(PlannedRoom room, IReadOnlyList<SiteCell> cells)
     {
@@ -81,15 +71,6 @@ partial record LayoutPlan
         foreach (var c in LayoutUtilityRules.RectangleCells(room.Region.Bounds()))
         {
             Add(c);
-        }
-        var coolerFound = this.CoolerExhaust(room);
-        if (coolerFound is { } cooler)
-        {
-            Add(cooler.Site.Cell);
-            foreach (var c in LayoutUtilityRules.RectangleCells(cooler.Exhaust))
-            {
-                Add(c);
-            }
         }
         RoomFootprint? shell;
         try
@@ -146,25 +127,5 @@ partial record LayoutPlan
             }
         }
         return (null, false);
-    }
-
-    /// <summary>
-    /// The shared rock step over a standing room's planned cooler wall cell and exhaust shaft. The cooler cell
-    /// is in Dig while the room's back wall is still rock: mining it would open the room, so the caller mines it
-    /// only in the plan that places the cooler there.
-    /// </summary>
-    public (RockStepResult Result, bool Ok) ExhaustRock(PlannedRoom room, IReadOnlyList<SiteCell> cells)
-    {
-        var coolerFound = this.CoolerExhaust(room);
-        if (coolerFound is not { } cooler)
-        {
-            return (default!, false);
-        }
-        var planned = new List<RoleCell> { new() { Cell = cooler.Site.Cell, Role = RockRole.NeedsFloor } };
-        foreach (var c in LayoutUtilityRules.RectangleCells(cooler.Exhaust))
-        {
-            planned.Add(new RoleCell { Cell = c, Role = RockRole.NeedsFloor });
-        }
-        return (RockStepRules.RockStep(planned, cells), true);
     }
 }

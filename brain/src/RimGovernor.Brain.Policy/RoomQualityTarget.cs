@@ -70,10 +70,6 @@ public sealed record ImpressivenessLevels
 /// </summary>
 public sealed record RoomTarget
 {
-    public string Room { get; init; } = "";
-
-    public EquatableArray<PawnId> Owners { get; init; }
-
     /// <summary>The impressiveness the room should reach; zero asks nothing.</summary>
     public double Min { get; init; }
 
@@ -108,7 +104,7 @@ public static partial class RoomQualityRules
             {
                 continue;
             }
-            var t = new RoomTarget { Room = room.Id, Min = floor };
+            var t = new RoomTarget { Min = floor };
             if (floor > 0)
             {
                 t = t with { Reasons = ["common"] };
@@ -241,8 +237,6 @@ public static partial class RoomQualityRules
             }
             targets[room] = new RoomTarget
             {
-                Room = room,
-                Owners = EquatableArray.From(pawns),
                 Min = min,
                 Max = max,
                 NeverUpgrade = neverUpgrade,
