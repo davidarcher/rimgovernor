@@ -199,32 +199,30 @@ public sealed partial class Rounder
     }
 
     /// <summary>
-    /// Serves the stockpile review on the projection when the admin/stockpiles Need is composed, and records whether
-    /// it proposes work for the Need's read; otherwise, or while a fact is unread, the review stays unknown.
+    /// Runs the stockpile review when the admin/stockpiles Need is composed, records whether it proposes work for the
+    /// Need's read, and returns the shelf candidates it plans; none otherwise, or while a fact is unread.
     /// </summary>
-    internal async Task<Observation.ColonyProjection> ReviewStockpilesAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
+    internal async Task<IReadOnlyList<Pol.ShelfCandidate>> ReviewStockpilesAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
     {
-        projection = projection with { Facts = projection.Facts with { Stockpiles = Unknown<Pol.StockpileReview>() } };
         if (!Needs.Contains(AdminFamily.Stockpiles))
         {
-            return projection;
+            return [];
         }
         Stockpiles.SetActive(snapshot, Unknown<bool>());
         var (request, missing) = await StockpileRequestAsync(snapshot, projection, ct).ConfigureAwait(false);
         if (missing != "")
         {
-            return projection;
+            return [];
         }
         Stockpiles.SetDemand(StockpileWorld(snapshot), request.RoomDemand);
         var review = Pol.PolicyFunctions.PlanStockpileMaintenance(request);
         Stockpiles.SetActive(snapshot, review.Known ? Known(review.Active) : Unknown<bool>());
-        projection = projection with { Facts = projection.Facts with { Stockpiles = Known(review) } };
         foreach (var e in review.Edits)
         {
             ct.ThrowIfCancellationRequested();
             Tel.Decide(StockpileEditDecision("proposed", "", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["detail"] = e.Explanation }));
         }
-        return projection;
+        return review.ShelfCandidates;
     }
 
     /// <summary>The stacks one Shelf holds: the load catalog's Shelf station item slots; unknown without the catalog or the station.</summary>

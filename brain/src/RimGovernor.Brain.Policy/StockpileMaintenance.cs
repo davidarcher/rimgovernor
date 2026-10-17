@@ -200,8 +200,6 @@ public sealed record StockpileReview
 
     /// <summary>Every standing store's capacity facts and costed options (StorageOptions). Generation only: nothing chooses from it yet.</summary>
     public IReadOnlyList<StoreOptions> Options { get; init; } = [];
-
-    public string Reason { get; init; } = "";
 }
 
 /// <summary>
@@ -482,7 +480,6 @@ public static partial class PolicyFunctions
             ShelfCandidates = shelfSites,
             Options = StorageOptions(r, shelfSites),
             Active = active,
-            Reason = active ? "" : "stockpiles fit their contents",
         };
     }
 

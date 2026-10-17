@@ -453,9 +453,8 @@ public sealed partial class Rounder
             reading = reading.WithFacts(rf => rf with { FabricableParts = PolicyApi.FabricableParts(benches) });
         }
         CensusStockpileZones(state.Snapshot, reading.Projection, ct);
-        // The review's shelf candidates become planned sites below; the review itself is not kept in the facts here.
-        var stockpileReview = (await ReviewStockpilesAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false)).Facts.Stockpiles;
-        IReadOnlyList<ShelfCandidate> shelfCandidates = stockpileReview.TryGetValue(out var shelfReview) ? shelfReview.ShelfCandidates : [];
+        // The review's shelf candidates become planned sites below.
+        var shelfCandidates = await ReviewStockpilesAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         var vResourceConsumption = await ResourceConsumptionAsync(state.Snapshot, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { ResourceConsumption = vResourceConsumption });
         var vResourceSurfaceOre = await ResourceSurfaceOreAsync(state.Snapshot, reading.Projection.Facts.Items, reading.Projection.Facts.ResourceConsumption, ct).ConfigureAwait(false);

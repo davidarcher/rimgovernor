@@ -1318,7 +1318,6 @@ Policy|StockZone.Label
 Policy|StockpileRequest.SiteErr
 Policy|StockpileRequest.Tick
 Policy|StockpileReview.Options
-Policy|StockpileReview.Reason
 Policy|StockpileShelf.Capacity
 Policy|StorageOption.CellsLost
 Policy|StorageOption.CellsTaken
