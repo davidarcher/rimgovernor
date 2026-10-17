@@ -64,6 +64,11 @@ internal static class NativeCoupledForecast
         foreach (var to in locations.Take(8))
         foreach (var pawn in pawns)
             Probe(pawn, new(pawn.Position.x, pawn.Position.z), to, true);
+        // Each available hunter to the nearest prey groups: a hunt roster is priced by these walks.
+        var huntIds = hunt.Hunters.Where(h => h.Available).Select(h => h.Pawn).ToHashSet(StringComparer.Ordinal);
+        foreach (var prey in hunt.Prey.Take(4))
+        foreach (var pawn in pawns.Where(p => huntIds.Contains(p.GetUniqueLoadID())))
+            Probe(pawn, new(pawn.Position.x, pawn.Position.z), prey.Location, true);
         var boundedLocations = locations.Take(32).ToArray();
         for (var offset = 1; offset < boundedLocations.Length; offset++)
         for (var index = 0; index < boundedLocations.Length; index++)

@@ -209,6 +209,17 @@ terrain/roof runs, impassable obstacles) and a file-manifest mod identity. It ho
 roster, target or estimate; policy proposes rosters and the runtime asks the
 prediction service. Truncation is reported, never silent.
 
+`HuntAlternatives` (policy, pure) is the hunt comparison. `Propose` makes bounded rosters from that read: solos,
+pairs and a third gunner from the six best-shooting available hunters, for each of up to four nearby prey groups
+(herd-mates within 12 cells are one group, a search aid only); no roster size is required. The runtime asks the
+prediction service for each roster and hands back a `HuntEstimate` per roster (per-sample counts of serious harm,
+death and downed prey, expected nutrition net of the chance the prey is not downed, encounter ticks). `Choose`
+ranks usable rosters by hunter deaths, then any serious harm (each by its 95% Wilson upper bound, so a small
+sample cannot look safer), then nutrition still missing, then total participant labor (walk to the prey plus the
+encounter, for every gunner). A roster with no estimate, a non-evidence prediction, unknown prey yield or no known
+walk is refused with its reason, never ranked as zero risk. With no nutrition needed, or no usable roster, the
+choice is not to hunt. Return travel and corpse retrieval are not yet in the labor.
+
 These are mechanics and current observations, not selected colony policy. Native
 does not spawn hypothetical food to estimate a future meal. Definition-based
 future ingestion facts do not claim ingredient-dependent memories or poisoning
