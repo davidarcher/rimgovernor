@@ -116,6 +116,9 @@ public sealed record GrowRoom
 {
     public string Id { get; init; } = "";
 
+    /// <summary>The room's key in the cell grid (SiteCell.Room); Id is the native room id, a different key space.</summary>
+    public Fact<int> GridRoom { get; init; }
+
     public Fact<double> TemperatureC { get; init; }
 
     public Fact<int> Cells { get; init; }

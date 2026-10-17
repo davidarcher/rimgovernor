@@ -159,7 +159,7 @@ public static partial class PolicyFunctions
         }
         foreach (var room in env.Rooms)
         {
-            if (room.TemperatureC.TryGetValue(out var t) && room.Id == RoomAt(center) && t < SiteColdC)
+            if (room.TemperatureC.TryGetValue(out var t) && room.GridRoom.TryGetValue(out var gridRoom) && gridRoom.ToString(System.Globalization.CultureInfo.InvariantCulture) == RoomAt(center) && t < SiteColdC)
             {
                 cold = true;
             }

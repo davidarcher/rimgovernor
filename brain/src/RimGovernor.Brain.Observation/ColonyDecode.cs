@@ -646,6 +646,7 @@ public static partial class ObservationPackage
             rooms.Add(new GrowRoom
             {
                 Id = row.Room?.Id ?? "",
+                GridRoom = Optional(row.GridRoom is not null, row.GridRoom.GetValueOrDefault()),
                 TemperatureC = Optional(row.TemperatureC is not null, row.TemperatureC.GetValueOrDefault()),
                 Cells = Count(row.CellCount is not null, row.CellCount.GetValueOrDefault()),
                 OpenRoof = Count(row.OpenRoofCount is not null, row.OpenRoofCount.GetValueOrDefault()),

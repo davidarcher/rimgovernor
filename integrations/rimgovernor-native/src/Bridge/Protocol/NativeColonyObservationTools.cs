@@ -442,6 +442,8 @@ namespace HomeBridge.BridgeTools
             foreach (var room in rooms.Values.OrderBy(r => r.ID)) {
                 var row = new Obs.GrowRoom { Room = NativeRef.Room(room), TemperatureC = Finite(room.Temperature), CellCount = (uint)room.CellCount,
                     OpenRoofCount = (uint)room.OpenRoofCount, ProperRoom = room.ProperRoom, PsychologicallyOutdoors = room.PsychologicallyOutdoors };
+                var held = room.Cells.Where(c => !c.Fogged(map)).ToList();
+                if (held.Count > 0) row = row with { GridRoom = held.Min(c => c.z * map.Size.x + c.x) };
                 uint lit = 0;
                 foreach (var c in room.Cells) if (map.glowGrid.GroundGlowAt(c) >= 0.3f) lit++;
                 row = row with { LitCells = lit };

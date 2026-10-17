@@ -7242,6 +7242,9 @@ public sealed record GrowRoom
 {
     public Common.Ref? Room { get; init; }
 
+    /// <summary>The room's key in the cell grid (RoomState.GridRoom); absent when every cell is fogged.</summary>
+    public int? GridRoom { get; init; }
+
     public double? TemperatureC { get; init; }
 
     public uint? CellCount { get; init; }
