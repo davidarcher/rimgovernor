@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: combat_batch.go
 
-public static partial class PolicyFunctions
+public static partial class CombatBatchRules
 {
     /// <summary>
     /// Recognizes only current observable settings/positions. A historical attack, dose, or accepted job is

@@ -7,11 +7,11 @@ namespace RimGovernor.Brain.Policy;
 // explosives' reach first, so gunners with the longer weapon focus the grenadiers from beyond their range.
 // Shield-belt melee fighters charge the rocketeers.
 
-public static partial class PolicyFunctions
+public static partial class CombatExplosivesRules
 {
     /// <summary>The live hostiles carrying an explosive weapon, by threat rank.</summary>
-    private static List<CombatPawnState> ExplosiveHostiles(CombatView view) =>
-        [.. RankThreats(view).Where(h => ThreatTier(h, new HashSet<PawnId>()) == ThreatExplosive)];
+    internal static List<CombatPawnState> ExplosiveHostiles(CombatView view) =>
+        [.. CombatThreatRules.RankThreats(view).Where(h => CombatThreatRules.ThreatTier(h, new HashSet<PawnId>()) == CombatThreatRules.ThreatExplosive)];
 
     /// <summary>Carries a launcher (an explosive weapon fired by a shoot verb) rather than a grenade.</summary>
     private static bool Rocketeer(CombatPawnState h) => h.WeaponFacts.Launcher;
@@ -20,7 +20,7 @@ public static partial class PolicyFunctions
     /// Formation's candidate cells against explosives: the inner line joins the candidates, cover is not
     /// ranked, and the cells outside every explosive hostile's known range come first.
     /// </summary>
-    private static List<Cell> ExplosiveCells(CombatView view, List<Cell> cells, IReadOnlyList<CombatPawnState> explosive)
+    internal static List<Cell> ExplosiveCells(CombatView view, List<Cell> cells, IReadOnlyList<CombatPawnState> explosive)
     {
         if (view.Layout.TryGetValue(out var layout))
         {
@@ -52,7 +52,7 @@ public static partial class PolicyFunctions
     /// Sends every shield-belt melee fighter at the nearest live rocketeer; the belt stops the shots on the way
     /// in and a launcher cannot fire at a pawn in melee with it.
     /// </summary>
-    private static void ExplosivesCharge(CombatView view, CombatMemory m)
+    internal static void ExplosivesCharge(CombatView view, CombatMemory m)
     {
         var rockets = ExplosiveHostiles(view).Where(Rocketeer).ToList();
         if (rockets.Count == 0)
@@ -80,10 +80,10 @@ public static partial class PolicyFunctions
                 long best = -1;
                 foreach (var h in rockets)
                 {
-                    if (h.Cell.TryGetValue(out var c) && (best < 0 || Distance2(at, c) < best))
+                    if (h.Cell.TryGetValue(out var c) && (best < 0 || CombatManhunterRules.Distance2(at, c) < best))
                     {
                         target = h.Id;
-                        best = Distance2(at, c);
+                        best = CombatManhunterRules.Distance2(at, c);
                     }
                 }
             }

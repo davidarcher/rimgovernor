@@ -224,7 +224,7 @@ public sealed partial record CombatView
         {
             Pawns = EquatableArray.From(PolicySort.ByLess(Pawns.Items, (a, b) => a.Id < b.Id)),
             Defenders = EquatableArray.From(PolicySort.ByLess(Defenders.Items, (a, b) => a.Id < b.Id)),
-            Threats = EquatableArray.From(PolicySort.ByLess(Threats.Items, (a, b) => ThreatPawn(a) < ThreatPawn(b))),
+            Threats = EquatableArray.From(PolicySort.ByLess(Threats.Items, (a, b) => CombatDecideRules.ThreatPawn(a) < CombatDecideRules.ThreatPawn(b))),
             Positional = EquatableArray.From(PolicySort.ByLess(Positional.Items, (a, b) => a.Id < b.Id)),
             Orderable = EquatableArray.From(Orderable.Items.OrderBy(x => x)),
         };
@@ -235,7 +235,7 @@ public sealed partial record CombatView
     /// downing.
     /// </summary>
     internal CombatView Spare(HashSet<PawnId> spared) =>
-        spared.Count == 0 ? this : this with { Threats = EquatableArray.From(Threats.Items.Where(t => !spared.Contains(ThreatPawn(t)))) };
+        spared.Count == 0 ? this : this with { Threats = EquatableArray.From(Threats.Items.Where(t => !spared.Contains(CombatDecideRules.ThreatPawn(t)))) };
 }
 
 /// <summary>The stop DecideCombat answers.</summary>
@@ -861,7 +861,7 @@ public sealed partial record CombatMemory
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class CombatDecideRules
 {
     /// <summary>Go's <c>domain.PawnID(t.ID)</c>: the threat row's wire id as a pawn id.</summary>
     internal static PawnId ThreatPawn(SquadThreatFacts t) => t.Id;
@@ -889,7 +889,7 @@ public static partial class PolicyFunctions
         view = view.Sorted();
 
         // Contained raiders who will bleed down are left to go down.
-        var spared = SparedBleeders(view);
+        var spared = CombatBleedRules.SparedBleeders(view);
         view = view.Spare(spared);
         var next = memory.Copy();
         next.Tick = view.Tick;
@@ -914,7 +914,7 @@ public static partial class PolicyFunctions
         }
 
         {
-            var (exitMemory, exitOrders, exiting) = SiteExitTurn(view, stop, next, state, orderable);
+            var (exitMemory, exitOrders, exiting) = CombatSiteExitRules.SiteExitTurn(view, stop, next, state, orderable);
             next = exitMemory;
             if (exiting)
             {
@@ -923,7 +923,7 @@ public static partial class PolicyFunctions
         }
 
         {
-            var (breakMemory, breakOrders, ok) = PrisonBreakTurn(view, next, state, orderable);
+            var (breakMemory, breakOrders, ok) = CombatPrisonRules.PrisonBreakTurn(view, next, state, orderable);
             next = breakMemory;
             if (ok)
             {
@@ -938,8 +938,8 @@ public static partial class PolicyFunctions
         }
 
         var formed = false; // a formation this stop picks the potshot door
-        WaitTurn(view, next);
-        SiegeTurn(view, next);
+        CombatWaitRules.WaitTurn(view, next);
+        CombatSiegeRules.SiegeTurn(view, next);
         if (view.Pods.TryGetValue(out var pods) && next.Pods is null)
         {
             // The arrival row may leave a later frame; the fight keeps it.
@@ -949,7 +949,7 @@ public static partial class PolicyFunctions
         if (next.Pods is not null && (next.Tactic != CombatTactic.Pods || Reform(view, stop, next)))
         {
             // A pods arrival picks its own tactic, not the squad fallback.
-            var ask = PodsAsk(view, next.Pods);
+            var ask = CombatPodsRules.PodsAsk(view, next.Pods);
             if (ask is not null && !geometry.Answered)
             {
                 // The doorway flank cells are used only where the game finds them standable, asked in the
@@ -959,22 +959,22 @@ public static partial class PolicyFunctions
 
             next.Tactic = CombatTactic.Pods;
             next.Refusal = "";
-            var (podRoles, podDoors) = PodFormation(view, next.Pods, geometry);
+            var (podRoles, podDoors) = CombatPodsRules.PodFormation(view, next.Pods, geometry);
             IReadOnlyList<PodDoor> doors = podDoors;
             next.Roles = EquatableArray.From(podRoles);
-            var (podWaited, podWaiting) = PodWait(view, stop, next);
+            var (podWaited, podWaiting) = CombatPodsRules.PodWait(view, stop, next);
             next = podWaited;
             if (podWaiting)
             {
-                var (heldRoles, heldDoors) = HoldBehindDoors(next.Roles, doors);
+                var (heldRoles, heldDoors) = CombatPodsRules.HoldBehindDoors(next.Roles, doors);
                 next.Roles = EquatableArray.From(heldRoles);
                 doors = heldDoors;
             }
 
-            next.PodDoors = [.. KeepSent(next.PodDoors, doors)];
+            next.PodDoors = [.. CombatPodsRules.KeepSent(next.PodDoors, doors)];
             next.Formed = view.Tick;
         }
-        else if (!RelieveBlocker(view, stop, next) && !FallBack(view, stop, next) && Reform(view, stop, next))
+        else if (!CombatBlockingRules.RelieveBlocker(view, stop, next) && !CombatFallbackRules.FallBack(view, stop, next) && Reform(view, stop, next))
         {
             var ask = FormationAsk(view, next);
             if (ask is not null && !geometry.Answered)
@@ -984,54 +984,54 @@ public static partial class PolicyFunctions
                 return ([], ask, memory);
             }
 
-            if (MeleeDoorSite(view) is { } door && MeleeDoorFormation(view, geometry, door, next.Relieved).Count > 0)
+            if (CombatDoorRules.MeleeDoorSite(view) is { } door && CombatDoorRules.MeleeDoorFormation(view, geometry, door, next.Relieved).Count > 0)
             {
                 next.Tactic = CombatTactic.DoorChoke;
-                next.Roles = EquatableArray.From(MeleeDoorFormation(view, geometry, door, next.Relieved));
+                next.Roles = EquatableArray.From(CombatDoorRules.MeleeDoorFormation(view, geometry, door, next.Relieved));
                 next.Refusal = "";
                 next.ChokeDoor = new PodDoor { Cell = door.Cell, Mode = DoorMode.Close };
             }
-            else if (Infestation(view))
+            else if (CombatInfestationRules.Infestation(view))
             {
                 // An infestation picks its own tactic.
                 next.Tactic = CombatTactic.Infestation;
-                next.Roles = EquatableArray.From(InfestationFormation(view, geometry, next.Relieved));
+                next.Roles = EquatableArray.From(CombatInfestationRules.InfestationFormation(view, geometry, next.Relieved));
                 next.Refusal = "";
             }
-            else if (ManhunterPack(view))
+            else if (CombatManhunterRules.ManhunterPack(view))
             {
                 // A manhunter pack picks its own tactic.
                 next.Tactic = CombatTactic.Manhunter;
-                next.Roles = EquatableArray.From(ManhunterFormation(view, geometry, next.Relieved));
+                next.Roles = EquatableArray.From(CombatManhunterRules.ManhunterFormation(view, geometry, next.Relieved));
                 next.Refusal = "";
                 if (next.Roles.Count == 0)
                 {
                     // With no armed defender the pack is sheltered from as a squadless fight is; that plan
                     // starts a combat run instead of parking the clock.
                     next.Tactic = CombatTactic.Shelter;
-                    next.Roles = EquatableArray.From(ShelterRoles(view, geometry, next.Unreachable));
+                    next.Roles = EquatableArray.From(CombatShelterRules.ShelterRoles(view, geometry, next.Unreachable));
                 }
             }
             else if (view.Hunt)
             {
                 // A squad hunt picks its own tactic.
                 next.Tactic = CombatTactic.Hunt;
-                next.Roles = EquatableArray.From(HuntFormation(view));
+                next.Roles = EquatableArray.From(CombatHuntRules.HuntFormation(view));
                 next.Refusal = "";
             }
-            else if (SiegeModeOf(view, next) is var mode && mode != default)
+            else if (CombatSiegeRules.SiegeModeOf(view, next) is var mode && mode != default)
             {
                 // A siege picks its own tactic.
                 next.Tactic = CombatTactic.Siege;
-                next.Roles = EquatableArray.From(SiegeFormation(view, mode));
+                next.Roles = EquatableArray.From(CombatSiegeRules.SiegeFormation(view, mode));
                 next.Refusal = "";
                 next.SiegeMode = mode;
             }
-            else if (PredictBreach(view) is { } breach)
+            else if (CombatSapperRules.PredictBreach(view) is { } breach)
             {
                 // A sapper or breacher raid posts inside its predicted breach.
                 next.Tactic = CombatTactic.Sapper;
-                next.Roles = EquatableArray.From(SapperFormation(view, breach));
+                next.Roles = EquatableArray.From(CombatSapperRules.SapperFormation(view, breach));
                 next.Refusal = "";
                 next.SapperBreach = breach.Wall;
                 next.Rushing = false;
@@ -1065,7 +1065,7 @@ public static partial class PolicyFunctions
 
             if (next.Tactic == CombatTactic.Squad)
             {
-                next.Roles = EquatableArray.From(SquadFallBack(view, geometry, next.Unreachable, memory.Roles, next.Roles));
+                next.Roles = EquatableArray.From(CombatSquadRosterRules.SquadFallBack(view, geometry, next.Unreachable, memory.Roles, next.Roles));
             }
 
             next.Formed = view.Tick;
@@ -1075,7 +1075,7 @@ public static partial class PolicyFunctions
         }
 
         {
-            var flankAsk = FlankAsk(view, next);
+            var flankAsk = CombatFlankRules.FlankAsk(view, next);
             if (flankAsk is not null)
             {
                 // The flank detachment's cells take a later stop's round trip.
@@ -1086,13 +1086,13 @@ public static partial class PolicyFunctions
 
                 if (geometry.Role == FormationRole.FiringCells)
                 {
-                    FlankDetach(view, geometry, next);
+                    CombatFlankRules.FlankDetach(view, geometry, next);
                     geometry = geometry with { Role = FormationRole.None };
                 }
             }
             else
             {
-                var groupAsk = GroupAsk(view, next);
+                var groupAsk = CombatGroupsRules.GroupAsk(view, next);
                 if (groupAsk is not null)
                 {
                     // Each side group's squad cells take a stop's round trip.
@@ -1103,59 +1103,59 @@ public static partial class PolicyFunctions
 
                     if (geometry.Role == FormationRole.FiringCells)
                     {
-                        GroupDetach(view, geometry, next);
+                        CombatGroupsRules.GroupDetach(view, geometry, next);
                         geometry = geometry with { Role = FormationRole.None };
                     }
                 }
             }
         }
 
-        Peel(view, stop, next);
-        PullBackTank(stop, next);
+        CombatPeelRules.Peel(view, stop, next);
+        CombatTankRules.PullBackTank(stop, next);
         if (!next.PodWait)
         {
             // A pods fight waiting behind closed doors engages no one.
-            next.Roles = EquatableArray.From(FocusFire(view, next.Roles, memory.Roles));
+            next.Roles = EquatableArray.From(CombatThreatRules.FocusFire(view, next.Roles, memory.Roles));
         }
 
         next.Roles = EquatableArray.From(DropMissingTargets(view, [.. next.Roles]));
-        FromRange(view, next);
-        ShipPartHitAndRun(view, next);
-        TribalStandoff(view, next);
-        SiegeHold(next);
-        Lure(view, next);
-        SiegeSnipe(view, next);
-        Kite(view, next);
-        PikemenCharge(view, next);
-        ExplosivesCharge(view, next);
-        SapperIntercept(view, next);
-        SapperRush(view, stop, next);
-        DoorPotshot(view, formed, next);
-        MeleeDoorTurn(view, next);
-        Shelter(view, next);
-        Scatter(view, next);
-        var (counterMemory, stood) = CounterBattery(view, memory.Roles, next);
+        CombatMortarRules.FromRange(view, next);
+        CombatSiegeRules.ShipPartHitAndRun(view, next);
+        CombatSiegeRules.TribalStandoff(view, next);
+        CombatSiegeRules.SiegeHold(next);
+        CombatLureRules.Lure(view, next);
+        CombatSiegeRules.SiegeSnipe(view, next);
+        CombatKiteRules.Kite(view, next);
+        CombatMechRules.PikemenCharge(view, next);
+        CombatExplosivesRules.ExplosivesCharge(view, next);
+        CombatSapperRules.SapperIntercept(view, next);
+        CombatSapperRules.SapperRush(view, stop, next);
+        CombatDoorRules.DoorPotshot(view, formed, next);
+        CombatDoorRules.MeleeDoorTurn(view, next);
+        CombatWaitRules.Shelter(view, next);
+        CombatFallbackRules.Scatter(view, next);
+        var (counterMemory, stood) = CombatMortarRules.CounterBattery(view, memory.Roles, next);
         next = counterMemory;
-        RocketClumps(view, next);
-        Flank(view, next);
-        GroupSquads(view, next);
-        NoteEmpAdapted(view, next);
-        Grenade(view, next);
-        HiveGrenade(view, next);
-        DrillEvacuate(view, next, orderable);
-        MechDisengage(view, next);
+        CombatRocketRules.RocketClumps(view, next);
+        CombatFlankRules.Flank(view, next);
+        CombatGroupsRules.GroupSquads(view, next);
+        CombatMechRules.NoteEmpAdapted(view, next);
+        CombatGrenadeRules.Grenade(view, next);
+        CombatInfestationRules.HiveGrenade(view, next);
+        CombatInfestationRules.DrillEvacuate(view, next, orderable);
+        CombatMechRules.MechDisengage(view, next);
 
         // Contained raiders who will not bleed down are finished in melee.
-        FinishContained(view, next);
-        var (rescueMemory, rescue, rescueAsk) = RescueStep(view, geometry, stop, next, orderable, state);
+        CombatBleedRules.FinishContained(view, next);
+        var (rescueMemory, rescue, rescueAsk) = CombatRescueRules.RescueStep(view, geometry, stop, next, orderable, state);
         next = rescueMemory;
         if (rescueAsk is not null)
         {
             return ([], rescueAsk, memory);
         }
 
-        var orders = FlankHoldFire(view, orderable, next);
-        var targetExcluded = spared.Count > 0 || NearExploders(view).Count > 0;
+        var orders = CombatFlankRules.FlankHoldFire(view, orderable, next);
+        var targetExcluded = spared.Count > 0 || CombatManhunterRules.NearExploders(view).Count > 0;
         var suppressNativeFire = new HashSet<PawnId>();
         for (var i = 0; i < next.Roles.Count; i++)
         {
@@ -1175,8 +1175,8 @@ public static partial class PolicyFunctions
             }
 
             var (want, ok) = role.Want(rs);
-            var ordinaryHolder = StationaryRangedHold(next, role, rs);
-            if (ordinaryHolder && targetExcluded && role.Target == default && (rs.Job == "Wait_Combat" || rs.FireMode == HoldFire))
+            var ordinaryHolder = CombatNativeHoldRules.StationaryRangedHold(next, role, rs);
+            if (ordinaryHolder && targetExcluded && role.Target == default && (rs.Job == "Wait_Combat" || rs.FireMode == CombatFireRules.HoldFire))
             {
                 suppressNativeFire.Add(role.Pawn);
             }
@@ -1235,52 +1235,52 @@ public static partial class PolicyFunctions
             orders.Add(want);
         }
 
-        orders = StandDown(stood, orders, orderable, state);
-        orders = HoldFireOrders(
+        orders = CombatMortarRules.StandDown(stood, orders, orderable, state);
+        orders = CombatFireRules.HoldFireOrders(
             view,
             next.Roles.Where(r => !(next.Rescue?.Carrying(r.Pawn) == true || next.Flank?.Waiting(r.Pawn) == true)).Select(r => r with { }).ToList(),
             orders,
             memory,
-            OnlySpared(view, spared),
+            CombatBleedRules.OnlySpared(view, spared),
             suppressNativeFire
         );
         if (!geometry.Answered)
         {
             // The attacks' lines of fire take the stop's geometry round trip when Formation did not.
-            var lineAsk = LineAsk(view, orders, next);
+            var lineAsk = CombatFireRules.LineAsk(view, orders, next);
             if (lineAsk is not null)
             {
                 return ([], lineAsk, memory);
             }
         }
 
-        var (clearedOrders, clearedRoles, clearedHits) = ClearLines(view, orders, geometry, next.Roles, next);
+        var (clearedOrders, clearedRoles, clearedHits) = CombatFireRules.ClearLines(view, orders, geometry, next.Roles, next);
         orders = clearedOrders;
         next.Roles = EquatableArray.From(clearedRoles);
         next.CannotHit = clearedHits;
 
         // One gunner shoots a wild animal near the raiders.
-        orders = EnrageWild(view, orders, next.Roles, orderable, state);
+        orders = CombatAnimalsRules.EnrageWild(view, orders, next.Roles, orderable, state);
 
         // A defender with no other order this stop takes its combat drug.
-        orders.AddRange(DoseOrders(view, next, orders, orderable, state));
+        orders.AddRange(CombatDrugsRules.DoseOrders(view, next, orders, orderable, state));
 
         // An outmatched fight calls its held permits; a call names no drafted pawn and leaves its holder's other orders alone.
-        var (permitMemory, permitCalls) = PermitCalls(view, next);
+        var (permitMemory, permitCalls) = CombatPermitRules.PermitCalls(view, next);
         next = permitMemory;
         orders.AddRange(permitCalls);
 
         // A psycaster casts its ready combat psycast, one per caster.
-        orders.AddRange(CastCalls(view, next));
+        orders.AddRange(CombatCastRules.CastCalls(view, next));
 
         // The rescue's orders lead; a door order names no pawn to issue.
         var lead = new List<CombatOrder>(rescue);
-        lead.AddRange(PodDoorOrders(view, next));
+        lead.AddRange(CombatPodsRules.PodDoorOrders(view, next));
         lead.AddRange(orders);
         orders = lead;
 
         // The colony animals' orders name no drafted pawn.
-        orders.AddRange(AnimalStep(view, next));
+        orders.AddRange(CombatAnimalsRules.AnimalStep(view, next));
         foreach (var o in orders)
         {
             if (o.Pawn != default && o.Kind != CombatOrderKind.Permit && o.Kind != CombatOrderKind.Cast)
@@ -1293,7 +1293,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Whether a pawn is aiming or cooling down: an order now would throw the shot away.</summary>
-    private static bool InterruptsAim(CombatPawnState s) => s.Stance == CombatStance.Warmup || s.Stance == CombatStance.Cooldown;
+    internal static bool InterruptsAim(CombatPawnState s) => s.Stance == CombatStance.Warmup || s.Stance == CombatStance.Cooldown;
 
     /// <summary>
     /// The reaction table's formation row: no formation yet, a raid phase change or breach, a hold the raid
@@ -1316,49 +1316,49 @@ public static partial class PolicyFunctions
             }
         }
 
-        if (m.Tactic == CombatTactic.Siege || SiegeModeOf(view, m) != default)
+        if (m.Tactic == CombatTactic.Siege || CombatSiegeRules.SiegeModeOf(view, m) != default)
         {
-            return ReformSiege(view, m);
+            return CombatSiegeRules.ReformSiege(view, m);
         }
 
-        if (m.Tactic == CombatTactic.Sapper || ReformSapper(view, m))
+        if (m.Tactic == CombatTactic.Sapper || CombatSapperRules.ReformSapper(view, m))
         {
-            return ReformSapper(view, m);
+            return CombatSapperRules.ReformSapper(view, m);
         }
 
         if (m.Tactic == CombatTactic.Shelter)
         {
-            return ShelterReconsider(view, m).Length != 0;
+            return CombatShelterRules.ShelterReconsider(view, m).Length != 0;
         }
 
         if (m.Tactic == CombatTactic.Hold)
         {
-            return !view.Layout.TryGetValue(out var layout) || HoldCompromised(HoldLine(layout, m), layout.Toward, Unpeeled(view, stop, m));
+            return !view.Layout.TryGetValue(out var layout) || HoldCompromised(CombatFallbackRules.HoldLine(layout, m), layout.Toward, CombatPeelRules.Unpeeled(view, stop, m));
         }
 
         if (m.Tactic == CombatTactic.Pods)
         {
-            return ReformPods(view, m);
+            return CombatPodsRules.ReformPods(view, m);
         }
 
         if (m.Tactic == CombatTactic.Manhunter || m.Tactic == CombatTactic.Infestation)
         {
-            return ReformManhunter(view, m);
+            return CombatManhunterRules.ReformManhunter(view, m);
         }
 
         if (m.Tactic == CombatTactic.DoorChoke)
         {
-            return MeleeDoorSite(view) is null || SquadRosterChanged(view, stop, m);
+            return CombatDoorRules.MeleeDoorSite(view) is null || CombatSquadRosterRules.SquadRosterChanged(view, stop, m);
         }
 
         if (m.Tactic == CombatTactic.Squad)
         {
-            return SquadTargetDown(view, m) || SquadRosterChanged(view, stop, m);
+            return SquadTargetDown(view, m) || CombatSquadRosterRules.SquadRosterChanged(view, stop, m);
         }
 
         if (m.Tactic == CombatTactic.Hunt)
         {
-            return ReformHunt(view, m);
+            return CombatHuntRules.ReformHunt(view, m);
         }
 
         if (m.Tactic == CombatTactic.PrisonBreak)
@@ -1391,9 +1391,9 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Whether a role's target is dead or downed.</summary>
-    private static bool SquadTargetDown(CombatView view, CombatMemory m)
+    internal static bool SquadTargetDown(CombatView view, CombatMemory m)
     {
-        var down = DownPawns(view);
+        var down = CombatManhunterRules.DownPawns(view);
         foreach (var t in view.Threats.Items)
         {
             if (Positive(t.Dead) || Positive(t.Downed))
@@ -1412,16 +1412,16 @@ public static partial class PolicyFunctions
     /// </summary>
     private static GeometryRequest? FormationAsk(CombatView view, CombatMemory memory)
     {
-        if (MeleeDoorSite(view) is { } door)
+        if (CombatDoorRules.MeleeDoorSite(view) is { } door)
         {
-            return MeleeDoorAsk(view, door);
+            return CombatDoorRules.MeleeDoorAsk(view, door);
         }
 
         var retreat = new List<Cell>();
         var (_, squad) = SquadAssignments(view);
-        if (!squad || SquadHurt(view, memory.Roles).Count > 0 || memory.Roles.Any(r => r.Retreat))
+        if (!squad || CombatSquadRosterRules.SquadHurt(view, memory.Roles).Count > 0 || memory.Roles.Any(r => r.Retreat))
         {
-            retreat = ShelterChecks(view);
+            retreat = CombatShelterRules.ShelterChecks(view);
         }
 
         if (!view.Layout.TryGetValue(out var layout) || layout.Firing.Count == 0)
@@ -1436,19 +1436,19 @@ public static partial class PolicyFunctions
 
         // Named cells share the cells cap with the proposals: half each at most, or all but the choke's
         // neighbours for a blocking formation.
-        var limit = MaxGeometryCells / 2;
-        if (BlockingChoke(view) is { } blocking)
+        var limit = CombatFireRules.MaxGeometryCells / 2;
+        if (CombatBlockingRules.BlockingChoke(view) is { } blocking)
         {
             // A blocking formation spends the stop's one proposal on blocker cells and names the cells around
             // the line instead, so the game scores their cover for the riflemen.
             ask.Propose = FormationRole.AdjacentToChoke;
             ask.Choke = blocking.Choke;
             ask.OurSide = blocking.OurSide;
-            named.AddRange(AroundLine(layout.Firing.Items));
-            limit = MaxGeometryCells - 8 - ask.Line.Count;
+            named.AddRange(CombatCoverRules.AroundLine(layout.Firing.Items));
+            limit = CombatFireRules.MaxGeometryCells - 8 - ask.Line.Count;
         }
 
-        foreach (var c in named.Concat(ShooterCells(view)).Concat(retreat))
+        foreach (var c in named.Concat(CombatFireRules.ShooterCells(view)).Concat(retreat))
         {
             if (ask.Cells.Count < limit && !ask.Cells.Contains(c))
             {
@@ -1457,7 +1457,7 @@ public static partial class PolicyFunctions
         }
 
         // The top-scored hostiles first, so the cap drops the least urgent.
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
             if (ask.Hostiles.Count < MaxGeometryHostiles)
             {
@@ -1485,7 +1485,7 @@ public static partial class PolicyFunctions
             }
         }
 
-        if (PeelerHome(view) is { } home)
+        if (CombatPeelRules.PeelerHome(view) is { } home)
         {
             Add(home);
         }
@@ -1496,7 +1496,7 @@ public static partial class PolicyFunctions
         {
             foreach (var f in layout.Firing.Items)
             {
-                var ahead = TankCells(f, v);
+                var ahead = CombatTankRules.TankCells(f, v);
                 if (!belted)
                 {
                     // No shield in the fight: the front cell is only a line check.
@@ -1516,7 +1516,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Bridge.CombatGeometryMaxHostiles.</summary>
-    private const int MaxGeometryHostiles = 16;
+    internal const int MaxGeometryHostiles = 16;
 
     /// <summary>
     /// The one-shot planner's choice as the first tactic: hold the layout's firing line against an ordinary
@@ -1535,13 +1535,13 @@ public static partial class PolicyFunctions
         if (view.Layout.TryGetValue(out var layout))
         {
             var cells = new List<Cell>(layout.Firing.Items);
-            var blocking = BlockingChoke(view) is not null;
+            var blocking = CombatBlockingRules.BlockingChoke(view) is not null;
             IEnumerable<Cell> candidates = geometry.Proposals.Items;
             if (blocking)
             {
                 // The proposals are blocker cells; the riflemen's covered cells are the named cells around the
                 // line the game found standable and covered.
-                candidates = CoveredAround(layout.Firing.Items, geometry);
+                candidates = CombatCoverRules.CoveredAround(layout.Firing.Items, geometry);
             }
 
             foreach (var c in candidates)
@@ -1552,22 +1552,22 @@ public static partial class PolicyFunctions
                 }
             }
 
-            var explosive = ExplosiveHostiles(view);
+            var explosive = CombatExplosivesRules.ExplosiveHostiles(view);
             if (explosive.Count > 0)
             {
                 // Room to move over cover, out of the blasts' reach.
-                cells = ExplosiveCells(view, cells, explosive);
+                cells = CombatExplosivesRules.ExplosiveCells(view, cells, explosive);
             }
             else
             {
-                cells = RankByCover(cells, geometry.Scored.Items);
+                cells = CombatCoverRules.RankByCover(cells, geometry.Scored.Items);
             }
 
             cells.RemoveAll(c => unreachable.Contains(c));
-            cells = SpaceCells(cells, FiringGap(view));
-            var (defenders, tanks) = SplitTanks(view);
+            cells = CombatFireRules.SpaceCells(cells, CombatMechRules.FiringGap(view));
+            var (defenders, tanks) = CombatTankRules.SplitTanks(view);
             IReadOnlyList<DefensivePosition> positions;
-            (positions, refusal) = ExplainDefensivePositionsIn(cells, layout.Toward, InsideRooms(view), ChokeHeld(view, layout), MarkMechs(view), defenders);
+            (positions, refusal) = ExplainDefensivePositionsIn(cells, layout.Toward, CombatBlockingRules.InsideRooms(view), CombatBlockingRules.ChokeHeld(view, layout), CombatMechRules.MarkMechs(view), defenders);
             if (refusal.Length == 0)
             {
                 var roles = new List<CombatRole>(positions.Count);
@@ -1576,19 +1576,19 @@ public static partial class PolicyFunctions
                     roles.Add(new CombatRole { Pawn = p.Defender, Cell = p.Cell, Target = p.Target, Ranged = true });
                 }
 
-                var chokes = ChargeChokes(view);
+                var chokes = CombatManhunterRules.ChargeChokes(view);
                 if (chokes.Count > 0)
                 {
                     // A shielded melee charge is split across every door it approaches (the multi-choke rule).
-                    roles.AddRange(WaveBlockers(chokes, Rotated(Brawlers(defenders), relieved)));
+                    roles.AddRange(CombatManhunterRules.WaveBlockers(chokes, CombatBlockingRules.Rotated(CombatBlockingRules.Brawlers(defenders), relieved)));
                 }
                 else
                 {
-                    roles.AddRange(BrawlerRoles(view, defenders, blocking, geometry, relieved));
+                    roles.AddRange(CombatBlockingRules.BrawlerRoles(view, defenders, blocking, geometry, relieved));
                 }
 
                 var taken = roles.Where(r => r.Cell is not null).Select(r => r.Cell!.Value).ToList();
-                roles.AddRange(TankRoles(view, tanks, positions, layout.Toward, geometry, taken));
+                roles.AddRange(CombatTankRules.TankRoles(view, tanks, positions, layout.Toward, geometry, taken));
                 return (CombatTactic.Hold, SortRoles(roles), "");
             }
         }
@@ -1596,7 +1596,7 @@ public static partial class PolicyFunctions
         var (assignments, ok) = SquadAssignments(view);
         if (!ok)
         {
-            var shelter = ShelterRoles(view, geometry, unreachable);
+            var shelter = CombatShelterRules.ShelterRoles(view, geometry, unreachable);
             if (shelter.Count > 0)
             {
                 return (CombatTactic.Shelter, shelter, refusal);
@@ -1611,12 +1611,12 @@ public static partial class PolicyFunctions
             squadRoles.Add(new CombatRole { Pawn = a.Defender, Target = a.Target, Ranged = a.Mode == SquadMode.Ranged });
         }
 
-        squadRoles = [.. HoldBrawlerBesideGunners(view, squadRoles)];
+        squadRoles = [.. CombatPeelRules.HoldBrawlerBesideGunners(view, squadRoles)];
         return (CombatTactic.Squad, SortRoles(squadRoles), refusal);
     }
 
     /// <summary>The squad fight's defender-to-target proposal.</summary>
-    private static (List<SquadAssignment> Assignments, bool Ok) SquadAssignments(CombatView view)
+    internal static (List<SquadAssignment> Assignments, bool Ok) SquadAssignments(CombatView view)
     {
         if (view.Threats.Count == 1)
         {
@@ -1627,11 +1627,11 @@ public static partial class PolicyFunctions
             }
         }
 
-        var (squad, squadOk) = SelectSquadDefense(MarkSquadMechs(view), view.Defenders.Items);
+        var (squad, squadOk) = SelectSquadDefense(CombatMechRules.MarkSquadMechs(view), view.Defenders.Items);
         return ([.. squad], squadOk);
     }
 
-    private static List<CombatRole> SortRoles(List<CombatRole> roles)
+    internal static List<CombatRole> SortRoles(List<CombatRole> roles)
     {
         var sorted = PolicySort.ByLess(roles, (a, b) => a.Pawn != b.Pawn ? a.Pawn < b.Pawn : a.Target < b.Target);
 

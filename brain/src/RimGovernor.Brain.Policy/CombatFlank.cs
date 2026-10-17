@@ -29,7 +29,7 @@ public sealed class CombatFlank
     public bool Waiting(PawnId pawn) => !Open && Pawns.Contains(pawn);
 }
 
-public static partial class PolicyFunctions
+public static partial class CombatFlankRules
 {
     /// <summary>The hold's size below which no one is detached.</summary>
     internal const int FlankMinDefenders = 5;
@@ -106,7 +106,7 @@ public static partial class PolicyFunctions
     /// The detachment's firing_cells ask: a hold with enough gunners and a choke, not flanking yet. It names
     /// the shooters and the top hostiles too, so the stop's attacks still get their lines.
     /// </summary>
-    private static GeometryRequest? FlankAsk(CombatView view, CombatMemory m)
+    internal static GeometryRequest? FlankAsk(CombatView view, CombatMemory m)
     {
         if (m.Tactic != CombatTactic.Hold || m.Flank is not null || m.MechLure || FlankGunners(m.Roles, m.EffectiveTuning()).Count == 0)
         {
@@ -125,17 +125,17 @@ public static partial class PolicyFunctions
     /// A firing_cells ask for cells near <paramref name="from"/> with a line to <paramref name="target"/>,
     /// naming the shooters and the top hostiles too, so the stop's attacks still get their lines.
     /// </summary>
-    private static GeometryRequest FiringCellsAsk(CombatView view, Cell from, Cell target)
+    internal static GeometryRequest FiringCellsAsk(CombatView view, Cell from, Cell target)
     {
-        var ask = new GeometryRequest { Propose = FormationRole.FiringCells, From = from, Targets = [target], Cells = ShooterCells(view) };
-        if (ask.Cells.Count > MaxGeometryCells / 2)
+        var ask = new GeometryRequest { Propose = FormationRole.FiringCells, From = from, Targets = [target], Cells = CombatFireRules.ShooterCells(view) };
+        if (ask.Cells.Count > CombatFireRules.MaxGeometryCells / 2)
         {
-            ask.Cells = ask.Cells.GetRange(0, MaxGeometryCells / 2);
+            ask.Cells = ask.Cells.GetRange(0, CombatFireRules.MaxGeometryCells / 2);
         }
 
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (ask.Hostiles.Count < MaxGeometryHostiles)
+            if (ask.Hostiles.Count < CombatDecideRules.MaxGeometryHostiles)
             {
                 ask.Hostiles.Add(h.Id);
             }
@@ -145,7 +145,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Takes the answered proposals nearest the anchor, spaced, off the line and every other role's cell, for the flank gunners.</summary>
-    private static void FlankDetach(CombatView view, GeometryReply geometry, CombatMemory m)
+    internal static void FlankDetach(CombatView view, GeometryReply geometry, CombatMemory m)
     {
         m.Flank = new CombatFlank();
         var anchor = FlankAnchor(view, m.EffectiveTuning());
@@ -175,7 +175,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The answered proposals not taken, nearest <paramref name="from"/> first, spaced a tile apart while they allow it.</summary>
-    private static List<Cell> NearestFree(GeometryReply geometry, Cell from, HashSet<Cell> taken)
+    internal static List<Cell> NearestFree(GeometryReply geometry, Cell from, HashSet<Cell> taken)
     {
         var cells = new List<Cell>();
         foreach (var c in geometry.Proposals.Items)
@@ -186,8 +186,8 @@ public static partial class PolicyFunctions
             }
         }
 
-        cells = PolicySort.ByLess(cells, (a, b) => Distance2(from, a) < Distance2(from, b));
-        return SpaceCells(cells, 1);
+        cells = PolicySort.ByLess(cells, (a, b) => CombatManhunterRules.Distance2(from, a) < CombatManhunterRules.Distance2(from, b));
+        return CombatFireRules.SpaceCells(cells, 1);
     }
 
     /// <summary>
@@ -195,7 +195,7 @@ public static partial class PolicyFunctions
     /// it: a live hostile at or beyond the detachment's deepest cell along the approach, or one targeting a
     /// flanker. Then it opens for good, and focus fire picks its targets.
     /// </summary>
-    private static void Flank(CombatView view, CombatMemory m)
+    internal static void Flank(CombatView view, CombatMemory m)
     {
         var f = m.Flank;
         if (f is null || f.Pawns.Count == 0)
@@ -214,7 +214,7 @@ public static partial class PolicyFunctions
             deepest = Math.Max(deepest, Project(c));
         }
 
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
             var ok = h.Cell.TryGetValue(out var c);
             if ((ok && Project(c) >= deepest) || f.Pawns.Contains(h.Target))
@@ -240,7 +240,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>A hold-fire order for each waiting flanker not held yet.</summary>
-    private static List<CombatOrder> FlankHoldFire(CombatView view, HashSet<PawnId> orderable, CombatMemory m)
+    internal static List<CombatOrder> FlankHoldFire(CombatView view, HashSet<PawnId> orderable, CombatMemory m)
     {
         var output = new List<CombatOrder>();
         var f = m.Flank;
@@ -258,12 +258,12 @@ public static partial class PolicyFunctions
         foreach (var id in f.Pawns)
         {
             var s = state.GetValueOrDefault(id) ?? new CombatPawnState();
-            if (!orderable.Contains(id) || s.Dead || s.Downed || s.FireMode == HoldFire || (s.FireMode.Length == 0 && f.Held.Contains(id)))
+            if (!orderable.Contains(id) || s.Dead || s.Downed || s.FireMode == CombatFireRules.HoldFire || (s.FireMode.Length == 0 && f.Held.Contains(id)))
             {
                 continue;
             }
 
-            output.Add(new CombatOrder { Pawn = id, Kind = CombatOrderKind.FireMode, FireMode = HoldFire, Reason = CombatOrderReason.Flank });
+            output.Add(new CombatOrder { Pawn = id, Kind = CombatOrderKind.FireMode, FireMode = CombatFireRules.HoldFire, Reason = CombatOrderReason.Flank });
             if (!f.Held.Contains(id))
             {
                 f.Held.Add(id);

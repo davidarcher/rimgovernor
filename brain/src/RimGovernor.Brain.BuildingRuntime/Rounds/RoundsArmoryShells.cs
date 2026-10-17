@@ -25,7 +25,7 @@ internal static partial class BuildingRuntimePackage
             return new MortarShells();
         }
         var catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false) ?? throw new InvalidOperationException("native served no definition catalog");
-        return catalog.MortarShells(PolicyApi.MortarSafeRadius);
+        return catalog.MortarShells(CombatMortarRules.MortarSafeRadius);
     }
 
     internal static async Task<IReadOnlyList<Amount>> ShellTargetsAsync(object native, StoreJournal journal, GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)

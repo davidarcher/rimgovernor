@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: combat_fallback.go
 
-public static partial class PolicyFunctions
+public static partial class CombatFallbackRules
 {
     /// <summary>How far a scattering defender runs from the raid.</summary>
     internal const int ScatterCells = 20;
@@ -17,7 +17,7 @@ public static partial class PolicyFunctions
     /// queued. The fight stays scattered while it is outmatched; once it is not, it drops its roles to re-form,
     /// and each queued door still damaged goes to the nearest free role to repair.
     /// </summary>
-    private static void Scatter(CombatView view, CombatMemory m)
+    internal static void Scatter(CombatView view, CombatMemory m)
     {
         var at = new Dictionary<PawnId, Cell>();
         foreach (var p in view.Pawns.Items)
@@ -51,7 +51,7 @@ public static partial class PolicyFunctions
             }
 
             m.LineHeld = Math.Max(m.LineHeld, held);
-            if (!Outmatched(view) || m.LineHeld == 0 || 2 * held >= m.LineHeld)
+            if (!CombatWaitRules.Outmatched(view) || m.LineHeld == 0 || 2 * held >= m.LineHeld)
             {
                 QueueRepairs(view, m, at);
                 return;
@@ -66,7 +66,7 @@ public static partial class PolicyFunctions
                 }
             }
         }
-        else if (!Outmatched(view))
+        else if (!CombatWaitRules.Outmatched(view))
         {
             m.Scattered = false;
             m.LineHeld = 0;
@@ -76,10 +76,10 @@ public static partial class PolicyFunctions
 
         double hx = 0, hz = 0;
         var n = 0;
-        var down = DownPawns(view);
+        var down = CombatManhunterRules.DownPawns(view);
         foreach (var t in view.Threats.Items)
         {
-            if (!at.TryGetValue(ThreatPawn(t), out var c) || t.Building || Positive(t.Dead) || Positive(t.Downed) || down.Contains(t.Id))
+            if (!at.TryGetValue(CombatDecideRules.ThreatPawn(t), out var c) || t.Building || Positive(t.Dead) || Positive(t.Downed) || down.Contains(t.Id))
             {
                 continue;
             }
@@ -158,7 +158,7 @@ public static partial class PolicyFunctions
                     continue;
                 }
 
-                if (best < 0 || Distance2(c, d) < Distance2(at.GetValueOrDefault(m.Roles[best].Pawn), d))
+                if (best < 0 || CombatManhunterRules.Distance2(c, d) < CombatManhunterRules.Distance2(at.GetValueOrDefault(m.Roles[best].Pawn), d))
                 {
                     best = i;
                 }
@@ -178,7 +178,7 @@ public static partial class PolicyFunctions
     /// judges; a line already fallen back has no further line, so its compromise or breach re-forms as before.
     /// It reports whether any role changed; a changed role is the stop's reaction instead of a re-formation.
     /// </summary>
-    private static bool FallBack(CombatView view, StopEvent stop, CombatMemory m)
+    internal static bool FallBack(CombatView view, StopEvent stop, CombatMemory m)
     {
         var ok = view.Layout.TryGetValue(out var layout);
         if (m.Tactic != CombatTactic.Hold || !ok || layout!.Retreat.Count == 0 || layout.Retreat.Count != layout.Firing.Count || FellBack(m))
@@ -187,7 +187,7 @@ public static partial class PolicyFunctions
         }
 
         Func<CombatRole, bool> who;
-        if (stop.Kind == CombatEvent.Breach || HoldCompromised(layout.Firing.Items, layout.Toward, Unpeeled(view, stop, m)))
+        if (stop.Kind == CombatEvent.Breach || HoldCompromised(layout.Firing.Items, layout.Toward, CombatPeelRules.Unpeeled(view, stop, m)))
         {
             who = _ => true;
         }
@@ -232,7 +232,7 @@ public static partial class PolicyFunctions
     /// The inner-line cell behind <paramref name="from"/>: its own Retreat cell when from is a firing cell,
     /// else (a proposed cover cell, or none) the first Retreat cell not yet taken.
     /// </summary>
-    private static Cell? RetreatCell(CombatLayout layout, Cell? from, HashSet<Cell> taken)
+    internal static Cell? RetreatCell(CombatLayout layout, Cell? from, HashSet<Cell> taken)
     {
         if (from is { } f)
         {
@@ -261,6 +261,6 @@ public static partial class PolicyFunctions
     private static bool FellBack(CombatMemory m) => m.Roles.Count > 0 && m.Roles.All(r => r.Retreat);
 
     /// <summary>The line a hold's compromise is judged against: the inner line once the whole formation fell back to it, else the firing line.</summary>
-    private static ImmutableArray<Cell> HoldLine(CombatLayout layout, CombatMemory m) =>
+    internal static ImmutableArray<Cell> HoldLine(CombatLayout layout, CombatMemory m) =>
         FellBack(m) && layout.Retreat.Count > 0 ? layout.Retreat.Items : layout.Firing.Items;
 }

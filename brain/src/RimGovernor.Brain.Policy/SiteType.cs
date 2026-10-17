@@ -778,7 +778,7 @@ public static partial class PolicyFunctions
     private static (Cell Center, int Covered) SiteLampCenter(HashSet<Cell> eligible, double radius)
     {
         var cells = eligible.ToList();
-        cells.Sort((a, b) => CellLess(a, b) ? -1 : CellLess(b, a) ? 1 : 0);
+        cells.Sort((a, b) => CombatManhunterRules.CellLess(a, b) ? -1 : CombatManhunterRules.CellLess(b, a) ? 1 : 0);
         Cell best = default;
         var covered = 0;
         foreach (var center in cells)

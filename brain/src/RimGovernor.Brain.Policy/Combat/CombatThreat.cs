@@ -14,7 +14,7 @@ public enum StripState
 
 /// <summary>
 /// The fight's next step for one downed raider: strip it, wait for the strip, or it is done (stripped). A
-/// raider not <see cref="PolicyFunctions.CaptureWorthy"/> is then finished; a worthy one is left to capture.
+/// raider not <see cref="CombatThreatRules.CaptureWorthy"/> is then finished; a worthy one is left to capture.
 /// </summary>
 public enum PostFightStep
 {
@@ -23,7 +23,7 @@ public enum PostFightStep
     Done,
 }
 
-public static partial class PolicyFunctions
+public static partial class CombatThreatRules
 {
     // Threat tiers, most urgent first: the caster of a psychic ritual, rocketeers and grenadiers, then
     // anything in melee with a colonist, then sappers (a breaching termite among them), then the other mechs
@@ -159,12 +159,12 @@ public static partial class PolicyFunctions
         {
             var id = t.Id;
             var s = state.TryGetValue(id, out var index) ? view.Pawns[index] : new CombatPawnState { Id = id };
-            if (t.Building || Positive(t.Dead) || Positive(t.Downed) || s.Dead || s.Downed || HiddenFromPlayer(t))
+            if (t.Building || Positive(t.Dead) || Positive(t.Downed) || s.Dead || s.Downed || CombatAnomalyRules.HiddenFromPlayer(t))
             {
                 continue;
             }
             tier[id] = ThreatTier(s, colonists);
-            if (RitualCaster(t))
+            if (CombatAnomalyRules.RitualCaster(t))
             {
                 tier[id] = ThreatRitualCaster;
             }
@@ -193,7 +193,7 @@ public static partial class PolicyFunctions
     internal static List<CombatRole> FocusFire(CombatView view, IReadOnlyList<CombatRole> roles, IReadOnlyList<CombatRole> prior)
     {
         // An exploder near our pawns is never shot.
-        var near = NearExploders(view);
+        var near = CombatManhunterRules.NearExploders(view);
         var ranked = RankThreats(view).Where(h => !near.Contains(h.Id)).ToList();
         var live = new Dictionary<PawnId, CombatPawnState>();
         foreach (var h in ranked)
@@ -210,7 +210,7 @@ public static partial class PolicyFunctions
         {
             state[p.Id] = p;
         }
-        var locked = MeleeLocked(view, roles);
+        var locked = CombatFireRules.MeleeLocked(view, roles);
         var result = roles.ToList();
         for (var i = 0; i < result.Count; i++)
         {

@@ -153,7 +153,7 @@ public sealed partial class BrainComposition
         {
             var defensePlanner = new RoundsDefensePlanner(reviewer, client, new SessionCombatHands(context.Session));
             // Test-only tactic override for calibration sweeps; invalid fails the start loudly, unset is inert.
-            var tuning = ParseCombatTuning(Environment.GetEnvironmentVariable(CombatTuningEnv) ?? "");
+            var tuning = CombatTuningRules.ParseCombatTuning(Environment.GetEnvironmentVariable(CombatTuningRules.CombatTuningEnv) ?? "");
             if (tuning is not null)
             {
                 log.Warn("combat_tuning_override", "defense: combat tuning override active", ("tuning", tuning.ToString()));

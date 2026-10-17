@@ -173,7 +173,7 @@ internal sealed partial class FacadeNativeClient
         var catalog = await DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
         // An unbuildable race table fails the read here, so the fight's race lookups never see the error.
         _ = catalog.AnimalRaces();
-        return combat with { Catalog = catalog, Shells = catalog.MortarShells(P.PolicyFunctions.MortarSafeRadius) };
+        return combat with { Catalog = catalog, Shells = catalog.MortarShells(P.CombatMortarRules.MortarSafeRadius) };
     }
 
     /// <summary>Go <c>combatFrameHeld</c>: the part of the frame a combat read answers, its census rows looked up in the frame's held pawn table.</summary>

@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Policy;
 /// <param name="Exploder">Explodes on death (boomalope, boomrat): never melee-blocked, shot only away from our pawns.</param>
 public readonly record struct AnimalClass(bool Slow, bool Exploder);
 
-public static partial class PolicyFunctions
+public static partial class CombatManhunterRules
 {
     /// <summary>A baseline colonist's MoveSpeed, cells/s; an animal slower than it is kitable.</summary>
     internal const double ColonistMoveSpeed = 4.6;
@@ -33,12 +33,12 @@ public static partial class PolicyFunctions
         var n = 0;
         foreach (var t in view.Threats.Items)
         {
-            if (t.Building || Positive(t.Dead) || Positive(t.Downed) || down.Contains(ThreatPawn(t)))
+            if (t.Building || Positive(t.Dead) || Positive(t.Downed) || down.Contains(CombatDecideRules.ThreatPawn(t)))
             {
                 continue;
             }
 
-            if (!(Positive(t.Animal) && Positive(t.Manhunter)) && !MeleeEntity(t))
+            if (!(Positive(t.Animal) && Positive(t.Manhunter)) && !CombatAnomalyRules.MeleeEntity(t))
             {
                 return false;
             }
@@ -68,7 +68,7 @@ public static partial class PolicyFunctions
     internal static Dictionary<PawnId, CombatPawnState> LiveExploders(CombatView view)
     {
         var output = new Dictionary<PawnId, CombatPawnState>();
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
             if (ClassifyAnimal(h).Exploder)
             {
@@ -144,7 +144,7 @@ public static partial class PolicyFunctions
         var exploders = LiveExploders(view);
         PawnId top = default;
         PawnId melee = default;
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
             if (top.IsEmpty)
             {
@@ -157,7 +157,7 @@ public static partial class PolicyFunctions
             }
         }
 
-        var blocking = BlockingChoke(view) is not null;
+        var blocking = CombatBlockingRules.BlockingChoke(view) is not null;
         var cells = new List<Cell>();
         if (view.Layout.TryGetValue(out var layout))
         {
@@ -165,7 +165,7 @@ public static partial class PolicyFunctions
             IEnumerable<Cell> candidates = geometry.Proposals.Items;
             if (blocking)
             {
-                candidates = CoveredAround(layout.Firing.Items, geometry);
+                candidates = CombatCoverRules.CoveredAround(layout.Firing.Items, geometry);
             }
 
             foreach (var c in candidates)
@@ -176,7 +176,7 @@ public static partial class PolicyFunctions
                 }
             }
 
-            cells = SpaceCells(RankByCover(cells, geometry.Scored.Items), 1);
+            cells = CombatFireRules.SpaceCells(CombatCoverRules.RankByCover(cells, geometry.Scored.Items), 1);
         }
 
         var roles = new List<CombatRole>();
@@ -196,15 +196,15 @@ public static partial class PolicyFunctions
         if (chokes.Count > 0)
         {
             // A psychic wave blocks every door it approaches.
-            duties = WaveBlockers(chokes, Rotated(Brawlers(rest), relieved));
+            duties = WaveBlockers(chokes, CombatBlockingRules.Rotated(CombatBlockingRules.Brawlers(rest), relieved));
         }
         else
         {
-            duties = BrawlerRoles(view, rest, blocking, geometry, relieved);
+            duties = CombatBlockingRules.BrawlerRoles(view, rest, blocking, geometry, relieved);
         }
 
         roles.AddRange(duties);
-        foreach (var b in Brawlers(rest))
+        foreach (var b in CombatBlockingRules.Brawlers(rest))
         {
             if (!duties.Any(r => r.Pawn == b.Id))
             {
@@ -212,9 +212,9 @@ public static partial class PolicyFunctions
             }
         }
 
-        return SortRoles(roles);
+        return CombatDecideRules.SortRoles(roles);
     }
 
     /// <summary>The manhunter tactic's re-formation row: a role's target is down. Gunners retarget every stop by focus fire.</summary>
-    internal static bool ReformManhunter(CombatView view, CombatMemory m) => SquadTargetDown(view, m);
+    internal static bool ReformManhunter(CombatView view, CombatMemory m) => CombatDecideRules.SquadTargetDown(view, m);
 }

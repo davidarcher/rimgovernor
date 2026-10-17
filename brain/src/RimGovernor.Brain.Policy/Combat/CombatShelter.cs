@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class CombatShelterRules
 {
     /// <summary>How far, in cells, a colonist with no room to go to moves away from the nearest hostile.</summary>
     internal const int ShelterStep = 12;
@@ -17,7 +17,7 @@ public static partial class PolicyFunctions
     internal static List<CombatRole> ShelterRolesFor(CombatView view, GeometryReply geometry, IReadOnlyList<Cell> unreachable, Func<SquadDefenderFacts, bool> pick)
     {
         var hostiles = new List<Cell>();
-        var down = DownPawns(view);
+        var down = CombatManhunterRules.DownPawns(view);
         foreach (var t in view.Positional)
         {
             if (t.Position.TryGetValue(out var c) && !Positive(t.Dead) && !Positive(t.Downed) && !down.Contains(t.Id))
@@ -38,8 +38,8 @@ public static partial class PolicyFunctions
             }
         }
         var safe = safeCells
-            .OrderByDescending(c => NearestDistance(c, hostiles))
-            .ThenBy(c => c, Comparer<Cell>.Create((a, b) => CellLess(a, b) ? -1 : (CellLess(b, a) ? 1 : 0)))
+            .OrderByDescending(c => CombatPodsRules.NearestDistance(c, hostiles))
+            .ThenBy(c => c, Comparer<Cell>.Create((a, b) => CombatManhunterRules.CellLess(a, b) ? -1 : (CombatManhunterRules.CellLess(b, a) ? 1 : 0)))
             .ToList();
         if (view.Layout.TryGetValue(out var layout))
         {
@@ -71,8 +71,8 @@ public static partial class PolicyFunctions
             else
             {
                 var candidates = ShelterChecks(view)
-                    .Where(to => geometry.Stands(to) && !unreachable.Contains(to) && !taken.Contains(to) && KeepDefended(view, c, to) == to && NearestDistance(to, hostiles) > NearestDistance(c, hostiles))
-                    .OrderByDescending(to => NearestDistance(to, hostiles))
+                    .Where(to => geometry.Stands(to) && !unreachable.Contains(to) && !taken.Contains(to) && KeepDefended(view, c, to) == to && CombatPodsRules.NearestDistance(to, hostiles) > CombatPodsRules.NearestDistance(c, hostiles))
+                    .OrderByDescending(to => CombatPodsRules.NearestDistance(to, hostiles))
                     .ToList();
                 if (candidates.Count == 0)
                 {
@@ -83,7 +83,7 @@ public static partial class PolicyFunctions
             roles.Add(new CombatRole { Pawn = d.Id, Cell = cell, Retreat = true });
             taken.Add(cell);
         }
-        return SortRoles(roles);
+        return CombatDecideRules.SortRoles(roles);
     }
 
     /// <summary>
@@ -103,7 +103,7 @@ public static partial class PolicyFunctions
                 return "shelter_unreachable";
             }
         }
-        var (_, available) = SquadAssignments(view);
+        var (_, available) = CombatDecideRules.SquadAssignments(view);
         if (available)
         {
             return "defenders_available";
@@ -152,7 +152,7 @@ public static partial class PolicyFunctions
         var cells = new List<Cell>();
         void Add(Cell c)
         {
-            if (c.X >= 0 && c.Z >= 0 && cells.Count < MaxGeometryCells / 2 && !cells.Contains(c))
+            if (c.X >= 0 && c.Z >= 0 && cells.Count < CombatFireRules.MaxGeometryCells / 2 && !cells.Contains(c))
             {
                 cells.Add(c);
             }
@@ -192,7 +192,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var near = hostiles[NearestIndex(from, hostiles)];
+            var near = hostiles[CombatManhunterRules.NearestIndex(from, hostiles)];
             double dx = from.X - near.X;
             double dz = from.Z - near.Z;
             var n = Math.Sqrt((dx * dx) + (dz * dz));

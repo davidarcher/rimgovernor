@@ -68,7 +68,7 @@ public sealed record HostileStructure
 /// <summary>A mortar stood down: its aim is gone, so its forced target is cleared and Crew, its last crew, is released to its role.</summary>
 public readonly record struct MortarStand(Cell Cell, PawnId Crew);
 
-public static partial class PolicyFunctions
+public static partial class CombatMortarRules
 {
     /// <summary>How far, in cells, besiegers count into one camp clump around a besieger the mortar aims at.</summary>
     internal const double CampClumpRadius = 5.0;
@@ -196,7 +196,7 @@ public static partial class PolicyFunctions
             }
             roles[index] = roles[index] with { Mortar = mortar.Cell, Aim = aim, Shell = shell };
         }
-        return (memory with { Roles = EquatableArray.From(SortRoles(roles)) }, stood);
+        return (memory with { Roles = EquatableArray.From(CombatDecideRules.SortRoles(roles)) }, stood);
     }
 
     /// <summary>
@@ -261,7 +261,7 @@ public static partial class PolicyFunctions
         {
             return (cell, ShellKind.EMP, true);
         }
-        (cell, ok) = Nearest(RitualCasterCells(view));
+        (cell, ok) = Nearest(CombatAnomalyRules.RitualCasterCells(view));
         if (ok)
         {
             return (cell, ShellKind.HE, true);
@@ -290,12 +290,12 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static List<Cell> BesiegerCells(CombatView view)
     {
-        var besiegers = LiveBesiegers(view);
+        var besiegers = CombatSiegeRules.LiveBesiegers(view);
         var ours = ColonistCells(view);
         var result = new List<Cell>();
         foreach (var p in view.Pawns)
         {
-            if (p.Cell.TryGetValue(out var c) && besiegers.TryGetValue(p.Id, out var toil) && toil == SiegeCampToil && !NearAny(ours, c))
+            if (p.Cell.TryGetValue(out var c) && besiegers.TryGetValue(p.Id, out var toil) && toil == CombatSiegeRules.SiegeCampToil && !NearAny(ours, c))
             {
                 result.Add(c);
             }

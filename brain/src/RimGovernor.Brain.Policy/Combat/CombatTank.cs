@@ -1,7 +1,7 @@
 using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class CombatTankRules
 {
     /// <summary>
     /// Separates the eligible defenders wearing a charged shield (the tanks, best armored first) from the rest.
@@ -30,7 +30,7 @@ public static partial class PolicyFunctions
                 rest.Add(d);
             }
         }
-        return (rest, ByArmor(tanks));
+        return (rest, CombatBlockingRules.ByArmor(tanks));
     }
 
     /// <summary>
@@ -57,7 +57,7 @@ public static partial class PolicyFunctions
                 ranged++;
             }
         }
-        var emp = RankThreats(view).Any(h => h.WeaponFacts.EMP);
+        var emp = CombatThreatRules.RankThreats(view).Any(h => h.WeaponFacts.EMP);
         return ranged * 2 > live && !emp;
     }
 

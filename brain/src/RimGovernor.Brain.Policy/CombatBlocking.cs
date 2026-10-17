@@ -34,10 +34,10 @@ public enum CombatDuty
 /// <summary>The choke and the our_side anchor of the adjacent_to_choke ask.</summary>
 internal readonly record struct BlockingChokeCells(Cell Choke, Cell OurSide);
 
-public static partial class PolicyFunctions
+public static partial class CombatBlockingRules
 {
     /// <summary>How many brawlers block the choke (up to 3).</summary>
-    private const int MaxChokeBlockers = 3;
+    internal const int MaxChokeBlockers = 3;
 
     /// <summary>
     /// How far along the corridor direction the adjacent_to_choke ask's our_side anchor lies: far enough that
@@ -49,7 +49,7 @@ public static partial class PolicyFunctions
     /// Says whether Formation runs the melee blocking formation: a layout with a known choke and at least one
     /// eligible brawler. It returns the choke and the our_side anchor for the adjacent_to_choke ask.
     /// </summary>
-    private static BlockingChokeCells? BlockingChoke(CombatView view)
+    internal static BlockingChokeCells? BlockingChoke(CombatView view)
     {
         if (!view.Layout.TryGetValue(out var layout))
         {
@@ -58,10 +58,10 @@ public static partial class PolicyFunctions
 
         var ok = layout.Choke.TryGetValue(out var choke);
         var vok = TowardVector(layout.Toward, out var v);
-        var (rest, _) = SplitTanks(view);
+        var (rest, _) = CombatTankRules.SplitTanks(view);
 
         // A manhunter pack with an exploder is never melee-blocked.
-        if (!ok || !vok || Brawlers(rest).Count == 0 || (ManhunterPack(view) && LiveExploders(view).Count > 0))
+        if (!ok || !vok || Brawlers(rest).Count == 0 || (CombatManhunterRules.ManhunterPack(view) && CombatManhunterRules.LiveExploders(view).Count > 0))
         {
             return null;
         }
@@ -76,7 +76,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>A cell on the floor of a standing room, or null when the frame has no rooms.</summary>
-    private static Func<Cell, bool>? InsideRooms(CombatView view)
+    internal static Func<Cell, bool>? InsideRooms(CombatView view)
     {
         if (view.Rooms.Count == 0)
         {
@@ -91,7 +91,7 @@ public static partial class PolicyFunctions
     /// blockers' row (a neighbour of the choke one step toward the colony), a hostile at the choke or in front
     /// of it within two cells is held there, however hurt the blockers are. Null without a known choke.
     /// </summary>
-    private static Func<Cell, bool>? ChokeHeld(CombatView view, CombatLayout layout)
+    internal static Func<Cell, bool>? ChokeHeld(CombatView view, CombatLayout layout)
     {
         var ok = layout.Choke.TryGetValue(out var choke);
         var vok = TowardVector(layout.Toward, out var v);
@@ -123,11 +123,11 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The eligible melee-only defenders, best armored first (unknown armor last), then by id.</summary>
-    private static List<SquadDefenderFacts> Brawlers(IEnumerable<SquadDefenderFacts> defenders) =>
+    internal static List<SquadDefenderFacts> Brawlers(IEnumerable<SquadDefenderFacts> defenders) =>
         ByArmor([.. defenders.Where(d => SquadDefenderEligible(d) && Positive(d.MeleeEquipped) && !Positive(d.RangedEquipped))]);
 
     /// <summary>Sorts defenders best armored first (unknown armor last), then by id.</summary>
-    private static List<SquadDefenderFacts> ByArmor(List<SquadDefenderFacts> output) =>
+    internal static List<SquadDefenderFacts> ByArmor(List<SquadDefenderFacts> output) =>
         PolicySort.ByLess(
             output,
             (a, b) =>
@@ -149,7 +149,7 @@ public static partial class PolicyFunctions
         );
 
     /// <summary>The brawler pool with the relieved blockers last, in relief order, so a re-formation keeps the rotation.</summary>
-    private static List<SquadDefenderFacts> Rotated(IReadOnlyList<SquadDefenderFacts> pool, IReadOnlyList<PawnId> relieved)
+    internal static List<SquadDefenderFacts> Rotated(IReadOnlyList<SquadDefenderFacts> pool, IReadOnlyList<PawnId> relieved)
     {
         var fresh = pool.Where(d => !relieved.Contains(d.Id)).ToList();
         var rested = new List<SquadDefenderFacts>();
@@ -175,7 +175,7 @@ public static partial class PolicyFunctions
     /// relieved. The next brawler after those is the peeler, waiting at its home behind the gunners when the
     /// game found that cell standable. Blockers the reserve relieved rank last.
     /// </summary>
-    private static List<CombatRole> BrawlerRoles(
+    internal static List<CombatRole> BrawlerRoles(
         CombatView view,
         IReadOnlyList<SquadDefenderFacts> defenders,
         bool blocking,
@@ -216,7 +216,7 @@ public static partial class PolicyFunctions
         if (n < pool.Count)
         {
             var role = new CombatRole { Pawn = pool[n].Id, Duty = CombatDuty.Peeler };
-            if (PeelerHome(view) is { } home && geometry.Stands(home))
+            if (CombatPeelRules.PeelerHome(view) is { } home && geometry.Stands(home))
             {
                 role.Cell = home;
                 role.Home = home;
@@ -233,7 +233,7 @@ public static partial class PolicyFunctions
     /// and the hurt blocker pulls back to where the reserve stands. Without a live reserve whose place is
     /// known nothing changes, and the fall-back row takes the stop. It reports whether it swapped.
     /// </summary>
-    private static bool RelieveBlocker(CombatView view, StopEvent stop, CombatMemory m)
+    internal static bool RelieveBlocker(CombatView view, StopEvent stop, CombatMemory m)
     {
         if (stop.Kind != CombatEvent.SeriousInjury)
         {

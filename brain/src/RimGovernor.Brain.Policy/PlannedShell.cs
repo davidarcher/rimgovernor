@@ -101,7 +101,7 @@ public static partial class PolicyFunctions
     internal static List<Cell> SortedCells(IReadOnlyCollection<Cell> set)
     {
         var result = set.ToList();
-        result.Sort(LessComparer<Cell>(CellLess));
+        result.Sort(LessComparer<Cell>(CombatManhunterRules.CellLess));
         return result;
     }
 

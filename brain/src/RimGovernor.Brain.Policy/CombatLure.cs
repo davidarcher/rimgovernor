@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: combat_lure.go
 
-public static partial class PolicyFunctions
+public static partial class CombatLureRules
 {
     /// <summary>
     /// The hold's lure step against any outranging ranged raid: mechs or sniper parties. While a live hostile
@@ -12,7 +12,7 @@ public static partial class PolicyFunctions
     /// return to their firing cells and focus fire picks their targets. A raid we outrange never triggers it.
     /// Roles already fallen back are left alone.
     /// </summary>
-    private static void Lure(CombatView view, CombatMemory m)
+    internal static void Lure(CombatView view, CombatMemory m)
     {
         if (m.Tactic != CombatTactic.Hold || !view.Layout.TryGetValue(out var layout)
             || layout.Retreat.Count != layout.Firing.Count || layout.Retreat.Count == 0)
@@ -37,7 +37,7 @@ public static partial class PolicyFunctions
         }
 
         bool outranged = false, near = false;
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
             outranged = outranged || (ours > 0 && h.WeaponRange > ours);
             var known = h.Cell.TryGetValue(out var c);

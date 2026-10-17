@@ -231,14 +231,14 @@ public static partial class PolicyFunctions
         var nodes = new List<ConduitNode>();
         foreach (var s in p.PowerSiteNodes())
         {
-            nodes.Add(new ConduitNode(SiteRef(s.Node), s.Footprint.Cells().SortedBy(CellLess)));
+            nodes.Add(new ConduitNode(SiteRef(s.Node), s.Footprint.Cells().SortedBy(CombatManhunterRules.CellLess)));
         }
         for (var i = 0; i < p.Reservations.Count; i++)
         {
             var r = p.Reservations[i];
             if (PowerSiteKinds.Contains(r.Kind))
             {
-                nodes.Add(new ConduitNode(SiteRef(ReservationSiteID(r.Kind, i)), r.Area.Cells().SortedBy(CellLess)));
+                nodes.Add(new ConduitNode(SiteRef(ReservationSiteID(r.Kind, i)), r.Area.Cells().SortedBy(CombatManhunterRules.CellLess)));
             }
         }
         return nodes;
@@ -387,7 +387,7 @@ public static partial class PolicyFunctions
             {
                 cells.AddRange(room.Region.Cells());
             }
-            consumers.Add(new ConduitNode(RoomRef(room.Id), [.. cells.SortedBy(CellLess).Distinct()]));
+            consumers.Add(new ConduitNode(RoomRef(room.Id), [.. cells.SortedBy(CombatManhunterRules.CellLess).Distinct()]));
         }
         var (links, decisions) = RouteConduits(t.Out.Plan, consumers, t.In.Survey, t.In.Conduits);
         t.Out.Plan = t.Out.Plan with { Conduits = EquatableArray.From(links) };

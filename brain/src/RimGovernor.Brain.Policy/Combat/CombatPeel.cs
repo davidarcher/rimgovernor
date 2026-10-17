@@ -1,7 +1,7 @@
 using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class CombatPeelRules
 {
     /// <summary>
     /// Where the peeler waits: one step behind the first gunner's inner-line cell, clear of both lines, or
@@ -54,7 +54,7 @@ public static partial class PolicyFunctions
             role = role with { Target = default, Cell = role.Home };
         }
         // A peeler never melees an exploder.
-        var boom = LiveExploders(view).ContainsKey(stop.Pawn);
+        var boom = CombatManhunterRules.LiveExploders(view).ContainsKey(stop.Pawn);
         if (role.Target.IsEmpty && stop.Kind == CombatEvent.MeleeContact && gunner && !boom && !view.HostileDown(stop.Pawn))
         {
             role = role with { Target = stop.Pawn, Cell = null };
@@ -119,26 +119,6 @@ public static partial class PolicyFunctions
         return view.Positional.Where(t => t.Id != id).ToList();
     }
 
-    /// <summary>Reports a hostile known downed or dead.</summary>
-    internal static bool HostileDown(this CombatView v, PawnId id)
-    {
-        foreach (var t in v.Threats)
-        {
-            if (t.Id == id && (Positive(t.Dead) || Positive(t.Downed)))
-            {
-                return true;
-            }
-        }
-        foreach (var p in v.Pawns)
-        {
-            if (p.Id == id && (p.Dead || p.Downed))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
     /// <summary>
     /// Keeps one melee-only defender of a squad fight beside the colony's shooters as their peeler instead of
     /// charging out alone ahead of them: it engages a raider who reaches a gunner (peel) and otherwise waits.
@@ -165,7 +145,7 @@ public static partial class PolicyFunctions
         {
             return roles;
         }
-        var melee = new HashSet<PawnId>(Brawlers(view.Defenders).Select(d => d.Id));
+        var melee = new HashSet<PawnId>(CombatBlockingRules.Brawlers(view.Defenders).Select(d => d.Id));
         var result = roles.ToList();
         for (var i = 0; i < result.Count; i++)
         {
@@ -177,4 +157,27 @@ public static partial class PolicyFunctions
         }
         return result;
     }
+}
+
+public sealed partial record CombatView
+{
+        /// <summary>Reports a hostile known downed or dead.</summary>
+        internal bool HostileDown(PawnId id)
+        {
+            foreach (var t in Threats)
+            {
+                if (t.Id == id && (Positive(t.Dead) || Positive(t.Downed)))
+                {
+                    return true;
+                }
+            }
+            foreach (var p in Pawns)
+            {
+                if (p.Id == id && (p.Dead || p.Downed))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 }

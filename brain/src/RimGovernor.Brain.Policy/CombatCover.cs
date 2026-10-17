@@ -27,7 +27,7 @@ public sealed record ScoredCell
     public EquatableArray<CoverLine> Lines { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class CombatCoverRules
 {
     /// <summary>
     /// A firing cell's worth against the approach: the mean cover the cell gets against the hostiles it can
@@ -61,7 +61,7 @@ public static partial class PolicyFunctions
     /// The in-bounds cells within one step (8-way) of the line, not on it: the cells cover_behind_line
     /// considers, named instead when the stop's proposal goes to the choke.
     /// </summary>
-    private static List<Cell> AroundLine(IReadOnlyList<Cell> line)
+    internal static List<Cell> AroundLine(IReadOnlyList<Cell> line)
     {
         var output = new List<Cell>();
         foreach (var l in line)
@@ -86,7 +86,7 @@ public static partial class PolicyFunctions
     /// The cells around the line that the game reported standable with some cover against a hostile: the
     /// cover_behind_line rule applied to the game's own scores.
     /// </summary>
-    private static List<Cell> CoveredAround(IReadOnlyList<Cell> line, GeometryReply geometry)
+    internal static List<Cell> CoveredAround(IReadOnlyList<Cell> line, GeometryReply geometry)
     {
         var covered = new HashSet<Cell>();
         foreach (var s in geometry.Scored.Items)

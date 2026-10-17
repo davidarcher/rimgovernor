@@ -36,7 +36,7 @@ public sealed record SweepOptions
 
     public string Shots { get; init; } = "";
 
-    /// <summary>Names a tactic variant; <see cref="TuningEnv"/> is its <see cref="PolicyFunctions.CombatTuningEnv"/> value, launched into every worker's game.</summary>
+    /// <summary>Names a tactic variant; <see cref="TuningEnv"/> is its <see cref="CombatTuningRules.CombatTuningEnv"/> value, launched into every worker's game.</summary>
     public string Variant { get; init; } = "";
 
     public string TuningEnv { get; init; } = "";
@@ -322,7 +322,7 @@ public static partial class SweepCommand
     /// </summary>
     public static IReadOnlyList<CombatVariant> Variants()
     {
-        var shipped = PolicyFunctions.DefaultCombatTuning();
+        var shipped = CombatTuningRules.DefaultCombatTuning();
         return
         [
             new CombatVariant(DefaultVariant, shipped),
@@ -352,7 +352,7 @@ public static partial class SweepCommand
             var data = TuningJson(v.Tuning).ToJsonString();
             try
             {
-                _ = PolicyFunctions.ParseCombatTuning(data);
+                _ = CombatTuningRules.ParseCombatTuning(data);
             }
             catch (DomainException e)
             {

@@ -571,7 +571,7 @@ public static partial class PolicyFunctions
                     }
                 }
             }
-            segCells.Sort((a, b) => CellLess(a, b) ? -1 : CellLess(b, a) ? 1 : 0);
+            segCells.Sort((a, b) => CombatManhunterRules.CellLess(a, b) ? -1 : CombatManhunterRules.CellLess(b, a) ? 1 : 0);
             segments.Add(new CutSegment { Cells = segCells, Thickness = thickness, Reason = reason, HP = design[i].Hp, DetourTicks = detourTicks });
         }
 

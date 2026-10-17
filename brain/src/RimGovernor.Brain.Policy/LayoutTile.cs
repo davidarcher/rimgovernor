@@ -582,7 +582,7 @@ internal sealed partial class Tiler(TileInput input)
                 {
                     return da < db ? -1 : 1;
                 }
-                return CellLess(a.Door, b.Door) ? -1 : CellLess(b.Door, a.Door) ? 1 : 0;
+                return CombatManhunterRules.CellLess(a.Door, b.Door) ? -1 : CombatManhunterRules.CellLess(b.Door, a.Door) ? 1 : 0;
             });
             if (cands.Count == 0 || Open(i))
             {
@@ -843,7 +843,7 @@ internal sealed partial class Tiler(TileInput input)
             {
                 return a.B.CompareTo(b.B);
             }
-            return CellLess(a.Cell, b.Cell) ? -1 : CellLess(b.Cell, a.Cell) ? 1 : 0;
+            return CombatManhunterRules.CellLess(a.Cell, b.Cell) ? -1 : CombatManhunterRules.CellLess(b.Cell, a.Cell) ? 1 : 0;
         });
         var entrances = new List<Cell>();
         for (var i = 0; i < rooms.Count; i++)

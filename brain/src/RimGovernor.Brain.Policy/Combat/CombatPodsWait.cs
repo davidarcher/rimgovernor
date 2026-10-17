@@ -1,7 +1,7 @@
 using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class CombatPodsRules
 {
     /// <summary>The lord toils of a raid that flees or loots and leaves: the pods tactic's wait ends and it strikes.</summary>
     internal static readonly IReadOnlySet<string> PodStrikeToils = new HashSet<string>(StringComparer.Ordinal)

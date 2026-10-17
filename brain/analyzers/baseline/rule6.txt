@@ -162,9 +162,9 @@ Policy/ClearanceGround.cs|PolicyFunctions.StandInBed|"SleepingSpot"
 Policy/Climate.cs|PolicyFunctions._climateTable|"Human"
 Policy/Climate.cs|PolicyFunctions._climateTable|"Vent"
 Policy/Combat/CombatMortar.cs|HostileStructure.Hive|"Hive"
-Policy/Combat/CombatWait.cs|PolicyFunctions.RaidGiveUpTicks|38000
-Policy/Combat/CombatWait.cs|PolicyFunctions.WaitDoorStuff|"Plasteel"
-Policy/CombatCast.cs|PolicyFunctions._psycastFamilies|"Flashstorm"
+Policy/Combat/CombatWait.cs|CombatWaitRules.RaidGiveUpTicks|38000
+Policy/Combat/CombatWait.cs|CombatWaitRules.WaitDoorStuff|"Plasteel"
+Policy/CombatCast.cs|CombatCastRules._psycastFamilies|"Flashstorm"
 Policy/ConcernProgress.cs|PolicyFunctions.ProgressCooldownMax|180000
 Policy/ConstructionDemand.cs|PolicyFunctions.ConstructionWoodLog|"WoodLog"
 Policy/ContainmentCell.cs|PolicyFunctions.ShellDoorDefinition|"Door"

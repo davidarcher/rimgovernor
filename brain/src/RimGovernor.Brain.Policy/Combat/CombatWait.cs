@@ -15,7 +15,7 @@ public sealed record WaitDoorCell
     public bool Roofed { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class CombatWaitRules
 {
     /// <summary>
     /// Bounds a humanoid raid's wait: raiders give up and leave 26k-38k ticks after they arrive (sappers
@@ -54,7 +54,7 @@ public static partial class PolicyFunctions
                 ours += h;
             }
         }
-        var down = DownPawns(view);
+        var down = CombatManhunterRules.DownPawns(view);
         foreach (var t in view.Threats)
         {
             if (t.Building || Positive(t.Dead) || Positive(t.Downed) || down.Contains(t.Id))
@@ -85,11 +85,11 @@ public static partial class PolicyFunctions
         {
             return false;
         }
-        if (view.Pods.IsKnown || m.Pods is not null || LiveBesiegers(view).Count > 0)
+        if (view.Pods.IsKnown || m.Pods is not null || CombatSiegeRules.LiveBesiegers(view).Count > 0)
         {
             return false;
         }
-        var down = DownPawns(view);
+        var down = CombatManhunterRules.DownPawns(view);
         var n = 0;
         foreach (var t in view.Threats)
         {
@@ -98,7 +98,7 @@ public static partial class PolicyFunctions
                 continue;
             }
             // A shambler is humanlike but fights as a pack of its own.
-            if (!Positive(t.Humanlike) || Anomalous(t))
+            if (!Positive(t.Humanlike) || CombatAnomalyRules.Anomalous(t))
             {
                 return false;
             }
@@ -115,8 +115,8 @@ public static partial class PolicyFunctions
     internal static CombatMemory WaitTurn(CombatView view, CombatMemory m)
     {
         var raid = HumanoidRaid(view, m);
-        var insects = Infestation(view);
-        if (!ManhunterPack(view) && !insects && !raid)
+        var insects = CombatInfestationRules.Infestation(view);
+        if (!CombatManhunterRules.ManhunterPack(view) && !insects && !raid)
         {
             return m;
         }
@@ -177,7 +177,7 @@ public static partial class PolicyFunctions
             var r = roles[i] with { Target = default, Duty = CombatDuty.None, Cell = null, Retreat = false };
             if (inner.Count > 0)
             {
-                var k = NearestIndex(at.GetValueOrDefault(r.Pawn), inner);
+                var k = CombatManhunterRules.NearestIndex(at.GetValueOrDefault(r.Pawn), inner);
                 var c = inner[k];
                 inner.RemoveAt(k);
                 r = r with { Cell = c, Retreat = true };
@@ -206,7 +206,7 @@ public static partial class PolicyFunctions
         {
             Roles = EquatableArray.From(roles),
             WaitRooms = EquatableArray.From(waitRooms),
-            WaitDoors = EquatableArray.From(KeepSent(m.WaitDoors, want)),
+            WaitDoors = EquatableArray.From(CombatPodsRules.KeepSent(m.WaitDoors, want)),
         };
     }
 

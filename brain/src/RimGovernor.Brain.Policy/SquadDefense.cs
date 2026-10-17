@@ -120,7 +120,7 @@ public sealed record SquadAssignment(PawnId Defender, PawnId Target, SquadMode M
 public static partial class PolicyFunctions
 {
     private const int MaxSquadOpponents = 4;
-    private const int MaxSquadDefenders = 8;
+    internal const int MaxSquadDefenders = 8;
     private const int RequiredDefendersPerFoe = 2;
 
     /// <summary>
@@ -151,7 +151,7 @@ public static partial class PolicyFunctions
     /// Whether the pawn's draft is spoken for: drafted under an owned claim, or drafted with the claim unknown.
     /// Forced and queued jobs affect candidate preference, never draft ownership.
     /// </summary>
-    private static (bool Busy, bool Known) SquadDraftBusy(SquadDefenderFacts d)
+    internal static (bool Busy, bool Known) SquadDraftBusy(SquadDefenderFacts d)
     {
         if (!d.Drafted.TryGetValue(out var drafted))
         {
@@ -169,10 +169,10 @@ public static partial class PolicyFunctions
     /// The shared combat_health_hold gate: known health, not drafted under another claim, violence-capable, not
     /// needing tending and above the native combat-health threshold.
     /// </summary>
-    private static bool SquadDefenderEligible(SquadDefenderFacts d) => SquadDefenderReasons(d).Count == 0;
+    internal static bool SquadDefenderEligible(SquadDefenderFacts d) => SquadDefenderReasons(d).Count == 0;
 
     /// <summary>Every reason d is not eligible, empty when eligible. Each check stands alone: an unknown fact is a reason, and the known ones are still checked.</summary>
-    private static List<string> SquadDefenderReasons(SquadDefenderFacts d)
+    internal static List<string> SquadDefenderReasons(SquadDefenderFacts d)
     {
         var why = new List<string>();
         if (!d.Dead.TryGetValue(out var dead))
@@ -228,7 +228,7 @@ public static partial class PolicyFunctions
         {
             why.Add("health unknown");
         }
-        else if (health <= SquadHurtHealth)
+        else if (health <= CombatSquadRosterRules.SquadHurtHealth)
         {
             why.Add("health " + health.ToString("F2", CultureInfo.InvariantCulture));
         }
@@ -277,7 +277,7 @@ public static partial class PolicyFunctions
             {
                 return false;
             }
-            if (humanlike || MeleeEntity(t))
+            if (humanlike || CombatAnomalyRules.MeleeEntity(t))
             {
                 return true;
             }

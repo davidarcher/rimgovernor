@@ -50,7 +50,7 @@ public sealed record PodDoor
     public PawnId Opener { get; set; }
 }
 
-public static partial class PolicyFunctions
+public static partial class CombatPodsRules
 {
     /// <summary>How many armed colonists answer each landing cell.</summary>
     internal const int PodRespondersPerPod = 2;
@@ -117,7 +117,7 @@ public static partial class PolicyFunctions
 
                 var d = pool.Dequeue();
                 taken.Add(d.Id);
-                roles.Add(new CombatRole { Pawn = d.Id, Cell = cell, Target = NearestHostile(view, cell), Ranged = Positive(d.RangedEquipped), Duty = CombatDuty.Doorway });
+                roles.Add(new CombatRole { Pawn = d.Id, Cell = cell, Target = CombatMechRules.NearestHostile(view, cell), Ranged = Positive(d.RangedEquipped), Duty = CombatDuty.Doorway });
                 held = true;
             }
 
@@ -144,10 +144,10 @@ public static partial class PolicyFunctions
         foreach (var d in armed)
         {
             at.TryGetValue(d.Id, out var from);
-            var role = new CombatRole { Pawn = d.Id, Target = NearestHostile(view, from), Ranged = Positive(d.RangedEquipped) };
+            var role = new CombatRole { Pawn = d.Id, Target = CombatMechRules.NearestHostile(view, from), Ranged = Positive(d.RangedEquipped) };
             if (inner.Count > 0)
             {
-                var i = NearestIndex(from, inner);
+                var i = CombatManhunterRules.NearestIndex(from, inner);
                 var cell = inner[i];
                 inner.RemoveAt(i);
                 role.Cell = cell;
@@ -158,7 +158,7 @@ public static partial class PolicyFunctions
         }
 
         roles.AddRange(Evacuees(view, pods, civilians, at));
-        return (SortRoles(roles), doors);
+        return (CombatDecideRules.SortRoles(roles), doors);
     }
 
     /// <summary>
@@ -171,7 +171,7 @@ public static partial class PolicyFunctions
         double Range(SquadDefenderFacts d) => reach.TryGetValue(d.Id, out var r) && r > 0 ? r : 1 << 20;
 
         return PolicySort.ByLess(
-            ByArmor([.. armed]),
+            CombatBlockingRules.ByArmor([.. armed]),
             (a, b) =>
             {
                 bool ma = Melee(a), mb = Melee(b);
@@ -237,7 +237,7 @@ public static partial class PolicyFunctions
 
             foreach (var door in r.Doors.Items)
             {
-                if (Outward(r.Interior, door) is not { } n || output.Any(p => p.Cell == door))
+                if (CombatManhunterRules.Outward(r.Interior, door) is not { } n || output.Any(p => p.Cell == door))
                 {
                     continue;
                 }
@@ -265,7 +265,7 @@ public static partial class PolicyFunctions
     /// cells for their lines of fire, against the live hostiles (none before the pods open). Without a
     /// landing-room door there is nothing to ask.
     /// </summary>
-    private static GeometryRequest? PodsAsk(CombatView view, PodArrival pods)
+    internal static GeometryRequest? PodsAsk(CombatView view, PodArrival pods)
     {
         var ask = new GeometryRequest();
         foreach (var door in LandingDoors(view, pods))
@@ -284,9 +284,9 @@ public static partial class PolicyFunctions
             return null;
         }
 
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (ask.Hostiles.Count < MaxGeometryHostiles)
+            if (ask.Hostiles.Count < CombatDecideRules.MaxGeometryHostiles)
             {
                 ask.Hostiles.Add(h.Id);
             }
@@ -294,7 +294,7 @@ public static partial class PolicyFunctions
 
         if (ask.Hostiles.Count > 0)
         {
-            foreach (var c in ShooterCells(view))
+            foreach (var c in CombatFireRules.ShooterCells(view))
             {
                 if (!ask.Cells.Contains(c))
                 {
@@ -303,9 +303,9 @@ public static partial class PolicyFunctions
             }
         }
 
-        if (ask.Cells.Count > MaxGeometryCells)
+        if (ask.Cells.Count > CombatFireRules.MaxGeometryCells)
         {
-            ask.Cells = ask.Cells.GetRange(0, MaxGeometryCells);
+            ask.Cells = ask.Cells.GetRange(0, CombatFireRules.MaxGeometryCells);
         }
 
         return ask;
@@ -315,7 +315,7 @@ public static partial class PolicyFunctions
     internal static List<CombatOrder> PodDoorOrders(CombatView view, CombatMemory m)
     {
         var output = new List<CombatOrder>();
-        m.PodDoors.RemoveAll(d => !CombatDoorExists(view, d.Cell));
+        m.PodDoors.RemoveAll(d => !CombatDoorRules.CombatDoorExists(view, d.Cell));
 
         PodDoor Send(PodDoor d)
         {
@@ -400,7 +400,7 @@ public static partial class PolicyFunctions
                 }
 
                 var index = observed.Items.ToList().FindIndex(d => d.Cell == cell);
-                if (index < 0 || DoorFactFalse(observed[index].HoldOpen))
+                if (index < 0 || CombatDoorRules.DoorFactFalse(observed[index].HoldOpen))
                 {
                     return true;
                 }
@@ -415,25 +415,6 @@ public static partial class PolicyFunctions
         }
 
         return output;
-    }
-
-    /// <summary>Retires an unapplied door selection. A later selection must come from a new native room observation rather than this retained order.</summary>
-    public static CombatMemory RefuseDoor(this CombatMemory memory, Cell cell)
-    {
-        var m = memory.Copy();
-        m.PodDoors.RemoveAll(d => d.Cell == cell);
-        m.WaitDoors = EquatableArray.From(m.WaitDoors.Items.Where(d => d.Cell != cell));
-        if (m.PotshotDoor is { } potshot && potshot.Cell == cell)
-        {
-            m.PotshotDoor = null;
-        }
-
-        if (m.ChokeDoor is { } choke && choke.Cell == cell)
-        {
-            m.ChokeDoor = null;
-        }
-
-        return m;
     }
 
     /// <summary>The want list with each door already sent in the same mode marked sent, so a re-formation does not repeat it.</summary>
@@ -482,7 +463,7 @@ public static partial class PolicyFunctions
             (a, b) =>
             {
                 long da = NearestDistance(a, pods.Landing.Items), db = NearestDistance(b, pods.Landing.Items);
-                return da != db ? da > db : CellLess(a, b);
+                return da != db ? da > db : CombatManhunterRules.CellLess(a, b);
             });
         var output = new List<CombatRole>();
         foreach (var d in civilians)
@@ -521,7 +502,7 @@ public static partial class PolicyFunctions
 
             if (r.Target.IsEmpty)
             {
-                if (!NearestHostile(view, default).IsEmpty)
+                if (!CombatMechRules.NearestHostile(view, default).IsEmpty)
                 {
                     return true;
                 }
@@ -545,5 +526,27 @@ public static partial class PolicyFunctions
 
     /// <summary>The squared distance from c to the nearest of cells; huge with none.</summary>
     internal static long NearestDistance(Cell c, IReadOnlyList<Cell> cells) =>
-        cells.Count == 0 ? 1L << 62 : Distance2(c, cells[NearestIndex(c, cells)]);
+        cells.Count == 0 ? 1L << 62 : CombatManhunterRules.Distance2(c, cells[CombatManhunterRules.NearestIndex(c, cells)]);
+}
+
+public sealed partial record CombatMemory
+{
+        /// <summary>Retires an unapplied door selection. A later selection must come from a new native room observation rather than this retained order.</summary>
+        public CombatMemory RefuseDoor(Cell cell)
+        {
+            var m = Copy();
+            m.PodDoors.RemoveAll(d => d.Cell == cell);
+            m.WaitDoors = EquatableArray.From(m.WaitDoors.Items.Where(d => d.Cell != cell));
+            if (m.PotshotDoor is { } potshot && potshot.Cell == cell)
+            {
+                m.PotshotDoor = null;
+            }
+
+            if (m.ChokeDoor is { } choke && choke.Cell == cell)
+            {
+                m.ChokeDoor = null;
+            }
+
+            return m;
+        }
 }

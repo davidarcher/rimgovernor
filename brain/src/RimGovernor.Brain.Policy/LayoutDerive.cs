@@ -228,7 +228,7 @@ public static partial class PolicyFunctions
             }
             if (held.ContainsKey(RoomRef(r.Id)))
             {
-                consumers.Add(new ConduitNode(RoomRef(r.Id), r.Region.Cells().SortedBy(CellLess)));
+                consumers.Add(new ConduitNode(RoomRef(r.Id), r.Region.Cells().SortedBy(CombatManhunterRules.CellLess)));
             }
         }
         if (consumers.Count == 0)

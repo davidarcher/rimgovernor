@@ -46,11 +46,11 @@ public static partial class PolicyFunctions
         {
             result.Add(new OutdoorHazard(HazardKind.ToxicFallout));
         }
-        if (temp <= ExtremeColdC)
+        if (temp <= CombatWaitRules.ExtremeColdC)
         {
             result.Add(new OutdoorHazard(HazardKind.ExtremeCold));
         }
-        if (temp >= ExtremeHeatC)
+        if (temp >= CombatWaitRules.ExtremeHeatC)
         {
             result.Add(new OutdoorHazard(HazardKind.ExtremeHeat));
         }

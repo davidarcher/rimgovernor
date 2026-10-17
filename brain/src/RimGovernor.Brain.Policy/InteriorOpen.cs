@@ -119,7 +119,7 @@ public static partial class PolicyFunctions
                 best = part;
             }
         }
-        return best.SortedBy(CellLess);
+        return best.SortedBy(CombatManhunterRules.CellLess);
     }
 
     /// <summary>The planned room's interior reading against the census.</summary>

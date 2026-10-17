@@ -218,7 +218,7 @@ public sealed partial class RoundsDefensePlanner
         var tick = view.Tick;
         var stop = CombatStop(combat, memory.Tick);
         await ReconcileCombatBatchesAsync(state, owner, view, call).ConfigureAwait(false);
-        var (orders, ask, next) = PolicyApi.DecideCombat(view, new GeometryReply(), stop, memory);
+        var (orders, ask, next) = CombatDecideRules.DecideCombat(view, new GeometryReply(), stop, memory);
         var recorded = new SnapshotCombatStop { Tick = tick, Stop = stop, Orderable = [.. orderable.Select(o => (Domain.PawnId)o)], Ask = ask, MemoryIn = memory };
         if (held.TryGetValue(out var layoutKnown))
         {
@@ -227,10 +227,10 @@ public sealed partial class RoundsDefensePlanner
         if (ask is not null)
         {
             recorded.Reply = AnswerGeometry(Boundary.Identity(state.Snapshot), ask, call);
-            (orders, _, next) = PolicyApi.DecideCombat(view, recorded.Reply, stop, memory);
+            (orders, _, next) = CombatDecideRules.DecideCombat(view, recorded.Reply, stop, memory);
         }
         recorded.MemoryOut = next;
-        var reconsider = PolicyApi.ShelterReconsider(view, memory);
+        var reconsider = CombatShelterRules.ShelterReconsider(view, memory);
         if (reconsider != "")
         {
             Tel.Decide(new Decision
@@ -277,14 +277,14 @@ public sealed partial class RoundsDefensePlanner
             view = CombatView(combat, inp, withDrafts, held);
                 view = view with { Royalty = _reviewer.Census.Remembered() };
             view = view with { Drugs = [.. drug] };
-            var (o2, more, n2) = PolicyApi.DecideCombat(view, recorded.Reply ?? new GeometryReply(), stop, memory);
+            var (o2, more, n2) = CombatDecideRules.DecideCombat(view, recorded.Reply ?? new GeometryReply(), stop, memory);
             orders = o2;
             next = n2;
             if (more is not null && recorded.Ask is null)
             {
                 recorded.Ask = more;
                 recorded.Reply = AnswerGeometry(Boundary.Identity(state.Snapshot), more, call);
-                (orders, more, next) = PolicyApi.DecideCombat(view, recorded.Reply, stop, memory);
+                (orders, more, next) = CombatDecideRules.DecideCombat(view, recorded.Reply, stop, memory);
             }
             if (more is not null)
             {

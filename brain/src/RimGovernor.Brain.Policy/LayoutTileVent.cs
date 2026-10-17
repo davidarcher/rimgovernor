@@ -367,7 +367,7 @@ internal sealed partial class Tiler
     internal List<PlannedSite> VentSites()
     {
         var vents = Vents.ToList();
-        vents.Sort((a, b) => CellLess(a.Cell, b.Cell) ? -1 : CellLess(b.Cell, a.Cell) ? 1 : 0);
+        vents.Sort((a, b) => CombatManhunterRules.CellLess(a.Cell, b.Cell) ? -1 : CombatManhunterRules.CellLess(b.Cell, a.Cell) ? 1 : 0);
         var output = new List<PlannedSite>(vents.Count);
         foreach (var v in vents)
         {

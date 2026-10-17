@@ -48,7 +48,7 @@ public sealed record CombatRescue
     public bool Carrying(PawnId pawn) => !Rescuer.IsEmpty && Rescuer == pawn;
 }
 
-public static partial class PolicyFunctions
+public static partial class CombatRescueRules
 {
     /// <summary>The Medicine level that makes a rescuer a doctor.</summary>
     internal const int RescueDoctorSkill = 6;
@@ -229,9 +229,9 @@ public static partial class PolicyFunctions
     internal static List<PawnId> RescueHostiles(CombatView view)
     {
         var result = new List<PawnId>();
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (result.Count < MaxGeometryHostiles)
+            if (result.Count < CombatDecideRules.MaxGeometryHostiles)
             {
                 result.Add(h.Id);
             }

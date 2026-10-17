@@ -548,7 +548,7 @@ public static partial class PolicyFunctions
                 return live;
             }
             var upgrade = v.UnsafeConduits.ToList();
-            upgrade.Sort(LessComparer<Cell>(CellLess));
+            upgrade.Sort(LessComparer<Cell>(CombatManhunterRules.CellLess));
             return new PowerProposal { Method = PowerMethod.Connect, Cells = upgrade, Key = PowerMethodKey("upgrade", GoFormat(upgrade)) };
         }
         var producers = new List<PowerSite>();

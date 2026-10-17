@@ -683,8 +683,8 @@ Policy|PolicyFunctions.CareOp.Part
 Policy|PolicyFunctions.CareOp.Pawn
 Policy|PolicyFunctions.CareOp.Recipe
 Policy|PolicyFunctions.RouteTrip.Weight
-Policy|PolicyFunctions.SightKey.Cell
-Policy|PolicyFunctions.SightKey.Hostile
+Policy|CombatFireRules.SightKey.Cell
+Policy|CombatFireRules.SightKey.Hostile
 Policy|PowerBudget.DemandWD
 Policy|PowerBudget.SupplyWD
 Policy|PowerNetProjection.Id

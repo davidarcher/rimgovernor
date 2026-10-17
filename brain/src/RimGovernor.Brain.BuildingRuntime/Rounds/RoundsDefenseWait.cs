@@ -31,8 +31,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         var (read, census) = await FightCensusAsync(state, DefenseWaitRegion(m), call).ConfigureAwait(false);
         read.Projection.Resources.TryGetValue(out var stock);
-        var doorStock = stock is not null && stock.TryGetValue(new Resource(PolicyApi.WaitDoorStuff), out var count) ? count : 0;
-        var buildings = PolicyApi.WaitHardening(m, census, doorStock, DefenseDefinitionNames.Door, DefenseDefinitionNames.Wall, DefenseDefinitionNames.WallStuff);
+        var doorStock = stock is not null && stock.TryGetValue(new Resource(CombatWaitRules.WaitDoorStuff), out var count) ? count : 0;
+        var buildings = CombatWaitRules.WaitHardening(m, census, doorStock, DefenseDefinitionNames.Door, DefenseDefinitionNames.Wall, DefenseDefinitionNames.WallStuff);
         if (buildings.Count == 0)
         {
             return new RoundsDefenseLayoutResult { Verdict = BuildingReasonNoDeficit, Tier = DefenseWaitTier };

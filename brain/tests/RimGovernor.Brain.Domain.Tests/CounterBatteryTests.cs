@@ -40,9 +40,9 @@ public sealed class CounterBatteryTests
     public void CampedSiegeIsShelledWithHeOnItsDensestClump()
     {
         // Three besiegers clumped at (80, 80) and one straggler at (95, 50), all over ten cells from the colonists.
-        var view = View(SiegeCampToil, ("Besieger_1", new(80, 80)), ("Besieger_2", new(82, 80)), ("Besieger_3", new(80, 82)), ("Besieger_4", new(95, 50)));
+        var view = View(CombatSiegeRules.SiegeCampToil, ("Besieger_1", new(80, 80)), ("Besieger_2", new(82, 80)), ("Besieger_3", new(80, 82)), ("Besieger_4", new(95, 50)));
 
-        var (memory, stood) = CounterBattery(view, [], new CombatMemory());
+        var (memory, stood) = CombatMortarRules.CounterBattery(view, [], new CombatMemory());
 
         Assert.Empty(stood);
         var role = Assert.Single(memory.Roles.Items, r => r.Mortar is not null);
@@ -56,9 +56,9 @@ public sealed class CounterBatteryTests
     public void BesiegerNearAColonistIsNeverAimedAt()
     {
         // The only camped besieger stands four cells from the far colonist.
-        var view = View(SiegeCampToil, ("Besieger_1", new(44, 40)));
+        var view = View(CombatSiegeRules.SiegeCampToil, ("Besieger_1", new(44, 40)));
 
-        var (memory, _) = CounterBattery(view, [], new CombatMemory());
+        var (memory, _) = CombatMortarRules.CounterBattery(view, [], new CombatMemory());
 
         Assert.DoesNotContain(memory.Roles.Items, r => r.Mortar is not null);
     }
@@ -69,7 +69,7 @@ public sealed class CounterBatteryTests
         var view = View("LordToil_Travel", ("Besieger_1", new(80, 80)));
         var prev = new[] { new CombatRole { Pawn = Near, Mortar = MortarCell, Aim = new Cell(80, 80) } };
 
-        var (memory, stood) = CounterBattery(view, prev, new CombatMemory());
+        var (memory, stood) = CombatMortarRules.CounterBattery(view, prev, new CombatMemory());
 
         Assert.DoesNotContain(memory.Roles.Items, r => r.Mortar is not null);
         Assert.Equal([new MortarStand(MortarCell, Near)], stood);

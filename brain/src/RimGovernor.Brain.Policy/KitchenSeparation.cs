@@ -98,6 +98,6 @@ public static partial class PolicyFunctions
                 cells.AddRange(room.Cells);
             }
         }
-        return cells.SortedBy(CellLess);
+        return cells.SortedBy(CombatManhunterRules.CellLess);
     }
 }

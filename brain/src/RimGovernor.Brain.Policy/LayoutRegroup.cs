@@ -408,7 +408,7 @@ public static partial class PolicyFunctions
         {
             return default;
         }
-        var p = new WorkPrice(StationWorkDayW(f), ticks / ColonistMoveSpeed / GameTime.TicksPerDay);
+        var p = new WorkPrice(StationWorkDayW(f), ticks / CombatManhunterRules.ColonistMoveSpeed / GameTime.TicksPerDay);
         return p.Valid() ? p : default;
     }
 

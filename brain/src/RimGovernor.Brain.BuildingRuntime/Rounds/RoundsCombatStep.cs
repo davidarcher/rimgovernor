@@ -42,13 +42,13 @@ internal static partial class BuildingRuntimePackage
         // A geometry ask is answered from the game and the question asked again with the answer, as the defense round does.
         (List<CombatOrder> Orders, CombatMemory Next) Decide(CombatView v)
         {
-            var (o, ask, n) = PolicyApi.DecideCombat(v, new GeometryReply(), stop, memory);
+            var (o, ask, n) = CombatDecideRules.DecideCombat(v, new GeometryReply(), stop, memory);
             if (ask is null)
             {
                 return (o, n);
             }
             var reply = AnswerGeometry(read, (_, _, _) => { }, identity, ask);
-            var (o2, _, n2) = PolicyApi.DecideCombat(v, reply, stop, memory);
+            var (o2, _, n2) = CombatDecideRules.DecideCombat(v, reply, stop, memory);
             return (o2, n2);
         }
         var view = reads.Complete(CombatView(combat, inputs, orderable, layout), memory);

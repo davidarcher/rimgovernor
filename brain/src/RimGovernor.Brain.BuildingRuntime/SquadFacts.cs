@@ -131,7 +131,7 @@ internal static partial class BuildingRuntimePackage
         facts = facts with { Anomaly = BridgeApi.PawnAnomaly(row.Anomaly), RangedEquipped = ranged };
         // A row without the equipment detail leaves the weapon unknown; an animal
         // carries no ranged weapon either way, and neither does an entity whose attack native read as melee only.
-        if (!facts.RangedEquipped.IsKnown && (facts.Animal == Fact.Known(true) || Pol.PolicyFunctions.MeleeEntity(facts)))
+        if (!facts.RangedEquipped.IsKnown && (facts.Animal == Fact.Known(true) || Pol.CombatAnomalyRules.MeleeEntity(facts)))
         {
             facts = facts with { RangedEquipped = Fact.Known(false) };
         }

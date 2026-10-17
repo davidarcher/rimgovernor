@@ -39,7 +39,7 @@ internal sealed class RaidGroup
     public Cell Centroid { get; set; }
 }
 
-public static partial class PolicyFunctions
+public static partial class CombatGroupsRules
 {
     /// <summary>The single-link gap between hostiles of one group: a hostile within this many cells (8-way) of a group member joins it.</summary>
     internal const int GroupGap = 8;
@@ -56,7 +56,7 @@ public static partial class PolicyFunctions
     /// </summary>
     private static List<RaidGroup> RaidGroups(CombatView view, CombatTuning t)
     {
-        var hs = RankThreats(view).Where(h => h.Cell.IsKnown).ToList();
+        var hs = CombatThreatRules.RankThreats(view).Where(h => h.Cell.IsKnown).ToList();
         hs = PolicySort.ByLess(hs, (a, b) => a.Id < b.Id);
         var group = new int[hs.Count];
         for (var i = 0; i < group.Length; i++)
@@ -80,7 +80,7 @@ public static partial class PolicyFunctions
             {
                 hs[i].Cell.TryGetValue(out var a);
                 hs[j].Cell.TryGetValue(out var b);
-                if (Within(a, b, t.GroupGap))
+                if (CombatFireRules.Within(a, b, t.GroupGap))
                 {
                     int ri = Find(i), rj = Find(j);
                     group[Math.Max(ri, rj)] = Math.Min(ri, rj);
@@ -160,7 +160,7 @@ public static partial class PolicyFunctions
         var main = 0;
         for (var i = 0; i < groups.Count; i++)
         {
-            if (Distance2(groups[i].Centroid, h.Choke) < Distance2(groups[main].Centroid, h.Choke))
+            if (CombatManhunterRules.Distance2(groups[i].Centroid, h.Choke) < CombatManhunterRules.Distance2(groups[main].Centroid, h.Choke))
             {
                 main = i;
             }
@@ -184,7 +184,7 @@ public static partial class PolicyFunctions
     private static Cell GroupAnchor(Cell home, RaidGroup g) => new((home.X + g.Centroid.X) / 2, (home.Z + g.Centroid.Z) / 2);
 
     /// <summary>The next unanswered side group's firing_cells ask on a hold.</summary>
-    private static GeometryRequest? GroupAsk(CombatView view, CombatMemory m)
+    internal static GeometryRequest? GroupAsk(CombatView view, CombatMemory m)
     {
         if (m.Tactic != CombatTactic.Hold || m.MechLure)
         {
@@ -197,7 +197,7 @@ public static partial class PolicyFunctions
             return null;
         }
 
-        return FiringCellsAsk(view, GroupAnchor(home.Home, side[0]), side[0].Centroid);
+        return CombatFlankRules.FiringCellsAsk(view, GroupAnchor(home.Home, side[0]), side[0].Centroid);
     }
 
     /// <summary>The hold's line gunners no flank or squad has taken, in pawn order.</summary>
@@ -222,7 +222,7 @@ public static partial class PolicyFunctions
     /// Gives the first side group its squad from the answered proposals: the free gunners times the group's
     /// share of the grouped hostiles, at least one, always leaving one on the main line.
     /// </summary>
-    private static void GroupDetach(CombatView view, GeometryReply geometry, CombatMemory m)
+    internal static void GroupDetach(CombatView view, GeometryReply geometry, CombatMemory m)
     {
         var side = SideGroups(view, m);
         if (side.Count == 0 || GroupHome(view) is not { } homes)
@@ -258,7 +258,7 @@ public static partial class PolicyFunctions
                 }
             }
 
-            var cells = NearestFree(geometry, GroupAnchor(home, g), taken);
+            var cells = CombatFlankRules.NearestFree(geometry, GroupAnchor(home, g), taken);
             n = Math.Min(n, cells.Count);
             if (n == 0)
             {
@@ -282,9 +282,9 @@ public static partial class PolicyFunctions
     /// Posts each squad on its cells (its fallback cells once a live group hostile closes to the fallback
     /// range) and points it at its group's top-ranked live hostile.
     /// </summary>
-    private static void GroupSquads(CombatView view, CombatMemory m)
+    internal static void GroupSquads(CombatView view, CombatMemory m)
     {
-        var ranked = RankThreats(view);
+        var ranked = CombatThreatRules.RankThreats(view);
         foreach (var g in m.Groups)
         {
             if (g.Pawns.Count == 0)
@@ -305,7 +305,7 @@ public static partial class PolicyFunctions
                     target = h.Id;
                 }
 
-                if (h.Cell.TryGetValue(out var c) && g.Cells.Any(s => Within(s, c, GroupFallbackRange)))
+                if (h.Cell.TryGetValue(out var c) && g.Cells.Any(s => CombatFireRules.Within(s, c, GroupFallbackRange)))
                 {
                     g.FellBack = true;
                 }

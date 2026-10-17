@@ -11,7 +11,7 @@ internal enum PermitFightKind
     StrikeCall,
 }
 
-public static partial class PolicyFunctions
+public static partial class CombatPermitRules
 {
     internal static PermitFightKind PermitFightClass(string name)
     {
@@ -60,7 +60,7 @@ public static partial class PolicyFunctions
         {
             return (m, []);
         }
-        var down = DownPawns(view);
+        var down = CombatManhunterRules.DownPawns(view);
         var calls = new List<CombatOrder>();
         var permitted = m.Permitted.ToList();
         foreach (var holder in SortedHolders(royalty.Holders))
@@ -95,13 +95,13 @@ public static partial class PolicyFunctions
 
     /// <summary>Outmatched with a known eligible armed defender: with none the comparison measures missing facts, not the fight.</summary>
     internal static bool OutmatchedKnown(CombatView view) =>
-        view.Defenders.Any(d => SquadDefenderEligible(d) && Positive(d.Armed)) && Outmatched(view);
+        view.Defenders.Any(d => SquadDefenderEligible(d) && Positive(d.Armed)) && CombatWaitRules.Outmatched(view);
 
     /// <summary>The cells of the live hostile pawns, in view order.</summary>
     internal static List<Cell> LiveHostileCells(CombatView view)
     {
         var cells = new List<Cell>();
-        foreach (var p in LiveHostiles(view))
+        foreach (var p in CombatCastRules.LiveHostiles(view))
         {
             p.Cell.TryGetValue(out var c);
             cells.Add(c);
@@ -113,19 +113,19 @@ public static partial class PolicyFunctions
     internal static (Cell Cell, bool Ok) StrikeCell(CombatView view)
     {
         var cells = LiveHostileCells(view);
-        var ours = ColonistCells(view);
+        var ours = CombatMortarRules.ColonistCells(view);
         Cell best = default;
         var most = 0;
         foreach (var c in cells)
         {
-            if (NearAny(ours, c))
+            if (CombatMortarRules.NearAny(ours, c))
             {
                 continue;
             }
             var n = 0;
             foreach (var o in cells)
             {
-                if (Dist(c, o) <= CampClumpRadius)
+                if (CombatMortarRules.Dist(c, o) <= CombatMortarRules.CampClumpRadius)
                 {
                     n++;
                 }
@@ -142,7 +142,7 @@ public static partial class PolicyFunctions
     /// <summary>The known defender cell nearest the squad's mean cell.</summary>
     internal static (Cell Cell, bool Ok) AidCell(CombatView view)
     {
-        var ours = ColonistCells(view);
+        var ours = CombatMortarRules.ColonistCells(view);
         if (ours.Count == 0)
         {
             return (default, false);

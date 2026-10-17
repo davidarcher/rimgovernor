@@ -101,7 +101,7 @@ internal static class SweepSeed
         }
 
         // The brain reads the tactic override when the game starts: a kept process launched with another value relaunches.
-        cfg.LaunchEnv[PolicyFunctions.CombatTuningEnv] = opts.TuningEnv;
+        cfg.LaunchEnv[CombatTuningRules.CombatTuningEnv] = opts.TuningEnv;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(opts.SeedTimeout);
         AcceptanceException? error = null;

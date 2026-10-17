@@ -15,7 +15,7 @@ public sealed record SapperBreach
     public CombatRoom Room { get; init; } = new();
 }
 
-public static partial class PolicyFunctions
+public static partial class CombatSapperRules
 {
     /// <summary>How far inside the breach, in cells, the gunners stand.</summary>
     internal const int SapperInset = 3;
@@ -24,7 +24,7 @@ public static partial class PolicyFunctions
     internal const int SapperSpread = 2;
 
     /// <summary>The live hostiles flagged sapper or breacher, by threat rank.</summary>
-    internal static List<CombatPawnState> LiveSappers(CombatView view) => RankThreats(view).Where(h => h.Sapper).ToList();
+    internal static List<CombatPawnState> LiveSappers(CombatView view) => CombatThreatRules.RankThreats(view).Where(h => h.Sapper).ToList();
 
     /// <summary>
     /// Predicts where the sappers break in. They head for the base's rooms, so the target is the frame's room
@@ -186,7 +186,7 @@ public static partial class PolicyFunctions
             }
         }
         PawnId top = default;
-        var ranked = RankThreats(view);
+        var ranked = CombatThreatRules.RankThreats(view);
         if (ranked.Count > 0)
         {
             top = ranked[0].Id;
@@ -197,13 +197,13 @@ public static partial class PolicyFunctions
         {
             roles.Add(new CombatRole { Pawn = gunners[i].Id, Target = top, Ranged = true, Cell = i < posts.Count ? posts[i] : null });
         }
-        var guards = Brawlers(rest);
+        var guards = CombatBlockingRules.Brawlers(rest);
         var cells = BreachPosts(b, 1, 1, guards.Count);
         for (var i = 0; i < guards.Count; i++)
         {
             roles.Add(new CombatRole { Pawn = guards[i].Id, Duty = CombatDuty.Blocker, Cell = i < cells.Count ? cells[i] : null });
         }
-        return SortRoles(roles);
+        return CombatDecideRules.SortRoles(roles);
     }
 
     /// <summary>
@@ -218,6 +218,6 @@ public static partial class PolicyFunctions
         {
             return b is not null;
         }
-        return b is null || m.SapperBreach is null || m.SapperBreach.Value != b.Wall || SquadTargetDown(view, m);
+        return b is null || m.SapperBreach is null || m.SapperBreach.Value != b.Wall || CombatDecideRules.SquadTargetDown(view, m);
     }
 }

@@ -39,7 +39,7 @@ public sealed partial record CombatMemory
     {
         var m = Forget(order.Pawn);
         m.Animals.RemoveAll(a => a.Pawn == order.Pawn);
-        if (order.Kind == CombatOrderKind.Release && refusal == RefusalUntrained && !m.Untrained.Contains(order.Pawn))
+        if (order.Kind == CombatOrderKind.Release && refusal == CombatAnimalsRules.RefusalUntrained && !m.Untrained.Contains(order.Pawn))
         {
             m.Untrained.Add(order.Pawn);
             m.Untrained.Sort();
@@ -49,7 +49,7 @@ public sealed partial record CombatMemory
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class CombatAnimalsRules
 {
     /// <summary>Bridge.CombatRefusalUntrained.</summary>
     public const string RefusalUntrained = "untrained";
@@ -83,9 +83,9 @@ public static partial class PolicyFunctions
                 Zone(p, OffDoor(view, at));
             }
         }
-        else if (ExplosiveHostiles(view).Count > 0)
+        else if (CombatExplosivesRules.ExplosiveHostiles(view).Count > 0)
         {
-            var cells = DecoyCells(view, ExplosiveHostiles(view));
+            var cells = DecoyCells(view, CombatExplosivesRules.ExplosiveHostiles(view));
             if (cells.Count != 0)
             {
                 for (var i = 0; i < animals.Count; i++)
@@ -114,7 +114,7 @@ public static partial class PolicyFunctions
                     }
 
                     p.Cell.TryGetValue(out var at);
-                    want[p.Id] = new AnimalOrder { Pawn = p.Id, Kind = CombatOrderKind.Release, Target = ids[NearestIndex(at, cells)] };
+                    want[p.Id] = new AnimalOrder { Pawn = p.Id, Kind = CombatOrderKind.Release, Target = ids[CombatManhunterRules.NearestIndex(at, cells)] };
                 }
             }
         }
@@ -126,7 +126,7 @@ public static partial class PolicyFunctions
     /// Turns the wants into changed orders and records them in m. An animal switching from a zone to a
     /// release is cleared first and released on a later stop, so a batch names an animal once.
     /// </summary>
-    private static List<CombatOrder> AnimalStep(CombatView view, CombatMemory m)
+    internal static List<CombatOrder> AnimalStep(CombatView view, CombatMemory m)
     {
         var want = AnimalWants(view, m);
         var state = new Dictionary<PawnId, CombatPawnState>();
@@ -196,7 +196,7 @@ public static partial class PolicyFunctions
                 for (var z = inside.Z; z < inside.Z + inside.Height; z++)
                 {
                     var c = new Cell(x, z);
-                    var d = Distance2(at, c);
+                    var d = CombatManhunterRules.Distance2(at, c);
                     if (!r.Doors.Items.Contains(c) && (bestD < 0 || d < bestD))
                     {
                         best = c;
@@ -239,7 +239,7 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            var to = ours[NearestIndex(at, ours)];
+            var to = ours[CombatManhunterRules.NearestIndex(at, ours)];
             var c = new Cell(at.X + Sign(to.X - at.X), at.Z + Sign(to.Z - at.Z));
             if (c != at && c.X >= 0 && c.Z >= 0 && !output.Contains(c))
             {
@@ -261,12 +261,12 @@ public static partial class PolicyFunctions
             return null;
         }
 
-        if (ManhunterPack(view) && LiveExploders(view).Count == 0)
+        if (CombatManhunterRules.ManhunterPack(view) && CombatManhunterRules.LiveExploders(view).Count == 0)
         {
             return choke;
         }
 
-        var threats = RankThreats(view);
+        var threats = CombatThreatRules.RankThreats(view);
         if (threats.Count == 0)
         {
             return null;
@@ -292,11 +292,11 @@ public static partial class PolicyFunctions
             var known = t.RangedEquipped.TryGetValue(out var ranged);
             if (!t.Building && Positive(t.Humanlike) && known && !ranged && !Positive(t.Dead) && !Positive(t.Downed))
             {
-                melee.Add(ThreatPawn(t));
+                melee.Add(CombatDecideRules.ThreatPawn(t));
             }
         }
 
-        var down = DownPawns(view);
+        var down = CombatManhunterRules.DownPawns(view);
         var ids = new List<PawnId>();
         var cells = new List<Cell>();
         foreach (var t in view.Positional.Items)
@@ -322,11 +322,11 @@ public static partial class PolicyFunctions
         {
             if (!t.Building && Positive(t.Humanlike) && !Positive(t.Dead) && !Positive(t.Downed))
             {
-                humanlike.Add(ThreatPawn(t));
+                humanlike.Add(CombatDecideRules.ThreatPawn(t));
             }
         }
 
-        var down = DownPawns(view);
+        var down = CombatManhunterRules.DownPawns(view);
         var raiders = new List<Cell>();
         var ours = new List<Cell>();
         foreach (var t in view.Positional.Items)
@@ -363,12 +363,12 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            if (Distance2(at, raiders[NearestIndex(at, raiders)]) > EnrageNear)
+            if (CombatManhunterRules.Distance2(at, raiders[CombatManhunterRules.NearestIndex(at, raiders)]) > EnrageNear)
             {
                 continue;
             }
 
-            if (ours.Count > 0 && Distance2(at, ours[NearestIndex(at, ours)]) <= EnrageFar)
+            if (ours.Count > 0 && CombatManhunterRules.Distance2(at, ours[CombatManhunterRules.NearestIndex(at, ours)]) <= EnrageFar)
             {
                 continue;
             }
@@ -383,7 +383,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Has the nearest live ranged role shoot the enrage target with the attack order, in place of that role's own order.</summary>
-    private static List<CombatOrder> EnrageWild(
+    internal static List<CombatOrder> EnrageWild(
         CombatView view,
         List<CombatOrder> orders,
         IReadOnlyList<CombatRole> roles,
@@ -408,7 +408,7 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            var d = Distance2(at, c);
+            var d = CombatManhunterRules.Distance2(at, c);
             if (bestD < 0 || d < bestD)
             {
                 gunner = r.Pawn;

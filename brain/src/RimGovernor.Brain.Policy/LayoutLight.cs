@@ -253,7 +253,7 @@ public static partial class PolicyFunctions
         var p = new LightPrice(
             WorkDayW: UnitsW(w, input.UpkeepPerDay / input.UnitNutrition),
             LampW: input.Model.Standing.PowerW + BuildW(w, input.Model.Standing.Build, input.SteelValue),
-            CellWalkDays: input.Climate.TicksPerSecond / ColonistMoveSpeed / GameTime.TicksPerDay,
+            CellWalkDays: input.Climate.TicksPerSecond / CombatManhunterRules.ColonistMoveSpeed / GameTime.TicksPerDay,
             LampReach: input.Model.Standing.Reach(),
             WallLampW: 0,
             WallReach: 0);

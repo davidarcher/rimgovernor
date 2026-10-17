@@ -154,7 +154,7 @@ public static partial class PolicyFunctions
             {
                 return !inner.Contains(a);
             }
-            return CellLess(a, b);
+            return CombatManhunterRules.CellLess(a, b);
         });
         var (side, ok) = DoorSide(r, doors[0]);
         if (!ok)
@@ -207,7 +207,7 @@ public static partial class PolicyFunctions
                 doors.Add(d);
             }
         }
-        var sorted = doors.SortedBy(CellLess);
+        var sorted = doors.SortedBy(CombatManhunterRules.CellLess);
         return (new InteriorRoom { Role = role, Interior = rect, Shapes = shapes, Doors = sorted }, sorted.Count > 0);
     }
 
@@ -487,7 +487,7 @@ public static partial class PolicyFunctions
             snap[new Cell((2 * r.X) + r.Width - 1 - c.X, c.Z)] = true;
             snap[new Cell(c.X, (2 * r.Z) + r.Height - 1 - c.Z)] = true;
         }
-        return snap.Where(kv => kv.Value).Select(kv => kv.Key).SortedBy(CellLess);
+        return snap.Where(kv => kv.Value).Select(kv => kv.Key).SortedBy(CombatManhunterRules.CellLess);
     }
 
     /// <summary>

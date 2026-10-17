@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class CombatSiegeRules
 {
     /// <summary>
     /// The share of its weapon range a harasser stands off its target; it harasses only when that stand-off
@@ -23,13 +23,13 @@ public static partial class PolicyFunctions
         {
             h.Cell.TryGetValue(out var c);
             target.Cell.TryGetValue(out var b);
-            if (Distance2(c, at) < Distance2(b, at))
+            if (CombatManhunterRules.Distance2(c, at) < CombatManhunterRules.Distance2(b, at))
             {
                 target = h;
             }
         }
         var want = HarassReach * reach;
-        var cell = StandOffAt(target, at, want);
+        var cell = CombatSapperRules.StandOffAt(target, at, want);
         target.Cell.TryGetValue(out var t);
         if (back && cell == at && at != t)
         {
@@ -90,7 +90,7 @@ public static partial class PolicyFunctions
     {
         var tribals = new List<CombatPawnState>();
         var theirs = 0.0;
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
             if (!h.Cell.IsKnown)
             {
@@ -122,7 +122,7 @@ public static partial class PolicyFunctions
         {
             var r = roles[i];
             state.TryGetValue(r.Pawn, out var s);
-            if (s is null || !s.Cell.TryGetValue(out var at) || !r.Ranged || r.Duty != CombatDuty.None || r.Mortar is not null || s.WeaponRange < LoadoutTribalRange || HarassReach * s.WeaponRange <= theirs)
+            if (s is null || !s.Cell.TryGetValue(out var at) || !r.Ranged || r.Duty != CombatDuty.None || r.Mortar is not null || s.WeaponRange < CombatLoadoutRules.LoadoutTribalRange || HarassReach * s.WeaponRange <= theirs)
             {
                 continue;
             }
@@ -150,7 +150,7 @@ public static partial class PolicyFunctions
         {
             return m;
         }
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
             if (h.Mech)
             {

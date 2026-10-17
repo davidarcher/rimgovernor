@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 // and the selected roster stages in a half circle at weapon range and focus-fires them down. Once the prey are all
 // manhunter the fight is the manhunter tactic's.
 
-public static partial class PolicyFunctions
+public static partial class CombatHuntRules
 {
     /// <summary>The staging reach when no gunner's weapon range is known, in cells.</summary>
     internal const int HuntDefaultRange = 20;
@@ -16,9 +16,9 @@ public static partial class PolicyFunctions
     /// weapon range so each can reach the group, on the squad's side of it so no one shoots across a friend.
     /// Targets are focus fire's. Melee defenders take no part.
     /// </summary>
-    private static List<CombatRole> HuntFormation(CombatView view)
+    internal static List<CombatRole> HuntFormation(CombatView view)
     {
-        var prey = RankThreats(view);
+        var prey = CombatThreatRules.RankThreats(view);
         var state = new Dictionary<PawnId, CombatPawnState>();
         foreach (var p in view.Pawns.Items)
         {
@@ -75,7 +75,7 @@ public static partial class PolicyFunctions
                 roles.Add(new CombatRole { Pawn = g.Id, Target = top, Ranged = true });
             }
 
-            return SortRoles(roles);
+            return CombatDecideRules.SortRoles(roles);
         }
 
         var centre = new Cell(sumX / known, sumZ / known);
@@ -154,14 +154,14 @@ public static partial class PolicyFunctions
             roles.Add(new CombatRole { Pawn = gunners[i].Id, Cell = cell, Target = top, Ranged = true });
         }
 
-        return SortRoles(roles);
+        return CombatDecideRules.SortRoles(roles);
     }
 
     /// <summary>Why each rostered hunter is left out of the formation, or why there is no prey: what an empty squad reports.</summary>
     public static IReadOnlyList<string> HuntFormationRefusals(CombatView view)
     {
         var output = new List<string>();
-        var prey = RankThreats(view);
+        var prey = CombatThreatRules.RankThreats(view);
         if (prey.Count == 0)
         {
             output.Add("no_prey");
@@ -210,6 +210,6 @@ public static partial class PolicyFunctions
     /// The hunt's re-formation row: a role's target is down, or the prey turned into a manhunter pack, or some
     /// prey turned on the squad and the hunt has no potshot door yet.
     /// </summary>
-    private static bool ReformHunt(CombatView view, CombatMemory m) =>
-        SquadTargetDown(view, m) || ManhunterPack(view) || (m.PotshotDoor is null && ProvokedPrey(view));
+    internal static bool ReformHunt(CombatView view, CombatMemory m) =>
+        CombatDecideRules.SquadTargetDown(view, m) || CombatManhunterRules.ManhunterPack(view) || (m.PotshotDoor is null && CombatDoorRules.ProvokedPrey(view));
 }

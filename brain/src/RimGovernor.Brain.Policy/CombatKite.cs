@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: combat_kite.go
 
-public static partial class PolicyFunctions
+public static partial class CombatKiteRules
 {
     // Kiting constants.
 
@@ -33,7 +33,7 @@ public static partial class PolicyFunctions
     /// lead range, it leads: it retreats to the lead cell, so the chaser crosses the firing squad's line (and
     /// the flank turrets), and engages again from there.
     /// </summary>
-    private static void Kite(CombatView view, CombatMemory m)
+    internal static void Kite(CombatView view, CombatMemory m)
     {
         if (KiteLead(view, m) is not { } lead)
         {
@@ -42,7 +42,7 @@ public static partial class PolicyFunctions
             return;
         }
 
-        var ranked = RankThreats(view);
+        var ranked = CombatThreatRules.RankThreats(view);
         if (ranked.Count == 0)
         {
             return;
@@ -100,15 +100,15 @@ public static partial class PolicyFunctions
         foreach (var h in ranked)
         {
             var ok = h.Cell.TryGetValue(out var c);
-            if (h.Target == m.Kiter || (ok && known && Distance2(c, at) <= leadRange * leadRange))
+            if (h.Target == m.Kiter || (ok && known && CombatManhunterRules.Distance2(c, at) <= leadRange * leadRange))
             {
                 m.Leading = true;
             }
 
-            if (ok && known && (near < 0 || Distance2(c, at) < near))
+            if (ok && known && (near < 0 || CombatManhunterRules.Distance2(c, at) < near))
             {
                 chaser = h.Id;
-                near = Distance2(c, at);
+                near = CombatManhunterRules.Distance2(c, at);
             }
         }
 
@@ -160,14 +160,14 @@ public static partial class PolicyFunctions
 
         var fastest = 0.0;
         var ratio = m.EffectiveTuning().KiteSpeedRatio;
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
             if (h.MoveSpeed <= 0)
             {
                 return null;
             }
 
-            if (!ClassifyAnimal(h).Slow)
+            if (!CombatManhunterRules.ClassifyAnimal(h).Slow)
             {
                 ratio = KiteFastRatio;
             }
@@ -186,15 +186,15 @@ public static partial class PolicyFunctions
     /// </summary>
     private static (Cell Lure, double Need)? MechKiteLead(CombatView view, CombatMemory m)
     {
-        if ((m.Tactic != CombatTactic.Hold && m.Tactic != CombatTactic.Sapper) || !MechRaid(view))
+        if ((m.Tactic != CombatTactic.Hold && m.Tactic != CombatTactic.Sapper) || !CombatMechRules.MechRaid(view))
         {
             return null;
         }
 
         var fastest = 0.0;
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (h.MoveSpeed <= 0 || h.MoveSpeed >= ColonistMoveSpeed)
+            if (h.MoveSpeed <= 0 || h.MoveSpeed >= CombatManhunterRules.ColonistMoveSpeed)
             {
                 return null;
             }
@@ -208,12 +208,12 @@ public static partial class PolicyFunctions
             return RearmostRetreat(view) is { } lure ? (lure, need) : null;
         }
 
-        if (PredictBreach(view) is not { } b)
+        if (CombatSapperRules.PredictBreach(view) is not { } b)
         {
             return null;
         }
 
-        var posts = BreachPosts(b, SapperInset, SapperSpread, 1);
+        var posts = CombatSapperRules.BreachPosts(b, CombatSapperRules.SapperInset, CombatSapperRules.SapperSpread, 1);
         if (posts.Count == 0)
         {
             return null;
@@ -223,7 +223,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The layout's inner-line cell farthest behind the firing line; null without a layout, a direction or an inner line.</summary>
-    private static Cell? RearmostRetreat(CombatView view)
+    internal static Cell? RearmostRetreat(CombatView view)
     {
         var ok = view.Layout.TryGetValue(out var layout);
         if (!ok)

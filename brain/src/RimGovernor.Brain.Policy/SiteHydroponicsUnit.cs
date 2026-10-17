@@ -28,7 +28,7 @@ public static partial class PolicyFunctions
             {
                 return da.CompareTo(db);
             }
-            return CellLess(a, b) ? -1 : CellLess(b, a) ? 1 : 0;
+            return CombatManhunterRules.CellLess(a, b) ? -1 : CombatManhunterRules.CellLess(b, a) ? 1 : 0;
         });
         var taken = new HashSet<Cell>();
         var output = new List<SiteBuilding>();
@@ -118,7 +118,7 @@ public static partial class PolicyFunctions
             }
             cells.Add(cell);
         }
-        cells.Sort((a, b) => CellLess(a, b) ? -1 : CellLess(b, a) ? 1 : 0);
+        cells.Sort((a, b) => CombatManhunterRules.CellLess(a, b) ? -1 : CombatManhunterRules.CellLess(b, a) ? 1 : 0);
         // A basin's fertility yields several soil cells' harvest, so the unit needs fewer cells than the soil-cell target.
         var cellsPerSoil = CropRate(v.Crop, fertility) / unit;
         if (!FoodNumber(cellsPerSoil) || cellsPerSoil < 1)

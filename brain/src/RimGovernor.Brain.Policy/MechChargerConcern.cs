@@ -79,7 +79,7 @@ public static partial class PolicyFunctions
             }
         }
         var corners = free.Where(kv => kv.Value).Select(kv => kv.Key).ToList();
-        corners.Sort((a, b) => CellLess(a, b) ? -1 : CellLess(b, a) ? 1 : 0);
+        corners.Sort((a, b) => CombatManhunterRules.CellLess(a, b) ? -1 : CombatManhunterRules.CellLess(b, a) ? 1 : 0);
         var candidates = new List<Rectangle>();
         foreach (var c in corners)
         {

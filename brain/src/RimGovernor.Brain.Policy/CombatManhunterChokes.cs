@@ -14,7 +14,7 @@ internal sealed class WaveChoke
     public PawnId Nearest { get; set; }
 }
 
-public static partial class PolicyFunctions
+public static partial class CombatManhunterRules
 {
     /// <summary>The smallest pack that counts as a psychic wave: fewer animals come through one door at a time.</summary>
     internal const int WaveMinAnimals = 6;
@@ -75,7 +75,7 @@ public static partial class PolicyFunctions
     /// <summary>The doors a psychic wave approaches: at least WaveMinAnimals animals and no exploder, then SpreadChokes.</summary>
     internal static List<WaveChoke> WaveChokes(CombatView view)
     {
-        var ranked = RankThreats(view);
+        var ranked = CombatThreatRules.RankThreats(view);
         if (ranked.Count < WaveMinAnimals || LiveExploders(view).Count > 0)
         {
             return [];
@@ -90,7 +90,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static List<WaveChoke> ChargeChokes(CombatView view)
     {
-        var ranked = RankThreats(view);
+        var ranked = CombatThreatRules.RankThreats(view);
         var shielded = ranked.Count(h => h.Shield.IsKnown && MeleeHostile(h));
         if (2 * shielded <= ranked.Count)
         {
@@ -224,7 +224,7 @@ public static partial class PolicyFunctions
             var placed = false;
             for (var i = 0; i < chokes.Count; i++)
             {
-                if (rest.Count == 0 || next[i] >= Math.Min(MaxChokeBlockers, chokes[i].Cells.Count))
+                if (rest.Count == 0 || next[i] >= Math.Min(CombatBlockingRules.MaxChokeBlockers, chokes[i].Cells.Count))
                 {
                     continue;
                 }

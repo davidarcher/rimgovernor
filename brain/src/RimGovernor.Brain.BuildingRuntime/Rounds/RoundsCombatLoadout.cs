@@ -17,7 +17,7 @@ public sealed partial class RoundsDefensePlanner
     /// <summary>The equip and wear orders that arm the squad before the fight: threat weapons from the map and shield belts from the colony.</summary>
     internal async Task<List<LoadoutOrder>> FightLoadoutAsync(ControlState state, CombatView view, IReadOnlyDictionary<string, O.PawnState> rows, IReadOnlyList<PawnId> pawns, DefinitionCatalog catalog, CancellationToken call)
     {
-        var threat = PolicyApi.ClassifyLoadoutThreat(view, false);
+        var threat = CombatLoadoutRules.ClassifyLoadoutThreat(view, false);
         var live = new Dictionary<PawnId, CombatPawnState>();
         foreach (var p in view.Pawns)
         {
@@ -92,7 +92,7 @@ public sealed partial class RoundsDefensePlanner
                 DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", "loadout_belts", "", new Dictionary<string, object?> { ["error"] = ex }, call);
             }
         }
-        return PolicyApi.ThreatLoadout(threat, defenders, weapons, belts);
+        return CombatLoadoutRules.ThreatLoadout(threat, defenders, weapons, belts);
     }
 
     internal static async Task<List<EquipCandidateWeapon>> LoadoutWeaponsAsync(ILoadoutWeaponSource source, C.Identity identity, ControlState state, DefinitionCatalog catalog, CancellationToken call)

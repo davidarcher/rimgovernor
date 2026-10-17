@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// The curated subset of DecideCombat's constants that a search may override per trial. It rides in
 /// CombatMemory.Tuning, so parallel trials each own theirs and DecideCombat stays pure; production leaves it
-/// null and gets <see cref="PolicyFunctions.DefaultCombatTuning"/>. Every other combat constant stays a
+/// null and gets <see cref="CombatTuningRules.DefaultCombatTuning"/>. Every other combat constant stays a
 /// package const. Each field documents its valid range; <see cref="Validate"/> enforces it.
 /// </summary>
 public sealed record CombatTuning
@@ -98,7 +98,7 @@ public sealed record CombatTuning
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class CombatTuningRules
 {
     /// <summary>
     /// The test-only environment variable the live service reads a CombatTuning from. The value is a JSON
@@ -193,23 +193,26 @@ public static partial class PolicyFunctions
     /// <summary>The shipped behaviour; production always uses it.</summary>
     public static CombatTuning DefaultCombatTuning() => new()
     {
-        DoorCloseRange = DoorCloseRange,
-        DoorOpenRange = DoorOpenRange,
-        DoorGunners = DoorGunners,
-        FlankMinDefenders = FlankMinDefenders,
-        FlankSize = FlankSize,
-        FlankLateral = FlankLateral,
-        GroupGap = GroupGap,
-        KiteLeadRange = KiteLeadRange,
-        KiteSpeedRatio = KiteSpeedRatio,
-        ScatterCells = ScatterCells,
-        DoseMargin = DoseMargin,
-        RushRange = RushRange,
+        DoorCloseRange = CombatDoorRules.DoorCloseRange,
+        DoorOpenRange = CombatDoorRules.DoorOpenRange,
+        DoorGunners = CombatDoorRules.DoorGunners,
+        FlankMinDefenders = CombatFlankRules.FlankMinDefenders,
+        FlankSize = CombatFlankRules.FlankSize,
+        FlankLateral = CombatFlankRules.FlankLateral,
+        GroupGap = CombatGroupsRules.GroupGap,
+        KiteLeadRange = CombatKiteRules.KiteLeadRange,
+        KiteSpeedRatio = CombatKiteRules.KiteSpeedRatio,
+        ScatterCells = CombatFallbackRules.ScatterCells,
+        DoseMargin = CombatDrugsRules.DoseMargin,
+        RushRange = CombatSapperRules.RushRange,
     };
+}
 
+public sealed partial record CombatMemory
+{
     /// <summary>The memory's tuning, the default when none is carried (Go's <c>m.tuning()</c>; renamed because the field is <c>Tuning</c>).</summary>
-    public static CombatTuning EffectiveTuning(this CombatMemory m) => m.Tuning ?? DefaultCombatTuning();
+    public CombatTuning EffectiveTuning() => Tuning ?? CombatTuningRules.DefaultCombatTuning();
 
     /// <summary>Returns the memory carrying <paramref name="t"/> for the rest of the fight.</summary>
-    public static CombatMemory WithTuning(this CombatMemory m, CombatTuning t) => m with { Tuning = t };
+    public CombatMemory WithTuning(CombatTuning t) => this with { Tuning = t };
 }

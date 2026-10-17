@@ -118,7 +118,7 @@ public static partial class PolicyFunctions
         {
             row.Luciferium.TryGetValue(out var addicted);
             var known = row.WearingApparel.TryGetValue(out var worn);
-            if (!CaptureWorthy(new CombatPawnState { Luciferium = addicted }) || !known || worn)
+            if (!CombatThreatRules.CaptureWorthy(new CombatPawnState { Luciferium = addicted }) || !known || worn)
             {
                 return (CustodyDecision.None, false);
             }

@@ -33,7 +33,7 @@ internal enum CastFamily
 /// </summary>
 public sealed record CastMark(PawnId Pawn, string Def, Tick Tick, double Psyfocus, double Entropy, int Cooldown);
 
-public static partial class PolicyFunctions
+public static partial class CombatCastRules
 {
     private static readonly Dictionary<string, CastFamily> _psycastFamilies = new(StringComparer.Ordinal)
     {
@@ -94,7 +94,7 @@ public static partial class PolicyFunctions
     /// lists them. The target is the arm the ability takes (target kind), in reach of the caster; with none
     /// found the psycast waits.
     /// </summary>
-    private static List<CombatOrder> CastCalls(CombatView view, CombatMemory m)
+    internal static List<CombatOrder> CastCalls(CombatView view, CombatMemory m)
     {
         var calls = new List<CombatOrder>();
         if (!view.Royalty.TryGetValue(out var royalty) || view.Hunt || LiveHostiles(view).Count == 0)
@@ -102,7 +102,7 @@ public static partial class PolicyFunctions
             return calls;
         }
 
-        var down = DownPawns(view);
+        var down = CombatManhunterRules.DownPawns(view);
         foreach (var caster in royalty.Psycasts.Keys.OrderBy(k => k))
         {
             var pawn = caster;
@@ -191,8 +191,8 @@ public static partial class PolicyFunctions
 
                         break;
                     case PsycastTarget.Cell:
-                        var (strikeAt, strikeFound) = StrikeCell(view);
-                        if (strikeFound && Dist(at, strikeAt) <= CastReach)
+                        var (strikeAt, strikeFound) = CombatPermitRules.StrikeCell(view);
+                        if (strikeFound && CombatMortarRules.Dist(at, strikeAt) <= CastReach)
                         {
                             return (order with { Cell = strikeAt }, true);
                         }
@@ -236,12 +236,12 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The live hostile pawns with a known cell, in view order.</summary>
-    private static List<CombatPawnState> LiveHostiles(CombatView view)
+    internal static List<CombatPawnState> LiveHostiles(CombatView view)
     {
         var hostile = new Dictionary<PawnId, bool>();
         foreach (var t in view.Threats.Items)
         {
-            hostile[ThreatPawn(t)] = !t.Building && !Positive(t.Dead) && !Positive(t.Downed);
+            hostile[CombatDecideRules.ThreatPawn(t)] = !t.Building && !Positive(t.Dead) && !Positive(t.Downed);
         }
 
         return [.. view.Pawns.Items.Where(p => p.Cell.IsKnown && hostile.GetValueOrDefault(p.Id) && !p.Dead && !p.Downed)];
@@ -255,7 +255,7 @@ public static partial class PolicyFunctions
         foreach (var p in LiveHostiles(view))
         {
             p.Cell.TryGetValue(out var c);
-            var d = Dist(from, c);
+            var d = CombatMortarRules.Dist(from, c);
             if (d <= nearest && (best is null || d < nearest))
             {
                 best = p;
@@ -277,7 +277,7 @@ public static partial class PolicyFunctions
         {
             var ok = d.HealthFraction.TryGetValue(out var health);
             var (c, cellKnown) = PawnCell(view, d.Id);
-            if (!ok || !cellKnown || health >= lowest || Dist(from, c) > CastReach)
+            if (!ok || !cellKnown || health >= lowest || CombatMortarRules.Dist(from, c) > CastReach)
             {
                 continue;
             }

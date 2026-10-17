@@ -2,15 +2,15 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: combat_door_choke.go
 
-public static partial class PolicyFunctions
+public static partial class CombatDoorRules
 {
     /// <summary>
     /// Uses an observed room doorway when the established defense corridor is unavailable. Ranged threats,
     /// explosions, custody, fire and unknown physical door facts exclude this formation.
     /// </summary>
-    private static RoomDoor? MeleeDoorSite(CombatView view)
+    internal static RoomDoor? MeleeDoorSite(CombatView view)
     {
-        if (view.Hunt || Outmatched(view) || LiveExploders(view).Count > 0)
+        if (view.Hunt || CombatWaitRules.Outmatched(view) || CombatManhunterRules.LiveExploders(view).Count > 0)
         {
             return null;
         }
@@ -20,15 +20,15 @@ public static partial class PolicyFunctions
             return null;
         }
 
-        if (Brawlers(view.Defenders.Items).Count == 0|| RankThreats(view).Count == 0 || !view.Defenders.Items.Any(d => SquadDefenderEligible(d) && Positive(d.RangedEquipped)))
+        if (CombatBlockingRules.Brawlers(view.Defenders.Items).Count == 0|| CombatThreatRules.RankThreats(view).Count == 0 || !view.Defenders.Items.Any(d => SquadDefenderEligible(d) && Positive(d.RangedEquipped)))
         {
             return null;
         }
 
-        var down = DownPawns(view);
+        var down = CombatManhunterRules.DownPawns(view);
         foreach (var threat in view.Threats.Items)
         {
-            if (Positive(threat.Dead) || Positive(threat.Downed) || down.Contains(ThreatPawn(threat)))
+            if (Positive(threat.Dead) || Positive(threat.Downed) || down.Contains(CombatDecideRules.ThreatPawn(threat)))
             {
                 continue;
             }
@@ -97,7 +97,7 @@ public static partial class PolicyFunctions
                     continue;
                 }
 
-                foreach (var hostile in RankThreats(view))
+                foreach (var hostile in CombatThreatRules.RankThreats(view))
                 {
                     var known = hostile.Cell.TryGetValue(out var hostileAt);
                     if (!known || room.Contains(hostileAt) || (((hostileAt.X - cell.X) * direction.X) + ((hostileAt.Z - cell.Z) * direction.Z)) <= 0)
@@ -144,11 +144,11 @@ public static partial class PolicyFunctions
         return -1;
     }
 
-    private static bool DoorFactFalse(Fact<bool> f) => f.TryGetValue(out var v) && !v;
+    internal static bool DoorFactFalse(Fact<bool> f) => f.TryGetValue(out var v) && !v;
 
     private static (List<Cell> Blockers, List<Cell> Support) MeleeDoorCells(CombatView view, RoomDoor door)
     {
-        var ranked = RankThreats(view);
+        var ranked = CombatThreatRules.RankThreats(view);
         if (ranked.Count == 0)
         {
             return ([], []);
@@ -159,7 +159,7 @@ public static partial class PolicyFunctions
             return ([], []);
         }
 
-        var blockers = InsideDoor(view, door.Cell, from);
+        var blockers = CombatManhunterRules.InsideDoor(view, door.Cell, from);
         var inward = new Cell(door.Cell.X - door.Outside.X, door.Cell.Z - door.Outside.Z);
         var support = new List<Cell>();
         for (var step = 3; step <= 4; step++)
@@ -177,14 +177,14 @@ public static partial class PolicyFunctions
         return (blockers, support);
     }
 
-    private static GeometryRequest MeleeDoorAsk(CombatView view, RoomDoor door)
+    internal static GeometryRequest MeleeDoorAsk(CombatView view, RoomDoor door)
     {
         var (blockers, support) = MeleeDoorCells(view, door);
         var reserve = new Cell(door.Cell.X + (2 * (door.Cell.X - door.Outside.X)), door.Cell.Z + (2 * (door.Cell.Z - door.Outside.Z)));
         var ask = new GeometryRequest { Cells = [.. blockers, .. support, door.Cell, reserve] };
-        foreach (var hostile in RankThreats(view))
+        foreach (var hostile in CombatThreatRules.RankThreats(view))
         {
-            if (ask.Hostiles.Count < MaxGeometryHostiles)
+            if (ask.Hostiles.Count < CombatDecideRules.MaxGeometryHostiles)
             {
                 ask.Hostiles.Add(hostile.Id);
             }
@@ -193,7 +193,7 @@ public static partial class PolicyFunctions
         return ask;
     }
 
-    private static List<CombatRole> MeleeDoorFormation(CombatView view, GeometryReply geometry, RoomDoor door, IReadOnlyList<PawnId> relieved)
+    internal static List<CombatRole> MeleeDoorFormation(CombatView view, GeometryReply geometry, RoomDoor door, IReadOnlyList<PawnId> relieved)
     {
         var (blockers, support) = MeleeDoorCells(view, door);
         if (blockers.Count == 0 || !geometry.Stands(blockers[0]) || !geometry.Stands(door.Cell))
@@ -203,20 +203,20 @@ public static partial class PolicyFunctions
 
         blockers.RemoveAll(c => !geometry.Stands(c));
         support.RemoveAll(c => !geometry.Stands(c));
-        var pool = Rotated(Brawlers(view.Defenders.Items), relieved);
+        var pool = CombatBlockingRules.Rotated(CombatBlockingRules.Brawlers(view.Defenders.Items), relieved);
         if (pool.Count == 0)
         {
             return [];
         }
 
-        var target = RankThreats(view)[0].Id;
+        var target = CombatThreatRules.RankThreats(view)[0].Id;
         var reserve = new Cell(door.Cell.X + (2 * (door.Cell.X - door.Outside.X)), door.Cell.Z + (2 * (door.Cell.Z - door.Outside.Z)));
         if (geometry.Stands(reserve))
         {
             blockers.Add(reserve);
         }
 
-        var roles = BrawlerRoles(view, view.Defenders.Items, true, new GeometryReply { Proposals = EquatableArray.From(blockers), Standable = geometry.Standable }, relieved);
+        var roles = CombatBlockingRules.BrawlerRoles(view, view.Defenders.Items, true, new GeometryReply { Proposals = EquatableArray.From(blockers), Standable = geometry.Standable }, relieved);
         var next = 0;
         foreach (var defender in view.Defenders.Items)
         {
@@ -229,14 +229,14 @@ public static partial class PolicyFunctions
             roles.Add(new CombatRole { Pawn = defender.Id, Cell = cell, Target = target, Ranged = true });
         }
 
-        return SortRoles(roles);
+        return CombatDecideRules.SortRoles(roles);
     }
 
     /// <summary>
     /// Admits the choke only after its healthy, plan-owned blockers and supporting shooters stand in position.
     /// One shooter opens a closed door by walking onto it, then returns to its assigned cell on the next read.
     /// </summary>
-    private static void MeleeDoorTurn(CombatView view, CombatMemory memory)
+    internal static void MeleeDoorTurn(CombatView view, CombatMemory memory)
     {
         var door = memory.ChokeDoor;
         if (door is null)

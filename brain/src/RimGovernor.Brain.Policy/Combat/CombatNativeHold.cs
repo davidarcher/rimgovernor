@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class CombatNativeHoldRules
 {
     /// <summary>
     /// Delegates only the ordinary firing line. Native acquisition cannot honor target exclusions, so spared

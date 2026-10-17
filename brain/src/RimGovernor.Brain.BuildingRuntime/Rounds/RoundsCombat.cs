@@ -34,7 +34,7 @@ public sealed partial class RoundsDefensePlanner
         var memory = a.Memory;
         if (memory.Roles.Count == 0)
         {
-            var refusals = a.In.Hunters.Count > 0 || a.In.Prey.Count > 0 ? PolicyApi.HuntFormationRefusals(CombatView(a.Combat, a.In, [], a.Held)) : [];
+            var refusals = a.In.Hunters.Count > 0 || a.In.Prey.Count > 0 ? CombatHuntRules.HuntFormationRefusals(CombatView(a.Combat, a.In, [], a.Held)) : [];
             DefenseAction("routine-defense", TelemetryLevel.Info, "refused", "no_squad_roles", EngageMethod(state.Snapshot).Value, new Dictionary<string, object?> { ["tactic"] = memory.Tactic.ToString(), ["gate"] = memory.Refusal, ["hunt_prey"] = a.In.Prey.Count, ["hunt_hunters"] = a.In.Hunters.Count, ["hunt_refusals"] = string.Join(";", refusals), ["hunt_primary"] = string.Join(";", a.In.Hunters.Select(h => h + "=" + (a.In.Primary.TryGetValue(h, out var def) ? "def:" + def : "no_equipment_read") + "/ranged:" + (a.In.Ranged.TryGetValue(h, out var r) ? r.ToString() : "none"))), ["combat_pawns"] = a.Combat.Pawns.Count }, call);
             return new RoundsDefenseResult { Verdict = BuildingReasonNoSquad };
         }
@@ -70,7 +70,7 @@ public sealed partial class RoundsDefensePlanner
         var admitted = new RoundsDefenseResult { Verdict = BuildingReasonAdmitted, Plan = id };
         var view = CombatView(a.Combat, a.In, drafts, a.Held);
         view = view with { Drugs = [.. await _reviewer.CombatDrugsAsync(state.Snapshot, call).ConfigureAwait(false)] };
-        var (decided, ask, next) = PolicyApi.DecideCombat(view, a.Reply, new StopEvent(), memory);
+        var (decided, ask, next) = CombatDecideRules.DecideCombat(view, a.Reply, new StopEvent(), memory);
         IReadOnlyList<CombatOrder> orders = decided;
         if (ask is not null)
         {
@@ -532,7 +532,7 @@ internal static partial class BuildingRuntimePackage
             }
             else if (!order.Pawn.IsEmpty)
             {
-                if (PolicyApi.AnimalOrderKind(order.Kind))
+                if (CombatAnimalsRules.AnimalOrderKind(order.Kind))
                 {
                     memory = memory.RefuseAnimal(order, refusal);
                 }

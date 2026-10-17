@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class CombatSiegeRules
 {
     /// <summary>Reports a siege camp at least half asleep: of the live camped besiegers, half or more on a LayDown job.</summary>
     internal static bool CampAsleep(CombatView view)

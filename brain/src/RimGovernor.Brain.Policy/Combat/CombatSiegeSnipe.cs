@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class CombatSiegeRules
 {
     /// <summary>
     /// The frame a sortie's gunners shoot: the job target of a live besieger on a FinishFrame job, the least

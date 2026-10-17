@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class CombatSapperRules
 {
     /// <summary>The share of its weapon range an interceptor stands off the digger.</summary>
     internal const double InterceptReach = 0.75;
@@ -35,7 +35,7 @@ public static partial class PolicyFunctions
             }
         }
         var gunners = m.Roles.Count(r => r.Ranged);
-        if (diggers.Count == 0 || gunners < RankThreats(view).Count)
+        if (diggers.Count == 0 || gunners < CombatThreatRules.RankThreats(view).Count)
         {
             if (m.Intercept)
             {
@@ -71,7 +71,7 @@ public static partial class PolicyFunctions
                 {
                     d.Cell.TryGetValue(out var c);
                     digger.Cell.TryGetValue(out var b);
-                    if (Distance2(c, at) < Distance2(b, at))
+                    if (CombatManhunterRules.Distance2(c, at) < CombatManhunterRules.Distance2(b, at))
                     {
                         digger = d;
                     }

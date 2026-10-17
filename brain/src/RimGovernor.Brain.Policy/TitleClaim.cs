@@ -246,5 +246,5 @@ public static partial class PolicyFunctions
         return verdict;
     }
 
-    private static List<PawnId> SortedHolders(IReadOnlyDictionary<PawnId, EquatableArray<RoyalHolding>> m) => [.. m.Keys.OrderBy(id => id)];
+    internal static List<PawnId> SortedHolders(IReadOnlyDictionary<PawnId, EquatableArray<RoyalHolding>> m) => [.. m.Keys.OrderBy(id => id)];
 }

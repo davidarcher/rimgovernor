@@ -323,7 +323,7 @@ the combat-lab variants in the real game: it launches the game with the test-onl
 different value is relaunched), and with
 `-record` writes `brain/src/RimGovernor.Brain.Acceptance/Sweep/calibration/variants/<fixture>/<variant>.json`
 instead of the baseline (the `default` variant is the baseline and is refused).
-The variable is a JSON `CombatTuning` (fields over `PolicyFunctions.DefaultCombatTuning`,
+The variable is a JSON `CombatTuning` (fields over `CombatTuningRules.DefaultCombatTuning`,
 unknown fields and out-of-range values refused at start, unset means
 inert); the brain host reads it, the defense planner seeds every new fight's
 `CombatMemory.Tuning` with it (the ordinary admission and the sapper break), and

@@ -17,7 +17,7 @@ public sealed record SightLine
     public bool ColonistInPath { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class CombatFireRules
 {
     /// <summary>Fire mode: shoot at will, as the combat pawn row reports it.</summary>
     public const string FireAtWill = "fire_at_will";
@@ -36,7 +36,7 @@ public static partial class PolicyFunctions
     /// one, greedy picks from what is left, then the rest in order. Formation assigns cells front to back, so
     /// defenders stand spaced while the candidates allow it and pack only past that, rather than stand idle.
     /// </summary>
-    private static List<Cell> SpaceCells(IReadOnlyList<Cell> cells, int gap)
+    internal static List<Cell> SpaceCells(IReadOnlyList<Cell> cells, int gap)
     {
         var spaced = new List<Cell>();
         IReadOnlyList<Cell> rest = cells;
@@ -64,20 +64,20 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Reports b at most d tiles from a (8-way).</summary>
-    private static bool Within(Cell a, Cell b, int d)
+    internal static bool Within(Cell a, Cell b, int d)
     {
         var dx = a.X - b.X;
         var dz = a.Z - b.Z;
         return dx >= -d && dx <= d && dz >= -d && dz <= d;
     }
 
-    private static bool Adjacent8(Cell a, Cell b) => Within(a, b, 1);
+    internal static bool Adjacent8(Cell a, Cell b) => Within(a, b, 1);
 
     /// <summary>
     /// The known cells of the orderable, live pawns: where an attack order at this stop fires from, named in
     /// the stop's geometry ask so its answer carries their lines of fire.
     /// </summary>
-    private static List<Cell> ShooterCells(CombatView view)
+    internal static List<Cell> ShooterCells(CombatView view)
     {
         var live = view.Live();
         var orderable = new HashSet<PawnId>(view.Orderable.Items);
@@ -98,7 +98,7 @@ public static partial class PolicyFunctions
     /// top-scored hostiles. When an attacker's every line from its cell was blocked or refused before (walled
     /// in), it also asks firing cells around that attacker.
     /// </summary>
-    private static GeometryRequest? LineAsk(CombatView view, IReadOnlyList<CombatOrder> orders, CombatMemory m)
+    internal static GeometryRequest? LineAsk(CombatView view, IReadOnlyList<CombatOrder> orders, CombatMemory m)
     {
         if (!orders.Any(o => o.Kind == CombatOrderKind.Attack))
         {
@@ -107,9 +107,9 @@ public static partial class PolicyFunctions
 
         var ask = new GeometryRequest { Cells = ShooterCells(view) };
         var targets = new List<Cell>();
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (ask.Hostiles.Count < MaxGeometryHostiles)
+            if (ask.Hostiles.Count < CombatDecideRules.MaxGeometryHostiles)
             {
                 ask.Hostiles.Add(h.Id);
                 if (h.Cell.TryGetValue(out var c) && !targets.Contains(c))
@@ -166,7 +166,7 @@ public static partial class PolicyFunctions
     /// nearest free one with a clear line; that cell becomes its role's cell. It returns the orders, the roles
     /// and the refused hits.
     /// </summary>
-    private static (List<CombatOrder> Orders, List<CombatRole> Roles, List<HitRefusal> Refused) ClearLines(
+    internal static (List<CombatOrder> Orders, List<CombatRole> Roles, List<HitRefusal> Refused) ClearLines(
         CombatView view,
         IReadOnlyList<CombatOrder> orders,
         GeometryReply geometry,
@@ -208,7 +208,7 @@ public static partial class PolicyFunctions
             return sight.TryGetValue(new SightKey(from, target), out var l) && (l.ColonistInPath || (ranged.GetValueOrDefault(pawn) && !l.LineOfFire));
         }
 
-        var ranked = RankThreats(view);
+        var ranked = CombatThreatRules.RankThreats(view);
         var roles = inputRoles.Select(r => r with { }).ToList();
         var output = new List<CombatOrder>();
         foreach (var original in orders)
@@ -318,7 +318,7 @@ public static partial class PolicyFunctions
         PawnId target = default;
         foreach (var c in geometry.Proposals.Items)
         {
-            if (taken.Contains(c) || (!target.IsEmpty && Distance2(from, c) >= Distance2(from, best)))
+            if (taken.Contains(c) || (!target.IsEmpty && CombatManhunterRules.Distance2(from, c) >= CombatManhunterRules.Distance2(from, best)))
             {
                 continue;
             }
@@ -349,7 +349,7 @@ public static partial class PolicyFunctions
             return true;
         }
 
-        if (p.Target.IsEmpty || !InterruptsAim(p))
+        if (p.Target.IsEmpty || !CombatDecideRules.InterruptsAim(p))
         {
             return false;
         }
@@ -358,7 +358,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The hostiles in melee with one of our blockers (a blocker or melee role), either side swinging.</summary>
-    private static HashSet<PawnId> MeleeLocked(CombatView view, IReadOnlyList<CombatRole> roles)
+    internal static HashSet<PawnId> MeleeLocked(CombatView view, IReadOnlyList<CombatRole> roles)
     {
         var state = new Dictionary<PawnId, CombatPawnState>();
         foreach (var p in view.Pawns.Items)
@@ -407,7 +407,7 @@ public static partial class PolicyFunctions
     /// fire-at-will would otherwise shoot. <paramref name="suppressNativeFire"/> holds an ordinary autonomous
     /// holder with target exclusions and no safe target; cancelling its job alone cannot prevent reacquisition.
     /// </summary>
-    private static List<CombatOrder> HoldFireOrders(
+    internal static List<CombatOrder> HoldFireOrders(
         CombatView view,
         IReadOnlyList<CombatRole> roles,
         IReadOnlyList<CombatOrder> inputOrders,
@@ -444,7 +444,7 @@ public static partial class PolicyFunctions
             var pawn = r.Pawn;
 
             // A pawn mid-aim keeps its fire mode unless its shot is at the hostile our blocker is fighting.
-            if (InterruptsAim(s) && !locked.Contains(s.Target) && !quietPawn)
+            if (CombatDecideRules.InterruptsAim(s) && !locked.Contains(s.Target) && !quietPawn)
             {
                 continue;
             }

@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: combat_door.go
 
-public static partial class PolicyFunctions
+public static partial class CombatDoorRules
 {
     // Door potshot constants, in cells.
 
@@ -24,7 +24,7 @@ public static partial class PolicyFunctions
     /// door gunners hold their cells without a target; the nearest hostile back beyond the open range opens it
     /// again.
     /// </summary>
-    private static void DoorPotshot(CombatView view, bool formed, CombatMemory m)
+    internal static void DoorPotshot(CombatView view, bool formed, CombatMemory m)
     {
         if (m.Tactic != CombatTactic.Manhunter && m.Tactic != CombatTactic.Squad && !(m.Tactic == CombatTactic.Hunt && (m.PotshotDoor is not null || ProvokedPrey(view))))
         {
@@ -95,7 +95,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Uses the current native room boundary, never the saved layout or a door retained by an earlier combat stop.</summary>
-    private static bool CombatDoorExists(CombatView view, Cell cell)
+    internal static bool CombatDoorExists(CombatView view, Cell cell)
     {
         if (view.DoorStates.TryGetValue(out var doors))
         {
@@ -106,15 +106,15 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>A live prey that turned manhunter or is hunting a colonist: the hunt falls back to the door loop.</summary>
-    private static bool ProvokedPrey(CombatView view)
+    internal static bool ProvokedPrey(CombatView view)
     {
         var live = new HashSet<PawnId>();
-        foreach (var p in RankThreats(view))
+        foreach (var p in CombatThreatRules.RankThreats(view))
         {
             live.Add(p.Id);
         }
 
-        return view.Threats.Items.Any(t => live.Contains(ThreatPawn(t)) && (Positive(t.Manhunter) || Positive(t.Hunting)));
+        return view.Threats.Items.Any(t => live.Contains(CombatDecideRules.ThreatPawn(t)) && (Positive(t.Manhunter) || Positive(t.Hunting)));
     }
 
     /// <summary>The door gunner nearest the door with a known cell, or none.</summary>
@@ -129,7 +129,7 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            var d = Distance2(c, door);
+            var d = CombatManhunterRules.Distance2(c, door);
             if (best.IsEmpty || d < bestD)
             {
                 best = p.Id;
@@ -155,7 +155,7 @@ public static partial class PolicyFunctions
         }
 
         var pack = new List<Cell>();
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
             if (h.Cell.TryGetValue(out var c))
             {
@@ -168,9 +168,9 @@ public static partial class PolicyFunctions
             return null;
         }
 
-        doors = PolicySort.ByLess(doors, (a, b) => NearestDistance(a, pack) < NearestDistance(b, pack));
+        doors = PolicySort.ByLess(doors, (a, b) => CombatPodsRules.NearestDistance(a, pack) < CombatPodsRules.NearestDistance(b, pack));
         var door = doors[0];
-        var cells = InsideDoor(view, door, pack[NearestIndex(door, pack)]);
+        var cells = CombatManhunterRules.InsideDoor(view, door, pack[CombatManhunterRules.NearestIndex(door, pack)]);
         var at = new Dictionary<PawnId, Cell>();
         foreach (var p in view.Pawns.Items)
         {
@@ -208,7 +208,7 @@ public static partial class PolicyFunctions
                     return oka;
                 }
 
-                return Distance2(ca, door) < Distance2(cb, door);
+                return CombatManhunterRules.Distance2(ca, door) < CombatManhunterRules.Distance2(cb, door);
             }
         );
 
@@ -233,7 +233,7 @@ public static partial class PolicyFunctions
     private static long HostileDistance(CombatView view, Cell c)
     {
         var cells = new List<Cell>();
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
             if (h.Cell.TryGetValue(out var at))
             {
@@ -241,6 +241,6 @@ public static partial class PolicyFunctions
             }
         }
 
-        return NearestDistance(c, cells);
+        return CombatPodsRules.NearestDistance(c, cells);
     }
 }

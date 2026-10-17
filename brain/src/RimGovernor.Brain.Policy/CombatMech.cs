@@ -2,12 +2,12 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: combat_mech.go, combat_mech_centipede.go
 
-public static partial class PolicyFunctions
+public static partial class CombatMechRules
 {
     /// <summary>Reports a raid of mechanoids: at least one live hostile, and every live hostile a mechanoid.</summary>
     internal static bool MechRaid(CombatView view)
     {
-        var ranked = RankThreats(view);
+        var ranked = CombatThreatRules.RankThreats(view);
         return ranked.Count > 0 && ranked.All(h => h.Mech);
     }
 
@@ -22,7 +22,7 @@ public static partial class PolicyFunctions
     internal static List<SquadThreatFacts> MarkSquadMechs(CombatView view)
     {
         var mech = MechKinds(view);
-        return [.. view.Threats.Items.Select(t => t with { Mech = mech.GetValueOrDefault(ThreatPawn(t)) })];
+        return [.. view.Threats.Items.Select(t => t with { Mech = mech.GetValueOrDefault(CombatDecideRules.ThreatPawn(t)) })];
     }
 
     private static Dictionary<PawnId, bool> MechKinds(CombatView view)
@@ -42,9 +42,9 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static int FiringGap(CombatView view)
     {
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (h.Kind.StartsWith("Mech_Centipede", StringComparison.Ordinal) || ThreatTier(h, new HashSet<PawnId>()) == ThreatExplosive)
+            if (h.Kind.StartsWith("Mech_Centipede", StringComparison.Ordinal) || CombatThreatRules.ThreatTier(h, new HashSet<PawnId>()) == CombatThreatRules.ThreatExplosive)
             {
                 return 2;
             }

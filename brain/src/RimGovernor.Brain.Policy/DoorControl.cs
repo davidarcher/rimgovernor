@@ -143,7 +143,7 @@ public static partial class PolicyFunctions
         foreach (var door in room.Doors)
         {
             var known = door.Outdoors.TryGetValue(out var outdoor);
-            if (!known || (outdoor && (!DoorFactFalse(door.Open) || !DoorFactFalse(door.HoldOpen))))
+            if (!known || (outdoor && (!CombatDoorRules.DoorFactFalse(door.Open) || !CombatDoorRules.DoorFactFalse(door.HoldOpen))))
             {
                 secure = false;
             }

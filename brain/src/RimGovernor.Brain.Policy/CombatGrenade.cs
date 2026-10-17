@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: combat_grenade.go
 
-public static partial class PolicyFunctions
+public static partial class CombatGrenadeRules
 {
     /// <summary>How far (Chebyshev cells) a ground target stays from every colonist: a grenade scatters one tile.</summary>
     internal const int GrenadeScatterClear = 2;
@@ -48,17 +48,17 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The carrier's range: its weapon range, else the def's.</summary>
-    private static double GrenadeReach(CombatPawnState carrier) => carrier.WeaponRange > 0 ? carrier.WeaponRange : carrier.WeaponFacts.Range;
+    internal static double GrenadeReach(CombatPawnState carrier) => carrier.WeaponRange > 0 ? carrier.WeaponRange : carrier.WeaponFacts.Range;
 
     /// <summary>The candidate cell in reach, clear of colonists, whose blast covers the most worth cells: then the nearer, then the lower x, z.</summary>
-    private static Cell? BestGround(Cell from, double reach, double blast, IReadOnlyList<Cell> cells, IReadOnlyList<Cell> worth, IReadOnlyList<Cell> colonists)
+    internal static Cell? BestGround(Cell from, double reach, double blast, IReadOnlyList<Cell> cells, IReadOnlyList<Cell> worth, IReadOnlyList<Cell> colonists)
     {
         Cell best = default;
         var bestHits = 0;
         var bestDist = double.MaxValue;
         foreach (var c in cells)
         {
-            var d = Dist(from, c);
+            var d = CombatMortarRules.Dist(from, c);
             if (d > reach || NearColonist(c, colonists))
             {
                 continue;
@@ -67,7 +67,7 @@ public static partial class PolicyFunctions
             var hits = 0;
             foreach (var w in worth)
             {
-                if (Dist(c, w) <= blast)
+                if (CombatMortarRules.Dist(c, w) <= blast)
                 {
                     hits++;
                 }
@@ -93,9 +93,9 @@ public static partial class PolicyFunctions
     private static bool EmpWorth(CombatPawnState h) => h.Shield.IsKnown || IsMech(h);
 
     /// <summary>A mechanoid pawn.</summary>
-    private static bool IsMech(CombatPawnState h) => h.Mech;
+    internal static bool IsMech(CombatPawnState h) => h.Mech;
 
-    private static bool NearColonist(Cell c, IReadOnlyList<Cell> colonists) =>
+    internal static bool NearColonist(Cell c, IReadOnlyList<Cell> colonists) =>
         colonists.Any(p => Math.Max(Math.Abs(c.X - p.X), Math.Abs(c.Z - p.Z)) <= GrenadeScatterClear);
 
     /// <summary>
@@ -103,7 +103,7 @@ public static partial class PolicyFunctions
     /// null when it picks none, and the pawn keeps its cell and target for then. It runs after RocketClumps,
     /// which clears Ground and shares its order.
     /// </summary>
-    private static void Grenade(CombatView view, CombatMemory m)
+    internal static void Grenade(CombatView view, CombatMemory m)
     {
         if (m.Tactic != CombatTactic.Hold && m.Tactic != CombatTactic.Squad)
         {
@@ -116,7 +116,7 @@ public static partial class PolicyFunctions
             state[p.Id] = p;
         }
 
-        var hostiles = RankThreats(view);
+        var hostiles = CombatThreatRules.RankThreats(view);
         var colonists = new List<Cell>();
         foreach (var d in view.Defenders.Items)
         {
@@ -143,7 +143,7 @@ public static partial class PolicyFunctions
                 }
             }
 
-            if (GrenadeAim(view, m, carrier, hostiles, colonists) is { } c2)
+            if (CombatMechRules.GrenadeAim(view, m, carrier, hostiles, colonists) is { } c2)
             {
                 r.Ground = c2;
             }

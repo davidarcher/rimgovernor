@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Policy;
 // relief, grenadiers throw at the hive, and no mortar is crewed: hives only spawn under overhead mountain,
 // which shells cannot reach.
 
-public static partial class PolicyFunctions
+public static partial class CombatInfestationRules
 {
     /// <summary>A colonist's job while it works a deep drill.</summary>
     internal const string DeepDrillJob = "OperateDeepDrill";
@@ -26,16 +26,16 @@ public static partial class PolicyFunctions
             insects[p.Id] = p.Insect;
         }
 
-        var down = DownPawns(view);
+        var down = CombatManhunterRules.DownPawns(view);
         var n = 0;
         foreach (var t in view.Threats.Items)
         {
-            if (t.Building || Positive(t.Dead) || Positive(t.Downed) || down.Contains(ThreatPawn(t)))
+            if (t.Building || Positive(t.Dead) || Positive(t.Downed) || down.Contains(CombatDecideRules.ThreatPawn(t)))
             {
                 continue;
             }
 
-            if (!insects.GetValueOrDefault(ThreatPawn(t)))
+            if (!insects.GetValueOrDefault(CombatDecideRules.ThreatPawn(t)))
             {
                 return false;
             }
@@ -51,13 +51,13 @@ public static partial class PolicyFunctions
     /// reserve. These are the manhunter formation's roles (insects hold no exploder), less the peeler waiting
     /// at home: it charges the top insect, never a trickle.
     /// </summary>
-    private static List<CombatRole> InfestationFormation(CombatView view, GeometryReply geometry, IReadOnlyList<PawnId> relieved)
+    internal static List<CombatRole> InfestationFormation(CombatView view, GeometryReply geometry, IReadOnlyList<PawnId> relieved)
     {
-        var roles = ManhunterFormation(view, geometry, relieved);
+        var roles = CombatManhunterRules.ManhunterFormation(view, geometry, relieved);
 
         // The top insect, else (no insect out) the hive itself.
         PawnId top = default;
-        var ranked = RankThreats(view);
+        var ranked = CombatThreatRules.RankThreats(view);
         if (ranked.Count > 0)
         {
             top = ranked[0].Id;
@@ -91,7 +91,7 @@ public static partial class PolicyFunctions
     /// clear of colonists (the grenade scatter rule); with none it falls back to GrenadeTarget on the insects.
     /// Every mortar role is dropped: the hive is under overhead mountain.
     /// </summary>
-    private static void HiveGrenade(CombatView view, CombatMemory m)
+    internal static void HiveGrenade(CombatView view, CombatMemory m)
     {
         if (m.Tactic != CombatTactic.Infestation)
         {
@@ -113,7 +113,7 @@ public static partial class PolicyFunctions
             }
         }
 
-        var hostiles = RankThreats(view);
+        var hostiles = CombatThreatRules.RankThreats(view);
         foreach (var r in m.Roles)
         {
             r.Mortar = null;
@@ -151,18 +151,18 @@ public static partial class PolicyFunctions
             foreach (var s in view.Structures.Items)
             {
                 var c = s.Cell;
-                if (!s.Hive || Dist(from, c) > reach || NearColonist(c, colonists))
+                if (!s.Hive || CombatMortarRules.Dist(from, c) > reach || CombatGrenadeRules.NearColonist(c, colonists))
                 {
                     continue;
                 }
 
-                if (best is not { } b || Dist(from, c) < Dist(from, b) || (Dist(from, c) == Dist(from, b) && (c.X < b.X || (c.X == b.X && c.Z < b.Z))))
+                if (best is not { } b || CombatMortarRules.Dist(from, c) < CombatMortarRules.Dist(from, b) || (CombatMortarRules.Dist(from, c) == CombatMortarRules.Dist(from, b) && (c.X < b.X || (c.X == b.X && c.Z < b.Z))))
                 {
                     best = c;
                 }
             }
 
-            best ??= GrenadeTarget(carrier, hostiles, colonists);
+            best ??= CombatGrenadeRules.GrenadeTarget(carrier, hostiles, colonists);
             r.Ground = best;
         }
     }
@@ -174,7 +174,7 @@ public static partial class PolicyFunctions
     /// insect, while the formation's brawlers melee-block. Later stops keep the latch although the driller's
     /// job has changed.
     /// </summary>
-    private static void DrillEvacuate(CombatView view, CombatMemory m, HashSet<PawnId> orderable)
+    internal static void DrillEvacuate(CombatView view, CombatMemory m, HashSet<PawnId> orderable)
     {
         if (m.Tactic != CombatTactic.Infestation || view.Structures.Items.Any(s => s.Hive))
         {
@@ -208,7 +208,7 @@ public static partial class PolicyFunctions
         }
 
         Cell to;
-        if (RearmostRetreat(view) is { } rear)
+        if (CombatKiteRules.RearmostRetreat(view) is { } rear)
         {
             to = rear;
         }
@@ -216,9 +216,9 @@ public static partial class PolicyFunctions
         {
             var known = s.Cell.TryGetValue(out var at);
             Cell? near = null;
-            foreach (var h in RankThreats(view))
+            foreach (var h in CombatThreatRules.RankThreats(view))
             {
-                if (h.Cell.TryGetValue(out var c) && known && (near is not { } n || Distance2(c, at) < Distance2(n, at)))
+                if (h.Cell.TryGetValue(out var c) && known && (near is not { } n || CombatManhunterRules.Distance2(c, at) < CombatManhunterRules.Distance2(n, at)))
                 {
                     near = c;
                 }

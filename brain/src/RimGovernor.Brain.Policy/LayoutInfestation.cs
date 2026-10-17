@@ -67,7 +67,7 @@ public static partial class PolicyFunctions
             }
         }
         var seen = new HashSet<Cell>();
-        var starts = LessSorting.SortedBy(open, CellLess);
+        var starts = LessSorting.SortedBy(open, CombatManhunterRules.CellLess);
         var sites = plan.Sites.ToList();
         foreach (var start in starts)
         {

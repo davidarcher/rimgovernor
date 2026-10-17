@@ -126,7 +126,7 @@ public sealed class PlacementSearch
             {
                 return da < db ? -1 : 1;
             }
-            return CellLess(a, b) ? -1 : CellLess(b, a) ? 1 : 0;
+            return CombatManhunterRules.CellLess(a, b) ? -1 : CombatManhunterRules.CellLess(b, a) ? 1 : 0;
         });
         if (_sites.Count > r.Limit)
         {

@@ -45,14 +45,14 @@ public sealed partial class RoundsDefensePlanner
             {
                 strip = StripStateOf(p.Journal, plan, call);
             }
-            switch (PolicyApi.PostFightNext(ApparelWorn(combat.Detail.TryGetValue(id.Value, out var worn) ? worn : null), strip))
+            switch (CombatThreatRules.PostFightNext(ApparelWorn(combat.Detail.TryGetValue(id.Value, out var worn) ? worn : null), strip))
             {
                 case PostFightStep.Wait:
                     return (new RoundsDefenseResult { Verdict = BuildingReasonExistingWork, Plan = fightPlan }, true);
                 case PostFightStep.Strip:
                     return (CommitStrip(state.Snapshot, id, call, epoch), true);
             }
-            if (PolicyApi.CaptureWorthy(new CombatPawnState { Luciferium = raider.LuciferiumAddicted.GetValueOrDefault() }))
+            if (CombatThreatRules.CaptureWorthy(new CombatPawnState { Luciferium = raider.LuciferiumAddicted.GetValueOrDefault() }))
             {
                 continue; // stripped; the custody capture takes it
             }

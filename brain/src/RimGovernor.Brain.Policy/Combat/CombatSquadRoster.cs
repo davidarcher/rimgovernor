@@ -1,7 +1,7 @@
 using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class CombatSquadRosterRules
 {
     /// <summary>
     /// The native combat-health threshold: a defender at or below it is not selected for a squad and a role
@@ -37,7 +37,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static bool SquadRosterChanged(CombatView view, StopEvent stop, CombatMemory m)
     {
-        if (stop.Kind == CombatEvent.Downed && IsDefender(view, stop.Pawn))
+        if (stop.Kind == CombatEvent.Downed && CombatRescueRules.IsDefender(view, stop.Pawn))
         {
             return true;
         }
@@ -70,7 +70,7 @@ public static partial class PolicyFunctions
             return formed.ToList();
         }
         var result = formed.ToList();
-        result.AddRange(ShelterRolesFor(view, geometry, unreachable, d => hurt.Contains(d.Id)));
-        return SortRoles(result);
+        result.AddRange(CombatShelterRules.ShelterRolesFor(view, geometry, unreachable, d => hurt.Contains(d.Id)));
+        return CombatDecideRules.SortRoles(result);
     }
 }

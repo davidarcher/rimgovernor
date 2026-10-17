@@ -551,7 +551,7 @@ public static partial class PolicyFunctions
 
     internal static List<Cell> StockpileSorted(IEnumerable<Cell> cells) => [.. cells.OrderBy(c => c, Comparer<Cell>.Create(CompareCells))];
 
-    private static int CompareCells(Cell a, Cell b) => CellLess(a, b) ? -1 : CellLess(b, a) ? 1 : 0;
+    private static int CompareCells(Cell a, Cell b) => CombatManhunterRules.CellLess(a, b) ? -1 : CombatManhunterRules.CellLess(b, a) ? 1 : 0;
 
     internal static StockpileOpen NewStockpileOpen(StockpileRequest r)
     {

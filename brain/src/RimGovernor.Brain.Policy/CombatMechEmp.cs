@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>A mech EMP no longer stuns until <paramref name="Until"/>.</summary>
 public readonly record struct EmpAdaptation(PawnId Pawn, Tick Until);
 
-public static partial class PolicyFunctions
+public static partial class CombatMechRules
 {
     /// <summary>
     /// How long a mech stays EMP-adapted once its stun ends: vanilla adapts it for 2200 ticks from the hit,
@@ -29,9 +29,9 @@ public static partial class PolicyFunctions
     internal static void NoteEmpAdapted(CombatView view, CombatMemory m)
     {
         m.EmpAdapted.RemoveAll(a => a.Until.Value <= view.Tick.Value);
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (!IsMech(h) || h.StunTicks <= 0 || EmpAdapted(m, h.Id))
+            if (!CombatGrenadeRules.IsMech(h) || h.StunTicks <= 0 || EmpAdapted(m, h.Id))
             {
                 continue;
             }
@@ -49,11 +49,11 @@ public static partial class PolicyFunctions
     /// not adapted; the blockers hold the choke, so when every hostile cell is too near them it aims at any cell
     /// whose blast still reaches such a scyther. Otherwise it is GrenadeTarget.
     /// </summary>
-    private static Cell? GrenadeAim(CombatView view, CombatMemory m, CombatPawnState carrier, IReadOnlyList<CombatPawnState> hostiles, IReadOnlyList<Cell> colonists)
+    internal static Cell? GrenadeAim(CombatView view, CombatMemory m, CombatPawnState carrier, IReadOnlyList<CombatPawnState> hostiles, IReadOnlyList<Cell> colonists)
     {
-        if (!carrier.WeaponFacts.EMP || !hostiles.Any(IsMech))
+        if (!carrier.WeaponFacts.EMP || !hostiles.Any(CombatGrenadeRules.IsMech))
         {
-            return GrenadeTarget(carrier, hostiles, colonists);
+            return CombatGrenadeRules.GrenadeTarget(carrier, hostiles, colonists);
         }
 
         var ok = view.Layout.TryGetValue(out var layout);
@@ -81,8 +81,8 @@ public static partial class PolicyFunctions
             return null;
         }
 
-        var reach = GrenadeReach(carrier);
-        if (BestGround(from, reach, blast, scythers, scythers, colonists) is { } direct)
+        var reach = CombatGrenadeRules.GrenadeReach(carrier);
+        if (CombatGrenadeRules.BestGround(from, reach, blast, scythers, scythers, colonists) is { } direct)
         {
             return direct;
         }
@@ -100,7 +100,7 @@ public static partial class PolicyFunctions
             }
         }
 
-        return BestGround(from, reach, blast, around, scythers, colonists);
+        return CombatGrenadeRules.BestGround(from, reach, blast, around, scythers, colonists);
     }
 
     /// <summary>
@@ -108,7 +108,7 @@ public static partial class PolicyFunctions
     /// EmpDisengageTicks, or it already woke EMP-adapted, when a second EMP would not hold it. A pulled-back
     /// blocker stays on the inner line.
     /// </summary>
-    private static void MechDisengage(CombatView view, CombatMemory m)
+    internal static void MechDisengage(CombatView view, CombatMemory m)
     {
         if (!view.Layout.TryGetValue(out var layout) || layout.Retreat.Count == 0 || m.EmpAdapted.Count == 0)
         {
@@ -116,9 +116,9 @@ public static partial class PolicyFunctions
         }
 
         var waking = new List<Cell>();
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (h.Cell.TryGetValue(out var c) && IsMech(h) && EmpAdapted(m, h.Id) && h.StunTicks <= EmpDisengageTicks)
+            if (h.Cell.TryGetValue(out var c) && CombatGrenadeRules.IsMech(h) && EmpAdapted(m, h.Id) && h.StunTicks <= EmpDisengageTicks)
             {
                 waking.Add(c);
             }
@@ -145,7 +145,7 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            if (RetreatCell(layout, r.Cell, taken) is { } cell)
+            if (CombatFallbackRules.RetreatCell(layout, r.Cell, taken) is { } cell)
             {
                 r.Cell = cell;
                 r.Retreat = true;

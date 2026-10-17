@@ -386,7 +386,7 @@ public static partial class PolicyFunctions
         var low = room.Cells[0].Cell;
         foreach (var c in room.Cells.Skip(1))
         {
-            if (CellLess(c.Cell, low))
+            if (CombatManhunterRules.CellLess(c.Cell, low))
             {
                 low = c.Cell;
             }
@@ -641,7 +641,7 @@ public static partial class PolicyFunctions
 
     private static List<Cell> SortedCells(List<Cell> cells)
     {
-        cells.Sort((a, b) => CellLess(a, b) ? -1 : CellLess(b, a) ? 1 : 0);
+        cells.Sort((a, b) => CombatManhunterRules.CellLess(a, b) ? -1 : CombatManhunterRules.CellLess(b, a) ? 1 : 0);
         return cells;
     }
 

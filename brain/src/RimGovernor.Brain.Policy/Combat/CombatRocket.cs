@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class CombatRocketRules
 {
     // A clump is RocketClumpMin live hostiles within RocketClumpRadius cells of a hostile's cell: a sapper
     // team at its wall, a siege camp. No colonist may stand within RocketSafeRadius of the aim.
@@ -67,19 +67,19 @@ public static partial class PolicyFunctions
             var most = 0;
             foreach (var c in foes)
             {
-                if (Dist(from, c) > reach || friends.Any(f => Dist(f, c) <= RocketSafeRadius))
+                if (CombatMortarRules.Dist(from, c) > reach || friends.Any(f => CombatMortarRules.Dist(f, c) <= RocketSafeRadius))
                 {
                     continue;
                 }
                 var n = 0;
                 foreach (var o in foes)
                 {
-                    if (Dist(c, o) <= RocketClumpRadius)
+                    if (CombatMortarRules.Dist(c, o) <= RocketClumpRadius)
                     {
                         n++;
                     }
                 }
-                if (n > most || (n == most && found && Dist(from, c) < Dist(from, aim)))
+                if (n > most || (n == most && found && CombatMortarRules.Dist(from, c) < CombatMortarRules.Dist(from, aim)))
                 {
                     aim = c;
                     found = true;
@@ -97,6 +97,6 @@ public static partial class PolicyFunctions
             }
             roles[i] = roles[i] with { Ground = aim };
         }
-        return m with { Roles = EquatableArray.From(SortRoles(roles)) };
+        return m with { Roles = EquatableArray.From(CombatDecideRules.SortRoles(roles)) };
     }
 }

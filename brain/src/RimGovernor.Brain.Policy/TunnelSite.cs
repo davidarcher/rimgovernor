@@ -200,7 +200,7 @@ public static partial class PolicyFunctions
             cells[c.Cell] = c;
             ordered.Add(c.Cell);
         }
-        ordered.Sort((a, b) => CellLess(a, b) ? -1 : CellLess(b, a) ? 1 : 0);
+        ordered.Sort((a, b) => CombatManhunterRules.CellLess(a, b) ? -1 : CombatManhunterRules.CellLess(b, a) ? 1 : 0);
         var protectedCells = new HashSet<Cell>();
         foreach (var c in r.Protected)
         {
@@ -329,8 +329,8 @@ public static partial class PolicyFunctions
                 }
             }
         }
-        var sorted = targets.OrderBy(t => t.Score).ThenBy(t => t.Access, Comparer<Cell>.Create((a, b) => CellLess(a, b) ? -1 : CellLess(b, a) ? 1 : 0))
-            .ThenBy(t => t.Direction, Comparer<Cell>.Create((a, b) => CellLess(a, b) ? -1 : CellLess(b, a) ? 1 : 0));
+        var sorted = targets.OrderBy(t => t.Score).ThenBy(t => t.Access, Comparer<Cell>.Create((a, b) => CombatManhunterRules.CellLess(a, b) ? -1 : CombatManhunterRules.CellLess(b, a) ? 1 : 0))
+            .ThenBy(t => t.Direction, Comparer<Cell>.Create((a, b) => CombatManhunterRules.CellLess(a, b) ? -1 : CombatManhunterRules.CellLess(b, a) ? 1 : 0));
         return [.. sorted.Take(12)];
     }
 }

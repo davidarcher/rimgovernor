@@ -39,7 +39,7 @@ public static partial class PolicyFunctions
             DomainException.Require(cells.TryAdd(c.Cell, c), "duplicate free site cell");
             ordered.Add(c.Cell);
         }
-        ordered.Sort((a, b) => CellLess(a, b) ? -1 : CellLess(b, a) ? 1 : 0);
+        ordered.Sort((a, b) => CombatManhunterRules.CellLess(a, b) ? -1 : CombatManhunterRules.CellLess(b, a) ? 1 : 0);
         var protectedCells = new HashSet<Cell>();
         foreach (var c in r.Protected)
         {

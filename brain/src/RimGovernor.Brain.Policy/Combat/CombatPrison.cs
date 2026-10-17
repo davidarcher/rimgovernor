@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class CombatPrisonRules
 {
     /// <summary>
     /// A ranged weapon that is not explosive: an escapee is shot, and may die, but a warden never lobs area
@@ -41,7 +41,7 @@ public static partial class PolicyFunctions
         var lastHold = new Dictionary<PawnId, bool>();
         foreach (var o in next.Issued)
         {
-            lastHold[o.CombatOrder.Pawn] = o.CombatOrder.Kind == CombatOrderKind.FireMode && o.CombatOrder.FireMode == HoldFire;
+            lastHold[o.CombatOrder.Pawn] = o.CombatOrder.Kind == CombatOrderKind.FireMode && o.CombatOrder.FireMode == CombatFireRules.HoldFire;
         }
         var orders = new List<CombatOrder>();
         for (var i = 0; i < roles.Count; i++)
@@ -54,12 +54,12 @@ public static partial class PolicyFunctions
             }
             if (role.Ranged)
             {
-                var held = s.FireMode == HoldFire || (s.FireMode.Length == 0 && lastHold.GetValueOrDefault(role.Pawn));
+                var held = s.FireMode == CombatFireRules.HoldFire || (s.FireMode.Length == 0 && lastHold.GetValueOrDefault(role.Pawn));
                 var target = FirstBlocked(escapees, blocked);
                 roles[i] = role with { Target = target };
                 if (target.IsEmpty && !held)
                 {
-                    orders.Add(new CombatOrder { Pawn = role.Pawn, Kind = CombatOrderKind.FireMode, FireMode = HoldFire, Reason = CombatOrderReason.PrisonFire });
+                    orders.Add(new CombatOrder { Pawn = role.Pawn, Kind = CombatOrderKind.FireMode, FireMode = CombatFireRules.HoldFire, Reason = CombatOrderReason.PrisonFire });
                     continue;
                 }
                 if (target.IsEmpty)
@@ -68,12 +68,12 @@ public static partial class PolicyFunctions
                 }
                 if (held)
                 {
-                    orders.Add(new CombatOrder { Pawn = role.Pawn, Kind = CombatOrderKind.FireMode, FireMode = FireAtWill, Reason = CombatOrderReason.PrisonFire });
+                    orders.Add(new CombatOrder { Pawn = role.Pawn, Kind = CombatOrderKind.FireMode, FireMode = CombatFireRules.FireAtWill, Reason = CombatOrderReason.PrisonFire });
                 }
                 role = roles[i];
             }
             var (want, ok) = role.Want(s);
-            if (!ok || next.Doing(want, s) || InterruptsAim(s))
+            if (!ok || next.Doing(want, s) || CombatDecideRules.InterruptsAim(s))
             {
                 continue;
             }
@@ -116,7 +116,7 @@ public static partial class PolicyFunctions
             state.TryGetValue(r.Pawn, out var s);
             var ok = s is not null && s.Cell.TryGetValue(out var at);
             var known = cells.TryGetValue(r.Target, out var escapee);
-            if (s is not null && ((s.Target == r.Target && s.Stance == CombatStance.Melee) || (ok && known && Adjacent8(s.Cell.Value, escapee))))
+            if (s is not null && ((s.Target == r.Target && s.Stance == CombatStance.Melee) || (ok && known && CombatFireRules.Adjacent8(s.Cell.Value, escapee))))
             {
                 blocked[r.Target] = true;
             }
@@ -142,7 +142,7 @@ public static partial class PolicyFunctions
         }
         var melee = new List<SquadDefenderFacts>();
         var ranged = new List<SquadDefenderFacts>();
-        foreach (var d in ByArmor(view.Defenders.ToList()))
+        foreach (var d in CombatBlockingRules.ByArmor(view.Defenders.ToList()))
         {
             facts.TryGetValue(d.Id, out var f);
             if (!SquadDefenderEligible(d))
@@ -199,6 +199,6 @@ public static partial class PolicyFunctions
         {
             roles.Add(new CombatRole { Pawn = d.Id, Ranged = true });
         }
-        return SortRoles(roles);
+        return CombatDecideRules.SortRoles(roles);
     }
 }

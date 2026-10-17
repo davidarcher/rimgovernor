@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: combat_bleed.go
 
-public static partial class PolicyFunctions
+public static partial class CombatBleedRules
 {
     /// <summary>The BloodLoss severity whose consciousness loss downs a pawn; death is at 1.0.</summary>
     private const double BleedDownSeverity = 0.6;
@@ -33,7 +33,7 @@ public static partial class PolicyFunctions
             {
                 if (t.Id == h)
                 {
-                    return t.LordToilClass.TryGetValue(out var toil) && PodStrikeToils.Contains(toil);
+                    return t.LordToilClass.TryGetValue(out var toil) && CombatPodsRules.PodStrikeToils.Contains(toil);
                 }
             }
 
@@ -60,7 +60,7 @@ public static partial class PolicyFunctions
 
         foreach (var t in view.Threats.Items)
         {
-            var h = ThreatPawn(t);
+            var h = CombatDecideRules.ThreatPawn(t);
             if (h == id || t.Building)
             {
                 continue;
@@ -94,7 +94,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The hostiles the fight holds fire on: below the population target, a live humanlike that is contained and will bleed down.</summary>
-    private static HashSet<PawnId> SparedBleeders(CombatView view)
+    internal static HashSet<PawnId> SparedBleeders(CombatView view)
     {
         var output = new HashSet<PawnId>();
         if (!view.Population.TryGetValue(out var pop) || pop >= DomainConstants.PopulationTarget)
@@ -110,7 +110,7 @@ public static partial class PolicyFunctions
 
         foreach (var t in view.Threats.Items)
         {
-            var id = ThreatPawn(t);
+            var id = CombatDecideRules.ThreatPawn(t);
             if (!state.TryGetValue(id, out var s) || t.Building || !Positive(t.Humanlike) || Positive(t.Dead) || Positive(t.Downed) || s.Dead || s.Downed)
             {
                 continue;
@@ -133,7 +133,7 @@ public static partial class PolicyFunctions
     /// of these raiders or on nothing; any cell, duty or other target keeps the pawn where it is needed.
     /// Gunners on a raider that gets finishers drop it; holdFire holds them once the melee locks.
     /// </summary>
-    private static void FinishContained(CombatView view, CombatMemory next)
+    internal static void FinishContained(CombatView view, CombatMemory next)
     {
         if (!view.Population.TryGetValue(out var pop) || pop >= DomainConstants.PopulationTarget)
         {
@@ -150,7 +150,7 @@ public static partial class PolicyFunctions
         var raiders = new List<PawnId>();
         foreach (var t in view.Threats.Items)
         {
-            var id = ThreatPawn(t);
+            var id = CombatDecideRules.ThreatPawn(t);
             if (!state.TryGetValue(id, out var s) || t.Building || !Positive(t.Humanlike) || Positive(t.Dead) || Positive(t.Downed) || s.Dead || s.Downed)
             {
                 continue;
@@ -242,17 +242,17 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>That every live threat left is spared: gunners then hold fire rather than pick the spared hostile on fire-at-will.</summary>
-    private static bool OnlySpared(CombatView view, HashSet<PawnId> spared)
+    internal static bool OnlySpared(CombatView view, HashSet<PawnId> spared)
     {
         if (spared.Count == 0)
         {
             return false;
         }
 
-        var down = DownPawns(view);
+        var down = CombatManhunterRules.DownPawns(view);
         foreach (var t in view.Threats.Items)
         {
-            if (!Positive(t.Dead) && !Positive(t.Downed) && !down.Contains(ThreatPawn(t)))
+            if (!Positive(t.Dead) && !Positive(t.Downed) && !down.Contains(CombatDecideRules.ThreatPawn(t)))
             {
                 return false;
             }

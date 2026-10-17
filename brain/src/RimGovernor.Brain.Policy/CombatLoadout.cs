@@ -57,7 +57,7 @@ public sealed record LoadoutApparel(string Thing, string Definition, Cell Cell);
 /// <summary>One equip (Wear false) or wear (Wear true) order, sent through the existing equip and gear actions.</summary>
 public sealed record LoadoutOrder(PawnId Pawn, string Thing, string Definition, Cell Cell, bool Wear);
 
-public static partial class PolicyFunctions
+public static partial class CombatLoadoutRules
 {
     /// <summary>Out-ranges a great bow (30).</summary>
     internal const int LoadoutTribalRange = 32;
@@ -81,7 +81,7 @@ public static partial class PolicyFunctions
         var hostile = new Dictionary<PawnId, bool>();
         foreach (var t in view.Threats.Items)
         {
-            hostile[ThreatPawn(t)] = !t.Building && !Positive(t.Dead) && !Positive(t.Downed);
+            hostile[CombatDecideRules.ThreatPawn(t)] = !t.Building && !Positive(t.Dead) && !Positive(t.Downed);
         }
 
         var tribal = false;

@@ -2,16 +2,16 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: combat_mech_pikemen.go
 
-public static partial class PolicyFunctions
+public static partial class CombatMechRules
 {
     /// <summary>
     /// The pikemen's last charge: once every live hostile is a pikeman (Mech_Pikeman), every defender wearing a
     /// shield belt leaves its cell and attacks the nearest pikeman in melee; the belt stops the pikemen's long
     /// shots on the way in. Before that nothing changes.
     /// </summary>
-    private static void PikemenCharge(CombatView view, CombatMemory m)
+    internal static void PikemenCharge(CombatView view, CombatMemory m)
     {
-        var pikemen = RankThreats(view);
+        var pikemen = CombatThreatRules.RankThreats(view);
         if (pikemen.Count == 0 || pikemen.Any(h => !h.Kind.StartsWith("Mech_Pikeman", StringComparison.Ordinal)))
         {
             return;
@@ -49,7 +49,7 @@ public static partial class PolicyFunctions
     /// <summary>The live positional hostile nearest <paramref name="from"/>; empty with none.</summary>
     internal static PawnId NearestHostile(CombatView view, Cell from)
     {
-        var down = DownPawns(view);
+        var down = CombatManhunterRules.DownPawns(view);
         PawnId best = default;
         long bestD = -1;
         foreach (var t in view.Positional.Items)
@@ -60,7 +60,7 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            var d = Distance2(from, c);
+            var d = CombatManhunterRules.Distance2(from, c);
             if (bestD < 0 || d < bestD)
             {
                 best = id;

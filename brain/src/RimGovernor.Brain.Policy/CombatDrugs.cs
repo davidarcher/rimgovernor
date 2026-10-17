@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 // The order names the preferred carried combat drug (CombatView.Drugs); native validates it and refuses a
 // child, a pawn already high, or one addicted to, in withdrawal from or highly tolerant of its chemical.
 
-public static partial class PolicyFunctions
+public static partial class CombatDrugsRules
 {
     /// <summary>The cells beyond weapon range a dose goes in, so the high (about a day) starts before contact, not on a long approach.</summary>
     internal const double DoseMargin = 10.0;
@@ -21,7 +21,7 @@ public static partial class PolicyFunctions
     private static bool WorthDosing(CombatView view, Dictionary<PawnId, CombatPawnState> state)
     {
         var known = view.Defenders.Items.Any(d => SquadDefenderEligible(d) && Positive(d.Armed));
-        if (known && Outmatched(view))
+        if (known && CombatWaitRules.Outmatched(view))
         {
             return true;
         }
@@ -33,7 +33,7 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            state.TryGetValue(ThreatPawn(t), out var s);
+            state.TryGetValue(CombatDecideRules.ThreatPawn(t), out var s);
             if (t.Mech || (s is not null && s.GoJuice && !s.Downed && !s.Dead))
             {
                 return true;
@@ -49,7 +49,7 @@ public static partial class PolicyFunctions
     /// attack; a fight sheltering or scattered doses no one. Each pawn is dosed at most once per fight,
     /// refused or not.
     /// </summary>
-    private static List<CombatOrder> DoseOrders(
+    internal static List<CombatOrder> DoseOrders(
         CombatView view,
         CombatMemory m,
         IReadOnlyList<CombatOrder> orders,
@@ -66,7 +66,7 @@ public static partial class PolicyFunctions
         var hostiles = new List<CombatPawnState>();
         foreach (var t in view.Threats.Items)
         {
-            if (state.TryGetValue(ThreatPawn(t), out var s) && !t.Building && !s.Dead && !s.Downed && !Positive(t.Dead) && !Positive(t.Downed))
+            if (state.TryGetValue(CombatDecideRules.ThreatPawn(t), out var s) && !t.Building && !s.Dead && !s.Downed && !Positive(t.Dead) && !Positive(t.Downed))
             {
                 hostiles.Add(s);
             }
@@ -74,7 +74,7 @@ public static partial class PolicyFunctions
 
         foreach (var id in view.Orderable.Items)
         {
-            if (!state.TryGetValue(id, out var s) || orders.Any(o => o.Pawn == id) || !orderable.Contains(id) || s.Dead || s.Downed || s.GoJuice || InterruptsAim(s) || m.Dosed.Contains(id) || m.Rescue?.Carrying(id) == true)
+            if (!state.TryGetValue(id, out var s) || orders.Any(o => o.Pawn == id) || !orderable.Contains(id) || s.Dead || s.Downed || s.GoJuice || CombatDecideRules.InterruptsAim(s) || m.Dosed.Contains(id) || m.Rescue?.Carrying(id) == true)
             {
                 continue;
             }
@@ -119,6 +119,6 @@ public static partial class PolicyFunctions
             return false;
         }
 
-        return InRange(d.Cell, Math.Max(d.WeaponRange, 1) + margin, h);
+        return CombatThreatRules.InRange(d.Cell, Math.Max(d.WeaponRange, 1) + margin, h);
     }
 }

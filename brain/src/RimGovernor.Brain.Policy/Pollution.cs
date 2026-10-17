@@ -167,7 +167,7 @@ public static partial class PolicyFunctions
                 result.Add(c.Cell);
             }
         }
-        result.Sort(LessComparer<Cell>(CellLess));
+        result.Sort(LessComparer<Cell>(CombatManhunterRules.CellLess));
         return result;
     }
 }

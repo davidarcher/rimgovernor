@@ -17,7 +17,7 @@ public sealed partial class RoundsDefensePlanner
                 continue;
             }
             var p = plan.Progress[0];
-            if (p.Action.CombatBatch is not { } batch || !p.View.Unresolved || view.Tick <= p.View.Tick || !PolicyFunctions.CombatBatchObserved(batch, view))
+            if (p.Action.CombatBatch is not { } batch || !p.View.Unresolved || view.Tick <= p.View.Tick || !CombatBatchRules.CombatBatchObserved(batch, view))
             {
                 continue;
             }

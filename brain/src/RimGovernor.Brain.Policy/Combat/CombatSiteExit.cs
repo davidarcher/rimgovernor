@@ -8,7 +8,7 @@ public sealed record CombatSiteExit
     public EquatableArray<Cell> Cells { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class CombatSiteExitRules
 {
     internal static (CombatMemory Memory, List<CombatOrder> Orders, bool Ran) SiteExitTurn(
         CombatView view,
@@ -53,7 +53,7 @@ public static partial class PolicyFunctions
                     available = true;
                     continue;
                 }
-                if (pawn.Cell.TryGetValue(out var at) && Distance2(at, candidate) < Distance2(at, cell))
+                if (pawn.Cell.TryGetValue(out var at) && CombatManhunterRules.Distance2(at, candidate) < CombatManhunterRules.Distance2(at, cell))
                 {
                     cell = candidate;
                 }

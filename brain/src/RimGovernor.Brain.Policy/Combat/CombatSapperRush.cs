@@ -1,7 +1,7 @@
 using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class CombatSapperRules
 {
     /// <summary>How close to the breach, in cells, a hostile sets the posted brawlers on it.</summary>
     internal const int RushRange = 4;
@@ -20,12 +20,12 @@ public static partial class PolicyFunctions
         }
         PawnId nearest = default;
         var near = -1L;
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (h.Cell.TryGetValue(out var c) && (near < 0 || Distance2(c, breach) < near))
+            if (h.Cell.TryGetValue(out var c) && (near < 0 || CombatManhunterRules.Distance2(c, breach) < near))
             {
                 nearest = h.Id;
-                near = Distance2(c, breach);
+                near = CombatManhunterRules.Distance2(c, breach);
             }
         }
         if (nearest.IsEmpty)

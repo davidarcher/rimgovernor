@@ -84,7 +84,7 @@ public static partial class PolicyFunctions
         return [.. sites
             .OrderByDescending(s => s.ClearanceSquared)
             .ThenBy(s => s.DisposalSquared)
-            .ThenBy(s => new Cell(s.Site.X, s.Site.Z), LessComparer<Cell>(CellLess))];
+            .ThenBy(s => new Cell(s.Site.X, s.Site.Z), LessComparer<Cell>(CombatManhunterRules.CellLess))];
     }
 
     /// <summary>The smallest squared distance from any cell to any target, -1 when there is no target. A target inside the footprint is 0.</summary>

@@ -18,7 +18,7 @@ public enum SiegeMode
     Sneak,
 }
 
-public static partial class PolicyFunctions
+public static partial class CombatSiegeRules
 {
     // Siege lord classes.
     internal const string SiegeLordJob = "LordJob_Siege";
@@ -28,7 +28,7 @@ public static partial class PolicyFunctions
     /// <summary>The live hostiles of a siege lord still travelling or camped (not yet assaulting), with their toil.</summary>
     internal static Dictionary<PawnId, string> LiveBesiegers(CombatView view)
     {
-        var down = DownPawns(view);
+        var down = CombatManhunterRules.DownPawns(view);
         var result = new Dictionary<PawnId, string>();
         foreach (var t in view.Positional)
         {
@@ -113,7 +113,7 @@ public static partial class PolicyFunctions
     {
         PawnId top = default;
         var besiegers = LiveBesiegers(view);
-        foreach (var h in RankThreats(view))
+        foreach (var h in CombatThreatRules.RankThreats(view))
         {
             if (besiegers.ContainsKey(h.Id))
             {
@@ -155,14 +155,14 @@ public static partial class PolicyFunctions
         {
             roles = HarassRoles(view, roles);
         }
-        return SortRoles(roles);
+        return CombatDecideRules.SortRoles(roles);
     }
 
     /// <summary>The siege row of the reaction table: a siege starting, a mode change, the lord assaulting (no besieger left), or a sortie target down re-forms.</summary>
     internal static bool ReformSiege(CombatView view, CombatMemory m)
     {
         var mode = SiegeModeOf(view, m);
-        return m.Tactic != CombatTactic.Siege || mode != m.SiegeMode || SquadTargetDown(view, m);
+        return m.Tactic != CombatTactic.Siege || mode != m.SiegeMode || CombatDecideRules.SquadTargetDown(view, m);
     }
 
     /// <summary>
