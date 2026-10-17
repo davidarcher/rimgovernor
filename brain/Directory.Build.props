@@ -22,4 +22,19 @@
     <ProjectReference Include="$(MSBuildThisFileDirectory)analyzers/RimGovernor.Brain.Analyzers/RimGovernor.Brain.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)analyzers/baseline/*.txt" />
   </ItemGroup>
+  <!-- Charter rules 4 and 5 (#3397, #3410): RS0030 bans the APIs in analyzers/BannedSymbols.Acceptance.txt (wall-clock
+       sleeps and JsonNode indexers) as an error in every acceptance project, harness and cases. The compiler writes
+       banned-api.sarif; the gate's banned-API job fails a use a suppression kept from failing the build. -->
+  <ItemGroup Condition="$(MSBuildProjectName.StartsWith('RimGovernor.Brain.Acceptance'))">
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)analyzers/BannedSymbols.Acceptance.txt" />
+  </ItemGroup>
+  <PropertyGroup Condition="$(MSBuildProjectName.StartsWith('RimGovernor.Brain.Acceptance'))">
+    <WarningsAsErrors>$(WarningsAsErrors);RS0030</WarningsAsErrors>
+  </PropertyGroup>
+  <Target Name="BannedApiErrorLog" BeforeTargets="CoreCompile" Condition="$(MSBuildProjectName.StartsWith('RimGovernor.Brain.Acceptance'))">
+    <PropertyGroup>
+      <ErrorLog>$(IntermediateOutputPath)banned-api.sarif,version=2.1</ErrorLog>
+    </PropertyGroup>
+  </Target>
 </Project>

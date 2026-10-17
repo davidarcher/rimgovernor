@@ -73,25 +73,6 @@ public sealed record SpeedCase
     }
 }
 
-/// <summary>The main-thread queue wait of the commands the player row's service queued (Go <c>bridge.Quantiles</c>), in milliseconds.</summary>
-public sealed record DispatchQuantiles
-{
-    public ulong Samples { get; init; }
-
-    public double P50 { get; init; }
-
-    public double P95 { get; init; }
-
-    public double P99 { get; init; }
-
-    public double Max { get; init; }
-
-    public double Sum { get; init; }
-
-    /// <summary>Sum over Samples, or 0 without any.</summary>
-    public double Mean => Samples == 0 ? 0 : Sum / Samples;
-}
-
 /// <summary>What the player row's checks read (Go <c>PlayerRow</c>).</summary>
 public sealed record PlayerRow
 {
@@ -103,12 +84,6 @@ public sealed record PlayerRow
 
     /// <summary>The pacing reason of the last step that found the clock running.</summary>
     public string LastPacingReason { get; init; } = "";
-
-    /// <summary>
-    /// The main-thread queue wait of the commands the row's service queued while the clock ran (the observation hops'
-    /// queueMs): its p95 must land inside the frame budget.
-    /// </summary>
-    public DispatchQuantiles Dispatch { get; init; } = new();
 }
 
 /// <summary>What the pawns achieved in one case: the postconditions the matrix requires to agree within a tolerance across speeds (Go <c>SpeedOutcome</c>).</summary>
@@ -153,9 +128,6 @@ public static class SpeedMatrix
     /// frame that trips the decrease, a long single tick).
     /// </summary>
     public const double MaxPlayerOverBudgetShare = 0.05;
-
-    /// <summary>Native's default frame budget, the one the player row runs under.</summary>
-    public const int PlayerFrameBudgetMs = 30;
 
     /// <summary>The observation-load row's reader count: several clients' worth of state reads, well above the launcher's own cadence, so readers contend with the controller's refreshes.</summary>
     public const int ObservationLoadReaders = 3;
@@ -247,15 +219,6 @@ public static class SpeedMatrix
             {
                 problems.Add(string.Create(CultureInfo.InvariantCulture, $"{row.OverBudget} of {row.PacedFrames} paced frames ({share * 100:F1}%) exceeded the frame budget"));
             }
-        }
-
-        if (row.Dispatch.Samples == 0)
-        {
-            problems.Add("no queued command reported its main-thread dispatch wait");
-        }
-        else if (row.Dispatch.P95 > PlayerFrameBudgetMs)
-        {
-            problems.Add(string.Create(CultureInfo.InvariantCulture, $"queued commands waited {row.Dispatch.P95:F1}ms (p95 over {row.Dispatch.Samples}) for dispatch, past the {PlayerFrameBudgetMs}ms frame budget"));
         }
 
         switch (row.LastPacingReason)

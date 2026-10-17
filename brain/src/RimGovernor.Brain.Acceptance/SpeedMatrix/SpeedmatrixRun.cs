@@ -27,9 +27,6 @@ internal sealed record SpeedmatrixProfile
     public string Save { get; init; } = "";
 
     public string Speeds { get; init; } = "";
-
-    /// <summary>Requires every row to carry the frame and observation accounts, rejecting an empty report.</summary>
-    public bool Observations { get; init; }
 }
 
 /// <summary>
@@ -69,7 +66,6 @@ internal sealed partial class SpeedmatrixRun
     private readonly List<Fx.ThroughputSite> _sites = [];
     private readonly List<SpeedOutcome> _outcomes = [];
     private readonly List<JsonObject> _rows = [];
-    private readonly List<SpeedRowFacts> _rowFacts = [];
 
     // The fixture's cell lists, in the "x:z" form test/throughput_control reads back.
     private string _storage = "";
@@ -112,7 +108,7 @@ internal sealed partial class SpeedmatrixRun
         m._report["tick_target"] = p.Ticks;
 
         // What the baseline was measured on: the revision, the world and mod set, the host, the launch's resolution and
-        // the measured interval's bounds. A row's own wall_seconds and frames block complete it.
+        // the measured interval's bounds. A row's own wall_seconds completes it.
         m._report["provenance"] = m.Provenance();
         m._report["tolerance"] = Tolerance;
         m._report["max_paused_fraction"] = MaxPausedFraction;
@@ -170,16 +166,6 @@ internal sealed partial class SpeedmatrixRun
         {
             m._report["row_problems"] = Problems(rowProblems);
             throw new AcceptanceException("speed rows missing or empty: " + string.Join("; ", rowProblems));
-        }
-
-        if (p.Observations)
-        {
-            var observationProblems = ObservationRowProblems(m._rowFacts);
-            if (observationProblems.Count > 0)
-            {
-                m._report["row_problems"] = Problems(observationProblems);
-                throw new AcceptanceException("observation report incomplete: " + string.Join("; ", observationProblems));
-            }
         }
 
         var ratios = SpeedMatrix.CeilingRatios(metrics);
@@ -387,7 +373,6 @@ internal sealed partial class SpeedmatrixRun
             // admit. The signature is the tick itself, so a clock that stops advancing with work pending stalls the wait.
             ulong lastTick = 0;
             var workDone = false;
-            var logPath = ServiceLogs.ServiceLogsPath(output);
             Exception? waitErr = null;
             try
             {
@@ -396,11 +381,6 @@ internal sealed partial class SpeedmatrixRun
                     {
                         var review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
                         lastTick = review.Revision > staleRevision ? (ulong)review.Tick.Value : startTick;
-                        if (TryReadTimeline(logPath) is { } rows && PhaseSummary.Summarize(rows).Clock.LastTick is var observed && observed > (long)lastTick)
-                        {
-                            lastTick = (ulong)observed;
-                        }
-
                         if (lastTick >= startTick + _profile.Ticks)
                         {
                             return (Wait.Signature(lastTick), true);
@@ -454,9 +434,6 @@ internal sealed partial class SpeedmatrixRun
             var holds = StopSummaries.SummarizeHolds(timeline, resumedAt.ToUnixTimeMilliseconds());
             report["holds"] = holds.ToJson();
             var metrics = CaseMetrics(c, phases, holds, startTick, lastTick, wallSeconds);
-
-            // The observation capture account and the frame recorder, from the same recording the clock and step phases come from.
-            AddAll(metrics, ObservationRow(phases.Observation, phases.Frames));
             if (readerSummary is not null)
             {
                 metrics.Add("readers", readerSummary.DeepClone());
@@ -468,7 +445,7 @@ internal sealed partial class SpeedmatrixRun
             }
 
             report["metrics"] = metrics.DeepClone();
-            AppendMetrics(metrics, new SpeedRowFacts(c.Name, GovernorOff: false, phases.Frames.Intervals.Samples, phases.Observation.Hops));
+            AppendMetrics(metrics);
 
             // Independent native read after the service released the slot.
             h = HarnessFor(output);
@@ -499,7 +476,6 @@ internal sealed partial class SpeedmatrixRun
                     PacedFrames = phases.Clock.NativePacedFrames,
                     OverBudget = phases.Clock.NativePacedOverBudget,
                     LastPacingReason = SpeedMatrix.LastPacingReason(timeline),
-                    Dispatch = phases.Observation.Queue,
                 });
                 if (problems.Count > 0)
                 {
@@ -529,20 +505,6 @@ internal sealed partial class SpeedmatrixRun
         }
     }
 
-    // The service's OTLP log ring while it is still being written: a torn read is not a sample.
-    private static List<TimelineRecord>? TryReadTimeline(string path)
-    {
-        try
-        {
-            return OtlpTimeline.Read(path);
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
-        {
-            _ = e;
-            return null;
-        }
-    }
-
     // Reads the stage's counters through test/throughput_control: the reply as recorded (the report's control blocks and
     // the outcome read it whole) and as its record.
     private async Task<JsonObject> ControlAsync(Harness h, JsonObject identity, string label, CancellationToken cancellationToken) =>
@@ -569,15 +531,6 @@ internal sealed partial class SpeedmatrixRun
         }
 
         return (ulong)read.Tick;
-    }
-
-    // Copies every field of a metrics block onto the row, in order.
-    private static void AddAll(JsonObject row, JsonObject block)
-    {
-        foreach (var (key, value) in block)
-        {
-            row.Add(key, value?.DeepClone());
-        }
     }
 
     // Writes every staged wall segment into the service's journal as its own building plan (no player route exists) and
@@ -761,11 +714,9 @@ internal sealed partial class SpeedmatrixRun
             ("wall_tps", clock.WallTps),
 
             // Effective speed: the share of the speed's own rate the row achieved, holds included (1 is a clock that was
-            // never held and never slowed); native's own effective ticks per second, averaged over the status samples
-            // that reported one, stands beside it.
+            // never held and never slowed).
             ("effective_speed", SpeedMatrix.EffectiveSpeed(clock.WallTps, c.Speed)),
             ("target_tps", SpeedMatrix.TargetTps(c.Speed)),
-            ("native_effective_tps_mean", clock.EffectiveTpsMean()),
             ("paused_ms", clock.NativePausedMs),
             ("running_ms", clock.NativeRunningMs),
             ("paused_fraction_native", clock.PausedFractionNative()),
@@ -836,10 +787,9 @@ internal sealed partial class SpeedmatrixRun
         new(pairs.Select(pair => KeyValuePair.Create(pair.Key, (JsonNode?)pair.Value)));
 
     // Records a metrics row on the matrix report and for the comparators (the report holds its own copy).
-    private void AppendMetrics(JsonObject row, SpeedRowFacts facts)
+    private void AppendMetrics(JsonObject row)
     {
         _rows.Add(row);
-        _rowFacts.Add(facts);
         _report["speed_metrics"] = OutputJson.Array(_rows, r => r.DeepClone());
     }
 

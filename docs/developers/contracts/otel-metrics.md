@@ -95,5 +95,5 @@ for the OTEL-derived keys.
 
 Readers still consume the row-based aggregation:
 
-- The acceptance harness's phase summary (`PhaseSummary.cs`) builds the speed-matrix checks from `native_call` and
-  `clock_step` rows.
+- The acceptance harness's phase summary (`PhaseSummary.cs`) builds the speed-matrix checks from `clock_step`, `clock_run` and
+  `dispatch` rows.

@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -38,29 +37,6 @@ public static class Dyn
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// The number as a double; anything that is not a JSON number (a numeric string included) is -1, as in Go.
-    /// </summary>
-    public static double AsNumber(this JsonNode? value)
-    {
-        if (value is not JsonValue json)
-        {
-            return -1;
-        }
-
-        if (json.TryGetValue<double>(out var d))
-        {
-            return d;
-        }
-
-        if (json.TryGetValue<long>(out var l))
-        {
-            return l;
-        }
-
-        return -1;
     }
 
     /// <summary>A non-negative JSON integer; null for anything else (a numeric string included).</summary>
@@ -120,7 +96,7 @@ public static class Dyn
             case JsonObject map:
                 builder.Append('{');
                 var first = true;
-                foreach (var key in map.Select(pair => pair.Key).Order(StringComparer.Ordinal))
+                foreach (var (key, member) in map.OrderBy(pair => pair.Key, StringComparer.Ordinal))
                 {
                     if (!first)
                     {
@@ -129,21 +105,23 @@ public static class Dyn
 
                     first = false;
                     builder.Append(JsonValue.Create(key).ToJsonString()).Append(':');
-                    WriteCanonical(builder, map[key]);
+                    WriteCanonical(builder, member);
                 }
 
                 builder.Append('}');
                 break;
             case JsonArray array:
                 builder.Append('[');
-                for (var i = 0; i < array.Count; i++)
+                var head = true;
+                foreach (var item in array)
                 {
-                    if (i > 0)
+                    if (!head)
                     {
                         builder.Append(',');
                     }
 
-                    WriteCanonical(builder, array[i]);
+                    head = false;
+                    WriteCanonical(builder, item);
                 }
 
                 builder.Append(']');

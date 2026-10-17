@@ -4,9 +4,6 @@ using System.Reflection.Emit;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
-using System.Runtime.Loader;
-using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
 
 namespace RimGovernor.Tools.Workflow.Commands;
 
@@ -85,22 +82,13 @@ internal static class ContractOrphans
     /// <summary>
     /// The orphans of <paramref name="target"/> declared in <paramref name="declaring"/>, sorted, each a
     /// <c>Name|Type.Member</c> key and its reason. <paramref name="checkedCount"/> is how many members it declares.
-    /// The consumers are every other brain assembly and the native mod's own; <paramref name="readByName"/> are members
-    /// the brain reads by JSON name (<see cref="LiteralKeys"/>, <see cref="WireNames"/>).
+    /// The consumers are every other brain assembly and the native mod's own.
     /// </summary>
     public static IReadOnlyList<(string Key, string Reason)> Find(
-        Target target, string declaring, IEnumerable<string> brain, IEnumerable<string> native, out int checkedCount,
-        IReadOnlySet<string>? readByName = null)
+        Target target, string declaring, IEnumerable<string> brain, IEnumerable<string> native, out int checkedCount)
     {
         var model = new Declared(target, declaring);
         var uses = model.Members.ToDictionary(m => m, _ => new Use(), StringComparer.Ordinal);
-        foreach (var member in readByName ?? new HashSet<string>())
-        {
-            if (uses.TryGetValue(member, out var use))
-            {
-                use.BrainRead = true;
-            }
-        }
         foreach (var (file, isNative) in brain.Select(f => (f, false)).Concat(native.Select(f => (f, true))))
         {
             foreach (var (member, write) in model.Effects(Consumer.Roots(file, model.AssemblyName)))
@@ -124,77 +112,6 @@ internal static class ContractOrphans
             .Where(u => u.Reason is not null)
             .Select(u => (u.Key, u.Reason!))
             .OrderBy(u => u.Key, StringComparer.Ordinal)];
-    }
-
-    /// <summary>
-    /// The identifier-shaped string literals of <paramref name="assemblies"/>: the keys the acceptance cases and their
-    /// harness may read a native reply by (<c>view["benches"]</c>, a helper's key argument). Every such literal counts,
-    /// not only an indexer's, so a case's by-name read never leaves its member flagged; a common word may keep a real
-    /// orphan alive. The cases read typed Contracts records; this stays while the harness subcommands (sweep, speedmatrix,
-    /// colony) still read native replies as JsonNode by key.
-    /// </summary>
-    public static HashSet<string> LiteralKeys(IEnumerable<string> assemblies)
-    {
-        var keys = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var path in assemblies)
-        {
-            using var pe = new PEReader(File.OpenRead(path));
-            var md = pe.GetMetadataReader();
-            var strings = new List<UserStringHandle>();
-            foreach (var m in md.MethodDefinitions)
-            {
-                var method = md.GetMethodDefinition(m);
-                if (method.RelativeVirtualAddress != 0)
-                {
-                    Il.Tokens(pe.GetMethodBody(method.RelativeVirtualAddress), strings);
-                }
-            }
-            keys.UnionWith(strings.Select(md.GetUserString).Where(IsIdentifier));
-        }
-        return keys;
-    }
-
-    private static bool IsIdentifier(string s) =>
-        s.Length > 0 && (char.IsAsciiLetter(s[0]) || s[0] == '_') && s.All(c => char.IsAsciiLetterOrDigit(c) || c == '_');
-
-    /// <summary>
-    /// Each wire member's JSON name (<c>Observations.HuntCensus.Benches</c> to <c>benches</c>), as the source-generated
-    /// <c>WireJsonContext</c> reports it: the contracts assembly is loaded into a collectible context and asked for the
-    /// type info of each of its public types, so naming policy and <c>[JsonPropertyName]</c> come from the serializer.
-    /// </summary>
-    public static Dictionary<string, string> WireNames(string contracts)
-    {
-        var names = new Dictionary<string, string>(StringComparer.Ordinal);
-        var dir = Path.GetDirectoryName(Path.GetFullPath(contracts))!;
-        var load = new AssemblyLoadContext("contract-orphans", isCollectible: true);
-        load.Resolving += (context, name) =>
-            File.Exists(Path.Combine(dir, name.Name + ".dll")) ? context.LoadFromStream(new MemoryStream(File.ReadAllBytes(Path.Combine(dir, name.Name + ".dll")))) : null;
-        try
-        {
-            var assembly = load.LoadFromStream(new MemoryStream(File.ReadAllBytes(contracts)));
-            var contextType = assembly.GetType(Wire.Namespace + ".WireJsonContext", throwOnError: true)!;
-            var serializer = (JsonSerializerContext)contextType.GetProperty("Default", BindingFlags.Public | BindingFlags.Static)!.GetValue(null)!;
-            foreach (var type in assembly.GetExportedTypes().Where(t => !t.ContainsGenericParameters && t.FullName!.StartsWith(Wire.Namespace + ".", StringComparison.Ordinal)))
-            {
-                if (serializer.GetTypeInfo(type) is not { Kind: JsonTypeInfoKind.Object } info)
-                {
-                    continue;
-                }
-                foreach (var property in info.Properties)
-                {
-                    if (property.AttributeProvider is MemberInfo { DeclaringType.FullName: { } declaring } member
-                        && declaring.StartsWith(Wire.Namespace + ".", StringComparison.Ordinal))
-                    {
-                        names[$"{declaring[(Wire.Namespace.Length + 1)..].Replace('+', '.')}.{member.Name}"] = property.Name;
-                    }
-                }
-            }
-        }
-        finally
-        {
-            load.Unload();
-        }
-        return names;
     }
 
     // A member the brain writes and the native side reads is a request field in use, even outside the intent
@@ -647,8 +564,7 @@ internal static class ContractOrphans
     }
 
     /// <summary>
-    /// Walks a method body's instructions and yields the metadata tokens of calls and field accesses, and adds its
-    /// string literals to <c>strings</c> when given.
+    /// Walks a method body's instructions and yields the metadata tokens of calls and field accesses.
     /// </summary>
     private static class Il
     {
@@ -658,7 +574,7 @@ internal static class ContractOrphans
 
         public static bool IsStore(ILOpCode op) => op is ILOpCode.Stfld or ILOpCode.Stsfld;
 
-        public static List<(ILOpCode Op, EntityHandle Token)> Tokens(MethodBodyBlock body, List<UserStringHandle>? strings = null)
+        public static List<(ILOpCode Op, EntityHandle Token)> Tokens(MethodBodyBlock body)
         {
             var il = body.GetILReader();
             var found = new List<(ILOpCode Op, EntityHandle Token)>();
@@ -686,11 +602,7 @@ internal static class ContractOrphans
                     case OperandType.InlineI8 or OperandType.InlineR:
                         il.Offset += 8;
                         break;
-                    case OperandType.InlineString:
-                        var literal = il.ReadInt32();
-                        strings?.Add(MetadataTokens.UserStringHandle(literal & 0xFFFFFF));
-                        break;
-                    case OperandType.InlineBrTarget or OperandType.InlineI or OperandType.InlineSig or OperandType.InlineTok or OperandType.InlineType or OperandType.ShortInlineR:
+                    case OperandType.InlineBrTarget or OperandType.InlineI or OperandType.InlineString or OperandType.InlineSig or OperandType.InlineTok or OperandType.InlineType or OperandType.ShortInlineR:
                         il.Offset += 4;
                         break;
                     case OperandType.InlineVar:

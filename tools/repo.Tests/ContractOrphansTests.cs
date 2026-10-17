@@ -11,14 +11,9 @@ namespace RimGovernor.Tools.Workflow.Tests;
 public sealed class ContractOrphansTests : IDisposable
 {
     private const string ContractsSource = """
-        using System;
-        using System.Text.Json;
-        using System.Text.Json.Serialization;
-        using System.Text.Json.Serialization.Metadata;
-
         namespace RimGovernor.Contracts.Wire.Observations
         {
-            public sealed record HuntCensus(int Hunters, [property: JsonPropertyName("benchList")] int Benches)
+            public sealed record HuntCensus(int Hunters, int Benches)
             {
                 public int Prey { get; init; }
                 public int Spare { get; init; }
@@ -28,22 +23,6 @@ public sealed class ContractOrphansTests : IDisposable
             public sealed record Order(string Pawn)
             {
                 public int Priority { get; init; }
-            }
-        }
-
-        namespace RimGovernor.Contracts.Wire
-        {
-            // Stands in for the source-generated context: the same camelCase policy, resolved by reflection.
-            public sealed class WireJsonContext() : JsonSerializerContext(null)
-            {
-                private static readonly JsonSerializerOptions Reflected =
-                    new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, TypeInfoResolver = new DefaultJsonTypeInfoResolver() };
-
-                public static WireJsonContext Default { get; } = new();
-
-                protected override JsonSerializerOptions? GeneratedSerializerOptions => null;
-
-                public override JsonTypeInfo? GetTypeInfo(Type type) => Reflected.GetTypeInfo(type);
             }
         }
         """;
@@ -263,40 +242,6 @@ public sealed class ContractOrphansTests : IDisposable
         // Hunters is read only inside the Lazy factory's lambda, which the static constructor builds when Apply
         // touches Rules; Id and Spare are written and never read.
         Assert.Equal([("Policy|HuntRoom.Id", "written, never read"), ("Policy|HuntRoom.Spare", "written, never read")], orphans);
-    }
-
-    [Fact]
-    public void CountsAMemberAnAcceptanceCaseReadsByJsonKeyAsRead()
-    {
-        var contracts = Compile("RimGovernor.Brain.Contracts", ContractsSource);
-        var cases = Compile("RimGovernor.Brain.Acceptance.Cases", """
-            using System.Text.Json.Nodes;
-            public static class Census
-            {
-                public static int Benches(JsonNode view) => (int)view["census"]!["benchList"]! + (int)view["census"]!["benches"]!;
-                public static string Why() => "no bench yet";
-            }
-            """);
-        var native = Compile("RimGovernor.Bridge", """
-            using RimGovernor.Contracts.Wire.Observations;
-            public static class Reader
-            {
-                public static HuntCensus Read() => new(2, 1) { Prey = 3, Spare = 1 };
-            }
-            """, contracts);
-
-        var keys = ContractOrphans.LiteralKeys([cases]);
-        var names = ContractOrphans.WireNames(contracts);
-        var readByName = names.Where(n => keys.Contains(n.Value)).Select(n => n.Key).ToHashSet();
-        var orphans = ContractOrphans.Find(ContractOrphans.Wire, contracts, [cases], [native], out _, readByName);
-
-        // A sentence is no key; the JSON name comes from the context, so "benchList" reads Benches and "benches" nothing.
-        Assert.Equal(["benchList", "benches", "census"], keys.Order(StringComparer.Ordinal));
-        Assert.Equal("benchList", names["Observations.HuntCensus.Benches"]);
-        Assert.Equal("prey", names["Observations.HuntCensus.Prey"]);
-        Assert.Equal(["Observations.HuntCensus.Benches"], readByName);
-        Assert.DoesNotContain(orphans, o => o.Key == "Contracts|Observations.HuntCensus.Benches");
-        Assert.Contains(orphans, o => o.Key == "Contracts|Observations.HuntCensus.Hunters");
     }
 
     [Fact]

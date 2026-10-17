@@ -149,7 +149,7 @@ public static class SpeedMatrixCommand
         var profile = observations ? SpeedmatrixRun.ObservationsProfile : SpeedmatrixRun.PlainProfile;
         var report = Report.Create(
             observations
-                ? "Observation baseline (#642): the committed tribal8 colony with the throughput stage applied, played rendered governor-off, governed and governed under observation load at one clock speed and one tick budget; each row reports the companion's observation capture/format split, its per-section costs and its update-interval account beside the clock and step phases, with the run's provenance."
+                ? "Observation baseline (#642): the committed tribal8 colony with the throughput stage applied, played rendered governor-off, governed and governed under observation load at one clock speed and one tick budget; each row reports the clock, step and hold phases, with the run's provenance."
                 : "Speed matrix (#111): one staged colony reloaded per clock speed under the in-game service with an identical tick target; wall TPS, paused fraction, steps, reads/step, hold counts by reason, resume latency and effective speed per speed; pawn outcomes equal within a tolerance.",
             headless: !observations);
         var cfg = new Config

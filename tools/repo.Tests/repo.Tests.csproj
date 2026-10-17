@@ -28,7 +28,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="$(PkgMicrosoft_CodeAnalysis_BannedApiAnalyzers)/analyzers/dotnet/cs/*.dll" LinkBase="BannedApi" CopyToOutputDirectory="PreserveNewest" Visible="false" />
-    <None Include="../../brain/src/RimGovernor.Brain.Acceptance.Cases/BannedSymbols.txt" Link="BannedApi/BannedSymbols.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../brain/analyzers/BannedSymbols.Acceptance.txt" Link="BannedApi/BannedSymbols.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\repo\repo.csproj" />

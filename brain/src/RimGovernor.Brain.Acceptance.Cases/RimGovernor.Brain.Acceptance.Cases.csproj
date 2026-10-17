@@ -8,20 +8,6 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
-  </ItemGroup>
-  <!-- Charter rules 4 and 5 (#3397): RS0030 bans the APIs in BannedSymbols.txt and .editorconfig makes it an error in
-       every file. The compiler writes banned-api.sarif; the gate's banned-API job fails a use a suppression kept from
-       failing the build. -->
-  <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
-    <AdditionalFiles Include="BannedSymbols.txt" />
-  </ItemGroup>
-  <Target Name="BannedApiErrorLog" BeforeTargets="CoreCompile">
-    <PropertyGroup>
-      <ErrorLog>$(IntermediateOutputPath)banned-api.sarif,version=2.1</ErrorLog>
-    </PropertyGroup>
-  </Target>
-  <ItemGroup>
     <ProjectReference Include="..\RimGovernor.Brain.Acceptance\RimGovernor.Brain.Acceptance.csproj" />
     <!-- The cases that assert on the controller journal (upkeep, defense) open its service.sqlite, as the Go cases opened the store. -->
     <ProjectReference Include="..\RimGovernor.Brain.Store\RimGovernor.Brain.Store.csproj" />

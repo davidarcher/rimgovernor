@@ -1,208 +1,8 @@
-using System.Globalization;
-using System.Text.Json.Nodes;
 using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
 using RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.Acceptance;
-
-/// <summary>The nearest-rank quantiles of one phase's per-hop samples (Go <c>bridge.Quantiles</c>); Samples 0 means unknown, not zero.</summary>
-public static class PhaseQuantiles
-{
-    /// <summary>The report row of a quantile set (json tags samples, p50_ms, p95_ms, p99_ms, max_ms, sum_ms).</summary>
-    public static JsonObject ToJson(this DispatchQuantiles q)
-    {
-        ArgumentNullException.ThrowIfNull(q);
-        return new JsonObject { { "samples", q.Samples }, { "p50_ms", q.P50 }, { "p95_ms", q.P95 }, { "p99_ms", q.P99 }, { "max_ms", q.Max }, { "sum_ms", q.Sum } };
-    }
-}
-
-/// <summary>One requested bundle section's cost across the hops that read it (Go <c>bridge.SectionPhases</c>).</summary>
-public sealed class SectionPhases
-{
-    public string Section { get; init; } = "";
-
-    public ulong Hops { get; set; }
-
-    public double Ms { get; set; }
-
-    public double MaxMs { get; set; }
-
-    public ulong Rows { get; set; }
-
-    public ulong Candidates { get; set; }
-}
-
-/// <summary>The threat classifier's counters summed over the hops that ran it (Go <c>bridge.ThreatScan</c>).</summary>
-public sealed class ThreatScan
-{
-    public ulong Hops { get; set; }
-
-    public ulong Examined { get; set; }
-
-    public ulong Candidates { get; set; }
-
-    public ulong Projections { get; set; }
-
-    public ulong ProximityChecks { get; set; }
-}
-
-/// <summary>The companion's per-hop observation account over one recording (Go <c>bridge.ObservationSample</c>); Hops 0 means no reply carried it.</summary>
-public sealed class ObservationSample
-{
-    public ulong Hops { get; set; }
-
-    public ulong FormatPasses { get; set; }
-
-    public ulong PayloadBytes { get; set; }
-
-    public double CaptureMs { get; set; }
-
-    public double FormatMs { get; set; }
-
-    public DispatchQuantiles Capture { get; set; } = new();
-
-    public DispatchQuantiles Format { get; set; } = new();
-
-    public DispatchQuantiles Queue { get; set; } = new();
-
-    public DispatchQuantiles Execute { get; set; } = new();
-
-    public List<SectionPhases> Sections { get; } = [];
-
-    public SortedDictionary<string, ulong> Outcomes { get; } = new(StringComparer.Ordinal);
-
-    public ulong EncodeHops { get; set; }
-
-    public ulong EncodeFormatPasses { get; set; }
-
-    public double EncodeFormatMs { get; set; }
-
-    public DispatchQuantiles EncodeQueue { get; set; } = new();
-
-    public DispatchQuantiles Encode { get; set; } = new();
-
-    public ThreatScan? Threats { get; set; }
-
-    /// <summary>The sample as its report row (the Go json tags).</summary>
-    public JsonObject ToJson()
-    {
-        var row = new JsonObject
-        {
-            { "hops", Hops },
-            { "format_passes", FormatPasses },
-            { "payload_bytes", PayloadBytes },
-            { "capture_ms", CaptureMs },
-            { "format_ms", FormatMs },
-            { "capture", Capture.ToJson() },
-            { "format", Format.ToJson() },
-            { "queue", Queue.ToJson() },
-            { "execute", Execute.ToJson() },
-        };
-        if (Sections.Count > 0)
-        {
-            row.Add("sections", OutputJson.Array(Sections, section =>
-                new JsonObject { { "section", section.Section }, { "hops", section.Hops }, { "ms", section.Ms }, { "max_ms", section.MaxMs }, { "rows", section.Rows } }
-                    .AddIfPresent("candidates", section.Candidates > 0 ? section.Candidates : null)));
-        }
-
-        if (Outcomes.Count > 0)
-        {
-            var outcomes = new JsonObject();
-            foreach (var (name, count) in Outcomes)
-            {
-                outcomes.Add(name, count);
-            }
-
-            row.Add("outcomes", outcomes);
-        }
-
-        row.AddIfPresent("encode_hops", EncodeHops > 0 ? EncodeHops : null)
-            .AddIfPresent("encode_format_passes", EncodeFormatPasses > 0 ? EncodeFormatPasses : null)
-            .AddIfPresent("encode_format_ms", EncodeFormatMs != 0 ? EncodeFormatMs : null);
-        row.Add("encode_queue", EncodeQueue.ToJson());
-        row.Add("encode", Encode.ToJson());
-        if (Threats is { } t)
-        {
-            row.Add("threat_scan", new JsonObject
-            {
-                { "hops", t.Hops },
-                { "examined", t.Examined },
-                { "candidates", t.Candidates },
-                { "projections", t.Projections },
-                { "proximity_checks", t.ProximityChecks },
-            });
-        }
-
-        return row;
-    }
-}
-
-/// <summary>The companion's frame recorder as one recording sees it (Go <c>bridge.FrameSample</c>).</summary>
-public sealed class FrameSample
-{
-    public bool Hooked { get; set; }
-
-    public ulong Samples { get; set; }
-
-    public ulong Updates { get; set; }
-
-    public double ElapsedMs { get; set; }
-
-    public double MaxIntervalMs { get; set; }
-
-    public double ObservationMs { get; set; }
-
-    public ulong Observations { get; set; }
-
-    public ulong Cancelled { get; set; }
-
-    public double RecorderMs { get; set; }
-
-    public DispatchQuantiles Intervals { get; set; } = new();
-
-    public DispatchQuantiles Observed { get; set; } = new();
-
-    public List<(double ThresholdMs, ulong Count)> Slow { get; } = [];
-
-    public List<JsonObject> Worst { get; } = [];
-
-    /// <summary>Updates over the measured interval wall, or 0 without one.</summary>
-    public double UpdatesPerSecond() => ElapsedMs <= 0 ? 0 : Updates * 1000 / ElapsedMs;
-
-    /// <summary>The share of the measured update wall that ran observation work on the main thread, or 0 without a measured interval.</summary>
-    public double ObservationShare() => ElapsedMs <= 0 ? 0 : ObservationMs / ElapsedMs;
-
-    /// <summary>The sample as its report row (the Go json tags).</summary>
-    public JsonObject ToJson()
-    {
-        var row = new JsonObject
-        {
-            { "hooked", Hooked },
-            { "samples", Samples },
-            { "updates", Updates },
-            { "elapsed_ms", ElapsedMs },
-            { "max_interval_ms", MaxIntervalMs },
-            { "observation_ms", ObservationMs },
-            { "observations", Observations },
-            { "cancelled_hops", Cancelled },
-            { "recorder_ms", RecorderMs },
-            { "intervals", Intervals.ToJson() },
-            { "observed_intervals", Observed.ToJson() },
-        };
-        if (Slow.Count > 0)
-        {
-            row.Add("slow", OutputJson.Array(Slow, s => new JsonObject { { "threshold_ms", s.ThresholdMs }, { "count", s.Count } }));
-        }
-
-        if (Worst.Count > 0)
-        {
-            row.Add("worst", OutputJson.Array(Worst, frame => frame.DeepClone()));
-        }
-
-        return row;
-    }
-}
 
 /// <summary>The clock_step rows a recording covers (Go <c>bridge.StepSample</c>).</summary>
 public sealed class StepSample
@@ -258,17 +58,7 @@ public sealed class DispatchSample
 /// <summary>Wall TPS and the paused state the clock status samples report (Go <c>bridge.ClockSample</c>).</summary>
 public sealed class ClockSample
 {
-    public ulong TickSamples { get; set; }
-
-    public long TicksAdvanced { get; set; }
-
-    public long LastTick { get; set; }
-
-    public double WallSecs { get; set; }
-
     public double WallTps { get; set; }
-
-    public ulong Resets { get; set; }
 
     public ulong PausedSamples { get; set; }
 
@@ -302,17 +92,6 @@ public sealed class ClockSample
     public ulong NativePacedOverBudget { get; set; }
 
     public double NativeMaxPacedFrameMs { get; set; }
-
-    /// <summary>
-    /// Native's effective ticks per wall second (paused time included, over its last ten seconds of frames) across the
-    /// status samples that reported a positive one: what the player got while the clock was on.
-    /// </summary>
-    public ulong EffectiveTpsSamples { get; set; }
-
-    public double EffectiveTpsSum { get; set; }
-
-    /// <summary>The mean positive effective ticks per second, or 0 without a sample.</summary>
-    public double EffectiveTpsMean() => EffectiveTpsSamples == 0 ? 0 : EffectiveTpsSum / EffectiveTpsSamples;
 
     /// <summary>Sets the native accounting to the difference between two reads; a counter that went backwards (a reload between them) leaves its measure unset.</summary>
     public void Account(ClockAccounting first, ClockAccounting last)
@@ -368,10 +147,8 @@ public sealed class ClockSample
 }
 
 /// <summary>
-/// A read-only aggregation of one log-ring timeline (Go <c>bridge.SummarizePhases</c>): the game-clock progress visible
-/// in observation replies, the clock_step and dispatch rows, and the companion's observation and frame accounts. The
-/// per-tool phase table and the snapshot-frame sample the Go summary also carries are not aggregated: the speed matrix
-/// reads neither.
+/// A read-only aggregation of one log-ring timeline (Go <c>bridge.SummarizePhases</c>): the clock_step, clock_run and
+/// dispatch rows, and native's clock accounting between two reads.
 /// </summary>
 public sealed class PhaseSummary
 {
@@ -380,10 +157,6 @@ public sealed class PhaseSummary
     public StepSample Steps { get; } = new();
 
     public DispatchSample Dispatch { get; } = new();
-
-    public ObservationSample Observation { get; } = new();
-
-    public FrameSample Frames { get; } = new();
 
     /// <summary>
     /// Aggregates the rows of a log ring; the native clock accounting is the difference between the

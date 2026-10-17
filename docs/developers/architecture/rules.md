@@ -134,7 +134,9 @@ every member and count as nothing: a member that only takes part in equality is 
 constructor's field initializers are not a write by whoever constructs the type. Findings
 read `Contracts|Type.Member` or `Policy|Type.Member` with a reason (`not referenced outside its
 declaration`, `written, never read`, `written by the native side, never read by the brain`). The baseline
-`brain/analyzers/baseline/orphans.txt` holds the orphans that predate the check (burndown: [#3351](https://github.com/davidarcher/rimgovernor/issues/3351)), and it only shrinks: a new
+`brain/analyzers/baseline/orphans.txt` holds the orphans that predate the check, and the members the check
+exposed when it stopped counting acceptance string keys as reads (#3410; burndown for both:
+[#3351](https://github.com/davidarcher/rimgovernor/issues/3351)). It only shrinks: a new
 orphan fails (delete it through every layer, never add a line), and so does a line that is no
 longer an orphan (delete the line). The wire and Policy checks are unavailable without the game, because then the
 native mod is not built and the game-reading brain projects are empty.
@@ -145,7 +147,9 @@ never builds, so the acceptance cases and their harness are the readers: a case 
 it as a case reading a reply member does. This check needs no game, and it has no baseline lines.
 
 Acceptance cases and their harness read native replies as typed Contracts records
-(`Harness.CallAsync` with a `NativeOps` op), so every read is a symbol the check sees. PlayerApi
+(`Harness.CallAsync` with a `NativeOps` op), so every read is a symbol the check sees. The check counts no
+string key, JSON name or by-name read as a read: a member the acceptance code mentions only by its JSON name
+is an orphan. PlayerApi
 also serves Presentation records as JSON to HTTP clients ([player API](../contracts/player-api.md));
 a field that contract documents has a reader the check cannot see.
 
@@ -156,10 +160,11 @@ Two gates hold the cases to the [acceptance charter](../testing/acceptance-guide
 - **Catalog test** (`AcceptanceCatalogTests` in `RimGovernor.Brain.Domain.Tests`). It builds the whole registry
   through `CaseCatalog.Register`. Every case must declare a non-blank `Scope`, `Ticks` within its start's
   cap and a defined `Tier`.
-- **Banned APIs (RS0030)** on `RimGovernor.Brain.Acceptance.Cases`: `Microsoft.CodeAnalysis.BannedApiAnalyzers`
-  over the project's `BannedSymbols.txt` (`Task.Delay`, `Thread.Sleep`, the `JsonNode`/`JsonObject` indexers).
-  The project's `.editorconfig` makes it an error in every file. The compiler writes any use a suppression kept
-  from failing the build to `banned-api.sarif`, and the gate's `banned-API uses` job fails it.
+- **Banned APIs (RS0030)** on every `RimGovernor.Brain.Acceptance*` project, harness and cases:
+  `Microsoft.CodeAnalysis.BannedApiAnalyzers` over `brain/analyzers/BannedSymbols.Acceptance.txt` (`Task.Delay`,
+  `Thread.Sleep`, the `JsonNode`/`JsonObject` indexers). `brain/Directory.Build.props` adds the analyzer and makes
+  RS0030 an error in every file of those projects. The compiler writes any use a suppression kept from failing the
+  build to each project's `banned-api.sarif`, and the gate's `banned-API uses` job fails it.
 
 ## Refreshing
 

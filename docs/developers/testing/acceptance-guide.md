@@ -18,7 +18,7 @@ Every case follows these rules. Each one can be checked from the case declaratio
 4. **Wait on the game.** Every wait ends on a tick, a progress signature or an event. No `Task.Delay`,
    `Thread.Sleep` or wall-clock polling.
 5. **Typed reads.** Replies are read as `RimGovernor.Brain.Contracts` or `Fixtures.Contracts` records, never by
-   string key.
+   string key. The compiler enforces it across the whole harness, cases and subcommands alike.
 6. **Telemetry by kind constant.** OTLP rows are selected by a registered kind constant
    ([OTEL signals](../contracts/otel-signals.md#kinds)). No raw kind strings and no matching on log or message
    text.
@@ -94,8 +94,9 @@ identity), `Staged` and `TicksLeft`. Its members:
 
 A new area adds its registration to `CaseCatalog.Register`. The gate checks every case without a game
 ([acceptance-case gates](../architecture/rules.md#acceptance-cases)): the catalog test checks each case's
-cap, claim and tier. RS0030 fails a case file that calls `Task.Delay` or `Thread.Sleep` or reads a `JsonNode` by
-key or index.
+cap, claim and tier. RS0030 fails any file in `RimGovernor.Brain.Acceptance` or `RimGovernor.Brain.Acceptance.Cases`
+that calls `Task.Delay` or `Thread.Sleep` or reads a `JsonNode` by key or index; the banned list is
+`brain/analyzers/BannedSymbols.Acceptance.txt`.
 
 ### Staging
 

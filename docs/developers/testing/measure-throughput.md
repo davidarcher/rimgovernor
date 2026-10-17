@@ -62,8 +62,7 @@ Rotated segments sit beside `logs.jsonl`, oldest first.
 ## Report
 
 The speed-matrix cases summarize a run's log ring with `PhaseSummary.Summarize` and write the result into `result.json`.
-Sections: header, `clock`, `steps`, `holds`, `observation`, `frames`,
-reads/step by tool, per-native-tool table.
+Sections: header, `clock`, `steps`, `holds`, reads/step by tool, per-native-tool table.
 
 Traps in the numbers:
 
@@ -86,14 +85,6 @@ Traps in the numbers:
   ms` are means over calls that carried them, `-` means absent (older
   companion), not zero. Sub-millisecond phases can read 0 on Windows' coarse
   monotonic clock.
-- Observation quantiles are **nearest rank** (`ceil(q*n)`), so a small sample
-  names an observed hop. `candidates` is `-` where a section has no candidate
-  set (only `planningWindow` has one).
-- Frame `updates` are Unity update intervals, not GPU presentation intervals;
-  an unrendered batch-mode launch still updates. Intentional clock pauses are
-  not frame stalls: a paused game keeps updating.
-- A frame-tail quantile is its histogram bucket's upper edge (overstates by at
-  most one bucket).
 
 ### Reading a report
 
@@ -105,17 +96,6 @@ Traps in the numbers:
 - Low wall TPS with a high paused fraction: the game waits on the brain;
   check `resume_latency_ms_mean` and whether `reasons` is `timer`-heavy. With a low
   paused fraction the game itself is slow; the brain is not the bottleneck.
-- Slow bundle: compare `capture` with `format`. High `capture` p95 with a
-  dominant `sections` row is that read; high `format` p95 with `format_passes`
-  above `hops` is encoding paid twice by a size check. A detached bundle
-  formats once on its encoder worker (`encode_*`), so its `format` is near
-  zero; a large `encode_queue` is saturated encoders, which refuse a bundle
-  rather than delay the main thread. `queue` p95 well above `exec` is a busy
-  main thread, not an expensive observation.
-- Hitch: read `frames` `slow` counts and `worst`. An interval whose
-  `observation_ms` is most of its width was blocked by that hop and its `trace`
-  names the request; an interval with little observation work is the game or
-  the renderer.
 
 ## Across clock speeds
 
@@ -158,7 +138,7 @@ brain attached (the simulation ceiling): it reports only `ticks_advanced`,
   `observed_at_unix_ms`, both on native's clock).
 - `effective_speed` is `wall_tps` over the speed's own rate (Normal 60, Fast
   180, Superfast 360, Ultrafast 9000: the boost native serves it with under
-  the one ceiling), holds included: 1 means the clock never lost pace. `native_effective_tps_mean` is native's ten-second account.
+  the one ceiling), holds included: 1 means the clock never lost pace.
 - `hold_latencies` give each hold's legs: `detect_ticks` (hazard to
   detection), `hold_ticks` (detection to the hold taking) and `resume_ms`.
 - `run_verdicts` counts the brain's Run, Hold and refusal rows;
@@ -194,25 +174,18 @@ polling `/api/state` every 250 ms; it adds `readers`, and a load row with no
 successful read fails) and `player`. Every row asks for the same speed and
 staged work, so differences are observation cost.
 
-Each row's `speed_metrics` carries the full `observation` and `frames` blocks
-plus flat headlines (`observation_hops`, `capture_p95_ms`, `format_p95_ms`,
-`queue_p95_ms`, `execute_p95_ms`, `frame_*`, `observed_frame_*`,
-`encode_*_p95_ms`); `provenance` records the revision, host, mod set, launch
-arguments, rows, tick target, stage and camera, and the report's `world` block
-the seed, save and fixture hashes. `observed_frame_*` histograms count only
-updates that ran main-thread observation work: a tail living there is
-observation-caused, one that does not is not.
+Each row's `speed_metrics` carries the speed matrix's clock, step and hold
+columns; the companion's per-hop observation and frame accounts are no longer
+recorded (their source, `native_call`, is gone). `provenance` records the
+revision, host, mod set, launch arguments, rows, tick target, stage and camera,
+and the report's `world` block the seed, save and fixture hashes.
 
 Rules:
 
-- The run refuses an incomplete report: a row without interval samples (no
-  frame hook or older companion) or a governed row without observation hops
-  fails as `observation report incomplete`, never reads as zero cost.
 - Thresholds come from a baseline run of this profile on a declared runner, never
   from the candidate being judged; a unit test does not fail on a busy CI.
 - To isolate emergency-only work from a full bundle, narrow the rows with
-  `-speeds` and read the `sections` split; there is no
-  diagnostic bypass.
+  `-speeds`; there is no diagnostic bypass.
 
 Isolate the accounting itself, with no game, through the contract probe (all
 clocks supplied; it also pins the 48-section per-hop cap, the 8-entry

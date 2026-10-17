@@ -1,3 +1,0 @@
-# Charter rules 4 and 5 (#3397): RS0030 (BannedSymbols.txt) is an error in every case file.
-[*.cs]
-dotnet_diagnostic.RS0030.severity = error

@@ -112,13 +112,8 @@ internal sealed partial class SpeedmatrixRun
             ("holds", 0),
             ("resume_latency_ms_mean", 0.0),
             ("tick_reads", reads));
-
-        // Nothing records an OTLP timeline here, so the row's observation and frame accounts are empty (unknown, not zero).
-        var observations = new ObservationSample();
-        var frames = new FrameSample();
-        AddAll(metrics, ObservationRow(observations, frames));
         report["metrics"] = metrics.DeepClone();
-        AppendMetrics(metrics, new SpeedRowFacts(c.Name, GovernorOff: true, frames.Intervals.Samples, observations.Hops));
+        AppendMetrics(metrics);
     }
 
     // Reads the loaded identity the stage reload produced.

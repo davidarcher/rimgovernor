@@ -195,16 +195,11 @@ internal static class Gate
             var native = Directory.EnumerateFiles(Path.Combine(p.Mod, "RimGovernor"), "RimGovernor.*.dll", SearchOption.AllDirectories)
                 .Where(f => !Path.GetFileName(f).StartsWith("RimGovernor.Brain.", StringComparison.Ordinal))
                 .ToList();
-            // The harness subcommands still read some native replies by JSON key; any wire member whose JSON name the
-            // acceptance assemblies mention is read.
-            var keys = ContractOrphans.LiteralKeys(brain.Where(f => Path.GetFileName(f).StartsWith("RimGovernor.Brain.Acceptance", StringComparison.Ordinal)));
-            var contracts = Path.Combine(p.Bin("RimGovernor.Brain.Contracts"), "RimGovernor.Brain.Contracts.dll");
-            var byName = ContractOrphans.WireNames(contracts).Where(n => keys.Contains(n.Value)).Select(n => n.Key).ToHashSet(StringComparer.Ordinal);
             foreach (var (target, project) in new[] { (ContractOrphans.Wire, "RimGovernor.Brain.Contracts"), (ContractOrphans.PolicyRecords, "RimGovernor.Brain.Policy") })
             {
                 var declaring = Path.Combine(p.Bin(project), project + ".dll");
                 found.AddRange(ContractOrphans.Find(
-                    target, declaring, brain.Where(f => f != declaring), native, out var checkedCount, target == ContractOrphans.Wire ? byName : null));
+                    target, declaring, brain.Where(f => f != declaring), native, out var checkedCount));
                 counts.Add($"{target.Name} {checkedCount}");
                 targets.Add(target.Name);
             }
@@ -236,19 +231,21 @@ internal static class Gate
     }
 
     /// <summary>
-    /// The acceptance cases' suppressed banned-API uses (<see cref="BannedApiUses"/>) in the compiler log the solution
-    /// build wrote for <c>RimGovernor.Brain.Acceptance.Cases</c>.
+    /// The acceptance projects' suppressed banned-API uses (<see cref="BannedApiUses"/>) in the compiler logs the
+    /// solution build wrote for the harness and the cases.
     /// </summary>
     private static string BannedApi(Paths p)
     {
-        const string project = "RimGovernor.Brain.Acceptance.Cases";
-        var cases = Path.Combine(p.Repo, "brain", "src", project);
-        var sarif = Path.Combine(p.Artifacts, "obj", project, "release", "banned-api.sarif");
-        if (!File.Exists(sarif))
+        var problems = new List<string>();
+        foreach (var project in (string[])["RimGovernor.Brain.Acceptance", "RimGovernor.Brain.Acceptance.Cases"])
         {
-            throw new ToolException($"missing {sarif}: the solution build writes it when it compiles the cases");
+            var sarif = Path.Combine(p.Artifacts, "obj", project, "release", "banned-api.sarif");
+            if (!File.Exists(sarif))
+            {
+                throw new ToolException($"missing {sarif}: the solution build writes it when it compiles {project}");
+            }
+            problems.AddRange(BannedApiUses.Check(Path.Combine(p.Repo, "brain", "src", project), sarif).Select(problem => $"{project}: {problem}"));
         }
-        var problems = BannedApiUses.Check(cases, sarif);
         if (problems.Count > 0)
         {
             throw new ToolException(string.Join("\n", problems));
