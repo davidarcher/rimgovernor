@@ -217,7 +217,17 @@ internal sealed class PlannerQueue
             _waits = new Dictionary<string, PlannerWait>(StringComparer.Ordinal);
         }
         var entries = Entries().ToDictionary(entry => entry.Name, StringComparer.Ordinal);
-        foreach (var name in names)
+        var returned = names.ToList();
+        if (sel.Pick is null)
+        {
+            // A full wave selected every planner: one that missed the cutoff has no cadence yet and no mark, so it
+            // is due at once rather than waiting for the next full step (#2827).
+            foreach (var name in entries.Keys.Except(returned, StringComparer.Ordinal))
+            {
+                _due.TryAdd(name, tick);
+            }
+        }
+        foreach (var name in returned)
         {
             var entry = entries[name];
             _due[name] = tick + entry.ReviewEvery().Value;
