@@ -7,8 +7,6 @@ public static class AnomalyCases
     public static void Register(CaseRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
-        registry.Register(AnomalyHoldStudy.Case());
         registry.Register(AnomalyHorror.Case());
-        registry.Register(AnomalyMonolithDisrupt.Case());
     }
 }

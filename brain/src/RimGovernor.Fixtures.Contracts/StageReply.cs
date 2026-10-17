@@ -37,8 +37,6 @@ public sealed record StageReply
 
     public IReadOnlyDictionary<string, StagedIncident> Incidents { get; init; } = new Dictionary<string, StagedIncident>();
 
-    public IReadOnlyDictionary<string, StagedQuest> Quests { get; init; } = new Dictionary<string, StagedQuest>();
-
     /// <summary>The outdoor temperature in °C and the map's local hour (0..23) once staging ends.</summary>
     public float OutdoorTemperature { get; init; }
 
@@ -89,8 +87,5 @@ public sealed record StagedPawn
 
 public sealed record StagedApparel(string Id, string Def);
 
-/// <summary>A fired incident: its faction def (null without one), points and the pawns it brought that trade.</summary>
-public sealed record StagedIncident(string? Faction, float Points, IReadOnlyList<string> Traders);
-
-/// <summary>A generated quest's load id, root script and state.</summary>
-public sealed record StagedQuest(string Id, string Script, string State);
+/// <summary>A fired incident: the pawns it brought that trade.</summary>
+public sealed record StagedIncident(IReadOnlyList<string> Traders);

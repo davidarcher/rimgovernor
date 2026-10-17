@@ -256,19 +256,12 @@ namespace HomeBridge.BridgeTools
             var incidents = new Dictionary<string, StagedIncident>();
             foreach (var i in spec.Incidents)
             {
-                var (parms, arrived) = FixtureKit.FireIncident(map, FixtureKit.Def<IncidentDef>(i.Def), i.TraderKind == null ? null : FixtureKit.Def<TraderKindDef>(i.TraderKind));
-                Add(incidents, i.Name, new StagedIncident(parms.faction?.def.defName, parms.points,
-                    Ids(arrived.Where(x => x.trader?.traderKind != null))));
-            }
-            var quests = new Dictionary<string, StagedQuest>();
-            foreach (var q in spec.Quests)
-            {
-                var quest = FixtureKit.GenerateQuest(map, FixtureKit.Def<QuestScriptDef>(q.Script), q.MinPoints, q.AllowViolent, q.ExpireDays);
-                Add(quests, q.Name, new StagedQuest(quest.GetUniqueLoadID(), quest.root.defName, quest.State.ToString()));
+                var arrived = FixtureKit.FireIncident(map, FixtureKit.Def<IncidentDef>(i.Def), i.TraderKind == null ? null : FixtureKit.Def<TraderKindDef>(i.TraderKind));
+                Add(incidents, i.Name, new StagedIncident(Ids(arrived.Where(x => x.trader?.traderKind != null))));
             }
             var rows = FixtureKit.DigestRows(map);
             return new StageReply { Success = true, Seed = spec.Seed, Research = research, Site = site, Rooms = rooms, Buildings = buildings, Bills = bills, Things = things, Plants = plants, Pawns = pawns, Zones = zones,
-                Incidents = incidents, Quests = quests, OutdoorTemperature = map.mapTemperature.OutdoorTemp, Hour = GenLocalDate.HourOfDay(map),
+                Incidents = incidents,OutdoorTemperature = map.mapTemperature.OutdoorTemp, Hour = GenLocalDate.HourOfDay(map),
                 Digest = FixtureKit.Digest(rows), DigestRows = rows };
         }
 
@@ -447,7 +440,7 @@ namespace HomeBridge.BridgeTools
 
     public sealed class StageFixture
     {
-        [Tool("test/stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#3393, #3395): stage a StageSpec (RimGovernor.Fixtures.Contracts) on the current game in one call: finish or set research, pin the outdoor temperature and move the clock, find a site, clear areas, set cells, build rooms, place buildings, add production bills to them, spawn items, spawn plants at a growth, spawn or set pawns (generated or existing colonists, gear, wounds, work, timetable, needs, mental state, inspiration) with a raid's arrival and lords, lay zones, fire incidents and generate quest offers. Resets the lab damage and shot ledgers. Replies a StageReply: the ids and cells of everything made, keyed by the spec's names, and a name-free digest.")]
+        [Tool("test/stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#3393, #3395): stage a StageSpec (RimGovernor.Fixtures.Contracts) on the current game in one call: finish or set research, pin the outdoor temperature and move the clock, find a site, clear areas, set cells, build rooms, place buildings, add production bills to them, spawn items, spawn plants at a growth, spawn or set pawns (generated or existing colonists, gear, wounds, work, timetable, needs, mental state, inspiration) with a raid's arrival and lords, lay zones and fire incidents. Resets the lab damage and shot ledgers. Replies a StageReply: the ids and cells of everything made, keyed by the spec's names, and a name-free digest.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "The StageSpec as JSON (FixtureJson).")] string spec)
         {

@@ -1,232 +1,159 @@
-using System.Text.Json.Nodes;
-using static RimGovernor.Brain.Acceptance.Cases.CaseJson;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>trade/request-caravan</c> and <c>trade/request-orbital</c> (Go <c>request.go</c>): a pinned real UseCommsConsole
-/// request. An interruption has no charge; an unavailable console, the alliance cost and the cooldown refuse. The native
-/// goodwill debit, cooldown tick and incident queue precede actual trader arrival.
+/// <c>trade/request-caravan</c> and <c>trade/request-orbital</c>: a real UseCommsConsole trader request, one row per
+/// channel. An interrupted contact charges nothing; an unpowered console, the alliance cost and the cooldown refuse; a
+/// paid contact debits goodwill, starts the cooldown and queues the vanilla arrival within the channel's delay. The
+/// orbital row then sees the passing ship arrive; a requested caravan's arrival is 120,000 ticks out, past the cap, so
+/// the caravan row claims the queued arrival tick instead.
 /// </summary>
 internal static class TradeRequest
 {
-    internal static IEnumerable<AcceptanceCase> Cases()
+    private sealed record Row(string Channel, Common.TradeRequestKind Kind, int MinDelay, int MaxDelay, bool Arrives, int Ticks);
+
+    private static readonly Row[] Rows =
+    [
+        new("caravan", Common.TradeRequestKind.Caravan, 120_000, 120_000, Arrives: false, Ticks: 3_000),
+        new("orbital", Common.TradeRequestKind.Orbital, 2_500, 5_000, Arrives: true, Ticks: 11_000),
+    ];
+
+    internal static IEnumerable<TypedCase> Cases() => Rows.Select(row => new TypedCase
     {
-        foreach (var channel in new[] { "caravan", "orbital" })
-        {
-            var orbital = channel == "orbital";
-            yield return new AcceptanceCase
-            {
-                Name = "trade/request-" + channel,
-                Scope = "Pinned real UseCommsConsole request: interruption has no charge; unavailable console, alliance cost and cooldown refuse. Native goodwill debit, cooldown tick and incident queue precede actual trader arrival. Go snapshots cannot prove the comms contact toil, goodwill mutation, vanilla queue or arrival physics. Setup provides only eligible participants and power.",
-                Start = new FixtureStart { On = new LabStart(), Op = "test/trade_fixture", Args = new JsonObject { ["action"] = "request_setup", ["channel"] = channel } },
-                RequiredOps = ["test/trade_fixture"],
-                Quiet = QuietMode.Required,
-                Budget = TimeSpan.FromMinutes(4),
-                Crew = new Crew { Size = 3 },
-                NoCheckpoint = true,
-                Expansions = orbital ? ["ludeon.rimworld.odyssey"] : [],
-                NoKeep = orbital,
-                Run = (s, cancellationToken) => RunAsync(s, channel, cancellationToken),
-            };
-        }
-    }
+        Name = "trade/request-" + row.Channel,
+        Scope = "Real UseCommsConsole " + row.Channel + " trader request: an interruption has no charge; an unpowered console, the "
+            + "alliance cost and the cooldown refuse; a paid contact debits goodwill, starts the cooldown and queues the native arrival"
+            + (row.Arrives ? ", and the passing ship arrives." : " at the vanilla delay."),
+        Ticks = row.Ticks,
+        Tier = CaseTier.OnDemand,
+        Ops = [TradeKit.Tool],
+        Expansions = row.Kind == Common.TradeRequestKind.Orbital ? ["ludeon.rimworld.odyssey"] : [],
+        Run = (s, ct) => RunAsync(s, row, ct),
+    });
 
-    private static async Task RunAsync(ISession s, string channel, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, Row row, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var identity = s.Identity;
-        var p = s.Prepared ?? [];
-        var isOrbital = channel == "orbital";
-        if (!Flag(p["success"]))
+        Task<Fx.TradeRequestPrepared> Control(string action, Fx.TradeRequestPrepared? setup) =>
+            s.FixtureAsync(action, TradeKit.Request, (action, row.Channel, setup), cancellationToken);
+
+        var p = await Control("request_setup", null).ConfigureAwait(false);
+        s.Record("prepared", ServedOps.Json(p));
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+
+        Task<Operations.ActionResult> Apply(string key, long? tick) => TradeKit.ApplyAsync(s, key, new Operations.CommsTradeRequestIntent
         {
-            throw new AcceptanceException($"request setup: {p.ToJson()}");
+            Kind = row.Kind,
+            FactionId = p.Faction,
+            TraderKind = p.TraderKind,
+            ConsoleId = p.Console,
+            NegotiatorId = p.Negotiator,
+            ExpectedLastRequestTick = tick,
+        }, cancellationToken);
+
+        async Task<(Observations.TradeAcquisition Facts, Observations.TradeRequestOption? Request, Observations.TradeRequestArrival? Arrival)> Read(string label, CancellationToken ct)
+        {
+            var facts = await TradeKit.AcquisitionAsync(s, label, null, ct).ConfigureAwait(false);
+            return (
+                facts,
+                facts.Requests.LastOrDefault(r => r.FactionId == p.Faction && r.TraderKind == p.TraderKind),
+                facts.Arrivals.LastOrDefault(a => a.FactionId == p.Faction && a.TraderKind == p.TraderKind));
         }
 
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "request-authority", identity, cancellationToken).ConfigureAwait(false);
-
-        Task<JsonObject> State(string action) => h.CallAsync(
-            action,
-            "test/trade_fixture",
-            new JsonObject { ["action"] = action, ["channel"] = channel, ["pawnId"] = Copy(p["pawnId"]), ["traderId"] = Copy(p["factionId"]) },
-            cancellationToken);
-
-        Task<JsonObject> Read() => TradeKit.ObserveAsync(h, "request-facts", "observations_read_trade_acquisition", identity, null, cancellationToken);
-
-        var kind = isOrbital ? "TRADE_REQUEST_KIND_ORBITAL" : "TRADE_REQUEST_KIND_CARAVAN";
-
-        async Task<JsonObject> Apply(string label, JsonNode? tick)
+        async Task Unchanged(string label, Fx.TradeRequestPrepared before)
         {
-            var reply = await h.WireAsync(
-                label,
-                "operations_apply",
-                new JsonObject
-                {
-                    ["identity"] = identity.DeepClone(),
-                    ["actions"] = new JsonArray(new JsonObject
-                    {
-                        ["key"] = label,
-                        ["commsTradeRequest"] = new JsonObject
-                        {
-                            ["kind"] = kind,
-                            ["factionId"] = Copy(p["factionId"]),
-                            ["traderKind"] = Copy(p["traderKind"]),
-                            ["consoleId"] = Copy(p["consoleId"]),
-                            ["negotiatorId"] = Copy(p["pawnId"]),
-                            ["expectedLastRequestTick"] = Copy(tick),
-                        },
-                    }),
-                },
-                cancellationToken).ConfigureAwait(false);
-            var rows = reply["results"].AsSlice();
-            if (rows.Count != 1)
+            var (_, request, _) = await Read(label + "-facts", cancellationToken).ConfigureAwait(false);
+            if (request?.Goodwill != before.Goodwill || request.LastRequestTick != before.LastRequestTick)
             {
-                throw new AcceptanceException($"{label}: {reply.ToJson()}");
-            }
-
-            return rows[0].AsMap() ?? [];
-        }
-
-        async Task Unchanged(string label, JsonObject before)
-        {
-            var after = await State("request_state").ConfigureAwait(false);
-            if (Num(after["goodwill"]) != Num(before["goodwill"]) || Num(after["lastRequestTick"]) != Num(before["lastRequestTick"]))
-            {
-                throw new AcceptanceException($"{label} changed payment: {before.ToJson()} -> {after.ToJson()}");
+                throw new AcceptanceException($"{label} changed payment: goodwill {before.Goodwill} tick {before.LastRequestTick} -> {request}");
             }
         }
 
-        async Task Refusal(string label, JsonNode? tick)
+        async Task Refusal(string label, long? tick)
         {
-            var r = await Apply(label, tick).ConfigureAwait(false);
-            var f = r["refused"].AsMap();
-            if (f?["code"].AsString() != "FAILURE_CODE_INVALID_REQUEST")
+            var result = await Apply(label, tick).ConfigureAwait(false);
+            if (TradeKit.RefusedCode(result) != Common.FailureCode.InvalidRequest)
             {
-                throw new AcceptanceException($"{label} expected refusal: {r.ToJson()}");
+                throw new AcceptanceException($"{label}: expected an INVALID_REQUEST refusal, got {result}");
             }
 
-            s.Report[label] = f;
+            s.RecordWire(label, result.Outcome?.Refused);
         }
 
         async Task Queued(string label)
         {
-            var r = await Apply(label, p["lastRequestTick"]).ConfigureAwait(false);
-            var effect = r["applied"].AsMap()?["applied"].AsMap()?["observed"].AsMap()?["commsTradeRequest"].AsMap();
-            if (!CaseJson.Flag(effect?["workQueued"]))
+            var result = await Apply(label, p.LastRequestTick).ConfigureAwait(false);
+            var effect = TradeKit.Applied(label, result).CommsTradeRequest;
+            if (effect?.WorkQueued != true || effect.TraderKind != p.TraderKind || effect.FactionId != p.Faction)
             {
-                throw new AcceptanceException($"not queued: {r.ToJson()}");
+                throw new AcceptanceException($"{label}: expected queued work for trader kind {p.TraderKind} of {p.Faction}, got {result}");
             }
 
             await Unchanged(label, p).ConfigureAwait(false);
-            var facts = await Read().ConfigureAwait(false);
-            if (facts["commsWork"].AsSlice().Count == 0 || facts["arrivals"].AsSlice().Count != 0)
+            var (facts, _, _) = await Read(label + "-work", cancellationToken).ConfigureAwait(false);
+            if (facts.CommsWork.Count == 0 || facts.Arrivals.Count != 0)
             {
-                throw new AcceptanceException($"queued work misclassified: {facts.ToJson()}");
+                throw new AcceptanceException($"{label}: queued work misclassified: work {facts.CommsWork.Count}, arrivals {facts.Arrivals.Count}");
             }
         }
 
         await Queued("interrupted-request").ConfigureAwait(false);
-        _ = await State("request_interrupt").ConfigureAwait(false);
+        _ = await Control("request_interrupt", p).ConfigureAwait(false);
         await Unchanged("interrupted", p).ConfigureAwait(false);
-        _ = await State("request_console_off").ConfigureAwait(false);
-        await Refusal("console-unavailable", p["lastRequestTick"]).ConfigureAwait(false);
-        _ = await State("request_console_on").ConfigureAwait(false);
-        var low = await State("request_low_goodwill").ConfigureAwait(false);
-        if (!CaseJson.Flag(low["ally"]))
+        _ = await Control("request_console_off", p).ConfigureAwait(false);
+        await Refusal("console-unavailable", p.LastRequestTick).ConfigureAwait(false);
+        _ = await Control("request_console_on", p).ConfigureAwait(false);
+        var low = await Control("request_low_goodwill", p).ConfigureAwait(false);
+        if (!low.Ally)
         {
-            throw new AcceptanceException($"low goodwill control must retain Ally: {low.ToJson()}");
+            throw new AcceptanceException($"low goodwill control must retain Ally: {low}");
         }
 
-        await Refusal("alliance-cost", p["lastRequestTick"]).ConfigureAwait(false);
+        await Refusal("alliance-cost", p.LastRequestTick).ConfigureAwait(false);
         await Unchanged("alliance-cost", low).ConfigureAwait(false);
-        _ = await State("request_restore_goodwill").ConfigureAwait(false);
+        _ = await Control("request_restore_goodwill", p).ConfigureAwait(false);
         await Queued("paid-request").ConfigureAwait(false);
 
-        JsonObject? applied = null;
-        JsonObject? arrival = null;
-        _ = await RunAt.RunUntilAsync(
-            h,
-            "request-contact",
-            2500,
-            new Wait { Stall = Wait.StallBudget() },
-            async ct =>
-            {
-                var facts = await Read().ConfigureAwait(false);
-                foreach (var a in Rows(facts["arrivals"]))
-                {
-                    if (a["factionId"].AsString() == p["factionId"].AsString() && a["traderKind"].AsString() == p["traderKind"].AsString())
-                    {
-                        arrival = a;
-                    }
-                }
-
-                // Fixture state reads need a paused game; authoritative request rows supply the application facts during a wait.
-                foreach (var r in Rows(facts["requests"]))
-                {
-                    if (r["factionId"].AsString() == p["factionId"].AsString() && r["traderKind"].AsString() == p["traderKind"].AsString())
-                    {
-                        applied = r;
-                    }
-                }
-
-                ct.ThrowIfCancellationRequested();
-                return (applied.ToJson(), arrival is not null && Num(applied?["lastRequestTick"]) > Num(p["lastRequestTick"]));
-            },
-            quiet: true,
-            s.Report,
-            cancellationToken).ConfigureAwait(false);
-        if (Num(applied?["goodwill"]) != Num(p["goodwill"]) - Num(p["cost"]) || Num(applied?["cooldownRemainingTicks"]) <= 0)
+        Observations.TradeRequestOption? applied = null;
+        Observations.TradeRequestArrival? arrival = null;
+        _ = await s.RunUntilAsync("request-contact", 2_500, async ct =>
         {
-            throw new AcceptanceException($"native payment/cooldown mismatch: {applied.ToJson()} before {p.ToJson()}");
+            (_, applied, arrival) = await Read("request-contact-facts", ct).ConfigureAwait(false);
+            return ($"{applied} {arrival}", arrival is not null && applied?.LastRequestTick > p.LastRequestTick);
+        }, cancellationToken).ConfigureAwait(false);
+        s.RecordWire("applied", applied);
+        s.RecordWire("queuedArrival", arrival);
+        if (applied?.Goodwill != p.Goodwill - p.Cost || !(applied.CooldownRemainingTicks > 0))
+        {
+            throw new AcceptanceException($"native payment/cooldown mismatch: {applied}, before goodwill {p.Goodwill} cost {p.Cost}");
         }
 
-        var delay = Num(arrival?["arrivalTick"]) - Num(applied?["lastRequestTick"]);
-        var (min, max) = isOrbital ? (2500, 5000) : (120000, 120000);
-        if (delay < min || delay > max)
+        var delay = arrival?.ArrivalTick - applied.LastRequestTick;
+        if (!(delay >= row.MinDelay && delay <= row.MaxDelay))
         {
-            throw new AcceptanceException($"native arrival outside bounds: {arrival.ToJson()}");
+            throw new AcceptanceException($"native arrival {delay} ticks out, want {row.MinDelay}..{row.MaxDelay}: {arrival}");
         }
 
-        await Refusal("cooldown", applied?["lastRequestTick"]).ConfigureAwait(false);
-        s.Report["applied"] = applied;
-        s.Report["queuedArrival"] = arrival;
-
-        // RunUntil pauses at the observed boundary. Tick budget follows the native queue; no incident is injected.
-        _ = await RunAt.RunUntilAsync(
-            h,
-            "native-arrival",
-            (ulong)(max + 3000),
-            new Wait { Stall = Wait.StallBudget() },
-            async ct =>
-            {
-                var facts = await Read().ConfigureAwait(false);
-                ct.ThrowIfCancellationRequested();
-                if (isOrbital)
-                {
-                    foreach (var ship in Rows(facts["passingShips"]))
-                    {
-                        if (ship["traderKind"].AsString() == p["traderKind"].AsString())
-                        {
-                            s.Report["arrived"] = ship;
-                            return (ship.ToJson(), true);
-                        }
-                    }
-                }
-
-                return (facts["arrivals"].ToJson(), channel == "caravan" && facts["arrivals"].AsSlice().Count == 0);
-            },
-            quiet: true,
-            s.Report,
-            cancellationToken).ConfigureAwait(false);
-        if (channel == "caravan")
+        await Refusal("cooldown", applied.LastRequestTick).ConfigureAwait(false);
+        if (!row.Arrives)
         {
-            var final = await State("request_state").ConfigureAwait(false);
-            if (Num(final["traders"]) < 1)
+            return;
+        }
+
+        // The tick budget follows the native queue; no incident is injected.
+        _ = await s.RunUntilAsync("native-arrival", row.MaxDelay + 3_000, async ct =>
+        {
+            var (facts, _, _) = await Read("native-arrival-facts", ct).ConfigureAwait(false);
+            var ship = facts.PassingShips.FirstOrDefault(sh => sh.TraderKind == p.TraderKind);
+            if (ship is not null)
             {
-                throw new AcceptanceException($"queue removal without native caravan: {final.ToJson()}");
+                s.RecordWire("arrived", ship);
             }
 
-            s.Report["arrived"] = final;
-        }
+            return ($"{facts.PassingShips.Count} ships", ship is not null);
+        }, cancellationToken).ConfigureAwait(false);
     }
 }

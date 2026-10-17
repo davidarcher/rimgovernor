@@ -3448,8 +3448,6 @@ public sealed record ResourceSource
 
     public double? Distance { get; init; }
 
-    public long? Remaining { get; init; }
-
     public bool? Taken { get; init; }
 
     /// <summary>
@@ -4507,8 +4505,6 @@ public sealed record QuestSiteHomeRoute
 
 public sealed record QuestPeaceTalks
 {
-    public string? FactionId { get; init; }
-
     public int? WorstGoodwillLoss { get; init; }
 
     public int? BestGoodwillGain { get; init; }
@@ -4547,8 +4543,6 @@ public sealed record QuestMonument
     public bool? Installed { get; init; }
 
     public Common.Cell? Cell { get; init; }
-
-    public bool? Complete { get; init; }
 
     public bool? AllDone { get; init; }
 
@@ -5479,8 +5473,6 @@ public abstract record TradersReplyOutcome
 
 public sealed record TradeLine
 {
-    public uint? Index { get; init; }
-
     public DefinitionRef? Definition { get; init; }
 
     public string? Stuff { get; init; }
@@ -5716,8 +5708,6 @@ public sealed record PassingTradeShip
     public bool? Trader { get; init; }
 
     public string? TraderKind { get; init; }
-
-    public string? FactionId { get; init; }
 }
 
 public sealed record TradeRequestOption
@@ -6933,8 +6923,6 @@ public sealed record WallRemovalRecord
     public string? Id { get; init; }
 
     public string? TargetId { get; init; }
-
-    public bool? Complete { get; init; }
 
     public string? Blocker { get; init; }
 
@@ -9654,8 +9642,6 @@ public sealed record HeldState
 public sealed record StudyState
 {
     public bool? Completed { get; init; }
-
-    public int? StudyInteractions { get; init; }
 
     public bool? CurrentlyStudiable { get; init; }
 }

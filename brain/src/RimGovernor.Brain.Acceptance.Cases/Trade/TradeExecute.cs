@@ -1,262 +1,159 @@
-using System.Text.Json.Nodes;
-using static RimGovernor.Brain.Acceptance.Cases.CaseJson;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>trade/execute</c> (Go <c>execute.go</c>): a whole native trade on <c>test/trade_fixture</c>: the negotiator
-/// teleported beside a spawned caravan trader opens a session, stages one buy line and one sell line and accepts the
-/// signed deal. It asserts the accept executed and closed the session with colony silver moved, then reopens the session
-/// to see the trader's stock and the colony's stock moved by the staged counts. The reopened session stages a buy the
-/// colony cannot afford: the accept is refused and the session ends with a cancel.
+/// <c>trade/execute</c>: a whole native trade. The colony holds home-area silver and steel; the negotiator beside a
+/// staged outlander bulk caravan's trader opens a session, stages one buy line and one sell line and accepts the signed
+/// deal. The accept executed and closed the session with colony silver moved, and a reopened session shows the
+/// trader's and the colony's stock moved by the staged counts. A buy the colony cannot afford is refused and a cancel
+/// ends the session.
 /// </summary>
 internal static class TradeExecute
 {
-    internal static AcceptanceCase Case() => new()
+    internal static TypedCase Case() => new()
     {
         Name = "trade/execute",
-        Scope = "Native trade execution: open beside a spawned caravan trader, set one buy and one sell line, accept the signed deal, "
+        Scope = "Native trade execution: open beside a staged caravan trader, set one buy and one sell line, accept the signed deal, "
             + "then stock and silver moved and the session closed; an unaffordable deal's accept is refused.",
-        Start = new LabStart(),
-        Quiet = QuietMode.Required,
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
+        Stage = new Fx.StageSpec
+        {
+            Site = new Fx.StageSite { Width = 7, Height = 7, Near = Fx.StageAnchor.Colonist, OffsetX = 2, Radius = 12, Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Unfogged] },
+
+            // A caravan buys only home-area or stored items.
+            Cells = [new() { Rect = new(0, 0, 7, 7), Home = true }],
+            Things =
+            [
+                new() { Name = "silver", Def = "Silver", Count = 400, Cell = new(1, 1), Near = true },
+                new() { Name = "steel", Def = "Steel", Count = 150, Cell = new(4, 4), Near = true },
+            ],
+
+            // Outlander bulk traders buy steel.
+            Incidents = [new() { Name = "trader", Def = "TraderCaravanArrival", TraderKind = "Caravan_Outlander_BulkGoods" }],
+        },
+        Ops = [TradeKit.Tool],
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var report = s.Report;
-        var h = s.Harness;
-        var identity = s.Identity;
-        foreach (var required in new[] { "rimgovernor/operations_apply", "rimgovernor/observations_read_trade_session", "rimgovernor/observations_read_trade_sheet" })
+        var incident = s.Staged!.Incidents["trader"];
+        var traderId = incident.Traders.Count > 0 ? incident.Traders[0] : throw new AcceptanceException($"stage: no trader pawn was spawned: {incident}");
+        var crew = await s.FixtureAsync("teleport-adjacent", TradeKit.Teleport, traderId, cancellationToken).ConfigureAwait(false);
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+
+        Task<Operations.ActionResult> Apply(string label, Operations.TradeIntentStep step) => TradeKit.ApplyAsync(s, "trade-execute-" + label, new Operations.TradeIntent
         {
-            if (!Dyn.Contains(s.Names, required))
-            {
-                throw new AcceptanceException($"missing {required} in discovery");
-            }
-        }
-
-        // routine_setup gives the colony home-area silver and steel to sell and brings an outlander bulk caravan (which
-        // buys steel) beside the colony.
-        var incident = await h.CallAsync(
-            "setup",
-            "test/trade_fixture",
-            new JsonObject { ["action"] = "routine_setup", ["silver"] = 400, ["steel"] = 150, ["medicine"] = 0 },
-            cancellationToken).ConfigureAwait(false);
-        var traderId = Texts(incident["arrival"].AsMap()?["traderIds"]).FirstOrDefault() ?? "";
-        if (traderId.Length == 0)
-        {
-            throw new AcceptanceException($"setup: no trader caravan arrived: {incident.ToJson()}");
-        }
-
-        report["setup"] = incident;
-
-        var snapshot = await h.CallAsync("snapshot-colonists", "test/trade_fixture", new JsonObject { ["action"] = "snapshot" }, cancellationToken).ConfigureAwait(false);
-        var negotiatorId = "";
-        foreach (var row in Rows(snapshot["colonists"]))
-        {
-            if (Num(row["social"]) >= 0)
-            {
-                negotiatorId = row["id"].AsString();
-                break;
-            }
-        }
-
-        if (negotiatorId.Length == 0)
-        {
-            throw new AcceptanceException($"snapshot-colonists: no socially-eligible colonist available: {snapshot.ToJson()}");
-        }
-
-        var teleport = await h.CallAsync(
-            "teleport-adjacent",
-            "test/trade_fixture",
-            new JsonObject { ["action"] = "teleport_adjacent", ["traderId"] = traderId, ["pawnId"] = negotiatorId },
-            cancellationToken).ConfigureAwait(false);
-        if (teleport["success"].AsBool() != true)
-        {
-            throw new AcceptanceException($"teleport-adjacent refused: {teleport.ToJson()}");
-        }
-
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "acquire", identity, cancellationToken).ConfigureAwait(false);
-
-        async Task<JsonObject> Apply(string label, JsonObject step)
-        {
-            var trade = new JsonObject { ["traderId"] = traderId, ["negotiatorId"] = negotiatorId };
-            foreach (var (key, value) in step)
-            {
-                trade[key] = value?.DeepClone();
-            }
-
-            var reply = await h.WireAsync(
-                label,
-                "operations_apply",
-                new JsonObject
-                {
-                    ["identity"] = identity.DeepClone(),
-                    ["actions"] = new JsonArray(new JsonObject { ["key"] = "trade-execute-" + label, ["trade"] = trade }),
-                },
-                cancellationToken).ConfigureAwait(false);
-            return OneResult(label, reply);
-        }
+            Target = new Common.TradeTarget { Kind = new Common.MapTradeTarget { TraderId = traderId } },
+            NegotiatorId = crew.Negotiator,
+            Step = step,
+        }, cancellationToken);
 
         async Task<string> Open(string label)
         {
-            var result = await Apply(label, new JsonObject { ["open"] = new JsonObject { ["giftMode"] = false } }).ConfigureAwait(false);
-            var trade = TradeKit.AppliedTrade(label, result);
-            return trade["sessionId"].AsString().Length == 0
-                ? throw new AcceptanceException($"{label}: expected a session id, got {result.ToJson()}")
-                : trade["sessionId"].AsString();
+            var trade = TradeKit.AppliedTrade(label, await Apply(label, new Operations.OpenTrade { GiftMode = false }).ConfigureAwait(false));
+            return string.IsNullOrEmpty(trade.SessionId) ? throw new AcceptanceException($"{label}: expected a session id, got {trade}") : trade.SessionId;
         }
 
-        Task<JsonObject> Sheet(string label, string sessionId) =>
-            TradeKit.ObserveAsync(h, label, "observations_read_trade_sheet", identity, new JsonObject { ["sessionId"] = sessionId }, cancellationToken);
-
-        static JsonObject? RowById(JsonObject sheet, string id) => Rows(sheet["lines"]).FirstOrDefault(row => row["lineId"].AsString() == id);
-
-        static bool Plain(JsonObject row) =>
-            CaseJson.Flag(row["traderWillTrade"]) && !CaseJson.Flag(row["currency"]) && !CaseJson.Flag(row["pawn"]) && row["lineId"].AsString().Length > 0;
-
-        async Task SetLines(string label, JsonArray lines)
+        async Task SetLines(string label, params Operations.TradeLine[] lines)
         {
-            var result = await Apply(label, new JsonObject { ["setLines"] = new JsonObject { ["lines"] = lines } }).ConfigureAwait(false);
-            _ = TradeKit.AppliedTrade(label, result);
+            var effect = TradeKit.AppliedTrade(label, await Apply(label, new Operations.SetTradeLines { Lines = [.. lines] }).ConfigureAwait(false));
+            if (!effect.Lines.Select(x => x.LineId).Order(StringComparer.Ordinal).SequenceEqual(lines.Select(x => x.LineId).Order(StringComparer.Ordinal)))
+            {
+                throw new AcceptanceException($"{label}: expected the receipt to name the staged lines, got {effect}");
+            }
         }
+
+        static bool Plain(Observations.TradeLine row) => row.TraderWillTrade == true && row.Currency != true && row.Pawn is null && !string.IsNullOrEmpty(row.LineId);
+
+        static double N(double? value) => value ?? 0;
 
         // Step 1: open, stage one buy and one sell, accept.
         var sessionId = await Open("open").ConfigureAwait(false);
-        var before = await Sheet("sheet", sessionId).ConfigureAwait(false);
-        JsonObject? buy = null;
-        JsonObject? sell = null;
-        foreach (var row in Rows(before["lines"]))
+        var before = await TradeKit.SheetAsync(s, "sheet", sessionId, cancellationToken).ConfigureAwait(false);
+        Observations.TradeLine? buy = null;
+        Observations.TradeLine? sell = null;
+        foreach (var row in before.Lines.Where(Plain))
         {
-            if (!Plain(row))
-            {
-                continue;
-            }
-
-            if (Num(row["traderCount"]) > 0 && Num(row["maximumCount"]) >= 1 && Num(row["buyPrice"]) > 0
-                && (buy is null || Num(row["buyPrice"]) < Num(buy["buyPrice"])))
+            if (N(row.TraderCount) > 0 && N(row.MaximumCount) >= 1 && N(row.BuyPrice) > 0 && (buy is null || N(row.BuyPrice) < N(buy.BuyPrice)))
             {
                 buy = row;
             }
 
-            if (Num(row["colonyCount"]) > 0 && Num(row["minimumCount"]) <= -1 && Num(row["sellPrice"]) > 0
-                && (sell is null || -Num(row["minimumCount"]) * Num(row["sellPrice"]) > -Num(sell["minimumCount"]) * Num(sell["sellPrice"])))
+            if (N(row.ColonyCount) > 0 && N(row.MinimumCount) <= -1 && N(row.SellPrice) > 0
+                && (sell is null || -N(row.MinimumCount) * N(row.SellPrice) > -N(sell.MinimumCount) * N(sell.SellPrice)))
             {
                 sell = row;
             }
         }
 
-        if (buy is null || sell is null || buy["lineId"].AsString() == sell["lineId"].AsString())
+        if (buy is null || sell is null || buy.LineId == sell.LineId)
         {
-            throw new AcceptanceException($"sheet: expected a distinct buy row and sell row, got buy={buy.ToJson()} sell={sell.ToJson()}");
+            throw new AcceptanceException($"sheet: expected a distinct buy row and sell row, got buy={buy} sell={sell}");
         }
 
         // Sell enough to cover the one bought unit, within the colony's stock.
-        var sellCount = (int)Math.Min(Math.Ceiling(Num(buy["buyPrice"]) / Num(sell["sellPrice"])) + 1, -Num(sell["minimumCount"]));
-        var buyId = buy["lineId"].AsString();
-        var sellId = sell["lineId"].AsString();
-        report["buy"] = buy;
-        report["sell"] = sell;
-        report["sellCount"] = sellCount;
-        await SetLines(
-            "lines",
-            [
-                new JsonObject { ["lineId"] = buyId, ["absoluteCount"] = 1 },
-                new JsonObject { ["lineId"] = sellId, ["absoluteCount"] = -sellCount },
-            ]).ConfigureAwait(false);
-        var staged = await Sheet("staged", sessionId).ConfigureAwait(false);
-        if (!CaseJson.Flag(staged["colonyCanAfford"]))
+        var sellCount = (int)Math.Min(Math.Ceiling(N(buy.BuyPrice) / N(sell.SellPrice)) + 1, -N(sell.MinimumCount));
+        s.RecordWire("buy", buy);
+        s.RecordWire("sell", sell);
+        await SetLines("lines", new Operations.TradeLine { LineId = buy.LineId, AbsoluteCount = 1 }, new Operations.TradeLine { LineId = sell.LineId, AbsoluteCount = -sellCount }).ConfigureAwait(false);
+        var staged = await TradeKit.SheetAsync(s, "staged", sessionId, cancellationToken).ConfigureAwait(false);
+        if (staged.ColonyCanAfford != true)
         {
-            throw new AcceptanceException($"staged: the colony cannot afford the staged deal: {staged.ToJson()}");
+            throw new AcceptanceException($"staged: the colony cannot afford the staged deal: {staged}");
         }
 
-        var accepted = await Apply("accept", new JsonObject { ["accept"] = new JsonObject { ["expectedDealSignature"] = staged["dealSignature"].AsString() } }).ConfigureAwait(false);
-        var deal = TradeKit.AppliedTrade("accept", accepted);
-        report["accept"] = deal;
-        if (!CaseJson.Flag(deal["executed"]) || !CaseJson.Flag(deal["actuallyTraded"]) || !CaseJson.Flag(deal["closed"]))
+        var deal = TradeKit.AppliedTrade("accept", await Apply("accept", new Operations.AcceptTrade { ExpectedDealSignature = staged.DealSignature }).ConfigureAwait(false));
+        s.RecordWire("accept", deal);
+        if (deal.Executed != true || deal.ActuallyTraded != true || deal.Closed != true || deal.BeforeSilver == deal.AfterSilver || deal.DealSignature != staged.DealSignature)
         {
-            throw new AcceptanceException($"accept: expected an executed, traded, closed deal, got {deal.ToJson()}");
+            throw new AcceptanceException($"accept: expected an executed, traded, closed deal of the staged signature that moved colony silver, got {deal}");
         }
 
-        if (Num(deal["beforeSilver"]) == Num(deal["afterSilver"]))
+        var session = await TradeKit.SessionAsync(s, "session-closed", cancellationToken).ConfigureAwait(false);
+        if (session.Open == true || session.Target?.Kind is not null)
         {
-            throw new AcceptanceException($"accept: colony silver did not move: {deal.ToJson()}");
-        }
-
-        var session = await TradeKit.ObserveAsync(h, "session-closed", "observations_read_trade_session", identity, null, cancellationToken).ConfigureAwait(false);
-        if (CaseJson.Flag(session["open"]) || session["traderId"].AsString().Length > 0)
-        {
-            throw new AcceptanceException($"session-closed: expected no live trade after accept, got {session.ToJson()}");
+            throw new AcceptanceException($"session-closed: expected no live trade after accept, got {session}");
         }
 
         // Stock moved: a fresh session shows the trader's bought row and the colony's sold row down by the staged counts.
         sessionId = await Open("reopen").ConfigureAwait(false);
-        var after = await Sheet("after", sessionId).ConfigureAwait(false);
-
-        JsonObject? ByDef(JsonObject sheet, JsonObject row)
+        var after = await TradeKit.SheetAsync(s, "after", sessionId, cancellationToken).ConfigureAwait(false);
+        Observations.TradeLine? ByDef(Observations.TradeLine row) => after.Lines.FirstOrDefault(o => o.Definition == row.Definition && o.Stuff == row.Stuff);
+        if (ByDef(buy) is not { } bought || N(bought.TraderCount) != N(buy.TraderCount) - 1)
         {
-            var want = row["definition"].AsMap();
-            foreach (var other in Rows(sheet["lines"]))
-            {
-                if (Dyn.DeepEqual(other["definition"].AsMap(), want) && other["stuff"].AsString() == row["stuff"].AsString())
-                {
-                    return other;
-                }
-            }
-
-            return null;
+            throw new AcceptanceException($"after: expected the trader's {buy.LineId} down by one from {buy.TraderCount}, got {ByDef(buy)}");
         }
 
-        var boughtRow = ByDef(after, buy);
-        if (Num(boughtRow?["traderCount"]) != Num(buy["traderCount"]) - 1)
+        if (ByDef(sell) is not { } sold || N(sold.ColonyCount) != N(sell.ColonyCount) - sellCount)
         {
-            throw new AcceptanceException($"after: expected the trader's {buyId} down by one from {buy["traderCount"].ToJson()}, got {boughtRow.ToJson()}");
-        }
-
-        var soldRow = ByDef(after, sell);
-        if (Num(soldRow?["colonyCount"]) != Num(sell["colonyCount"]) - sellCount)
-        {
-            throw new AcceptanceException($"after: expected the colony's {sellId} down by {sellCount} from {sell["colonyCount"].ToJson()}, got {soldRow.ToJson()}");
+            throw new AcceptanceException($"after: expected the colony's {sell.LineId} down by {sellCount} from {sell.ColonyCount}, got {ByDef(sell)}");
         }
 
         // Step 2: a buy the colony cannot afford is refused and the session stays open until a cancel ends it.
-        JsonObject? dear = null;
-        foreach (var row in Rows(after["lines"]))
+        var dear = after.Lines.Where(r => Plain(r) && N(r.MaximumCount) >= 1).MaxBy(r => N(r.MaximumCount) * N(r.BuyPrice))
+            ?? throw new AcceptanceException($"after: no row left to buy: {after}");
+        await SetLines("dear-lines", new Operations.TradeLine { LineId = dear.LineId, AbsoluteCount = (int)N(dear.MaximumCount) }).ConfigureAwait(false);
+        var dearSheet = await TradeKit.SheetAsync(s, "dear", sessionId, cancellationToken).ConfigureAwait(false);
+        if (dearSheet.ColonyCanAfford == true)
         {
-            if (Plain(row) && Num(row["maximumCount"]) >= 1
-                && (dear is null || Num(row["maximumCount"]) * Num(row["buyPrice"]) > Num(dear["maximumCount"]) * Num(dear["buyPrice"])))
-            {
-                dear = row;
-            }
+            throw new AcceptanceException($"dear: the colony can afford the whole of {dear.LineId}; no unaffordable deal to stage");
         }
 
-        if (dear is null)
-        {
-            throw new AcceptanceException($"after: no row left to buy: {after.ToJson()}");
-        }
-
-        var dearId = dear["lineId"].AsString();
-        await SetLines("dear-lines", [new JsonObject { ["lineId"] = dearId, ["absoluteCount"] = (int)Num(dear["maximumCount"]) }]).ConfigureAwait(false);
-        var dearSheet = await Sheet("dear", sessionId).ConfigureAwait(false);
-        if (CaseJson.Flag(dearSheet["colonyCanAfford"]))
-        {
-            throw new AcceptanceException($"dear: the colony can afford the whole of {dearId}; no unaffordable deal to stage: {RowById(dearSheet, dearId).ToJson()}");
-        }
-
-        var refused = await Apply("dear-accept", new JsonObject { ["accept"] = new JsonObject { ["expectedDealSignature"] = dearSheet["dealSignature"].AsString() } }).ConfigureAwait(false);
-        var refusal = refused["refused"].AsMap();
+        var refused = await Apply("dear-accept", new Operations.AcceptTrade { ExpectedDealSignature = dearSheet.DealSignature }).ConfigureAwait(false);
 
         // Validation catches the shortfall first (INVALID_REQUEST); a deal that slips past it and the game declines is NATIVE_FAILURE.
-        var code = refusal?["code"].AsString() ?? "";
-        if (refusal is null || (code != "FAILURE_CODE_INVALID_REQUEST" && code != "FAILURE_CODE_NATIVE_FAILURE"))
+        if (TradeKit.RefusedCode(refused) is not (Common.FailureCode.InvalidRequest or Common.FailureCode.NativeFailure))
         {
-            throw new AcceptanceException($"dear-accept: expected a refusal, got {refused.ToJson()}");
+            throw new AcceptanceException($"dear-accept: expected a refusal, got {refused}");
         }
 
-        report["dearRefusal"] = refusal;
-        var ended = await Apply("cancel", new JsonObject { ["end"] = new JsonObject { ["kind"] = "END_TRADE_KIND_CANCEL" } }).ConfigureAwait(false);
-        _ = TradeKit.AppliedTrade("cancel", ended);
+        s.RecordWire("dearRefusal", refused.Outcome?.Refused);
+        _ = TradeKit.AppliedTrade("cancel", await Apply("cancel", new Operations.EndTrade { Kind = Operations.EndTradeKind.Cancel }).ConfigureAwait(false));
     }
 }

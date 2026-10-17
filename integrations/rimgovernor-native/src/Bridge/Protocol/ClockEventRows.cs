@@ -108,7 +108,6 @@ namespace HomeBridge.BridgeTools
                 case Clock.HoldEvidence.NotificationsCase { Value: var batch }:
                     p["evidence"] = "notifications";
                     p["letters"] = batch.Letters.Select(letter => (object?)LetterMap(letter)).ToList();
-                    p["messages"] = batch.Messages.Select(message => (object?)Message(message)).ToList();
                     break;
                 case Clock.HoldEvidence.PawnCase { Value: var pawn }:
                     p["evidence"] = "pawn";

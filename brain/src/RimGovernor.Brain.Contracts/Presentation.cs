@@ -147,8 +147,6 @@ public sealed record ColonistRoster
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ColonistReference>))]
     public EquatableArray<ColonistReference> Colonists { get; init; }
-
-    public Listing? Listing { get; init; }
 }
 
 public sealed record ColonistRosterReply

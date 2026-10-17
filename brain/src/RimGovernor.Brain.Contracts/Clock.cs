@@ -524,9 +524,6 @@ public sealed record NotificationBatch
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<Letter>))]
     public EquatableArray<Letter> Letters { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<TransientMessage>))]
-    public EquatableArray<TransientMessage> Messages { get; init; }
 }
 
 public sealed record Alert

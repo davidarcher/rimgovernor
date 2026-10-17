@@ -6,15 +6,6 @@ dotnet_diagnostic.RS0030.severity = error
 # records each use in banned-api.sarif. It only shrinks: the gate's banned-API job fails a section whose file no
 # longer uses a banned API (delete the section). Never add one; port the case to TypedCase instead.
 
-[/Anomaly/AnomalyHoldStudy.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Anomaly/AnomalyHorror.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Anomaly/AnomalyMonolithDisrupt.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Apparel/DeadMans.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -22,9 +13,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Authority/AuthorityWarm.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Caravan/CaravanDeparture.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Child/ChildFirstChild.cs]
@@ -135,9 +123,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Custody/CustodyPopulation.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Dialog/DialogPause.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Floor/FloorKitchen.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -145,12 +130,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Hazard/HazardCases.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Ideology/IdeologyReform.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Ideology/IdeologyRitual.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Layout/Fixture.cs]
@@ -174,43 +153,7 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Layout/StorageSuccessor.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Letter/LetterPause.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Movement/MovementArrival.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Odyssey/OdysseyLavaField.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Quest/QuestAccept.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Quest/QuestDecree.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Quest/QuestExpedition.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Quest/QuestGiveItem.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Quest/QuestHack.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Quest/QuestHospitality.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Quest/QuestJoiner.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Quest/QuestLifecycle.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Quest/QuestShuttle.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Quest/QuestTitle.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Rooms/RoomsReads.cs]
@@ -262,27 +205,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/SupportPortfolioCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Trade/TradeExecute.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Trade/TradeKit.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Trade/TradeOpen.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Trade/TradeRequest.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Trade/TradeRounds.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Trade/TradeSettlementRoundtrip.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Trade/TradeWorldSession.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Wall/Adoption.cs]

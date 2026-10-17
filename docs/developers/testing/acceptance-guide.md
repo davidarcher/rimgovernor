@@ -104,11 +104,10 @@ finish a project, or set its progress), world (`StageWorld`: pinned outdoor temp
 (`StageSite`), clear area (`StageClear`), set cells (`StageCells`: terrain, roof, home, fog), build room
 (`StageRoom`), place building (`StageBuilding`: complete, frame or blueprint, a finished one damaged or fuelled), add bill (`StageBill`: a repeat-count production bill on a staged work table), spawn thing (`StageThing`), spawn plant (`StagePlant`: a plant def at a growth), spawn or
 set pawn (`StagePawn`: kind, faction, age, skill level, cleared traits, gear, hediffs, work, timetable, needs, mental
-state, inspiration), zone (`StageZone`), the raid that drives staged hostiles (`StageRaid`), fire incident
-(`StageIncident`: an IncidentDef through its own worker, optionally with a trader kind) and generate quest
-(`StageQuest`: a QuestScriptDef offered as a not-yet-accepted quest). One fixture op, `test/stage`, applies a spec
-and replies a `StageReply` keyed by the names in the spec: each entry's ids and cells, the incidents' traders and the
-quests' ids. A case stages through
+state, inspiration), zone (`StageZone`), the raid that drives staged hostiles (`StageRaid`) and fire incident
+(`StageIncident`: an IncidentDef through its own worker, optionally with a trader kind). One fixture op, `test/stage`,
+applies a spec and replies a `StageReply` keyed by the names in the spec: each entry's ids and cells and the incidents'
+traders. A case stages through
 `FixtureStage`: `FixtureStage.Start(spec)` as its start (the reply is `FixtureStage.Prepared(s)`), or
 `FixtureStage.ApplyAsync` mid-case. The shared primitives on the mod side live in `scripts/fixtures/FixtureKit.cs`.
 The native setup refuses a production Bridge that carries a contracts type or a `test/*` op.

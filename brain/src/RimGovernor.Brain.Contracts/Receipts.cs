@@ -600,8 +600,6 @@ public sealed record DialogEffect
 {
     public int? WindowId { get; init; }
 
-    public bool? Closed { get; init; }
-
     public bool? Advanced { get; init; }
 }
 
@@ -1056,8 +1054,6 @@ public sealed record CommsTradeRequestEffect
     public string? NegotiatorId { get; init; }
 
     public bool? WorkQueued { get; init; }
-
-    public long? ArrivalTick { get; init; }
 }
 
 public sealed record CaravanEffect

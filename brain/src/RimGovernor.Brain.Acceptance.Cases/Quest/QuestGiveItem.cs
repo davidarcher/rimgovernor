@@ -1,116 +1,75 @@
-using System.Text.Json.Nodes;
-using static RimGovernor.Brain.Acceptance.Cases.CaseJson;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>quest/give-item</c> (Go <c>give_item.go</c>): native whole-request count fencing and ordinary GiveToPawn delivery to
-/// an Ideology beggar.
+/// <c>quest/give-item</c>: the GiveItemIntent arm of operations_apply against a vanilla beggar lord asking twenty silver.
+/// A stale expected count is refused without starting delivery; the whole request starts the hauler's vanilla
+/// GiveToPawn job on the exact beggar, and ordinary hauling moves all twenty into the beggar's inventory.
 /// </summary>
 internal static class QuestGiveItem
 {
-    internal static AcceptanceCase Case() => new()
+    private const int DeliveryTicks = 3000;
+
+    internal static TypedCase Case() => new()
     {
         Name = "quest/give-item",
-        Scope = "Native whole-request count fencing and ordinary GiveToPawn delivery to an Ideology beggar. Go snapshots cannot prove vanilla hauling transfers the requested items into the exact visitor's inventory.",
-        Start = new FixtureStart { On = new LabStart(), Op = "test/quest_give_prepare" },
+        Scope = "Native whole-request count fencing and ordinary GiveToPawn delivery of twenty silver into an Ideology beggar's inventory.",
+        Ticks = DeliveryTicks,
+        Tier = CaseTier.OnDemand,
         NoKeep = true,
-        Crew = new Crew { Size = 3 },
         Expansions = ["ludeon.rimworld.ideology"],
-        Quiet = QuietMode.Required,
-        Budget = TimeSpan.FromMinutes(3),
-        RequiredOps = ["test/quest_give_prepare", "test/quest_give_read"],
+        Ops = [QuestKit.GivePrepareTool, QuestKit.GiveReadTool],
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var identity = s.Identity;
-        var prepared = s.Prepared ?? [];
-        var hauler = prepared["haulerId"].AsString();
-        var recipient = prepared["recipientId"].AsString();
-        if (hauler.Length == 0 || recipient.Length == 0 || prepared["remaining"].AsNumber() != 20)
+        var prepared = await s.FixtureAsync("prepare", QuestKit.GivePrepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
+        if (prepared.Remaining != 20)
         {
-            throw new AcceptanceException($"invalid giving fixture: {prepared.ToJson()}");
+            throw new AcceptanceException($"prepare: expected the beggar to ask twenty, got {ServedOps.Json(prepared)}");
         }
 
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "acquire", identity, cancellationToken).ConfigureAwait(false);
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        async Task<JsonObject> Apply(string key, int remaining)
+        Task<Operations.ActionResult> Apply(string key, int remaining) => TradeKit.ApplyAsync(s, key, new Operations.GiveItemIntent
         {
-            var reply = await h.WireAsync(
-                key,
-                "operations_apply",
-                new JsonObject
-                {
-                    ["identity"] = identity.DeepClone(),
-                    ["actions"] = new JsonArray(new JsonObject
-                    {
-                        ["key"] = key,
-                        ["giveItem"] = new JsonObject
-                        {
-                            ["hauler"] = new JsonObject { ["id"] = hauler },
-                            ["recipient"] = new JsonObject { ["id"] = recipient },
-                            ["definition"] = "Silver",
-                            ["expectedRemaining"] = remaining,
-                        },
-                    }),
-                },
-                cancellationToken).ConfigureAwait(false);
-            var results = reply["results"].AsSlice();
-            return results.Count != 1
-                ? throw new AcceptanceException($"missing giving result: {reply.ToJson()}")
-                : results[0].AsMap() ?? [];
+            Hauler = new Common.Ref { Id = prepared.HaulerId },
+            Recipient = new Common.Ref { Id = prepared.RecipientId },
+            Definition = "Silver",
+            ExpectedRemaining = remaining,
+        }, cancellationToken);
+
+        var stale = await Apply("giving-stale-count", 19).ConfigureAwait(false);
+        if (TradeKit.RefusedCode(stale) != Common.FailureCode.InvalidRequest)
+        {
+            throw new AcceptanceException($"giving-stale-count: expected an INVALID_REQUEST refusal, got {stale}");
         }
 
-        Task<JsonObject> Read() => h.CallAsync("giving-read", "test/quest_give_read", new JsonObject { ["recipientId"] = recipient, ["haulerId"] = hauler }, cancellationToken);
-
-        var result = await Apply("giving-stale-count", 19).ConfigureAwait(false);
-        if (result["refused"].AsMap()?["code"].AsString() != "FAILURE_CODE_INVALID_REQUEST")
+        var before = await s.FixtureAsync("giving-before", QuestKit.GiveRead, prepared, cancellationToken).ConfigureAwait(false);
+        if (before.Received != 0 || before.Remaining != 20 || before.Job == "GiveToPawn")
         {
-            throw new AcceptanceException($"changed native request count accepted: {result.ToJson()}");
+            throw new AcceptanceException($"giving-before: the refusal changed native delivery state: {ServedOps.Json(before)}");
         }
 
-        var before = await Read().ConfigureAwait(false);
-        if (before["received"].AsNumber() != 0 || before["remaining"].AsNumber() != 20 || before["job"].AsString() == "GiveToPawn")
+        var given = TradeKit.Applied("giving-whole-request", await Apply("giving-whole-request", 20).ConfigureAwait(false)).GiveItem;
+        if (given is not { ExpectedRemaining: 20 } || given.RecipientId != prepared.RecipientId)
         {
-            throw new AcceptanceException($"refusal changed native delivery state: {before.ToJson()}");
+            throw new AcceptanceException($"giving-whole-request: expected a give-item effect owing twenty to {prepared.RecipientId}, got {given}");
         }
 
-        result = await Apply("giving-whole-request", 20).ConfigureAwait(false);
-        if (result["applied"].AsMap() is null)
+        var started = await s.FixtureAsync("giving-started", QuestKit.GiveRead, prepared, cancellationToken).ConfigureAwait(false);
+        if (started.Job != "GiveToPawn" || started.TargetId != prepared.RecipientId)
         {
-            throw new AcceptanceException($"whole request refused: {result.ToJson()}");
+            throw new AcceptanceException($"giving-started: expected the hauler's GiveToPawn job on the beggar, got {ServedOps.Json(started)}");
         }
 
-        var started = await Read().ConfigureAwait(false);
-        if (started["job"].AsString() != "GiveToPawn" || started["targetId"].AsString() != recipient)
+        _ = await s.RunUntilAsync("giving-delivered", DeliveryTicks, async ct =>
         {
-            throw new AcceptanceException($"exact vanilla delivery job missing: {started.ToJson()}");
-        }
-
-        var tick = (ulong)started["tick"].AsNumber();
-        var wait = new Wait
-        {
-            Ceiling = TimeSpan.FromMinutes(2),
-            Stall = Wait.StallBudget(),
-            Ticks = 3000,
-            Tick = _ => Task.FromResult(tick),
-        };
-        await wait.WaitProgressAsync(
-            async ct =>
-            {
-                var row = await Read().ConfigureAwait(false);
-                tick = (ulong)row["tick"].AsNumber();
-                if (row["remaining"].AsNumber() == 0 && row["received"].AsNumber() == 20)
-                {
-                    return (Wait.Signature(row["received"].ToJson(), row["remaining"].ToJson()), true);
-                }
-
-                _ = await s.AdvanceAsync(60, null, ct).ConfigureAwait(false);
-                return (Wait.Signature(row["received"].ToJson(), row["remaining"].ToJson(), row["job"].ToJson()), false);
-            },
-            cancellationToken).ConfigureAwait(false);
+            var read = await s.FixtureAsync("giving-read", QuestKit.GiveRead, prepared, ct).ConfigureAwait(false);
+            return ($"{read.Received}/{read.Remaining} {read.Job}", read.Remaining == 0 && read.Received == 20);
+        }, cancellationToken).ConfigureAwait(false);
     }
 }

@@ -1,158 +1,102 @@
-using System.Text.Json.Nodes;
-using static RimGovernor.Brain.Acceptance.Cases.CaseJson;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Observations = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>quest/accept</c> (Go <c>accept.go</c>): the AcceptQuestIntent arm of Actions/Apply end to end against a live game:
-/// a real not-yet-accepted quest carrying a two-option native reward-choice part, native acceptance (an actual
-/// Quest.Accept settings write and its QuestPart_Choice.Choose call) through the same <c>operations_apply</c> wire
-/// contract, and its replay semantics. Uses a private disposable fixture (<c>test/quest_accept_prepare</c>) since a
-/// minimal quest with an exact reward-choice shape cannot be produced deterministically through native random quest
-/// generation. The fixture quest carries no native QuestPart_RequirementsToAccept part, so this case exercises the
-/// "this quest does not accept an accepter" refusal branch by supplying one anyway.
+/// <c>quest/accept</c>: the AcceptQuestIntent arm of operations_apply against a real not-yet-accepted quest carrying a
+/// two-option native reward-choice part (<c>test/quest_accept_prepare</c>; native random generation cannot pin that
+/// shape). An out-of-range reward and an accepter the quest does not take are refused without touching it; the accept
+/// writes Quest.Accept and QuestPart_Choice.Choose, its key replays, and a fresh key against the accepted quest applies
+/// again.
 /// </summary>
 internal static class QuestAccept
 {
-    internal static AcceptanceCase Case() => new()
+    internal static TypedCase Case() => new()
     {
         Name = "quest/accept",
         Scope = "Native AcceptQuestIntent: an actual Quest.Accept settings write and "
             + "QuestPart_Choice reward selection, out-of-range reward and accepter-not-required "
             + "refusals, replay idempotency and an already-accepted quest applied again.",
-        Start = new FixtureStart { On = new LabStart(), Op = "test/quest_accept_prepare" },
-        Quiet = QuietMode.Required,
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
+        Ops = [QuestKit.AcceptTool],
         Run = RunAsync,
     };
 
-    private static bool NotYetAccepted(JsonObject row) => row["state"].AsString() is "QUEST_STATUS_NOT_YET_ACCEPTED" or "NotYetAccepted";
-
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var identity = s.Identity;
-        var prepared = s.Prepared ?? [];
-        if (!Dyn.Contains(s.Names, "rimgovernor/observations_read_world_progression"))
+        var prepared = await s.FixtureAsync("prepare", QuestKit.Accept, NoArgs.Value, cancellationToken).ConfigureAwait(false);
+        var questId = prepared.QuestId;
+        if (questId.Length == 0 || prepared.PawnIds.Count < 1)
         {
-            throw new AcceptanceException("missing rimgovernor/observations_read_world_progression in discovery");
+            throw new AcceptanceException($"prepare: unexpected fixture identifiers: {ServedOps.Json(prepared)}");
         }
 
-        var questId = prepared["questId"].AsString();
-        var pawnIds = Texts(prepared["pawnIds"]);
-        if (questId.Length == 0 || pawnIds.Count < 1)
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+
+        async Task<Observations.QuestState> Target(string label) =>
+            await QuestKit.QuestAsync(s, label, questId, cancellationToken).ConfigureAwait(false)
+                ?? throw new AcceptanceException($"{label}: fixture quest {questId} not found in world progression");
+
+        var before = await Target("target-before").ConfigureAwait(false);
+        if (before.State != Receipts.QuestStatus.NotYetAccepted || before.RequiresAccepter == true || before.CanAccept != true)
         {
-            throw new AcceptanceException($"quest_accept_prepare: unexpected fixture identifiers: {prepared.ToJson()}");
+            throw new AcceptanceException($"target-before: expected an acceptable not-yet-accepted quest needing no accepter, got {before}");
         }
 
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "acquire", identity, cancellationToken).ConfigureAwait(false);
-
-        // Target reads the world-progression census for the fixture's exact quest, the census the joiner planner
-        // chooses offers from.
-        async Task<JsonObject> Target(string label)
+        Task<Operations.ActionResult> Apply(string key, string? accepter, int rewardChoice) => TradeKit.ApplyAsync(s, key, new Operations.AcceptQuestIntent
         {
-            var observed = await TradeKit.ObserveAsync(
-                h, label, "observations_read_world_progression", identity, null, cancellationToken).ConfigureAwait(false);
-            return Rows(observed["quests"]).LastOrDefault(row => row["id"].AsString() == questId)
-                ?? throw new AcceptanceException($"{label}: fixture quest not found in world progression: {observed.ToJson()}");
-        }
+            QuestId = questId,
+            AccepterPawnId = accepter,
+            RewardChoice = rewardChoice,
+        }, cancellationToken);
 
-        var questRow = await Target("target-before").ConfigureAwait(false);
-        if (!NotYetAccepted(questRow))
+        async Task Refused(string key, string? accepter, int rewardChoice)
         {
-            throw new AcceptanceException($"target-before: expected a not-yet-accepted quest, got {questRow.ToJson()}");
-        }
-
-        if (Flag(questRow["requiresAccepter"]))
-        {
-            throw new AcceptanceException($"target-before: expected the fixture quest to not require an accepter, got {questRow.ToJson()}");
-        }
-
-        if (!Flag(questRow["canAccept"]))
-        {
-            throw new AcceptanceException($"target-before: expected the fixture quest to be acceptable, got {questRow.ToJson()}");
-        }
-
-        async Task<JsonObject> Apply(string label, string key, string accepterPawn, int rewardChoice)
-        {
-            var intent = new JsonObject { ["questId"] = questId, ["rewardChoice"] = rewardChoice };
-            if (accepterPawn.Length > 0)
+            var result = await Apply(key, accepter, rewardChoice).ConfigureAwait(false);
+            if (result.Outcome?.Refused is not { Code: Common.FailureCode.InvalidRequest, Reason.Length: > 0 })
             {
-                intent["accepterPawnId"] = accepterPawn;
-            }
-
-            var reply = await h.WireAsync(
-                label,
-                "operations_apply",
-                new JsonObject
-                {
-                    ["identity"] = identity.DeepClone(),
-                    ["actions"] = new JsonArray(new JsonObject { ["key"] = key, ["acceptQuest"] = intent }),
-                },
-                cancellationToken).ConfigureAwait(false);
-            return OneResult(label, reply);
-        }
-
-        async Task Refused(string label, string key, string accepterPawn, int rewardChoice, string code)
-        {
-            var result = await Apply(label, key, accepterPawn, rewardChoice).ConfigureAwait(false);
-            var refusal = result["refused"].AsMap();
-            if (refusal is null || refusal["code"].AsString() != code || refusal["reason"].AsString().Length == 0)
-            {
-                throw new AcceptanceException($"{label}: expected a {code} refusal with a reason, got {result.ToJson()}");
+                throw new AcceptanceException($"{key}: expected an INVALID_REQUEST refusal with a reason, got {result}");
             }
         }
 
-        void AcceptedQuest(string label, JsonObject result)
+        void Accepted(string label, Operations.ActionResult result)
         {
-            var quest = result["applied"].AsMap()?["applied"].AsMap()?["observed"].AsMap()?["quest"].AsMap();
-            if (quest?["questId"].AsString() != questId)
+            if (TradeKit.Applied(label, result).Quest is not { Accepted: true } quest || quest.QuestId != questId)
             {
-                throw new AcceptanceException($"{label}: expected an applied receipt for the quest, got {result.ToJson()}");
-            }
-
-            if (!Flag(quest["accepted"]))
-            {
-                throw new AcceptanceException($"{label}: expected the quest to be accepted, got {quest.ToJson()}");
+                throw new AcceptanceException($"{label}: expected an applied receipt accepting {questId}, got {result}");
             }
         }
 
-        // Refusal 1: a reward option outside the quest's single choice part.
-        await Refused("reward-out-of-range", "quest-accept-reward", "", 5, "FAILURE_CODE_INVALID_REQUEST").ConfigureAwait(false);
-
-        // Refusal 2: this quest does not require an accepter; supplying one anyway is refused rather than silently ignored.
-        await Refused("unwanted-accepter", "quest-accept-unwanted-accepter", pawnIds[0], 0, "FAILURE_CODE_INVALID_REQUEST").ConfigureAwait(false);
+        // A reward option outside the quest's single choice part, and an accepter the quest does not take.
+        await Refused("quest-accept-reward", null, 5).ConfigureAwait(false);
+        await Refused("quest-accept-unwanted-accepter", prepared.PawnIds[0], 0).ConfigureAwait(false);
         var afterRefusals = await Target("target-after-refusals").ConfigureAwait(false);
-        if (!NotYetAccepted(afterRefusals))
+        if (afterRefusals.State != Receipts.QuestStatus.NotYetAccepted)
         {
-            throw new AcceptanceException($"target-after-refusals: a refused intent changed the quest: {afterRefusals.ToJson()}");
+            throw new AcceptanceException($"target-after-refusals: a refused intent changed the quest: {afterRefusals}");
         }
 
-        // Apply: the real native Quest.Accept settings write and its QuestPart_Choice.Choose call.
-        var result = await Apply("apply", "quest-accept", "", 0).ConfigureAwait(false);
-        AcceptedQuest("apply", result);
-        var questRowAccepted = await Target("target-after-apply").ConfigureAwait(false);
-        if (NotYetAccepted(questRowAccepted))
+        var result = await Apply("quest-accept", null, 0).ConfigureAwait(false);
+        Accepted("apply", result);
+        var after = await Target("target-after-apply").ConfigureAwait(false);
+        s.RecordWire("accepted", after);
+        if (after.State == Receipts.QuestStatus.NotYetAccepted || after.CanAccept == true || after.AcceptedTick is not >= 0)
         {
-            throw new AcceptanceException($"target-after-apply: expected the quest to have left NotYetAccepted, got {questRowAccepted.ToJson()}");
+            throw new AcceptanceException($"target-after-apply: expected an accepted quest with its acceptance tick, no longer acceptable, got {after}");
         }
 
-        if (Flag(questRowAccepted["canAccept"]))
+        // The same key returns the identical result without a second native write.
+        var replay = await Apply("quest-accept", null, 0).ConfigureAwait(false);
+        if (replay != result)
         {
-            throw new AcceptanceException($"target-after-apply: expected canAccept=false for an already-accepted quest, got {questRowAccepted.ToJson()}");
+            throw new AcceptanceException($"replay: the same key returned a different result: {replay}");
         }
 
-        // Replay: the same key returns the identical result without a second native write.
-        var replay = await Apply("replay", "quest-accept", "", 0).ConfigureAwait(false);
-        if (!Dyn.DeepEqual(replay, result))
-        {
-            throw new AcceptanceException($"replay: the same key returned a different result: {replay.ToJson()}");
-        }
-
-        // A fresh key against the accepted quest is applied again: the intent already holds, so a resend after a lost
-        // reply cannot fail it.
-        var again = await Apply("apply-again", "quest-accept-again", "", 0).ConfigureAwait(false);
-        AcceptedQuest("apply-again", again);
+        // A fresh key against the accepted quest is applied again: a resend after a lost reply cannot fail it.
+        Accepted("apply-again", await Apply("quest-accept-again", null, 0).ConfigureAwait(false));
     }
 }

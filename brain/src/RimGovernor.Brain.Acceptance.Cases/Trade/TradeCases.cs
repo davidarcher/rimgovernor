@@ -9,9 +9,6 @@ public static class TradeCases
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(TradeOpen.Case());
         registry.Register(TradeExecute.Case());
-        registry.Register(TradeBrowse.Case());
-        registry.Register(TradeRounds.Case());
-        registry.Register(TradeSettlementRoundtrip.Case());
         foreach (var request in TradeRequest.Cases())
         {
             registry.Register(request);

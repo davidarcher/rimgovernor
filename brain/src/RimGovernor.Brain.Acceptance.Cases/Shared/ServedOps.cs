@@ -46,6 +46,15 @@ internal static class ServedOps
             : throw new AcceptanceException($"{label}: {tool} refused: {reply?.ToJsonString()}");
     }
 
+    /// <summary>The decoder of a <typeparamref name="T"/> reply that must report <paramref name="success"/>; a refusal fails the call's label.</summary>
+    public static Func<string, JsonObject?, T> Succeeded<T>(string tool, Func<T, bool> success)
+    {
+        var decode = Reply<T>(tool);
+        return (label, reply) => decode(label, reply) is var read && success(read)
+            ? read
+            : throw new AcceptanceException($"{label}: {tool} refused: {reply?.ToJsonString()}");
+    }
+
     /// <summary>A fixture op's JSON arguments.</summary>
     public static JsonObject Args(params (string Key, JsonNode? Value)[] args) =>
         new(args.Select(a => new KeyValuePair<string, JsonNode?>(a.Key, a.Value)));

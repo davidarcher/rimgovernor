@@ -58,9 +58,6 @@ public sealed record StageSpec
 
     /// <summary>Incidents fired through the game's own incident workers once everything else is staged.</summary>
     public IReadOnlyList<StageIncident> Incidents { get; init; } = [];
-
-    /// <summary>Quests generated from their scripts and offered, last.</summary>
-    public IReadOnlyList<StageQuest> Quests { get; init; } = [];
 }
 
 /// <summary>
@@ -103,29 +100,6 @@ public sealed record StageIncident
     /// carry it.
     /// </summary>
     public string? TraderKind { get; init; }
-}
-
-/// <summary>
-/// Generate quest: the QuestScriptDef generated through the native storyteller path and offered, not yet accepted. A
-/// script whose root refuses its test run, or a quest that comes out hidden or already accepted, refuses the staging.
-/// </summary>
-public sealed record StageQuest
-{
-    public required string Name { get; init; }
-
-    public required string Script { get; init; }
-
-    /// <summary>
-    /// A floor under the map's default threat points for the points slate value (the quiet storyteller's points are
-    /// below what a raid part can generate).
-    /// </summary>
-    public float MinPoints { get; init; }
-
-    /// <summary>Lifts the quiet storyteller's ban on violent quests for this one generation.</summary>
-    public bool AllowViolent { get; init; }
-
-    /// <summary>Above zero holds the offer open this many days.</summary>
-    public int ExpireDays { get; init; }
 }
 
 /// <summary>One map cell.</summary>

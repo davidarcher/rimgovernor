@@ -2555,10 +2555,6 @@ public abstract record TradeIntentStep
 
     public static implicit operator TradeIntentStep(OpenTrade value) => new OpenCase(value);
 
-    /// <summary>The <c>SetLines</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public SetTradeLines? SetLines => (this as SetLinesCase)?.Value;
-
     public sealed record SetLinesCase(SetTradeLines Value) : TradeIntentStep;
 
     public static implicit operator TradeIntentStep(SetTradeLines value) => new SetLinesCase(value);

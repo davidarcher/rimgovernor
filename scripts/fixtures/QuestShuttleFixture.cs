@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using RimGovernor.Fixtures.Contracts;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using RimWorld.QuestGen;
@@ -44,21 +45,8 @@ namespace HomeBridge.BridgeTools
                 if (map == null || !Find.TickManager.Paused || pawns == null || pawns.Length < 3) return new { success = false, reason = "Paused lab with three colonists required." };
                 var named = Build(map, pawns[0], map.Center + new IntVec3(-12,0,0), true);
                 var counted = Build(map, pawns[1], map.Center + new IntVec3(12,0,0), false);
-                return new { success = true, namedQuest = named.GetUniqueLoadID(), countedQuest = counted.GetUniqueLoadID(), namedPawn = pawns[0].GetUniqueLoadID(), countedPawn = pawns[1].GetUniqueLoadID() };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
-        [Tool("test/quest_shuttle_read", Description = "UNSAFE FOR MODEL EXECUTION. Read fixture shuttle's actual passenger container and spawned/departure state.")]
-        public async Task<object> Read(IRimBridgeContext ctx, CancellationToken cancellationToken, string questId)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var quest = Find.QuestManager.QuestsListForReading.ById(questId);
-                var ship = quest?.PartsListForReading.OfType<QuestPart_SetupTransportShip>().SingleOrDefault()?.transportShip;
-                if (ship == null) return new { success = false, reason = "Fixture quest transport ship unavailable." };
-                return new { success = true, spawned = ship.shipThing != null && ship.shipThing.Spawned,
-                    autoload = ship.ShuttleComp.Autoload, loaded = ship.ShuttleComp.AllRequiredThingsLoaded,
-                    pawnIds = ship.TransporterComp.innerContainer.OfType<Pawn>().Select(p => p.GetUniqueLoadID()).ToArray(),
-                    shipJob = ship.curJob?.def?.defName ?? "" };
+                return FixtureKit.Reply(new QuestShuttlePrepared { Success = true, NamedQuest = named.GetUniqueLoadID(), CountedQuest = counted.GetUniqueLoadID(),
+                    NamedPawn = pawns[0].GetUniqueLoadID(), CountedPawn = pawns[1].GetUniqueLoadID() });
             }, cancellationToken).ConfigureAwait(false);
         }
     }

@@ -126,7 +126,7 @@ namespace HomeBridge.BridgeTools
             var favor = SafeBool(() => t.IsFavor);
             var line = new Obs.TradeLine
             {
-                Index = (uint)index, LineId = "#" + index,
+                LineId = "#" + index,
                 Definition = new Obs.DefinitionRef { DefName = def != null ? def.defName : "" },
                 Stuff = SafeText(() => t.StuffDef != null ? t.StuffDef.defName : ""),
                 ColonyCount = SafeInt(() => t.CountHeldBy(Transactor.Colony)), TraderCount = SafeInt(() => t.CountHeldBy(Transactor.Trader)),

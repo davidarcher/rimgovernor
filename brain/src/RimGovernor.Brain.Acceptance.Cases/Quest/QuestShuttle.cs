@@ -1,136 +1,77 @@
-using System.Globalization;
-using System.Text.Json.Nodes;
-using static RimGovernor.Brain.Acceptance.Cases.CaseJson;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>quest/shuttle</c> (Go <c>shuttle.go</c>): native autoload toggle, explicit pawn boarding and loaded shuttle launch.
+/// <c>quest/shuttle-*</c>: the QuestShuttleIntent arm of operations_apply on an accepted quest's waiting shuttle, one
+/// case per loading mode. Autoload on a shuttle naming its pawn, or an explicit pawn list on one taking any colonist,
+/// has vanilla EnterTransporter work board exactly that pawn, as native's quest shuttle row reads; a launch then sends
+/// the loaded shuttle off the map, and its row leaves the quest.
 /// </summary>
 internal static class QuestShuttle
 {
-    internal static AcceptanceCase Case() => new()
+    private const int BoardTicks = 6000;
+    private const int DepartTicks = 3000;
+
+    internal static IEnumerable<TypedCase> Cases() =>
+    [
+        Case("quest/shuttle-autoload", "autoload on a shuttle naming its pawn", named: true),
+        Case("quest/shuttle-explicit", "an explicit pawn list on a shuttle taking any colonist", named: false),
+    ];
+
+    private static TypedCase Case(string name, string mode, bool named) => new()
     {
-        Name = "quest/shuttle",
-        Scope = "Native autoload toggle, explicit pawn boarding and loaded shuttle launch. A Go snapshot cannot cover vanilla EnterTransporter work and transport-ship departure; actual passenger containers and spawned state are asserted.",
-        Start = new FixtureStart { On = new LabStart(), Op = "test/quest_shuttle_prepare" },
+        Name = name,
+        Scope = $"Native QuestShuttleIntent: {mode} boards exactly that pawn by vanilla EnterTransporter work, and a launch sends the loaded shuttle off the map.",
+        Ticks = BoardTicks + DepartTicks,
+        Tier = CaseTier.OnDemand,
         NoKeep = true,
-        Crew = new Crew { Size = 3 },
         Expansions = ["ludeon.rimworld.royalty"],
-        Quiet = QuietMode.Required,
-        Budget = TimeSpan.FromMinutes(5),
-        RequiredOps = ["test/quest_shuttle_prepare", "test/quest_shuttle_read"],
-        Run = RunAsync,
+        Ops = [QuestKit.ShuttleTool],
+        Run = (s, ct) => RunAsync(s, named, ct),
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, bool named, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var id = s.Identity;
-        var prepared = s.Prepared ?? [];
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "acquire", id, cancellationToken).ConfigureAwait(false);
+        var prepared = await s.FixtureAsync("prepare", QuestKit.Shuttle, NoArgs.Value, cancellationToken).ConfigureAwait(false);
+        var (quest, pawn) = named ? (prepared.NamedQuest, prepared.NamedPawn) : (prepared.CountedQuest, prepared.CountedPawn);
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        async Task Apply(string label, JsonObject intent)
+        async Task Apply(string key, Operations.QuestShuttleIntent intent)
         {
-            var reply = await h.WireAsync(
-                label,
-                "operations_apply",
-                new JsonObject
-                {
-                    ["identity"] = id.DeepClone(),
-                    ["actions"] = new JsonArray(new JsonObject { ["key"] = label, ["questShuttle"] = intent }),
-                },
-                cancellationToken).ConfigureAwait(false);
-            var rows = reply["results"].AsSlice();
-            if (rows.Count != 1)
+            var effect = TradeKit.Applied(key, await TradeKit.ApplyAsync(s, key, intent, cancellationToken).ConfigureAwait(false)).QuestShuttle;
+            var loading = intent.Launch != true;
+            if (effect?.QuestId != quest || (loading && named && effect.Autoload != true) || (loading && !named && !effect.PawnIds.Contains(pawn)))
             {
-                throw new AcceptanceException($"{label}: missing action result: {reply.ToJson()}");
-            }
-
-            var row = rows[0].AsMap() ?? [];
-            if (row["applied"].AsMap()?["applied"].AsMap() is null)
-            {
-                throw new AcceptanceException($"{label}: shuttle action not applied: {row.ToJson()}");
+                throw new AcceptanceException($"{key}: expected a quest shuttle effect on {quest}{(named ? " with autoload on" : $" loading {pawn}")}, got {effect}");
             }
         }
 
-        Task<JsonObject> Read(string label, string quest) =>
-            h.CallAsync(label, "test/quest_shuttle_read", new JsonObject { ["questId"] = quest }, cancellationToken);
-
-        var cases = new (string Prefix, string Quest, string Pawn, bool Auto)[]
+        await Apply("shuttle-load", new Operations.QuestShuttleIntent
         {
-            ("named", prepared["namedQuest"].AsString(), prepared["namedPawn"].AsString(), true),
-            ("counted", prepared["countedQuest"].AsString(), prepared["countedPawn"].AsString(), false),
-        };
-        foreach (var tc in cases)
+            QuestId = quest,
+            Loading = named ? new Operations.QuestShuttleIntentLoading.AutoloadCase(true) : new Operations.ShuttlePawnList { PawnIds = [pawn] },
+        }).ConfigureAwait(false);
+
+        _ = await s.RunUntilAsync("shuttle-board", BoardTicks, async ct =>
         {
-            if (tc.Quest.Length == 0 || tc.Pawn.Length == 0)
+            var row = await QuestKit.QuestAsync(s, "shuttle-board-read", quest, ct).ConfigureAwait(false);
+            var shuttle = row?.Shuttles.Count == 1 ? row.Shuttles[0] : throw new AcceptanceException($"shuttle-board: expected the quest's one shuttle, got {row}");
+            s.RecordWire("shuttle", shuttle);
+            if (shuttle.AllRequiredLoaded == true && !shuttle.LoadedPawnIds.Contains(pawn))
             {
-                throw new AcceptanceException($"missing fixture ids: {prepared.ToJson()}");
+                throw new AcceptanceException($"shuttle-board: loaded without {pawn}: {shuttle}");
             }
 
-            var intent = new JsonObject { ["questId"] = tc.Quest };
-            if (tc.Auto)
-            {
-                intent["autoload"] = true;
-            }
-            else
-            {
-                intent["explicitPawns"] = new JsonObject { ["pawnIds"] = new JsonArray(tc.Pawn) };
-            }
+            return ($"{shuttle.AllRequiredLoaded} {string.Join(",", shuttle.LoadedPawnIds)}", shuttle.AllRequiredLoaded == true);
+        }, cancellationToken).ConfigureAwait(false);
 
-            await Apply(tc.Prefix + "-load", intent).ConfigureAwait(false);
-            var loaded = false;
-            for (var advanced = 0; advanced <= 6000; advanced += 300)
-            {
-                var row = await Read(string.Create(CultureInfo.InvariantCulture, $"{tc.Prefix}-board-{advanced}"), tc.Quest).ConfigureAwait(false);
-                if (Flag(row["loaded"]))
-                {
-                    if (!row["pawnIds"].AsSlice().Any(pawn => pawn.AsString() == tc.Pawn))
-                    {
-                        throw new AcceptanceException($"{tc.Prefix}: loaded without exact pawn: {row.ToJson()}");
-                    }
-
-                    loaded = true;
-                    break;
-                }
-
-                if (advanced == 6000)
-                {
-                    break;
-                }
-
-                _ = await s.AdvanceAsync(300, null, cancellationToken).ConfigureAwait(false);
-            }
-
-            if (!loaded)
-            {
-                throw new AcceptanceException($"{tc.Prefix}: boarding did not complete within 6000 ticks");
-            }
-
-            await Apply(tc.Prefix + "-launch", new JsonObject { ["questId"] = tc.Quest, ["launch"] = true }).ConfigureAwait(false);
-            var departed = false;
-            for (var advanced = 0; advanced <= 3000; advanced += 300)
-            {
-                var row = await Read(string.Create(CultureInfo.InvariantCulture, $"{tc.Prefix}-depart-{advanced}"), tc.Quest).ConfigureAwait(false);
-                if (row["spawned"].AsBool() is false)
-                {
-                    departed = true;
-                    break;
-                }
-
-                if (advanced == 3000)
-                {
-                    break;
-                }
-
-                _ = await s.AdvanceAsync(300, null, cancellationToken).ConfigureAwait(false);
-            }
-
-            if (!departed)
-            {
-                throw new AcceptanceException($"{tc.Prefix}: shuttle did not depart");
-            }
-        }
+        await Apply("shuttle-launch", new Operations.QuestShuttleIntent { QuestId = quest, Launch = true }).ConfigureAwait(false);
+        _ = await s.RunUntilAsync("shuttle-depart", DepartTicks, async ct =>
+        {
+            var row = await QuestKit.QuestAsync(s, "shuttle-depart-read", quest, ct).ConfigureAwait(false);
+            var shuttles = row?.Shuttles.Count ?? 0;
+            return ($"{shuttles} shuttles", shuttles == 0);
+        }, cancellationToken).ConfigureAwait(false);
     }
 }

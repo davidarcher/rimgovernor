@@ -1,292 +1,91 @@
-using System.Globalization;
-using System.Text.Json.Nodes;
-using RimGovernor.Brain.Domain;
-using P = RimGovernor.Brain.Policy;
+using RimGovernor.Brain.NativeFacade;
+using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Observations = RimGovernor.Contracts.Wire.Observations;
+using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>odyssey/lava-field</c> (Go <c>lava.go</c>): a colony starts beside a lava field and builds clear of it. The harm is
-/// the game's own burn terrain, the colony's layout and field planning read it as a hazard, and the native postcondition
-/// is that no field, pasture or building stands on it and no colonist stands in it (#1719).
+/// <c>odyssey/lava-field</c> (#1719): a colony starts beside a 16x16 field of the game's own deep lava and builds clear
+/// of it: once the served colony has laid zones, every field cell still reads as lava and no zone, no player building
+/// and no colonist stands on one. The planner's refusal
+/// of hazard cells replays offline in policy TestZoningKeepsHazardOffCoreFieldPasture; no eruption is fired.
 /// </summary>
 internal static class OdysseyLavaField
 {
-    // The ticks the field planner is given after the layout plan is recorded (the hourly layout trigger).
-    private const ulong FieldHour = 2500;
+    private const string Lava = "LavaDeep";
+    private const int Size = 16;
 
-    // The hazard patch is the 16x16 block, laid as one test/stage set-cells rectangle, whose south-west corner is PatchOffset cells east and
-    // PatchHalf south of the lab's centre: beside the colonists' start, inside the plan's reach.
-    private const int PatchSize = 16;
-    private const int PatchOffset = 5;
-    private const int PatchHalf = 8;
-
-    internal static AcceptanceCase Case() => new()
+    internal static TypedCase Case() => new()
     {
         Name = "odyssey/lava-field",
-        Scope = "Issue #1719: on the blank lab with Odyssey, a 16x16 block of the game's own burn terrain (the catalog terrain def "
-            + "whose burnDamage or heatPerTick is positive) lies beside the colonists; the served colony plans a layout and fields, and "
-            + "natively every patch cell reads as a hazard in the map survey, no growing or pasture zone and no player building stands on "
-            + "a hazard cell, and no colonist stands on one. A Go snapshot test cannot cover it: the hazard bit is a native read of the "
-            + "terrain now at the cell (NativeOdysseyColony.IsHazard on the live TerrainGrid), and the zones and buildings are the game's "
-            + "own state after the controller's writes; the planner's refusal of hazard cells replays offline in "
-            + "policy TestZoningKeepsHazardOffCoreFieldPasture. No eruption is fired: no existing test op fires one.",
-        Start = new FixtureStart { Op = FixtureStage.Tool, ArgsFrom = PatchArgsAsync, On = new LabStart() },
-
-        // The Odyssey profile needs its own process.
+        Scope = "A 16x16 field of the game's own LavaDeep beside the colonists stays lava, and once the served "
+            + "colony has laid zones no growing or pasture zone, no player building and no colonist stands on a lava cell.",
+        Ticks = 10_000,
+        Tier = CaseTier.OnDemand,
         Expansions = ["ludeon.rimworld.odyssey"],
         NoKeep = true,
-        NoCheckpoint = true,
         Keep = ["Food"],
+        Stage = new Fx.StageSpec
+        {
+            // East of the first colonist: beside the start, inside the layout plan's reach.
+            Site = new Fx.StageSite { Width = Size, Height = Size, Near = Fx.StageAnchor.Colonist, OffsetX = 5, OffsetZ = -Size / 2 },
+            Cells = [new() { Rect = new(0, 0, Size, Size), Terrain = Lava }],
+        },
         Serve = new ServeSpec
         {
             Families = ["shelter", "expansion", "field"],
             NativeTimeout = TimeSpan.FromSeconds(30),
             Prefix = "odyssey-lava-field",
         },
-        Budget = TimeSpan.FromMinutes(8),
-        Crew = new Crew { Size = 3 },
-        Reason = "one serve until the layout plan is recorded and the field planner has had an in-game hour",
         Run = RunAsync,
     };
 
-    // The hazard patch's cells.
-    private static List<Cell> PatchCells()
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var centre = LabWorld.LabMapSize / 2;
-        var cells = new List<Cell>();
-        for (var z = centre - PatchHalf; z < centre - PatchHalf + PatchSize; z++)
+        var site = s.Staged!.Site ?? throw new AcceptanceException($"stage: no site: {ServedOps.Json(s.Staged)}");
+
+        // The served colony lays its layout and fields.
+        _ = await s.ServeUntilAsync("zoned", s.TicksLeft, async ct =>
         {
-            for (var x = centre + PatchOffset; x < centre + PatchOffset + PatchSize; x++)
+            var zones = await s.ZonesAsync("zones", ct).ConfigureAwait(false);
+            return ($"{zones.Count} zones", zones.Count > 0);
+        }, cancellationToken).ConfigureAwait(false);
+
+        var reply = await s.CallAsync("lava-cells", NativeOps.GetCells, new Observations.GetCellsRequest
+        {
+            Scope = s.Scope,
+            Rectangle = new Observations.Rectangle
             {
-                cells.Add(new Cell(x, z));
-            }
-        }
-
-        return cells;
-    }
-
-    // The terrain defs the map survey reads as hazards: the top terrain's own def flags (Go bridge SurveyFromCells).
-    private static bool IsHazard(JsonObject row) =>
-        row["dangerous"].AsBool() == true || row["burnDamage"].AsNumber() > 0 || row["heatPerTick"].AsNumber() > 0 || row["toxicBuildupFactor"].AsNumber() > 0;
-
-    private static async Task<IReadOnlyList<JsonObject>> TerrainRowsAsync(Harness h, JsonObject identity, string label, CancellationToken cancellationToken)
-    {
-        var reply = await h.WireAsync(label, "observations_read_definition_catalog", new JsonObject { ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() } }, cancellationToken).ConfigureAwait(false);
-        var (_, observed) = Harness.Outcome(reply, "observed");
-        return [.. observed["terrainDefs"].AsSlice().Select(r => r.AsMap() ?? [])];
-    }
-
-    // The fixture op's arguments: the patch's cells and the burn terrain def, read from the definition catalog by the
-    // def's own flags.
-    private static async Task<JsonObject?> PatchArgsAsync(Harness h, CancellationToken cancellationToken)
-    {
-        var identity = await Session.ReadIdentityAsync(h, "lava-identity", cancellationToken).ConfigureAwait(false);
-        var burning = (await TerrainRowsAsync(h, identity, "lava-catalog", cancellationToken).ConfigureAwait(false))
-            .Where(row => row["burnDamage"].AsNumber() > 0 || row["heatPerTick"].AsNumber() > 0)
-            .Select(row => row["defName"].AsString())
-            .Order(StringComparer.Ordinal)
-            .ToList();
-        if (burning.Count == 0)
-        {
-            throw new AcceptanceException("the definition catalog holds no terrain with burnDamage or heatPerTick above zero (Odyssey inactive?)");
-        }
-
-        var centre = LabWorld.LabMapSize / 2;
-        var patch = new Fx.StageCells { Rect = new Fx.StageRect(centre + PatchOffset, centre - PatchHalf, PatchSize, PatchSize), Terrain = burning[0] };
-        return FixtureStage.Args(new Fx.StageSpec { Cells = [patch] });
-    }
-
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
-    {
-        var report = s.Report;
-        _ = FixtureStage.Prepared(s);
-        report["fixture"] = s.Prepared?.DeepClone();
-        await ServeFieldsAsync(s, cancellationToken).ConfigureAwait(false);
-        var h = s.Reattach();
-        _ = await h.CallAsync("pause", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
-
-        // The map survey: the whole map's cells with the hazard terrain flagged from the catalog, and the player's
-        // edifices read off the cells' thing lists.
-        var identity = s.Identity;
-        var tick = await ReadTickAsync(h, identity, cancellationToken).ConfigureAwait(false);
-        var hazardDefs = (await TerrainRowsAsync(h, identity, "lava-catalog-after", cancellationToken).ConfigureAwait(false))
-            .Where(IsHazard)
-            .Select(row => row["defName"].AsString())
-            .ToHashSet(StringComparer.Ordinal);
-        var (grid, built) = await ReadMapAsync(h, identity, cancellationToken).ConfigureAwait(false);
-        var hazard = grid.Cells().Where(c => c.Terrain is { } terrain && hazardDefs.Contains(terrain)).Select(c => c.Cell).ToHashSet();
-        var unread = PatchCells().Where(c => !hazard.Contains(c)).ToList();
-        if (unread.Count > 0)
-        {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"{unread.Count} of {PatchSize * PatchSize} laid patch cells do not read as hazard in the map survey, first {unread[0]}"));
-        }
-
-        var builtOnHazard = hazard.Where(built.Contains).ToList();
-        var zoned = 0;
-        var onHazard = new List<Cell>();
-        foreach (var cells in grid.ZoneCells().Values)
-        {
-            zoned += cells.Count;
-            onHazard.AddRange(cells.Where(hazard.Contains));
-        }
-
-        var standing = await ColonistsOnHazardAsync(h, identity, hazard, cancellationToken).ConfigureAwait(false);
-        report["lava"] = new JsonObject
-        {
-            ["hazard_cells"] = hazard.Count,
-            ["zone_cells"] = zoned,
-            ["zone_cells_on_hazard"] = onHazard.Count,
-            ["built_on_hazard"] = builtOnHazard.Count,
-            ["colonists_on_hazard"] = new JsonArray([.. standing.Select(p => (JsonNode?)JsonValue.Create(p))]),
-            ["tick"] = tick,
-        };
-        if (onHazard.Count > 0)
-        {
-            throw new AcceptanceException($"{onHazard.Count} zone cells lie on hazard terrain, first {onHazard[0]}");
-        }
-
-        if (builtOnHazard.Count > 0)
-        {
-            throw new AcceptanceException($"{builtOnHazard.Count} player buildings stand on hazard terrain, first {builtOnHazard[0]}");
-        }
-
-        if (standing.Count > 0)
-        {
-            throw new AcceptanceException($"colonists stand on hazard terrain: [{string.Join(' ', standing)}]");
-        }
-
-        if (zoned == 0)
-        {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"the colony laid no zone by tick {tick}: the hazard check proved nothing"));
-        }
-    }
-
-    private static async Task<ulong> ReadTickAsync(Harness h, JsonObject identity, CancellationToken cancellationToken)
-    {
-        var reply = await h.WireAsync("lava-tick", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var (_, loaded) = Harness.Outcome(reply, "loaded");
-        _ = identity;
-        return loaded["context"].Member("tick").AsUInt64() ?? 0;
-    }
-
-    // The whole map's cells (an anchor read for the map's size, then the map) with the cells a player edifice covers.
-    private static async Task<(MapCellGrid Grid, HashSet<Cell> Built)> ReadMapAsync(Harness h, JsonObject identity, CancellationToken cancellationToken)
-    {
-        async Task<(Observations.CellsSnapshot Snapshot, MapCellGrid Grid)> Read(string label, long maxX, long maxZ)
-        {
-            var reply = await h.WireAsync(
-                label,
-                "observations_get_cells",
-                new JsonObject
-                {
-                    ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-                    ["rectangle"] = new JsonObject
-                    {
-                        ["minimum"] = new JsonObject { ["x"] = 0, ["z"] = 0 },
-                        ["maximum"] = new JsonObject { ["x"] = maxX, ["z"] = maxZ },
-                    },
-                },
-                cancellationToken).ConfigureAwait(false);
-            var (_, observed) = Harness.Outcome(reply, "observed");
-            return CellReads.DecodeCells(observed);
-        }
-
-        var (anchor, _) = await Read("lava-cells-size", 0, 0).ConfigureAwait(false);
-        var width = (long)anchor.MapSize.Width;
-        var height = (long)anchor.MapSize.Height;
-        var (_, grid) = await Read("lava-cells", width - 1, height - 1).ConfigureAwait(false);
-        var built = new HashSet<Cell>();
+                Minimum = new Common.Cell { X = site.X, Z = site.Z },
+                Maximum = new Common.Cell { X = site.X + site.Width - 1, Z = site.Z + site.Height - 1 },
+            },
+        }, cancellationToken).ConfigureAwait(false);
+        var grid = MapCellGrid.Of(TypedReads.Observed("lava-cells", NativeOps.GetCells, reply, reply.Outcome?.Observed).Grid);
         var cells = grid.Cells();
         var things = grid.Things();
-        for (var i = 0; i < cells.Count; i++)
+        var notLava = cells.Where(c => c.Terrain != Lava).Select(c => c.Cell).ToList();
+        var zoned = grid.ZoneCells().Values.SelectMany(z => z).ToList();
+        var built = cells.Where((_, i) => things[i].Any(t => t.Has(P.ThingMarks.Edifice) && t.Faction == P.ThingFaction.Player)).Select(c => c.Cell).ToList();
+        s.Record("lava", ServedOps.Args(("cells", cells.Count), ("not_lava", notLava.Count), ("zoned", zoned.Count), ("built", built.Count)));
+        if (cells.Count != Size * Size || notLava.Count > 0)
         {
-            if (things[i].Any(t => t.Has(P.ThingMarks.Edifice) && t.Faction == P.ThingFaction.Player))
-            {
-                _ = built.Add(cells[i].Cell);
-            }
+            throw new AcceptanceException($"lava-cells: {notLava.Count} of {cells.Count} field cells are not {Lava}, first {notLava.FirstOrDefault()}");
         }
 
-        return (grid, built);
-    }
-
-    // Serves the controller until the brain has reviewed and the field planner has had an in-game hour, then stops it. The
-    // Go wait read the journal for the layout plan record; the player API shows the review ticks, so the hour counts from
-    // the first review the service completes.
-    private static async Task ServeFieldsAsync(ISession s, CancellationToken cancellationToken)
-    {
-        var service = await s.ServeAsync(s.Spec, cancellationToken).ConfigureAwait(false);
-        try
+        if (zoned.Count > 0 || built.Count > 0)
         {
-            _ = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
-            service.KeepAuthority(cancellationToken);
-            ulong? first = null;
-            try
-            {
-                _ = await service.WaitReviewAsync(
-                    new Wait { Stall = Wait.StallBudget(), Ceiling = TimeSpan.FromMinutes(5) },
-                    routines =>
-                    {
-                        if (routines["lastReviewTick"].AsUInt64() is not { } tick)
-                        {
-                            return false;
-                        }
-
-                        first ??= tick;
-                        if (tick < first + FieldHour)
-                        {
-                            return false;
-                        }
-
-                        s.Report["plan"] = new JsonObject { ["tick"] = first, ["review_tick"] = tick };
-                        return true;
-                    },
-                    cancellationToken).ConfigureAwait(false);
-            }
-            catch (WaitError e)
-            {
-                throw new AcceptanceException($"wait for a layout plan and its first field hour: {e.Message}", e);
-            }
-        }
-        finally
-        {
-            _ = await service.StopAsync().ConfigureAwait(false);
-        }
-    }
-
-    // The colonists whose cell is a hazard cell.
-    private static async Task<List<string>> ColonistsOnHazardAsync(Harness h, JsonObject identity, HashSet<Cell> hazard, CancellationToken cancellationToken)
-    {
-        var reply = await h.WireAsync(
-            "lava-colonists",
-            "observations_list_pawns",
-            new JsonObject
-            {
-                ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-                ["filter"] = new JsonObject { ["colonist"] = true },
-            },
-            cancellationToken).ConfigureAwait(false);
-        var (_, observed) = Harness.Outcome(reply, "observed");
-        var rows = observed["pawns"].AsSlice();
-        if (rows.Count == 0)
-        {
-            throw new AcceptanceException($"no colonist rows to check against the hazard terrain: {observed.ToJson()}");
+            throw new AcceptanceException($"lava-cells: {zoned.Count} zone cells and {built.Count} player buildings stand on lava, first {zoned.Concat(built).First()}");
         }
 
-        var standing = new List<string>();
-        foreach (var raw in rows)
+        var pawns = await s.CallAsync("colonists", NativeOps.ListPawns, new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new Observations.PawnFilter { Colonist = true } }, cancellationToken).ConfigureAwait(false);
+        var rows = TypedReads.Observed("colonists", NativeOps.ListPawns, pawns, pawns.Outcome?.Observed).Pawns;
+        bool OnLava(Common.Cell? at) => at is { X: { } x, Z: { } z } && x >= site.X && x < site.X + site.Width && z >= site.Z && z < site.Z + site.Height;
+        var standing = rows.Where(p => OnLava(p.Pawn.Position)).Select(p => p.Pawn.Id).ToList();
+        if (rows.Count == 0 || standing.Count > 0)
         {
-            var pawn = raw.AsMap()?["pawn"].AsMap();
-            var at = pawn?["position"].AsMap();
-            var cell = new Cell((int)at.Member("x").AsNumber(), (int)at.Member("z").AsNumber());
-            if (hazard.Contains(cell))
-            {
-                standing.Add(string.Create(CultureInfo.InvariantCulture, $"{pawn.Member("id").AsString()}@{cell.X},{cell.Z}"));
-            }
+            throw new AcceptanceException($"colonists: expected colonists none of whom stand on lava, got {rows.Count} with [{string.Join(' ', standing)}] on it");
         }
-
-        return standing;
     }
 }

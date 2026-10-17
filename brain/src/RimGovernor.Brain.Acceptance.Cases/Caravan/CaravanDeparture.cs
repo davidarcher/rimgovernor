@@ -1,181 +1,142 @@
-using System.Globalization;
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>caravan/departure</c> (Go <c>departure.go</c>): the FormCaravanIntent arm of Actions/Apply end to end against a
-/// live game: a fixed pack (WoodLog trade cargo, the forbidden pemmican reserve and survival meals, simple meals left
-/// home) applied through rimgovernor/operations_apply, and native's own caravan inventory census, which must carry
-/// exactly that pack. Uses a private disposable fixture (test/caravan_departure_prepare) to guarantee a colony shaped
-/// for it (leave at least one home colonist) with a forbidden pemmican reserve, survival meals, simple meals and WoodLog
-/// cargo, and a real reachable destination.
+/// <c>caravan/departure</c>: the FormCaravanIntent arm of operations_apply. A home area holds simple meals, WoodLog, a
+/// forbidden pemmican reserve and survival meals; the one-colonist crew carries nothing. Sending everyone is refused
+/// (native keeps a colonist home); a fixed pack (WoodLog, the whole pemmican reserve, survival meals) toward a
+/// reachable settlement applies, its key replays, the formed caravan's native inventory census carries exactly that
+/// pack with every simple meal left home, and a fresh key after departure applies again.
 /// </summary>
 internal static class CaravanDeparture
 {
-    internal static AcceptanceCase Case() => new()
+    private const int FormationTicks = 20_000;
+
+    private static readonly Dictionary<string, int> Packed = new(StringComparer.Ordinal) { ["WoodLog"] = 10, ["Pemmican"] = 20, ["MealSurvivalPack"] = 10 };
+
+    internal static TypedCase Case() => new()
     {
         Name = "caravan/departure",
-        Scope = "Native FormCaravanIntent: a fixed pack (WoodLog, the forbidden pemmican reserve, survival "
-            + "meals, simple meals left home) formed through Actions/Apply, native's caravan inventory "
-            + "carrying exactly that pack, native's home-staffing refusal, replay and a departed crew applied again.",
-        Start = new FixtureStart
+        Scope = "Native FormCaravanIntent: a fixed pack (WoodLog, the forbidden pemmican reserve, survival meals, simple meals left "
+            + "home) formed through operations_apply, native's caravan inventory carrying exactly that pack, native's home-staffing "
+            + "refusal, replay and a departed crew applied again.",
+        Ticks = FormationTicks,
+        Tier = CaseTier.OnDemand,
+        Stage = new Fx.StageSpec
         {
-            On = new LabStart(),
-            Op = "test/caravan_departure_prepare",
-            Args = new JsonObject { ["crewCount"] = 1 },
+            Site = new Fx.StageSite { Width = 11, Height = 11, Near = Fx.StageAnchor.Colonist, OffsetX = 2, Radius = 15, Require = [Fx.StageGround.Standable, Fx.StageGround.Unfogged] },
+
+            // Native formation packs only home-area items.
+            Cells = [new() { Rect = new(0, 0, 11, 11), Home = true }],
+            Things =
+            [
+                new() { Name = "meals", Def = "MealSimple", Count = 10, Cell = new(2, 2), Near = true },
+                new() { Name = "wood", Def = "WoodLog", Count = 75, Cell = new(8, 2), Near = true },
+                new() { Name = "reserve", Def = "Pemmican", Count = 20, Cell = new(2, 8), Near = true, Forbidden = true },
+                new() { Name = "survival", Def = "MealSurvivalPack", Count = 60, Cell = new(8, 8), Near = true },
+            ],
+
+            // A crew member's own inventory would show in the caravan's beside the pack.
+            Pawns =
+            [
+                new() { Name = "crew", Colonist = 0, Gear = new Fx.StageGear { Strip = true } },
+                new() { Name = "home-a", Colonist = 1 },
+                new() { Name = "home-b", Colonist = 2 },
+            ],
         },
-        Quiet = QuietMode.Required,
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var identity = s.Identity;
-        var prepared = s.Prepared ?? [];
-        var crewPawnIds = prepared["crewPawnIds"].AsSlice().Select(raw => raw.AsString()).ToList();
-        var remainingPawnIds = prepared["remainingPawnIds"].AsSlice().Select(raw => raw.AsString()).ToList();
-        var destinationTile = prepared["destinationTile"].AsNumber();
-        if (crewPawnIds.Count != 1 || remainingPawnIds.Count < 2 || destinationTile <= 0)
-        {
-            throw new AcceptanceException($"caravan_departure_prepare: unexpected fixture identifiers: {prepared.ToJson()}");
-        }
+        var pawns = s.Staged!.Pawns;
+        var crew = pawns["crew"].Id;
+        var everyone = new[] { crew, pawns["home-a"].Id, pawns["home-b"].Id };
+        Operations.DefCount[] cargo = [.. Packed.Select(p => new Operations.DefCount { DefName = p.Key, Count = p.Value })];
+        var destination = await DestinationAsync(s, crew, cargo, cancellationToken).ConfigureAwait(false);
+        s.Record("destination", destination);
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "acquire", identity, cancellationToken).ConfigureAwait(false);
-
-        // The fixture's whole forbidden pemmican stack (20) plus survival meals for the trip; simple meals stay home.
-        var packed = new Dictionary<string, long>(StringComparer.Ordinal) { ["WoodLog"] = 10, ["Pemmican"] = 20, ["MealSurvivalPack"] = 10 };
-        var cargo = new JsonArray();
-        foreach (var (def, count) in packed)
+        Task<Operations.ActionResult> Apply(string key, IEnumerable<string> crewIds) => TradeKit.ApplyAsync(s, key, new Operations.FormCaravanIntent
         {
-            cargo.Add(new JsonObject { ["defName"] = def, ["count"] = count });
-        }
+            PawnIds = [.. crewIds],
+            Cargo = [.. cargo],
+            DestinationTile = destination,
+        }, cancellationToken);
 
-        async Task<JsonObject> Apply(string label, string key, IEnumerable<string> pawnIds)
+        void Formed(string label, Operations.ActionResult result)
         {
-            var reply = await h.WireAsync(
-                label,
-                "operations_apply",
-                new JsonObject
-                {
-                    ["identity"] = identity.DeepClone(),
-                    ["actions"] = new JsonArray(new JsonObject
-                    {
-                        ["key"] = key,
-                        ["formCaravan"] = new JsonObject
-                        {
-                            ["pawnIds"] = new JsonArray([.. pawnIds.Select(id => (JsonNode?)JsonValue.Create(id))]),
-                            ["cargo"] = cargo.DeepClone(),
-                            ["destinationTile"] = destinationTile,
-                        },
-                    }),
-                },
-                cancellationToken).ConfigureAwait(false);
-            var results = reply["results"].AsSlice();
-            if (results.Count != 1)
+            if (TradeKit.Applied(label, result).Caravan is not { AssemblyStarted: true } effect || effect.DestinationTile != destination || effect.PawnIds.Count != 1 || effect.PawnIds[0] != crew)
             {
-                throw new AcceptanceException($"{label}: expected one result, got {reply.ToJson()}");
-            }
-
-            return results[0].AsMap() ?? [];
-        }
-
-        void Formed(string label, JsonObject result)
-        {
-            var effect = result["applied"].Member("applied").Member("observed").Member("caravan").AsMap();
-            if (effect?["assemblyStarted"].AsBool() != true || effect["destinationTile"].AsNumber() != destinationTile)
-            {
-                throw new AcceptanceException($"{label}: expected an applied formation toward the destination, got {result.ToJson()}");
+                throw new AcceptanceException($"{label}: expected an applied formation of {crew} toward {destination}, got {result}");
             }
         }
 
-        // Refusal: native keeps at least one colonist home.
-        var allPawnIds = crewPawnIds.Concat(remainingPawnIds).ToList();
-        var result = await Apply("leave-no-one-home", "caravan-departure-everyone", allPawnIds).ConfigureAwait(false);
-        if (result["refused"].AsMap() is not { } refusal || refusal["code"].AsString() != "FAILURE_CODE_INVALID_REQUEST")
+        var everyoneResult = await Apply("caravan-departure-everyone", everyone).ConfigureAwait(false);
+        if (TradeKit.RefusedCode(everyoneResult) != RimGovernor.Contracts.Wire.Common.FailureCode.InvalidRequest)
         {
-            throw new AcceptanceException($"leave-no-one-home: expected an invalid-request refusal, got {result.ToJson()}");
+            throw new AcceptanceException($"leave-no-one-home: expected an INVALID_REQUEST refusal, got {everyoneResult}");
         }
 
-        // Apply: the real native Dialog_FormCaravan mechanism (TryFormAndSendCaravan) with exactly the composed pack.
-        result = await Apply("apply", "caravan-departure", crewPawnIds).ConfigureAwait(false);
+        var result = await Apply("caravan-departure", [crew]).ConfigureAwait(false);
         Formed("apply", result);
-
-        // Replay: the same key returns the identical result.
-        var replay = await Apply("replay", "caravan-departure", crewPawnIds).ConfigureAwait(false);
-        if (!Dyn.DeepEqual(replay, result))
+        var replay = await Apply("caravan-departure", [crew]).ConfigureAwait(false);
+        if (replay != result)
         {
-            throw new AcceptanceException($"replay: the same key returned a different result: {replay.ToJson()}");
+            throw new AcceptanceException($"replay: the same key returned a different result: {replay}");
         }
 
-        // The crew gathers the pack and walks to the exit in game time, so the wait is a tick budget (RunUntil runs and
-        // re-pauses the clock).
-        JsonObject? caravan = null;
-        try
+        // The crew gathers the pack and walks to the map edge in game time.
+        Observations.CaravanState? caravan = null;
+        _ = await s.RunUntilAsync("observe-formation", FormationTicks, async ct =>
         {
-            _ = await RunAt.RunUntilAsync(
-                h,
-                "observe-formation",
-                Wait.TicksPerDay,
-                new Wait { Stall = Wait.StallBudget() },
-                async ct =>
-                {
-                    var read = await h.WireAsync(
-                        "observe-formation-world",
-                        "observations_read_world_progression",
-                        new JsonObject
-                        {
-                            ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-                        },
-                        ct).ConfigureAwait(false);
-                    var (_, world) = Harness.Outcome(read, "observed");
-                    var rows = world["caravans"].AsSlice();
-                    foreach (var raw in rows)
-                    {
-                        var row = raw.AsMap();
-                        var pawns = row?["pawns"].AsSlice() ?? [];
-                        if (row is not null && pawns.Count == 1 && pawns[0].Member("pawn").RefId() == crewPawnIds[0])
-                        {
-                            caravan = row;
-                            return (row["caravan"].RefId(), true);
-                        }
-                    }
-
-                    return (string.Create(CultureInfo.InvariantCulture, $"{rows.Count} caravans"), false);
-                },
-                cancellationToken).ConfigureAwait(false);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"observe: caravan formation did not complete: {e.Message}", e);
-        }
+            var reply = await s.CallAsync("observe-formation-world", NativeOps.ReadWorldProgression, new Observations.WorldProgressionRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
+            var world = TypedReads.Observed("observe-formation-world", NativeOps.ReadWorldProgression, reply, reply.Outcome?.Observed);
+            caravan = world.Caravans.FirstOrDefault(c => c.Pawns.Count == 1 && c.Pawns[0].Pawn.Id == crew);
+            return ($"{world.Caravans.Count} caravans", caravan is not null);
+        }, cancellationToken).ConfigureAwait(false);
+        s.RecordWire("caravan", caravan);
 
         // Native's own caravan census carries exactly the composed pack: the reserve and survival meals aboard, every
         // simple meal left home.
-        var inventory = new Dictionary<string, long>(StringComparer.Ordinal);
-        foreach (var item in caravan?["inventory"].AsSlice() ?? [])
-        {
-            inventory[item.Member("defName").AsString()] = (long)item.Member("units").AsNumber();
-        }
-
         foreach (var def in new[] { "WoodLog", "Pemmican", "MealSurvivalPack", "MealSimple" })
         {
-            var carried = inventory.GetValueOrDefault(def);
-            var wanted = packed.GetValueOrDefault(def);
-            if (carried != wanted)
+            var carried = caravan!.Inventory.Where(q => q.DefName == def).Sum(q => q.Units ?? 0);
+            if (carried != Packed.GetValueOrDefault(def))
             {
-                throw new AcceptanceException(string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"world-progression: caravan carries {def} x{carried}, the pack had x{wanted} (inventory {caravan?["inventory"].ToJson()})"));
+                throw new AcceptanceException($"world-progression: caravan carries {def} x{carried}, the pack had x{Packed.GetValueOrDefault(def)} ({string.Join(", ", caravan.Inventory)})");
             }
         }
 
         // A fresh key after the crew departed is applied again: the intent already holds, so a resend after a lost
         // reply cannot form twice.
-        var again = await Apply("apply-again", "caravan-departure-again", crewPawnIds).ConfigureAwait(false);
-        Formed("apply-again", again);
+        Formed("apply-again", await Apply("caravan-departure-again", [crew]).ConfigureAwait(false));
+    }
+
+    /// <summary>A non-hostile settlement the crew's pack can reach, by the trade-acquisition pack estimate.</summary>
+    private static async Task<int> DestinationAsync(ITypedSession s, string crew, Operations.DefCount[] cargo, CancellationToken cancellationToken)
+    {
+        var progression = await s.CallAsync("home-tile", NativeOps.ReadWorldProgression, new Observations.WorldProgressionRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var home = TypedReads.Observed("home-tile", NativeOps.ReadWorldProgression, progression, progression.Outcome?.Observed).Maps.FirstOrDefault(m => m.Home == true)?.Tile
+            ?? throw new AcceptanceException("home-tile: no home map tile");
+        var reply = await s.CallAsync("settlements", NativeOps.ReadWorld, new Observations.WorldRequest { Scope = s.Scope, Tile = home, SettlementRadius = 1000 }, cancellationToken).ConfigureAwait(false);
+        var candidates = TypedReads.Observed("settlements", NativeOps.ReadWorld, reply, reply.Outcome?.Observed).Settlements
+            .Where(c => c.Player != true && c.Relation == "neutral" && c.Tile is { } tile && tile != home)
+            .OrderBy(c => c.Id, StringComparer.Ordinal).Take(12).ToList();
+        foreach (var candidate in candidates)
+        {
+            var pack = new Operations.FormCaravanIntent { PawnIds = [crew], Cargo = [.. cargo], DestinationTile = candidate.Tile };
+            var facts = await TradeKit.AcquisitionAsync(s, "reach-" + candidate.Id, pack, cancellationToken).ConfigureAwait(false);
+            if (facts.Pack?.Outbound?.Reachable == true)
+            {
+                return candidate.Tile!.Value;
+            }
+        }
+
+        throw new AcceptanceException($"destination: no reachable non-hostile settlement among {candidates.Count} candidates");
     }
 }

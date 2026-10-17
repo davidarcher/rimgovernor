@@ -147,7 +147,7 @@ namespace HomeBridge.BridgeTools
                     var stop = new Clock.HoldEntered { Reason = HoldReason(kind) };
                     if (kind == "notification_batch")
                         stop = stop with { Evidence = new Clock.HoldEvidence.NotificationsCase(new Clock.NotificationBatch {
-                            Letters = EquatableArray.From(Rows(P(), "letters").Select(Letter).ToList()), Messages = EquatableArray.From(Rows(P(), "messages").Select(Message).ToList()) }) };
+                            Letters = EquatableArray.From(Rows(P(), "letters").Select(Letter).ToList()) }) };
                     else if (kind == "combat_event")
                     {
                         var combat = new Clock.CombatEventHold { Event = (Clock.CombatEvent)checked((int)Number(P(), "combatEvent")), Reason = Text(String(P(), "reason")) };

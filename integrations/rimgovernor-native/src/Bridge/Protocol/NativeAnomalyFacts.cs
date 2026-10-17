@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.StudyState? Study(Thing thing)
         {
             if (!ModsConfig.AnomalyActive || (thing as ThingWithComps)?.GetComp<CompStudiable>() is not CompStudiable study) return null;
-            var state = new Obs.StudyState { Completed = study.Completed, StudyInteractions = study.studyInteractions,
+            var state = new Obs.StudyState { Completed = study.Completed,
                 CurrentlyStudiable = study.CurrentlyStudiable() };
             return state;
         }

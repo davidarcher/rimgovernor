@@ -1,126 +1,91 @@
-using System.Text.Json.Nodes;
-using static RimGovernor.Brain.Acceptance.Cases.CaseJson;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>quest/hack</c> (Go <c>hack.go</c>): native autohack enable/disable, replay and unhackable-target refusal, followed
-/// by ordinary Research WorkGiver hacking an Ideology terminal.
+/// <c>quest/hack</c>: the HackDesignationIntent arm of operations_apply on an untouched Ideology terminal. A thing
+/// without CompHackable is refused; enable, its replay and disable land on the comp's autohack flag; re-enabled, the
+/// ordinary Research WorkGiver sends the colony's one Research worker to hack it to completion.
 /// </summary>
 internal static class QuestHack
 {
-    internal static AcceptanceCase Case() => new()
+    private const int HackTicks = 6000;
+
+    internal static TypedCase Case() => new()
     {
         Name = "quest/hack",
-        Scope = "Native autohack enable/disable, replay and unhackable-target refusal, followed by ordinary Research WorkGiver hacking an Ideology terminal. A Go snapshot cannot prove vanilla pawn work, CompHackable completion or the exact native hacker.",
-        Start = new FixtureStart { On = new LabStart(), Op = "test/quest_hack_prepare" },
+        Scope = "Native autohack enable/disable, replay and unhackable-target refusal, followed by ordinary Research WorkGiver "
+            + "hacking an Ideology terminal to completion by the exact Research worker.",
+        Ticks = HackTicks,
+        Tier = CaseTier.OnDemand,
         NoKeep = true,
-        Crew = new Crew { Size = 3 },
         Expansions = ["ludeon.rimworld.ideology"],
-        Quiet = QuietMode.Required,
-        Budget = TimeSpan.FromMinutes(5),
-        RequiredOps = ["test/quest_hack_prepare", "test/quest_hack_read"],
+        Ops = [QuestKit.HackPrepareTool, QuestKit.HackReadTool],
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var identity = s.Identity;
-        var prepared = s.Prepared ?? [];
-        var terminal = prepared["terminalId"].AsString();
-        var hacker = prepared["hackerId"].AsString();
-        var unavailable = prepared["unhackableItemId"].AsString();
-        if (terminal.Length == 0 || hacker.Length == 0 || unavailable.Length == 0)
+        var prepared = await s.FixtureAsync("prepare", QuestKit.HackPrepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
+        var terminal = prepared.TerminalId;
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+
+        Task<Operations.ActionResult> Apply(string key, string target, bool enabled) => TradeKit.ApplyAsync(s, key, new Operations.HackDesignationIntent
         {
-            throw new AcceptanceException($"invalid hack fixture: {prepared.ToJson()}");
-        }
+            Target = new Common.Ref { Id = target },
+            Enabled = enabled,
+        }, cancellationToken);
 
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "acquire", identity, cancellationToken).ConfigureAwait(false);
-
-        async Task<JsonObject> Apply(string label, string key, string target, bool enabled)
+        async Task Applied(string key, bool enabled)
         {
-            var reply = await h.WireAsync(
-                label,
-                "operations_apply",
-                new JsonObject
-                {
-                    ["identity"] = identity.DeepClone(),
-                    ["actions"] = new JsonArray(new JsonObject
-                    {
-                        ["key"] = key,
-                        ["hackDesignation"] = new JsonObject { ["target"] = new JsonObject { ["id"] = target }, ["enabled"] = enabled },
-                    }),
-                },
-                cancellationToken).ConfigureAwait(false);
-            var results = reply["results"].AsSlice();
-            return results.Count != 1
-                ? throw new AcceptanceException($"{label}: missing result: {reply.ToJson()}")
-                : results[0].AsMap() ?? [];
-        }
-
-        Task<JsonObject> Read(string label) => h.CallAsync(label, "test/quest_hack_read", new JsonObject { ["terminalId"] = terminal }, cancellationToken);
-
-        async Task AssertApplied(Task<JsonObject> pending)
-        {
-            var row = await pending.ConfigureAwait(false);
-            if (row["applied"].AsMap() is null)
+            var effect = TradeKit.Applied(key, await Apply(key, terminal, enabled).ConfigureAwait(false)).HackDesignation;
+            if (effect?.Enabled != enabled || effect.TargetId != terminal)
             {
-                throw new AcceptanceException($"hack action refused: {row.ToJson()}");
+                throw new AcceptanceException($"{key}: expected the hack designation on {terminal} {(enabled ? "enabled" : "disabled")}, got {effect}");
             }
         }
 
-        var row = await Read("hack-before").ConfigureAwait(false);
-        if (Flag(row["hacked"]) || row["progress"].AsNumber() != 0)
+        Task<RimGovernor.Fixtures.Contracts.QuestHackRead> Read(string label) => s.FixtureAsync(label, QuestKit.HackRead, terminal, cancellationToken);
+
+        var before = await Read("hack-before").ConfigureAwait(false);
+        if (before.Hacked || before.Progress != 0 || before.Autohack)
         {
-            throw new AcceptanceException($"fixture supplied completion: {row.ToJson()}");
+            throw new AcceptanceException($"hack-before: the fixture supplied progress: {ServedOps.Json(before)}");
         }
 
-        var result = await Apply("unhackable", "hack-unavailable", unavailable, true).ConfigureAwait(false);
-        if (result["refused"].AsMap()?["code"].AsString() != "FAILURE_CODE_UNAVAILABLE")
+        var unhackable = await Apply("hack-unavailable", prepared.UnhackableItemId, true).ConfigureAwait(false);
+        if (TradeKit.RefusedCode(unhackable) != Common.FailureCode.Unavailable)
         {
-            throw new AcceptanceException($"unhackable target accepted: {result.ToJson()}");
+            throw new AcceptanceException($"hack-unavailable: expected an UNAVAILABLE refusal, got {unhackable}");
         }
 
-        await AssertApplied(Apply("enable", "hack-enable", terminal, true)).ConfigureAwait(false);
-        await AssertApplied(Apply("enable-replay", "hack-enable", terminal, true)).ConfigureAwait(false);
-        row = await Read("hack-enabled").ConfigureAwait(false);
-        if (!Flag(row["autohack"]))
+        await Applied("hack-enable", true).ConfigureAwait(false);
+        await Applied("hack-enable", true).ConfigureAwait(false);
+        if (!(await Read("hack-enabled").ConfigureAwait(false)).Autohack)
         {
-            throw new AcceptanceException($"enable replay toggled off: {row.ToJson()}");
+            throw new AcceptanceException("hack-enabled: the enable or its replay left autohack off");
         }
 
-        await AssertApplied(Apply("disable", "hack-disable", terminal, false)).ConfigureAwait(false);
-        row = await Read("hack-disabled").ConfigureAwait(false);
-        if (Flag(row["autohack"]))
+        await Applied("hack-disable", false).ConfigureAwait(false);
+        if ((await Read("hack-disabled").ConfigureAwait(false)).Autohack)
         {
-            throw new AcceptanceException($"disable did not apply: {row.ToJson()}");
+            throw new AcceptanceException("hack-disabled: the disable left autohack on");
         }
 
-        await AssertApplied(Apply("work-enable", "hack-work", terminal, true)).ConfigureAwait(false);
-        var tick = (ulong)row["tick"].AsNumber();
-        var wait = new Wait
+        // Re-enabled, ordinary Research work hacks the terminal in game time.
+        await Applied("hack-work", true).ConfigureAwait(false);
+        RimGovernor.Fixtures.Contracts.QuestHackRead? done = null;
+        _ = await s.RunUntilAsync("hack-work", HackTicks, async ct =>
         {
-            Ceiling = TimeSpan.FromMinutes(3),
-            Stall = Wait.StallBudget(),
-            Ticks = 6000,
-            Tick = _ => Task.FromResult(tick),
-        };
-        await wait.WaitProgressAsync(
-            async ct =>
-            {
-                var read = await Read("hack-work-read").ConfigureAwait(false);
-                tick = (ulong)read["tick"].AsNumber();
-                if (Flag(read["hacked"]))
-                {
-                    return read["hackerId"].AsString() != hacker
-                        ? throw new AcceptanceException($"completion lacks exact ordinary hacker: {read.ToJson()}")
-                        : (Wait.Signature(read.ToJson()), true);
-                }
-
-                _ = await s.AdvanceAsync(300, null, ct).ConfigureAwait(false);
-                return (Wait.Signature(read.ToJson()), false);
-            },
-            cancellationToken).ConfigureAwait(false);
+            var read = await s.FixtureAsync("hack-work-read", QuestKit.HackRead, terminal, ct).ConfigureAwait(false);
+            done = read.Hacked ? read : null;
+            return ($"{read.Progress:F3} {read.Hacked}", read.Hacked);
+        }, cancellationToken).ConfigureAwait(false);
+        s.Record("hacked", ServedOps.Json(done));
+        if (done!.HackerId != prepared.HackerId)
+        {
+            throw new AcceptanceException($"hack-work: expected {prepared.HackerId} to hack the terminal, got {ServedOps.Json(done)}");
+        }
     }
 }

@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
                 if (world is PeaceTalks && world.Faction != null)
                 {
                     var goodwill = Faction.OfPlayer.GoodwillWith(world.Faction);
-                    row = row with { PeaceTalks = new Obs.QuestPeaceTalks { FactionId = world.Faction.GetUniqueLoadID(),
+                    row = row with { PeaceTalks = new Obs.QuestPeaceTalks {
                         WorstGoodwillLoss = -System.Math.Min(DiplomacyTuning.Goodwill_PeaceTalksDisasterRange.min, Faction.OfPlayer.GoodwillToMakeHostile(world.Faction)),
                         BestGoodwillGain = System.Math.Min(DiplomacyTuning.Goodwill_PeaceTalksTriumphRange.max, DiplomacyTuning.MaxGoodwill - goodwill), IdeologyActive = ModsConfig.IdeologyActive } };
                 }

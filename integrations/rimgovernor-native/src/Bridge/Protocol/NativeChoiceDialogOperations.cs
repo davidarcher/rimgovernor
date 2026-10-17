@@ -43,7 +43,7 @@ namespace HomeBridge.BridgeTools
             var open = Find.WindowStack != null && Find.WindowStack.Windows.Contains(dialog);
             var advanced = open && !ReferenceEquals(ChoiceDialogTools.Node(dialog), node);
             if (open && !advanced) throw new InvalidOperationException("The activated option neither closed nor advanced the dialog.");
-            return new Receipts.EffectEvidence { Effect = new Receipts.DialogEffect { WindowId = c.WindowId, Closed = !open, Advanced = advanced } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.DialogEffect { WindowId = c.WindowId, Advanced = advanced } };
         }
     }
 }

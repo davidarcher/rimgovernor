@@ -261,8 +261,8 @@ Additional affected-case disposition:
 | pawn/self-tend | Explicit setting/readback, followed by ordinary review preserving the permission; no automatic treatment claim. |
 | production/coupled-thermal | Prepared physical room; normal shared planner must close its roof, improve observed temperature and support occupied sleep. |
 | wall/door-swap | Keep: explicit native deconstruction/build mechanics; normal door-to-wall labor reports unsupported until shared forecast support. |
-| trade/routine, trade/browse | Prepared normal review asserts unsupported opening with no Trade admissions; explicit adjacent opening, priced staging and purchase/cancel preserve native goods/silver/session outcomes. |
-| trade/settlement-roundtrip | Prepared home shortage asserts unsupported formation. A separately prepared existing caravan purchases settlement stock and returns with exact ExistingRoute; native home crew and purchased cargo prove delivery. |
+| trade/routine, trade/browse | Deleted (#3404): the unsupported-opening verdict is a planner choice (admission covered by IncidentVoluntaryAdmissionTests); paid purchase and cancel are trade/execute and trade/settlement-session. |
+| trade/settlement-roundtrip | Deleted (#3404): the unsupported-formation verdict is a planner choice, the purchase repeats trade/settlement-session, and the ExistingRoute return is world travel past the staged tick cap. |
 | trade/open, trade/execute | Keep explicit native session mechanics; these do not prove autonomous negotiator selection. |
 | combatlab/repair | Keep: explicit native combat mechanics, outside ordinary Standard selection. |
 | recovery/service, recovery/area | Keep: separately owned emergency recovery and protection. |

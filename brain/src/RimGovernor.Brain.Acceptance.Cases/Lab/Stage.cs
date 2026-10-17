@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary>
 /// <c>lab/stage</c> (#3393, #3395): one test/stage call stages a spec that uses every core primitive on the blank lab, and
 /// the typed reply names what each entry made at the cells the spec put it, relative to the site the search found.
-/// Incidents and quests are proven by the cases that use them (trade/open, quest/joiner).
+/// Incidents are proven by the cases that use them (trade/open).
 /// </summary>
 internal static class LabStage
 {

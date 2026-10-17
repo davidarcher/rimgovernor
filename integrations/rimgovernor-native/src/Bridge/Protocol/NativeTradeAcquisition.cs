@@ -83,7 +83,6 @@ namespace HomeBridge.BridgeTools
                 var trader = ship as TradeShip;
                 var row = new Obs.PassingTradeShip { Id = ship.GetUniqueLoadID(), Trader = trader != null };
                 if (trader != null) row = row with { TraderKind = trader.TraderKind.defName };
-                if (ship.Faction != null) row = row with { FactionId = ship.Faction.GetUniqueLoadID() };
                 result = result with { PassingShips = [.. result.PassingShips, row] };
             }
             foreach (var faction in Find.FactionManager.AllFactionsVisible.Where(f => !f.IsPlayer && !f.temporary)
