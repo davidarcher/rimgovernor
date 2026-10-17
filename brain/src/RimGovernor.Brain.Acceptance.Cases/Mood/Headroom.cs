@@ -5,7 +5,8 @@ using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>mood/headroom</c> (Go <c>headroom.go</c>): EnsureMood enters and recovers on the headroom margins (#2535, #2549).
+/// <c>mood/headroom</c> (Go <c>headroom.go</c>): a pawn's people/mood Need enters and recovers on the headroom margins
+/// (#2535, #2549, #3304).
 /// Native because the threshold and the held level are RimWorld's.
 /// </summary>
 internal static class Headroom
@@ -15,9 +16,9 @@ internal static class Headroom
     internal static AcceptanceCase Case() => new()
     {
         Name = "mood/headroom",
-        Scope = "EnsureMood enters and recovers on the headroom margins (#2535, #2549): with one colonist's mood held natively 0.07 above "
-            + "its native minor-break threshold (inside the 0.10 entry margin, above the old entry at the threshold), the journal opens its "
-            + "mood incident; lifted natively to 0.22 (past the 0.15 recovery margin) and the service restarted, the same occurrence closes. "
+        Scope = "A pawn's people/mood Need enters and recovers on the headroom margins (#2535, #2549, #3304): with one colonist's mood held natively 0.07 above "
+            + "its native minor-break threshold (inside the 0.10 entry margin, above the old entry at the threshold), the review files its "
+            + "people/mood/<pawn> progress row (unmet); lifted natively to 0.22 (past the 0.15 recovery margin) and the service restarted, the same row goes (met). "
             + "Nightly tier. Needs are frozen so the margin alone decides. The stay-open band between 0.10 and 0.15 needs mood history that "
             + "a restart drops, so policy/mood_margin_test.go pins it. Native because the threshold and the held level are RimWorld's.",
         Start = new LabStart { Colonists = 3 },
@@ -48,22 +49,20 @@ internal static class Headroom
         var pawn = await PinAsync(report, s.Harness, "pin-inside-entry", string.Empty, .07, cancellationToken).ConfigureAwait(false);
         var d = new MoodDrive(s);
 
-        // The EnsureMood occurrence the journal holds: the colony's only mood incident belongs to the pinned colonist
-        // (the sample does not expose an incident's subject).
-        async Task<JsonObject> IncidentAsync(CancellationToken ct)
+        // The people/mood rows the review holds: the colony's only unmet mood Need is the pinned colonist's.
+        async Task<JsonObject> RowsAsync(CancellationToken ct)
         {
             var store = await d.JournalAsync(ct).ConfigureAwait(false);
-            return await store.SampleStandardAsync(PolicyFunctions.EnsureMood.Value, ct).ConfigureAwait(false);
+            return await store.NeedRowsAsync(PeopleFamily.MoodCensus.Value + "/", ct).ConfigureAwait(false);
         }
 
-        static bool Opened(JsonObject sample) => sample["incident"].AsString().Length > 0;
-        static bool Closed(JsonObject sample) => Opened(sample) && (sample["status"].AsString() == "closed" || sample["closed"].Flag());
+        static List<string> Needs(JsonObject sample) => [.. sample["needs"]!.AsArray().Select(n => n.AsString())];
         static string Sign(JsonObject sample, object tail) =>
             string.Create(CultureInfo.InvariantCulture, $"{sample["review_tick"].ToText()} {sample["review_revision"].ToText()} {tail}");
 
         try
         {
-            // Inside the entry margin: the incident opens.
+            // Inside the entry margin: the pawn's mood Need is unmet.
             await d.StartAsync(cancellationToken).ConfigureAwait(false);
             await Prefixed(
                 "entry: ",
@@ -71,14 +70,14 @@ internal static class Headroom
                     TimeSpan.FromMinutes(4),
                     async ct =>
                     {
-                        var sample = await IncidentAsync(ct).ConfigureAwait(false);
-                        return (Sign(sample, Opened(sample)), Opened(sample) && !Closed(sample));
+                        var sample = await RowsAsync(ct).ConfigureAwait(false);
+                        return (Sign(sample, Needs(sample).Count), Needs(sample).Count > 0);
                     },
                     cancellationToken)).ConfigureAwait(false);
-            var opened = await IncidentAsync(cancellationToken).ConfigureAwait(false);
-            report["incident_opened"] = new JsonObject { ["id"] = opened["incident"].Copy(), ["pawn"] = pawn, ["status"] = opened["status"].Copy() };
+            var need = Needs(await RowsAsync(cancellationToken).ConfigureAwait(false))[0];
+            report["need_unmet"] = new JsonObject { ["need"] = need, ["pawn"] = pawn };
 
-            // Above the recovery margin: it closes.
+            // Above the recovery margin: the same Need is met and its row goes.
             var h = await d.NativeAsync("recover", cancellationToken).ConfigureAwait(false);
             _ = await PinAsync(report, h, "pin-above-recovery", pawn, .22, cancellationToken).ConfigureAwait(false);
             await d.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -88,16 +87,12 @@ internal static class Headroom
                     TimeSpan.FromMinutes(4),
                     async ct =>
                     {
-                        var sample = await IncidentAsync(ct).ConfigureAwait(false);
-                        return (Sign(sample, Closed(sample)), Closed(sample));
+                        var sample = await RowsAsync(ct).ConfigureAwait(false);
+                        var met = !Needs(sample).Contains(need);
+                        return (Sign(sample, met), met);
                     },
                     cancellationToken)).ConfigureAwait(false);
-            var closed = await IncidentAsync(cancellationToken).ConfigureAwait(false);
-            report["incident_closed"] = new JsonObject { ["id"] = closed["incident"].Copy(), ["status"] = closed["status"].Copy() };
-            if (closed["incident"].AsString() != opened["incident"].AsString())
-            {
-                throw new AcceptanceException($"recovery closed a different occurrence: opened {opened["incident"].AsString()}, closed {closed["incident"].AsString()}");
-            }
+            report["need_met"] = new JsonObject { ["need"] = need, ["rows"] = (await RowsAsync(cancellationToken).ConfigureAwait(false))["needs"]!.DeepClone() };
         }
         finally
         {

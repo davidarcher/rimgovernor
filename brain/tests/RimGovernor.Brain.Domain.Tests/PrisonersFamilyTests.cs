@@ -225,20 +225,21 @@ public sealed class PrisonersFamilyTests
         Assert.False(entry.Immediate);
     }
 
-    /// <summary>The Need ids a thought owner may name besides a registered Concern: the migrated families' Needs.</summary>
+    /// <summary>The Needs a thought owner may name: the migrated families' Needs whose facility removes a thought.</summary>
     private static readonly NeedId[] OwnerNeeds =
     [
         HomeUpkeepFamily.Repairs, HomeUpkeepFamily.Clearance, FoodStorageNeed, CookingNeed, PrisonersFamily.Recruit, PrisonersFamily.Custody, MilitaryFamily.Equipment, ShelterFamily.Sleeping, ShelterFamily.Temperature,
         RoomsFamily.Comfort, RoomsFamily.Lighting, MedicalCareNeed,
     ];
 
+    /// <summary>The owner column names NeedIds only (#3304): a mood defers to the owner Need while it is at work.</summary>
     [Fact]
-    public void EveryThoughtTriggerOwnerResolves()
+    public void EveryThoughtTriggerOwnerIsAKnownNeed()
     {
         var owners = ThoughtAuditOwners();
         Assert.NotEmpty(owners);
-        var needs = OwnerNeeds.Select(n => n.FilingKey.Value).ToHashSet(StringComparer.Ordinal);
-        Assert.All(owners, owner => Assert.True(InspectionFor(new ConcernId(owner)).Ok || needs.Contains(owner),
-            $"thought_triggers.tsv names owner \"{owner}\", which is neither a registered Concern nor a known NeedId"));
+        var needs = OwnerNeeds.Select(n => n.Value).ToHashSet(StringComparer.Ordinal);
+        Assert.All(owners, owner => Assert.True(new NeedId(owner).IsValid && needs.Contains(owner),
+            $"thought_triggers.tsv names owner \"{owner}\", which is not a known NeedId"));
     }
 }

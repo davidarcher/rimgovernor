@@ -547,6 +547,14 @@ Need, and their productive continuation is admitted only while the Need's latest
 progress row is unmet; a met Need permits release only. Only this Need may set
 work priorities: other Needs' assignments are area-only.
 
+**People, mood (#3304).** EnsureMood and the mood relief planner are now the
+`people/mood/<pawn>` Needs of the `people` entry, one Wellbeing Need per tracked pawn
+from the review's mood state (one Unknown `people/mood` while the review is of another
+world). The step commits nothing: a provisioned pawn waits on its owner Need while that
+Need's latest progress row is unmet with a Method; with no measured need relief left it
+holds as `unsupported_forecast_mood_cast`; otherwise it waits on the shared need relief.
+The thought table's owner column names NeedIds only.
+
 **Prisoners (#3262).** The prisoner half of the old population Concern is the `prisoners`
 family (`Prisoners.cs`, runtime `PrisonersRounds`), an Optional entry woken by
 PrisonerInteraction, Building and BedUse outcomes. `prisoners/recruit`
@@ -711,7 +719,7 @@ anomaly).
 | Anomaly | `anomaly`: Needs `doors`, `capture`, `tend`, `lance`, `bioferrite`, `monolith` (#3302) |
 | Economy | `economy`: Needs `research` (#3263; EnsureResearch deleted) and `resource` (#3303; MaintainResource deleted), `trade`, `caravan` and `trade-mission` (#3316; the trade Concern, caravan Incident and trade-mission Standard deleted) |
 | Colony admin | `admin`: Needs `creep-joiners` (#3264), `supply-safety`, `burial`, `work-ledger`, `stockpiles`, `work-assignments` (#3304) |
-| People | `people`: Need `dialog` (#3304; AnswerDialog and its planner deleted); EnsureMood |
+| People | `people`: Needs `dialog` and `mood/<pawn>` (#3304; AnswerDialog, EnsureMood and their planners deleted) |
 | Disaster | `disaster`: Needs `sheltering` (SeriousHarm) and `services` (waits on `sheltering`) (#3304; the disaster recovery incident Concern, its planner and the immediate Concern set deleted) |
 
 **Order.** Fire-safety deletion (#3252) is independent. After the spine:

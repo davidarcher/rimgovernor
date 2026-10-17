@@ -64,10 +64,10 @@ public sealed record MoodState
     public bool MentalRisk { get; init; }
     public IReadOnlyList<MoodCause> Causes { get; init; } = [];
 
-    /// <summary>The upkeep goals whose facilities would remove the pawn's dominant environment thought pressure (moodProvisioning); empty when need relief is the only measured response.</summary>
+    /// <summary>The Needs whose facilities would remove the pawn's dominant environment thought pressure (moodProvisioning); empty when need relief is the only measured response.</summary>
     public IReadOnlyList<MoodProvision> Provision { get; init; } = [];
 
-    /// <summary>The pawn's slice of the ledger's unowned bucket: negative thoughts with no audited owner (moodUnowned), recorded when owned provisioning does not apply; the method proposal is then the explicit MoodUnowned blocker once no measured relief remains.</summary>
+    /// <summary>The pawn's slice of the ledger's unowned bucket: negative thoughts with no audited owner (moodUnowned), recorded when owned provisioning does not apply; the method proposal is then the explicit Unowned blocker once no measured relief remains.</summary>
     public IReadOnlyList<MoodThought> Unowned { get; init; } = [];
 
     public int Priority()
@@ -183,11 +183,11 @@ public enum MoodMethodReason
     [WireName("native_need_relief")]
     Relief,
 
-    /// <summary>Defers to the upkeep goal named in the proposal: the pawn's pressure is dominated by environment thoughts that goal's facility removes, so a native relief job would not clear it.</summary>
+    /// <summary>Defers to the Need named in the proposal: the pawn's pressure is dominated by environment thoughts that Need's facility removes, so a native relief job would not clear it.</summary>
     [WireName("facility_provision")]
     Provisioned,
 
-    /// <summary>The explicit blocker for pressure dominated by a thought no goal owns (SleptInBarracks, social memories): no measured need relief remains and no facility goal can be raised, so the goal names the thought and waits on native recovery.</summary>
+    /// <summary>The explicit blocker for pressure dominated by a thought no Need owns (SleptInBarracks, social memories): no measured need relief remains and no facility Need can be raised, so the proposal names the thought and waits on native recovery.</summary>
     [WireName("unowned_thought_pressure")]
     Unowned,
 }
@@ -197,7 +197,8 @@ public sealed record MoodProposal
     public PawnId Pawn { get; init; }
     public MoodNeed Need { get; init; }
     public MoodMethodReason Reason { get; init; }
-    public ConcernId Concern { get; init; }
+    /// <summary>The Need a <see cref="MoodMethodReason.Provisioned"/> proposal defers to; empty otherwise.</summary>
+    public NeedId Provider { get; init; }
     public string Thought { get; init; } = "";
     public double Target { get; init; }
     public Fact<double> NeedBenefit { get; init; }
@@ -207,9 +208,6 @@ public sealed record MoodProposal
 /// <summary>Ports <c>mood.go</c>.</summary>
 public static partial class PolicyFunctions
 {
-    /// <summary>The per-pawn mood Response: one incident per pawn, keyed by the pawn as its subject.</summary>
-    public static readonly ConcernId EnsureMood = new("EnsureMood");
-
     internal static bool MoodNumber(Fact<double> f) => !f.TryGetValue(out var v) || (!double.IsNaN(v) && !double.IsInfinity(v));
 
     /// <summary>
@@ -360,7 +358,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Proposes one bounded native need method, or defers to the upkeep goal that owns the pawn's dominant
+    /// Proposes one bounded native need method, or defers to the Need that owns the pawn's dominant
     /// environment pressure. The action family must still obtain current job/schedule admission and observe actual
     /// recovery.
     /// </summary>
@@ -398,7 +396,7 @@ public static partial class PolicyFunctions
         }
         if (s.Provision.Count > 0)
         {
-            return r with { Reason = MoodMethodReason.Provisioned, Concern = s.Provision[0].Concern };
+            return r with { Reason = MoodMethodReason.Provisioned, Provider = s.Provision[0].Need };
         }
         r = r with { Reason = s.Causes.Count > 0 ? MoodMethodReason.Exhausted : MoodMethodReason.NoCause };
         if (s.Unowned.Count > 0)

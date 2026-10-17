@@ -6,10 +6,12 @@ Normal production uses the [shared portfolio comparison](../architecture/portfol
 for supported need services and conditional thought consequences. Native thought
 windows, actual mood response and physiological sleep activation remain separate
 facts; a selected bed service does not certify sleep. These forecasts do not
-replace the incident ownership and independent relief behavior described below.
+replace the per-pawn mood Needs and independent relief behavior described below.
 
-`EnsureMood` is a Response: one incident per pawn, keyed by the pawn's Thing ID as
-its subject, never a concern row. It enters at 0.10 above the pawn's observed
+Each tracked pawn's mood is the `people/mood/<pawn>` Need of the people family (#3304;
+the `EnsureMood` Response and its mood relief planner are deleted), a Wellbeing Need
+whose predicate is the review's mood state; an unread review is one Unknown
+`people/mood` Need. It is unmet from 0.10 above the pawn's observed
 minor-break threshold, or when the native current thought target is below that
 threshold and falling relative to current mood. Recovery requires 0.15 above the
 threshold and recovery of retained need deficits. Missing pawns, thresholds or need
@@ -35,15 +37,19 @@ threshold is the drone's offset as a mood fraction, at most 0.15, and every need
 short of the 0.5 target is a cause while the thought lasts. Pawns without the thought
 keep the ordinary entry, whatever the condition census says.
 
+A mood Need commits nothing. Its step names what it waits on: the owner Need of a
+provisioned pawn (below) while that Need is at work, the unsupported preventative cast
+when no measured need relief remains, else the shared portfolio's need relief.
+
 ## Facility provisioning
 
 The routine pawn read carries each colonist's grouped thought rows (memories and the
 situational cache, the `social` block). The census carries every thought row (positive ones too, e.g.
 `KnowBuriedInSarcophagus`); the provisioning review reads only the rows that pull mood down
-and maps removable environment thoughts to the upkeep concern whose facility removes
-them (a thought names every concern providing it):
+and maps removable environment thoughts to the Need whose facility removes
+them (a thought names every Need providing it):
 
-| Thought | Concern |
+| Thought | Need |
 | --- | --- |
 | `AteWithoutTable`, `NeedJoy` | `rooms/comfort` |
 | `SleptOutside`, `SleptOnGround`, `SleptInBarracks`, `NeedRoomSize` | `shelter/sleeping` |
@@ -52,25 +58,19 @@ them (a thought names every concern providing it):
 
 When those thoughts carry at least half of the pawn's negative thought offset, the
 pawn's mood state records the owners (most negative first) and the method proposal is
-`facility_provision` naming the first owner instead of a relief job.
-`DetectRounds` raises each owner's development deficit to at least the ledger-weighted
-share of reviewed pawns under the entry margin (`moodEntryMargin`, 0.10 above the
-minor-break threshold): each such pawn weighs the fraction of its negative thought loss
-the owner can remove (the ledger's lost rows through the owner column), a pawn above the
-margin weighs 0, and the sum is divided by the pawns whose loss, mood and threshold are
-all readable. There is no bar and no minimum pawn count: proportionality keeps one
-outlier in N at about 1/N, and the owner's own census still decides whether it is active
-and what it builds. Pawns with an unreadable loss, mood or threshold are left out, never
-counted as zero; if every pawn is unknown nothing is raised. This aggregate does not
-need the per-pawn half-of-loss dominance above. A recovered owner is never re-raised; when no owner concern is
-active with a deficit the planner falls back to the measured need method. An
+`facility_provision` naming the first owner instead of a relief job. The pawn's mood
+Need waits on that owner Need (`WaitingOnNeed`) only while some owner's latest progress
+row is unmet with an open Method (#3231 decision 18; the row is the previous review's,
+so the defer lags the owner by one review); otherwise the proposal falls back to the
+measured need method. Mood pressure does not raise an owner Need's deficit; the owner's
+own census decides whether it is unmet and what it builds. An
 unreadable social block keeps the previous provisioning; a readable one with no such
 pressure clears it.
 
 `SleptInBarracks` is answered by the existing bedroom builders (`NextBedroomStep`):
 barracks sleepers are unhoused, so the planned private bedrooms are built within the
-housing budget and research gates; the thought only raises the deficit that activates
-`shelter/sleeping`, and adds no new builder.
+housing budget and research gates; the thought only names `shelter/sleeping` as the
+owner a mood waits on, and adds no new builder.
 
 The owner of a thought is the audit table's `owner` column (see below); there is no
 second table in code. Every negative thought with an empty owner, or no table row at
@@ -84,17 +84,15 @@ evidence. The apparel thoughts `ApparelDamaged` (ratty and tattered), `DeadMansA
 exist (the outfit excludes tainted gear unless the comparator chose otherwise, see
 [mechanic cards: now live](#mechanic-cards-now-live), floors hit points at `apparelMinHP`, offers only
 gender-correct definitions, and `ClothingRunway` replaces garments before they tatter),
-so dominant apparel pressure raises that concern's deficit and adds no new action.
+so dominant apparel pressure names that Need and adds no new action.
 Cosmetic preferences and Ideology apparel precepts stay unowned. The pain and
 sickness thoughts `Pain`, `Sick` and `BabySick` are owned by the `medical/care` Need:
 tending, disease rest, the hospital bed and the medicine stock it holds already treat
 their causes (injuries, infections, infant illness), so dominant pain or sickness
-pressure raises that Need's deficit and adds no new action. The medicine runway still
+pressure names that Need and adds no new action. The medicine runway still
 follows realized tending, not mood; no painkiller policy exists (combat-only drugs are
 untouched). `MasochistPain`, `Pain_Idealized` and permanent-condition hediff thoughts
-stay unowned. Every review that provisions `rooms/comfort` must rank it with a
-deficit at least that weighted share
-(snapshot-tested). Schedules are never written. Social recreation, tolerated
+stay unowned. Schedules are never written. Social recreation, tolerated
 recreation kinds and environmental eligibility remain native job-giver choices.
 Thoughts without a measured eligible corrective method produce an explicit blocker,
 including relationship and ideology choices requiring player direction. A facility
@@ -116,7 +114,7 @@ and reads the defs under `Data/*/Defs`. Columns:
   `need:<need>`, `apparel`, `temperature`, `hediff`, `light`, `other`) read from the worker,
   or from the granting method body, so a method granting several thoughts lists the state
   of all of them.
-- `owner`: the concern that can remove the thought. Hand-kept: regeneration preserves it
+- `owner`: the Need that can remove the thought (a NeedId; a test keeps it so). Hand-kept: regeneration preserves it
   and leaves new defs unowned.
 
 `policy.ThoughtAuditRow` embeds the table (it stays beside the policy package that owns the
@@ -280,8 +278,8 @@ observed" rather than assuming one. Unowned thoughts ranked by mood lost choose 
 
 Food, rest and recreation use exact candidates in the shared portfolio. Selected
 targets, timing and quantities pass through the existing Method journal and Hands.
-The former MoodRelief action and native need-giver wire arm are deleted; the mood
-incident cannot dispatch a second local need choice. Preventative psycast relief reports unsupported_forecast_mood_cast until caster occupancy, psyfocus and mood outcomes have shared alternatives. The Incident admission boundary rejects that bypass; active mental-state containment and combat retain their existing protection ownership.
+The former MoodRelief action and native need-giver wire arm are deleted; a mood
+Need cannot dispatch a second local need choice. Preventative psycast relief reports unsupported_forecast_mood_cast until caster occupancy, psyfocus and mood outcomes have shared alternatives. Method admission rejects an Ability under a `people/mood/<pawn>` Need; active mental-state containment and combat retain their existing protection ownership.
 
 An accepted activity is not recovered mood or completed ingestion. Fresh native
 observations and exact assignment identity govern completion, interrupted needs,
@@ -289,7 +287,7 @@ release and reconsideration. Unknown inputs do not certify recovery. See
 [pawn activities](pawn-activities.md) and [voluntary control](voluntary-control.md).
 ## Mental breaks and containment
 
-An active mental break keeps its pawn's mood incident in deficit and releases its
+An active mental break keeps its pawn's mood Need unmet and releases its
 reserved work through shared cancellation. State kind, aggression and age remain
 mood evidence. Non-violent breaks leave the clock running.
 
@@ -434,9 +432,9 @@ colonist's mood a given distance above its native minor-break threshold with a c
 memory), `test/mood_thoughts` (a named memory scaled to a mood size), `test/party_spot` and
 `test/gathering_lords` (running lord jobs of one `GatheringDef`).
 
-- `mood/headroom` reads the journal's `EnsureMood` incident: it opens at 0.07 above the
-  threshold and, after a native lift to 0.22 and a service restart, closes (needs frozen, so the
-  margin alone decides). The 0.10 to 0.15 stay-open band needs history a restart drops and is not
+- `mood/headroom` reads the review's `people/mood/<pawn>` progress row: it stands (unmet) at
+  0.07 above the threshold and, after a native lift to 0.22 and a service restart, goes (met;
+  needs frozen, so the margin alone decides). The 0.10 to 0.15 stay-unmet band needs history a restart drops and is not
   covered by this case.
 - `mood/ledger` reads `moodLedger` from `GET /api/player/colony`: an owned thought carries its
   owner, an unowned one is alone in `unowned`. Native only confirms the memories exist.

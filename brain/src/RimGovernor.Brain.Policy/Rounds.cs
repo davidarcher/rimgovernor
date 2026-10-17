@@ -629,7 +629,7 @@ public sealed record RoundsAssessment
 {
     public ConcernId Id { get; set; }
 
-    /// <summary>The pawn a per-pawn Response (EnsureMood) is assessed for; empty otherwise. (Id, Subject) keys its incident.</summary>
+    /// <summary>The subject a per-subject Response is assessed for; empty otherwise. (Id, Subject) keys its incident.</summary>
     public PawnId Subject { get; set; }
 
     public Finding Finding { get; set; }
@@ -866,26 +866,6 @@ public static partial class PolicyFunctions
         var r = c.R;
         // The disaster history the disaster family's Needs read (#3304).
         r.Disaster = ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuitTick);
-        // Thought pressure raises the owning upkeep goal's deficit to at least the ledger-weighted share of
-        // pawns under the entry margin: the goal's own census still decides whether it is active and what it
-        // builds, so a recovered owner is not re-raised, and the pawn's EnsureMood incident defers to it
-        // (MoodProvision) instead of dispatching need relief.
-        IReadOnlyDictionary<ConcernId, double>? provision = null;
-        if (f.MoodPawns.TryGetValue(out var census) && f.MoodLedger.TryGetValue(out var ledger))
-        {
-            provision = MoodProvisionDeficits(census, ledger);
-        }
-        foreach (var concern in r.Concerns)
-        {
-            if (provision is null || !provision.TryGetValue(concern.Id, out var pressure))
-            {
-                continue;
-            }
-            if (!concern.Deficit.TryGetValue(out var current) || current < pressure)
-            {
-                concern.Deficit = Known(pressure);
-            }
-        }
         if (f.AvailableMethods.TryGetValue(out var methods))
         {
             var available = new HashSet<ConcernId>();

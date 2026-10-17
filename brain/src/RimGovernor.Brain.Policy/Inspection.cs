@@ -40,7 +40,6 @@ internal static class InspectionRegistry
     public static readonly IReadOnlyList<Inspection> Inspections =
     [
         new(MaintainRoutes, ConcernType.StandardConcern, Department.Shelter, [FactFamily.World, FactFamily.Colony], InspectRoutes),
-        new(EnsureMood, ConcernType.IncidentConcern, Department.People, [FactFamily.Pawns], InspectMood),
     ];
 
     /// <summary>Maps each registered ConcernId to its inspection.</summary>

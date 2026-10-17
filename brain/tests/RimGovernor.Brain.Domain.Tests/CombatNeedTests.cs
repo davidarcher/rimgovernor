@@ -59,7 +59,7 @@ public sealed class CombatNeedTests
         _ = Reviewed(journal, World, 1, 100, ct);
 
         // An older save: the fight is an incident's Method and owns the saved restoration.
-        var incident = journal.OpenIncident(new(EnsureMood, new("colony"), "observed_need", World, new(100)), ct);
+        var incident = journal.OpenIncident(new(new ConcernId("RetiredIncident"), new("colony"), "observed_need", World, new(100)), ct);
         var plan = DraftPlan("old-fight");
         _ = journal.CommitIncidentMethod(incident.Incident.Id, new("combat-1"), "", plan, ct);
         var world = new Store.World(World.Colony, World.Load, World.Map);

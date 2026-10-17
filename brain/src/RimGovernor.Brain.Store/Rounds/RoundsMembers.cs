@@ -66,20 +66,6 @@ public static class RoundsMembers
         return null;
     }
 
-    /// <summary>The review's bindings for <paramref name="kind"/>'s per-subject occurrences (EnsureMood: one per pawn), in assessment order.</summary>
-    public static List<RoundsIncident> SubjectIncidents(this Rounds r, ConcernId kind)
-    {
-        var output = new List<RoundsIncident>();
-        foreach (var b in r.Incidents)
-        {
-            if (b.Kind == kind && b.Subject != default)
-            {
-                output.Add(b);
-            }
-        }
-        return output;
-    }
-
     /// <summary>The review's binding for an incident id, or null.</summary>
     public static RoundsIncident? IncidentBinding(this Rounds r, IncidentId id)
     {

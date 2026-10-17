@@ -33,6 +33,21 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
     public Task<JsonObject> SampleStandardAsync(string concern, CancellationToken cancellationToken) =>
         ReadAsync("sample " + concern, ct => SampleStandard(new ConcernId(concern), ct), cancellationToken);
 
+    public Task<JsonObject> NeedRowsAsync(string prefix, CancellationToken cancellationToken) =>
+        ReadAsync(
+            "need rows " + prefix,
+            ct =>
+            {
+                var review = _store.LoadRounds(ct);
+                return new JsonObject
+                {
+                    ["review_tick"] = review.Tick.Value,
+                    ["review_revision"] = review.Revision,
+                    ["needs"] = new JsonArray([.. review.Progress.Where(p => p.Concern.Value.StartsWith(prefix, StringComparison.Ordinal)).Select(p => (JsonNode?)p.Concern.Value)]),
+                };
+            },
+            cancellationToken);
+
     public Task<IReadOnlyList<JsonObject>> PlanHistoryAsync(int limit, string methodGlob, CancellationToken cancellationToken) =>
         ReadAsync(
             "plan history " + methodGlob,

@@ -11,15 +11,16 @@ namespace RimGovernor.Brain.Policy;
 public sealed record MoodThought(string Def, double Offset);
 
 /// <summary>
-/// One upkeep goal whose facility would remove the pawn's observed environment thought pressure, with the
-/// summed offset of the thoughts it owns (most negative first in MoodState.Provision).
+/// One Need whose facility would remove the pawn's observed environment thought pressure (the audit table's owner,
+/// #3304), with the summed offset of the thoughts it owns (most negative first in MoodState.Provision). Persisted
+/// under the field name <c>Concern</c>; a stored row is read back as written, never re-validated as a NeedId.
 /// </summary>
-public sealed record MoodProvision(ConcernId Concern, double Offset);
+public sealed record MoodProvision(NeedId Need, double Offset);
 
 public static partial class PolicyFunctions
 {
     private static List<MoodProvision> SortProvision(IEnumerable<MoodProvision> rows) =>
-        [.. rows.OrderBy(r => r.Offset).ThenBy(r => r.Concern)];
+        [.. rows.OrderBy(r => r.Offset).ThenBy(r => r.Need)];
 
     /// <summary>
     /// Better meals can offset high-expectation mood pressure; they do not remove the expectation itself.
@@ -32,12 +33,12 @@ public static partial class PolicyFunctions
         {
             return rows;
         }
-        if (rows.Any(row => row.Concern == CookingNeed.FilingKey))
+        if (rows.Any(row => row.Need == CookingNeed))
         {
             return rows;
         }
         var result = rows.ToList();
-        result.Add(new MoodProvision(CookingNeed.FilingKey, -Math.Max(1, (target - mood) * 100)));
+        result.Add(new MoodProvision(CookingNeed, -Math.Max(1, (target - mood) * 100)));
         return SortProvision(result);
     }
 
@@ -63,11 +64,11 @@ public static partial class PolicyFunctions
         {
             throw new DomainException("mood provision exceeds bound");
         }
-        var seen = new HashSet<ConcernId>();
+        var seen = new HashSet<NeedId>();
         for (var i = 0; i < rows.Count; i++)
         {
             var p = rows[i];
-            if (p.Concern.Value.Length == 0 || seen.Contains(p.Concern) || !double.IsFinite(p.Offset) || p.Offset >= 0)
+            if (p.Need.Value.Length == 0 || seen.Contains(p.Need) || !double.IsFinite(p.Offset) || p.Offset >= 0)
             {
                 throw new DomainException("invalid mood provision");
             }
@@ -75,12 +76,12 @@ public static partial class PolicyFunctions
             {
                 throw new DomainException("mood provision out of order");
             }
-            seen.Add(p.Concern);
+            seen.Add(p.Need);
         }
     }
 
     /// <summary>
-    /// Reduces a pawn's observed negative thoughts to the owner goals of its removable environment thoughts.
+    /// Reduces a pawn's observed negative thoughts to the owner Needs of its removable environment thoughts.
     /// The result is empty unless those thoughts dominate: they carry at least half of the pawn's total
     /// negative thought offset. Unknown thoughts provision nothing.
     /// </summary>
@@ -91,7 +92,7 @@ public static partial class PolicyFunctions
             return [];
         }
         double total = 0, owned = 0;
-        var byConcern = new Dictionary<ConcernId, double>();
+        var byNeed = new Dictionary<NeedId, double>();
         foreach (var t in rows)
         {
             if (t.Offset >= 0)
@@ -104,82 +105,39 @@ public static partial class PolicyFunctions
             {
                 owned += t.Offset;
             }
-            foreach (var goal in owners)
+            foreach (var need in owners)
             {
-                byConcern[goal] = byConcern.GetValueOrDefault(goal) + t.Offset;
+                byNeed[need] = byNeed.GetValueOrDefault(need) + t.Offset;
             }
         }
         if (owned >= 0 || owned > total / 2)
         {
             return [];
         }
-        return SortProvision(byConcern.Select(kv => new MoodProvision(kv.Key, kv.Value)));
+        return SortProvision(byNeed.Select(kv => new MoodProvision(kv.Key, kv.Value)));
     }
 
     /// <summary>
-    /// Reports, per owner goal, the ledger-weighted share of reviewed pawns under the entry margin: a pawn at
-    /// or below threshold plus MoodEntryMargin weighs the fraction of its negative thought loss the owner can
-    /// remove; a pawn above the margin weighs 0. A pawn whose loss, mood or threshold is unreadable is left
-    /// out of the denominator, never counted as zero. DetectRounds raises the owner's development deficit to
-    /// at least this.
+    /// The pawn's mood proposal as its people/mood Need acts on it (#3304): it defers to an owner Need only while that
+    /// Need is at work (<paramref name="working"/>: its latest progress row is unmet with a Method, decision 18), and
+    /// otherwise is the proposal without the provisioning.
     /// </summary>
-    public static IReadOnlyDictionary<ConcernId, double> MoodProvisionDeficits(IReadOnlyList<MoodPawn> census, MoodLedger ledger)
+    public static MoodProposal MoodNeedProposal(MoodState s, IReadOnlyCollection<NeedId> working)
     {
-        var byId = new Dictionary<PawnId, MoodPawn>();
-        foreach (var p in census)
+        var proposal = SelectMoodMethod(s, []);
+        if (proposal.Reason == MoodMethodReason.Provisioned && !s.Provision.Any(p => working.Contains(p.Need)))
         {
-            byId[p.Id] = p;
+            return SelectMoodMethod(s.WithoutProvision(), []);
         }
-        var read = 0;
-        var weights = new Dictionary<ConcernId, double>();
-        foreach (var lp in ledger.Pawns)
-        {
-            if (!lp.Lost.TryGetValue(out var lost) || !byId.TryGetValue(lp.Id, out var p)
-                || !p.Mood.TryGetValue(out var mood) || !p.Threshold.TryGetValue(out var threshold))
-            {
-                continue;
-            }
-            read++;
-            if (mood > threshold + MoodEntryMargin)
-            {
-                continue;
-            }
-            double total = 0;
-            var byConcern = new Dictionary<ConcernId, double>();
-            foreach (var t in lost)
-            {
-                total += t.Offset;
-                foreach (var goal in ThoughtOwners(t.Def))
-                {
-                    byConcern[goal] = byConcern.GetValueOrDefault(goal) + t.Offset;
-                }
-            }
-            if (total >= 0)
-            {
-                continue;
-            }
-            foreach (var (goal, offset) in byConcern)
-            {
-                weights[goal] = weights.GetValueOrDefault(goal) + offset / total;
-            }
-        }
-        if (read == 0 || weights.Count == 0)
-        {
-            return new Dictionary<ConcernId, double>();
-        }
-        foreach (var goal in weights.Keys.ToList())
-        {
-            weights[goal] /= read;
-        }
-        return weights;
+        return proposal;
     }
 }
 
 public static class MoodStateProvisionExtensions
 {
     /// <summary>
-    /// The same state with its provisioning dropped: the relief planner falls back to it when no owner goal
-    /// is active to provision.
+    /// The same state with its provisioning dropped: the people/mood Need falls back to it when no owner Need is at
+    /// work to provision.
     /// </summary>
     public static MoodState WithoutProvision(this MoodState s) => s with { Provision = [] };
 }

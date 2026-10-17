@@ -1283,13 +1283,13 @@ internal sealed class MoodProvisionConverter : ObjectCodec<MoodProvision>
 {
     protected override MoodProvision Read(JsonElement e, Codecs o) =>
         new(
-            e.Get<ConcernId>("Concern", o),
+            new NeedId(e.Get<ConcernId>("Concern", o).Value),
             e.Dbl("Offset")
         );
 
     protected override void WriteFields(Utf8JsonWriter w, MoodProvision v, Codecs o)
     {
-        w.Put("Concern", v.Concern, o);
+        w.Put("Concern", v.Need.FilingKey, o);
         w.WriteNumber("Offset", v.Offset);
     }
 }

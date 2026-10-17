@@ -12,7 +12,7 @@ public sealed record RoundsIncident
 {
     public ConcernId Kind { get; init; }
 
-    /// <summary>The pawn of a per-subject occurrence (EnsureMood: one per pawn); empty for a colony-wide one.</summary>
+    /// <summary>The subject of a per-subject occurrence; empty for a colony-wide one. No Concern files one since the mood Response became the people/mood Needs (#3304).</summary>
     public PawnId Subject { get; init; }
 
     public IncidentId Incident { get; init; }

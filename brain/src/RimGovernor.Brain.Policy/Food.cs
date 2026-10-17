@@ -235,7 +235,7 @@ public static partial class PolicyFunctions
         };
     }
 
-    private static Fact<double> WholeDeficit(Satisfaction satisfaction) => satisfaction switch
+    internal static Fact<double> WholeDeficit(Satisfaction satisfaction) => satisfaction switch
     {
         Satisfaction.Unknown => Unknown<double>(),
         Satisfaction.Unmet => Known(1.0),

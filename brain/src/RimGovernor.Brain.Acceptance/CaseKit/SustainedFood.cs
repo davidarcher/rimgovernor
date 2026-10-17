@@ -99,6 +99,13 @@ public interface IWatchStore
     Task<JsonObject> SampleStandardAsync(string concern, CancellationToken cancellationToken);
 
     /// <summary>
+    /// The persisted review's Need progress rows whose NeedId starts with <paramref name="prefix"/> (#3231 decision 18:
+    /// a Need's row stands while it is not met): <c>review_tick</c>, <c>review_revision</c> and <c>needs</c>, their
+    /// ids in row order. Throws <see cref="AcceptanceException"/> on a read failure.
+    /// </summary>
+    Task<JsonObject> NeedRowsAsync(string prefix, CancellationToken cancellationToken);
+
+    /// <summary>
     /// The newest <paramref name="limit"/> plans whose method name matches <paramref name="methodGlob"/> (a <c>*</c>
     /// wildcard; Go <c>Store.PlanHistoryWithMethods</c>), each <c>{plan, method, progress}</c> where progress is an array
     /// of <c>{kind, stage, ...}</c> action rows in the wire spellings the sample uses: <c>stage</c> is the action's stage

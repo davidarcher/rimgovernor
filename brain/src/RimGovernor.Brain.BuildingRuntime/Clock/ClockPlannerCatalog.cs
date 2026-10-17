@@ -116,7 +116,6 @@ internal static class ClockPlannerCatalog
     private static readonly FactSection[] SectionsColony = [FactSection.Colony];
     // The ritual plan reads the ideoligion, the building sites, the colonists and the emergency census.
     private static readonly FactSection[] SectionsRituals = [FactSection.Colony, FactSection.Pawns, FactSection.Emergency, FactSection.Buildings, FactSection.Ideology];
-    private static readonly FactSection[] SectionsPawns = [FactSection.Pawns];
     private static readonly FactSection[] SectionsMedical = [FactSection.Pawns, FactSection.Colony];
     private static readonly FactSection[] SectionsThreat = [FactSection.Pawns, FactSection.Emergency];
     // The sectionless families planners declare beside their sections.
@@ -163,8 +162,6 @@ internal static class ClockPlannerCatalog
             c => c.Routes is not null, (s, ct, e, a) => s.Config.Routes!.StepAsync(a, ct, e), (o, m) => o.Routes = m, MaintainRoutes),
         E(DefensePlanner, C, [ActionKind.OwnedDraft, ActionKind.Subdue, ActionKind.Ability], SectionsThreat,
             c => c.Defense is not null, (s, ct, e, a) => s.Config.Defense!.StepAsync(a, ct, e), (o, m) => o.Defense = m, immediate: true),
-        E("moodRelief", O, [ActionKind.Ability], SectionsPawns,
-            c => c.MoodRelief is not null, (s, ct, e, a) => s.Config.MoodRelief!.StepAsync(a, ct, e), (o, m) => o.MoodRelief = m),
     ];
 
     /// <summary>

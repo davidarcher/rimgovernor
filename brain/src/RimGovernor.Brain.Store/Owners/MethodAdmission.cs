@@ -41,7 +41,8 @@ public sealed partial class Store
         if (owner is NeedOwner { Need: var held } && held == EconomyFamily.Caravan && plan.Actions.Any(a => a.Trade is
             { Kind: TradeOperationKind.Open, Participant.Kind: not TradeParticipantKind.Settlement }))
             throw new NotAdmittedException("unsupported_shared_trade_labor");
-        if (owner is IncidentState incident && incident.Incident.Kind == EnsureMood && plan.Actions.Any(a => a.Kind == ActionKind.Ability))
+        // A people/mood Need casts nothing: a preventative cast needs shared caster time and psyfocus (#3304).
+        if (owner is NeedOwner { Need: var mood } && PeopleFamily.IsMood(mood) && plan.Actions.Any(a => a.Kind == ActionKind.Ability))
             throw new NotAdmittedException("unsupported_forecast_mood_cast");
         // A window answer is the people/dialog Need's alone (#3304); another Need answers only its own letters.
         if (owner is NeedOwner { Need: var answering } && answering != PeopleFamily.Dialog

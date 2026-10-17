@@ -154,6 +154,7 @@ public sealed record RoundsMoodMethod
 
     public MoodMethodReason Reason { get; init; }
 
+    /// <summary>The filing key of the Need a provisioned proposal defers to; empty otherwise.</summary>
     public ConcernId Concern { get; init; }
 
     public string Thought { get; init; } = "";
@@ -184,7 +185,7 @@ public sealed partial class Store
                     Pawn = p.Pawn,
                     Need = p.Need,
                     Reason = p.Reason,
-                    Concern = p.Concern,
+                    Concern = p.Provider.IsValid ? p.Provider.FilingKey : default,
                     Thought = p.Thought,
                     Target = p.Target,
                     NeedBenefit = PersistedFact.Value(p.NeedBenefit),

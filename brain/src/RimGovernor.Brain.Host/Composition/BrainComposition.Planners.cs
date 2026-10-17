@@ -34,7 +34,6 @@ public sealed partial class BrainComposition
         RoundsBuildingPlanner? roomsFlooring = null;
         RoundsAcquisitionPlanner? foodAcquisition = null;
         RoundsBuildingPlanner? roomsLighting = null;
-        RoundsMoodReliefPlanner? cfgMoodRelief = null;
         RoundsResourcePlanner? cfgResource = null;
         RoundsAcquisitionPlanner? cfgResourceAcquisition = null;
         Rounder? cfgRounds = null;
@@ -78,7 +77,6 @@ public sealed partial class BrainComposition
         var geneBank = sc.GeneBank;
         var armory = sc.Armory;
         var clearance = sc.Clearance;
-        var moodRelief = sc.Mood;
         var gear = sc.Gear;
         var medical = sc.Medical;
         var foodStorageUpkeep = sc.FoodStorageUpkeep;
@@ -101,7 +99,7 @@ public sealed partial class BrainComposition
         var training = sc.Training;
         var envelope = sc.Envelope;
 
-        if (!routine && (bills || fields || acquisition || sc.Work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || blight || pollution || mechCharger || geneBank || armory || clearance || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.Art || sc.Mechs || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.PopulationJoiner || homeCoverage || sc.Sheltering || stoneShell || stockpiles || defensiveLayout || dialog || trade || resourceTargets))
+        if (!routine && (bills || fields || acquisition || sc.Work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || blight || pollution || mechCharger || geneBank || armory || clearance || sc.Mood || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.Art || sc.Mechs || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.PopulationJoiner || homeCoverage || sc.Sheltering || stoneShell || stockpiles || defensiveLayout || dialog || trade || resourceTargets))
         {
             throw new InvalidOperationException("building plans require rounds");
         }
@@ -185,10 +183,6 @@ public sealed partial class BrainComposition
         {
             // The repair and clearance toggles compose the home-upkeep family's two Needs (#3253).
             families.Add(HomeUpkeepReader.Runner(reviewer, client, repair, clearance));
-        }
-        if (moodRelief)
-        {
-            cfgMoodRelief = RoundsMoodReliefPlanner.NewRoundsMoodReliefPlanner(reviewer);
         }
         if (foodStorageUpkeep || refrigeration)
         {
@@ -286,10 +280,12 @@ public sealed partial class BrainComposition
             layoutRounds = new LayoutRounds(reviewer, layout, sc.Firebreak ? client : null, stoneShell ? client : null, defensiveLayout ? client : null);
             families.Add(layoutRounds.Runner());
         }
-        if (dialog)
+        if (dialog || sc.Mood)
         {
-            // The people family's dialog Need (#3304) answers the force-pausing choice dialogs.
-            families.Add(new PeopleRounds(reviewer, client, new DialogAnswerPolicy(EquatableArray.From(DefaultDialogAnswerPrefer))).Runner());
+            // The people family (#3304): the dialog toggle composes its dialog Need, which answers the force-pausing
+            // choice dialogs, and the mood toggle its per-pawn mood Needs.
+            families.Add(new PeopleRounds(reviewer, new PeopleNeeds { Dialog = dialog, Mood = sc.Mood }, dialog ? client : null,
+                dialog ? new DialogAnswerPolicy(EquatableArray.From(DefaultDialogAnswerPrefer)) : null).Runner());
         }
         if (trade)
         {
@@ -357,7 +353,6 @@ public sealed partial class BrainComposition
             Faults = faults,
             Families = families,
             Defense = cfgDefense,
-            MoodRelief = cfgMoodRelief,
             Rounds = cfgRounds,
             Routes = cfgRoutes,
             Store = cfgStore,

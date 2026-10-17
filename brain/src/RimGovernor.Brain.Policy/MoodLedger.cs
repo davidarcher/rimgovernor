@@ -23,13 +23,13 @@ public sealed record MoodLedgerSource
     public string Def { get; init; } = "";
     public int Pawns { get; init; }
     public double Lost { get; init; }
-    public IReadOnlyList<ConcernId> Owners { get; init; } = [];
+    public IReadOnlyList<NeedId> Owners { get; init; } = [];
 
     /// <summary>Affected pawns whose immunity or expectation gating could not be checked (no ThoughtFacts for the def, or an unknown pawn attribute); their loss is still counted.</summary>
     public int Unverified { get; init; }
 }
 
-/// <summary>The expectation level as a visible source: how many pawns sit at each level. Shown only; no concern fixes it.</summary>
+/// <summary>The expectation level as a visible source: how many pawns sit at each level. Shown only; no Need fixes it.</summary>
 public sealed record MoodLedgerExpectation(string Level, int Pawns);
 
 /// <summary>Answers where mood is lost. Sources rank all negative thoughts; Unowned is the subset with no audited owner (empty or unclassified), the next gap-fill chosen by mood lost.</summary>
@@ -47,28 +47,18 @@ public sealed record MoodLedger
 /// <summary>Ports <c>mood_ledger.go</c>.</summary>
 public static partial class PolicyFunctions
 {
-    /// <summary>The concerns whose facility removes the thought: the audit table's hand-kept owner column (thought_triggers.tsv), the one place a fix is declared. A def with no row, or an empty owner, has none.</summary>
-    internal static IReadOnlyList<ConcernId> ThoughtOwners(string def)
+    /// <summary>
+    /// The Needs whose facility removes the thought: the audit table's hand-kept owner column (thought_triggers.tsv,
+    /// NeedIds since #3304), the one place a fix is declared. A def with no row, or an empty owner, has none.
+    /// </summary>
+    internal static IReadOnlyList<NeedId> ThoughtOwners(string def)
     {
         var (row, ok) = ThoughtAuditRow(def);
         if (!ok || row.Owner == "")
         {
             return [];
         }
-        return [.. row.Owner.Split(';').Select(o => new ConcernId(o))];
-    }
-
-    /// <summary>Whether the audit table names the concern as the owner of some thought.</summary>
-    public static bool MoodProvisionConcern(ConcernId goal)
-    {
-        foreach (var row in ThoughtAuditRows.Value.Values)
-        {
-            if (row.Owner.Split(';').Contains(goal.Value))
-            {
-                return true;
-            }
-        }
-        return false;
+        return [.. row.Owner.Split(';').Select(o => new NeedId(o))];
     }
 
     /// <summary>The vanilla ExpectationDef ladder, lowest first; a ThoughtFacts.MinExpectation or a pawn level outside it is unknown.</summary>

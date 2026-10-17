@@ -150,17 +150,4 @@ public static partial class PolicyFunctions
             }
         }
     }
-
-    /// <summary>
-    /// A pawn's mood is an EnsureMood incident keyed by the pawn, never a development goal. Its relief is
-    /// optional and a mental break ends only as ticks pass, so it never suspends other work.
-    /// </summary>
-    internal static void InspectMood(RoundsRun c)
-    {
-        c.F.Mood.Validate();
-        foreach (var state in c.F.Mood.States)
-        {
-            c.R.Assessments.Add(new RoundsAssessment { Id = EnsureMood, Subject = state.Pawn.Id, Finding = state.Need(), MethodUnavailable = true });
-        }
-    }
 }

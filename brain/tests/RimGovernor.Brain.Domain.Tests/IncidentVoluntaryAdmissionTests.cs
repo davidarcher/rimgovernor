@@ -38,11 +38,20 @@ public sealed class IncidentVoluntaryAdmissionTests
         VerifyCaravan(DomainAction.NewTradeAction(new("action"), trade), true, "");
     }
 
+    /// <summary>A pawn's people/mood Need (#3304) casts nothing: a preventative cast would bypass the shared labor forecast.</summary>
     [Fact]
-    public void PreventativeMoodCastCannotUseIncidentToBypassSharedLabor()
+    public void PreventativeMoodCastCannotUseTheMoodNeedToBypassSharedLabor()
     {
+        var ct = TestContext.Current.CancellationToken;
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-mood-voluntary-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
+            Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
+        var mood = PeopleFamily.Mood(new("pawn"));
         var ability = new Ability(new("pawn"), AbilitySource.PsycastSource("WordOfJoy"), AbilityTarget.AbilityPawnTarget(new("target")));
-        Verify(EnsureMood, DomainAction.NewAbilityAction(new("action"), ability), false, "unsupported_forecast_mood_cast");
+        var plan = new PlanSpec(new("plan"), new(1), [DomainAction.NewAbilityAction(new("action"), ability)]);
+        var error = Assert.Throws<NotAdmittedException>(() => journal.CommitClaimedMethod(mood, World, new("mood-cast"), "", plan, ct));
+        Assert.Contains("unsupported_forecast_mood_cast", error.Message);
+        Assert.Empty(journal.LoadNeed(mood, World, ct).Methods);
     }
 
     /// <summary>A combat cast keeps its authority as a <c>military/combat</c> Method (#3311).</summary>
@@ -81,28 +90,6 @@ public sealed class IncidentVoluntaryAdmissionTests
                 journal.CommitClaimedMethod(EconomyFamily.Caravan, World, new("method"), "", plan, ct));
             Assert.Contains(reason, error.Message);
             Assert.Empty(journal.LoadNeed(EconomyFamily.Caravan, World, ct).Methods);
-        }
-    }
-
-    private static void Verify(ConcernId kind, DomainAction action, bool allowed, string reason)
-    {
-        var ct = TestContext.Current.CancellationToken;
-        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-incident-voluntary-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
-        var incident = journal.OpenIncident(new(kind, new("colony"), "observed_need", World, new(100)), ct);
-        var plan = new PlanSpec(new("plan"), new(1), [action]);
-        if (allowed)
-        {
-            var committed = journal.CommitIncidentMethod(incident.Incident.Id, new("method"), "", plan, ct);
-            Assert.Equal(plan.Id, Assert.Single(committed.Methods).Plan);
-        }
-        else
-        {
-            var error = Assert.Throws<NotAdmittedException>(() =>
-                journal.CommitIncidentMethod(incident.Incident.Id, new("method"), "", plan, ct));
-            Assert.Contains(reason, error.Message);
-            Assert.Empty(journal.LoadIncident(incident.Incident.Id, ct).Methods);
         }
     }
 }
