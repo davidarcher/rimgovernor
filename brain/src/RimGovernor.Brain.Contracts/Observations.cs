@@ -1851,8 +1851,6 @@ public sealed record HeldStock
 public sealed record CorpseState
 {
     public Common.Ref Corpse { get; init; } = new();
-
-    public bool Humanlike { get; init; }
 }
 
 /// <summary>

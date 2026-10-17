@@ -15,7 +15,6 @@
     <HarmonyAssembly Condition="'$(HarmonyAssembly)' == ''">C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/1.7/Assemblies/0Harmony.dll</HarmonyAssembly>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../../../../scripts/fixtures/RoundsProductionFixture.cs" Condition="'$(RoundsProductionFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/GuardedConstructionFixture.cs" Condition="'$(GuardedConstructionFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/StorageHaulFixture.cs" Condition="'$(StorageHaulFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HazardFixture.cs" Condition="'$(HazardFixture)' == 'true'" />

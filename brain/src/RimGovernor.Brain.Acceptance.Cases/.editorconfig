@@ -177,33 +177,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Letter/LetterPause.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Medical/MedicalKit.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Medical/PegCycle.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Medical/PlagueReadback.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Medical/StablePatient.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Medical/SurgeryCases.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Medical/SurgeryFacts.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Medical/SurgeryIntent.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Medical/SurgeryRun.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Medical/TendGates.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Movement/MovementArrival.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 

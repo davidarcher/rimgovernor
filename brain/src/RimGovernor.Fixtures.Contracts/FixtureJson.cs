@@ -61,6 +61,8 @@ public static class FixtureJson
 [JsonSerializable(typeof(SparringWatchPrepared))]
 [JsonSerializable(typeof(SparringWatchRead))]
 [JsonSerializable(typeof(FrozenNeedsRead))]
+[JsonSerializable(typeof(PlagueSetup))]
+[JsonSerializable(typeof(MedicalSetup))]
 [JsonSerializable(typeof(SleepingPrepared))]
 [JsonSerializable(typeof(ControlRead))]
 [JsonSerializable(typeof(CookingRead))]

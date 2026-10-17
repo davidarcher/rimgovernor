@@ -32,3 +32,32 @@ public sealed record FrozenNeed
 
     public bool Frozen { get; init; }
 }
+
+/// <summary><c>test/medical_plague_prepare</c>'s reply: the two Plague patients, the first untended and the second tended.</summary>
+public sealed record PlagueSetup
+{
+    public bool Success { get; init; }
+
+    public IReadOnlyList<string> Patients { get; init; } = [];
+}
+
+/// <summary>
+/// <c>test/medical_management_setup</c>'s reply: the surgical colonist missing a leg and that leg's body-part index, and
+/// under a condition the second colonist's condition part and any held prisoner.
+/// </summary>
+public sealed record MedicalSetup
+{
+    public bool Success { get; init; }
+
+    public string? Error { get; init; }
+
+    public string Surgical { get; init; } = "";
+
+    public int Part { get; init; }
+
+    public string? ConditionPatient { get; init; }
+
+    public int ConditionPart { get; init; }
+
+    public string? PrisonerId { get; init; }
+}

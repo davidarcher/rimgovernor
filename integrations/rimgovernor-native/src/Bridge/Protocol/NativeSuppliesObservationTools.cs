@@ -220,8 +220,8 @@ namespace HomeBridge.BridgeTools
                 if (entry.Holder != null) row = row with { Holders = [.. row.Holders, new Obs.HeldStock { Holder = NativeRef.Thing(entry.Holder), HolderKind = NativeEnums.Holder(entry.HolderKind!), Units = units }] };
                 if (entry.Thing is Corpse corpse)
                 {
-                    var pawn = corpse.InnerPawn ?? throw new InvalidOperationException("Corpse pawn unavailable.");
-                    var detail = new Obs.CorpseState { Corpse = NativeRef.Thing(corpse), Humanlike = pawn.RaceProps.Humanlike };
+                    _ = corpse.InnerPawn ?? throw new InvalidOperationException("Corpse pawn unavailable.");
+                    var detail = new Obs.CorpseState { Corpse = NativeRef.Thing(corpse) };
                     row = row with { Corpses = [.. row.Corpses, detail] };
                 }
             }

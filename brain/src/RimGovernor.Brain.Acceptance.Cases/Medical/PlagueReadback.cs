@@ -1,93 +1,82 @@
 using System.Globalization;
-using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>medical/plague-readback</c> (Go <c>plague.go</c>).</summary>
+/// <summary>
+/// <c>medical/plague-readback</c>: list_pawns' health detail carries a disease's native progression. test/medical_plague_prepare
+/// gives two colonists Plague at severity 0.2 and immunity 0.1 with the rolled progression factor pinned, the second tended
+/// at quality 0.75, so the read's severity per day is exact: 0.666 untended, less the tended reduction (0.3628 times the
+/// quality) for the second.
+/// </summary>
 internal static class PlagueReadback
 {
-    internal static AcceptanceCase Case() => new()
+    internal const string PrepareTool = "test/medical_plague_prepare";
+
+    private static readonly FixtureOp<NoArgs, Fx.PlagueSetup> Prepare = ServedOps.Read<Fx.PlagueSetup>(PrepareTool);
+
+    internal static TypedCase Case() => new()
     {
         Name = "medical/plague-readback",
-        Scope = "Routine colonist health carries Plague severity and immunity per day, untended/tended presence and quality; colony facts retain envelope headroom.",
-        Start = new FixtureStart { Op = "test/medical_plague_prepare", On = new LabStart() },
-        Budget = TimeSpan.FromMinutes(1),
-        Crew = new Crew { Size = 3 },
+        Scope = "The health detail reads each Plague patient's severity, immunity, exact severity per day, a positive immunity per day, "
+            + "and tended presence and quality: untended for the first patient, tended at 0.75 for the second.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
+        Ops = [PrepareTool],
+        QuietWorld = true,
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var patients = (s.Prepared ?? [])["patients"].AsSlice();
-        if (patients.Count != 2)
+        var setup = await s.FixtureAsync("plague-prepare", Prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
+        if (!setup.Success || setup.Patients.Count != 2)
         {
-            throw new AcceptanceException("expected two Plague patients");
+            throw new AcceptanceException($"plague-prepare: want two patients, got {ServedOps.Json(setup)}");
         }
 
-        var identity = await Session.ReadIdentityAsync(h, "plague-identity", cancellationToken).ConfigureAwait(false);
-        var observed = await MedicalKit.ListPawnsAsync(h, "plague-readback", identity, MedicalKit.ColonistFilter(), MedicalKit.Details(health: true), cancellationToken).ConfigureAwait(false);
-        var found = 0;
-        foreach (var pawn in observed["pawns"].Rows())
+        var rows = await TypedPawns.ListAsync(s, "plague-readback", new Observations.PawnFilter { Ids = [.. setup.Patients] }, new Observations.PawnDetails { Health = true }, cancellationToken).ConfigureAwait(false);
+        var problems = new List<string>();
+        for (var index = 0; index < 2; index++)
         {
-            var id = pawn["pawn"].RefId();
-            var index = -1;
-            for (var i = 0; i < patients.Count; i++)
+            var id = setup.Patients[index];
+            var plague = rows.SingleOrDefault(r => r.Pawn.Id == id)?.Health?.Hediffs.SingleOrDefault(h => h.DefName == "Plague");
+            if (plague is null)
             {
-                if (id == patients[i].AsString())
-                {
-                    index = i;
-                }
-            }
-
-            if (index < 0)
-            {
+                problems.Add($"{id}: no single Plague condition read");
                 continue;
             }
 
-            foreach (var condition in pawn["health"].AsMap()?["hediffs"].Rows() ?? [])
+            s.RecordWire("plague_" + CaseSupport.Tag(index), plague);
+            foreach (var (field, got, want) in new (string, double?, double)[]
             {
-                if (condition["defName"].AsString() != "Plague")
+                ("severity", plague.Severity, .2),
+                ("immunity", plague.Immunity, .1),
+                ("severityPerDay", plague.SeverityPerDay, .666 - (index * .3628 * .75)),
+            })
+            {
+                if (got is not { } value || Math.Abs(value - want) > .0001)
                 {
-                    continue;
+                    problems.Add(string.Create(CultureInfo.InvariantCulture, $"{id} {field} = {got}, want {want:R}"));
                 }
+            }
 
-                found++;
-                foreach (var (field, want) in new (string, double)[] { ("severity", .2), ("immunity", .1), ("severityPerDay", .666 - (index * .3628 * .75)) })
-                {
-                    var got = condition[field].Strict();
-                    if (got is null || Math.Abs(got.Value - want) > .0001)
-                    {
-                        throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"{id} {field} = {condition[field].ToText()}, want {want:R}"));
-                    }
-                }
+            if (plague.ImmunityPerDay is not (>= .01 and <= 2))
+            {
+                problems.Add(string.Create(CultureInfo.InvariantCulture, $"{id} immunity per day = {plague.ImmunityPerDay}"));
+            }
 
-                var rate = condition["immunityPerDay"].Strict();
-                if (rate is null || rate < .01 || rate > 2)
-                {
-                    throw new AcceptanceException($"{id} immunity/day = {condition["immunityPerDay"].ToText()}");
-                }
-
-                // The writer omits false, so an absent flag is untended.
-                var tended = condition["tended"].AsBool() == true;
-                if (tended != (index == 1))
-                {
-                    throw new AcceptanceException($"{id} tended = {condition["tended"].ToText()}");
-                }
-
-                var quality = condition["tendQuality"].Strict();
-                if ((index == 0 && quality is not null) || (index == 1 && (quality is null || Math.Abs(quality.Value - .75) > .0001)))
-                {
-                    throw new AcceptanceException($"{id} tend quality = {condition["tendQuality"].ToText()}");
-                }
+            var tended = index == 1;
+            if (plague.Tended != tended || (tended ? plague.TendQuality is not { } q || Math.Abs(q - .75) > .0001 : plague.TendQuality is not null))
+            {
+                problems.Add(string.Create(CultureInfo.InvariantCulture, $"{id} tended = {plague.Tended} at quality {plague.TendQuality}, want tended = {tended}"));
             }
         }
 
-        if (found != 2)
+        if (problems.Count > 0)
         {
-            throw new AcceptanceException($"read {found} Plague conditions, want 2");
+            throw new AcceptanceException(string.Join("; ", problems));
         }
-
-        s.Report["plague_readback"] = observed.DeepClone();
     }
 }
