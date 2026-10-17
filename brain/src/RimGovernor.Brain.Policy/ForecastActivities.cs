@@ -86,7 +86,9 @@ public static class ForecastActivities
         var options = problem.Options.ToDictionary(o => (o.Activity, o.Pawn));
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var plans = new Dictionary<string, ForecastActivityPlan>(StringComparer.Ordinal);
-        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var visited = new HashSet<long[]>(PrefixComparer.Instance);
+        var taskIndex = tasks.Select((t, i) => (t.Id, i)).ToDictionary(p => p.Id, p => p.i, StringComparer.Ordinal);
+        var pawnIndex = problem.Pawns.Select((p, i) => (p.Pawn, i)).ToDictionary(p => p.Pawn, p => p.i, StringComparer.Ordinal);
         var expansions = 0;
         var truncated = false;
         if (!problem.Deadline.TryGetValue(out var deadline))
@@ -103,8 +105,16 @@ public static class ForecastActivities
         {
             // Independent DAG traversal orders can reach exactly the same scheduled prefix.
             // Retain every distinct assignment/time; do not spend the budget expanding identical state twice.
-            var prefix = string.Join(";", assigned.OrderBy(a => a.Activity, StringComparer.Ordinal).Select(a =>
-                FormattableString.Invariant($"{a.Activity}:{a.Pawn}:{a.Depart:R}:{a.Start:R}:{a.End:R}")));
+            // Interned and bitwise, so the prefix identity is exactly the old round-trip text's (#3468).
+            var prefix = new long[4 * assigned.Count];
+            var slot = 0;
+            foreach (var a in assigned.OrderBy(a => taskIndex[a.Activity]))
+            {
+                prefix[slot++] = (long)taskIndex[a.Activity] << 32 | (uint)pawnIndex[a.Pawn];
+                prefix[slot++] = BitConverter.DoubleToInt64Bits(a.Depart);
+                prefix[slot++] = BitConverter.DoubleToInt64Bits(a.Start);
+                prefix[slot++] = BitConverter.DoubleToInt64Bits(a.End);
+            }
             if (!visited.Add(prefix)) return;
             if (assigned.Count == tasks.Length)
             {
@@ -198,6 +208,18 @@ public static class ForecastActivities
         var selected = ranked.FirstOrDefault(p => p.LaborCost < alternative);
         return new(selected, ranked, selected != null ? "lower_labor_cost" : ranked.Length == 0 ? "no_known_feasible_plan" : "retain_alternative",
             findings.ToArray(), expansions, truncated);
+    }
+
+    private sealed class PrefixComparer : IEqualityComparer<long[]>
+    {
+        internal static readonly PrefixComparer Instance = new();
+        public bool Equals(long[]? x, long[]? y) => x.AsSpan().SequenceEqual(y);
+        public int GetHashCode(long[] prefix)
+        {
+            var hash = new HashCode();
+            hash.AddBytes(System.Runtime.InteropServices.MemoryMarshal.AsBytes(prefix.AsSpan()));
+            return hash.ToHashCode();
+        }
     }
 
     internal static void ValidateActivityProblem(ForecastActivityProblem p, bool allowEmpty = false)

@@ -718,3 +718,24 @@ three samples, same machine:
 | Four-worker | 700 | 16,384 | 1,267 / 781 | 494 / 343 |
 | Four-worker | 700 | 262,144 | 26,830 / 14,800 | 10,403 / 6,434 |
 | Four-worker | 60,000 | 16,384 | 6,497 / 1,330 | 2,383 / 540 |
+
+## Search repeats removed (#3468)
+
+Stage 2 removes work that schedules repeat:
+
+- Mood is cached apart from needs. Mood reads neither occupancy nor capacity, so schedules that
+  differ only in a pawn's work reuse that pawn's mood.
+- Schedule-search prefixes are packed interned indices and raw double bits, not formatted text.
+  Plan keys are formatted only for complete plans, which the ranking still orders by.
+- Need tasks are indexed once per search, not scanned for each event and pawn.
+
+Every quality row is identical before and after. Allocation, best of three samples (wall time is
+within run-to-run noise except at one day):
+
+| Fixture | Horizon | Budget | MB stage 1 / stage 2 | ms stage 1 / stage 2 |
+|---|---|---|---|---|
+| Original | 700 | 16,384 | 409 / 359 | 195 / 239 |
+| Original | 60,000 | 16,384 | 613 / 362 | 235 / 178 |
+| Four-worker | 700 | 16,384 | 781 / 679 | 343 / 384 |
+| Four-worker | 700 | 262,144 | 14,800 / 13,082 | 6,434 / 7,182 |
+| Four-worker | 60,000 | 16,384 | 1,330 / 707 | 540 / 325 |

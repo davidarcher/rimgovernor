@@ -147,6 +147,15 @@ public sealed class PortfolioAllocationTests
                 var samples = profile.Snapshot();
                 File.WriteAllText(Path.Combine(output, name + "." + stage + ".allocation-types.json"), JsonSerializer.Serialize(samples, Json));
             }
+            // One-day horizon selection (#3468), the production review horizon.
+            var day = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay)!;
+            var dayRequest = Request(facts, day, GameTime.TicksPerDay);
+            ForecastCoupledSelection.CompareActivityOutcomes(dayRequest, day);
+            using (var profile = new AllocationSamples())
+            {
+                ForecastCoupledSelection.CompareActivityOutcomes(dayRequest, day);
+                File.WriteAllText(Path.Combine(output, name + ".selection-one-day.allocation-types.json"), JsonSerializer.Serialize(profile.Snapshot(), Json));
+            }
         }
     }
     private static (T Result, long[] Bytes, double[] Milliseconds) Measure<T>(Func<T> operation)

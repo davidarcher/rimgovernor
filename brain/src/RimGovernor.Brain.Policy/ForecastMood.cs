@@ -147,6 +147,7 @@ public static class ForecastMood
             return false;
         }
         var currentConditionalOffset = effects.Sum(e => e.CurrentOffset);
+        var bandedSpans = banded.SelectMany(b => b.Spans).ToArray();
         double Target(double time, bool asleep)
         {
             var hour = (pawn.LocalHour.Value + time / GameTime.TicksPerHour) % 24;
@@ -160,7 +161,7 @@ public static class ForecastMood
                 if (gain.Start <= time && time < gain.End) mealMemories += Memory(gain.Thought, time - gain.Start);
             changedMemories += mealMemories;
             foreach (var change in situational) if (change.Start <= time) changedMemories += change.OffsetDelta;
-            foreach (var span in banded.SelectMany(b => b.Spans)) if (span.Start <= time && time < span.End) changedMemories += span.OffsetDelta;
+            foreach (var span in bandedSpans) if (span.Start <= time && time < span.End) changedMemories += span.OffsetDelta;
             return Math.Clamp(pawn.MoodUnclampedTarget.Value + (conditional - currentConditionalOffset + changedMemories) / 100, 0, 1);
         }
         for (var i = 0; i < ticks.Length; i++)

@@ -33,9 +33,12 @@ public readonly struct EquatableArray<T>(ImmutableArray<T> items) : IEquatable<E
         return hash.ToHashCode();
     }
 
-    public IEnumerator<T> GetEnumerator() => ((IEnumerable<T>)Items).GetEnumerator();
+    /// <summary>A struct enumerator, so foreach over an EquatableArray allocates nothing (#3468).</summary>
+    public ImmutableArray<T>.Enumerator GetEnumerator() => Items.GetEnumerator();
 
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    IEnumerator<T> IEnumerable<T>.GetEnumerator() => ((IEnumerable<T>)Items).GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable<T>)Items).GetEnumerator();
 
     public static bool operator ==(EquatableArray<T> left, EquatableArray<T> right) => left.Equals(right);
 
