@@ -233,7 +233,7 @@ public static class CombatCases
             throw new AcceptanceException("replay-unchanged: job changed unexpectedly");
         }
 
-        var supervisor = new ScenarioClock(h.WireFunc(), identity, report)
+        var supervisor = new ScenarioClock(h, identity, report)
         {
             Grant = grant,
             CombatTargets = targets,

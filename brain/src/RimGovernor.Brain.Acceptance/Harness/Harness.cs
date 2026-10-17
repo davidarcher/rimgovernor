@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.Telemetry;
+using RimGovernor.Brain.Telemetry.Otlp;
 using RimGovernor.Contracts.Wire;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -137,6 +139,21 @@ public sealed partial class Harness : IAsyncDisposable
 
     /// <summary>The keys of an object in ordinal order.</summary>
     public static IReadOnlyList<string> Keys(JsonObject map) => [.. map.Select(pair => pair.Key).Order(StringComparer.Ordinal)];
+
+    /// <summary>
+    /// The game's OTLP log ring: the channel directory the opened game writes its rings to, where native's clock and
+    /// colony event rows and the in-mod brain's rows land.
+    /// </summary>
+    public string LogsPath() => Transport is HttpNativeTransport http
+        ? OtlpFiles.RingPath(http.EndpointDirectory, OtlpSignal.Logs)
+        : throw new AcceptanceException("the harness transport has no channel directory to read the game's log ring from");
+
+    /// <summary>Every row of <paramref name="kind"/> in the game's log ring, oldest first.</summary>
+    public IReadOnlyList<LogRow> Telemetry(TelemetryKind kind)
+    {
+        ArgumentNullException.ThrowIfNull(kind);
+        return [.. ServiceLogs.ReadLogs(LogsPath()).Where(row => row.Kind == kind.Name)];
+    }
 
     /// <summary>Returns the game's native tool names, bounded; null when the transport cannot enumerate them.</summary>
     public Task<IReadOnlyList<string>?> DiscoveryAsync(CancellationToken cancellationToken) => Transport.ToolNamesAsync(cancellationToken);

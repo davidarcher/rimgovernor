@@ -86,14 +86,14 @@ are their C# names (`LetterPause`, `Fast`, `Research`).
 
 | Kind | Shape and fields |
 |---|---|
-| `clock_hold` | the clock entered a hold: a native hazard, a game pause, an armed combat event or a brain hold. `reason` (the `HoldReason`), `stop_at_ms` (the stamp `Status` reports as held-at), the legs `detected_tick`, `occurrence_tick`, `hold_ticks`, `detect_ticks`, and `evidence` (`pawn`, `injury`, `health`, `pause`, `notifications`, `unavailable`, `combat`) with its fields: `pawn`, `pawn_name`, `x`, `z`, `pawn_reason`; `before`/`after` health maps (`severity`); `min_health_fraction`, `health_drop_fraction`; `actual_paused`, `pause_verified`, `letter_id`, `letter_label`, `letter_def`, `dialog_window_id`, `dialog_window_type`, `dialog_title`; `letters`, `messages`; `unavailable_reason`, `unavailable_detail`; `combat_event`, `thing`, `combat_reason`. Readers: `StopSummaries` (speed matrix), the launcher Observe tab |
+| `clock_hold` | the clock entered a hold: a native hazard, a game pause, an armed combat event or a brain hold. `reason` (the `HoldReason`), `stop_at_ms` (the stamp `Status` reports as held-at), the legs `detected_tick`, `occurrence_tick`, `hold_ticks`, `detect_ticks`, and `evidence` (`pawn`, `injury`, `health`, `pause`, `notifications`, `unavailable`, `combat`) with its fields: `pawn`, `pawn_name`, `x`, `z`, `pawn_reason`; `before`/`after` health maps (`severity`); `min_health_fraction`, `health_drop_fraction`; `actual_paused`, `pause_verified`, `letter_id`, `letter_label`, `letter_def`, `dialog_title`; `letters`, `messages`; `unavailable_reason`, `unavailable_detail`; `combat_event`, `thing`, `combat_reason`. Readers: `StopSummaries` (speed matrix), the launcher Observe tab, and the acceptance cases through `ScenarioClock.RunRows` (`AdvanceGame` letter attribution, `combatlab/stops`, `hazard/*`) |
 | `clock_resume` | a Run resumed a held clock. `from` (the hold reason it ended), `speed`; `observed_at_unix_ms` is the resume time. Readers: `StopSummaries`, the launcher Observe tab |
 | `clock_authority` | the native authority generation moved. `generation`, `reason`, `active`. Readers: the postmortem's authority generations, the launcher Observe tab |
 | `clock_alert` | a new game alert. `key`, `label`, `priority` |
 | `clock_notification` | a new letter or transient message. `source` (`letter`, `message`), `id`, `label`, `def` (letter), `text` (message) |
 | `clock_injury` | a colonist injury observed without a hold. The `injury` evidence fields above |
 | `clock_hostiles_cleared` | no conscious hostiles remain (the row carries the common fields only) |
-| `clock_invalidation` | observed fact families changed under a running clock. `families` (`FactFamily` names), `reason`, `entity_ids` and `cells` (`min_x`, `min_z`, `max_x`, `max_z`) when native could narrow the change |
+| `clock_invalidation` | observed fact families changed under a running clock. `families` (`FactFamily` names), `reason`, `entity_ids` and `cells` (`min_x`, `min_z`, `max_x`, `max_z`) when native could narrow the change. Readers: `zone/delete`, `hazard/injury` |
 | `clock_long_event` | a long event or transient force pause: `state` `waiting` (with the `pause` evidence fields) or `cleared` |
 | `clock_pause_failed` | a pending hold's pause did not take and stays armed. The pending hold's `reason` and `evidence` |
 
@@ -208,8 +208,10 @@ carry each hold's reason, evidence and latency legs. Acceptance readers use the 
 `OtlpTimeline.Read` rebuilds the row shape these
 helpers expect from the typed log reader (`OtlpReader.ReadLogs`, see
 [OTEL core](otel-core.md)); `ServiceLogs.ReadLogs`, `LogTail` and
-`LogMessages` sit on top. A null attribute is absent in a record, not present
-as nil. Postmortem evidence is `otlp/logs.jsonl.2#77`: the segment and its
+`LogMessages` sit on top. Cases that assert on a live game's rows (native's
+clock and colony events, the pawn-activity rows) read the game's own ring in
+its channel directory through `Harness.Telemetry` or `ITypedSession.Telemetry`.
+A null attribute is absent in a record, not present as nil. Postmortem evidence is `otlp/logs.jsonl.2#77`: the segment and its
 1-based line (what `grep -n` prints).
 
 ## Retention

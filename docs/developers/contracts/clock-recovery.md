@@ -56,14 +56,12 @@ tick watchers. Neither read advances time or acquires authority.
 
 `ValidateClockEventsPage` checks the typed request and page together. The native
 reader scans at most the requested limit of cursor positions after `after_cursor`,
-counting events overwritten in the ring as loss. Therefore
-`next_cursor - after_cursor` equals returned events plus `lost_count`; `gap` is true
-exactly when loss is reported. Returned events are strictly ordered within the
-scanned window. An empty journal reports `newest_cursor = 0`.
+skipping events overwritten in the ring; `next_cursor` is the last position scanned.
+Returned events are strictly ordered within the scanned window. An empty journal
+reports `newest_cursor = 0`.
 
 Reads are never held: `EventsRequest` has no wait field.
-The poll loop reads the page after its cursor unheld at `ClockRunConfig.PollInterval`. Gap and loss evidence is the
-page's, as above.
+The poll loop reads the page after its cursor unheld at `ClockRunConfig.PollInterval`.
 
 Native journal events are `HoldEntered` (reason, evidence, detected and occurrence tick) and `Resumed` (speed, from),
 plus the facts below. A brain-requested hold does not wake the step loop; a hold native took does.

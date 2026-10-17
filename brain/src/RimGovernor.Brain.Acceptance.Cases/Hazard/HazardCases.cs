@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Telemetry;
+using Clock = RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -46,7 +48,7 @@ public static class HazardCases
         }
     }
 
-    // One class: how it is injected and the stop it must raise, or -- for a demoted tier -- the journal wake it must raise
+    // One class: how it is injected and the stop it must raise, or -- for a demoted tier -- the invalidation wake it must raise
     // instead while the run goes on.
     private sealed record HazardCase(string Name, string Class, long Bound, string Scope, bool Demoted, Func<ISession, CancellationToken, Task<(long Tick, JsonObject Reply)>> Inject);
 
@@ -149,7 +151,7 @@ public static class HazardCases
     {
         var h = s.Harness;
         var report = s.Report;
-        var clock = new ScenarioClock(h.WireFunc(), s.Identity, report);
+        var clock = new ScenarioClock(h, s.Identity, report);
         _ = await clock.AcquireAsync("acquire", cancellationToken).ConfigureAwait(false);
         JsonObject started;
         try
@@ -168,7 +170,7 @@ public static class HazardCases
         while (true)
         {
             await clock.BeatIfDueAsync(cancellationToken).ConfigureAwait(false);
-            var status = await clock.CallAsync("status", null, cancellationToken).ConfigureAwait(false);
+            var status = await clock.StatusAsync(cancellationToken).ConfigureAwait(false);
             if (status["active"].AsBool() != true)
             {
                 throw new AcceptanceException("clock held before the injection: " + status["stopReason"].AsString());
@@ -194,40 +196,17 @@ public static class HazardCases
             return;
         }
 
-        // Poll the events until the stop; the 90 s deadline bounds the wait.
-        JsonObject? stopped = null;
-        long stopTick = 0;
-        deadline = DateTime.UtcNow.AddSeconds(90);
-        while (stopped is null)
-        {
-            await clock.BeatIfDueAsync(cancellationToken).ConfigureAwait(false);
-            var events = await clock.PollAsync(cancellationToken).ConfigureAwait(false);
-            foreach (var raw in events)
-            {
-                var row = raw.AsMap();
-                var native = row?["native"].AsMap();
-                if (native?["holdEntered"].AsMap() is { } body)
-                {
-                    stopped = body;
-                    stopTick = Int64Of(native["context"].AsMap()?["tick"]) ?? 0;
-                    stopped["kind"] = row?["kind"]?.DeepClone();
-                }
-            }
-
-            if (stopped is null)
-            {
-                if (DateTime.UtcNow > deadline)
-                {
-                    throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"no stop within 90 s of injecting {hc.Class} at tick {injectTick}"));
-                }
-
-                await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
-            }
-        }
-
-        var kind = stopped["kind"].AsString();
-        var detected = Int64Of(stopped["detectedTick"]);
-        var occurrence = Int64Of(stopped["occurrenceTick"]);
+        // Wait for the run's first clock_hold row; the 90 s deadline bounds the wait.
+        var stopped = await clock.AwaitRowsAsync(
+            () => clock.FirstRunRow(TelemetryKinds.ClockHold),
+            TimeSpan.FromSeconds(90),
+            string.Create(CultureInfo.InvariantCulture, $"a stop after injecting {hc.Class} at tick {injectTick}"),
+            cancellationToken).ConfigureAwait(false);
+        var kind = ClockRows.Reason(stopped);
+        var stopTick = ClockRows.Tick(stopped);
+        var detected = ClockRows.Whole(stopped, ClockEventTelemetry.DetectedTickKey);
+        var occurrence = ClockRows.Whole(stopped, ClockEventTelemetry.OccurrenceTickKey);
+        var shown = $"{kind} at tick {stopTick}: {ClockRows.Text(stopped, "msg")}";
         var summary = new JsonObject
         {
             ["class"] = hc.Class,
@@ -235,8 +214,8 @@ public static class HazardCases
             ["stop_kind"] = kind,
             ["inject_tick"] = injectTick,
             ["stop_tick"] = stopTick,
-            ["detected_tick"] = stopped["detectedTick"]?.DeepClone(),
-            ["occurrence_tick"] = stopped["occurrenceTick"]?.DeepClone(),
+            ["detected_tick"] = detected,
+            ["occurrence_tick"] = occurrence,
             ["injected"] = injected.DeepClone(),
         };
         report["hazard"] = summary;
@@ -252,12 +231,12 @@ public static class HazardCases
         report["response"] = response.ToJson();
         if (kind != hc.Class)
         {
-            throw new AcceptanceException($"stop kind {kind}, expected {hc.Class}: {stopped.ToJson()}");
+            throw new AcceptanceException($"stop kind {kind}, expected {hc.Class}: {shown}");
         }
 
         if (detected is not { } detectedAt)
         {
-            throw new AcceptanceException($"{kind} stop carries no detectedTick: {stopped.ToJson()}");
+            throw new AcceptanceException($"{kind} stop carries no detectedTick: {shown}");
         }
 
         var injectGap = detectedAt - injectTick;
@@ -269,7 +248,7 @@ public static class HazardCases
 
         if (occurrence is not { } occurredAt)
         {
-            throw new AcceptanceException($"{kind} stop carries no occurrenceTick: {stopped.ToJson()}");
+            throw new AcceptanceException($"{kind} stop carries no occurrenceTick: {shown}");
         }
 
         var detectTicks = detectedAt - occurredAt;
@@ -339,67 +318,47 @@ public static class HazardCases
                 $"the injected wound bleeds out in {ticks} ticks, inside the {InjurySeverityFloorTicks}-tick severity floor: it is a danger, not a demoted tier: {injected.ToJson()}");
         }
 
-        JsonObject? wake = null;
-        long wakeTick = 0;
-        var deadline = DateTime.UtcNow.AddSeconds(90);
-        while (wake is null)
-        {
-            await clock.BeatIfDueAsync(cancellationToken).ConfigureAwait(false);
-            var events = await clock.PollAsync(cancellationToken).ConfigureAwait(false);
-            foreach (var raw in events)
+        var wake = await clock.AwaitRowsAsync(
+            () =>
             {
-                var native = raw.AsMap()?["native"].AsMap();
-                if (native?["holdEntered"].AsMap() is { } stopped)
+                if (clock.FirstRunRow(TelemetryKinds.ClockHold) is { } stopped)
                 {
-                    throw new AcceptanceException($"the clock was held ({stopped["reason"].AsString()}) for a wound under the severity floor: {stopped.ToJson()}");
+                    throw new AcceptanceException($"the clock was held ({ClockRows.Reason(stopped)}) for a wound under the severity floor: {ClockRows.Text(stopped, "msg")}");
                 }
 
-                if (native?["observationInvalidated"].AsMap() is not { } invalidated || !HasFamily(invalidated, "PAWNS"))
-                {
-                    continue;
-                }
-
-                wake = invalidated;
-                wakeTick = (long)(native["context"].AsMap()?["tick"].AsNumber() ?? 0);
-            }
-
-            if (wake is null)
-            {
-                if (DateTime.UtcNow > deadline)
-                {
-                    throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"no medical wake within 90 s of injecting {hc.Class} at tick {injectTick}"));
-                }
-
-                await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
-            }
-        }
-
-        summary["wake"] = wake.DeepClone();
+                return clock.RunRows(TelemetryKinds.ClockInvalidation).FirstOrDefault(row => HasFamily(row, Clock.FactFamily.Pawns));
+            },
+            TimeSpan.FromSeconds(90),
+            string.Create(CultureInfo.InvariantCulture, $"a medical wake after injecting {hc.Class} at tick {injectTick}"),
+            cancellationToken).ConfigureAwait(false);
+        var wakeTick = ClockRows.Tick(wake);
+        var families = string.Join(",", ClockRows.Strings(wake, "families"));
+        summary["wake"] = new JsonObject { ["families"] = families, ["reason"] = ClockRows.Text(wake, ClockEventTelemetry.ReasonKey) };
         summary["wake_tick"] = wakeTick;
         var gap = wakeTick - injectTick;
         summary["inject_gap_ticks"] = gap;
         if (gap < 0 || gap > hc.Bound)
         {
-            throw new AcceptanceException($"the medical wake landed {gap} ticks after the injection, bound {hc.Bound}: {wake.ToJson()}");
+            throw new AcceptanceException($"the medical wake landed {gap} ticks after the injection, bound {hc.Bound}: families {families}");
         }
 
-        if (!HasFamily(wake, "EMERGENCY"))
+        if (!HasFamily(wake, Clock.FactFamily.Emergency))
         {
-            throw new AcceptanceException($"the medical wake does not invalidate the emergency family: {wake.ToJson()}");
+            throw new AcceptanceException($"the medical wake does not invalidate the emergency family: families {families}");
         }
 
         // The run survives the wake: the readmit the hold used to cost is exactly what this tier no longer spends.
         await clock.BeatIfDueAsync(cancellationToken).ConfigureAwait(false);
-        var status = await clock.CallAsync("status", null, cancellationToken).ConfigureAwait(false);
+        var status = await clock.StatusAsync(cancellationToken).ConfigureAwait(false);
         if (status["active"].AsBool() != true)
         {
             throw new AcceptanceException("the clock is no longer running after the wake: " + status["stopReason"].AsString());
         }
     }
 
-    // Reports whether an observation_invalidated row names a fact family; the wire carries the enum name (FACT_FAMILY_PAWNS).
-    private static bool HasFamily(JsonObject row, string family) =>
-        row["families"].AsSlice().Any(raw => raw.AsString() == "FACT_FAMILY_" + family);
+    // Reports whether a clock_invalidation row names a fact family; the row carries the enum's C# name.
+    private static bool HasFamily(LogRow row, Clock.FactFamily family) =>
+        ClockRows.Strings(row, "families").Contains(family.ToString(), StringComparer.Ordinal);
 
     // Reads a JSON integer the wire carries as a number.
     private static long? Int64Of(JsonNode? value) => value switch

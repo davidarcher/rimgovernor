@@ -98,7 +98,7 @@ internal static class WallRemoval
             }
         }
 
-        var clock = new ScenarioClock(h.WireFunc(), identity, report);
+        var clock = new ScenarioClock(h, identity, report);
         _ = await h.CallAsync("initial-pause", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
         var scope = WallCensus.Scope(identity);
 
@@ -259,7 +259,7 @@ internal static class WallRemoval
                     {
                         polls++;
                         await clock.BeatIfDueAsync(ct).ConfigureAwait(false);
-                        state = await clock.CallAsync("status", null, ct).ConfigureAwait(false);
+                        state = await clock.StatusAsync(ct).ConfigureAwait(false);
                         var current = await WallCensus.ColonistWallsAsync(h, scope, $"{label}-walls-{CaseSupport.Tag(polls)}", ct).ConfigureAwait(false);
                         if (!current.Contains(wall, StringComparer.Ordinal))
                         {

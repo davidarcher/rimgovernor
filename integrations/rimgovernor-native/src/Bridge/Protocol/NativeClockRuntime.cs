@@ -423,7 +423,7 @@ namespace HomeBridge.BridgeTools
                     var window = Journal.ReadWindow(request.AfterCursor.GetValueOrDefault(), (int)request.Limit.GetValueOrDefault());
                     ObservationWork.Captured("clockEventsJournal", System.Diagnostics.Stopwatch.GetTimestamp() - began, window.Events.Count);
                     return new Clock.EventsReply { Outcome = new Clock.EventsPage { Context = context, Events = EquatableArray.From(window.Events),
-                        NewestCursor = Journal.Newest, NextCursor = window.Next, Gap = window.Lost != 0, LostCount = window.Lost } };
+                        NewestCursor = Journal.Newest, NextCursor = window.Next } };
                 }
                 catch (Exception error) { ModLog.Error("clock", "Clock event journal read failed: " + error); return new Clock.EventsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Clock event journal could not establish complete cursor continuity.") }; }
             }
@@ -478,7 +478,7 @@ namespace HomeBridge.BridgeTools
         private static Clock.ClockEvent? OwnerlessEvent(string kind, string? detail, Dictionary<string, object?>? payload)
         {
             if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var observed, out _)) return null;
-            return NativeClockEventProjection.Event(kind, detail, payload, observed, checked(Journal.Newest + 1), NowMs(),
+            return NativeClockEventProjection.Event(kind, detail, payload, observed, NowMs(),
                 number => throw new InvalidOperationException("Context-only clock events carry no pawn evidence"));
         }
         private static Clock.ClockEvent TypedEvent(string kind, string? detail, State s, Dictionary<string, object?>? payload)
@@ -492,7 +492,7 @@ namespace HomeBridge.BridgeTools
                 observed = current;
             }
             typed.LastObservation = observed;
-            var result = NativeClockEventProjection.Event(kind, detail, payload, observed, checked(Journal.Newest + 1), NowMs(),
+            var result = NativeClockEventProjection.Event(kind, detail, payload, observed, NowMs(),
                 number => s.Map.mapPawns.AllPawns.Single(p => p.thingIDNumber == number).GetUniqueLoadID());
             if (kind == "pause_failed" && result.Event?.PauseFailed?.Pending is { } pending)
                 result = result with { Event = new Clock.PauseFailed { Pending = pending with { Reason = HoldReasonOf(s.PendingKind) } } };
@@ -504,7 +504,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var dialog = ChoiceDialogTools.Pending();
                     if (dialog == null) throw new InvalidOperationException("Dialog pause lacks its force-pausing choice dialog");
-                    pause = pause with { Dialog = new Clock.DialogPause { WindowId = dialog.ID, WindowType = Text(dialog.GetType().FullName), Title = Text(ChoiceDialogTools.Title(dialog)) } };
+                    pause = pause with { Dialog = new Clock.DialogPause { Title = Text(ChoiceDialogTools.Title(dialog)) } };
                 }
                 if (kind == "letter_pause")
                 {
@@ -528,7 +528,7 @@ namespace HomeBridge.BridgeTools
         private static bool ValidStoredEvent(Clock.ClockEvent value)
         {
             var identity = value.Context?.Identity;
-            if (value.Cursor is null || value.Cursor <= 0 || value.Context == null || identity == null
+            if (value.Context == null || identity == null
                 || !ProtoBoundary.IsIdentifier(identity.ColonyId)
                 || !ProtoBoundary.IsIdentifier(identity.LoadToken)
                 || identity.MapId < 0 || value.Context.Tick < 0

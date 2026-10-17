@@ -8,10 +8,10 @@ namespace HomeBridge.BridgeTools
 {
     // The process's clock events, in memory only: nothing keeps a durable
     // copy (the brain reads the ring live and persists no clock events,
-    // persistence-contracts.md); native keeps a bounded ring to page. Cursors
-    // are a plain sequence from 1; the brain is hosted in this process, so
-    // no cursor it holds predates the journal. Events overwritten in the ring
-    // read as lost, one per scanned position.
+    // persistence-contracts.md); native keeps a bounded ring to page. An
+    // event's cursor is its position in a plain sequence from 1; the brain is
+    // hosted in this process, so no cursor it holds predates the journal.
+    // Events overwritten in the ring are skipped, one per scanned position.
     internal sealed class ClockEventJournal
     {
         // Events kept for paging. A reader this far behind has lost the
@@ -26,16 +26,15 @@ namespace HomeBridge.BridgeTools
 
         internal void Append(Clock.ClockEvent value)
         {
-            if (value.Cursor != Newest + 1) throw new InvalidOperationException("Native clock cursor is not consecutive.");
-            ring[value.Cursor.GetValueOrDefault() % RetainRows] = value;
-            Newest = value.Cursor.GetValueOrDefault();
+            var cursor = checked(Newest + 1);
+            ring[cursor % RetainRows] = value;
+            Newest = cursor;
         }
 
         internal sealed class Window
         {
             internal readonly List<Clock.ClockEvent> Events = new List<Clock.ClockEvent>();
             internal long Next;
-            internal ulong Lost;
         }
 
         internal Window ReadWindow(long after, int limit)
@@ -48,7 +47,6 @@ namespace HomeBridge.BridgeTools
             {
                 result.Next++;
                 if (result.Next > floor) result.Events.Add(ring[result.Next % RetainRows]);
-                else result.Lost++;
             }
             return result;
         }

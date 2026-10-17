@@ -209,7 +209,7 @@ public static class StopSummaries
     }
 
     // "LetterPause" (a HoldReason name) is "letter_pause"; an unnamed reason reads as "unspecified".
-    private static string ReasonName(string reason)
+    internal static string ReasonName(string reason)
     {
         if (reason.Length == 0)
         {

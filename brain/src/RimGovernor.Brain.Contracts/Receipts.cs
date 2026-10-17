@@ -598,8 +598,6 @@ public sealed record ExcavationEffect
 /// </summary>
 public sealed record DialogEffect
 {
-    public int? WindowId { get; init; }
-
     public bool? Advanced { get; init; }
 }
 

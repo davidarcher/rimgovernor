@@ -15,9 +15,9 @@ public sealed class ClockEventRowTests
     private static Common.ObservationContext Context(long tick) =>
         new() { Identity = new Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = tick, NativeGeneration = 3 };
 
-    private static Clock.ClockEvent Hold(long cursor, long tick, long observedAt) => new()
+    private static Clock.ClockEvent Hold(long tick, long observedAt) => new()
     {
-        Cursor = cursor, Context = Context(tick), ObservedAtUnixMs = observedAt, Detail = "Colonist downed.",
+        Context = Context(tick), ObservedAtUnixMs = observedAt, Detail = "Colonist downed.",
         Event = new Clock.HoldEntered
         {
             Reason = Clock.HoldReason.ColonistDowned, DetectedTick = tick - 4, OccurrenceTick = tick - 10,
@@ -25,9 +25,9 @@ public sealed class ClockEventRowTests
         },
     };
 
-    private static Clock.ClockEvent Resume(long cursor, long tick, long observedAt) => new()
+    private static Clock.ClockEvent Resume(long tick, long observedAt) => new()
     {
-        Cursor = cursor, Context = Context(tick), ObservedAtUnixMs = observedAt, Detail = "Clock resumed at Fast.",
+        Context = Context(tick), ObservedAtUnixMs = observedAt, Detail = "Clock resumed at Fast.",
         Event = new Clock.Resumed { Speed = Clock.Speed.Fast, From = Clock.HoldReason.ColonistDowned },
     };
 
@@ -40,8 +40,8 @@ public sealed class ClockEventRowTests
             await using (var writer = OtlpFileWriter.Start(new() { Dir = directory }))
             {
                 var emitter = new TelemetryEmitter(writer);
-                ClockEventRows.Write(emitter, Hold(1, 1000, 50_000), stopAtMs: 49_990);
-                ClockEventRows.Write(emitter, Resume(2, 1000, 50_240), stopAtMs: null);
+                ClockEventRows.Write(emitter, Hold(1000, 50_000), stopAtMs: 49_990);
+                ClockEventRows.Write(emitter, Resume(1000, 50_240), stopAtMs: null);
             }
 
             var rows = OtlpTimeline.Read(Path.Combine(directory, "logs.jsonl"));
@@ -80,7 +80,7 @@ public sealed class ClockEventRowTests
     [Fact]
     public void EveryEventFamilyHasItsRegisteredKind()
     {
-        Clock.ClockEvent Of(Clock.ClockEventEvent e) => new() { Cursor = 1, Context = Context(5), ObservedAtUnixMs = 1, Detail = "", Event = e };
+        Clock.ClockEvent Of(Clock.ClockEventEvent e) => new() { Context = Context(5), ObservedAtUnixMs = 1, Detail = "", Event = e };
         var cases = new (Clock.ClockEventEvent Event, TelemetryKind Kind)[]
         {
             (new Clock.AuthorityChanged { Generation = 4, Reason = "acquired", Active = true }, TelemetryKinds.ClockAuthority),

@@ -93,10 +93,10 @@ namespace HomeBridge.BridgeTools
             }
         }
         internal static Clock.ClockEvent Event(string kind, string? detail, Dictionary<string, object?>? payload, Common.ObservationContext context,
-            long cursor, long observedAt, Func<int, string> resolvePawn)
+            long observedAt, Func<int, string> resolvePawn)
         {
             Dictionary<string, object?> P() => payload ?? throw new InvalidOperationException("Missing clock evidence for " + kind);
-            var result = new Clock.ClockEvent { Cursor = cursor, Context = context, ObservedAtUnixMs = observedAt, Detail = Text(detail) };
+            var result = new Clock.ClockEvent { Context = context, ObservedAtUnixMs = observedAt, Detail = Text(detail) };
             switch (kind)
             {
                 case "authority_changed":

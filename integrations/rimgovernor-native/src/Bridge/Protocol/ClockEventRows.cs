@@ -148,8 +148,6 @@ namespace HomeBridge.BridgeTools
             if (pause.Letter is { } letter) Letter(p, letter, "letter_");
             if (pause.Dialog is { } dialog)
             {
-                p["dialog_window_id"] = dialog.WindowId;
-                p["dialog_window_type"] = dialog.WindowType;
                 p["dialog_title"] = dialog.Title;
             }
         }

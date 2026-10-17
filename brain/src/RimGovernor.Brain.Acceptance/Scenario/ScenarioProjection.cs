@@ -20,8 +20,8 @@ public sealed class ScenarioInterruptedException : AcceptanceException
 }
 
 /// <summary>
-/// The adapters from the native clock replies (Run/Hold/Heartbeat, Status, the event journal) to the shape
-/// <see cref="ScenarioAdvance.AdvanceGameAsync"/> reads. Projected tick and cursor values are JSON numbers that were
+/// The adapters from the native clock replies (Run/Hold/Heartbeat, Status) to the shape
+/// <see cref="ScenarioAdvance.AdvanceGameAsync"/> reads. Projected tick values are JSON numbers that were
 /// validated as non-negative integers; read them back with <see cref="Dyn.AsUInt64"/>.
 /// </summary>
 public static class ScenarioProjection
@@ -35,7 +35,7 @@ public static class ScenarioProjection
     public static string NamedStopReason(string reason) => reason.Length == 0 ? "an unreported reason" : reason;
 
     /// <summary>Decodes a JSON number as a non-negative integer.</summary>
-    public static ulong ScenarioInteger(JsonNode? value)
+    private static ulong ScenarioInteger(JsonNode? value)
     {
         if (value is JsonValue json)
         {
@@ -54,7 +54,7 @@ public static class ScenarioProjection
     }
 
     /// <summary>Go <c>validateScenarioContext</c>: the context carries a loaded identity and a tick.</summary>
-    public static void ValidateContext(JsonObject? value)
+    private static void ValidateContext(JsonObject? value)
     {
         var identity = value?["identity"].AsMap()
             ?? throw new AcceptanceException($"context missing identity: {value.ToJson()}");
@@ -79,7 +79,7 @@ public static class ScenarioProjection
     }
 
     /// <summary>The lowercase name of a wire hold reason ("HOLD_REASON_LETTER_PAUSE" is "letter_pause"); a missing or unspecified reason is refused.</summary>
-    public static string HoldKind(JsonNode? reason, string what)
+    private static string HoldKind(JsonNode? reason, string what)
     {
         var text = reason.AsString();
         return !text.StartsWith(HoldReasonPrefix, StringComparison.Ordinal) || text == HoldReasonPrefix + "UNSPECIFIED"
@@ -89,8 +89,9 @@ public static class ScenarioProjection
 
     /// <summary>
     /// Adapts a decoded clock_read_status/clock_run/clock_hold status into advance_game's protocol: {native, active
-    /// (Running), held, lastTick (the status context's tick), newestCursor, paused, nativeTickBoundary} and, for a
-    /// held clock, {stopReason (lowercase, without HOLD_REASON_), pauseVerified}.
+    /// (Running), held, lastTick (the status context's tick), holdSerial, paused, nativeTickBoundary} and, for a
+    /// held clock, {stopReason (lowercase, without HOLD_REASON_), pauseVerified, heldAtUnixMs (the stamp its
+    /// clock_hold row carries as stop_at_ms, when native reports one)}.
     /// </summary>
     public static JsonObject ProjectStatus(JsonObject status)
     {
@@ -111,14 +112,9 @@ public static class ScenarioProjection
         var paused = status["actualPaused"].AsBool() ?? throw new AcceptanceException($"clock status missing actualPaused: {status.ToJson()}");
         var nativeBoundary = status["nativeTickBoundary"].AsBool() ?? throw new AcceptanceException($"clock status missing nativeTickBoundary: {status.ToJson()}");
         ulong lastTick;
-        ulong newestCursor = 0;
         try
         {
             lastTick = ScenarioInteger(contextValue["tick"]);
-            if (status["newestCursor"] is not null)
-            {
-                newestCursor = ScenarioInteger(status["newestCursor"]);
-            }
         }
         catch (AcceptanceException e)
         {
@@ -132,7 +128,7 @@ public static class ScenarioProjection
             ["active"] = running,
             ["held"] = !running,
             ["lastTick"] = lastTick,
-            ["newestCursor"] = newestCursor,
+            ["holdSerial"] = status["holdSerial"]?.DeepClone(),
             ["paused"] = paused,
             ["nativeTickBoundary"] = nativeBoundary,
         };
@@ -140,163 +136,10 @@ public static class ScenarioProjection
         {
             result["stopReason"] = HoldKind(status["reason"], "clock status");
             result["pauseVerified"] = status["pauseVerified"].AsBool() == true;
+            result["heldAtUnixMs"] = status["heldAtUnixMs"]?.DeepClone();
         }
 
         return result;
-    }
-
-    /// <summary>
-    /// Adapts a decoded clock_read_events page: {native, events: [{native, cursor, kind, event?}], nextCursor, gap:
-    /// false}. Any gap, lost event or cursor discontinuity is refused. A hold row's kind is its lowercase hold reason
-    /// (letter_pause, combat_event, hostile, ...); every other row's kind is its case name (resumed, notification, ...).
-    /// </summary>
-    public static JsonObject ProjectEvents(JsonObject page, ulong after)
-    {
-        ArgumentNullException.ThrowIfNull(page);
-        var contextValue = page["context"].AsMap() ?? throw new AcceptanceException($"event page missing context: {page.ToJson()}");
-        ValidateContext(contextValue);
-        if (page["gap"].AsBool() is not false)
-        {
-            throw new AcceptanceException($"event page reported a gap: {page.ToJson()}");
-        }
-
-        if (!TryInteger(page["lostCount"], out var lostCount) || lostCount != 0)
-        {
-            throw new AcceptanceException($"event page lostCount: {page.ToJson()}");
-        }
-
-        ulong newest;
-        ulong nextCursor;
-        try
-        {
-            newest = ScenarioInteger(page["newestCursor"]);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException("event page newestCursor: " + e.Message, e);
-        }
-
-        try
-        {
-            nextCursor = ScenarioInteger(page["nextCursor"]);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException("event page nextCursor: " + e.Message, e);
-        }
-
-        if (after > newest)
-        {
-            throw new AcceptanceException($"event page cursor precedes requested afterCursor: {page.ToJson()}");
-        }
-
-        var rows = new JsonArray();
-        var previous = after;
-        foreach (var raw in page["events"].AsSlice())
-        {
-            var evt = raw.AsMap() ?? throw new AcceptanceException($"event row is not an object: {raw.ToJson()}");
-            if (!TryInteger(evt["cursor"], out var cursor) || cursor != previous + 1 || cursor > newest)
-            {
-                throw new AcceptanceException($"event cursor discontinuity: {page.ToJson()}");
-            }
-
-            previous = cursor;
-            var eventContext = evt["context"].AsMap() ?? throw new AcceptanceException($"event missing context: {evt.ToJson()}");
-            ValidateContext(eventContext);
-            var row = new JsonObject
-            {
-                ["native"] = evt.DeepClone(),
-                ["cursor"] = cursor,
-            };
-            if (evt["holdEntered"].AsMap() is { } hold)
-            {
-                var kind = HoldKind(hold["reason"], "event");
-                row["kind"] = kind;
-                if (kind == "letter_pause")
-                {
-                    var letter = hold["pause"].AsMap()?["letter"].AsMap();
-                    var letterId = letter?["id"].AsString() ?? "";
-                    if (letter is null || letterId.Length == 0)
-                    {
-                        throw new AcceptanceException($"letter_pause event missing letter id: {evt.ToJson()}");
-                    }
-
-                    row["event"] = new JsonObject { ["letterId"] = letterId, ["source"] = "LetterStack.ReceiveLetter" };
-                }
-
-                if (kind == "dialog_pause")
-                {
-                    var dialog = hold["pause"].AsMap()?["dialog"].AsMap();
-                    if (dialog is null || dialog["windowId"] is null)
-                    {
-                        throw new AcceptanceException($"dialog_pause event missing window id: {evt.ToJson()}");
-                    }
-
-                    row["event"] = new JsonObject
-                    {
-                        ["windowId"] = dialog["windowId"]?.DeepClone(),
-                        ["windowType"] = dialog["windowType"].AsString(),
-                        ["title"] = dialog["title"].AsString(),
-                    };
-                }
-            }
-            else
-            {
-                var cases = new List<string>();
-                foreach (var key in new[]
-                {
-                    "resumed", "notification", "alert", "injuryObserved", "hostilesCleared", "pauseFailed",
-                    "forcePauseWaiting", "forcePauseCleared", "operationOutcome", "authorityChanged", "observationInvalidated",
-                })
-                {
-                    if (evt.ContainsKey(key))
-                    {
-                        cases.Add(key);
-                    }
-                }
-
-                if (cases.Count != 1)
-                {
-                    throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"event carries {cases.Count} cases, expected exactly one: {evt.ToJson()}"));
-                }
-
-                row["kind"] = cases[0];
-            }
-
-            rows.Add(row);
-        }
-
-        if (nextCursor != previous)
-        {
-            throw new AcceptanceException($"event page nextCursor disagrees with the last row's cursor: {page.ToJson()}");
-        }
-
-        if (rows.Count == 0 && nextCursor != newest)
-        {
-            throw new AcceptanceException($"empty event page before the newest retained cursor: {page.ToJson()}");
-        }
-
-        return new JsonObject
-        {
-            ["native"] = page.DeepClone(),
-            ["events"] = rows,
-            ["nextCursor"] = nextCursor,
-            ["gap"] = false,
-        };
-    }
-
-    private static bool TryInteger(JsonNode? value, out ulong integer)
-    {
-        try
-        {
-            integer = ScenarioInteger(value);
-            return true;
-        }
-        catch (AcceptanceException)
-        {
-            integer = 0;
-            return false;
-        }
     }
 
     // A JSON number (not a numeric string): Go's `.(float64)` assertion.

@@ -586,10 +586,6 @@ public sealed record PauseEvidence
 
 public sealed record DialogPause
 {
-    public int? WindowId { get; init; }
-
-    public string? WindowType { get; init; }
-
     public string? Title { get; init; }
 }
 /// <summary>
@@ -692,10 +688,6 @@ public abstract record HoldEvidence
 
     public static implicit operator HoldEvidence(Common.Unavailable value) => new UnavailableCase(value);
 
-    /// <summary>The <c>Combat</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CombatEventHold? Combat => (this as CombatCase)?.Value;
-
     public sealed record CombatCase(CombatEventHold Value) : HoldEvidence;
 
     public static implicit operator HoldEvidence(CombatEventHold value) => new CombatCase(value);
@@ -775,8 +767,6 @@ public sealed record ForcePauseCleared
 
 public sealed record ClockEvent
 {
-    public long? Cursor { get; init; }
-
     public Common.ObservationContext? Context { get; init; }
 
     public long? ObservedAtUnixMs { get; init; }
@@ -827,25 +817,13 @@ public abstract record ClockEventEvent
 
     public static implicit operator ClockEventEvent(Notification value) => new NotificationCase(value);
 
-    /// <summary>The <c>Alert</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Alert? Alert => (this as AlertCase)?.Value;
-
     public sealed record AlertCase(Alert Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(Alert value) => new AlertCase(value);
 
-    /// <summary>The <c>InjuryObserved</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Injury? InjuryObserved => (this as InjuryObservedCase)?.Value;
-
     public sealed record InjuryObservedCase(Injury Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(Injury value) => new InjuryObservedCase(value);
-
-    /// <summary>The <c>HostilesCleared</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public HostilesCleared? HostilesCleared => (this as HostilesClearedCase)?.Value;
 
     public sealed record HostilesClearedCase(HostilesCleared Value) : ClockEventEvent;
 
@@ -859,17 +837,9 @@ public abstract record ClockEventEvent
 
     public static implicit operator ClockEventEvent(PauseFailed value) => new PauseFailedCase(value);
 
-    /// <summary>The <c>ForcePauseWaiting</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ForcePauseWaiting? ForcePauseWaiting => (this as ForcePauseWaitingCase)?.Value;
-
     public sealed record ForcePauseWaitingCase(ForcePauseWaiting Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(ForcePauseWaiting value) => new ForcePauseWaitingCase(value);
-
-    /// <summary>The <c>ForcePauseCleared</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ForcePauseCleared? ForcePauseCleared => (this as ForcePauseClearedCase)?.Value;
 
     public sealed record ForcePauseClearedCase(ForcePauseCleared Value) : ClockEventEvent;
 
@@ -911,10 +881,6 @@ public sealed record EventsPage
     public long? NewestCursor { get; init; }
 
     public long? NextCursor { get; init; }
-
-    public bool? Gap { get; init; }
-
-    public ulong? LostCount { get; init; }
 }
 
 public sealed record EventsReply

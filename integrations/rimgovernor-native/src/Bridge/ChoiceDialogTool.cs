@@ -83,7 +83,7 @@ namespace HomeBridge.BridgeTools
         {
             var node = Node(dialog);
             var body = dialog is Dialog_MessageBox box ? box.text.RawText : node == null ? "" : node.text.RawText;
-            var result = new Obs.ChoiceDialog { WindowId = dialog.ID, WindowType = dialog.GetType().FullName,
+            var result = new Obs.ChoiceDialog { WindowId = dialog.ID,
                 Title = Text(Title(dialog)), Text = Text(body), Interactive = Interactive(dialog) };
             var options = Options(dialog);
             for (var i = 0; i < options.Count; i++)

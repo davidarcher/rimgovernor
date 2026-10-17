@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Telemetry;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -85,6 +86,9 @@ public static class AdvanceGame
 {
     /// <summary>The brain hold reason the harness holds the clock with once the tick target is reached.</summary>
     private const string ReviewHold = "REVIEW";
+
+    /// <summary>The letter a letter_pause hold row names (its pause evidence's letter, otel-signals.md#clock-and-colony-events).</summary>
+    private const string LetterIdKey = "letter_id";
 
     /// <summary>
     /// The bound on the colonist_health holds one combat advance continues past; the native guard needs a fresh drop
@@ -206,7 +210,7 @@ public static class AdvanceGame
                 return;
             }
 
-            var current = await supervisor.CallAsync("status", null, token).ConfigureAwait(false);
+            var current = await supervisor.StatusAsync(token).ConfigureAwait(false);
             if (current["active"].AsBool() != true)
             {
                 return;
@@ -258,7 +262,7 @@ public static class AdvanceGame
         {
             var now = await rt.IdentityNowAsync(cancellationToken).ConfigureAwait(false);
             Require(evidence, Dyn.DeepEqual(now, identity), "Native identity changed");
-            var current = await supervisor.CallAsync("status", null, cancellationToken).ConfigureAwait(false);
+            var current = await supervisor.StatusAsync(cancellationToken).ConfigureAwait(false);
             var currentTick = current["lastTick"].AsUInt64() ?? 0;
             if (targetTick == 0)
             {
@@ -269,7 +273,7 @@ public static class AdvanceGame
             else if (currentTick >= targetTick)
             {
                 // The interruption just handled already carried the clock to the target: nothing left to run.
-                return await FinishAsync(rt, evidence, current, targetTick, cancellationToken).ConfigureAwait(false);
+                return Finish(supervisor, evidence, current, targetTick);
             }
 
             // The brain would give every unassigned controlled colonist standby; a native-only case has no brain, so the
@@ -283,7 +287,6 @@ public static class AdvanceGame
             var started = await supervisor.RunAsync(speed, cancellationToken).ConfigureAwait(false);
             var startTick = started["startTick"].AsUInt64() ?? 0;
             Require(evidence, !havePreviousTick || startTick == previousTick, "Native ticks changed between runs");
-            var cursor = started["newestCursor"].AsUInt64() ?? 0;
 
             // The clock runs until a hold. The harness is the reviewer: it keeps the heartbeat, and holds the clock
             // itself the moment the tick target is reached. The overshoot is the ticks the game ran between the poll that saw
@@ -291,7 +294,7 @@ public static class AdvanceGame
             while (true)
             {
                 await supervisor.BeatIfDueAsync(cancellationToken).ConfigureAwait(false);
-                state = await supervisor.CallAsync("status", null, cancellationToken).ConfigureAwait(false);
+                state = await supervisor.StatusAsync(cancellationToken).ConfigureAwait(false);
                 if (state["held"].AsBool() == true)
                 {
                     break;
@@ -326,7 +329,7 @@ public static class AdvanceGame
             var stopReason = state["stopReason"].AsString();
             if (string.Equals(stopReason, ReviewHold, StringComparison.OrdinalIgnoreCase) && lastTick >= targetTick)
             {
-                return await FinishAsync(rt, evidence, state, targetTick, cancellationToken).ConfigureAwait(false);
+                return Finish(supervisor, evidence, state, targetTick);
             }
 
             var detail = new JsonObject { ["clock"] = state.DeepClone(), ["events"] = new JsonArray() };
@@ -370,41 +373,19 @@ public static class AdvanceGame
             // interruption", so nine nightly rows could not be told apart without the evidence tree, and two of them
             // turned out to be different holds.
             Require(evidence, stopReason == "letter_pause", "Unexpected native interruption: clock held on " + ScenarioProjection.NamedStopReason(stopReason));
+            // The run's hold rows attribute the pause: exactly one letter_pause, naming a letter not seen before.
+            _ = await supervisor.AwaitHoldRowAsync(state, cancellationToken).ConfigureAwait(false);
+            var runHolds = supervisor.RunRows(TelemetryKinds.ClockHold);
             var detailEvents = (JsonArray)detail["events"]!;
-            while (true)
+            foreach (var row in runHolds)
             {
-                var batch = await supervisor.CallAsync("events", new JsonObject { ["afterCursor"] = cursor, ["limit"] = 128 }, cancellationToken).ConfigureAwait(false);
-                foreach (var row in batch["events"].AsSlice())
-                {
-                    detailEvents.Add(row?.DeepClone());
-                }
-
-                Require(evidence, batch["gap"].AsBool() != true, "Native event history incomplete");
-                var nextCursor = batch["nextCursor"].AsUInt64() ?? 0;
-                if (nextCursor == cursor)
-                {
-                    break;
-                }
-
-                cursor = nextCursor;
+                detailEvents.Add(new JsonObject { ["reason"] = ClockRows.Reason(row), ["tick"] = ClockRows.Tick(row), ["detail"] = ClockRows.Text(row, "msg"), ["letterId"] = ClockRows.Text(row, LetterIdKey) });
             }
 
-            var stops = new List<JsonObject>();
-            foreach (var raw in detailEvents)
-            {
-                if (raw is JsonObject row && row["kind"].AsString() == "letter_pause")
-                {
-                    stops.Add(row);
-                }
-            }
-
+            var stops = runHolds.Where(row => ClockRows.Reason(row) == "letter_pause").ToList();
             Require(evidence, stops.Count == 1, "Triggering letter unavailable");
-            var trigger = stops[0]["event"].AsMap();
-            var letterId = trigger?["letterId"].AsString() ?? "";
-            Require(
-                evidence,
-                trigger?["source"].AsString() == "LetterStack.ReceiveLetter" && letterId.Length != 0 && !seenLetters.Contains(letterId),
-                "Letter attribution unavailable or repeated");
+            var letterId = ClockRows.Text(stops[0], LetterIdKey);
+            Require(evidence, letterId.Length != 0 && !seenLetters.Contains(letterId), "Letter attribution unavailable or repeated");
             var (status, complete) = await ScenarioRuntime.ReadSafetyStatusAsync(supervisor, "scenario-status", cancellationToken).ConfigureAwait(false);
             detail["status"] = status?.DeepClone();
             Require(evidence, complete, "Safety observation incomplete");
@@ -447,10 +428,10 @@ public static class AdvanceGame
             Require(evidence, allSafe, "Colonist safety unverified");
             now = await rt.IdentityNowAsync(cancellationToken).ConfigureAwait(false);
             Require(evidence, Dyn.DeepEqual(now, identity), "Native identity changed");
-            var fresh = await supervisor.CallAsync("status", null, cancellationToken).ConfigureAwait(false);
+            var fresh = await supervisor.StatusAsync(cancellationToken).ConfigureAwait(false);
             var sameFacts = Dyn.DeepEqual(fresh["lastTick"], state["lastTick"])
                 && fresh["stopReason"].AsString() == state["stopReason"].AsString()
-                && Dyn.DeepEqual(fresh["newestCursor"], state["newestCursor"]);
+                && Dyn.DeepEqual(fresh["holdSerial"], state["holdSerial"]);
             Require(evidence, sameFacts && fresh["active"].AsBool() != true, "Clock changed during inspection");
             seenLetters.Add(letterId);
             detail["acknowledgedLetterId"] = letterId;
@@ -477,21 +458,14 @@ public static class AdvanceGame
                 rt.Note("scenario_interruption", "Acknowledged inspected fixture warning", detail);
             }
 
-            var polled = await supervisor.PollAsync(cancellationToken).ConfigureAwait(false);
-            rt.AddClockEvents(polled);
-            rt.ReceiveClockEvents();
             Require(evidence, supervisor.Hold.Length == 0, "External clock hold");
         }
     }
 
-    // The tick target is reached and the clock is held for the harness's review: deliver the journal and record how far
-    // past the target the clock ran before the pause took.
-    private static async Task<JsonObject> FinishAsync(ScenarioRuntime rt, JsonObject evidence, JsonObject state, ulong targetTick, CancellationToken cancellationToken)
+    // The tick target is reached and the clock is held for the harness's review: record how far past the target the
+    // clock ran before the pause took.
+    private static JsonObject Finish(ScenarioClock supervisor, JsonObject evidence, JsonObject state, ulong targetTick)
     {
-        var supervisor = rt.Clock;
-        var events = await supervisor.PollAsync(cancellationToken).ConfigureAwait(false);
-        rt.AddClockEvents(events);
-        rt.ReceiveClockEvents();
         Require(evidence, supervisor.Hold.Length == 0, "External clock hold");
         evidence["overshootTicks"] = (state["lastTick"].AsUInt64() ?? 0) - targetTick;
         evidence["completed"] = true;

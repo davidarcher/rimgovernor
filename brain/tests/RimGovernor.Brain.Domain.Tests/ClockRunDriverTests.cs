@@ -159,7 +159,7 @@ public sealed class ClockRunDriverTests
 
         private void Append(PbClock.ClockEventEvent row)
         {
-            _events.Add(new PbClock.ClockEvent { Cursor = _events.Count + 1, Context = Context(), ObservedAtUnixMs = _tick, Event = row });
+            _events.Add(new PbClock.ClockEvent { Context = Context(), ObservedAtUnixMs = _tick, Event = row });
         }
 
         private PbClock.Status Status() => new()
@@ -294,16 +294,14 @@ public sealed class ClockRunDriverTests
                 var after = request.AfterCursor.GetValueOrDefault();
                 _readAfter.Add(after);
                 var limit = (int)request.Limit.GetValueOrDefault();
-                var rows = _events.Where(e => e.Cursor > after).Take(limit).ToList();
-                var next = rows.Count == 0 ? after : rows[^1].Cursor.GetValueOrDefault();
+                var rows = _events.Skip((int)after).Take(limit).ToList();
+                var next = after + rows.Count;
                 var page = new PbClock.EventsPage
                 {
                     Context = Context(),
                     Events = EquatableArray.From(rows),
                     NewestCursor = _events.Count,
                     NextCursor = next,
-                    Gap = false,
-                    LostCount = 0,
                 };
                 return Task.FromResult(new PbClock.EventsReply { Outcome = new PbClock.EventsReplyOutcome.PageCase(page) });
             }

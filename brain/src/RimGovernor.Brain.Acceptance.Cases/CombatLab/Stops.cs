@@ -1,4 +1,6 @@
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Telemetry;
+using Clock = RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -29,7 +31,7 @@ internal static class CombatLabStops
         var staged = await CombatStage.StageAsync(h, "lab-open", cancellationToken).ConfigureAwait(false);
         var grant = await Authority.GrantAutoAsync(h.WireFunc(), "combat-stops-acquire", identity, cancellationToken).ConfigureAwait(false);
         var report = s.Report;
-        var clock = new ScenarioClock(h.WireFunc(), identity, new Report())
+        var clock = new ScenarioClock(h, identity, new Report())
         {
             Grant = grant,
 
@@ -84,7 +86,7 @@ internal static class CombatLabStops
 
             switch (stop["event"].AsString())
             {
-                case "COMBAT_EVENT_ENTERED_RANGE":
+                case nameof(Clock.CombatEvent.EnteredRange):
                     // First time only: the combat remembers a raider across holds. Keyed by hostile and direction
                     // ("reaches" or "reached by").
                     var key = stop["thingId"].AsString() + (stop["detail"].AsString().Contains("reached by", StringComparison.Ordinal) ? "true" : "false");
@@ -95,7 +97,7 @@ internal static class CombatLabStops
 
                     sawRange = true;
                     break;
-                case "COMBAT_EVENT_DOWNED":
+                case nameof(Clock.CombatEvent.Downed):
                     sawDowned = true;
                     break;
                 default:
@@ -116,35 +118,21 @@ internal static class CombatLabStops
         }
     }
 
-    // awaitHold waits (beating) until the running clock is held, then returns its hold event: kind, the armed event, and
-    // the event's context, detected and occurrence ticks.
+    // awaitHold waits (beating) until the running clock is held, then returns its clock_hold row: kind, the armed event,
+    // and the event's tick, detected and occurrence ticks.
     private static async Task<JsonObject> AwaitHoldAsync(ScenarioClock clock, CancellationToken cancellationToken)
     {
         var status = await clock.AwaitHeldAsync(HoldTimeout, "the combat hold", cancellationToken).ConfigureAwait(false);
-        var events = await clock.PollAsync(cancellationToken).ConfigureAwait(false);
-        foreach (var e in events)
+        var row = await clock.AwaitHoldRowAsync(status, cancellationToken).ConfigureAwait(false);
+        return new JsonObject
         {
-            var row = e.AsMap() ?? [];
-            var native = row["native"].AsMap() ?? [];
-            if (native["holdEntered"].AsMap() is not { } held)
-            {
-                continue;
-            }
-
-            var output = new JsonObject { ["kind"] = row["kind"]?.DeepClone(), ["detail"] = native["detail"]?.DeepClone() };
-            var contextRow = native["context"].AsMap() ?? [];
-            output["tick"] = contextRow["tick"].AsUInt64() ?? 0;
-            output["detectedTick"] = held["detectedTick"].AsUInt64() ?? 0;
-            output["occurrenceTick"] = held["occurrenceTick"].AsUInt64() ?? 0;
-            if (held["combat"].AsMap() is { } combat)
-            {
-                output["event"] = combat["event"].AsString();
-                output["thingId"] = combat["thingId"].AsString();
-            }
-
-            return output;
-        }
-
-        throw new AcceptanceException($"held ({status["stopReason"].ToJson()}) with no hold event");
+            ["kind"] = ClockRows.Reason(row),
+            ["detail"] = ClockRows.Text(row, "msg"),
+            ["tick"] = ClockRows.Tick(row),
+            ["detectedTick"] = ClockRows.Whole(row, ClockEventTelemetry.DetectedTickKey) ?? 0,
+            ["occurrenceTick"] = ClockRows.Whole(row, ClockEventTelemetry.OccurrenceTickKey) ?? 0,
+            ["event"] = ClockRows.Text(row, "combat_event"),
+            ["thingId"] = ClockRows.Text(row, "thing"),
+        };
     }
 }

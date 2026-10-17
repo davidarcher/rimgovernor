@@ -6753,8 +6753,6 @@ public sealed record ChoiceDialog
 {
     public int? WindowId { get; init; }
 
-    public string? WindowType { get; init; }
-
     public string? Title { get; init; }
 
     public string? Text { get; init; }

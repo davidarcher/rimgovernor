@@ -43,8 +43,6 @@ public sealed class ScenarioRuntime : IScenarioRuntime
         "ChildBirthday",
     };
 
-    private readonly List<JsonNode?> _clockEvents = [];
-
     public ScenarioRuntime(QueryFunc query, ScenarioClock clock, Report report, IReadOnlyList<string>? tools)
     {
         ArgumentNullException.ThrowIfNull(query);
@@ -70,19 +68,6 @@ public sealed class ScenarioRuntime : IScenarioRuntime
 
     /// <summary>The discovered tool names; when they include <see cref="DismissLetterTool"/> AdvanceGame takes each acknowledged letter off the stack. Empty leaves letters on the stack.</summary>
     public IReadOnlyList<string> Tools { get; }
-
-    internal void AddClockEvents(IEnumerable<JsonNode?> events) => _clockEvents.AddRange(events);
-
-    internal void ReceiveClockEvents()
-    {
-        var delivered = ReportArray("delivered_events");
-        foreach (var row in _clockEvents)
-        {
-            delivered.Add(row?.DeepClone());
-        }
-
-        _clockEvents.Clear();
-    }
 
     internal void Note(string kind, string message, JsonObject details)
     {

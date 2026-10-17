@@ -45,7 +45,7 @@ Ultrafast) and under test acceleration. `detect_ticks` on a stop
 (`detected_tick` less `occurrence_tick`) is the measured gap; the
 `hazard/*` acceptance cases (`brain/src/RimGovernor.Brain.Acceptance.Cases/Hazard`,
 injecting through `scripts/fixtures/HazardFixture.cs` and the letter
-fixture) run the clock at Ultrafast, inject the class mid-run and assert
+fixture) run the clock at Ultrafast, inject the class mid-run and assert, from native's `clock_hold` row,
 both `detect_ticks` and the injection-to-detection gap within the bound;
 a hooked class must also land within the hooked bound. The hooks live in
 `SupervisedPlayHooks.cs`; when Harmony cannot install them the status

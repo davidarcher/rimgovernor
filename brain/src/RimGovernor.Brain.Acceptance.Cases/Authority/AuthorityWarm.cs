@@ -5,11 +5,10 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>authority/warm</c> (Go <c>warm.go</c>) verifies authority and clock-journal continuity when a controller dies with
-/// Auto granted and a typed run going. It releases the first session, unloads its game, prepares the profile again and
-/// loads another save into the same process. The next controller must read the first run's journal from cursor zero and
-/// retain Auto throughout the hold. This catches profile preparation deleting a kept process's journal and native
-/// run state retaining a disposed game.
+/// <c>authority/warm</c> (Go <c>warm.go</c>) verifies authority continuity when a controller dies with Auto granted and
+/// a typed run going. It releases the first session, unloads its game, prepares the profile again and loads another
+/// save into the same process. The next controller must retain Auto throughout the hold. This catches native run
+/// state retaining a disposed game. Nothing durable from the first run survives a kept process, by design.
 /// </summary>
 internal static class AuthorityWarm
 {
@@ -147,43 +146,6 @@ internal static class AuthorityWarm
 
             var clockBefore = await h.WireAsync("p2-clock-before", "clock_read_status", new JsonObject { ["identity"] = identity.DeepClone() }, cancellationToken).ConfigureAwait(false);
             phase2["clock_before_grant"] = clockBefore.DeepClone();
-
-            // The journal phase 1 wrote to belongs to the kept process: a page from cursor 0 must succeed with its rows
-            // intact.
-            var eventsReply = await h.WireAsync(
-                "p2-clock-events",
-                "clock_read_events",
-                new JsonObject { ["identity"] = identity.DeepClone(), ["afterCursor"] = 0, ["limit"] = 50 },
-                cancellationToken).ConfigureAwait(false);
-            JsonObject page;
-            try
-            {
-                page = Harness.Outcome(eventsReply, "page").Value;
-            }
-            catch (AcceptanceException e)
-            {
-                throw new AcceptanceException($"phase 2 could not page the kept process's clock journal from cursor 0: {e.Message}", e);
-            }
-
-            var newest = (long)page["newestCursor"].AsNumber();
-            var lost = (long)page["lostCount"].AsNumber();
-            phase2["clock_journal"] = new JsonObject
-            {
-                ["newestCursor"] = newest,
-                ["lostCount"] = lost,
-                ["gap"] = page["gap"]?.DeepClone(),
-                ["events"] = page["events"].AsSlice().Count,
-            };
-            var gap = page["gap"].AsBool() == true;
-            if (gap || lost != 0)
-            {
-                throw new AcceptanceException($"phase 2 found the kept process's clock journal broken (gap {(gap ? "true" : "false")}, lost {lost}): {page.ToJson()}");
-            }
-
-            if (newest < 1)
-            {
-                throw new AcceptanceException($"phase 2 found no journal rows from phase 1's run: {page.ToJson()}");
-            }
 
             var (statusBefore, before) = await Authority.AuthorityStatusAsync(h.WireFunc(), "p2-status", identity, cancellationToken).ConfigureAwait(false);
             phase2["authority_before_grant"] = statusBefore.DeepClone();

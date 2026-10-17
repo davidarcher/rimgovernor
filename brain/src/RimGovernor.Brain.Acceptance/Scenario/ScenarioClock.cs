@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Telemetry;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -12,11 +13,15 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// The typed clock/authority transport adapter AdvanceGame drives. Every native call goes through <see cref="Wire"/>
-/// (ordinarily <see cref="Harness.WireFunc"/>), so this type owns only the owner-side bookkeeping (grant, event cursor,
-/// heartbeat cadence, the tick the last Run began at) AdvanceGame needs to resume and detect drift (Go <c>ScenarioClock</c>).
+/// (the harness's <see cref="Harness.WireFunc"/>), so this type owns only the owner-side bookkeeping (grant, heartbeat
+/// cadence, the tick and wall time the last Run began at) AdvanceGame needs to resume and detect drift (Go
+/// <c>ScenarioClock</c>). A run's events are native's clock rows in the game's log ring, observed since that Run.
 /// </summary>
 public sealed class ScenarioClock
 {
+    /// <summary>How long a row native emitted may take to reach the log ring: the sink batches for up to 250 ms.</summary>
+    private static readonly TimeSpan RowWait = TimeSpan.FromSeconds(10);
+
     /// <summary>The longest gap between heartbeats while this clock waits; the native tolerance is five seconds.</summary>
     private static readonly TimeSpan HeartbeatEvery = TimeSpan.FromSeconds(1);
 
@@ -54,18 +59,19 @@ public sealed class ScenarioClock
     };
 
     private readonly Stopwatch _sinceBeat = Stopwatch.StartNew();
-    private ulong _cursor;
+    private readonly Harness _harness;
 
-    public ScenarioClock(WireFunc wire, JsonObject identity, Report? report)
+    public ScenarioClock(Harness harness, JsonObject identity, Report? report)
     {
-        ArgumentNullException.ThrowIfNull(wire);
+        ArgumentNullException.ThrowIfNull(harness);
         ArgumentNullException.ThrowIfNull(identity);
-        Wire = wire;
+        _harness = harness;
+        Wire = harness.WireFunc();
         Identity = identity;
         Report = report;
     }
 
-    /// <summary>The native transport (ordinarily <see cref="Harness.WireFunc"/>).</summary>
+    /// <summary>The native transport (<see cref="Harness.WireFunc"/>).</summary>
     public WireFunc Wire { get; }
 
     public JsonObject Identity { get; }
@@ -97,6 +103,12 @@ public sealed class ScenarioClock
 
     /// <summary>The game tick the latest Run began at (the status context's tick in its reply).</summary>
     public ulong RunStartTick { get; private set; }
+
+    /// <summary>
+    /// The harness's Unix ms just before the latest Run was sent: that run's events are the rows native observed since.
+    /// The clock was held before it, so an earlier hold's row is observed before this stamp.
+    /// </summary>
+    public long RunSinceUnixMs { get; private set; }
 
     private static JsonNode? Dig(JsonNode? root, params string[] path)
     {
@@ -151,8 +163,8 @@ public sealed class ScenarioClock
     /// <summary>
     /// Runs the clock at <paramref name="speed"/> under the scenario watch policy: resumes a held clock, or changes the
     /// speed or policy in place while running (Run is idempotent). There is no tick budget; the clock runs until a hold.
-    /// The event cursor is seeded to just before this Run so a case that polls reads this run's own events, never the
-    /// retained history before it.
+    /// <see cref="RunSinceUnixMs"/> is stamped just before this Run, so <see cref="RunRows"/> reads this run's own events,
+    /// never the ring's history before it.
     /// </summary>
     public async Task<JsonObject> RunAsync(string speed, CancellationToken cancellationToken)
     {
@@ -178,7 +190,6 @@ public sealed class ScenarioClock
             throw new AcceptanceException($"pre-run status identity mismatch: {beforeStatus.ToJson()}");
         }
 
-        var watermark = beforeStatus["newestCursor"] is { } cursorNode ? ScenarioProjection.ScenarioInteger(cursorNode) : 0;
         var request = new JsonObject
         {
             ["identity"] = Identity.DeepClone(),
@@ -188,6 +199,7 @@ public sealed class ScenarioClock
             // The harness plans from its pre-run read, as a brain step does: a hold since refuses the resume.
             ["plannedHoldSerial"] = beforeStatus["holdSerial"]?.DeepClone(),
         };
+        RunSinceUnixMs = ClockRows.NowUnixMs();
         var reply = await Wire("clock-run", "clock_run", request, cancellationToken).ConfigureAwait(false);
         var projected = ProjectReply(reply, "clock run");
         if (projected["active"].AsBool() != true)
@@ -198,8 +210,6 @@ public sealed class ScenarioClock
         _sinceBeat.Restart();
         RunStartTick = projected["lastTick"].AsUInt64() ?? 0;
         projected["startTick"] = RunStartTick;
-        projected["newestCursor"] = watermark;
-        SeekEvents(watermark);
         return projected;
     }
 
@@ -245,7 +255,7 @@ public sealed class ScenarioClock
         while (true)
         {
             await BeatIfDueAsync(cancellationToken).ConfigureAwait(false);
-            var status = await CallAsync("status", null, cancellationToken).ConfigureAwait(false);
+            var status = await StatusAsync(cancellationToken).ConfigureAwait(false);
             if (done(status))
             {
                 return status;
@@ -264,38 +274,12 @@ public sealed class ScenarioClock
     public Task<JsonObject> AwaitHeldAsync(TimeSpan timeout, string what, CancellationToken cancellationToken) =>
         WaitAsync(status => status["held"].AsBool() == true, timeout, what, cancellationToken);
 
-    /// <summary>Issues a read-only clock op ("status" or "events"), mirroring TypedScenarioClock.call().</summary>
-    public async Task<JsonObject> CallAsync(string op, JsonObject? arguments, CancellationToken cancellationToken)
+    /// <summary>Reads the clock status, projected (<see cref="ScenarioProjection.ProjectStatus"/>).</summary>
+    public async Task<JsonObject> StatusAsync(CancellationToken cancellationToken)
     {
-        switch (op)
-        {
-            case "events":
-            {
-                var after = ScenarioProjection.ScenarioInteger(arguments?["afterCursor"]);
-                var reply = await Wire(
-                    "clock-events",
-                    "clock_read_events",
-                    new JsonObject
-                    {
-                        ["identity"] = Identity.DeepClone(),
-                        ["afterCursor"] = after,
-                        ["limit"] = arguments?["limit"]?.DeepClone(),
-                    },
-                    cancellationToken).ConfigureAwait(false);
-                var (_, page) = Harness.Outcome(reply, "page");
-                return ScenarioProjection.ProjectEvents(page, after);
-            }
-
-            case "status":
-            {
-                var reply = await Wire("clock-status", "clock_read_status", new JsonObject { ["identity"] = Identity.DeepClone() }, cancellationToken).ConfigureAwait(false);
-                var (_, status) = Harness.Outcome(reply, "status");
-                return FinishStatus(status);
-            }
-
-            default:
-                throw new AcceptanceException($"unsupported scenario clock op \"{op}\"");
-        }
+        var reply = await Wire("clock-status", "clock_read_status", new JsonObject { ["identity"] = Identity.DeepClone() }, cancellationToken).ConfigureAwait(false);
+        var (_, status) = Harness.Outcome(reply, "status");
+        return FinishStatus(status);
     }
 
     private JsonObject Policy()
@@ -346,23 +330,56 @@ public sealed class ScenarioClock
         return projected;
     }
 
-    /// <summary>
-    /// Moves the Poll cursor forward to <paramref name="cursor"/> so a case that polls the events of a run it started
-    /// itself reads from that run, never from the retained history before it. Never regresses.
-    /// </summary>
-    public void SeekEvents(ulong cursor)
+    /// <summary>Native's <paramref name="kind"/> rows observed since the latest Run (<see cref="RunSinceUnixMs"/>), oldest first.</summary>
+    public IReadOnlyList<LogRow> RunRows(TelemetryKind kind) =>
+        [.. _harness.Telemetry(kind).Where(row => ClockRows.ObservedSince(row, RunSinceUnixMs))];
+
+    /// <summary>The latest Run's first <paramref name="kind"/> row; null before native has emitted one.</summary>
+    public LogRow? FirstRunRow(TelemetryKind kind)
     {
-        if (cursor > _cursor)
+        var rows = RunRows(kind);
+        return rows.Count > 0 ? rows[0] : null;
+    }
+
+    /// <summary>
+    /// Calls <paramref name="probe"/> (beating as due) every 100 ms until it returns a value, and returns it; throws when
+    /// <paramref name="timeout"/> passes first. The probe throws to fail the wait.
+    /// </summary>
+    public async Task<T> AwaitRowsAsync<T>(Func<T?> probe, TimeSpan timeout, string what, CancellationToken cancellationToken)
+        where T : class
+    {
+        ArgumentNullException.ThrowIfNull(probe);
+        var deadline = DateTime.UtcNow + timeout;
+        while (true)
         {
-            _cursor = cursor;
+            await BeatIfDueAsync(cancellationToken).ConfigureAwait(false);
+            if (probe() is { } found)
+            {
+                return found;
+            }
+
+            if (DateTime.UtcNow > deadline)
+            {
+                throw new AcceptanceException($"timed out after {timeout} waiting for {what}");
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
         }
     }
 
-    /// <summary>Drains events since the last Poll, mirroring TypedScenarioClock.poll().</summary>
-    public async Task<IReadOnlyList<JsonNode?>> PollAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// The <c>clock_hold</c> row of the hold <paramref name="held"/> reports (a held status this clock read): the row
+    /// since the latest Run whose <c>stop_at_ms</c> is the status's held-at stamp, or, when the status carries none,
+    /// the run's first hold row. Waits for the row to reach the ring.
+    /// </summary>
+    public Task<LogRow> AwaitHoldRowAsync(JsonObject held, CancellationToken cancellationToken)
     {
-        var batch = await CallAsync("events", new JsonObject { ["afterCursor"] = _cursor, ["limit"] = 128 }, cancellationToken).ConfigureAwait(false);
-        _cursor = ScenarioProjection.ScenarioInteger(batch["nextCursor"]);
-        return [.. batch["events"].AsSlice().Select(row => row?.DeepClone())];
+        ArgumentNullException.ThrowIfNull(held);
+        var heldAt = held["heldAtUnixMs"].AsUInt64() is { } at ? (long)at : (long?)null;
+        return AwaitRowsAsync(
+            () => RunRows(TelemetryKinds.ClockHold).FirstOrDefault(row => heldAt is null || ClockRows.Whole(row, ClockEventTelemetry.StopAtMsKey) == heldAt),
+            RowWait,
+            $"the clock_hold row of the {ScenarioProjection.NamedStopReason(held["stopReason"].AsString())} hold",
+            cancellationToken);
     }
 }

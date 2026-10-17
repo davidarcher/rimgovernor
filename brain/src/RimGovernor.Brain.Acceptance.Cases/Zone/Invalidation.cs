@@ -1,20 +1,22 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Telemetry;
+using Clock = RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>The zone edit's observation_invalidated check (Go <c>invalidation.go</c>).</summary>
+/// <summary>The zone edit's clock_invalidation check (Go <c>invalidation.go</c>).</summary>
 internal static class ZoneInvalidation
 {
-    /// <summary>Bounds the polling spent waiting for the journal row.</summary>
+    /// <summary>Bounds the polling spent waiting for the invalidation row.</summary>
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(20);
 
     /// <summary>
-    /// Runs <paramref name="execute"/> while a supervised clock runs and returns the observation_invalidated
-    /// row the native probe journals for the zone: the colony family narrowed to the zone's id and one rectangle
-    /// covering cells. The clock is held afterwards; the caller's later dispatch runs on a held game as before.
+    /// Runs <paramref name="execute"/> while a supervised clock runs and checks the clock_invalidation row native emits
+    /// for the zone: the colony family narrowed to the zone's id and one rectangle covering cells. The clock is held
+    /// afterwards; the caller's later dispatch runs on a held game as before.
     /// </summary>
-    internal static async Task<JsonObject> EditUnderRunAsync(
+    internal static async Task EditUnderRunAsync(
         Harness h,
         JsonObject identity,
         Report report,
@@ -23,127 +25,87 @@ internal static class ZoneInvalidation
         Func<Task> execute,
         CancellationToken cancellationToken)
     {
-        var supervisor = new ScenarioClock(h.WireFunc(), identity, report);
+        var supervisor = new ScenarioClock(h, identity, report);
         _ = await supervisor.AcquireAsync("invalidation-acquire", cancellationToken).ConfigureAwait(false);
-
-        // The native journal opens lazily; an events read opens it so the status below reports the retained
-        // watermark (its reply is irrelevant here).
-        _ = await h.WireAsync(
-            "invalidation-prime",
-            "clock_read_events",
-            new JsonObject { ["identity"] = identity.DeepClone(), ["afterCursor"] = 0, ["limit"] = 1 },
-            cancellationToken).ConfigureAwait(false);
-        var statusReply = await h.WireAsync(
-            "invalidation-cursor",
-            "clock_read_status",
-            new JsonObject { ["identity"] = identity.DeepClone() },
-            cancellationToken).ConfigureAwait(false);
-        var (_, status) = Harness.Outcome(statusReply, "status");
-        if (!status.ContainsKey("newestCursor"))
-        {
-            throw new AcceptanceException($"invalidation-cursor: clock status reports no journal watermark: {status.ToJson()}");
-        }
-
-        var cursor = ScenarioProjection.ScenarioInteger(status["newestCursor"]);
         _ = await supervisor.RunAsync("Normal", cancellationToken).ConfigureAwait(false);
         await execute().ConfigureAwait(false);
 
-        var deadline = DateTime.UtcNow + Wait;
-        JsonObject? invalidated = null;
-        while (invalidated is null)
-        {
-            if (DateTime.UtcNow > deadline)
+        var invalidated = await supervisor.AwaitRowsAsync(
+            () =>
             {
-                throw new AcceptanceException($"no observation_invalidated naming zone {zoneId} within {Wait} of the edit");
-            }
-
-            await supervisor.BeatIfDueAsync(cancellationToken).ConfigureAwait(false);
-            var reply = await h.WireAsync(
-                "invalidation-events",
-                "clock_read_events",
-                new JsonObject
+                if (supervisor.FirstRunRow(TelemetryKinds.ClockHold) is { } stop)
                 {
-                    ["identity"] = identity.DeepClone(),
-                    ["afterCursor"] = cursor,
-                    ["limit"] = 128,
-                },
-                cancellationToken).ConfigureAwait(false);
-            var (_, page) = Harness.Outcome(reply, "page");
-            if (page["gap"].AsBool() == true)
-            {
-                throw new AcceptanceException($"invalidation-events: unexpected journal gap: {page.ToJson()}");
-            }
-
-            cursor = ScenarioProjection.ScenarioInteger(page["nextCursor"]);
-            foreach (var raw in page["events"].AsSlice())
-            {
-                var evt = raw.AsMap() ?? [];
-                if (evt["holdEntered"].AsMap() is { } stop)
-                {
-                    throw new AcceptanceException($"the clock was held ({stop["reason"].AsString()}) before the journal named the zone edit: {stop.ToJson()}");
+                    throw new AcceptanceException($"the clock was held ({ClockRows.Reason(stop)}) before native named the zone edit: {ClockRows.Text(stop, "msg")}");
                 }
 
-                if (evt["observationInvalidated"].AsMap() is not { } row)
-                {
-                    continue;
-                }
-
-                if (AsStrings(row["entityIds"]).Contains(zoneId, StringComparer.Ordinal))
-                {
-                    invalidated = row;
-                }
-            }
-
-            if (invalidated is null)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
-            }
-        }
+                return supervisor.RunRows(TelemetryKinds.ClockInvalidation).FirstOrDefault(row => ClockRows.Strings(row, "entity_ids").Contains(zoneId, StringComparer.Ordinal));
+            },
+            Wait,
+            $"a clock_invalidation row naming zone {zoneId} after the edit",
+            cancellationToken).ConfigureAwait(false);
 
         _ = await supervisor.HoldAsync("REVIEW", "zone invalidation observed", cancellationToken).ConfigureAwait(false);
-        CheckInvalidation(invalidated, zoneId, cells);
-        report["zone_invalidation"] = invalidated.DeepClone();
-        Console.WriteLine($"PASS observation_invalidated names zone {zoneId} over {invalidated["cells"].ToJson()}");
-        return invalidated;
+        var shown = Shown(invalidated);
+        report["zone_invalidation"] = shown;
+        CheckInvalidation(invalidated, zoneId, cells, shown.ToJsonString());
+        Console.WriteLine($"PASS clock_invalidation names zone {zoneId} over {shown["cells"].ToJson()}");
+    }
+
+    /// <summary>The row's invalidation fields, for the report and the failure messages.</summary>
+    private static JsonObject Shown(LogRow row)
+    {
+        var cells = new JsonObject();
+        foreach (var (key, value) in ClockRows.Map(row, "cells"))
+        {
+            cells[key] = ClockRows.Whole(value);
+        }
+
+        return new JsonObject
+        {
+            ["families"] = new JsonArray([.. ClockRows.Strings(row, "families").Select(x => (JsonNode?)x)]),
+            ["entity_ids"] = new JsonArray([.. ClockRows.Strings(row, "entity_ids").Select(x => (JsonNode?)x)]),
+            ["reason"] = ClockRows.Text(row, ClockEventTelemetry.ReasonKey),
+            ["cells"] = cells,
+            ["tick"] = ClockRows.Tick(row),
+        };
     }
 
     /// <summary>
     /// Asserts the row carries the colony family alone, the zone as its one entity id and a rectangle that covers
     /// every cell the edit touched and lies within the zone's fixture footprint.
     /// </summary>
-    private static void CheckInvalidation(JsonObject row, string zoneId, IReadOnlyList<JsonObject> cells)
+    private static void CheckInvalidation(LogRow row, string zoneId, IReadOnlyList<JsonObject> cells, string shown)
     {
-        var families = AsStrings(row["families"]);
-        if (families.Count != 1 || families[0] != "FACT_FAMILY_COLONY")
+        var families = ClockRows.Strings(row, "families");
+        if (families.Count != 1 || families[0] != nameof(Clock.FactFamily.Colony))
         {
-            throw new AcceptanceException($"observation_invalidated families = [{string.Join(' ', families)}], expected the colony family alone: {row.ToJson()}");
+            throw new AcceptanceException($"clock_invalidation families = [{string.Join(' ', families)}], expected the colony family alone: {shown}");
         }
 
-        var ids = AsStrings(row["entityIds"]);
+        var ids = ClockRows.Strings(row, "entity_ids");
         if (ids.Count != 1 || ids[0] != zoneId)
         {
-            throw new AcceptanceException($"observation_invalidated entityIds = [{string.Join(' ', ids)}], expected [{zoneId}]: {row.ToJson()}");
+            throw new AcceptanceException($"clock_invalidation entity_ids = [{string.Join(' ', ids)}], expected [{zoneId}]: {shown}");
         }
 
-        if (!row["reason"].AsString().Contains(zoneId, StringComparison.Ordinal))
+        if (!ClockRows.Text(row, ClockEventTelemetry.ReasonKey).Contains(zoneId, StringComparison.Ordinal))
         {
-            throw new AcceptanceException($"observation_invalidated reason does not name the zone: {row.ToJson()}");
+            throw new AcceptanceException($"clock_invalidation reason does not name the zone: {shown}");
         }
 
-        if (row["cells"].AsMap() is not { } rect)
+        var rect = ClockRows.Map(row, "cells");
+        if (rect.Count == 0)
         {
-            throw new AcceptanceException($"observation_invalidated carries no cells rectangle: {row.ToJson()}");
+            throw new AcceptanceException($"clock_invalidation carries no cells rectangle: {shown}");
         }
 
-        var minimum = rect["minimum"].AsMap();
-        var maximum = rect["maximum"].AsMap();
-        var minX = minimum?["x"].AsNumber() ?? -1;
-        var minZ = minimum?["z"].AsNumber() ?? -1;
-        var maxX = maximum?["x"].AsNumber() ?? -1;
-        var maxZ = maximum?["z"].AsNumber() ?? -1;
+        var minX = ClockRows.Whole(rect.GetValueOrDefault("min_x")) ?? -1;
+        var minZ = ClockRows.Whole(rect.GetValueOrDefault("min_z")) ?? -1;
+        var maxX = ClockRows.Whole(rect.GetValueOrDefault("max_x")) ?? -1;
+        var maxZ = ClockRows.Whole(rect.GetValueOrDefault("max_z")) ?? -1;
         if (minX > maxX || minZ > maxZ)
         {
-            throw new AcceptanceException($"observation_invalidated rectangle is not ordered: {rect.ToJson()}");
+            throw new AcceptanceException($"clock_invalidation rectangle is not ordered: {shown}");
         }
 
         // The rectangle spans the zone's old and new cells: within the fixture footprint, and covering every fixture
@@ -166,10 +128,7 @@ internal static class ZoneInvalidation
         {
             throw new AcceptanceException(string.Create(
                 CultureInfo.InvariantCulture,
-                $"observation_invalidated rectangle ({minX},{minZ})-({maxX},{maxZ}) is not the zone footprint ({fMinX},{fMinZ})-({fMaxX},{fMaxZ})"));
+                $"clock_invalidation rectangle ({minX},{minZ})-({maxX},{maxZ}) is not the zone footprint ({fMinX},{fMinZ})-({fMaxX},{fMaxZ})"));
         }
     }
-
-    /// <summary>Projects a decoded JSON array of strings.</summary>
-    private static List<string> AsStrings(JsonNode? value) => [.. value.AsSlice().Select(item => item.AsString())];
 }
