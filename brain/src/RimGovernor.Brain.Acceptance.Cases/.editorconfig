@@ -156,15 +156,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Shared/RoutineService.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/SpeedMatrix/GovernorOff.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/SpeedMatrix/Matrix.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/SpeedMatrix/Observations.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Storage/StorageOccupancyRing.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 

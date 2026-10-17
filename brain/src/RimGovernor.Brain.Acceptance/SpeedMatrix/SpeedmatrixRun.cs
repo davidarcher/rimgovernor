@@ -7,12 +7,12 @@ using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Telemetry.Otlp;
 using Journal = RimGovernor.Brain.Store.Store;
 
-namespace RimGovernor.Brain.Acceptance.Cases;
+namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// What the matrix cases differ by (Go <c>speedmatrix.profile</c>): the stage the fixture prepares, the save it is kept
-/// in, the tick target each row runs to and the rows compared. <c>speedmatrix/plain</c> is the whole speed sweep on a quiet
-/// flat debug colony; <c>speedmatrix/observations</c> is the rendered observation baseline on the tribal8 colony.
+/// What the matrix profiles differ by (Go <c>speedmatrix.profile</c>): the stage the fixture prepares, the save it is kept
+/// in, the tick target each row runs to and the rows compared. <c>acceptance speedmatrix</c> (plain) is the whole speed
+/// sweep on a quiet flat debug colony; <c>-profile observations</c> is the rendered observation baseline on the tribal8 colony.
 /// </summary>
 internal sealed record SpeedmatrixProfile
 {
@@ -60,7 +60,8 @@ internal sealed partial class SpeedmatrixRun
     private const double MinUltrafastTpsRatio = 0;
 
     private readonly SpeedmatrixProfile _profile;
-    private readonly ISession _session;
+    private readonly Session _session;
+    private readonly Config _config;
     private readonly Report _report;
     private readonly IReadOnlyList<SpeedCase> _cases;
     private readonly List<JsonObject> _sites = [];
@@ -71,14 +72,16 @@ internal sealed partial class SpeedmatrixRun
     private string _storage = "";
     private string _walls = "";
 
-    private SpeedmatrixRun(SpeedmatrixProfile profile, ISession session, IReadOnlyList<SpeedCase> cases)
+    private SpeedmatrixRun(SpeedmatrixProfile profile, Session session, Config config, Report report, IReadOnlyList<SpeedCase> cases)
     {
         _profile = profile;
         _session = session;
-        _report = session.Report;
+        _config = config;
+        _report = report;
         _cases = cases;
     }
 
+    /// <summary>The whole speed sweep on a quiet flat debug colony.</summary>
     internal static SpeedmatrixProfile PlainProfile { get; } = new()
     {
         Items = Items,
@@ -88,46 +91,19 @@ internal sealed partial class SpeedmatrixRun
         Speeds = SpeedMatrix.DefaultSpeedMatrix,
     };
 
-    /// <summary><c>speedmatrix/plain</c>.</summary>
-    internal static AcceptanceCase PlainCase() => new()
+    /// <summary>
+    /// Runs the matrix on the game <paramref name="session"/> opened on the throughput fixture's prepared colony: the
+    /// rows <paramref name="spec"/> names (empty: the profile's), each into its own directory under the run's output.
+    /// </summary>
+    internal static async Task RunAsync(Session session, Config config, Report report, SpeedmatrixProfile p, string spec, CancellationToken cancellationToken)
     {
-        Name = "speedmatrix/plain",
-        Tier = CaseTier.Off,
-        Scope = "Speed matrix (#111): one staged colony reloaded per clock speed under rimgovernor serve with an "
-            + "identical tick target; wall TPS, paused fraction, steps, reads/step, parent hits, hold counts by reason, resume latency and "
-            + "effective speed per speed; pawn outcomes equal within a tolerance.",
-        Start = new FixtureStart
-        {
-            Op = PrepareTool,
-            Args = new JsonObject { ["itemCount"] = Items, ["wallSegments"] = Segments },
-            On = new DebugStart { Size = new DebugStartSize { Flat = true } },
-        },
-
-        // The stage is hauling and wall building inside the home area; the wild map is unobserved.
-        QuietWorld = true,
-        Service = true,
-        Budget = AcceptanceCase.MaxBudget,
-        Crew = new Crew { Size = 3 },
-        Matrix = true,
-        Run = RunBody(PlainProfile),
-    };
-
-    /// <summary>The matrix body for one profile.</summary>
-    internal static Func<ISession, CancellationToken, Task> RunBody(SpeedmatrixProfile profile) =>
-        (s, cancellationToken) => RunMatrixAsync(s, profile, cancellationToken);
-
-    private static async Task RunMatrixAsync(ISession s, SpeedmatrixProfile p, CancellationToken cancellationToken)
-    {
-        // RIMGOVERNOR_SPEED_MATRIX narrows the rows for a targeted comparison (a rendered "uncapped,player" pair); the
-        // default is every row.
-        var spec = Environment.GetEnvironmentVariable("RIMGOVERNOR_SPEED_MATRIX") ?? "";
         if (spec.Length == 0)
         {
             spec = p.Speeds;
         }
 
         var speedCases = SpeedMatrix.ParseSpeedCases(spec);
-        var m = new SpeedmatrixRun(p, s, speedCases);
+        var m = new SpeedmatrixRun(p, session, config, report, speedCases);
         m._report["speeds_spec"] = spec;
         m._report["speeds"] = new JsonArray([.. speedCases.Select(c => (JsonNode?)c.ToJson())]);
         m._report["tick_target"] = p.Ticks;
@@ -138,7 +114,7 @@ internal sealed partial class SpeedmatrixRun
         m._report["tolerance"] = Tolerance;
         m._report["max_paused_fraction"] = MaxPausedFraction;
         m._report["min_ultrafast_tps_ratio"] = MinUltrafastTpsRatio;
-        if (!Dyn.Contains(s.Names, ControlTool))
+        if (!Dyn.Contains(session.Names, ControlTool))
         {
             throw new AcceptanceException($"missing {ControlTool} in discovery; rebuild the native mod with -Fixture ThroughputFixture");
         }
@@ -248,7 +224,7 @@ internal sealed partial class SpeedmatrixRun
     private async Task StageAsync(CancellationToken cancellationToken)
     {
         var prepared = _session.Prepared ?? [];
-        var stageOutput = Path.Combine(_session.Config.Output, "stage");
+        var stageOutput = Path.Combine(_config.Output, "stage");
         _ = Directory.CreateDirectory(stageOutput);
         var h = HarnessFor(stageOutput);
         _storage = CellList(prepared["storageCells"]);
@@ -273,7 +249,7 @@ internal sealed partial class SpeedmatrixRun
     // Waits for the game to finish writing the stage save into the active profile's Saves directory (headless-profile or profile).
     private async Task WaitSavedAsync(DateTime started, CancellationToken cancellationToken)
     {
-        var root = _session.Config.Root;
+        var root = _config.Root;
         var deadline = started.AddSeconds(90);
         while (true)
         {
@@ -313,9 +289,9 @@ internal sealed partial class SpeedmatrixRun
     // the outcome back.
     private async Task<SpeedOutcome> RunCaseAsync(SpeedCase c, CancellationToken cancellationToken)
     {
-        var output = Path.Combine(_session.Config.Output, c.Name);
+        var output = Path.Combine(_config.Output, c.Name);
         _ = Directory.CreateDirectory(output);
-        var report = Report.Create("speed case " + c.Name, _session.Config.Headless);
+        var report = Report.Create("speed case " + c.Name, _config.Headless);
         report["case"] = c.ToJson();
         try
         {
@@ -342,7 +318,6 @@ internal sealed partial class SpeedmatrixRun
         Func<Task<JsonObject>>? stopKeepAlive = null;
         try
         {
-            _ = _session.Reattach();
             var h = HarnessFor(output);
             _ = await h.CallAsync(
                 "load-stage",
@@ -364,7 +339,8 @@ internal sealed partial class SpeedmatrixRun
             // The brain runs in the game process, so the serve flag the case adds (--clock-test-acceleration)
             // cannot be applied; the launch records them under its env entries.
             var serveArgs = c.ServeArgs();
-            service = await _session.LaunchAsync(
+            service = await ServiceProcess.LaunchServiceAsync(
+                _config,
                 new ServiceLaunch
                 {
                     Families = ["work"],
@@ -373,12 +349,14 @@ internal sealed partial class SpeedmatrixRun
                     Output = output,
                     Report = report,
                 },
-                cancellationToken).ConfigureAwait(false);
+                _report,
+                cancellationToken,
+                _session.Harness).ConfigureAwait(false);
             var token = await service.SessionTokenAsync(cancellationToken).ConfigureAwait(false);
             var attached = await service.WaitAttachedAsync(identity, TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
             report["service_state_attached"] = attached.DeepClone();
             var prefix = "speedmatrix-" + c.Name.ToLowerInvariant() + "-" + RandomSuffix();
-            journal = await ServiceJournal.OpenWithRetryAsync(_session.Config, cancellationToken).ConfigureAwait(false);
+            journal = await ServiceJournal.OpenWithRetryAsync(_config, cancellationToken).ConfigureAwait(false);
 
             // The kept game's journal outlives a row, so the previous row's review (and its tick) is still in it.
             var staleRevision = (await journal.LoadRoundsAsync(cancellationToken).ConfigureAwait(false)).Revision;
@@ -494,7 +472,6 @@ internal sealed partial class SpeedmatrixRun
             AppendMetrics(metrics);
 
             // Independent native read after the service released the slot.
-            _ = _session.Reattach();
             h = HarnessFor(output);
             _ = await h.CallAsync("pause-after", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
 

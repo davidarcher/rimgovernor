@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 
-namespace RimGovernor.Brain.Acceptance.Cases;
+namespace RimGovernor.Brain.Acceptance;
 
 internal sealed partial class SpeedmatrixRun
 {
@@ -13,9 +13,9 @@ internal sealed partial class SpeedmatrixRun
     // but takes no part in the outcome comparison; it still requires healthy colonists and a fresh stage.
     private async Task RunGovernorOffAsync(SpeedCase c, CancellationToken cancellationToken)
     {
-        var output = Path.Combine(_session.Config.Output, c.Name);
+        var output = Path.Combine(_config.Output, c.Name);
         _ = Directory.CreateDirectory(output);
-        var report = Report.Create("speed case " + c.Name, _session.Config.Headless);
+        var report = Report.Create("speed case " + c.Name, _config.Headless);
         report["case"] = c.ToJson();
         try
         {
@@ -35,7 +35,6 @@ internal sealed partial class SpeedmatrixRun
 
     private async Task RunGovernorOffCoreAsync(SpeedCase c, string output, Report report, CancellationToken cancellationToken)
     {
-        _ = _session.Reattach();
         var h = HarnessFor(output);
         _ = await h.CallAsync(
             "load-stage",

@@ -125,14 +125,17 @@ within one step interval at every speed.
 **Native (about 2 minutes per speed):**
 
 ```bash
-RimGovernor.cmd acceptance run speedmatrix/plain -root <abs root>
+RimGovernor.cmd acceptance speedmatrix -root <abs root>
 ```
 
 Needs a `ThroughputFixture` build. One staged colony is reloaded per row and
 run with the `haul` and `work` families to a 30000-tick target, or until the
 stage runs out of work. Rows are `DefaultSpeedMatrix`
 (`Normal,Fast,Superfast,Ultrafast,uncapped,governor-off`);
-`RIMGOVERNOR_SPEED_MATRIX=uncapped,governor-off` narrows a run.
+`-speeds uncapped,governor-off` narrows a run. The command has its own driver
+(`brain/src/RimGovernor.Brain.Acceptance/SpeedMatrix`) outside the case runner and the catalog; per-row
+reports and `result.json` go to `-output` (default `<root>/acceptance/speedmatrix-<profile>`), `-timeout`
+(15m) bounds the run, and exit 0 is a pass, 1 a failed matrix, 2 a usage error.
 `governor-off` plays the same save natively at the uncapped speed with no
 brain attached (the simulation ceiling): it reports only `ticks_advanced`,
 `wall_seconds`, `wall_tps` and is outside the outcome comparison.
@@ -164,7 +167,7 @@ brain attached (the simulation ceiling): it reports only `ticks_advanced`,
   and direct-hook backing: [hazard detection
   bounds](../architecture/hazard-detection-bounds.md).
 
-The case fails when a required row has no metrics row or advanced no ticks, or
+The run fails when a required row has no metrics row or advanced no ticks, or
 a compared row has no outcome (`row_problems`; `SpeedRowProblems` is the
 boundary), on pawn outcomes differing by more than 1 across speeds, an
 unsuccessful plan stage, or nothing hauled or built. `max_paused_fraction` and
@@ -173,16 +176,16 @@ reported, not enforced.
 
 ## Observation baseline
 
-`speedmatrix/observations` is the repeatable rendered workload that
+`acceptance speedmatrix -profile observations` is the repeatable rendered workload that
 observation-cost numbers are read against; it reuses the speed matrix's staging
 and reporting:
 
 ```bash
-RimGovernor.cmd acceptance run speedmatrix/observations -root <abs root>
+RimGovernor.cmd acceptance speedmatrix -profile observations -root <abs root>
 ```
 
 It loads the generated `RimGovernor-tribal8-baseline` colony with
-`test/throughput_prepare` applied, always windowed (`Rendered`, since update
+`test/throughput_prepare` applied, always windowed (not headless, since update
 intervals are a player's only when the game draws), one clock speed and one
 tick target. Rows: `governor-off` (ungoverned update-interval ceiling; its
 accounts come off its own tick reads' envelopes), `uncapped` (ordinary governed
@@ -202,13 +205,13 @@ observation-caused, one that does not is not.
 
 Rules:
 
-- The case refuses an incomplete report: a row without interval samples (no
+- The run refuses an incomplete report: a row without interval samples (no
   frame hook or older companion) or a governed row without observation hops
   fails as `observation report incomplete`, never reads as zero cost.
-- Thresholds come from a baseline run of this case on a declared runner, never
+- Thresholds come from a baseline run of this profile on a declared runner, never
   from the candidate being judged; a unit test does not fail on a busy CI.
 - To isolate emergency-only work from a full bundle, narrow the rows with
-  `RIMGOVERNOR_SPEED_MATRIX` and read the `sections` split; there is no
+  `-speeds` and read the `sections` split; there is no
   diagnostic bypass.
 
 Isolate the accounting itself, with no game, through the contract probe (all
@@ -226,7 +229,7 @@ run on the shared-machine rules in `AGENTS.md`. Record machine (CPU, GPU, RAM), 
 with the numbers. The frame budget, heartbeat tolerance, combat resume budget, Normal fallback and autosave cadence are
 unmeasured guesses until this run is recorded (#3199).
 
-1. Run `speedmatrix/observations` (above) for frame time at each speed: read `frames` p50/p95/p99 per row and the
+1. Run `acceptance speedmatrix -profile observations` (above) for frame time at each speed: read `frames` p50/p95/p99 per row and the
    `clock_step` fields `pacing_reason`, `paced_tps`, `tps_ceiling` and `effective_tps` in `otlp/logs.jsonl` for
    how the one ceiling holds the rate and recovers.
 2. Critical wave and review scope: take `critical_wave_ms` from the `clock_step` rows and `dur_ms` from `rounds_review` /

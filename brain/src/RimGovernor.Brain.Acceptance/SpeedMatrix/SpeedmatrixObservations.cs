@@ -1,20 +1,19 @@
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 
-namespace RimGovernor.Brain.Acceptance.Cases;
+namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// speedmatrix/observations compares the same staged colony at the same clock speed and useful-work budget across
+/// The observations profile compares the same staged colony at the same clock speed and useful-work budget across
 /// governor-off, ordinary governed, concurrent-reader and player runs. Frame and observation distributions separate
 /// controller observation cost from simulation work; absent timing samples remain unknown (Go <c>observations.go</c>).
 /// </summary>
 internal sealed partial class SpeedmatrixRun
 {
-    // The committed tribal8 colony the workload starts from.
-    private const string BaselineSave = "RimGovernor-tribal8-baseline";
-
-    // The workload: the same stage size as the plain matrix (so the useful work is the work that matrix already
-    // measures) kept in its own save, and the rows compared.
+    /// <summary>
+    /// The workload: the same stage size as the plain matrix (so the useful work is the work that matrix already
+    /// measures) kept in its own save, and the rows compared.
+    /// </summary>
     internal static SpeedmatrixProfile ObservationsProfile { get; } = new()
     {
         Items = Items,
@@ -23,31 +22,6 @@ internal sealed partial class SpeedmatrixRun
         Save = "RimGovernor-observations-stage",
         Speeds = "governor-off,uncapped,observation-load,player",
         Observations = true,
-    };
-
-    /// <summary><c>speedmatrix/observations</c>.</summary>
-    internal static AcceptanceCase ObservationsCase() => new()
-    {
-        Name = "speedmatrix/observations",
-        Tier = CaseTier.Off,
-        Scope = "Observation baseline (#642): the committed tribal8 colony with the throughput stage applied, played rendered "
-            + "governor-off, governed and governed under observation load at one clock speed and one tick budget; each row reports the "
-            + "companion's observation capture/format split, its per-section costs and its update-interval account beside the "
-            + "clock and step phases, with the run's provenance.",
-        Start = new FixtureStart
-        {
-            Op = PrepareTool,
-            Args = new JsonObject { ["itemCount"] = Items, ["wallSegments"] = Segments },
-            On = new SaveStart { Name = BaselineSave },
-        },
-
-        // A windowed launch: update intervals only mean what the issue asks them to mean when the game is drawing.
-        Rendered = true,
-        Service = true,
-        Budget = AcceptanceCase.MaxBudget,
-        Crew = new Crew { Size = 3 },
-        Matrix = true,
-        Run = RunBody(ObservationsProfile),
     };
 
     // The observation half of a metrics row: the companion's own account of where an observation hop's main-thread time
@@ -95,7 +69,7 @@ internal sealed partial class SpeedmatrixRun
     // "package_files" blocks; this names the rest.
     private JsonObject Provenance()
     {
-        var cfg = _session.Config;
+        var cfg = _config;
         var os = OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsLinux() ? "linux" : OperatingSystem.IsMacOS() ? "darwin" : "other";
         var arch = RuntimeInformation.ProcessArchitecture switch
         {

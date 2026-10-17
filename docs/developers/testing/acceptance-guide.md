@@ -299,7 +299,8 @@ profile-capture` and `acceptance fetch-fixture` read its ring by default.
 
 `acceptance colony-review` is the same kind of driver for the nightly
 [colony review](colony-review.md): a season on a fresh pinned-seed scenario start with the storyteller
-on, recording screenshots beside `result.json`. It gates nothing.
+on, recording screenshots beside `result.json`. It gates nothing. `acceptance speedmatrix` is the clock-speed
+measurement's ([measure throughput](measure-throughput.md#across-clock-speeds)).
 
 ## Combat lab sweeps
 

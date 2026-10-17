@@ -52,7 +52,7 @@ speed and its clamp relies on.
     `clock_step` row and the Observe tab's Now view. `Status` carries no other accounting: the frame account,
     the pause/run split, the probe and digest work and the hazard gaps are the acceptance-only
     `rimgovernor/acceptance_read_clock_accounting` read (`AcceptanceReadTools`), which production never calls.
-  - `speedmatrix/observations`' `player` row checks the hazard gaps, the over-budget frame share and the
+  - `acceptance speedmatrix -profile observations`' `player` row checks the hazard gaps, the over-budget frame share and the
     queued-command dispatch wait (the manual-command dispatch bound).
 
 ## Prepared profiles

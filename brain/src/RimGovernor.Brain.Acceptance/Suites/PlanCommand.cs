@@ -440,11 +440,6 @@ public static partial class PlanCommand
         var budgets = new TimeSpan[shards.Count];
         foreach (var c in selected)
         {
-            if (c.Matrix)
-            {
-                throw new AcceptanceException($"{c.Name} requires a separate matrix selection; selection cannot be truncated");
-            }
-
             var roles = new JsonArray("bridge");
             if (Tiers.ServeDriven(c))
             {

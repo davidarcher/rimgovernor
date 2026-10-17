@@ -113,9 +113,6 @@ public sealed record AcceptanceCase
     /// <summary>The typed case this record adapts for the runner (<see cref="TypedCase.ToCase"/>), null for a legacy case.</summary>
     public TypedCase? Typed { get; init; }
 
-    /// <summary>Puts the case in the matrix class: a throughput or scheduler measurement, or a DLC-save case, run on demand, never by a tier.</summary>
-    public bool Matrix { get; init; }
-
     /// <summary>Whether the runner staffs the case's game with its crew.</summary>
     public bool Staffed => Start is not OwnedStart && !Crew.Ordinary;
 

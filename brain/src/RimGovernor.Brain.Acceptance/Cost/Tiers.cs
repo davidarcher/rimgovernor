@@ -17,8 +17,8 @@ public enum CaseTier
 
     /// <summary>
     /// Never run by a tier or by <c>acceptance suite -all</c>: diagnostics, which gate nothing and stay runnable by hand
-    /// with <c>acceptance run</c>. Generators and the colony review are their own subcommands (<c>acceptance colony</c>, <c>acceptance baseline</c>,
-    /// <c>acceptance colony-review</c>).
+    /// with <c>acceptance run</c>. Generators, the colony review and the speed matrix are their own subcommands (<c>acceptance colony</c>,
+    /// <c>acceptance baseline</c>, <c>acceptance colony-review</c>, <c>acceptance speedmatrix</c>).
     /// </summary>
     Off,
 }
@@ -50,11 +50,11 @@ public static class Tiers
         return Tiered(registry).Where(c => c.Tier == declared).ToList();
     }
 
-    /// <summary>The registry less the off-tier and matrix cases, in registry order (what <c>acceptance suite -all</c> runs).</summary>
+    /// <summary>The registry less the off-tier cases, in registry order (what <c>acceptance suite -all</c> runs).</summary>
     public static IReadOnlyList<AcceptanceCase> Tiered(CaseRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
-        return registry.All().Where(c => c.Tier != CaseTier.Off && !c.Matrix).ToList();
+        return registry.All().Where(c => c.Tier != CaseTier.Off).ToList();
     }
 
     /// <summary>Whether the case hosts the brain service itself (Go <c>serveDriven</c>).</summary>
