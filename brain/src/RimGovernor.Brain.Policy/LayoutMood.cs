@@ -216,13 +216,6 @@ public sealed record MoodModel
         return s.Present ? (s.Effect, true) : (0, true);
     }
 
-    /// <summary>The mood points a colonist loses to darkness (EnvironmentDark's stage), 0 and false when unknown. Traits that nullify it (NightOwl, Undergrounder) are the caller's.</summary>
-    public (double Points, bool Ok) DarkPoints()
-    {
-        var (effect, ok) = StageEffect(PolicyConstants.MoodJudgment.DarkThought, 0);
-        return (-effect, ok);
-    }
-
     /// <summary>
     /// The mood points a lost role effect costs a pawn in a room of the given impressiveness stage: what the
     /// role it was meant to have gives, less what the role it got gives. Throne and worship carry no mood. False
