@@ -87,7 +87,7 @@ shallow by design: a transitive caller walk explodes through `JobDriver.SetupToi
 caller count), the bodies of resolved calls and properties (a call is a symbol, not an inlined condition), a def
 field's XML initialization (writers of def fields such as `IngestibleProperties.tableDesired` are the XML loader), or
 the lambda that defers a grant (recorded as a resolved `lambda` guard saying so). A card is a draft until a probe
-verifies it (`DeadMansApparel`, #3283).
+verifies it (`DeadMansApparel`, #3283; `EnvironmentCold`, `EnvironmentHot`, #3328).
 
 ## Outputs
 
@@ -180,12 +180,13 @@ stage (`ThoughtState.StageIndexFor`). The native probe `apparel/dead_mans` (#328
 items, -14 (stage 3, the clamp) for five, and no offset with Bloodlust, so the card ships `verified`.
 
 The Gate 2 temperature cards (#3324), `EnvironmentCold` and `EnvironmentHot` (owner shelter/temperature; `resolved`,
-shipped `extracted`): `ThoughtWorker_Cold.CurrentStateInternal` has one site whose stage band has input
+shipped `verified` since the probes `environment/cold` and `environment/hot`, #3328): `ThoughtWorker_Cold.CurrentStateInternal` has one site whose stage band has input
 `p.GetStatValue(StatDefOf.ComfyTemperatureMin) - p.AmbientTemperature` (Hot: `p.AmbientTemperature` minus
 `ComfyTemperatureMax`), thresholds below 10 stage 0, below 20 stage 1, below 30 stage 2, else 3, and a -2 modifier when
 `ModsConfig.IdeologyActive`, `p.Ideo != null` and `p.Ideo.HasPrecept(PreceptDefOf.Temperature_Tough)`. Its guards are the
 input above 0 and the shifted stage at least 0. Stages -4/-8/-12/-16. Before #3324 both were `resolved` over the bare
-locals `num` and `num2`.
+locals `num` and `num2`. The probes observed no thought in the band, -4/-8/-12/-16 at deficits 5/15/25/35 and none
+at 15 with `Temperature_Tough`.
 
 Across the 16 owned defs, 9 are `resolved` (also `SleptInBarracks`, `SleptOutside`, `EnvironmentCold`,
 `EnvironmentHot`, `DeadMansApparel`, `BabySick`, `Sick`), 6 `partial` and 1 `unknown`. All three benchmark cards were

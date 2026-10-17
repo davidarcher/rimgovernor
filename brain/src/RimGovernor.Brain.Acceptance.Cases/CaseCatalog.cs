@@ -56,6 +56,7 @@ public static class CaseCatalog
         DefenseCases.Register(registry);
         DialogCases.Register(registry);
         DraftCases.Register(registry);
+        EnvironmentCases.Register(registry);
         ExplainCases.Register(registry);
         FarmCases.Register(registry);
         FloorCases.Register(registry);

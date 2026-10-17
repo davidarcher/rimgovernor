@@ -72,7 +72,8 @@ public sealed class MechanicCardsTests
     }
 
     // #3324: ThoughtWorker_Cold/_Hot stage bands, generated with no hand table: the stage over the traced input, thresholds
-    // 10/20/30 and the Temperature_Tough shift of -2 under Ideology.
+    // 10/20/30 and the Temperature_Tough shift of -2 under Ideology. The native probes environment/cold and environment/hot
+    // passed at the cards' drift hashes, so both ship verified and Live (#3328).
     [Theory]
     [InlineData("EnvironmentCold", "StatDefOf.ComfyTemperatureMin", 0)]
     [InlineData("EnvironmentHot", "StatDefOf.ComfyTemperatureMax", 1)]
@@ -80,7 +81,8 @@ public sealed class MechanicCardsTests
     {
         var card = MechanicCards.ByDef[def];
 
-        Assert.Equal(MechanicCardStatus.Extracted, card.Status);
+        Assert.Equal(MechanicCardStatus.Verified, card.Status);
+        Assert.True(card.Live);
         Assert.Equal([-4.0, -8, -12, -16], card.Xml.Stages.Select(s => s.BaseMoodEffect ?? 0));
         var band = Assert.Single(card.Sites).Stage!;
         Assert.Equal("-", band.Input.Op);

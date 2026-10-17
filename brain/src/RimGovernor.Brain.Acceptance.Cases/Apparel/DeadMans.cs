@@ -1,9 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
-using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
 using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -16,10 +14,6 @@ internal static class DeadMans
 
     // The fixture always dresses the pawn in this many garments; only the tainted count varies.
     private const int Garments = 5;
-
-    // Situational thoughts refresh on the pawn's needs interval (150 ticks); the read waits for a clean cache.
-    private const int Settle = 300;
-    private const int SettleMax = 1200;
 
     // Each step: tainted count, Bloodlust, and whether the observed offset must equal the card's (n = 5 is recorded only, #3283).
     private static readonly (int Tainted, bool Bloodlust, bool Assert)[] Steps =
@@ -74,8 +68,8 @@ internal static class DeadMans
                 throw new AcceptanceException($"{label}: the card prices this pawn and outfit as unknown");
             }
 
-            var (offset, row, ticks) = await ReadAsync(s, label, pawn, cancellationToken).ConfigureAwait(false);
-            var stage = StageOf(card, offset);
+            var (offset, row, ticks, _) = await MoodProbe.ReadAsync(s, label, pawn, Thought, cancellationToken).ConfigureAwait(false);
+            var stage = MoodProbe.StageOf(card, offset);
             observed.Add(new JsonObject
             {
                 ["tainted"] = tainted,
@@ -103,50 +97,5 @@ internal static class DeadMans
                 s.Report["n5_matches_card_clamp"] = offset == want;
             }
         }
-    }
-
-    /// <summary>The thought's total offset (0 when absent) from the mood thoughts the brain lifts out of the pawn read, and the raw situational row.</summary>
-    private static async Task<(double Offset, JsonObject? Row, int Ticks)> ReadAsync(ISession s, string label, string pawn, CancellationToken cancellationToken)
-    {
-        for (var advanced = 0; ; )
-        {
-            _ = await s.AdvanceAsync(Settle, null, cancellationToken).ConfigureAwait(false);
-            advanced += Settle;
-            var row = await PawnSupport.ReadPawnAsync(s.Harness, s, $"read-{label}-{CaseSupport.Tag(advanced)}", pawn, true, cancellationToken).ConfigureAwait(false);
-            NativeAssert.RequireSocial(row);
-            var social = row["social"].AsMap()!;
-            if (social["situationalCacheStale"].AsBool() == true)
-            {
-                if (advanced >= SettleMax)
-                {
-                    throw new AcceptanceException($"{label}: the situational thought cache is still stale after {advanced} ticks");
-                }
-
-                continue;
-            }
-
-            if (!ObservationPackage.MoodThoughts(WireCodec.ToRecord<PawnState>(row)).TryGetValue(out var thoughts))
-            {
-                throw new AcceptanceException($"{label}: the pawn's mood thoughts are unknown: {social.ToJson()}");
-            }
-
-            var raw = social["situational"].AsSlice().Select(r => r.AsMap()).FirstOrDefault(r => r?["defName"].AsString() == Thought);
-            return (thoughts.FirstOrDefault(t => t.Def == Thought)?.Offset ?? 0, raw, advanced);
-        }
-    }
-
-    /// <summary>The card stage whose baseMoodEffect is <paramref name="offset"/>, -1 for none.</summary>
-    private static int StageOf(MechanicCard card, double offset)
-    {
-        var stages = card.Xml.Stages;
-        for (var i = 0; i < stages.Count; i++)
-        {
-            if (stages[i].BaseMoodEffect == offset)
-            {
-                return i;
-            }
-        }
-
-        return -1;
     }
 }

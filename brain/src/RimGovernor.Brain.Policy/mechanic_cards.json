@@ -222,7 +222,7 @@
     {
       "def": "EnvironmentCold",
       "kind": "situational",
-      "status": "extracted",
+      "status": "verified",
       "xml": {
         "nullifyingTraits": [],
         "nullifyingHediffs": [],
@@ -594,7 +594,7 @@
     {
       "def": "EnvironmentHot",
       "kind": "situational",
-      "status": "extracted",
+      "status": "verified",
       "xml": {
         "nullifyingTraits": [],
         "nullifyingHediffs": [],

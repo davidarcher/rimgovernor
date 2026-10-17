@@ -1,2 +1,4 @@
 def	drift_hash	probe	game	evidence
 DeadMansApparel	f99fbcfab78792a9	apparel/dead_mans	1.7.4980 rev60	run pass 2026-10-16 at 9e5588e11 (11.0s case): n=0..5 offsets 0/-5/-8/-11/-14/-14 (n=5 at stage 3, the clamp); Bloodlust n=2 offset 0
+EnvironmentCold	83aa48ac1b1b060b	environment/cold	1.7.4980 rev60	run pass 2026-10-16 at 3f5654a1e with #3328 (25.6s case): comfort deficits in-band/5/15/25/35 offsets 0/-4/-8/-12/-16 (stages 0-3), equal to CardStageOffset; Temperature_Tough deficit 15 offset 0
+EnvironmentHot	9117575eece5acc1	environment/hot	1.7.4980 rev60	run pass 2026-10-16 at 3f5654a1e with #3328 (9.6s case): comfort deficits in-band/5/15/25/35 offsets 0/-4/-8/-12/-16 (stages 0-3), equal to CardStageOffset; Temperature_Tough deficit 15 offset 0

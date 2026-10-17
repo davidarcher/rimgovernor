@@ -152,13 +152,14 @@ A site that returns `ThoughtState.ActiveAtStage(local)` over a banded local (sch
 `modifiers` of `{when, delta}` (an if-guarded `+=`/`-=` on the local). The stage is the first threshold the input is
 under, else `else`, plus each delta whose `when` holds; the site's guards still decide whether the thought is active
 (for the temperature cards, input above 0 and final stage at least 0). `EnvironmentCold` and `EnvironmentHot` carry
-thresholds 10/20/30, else 3, and -2 when Ideology is active and the pawn's ideo has `Temperature_Tough`; they ship
-`extracted` until #3328 probes them.
+thresholds 10/20/30, else 3, and -2 when Ideology is active and the pawn's ideo has `Temperature_Tough`; both ship
+`verified` since #3328.
 
 `MechanicCards.ByDef` embeds the file and parses it on first use into `MechanicCard` records. A malformed file, an
 unknown or missing field, an unknown status or a schema other than `MechanicCards.Schema` throws; it never yields an
 empty catalog. A card's `status` is `extracted` until a probe verifies it; such a card loads, but `Live` is false
-and consumers ignore it for live play. `DeadMansApparel` ships `verified` (`Live`) since #3283 and drives the tainted-apparel choice since #3285.
+and consumers ignore it for live play. `DeadMansApparel` ships `verified` (`Live`) since #3283 and drives the tainted-apparel choice since #3285;
+`EnvironmentCold` and `EnvironmentHot` ship `verified` since #3328 (no consumer yet; the evaluator is #3327).
 
 A card is `unreachable` (#3243) when every site has a guard that no writer on the site's direct caller path can make
 hold; the guard carries an `unreachable` reason naming the writers and the callers checked. The check is shallow: the
@@ -217,6 +218,15 @@ outfit: none for n = 0, -5/-8/-11/-14 for n = 1-4 and none with Bloodlust at n =
 and records the observed stage against the card's clamp. With Bloodlust the situational row stays in the cache at
 offset 0 (`ThoughtUtility.ThoughtNullified` zeroes `MoodOffset`), so the lifted mood thoughts omit it. The case
 declares `VanillaColonists`: without a service the voluntary-control hold stops the scenario clock on the idle colonist.
+
+The probes for `EnvironmentCold` and `EnvironmentHot` are `environment/cold` and `environment/hot` (#3328), on a
+one-colonist lab. The fixture op `test/environment_temperature` seals the colonist in a doorless roofed 3x3 room and
+moves the lab's outdoor pin and the room to a temperature `deficit` degrees past the pawn's own comfy bound (mid-band
+for 0), so wall equalization cannot drift it; under Ideology it adds or strips `Temperature_Tough` on the colony
+ideoligion. Each step reads the thought as the `DeadMansApparel` probe does and takes the deficit from the same read's
+body stats (`cell_temperature_c` against `comfortable_min_c`/`max_c`), which must sit within 1 degree of the asked one,
+then compares the offset with the card's stage band: none in the band, -4/-8/-12/-16 at deficits 5/15/25/35, none at 15
+with `Temperature_Tough`. Without Ideology the Tough step is skipped and reported as not observed.
 
 `PolicyFunctions.GenerateEffectSources` (pure, #3224; prevention branch #3284) turns a verified negative count card
 into per-pawn apparel filter candidates. A card matches a pawn when it is `Live`, every site maps to a
