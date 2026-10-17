@@ -28,6 +28,7 @@ public static class LabCases
             registry.Register(c);
         }
 
+        registry.Register(LabFoodStorageRoutes.Case());
         registry.Register(LabSparring.Case());
         registry.Register(LabSparringWatch.Case());
         foreach (var c in LabSparringMeasure.Cases())

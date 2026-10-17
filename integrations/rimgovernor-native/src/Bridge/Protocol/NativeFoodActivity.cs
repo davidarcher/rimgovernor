@@ -17,8 +17,8 @@ internal static class NativeFoodActivity
 {
     internal static bool Available(Pawn pawn) => pawn.CurJob == null || pawn.CurJob.def == JobDefOf.Wait || pawn.CurJob.def == JobDefOf.Wait_Wander || pawn.CurJob.def == JobDefOf.GotoWander;
     /// <summary>
-    /// Every free colonist's harvest and haul rows for the asked plants (or, executing, the one pawn's), to every
-    /// accepting storage cell (#3341). A source's route to a cell is searched once for every colonist (NativePathLegs).
+    /// Every free colonist's harvest and haul rows for the asked plants (or, executing, the one pawn's), one per
+    /// accepting storage group: its cheapest flood-nearest exact cell (#3341). A source's route to a cell is searched once for every colonist (NativePathLegs).
     /// Only the cooking expansion of an executing delivery (NativeFoodCooking) keeps its route budget.
     /// </summary>
     internal static Obs.FoodActivityRead Read(Obs.FoodActivityRequest request, NativePathLegs? legs = null)
@@ -27,6 +27,7 @@ internal static class NativeFoodActivity
         legs ??= new(map);
         var result = new Obs.FoodActivityRead { Context = context };
         var options = new List<Obs.FoodActivityOption>();
+        var storage = new Dictionary<Thing, List<List<IntVec3>>>(); // Per source: its accepting groups' cells, flood-nearest first.
         var existing = request.Existing;
         var truncated = false;
         var budget = 128; // NativeFoodCooking's route budget; only an executing delivery expands cooking.
@@ -73,15 +74,25 @@ internal static class NativeFoodActivity
                     NativeFoodCooking.Add(pawn, source, count, approach, existing, options, ref budget, ref truncated);
                     continue; // Supply was selected; rebind that exact recipe only.
                 }
-                // Enumerate exact, empty storage cells. Policy ranks options; native never chooses storage.
-                var cells = map.haulDestinationManager.AllGroupsListInPriorityOrder.Where(g => plant is null
-                        ? g.Settings.AllowedToAccept(source) : g.Settings.filter.Allows(product))
-                    .SelectMany(g => g.CellsList).Distinct().OrderBy(c => c.x).ThenBy(c => c.z).ToArray();
-                foreach (var cell in cells)
+                // Each accepting storage group's cheapest exact, empty cell for this pawn: of the group's cells in flood
+                // order from the source, the first Nearest the pawn can use are searched. Policy ranks the groups' rows.
+                if (!storage.TryGetValue(source, out var groups))
+                    storage[source] = groups = StorageByGroup(map, source.Position, map.haulDestinationManager.AllGroupsListInPriorityOrder
+                        .Where(g => plant is null ? g.Settings.AllowedToAccept(source) : g.Settings.filter.Allows(product)).ToList());
+                foreach (var ordered in groups)
                 {
-                    if (cell == source.Position || !JobDriver_GovernorDeliver.DestinationAvailable(pawn, cell)
-                        || !pawn.CanReserveAndReach(cell, PathEndMode.OnCell, Danger.None)) continue;
-                    if (legs.Cost(pawn, source.Position, cell, PathEndMode.OnCell) is not { } route) continue;
+                    (IntVec3 Cell, float Route)? best = null;
+                    var searched = 0;
+                    foreach (var candidate in ordered)
+                    {
+                        if (candidate == source.Position || !JobDriver_GovernorDeliver.DestinationAvailable(pawn, candidate)
+                            || !pawn.CanReserveAndReach(candidate, PathEndMode.OnCell, Danger.None)) continue;
+                        if (legs.Cost(pawn, source.Position, candidate, PathEndMode.OnCell) is { } cost && (best is null || cost < best.Value.Route))
+                            best = (candidate, cost);
+                        if (++searched == Nearest) break;
+                    }
+                    if (best is not { } chosen) continue;
+                    var (cell, route) = chosen;
                     options.Add(new(pawn.GetUniqueLoadID(), source.GetUniqueLoadID(), product.defName,
                         new(source.Position.x, source.Position.z), new(cell.x, cell.z), giver?.defName ?? "", count,
                         approach + route, work) { NutritionPerUnit = Fact.Known((double)product.GetStatValueAbstract(StatDefOf.Nutrition)),
@@ -92,5 +103,29 @@ internal static class NativeFoodActivity
             }
         }
         return result with { Known = true, Truncated = truncated, Options = EquatableArray.From(options) };
+    }
+
+    /// <summary>The flood-nearest cells searched per storage group: flood steps are cardinal, paths also diagonal.</summary>
+    private const int Nearest = 3;
+
+    /// <summary>
+    /// Each group's cells nearest first, by one flood fill from the source over walkable cells (cardinal steps), which
+    /// stops once every group cell is reached. A cell the fill never reaches has no path from the source.
+    /// </summary>
+    private static List<List<IntVec3>> StorageByGroup(Map map, IntVec3 root, List<SlotGroup> accepting)
+    {
+        var groups = accepting.Select(_ => new List<IntVec3>()).ToList();
+        var owner = new Dictionary<IntVec3, int>();
+        for (var i = 0; i < accepting.Count; i++)
+            foreach (var cell in accepting[i].CellsList) if (!owner.ContainsKey(cell)) owner[cell] = i;
+        var left = owner.Count;
+        if (left == 0) return groups;
+        var walkable = map.pathing.Normal.pathGrid;
+        map.floodFiller.FloodFill(root, c => c == root || walkable.Walkable(c), (c, _) =>
+        {
+            if (owner.TryGetValue(c, out var group)) { groups[group].Add(c); left--; }
+            return left == 0;
+        });
+        return groups;
     }
 }
