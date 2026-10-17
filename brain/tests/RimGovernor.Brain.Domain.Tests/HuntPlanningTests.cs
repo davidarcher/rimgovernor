@@ -22,6 +22,28 @@ public sealed class HuntPlanningTests
     static readonly CoupledRoute[] Routes = [Walk("a", 10, 100), Walk("b", 10, 100), Walk("a", 60, 100), Walk("b", 60, 100)];
 
     [Fact]
+    public void AnOpenedFormationIsHeldWhileItsPreyStandEvenWhenItsEstimatesGoStale()
+    {
+        var sources = new[] { Source("boar") };
+        var asked = PolicyFunctions.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5).Unestimated;
+        var view = new HuntEstimateView(asked.ToDictionary(r => r.Key, r => Estimate(r)), new Dictionary<string, string>(), new HashSet<string>());
+        var answered = PolicyFunctions.PlanHunt(Read(), sources, Routes, view, 5);
+        var admission = new HuntAdmission();
+        var opened = admission.Formation(answered.Channel(sources), answered, sources)!;
+        admission.Admit(opened.Prey.Select(id => new Domain.PawnId(id)));
+
+        // The animals moved, the estimates are gone and the pool is smaller: the plan offers nothing, the admitted formation stands.
+        var stale = PolicyFunctions.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5);
+        Assert.Null(stale.Channel(sources));
+        var held = admission.Formation(stale.Channel(sources), stale, sources)!;
+        Assert.Equal((opened.Hunters, opened.Prey), (held.Hunters, held.Prey));
+
+        // Once no admitted animal is offered any more the hunt is over and the plan decides again.
+        Assert.Null(admission.Formation(null, stale, []));
+        Assert.Null(admission.Formation(null, stale, sources));
+    }
+
+    [Fact]
     public void UnansweredRostersAreAskedForAndNoHuntIsOfferedUntilAllAreAnswered()
     {
         var plan = PolicyFunctions.PlanHunt(Read(), [Source("boar")], Routes, HuntEstimateView.None, 5);

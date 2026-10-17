@@ -388,6 +388,9 @@ internal sealed class CombatInputs
     public Dictionary<string, WeaponDef> Weapons = new(StringComparer.Ordinal);
     public Dictionary<string, Fact<bool>> Ranged = new(StringComparer.Ordinal);
     public Dictionary<string, double> Reach = new(StringComparer.Ordinal);
+
+    /// <summary>Each pawn's primary weapon def name from its equipment row: what a pawn the combat read does not list (no hostile stands in a hunt) is armed with.</summary>
+    public Dictionary<string, string> Primary = new(StringComparer.Ordinal);
     public Dictionary<PawnId, PawnProfile> Profiles = [];
 
     internal void ResolveProfiles(IReadOnlyList<EmergencyPawn> colonists, Armament arms)
@@ -455,6 +458,7 @@ internal static partial class BuildingRuntimePackage
             {
                 continue;
             }
+            inp.Primary[id] = arms.PrimaryDefName(row.Equipment);
             inp.Ranged[id] = Known(weapon.Ranged);
             if (weapon.Ranged)
             {
@@ -469,6 +473,13 @@ internal static partial class BuildingRuntimePackage
                 continue;
             }
             inp.Weapons[def] = catalog.WeaponOf(def);
+        }
+        foreach (var def in inp.Primary.Values)
+        {
+            if (def.Length > 0 && !inp.Weapons.ContainsKey(def))
+            {
+                inp.Weapons[def] = catalog.WeaponOf(def);
+            }
         }
         return (inp, default);
     }
@@ -582,6 +593,15 @@ internal static partial class BuildingRuntimePackage
     internal static List<CombatPawnState> PreyStates(List<CombatPawnState> states, CombatInputs inp, DefinitionCatalog catalog)
     {
         var listed = new HashSet<PawnId>(states.Select(s => s.Id));
+        // A hunt has no hostile, so the combat read lists no pawns and the states come from the observation rows: arm them from their equipment.
+        for (var i = 0; i < states.Count; i++)
+        {
+            if (states[i].Weapon.Length == 0 && inp.Primary.TryGetValue(states[i].Id.Value, out var def) && def.Length > 0 && inp.Weapons.TryGetValue(def, out var facts))
+            {
+                states[i] = states[i] with { Weapon = def, WeaponFacts = facts, WeaponRange = facts.Reach };
+            }
+        }
+
         foreach (var id in inp.Prey)
         {
             var row = inp.Rows[id];

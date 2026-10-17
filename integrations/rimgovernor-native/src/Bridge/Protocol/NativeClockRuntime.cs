@@ -83,7 +83,8 @@ namespace HomeBridge.BridgeTools
                     if (!TypedHooksReady()) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Exact native clock hooks are unavailable.");
                     if (Journal.Newest == long.MaxValue) return ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, "Native clock cursor is exhausted.");
                     var map = ProtoBoundary.ResolveMap(request.Identity ?? throw new InvalidOperationException("Missing identity")) ?? throw new InvalidOperationException("The requested map is not loaded.");
-                    foreach (var ids in PolicyIds(request.Policy)) ResolveIds(map, ids);
+                    ResolveHostiles(map, request.Policy.AcknowledgedHostileIds);
+                    foreach (var ids in PolicyIds(request.Policy).Skip(1)) ResolveIds(map, ids);
                 }
                 catch (Exception error) { ModLog.Error("clock", "Clock run preconditions failed: " + error); return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native watcher, journal or exact policy pawn identity is unavailable."); }
                 return null;
@@ -145,7 +146,7 @@ namespace HomeBridge.BridgeTools
             s.HostileWithin = ClampFloat(p.HostileWithin.GetValueOrDefault(), 1f, 250f);
             s.HealthDropFraction = ClampFloat(p.HealthDropFraction.GetValueOrDefault(), 0.01f, 1f);
             s.MinHealthFraction = ClampFloat(p.MinHealthFraction.GetValueOrDefault(), 0.01f, 1f);
-            s.IgnoredHostiles = PawnIds(ResolveIds(map, p.AcknowledgedHostileIds));
+            s.IgnoredHostiles = PawnIds(ResolveHostiles(map, p.AcknowledgedHostileIds));
             s.IgnoredDowned = PawnIds(ResolveIds(map, p.AcknowledgedDownedColonistIds));
             s.IgnoredInjured = PawnIds(ResolveIds(map, p.AcknowledgedInjuredColonistIds));
             s.SurgicalRecovery = PawnIds(ResolveIds(map, p.SurgicalRecoveryIds));
@@ -573,6 +574,8 @@ namespace HomeBridge.BridgeTools
         }
         private static IEnumerable<IEnumerable<string>> PolicyIds(Clock.WatchPolicy policy)
         { yield return policy.AcknowledgedHostileIds; yield return policy.AcknowledgedDownedColonistIds; yield return policy.AcknowledgedInjuredColonistIds; yield return policy.SurgicalRecoveryIds; yield return policy.MedicalRestIds; }
+        /// A watched hostile (a hunt's prey included) that has since died is no longer on the map and needs no acknowledging: the run goes on without it.
+        private static string ResolveHostiles(Map map, IEnumerable<string> ids) => string.Join(",", ids.SelectMany(id => map.mapPawns.AllPawns.Where(p => p.GetUniqueLoadID() == id)).Select(p => p.thingIDNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         private static string ResolveIds(Map map, IEnumerable<string> ids) => string.Join(",", ids.Select(id => map.mapPawns.AllPawns.Single(p => p.GetUniqueLoadID() == id).thingIDNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         private static bool ValidPolicy(Clock.WatchPolicy policy)
         {

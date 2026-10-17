@@ -75,7 +75,7 @@ public static class HuntAlternatives
     /// </summary>
     public static (HuntEstimate? Estimate, string Refusal) EstimateOf(HuntActivityRead read, HuntRoster roster, EncounterRequest request, EncounterPrediction prediction)
     {
-        if (prediction.Status != EncounterStatus.Evidence) return (null, "prediction_" + prediction.Status.ToString().ToLowerInvariant());
+        if (prediction.Status != EncounterStatus.Evidence) return (null, "prediction_" + prediction.Status.ToString().ToLowerInvariant() + (prediction.Reason.Length == 0 ? "" : ":" + prediction.Reason));
         if (prediction.Samples.Count == 0) return (null, "prediction_without_samples");
         // The request's actor ids are the observed pawn ids, so the estimate is for exactly this roster.
         var gunnerIds = request.Actors.Where(a => !a.Wild).Select(a => a.Id).ToArray();

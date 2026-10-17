@@ -46,6 +46,16 @@ public sealed class HuntEstimateServiceTests
     }
 
     [Fact]
+    public void BuildStatesNoHerdForPreyAloneInTheRequest()
+    {
+        var herded = Read() with { Prey = [Prey("boar") with { Herd = "wild-herd" }, Prey("boar2") with { Herd = "wild-herd" }] };
+        var alone = HuntEncounterRequests.Build(herded, Roster, 5).Request!;
+        Assert.Equal("", alone.Actors.Single(a => a.Wild).Herd);
+        var both = HuntEncounterRequests.Build(herded, new(EquatableArray.From(["a"]), EquatableArray.From(["boar", "boar2"])), 5).Request!;
+        Assert.All(both.Actors.Where(a => a.Wild), a => Assert.Equal("wild-herd", a.Herd));
+    }
+
+    [Fact]
     public void BuildStatesTheSceneInTheWindowAndRefusesWhatItCannotState()
     {
         var (request, refusal) = HuntEncounterRequests.Build(Read(), Roster, 5);
@@ -109,7 +119,7 @@ public sealed class HuntEstimateServiceTests
         await Settle(service, read, 100);
         var view = service.Current(read, 100);
         Assert.Empty(view.Estimates);
-        Assert.Equal("prediction_busy", Assert.Single(view.Refusals).Value);
+        Assert.StartsWith("prediction_busy", Assert.Single(view.Refusals).Value);
         Assert.Empty(service.Current(read, 100 + HuntEstimateService.RetryTicks + 1).Refusals);
         busy = false;
         Assert.Equal(1, service.Request(read, [Roster], 100 + HuntEstimateService.RetryTicks + 1));

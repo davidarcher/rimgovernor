@@ -29,6 +29,23 @@ internal sealed partial class Armament
         return PrimaryWeapon(equipment);
     }
 
+    /// <summary>The def name of the equipment's primary weapon, empty while <see cref="Primary"/> does not know it or the pawn is unarmed.</summary>
+    internal string PrimaryDefName(ObservationsPb.PawnEquipment? equipment)
+    {
+        if (equipment is null || equipment.Armed != true || equipment.PrimaryId is null)
+        {
+            return "";
+        }
+        foreach (var item in equipment.Equipped)
+        {
+            if ((item.Thing?.Id ?? "") == equipment.PrimaryId && item.Thing is not null && Things.TryRow(item.Thing, out var row))
+            {
+                return row.Entity?.DefName ?? "";
+            }
+        }
+        return "";
+    }
+
     /// <summary>
     /// Go's DefinitionCatalog.PrimaryWeapon: false while the equipment does not say (no armed flag, no primary id), the
     /// primary is not among the equipped items, or the things table does not hold its row yet; an unarmed pawn is the

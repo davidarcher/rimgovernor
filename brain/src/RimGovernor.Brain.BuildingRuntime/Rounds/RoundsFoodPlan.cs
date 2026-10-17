@@ -185,7 +185,7 @@ internal static partial class BuildingRuntimePackage
             _ = estimates?.Request(huntRead, huntPlan.Unestimated, p.Identity.Tick.Value);
         }
 
-        channels.AddRange(PolicyFunctions.HuntCandidates(sources, gunners, huntPlan.Channel(sources), huntPlan.Awaiting));
+        channels.AddRange(PolicyFunctions.HuntCandidates(sources, gunners, hunt.Formation(huntPlan.Channel(sources), huntPlan, sources), huntPlan.Awaiting));
         channels.AddRange(PolicyFunctions.HuntPrerequisiteCandidates(p.HuntHolds));
         var hunting = FoodHuntInput(p);
         channels = PolicyFunctions.HuntThroughput(channels, hunters, PolicyFunctions.HuntCadence(hunting.Kills, hunters, p.Identity.Tick.Value)).ToList();

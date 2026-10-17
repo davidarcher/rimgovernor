@@ -157,6 +157,55 @@ public static partial class PolicyFunctions
         return SortRoles(roles);
     }
 
+    /// <summary>Why each rostered hunter is left out of the formation, or why there is no prey: what an empty squad reports.</summary>
+    public static IReadOnlyList<string> HuntFormationRefusals(CombatView view)
+    {
+        var output = new List<string>();
+        var prey = RankThreats(view);
+        if (prey.Count == 0)
+        {
+            output.Add("no_prey");
+        }
+
+        double preyRange = 0;
+        foreach (var p in prey)
+        {
+            preyRange = Math.Max(preyRange, p.WeaponRange);
+        }
+
+        var states = view.Pawns.Items.ToDictionary(p => p.Id);
+        var defenders = view.Defenders.Items.ToDictionary(d => d.Id);
+        foreach (var id in view.HuntHunters.Items)
+        {
+            if (!defenders.TryGetValue(id, out var d))
+            {
+                output.Add(id + ":not_a_defender");
+                continue;
+            }
+
+            var reasons = SquadDefenderReasons(d);
+            var state = states.GetValueOrDefault(id) ?? new CombatPawnState();
+            if (state.WeaponRange > 0 && state.WeaponRange < preyRange)
+            {
+                reasons.Add("outranged");
+            }
+
+            if (!state.WeaponFacts.Hunts())
+            {
+                reasons.Add("weapon_does_not_hunt(" + state.Weapon + (state.WeaponFacts.Ranged ? ",ranged" : ",not_ranged") + (state.WeaponFacts.Explosive ? ",explosive" : "") + (state.WeaponFacts.Incendiary ? ",incendiary" : "") + ")");
+            }
+
+            output.Add(id + ":" + (reasons.Count == 0 ? "eligible" : string.Join("|", reasons)));
+        }
+
+        if (view.HuntHunters.Count == 0)
+        {
+            output.Add("no_roster");
+        }
+
+        return output;
+    }
+
     /// <summary>
     /// The hunt's re-formation row: a role's target is down, or the prey turned into a manhunter pack, or some
     /// prey turned on the squad and the hunt has no potshot door yet.

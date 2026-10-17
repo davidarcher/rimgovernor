@@ -51,6 +51,9 @@ public static class HuntEncounterRequests
             actors.Add(Actor(hunter, false, scene, target.Pawn));
         }
         actors.AddRange(prey.Select(p => Actor(p!, true, scene, "")));
+        // Native names a herd by the animals near the prey, but the request holds only the roster's prey: a herd with one member in it is a lone animal, which states none.
+        var herds = actors.Where(a => a.Herd.Length > 0).GroupBy(a => a.Herd).Where(g => g.Count() == 1).Select(g => g.Key).ToHashSet(StringComparer.Ordinal);
+        if (herds.Count > 0) actors = actors.Select(a => herds.Contains(a.Herd) ? a with { Herd = "" } : a).ToList();
         if (actors.Any(a => a.X < 0 || a.Z < 0 || a.X >= scene.Width || a.Z >= scene.Height)) return (null, "actor_outside_scene");
         return (new EncounterRequest
         {
