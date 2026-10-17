@@ -74,7 +74,7 @@ public sealed record DefenseTiers
     public EquatableArray<DefenseTier> Sited { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class DefenseTiersPolicy
 {
     /// <summary>The passage raiders walk from the opening to the kill row.</summary>
     public static NodeKind NodeDefCorridor => NodeKind.DefCorridor;
@@ -127,7 +127,7 @@ public static partial class PolicyFunctions
 
     /// <summary>The order tiers become nodes in, and so the order of the nodes in the plan.</summary>
     internal static readonly IReadOnlyList<DefenseTierName> DefenseTierOrder =
-        [TierChokepoint, TierFunnel, TierTrapCorridor, TierFiringLine, TierTurrets, TierMortars, TierIEDs, TierBait];
+        [DefenseLayout.TierChokepoint, DefenseLayout.TierFunnel, DefenseLayout.TierTrapCorridor, DefenseLayout.TierFiringLine, DefenseTurretsPolicy.TierTurrets, DefenseMortarsPolicy.TierMortars, DefenseIEDs.TierIEDs, DefenseArrivalRoutes.TierBait];
 
     /// <summary>The plan with its defense tier nodes replaced by the given ones. The result is for drawing and reading; it is not stored.</summary>
     public static LayoutPlan WithDefenseTiers(this LayoutPlan p, IEnumerable<PlannedSite> nodes)
@@ -166,7 +166,7 @@ public static partial class PolicyFunctions
         DefenseLayout layout;
         try
         {
-            layout = DefenseLayouts(req);
+            layout = DefenseLayout.DefenseLayouts(req);
         }
         catch (Exception e) when (e is DefenseException or DomainException)
         {
@@ -184,13 +184,13 @@ public static partial class PolicyFunctions
         }
         List<DefenseTierName> displaced;
         (layout, displaced) = DisplaceBuilt(layout, pinned);
-        if (!pinned.ContainsKey(TierMortars))
+        if (!pinned.ContainsKey(DefenseMortarsPolicy.TierMortars))
         {
             var geometry = layout.Geometry();
             var turretCells = new List<Cell>();
             foreach (var t in layout.Tiers)
             {
-                if (t.Name != TierTurrets)
+                if (t.Name != DefenseTurretsPolicy.TierTurrets)
                 {
                     continue;
                 }
@@ -200,7 +200,7 @@ public static partial class PolicyFunctions
             geometry = geometry with { Turrets = EquatableArray.From(turretCells) };
             try
             {
-                var mortars = DefenseMortars(req, geometry);
+                var mortars = DefenseMortarsPolicy.DefenseMortars(req, geometry);
                 if (mortars.Buildings.Count > 0)
                 {
                     layout = layout with { Tiers = EquatableArray.From(layout.Tiers.Append(mortars)) };
@@ -294,11 +294,11 @@ public static partial class PolicyFunctions
             }
         }
         layout = layout with { Tiers = EquatableArray.From(tiers) };
-        if (pinned.ContainsKey(TierChokepoint) && pins.TrapLane.Count > 0)
+        if (pinned.ContainsKey(DefenseLayout.TierChokepoint) && pins.TrapLane.Count > 0)
         {
             layout = layout with { TrapLane = pins.TrapLane };
         }
-        if (pinned.ContainsKey(TierFiringLine) && pins.Firing.Count > 0)
+        if (pinned.ContainsKey(DefenseLayout.TierFiringLine) && pins.Firing.Count > 0)
         {
             layout = layout with { Firing = pins.Firing };
         }
@@ -390,41 +390,41 @@ public static partial class PolicyFunctions
                 continue;
             }
             var tier = layout.Tiers[i];
-            if (name == TierChokepoint)
+            if (name == DefenseLayout.TierChokepoint)
             {
                 Add(tier, NodeDefCorridor, tier.Reserved, [], new TierFacts { Reserved = tier.Reserved });
                 Add(tier, NodeDefLane, layout.TrapLane, [], new TierFacts { Path = layout.TrapLane });
             }
-            else if (name == TierFunnel)
+            else if (name == DefenseLayout.TierFunnel)
             {
                 Add(tier, NodeDefFunnel, CellsOf(tier.Buildings), tier.Buildings, new TierFacts { Reserved = tier.Reserved });
             }
-            else if (name == TierTrapCorridor)
+            else if (name == DefenseLayout.TierTrapCorridor)
             {
                 var (traps, rest) = Split(tier.Buildings, defs.Trap);
                 var (fences, _) = Split(rest, defs.Fence);
                 Add(tier, NodeDefTraps, CellsOf(traps), traps, new TierFacts());
                 Add(tier, NodeDefFence, CellsOf(fences), fences, new TierFacts());
             }
-            else if (name == TierFiringLine)
+            else if (name == DefenseLayout.TierFiringLine)
             {
                 var (floors, cover) = Split(tier.Buildings, defs.Floor);
                 Add(tier, NodeDefFiring, CellsOf(cover), cover, new TierFacts { Reserved = tier.Reserved, Firing = layout.Firing });
                 Add(tier, NodeDefShooter, CellsOf(floors), floors, new TierFacts());
             }
-            else if (name == TierTurrets)
+            else if (name == DefenseTurretsPolicy.TierTurrets)
             {
                 Add(tier, NodeDefTurrets, CellsOf(tier.Buildings), tier.Buildings, new TierFacts { Reserved = tier.Reserved });
             }
-            else if (name == TierMortars)
+            else if (name == DefenseMortarsPolicy.TierMortars)
             {
                 Add(tier, NodeDefMortars, CellsOf(tier.Buildings), tier.Buildings, new TierFacts { Reserved = tier.Reserved });
             }
-            else if (name == TierIEDs)
+            else if (name == DefenseIEDs.TierIEDs)
             {
                 Add(tier, NodeDefIEDs, CellsOf(tier.Buildings), tier.Buildings, new TierFacts { Reserved = tier.Reserved });
             }
-            else if (name == TierBait)
+            else if (name == DefenseArrivalRoutes.TierBait)
             {
                 Add(tier, NodeDefBait, CellsOf(tier.Buildings), tier.Buildings, new TierFacts { Reserved = tier.Reserved });
             }

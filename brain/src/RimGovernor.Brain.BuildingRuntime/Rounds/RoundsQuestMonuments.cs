@@ -22,7 +22,7 @@ public sealed partial class JoinersRounds
             }
         }
 
-        var choice = PolicyFunctions.SelectQuestMonument(read.Projection.Facts.QuestOffers, read.Projection.Identity.Map, stock, protectedRects);
+        var choice = QuestMonument.SelectQuestMonument(read.Projection.Facts.QuestOffers, read.Projection.Identity.Map, stock, protectedRects);
         if (choice.Quest.IsEmpty)
         {
             return (default, false);

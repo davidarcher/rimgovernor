@@ -29,7 +29,7 @@ public sealed record ForecastShelterOutcome(ForecastShelterId Room, Fact<double>
     EquatableArray<string> Findings);
 public sealed record ForecastTemperaturePoint(double Tick, double Temperature);
 
-public static partial class PolicyFunctions
+public static class ForecastShelterPolicy
 {
     public static EquatableArray<ForecastShelterOutcome> ForecastShelters(IEnumerable<ForecastShelterPlan> rooms,
         ForecastActivityPlan schedule, double horizon)

@@ -19,7 +19,7 @@ public sealed class ForecastCoupledSelectionTests
         var (_, capabilities) = RimGovernor.Brain.Host.BrainComposition.RoundsCapabilitiesFor(
             new() { Work = work }, false);
         var facts = Review() with { AvailableNeeds = Known(EquatableArray.From(capabilities.Needs)) };
-        var generated = GenerateCoupledActivities(facts, Horizon);
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon);
         if (work) Assert.NotEmpty(Assert.IsType<ForecastCoupledCandidates>(generated).Alternatives);
         else Assert.Null(generated);
     }
@@ -61,7 +61,7 @@ public sealed class ForecastCoupledSelectionTests
             },
         };
         facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        return facts with { CoupledAlternatives = GenerateCoupledActivities(facts, Horizon) };
+        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
     }
     private static string SourceTask(RoundsFacts facts, string target) => facts.CoupledAlternatives!.Context.Activities.Activities
         .Single(t => t.Inputs.Count == 0 && t.Outputs.Any(o => o.Lot == "harvest/" + target)).Id;
@@ -85,21 +85,21 @@ public sealed class ForecastCoupledSelectionTests
             Coupled = facts.ForecastObserved.Coupled! with { Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [] }
         } };
         facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        facts = facts with { CoupledAlternatives = GenerateCoupledActivities(facts, Horizon) };
+        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
         var selected = Select(facts);
         Assert.NotEmpty(selected.Selected.Plan.Allocations);
         Assert.Single(selected.Selected.Plan.Allocations.Select(a => a.Pawn).Distinct());
         Assert.Contains(selected.Selection.Findings, f => f.StartsWith("conflicting_selected_target_owners:", StringComparison.Ordinal));
-        var batch = StartCoupledActivity(selected, facts.CoupledAlternatives!, 1, "service-method", 100);
+        var batch = ForecastCoupledSelection.StartCoupledActivity(selected, facts.CoupledAlternatives!, 1, "service-method", 100);
         Assert.NotNull(batch);
         Assert.True(WorkResourcesFit(facts.WorkView!, new(new("selected-service"), new(1),
             [DomainAction.NewPawnActivitiesAction(new("service-action"), batch)])));
     }
     private static ForecastCoupledSelection Select(RoundsFacts facts, int budget = 16384, params ForecastCommitment[] incumbent)
     {
-        var request = CoupledForecastRequestOf(new("world/map/load", 100), Horizon / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputsOf(facts) }, EquatableArray.From(incumbent), new());
-        return CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget);
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), Horizon / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, EquatableArray.From(incumbent), new());
+        return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget);
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public sealed class ForecastCoupledSelectionTests
         var deferred = Assert.Single(choice.Deferred);
 
         Assert.InRange(deferred.Until, 100 + duration - 1, 100 + duration);
-        var batch = Assert.IsType<PawnActivities>(StartCoupledActivity(choice, candidates, 1, "method", 100));
+        var batch = Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(choice, candidates, 1, "method", 100));
         batch.Validate();
         Assert.Equal("defer/" + deferred.Pawn, Assert.Single(batch.Orders).Task);
         Assert.Equal(PawnActivityKind.Idle, Assert.Single(batch.Tasks).Step.Kind);
@@ -348,7 +348,7 @@ public sealed class ForecastCoupledSelectionTests
     public void ChangingOneSituationalThoughtTwiceIsUnassessed()
     {
         var pawn = Review().CoupledAlternatives!.Context.Needs.Pawns[0];
-        var mood = ForecastMoodTimeline(pawn, Horizon, [], situational: [("DeadMansApparel", 11, 0), ("DeadMansApparel", 11, 10)]);
+        var mood = ForecastMood.ForecastMoodTimeline(pawn, Horizon, [], situational: [("DeadMansApparel", 11, 0), ("DeadMansApparel", 11, 10)]);
         Assert.False(mood.BreakRisk.IsKnown);
         Assert.Equal(["unsupported_situational_change_stacking"], mood.Findings);
     }
@@ -376,8 +376,8 @@ public sealed class ForecastCoupledSelectionTests
         // The content pawn's break risk does not move, and with the selected outdoor work the thinner parka adds cold exposure.
         Assert.Equal(result.BaselineVector.BreakRisk, result.Rejected.First(r => r.Commitments.SequenceEqual([root.Id])).Consequences!.BreakRisk);
         var work = facts.CoupledAlternatives!.Alternatives.Where(c => result.Selection.Selected.Contains(c.Id)).ToArray();
-        double Cold(params ForecastCommitment[] add) => ForecastColony(CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay,
-                facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(add) }))
+        double Cold(params ForecastCommitment[] add) => ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay,
+                facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(add) }))
             .Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true)).ThermalExposure.Single().AssessedColdDegreeTicks;
         Assert.True(Cold([.. work, root]) > Cold(work));
     }
@@ -469,7 +469,7 @@ public sealed class ForecastCoupledSelectionTests
     }
 
     private static ForecastCoupledOutcome Outcome(RoundsFacts facts, params ForecastCommitment[] add) =>
-        ForecastColony(CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputsOf(facts) },
+        ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
             [], new() { Add = EquatableArray.From(add) })).Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true));
 
     [Fact]
@@ -611,7 +611,7 @@ public sealed class ForecastCoupledSelectionTests
                 Coupled = facts.ForecastObserved.Coupled! with { Clothing = new() { Known = true, Context = Context, Options = [recipe] } }
             }
         };
-        var candidates = GenerateCoupledActivities(facts, Horizon)!;
+        var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!;
         var wearer = template with
         { Mood = Known(mood), MoodTarget = Known(mood), MoodUnclampedTarget = Known(mood), ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) };
         var cells = candidates.Context.Activities.Activities.SelectMany(t => new[] { t.Location, t.EndLocation })
@@ -689,10 +689,10 @@ public sealed class ForecastCoupledSelectionTests
             Gear = Known(new GearObservation { Stored = Known<EquatableArray<RimGovernor.Brain.Policy.GearStock>>([]), Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = Known(model), Candidates = Known<EquatableArray<RimGovernor.Brain.Policy.GearCandidate>>([]) }] }),
             MedicalPawns = Known<EquatableArray<CarePawn>>([new() { Id = new("pawn"), Conditions = Known<EquatableArray<CareCondition>>([]) }]),
         };
-        var gear = GenerateCoupledActivities(facts, Horizon)!.Alternatives.Where(a => a.ExclusiveOutcome == "gear/pawn").ToArray();
+        var gear = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Alternatives.Where(a => a.ExclusiveOutcome == "gear/pawn").ToArray();
         Assert.Contains(gear, a => a.Id == "gear/pawn/disallow-tainted/cold30-heat0");
         var disabled = facts with { AvailableNeeds = Known<EquatableArray<NeedId>>([AdminFamily.WorkAssignments]) };
-        Assert.DoesNotContain(GenerateCoupledActivities(disabled, Horizon)!.Alternatives, a => a.ExclusiveOutcome.StartsWith("gear/", StringComparison.Ordinal));
+        Assert.DoesNotContain(ForecastCoupledCandidates.GenerateCoupledActivities(disabled, Horizon)!.Alternatives, a => a.ExclusiveOutcome.StartsWith("gear/", StringComparison.Ordinal));
     }
 
     [Fact]

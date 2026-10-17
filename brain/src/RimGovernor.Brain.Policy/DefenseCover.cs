@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class DefenseCoverStock
 {
     // Native cover definitions the firing line may build.
     public const string DefenseSandbags = "Sandbags";

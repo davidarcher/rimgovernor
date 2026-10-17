@@ -23,7 +23,7 @@ public sealed record QuestWorkload
     public double RateFactor { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class QuestCapacityForecast
 {
     private readonly record struct QuestTimedWork(long Deadline, QuestWorkload Workload);
 
@@ -81,7 +81,7 @@ public static partial class PolicyFunctions
             }
             if (pending.Count == 0)
             {
-                var (n, demandReason) = QuestPawnDemand(q);
+                var (n, demandReason) = QuestSelection.QuestPawnDemand(q);
                 if (!demandReason.IsNone)
                 {
                     return demandReason;

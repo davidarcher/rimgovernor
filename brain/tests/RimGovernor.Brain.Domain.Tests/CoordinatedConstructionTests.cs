@@ -28,18 +28,18 @@ public sealed class CoordinatedConstructionTests
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
             Coupled = new() { Tick = 100, Construction = new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options) } }
         } };
-        var generated = GenerateCoupledActivities(facts, 1900)!;
-        var request = CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new());
-        var selected = CompareActivityOutcomes(request, generated);
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         // This fixture tests assignment and execution of an already requested physical job.
         // A bare wall has no automatic colony value after service-based admission (#3166).
         Assert.Empty(selected.Selection.Selected);
-        var physical = CompareActivityPlans(generated.Context.Activities);
+        var physical = ForecastActivities.CompareActivityPlans(generated.Context.Activities);
         comparison = new(physical.Selected is null ? [] : generated.Alternatives.Select(c => c.Id).ToArray(),
             physical.Selected, default, physical.Findings, physical.Expansions, physical.SearchTruncated);
         selected = selected with { Selection = comparison, Deferred = [] };
-        return StartCoupledActivity(selected, generated, 1, "construction", 100);
+        return ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100);
     }
 
     [Theory]
@@ -55,7 +55,7 @@ public sealed class CoordinatedConstructionTests
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
             Coupled = new() { Tick = 100, Construction = new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From([option]) } }
         } };
-        var generated = GenerateCoupledActivities(facts, 1900)!;
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var outcome = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome.StartsWith("construction/", StringComparison.Ordinal)).Outcome!;
         if (floor) Assert.Equal("flooring/blueprint", Assert.Single(outcome.Requirements!.Relief).Need);
         else Assert.Null(outcome.Requirements);
@@ -87,7 +87,7 @@ public sealed class CoordinatedConstructionTests
                 }
             } };
         facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        var activities = GenerateCoupledActivities(facts, 1900)!.Context.Activities;
+        var activities = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!.Context.Activities;
         var delayed = activities.Activities.Where(a => a.Id.Contains("/after/need/", StringComparison.Ordinal)).ToArray();
         Assert.NotEmpty(delayed);
         foreach (var task in delayed)

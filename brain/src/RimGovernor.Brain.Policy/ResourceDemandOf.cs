@@ -71,7 +71,7 @@ public static partial class PolicyFunctions
         var needs = ResourceConcernTargets(ResourceConcernTargets(f.ResourceNeeds, works), ResourceRunwayTargets(f.ResourceRunways));
         return new DerivedDemand
         {
-            Work = ForecastWorkInputsOf(f),
+            Work = ForecastWorkInputs.ForecastWorkInputsOf(f),
             MaterialAvailability = material,
             Needs = needs,
             Works = works,

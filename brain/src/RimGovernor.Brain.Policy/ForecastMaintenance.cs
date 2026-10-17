@@ -5,7 +5,7 @@ public sealed record ForecastPracticeTask(string Task, PracticeWorker Worker, st
 public sealed record ForecastMaintenanceRequirement(AssignedCapability Requirement, EquatableArray<WorkSkill> Skills);
 public sealed record ForecastMaintenanceConsequence(string Requirement, Fact<double> MissingXp, EquatableArray<string> Findings);
 
-public static partial class PolicyFunctions
+public static class ForecastMaintenancePolicy
 {
     public static bool PracticeMandateEnded(PawnActivities batch, ActivityTaskRead read)
     {
@@ -59,7 +59,7 @@ public static partial class PolicyFunctions
                         callbacks.Add(new(task.Task + "/callback/" + number, (int)Math.Ceiling(allocation.Start + task.Worker.PreparationTicks + interval * number),
                             task.Worker.RawXpPerCallback, alternative.Skill == "Shooting" ? SkillXpPath.Range : SkillXpPath.NormalTracker, true));
                 }
-                var projected = ForecastSkill(learning, callbacks.OrderBy(e => e.Tick).ThenBy(e => e.Id, StringComparer.Ordinal).ToArray(), bound);
+                var projected = ForecastSkillPolicy.ForecastSkill(learning, callbacks.OrderBy(e => e.Tick).ThenBy(e => e.Id, StringComparer.Ordinal).ToArray(), bound);
                 findings.UnionWith(projected.Findings);
                 if (!projected.StoredLevel.TryGetValue(out var level) || !projected.Xp.TryGetValue(out var xp) || !learning.Aptitude.IsKnown)
                 { unknown = true; continue; }

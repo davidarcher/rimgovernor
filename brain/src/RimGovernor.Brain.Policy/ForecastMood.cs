@@ -19,7 +19,7 @@ public sealed record ForecastMoodResult(EquatableArray<ForecastMoodPoint> Trajec
 /// </summary>
 public sealed record ForecastMemoryRenewal(double At, EquatableArray<string> Ends, EquatableArray<NeedMemory> Gains);
 
-public static partial class PolicyFunctions
+public static class ForecastMood
 {
     /// <summary>
     /// The timed memories of a renewal list against the observed ones: the tick each observed memory is ended at
@@ -66,7 +66,7 @@ public static partial class PolicyFunctions
         IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)>? banded = null,
         IReadOnlyList<ForecastMemoryRenewal>? renewals = null)
     {
-        NeedHorizon(horizon);
+        ForecastNeeds.NeedHorizon(horizon);
         situational ??= [];
         banded ??= [];
         // Changing one thought twice is not additive evidence.
@@ -83,7 +83,7 @@ public static partial class PolicyFunctions
             ? Math.Clamp(at, c.Depart, c.End) : c.End)).ToArray();
         if (pawn.Awake != Known(true) && !intervals.Any(r => r.Choice.Kind == "rest" && r.Choice.Start == 0))
             return new([], default, default, default, default, default, ["observed_sleep_continuation_unassessed"]);
-        var sleepEnds = SleepServiceEnds(pawn, selected, interruptedAt, unknown);
+        var sleepEnds = ForecastNeeds.SleepServiceEnds(pawn, selected, interruptedAt, unknown);
         if (sleepEnds is null) return new([], default, default, default, default, default, EquatableArray.From(unknown));
         foreach (var end in sleepEnds.Values) events.Add(end);
         foreach (var row in intervals) { events.Add(row.Choice.Start); events.Add(row.End); }
@@ -123,7 +123,7 @@ public static partial class PolicyFunctions
         var actual = pawn.Mood.ValueOrDefault;
         double targetExposure = 0, targetDepth = 0, actualExposure = 0, actualDepth = 0, pressure = 0;
         var thresholdKnown = pawn.BreakThreshold.TryGetValue(out var threshold);
-        var breakKnown = thresholdKnown && FinitePositive(threshold);
+        var breakKnown = thresholdKnown && QuestCapacityForecast.FinitePositive(threshold);
         if (!breakKnown) unknown.Add("mental_break_probability_unassessed");
         // The observed threshold is the pawn's minor-break level, the model's base for every tier.
         var breakModel = new MoodBreakModel { Threshold = threshold };

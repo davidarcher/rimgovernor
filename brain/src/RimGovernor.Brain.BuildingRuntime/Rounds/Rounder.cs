@@ -198,7 +198,7 @@ public sealed partial class Rounder
     /// <summary>Records each quest offer the colony does not accept (policy.QuestSkips) once per quest and reason.</summary>
     internal void LogQuestSkips(RoundsFacts facts, CancellationToken ct)
     {
-        foreach (var skip in PolicyApi.QuestSkips(facts))
+        foreach (var skip in QuestSelection.QuestSkips(facts))
         {
             LogQuestSkip(skip, ct);
         }
@@ -508,7 +508,7 @@ public sealed partial class Rounder
         var emergency = EmergencySnapshot.New(state.Snapshot, expected.Tick, reading.Emergency);
         var (hostiles, criticalPatients) = PolicyApi.EmergencyNeeds(emergency, state.Snapshot, expected.Tick);
         reading = reading.WithFacts(rf => rf with { Hostiles = hostiles, CriticalPatients = criticalPatients });
-        reading = reading.WithFacts(rf => rf with { QuestColonyCalm = PolicyApi.QuestCalmColony(reading.Projection.Facts, PolicyApi.EvaluateEmergency(emergency, state.Snapshot, expected.Tick), emergency.PodsPending) });
+        reading = reading.WithFacts(rf => rf with { QuestColonyCalm = QuestCapacity.QuestCalmColony(reading.Projection.Facts, PolicyApi.EvaluateEmergency(emergency, state.Snapshot, expected.Tick), emergency.PodsPending) });
         reading = reading.WithFacts(rf => rf with { DangerSeeds = DangerSeedFact(reading.Projection.Facts.Hostiles, reading.Emergency.Threats) });
         reading.Projection.Facts.DangerSeeds.TryGetValue(out var seeds);
         reading = reading.WithFacts(rf => rf with { DangerWindow = SafeArea.DangerWindow(StockpileWorld(state.Snapshot), reading.Projection.Facts.Hostiles, seeds, expected.Tick) });
@@ -591,8 +591,8 @@ public sealed partial class Rounder
                     if (work.Capacity.IsKnown)
                     {
                         reading = reading.WithFacts(rf => rf with { WorkRoster = Known<EquatableArray<WorkCoverage>>([.. work.Coverage]) });
-                        reading = reading.WithFacts(rf => rf with { QuestSparePawns = PolicyApi.QuestSpareColonists(reading.Projection.WorkPawns, reading.Projection.Facts.MoodPawns, work) });
-                        reading = reading.WithFacts(rf => rf with { QuestHomeFloor = PolicyApi.QuestHomeFloor(reading.Projection.WorkPawns, reading.Projection.Facts.MoodPawns, work) });
+                        reading = reading.WithFacts(rf => rf with { QuestSparePawns = QuestCapacity.QuestSpareColonists(reading.Projection.WorkPawns, reading.Projection.Facts.MoodPawns, work) });
+                        reading = reading.WithFacts(rf => rf with { QuestHomeFloor = QuestCapacity.QuestHomeFloor(reading.Projection.WorkPawns, reading.Projection.Facts.MoodPawns, work) });
                         reading = reading.WithFacts(rf => rf with { QuestDepartureWork = Known<EquatableArray<PawnWorkAssignment>>([.. work.Assignments]) });
                         reading = reading.WithFacts(rf => rf with { WorkDecaying = Known<EquatableArray<DecayingSkill>>([.. work.Decaying]) });
                         reading = reading.WithFacts(rf => rf with { WorkHelp = work.Help });
@@ -648,7 +648,7 @@ public sealed partial class Rounder
         // The ledger's declared batches are read after the declaration above.
         var vOpenBills = await OpenBillsAsync(state.Snapshot, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { OpenBills = [.. vOpenBills] });
-        var reconsideration = PolicyApi.PrepareCoupledIncumbents(reading.Projection.Facts, batches, workActions);
+        var reconsideration = ForecastIncumbentPreparation.PrepareCoupledIncumbents(reading.Projection.Facts, batches, workActions);
         reading = reading.WithFacts(_ => reconsideration.Facts);
         // Acquisition uses the review's completed home staffing and defense facts.
         Census.Retain(reading, RoomsEnabled(), claims);

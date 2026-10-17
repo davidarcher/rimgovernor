@@ -15,7 +15,7 @@ public sealed record QuestGiftWork
     public QuestSkipReason Reason { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class QuestCapacity
 {
     /// <summary>
     /// Chooses only from the native eligibility list. The least skilled eligible pawn is preferred; royal favor
@@ -23,7 +23,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static (PawnId Pawn, bool Ok) QuestAccepter<TWorkers>(JoinerOffer offer, RoundsFacts facts, Fact<TWorkers> workers)
         where TWorkers : IReadOnlyList<WorkPawn> =>
-        QuestAccepter(offer, facts, workers, SelectQuestReward(offer, facts).Choice);
+        QuestAccepter(offer, facts, workers, QuestRewards.SelectQuestReward(offer, facts).Choice);
 
     private static (PawnId Pawn, bool Ok) QuestAccepter<TWorkers>(JoinerOffer offer, RoundsFacts facts, Fact<TWorkers> workers, int choice)
         where TWorkers : IReadOnlyList<WorkPawn>

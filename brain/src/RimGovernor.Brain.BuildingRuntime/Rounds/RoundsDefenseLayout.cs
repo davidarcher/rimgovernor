@@ -26,7 +26,7 @@ public sealed class RoundsDefenseLayoutResult : IPlannerMethod
 /// <summary>Plans the colony's defensive layout: the killbox, the firing line, the perimeter, the turrets and mortars, and the cover to clear, one tier at a time.</summary>
 public sealed partial class RoundsDefenseLayoutPlanner
 {
-    internal const string DefenseTurretDefinition = PolicyApi.TurretMini;
+    internal const string DefenseTurretDefinition = DefenseTurretsPolicy.TurretMini;
     internal const string DefenseConduitDefinition = "HiddenConduit";
     internal const string DefenseMortarDefinition = "Turret_Mortar";
     internal const string DefenseIedHighExplosive = "TrapIED_HighExplosive";
@@ -40,14 +40,14 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static readonly string[] DefenseExtraDefinitions =
     [
-        PolicyApi.TurretMini, PolicyApi.TurretAutocannon, PolicyApi.TurretSniper, DefenseMortarDefinition, DefenseConduitDefinition,
-        PolicyApi.DefenseSandbags, PolicyApi.DefenseEmbrasure, DefenseIedHighExplosive, DefenseIedIncendiary,
+        DefenseTurretsPolicy.TurretMini, DefenseTurretsPolicy.TurretAutocannon, DefenseTurretsPolicy.TurretSniper, DefenseMortarDefinition, DefenseConduitDefinition,
+        DefenseCoverStock.DefenseSandbags, DefenseCoverStock.DefenseEmbrasure, DefenseIedHighExplosive, DefenseIedIncendiary,
     ];
 
     internal static readonly DefenseTierName[] DefenseTierOrder =
     [
-        PolicyApi.TierChokepoint, PolicyApi.TierFiringLine, PolicyApi.TierFunnel, PolicyApi.TierTrapCorridor,
-        PolicyApi.TierTurrets, PolicyApi.TierMortars, PolicyApi.TierBait, PolicyApi.TierIEDs,
+        DefenseLayout.TierChokepoint, DefenseLayout.TierFiringLine, DefenseLayout.TierFunnel, DefenseLayout.TierTrapCorridor,
+        DefenseTurretsPolicy.TierTurrets, DefenseMortarsPolicy.TierMortars, DefenseArrivalRoutes.TierBait, DefenseIEDs.TierIEDs,
     ];
 
     private readonly Rounder _reviewer;
@@ -131,7 +131,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             }
             if (t.Name.Value.StartsWith(DefenseTurretReplacePrefix, StringComparison.Ordinal))
             {
-                order.Insert(order.IndexOf(PolicyApi.TierTurrets), t.Name);
+                order.Insert(order.IndexOf(DefenseTurretsPolicy.TierTurrets), t.Name);
             }
         }
         ring.AddRange(order);
@@ -366,7 +366,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         record.VerifiedTick = tick;
         record.VerifiedCombat = combat;
         read.Projection.WorkPawns.TryGetValue(out var workers);
-        var upkeep = PolicyApi.DefenseRearmTurrets(DefenseTurretFactsOf(record, census), workers, read.Projection.Resources, PolicyApi.PowerOutageHold(read.Projection.Facts.DisasterConditions));
+        var upkeep = DefenseRearm.DefenseRearmTurrets(DefenseTurretFactsOf(record, census), workers, read.Projection.Resources, PolicyApi.PowerOutageHold(read.Projection.Facts.DisasterConditions));
         p.Journal.SaveDefenseLayout(record, call);
         if (upkeep.Rearm)
         {
@@ -375,7 +375,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         if (upkeep.Unpowered.Count > 0 || upkeep.Empty.Count > 0)
         {
             var subject = upkeep.Unpowered.Count > 0 ? "turret_power" : "turret_fuel";
-            return new RoundsDefenseLayoutResult { Verdict = AwaitingPlan(subject, ""), Tier = PolicyApi.TierTurrets.Value };
+            return new RoundsDefenseLayoutResult { Verdict = AwaitingPlan(subject, ""), Tier = DefenseTurretsPolicy.TierTurrets.Value };
         }
         var (cover, handled) = await ClearCoverAsync(goal, review, state, read, record, call, epoch).ConfigureAwait(false);
         if (handled)
@@ -387,7 +387,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static RoundsDefenseLayoutResult Rearm() =>
         new() { Verdict = Verdict.AwaitingPlan("unsupported_forecast_turret_refuel",
-            "Routine turret refuel requires exact fuel, worker and outcome alternatives."), Tier = PolicyApi.TierTurrets.Value };
+            "Routine turret refuel requires exact fuel, worker and outcome alternatives."), Tier = DefenseTurretsPolicy.TierTurrets.Value };
     internal static List<DefenseTurretFacts> DefenseTurretFactsOf(DefenseLayoutRecord record, DefenseCensus? census)
     {
         var output = new List<DefenseTurretFacts>();
@@ -397,7 +397,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         foreach (var tier in record.Tiers)
         {
-            if (tier.Name != PolicyApi.TierTurrets)
+            if (tier.Name != DefenseTurretsPolicy.TierTurrets)
             {
                 continue;
             }
@@ -434,7 +434,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             Definition = DefenseMortarDefinition,
             Stock = projection.Resources,
-            Max = PolicyApi.MortarBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets),
+            Max = DefenseMortarsPolicy.MortarBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets),
             Available = Known(DefenseDefinitionAvailable(read, DefenseMortarDefinition)),
         };
         foreach (var d in projection.Definitions)
@@ -471,7 +471,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var projection = read.Projection;
         var request = new DefenseRequest { Definitions = DefenseDefinitionNames };
         var unitCosts = new Dictionary<string, EquatableArray<Amount>>(StringComparer.Ordinal);
-        var turret = new DefenseTurretRequest { Definition = DefenseTurretRung(read), Conduit = DefenseConduitDefinition, Stock = projection.Resources, Max = PolicyApi.TurretBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets) };
+        var turret = new DefenseTurretRequest { Definition = DefenseTurretRung(read), Conduit = DefenseConduitDefinition, Stock = projection.Resources, Max = DefenseBudget.TurretBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets) };
         DefenseRequest Done() => request with { Turret = turret, UnitCosts = unitCosts };
         var rk = projection.Facts.Research.TryGetValue(out var research);
         var finished = new HashSet<ResearchProjectId>(research?.Finished ?? []);

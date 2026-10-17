@@ -4,11 +4,11 @@ using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class QuestPeaceTalksPolicy
 {
     public static QuestSkipReason PeaceTalksAdmission(JoinerOffer offer, RoundsFacts f)
     {
-        if (!QuestExpeditionSite(offer, f, out var site))
+        if (!QuestExpedition.QuestExpeditionSite(offer, f, out var site))
         {
             return "site_unknown";
         }
@@ -56,7 +56,7 @@ public static partial class PolicyFunctions
         {
             return Fail(reason);
         }
-        return PlanExpeditionCrew(offer, site, f, food, p, [diplomat]);
+        return QuestExpedition.PlanExpeditionCrew(offer, site, f, food, p, [diplomat]);
     }
 
     public static QuestSkipReason PeaceTalksDownside(PeaceTalksRisk risk)
@@ -135,7 +135,7 @@ public static partial class PolicyFunctions
                 Profile = Known(new QuestProfile { Family = QuestFamily.PawnLend }),
                 Objectives = [new QuestObjective { Kind = Pb.QuestObjectiveKind.LoadPawns, Count = Known(1L) }],
             };
-            var (crew, reason) = DepartureSquadOf(mission, trial, false);
+            var (crew, reason) = QuestDeparture.DepartureSquadOf(mission, trial, false);
             if (!reason.IsNone || crew.Count != 1)
             {
                 continue;

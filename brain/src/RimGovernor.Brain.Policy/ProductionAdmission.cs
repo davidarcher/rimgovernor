@@ -60,7 +60,7 @@ public static partial class PolicyFunctions
                     .Concat(construction.Buildings.Where(b => b.Building is not null).Select(b => b.Building!)))) : default,
             Pawns = facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)
                 ? Known(EquatableArray.From(pawns.Select(p => new WorkPawnAvailability(p.Id.Value, p.Available, p.Applies,
-                    ForecastCurrentWorkOf(p).Occupied, p.Job.TryGetValue(out var job) && job.Target.TryGetValue(out var target)
+                    ForecastCurrentWork.ForecastCurrentWorkOf(p).Occupied, p.Job.TryGetValue(out var job) && job.Target.TryGetValue(out var target)
                         ? Known(target.Thing) : default)
                     { Schedule = p.Schedule, LocalHour = facts.WorkResources.TryGetValue(out var native)
                         && native.SingleOrDefault(n => n.Pawn == p.Id.Value)?.LocalHour is { } hour ? Known(hour) : default }))) : default,

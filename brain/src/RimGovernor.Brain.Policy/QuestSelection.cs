@@ -4,7 +4,7 @@ using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class QuestSelection
 {
     /// <summary>Explains refusals with the same family decision used for admission.</summary>
     public static IReadOnlyList<QuestSkip> QuestSkips(RoundsFacts f)
@@ -16,7 +16,7 @@ public static partial class PolicyFunctions
         var output = new List<QuestSkip>();
         foreach (var offer in rows)
         {
-            if (ClaimAnswerable(offer, f.TitleClaimQuests) && SelectQuestReward(offer, f).Reason.IsNone)
+            if (ClaimAnswerable(offer, f.TitleClaimQuests) && QuestRewards.SelectQuestReward(offer, f).Reason.IsNone)
             {
                 continue;
             }
@@ -120,12 +120,12 @@ public static partial class PolicyFunctions
         {
             return (false, "cannot_accept");
         }
-        var reward = SelectQuestReward(offer, f);
+        var reward = QuestRewards.SelectQuestReward(offer, f);
         if (!reward.Reason.IsNone)
         {
             return (false, reward.Reason);
         }
-        var expedition = QuestExpeditionSite(offer, f, out _);
+        var expedition = QuestExpedition.QuestExpeditionSite(offer, f, out _);
         if (!expedition && (offer.ScriptDef == "SurveySite" || offer.ScriptDef == "OpportunitySite_PeaceTalks"))
         {
             return (false, "site_unknown");
@@ -149,7 +149,7 @@ public static partial class PolicyFunctions
                 return (false, "off_map");
             }
         }
-        if (offer.RequiresAccepter && !QuestAccepter(offer, f, f.QuestWorkers).Ok)
+        if (offer.RequiresAccepter && !QuestCapacity.QuestAccepter(offer, f, f.QuestWorkers).Ok)
         {
             return (false, "needs_accepter");
         }
@@ -162,11 +162,11 @@ public static partial class PolicyFunctions
         {
             return (false, r);
         }
-        if (!(r = HackAdmission(offer, f)).IsNone)
+        if (!(r = QuestHackPolicy.HackAdmission(offer, f)).IsNone)
         {
             return (false, r);
         }
-        if (!(r = RelicAdmission(offer, f)).IsNone)
+        if (!(r = QuestHackPolicy.RelicAdmission(offer, f)).IsNone)
         {
             return (false, r);
         }
@@ -174,22 +174,22 @@ public static partial class PolicyFunctions
         {
             return (false, r);
         }
-        if (!(r = HospitalityAdmission(offer, f)).IsNone)
+        if (!(r = QuestHospitality.HospitalityAdmission(offer, f)).IsNone)
         {
             return (false, r);
         }
-        if (!(r = MonumentAdmission(offer, f)).IsNone)
+        if (!(r = QuestMonument.MonumentAdmission(offer, f)).IsNone)
         {
             return (false, r);
         }
         if (expedition)
         {
-            if (!(r = ExpeditionAdmission(offer, f)).IsNone)
+            if (!(r = QuestExpedition.ExpeditionAdmission(offer, f)).IsNone)
             {
                 return (false, r);
             }
         }
-        else if (!(r = DepartureAdmission(offer, f)).IsNone)
+        else if (!(r = QuestDeparture.DepartureAdmission(offer, f)).IsNone)
         {
             return (false, r);
         }
@@ -222,7 +222,7 @@ public static partial class PolicyFunctions
                 return "accept_requirement";
             }
         }
-        var deadline = QuestDeadlineFeasibility(offer, f);
+        var deadline = QuestCapacityForecast.QuestDeadlineFeasibility(offer, f);
         if (!deadline.IsNone)
         {
             return deadline;
@@ -308,7 +308,7 @@ public static partial class PolicyFunctions
         return "";
     }
 
-    private static (long Need, QuestSkipReason Reason) QuestPawnDemand(JoinerOffer offer)
+    internal static (long Need, QuestSkipReason Reason) QuestPawnDemand(JoinerOffer offer)
     {
         long need = 1;
         // Pickup passengers of a time-cost quest are guests, not colony staff leaving home. Only pawn-cost
@@ -349,7 +349,7 @@ public static partial class PolicyFunctions
         JoinerOffer? best = null;
         foreach (var offer in rows)
         {
-            if (ClaimAnswerable(offer, f.TitleClaimQuests) && SelectQuestReward(offer, f).Reason.IsNone && (best is null || offer.Quest.CompareTo(best.Quest) < 0))
+            if (ClaimAnswerable(offer, f.TitleClaimQuests) && QuestRewards.SelectQuestReward(offer, f).Reason.IsNone && (best is null || offer.Quest.CompareTo(best.Quest) < 0))
             {
                 best = offer;
             }
@@ -359,7 +359,7 @@ public static partial class PolicyFunctions
             var bestValue = default(QuestRewardValue);
             foreach (var offer in rows)
             {
-                var reward = SelectQuestReward(offer, f);
+                var reward = QuestRewards.SelectQuestReward(offer, f);
                 if (QuestDecision(offer, f).Accept
                     && (best is null || reward.Value.BetterThan(bestValue) || (reward.Value == bestValue && offer.Quest.CompareTo(best.Quest) < 0)))
                 {
@@ -372,10 +372,10 @@ public static partial class PolicyFunctions
         {
             return new JoinerChoice { Reason = JoinerPlanReason.QuestNoOffer };
         }
-        var choice = new JoinerChoice { Quest = best.Quest, RewardChoice = SelectQuestReward(best, f).Choice };
+        var choice = new JoinerChoice { Quest = best.Quest, RewardChoice = QuestRewards.SelectQuestReward(best, f).Choice };
         if (best.RequiresAccepter)
         {
-            choice = choice with { Accepter = QuestAccepter(best, f, f.QuestWorkers).Pawn };
+            choice = choice with { Accepter = QuestCapacity.QuestAccepter(best, f, f.QuestWorkers).Pawn };
         }
         return choice;
     }
@@ -386,6 +386,6 @@ public static partial class PolicyFunctions
         {
             return Unknown<bool>();
         }
-        return Known(SelectQuestMethod(f).Reason == JoinerPlanReason.None || HospitalityDeficit(f) || ExpeditionDeficit(f) || IdeologyWorkDeficit(f));
+        return Known(SelectQuestMethod(f).Reason == JoinerPlanReason.None || QuestHospitality.HospitalityDeficit(f) || QuestExpedition.ExpeditionDeficit(f) || QuestHackPolicy.IdeologyWorkDeficit(f));
     }
 }

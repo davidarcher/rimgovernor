@@ -36,11 +36,11 @@ public sealed class SupportMethodTests
             }
         };
         facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        return facts with { CoupledAlternatives = GenerateCoupledActivities(facts, Horizon) };
+        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
     }
-    private static ForecastCoupledSelection Select(RoundsFacts facts, int budget = 16384) => CompareActivityOutcomes(
-        CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
-            new() { Work = ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!, budget);
+    private static ForecastCoupledSelection Select(RoundsFacts facts, int budget = 16384) => ForecastCoupledSelection.CompareActivityOutcomes(
+        ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!, budget);
     private static SupportActivityRead Cleaning(double self = 30, double helper = 5, bool known = true) => new()
     {
         Known = true,
@@ -51,7 +51,7 @@ public sealed class SupportMethodTests
             new("bench", "helper", "filth", "Clean", "Clean", new(1, 1), Known(0d), Known(helper))]
     };
     private static SelectedActivityTask[] Tasks(RoundsFacts facts, ForecastCoupledSelection selection) =>
-        StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "method", 100)?.Tasks.ToArray() ?? [];
+        ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "method", 100)?.Tasks.ToArray() ?? [];
 
     [Fact]
     public void NormalReviewProposesAndSelectsHelperSelfOrNoCleaningForSameProducer()
@@ -128,7 +128,7 @@ public sealed class SupportMethodTests
             var facts = Facts(support, true);
             facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
                 { Routes = [.. facts.ForecastObserved.Coupled!.Routes, new("pawn", new(2, 2), new(1, 1), Known(0d)), new("helper", new(2, 2), new(1, 1), Known(0d))] } } };
-            facts = facts with { CoupledAlternatives = GenerateCoupledActivities(facts, Horizon) };
+            facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
             Assert.Equal("pawn", Assert.Single(Tasks(facts, Select(facts)), t => t.Step.Job == "Clean").Pawn);
         }
     }

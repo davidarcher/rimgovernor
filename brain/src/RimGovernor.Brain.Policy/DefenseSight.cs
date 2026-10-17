@@ -92,7 +92,7 @@ internal static class DefenseSightConstants
     internal const double FullFillAbove = 0.99;
 }
 
-public static partial class PolicyFunctions
+public static class DefenseSight
 {
     /// <summary>The game's line of sight between two cells of the request's census, for callers that hold only a request.</summary>
     public static Fact<bool> LineOfSight(this DefenseRequest r, Cell from, Cell to) => DefenseSite.Create(r).LineOfSight(from, to);

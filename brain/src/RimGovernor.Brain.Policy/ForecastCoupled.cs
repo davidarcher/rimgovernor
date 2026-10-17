@@ -94,7 +94,7 @@ public sealed record ForecastCoupledScenario(EquatableArray<ForecastCoupledOutco
     EquatableArray<string> Findings, bool Truncated)
 { public int Expansions { get; init; } }
 
-public static partial class PolicyFunctions
+public static class ForecastCoupled
 {
     /// <summary>Composition boundary used by normal Rounds facts: one observed frame, stock owner and horizon.</summary>
     public static ColonyForecastRequest CoupledForecastRequestOf(ColonyForecastOrigin origin, double horizonDays,
@@ -128,7 +128,7 @@ public static partial class PolicyFunctions
         { Coupled = generated.Context };
     }
 
-    private static ColonyForecastScenario ForecastCoupledScenarioOf(ColonyForecastRequest request,
+    internal static ColonyForecastScenario ForecastCoupledScenarioOf(ColonyForecastRequest request,
         IReadOnlyDictionary<string, ForecastCommitment> commitments)
     {
         var context = request.Coupled!;
@@ -186,7 +186,7 @@ public static partial class PolicyFunctions
                 return ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
                 { Coupled = new([], [.. findings, "physical_lot_quantity_shortfall:" + input.Key.Lot], false) };
         }
-        var compared = included.Count == 0 ? null : CompareActivityPlans(problem);
+        var compared = included.Count == 0 ? null : ForecastActivities.CompareActivityPlans(problem);
         if (compared is not null)
         {
             findings.UnionWith(compared.Findings);
@@ -205,7 +205,7 @@ public static partial class PolicyFunctions
                 || !retried.Options.Any(other => other.Activity == o.Activity && !barred.Contains((other.Activity, other.Pawn)))).ToArray();
             if (options.Length == retried.Options.Length) break;
             retried = retried with { Options = options };
-            var again = CompareActivityPlans(retried);
+            var again = ForecastActivities.CompareActivityPlans(retried);
             findings.UnionWith(again.Findings);
             results = [.. results, .. again.Alternatives.Select(plan => EvaluateCoupledSchedule(request, commitments, retried, plan))];
         }
@@ -232,7 +232,7 @@ public static partial class PolicyFunctions
         var completed = new Dictionary<string, Fact<bool>>(StringComparer.Ordinal);
         var lots = context.InitialLots.ToDictionary(l => (l.Lot, l.Location, l.Resource), l => l.Count);
         var expiry = context.InitialLots.Where(l => l.Perishable).GroupBy(l => l.Lot).ToDictionary(g => g.Key, g => g.First().FreshTicks);
-        var material = CoupledMaterialBudgetOf(request, commitments, problem, plan);
+        var material = ForecastCoupledMaterials.CoupledMaterialBudgetOf(request, commitments, problem, plan);
         var balance = material.TryGetValue(out var budget)
             ? new Dictionary<Resource, Fact<double>>(budget) : new Dictionary<Resource, Fact<double>>();
         var physicalKnown = material.IsKnown;
@@ -321,11 +321,11 @@ public static partial class PolicyFunctions
             if (decaying.Count == 0) return;
             // Expected deterioration, from the planned rooms closed and roofed by completions so far (a later completion
             // changes the rate only after its own tick).
-            var rooms = PlannedClosedRooms(context, finishedAt);
+            var rooms = ForecastRoofConsequences.PlannedClosedRooms(context, finishedAt);
             foreach (var (id, stack) in decaying)
             {
                 if (decayed.Contains(id)) continue;
-                var at = DeterioratedAt(stack, context.Needs, rooms, time);
+                var at = ForecastRoofConsequences.DeterioratedAt(stack, context.Needs, rooms, time);
                 if (at is null) { decayed.Add(id); Finding("food_deterioration_unassessed", id, 0); continue; }
                 if (!double.IsFinite(at.Value)) continue;
                 decayed.Add(id);
@@ -362,9 +362,9 @@ public static partial class PolicyFunctions
                     if (foodExpiry.Any(t => e.Allocation.End >= t.Value))
                     { completed[task.Id] = Known(false); Refuse("food_unavailable_at_ingestion", task.Id, e.Time); continue; }
                     // Nor may it deteriorate away before the meal ends, at the rate the completions so far leave it (#3339).
-                    var rooms = PlannedClosedRooms(context, finishedAt);
+                    var rooms = ForecastRoofConsequences.PlannedClosedRooms(context, finishedAt);
                     if (task.Inputs.Where(i => i.Resource == ingestion.Resource && decaying.ContainsKey(i.Lot))
-                        .Any(i => DeterioratedAt(decaying[i.Lot], context.Needs, rooms, e.Allocation.End) is { } gone && gone <= e.Allocation.End))
+                        .Any(i => ForecastRoofConsequences.DeterioratedAt(decaying[i.Lot], context.Needs, rooms, e.Allocation.End) is { } gone && gone <= e.Allocation.End))
                     { completed[task.Id] = Known(false); Refuse("food_deteriorated_before_ingestion", task.Id, e.Time); continue; }
                 }
                 var inputs = task.Inputs.GroupBy(i => i.Resource).ToArray();
@@ -443,15 +443,15 @@ public static partial class PolicyFunctions
                 if (!at.IsKnown) comfortUnknown.Add(row.Pawn);
                 else if (at.Value <= horizon) Add(comfort, row.Pawn, (row.MinDelta, row.MaxDelta, at.Value));
         }
-        var shelters = ForecastShelters(context.Shelters, plan with
+        var shelters = ForecastShelterPolicy.ForecastShelters(context.Shelters, plan with
         { Allocations = plan.Allocations.Where(a => completed.GetValueOrDefault(a.Activity) == Known(true)).ToArray() }, horizon);
         // Comfort shifts change the pawn's own exposure, not what a shelter relieves (relief below is outfit-neutral).
-        var exposure = EquatableArray.From(ForecastThermalExposureOf(context, problem, plan, shelters, horizon, comfort: comfort)
+        var exposure = EquatableArray.From(ForecastThermalExposure.ForecastThermalExposureOf(context, problem, plan, shelters, horizon, comfort: comfort)
             .Select(t => comfortUnknown.Contains(t.Pawn) ? new ForecastThermalExposure(t.Pawn, 0, horizon, 0, 0) : t));
         // Temperature mood (#3327): each Live temperature card along the pawn's assessed exposure spans, comfort shifts included.
-        var temperatureCards = (context.Cards ?? MechanicCards.ByDef).Values.Where(TemperatureCard).OrderBy(c => c.Def, StringComparer.Ordinal).ToArray();
+        var temperatureCards = (context.Cards ?? MechanicCards.ByDef).Values.Where(ForecastMood.TemperatureCard).OrderBy(c => c.Def, StringComparer.Ordinal).ToArray();
         var needs = new Dictionary<string, ForecastNeedsResult>(StringComparer.Ordinal);
-        var closedRooms = PlannedClosedRooms(context, finishedAt);
+        var closedRooms = ForecastRoofConsequences.PlannedClosedRooms(context, finishedAt);
         var rejectedWork = new HashSet<string>(unavailableWork, StringComparer.Ordinal);
         foreach (var pawn in context.Needs.Pawns)
         {
@@ -488,7 +488,7 @@ public static partial class PolicyFunctions
                 Occupancy = context.Resources.Claims.Truncated ? default : Known(EquatableArray.From(protectedTime))
             };
             // Needs recovery is assessed without masking physiological unavailability beneath planned work.
-            var physiology = ForecastNeedsTimeline(pawn, input with { Occupancy = Known<EquatableArray<ForecastOccupancy>>([]) }, choices);
+            var physiology = ForecastNeeds.ForecastNeedsTimeline(pawn, input with { Occupancy = Known<EquatableArray<ForecastOccupancy>>([]) }, choices);
             if (!physiology.Capacity.Capacity.Windows.TryGetValue(out var able))
             { if (productive.Length != 0 || choices.Count != 0) Uncertain("unknown_future_capacity", pawn.Pawn, 0); }
             else foreach (var work in productive)
@@ -496,10 +496,10 @@ public static partial class PolicyFunctions
                 { rejectedWork.Add(work.Activity); completed[work.Activity] = Known(false); Refuse("work_outside_recovered_capacity", work.Activity, work.Start); }
             var spans = exposure.Single(t => t.Pawn == pawn.Pawn).Spans;
             // Room and roof thoughts (#3339): bed thoughts at the wake, weather, the outdoors need and undergrounder thoughts.
-            var roof = RoofMoodOf(pawn, context.Needs, choices, closedRooms, context.ObservedThoughts.GetValueOrDefault(pawn.Pawn), horizon);
-            var projected = ForecastNeedsTimeline(pawn, input, choices, granted: granted.GetValueOrDefault(pawn.Pawn),
+            var roof = ForecastRoofConsequences.RoofMoodOf(pawn, context.Needs, choices, closedRooms, context.ObservedThoughts.GetValueOrDefault(pawn.Pawn), horizon);
+            var projected = ForecastNeeds.ForecastNeedsTimeline(pawn, input, choices, granted: granted.GetValueOrDefault(pawn.Pawn),
                 situational: situational.GetValueOrDefault(pawn.Pawn),
-                banded: temperatureCards.Select(card => TemperatureThought(card, context.CardPawns.GetValueOrDefault(pawn.Pawn),
+                banded: temperatureCards.Select(card => ForecastMood.TemperatureThought(card, context.CardPawns.GetValueOrDefault(pawn.Pawn),
                     context.ObservedThoughts.GetValueOrDefault(pawn.Pawn), spans)).Concat(roof.Banded).ToArray(),
                 renewals: roof.Renewals);
             if (roof.Findings.Count > 0) projected = projected with { Findings = EquatableArray.From(projected.Findings.Concat(roof.Findings).Distinct().Order(StringComparer.Ordinal)) };
@@ -535,19 +535,19 @@ public static partial class PolicyFunctions
         findings.AddRange(inventory.Findings);
         var existingRooms = EquatableArray.From(context.Shelters.Where(r => r.Prerequisites.Count == 0 && r.AlternativePrerequisites.Count == 0));
         var use = plan with { Allocations = plan.Allocations.Where(a => context.NeedTasks.Any(n => n.Task == a.Activity)).ToArray() };
-        var changedUse = ForecastThermalExposureOf(context, problem, use, shelters, horizon, plan);
-        var unchanged = ForecastThermalExposureOf(context with { Shelters = existingRooms }, problem, use,
-            ForecastShelters(existingRooms, plan, horizon), horizon);
+        var changedUse = ForecastThermalExposure.ForecastThermalExposureOf(context, problem, use, shelters, horizon, plan);
+        var unchanged = ForecastThermalExposure.ForecastThermalExposureOf(context with { Shelters = existingRooms }, problem, use,
+            ForecastShelterPolicy.ForecastShelters(existingRooms, plan, horizon), horizon);
         var reliefKnown = changedUse.Any(t => t.AssessedTicks > 0) && changedUse.Count == unchanged.Count && changedUse.Zip(unchanged)
             .All(pair => pair.First.Pawn == pair.Second.Pawn && pair.First.AssessedTicks == pair.Second.AssessedTicks);
         if (!reliefKnown && shelters.Count != 0)
             Finding("thermal_relief_unassessed:changed=" + string.Join(",", changedUse.Select(t => t.Pawn + "/" + Math.Round(t.AssessedTicks))) + ";unchanged="
                 + string.Join(",", unchanged.Select(t => t.Pawn + "/" + Math.Round(t.AssessedTicks))) + ";shelters="
                 + string.Join(",", shelters.Select(s => (s.CompleteAt.IsKnown ? "c" : "-") + (s.TemperatureAtHorizon.IsKnown ? "t" : "-") + ":" + string.Join("|", s.Findings))), "thermal", 0);
-        var maintenance = ForecastMaintenance(context.MaintenanceRequirements, context.PracticeTasks, plan, completed, horizon);
+        var maintenance = ForecastMaintenancePolicy.ForecastMaintenance(context.MaintenanceRequirements, context.PracticeTasks, plan, completed, horizon);
         foreach (var group in context.PracticeTasks.Where(p => allocations.ContainsKey(p.Task)).GroupBy(p => p.Requirement))
         {
-            var without = ForecastMaintenance(context.MaintenanceRequirements,
+            var without = ForecastMaintenancePolicy.ForecastMaintenance(context.MaintenanceRequirements,
                 EquatableArray.From(context.PracticeTasks.Where(p => p.Requirement != group.Key)), plan, completed, horizon);
             if (!maintenance.Zip(without).Any(p => p.First.MissingXp.IsKnown && p.Second.MissingXp.IsKnown
                 && p.First.MissingXp.Value < p.Second.MissingXp.Value))
@@ -572,7 +572,7 @@ public static partial class PolicyFunctions
             - changedUse.Sum(t => t.AssessedColdDegreeTicks + t.AssessedHotDegreeTicks)) : default;
         return new(plan, feasible, inventory.Stocks, needs, EquatableArray.From(findings))
         {
-            Support = ForecastSupportConsequencesOf(context, plan, completed, horizon),
+            Support = ForecastSupport.ForecastSupportConsequencesOf(context, plan, completed, horizon),
             Maintenance = maintenance,
             Shelters = shelters, ThermalExposure = exposure,
             ThermalOccupancy = string.Join(";", context.NeedTasks.Where(n => allocations.ContainsKey(n.Task))

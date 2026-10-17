@@ -6,7 +6,7 @@ public sealed partial class JoinersRounds
     internal (Verdict Verdict, bool Handled) AdmitExpedition(NeedWork work, RoundsReading read, DateTimeOffset started, CancellationToken call)
     {
         var facts = read.Projection.Facts;
-        var expedition = PolicyFunctions.SelectExpedition(facts, reviewer.Policy);
+        var expedition = QuestExpedition.SelectExpedition(facts, reviewer.Policy);
         if (facts.QuestExpeditionTrips.TryGetValue(out var trips) && facts.QuestSites.TryGetValue(out var sites))
         {
             // A caravan this Need sent that stopped short of its site comes home.
@@ -28,7 +28,7 @@ public sealed partial class JoinersRounds
                         }
 
                         var crew = departed.Crew.ToPolicyIds();
-                        foreach (var (pawn, quest) in PolicyFunctions.QuestRefugeeIds(facts.QuestOffers))
+                        foreach (var (pawn, quest) in QuestRefugees.QuestRefugeeIds(facts.QuestOffers))
                         {
                             if (site.QuestIds.Contains(quest))
                             {
@@ -38,7 +38,7 @@ public sealed partial class JoinersRounds
 
                         foreach (var trip in trips)
                         {
-                            var home = PolicyFunctions.PlanStoppedExpeditionReturn(trip, crew);
+                            var home = QuestReturn.PlanStoppedExpeditionReturn(trip, crew);
                             if (home is not null)
                             {
                                 expedition = new ExpeditionPlan { Quest = site.QuestIds[0], Site = site.Id, Departure = home };

@@ -35,7 +35,7 @@ public sealed class ServiceInvestmentTests
         facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = read with
         { Construction = read.Construction with { Options = [wall with
         { AvailableInput = late ? wall.AvailableInput : Known(0d), FinishTicks = late ? Known(2000d) : wall.FinishTicks }] } } } };
-        facts = facts with { CoupledAlternatives = GenerateCoupledActivities(facts, 1000) };
+        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1000) };
         var selection = ForecastThermalPortfolioTests.Select(facts);
         Assert.Empty(selection.Selected.CompletedDevelopmentSites);
         Assert.Empty(selection.ServiceInvestments);
@@ -46,8 +46,8 @@ public sealed class ServiceInvestmentTests
     public void UnrelatedAdoptedSiteHasNoValueAndNoOriginRequirement()
     {
         var facts = ForecastCoupledTests.ConstructionReview();
-        var selection = CompareActivityOutcomes(CoupledForecastRequestOf(new("world", 100), 1000d / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
+        var selection = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), 1000d / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
         Assert.Contains(facts.CoupledAlternatives!.Alternatives, a => a.ExclusiveOutcome == "construction/frame0");
         Assert.Empty(selection.Selected.CompletedDevelopmentSites);
     }
@@ -61,11 +61,11 @@ public sealed class ServiceInvestmentTests
     {
         var facts = ForecastThermalPortfolioTests.Review(-10);
         var selection = ForecastThermalPortfolioTests.Select(facts);
-        var batch = StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "coupled-test", 100)!;
+        var batch = ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "coupled-test", 100)!;
         var read = new ActivityTaskRead { Known = true, Context = new() { Tick = 110, Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 } }, Truncated = truncated,
             Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
                 new(o.Assignment, o.Method, o.Revision, 0, state, "", null, 110)))) };
-        Assert.Equal(Known(needed), ReviewServiceActivityNeed(batch, Known(true), read));
+        Assert.Equal(Known(needed), ForecastServiceInvestments.ReviewServiceActivityNeed(batch, Known(true), read));
         Assert.Contains(batch.Tasks, t => t.SiteDefinition.Length != 0 || t.Step.Job == "BuildRoof");
         Assert.Empty(read.SatisfiedTasks);
     }
@@ -73,8 +73,8 @@ public sealed class ServiceInvestmentTests
     public void FoodProposalUsesSameBeneficiariesAndRetiresWhenTheirDemandIsMet()
     {
         var facts = ForecastCoupledSelectionTests.Review();
-        ForecastCoupledSelection Select(RoundsFacts f) => CompareActivityOutcomes(CoupledForecastRequestOf(new("world", 100),
-            300d / GameTime.TicksPerDay, f,  new() { Work = ForecastWorkInputsOf(f) }, [], new()), f.CoupledAlternatives!);
+        ForecastCoupledSelection Select(RoundsFacts f) => ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("world", 100),
+            300d / GameTime.TicksPerDay, f,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(f) }, [], new()), f.CoupledAlternatives!);
         var proposal = Assert.Single(Select(facts).ServiceInvestments);
         Assert.Equal(FoodSupplyNeed.FilingKey, proposal.Target.Owner);
         Assert.Equal("pawn", Assert.Single(proposal.Beneficiaries));
@@ -87,7 +87,7 @@ public sealed class ServiceInvestmentTests
     {
         var facts = ForecastThermalPortfolioTests.Review(-10) with
         { AvailableNeeds = Known<EquatableArray<NeedId>>([AdminFamily.WorkAssignments, FoodSupplyNeed]) };
-        var generated = GenerateCoupledActivities(facts, 1000)!;
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1000)!;
         Assert.DoesNotContain(generated.Alternatives, c => c.ExclusiveOutcome.StartsWith("shelter/", StringComparison.Ordinal)
             || c.ExclusiveOutcome.StartsWith("construction/", StringComparison.Ordinal));
     }
@@ -134,12 +134,12 @@ public sealed class ServiceInvestmentTests
         var read = facts.ForecastObserved.Coupled!;
         var noPower = read.Thermal! with { Sources = EquatableArray.From(read.Thermal!.Sources.Select(s => s with { SupplyTicks = default })) };
         var unavailable = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = read with { Thermal = noPower } } };
-        unavailable = unavailable with { CoupledAlternatives = GenerateCoupledActivities(unavailable, 1000) };
+        unavailable = unavailable with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(unavailable, 1000) };
         Assert.Empty(ForecastThermalPortfolioTests.Select(unavailable).Selected.CompletedDevelopmentSites);
         var solved = read.Thermal with { Cells = EquatableArray.From(read.Thermal.Cells.Select(c => c with
         { Temperature = Known(20d), Roof = "thin", Solid = c.Cell != new Cell(1, 1) && c.Cell != new Cell(3, 1), Site = "", FutureSolid = false })) };
         var alternate = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = read with { Thermal = solved } } };
-        alternate = alternate with { CoupledAlternatives = GenerateCoupledActivities(alternate, 1000) };
+        alternate = alternate with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(alternate, 1000) };
         var choice = ForecastThermalPortfolioTests.Select(alternate);
         Assert.Empty(choice.Selected.CompletedDevelopmentSites);
         Assert.Empty(choice.ServiceInvestments);

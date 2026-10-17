@@ -187,7 +187,7 @@ public static partial class CombatFallbackRules
         }
 
         Func<CombatRole, bool> who;
-        if (stop.Kind == CombatEvent.Breach || HoldCompromised(layout.Firing.Items, layout.Toward, CombatPeelRules.Unpeeled(view, stop, m)))
+        if (stop.Kind == CombatEvent.Breach || DefensePositions.HoldCompromised(layout.Firing.Items, layout.Toward, CombatPeelRules.Unpeeled(view, stop, m)))
         {
             who = _ => true;
         }

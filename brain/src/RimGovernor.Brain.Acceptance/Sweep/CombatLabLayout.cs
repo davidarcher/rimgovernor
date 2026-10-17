@@ -35,7 +35,7 @@ public static class CombatLabLayout
 
             // Validate wants a tier; a fixture's structures are staged, not built by the planner, so its one tier names
             // no buildings.
-            Tiers = [new DefenseTierRecord { Name = PolicyFunctions.TierFiringLine, Built = true }],
+            Tiers = [new DefenseTierRecord { Name = DefenseLayout.TierFiringLine, Built = true }],
             Complete = true,
         };
         if (l.Choke is { } choke)

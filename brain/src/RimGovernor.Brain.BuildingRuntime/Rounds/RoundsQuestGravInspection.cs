@@ -5,7 +5,7 @@ public sealed partial class JoinersRounds
     /// <summary>Holds a quest's grav inspection; a wait for the inspector is not handled.</summary>
     internal (Verdict Verdict, bool Handled) AdmitGravInspection(RoundsReading read, CancellationToken call)
     {
-        var step = PolicyFunctions.SelectQuestGravInspection(read.Projection.Facts, read.Projection.Identity.Map);
+        var step = QuestGravInspection.SelectQuestGravInspection(read.Projection.Facts, read.Projection.Identity.Map);
         if (step.Quest.IsEmpty)
         {
             return (default, false);

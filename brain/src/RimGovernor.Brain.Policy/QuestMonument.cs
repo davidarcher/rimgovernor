@@ -18,7 +18,7 @@ public sealed record QuestMonumentMethod
     public string Reason { get; init; } = "";
 }
 
-public static partial class PolicyFunctions
+public sealed partial record QuestMonument
 {
     public static bool MonumentDeficit(RoundsFacts f)
     {

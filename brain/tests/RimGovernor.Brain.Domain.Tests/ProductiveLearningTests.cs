@@ -42,38 +42,38 @@ public sealed class ProductiveLearningTests
     [Fact]
     public void NoUnlockLearningChangesAllocationOnlyWhenLaterUsefulWorkRepaysImmediateCost()
     {
-        var result = CompareActivityPlans(Meals(3)).Selected!;
+        var result = ForecastActivities.CompareActivityPlans(Meals(3)).Selected!;
         Assert.All(result.Allocations, a => Assert.Equal("developing", a.Pawn));
         Assert.Equal(ExpectedDurations, result.Allocations.Select(a => a.WorkTicks));
         Assert.Equal(260, result.LaborCost);
         // Identical native rate table, no learning: capability remains unchanged, expert wins.
-        Assert.All(CompareActivityPlans(Meals(3, learning: 0)).Selected!.Allocations, a => Assert.Equal("experienced", a.Pawn));
-        Assert.All(CompareActivityPlans(Meals(3, speed: .5)).Selected!.Allocations, a => Assert.Equal("experienced", a.Pawn));
+        Assert.All(ForecastActivities.CompareActivityPlans(Meals(3, learning: 0)).Selected!.Allocations, a => Assert.Equal("experienced", a.Pawn));
+        Assert.All(ForecastActivities.CompareActivityPlans(Meals(3, speed: .5)).Selected!.Allocations, a => Assert.Equal("experienced", a.Pawn));
         // A high terminal skill/XP receives no value without later demanded work.
-        Assert.Equal("experienced", Assert.Single(CompareActivityPlans(Meals(1)).Selected!.Allocations).Pawn);
+        Assert.Equal("experienced", Assert.Single(ForecastActivities.CompareActivityPlans(Meals(1)).Selected!.Allocations).Pawn);
     }
 
     [Fact]
     public void ImprovedDurationsEnterEquipmentAvailabilityAndDeadlineBeforeOutput()
     {
         var problem = Meals(3, deadline: 265);
-        var result = CompareActivityPlans(problem);
+        var result = ForecastActivities.CompareActivityPlans(problem);
         Assert.NotNull(result.Selected);
         Assert.Equal(260, result.Selected!.CompletedAt);
         Assert.Equal(260, result.Selected.EquipmentClaims.Max(c => c.End.Value));
-        Assert.Empty(CompareActivityPlans(Meals(3, learning: 0, deadline: 265)).Alternatives);
-        Assert.Equal("experienced", CompareActivityPlans(Meals(1, deadline: 95)).Selected!.Allocations[0].Pawn);
+        Assert.Empty(ForecastActivities.CompareActivityPlans(Meals(3, learning: 0, deadline: 265)).Alternatives);
+        Assert.Equal("experienced", ForecastActivities.CompareActivityPlans(Meals(1, deadline: 95)).Selected!.Allocations[0].Pawn);
     }
 
     [Fact]
     public void CompletionLearningCountsPhysicalWorkOnceAndInterruptionSuppliesNoCallback()
     {
-        var plan = CompareActivityPlans(Meals(3)).Selected!;
+        var plan = ForecastActivities.CompareActivityPlans(Meals(3)).Selected!;
         Assert.Equal(26, plan.Allocations.Last().Learning!.After.AppliedGain.Value);
         var option = Meals(1).Options.Single(o => o.Pawn == "developing");
         var interrupted = plan.Allocations[0] with { Learning = null };
-        Assert.Equal(100, ForecastProductiveWork(option with { Activity = "later" }, [interrupted], 100).WorkTicks.Value);
-        Assert.Equal(80, ForecastProductiveWork(option with { Activity = "later" }, [plan.Allocations[0]], 100).WorkTicks.Value);
+        Assert.Equal(100, ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { Activity = "later" }, [interrupted], 100).WorkTicks.Value);
+        Assert.Equal(80, ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { Activity = "later" }, [plan.Allocations[0]], 100).WorkTicks.Value);
     }
 
     [Fact]
@@ -82,11 +82,11 @@ public sealed class ProductiveLearningTests
         var option = Meals(1).Options.Single(o => o.Pawn == "developing");
         var work = Work() with { Learning = Work().Learning with { StoredLevel = Known(2), Xp = Known(-95d),
             NextDecay = Known(10), Levels = [new(0, 100, 0), new(1, 100, 0), new(2, 1000, 10)] } };
-        var duration = ForecastProductiveWork(option with { SkillWork = work }, [], 0);
+        var duration = ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { SkillWork = work }, [], 0);
         Assert.Equal(98, duration.WorkTicks.Value); // 10 * 1.25 then 88 * 1, native whole work ticks.
-        Assert.False(ForecastProductiveWork(option, [], 950).WorkTicks.IsKnown);
-        Assert.False(ForecastProductiveWork(option with { SkillWork = Work() with { Rates = [] } }, [], 0).WorkTicks.IsKnown);
-        Assert.False(ForecastProductiveWork(option with { SkillWork = Work() with { Learning = Work().Learning with { Xp = default } } }, [], 0).WorkTicks.IsKnown);
+        Assert.False(ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 950).WorkTicks.IsKnown);
+        Assert.False(ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { SkillWork = Work() with { Rates = [] } }, [], 0).WorkTicks.IsKnown);
+        Assert.False(ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { SkillWork = Work() with { Learning = Work().Learning with { Xp = default } } }, [], 0).WorkTicks.IsKnown);
     }
 
     [Theory]
@@ -96,11 +96,11 @@ public sealed class ProductiveLearningTests
     public void NormalFoodCompositionAndSharedSelectionValueLearningThroughLaterDemandedMeals(double learning, double speed, string chosen)
     {
         var facts = NormalFoodFacts(learning, speed);
-        var generated = GenerateCoupledActivities(facts, 700)!;
-        var request = CoupledForecastRequestOf(new("world/map/load", 100), 700d / GameTime.TicksPerDay,
-            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputsOf(facts) }, [], new());
-        var selection = CompareActivityOutcomes(request, generated);
-        var batch = Assert.IsType<PawnActivities>(StartCoupledActivity(selection, generated, 1, "cooking", 100));
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 700)!;
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 700d / GameTime.TicksPerDay,
+            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var selection = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        var batch = Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selection, generated, 1, "cooking", 100));
         var recipes = batch.Tasks.Where(t => t.Step.Kind == PawnActivityKind.Recipe).ToArray();
         Assert.True(recipes.Length == 2, $"recipes={recipes.Length}; selected={string.Join(';', selection.Selection.Selected)}; expansions={selection.Selection.Expansions}; findings={string.Join(';', selection.Selection.Findings)}; alternatives={generated.Alternatives.Count}");
         Assert.All(recipes, t => Assert.Equal(chosen, t.Pawn));

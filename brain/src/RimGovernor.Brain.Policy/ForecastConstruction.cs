@@ -28,18 +28,18 @@ public sealed record ForecastConstructionResult(string Commitment, string Site, 
     public EquatableArray<ForecastStockChange> MaterialChanges { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class ForecastConstruction
 {
     // This is a bounded construction slice of the existing forecast, not an admission or dispatch gate.
-    private static ColonyForecastScenario ForecastConstructionScenario(ColonyForecastRequest request,
+    internal static ColonyForecastScenario ForecastConstructionScenario(ColonyForecastRequest request,
         Dictionary<string, ForecastCommitment> commitments)
     {
         var context = request.Construction;
         var rows = commitments.Values.Where(c => c.Construction is not null).ToArray();
-        var material = ForecastMaterialBudgetOf(request.Facts.Stock, context.IngredientReservations, commitments.Values, request.HorizonDays);
+        var material = ForecastClaims.ForecastMaterialBudgetOf(request.Facts.Stock, context.IngredientReservations, commitments.Values, request.HorizonDays);
         var materialKnown = material.TryGetValue(out var free);
         var stock = materialKnown ? new Dictionary<Resource, Fact<double>>(free!) : [];
-        var equipment = ForecastEquipmentAvailabilityOf(context.Equipment, commitments.Values.SelectMany(c => c.EquipmentClaims));
+        var equipment = ForecastClaims.ForecastEquipmentAvailabilityOf(context.Equipment, commitments.Values.SelectMany(c => c.EquipmentClaims));
         if (rows.Length == 0) return ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
         { MaterialAvailability = material, EquipmentAvailability = EquatableArray.From(equipment) };
         if (context.ExpansionBudget is < 1 or > 4096
@@ -120,7 +120,7 @@ public static partial class PolicyFunctions
                 }
                 options.Add(new("finish", pawn.Id.Value, duration, estimate.RecoveryLaborTicks) { Equipment = estimate.FinishEquipment });
             }
-            var comparison = CompareActivityPlans(new ForecastActivityProblem
+            var comparison = ForecastActivities.CompareActivityPlans(new ForecastActivityProblem
             {
                 Activities = needs.Length == 0 ? [new("finish", site.Id, site.Id, [])]
                     : [new("deliver", pickups[0], site.Id, []), new("finish", site.Id, site.Id, ["deliver"])],
@@ -132,7 +132,7 @@ public static partial class PolicyFunctions
             expansions += comparison.Expansions;
             if (eligibilityUnknown) comparison = comparison with { Findings = [.. comparison.Findings, "unknown_construction_eligibility"] };
             if (comparison.Selected is not { } plan) { Result(comparison.Decision, comparison); continue; }
-            equipment = ForecastEquipmentAvailabilityOf(equipment, plan.EquipmentClaims);
+            equipment = ForecastClaims.ForecastEquipmentAvailabilityOf(equipment, plan.EquipmentClaims);
             foreach (var group in plan.Allocations.GroupBy(a => a.Pawn))
             {
                 var last = group.MaxBy(a => a.End)!;

@@ -8,9 +8,9 @@ public sealed record ForecastFoodEffect(Resource Resource, FoodStock Eligibility
 public sealed record ForecastShelterEffect(string Location, string[] RequiredActivities,
     Fact<bool> Enclosed, Fact<bool> Roofed, Fact<double> MinC, Fact<double> MaxC, Fact<double> ThroughTicks);
 
-public static partial class PolicyFunctions
+public static class ForecastActivityEffects
 {
-    private static Fact<bool> AssessSurvivalEffects(ColonyForecastRequest request, ForecastActivityProblem problem,
+    internal static Fact<bool> AssessSurvivalEffects(ColonyForecastRequest request, ForecastActivityProblem problem,
         ForecastActivityRelief[] relief, Dictionary<string, ForecastSurvivalNeed> needs,
         ForecastActivityPlan plan, SortedSet<string> findings)
     {
@@ -26,7 +26,7 @@ public static partial class PolicyFunctions
         {
             if (request.Facts.Food.Stocks.Any(s => consumed.Contains(s.DefName)))
                 return Unknown("consumes_baseline_food_requires_timed_reallocation");
-            var budget = ForecastMaterialBudgetOf(request.Facts.Stock, request.Demand.Work.IngredientReservations,
+            var budget = ForecastClaims.ForecastMaterialBudgetOf(request.Facts.Stock, request.Demand.Work.IngredientReservations,
                 request.Commitments, request.HorizonDays);
             if (!budget.TryGetValue(out var available)) return Unknown("unknown_effect_material_budget");
             var balance = new Dictionary<Resource, double>();

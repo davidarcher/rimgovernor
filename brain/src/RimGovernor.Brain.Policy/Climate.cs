@@ -76,7 +76,7 @@ public sealed record Exchange
     /// </summary>
     internal double Conductance(int cells) => Math.Min(Rate, cells) / 2 / IntervalTicks;
 
-    internal bool Valid() => IntervalTicks > 0 && PolicyFunctions.FinitePositive(Rate);
+    internal bool Valid() => IntervalTicks > 0 && QuestCapacityForecast.FinitePositive(Rate);
 }
 
 /// <summary>
@@ -96,7 +96,7 @@ public sealed record DoorTiming
     public double MoveTicks { get; init; }
 
     internal bool Valid() =>
-        PolicyFunctions.FinitePositive(OpenTicks) && PolicyFunctions.FinitePositive(CloseDelayTicks) && MoveTicks >= 0 && !double.IsInfinity(MoveTicks);
+        QuestCapacityForecast.FinitePositive(OpenTicks) && QuestCapacityForecast.FinitePositive(CloseDelayTicks) && MoveTicks >= 0 && !double.IsInfinity(MoveTicks);
 
     /// <summary>The ticks one passage holds a door open: the wait, the walk through and the close delay.</summary>
     internal double Window() => OpenTicks + MoveTicks + CloseDelayTicks;
@@ -112,7 +112,7 @@ public sealed record ClimatePlant
 
     public double PowerW { get; init; }
 
-    internal bool Valid() => PolicyFunctions.FinitePositive(HeatPerSecond) && PolicyFunctions.FinitePositive(PowerW);
+    internal bool Valid() => QuestCapacityForecast.FinitePositive(HeatPerSecond) && QuestCapacityForecast.FinitePositive(PowerW);
 }
 
 /// <summary>
@@ -206,7 +206,7 @@ public sealed record ClimateModel
         && Heater.Valid()
         && Cooler.Valid()
         && StepTicks > 0
-        && PolicyFunctions.FinitePositive(TicksPerSecond)
+        && QuestCapacityForecast.FinitePositive(TicksPerSecond)
         && !double.IsNaN(SwingC)
         && !double.IsInfinity(SwingC);
 
@@ -413,7 +413,7 @@ public static partial class PolicyFunctions
         ComfyMinStat = "ComfyTemperatureMin",
         ComfyMaxStat = "ComfyTemperatureMax",
         SunPhase = 0.32,
-        CellMoveTicks = PathMoveCardinal,
+        CellMoveTicks = DefenseCorridorRoutes.PathMoveCardinal,
     };
 
     /// <summary>The building defs the climate options are priced in.</summary>
@@ -561,7 +561,7 @@ public static partial class PolicyFunctions
     public static double BuildW(SiteTypeWeights w, double value, double steelValue)
     {
         const int steelPerCharge = 100;
-        if (!FinitePositive(steelValue) || !FinitePositive(w.Power))
+        if (!QuestCapacityForecast.FinitePositive(steelValue) || !QuestCapacityForecast.FinitePositive(w.Power))
         {
             return 0;
         }

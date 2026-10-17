@@ -81,25 +81,25 @@ public sealed class QuestPolicyTests
         {
             Quest = new("decree"),
             State = "Ongoing",
-            Profile = Known(QuestFamilyForRoot("Decree_ProduceItem")),
+            Profile = Known(QuestFamiliesPolicy.QuestFamilyForRoot("Decree_ProduceItem")),
             Objectives = [Produce],
         };
-        Assert.Equal((Produce, 2L, true), DecreeObjective(offer));
+        Assert.Equal((Produce, 2L, true), QuestDecrees.DecreeObjective(offer));
 
         // Inventory is never progress: only an active objective with native production outstanding is owed.
-        Assert.False(DecreeObjective(offer with { State = "NotYetAccepted" }).Owed);
-        Assert.False(DecreeObjective(offer with { Objectives = [Produce with { Produced = Known(3L) }] }).Owed);
+        Assert.False(QuestDecrees.DecreeObjective(offer with { State = "NotYetAccepted" }).Owed);
+        Assert.False(QuestDecrees.DecreeObjective(offer with { Objectives = [Produce with { Produced = Known(3L) }] }).Owed);
 
         Fact<EquatableArray<Amount>> stock = Known<EquatableArray<Amount>>([new(new("Steel"), 100), new(new("ComponentIndustrial"), 10)]);
-        var (bill, reason) = PlanDecreeProduction(Produce, 2, [Revolver()], stock);
+        var (bill, reason) = QuestDecrees.PlanDecreeProduction(Produce, 2, [Revolver()], stock);
         Assert.Equal("", reason);
         Assert.Equal(("bench-1", "Make_Gun_Revolver", BillMode.GearBatch, 2), (bill!.Bench, bill.Recipe, bill.Mode, bill.Target));
         Assert.Equal(RevolverIngredients, bill.Ingredients);
 
-        Assert.Equal("existing_work", PlanDecreeProduction(Produce, 2, [Revolver(existing: true)], stock).Reason);
+        Assert.Equal("existing_work", QuestDecrees.PlanDecreeProduction(Produce, 2, [Revolver(existing: true)], stock).Reason);
         Fact<EquatableArray<Amount>> scarce = Known<EquatableArray<Amount>>([new(new("Steel"), 40), new(new("ComponentIndustrial"), 10)]);
-        Assert.Equal("production_infeasible", PlanDecreeProduction(Produce, 2, [Revolver()], scarce).Reason);
-        Assert.Equal("complete", PlanDecreeProduction(Produce, 0, [Revolver()], stock).Reason);
+        Assert.Equal("production_infeasible", QuestDecrees.PlanDecreeProduction(Produce, 2, [Revolver()], scarce).Reason);
+        Assert.Equal("complete", QuestDecrees.PlanDecreeProduction(Produce, 0, [Revolver()], stock).Reason);
     }
 
     private static RoundsFacts Hosting(QuestShuttleState shuttle) => new()
@@ -126,12 +126,12 @@ public sealed class QuestPolicyTests
             AllRequiredLoaded = Known(false),
             ManualLaunchAvailable = Known(false),
         };
-        var load = SelectHospitalityWork(Hosting(waiting), new Tick(1)).Shuttle;
+        var load = QuestHospitality.SelectHospitalityWork(Hosting(waiting), new Tick(1)).Shuttle;
         Assert.Equal((new QuestId("hosting"), ShuttleLoading.Autoload, true, false), (load!.Quest, load.Loading, load.Autoload, load.Launch));
 
-        Assert.True(SelectHospitalityWork(Hosting(waiting with { Autoload = Known(true) }), new Tick(1)) is { Shuttle: null, Waiting: true });
+        Assert.True(QuestHospitality.SelectHospitalityWork(Hosting(waiting with { Autoload = Known(true) }), new Tick(1)) is { Shuttle: null, Waiting: true });
 
-        var launch = SelectHospitalityWork(Hosting(waiting with { AllRequiredLoaded = Known(true), ManualLaunchAvailable = Known(true) }), new Tick(1)).Shuttle;
+        var launch = QuestHospitality.SelectHospitalityWork(Hosting(waiting with { AllRequiredLoaded = Known(true), ManualLaunchAvailable = Known(true) }), new Tick(1)).Shuttle;
         Assert.Equal((ShuttleLoading.LaunchOnly, true), (launch!.Loading, launch.Launch));
     }
 

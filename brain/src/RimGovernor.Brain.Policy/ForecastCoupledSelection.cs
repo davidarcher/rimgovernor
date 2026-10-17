@@ -12,7 +12,7 @@ public sealed record ForecastConsequenceVector(EquatableArray<Fact<double>> Urge
     public ForecastSupportConsequences Support { get; init; } = new();
 }
 
-public sealed record ForecastCoupledSelection(ForecastActivityOutcomeComparison Selection,
+public sealed partial record ForecastCoupledSelection(ForecastActivityOutcomeComparison Selection,
     ForecastCoupledOutcome Baseline, ForecastCoupledOutcome Selected,
     ForecastConsequenceVector BaselineVector, ForecastConsequenceVector SelectedVector,
     EquatableArray<ForecastPortfolioEvidence> Rejected, double Horizon, bool GenerationTruncated)
@@ -25,7 +25,7 @@ public sealed record ForecastDeferredPawn(string Pawn, Cell Location, long Until
 public sealed record ForecastPortfolioEvidence(EquatableArray<string> Commitments,
     ForecastConsequenceVector? Consequences, string Reason);
 
-public static partial class PolicyFunctions
+public sealed partial record ForecastCoupledSelection
 {
     private const int SeedShare = 4;
     /// <summary>Scheduler bound of a screening evaluation. The depth-first schedule search reaches its first complete
@@ -47,7 +47,7 @@ public static partial class PolicyFunctions
         request = request with { Coupled = candidates.Context, Proposed = new() };
         var baselineCommitments = request.Commitments.Concat(candidates.Incumbents).ToArray();
         var incumbentIds = candidates.Incumbents.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
-        var baselineScenario = ForecastCoupledScenarioOf(request, ForecastCommitmentsById(baselineCommitments)).Coupled!;
+        var baselineScenario = ForecastCoupled.ForecastCoupledScenarioOf(request, ForecastCommitmentsById(baselineCommitments)).Coupled!;
         var baseline = baselineScenario.Alternatives.Count > 0 ? baselineScenario.Alternatives[0]
             : new ForecastCoupledOutcome(new([], 0, 0), default, [], new Dictionary<string, ForecastNeedsResult>(), []);
         foreach (var candidate in baselineScenario.Alternatives.Where(a => a.Feasible == Known(true)))
@@ -126,7 +126,7 @@ public static partial class PolicyFunctions
             {
                 var remaining = budget - expansions;
                 if (remaining == 0) { truncated = true; return false; }
-                var searched = ForecastCoupledScenarioOf(request with { Coupled = candidates.Context with
+                var searched = ForecastCoupled.ForecastCoupledScenarioOf(request with { Coupled = candidates.Context with
                 { Activities = candidates.Context.Activities with { ExpansionBudget = Math.Min(bound, remaining) } } }, ForecastCommitmentsById(commitments)).Coupled!;
                 expansions += searched.Expansions;
                 known = (searched.Truncated ? bound : PortfolioBound, searched);
@@ -262,7 +262,7 @@ public static partial class PolicyFunctions
         return new(new(selected, best.Plan, default, findings.ToArray(), expansions, truncated), baseline, best,
             baselineVector, bestVector, EquatableArray.From(evidence), request.HorizonDays * GameTime.TicksPerDay, candidates.Truncated)
         { CompositionExpansions = candidates.CompositionExpansions,
-            ServiceInvestments = ServiceInvestmentsOf(baseline, best, candidates.Context, request.HorizonDays * GameTime.TicksPerDay),
+            ServiceInvestments = ForecastServiceInvestments.ServiceInvestmentsOf(baseline, best, candidates.Context, request.HorizonDays * GameTime.TicksPerDay),
             Deferred = EquatableArray.From(deferred.Take(deferredCapacity)) };
     }
 
@@ -384,7 +384,7 @@ public static partial class PolicyFunctions
         {
             if (pawn.State != "eligible" || pawn.VoluntaryControlBlockers.Count != 0 || pawn.Location is not { } location || selected.Contains(pawn.Pawn)
                 || context.Resources.Claims.Pawns.Contains(pawn.Pawn) || pawn.Needs.Count == 0) continue;
-            var capacity = NeedsWorkCapacity(context.Resources, pawn.Pawn, limit).Capacity;
+            var capacity = ForecastNeeds.NeedsWorkCapacity(context.Resources, pawn.Pawn, limit).Capacity;
             if (!capacity.Windows.TryGetValue(out var windows) || !windows.Any(w => w.Start <= 0 && w.End > 0)) continue;
             var duration = Math.Min(limit, windows.Where(w => w.Start <= 0).Max(w => w.End));
             foreach (var need in pawn.Needs)

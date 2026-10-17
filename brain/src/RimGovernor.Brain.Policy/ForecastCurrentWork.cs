@@ -1,10 +1,10 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Observed occupancy, not an assignment or a prediction that a job will complete.</summary>
-public sealed record ForecastCurrentWork(PawnId Pawn, Fact<bool> Occupied, Fact<WorkType> Work,
+public sealed partial record ForecastCurrentWork(PawnId Pawn, Fact<bool> Occupied, Fact<WorkType> Work,
     Fact<double> RemainingTicks);
 
-public static partial class PolicyFunctions
+public sealed partial record ForecastCurrentWork
 {
     /// <summary>The roster and timed forecast share current-job interpretation. Unknown duration is never free time.</summary>
     public static ForecastCurrentWork ForecastCurrentWorkOf(WorkPawn pawn, Fact<double> remainingTicks = default)

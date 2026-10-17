@@ -42,8 +42,8 @@ public sealed class ForecastIncumbentSelectionTests
         };
         var candidates = new ForecastCoupledCandidates(context, meal ? [eat] : [], [], false) { Incumbents = [current] };
         facts = facts with { CoupledAlternatives = candidates };
-        var request = CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
         return (request, candidates);
     }
 
@@ -66,7 +66,7 @@ public sealed class ForecastIncumbentSelectionTests
             }
         };
         candidates = candidates with { Context = context, Alternatives = [new("future-joy", []) { ActivityCompletions = ["future-joy"] }] };
-        var result = CompareActivityOutcomes(request, candidates);
+        var result = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
         Assert.Contains("current-joy", result.Selection.Selected);
         Assert.Contains("future-joy", result.Selection.Selected);
         var current = Assert.Single(result.Selected.Plan.Allocations, a => a.Activity == "ongoing-joy");
@@ -173,7 +173,7 @@ public sealed class ForecastIncumbentSelectionTests
     public void NewlyUrgentFoodCanReleaseCurrentJoyThroughTheSameConsequenceComparison()
     {
         var (request, candidates) = Problem(.1, .001);
-        var result = CompareActivityOutcomes(request, candidates);
+        var result = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
         Assert.Equal(Known(true), result.Baseline.Feasible);
         Assert.Equal("ongoing-joy", Assert.Single(result.Baseline.Plan.Allocations).Activity);
         Assert.Contains("eat", result.Selection.Selected);
@@ -187,21 +187,21 @@ public sealed class ForecastIncumbentSelectionTests
     public void EqualConsequencesRetainCurrentServiceDespiteLowerEmptyPortfolioLabor()
     {
         var (request, candidates) = Problem(1, 0, meal: false);
-        var result = CompareActivityOutcomes(request, candidates);
+        var result = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
         Assert.Equal("current-joy", Assert.Single(result.Selection.Selected));
         Assert.Equal(result.BaselineVector, result.SelectedVector);
         var empty = Assert.Single(result.Rejected, p => p.Commitments.Count == 0);
         Assert.NotNull(empty.Consequences);
         Assert.True(empty.Consequences.Labor < result.BaselineVector.Labor);
-        Assert.Throws<DomainException>(() => StartCoupledActivity(result, candidates, 1, "replacement", 100));
+        Assert.Throws<DomainException>(() => ForecastCoupledSelection.StartCoupledActivity(result, candidates, 1, "replacement", 100));
     }
 
     [Fact]
     public void ExhaustedOptionalSearchKeepsBaselineAndReportsItsBoundDeterministically()
     {
         var (request, candidates) = Problem(.1, .001);
-        var first = CompareActivityOutcomes(request, candidates, 0);
-        var second = CompareActivityOutcomes(request, candidates, 0);
+        var first = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates, 0);
+        var second = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates, 0);
         Assert.Equal("current-joy", Assert.Single(first.Selection.Selected));
         Assert.True(first.Selection.SearchTruncated);
         Assert.Contains("portfolio_search_truncated", first.Selection.Findings);
@@ -215,7 +215,7 @@ public sealed class ForecastIncumbentSelectionTests
     {
         var (request, candidates) = Problem(.1, .001);
         candidates = candidates with { Alternatives = candidates.Incumbents };
-        Assert.Throws<DomainException>(() => CompareActivityOutcomes(request, candidates));
+        Assert.Throws<DomainException>(() => ForecastCoupledSelection.CompareActivityOutcomes(request, candidates));
     }
     [Fact]
     public void WaitingClassificationCannotBypassNeedServiceFeasibility()
@@ -225,6 +225,6 @@ public sealed class ForecastIncumbentSelectionTests
         {
             Context = candidates.Context with { NonproductiveOccupancy = ["ongoing-joy"] }
         };
-        Assert.Throws<DomainException>(() => CompareActivityOutcomes(request, candidates));
+        Assert.Throws<DomainException>(() => ForecastCoupledSelection.CompareActivityOutcomes(request, candidates));
     }
 }

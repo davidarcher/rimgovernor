@@ -80,7 +80,7 @@ public static partial class CombatFlankRules
         }
 
         var ok = layout.Choke.TryGetValue(out var choke);
-        var vok = TowardVector(layout.Toward, out var v);
+        var vok = DefensePositions.TowardVector(layout.Toward, out var v);
         if (!ok || !vok)
         {
             return null;
@@ -206,7 +206,7 @@ public static partial class CombatFlankRules
         view.Layout.TryGetValue(out var layout);
         layout ??= new CombatLayout();
         layout.Choke.TryGetValue(out var choke);
-        _ = TowardVector(layout.Toward, out var v);
+        _ = DefensePositions.TowardVector(layout.Toward, out var v);
         int Project(Cell c) => ((c.X - choke.X) * v.X) + ((c.Z - choke.Z) * v.Z);
         var deepest = Project(f.Cells[0]);
         foreach (var c in f.Cells.Skip(1))

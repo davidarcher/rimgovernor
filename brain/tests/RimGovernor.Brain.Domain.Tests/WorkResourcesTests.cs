@@ -324,7 +324,7 @@ public sealed class WorkResourcesTests
         var iteration = new ForecastCommitment("iteration", default)
         { MaterialClaims = [new(new("Rice"), Known(2.0), Known("bill"))] };
         var merged = MergeWorkMaterialPromises(adjusted.Concat([iteration]));
-        var budget = ForecastMaterialBudgetOf(Known<EquatableArray<Amount>>([new(new("Rice"), 10)]),
+        var budget = ForecastClaims.ForecastMaterialBudgetOf(Known<EquatableArray<Amount>>([new(new("Rice"), 10)]),
             Known<EquatableArray<RimGovernor.Brain.Policy.IngredientReservation>>([new()
             { Pawn = new("cook"), Bill = Known("bill"), Items = [new(new("Rice"), 2)] }]), merged, 0).Value;
         Assert.Equal(4, budget[new("Rice")].Value);

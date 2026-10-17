@@ -57,7 +57,7 @@ public static partial class CombatBlockingRules
         }
 
         var ok = layout.Choke.TryGetValue(out var choke);
-        var vok = TowardVector(layout.Toward, out var v);
+        var vok = DefensePositions.TowardVector(layout.Toward, out var v);
         var (rest, _) = CombatTankRules.SplitTanks(view);
 
         // A manhunter pack with an exploder is never melee-blocked.
@@ -94,7 +94,7 @@ public static partial class CombatBlockingRules
     internal static Func<Cell, bool>? ChokeHeld(CombatView view, CombatLayout layout)
     {
         var ok = layout.Choke.TryGetValue(out var choke);
-        var vok = TowardVector(layout.Toward, out var v);
+        var vok = DefensePositions.TowardVector(layout.Toward, out var v);
         if (!ok || !vok)
         {
             return null;

@@ -123,12 +123,12 @@ public static partial class PolicyFunctions
             HorizonDays = request.HorizonDays,
             Unsupported = request.Coupled is null ? ColonyForecast.UnsupportedDomains : ["combat_outcomes", "future_weather", "unmodeled_thermal_geometry", "future_meal_thoughts"],
             Observed = DiagnoseColony(request.Facts),
-            Baseline = request.Coupled is null ? ForecastConstructionScenario(request, baseline) : ForecastCoupledScenarioOf(request, baseline),
-            Proposed = request.Coupled is null ? ForecastConstructionScenario(request, proposed) : ForecastCoupledScenarioOf(request, proposed),
+            Baseline = request.Coupled is null ? ForecastConstruction.ForecastConstructionScenario(request, baseline) : ForecastCoupled.ForecastCoupledScenarioOf(request, baseline),
+            Proposed = request.Coupled is null ? ForecastConstruction.ForecastConstructionScenario(request, proposed) : ForecastCoupled.ForecastCoupledScenarioOf(request, proposed),
         };
     }
 
-    private static Dictionary<string, ForecastCommitment> ForecastCommitmentsById(IEnumerable<ForecastCommitment> commitments)
+    internal static Dictionary<string, ForecastCommitment> ForecastCommitmentsById(IEnumerable<ForecastCommitment> commitments)
     {
         var result = new Dictionary<string, ForecastCommitment>(StringComparer.Ordinal);
         foreach (var commitment in commitments)
@@ -152,7 +152,7 @@ public static partial class PolicyFunctions
         return result;
     }
 
-    private static ColonyForecastScenario ForecastInventory(Fact<EquatableArray<Amount>> observed,
+    internal static ColonyForecastScenario ForecastInventory(Fact<EquatableArray<Amount>> observed,
         IReadOnlyDictionary<string, ForecastCommitment> commitments, double horizon)
     {
         var known = observed.TryGetValue(out var rows);

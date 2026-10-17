@@ -20,9 +20,9 @@ public sealed record ForecastRequirementPriority(double Safety = 0, double Requi
     }
 }
 
-public static partial class PolicyFunctions
+public static class ForecastRequirements
 {
-    private static ForecastRequirementPriority? RequirementPriorityOf(IEnumerable<ForecastMaterialOption> options, SortedSet<string> findings)
+    internal static ForecastRequirementPriority? RequirementPriorityOf(IEnumerable<ForecastMaterialOption> options, SortedSet<string> findings)
     {
         var relief = new Dictionary<string, (ProductionNeedPriority Priority, double Fraction)>(StringComparer.Ordinal);
         double material = 0, work = 0;

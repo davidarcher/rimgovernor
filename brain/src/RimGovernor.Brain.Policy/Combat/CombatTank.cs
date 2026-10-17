@@ -82,7 +82,7 @@ public static partial class CombatTankRules
     /// </summary>
     internal static List<CombatRole> TankRoles(CombatView view, IReadOnlyList<SquadDefenderFacts> tanks, IReadOnlyList<DefensivePosition> gunners, Rotation toward, GeometryReply geometry, IReadOnlyList<Cell> taken)
     {
-        var ok = TowardVector(toward, out var v);
+        var ok = DefensePositions.TowardVector(toward, out var v);
         if (!ok || !TankThreat(view))
         {
             return [];

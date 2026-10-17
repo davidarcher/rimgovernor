@@ -33,7 +33,7 @@ public sealed record DefenseApproaches
     public string Hold { get; init; } = "";
 }
 
-public static partial class PolicyFunctions
+public static class DefenseArrivalRoutes
 {
     internal const long DefenseArrivalWindow = 3 * GameTime.TicksPerDay;
     internal const int DefenseRouteTail = 6;
@@ -123,9 +123,9 @@ internal sealed partial class DefenseSite
         for (var i = 0; i < queue.Count; i++)
         {
             var c = queue[i];
-            foreach (var d in Directions)
+            foreach (var d in DefenseLayout.Directions)
             {
-                var n = AddCell(c, d);
+                var n = DefenseLayout.AddCell(c, d);
                 if (prev.ContainsKey(n) || Closed(n) || !Passable(n))
                 {
                     continue;
@@ -188,9 +188,9 @@ internal sealed partial class DefenseSite
                 {
                     pathLength = distance[c];
                 }
-                foreach (var d in Directions)
+                foreach (var d in DefenseLayout.Directions)
                 {
-                    var n = AddCell(c, d);
+                    var n = DefenseLayout.AddCell(c, d);
                     if (edge.Contains(n) && !seen.Contains(n) && BorderSide(n) == BorderSide(first))
                     {
                         seen.Add(n);
@@ -212,7 +212,7 @@ internal sealed partial class DefenseSite
         var counted = new HashSet<string>(StringComparer.Ordinal);
         foreach (var a in R.Arrivals)
         {
-            if (counted.Contains(a.Id) || R.Tick.Value - a.Tick.Value > DefenseArrivalWindow)
+            if (counted.Contains(a.Id) || R.Tick.Value - a.Tick.Value > DefenseArrivalRoutes.DefenseArrivalWindow)
             {
                 continue;
             }
@@ -222,7 +222,7 @@ internal sealed partial class DefenseSite
             {
                 // The crossing was sampled a few cells inside the border: the nearest sector edge cell within
                 // the snap radius, the lowest-ordered on a tie.
-                var nearest = (long)((DefenseArrivalSnap * DefenseArrivalSnap) + 1);
+                var nearest = (long)((DefenseArrivalRoutes.DefenseArrivalSnap * DefenseArrivalRoutes.DefenseArrivalSnap) + 1);
                 foreach (var c in ordered)
                 {
                     var d = SquaredDistance(c, a.Edge);
@@ -287,9 +287,9 @@ internal sealed partial class DefenseSite
             protectedCells.Add(c);
             // Existing rock can be the corridor wall without a placement in any tier. Removing it would open the
             // flank of the accepted layout.
-            foreach (var d in Directions)
+            foreach (var d in DefenseLayout.Directions)
             {
-                var n = AddCell(c, d);
+                var n = DefenseLayout.AddCell(c, d);
                 if (Blocking(n))
                 {
                     protectedCells.Add(n);
@@ -325,7 +325,7 @@ internal sealed partial class DefenseSite
             }
             if (found)
             {
-                sector = sector with { Route = EquatableArray.From(DefensePath(prev, best)) };
+                sector = sector with { Route = EquatableArray.From(DefenseArrivalRoutes.DefensePath(prev, best)) };
             }
             sectorList[i] = sector;
         }
@@ -338,7 +338,7 @@ internal sealed partial class DefenseSite
         {
             return output with { Hold = "engagement_range_unknown" };
         }
-        var dir = DirectionOf(l.Toward);
+        var dir = DefenseTurretsPolicy.DirectionOf(l.Toward);
         var cover = new List<DefenseCover>();
         foreach (var (c, row) in Cells)
         {
@@ -365,7 +365,7 @@ internal sealed partial class DefenseSite
             for (var i = 0; i < sectorList.Count; i++)
             {
                 var route = sectorList[i].Route;
-                var start = Math.Max(0, route.Count - DefenseRouteTail);
+                var start = Math.Max(0, route.Count - DefenseArrivalRoutes.DefenseRouteTail);
                 for (var j = start; j < route.Count; j++)
                 {
                     var dist = SquaredDistance(c, route[j]);
@@ -388,9 +388,9 @@ internal sealed partial class DefenseSite
             if (Positive(row.NaturalRock) && hold == "")
             {
                 var exposed = false;
-                foreach (var delta in Directions)
+                foreach (var delta in DefenseLayout.Directions)
                 {
-                    exposed = exposed || Passable(AddCell(c, delta));
+                    exposed = exposed || Passable(DefenseLayout.AddCell(c, delta));
                 }
                 if (!exposed)
                 {
@@ -401,9 +401,9 @@ internal sealed partial class DefenseSite
             {
                 // A rock face is terrain: mining one cell of a mass exposes the next, and the mass may be the wall
                 // the layout leans on. Only a lone rock (no natural rock beside it) is orderable.
-                foreach (var delta in Directions)
+                foreach (var delta in DefenseLayout.Directions)
                 {
-                    var n = AddCell(c, delta);
+                    var n = DefenseLayout.AddCell(c, delta);
                     if (Cells.TryGetValue(n, out var nrow) && Positive(nrow.NaturalRock) && !Passable(n))
                     {
                         hold = "rock_face";
@@ -430,7 +430,7 @@ internal sealed partial class DefenseSite
     /// </summary>
     internal DefenseTier BaitTier(DefenseLayout l)
     {
-        var tier = new DefenseTier { Name = TierBait };
+        var tier = new DefenseTier { Name = DefenseArrivalRoutes.TierBait };
         var def = R.Definitions.Bait;
         if (def == "" || l.Approaches.Sectors.Count == 0)
         {
@@ -466,23 +466,23 @@ internal sealed partial class DefenseSite
         var buildings = new List<Building>();
         var reserved = new List<Cell>();
         // Route runs from the opening to Entry, so index len-1 is Entry.
-        var last = -DefenseBaitSpacing;
-        for (var i = sector.Route.Count - 1 - DefenseBaitStandoff; i >= 0 && buildings.Count < DefenseBaitCount; i--)
+        var last = -DefenseArrivalRoutes.DefenseBaitSpacing;
+        for (var i = sector.Route.Count - 1 - DefenseArrivalRoutes.DefenseBaitStandoff; i >= 0 && buildings.Count < DefenseArrivalRoutes.DefenseBaitCount; i--)
         {
             var distance = sector.Route.Count - 1 - i;
-            if (distance - last < DefenseBaitSpacing)
+            if (distance - last < DefenseArrivalRoutes.DefenseBaitSpacing)
             {
                 continue;
             }
             Cell at = sector.Route[i], next = sector.Route[i + 1];
-            var p = Perpendicular(new Cell(next.X - at.X, next.Z - at.Z));
-            foreach (var c in new[] { AddCell(at, p), AddCell(at, Scale(p, -1)) })
+            var p = DefenseLayout.Perpendicular(new Cell(next.X - at.X, next.Z - at.Z));
+            foreach (var c in new[] { DefenseLayout.AddCell(at, p), DefenseLayout.AddCell(at, DefenseLayout.Scale(p, -1)) })
             {
                 if (taken.Contains(c) || !Free(c))
                 {
                     continue;
                 }
-                var b = TryBuilding(def, c, R.Definitions.BaitStuff);
+                var b = DefenseIEDs.TryBuilding(def, c, R.Definitions.BaitStuff);
                 if (b is null)
                 {
                     continue;
@@ -498,7 +498,7 @@ internal sealed partial class DefenseSite
         {
             Buildings = EquatableArray.From(buildings),
             Reserved = EquatableArray.From(reserved),
-            Costs = TierCosts(R.UnitCosts, buildings),
+            Costs = DefenseLayout.TierCosts(R.UnitCosts, buildings),
         };
     }
 }

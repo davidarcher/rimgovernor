@@ -6,8 +6,8 @@ public sealed partial class JoinersRounds
     internal (Verdict Verdict, bool Handled) AdmitIdeologyQuestWork(NeedWork work, RoundsReading read, DateTimeOffset started, CancellationToken call)
     {
         var f = read.Projection.Facts;
-        var hack = PolicyFunctions.SelectQuestHack(f, read.Projection.Identity.Map);
-        var gift = PolicyFunctions.SelectQuestGift(f, read.Projection.Identity.Map);
+        var hack = QuestHackPolicy.SelectQuestHack(f, read.Projection.Identity.Map);
+        var gift = QuestCapacity.SelectQuestGift(f, read.Projection.Identity.Map);
         if (hack.Reason != "")
         {
             reviewer.LogQuestSkip(new QuestSkip(hack.Quest, "", hack.Reason, ""), call);

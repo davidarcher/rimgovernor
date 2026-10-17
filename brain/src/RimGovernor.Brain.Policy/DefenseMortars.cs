@@ -18,7 +18,7 @@ public sealed record DefenseMortarRequest
     public int Max { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class DefenseMortarsPolicy
 {
     public static readonly DefenseTierName TierMortars = new("mortars");
 
@@ -31,7 +31,7 @@ public static partial class PolicyFunctions
     /// One mortar while the raid shortfall stands and a turret line exists to place it behind; none otherwise.
     /// </summary>
     public static int MortarBudget(Fact<double> raidPoints, Fact<double> capacity, Fact<EquatableArray<DefenseTurretFacts>> turrets) =>
-        TurretsOwed(raidPoints, capacity, turrets) > 0 && TurretsStanding(turrets) > 0 ? 1 : 0;
+        DefenseBudget.TurretsOwed(raidPoints, capacity, turrets) > 0 && DefenseBudget.TurretsStanding(turrets) > 0 ? 1 : 0;
 
     /// <summary>Reports whether the observed gates (available definition, budget, stock for one mortar) allow at least one mortar before any site is read.</summary>
     public static bool MortarGatesOpen(this DefenseRequest r) => MortarGate(r, 1) > 0;
@@ -44,14 +44,14 @@ public static partial class PolicyFunctions
         var q = r.Mortar;
         if (q.Definition == "" || !q.Available.TryGetValue(out var available) || !available)
         {
-            return (0, GateMortarUnavailable);
+            return (0, DefenseTurretsPolicy.GateMortarUnavailable);
         }
         if (q.Max <= 0)
         {
-            return (0, GateMortarThreat);
+            return (0, DefenseTurretsPolicy.GateMortarThreat);
         }
         var n = q.Max;
-        var gate = GateMortarThreat;
+        var gate = DefenseTurretsPolicy.GateMortarThreat;
         if (n >= sites)
         {
             n = sites;
@@ -62,10 +62,10 @@ public static partial class PolicyFunctions
             var mortars = new List<Building>();
             for (var i = 0; i < n; i++)
             {
-                var b = TryBuilding(q.Definition, default, q.Stuff);
+                var b = DefenseIEDs.TryBuilding(q.Definition, default, q.Stuff);
                 if (b is null)
                 {
-                    return (0, GateMortarUnavailable);
+                    return (0, DefenseTurretsPolicy.GateMortarUnavailable);
                 }
                 mortars.Add(b);
             }
@@ -73,7 +73,7 @@ public static partial class PolicyFunctions
             {
                 break;
             }
-            gate = GateMortarStock;
+            gate = DefenseTurretsPolicy.GateMortarStock;
         }
         return (n, gate);
     }
@@ -81,7 +81,7 @@ public static partial class PolicyFunctions
     /// <summary>Reports whether the stock covers the buildings' summed unit costs; unknown costs or stock never cover anything.</summary>
     internal static bool StockCovers(IReadOnlyDictionary<string, EquatableArray<Amount>> unitCosts, Fact<IReadOnlyDictionary<Resource, long>> stock, IEnumerable<Building> buildings)
     {
-        if (!TierCosts(unitCosts, buildings).TryGetValue(out var costs) || !stock.TryGetValue(out var have))
+        if (!DefenseLayout.TierCosts(unitCosts, buildings).TryGetValue(out var costs) || !stock.TryGetValue(out var have))
         {
             return false;
         }
@@ -109,8 +109,8 @@ public static partial class PolicyFunctions
         {
             return tier;
         }
-        var d = DirectionOf(g.Toward);
-        var p = Perpendicular(d);
+        var d = DefenseTurretsPolicy.DirectionOf(g.Toward);
+        var p = DefenseLayout.Perpendicular(d);
         var taken = new HashSet<Cell>(g.Lanes);
         taken.UnionWith(g.Reserved);
         taken.UnionWith(g.Turrets);
@@ -128,14 +128,14 @@ public static partial class PolicyFunctions
         var sites = new List<Cell>();
         for (var behind = MortarBehindMin; behind <= MortarBehindMax; behind++)
         {
-            var row = AddCell(origin, Scale(d, behind));
+            var row = DefenseLayout.AddCell(origin, DefenseLayout.Scale(d, behind));
             // The centre of the firing span first, then outward.
-            for (var w = 0; w <= DefenseMaxWidth; w++)
+            for (var w = 0; w <= DefenseLayout.DefenseMaxWidth; w++)
             {
                 int[] offsets = w == 0 ? [mid] : [mid + w, mid - w];
                 foreach (var o in offsets)
                 {
-                    var c = AddCell(row, Scale(p, o));
+                    var c = DefenseLayout.AddCell(row, DefenseLayout.Scale(p, o));
                     if (!s.Cells.TryGetValue(c, out var cell) || taken.Contains(c) || !s.Free(c) || !Negative(cell.Roofed))
                     {
                         continue;
@@ -164,7 +164,7 @@ public static partial class PolicyFunctions
         {
             Buildings = EquatableArray.From(buildings),
             Reserved = EquatableArray.From(reserved),
-            Costs = TierCosts(r.UnitCosts, buildings),
+            Costs = DefenseLayout.TierCosts(r.UnitCosts, buildings),
         };
     }
 
@@ -173,7 +173,7 @@ public static partial class PolicyFunctions
     {
         foreach (var o in cells)
         {
-            if (Chebyshev(c, o) < TurretSpacing)
+            if (Chebyshev(c, o) < DefenseTurretsPolicy.TurretSpacing)
             {
                 return true;
             }

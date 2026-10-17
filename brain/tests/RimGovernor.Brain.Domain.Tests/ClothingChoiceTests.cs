@@ -60,12 +60,12 @@ public sealed class ClothingChoiceTests
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "tailor" }, template with { Pawn = "helper" }] },
             Coupled = new() { Tick = 100, Clothing = read }
         } };
-        var generated = GenerateCoupledActivities(facts, 1900)!;
-        var request = CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new());
-        var selected = CompareActivityOutcomes(request, generated);
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         comparison = selected.Selection;
-        return StartCoupledActivity(selected, generated, 1, "clothing", 100);
+        return ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "clothing", 100);
     }
     private static PawnActivityRecipe Recipe(PawnActivities batch) => batch.Tasks.Single(t => t.Step.Recipe != null).Step.Recipe!;
 

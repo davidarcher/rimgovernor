@@ -63,7 +63,7 @@ public sealed record TurretPosition(Cell Cell);
 /// <summary>One tier turret the census found standing, with the cells it occupies.</summary>
 public sealed record StandingTurret(Building Building, EquatableArray<Cell> Cells);
 
-public static partial class PolicyFunctions
+public static class DefenseTurretsPolicy
 {
     // The turret ladder: the rung is the armory tier (AssessArmory), Machining allowing the autocannon and
     // Fabrication the uranium slug turret. Each rung's own research and content still gate it through its
@@ -164,10 +164,10 @@ public static partial class PolicyFunctions
 
     internal static Cell DirectionOf(Rotation r) => r switch
     {
-        Rotation.North => Directions[0],
-        Rotation.East => Directions[1],
-        Rotation.South => Directions[2],
-        _ => Directions[3],
+        Rotation.North => DefenseLayout.Directions[0],
+        Rotation.East => DefenseLayout.Directions[1],
+        Rotation.South => DefenseLayout.Directions[2],
+        _ => DefenseLayout.Directions[3],
     };
 
     /// <summary>The turret tier's view of the layout.</summary>
@@ -185,7 +185,7 @@ public static partial class PolicyFunctions
             foreach (var b in t.Buildings)
             {
                 reserved.Add(b.Cell);
-                if (t.Name == TierFunnel)
+                if (t.Name == DefenseLayout.TierFunnel)
                 {
                     walls.Add(b.Cell);
                 }
@@ -255,7 +255,7 @@ public static partial class PolicyFunctions
             var turrets = new List<Building>();
             for (var i = 0; i < n; i++)
             {
-                var b = TryBuilding(q.Definition, default, q.Stuff);
+                var b = DefenseIEDs.TryBuilding(q.Definition, default, q.Stuff);
                 if (b is null)
                 {
                     return (0, GateTurretUnavailable);
@@ -275,7 +275,7 @@ public static partial class PolicyFunctions
     /// <summary>Reports whether the stock census covers the buildings' summed unit costs; unknown costs or stock never afford anything.</summary>
     internal static bool Affordable(DefenseRequest r, IEnumerable<Building> buildings)
     {
-        if (!TierCosts(r.UnitCosts, buildings).TryGetValue(out var costs) || !r.Turret.Stock.TryGetValue(out var stock))
+        if (!DefenseLayout.TierCosts(r.UnitCosts, buildings).TryGetValue(out var costs) || !r.Turret.Stock.TryGetValue(out var stock))
         {
             return false;
         }
@@ -361,7 +361,7 @@ internal sealed partial class DefenseSite
 {
     internal (DefenseTier Tier, IReadOnlyList<TurretPosition> Candidates) Turrets(DefenseGeometry g)
     {
-        var tier = new DefenseTier { Name = TierTurrets, Costs = Known(EquatableArray.From(new List<Amount>())) };
+        var tier = new DefenseTier { Name = DefenseTurretsPolicy.TierTurrets, Costs = Known(EquatableArray.From(new List<Amount>())) };
         var q = R.Turret;
         if (q.Definition == "")
         {
@@ -375,8 +375,8 @@ internal sealed partial class DefenseSite
         {
             return (tier, []);
         }
-        var d = DirectionOf(g.Toward);
-        var p = Perpendicular(d);
+        var d = DefenseTurretsPolicy.DirectionOf(g.Toward);
+        var p = DefenseLayout.Perpendicular(d);
         var taken = new HashSet<Cell>(g.Lanes);
         taken.UnionWith(g.Reserved);
         // Firing cells share the shooters' row; their offsets along p from the first one bound the span the turrets flank.
@@ -394,7 +394,7 @@ internal sealed partial class DefenseSite
         // spacing edge to edge from the shooters and every other turret.
         bool Clear(Cell c)
         {
-            var fp = TurretFootprint(c, q.Size);
+            var fp = DefenseTurretsPolicy.TurretFootprint(c, q.Size);
             foreach (var x in fp)
             {
                 if (!Free(x) || taken.Contains(x))
@@ -402,13 +402,13 @@ internal sealed partial class DefenseSite
                     return false;
                 }
             }
-            if (FootprintGap(fp, g.Firing) < TurretSpacing)
+            if (DefenseTurretsPolicy.FootprintGap(fp, g.Firing) < DefenseTurretsPolicy.TurretSpacing)
             {
                 return false;
             }
             foreach (var t in chosen)
             {
-                if (FootprintGap(fp, t.ToList()) < TurretSpacing)
+                if (DefenseTurretsPolicy.FootprintGap(fp, t.ToList()) < DefenseTurretsPolicy.TurretSpacing)
                 {
                     return false;
                 }
@@ -419,8 +419,8 @@ internal sealed partial class DefenseSite
         // Slots flank the firing span, kept TurretSpacing apart by Clear, on the shooters' row and the row
         // behind it: a mini turret takes the front row first, a heavier rung (the autocannon's minimum range)
         // the back row. A row's slots end at the kill zone's side wall.
-        var rows = new[] { origin, AddCell(origin, d) };
-        if (TurretRank(q.Definition) > 0)
+        var rows = new[] { origin, DefenseLayout.AddCell(origin, d) };
+        if (DefenseTurretsPolicy.TurretRank(q.Definition) > 0)
         {
             (rows[0], rows[1]) = (rows[1], rows[0]);
         }
@@ -429,9 +429,9 @@ internal sealed partial class DefenseSite
         {
             foreach (var (edge, dir) in new[] { (high, 1), (low, -1) })
             {
-                for (var step = 1; step <= DefenseMaxWidth; step++)
+                for (var step = 1; step <= DefenseLayout.DefenseMaxWidth; step++)
                 {
-                    var c = AddCell(row, Scale(p, edge + (dir * step)));
+                    var c = DefenseLayout.AddCell(row, DefenseLayout.Scale(p, edge + (dir * step)));
                     if (taken.Contains(c) || Blocking(c))
                     {
                         break;
@@ -461,10 +461,10 @@ internal sealed partial class DefenseSite
                 continue;
             }
             candidates.Add(new TurretPosition(c));
-            chosen.Add(TurretFootprint(c, q.Size));
+            chosen.Add(DefenseTurretsPolicy.TurretFootprint(c, q.Size));
         }
         var verified = candidates.Select(c => c.Cell).ToList();
-        var (n, gate) = TurretLimit(R, verified.Count);
+        var (n, gate) = DefenseTurretsPolicy.TurretLimit(R, verified.Count);
         if (n == 0)
         {
             tier = tier with { Gated = verified.Count == 0 ? "" : gate };
@@ -493,7 +493,7 @@ internal sealed partial class DefenseSite
         // No conduit runs under a turret's footprint.
         foreach (var t in verified.Take(n))
         {
-            foreach (var c in TurretFootprint(t, q.Size))
+            foreach (var c in DefenseTurretsPolicy.TurretFootprint(t, q.Size))
             {
                 allowed.Remove(c);
             }
@@ -507,7 +507,7 @@ internal sealed partial class DefenseSite
             {
                 // No route to the network: the turret would stand dark, so the tier stops at the turrets it can power.
                 buildings.RemoveAt(buildings.Count - 1);
-                gate = GateTurretRoute;
+                gate = DefenseTurretsPolicy.GateTurretRoute;
                 break;
             }
             foreach (var c in chain)
@@ -517,10 +517,10 @@ internal sealed partial class DefenseSite
             }
         }
         // Conduit cost is in the budget only once the chains are known, so the tier is re-checked against stock with them included.
-        while (buildings.Count > 0 && !Affordable(R, buildings))
+        while (buildings.Count > 0 && !DefenseTurretsPolicy.Affordable(R, buildings))
         {
-            buildings = TrimLastTurret(buildings, q.Definition);
-            gate = GateTurretStock;
+            buildings = DefenseTurretsPolicy.TrimLastTurret(buildings, q.Definition);
+            gate = DefenseTurretsPolicy.GateTurretStock;
         }
         // Each turret reserves its whole footprint.
         var reserved = new List<Cell>();
@@ -528,7 +528,7 @@ internal sealed partial class DefenseSite
         {
             if (b.Definition == q.Definition)
             {
-                reserved.AddRange(TurretFootprint(b.Cell, q.Size));
+                reserved.AddRange(DefenseTurretsPolicy.TurretFootprint(b.Cell, q.Size));
             }
         }
         tier = tier with
@@ -536,7 +536,7 @@ internal sealed partial class DefenseSite
             Gated = gate,
             Reserved = EquatableArray.From(reserved),
             Buildings = EquatableArray.From(buildings),
-            Costs = TierCosts(R.UnitCosts, buildings),
+            Costs = DefenseLayout.TierCosts(R.UnitCosts, buildings),
         };
         return (tier, candidates);
     }
@@ -549,7 +549,7 @@ internal sealed partial class DefenseSite
     {
         foreach (var c in transmitters)
         {
-            if (Chebyshev(c, turret) <= ConduitReach)
+            if (Chebyshev(c, turret) <= DefenseTurretsPolicy.ConduitReach)
             {
                 return [];
             }
@@ -570,7 +570,7 @@ internal sealed partial class DefenseSite
         var start = 1;
         for (var i = path.Count - 2; i >= 1; i--)
         {
-            if (Chebyshev(path[i], turret) <= ConduitReach)
+            if (Chebyshev(path[i], turret) <= DefenseTurretsPolicy.ConduitReach)
             {
                 start = i;
                 break;

@@ -7,7 +7,7 @@ public sealed record ForecastProductiveLearning(string Skill, SkillXpEvent Callb
     SkillProjection After, double ObservedWorkTicks, double WorkTicks, string Provenance);
 public sealed record ForecastProductiveDuration(Fact<double> WorkTicks, ForecastProductiveLearning? Evidence, string Reason);
 
-public static partial class PolicyFunctions
+public static class ForecastProductiveWorkPolicy
 {
     /// <summary>Resolve duration before scheduling occupancy, ingredients or downstream output. Completion-only
     /// recipes can change skill only at completion; native decay can change rate during their work.</summary>
@@ -27,7 +27,7 @@ public static partial class PolicyFunctions
             .Select(a => a.Learning!.Callback).OrderBy(e => e.Tick).ThenBy(e => e.Id, StringComparer.Ordinal).ToList();
         var tick = (int)Math.Ceiling(start);
         if (events.Any(e => e.Tick > tick)) return Unknown("learning_callback_after_work_start");
-        var before = ForecastSkill(mechanics, events, tick);
+        var before = ForecastSkillPolicy.ForecastSkill(mechanics, events, tick);
         var projection = before;
         var worked = 0;
         // One segment per native decay interval, bounded by the existing one-day validity window.
@@ -44,11 +44,11 @@ public static partial class PolicyFunctions
             var segment = (int)Math.Min(needed, Math.Max(0, bound - tick));
             if (segment <= 0) return Unknown("productive_learning_window_expired");
             remaining -= segment * speed; worked += segment; tick += segment;
-            projection = ForecastSkill(mechanics, events, tick);
+            projection = ForecastSkillPolicy.ForecastSkill(mechanics, events, tick);
         }
-        var callback = RecipeCompletionLearning(work.Recipe, option.Activity, tick, worked, true);
+        var callback = ForecastSkillPolicy.RecipeCompletionLearning(work.Recipe, option.Activity, tick, worked, true);
         events.Add(callback);
-        var after = ForecastSkill(mechanics, events, tick);
+        var after = ForecastSkillPolicy.ForecastSkill(mechanics, events, tick);
         if (!after.StoredLevel.IsKnown) return Unknown(string.Join(",", after.Findings));
         var duration = tick - start;
         return new(Known(duration), new(work.Recipe.Skill, callback, before, after,

@@ -96,12 +96,12 @@ public sealed class PlannedShelterTests
             },
         };
         facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        return facts with { CoupledAlternatives = GenerateCoupledActivities(facts, Horizon) };
+        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
     }
 
-    private static ForecastCoupledSelection Select(RoundsFacts facts) => CompareActivityOutcomes(
-        CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
-            new() { Work = ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
+    private static ForecastCoupledSelection Select(RoundsFacts facts) => ForecastCoupledSelection.CompareActivityOutcomes(
+        ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
 
     private static string Why(RoundsFacts facts, ForecastCoupledSelection result) =>
         string.Join(";", facts.CoupledAlternatives!.Findings.Concat(result.Selection.Findings.Select(f => f.ToString()))
@@ -206,7 +206,7 @@ public sealed class PlannedShelterTests
     public void WithoutThePlannedThermalReadAnUnplacedRoomStaysExplicitlyUnknown()
     {
         var facts = Review([Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30), Roof(), Heater(50)], unplaced: true) with { PlannedThermal = null };
-        var plan = Assert.Single(GenerateCoupledActivities(facts, Horizon)!.Context.Shelters);
+        var plan = Assert.Single(ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Context.Shelters);
         Assert.Contains("missing_shelter_geometry", plan.Findings);
         Assert.Contains("unknown_heat_source", plan.Findings);
     }

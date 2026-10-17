@@ -15,7 +15,7 @@ public sealed class ForecastIncumbentPreparationTests
     public void OrdinaryGenerationStillRunsWithoutAnyEligibleIncumbent()
     {
         var facts = ForecastCoupledSelectionTests.Review() with { CoupledAlternatives = null };
-        var (prepared, incumbents) = PrepareCoupledIncumbents(facts, NoBatches, new([]));
+        var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, new([]));
         Assert.Empty(incumbents);
         Assert.NotEmpty(Assert.IsType<ForecastCoupledCandidates>(prepared.CoupledAlternatives).Alternatives);
         Assert.Same(facts.WorkView, prepared.WorkView);
@@ -55,7 +55,7 @@ public sealed class ForecastIncumbentPreparationTests
     public void ExactInstalledServiceIsAConditionalAlternativeWithoutReleasingAdmissionClaims()
     {
         var (facts, actions) = Current();
-        var (prepared, incumbents) = PrepareCoupledIncumbents(facts, NoBatches, actions);
+        var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
         var incumbent = Assert.Single(incumbents);
         Assert.Same(facts.WorkView, prepared.WorkView);
         Assert.Contains("pawn", prepared.WorkView!.Claims.Pawns);
@@ -79,7 +79,7 @@ public sealed class ForecastIncumbentPreparationTests
         facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
         { Routes = [new("pawn", new(1, 1), new(5, 5), Known(17d)) { FromStart = true },
             new("pawn", new(8, 8), new(5, 5), Known(31d))] } } };
-        var (prepared, _) = PrepareCoupledIncumbents(facts, NoBatches, actions);
+        var (prepared, _) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
         var routes = prepared.CoupledAlternatives!.Context.Activities.Routes;
         Assert.Equal(Known(17d), Assert.Single(routes, r => r.Pawn == "pawn" && r.From == "cell/1/1" && r.To == "cell/5/5").Ticks);
         Assert.Equal(Known(31d), Assert.Single(routes, r => r.Pawn == "pawn" && r.From == "cell/8/8" && r.To == "cell/5/5").Ticks);
@@ -116,7 +116,7 @@ public sealed class ForecastIncumbentPreparationTests
                 : batch with { Orders = [batch.Orders[0] with { OutputDelivery = new("Rice", new(1, 1), new(2, 2), 1, 1000, 1) }] };
             actions = new([row with { Action = DomainAction.NewPawnActivitiesAction(row.Action.Id, batch) }]);
         }
-        var (prepared, incumbents) = PrepareCoupledIncumbents(facts, NoBatches, actions);
+        var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
         Assert.Empty(incumbents);
         Assert.Same(facts.WorkView, prepared.WorkView);
         Assert.Contains("pawn", prepared.WorkView!.Claims.Pawns);
@@ -155,7 +155,7 @@ public sealed class ForecastIncumbentPreparationTests
     public void FutureHoldCompetesWithFoodUsingOccupiedWaitAndFreshServiceMechanics()
     {
         var (facts, actions) = FutureRest();
-        var (prepared, incumbents) = PrepareCoupledIncumbents(facts, NoBatches, actions);
+        var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
         var incumbent = Assert.Single(incumbents);
         var candidates = prepared.CoupledAlternatives!;
         Assert.Equal(2, incumbent.Activities.Count);
@@ -164,13 +164,13 @@ public sealed class ForecastIncumbentPreparationTests
         Assert.Equal(150d, Assert.Single(candidates.Context.Activities.Options, o => o.Activity == waiting).WorkTicks.Value);
         Assert.Equal(40d, Assert.Single(candidates.Context.Activities.Options, o => o.Activity == incumbent.Commitment).WorkTicks.Value);
         Assert.Equal(160d, Assert.Single(candidates.Context.Activities.Activities, a => a.Id == incumbent.Commitment).LatestStart);
-        var request = CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
-            prepared,  new() { Work = ForecastWorkInputsOf(prepared) }, [], new());
-        var selected = CompareActivityOutcomes(request, candidates);
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
+            prepared,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(prepared) }, [], new());
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
         Assert.Equal(Known(true), selected.Baseline.Feasible);
         Assert.DoesNotContain(incumbent.Commitment, selected.Selection.Selected);
         Assert.Contains(selected.Selected.Plan.Allocations, a => a.Activity.Contains("/eat/", StringComparison.Ordinal));
-        var execution = ReviewCoupledExecution(selected, incumbents, facts.Tick.Value);
+        var execution = ForecastCoupledExecution.ReviewCoupledExecution(selected, incumbents, facts.Tick.Value);
         Assert.Single(execution.Releases);
         Assert.Null(execution.Dispatch); // Replacement cannot create a second native owner before release.
         Assert.Same(facts.WorkView, prepared.WorkView);
@@ -181,7 +181,7 @@ public sealed class ForecastIncumbentPreparationTests
     public void UnknownFutureRouteKeepsTheExistingOwnerProtected()
     {
         var (facts, actions) = FutureRest(knownRoute: false);
-        var (prepared, incumbents) = PrepareCoupledIncumbents(facts, NoBatches, actions);
+        var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
         Assert.Empty(incumbents);
         Assert.Same(facts.WorkView, prepared.WorkView);
         Assert.Contains("pawn", prepared.WorkView!.Claims.Pawns);
@@ -191,13 +191,13 @@ public sealed class ForecastIncumbentPreparationTests
     public void ReleasedHelperWithNewIndependentOwnerDoesNotBlockFutureHoldComparison()
     {
         var (facts, actions) = FutureRest(tombstone: true);
-        var (_, incumbents) = PrepareCoupledIncumbents(facts, NoBatches, actions);
+        var (_, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
         var released = Assert.Single(Assert.Single(incumbents).ReleasedOwnership);
         Assert.Equal("new-independent-idle", released.Assignment);
         var native = facts.WorkView!.Evidence.WorkResources.Value;
         facts = facts with { WorkView = facts.WorkView! with { Evidence = facts.WorkView!.Evidence with
             { WorkResources = Known<EquatableArray<WorkResourcePawn>>([native[0], native[1] with { Assignment = "old-helper" }]) } } };
-        Assert.Empty(PrepareCoupledIncumbents(facts, NoBatches, actions).Incumbents);
+        Assert.Empty(ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions).Incumbents);
     }
 
     [Fact]
@@ -225,7 +225,7 @@ public sealed class ForecastIncumbentPreparationTests
             Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(needs) },
             Coupled = facts.ForecastObserved.Coupled! with { Food = facts.ForecastObserved.Coupled!.Food with { Options = [] }, FoodUses = [] }
         } };
-        var (prepared, incumbents) = PrepareCoupledIncumbents(facts, NoBatches, new(EquatableArray.From(rows)));
+        var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, new(EquatableArray.From(rows)));
         Assert.Equal(4, incumbents.Count);
         Assert.True(prepared.CoupledAlternatives!.Truncated);
         Assert.Contains("incumbent_preparation_truncated:protected_remaining_owners", prepared.CoupledAlternatives.Findings);

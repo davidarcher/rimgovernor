@@ -144,7 +144,7 @@ public sealed record QuestProfile
     public bool ProtectGuests { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class QuestFamiliesPolicy
 {
     private static readonly Dictionary<string, QuestProfile> QuestFamilies = BuildQuestFamilies();
 

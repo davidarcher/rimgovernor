@@ -142,7 +142,7 @@ public static partial class PolicyFunctions
     public const int PerimeterGatePitch = 20;
     public const int PerimeterCoverBand = 30;
     public const int KillboxHalf = 7;
-    public const int KillboxDepth = KillboxRows;
+    public const int KillboxDepth = DefenseLayout.KillboxRows;
     public const int ApproachLeg = 8;
 
     /// <summary>Caps a shoreline detour's wall at this many times the straight stretch it replaces.</summary>
@@ -252,7 +252,7 @@ public static partial class PolicyFunctions
                 var c = queue.Dequeue();
                 foreach (var d in Neighbours8Cells)
                 {
-                    var n = AddCell(c, d);
+                    var n = DefenseLayout.AddCell(c, d);
                     if (Contains(box, n) && Soft(n) && flooded.Add(n))
                     {
                         stretch.Add(n);
@@ -486,7 +486,7 @@ public static partial class PolicyFunctions
                     {
                         continue;
                     }
-                    if (!hitOK || de < hitDe || (de == hitDe && DefenseCellLess(c, hit)))
+                    if (!hitOK || de < hitDe || (de == hitDe && DefenseArrivalRoutes.DefenseCellLess(c, hit)))
                     {
                         (hit, hitDe, hitOK) = (c, de, true);
                     }
@@ -718,7 +718,7 @@ public static partial class PolicyFunctions
             foreach (var c in candidates)
             {
                 var n = Drying(c);
-                if (n > most || (n == most && n > 0 && DefenseCellLess(c, best)))
+                if (n > most || (n == most && n > 0 && DefenseArrivalRoutes.DefenseCellLess(c, best)))
                 {
                     (best, most) = (c, n);
                 }

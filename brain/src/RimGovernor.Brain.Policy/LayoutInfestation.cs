@@ -132,7 +132,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static IReadOnlyList<Cell> BaseRoomLamps(LayoutPlan plan, double reach)
     {
-        if (!FinitePositive(reach))
+        if (!QuestCapacityForecast.FinitePositive(reach))
         {
             return [];
         }

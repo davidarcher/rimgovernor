@@ -345,7 +345,7 @@ public static partial class PolicyFunctions
 
     /// <summary>What a sapper pays to take one wall cell down and step into it: Cost_BlockedWallBase plus 0.2 per hit point, plus the step.</summary>
     public static double SapperStepTicks(double hp) =>
-        PathBlockedWallBase + (PathBlockedWallPerHp * hp) + PathMoveCardinal;
+        DefenseCorridorRoutes.PathBlockedWallBase + (DefenseCorridorRoutes.PathBlockedWallPerHp * hp) + DefenseCorridorRoutes.PathMoveCardinal;
 
     /// <summary>
     /// The thickness of a stretch whose detour to the opening is detourTicks: the least N for which
@@ -527,7 +527,7 @@ public static partial class PolicyFunctions
             }
             else
             {
-                d.Detour = best * PathMoveCardinal;
+                d.Detour = best * DefenseCorridorRoutes.PathMoveCardinal;
                 d.N = SapperThickness(hp, d.Detour);
                 d.Reason = PolicyConstants.ReasonThicknessDetour;
                 if (d.Detour > PerimeterTableValue.DetourBudgetTicks)
@@ -562,7 +562,7 @@ public static partial class PolicyFunctions
                 detourTicks = Math.Max(detourTicks, design[u].Detour);
                 foreach (var d in Neighbours8)
                 {
-                    var c = AddCell(g.CellAt(u), d);
+                    var c = DefenseLayout.AddCell(g.CellAt(u), d);
                     var (j, ok) = g.Idx(c);
                     if (ok && inCut[j] && !done.Contains(j) && design[j].N == thickness && design[j].Reason == reason)
                     {
@@ -722,13 +722,13 @@ public static partial class PolicyFunctions
         var (k, kok) = KillboxOpening(plan);
         if (kok)
         {
-            var d = DirectionOf(k.Toward);
-            var p = Perpendicular(d);
+            var d = DefenseTurretsPolicy.DirectionOf(k.Toward);
+            var p = DefenseLayout.Perpendicular(d);
             for (var t = 0; t < PerimeterThick; t++)
             {
                 for (var a = -1; a <= 1; a++)
                 {
-                    var (i, ok) = g.Idx(AddCell(AddCell(k.Entry, Scale(d, t)), Scale(p, a)));
+                    var (i, ok) = g.Idx(DefenseLayout.AddCell(DefenseLayout.AddCell(k.Entry, DefenseLayout.Scale(d, t)), DefenseLayout.Scale(p, a)));
                     if (ok)
                     {
                         g.Barrier[i] = true;

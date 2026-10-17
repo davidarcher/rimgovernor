@@ -28,7 +28,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 layout.AddRange(buildings);
             }
         }
-        var sites = PolicyApi.DefenseRetiers(census.Sites, layout);
+        var sites = DefenseTier.DefenseRetiers(census.Sites, layout);
         if (sites.Count == 0)
         {
             return (new RoundsDefenseLayoutResult(), false);
@@ -71,5 +71,5 @@ public sealed partial class RoundsDefenseLayoutPlanner
 internal static partial class BuildingRuntimePackage
 {
     internal static bool DefensePromoted(ColonyProjection projection) =>
-        PolicyApi.DefensePromoted(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity);
+        DefenseTier.DefensePromoted(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity);
 }

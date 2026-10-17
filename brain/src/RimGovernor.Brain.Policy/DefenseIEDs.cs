@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record DefenseIED(string Definition, double Radius, bool Incendiary);
 
-public static partial class PolicyFunctions
+public static class DefenseIEDs
 {
     /// <summary>The IED traps on the approach ahead of the killbox corridor: the trap lane extended outward from Entry toward the map edge.</summary>
     public static readonly DefenseTierName TierIEDs = new("ieds");
@@ -19,7 +19,7 @@ public static partial class PolicyFunctions
 
     /// <summary>The approach IEDs the layout plans: one for each turret it plans, so the approach is covered as far as the firing line is.</summary>
     public static int IEDBudget(Fact<double> raidPoints, Fact<double> capacity, Fact<EquatableArray<DefenseTurretFacts>> turrets) =>
-        TurretBudget(raidPoints, capacity, turrets);
+        DefenseBudget.TurretBudget(raidPoints, capacity, turrets);
 
     /// <summary>
     /// Reports every keepOff cell strictly farther than radius from <paramref name="at"/>: the game's explosion
@@ -66,7 +66,7 @@ internal sealed partial class DefenseSite
     /// </summary>
     internal DefenseTier IedTier(DefenseLayout l, CorridorCosts costs)
     {
-        var tier = new DefenseTier { Name = TierIEDs };
+        var tier = new DefenseTier { Name = DefenseIEDs.TierIEDs };
         if (R.IEDs.Count == 0 || !R.FlammableStorage.TryGetValue(out var storage))
         {
             return tier;
@@ -115,12 +115,12 @@ internal sealed partial class DefenseSite
             taken.Add(f.Cover);
             taken.Add(f.Retreat);
         }
-        var back = Scale(DirectionOf(l.Toward), -1);
+        var back = DefenseLayout.Scale(DefenseTurretsPolicy.DirectionOf(l.Toward), -1);
         var placed = new List<Building>();
         var reserved = new List<Cell>();
-        for (var k = DefenseIEDSpacing; k <= DefenseIEDReach; k += DefenseIEDSpacing)
+        for (var k = DefenseIEDs.DefenseIEDSpacing; k <= DefenseIEDs.DefenseIEDReach; k += DefenseIEDs.DefenseIEDSpacing)
         {
-            var c = AddCell(l.Entry, Scale(back, k));
+            var c = DefenseLayout.AddCell(l.Entry, DefenseLayout.Scale(back, k));
             if (!InRegion(c) || taken.Contains(c) || !Free(c) || !Passable(c))
             {
                 continue;
@@ -128,11 +128,11 @@ internal sealed partial class DefenseSite
             foreach (var ied in R.IEDs)
             {
                 var clear = ied.Incendiary ? buildings : keepOff;
-                if (!OutsideBlast(c, ied.Radius, clear))
+                if (!DefenseIEDs.OutsideBlast(c, ied.Radius, clear))
                 {
                     continue;
                 }
-                var b = TryBuilding(ied.Definition, c, "");
+                var b = DefenseIEDs.TryBuilding(ied.Definition, c, "");
                 if (b is null)
                 {
                     continue;
@@ -148,20 +148,20 @@ internal sealed partial class DefenseSite
             var keep = Math.Max(R.IEDMax, 0);
             placed = placed.Take(keep).ToList();
             reserved = reserved.Take(keep).ToList();
-            gated = GateIEDThreat;
+            gated = DefenseTurretsPolicy.GateIEDThreat;
         }
-        while (placed.Count > 0 && !StockCovers(R.UnitCosts, R.IEDStock, placed))
+        while (placed.Count > 0 && !DefenseMortarsPolicy.StockCovers(R.UnitCosts, R.IEDStock, placed))
         {
             placed.RemoveAt(placed.Count - 1);
             reserved.RemoveAt(reserved.Count - 1);
-            gated = GateIEDStock;
+            gated = DefenseTurretsPolicy.GateIEDStock;
         }
         return tier with
         {
             Buildings = EquatableArray.From(placed),
             Reserved = EquatableArray.From(reserved),
             Gated = gated,
-            Costs = TierCosts(R.UnitCosts, placed),
+            Costs = DefenseLayout.TierCosts(R.UnitCosts, placed),
         };
     }
 }

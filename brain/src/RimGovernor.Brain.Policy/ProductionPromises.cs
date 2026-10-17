@@ -106,7 +106,7 @@ public static partial class PolicyFunctions
         Fact<EquatableArray<ForecastCommitment>> promises, Fact<EquatableArray<IngredientReservation>> reservations)
     {
         if (!promises.TryGetValue(out var rows)) return default;
-        var budget = ForecastMaterialBudgetOf(Known(default(EquatableArray<Amount>)), reservations, rows, 0);
+        var budget = ForecastClaims.ForecastMaterialBudgetOf(Known(default(EquatableArray<Amount>)), reservations, rows, 0);
         return budget.TryGetValue(out var free)
             ? Known<IReadOnlyDictionary<Resource, Fact<double>>>(free.ToDictionary(p => p.Key,
                 p => p.Value.TryGetValue(out var n) ? Known(-n) : default)) : default;

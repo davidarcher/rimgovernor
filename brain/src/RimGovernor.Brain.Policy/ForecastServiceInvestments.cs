@@ -7,10 +7,10 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ForecastServiceInvestment(ServiceTarget Target, EquatableArray<string> Beneficiaries,
     EquatableArray<string> Tasks, double HorizonTicks, string Metric, Fact<double> AvoidedExposure, string Retirement);
 
-public static partial class PolicyFunctions
+public static class ForecastServiceInvestments
 {
     public static Fact<bool> ReviewServiceActivityNeed(PawnActivities batch, Fact<bool> needed, ActivityTaskRead read)
-        => PracticeMandateEnded(batch, read) || read.Known && read.Context is not null && (ServiceConstructionBoundary(batch, read) || ProductiveFoodDemandEnded(batch, read)) ? Known(false) : needed;
+        => ForecastMaintenancePolicy.PracticeMandateEnded(batch, read) || read.Known && read.Context is not null && (ServiceConstructionBoundary(batch, read) || ProductiveFoodDemandEnded(batch, read)) ? Known(false) : needed;
 
     /// <summary>Reconsider only at a physical work boundary. Fresh needs can retire the supported
     /// ingestion-only investment; missing observations cannot establish demand satisfaction.</summary>
@@ -28,7 +28,7 @@ public static partial class PolicyFunctions
             var observed = needs.Pawns.SingleOrDefault(p => p.Pawn == eater.Key);
             var horizon = eater.Max(t => t.Step.Deadline) - needs.Tick;
             if (observed is null || horizon <= 0 || horizon > GameTime.TicksPerDay) return false;
-            var trajectory = ForecastNeedsTimeline(observed, new ForecastCapacityInput
+            var trajectory = ForecastNeeds.ForecastNeedsTimeline(observed, new ForecastCapacityInput
             {
                 Pawn = new() { Id = new(eater.Key), Available = Known(true), Applies = Known(true) },
                 Location = "current", LocalHour = observed.LocalHour, HorizonTicks = horizon, ProtectTimetable = false,
@@ -41,7 +41,7 @@ public static partial class PolicyFunctions
         return true;
     }
 
-    private static EquatableArray<ForecastServiceInvestment> ServiceInvestmentsOf(ForecastCoupledOutcome baseline,
+    internal static EquatableArray<ForecastServiceInvestment> ServiceInvestmentsOf(ForecastCoupledOutcome baseline,
         ForecastCoupledOutcome selected, ForecastCoupledContext context, double horizon)
     {
         var result = new List<ForecastServiceInvestment>();

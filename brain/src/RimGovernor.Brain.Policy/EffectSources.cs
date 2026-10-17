@@ -20,7 +20,7 @@ public static partial class PolicyFunctions
     {
         var all = (cards ?? MechanicCards.ByDef).Values.ToArray();
         var prevention = all.Where(c => c.Live && c.Sites.All(s => s.Stage is null) && EffectSourceCandidates.Prevention(c, new HashSet<string>())).ToArray();
-        var warmth = all.Any(TemperatureCard);
+        var warmth = all.Any(ForecastMood.TemperatureCard);
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var outfits = new Dictionary<string, IReadOnlyList<EffectSourceOutfit>>(StringComparer.Ordinal);
         foreach (var pawn in facts.Pawns)
@@ -62,7 +62,7 @@ public static partial class PolicyFunctions
             outfits[pawn.Pawn] = options;
         }
         var result = EffectSourceCandidates.Generate(facts, all, outfits,
-            all.Any(c => TemperatureCardReads(c, "StatDefOf.ComfyTemperatureMin")), all.Any(c => TemperatureCardReads(c, "StatDefOf.ComfyTemperatureMax")));
+            all.Any(c => ForecastMood.TemperatureCardReads(c, "StatDefOf.ComfyTemperatureMin")), all.Any(c => ForecastMood.TemperatureCardReads(c, "StatDefOf.ComfyTemperatureMax")));
         return findings.Count == 0 ? result : result with { Findings = EquatableArray.From(result.Findings.Concat(findings).Distinct().Order(StringComparer.Ordinal)) };
     }
 

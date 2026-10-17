@@ -10,7 +10,7 @@ public sealed partial class Rounder
     {
         var taken = new HashSet<string>(StringComparer.Ordinal);
         if (review.Needs.CoupledSelection is not { } selection || facts.CoupledAlternatives is not { } candidates) return taken;
-        var execution = PolicyFunctions.ReviewCoupledExecution(selection, incumbents, facts.Tick.Value);
+        var execution = ForecastCoupledExecution.ReviewCoupledExecution(selection, incumbents, facts.Tick.Value);
         if (execution.Releases.Count > 0)
         {
             Player.Current(call, epoch);
@@ -35,7 +35,7 @@ public sealed partial class Rounder
         if (!Needs.Contains(AdminFamily.WorkAssignments)) return taken;
         var id = PlanIds.MintPlanId();
         var method = new MethodId($"coupled-{id}");
-        var activity = PolicyFunctions.StartCoupledActivity(selection, candidates, snapshot.Native.Value, method.Value, facts.Tick.Value);
+        var activity = ForecastCoupledSelection.StartCoupledActivity(selection, candidates, snapshot.Native.Value, method.Value, facts.Tick.Value);
         if (activity is null)
         {
             // Selected planned sites start no order: the room reconcile places them from the review's RoomSelection (#3278).

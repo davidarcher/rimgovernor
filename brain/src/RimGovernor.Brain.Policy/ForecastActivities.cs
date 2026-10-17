@@ -73,7 +73,7 @@ public sealed record ForecastActivityPlan(ForecastActivityAllocation[] Allocatio
 public sealed record ForecastActivityComparison(ForecastActivityPlan? Selected, ForecastActivityPlan[] Alternatives,
     string Decision, string[] Findings, int Expansions, bool SearchTruncated);
 
-public static partial class PolicyFunctions
+public static class ForecastActivities
 {
     /// <summary>Bounded joint assignment/list scheduling over a dependency DAG. No activity-name policy.</summary>
     public static ForecastActivityComparison CompareActivityPlans(ForecastActivityProblem problem)
@@ -166,7 +166,7 @@ public static partial class PolicyFunctions
                                 if (!SpendExpansion()) return;
                                 var arrive = depart + travel;
                                 var start = Math.Max(arrive, serviceReady);
-                                var learning = ForecastProductiveWork(option, assigned, start);
+                                var learning = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, assigned, start);
                                 if (!learning.WorkTicks.TryGetValue(out var duration))
                                 { findings.Add("productive_work_unassessed:" + task.Id + ":" + learning.Reason); continue; }
                                 work = duration;
@@ -200,7 +200,7 @@ public static partial class PolicyFunctions
             findings.ToArray(), expansions, truncated);
     }
 
-    private static void ValidateActivityProblem(ForecastActivityProblem p, bool allowEmpty = false)
+    internal static void ValidateActivityProblem(ForecastActivityProblem p, bool allowEmpty = false)
     {
         static bool Id(string id) => !string.IsNullOrWhiteSpace(id) && !id.Contains(':') && !id.Contains(';');
         static void Number(Fact<double> fact)

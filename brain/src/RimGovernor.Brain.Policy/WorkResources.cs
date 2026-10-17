@@ -60,7 +60,7 @@ public static partial class PolicyFunctions
             Applies = observed?.Applies ?? default,
             Schedule = observed?.Schedule ?? default
         };
-        return ForecastPawnCapacityOf(new()
+        return ForecastCapacity.ForecastPawnCapacityOf(new()
         {
             Pawn = work,
             ProtectTimetable = protectTimetable,
@@ -87,7 +87,7 @@ public static partial class PolicyFunctions
             ProductionPromises = !actions.Truncated && production.TryGetValue(out var rows) ? Known(MergeWorkMaterialPromises(rows.Concat(claims.Materials))) : default,
             WorkClaims = claims,
             WorkView = view,
-            NeedsAlternatives = ReviewNeedsAlternatives(facts.ForecastObserved.Needs, view),
+            NeedsAlternatives = ForecastNeeds.ReviewNeedsAlternatives(facts.ForecastObserved.Needs, view),
         };
         return reviewed;
     }

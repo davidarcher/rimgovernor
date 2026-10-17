@@ -81,7 +81,7 @@ public sealed record SeekerTable(double IntervalTicks, double BeautyImpact, Seek
 public readonly record struct NeedCurve(double Base, double RisePerHour, double FallPerHour, bool FreezeAsleep)
 {
     /// <summary>Reports a curve with both rates and a base level in 0 to 1.</summary>
-    public bool Valid() => FinitePositive(RisePerHour) && FinitePositive(FallPerHour) && Base >= 0 && Base <= 1;
+    public bool Valid() => QuestCapacityForecast.FinitePositive(RisePerHour) && QuestCapacityForecast.FinitePositive(FallPerHour) && Base >= 0 && Base <= 1;
 }
 
 /// <summary>Hours of a pawn's day spent seeking Target (the instant level), asleep or awake.</summary>

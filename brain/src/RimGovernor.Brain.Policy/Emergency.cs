@@ -369,7 +369,7 @@ public static partial class PolicyFunctions
         return new EmergencyDecision(holds.Count == 0, sorted);
     }
 
-    private static bool AllKnown(params Fact<bool>[] facts) => facts.All(f => f.IsKnown);
+    internal static bool AllKnown(params Fact<bool>[] facts) => facts.All(f => f.IsKnown);
 
     /// <summary>
     /// Go <c>urgentPatient</c>, the CriticalMedical test: a bleeding colonist, or one downed with a tend

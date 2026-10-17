@@ -54,7 +54,7 @@ public static partial class PolicyFunctions
                 Profile = Known(new QuestProfile { Family = QuestFamily.BanditCamp }),
                 Objectives = [new QuestObjective { Kind = O.QuestObjectiveKind.LoadPawns, Count = Known(1L) }],
             };
-            var (crew, reason) = DepartureSquadWithCrew(offer, candidate, false, true);
+            var (crew, reason) = QuestDeparture.DepartureSquadWithCrew(offer, candidate, false, true);
             if (reason.Value.Length == 0)
             {
                 return (crew, reason);
@@ -70,7 +70,7 @@ public static partial class PolicyFunctions
         {
             return ([], "food_unknown");
         }
-        return ExpeditionFood(supply, crew, Math.Max(1, roundTripDays), p.FoodMinDays, capacity);
+        return QuestExpedition.ExpeditionFood(supply, crew, Math.Max(1, roundTripDays), p.FoodMinDays, capacity);
     }
 
     public static (double Capacity, bool Ok) TradeMissionCarryCapacity(RoundsFacts f, IReadOnlyList<PawnId> crew)

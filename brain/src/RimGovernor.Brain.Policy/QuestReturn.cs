@@ -10,7 +10,7 @@ public sealed record SiteReturnPlan
     public QuestSkipReason Reason { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class QuestReturn
 {
     /// <summary>
     /// A stopped caravan with a crew from a journaled expedition can return using the native home route. A

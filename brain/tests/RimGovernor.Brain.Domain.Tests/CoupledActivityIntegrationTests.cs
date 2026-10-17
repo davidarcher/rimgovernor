@@ -21,12 +21,12 @@ public sealed class CoupledActivityIntegrationTests
         facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = observed with
             { Food = observed.Food with { Options = [observed.Food.Options[0] with { Destination = new(2, 1) }] },
                 FoodUses = EquatableArray.From(observed.FoodUses.Select(u => u with { Location = new(2, 1) })) } } };
-        facts = facts with { CoupledAlternatives = GenerateCoupledActivities(facts, GameTime.TicksPerDay) };
+        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay) };
         var findings = InspectRounds(facts, new(), DefaultRoundsPolicy());
         var selection = Assert.IsType<ForecastCoupledSelection>(findings.CoupledSelection);
         Assert.NotEmpty(selection.Selection.Selected);
         Assert.True(selection.SelectedVector.Urgent[0].Value < selection.BaselineVector.Urgent[0].Value);
-        var batch = StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "coupled-observed", 100);
+        var batch = ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "coupled-observed", 100);
         Assert.NotNull(batch);
         Assert.Equal(2, Assert.Single(batch.Tasks, t => t.Step.Kind == PawnActivityKind.Deliver).Step.Count);
         Assert.Equal(PawnActivityKind.Work, Assert.Single(batch.Orders).Steps[0].Kind);
@@ -89,10 +89,10 @@ public sealed class CoupledActivityIntegrationTests
         facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), journal.WorkActions(Root, ct));
         Assert.Contains("pawn", facts.WorkView!.Claims.Pawns);
         Assert.Contains("plant-a", facts.WorkView.Claims.Targets);
-        facts = facts with { CoupledAlternatives = GenerateCoupledActivities(facts, GameTime.TicksPerDay) };
+        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay) };
         var inspected = InspectRounds(facts, new(), DefaultRoundsPolicy());
         var choice = Assert.IsType<ForecastCoupledSelection>(inspected.CoupledSelection);
-        var next = StartCoupledActivity(choice, facts.CoupledAlternatives!, 1, "coupled-independent", 100);
+        var next = ForecastCoupledSelection.StartCoupledActivity(choice, facts.CoupledAlternatives!, 1, "coupled-independent", 100);
         Assert.NotNull(next);
         Assert.All(next.Orders, order => Assert.Equal("helper", order.Pawn));
         Assert.DoesNotContain(next.Tasks, task => task.Step.Target == "plant-a" || task.Step.Destination == new Cell(2, 1));

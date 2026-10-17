@@ -182,7 +182,7 @@ public sealed record QuestGiftRequest
     public IReadOnlyList<PawnId> EligiblePawnIds { get; init; } = [];
 }
 
-public sealed record QuestMonument
+public sealed partial record QuestMonument
 {
     public string Marker { get; init; } = "";
 

@@ -34,7 +34,7 @@ public sealed record DefenseTurretUpkeep
     public bool Rearm { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class DefenseRearm
 {
     /// <summary>
     /// Measures the tier's turrets. The rearm's pawn is an available colonist whose Hauling work is not
@@ -85,7 +85,7 @@ public static partial class PolicyFunctions
         };
     }
 
-    private static bool DefenseRearmPawn(IReadOnlyList<WorkPawn> workers, out PawnId best)
+    internal static bool DefenseRearmPawn(IReadOnlyList<WorkPawn> workers, out PawnId best)
     {
         best = default;
         var bestPriority = 0;

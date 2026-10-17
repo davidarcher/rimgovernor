@@ -27,10 +27,10 @@ public sealed class ForecastObservedMealTests
             },
         };
         facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        var candidates = GenerateCoupledActivities(facts, Day)!;
+        var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Day)!;
         Assert.Contains(candidates.Context.NeedTasks, n => n.Target == "meal-stack");
-        return CompareActivityOutcomes(CoupledForecastRequestOf(new("world", 100), 1, facts, 
-            new() { Work = ForecastWorkInputsOf(facts) }, [], new()), candidates);
+        return ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), 1, facts, 
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), candidates);
     }
 
     [Fact]

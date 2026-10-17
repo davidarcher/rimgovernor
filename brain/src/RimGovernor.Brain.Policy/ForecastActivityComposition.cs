@@ -43,7 +43,7 @@ public sealed record ForecastCompositionRequest
 public sealed record ForecastCompositionResult(EquatableArray<ForecastCompositionGraph> Graphs,
     EquatableArray<string> Findings, int Expansions, bool Truncated, bool IncumbentPreserved);
 
-public static partial class PolicyFunctions
+public static class ForecastActivityComposition
 {
     /// <summary>Bounded backward requirement closure. No scheduling, valuation, resource-name inference or mutable inventory owner.</summary>
     public static ForecastCompositionResult ComposeActivityDependencies(ForecastCompositionRequest request)

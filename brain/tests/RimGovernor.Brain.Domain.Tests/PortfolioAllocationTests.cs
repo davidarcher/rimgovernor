@@ -56,8 +56,8 @@ public sealed class PortfolioAllocationTests
     }
 
     internal static ColonyForecastRequest Request(RoundsFacts facts, ForecastCoupledCandidates generated) =>
-        CoupledForecastRequestOf(new("world/map/load", 100), 700d / GameTime.TicksPerDay,
-            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputsOf(facts) }, [], new());
+        ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 700d / GameTime.TicksPerDay,
+            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
 
     private static object Quality(ForecastCoupledCandidates generated, ForecastCoupledSelection selection) => new
     {
@@ -99,13 +99,13 @@ public sealed class PortfolioAllocationTests
         {
             var name = larger ? "four-workers" : "productive";
             var facts = larger ? LargerFacts() : ProductiveLearningTests.NormalFoodFacts();
-            var generation = Measure(() => GenerateCoupledActivities(facts, 700)!);
+            var generation = Measure(() => ForecastCoupledCandidates.GenerateCoupledActivities(facts, 700)!);
             var generated = generation.Result;
             var request = Request(facts, generated);
             var rows = new List<object>();
             foreach (var budget in Budgets)
             {
-                var measured = Measure(() => CompareActivityOutcomes(request, generated, budget));
+                var measured = Measure(() => ForecastCoupledSelection.CompareActivityOutcomes(request, generated, budget));
                 rows.Add(new { Budget = budget, measured.Bytes, measured.Milliseconds, Quality = Quality(generated, measured.Result) });
             }
             File.WriteAllText(Path.Combine(output, name + ".measurements.json"), JsonSerializer.Serialize(new
@@ -125,16 +125,16 @@ public sealed class PortfolioAllocationTests
         {
             var name = larger ? "four-workers" : "productive";
             var facts = larger ? LargerFacts() : ProductiveLearningTests.NormalFoodFacts();
-            var generated = GenerateCoupledActivities(facts, 700)!;
+            var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 700)!;
             var request = Request(facts, generated);
-            CompareActivityOutcomes(request, generated); // Warm both stages before enabling the listener.
+            ForecastCoupledSelection.CompareActivityOutcomes(request, generated); // Warm both stages before enabling the listener.
             foreach (var stage in new[] { "generation", "selection" })
             {
                 using var profile = new AllocationSamples();
                 for (var i = 0; i < (stage == "generation" ? 100 : 3); i++)
                 {
-                    if (stage == "generation") GenerateCoupledActivities(facts, 700);
-                    else CompareActivityOutcomes(request, generated);
+                    if (stage == "generation") ForecastCoupledCandidates.GenerateCoupledActivities(facts, 700);
+                    else ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
                 }
                 var samples = profile.Snapshot();
                 File.WriteAllText(Path.Combine(output, name + "." + stage + ".allocation-types.json"), JsonSerializer.Serialize(samples, Json));

@@ -41,7 +41,7 @@ public sealed class ObservedShelterTests
     [Fact]
     public void LayoutRelocationKeepsActualLeakyRoomAsARoofRepairAlternative()
     {
-        var generated = Assert.IsType<ForecastCoupledCandidates>(GenerateCoupledActivities(Facts(), 300));
+        var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(Facts(), 300));
         var observed = generated.Context.Shelters.Single(r => r.Room.Source == ForecastShelterSource.Observed);
         Assert.Equal("room-7", observed.Room.Value);
         Assert.True(observed.InitialTemperature.IsKnown);
@@ -54,7 +54,7 @@ public sealed class ObservedShelterTests
     public void MatchingPlannedAndPhysicalFootprintsProduceOneShelter()
     {
         var facts = Facts() with { PlannedShelters = [new() { Id = 7, Region = RectRegion(new(1, 1, 2, 3)) }] };
-        var generated = Assert.IsType<ForecastCoupledCandidates>(GenerateCoupledActivities(facts, 300));
+        var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300));
         var room = Assert.Single(generated.Context.Shelters);
         Assert.Equal(ForecastShelterSource.Observed, room.Room.Source);
         Assert.Equal(2, room.AlternativePrerequisites.Count);
@@ -65,12 +65,12 @@ public sealed class ObservedShelterTests
     {
         var facts = Facts();
         var missing = facts with { Upkeep = facts.Upkeep with { Rooms = Known(new RoomObservation { Rooms = [Physical with { Cells = [] }] }) } };
-        var generated = Assert.IsType<ForecastCoupledCandidates>(GenerateCoupledActivities(missing, 300));
+        var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(missing, 300));
         Assert.Contains("unknown_observed_shelter_geometry:room-7", generated.Findings);
         Assert.DoesNotContain(generated.Context.Shelters, r => r.Room.Source == ForecastShelterSource.Observed);
         facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
             { Thermal = facts.ForecastObserved.Coupled!.Thermal! with { Sources = [] } } } };
-        generated = Assert.IsType<ForecastCoupledCandidates>(GenerateCoupledActivities(facts, 300));
+        generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300));
         var room = generated.Context.Shelters.Single(r => r.Room.Source == ForecastShelterSource.Observed);
         Assert.False(room.InitialTemperature.IsKnown);
         Assert.Contains("unknown_heat_source", room.Findings);
@@ -83,7 +83,7 @@ public sealed class ObservedShelterTests
         var rooms = Enumerable.Range(0, 5).Select(i => Physical with { Id = "room-" + i,
             Cells = EquatableArray.From(Interior.Select(c => new Cell(c.X + i * 10, c.Z))) }).Reverse();
         facts = facts with { PlannedShelters = [], Upkeep = facts.Upkeep with { Rooms = Known(new RoomObservation { Rooms = EquatableArray.From(rooms) }) } };
-        var generated = Assert.IsType<ForecastCoupledCandidates>(GenerateCoupledActivities(facts, 300));
+        var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300));
         Assert.True(generated.Truncated);
         Assert.Contains("shelter_geometry_truncated", generated.Findings);
         Assert.Equal(4, generated.Context.Shelters.Count);

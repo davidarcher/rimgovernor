@@ -13,7 +13,7 @@ public sealed record ForecastMaterialComparison(EquatableArray<ForecastMaterialO
     public ForecastRequirementPriority Priority { get; init; } = new();
 }
 
-public static partial class PolicyFunctions
+public static class ForecastMaterialChoices
 {
     /// <summary>Joint material deltas against the forecast's shared free budget; every demand can be postponed.</summary>
     public static ForecastMaterialComparison CompareMaterialPlans(IEnumerable<ForecastMaterialOption> options,
@@ -57,8 +57,8 @@ public static partial class PolicyFunctions
                 if (!MaterialBudgetCovers(budget, next.Select(c => new Amount(c.Key, c.Value)), 1)) continue;
                 if (!double.IsFinite(value + benefit)) throw new DomainException("material value overflow");
                 selected.Add(option);
-                var evaluated = valuation is null ? null : ValueMaterialPlan(selected, valuation, findings);
-                var requirements = RequirementPriorityOf(selected, findings);
+                var evaluated = valuation is null ? null : ForecastMaterialValue.ValueMaterialPlan(selected, valuation, findings);
+                var requirements = ForecastRequirements.RequirementPriorityOf(selected, findings);
                 if ((valuation is null || evaluated is not null) && requirements is not null)
                     Search(index + 1, evaluated?.Net ?? value + benefit, next, evaluated, requirements);
                 selected.RemoveAt(selected.Count - 1);

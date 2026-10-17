@@ -23,32 +23,32 @@ public sealed class ForecastSkillTests
     public void RangePaysPassionOnceAndIgnoresGlobalModifierAndSaturation()
     {
         var s = Evidence() with { DirectFactor = Known(1.5), XpSinceMidnight = Known(100d) };
-        var range = ForecastSkill(s, [new("shot", 1, Known(10d), SkillXpPath.Range)], 100);
-        var work = ForecastSkill(s, [new("work", 1, Known(10d), SkillXpPath.NormalTracker)], 100);
+        var range = ForecastSkillPolicy.ForecastSkill(s, [new("shot", 1, Known(10d), SkillXpPath.Range)], 100);
+        var work = ForecastSkillPolicy.ForecastSkill(s, [new("work", 1, Known(10d), SkillXpPath.NormalTracker)], 100);
         Assert.Equal(15, range.AppliedGain.Value);
         Assert.Equal(4, work.AppliedGain.Value);
-        var modified = ForecastSkill(s with { UnsaturatedFactor = Known(4d) }, [new("work", 1, Known(10d), SkillXpPath.NormalTracker)], 100);
+        var modified = ForecastSkillPolicy.ForecastSkill(s with { UnsaturatedFactor = Known(4d) }, [new("work", 1, Known(10d), SkillXpPath.NormalTracker)], 100);
         Assert.Equal(8, modified.AppliedGain.Value);
     }
 
     [Fact]
     public void PracticeAndProductiveWorkShareOneBudgetWithoutDuplicatingGains()
     {
-        var result = ForecastSkill(Evidence(), [new("shot1", 1, Known(20d), SkillXpPath.Range),
+        var result = ForecastSkillPolicy.ForecastSkill(Evidence(), [new("shot1", 1, Known(20d), SkillXpPath.Range),
             new("shot2", 2, Known(20d), SkillXpPath.Range), new("work", 3, Known(10d), SkillXpPath.NormalTracker)], 100);
         Assert.Equal(50, result.AppliedGain.Value);
         Assert.Equal(0, result.RangeBudget.Value);
         Assert.Equal(140, result.Xp.Value);
         var duplicate = new SkillXpEvent("same", 1, Known(10d), SkillXpPath.Range);
-        Assert.False(ForecastSkill(Evidence(), [duplicate, duplicate], 100).Xp.IsKnown);
+        Assert.False(ForecastSkillPolicy.ForecastSkill(Evidence(), [duplicate, duplicate], 100).Xp.IsKnown);
     }
 
     [Fact]
     public void IdleDecayAndActiveWorkCanReverseCapabilityThreshold()
     {
         var s = Evidence() with { Xp = Known(-95d) };
-        Assert.Equal(0, ForecastSkill(s, [], 200).Level.Value);
-        var active = ForecastSkill(s, [new("work", 1, Known(10d), SkillXpPath.NormalTracker)], 200);
+        Assert.Equal(0, ForecastSkillPolicy.ForecastSkill(s, [], 200).Level.Value);
+        var active = ForecastSkillPolicy.ForecastSkill(s, [new("work", 1, Known(10d), SkillXpPath.NormalTracker)], 200);
         Assert.Equal(1, active.Level.Value);
         Assert.Equal(-85, active.Xp.Value);
         Assert.Equal(10, active.DecayLoss.Value);
@@ -58,49 +58,49 @@ public sealed class ForecastSkillTests
     public void ThresholdCrossingUsesStoredLevelsAndAptitudeAndStopsPracticeAtCeiling()
     {
         var s = Evidence() with { Xp = Known(190d), RangeAppliedBudget = Known(100d) };
-        var result = ForecastSkill(s, [new("first", 1, Known(15d), SkillXpPath.Range), new("second", 2, Known(15d), SkillXpPath.Range)], 100);
+        var result = ForecastSkillPolicy.ForecastSkill(s, [new("first", 1, Known(15d), SkillXpPath.Range), new("second", 2, Known(15d), SkillXpPath.Range)], 100);
         Assert.Equal(2, result.Level.Value);
         Assert.Equal(5, result.Xp.Value);
         Assert.Equal(15, result.AppliedGain.Value);
-        Assert.Equal(0, ForecastSkill(s with { Aptitude = Known(1) }, [new("shot", 1, Known(15d), SkillXpPath.Range)], 100).AppliedGain.Value);
+        Assert.Equal(0, ForecastSkillPolicy.ForecastSkill(s with { Aptitude = Known(1) }, [new("shot", 1, Known(15d), SkillXpPath.Range)], 100).AppliedGain.Value);
     }
 
     [Fact]
     public void CompletionLearningRequiresCompletionAndSaturationUsesCallbackBoundaries()
     {
         var recipe = new RecipeLearning("Cooking", Known(.1), false, "native");
-        var interrupted = RecipeCompletionLearning(recipe, "recipe", 100, 100, false);
-        var complete = RecipeCompletionLearning(recipe, "recipe", 100, 100, true);
-        Assert.Equal(0, ForecastSkill(Evidence(), [interrupted], 100).AppliedGain.Value);
-        Assert.Equal(20, ForecastSkill(Evidence(), [complete], 100).AppliedGain.Value);
+        var interrupted = ForecastSkillPolicy.RecipeCompletionLearning(recipe, "recipe", 100, 100, false);
+        var complete = ForecastSkillPolicy.RecipeCompletionLearning(recipe, "recipe", 100, 100, true);
+        Assert.Equal(0, ForecastSkillPolicy.ForecastSkill(Evidence(), [interrupted], 100).AppliedGain.Value);
+        Assert.Equal(20, ForecastSkillPolicy.ForecastSkill(Evidence(), [complete], 100).AppliedGain.Value);
         var s = Evidence() with { XpSinceMidnight = Known(40d) };
-        Assert.Equal(24, ForecastSkill(s, [new("a", 1, Known(10d), SkillXpPath.NormalTracker),
+        Assert.Equal(24, ForecastSkillPolicy.ForecastSkill(s, [new("a", 1, Known(10d), SkillXpPath.NormalTracker),
             new("b", 2, Known(10d), SkillXpPath.NormalTracker)], 100).AppliedGain.Value);
-        Assert.False(RecipeCompletionLearning(recipe with { DuringWork = true }, "uft", 100, 100, true).RawXp.IsKnown);
+        Assert.False(ForecastSkillPolicy.RecipeCompletionLearning(recipe with { DuringWork = true }, "uft", 100, 100, true).RawXp.IsKnown);
     }
 
     [Fact]
     public void DisabledZeroAndMissingMechanicsAreDifferent()
     {
         var e = new SkillXpEvent("work", 1, Known(10d), SkillXpPath.NormalTracker);
-        Assert.Equal(0, ForecastSkill(Evidence() with { Disabled = Known(true) }, [e], 300).AppliedGain.Value);
-        Assert.Equal(0, ForecastSkill(Evidence() with { TrackerAllowsLearning = Known(false) }, [e], 300).AppliedGain.Value);
-        Assert.False(ForecastSkill(Evidence() with { DirectFactor = default }, [e], 100).Xp.IsKnown);
-        Assert.False(ForecastSkill(Evidence(), [e with { RawXp = default }], 100).Xp.IsKnown);
-        Assert.False(ForecastSkill(Evidence(), [], 1000).Xp.IsKnown);
+        Assert.Equal(0, ForecastSkillPolicy.ForecastSkill(Evidence() with { Disabled = Known(true) }, [e], 300).AppliedGain.Value);
+        Assert.Equal(0, ForecastSkillPolicy.ForecastSkill(Evidence() with { TrackerAllowsLearning = Known(false) }, [e], 300).AppliedGain.Value);
+        Assert.False(ForecastSkillPolicy.ForecastSkill(Evidence() with { DirectFactor = default }, [e], 100).Xp.IsKnown);
+        Assert.False(ForecastSkillPolicy.ForecastSkill(Evidence(), [e with { RawXp = default }], 100).Xp.IsKnown);
+        Assert.False(ForecastSkillPolicy.ForecastSkill(Evidence(), [], 1000).Xp.IsKnown);
     }
     [Fact]
     public void DecayChangingEligibilityRequiresFreshNativeEvidence()
     {
         var s = Evidence() with { StoredLevel = Known(2), Xp = Known(-95d), PracticeEligible = Known(false) };
-        var result = ForecastSkill(s, [new("shot", 201, Known(10d), SkillXpPath.Range)], 300);
+        var result = ForecastSkillPolicy.ForecastSkill(s, [new("shot", 201, Known(10d), SkillXpPath.Range)], 300);
         Assert.False(result.Xp.IsKnown);
         Assert.Contains("practice_eligibility_requires_refresh", result.Findings);
-        Assert.False(ForecastSkill(Evidence() with { ValidForTicks = Known(1) }, [], 1).Xp.IsKnown);
+        Assert.False(ForecastSkillPolicy.ForecastSkill(Evidence() with { ValidForTicks = Known(1) }, [], 1).Xp.IsKnown);
     }    [Fact]
     public void FiniteButOverflowingLearningIsNotKnownProgress()
     {
-        var result = ForecastSkill(Evidence(), [new("bad", 1, Known(double.MaxValue), SkillXpPath.NormalRecord)], 100);
+        var result = ForecastSkillPolicy.ForecastSkill(Evidence(), [new("bad", 1, Known(double.MaxValue), SkillXpPath.NormalRecord)], 100);
         Assert.False(result.Xp.IsKnown);
         Assert.Contains("learning_arithmetic_overflow", result.Findings);
     }    [Fact]

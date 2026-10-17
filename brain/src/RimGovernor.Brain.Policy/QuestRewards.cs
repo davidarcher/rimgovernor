@@ -53,7 +53,7 @@ public sealed record QuestRewardChoice
     public QuestSkipReason Reason { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class QuestRewards
 {
     private static bool QuestWantsTitles(RoundsFacts f)
     {

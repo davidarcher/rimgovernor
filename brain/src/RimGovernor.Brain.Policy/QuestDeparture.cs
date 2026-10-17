@@ -35,7 +35,7 @@ public sealed record QuestDepartureWork
     public QuestSkipReason Reason { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class QuestDeparture
 {
     /// <summary>
     /// Leaves every work type's last primary owner at home and prices a fighting squad against the colony's
@@ -44,10 +44,10 @@ public static partial class PolicyFunctions
     public static (IReadOnlyList<PawnId> Squad, QuestSkipReason Reason) DepartureSquad(JoinerOffer offer, RoundsFacts f) =>
         DepartureSquadOf(offer, f, false);
 
-    private static (IReadOnlyList<PawnId> Squad, QuestSkipReason Reason) DepartureSquadOf(JoinerOffer offer, RoundsFacts f, bool strongestFirst) =>
+    internal static (IReadOnlyList<PawnId> Squad, QuestSkipReason Reason) DepartureSquadOf(JoinerOffer offer, RoundsFacts f, bool strongestFirst) =>
         DepartureSquadWithCrew(offer, f, strongestFirst, false);
 
-    private static (IReadOnlyList<PawnId> Squad, QuestSkipReason Reason) DepartureSquadWithCrew(JoinerOffer offer, RoundsFacts f, bool strongestFirst, bool allowNonfighters)
+    internal static (IReadOnlyList<PawnId> Squad, QuestSkipReason Reason) DepartureSquadWithCrew(JoinerOffer offer, RoundsFacts f, bool strongestFirst, bool allowNonfighters)
     {
         IReadOnlyList<PawnId> none = [];
         if (!offer.Profile.TryGetValue(out var profile))
@@ -310,7 +310,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            if (QuestExpeditionSite(offer, f, out _))
+            if (QuestExpedition.QuestExpeditionSite(offer, f, out _))
             {
                 continue;
             }

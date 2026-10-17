@@ -24,7 +24,7 @@ public sealed record ForecastNeedsCandidates(EquatableArray<ForecastNeedChoice> 
 public sealed record ForecastNeedsReview(NeedsForecastRead Observation,
     IReadOnlyDictionary<string, ForecastNeedsCandidates> Alternatives);
 
-public static partial class PolicyFunctions
+public static class ForecastNeeds
 {
     /// <summary>Ordinary review exposes all generated choices for coupled comparison, not a shadow winner.</summary>
     public static ForecastNeedsReview? ReviewNeedsAlternatives(NeedsForecastRead? observed, WorkResourceView? resources,
@@ -132,7 +132,7 @@ public static partial class PolicyFunctions
                     if (depletedStart >= 0 && level - fall * depletedStart <= 0) starts.Add(Math.Max(0, depletedStart - travel));
                 }
             }
-            foreach (var transition in ConditionalThoughtTransitions(pawn, horizon))
+            foreach (var transition in ForecastMood.ConditionalThoughtTransitions(pawn, horizon))
             {
                 starts.Add(Math.Max(0, transition - travel));
                 primaryStarts.Add(Math.Max(0, transition - travel));
@@ -193,7 +193,7 @@ public static partial class PolicyFunctions
         else if (intervals.Any(c => protectedTime.Any(o => o.Pawn == pawn.Pawn && o.State == ForecastOccupancyState.Active
             && o.Start.IsKnown && o.End.IsKnown && o.Start.Value < c.End && o.End.Value > c.Choice.Depart)))
             throw new DomainException("needs overlap protected work");
-        var initialCapacity = ForecastPawnCapacityOf(input with { ProtectTimetable = false });
+        var initialCapacity = ForecastCapacity.ForecastPawnCapacityOf(input with { ProtectTimetable = false });
         if (intervals.Length > 0 && (pawn.State != "eligible" || !initialCapacity.Capacity.Windows.TryGetValue(out var free)
             || intervals.Any(c => !free.Any(w => w.Start <= c.Choice.Depart && w.End >= c.End))))
             throw new DomainException("needs occupy unavailable pawn time");
@@ -289,7 +289,7 @@ public static partial class PolicyFunctions
             var mealIds = new HashSet<string>(StringComparer.Ordinal);
             var added = intervals.Where(r => r.Choice.Kind == "food" && r.End == r.Choice.End)
                 .SelectMany(r => r.Choice.Thoughts.Select(t => (Thought: t, Start: r.End))).Concat(granted ?? []).ToArray();
-            var schedule = RenewalSchedule(memories, renewals, added.Select(a => a.Thought.Id));
+            var schedule = ForecastMood.RenewalSchedule(memories, renewals, added.Select(a => a.Thought.Id));
             if (schedule is null) { findings.Add("unsupported_memory_renewal_or_stacking"); complete = false; }
             var horizonTicks = input.HorizonTicks;
             var delta = memories.Sum(m => (schedule is { } s && s.ObservedEnds[m.Id] <= horizonTicks ? 0 : Remaining(m, horizonTicks)) - m.Offset);
@@ -307,19 +307,19 @@ public static partial class PolicyFunctions
         }
         else findings.Add("unknown_thought_expiry");
         var target = thoughtDelta.IsKnown && pawn.MoodTarget.IsKnown ? Known(Math.Clamp(pawn.MoodTarget.Value + thoughtDelta.Value / 100, 0, 1)) : default;
-        var capacity = ForecastPawnCapacityOf(input with { ProtectTimetable = false,
+        var capacity = ForecastCapacity.ForecastPawnCapacityOf(input with { ProtectTimetable = false,
             Occupancy = input.Occupancy.IsKnown ? Known(EquatableArray.From(occupied)) : default });
         findings.UnionWith(capacity.Findings);
         findings.Add("need_rates_constant_current_conditions");
         findings.Add("need_category_and_room_mood_changes_unassessed");
-        var mood = ForecastMoodTimeline(pawn, input.HorizonTicks, selected, interruptedAt, granted, situational, banded, renewals);
+        var mood = ForecastMood.ForecastMoodTimeline(pawn, input.HorizonTicks, selected, interruptedAt, granted, situational, banded, renewals);
         if (!mood.BreakRisk.IsKnown) findings.Add("mental_break_probability_unassessed");
         return new(EquatableArray.From(metrics), thoughtDelta, target, capacity, EquatableArray.From(findings))
         { Mood = mood, UsefulFoodGain = usefulFood };
     }
     /// <summary>One physiological sleep-service projection shared by rest recovery and conditional mood.
     /// Remaining assigned bed time after native waking stays occupied, but is not counted as sleep.</summary>
-    private static Dictionary<string, double>? SleepServiceEnds(NeedsForecastPawn pawn,
+    internal static Dictionary<string, double>? SleepServiceEnds(NeedsForecastPawn pawn,
         IReadOnlyList<ForecastNeedChoice> selected, IReadOnlyDictionary<string, double>? interruptedAt, SortedSet<string> findings)
     {
         var result = new Dictionary<string, double>(StringComparer.Ordinal);
@@ -370,7 +370,7 @@ public static partial class PolicyFunctions
         }
         return result;
     }
-    private static void NeedHorizon(double horizon)
+    internal static void NeedHorizon(double horizon)
     {
         if (!double.IsFinite(horizon) || horizon <= 0 || horizon > GameTime.TicksPerDay)
             throw new DomainException("needs horizon must be positive and at most one day");

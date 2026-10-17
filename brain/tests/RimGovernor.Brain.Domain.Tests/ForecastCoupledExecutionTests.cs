@@ -16,14 +16,14 @@ public sealed class ForecastCoupledExecutionTests
         var plan = new ForecastActivityPlan(tasks.Select(t => new ForecastActivityAllocation(t.Task, t.Pawn,
             0, 0, 0, 10, 0, 0, 10, 10, 0)).ToArray(), 10, 10);
         var outcome = new ForecastCoupledOutcome(plan, Known(true), [], new Dictionary<string, ForecastNeedsResult>(), []);
-        var vector = CoupledConsequences(outcome, []);
+        var vector = ForecastCoupledSelection.CoupledConsequences(outcome, []);
         return new(new(tasks.Select(t => t.Task).ToArray(), plan, default, [], 0, false), outcome,
             outcome, vector, vector, [], 100, false);
     }
     [Fact]
     public void BetterReplacementReleasesExactRevisionWithoutDispatchingUnownedForecast()
     {
-        var result = ReviewCoupledExecution(Selection(("eat", "pawn")), [Incumbent], 100);
+        var result = ForecastCoupledExecution.ReviewCoupledExecution(Selection(("eat", "pawn")), [Incumbent], 100);
         Assert.Null(result.Dispatch);
         var release = Assert.Single(Assert.Single(result.Releases).Batch.Orders);
         Assert.True(release.Release);
@@ -35,14 +35,14 @@ public sealed class ForecastCoupledExecutionTests
     [Fact]
     public void RetentionWithFutureWorkCannotInstallSecondOwner()
     {
-        var result = ReviewCoupledExecution(Selection(("retain", "pawn"), ("eat", "pawn")), [Incumbent], 100);
+        var result = ForecastCoupledExecution.ReviewCoupledExecution(Selection(("retain", "pawn"), ("eat", "pawn")), [Incumbent], 100);
         Assert.Null(result.Dispatch);
         Assert.Empty(result.Releases);
     }
     [Fact]
     public void RetentionAllowsIndependentWorkWithoutRedispatchingIncumbent()
     {
-        var result = ReviewCoupledExecution(Selection(("retain", "pawn"), ("eat", "other")), [Incumbent], 100);
+        var result = ForecastCoupledExecution.ReviewCoupledExecution(Selection(("retain", "pawn"), ("eat", "other")), [Incumbent], 100);
         Assert.Empty(result.Releases);
         Assert.Equal("eat", Assert.Single(result.Dispatch!.Selection.Selected));
         Assert.Equal("other", Assert.Single(result.Dispatch.Selection.Plan!.Allocations).Pawn);
@@ -60,7 +60,7 @@ public sealed class ForecastCoupledExecutionTests
         };
         var selection = Selection(("wait", "pawn"), ("future-sleep", "pawn"), ("eat", "other"));
         selection = selection with { Selection = selection.Selection with { Selected = ["retain", "eat"] } };
-        var result = ReviewCoupledExecution(selection, [incumbent], 100);
+        var result = ForecastCoupledExecution.ReviewCoupledExecution(selection, [incumbent], 100);
         Assert.Empty(result.Releases);
         Assert.Equal("eat", Assert.Single(result.Dispatch!.Selection.Selected));
         Assert.Equal("eat", Assert.Single(result.Dispatch.Selection.Plan!.Allocations).Activity);
@@ -76,7 +76,7 @@ public sealed class ForecastCoupledExecutionTests
             Activities = ["wait", "future-sleep"],
             ReleasedOwnership = [new("other", "", "", 0, "")]
         };
-        var result = ReviewCoupledExecution(Selection(("eat", "pawn")), [incumbent], 100);
+        var result = ForecastCoupledExecution.ReviewCoupledExecution(Selection(("eat", "pawn")), [incumbent], 100);
         Assert.Null(result.Dispatch);
         var release = Assert.Single(Assert.Single(result.Releases).Batch.Orders);
         Assert.Equal("pawn", release.Pawn);

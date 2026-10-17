@@ -18,9 +18,9 @@ public sealed record ForecastSupportConsequences
     public EquatableArray<string> Findings { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class ForecastSupport
 {
-    private static ForecastSupportConsequences ForecastSupportConsequencesOf(ForecastCoupledContext context,
+    internal static ForecastSupportConsequences ForecastSupportConsequencesOf(ForecastCoupledContext context,
         ForecastActivityPlan plan, IReadOnlyDictionary<string, Fact<bool>> completed, double horizon)
     {
         var read = context.Support;

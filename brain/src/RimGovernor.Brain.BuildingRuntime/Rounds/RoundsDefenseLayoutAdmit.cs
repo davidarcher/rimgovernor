@@ -23,7 +23,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var roamer = DefenseRoamerOwned(read.Projection);
         for (var i = 0; i < buildings.Count; i++)
         {
-            candidates.Add(DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), buildings[i], PolicyApi.DefenseBuildTier(promoted, PolicyApi.IsCorePerimeterTier(tier.Name), roamer)));
+            candidates.Add(DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), buildings[i], DefenseTier.DefenseBuildTier(promoted, PolicyApi.IsCorePerimeterTier(tier.Name), roamer)));
         }
         IReadOnlyList<BridgeBuildingPreview> evaluated = [];
         if (candidates.Count > 0)
@@ -44,7 +44,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 }
                 return new RoundsDefenseLayoutResult { Verdict = BuildingReasonExistingWork, Tier = tier.Name.Value };
             }
-            if (!ok && ((tier.Name == PolicyApi.TierFiringLine && building.Definition == DefenseDefinitionNames.Floor) || PolicyApi.IsPerimeterTier(tier.Name) || tier.Name == PolicyApi.TierIEDs))
+            if (!ok && ((tier.Name == DefenseLayout.TierFiringLine && building.Definition == DefenseDefinitionNames.Floor) || PolicyApi.IsPerimeterTier(tier.Name) || tier.Name == DefenseIEDs.TierIEDs))
             {
                 unfloorable.Add(building.Cell);
                 continue;
@@ -65,7 +65,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         if (unfloorable.Count > 0)
         {
-            tier.Buildings = DefenseWithoutFloors(tier.Buildings, unfloorable, PolicyApi.IsPerimeterTier(tier.Name) || tier.Name == PolicyApi.TierIEDs);
+            tier.Buildings = DefenseWithoutFloors(tier.Buildings, unfloorable, PolicyApi.IsPerimeterTier(tier.Name) || tier.Name == DefenseIEDs.TierIEDs);
             record.SetTier(tier);
             DefenseAction("defense-layout", TelemetryLevel.Info, "refused", "placement_refused_natively", tier.Name.Value, new Dictionary<string, object?> { ["cells"] = unfloorable.Count }, call);
             p.Journal.SaveDefenseLayout(record, call);
@@ -409,7 +409,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal static DefenseRequest DefenseIedRequest(RoundsReading read, DefenseRequest request)
     {
         var projection = read.Projection;
-        request = request with { IEDMax = PolicyApi.IEDBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets), IEDStock = projection.Resources };
+        request = request with { IEDMax = DefenseIEDs.IEDBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets), IEDStock = projection.Resources };
         var ieds = new List<DefenseIED>();
         var unitCosts = new Dictionary<string, EquatableArray<Amount>>(request.UnitCosts, StringComparer.Ordinal);
         foreach (var d in projection.Definitions)

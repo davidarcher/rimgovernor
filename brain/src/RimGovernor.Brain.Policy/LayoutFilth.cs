@@ -52,7 +52,7 @@ public sealed record FilthModel
     /// it would look free. The cleaning labor is not a condition: a room pays it merged or apart
     /// (CleaningWorkDays), so it cancels from the decision.
     /// </summary>
-    public bool Priced() => Def != string.Empty && Poisoning.WorkDays() > 0 && PolicyFunctions.FinitePositive(StandTicks);
+    public bool Priced() => Def != string.Empty && Poisoning.WorkDays() > 0 && QuestCapacityForecast.FinitePositive(StandTicks);
 
     /// <summary>
     /// The work-days a day of cleaning the filth of the nodes' runs takes: the units a day (runs x
@@ -61,7 +61,7 @@ public sealed record FilthModel
     /// </summary>
     public double CleaningWorkDays(IReadOnlyDictionary<string, FilthRuns> runs)
     {
-        if (!PolicyFunctions.FinitePositive(CleaningWork) || !PolicyFunctions.FinitePositive(CleaningSpeed))
+        if (!QuestCapacityForecast.FinitePositive(CleaningWork) || !QuestCapacityForecast.FinitePositive(CleaningSpeed))
         {
             return 0;
         }
@@ -182,7 +182,7 @@ public sealed record PoisoningModel
     /// </summary>
     public double WorkDays()
     {
-        if (!PolicyFunctions.FinitePositive(Initial) || !PolicyFunctions.FinitePositive(PerDay) || Stages.Count == 0)
+        if (!QuestCapacityForecast.FinitePositive(Initial) || !QuestCapacityForecast.FinitePositive(PerDay) || Stages.Count == 0)
         {
             return 0;
         }

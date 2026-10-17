@@ -74,7 +74,7 @@ public static partial class PolicyConstants
 /// <summary>One lamp's catalog numbers: the power it draws, the market value of its cheapest cost list, its glow radius and the brightest channel of its glow colour. The default value is unknown.</summary>
 public readonly record struct LampModel(double PowerW, double Build, double Radius, double Brightness)
 {
-    internal bool Priced() => PolicyFunctions.FinitePositive(PowerW) && PolicyFunctions.FinitePositive(Build);
+    internal bool Priced() => QuestCapacityForecast.FinitePositive(PowerW) && QuestCapacityForecast.FinitePositive(Build);
 
     internal double Reach() => PolicyFunctions.GlowReach(Radius, Brightness);
 }
@@ -100,7 +100,7 @@ public readonly record struct LightPrice(double WorkDayW, double LampW, double C
 {
     /// <summary>Reports a price with every number known.</summary>
     public bool Valid() =>
-        PolicyFunctions.FinitePositive(WorkDayW) && PolicyFunctions.FinitePositive(LampW) && PolicyFunctions.FinitePositive(CellWalkDays) && PolicyFunctions.FinitePositive(LampReach);
+        QuestCapacityForecast.FinitePositive(WorkDayW) && QuestCapacityForecast.FinitePositive(LampW) && QuestCapacityForecast.FinitePositive(CellWalkDays) && QuestCapacityForecast.FinitePositive(LampReach);
 
     /// <summary>What a dark work cell costs: the work speed lost over one colonist's work-day.</summary>
     public double WorkCellW() => (1 - PolicyFunctions.LightSpeed(0)) * WorkDayW;
@@ -193,7 +193,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static double GlowReach(double radius, double brightness)
     {
-        if (!FinitePositive(radius) || !FinitePositive(brightness))
+        if (!QuestCapacityForecast.FinitePositive(radius) || !QuestCapacityForecast.FinitePositive(brightness))
         {
             return 0;
         }
@@ -245,8 +245,8 @@ public static partial class PolicyFunctions
         {
             w = DefaultSiteTypeWeights();
         }
-        if (!input.Model.Standing.Priced() || !FinitePositive(input.SteelValue)
-            || !FinitePositive(input.UpkeepPerDay) || !FinitePositive(input.UnitNutrition) || !FinitePositive(input.Climate.TicksPerSecond) || !FinitePositive(w.Power))
+        if (!input.Model.Standing.Priced() || !QuestCapacityForecast.FinitePositive(input.SteelValue)
+            || !QuestCapacityForecast.FinitePositive(input.UpkeepPerDay) || !QuestCapacityForecast.FinitePositive(input.UnitNutrition) || !QuestCapacityForecast.FinitePositive(input.Climate.TicksPerSecond) || !QuestCapacityForecast.FinitePositive(w.Power))
         {
             return default;
         }
@@ -314,7 +314,7 @@ public static partial class PolicyFunctions
     internal static double StationWorkDayW(StationFacts f)
     {
         var (upkeep, unit, ok) = StationUpkeep(f);
-        if (!ok || !FinitePositive(unit))
+        if (!ok || !QuestCapacityForecast.FinitePositive(unit))
         {
             return 0;
         }
@@ -457,13 +457,13 @@ public static partial class PolicyFunctions
         }
         foreach (var s in spots)
         {
-            foreach (var dir in Directions)
+            foreach (var dir in DefenseLayout.Directions)
             {
-                if (!isWall(AddCell(s, dir)))
+                if (!isWall(DefenseLayout.AddCell(s, dir)))
                 {
                     continue;
                 }
-                output.Add(new LampCand(new PlannedLamp { Def = PolicyConstants.LightJudgment.WallLampDef, Cell = s, Facing = RotationOf(dir) }, p.WallLampW, p.WallReach));
+                output.Add(new LampCand(new PlannedLamp { Def = PolicyConstants.LightJudgment.WallLampDef, Cell = s, Facing = DefenseLayout.RotationOf(dir) }, p.WallLampW, p.WallReach));
                 break;
             }
         }

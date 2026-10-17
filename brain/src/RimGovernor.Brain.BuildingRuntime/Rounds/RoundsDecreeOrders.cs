@@ -30,7 +30,7 @@ public sealed partial class JoinersRounds
                 return [];
             },
         };
-        var declared = PolicyApi.DeclareDecreeOrders(request);
+        var declared = QuestDecrees.DeclareDecreeOrders(request);
         Exception? catalogErr = null;
         if (asked)
         {
@@ -56,7 +56,7 @@ public sealed partial class JoinersRounds
             }
             else if (catalogErr is null)
             {
-                declared = PolicyApi.DeclareDecreeOrders(request with { Recipes = objective => DecreeRecipes(benches, catalog, objective) });
+                declared = QuestDecrees.DeclareDecreeOrders(request with { Recipes = objective => DecreeRecipes(benches, catalog, objective) });
             }
         }
         if (catalogErr is not null)

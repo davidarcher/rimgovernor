@@ -35,7 +35,7 @@ public static partial class PolicyFunctions
         {
             var pawn = pawns.FirstOrDefault(p => p.Id == requirement.Pawn);
             if (pawn is null || !pawn.Skills.TryGetValue(out var skills)) { unknown = true; continue; }
-            var consequence = ForecastMaintenance([new(requirement, EquatableArray.From(skills))], [],
+            var consequence = ForecastMaintenancePolicy.ForecastMaintenance([new(requirement, EquatableArray.From(skills))], [],
                 new([], 0, 0), new Dictionary<string, Fact<bool>>(), GameTime.TicksPerDay)[0];
             if (!consequence.MissingXp.TryGetValue(out var missing)) { unknown = true; continue; }
             if (missing <= 0) continue;

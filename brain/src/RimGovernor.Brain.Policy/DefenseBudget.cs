@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class DefenseBudget
 {
     /// <summary>
     /// The raid points the colony cannot yet stop: the observed raid size minus the observed defense capacity
@@ -33,7 +33,7 @@ public static partial class PolicyFunctions
         {
             if (t.Powered.TryGetValue(out var powered) && powered && t.Dps.TryGetValue(out var dps) && dps > 0)
             {
-                sum += dps * DefensePointsPerDps;
+                sum += dps * DefenseCapacityPolicy.DefensePointsPerDps;
                 n++;
             }
         }
@@ -44,7 +44,7 @@ public static partial class PolicyFunctions
         return Math.Max(1, (int)Math.Ceiling(shortfall / (sum / n)));
     }
 
-    private static int TurretsStanding(Fact<EquatableArray<DefenseTurretFacts>> turrets) =>
+    internal static int TurretsStanding(Fact<EquatableArray<DefenseTurretFacts>> turrets) =>
         turrets.TryGetValue(out var standing) ? standing.Count : 0;
 
     /// <summary>

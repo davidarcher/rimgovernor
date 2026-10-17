@@ -210,7 +210,7 @@ internal sealed partial class Tiler
     {
         var m = In.Catalog.Climate;
         var known = In.OutdoorCurve.TryGetValue(out var curve);
-        if (!known || !m.HasLiving() || !FinitePositive(In.SteelValue))
+        if (!known || !m.HasLiving() || !QuestCapacityForecast.FinitePositive(In.SteelValue))
         {
             Note(-1, -1, TileUnsatisfied, ReasonTileVentClimateUnknown);
             return;

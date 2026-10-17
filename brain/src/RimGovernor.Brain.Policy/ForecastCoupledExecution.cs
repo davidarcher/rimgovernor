@@ -1,10 +1,10 @@
 namespace RimGovernor.Brain.Policy;
 
 public sealed record ForecastIncumbentRelease(ForecastObservedIncumbent Incumbent, PawnActivities Batch);
-public sealed record ForecastCoupledExecution(EquatableArray<ForecastIncumbentRelease> Releases,
+public sealed partial record ForecastCoupledExecution(EquatableArray<ForecastIncumbentRelease> Releases,
     ForecastCoupledSelection? Dispatch);
 
-public static partial class PolicyFunctions
+public sealed partial record ForecastCoupledExecution
 {
     /// <summary>Retained work remains under its existing Method. Counterfactual replacement first releases
     /// exact ownership; a subsequent observed review may admit new work. No forecast invents a release receipt.</summary>

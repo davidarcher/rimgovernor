@@ -44,9 +44,9 @@ public sealed class ForecastNeedsTests
              new("rest", Known(.875153124332428), Known(.0000169642857142857), Known(.3)),
              new("joy", Known(.1), Known(.00000833333376795053), Known(.3))] };
         var input = Input(60000);
-        var baseline = ForecastNeedsTimeline(pawn, input, []);
+        var baseline = ForecastNeeds.ForecastNeedsTimeline(pawn, input, []);
         var joy = new ForecastNeedChoice("joy", "pawn", "joy", "pin", "", 0, start, start, end, .5, []);
-        var serviced = ForecastNeedsTimeline(pawn, input, [joy]);
+        var serviced = ForecastNeeds.ForecastNeedsTimeline(pawn, input, [joy]);
         Assert.Equal(Assert.Single(baseline.Needs, n => n.Kind == "food"), Assert.Single(serviced.Needs, n => n.Kind == "food"));
         Assert.Equal(Assert.Single(baseline.Needs, n => n.Kind == "rest"), Assert.Single(serviced.Needs, n => n.Kind == "rest"));
         Assert.NotEqual(Assert.Single(baseline.Needs, n => n.Kind == "joy"), Assert.Single(serviced.Needs, n => n.Kind == "joy"));
@@ -60,13 +60,13 @@ public sealed class ForecastNeedsTests
              new("rest", Known(.25), Known(.0000169642857142857), Known(.3)),
              new("joy", Known(.1), Known(.00000833333376795053), Known(.3))] };
         var input = Input(60000);
-        var baseline = ForecastNeedsTimeline(pawn, input, []);
+        var baseline = ForecastNeeds.ForecastNeedsTimeline(pawn, input, []);
         var sleep = Sleep(97.325204571088, 1280.2626);
-        var rested = ForecastNeedsTimeline(pawn, input, [sleep]);
+        var rested = ForecastNeeds.ForecastNeedsTimeline(pawn, input, [sleep]);
         Assert.Equal(Assert.Single(baseline.Needs, n => n.Kind == "food"), Assert.Single(rested.Needs, n => n.Kind == "food"));
         Assert.NotEqual(Assert.Single(baseline.Needs, n => n.Kind == "rest"), Assert.Single(rested.Needs, n => n.Kind == "rest"));
         var joy = new ForecastNeedChoice("joy", "pawn", "joy", "pin", "", 0, 7096, 7096, 8184.32520457109, .5, []);
-        var combined = ForecastNeedsTimeline(pawn, input, [sleep, joy]);
+        var combined = ForecastNeeds.ForecastNeedsTimeline(pawn, input, [sleep, joy]);
         Assert.Equal(Assert.Single(rested.Needs, n => n.Kind == "food"), Assert.Single(combined.Needs, n => n.Kind == "food"));
         Assert.Equal(Assert.Single(rested.Needs, n => n.Kind == "rest"), Assert.Single(combined.Needs, n => n.Kind == "rest"));
     }
@@ -79,7 +79,7 @@ public sealed class ForecastNeedsTests
     {
         var pawn = Pawn() with { Needs = [new("joy", Known(.2), Known(.01), Known(threshold))] };
         var recovery = new ForecastNeedChoice("joy", "pawn", "joy", "pin", "", 0, 0, 0, 100, 2, []);
-        var first = ForecastNeedsTimeline(pawn, Input(200), [recovery]);
+        var first = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(200), [recovery]);
         var metric = Assert.Single(first.Needs);
         Assert.Equal(0, metric.FinalLevel.Value, 8);
         Assert.Equal(66, metric.DeficitTicks.Value, 8);
@@ -87,8 +87,8 @@ public sealed class ForecastNeedsTests
         Assert.Equal(depth, metric.ThresholdDepthTicks.Value, 8);
         Assert.Equal(1.2, metric.WastedGain.Value, 8);
         // A different branch's cuts and interrupted activity must not survive the call.
-        ForecastNeedsTimeline(pawn, Input(200), [recovery], new Dictionary<string, double> { [recovery.Id] = 20 });
-        Assert.Equal(first.Needs, ForecastNeedsTimeline(pawn, Input(200), [recovery]).Needs);
+        ForecastNeeds.ForecastNeedsTimeline(pawn, Input(200), [recovery], new Dictionary<string, double> { [recovery.Id] = 20 });
+        Assert.Equal(first.Needs, ForecastNeeds.ForecastNeedsTimeline(pawn, Input(200), [recovery]).Needs);
     }
 
     [Fact]
@@ -111,8 +111,8 @@ public sealed class ForecastNeedsTests
     public void RestBeforeWorkRestoresLaterFeasibilityAndDoesNotOverlapTravel()
     {
         var input = Input();
-        var tired = ForecastNeedsTimeline(Pawn(), input, []);
-        var rested = ForecastNeedsTimeline(Pawn(), input, [Sleep()]);
+        var tired = ForecastNeeds.ForecastNeedsTimeline(Pawn(), input, []);
+        var rested = ForecastNeeds.ForecastNeedsTimeline(Pawn(), input, [Sleep()]);
         Assert.True(rested.Capacity.FreeTicks.Value > tired.Capacity.FreeTicks.Value);
         Assert.Contains(rested.Capacity.Capacity.Windows.Value, w => w.Start == 400 && w.End == 1000);
         Assert.DoesNotContain(rested.Capacity.Capacity.Windows.Value, w => w.Start < 400);
@@ -123,9 +123,9 @@ public sealed class ForecastNeedsTests
             Options = [new("production", "pawn", Known(500.0), Known(0.0))],
             Deadline = Known(1000.0), AlternativeLaborCost = Known(1000.0),
         };
-        Assert.NotNull(CompareActivityPlans(problem).Selected);
-        Assert.Null(CompareActivityPlans(problem with { Pawns = [tired.Capacity.Capacity] }).Selected);
-        Assert.Throws<DomainException>(() => ForecastNeedsTimeline(Pawn(), input with { Occupancy = Known<EquatableArray<ForecastOccupancy>>(
+        Assert.NotNull(ForecastActivities.CompareActivityPlans(problem).Selected);
+        Assert.Null(ForecastActivities.CompareActivityPlans(problem with { Pawns = [tired.Capacity.Capacity] }).Selected);
+        Assert.Throws<DomainException>(() => ForecastNeeds.ForecastNeedsTimeline(Pawn(), input with { Occupancy = Known<EquatableArray<ForecastOccupancy>>(
             [new("long_trip", "pawn", Known(0.0), Known(700.0), ForecastOccupancyState.Active)]) }, [Sleep()]));
     }
 
@@ -133,12 +133,12 @@ public sealed class ForecastNeedsTests
     public void InterruptionCreditsOnlyElapsedRestAndCompletedFood()
     {
         var input = Input(); var sleep = Sleep();
-        var full = ForecastNeedsTimeline(Pawn(), input, [sleep]);
-        var interrupted = ForecastNeedsTimeline(Pawn(), input, [sleep], new Dictionary<string, double> { [sleep.Id] = 100 });
+        var full = ForecastNeeds.ForecastNeedsTimeline(Pawn(), input, [sleep]);
+        var interrupted = ForecastNeeds.ForecastNeedsTimeline(Pawn(), input, [sleep], new Dictionary<string, double> { [sleep.Id] = 100 });
         Assert.True(full.Needs[0].FinalLevel.Value > interrupted.Needs[0].FinalLevel.Value);
         var eat = new ForecastNeedChoice("eat", "pawn", "food", "rice", "Rice", 3, 0, 10, 100, .6, []);
-        var ate = ForecastNeedsTimeline(Pawn(), input, [eat]);
-        var stopped = ForecastNeedsTimeline(Pawn(), input, [eat], new Dictionary<string, double> { [eat.Id] = 50 });
+        var ate = ForecastNeeds.ForecastNeedsTimeline(Pawn(), input, [eat]);
+        var stopped = ForecastNeeds.ForecastNeedsTimeline(Pawn(), input, [eat], new Dictionary<string, double> { [eat.Id] = 50 });
         Assert.True(ate.Needs.Single(n => n.Kind == "food").WastedGain.Value > 0);
         Assert.Equal(.4, stopped.Needs.Single(n => n.Kind == "food").FinalLevel.Value, 8);
     }
@@ -148,51 +148,51 @@ public sealed class ForecastNeedsTests
     {
         var a = Pawn() with { Memories = Known<EquatableArray<NeedMemory>>([new("happy", 10, Known(100.0), false)]) };
         var b = a with { Memories = Known<EquatableArray<NeedMemory>>([new("happy", 10, Known(2000.0), false)]) };
-        Assert.Equal(.4, ForecastNeedsTimeline(a, Input(), []).MemoryAdjustedMoodTarget.Value, 8);
-        Assert.Equal(.5, ForecastNeedsTimeline(b, Input(), []).MemoryAdjustedMoodTarget.Value, 8);
+        Assert.Equal(.4, ForecastNeeds.ForecastNeedsTimeline(a, Input(), []).MemoryAdjustedMoodTarget.Value, 8);
+        Assert.Equal(.5, ForecastNeeds.ForecastNeedsTimeline(b, Input(), []).MemoryAdjustedMoodTarget.Value, 8);
         var meal = new ForecastNeedChoice("eat", "pawn", "food", "fine", "FineMeal", 1, 0, 10, 100, .6,
             [new("fine_meal", 5, Known(2000.0), false)]);
-        Assert.Equal(.55, ForecastNeedsTimeline(b, Input(), [meal]).MemoryAdjustedMoodTarget.Value, 8);
+        Assert.Equal(.55, ForecastNeeds.ForecastNeedsTimeline(b, Input(), [meal]).MemoryAdjustedMoodTarget.Value, 8);
     }
 
     [Fact]
     public void UnknownMechanicsNeverGiveFreeWorkAndMissingRoutesDoNotMakeInstantMeals()
     {
         var pawn = Pawn() with { Needs = [new("rest", Known(.2), default, Known(.28))] };
-        Assert.False(ForecastNeedsTimeline(pawn, Input(), []).Capacity.FreeTicks.IsKnown);
+        Assert.False(ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), []).Capacity.FreeTicks.IsKnown);
         var targets = Pawn() with { Targets = [Pawn().Targets[1] with { TravelTicks = default }] };
-        var generated = GenerateNeedsAlternatives(targets, ForecastPawnCapacityOf(Input()), 1000);
+        var generated = ForecastNeeds.GenerateNeedsAlternatives(targets, ForecastCapacity.ForecastPawnCapacityOf(Input()), 1000);
         Assert.Empty(generated.Choices);
         Assert.Contains("unknown_need_target:rice", generated.Findings);
-        Assert.False(ForecastNeedsTimeline(Pawn() with { Memories = default }, Input(), []).MemoryAdjustedMoodTarget.IsKnown);
+        Assert.False(ForecastNeeds.ForecastNeedsTimeline(Pawn() with { Memories = default }, Input(), []).MemoryAdjustedMoodTarget.IsKnown);
     }
 
     [Fact]
     public void LegacyScheduleDoesNotPreselectNeedTimingButExplicitObligationsRemainProtected()
     {
-        Assert.Equal(0, ForecastPawnCapacityOf(Input() with { ProtectTimetable = true }).FreeTicks.Value);
-        var generated = GenerateNeedsAlternatives(Pawn(), ForecastPawnCapacityOf(Input()), 1000);
+        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Input() with { ProtectTimetable = true }).FreeTicks.Value);
+        var generated = ForecastNeeds.GenerateNeedsAlternatives(Pawn(), ForecastCapacity.ForecastPawnCapacityOf(Input()), 1000);
         Assert.Contains(generated.Choices, c => c.Depart == 0);
         var protectedInput = Input() with { Occupancy = Known<EquatableArray<ForecastOccupancy>>(
             [new("player", "pawn", Known(0.0), Known(300.0), ForecastOccupancyState.Active)]) };
-        var protectedChoices = GenerateNeedsAlternatives(Pawn(), ForecastPawnCapacityOf(protectedInput), 1000);
+        var protectedChoices = ForecastNeeds.GenerateNeedsAlternatives(Pawn(), ForecastCapacity.ForecastPawnCapacityOf(protectedInput), 1000);
         Assert.All(protectedChoices.Choices, c => Assert.True(c.Depart >= 300));
-        Assert.Empty(GenerateNeedsAlternatives(Pawn() with { State = "player_work" }, ForecastPawnCapacityOf(Input()), 1000).Choices);
+        Assert.Empty(ForecastNeeds.GenerateNeedsAlternatives(Pawn() with { State = "player_work" }, ForecastCapacity.ForecastPawnCapacityOf(Input()), 1000).Choices);
     }
 
     [Fact]
     public void DistanceRecoveryAndEligibilityChangeFeasibleChoicesAndBudgetIsExplicit()
     {
         var input = Input();
-        var fast = GenerateNeedsAlternatives(Pawn(), ForecastPawnCapacityOf(input), 1000);
-        var slow = GenerateNeedsAlternatives(Pawn() with { Targets = [Pawn().Targets[0] with { GainPerTick = Known(.00001) }] }, ForecastPawnCapacityOf(input), 1000);
+        var fast = ForecastNeeds.GenerateNeedsAlternatives(Pawn(), ForecastCapacity.ForecastPawnCapacityOf(input), 1000);
+        var slow = ForecastNeeds.GenerateNeedsAlternatives(Pawn() with { Targets = [Pawn().Targets[0] with { GainPerTick = Known(.00001) }] }, ForecastCapacity.ForecastPawnCapacityOf(input), 1000);
         Assert.Contains(fast.Choices, c => c.Kind == "rest" && c.Gain > .5);
         Assert.DoesNotContain(slow.Choices, c => c.Gain > .5);
-        var far = GenerateNeedsAlternatives(Pawn() with { Targets = [Pawn().Targets[1] with { TravelTicks = Known(999.0) }] }, ForecastPawnCapacityOf(input), 1000);
+        var far = ForecastNeeds.GenerateNeedsAlternatives(Pawn() with { Targets = [Pawn().Targets[1] with { TravelTicks = Known(999.0) }] }, ForecastCapacity.ForecastPawnCapacityOf(input), 1000);
         Assert.Empty(far.Choices);
-        var bounded = GenerateNeedsAlternatives(Pawn(), ForecastPawnCapacityOf(input), 1000, budget: 2);
+        var bounded = ForecastNeeds.GenerateNeedsAlternatives(Pawn(), ForecastCapacity.ForecastPawnCapacityOf(input), 1000, budget: 2);
         Assert.Equal(2, bounded.Choices.Count); Assert.True(bounded.Truncated);
-        Assert.Equal(bounded, GenerateNeedsAlternatives(Pawn(), ForecastPawnCapacityOf(input), 1000, budget: 2));
+        Assert.Equal(bounded, ForecastNeeds.GenerateNeedsAlternatives(Pawn(), ForecastCapacity.ForecastPawnCapacityOf(input), 1000, budget: 2));
     }
     [Fact]
     public void UnknownOrRepeatedMealMemoriesDoNotBecomeKnownMoodAndPermanentIsExplicit()
@@ -200,11 +200,11 @@ public sealed class ForecastNeedsTests
         var first = new ForecastNeedChoice("eat", "pawn", "food", "fine", "FineMeal", 1, 0, 10, 100, .2,
             [new("fine_meal", 5, Known(2000.0), false)]);
         var second = first with { Id = "eat2", Depart = 200, Start = 210, End = 300 };
-        Assert.False(ForecastNeedsTimeline(Pawn(), Input(), [first, second]).MemoryAdjustedMoodTarget.IsKnown);
-        Assert.False(ForecastNeedsTimeline(Pawn(), Input(), [first with { Thoughts = [new("unknown", 5, default, false)] }]).MemoryAdjustedMoodTarget.IsKnown);
-        Assert.Equal(.5, ForecastNeedsTimeline(Pawn() with { Memories = Known<EquatableArray<NeedMemory>>(
+        Assert.False(ForecastNeeds.ForecastNeedsTimeline(Pawn(), Input(), [first, second]).MemoryAdjustedMoodTarget.IsKnown);
+        Assert.False(ForecastNeeds.ForecastNeedsTimeline(Pawn(), Input(), [first with { Thoughts = [new("unknown", 5, default, false)] }]).MemoryAdjustedMoodTarget.IsKnown);
+        Assert.Equal(.5, ForecastNeeds.ForecastNeedsTimeline(Pawn() with { Memories = Known<EquatableArray<NeedMemory>>(
             [new("permanent", 10, default, false) { Permanent = true }]) }, Input(), []).MemoryAdjustedMoodTarget.Value, 8);
-        Assert.Throws<DomainException>(() => ForecastNeedsTimeline(Pawn(), Input() with
+        Assert.Throws<DomainException>(() => ForecastNeeds.ForecastNeedsTimeline(Pawn(), Input() with
         { CurrentWork = new(new("pawn"), Known(true), default, Known(500.0)) }, [Sleep()]));
     }
     [Fact]

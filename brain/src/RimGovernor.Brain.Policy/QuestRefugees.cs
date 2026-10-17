@@ -3,7 +3,7 @@ using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class QuestRefugees
 {
     public static Dictionary<PawnId, QuestId> QuestRefugeeIds<TOffers>(Fact<TOffers> offers)
         where TOffers : IReadOnlyList<JoinerOffer>

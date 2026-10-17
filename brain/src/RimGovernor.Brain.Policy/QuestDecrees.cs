@@ -46,7 +46,7 @@ public sealed record DecreeOrderRequest
     public Func<QuestObjective, IReadOnlyList<DecreeRecipe>> Recipes { get; init; } = _ => [];
 }
 
-public static partial class PolicyFunctions
+public static class QuestDecrees
 {
     /// <summary>
     /// Identifies outstanding native progress; inventory is never progress for a production or harvest decree.

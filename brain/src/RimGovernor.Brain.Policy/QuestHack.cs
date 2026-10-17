@@ -14,7 +14,7 @@ public sealed record QuestHackWork
     public QuestSkipReason Reason { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class QuestHackPolicy
 {
     /// <summary>
     /// Follows the native filter predicate: destruction satisfies only a filter which explicitly permits it.
@@ -109,7 +109,7 @@ public static partial class PolicyFunctions
         }
         if (offer.ScriptDef == "Hack_Spacedrone")
         {
-            return JoinerThreatReason(offer, f);
+            return QuestSelection.JoinerThreatReason(offer, f);
         }
         return "";
     }

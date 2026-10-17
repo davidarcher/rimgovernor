@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Derived once alongside shared demand; observed claims are not native reservations.</summary>
-public sealed record ForecastWorkInputs
+public sealed partial record ForecastWorkInputs
 {
     public Tick Tick { get; init; }
     public Fact<EquatableArray<ForecastCommitment>> ConstructionCommitments { get; init; }
@@ -13,7 +13,7 @@ public sealed record ForecastWorkInputs
     public WorkResourceView? Resources { get; init; }
 }
 
-public static partial class PolicyFunctions
+public sealed partial record ForecastWorkInputs
 {
     /// <summary>Use applied journal claims and current native geometry, not a second construction demand ledger.</summary>
     public static ForecastWorkInputs ForecastWorkInputsOf(RoundsFacts facts)

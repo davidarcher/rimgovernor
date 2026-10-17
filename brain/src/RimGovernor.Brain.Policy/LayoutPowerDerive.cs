@@ -7,7 +7,7 @@ public sealed record SupplyRow
     public double Build { get; init; }
     public PowerSourceProfile Profile { get; init; }
 
-    internal bool Known() => PolicyFunctions.FinitePositive(NominalW) && PolicyFunctions.FinitePositive(Build) && PolicyFunctions.FinitePositive(Profile.Daily);
+    internal bool Known() => QuestCapacityForecast.FinitePositive(NominalW) && QuestCapacityForecast.FinitePositive(Build) && QuestCapacityForecast.FinitePositive(Profile.Daily);
 }
 
 /// <summary>What the power sites are derived and priced from, read from the defs: the turbine and the solar generator, the battery, and the market value of the conduit's and the ring wall's cheapest cost lists, per cell. The zero value is unknown.</summary>
@@ -20,8 +20,8 @@ public sealed record PowerModel
     public double Wall { get; init; }
 
     internal bool Known() =>
-        Wind.Known() && Solar.Known() && PolicyFunctions.FinitePositive(Conduit) && PolicyFunctions.FinitePositive(Wall)
-        && PolicyFunctions.FinitePositive(Battery.CapacityWD) && PolicyFunctions.FinitePositive(Battery.Efficiency);
+        Wind.Known() && Solar.Known() && QuestCapacityForecast.FinitePositive(Conduit) && QuestCapacityForecast.FinitePositive(Wall)
+        && QuestCapacityForecast.FinitePositive(Battery.CapacityWD) && QuestCapacityForecast.FinitePositive(Battery.Efficiency);
 
     /// <summary>The storage of the planned battery room: its slots at the catalog battery's capacity.</summary>
     internal double BatteryRoomCapacityWD()
@@ -67,7 +67,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            if (!FinitePositive(lamp.PowerW) || !FinitePositive(reach))
+            if (!QuestCapacityForecast.FinitePositive(lamp.PowerW) || !QuestCapacityForecast.FinitePositive(reach))
             {
                 throw UnknownStationFact("lamp");
             }
@@ -81,7 +81,7 @@ public static partial class PolicyFunctions
         try
         {
             var steel = f.Items.MarketValue(SiteSteelUnit);
-            return FinitePositive(steel) ? steel : null;
+            return QuestCapacityForecast.FinitePositive(steel) ? steel : null;
         }
         catch (DomainException)
         {

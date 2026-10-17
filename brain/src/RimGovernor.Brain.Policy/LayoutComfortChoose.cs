@@ -15,7 +15,7 @@ public static partial class PolicyFunctions
         var price = new EnvPrice(input.Mood, input.WorkDayW, input.Pawns, input.ExpectedMood);
         var weights = DefaultSiteTypeWeights();
         double BuildCost(ComfortOption o) => BuildW(weights, o.Build, input.Steel);
-        var known = need.Curve.Valid() && input.Pawns > 0 && FinitePositive(input.Steel) && FinitePositive(input.WorkDayW) && input.ExpectedMood >= 0 && input.ExpectedMood <= 1;
+        var known = need.Curve.Valid() && input.Pawns > 0 && QuestCapacityForecast.FinitePositive(input.Steel) && QuestCapacityForecast.FinitePositive(input.WorkDayW) && input.ExpectedMood >= 0 && input.ExpectedMood <= 1;
 
         StationNode? sleep = null;
         var work = new List<StationNode>();

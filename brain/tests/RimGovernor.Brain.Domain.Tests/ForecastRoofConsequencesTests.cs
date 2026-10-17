@@ -86,7 +86,7 @@ public sealed class ForecastRoofConsequencesTests
             },
         };
         facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        return facts with { CoupledAlternatives = GenerateCoupledActivities(facts, Horizon) };
+        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
     }
 
     private static PlannedRoomPrediction Closed(string role, int stage)
@@ -100,8 +100,8 @@ public sealed class ForecastRoofConsequencesTests
         var roots = candidates.Alternatives.Where(c => c.ActivityCompletions.SequenceEqual([full.Task])
             || sites.Any(site => c.Id.StartsWith(site + "/composition/", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal))).ToArray();
         Assert.Equal(sites.Length + 1, roots.Length);
-        var forecast = ForecastColony(CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
-            new() { Work = ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(roots) }));
+        var forecast = ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(roots) }));
         var moods = forecast.Proposed.Coupled!.Alternatives.Where(a => a.Feasible == Known(true))
             .Select(a => a.Needs["pawn"].Mood).Where(m => m is { Trajectory.Count: > 0 }).Select(m => m!.Trajectory[^1].Target.Value).ToArray();
         Assert.NotEmpty(moods);
@@ -141,8 +141,8 @@ public sealed class ForecastRoofConsequencesTests
         var roots = candidates.Alternatives.Where(c => c.ActivityCompletions.SequenceEqual([full.Task])
             || (c.Id.StartsWith(Wall + "/composition/", StringComparison.Ordinal) || c.Id.StartsWith(Door + "/composition/", StringComparison.Ordinal))
             && !c.Id.Contains("/after/", StringComparison.Ordinal)).ToArray();
-        var forecast = ForecastColony(CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
-            new() { Work = ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(roots) }));
+        var forecast = ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(roots) }));
         var closing = forecast.Proposed.Coupled!.Alternatives.Where(a => a.Feasible == Known(true) && a.PlannedRooms.Any(r => r.CompletedSites.Count == 2)
             && a.Plan.Allocations.Where(x => x.Activity == full.Task).All(x => a.Plan.Allocations.Where(s => candidates.Context.PlannedSites.Any(p => p.Finishes.Contains(s.Activity))).All(s => s.End <= x.End)));
         Assert.All(closing, a => Assert.Contains(a.Needs["pawn"].Findings, f => f.StartsWith("sleep_room_stage_unknown:", StringComparison.Ordinal)));
@@ -155,14 +155,14 @@ public sealed class ForecastRoofConsequencesTests
         // An observed SleptOutside with half a day left is ended at the wake and replaced by the bedroom thought.
         var observed = new NeedMemory("SleptOutside", -4, Known(30000d), false);
         var renewal = new ForecastMemoryRenewal(10000, ["SleptOutside", "SleptInBedroom"], [new("SleptInBedroom", 2, Known(60000d), false)]);
-        var (ends, gains) = RenewalSchedule([observed], [renewal], [])!.Value;
+        var (ends, gains) = ForecastMood.RenewalSchedule([observed], [renewal], [])!.Value;
         Assert.Equal(10000, ends["SleptOutside"]);
         var gain = Assert.Single(gains);
         Assert.Equal((10000d, double.PositiveInfinity), (gain.Start, gain.End));
         // A meal memory of a renewed def is not additive evidence.
-        Assert.Null(RenewalSchedule([observed], [renewal], ["SleptInBedroom"]));
+        Assert.Null(ForecastMood.RenewalSchedule([observed], [renewal], ["SleptInBedroom"]));
         // A later renewal of the same def ends the earlier gain.
-        var (_, twice) = RenewalSchedule([], [renewal, renewal with { At = 20000 }], [])!.Value;
+        var (_, twice) = ForecastMood.RenewalSchedule([], [renewal, renewal with { At = 20000 }], [])!.Value;
         Assert.Equal([20000d, double.PositiveInfinity], twice.Select(g => g.End));
     }
 
@@ -183,7 +183,7 @@ public sealed class ForecastRoofConsequencesTests
         };
         ForecastNeedChoice[] joy = [new("joy", "pawn", "joy", "pin", "", 0, 0, 0, 12000, 1, [])];
         var observed = Known<EquatableArray<MoodThought>>([]);
-        var roofed = RoofMoodOf(pawn, new(), joy, [Room(0, 0)], observed, Horizon);
+        var roofed = ForecastRoofConsequences.RoofMoodOf(pawn, new(), joy, [Room(0, 0)], observed, Horizon);
         Assert.Equal("", roofed.Unassessed);
         var (thought, spans) = Assert.Single(roofed.Banded);
         Assert.Equal("NeedOutdoors", thought);
@@ -192,7 +192,7 @@ public sealed class ForecastRoofConsequencesTests
         Assert.Equal(9375, span.Start, 6);
         Assert.Equal((Horizon, -3d), (span.End, span.OffsetDelta));
 
-        var unroofed = RoofMoodOf(pawn, new(), joy, [Room(0, double.PositiveInfinity)], observed, Horizon);
+        var unroofed = ForecastRoofConsequences.RoofMoodOf(pawn, new(), joy, [Room(0, double.PositiveInfinity)], observed, Horizon);
         Assert.All(unroofed.Banded, b => Assert.Empty(b.Spans));
     }
 
@@ -205,15 +205,15 @@ public sealed class ForecastRoofConsequencesTests
         var stack = new NeedTarget("meal", "food", "MealSimple", 5, Known(0d), default, default, default)
             { Location = Inside, Cell = OpenCell, Deterioration = new(8, Known(10d), true, 0, false) };
         var perTick = 10 / 36d * 38 / 62500;
-        Assert.Equal(8 / perTick, DeterioratedAt(stack, read, [], GameTime.TicksPerDay)!.Value, 6);
+        Assert.Equal(8 / perTick, ForecastRoofConsequences.DeterioratedAt(stack, read, [], GameTime.TicksPerDay)!.Value, 6);
         Assert.True(8 / perTick < GameTime.TicksPerDay);
         // A planned room closed and roofed over the stack at 6000 ticks: roofed and indoors, it stops deteriorating.
-        Assert.Equal(double.PositiveInfinity, DeterioratedAt(stack, read, [Room(6000, 6000)], GameTime.TicksPerDay));
+        Assert.Equal(double.PositiveInfinity, ForecastRoofConsequences.DeterioratedAt(stack, read, [Room(6000, 6000)], GameTime.TicksPerDay));
         // Closed but open to the sky: the outdoors offset is gone (one open cell of four is under a quarter), the rain stays.
-        var closedOpen = DeterioratedAt(stack, read, [Room(6000, double.PositiveInfinity, open: 0)], 2 * GameTime.TicksPerDay)!.Value;
+        var closedOpen = ForecastRoofConsequences.DeterioratedAt(stack, read, [Room(6000, double.PositiveInfinity, open: 0)], 2 * GameTime.TicksPerDay)!.Value;
         Assert.Equal(6000 + (8 - 6000 * perTick) / (perTick / 2), closedOpen, 6);
         // An unread rate stays unknown.
-        Assert.Null(DeterioratedAt(stack with { Deterioration = stack.Deterioration! with { RatePerDay = default } }, read, [], GameTime.TicksPerDay));
+        Assert.Null(ForecastRoofConsequences.DeterioratedAt(stack with { Deterioration = stack.Deterioration! with { RatePerDay = default } }, read, [], GameTime.TicksPerDay));
     }
 
     [Fact]
@@ -235,7 +235,7 @@ public sealed class ForecastRoofConsequencesTests
         };
         var roots = new[] { new ForecastCommitment("cook-root", []) { ActivityCompletions = ["cook"] }, new ForecastCommitment("craft-root", []) { ActivityCompletions = ["craft"] } };
         var alternatives = roots.ToList();
-        AddClosedBenchVariants([closure], roots, realized, tasks, options, new(), alternatives, new Dictionary<string, (int, string)>());
+        ForecastRoofConsequences.AddClosedBenchVariants([closure], roots, realized, tasks, options, new(), alternatives, new Dictionary<string, (int, string)>());
 
         var variant = Assert.Single(tasks, t => t.Id == "cook/closed/1/WoodLog");
         Assert.Equal(["fetch", "wall/finish", "door/finish"], variant.Prerequisites);
@@ -245,7 +245,7 @@ public sealed class ForecastRoofConsequencesTests
         Assert.DoesNotContain(tasks, t => t.Id.StartsWith("craft/closed", StringComparison.Ordinal));
         var huge = closure with { Prediction = closure.Prediction with { Cells = 400, OpenRoofCells = 300 } };
         var before = tasks.Count;
-        AddClosedBenchVariants([huge], roots, realized, tasks, options, new(), alternatives, new Dictionary<string, (int, string)>());
+        ForecastRoofConsequences.AddClosedBenchVariants([huge], roots, realized, tasks, options, new(), alternatives, new Dictionary<string, (int, string)>());
         Assert.Equal(before, tasks.Count);
     }
 }

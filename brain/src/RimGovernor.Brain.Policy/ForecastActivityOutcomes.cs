@@ -21,7 +21,7 @@ public sealed record ForecastActivityOutcomeComparison(string[] Selected, Foreca
 
 public enum ForecastOutcomeObjective { NetLaborBenefit, EarliestDeadline, LowestLaborPerUnit, RequirementRelief }
 
-public static partial class PolicyFunctions
+public static class ForecastActivityOutcomes
 {
     /// <summary>Compare postponement and combinations using the existing ColonyForecast activity scheduler.
     /// Explicit choice identities exclude variants; shared prerequisites execute once and all outcomes share pawn capacity.</summary>
@@ -30,7 +30,7 @@ public static partial class PolicyFunctions
         Func<ForecastActivityOutcome[], ForecastActivityPlan, Fact<bool>>? assess = null, bool generationTruncated = false,
         IEnumerable<string>? generationFindings = null)
     {
-        ValidateActivityProblem(problem, allowEmpty: outcomes.All(o => o.RetainedCompletion.IsKnown));
+        ForecastActivities.ValidateActivityProblem(problem, allowEmpty: outcomes.All(o => o.RetainedCompletion.IsKnown));
         if (!Enum.IsDefined(objective)) throw new DomainException("invalid outcome objective");
         var deadlinesFirst = objective == ForecastOutcomeObjective.EarliestDeadline;
         var perUnit = objective == ForecastOutcomeObjective.LowestLaborPerUnit;
@@ -96,7 +96,7 @@ public static partial class PolicyFunctions
             if (expansions == problem.ExpansionBudget) { truncated = true; return; }
             var benefit = boundedCost ? 0 : selected.Sum(o => o.AvoidedLaborLoss.Value);
             if (!double.IsFinite(benefit)) throw new DomainException("activity outcome benefit overflow");
-            var compared = included.Count == 0 ? null : CompareActivityPlans(problem with
+            var compared = included.Count == 0 ? null : ForecastActivities.CompareActivityPlans(problem with
             {
                 Activities = problem.Activities.Where(t => included.Contains(t.Id)).ToArray(),
                 Options = problem.Options.Where(o => included.Contains(o.Activity)).ToArray(),
@@ -120,7 +120,7 @@ public static partial class PolicyFunctions
                 if (boundedCost && plan.LaborCost >= problem.AlternativeLaborCost.Value)
                 { findings.Add("labor_ceiling"); continue; }
                 var unitCost = perUnit ? plan.LaborCost / selected.Single().ProgressUnits.Value : 0;
-                var requirements = requirementsFirst ? RequirementPriorityOf(selected.Select(o =>
+                var requirements = requirementsFirst ? ForecastRequirements.RequirementPriorityOf(selected.Select(o =>
                     new ForecastMaterialOption(o.Need, o.Id, Known(0.0), []) { Requirements = o.Requirements }), findings) : null;
                 if (requirementsFirst && requirements is null) continue;
                 var rank = requirementsFirst

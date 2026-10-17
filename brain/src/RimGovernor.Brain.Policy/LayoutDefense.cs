@@ -139,7 +139,7 @@ public static partial class PolicyFunctions
             return (default!, default, default, false);
         }
         // Home is the yard cell behind the killbox's back-wall doorway.
-        var home = AddCell(k.Entry, Scale(DirectionOf(k.Toward), PerimeterThick + k.Depth));
+        var home = DefenseLayout.AddCell(k.Entry, DefenseLayout.Scale(DefenseTurretsPolicy.DirectionOf(k.Toward), PerimeterThick + k.Depth));
         var cover = killbox;
         foreach (var a in approaches.Append(RectOf(k.Entry, k.Entry)))
         {
@@ -184,7 +184,7 @@ public static partial class PolicyFunctions
         var found = false;
         foreach (var a in approaches)
         {
-            foreach (var d in Directions)
+            foreach (var d in DefenseLayout.Directions)
             {
                 var (across, along) = (a.Width, a.Height);
                 if (d.X != 0)
@@ -213,10 +213,10 @@ public static partial class PolicyFunctions
                 {
                     end = end with { Z = a.Z };
                 }
-                var entry = AddCell(end, d);
-                if (Contains(killbox, AddCell(entry, Scale(d, PerimeterThick))))
+                var entry = DefenseLayout.AddCell(end, d);
+                if (Contains(killbox, DefenseLayout.AddCell(entry, DefenseLayout.Scale(d, PerimeterThick))))
                 {
-                    k = k with { Entry = entry, Toward = RotationOf(d), Width = 3, Depth = killbox.Height };
+                    k = k with { Entry = entry, Toward = DefenseLayout.RotationOf(d), Width = 3, Depth = killbox.Height };
                     found = true;
                     if (d.X != 0)
                     {

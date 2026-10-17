@@ -28,7 +28,7 @@ internal sealed class CorridorCosts
     };
 }
 
-public static partial class PolicyFunctions
+public static class DefenseCorridorRoutes
 {
     // Vanilla pathfinder prices the corridor is laid out against: PathFinderJob's move ticks, the Fence def's
     // pathCost, and Building_Door.TicksToOpenNow (45 / DoorOpenSpeed, 1.2 for wood) which
@@ -103,10 +103,10 @@ internal sealed partial class DefenseSite
         {
             return -1;
         }
-        var move = PathMoveCardinal;
+        var move = DefenseCorridorRoutes.PathMoveCardinal;
         if (from.X != to.X && from.Z != to.Z)
         {
-            move = PathMoveDiagonal;
+            move = DefenseCorridorRoutes.PathMoveDiagonal;
             foreach (var corner in new[] { new Cell(to.X, from.Z), new Cell(from.X, to.Z) })
             {
                 if (k.Closed.Contains(corner) || !Passable(corner) || k.Full.Contains(corner) || (Cells.TryGetValue(corner, out var row) && Positive(row.Door)))
@@ -118,11 +118,11 @@ internal sealed partial class DefenseSite
         var priced = k.Cost.TryGetValue(to, out var extra);
         if (!priced && Cells.TryGetValue(to, out var target) && Positive(target.Door))
         {
-            extra = PathWoodDoorCost;
+            extra = DefenseCorridorRoutes.PathWoodDoorCost;
         }
         if (k.Traps.Contains(to))
         {
-            extra += PathKnownTrapCost;
+            extra += DefenseCorridorRoutes.PathKnownTrapCost;
         }
         return move + extra;
     }
@@ -149,9 +149,9 @@ internal sealed partial class DefenseSite
             {
                 continue;
             }
-            foreach (var d in PathSteps)
+            foreach (var d in DefenseCorridorRoutes.PathSteps)
             {
-                var n = AddCell(at, d);
+                var n = DefenseLayout.AddCell(at, d);
                 var step = reverse ? StepCost(k, n, at) : StepCost(k, at, n);
                 if (step < 0)
                 {
@@ -237,9 +237,9 @@ internal sealed partial class DefenseSite
     /// </summary>
     internal bool RaiderWalksCorridor(CorridorCosts k, DefenseLayout l, IReadOnlyList<Cell> walls, IReadOnlyList<Cell> goals)
     {
-        var raider = RaiderCosts(k, walls);
+        var raider = DefenseCorridorRoutes.RaiderCosts(k, walls);
         var bashable = new HashSet<Cell>(walls);
         var (route, ok) = CheapestRoutes(raider, l.Entry, goals);
-        return ok && !CrossesAny(route!, bashable);
+        return ok && !DefenseCorridorRoutes.CrossesAny(route!, bashable);
     }
 }

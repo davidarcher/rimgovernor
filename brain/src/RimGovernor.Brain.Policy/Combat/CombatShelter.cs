@@ -230,7 +230,7 @@ public static partial class CombatShelterRules
                 Math.Min(Math.Max(to.X, interior.X), interior.X + interior.Width - 1),
                 Math.Min(Math.Max(to.Z, interior.Z), interior.Z + interior.Height - 1));
         }
-        if (!view.Layout.TryGetValue(out var layout) || !BehindFiringLine(layout.Firing, layout.Toward, from) || BehindFiringLine(layout.Firing, layout.Toward, to))
+        if (!view.Layout.TryGetValue(out var layout) || !DefensePositions.BehindFiringLine(layout.Firing, layout.Toward, from) || DefensePositions.BehindFiringLine(layout.Firing, layout.Toward, to))
         {
             return to;
         }
@@ -239,7 +239,7 @@ public static partial class CombatShelterRules
         for (var t = 1 - (1.0 / ShelterStep); t > 0; t -= 1.0 / ShelterStep)
         {
             var c = new Cell(from.X + (int)Math.Round(dx * t, MidpointRounding.AwayFromZero), from.Z + (int)Math.Round(dz * t, MidpointRounding.AwayFromZero));
-            if (BehindFiringLine(layout.Firing, layout.Toward, c))
+            if (DefensePositions.BehindFiringLine(layout.Firing, layout.Toward, c))
             {
                 return c;
             }

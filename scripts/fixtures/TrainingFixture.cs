@@ -178,7 +178,7 @@ namespace HomeBridge.BridgeTools
                     };
                     var direct = def == SkillDefOf.Shooting;
                     var path = direct ? RimGovernor.Brain.Policy.SkillXpPath.Range : RimGovernor.Brain.Policy.SkillXpPath.NormalRecord;
-                    var prediction = RimGovernor.Brain.Policy.PolicyFunctions.ForecastSkill(evidence,
+                    var prediction = RimGovernor.Brain.Policy.ForecastSkillPolicy.ForecastSkill(evidence,
                         new[] { new RimGovernor.Brain.Policy.SkillXpEvent("callback", 1, RimGovernor.Brain.Domain.Fact.Known(10d), path) }, 200);
                     actual.Learn(10, direct);
                     actual.Interval();
@@ -226,7 +226,7 @@ namespace HomeBridge.BridgeTools
                 };
                 var events = Enumerable.Range(0, shots).Select(i => new RimGovernor.Brain.Policy.SkillXpEvent(
                     i.ToString(), 1, learning.RangeRawXpPerShot, RimGovernor.Brain.Policy.SkillXpPath.Range)).ToArray();
-                var projected = RimGovernor.Brain.Policy.PolicyFunctions.ForecastSkill(baseline, events, 1);
+                var projected = RimGovernor.Brain.Policy.ForecastSkillPolicy.ForecastSkill(baseline, events, 1);
                 return FixtureKit.Reply(new Fx.TrainingRead
                 {
                     LearningReadOnly = readOnly, ProjectedLevel = projected.StoredLevel.ValueOrDefault,
@@ -305,7 +305,7 @@ namespace HomeBridge.BridgeTools
                     if (!evidence.SparringRawXpPerExchange.IsKnown) { Failures.Add("sparring_quote_unknown"); return; }
                     raw = evidence.SparringRawXpPerExchange.Value;
                 }
-                var predicted = RimGovernor.Brain.Policy.PolicyFunctions.ForecastSkill(evidence,
+                var predicted = RimGovernor.Brain.Policy.ForecastSkillPolicy.ForecastSkill(evidence,
                     new[] { new RimGovernor.Brain.Policy.SkillXpEvent("native-callback", 0,
                         RimGovernor.Brain.Domain.Fact.Known(raw), RimGovernor.Brain.Policy.SkillXpPath.NormalRecord) }, 0);
                 if (Math.Abs(raw - xp) > .01) Failures.Add(kind + "_raw_xp_quote");

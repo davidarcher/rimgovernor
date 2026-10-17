@@ -63,7 +63,7 @@ public static partial class PolicyFunctions
             }
             Generate(0, new(StringComparer.Ordinal));
         }
-        var comparison = CompareMaterialPlans(options, view.Availability, searchBudget, valuation?.Values);
+        var comparison = ForecastMaterialChoices.CompareMaterialPlans(options, view.Availability, searchBudget, valuation?.Values);
         comparison = comparison with { Findings = EquatableArray.From(comparison.Findings.Concat(findings).Distinct().Order(StringComparer.Ordinal)) };
         var selected = comparison.Selected.Select(o => variants[o.Id]).Concat(placements.Where(p => p.Spec.Mode != BillMode.GearBatch));
         var chosen = comparison.Selected.Select(o => o.Demand).ToHashSet(StringComparer.Ordinal);

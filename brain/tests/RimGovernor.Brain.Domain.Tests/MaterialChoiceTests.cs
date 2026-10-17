@@ -78,9 +78,9 @@ public sealed class MaterialChoiceTests
         ForecastMaterialOption[] Options(double machineValue) => [
             new("small-a", "a", Known(4.0), [new(Metal, 5)]), new("small-b", "b", Known(4.0), [new(Metal, 5)]),
             new("machine", "m", Known(machineValue), [new(Metal, 10)])];
-        Assert.Equal(2, CompareMaterialPlans(Options(7), Budget()).Selected.Count);
-        Assert.Equal("m", Assert.Single(CompareMaterialPlans(Options(9), Budget()).Selected).Id);
-        var unknown = CompareMaterialPlans([new("d", "unknown", default, [new(Metal, 1)])], Budget());
+        Assert.Equal(2, ForecastMaterialChoices.CompareMaterialPlans(Options(7), Budget()).Selected.Count);
+        Assert.Equal("m", Assert.Single(ForecastMaterialChoices.CompareMaterialPlans(Options(9), Budget()).Selected).Id);
+        var unknown = ForecastMaterialChoices.CompareMaterialPlans([new("d", "unknown", default, [new(Metal, 1)])], Budget());
         Assert.Empty(unknown.Selected);
         Assert.Contains("unknown_value:unknown", unknown.Findings);
     }

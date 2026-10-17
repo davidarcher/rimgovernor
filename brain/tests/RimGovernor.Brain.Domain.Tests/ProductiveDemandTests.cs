@@ -25,12 +25,12 @@ public sealed class ProductiveDemandTests
             Needs = needs with { Pawns = EquatableArray.From(needs.Pawns.Select(p => p with
             { Needs = EquatableArray.From(p.Needs.Select(n => n.Kind == "food" ? n with { Level = Known(saturated ? 1d : .4), FallPerTick = Known(0d) } : n)) })) }
         } };
-        var generated = GenerateCoupledActivities(facts, 700)!;
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 700)!;
         var batch = generated.Alternatives.Single(c => c.Id.StartsWith("food/", StringComparison.Ordinal) && c.ActivityCompletions.Count == 2);
         var eating = generated.Context.NeedTasks.First(n => n.FoodReady == batch.ActivityCompletions[0]);
         var eat = generated.Alternatives.Single(c => c.ActivityCompletions.Contains(eating.Task));
-        var request = CoupledForecastRequestOf(new("world/map/load", 100), 700d / GameTime.TicksPerDay,
-            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputsOf(facts) }, [], new() { Add = [batch, eat] });
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 700d / GameTime.TicksPerDay,
+            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = [batch, eat] });
         var alternatives = ForecastColony(request).Proposed.Coupled!.Alternatives;
         Assert.Equal(feasible, alternatives.Any(a => a.Feasible == Known(true)));
         if (feasible)
@@ -39,7 +39,7 @@ public sealed class ProductiveDemandTests
             Assert.Contains(alternatives.SelectMany(a => a.Findings), f => f.Reason == "productive_output_without_useful_demand");
         if (saturated)
         {
-            var choice = CompareActivityOutcomes(request with { Proposed = new() }, generated);
+            var choice = ForecastCoupledSelection.CompareActivityOutcomes(request with { Proposed = new() }, generated);
             Assert.Empty(choice.Selected.Plan.Allocations);
         }
     }

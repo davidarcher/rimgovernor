@@ -11,7 +11,7 @@ namespace RimGovernor.RealCombat.Native;
 /// <summary>
 /// A walled compound with the killbox the colony's own planner lays out in it, built at once. The ring wall closes the
 /// map except for the killbox's opening; the census of the map (what the live game reads off its cell mirror) goes to
-/// <see cref="PolicyFunctions.DefenseLayouts"/>, the planner that proposes the funnel, trap corridor and firing line in
+/// <see cref="DefenseLayout.DefenseLayouts"/>, the planner that proposes the funnel, trap corridor and firing line in
 /// play; every building it proposes is placed instantly, so a fight starts on the finished defense. The layout the
 /// policy holds in the fight (<see cref="Layout"/>) is read off the planner's result the way the defense round reads it.
 /// </summary>
@@ -105,7 +105,7 @@ public sealed class DefenseStage(Rotation toward, int defenders, double minRange
         };
         try
         {
-            Planned = PolicyFunctions.DefenseLayouts(request);
+            Planned = DefenseLayout.DefenseLayouts(request);
         }
         catch (DefenseException ex)
         {

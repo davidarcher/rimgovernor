@@ -20,7 +20,7 @@ public sealed record SurveyPlan
     public QuestSkipReason Reason { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class QuestSurvey
 {
     private static bool SurveyScannerOf(JoinerOffer offer, string site, out QuestSurveyScanner scanner)
     {
@@ -77,7 +77,7 @@ public static partial class PolicyFunctions
 
     public static QuestSkipReason SurveyAdmission(JoinerOffer offer, RoundsFacts f)
     {
-        if (!QuestExpeditionSite(offer, f, out var site))
+        if (!QuestExpedition.QuestExpeditionSite(offer, f, out var site))
         {
             return "site_unknown";
         }
@@ -96,7 +96,7 @@ public static partial class PolicyFunctions
         {
             return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Reason = reason };
         }
-        var plan = PlanExpedition(offer, budget, f, food, p);
+        var plan = QuestExpedition.PlanExpedition(offer, budget, f, food, p);
         if (!plan.Reason.IsNone || plan.Departure is null)
         {
             return plan;
@@ -106,7 +106,7 @@ public static partial class PolicyFunctions
             return plan with { Departure = null, Reason = "relief_capacity_unknown" };
         }
         var reserveFood = SurveyReliefFood(food, plan.Departure);
-        var relief = PlanExpedition(offer, budget, reserve, reserveFood, p);
+        var relief = QuestExpedition.PlanExpedition(offer, budget, reserve, reserveFood, p);
         if (!relief.Reason.IsNone || relief.Departure is null)
         {
             return plan with { Departure = null, Reason = "relief_capacity" };
@@ -295,7 +295,7 @@ public static partial class PolicyFunctions
                 return result;
             }
         }
-        if (!QuestExpeditionSite(offer, f, out var target))
+        if (!QuestExpedition.QuestExpeditionSite(offer, f, out var target))
         {
             return result with { Reason = "site_unknown" };
         }
@@ -304,7 +304,7 @@ public static partial class PolicyFunctions
         {
             return result with { Reason = reason };
         }
-        var plan = PlanExpedition(offer, budget, f, food, p);
+        var plan = QuestExpedition.PlanExpedition(offer, budget, f, food, p);
         return result with { Departure = plan.Departure, Reason = plan.Reason };
     }
 }

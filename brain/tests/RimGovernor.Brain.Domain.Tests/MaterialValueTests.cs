@@ -23,21 +23,21 @@ public sealed class MaterialValueTests
     {
         ForecastMaterialOption[] options = [Option("a", "art-a", "beauty", 3, Metal, 5), Option("b", "art-b", "beauty", 3, Metal, 5),
             Option("c", "machine", "urgent", 1, Metal, 10)];
-        var urgent = CompareMaterialPlans(options, Stock, valuation: Values());
+        var urgent = ForecastMaterialChoices.CompareMaterialPlans(options, Stock, valuation: Values());
         Assert.Equal("machine", Assert.Single(urgent.Selected).Id);
         Assert.Equal(new ForecastMaterialValue(20, 1, 0.1), urgent.Valuation);
         Assert.Equal(18.9, urgent.Value, 8);
         var satisfied = Values() with { Needs = new Dictionary<string, ForecastNeedValue> {
             ["urgent"] = new(Known(0.0), Known(20.0)), ["beauty"] = new(Known(10.0), Known(1.0)) } };
-        Assert.Equal(2, CompareMaterialPlans(options, Stock, valuation: satisfied).Selected.Count);
-        Assert.Equal(urgent.Selected, CompareMaterialPlans(options.Reverse(), Stock, valuation: Values()).Selected);
+        Assert.Equal(2, ForecastMaterialChoices.CompareMaterialPlans(options, Stock, valuation: satisfied).Selected.Count);
+        Assert.Equal(urgent.Selected, ForecastMaterialChoices.CompareMaterialPlans(options.Reverse(), Stock, valuation: Values()).Selected);
     }
 
     [Fact]
     public void NeedReliefIsCappedAcrossJobsAndUnusedMaterialsStayFree()
     {
         var options = new[] { Option("a", "a", "urgent", 1, Metal, 5), Option("b", "b", "urgent", 1, Metal, 5) };
-        var result = CompareMaterialPlans(options, Stock, valuation: Values());
+        var result = ForecastMaterialChoices.CompareMaterialPlans(options, Stock, valuation: Values());
         Assert.Single(result.Selected);
         Assert.Equal(20, result.Valuation!.Benefit);
         Assert.Equal(0.5, result.Valuation.MaterialCost);
@@ -49,21 +49,21 @@ public sealed class MaterialValueTests
         var cheap = Option("art", "wood", "beauty", 4, Wood, 5);
         var better = Option("art", "metal", "beauty", 8, Metal, 5);
         var expensive = Values() with { MaterialUtilityPerUnit = new Dictionary<Resource, Fact<double>> { [Metal] = Known(1.0), [Wood] = Known(0.1) } };
-        Assert.Equal("wood", Assert.Single(CompareMaterialPlans([cheap, better], Stock, valuation: expensive).Selected).Id);
-        Assert.Equal("metal", Assert.Single(CompareMaterialPlans([cheap, better], Stock, valuation: Values()).Selected).Id);
+        Assert.Equal("wood", Assert.Single(ForecastMaterialChoices.CompareMaterialPlans([cheap, better], Stock, valuation: expensive).Selected).Id);
+        Assert.Equal("metal", Assert.Single(ForecastMaterialChoices.CompareMaterialPlans([cheap, better], Stock, valuation: Values()).Selected).Id);
         var slow = better with { Estimate = better.Estimate! with { WorkTicks = Known(100.0) } };
-        Assert.Equal("wood", Assert.Single(CompareMaterialPlans([cheap, slow], Stock, valuation: Values()).Selected).Id);
+        Assert.Equal("wood", Assert.Single(ForecastMaterialChoices.CompareMaterialPlans([cheap, slow], Stock, valuation: Values()).Selected).Id);
     }
 
     [Fact]
     public void PostponeWinsForZeroOrNegativeNetBenefitEvenWhenStockIsAvailable()
     {
         var option = Option("job", "costly", "beauty", 1, Wood, 5, work: 5);
-        var zero = CompareMaterialPlans([option], Stock, valuation: Values());
+        var zero = ForecastMaterialChoices.CompareMaterialPlans([option], Stock, valuation: Values());
         Assert.Empty(zero.Selected);
         Assert.Equal(0, zero.Value);
         Assert.Equal(new ForecastMaterialValue(0, 0, 0), zero.Valuation);
-        Assert.Empty(CompareMaterialPlans([option], Stock, valuation: Values(workRate: 1)).Selected);
+        Assert.Empty(ForecastMaterialChoices.CompareMaterialPlans([option], Stock, valuation: Values(workRate: 1)).Selected);
     }
 
     [Fact]
@@ -78,12 +78,12 @@ public sealed class MaterialValueTests
             (option, Values() with { Needs = new Dictionary<string, ForecastNeedValue>() }, "unknown_need:") };
         foreach (var (candidate, values, reason) in missing)
         {
-            var result = CompareMaterialPlans([candidate], Stock, valuation: values);
+            var result = ForecastMaterialChoices.CompareMaterialPlans([candidate], Stock, valuation: values);
             Assert.Empty(result.Selected);
             Assert.Contains(result.Findings, f => f.StartsWith(reason, StringComparison.Ordinal));
         }
-        Assert.Throws<DomainException>(() => CompareMaterialPlans([option], Stock, valuation: Values(workRate: -1)));
-        Assert.Throws<DomainException>(() => CompareMaterialPlans([option], Stock, valuation: Values(workRate: double.PositiveInfinity)));
+        Assert.Throws<DomainException>(() => ForecastMaterialChoices.CompareMaterialPlans([option], Stock, valuation: Values(workRate: -1)));
+        Assert.Throws<DomainException>(() => ForecastMaterialChoices.CompareMaterialPlans([option], Stock, valuation: Values(workRate: double.PositiveInfinity)));
     }
 
     [Fact]
@@ -91,11 +91,11 @@ public sealed class MaterialValueTests
     {
         var a = Option("a", "a", "beauty", 1, Wood, 1);
         var b = Option("b", "b", "urgent", 1, Metal, 11);
-        var bounded = CompareMaterialPlans([a, b], Stock, expansionBudget: 1, valuation: Values());
+        var bounded = ForecastMaterialChoices.CompareMaterialPlans([a, b], Stock, expansionBudget: 1, valuation: Values());
         Assert.True(bounded.SearchTruncated);
         Assert.Equal(1, bounded.Expansions);
         Assert.Equal("a", Assert.Single(bounded.Selected).Id);
-        Assert.Equal("a", Assert.Single(CompareMaterialPlans([a, b], Stock, valuation: Values()).Selected).Id);
+        Assert.Equal("a", Assert.Single(ForecastMaterialChoices.CompareMaterialPlans([a, b], Stock, valuation: Values()).Selected).Id);
     }
 
     [Fact]

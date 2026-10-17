@@ -55,9 +55,9 @@ public sealed record ExpeditionTrip
     public IReadOnlyList<SiteHomeRoute> HomeRoutes { get; init; } = [];
 }
 
-public static partial class PolicyFunctions
+public static class QuestExpedition
 {
-    private static bool QuestExpeditionSite(JoinerOffer offer, RoundsFacts f, out ExpeditionSite site)
+    internal static bool QuestExpeditionSite(JoinerOffer offer, RoundsFacts f, out ExpeditionSite site)
     {
         site = new ExpeditionSite();
         if (!f.QuestSites.TryGetValue(out var sites))
@@ -195,25 +195,25 @@ public static partial class PolicyFunctions
                     {
                         if (offer.ScriptDef == "SurveySite")
                         {
-                            var work = SurveyWork(offer, row, f, f.AnimalUpkeep.Food, p);
+                            var work = QuestSurvey.SurveyWork(offer, row, f, f.AnimalUpkeep.Food, p);
                             return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Departure = work.Departure, Waiting = work.Waiting, Reason = work.Reason };
                         }
                         return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Waiting = true };
                     }
                 }
             }
-            var terminal = WorshippedTerminalAdmission(offer);
+            var terminal = QuestHackPolicy.WorshippedTerminalAdmission(offer);
             if (!terminal.IsNone)
             {
                 return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Reason = terminal, Waiting = true };
             }
             if (offer.ScriptDef == "SurveySite")
             {
-                return PlanSurvey(offer, site, f, f.AnimalUpkeep.Food, p);
+                return QuestSurvey.PlanSurvey(offer, site, f, f.AnimalUpkeep.Food, p);
             }
             if (offer.ScriptDef == "OpportunitySite_PeaceTalks")
             {
-                return PlanPeaceTalks(offer, site, f, f.AnimalUpkeep.Food, p);
+                return QuestPeaceTalksPolicy.PlanPeaceTalks(offer, site, f, f.AnimalUpkeep.Food, p);
             }
             return PlanExpedition(offer, site, f, f.AnimalUpkeep.Food, p);
         }
@@ -224,11 +224,11 @@ public static partial class PolicyFunctions
     {
         if (offer.ScriptDef == "SurveySite")
         {
-            return SurveyAdmission(offer, f);
+            return QuestSurvey.SurveyAdmission(offer, f);
         }
         if (offer.ScriptDef == "OpportunitySite_PeaceTalks")
         {
-            return PeaceTalksAdmission(offer, f);
+            return QuestPeaceTalksPolicy.PeaceTalksAdmission(offer, f);
         }
         if (!QuestExpeditionSite(offer, f, out var site))
         {
@@ -336,7 +336,7 @@ public static partial class PolicyFunctions
                 Profile = Known(new QuestProfile { Family = QuestFamily.BanditCamp }),
                 Objectives = [new QuestObjective { Kind = Pb.QuestObjectiveKind.LoadPawns, Count = Known((long)explicitCrew.Count) }],
             };
-            var (selected, reason) = DepartureSquadWithCrew(mission, f with { QuestSparePawns = Known(EquatableArray.From(filtered)) }, false, true);
+            var (selected, reason) = QuestDeparture.DepartureSquadWithCrew(mission, f with { QuestSparePawns = Known(EquatableArray.From(filtered)) }, false, true);
             if (!reason.IsNone)
             {
                 return Fail(reason);
@@ -351,7 +351,7 @@ public static partial class PolicyFunctions
                 Profile = Known(new QuestProfile { Family = QuestFamily.BanditCamp }),
                 Objectives = [new QuestObjective { Kind = Pb.QuestObjectiveKind.LoadPawns, Count = Known((long)count) }],
             };
-            var (candidate, reason) = DepartureSquadOf(mission, f, true);
+            var (candidate, reason) = QuestDeparture.DepartureSquadOf(mission, f, true);
             if (!reason.IsNone)
             {
                 return Fail(reason);
@@ -421,7 +421,7 @@ public static partial class PolicyFunctions
         return result with { Departure = departure };
     }
 
-    private static (IReadOnlyList<CargoItem> Cargo, QuestSkipReason Reason) ExpeditionFood(FoodSupply supply, IReadOnlyList<PawnId> crew, double days, double homeDays, double capacity)
+    internal static (IReadOnlyList<CargoItem> Cargo, QuestSkipReason Reason) ExpeditionFood(FoodSupply supply, IReadOnlyList<PawnId> crew, double days, double homeDays, double capacity)
     {
         IReadOnlyList<CargoItem> none = [];
         if (!supply.Complete.TryGetValue(out var complete) || !complete || !Finite(days) || days < 1)

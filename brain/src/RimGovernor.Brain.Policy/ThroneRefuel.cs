@@ -62,7 +62,7 @@ public static partial class PolicyFunctions
                 best = l.Id;
             }
         }
-        var found = DefenseRearmPawn(workers, out var pawn);
+        var found = DefenseRearm.DefenseRearmPawn(workers, out var pawn);
         if (best.Length == 0 || !found)
         {
             return new ThroneStep();

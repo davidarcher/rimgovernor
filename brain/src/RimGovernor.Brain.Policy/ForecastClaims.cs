@@ -7,7 +7,7 @@ public sealed record ForecastMaterialClaim(Resource Resource, Fact<double> Units
 public sealed record ForecastEquipmentCapacity(string Id, string Location, Fact<EquatableArray<ForecastTimeWindow>> Windows);
 public sealed record ForecastEquipmentClaim(string Equipment, Fact<double> Start, Fact<double> End);
 
-public static partial class PolicyFunctions
+public static class ForecastClaims
 {
     /// <summary>One scenario's free stock after native holds and declared promises; unknowns are resource-local.</summary>
     public static Fact<IReadOnlyDictionary<Resource, Fact<double>>> ForecastMaterialBudgetOf(

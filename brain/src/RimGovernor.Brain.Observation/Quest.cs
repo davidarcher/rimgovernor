@@ -102,7 +102,7 @@ public static partial class ObservationPackage
             }
             if (pawn.MeleePower.TryGetValue(out var melee) && pawn.RangedDPS.TryGetValue(out var ranged))
             {
-                rows[i] = rows[i] with { DefensePoints = Known((melee + ranged) * PolicyFunctions.DefensePointsPerDps) };
+                rows[i] = rows[i] with { DefensePoints = Known((melee + ranged) * DefenseCapacityPolicy.DefensePointsPerDps) };
             }
         }
         return Known(EquatableArray.From(rows));
@@ -163,7 +163,7 @@ public static partial class ObservationPackage
     /// <summary>Derives the open meeting's protection on each read; rescue and ordinary tending stay available when operations are excluded.</summary>
     internal static RoundsFacts StampQuestGuestProtection(RoundsFacts f)
     {
-        var ids = PolicyFunctions.ProtectedQuestGuestIds(f.QuestOffers);
+        var ids = QuestHospitality.ProtectedQuestGuestIds(f.QuestOffers);
         if (f.Custody.TryGetValue(out var custody))
         {
             var rows = new List<CustodyFacts>(custody.Count);
@@ -189,7 +189,7 @@ public static partial class ObservationPackage
 
     internal static RoundsFacts StampQuestRefugees(RoundsFacts f)
     {
-        var refugees = PolicyFunctions.QuestRefugeeIds(f.QuestOffers);
+        var refugees = QuestRefugees.QuestRefugeeIds(f.QuestOffers);
         if (f.Custody.TryGetValue(out var custody))
         {
             var rows = new List<CustodyFacts>(custody.Count);

@@ -11,15 +11,15 @@ public sealed record ForecastMaterialValuation(
     Fact<double> WorkUtilityPerTick);
 public sealed record ForecastProductionValuation(ForecastMaterialValuation Values,
     IReadOnlyDictionary<string, ForecastProductionEstimate> ByOrderKey);
-public sealed record ForecastMaterialValue(double Benefit, double MaterialCost, double WorkCost)
+public sealed partial record ForecastMaterialValue(double Benefit, double MaterialCost, double WorkCost)
 {
     public double Net => Benefit - MaterialCost - WorkCost;
 }
 
-public static partial class PolicyFunctions
+public sealed partial record ForecastMaterialValue
 {
     // Missing estimates never fall back to batch count or zero. Known zero is an explicit assumption.
-    private static ForecastMaterialValue? ValueMaterialPlan(IEnumerable<ForecastMaterialOption> options,
+    internal static ForecastMaterialValue? ValueMaterialPlan(IEnumerable<ForecastMaterialOption> options,
         ForecastMaterialValuation valuation, SortedSet<string> findings)
     {
         var relief = new Dictionary<string, double>(StringComparer.Ordinal);

@@ -1155,7 +1155,7 @@ public static partial class PolicyFunctions
     private static double Covered(SupplyCand c, double delivered, double finite) => c.Finite ? delivered : delivered - finite;
 
     /// <summary>The fraction of the candidate's declared ingredient draws the usable stock still covers, 1 for a candidate that declares none.</summary>
-    private static double Affordable(SupplyCand c, Dictionary<ResourceKey, long> usable)
+    internal static double Affordable(SupplyCand c, Dictionary<ResourceKey, long> usable)
     {
         var scale = 1.0;
         foreach (var q in c.C.UpfrontCost.Resources)

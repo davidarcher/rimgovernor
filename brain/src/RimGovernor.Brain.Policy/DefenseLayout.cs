@@ -154,7 +154,7 @@ public readonly record struct DefenseTierName(string Value)
 }
 
 /// <summary>One staged construction: its placements plus cells the tier reserves against later routine construction.</summary>
-public sealed record DefenseTier
+public sealed partial record DefenseTier
 {
     public DefenseTierName Name { get; init; }
 
@@ -174,7 +174,7 @@ public sealed record DefenseGated(DefenseTierName Tier, string Reason);
 public readonly record struct FiringPosition(Cell Cell, Cell Cover, Cell Retreat);
 
 /// <summary>A deterministic proposal. Native placement previews and the access audit still decide legality.</summary>
-public sealed record DefenseLayout
+public sealed partial record DefenseLayout
 {
     /// <summary>The corridor direction from the map edge toward Home.</summary>
     public Rotation Toward { get; init; }
@@ -265,11 +265,11 @@ internal sealed partial class DefenseSite
         {
             throw new DefenseException("invalid defense region");
         }
-        if (r.Defenders < 0 || r.Defenders > DefenseMaxDefenders)
+        if (r.Defenders < 0 || r.Defenders > DefenseLayout.DefenseMaxDefenders)
         {
             throw new DefenseException("invalid defender count");
         }
-        ValidateDefenseArrivals(r);
+        DefenseArrivalRoutes.ValidateDefenseArrivals(r);
         if (r.MinRange.TryGetValue(out var range) && (double.IsNaN(range) || double.IsInfinity(range) || range <= 0))
         {
             throw new DefenseException("invalid minimum range");
@@ -318,7 +318,7 @@ internal sealed partial class DefenseSite
     }
 }
 
-public static partial class PolicyFunctions
+public sealed partial record DefenseLayout
 {
     public static readonly DefenseTierName TierChokepoint = new("chokepoint");
     public static readonly DefenseTierName TierFiringLine = new("firing_line");
@@ -486,7 +486,7 @@ public static partial class PolicyFunctions
         if (q.Definition != "" && q.Max > 0)
         {
             var size = Math.Max(Math.Max(q.Size.Width, q.Size.Height), 1);
-            half += (TurretSpacing + size - 1) * ((q.Max + 1) / 2);
+            half += (DefenseTurretsPolicy.TurretSpacing + size - 1) * ((q.Max + 1) / 2);
         }
         half = Math.Min(Math.Max(half, KillboxMinHalf), KillboxHalf - 1);
         var legs = Math.Min((r.Killbox.Depth - KillboxZoneRows) / KillboxLegPitch, KillboxMaxLegs);
@@ -512,7 +512,7 @@ public static partial class PolicyFunctions
             throw new DefenseException("no killbox opening to anchor the corridor on");
         }
         var (half, legs) = DefenseShape(r);
-        var d = DirectionOf(kb.Toward);
+        var d = DefenseTurretsPolicy.DirectionOf(kb.Toward);
         var p = Perpendicular(d);
         Cell At(int k, int a) => AddCell(kb.Entry, AddCell(Scale(d, PerimeterThick + k), Scale(p, a)));
         var hall = SnakeCorridor(half, legs);
@@ -579,7 +579,7 @@ public static partial class PolicyFunctions
             throw new DefenseException("no killbox opening to anchor the corridor on");
         }
         var walled = new HashSet<Cell>(kb.Walled);
-        var d = DirectionOf(kb.Toward);
+        var d = DefenseTurretsPolicy.DirectionOf(kb.Toward);
         var p = Perpendicular(d);
         var entry = kb.Entry;
         // at is a killbox cell: row k inward from the ring's inner face (the ring rows are -PerimeterThick..-1), column a across the opening.
@@ -685,14 +685,14 @@ public static partial class PolicyFunctions
             var c = At(k, 0);
             Build(funnel, r.Definitions.Door, r.Definitions.DoorStuff, c, "door");
             funnelReserved.Add(c);
-            costs.Cost[c] = PathWoodDoorCost;
+            costs.Cost[c] = DefenseCorridorRoutes.PathWoodDoorCost;
             costs.Full.Add(c);
         }
         // Spike traps on the raiders' cheapest line at each turn: hostile pawns do not know the player's traps
         // and walk over them, while colonists price their faction's known traps and take the hallway's
         // trap-free side. Never beside another (PlaceWorker_NeverAdjacentTrap), never where the colonists'
         // cheapest hallway route would cross one.
-        var raiderLine = s.CheapestRoutes(RaiderCosts(costs, []), entry, [exit]).Route;
+        var raiderLine = s.CheapestRoutes(DefenseCorridorRoutes.RaiderCosts(costs, []), entry, [exit]).Route;
         var sites = new List<(Cell Cell, int Near)>();
         foreach (var c in raiderLine ?? [])
         {
@@ -729,7 +729,7 @@ public static partial class PolicyFunctions
                 continue;
             }
             var beside = costs.Traps.Contains(t);
-            foreach (var step in PathSteps)
+            foreach (var step in DefenseCorridorRoutes.PathSteps)
             {
                 beside = beside || costs.Traps.Contains(AddCell(t, step));
             }
@@ -762,7 +762,7 @@ public static partial class PolicyFunctions
         foreach (var c in fences)
         {
             Build(corridor, r.Definitions.Fence, r.Definitions.FenceStuff, c, "fence");
-            costs.Cost[c] = PathFenceCost;
+            costs.Cost[c] = DefenseCorridorRoutes.PathFenceCost;
         }
         // Firing line: sandbags behind the fence bar, floored shooter cells behind them and a free retreat cell
         // before the back wall, centred on column 0, each within MinRange of the exit and in the game's line of
@@ -864,7 +864,7 @@ public static partial class PolicyFunctions
             layout = layout with { Tiers = EquatableArray.From(tiers) };
             if (turrets.Gated != "")
             {
-                gated.Add(new DefenseGated(TierTurrets, turrets.Gated));
+                gated.Add(new DefenseGated(DefenseTurretsPolicy.TierTurrets, turrets.Gated));
             }
         }
         layout = layout with { Approaches = s.ComputeApproaches(layout) };
@@ -882,7 +882,7 @@ public static partial class PolicyFunctions
         }
         if (ieds.Gated != "")
         {
-            gated.Add(new DefenseGated(TierIEDs, ieds.Gated));
+            gated.Add(new DefenseGated(DefenseIEDs.TierIEDs, ieds.Gated));
         }
         return layout with { Gated = EquatableArray.From(gated) };
     }
@@ -915,6 +915,6 @@ internal sealed partial class DefenseSite
     internal bool HallwayAvoidsTraps(CorridorCosts k, HashSet<Cell> lane, Cell exit, Cell entry)
     {
         var (route, ok) = CheapestRoutes(k.WithWithin(lane), exit, [entry]);
-        return ok && !CrossesAny(route!, k.Traps);
+        return ok && !DefenseCorridorRoutes.CrossesAny(route!, k.Traps);
     }
 }

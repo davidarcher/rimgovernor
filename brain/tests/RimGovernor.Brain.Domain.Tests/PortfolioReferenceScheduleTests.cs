@@ -23,7 +23,7 @@ public sealed class PortfolioReferenceScheduleTests
     private static string ThisFile([CallerFilePath] string path = "") => path;
 
     private static ForecastCoupledContext Context() =>
-        PolicyFunctions.GenerateCoupledActivities(PortfolioAllocationTests.LargerFacts(), 700)!.Context;
+        ForecastCoupledCandidates.GenerateCoupledActivities(PortfolioAllocationTests.LargerFacts(), 700)!.Context;
 
     /// <summary>
     /// Helper cooks all four meals back to back on the one stove at its observed 91-tick rate; porter carries rice

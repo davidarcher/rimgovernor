@@ -1333,7 +1333,7 @@ public static partial class CombatDecideRules
 
         if (m.Tactic == CombatTactic.Hold)
         {
-            return !view.Layout.TryGetValue(out var layout) || HoldCompromised(CombatFallbackRules.HoldLine(layout, m), layout.Toward, CombatPeelRules.Unpeeled(view, stop, m));
+            return !view.Layout.TryGetValue(out var layout) || DefensePositions.HoldCompromised(CombatFallbackRules.HoldLine(layout, m), layout.Toward, CombatPeelRules.Unpeeled(view, stop, m));
         }
 
         if (m.Tactic == CombatTactic.Pods)
@@ -1491,7 +1491,7 @@ public static partial class CombatDecideRules
         }
 
         var belted = view.Pawns.Items.Any(p => p.Shield.IsKnown);
-        var vok = TowardVector(layout.Toward, out var v);
+        var vok = DefensePositions.TowardVector(layout.Toward, out var v);
         if (vok)
         {
             foreach (var f in layout.Firing.Items)
@@ -1567,7 +1567,7 @@ public static partial class CombatDecideRules
             cells = CombatFireRules.SpaceCells(cells, CombatMechRules.FiringGap(view));
             var (defenders, tanks) = CombatTankRules.SplitTanks(view);
             IReadOnlyList<DefensivePosition> positions;
-            (positions, refusal) = ExplainDefensivePositionsIn(cells, layout.Toward, CombatBlockingRules.InsideRooms(view), CombatBlockingRules.ChokeHeld(view, layout), CombatMechRules.MarkMechs(view), defenders);
+            (positions, refusal) = DefensePositions.ExplainDefensivePositionsIn(cells, layout.Toward, CombatBlockingRules.InsideRooms(view), CombatBlockingRules.ChokeHeld(view, layout), CombatMechRules.MarkMechs(view), defenders);
             if (refusal.Length == 0)
             {
                 var roles = new List<CombatRole>(positions.Count);

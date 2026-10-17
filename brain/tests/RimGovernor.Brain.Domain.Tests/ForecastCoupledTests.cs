@@ -51,12 +51,12 @@ public sealed class ForecastCoupledTests
                 },
             }
         };
-        return ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        return ForecastCoupledCandidates.ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
     }
     private static ColonyForecast Evaluate(RoundsFacts facts, params ForecastCommitment[] selected)
     {
-        var demand = new DerivedDemand { Work = ForecastWorkInputsOf(facts) };
-        return ForecastColony(CoupledForecastRequestOf(new("world/map/load", 100), 300.0 / GameTime.TicksPerDay,
+        var demand = new DerivedDemand { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) };
+        return ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300.0 / GameTime.TicksPerDay,
             facts, demand, [], new() { Add = EquatableArray.From(selected) }));
     }
 
@@ -86,7 +86,7 @@ public sealed class ForecastCoupledTests
         // Full food reaches the .3 threshold after 700 ticks, with 10 ticks of chewing.
         // A meal starting at 690 is usable only when its completion at 700 fits.
         // Recurring meals occur later still; they must not poison an otherwise valid request.
-        var generated = Assert.IsType<ForecastCoupledCandidates>(GenerateCoupledActivities(Review(foodLevel: 1), horizon));
+        var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(Review(foodLevel: 1), horizon));
         Assert.All(generated.Context.Activities.Activities, task => Assert.True(task.NotBefore <= horizon));
         Assert.Equal(firstMealInWindow, generated.Context.NeedTasks.Any(n => n.Kind == "food"));
         Assert.All(generated.Context.NeedTasks.Where(need => need.Kind == "food"), need =>
@@ -114,7 +114,7 @@ public sealed class ForecastCoupledTests
     public void MixedObservedTicksCannotProduceAFalseCoherentFrame()
     {
         var facts = Review();
-        Assert.Null(GenerateCoupledActivities(facts with
+        Assert.Null(ForecastCoupledCandidates.GenerateCoupledActivities(facts with
         {
             ForecastObserved = facts.ForecastObserved with
             { Coupled = facts.ForecastObserved.Coupled! with { Tick = 101 } }
@@ -125,7 +125,7 @@ public sealed class ForecastCoupledTests
     {
         var facts = Review();
         var coupled = facts.ForecastObserved.Coupled!;
-        var generated = GenerateCoupledActivities(facts with
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts with
         {
             ForecastObserved = facts.ForecastObserved with
             {
@@ -165,7 +165,7 @@ public sealed class ForecastCoupledTests
                 }
             }
         };
-        return ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        return ForecastCoupledCandidates.ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public sealed class ForecastCoupledTests
     public void HeaterTargetNeverProvidesArtificialCooling(double initial, double outdoors)
     {
         var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(initial), Known(outdoors), Known(.001), Known(.35), Known(15.0), Known(1000.0), []);
-        var result = ForecastShelter(room, new([], 0, 0), 300);
+        var result = ForecastShelterPolicy.ForecastShelter(room, new([], 0, 0), 300);
         Assert.True(result.TemperatureAtHorizon.Value >= Math.Min(initial, outdoors));
         Assert.True(result.TemperatureAtHorizon.Value > 15);
     }
@@ -212,8 +212,8 @@ public sealed class ForecastCoupledTests
     {
         var first = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(-10.0), Known(-10.0), Known(.0001), Known(.35), Known(20.0), Known(1000.0), [])
         { PowerNetwork = "net", Source = "heater1", AdditionalWatts = Known(100.0), SurplusWatts = Known(150.0) };
-        Assert.True(ForecastShelters([first], new([], 0, 0), 300).Single().TemperatureAtHorizon.IsKnown);
-        var result = ForecastShelters([first, first with { Room = new(ForecastShelterSource.Planned, "2"), Source = "heater2" }], new([], 0, 0), 300);
+        Assert.True(ForecastShelterPolicy.ForecastShelters([first], new([], 0, 0), 300).Single().TemperatureAtHorizon.IsKnown);
+        var result = ForecastShelterPolicy.ForecastShelters([first, first with { Room = new(ForecastShelterSource.Planned, "2"), Source = "heater2" }], new([], 0, 0), 300);
         Assert.All(result, r => Assert.False(r.TemperatureAtHorizon.IsKnown));
         Assert.All(result, r => Assert.Contains("shared_power_capacity_shortfall", r.Findings));
     }
@@ -254,10 +254,10 @@ public sealed class ForecastCoupledTests
                 }
             }
         };
-        facts = ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
         var shelter = facts.CoupledAlternatives!.Alternatives.Single(c => c.ExclusiveOutcome == "shelter/planned/1");
         Assert.Equal(10, shelter.ActivityCompletions.Count);
-        var request = CoupledForecastRequestOf(new("world", 100), 1000.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new() { Add = [shelter] });
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world", 100), 1000.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = [shelter] });
         var forecast = ForecastColony(request);
         Assert.False(forecast.Baseline.Coupled!.Alternatives.Single().Shelters.Single().TemperatureAtHorizon.IsKnown);
         var projected = forecast.Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true)).Shelters.Single();
@@ -284,7 +284,7 @@ public sealed class ForecastCoupledTests
                 }
             }
         };
-        facts = ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
         var generated = facts.CoupledAlternatives!;
         Assert.DoesNotContain(generated.Context.Activities.Activities, t => t.Id.StartsWith("harvest/", StringComparison.Ordinal));
         var batch = generated.Alternatives.Single(c => c.Id.StartsWith("food/", StringComparison.Ordinal) && c.ActivityCompletions.Count == 2);
@@ -315,8 +315,8 @@ public sealed class ForecastCoupledTests
             },
             Needs = context.Needs with { Pawns = [context.Needs.Pawns[0] with { ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) }] }
         };
-        var projection = ForecastShelters([room], new([], 0, 0), 300);
-        ForecastThermalExposure Exposure(string location, Dictionary<string, List<(double, double, double)>>? comfort = null) => ForecastThermalExposureOf(context,
+        var projection = ForecastShelterPolicy.ForecastShelters([room], new([], 0, 0), 300);
+        ForecastThermalExposure Exposure(string location, Dictionary<string, List<(double, double, double)>>? comfort = null) => ForecastThermalExposure.ForecastThermalExposureOf(context,
             new() { Activities = [new("work", location, location, [])] },
             new([new("work", "pawn", 0, 0, 0, 300, 0, 0, 300, 300, 0)], 300, 300), projection, 300, comfort: comfort).Single();
         var outdoors = Exposure("cell/5/5"); var indoors = Exposure("cell/1/1");
@@ -384,7 +384,7 @@ public sealed class ForecastCoupledTests
         context = context with { Resources = context.Resources with { Claims = context.Resources.Claims with { Materials = [held] } } };
         facts = facts with { CoupledAlternatives = facts.CoupledAlternatives with { Context = context } };
         var wall = facts.CoupledAlternatives.Alternatives.Single(c => Original(c, "site-0-finish"));
-        var request = CoupledForecastRequestOf(new("world", 100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputsOf(facts) },
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world", 100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
             [held], new() { Remove = [held.Id], Add = [wall] });
         Assert.DoesNotContain(ForecastColony(request).Proposed.Coupled!.Alternatives, p => p.Feasible == Known(true));
     }
@@ -403,7 +403,7 @@ public sealed class ForecastCoupledTests
                 { Pawns = [facts.ForecastObserved.Needs!.Pawns[0] with { Memories = Known<EquatableArray<NeedMemory>>([new("happy", 10, Known(expiry), false)]) }] }
             }
         };
-        facts = ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
         Assert.Equal(expected, Evaluate(facts).Proposed.Coupled!.Alternatives.Single().Needs["pawn"].MemoryAdjustedMoodTarget.Value, 8);
     }
 
@@ -462,7 +462,7 @@ public sealed class ForecastCoupledTests
                     { Clothing = new() { Context = Context, Known = true, Options = [Recipe("Rice"), Recipe("Cloth")] } }
                 }
             };
-            facts = ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+            facts = ForecastCoupledCandidates.ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
             var generated = facts.CoupledAlternatives!;
             var wall = generated.Alternatives.Single(c => Original(c, "site-0-finish"));
             foreach (var stuff in new[] { "Rice", "Cloth" })
@@ -509,7 +509,7 @@ public sealed class ForecastCoupledTests
         };
         facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         if (obligated) facts = facts with { WorkView = facts.WorkView! with { Claims = facts.WorkView!.Claims with { Pawns = ["helper"] } } };
-        facts = ReviewCoupledActivities(facts);
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(facts);
         var batch = facts.CoupledAlternatives!.Alternatives.Single(c => c.Id.StartsWith("food/", StringComparison.Ordinal) && !c.Id.Contains("/eat/", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal));
         var feasible = Evaluate(facts, batch).Proposed.Coupled!.Alternatives.Where(p => p.Feasible == Known(true)).ToArray();
         Assert.NotEmpty(feasible);
@@ -521,12 +521,12 @@ public sealed class ForecastCoupledTests
     [Fact]
     public void RequestCannotRelabelObservedReviewAsALaterSchedulingTick()
     {
-        var facts = Review(); var demand = new DerivedDemand { Work = ForecastWorkInputsOf(facts) };
+        var facts = Review(); var demand = new DerivedDemand { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) };
         Assert.Equal(100, facts.Tick.Value);
         Assert.Equal(facts.Tick, facts.WorkView!.Evidence.Tick);
         Assert.Equal(facts.Tick, demand.Work.Tick);
         Assert.Equal(facts.Tick.Value, facts.CoupledAlternatives!.Context.Needs.Tick);
-        Assert.Throws<DomainException>(() => CoupledForecastRequestOf(new("world", 101), .01, facts, demand, [], new()));
+        Assert.Throws<DomainException>(() => ForecastCoupled.CoupledForecastRequestOf(new("world", 101), .01, facts, demand, [], new()));
     }
 
     [Fact]
@@ -541,7 +541,7 @@ public sealed class ForecastCoupledTests
                 { Pawns = [facts.ForecastObserved.Needs!.Pawns[0] with { Memories = default }] }
             }
         };
-        facts = ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
         var wall = facts.CoupledAlternatives!.Alternatives.Single(c => Original(c, "site-0-finish"));
         var result = Evaluate(facts, wall).Proposed.Coupled!.Alternatives.Single(p => p.Feasible == Known(true));
         Assert.False(result.Needs["pawn"].MemoryAdjustedMoodTarget.IsKnown);
@@ -559,7 +559,7 @@ public sealed class ForecastCoupledTests
         context = context with { Resources = context.Resources with { Evidence = context.Resources.Evidence with { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new(held.Id, [new(new("Rice"), Known(20.0), Known(""))])]) } } };
         facts = facts with { CoupledAlternatives = facts.CoupledAlternatives with { Context = context } };
         var wall = facts.CoupledAlternatives.Alternatives.Single(c => Original(c, "site-0-finish"));
-        var request = CoupledForecastRequestOf(new("world", 100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputsOf(facts) }, [legacy], new() { Add = [wall] });
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world", 100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [legacy], new() { Add = [wall] });
         var result = ForecastColony(request).Proposed.Coupled!;
         Assert.Equal(fits, result.Alternatives.Any(p => p.Feasible == Known(true)));
         if (fits) Assert.All(result.Alternatives, p => Assert.Equal(0, p.Stocks.Single(s => s.Resource.Value == "Rice").Points[^1].BalanceUnits.Value));
@@ -570,7 +570,7 @@ public sealed class ForecastCoupledTests
     {
         var facts = ConstructionReview(stock: 0);
         Assert.DoesNotContain(facts.CoupledAlternatives!.Alternatives, c => Original(c, "site-0-finish"));
-        var request = CoupledForecastRequestOf(new("world", 100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputsOf(facts) },
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world", 100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
             [new("external", [new(new("Rice"), Known(0.0), Known(100.0))])], new());
         var result = ForecastColony(request).Proposed.Coupled!.Alternatives;
         Assert.All(result, p => Assert.Empty(p.Plan.Allocations));
@@ -585,7 +585,7 @@ public sealed class ForecastCoupledTests
             PlannedShelters = EquatableArray.From(Enumerable.Range(1, 5).Select(id =>
             new PlannedRoom { Id = id, Region = RectRegion(new(id * 10, 1, 3, 3)) }))
         };
-        facts = ReviewCoupledActivities(facts);
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(facts);
         Assert.True(facts.CoupledAlternatives!.Truncated);
         Assert.Contains("coupled_generation_truncated", facts.CoupledAlternatives.Findings);
         Assert.True(Evaluate(facts).Proposed.Coupled!.Truncated);
@@ -603,8 +603,8 @@ public sealed class ForecastCoupledTests
                 { FoodSources = [new("rice", "Rice", new(1, 1), 10, Known(10.0))] }
             }
         };
-        facts = ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
-        var request = CoupledForecastRequestOf(new("world", 100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputsOf(facts) },
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world", 100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
             [new("external", [new(new("Rice"), Known(20.0 / GameTime.TicksPerDay), Known(-10.0))])], new());
         var result = ForecastColony(request).Proposed.Coupled!.Alternatives.Single();
         Assert.Equal(Known(false), result.Feasible);

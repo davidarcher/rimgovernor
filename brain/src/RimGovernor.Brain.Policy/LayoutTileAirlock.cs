@@ -161,7 +161,7 @@ internal sealed partial class Tiler
         }
         var known = In.OutdoorCurve.TryGetValue(out var curve);
         var m = In.Catalog.Climate;
-        if (!known || !m.Valid() || !FinitePositive(In.SteelValue))
+        if (!known || !m.Valid() || !QuestCapacityForecast.FinitePositive(In.SteelValue))
         {
             NoteAirlock(-1, ReasonTileAirlockUnpriced, TileUnsatisfied);
             return false;

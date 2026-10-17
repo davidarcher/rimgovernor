@@ -207,7 +207,7 @@ defense round's chain (frame inputs, `CombatView`, the newest stop, `DecideComba
 Geometry asks are answered from the arena map through the mod's own `NativeCombatGeometryTools`. The defense layout comes
 from `DefenseStage`, which stages a compound as the colony's planner expects to find one: a ring wall across the map but
 for the killbox's opening (`OpeningPlan`, `LayoutKillbox`), a census of every cell in the killbox region read off the map,
-and `PolicyFunctions.DefenseLayouts` over it. Every building the planner proposes (funnel and back walls, the defenders'
+and `DefenseLayout.DefenseLayouts` over it. Every building the planner proposes (funnel and back walls, the defenders'
 door, spike traps, fences, sandbags) is placed at once, so a fight starts on the finished defense, and the firing line,
 retreat cells, direction and choke the policy holds are read off the result the way the defense round reads them
 (`PolicyController.Layout`). `--open` withholds all of that: open ground, no layout, the squad fallback.

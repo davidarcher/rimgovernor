@@ -30,7 +30,7 @@ public sealed class PortfolioSearchDiagnosisTests
         public Subject()
         {
             var facts = PortfolioAllocationTests.LargerFacts();
-            Generated = GenerateCoupledActivities(facts, 700)!;
+            Generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 700)!;
             Request = PortfolioAllocationTests.Request(facts, Generated);
             Roots = [.. Generated.Alternatives.Concat(Generated.Incumbents).OrderBy(c => c.Id, StringComparer.Ordinal)];
             var eats = PortfolioReferenceScheduleTests.Reference().Select(s => s.Activity).Where(a => a.Contains("/eat/", StringComparison.Ordinal)).ToHashSet();
@@ -38,7 +38,7 @@ public sealed class PortfolioSearchDiagnosisTests
         }
 
         public ForecastCoupledSelection Select(ForecastCommitment[] universe, int budget) =>
-            CompareActivityOutcomes(Request, Generated with { Alternatives = EquatableArray.From(universe) }, budget);
+            ForecastCoupledSelection.CompareActivityOutcomes(Request, Generated with { Alternatives = EquatableArray.From(universe) }, budget);
     }
 
     /// <summary>Subset order and pruning of the production search, rebuilt from public data for counting only.</summary>
@@ -161,7 +161,7 @@ public sealed class PortfolioSearchDiagnosisTests
         Assert.Equal(1018, mixed.Alternatives.Count);
         Assert.All(mixed.Alternatives, a => Assert.Equal(Known(true), a.Feasible));
         Assert.Contains(diner.Alternatives, a => a.Feasible == Known(true));
-        Assert.Contains(pinned.Alternatives.Select(a => CoupledConsequences(a, s.ReferenceRoots)),
+        Assert.Contains(pinned.Alternatives.Select(a => ForecastCoupledSelection.CoupledConsequences(a, s.ReferenceRoots)),
             v => v.Labor == 841 && v.Urgent.All(x => x == Known(0d)));
     }
 
@@ -330,7 +330,7 @@ public sealed class PortfolioSearchDiagnosisTests
         Feasible = scenario.Alternatives.Count(a => a.Feasible == Known(true)),
         Reasons = scenario.Alternatives.SelectMany(a => a.Findings.Select(f => f.Reason)).GroupBy(x => x).OrderBy(g => g.Key, StringComparer.Ordinal)
             .Select(g => g.Key + "=" + g.Count()).ToArray(),
-        Best = scenario.Alternatives.Where(a => a.Feasible == Known(true)).Select(a => CoupledConsequences(a, roots))
+        Best = scenario.Alternatives.Where(a => a.Feasible == Known(true)).Select(a => ForecastCoupledSelection.CoupledConsequences(a, roots))
             .Select(v => new { Urgent = v.Urgent.Select(x => x.IsKnown ? x.Value : -1).ToArray(), Needs = v.Needs.Select(x => x.IsKnown ? x.Value : -1).ToArray(), v.Labor })
             .OrderBy(v => v.Urgent[0]).ThenBy(v => v.Urgent[1]).ThenBy(v => v.Urgent[2]).ThenBy(v => v.Urgent[3]).ThenBy(v => v.Needs[4]).Take(1).ToArray()
     };

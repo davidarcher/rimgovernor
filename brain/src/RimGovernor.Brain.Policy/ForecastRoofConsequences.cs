@@ -56,7 +56,7 @@ public static partial class PolicyConstants
     public const double WorkTableOutdoorsFactor = 0.8;
 }
 
-public static partial class PolicyFunctions
+public static class ForecastRoofConsequences
 {
     private const string BedroomRole = "Bedroom", BarracksRole = "Barracks";
 
@@ -160,7 +160,7 @@ public static partial class PolicyFunctions
         NeedMemory Memory(NeedThoughtStage row) => new(row.Thought, row.Offset, row.DurationTicks, row.Fades);
         var targets = pawn.Targets.GroupBy(t => t.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         var stages = pawn.ThoughtStages;
-        var wakes = SleepServiceEnds(pawn, choices, null, new SortedSet<string>(StringComparer.Ordinal));
+        var wakes = ForecastNeeds.SleepServiceEnds(pawn, choices, null, new SortedSet<string>(StringComparer.Ordinal));
 
         // Bed thoughts at the wake (Toils_LayDown.ApplyBedThoughts).
         var bedDefs = stages.Where(r => r.Role is "slept_outside" or "slept_in_bedroom" or "slept_in_barracks").Select(r => r.Thought)

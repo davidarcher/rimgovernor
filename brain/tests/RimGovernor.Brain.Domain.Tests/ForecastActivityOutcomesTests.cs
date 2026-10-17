@@ -34,17 +34,17 @@ public sealed class ForecastActivityOutcomesTests
         ForecastActivityOutcome[] outcomes = [
             new("small", "one-demand", "build", Known(100.0), default) { ProgressUnits = Known(1.0) },
             new("large", "one-demand", "harvest", Known(100.0), default) { ProgressUnits = Known(8.0) }];
-        var result = CompareActivityOutcomes(problem, outcomes, ForecastOutcomeObjective.LowestLaborPerUnit);
+        var result = ForecastActivityOutcomes.CompareActivityOutcomes(problem, outcomes, ForecastOutcomeObjective.LowestLaborPerUnit);
         Assert.Equal(["large"], result.Selected);
         Assert.False(result.NetBenefit.IsKnown);
         var dangerous = problem with { Options = problem.Options.Select(o => o.Activity == "harvest"
             ? o with { RecoveryLaborTicks = Known(50.0) } : o).ToArray() };
-        Assert.Equal(["small"], CompareActivityOutcomes(dangerous, outcomes, ForecastOutcomeObjective.LowestLaborPerUnit).Selected);
-        var unknown = CompareActivityOutcomes(problem, [outcomes[0] with { ProgressUnits = default }], ForecastOutcomeObjective.LowestLaborPerUnit);
+        Assert.Equal(["small"], ForecastActivityOutcomes.CompareActivityOutcomes(dangerous, outcomes, ForecastOutcomeObjective.LowestLaborPerUnit).Selected);
+        var unknown = ForecastActivityOutcomes.CompareActivityOutcomes(problem, [outcomes[0] with { ProgressUnits = default }], ForecastOutcomeObjective.LowestLaborPerUnit);
         Assert.Empty(unknown.Selected);
         Assert.Contains("unknown_outcome_estimate:small", unknown.Findings);
-        Assert.Empty(CompareActivityOutcomes(problem with { AlternativeLaborCost = default }, outcomes, ForecastOutcomeObjective.LowestLaborPerUnit).Selected);
-        Assert.Throws<DomainException>(() => CompareActivityOutcomes(problem, [outcomes[0], outcomes[1] with { Need = "other-demand" }], ForecastOutcomeObjective.LowestLaborPerUnit));
+        Assert.Empty(ForecastActivityOutcomes.CompareActivityOutcomes(problem with { AlternativeLaborCost = default }, outcomes, ForecastOutcomeObjective.LowestLaborPerUnit).Selected);
+        Assert.Throws<DomainException>(() => ForecastActivityOutcomes.CompareActivityOutcomes(problem, [outcomes[0], outcomes[1] with { Need = "other-demand" }], ForecastOutcomeObjective.LowestLaborPerUnit));
     }
 
     [Fact]
@@ -54,11 +54,11 @@ public sealed class ForecastActivityOutcomesTests
         // Protect the builder's first 30 ticks: now delivery requires the helper.
         var problem = Work() with { Pawns = [new("builder", "site",
             Known(EquatableArray.From(new[] { new ForecastTimeWindow(30, 100) { StartLocation = Known("site") } })), Known(1.0)), Pawn("helper")] };
-        var cold = CompareActivityOutcomes(problem, Needs());
+        var cold = ForecastActivityOutcomes.CompareActivityOutcomes(problem, Needs());
         Assert.Equal(["shelter"], cold.Selected);
         Assert.Equal("helper", cold.Plan!.Allocations.Single(a => a.Activity == "deliver").Pawn);
         Assert.Equal("builder", cold.Plan.Allocations.Single(a => a.Activity == "build").Pawn);
-        var hungry = CompareActivityOutcomes(problem, Needs(200, 300));
+        var hungry = ForecastActivityOutcomes.CompareActivityOutcomes(problem, Needs(200, 300));
         Assert.Equal(["food"], hungry.Selected);
         Assert.False(cold.SearchTruncated);
         Assert.False(hungry.SearchTruncated);
@@ -67,7 +67,7 @@ public sealed class ForecastActivityOutcomesTests
     [Fact]
     public void GeneratesBothOutcomesAndUsesSoloPreparationToFreeTheHelper()
     {
-        var result = CompareActivityOutcomes(Work(), Needs());
+        var result = ForecastActivityOutcomes.CompareActivityOutcomes(Work(), Needs());
         Assert.Equal(["food", "shelter"], result.Selected);
         Assert.Equal("builder", result.Plan!.Allocations.Single(a => a.Activity == "deliver").Pawn);
         Assert.Equal("helper", result.Plan.Allocations.Single(a => a.Activity == "harvest").Pawn);
@@ -82,7 +82,7 @@ public sealed class ForecastActivityOutcomesTests
     [Fact]
     public void DeliveredMaterialsReleaseLaborAndDoNotScheduleRedundantPreparation()
     {
-        var result = CompareActivityOutcomes(Work(true), Needs());
+        var result = ForecastActivityOutcomes.CompareActivityOutcomes(Work(true), Needs());
         Assert.Equal(2, result.Selected.Length);
         Assert.DoesNotContain(result.Plan!.Allocations, a => a.Activity == "deliver");
         Assert.Equal(340, result.NetBenefit.Value);
@@ -93,7 +93,7 @@ public sealed class ForecastActivityOutcomesTests
     {
         var needs = Needs();
         needs[0] = needs[0] with { Deadline = Known(60.0) };
-        var result = CompareActivityOutcomes(Work(true), needs);
+        var result = ForecastActivityOutcomes.CompareActivityOutcomes(Work(true), needs);
         Assert.Equal(["food"], result.Selected);
         Assert.Contains("outcome_deadline", result.Findings);
     }
@@ -101,12 +101,12 @@ public sealed class ForecastActivityOutcomesTests
     [Fact]
     public void HighCostAndUnknownReliefRetainPostponement()
     {
-        var expensive = CompareActivityOutcomes(Work(), Needs(10, 10));
+        var expensive = ForecastActivityOutcomes.CompareActivityOutcomes(Work(), Needs(10, 10));
         Assert.Empty(expensive.Selected);
         Assert.Null(expensive.Plan);
         var needs = Needs();
         needs[0] = needs[0] with { AvoidedLaborLoss = Unknown<double>() };
-        var unknown = CompareActivityOutcomes(Work(), needs);
+        var unknown = ForecastActivityOutcomes.CompareActivityOutcomes(Work(), needs);
         Assert.Equal(["food"], unknown.Selected);
         Assert.Contains("unknown_outcome_estimate:shelter", unknown.Findings);
     }
@@ -115,7 +115,7 @@ public sealed class ForecastActivityOutcomesTests
     public void ExplicitAlternativesCannotDoubleCountRelief()
     {
         var needs = Needs().Select(n => n with { ChoiceIdentity = n.Need }).ToArray();
-        var result = CompareActivityOutcomes(Work(true), [needs[0], needs[0] with { Id = "other-shelter" }]);
+        var result = ForecastActivityOutcomes.CompareActivityOutcomes(Work(true), [needs[0], needs[0] with { Id = "other-shelter" }]);
         Assert.Single(result.Selected);
         Assert.Equal(230, result.NetBenefit.Value);
     }
@@ -126,10 +126,10 @@ public sealed class ForecastActivityOutcomesTests
         var problem = Work(true);
         var danger = problem with { Options = problem.Options.Select(o => o.Activity == "build"
             ? o with { RecoveryLaborTicks = Known(400.0) } : o).ToArray() };
-        Assert.Equal(["food"], CompareActivityOutcomes(danger, Needs()).Selected);
+        Assert.Equal(["food"], ForecastActivityOutcomes.CompareActivityOutcomes(danger, Needs()).Selected);
         var distant = problem with { Activities = problem.Activities.Select(a => a.Id == "build"
             ? a with { Location = "remote" } : a).ToArray() };
-        var result = CompareActivityOutcomes(distant, Needs());
+        var result = ForecastActivityOutcomes.CompareActivityOutcomes(distant, Needs());
         Assert.Equal(["food"], result.Selected);
         Assert.Contains(result.Findings, f => f.StartsWith("unknown_route:", StringComparison.Ordinal));
     }
@@ -140,7 +140,7 @@ public sealed class ForecastActivityOutcomesTests
         var problem = Work() with { Activities = [new("deliver", "site", "site", []),
             new("build", "site", "site", ["deliver"]), new("harvest", "site", "site", ["deliver"])],
             Options = [Option("deliver", "builder", 10), Option("build", "builder", 70), Option("harvest", "helper", 90)] };
-        var result = CompareActivityOutcomes(problem, Needs());
+        var result = ForecastActivityOutcomes.CompareActivityOutcomes(problem, Needs());
         Assert.Equal(2, result.Selected.Length);
         Assert.Single(result.Plan!.Allocations, a => a.Activity == "deliver");
         Assert.Equal(330, result.NetBenefit.Value);
@@ -150,7 +150,7 @@ public sealed class ForecastActivityOutcomesTests
     public void UnknownCapacityCannotBeUsedToCompleteTheMoreValuableOutcome()
     {
         var problem = Work(true) with { Pawns = [Pawn("builder") with { Windows = Unknown<EquatableArray<ForecastTimeWindow>>() }, Pawn("helper")] };
-        var result = CompareActivityOutcomes(problem, Needs());
+        var result = ForecastActivityOutcomes.CompareActivityOutcomes(problem, Needs());
         Assert.Equal(["food"], result.Selected);
         Assert.Contains(result.Findings, f => f.StartsWith("unknown_capacity_or_cost:build", StringComparison.Ordinal));
     }
@@ -159,8 +159,8 @@ public sealed class ForecastActivityOutcomesTests
     public void OneBudgetBoundsCombinationGenerationAndSchedulingDeterministically()
     {
         var problem = Work() with { ExpansionBudget = 12 };
-        var first = CompareActivityOutcomes(problem, Needs());
-        var second = CompareActivityOutcomes(problem, Needs().Reverse().ToArray());
+        var first = ForecastActivityOutcomes.CompareActivityOutcomes(problem, Needs());
+        var second = ForecastActivityOutcomes.CompareActivityOutcomes(problem, Needs().Reverse().ToArray());
         Assert.True(first.SearchTruncated);
         Assert.Equal(12, first.Expansions);
         Assert.Equal(first.Selected, second.Selected);

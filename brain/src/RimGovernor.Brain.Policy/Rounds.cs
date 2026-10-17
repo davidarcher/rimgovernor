@@ -784,7 +784,7 @@ public static partial class PolicyFunctions
         var demand = ResourceDemandOf(f, p, latches);
         var r = new RoundsFindings { Latches = latches, ResourceDemand = demand };
         if (f.CoupledAlternatives is { } coupled)
-            r.CoupledSelection = CompareActivityOutcomes(CoupledForecastRequestOf(new("observed-review", f.Tick.Value),
+            r.CoupledSelection = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("observed-review", f.Tick.Value),
                 1, f, demand, [], new()), coupled);
         // The disaster history the disaster family's Needs read (#3304).
         r.Disaster = ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuitTick);

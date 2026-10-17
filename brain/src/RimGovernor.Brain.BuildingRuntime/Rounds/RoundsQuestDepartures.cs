@@ -11,7 +11,7 @@ public sealed partial class JoinersRounds
     /// <summary>Loads a quest shuttle with its pawns; a wait for the shuttle is not handled.</summary>
     internal (Verdict Verdict, bool Handled) AdmitDeparture(NeedWork work, RoundsReading read, DateTimeOffset started, CancellationToken call)
     {
-        var step = PolicyFunctions.SelectQuestDeparture(read.Projection.Facts);
+        var step = QuestDeparture.SelectQuestDeparture(read.Projection.Facts);
         if (step.Quest.IsEmpty)
         {
             return (default, false);

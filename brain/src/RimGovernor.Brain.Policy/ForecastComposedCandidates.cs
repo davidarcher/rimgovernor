@@ -2,7 +2,7 @@ using RimGovernor.Brain.Policy.Methods;
 
 namespace RimGovernor.Brain.Policy;
 
-internal sealed record ForecastComposedCandidates(ForecastActivity[] Tasks, ForecastActivityOption[] Options,
+internal sealed partial record ForecastComposedCandidates(ForecastActivity[] Tasks, ForecastActivityOption[] Options,
     ForecastNeedTask[] Needs, ForecastCommitment[] Alternatives,
     IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> Bindings,
     EquatableArray<string> Findings, bool Truncated)
@@ -11,7 +11,7 @@ internal sealed record ForecastComposedCandidates(ForecastActivity[] Tasks, Fore
     public int Expansions { get; init; }
 }
 
-public static partial class PolicyFunctions
+internal sealed partial record ForecastComposedCandidates
 {
     /// <summary>Both production families use the same dependency closure and realization interning.
     /// Family adapters supply native eligibility and action templates; they do not select sources.</summary>
@@ -64,7 +64,7 @@ public static partial class PolicyFunctions
             // Reserve an opportunity for later independent roots. An expensive first
             // branch must not consume the entire census before any other root is tried.
             var allowance = Math.Min(2048, Math.Max(1, remaining / (orderedRoots.Length - rootIndex)));
-            var composed = ComposeActivityDependencies(new()
+            var composed = ForecastActivityComposition.ComposeActivityDependencies(new()
             {
                 Operations = EquatableArray.From(operations), Observed = EquatableArray.From(stock),
                 Roots = root.ActivityCompletions, Horizon = horizon,

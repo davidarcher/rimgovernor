@@ -61,9 +61,9 @@ public sealed class FutureNeedTargetClaimsTests
                 [new(PawnActivityKind.Hold, "", "", "", 0, 2000)]) { Preparing = true, Task = "future" }])
             { Tasks = [new("future", "owner", [], step, new(2, 2), 500)] });
         var free = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        Assert.Contains(GenerateCoupledActivities(free, 300)!.Context.NeedTasks, n => n.Target == "pin");
+        Assert.Contains(ForecastCoupledCandidates.GenerateCoupledActivities(free, 300)!.Context.NeedTasks, n => n.Target == "pin");
         var held = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]),
             new([new(new("held-plan"), action, new() { Action = action.Id, Stage = Stage.Pending })]));
-        Assert.DoesNotContain(GenerateCoupledActivities(held, 300)!.Context.NeedTasks, n => n.Target == "pin");
+        Assert.DoesNotContain(ForecastCoupledCandidates.GenerateCoupledActivities(held, 300)!.Context.NeedTasks, n => n.Target == "pin");
     }
 }

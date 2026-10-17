@@ -9,7 +9,7 @@ public sealed record SkillXpEvent(string Id, int Tick, Fact<double> RawXp, Skill
 public sealed record SkillProjection(Fact<int> Level, Fact<int> StoredLevel, Fact<double> Xp,
     Fact<double> AppliedGain, Fact<double> DecayLoss, Fact<double> RangeBudget, EquatableArray<string> Findings);
 
-public static partial class PolicyFunctions
+public static class ForecastSkillPolicy
 {
     /// <summary>Bounded conditional projection of supplied learning callbacks. It predicts neither job success,
     /// attack cadence nor training safety. Native observations alone establish attained capability.</summary>

@@ -10,7 +10,7 @@ internal static partial class BuildingRuntimePackage
         {
             return 0;
         }
-        var (_, buildings, found) = record.Tier(PolicyApi.TierMortars);
+        var (_, buildings, found) = record.Tier(DefenseMortarsPolicy.TierMortars);
         if (!found)
         {
             return 0;

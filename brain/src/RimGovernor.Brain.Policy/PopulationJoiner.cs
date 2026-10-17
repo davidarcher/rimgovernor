@@ -214,7 +214,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static bool IsJoinerOffer(string scriptDef)
     {
-        var profile = QuestFamilyForRoot(scriptDef);
+        var profile = QuestFamiliesPolicy.QuestFamilyForRoot(scriptDef);
         return profile.Family == QuestFamily.Joiner && !profile.NeverAct;
     }
 
@@ -302,7 +302,7 @@ public static partial class PolicyFunctions
         var waiting = false;
         foreach (var offer in rows)
         {
-            waiting = waiting || (JoinerAnswerable(offer) && JoinerThreatReason(offer, facts).IsNone);
+            waiting = waiting || (JoinerAnswerable(offer) && QuestSelection.JoinerThreatReason(offer, facts).IsNone);
         }
         if (!waiting)
         {
@@ -341,7 +341,7 @@ public static partial class PolicyFunctions
             {
                 return new JoinerChoice { Reason = JoinerPlanReason.NoCapacity };
             }
-            if (!JoinerThreatReason(offer, facts).IsNone)
+            if (!QuestSelection.JoinerThreatReason(offer, facts).IsNone)
             {
                 refused = true;
                 continue;

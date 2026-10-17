@@ -64,7 +64,7 @@ public sealed record BlockPricing
     public IReadOnlyDictionary<string, ClearRow> Rows { get; init; } = new Dictionary<string, ClearRow>();
 
     /// <summary>Reports the pricing with the work-day, the work ticks of one and the steel the build cost is counted against known.</summary>
-    public bool Valid() => Work.Valid() && FinitePositive(TicksPerWorkDay) && FinitePositive(SteelValue);
+    public bool Valid() => Work.Valid() && QuestCapacityForecast.FinitePositive(TicksPerWorkDay) && QuestCapacityForecast.FinitePositive(SteelValue);
 
     /// <summary>Amounts at their market value as watts, the build price's unit.</summary>
     internal bool ValueW(IEnumerable<Amount> amounts, out double result)
@@ -97,7 +97,7 @@ public sealed record BlockPricing
                 return true;
             case CoverKind.Plant:
             case CoverKind.Building:
-                if (!Rows.TryGetValue(PolicyFunctions.ClearKey(t.Def, t.Stuff), out var row) || double.IsNaN(row.Work) || double.IsInfinity(row.Work) || row.Work < 0)
+                if (!Rows.TryGetValue(DefenseBlock.ClearKey(t.Def, t.Stuff), out var row) || double.IsNaN(row.Work) || double.IsInfinity(row.Work) || row.Work < 0)
                 {
                     return false;
                 }
@@ -148,7 +148,7 @@ public sealed record BlockPricing
         }
         foreach (var b in standing)
         {
-            if (!Rows.TryGetValue(PolicyFunctions.ClearKey(b.Definition, b.Stuff), out var row))
+            if (!Rows.TryGetValue(DefenseBlock.ClearKey(b.Definition, b.Stuff), out var row))
             {
                 return false;
             }
@@ -192,7 +192,7 @@ public sealed record TierBlockDecision
     public string Reason { get; init; } = "";
 }
 
-public static partial class PolicyFunctions
+public static class DefenseBlock
 {
     // Why a blocked tier went the way it did; the caller journals them as layout_plan rows (target defense_tier_block).
 
@@ -220,7 +220,7 @@ public static partial class PolicyFunctions
             return Unknown<double>();
         }
         var mean = AverageWorker(workers);
-        if (!mean.WorkHoursPerDay.TryGetValue(out var hours) || !mean.WorkSpeed.TryGetValue(out var speed) || !FinitePositive(hours * speed))
+        if (!mean.WorkHoursPerDay.TryGetValue(out var hours) || !mean.WorkSpeed.TryGetValue(out var speed) || !QuestCapacityForecast.FinitePositive(hours * speed))
         {
             return Unknown<double>();
         }

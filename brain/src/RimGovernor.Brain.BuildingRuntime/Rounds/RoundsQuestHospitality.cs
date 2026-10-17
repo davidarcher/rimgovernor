@@ -5,7 +5,7 @@ public sealed partial class JoinersRounds
     /// <summary>Assigns guest beds or loads the pickup shuttle for a hospitality quest; a wait is not handled.</summary>
     internal (Verdict Verdict, bool Handled) AdmitHospitality(NeedWork work, RoundsReading read, DateTimeOffset started, CancellationToken call)
     {
-        var step = PolicyFunctions.SelectHospitalityWork(read.Projection.Facts, read.Projection.Identity.Tick);
+        var step = QuestHospitality.SelectHospitalityWork(read.Projection.Facts, read.Projection.Identity.Tick);
         if (step.Quest.IsEmpty)
         {
             return (default, false);

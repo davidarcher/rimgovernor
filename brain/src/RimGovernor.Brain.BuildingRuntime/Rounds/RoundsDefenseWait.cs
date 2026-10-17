@@ -52,7 +52,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var promoted = DefensePromoted(read.Projection);
         foreach (var b in buildings)
         {
-            var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{actions.Count}")), b, PolicyApi.DefenseBuildTier(promoted, false, false));
+            var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{actions.Count}")), b, DefenseTier.DefenseBuildTier(promoted, false, false));
             var (preview, ok) = await PreviewAsync(action, snapshot, tick, b.Cell, call).ConfigureAwait(false);
             if (!ok)
             {

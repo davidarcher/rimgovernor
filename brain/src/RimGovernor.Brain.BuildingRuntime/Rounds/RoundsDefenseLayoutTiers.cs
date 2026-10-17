@@ -10,14 +10,14 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal static string DefenseTurretRung(RoundsReading read)
     {
         var facts = read.Projection.Facts;
-        foreach (var rung in PolicyApi.TurretRungs(PolicyApi.AssessArmory(facts.RaidPoints, facts.DefenseCapacity, facts.Research).Tier))
+        foreach (var rung in DefenseTurretsPolicy.TurretRungs(PolicyApi.AssessArmory(facts.RaidPoints, facts.DefenseCapacity, facts.Research).Tier))
         {
             if (DefenseDefinitionAvailable(read, rung))
             {
                 return rung;
             }
         }
-        return PolicyApi.TurretMini;
+        return DefenseTurretsPolicy.TurretMini;
     }
 
     internal static Bounds DefenseTurretSize(RoundsReading read, string definition)
@@ -38,7 +38,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static bool DefenseReplaceDue(DefenseLayoutRecord record, Tick tick)
     {
-        var (turrets, _, ok) = record.Tier(PolicyApi.TierTurrets);
+        var (turrets, _, ok) = record.Tier(DefenseTurretsPolicy.TierTurrets);
         return ok && turrets.Built && turrets.Buildings.Count > 0 && !DefenseTurretReplacing(record)
             && (record.TurretsProbedTick == default || tick.Value - record.TurretsProbedTick.Value >= DefenseReverifyTicks);
     }
@@ -54,18 +54,18 @@ public sealed partial class RoundsDefenseLayoutPlanner
             return;
         }
         var request = DefenseTurretRequest(read);
-        var (tier, _, _) = record.Tier(PolicyApi.TierTurrets);
+        var (tier, _, _) = record.Tier(DefenseTurretsPolicy.TierTurrets);
         var standing = new List<StandingTurret>();
         foreach (var b in tier.Buildings)
         {
-            if (PolicyApi.TurretRank(b.Definition) < 0)
+            if (DefenseTurretsPolicy.TurretRank(b.Definition) < 0)
             {
                 continue;
             }
             var building = new Building(b.Definition, b.Cell, b.Rotation, b.Stuff);
-            standing.Add(new StandingTurret(building, [.. PolicyApi.TurretFootprint(b.Cell, DefenseTurretSize(read, b.Definition))]));
+            standing.Add(new StandingTurret(building, [.. DefenseTurretsPolicy.TurretFootprint(b.Cell, DefenseTurretSize(read, b.Definition))]));
         }
-        if (standing.Count == 0 || !standing.Any(t => PolicyApi.TurretRank(t.Building.Definition) < PolicyApi.TurretRank(request.Turret.Definition)))
+        if (standing.Count == 0 || !standing.Any(t => DefenseTurretsPolicy.TurretRank(t.Building.Definition) < DefenseTurretsPolicy.TurretRank(request.Turret.Definition)))
         {
             journal.SaveDefenseLayout(record, call);
             return;
@@ -92,7 +92,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         Building replacement;
         try
         {
-            if (PolicyApi.TurretReplacement(request, DefenseRecordGeometry(record, killbox), standing) is not { } found)
+            if (DefenseTurretsPolicy.TurretReplacement(request, DefenseRecordGeometry(record, killbox), standing) is not { } found)
             {
                 journal.SaveDefenseLayout(record, call);
                 return;
@@ -112,7 +112,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static void ApplyTurretReplacement(DefenseLayoutRecord record, Building old, Building replacement, IReadOnlyList<StandingTurret> standing, Bounds size)
     {
-        var (tier, _, _) = record.Tier(PolicyApi.TierTurrets);
+        var (tier, _, _) = record.Tier(DefenseTurretsPolicy.TierTurrets);
         for (var i = 0; i < tier.Buildings.Count; i++)
         {
             var b = tier.Buildings[i];
@@ -126,13 +126,13 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             if (t.Building.Cell == old.Cell)
             {
-                tier.Reserved.AddRange(PolicyApi.TurretFootprint(old.Cell, size));
+                tier.Reserved.AddRange(DefenseTurretsPolicy.TurretFootprint(old.Cell, size));
                 continue;
             }
             tier.Reserved.AddRange(t.Cells);
         }
         record.SetTier(tier);
-        var name = string.Create(CultureInfo.InvariantCulture, $"{DefenseTurretReplacePrefix}{old.Cell.X}-{old.Cell.Z}-{PolicyApi.TurretRank(replacement.Definition)}");
+        var name = string.Create(CultureInfo.InvariantCulture, $"{DefenseTurretReplacePrefix}{old.Cell.X}-{old.Cell.Z}-{DefenseTurretsPolicy.TurretRank(replacement.Definition)}");
         record.Tiers.Add(new DefenseTierRecord
         {
             Name = new DefenseTierName(name),
@@ -190,7 +190,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var walls = new List<Cell>();
         foreach (var tier in record.Tiers)
         {
-            if (tier.Name == PolicyApi.TierTurrets || PolicyApi.IsPerimeterTier(tier.Name) || tier.Name.Value.StartsWith(DefenseTurretReplacePrefix, StringComparison.Ordinal))
+            if (tier.Name == DefenseTurretsPolicy.TierTurrets || PolicyApi.IsPerimeterTier(tier.Name) || tier.Name.Value.StartsWith(DefenseTurretReplacePrefix, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -198,7 +198,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             foreach (var b in tier.Buildings)
             {
                 reserved.Add(b.Cell);
-                if (tier.Name == PolicyApi.TierFunnel)
+                if (tier.Name == DefenseLayout.TierFunnel)
                 {
                     walls.Add(b.Cell);
                 }
@@ -333,7 +333,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         IReadOnlyList<RoleCell>? rock = null;
         try
         {
-            rock = PolicyApi.DefenseRockCells(request);
+            rock = DefenseLayout.DefenseRockCells(request);
         }
         catch (DomainException)
         {
@@ -351,7 +351,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         DefenseLayout layout;
         try
         {
-            layout = PolicyApi.DefenseLayouts(request);
+            layout = DefenseLayout.DefenseLayouts(request);
         }
         catch (DomainException)
         {

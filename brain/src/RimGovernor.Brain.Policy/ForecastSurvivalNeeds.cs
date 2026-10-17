@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>Bounded diagnostic: Ticks is a deadline only when Due is true, otherwise the assessed horizon.</summary>
 public sealed record ForecastNeedWindow(double Ticks, bool Due);
 public sealed record ForecastSurvivalNeed(string Id, PawnId Pawn, string Basis, Fact<ForecastNeedWindow> Window);
-public sealed record ForecastSurvivalNeeds(ForecastSurvivalNeed[] Needs, string[] Findings);
+public sealed partial record ForecastSurvivalNeeds(ForecastSurvivalNeed[] Needs, string[] Findings);
 /// <summary>Explicit candidate effect: completing this task prevents this need through the assessed horizon.
 /// A roof or harvested crop alone does not establish that effect.</summary>
 public sealed record ForecastActivityRelief(string Id, string Need, string Completion)
@@ -12,7 +12,7 @@ public sealed record ForecastActivityRelief(string Id, string Need, string Compl
     public ForecastShelterEffect? Shelter { get; init; }
 }
 
-public static partial class PolicyFunctions
+public sealed partial record ForecastSurvivalNeeds
 {
     /// <summary>Use the existing food allocation and cold model on the same observed forecast frame.
     /// Food exhaustion is not starvation onset; cold assumes unchanged cell temperature and apparel.</summary>
@@ -86,8 +86,8 @@ public static partial class PolicyFunctions
             if (!need.Window.TryGetValue(out var window) || !window.Due) continue;
             outcomes.Add(new(effect.Id, effect.Need, effect.Completion, Known(window.Ticks), default) { ChoiceIdentity = effect.Need });
         }
-        var comparison = CompareActivityOutcomes(problem, outcomes.ToArray(), ForecastOutcomeObjective.EarliestDeadline,
-            (selected, plan) => AssessSurvivalEffects(request, problem, relief.Where(r => selected.Any(o => o.Id == r.Id)).ToArray(),
+        var comparison = ForecastActivityOutcomes.CompareActivityOutcomes(problem, outcomes.ToArray(), ForecastOutcomeObjective.EarliestDeadline,
+            (selected, plan) => ForecastActivityEffects.AssessSurvivalEffects(request, problem, relief.Where(r => selected.Any(o => o.Id == r.Id)).ToArray(),
                 needs, plan, findings));
         findings.UnionWith(comparison.Findings);
         return comparison with { Findings = findings.ToArray() };

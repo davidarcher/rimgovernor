@@ -24,10 +24,10 @@ public sealed record ForecastFoodTaskBinding(string Activity, string Source, str
     /// <summary>Recipe iterations valued by this activity; not authorization for a repeating native job.</summary>
     public int Iterations { get; init; }
 }
-public sealed record ForecastFoodCandidates(ForecastActivityProblem? Problem, ForecastActivityRelief[] Relief,
+public sealed partial record ForecastFoodCandidates(ForecastActivityProblem? Problem, ForecastActivityRelief[] Relief,
     ForecastFoodTaskBinding[] Bindings, string[] Findings, int Generated, bool GenerationTruncated);
 
-public static partial class PolicyFunctions
+public sealed partial record ForecastFoodCandidates
 {
     /// <summary>Generate one observed plant's raw and single-resource recipe alternatives before joint valuation.
     /// No inventory or actions are written. The existing scheduler/effect evaluator owns selection.</summary>
@@ -36,7 +36,7 @@ public static partial class PolicyFunctions
     {
         if (input.Tick.Value != frame.Origin.ObservedTick || input.GenerationBudget is < 1 or > 256
             || string.IsNullOrWhiteSpace(input.Destination)) throw new DomainException("invalid food candidate frame or budget");
-        var needs = SurvivalNeedsOf(frame);
+        var needs = ForecastSurvivalNeeds.SurvivalNeedsOf(frame);
         var findings = new SortedSet<string>(needs.Findings, StringComparer.Ordinal);
         var activities = capacity.Activities.ToList();
         var options = capacity.Options.ToList();

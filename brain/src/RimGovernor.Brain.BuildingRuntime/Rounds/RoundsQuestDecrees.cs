@@ -16,7 +16,7 @@ public sealed partial class JoinersRounds
         var lending = false;
         foreach (var offer in offers)
         {
-            var (objective, remaining, owed) = PolicyFunctions.DecreeObjective(offer);
+            var (objective, remaining, owed) = QuestDecrees.DecreeObjective(offer);
             if (!owed || objective is null)
             {
                 continue;
@@ -66,7 +66,7 @@ public sealed partial class JoinersRounds
                         }
                     }
 
-                    var (plan0, why) = PolicyFunctions.PlanDecreeHarvest(objective, remaining, standing, field.Choices, field.Climate, site, field.Skill);
+                    var (plan0, why) = QuestDecrees.PlanDecreeHarvest(objective, remaining, standing, field.Choices, field.Climate, site, field.Skill);
                     reason = why;
                     if (reason != "")
                     {
@@ -126,7 +126,7 @@ public sealed partial class JoinersRounds
 
                 case O.QuestObjectiveKind.KillAnimals:
                 {
-                    var (prey, why) = PolicyFunctions.PlanDecreeHunt(objective, remaining, offer.ViolentQuestsAllowed, read.Projection.Acquisition);
+                    var (prey, why) = QuestDecrees.PlanDecreeHunt(objective, remaining, offer.ViolentQuestsAllowed, read.Projection.Acquisition);
                     reason = why;
                     for (var i = 0; i < prey.Count; i++)
                     {

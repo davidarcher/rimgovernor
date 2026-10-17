@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 public readonly record struct WorkPrice(double WorkDayW, double CellWalkDays)
 {
     /// <summary>A price with both numbers known.</summary>
-    public bool Valid() => PolicyFunctions.FinitePositive(WorkDayW) && PolicyFunctions.FinitePositive(CellWalkDays);
+    public bool Valid() => QuestCapacityForecast.FinitePositive(WorkDayW) && QuestCapacityForecast.FinitePositive(CellWalkDays);
 
     /// <summary>A work-day count in score points: a point is a cell walked by a movement (PlanWeights.Walk), a cell a CellWalkDays of a work-day.</summary>
     public double Points(double workDays) => PlanWeights.Walk * workDays / CellWalkDays;
@@ -404,7 +404,7 @@ public static partial class PolicyFunctions
     public static WorkPrice StationWorkPrice(StationFacts f)
     {
         var ticks = f.Catalog.Climate.TicksPerSecond;
-        if (!FinitePositive(ticks))
+        if (!QuestCapacityForecast.FinitePositive(ticks))
         {
             return default;
         }

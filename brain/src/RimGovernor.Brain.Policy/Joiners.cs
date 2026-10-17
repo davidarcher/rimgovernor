@@ -26,7 +26,7 @@ public sealed record JoinersFacts
 /// <item><c>joiners/ceremony</c>: no accepted bestowing ceremony waits to start (<see cref="PolicyFunctions.CeremonyStartOf"/>).
 /// Starting one is not yet a supported forecast outcome, so it is held as <c>unsupported_forecast_bestowing</c>.</item>
 /// <item><c>joiners/quests</c>: no quest is worth accepting, and no accepted quest owes hosting, expedition, site or
-/// ideology work or a refugee (<see cref="PolicyFunctions.QuestDeficit"/>, <see cref="PolicyFunctions.RefugeeDeficit"/>).
+/// ideology work or a refugee (<see cref="QuestSelection.QuestDeficit"/>, <see cref="QuestRefugees.RefugeeDeficit"/>).
 /// Its Method accepts the best quest, <c>quest-accept-&lt;quest&gt;</c>; the runtime's work step does the site,
 /// hack, expedition and hospitality work.</item>
 /// <item><c>joiners/decrees</c>, <c>joiners/monuments</c>, <c>joiners/departures</c> and <c>joiners/grav-inspection</c>:
@@ -76,11 +76,11 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
             FromFact(Letters, PolicyFunctions.JoinerLetterDeficit(f.JoinerLetters, capacity), "joiner_letters",
                 f.JoinerLetters.TryGetValue(out var letters) ? Count(letters.Count) : default),
             Ceremonies(f.Royalty),
-            Quest(Quests, known, () => PolicyFunctions.QuestDeficit(f).ValueOrDefault || PolicyFunctions.RefugeeDeficit(f), count),
-            Quest(Decrees, known, () => PolicyFunctions.DecreeDeficit(f), count),
-            Quest(Monuments, known, () => PolicyFunctions.MonumentDeficit(f), count),
-            Quest(Departures, known, () => PolicyFunctions.DepartureDeficit(f), count),
-            Quest(GravInspection, known, () => PolicyFunctions.GravInspectionDeficit(f), count),
+            Quest(Quests, known, () => QuestSelection.QuestDeficit(f).ValueOrDefault || QuestRefugees.RefugeeDeficit(f), count),
+            Quest(Decrees, known, () => QuestDecrees.DecreeDeficit(f), count),
+            Quest(Monuments, known, () => QuestMonument.MonumentDeficit(f), count),
+            Quest(Departures, known, () => QuestDeparture.DepartureDeficit(f), count),
+            Quest(GravInspection, known, () => QuestGravInspection.GravInspectionDeficit(f), count),
         ];
     }
 
@@ -107,7 +107,7 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
             {
                 output.Add(NeedMethod.Held(Ceremony, CeremonyHeld, "Ceremony participation requires shared forecast occupancy and outcome admission."));
             }
-            else if (need.Id == Quests && PolicyFunctions.SelectQuestMethod(f) is { Reason: JoinerPlanReason.None } quest
+            else if (need.Id == Quests && QuestSelection.SelectQuestMethod(f) is { Reason: JoinerPlanReason.None } quest
                 && !(joiner.Reason == JoinerPlanReason.None && joiner.Quest == quest.Quest))
             {
                 output.Add(Accept(Quests, AcceptMethod("quest", quest.Quest), quest));

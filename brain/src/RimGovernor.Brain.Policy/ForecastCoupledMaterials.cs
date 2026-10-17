@@ -1,10 +1,10 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class ForecastCoupledMaterials
 {
     /// <summary>Reproject the shared owner for this schedule, with optional sites and exact admitted work claims.
     /// Native reservations for unrelated bills are retained even when a proposed commitment is removed.</summary>
-    private static Fact<IReadOnlyDictionary<Resource, Fact<double>>> CoupledMaterialBudgetOf(ColonyForecastRequest request,
+    internal static Fact<IReadOnlyDictionary<Resource, Fact<double>>> CoupledMaterialBudgetOf(ColonyForecastRequest request,
         IReadOnlyDictionary<string, ForecastCommitment> commitments, ForecastActivityProblem problem, ForecastActivityPlan plan)
     {
         var context = request.Coupled!; var evidence = context.Resources.Evidence;

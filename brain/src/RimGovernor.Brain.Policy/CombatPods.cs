@@ -483,7 +483,7 @@ public static partial class CombatPodsRules
 
     /// <summary>Reports a landing cell at or behind the layout's firing line: the pods came down inside the perimeter.</summary>
     private static bool PodsInside(CombatLayout layout, PodArrival pods) =>
-        pods.Landing.Items.Any(c => BehindFiringLine(layout.Firing.Items, layout.Toward, c));
+        pods.Landing.Items.Any(c => DefensePositions.BehindFiringLine(layout.Firing.Items, layout.Toward, c));
 
     /// <summary>The pods tactic's re-formation row: a responder's target is down, or a responder has none while a hostile is out. A fight waiting behind closed doors re-forms only on a raid phase change.</summary>
     internal static bool ReformPods(CombatView view, CombatMemory m)

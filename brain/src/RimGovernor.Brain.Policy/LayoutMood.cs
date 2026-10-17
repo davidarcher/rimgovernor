@@ -99,7 +99,7 @@ public readonly record struct MoodTierModel(double Weight, double Days)
     /// <summary>Folds one break into the tier's mix (the bridge builds the model).</summary>
     public MoodTierModel Add(double weight, double days)
     {
-        if (!PolicyFunctions.FinitePositive(weight) || !PolicyFunctions.FinitePositive(days))
+        if (!QuestCapacityForecast.FinitePositive(weight) || !QuestCapacityForecast.FinitePositive(days))
         {
             return this;
         }
@@ -119,11 +119,11 @@ public sealed record MoodBreakModel
     /// <summary>Reports a model with a threshold and a priced break in every tier.</summary>
     public bool Valid()
     {
-        if (!PolicyFunctions.FinitePositive(Threshold) || Tiers.Count != PolicyConstants.MoodTierCount)
+        if (!QuestCapacityForecast.FinitePositive(Threshold) || Tiers.Count != PolicyConstants.MoodTierCount)
         {
             return false;
         }
-        return Tiers.All(t => PolicyFunctions.FinitePositive(t.Weight) && PolicyFunctions.FinitePositive(t.Days));
+        return Tiers.All(t => QuestCapacityForecast.FinitePositive(t.Weight) && QuestCapacityForecast.FinitePositive(t.Days));
     }
 
     /// <summary>The tier a mood level is in; false above the minor threshold.</summary>
@@ -314,7 +314,7 @@ public static partial class PolicyFunctions
     public static (MoodPrice Price, bool Ok) PriceMood(MoodPriceInput input)
     {
         var level = input.ExpectedMood;
-        if (!input.Model.Valid() || !FinitePositive(input.WorkDayW) || input.Pawns < 0 || double.IsNaN(input.Points) || double.IsInfinity(input.Points)
+        if (!input.Model.Valid() || !QuestCapacityForecast.FinitePositive(input.WorkDayW) || input.Pawns < 0 || double.IsNaN(input.Points) || double.IsInfinity(input.Points)
             || double.IsNaN(level) || level < 0 || level > 1)
         {
             return (new MoodPrice(), false);
@@ -327,7 +327,7 @@ public static partial class PolicyFunctions
             var cheapest = double.PositiveInfinity;
             foreach (var s in input.Sources)
             {
-                if (s.Points >= input.Points && FinitePositive(s.W))
+                if (s.Points >= input.Points && QuestCapacityForecast.FinitePositive(s.W))
                 {
                     cheapest = Math.Min(cheapest, s.W);
                 }

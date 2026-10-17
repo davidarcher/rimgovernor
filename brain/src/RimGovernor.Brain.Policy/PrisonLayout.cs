@@ -22,12 +22,12 @@ public static partial class PolicyFunctions
     /// <summary>The cell just outside a room's door and the direction out; false when the door does not border the interior.</summary>
     internal static (Cell Front, Cell Out, bool Ok) PrisonDoorOutside(PlannedRoom r)
     {
-        foreach (var d in Directions)
+        foreach (var d in DefenseLayout.Directions)
         {
-            if (Contains(r.Region.Bounds(), AddCell(r.Door, d)))
+            if (Contains(r.Region.Bounds(), DefenseLayout.AddCell(r.Door, d)))
             {
                 var outward = new Cell(-d.X, -d.Z);
-                return (AddCell(r.Door, outward), outward, true);
+                return (DefenseLayout.AddCell(r.Door, outward), outward, true);
             }
         }
         return (default, default, false);
@@ -67,8 +67,8 @@ public static partial class PolicyFunctions
                 continue;
             }
             blocked.Add(front);
-            var p = Perpendicular(dir);
-            foreach (var c in new[] { AddCell(front, p), AddCell(front, Scale(p, -1)) })
+            var p = DefenseLayout.Perpendicular(dir);
+            foreach (var c in new[] { DefenseLayout.AddCell(front, p), DefenseLayout.AddCell(front, DefenseLayout.Scale(p, -1)) })
             {
                 if (blocked.Add(c))
                 {

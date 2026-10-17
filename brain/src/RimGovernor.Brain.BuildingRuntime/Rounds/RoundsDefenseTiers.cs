@@ -13,8 +13,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
 {
     internal static readonly DefenseTierName[] DefenseKillboxTiers =
     [
-        PolicyApi.TierChokepoint, PolicyApi.TierFiringLine, PolicyApi.TierFunnel, PolicyApi.TierTrapCorridor,
-        PolicyApi.TierTurrets, PolicyApi.TierMortars, PolicyApi.TierBait, PolicyApi.TierIEDs,
+        DefenseLayout.TierChokepoint, DefenseLayout.TierFiringLine, DefenseLayout.TierFunnel, DefenseLayout.TierTrapCorridor,
+        DefenseTurretsPolicy.TierTurrets, DefenseMortarsPolicy.TierMortars, DefenseArrivalRoutes.TierBait, DefenseIEDs.TierIEDs,
     ];
 
     /// <summary>The policy request of the site census: the turret and mortar budgets, the defenders, the cover choice and the IEDs.</summary>
@@ -63,8 +63,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             Defenders = defenders,
             MinRange = minRange,
-            Definitions = PolicyApi.DefenseCoverChoice(projection.Facts.Items, request.Definitions, stock, stockKnown,
-                DefenseDefinitionAvailable(read, PolicyApi.DefenseSandbags), DefenseDefinitionAvailable(read, PolicyApi.DefenseEmbrasure), defenders),
+            Definitions = DefenseCoverStock.DefenseCoverChoice(projection.Facts.Items, request.Definitions, stock, stockKnown,
+                DefenseDefinitionAvailable(read, DefenseCoverStock.DefenseSandbags), DefenseDefinitionAvailable(read, DefenseCoverStock.DefenseEmbrasure), defenders),
         };
         request = DefenseIedRequest(read, request);
         request = await MarkWallSupportAsync(identity, request, site.Cells, call).ConfigureAwait(false);
@@ -103,10 +103,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
             }
             tiers[t.Name] = new DefenseTier { Name = t.Name, Buildings = [.. buildings], Reserved = [.. t.Reserved] };
         }
-        var (choke, _, cok) = record.Tier(PolicyApi.TierChokepoint);
+        var (choke, _, cok) = record.Tier(DefenseLayout.TierChokepoint);
         if (cok && tiers.Count > 0)
         {
-            tiers[PolicyApi.TierChokepoint] = new DefenseTier { Name = PolicyApi.TierChokepoint, Reserved = [.. choke.Reserved] };
+            tiers[DefenseLayout.TierChokepoint] = new DefenseTier { Name = DefenseLayout.TierChokepoint, Reserved = [.. choke.Reserved] };
         }
         return new DefenseTierPins { Tiers = tiers, TrapLane = [.. record.TrapLane], Firing = [.. firing] };
     }
@@ -144,11 +144,11 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 record.SetPolicyTier(tiers.Layout.Tiers[sited]);
             }
         }
-        if (!pins.Tiers.ContainsKey(PolicyApi.TierChokepoint))
+        if (!pins.Tiers.ContainsKey(DefenseLayout.TierChokepoint))
         {
             record.TrapLane = tiers.Layout.TrapLane.ToList();
         }
-        if (!pins.Tiers.ContainsKey(PolicyApi.TierFiringLine))
+        if (!pins.Tiers.ContainsKey(DefenseLayout.TierFiringLine))
         {
             record.Firing = [];
             record.Retreat = [];
@@ -219,7 +219,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         DefenseTiers tiers;
         try
         {
-            tiers = PolicyApi.PlanDefenseTiers(plan, census, pins);
+            tiers = DefenseTiersPolicy.PlanDefenseTiers(plan, census, pins);
         }
         catch (DomainException)
         {
@@ -255,7 +255,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal async Task AdviseBlocksAsync(ControlState state, RoundsReading read, DefenseRequest census, DefenseTierPins pins, DefenseTiers tiers, CancellationToken call)
     {
-        var things = PolicyApi.BlockedThings(census.Cells, pins);
+        var things = DefenseBlock.BlockedThings(census.Cells, pins);
         if (things.Count == 0)
         {
             BlocksLogged = "";
@@ -282,7 +282,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 var row = catalog.ClearRow(thing.Def, thing.Stuff);
                 if (row is not null)
                 {
-                    rows[PolicyApi.ClearKey(thing.Def, thing.Stuff)] = row;
+                    rows[DefenseBlock.ClearKey(thing.Def, thing.Stuff)] = row;
                 }
             }
             catch (DomainException)
@@ -292,7 +292,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         var p = read.Projection;
         var facts = new StationFacts { Catalog = p.Stations, Items = p.Facts.Items, Colonists = p.Facts.Colonists, Food = p.FoodSupply, WorkPawns = p.WorkPawns, Crops = FieldCrops.Growing(p) };
-        var decisions = PolicyApi.PriceTierBlocks(census.Cells, pins, tiers.Sited, PolicyApi.NewBlockPricing(facts, census.UnitCosts, rows));
+        var decisions = DefenseBlock.PriceTierBlocks(census.Cells, pins, tiers.Sited, DefenseBlock.NewBlockPricing(facts, census.UnitCosts, rows));
         var key = string.Join(" ", decisions.Select(d => d.ToString()));
         if (key == BlocksLogged)
         {

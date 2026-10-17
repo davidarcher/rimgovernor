@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class DefenseCapacityPolicy
 {
     /// <summary>
     /// Converts observed combat strength (damage per second) into raid-point units. Vanilla prices a pirate gunner

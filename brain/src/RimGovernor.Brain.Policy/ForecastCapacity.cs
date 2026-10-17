@@ -24,7 +24,7 @@ public sealed record ForecastCapacityInput
 
 public sealed record ForecastCapacityResult(ForecastPawnCapacity Capacity, Fact<double> FreeTicks, string[] Findings);
 
-public static partial class PolicyFunctions
+public static class ForecastCapacity
 {
     /// <summary>One pawn timeline for all work types; overlapping obligations consume time only once.</summary>
     public static ForecastCapacityResult ForecastPawnCapacityOf(ForecastCapacityInput input)
@@ -36,7 +36,7 @@ public static partial class PolicyFunctions
         var pawn = input.Pawn;
         if ((pawn.Available.TryGetValue(out var available) && !available) || (pawn.Applies.TryGetValue(out var applies) && !applies))
             return Result(Known(default(EquatableArray<ForecastTimeWindow>)), Known(0.0), "pawn_unavailable");
-        var current = input.CurrentWork ?? ForecastCurrentWorkOf(pawn, input.CurrentJobRemainingTicks);
+        var current = input.CurrentWork ?? ForecastCurrentWork.ForecastCurrentWorkOf(pawn, input.CurrentJobRemainingTicks);
         if (current.Pawn != pawn.Id) throw new DomainException("capacity current work names another pawn");
         if (!pawn.Available.IsKnown || !pawn.Applies.IsKnown || !current.Occupied.TryGetValue(out var occupied) || (input.ProtectTimetable && !pawn.WorkHoursPerDay().IsKnown)
             || !input.LocalHour.TryGetValue(out var hour) || !input.Occupancy.TryGetValue(out var occupancy))

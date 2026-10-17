@@ -1238,7 +1238,7 @@ transient forecast inputs and concrete target bindings, not persistent Methods.
 | --- | --- |
 | Normal Rounder | Read native options and sequence admission of the policy-selected portfolio through the existing journal |
 | `FoodMethodCandidates` / `ConstructionMethodCandidates` / `ClothingMethodCandidates` in `Methods.Generation` | Generate operation/provider alternatives and task/pawn binding templates without selecting sources or participants |
-| `PolicyFunctions.CompareActivityOutcomes` | Shared ColonyForecast alternative search, scheduling, deadlines, labor ceiling, postponement and selection |
+| `ForecastCoupledSelection.CompareActivityOutcomes` | Shared ColonyForecast alternative search, scheduling, deadlines, labor ceiling, postponement and selection |
 | `CoordinatedActivityBinding` in `Methods.Binding` | Resolve shared selected allocations into exact activity actions and advance observed obligations; no independent ranking or food-family rebinding selector |
 | `StartCoupledActivity` / `ContinueCoordinatedActivity` | Bind the shared selection, then apply pure ownership/lifecycle checks and observed continuation |
 | Existing Method journal and Hands | Admission, progress/revision ownership, dispatch and release |

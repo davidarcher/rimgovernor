@@ -48,7 +48,7 @@ public sealed partial class DefinitionCatalog
     public P.QuestProfile QuestProfile(string scriptDef)
     {
         var row = DefRow<QuestScriptDef>(scriptDef) ?? throw new CatalogException($"catalog has no QuestScriptDef row {scriptDef}");
-        var profile = P.PolicyFunctions.QuestFamilyForRoot(scriptDef);
+        var profile = P.QuestFamiliesPolicy.QuestFamilyForRoot(scriptDef);
         if (profile.Family == P.QuestFamily.None)
         {
             throw new CatalogException($"quest script {scriptDef} has no known family");

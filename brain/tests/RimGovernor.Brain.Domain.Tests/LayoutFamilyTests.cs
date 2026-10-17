@@ -236,7 +236,7 @@ public sealed class LayoutFamilyTests
             Killbox = "killbox-1",
             Firing = [new(1, 1)],
             Retreat = [new(1, 2)],
-            Tiers = [new DefenseTierRecord { Name = TierFiringLine, Attempts = 2 }],
+            Tiers = [new DefenseTierRecord { Name = DefenseLayout.TierFiringLine, Attempts = 2 }],
             Complete = true,
             VerifiedCombat = "plan-fight",
         }, ct);

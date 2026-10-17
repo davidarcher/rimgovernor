@@ -40,9 +40,9 @@ public sealed class CapabilityMaintenanceTests
         WorkSkill[] skills = [new() { Name = "Shooting", Level = 1, Learning = Learning() }, new() { Name = "Melee", Disabled = true }];
         var completed = new Dictionary<string, Fact<bool>> { ["work"] = Known(true) };
         ForecastMaintenanceConsequence Forecast(EquatableArray<WorkSkill> observed, ForecastActivityPlan plan)
-            => ForecastMaintenance([new(requirement, observed)], [], plan, completed, 200)[0];
+            => ForecastMaintenancePolicy.ForecastMaintenance([new(requirement, observed)], [], plan, completed, 200)[0];
         Assert.True(Forecast(EquatableArray.From(skills), new([], 0, 0)).MissingXp.Value > 0);
-        var projection = ForecastSkill(Learning(), [], 0);
+        var projection = ForecastSkillPolicy.ForecastSkill(Learning(), [], 0);
         var work = new ForecastActivityPlan([new("work", "pawn", 0, 0, 0, 1, 0, 0, 1, 1, 0)
         { Learning = new("Shooting", new("work", 1, Known(20d), SkillXpPath.NormalTracker), projection, projection, 1, 1, "native") }], 1, 1);
         Assert.Equal(Known(0d), Forecast(EquatableArray.From(skills), work).MissingXp);
@@ -69,13 +69,13 @@ public sealed class CapabilityMaintenanceTests
             { Needs = EquatableArray.From(p.Needs.Select(n => n with { Level = Known(1d), FallPerTick = Known(0d) })) })) },
             Coupled = facts.ForecastObserved.Coupled! with { Practice = new() { Known = true, Workers = EquatableArray.From(workers) } }
         } };
-        var generated = GenerateCoupledActivities(facts, 300)!;
-        var request = CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
-            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputsOf(facts) }, [], new());
-        var selected = CompareActivityOutcomes(request, generated);
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300)!;
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
+            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         Assert.NotEmpty(selected.Selection.Selected);
         Assert.True(selected.Selected.Maintenance[0].MissingXp.Value < selected.Baseline.Maintenance[0].MissingXp.Value);
-        var batch = Assert.IsType<PawnActivities>(StartCoupledActivity(selected, generated, 1, "maintenance-test", 100));
+        var batch = Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "maintenance-test", 100));
         batch.Validate(); Assert.Equal(melee ? 2 : 1, batch.Tasks.Count);
         var wire = RimGovernor.Contracts.Wire.WireJson.Deserialize<RimGovernor.Contracts.Wire.Operations.PawnActivitiesIntent>(
             RimGovernor.Contracts.Wire.WireJson.Serialize(new RimGovernor.Contracts.Wire.Operations.PawnActivitiesIntent { Batch = batch }));
@@ -89,17 +89,17 @@ public sealed class CapabilityMaintenanceTests
         Assert.Equal(batch.Orders[0].Steps[0].Practice, stored.Orders[0].Steps[0].Practice);
         if (melee) Assert.Throws<DomainException>(() => (batch with { Tasks = [batch.Tasks[0]] }).Validate());
         var emergency = facts with { Hostiles = Known(1L) };
-        var postponed = GenerateCoupledActivities(emergency, 300)!;
-        Assert.Empty(CompareActivityOutcomes(request with { Coupled = postponed.Context }, postponed).Selection.Selected);
+        var postponed = ForecastCoupledCandidates.GenerateCoupledActivities(emergency, 300)!;
+        Assert.Empty(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = postponed.Context }, postponed).Selection.Selected);
         var revoked = new ActivityTaskRead { Practice = [new(batch.Tasks[0].Id, Known(false), [])] };
-        Assert.Equal(Known(false), ReviewServiceActivityNeed(batch, Known(true), revoked));
+        Assert.Equal(Known(false), ForecastServiceInvestments.ReviewServiceActivityNeed(batch, Known(true), revoked));
         var absent = new ActivityTaskRead();
-        Assert.Equal(Known(true), ReviewServiceActivityNeed(batch, Known(true), absent));
+        Assert.Equal(Known(true), ForecastServiceInvestments.ReviewServiceActivityNeed(batch, Known(true), absent));
         Assert.All(batch.Tasks, t => Assert.Equal("pawn", t.Step.Practice!.Beneficiary));
         Assert.All(batch.Tasks, t => Assert.Equal("role", t.Step.Practice!.Role));
         var satisfied = facts with { ForecastObserved = facts.ForecastObserved with
         { WorkPawns = Known(EquatableArray.From(roster.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = skill, Level = 1, Learning = Learning() with { Xp = Known(100d) } }]) }))) } };
-        var recovered = GenerateCoupledActivities(satisfied, 300)!;
-        Assert.Empty(CompareActivityOutcomes(request with { Coupled = recovered.Context }, recovered).Selection.Selected);
+        var recovered = ForecastCoupledCandidates.GenerateCoupledActivities(satisfied, 300)!;
+        Assert.Empty(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = recovered.Context }, recovered).Selection.Selected);
     }
 }

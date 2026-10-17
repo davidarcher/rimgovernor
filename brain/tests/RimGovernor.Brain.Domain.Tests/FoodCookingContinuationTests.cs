@@ -116,11 +116,11 @@ public sealed class FoodCookingContinuationTests
         }
         var read = Done(supply) with { Needs = new() { Tick = 200, Pawns = [new() { Pawn = "pawn", State = "eligible",
             Needs = [new("food", known ? Known(1d) : default, Known(0d), Known(.3))] }] } };
-        var need = ReviewServiceActivityNeed(supply, Known(true), read);
+        var need = ForecastServiceInvestments.ReviewServiceActivityNeed(supply, Known(true), read);
         Assert.Equal(Known(!known), need);
         if (known) Assert.True(ContinueCoordinatedActivity(supply, need, read)!.Orders[0].Release);
         var active = read with { Pawns = EquatableArray.From(read.Pawns.Select(p => p with { Execution = p.Execution! with { State = "started" } })) };
-        Assert.Equal(Known(true), ReviewServiceActivityNeed(supply, Known(true), active));
+        Assert.Equal(Known(true), ForecastServiceInvestments.ReviewServiceActivityNeed(supply, Known(true), active));
     }
 
     [Fact]

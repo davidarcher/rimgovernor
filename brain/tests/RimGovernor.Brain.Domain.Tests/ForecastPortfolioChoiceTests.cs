@@ -16,15 +16,15 @@ public sealed class ForecastPortfolioChoiceTests
     private static readonly Cell[] Cells = [Source, Bench, Destination];
     private static (ForecastCoupledSelection Selection, PawnActivities Batch) Select(RoundsFacts facts)
     {
-        facts = facts with { CoupledAlternatives = GenerateCoupledActivities(facts, 150) };
+        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 150) };
         var generated = Assert.IsType<ForecastCoupledCandidates>(facts.CoupledAlternatives);
-        var request = CoupledForecastRequestOf(new("world/map/load", 100), 150d / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new());
-        var selected = CompareActivityOutcomes(request, generated);
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 150d / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         Assert.Equal(Known(true), selected.Selected.Feasible);
         Assert.NotEmpty(selected.Selection.Selected);
         Assert.True(selected.SelectedVector.Urgent[1].Value < selected.BaselineVector.Urgent[1].Value);
-        return (selected, Assert.IsType<PawnActivities>(StartCoupledActivity(selected, generated, 1, "portfolio-choice", 100)));
+        return (selected, Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "portfolio-choice", 100)));
     }
     internal static RoundsFacts Observed(CoupledFoodConversion[] conversions, CoupledFoodSource[] sources, bool helper = false)
     {
@@ -101,9 +101,9 @@ public sealed class ForecastPortfolioChoiceTests
             .Select(g => g.OrderBy(c => c.Id, StringComparer.Ordinal).First()).Take(2).ToArray();
         Assert.Equal(2, roots.Length);
         generated = generated with { Alternatives = EquatableArray.From(roots) };
-        var request = CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new()) with { Coupled = generated.Context };
-        var selected = CompareActivityOutcomes(request, generated);
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()) with { Coupled = generated.Context };
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         ForecastConsequenceVector? best = null;
         for (var mask = 0; mask < 1 << roots.Length; mask++)
         {
@@ -111,7 +111,7 @@ public sealed class ForecastPortfolioChoiceTests
             var result = ForecastColony(request with { Proposed = new() { Add = EquatableArray.From(subset) } });
             foreach (var outcome in result.Proposed.Coupled!.Alternatives.Where(p => p.Feasible == Known(true)))
             {
-                var vector = CoupledConsequences(outcome, subset);
+                var vector = ForecastCoupledSelection.CoupledConsequences(outcome, subset);
                 Assert.All(vector.Urgent, value => Assert.True(value.IsKnown));
                 if (best is null || Lexicographic(vector.Urgent, best.Urgent) < 0) best = vector;
                 var tasks = outcome.Plan.Allocations.Select(a => generated.Context.Activities.Activities.Single(t => t.Id == a.Activity)).ToArray();

@@ -14,7 +14,7 @@ public sealed record QuestGravInspectionWork
     public QuestSkipReason Reason { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class QuestGravInspection
 {
     public static QuestGravInspectionWork SelectQuestGravInspection(RoundsFacts f, MapId home)
     {

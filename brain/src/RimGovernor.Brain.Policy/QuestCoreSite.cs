@@ -18,7 +18,7 @@ public sealed record CoreSiteWork
     public PrisonerInteraction? Recruit { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class QuestCoreSite
 {
     /// <summary>
     /// Follows only the exact quest-linked site and native targets. A designation starts work; the
@@ -29,7 +29,7 @@ public static partial class PolicyFunctions
         var result = new CoreSiteWork { Quest = offer.Quest };
         if (!offer.Profile.TryGetValue(out var profile)
             || (profile.Family != QuestFamily.Site && profile.Family != QuestFamily.BanditCamp
-                && !(profile.Family == QuestFamily.Hack && offer.State == "EndedFailed") && !OdysseyGroundSiteRoot(offer.ScriptDef))
+                && !(profile.Family == QuestFamily.Hack && offer.State == "EndedFailed") && !QuestFamiliesPolicy.OdysseyGroundSiteRoot(offer.ScriptDef))
             || (offer.State != "Ongoing" && offer.State != "EndedSuccess" && offer.State != "EndedFailed")
             || !site.QuestIds.Contains(offer.Quest))
         {

@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>Degree-ticks at modeled stationary work/need locations; idle and unobserved routes remain gaps.
 /// This is exposure, not injury probability or a physiological capacity estimate.</summary>
-public sealed record ForecastThermalExposure(string Pawn, double AssessedTicks, double UnknownTicks,
+public sealed partial record ForecastThermalExposure(string Pawn, double AssessedTicks, double UnknownTicks,
     double AssessedColdDegreeTicks, double AssessedHotDegreeTicks)
 {
     public Fact<double> ColdDegreeTicks => UnknownTicks == 0 ? Known(AssessedColdDegreeTicks) : default;
@@ -15,7 +15,7 @@ public sealed record ForecastThermalExposure(string Pawn, double AssessedTicks, 
 /// <summary>One assessed stationary span: the projected temperature runs linearly from Initial to Final, under the pawn's comfort range with its shifts applied.</summary>
 public sealed record ForecastThermalSpan(double Start, double End, double Initial, double Final, double ComfortableMin, double ComfortableMax);
 
-public static partial class PolicyFunctions
+public sealed partial record ForecastThermalExposure
 {
     public static EquatableArray<ForecastThermalExposure> ForecastThermalExposureOf(ForecastCoupledContext context,
         ForecastActivityProblem problem, ForecastActivityPlan schedule, EquatableArray<ForecastShelterOutcome> shelters, double horizon, ForecastActivityPlan? physicalSchedule = null,

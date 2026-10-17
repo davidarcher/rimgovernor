@@ -8,7 +8,7 @@ public sealed record ForecastObservedIncumbent(PlanId Plan, PawnActivities Batch
     public EquatableArray<ActivityOwnership> ReleasedOwnership { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class ForecastIncumbentPreparation
 {
     private sealed record IncumbentServiceProjection(string Assignment, string Method, long Revision,
         string Target, string Kind, Cell Location, Fact<double> RemainingTicks, Fact<double> GainPerTick,
@@ -19,7 +19,7 @@ public static partial class PolicyFunctions
     public static (RoundsFacts Facts, EquatableArray<ForecastObservedIncumbent> Incumbents) PrepareCoupledIncumbents(
         RoundsFacts facts, Fact<EquatableArray<ProductionBatch>> batches, WorkActionCensus actions)
     {
-        (RoundsFacts Facts, EquatableArray<ForecastObservedIncumbent> Incumbents) Protected() => (ReviewCoupledActivities(facts), []);
+        (RoundsFacts Facts, EquatableArray<ForecastObservedIncumbent> Incumbents) Protected() => (ForecastCoupledCandidates.ReviewCoupledActivities(facts), []);
         var original = facts.WorkView;
         var needs = facts.ForecastObserved.Needs;
         if (original is null || needs is null || actions.Truncated || original.Claims.Truncated
@@ -111,7 +111,7 @@ public static partial class PolicyFunctions
             releasedPawns.Contains(p.Pawn) ? p with { Occupied = Known(false) } : p))) };
         var conditional = WorkResourcesOf(evidence, batches,
             actions.Actions.Where(a => !omitted.Contains((a.Plan, a.Action.Id))), actions.Truncated);
-        var generated = GenerateCoupledActivities(facts with { WorkView = conditional, WorkClaims = conditional.Claims });
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { WorkView = conditional, WorkClaims = conditional.Claims });
         if (generated is null) return Protected();
         var incumbents = new List<ForecastObservedIncumbent>();
         var activities = generated.Context.Activities.Activities.ToList();

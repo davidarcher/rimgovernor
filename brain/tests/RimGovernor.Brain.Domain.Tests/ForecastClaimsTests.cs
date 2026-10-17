@@ -23,11 +23,11 @@ public sealed class ForecastClaimsTests
     public void NativeHandoffCountsSameBillOnceAndOtherBillsStillCompete()
     {
         var promise = Promise("method", Material, 50, "bill");
-        Assert.Equal(50, ForecastMaterialBudgetOf(Stock, Native(), [promise], 1).Value[Material].Value);
-        Assert.Equal(30, ForecastMaterialBudgetOf(Stock, Native("other-bill"), [promise], 1).Value[Material].Value);
-        Assert.Equal(30, ForecastMaterialBudgetOf(Stock, Native(), [Promise("unplaced", Material, 50)], 1).Value[Material].Value);
-        Assert.Equal(80, ForecastMaterialBudgetOf(Stock, Native(), [Promise("small", Material, 10, "bill")], 1).Value[Material].Value);
-        Assert.Throws<DomainException>(() => ForecastMaterialBudgetOf(Stock, Native(), [promise, promise with { Id = "duplicate-owner" }], 1));
+        Assert.Equal(50, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [promise], 1).Value[Material].Value);
+        Assert.Equal(30, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native("other-bill"), [promise], 1).Value[Material].Value);
+        Assert.Equal(30, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [Promise("unplaced", Material, 50)], 1).Value[Material].Value);
+        Assert.Equal(80, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [Promise("small", Material, 10, "bill")], 1).Value[Material].Value);
+        Assert.Throws<DomainException>(() => ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [promise, promise with { Id = "duplicate-owner" }], 1));
     }
 
     [Fact]
@@ -51,15 +51,15 @@ public sealed class ForecastClaimsTests
     public void UnknownPromiseOrNativeLinkOnlyPoisonsItsOwnResource()
     {
         var unknown = new ForecastCommitment("unknown", default) { MaterialClaims = [new(Food, Unknown<double>(), Known(""))] };
-        var budget = ForecastMaterialBudgetOf(Stock, NoReservations, [unknown], 1).Value;
+        var budget = ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations, [unknown], 1).Value;
         Assert.False(budget[Food].IsKnown);
         Assert.Equal(100, budget[Material].Value);
         unknown = unknown with { MaterialClaims = [new(Material, Known(50.0), Unknown<string>())] };
-        Assert.False(ForecastMaterialBudgetOf(Stock, Native(), [unknown], 1).Value[Material].IsKnown);
+        Assert.False(ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [unknown], 1).Value[Material].IsKnown);
         var missingId = Known<EquatableArray<IngredientReservation>>([Native().Value[0] with { Bill = default }]);
-        Assert.False(ForecastMaterialBudgetOf(Stock, missingId, [Promise("linked", Material, 50, "bill")], 1).Value[Material].IsKnown);
-        Assert.False(ForecastMaterialBudgetOf(Stock, default, [], 1).IsKnown);
-        Assert.Equal(100, ForecastMaterialBudgetOf(Stock, NoReservations,
+        Assert.False(ForecastClaims.ForecastMaterialBudgetOf(Stock, missingId, [Promise("linked", Material, 50, "bill")], 1).Value[Material].IsKnown);
+        Assert.False(ForecastClaims.ForecastMaterialBudgetOf(Stock, default, [], 1).IsKnown);
+        Assert.Equal(100, ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations,
             [new("zero", default) { MaterialClaims = [new(Material, Known(0.0), default)] }], 1).Value[Material].Value);
     }
 
@@ -68,13 +68,13 @@ public sealed class ForecastClaimsTests
     {
         var claim = Promise("method", Material, 10);
         var effect = new ForecastStockChange(Material, Known(0.5), Known(-10.0));
-        Assert.Throws<DomainException>(() => ForecastMaterialBudgetOf(Stock, NoReservations,
+        Assert.Throws<DomainException>(() => ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations,
             [claim with { StockChanges = [effect] }], 1));
         var future = new ForecastCommitment("future", [effect with { Units = Known(100.0) }]);
-        Assert.Equal(-50, ForecastMaterialBudgetOf(Stock, NoReservations,
+        Assert.Equal(-50, ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations,
             [Promise("a", Material, 75), Promise("b", Material, 75), future], 1).Value[Material].Value);
         var beyond = future with { StockChanges = [new(Material, Known(2.0), Unknown<double>())] };
-        Assert.Equal(100, ForecastMaterialBudgetOf(Stock, NoReservations, [beyond], 1).Value[Material].Value);
+        Assert.Equal(100, ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations, [beyond], 1).Value[Material].Value);
     }
 
     private static ForecastEquipmentCapacity Tool(string id = "tool", double start = 0) =>
@@ -93,31 +93,31 @@ public sealed class ForecastClaimsTests
     public void OneToolGeneratesTakingTurnsWhileSeparateToolsPermitParallelWork()
     {
         var jobs = Jobs();
-        var one = CompareActivityPlans(jobs).Selected!;
+        var one = ForecastActivities.CompareActivityPlans(jobs).Selected!;
         Assert.Equal(200, one.CompletedAt);
         Assert.Equal(200, one.LaborCost);
         var claims = one.EquipmentClaims.OrderBy(c => c.Start.Value).ToArray();
         Assert.Equal(claims[0].End.Value, claims[1].Start.Value);
-        Assert.Null(CompareActivityPlans(jobs with { Deadline = Known(150.0) }).Selected);
+        Assert.Null(ForecastActivities.CompareActivityPlans(jobs with { Deadline = Known(150.0) }).Selected);
         var separate = jobs with
         {
             Equipment = [Tool(), Tool("second")],
             Options = [jobs.Options[0], jobs.Options[1] with { Equipment = ["second"] }],
         };
-        Assert.Equal(100, CompareActivityPlans(separate).Selected!.CompletedAt);
+        Assert.Equal(100, ForecastActivities.CompareActivityPlans(separate).Selected!.CompletedAt);
     }
 
     [Fact]
     public void EquipmentReleaseGeneratesWaitingAndJustInTimeAlternativesWithinBudget()
     {
         var jobs = Jobs() with { Equipment = [Tool(start: 50)], Deadline = Known(250.0) };
-        var result = CompareActivityPlans(jobs);
+        var result = ForecastActivities.CompareActivityPlans(jobs);
         Assert.Equal(250, result.Selected!.CompletedAt);
         Assert.Equal(200, result.Selected.LaborCost);
         Assert.Contains(result.Alternatives, p => p.Allocations.Any(a => a.WaitTicks > 0));
         var bounded = jobs with { ExpansionBudget = 3 };
-        var a = CompareActivityPlans(bounded);
-        var b = CompareActivityPlans(bounded with { Activities = [.. bounded.Activities.Reverse()], Options = [.. bounded.Options.Reverse()] });
+        var a = ForecastActivities.CompareActivityPlans(bounded);
+        var b = ForecastActivities.CompareActivityPlans(bounded with { Activities = [.. bounded.Activities.Reverse()], Options = [.. bounded.Options.Reverse()] });
         Assert.True(a.SearchTruncated);
         Assert.Equal(3, a.Expansions);
         Assert.Equal(a.Decision, b.Decision);
@@ -134,10 +134,10 @@ public sealed class ForecastClaimsTests
             Options = [jobs.Options[0], new("a", "two", Known(100.0), Known(0.0))],
             Equipment = [Tool() with { Windows = default }],
         };
-        var result = CompareActivityPlans(jobs);
+        var result = ForecastActivities.CompareActivityPlans(jobs);
         Assert.Equal("two", Assert.Single(result.Selected!.Allocations).Pawn);
         Assert.Contains(result.Findings, f => f.StartsWith("unknown_equipment:", StringComparison.Ordinal));
-        result = CompareActivityPlans(jobs with { Equipment = [Tool() with { Location = "elsewhere" }] });
+        result = ForecastActivities.CompareActivityPlans(jobs with { Equipment = [Tool() with { Location = "elsewhere" }] });
         Assert.Equal("two", Assert.Single(result.Selected!.Allocations).Pawn);
         Assert.Contains(result.Findings, f => f.StartsWith("equipment_location_mismatch:", StringComparison.Ordinal));
     }
@@ -146,15 +146,15 @@ public sealed class ForecastClaimsTests
     public void EquipmentObligationsUnionOnceAndUnknownEndStaysLocal()
     {
         var use = new ForecastEquipmentClaim("tool", Known(20.0), Known(100.0));
-        var result = ForecastEquipmentAvailabilityOf([Tool(), Tool("other")], [use, use, new("tool", Known(80.0), Known(150.0))]);
+        var result = ForecastClaims.ForecastEquipmentAvailabilityOf([Tool(), Tool("other")], [use, use, new("tool", Known(80.0), Known(150.0))]);
         var windows = result.Single(e => e.Id == "tool").Windows.Value;
         Assert.Equal(2, windows.Count);
         Assert.Equal(20, windows[0].End);
         Assert.Equal(150, windows[1].Start);
-        result = ForecastEquipmentAvailabilityOf(result, [use with { End = default }]);
+        result = ForecastClaims.ForecastEquipmentAvailabilityOf(result, [use with { End = default }]);
         Assert.False(result.Single(e => e.Id == "tool").Windows.IsKnown);
         Assert.True(result.Single(e => e.Id == "other").Windows.IsKnown);
-        Assert.Throws<DomainException>(() => ForecastEquipmentAvailabilityOf([Tool()], [use with { End = Known(1.0) }]));
+        Assert.Throws<DomainException>(() => ForecastClaims.ForecastEquipmentAvailabilityOf([Tool()], [use with { End = Known(1.0) }]));
     }
 
     [Fact]
@@ -165,9 +165,9 @@ public sealed class ForecastClaimsTests
         var observed = ObservationPackage.BillReservations(snapshot);
         Assert.Equal("native-bill", observed.Value[0].Bill.Value);
         var promise = Promise("method", Material, 50, "native-bill");
-        Assert.Equal(50, ForecastMaterialBudgetOf(Stock, observed, [promise], 1).Value[Material].Value);
+        Assert.Equal(50, ForecastClaims.ForecastMaterialBudgetOf(Stock, observed, [promise], 1).Value[Material].Value);
         observed = ObservationPackage.BillReservations(snapshot with { Benches = [snapshot.Benches[0] with { Bills = [bill with { Id = null }] }] });
         Assert.False(observed.Value[0].Bill.IsKnown);
-        Assert.False(ForecastMaterialBudgetOf(Stock, observed, [promise], 1).Value[Material].IsKnown);
+        Assert.False(ForecastClaims.ForecastMaterialBudgetOf(Stock, observed, [promise], 1).Value[Material].IsKnown);
     }
 }

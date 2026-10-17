@@ -231,7 +231,7 @@ public static partial class CombatKiteRules
             return null;
         }
 
-        var vok = TowardVector(layout!.Toward, out var v);
+        var vok = DefensePositions.TowardVector(layout!.Toward, out var v);
         if (!vok || layout.Retreat.Count == 0)
         {
             return null;

@@ -79,7 +79,7 @@ public static partial class PolicyFunctions
     /// once the defense covers it; an unknown raid or capacity is ArmoryTier.Unknown.
     /// </summary>
     public static ArmoryTier ArmoryThreatTier(Fact<double> raidPoints, Fact<double> capacity) =>
-        DefenseShortfall(raidPoints, capacity).TryGetValue(out var shortfall) ? (shortfall > 0 ? ArmoryTier.Fabrication : ArmoryTier.Neolithic) : ArmoryTier.Unknown;
+        DefenseBudget.DefenseShortfall(raidPoints, capacity).TryGetValue(out var shortfall) ? (shortfall > 0 ? ArmoryTier.Fabrication : ArmoryTier.Neolithic) : ArmoryTier.Unknown;
 
     /// <summary>The highest tier whose research, and every lower tier's, is finished. An unknown census allows only neolithic.</summary>
     public static ArmoryTier ArmoryResearchTier(Fact<ResearchFacts> research)

@@ -131,14 +131,14 @@ public sealed class PlannedRoomActivitiesTests
             },
         };
         facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        return facts with { CoupledAlternatives = GenerateCoupledActivities(facts, horizon) };
+        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon) };
     }
 
     private static ForecastCoupledSelection Select(RoundsFacts facts, double horizon = Horizon)
     {
-        var request = CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new());
-        return CompareActivityOutcomes(request, facts.CoupledAlternatives!, 16384);
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, 16384);
     }
 
     private static string Why(RoundsFacts facts, ForecastCoupledSelection result) =>
@@ -163,7 +163,7 @@ public sealed class PlannedRoomActivitiesTests
         Assert.True(result.SelectedVector.Development > result.BaselineVector.Development);
 
         // Nothing binds a planned site before placement (#3278): the selection starts no order.
-        Assert.Null(StartCoupledActivity(result, candidates, 1, "planned-test", 100));
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(result, candidates, 1, "planned-test", 100));
     }
 
     /// <summary>

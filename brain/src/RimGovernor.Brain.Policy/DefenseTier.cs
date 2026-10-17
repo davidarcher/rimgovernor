@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public sealed partial record DefenseTier
 {
     /// <summary>
     /// Reports that projected raid points could overpower the colony: above the observed defense capacity. An unknown raid size or capacity is never a promotion.

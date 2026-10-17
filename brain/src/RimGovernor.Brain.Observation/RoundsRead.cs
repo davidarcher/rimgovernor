@@ -184,7 +184,7 @@ public static partial class ObservationPackage
                 {
                     Armed = armed,
                     Unarmed = unarmed,
-                    DefenseCapacity = PolicyFunctions.DefenseCapacity(RoundsDefenders(colony, emergency, pawns), p.DefenseTurrets),
+                    DefenseCapacity = DefenseCapacityPolicy.DefenseCapacity(RoundsDefenders(colony, emergency, pawns), p.DefenseTurrets),
                 },
                 MechCatalog = catalog?.Biotech?.MechCatalog() ?? new(),
                 WorkPawns = RoundsWork(colony, emergency, pawns, catalog, frame.Tables.Things),

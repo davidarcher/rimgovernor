@@ -49,17 +49,17 @@ public sealed class ForecastFoodCandidatesTests
     };
     private static ForecastActivityOutcomeComparison Compare(ColonyForecastRequest frame, ForecastFoodCandidateInputs input, ForecastActivityProblem? capacity = null)
     {
-        var generated = GenerateFoodActivities(frame, capacity ?? Capacity(), input);
+        var generated = ForecastFoodCandidates.GenerateFoodActivities(frame, capacity ?? Capacity(), input);
         Assert.NotNull(generated.Problem);
-        return CompareSurvivalActivities(frame, generated.Problem, generated.Relief);
+        return ForecastSurvivalNeeds.CompareSurvivalActivities(frame, generated.Problem, generated.Relief);
     }
 
     [Fact]
     public void ObservedHarvestAndRecipeGenerateUsefulCookingInsteadOfLocallyPinningRawFood()
     {
-        var generated = GenerateFoodActivities(Frame(), Capacity(), Inputs());
+        var generated = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), Inputs());
         Assert.Equal(3, generated.Relief.Length);
-        var result = CompareSurvivalActivities(Frame(), generated.Problem!, generated.Relief);
+        var result = ForecastSurvivalNeeds.CompareSurvivalActivities(Frame(), generated.Problem!, generated.Relief);
         Assert.Single(result.Selected);
         var binding = Assert.Single(generated.Bindings, b => b.Recipe == "TestRecipe" && b.Iterations == 1);
         Assert.Contains(result.Plan!.Allocations, a => a.Activity == binding.Activity);
@@ -89,7 +89,7 @@ public sealed class ForecastFoodCandidatesTests
         var input = Inputs();
         input = input with { Recipes = Known(EquatableArray.From(input.Recipes.Value.Select(r => r with
             { Products = Known(EquatableArray.From(new[] { new Amount(Meal, 3) })) }))) };
-        var generated = GenerateFoodActivities(Frame(), Capacity(), input);
+        var generated = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), input);
         var cook = generated.Problem!.Activities.Single(a => generated.Bindings.Any(b => b.Activity == a.Id && b.Iterations == 2));
         Assert.Equal(6, Assert.Single(cook.Outputs).Units.Value);
     }
@@ -99,27 +99,27 @@ public sealed class ForecastFoodCandidatesTests
     {
         var input = Inputs();
         input = input with { Recipes = Known(EquatableArray.From(input.Recipes.Value.Select(r => r with { WorkAmount = Known(6000.0) }))) };
-        var generated = GenerateFoodActivities(Frame(), Capacity(), input);
-        var result = CompareSurvivalActivities(Frame(), generated.Problem!, generated.Relief);
+        var generated = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), input);
+        var result = ForecastSurvivalNeeds.CompareSurvivalActivities(Frame(), generated.Problem!, generated.Relief);
         var selected = Assert.Single(generated.Bindings, b => b.Recipe != "" && result.Plan!.Allocations.Any(a => a.Activity == b.Activity));
         Assert.Equal(1, selected.Iterations);
         Assert.True(result.Plan!.CompletedAt < 1000);
         // Reproduce the old maximum-only candidate set: no alternative covers the need in time.
         var large = generated.Bindings.Single(b => b.Iterations == 2);
         var maximumOnly = generated.Relief.Where(r => r.Completion == large.Activity.Replace("-cook", "-delivery") || r.Completion.EndsWith("-raw")).ToArray();
-        Assert.Empty(CompareSurvivalActivities(Frame(), generated.Problem!, maximumOnly).Selected);
+        Assert.Empty(ForecastSurvivalNeeds.CompareSurvivalActivities(Frame(), generated.Problem!, maximumOnly).Selected);
     }
 
     [Fact]
     public void LongerFoodHorizonRequiresMoreThanTheCheapestBatch()
     {
         var frame = Frame() with { HorizonDays = 9000.0 / GameTime.TicksPerDay };
-        var generated = GenerateFoodActivities(frame, Capacity() with { Deadline = Known(9000.0) }, Inputs());
-        var result = CompareSurvivalActivities(frame, generated.Problem!, generated.Relief);
+        var generated = ForecastFoodCandidates.GenerateFoodActivities(frame, Capacity() with { Deadline = Known(9000.0) }, Inputs());
+        var result = ForecastSurvivalNeeds.CompareSurvivalActivities(frame, generated.Problem!, generated.Relief);
         var selected = Assert.Single(generated.Bindings, b => b.Recipe != "" && result.Plan!.Allocations.Any(a => a.Activity == b.Activity));
         Assert.Equal(2, selected.Iterations);
         var small = generated.Bindings.Single(b => b.Iterations == 1);
-        Assert.Empty(CompareSurvivalActivities(frame, generated.Problem!, generated.Relief.Where(r =>
+        Assert.Empty(ForecastSurvivalNeeds.CompareSurvivalActivities(frame, generated.Problem!, generated.Relief.Where(r =>
             r.Completion == small.Activity.Replace("-cook", "-delivery")).ToArray()).Selected);
     }
 
@@ -127,13 +127,13 @@ public sealed class ForecastFoodCandidatesTests
     public void BatchEnumerationSpendsBudgetAndDoesNotPretendOmittedSizesWereCompared()
     {
         var input = Inputs() with { GenerationBudget = 3 };
-        var generated = GenerateFoodActivities(Frame(), Capacity(), input);
+        var generated = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), input);
         Assert.True(generated.GenerationTruncated);
         Assert.Equal(3, generated.Generated); // source, recipe inspection, one batch alternative
         Assert.Single(generated.Bindings, b => b.Iterations == 1);
         Assert.DoesNotContain(generated.Bindings, b => b.Iterations > 1);
         Assert.Contains("food_generation_truncated", generated.Findings);
-        var again = GenerateFoodActivities(Frame(), Capacity(), input);
+        var again = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), input);
         Assert.Equal(generated.Bindings, again.Bindings);
         Assert.Equal(generated.Relief, again.Relief);
         Assert.Equal(generated.Generated, again.Generated);
@@ -150,8 +150,8 @@ public sealed class ForecastFoodCandidatesTests
     public void ImmatureTakenAndUnknownSourcesDoNotCreateHarvestTasks()
     {
         foreach (var source in new[] { Inputs().Sources.Value[0] with { Growth = 0.2 }, Inputs().Sources.Value[0] with { Taken = true } })
-            Assert.Null(GenerateFoodActivities(Frame(), Capacity(), Inputs() with { Sources = Known(EquatableArray.From(new[] { source })) }).Problem);
-        var unknown = GenerateFoodActivities(Frame(), Capacity(), Inputs() with { Sources = default });
+            Assert.Null(ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), Inputs() with { Sources = Known(EquatableArray.From(new[] { source })) }).Problem);
+        var unknown = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), Inputs() with { Sources = default });
         Assert.Null(unknown.Problem);
         Assert.Contains("unknown_food_sources_or_roster", unknown.Findings);
     }
@@ -160,12 +160,12 @@ public sealed class ForecastFoodCandidatesTests
     public void GenerationBudgetIsExplicitAndDeterministic()
     {
         var input = Inputs() with { GenerationBudget = 1 };
-        var generated = GenerateFoodActivities(Frame(), Capacity(), input);
+        var generated = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), input);
         Assert.True(generated.GenerationTruncated);
         Assert.Equal(1, generated.Generated);
         Assert.Single(generated.Relief);
         Assert.Contains("food_generation_truncated", generated.Findings);
-        Assert.Throws<DomainException>(() => GenerateFoodActivities(Frame(), Capacity(), input with { Tick = new(43) }));
+        Assert.Throws<DomainException>(() => ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), input with { Tick = new(43) }));
     }
 
     [Fact]
@@ -174,7 +174,7 @@ public sealed class ForecastFoodCandidatesTests
         var input = Inputs();
         var slow = input with { Transfers = input.Transfers.Select(t => t with { UnitsPerTrip = Known(0.01) }).ToArray() };
         Assert.Empty(Compare(Frame(), slow).Selected);
-        var generated = GenerateFoodActivities(Frame(), Capacity(), slow);
+        var generated = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), slow);
         Assert.Contains(generated.Problem!.Options, o => o.WorkTicks.TryGetValue(out var ticks) && ticks >= 2000);
     }
 
@@ -183,19 +183,19 @@ public sealed class ForecastFoodCandidatesTests
     {
         var input = Inputs();
         var missing = input with { Recipes = Known(EquatableArray.From(input.Recipes.Value.Select(r => r with { Products = default }))) };
-        var generated = GenerateFoodActivities(Frame(), Capacity(), missing);
+        var generated = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), missing);
         Assert.Single(generated.Relief);
         Assert.Contains("unsupported_or_unknown_food_recipe:TestRecipe", generated.Findings);
-        var unknownBench = GenerateFoodActivities(Frame(), Capacity(), input with
+        var unknownBench = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), input with
             { Benches = Known(EquatableArray.From(input.Benches.Value.Select(b => b with { Usable = default }))) });
         Assert.Contains("unknown_food_bench:bench", unknownBench.Findings);
         var frame = Frame();
         frame = frame with { Demand = frame.Demand with { Work = frame.Demand.Work with
             { Pawns = Known(EquatableArray.From(frame.Demand.Work.Pawns.Value.Select(p => p with { Available = default }))) } } };
-        var unavailable = GenerateFoodActivities(frame, Capacity(), input);
+        var unavailable = ForecastFoodCandidates.GenerateFoodActivities(frame, Capacity(), input);
         Assert.Empty(unavailable.Problem!.Options);
         Assert.Contains("unknown_food_worker_availability:worker", unavailable.Findings);
-        Assert.Empty(CompareSurvivalActivities(frame, unavailable.Problem, unavailable.Relief).Selected);
+        Assert.Empty(ForecastSurvivalNeeds.CompareSurvivalActivities(frame, unavailable.Problem, unavailable.Relief).Selected);
     }
 
     [Fact]
@@ -204,7 +204,7 @@ public sealed class ForecastFoodCandidatesTests
         var input = Inputs();
         input = input with { Recipes = Known(EquatableArray.From(input.Recipes.Value.Select(r => r with
             { Slots = Known(EquatableArray.From(new[] { r.Slots.Value[0], EquatableArray.From(new[] { new Amount(new("Other"), 1) }) })) }))) };
-        var generated = GenerateFoodActivities(Frame(), Capacity(), input);
+        var generated = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), input);
         Assert.Single(generated.Relief);
         Assert.DoesNotContain(generated.Bindings, b => b.Recipe != "");
     }

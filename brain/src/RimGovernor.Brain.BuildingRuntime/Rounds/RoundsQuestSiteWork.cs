@@ -32,7 +32,7 @@ public sealed partial class JoinersRounds
                 }
 
                 var hackTargets = offer.Objectives.Any(o => o.HackTargets.Count > 0);
-                if (hackTargets && offer.State != "EndedFailed" && !PolicyFunctions.QuestHackComplete(offer))
+                if (hackTargets && offer.State != "EndedFailed" && !QuestHackPolicy.QuestHackComplete(offer))
                 {
                     continue;
                 }
@@ -46,7 +46,7 @@ public sealed partial class JoinersRounds
                 var returning = false;
                 if (offer.ScriptDef == "SurveySite")
                 {
-                    var step = PolicyFunctions.SurveyWork(offer, site, f, f.AnimalUpkeep.Food, reviewer.Policy);
+                    var step = QuestSurvey.SurveyWork(offer, site, f, f.AnimalUpkeep.Food, reviewer.Policy);
                     if (step.Reason != "")
                     {
                         reviewer.LogQuestSkip(new QuestSkip(offer.Quest, "", step.Reason, ""), call);
@@ -69,7 +69,7 @@ public sealed partial class JoinersRounds
                 }
                 else
                 {
-                    var step = PolicyFunctions.PlanCoreSiteWork(offer, site, f, current);
+                    var step = QuestCoreSite.PlanCoreSiteWork(offer, site, f, current);
                     if (step.Reason != "")
                     {
                         reviewer.LogQuestSkip(new QuestSkip(offer.Quest, "", new QuestSkipReason(step.Reason), ""), call);
@@ -96,7 +96,7 @@ public sealed partial class JoinersRounds
                             returning = true;
                             break;
                         default:
-                            if (PolicyFunctions.QuestHackComplete(offer))
+                            if (QuestHackPolicy.QuestHackComplete(offer))
                             {
                                 returning = true;
                             }
@@ -111,7 +111,7 @@ public sealed partial class JoinersRounds
 
                 if (returning)
                 {
-                    var step = PolicyFunctions.PlanSiteReturn(site);
+                    var step = QuestReturn.PlanSiteReturn(site);
                     if (step.Departure is null)
                     {
                         if (step.Reason != "")

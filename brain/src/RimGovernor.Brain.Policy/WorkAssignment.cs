@@ -673,7 +673,7 @@ public static partial class PolicyFunctions
             }
             return n;
         }
-        var currentWork = workers.ToDictionary(w => w.Pawn.Id, w => ForecastCurrentWorkOf(w.Pawn));
+        var currentWork = workers.ToDictionary(w => w.Pawn.Id, w => ForecastCurrentWork.ForecastCurrentWorkOf(w.Pawn));
         // Protect only ordinary work that remains demanded and eligible. Needs/forced jobs are not productive
         // owner roles; medical holds and changed requirements still win. This reserves a primary role, not a day.
         var ongoing = new Dictionary<PawnId, WorkType>();

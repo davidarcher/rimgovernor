@@ -17,7 +17,7 @@ public sealed record HospitalityWork
     public bool Waiting { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class QuestHospitality
 {
     public static bool HospitalityFamily(QuestFamily f) =>
         f is QuestFamily.HospitalityAnimals or QuestFamily.HospitalityJoiners or QuestFamily.HospitalityPrisoners or QuestFamily.HospitalityRefugee or QuestFamily.Laborers;

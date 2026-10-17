@@ -30,7 +30,7 @@ public sealed record DefensiveThreatFacts
 /// <summary>Sends one ranged defender to one firing cell and names the opponent it engages from there.</summary>
 public sealed record DefensivePosition(PawnId Defender, Cell Cell, PawnId Target);
 
-public static partial class PolicyFunctions
+public static class DefensePositions
 {
     /// <summary>
     /// The M3 rule: only when the layout stands and every live hostile is an ordinary edge-arriving assault still
@@ -199,16 +199,16 @@ public static partial class PolicyFunctions
         switch (r)
         {
             case Rotation.North:
-                v = Directions[0];
+                v = DefenseLayout.Directions[0];
                 return true;
             case Rotation.East:
-                v = Directions[1];
+                v = DefenseLayout.Directions[1];
                 return true;
             case Rotation.South:
-                v = Directions[2];
+                v = DefenseLayout.Directions[2];
                 return true;
             case Rotation.West:
-                v = Directions[3];
+                v = DefenseLayout.Directions[3];
                 return true;
             default:
                 v = default;

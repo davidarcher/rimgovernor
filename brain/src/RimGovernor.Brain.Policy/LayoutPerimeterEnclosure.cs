@@ -80,7 +80,7 @@ internal sealed class Enclosure
             bool Edge(int a, int p)
             {
                 var c = CellOf(a, p);
-                return Inside(c) && !Inside(PolicyFunctions.AddCell(c, outward));
+                return Inside(c) && !Inside(DefenseLayout.AddCell(c, outward));
             }
             for (var a = 0; a < across; a++)
             {

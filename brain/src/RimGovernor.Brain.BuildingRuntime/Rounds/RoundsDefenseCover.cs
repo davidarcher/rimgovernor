@@ -72,7 +72,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         DefenseApproaches approaches;
         try
         {
-            approaches = PolicyApi.DefenseApproachesFor(request, layout);
+            approaches = DefenseArrivalRoutes.DefenseApproachesFor(request, layout);
         }
         catch (DomainException ex)
         {

@@ -3,7 +3,7 @@ using RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Unselected alternatives for ColonyForecast; the existing Method selector consumes these.</summary>
-public sealed record ForecastCoupledCandidates(ForecastCoupledContext Context,
+public sealed partial record ForecastCoupledCandidates(ForecastCoupledContext Context,
     EquatableArray<ForecastCommitment> Alternatives, EquatableArray<string> Findings, bool Truncated)
 {
     public int CompositionExpansions { get; init; }
@@ -11,7 +11,7 @@ public sealed record ForecastCoupledCandidates(ForecastCoupledContext Context,
     public EquatableArray<ForecastCommitment> Incumbents { get; init; }
 }
 
-public static partial class PolicyFunctions
+public sealed partial record ForecastCoupledCandidates
 {
     public static RoundsFacts ReviewCoupledActivities(RoundsFacts facts) => facts with { CoupledAlternatives = GenerateCoupledActivities(facts) };
 
@@ -101,7 +101,7 @@ public static partial class PolicyFunctions
         var shelterRoots = shelter.Roots.Keys.Select(id => new ForecastCommitment(id, []) { ExclusiveOutcome = id });
         var support = Methods.Generation.SupportMethodCandidates.Generate(read.Support, food.Operations.Concat(shelter.Operations).Concat(planned.Operations),
             food.Options.Concat(construction.Problem?.Options ?? []).Concat(shelter.Options).Concat(planned.Options), templates, resources, read.Tick, deadline);
-        var composed = ComposeCoupledCandidates(support.Operations, food.Observed.Concat(construction.Observed).Concat(shelter.Observed).Concat(planned.Observed).Concat(support.Observed),
+        var composed = ForecastComposedCandidates.ComposeCoupledCandidates(support.Operations, food.Observed.Concat(construction.Observed).Concat(shelter.Observed).Concat(planned.Observed).Concat(support.Observed),
             food.Alternatives.Concat(constructionRoots).Concat(shelterRoots).Concat(planned.Roots).Concat(support.Roots), support.Options,
             support.Bindings, food.Needs, horizon, shelter.Roots);
         // The realizations of each planned site; nothing binds them until placement (#3278).
@@ -142,8 +142,8 @@ public static partial class PolicyFunctions
                     MaxPawns = needs.Pawns.SelectMany(p => p.Targets).FirstOrDefault(t => t.Id == task.Worker.Target)?.MaxPawns ?? default });
         foreach (var pawn in needs.Pawns)
         {
-            var capacity = NeedsWorkCapacity(resources, pawn.Pawn, horizon);
-            var generated = GenerateNeedsAlternatives(pawn with { Targets = EquatableArray.From(pawn.Targets.Where(t => !resources.Claims.Targets.Contains(t.Id))) },
+            var capacity = ForecastNeeds.NeedsWorkCapacity(resources, pawn.Pawn, horizon);
+            var generated = ForecastNeeds.GenerateNeedsAlternatives(pawn with { Targets = EquatableArray.From(pawn.Targets.Where(t => !resources.Claims.Targets.Contains(t.Id))) },
                 capacity, horizon, 32);
             findings.UnionWith(generated.Findings); truncated |= generated.Truncated;
             foreach (var choice in generated.Choices)
@@ -219,8 +219,8 @@ public static partial class PolicyFunctions
             return tasks.Single(t => t.Id == task).Prerequisites.Any(p => Ancestor(p, ancestor));
         }
         // A bench in an unclosed planned room works faster once the room closes (#3339): closure-conditional variants.
-        var closures = shelterEnabled ? PlannedClosuresOf(plannedSites, facts.PlannedShelters, facts.PlannedRoomPredictions) : [];
-        AddClosedBenchVariants(closures, productiveRoots, plannedRealized, tasks, options, bindings, alternatives,
+        var closures = shelterEnabled ? ForecastRoofConsequences.PlannedClosuresOf(plannedSites, facts.PlannedShelters, facts.PlannedRoomPredictions) : [];
+        ForecastRoofConsequences.AddClosedBenchVariants(closures, productiveRoots, plannedRealized, tasks, options, bindings, alternatives,
             planned.Sites.Where(s => s.Stuff.Length != 0).Select(s => (Id: s.Site, s.Room, s.Stuff))
                 .Concat(planned.Rooms.Where(a => a.Stuff.Length != 0).Select(a => (a.Id, a.Room, a.Stuff)))
                 .GroupBy(s => s.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => (g.First().Room, g.First().Stuff), StringComparer.Ordinal));
@@ -245,7 +245,7 @@ public static partial class PolicyFunctions
                 Options = options.Distinct().ToArray(),
                 Routes = routes.Values.ToArray(),
                 Pawns = needs.Pawns.Select(p => p.VoluntaryControlBlockers.Count == 0
-                    ? NeedsWorkCapacity(resources, p.Pawn, horizon).Capacity
+                    ? ForecastNeeds.NeedsWorkCapacity(resources, p.Pawn, horizon).Capacity
                     : new ForecastPawnCapacity(p.Pawn, "start", Known<EquatableArray<ForecastTimeWindow>>([]), Known(1d))).ToArray(),
                 Equipment = equipment,
                 Deadline = Known(horizon),
