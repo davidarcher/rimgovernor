@@ -178,8 +178,8 @@ internal static partial class BuildingRuntimePackage
             }
             else if (row.Cell is { } c && at is not null)
             {
-                long dx = c.X.GetValueOrDefault() - at.X.GetValueOrDefault();
-                long dz = c.Z.GetValueOrDefault() - at.Z.GetValueOrDefault();
+                long dx = c.X - at.X;
+                long dz = c.Z - at.Z;
                 dist = (dx * dx) + (dz * dz);
             }
             if (best is null || dist < bestDist || (dist == bestDist && string.CompareOrdinal(row.Id, best.Id) < 0))

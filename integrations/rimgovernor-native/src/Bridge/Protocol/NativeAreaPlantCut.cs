@@ -53,8 +53,8 @@ namespace HomeBridge.BridgeTools
             var seen = new HashSet<IntVec3>();
             foreach (var c in rows)
             {
-                if (c == null || c.X is null || c.Z is null) return "Area plant cut cell requires x and z.";
-                var cell = new IntVec3(c.X.GetValueOrDefault(), 0, c.Z.GetValueOrDefault());
+                if (c == null) return "Area plant cut cell requires x and z.";
+                var cell = new IntVec3(c.X, 0, c.Z);
                 if (!cell.InBounds(map)) return $"Cell {cell} is out of bounds.";
                 if (!seen.Add(cell)) return $"Cell {cell} is repeated.";
                 cells.Add(cell);

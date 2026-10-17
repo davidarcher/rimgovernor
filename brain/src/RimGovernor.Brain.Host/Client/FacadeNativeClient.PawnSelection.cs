@@ -11,15 +11,6 @@ internal sealed partial class FacadeNativeClient
     private async Task<PbClock.Status> ReadOwnedClockStatusAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         var reply = await ReadClockStatusAsync(identity, cancellationToken).ConfigureAwait(false);
-        return FacadeWriteChecks.ClockStatusReply(reply, identity);
-    }
-
-    /// <summary>A pawn snapshot must describe the world it was asked about: a stale one is refused.</summary>
-    internal static void SameWorld(PbObservations.PawnSnapshot? v, PbCommon.Identity? id)
-    {
-        if (v is null || !BridgeFunctions.SameIdentity(v.Context?.Identity, id))
-        {
-            throw BridgeFunctions.Contract("pawn world mismatch");
-        }
+        return FacadeWriteChecks.ClockStatusReply(reply);
     }
 }

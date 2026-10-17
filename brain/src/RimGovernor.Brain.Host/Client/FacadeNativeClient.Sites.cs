@@ -9,7 +9,7 @@ internal sealed partial class FacadeNativeClient
 {
     /// <summary>
     /// Go's <c>ReadExcavationSite</c>: reads the excavation site for the ordered cell set plus its access cell. Reply
-    /// rows must echo the request order exactly so callers can index stages positionally.
+    /// rows echo the request order so callers can index stages positionally.
     /// </summary>
     internal async Task<ExcavationSite> ReadExcavationSiteAsync(PbCommon.Identity identity, IReadOnlyList<Cell> cells, Cell access, CancellationToken cancellationToken)
     {
@@ -34,95 +34,38 @@ internal sealed partial class FacadeNativeClient
             Cells = [.. requested],
         };
         var reply = await Facade.ReadExcavationSiteAsync(request, cancellationToken).ConfigureAwait(false);
-        BridgeFunctions.BuildingUnknown(reply);
-        if (reply.Outcome?.Unavailable is { } unavailable)
+        if (reply.Outcome.Unavailable is { } unavailable)
         {
             throw Unavailable(unavailable);
         }
-        if (reply.Outcome?.Failure is { } failure)
+        if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
-        if (reply.Outcome?.Observed is not { } snapshot)
-        {
-            throw BridgeFunctions.Contract("missing excavation site outcome");
-        }
-        if (!PlacementReads.Passes(() => BridgeFunctions.ValidateContext(snapshot.Context)) || !BridgeFunctions.SameIdentity(snapshot.Context!.Identity, identity))
-        {
-            throw BridgeFunctions.Contract("invalid excavation site context");
-        }
-        if (snapshot.Cells.Count != cells.Count)
-        {
-            throw BridgeFunctions.Contract("incomplete excavation site");
-        }
+        var snapshot = reply.Outcome.Observed!;
         var items = new List<ExcavationSiteCell>(cells.Count);
         for (var i = 0; i < snapshot.Cells.Count; i++)
         {
             var row = snapshot.Cells[i];
-            var position = row?.Cell;
-            if (row is null
-                || position is null
-                || position.X is null
-                || position.Z is null
-                || position.X.GetValueOrDefault() != cells[i].X
-                || position.Z.GetValueOrDefault() != cells[i].Z
-                || row.Fogged is null
-                || row.Eligible is null
-                || row.MineDesignated is null)
-            {
-                throw BridgeFunctions.Contract("excavation site row mismatch");
-            }
-            var item = new ExcavationSiteCell
-            {
-                Cell = cells[i],
-                Fogged = row.Fogged.GetValueOrDefault(),
-                Definition = row.MineableDefName ?? "",
-                Walkable = row.Walkable.GetValueOrDefault(),
-                MineDesignated = row.MineDesignated.GetValueOrDefault(),
-                Eligible = row.Eligible.GetValueOrDefault(),
-                Blocker = row.Blocker ?? "",
-            };
-            if (item.Definition.Length != 0 && !BridgeFunctions.IsValidId(item.Definition))
-            {
-                throw BridgeFunctions.Contract("invalid excavation cell definition");
-            }
-            if (item.Eligible && (item.Definition.Length == 0 || item.Blocker.Length != 0))
-            {
-                throw BridgeFunctions.Contract("inconsistent excavation eligibility");
-            }
-            items.Add(item);
+            items.Add(
+                new ExcavationSiteCell
+                {
+                    Cell = cells[i],
+                    Fogged = row.Fogged.GetValueOrDefault(),
+                    Definition = row.MineableDefName ?? "",
+                    Walkable = row.Walkable.GetValueOrDefault(),
+                    MineDesignated = row.MineDesignated.GetValueOrDefault(),
+                    Eligible = row.Eligible.GetValueOrDefault(),
+                    Blocker = row.Blocker ?? "",
+                }
+            );
         }
         var support = snapshot.SupportAfterRemoval switch
         {
             PbObservations.ExcavationSupport.Supported => ExcavationSupport.Supported,
-            PbObservations.ExcavationSupport.Unknown => ExcavationSupport.Unknown,
             PbObservations.ExcavationSupport.Unsupported => ExcavationSupport.Unsupported,
-            _ => throw BridgeFunctions.Contract("excavation support unspecified"),
+            _ => ExcavationSupport.Unknown,
         };
-        var collapsePending = snapshot.CollapsePending.GetValueOrDefault();
-        if (collapsePending && support != ExcavationSupport.Unsupported)
-        {
-            throw BridgeFunctions.Contract("pending collapse reported supported");
-        }
-        if (snapshot.WorkerAvailable is null || snapshot.AccessReachable is null)
-        {
-            throw BridgeFunctions.Contract("excavation worker facts missing");
-        }
-        var workerAvailable = snapshot.WorkerAvailable.GetValueOrDefault();
-        var accessReachable = snapshot.AccessReachable.GetValueOrDefault();
-        var workers = new List<string>(snapshot.WorkerIds.Count);
-        foreach (var id in snapshot.WorkerIds)
-        {
-            if (!BridgeFunctions.IsValidId(id))
-            {
-                throw BridgeFunctions.Contract("invalid excavation worker");
-            }
-            workers.Add(id);
-        }
-        if (workerAvailable != (workers.Count > 0) || (workerAvailable && !accessReachable))
-        {
-            throw BridgeFunctions.Contract("inconsistent excavation workers");
-        }
         return new ExcavationSite
         {
             Context = snapshot.Context,
@@ -130,10 +73,10 @@ internal sealed partial class FacadeNativeClient
             Support = support,
             RoofCellsChecked = snapshot.RoofCellsChecked.GetValueOrDefault(),
             SupportBlocker = snapshot.SupportBlocker ?? "",
-            CollapsePending = collapsePending,
-            WorkerAvailable = workerAvailable,
-            Workers = workers,
-            AccessReachable = accessReachable,
+            CollapsePending = snapshot.CollapsePending.GetValueOrDefault(),
+            WorkerAvailable = snapshot.WorkerAvailable.GetValueOrDefault(),
+            Workers = [.. snapshot.WorkerIds],
+            AccessReachable = snapshot.AccessReachable.GetValueOrDefault(),
         };
     }
 
@@ -165,23 +108,13 @@ internal sealed partial class FacadeNativeClient
             PlannedGround = [.. planned],
         };
         var reply = await Facade.ReadClearanceTargetsAsync(request, cancellationToken).ConfigureAwait(false);
-        BridgeFunctions.BuildingUnknown(reply);
-        if (reply.Outcome?.Observed is { } observed)
-        {
-            PlacementReads.ValidateClearanceTargets(observed, identity);
-            PlacementReads.ValidatePlannedFloors(observed, planned);
-        }
-        else if (reply.Outcome?.Unavailable is { } unavailable)
+        if (reply.Outcome.Unavailable is { } unavailable)
         {
             throw Unavailable(unavailable);
         }
-        else if (reply.Outcome?.Failure is { } failure)
+        if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
-        }
-        else
-        {
-            throw BridgeFunctions.Contract("clearance outcome missing");
         }
         return reply;
     }
@@ -197,109 +130,5 @@ internal sealed partial class FacadeNativeClient
         internal const double SalvageFrameBudgetMs = 1.5;
         internal const double SalvageInlineBudgetMs = 5;
         internal const double SalvageCensusBudgetMs = 250;
-
-        private static bool SalvageFinite(double n) => double.IsFinite(n) && n >= 0 && n <= 1e12;
-
-        /// <summary>
-        /// Go's <c>ValidateClearanceTargets</c>: rejects partial censuses and omitted safety facts. A null faction and a
-        /// null roof blocker have defined meanings only in a fully validated row; false and absent booleans are never
-        /// interchangeable.
-        /// </summary>
-        internal static void ValidateClearanceTargets(PbObservations.ClearanceTargetsSnapshot? value, PbCommon.Identity? identity)
-        {
-            if (value is null || !Passes(() => BridgeFunctions.ValidateContext(value.Context)) || !BridgeFunctions.SameIdentity(value.Context!.Identity, identity))
-            {
-                throw BridgeFunctions.Contract("invalid clearance context");
-            }
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var row in value.Targets)
-            {
-                if (row is null
-                    || !BridgeFunctions.IsValidId(row.EntityId ?? "")
-                    || !BridgeFunctions.IsValidId(row.DefName ?? "")
-                    || seen.Contains(row.EntityId ?? "")
-                    || row.Deconstructible is null
-                    || !row.Deconstructible.GetValueOrDefault()
-                    || row.AncientDanger is null
-                    || row.Designated is null)
-                {
-                    throw BridgeFunctions.Contract("invalid clearance target");
-                }
-                seen.Add(row.EntityId ?? "");
-                if (row.Salvage is { } s)
-                {
-                    if (!SalvageFinite(s.PathLength) || !SalvageFinite(s.Labor) || s.AgeTicks < 0)
-                    {
-                        throw BridgeFunctions.Contract("invalid salvage costs");
-                    }
-                    var yields = new HashSet<string>(StringComparer.Ordinal);
-                    foreach (var y in s.Yields)
-                    {
-                        if (y is null
-                            || !BridgeFunctions.IsValidId(y.DefName)
-                            || yields.Contains(y.DefName)
-                            || y.Count <= 0
-                            || y.Count > 1e9
-                            || y.StorageHeadroom < 0
-                            || y.StorageHeadroom > 1e9
-                            || !SalvageFinite(y.UnitValue))
-                        {
-                            throw BridgeFunctions.Contract("invalid salvage yield");
-                        }
-                        yields.Add(y.DefName);
-                    }
-                }
-                if (row.Salvage is not null && row.SalvageSkipped.GetValueOrDefault())
-                {
-                    throw BridgeFunctions.Contract("salvage both computed and skipped");
-                }
-                if (row.RoofBlocker is not null && row.RoofBlocker.Length == 0)
-                {
-                    throw BridgeFunctions.Contract("empty clearance roof blocker");
-                }
-                if (row.Class < PbObservations.ClearanceClass.AncientWallDoor || row.Class > PbObservations.ClearanceClass.Other)
-                {
-                    throw BridgeFunctions.Contract("unknown clearance class");
-                }
-                if (!RectangleValid(row.Occupied, 4096))
-                {
-                    throw BridgeFunctions.Contract("invalid clearance occupied rectangle");
-                }
-            }
-        }
-
-        /// <summary>
-        /// Go's <c>validatePlannedFloors</c>: requires every floor row to be a distinct complete cell inside the
-        /// requested planned ground; with none requested, no floors.
-        /// </summary>
-        internal static void ValidatePlannedFloors(PbObservations.ClearanceTargetsSnapshot value, IReadOnlyList<PbObservations.Rectangle> planned)
-        {
-            bool Inside(int x, int z)
-            {
-                foreach (var r in planned)
-                {
-                    if (x >= (r.Minimum?.X ?? 0) && x <= (r.Maximum?.X ?? 0) && z >= (r.Minimum?.Z ?? 0) && z <= (r.Maximum?.Z ?? 0))
-                    {
-                        return true;
-                    }
-                }
-                return false;
-            }
-            var seen = new HashSet<(int, int)>();
-            foreach (var row in value.Floors)
-            {
-                if (row is null || row.Cell is null || row.Cell.X is null || row.Cell.Z is null || !BridgeFunctions.IsValidId(row.DefName ?? "") || row.Designated is null)
-                {
-                    throw BridgeFunctions.Contract("invalid clearance floor");
-                }
-                var key = (row.Cell.X.GetValueOrDefault(), row.Cell.Z.GetValueOrDefault());
-                if (seen.Contains(key) || !Inside(key.Item1, key.Item2))
-                {
-                    throw BridgeFunctions.Contract("clearance floor outside planned ground");
-                }
-                seen.Add(key);
-            }
-        }
-
     }
 }

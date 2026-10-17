@@ -25,7 +25,7 @@ internal sealed partial class FacadeNativeClient
     {
         LifecycleLoadValidateRequest(request);
         var reply = await Facade.StartLoadAsync(request, cancellationToken).ConfigureAwait(false);
-        LifecycleLoadInterpret(reply, request.RequestId, request.SaveName);
+        LifecycleFailure(reply.Outcome.Failure);
         return reply;
     }
 
@@ -38,7 +38,7 @@ internal sealed partial class FacadeNativeClient
         }
 
         var reply = await Facade.PollLoadAsync(new PbLifecycle.RequestStatus { RequestId = requestId }, cancellationToken).ConfigureAwait(false);
-        LifecycleLoadInterpret(reply, requestId, null);
+        LifecycleFailure(reply.Outcome.Failure);
         return reply;
     }
 
@@ -59,7 +59,7 @@ internal sealed partial class FacadeNativeClient
 
         request = request with { Spec = spec with { GovernorIdeoligion = null } };
         var reply = await Facade.StartNewColonyAsync(request, cancellationToken).ConfigureAwait(false);
-        LifecycleNewColonyInterpret(reply, request.RequestId, request.Spec!.SaveName);
+        LifecycleFailure(reply.Outcome.Failure);
         return reply;
     }
 
@@ -72,7 +72,7 @@ internal sealed partial class FacadeNativeClient
         }
 
         var reply = await Facade.PollNewColonyAsync(new PbLifecycle.RequestStatus { RequestId = requestId }, cancellationToken).ConfigureAwait(false);
-        LifecycleNewColonyInterpret(reply, requestId, null);
+        LifecycleFailure(reply.Outcome.Failure);
         return reply;
     }
 
@@ -93,7 +93,7 @@ internal sealed partial class FacadeNativeClient
         }
 
         var reply = await Facade.StartMenuAsync(request, cancellationToken).ConfigureAwait(false);
-        LifecycleMenuInterpret(reply, request.RequestId);
+        LifecycleFailure(reply.Outcome.Failure);
         return reply;
     }
 
@@ -106,65 +106,8 @@ internal sealed partial class FacadeNativeClient
         }
 
         var reply = await Facade.PollMenuAsync(new PbLifecycle.RequestStatus { RequestId = requestId }, cancellationToken).ConfigureAwait(false);
-        LifecycleMenuInterpret(reply, requestId);
+        LifecycleFailure(reply.Outcome.Failure);
         return reply;
-    }
-
-    /// <summary>Validates a menu reply's shape; a failure arm throws.</summary>
-    private static void LifecycleMenuInterpret(PbLifecycle.MenuReply reply, string? requestId)
-    {
-        switch (reply.Outcome)
-        {
-            case PbLifecycle.MenuReplyOutcome.CompletedCase { Value: var completed }:
-                if (completed.RequestId is null || completed.RequestId != requestId || completed.Unloaded is null)
-                {
-                    throw Contract("invalid menu completed");
-                }
-
-                break;
-            case PbLifecycle.MenuReplyOutcome.PendingCase { Value: var pending }:
-                if (pending.RequestId is null || pending.RequestId != requestId)
-                {
-                    throw Contract("invalid menu pending");
-                }
-
-                break;
-            case PbLifecycle.MenuReplyOutcome.FailureCase { Value: var failure }:
-                throw Failure(failure);
-            default:
-                throw Contract("menu outcome missing");
-        }
-    }
-
-    /// <summary>Go <c>interpretLoadReply</c>: validates a load reply's shape; a failure arm throws.</summary>
-    private static void LifecycleLoadInterpret(PbLifecycle.LoadReply reply, string? requestId, string? saveName)
-    {
-        switch (reply.Outcome)
-        {
-            case PbLifecycle.LoadReplyOutcome.CompletedCase { Value: var completed }:
-                LifecycleLoadValidateCompleted(completed, requestId, saveName);
-                break;
-            case PbLifecycle.LoadReplyOutcome.PendingCase { Value: var pending }:
-                if (pending.RequestId is null
-                    || (requestId is not null && pending.RequestId != requestId))
-                {
-                    throw Contract("invalid load pending");
-                }
-
-                break;
-            case PbLifecycle.LoadReplyOutcome.SupersededCase { Value: var superseded }:
-                if (superseded.RequestId is null
-                    || (requestId is not null && superseded.RequestId != requestId))
-                {
-                    throw Contract("invalid load superseded");
-                }
-
-                break;
-            case PbLifecycle.LoadReplyOutcome.FailureCase { Value: var failure }:
-                throw Failure(failure);
-            default:
-                throw Contract("load outcome missing");
-        }
     }
 
     /// <summary>Go <c>validateLoadRequest</c>.</summary>
@@ -204,86 +147,12 @@ internal sealed partial class FacadeNativeClient
         }
     }
 
-    /// <summary>Go <c>validateLoadCompleted</c>.</summary>
-    private static void LifecycleLoadValidateCompleted(PbLifecycle.LoadCompleted completed, string? requestId, string? saveName)
+    /// <summary>A lifecycle reply's failure arm throws; pending, superseded and completed arms are the caller's.</summary>
+    private static void LifecycleFailure(PbCommon.Failure? failure)
     {
-        if (completed.Loaded is null)
+        if (failure is not null)
         {
-            throw Contract("missing completed load");
-        }
-
-        if (completed.RequestId is null || (requestId is not null && completed.RequestId != requestId))
-        {
-            throw Contract("completed load request id mismatch");
-        }
-
-        if (saveName is not null && (completed.SaveName is null || completed.SaveName != saveName))
-        {
-            throw Contract("completed load save name mismatch");
-        }
-
-        if (completed.Readiness is null)
-        {
-            throw Contract("completed load missing readiness");
-        }
-
-        var readiness = completed.Readiness.GetValueOrDefault();
-        if (!Enum.IsDefined(readiness) || readiness == PbLifecycle.Readiness.Unspecified)
-        {
-            throw Contract("completed load readiness invalid");
-        }
-    }
-
-    /// <summary>Go <c>interpretNewColonyReply</c>: validates a new colony reply's shape; a failure arm throws.</summary>
-    private static void LifecycleNewColonyInterpret(PbLifecycle.NewColonyReply reply, string? requestId, string? saveName)
-    {
-        switch (reply.Outcome)
-        {
-            case PbLifecycle.NewColonyReplyOutcome.CompletedCase { Value: var completed }:
-                LifecycleNewColonyValidateCompleted(completed, requestId, saveName);
-                break;
-            case PbLifecycle.NewColonyReplyOutcome.PendingCase { Value: var pending }:
-                if (pending.RequestId is null
-                    || (requestId is not null && pending.RequestId != requestId)
-                    || pending.Phase is not { } phase
-                    || phase == PbLifecycle.NewColonyPhase.Unspecified
-                    || !Enum.IsDefined(phase))
-                {
-                    throw Contract("invalid new colony pending");
-                }
-
-                break;
-            case PbLifecycle.NewColonyReplyOutcome.SupersededCase { Value: var superseded }:
-                if (superseded.RequestId is null
-                    || (requestId is not null && superseded.RequestId != requestId))
-                {
-                    throw Contract("invalid new colony superseded");
-                }
-
-                break;
-            case PbLifecycle.NewColonyReplyOutcome.FailureCase { Value: var failure }:
-                throw Failure(failure);
-            default:
-                throw Contract("new colony outcome missing");
-        }
-    }
-
-    /// <summary>Go <c>validateNewColonyCompleted</c>.</summary>
-    private static void LifecycleNewColonyValidateCompleted(PbLifecycle.NewColonyCompleted completed, string? requestId, string? saveName)
-    {
-        if (completed.RequestId is null || (requestId is not null && completed.RequestId != requestId))
-        {
-            throw Contract("completed new colony request id mismatch");
-        }
-
-        if (completed.SaveName is null || (saveName is not null && completed.SaveName != saveName))
-        {
-            throw Contract("completed new colony save name mismatch");
-        }
-
-        if (completed.Paused is null || completed.ByteLength is null || completed.Seed is null || !IsValidId(completed.Seed))
-        {
-            throw Contract("completed new colony missing paused, byte length or seed");
+            throw Failure(failure);
         }
     }
 }

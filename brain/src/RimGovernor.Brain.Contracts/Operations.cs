@@ -1041,7 +1041,7 @@ public sealed record ZonePreview
 
 public sealed record ZonePreviewReply
 {
-    public ZonePreviewReplyOutcome? Outcome { get; init; }
+    public ZonePreviewReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ZonePreviewReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -2612,7 +2612,7 @@ public sealed record ActionResult
 {
     public string? Key { get; init; }
 
-    public ActionResultOutcome? Outcome { get; init; }
+    public ActionResultOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ActionResult"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>

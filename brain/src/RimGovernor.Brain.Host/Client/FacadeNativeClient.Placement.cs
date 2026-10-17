@@ -5,8 +5,8 @@ using BridgeBuildingPreview = RimGovernor.Brain.Bridge.Contracts.BuildingPreview
 
 namespace RimGovernor.Brain.Host;
 
-// Go building_preview.go, zone.go (PreviewZone), overlay.go and the placement_preview call with its reply checks
-// (placement.go validatePlacementRequest, validatePlacementBatch and validateEvaluated).
+// Go building_preview.go, zone.go (PreviewZone), overlay.go and the placement_preview call with its request check
+// (placement.go validatePlacementRequest).
 internal sealed partial class FacadeNativeClient
 {
     /// <summary>
@@ -69,38 +69,34 @@ internal sealed partial class FacadeNativeClient
             var end = Math.Min(start + BridgeConstants.PlacementBatchLimit, actions.Count);
             var request = new PbPlacement.PlacementRequest { Identity = identity, Placements = [.. candidates.Skip(start).Take(end - start)] };
             var batch = await PlacementPreviewsAsync(request, cancellationToken).ConfigureAwait(false);
-            if (batch.Context?.NativeGeneration is null || batch.Context.NativeGeneration.GetValueOrDefault() != snapshot.Native.Value)
+            var context = batch.Context!;
+            if (context.NativeGeneration is null || context.NativeGeneration.GetValueOrDefault() != snapshot.Native.Value)
             {
                 throw BridgeFunctions.Contract("building preview generation changed or unavailable");
             }
             for (var index = 0; index < batch.Results.Count; index++)
             {
                 var row = batch.Results[index];
-                if (row.Outcome?.Failure is { } rowFailure)
+                if (row.Outcome.Failure is { } rowFailure)
                 {
                     throw Failure(rowFailure);
                 }
-                output.Add(PlacementReads.BuildingPreviewRow(actions[start + index], snapshot, new Tick(batch.Context.Tick), row.Outcome?.Evaluated!));
+                output.Add(PlacementReads.BuildingPreviewRow(actions[start + index], snapshot, new Tick(context.Tick), row.Outcome.Evaluated!));
             }
         }
         return output;
     }
 
-    // Go PlacementPreviews: validates the request, makes the call and checks the batch the reply carries.
+    // Go PlacementPreviews: validates the request, makes the call and returns the batch the reply carries.
     private async Task<PbPlacement.PlacementBatch> PlacementPreviewsAsync(PbPlacement.PlacementRequest request, CancellationToken cancellationToken)
     {
         PlacementReads.ValidatePlacementRequest(request);
         var reply = await Facade.PreviewPlacementAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome?.Failure is { } failure)
+        if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
-        if (reply.Outcome?.Batch is not { } batch)
-        {
-            throw BridgeFunctions.Contract("placement outcome missing");
-        }
-        PlacementReads.ValidatePlacementBatch(request, batch);
-        return batch;
+        return reply.Outcome.Batch!;
     }
 
     /// <summary>Go's <c>PreviewZone</c>: a planner's siting preview of one zone; native checks the ground live, so no map census token rides along.</summary>
@@ -112,50 +108,12 @@ internal sealed partial class FacadeNativeClient
         }
         var request = new PbOperations.ZonePreviewRequest { Identity = identity, Zone = BridgeFunctions.ZoneConfiguration(zone) };
         var reply = await Facade.PreviewZoneAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply is null)
-        {
-            throw BridgeFunctions.Contract("unknown zone preview fields");
-        }
-        if (reply.Outcome?.Failure is { } failure)
+        if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
         // Accepted false is native refusing the ground itself (a littered or occupied cell), an evaluation the caller
         // moves past to its next candidate; a bad configuration arrives as a failure.
-        var v = reply.Outcome?.Evaluated;
-        if (v is null || v.Accepted is null || !PlacementReads.Passes(() => PlacementReads.BuildingContext(v.Context, identity, 0, false)))
-        {
-            throw BridgeFunctions.Contract("invalid zone preview evidence");
-        }
-        if (zone.Kind == Domain.ZoneKind.Stockpile && v.Accepted.GetValueOrDefault())
-        {
-            var rows = new List<CreatedZone>();
-            for (var i = 0; i < v.Components.Count; i++)
-            {
-                var cells = new List<Cell>();
-                foreach (var cell in v.Components[i].Cells)
-                {
-                    if (cell is null || cell.X is null || cell.Z is null)
-                    {
-                        throw BridgeFunctions.Contract("missing preview cell");
-                    }
-                    cells.Add(new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()));
-                }
-                rows.Add(new CreatedZone($"component_{i}", cells));
-            }
-            try
-            {
-                _ = new CreatedZones(zone, rows);
-            }
-            catch (DomainException error)
-            {
-                throw BridgeFunctions.Contract($"invalid stockpile preview components: {error.Message}");
-            }
-        }
-        else if (v.Components.Count > 0)
-        {
-            throw BridgeFunctions.Contract("unexpected zone preview components");
-        }
         return reply;
     }
 
@@ -173,19 +131,11 @@ internal sealed partial class FacadeNativeClient
             request = request with { Shapes = [.. shapes], Labels = [.. labels] };
         }
         var reply = await Facade.ApplyOverlayAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome?.Failure is { } failure)
+        if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
-        if (reply.Outcome?.Applied is { } applied)
-        {
-            if (applied.Context is null)
-            {
-                throw BridgeFunctions.Contract("overlay context required");
-            }
-            return applied;
-        }
-        throw BridgeFunctions.Contract("overlay outcome required");
+        return reply.Outcome.Applied!;
     }
 
     internal static partial class PlacementReads
@@ -212,11 +162,11 @@ internal sealed partial class FacadeNativeClient
             {
                 if (v is null
                     || v.DefName is null
-                    || v.X is null
-                    || v.Z is null
+                   
+                   
                     || v.Rotation is null
-                    || v.X.GetValueOrDefault() < 0
-                    || v.Z.GetValueOrDefault() < 0
+                    || v.X < 0
+                    || v.Z < 0
                     || v.Rotation.GetValueOrDefault() < PbPlacement.Rotation.North
                     || v.Rotation.GetValueOrDefault() > PbPlacement.Rotation.All)
                 {
@@ -226,144 +176,6 @@ internal sealed partial class FacadeNativeClient
                 if (!string.IsNullOrEmpty(v.Stuff))
                 {
                     BridgeFunctions.ValidId(v.Stuff);
-                }
-            }
-        }
-
-        /// <summary>Go's <c>validatePlacementBatch</c>.</summary>
-        internal static void ValidatePlacementBatch(PbPlacement.PlacementRequest request, PbPlacement.PlacementBatch? batch)
-        {
-            if (batch is null)
-            {
-                throw BridgeFunctions.Contract("placement batch missing");
-            }
-            if (!BridgeFunctions.SameIdentity(batch.Context!.Identity, request.Identity))
-            {
-                throw BridgeFunctions.Contract("placement context mismatch");
-            }
-            if (batch.Results.Count != request.Placements.Count)
-            {
-                throw BridgeFunctions.Contract("placement result count");
-            }
-            for (var index = 0; index < batch.Results.Count; index++)
-            {
-                var row = batch.Results[index];
-                if (row is null)
-                {
-                    throw BridgeFunctions.Contract("nil candidate result");
-                }
-                if (row.Outcome?.Failure is { } rowFailure)
-                {
-                    // A well-formed native refusal is a row outcome the caller turns into a failure; a malformed one is a contract error.
-                    BridgeFunctions.ValidateFailure(rowFailure);
-                }
-                else if (row.Outcome?.Evaluated is { } evaluated)
-                {
-                    ValidateEvaluated(request.Placements[index], evaluated);
-                }
-                else
-                {
-                    throw BridgeFunctions.Contract("candidate outcome missing");
-                }
-            }
-        }
-
-        // Go validateEvaluated: one evaluated candidate's facts against the candidate that asked.
-        private static void ValidateEvaluated(PbPlacement.PlacementCandidate request, PbPlacement.PlacementEvaluated? v)
-        {
-            if (v is null
-                || v.CanPlace is null
-                || v.MadeFromStuff is null
-                || v.Passability is null
-                || v.IsDoor is null
-                || v.ResearchFinished is null
-                || v.BuildableByPlayer is null
-                || (int)v.Passability.GetValueOrDefault() < 1
-                || (int)v.Passability.GetValueOrDefault() > 3)
-            {
-                throw BridgeFunctions.Contract("evaluated facts missing");
-            }
-            var costs = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var cost in v.CostList)
-            {
-                if (cost is null || cost.DefName is null || cost.Count is null || cost.Count.GetValueOrDefault() < 0 || !BridgeFunctions.IsValidId(cost.DefName) || !costs.Add(cost.DefName))
-                {
-                    throw BridgeFunctions.Contract("invalid cost");
-                }
-            }
-            if (v.Materials is null)
-            {
-                throw BridgeFunctions.Contract("materials missing");
-            }
-            if (v.Materials.Availability?.Known is { } known)
-            {
-                var seen = new HashSet<string>(StringComparer.Ordinal);
-                foreach (var row in known.Rows)
-                {
-                    if (row is null || row.DefName is null || !BridgeFunctions.IsValidId(row.DefName) || !seen.Add(row.DefName) || (row.Available is not null && row.Available.GetValueOrDefault() < 0))
-                    {
-                        throw BridgeFunctions.Contract("invalid material stock");
-                    }
-                }
-            }
-            else if (v.Materials.Availability?.Unavailable is { } unavailable)
-            {
-                BridgeFunctions.ValidateUnavailable(unavailable);
-            }
-            else
-            {
-                throw BridgeFunctions.Contract("materials availability missing");
-            }
-            var want = request.Rotation.GetValueOrDefault() == PbPlacement.Rotation.All ? 4 : 1;
-            if (v.Rotations.Count != want)
-            {
-                throw BridgeFunctions.Contract("rotation result count");
-            }
-            var rotations = new HashSet<PbPlacement.Rotation>();
-            foreach (var rotation in v.Rotations)
-            {
-                if (rotation is null
-                    || rotation.Rotation is null
-                    || rotation.Accepted is null
-                    || rotation.Rotation.GetValueOrDefault() < PbPlacement.Rotation.North
-                    || rotation.Rotation.GetValueOrDefault() > PbPlacement.Rotation.West
-                    || !rotations.Add(rotation.Rotation.GetValueOrDefault()))
-                {
-                    throw BridgeFunctions.Contract("rotation facts invalid");
-                }
-                if (want == 1 && rotation.Rotation.GetValueOrDefault() != request.Rotation.GetValueOrDefault())
-                {
-                    throw BridgeFunctions.Contract("rotation mismatch");
-                }
-                if (rotation.OccupiedCells.Count == 0)
-                {
-                    throw BridgeFunctions.Contract("geometry completeness/limit");
-                }
-                var cells = new HashSet<(int, int)>();
-                foreach (var cell in rotation.OccupiedCells)
-                {
-                    ValidCell(cell);
-                    if (!cells.Add((cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault())))
-                    {
-                        throw BridgeFunctions.Contract("duplicate footprint cell");
-                    }
-                }
-                foreach (var block in rotation.BlockingThings)
-                {
-                    if (block is null
-                        || block.Category is null
-                        || !BridgeFunctions.IsValidId(block.Category)
-                        || block.IsBlueprint is null
-                        || block.IsFrame is null
-                        || block.WouldBeWiped is null
-                        || block.FrameWouldBeCancelled is null)
-                    {
-                        throw BridgeFunctions.Contract("blocker facts missing");
-                    }
-                    if (block.DefName is not null && !BridgeFunctions.IsValidId(block.DefName))
-                    {
-                        throw BridgeFunctions.Contract("invalid blocker definition");
-                    }
                 }
             }
         }
@@ -435,7 +247,7 @@ internal sealed partial class FacadeNativeClient
             var seenCells = new HashSet<Cell>();
             foreach (var cell in orientation.OccupiedCells.Concat(orientation.InteractionCells))
             {
-                var claim = new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault());
+                var claim = new Cell(cell.X, cell.Z);
                 if (seenCells.Add(claim))
                 {
                     footprint.Add(claim);

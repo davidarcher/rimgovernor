@@ -12,16 +12,15 @@ internal sealed partial class FacadeNativeClient
     internal async Task<ZonesRead> ReadZoneSectionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         var reply = await Facade.ListZonesAsync(PlacementReads.ZoneSectionRequest(identity), cancellationToken).ConfigureAwait(false);
-        BridgeFunctions.BuildingUnknown(reply);
-        if (reply.Outcome?.Failure is { } failure)
+        if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
-        if (reply.Outcome?.Unavailable is { } unavailable)
+        if (reply.Outcome.Unavailable is { } unavailable)
         {
             throw Unavailable(unavailable);
         }
-        return PlacementReads.DecodeZones(reply.Outcome?.Observed, identity);
+        return PlacementReads.DecodeZones(reply.Outcome.Observed!);
     }
 
     /// <summary>
@@ -36,34 +35,21 @@ internal sealed partial class FacadeNativeClient
         }
         var request = new PbObservations.ListZonesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, Ids = [zone] };
         var reply = await Facade.ListZonesAsync(request, cancellationToken).ConfigureAwait(false);
-        BridgeFunctions.BuildingUnknown(reply);
-        if (reply.Outcome?.Failure is { } failure)
+        if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
-        if (reply.Outcome?.Unavailable is { } unavailable)
+        if (reply.Outcome.Unavailable is { } unavailable)
         {
             throw Unavailable(unavailable);
         }
-        if (reply.Outcome?.Observed is not { } v)
-        {
-            throw BridgeFunctions.Contract("zone read outcome missing");
-        }
-        PlacementReads.ValidateZonePage(v, identity);
-        if (v.Zones.Count > 1)
-        {
-            throw BridgeFunctions.Contract("zone delete target ambiguous");
-        }
+        var v = reply.Outcome.Observed!;
         var output = new ZoneDeleteTarget { Context = v.Context, Zone = zone };
         if (v.Zones.Count == 0)
         {
             return output;
         }
         var row = v.Zones[0];
-        if ((row.Id ?? "") != zone)
-        {
-            throw BridgeFunctions.Contract("zone delete target identity mismatch");
-        }
         output = output with { Present = true, Type = row.Type ?? "" };
         if (row.Farm is not null)
         {
@@ -93,8 +79,7 @@ internal sealed partial class FacadeNativeClient
         }
         var request = PlacementReads.ConstructionBuildingsRequest(identity, ids);
         var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
-        BridgeFunctions.BuildingUnknown(reply);
-        PlacementReads.UnwrapBuildings(reply, identity, "building read outcome missing");
+        PlacementReads.UnwrapBuildings(reply);
         return reply;
     }
 
@@ -115,8 +100,7 @@ internal sealed partial class FacadeNativeClient
             Statuses = [PbObservations.BuildingStatus.Built],
         };
         var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
-        BridgeFunctions.BuildingUnknown(reply);
-        var v = PlacementReads.UnwrapBuildings(reply, identity, "building read outcome missing");
+        var v = PlacementReads.UnwrapBuildings(reply);
         return new StorageBuildingTarget { Context = v.Context, Thing = thing, Present = v.Buildings.Count != 0 };
     }
 
@@ -128,8 +112,8 @@ internal sealed partial class FacadeNativeClient
             throw BridgeFunctions.Contract("invalid bed medical target identity");
         }
         var reply = await ReadConstructionBuildingsAsync(identity, [thing], cancellationToken).ConfigureAwait(false);
-        var v = reply.Outcome?.Observed;
-        if (v is null || v.Buildings.Count != 1)
+        var v = reply.Outcome.Observed!;
+        if (v.Buildings.Count != 1)
         {
             throw BridgeFunctions.Contract("bed medical target missing or ambiguous");
         }
@@ -166,8 +150,7 @@ internal sealed partial class FacadeNativeClient
             AnyFaction = true,
         };
         var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
-        BridgeFunctions.BuildingUnknown(reply);
-        var v = PlacementReads.UnwrapBuildings(reply, identity, "building read outcome missing");
+        var v = PlacementReads.UnwrapBuildings(reply);
         if (v.Buildings.Count != 1)
         {
             throw BridgeFunctions.Contract("claim building target missing or ambiguous");
@@ -188,8 +171,8 @@ internal sealed partial class FacadeNativeClient
             throw BridgeFunctions.Contract("invalid grower crop target identity");
         }
         var reply = await ReadConstructionBuildingsAsync(identity, [thing], cancellationToken).ConfigureAwait(false);
-        var v = reply.Outcome?.Observed;
-        if (v is null || v.Buildings.Count != 1)
+        var v = reply.Outcome.Observed!;
+        if (v.Buildings.Count != 1)
         {
             throw BridgeFunctions.Contract("grower crop target missing or ambiguous");
         }
@@ -214,20 +197,7 @@ internal sealed partial class FacadeNativeClient
             Statuses = [PbObservations.BuildingStatus.Blueprint, PbObservations.BuildingStatus.Frame],
         };
         var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
-        BridgeFunctions.BuildingUnknown(reply);
-        if (reply.Outcome?.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        if (reply.Outcome?.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        if (reply.Outcome?.Observed is not { } observed)
-        {
-            throw BridgeFunctions.Contract("construction deficit outcome missing");
-        }
-        PlacementReads.BuildingContext(observed.Context, identity, 0, false);
+        var observed = PlacementReads.UnwrapBuildings(reply);
         var stillNeed = new Dictionary<string, long>(StringComparer.Ordinal);
         var structures = 0;
         foreach (var row in observed.Buildings)
@@ -255,21 +225,17 @@ internal sealed partial class FacadeNativeClient
             request = request with { TargetId = targetId };
         }
         var reply = await Facade.ListWallUpgradeSitesAsync(request, cancellationToken).ConfigureAwait(false);
-        BridgeFunctions.BuildingUnknown(reply);
-        if (reply.Outcome?.Failure is { } failure)
+        if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
-        if (reply.Outcome?.Unavailable is { } unavailable)
+        if (reply.Outcome.Unavailable is { } unavailable)
         {
             throw Unavailable(unavailable);
         }
-        if (reply.Outcome?.Observed is not { } observed)
-        {
-            throw BridgeFunctions.Contract("wall upgrade sites outcome missing");
-        }
+        var observed = reply.Outcome.Observed!;
         var buildings = await PlacementFrameBuildingsAsync(identity, cancellationToken).ConfigureAwait(false);
-        var sites = PlacementReads.ValidateWallUpgradeSites(observed, identity, buildings);
+        var sites = PlacementReads.DecodeWallUpgradeSites(observed, buildings);
         return new WallUpgradeSites { Context = observed.Context, Sites = sites };
     }
 
@@ -282,72 +248,39 @@ internal sealed partial class FacadeNativeClient
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
         };
         var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome?.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        if (reply.Outcome?.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        var observed = reply.Outcome?.Observed;
-        if (observed is null || !PlacementReads.Passes(() => BridgeFunctions.ValidateContext(observed.Context)) || !BridgeFunctions.SameIdentity(observed.Context!.Identity, identity))
-        {
-            throw BridgeFunctions.Contract("building table without the expected context");
-        }
-        return Buildings.FromSnapshot(observed);
+        return Buildings.FromSnapshot(PlacementReads.UnwrapBuildings(reply));
     }
 
     internal static partial class PlacementReads
     {
-        /// <summary>Go's <c>decodeZones</c>: validates and decodes a complete zone census, rows in id order.</summary>
-        internal static ZonesRead DecodeZones(PbObservations.ZonesSnapshot? value, PbCommon.Identity? identity)
+        /// <summary>Go's <c>decodeZones</c>: decodes a complete zone census, rows in id order.</summary>
+        internal static ZonesRead DecodeZones(PbObservations.ZonesSnapshot value)
         {
-            ValidateZonePage(value, identity);
-            var rows = new List<PbObservations.ZoneState>(value!.Zones.Count);
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var row in value.Zones)
-            {
-                if (!seen.Add(row.Id ?? ""))
-                {
-                    throw BridgeFunctions.Contract("duplicate zone");
-                }
-                rows.Add(row);
-            }
+            List<PbObservations.ZoneState> rows = [.. value.Zones];
             rows.Sort((a, b) => string.CompareOrdinal(a.Id ?? "", b.Id ?? ""));
             return new ZonesRead(value.Context, rows, value.Context!.Tick);
         }
 
         /// <summary>
-        /// The building list reply's outcome switch shared by the single-target reads: a failure or unavailable arm throws
-        /// its typed refusal, a missing outcome is a contract error, an observed snapshot is checked for the expected
-        /// identity (Go <c>ValidateConstructionBuildings</c>) and returned.
+        /// The building list reply's outcome check shared by the building reads: a failure or unavailable arm throws
+        /// its typed refusal; otherwise the observed snapshot is returned.
         /// </summary>
-        internal static PbObservations.BuildingsSnapshot UnwrapBuildings(PbObservations.ListBuildingsReply reply, PbCommon.Identity identity, string missing)
+        internal static PbObservations.BuildingsSnapshot UnwrapBuildings(PbObservations.ListBuildingsReply reply)
         {
-            if (reply.Outcome?.Failure is { } failure)
+            if (reply.Outcome.Failure is { } failure)
             {
                 throw Failure(failure);
             }
-            if (reply.Outcome?.Unavailable is { } unavailable)
+            if (reply.Outcome.Unavailable is { } unavailable)
             {
                 throw Unavailable(unavailable);
             }
-            if (reply.Outcome?.Observed is not { } observed)
-            {
-                throw BridgeFunctions.Contract(missing);
-            }
-            ValidateConstructionBuildings(observed, identity);
-            return observed;
+            return reply.Outcome.Observed!;
         }
 
-        /// <summary>Go's <c>validateWallUpgradeSites</c>.</summary>
-        internal static IReadOnlyList<WallUpgradeSite> ValidateWallUpgradeSites(PbObservations.WallUpgradeSnapshot? value, PbCommon.Identity identity, Buildings buildings)
+        /// <summary>Go's <c>validateWallUpgradeSites</c>: decodes the sites, each original wall's cell taken from its building row.</summary>
+        internal static IReadOnlyList<WallUpgradeSite> DecodeWallUpgradeSites(PbObservations.WallUpgradeSnapshot value, Buildings buildings)
         {
-            if (value is null || !Passes(() => BridgeFunctions.ValidateContext(value.Context)) || !BridgeFunctions.SameIdentity(value.Context!.Identity, identity))
-            {
-                throw BridgeFunctions.Contract("invalid wall upgrade sites context");
-            }
             var rows = new List<WallUpgradeSite>(value.Sites.Count);
             foreach (var row in value.Sites)
             {
@@ -357,7 +290,7 @@ internal sealed partial class FacadeNativeClient
                 // The original wall's cell is its building row's.
                 if (buildings.TryRow(row.Original, out var original) && original.Building.Position is { } position)
                 {
-                    (x, z) = (position.X.GetValueOrDefault(), position.Z.GetValueOrDefault());
+                    (x, z) = (position.X, position.Z);
                 }
                 rows.Add(new WallUpgradeSite
                 {
@@ -366,9 +299,9 @@ internal sealed partial class FacadeNativeClient
                     Blocker = row.Blocker ?? "",
                     X = x,
                     Z = z,
-                    NX = row.Normal.X.GetValueOrDefault(),
-                    NZ = row.Normal.Z.GetValueOrDefault(),
-                    BackupCells = [.. row.BackupCells.Select(cell => new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()))],
+                    NX = row.Normal.X,
+                    NZ = row.Normal.Z,
+                    BackupCells = [.. row.BackupCells.Select(cell => new Cell(cell.X, cell.Z))],
                 });
             }
             return rows;

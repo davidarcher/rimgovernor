@@ -83,11 +83,11 @@ public sealed class ClockEventRowTests
         Clock.ClockEvent Of(Clock.ClockEventEvent e) => new() { Cursor = 1, Context = Context(5), ObservedAtUnixMs = 1, Detail = "", Event = e };
         var cases = new (Clock.ClockEventEvent Event, TelemetryKind Kind)[]
         {
-            (new Clock.AuthorityChanged { Generation = 4, PreviousGeneration = 3, Reason = "acquired", Active = true }, TelemetryKinds.ClockAuthority),
+            (new Clock.AuthorityChanged { Generation = 4, Reason = "acquired", Active = true }, TelemetryKinds.ClockAuthority),
             (new Clock.Alert { Key = "Alert_LowFood", Label = "Low food" }, TelemetryKinds.ClockAlert),
             (new Clock.Notification { Source = new Clock.Letter { Id = "Letter1", Label = "Raid" } }, TelemetryKinds.ClockNotification),
-            (new Clock.Injury { Pawn = new Clock.PawnEvent { PawnId = "Human1", Name = "Bo" }, NewWound = true }, TelemetryKinds.ClockInjury),
-            (new Clock.HostilesCleared { ConsciousHostilesBefore = 2 }, TelemetryKinds.ClockHostilesCleared),
+            (new Clock.Injury { Pawn = new Clock.PawnEvent { PawnId = "Human1", Name = "Bo" } }, TelemetryKinds.ClockInjury),
+            (new Clock.HostilesCleared(), TelemetryKinds.ClockHostilesCleared),
             (new Clock.ObservationInvalidated { Families = [Clock.FactFamily.Research], Reason = "research" }, TelemetryKinds.ClockInvalidation),
             (new Clock.ForcePauseWaiting { Pause = new Clock.PauseEvidence() }, TelemetryKinds.ClockLongEvent),
             (new Clock.ForcePauseCleared(), TelemetryKinds.ClockLongEvent),

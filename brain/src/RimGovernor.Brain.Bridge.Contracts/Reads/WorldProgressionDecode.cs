@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 // quest_monument.go and quest_hack_gift.go: the projection of a frame's world progression census.
 public static partial class BridgeFunctions
 {
-    private static bool MonumentCellKnown([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] Cell? cell) => cell is not null && cell.X is not null && cell.Z is not null;
+    private static bool MonumentCellKnown([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] Cell? cell) => cell is not null;
 
     /// <summary>Go's <c>DecodeWorldProgressionSnapshot</c>: projects the world census a frame carries.</summary>
     public static WorldProgressionRead DecodeWorldProgressionSnapshot(WorldProgressionSnapshot v)

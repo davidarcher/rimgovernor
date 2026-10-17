@@ -82,11 +82,11 @@ public static partial class ObservationPackage
         _ => DeliveryKind.None,
     };
 
-    /// <summary>Unknown for a missing, unavailable or malformed census, never an empty ledger: zero deliveries would read as a measured zero.</summary>
-    internal static Fact<DeliveryLedger> ColonyDeliveryLedger(O.DeliveryLedgerSection? section, long tick)
+    /// <summary>Unknown for a missing or unavailable census, never an empty ledger: zero deliveries would read as a measured zero.</summary>
+    internal static Fact<DeliveryLedger> ColonyDeliveryLedger(O.DeliveryLedgerSection? section)
     {
         var f = section?.Outcome?.Observed;
-        if (f is null || !ValidDeliveryLedger(f, tick))
+        if (f is null)
         {
             return Unknown<DeliveryLedger>();
         }

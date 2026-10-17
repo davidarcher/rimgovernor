@@ -17,9 +17,9 @@ namespace HomeBridge.BridgeTools
     {
         private const string Kind = "Floor removal";
 
-        private static bool Valid(Operations.RemoveFloorIntent? intent) => intent != null && intent.Cell != null && intent.Cell.X is not null && intent.Cell.Z is not null
+        private static bool Valid(Operations.RemoveFloorIntent? intent) => intent != null && intent.Cell != null
             && intent.DefName is not null && ProtoBoundary.IsIdentifier(intent.DefName);
-        private static IntVec3 Cell(Operations.RemoveFloorIntent intent) => new IntVec3(intent.Cell?.X.GetValueOrDefault() ?? 0, 0, intent.Cell?.Z.GetValueOrDefault() ?? 0);
+        private static IntVec3 Cell(Operations.RemoveFloorIntent intent) => new IntVec3(intent.Cell?.X ?? 0, 0, intent.Cell?.Z ?? 0);
         // Done: the floor is gone, or the designation already stands.
         private static bool Holds(Operations.RemoveFloorIntent intent, Map map)
         {

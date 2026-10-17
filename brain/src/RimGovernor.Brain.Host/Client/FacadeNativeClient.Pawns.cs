@@ -57,20 +57,14 @@ internal sealed partial class FacadeNativeClient
         // which the settings validator correctly refuses as unrequested detail.
         var request = PawnDetailsRequest(identity, copied, want);
         var reply = await Facade.ListPawnsAsync(request, cancellationToken).ConfigureAwait(false);
-        BuildingUnknown(reply);
-        if (reply.Outcome?.Failure is { } failure)
+        if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
-        if (reply.Outcome?.Unavailable is { } unavailable)
+        if (reply.Outcome.Unavailable is { } unavailable)
         {
             throw Unavailable(unavailable);
         }
-        if (reply.Outcome?.Observed is not { } observed)
-        {
-            throw Contract("pawn read outcome missing");
-        }
-        SameWorld(observed, identity);
         return reply;
     }
 
@@ -139,25 +133,16 @@ internal sealed partial class FacadeNativeClient
             },
         };
         var reply = await Facade.ListPawnsAsync(request, cancellationToken).ConfigureAwait(false);
-        BuildingUnknown(reply);
-        if (reply.Outcome?.Failure is { } failure)
+        if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
-        if (reply.Outcome?.Unavailable is { } unavailable)
+        if (reply.Outcome.Unavailable is { } unavailable)
         {
             throw Unavailable(unavailable);
         }
-        if (reply.Outcome?.Observed is not { } observed)
-        {
-            throw Contract("home colonist read outcome missing");
-        }
-        HomeColonistsSelected(observed, identity);
         return reply;
     }
-
-    /// <summary>Go <c>homeColonistsSelected</c>: the roster names itself as the requested set.</summary>
-    private static void HomeColonistsSelected(PbObservations.PawnSnapshot? v, PbCommon.Identity id) => SameWorld(v, id);
 
     /// <summary>
     /// Go <c>ReadMechs</c>: reads the mechs the ids name (a mechanitor's controlled mechs) as the mech planners' input
@@ -171,7 +156,7 @@ internal sealed partial class FacadeNativeClient
             return [];
         }
         var reply = await ReadPawnsAsync(identity, ids, cancellationToken).ConfigureAwait(false);
-        return MechInputs(reply.Outcome?.Observed);
+        return MechInputs(reply.Outcome.Observed);
     }
 
     /// <summary>Go <c>MechInputs</c>: lifts mech pawn rows into planner input.</summary>

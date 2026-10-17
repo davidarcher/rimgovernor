@@ -237,18 +237,6 @@ public sealed class PolicyController : IFightController
         _client!.CombatGeometryAsync(request, CancellationToken.None).GetAwaiter().GetResult().Value;
 
     // The catalog of the load over the game's Defs, with the def stat table its definition catalog read built.
-    private static DefinitionCatalog CatalogOfArena(Obs.DefinitionCatalog wire, RimGovernor.Contracts.Wire.Common.Identity identity)
-    {
-        var derived = wire.Derived ?? throw new InvalidOperationException("The definition catalog carries no derived facts.");
-        var races = new Dictionary<string, RaceGameFacts>(StringComparer.Ordinal);
-        foreach (var row in wire.ThingFacts)
-        {
-            if (row.Race is { } race)
-            {
-                races.Add(row.DefName, new RaceGameFacts([.. race.EdibleDefs], race.TameChanceFactor, race.AdultFeedPerDay));
-            }
-        }
-
-        return new DefinitionCatalog(NativeCatalogFactory.AllDefs(), NativeStatTable.ForLoad(identity.LoadToken), new CatalogDerived(derived.CurrencyDef, derived.WortDef, derived.FullRotRateC), races);
-    }
+    private static DefinitionCatalog CatalogOfArena(Obs.DefinitionCatalog wire, RimGovernor.Contracts.Wire.Common.Identity identity) =>
+        NativeCatalogFactory.Create(wire, identity);
 }

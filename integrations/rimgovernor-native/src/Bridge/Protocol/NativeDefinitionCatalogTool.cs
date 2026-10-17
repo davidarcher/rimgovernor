@@ -3,7 +3,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using RimWorld;
@@ -35,6 +34,7 @@ namespace HomeBridge.BridgeTools
             {
                 // The brain builds its catalog over the load's def stat table right after this read, off the game thread.
                 NativeStatTable.EnsureForLoad(context.Identity.LoadToken);
+                NativeRaceFacts.EnsureForLoad(context.Identity.LoadToken);
                 return new Obs.DefinitionCatalogReply { Outcome = Read(context) };
             }
             catch (Exception ex)
@@ -46,16 +46,14 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.DefinitionCatalog Read(Common.ObservationContext context)
         {
-            var catalog = new Obs.DefinitionCatalog { Context = context, StatEnv = StatEnv() };
+            var catalog = new Obs.DefinitionCatalog { Context = context };
             // The reply carries no def rows or game constants (#3100): the in-process brain builds its catalog over the
-            // game's Def objects (NativeCatalogFactory), so only what the game computes in code is sent.
+            // game's Def objects (NativeCatalogFactory), so only the class chains and Biotech facts are sent; the race
+            // facts are published beside the stat table (NativeRaceFacts) and the derived facts are computed in process
+            // (BrainDerived).
             // The base chains of the def classes the game has.
             catalog = catalog with { ClassChains = DefMirrorFill.ClassChains(DefClasses()) };
-            catalog = catalog with { Derived = DerivedFacts() };
-            var facts = new List<Obs.ThingDefFacts>();
-            foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.race != null).OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))
-                facts.Add(NativeFoodPolicy.Facts(def));
-            catalog = catalog with { ThingFacts = EquatableArray.From(facts), Biotech = NativeBiotechFacts.Catalog() };
+            catalog = catalog with { Biotech = NativeBiotechFacts.Catalog() };
             return catalog;
         }
 
@@ -73,43 +71,14 @@ namespace HomeBridge.BridgeTools
             return classes;
         }
 
-        // The game state Go's stat evaluator reads that the def rows do not hold
-        // (stateval.Env): the active mods, the ideology classic mode, the scenario's
-        // stat factors and the storyteller difficulty's yield factors and bool settings.
-        private static Obs.StatEnv StatEnv()
-        {
-            var mods = ModsConfig.ActiveModsInLoadOrder.Select(mod => mod.PackageId.ToLowerInvariant()).ToList();
-            var scenario = Find.Scenario ?? throw new InvalidOperationException("Find.Scenario is unavailable.");
-            var factors = new List<Obs.StatFactor>();
-            foreach (var stat in DefDatabase<StatDef>.AllDefsListForReading.OrderBy(s => Named(s.defName, "StatDef"), StringComparer.Ordinal))
-            {
-                var factor = scenario.GetStatFactor(stat);
-                if (factor != 1f) factors.Add(new Obs.StatFactor { Stat = stat.defName, Factor = factor });
-            }
-            var difficulty = Find.Storyteller?.difficulty ?? throw new InvalidOperationException("Find.Storyteller.difficulty is unavailable.");
-            var flags = typeof(Difficulty).GetFields(BindingFlags.Instance | BindingFlags.Public).Where(f => f.FieldType == typeof(bool)).OrderBy(f => f.Name, StringComparer.Ordinal)
-                .Select(field => new Obs.DifficultyFlag { Name = field.Name, Value = (bool)field.GetValue(difficulty)! }).ToList();
-            return new Obs.StatEnv
-            {
-                ActiveMods = EquatableArray.From(mods),
-                ScenarioFactors = EquatableArray.From(factors),
-                DifficultyFlags = EquatableArray.From(flags),
-            };
-        }
-
-        // A def whose defName is not a protocol identifier cannot be a catalog key:
-        // fail the read naming it rather than leave it out.
-        private static string Named(string defName, string kind) =>
-            ProtoBoundary.IsIdentifier(defName) ? defName : throw new InvalidOperationException($"{kind} defName '{defName}' is not an identifier.");
-
-        internal static Obs.CatalogDerived DerivedFacts() => new Obs.CatalogDerived
-        {
+        // The brain catalog's derived facts: the def names the game's code names (read straight from ThingDefOf, so
+        // they ride no wire field) and the full rot rate the game computes in code.
+        internal static RimGovernor.Brain.Bridge.CatalogDerived BrainDerived() => new(
             // Tradeable.IsCurrency is "def == ThingDefOf.Silver".
-            CurrencyDef = ThingDefOf.Silver?.defName ?? throw new InvalidOperationException("ThingDefOf.Silver is not loaded."),
+            ThingDefOf.Silver?.defName ?? throw new InvalidOperationException("ThingDefOf.Silver is not loaded."),
             // Building_FermentingBarrel adds ThingDefOf.Wort and takes out ThingDefOf.Beer.
-            WortDef = ThingDefOf.Wort?.defName ?? throw new InvalidOperationException("ThingDefOf.Wort is not loaded."),
-            FullRotRateC = FullRotRateC(),
-        };
+            ThingDefOf.Wort?.defName ?? throw new InvalidOperationException("ThingDefOf.Wort is not loaded."),
+            FullRotRateC());
 
         // The game keeps its rot curve as literals inside
         // GenTemperature.RotRateAtTemperature, so evaluate that function: bisect the

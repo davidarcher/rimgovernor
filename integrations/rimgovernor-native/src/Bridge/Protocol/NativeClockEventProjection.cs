@@ -46,30 +46,21 @@ namespace HomeBridge.BridgeTools
         }
         private static Clock.TransientMessage Message(Dictionary<string, object?> row)
         {
-            var result = new Clock.TransientMessage { Id = Id(String(row, "id")), Text = String(row, "text"), StartingTick = Number(row, "startingTick") };
-            object? value; if (row.TryGetValue("messageType", out value) && value != null) result = result with { TypeDef = Id((string)value) };
-            return result;
+            return new Clock.TransientMessage { Id = Id(String(row, "id")), Text = String(row, "text") };
         }
-        private static Clock.PawnEvent Pawn(Dictionary<string, object?> row, Func<int, string> resolve, bool compact = false)
+        private static Clock.PawnEvent Pawn(Dictionary<string, object?> row, Func<int, string> resolve)
         {
-            var result = new Clock.PawnEvent { PawnId = Id(resolve(checked((int)Number(row, compact ? "thingId" : "pawnId")))), Name = String(row, compact ? "name" : "pawnName") };
+            var result = new Clock.PawnEvent { PawnId = Id(resolve(checked((int)Number(row, "pawnId")))), Name = String(row, "pawnName") };
             object? position;
-            if (compact && row.ContainsKey("x")) result = result with { Position = new Common.Cell { X = checked((int)Number(row, "x")), Z = checked((int)Number(row, "z")) } };
-            else if (row.TryGetValue("position", out position))
+            if (row.TryGetValue("position", out position))
             { var cell = (Dictionary<string, object?>)(position ?? throw new InvalidOperationException("Missing clock evidence position")); result = result with { Position = new Common.Cell { X = checked((int)Number(cell, "x")), Z = checked((int)Number(cell, "z")) } }; }
             object? reason; if (row.TryGetValue("reason", out reason) && reason != null) result = result with { Reason = Text((string)reason) };
             return result;
         }
         private static Clock.Health Health(Dictionary<string, object?> row, string suffix) => new Clock.Health
-        { InjuryCount = checked((int)Number(row, "injuryCount" + suffix)), Severity = Real(row, "severity" + suffix), BleedRate = Real(row, "bleedRate" + suffix), BloodLoss = Real(row, "bloodLoss" + suffix), SummaryHealth = Real(row, suffix == "Before" ? "healthAtStart" : "healthNow") };
-        private static Clock.Injury Injury(Dictionary<string, object?> row, Func<int, string> resolve)
-        {
-            var result = new Clock.Injury { Pawn = Pawn(row, resolve), Before = Health(row, "Before"), After = Health(row, "After"),
-                Suppression = Clock.InjurySuppression.None, NewWound = Bool(row, "newWound") };
-            object? value; if (row.TryGetValue("suppressedBy", out value) && value != null)
-                result = result with { Suppression = (string)value == "acknowledged" ? Clock.InjurySuppression.Acknowledged : (string)value == "cooldown" ? Clock.InjurySuppression.Cooldown : throw new InvalidOperationException("Unknown injury suppression") };
-            return result;
-        }
+        { Severity = Real(row, "severity" + suffix) };
+        private static Clock.Injury Injury(Dictionary<string, object?> row, Func<int, string> resolve) =>
+            new Clock.Injury { Pawn = Pawn(row, resolve), Before = Health(row, "Before"), After = Health(row, "After") };
         internal static Clock.HoldReason HoldReason(string? kind)
         {
             switch (kind)
@@ -111,8 +102,7 @@ namespace HomeBridge.BridgeTools
                 case "authority_changed":
                 {
                     var changed = new Clock.AuthorityChanged { Generation = checked((ulong)Number(P(), "generation")), Active = Bool(P(), "active") };
-                    object? previous, reason;
-                    if (P().TryGetValue("previousGeneration", out previous) && previous != null) changed = changed with { PreviousGeneration = checked((ulong)Convert.ToInt64(previous)) };
+                    object? reason;
                     if (P().TryGetValue("reason", out reason) && reason != null) changed = changed with { Reason = Text((string)reason) };
                     result = result with { Event = changed };
                     break;
@@ -147,9 +137,7 @@ namespace HomeBridge.BridgeTools
                 case "alert_new": result = result with { Event = Alert(P()) }; break;
                 case "injury_observed": result = result with { Event = Injury(P(), resolvePawn) }; break;
                 case "hostiles_cleared":
-                    result = result with { Event = new Clock.HostilesCleared { ConsciousHostilesBefore = checked((int)Number(P(), "consciousHostilesBefore")),
-                        DownedHostiles = EquatableArray.From(Rows(P(), "downedHostiles").Select(row => Pawn(row, resolvePawn, true)).ToList()),
-                        DraftedColonists = EquatableArray.From(Rows(P(), "draftedColonists").Select(row => Pawn(row, resolvePawn, true)).ToList()) } };
+                    result = result with { Event = new Clock.HostilesCleared() };
                     break;
                 case "long_event": case "transient_force_pause":
                     result = result with { Event = new Clock.ForcePauseWaiting { Pause = new Clock.PauseEvidence() } }; break;
@@ -167,7 +155,7 @@ namespace HomeBridge.BridgeTools
                         stop = stop with { Evidence = new Clock.HoldEvidence.CombatCase(combat) };
                     }
                     else if (kind == "colonist_injury") stop = stop with { Evidence = new Clock.HoldEvidence.InjuryCase(Injury(P(), resolvePawn)) };
-                    else if (kind == "colonist_health") stop = stop with { Evidence = new Clock.HoldEvidence.HealthCase(new Clock.HealthThreshold { Pawn = Pawn(P(), resolvePawn), HealthAtStart = Real(P(), "healthAtStart"), HealthNow = Real(P(), "healthNow"), MinHealthFraction = Real(P(), "minHealthFraction"), HealthDropFraction = Real(P(), "healthDropFraction") }) };
+                    else if (kind == "colonist_health") stop = stop with { Evidence = new Clock.HoldEvidence.HealthCase(new Clock.HealthThreshold { Pawn = Pawn(P(), resolvePawn), MinHealthFraction = Real(P(), "minHealthFraction"), HealthDropFraction = Real(P(), "healthDropFraction") }) };
                     else if (payload != null && payload.ContainsKey("pawnId")) stop = stop with { Evidence = new Clock.HoldEvidence.PawnCase(Pawn(P(), resolvePawn)) };
                     else stop = stop with { Evidence = new Clock.HoldEvidence.UnavailableCase(new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved, Detail = "Stop reason and diagnostic were observed; additional structured evidence was not captured." }) };
                     // Latency split: the tick the stop was raised at and,

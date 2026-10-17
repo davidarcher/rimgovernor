@@ -40,5 +40,5 @@ public static partial class ObservationPackage
 
     /// <summary>A cell fact: unknown unless both coordinates are present.</summary>
     internal static Fact<Cell> RowCell(C.Cell? cell) =>
-        cell is null || cell.X is null || cell.Z is null ? Unknown<Cell>() : Known(new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()));
+        cell is null ? Unknown<Cell>() : Known(new Cell(cell.X, cell.Z));
 }

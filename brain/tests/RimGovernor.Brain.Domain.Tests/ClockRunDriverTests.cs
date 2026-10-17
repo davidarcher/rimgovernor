@@ -173,7 +173,6 @@ public sealed class ClockRunDriverTests
             NativeTickBoundary = true,
             NewestCursor = _events.Count,
             HoldSerial = _holdSerial,
-            ObservedSpeed = _held ? PbClock.ObservedSpeed.Paused : PbClock.ObservedSpeed.Ultrafast,
             ActualPaused = _held,
             CombatEvent = _held && _reason == PbClock.HoldReason.CombatEvent ? PbClock.CombatEvent.Downed : null,
         };

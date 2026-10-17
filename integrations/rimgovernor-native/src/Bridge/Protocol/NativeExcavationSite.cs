@@ -22,10 +22,10 @@ namespace HomeBridge.BridgeTools
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity, 1 or more unique nonnegative cells and an access cell required.");
             if (request?.Scope?.ExpectedIdentity == null || request.Cells.Count < 1 || !HasCell(request.AccessCell)) return false;
             var seen = new HashSet<(int, int)>();
-            foreach (var cell in request.Cells) if (!HasCell(cell) || !seen.Add((cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()))) return false;
+            foreach (var cell in request.Cells) if (!HasCell(cell) || !seen.Add((cell.X, cell.Z))) return false;
             return true;
         }
-        private static bool HasCell(Common.Cell? cell) => cell != null && cell.X is not null && cell.Z is not null && cell.X.GetValueOrDefault() >= 0 && cell.Z.GetValueOrDefault() >= 0;
+        private static bool HasCell(Common.Cell? cell) => cell != null && cell.X >= 0 && cell.Z >= 0;
 
         internal static Obs.ExcavationCell Row(IntVec3 cell, Map map, Common.ObservationContext context)
         {
@@ -48,7 +48,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Obs.ExcavationSiteSnapshot Read(Map map, Obs.ExcavationSiteRequest request, Common.ObservationContext context)
         {
-            var cells = request.Cells.Select(c => new IntVec3(c.X.GetValueOrDefault(), 0, c.Z.GetValueOrDefault())).ToList();
+            var cells = request.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToList();
             var access = new IntVec3((request.AccessCell?.X).GetValueOrDefault(), 0, (request.AccessCell?.Z).GetValueOrDefault());
             var snapshot = new Obs.ExcavationSiteSnapshot { Context = context, CollapsePending = map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0 };
             foreach (var cell in cells) snapshot = snapshot with { Cells = [.. snapshot.Cells, Row(cell, map, context)] };

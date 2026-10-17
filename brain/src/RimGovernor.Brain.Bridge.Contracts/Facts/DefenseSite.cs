@@ -136,51 +136,25 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>maxDefenseSiteExtent</c>: bounds a defense-layout cell coordinate.</summary>
     internal const int MaxDefenseSiteExtent = 4096;
 
-    private static bool CellOnDefenseMap(DomainCell cell) => cell.X >= 0 && cell.Z >= 0 && cell.X < MaxDefenseSiteExtent && cell.Z < MaxDefenseSiteExtent;
-
-    /// <summary>
-    /// Go's <c>validateRaidTracks</c>: decodes the hostile lords of a threat census, one track per lord, ticks in
-    /// order, cells on the map. Throws a contract error for an invalid track.
-    /// </summary>
-    internal static IReadOnlyList<RaidTrack> ValidateRaidTracks(IEnumerable<RimGovernor.Contracts.Wire.Observations.RaidTrack> rows)
+    /// <summary>Go's <c>validateRaidTracks</c>: decodes the hostile lords of a threat census, one track per lord.</summary>
+    internal static IReadOnlyList<RaidTrack> DecodeRaidTracks(IEnumerable<RimGovernor.Contracts.Wire.Observations.RaidTrack> rows)
     {
-        var lords = new HashSet<string>(StringComparer.Ordinal);
         var tracks = new List<RaidTrack>();
         foreach (var row in rows)
         {
-            if (!TryProtoCell(row.Spawn, out var spawn)
-                || row.LordId is null
-                || !IsValidId((row.LordId ?? ""))
-                || lords.Contains((row.LordId ?? ""))
-                || row.FactionDef is null
-                || !IsValidId((row.FactionDef ?? ""))
-                || row.SpawnTick is null
-                || row.LastTick is null
-                || row.Ground is null
-                || row.SpawnTick.GetValueOrDefault() < 0
-                || row.LastTick.GetValueOrDefault() < row.SpawnTick.GetValueOrDefault()
-                || !CellOnDefenseMap(spawn))
-            {
-                throw Contract("invalid raid track");
-            }
-            lords.Add((row.LordId ?? ""));
             var trail = new List<DomainCell>(row.Trail.Count);
             foreach (var at in row.Trail)
             {
-                if (!TryProtoCell(at, out var cell) || !CellOnDefenseMap(cell))
-                {
-                    throw Contract("invalid raid track trail");
-                }
-                trail.Add(cell);
+                trail.Add(ToDomainCell(at));
             }
             tracks.Add(
                 new RaidTrack
                 {
-                    LordId = (row.LordId ?? ""),
+                    LordId = row.LordId ?? "",
                     FactionDef = row.FactionDef ?? "",
                     SpawnTick = new Tick(row.SpawnTick.GetValueOrDefault()),
                     LastTick = new Tick(row.LastTick.GetValueOrDefault()),
-                    Spawn = spawn,
+                    Spawn = ToDomainCell(row.Spawn),
                     Ground = row.Ground.GetValueOrDefault(),
                     Trail = trail,
                 }

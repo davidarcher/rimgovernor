@@ -42,13 +42,10 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>maxStockFilterDefNames</c>: native ListSupplies' StockFilter.DefNames cap.</summary>
     private const int GearMaxStockFilterDefNames = 256;
 
-    /// <summary>Go <c>maxBillsPerBench</c> bound of <c>gearBillsFromStack</c> (15 bills).</summary>
-    private const int GearMaxBills = 15;
-
     /// <summary>
     /// Go <c>Client.ReadGearBenches</c>: a fresh, uncached census of every workbench's bill stack, its CAS token and
     /// its recipe catalog. <paramref name="catalog"/> is Go's <c>client.DefinitionCatalog(ctx, identity)</c>; it is
-    /// awaited after the bills reply validates, the order the Go read made the calls in.
+    /// awaited after the bills reply arrives, the order the Go read made the calls in.
     /// </summary>
     internal async Task<IReadOnlyList<GearBenchRead>> ReadGearBenchesAsync(
         PbCommon.Identity identity,
@@ -58,39 +55,20 @@ internal sealed partial class FacadeNativeClient
     {
         var request = new PbObservations.BillsRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
         var reply = await Facade.ReadBillsAsync(request, cancellationToken).ConfigureAwait(false);
-        BridgeFunctions.BuildingUnknown(reply);
-        PbObservations.BillsSnapshot? snapshot;
-        switch (reply.Outcome)
+        if (reply.Outcome.Failure is { } failure)
         {
-            case PbObservations.BillsReplyOutcome.ObservedCase observed:
-                snapshot = observed.Value;
-                break;
-            case PbObservations.BillsReplyOutcome.UnavailableCase unavailable:
-                throw Unavailable(unavailable.Value);
-            case PbObservations.BillsReplyOutcome.FailureCase failure:
-                throw Failure(failure.Value);
-            default:
-                throw BridgeFunctions.Contract("missing bills outcome");
+            throw Failure(failure);
         }
-        if (snapshot is null || !BridgeFunctions.SameIdentity(snapshot.Context?.Identity, identity))
+        if (reply.Outcome.Unavailable is { } unavailable)
         {
-            throw BridgeFunctions.Contract("invalid bills context");
+            throw Unavailable(unavailable);
         }
+        var snapshot = reply.Outcome.Observed!;
         var recipeCatalog = await catalog(cancellationToken).ConfigureAwait(false);
-        var seen = new HashSet<string>(StringComparer.Ordinal);
         var reads = new List<GearBenchRead>(snapshot.Benches.Count);
         foreach (var stack in snapshot.Benches)
         {
-            if (stack is null || stack.Bench is null || !BridgeFunctions.IsValidId(stack.Bench.Id ?? "") || seen.Contains(stack.Bench.Id ?? ""))
-            {
-                throw BridgeFunctions.Contract("invalid gear bench identity");
-            }
-            var benchId = stack.Bench.Id ?? "";
-            if (stack.Snapshot is null || !BridgeFunctions.IsValidId(stack.Snapshot.Token ?? "") || (stack.Snapshot.EntityId ?? "") != benchId)
-            {
-                throw BridgeFunctions.Contract("invalid gear bench token");
-            }
-            seen.Add(benchId);
+            var benchId = stack.Bench!.Id ?? "";
             var (recipes, def) = await GearReadRecipesAsync(identity, benchId, recipeCatalog, cancellationToken).ConfigureAwait(false);
             var bills = GearBillsFromStack(stack, def, recipes, recipeCatalog);
             var bench = new P.GearBench
@@ -102,7 +80,7 @@ internal sealed partial class FacadeNativeClient
                 Recipes = Fact.Known(EquatableArray.From(recipes)),
                 Usable = stack.Usable is null ? Fact.Unknown<bool>() : Fact.Known(stack.Usable.GetValueOrDefault()),
             };
-            reads.Add(new GearBenchRead { Token = stack.Snapshot.Token ?? "", Bench = bench });
+            reads.Add(new GearBenchRead { Token = stack.Snapshot?.Token ?? "", Bench = bench });
         }
         reads.Sort((a, b) => string.CompareOrdinal(a.Bench.Id, b.Bench.Id));
         return reads;
@@ -148,42 +126,23 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>readSupplyStockChunk</c>.</summary>
     private async Task GearReadSupplyStockChunkAsync(PbCommon.Identity identity, List<string> defNames, HashSet<string> seenOut, List<P.Stock> output, CancellationToken cancellationToken)
     {
-        var names = new HashSet<string>(defNames, StringComparer.Ordinal);
         var request = new PbObservations.ListSuppliesRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
             Filter = new PbObservations.StockFilter { DefNames = EquatableArray.From(defNames), Ownership = PbObservations.StockOwnership.Ours },
         };
         var reply = await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false);
-        BridgeFunctions.BuildingUnknown(reply);
-        PbObservations.SuppliesSnapshot? snapshot;
-        switch (reply.Outcome)
+        if (reply.Outcome.Failure is { } failure)
         {
-            case PbObservations.ListSuppliesReplyOutcome.ObservedCase observed:
-                snapshot = observed.Value;
-                break;
-            case PbObservations.ListSuppliesReplyOutcome.UnavailableCase unavailable:
-                throw Unavailable(unavailable.Value);
-            case PbObservations.ListSuppliesReplyOutcome.FailureCase failure:
-                throw Failure(failure.Value);
-            default:
-                throw BridgeFunctions.Contract("missing supplies outcome");
+            throw Failure(failure);
         }
-        if (snapshot is null || !BridgeFunctions.SameIdentity(snapshot.Context?.Identity, identity))
+        if (reply.Outcome.Unavailable is { } unavailable)
         {
-            throw BridgeFunctions.Contract("invalid supplies context");
+            throw Unavailable(unavailable);
         }
-        if (snapshot.Stocks.Count > defNames.Count)
+        foreach (var row in reply.Outcome.Observed!.Stocks)
         {
-            throw BridgeFunctions.Contract("incomplete supplies census");
-        }
-        foreach (var row in snapshot.Stocks)
-        {
-            var name = row?.Definition?.DefName ?? "";
-            if (row is null || row.Definition is null || !BridgeFunctions.IsValidId(name) || !names.Contains(name) || seenOut.Contains(name))
-            {
-                throw BridgeFunctions.Contract("invalid resource stock row");
-            }
+            var name = row.Definition.DefName ?? "";
             seenOut.Add(name);
             output.Add(
                 new P.Stock(
@@ -199,43 +158,20 @@ internal sealed partial class FacadeNativeClient
     {
         var request = new PbObservations.RecipesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, BenchId = bench };
         var reply = await Facade.ReadRecipesAsync(request, cancellationToken).ConfigureAwait(false);
-        BridgeFunctions.BuildingUnknown(reply);
-        PbObservations.RecipesSnapshot? snapshot;
-        switch (reply.Outcome)
+        if (reply.Outcome.Failure is { } failure)
         {
-            case PbObservations.RecipesReplyOutcome.ObservedCase observed:
-                snapshot = observed.Value;
-                break;
-            case PbObservations.RecipesReplyOutcome.UnavailableCase unavailable:
-                throw Unavailable(unavailable.Value);
-            case PbObservations.RecipesReplyOutcome.FailureCase failure:
-                throw Failure(failure.Value);
-            default:
-                throw BridgeFunctions.Contract("missing recipes outcome");
+            throw Failure(failure);
         }
-        if (snapshot is null || !BridgeFunctions.SameIdentity(snapshot.Context?.Identity, identity))
+        if (reply.Outcome.Unavailable is { } unavailable)
         {
-            throw BridgeFunctions.Contract("invalid recipes context");
+            throw Unavailable(unavailable);
         }
-        if (snapshot.Snapshot is null || (snapshot.Snapshot.EntityId ?? "") != bench)
-        {
-            throw BridgeFunctions.Contract("recipe snapshot bench mismatch");
-        }
+        var snapshot = reply.Outcome.Observed!;
         var benchDef = snapshot.BenchDef ?? "";
-        if (!BridgeFunctions.IsValidId(benchDef))
-        {
-            throw BridgeFunctions.Contract("recipe snapshot has no bench definition");
-        }
-        var names = new HashSet<string>(StringComparer.Ordinal);
         var recipes = new List<P.GearRecipe>(snapshot.Recipes.Count);
         foreach (var row in snapshot.Recipes)
         {
-            var definition = row?.Recipe?.DefName ?? "";
-            if (row is null || row.Recipe is null || !BridgeFunctions.IsValidId(definition) || names.Contains(definition))
-            {
-                throw BridgeFunctions.Contract("invalid gear recipe identity");
-            }
-            names.Add(definition);
+            var definition = row.Recipe?.DefName ?? "";
             var role = catalog.RecipeRoleOf(definition);
             var available = row.AvailableNow is { } now ? Fact.Known(now) : Fact.Unknown<bool>();
             var availableOn = row.AvailableOnBench is { } onBench ? Fact.Known(onBench) : Fact.Unknown<bool>();
@@ -274,10 +210,6 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>gearBillsFromStack</c>.</summary>
     private static List<P.GearBill> GearBillsFromStack(PbObservations.BillStackRow stack, string benchDef, List<P.GearRecipe> recipes, IGearRecipeCatalog catalog)
     {
-        if (stack.Bills.Count > GearMaxBills)
-        {
-            throw BridgeFunctions.Contract("bill stack exceeds bound");
-        }
         var products = new Dictionary<string, EquatableArray<P.Resource>>(StringComparer.Ordinal);
         var kinds = new Dictionary<string, P.LedgerBillKind>(StringComparer.Ordinal);
         foreach (var recipe in recipes)
@@ -288,11 +220,7 @@ internal sealed partial class FacadeNativeClient
         var bills = new List<P.GearBill>(stack.Bills.Count);
         foreach (var bill in stack.Bills)
         {
-            var recipeName = bill?.Recipe?.DefName ?? "";
-            if (bill is null || bill.Recipe is null || !BridgeFunctions.IsValidId(recipeName))
-            {
-                throw BridgeFunctions.Contract("invalid gear bill identity");
-            }
+            var recipeName = bill.Recipe?.DefName ?? "";
             var role = catalog.RecipeRoleOf(recipeName);
             // An unrestricted bill carries no worker reference.
             products.TryGetValue(recipeName, out var billProducts);
@@ -304,7 +232,7 @@ internal sealed partial class FacadeNativeClient
                     Recipe = recipeName,
                     Role = role,
                     Active = bill.Suspended is not null && bill.Finished is not null ? Fact.Known(!bill.Suspended.GetValueOrDefault() && !bill.Finished.GetValueOrDefault()) : Fact.Unknown<bool>(),
-                    Worker = BridgeFunctions.OptionalRef(bill.Worker) ? Fact.Known(bill.Worker?.Id ?? "") : Fact.Unknown<string>(),
+                    Worker = Fact.Known(bill.Worker?.Id ?? ""),
                     Products = billProducts,
                     Spent = bill.Finished.GetValueOrDefault(),
                     Kind = bill.BillClass == "Bill_GovernorRecipe" ? P.LedgerBillKind.ActivityExecution : billKind,
@@ -358,7 +286,7 @@ internal sealed partial class FacadeNativeClient
             BenchKind = benchDef,
             Mode = mode,
             Target = target,
-            Worker = BridgeFunctions.OptionalRef(bill.Worker) ? bill.Worker?.Id ?? "" : "",
+            Worker = bill.Worker?.Id ?? "",
             Ingredients = bill.DefaultIngredients.GetValueOrDefault() ? default : EquatableArray.From(bill.IngredientFilter?.AllowedDefNames ?? default),
         };
         return Fact.Known(spec);

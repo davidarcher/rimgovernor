@@ -47,7 +47,6 @@ namespace HomeBridge.BridgeTools
                     return Fail(FailureCode.CapacityExhausted, "Native preview exceeds bounded collections.", context);
                 var wire = new Wire.PlacementEvaluated {
                     CanPlace = value.canPlace, MadeFromStuff = value.madeFromStuff,
-                    Passability = Passability(value.passability), IsDoor = value.isDoor,
                     ResearchFinished = value.researchFinished, BuildableByPlayer = value.buildableByPlayer
                 };
                 foreach (var cost in value.costList)
@@ -121,16 +120,6 @@ namespace HomeBridge.BridgeTools
                 case PlacementFailureKind.Unsupported: return FailureCode.Unsupported;
                 case PlacementFailureKind.CapacityExceeded: return FailureCode.CapacityExhausted;
                 default: return FailureCode.Unavailable;
-            }
-        }
-        private static Wire.Passability Passability(string value)
-        {
-            switch (value)
-            {
-                case "Standable": return Wire.Passability.Standable;
-                case "PassThroughOnly": return Wire.Passability.PassThroughOnly;
-                case "Impassable": return Wire.Passability.Impassable;
-                default: throw new InvalidOperationException("Unknown native passability.");
             }
         }
         private static Wire.Rotation Cardinal(string value)

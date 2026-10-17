@@ -78,7 +78,7 @@ namespace HomeBridge.BridgeTools
                 var snapshot = new Obs.ResourceSourcesSnapshot { Context = context, Resource = parsed.Resource,
                     Storage = Storage(map, definition) };
                 var reserved = cheap ? new HashSet<Thing>(map.reservationManager.AllReservedThings()) : null;
-                foreach (var thing in ordered) snapshot = snapshot with { Sources = [.. snapshot.Sources, Project(thing, map, distances[thing], context, buried.Contains(thing), reserved)] };
+                foreach (var thing in ordered) snapshot = snapshot with { Sources = [.. snapshot.Sources, Project(thing, distances[thing], buried.Contains(thing), reserved)] };
                 return new Obs.ResourceSourcesReply { Outcome = snapshot };
             }
             catch (Exception) { return new Obs.ResourceSourcesReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Resource sources could not be read completely.") }; }
@@ -149,7 +149,7 @@ namespace HomeBridge.BridgeTools
                 .SelectMany(g => g.CellsList).Distinct().Where(Protected).Sum(Slots) * def.stackLimit;
         }
 
-        private static Obs.ResourceSource Project(Thing thing, Map map, double distance, Common.ObservationContext context, bool buried, HashSet<Thing>? reserved)
+        private static Obs.ResourceSource Project(Thing thing, double distance, bool buried, HashSet<Thing>? reserved)
         {
             var mineable = thing is Mineable;
             var row = new Obs.ResourceSource
@@ -163,15 +163,12 @@ namespace HomeBridge.BridgeTools
                 Safety = ResourceAcquisitionTools.Safety(thing, thing.Map),
                 Distance = distance,
             };
-            // Only mine sources carry a snapshot token (the routine reads it as
-            // the source row's identity); harvest/hunt sources come from the
+            // Only mine sources carry a cell; harvest/hunt sources come from the
             // AcquisitionFacts census, which carries its own.
-            if (thing is Mineable rock) { row = row with { SourceSnapshot = NativeMineAcquisition.Snapshot(rock, context) }; row = row with { Cell = new RimGovernor.Contracts.Wire.Common.Cell { X = rock.Position.x, Z = rock.Position.z } }; }
             if (mineable)
             {
+                row = row with { Cell = new RimGovernor.Contracts.Wire.Common.Cell { X = thing.Position.x, Z = thing.Position.z } };
                 row = row with { Taken = ResourceAcquisitionTools.Taken(thing, reserved) };
-                var tick = ResourceAcquisitionTools.DesignatedTick(thing, row.Designated.GetValueOrDefault());
-                if (tick.HasValue) row = row with { DesignatedTick = tick.Value };
             }
             return row;
         }

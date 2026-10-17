@@ -90,7 +90,6 @@ public static partial class ObservationPackage
             throw new BridgeRefusedException();
         }
         var v = reply.Outcome?.Observed ?? throw new ObservationContractException("missing colony facts");
-        BridgeFunctions.ValidateColonyFacts(v, new C.Identity { ColonyId = expected.Colony.Value, LoadToken = expected.Load.Value, MapId = expected.Map.Value });
         var identity = ContextIdentity(v.Context);
         // The colony facts row may come from the step's fact cache at any earlier tick; only another generation
         // changes its world.
@@ -111,7 +110,7 @@ public static partial class ObservationPackage
         r = r with
         {
             FoodChannels = ColonyFoodChannels(v.FoodChannels, tables.Pawns, races),
-            DeliveryLedger = ColonyDeliveryLedger(v.DeliveryLedger, v.Context?.Tick ?? 0),
+            DeliveryLedger = ColonyDeliveryLedger(v.DeliveryLedger),
             DeepResources = ColonyDeepResources(v.DeepResources, catalog),
             Policies = ColonyPolicies(v.Policies),
         };

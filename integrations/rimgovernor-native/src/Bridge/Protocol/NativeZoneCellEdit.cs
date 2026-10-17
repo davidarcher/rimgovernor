@@ -51,7 +51,7 @@ namespace HomeBridge.BridgeTools
             Valid(intent) ? RefIndex.Zone(map, (intent!.Zone?.Id ?? "")) is Zone z && z.Cells.Count > 0 ? z : null : null;
 
         private static IntVec3[] Requested(Operations.ZoneIntent intent) =>
-            NativeZoneIntent.EditCells(intent)?.Selection?.ExplicitCells?.Cells.Select(c => new IntVec3(c.X.GetValueOrDefault(), 0, c.Z.GetValueOrDefault())).ToArray() ?? Array.Empty<IntVec3>();
+            NativeZoneIntent.EditCells(intent)?.Selection?.ExplicitCells?.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray() ?? Array.Empty<IntVec3>();
 
         private static bool Standing(Operations.ZoneIntent? intent, Zone? zone) =>
             zone != null && (NativeZoneIntent.Adding(intent!) ? Requested(intent!).All(zone.Cells.Contains) : !Requested(intent!).Any(zone.Cells.Contains));

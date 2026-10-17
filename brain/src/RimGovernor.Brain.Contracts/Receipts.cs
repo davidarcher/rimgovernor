@@ -192,7 +192,7 @@ public sealed record Receipt
 
     public Common.ObservationContext? AdmittedContext { get; init; }
 
-    public ReceiptOutcome? Outcome { get; init; }
+    public ReceiptOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="Receipt"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -654,7 +654,7 @@ public sealed record FieldResult
 {
     public SettingsField? Field { get; init; }
 
-    public FieldOutcome? Outcome { get; init; }
+    public FieldOutcome Outcome { get; init; }
 
     public string? Reason { get; init; }
 
@@ -875,7 +875,7 @@ public sealed record AbilityEffect
 {
     public string? PawnId { get; init; }
 
-    public AbilityEffectOutcome? Outcome { get; init; }
+    public AbilityEffectOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="AbilityEffect"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -1116,7 +1116,7 @@ public sealed record InFlight
 
 public sealed record LookupReply
 {
-    public LookupReplyOutcome? Outcome { get; init; }
+    public LookupReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="LookupReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>

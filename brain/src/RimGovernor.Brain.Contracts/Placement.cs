@@ -24,19 +24,6 @@ public enum Rotation
     All = 5,
 }
 
-[JsonConverter(typeof(WireEnumConverter<Passability>))]
-public enum Passability
-{
-    [WireName("PASSABILITY_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("PASSABILITY_STANDABLE")]
-    Standable = 1,
-    [WireName("PASSABILITY_PASS_THROUGH_ONLY")]
-    PassThroughOnly = 2,
-    [WireName("PASSABILITY_IMPASSABLE")]
-    Impassable = 3,
-}
-
 public sealed record PlacementRequest
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlacementCandidate>))]
@@ -70,7 +57,7 @@ public sealed record PlacementCandidate
 
 public sealed record PlacementReply
 {
-    public PlacementReplyOutcome? Outcome { get; init; }
+    public PlacementReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="PlacementReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -108,7 +95,7 @@ public sealed record PlacementBatch
 
 public sealed record CandidateReply
 {
-    public CandidateReplyOutcome? Outcome { get; init; }
+    public CandidateReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="CandidateReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -141,10 +128,6 @@ public sealed record PlacementEvaluated
     public bool? CanPlace { get; init; }
 
     public bool? MadeFromStuff { get; init; }
-
-    public Passability? Passability { get; init; }
-
-    public bool? IsDoor { get; init; }
 
     public bool? ResearchFinished { get; init; }
 

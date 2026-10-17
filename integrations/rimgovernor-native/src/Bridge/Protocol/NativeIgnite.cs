@@ -22,8 +22,8 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.IgniteIntent? intent, Common.ObservationContext context, out Pawn? pawn, out IntVec3 cell)
         {
             pawn = null; cell = IntVec3.Invalid;
-            if (intent == null || intent.PawnId is null || !ProtoBoundary.IsIdentifier(intent.PawnId) || intent.Cell == null || intent.Cell.X is null || intent.Cell.Z is null
-                || intent.Cell.X.GetValueOrDefault() < 0 || intent.Cell.Z.GetValueOrDefault() < 0)
+            if (intent == null || intent.PawnId is null || !ProtoBoundary.IsIdentifier(intent.PawnId) || intent.Cell == null
+                || intent.Cell.X < 0 || intent.Cell.Z < 0)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An ignite requires a pawn id and a target cell.");
             var map = ProtoBoundary.LoadedMap(context);
             var found = map.mapPawns.FreeColonistsSpawned.ById(intent.PawnId);
@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
             var verb = found.equipment?.PrimaryEq?.PrimaryVerb;
             if ((verb as Verb_LaunchProjectile)?.Projectile?.projectile?.ai_IsIncendiary != true)
                 return Refuse("molotov", "The colonist holds no molotov in the primary slot.");
-            cell = new IntVec3(intent.Cell.X.GetValueOrDefault(), 0, intent.Cell.Z.GetValueOrDefault());
+            cell = new IntVec3(intent.Cell.X, 0, intent.Cell.Z);
             if (!cell.InBounds(map)) return Refuse("cell", "The cell is off the map.");
             var room = cell.GetRoom(map);
             if (room == null) return Refuse("room", "The cell is in no room.");

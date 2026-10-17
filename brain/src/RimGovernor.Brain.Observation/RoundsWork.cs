@@ -264,9 +264,9 @@ public static partial class ObservationPackage
         if (t.Target?.Entity is { } e)
         {
             var target = new JobTarget { Thing = e.Id ?? "" };
-            if (at is { X: not null, Z: not null })
+            if (at is not null)
             {
-                target = target with { Cell = Known(new Cell(at.X.GetValueOrDefault(), at.Z.GetValueOrDefault())) };
+                target = target with { Cell = Known(new Cell(at.X, at.Z)) };
             }
             if (target.Thing.Length == 0 && !target.Cell.TryGetValue(out _))
             {
@@ -274,9 +274,9 @@ public static partial class ObservationPackage
             }
             return Known(target);
         }
-        if (t.Target?.Cell is { X: not null, Z: not null } c)
+        if (t.Target?.Cell is { } c)
         {
-            return Known(new JobTarget { Cell = Known(new Cell(c.X.GetValueOrDefault(), c.Z.GetValueOrDefault())) });
+            return Known(new JobTarget { Cell = Known(new Cell(c.X, c.Z)) });
         }
         if (t.Target?.Unavailable is not null)
         {

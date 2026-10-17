@@ -408,7 +408,6 @@ public sealed partial class RoundsTradePlanner
         }
         try
         {
-            BridgeApi.ValidateColonyFacts(observed, identity);
             Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)

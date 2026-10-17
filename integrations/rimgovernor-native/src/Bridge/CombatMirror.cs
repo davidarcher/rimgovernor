@@ -302,7 +302,6 @@ namespace HomeBridge.BridgeTools
             try
             {
                 row = row with { Health = Step(pawn.health.summaryHealth.SummaryHealthPercent, 0.01) };
-                row = row with { BleedRate = Step(pawn.health.hediffSet.BleedRateTotal, 0.05) };
                 row = row with { Pain = Step(pawn.health.hediffSet.PainTotal, 0.05) };
                 row = row with { MoveSpeed = Step(pawn.GetStatValue(StatDefOf.MoveSpeed), 0.1) };
                 row = row with { MeleePower = Step(pawn.GetStatValue(StatDefOf.MeleeDPS), 0.1) };

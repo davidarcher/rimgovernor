@@ -229,14 +229,14 @@ The definition catalog reply (`DefinitionCatalog` in `Observations.cs`) no longe
 constants. The brain's `DefinitionCatalog` (`Bridge/Catalog`) is built in the mod over the game's own `Def` objects
 (`NativeCatalogFactory.Create`, installed as `BrainCompositionOptions.CatalogFactory`; see
 [brain-host](../../docs/developers/architecture/brain-host.md)), and the wire catalog supplies only what the game
-computes in code: `derived` (`CatalogDerived`), `stat_env` (`StatEnv`), `class_chains`, `thing_facts`, the
+computes in code: `derived` (`CatalogDerived`), `class_chains`, the
 Biotech block and the `fingerprint`. A catalog read sends `held_fingerprint`; a reply with the same
 fingerprint carries only the per-load fields.
 
-`DefinitionCatalog.derived` holds the facts no const carries. `currency_def` is `ThingDefOf.Silver`: the
-def `Tradeable.IsCurrency` tests, which the brain reads as `ItemFacts.Currency` (the
-census coin; an empty value or a def with no row is refused). `wort_def` is
-`ThingDefOf.Wort`. `full_rot_rate_c` is the temperature at which
+The brain catalog's currency (`ThingDefOf.Silver`, the def `Tradeable.IsCurrency` tests, read as
+`ItemFacts.Currency`; an empty value or a def with no row is refused) and wort (`ThingDefOf.Wort`) def names
+ride no wire field: the in-process `NativeCatalogFactory` reads them from `ThingDefOf` when it builds the catalog.
+`DefinitionCatalog.derived` holds `full_rot_rate_c`, the temperature at which
 `GenTemperature.RotRateAtTemperature` first reaches its full rate of 1: its
 curve is literals inside the game function, so native bisects the function
 itself and throws naming it when the rate never reaches 1 or is not finite; the brain
@@ -246,8 +246,7 @@ and the preventive drug are not constants: `ItemFacts` derives them from the
 `CompProperties_Drug`, `ChemicalDef` and `HediffDef` rows. There is no plant-glow constant: each
 def carries `growMinGlow`.
 
-The catalog read validates the context, a present `derived`, and the thing-facts rows (a missing or repeated def
-name is a contract error); the brain refuses a non-positive or nonfinite constant it reads. Catalogs are cached
+The catalog read validates the context and a present `derived`; the brain refuses a non-positive or nonfinite constant it reads. Catalogs are cached
 per load token.
 
 `DefinitionCatalog.class_chains` (`ClassChain`) carries the base classes
@@ -268,13 +267,6 @@ condition class cannot be read.
 Stat reads go through the load's def stat table (`DefStatTable`, [stat evaluation](../../docs/developers/contracts/stat-classes.md)):
 the mod computes it from the game's own StatWorker/StatPart code in one game-thread pass during this read, so no
 stat value, allowed stuff or adjusted cost list travels in the catalog.
-`DefinitionCatalog.stat_env` (`StatEnv`) carries the game state a stat read needs beyond the rows, once per
-load: the active mod package ids (lower case), classic mode, the scenario's
-stat factors (`Scenario.GetStatFactor` of every StatDef whose factor is not 1)
-and the storyteller difficulty (butcher and fishing yield factors and the
-public bool fields, which `CostListForDifficulty.difficultyVar` names). It
-rides in the catalog read, so a difficulty changed mid-load is read at the next
-load.
 
 `DefinitionCatalog.StatValue(def, stuff, stat)`, `ShownStatValue`,
 `AdjustedCosts(def, stuff)` (`ThingDef.CostListAdjusted`: stuff volume and
@@ -288,21 +280,12 @@ reads of every `ThingDef` and the game hides for a def that does not set it,
 is read whether shown or not. The `EvaluateStat` read stays as the parity oracle: the
 `stats/evaluate-stat` acceptance case compares the catalog's answer with the
 game's own.
-### Game-computed ThingDef flags
+### Game-computed race facts
 
-`DefinitionCatalog.thing_facts` (`ThingDefFacts`) is one row for every
-ThingDef: what the game's own code says about the def, computed natively once
-per load and read by the brain, never ported. `food_kind` is set for a food a policy
-can allow (a nutrition-giving ingestible that is no drug and no corpse): meal
-tier by `FoodPreferability`, then kibble, hay, meat by
-`FoodUtility.GetMeatSourceCategory`, `IsFungus`, `IsAnimalProduct`, a
-vegetable or fruit food type, else other; `meal_ingredients` is set on meals
-only (`FoodUtility.GetFoodKind`). `raw_meat` is `ThingDef.IsMeat` and
-`medicine` is `ThingDef.IsMedicine`. `DefinitionCatalog.Foods`, `RawMeat` and
-`Medicine` read them; a def without a row, a row for an unknown or repeated
-def, an unknown kind or ingredients value, and ingredients off a meal (or a
-meal without them) are contract errors. A frame carries no copy: the food
-stock, upkeep item and policy facts name only the thing and its instance data.
+What the game's own race code says about each race (`RaceGameFacts`: the foods `RaceProperties.CanEverEat`
+accepts, tameness decay, the wildness tame-chance factor and the adult feed per day) rides no wire field: the
+definition catalog read computes it on the game thread once per load (`NativeRaceFacts.EnsureForLoad`, beside the
+stat table) and `NativeCatalogFactory.Create` hands it to the brain catalog.
 
 ### Joy buildings
 
@@ -346,8 +329,7 @@ There is no race read. The definition
 catalog's `ThingDef` rows carry every race's whole `RaceProperties` and its
 comps, `PawnKindDef` rows the combat power, and the stat table the race's
 carrying capacity, wildness, market value and minimum handling skill. What only
-the game's own race code can say rides the race's `ThingDefFacts.race`
-(`RaceFacts`): `animal` (`RaceProperties.Animal`), `mechanoid`
+the game's own race code can say rides the race's `RaceGameFacts` (published in process, not on the wire): `animal` (`RaceProperties.Animal`), `mechanoid`
 (`IsMechanoid`), `insect` (`Insect`), the `trainables` the race can ever learn
 (`Pawn_TrainingTracker.CanAssignToTrain`'s race rules) and the `edible_defs`
 (`RaceProperties.CanEverEat`, over the foods the facts mark). the brain catalog
@@ -543,7 +525,7 @@ the Odyssey section today.
 
 ## Room-role furniture
 
-`ThingDefFacts.room_roles` lists the roles the game's code
+The brain catalog lists the roles the game's code
 names a building definition for, sorted: `Toy`, `Decoration`, `Board` and `Desk`
 (its `ThingDefOf` toy box, baby decoration, blackboard and school desk, the rows
 its baby and school jobs name). The brain derives the other two from the def rows:

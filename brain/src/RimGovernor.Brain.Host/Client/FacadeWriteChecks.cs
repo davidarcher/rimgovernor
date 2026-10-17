@@ -27,16 +27,6 @@ internal sealed class FacadeSaveUncertainException(PbLifecycle.SaveUncertain val
 /// <summary>The shared validation helpers of the write paths (actions, rules, clock, authority focus, lifecycle save).</summary>
 internal static class FacadeWriteChecks
 {
-    /// <summary>Go <c>buildingContext(value, identity, generation, exact)</c> (write_contract.go).</summary>
-    internal static void WriteContext(PbCommon.ObservationContext? value, PbCommon.Identity? identity, ulong generation, bool exact)
-    {
-        if (!BridgeFunctions.SameIdentity(value!.Identity, identity)
-            || (exact && (value.NativeGeneration is null || value.NativeGeneration.GetValueOrDefault() != generation)))
-        {
-            throw BridgeFunctions.Contract("building context mismatch");
-        }
-    }
-
     /// <summary>Go <c>authorityRequest</c>: a valid identity and a positive generation.</summary>
     internal static void WriteAuthorityRequest(PbCommon.Identity? identity, ulong? generation)
     {
@@ -48,24 +38,20 @@ internal static class FacadeWriteChecks
     }
 
     /// <summary>
-    /// Go <c>clockStatusReply</c>: the status of a status reply, after the typed failure and unavailable arms are
-    /// turned into the exceptions Go returned and the status itself is validated.
+    /// Go <c>clockStatusReply</c>: the status of a status reply, after the typed failure arm and an unavailable status
+    /// are turned into the exceptions Go returned.
     /// </summary>
-    internal static PbClock.Status ClockStatusReply(PbClock.StatusReply reply, PbCommon.Identity? identity)
+    internal static PbClock.Status ClockStatusReply(PbClock.StatusReply reply)
     {
-        switch (reply.Outcome)
+        if (reply.Outcome.Failure is { } failure)
         {
-            case PbClock.StatusReplyOutcome.FailureCase { Value: var failure }:
-                throw FacadeNativeClient.Failure(failure);
-            case PbClock.StatusReplyOutcome.StatusCase { Value: var status }:
-                BridgeFunctions.ClockStatus(status, identity);
-                if (status.Unavailable is { } unavailable)
-                {
-                    throw FacadeNativeClient.Unavailable(unavailable);
-                }
-                return status;
-            default:
-                throw BridgeFunctions.Contract("missing clock status outcome");
+            throw FacadeNativeClient.Failure(failure);
         }
+        var status = reply.Outcome.Status!;
+        if (status.Unavailable is { } unavailable)
+        {
+            throw FacadeNativeClient.Unavailable(unavailable);
+        }
+        return status;
     }
 }

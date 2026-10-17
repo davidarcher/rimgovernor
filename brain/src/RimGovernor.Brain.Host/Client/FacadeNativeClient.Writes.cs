@@ -10,8 +10,8 @@ internal sealed partial class FacadeNativeClient
 
     /// <summary>
     /// Go <c>AuthorityControl.FocusMap</c>: changes only the viewed loaded map under the trusted control CAS. A
-    /// typed refusal throws <see cref="NativeFailureException"/>; a reply that does not prove the focus throws
-    /// <see cref="FacadeAuthorityUncertainException"/>.
+    /// typed refusal throws <see cref="NativeFailureException"/>; a facade call that throws
+    /// surfaces as <see cref="FacadeAuthorityUncertainException"/>.
     /// </summary>
     internal async Task<PbAuthority.ControlReply> FocusMapAsync(PbAuthority.FocusMap request, CancellationToken cancellationToken)
     {
@@ -33,38 +33,9 @@ internal sealed partial class FacadeNativeClient
         {
             throw new FacadeAuthorityUncertainException(e, NoReceipt);
         }
-        try
+        if (reply.Outcome.Failure is { } failure)
         {
-            if (reply.Outcome is PbAuthority.ControlReplyOutcome.FailureCase { Value: var failure })
-            {
-                if (Failure(failure) is BridgeRefusedException refused)
-                {
-                    throw refused;
-                }
-            }
-            else
-            {
-                var focused = reply.Outcome?.FocusedMap ?? throw BridgeFunctions.Contract("focus-map requires focused reply");
-                var expected = request.ExpectedGeneration.GetValueOrDefault();
-                if (!BridgeFunctions.SameIdentity(request.Identity, request.Target))
-                {
-                    expected++;
-                }
-                if (!BridgeFunctions.SameIdentity(focused.Context!.Identity, request.Target)
-                    || focused.Context.NativeGeneration is null
-                    || focused.Context.NativeGeneration.GetValueOrDefault() != expected)
-                {
-                    throw BridgeFunctions.Contract("focus-map context mismatch");
-                }
-            }
-        }
-        catch (BridgeRefusedException)
-        {
-            throw;
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new FacadeAuthorityUncertainException(e, NoReceipt);
+            throw Failure(failure);
         }
         return reply;
     }
@@ -78,11 +49,7 @@ internal sealed partial class FacadeNativeClient
     {
         LifecycleSaveValidateRequest(request);
         var reply = await Facade.SaveGameAsync(request, cancellationToken).ConfigureAwait(false);
-        LifecycleSaveInterpret(reply, request.Player!.RequestId);
-        if (reply.Outcome is PbLifecycle.SaveReplyOutcome.CompletedCase { Value: var completed })
-        {
-            LifecycleSaveValidateCompleted(completed, request);
-        }
+        LifecycleSaveInterpret(reply);
         return reply;
     }
 
@@ -97,32 +64,20 @@ internal sealed partial class FacadeNativeClient
             throw BridgeFunctions.Contract("read save requires a request id");
         }
         var reply = await Facade.PollSaveAsync(new PbLifecycle.RequestStatus { RequestId = requestId }, cancellationToken).ConfigureAwait(false);
-        LifecycleSaveInterpret(reply, requestId);
+        LifecycleSaveInterpret(reply);
         return reply;
     }
 
-    /// <summary>Go <c>interpretSaveOutcome</c>: validates a SaveReply's shape and throws the typed error for an uncertain or failed one.</summary>
-    private static void LifecycleSaveInterpret(PbLifecycle.SaveReply reply, string? requestId)
+    /// <summary>Go <c>interpretSaveOutcome</c>: throws the typed error for an uncertain or failed save.</summary>
+    private static void LifecycleSaveInterpret(PbLifecycle.SaveReply reply)
     {
-        switch (reply.Outcome)
+        if (reply.Outcome.Uncertain is { } uncertain)
         {
-            case PbLifecycle.SaveReplyOutcome.CompletedCase { Value: var completed }:
-                if (completed.RequestId is null || (requestId is not null && completed.RequestId != requestId))
-                {
-                    throw BridgeFunctions.Contract("completed save request id mismatch");
-                }
-                break;
-            case PbLifecycle.SaveReplyOutcome.UncertainCase { Value: var uncertain }:
-                if (uncertain.RequestId is null
-                    || (requestId is not null && uncertain.RequestId != requestId))
-                {
-                    throw BridgeFunctions.Contract("invalid save uncertain");
-                }
-                throw new FacadeSaveUncertainException(uncertain, NoReceipt);
-            case PbLifecycle.SaveReplyOutcome.FailureCase { Value: var failure }:
-                throw Failure(failure);
-            default:
-                throw BridgeFunctions.Contract("save outcome missing");
+            throw new FacadeSaveUncertainException(uncertain, NoReceipt);
+        }
+        if (reply.Outcome.Failure is { } failure)
+        {
+            throw Failure(failure);
         }
     }
 
@@ -149,61 +104,6 @@ internal sealed partial class FacadeNativeClient
         if (request.ExpectedTick is not null && request.ExpectedTick.GetValueOrDefault() < 0)
         {
             throw BridgeFunctions.Contract("save request expected tick must be non-negative");
-        }
-    }
-
-    /// <summary>Go <c>validateSaveCompleted</c>.</summary>
-    private static void LifecycleSaveValidateCompleted(PbLifecycle.SaveCompleted completed, PbLifecycle.SaveRequest request)
-    {
-        if (!BridgeFunctions.SameIdentity(completed.Context!.Identity, request.Player!.Identity))
-        {
-            throw BridgeFunctions.Contract("completed save identity mismatch");
-        }
-        if (completed.Paused is null || !completed.Paused.GetValueOrDefault())
-        {
-            throw BridgeFunctions.Contract("completed save must report native paused");
-        }
-        if (completed.RequestId is null || completed.RequestId != (request.Player.RequestId ?? ""))
-        {
-            throw BridgeFunctions.Contract("completed save request id mismatch");
-        }
-        if (completed.SaveName is null || completed.SaveName != (request.SaveName ?? ""))
-        {
-            throw BridgeFunctions.Contract("completed save name mismatch");
-        }
-        if (completed.PlayerDirection is null || completed.PlayerDirection.GetValueOrDefault() != request.Player.PlayerDirection.GetValueOrDefault())
-        {
-            throw BridgeFunctions.Contract("completed save direction mismatch");
-        }
-        if (request.ExpectedTick is not null && completed.Context.Tick != request.ExpectedTick.GetValueOrDefault())
-        {
-            throw BridgeFunctions.Contract("completed save tick moved");
-        }
-    }
-
-    private static bool WritesIdentityIsValid(PbCommon.Identity? identity)
-    {
-        try
-        {
-            return true;
-        }
-        catch (BridgeContractException)
-        {
-            return false;
-        }
-    }
-
-    /// <summary>Go <c>buildingContext(value, identity, 0, false) == nil</c>: a valid context of the identity's world.</summary>
-    private static bool WritesContextMatches(PbCommon.ObservationContext? context, PbCommon.Identity identity)
-    {
-        try
-        {
-            FacadeWriteChecks.WriteContext(context, identity, 0, false);
-            return true;
-        }
-        catch (BridgeContractException)
-        {
-            return false;
         }
     }
 }

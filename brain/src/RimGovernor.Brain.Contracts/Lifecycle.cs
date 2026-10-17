@@ -3,19 +3,6 @@ using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Contracts.Wire.Lifecycle;
 
-[JsonConverter(typeof(WireEnumConverter<CapabilitySupport>))]
-public enum CapabilitySupport
-{
-    [WireName("CAPABILITY_SUPPORT_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("CAPABILITY_SUPPORT_SUPPORTED")]
-    Supported = 1,
-    [WireName("CAPABILITY_SUPPORT_UNAVAILABLE")]
-    Unavailable = 2,
-    [WireName("CAPABILITY_SUPPORT_UNSUPPORTED")]
-    Unsupported = 3,
-}
-
 [JsonConverter(typeof(WireEnumConverter<Readiness>))]
 public enum Readiness
 {
@@ -102,31 +89,16 @@ public enum NewColonyPhase
 
 public sealed record IdentityRequest;
 
-/// <summary>
-/// Descriptor names identify a fixed generated method; they are never dispatch arguments.
-/// </summary>
-public sealed record Capability
-{
-    public string? FullMethodName { get; init; }
-
-    public CapabilitySupport? Support { get; init; }
-
-    public string? Detail { get; init; }
-}
-
 public sealed record LoadedIdentity
 {
     public Common.ObservationContext? Context { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Capability>))]
-    public EquatableArray<Capability> Capabilities { get; init; }
 
     public bool? Paused { get; init; }
 }
 
 public sealed record IdentityReply
 {
-    public IdentityReplyOutcome? Outcome { get; init; }
+    public IdentityReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="IdentityReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -165,8 +137,8 @@ public abstract record IdentityReplyOutcome
 
 /// <summary>
 /// ReadTick is the bare observation scope: the context and pause state
-/// ReadIdentity reports, without its capability list, for callers that only
-/// need the current load, map, tick and generation.
+/// ReadIdentity reports, for callers that only need the current load, map,
+/// tick and generation.
 /// </summary>
 public sealed record TickRequest;
 
@@ -201,7 +173,7 @@ public sealed record LoadedTick
 
 public sealed record TickReply
 {
-    public TickReplyOutcome? Outcome { get; init; }
+    public TickReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="TickReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -287,7 +259,7 @@ public sealed record SaveUncertain
 
 public sealed record SaveReply
 {
-    public SaveReplyOutcome? Outcome { get; init; }
+    public SaveReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="SaveReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -376,7 +348,7 @@ public sealed record LoadSuperseded
 
 public sealed record LoadReply
 {
-    public LoadReplyOutcome? Outcome { get; init; }
+    public LoadReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="LoadReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -461,7 +433,7 @@ public sealed record MenuPending
 
 public sealed record MenuReply
 {
-    public MenuReplyOutcome? Outcome { get; init; }
+    public MenuReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="MenuReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -706,7 +678,7 @@ public sealed record NewColonySuperseded
 
 public sealed record NewColonyReply
 {
-    public NewColonyReplyOutcome? Outcome { get; init; }
+    public NewColonyReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="NewColonyReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -766,7 +738,7 @@ public sealed record GovernorStateBlobs
 
 public sealed record GovernorStateReply
 {
-    public GovernorStateReplyOutcome? Outcome { get; init; }
+    public GovernorStateReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="GovernorStateReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -836,7 +808,7 @@ public sealed record SaveSignalTimeout;
 
 public sealed record WaitSaveSignalReply
 {
-    public WaitSaveSignalReplyOutcome? Outcome { get; init; }
+    public WaitSaveSignalReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="WaitSaveSignalReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -878,7 +850,7 @@ public sealed record FlushDoneAcked;
 
 public sealed record FlushDoneReply
 {
-    public FlushDoneReplyOutcome? Outcome { get; init; }
+    public FlushDoneReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="FlushDoneReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>

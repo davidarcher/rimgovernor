@@ -279,7 +279,7 @@ public static class Boundary
                 output[i].Kind = Domain.Receipt.Accepted;
                 if (placements[i].Action.Kind == ActionKind.CombatBatch)
                 {
-                    foreach (var r in BridgeApi.CombatOrderResults(appliedReceipt, actions[i].Intent?.CombatOrders ?? throw new EvidenceException()))
+                    foreach (var r in BridgeApi.CombatOrderResults(appliedReceipt))
                     {
                         RecordCombatOrder(r);
                         output[i].Combat.Add(new CombatResult { Index = r.Index, PawnId = r.PawnId, Applied = r.Applied, Refusal = r.Refusal, JobDef = r.JobDef });
@@ -296,11 +296,11 @@ public static class Boundary
                             var cells = new List<Cell>();
                             foreach (var c in row.Cells)
                             {
-                                if (c is null || c.X is not { } cellX || c.Z is not { } cellZ)
+                                if (c is null)
                                 {
                                     throw new EvidenceException();
                                 }
-                                cells.Add(new Cell(cellX, cellZ));
+                                cells.Add(new Cell(c.X, c.Z));
                             }
                             output[i].Stockpiles.Add(new Domain.CreatedZone(row.ZoneId ?? "", cells));
                         }

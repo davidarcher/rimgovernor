@@ -5,10 +5,9 @@ namespace RimGovernor.Brain.Host;
 
 // Go protobuf.go (Identity, Tick, Status), colony.go (ReadColonyFacts, ColonyFactsRequest) and step.go (ReadStep).
 //
-// Identity, Tick, Status and ReadColonyFacts hand back the whole reply and leave a well-formed failure or unavailable
-// arm in it: the consumers (the clock coordinator's cleanup, the Decode* helpers) read the arm themselves, as they did
-// from Go's (reply, error) pair where the error only carried the arm. A reply that is malformed, and an arm whose
-// payload is malformed, still throw the contract error.
+// Identity, Tick, Status and ReadColonyFacts hand back the whole reply and leave a failure or unavailable arm in it:
+// the consumers (the clock coordinator's cleanup, the Decode* helpers) read the arm themselves, as they did from Go's
+// (reply, error) pair where the error only carried the arm.
 internal sealed partial class FacadeNativeClient
 {
     private const string ReadColonyFactsMethod = "rimgovernor/observations_read_colony_facts";
@@ -28,61 +27,15 @@ internal sealed partial class FacadeNativeClient
         HuntPredatorMarginCells = P.PolicyFunctions.HuntPredatorMarginCells,
     };
 
-    /// <summary>Go <c>Client.Identity</c>: the loaded identity with its validated capability list.</summary>
-    internal async Task<PbLifecycle.IdentityReply> IdentityAsync(CancellationToken cancellationToken)
-    {
-        var reply = await Facade.ReadIdentityAsync(new PbLifecycle.IdentityRequest(), cancellationToken).ConfigureAwait(false);
-        var outcome = reply.Outcome;
-        if (outcome?.Loaded is { } loaded)
-        {
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var capability in loaded.Capabilities)
-            {
-                var support = capability.Support is { } value ? (int)value : 0;
-                var name = capability.FullMethodName ?? "";
-                if (support < 1 || support > 3 || !BridgeFunctions.IsValidId(name) || !seen.Add(name))
-                {
-                    throw BridgeFunctions.Contract("invalid capability");
-                }
-            }
-        }
-        else if (outcome?.Unavailable is { } unavailable)
-        {
-            BridgeFunctions.ValidateUnavailable(unavailable);
-        }
-        else if (outcome?.Failure is { } failure)
-        {
-            BridgeFunctions.ValidateFailure(failure);
-        }
-        else
-        {
-            throw BridgeFunctions.Contract(outcome is null ? "identity outcome missing" : "missing loaded identity");
-        }
-        return reply;
-    }
+    /// <summary>Go <c>Client.Identity</c>: the loaded identity.</summary>
+    internal Task<PbLifecycle.IdentityReply> IdentityAsync(CancellationToken cancellationToken) =>
+        Facade.ReadIdentityAsync(new PbLifecycle.IdentityRequest(), cancellationToken);
 
     /// <summary>
-    /// Go <c>Client.Tick</c>: the bare observation scope, the identity's context and pause state without the
-    /// capability list.
+    /// Go <c>Client.Tick</c>: the bare observation scope, the identity's context and pause state.
     /// </summary>
-    internal async Task<PbLifecycle.TickReply> TickAsync(CancellationToken cancellationToken)
-    {
-        var reply = await Facade.ReadTickAsync(new PbLifecycle.TickRequest(), cancellationToken).ConfigureAwait(false);
-        var outcome = reply.Outcome;
-        if (outcome?.Unavailable is { } unavailable)
-        {
-            BridgeFunctions.ValidateUnavailable(unavailable);
-        }
-        else if (outcome?.Failure is { } failure)
-        {
-            BridgeFunctions.ValidateFailure(failure);
-        }
-        else if (outcome?.Loaded is null)
-        {
-            throw BridgeFunctions.Contract("tick outcome missing");
-        }
-        return reply;
-    }
+    internal Task<PbLifecycle.TickReply> TickAsync(CancellationToken cancellationToken) =>
+        Facade.ReadTickAsync(new PbLifecycle.TickRequest(), cancellationToken);
 
     /// <summary>
     /// Go <c>Client.Status</c>: a status read that requests the context only (no colonists, no threats). With frames
@@ -107,66 +60,12 @@ internal sealed partial class FacadeNativeClient
                 view => new FrameLookup<bool>(false, false, view.Snapshot.Emergency is not null),
                 cancellationToken).ConfigureAwait(false);
         }
-        var reply = await Facade.ReadStatusAsync(request, cancellationToken).ConfigureAwait(false);
-        var outcome = reply.Outcome;
-        if (outcome?.Observed is { } status)
-        {
-            Exception? problem = null;
-            try
-            {
-                if (!BridgeFunctions.SameIdentity(status.Context!.Identity, identity))
-                {
-                    problem = BridgeFunctions.Contract("status identity mismatch");
-                }
-            }
-            catch (BridgeContractException invalid)
-            {
-                problem = invalid;
-            }
-            if (status.Colonists.Count != 0 || status.Threats is not null)
-            {
-                problem = BridgeFunctions.Contract("unrequested status section");
-            }
-            foreach (var issue in status.Issues)
-            {
-                if (!BridgeFunctions.IsValidId(issue.Field ?? ""))
-                {
-                    problem = BridgeFunctions.Contract("invalid read issue");
-                    break;
-                }
-                try
-                {
-                    BridgeFunctions.ValidateUnavailable(issue.Unavailable);
-                }
-                catch (BridgeContractException invalid)
-                {
-                    problem = invalid;
-                    break;
-                }
-            }
-            if (problem is not null)
-            {
-                throw problem;
-            }
-        }
-        else if (outcome?.Unavailable is { } unavailable)
-        {
-            BridgeFunctions.ValidateUnavailable(unavailable);
-        }
-        else if (outcome?.Failure is { } failure)
-        {
-            BridgeFunctions.ValidateFailure(failure);
-        }
-        else
-        {
-            throw BridgeFunctions.Contract("status outcome missing");
-        }
-        return reply;
+        return await Facade.ReadStatusAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Go <c>Client.ReadColonyFacts</c>: the colony census, from the newest frame when it carries the planning form
-    /// (the form the stream seeds the section under), else read live. Validated against the expected identity.
+    /// (the form the stream seeds the section under), else read live.
     /// </summary>
     internal async Task<PbObservations.ColonyFactsReply> ReadColonyFactsAsync(PbCommon.Identity identity, bool planning, CancellationToken cancellationToken)
     {
@@ -191,27 +90,6 @@ internal sealed partial class FacadeNativeClient
             }
         }
         reply ??= await Facade.ReadColonyFactsAsync(request, cancellationToken).ConfigureAwait(false);
-        var outcome = reply.Outcome;
-        if (outcome?.Failure is { } failure)
-        {
-            BridgeFunctions.ValidateFailure(failure);
-        }
-        else if (outcome?.Unavailable is { } unavailable)
-        {
-            BridgeFunctions.ValidateUnavailable(unavailable);
-        }
-        else if (outcome?.Observed is { } observed)
-        {
-            BridgeFunctions.ValidateColonyFacts(observed, request.Scope!.ExpectedIdentity);
-            if (observed.Planning?.Outcome?.Observed is not null && !planning)
-            {
-                throw BridgeFunctions.Contract("unrequested planning facts");
-            }
-        }
-        else
-        {
-            throw BridgeFunctions.Contract("missing colony outcome");
-        }
         return reply;
     }
 
@@ -235,18 +113,15 @@ internal sealed partial class FacadeNativeClient
     {
         var tick = await TickAsync(cancellationToken).ConfigureAwait(false);
         var outcome = tick.Outcome;
-        if (outcome?.Failure is { } tickFailure)
+        if (outcome.Failure is { } tickFailure)
         {
             throw Failure(tickFailure);
         }
-        if (outcome?.Unavailable is { } tickUnavailable)
+        if (outcome.Unavailable is { } tickUnavailable)
         {
             throw Unavailable(tickUnavailable);
         }
-        if (outcome?.Loaded is not { Paused: not null } loaded)
-        {
-            throw BridgeFunctions.Contract("step tick missing");
-        }
+        var loaded = outcome.Loaded!;
         var identity = loaded.Context!.Identity!;
         var step = new PbObservations.BundleSnapshot { Context = loaded.Context, Paused = loaded.Paused };
         if (request.ClockStatus)

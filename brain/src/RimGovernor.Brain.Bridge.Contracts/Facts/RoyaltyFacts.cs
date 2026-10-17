@@ -14,10 +14,10 @@ public static partial class BridgeFunctions
     /// Go's <c>PawnRoyaltyFacts</c>: reads each colonist's own royalty facts (the pawn row's royalty block; the
     /// ladder and permits are def rows, the neuroformers, ceremonies and thrones the colony section). A colonist
     /// with neither a holding nor a psycast is not listed. A row whose royalty read failed (ReadIssue "royalty")
-    /// or whose block is invalid throws: royalty stays unknown rather than read as empty. <paramref name="psycast"/>
-    /// is the catalog's psycast row for a def name (<c>DefinitionCatalog.Psycast</c>).
+    /// throws: royalty stays unknown rather than read as empty. <paramref name="psycast"/> is the catalog's psycast
+    /// row for a def name (<c>DefinitionCatalog.Psycast</c>).
     /// </summary>
-    /// <exception cref="BridgeContractException">A row is unread or malformed.</exception>
+    /// <exception cref="BridgeContractException">There are no pawn rows, or a row's royalty is unread.</exception>
     public static PolicyRoyaltyFacts PawnRoyaltyFacts(PawnSnapshot? pawns, Func<string, PolicyPsycast> psycast)
     {
         if (pawns is null)
@@ -39,37 +39,16 @@ public static partial class BridgeFunctions
             {
                 continue;
             }
-            if (!IsValidId(id))
-            {
-                throw Contract("invalid royalty pawn");
-            }
             var holdings = new List<PolicyRoyalHolding>(row.Holdings.Count);
             foreach (var holding in row.Holdings)
             {
-                if (!IsValidId((holding.FactionDef ?? "")) || (holding.Title is not null && !IsValidId((holding.Title ?? ""))))
-                {
-                    throw Contract("invalid royalty holding");
-                }
-                if (holding.Permits.Any(permit => !IsValidId(permit)))
-                {
-                    throw Contract("invalid royalty holding permit");
-                }
                 var cooldowns = new Dictionary<string, PolicyPermitCooldown>(StringComparer.Ordinal);
                 foreach (var cooldown in holding.PermitCooldowns)
                 {
-                    if (!IsValidId((cooldown.Permit ?? "")) || cooldown.CooldownRemainingTicks.GetValueOrDefault() < 0)
+                    cooldowns[cooldown.Permit ?? ""] = new PolicyPermitCooldown
                     {
-                        throw Contract("invalid royalty permit cooldown");
-                    }
-                    if (!cooldowns.TryAdd(
-                        (cooldown.Permit ?? ""),
-                        new PolicyPermitCooldown
-                        {
-                            RemainingTicks = OptionalInt(cooldown.CooldownRemainingTicks is not null, cooldown.CooldownRemainingTicks.GetValueOrDefault()),
-                        }))
-                    {
-                        throw Contract($"duplicate royalty permit cooldown {(cooldown.Permit ?? "")}");
-                    }
+                        RemainingTicks = OptionalInt(cooldown.CooldownRemainingTicks is not null, cooldown.CooldownRemainingTicks.GetValueOrDefault()),
+                    };
                 }
                 holdings.Add(
                     new PolicyRoyalHolding
@@ -85,20 +64,11 @@ public static partial class BridgeFunctions
             var key = new PawnId(id);
             holders[key] = EquatableArray.From(holdings);
             var casts = new List<PolicyPsycast>(row.Psycasts.Count);
-            var known = new HashSet<string>(StringComparer.Ordinal);
             foreach (var cast in row.Psycasts)
             {
-                if (!IsValidId((cast.DefName ?? "")) || !known.Add((cast.DefName ?? "")) || cast.CooldownRemainingTicks.GetValueOrDefault() < 0)
-                {
-                    throw Contract("invalid royalty psycast");
-                }
-                casts.Add(psycast((cast.DefName ?? "")) with { CooldownRemaining = OptionalInt(cast.CooldownRemainingTicks is not null, cast.CooldownRemainingTicks.GetValueOrDefault()) });
+                casts.Add(psycast(cast.DefName ?? "") with { CooldownRemaining = OptionalInt(cast.CooldownRemainingTicks is not null, cast.CooldownRemainingTicks.GetValueOrDefault()) });
             }
             psycasts[key] = EquatableArray.From(casts);
-            if (row.Psyfocus is < 0 or > 1 || row.Entropy.GetValueOrDefault() < 0 || row.EntropyMax.GetValueOrDefault() < 0)
-            {
-                throw Contract("invalid royalty psycaster state");
-            }
             casters[key] = new PolicyPsycasterState
             {
                 Psyfocus = OptionalFact(row.Psyfocus is not null, row.Psyfocus.GetValueOrDefault()),

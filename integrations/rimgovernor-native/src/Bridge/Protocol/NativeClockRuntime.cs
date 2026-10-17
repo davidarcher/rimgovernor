@@ -222,21 +222,11 @@ namespace HomeBridge.BridgeTools
             // Alerts are baselined like letters and messages, by the stable
             // key, so a count suffix moving cannot look like a new alert.
             foreach (var a in GameWatchReads.ActiveAlertKeys(AlertPriority.High, null))
-                if (s.AlertKeys.Add(a.Key)) s.BaselineAlerts.Add(AlertRow(a));
+                s.AlertKeys.Add(a.Key);
             foreach (var l in GameWatchReads.Letters()) s.Letters.Add(GameWatchReads.SafeLetterId(l));
             foreach (var m in GameWatchReads.LiveMessages()) s.Messages.Add(GameWatchReads.SafeMessageId(m));
             foreach (var p in GameWatchReads.SpawnedPawns(Find.CurrentMap).Where(GameWatchReads.SafeIsColonist))
-            {
                 s.Injuries[p.thingIDNumber] = InjurySnapshot.Capture(p);
-                var owed = InjuryCooldownRemainingMs(p.thingIDNumber, s.InjuryStopCooldownMs);
-                var acked = s.IgnoredInjured.Contains(p.thingIDNumber);
-                if (owed <= 0 && !acked) continue;
-                s.SuppressedInjuries.Add(new Dictionary<string, object?> {
-                    { "pawnId", p.thingIDNumber },
-                    { "pawnName", GameWatchReads.SafeName(p) },
-                    { "reason", owed > 0 ? "cooldown" : "acknowledged" },
-                    { "secondsRemaining", (int)((owed + 999) / 1000) } });
-            }
             _state = s;
             ClockPauseAccounting.Started(s.Session);
             ClockProbeAccounting.Started(s.Session);
@@ -369,7 +359,7 @@ namespace HomeBridge.BridgeTools
             {
                 EnsurePatched();
                 var result = new Clock.Status { Context = context, ActualPaused = Find.TickManager.Paused,
-                    ObservedSpeed = ObservedSpeed(Find.TickManager.CurTimeSpeed), NativeTickBoundary = TypedHooksReady(),
+                    NativeTickBoundary = TypedHooksReady(),
                     NewestCursor = Journal.Newest, HoldSerial = HoldSerial.Current };
                 var s = _state;
                 if (s == null || !ReferenceEquals(s.Session, Current.Game))
@@ -388,8 +378,6 @@ namespace HomeBridge.BridgeTools
                         if (s.StopAtMs.HasValue && s.PendingKind == null) result = result with { HeldAtUnixMs = s.StopAtMs.Value };
                         if (TypedOf(s).CombatEvent != Clock.CombatEvent.Unspecified) result = result with { CombatEvent = TypedOf(s).CombatEvent };
                     }
-                    foreach (var row in s.BaselineAlerts) result = result with { BaselineAlerts = [.. result.BaselineAlerts, NativeClockEventProjection.Alert(row)] };
-                    // Existing suppression baselines lack full injury before/after; report incomplete evidence, never fabricate it.
                 }
                 return result with { EffectiveTicksPerSecond = EffectiveTicksPerSecond() };
             }
@@ -449,7 +437,7 @@ namespace HomeBridge.BridgeTools
                 if (snapshot.Generation == _publishedGeneration) return;
                 _publishedGeneration = snapshot.Generation;
                 Publish("authority_changed", "Native authority generation " + previous + " -> " + snapshot.Generation + " (" + snapshot.Reason + ").",
-                    new Dictionary<string, object?> { { "generation", checked((long)snapshot.Generation) }, { "previousGeneration", checked((long)previous) },
+                    new Dictionary<string, object?> { { "generation", checked((long)snapshot.Generation) },
                         { "reason", snapshot.Reason.ToString() }, { "active", snapshot.Active } });
             }
         }
@@ -511,10 +499,7 @@ namespace HomeBridge.BridgeTools
             if (result.Event?.HoldEntered is { Evidence: Clock.HoldEvidence.UnavailableCase } entered
                 && ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map))
             {
-                var windows = ForcePausingWindows();
-                if (windows.Any(window => !ProtoBoundary.IsIdentifier(window))) throw new InvalidOperationException("Invalid pause window identity");
-                var pause = new Clock.PauseEvidence { ActualPaused = Find.TickManager.Paused,
-                    PauseVerified = typed.StopPauseVerified, ForcePausingWindowIds = EquatableArray.From(windows) };
+                var pause = new Clock.PauseEvidence { ActualPaused = Find.TickManager.Paused, PauseVerified = typed.StopPauseVerified };
                 if (kind == "dialog_pause")
                 {
                     var dialog = ChoiceDialogTools.Pending();
@@ -551,8 +536,7 @@ namespace HomeBridge.BridgeTools
                 || value.ObservedAtUnixMs is null || value.ObservedAtUnixMs < 0
                 || value.Event is null) return false;
             var body = value.Event;
-            if (body.AuthorityChanged != null) return body.AuthorityChanged.Generation is > 0
-                && (body.AuthorityChanged.PreviousGeneration is null || body.AuthorityChanged.PreviousGeneration < body.AuthorityChanged.Generation);
+            if (body.AuthorityChanged != null) return body.AuthorityChanged.Generation is > 0;
             if (body.HoldEntered != null) return ValidStoredHold(body.HoldEntered);
             if (body.PauseFailed != null) return body.PauseFailed.Pending != null && ValidStoredHold(body.PauseFailed.Pending);
             if (body.Resumed != null) return body.Resumed.Speed is { } resumed && OrdinarySpeed(resumed)
@@ -573,15 +557,14 @@ namespace HomeBridge.BridgeTools
                 || !value.EntityIds.All(ProtoBoundary.IsIdentifier)) return false;
             var cells = value.Cells;
             if (cells == null) return true;
-            return cells.Minimum != null && cells.Maximum != null && cells.Minimum.X is not null && cells.Minimum.Z is not null && cells.Maximum.X is not null && cells.Maximum.Z is not null
-                && cells.Minimum.X.GetValueOrDefault() >= 0 && cells.Minimum.Z.GetValueOrDefault() >= 0 && cells.Minimum.X.GetValueOrDefault() <= cells.Maximum.X.GetValueOrDefault() && cells.Minimum.Z.GetValueOrDefault() <= cells.Maximum.Z.GetValueOrDefault();
+            return cells.Minimum != null && cells.Maximum != null
+                && cells.Minimum.X >= 0 && cells.Minimum.Z >= 0 && cells.Minimum.X <= cells.Maximum.X && cells.Minimum.Z <= cells.Maximum.Z;
         }
         private static bool ValidStoredHold(Clock.HoldEntered value) => value.Reason is not null && value.Reason.GetValueOrDefault() != Clock.HoldReason.Unspecified
             && Enum.IsDefined(value.Reason.GetValueOrDefault()) && value.Evidence is not null;
         internal static bool OrdinarySpeed(Clock.Speed speed) => speed == Clock.Speed.Normal || speed == Clock.Speed.Fast || speed == Clock.Speed.Superfast || speed == Clock.Speed.Ultrafast;
         private static TimeSpeed NativeSpeed(Clock.Speed speed) => speed == Clock.Speed.Normal ? TimeSpeed.Normal : speed == Clock.Speed.Fast ? TimeSpeed.Fast : speed == Clock.Speed.Superfast ? TimeSpeed.Superfast : speed == Clock.Speed.Ultrafast ? TimeSpeed.Ultrafast : throw new ArgumentOutOfRangeException(nameof(speed));
         private static Clock.Speed WireSpeed(TimeSpeed speed) => speed == TimeSpeed.Normal ? Clock.Speed.Normal : speed == TimeSpeed.Fast ? Clock.Speed.Fast : speed == TimeSpeed.Superfast ? Clock.Speed.Superfast : speed == TimeSpeed.Ultrafast ? Clock.Speed.Ultrafast : throw new InvalidOperationException("Nonordinary run speed");
-        internal static Clock.ObservedSpeed ObservedSpeed(TimeSpeed speed) => speed == TimeSpeed.Paused ? Clock.ObservedSpeed.Paused : speed == TimeSpeed.Normal ? Clock.ObservedSpeed.Normal : speed == TimeSpeed.Fast ? Clock.ObservedSpeed.Fast : speed == TimeSpeed.Superfast ? Clock.ObservedSpeed.Superfast : speed == TimeSpeed.Ultrafast ? Clock.ObservedSpeed.Ultrafast : throw new InvalidOperationException("Unknown native speed");
         // The tick-boundary hook runs StopInvalidTypedAuthority on every
         // tick, and TypedHooksReady is reflection plus a Harmony patch-info
         // lookup (~1 ms; #265). The hooks cannot come and go within a frame,

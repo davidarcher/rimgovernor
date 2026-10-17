@@ -13,26 +13,15 @@ internal sealed partial class FacadeNativeClient
             throw BridgeFunctions.Contract("invalid packed items read");
         }
         var reply = await Facade.ListSuppliesAsync(PlacementReads.OursUnheldSuppliesRequest(identity, packedDef), cancellationToken).ConfigureAwait(false);
-        if (reply is null)
-        {
-            throw BridgeFunctions.Contract("unknown packed items fields");
-        }
-        if (reply.Outcome?.Unavailable is { } unavailable)
+        if (reply.Outcome.Unavailable is { } unavailable)
         {
             throw Unavailable(unavailable);
         }
-        if (reply.Outcome?.Failure is { } failure)
+        if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
-        if (reply.Outcome?.Observed is not { } snapshot)
-        {
-            throw BridgeFunctions.Contract("missing packed items outcome");
-        }
-        if (!PlacementReads.Passes(() => BridgeFunctions.ValidateContext(snapshot.Context)) || !BridgeFunctions.SameIdentity(snapshot.Context!.Identity, identity))
-        {
-            throw BridgeFunctions.Contract("invalid packed items context");
-        }
+        var snapshot = reply.Outcome.Observed!;
         var output = new List<PackedItem>();
         foreach (var row in snapshot.Stocks)
         {
@@ -65,11 +54,29 @@ internal sealed partial class FacadeNativeClient
             throw BridgeFunctions.Contract("invalid neuroformer scope");
         }
         var reply = await Facade.ListSuppliesAsync(PlacementReads.OursUnheldSuppliesRequest(identity, def), cancellationToken).ConfigureAwait(false);
-        if (reply?.Outcome?.Failure is { } failure)
+        if (reply.Outcome.Unavailable is { } unavailable)
+        {
+            throw Unavailable(unavailable);
+        }
+        if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
-        return PlacementReads.DecodeNeuroformerItems(reply, identity, def);
+        var output = new List<string>();
+        foreach (var stock in reply.Outcome.Observed!.Stocks)
+        {
+            foreach (var item in stock.Items)
+            {
+                // Native issues distinguish ineligible items from an incomplete census.
+                if (item.Snapshot is null || stock.Forbidden != 0)
+                {
+                    continue;
+                }
+                output.Add(item.Item.Id ?? "");
+            }
+        }
+        output.Sort(StringComparer.Ordinal);
+        return output;
     }
 
     internal static partial class PlacementReads
@@ -81,44 +88,5 @@ internal sealed partial class FacadeNativeClient
                 Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
                 Filter = new PbObservations.StockFilter { DefNames = [def], Ownership = PbObservations.StockOwnership.Ours, IncludeHeld = false },
             };
-
-        /// <summary>Go's <c>decodeNeuroformerItems</c>.</summary>
-        internal static List<string> DecodeNeuroformerItems(PbObservations.ListSuppliesReply? reply, PbCommon.Identity identity, string def)
-        {
-            if (reply is null)
-            {
-                throw BridgeFunctions.Contract("invalid neuroformer reply");
-            }
-            var v = reply.Outcome?.Observed;
-            if (v is null || !Passes(() => BuildingContext(v.Context, identity, 0, false)))
-            {
-                throw BridgeFunctions.Contract("neuroformer census unavailable");
-            }
-            if (v.Completeness is null || v.Completeness.Filtered.GetValueOrDefault() != 0)
-            {
-                throw BridgeFunctions.Contract("incomplete neuroformer census");
-            }
-            var output = new List<string>();
-            foreach (var stock in v.Stocks)
-            {
-                foreach (var item in stock.Items)
-                {
-                    var id = item.Item.Id ?? "";
-
-                    // Native issues distinguish ineligible items from an incomplete census.
-                    if (item.Snapshot is null || stock.Forbidden != 0)
-                    {
-                        continue;
-                    }
-                    if (!RefSnapshot(item.Snapshot, item.Item, v.Context))
-                    {
-                        throw BridgeFunctions.Contract("neuroformer CAS scope mismatch");
-                    }
-                    output.Add(id);
-                }
-            }
-            output.Sort(StringComparer.Ordinal);
-            return output;
-        }
     }
 }

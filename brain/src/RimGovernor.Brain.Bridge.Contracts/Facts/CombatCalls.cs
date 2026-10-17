@@ -19,29 +19,6 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>PodsStrategy</c>: the raid strategy of a drop-pod arrival row.</summary>
     public const string PodsStrategy = "pods";
 
-    private static readonly HashSet<string> CombatRefusals = new(StringComparer.Ordinal)
-    {
-        CombatRefusalNotDrafted,
-        CombatRefusalStaleSnapshot,
-        CombatRefusalNotFound,
-        CombatRefusalUnreachable,
-        CombatRefusalCannotHit,
-        CombatRefusalNoGroundVerb,
-        CombatRefusalNotADoor,
-        CombatRefusalNativeRefused,
-        CombatRefusalCannotRescue,
-        CombatRefusalNoBed,
-        CombatRefusalCannotRepair,
-        CombatRefusalCannotDraft,
-        CombatRefusalNotAMortar,
-        CombatRefusalUnknownShell,
-        CombatRefusalNoShell,
-        CombatRefusalNotOurs,
-        CombatRefusalUntrained,
-        CombatRefusalNotADrug,
-        CombatRefusalNoDrug,
-    };
-
     /// <summary>Go's <c>UndraftAction</c>: the wire intent that undrafts one pawn no live plan needs.</summary>
     /// <exception cref="BridgeContractException">The key or the pawn is not a valid identifier.</exception>
     public static RimGovernor.Contracts.Wire.Operations.Action UndraftAction(string key, PawnId pawn)
@@ -61,60 +38,20 @@ public static partial class BridgeFunctions
         row.Kind is not null && row.Kind.GetValueOrDefault() == CombatLogKind.HostileArrived && row.RaidStrategy is not null && (row.RaidStrategy ?? "") == PodsStrategy;
 
     /// <summary>
-    /// Go's <c>CombatOrderResults</c>: decodes an applied combat_orders action receipt against its request, one
-    /// result per order, in order, each applied or refused with a known reason. An uncertain receipt carries no
-    /// result set and yields none.
+    /// Go's <c>CombatOrderResults</c>: decodes an applied combat_orders action receipt, one result per order, in
+    /// order. A receipt that is not applied, or carries no combat orders evidence, yields none.
     /// </summary>
-    /// <exception cref="BridgeContractException">The receipt does not answer the request.</exception>
-    public static IReadOnlyList<CombatOrderResult> CombatOrderResults(Receipt receipt, CombatOrders command)
+    public static IReadOnlyList<CombatOrderResult> CombatOrderResults(Receipt receipt)
     {
-        if (receipt.Outcome is ReceiptOutcome.UncertainCase)
+        if (receipt.Outcome.Applied?.Observed?.Effect?.CombatOrders is not { } effect)
         {
             return [];
-        }
-        if (receipt.Outcome is not ReceiptOutcome.AppliedCase)
-        {
-            throw Contract("combat orders receipt not applied");
-        }
-        var effect = receipt.Outcome?.Applied?.Observed?.Effect?.CombatOrders ?? throw Contract("combat orders evidence missing");
-        if (effect.Results.Count != command.Orders.Count)
-        {
-            throw Contract($"combat orders: {effect.Results.Count} results for {command.Orders.Count} orders");
         }
         var output = new List<CombatOrderResult>(effect.Results.Count);
         for (var i = 0; i < effect.Results.Count; i++)
         {
             var v = effect.Results[i];
-            if (v is null || v.Index is null || v.Index != i || v.Applied is null)
-            {
-                throw Contract($"combat order result {i} index or outcome missing");
-            }
-            var want = command.Orders[i].Pawn?.EntityId ?? "";
-            if ((v.PawnId ?? "") != want)
-            {
-                throw Contract($"combat order result {i} names pawn \"{v.PawnId}\", want \"{want}\"");
-            }
-            var result = new CombatOrderResult { Index = i, PawnId = v.PawnId ?? "", Applied = v.Applied.GetValueOrDefault(), Refusal = v.Refusal ?? "", JobDef = v.JobDef ?? "" };
-            if (result.Applied)
-            {
-                if (v.Refusal is not null)
-                {
-                    throw Contract($"combat order result {i} applied with a refusal");
-                }
-                if (result.JobDef.Length != 0 && !IsValidId(result.JobDef))
-                {
-                    throw Contract($"combat order result {i} job invalid");
-                }
-            }
-            else if (!CombatRefusals.Contains(result.Refusal))
-            {
-                throw Contract($"combat order result {i} refused without a known reason: \"{result.Refusal}\"");
-            }
-            else if (v.JobDef is not null)
-            {
-                throw Contract($"combat order result {i} refused with a job");
-            }
-            output.Add(result);
+            output.Add(new CombatOrderResult { Index = i, PawnId = v.PawnId ?? "", Applied = v.Applied.GetValueOrDefault(), Refusal = v.Refusal ?? "", JobDef = v.JobDef ?? "" });
         }
         return output;
     }

@@ -4,8 +4,6 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 
 public static partial class BridgeFunctions
 {
-    private static double? OptionalDouble(bool present, double value) => present ? value : null;
-
     /// <summary>
     /// Resolves the supply's stocks against <paramref name="things"/>, a frame's things table. Returns null when the
     /// table misses a stock: the supply waits for a later frame.

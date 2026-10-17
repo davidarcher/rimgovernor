@@ -8,13 +8,12 @@ screenshot record exists.
 
 ## Scope
 
-- Camera: `CameraState` carries map position, root/zoom sizes, native zoom range, normal size bounds
-  and the view rectangle.
-- Selection: `SelectionSnapshot` and `ColonistRoster`. Display labels cannot identify an executable
-  object.
+- Camera: `CameraState` carries only the observation context (the camera is available).
+- Selection: `SelectionSnapshot` (observation context only) and `ColonistRoster`. Display labels
+  cannot identify an executable object.
 - `NotificationsSnapshot` reads the letter stack, live messages and active alerts; each section is
   observed or unavailable on its own. Exact IDs (alerts are identified by their type), native
-  defs/types, age, choices and complete-or-truncated targets are retained.
+  defs/types, letter arrival tick and complete-or-truncated alert targets are retained.
 - `RenderDemand`/`RenderStatus`: the render lease and whether the game window renders.
 - `OverlayRequest`/`OverlayApplied`: one named map-overlay layer per call; output only.
 
@@ -28,20 +27,20 @@ Player presentation reads are a separate authenticated explicit-player capabilit
 caller-supplied viewer/direction values do not grant it. Deny it to advisers and automated Hands.
 `PlayerIdentity` claims never authenticate their own authority.
 
-Selection identity comes from native references; map and world target identities are normalized from
-native objects with uniqueness checks, never parsed from labels, and planet layers are kept. Capture
+Colonist and alert target identities are normalized from native objects with uniqueness checks,
+never parsed from labels. Capture
 context states the actual sampled tick and refuses stale control use.
 
 ## Semantic bounds and known absence
 
 Bounds below are ordinary validator requirements, not properties of the record types. Native
 definition/type/kind names remain open strings where producers are native or mod-extensible. Every
-numeric screen, camera, age and duration value must be finite.
+numeric screen and duration value must be finite.
 
 - Viewer IDs: 1..100 characters, no NUL. Other opaque IDs use the common 256 UTF-8-byte/no-NUL rule.
   Shared diagnostic text uses the common 4096 Unicode-scalar bound.
 - Render demand lease is 1..30 real seconds (read is a separate tool).
 - Notifications default limits are 40 letters, 12 messages, 40 alerts; the per-section hard ceiling is
-  256. Preserve actual counts/omissions. Choice index is one-based. Unavailable or unrequested
+  256. Preserve actual counts/omissions. Unavailable or unrequested
   sections are distinct from an observed complete empty list. Inclusion defaults true; an explicit
   false omits that section, while a requested failed read has an unavailable arm.

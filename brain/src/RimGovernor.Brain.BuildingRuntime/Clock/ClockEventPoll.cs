@@ -146,7 +146,6 @@ internal sealed class ClockEventPoll(
                     ClockEvents.Event("clock-scheduler", "authority", "authority changed under the poll");
                 }
             }
-            BridgeApi.ValidateClockEventsPage(page, request);
             call.ThrowIfCancellationRequested();
             var next = page.NextCursor.GetValueOrDefault();
             var captured = next != cursor;

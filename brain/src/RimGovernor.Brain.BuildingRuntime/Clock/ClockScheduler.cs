@@ -238,7 +238,6 @@ public sealed partial class ClockScheduler
                     : await _player.Journal.LayoutPlanAsync(world, tick, c).ConfigureAwait(false);
             };
             _stepContext = loaded.ClockStatus?.Context;
-            BridgeApi.ValidateClockStatus(loaded.ClockStatus, id);
             var status = loaded.ClockStatus ?? throw new InvalidOperationException("clock status required");
             var statusTick = (long)(status.Context ?? throw new BridgeContractException("clock status carried no context")).Tick;
             if (statusTick < (long)loadedContext.Tick)

@@ -76,7 +76,7 @@ namespace HomeBridge.BridgeTools
             return request?.Scope?.ExpectedIdentity != null && request.RoomIds.Count <= 256
                 && request.RoomIds.All(ProtoBoundary.IsIdentifier) && request.RoomIds.Distinct(StringComparer.Ordinal).Count() == request.RoomIds.Count
                 && (request.Region == null || request.Region.Minimum is { } lo && request.Region.Maximum is { } hi && CellPresent(lo) && CellPresent(hi)
-                    && lo.X.GetValueOrDefault() <= hi.X.GetValueOrDefault() && lo.Z.GetValueOrDefault() <= hi.Z.GetValueOrDefault());
+                    && lo.X <= hi.X && lo.Z <= hi.Z);
         }
         internal static bool Selected(Obs.ListRoomsRequest request, string id, bool psychologicallyOutdoors, bool doorway)
             => !psychologicallyOutdoors && !doorway && (request.RoomIds.Count == 0 || request.RoomIds.Contains(id));
@@ -177,7 +177,7 @@ namespace HomeBridge.BridgeTools
             return cells.OrderBy(c => ((long)c.x - x) * ((long)c.x - x) + ((long)c.z - z) * ((long)c.z - z)).ThenBy(c => c.z).ThenBy(c => c.x).First();
         }
         internal static double Finite(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native room fact.") : value;
-        private static bool CellPresent(Common.Cell? cell) => cell != null && cell.X is not null && cell.Z is not null && cell.X.GetValueOrDefault() >= 0 && cell.Z.GetValueOrDefault() >= 0;
+        private static bool CellPresent(Common.Cell? cell) => cell != null && cell.X >= 0 && cell.Z >= 0;
         private static IntVec3 NativeCell(Common.Cell? cell) => new IntVec3((cell?.X).GetValueOrDefault(), 0, (cell?.Z).GetValueOrDefault());
         private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
         private static string Id(int id) => id >= 0 ? id.ToString(CultureInfo.InvariantCulture) : throw new InvalidOperationException("Invalid room ID.");

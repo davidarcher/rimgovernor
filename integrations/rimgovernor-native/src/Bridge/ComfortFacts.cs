@@ -36,7 +36,7 @@ namespace HomeBridge.BridgeTools
             return new {
                 people = v.People.ToList(),
                 surfaces = v.Surfaces.Select(s => new { id = (s.Id ?? ""), roomId = (s.Room?.Id ?? ""),
-                    adjacent = s.Adjacent.Select(c => new { x = c.X.GetValueOrDefault(), z = c.Z.GetValueOrDefault() }).ToList() }).ToList(),
+                    adjacent = s.Adjacent.Select(c => new { x = c.X, z = c.Z }).ToList() }).ToList(),
                 dining = v.Dining.Select(f => new { id = (f.Id ?? ""), roomId = (f.Room?.Id ?? ""),
                     accessibleTo = f.AccessibleTo.ToList(), users = f.Users.ToList() }).ToList(),
                 recreation = v.Recreation.Select(f => new { id = (f.Id ?? ""), kind = (f.Kind ?? ""), roomId = (f.Room?.Id ?? ""),

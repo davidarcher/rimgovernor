@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
                 || request.Ids.Distinct(StringComparer.Ordinal).Count() != request.Ids.Count) return false;
             if (request.NameContains is not null && ((request.NameContains ?? "").Length == 0 || (request.NameContains ?? "").Length > 256)) return false;
             if (request.Region != null && (request.Region.Minimum is not { } lo || request.Region.Maximum is not { } hi || !CellPresent(lo) || !CellPresent(hi)
-                || lo.X.GetValueOrDefault() > hi.X.GetValueOrDefault() || lo.Z.GetValueOrDefault() > hi.Z.GetValueOrDefault())) return false;
+                || lo.X > hi.X || lo.Z > hi.Z)) return false;
             return true;
         }
 
@@ -58,8 +58,8 @@ namespace HomeBridge.BridgeTools
         {
             if (request.Ids.Count != 0 && !request.Ids.Contains(Id(zone.GetUniqueLoadID()))) return false;
             if (request.NameContains is not null && (zone.label ?? "").IndexOf((request.NameContains ?? ""), StringComparison.OrdinalIgnoreCase) < 0) return false;
-            if (request.Region is { Minimum: { } lo, Maximum: { } hi } && !zone.Cells.Any(c => c.x >= lo.X.GetValueOrDefault() && c.x <= hi.X.GetValueOrDefault()
-                && c.z >= lo.Z.GetValueOrDefault() && c.z <= hi.Z.GetValueOrDefault())) return false;
+            if (request.Region is { Minimum: { } lo, Maximum: { } hi } && !zone.Cells.Any(c => c.x >= lo.X && c.x <= hi.X
+                && c.z >= lo.Z && c.z <= hi.Z)) return false;
             return true;
         }
 
@@ -96,9 +96,8 @@ namespace HomeBridge.BridgeTools
                     BlightedPlants = (uint)plants.Count(p => p.Blighted) };
                 if (plants.Count > 0)
                     farm = farm with {
-                        GrowthMin = plants.Min(p => p.Growth), GrowthMean = plants.Average(p => p.Growth),
-                        FertilityFactorMin = plants.Min(p => p.GrowthRateFactor_Fertility), FertilityFactorMean = plants.Average(p => p.GrowthRateFactor_Fertility),
-                        LightFactorMean = plants.Average(p => p.GrowthRateFactor_Light) };
+                        GrowthMean = plants.Average(p => p.Growth),
+                        FertilityFactorMean = plants.Average(p => p.GrowthRateFactor_Fertility) };
                 row = row with { Farm = farm };
                 row = row with { Issues = [.. row.Issues, Issue("priority", Common.UnavailableReason.NotApplicable, "Growing zones have no storage priority.")] };
             }
@@ -117,7 +116,7 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        private static bool CellPresent(Common.Cell? cell) => cell != null && cell.X is not null && cell.Z is not null;
+        private static bool CellPresent(Common.Cell? cell) => cell != null;
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native ID unavailable.");
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };

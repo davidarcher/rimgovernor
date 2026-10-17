@@ -69,7 +69,7 @@ namespace HomeBridge.BridgeTools
                 {
                     if (line.From == null || line.To == null) return Invalid("Overlay line needs both ends.");
                     if (--lineBudget < 0) return Invalid($"More than {MaxLines} overlay lines.");
-                    group.Lines.Add((new Vector2(line.From.X.GetValueOrDefault() + 0.5f, line.From.Z.GetValueOrDefault() + 0.5f), new Vector2(line.To.X.GetValueOrDefault() + 0.5f, line.To.Z.GetValueOrDefault() + 0.5f), line.Arrow.GetValueOrDefault()));
+                    group.Lines.Add((new Vector2(line.From.X + 0.5f, line.From.Z + 0.5f), new Vector2(line.To.X + 0.5f, line.To.Z + 0.5f), line.Arrow.GetValueOrDefault()));
                 }
                 foreach (var rect in rects)
                 {
@@ -90,7 +90,7 @@ namespace HomeBridge.BridgeTools
             foreach (var label in request.Labels)
             {
                 if (label.Text is null || label.Cell == null) continue;
-                var cell = new IntVec3(label.Cell.X.GetValueOrDefault(), 0, label.Cell.Z.GetValueOrDefault());
+                var cell = new IntVec3(label.Cell.X, 0, label.Cell.Z);
                 if (cell.InBounds(map)) labels.Add(((label.Text ?? ""), cell));
             }
             overlay.Replace(id, groups, labels);

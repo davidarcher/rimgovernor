@@ -40,13 +40,6 @@ public sealed record Listing
     public bool? Truncated { get; init; }
 }
 
-public sealed record MapPoint
-{
-    public double? X { get; init; }
-
-    public double? Z { get; init; }
-}
-
 public sealed record MapRect
 {
     public int? MinX { get; init; }
@@ -61,25 +54,11 @@ public sealed record MapRect
 public sealed record CameraState
 {
     public Common.ObservationContext? Context { get; init; }
-
-    public MapPoint? MapPosition { get; init; }
-
-    public double? RootSize { get; init; }
-
-    public double? ZoomRootSize { get; init; }
-
-    public double? MinimumRootSize { get; init; }
-
-    public double? MaximumRootSize { get; init; }
-
-    public string? NativeZoomRange { get; init; }
-
-    public MapRect? ViewRect { get; init; }
 }
 
 public sealed record CameraReply
 {
-    public CameraReplyOutcome? Outcome { get; init; }
+    public CameraReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="CameraReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -107,45 +86,14 @@ public abstract record CameraReplyOutcome
     public static implicit operator CameraReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
-/// <summary>
-/// Open native object kinds/DefNames remain strings. IDs never derive from labels.
-/// </summary>
-public sealed record SelectedObject
-{
-    public string? Id { get; init; }
-
-    public string? NativeKind { get; init; }
-
-    public string? NativeType { get; init; }
-
-    public string? Label { get; init; }
-
-    public string? DefName { get; init; }
-
-    public int? MapId { get; init; }
-
-    public Common.Cell? Position { get; init; }
-
-    public string? InspectLabel { get; init; }
-
-    public string? InspectText { get; init; }
-}
-
 public sealed record SelectionSnapshot
 {
     public Common.ObservationContext? Context { get; init; }
-
-    public string? Fingerprint { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<SelectedObject>))]
-    public EquatableArray<SelectedObject> SelectedObjects { get; init; }
-
-    public Listing? Listing { get; init; }
 }
 
 public sealed record SelectionReply
 {
-    public SelectionReplyOutcome? Outcome { get; init; }
+    public SelectionReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="SelectionReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -178,12 +126,6 @@ public sealed record ColonistRosterRequest
     public Common.Identity? Identity { get; init; }
 
     public bool? CurrentMapOnly { get; init; }
-
-    /// <summary>
-    /// include_dossier asks the controller to attach each colonist's row of
-    /// its latest bundle pawn table; native never fills dossier.
-    /// </summary>
-    public bool? IncludeDossier { get; init; }
 }
 
 public sealed record ColonistReference
@@ -197,12 +139,6 @@ public sealed record ColonistReference
     public bool? Spawned { get; init; }
 
     public Common.Cell? Position { get; init; }
-
-    /// <summary>
-    /// Joined by the controller when the request asked for it;
-    /// dossier.pawn.id == pawn_id.
-    /// </summary>
-    public Observations.PawnState? Dossier { get; init; }
 }
 
 public sealed record ColonistRoster
@@ -217,7 +153,7 @@ public sealed record ColonistRoster
 
 public sealed record ColonistRosterReply
 {
-    public ColonistRosterReplyOutcome? Outcome { get; init; }
+    public ColonistRosterReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ColonistRosterReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -258,30 +194,6 @@ public sealed record LookTarget
     public int? MapId { get; init; }
 
     public Common.Cell? Position { get; init; }
-
-    /// <summary>
-    /// Native PlanetTile textual ID can include a layer; do not parse a guessed int.
-    /// </summary>
-    public string? WorldTileId { get; init; }
-}
-
-public sealed record LookTargets
-{
-    public LookTarget? Primary { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<LookTarget>))]
-    public EquatableArray<LookTarget> Targets { get; init; }
-
-    public Listing? Listing { get; init; }
-}
-
-public sealed record LetterChoice
-{
-    public uint? Index { get; init; }
-
-    public string? Text { get; init; }
-
-    public bool? Disabled { get; init; }
 }
 
 public sealed record Letter
@@ -297,15 +209,6 @@ public sealed record Letter
     public string? Text { get; init; }
 
     public long? ArrivalTick { get; init; }
-
-    public long? AgeTicks { get; init; }
-
-    public LookTargets? LookTargets { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<LetterChoice>))]
-    public EquatableArray<LetterChoice> Choices { get; init; }
-
-    public Listing? ChoicesListing { get; init; }
 }
 
 public sealed record TransientMessage
@@ -313,10 +216,6 @@ public sealed record TransientMessage
     public string? Id { get; init; }
 
     public string? Text { get; init; }
-
-    public long? AgeTicks { get; init; }
-
-    public LookTargets? LookTargets { get; init; }
 }
 
 public sealed record Alert
@@ -333,8 +232,6 @@ public sealed record Alert
     public EquatableArray<LookTarget> Targets { get; init; }
 
     public Listing? Listing { get; init; }
-
-    public Common.Unavailable? ReadIssue { get; init; }
 }
 
 public sealed record Letters
@@ -368,7 +265,7 @@ public sealed record Alerts
 
 public sealed record LetterSection
 {
-    public LetterSectionOutcome? Outcome { get; init; }
+    public LetterSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="LetterSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -398,7 +295,7 @@ public abstract record LetterSectionOutcome
 
 public sealed record MessageSection
 {
-    public MessageSectionOutcome? Outcome { get; init; }
+    public MessageSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="MessageSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -428,7 +325,7 @@ public abstract record MessageSectionOutcome
 
 public sealed record AlertSection
 {
-    public AlertSectionOutcome? Outcome { get; init; }
+    public AlertSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="AlertSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -492,7 +389,7 @@ public sealed record NotificationsRequest
 
 public sealed record NotificationsReply
 {
-    public NotificationsReplyOutcome? Outcome { get; init; }
+    public NotificationsReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="NotificationsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -556,7 +453,7 @@ public sealed record RenderDemand
 
 public sealed record RenderReply
 {
-    public RenderReplyOutcome? Outcome { get; init; }
+    public RenderReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="RenderReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -687,7 +584,7 @@ public sealed record OverlayApplied
 
 public sealed record OverlayReply
 {
-    public OverlayReplyOutcome? Outcome { get; init; }
+    public OverlayReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="OverlayReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>

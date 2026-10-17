@@ -156,7 +156,7 @@ public sealed partial class RoundsDefensePlanner
                 {
                     continue;
                 }
-                var cell = entity.Position is { } at ? new Cell(at.X.GetValueOrDefault(), at.Z.GetValueOrDefault()) : default;
+                var cell = entity.Position is { } at ? new Cell(at.X, at.Z) : default;
                 output.Add(new LoadoutApparel(thing.Id, ShieldBeltDef, cell));
             }
         }

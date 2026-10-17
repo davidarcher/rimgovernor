@@ -609,9 +609,9 @@ internal static partial class BuildingRuntimePackage
                 continue;
             }
             var s = new CombatPawnState { Id = new PawnId(id), Downed = row.Downed, Dead = row.Dead, Wild = true };
-            if (row.Pawn.Position is { X: not null, Z: not null } position)
+            if (row.Pawn.Position is { } position)
             {
-                s = s with { Cell = Known(new Cell(position.X.GetValueOrDefault(), position.Z.GetValueOrDefault())) };
+                s = s with { Cell = Known(new Cell(position.X, position.Z)) };
             }
             states.Add(ThreatFacts(s, row, catalog));
         }
@@ -636,7 +636,7 @@ internal static partial class BuildingRuntimePackage
         var landing = new List<Cell>();
         foreach (var c in newest.LandingCells)
         {
-            landing.Add(new Cell(c.X.GetValueOrDefault(), c.Z.GetValueOrDefault()));
+            landing.Add(new Cell(c.X, c.Z));
         }
         return Known(new PodArrival { Open = new Tick(newest.OpenTick.GetValueOrDefault()), Landing = [.. landing] });
     }
@@ -659,7 +659,7 @@ internal static partial class BuildingRuntimePackage
             {
                 continue;
             }
-            var at = new Cell(row.Pawn.Position.X.GetValueOrDefault(), row.Pawn.Position.Z.GetValueOrDefault());
+            var at = new Cell(row.Pawn.Position.X, row.Pawn.Position.Z);
             if (!shooters.TryGetValue(at, out var list))
             {
                 shooters[at] = list = [];
@@ -719,9 +719,9 @@ internal static partial class BuildingRuntimePackage
         {
             facts = facts with { NearestColonistDistance = Known(distance) };
         }
-        if (row.Pawn.Position is { X: not null, Z: not null } position)
+        if (row.Pawn.Position is { } position)
         {
-            facts = facts with { Position = Known(new Cell(position.X.GetValueOrDefault(), position.Z.GetValueOrDefault())) };
+            facts = facts with { Position = Known(new Cell(position.X, position.Z)) };
         }
         return facts;
     }

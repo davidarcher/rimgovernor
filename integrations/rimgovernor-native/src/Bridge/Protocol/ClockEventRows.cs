@@ -44,7 +44,6 @@ namespace HomeBridge.BridgeTools
                     return (TelemetryKinds.ClockResume, p);
                 case Clock.ClockEventEvent.AuthorityChangedCase { Value: var changed }:
                     p["generation"] = Long(changed.Generation);
-                    p["previous_generation"] = Long(changed.PreviousGeneration);
                     p[ClockEventTelemetry.ReasonKey] = changed.Reason;
                     p["active"] = changed.Active;
                     return (TelemetryKinds.ClockAuthority, p);
@@ -69,10 +68,7 @@ namespace HomeBridge.BridgeTools
                 case Clock.ClockEventEvent.InjuryObservedCase { Value: var injury }:
                     Injury(p, injury);
                     return (TelemetryKinds.ClockInjury, p);
-                case Clock.ClockEventEvent.HostilesClearedCase { Value: var cleared }:
-                    p["conscious_hostiles_before"] = cleared.ConsciousHostilesBefore;
-                    p["downed_hostiles"] = cleared.DownedHostiles.Select(pawn => (object?)pawn.PawnId).ToList();
-                    p["drafted_colonists"] = cleared.DraftedColonists.Select(pawn => (object?)pawn.PawnId).ToList();
+                case Clock.ClockEventEvent.HostilesClearedCase:
                     return (TelemetryKinds.ClockHostilesCleared, p);
                 case Clock.ClockEventEvent.ObservationInvalidatedCase { Value: var invalidated }:
                     p["families"] = invalidated.Families.Select(family => (object?)family.ToString()).ToList();
@@ -125,8 +121,6 @@ namespace HomeBridge.BridgeTools
                 case Clock.HoldEvidence.HealthCase { Value: var health }:
                     p["evidence"] = "health";
                     if (health.Pawn is { } who) Pawn(p, who);
-                    p["health_at_start"] = health.HealthAtStart;
-                    p["health_now"] = health.HealthNow;
                     p["min_health_fraction"] = health.MinHealthFraction;
                     p["health_drop_fraction"] = health.HealthDropFraction;
                     break;
@@ -152,7 +146,6 @@ namespace HomeBridge.BridgeTools
         {
             p["actual_paused"] = pause.ActualPaused;
             p["pause_verified"] = pause.PauseVerified;
-            p["force_pausing_windows"] = pause.ForcePausingWindowIds.Select(id => (object?)id).ToList();
             if (pause.Letter is { } letter) Letter(p, letter, "letter_");
             if (pause.Dialog is { } dialog)
             {
@@ -171,7 +164,7 @@ namespace HomeBridge.BridgeTools
             new() { ["id"] = letter.Id, ["label"] = letter.Label, ["def"] = letter.DefName };
 
         private static Dictionary<string, object?> Message(Clock.TransientMessage message) =>
-            new() { ["id"] = message.Id, ["type"] = message.TypeDef, ["text"] = message.Text, ["starting_tick"] = message.StartingTick };
+            new() { ["id"] = message.Id, ["text"] = message.Text };
 
         private static void Pawn(Dictionary<string, object?> p, Clock.PawnEvent pawn)
         {
@@ -184,16 +177,13 @@ namespace HomeBridge.BridgeTools
         private static void Injury(Dictionary<string, object?> p, Clock.Injury injury)
         {
             if (injury.Pawn is { } pawn) Pawn(p, pawn);
-            p["new_wound"] = injury.NewWound;
-            p["suppression"] = injury.Suppression?.ToString();
             if (injury.Before is { } before) p["before"] = Health(before);
             if (injury.After is { } after) p["after"] = Health(after);
         }
 
         private static Dictionary<string, object?> Health(Clock.Health health) => new()
         {
-            ["injury_count"] = health.InjuryCount, ["severity"] = health.Severity, ["bleed_rate"] = health.BleedRate,
-            ["blood_loss"] = health.BloodLoss, ["summary_health"] = health.SummaryHealth,
+            ["severity"] = health.Severity,
         };
 
         private static long? Long(ulong? value) => value is { } v ? checked((long)v) : null;

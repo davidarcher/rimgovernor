@@ -35,7 +35,7 @@ namespace HomeBridge.BridgeTools
             if (command == null || command.Kind is null || command.RemoveCells != null || command.Delete.GetValueOrDefault()) return false;
             if (command.AddCells?.Selection?.ExplicitCells is not { } cellList || cellList.Cells.Count == 0) return false;
             var cells = cellList.Cells;
-            if (!cells.All(c => c.X is not null && c.Z is not null && c.X >= 0 && c.Z >= 0) || cells.Select(c => Tuple.Create(c.X, c.Z)).Distinct().Count() != cells.Count) return false;
+            if (!cells.All(c => c.X >= 0 && c.Z >= 0) || cells.Select(c => Tuple.Create(c.X, c.Z)).Distinct().Count() != cells.Count) return false;
             if (command.Kind.GetValueOrDefault() == Operations.ZoneType.Fishing)
                 return (command.Label ?? "") == "Fishing" && command.Stockpile == null && command.Growing == null && !command.RequireCoveredEmpty.GetValueOrDefault()
                     && command.Fishing != null && command.Fishing.PopulationFloor is not null && (command.Fishing?.PopulationFloor ?? 0) >= 0 && (command.Fishing?.PopulationFloor ?? 0) <= 1
@@ -49,7 +49,7 @@ namespace HomeBridge.BridgeTools
         }
         internal const string Kind = "Zone creation";
         private static string At(IntVec3 c) => "(" + c.x + ", " + c.z + ")";
-        private static IntVec3[] Cells(Operations.ZoneIntent command) => (command.AddCells?.Selection?.ExplicitCells?.Cells ?? default(RimGovernor.Brain.Domain.EquatableArray<Common.Cell>)).Select(c => new IntVec3(c.X.GetValueOrDefault(), 0, c.Z.GetValueOrDefault())).ToArray();
+        private static IntVec3[] Cells(Operations.ZoneIntent command) => (command.AddCells?.Selection?.ExplicitCells?.Cells ?? default(RimGovernor.Brain.Domain.EquatableArray<Common.Cell>)).Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
         // Prepare separates a request that cannot be evaluated (malformed,
         // stale map snapshot, unresolvable configuration) from ground that
         // refuses the zone (ground true): the failure always names the rule,

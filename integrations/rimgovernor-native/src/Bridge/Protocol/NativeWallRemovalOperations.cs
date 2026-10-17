@@ -108,13 +108,13 @@ namespace HomeBridge.BridgeTools
         {
             wall = null; pending = null; candidate = null; code = Common.FailureCode.InvalidRequest;
             var expected = (intent.Target?.Id ?? "");
-            if (intent.Cell == null || intent.Cell.X is null || intent.Cell.Z is null || intent.Target != null && !ProtoBoundary.IsIdentifier(expected))
+            if (intent.Cell == null || intent.Target != null && !ProtoBoundary.IsIdentifier(expected))
                 return "The wall_upgrade guard requires one wall cell.";
             if (intent.Designation.GetValueOrDefault() != Operations.ThingDesignation.Deconstruct || intent.ReplaceWithWall.GetValueOrDefault() || intent.ExpectedDef is not null || intent.ThingId is not null)
                 return "The wall_upgrade guard takes DECONSTRUCT on a cell and an optional target only.";
             var map = ProtoBoundary.ResolveMap(context);
             if (map == null) return "Loaded map required.";
-            var cell = new IntVec3(intent.Cell.X.GetValueOrDefault(), 0, intent.Cell.Z.GetValueOrDefault());
+            var cell = new IntVec3(intent.Cell.X, 0, intent.Cell.Z);
             if (!cell.InBounds(map)) return "Wall cell is outside the map.";
             wall = NativeWallUpgradeObservationTools.ColonistWall(map, cell);
             if (wall == null) return null;

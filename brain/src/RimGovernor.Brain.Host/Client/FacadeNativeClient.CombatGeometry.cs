@@ -4,7 +4,7 @@ using static RimGovernor.Brain.Bridge.Contracts.BridgeFunctions;
 
 namespace RimGovernor.Brain.Host;
 
-// Go combat_geometry.go (CombatGeometry and its request and reply validators) and pawn_cargo.go (ReadPawnCargo).
+// Go combat_geometry.go (CombatGeometry and its request validator) and pawn_cargo.go (ReadPawnCargo).
 internal sealed partial class FacadeNativeClient
 {
     /// <summary>
@@ -17,19 +17,14 @@ internal sealed partial class FacadeNativeClient
     {
         CombatGeometryChecks.ValidateCombatGeometryRequest(request);
         var reply = await Facade.ReadCombatGeometryAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome?.Failure is { } failure)
+        if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
-        if (reply.Outcome?.Observed is { } observed)
-        {
-            CombatGeometryChecks.ValidateCombatGeometry(observed, request);
-            return observed;
-        }
-        throw Contract("combat geometry outcome missing");
+        return reply.Outcome.Observed!;
     }
 
-    /// <summary>The request and reply checks of the combat geometry read.</summary>
+    /// <summary>The request checks of the combat geometry read.</summary>
     internal static class CombatGeometryChecks
     {
         /// <summary>
@@ -102,7 +97,7 @@ internal sealed partial class FacadeNativeClient
                 {
                     throw Contract("combat geometry cell invalid");
                 }
-                if (!seen.Add((cell!.X.GetValueOrDefault(), cell.Z.GetValueOrDefault())))
+                if (!seen.Add((cell!.X, cell.Z)))
                 {
                     throw Contract("combat geometry cell repeated");
                 }
@@ -110,7 +105,7 @@ internal sealed partial class FacadeNativeClient
         }
 
         private static bool GeometryCell(PbCommon.Cell? cell) =>
-            cell is not null && cell.X is not null && cell.Z is not null && cell.X.GetValueOrDefault() >= 0 && cell.Z.GetValueOrDefault() >= 0;
+            cell is not null && cell.X >= 0 && cell.Z >= 0;
 
         /// <summary>Go <c>validatePropose</c>: one role and its anchor.</summary>
         private static void ValidatePropose(PbMirror.CombatGeometryPropose p)
@@ -152,88 +147,6 @@ internal sealed partial class FacadeNativeClient
             }
             throw Contract("combat geometry propose without a role");
         }
-
-        /// <summary>
-        /// Go <c>ValidateCombatGeometry</c>: checks a reply against its request: the request's world, every cell in order,
-        /// every hostile's line in order, cover in 0..1, and proposals only for a propose block: standable, distinct from
-        /// each other and the named cells, within the cells cap.
-        /// </summary>
-        internal static void ValidateCombatGeometry(PbMirror.CombatGeometry? g, PbMirror.CombatGeometryRequest request)
-        {
-            if (g is null)
-            {
-                throw Contract("combat geometry missing");
-            }
-            if (!SameIdentity(g.Context?.Identity, request.Identity))
-            {
-                throw Contract("combat geometry world mismatch");
-            }
-            if (g.Cells.Count != request.Cells.Count)
-            {
-                throw Contract("combat geometry cell count");
-            }
-            var seen = new HashSet<(int, int)>();
-            for (var i = 0; i < g.Cells.Count; i++)
-            {
-                var row = g.Cells[i];
-                if (!Equals(row?.Cell, request.Cells[i]))
-                {
-                    throw Contract($"combat geometry cell {i} off its request");
-                }
-                seen.Add((row!.Cell?.X ?? 0, row.Cell?.Z ?? 0));
-                GeometryLines(row, request, i);
-            }
-            if (request.Propose is null)
-            {
-                if (g.Proposed.Count != 0)
-                {
-                    throw Contract("combat geometry proposals without propose");
-                }
-                return;
-            }
-            if (g.Proposed.Count > BridgeConstants.CombatGeometryMaxCells - request.Cells.Count)
-            {
-                throw Contract("combat geometry proposals over the cells cap");
-            }
-            var route = request.Propose.Role?.RescuePath is not null;
-            for (var i = 0; i < g.Proposed.Count; i++)
-            {
-                var row = g.Proposed[i];
-                var cell = row?.Cell;
-                var key = (cell?.X ?? 0, cell?.Z ?? 0);
-                if (!GeometryCell(cell) || (!route && (!(row!.Standable ?? false) || seen.Contains(key))))
-                {
-                    throw Contract($"combat geometry proposal {i} invalid or repeated");
-                }
-                if (!route)
-                {
-                    seen.Add(key);
-                }
-                GeometryLines(row!, request, request.Cells.Count + i);
-            }
-        }
-
-        /// <summary>Go <c>geometryLines</c>: checks one scored row: a line per request hostile in order, cover in 0..1, path ticks only for a pawn.</summary>
-        private static void GeometryLines(PbMirror.CombatGeometryCell row, PbMirror.CombatGeometryRequest request, int i)
-        {
-            if (row.Lines.Count != request.HostileIds.Count)
-            {
-                throw Contract($"combat geometry cell {i} lines off its request");
-            }
-            if (row.PathTicks is not null && (request.PawnId is null || row.PathTicks.GetValueOrDefault() < 0))
-            {
-                throw Contract("combat geometry path ticks without a pawn");
-            }
-            for (var j = 0; j < row.Lines.Count; j++)
-            {
-                var line = row.Lines[j];
-                var cover = line?.Cover.GetValueOrDefault() ?? 0;
-                if ((line?.HostileId ?? "") != request.HostileIds[j] || line!.Cover is null || double.IsNaN(cover) || cover < 0 || cover > 1)
-                {
-                    throw Contract($"combat geometry line {i}.{j} invalid");
-                }
-            }
-        }
     }
 
     /// <summary>
@@ -252,17 +165,6 @@ internal sealed partial class FacadeNativeClient
                 IncludeHeld = true,
             },
         };
-        var reply = await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false);
-        BuildingUnknown(reply);
-        var snapshot = reply.Outcome?.Observed;
-        if (snapshot is null)
-        {
-            throw Contract("unknown pawn cargo census");
-        }
-        if (!SameIdentity(snapshot.Context?.Identity, identity) || snapshot.Completeness is null || snapshot.Completeness.Filtered is null)
-        {
-            throw Contract("unknown pawn cargo census");
-        }
         var crew = new HashSet<string>(StringComparer.Ordinal);
         foreach (var id in pawns)
         {
@@ -271,6 +173,16 @@ internal sealed partial class FacadeNativeClient
                 throw Contract("invalid cargo crew");
             }
         }
+        var reply = await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false);
+        if (reply.Outcome.Failure is { } failure)
+        {
+            throw Failure(failure);
+        }
+        if (reply.Outcome.Unavailable is { } unavailable)
+        {
+            throw Unavailable(unavailable);
+        }
+        var snapshot = reply.Outcome.Observed!;
         var cargo = new Dictionary<string, long>(StringComparer.Ordinal);
         foreach (var stock in snapshot.Stocks)
         {

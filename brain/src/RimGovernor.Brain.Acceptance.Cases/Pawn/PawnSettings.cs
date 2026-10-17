@@ -55,7 +55,7 @@ internal static class PawnSettings
     });
 
     /// <summary>Applies one setting arm and returns its field outcomes.</summary>
-    private static async Task<IReadOnlyList<Receipts.FieldOutcome?>> ApplyAsync(ITypedSession s, string key, string pawn, Operations.PawnSettingsIntentSetting setting, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<Receipts.FieldOutcome>> ApplyAsync(ITypedSession s, string key, string pawn, Operations.PawnSettingsIntentSetting setting, CancellationToken cancellationToken)
     {
         var effect = await TypedPawns.AppliedAsync(s, key, new Operations.PawnSettingsIntent { PawnId = pawn, Setting = setting }, cancellationToken).ConfigureAwait(false);
         var fields = effect?.Settings?.Fields.Select(f => f.Outcome).ToList();

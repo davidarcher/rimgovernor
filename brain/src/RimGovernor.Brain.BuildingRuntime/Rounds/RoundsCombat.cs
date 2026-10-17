@@ -301,15 +301,15 @@ internal static partial class BuildingRuntimePackage
         {
             if (row.Cell is { } cell && row.Standable.GetValueOrDefault())
             {
-                standable.Add(new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()));
+                standable.Add(new Cell(cell.X, cell.Z));
             }
         }
         foreach (var row in geometry.Proposed)
         {
             if (row.Cell is { } cell)
             {
-                proposals.Add(new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()));
-                standable.Add(new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()));
+                proposals.Add(new Cell(cell.X, cell.Z));
+                standable.Add(new Cell(cell.X, cell.Z));
             }
         }
         var sightLines = new List<SightLine>();
@@ -353,7 +353,7 @@ internal static partial class BuildingRuntimePackage
         {
             if (row.Cell is { } cell)
             {
-                route.Add(new RouteCell { Cell = new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()), LineOfFire = row.HostileLineOfFire.GetValueOrDefault(), Door = row.Door.GetValueOrDefault() });
+                route.Add(new RouteCell { Cell = new Cell(cell.X, cell.Z), LineOfFire = row.HostileLineOfFire.GetValueOrDefault(), Door = row.Door.GetValueOrDefault() });
             }
         }
         return reply with { Route = [.. route] };
@@ -393,9 +393,9 @@ internal static partial class BuildingRuntimePackage
                 {
                     s = s with { CarriedDrugs = Known<EquatableArray<string>>([.. drugs.Defs]) };
                 }
-                if (row.Cell is { X: not null, Z: not null } cell)
+                if (row.Cell is { } cell)
                 {
-                    s = s with { Cell = Known(new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault())) };
+                    s = s with { Cell = Known(new Cell(cell.X, cell.Z)) };
                 }
                 if (row.ShieldEnergy is not null)
                 {
@@ -418,9 +418,9 @@ internal static partial class BuildingRuntimePackage
         {
             var row = rows[id];
             var s = new CombatPawnState { Id = new PawnId(id), Downed = row.Downed, Dead = row.Dead };
-            if (row.Pawn.Position is { X: not null, Z: not null } position)
+            if (row.Pawn.Position is { } position)
             {
-                s = s with { Cell = Known(new Cell(position.X.GetValueOrDefault(), position.Z.GetValueOrDefault())) };
+                s = s with { Cell = Known(new Cell(position.X, position.Z)) };
             }
             output.Add(ThreatFacts(s, row, combat.Catalog ?? throw new ControlException("combat pawn states: no definition catalog")));
         }

@@ -233,9 +233,9 @@ public sealed partial class Control : IDisposable
                     throw FailedObservation(e, epoch);
                 }
                 var revoked = result.Outcome?.Revoked;
-                if (revoked is null || !ContextValid(revoked.Context) || !Equals(revoked.Context.Identity, ControlIdentity(requested)) || revoked.Context.NativeGeneration is null || revoked.Context.NativeGeneration.GetValueOrDefault() != generation + 1 || generation + 1 == ulong.MaxValue)
+                if (revoked is null || revoked.Context is null || !Equals(revoked.Context.Identity, ControlIdentity(requested)) || revoked.Context.NativeGeneration is null || revoked.Context.NativeGeneration.GetValueOrDefault() != generation + 1 || generation + 1 == ulong.MaxValue)
                 {
-                    throw new ControlException("Acquire: revoked == nil || bridge.ValidateContext(revoked.Context) != nil || !proto.Equal(revoked.Context.Identity, ...");
+                    throw new ControlException("Acquire: revoked == nil || revoked.Context == nil || !proto.Equal(revoked.Context.Identity, ...");
                 }
                 generation = revoked.Context.NativeGeneration.GetValueOrDefault();
             }
@@ -683,9 +683,9 @@ public sealed partial class Control : IDisposable
     private void AcceptGrant(PbAuthority.ControlReply reply, GenerationSnapshot snapshot, CancellationToken call, CancellationToken epoch)
     {
         var grant = reply.Outcome?.Granted;
-        if (grant is null || !ContextValid(grant.Context) || !Equals(grant.Context.Identity, ControlIdentity(snapshot)) || grant.Context.NativeGeneration is null || grant.Context.NativeGeneration.GetValueOrDefault() != snapshot.Native.Value || grant.Authority is null || grant.Authority.Mode.GetValueOrDefault() != PbAuthority.Mode.Auto)
+        if (grant is null || grant.Context is null || !Equals(grant.Context.Identity, ControlIdentity(snapshot)) || grant.Context.NativeGeneration is null || grant.Context.NativeGeneration.GetValueOrDefault() != snapshot.Native.Value || grant.Authority is null || grant.Authority.Mode.GetValueOrDefault() != PbAuthority.Mode.Auto)
         {
-            throw new ControlException("acceptGrant: grant == nil || bridge.ValidateContext(grant.Context) != nil || !proto.Equal(grant.Context.Identity, ...");
+            throw new ControlException("acceptGrant: grant == nil || grant.Context == nil || !proto.Equal(grant.Context.Identity, ...");
         }
         lock (_mu)
         {
@@ -754,9 +754,9 @@ public sealed partial class Control : IDisposable
         }
         var result = await _native.RevokeAsync(new PbAuthority.Revoke { Identity = ControlIdentity(snapshot), ExpectedGeneration = generation, Reason = reason }, ct).ConfigureAwait(false);
         var revoked = result.Outcome?.Revoked;
-        if (revoked is null || !ContextValid(revoked.Context) || !Equals(revoked.Context.Identity, ControlIdentity(snapshot)) || revoked.Context.NativeGeneration is null || revoked.Context.NativeGeneration.GetValueOrDefault() != generation + 1 || revoked.Authority is null || revoked.Authority.Reason is null || revoked.Authority.Reason.GetValueOrDefault() != reason)
+        if (revoked is null || revoked.Context is null || !Equals(revoked.Context.Identity, ControlIdentity(snapshot)) || revoked.Context.NativeGeneration is null || revoked.Context.NativeGeneration.GetValueOrDefault() != generation + 1 || revoked.Authority is null || revoked.Authority.Reason is null || revoked.Authority.Reason.GetValueOrDefault() != reason)
         {
-            throw new ControlException("revoke: revoked == nil || bridge.ValidateContext(revoked.Context) != nil || !proto.Equal(revoked.Context.Identity, ...");
+            throw new ControlException("revoke: revoked == nil || revoked.Context == nil || !proto.Equal(revoked.Context.Identity, ...");
         }
         PublishDisabled(snapshot, revoked.Context.NativeGeneration.GetValueOrDefault(), ct);
     }
@@ -908,9 +908,9 @@ public sealed partial class Control : IDisposable
     internal static void ControlStatus(PbAuthority.StatusReply reply, GenerationSnapshot snapshot)
     {
         var status = reply.Outcome?.Status;
-        if (status is null || !ContextValid(status.Context) || !Equals(status.Context.Identity, ControlIdentity(snapshot)) || status.Context.NativeGeneration is null)
+        if (status is null || status.Context is null || !Equals(status.Context.Identity, ControlIdentity(snapshot)) || status.Context.NativeGeneration is null)
         {
-            throw new ControlException("controlStatus: status == nil || bridge.ValidateContext(status.Context) != nil || !proto.Equal(status.Context.Identity, ...");
+            throw new ControlException("controlStatus: status == nil || status.Context == nil || !proto.Equal(status.Context.Identity, ...");
         }
         if (status.State?.Inactive is { } inactive)
         {
@@ -925,19 +925,6 @@ public sealed partial class Control : IDisposable
             return;
         }
         throw new ControlException("controlStatus: check failed");
-    }
-
-    private static bool ContextValid([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] PbCommon.ObservationContext? context)
-    {
-        try
-        {
-            BridgeApi.ValidateContext(context);
-            return true;
-        }
-        catch (DomainException)
-        {
-            return false;
-        }
     }
 
     internal static PbCommon.Identity ControlIdentity(GenerationSnapshot s) =>

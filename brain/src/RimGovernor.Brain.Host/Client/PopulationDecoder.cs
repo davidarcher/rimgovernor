@@ -15,31 +15,17 @@ namespace RimGovernor.Brain.Host;
 internal static class PopulationDecoder
 {
     /// <summary>Go <c>decodePopulation</c>.</summary>
-    internal static PrisonerCensus Decode(PbObservations.PopulationSnapshot? observed, Pawns pawns, BridgeCatalog? catalog)
+    internal static PrisonerCensus Decode(PbObservations.PopulationSnapshot observed, Pawns pawns, BridgeCatalog? catalog)
     {
-        if (observed is null)
-        {
-            throw new BridgeUnavailableException("population snapshot missing");
-        }
         var names = new List<P.OwnedName>(observed.OwnedNames.Count);
-        var seenNames = new HashSet<string>(StringComparer.Ordinal);
         foreach (var n in observed.OwnedNames)
         {
-            if (n is null || !BridgeFunctions.IsValidId(n.PawnId ?? "") || !seenNames.Add(n.PawnId ?? "") || n.ShortName is null || n.ThingId is null)
-            {
-                throw BridgeFunctions.Contract("invalid or duplicate owned name");
-            }
-            names.Add(new P.OwnedName(new Domain.PawnId(n.PawnId ?? ""), n.ShortName, n.ThingId.GetValueOrDefault()));
+            names.Add(new P.OwnedName(new Domain.PawnId(n.PawnId ?? ""), n.ShortName ?? "", n.ThingId.GetValueOrDefault()));
         }
-        var seen = new HashSet<string>(StringComparer.Ordinal);
         var resolved = new PbObservations.PawnState[observed.Persons.Count];
         for (var i = 0; i < observed.Persons.Count; i++)
         {
             var person = observed.Persons[i];
-            if (person is null || !BridgeFunctions.UniqueRef(person.Pawn, seen))
-            {
-                throw BridgeFunctions.Contract("invalid or duplicate population person");
-            }
             if (!pawns.TryRow(person.Pawn!, out var row))
             {
                 return new PrisonerCensus { Context = observed.Context, Names = Known(EquatableArray.From(names)) };

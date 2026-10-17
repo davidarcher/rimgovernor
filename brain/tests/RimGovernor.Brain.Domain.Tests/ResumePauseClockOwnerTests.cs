@@ -84,7 +84,6 @@ public sealed class ResumePauseClockOwnerTests
             NativeTickBoundary = true,
             NewestCursor = 0,
             HoldSerial = 0,
-            ObservedSpeed = Held ? PbClock.ObservedSpeed.Paused : PbClock.ObservedSpeed.Fast,
             ActualPaused = Held,
         };
     }

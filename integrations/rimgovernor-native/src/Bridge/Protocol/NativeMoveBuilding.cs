@@ -32,7 +32,7 @@ namespace HomeBridge.BridgeTools
             RefIndex.Thing(map, id) as MinifiedThing ?? RefIndex.ThingOrMinified(map, id)?.ParentHolder as MinifiedThing;
 
         private static bool Valid(Operations.RelocateIntent intent) => ProtoBoundary.IsIdentifier(intent.ThingId)
-            && intent.Destination != null && intent.Destination.X is not null && intent.Destination.Z is not null && intent.Rotation is not null
+            && intent.Destination != null && intent.Rotation is not null
             && intent.Rotation.GetValueOrDefault() >= Placement.Rotation.North && intent.Rotation.GetValueOrDefault() <= Placement.Rotation.West;
 
         private static Rot4 Rotation(Operations.RelocateIntent intent) => new Rot4((int)intent.Rotation.GetValueOrDefault() - 1);
@@ -108,7 +108,7 @@ namespace HomeBridge.BridgeTools
             if (blueprint == null || !blueprint.Spawned) throw new InvalidOperationException("Native install blueprint was not observed.");
             return new Receipts.EffectEvidence { Effect = new Receipts.InstallationEffect {
                 DefName = building!.def.defName, Stuff = building.Stuff?.defName ?? "",
-                Cell = new Common.Cell { X = intent.Destination?.X, Z = intent.Destination?.Z }, Rotation = intent.Rotation,
+                Cell = new Common.Cell { X = intent.Destination!.X, Z = intent.Destination.Z }, Rotation = intent.Rotation,
                 Stage = Receipts.InstallationStage.Queued } };
         }
     }

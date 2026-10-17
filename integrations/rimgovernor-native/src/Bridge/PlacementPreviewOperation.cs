@@ -44,8 +44,6 @@ namespace HomeBridge.BridgeTools
         public override bool success => true;
         public bool canPlace => rotations.Any(row => row.accepted);
         public bool madeFromStuff { get; internal set; }
-        public string passability { get; internal set; } = "";
-        public bool isDoor { get; internal set; }
         public bool researchFinished { get; internal set; }
         public bool buildableByPlayer { get; internal set; }
         public List<PlacementCost> costList { get; internal set; } = new List<PlacementCost>();
@@ -184,16 +182,11 @@ namespace HomeBridge.BridgeTools
                 if (madeFromStuff && (material == null || !material.IsStuff || material.stuffProps == null
                     || !material.stuffProps.CanMake(definition)))
                     return new PlacementPreviewFailure("The requested or default stuff cannot make this definition.", PlacementFailureKind.InvalidRequest);
-                var thing = definition as ThingDef;
                 var result = new PlacementPreviewEvaluation {
                     madeFromStuff = madeFromStuff,
-                    passability = thing != null ? thing.passability.ToString() : ((TerrainDef)definition).passability.ToString(),
-                    isDoor = thing != null && typeof(Building_Door).IsAssignableFrom(thing.thingClass),
                     researchFinished = definition.IsResearchFinished,
                     buildableByPlayer = definition.BuildableByPlayer
                 };
-                if (result.passability != "Standable" && result.passability != "PassThroughOnly" && result.passability != "Impassable")
-                    return new PlacementPreviewFailure("Native passability is unavailable.");
                 foreach (var rotation in rotations)
                     result.rotations.Add(EvaluateRotation(map, definition, definition.blueprintDef, center, new Rot4(rotation), material, godMode, ignoreNaturalRock: candidate.IgnoreNaturalRock));
                 if (!result.researchFinished)

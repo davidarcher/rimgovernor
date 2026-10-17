@@ -7,18 +7,12 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace HomeBridge.BridgeTools
 {
     internal static class NativeMineAcquisition
     {
-        internal static string Token(Common.Identity identity, string id, string resource, int x, int z, int hitPoints, int yield, bool designated) =>
-            NativeSnapshotVersions.Token("mine", identity, id, w => { w.Write(resource); w.Write(x); w.Write(z); w.Write(hitPoints); w.Write(yield); w.Write(designated); });
-        internal static Obs.SnapshotRef Snapshot(Mineable rock, Common.ObservationContext context) => new Obs.SnapshotRef {
-            Context = context, EntityId = rock.GetUniqueLoadID(), Token = Token(context.Identity ?? throw new InvalidOperationException("Observation context has no identity."), rock.GetUniqueLoadID(),
-                rock.def.building.mineableThing.defName, rock.Position.x, rock.Position.z, rock.HitPoints, rock.def.building.mineableYield, ResourceAcquisitionTools.Designated(rock)) };
         internal const string Kind = "Mine";
         // Miner is the colonist rule ResourceAcquisitionTools.Eligible
         // applies to mining: someone must be able to do the work now.
@@ -39,7 +33,7 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
                 .Present(() => found != null && found.Spawned, "the exact rock is no longer spawned on this map")
-                .Require(() => found!.Position.x == command.Cell.X.GetValueOrDefault() && found.Position.z == command.Cell.Z.GetValueOrDefault(), "the rock is not at the expected cell")
+                .Require(() => found!.Position.x == command.Cell.X && found.Position.z == command.Cell.Z, "the rock is not at the expected cell")
                 .Require(() => found!.def.building.mineableThing?.defName == command.ResourceDefName, "the rock no longer yields the expected resource")
                 .Require(() => !found!.Position.Fogged(map), "the rock's cell is fogged")
                 .Require(() => !found!.IsForbidden(Faction.OfPlayer), "the rock is forbidden")

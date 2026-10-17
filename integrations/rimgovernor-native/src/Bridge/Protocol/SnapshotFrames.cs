@@ -158,15 +158,15 @@ namespace HomeBridge.BridgeTools
                 if (weapon == null || weapon.GetUniqueLoadID() != primaryId || !weapon.def.IsRangedWeapon) continue;
                 var gun = weapon.def.Verbs?.FirstOrDefault(v => !v.IsMeleeAttack && v.range > 0);
                 if (gun == null || float.IsNaN(gun.range) || float.IsInfinity(gun.range)) continue;
-                var cell = new IntVec3(position.X.GetValueOrDefault(), 0, position.Z.GetValueOrDefault());
+                var cell = new IntVec3(position.X, 0, position.Z);
                 if (!firing.Contains(cell)) firing.Add(cell);
             }
             var approach = new List<IntVec3>();
             foreach (var building in threats.HostileBuildings)
             {
                 if (building.Occupied?.Minimum is not { } lo || building.Occupied.Maximum is not { } hi) continue;
-                for (var z = lo.Z.GetValueOrDefault(); z <= hi.Z.GetValueOrDefault(); z++)
-                    for (var x = lo.X.GetValueOrDefault(); x <= hi.X.GetValueOrDefault(); x++)
+                for (var z = lo.Z; z <= hi.Z; z++)
+                    for (var x = lo.X; x <= hi.X; x++)
                     {
                         var cell = new IntVec3(x, 0, z);
                         if (!approach.Contains(cell)) approach.Add(cell);

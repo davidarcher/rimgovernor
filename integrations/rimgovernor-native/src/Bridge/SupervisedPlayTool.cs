@@ -659,7 +659,7 @@ namespace HomeBridge.BridgeTools
                 if (!s.Messages.Add(id)) continue;
                 var type = GameWatchReads.SafeMessageType(m);
                 var text = GameWatchReads.SafeMessageText(m) ?? "Transient message";
-                var payload = new Dictionary<string, object?> { { "id", id }, { "messageType", type },
+                var payload = new Dictionary<string, object?> { { "id", id },
                     { "text", text }, { "startingTick", GameWatchReads.SafeMessageTick(m) } };
                 // Same rule for the transient top-left messages: only
                 // ThreatBig, ThreatSmall, PawnDeath and an unknown type stop.
@@ -774,8 +774,7 @@ namespace HomeBridge.BridgeTools
                     {
                         var health = new Dictionary<string, object?> { { "pawnId", p.thingIDNumber },
                                 { "pawnName", GameWatchReads.SafeName(p) },
-                                { "position", Position(p) }, { "healthAtStart", before.Health },
-                                { "healthNow", after.Health }, { "minHealthFraction", s.MinHealthFraction },
+                                { "position", Position(p) }, { "minHealthFraction", s.MinHealthFraction },
                                 { "healthDropFraction", s.HealthDropFraction } };
                         if (after.NewestWoundAgeTicks != int.MaxValue) health["occurrenceTick"] = tick - after.NewestWoundAgeTicks;
                         return new Hit("colonist_health", GameWatchReads.SafeName(p)
@@ -789,12 +788,8 @@ namespace HomeBridge.BridgeTools
                     {
                         var payload = new Dictionary<string, object?> { { "pawnId", p.thingIDNumber },
                                 { "pawnName", GameWatchReads.SafeName(p) },
-                                { "position", Position(p) }, { "injuryCountBefore", before.Count },
-                                { "injuryCountAfter", after.Count }, { "severityBefore", before.Severity },
-                                { "severityAfter", after.Severity }, { "bleedRateBefore", before.BleedRate },
-                                { "bleedRateAfter", after.BleedRate }, { "bloodLossBefore", before.BloodLoss },
-                                { "bloodLossAfter", after.BloodLoss }, { "healthAtStart", before.Health },
-                                { "healthNow", after.Health } };
+                                { "position", Position(p) }, { "severityBefore", before.Severity },
+                                { "severityAfter", after.Severity } };
                         var threshold = !fightOwned && HealthThresholdCrossed(s, before, after);
                         // Colony mode stops on any worsening -- except for a
                         // colonist who already caused a colonist_injury stop
@@ -813,9 +808,6 @@ namespace HomeBridge.BridgeTools
                         var owedMs = InjuryCooldownRemainingMs(p.thingIDNumber, s.InjuryStopCooldownMs);
                         var acknowledged = s.IgnoredInjured.Contains(p.thingIDNumber);
                         var suppressed = !threshold && (owedMs > 0 || acknowledged);
-                        payload["suppressed"] = suppressed;
-                        payload["suppressedBy"] = suppressed ? (acknowledged ? "acknowledged" : "cooldown") : null;
-                        payload["newWound"] = newWound;
                         if (after.Count > before.Count && after.NewestWoundAgeTicks != int.MaxValue && Find.TickManager != null)
                             payload["occurrenceTick"] = Find.TickManager.TicksGame - after.NewestWoundAgeTicks;
                         // A new wound stops the run only past the native
@@ -828,11 +820,7 @@ namespace HomeBridge.BridgeTools
                         // still stops.
                         var severityFloorTicks = (int)s.Policy!.InjurySeverityFloorTicks.GetValueOrDefault();
                         var severe = InjurySeverityFloorReached(after.BleedOutTicks, after.LifeThreatening, severityFloorTicks);
-                        payload["bleedOutTicks"] = after.BleedOutTicks == int.MaxValue ? null : (object)after.BleedOutTicks;
-                        payload["lifeThreatening"] = after.LifeThreatening;
-                        payload["severityFloorTicks"] = severityFloorTicks;
                         var demoted = s.Mode == "colony" && newWound && !suppressed && !severe && !threshold;
-                        payload["demoted"] = demoted;
                         if (((s.Mode == "colony" && newWound && severe) || threshold) && !suppressed)
                         {
                             RecordInjuryStop(p);
@@ -923,14 +911,7 @@ namespace HomeBridge.BridgeTools
                         .Select(GameWatchReads.SafeName).ToArray()) + ")");
             Add("hostiles_cleared", "No conscious hostiles remain: "
                 + (parts.Count > 0 ? string.Join("; ", parts.ToArray())
-                    : "nothing downed and nobody drafted") + ".", s,
-                new Dictionary<string, object?> {
-                    { "downedHostiles", downed.Select(p => (object)new Dictionary<string, object?> {
-                        { "thingId", p.thingIDNumber }, { "name", GameWatchReads.SafeName(p) },
-                        { "x", p.Position.x }, { "z", p.Position.z } }).ToList() },
-                    { "draftedColonists", drafted.Select(p => (object)new Dictionary<string, object?> {
-                        { "thingId", p.thingIDNumber }, { "name", GameWatchReads.SafeName(p) } }).ToList() },
-                    { "consciousHostilesBefore", before } });
+                    : "nothing downed and nobody drafted") + ".", s, null);
         }
 
         private static bool SafeDrafted(Pawn pawn) { try { return pawn.Drafted; } catch { return false; } }
@@ -1261,14 +1242,12 @@ namespace HomeBridge.BridgeTools
             public readonly Dictionary<int, InjurySnapshot> Injuries = new Dictionary<int, InjurySnapshot>();
             // Grows only: an alert that clears and returns is not news again.
             public readonly HashSet<string> AlertKeys = new HashSet<string>(StringComparer.Ordinal);
-            public readonly List<Dictionary<string, object?>> BaselineAlerts = new List<Dictionary<string, object?>>();
             // null until the first probe of this epoch has counted.
             public int? ConsciousHostiles; public bool HostilesCleared;
             /// Game tick of each pawn's last demoted-injury invalidation.
             public readonly Dictionary<int, int> MedicalWakes = new Dictionary<int, int>();
             public HashSet<int> IgnoredHostiles = new HashSet<int>(); public HashSet<int> IgnoredDowned = new HashSet<int>(); public HashSet<int> SurgicalRecovery = new HashSet<int>(); public HashSet<int> MedicalRest = new HashSet<int>();
             public HashSet<int> IgnoredInjured = new HashSet<int>(); public int InjuryStopCooldownMs;
-            public readonly List<Dictionary<string, object?>> SuppressedInjuries = new List<Dictionary<string, object?>>();
         }
 
         private sealed class InjuryStop

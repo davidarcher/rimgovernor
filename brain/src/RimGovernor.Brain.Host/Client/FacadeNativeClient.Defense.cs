@@ -5,7 +5,7 @@ using EquatableArray = RimGovernor.Brain.Domain.EquatableArray;
 namespace RimGovernor.Brain.Host;
 
 // Go internal/bridge defense_site.go (ReadDefenseSite, ReadLinesOfFire) and spatial_access.go (ReadSpatialAccess):
-// the typed core methods and the reply validators that decode them into the Bridge.Contracts read models.
+// the typed core methods and the decoders that turn their replies into the Bridge.Contracts read models.
 internal sealed partial class FacadeNativeClient
 {
     /// <summary>Go <c>LinesOfFireBudgetMS</c> (frames.go): the main-thread milliseconds a lines-of-fire read may spend.</summary>
@@ -30,18 +30,15 @@ internal sealed partial class FacadeNativeClient
             Region = new PbObservations.Rectangle { Minimum = DefenseWireCell(region.Min), Maximum = DefenseWireCell(region.Max) },
         };
         var reply = await Facade.ReadDefenseSiteAsync(request, cancellationToken).ConfigureAwait(false);
-        BridgeFunctions.BuildingUnknown(reply);
-        switch (reply.Outcome)
+        if (reply.Outcome.Failure is { } failure)
         {
-            case PbObservations.DefenseSiteReplyOutcome.FailureCase failure:
-                throw Failure(failure.Value);
-            case PbObservations.DefenseSiteReplyOutcome.UnavailableCase unavailable:
-                throw Unavailable(unavailable.Value);
-            case PbObservations.DefenseSiteReplyOutcome.ObservedCase observed:
-                return DefenseValidateSite(observed.Value, identity, region);
-            default:
-                throw BridgeFunctions.Contract("defense site outcome missing");
+            throw Failure(failure);
         }
+        if (reply.Outcome.Unavailable is { } unavailable)
+        {
+            throw Unavailable(unavailable);
+        }
+        return DefenseDecodeSite(reply.Outcome.Observed!, region);
     }
 
     /// <summary>
@@ -60,25 +57,22 @@ internal sealed partial class FacadeNativeClient
             ApproachCells = EquatableArray.From(approach.Select(DefenseWireCell)),
         };
         var reply = await Facade.ReadLinesOfFireAsync(request, cancellationToken).ConfigureAwait(false);
-        BridgeFunctions.BuildingUnknown(reply);
-        switch (reply.Outcome)
+        if (reply.Outcome.Failure is { } failure)
         {
-            case PbObservations.LinesOfFireReplyOutcome.FailureCase failure:
-                throw Failure(failure.Value);
-            case PbObservations.LinesOfFireReplyOutcome.UnavailableCase unavailable:
-                throw Unavailable(unavailable.Value);
-            case PbObservations.LinesOfFireReplyOutcome.ObservedCase observed:
-                var lines = DefenseValidateLinesOfFire(observed.Value, identity, firing, approach);
-                return new LinesOfFire(observed.Value.Context, lines, observed.Value.Skipped.GetValueOrDefault());
-            default:
-                throw BridgeFunctions.Contract("lines of fire outcome missing");
+            throw Failure(failure);
         }
+        if (reply.Outcome.Unavailable is { } unavailable)
+        {
+            throw Unavailable(unavailable);
+        }
+        var observed = reply.Outcome.Observed!;
+        var lines = DefenseDecodeLinesOfFire(observed);
+        return new LinesOfFire(observed.Context, lines, observed.Skipped.GetValueOrDefault());
     }
 
     /// <summary>
     /// Go <c>Client.ReadSpatialAccess</c>: audits the map's colonist access (paused or running) with blocked cells
-    /// impassable and targets checked; empty <paramref name="pawnIds"/> audits every mobile free colonist. Unknown never
-    /// becomes access: an incomplete or partial reply is a contract error.
+    /// impassable and targets checked; empty <paramref name="pawnIds"/> audits every mobile free colonist.
     /// </summary>
     internal async Task<SpatialAccess> ReadSpatialAccessAsync(
         PbCommon.Identity identity,
@@ -116,18 +110,15 @@ internal sealed partial class FacadeNativeClient
             TargetCells = EquatableArray.From(targets.Select(DefenseWireCell)),
         };
         var reply = await Facade.ReadSpatialAccessAsync(request, cancellationToken).ConfigureAwait(false);
-        BridgeFunctions.BuildingUnknown(reply);
-        switch (reply.Outcome)
+        if (reply.Outcome.Failure is { } failure)
         {
-            case PbObservations.SpatialAccessReplyOutcome.FailureCase failure:
-                throw Failure(failure.Value);
-            case PbObservations.SpatialAccessReplyOutcome.UnavailableCase unavailable:
-                throw Unavailable(unavailable.Value);
-            case PbObservations.SpatialAccessReplyOutcome.ObservedCase observed:
-                return DefenseValidateSpatialAccess(observed.Value, identity, blocked, targets, pawnIds);
-            default:
-                throw BridgeFunctions.Contract("spatial access outcome missing");
+            throw Failure(failure);
         }
+        if (reply.Outcome.Unavailable is { } unavailable)
+        {
+            throw Unavailable(unavailable);
+        }
+        return DefenseDecodeSpatialAccess(reply.Outcome.Observed!);
     }
 
     private static PbCommon.Cell DefenseWireCell(DomainCell cell) => new() { X = cell.X, Z = cell.Z };
@@ -149,100 +140,22 @@ internal sealed partial class FacadeNativeClient
         }
     }
 
-    /// <summary>Go <c>validateDefenseSite</c>.</summary>
-    private static DefenseSite DefenseValidateSite(PbObservations.DefenseSiteSnapshot? v, PbCommon.Identity identity, CellRect region)
+    /// <summary>Go <c>validateDefenseSite</c>: decodes the defense site census of <paramref name="region"/>.</summary>
+    private static DefenseSite DefenseDecodeSite(PbObservations.DefenseSiteSnapshot v, CellRect region)
     {
-        if (v is null || !BridgeFunctions.SameIdentity(v.Context?.Identity, identity))
-        {
-            throw BridgeFunctions.Contract("invalid defense site context");
-        }
-        var minOk = BridgeFunctions.TryProtoCell(v.Region?.Minimum, out var min);
-        var maxOk = BridgeFunctions.TryProtoCell(v.Region?.Maximum, out var max);
-        if (!minOk || !maxOk || min != region.Min || max != region.Max)
-        {
-            throw BridgeFunctions.Contract("defense site region changed");
-        }
-        var want = (region.Max.X - region.Min.X + 1) * (region.Max.Z - region.Min.Z + 1);
-        if (v.Cells.Count != want)
-        {
-            throw BridgeFunctions.Contract("incomplete defense site census");
-        }
-        var width = v.MapSize.Width;
-        var height = v.MapSize.Height;
-        var cells = new List<DefenseCell>(want);
-        var seen = new HashSet<DomainCell>(want);
+        var cells = new List<DefenseCell>(v.Cells.Count);
         foreach (var row in v.Cells)
         {
-            if (row is null)
+            BridgeFunctions.TryProtoCell(row.Cell, out var cell);
+            if (row.Fogged.GetValueOrDefault())
             {
-                throw BridgeFunctions.Contract("missing defense cell");
-            }
-            if (!BridgeFunctions.TryProtoCell(row.Cell, out var cell)
-                || seen.Contains(cell)
-                || cell.X < region.Min.X
-                || cell.X > region.Max.X
-                || cell.Z < region.Min.Z
-                || cell.Z > region.Max.Z
-                || (long)cell.X >= width
-                || (long)cell.Z >= height)
-            {
-                throw BridgeFunctions.Contract("defense cell outside region or duplicated");
-            }
-            seen.Add(cell);
-            if (row.Fogged is null)
-            {
-                throw BridgeFunctions.Contract("defense cell visibility missing");
-            }
-            var fogged = row.Fogged.GetValueOrDefault();
-            if (fogged)
-            {
-                // Unknown geometry carries no facts; a fogged cell claiming traversal or cover would be an invented observation.
-                if (row.Walkable is not null || row.Passable is not null || row.CoverFill is not null || row.EdgeReachable is not null || row.EdificeDefName is not null || row.EdificeStuffDefName is not null)
-                {
-                    throw BridgeFunctions.Contract("fogged defense cell carries facts");
-                }
+                // Unknown geometry carries no facts.
                 cells.Add(new DefenseCell { Cell = cell, Fogged = true });
                 continue;
-            }
-            if (row.Terrain is null
-                || !BridgeFunctions.IsValidId(row.Terrain)
-                || row.Walkable is null
-                || row.Passable is null
-                || row.EdgeReachable is null
-                || row.PlayerOwned is null
-                || row.NaturalRock is null
-                || row.Door is null
-                || !BridgeFunctions.Fraction(row.CoverFill))
-            {
-                throw BridgeFunctions.Contract("defense cell facts missing or invalid");
-            }
-            if (row.EdificeDefName is not null && !BridgeFunctions.IsValidId(row.EdificeDefName))
-            {
-                throw BridgeFunctions.Contract("invalid defense cell edifice");
-            }
-            if (row.EdificeStuffDefName is not null && (row.EdificeDefName is null || !BridgeFunctions.IsValidId(row.EdificeStuffDefName)))
-            {
-                throw BridgeFunctions.Contract("invalid defense cell edifice stuff");
-            }
-            if (row.EdificeDefName is null && (row.PlayerOwned.GetValueOrDefault() || row.NaturalRock.GetValueOrDefault() || row.Door.GetValueOrDefault()))
-            {
-                throw BridgeFunctions.Contract("edifice facts without an edifice");
-            }
-            if ((row.Walkable.GetValueOrDefault() && !row.Passable.GetValueOrDefault()) || (row.EdgeReachable.GetValueOrDefault() && !row.Passable.GetValueOrDefault()))
-            {
-                throw BridgeFunctions.Contract("contradictory defense cell traversal");
             }
             DefenseCover? cover = null;
             if (row.CoverThingId is not null || row.CoverDefName is not null || row.CoverKind is not null || row.CoverDesignated is not null)
             {
-                if (!BridgeFunctions.IsValidId(row.CoverThingId ?? "")
-                    || !BridgeFunctions.IsValidId(row.CoverDefName ?? "")
-                    || row.CoverDesignated is null
-                    || row.CoverKind.GetValueOrDefault() == PbObservations.CoverKind.Unspecified
-                    || row.CoverFill.GetValueOrDefault() <= 0)
-                {
-                    throw BridgeFunctions.Contract("defense cell cover identity incomplete");
-                }
                 cover = new DefenseCover(row.CoverThingId ?? "", row.CoverDefName ?? "", row.CoverKind.GetValueOrDefault(), row.CoverDesignated.GetValueOrDefault());
             }
             cells.Add(
@@ -266,54 +179,19 @@ internal sealed partial class FacadeNativeClient
                 }
             );
         }
-        return new DefenseSite(v.Context, width, height, region, cells);
+        return new DefenseSite(v.Context, v.MapSize.Width, v.MapSize.Height, region, cells);
     }
 
-    /// <summary>Go <c>validateLinesOfFire</c>.</summary>
-    internal static List<LineOfFire> DefenseValidateLinesOfFire(PbObservations.LinesOfFireSnapshot? v, PbCommon.Identity identity, IReadOnlyList<DomainCell> firing, IReadOnlyList<DomainCell> approach)
+    /// <summary>Go <c>validateLinesOfFire</c>: decodes the lines of fire; a line without line-of-sight facts is unknown.</summary>
+    internal static List<LineOfFire> DefenseDecodeLinesOfFire(PbObservations.LinesOfFireSnapshot v)
     {
-        if (v is null || !BridgeFunctions.SameIdentity(v.Context?.Identity, identity))
-        {
-            throw BridgeFunctions.Contract("invalid lines of fire context");
-        }
-        var want = firing.Count * approach.Count;
-        var skipped = v.Skipped.GetValueOrDefault();
-        // A skipped snapshot holds a prefix of the product; otherwise it is whole.
-        if ((skipped && v.Lines.Count > want) || (!skipped && v.Lines.Count != want))
-        {
-            throw BridgeFunctions.Contract("incomplete lines of fire");
-        }
-        var wantFrom = new HashSet<DomainCell>(firing);
-        var wantTo = new HashSet<DomainCell>(approach);
-        var seen = new HashSet<(DomainCell From, DomainCell To)>(want);
-        var lines = new List<LineOfFire>(want);
+        var lines = new List<LineOfFire>(v.Lines.Count);
         foreach (var row in v.Lines)
         {
-            if (row is null)
+            BridgeFunctions.TryProtoCell(row.From, out var from);
+            BridgeFunctions.TryProtoCell(row.To, out var to);
+            if (row.LineOfSight is not null)
             {
-                throw BridgeFunctions.Contract("missing line of fire");
-            }
-            var fromOk = BridgeFunctions.TryProtoCell(row.From, out var from);
-            var toOk = BridgeFunctions.TryProtoCell(row.To, out var to);
-            if (!fromOk || !toOk || !wantFrom.Contains(from) || !wantTo.Contains(to) || !seen.Add((from, to)))
-            {
-                throw BridgeFunctions.Contract("line of fire pair unexpected or duplicated");
-            }
-            if (row.Distance is null || !double.IsFinite(row.Distance.GetValueOrDefault()) || row.Distance.GetValueOrDefault() < 0)
-            {
-                throw BridgeFunctions.Contract("invalid line of fire distance");
-            }
-            var known = row.LineOfSight is not null;
-            if (known != (row.TargetCover is not null) || known != (row.ShooterCover is not null))
-            {
-                throw BridgeFunctions.Contract("partial line of fire facts");
-            }
-            if (known)
-            {
-                if (!BridgeFunctions.Fraction(row.TargetCover) || !BridgeFunctions.Fraction(row.ShooterCover))
-                {
-                    throw BridgeFunctions.Contract("invalid line of fire cover");
-                }
                 lines.Add(
                     new LineOfFire
                     {
@@ -327,10 +205,6 @@ internal sealed partial class FacadeNativeClient
                     }
                 );
             }
-            else if (row.Issues.Count == 0)
-            {
-                throw BridgeFunctions.Contract("unknown line of fire without issue");
-            }
             else
             {
                 lines.Add(new LineOfFire { From = from, To = to, Distance = row.Distance.GetValueOrDefault() });
@@ -339,100 +213,31 @@ internal sealed partial class FacadeNativeClient
         return lines;
     }
 
-    /// <summary>Go <c>validateSpatialAccess</c>.</summary>
-    private static SpatialAccess DefenseValidateSpatialAccess(
-        PbObservations.SpatialAccessSnapshot? v,
-        PbCommon.Identity identity,
-        IReadOnlyList<DomainCell> blocked,
-        IReadOnlyList<DomainCell> targets,
-        IReadOnlyList<string> pawnIds
-    )
+    /// <summary>Go <c>validateSpatialAccess</c>: decodes the spatial access audit; a skipped colonist carries its position only.</summary>
+    private static SpatialAccess DefenseDecodeSpatialAccess(PbObservations.SpatialAccessSnapshot v)
     {
-        if (v is null || !BridgeFunctions.SameIdentity(v.Context?.Identity, identity))
-        {
-            throw BridgeFunctions.Contract("invalid spatial access context");
-        }
-        if (v.MapCells is null || v.ObservedWalkableCells is null || v.MapCells.GetValueOrDefault() == 0 || v.ObservedWalkableCells.GetValueOrDefault() > v.MapCells.GetValueOrDefault())
-        {
-            throw BridgeFunctions.Contract("spatial access map census missing");
-        }
-        if (v.Pawns.Count == 0 || (pawnIds.Count != 0 && v.Pawns.Count != pawnIds.Count))
-        {
-            throw BridgeFunctions.Contract("incomplete spatial access census");
-        }
-        var wanted = new HashSet<string>(pawnIds, StringComparer.Ordinal);
-        var blockedSet = new HashSet<DomainCell>(blocked);
         var pawns = new List<PawnAccess>(v.Pawns.Count);
-        var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in v.Pawns)
         {
-            if (row is null || row.Pawn is null || row.Pawn.Id is null || !BridgeFunctions.IsValidId(row.Pawn.Id) || seen.Contains(row.Pawn.Id) || (pawnIds.Count != 0 && !wanted.Contains(row.Pawn.Id)))
-            {
-                throw BridgeFunctions.Contract("invalid spatial access pawn");
-            }
-            var pawnId = row.Pawn.Id;
-            seen.Add(pawnId);
-            var positionOk = BridgeFunctions.TryProtoCell(row.Position, out var position);
+            var pawnId = row.Pawn?.Id ?? "";
+            BridgeFunctions.TryProtoCell(row.Position, out var position);
             if (row.Skipped.GetValueOrDefault())
             {
                 // Native left this colonist unaudited: position only, nothing else.
-                if (!positionOk || row.CurrentCells is not null || row.ProjectedCells is not null || row.LosesAccess is not null || row.EgressSteps is not null || row.ProjectedOrigin is not null || row.Targets.Count != 0)
-                {
-                    throw BridgeFunctions.Contract("skipped spatial access row carries facts");
-                }
                 pawns.Add(new PawnAccess { Id = pawnId, Position = position, Skipped = true });
                 continue;
             }
-            if (!positionOk || row.CurrentCells is null || row.ProjectedCells is null || row.LosesAccess is null || row.EgressSteps is null || row.Targets.Count != targets.Count)
-            {
-                throw BridgeFunctions.Contract("incomplete spatial access row");
-            }
-            var current = row.CurrentCells.GetValueOrDefault();
-            var after = row.ProjectedCells.GetValueOrDefault();
-            var egress = row.EgressSteps.GetValueOrDefault();
-            if (after > current)
-            {
-                throw BridgeFunctions.Contract("inconsistent spatial access counts");
-            }
-            var originKnown = false;
-            DomainCell projectedOrigin = default;
-            if (row.ProjectedOrigin is not null)
-            {
-                if (!BridgeFunctions.TryProtoCell(row.ProjectedOrigin, out var origin) || blockedSet.Contains(origin))
-                {
-                    throw BridgeFunctions.Contract("invalid projected origin");
-                }
-                originKnown = true;
-                projectedOrigin = origin;
-                if ((origin == position && egress != 0) || (origin != position && (egress == 0 || !blockedSet.Contains(position))))
-                {
-                    throw BridgeFunctions.Contract("projected origin disagrees with egress");
-                }
-            }
-            else if (after != 0 || !blockedSet.Contains(position))
-            {
-                throw BridgeFunctions.Contract("missing projected origin");
-            }
+            var originKnown = BridgeFunctions.TryProtoCell(row.ProjectedOrigin, out var projectedOrigin);
             var accessTargets = new List<AccessTarget>(row.Targets.Count);
-            for (var i = 0; i < row.Targets.Count; i++)
+            foreach (var raw in row.Targets)
             {
-                var raw = row.Targets[i];
-                var cellOk = BridgeFunctions.TryProtoCell(raw?.Cell, out var cell);
-                if (raw is null || !cellOk || cell != targets[i] || raw.NativeReachable is null || raw.ProjectedReachable is null)
-                {
-                    throw BridgeFunctions.Contract("spatial access target mismatch");
-                }
-                var projectedReachable = raw.ProjectedReachable.GetValueOrDefault();
-                if (projectedReachable != (raw.ProjectedSteps is not null) || (projectedReachable && (!originKnown || blockedSet.Contains(cell))))
-                {
-                    throw BridgeFunctions.Contract("projected steps disagree with reachability");
-                }
+                BridgeFunctions.TryProtoCell(raw.Cell, out var cell);
                 accessTargets.Add(
                     new AccessTarget
                     {
                         Cell = cell,
                         NativeReachable = raw.NativeReachable.GetValueOrDefault(),
-                        ProjectedReachable = projectedReachable,
+                        ProjectedReachable = raw.ProjectedReachable.GetValueOrDefault(),
                         ProjectedSteps = raw.ProjectedSteps.GetValueOrDefault(),
                     }
                 );
@@ -442,10 +247,10 @@ internal sealed partial class FacadeNativeClient
                 {
                     Id = pawnId,
                     Position = position,
-                    Current = current,
-                    After = after,
+                    Current = row.CurrentCells.GetValueOrDefault(),
+                    After = row.ProjectedCells.GetValueOrDefault(),
                     LosesAccess = row.LosesAccess.GetValueOrDefault(),
-                    EgressSteps = egress,
+                    EgressSteps = row.EgressSteps.GetValueOrDefault(),
                     OriginKnown = originKnown,
                     ProjectedOrigin = projectedOrigin,
                     Targets = accessTargets,

@@ -42,7 +42,7 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>movementCell</c>: a present, non-negative cell with no fields the schema lacks.</summary>
     internal static void MovementCell(Cell? cell)
     {
-        if (cell is null || cell.X is null || cell.Z is null || cell.X.GetValueOrDefault() < 0 || cell.Z.GetValueOrDefault() < 0)
+        if (cell is null || cell.X < 0 || cell.Z < 0)
         {
             throw Contract("movement destination missing or invalid");
         }

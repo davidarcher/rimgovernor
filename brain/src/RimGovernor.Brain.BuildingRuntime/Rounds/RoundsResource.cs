@@ -142,15 +142,6 @@ public sealed partial class RoundsResourcePlanner
         var observed = reply.Outcome?.Observed ?? throw new ControlException("step: observed == null");
         try
         {
-            BridgeApi.ValidateColonyFacts(observed, identity);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new ControlException("step: colony facts invalid", e);
-        }
-
-        try
-        {
             Boundary.Context(observed.Context, state.Snapshot);
         }
         catch (Exception e) when (e is not OperationCanceledException)

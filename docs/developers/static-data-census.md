@@ -337,7 +337,7 @@ Kept, reason recorded:
 | PlacementProtocol.cs | 148 | code | Validates a placement request and maps native preview results to the wire CandidateReply. |  | none |
 | ProtoBoundary.cs | 617 | code | ProtoJSON parse and encode boundary, main-thread hop timing, identity and context validation, failure and refusal-class mapping. |  | none |
 | ProtoGovernorStateTools.cs | 79 | state | Reads and replaces the opaque governor-state blobs saved with the game. |  | none |
-| ProtoIdentityTools.cs | 174 | state | Reads native tick and pause state and the identity with a hand-written capability list. | Hand-written capability table of about 30 Capability rows with method names and detail text (~120 lines) | none; not def data. Candidate for deletion or generation from proto services |
+| ProtoIdentityTools.cs | 50 | state | Reads native tick and pause state and the identity. |  | none |
 | ProtoLifecycleLoadTools.cs | 321 | state | Starts an async native save load and polls readiness, with a Harmony visual-ready tracker. |  | none |
 | ProtoLifecycleNewColonyTools.cs | 482 | mixed | Drives new-colony generation through world, tile, colonists and map phases then saves; applies team-composition rerolls. | name lookups (live def objects), BiomeDef.canBuildBase filter, WorkTypeFor map, bounds colonist_count 1..10, map_size 100..400, planet_coverage 0.05..1 (the name lists and SkillDefFor were deleted, #2657) | kept, see the #2657 disposition |
 | ProtoLifecycleSaveSignalTools.cs | 61 | state | Long-poll and ack tools for the pre-save handshake. |  | none |

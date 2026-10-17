@@ -30,11 +30,11 @@ public sealed record ColonyThreat
     public IReadOnlyList<RaidTrack> Raids { get; init; } = [];
 }
 
-// Go colony.go. The colony facts read is wire plumbing and not ported; ValidateColonyFacts is (ColonyValidation.cs and its section files);
-// so are the threat projection and the not-requested planning answer.
+// Go colony.go. The colony facts read is wire plumbing and not ported; the threat projection and the
+// not-requested planning answer are.
 public static partial class BridgeFunctions
 {
-    /// <summary>Go's <c>ProjectColonyThreat</c>: reads the threat section of a validated census.</summary>
+    /// <summary>Go's <c>ProjectColonyThreat</c>: reads the threat section of a census.</summary>
     public static ColonyThreat ProjectColonyThreat(ColonyFactsSnapshot census)
     {
         var facts = census.Threat?.Outcome?.Observed;
@@ -55,7 +55,7 @@ public static partial class BridgeFunctions
             StorytellerWealth = Number(facts.StorytellerWealth),
             AdaptationFactor = Number(facts.AdaptationFactor),
             DifficultyThreatScale = Number(facts.DifficultyThreatScale),
-            Raids = ValidateRaidTracks(facts.Raids), // validated with the census
+            Raids = DecodeRaidTracks(facts.Raids),
         };
     }
 

@@ -14,11 +14,11 @@ internal static class BreakDispatch
     public static Fact<Cell> BreakCell(PbObservations.PawnState row)
     {
         var p = row.Pawn.Position;
-        if (p is null || p.X is null || p.Z is null)
+        if (p is null)
         {
             return Unknown<Cell>();
         }
-        return Known(new Cell(p.X.GetValueOrDefault(), p.Z.GetValueOrDefault()));
+        return Known(new Cell(p.X, p.Z));
     }
 
     /// <summary>

@@ -45,8 +45,4 @@ public sealed record NegotiatorRead(string Id, string Token);
 /// negotiators. The read and its decoder (<c>ListTraders</c>, <c>decodeTraders</c>) are wire plumbing and not
 /// ported.
 /// </summary>
-public sealed record TradersRead(ObservationContext? Context, IReadOnlyList<TraderRead> Traders, IReadOnlyList<NegotiatorRead> Negotiators)
-{
-    /// <summary>Go's <c>tradersMaximumRows</c>: the most trader and negotiator rows one census may hold.</summary>
-    public const int MaximumRows = 4096;
-}
+public sealed record TradersRead(ObservationContext? Context, IReadOnlyList<TraderRead> Traders, IReadOnlyList<NegotiatorRead> Negotiators);

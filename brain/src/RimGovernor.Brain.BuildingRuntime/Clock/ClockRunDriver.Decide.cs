@@ -171,7 +171,6 @@ public sealed partial class ClockRunDriver
         PbClock.Status status;
         try
         {
-            BridgeApi.ValidateClockStatus(loaded.ClockStatus, id);
             status = loaded.ClockStatus ?? throw new InvalidOperationException("clock status required");
             Boundary.Context(status.Context, state.Snapshot);
         }

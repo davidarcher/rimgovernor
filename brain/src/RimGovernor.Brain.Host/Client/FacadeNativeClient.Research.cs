@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using static RimGovernor.Brain.Bridge.Contracts.BridgeFunctions;
-using static RimGovernor.Brain.Domain.Fact;
 using BridgeCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 
 namespace RimGovernor.Brain.Host;
@@ -17,71 +16,32 @@ internal sealed partial class FacadeNativeClient
         var catalog = await DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
         var request = new PbObservations.ResearchRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, ProgressOnly = true };
         var reply = await Facade.ReadResearchAsync(request, cancellationToken).ConfigureAwait(false);
-        BuildingUnknown(reply);
         var outcome = reply.Outcome;
-        if (outcome?.Failure is { } failure)
+        if (outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
 
-        if (outcome?.Unavailable is { } unavailable)
+        if (outcome.Unavailable is { } unavailable)
         {
             throw Unavailable(unavailable);
         }
 
-        if (outcome?.Observed is { } observed)
-        {
-            return ResearchReadSnapshot(observed, identity, catalog);
-        }
-
-        throw Contract("missing research outcome");
+        return ResearchReadSnapshot(outcome.Observed!, catalog);
     }
 
-    internal static ResearchRead ResearchReadSnapshot(PbObservations.ResearchSnapshot? v, PbCommon.Identity identity, BridgeCatalog? catalog)
+    private static ResearchRead ResearchReadSnapshot(PbObservations.ResearchSnapshot v, BridgeCatalog catalog)
     {
-        if (v is null || !G3ContextValid(v.Context) || !SameIdentity(v.Context!.Identity, identity))
-        {
-            throw Contract("invalid research context");
-        }
-
-        if (v.Snapshot is null || !IsValidId(v.Snapshot.Token ?? ""))
-        {
-            throw Contract("invalid research snapshot token");
-        }
-
-        if (catalog is null)
-        {
-            throw Contract("research read without a definition catalog");
-        }
-
         var projects = new Dictionary<string, Policy.ResearchProjectFacts>(StringComparer.Ordinal);
         foreach (var (name, facts) in catalog.Research)
         {
             projects[name] = facts;
         }
 
-        var finished = new HashSet<string>(StringComparer.Ordinal);
-        var finishedList = new List<string>();
-        foreach (var name in v.Finished)
-        {
-            if (!IsValidId(name) || !finished.Add(name))
-            {
-                throw Contract("invalid finished research project");
-            }
-
-            finishedList.Add(name);
-        }
-
         var current = "";
-        var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in v.Projects)
         {
             var name = row.Project.DefName ?? "";
-            if (!seen.Add(name))
-            {
-                throw Contract("duplicate research project");
-            }
-
             if (!projects.TryGetValue(name, out var facts))
             {
                 throw Contract($"research project {name} outside the definition catalog");
@@ -104,41 +64,19 @@ internal sealed partial class FacadeNativeClient
             // current project.
             if (row.Current && facts.KnowledgeCategory.Length == 0)
             {
-                if (current.Length != 0)
-                {
-                    throw Contract("multiple current research projects");
-                }
-
                 current = name;
             }
         }
 
         var knowledge = new List<Policy.KnowledgeSlot>();
-        var slotted = new HashSet<string>(StringComparer.Ordinal);
         foreach (var slot in v.Slots)
         {
-            if (slot is null)
-            {
-                throw Contract("invalid research slot");
-            }
-
             if (slot.Category is null)
             {
                 continue;
             }
 
-            var category = slot.Category;
-            if (!IsValidId(category) || !slotted.Add(category) || (slot.CurrentProject is not null && !IsValidId(slot.CurrentProject)))
-            {
-                throw Contract("invalid research knowledge slot");
-            }
-
-            if (slot.CurrentProject is not null && (!projects.TryGetValue(slot.CurrentProject, out var project) || project.KnowledgeCategory != category))
-            {
-                throw Contract($"research slot {category} holds project {slot.CurrentProject} of another category");
-            }
-
-            knowledge.Add(new Policy.KnowledgeSlot { Category = category, Current = new Policy.ResearchProjectId(slot.CurrentProject ?? "") });
+            knowledge.Add(new Policy.KnowledgeSlot { Category = slot.Category, Current = new Policy.ResearchProjectId(slot.CurrentProject ?? "") });
         }
 
         knowledge.Sort((a, b) => string.CompareOrdinal(a.Category, b.Category));
@@ -147,7 +85,7 @@ internal sealed partial class FacadeNativeClient
             Context = v.Context,
             CurrentProject = current,
             Projects = projects,
-            Finished = finishedList,
+            Finished = [.. v.Finished],
             Knowledge = knowledge,
         };
     }

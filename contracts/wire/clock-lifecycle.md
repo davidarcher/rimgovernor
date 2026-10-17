@@ -5,7 +5,7 @@
 | `Run`, `Hold`, `Heartbeat` | Continuous run at a target speed; a named hold ends only with a `Run`; no attempt key, no epoch, no tick budget. |
 | `clock.Clock` | One supervised clock owner; autonomous execution never changes speed outside it. `SPEED_ULTRAFAST` is an ordinary wire speed (test acceleration via `-rimgovernor-test-acceleration`, `Status.test_acceleration_available`). |
 | `clock.Event`, `EventsPage` | Immutable typed events (`HoldEntered`, `Resumed`), explicit gaps, journal failure holds play. |
-| `lifecycle.Lifecycle.ReadIdentity` | Saved colony ID, fresh unsaved load token, current map/tick, explicit capability availability. Initialization belongs load hooks, not identity reads. |
+| `lifecycle.Lifecycle.ReadIdentity` | Saved colony ID, fresh unsaved load token, current map/tick and pause state. Initialization belongs load hooks, not identity reads. |
 | `lifecycle.Lifecycle.Save` | Explicit session action; completed save, unchanged identity/direction/tick and observed pause. |
 | `lifecycle.Lifecycle.NewColony` | `NewColonySpec` is a required base `scenario` plus typed scenario parts (`starting_things`, `forced_traits`, `forced_hediffs`, `naked`, `set_need_levels`, `perma_game_conditions`, `disallowed_buildings`, `disabled_incidents`) and mandatory-part overrides (`player_faction`, `arrival_method`; the pawn count is `colonist_count`). Native builds game ScenParts from them (`NativeNewColonyScenarioParts`) and puts them on the copy of the scenario before the colonists are generated. Parts replace by kind: a non-empty list removes the base scenario's parts of that kind (all three `starting_things` placements are one kind) and a list left empty keeps the base's, so Crashlanded plus a full list yields exactly that list. It refuses, naming the field, an unknown defName, a trait degree the trait lacks, a hediff that is not `scenarioCanAdd` or above its editor cap, a non-major need, a part that cannot coexist with another, or a stuff/quality the thing does not take. `perma_game_conditions` accepts any condition def, not only `canBePermanent` ones (ColdSnap works); 1.6 has no map-scoped permanent part. |
 | `lifecycle.Lifecycle.Load` | Distinguish pending/map/visual readiness, reread fresh native context. |
@@ -41,8 +41,8 @@ profiles alone.
 
 `HoldReason` is fine-grained: every native `StopReason` (health, hostile, downed, combat event, force-pause waits,
 dialog pause and the like) plus the brain's own `COUPLED_ORDER`, `REVIEW` and `AUTOSAVE`, the `GAME_FORCED` pause and
-`NEVER_RUN`. `Status` is flat: `Running`, `Held` and `Unavailable` are exclusive, the held reason and the observed
-speed and pause describe the actual current clock, and `Unavailable` carries a reason. Consumers needing pause
+`NEVER_RUN`. `Status` is flat: `Running`, `Held` and `Unavailable` are exclusive, the held reason and the actual
+pause describe the current clock, and `Unavailable` carries a reason. Consumers needing pause
 require fresh actual-paused facts for the same identity. An uncertain transport response requires a status read,
 never a blind replay of anything but the idempotent `Run`. Clearing a modal does not resume the clock. Acknowledgement
 belongs to brain inspected-event handling; there is no native acknowledge/delete/resume alias.

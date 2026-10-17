@@ -27,7 +27,7 @@ public sealed class DependentPatientTests
     private static O.DependentPatientObservation Patient(string id, DependentPatientGroup group, bool rescue, bool tend) =>
         new() { Pawn = new() { Id = id }, Group = group, Rescue = rescue, Tend = tend };
     private static EmergencyFacts Decode(O.StatusSnapshot status, params O.PawnState[] rows) =>
-        FacadeNativeClient.EmergencyDecode.DecodeEmergencyStatus(status, Pawns.Of(rows), Identity).Facts;
+        FacadeNativeClient.EmergencyDecode.DecodeEmergencyStatus(status, Pawns.Of(rows)).Facts;
     private static EmergencySnapshot Snapshot(EmergencyFacts facts) => EmergencySnapshot.New(World, new(100), facts);
 
     [Fact]
@@ -61,15 +61,6 @@ public sealed class DependentPatientTests
         var empty = Decode(Status(), Pawn("doctor"));
         Assert.True(EvaluateEmergency(Snapshot(empty), World, new(100)).Clear);
         Assert.Equal(0, EmergencyNeeds(Snapshot(empty), World, new(100)).Patients.Value);
-    }
-
-    [Fact]
-    public void DuplicateOrUnknownPatientMembershipIsRejected()
-    {
-        var guest = Patient("guest", DependentPatientGroup.HostedGuest, true, true);
-        Assert.Throws<BridgeContractException>(() => Decode(Status(guest, guest), Pawn("doctor"), Pawn("guest")));
-        Assert.Throws<BridgeContractException>(() => Decode(Status(guest with { Pawn = new() { Id = "doctor" } }), Pawn("doctor")));
-        Assert.Throws<BridgeContractException>(() => Decode(Status(guest with { Group = (DependentPatientGroup)999 }), Pawn("doctor"), Pawn("guest")));
     }
 
     [Fact]

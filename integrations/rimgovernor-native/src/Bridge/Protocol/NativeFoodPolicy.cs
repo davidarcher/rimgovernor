@@ -38,12 +38,6 @@ namespace HomeBridge.BridgeTools
         internal static IEnumerable<ThingDef> Foods() =>
             DefDatabase<ThingDef>.AllDefsListForReading.Where(IsFood).OrderBy(d => d.defName, StringComparer.Ordinal);
 
-        // The game's own race facts of one race def, computed once per load for
-        // the definition catalog (a food's kind and a meal's ingredients are Go's,
-        // over the def rows).
-        internal static Obs.ThingDefFacts Facts(ThingDef d) =>
-            new Obs.ThingDefFacts { DefName = d.defName, Race = NativeRaceFacts.Facts(d) };
-
         internal static IEnumerable<string> Allowed(FoodPolicy p) =>
             p.filter.AllowedThingDefs.Where(IsFood).Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal);
 

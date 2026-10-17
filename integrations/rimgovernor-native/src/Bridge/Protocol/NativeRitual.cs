@@ -136,7 +136,7 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.RitualIntent command, out Plan? plan)
         {
             plan = null;
-            if (command.PawnId is null || !ProtoBoundary.IsIdentifier(command.PawnId) || command.Ritual is null || !ProtoBoundary.IsIdentifier(command.Ritual) || command.Spot == null || command.Spot.X is null || command.Spot.Z is null)
+            if (command.PawnId is null || !ProtoBoundary.IsIdentifier(command.PawnId) || command.Ritual is null || !ProtoBoundary.IsIdentifier(command.Ritual) || command.Spot == null)
                 return Invalid("A ritual begin requires an organizer, a ritual precept and a spot.");
             var organizer = PawnsFinder.AllMaps_FreeColonists.ById(command.PawnId);
             if (organizer == null) return Missing("Exact colonist organizer is unavailable.");
@@ -149,7 +149,7 @@ namespace HomeBridge.BridgeTools
             if (found.Running) return null;
             var map = organizer.MapHeld;
             if (!organizer.Spawned || map == null) return Invalid("The organizer is not on a map.");
-            var cell = new IntVec3(command.Spot.X.GetValueOrDefault(), 0, command.Spot.Z.GetValueOrDefault());
+            var cell = new IntVec3(command.Spot.X, 0, command.Spot.Z);
             if (!cell.InBounds(map)) return Invalid("The spot is outside the organizer's map.");
 
             // The target the precept's own gizmo is offered at: a thing on the

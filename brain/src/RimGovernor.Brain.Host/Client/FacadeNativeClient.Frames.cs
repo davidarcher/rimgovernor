@@ -85,7 +85,7 @@ internal sealed class FramePrepared
         {
             try
             {
-                emergency = FacadeNativeClient.PodsPending(FacadeNativeClient.EmergencyDecode.DecodeEmergencyStatus(v.Emergency, held.Pawns, context.Identity!), v.CombatEvents);
+                emergency = FacadeNativeClient.PodsPending(FacadeNativeClient.EmergencyDecode.DecodeEmergencyStatus(v.Emergency, held.Pawns), v.CombatEvents);
             }
             catch (Refusal refusal)
             {
@@ -368,21 +368,17 @@ internal sealed partial class FacadeNativeClient : IDisposable
             PbObservations.SnapshotStreamReply reply;
             reply = await Facade.OpenFramesAsync(request, cancellationToken).ConfigureAwait(false);
             var outcome = reply.Outcome;
-            if (outcome?.Opened is null)
+            if (outcome.Opened is null)
             {
                 lock (_frameGate)
                 {
                     _frameStale = true;
                 }
-                if (outcome?.Unavailable is { } unavailable)
+                if (outcome.Unavailable is { } unavailable)
                 {
                     throw Unavailable(unavailable);
                 }
-                if (outcome?.Failure is { } failure)
-                {
-                    throw Failure(failure);
-                }
-                throw BridgeFunctions.Contract("snapshot stream outcome missing");
+                throw Failure(outcome.Failure!);
             }
             await Feed.ResetAsync(cancellationToken).ConfigureAwait(false);
             lock (_frameGate)
@@ -405,16 +401,10 @@ internal sealed partial class FacadeNativeClient : IDisposable
     internal async Task FlushSnapshotAsync(CancellationToken cancellationToken)
     {
         var reply = await Facade.FlushFramesAsync(new PbObservations.FlushSnapshotRequest(), cancellationToken).ConfigureAwait(false);
-        var outcome = reply.Outcome;
-        if (outcome?.Flushed is not null)
-        {
-            return;
-        }
-        if (outcome?.Failure is { } failure)
+        if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
-        throw BridgeFunctions.Contract("flush snapshot outcome missing");
     }
 
     /// <summary>

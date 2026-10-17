@@ -95,7 +95,7 @@ namespace HomeBridge.BridgeTools
 
         private static ThingDef? WallStuff(Thing target) => target is Building && target.def.IsDoor && target.Faction == Faction.OfPlayer && target.def.size == IntVec2.One
             && target.Stuff != null && GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Contains(target.Stuff) ? target.Stuff : null;
-        private static bool ValidCell(Common.Cell? c) => c != null && c.X is not null && c.Z is not null && c.X.GetValueOrDefault() >= 0 && c.Z.GetValueOrDefault() >= 0;
+        private static bool ValidCell(Common.Cell? c) => c != null && c.X >= 0 && c.Z >= 0;
 
         // Resolve is the apply-time precondition list; null admits.
         private static string? Resolve(Operations.DesignateIntent intent, Common.ObservationContext context, out Plan plan, out Common.FailureCode code)
@@ -118,7 +118,7 @@ namespace HomeBridge.BridgeTools
                 if (intent.Target.Id is null || !ProtoBoundary.IsIdentifier(intent.Target.Id)) return "the target reference is invalid";
                 var found = RefIndex.Thing(map, intent.Target.Id);
                 if (found == null || found.Destroyed || !found.Spawned) { code = Common.FailureCode.NotFound; return "the exact target is no longer spawned on this map"; }
-                if (intent.Cell != null && (found.Position.x != intent.Cell.X.GetValueOrDefault() || found.Position.z != intent.Cell.Z.GetValueOrDefault())) return "the target is not at the expected cell";
+                if (intent.Cell != null && (found.Position.x != intent.Cell.X || found.Position.z != intent.Cell.Z)) return "the target is not at the expected cell";
                 if (found.Position.Fogged(map)) return "the target's cell is fogged";
                 plan.Target = found; plan.Cell = found.Position;
                 if (intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Mine && !(found is Mineable)) return "Mine targets rock";
@@ -130,7 +130,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (intent.Designation.GetValueOrDefault() != Operations.ThingDesignation.Mine && intent.Designation.GetValueOrDefault() != Operations.ThingDesignation.RemoveFoundation) return "this designation requires a target";
                 if (intent.ExpectedDef is null || !ProtoBoundary.IsIdentifier(intent.ExpectedDef)) return "a cell designation requires the expected definition";
-                plan.Cell = new IntVec3(intent.Cell!.X.GetValueOrDefault(), 0, intent.Cell.Z.GetValueOrDefault()); plan.ExpectedDef = intent.ExpectedDef;
+                plan.Cell = new IntVec3(intent.Cell!.X, 0, intent.Cell.Z); plan.ExpectedDef = intent.ExpectedDef;
                 if (!plan.Cell.InBounds(map)) return "the cell is off the map";
                 if (intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Mine)
                 {

@@ -116,12 +116,9 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>gridFrameMethod</c>: keys a frame's grid, frames-only; the reply is the frame's context.</summary>
     private const string GridFrameMethod = "rimgovernor/snapshot_frame_grid";
 
-    /// <summary>Go <c>cellgrid.MaxCells</c>: a cells read covers at most a whole map of 1024 x 1024.</summary>
-    private const long MaxCells = 1 << 20;
-
     /// <summary>
     /// Go <c>Client.ReadMapBounds</c>: reads the one-cell grid at a caller-observed anchor for the map's dimensions. A
-    /// failed, incomplete or mismatched observation never supplies default bounds. Bounds never change, so the read
+    /// failed or unavailable observation never supplies default bounds. Bounds never change, so the read
     /// asks any frame (Go <c>WithAnyFrame</c>); get_cells is no frame-served read and always goes to the facade.
     /// </summary>
     internal async Task<MapBounds> ReadMapBoundsAsync(PbCommon.Identity identity, Cell anchor, CancellationToken cancellationToken)
@@ -142,7 +139,7 @@ internal sealed partial class FacadeNativeClient
             },
         };
         var reply = await Facade.GetCellsAsync(request, cancellationToken).ConfigureAwait(false);
-        var outcome = reply.Outcome ?? throw BridgeFunctions.Contract("missing cells outcome");
+        var outcome = reply.Outcome;
         if (outcome.Failure is { } failure)
         {
             throw Failure(failure);
@@ -151,12 +148,8 @@ internal sealed partial class FacadeNativeClient
         {
             throw Unavailable(unavailable);
         }
-        if (outcome.Observed is not { } observed)
-        {
-            throw BridgeFunctions.Contract("missing cells outcome");
-        }
-        var (context, bounds) = ValidateCells(observed, identity, rect);
-        return new MapBounds { Context = context, Bounds = bounds };
+        var observed = outcome.Observed!;
+        return new MapBounds { Context = observed.Context, Bounds = new P.Bounds((int)observed.MapSize.Width, (int)observed.MapSize.Height) };
     }
 
     /// <summary>
@@ -208,28 +201,5 @@ internal sealed partial class FacadeNativeClient
             }
         }
         return result;
-    }
-
-    /// <summary>Go <c>validateCells</c>: checks a cells snapshot answers the request: its world, a map holding the rect and a grid over exactly the rect.</summary>
-    internal static (PbCommon.ObservationContext? Context, P.Bounds Bounds) ValidateCells(PbObservations.CellsSnapshot? snapshot, PbCommon.Identity identity, P.Rectangle rect)
-    {
-        if (snapshot is null)
-        {
-            throw BridgeFunctions.Contract("missing cells snapshot");
-        }
-        if (!BridgeFunctions.SameIdentity(snapshot.Context!.Identity, identity))
-        {
-            throw BridgeFunctions.Contract("cells identity mismatch");
-        }
-        var bounds = new P.Bounds((int)snapshot.MapSize.Width, (int)snapshot.MapSize.Height);
-        if ((long)rect.X + rect.Width > bounds.Width || (long)rect.Z + rect.Height > bounds.Height || (long)rect.Width * rect.Height > MaxCells)
-        {
-            throw BridgeFunctions.Contract("cells rect off the map");
-        }
-        if (snapshot.Grid is not { } grid || new P.Rectangle(grid.X, grid.Z, grid.Width, grid.Height) != rect)
-        {
-            throw BridgeFunctions.Contract("cells grid rect differs");
-        }
-        return (snapshot.Context, bounds);
     }
 }

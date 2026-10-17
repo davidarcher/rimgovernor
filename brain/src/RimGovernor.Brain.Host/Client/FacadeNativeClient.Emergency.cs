@@ -31,20 +31,17 @@ internal sealed partial class FacadeNativeClient
         CancellationToken cancellationToken)
     {
         var reply = await Facade.ReadStatusAsync(EmergencyRequest(identity), cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome?.Unavailable is { } unavailable)
+        if (reply.Outcome.Unavailable is { } unavailable)
         {
             throw Unavailable(unavailable);
         }
-        if (reply.Outcome?.Failure is { } failure)
+        if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
-        if (reply.Outcome?.Observed is not { } observed)
-        {
-            throw Contract("emergency status outcome missing");
-        }
+        var observed = reply.Outcome.Observed!;
         var pawns = await framePawns(identity, cancellationToken).ConfigureAwait(false);
-        return EmergencyDecode.DecodeEmergencyStatus(observed, pawns, identity);
+        return EmergencyDecode.DecodeEmergencyStatus(observed, pawns);
     }
 
     /// <summary>Go <c>emergencyRequest</c>: the status read <see cref="ReadEmergencyAsync"/> issues; a bundle's emergency section is seeded into the step cache under the same request.</summary>
@@ -58,49 +55,21 @@ internal sealed partial class FacadeNativeClient
         internal const double ThreatProximityRadius = 30.0;
 
         /// <summary>
-        /// Go <c>DecodeEmergencyStatus</c>: shares live boundary validation with captured replay. Each pawn reference
-        /// resolves against <paramref name="pawns"/>, the frame's pawn table; one the table lacks leaves that pawn's facts
+        /// Go <c>DecodeEmergencyStatus</c>: shared by live reads and captured replay. Each pawn reference resolves
+        /// against <paramref name="pawns"/>, the frame's pawn table; one the table lacks leaves that pawn's facts
         /// unknown until a later frame. The facts carry no player authority or controller plan identity.
         /// </summary>
-        internal static Bridge.Contracts.EmergencyObservation DecodeEmergencyStatus(PbObservations.StatusSnapshot? v, Pawns pawns, PbCommon.Identity id)
-        {
-            if (v is null)
-            {
-                throw Contract("emergency status missing");
-            }
-            BuildingUnknown(v);
-            return EmergencyStatus(v, pawns, id);
-        }
+        internal static Bridge.Contracts.EmergencyObservation DecodeEmergencyStatus(PbObservations.StatusSnapshot v, Pawns pawns) =>
+            EmergencyStatus(v, pawns);
 
         internal static Fact<bool> EmergencyBool(bool? v) => v is { } b ? Known(b) : Unknown<bool>();
-
-        /// <summary>Go <c>emergencyIssues</c>.</summary>
-        internal static void EmergencyIssues(IEnumerable<PbObservations.ReadIssue> issues, Func<string, bool> present)
-        {
-            foreach (var issue in issues)
-            {
-                if (issue is null || issue.Field is null || !IsValidId(issue.Field))
-                {
-                    throw Contract("invalid emergency read issue");
-                }
-                ValidateUnavailable(issue.Unavailable);
-                if (present(issue.Field))
-                {
-                    throw Contract("emergency field is both present and unavailable");
-                }
-            }
-        }
 
         /// <summary>Go <c>emergencyPawn</c>: reads one census reference's facts from its table row (returned too); an unresolved reference has only its id known.</summary>
         private static (PolicyEmergencyPawn Pawn, PbObservations.PawnState? State) EmergencyPawn(PbCommon.Ref? reference, Pawns pawns)
         {
-            if (!ValidRef(reference))
+            if (!pawns.TryRow(reference!, out var row))
             {
-                throw Contract("emergency pawn reference malformed");
-            }
-            if (!pawns.TryRow(reference, out var row))
-            {
-                return (new PolicyEmergencyPawn { Id = new PawnId(reference.Id ?? "") }, null);
+                return (new PolicyEmergencyPawn { Id = new PawnId(reference!.Id ?? "") }, null);
             }
             return (EmergencyFacts(row), row);
         }
@@ -108,7 +77,6 @@ internal sealed partial class FacadeNativeClient
         /// <summary>Go <c>emergencyFacts</c>.</summary>
         private static PolicyEmergencyPawn EmergencyFacts(PbObservations.PawnState row)
         {
-            EmergencyIssues(row.Issues, _ => false);
             var result = new PolicyEmergencyPawn
             {
                 Id = new PawnId(row.Pawn.Id ?? ""),
@@ -118,9 +86,9 @@ internal sealed partial class FacadeNativeClient
                 // A known value is an active state; no mental state reads as unknown to the policy.
                 MentalState = row.MentalState is { } m ? new PolicyMentalState { DefName = m.DefName, IsAggro = m.IsAggro, TicksInState = m.Ticks } : null,
             };
-            if (row.Pawn.Position is { X: not null, Z: not null } at)
+            if (row.Pawn.Position is { } at)
             {
-                result = result with { Position = Known(new DomainCell(at.X.GetValueOrDefault(), at.Z.GetValueOrDefault())) };
+                result = result with { Position = Known(new DomainCell(at.X, at.Z)) };
             }
             if (row.Health is { } h)
             {
@@ -130,20 +98,11 @@ internal sealed partial class FacadeNativeClient
         }
 
         /// <summary>Go <c>emergencyStatus</c>.</summary>
-        private static Bridge.Contracts.EmergencyObservation EmergencyStatus(PbObservations.StatusSnapshot v, Pawns pawns, PbCommon.Identity id)
+        private static Bridge.Contracts.EmergencyObservation EmergencyStatus(PbObservations.StatusSnapshot v, Pawns pawns)
         {
             var context = v.Context!;
-            if (!SameIdentity(context.Identity, id))
-            {
-                throw Contract("emergency identity mismatch");
-            }
-
             // Both sections are requested. The colonist census is complete unless an issue names it, and then it lists no one.
-            if (v.Threats is null)
-            {
-                throw Contract("requested emergency section missing");
-            }
-            EmergencyIssues(v.Issues, field => (field == "colonists" && v.Colonists.Count > 0) || field == "threats" || (field == "dependent_patients" && v.DependentPatients is not null));
+            var threatCensus = v.Threats!;
             var complete = Known(true);
             foreach (var issue in v.Issues)
             {
@@ -160,13 +119,6 @@ internal sealed partial class FacadeNativeClient
             {
                 if (statuses.TryGetValue(pawn.Id, out var prior))
                 {
-                    foreach (var (a, b) in new[] { (prior.Dead, pawn.Dead), (prior.Downed, pawn.Downed) })
-                    {
-                        if (a.TryGetValue(out var x) && b.TryGetValue(out var y) && x != y)
-                        {
-                            throw Contract("conflicting emergency pawn status");
-                        }
-                    }
                     if (prior.Dead.IsKnown)
                     {
                         pawn = pawn with { Dead = prior.Dead };
@@ -180,14 +132,9 @@ internal sealed partial class FacadeNativeClient
                 return pawn;
             }
 
-            var seen = new HashSet<PawnId>();
             foreach (var reference in v.Colonists)
             {
                 var (pawn, _) = EmergencyPawn(reference, pawns);
-                if (!seen.Add(pawn.Id))
-                {
-                    throw Contract("duplicate emergency colonist");
-                }
                 Observe(pawn);
                 colonists.Add(pawn);
             }
@@ -198,41 +145,23 @@ internal sealed partial class FacadeNativeClient
                 var patients = new List<Policy.EmergencyDependentPatient>();
                 foreach (var reference in census.Patients)
                 {
-                    if (reference.Group is not { } group || !Enum.IsDefined(group))
-                        throw Contract("dependent patient group missing or invalid");
                     var (pawn, _) = EmergencyPawn(reference.Pawn, pawns);
-                    if (!seen.Add(pawn.Id)) throw Contract("duplicate dependent patient or colonist");
                     Observe(pawn);
-                    patients.Add(new(pawn, group, EmergencyBool(reference.Rescue), EmergencyBool(reference.Tend)));
+                    patients.Add(new(pawn, reference.Group.GetValueOrDefault(), EmergencyBool(reference.Rescue), EmergencyBool(reference.Tend)));
                 }
                 dependentPatients = Known(EquatableArray.From(patients));
             }
             // Go classifies the native's threat fact rows; the threats are listed kind by kind in ThreatKind order,
             // each kind in row order.
             var byKind = new Dictionary<PolicyThreatKind, List<PolicyEmergencyThreat>>();
-            seen = [];
-            foreach (var row in v.Threats.Pawns)
+            foreach (var row in threatCensus.Pawns)
             {
-                if (row is null)
-                {
-                    throw Contract("missing threat pawn");
-                }
-                if ((row.NearestColonistDistance is not null && !(row.NearestColonistDistance.GetValueOrDefault() >= 0))
-                    || (row.MentalState is not null && !IsValidId(row.MentalState))
-                    || !OptionalRef(row.Faction))
-                {
-                    throw Contract("invalid emergency threat facts");
-                }
                 var kinds = ClassifyThreat(row);
                 if (kinds.Count == 0)
                 {
                     continue;
                 }
                 var (pawn, state) = EmergencyPawn(row.Pawn, pawns);
-                if (!seen.Add(pawn.Id))
-                {
-                    throw Contract("duplicate emergency threat");
-                }
                 Observe(pawn);
                 foreach (var kind in kinds)
                 {
@@ -248,9 +177,9 @@ internal sealed partial class FacadeNativeClient
                     if (state is not null)
                     {
                         threat = threat with { Animal = Known(state.Animal), Fogged = Known(state.Fogged) };
-                        if (state.Pawn.Position is { X: not null, Z: not null } at)
+                        if (state.Pawn.Position is { } at)
                         {
-                            threat = threat with { Position = Known(new DomainCell(at.X.GetValueOrDefault(), at.Z.GetValueOrDefault())) };
+                            threat = threat with { Position = Known(new DomainCell(at.X, at.Z)) };
                         }
                     }
                     if (!byKind.TryGetValue(kind, out var list))
@@ -267,16 +196,9 @@ internal sealed partial class FacadeNativeClient
                     threats.AddRange(list);
                 }
             }
-            seen = [];
-            foreach (var row in v.Threats.HostileBuildings)
+            foreach (var row in threatCensus.HostileBuildings)
             {
-                var threat = EmergencyBuilding(row);
-                if (seen.Contains(threat.Id) || (statuses.TryGetValue(threat.Id, out var existing) && existing.Id.Value.Length != 0))
-                {
-                    throw Contract("duplicate emergency hostile building");
-                }
-                seen.Add(threat.Id);
-                threats.Add(threat);
+                threats.Add(EmergencyBuilding(row));
             }
             return new Bridge.Contracts.EmergencyObservation(context, new PolicyEmergencyFacts { ColonistsComplete = complete, Colonists = colonists, DependentPatients = dependentPatients, Threats = threats });
         }

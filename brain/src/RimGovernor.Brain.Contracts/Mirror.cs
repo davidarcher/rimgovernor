@@ -104,8 +104,7 @@ public enum CombatLogKind
 
 /// <summary>
 /// One combat pawn row (BundleSnapshot.combat_pawns). Numbers are thresholded so a
-/// row only changes when a decision could: fractions to 0.01, bleed and pain
-/// to 0.05, move speed to 0.1 cells/s.
+/// row only changes when a decision could: fractions to 0.01, pain to 0.05, move speed to 0.1 cells/s.
 /// </summary>
 public sealed record CombatPawn
 {
@@ -152,11 +151,6 @@ public sealed record CombatPawn
     /// summary health fraction
     /// </summary>
     public double? Health { get; init; }
-
-    /// <summary>
-    /// per day
-    /// </summary>
-    public double? BleedRate { get; init; }
 
     public double? Pain { get; init; }
 
@@ -579,7 +573,7 @@ public sealed record CombatGeometry
 
 public sealed record CombatGeometryReply
 {
-    public CombatGeometryReplyOutcome? Outcome { get; init; }
+    public CombatGeometryReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="CombatGeometryReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>

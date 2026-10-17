@@ -5,12 +5,12 @@ namespace RimGovernor.Brain.Host;
 // Go clock.go (ReadClockStatus) and clock_events.go (ReadClockEvents): the clock reads.
 internal sealed partial class FacadeNativeClient
 {
-    /// <summary>Go <c>Client.ReadClockStatus</c>: the clock status of the identity's world, validated.</summary>
+    /// <summary>Go <c>Client.ReadClockStatus</c>: the clock status of the identity's world; a failure or unavailable status throws.</summary>
     internal async Task<PbClock.StatusReply> ReadClockStatusAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         BridgeFunctions.AuthorityIdentity(identity);
         var reply = await Facade.ReadClockStatusAsync(new PbClock.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
-        FacadeWriteChecks.ClockStatusReply(reply, identity);
+        FacadeWriteChecks.ClockStatusReply(reply);
         return reply;
     }
 
@@ -31,15 +31,9 @@ internal sealed partial class FacadeNativeClient
             throw BridgeFunctions.Contract("clock events cursor/limit");
         }
         var reply = await Facade.ReadClockEventsAsync(request, cancellationToken).ConfigureAwait(false);
-        switch (reply.Outcome)
+        if (reply.Outcome.Failure is { } failure)
         {
-            case PbClock.EventsReplyOutcome.FailureCase { Value: var failure }:
-                throw Failure(failure);
-            case PbClock.EventsReplyOutcome.PageCase { Value: var page }:
-                BridgeFunctions.ClockEventsPage(page, request);
-                break;
-            default:
-                throw BridgeFunctions.Contract("clock events outcome missing");
+            throw Failure(failure);
         }
         return reply;
     }

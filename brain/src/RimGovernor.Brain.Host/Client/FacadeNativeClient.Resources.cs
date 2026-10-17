@@ -18,49 +18,31 @@ internal sealed partial class FacadeNativeClient
     {
         var request = new PbObservations.ConsumptionRequest { SinceHour = sinceHour >= 0 ? sinceHour : null };
         var reply = await Facade.ReadConsumptionAsync(request, cancellationToken).ConfigureAwait(false);
-        var outcome = reply?.Outcome;
-        if (outcome?.Unavailable is { } unavailable)
+        var outcome = reply.Outcome;
+        if (outcome.Unavailable is { } unavailable)
         {
             throw Unavailable(unavailable);
         }
 
-        if (outcome?.Failure is { } failure)
+        if (outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
 
-        var snapshot = outcome?.Observed ?? throw Contract("missing consumption outcome");
-        if (snapshot.CurrentHour is null || snapshot.FirstHour is null || snapshot.CurrentHour < 0 || snapshot.FirstHour < 0)
-        {
-            throw Contract("invalid consumption hours");
-        }
-
-        var currentHour = snapshot.CurrentHour.Value;
+        var snapshot = outcome.Observed!;
         var hours = new List<Policy.ConsumptionHour>();
-        var previous = -1;
         foreach (var hour in snapshot.Hours)
         {
-            if (hour is null || hour.Hour is null || hour.Hour <= previous || hour.Hour >= currentHour || hour.Hour <= sinceHour)
-            {
-                throw Contract("invalid consumption hour");
-            }
-
-            previous = hour.Hour.Value;
             var rows = new List<Policy.ConsumptionRow>();
             foreach (var row in hour.Rows)
             {
-                if (row is null || !IsValidId(row.Definition ?? "") || row.Count is null || !Policy.PolicyFunctions.KnownConsumptionReason(row.Reason ?? ""))
-                {
-                    throw Contract("invalid consumption row");
-                }
-
-                rows.Add(new Policy.ConsumptionRow { Resource = new Policy.Resource(row.Definition!), Reason = row.Reason ?? "", Count = row.Count.Value });
+                rows.Add(new Policy.ConsumptionRow { Resource = new Policy.Resource(row.Definition ?? ""), Reason = row.Reason ?? "", Count = row.Count.GetValueOrDefault() });
             }
 
-            hours.Add(new Policy.ConsumptionHour { Hour = previous, Rows = Domain.EquatableArray.From(rows) });
+            hours.Add(new Policy.ConsumptionHour { Hour = hour.Hour.GetValueOrDefault(), Rows = Domain.EquatableArray.From(rows) });
         }
 
-        return new Policy.ConsumptionPage { CurrentHour = currentHour, FirstHour = snapshot.FirstHour.Value, Hours = Domain.EquatableArray.From(hours) };
+        return new Policy.ConsumptionPage { CurrentHour = snapshot.CurrentHour.GetValueOrDefault(), FirstHour = snapshot.FirstHour.GetValueOrDefault(), Hours = Domain.EquatableArray.From(hours) };
     }
 
     /// <summary>
@@ -76,49 +58,31 @@ internal sealed partial class FacadeNativeClient
             SinceHour = sinceHour >= 0 ? sinceHour : null,
         };
         var reply = await Facade.ReadStorageOccupancyAsync(request, cancellationToken).ConfigureAwait(false);
-        var outcome = reply?.Outcome;
-        if (outcome?.Unavailable is { } unavailable)
+        var outcome = reply.Outcome;
+        if (outcome.Unavailable is { } unavailable)
         {
             throw Unavailable(unavailable);
         }
 
-        if (outcome?.Failure is { } failure)
+        if (outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
 
-        var snapshot = outcome?.Observed ?? throw Contract("missing storage occupancy outcome");
-        if (snapshot.CurrentHour is null || snapshot.CurrentHour < 0)
-        {
-            throw Contract("invalid storage occupancy hour");
-        }
-
+        var snapshot = outcome.Observed!;
         var output = new Dictionary<string, Domain.EquatableArray<Policy.OccupancySample>>(StringComparer.Ordinal);
         foreach (var group in snapshot.Groups)
         {
-            var id = group?.Group?.Id ?? "";
-            if (!groups.Contains(id) || output.ContainsKey(id))
-            {
-                throw Contract("invalid storage occupancy group");
-            }
-
             var samples = new List<Policy.OccupancySample>();
-            var previous = sinceHour;
-            foreach (var sample in group!.Samples)
+            foreach (var sample in group.Samples)
             {
-                if (sample is null || sample.Hour is null || sample.Stacks is null || sample.Hour <= previous || sample.Hour > snapshot.CurrentHour || sample.Stacks < 0)
-                {
-                    throw Contract("invalid storage occupancy sample");
-                }
-
-                previous = sample.Hour.Value;
-                samples.Add(new Policy.OccupancySample { Hour = previous, Stacks = sample.Stacks.Value });
+                samples.Add(new Policy.OccupancySample { Hour = sample.Hour.GetValueOrDefault(), Stacks = sample.Stacks.GetValueOrDefault() });
             }
 
-            output[id] = Domain.EquatableArray.From(samples);
+            output[group.Group?.Id ?? ""] = Domain.EquatableArray.From(samples);
         }
 
-        return new Policy.StoreOccupancy { CurrentHour = snapshot.CurrentHour.Value, Groups = output };
+        return new Policy.StoreOccupancy { CurrentHour = snapshot.CurrentHour.GetValueOrDefault(), Groups = output };
     }
 
     /// <summary>
@@ -135,95 +99,37 @@ internal sealed partial class FacadeNativeClient
 
         var request = new PbObservations.ResourceSourcesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, Resource = resource };
         var reply = await Facade.ListResourceSourcesAsync(request, cancellationToken).ConfigureAwait(false);
-        BuildingUnknown(reply);
         var outcome = reply.Outcome;
-        if (outcome?.Unavailable is { } unavailable)
+        if (outcome.Unavailable is { } unavailable)
         {
             throw Unavailable(unavailable);
         }
 
-        if (outcome?.Failure is { } failure)
+        if (outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
 
-        var snapshot = outcome?.Observed ?? throw Contract("missing resource sources outcome");
-        if (!G3ContextValid(snapshot.Context) || !SameIdentity(snapshot.Context!.Identity, identity))
-        {
-            throw Contract("invalid resource sources context");
-        }
-
-        if ((snapshot.Resource ?? "") != resource)
-        {
-            throw Contract("resource sources definition mismatch");
-        }
-
+        var snapshot = outcome.Observed!;
         var catalog = await DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
-        var storage = ResourceDecodeStorage(snapshot.Storage, resource, catalog);
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var storage = ResourceDecodeStorage(snapshot.Storage!, resource, catalog);
         var rows = new List<Policy.ResourceSource>(snapshot.Sources.Count);
         foreach (var row in snapshot.Sources)
         {
-            if (row is null || row.Source is null || !IsValidId(row.Source.Id ?? "") || seen.Contains(row.Source.Id!))
-            {
-                throw Contract("invalid resource source identity");
-            }
-
             var method = ResourceSourceMethodOf(catalog, row.DefName ?? "");
-            if (row.Yield is null || row.Yield < 0)
-            {
-                throw Contract("invalid resource source yield");
-            }
-
-            var units = (long)row.Yield.Value;
-            if ((double)units != row.Yield.Value)
-            {
-                throw Contract("fractional resource source yield");
-            }
-
-            if (row.Distance is null || row.Distance < 0)
-            {
-                throw Contract("invalid resource source distance");
-            }
-
-            if (row.Designated is null)
-            {
-                throw Contract("resource source designation unavailable");
-            }
-
             var cell = default(Domain.Cell);
-            var token = "";
-            if (method == Policy.ResourceSourceMethod.Mine)
+            if (method == Policy.ResourceSourceMethod.Mine && row.Cell is { } position)
             {
-                if (!IsValidId(row.Safety ?? ""))
-                {
-                    throw Contract("mine source safety unavailable");
-                }
-
-                var position = row.Cell;
-                var snapshotToken = row.SourceSnapshot?.Token ?? "";
-                if (position is null || position.X is null || position.Z is null || position.X < 0 || position.Z < 0 || !IsValidId(snapshotToken))
-                {
-                    throw Contract("mine source snapshot unavailable");
-                }
-
-                cell = new Domain.Cell(position.X.Value, position.Z.Value);
-                token = snapshotToken;
-                if (row.Taken is null || row.Designated != (row.DesignatedTick is not null)
-                    || (row.DesignatedTick is { } designatedTick && (designatedTick < 0 || designatedTick > snapshot.Context.Tick)))
-                {
-                    throw Contract("invalid mine source designation age or taken");
-                }
+                cell = new Domain.Cell(position.X, position.Z);
             }
 
-            seen.Add(row.Source.Id!);
             rows.Add(new Policy.ResourceSource
             {
-                ThingId = row.Source.Id!,
-                Yield = units,
-                Distance = row.Distance.Value,
+                ThingId = row.Source?.Id ?? "",
+                Yield = (long)row.Yield.GetValueOrDefault(),
+                Distance = row.Distance.GetValueOrDefault(),
                 Method = method,
-                Designated = row.Designated.Value,
+                Designated = row.Designated ?? false,
                 Taken = row.Taken ?? false,
                 Safety = row.Safety ?? "",
                 Cell = cell,
@@ -241,13 +147,8 @@ internal sealed partial class FacadeNativeClient
     /// full; candidate cells are native's own hauler-reachable, roofed, unreserved scan and are trusted as exact placement
     /// sites.
     /// </summary>
-    private static Policy.ResourceStorage ResourceDecodeStorage(PbObservations.StorageCapacity? storage, string resource, BridgeCatalog catalog)
+    private static Policy.ResourceStorage ResourceDecodeStorage(PbObservations.StorageCapacity storage, string resource, BridgeCatalog catalog)
     {
-        if (storage is null || storage.Resource != resource)
-        {
-            throw Contract("resource storage identity mismatch");
-        }
-
         var stackLimit = catalog.StackLimit(resource);
         if (stackLimit <= 0)
         {
@@ -257,7 +158,7 @@ internal sealed partial class FacadeNativeClient
         var cells = new List<Domain.Cell>(storage.Candidates.Count);
         foreach (var cell in storage.Candidates)
         {
-            cells.Add(new Domain.Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()));
+            cells.Add(new Domain.Cell(cell.X, cell.Z));
         }
 
         return new Policy.ResourceStorage

@@ -23,7 +23,6 @@ namespace HomeBridge.BridgeTools
         {
             internal static int GoodwillDelta(bool orbital) => orbital ? -30 : -15;
             internal static int CooldownTicks(bool orbital) => orbital ? 900000 : 240000;
-            internal static int ArrivalMinTicks(bool orbital) => orbital ? 2500 : 120000;
             internal static int ArrivalMaxTicks(bool orbital) => orbital ? 5000 : 120000;
         }
 
@@ -60,7 +59,7 @@ namespace HomeBridge.BridgeTools
                     incident.def == IncidentDefOf.OrbitalTraderArrival ? Common.TradeRequestKind.Orbital : Common.TradeRequestKind.Unspecified;
                 if (kind == Common.TradeRequestKind.Unspecified) continue;
                 result = result with { Arrivals = [.. result.Arrivals, new Obs.TradeRequestArrival { FactionId = incident.parms.faction.GetUniqueLoadID(), Kind = kind,
-                    TraderKind = incident.parms.traderKind.defName, ArrivalTick = queued.FireTick, RetryTicks = queued.RetryDurationTicks }] };
+                    TraderKind = incident.parms.traderKind.defName, ArrivalTick = queued.FireTick }] };
             }
             foreach (var pawn in map.mapPawns.FreeColonistsSpawned)
             {
@@ -82,9 +81,8 @@ namespace HomeBridge.BridgeTools
             foreach (var ship in map.passingShipManager.passingShips.OrderBy(s => s.GetUniqueLoadID()))
             {
                 var trader = ship as TradeShip;
-                var row = new Obs.PassingTradeShip { Id = ship.GetUniqueLoadID(), Trader = trader != null,
-                    DepartureTick = (long)now + ship.ticksUntilDeparture };
-                if (trader != null) { row = row with { TraderKind = trader.TraderKind.defName }; row = row with { CanTrade = trader.CanTradeNow }; }
+                var row = new Obs.PassingTradeShip { Id = ship.GetUniqueLoadID(), Trader = trader != null };
+                if (trader != null) row = row with { TraderKind = trader.TraderKind.defName };
                 if (ship.Faction != null) row = row with { FactionId = ship.Faction.GetUniqueLoadID() };
                 result = result with { PassingShips = [.. result.PassingShips, row] };
             }
@@ -104,7 +102,7 @@ namespace HomeBridge.BridgeTools
                             TraderKind = kind.defName, Goodwill = faction.PlayerGoodwill, GoodwillCost = -delta,
                             RelationAfterPayment = RelationAfterPayment(faction, delta), LastRequestTick = last,
                             CooldownRemainingTicks = Math.Max(0L, (long)last + TraderRequest.CooldownTicks(orbital) - now),
-                            ArrivalMinTicks = TraderRequest.ArrivalMinTicks(orbital), ArrivalMaxTicks = TraderRequest.ArrivalMaxTicks(orbital) };
+                            ArrivalMaxTicks = TraderRequest.ArrivalMaxTicks(orbital) };
                         row = row with { NegotiatorIds = [.. row.NegotiatorIds, .. eligible.Where(p => kind.TitleRequiredToTrade == null ||
                             p.royalty != null && p.GetCurrentTitleSeniorityIn(faction) >= kind.TitleRequiredToTrade.seniority)
                             .Select(p => p.GetUniqueLoadID())] };

@@ -7,7 +7,7 @@ using P = RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Host;
 
 // Go frames.go: ReadRoundsFrame, DecodeRoundsFrame/decodeRoundsFrame, podsPending, roundsPawnRows,
-// roundsPawnIDs, ReadCombat, combatFrameHeld, censusPawns, primaryWeaponThings, DecodeCombat, combatRoom, validateCombat.
+// roundsPawnIDs, ReadCombat, combatFrameHeld, censusPawns, primaryWeaponThings, DecodeCombat, combatRoom.
 internal sealed partial class FacadeNativeClient
 {
     /// <summary>Go <c>roundsFrameMethod</c>: keys a frame's routine census sections.</summary>
@@ -76,11 +76,11 @@ internal sealed partial class FacadeNativeClient
         }
         if (v.Research is not null)
         {
-            output = output with { Research = ResearchReadSnapshot(v.Research, identity, catalog) };
+            output = output with { Research = ResearchReadSnapshot(v.Research, catalog) };
         }
         if (v.Traders is not null)
         {
-            output = output with { Traders = TradeDecodeTraders(v.Traders, identity) };
+            output = output with { Traders = TradeDecodeTraders(v.Traders) };
         }
         if (v.WorldProgression is not null)
         {
@@ -88,11 +88,7 @@ internal sealed partial class FacadeNativeClient
         }
         if (v.Ideology is not null)
         {
-            output = output with { Ideology = IdeologyDecoder.Decode(v.Ideology, identity, catalog) };
-            if (v.IdeologyActive is false)
-            {
-                throw BridgeFunctions.Contract("ideology section without the Ideology expansion");
-            }
+            output = output with { Ideology = IdeologyDecoder.Decode(v.Ideology, catalog) };
         }
         if (v.IdeologyActive is { } active)
         {
@@ -100,7 +96,7 @@ internal sealed partial class FacadeNativeClient
         }
         if (v.Zones is not null)
         {
-            output = output with { Zones = PlacementReads.DecodeZones(v.Zones, identity) };
+            output = output with { Zones = PlacementReads.DecodeZones(v.Zones) };
         }
         return output;
     }
@@ -298,7 +294,7 @@ internal sealed partial class FacadeNativeClient
         !row.Dead && (row.Biotech?.Mechanitor is not null || row.Biotech?.Mech is not null);
 
     /// <summary>
-    /// Go <c>DecodeCombat</c>: validates and decodes a frame's combat part. The census pawns and weapons are keyed from
+    /// Go <c>DecodeCombat</c>: decodes a frame's combat part. The census pawns and weapons are keyed from
     /// the frame's held tables and the emergency census is the frame's, decoded once (<see cref="FrameView.Prepared"/>).
     /// </summary>
     private static Combat DecodeCombat(FrameView view)
@@ -306,7 +302,6 @@ internal sealed partial class FacadeNativeClient
         var (pawnRows, pawns) = CensusPawns(view);
         var (thingRows, things) = PrimaryWeaponThings(view, pawnRows);
         var v = CombatFrame(view, pawnRows, thingRows);
-        ValidateCombat(v);
         var identity = v.Context!.Identity!;
         var output = new Combat
         {
@@ -328,27 +323,7 @@ internal sealed partial class FacadeNativeClient
         }
         if (v.CombatLinesOfFire is { } lines)
         {
-            var firing = new List<Cell>();
-            var approach = new List<Cell>();
-            var seen = new Dictionary<Cell, int>();
-            foreach (var row in lines.Lines)
-            {
-                _ = TryWireCell(row.From, out var from);
-                _ = TryWireCell(row.To, out var to);
-                var flags = seen.GetValueOrDefault(from);
-                if ((flags & 1) == 0)
-                {
-                    seen[from] = flags | 1;
-                    firing.Add(from);
-                }
-                flags = seen.GetValueOrDefault(to);
-                if ((flags & 2) == 0)
-                {
-                    seen[to] = flags | 2;
-                    approach.Add(to);
-                }
-            }
-            output = output with { Lines = DefenseValidateLinesOfFire(lines, identity, firing, approach), LinesSkipped = lines.Skipped.GetValueOrDefault() };
+            output = output with { Lines = DefenseDecodeLinesOfFire(lines), LinesSkipped = lines.Skipped.GetValueOrDefault() };
         }
         var mortars = new List<P.CombatMortar>();
         foreach (var row in v.CombatMortars)
@@ -438,72 +413,6 @@ internal sealed partial class FacadeNativeClient
         }
         return room with { Doors = EquatableArray.From(doors) };
     }
-
-    /// <summary>Go <c>validateCombat</c>: checks a frame's combat rows.</summary>
-    private static void ValidateCombat(PbObservations.BundleSnapshot v)
-    {
-        if (v.ColonyFacts is { OutdoorTemperatureC: var outdoor } && (double.IsNaN(outdoor) || outdoor < -300 || outdoor > 300))
-        {
-            throw BridgeFunctions.Contract("combat outdoor temperature");
-        }
-        if (v.CombatHiveTemperatureC is { } hive && (float.IsNaN(hive) || hive < -300 || hive > 1000))
-        {
-            throw BridgeFunctions.Contract("combat hive temperature");
-        }
-        foreach (var row in v.CombatMortars)
-        {
-            if (!BridgeFunctions.IsValidId(row.Id ?? "") || !MovementCellValid(row.Cell) || row.MinRange is null || row.MaxRange is null || row.MinRange.GetValueOrDefault() < 0 || row.MaxRange.GetValueOrDefault() < row.MinRange.GetValueOrDefault())
-            {
-                throw BridgeFunctions.Contract("combat mortar without id, cell or range");
-            }
-        }
-        foreach (var row in v.CombatDoors)
-        {
-            if (!BridgeFunctions.IsValidId(row.Id ?? "") || !MovementCellValid(row.Cell) || row.HitPoints is null || row.MaxHitPoints is null || row.HitPoints.GetValueOrDefault() < 0 || row.HitPoints.GetValueOrDefault() > row.MaxHitPoints.GetValueOrDefault())
-            {
-                throw BridgeFunctions.Contract("combat door without id, cell or hit points");
-            }
-        }
-        foreach (var row in v.CombatPawns)
-        {
-            if (!BridgeFunctions.IsValidId(row.Id ?? "") || row.Side.GetValueOrDefault() == PbMirror.CombatSide.Unspecified || row.Cell is null)
-            {
-                throw BridgeFunctions.Contract("combat pawn without id, side or cell");
-            }
-            foreach (var number in new[] { row.Health, row.BleedRate, row.Pain, row.MoveSpeed, row.ShieldEnergy, row.MeleePower })
-            {
-                if (!BridgeFunctions.CombatNumber(number, true))
-                {
-                    throw BridgeFunctions.Contract("combat pawn number");
-                }
-            }
-            if (row.Health.GetValueOrDefault() > 1 || row.ShieldEnergy.GetValueOrDefault() > 1)
-            {
-                throw BridgeFunctions.Contract("combat pawn fraction");
-            }
-        }
-        PbMirror.CombatEventRow? previous = null;
-        foreach (var row in v.CombatEvents)
-        {
-            if (row.At is null || row.Kind.GetValueOrDefault() == PbMirror.CombatLogKind.Unspecified)
-            {
-                throw BridgeFunctions.Contract("combat event without watermark or kind");
-            }
-            if (BridgeFunctions.DropPodArrival(row) && (row.OpenTick.GetValueOrDefault() <= row.At.Tick.GetValueOrDefault() || row.LandingCells.Count == 0))
-            {
-                throw BridgeFunctions.Contract("drop-pod arrival without an open tick after it or landing cells");
-            }
-            if (previous is not null && !BridgeFunctions.CombatBefore(previous.At, row.At))
-            {
-                throw BridgeFunctions.Contract("combat events out of order");
-            }
-            previous = row;
-        }
-    }
-
-    /// <summary>Go <c>movementCell</c>: a present, non-negative cell.</summary>
-    private static bool MovementCellValid(PbCommon.Cell? cell) =>
-        cell is { X: { } x, Z: { } z } && x >= 0 && z >= 0;
 
     /// <summary>Go <c>protoCell</c>: the cell of a wire cell, false when it is absent or lacks a coordinate (the cell is then the zero cell).</summary>
     private static bool TryWireCell(PbCommon.Cell? cell, out Cell result)

@@ -27,7 +27,8 @@ and the adult and first reproductive and milkable stage ages are the brain's,
 derived from the RaceProperties, FleshTypeDef, LifeStageDef and TrainableDef
 rows and the stat table (`RaceRules.cs`); a race is a Pawn-category
 ThingDef (a corpse def shares its pawn's properties). The race row also carries
-the game-computed husbandry facts of #2238 that no row states (`RaceFacts`): the
+the game-computed husbandry facts of #2238 that no row states (`RaceGameFacts`,
+published in process by `NativeRaceFacts`, not on the wire): the
 edible foods, the wildness tame-chance
 factor and the adult feed per day; the
 animal interaction job constants (talk and feed ticks, feeds) are

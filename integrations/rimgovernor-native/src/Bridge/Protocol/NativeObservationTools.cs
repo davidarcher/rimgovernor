@@ -42,9 +42,9 @@ namespace HomeBridge.BridgeTools
         {
             try {
                 var min = parsed.Rectangle?.Minimum ?? new Common.Cell(); var max = parsed.Rectangle?.Maximum ?? new Common.Cell();
-                if (!new IntVec3(min.X.GetValueOrDefault(), 0, min.Z.GetValueOrDefault()).InBounds(map) || !new IntVec3(max.X.GetValueOrDefault(), 0, max.Z.GetValueOrDefault()).InBounds(map)) return new Obs.GetCellsReply {
+                if (!new IntVec3(min.X, 0, min.Z).InBounds(map) || !new IntVec3(max.X, 0, max.Z).InBounds(map)) return new Obs.GetCellsReply {
                     Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Selected cell is outside the current map.") };
-                var grid = CellGridReader.Read(map, min.X.GetValueOrDefault(), min.Z.GetValueOrDefault(), max.X.GetValueOrDefault() - min.X.GetValueOrDefault() + 1, max.Z.GetValueOrDefault() - min.Z.GetValueOrDefault() + 1);
+                var grid = CellGridReader.Read(map, min.X, min.Z, max.X - min.X + 1, max.Z - min.Z + 1);
                 var snapshot = new Obs.CellsSnapshot { Context = context,
                     MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) },
                     Grid = grid };
@@ -79,8 +79,8 @@ namespace HomeBridge.BridgeTools
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity and an inclusive rectangle of at most 1048576 cells required.");
             if (request == null || request.Scope?.ExpectedIdentity == null) return false;
             var min = request.Rectangle?.Minimum; var max = request.Rectangle?.Maximum;
-            if (min == null || max == null || min.X is null || min.Z is null || max.X is null || max.Z is null || min.X.GetValueOrDefault() < 0 || min.Z.GetValueOrDefault() < 0 || max.X.GetValueOrDefault() < min.X.GetValueOrDefault() || max.Z.GetValueOrDefault() < min.Z.GetValueOrDefault()) return false;
-            return ((long)max.X.GetValueOrDefault() - min.X.GetValueOrDefault() + 1) * ((long)max.Z.GetValueOrDefault() - min.Z.GetValueOrDefault() + 1) <= 1 << 20;
+            if (min == null || max == null || min.X < 0 || min.Z < 0 || max.X < min.X || max.Z < min.Z) return false;
+            return ((long)max.X - min.X + 1) * ((long)max.Z - min.Z + 1) <= 1 << 20;
         }
 
         // The status read as a bundle section: the same facts ReadStatus

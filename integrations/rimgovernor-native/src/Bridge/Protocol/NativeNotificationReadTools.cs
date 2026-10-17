@@ -28,7 +28,6 @@ namespace HomeBridge.BridgeTools
 
         private static readonly FieldInfo? ActiveAlertsField = BridgeCommon.PrivateInstanceField(typeof(AlertsReadout), "activeAlerts");
         private static readonly FieldInfo? LiveMessagesField = BridgeCommon.PrivateStaticField(typeof(Messages), "liveMessages");
-        private static readonly FieldInfo? DiaOptionTextField = BridgeCommon.PrivateInstanceField(typeof(DiaOption), "text");
 
         internal static Presentation.NotificationsReply HandleNotifications(Presentation.NotificationsRequest request)
         {
@@ -38,12 +37,11 @@ namespace HomeBridge.BridgeTools
             try
             {
                 var snapshot = new Presentation.NotificationsSnapshot { Context = context };
-                var tick = Find.TickManager.TicksGame;
                 if (request.IncludeLetters ?? true)
-                    snapshot = snapshot with { Letters = Section(() => ReadLetters(Limit(request.LetterLimit, DefaultLetterLimit), tick),
+                    snapshot = snapshot with { Letters = Section(() => ReadLetters(Limit(request.LetterLimit, DefaultLetterLimit)),
                         (Presentation.Letters v) => new Presentation.LetterSection { Outcome = v }, u => new Presentation.LetterSection { Outcome = u }) };
                 if (request.IncludeMessages ?? true)
-                    snapshot = snapshot with { Messages = Section(() => ReadMessages(Limit(request.MessageLimit, DefaultMessageLimit), tick),
+                    snapshot = snapshot with { Messages = Section(() => ReadMessages(Limit(request.MessageLimit, DefaultMessageLimit)),
                         (Presentation.Messages v) => new Presentation.MessageSection { Outcome = v }, u => new Presentation.MessageSection { Outcome = u }) };
                 if (request.IncludeAlerts ?? true)
                     snapshot = snapshot with { Alerts = Section(() => ReadAlerts(Limit(request.AlertLimit, DefaultAlertLimit)),
@@ -83,62 +81,36 @@ namespace HomeBridge.BridgeTools
 
         // ============================================================== letters
 
-        private static Presentation.Letters ReadLetters(int limit, int tick)
+        private static Presentation.Letters ReadLetters(int limit)
         {
             var stack = Find.LetterStack ?? throw new NativeComponentMissing("Find.LetterStack is unavailable.");
             var letters = (stack.LettersListForReading ?? new List<Verse.Letter>()).Where(l => l != null).ToList();
             letters.Reverse(); // newest first, the order the game draws the stack
             var result = new Presentation.Letters { Listing = Listing(letters.Count, Math.Min(letters.Count, limit)) };
-            result = result with { Items = [.. letters.Take(limit).Select(letter => ReadLetter(letter, tick))] };
+            result = result with { Items = [.. letters.Take(limit).Select(letter => ReadLetter(letter))] };
             RequireUnique(result.Items.Select(l => l.Id ?? ""), "letter");
             return result;
         }
 
-        private static Presentation.Letter ReadLetter(Verse.Letter letter, int tick)
+        private static Presentation.Letter ReadLetter(Verse.Letter letter)
         {
             var row = new Presentation.Letter { Id = Id(letter.GetUniqueLoadID()), NativeType = Id(letter.GetType().FullName!),
-                Label = Diagnostic(letter.Label.ToString()), ArrivalTick = letter.arrivalTick, AgeTicks = Math.Max(0, tick - letter.arrivalTick) };
+                Label = Diagnostic(letter.Label.ToString()), ArrivalTick = letter.arrivalTick };
             if (letter.def != null && ProtoBoundary.IsIdentifier(letter.def.defName)) row = row with { DefName = letter.def.defName };
-            var targets = ReadLookTargets(letter.lookTargets);
-            if (targets != null) row = row with { LookTargets = targets };
-            if (letter is ChoiceLetter choiceLetter)
-            {
-                row = row with { Text = Diagnostic(choiceLetter.Text.ToString()) };
-                // Verse.StandardLetter derives from ChoiceLetter: an announcement's
-                // Close / Jump buttons are choices too. The caller judges whether
-                // any of them is a decision.
-                var options = (choiceLetter.Choices ?? Enumerable.Empty<DiaOption>()).ToList();
-                row = row with { ChoicesListing = Listing(options.Count, options.Count) };
-                var index = 0u;
-                foreach (var option in options)
-                {
-                    index++;
-                    var choice = new Presentation.LetterChoice { Index = index, Disabled = option.disabled };
-                    if (DiaOptionTextField?.GetValue(option) is string text) choice = choice with { Text = Diagnostic(text.Trim()) };
-                    row = row with { Choices = [.. row.Choices, choice] };
-                }
-            }
+            if (letter is ChoiceLetter choiceLetter) row = row with { Text = Diagnostic(choiceLetter.Text.ToString()) };
             return row;
         }
 
         // ============================================================= messages
 
-        private static Presentation.Messages ReadMessages(int limit, int tick)
+        private static Presentation.Messages ReadMessages(int limit)
         {
             var field = LiveMessagesField ?? throw new NativeComponentMissing("Verse.Messages.liveMessages was not found on this build.");
             var live = (field.GetValue(null) as List<Verse.Message> ?? throw new NativeComponentMissing("Verse.Messages.liveMessages is not a message list.")).Where(m => m != null).ToList();
             live.Reverse(); // newest first
             var result = new Presentation.Messages { Listing = Listing(live.Count, Math.Min(live.Count, limit)) };
-            var rows = new List<Presentation.TransientMessage>();
-            foreach (var message in live.Take(limit))
-            {
-                var row = new Presentation.TransientMessage { Id = Id(message.GetUniqueLoadID()), Text = Diagnostic(message.text ?? string.Empty),
-                    AgeTicks = Math.Max(0, tick - message.startingTick) };
-                var targets = ReadLookTargets(message.lookTargets);
-                if (targets != null) row = row with { LookTargets = targets };
-                rows.Add(row);
-            }
-            result = result with { Items = [.. rows] };
+            result = result with { Items = [.. live.Take(limit).Select(message =>
+                new Presentation.TransientMessage { Id = Id(message.GetUniqueLoadID()), Text = Diagnostic(message.text ?? string.Empty) })] };
             RequireUnique(result.Items.Select(m => m.Id ?? ""), "message");
             return result;
         }
@@ -163,7 +135,7 @@ namespace HomeBridge.BridgeTools
                 // Alerts are singletons per type in the readout; the type is the identity.
                 var row = new Presentation.Alert { Id = Id(alert.GetType().FullName!), NativeType = Id(alert.GetType().FullName!), Active = alert.Active };
                 try { row = row with { Label = Diagnostic(alert.Label ?? string.Empty) }; }
-                catch (Exception) { row = row with { ReadIssue = ReadIssue("The alert label threw while being read.") }; }
+                catch (Exception) { /* a label that throws leaves the alert unlabelled */ }
                 try
                 {
                     var report = alert.GetReport();
@@ -176,7 +148,6 @@ namespace HomeBridge.BridgeTools
                     // An alert that cannot name its culprits is still an alert; a
                     // map-wide alert has a complete empty target list instead.
                     row = row with { Targets = default, Listing = null };
-                    row = row with { ReadIssue = ReadIssue("The alert report threw while being read.") };
                 }
                 alertRows.Add(row);
             }
@@ -184,8 +155,6 @@ namespace HomeBridge.BridgeTools
             RequireUnique(result.Items.Select(a => a.Id ?? ""), "alert");
             return result;
         }
-
-        private static Common.Unavailable ReadIssue(string detail) => new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = detail };
 
         private static string Fingerprint(IEnumerable<string> ids)
         {
@@ -195,16 +164,6 @@ namespace HomeBridge.BridgeTools
         }
 
         // ============================================================== targets
-
-        private static Presentation.LookTargets? ReadLookTargets(Verse.LookTargets? value)
-        {
-            if (value == null || value.targets == null) return null;
-            var targets = value.targets.Where(t => t.IsValid).ToList();
-            var result = new Presentation.LookTargets { Listing = Listing(targets.Count, targets.Count) };
-            if (targets.Count > 0) result = result with { Primary = Target(targets[0]) };
-            foreach (var target in targets) result = result with { Targets = [.. result.Targets, Target(target)] };
-            return result;
-        }
 
         private static Presentation.LookTarget Target(GlobalTargetInfo target)
         {
@@ -224,17 +183,11 @@ namespace HomeBridge.BridgeTools
                 row = row with { Id = Id(worldObject.GetUniqueLoadID()) }; row = row with { NativeType = Id(worldObject.GetType().FullName!) };
                 row = row with { Label = Diagnostic(target.Label ?? string.Empty) };
                 if (worldObject.def != null && ProtoBoundary.IsIdentifier(worldObject.def.defName)) row = row with { DefName = worldObject.def.defName };
-                if (worldObject.Tile.Valid) row = row with { WorldTileId = Id(worldObject.Tile.ToString()) };
                 return row;
             }
             if (target.IsMapTarget && target.Map != null && target.Cell.IsValid && target.Cell.InBounds(target.Map))
             {
                 row = row with { MapId = target.Map.uniqueID }; row = row with { Position = Cell(target.Cell) };
-                return row;
-            }
-            if (target.IsWorldTarget && target.Tile.Valid)
-            {
-                row = row with { WorldTileId = Id(target.Tile.ToString()) };
                 return row;
             }
             row = row with { Label = Diagnostic(target.Label ?? string.Empty) };

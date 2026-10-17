@@ -67,19 +67,19 @@ namespace HomeBridge.BridgeTools
             if (list.Count < 1 ||list.Any(c => !HasCell(c))) return false;
             return list.Select(Native).Distinct().Count() == list.Count;
         }
-        private static bool HasCell(Common.Cell? cell) => cell != null && cell.X is not null && cell.Z is not null;
-        private static IntVec3 Native(Common.Cell cell) => new IntVec3(cell.X.GetValueOrDefault(), 0, cell.Z.GetValueOrDefault());
+        private static bool HasCell(Common.Cell? cell) => cell != null;
+        private static IntVec3 Native(Common.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
         // Region is null when the rectangle leaves the live map, checked on its
         // corners before any cell is listed; a null map checks shape only.
         internal static List<IntVec3>? Region(Obs.Rectangle? region, Map? map)
         {
             var min = region?.Minimum; var max = region?.Maximum;
-            if (!HasCell(min) || !HasCell(max) || max!.X.GetValueOrDefault() < min!.X.GetValueOrDefault() || max.Z.GetValueOrDefault() < min.Z.GetValueOrDefault()) throw new ArgumentException("Invalid rectangle.");
+            if (!HasCell(min) || !HasCell(max) || max!.X < min!.X || max.Z < min.Z) throw new ArgumentException("Invalid rectangle.");
             if (map == null) return new List<IntVec3>();
-            if (!new IntVec3(min.X.GetValueOrDefault(), 0, min.Z.GetValueOrDefault()).InBounds(map) || !new IntVec3(max.X.GetValueOrDefault(), 0, max.Z.GetValueOrDefault()).InBounds(map)) return null;
-            var width = (long)max.X.GetValueOrDefault() - min.X.GetValueOrDefault() + 1; var height = (long)max.Z.GetValueOrDefault() - min.Z.GetValueOrDefault() + 1;
+            if (!new IntVec3(min.X, 0, min.Z).InBounds(map) || !new IntVec3(max.X, 0, max.Z).InBounds(map)) return null;
+            var width = (long)max.X - min.X + 1; var height = (long)max.Z - min.Z + 1;
             var result = new List<IntVec3>((int)(width * height));
-            for (long z = min.Z.GetValueOrDefault(); z <= max.Z.GetValueOrDefault(); z++) for (long x = min.X.GetValueOrDefault(); x <= max.X.GetValueOrDefault(); x++) result.Add(new IntVec3((int)x, 0, (int)z));
+            for (long z = min.Z; z <= max.Z; z++) for (long x = min.X; x <= max.X; x++) result.Add(new IntVec3((int)x, 0, (int)z));
             return result;
         }
 

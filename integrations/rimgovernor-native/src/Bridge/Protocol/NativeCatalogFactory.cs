@@ -10,8 +10,6 @@ using RimGovernor.Brain.Policy;
 using RimWorld;
 using Verse;
 using BrainCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
-using BrainDerived = RimGovernor.Brain.Bridge.CatalogDerived;
-using BrainRaceFacts = RimGovernor.Brain.Bridge.RaceGameFacts;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
@@ -19,7 +17,7 @@ namespace HomeBridge.BridgeTools
 {
     /// <summary>
     /// The definition catalog the in-process brain plans over (#3116). The catalog reply carries what the game computes
-    /// in code (derived facts, race facts, the stat environment, class chains) but not the def rows or game constants
+    /// in code (the full rot rate, class chains, Biotech facts) but not the def rows or game constants
     /// (#3100): the brain's <see cref="BrainCatalog"/> is built over the game's own Def objects, so its builders live
     /// here, in the one assembly that may read the Def databases. <c>BrainCompositionOptions.CatalogFactory</c> is
     /// <see cref="Create"/> and <c>BrainCompositionOptions.StartingIdeoligion</c> is <see cref="StartingIdeoligion"/>;
@@ -34,21 +32,15 @@ namespace HomeBridge.BridgeTools
     internal static class NativeCatalogFactory
     {
         /// <summary>
-        /// The catalog of a load: every Def of the game, the derived and race facts of its (validated) wire catalog, and
-        /// the def stat table the load's definition catalog read built (<see cref="NativeStatTable"/>).
+        /// The catalog of a load: every Def of the game, the derived facts the game computes in code, and the def
+        /// stat table and race facts the load's definition catalog read built (<see cref="NativeStatTable"/>,
+        /// <see cref="NativeRaceFacts"/>).
         /// </summary>
         internal static BrainCatalog Create(Obs.DefinitionCatalog wire, Common.Identity identity)
         {
             ArgumentNullException.ThrowIfNull(wire);
             ArgumentNullException.ThrowIfNull(identity);
-            var derived = wire.Derived ?? throw new InvalidOperationException("The definition catalog carries no derived facts.");
-            var races = new Dictionary<string, BrainRaceFacts>(StringComparer.Ordinal);
-            foreach (var row in wire.ThingFacts)
-            {
-                if (row.Race is { } race)
-                    races.Add(row.DefName, new BrainRaceFacts([.. race.EdibleDefs], race.TameChanceFactor, race.AdultFeedPerDay));
-            }
-            return new BrainCatalog(AllDefs(), NativeStatTable.ForLoad(identity.LoadToken), new BrainDerived(derived.CurrencyDef, derived.WortDef, derived.FullRotRateC), races);
+            return new BrainCatalog(AllDefs(), NativeStatTable.ForLoad(identity.LoadToken), NativeDefinitionCatalogTool.BrainDerived(), NativeRaceFacts.ForLoad(identity.LoadToken));
         }
 
         /// <summary>
@@ -65,8 +57,7 @@ namespace HomeBridge.BridgeTools
                 var faction = (field?.GetValue(part) as FactionDef)?.defName;
                 if (string.IsNullOrEmpty(faction))
                     throw new InvalidOperationException("The creation scenario lacks its player faction.");
-                var derived = NativeDefinitionCatalogTool.DerivedFacts();
-                var catalog = new BrainCatalog(AllDefs(), RimGovernor.Brain.Bridge.DefStatTable.Empty, new BrainDerived(derived.CurrencyDef, derived.WortDef, derived.FullRotRateC));
+                var catalog = new BrainCatalog(AllDefs(), RimGovernor.Brain.Bridge.DefStatTable.Empty, NativeDefinitionCatalogTool.BrainDerived());
                 var options = catalog.IdeoligionOptions(faction!);
                 if (!PolicyFunctions.ChooseStartingIdeoligion(options).TryGetValue(out var choice))
                     throw new InvalidOperationException("No supported legal ideoligion design can be established.");

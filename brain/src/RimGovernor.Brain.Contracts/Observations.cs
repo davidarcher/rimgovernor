@@ -544,7 +544,7 @@ public sealed record ClearanceTargetsSnapshot
 
 public sealed record ClearanceTargetsReply
 {
-    public ClearanceTargetsReplyOutcome? Outcome { get; init; }
+    public ClearanceTargetsReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ClearanceTargetsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -590,7 +590,7 @@ public sealed record MapSize
 
 public sealed record DefinitionRef
 {
-    public string? DefName { get; init; }
+    public string DefName { get; init; } = "";
 }
 
 /// <summary>
@@ -1774,7 +1774,7 @@ public sealed record ListPawnsRequest
 
 public sealed record ListPawnsReply
 {
-    public ListPawnsReplyOutcome? Outcome { get; init; }
+    public ListPawnsReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ListPawnsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -1925,8 +1925,6 @@ public sealed record SuppliesSnapshot
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ResourceStock>))]
     public EquatableArray<ResourceStock> Stocks { get; init; }
-
-    public Completeness? Completeness { get; init; }
 }
 
 public sealed record ListSuppliesRequest
@@ -1938,7 +1936,7 @@ public sealed record ListSuppliesRequest
 
 public sealed record ListSuppliesReply
 {
-    public ListSuppliesReplyOutcome? Outcome { get; init; }
+    public ListSuppliesReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ListSuppliesReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -2313,7 +2311,7 @@ public sealed record ListBuildingsRequest
 
 public sealed record ListBuildingsReply
 {
-    public ListBuildingsReplyOutcome? Outcome { get; init; }
+    public ListBuildingsReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ListBuildingsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -2486,7 +2484,7 @@ public sealed record ListRoomsRequest
 
 public sealed record ListRoomsReply
 {
-    public ListRoomsReplyOutcome? Outcome { get; init; }
+    public ListRoomsReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ListRoomsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -2575,7 +2573,7 @@ public sealed record ListZonesRequest
 
 public sealed record ListZonesReply
 {
-    public ListZonesReplyOutcome? Outcome { get; init; }
+    public ListZonesReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ListZonesReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -2693,7 +2691,7 @@ public sealed record GetCellsRequest
 
 public sealed record GetCellsReply
 {
-    public GetCellsReplyOutcome? Outcome { get; init; }
+    public GetCellsReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="GetCellsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -2804,7 +2802,7 @@ public sealed record ResearchRequest
 
 public sealed record ResearchReply
 {
-    public ResearchReplyOutcome? Outcome { get; init; }
+    public ResearchReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ResearchReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -2916,7 +2914,7 @@ public sealed record SpatialAccessRequest
 
 public sealed record SpatialAccessReply
 {
-    public SpatialAccessReplyOutcome? Outcome { get; init; }
+    public SpatialAccessReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="SpatialAccessReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -3061,7 +3059,7 @@ public sealed record DefenseSiteRequest
 
 public sealed record DefenseSiteReply
 {
-    public DefenseSiteReplyOutcome? Outcome { get; init; }
+    public DefenseSiteReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="DefenseSiteReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -3148,7 +3146,7 @@ public sealed record LinesOfFireRequest
 
 public sealed record LinesOfFireReply
 {
-    public LinesOfFireReplyOutcome? Outcome { get; init; }
+    public LinesOfFireReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="LinesOfFireReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -3209,7 +3207,7 @@ public sealed record RoofSupportRequest
 
 public sealed record RoofSupportReply
 {
-    public RoofSupportReplyOutcome? Outcome { get; init; }
+    public RoofSupportReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="RoofSupportReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -3298,7 +3296,7 @@ public sealed record ExcavationSiteRequest
 
 public sealed record ExcavationSiteReply
 {
-    public ExcavationSiteReplyOutcome? Outcome { get; init; }
+    public ExcavationSiteReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ExcavationSiteReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -3397,7 +3395,7 @@ public sealed record WallUpgradeSitesRequest
 
 public sealed record WallUpgradeSitesReply
 {
-    public WallUpgradeSitesReplyOutcome? Outcome { get; init; }
+    public WallUpgradeSitesReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="WallUpgradeSitesReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -3452,8 +3450,6 @@ public sealed record ResourceSource
 
     public long? Remaining { get; init; }
 
-    public long? DesignatedTick { get; init; }
-
     public bool? Taken { get; init; }
 
     /// <summary>
@@ -3462,10 +3458,8 @@ public sealed record ResourceSource
     public bool? Buried { get; init; }
 
     /// <summary>
-    /// A mine source's CAS token and cell: rocks are in no frame's things table.
+    /// A mine source's cell: rocks are in no frame's things table.
     /// </summary>
-    public SnapshotRef? SourceSnapshot { get; init; }
-
     public Common.Cell? Cell { get; init; }
 
     /// <summary>
@@ -3516,7 +3510,7 @@ public sealed record ResourceSourcesRequest
 
 public sealed record ResourceSourcesReply
 {
-    public ResourceSourcesReplyOutcome? Outcome { get; init; }
+    public ResourceSourcesReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ResourceSourcesReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -3596,7 +3590,7 @@ public sealed record ConsumptionRequest
 
 public sealed record ConsumptionReply
 {
-    public ConsumptionReplyOutcome? Outcome { get; init; }
+    public ConsumptionReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ConsumptionReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -3677,7 +3671,7 @@ public sealed record StorageOccupancyRequest
 
 public sealed record StorageOccupancyReply
 {
-    public StorageOccupancyReplyOutcome? Outcome { get; init; }
+    public StorageOccupancyReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="StorageOccupancyReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -3752,7 +3746,7 @@ public sealed record HusbandryRequest
 
 public sealed record HusbandryReply
 {
-    public HusbandryReplyOutcome? Outcome { get; init; }
+    public HusbandryReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="HusbandryReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -3812,7 +3806,7 @@ public sealed record WasteSnapshot
 
 public sealed record WasteReply
 {
-    public WasteReplyOutcome? Outcome { get; init; }
+    public WasteReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="WasteReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -3875,7 +3869,7 @@ public sealed record RecoveryRequest
 
 public sealed record RecoveryReply
 {
-    public RecoveryReplyOutcome? Outcome { get; init; }
+    public RecoveryReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="RecoveryReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -4039,7 +4033,7 @@ public sealed record PopulationRequest
 
 public sealed record PopulationReply
 {
-    public PopulationReplyOutcome? Outcome { get; init; }
+    public PopulationReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="PopulationReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -4140,7 +4134,7 @@ public sealed record WorldRequest
 
 public sealed record WorldReply
 {
-    public WorldReplyOutcome? Outcome { get; init; }
+    public WorldReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="WorldReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -4802,7 +4796,7 @@ public sealed record WorldProgressionRequest
 
 public sealed record WorldProgressionReply
 {
-    public WorldProgressionReplyOutcome? Outcome { get; init; }
+    public WorldProgressionReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="WorldProgressionReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -4861,7 +4855,7 @@ public sealed record BillsRequest
 
 public sealed record BillsReply
 {
-    public BillsReplyOutcome? Outcome { get; init; }
+    public BillsReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="BillsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -4925,7 +4919,7 @@ public sealed record RecipesRequest
 
 public sealed record RecipesReply
 {
-    public RecipesReplyOutcome? Outcome { get; init; }
+    public RecipesReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="RecipesReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -4971,7 +4965,7 @@ public sealed record PawnSettingsRequest
 
 public sealed record PawnSettingsReply
 {
-    public PawnSettingsReplyOutcome? Outcome { get; init; }
+    public PawnSettingsReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="PawnSettingsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -5047,7 +5041,7 @@ public abstract record ResolveTargetRequestQuery
 
 public sealed record ResolveTargetReply
 {
-    public ResolveTargetReplyOutcome? Outcome { get; init; }
+    public ResolveTargetReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ResolveTargetReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -5165,7 +5159,7 @@ public sealed record EvaluateStatRequest
 /// </summary>
 public sealed record EvaluateStatReply
 {
-    public EvaluateStatReplyOutcome? Outcome { get; init; }
+    public EvaluateStatReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="EvaluateStatReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -5369,7 +5363,7 @@ public sealed record GearRequest
 
 public sealed record GearReply
 {
-    public GearReplyOutcome? Outcome { get; init; }
+    public GearReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="GearReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -5446,7 +5440,7 @@ public sealed record TradersRequest
 
 public sealed record TradersReply
 {
-    public TradersReplyOutcome? Outcome { get; init; }
+    public TradersReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="TradersReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -5578,7 +5572,7 @@ public sealed record TradeSessionRequest
 
 public sealed record TradeSessionReply
 {
-    public TradeSessionReplyOutcome? Outcome { get; init; }
+    public TradeSessionReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="TradeSessionReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -5660,7 +5654,7 @@ public sealed record TradeSheetRequest
 
 public sealed record TradeSheetReply
 {
-    public TradeSheetReplyOutcome? Outcome { get; init; }
+    public TradeSheetReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="TradeSheetReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -5724,10 +5718,6 @@ public sealed record PassingTradeShip
     public string? TraderKind { get; init; }
 
     public string? FactionId { get; init; }
-
-    public bool? CanTrade { get; init; }
-
-    public long? DepartureTick { get; init; }
 }
 
 public sealed record TradeRequestOption
@@ -5747,8 +5737,6 @@ public sealed record TradeRequestOption
     public long? LastRequestTick { get; init; }
 
     public long? CooldownRemainingTicks { get; init; }
-
-    public long? ArrivalMinTicks { get; init; }
 
     public long? ArrivalMaxTicks { get; init; }
 
@@ -5793,9 +5781,6 @@ public sealed record TradeRequestArrival
     public string? TraderKind { get; init; }
 
     public long? ArrivalTick { get; init; }
-
-    public long? RetryTicks { get; init; }
-
 }
 
 public sealed record TradeCommsWork
@@ -5830,7 +5815,7 @@ public sealed record TradePackEstimate
 
 public sealed record TradeAcquisitionReply
 {
-    public TradeAcquisitionReplyOutcome? Outcome { get; init; }
+    public TradeAcquisitionReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="TradeAcquisitionReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -6237,7 +6222,7 @@ public sealed record RoyalThrone
 /// </summary>
 public sealed record RoyaltySection
 {
-    public RoyaltySectionOutcome? Outcome { get; init; }
+    public RoyaltySectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="RoyaltySection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -6382,8 +6367,8 @@ public sealed record FoodClimate
 /// <summary>
 /// FarmFacts mirrors one growing zone's raw state; policy computes the harvest
 /// lead and the growing-cell count from it and the food climate calendar.
-/// growth_* are the planted plants' growth fractions (0..1), fertility_factor_*
-/// and light_factor_mean their native growth-rate factors, fertile_planted_cells
+/// growth_mean is the planted plants' mean growth fraction (0..1),
+/// fertility_factor_mean their mean native fertility growth-rate factor, fertile_planted_cells
 /// the planted cells whose fertility factor is above zero, and blighted_plants
 /// the planted plants with blight. temperature is the map's outdoor temperature;
 /// the crop's growth range and harvest nutrition are its PlantProperties row's.
@@ -6401,17 +6386,12 @@ public sealed record FarmFacts
 
     public bool? EdibleCrop { get; init; }
 
-    public double? GrowthMin { get; init; }
 
     public double? GrowthMean { get; init; }
-
-    public double? FertilityFactorMin { get; init; }
 
     public double? FertilityFactorMean { get; init; }
 
     public uint? FertilePlantedCells { get; init; }
-
-    public double? LightFactorMean { get; init; }
 
     public uint? BlightedPlants { get; init; }
 
@@ -6800,7 +6780,7 @@ public sealed record ChoiceDialog
 /// </summary>
 public sealed record ComfortSection
 {
-    public ComfortSectionOutcome? Outcome { get; init; }
+    public ComfortSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ComfortSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -6830,7 +6810,7 @@ public abstract record ComfortSectionOutcome
 
 public sealed record FoodSupplySection
 {
-    public FoodSupplySectionOutcome? Outcome { get; init; }
+    public FoodSupplySectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="FoodSupplySection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -6860,7 +6840,7 @@ public abstract record FoodSupplySectionOutcome
 
 public sealed record ForecastSection
 {
-    public ForecastSectionOutcome? Outcome { get; init; }
+    public ForecastSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ForecastSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -6890,7 +6870,7 @@ public abstract record ForecastSectionOutcome
 
 public sealed record DevelopmentSection
 {
-    public DevelopmentSectionOutcome? Outcome { get; init; }
+    public DevelopmentSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="DevelopmentSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -6920,7 +6900,7 @@ public abstract record DevelopmentSectionOutcome
 
 public sealed record PlanningSection
 {
-    public PlanningSectionOutcome? Outcome { get; init; }
+    public PlanningSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="PlanningSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -6973,7 +6953,7 @@ public sealed record WallRemovalFacts
 
 public sealed record WallRemovalSection
 {
-    public WallRemovalSectionOutcome? Outcome { get; init; }
+    public WallRemovalSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="WallRemovalSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -7048,7 +7028,7 @@ public sealed record HomeCoverageFacts
 
 public sealed record HomeCoverageSection
 {
-    public HomeCoverageSectionOutcome? Outcome { get; init; }
+    public HomeCoverageSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="HomeCoverageSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -7120,7 +7100,7 @@ public sealed record LightingFacts
 
 public sealed record LightingSection
 {
-    public LightingSectionOutcome? Outcome { get; init; }
+    public LightingSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="LightingSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -7189,7 +7169,7 @@ public sealed record FlooringFacts
 
 public sealed record FlooringSection
 {
-    public FlooringSectionOutcome? Outcome { get; init; }
+    public FlooringSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="FlooringSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -7296,7 +7276,7 @@ public sealed record RoutesFacts
 
 public sealed record RoutesSection
 {
-    public RoutesSectionOutcome? Outcome { get; init; }
+    public RoutesSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="RoutesSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -7393,7 +7373,7 @@ public sealed record UpkeepFacts
 
 public sealed record UpkeepSection
 {
-    public UpkeepSectionOutcome? Outcome { get; init; }
+    public UpkeepSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="UpkeepSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -7462,7 +7442,7 @@ public sealed record ThreatFacts
 
 public sealed record ThreatSection
 {
-    public ThreatSectionOutcome? Outcome { get; init; }
+    public ThreatSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ThreatSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -7525,7 +7505,7 @@ public sealed record LootCensus
 
 public sealed record LootSection
 {
-    public LootSectionOutcome? Outcome { get; init; }
+    public LootSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="LootSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -7785,7 +7765,7 @@ public sealed record FoodChannelsFacts
 
 public sealed record FoodChannelsSection
 {
-    public FoodChannelsSectionOutcome? Outcome { get; init; }
+    public FoodChannelsSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="FoodChannelsSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -7903,7 +7883,7 @@ public sealed record DeepResourcesFacts
 
 public sealed record DeepResourcesSection
 {
-    public DeepResourcesSectionOutcome? Outcome { get; init; }
+    public DeepResourcesSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="DeepResourcesSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -8012,7 +7992,7 @@ public sealed record DeliveryLedgerFacts
 
 public sealed record DeliveryLedgerSection
 {
-    public DeliveryLedgerSectionOutcome? Outcome { get; init; }
+    public DeliveryLedgerSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="DeliveryLedgerSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -8182,7 +8162,7 @@ public sealed record ColonyFactsSnapshot
 /// </summary>
 public sealed record AnomalySection
 {
-    public AnomalySectionOutcome? Outcome { get; init; }
+    public AnomalySectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="AnomalySection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -8444,7 +8424,7 @@ public sealed record FoodEater
 
 public sealed record PolicySection
 {
-    public PolicySectionOutcome? Outcome { get; init; }
+    public PolicySectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="PolicySection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -8490,7 +8470,7 @@ public abstract record PolicySectionOutcome
 /// </summary>
 public sealed record BiotechSection
 {
-    public BiotechSectionOutcome? Outcome { get; init; }
+    public BiotechSectionOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="BiotechSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -8947,7 +8927,7 @@ public sealed record ColonyFactsRequest
 
 public sealed record ColonyFactsReply
 {
-    public ColonyFactsReplyOutcome? Outcome { get; init; }
+    public ColonyFactsReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ColonyFactsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -9112,7 +9092,7 @@ public sealed record StatusRequest
 
 public sealed record StatusReply
 {
-    public StatusReplyOutcome? Outcome { get; init; }
+    public StatusReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="StatusReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -9331,7 +9311,7 @@ public sealed record ObservationBatchRequest
 
 public sealed record ObservationBatchReply
 {
-    public ObservationBatchReplyOutcome? Outcome { get; init; }
+    public ObservationBatchReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ObservationBatchReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -9400,10 +9380,9 @@ public sealed record SnapshotStreamRequest
 }
 
 /// <summary>
-/// The definition catalog: the generated def rows and the stat environment
-/// the planning views read (research projects are ResearchProjectDef rows of
-/// `defs`). `context` and `stat_env` are per load; every other field is static for
-/// the game process (defs load once at boot).
+/// The definition catalog: what the game computes in code that the planning
+/// views read beside the game's Def objects. `context` is per load; every other
+/// field is static for the game process (defs load once at boot).
 /// </summary>
 public sealed record DefinitionCatalog
 {
@@ -9414,13 +9393,6 @@ public sealed record DefinitionCatalog
     /// </summary>
     public BiotechCatalog? Biotech { get; init; }
 
-    public CatalogDerived? Derived { get; init; }
-
-    /// <summary>
-    /// The game state Go's stat evaluator (stateval) reads beyond the rows.
-    /// </summary>
-    public StatEnv? StatEnv { get; init; }
-
     /// <summary>
     /// The base classes of every class the def rows name: the class of each
     /// mirrored object (each def's own class among them) and each System.Type
@@ -9429,13 +9401,6 @@ public sealed record DefinitionCatalog
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<ClassChain>))]
     public EquatableArray<ClassChain> ClassChains { get; init; }
-
-    /// <summary>
-    /// What the game's own code says about every ThingDef, computed once per
-    /// load; Go reads it and never ports the rule.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ThingDefFacts>))]
-    public EquatableArray<ThingDefFacts> ThingFacts { get; init; }
 }
 
 /// <summary>
@@ -9448,111 +9413,6 @@ public sealed record ClassChain
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Bases { get; init; }
-}
-
-/// <summary>
-/// One ThingDef's game-computed flags: the race facts of a def with RaceProperties.
-/// A food's kind and a meal's ingredients, ThingDef.IsMeat, IsMedicine and the
-/// room-role names are Go's, over the def rows (bridge/food_rules.go,
-/// bridge/catalog_items.go).
-/// </summary>
-public sealed record ThingDefFacts
-{
-    public string DefName { get; init; } = "";
-
-    /// <summary>
-    /// Set on a def with RaceProperties.
-    /// </summary>
-    public RaceFacts? Race { get; init; }
-}
-
-/// <summary>
-/// What the game's own race code says about one race that its def fields do not:
-/// `edible_defs` are the foods (ThingDefFacts.food_kind set) RaceProperties
-/// .CanEverEat accepts, sorted. The race flags, trainables, meat and life stage
-/// ages are Go's, derived from the RaceProperties, FleshTypeDef, LifeStageDef and
-/// TrainableDef rows and the evaluated stats (bridge/race_rules.go).
-/// </summary>
-public sealed record RaceFacts
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> EdibleDefs { get; init; }
-
-    /// <summary>
-    /// InteractionWorker_RecruitAttempt's wildness curve at the race's Wildness
-    /// stat: the factor a tame attempt's chance is multiplied by (before the
-    /// tamer's TameAnimalChance, bond, prison and venerated-animal factors).
-    /// </summary>
-    public float TameChanceFactor { get; init; }
-
-    /// <summary>
-    /// SimplifiedPastureNutritionSimulator.NutritionConsumedPerDay(def, adult
-    /// life stage): the nutrition per day one adult of the race eats, the
-    /// game's own feed figure for an owned adult, so a colony with none of the
-    /// race can price its feed. Absent for a race with no life stages.
-    /// </summary>
-    public double? AdultFeedPerDay { get; init; }
-}
-
-/// <summary>
-/// The game state a Go stat evaluation reads that the def rows do not hold
-/// (stateval.Env), read once per load beside the rows. `active_mods` are the
-/// package ids (lower case) of ModsConfig.ActiveModsInLoadOrder. `scenario_factors`
-/// are Scenario.GetStatFactor for every StatDef whose factor is not 1.
-/// `difficulty_flags` are the public bool fields of Find.Storyteller.difficulty by
-/// field name (what CostListForDifficulty.difficultyVar names).
-/// </summary>
-public sealed record StatEnv
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> ActiveMods { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<StatFactor>))]
-    public EquatableArray<StatFactor> ScenarioFactors { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<DifficultyFlag>))]
-    public EquatableArray<DifficultyFlag> DifficultyFlags { get; init; }
-}
-
-public sealed record StatFactor
-{
-    public string Stat { get; init; } = "";
-
-    public float Factor { get; init; }
-}
-
-public sealed record DifficultyFlag
-{
-    public string Name { get; init; } = "";
-
-    public bool Value { get; init; }
-}
-
-/// <summary>
-/// The catalog facts the game names or computes in code, which no const of
-/// game_constants carries (the numeric constants are the typed GameConstants).
-/// </summary>
-public sealed record CatalogDerived
-{
-    /// <summary>
-    /// The defName of ThingDefOf.Silver: the def Tradeable.IsCurrency tests, so
-    /// the coin every price and the colony census count in.
-    /// </summary>
-    public string CurrencyDef { get; init; } = "";
-
-    /// <summary>
-    /// The temperature (C) at which GenTemperature.RotRateAtTemperature first
-    /// reaches its full rate of 1, found by evaluating the game's own function:
-    /// food stored at or below it rots slower than the full rate.
-    /// </summary>
-    public float FullRotRateC { get; init; }
-
-    /// <summary>
-    /// The defName of ThingDefOf.Wort: what Building_FermentingBarrel takes in
-    /// and turns into ThingDefOf.Beer, so the beer reserve names the
-    /// intermediate without typing it.
-    /// </summary>
-    public string WortDef { get; init; } = "";
 }
 
 /// <summary>
@@ -9860,7 +9720,7 @@ public sealed record DefinitionCatalogRequest
 
 public sealed record DefinitionCatalogReply
 {
-    public DefinitionCatalogReplyOutcome? Outcome { get; init; }
+    public DefinitionCatalogReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="DefinitionCatalogReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -9907,7 +9767,7 @@ public sealed record SnapshotStreamOpened
 
 public sealed record SnapshotStreamReply
 {
-    public SnapshotStreamReplyOutcome? Outcome { get; init; }
+    public SnapshotStreamReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="SnapshotStreamReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -9982,7 +9842,7 @@ public sealed record SnapshotRead
 
 public sealed record SnapshotReadReply
 {
-    public SnapshotReadReplyOutcome? Outcome { get; init; }
+    public SnapshotReadReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="SnapshotReadReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -10027,7 +9887,7 @@ public sealed record FlushSnapshotRequest;
 
 public sealed record FlushSnapshotReply
 {
-    public FlushSnapshotReplyOutcome? Outcome { get; init; }
+    public FlushSnapshotReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="FlushSnapshotReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>

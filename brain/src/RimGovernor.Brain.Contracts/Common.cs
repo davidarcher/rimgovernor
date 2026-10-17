@@ -241,14 +241,14 @@ public sealed record AttemptKey
 /// </summary>
 public sealed record Ref
 {
-    public string? Id { get; init; }
+    public string Id { get; init; } = "";
 }
 
 public sealed record Cell
 {
-    public int? X { get; init; }
+    public int X { get; init; }
 
-    public int? Z { get; init; }
+    public int Z { get; init; }
 }
 
 /// <summary>

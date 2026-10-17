@@ -33,7 +33,7 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
         }
         BridgeFunctions.ValidateClockPolicy(request.Policy);
         var reply = await _facade.RunClockAsync(request, ct).ConfigureAwait(false);
-        return FacadeWriteChecks.ClockStatusReply(reply, request.Identity);
+        return FacadeWriteChecks.ClockStatusReply(reply);
     }
 
     /// <inheritdoc />
@@ -46,7 +46,7 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
             throw BridgeFunctions.Contract("clock hold reason");
         }
         var reply = await _facade.HoldClockAsync(request, ct).ConfigureAwait(false);
-        return FacadeWriteChecks.ClockStatusReply(reply, request.Identity);
+        return FacadeWriteChecks.ClockStatusReply(reply);
     }
 
     /// <inheritdoc />
@@ -55,11 +55,10 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
         ArgumentNullException.ThrowIfNull(request);
         BridgeFunctions.AuthorityIdentity(request.Identity);
         var reply = await _facade.HeartbeatClockAsync(request, ct).ConfigureAwait(false);
-        return reply.Outcome switch
+        if (reply.Outcome.Failure is { } failure)
         {
-            PbClock.HeartbeatReplyOutcome.FailureCase { Value: var failure } => throw FacadeNativeClient.Failure(failure),
-            PbClock.HeartbeatReplyOutcome.AckCase { Value: var ack } => ack,
-            _ => throw BridgeFunctions.Contract("clock heartbeat outcome missing"),
-        };
+            throw FacadeNativeClient.Failure(failure);
+        }
+        return reply.Outcome.Ack!;
     }
 }

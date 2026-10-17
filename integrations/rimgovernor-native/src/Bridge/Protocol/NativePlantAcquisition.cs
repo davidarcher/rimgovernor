@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
                 .Present(() => found != null && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact plant is no longer spawned on this map")
-                .Require(() => found!.Position.x == command.Cell.X.GetValueOrDefault() && found.Position.z == command.Cell.Z.GetValueOrDefault(), "the plant is not at the expected cell")
+                .Require(() => found!.Position.x == command.Cell.X && found.Position.z == command.Cell.Z, "the plant is not at the expected cell")
                 .Require(() => found!.def.plant.harvestedThingDef?.defName == command.ResourceDefName, "the plant no longer yields the expected resource")
                 .Require(() => !found!.Position.Fogged(map), "the plant's cell is fogged")
                 .Require(() => !found!.IsForbidden(Faction.OfPlayer), "the plant is forbidden")
@@ -109,7 +109,7 @@ namespace HomeBridge.BridgeTools
     {
         private static AcquireRequest? Request(Operations.DesignateIntent intent) =>
             intent.Target != null && ProtoBoundary.IsIdentifier(intent.Target.Id) && intent.ExpectedDef is not null && ProtoBoundary.IsIdentifier(intent.ExpectedDef)
-            && intent.Cell != null && intent.Cell.X is not null && intent.Cell.Z is not null && intent.Cell.X.GetValueOrDefault() >= 0 && intent.Cell.Z.GetValueOrDefault() >= 0
+            && intent.Cell != null && intent.Cell.X >= 0 && intent.Cell.Z >= 0
             && intent.ThingId is null && !intent.ReplaceWithWall.GetValueOrDefault()
                 ? new AcquireRequest { SourceId = intent.Target.Id, ResourceDefName = intent.ExpectedDef, Cell = intent.Cell, Withdraw = intent.Withdraw.GetValueOrDefault() } : null;
 

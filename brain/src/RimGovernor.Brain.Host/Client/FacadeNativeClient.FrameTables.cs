@@ -62,10 +62,6 @@ internal sealed partial class FacadeNativeClient
             return held.Buildings;
         }
         var observed = await ListBuildingsLiveAsync(identity, cancellationToken).ConfigureAwait(false);
-        if (!BridgeFunctions.SameIdentity(observed.Context?.Identity, identity))
-        {
-            throw BridgeFunctions.Contract("building table without the expected context");
-        }
         return Buildings.FromSnapshot(observed);
     }
 
@@ -78,7 +74,7 @@ internal sealed partial class FacadeNativeClient
     {
         BridgeFunctions.AuthorityIdentity(identity);
         var reply = await Facade.ListZonesAsync(ZonesListRequest(identity), cancellationToken).ConfigureAwait(false);
-        var outcome = reply.Outcome ?? throw BridgeFunctions.Contract("missing zones outcome");
+        var outcome = reply.Outcome;
         if (outcome.Failure is { } failure)
         {
             throw Failure(failure);
@@ -87,13 +83,13 @@ internal sealed partial class FacadeNativeClient
         {
             throw Unavailable(unavailable);
         }
-        var snapshot = outcome.Observed ?? throw BridgeFunctions.Contract("missing zones snapshot");
+        var snapshot = outcome.Observed!;
         var ids = new List<string>(snapshot.Zones.Count);
         foreach (var row in snapshot.Zones)
         {
-            ids.Add((row ?? throw BridgeFunctions.Contract("invalid zone row")).Id ?? "");
+            ids.Add(row.Id ?? "");
         }
-        return EntityRowsOf(identity, snapshot.Context, snapshot.Zones, ids);
+        return EntityRowsOf(snapshot.Context, snapshot.Zones, ids);
     }
 
     /// <summary>
@@ -109,7 +105,7 @@ internal sealed partial class FacadeNativeClient
             return new EntityRows<PbObservations.BuildingState> { Context = held.BuildMeta?.Context, Rows = held.Buildings.Table };
         }
         var snapshot = await ListBuildingsLiveAsync(identity, cancellationToken).ConfigureAwait(false);
-        return EntityRowsOf(identity, snapshot.Context, snapshot.Buildings, [.. snapshot.Buildings.Select(row => row.Building.Id)]);
+        return EntityRowsOf(snapshot.Context, snapshot.Buildings, [.. snapshot.Buildings.Select(row => row.Building.Id)]);
     }
 
     /// <summary>
@@ -127,7 +123,7 @@ internal sealed partial class FacadeNativeClient
         else
         {
             var reply = await Facade.ReadBillsAsync(BillsListRequest(identity), cancellationToken).ConfigureAwait(false);
-            var outcome = reply.Outcome ?? throw BridgeFunctions.Contract("missing bills outcome");
+            var outcome = reply.Outcome;
             if (outcome.Failure is { } failure)
             {
                 throw Failure(failure);
@@ -136,18 +132,14 @@ internal sealed partial class FacadeNativeClient
             {
                 throw Unavailable(unavailable);
             }
-            snapshot = outcome.Observed ?? throw BridgeFunctions.Contract("missing bills snapshot");
+            snapshot = outcome.Observed!;
         }
         var ids = new List<string>(snapshot.Benches.Count);
         foreach (var row in snapshot.Benches)
         {
-            if (row is null || row.Bench is null)
-            {
-                throw BridgeFunctions.Contract("invalid bill stack row");
-            }
-            ids.Add(row.Bench.Id ?? "");
+            ids.Add(row.Bench?.Id ?? "");
         }
-        return EntityRowsOf(identity, snapshot.Context, snapshot.Benches, ids);
+        return EntityRowsOf(snapshot.Context, snapshot.Benches, ids);
     }
 
     /// <summary>Go <c>zonesListRequest</c>: the zone list request shared with the bundle's step families.</summary>
@@ -164,7 +156,7 @@ internal sealed partial class FacadeNativeClient
 
     /// <summary>
     /// Go <c>Client.frameHeld</c>: the held keyed tables as of the newest frame past this client's last write that
-    /// carries the table (<paramref name="carries"/>), failing with the first invalid pawn or thing row.
+    /// carries the table (<paramref name="carries"/>).
     /// </summary>
     internal async Task<FrameHeld> FrameHeldAsync(string method, PbCommon.Identity identity, Func<FrameView, bool> carries, CancellationToken cancellationToken)
     {
@@ -190,7 +182,7 @@ internal sealed partial class FacadeNativeClient
     private async Task<PbObservations.BuildingsSnapshot> ListBuildingsLiveAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         var reply = await Facade.ListBuildingsAsync(BuildingsListRequest(identity), cancellationToken).ConfigureAwait(false);
-        var outcome = reply.Outcome ?? throw BridgeFunctions.Contract("missing buildings outcome");
+        var outcome = reply.Outcome;
         if (outcome.Failure is { } failure)
         {
             throw Failure(failure);
@@ -199,29 +191,16 @@ internal sealed partial class FacadeNativeClient
         {
             throw Unavailable(unavailable);
         }
-        return outcome.Observed ?? throw BridgeFunctions.Contract("missing buildings snapshot");
+        return outcome.Observed!;
     }
 
-    /// <summary>Go <c>readEntities</c>' fold: the context checked against the identity, the rows keyed by their valid, unique ids.</summary>
-    private static EntityRows<TRow> EntityRowsOf<TRow>(PbCommon.Identity identity, PbCommon.ObservationContext? context, IReadOnlyList<TRow> rows, List<string> ids)
+    /// <summary>Go <c>readEntities</c>' fold: the rows keyed by their ids.</summary>
+    private static EntityRows<TRow> EntityRowsOf<TRow>(PbCommon.ObservationContext? context, IReadOnlyList<TRow> rows, List<string> ids)
     {
-        if (!BridgeFunctions.SameIdentity(context!.Identity, identity))
-        {
-            throw BridgeFunctions.Contract("entity list identity mismatch");
-        }
         var table = default(Table<TRow>);
         for (var i = 0; i < rows.Count; i++)
         {
-            var id = ids[i];
-            if (!BridgeFunctions.IsValidId(id))
-            {
-                throw BridgeFunctions.Contract("invalid entity identity");
-            }
-            if (table.Has(id))
-            {
-                throw BridgeFunctions.Contract("duplicate entity");
-            }
-            table = table.Set(id, rows[i]);
+            table = table.Set(ids[i], rows[i]);
         }
         return new EntityRows<TRow> { Context = context, Rows = table };
     }

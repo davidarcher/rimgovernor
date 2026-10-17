@@ -22,23 +22,6 @@ public enum Speed
     Ultrafast = 4,
 }
 
-[JsonConverter(typeof(WireEnumConverter<ObservedSpeed>))]
-public enum ObservedSpeed
-{
-    [WireName("OBSERVED_SPEED_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("OBSERVED_SPEED_PAUSED")]
-    Paused = 1,
-    [WireName("OBSERVED_SPEED_NORMAL")]
-    Normal = 2,
-    [WireName("OBSERVED_SPEED_FAST")]
-    Fast = 3,
-    [WireName("OBSERVED_SPEED_SUPERFAST")]
-    Superfast = 4,
-    [WireName("OBSERVED_SPEED_ULTRAFAST")]
-    Ultrafast = 5,
-}
-
 /// <summary>
 /// What bounds the running clock's tick rate right now: the one ceiling
 /// (heartbeat or frame budget), else the speed's own rate (FIXED).
@@ -217,19 +200,6 @@ public enum CombatEvent
     /// </summary>
     [WireName("COMBAT_EVENT_PRISON_BREAK")]
     PrisonBreak = 11,
-}
-
-[JsonConverter(typeof(WireEnumConverter<InjurySuppression>))]
-public enum InjurySuppression
-{
-    [WireName("INJURY_SUPPRESSION_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("INJURY_SUPPRESSION_NONE")]
-    None = 1,
-    [WireName("INJURY_SUPPRESSION_ACKNOWLEDGED")]
-    Acknowledged = 2,
-    [WireName("INJURY_SUPPRESSION_COOLDOWN")]
-    Cooldown = 3,
 }
 
 /// <summary>
@@ -426,14 +396,6 @@ public sealed record Status
 
     public long? NewestCursor { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Alert>))]
-    public EquatableArray<Alert> BaselineAlerts { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Injury>))]
-    public EquatableArray<Injury> SuppressedInjuries { get; init; }
-
-    public ObservedSpeed? ObservedSpeed { get; init; }
-
     public bool? ActualPaused { get; init; }
 
     /// <summary>
@@ -446,7 +408,7 @@ public sealed record Status
 /// <summary>The reply of Status, Run and Hold: the clock status or a failure that had no clock effect.</summary>
 public sealed record StatusReply
 {
-    public StatusReplyOutcome? Outcome { get; init; }
+    public StatusReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="StatusReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -484,7 +446,7 @@ public sealed record HeartbeatAck
 
 public sealed record HeartbeatReply
 {
-    public HeartbeatReplyOutcome? Outcome { get; init; }
+    public HeartbeatReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="HeartbeatReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -525,11 +487,7 @@ public sealed record TransientMessage
 {
     public string? Id { get; init; }
 
-    public string? TypeDef { get; init; }
-
     public string? Text { get; init; }
-
-    public long? StartingTick { get; init; }
 }
 
 public sealed record Notification
@@ -593,15 +551,7 @@ public sealed record PawnEvent
 
 public sealed record Health
 {
-    public int? InjuryCount { get; init; }
-
     public float? Severity { get; init; }
-
-    public float? BleedRate { get; init; }
-
-    public float? BloodLoss { get; init; }
-
-    public float? SummaryHealth { get; init; }
 }
 
 public sealed record Injury
@@ -611,19 +561,11 @@ public sealed record Injury
     public Health? Before { get; init; }
 
     public Health? After { get; init; }
-
-    public InjurySuppression? Suppression { get; init; }
-
-    public bool? NewWound { get; init; }
 }
 
 public sealed record HealthThreshold
 {
     public PawnEvent? Pawn { get; init; }
-
-    public float? HealthAtStart { get; init; }
-
-    public float? HealthNow { get; init; }
 
     public float? MinHealthFraction { get; init; }
 
@@ -632,13 +574,6 @@ public sealed record HealthThreshold
 
 public sealed record HostilesCleared
 {
-    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnEvent>))]
-    public EquatableArray<PawnEvent> DownedHostiles { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnEvent>))]
-    public EquatableArray<PawnEvent> DraftedColonists { get; init; }
-
-    public int? ConsciousHostilesBefore { get; init; }
 }
 
 public sealed record PauseEvidence
@@ -646,9 +581,6 @@ public sealed record PauseEvidence
     public bool? ActualPaused { get; init; }
 
     public bool? PauseVerified { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> ForcePausingWindowIds { get; init; }
 
     public Letter? Letter { get; init; }
 
@@ -669,8 +601,6 @@ public sealed record DialogPause
 public sealed record AuthorityChanged
 {
     public ulong? Generation { get; init; }
-
-    public ulong? PreviousGeneration { get; init; }
 
     /// <summary>
     /// NativeControlRevocationReason name, or "acquired".
@@ -992,7 +922,7 @@ public sealed record EventsPage
 
 public sealed record EventsReply
 {
-    public EventsReplyOutcome? Outcome { get; init; }
+    public EventsReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="EventsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>

@@ -44,7 +44,7 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
     public Task<L.IdentityReply> IdentityAsync(CancellationToken cancellationToken) => inner.IdentityAsync(cancellationToken);
 
     public Task<O.ColonyFactsReply> ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken) =>
-        Task.FromResult(new O.ColonyFactsReply { Outcome = frame.Colony is { } colony ? (O.ColonyFactsReplyOutcome)colony : null });
+        Task.FromResult(new O.ColonyFactsReply { Outcome = frame.Colony is { } colony ? (O.ColonyFactsReplyOutcome)colony : new C.Unavailable { Reason = C.UnavailableReason.NotObserved, Detail = "The frame holds no colony facts." } });
 
     public Task<Tables> FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken)
     {

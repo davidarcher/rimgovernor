@@ -27,10 +27,10 @@ namespace HomeBridge.BridgeTools
         internal static Common.Failure? Resolve(Operations.MoveIntent? move,Common.ObservationContext context,out Pawn? pawn,out IntVec3 destination)
         {
             pawn=null;destination=IntVec3.Invalid;
-            if(move==null || move.PawnId is null || !ProtoBoundary.IsIdentifier(move.PawnId) || move.Destination==null || move.Destination.X is null || move.Destination.Z is null)
+            if(move==null || move.PawnId is null || !ProtoBoundary.IsIdentifier(move.PawnId) || move.Destination==null)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"A move requires a pawn id and explicit destination coordinates.");
             if(!NativePawnControlState.IsReady)return ProtoBoundary.Fail(Common.FailureCode.Unavailable,"Live native pawn control hooks are required.");
-            destination=new IntVec3(move.Destination.X.GetValueOrDefault(),0,move.Destination.Z.GetValueOrDefault());
+            destination=new IntVec3(move.Destination.X,0,move.Destination.Z);
             var map=ProtoBoundary.LoadedMap(context);
             pawn=map.mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==(move.PawnId ?? ""));
             if(pawn==null || pawn.Dead)return ProtoBoundary.Fail(Common.FailureCode.NotFound,"The pawn is not alive and spawned on this map.");

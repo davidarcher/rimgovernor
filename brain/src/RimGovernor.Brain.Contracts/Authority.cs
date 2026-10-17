@@ -117,7 +117,7 @@ public sealed record StatusRequest
 
 public sealed record StatusReply
 {
-    public StatusReplyOutcome? Outcome { get; init; }
+    public StatusReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="StatusReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -239,7 +239,7 @@ public sealed record Revoked
 
 public sealed record ControlReply
 {
-    public ControlReplyOutcome? Outcome { get; init; }
+    public ControlReplyOutcome Outcome { get; init; } = null!;
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="ControlReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>

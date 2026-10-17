@@ -96,15 +96,7 @@ public sealed partial class RoundsBuildingPlanner
         var observed = reply.Outcome?.Observed;
         if (observed is null)
         {
-            throw new ControlException("prepareWorkshop: observed == nil || bridge.ValidateColonyFacts(observed, identity) != nil");
-        }
-        try
-        {
-            BridgeApi.ValidateColonyFacts(observed, identity);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new ControlException("prepareWorkshop: observed == nil || bridge.ValidateColonyFacts(observed, identity) != nil", e);
+            throw new ControlException("prepareWorkshop: observed == nil");
         }
         try
         {

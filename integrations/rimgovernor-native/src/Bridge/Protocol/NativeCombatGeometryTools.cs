@@ -61,16 +61,16 @@ namespace HomeBridge.BridgeTools
             // Named cells alone need no hostile: their standability.
             var hostilesMin = request.Propose == null && request.PawnId is null ? 0 : 1;
             if (request.Cells.Count < (request.Propose == null ? 1 : 0) || request.Cells.Count > MaxCells || request.HostileIds.Count < hostilesMin || request.HostileIds.Count > MaxHostiles) return false;
-            if (request.Cells.Any(c => c == null || c.X is null || c.Z is null) || request.Cells.Select(c => (c.X.GetValueOrDefault(), c.Z.GetValueOrDefault())).Distinct().Count() != request.Cells.Count) return false;
+            if (request.Cells.Any(c => c == null) || request.Cells.Select(c => (c.X, c.Z)).Distinct().Count() != request.Cells.Count) return false;
             if (request.HostileIds.Any(id => !ProtoBoundary.IsIdentifier(id)) || request.HostileIds.Distinct(StringComparer.Ordinal).Count() != request.HostileIds.Count) return false;
             if (request.PawnId is not null && !ProtoBoundary.IsIdentifier(request.PawnId)) return false;
             return true;
         }
 
-        private static bool ValidCell(Common.Cell? c) => c != null && c.X is not null && c.Z is not null && c.X.GetValueOrDefault() >= 0 && c.Z.GetValueOrDefault() >= 0;
+        private static bool ValidCell(Common.Cell? c) => c != null && c.X >= 0 && c.Z >= 0;
 
         private static bool ValidCells(RimGovernor.Brain.Domain.EquatableArray<Common.Cell> cells, int max) =>
-            cells.Count >= 1 && cells.Count <= max && cells.All(ValidCell) && cells.Select(c => (c.X.GetValueOrDefault(), c.Z.GetValueOrDefault())).Distinct().Count() == cells.Count;
+            cells.Count >= 1 && cells.Count <= max && cells.All(ValidCell) && cells.Select(c => (c.X, c.Z)).Distinct().Count() == cells.Count;
 
         /// A propose block: named cells may be 0..MaxCells-1, since
         /// named plus proposed share MaxCells; each role's anchor is checked.
@@ -114,7 +114,7 @@ namespace HomeBridge.BridgeTools
             }
             else if (request.Propose != null)
             {
-                var named = new HashSet<IntVec3>(request.Cells.Select(w => new IntVec3(w.X.GetValueOrDefault(), 0, w.Z.GetValueOrDefault())));
+                var named = new HashSet<IntVec3>(request.Cells.Select(w => new IntVec3(w.X, 0, w.Z)));
                 foreach (var cell in Propose(map, request.Propose, hostiles, named).Take(MaxCells - request.Cells.Count))
                     observed = observed with { Proposed = [.. observed.Proposed, Score(map, cell, new Common.Cell { X = cell.x, Z = cell.z }, hostiles, colonists, walker)] };
             }
@@ -125,8 +125,8 @@ namespace HomeBridge.BridgeTools
         private static IntVec3 InBounds(Map map, Common.Cell? wire)
         {
             if (wire is null) throw new GeometryRefused("A cell is required.");
-            var cell = new IntVec3(wire.X.GetValueOrDefault(), 0, wire.Z.GetValueOrDefault());
-            if (!cell.InBounds(map)) throw new GeometryRefused("Cell " + wire.X.GetValueOrDefault() + "," + wire.Z.GetValueOrDefault() + " is out of bounds.");
+            var cell = new IntVec3(wire.X, 0, wire.Z);
+            if (!cell.InBounds(map)) throw new GeometryRefused("Cell " + wire.X + "," + wire.Z + " is out of bounds.");
             return cell;
         }
 

@@ -5,14 +5,6 @@ public static partial class ObservationPackage
 {
     internal static Identity ContextIdentity(C.ObservationContext? context)
     {
-        try
-        {
-            ValidateContext(context);
-        }
-        catch (DomainException e)
-        {
-            throw new ObservationContractException(e.Message);
-        }
         var result = new Identity
         {
             Colony = new ColonyId(context!.Identity?.ColonyId ?? ""),
@@ -48,7 +40,7 @@ public static partial class ObservationPackage
         }
     }
 
-    /// <summary>The identity a lifecycle_read_tick reply reports; it is <see cref="DecodeIdentity"/> without the capability list.</summary>
+    /// <summary>The identity a lifecycle_read_tick reply reports; it is what <see cref="DecodeIdentity"/> reads.</summary>
     public static Identity DecodeTick(L.TickReply? reply)
     {
         if (reply is null)

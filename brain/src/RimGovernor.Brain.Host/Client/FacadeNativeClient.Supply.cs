@@ -36,11 +36,7 @@ internal sealed partial class FacadeNativeClient
             },
         };
         var reply = await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply?.Outcome?.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        return SupplyDecodeEquipWeapons(reply, identity);
+        return SupplyDecodeEquipWeapons(SupplyObserved(reply));
     }
 
     /// <summary>Go <c>Client.ReadAllowSupplies</c>: the loose forbidden supply items at one cell, as allow targets.</summary>
@@ -69,7 +65,7 @@ internal sealed partial class FacadeNativeClient
             },
         };
         var reply = await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false);
-        return SupplyDecodeAccess(reply, identity, forbid);
+        return SupplyDecodeAccess(SupplyObserved(reply), forbid);
     }
 
     /// <summary>Go <c>Client.readSupplyAccess</c>.</summary>
@@ -96,37 +92,26 @@ internal sealed partial class FacadeNativeClient
             },
         };
         var reply = await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply?.Outcome?.Failure is { } failure)
+        return SupplyDecodeAccess(SupplyObserved(reply), forbid);
+    }
+
+    /// <summary>The supplies census of <paramref name="reply"/>: a failure or unavailable outcome throws.</summary>
+    private static PbObservations.SuppliesSnapshot SupplyObserved(PbObservations.ListSuppliesReply reply)
+    {
+        if (reply.Outcome.Unavailable is { } unavailable)
+        {
+            throw Unavailable(unavailable);
+        }
+        if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
         }
-        return SupplyDecodeAccess(reply, identity, forbid);
+        return reply.Outcome.Observed!;
     }
 
-    /// <summary>Go <c>refSnapshot</c>: whether <paramref name="snapshot"/> is the CAS token of <paramref name="reference"/> read under <paramref name="context"/>.</summary>
-    private static bool SupplyRefSnapshot(PbObservations.SnapshotRef? snapshot, PbCommon.Ref? reference, PbCommon.ObservationContext? context) =>
-        snapshot is not null
-        && reference is not null
-        && (snapshot.EntityId ?? "") == (reference.Id ?? "")
-        && BridgeFunctions.IsValidId(snapshot.Token ?? "")
-        && Equals(snapshot.Context, context);
-
     /// <summary>Go <c>decodeEquipWeapons</c>.</summary>
-    private static EquipRead SupplyDecodeEquipWeapons(PbObservations.ListSuppliesReply? reply, PbCommon.Identity identity)
+    private static EquipRead SupplyDecodeEquipWeapons(PbObservations.SuppliesSnapshot v)
     {
-        if (reply is null)
-        {
-            throw BridgeFunctions.Contract("invalid equip reply");
-        }
-        var v = reply.Outcome?.Observed;
-        if (v is null || !BridgeFunctions.SameIdentity(v.Context?.Identity, identity))
-        {
-            throw BridgeFunctions.Contract("equip census unavailable");
-        }
-        if (v.Completeness is null || v.Completeness.Filtered.GetValueOrDefault() != 0)
-        {
-            throw BridgeFunctions.Contract("incomplete equip census");
-        }
         var targets = new List<EquipCandidate>();
         foreach (var stock in v.Stocks)
         {
@@ -145,16 +130,12 @@ internal sealed partial class FacadeNativeClient
                 {
                     continue;
                 }
-                if (!SupplyRefSnapshot(item.Snapshot, item.Item, v.Context))
-                {
-                    throw BridgeFunctions.Contract("equip CAS scope mismatch");
-                }
                 targets.Add(
                     new EquipCandidate
                     {
                         Thing = id,
                         Definition = stock.Definition.DefName ?? "",
-                        Cell = new DomainCell(at.X.GetValueOrDefault(), at.Z.GetValueOrDefault()),
+                        Cell = new DomainCell(at.X, at.Z),
                         Token = item.Snapshot.Token ?? "",
                         BiocodedTo = new RimGovernor.Brain.Domain.PawnId(weapon?.BiocodedTo ?? ""),
                         Biocoded = weapon?.Biocoded ?? false,
@@ -166,21 +147,8 @@ internal sealed partial class FacadeNativeClient
     }
 
     /// <summary>Go <c>decodeSupplyAccess</c>: the stocks' items with a CAS token, as allow or forbid targets.</summary>
-    private static SupplyRead SupplyDecodeAccess(PbObservations.ListSuppliesReply? reply, PbCommon.Identity identity, bool forbid)
+    private static SupplyRead SupplyDecodeAccess(PbObservations.SuppliesSnapshot v, bool forbid)
     {
-        if (reply is null)
-        {
-            throw BridgeFunctions.Contract("invalid supply reply");
-        }
-        var v = reply.Outcome?.Observed;
-        if (v is null || !BridgeFunctions.SameIdentity(v.Context?.Identity, identity))
-        {
-            throw BridgeFunctions.Contract("supply census unavailable");
-        }
-        if (v.Completeness is null || v.Completeness.Filtered.GetValueOrDefault() != 0)
-        {
-            throw BridgeFunctions.Contract("incomplete supply census");
-        }
         var targets = new List<SupplyTarget>();
         foreach (var stock in v.Stocks)
         {
@@ -188,15 +156,11 @@ internal sealed partial class FacadeNativeClient
             foreach (var item in stock.Items)
             {
                 var id = item.Item.Id ?? "";
-                var cell = new DomainCell(item.Cell.X.GetValueOrDefault(), item.Cell.Z.GetValueOrDefault());
+                var cell = new DomainCell(item.Cell.X, item.Cell.Z);
                 // Native issues distinguish ineligible items from an incomplete census.
                 if (item.Snapshot is null)
                 {
                     continue;
-                }
-                if (!SupplyRefSnapshot(item.Snapshot, item.Item, v.Context))
-                {
-                    throw BridgeFunctions.Contract("supply CAS scope mismatch");
                 }
                 var supply = forbid ? RimGovernor.Brain.Domain.SupplyAllow.NewSupplyForbid(id, def, cell) : new RimGovernor.Brain.Domain.SupplyAllow(id, def, cell);
                 targets.Add(new SupplyTarget { Supply = supply });

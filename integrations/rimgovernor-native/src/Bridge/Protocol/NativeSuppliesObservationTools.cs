@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
                 var entries = new Census(map, player, filter).Read();
                 var groups = entries.GroupBy(e => Id(e.Thing.def.defName), StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
                 var selected = groups.Where(g => Ownership(filter) == Obs.StockOwnership.All || g.Any(e => e.Ours)).ToList();
-                var snapshot = new Obs.SuppliesSnapshot { Context = context, Completeness = Complete(selected.Count) };
+                var snapshot = new Obs.SuppliesSnapshot { Context = context };
                 foreach (var group in selected)
                 {
                     var entriesForDefinition = group.ToList();
@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
             var min = filter.Region.Minimum;
             var max = filter.Region.Maximum;
             return CellPresent(min) && CellPresent(max)
-                && min.X.GetValueOrDefault() <= max.X.GetValueOrDefault() && min.Z.GetValueOrDefault() <= max.Z.GetValueOrDefault();
+                && min.X <= max.X && min.Z <= max.Z;
         }
 
         internal sealed class StockEntry
@@ -256,11 +256,9 @@ namespace HomeBridge.BridgeTools
         private static Obs.StockCategory Category(Obs.StockFilter filter) => filter.Category is not null ? filter.Category.GetValueOrDefault() : Obs.StockCategory.Haulable;
         private static Obs.StockOwnership Ownership(Obs.StockFilter filter) => filter.Ownership is not null ? filter.Ownership.GetValueOrDefault() : Obs.StockOwnership.Ours;
         private static bool IncludeHeld(Obs.StockFilter filter) => filter.IncludeHeld is null || filter.IncludeHeld.GetValueOrDefault();
-        private static bool CellPresent([NotNullWhen(true)] Common.Cell? cell) => cell != null && cell.X is not null && cell.Z is not null;
-        private static IntVec3 NativeCell(Common.Cell? cell) => new IntVec3(cell?.X.GetValueOrDefault() ?? 0, 0, cell?.Z.GetValueOrDefault() ?? 0);
+        private static bool CellPresent([NotNullWhen(true)] Common.Cell? cell) => cell != null;
+        private static IntVec3 NativeCell(Common.Cell? cell) => new IntVec3(cell?.X ?? 0, 0, cell?.Z ?? 0);
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
-        private static Obs.Completeness Complete(int count, int filtered = 0) => new Obs.Completeness { Filtered = (ulong)filtered };
-    }
+        private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };    }
 }
