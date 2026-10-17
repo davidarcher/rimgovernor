@@ -1092,7 +1092,7 @@ out 1500), then fights once two or more have arrived and none more for 120 ticks
 or a four is full; a pawn that stops being eligible while gathering is dropped.
 Teams: pairs and threes free-for-all, a four 2v2 with the highest beside the lowest.
 `Opponent` is the nearest standing member of another team, lower id on a tie. The
-fight length is `SparringStopRule` (#2709, tuned in #2711). `lab/sparring` proves it; "empty after a
+fight length is `SparringStopRule` (#2709, tuned in #2711). The `lab/sparring-*` cases prove it, one ring per case; "empty after a
 load" holds by construction (the registry is keyed on the `Map`), not by a reload case.
 
 **Watching a bout (#2732, `SparringWatch.cs`).** `JoyGiver_WatchSparring`
@@ -1108,7 +1108,7 @@ fighter, until no bout is fighting, Joy is full or the job def's `joyDuration` (
 passes. A watch that ends Succeeded after 300 ticks gains the memory
 `RimGovernor_WatchedSparring` (+2 mood, one day, stack 1). It reads the runtime
 registry (`SparringBouts.LiveFighting`) only: no saved state, action or wire field.
-`lab/sparring-watch` proves it.
+`lab/sparring-watch` and `lab/sparring-watch-no-bout` prove it.
 
 **Melee tiers and practice gear (#2703, #2704, `Runtime/Training/SparringTier.cs`).**
 The ring climbs a four-rung research-gated ladder with the same ceilings as the
@@ -1139,9 +1139,10 @@ make the struck pawn flee or fight back with its real gear: the job def's
 when the job ends. The range trains Shooting only; there is no melee drill there.
 
 **Tuned numbers (#2711).** Measured over about 100 sessions per tier and outfit
-(tribal garment, spacer recon armor) by `lab/sparring-risk`, `lab/sparring-xp` and
-`lab/sparring-scale` (measure mode of `SparringFixture`: tally each ended session,
-heal it to realize scars, reset the pawn).
+(tribal garment, spacer recon armor) by the measurement cases `lab/sparring-risk`,
+`lab/sparring-xp` and `lab/sparring-scale` (a measure mode of `SparringFixture`: tally
+each ended session, heal it to realize scars, reset the pawn). They ran about 1.2M
+ticks each and were deleted in #3403; retuning needs a new measurement harness.
 
 - **Stop rule** (`SparringStopRule`, per pawn): the pawn leaves the bout at total
   pain 0.4, or bleeding above 1.5, or after 10 swings; the rest of the bout
@@ -1185,7 +1186,7 @@ session in the last 2,500 ticks (so neighbours who finish a little apart both
 get it); a spar member has company by being in the bout. Runtime state only; no
 opinion thought and none of the social-fight mental state. Lab:
 `lab/training-company`, the lone shooter in `lab/training-shooting`, the draft
-in `lab/training-raid`, and the per-member flag in `lab/sparring`.
+in `lab/training-raid`, and the per-member flag in the `lab/sparring-fight-*` cases.
 
 ### Trade goods (economy/trade)
 

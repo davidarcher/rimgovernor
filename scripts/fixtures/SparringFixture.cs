@@ -8,6 +8,7 @@ using RimGovernor.Runtime;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -30,12 +31,7 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Add one trainee whose chosen skill is Shooting (Shooting 15 over Melee 5): never seated.")] bool shooter = false,
             [ToolParameter(Description = "Draft one member of the first gathering bout, the tick it is seen.")] bool draftOnGather = false,
             [ToolParameter(Description = "Mid-bout event: '' none; 'cap' no pain (painstopper) so only the exchange cap ends a bout; 'pain' or 'bleed' injures the first fighter past the stop rule the tick it wears practice gear; 'draft' or 'kill' hits the second fighter after its second swing; 'raid' spawns a hostile human beside it then.")] string scenario = "",
-            [ToolParameter(Description = "Cells south of the ring the colonists start.")] int far = 30,
-            [ToolParameter(Description = "Finish the gate research of every tier up to this one (-1 leaves the research as it is; it only ever goes up).")] int tier = -1,
-            [ToolParameter(Description = "Dress every eligible colonist: '' leaves the clothes; 'tribal' one tribal garment; 'spacer' recon armor and helmet.")] string outfit = "",
-            [ToolParameter(Description = "Measure mode (#2711): keep the bouts running, tally what each ended session left (injuries, destroyed parts, scars, wear, mass, XP) and reset the pawn unhurt at the same tick.")] bool measure = false,
-            [ToolParameter(Description = "With measure: keep xpSinceMidnight across sessions (a day of bouts); otherwise it is reset so every session pays the unsaturated rate.")] bool xpDay = false,
-            [ToolParameter(Description = "Give the first eligible colonist a Royalty title with an apparel requirement (when Royalty is active).")] bool title = false)
+            [ToolParameter(Description = "Cells south of the ring the colonists start.")] int far = 30)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -55,12 +51,11 @@ namespace HomeBridge.BridgeTools
                 var levelList = levels.Split(',').Select(int.Parse).ToList();
 
                 var markerDef = SparringBouts.MarkerDef;
-                var markerIds = new List<string>();
                 for (var i = 0; i < markers; i++)
                 {
                     var thing = ThingMaker.MakeThing(markerDef, ThingDefOf.WoodLog);
                     thing.SetFaction(Faction.OfPlayer);
-                    markerIds.Add(GenSpawn.Spawn(thing, new IntVec3(x + 2 * i, 0, z), map).GetUniqueLoadID());
+                    GenSpawn.Spawn(thing, new IntVec3(x + 2 * i, 0, z), map);
                 }
 
                 var training = DefDatabase<WorkTypeDef>.GetNamed("RimGovernorTraining");
@@ -111,46 +106,19 @@ namespace HomeBridge.BridgeTools
                     if (trains) p.workSettings.SetPriority(training, 1);
                     p.drafter.Drafted = drafted;
                 }
-                // Tiers only unlock: stages that need a lower one run first.
-                if (tier >= 0)
-                {
-                    foreach (var weapon in DefDatabase<ThingDef>.AllDefs)
-                    {
-                        var rung = weapon.GetModExtension<SparringTier>();
-                        if (rung == null || rung.tier > tier || string.IsNullOrEmpty(rung.gateResearch)) continue;
-                        var project = DefDatabase<ResearchProjectDef>.GetNamedSilentFail(rung.gateResearch);
-                        if (project != null && !project.IsFinished) Find.ResearchManager.FinishProject(project, false, null, false);
-                    }
-                }
-                void Dress(Pawn p)
-                {
-                    if (outfit == "") return;
-                    foreach (var worn in p.apparel.WornApparel.ToList()) { p.apparel.Remove(worn); worn.Destroy(); }
-                    // A previous stage may have ended mid-swap: its stashed originals must not pile up.
-                    foreach (var held in p.inventory.innerContainer.Where(x => x is Apparel || x.def.IsWeapon).ToList()) { p.inventory.innerContainer.Remove(held); held.Destroy(); }
-                    foreach (var name in outfit == "spacer" ? new[] { "Apparel_ArmorRecon", "Apparel_ArmorHelmetRecon" } : new[] { "Apparel_TribalA" })
-                    {
-                        var def = DefDatabase<ThingDef>.GetNamed(name);
-                        p.apparel.Wear((Apparel)ThingMaker.MakeThing(def, def.MadeFromStuff ? GenStuff.DefaultStuffFor(def) : null), false);
-                    }
-                }
                 var eligibleIds = new List<string>();
                 var tracked = new List<Pawn>();
                 for (var i = 0; i < eligible; i++)
                 {
                     Stage(capable[i], i, levelList[i % levelList.Count], true, false);
-                    Dress(capable[i]);
                     if (scenario == "cap" || scenario == "draft" || scenario == "kill") capable[i].health.AddHediff(painstopper, capable[i].health.hediffSet.GetBrain());
                     eligibleIds.Add(capable[i].GetUniqueLoadID());
                     tracked.Add(capable[i]);
                 }
-                var ineligibleIds = new List<string>();
                 if (ineligible)
                 {
                     Stage(capable[eligible], eligible, 20, true, false);
                     Stage(capable[eligible + 1], eligible + 1, 5, true, true);
-                    ineligibleIds.Add(capable[eligible].GetUniqueLoadID());
-                    ineligibleIds.Add(capable[eligible + 1].GetUniqueLoadID());
                 }
                 var shooterIds = new List<string>();
                 if (shooter)
@@ -161,21 +129,11 @@ namespace HomeBridge.BridgeTools
                 }
                 for (var i = needed; i < capable.Count; i++) Stage(capable[i], i, 5, false, false);
                 foreach (var bout in registry.Bouts.ToList()) foreach (var slot in bout.Slots.ToList()) registry.Leave(slot.Pawn);
-                var titled = "";
-                if (title && ModsConfig.RoyaltyActive && Faction.OfEmpire != null && tracked.Count > 0)
-                {
-                    tracked[0].royalty.SetTitle(Faction.OfEmpire, DefDatabase<RoyalTitleDef>.GetNamed("Knight"), true, false, false);
-                    titled = tracked[0].GetUniqueLoadID();
-                }
-                map.components.Add(new SparringWatcher(map, tracked, scenario) { DraftOnGather = draftOnGather, Measure = measure, XpDay = xpDay });
+                map.components.Add(new SparringWatcher(map, tracked, scenario) { DraftOnGather = draftOnGather });
                 // Now every colonist is staged: each pawn looks for work as its job ends, and the
                 // first to ask forms the bouts from all of the free, eligible ones.
                 foreach (var p in capable.Where(c => !c.Drafted)) p.jobs.EndCurrentJob(JobCondition.InterruptForced);
-                return new
-                {
-                    success = true, eligible = eligibleIds, ineligible = ineligibleIds, shooter = shooterIds, markers = markerIds,
-                    ceiling = SparringRules.Ceiling, weapon = SparringRules.UnlockedWeapon()?.defName ?? "", titled,
-                };
+                return FixtureKit.Reply(new Fx.SparringPrepared { Eligible = eligibleIds, Shooter = shooterIds });
             }, cancellationToken);
         }
 
@@ -185,25 +143,19 @@ namespace HomeBridge.BridgeTools
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 var watcher = map.components.OfType<SparringWatcher>().FirstOrDefault();
-                return new
+                var active = SparringBouts.For(map).Bouts.Count;
+                if (watcher == null) return FixtureKit.Reply(new Fx.SparringRead { Active = active });
+                return FixtureKit.Reply(new Fx.SparringRead
                 {
-                    success = true, tick = Find.TickManager.TicksGame, active = SparringBouts.For(map).Bouts.Count,
-                    watching = watcher != null,
-                    peakActive = watcher?.PeakActive ?? 0, doubleBooked = watcher?.DoubleBooked ?? 0,
-                    seated = watcher == null ? new string[0] : watcher.Seated.ToArray(),
-                    drafted = watcher?.Drafted ?? "",
-                    bouts = watcher == null ? new object[0] : watcher.Records.Values.OrderBy(r => r.Id).Select(r => (object)new
+                    Active = active, PeakActive = watcher.PeakActive, DoubleBooked = watcher.DoubleBooked, Seated = watcher.Seated.ToList(), Drafted = watcher.Drafted,
+                    Bouts = watcher.Records.Values.OrderBy(r => r.Id).Select(r => new Fx.SparringBout
                     {
-                        id = r.Id, formed = r.Formed, finished = r.Finished,
-                        fighting = r.FightMembers == null ? null : new { members = r.FightMembers, teams = r.FightTeams, melee = r.FightMelee, opponents = r.FightOpponents, markers = r.FightMarkers },
-                    }).ToArray(),
-                    injected = watcher?.Injected ?? "", hit = watcher?.HitId ?? "",
-                    abandoned = watcher?.Abandoned ?? 0, attackJobs = watcher?.AttackJobs ?? 0, threatTicks = watcher?.ThreatTicks ?? 0,
-                    struck = watcher == null ? 0 : watcher.Struck.Count,
-                    tally = watcher == null ? null : new { n = watcher.Tally.N, hist = watcher.Tally.Hist, trace = watcher.Tally.Trace },
-                    raid = watcher?.RaidReport(),
-                    pawns = watcher == null ? new object[0] : watcher.Tracked.Select(p => (object)watcher.Report(p)).ToArray(),
-                };
+                        Id = r.Id, Finished = r.Finished,
+                        Fighting = r.FightMembers == null ? null : new Fx.SparringFight { Members = r.FightMembers, Teams = r.FightTeams, Melee = r.FightMelee, Opponents = r.FightOpponents, Markers = r.FightMarkers },
+                    }).ToList(),
+                    Injected = watcher.Injected, Hit = watcher.HitId, Abandoned = watcher.Abandoned, AttackJobs = watcher.AttackJobs, Struck = watcher.Struck.Count,
+                    Raid = watcher.RaidReport(), Pawns = watcher.Tracked.Select(watcher.Report).ToList(),
+                });
             }, cancellationToken);
         }
     }
@@ -211,7 +163,6 @@ namespace HomeBridge.BridgeTools
     public sealed class SparringRecord
     {
         public int Id;
-        public string[] Formed;
         public bool Finished;
         public string[] FightMembers;
         public int[] FightTeams;
@@ -230,7 +181,6 @@ namespace HomeBridge.BridgeTools
         public bool OriginalsHeld;
         public bool Ended;
         public string Stop = "";
-        public string Condition = "";
         public int Exchanges;
         public bool Swapped;
         public bool Dead;
@@ -244,56 +194,18 @@ namespace HomeBridge.BridgeTools
         public bool Originals;
         public bool ThreatNull;
         public bool Thought;
-        public int EndedTick;
         public float JoyStart = -1f;
         public float JoyEnd = -1f;
         public float ToleranceStart;
         public float ToleranceEnd;
     }
 
-    // Named counters and histograms for the measure mode (#2711).
-    public sealed class SparringTally
-    {
-        public readonly Dictionary<string, double> N = new Dictionary<string, double>();
-        public readonly Dictionary<string, Dictionary<string, int>> Hist = new Dictionary<string, Dictionary<string, int>>();
-        public readonly List<string> Trace = new List<string>();
-
-        public void Add(string key, double v = 1) { N[key] = (N.TryGetValue(key, out var c) ? c : 0) + v; }
-
-        public void Max(string key, double v) { if (!N.TryGetValue(key, out var c) || v > c) N[key] = v; }
-
-        public void Count(string hist, string key)
-        {
-            if (!Hist.TryGetValue(hist, out var h)) Hist[hist] = h = new Dictionary<string, int>();
-            h[key] = (h.TryGetValue(key, out var c) ? c : 0) + 1;
-        }
-    }
-
-    // What one pawn's current spar session did, sampled each tick it fights.
-    public sealed class SparringProbe
-    {
-        public float MaxPain;
-        public float MaxBleed;
-        public float MinPractice = 1f;
-        public float MaxMass;
-        public int NudeTicks;
-    }
-
     public sealed class SparringWatcher : MapComponent
     {
-        public bool Measure;
-        public bool XpDay;
-        public readonly SparringTally Tally = new SparringTally();
-        private readonly Dictionary<int, SparringProbe> probes = new Dictionary<int, SparringProbe>();
-        private readonly Dictionary<int, int> lastEnded = new Dictionary<int, int>();
-        private readonly Dictionary<int, float> damageBase = new Dictionary<int, float>();
-        private readonly Dictionary<int, float> xpBase = new Dictionary<int, float>();
-        private readonly Dictionary<int, Dictionary<int, int>> armorHp = new Dictionary<int, Dictionary<int, int>>();
         private Pawn raider;
         private Pawn raidVictim;
         private int raidSpawnTick;
         private int raidVictimEndTick = -1;
-        private string raidVictimJob = "";
         public bool DraftOnGather;
         public string Drafted = "";
         public int PeakActive;
@@ -302,7 +214,6 @@ namespace HomeBridge.BridgeTools
         public string HitId = "";
         public int Abandoned;
         public int AttackJobs;
-        public int ThreatTicks;
         public readonly HashSet<int> Struck = new HashSet<int>();
         public readonly HashSet<string> Seated = new HashSet<string>();
         public readonly Dictionary<int, SparringRecord> Records = new Dictionary<int, SparringRecord>();
@@ -325,14 +236,10 @@ namespace HomeBridge.BridgeTools
                 foreach (var a in p.apparel.WornApparel) g.ApparelIds.Add(a.thingIDNumber);
                 gear[p.thingIDNumber] = g;
                 injuries[p.thingIDNumber] = Injuries(p);
-                probes[p.thingIDNumber] = new SparringProbe();
-                damageBase[p.thingIDNumber] = p.records.GetValue(RecordDefOf.DamageTaken);
-                xpBase[p.thingIDNumber] = 0f;
-                armorHp[p.thingIDNumber] = p.apparel.WornApparel.ToDictionary(a => a.thingIDNumber, a => a.HitPoints);
             }
         }
 
-        // Anything a bout can leave on a pawn that the measure mode wipes between sessions.
+        // Anything a bout can leave on a pawn, which every stage wipes.
         public static bool IsHurt(Hediff h) =>
             h is Hediff_Injury || h is Hediff_MissingPart || h.def.defName == "BloodLoss" || h.def.defName == "WoundInfection";
 
@@ -353,20 +260,17 @@ namespace HomeBridge.BridgeTools
             (Dictionary<int, int>)typeof(SparringBouts).GetField("sitOutUntil", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                 .GetValue(SparringBouts.For(map));
 
-        private int SitOutLeft(Pawn p) => SitOut(map).TryGetValue(p.thingIDNumber, out var until) ? until - Find.TickManager.TicksGame : 0;
-
-        public object Report(Pawn p)
+        public Fx.SparringPawn Report(Pawn p)
         {
             var g = gear[p.thingIDNumber];
             var melee = p.skills.GetSkill(SkillDefOf.Melee);
-            return new
+            return new Fx.SparringPawn
             {
-                id = p.GetUniqueLoadID(), startMelee = g.StartLevel, melee = melee.Level, xp = melee.Level > g.StartLevel || melee.xpSinceLastLevel > 0f,
-                swapSeen = g.SwapSeen, swapAtMarker = g.SwapAtMarker, originalsHeld = g.OriginalsHeld,
-                ended = g.Ended, stop = g.Stop, condition = g.Condition, exchanges = g.Exchanges, swapped = g.Swapped, dead = g.Dead, drafted = g.Drafted,
-                restored = g.Restored, gearDiff = g.GearDiff, job = p.CurJobDef?.defName ?? "none", sitOutLeft = SitOutLeft(p), trail = string.Join(" ", g.Trail),
-                eligibleNow = SparringBouts.Eligible(p), at = p.Position.ToString(), noPractice = g.NoPractice, originals = g.Originals, threatNull = g.ThreatNull, trainedWith = g.Thought, endedTick = g.EndedTick,
-                joyStart = g.JoyStart, joyEnd = g.JoyEnd, toleranceStart = g.ToleranceStart, toleranceEnd = g.ToleranceEnd,
+                Id = p.GetUniqueLoadID(), Ended = g.Ended, Stop = g.Stop, Exchanges = g.Exchanges, Swapped = g.Swapped, SwapSeen = g.SwapSeen, SwapAtMarker = g.SwapAtMarker,
+                OriginalsHeld = g.OriginalsHeld, Dead = g.Dead, Drafted = g.Drafted, Restored = g.Restored, NoPractice = g.NoPractice, Originals = g.Originals,
+                ThreatNull = g.ThreatNull, Xp = melee.Level > g.StartLevel || melee.xpSinceLastLevel > 0f, TrainedWith = g.Thought,
+                JoyStart = g.JoyStart, JoyEnd = g.JoyEnd, ToleranceStart = g.ToleranceStart, ToleranceEnd = g.ToleranceEnd,
+                Trail = string.Join(" ", g.Trail), GearDiff = g.GearDiff,
             };
         }
 
@@ -387,7 +291,7 @@ namespace HomeBridge.BridgeTools
                 }
                 if (!Records.TryGetValue(bout.Id, out var record))
                 {
-                    record = new SparringRecord { Id = bout.Id, Formed = bout.Slots.Select(s => s.Pawn.GetUniqueLoadID()).ToArray() };
+                    record = new SparringRecord { Id = bout.Id };
                     Records[bout.Id] = record;
                     if (DraftOnGather && Drafted == "" && bout.State == BoutState.Gathering)
                     {
@@ -429,110 +333,14 @@ namespace HomeBridge.BridgeTools
                     trail.LastJob = job;
                     trail.Trail.Add((Find.TickManager.TicksGame - startTick) + ":" + job);
                 }
-                if (Measure) MeasureSession(registry, p); else Capture(registry, p);
+                Capture(registry, p);
             }
             if (scenario == "raid") RaidTick(registry);
         }
 
-        // The measure mode (#2711): the first time a spar session is seen to have
-        // ended, tally what it left, then make the pawn unhurt and back at its starting
-        // Melee level so the next bout is an independent sample.
-        private void MeasureSession(SparringBouts registry, Pawn p)
-        {
-            var id = p.thingIDNumber;
-            var session = registry.LastSession(p);
-            if (session == null || session.EndedTick <= startTick || lastEnded.TryGetValue(id, out var seen) && seen == session.EndedTick) return;
-            lastEnded[id] = session.EndedTick;
-            var t = Tally;
-            var probe = probes[id];
-            probes[id] = new SparringProbe();
-            t.Add("sessions");
-            if (session.Swapped) t.Add("swapped");
-            t.Add("exchanges", session.Exchanges);
-            t.Add("stop" + session.Stop);
-            t.Add("end" + session.Condition);
-            t.Max("maxPain", probe.MaxPain);
-            t.Max("maxBleed", probe.MaxBleed);
-            t.Max("maxMassFraction", probe.MaxMass);
-            t.Count("bleedBucket", (Math.Floor(probe.MaxBleed / 0.25) * 0.25).ToString("F2"));
-            t.Count("painBucket", (Math.Floor(probe.MaxPain / 0.05) * 0.05).ToString("F2"));
-            t.Count("exchangeBucket", session.Exchanges.ToString());
-            t.Add("nudeTicks", probe.NudeTicks);
-            if (probe.MinPractice < 1f)
-            {
-                t.Add("practiceWorn");
-                t.Add("practiceLoss", 1f - probe.MinPractice);
-            }
-            var damage = p.records.GetValue(RecordDefOf.DamageTaken);
-            t.Add("damageTaken", damage - damageBase[id]);
-            damageBase[id] = damage;
-            var health = p.health.hediffSet;
-            var injuries = health.hediffs.OfType<Hediff_Injury>().ToList();
-            if (injuries.Count > 0) t.Add("injuredSessions");
-            foreach (var injury in injuries)
-            {
-                var part = injury.Part?.def.defName ?? "none";
-                t.Count("injury", injury.def.defName);
-                t.Count("hitPart", part);
-                t.Add("severity" + injury.def.defName, injury.Severity);
-                t.Max("maxSeverity" + injury.def.defName, injury.Severity);
-                if (injury.Bleeding) t.Count("bleeding", injury.def.defName);
-                var comp = injury.TryGetComp<HediffComp_GetsPermanent>();
-                if (comp != null && (comp.IsPermanent || comp.permanentDamageThreshold < 9999f)) t.Add("scarMarked");
-            }
-            foreach (var missing in health.hediffs.OfType<Hediff_MissingPart>())
-            {
-                t.Add("destroyed");
-                t.Count("destroyedPart", missing.Part.def.defName);
-            }
-            // Heal each injury step by step: a marked one turns permanent on the way down.
-            foreach (var injury in injuries)
-            {
-                var comp = injury.TryGetComp<HediffComp_GetsPermanent>();
-                for (var guard = 0; comp != null && !comp.IsPermanent && injury.Severity > 0.01f && guard < 400; guard++) injury.Heal(0.1f);
-                if (!injury.IsPermanent()) continue;
-                t.Add("scars");
-                t.Count("scarPart", injury.Part?.def.defName ?? "none");
-                t.Count("scarInjury", injury.def.defName);
-            }
-            if (p.Dead)
-            {
-                t.Add("deaths");
-                ResurrectionUtility.TryResurrect(p);
-            }
-            else if (p.Downed) t.Add("downed");
-            // Hit points the pawn's own apparel lost during this session (the baseline moves up to what it is now).
-            foreach (var key in armorHp[id].Keys.ToList())
-            {
-                if (!(FindThing(p, key) is Apparel real)) { t.Add("realArmorLost"); continue; }
-                t.Add("realArmorPieces");
-                var before = armorHp[id][key];
-                if (real.HitPoints < before)
-                {
-                    t.Add("realArmorWorn");
-                    t.Add("realArmorLoss", before - real.HitPoints);
-                    t.Count("realArmorWornDef", real.def.defName);
-                }
-                armorHp[id][key] = real.HitPoints;
-            }
-            if (TrainingFixture.HasTrainedWith(p)) t.Add("thought");
-            p.needs?.mood?.thoughts?.memories?.RemoveMemoriesOfDef(DefDatabase<ThoughtDef>.GetNamed(TrainingCompany.ThoughtName));
-            var melee = p.skills.GetSkill(SkillDefOf.Melee);
-            var xp = melee.xpSinceMidnight - xpBase[id];
-            t.Add("xp", xp);
-            if (t.Trace.Count < 600) t.Trace.Add(Tracked.IndexOf(p) + "|" + session.Exchanges + "|" + xp.ToString("F0") + "|" + melee.xpSinceMidnight.ToString("F0"));
-            if (!XpDay) melee.xpSinceMidnight = 0f;
-            xpBase[id] = melee.xpSinceMidnight;
-            melee.Level = gear[id].StartLevel;
-            melee.xpSinceLastLevel = 0f;
-            foreach (var hurt in p.health.hediffSet.hediffs.Where(IsHurt).ToList()) p.health.RemoveHediff(hurt);
-            p.mindState.meleeThreat = null;
-            injuries.Clear();
-        }
-
         // The raid scenario (#2711): after the second fighter's second swing a hostile
-        // human appears beside it and attacks with a real weapon. Once its spar job has
-        // ended the watcher notes what the pawn does next, then removes the raider.
+        // human appears beside it and attacks with a real weapon. The raider is removed
+        // 240 ticks after the pawn's spar job has ended.
         private void RaidTick(SparringBouts registry)
         {
             var now = Find.TickManager.TicksGame;
@@ -541,16 +349,13 @@ namespace HomeBridge.BridgeTools
                 if (!raider.Dead && raidVictim != null && !raidVictim.Dead && raider.CurJob == null) raider.jobs.StartJob(JobMaker.MakeJob(JobDefOf.AttackMelee, raidVictim), JobCondition.InterruptForced);
                 var ended = registry.LastSession(raidVictim)?.EndedTick ?? -1;
                 if (raidVictimEndTick < 0 && ended > raidSpawnTick) raidVictimEndTick = now;
-                if (raidVictimEndTick >= 0 && now - raidVictimEndTick == 240) raidVictimJob = raidVictim.Dead ? "dead" : raidVictim.CurJobDef?.defName ?? "none";
                 if (raidVictimEndTick >= 0 && now - raidVictimEndTick >= 240 || now - raidSpawnTick > 6000) raider.Destroy();
             }
         }
 
-        public object RaidReport() => raidVictim == null ? null : new
+        public Fx.SparringRaid RaidReport() => raidVictim == null ? null : new Fx.SparringRaid
         {
-            victim = raidVictim.GetUniqueLoadID(), spawnTick = raidSpawnTick, victimSessionEndedAfter = raidVictimEndTick >= 0,
-            victimJob240 = raidVictimJob, victimDead = raidVictim.Dead, raiderGone = raider == null || raider.Destroyed,
-            victimPain = raidVictim.health.hediffSet.PainTotal, victimBleed = raidVictim.health.hediffSet.BleedRateTotal,
+            Victim = raidVictim.GetUniqueLoadID(), RaiderGone = raider == null || raider.Destroyed,
         };
 
         private void SpawnRaider(Pawn victim)
@@ -576,8 +381,6 @@ namespace HomeBridge.BridgeTools
                 var p = slot.Pawn;
                 if (!gear.TryGetValue(p.thingIDNumber, out var g)) continue;
                 if (p.CurJobDef != spar) Abandoned++;
-                if (p.mindState.meleeThreat != null) ThreatTicks++;
-                if (WearsPracticeSet(p)) Sample(p);
                 if (!g.SwapSeen && WearsPracticeSet(p))
                 {
                     g.SwapSeen = true;
@@ -621,33 +424,6 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // One fighting tick of a pawn that wears the practice set: pain, bleeding, practice
-        // gear wear, nakedness and carried mass against the session's maxima.
-        private void Sample(Pawn p)
-        {
-            var probe = probes[p.thingIDNumber];
-            var health = p.health.hediffSet;
-            probe.MaxPain = Math.Max(probe.MaxPain, health.PainTotal);
-            probe.MaxBleed = Math.Max(probe.MaxBleed, health.BleedRateTotal);
-            foreach (var a in p.apparel.WornApparel)
-            {
-                if (IsPractice(a.def)) probe.MinPractice = Math.Min(probe.MinPractice, a.HitPoints / (float)a.MaxHitPoints);
-            }
-            if (p.apparel.PsychologicallyNude) probe.NudeTicks++;
-            if (Find.TickManager.TicksGame % 30 == 0)
-            {
-                var capacity = Math.Max(0.01f, MassUtility.Capacity(p));
-                var fraction = MassUtility.GearAndInventoryMass(p) / capacity;
-                probe.MaxMass = Math.Max(probe.MaxMass, fraction);
-                if (fraction > 0.6f && Tally.Trace.Count(x => x.StartsWith("mass")) < 6)
-                {
-                    var things = p.equipment.AllEquipmentListForReading.Cast<Thing>().Concat(p.apparel.WornApparel).Concat(p.inventory.innerContainer);
-                    Tally.Trace.Add("mass|" + fraction.ToString("F2") + "|cap " + capacity.ToString("F1") + "|" +
-                        string.Join(",", things.Select(x => x.def.defName + "x" + x.stackCount + "=" + (x.GetStatValue(StatDefOf.Mass) * x.stackCount).ToString("F1"))));
-                }
-            }
-        }
-
         // Adds injuries until the pawn is past the stop rule's limit and no further.
         private static void Injure(Pawn p, bool bleeding)
         {
@@ -673,9 +449,7 @@ namespace HomeBridge.BridgeTools
             var session = registry.LastSession(p);
             if (g.Ended || session == null || session.EndedTick <= startTick) return;
             g.Ended = true;
-            g.EndedTick = session.EndedTick;
             g.Stop = session.Stop.ToString();
-            g.Condition = session.Condition.ToString();
             g.Exchanges = session.Exchanges;
             g.Swapped = session.Swapped;
             g.Dead = p.Dead;

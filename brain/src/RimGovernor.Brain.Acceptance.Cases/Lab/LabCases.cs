@@ -1,5 +1,3 @@
-using System.Text.Json.Nodes;
-
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
@@ -19,31 +17,11 @@ public static class LabCases
         registry.Register(LabSpoilagePick.Case());
         registry.Register(LabTraining.Case());
         registry.Register(LabSkillLearning.Case());
-        foreach (var c in LabTrainingRange.Cases())
-        {
-            registry.Register(c);
-        }
-
         registry.Register(LabCaptureProfile.Case());
-
         registry.Register(LabFoodStorageRoutes.Case());
-        registry.Register(LabSparring.Case());
-        registry.Register(LabSparringWatch.Case());
-        foreach (var c in LabSparringMeasure.Cases())
+        foreach (var c in LabTrainingRange.Cases().Concat(LabSparring.Cases()).Concat(LabSparringWatch.Cases()))
         {
             registry.Register(c);
         }
     }
-
-    /// <summary>The ids a reply array holds as strings (Go <c>stringList</c>).</summary>
-    internal static List<string> StringList(JsonNode? value) => [.. value.AsSlice().Select(e => e.AsString())];
-
-    /// <summary>The integers a reply array holds (Go <c>intList</c>).</summary>
-    internal static List<int> IntList(JsonNode? value) => [.. value.AsSlice().Select(e => (int)e.AsNumber())];
-
-    /// <summary>A boolean reply member, false when absent or not a boolean.</summary>
-    internal static bool Flag(JsonObject? row, string key) => row?[key].AsBool() == true;
-
-    /// <summary>Whether a native fixture reply says <c>success</c>.</summary>
-    internal static bool Succeeded(JsonObject reply) => reply["success"].AsBool() == true;
 }

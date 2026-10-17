@@ -204,18 +204,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Ideology/IdeologyRitual.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Lab/LabCases.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lab/Sparring.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lab/SparringMeasure.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lab/SparringWatch.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Layout/Fixture.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 

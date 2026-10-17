@@ -8,6 +8,7 @@ using RimGovernor.Runtime;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -54,9 +55,11 @@ namespace HomeBridge.BridgeTools
                 for (var i = 0; i < bystanders; i++) free.Add(Stage(TimeAssignmentDefOf.Joy, false));
                 var draftedPawn = drafted ? Stage(TimeAssignmentDefOf.Joy, true) : null;
                 var worker = working ? Stage(TimeAssignmentDefOf.Work, false) : null;
-                var recorder = new SparringWatchRecorder(map, free, draftedPawn, worker);
-                map.components.Add(recorder);
-                return new { success = true, free = free.Select(p => p.GetUniqueLoadID()).ToArray(), drafted = draftedPawn?.GetUniqueLoadID() ?? "", working = worker?.GetUniqueLoadID() ?? "" };
+                map.components.Add(new SparringWatchRecorder(map, free, draftedPawn));
+                return FixtureKit.Reply(new Fx.SparringWatchPrepared
+                {
+                    Free = free.Select(p => p.GetUniqueLoadID()).ToList(), Drafted = draftedPawn?.GetUniqueLoadID() ?? "", Working = worker?.GetUniqueLoadID() ?? "",
+                });
             }, cancellationToken);
         }
 
@@ -66,23 +69,17 @@ namespace HomeBridge.BridgeTools
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 var recorder = map.components.OfType<SparringWatchRecorder>().FirstOrDefault();
-                if (recorder == null) return new { success = true, recording = false };
-                return new
+                if (recorder == null) throw new InvalidOperationException("No spectators staged: run test/sparring_watch_prepare first.");
+                return FixtureKit.Reply(new Fx.SparringWatchRead
                 {
-                    success = true, recording = true, tick = Find.TickManager.TicksGame,
-                    fightStart = recorder.FightStartTick, fightOver = recorder.FightOverTick, fightedEver = recorder.FightedEver,
-                    watchers = recorder.History.Select(w => (object)new
+                    Tick = Find.TickManager.TicksGame,
+                    Watchers = recorder.History.Select(w => new Fx.SparringWatchRow
                     {
-                        id = w.Id, free = w.Free, started = w.StartTick, ended = w.EndTick, joyStart = w.JoyStart, joyMax = w.JoyMax,
-                        cellOk = w.CellOk, cellNote = w.CellNote, dist = w.Distance, fighter = w.WasFighter, atCellTicks = w.AtCellTicks,
-                        fightingAtEnd = w.FightingAtEnd, thought = w.ThoughtAfterEnd, forbiddenOrDoubled = w.Doubled,
-                    }).ToArray(),
-                    bystanders = recorder.Bystanders.Select(p => (object)new
-                    {
-                        id = p.GetUniqueLoadID(), job = p.CurJobDef?.defName ?? "", drafted = p.Drafted, joy = p.needs.joy.CurLevel,
-                    }).ToArray(),
-                    watchJobs = recorder.WatchJobTicks, fighterWatchTicks = recorder.FighterWatchTicks, otherSocial = recorder.OtherSocialInterrupts,
-                };
+                        Id = w.Id, Ended = w.EndTick, JoyStart = w.JoyStart, JoyMax = w.JoyMax, CellOk = w.CellOk, CellNote = w.CellNote, Dist = w.Distance,
+                        Fighter = w.WasFighter, AtCellTicks = w.AtCellTicks, FightingAtEnd = w.FightingAtEnd, Thought = w.ThoughtAfterEnd,
+                    }).ToList(),
+                    WatchJobs = recorder.WatchJobTicks, FighterWatchTicks = recorder.FighterWatchTicks,
+                });
             }, cancellationToken);
         }
     }
@@ -90,8 +87,6 @@ namespace HomeBridge.BridgeTools
     public sealed class SparringWatchRecord
     {
         public string Id;
-        public bool Free;
-        public int StartTick;
         public int EndTick = -1;
         public float JoyStart;
         public float JoyMax;
@@ -102,32 +97,24 @@ namespace HomeBridge.BridgeTools
         public int AtCellTicks;
         public bool FightingAtEnd;
         public bool ThoughtAfterEnd;
-        public bool Doubled;
         public IntVec3 Cell;
-        public Pawn Pawn;
     }
 
     public sealed class SparringWatchRecorder : MapComponent
     {
-        public readonly List<Pawn> Bystanders = new List<Pawn>();
         private readonly HashSet<Pawn> free = new HashSet<Pawn>();
         public readonly Dictionary<int, SparringWatchRecord> Watches = new Dictionary<int, SparringWatchRecord>();
         public readonly List<SparringWatchRecord> History = new List<SparringWatchRecord>();
-        public int FightStartTick = -1;
         public int FightOverTick = -1;
         public bool FightedEver;
         public int WatchJobTicks;
         public int FighterWatchTicks;
-        public int OtherSocialInterrupts;
         private readonly Pawn draftedPawn;
 
-        public SparringWatchRecorder(Map map, List<Pawn> freePawns, Pawn draftedPawn, Pawn worker) : base(map)
+        public SparringWatchRecorder(Map map, List<Pawn> freePawns, Pawn draftedPawn) : base(map)
         {
-            Bystanders.AddRange(freePawns);
             foreach (var p in freePawns) free.Add(p);
             this.draftedPawn = draftedPawn;
-            if (draftedPawn != null) Bystanders.Add(draftedPawn);
-            if (worker != null) Bystanders.Add(worker);
         }
 
         public override void MapComponentTick()
@@ -135,7 +122,6 @@ namespace HomeBridge.BridgeTools
             var now = Find.TickManager.TicksGame;
             var registry = SparringBouts.For(map);
             var fighting = registry.LiveFighting().Any();
-            if (fighting && FightStartTick < 0) FightStartTick = now;
             if (fighting) FightedEver = true;
             if (!fighting && FightedEver && FightOverTick < 0) FightOverTick = now;
             // Vanilla auto-undrafts a pawn after a quiet spell; this one stays drafted.
@@ -151,7 +137,7 @@ namespace HomeBridge.BridgeTools
                     if (registry.BoutOf(p) != null) FighterWatchTicks++;
                     if (record == null || record.EndTick >= 0)
                     {
-                        record = new SparringWatchRecord { Id = p.GetUniqueLoadID(), Free = free.Contains(p), StartTick = now, JoyStart = p.needs.joy.CurLevel, Pawn = p };
+                        record = new SparringWatchRecord { Id = p.GetUniqueLoadID(), JoyStart = p.needs.joy.CurLevel };
                         record.Cell = p.CurJob.targetA.Cell;
                         Check(record, registry, p);
                         Watches[p.thingIDNumber] = record;
@@ -161,7 +147,6 @@ namespace HomeBridge.BridgeTools
                     record.JoyMax = Math.Max(record.JoyMax, p.needs.joy.CurLevel);
                     if (registry.BoutOf(p) != null) record.WasFighter = true;
                     if (p.Position == record.Cell) record.AtCellTicks++;
-                    if (p.Position.IsForbidden(p) || p.CurJob.targetA.Cell != record.Cell) record.Doubled = true;
                 }
                 else if (record != null && record.EndTick < 0)
                 {
@@ -177,7 +162,6 @@ namespace HomeBridge.BridgeTools
                 if (!watching && free.Contains(p) && p.CurJobDef?.joyKind == JoyKindDefOf.Social && p.CurJobDef != watch && !FightedEverOver())
                 {
                     p.jobs.EndCurrentJob(JobCondition.InterruptForced);
-                    OtherSocialInterrupts++;
                 }
             }
         }

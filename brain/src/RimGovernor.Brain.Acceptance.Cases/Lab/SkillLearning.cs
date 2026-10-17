@@ -54,16 +54,4 @@ internal static class LabSkillLearning
             throw new AcceptanceException($"native {kind} learning callbacks: {seen} checked, failures: {string.Join(", ", result.Failures)}");
         }
     }
-
-    /// <summary>The legacy form for control/pawn-activity-cooking until its area ports it.</summary>
-    internal static async Task VerifyCallbacksAsync(ISession s, string kind, CancellationToken ct)
-    {
-        var result = await Verify.CallAsync(s.Harness, "learning-stop", "stop", ct).ConfigureAwait(false);
-        s.Report["learning-callbacks"] = ServedOps.Json(result);
-        var seen = kind == "recipe" ? result.Recipe : result.Sparring;
-        if (seen < 1 || result.Failures.Count != 0)
-        {
-            throw new AcceptanceException($"native {kind} learning callbacks: {seen} checked, failures: {string.Join(", ", result.Failures)}");
-        }
-    }
 }
