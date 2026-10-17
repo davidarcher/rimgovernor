@@ -464,6 +464,21 @@ prerequisites) by site id. A site stays unknown when:
 The roof has no native placement and is never asked. Its work per cell is the coupled read's
 `ThermalWorker.RoofCellWorkTicks`, which the generator joins.
 
+Then the routes between the answered sites (#3313). `PlannedRouteBatches` builds, per room with a site native
+answered with rows, one `PlannedRouteProbe` from each place an activity of the room ends to each place another
+starts:
+
+- ends: each probed site's location (its first position) and each clearing row's location;
+- starts: each probed site's location, reaching its nearest position (`Reach`), each material source (a row's
+  `Origin`), and each clearing's start (a haul's origin, a cut or mine row's location);
+- the roof also from each pawn's own start (`FromStart`), since no native row routes to it.
+
+The probed sites are those with rows, plus the roof. `PlannedRoutesPerRead` (16) probes go to a construction
+activity read, at most `PlannedRouteProbeCap` (128) a round (`planned_route_probes_exceeded`). Native answers a
+`CoupledRoute` per probe x free pawn, unknown where no path is found. `JoinPlannedRoutes` keeps each read's rows
+for its own probes in `PlannedSiteFacts.Routes`; a missing, unknown or truncated read adds none
+(`planned_route_read_unknown`, `planned_route_read_truncated`), so those routes stay unknown.
+
 ### Planned room activities
 
 `GenerateCoupledActivities` turns the planned-site facts into construction activities when housing, shelter or
@@ -474,7 +489,8 @@ temperature safety is enabled (the placed-site gate; `planned_sites_unknown` whe
    `Illegal` verdict makes the alternative infeasible (`planned_room_alternative_infeasible:{alt}:{site}`). An
    `Unestimable` or unread verdict, no finish row, no delivery row for owed material, or a clearing with no
    routable row leaves it unvalued (`planned_room_alternative_unvalued:{alt}:{site}:{reason}`). A roof is
-   valued only when a free pawn who reaches the room shows `RoofCellWorkTicks`. Nothing is emitted for an
+   valued only when a free pawn shows `RoofCellWorkTicks` (else `roof_work_unknown`) and has a known route to
+   the roof (else `roof_unrouted`). Nothing is emitted for an
    alternative that is not valued.
 3. Each site of a valued alternative is generated in the placed-site shape: a delivery per material source
    (at most 4; `planned_site_sources_truncated:{site}`), one op per clearing prerequisite, and a finish.
@@ -482,8 +498,8 @@ temperature safety is enabled (the placed-site gate; `planned_sites_unknown` whe
    - A vent requires a completed wall site, and the roof a completed wall and door site, in whichever stuff.
      Completed planned sites are supplied at the room (`planned/room{id}`), not at their cells, so the link
      does not depend on where the dependent is worked.
-   - The roof is worked from the room's anchor (its first wall site any free pawn reaches), with that row's
-     start route.
+   - The roof is worked at its own location, its first interior cell.
+   - The planned-site routes of the free pawns join the generated routes, a `FromStart` row as the pawn's start.
 4. Roots. Each site is its own comparison root, named by its site id and shared by every alternative that
    contains it. A site root carries one requested-development relief entry (the Need is its site id), so one
    completed site is one unit of development, the lowest tier. Each alternative is also a root,
@@ -494,9 +510,10 @@ temperature safety is enabled (the placed-site gate; `planned_sites_unknown` whe
 
 A room over 96 generated operations is left out whole (`planned_room_candidates_truncated:{room}`).
 
-Only start routes are known (#3313 owns between-site routes). A pawn chaining two sites at different cells has an
-unknown route, so a whole room usually completes inside the horizon only when its rows share a location or
-several pawns split it.
+With the routes between a room's sites, one builder can chain the whole room site after site. A route is still
+unknown from where another family's activity ends (a meal, a harvest) to a planned site, so a pawn that switches
+to other work in the middle of a room cannot be scheduled back onto it. A route is approximate where a site
+spans several cells: it leaves from the site's first position and reaches the nearest position of the next.
 
 `ForecastCoupledCandidates.Context.PlannedSites` (`ForecastPlannedSite`: site, room, stuff, composed activities,
 finishes) and `Context.PlannedRooms` keep the mapping back. The evaluated outcome's `PlannedRooms` lists, per room

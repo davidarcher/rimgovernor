@@ -8,41 +8,94 @@ using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
-/// <summary>Planned rooms as construction activities in the coupled portfolio (#3276).</summary>
+/// <summary>
+/// Planned rooms as construction activities in the coupled portfolio (#3276), at their own cells (#3313): room 1 is a
+/// 3x3 interior at (5,5)-(7,7) inside its ring (4,4)-(8,8), the door south at (6,4). The pawn and its food stand at
+/// (1,1), wood at (10,2) and stone at (10,7). Native rows and routes are walked at 2 ticks a cell (Manhattan), to
+/// the target cell nearest the origin, as the native read reaches a site's nearest piece.
+/// </summary>
 public sealed class PlannedRoomActivitiesTests
 {
     private const double Horizon = 300;
+    private const string Pawn = "pawn";
     private static readonly string[] Plants = ["plant-a", "plant-b"];
     private static readonly ObservationContext Context = new()
         { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
+    private static readonly Cell Start = new(1, 1);
+    private static readonly Cell DoorCell = new(6, 4);
+    private static readonly Cell[] Interior = [.. Enumerable.Range(5, 3).SelectMany(x => Enumerable.Range(5, 3).Select(z => new Cell(x, z)))];
+    private static readonly Cell[] WallCells = [.. Enumerable.Range(4, 5).SelectMany(x => Enumerable.Range(4, 5).Select(z => new Cell(x, z)))
+        .Where(c => (c.X is 4 or 8 || c.Z is 4 or 8) && c != DoorCell).OrderBy(c => c.X).ThenBy(c => c.Z)];
 
-    /// <summary>One ring site of room 1 the pawn can finish in finish ticks, delivering count of stuff from a stack holding available.</summary>
-    private static PlannedBuildSite Ring(OpKind op, string stuff, double finish, int count = 0, double available = 0,
-        PlannedSiteVerdict verdict = PlannedSiteVerdict.Feasible)
+    private static Cell StackCell(string stuff) => stuff == "WoodLog" ? new(10, 2) : new(10, 7);
+
+    private static double Ticks(Cell from, Cell to) => 2.0 * (Math.Abs(from.X - to.X) + Math.Abs(from.Z - to.Z));
+
+    private static Cell Nearest(IEnumerable<Cell> cells, Cell origin) =>
+        cells.OrderBy(c => Ticks(origin, c)).ThenBy(c => c.X).ThenBy(c => c.Z).First();
+
+    /// <summary>
+    /// One planned site of room 1 in the native answer's shape: rows located at its first position, one per material
+    /// stack (count owed from each, which holds its available), approach and delivery walked to the nearest position.
+    /// </summary>
+    private static PlannedBuildSite Site(string id, OpKind op, string def, string stuff, Cell[] cells, double finish, int count,
+        IReadOnlyList<(string Id, Cell At, double Available)> stacks, PlannedSiteVerdict verdict = PlannedSiteVerdict.Feasible)
     {
-        var kind = op == OpKind.WallIn ? "wall" : "door";
-        var id = "planned/room1/" + kind + "/" + stuff;
-        var cell = op == OpKind.WallIn ? new Cell(3, 3) : new Cell(3, 4);
-        // Every row stands where the pawn starts, the food and the stacks: only start routes are known until #3313.
-        var row = new ConstructionActivityOption(id, kind == "wall" ? "Wall" : "Door", new Cell(1, 1), "pawn", count > 0 ? stuff : "", count > 0 ? "stack-" + stuff : "",
-            new Cell(1, 1), count, count > 0 ? 75 : 0, "Finish", Known(0.0), count > 0 ? Known(10.0) : default, Known(finish))
-            { SiteApproachTicks = Known(0.0), AvailableInput = count > 0 ? Known(available) : default };
-        return new PlannedBuildSite(id, 1, op, kind == "wall" ? "Wall" : "Door", stuff, Rotation.North, [cell])
+        var at = cells[0];
+        var reach = Ticks(Start, Nearest(cells, Start));
+        var rows = count == 0
+            ? [new ConstructionActivityOption(id, def, at, Pawn, "", "", at, 0, 0, "Finish", default, default, Known(finish)) { SiteApproachTicks = Known(reach) }]
+            : stacks.Select(s => new ConstructionActivityOption(id, def, at, Pawn, stuff, s.Id, s.At, count, 75, "Finish", Known(Ticks(Start, s.At)),
+                Known(Ticks(s.At, Nearest(cells, s.At))), Known(finish)) { SiteApproachTicks = Known(reach), AvailableInput = Known(s.Available) }).ToArray();
+        return new PlannedBuildSite(id, 1, op, def, op == OpKind.FloorIn ? "" : stuff, Rotation.North, EquatableArray.From(cells))
         {
-            Verdict = verdict, CanPlace = Known(true), Options = [row],
+            Verdict = verdict, CanPlace = Known(true), Options = EquatableArray.From(rows),
             Material = count > 0 ? [new RimGovernor.Brain.Policy.Amount(new Resource(stuff), count)] : [],
         };
     }
 
-    private static RoundsFacts Review(IEnumerable<PlannedBuildSite> planned, double level = 1, double fall = 0)
+    /// <summary>The wall run or door of room 1 the pawn can finish in finish ticks, delivering count of stuff from its one stack holding available.</summary>
+    private static PlannedBuildSite Ring(OpKind op, string stuff, double finish, int count = 0, double available = 0,
+        PlannedSiteVerdict verdict = PlannedSiteVerdict.Feasible)
     {
-        var facts = WorkResourceTestFacts.Create("pawn");
+        var wall = op == OpKind.WallIn;
+        return Site("planned/room1/" + (wall ? "wall" : "door") + "/" + stuff, op, wall ? "Wall" : "Door", stuff, wall ? WallCells : [DoorCell],
+            finish, count, [("stack-" + stuff, StackCell(stuff), available)], verdict);
+    }
+
+    /// <summary>Room 1's roof over its interior: no native rows; its work per cell is the coupled read's RoofCellWorkTicks.</summary>
+    private static PlannedBuildSite Roof() => new("planned/room1/roof", 1, OpKind.RoofIn, "", "", Rotation.North, EquatableArray.From(Interior));
+
+    /// <summary>
+    /// The planned-site facts with native routes between the sites (#3313): the production probes (PlannedRouteBatches),
+    /// answered per probe at 2 ticks a cell, joined by JoinPlannedRoutes. Without routes, the facts native gave before #3313.
+    /// </summary>
+    private static PlannedSiteFacts PlannedFacts(IEnumerable<PlannedBuildSite> planned, bool routes)
+    {
+        var facts = new PlannedSiteFacts { Sites = EquatableArray.From(planned) };
+        if (!routes) return facts;
+        var (batches, findings) = PlannedRouteBatches(facts.Sites);
+        return JoinPlannedRoutes(facts, findings, batches.Select(probes => (probes, (ConstructionActivityRead?)new ConstructionActivityRead
+        {
+            Known = true,
+            Routes = EquatableArray.From(probes.Select(p =>
+            {
+                var origin = p.FromStart ? Start : p.From;
+                return new CoupledRoute(Pawn, origin, p.To, Known(Ticks(origin, p.Reach.Count == 0 ? p.To : Nearest(p.Reach, origin)))) { FromStart = p.FromStart };
+            })),
+        })));
+    }
+
+    private static RoundsFacts Review(IEnumerable<PlannedBuildSite> planned, double level = 1, double fall = 0, double horizon = Horizon,
+        bool routes = true, double roofCellWork = 0)
+    {
+        var facts = WorkResourceTestFacts.Create(Pawn);
         facts = facts with
         {
             // The colony holds what the stacks hold.
             Resources = Known(EquatableArray.From(planned.SelectMany(s => s.Options).Where(o => o.Input.Length > 0).DistinctBy(o => o.Input)
                 .GroupBy(o => o.Resource).Select(g => new RimGovernor.Brain.Policy.Amount(new Resource(g.Key), (long)g.Sum(o => o.AvailableInput.Value))))),
-            PlannedSites = Known(new PlannedSiteFacts { Sites = EquatableArray.From(planned) }),
+            PlannedSites = Known(PlannedFacts(planned, routes)),
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = new() { Tick = 100, Pawns = [new()
@@ -65,16 +118,18 @@ public sealed class PlannedRoomActivitiesTests
                             SourceCount = Known(2d), NutritionPerUnit = Known(.2) })) },
                     FoodUses = [new("pawn", "Rice", new(1, 1), Known(true), Known(.2), Known(10d), 2, Known(1000d))],
                     Construction = new() { Context = Context, Known = true },
+                    // A roof is worked cell by cell at the coupled read's RoofCellWorkTicks.
+                    Thermal = roofCellWork > 0 ? new() { Workers = [new(Pawn, Known(roofCellWork))] } : null,
                 },
             },
         };
         facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        return facts with { CoupledAlternatives = GenerateCoupledActivities(facts, Horizon) };
+        return facts with { CoupledAlternatives = GenerateCoupledActivities(facts, horizon) };
     }
 
-    private static ForecastCoupledSelection Select(RoundsFacts facts)
+    private static ForecastCoupledSelection Select(RoundsFacts facts, double horizon = Horizon)
     {
-        var request = CoupledForecastRequestOf(new("world/map/load", 100), Horizon / GameTime.TicksPerDay,
+        var request = CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,
             facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new());
         return CompareActivityOutcomes(request, facts.CoupledAlternatives!, 16384);
     }
@@ -102,6 +157,40 @@ public sealed class PlannedRoomActivitiesTests
 
         // Nothing binds a planned site before placement (#3278): the selection starts no order.
         Assert.Null(StartCoupledActivity(result, candidates, 1, "planned-test", 100));
+    }
+
+    /// <summary>
+    /// The 3x3 wood room (#3313): 15 walls, a door, 9 plank floors and the roof, each site at its own cells, worked by
+    /// one builder within a day, site after site along the routes between them. Without those routes the room is
+    /// never complete: every leg from one site to the next is unknown.
+    /// </summary>
+    [Fact]
+    public void OneBuilderCompletesASmallWoodRoomSiteAfterSite()
+    {
+        (string, Cell, double)[] wood = [("wood-a", new(10, 2), 75), ("wood-b", new(10, 7), 75)];
+        PlannedBuildSite[] room =
+        [
+            Site("planned/room1/wall/WoodLog", OpKind.WallIn, "Wall", "WoodLog", WallCells, 15 * 135, 75, wood),
+            Site("planned/room1/door/WoodLog", OpKind.DoorIn, "Door", "WoodLog", [DoorCell], 850, 25, wood),
+            Site("planned/room1/floor/WoodPlankFloor", OpKind.FloorIn, "WoodPlankFloor", "WoodLog", Interior, 9 * 85, 27, wood),
+            Roof(),
+        ];
+        const double day = GameTime.TicksPerDay;
+        var facts = Review(room, horizon: day, roofCellWork: 65);
+        var result = Select(facts, day);
+        var outcome = Assert.Single(result.Selected.PlannedRooms);
+        Assert.Equal(room.Select(s => s.Id).Order(StringComparer.Ordinal), outcome.CompletedSites.Order(StringComparer.Ordinal));
+        Assert.Contains("planned/room1/WoodLog/ShellFloor", outcome.Complete);
+
+        // One builder: every planned allocation is the pawn's, one after another, each leg a known route.
+        var planned = result.Selected.Plan.Allocations.Where(a => a.Activity.StartsWith("planned/room1/", StringComparison.Ordinal)).OrderBy(a => a.Depart).ToArray();
+        Assert.All(planned, a => Assert.Equal(Pawn, a.Pawn));
+        Assert.All(room, s => Assert.Contains(planned, a => a.Activity.StartsWith(s.Id + "/", StringComparison.Ordinal)));
+        Assert.All(planned.Zip(planned.Skip(1)), p => Assert.True(p.Second.Depart >= p.First.End, p.First.Activity + " overlaps " + p.Second.Activity));
+        Assert.True(planned[^1].End <= day, Why(facts, result));
+
+        var unrouted = Review(room, horizon: day, routes: false, roofCellWork: 65);
+        Assert.DoesNotContain(Select(unrouted, day).Selected.PlannedRooms, r => r.Complete.Count > 0);
     }
 
     [Fact]

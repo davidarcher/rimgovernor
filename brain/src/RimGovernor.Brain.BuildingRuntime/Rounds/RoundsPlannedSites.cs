@@ -5,8 +5,9 @@ public sealed partial class Rounder
     /// <summary>
     /// The round's planned-site facts (#3275): the plan's owed operations as sites, one per op x ring stuff, and the
     /// unplaced shelf candidates as one-piece sites, each joined to the native planned-site read. The read is asked
-    /// PlannedSitesPerRead sites at a time through the construction activity read; without that read every site stays
-    /// unknown. Unknown while the plan or the construction census is.
+    /// PlannedSitesPerRead sites at a time through the construction activity read, then the routes between each room's
+    /// answered sites (PlannedRouteBatches, #3313); without that read every site and route stays unknown. Unknown while
+    /// the plan or the construction census is.
     /// </summary>
     internal async Task<Fact<PlannedSiteFacts>> PlannedSitesAsync(GenerationSnapshot snapshot, ColonyProjection colony, FlooringPolicy flooring,
         IReadOnlyList<ShelfCandidate> shelves, CancellationToken ct)
@@ -25,15 +26,25 @@ public sealed partial class Rounder
         var reads = new List<(EquatableArray<O.PlannedConstructionSite>, O.ConstructionActivityRead?)>(batches.Count);
         foreach (var batch in batches)
         {
-            O.ConstructionActivityRead? read = null;
-            if (Native is IActivityTaskSource source)
-            {
-                read = await source.ReadConstructionActivityAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Planned = batch }, ct)
-                    .ConfigureAwait(false);
-            }
-            reads.Add((batch, read));
+            reads.Add((batch, await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Planned = batch }, ct)
+                .ConfigureAwait(false)));
         }
-        return Known(PolicyApi.JoinPlannedSites(sites, findings, reads));
+        var joined = PolicyApi.JoinPlannedSites(sites, findings, reads);
+        // Routes between the answered sites (#3313): their sources and clearing are known only once the sites are.
+        var (probes, routeFindings) = PolicyApi.PlannedRouteBatches(joined.Sites);
+        var routes = new List<(EquatableArray<O.PlannedRouteProbe>, O.ConstructionActivityRead?)>(probes.Count);
+        foreach (var batch in probes)
+        {
+            routes.Add((batch, await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Routes = batch }, ct)
+                .ConfigureAwait(false)));
+        }
+        return Known(PolicyApi.JoinPlannedRoutes(joined, routeFindings, routes));
+    }
+
+    /// <summary>One construction activity read of planned sites or routes; null without the read.</summary>
+    private async Task<O.ConstructionActivityRead?> ReadPlannedAsync(O.ConstructionActivityRequest request, CancellationToken ct)
+    {
+        return Native is IActivityTaskSource source ? await source.ReadConstructionActivityAsync(request, ct).ConfigureAwait(false) : null;
     }
 
     /// <summary>The plan's owed operations as planned sites (PlannedSitesOf), unread; null while the plan or the construction census is unknown.</summary>

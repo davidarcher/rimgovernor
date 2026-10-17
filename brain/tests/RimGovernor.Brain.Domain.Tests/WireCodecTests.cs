@@ -171,6 +171,33 @@ public sealed class WireCodecTests
         Assert.Equal(read.Planned, decoded.Planned);
     }
 
+    /// <summary>Routes between planned sites (#3313): the probes and the route rows round trip, an unreached route stays unknown.</summary>
+    [Fact]
+    public void PlannedRoutesRoundTripWithStartProbesAndUnknownRoutes()
+    {
+        var request = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest(new() { ColonyId = "c", LoadToken = "l", MapId = 1 }, default)
+        {
+            Routes = [new(new(4, 4), new(6, 4), [new(6, 4)]), new(new(5, 5), new(5, 5), [new(5, 5), new(6, 5)]) { FromStart = true }],
+        };
+        var decodedRequest = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest>(WireJson.Serialize(request));
+        Assert.Equal(request.Routes, decodedRequest.Routes);
+        Assert.True(decodedRequest.Routes[1].FromStart);
+        Assert.Equal(2, decodedRequest.Routes[1].Reach.Count);
+
+        var read = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead
+        {
+            Known = true,
+            Routes = [new("pawn", new(4, 4), new(6, 4), RimGovernor.Brain.Domain.Fact.Known(4.0)),
+                new("pawn", new(1, 1), new(5, 5), default) { FromStart = true }],
+            Findings = ["planned_route_out_of_bounds"],
+        };
+        var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead>(WireJson.Serialize(read));
+        Assert.Equal(read.Routes, decoded.Routes);
+        Assert.Equal(4.0, decoded.Routes[0].Ticks.Value);
+        Assert.False(decoded.Routes[1].Ticks.IsKnown);
+        Assert.True(decoded.Routes[1].FromStart);
+    }
+
     [Fact]
     public void PlannedShelterThermalRoundTripsRoomsHeatersCellsAndUnknownSupply()
     {

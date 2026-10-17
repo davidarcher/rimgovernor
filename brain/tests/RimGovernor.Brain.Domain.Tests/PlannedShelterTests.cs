@@ -78,7 +78,10 @@ public sealed class PlannedShelterTests
         facts = facts with
         {
             PlannedShelters = [new() { Id = 1, Region = RectRegion(new(1, 1, 1, 1)), Door = DoorCell }],
-            PlannedSites = Known(new PlannedSiteFacts { Sites = EquatableArray.From(planned) }),
+            // The planned-site read's routes between the sites (#3313): the roof is worked at its own cell.
+            PlannedSites = Known(new PlannedSiteFacts { Sites = EquatableArray.From(planned), Routes = EquatableArray.From(cells
+                .SelectMany(a => cells.Where(b => a != b).Select(b => new CoupledRoute("pawn", a, b, Known(1d))))
+                .Concat(cells.Select(b => new CoupledRoute("pawn", b, b, Known(1d)) { FromStart = true }))) }),
             PlannedThermal = plannedThermal,
             ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
             ForecastObserved = facts.ForecastObserved with

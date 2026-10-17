@@ -203,4 +203,63 @@ public sealed class PlannedSitesTests
         Assert.Equal([new Amount(Steel, 10)], site.Material);
         Assert.Empty(ShelfPlannedSites([candidate], null));
     }
+
+    /// <summary>A room 1 site at cells with one native row delivering from origin (count 0: no material) and the given clearing.</summary>
+    private static PlannedBuildSite Answered(string id, OpKind op, Cell[] cells, Cell origin, int count, params O.PlannedSiteClearing[] clearing) =>
+        new(id, 1, op, "Wall", "WoodLog", Rotation.North, EquatableArray.From(cells))
+        {
+            Options = [new O.ConstructionActivityOption(id, "Wall", cells[0], "Pawn_1", "WoodLog", count > 0 ? "stack" : "", origin, count, 75, "Finish",
+                Known(1d), Known(1d), Known(10d))],
+            Clearing = EquatableArray.From(clearing),
+        };
+
+    /// <summary>
+    /// Routes between planned sites (#3313): from each activity end of the room (a site's first position, a clearing
+    /// row's location) to each other start (a site, reaching its pieces; a source; a clearing start), and the roof from
+    /// each pawn's start. A room whose sites no native row answers, and a shelf, are not probed.
+    /// </summary>
+    [Fact]
+    public void RouteProbesRunFromEachEndOfARoomToEachOtherStartAndTheRoofFromStart()
+    {
+        var cut = new O.PlannedSiteClearing("planned/room1/wall/WoodLog/clear/cut", O.PlannedClearingKind.Cut, [new Cell(0, 3)])
+            { Options = [new O.ConstructionActivityOption("planned/room1/wall/WoodLog/clear/cut", "", new Cell(0, 3), "Pawn_1", "", "", new Cell(0, 3), 0, 0, "Cut",
+                Known(1d), default, Known(10d))] };
+        var wall = Answered("planned/room1/wall/WoodLog", OpKind.WallIn, [new(0, 0), new(0, 1)], new Cell(9, 9), 10, cut);
+        var door = Answered("planned/room1/door/WoodLog", OpKind.DoorIn, [new(1, 0)], new Cell(1, 0), 0);
+        var roof = new PlannedBuildSite("planned/room1/roof", 1, OpKind.RoofIn, "", "", Rotation.North, [new(1, 1)]);
+        var unanswered = new PlannedBuildSite("planned/room2/wall/WoodLog", 2, OpKind.WallIn, "Wall", "WoodLog", Rotation.North, [new(10, 0)]);
+        var (batches, findings) = PlannedRouteBatches([wall, door, roof, unanswered]);
+        Assert.Empty(findings);
+        var probes = batches.SelectMany(b => b).ToArray();
+        Assert.All(batches, b => Assert.InRange(b.Count, 1, PlannedRoutesPerRead));
+        // The roof from each pawn's start, reaching its nearest cell.
+        var start = Assert.Single(probes, p => p.FromStart);
+        Assert.Equal((new Cell(1, 1), new Cell(1, 1)), (start.From, start.To));
+        // Ends: door (1,0), roof (1,1), wall (0,0), cut (0,3). Starts: those sites, the wall's source (9,9), the cut (0,3).
+        Cell[] ends = [new(1, 0), new(1, 1), new(0, 0), new(0, 3)];
+        Cell[] starts = [new(1, 0), new(1, 1), new(9, 9), new(0, 0), new(0, 3)];
+        var expected = ends.SelectMany(e => starts.Where(s => s != e).Select(s => (e, s))).ToArray();
+        var actual = probes.Where(p => !p.FromStart).Select(p => (p.From, p.To)).ToArray();
+        Assert.Equal(expected.Length, actual.Length);
+        Assert.True(expected.ToHashSet().SetEquals(actual));
+        Assert.Equal(wall.Positions, probes.First(p => p.To == new Cell(0, 0)).Reach);
+        Assert.Empty(probes.First(p => p.To == new Cell(9, 9)).Reach);
+        Assert.DoesNotContain(probes, p => p.To == new Cell(10, 0) || p.From == new Cell(10, 0));
+    }
+
+    /// <summary>The join keeps a read's rows for its own probes; a missing or truncated read leaves its routes unknown, with a finding.</summary>
+    [Fact]
+    public void JoinedRoutesKeepOnlyAskedRowsAndAMissingOrTruncatedReadAddsNone()
+    {
+        EquatableArray<O.PlannedRouteProbe> asked = [new(new(0, 0), new(1, 0), [new(1, 0)]), new(new(1, 1), new(1, 1), [new(1, 1)]) { FromStart = true }];
+        var known = new O.CoupledRoute("Pawn_1", new(0, 0), new(1, 0), Known(2d));
+        var fromStart = new O.CoupledRoute("Pawn_1", new(7, 7), new(1, 1), Known(12d)) { FromStart = true };
+        var unasked = new O.CoupledRoute("Pawn_1", new(5, 5), new(1, 0), Known(8d));
+        var read = new O.ConstructionActivityRead { Known = true, Routes = [known, fromStart, unasked], Findings = ["planned_route_out_of_bounds"] };
+        var facts = JoinPlannedRoutes(new PlannedSiteFacts { Findings = ["planned_site_read_unknown"] }, ["planned_route_probes_exceeded"],
+            [(asked, read), (asked, null), (asked, read with { Truncated = true })]);
+        Assert.Equal([known, fromStart], facts.Routes);
+        Assert.Equal(["planned_route_out_of_bounds", "planned_route_probes_exceeded", "planned_route_read_truncated", "planned_route_read_unknown",
+            "planned_site_read_unknown"], facts.Findings);
+    }
 }

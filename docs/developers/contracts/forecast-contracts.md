@@ -297,15 +297,27 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   so only its native skill prerequisite gates `FinishTicks` (finding
   `planned_quality_minimum_unset`).
 
+`ConstructionActivityRequest.Routes` asks for routes between planned sites
+(#3313). A `PlannedRouteProbe` is a `From` cell, a `To` cell and the cells it may
+`Reach` (a site's pieces; empty for one cell); `FromStart` probes from each pawn's own
+position instead of `From`. Each comes back per free pawn as a `CoupledRoute` in
+`ConstructionActivityRead.Routes`: `From` (the probe's, or the pawn's position), the
+probe's `To`, `FromStart`, and `Ticks`, the native path cost (`FindPathNow`, touch)
+to the `Reach` cell nearest the origin, else `To`. No path leaves `Ticks` unknown; a
+probe out of bounds has no row (finding `planned_route_out_of_bounds`).
+
 Caps per read: 16 planned sites, 16 colonists, 16 sources per site, 128 positions
 per site, 32 rejections and 32 blockers per site and 128 rows over all planned
-sites (placed sites have their own 128, and clearing rows another 128). Excess sets
-`Truncated`; the caller batches. Verdicts classify every footprint thing, including
+sites (placed sites have their own 128, and clearing rows another 128); 16 route
+probes and 256 route rows. Excess sets `Truncated`; the caller batches. Verdicts classify every footprint thing, including
 those past the 32 reported. The coupled census passes no planned sites; Rounds ask
 them per round ([planned-site facts](../architecture/colony-forecast.md#planned-site-facts)).
 The prepared `observations/planned-site` case checks open-ground walls, a door and a
 shelf; rejection on a standing wall (`Unestimable`) and on deep water (`Illegal`);
-and Cut, Haul and Mine ops over a tree, a steel stack and natural rock.
+and Cut, Haul and Mine ops over a tree, a steel stack and natural rock. The prepared
+`observations/planned-room-one-builder` case reads one builder's rows and routes for
+an unplaced 3x3 wood room and requires the coupled forecast over them to schedule the
+whole room for that builder within a day.
 
 ### Planned shelter thermal read
 

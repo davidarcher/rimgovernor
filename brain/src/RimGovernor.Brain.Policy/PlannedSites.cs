@@ -34,10 +34,17 @@ public sealed record PlannedBuildSite(string Id, int Room, OpKind Op, string Def
     public EquatableArray<PlannedSiteClearing> Clearing { get; init; }
 }
 
-/// <summary>Every planned site of a round with the findings of building and reading them (a truncated read among them).</summary>
+/// <summary>
+/// Every planned site of a round with the findings of building and reading them (a truncated read among them), and
+/// the native routes between the sites of each room (#3313, PlannedRouteProbes): per pawn, from a site's location
+/// (its first position) or a clearing's end to another site's location, a material source or a clearing's start,
+/// and from each pawn's start to a roof.
+/// </summary>
 public sealed record PlannedSiteFacts
 {
     public EquatableArray<PlannedBuildSite> Sites { get; init; }
+
+    public EquatableArray<CoupledRoute> Routes { get; init; }
 
     public EquatableArray<string> Findings { get; init; }
 }
@@ -58,6 +65,12 @@ public static partial class PolicyFunctions
 
     /// <summary>The native read's per-site position cap: a longer site is not asked for and stays unknown.</summary>
     public const int PlannedSitePositionCap = 128;
+
+    /// <summary>Route probes one construction activity read carries (the read's own cap, 16 probes x 16 colonists).</summary>
+    public const int PlannedRoutesPerRead = 16;
+
+    /// <summary>Route probes asked per round over every room; the rest are not asked and stay unknown.</summary>
+    public const int PlannedRouteProbeCap = 8 * PlannedRoutesPerRead;
 
     /// <summary>
     /// The stuffs a planned ring is read in, cheapest available first (PlannedRingStuffCount of them): the stocked
@@ -294,6 +307,87 @@ public static partial class PolicyFunctions
             }
             : site);
         return new PlannedSiteFacts { Sites = EquatableArray.From(joined), Findings = EquatableArray.From(all) };
+    }
+
+    /// <summary>
+    /// The route probes between a room's answered sites (#3313), PlannedRoutesPerRead to a read. A room is probed when
+    /// one of its sites has native rows; its probed sites are those with rows, plus its roof. Each route runs from
+    /// where an activity of the room ends (a site's location, its first position; a clearing row's Location) to where
+    /// another starts: a site's location (reaching its nearest position), a material source (a row's Origin), a
+    /// clearing's start (a haul's Origin, a cut or mine row's Location). A roof is also probed from each pawn's start,
+    /// since no native row routes to it. Probes past PlannedRouteProbeCap are not asked (planned_route_probes_exceeded).
+    /// </summary>
+    public static (IReadOnlyList<EquatableArray<PlannedRouteProbe>> Batches, IReadOnlyList<string> Findings) PlannedRouteBatches(IReadOnlyList<PlannedBuildSite> sites)
+    {
+        var probes = new List<PlannedRouteProbe>();
+        foreach (var room in sites.Where(s => s.Room > 0 && s.Zone.Length == 0 && s.Positions.Count > 0).GroupBy(s => s.Room).OrderBy(g => g.Key))
+        {
+            var probed = room.Where(s => s.Op == OpKind.RoofIn || s.Options.Count > 0).OrderBy(s => s.Id, StringComparer.Ordinal).ToArray();
+            if (!probed.Any(s => s.Op != OpKind.RoofIn))
+            {
+                continue;
+            }
+            var ends = new List<Cell>();
+            var starts = new List<(Cell To, EquatableArray<Cell> Reach)>();
+            foreach (var site in probed)
+            {
+                var at = site.Positions[0];
+                ends.Add(at);
+                starts.Add((at, site.Positions));
+                if (site.Op == OpKind.RoofIn)
+                {
+                    probes.Add(new PlannedRouteProbe(at, at, site.Positions) { FromStart = true });
+                }
+                starts.AddRange(site.Options.Where(o => o.Count > 0).Select(o => (o.Origin, default(EquatableArray<Cell>))));
+                foreach (var clearing in site.Clearing.OrderBy(c => c.Id, StringComparer.Ordinal))
+                {
+                    foreach (var row in clearing.Options)
+                    {
+                        starts.Add((clearing.Kind == PlannedClearingKind.Haul ? row.Origin : row.Location, default));
+                        ends.Add(row.Location);
+                    }
+                }
+            }
+            var targets = starts.DistinctBy(s => s.To).ToArray();
+            foreach (var from in ends.Distinct())
+            {
+                probes.AddRange(targets.Where(t => t.To != from).Select(t => new PlannedRouteProbe(from, t.To, t.Reach)));
+            }
+        }
+        var findings = new List<string>();
+        if (probes.Count > PlannedRouteProbeCap)
+        {
+            findings.Add("planned_route_probes_exceeded");
+        }
+        return ([.. probes.Take(PlannedRouteProbeCap).Chunk(PlannedRoutesPerRead).Select(c => EquatableArray.From(c))], findings);
+    }
+
+    /// <summary>
+    /// The facts with each route read's rows for its own probes. A read that is missing or unknown
+    /// (planned_route_read_unknown) or truncated (planned_route_read_truncated) contributes no route, so those routes
+    /// stay unknown; the reads' own findings are kept.
+    /// </summary>
+    public static PlannedSiteFacts JoinPlannedRoutes(PlannedSiteFacts facts, IEnumerable<string> findings,
+        IEnumerable<(EquatableArray<PlannedRouteProbe> Asked, ConstructionActivityRead? Read)> reads)
+    {
+        var all = new SortedSet<string>(facts.Findings.Concat(findings), StringComparer.Ordinal);
+        var routes = new List<CoupledRoute>();
+        foreach (var (asked, read) in reads)
+        {
+            if (read is not { Known: true })
+            {
+                all.Add("planned_route_read_unknown");
+                continue;
+            }
+            all.UnionWith(read.Findings);
+            if (read.Truncated)
+            {
+                all.Add("planned_route_read_truncated");
+                continue;
+            }
+            routes.AddRange(read.Routes.Where(r => asked.Any(p => p.To == r.To && p.FromStart == r.FromStart && (p.FromStart || p.From == r.From))));
+        }
+        return facts with { Routes = EquatableArray.From(routes), Findings = EquatableArray.From(all) };
     }
 
     private static string RingSiteKind(OpKind kind) => kind switch

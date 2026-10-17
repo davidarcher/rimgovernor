@@ -7,16 +7,28 @@ using System.Text.Json.Serialization;
 namespace RimGovernor.Contracts.Wire.Observations;
 
 /// <summary>
-/// Placed sites (<see cref="Buildings"/>) and hypothetical, unplaced sites (<see cref="Planned"/>). At most 16 of
-/// each and 16 colonists are read; the caller batches the rest.
+/// Placed sites (<see cref="Buildings"/>), hypothetical, unplaced sites (<see cref="Planned"/>) and routes between
+/// planned sites (<see cref="Routes"/>). At most 16 of each and 16 colonists are read; the caller batches the rest.
 /// </summary>
 public sealed record ConstructionActivityRequest(Identity Identity,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<Building>))] EquatableArray<Building> Buildings)
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedConstructionSite>))]
     public EquatableArray<PlannedConstructionSite> Planned { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRouteProbe>))]
+    public EquatableArray<PlannedRouteProbe> Routes { get; init; }
     /// <summary>Unplaced planned shelters whose thermal cells and planned heaters the read samples (#3323); null asks nothing.</summary>
     public PlannedThermalRequest? Thermal { get; init; }
+}
+/// <summary>
+/// One route the planned read probes per free colonist (#3313): from <see cref="From"/> (or, with
+/// <see cref="FromStart"/>, from the pawn's own position) to the cell of <see cref="Reach"/> nearest that origin, or to
+/// <see cref="To"/> itself when Reach is empty. The row is labelled From -> To whichever cell it reached.
+/// </summary>
+public sealed record PlannedRouteProbe(Cell From, Cell To,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Reach)
+{
+    public bool FromStart { get; init; }
 }
 public sealed record ConstructionActivityOption(string Site, string Definition, Cell Location, string Pawn,
     string Resource, string Input, Cell Origin, int Count, int Capacity, string WorkGiver,
@@ -137,6 +149,12 @@ public sealed record ConstructionActivityRead
     public EquatableArray<ConstructionActivityOption> Options { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSiteAnswer>))]
     public EquatableArray<PlannedSiteAnswer> Planned { get; init; }
+    /// <summary>
+    /// The request's route probes, one row per probe x free colonist with <c>Ticks</c> unknown where no path is found;
+    /// a <see cref="PlannedRouteProbe.FromStart"/> row has <c>FromStart</c> set and <c>From</c> the pawn's cell.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<CoupledRoute>))]
+    public EquatableArray<CoupledRoute> Routes { get; init; }
     /// <summary>The answer to <see cref="ConstructionActivityRequest.Thermal"/>; null when nothing was asked.</summary>
     public CoupledThermalRead? Thermal { get; init; }
 }

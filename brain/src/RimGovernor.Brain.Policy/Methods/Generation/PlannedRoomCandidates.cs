@@ -28,7 +28,7 @@ internal static class PlannedRoomCandidates
     private enum Assessment { Valued, Unvalued, Infeasible }
 
     internal static PlannedRoomCandidatesResult Generate(EquatableArray<PlannedBuildSite> planned, IReadOnlyList<PlannedRoomAlternative> alternatives,
-        CoupledThermalRead? thermal, WorkResourceView resources, IReadOnlySet<string> pawns, double horizon)
+        EquatableArray<CoupledRoute> between, CoupledThermalRead? thermal, WorkResourceView resources, IReadOnlySet<string> pawns, double horizon)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var operations = new List<ForecastCompositionOperation>(); var observed = new Dictionary<string, ForecastCompositionSupply>(StringComparer.Ordinal);
@@ -43,18 +43,17 @@ internal static class PlannedRoomCandidates
             && (row.Input.Length == 0 || !resources.Claims.Targets.Contains(row.Input));
         var capability = new Resource("ConstructionReady"); var cleared = new Resource("PlannedSiteCleared");
         var completed = new Resource("CompletedPhysicalSite");
-        // The location work on a room starts from: its first ring wall, else its first site any pawn reaches (#3313 owns between-site routes).
-        ConstructionActivityOption[] Anchor(int room) => byId.Values.Where(s => s.Room == room && s.Op != OpKind.RoofIn)
-            .OrderBy(s => s.Op == OpKind.WallIn ? 0 : 1).ThenBy(s => s.Id, StringComparer.Ordinal)
-            .Select(s => s.Options.Where(Free).ToArray()).FirstOrDefault(rows => rows.Length > 0) ?? [];
+        // Routes between planned sites (#3313): a site is worked at its first position, a route reaching its nearest one.
+        bool Routed(string pawn, Cell to) => between.Any(r => r.Pawn == pawn && r.To == to && r.Ticks.IsKnown);
         ForecastActivityOption[] RoofOptions(PlannedBuildSite site, string id) => thermal is null ? [] : thermal.Workers
             .Where(w => w.RoofCellWorkTicks.IsKnown && pawns.Contains(w.Pawn) && !resources.Claims.Pawns.Contains(w.Pawn)
-                && Anchor(site.Room).Any(r => r.Pawn == w.Pawn))
+                && Routed(w.Pawn, site.Positions[0]))
             .Select(w => new ForecastActivityOption(id, w.Pawn, Known(w.RoofCellWorkTicks.Value * site.Positions.Count), Known(0.0))).ToArray();
         (Assessment Verdict, string Reason) Assess(PlannedBuildSite site)
         {
             if (site.Op == OpKind.RoofIn)
-                return RoofOptions(site, "").Length == 0 ? (Assessment.Unvalued, "roof_work_unknown") : (Assessment.Valued, "");
+                return thermal is null || !thermal.Workers.Any(w => w.RoofCellWorkTicks.IsKnown) ? (Assessment.Unvalued, "roof_work_unknown")
+                    : RoofOptions(site, "").Length == 0 ? (Assessment.Unvalued, "roof_unrouted") : (Assessment.Valued, "");
             if (site.Verdict == PlannedSiteVerdict.Illegal) return (Assessment.Infeasible, "illegal");
             if (site.Verdict == PlannedSiteVerdict.Unestimable) return (Assessment.Unvalued, "unestimable");
             if (site.Verdict != PlannedSiteVerdict.Feasible) return (Assessment.Unvalued, "unknown");
@@ -97,7 +96,6 @@ internal static class PlannedRoomCandidates
             var roomOptions = new List<ForecastActivityOption>(); var roomRoutes = new List<ForecastActivityRoute>();
             var roomLots = new List<ForecastMaterialLot>(); var roomSitesOps = new List<PlannedSiteOperations>();
             var finishes = new Dictionary<string, string>(StringComparer.Ordinal);
-            var anchor = Anchor(room.Key);
             foreach (var site in roomSites)
             {
                 var finish = site.Id + "/finish";
@@ -106,13 +104,10 @@ internal static class PlannedRoomCandidates
                 string siteLocation;
                 if (site.Op == OpKind.RoofIn)
                 {
-                    // The roof has no native placement: it is worked from the room's anchor site, cell by cell (RoofCellWorkTicks).
-                    siteLocation = ForecastLocations.Of(anchor[0].Location);
-                    foreach (var option in RoofOptions(site, finish))
-                    {
-                        roomOptions.Add(option);
-                        roomRoutes.Add(new(option.Pawn, "start", siteLocation, anchor.First(r => r.Pawn == option.Pawn).SiteApproachTicks));
-                    }
+                    // The roof has no native placement: it is worked at its own cells, cell by cell (RoofCellWorkTicks),
+                    // reached from each pawn's start and from the room's other sites by the planned routes.
+                    siteLocation = ForecastLocations.Of(site.Positions[0]);
+                    roomOptions.AddRange(RoofOptions(site, finish));
                 }
                 else
                 {
@@ -227,6 +222,10 @@ internal static class PlannedRoomCandidates
                     ExclusiveOutcome = "planned/room" + alternative.Room,
                 });
         }
+        // A pawn chains a room's sites over the planned routes: from where one activity ends to where the next starts.
+        if (operations.Count > 0)
+            routes.AddRange(between.Where(r => pawns.Contains(r.Pawn) && !resources.Claims.Pawns.Contains(r.Pawn))
+                .Select(r => new ForecastActivityRoute(r.Pawn, r.FromStart ? "start" : ForecastLocations.Of(r.From), ForecastLocations.Of(r.To), r.Ticks)));
         return new([.. operations], [.. observed.Values], [.. options], ForecastLocations.Merge(routes), [.. roots], [.. lots],
             [.. sites], [.. rooms], EquatableArray.From(findings), truncated);
     }

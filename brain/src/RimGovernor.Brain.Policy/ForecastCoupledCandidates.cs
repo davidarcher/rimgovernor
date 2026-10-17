@@ -51,7 +51,8 @@ public static partial class PolicyFunctions
         if (shelterEnabled && !facts.PlannedSites.IsKnown) plannedFindings.Add("planned_sites_unknown");
         var plannedAlternatives = PlannedRoomAlternatives(plannedSites);
         plannedFindings.AddRange(plannedAlternatives.Findings);
-        var planned = Methods.Generation.PlannedRoomCandidates.Generate(plannedSites, plannedAlternatives.Alternatives, read.Thermal, resources,
+        var planned = Methods.Generation.PlannedRoomCandidates.Generate(plannedSites, plannedAlternatives.Alternatives,
+            shelterEnabled && facts.PlannedSites.TryGetValue(out var plannedRoutes) ? plannedRoutes.Routes : [], read.Thermal, resources,
             needs.Pawns.Select(p => p.Pawn).ToHashSet(StringComparer.Ordinal), horizon);
         var lots = read.FoodSources.Select(o => new ForecastMaterialLot(o.Target, Location(o.Location), new(o.Resource), Known((double)o.Count)) { Perishable = true, FreshTicks = o.FreshTicks })
     .Concat(read.Construction.Options.Where(o => o.Input.Length != 0).Select(o => new ForecastMaterialLot(o.Input, Location(o.Origin), new(o.Resource), o.AvailableInput)))

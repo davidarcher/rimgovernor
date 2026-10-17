@@ -15,9 +15,9 @@ namespace HomeBridge.BridgeTools;
 
 public sealed class NativeConstructionActivity
 {
-    private const int SiteCap = 16, PawnCap = 16, SourceCap = 16, PositionCap = 128, ReportCap = 32, RowBudget = 128;
+    private const int SiteCap = 16, PawnCap = 16, SourceCap = 16, PositionCap = 128, ReportCap = 32, RowBudget = 128, RouteBudget = SiteCap * PawnCap;
 
-    [Tool("rimgovernor/construction_activity", Description = "Read bounded observed and planned site demand, exact material sources, eligible suppliers/builders, native route/work estimates and planned-site legality. No orders.")]
+    [Tool("rimgovernor/construction_activity", Description = "Read bounded observed and planned site demand, exact material sources, eligible suppliers/builders, native route/work estimates, planned-site legality and routes between planned sites. No orders.")]
     public async Task<object> Observe(IRimBridgeContext ctx, CancellationToken ct,
         [ToolParameter(Description = "ConstructionActivityRequest JSON.")] object? request = null)
     {
@@ -63,10 +63,40 @@ public sealed class NativeConstructionActivity
         var planned = new Budget { Truncated = request.Planned.Count > SiteCap || roster.Length > PawnCap };
         var clearing = new Budget();
         var answers = request.Planned.Take(SiteCap).Select(s => Planned(map, roster, s, finishGiver, planned, clearing)).ToArray();
-        return new() { Context = context, Known = true, Truncated = placed.Truncated || planned.Truncated || clearing.Truncated, Options = EquatableArray.From(options),
-            Planned = EquatableArray.From(answers),
+        var routed = new Budget { Rows = RouteBudget, Truncated = request.Routes.Count > SiteCap || roster.Length > PawnCap };
+        var routes = Routes(map, roster, request.Routes, routed);
+        return new() { Context = context, Known = true, Truncated = placed.Truncated || planned.Truncated || clearing.Truncated || routed.Truncated,
+            Options = EquatableArray.From(options), Planned = EquatableArray.From(answers), Routes = EquatableArray.From(routes),
             Thermal = request.Thermal is { } thermal ? NativeCoupledThermal.ReadPlanned(map, thermal) : null,
-            Findings = EquatableArray.From(placed.Findings.Concat(planned.Findings).Concat(clearing.Findings).Distinct().OrderBy(s => s, StringComparer.Ordinal)) };
+            Findings = EquatableArray.From(placed.Findings.Concat(planned.Findings).Concat(clearing.Findings).Concat(routed.Findings).Distinct().OrderBy(s => s, StringComparer.Ordinal)) };
+    }
+
+    // Routes between planned sites (#3313): per probe and free colonist, the native path from the probe's cell (or the
+    // pawn's own, FromStart) to its target cell nearest that origin. No path leaves the row's ticks unknown.
+    private static List<Obs.CoupledRoute> Routes(Map map, Pawn[] roster, EquatableArray<Obs.PlannedRouteProbe> probes, Budget budget)
+    {
+        var rows = new List<Obs.CoupledRoute>();
+        var pawns = roster.Take(PawnCap).Where(Free).ToArray();
+        foreach (var probe in probes.Take(SiteCap))
+        {
+            var to = new IntVec3(probe.To.X, 0, probe.To.Z);
+            var reach = probe.Reach.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
+            if (!to.InBounds(map) || (!probe.FromStart && !new IntVec3(probe.From.X, 0, probe.From.Z).InBounds(map)) || reach.Any(c => !c.InBounds(map)))
+            {
+                budget.Findings.Add("planned_route_out_of_bounds");
+                continue;
+            }
+            foreach (var pawn in pawns)
+            {
+                if (!budget.Take()) return rows;
+                var origin = probe.FromStart ? pawn.Position : new IntVec3(probe.From.X, 0, probe.From.Z);
+                var target = reach.Length == 0 ? to : reach.OrderBy(c => c.DistanceToSquared(origin)).ThenBy(c => c.x).ThenBy(c => c.z).First();
+                using var route = map.pathFinder.FindPathNow(origin, target, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.Touch);
+                rows.Add(new(pawn.GetUniqueLoadID(), new(origin.x, origin.z), probe.To, route.Found ? Fact.Known((double)route.TotalCost) : default)
+                    { FromStart = probe.FromStart });
+            }
+        }
+        return rows;
     }
 
     // A hypothetical site: native blueprint legality for every piece, then the placed-site rows against its cells.
