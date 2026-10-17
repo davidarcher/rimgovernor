@@ -49,8 +49,6 @@ namespace HomeBridge.BridgeTools
 
         public GovernorOverlay(Map map) : base(map) { }
 
-        public int Count => layers.Count;
-
         // Code-drawn groups (activity): drawn every frame on the
         // current map and toggled like request-fed layers.
         private static readonly List<(string Group, Action<Map> Draw)> drawers = new List<(string, Action<Map>)>();

@@ -35,7 +35,7 @@ namespace HomeBridge.BridgeTools
             if (!request.Enabled.GetValueOrDefault())
             {
                 overlay.Remove(id);
-                return Applied(context, 0, overlay);
+                return Applied(context, 0);
             }
             if (request.Labels.Count > MaxLabels) return Invalid($"More than {MaxLabels} labels.");
 
@@ -94,11 +94,11 @@ namespace HomeBridge.BridgeTools
                 if (cell.InBounds(map)) labels.Add(((label.Text ?? ""), cell));
             }
             overlay.Replace(id, groups, labels);
-            return Applied(context, (uint)covered.Count, overlay);
+            return Applied(context, (uint)covered.Count);
         }
 
-        private static Presentation.OverlayReply Applied(Common.ObservationContext context, uint cells, GovernorOverlay overlay) =>
-            new Presentation.OverlayReply { Outcome = new Presentation.OverlayApplied { Context = context, Cells = cells, Layers = (uint)overlay.Count } };
+        private static Presentation.OverlayReply Applied(Common.ObservationContext context, uint cells) =>
+            new Presentation.OverlayReply { Outcome = new Presentation.OverlayApplied { Context = context, Cells = cells } };
 
         private static Presentation.OverlayReply Invalid(string detail) =>
             new Presentation.OverlayReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, detail) };

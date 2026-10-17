@@ -55,7 +55,7 @@ internal static class NativeProtoPresentationProbe
             && Get(listing, "Complete") is true && Get(listing, "Truncated") is false, "Complete empty selection differs from unavailable");
         var reply = Wire("SelectionReply", "{\"outcome\":{\"type\":\"selection\",\"value\":{\"listing\":{\"totalCount\":0,\"returnedCount\":0,\"complete\":true,\"truncated\":false}}}}");
         var selected = Get(Get(reply, "Outcome"), "Selection");
-        Check(Get(selected, "Fingerprint") == null && Get(selected, "VisibleGizmoCount") == null, "Unproven optional capture/gizmo facts remain absent");
+        Check(Get(selected, "Fingerprint") == null, "Unproven optional selection fingerprint remains absent");
         var unavailable = Wire("CameraReply", "{\"outcome\":{\"type\":\"failure\",\"value\":{\"code\":\"FAILURE_CODE_UNAVAILABLE\"}}}");
         Check(Get(Get(unavailable, "Outcome"), "Camera") == null, "Unavailable camera never becomes zero geometry");
         Console.WriteLine(checks + " compiled presentation assertions passed; no gameplay assertions.");

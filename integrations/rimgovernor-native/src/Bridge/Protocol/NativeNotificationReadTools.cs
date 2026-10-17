@@ -28,7 +28,6 @@ namespace HomeBridge.BridgeTools
 
         private static readonly FieldInfo? ActiveAlertsField = BridgeCommon.PrivateInstanceField(typeof(AlertsReadout), "activeAlerts");
         private static readonly FieldInfo? LiveMessagesField = BridgeCommon.PrivateStaticField(typeof(Messages), "liveMessages");
-        private static readonly FieldInfo? MessageStartingTimeField = BridgeCommon.PrivateInstanceField(typeof(Message), "startingTime");
         private static readonly FieldInfo? DiaOptionTextField = BridgeCommon.PrivateInstanceField(typeof(DiaOption), "text");
 
         internal static Presentation.NotificationsReply HandleNotifications(Presentation.NotificationsRequest request)
@@ -98,10 +97,8 @@ namespace HomeBridge.BridgeTools
         private static Presentation.Letter ReadLetter(Verse.Letter letter, int tick)
         {
             var row = new Presentation.Letter { Id = Id(letter.GetUniqueLoadID()), NativeType = Id(letter.GetType().FullName!),
-                Label = Diagnostic(letter.Label.ToString()), ArrivalTick = letter.arrivalTick, AgeTicks = Math.Max(0, tick - letter.arrivalTick),
-                Dismissible = letter.CanDismissWithRightClick, AutomaticallyOpens = letter.ShouldAutomaticallyOpenLetter };
+                Label = Diagnostic(letter.Label.ToString()), ArrivalTick = letter.arrivalTick, AgeTicks = Math.Max(0, tick - letter.arrivalTick) };
             if (letter.def != null && ProtoBoundary.IsIdentifier(letter.def.defName)) row = row with { DefName = letter.def.defName };
-            if (letter.relatedFaction != null) row = row with { RelatedFactionLabel = Diagnostic(letter.relatedFaction.Name) };
             var targets = ReadLookTargets(letter.lookTargets);
             if (targets != null) row = row with { LookTargets = targets };
             if (letter is ChoiceLetter choiceLetter)
@@ -116,10 +113,8 @@ namespace HomeBridge.BridgeTools
                 foreach (var option in options)
                 {
                     index++;
-                    var choice = new Presentation.LetterChoice { Index = index, Disabled = option.disabled, ClosesDialog = option.resolveTree,
-                        HasAction = option.action != null, HasLink = option.link != null || option.linkLateBind != null };
+                    var choice = new Presentation.LetterChoice { Index = index, Disabled = option.disabled };
                     if (DiaOptionTextField?.GetValue(option) is string text) choice = choice with { Text = Diagnostic(text.Trim()) };
-                    if (option.disabledReason != null) choice = choice with { DisabledReason = Diagnostic(option.disabledReason) };
                     row = row with { Choices = [.. row.Choices, choice] };
                 }
             }
@@ -133,18 +128,12 @@ namespace HomeBridge.BridgeTools
             var field = LiveMessagesField ?? throw new NativeComponentMissing("Verse.Messages.liveMessages was not found on this build.");
             var live = (field.GetValue(null) as List<Verse.Message> ?? throw new NativeComponentMissing("Verse.Messages.liveMessages is not a message list.")).Where(m => m != null).ToList();
             live.Reverse(); // newest first
-            var now = RealTime.LastRealTime;
             var result = new Presentation.Messages { Listing = Listing(live.Count, Math.Min(live.Count, limit)) };
             var rows = new List<Presentation.TransientMessage>();
             foreach (var message in live.Take(limit))
             {
                 var row = new Presentation.TransientMessage { Id = Id(message.GetUniqueLoadID()), Text = Diagnostic(message.text ?? string.Empty),
-                    Alpha = NativePresentationReadTools.Finite(message.Alpha), Expired = message.Expired, StartingTick = message.startingTick,
-                    StartingFrame = checked((ulong)Math.Max(0, message.startingFrame)), AgeTicks = Math.Max(0, tick - message.startingTick), HasQuest = message.quest != null };
-                if (message.def != null && ProtoBoundary.IsIdentifier(message.def.defName)) row = row with { MessageDefName = message.def.defName };
-                // The 13-second lifespan is real time; ticks stand still while paused.
-                if (MessageStartingTimeField?.GetValue(message) is float startingTime)
-                    row = row with { AgeSeconds = NativePresentationReadTools.Finite(Math.Round(now - startingTime, 2)) };
+                    AgeTicks = Math.Max(0, tick - message.startingTick) };
                 var targets = ReadLookTargets(message.lookTargets);
                 if (targets != null) row = row with { LookTargets = targets };
                 rows.Add(row);
@@ -165,23 +154,19 @@ namespace HomeBridge.BridgeTools
             var readout = Find.Alerts ?? throw new NativeComponentMissing("Find.Alerts is unavailable.");
             var active = field.GetValue(readout) as List<RimWorld.Alert> ?? throw new NativeComponentMissing("AlertsReadout.activeAlerts is not an alert list.");
             var ordered = active.Select((alert, ordinal) => (alert, ordinal)).Where(a => a.alert != null)
-                .OrderByDescending(a => (int)a.alert.Priority).ThenBy(a => a.ordinal).ToList();
+                .OrderByDescending(a => (int)a.alert.Priority).ThenBy(a => a.ordinal).Select(a => a.alert).ToList();
             var result = new Presentation.Alerts { Listing = Listing(ordered.Count, Math.Min(ordered.Count, limit)),
-                SnapshotFingerprint = Fingerprint(ordered.Select(a => a.alert.GetType().FullName!)) };
+                SnapshotFingerprint = Fingerprint(ordered.Select(a => a.GetType().FullName!)) };
             var alertRows = new List<Presentation.Alert>();
-            foreach (var (alert, ordinal) in ordered.Take(limit))
+            foreach (var alert in ordered.Take(limit))
             {
                 // Alerts are singletons per type in the readout; the type is the identity.
-                var row = new Presentation.Alert { Id = Id(alert.GetType().FullName!), NativeType = Id(alert.GetType().FullName!), Ordinal = checked((uint)ordinal),
-                    NativePriority = Id(alert.Priority.ToString()), Active = alert.Active, EnabledWithActiveExpansions = alert.EnabledWithActiveExpansions };
+                var row = new Presentation.Alert { Id = Id(alert.GetType().FullName!), NativeType = Id(alert.GetType().FullName!), Active = alert.Active };
                 try { row = row with { Label = Diagnostic(alert.Label ?? string.Empty) }; }
                 catch (Exception) { row = row with { ReadIssue = ReadIssue("The alert label threw while being read.") }; }
-                try { row = row with { Explanation = Diagnostic(alert.GetExplanation().ToString()) }; }
-                catch (Exception) { row = row with { ReadIssue = ReadIssue("The alert explanation threw while being read.") }; }
                 try
                 {
                     var report = alert.GetReport();
-                    row = row with { AnyCulpritValid = report.AnyCulpritValid };
                     var culprits = (report.AllCulprits ?? Enumerable.Empty<GlobalTargetInfo>()).ToList();
                     row = row with { Listing = Listing(culprits.Count, culprits.Count) };
                     foreach (var culprit in culprits) row = row with { Targets = [.. row.Targets, Target(culprit)] };
@@ -215,7 +200,7 @@ namespace HomeBridge.BridgeTools
         {
             if (value == null || value.targets == null) return null;
             var targets = value.targets.Where(t => t.IsValid).ToList();
-            var result = new Presentation.LookTargets { Valid = value.IsValid, Listing = Listing(targets.Count, targets.Count) };
+            var result = new Presentation.LookTargets { Listing = Listing(targets.Count, targets.Count) };
             if (targets.Count > 0) result = result with { Primary = Target(targets[0]) };
             foreach (var target in targets) result = result with { Targets = [.. result.Targets, Target(target)] };
             return result;
@@ -227,7 +212,7 @@ namespace HomeBridge.BridgeTools
             if (target.HasThing && target.Thing != null)
             {
                 var thing = target.Thing;
-                row = row with { NativeKind = thing is Pawn ? "pawn" : "thing" }; row = row with { Id = Id(thing.GetUniqueLoadID()) }; row = row with { NativeType = Id(thing.GetType().FullName!) };
+                row = row with { Id = Id(thing.GetUniqueLoadID()) }; row = row with { NativeType = Id(thing.GetType().FullName!) };
                 row = row with { Label = Diagnostic(thing is Pawn pawn ? pawn.Name?.ToStringShort ?? pawn.LabelShort : thing.LabelCap) };
                 if (thing.def != null && ProtoBoundary.IsIdentifier(thing.def.defName)) row = row with { DefName = thing.def.defName };
                 if (thing.Map != null) { row = row with { MapId = thing.Map.uniqueID }; if (thing.Spawned && thing.Position.InBounds(thing.Map)) row = row with { Position = Cell(thing.Position) }; }
@@ -236,7 +221,7 @@ namespace HomeBridge.BridgeTools
             if (target.HasWorldObject && target.WorldObject != null)
             {
                 var worldObject = target.WorldObject;
-                row = row with { NativeKind = "worldObject" }; row = row with { Id = Id(worldObject.GetUniqueLoadID()) }; row = row with { NativeType = Id(worldObject.GetType().FullName!) };
+                row = row with { Id = Id(worldObject.GetUniqueLoadID()) }; row = row with { NativeType = Id(worldObject.GetType().FullName!) };
                 row = row with { Label = Diagnostic(target.Label ?? string.Empty) };
                 if (worldObject.def != null && ProtoBoundary.IsIdentifier(worldObject.def.defName)) row = row with { DefName = worldObject.def.defName };
                 if (worldObject.Tile.Valid) row = row with { WorldTileId = Id(worldObject.Tile.ToString()) };
@@ -244,15 +229,15 @@ namespace HomeBridge.BridgeTools
             }
             if (target.IsMapTarget && target.Map != null && target.Cell.IsValid && target.Cell.InBounds(target.Map))
             {
-                row = row with { NativeKind = "cell" }; row = row with { MapId = target.Map.uniqueID }; row = row with { Position = Cell(target.Cell) };
+                row = row with { MapId = target.Map.uniqueID }; row = row with { Position = Cell(target.Cell) };
                 return row;
             }
             if (target.IsWorldTarget && target.Tile.Valid)
             {
-                row = row with { NativeKind = "worldTile" }; row = row with { WorldTileId = Id(target.Tile.ToString()) };
+                row = row with { WorldTileId = Id(target.Tile.ToString()) };
                 return row;
             }
-            row = row with { NativeKind = "target" }; row = row with { Label = Diagnostic(target.Label ?? string.Empty) };
+            row = row with { Label = Diagnostic(target.Label ?? string.Empty) };
             return row;
         }
 

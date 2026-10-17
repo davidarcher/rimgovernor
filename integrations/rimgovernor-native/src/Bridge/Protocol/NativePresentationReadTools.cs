@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
                     MapPosition = new Presentation.MapPoint { X = Finite(position.x), Z = Finite(position.z) },
                     RootSize = Positive(driver.RootSize), ZoomRootSize = Positive(driver.ZoomRootSize),
                     MinimumRootSize = Positive(size.min), MaximumRootSize = Positive(size.max),
-                    NativeZoomRange = Id(driver.CurrentZoom.ToString()), ZoomExtensionEnabled = false,
+                    NativeZoomRange = Id(driver.CurrentZoom.ToString()),
                     ViewRect = new Presentation.MapRect { MinX = rect.minX, MinZ = rect.minZ, MaxX = rect.maxX, MaxZ = rect.maxZ } };
                 if (state.MaximumRootSize.GetValueOrDefault() < state.MinimumRootSize.GetValueOrDefault() || rect.maxX < rect.minX || rect.maxZ < rect.minZ)
                     throw new InvalidOperationException("Native camera bounds invalid.");
@@ -124,7 +124,7 @@ namespace HomeBridge.BridgeTools
         private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static string Diagnostic(string value) => PlacementPreviewOperation.Diagnostic(value);
-        internal static double Finite(double value) => !double.IsNaN(value) && !double.IsInfinity(value) ? value : throw new InvalidOperationException("Native camera value is not finite.");
+        private static double Finite(double value) => !double.IsNaN(value) && !double.IsInfinity(value) ? value : throw new InvalidOperationException("Native camera value is not finite.");
         private static double Positive(double value) => Finite(value) > 0 ? value : throw new InvalidOperationException("Native camera size is not positive.");
         internal static Presentation.Listing Listing(int count) => new Presentation.Listing { TotalCount = checked((uint)count), ReturnedCount = checked((uint)count), Complete = true, Truncated = false };
         private static Common.Failure Unavailable(string detail) => ProtoBoundary.Fail(Common.FailureCode.Unavailable, detail);
