@@ -47,7 +47,6 @@
     <Compile Include="../../../../scripts/fixtures/HusbandryFixture.cs" Condition="'$(HusbandryFixture)' == 'true'" />
 
     <Compile Include="../../../../scripts/fixtures/MedicalManagementFixture.cs" Condition="'$(MedicalManagementFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/HutShellFixture.cs" Condition="'$(HutShellFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ColonyReviewFixture.cs" Condition="'$(ColonyReviewFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/QuietStorytellerFixture.cs" Condition="'$(QuietStorytellerFixture)' == 'true'" />
     <!-- The native build (NativeModBuild) adds QuietStorytellerFixture, DebugStartFixture, LetterFixture and FreezeNeedsFixture to every fixture build; the extra conditions cover direct dotnet builds of the fixtures that call into them. -->
@@ -67,7 +66,6 @@
     <Compile Include="../../../../scripts/fixtures/SleepingFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(SleepingFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/TradeFixture.cs" Condition="'$(TradeFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/EmergencyDevelopmentFixture.cs" Condition="'$(EmergencyDevelopmentFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/DraftFaultFixture.cs" Condition="'$(DraftFaultFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RuntimeFaultFixture.cs" Condition="'$(RuntimeFaultFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MapScopeFixture.cs" Condition="'$(MapScopeFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SupportPortfolioFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
@@ -88,7 +86,6 @@
     <Compile Include="../../../../scripts/fixtures/HorrorIncidentFixture.cs" Condition="'$(HorrorIncidentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PlanStageFixture.cs" Condition="'$(PlanStageFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RecoveryAreaFixture.cs" Condition="'$(RecoveryAreaFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/BedAssignFixture.cs" Condition="'$(BedAssignFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BuriedSteelFixture.cs" Condition="'$(BuriedSteelFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ApplyRefusalFixture.cs" Condition="'$(ApplyRefusalFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BlightFixture.cs" Condition="'$(BlightFixture)' == 'true'" />
@@ -97,12 +94,10 @@
     <Compile Include="../../../../scripts/fixtures/DeepResourcesFixture.cs" Condition="'$(DeepResourcesFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LedgerFixture.cs" Condition="'$(LedgerFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HuntLedgerFixture.cs" Condition="'$(HuntLedgerFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/LayoutGridFixture.cs" Condition="'$(LayoutGridFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MaintenancePracticeFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/TrainingFixture.cs" Condition="'$(TrainingFixture)' == 'true' Or '$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SparringFixture.cs" Condition="'$(SparringFixture)' == 'true' Or '$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SparringWatchFixture.cs" Condition="'$(SparringWatchFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/LightingFixture.cs" Condition="'$(LightingFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BabyCareFixture.cs" Condition="'$(BabyCareFixture)' == 'true'" />
     <ProjectReference Include="../Runtime/RimGovernor.Runtime.csproj"><Private>false</Private></ProjectReference>
     <!-- The host (integrations/rimgovernor-host) ships the SDK and Newtonsoft.Json in the mod's Assemblies/. -->
