@@ -96,7 +96,8 @@ edit the main checkout. Details: [landing](docs/developers/development-process.m
   replace DLLs in Steam or the shared isolated copy, or rebuild binaries a
   running harness uses.
 - Keep builds, logs, saves, databases and temporary scripts out of commits.
-  Repository tooling is C# (`tools/rg`); no Python additions.
+  Repository tooling is C# (`tools/rg`); no Python additions. For one-off
+  scripting, use PowerShell or the repo's existing tools.
 - Use absolute harness paths. Detached Windows processes use
   `Start-Process -WindowStyle Hidden`; do not use sleep/poll shell loops.
   Remote setup and game-free checks are in the [runbook](docs/developers/agent-runbook.md#remote-agents).
