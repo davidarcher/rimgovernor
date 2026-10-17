@@ -24,10 +24,10 @@ internal static class NativeNeedsForecast
         {
             var needs = new List<Obs.NeedRate>();
             if (pawn.needs?.food is { } food) needs.Add(new("food", K(food.CurLevelPercentage),
-                K(food.FoodFallPerTick / food.MaxLevel), K(food.PercentageThreshHungry), K(food.MaxLevel))
+                K(food.FoodFallPerTick / food.MaxLevel), K(food.PercentageThreshHungry))
                 { Unsupported = ["food_category_and_bed_rate_changes"] });
             if (pawn.needs?.rest is { } rest) needs.Add(new("rest", K(rest.CurLevelPercentage),
-                K(rest.RestFallPerTick * pawn.GetStatValue(StatDefOf.RestFallRateFactor)), K(Need_Rest.ThreshTired), K(1))
+                K(rest.RestFallPerTick * pawn.GetStatValue(StatDefOf.RestFallRateFactor)), K(Need_Rest.ThreshTired))
                 { Unsupported = ["rest_category_rate_changes", "involuntary_sleep_risk"] });
             if (pawn.needs?.joy is { } joy)
             {
@@ -35,7 +35,7 @@ internal static class NativeNeedsForecast
                 var thresholds = BridgeCommon.PrivateInstanceField(typeof(Need), "threshPercents")?.GetValue(joy) as List<float>;
                 needs.Add(new("joy", K(joy.CurLevelPercentage), decay is float fall
                     ? K(fall / 150.0 * pawn.GetStatValue(StatDefOf.JoyFallRateFactor)) : default,
-                    thresholds is { Count: > 1 } ? K(thresholds[1]) : default, K(1))
+                    thresholds is { Count: > 1 } ? K(thresholds[1]) : default)
                     { Unsupported = ["joy_category_rate_changes", "future_tolerance_changes"] });
             }
             var state = pawn.Dead ? "dead" : pawn.Downed ? "downed" : pawn.InMentalState ? "mental_state"

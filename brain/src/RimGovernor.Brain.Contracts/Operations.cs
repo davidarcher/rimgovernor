@@ -2075,10 +2075,6 @@ public abstract record BuildingPatchIntentChange
 
     public sealed record PlantDefCase(string Value) : BuildingPatchIntentChange;
 
-    /// <summary>The <c>Claim</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Clear? Claim => (this as ClaimCase)?.Value;
-
     public sealed record ClaimCase(Clear Value) : BuildingPatchIntentChange;
 
     public sealed record ForSlavesCase(Clear Value) : BuildingPatchIntentChange;

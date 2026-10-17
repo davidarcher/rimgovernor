@@ -1,20 +1,23 @@
-using System.Globalization;
-using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.NativeFacade;
+using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>zone/rectangle</c> (Go <c>rectangle.go</c>).</summary>
+/// <summary><c>zone/rectangle</c>: a stockpile rectangle create through operations_apply over a staged site.</summary>
 internal static class ZoneRectangle
 {
-    internal static AcceptanceCase Case() => new()
+    internal static TypedCase Case() => new()
     {
         Name = "zone/rectangle",
-        Scope = "Native stockpile rectangle placement uses vanilla cell eligibility, keeps both components across a wall barrier and ground holding Steel, skips an existing player stockpile without changing it, and replays all created IDs without duplicates. A Go snapshot cannot verify the native designator, zone grid, hauling settings or replay cache.",
-        Start = FixtureStage.Start(Fixture),
-        Budget = TimeSpan.FromMinutes(3),
-        Crew = new Crew { Size = 3 },
+        Scope = "Native stockpile rectangle placement uses vanilla cell eligibility, keeps both components across a wall barrier and ground holding Steel, skips an existing player stockpile without changing it, and replays all created IDs without duplicates after 260 newer actions. A snapshot cannot verify the native designator, zone grid, hauling settings or replay cache.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
+        Stage = Fixture,
         Run = RunAsync,
     };
 
@@ -36,93 +39,65 @@ internal static class ZoneRectangle
         Zones = [new Fx.StageZone { Name = "player", Kind = Fx.StageZoneKind.Stockpile, Label = "Player stockpile", Cells = [new(6, 4)], Priority = Fx.StageStoragePriority.Low, Allow = [] }],
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var identity = s.Identity;
-        var staged = FixtureStage.Prepared(s);
-        var (x, z) = (staged.Site!.Value.X, staged.Site.Value.Z);
+        var staged = s.Staged!;
+        var site = staged.Site ?? throw new AcceptanceException("stage: no site");
+        var (x, z) = (site.X, site.Z);
         var playerId = staged.Zones["player"];
 
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "acquire", identity, cancellationToken).ConfigureAwait(false);
-        var intent = new JsonObject
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+        var intent = new Operations.ZoneIntent
         {
-            ["label"] = "Rectangle storage",
-            ["kind"] = "ZONE_TYPE_STOCKPILE",
-            ["addCells"] = new JsonObject
+            Label = "Rectangle storage",
+            Kind = Operations.ZoneType.Stockpile,
+            AddCells = new Operations.Cells { Selection = new Operations.Rectangle { Origin = new Common.Cell { X = x, Z = z }, Width = 7, Height = 5 } },
+            Stockpile = new Operations.StockpileSettings
             {
-                ["rectangle"] = new JsonObject { ["origin"] = new JsonObject { ["x"] = x, ["z"] = z }, ["width"] = 7, ["height"] = 5 },
-            },
-            ["stockpile"] = new JsonObject
-            {
-                ["priority"] = "STORAGE_PRIORITY_IMPORTANT",
-                ["preset"] = "FILTER_PRESET_NOTHING",
-                ["filter"] = new JsonObject { ["allow"] = new JsonArray(new JsonObject { ["thingDef"] = "Steel" }) },
+                Priority = Operations.StoragePriority.Important,
+                Preset = Operations.FilterPreset.Nothing,
+                Filter = new Operations.FilterPatch { Allow = [new Operations.FilterSelector { Definition = new Operations.FilterSelectorDefinition.ThingDefCase("Steel") }] },
             },
         };
 
-        async Task<JsonObject> Apply(string label)
+        async Task<Receipts.ZoneEffect> ApplyAsync(string label)
         {
-            var reply = await h.WireAsync(
-                label,
-                "operations_apply",
-                new JsonObject
-                {
-                    ["identity"] = identity.DeepClone(),
-                    ["actions"] = new JsonArray(new JsonObject { ["key"] = "rectangle-stockpile", ["zone"] = intent.DeepClone() }),
-                },
-                cancellationToken).ConfigureAwait(false);
-            var results = reply["results"].AsSlice();
-            if (results.Count != 1)
-            {
-                throw new AcceptanceException($"{label}: {reply.ToJson()}");
-            }
-
-            var result = results[0].AsMap() ?? [];
-            return CaseSupport.AppliedEffect(result, "zone")
-                ?? throw new AcceptanceException($"{label}: missing applied stockpile evidence: {result.ToJson()}");
+            var outcome = await TypedApply.AppliedAsync(s, "rectangle-stockpile", intent, cancellationToken).ConfigureAwait(false);
+            var effect = outcome.Applied?.Outcome?.Applied?.Observed?.Effect?.Zone
+                ?? throw new AcceptanceException($"{label}: missing applied stockpile evidence: {outcome}");
+            s.RecordWire(label, effect);
+            return effect;
         }
 
-        var first = await Apply("rectangle-create").ConfigureAwait(false);
-        var rows = first["created"].AsSlice();
+        var first = await ApplyAsync("rectangle-create").ConfigureAwait(false);
+        var rows = first.Created.ToList();
         if (rows.Count != 2)
         {
-            throw new AcceptanceException($"expected both components: {first.ToJson()}");
+            throw new AcceptanceException($"expected both components: {first}");
         }
 
         var ids = new List<string> { playerId };
         var actual = new Dictionary<string, List<Cell>>(StringComparer.Ordinal);
-        var expected = new HashSet<Cell>();
-        for (var dx = 0; dx < 7; dx++)
-        {
-            for (var dz = 0; dz < 5; dz++)
-            {
-                if (dx != 3 && !(dx == 1 && dz == 2) && !(dx == 6 && dz == 4))
-                {
-                    expected.Add(new Cell(x + dx, z + dz));
-                }
-            }
-        }
-
+        var expected = (from dx in Enumerable.Range(0, 7)
+                        from dz in Enumerable.Range(0, 5)
+                        where dx != 3 && !(dx == 1 && dz == 2) && !(dx == 6 && dz == 4)
+                        select new Cell(x + dx, z + dz)).ToHashSet();
         var count = 0;
-        foreach (var raw in rows)
+        foreach (var row in rows)
         {
-            var row = raw.AsMap() ?? [];
-            var id = row["zoneId"].AsString();
+            var id = row.ZoneId ?? "";
             if (id.Length == 0 || id == playerId || actual.ContainsKey(id))
             {
-                throw new AcceptanceException($"invalid created identity: {row.ToJson()}");
+                throw new AcceptanceException($"invalid created identity: {row}");
             }
 
             ids.Add(id);
             actual[id] = [];
-            foreach (var rawCell in row["cells"].AsSlice())
+            foreach (var c in row.Cells.Select(c => new Cell(c.X, c.Z)))
             {
-                var cell = rawCell.AsMap() ?? [];
-                var c = new Cell((int)cell["x"].AsNumber(), (int)cell["z"].AsNumber());
                 if (!expected.Remove(c))
                 {
-                    throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"unexpected/duplicate cell {c}"));
+                    throw new AcceptanceException($"unexpected/duplicate cell {c}");
                 }
 
                 actual[id].Add(c);
@@ -132,101 +107,80 @@ internal static class ZoneRectangle
 
         if (count != 28 || expected.Count != 0)
         {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"lost usable cells: count={count} missing={string.Join(' ', expected)}"));
+            throw new AcceptanceException($"lost usable cells: count={count} missing={string.Join(' ', expected)}");
         }
 
-        var grid = await h.MapCellsAsync("rectangle-grid", identity, cancellationToken).ConfigureAwait(false);
-        var byZone = grid.ZoneCells();
+        var byZone = (await TypedApply.CellsAsync(s, "rectangle-grid", site, cancellationToken).ConfigureAwait(false)).ZoneCells();
         foreach (var (id, cells) in actual)
         {
             var gridCells = byZone.GetValueOrDefault(id) ?? [];
-            if (gridCells.Count != cells.Count)
+            if (!gridCells.ToHashSet().SetEquals(cells))
             {
-                throw new AcceptanceException($"zone {id}: receipt/grid mismatch: {string.Join(' ', cells)} {string.Join(' ', gridCells)}");
-            }
-
-            var set = cells.ToHashSet();
-            foreach (var c in gridCells)
-            {
-                if (!set.Contains(c))
-                {
-                    throw new AcceptanceException($"zone {id} unexpected grid cell {c}");
-                }
+                throw new AcceptanceException($"zone {id}: receipt/grid mismatch: {string.Join(' ', cells)} vs {string.Join(' ', gridCells)}");
             }
         }
 
-        var zonesReply = await h.WireAsync(
-            "rectangle-zone-settings",
-            "observations_list_zones",
-            new JsonObject
-            {
-                ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-                ["ids"] = new JsonArray([.. ids.Select(id => (JsonNode?)id)]),
-                ["includeFilter"] = true,
-            },
-            cancellationToken).ConfigureAwait(false);
-        var (_, observed) = Harness.Outcome(zonesReply, "observed");
-        var zones = observed["zones"].AsSlice();
+        var zonesReply = await s.CallAsync("rectangle-zone-settings", NativeOps.ListZones, new Observations.ListZonesRequest
+        {
+            Scope = s.Scope,
+            Ids = [.. ids],
+            IncludeFilter = true,
+        }, cancellationToken).ConfigureAwait(false);
+        var zones = TypedReads.Observed("rectangle-zone-settings", NativeOps.ListZones, zonesReply, zonesReply.Outcome?.Observed).Zones.ToList();
+        s.RecordWire("zones", zones);
         if (zones.Count != 3)
         {
-            throw new AcceptanceException($"expected three zones: {observed.ToJson()}");
+            throw new AcceptanceException($"expected three zones, got {zones.Count}");
         }
 
-        foreach (var raw in zones)
+        foreach (var row in zones)
         {
-            var row = raw.AsMap() ?? [];
-            var id = row["id"].AsString();
-            var allowed = row["filter"].AsMap()?["allowedDefNames"].AsSlice() ?? [];
-            if (id == playerId)
+            var allowed = row.Filter?.AllowedDefNames.ToList() ?? [];
+            if (row.Id == playerId)
             {
-                if (row["priority"].AsString() != "Low" || allowed.Count != 0)
+                if (row.Priority != "Low" || allowed.Count != 0)
                 {
-                    throw new AcceptanceException($"player zone changed: {row.ToJson()}");
+                    throw new AcceptanceException($"player zone changed: {row}");
                 }
             }
-            else if (row["priority"].AsString() != "Important" || allowed.Count != 1 || allowed[0].AsString() != "Steel")
+            else if (row.Priority != "Important" || allowed is not ["Steel"])
             {
-                throw new AcceptanceException($"created settings mismatch: {row.ToJson()}");
+                throw new AcceptanceException($"created settings mismatch: {row}");
             }
         }
 
         // Creation receipts remain recoverable after ordinary replay entries age out.
-        var churn = new JsonArray();
-        for (var i = 0; i < 260; i++)
+        var churn = await s.CallAsync("rectangle-replay-churn", NativeOps.Apply, new Operations.ApplyRequest
         {
-            churn.Add(new JsonObject
+            Identity = s.Identity,
+            Actions = [.. Enumerable.Range(0, 260).Select(i => new Operations.Action
             {
-                ["key"] = $"rectangle-settings-{CaseSupport.Tag(i)}",
-                ["zone"] = new JsonObject
+                Key = $"rectangle-settings-{i:D3}",
+                Intent = new Operations.ZoneIntent
                 {
-                    ["zone"] = new JsonObject { ["id"] = ids[1] },
-                    ["stockpile"] = new JsonObject { ["priority"] = "STORAGE_PRIORITY_IMPORTANT" },
+                    Zone = new Common.Ref { Id = ids[1] },
+                    Stockpile = new Operations.StockpileSettings { Priority = Operations.StoragePriority.Important },
                 },
-            });
-        }
-
-        _ = await h.WireAsync("rectangle-replay-churn", "operations_apply", new JsonObject { ["identity"] = identity.DeepClone(), ["actions"] = churn }, cancellationToken).ConfigureAwait(false);
-        var replay = await Apply("rectangle-replay").ConfigureAwait(false);
-        if (!Dyn.DeepEqual(first, replay))
+            })],
+        }, cancellationToken).ConfigureAwait(false);
+        if (churn.BatchFailure is not null || churn.Results.Count != 260)
         {
-            throw new AcceptanceException($"replay lost creation identities: {replay.ToJson()}");
+            throw new AcceptanceException($"rectangle-replay-churn: {churn.BatchFailure} with {churn.Results.Count} results");
         }
 
-        grid = await h.MapCellsAsync("rectangle-replay-grid", identity, cancellationToken).ConfigureAwait(false);
-        var after = grid.ZoneCells();
+        var replay = await ApplyAsync("rectangle-replay").ConfigureAwait(false);
+        if (!replay.Created.SequenceEqual(first.Created))
+        {
+            throw new AcceptanceException($"replay lost creation identities: {replay}");
+        }
+
+        var after = (await TypedApply.CellsAsync(s, "rectangle-replay-grid", site, cancellationToken).ConfigureAwait(false)).ZoneCells();
         foreach (var id in ids)
         {
-            var before = byZone.GetValueOrDefault(id) ?? [];
-            var now = after.GetValueOrDefault(id) ?? [];
-            if (!before.SequenceEqual(now))
+            if (!(byZone.GetValueOrDefault(id) ?? []).SequenceEqual(after.GetValueOrDefault(id) ?? []))
             {
                 throw new AcceptanceException($"replay changed zone {id}");
             }
         }
-
-        s.Report["created_components"] = rows.Count;
-        s.Report["created_cells"] = count;
-        s.Report["player_zone_unchanged"] = true;
-        s.Report["replayed_without_duplicates"] = true;
     }
 }

@@ -127,7 +127,6 @@ namespace HomeBridge.BridgeTools
             if (intent.Setting is PS.NicknameCase) {
                 field = new Receipts.FieldResult { Field = Receipts.SettingsField.Nickname, Outcome = Rename(pawn!, intent.Setting?.Nickname ?? "") };
                 return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                    Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn!.GetUniqueLoadID() },
                     Fields = [field] } };
             }
             if (intent.Setting is PS.MedicineCarryCase)
@@ -163,7 +162,6 @@ namespace HomeBridge.BridgeTools
                 field = new Receipts.FieldResult { Field = Receipts.SettingsField.Hostility, Outcome = outcome };
             }
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
                 Fields = [field] } };
         }
 
@@ -199,7 +197,6 @@ namespace HomeBridge.BridgeTools
             stock.SetCountForGroup(group, (intent.Setting?.MedicineCarry ?? 0));
             if (stock.GetDesiredCountForGroup(group) != (intent.Setting?.MedicineCarry ?? 0)) throw new InvalidOperationException("Native medicine carry requires readback.");
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
                 Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.MedicineCarry,
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied }] } };
         }
@@ -231,7 +228,6 @@ namespace HomeBridge.BridgeTools
             pawn.reading.CurrentPolicy = policy;
             if (pawn.reading.CurrentPolicy != policy) throw new InvalidOperationException("Native reading policy requires readback.");
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
                 Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.ReadingPolicy,
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied }] } };
         }
@@ -263,7 +259,6 @@ namespace HomeBridge.BridgeTools
             pawn.drugs.CurrentPolicy = policy;
             if (pawn.drugs.CurrentPolicy != policy) throw new InvalidOperationException("Native drug policy requires readback.");
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
                 Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.DrugPolicy,
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied }] } };
         }
@@ -295,7 +290,6 @@ namespace HomeBridge.BridgeTools
             pawn.foodRestriction.CurrentFoodPolicy = policy;
             if (pawn.foodRestriction.CurrentFoodPolicy != policy) throw new InvalidOperationException("Native food policy requires readback.");
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
                 Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.FoodRestriction,
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied }] } };
         }
@@ -368,7 +362,6 @@ namespace HomeBridge.BridgeTools
                 field = Receipts.SettingsField.MechControlGroup;
             }
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn!.GetUniqueLoadID() },
                 Fields = [new Receipts.FieldResult { Field = field,
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied }] } };
         }
@@ -422,7 +415,6 @@ namespace HomeBridge.BridgeTools
             if (!unchanged && royalty.GetPermitPoints(faction!) != before - permit!.permitPointCost)
                 throw new InvalidOperationException("Native permit points did not drop by the permit's cost.");
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
                 Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.Permit,
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied }] } };
         }
@@ -464,7 +456,6 @@ namespace HomeBridge.BridgeTools
             target.extractBioferrite = want;
             if (target.extractBioferrite != want) throw new InvalidOperationException("Native extract bioferrite requires readback.");
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn!.GetUniqueLoadID() },
                 Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.ExtractBioferrite,
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied }] } };
         }

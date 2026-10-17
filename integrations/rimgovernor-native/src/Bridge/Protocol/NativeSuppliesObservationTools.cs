@@ -82,7 +82,7 @@ namespace HomeBridge.BridgeTools
             internal Thing? Holder;
             internal string? HolderKind;
             internal IntVec3 Position;
-            internal bool Ours, Forbidden, Fogged, PlayerFaction, OtherFaction;
+            internal bool Ours, Forbidden, PlayerFaction, OtherFaction;
         }
         private sealed class Holder
         {
@@ -135,7 +135,7 @@ namespace HomeBridge.BridgeTools
                 var other = holder?.Other ?? (thing.Faction != null && thing.Faction != player);
                 result.Add(new StockEntry { Thing = thing, Holder = holder?.Thing, HolderKind = holder?.Kind,
                     Position = position, Ours = IsOurs(fogged, holder != null, ownFaction, other, holder?.Dead ?? false),
-                    Forbidden = forbidden, Fogged = fogged,
+                    Forbidden = forbidden,
                     PlayerFaction = ownFaction, OtherFaction = other });
             }
             private void Walk(IThingHolder holder, Thing root, Holder? inherited, int depth)
@@ -197,7 +197,7 @@ namespace HomeBridge.BridgeTools
         {
             var first = entries[0].Thing.def;
             var row = new Obs.ResourceStock { Definition = new Obs.DefinitionRef { DefName = Id(first.defName) }, Stacks = entries.Count };
-            long totalUnits = 0, spawned = 0, ours = 0, oursUnforbidden = 0, forbidden = 0, playerFaction = 0, fogged = 0;
+            long totalUnits = 0, spawned = 0, ours = 0, oursUnforbidden = 0, forbidden = 0, playerFaction = 0;
             foreach (var entry in entries)
             {
                 var units = entry.Thing.stackCount;
@@ -209,7 +209,6 @@ namespace HomeBridge.BridgeTools
                     if (entry.Ours && !entry.Forbidden) oursUnforbidden += units;
                     if (entry.Forbidden) forbidden += units;
                     if (entry.PlayerFaction) playerFaction += units;
-                    if (entry.Fogged) fogged += units;
                 }
                 row = row with { Items = [.. row.Items, Item(entry.Thing, entry.Position)] };
                 if (entry.Thing.def.IsWeapon) {
@@ -221,7 +220,7 @@ namespace HomeBridge.BridgeTools
             }
             row = row with { Issues = [.. row.Issues, Issue("items.snapshot", Common.UnavailableReason.Unsupported, "One or more items lack an Allow snapshot; only eligible loose supplies support Allow.")] };
             return row with { Units = totalUnits, Spawned = spawned, Ours = ours, OursUnforbidden = oursUnforbidden, Forbidden = forbidden,
-                PlayerFaction = playerFaction, Fogged = fogged };
+                PlayerFaction = playerFaction };
         }
 
         // Held/container/corpse items have no Allow snapshot; give them a stateless CAS token

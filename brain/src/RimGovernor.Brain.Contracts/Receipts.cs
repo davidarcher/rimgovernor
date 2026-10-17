@@ -568,8 +568,6 @@ public sealed record SnapshotEvidence
 public sealed record AcquisitionEffect
 {
     public Common.Cell? Cell { get; init; }
-
-    public bool? Designated { get; init; }
 }
 
 /// <summary>
@@ -579,13 +577,9 @@ public sealed record ExcavationEffect
 {
     public Common.Cell? Cell { get; init; }
 
-    public bool? Designated { get; init; }
-
     public bool? Cleared { get; init; }
 
     public bool? Cancelled { get; init; }
-
-    public string? Blocker { get; init; }
 }
 
 /// <summary>
@@ -594,7 +588,6 @@ public sealed record ExcavationEffect
 /// </summary>
 public sealed record DialogEffect
 {
-    public bool? Advanced { get; init; }
 }
 
 public sealed record ConstructionEffect
@@ -614,8 +607,6 @@ public sealed record ConstructionEffect
     public bool? Started { get; init; }
 
     public bool? Failed { get; init; }
-
-    public string? Blocker { get; init; }
 }
 
 public sealed record InstallationEffect
@@ -669,8 +660,6 @@ public abstract record FieldResultEntry
 
 public sealed record SettingsEffect
 {
-    public SnapshotEvidence? Snapshot { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<FieldResult>))]
     public EquatableArray<FieldResult> Fields { get; init; }
 }
@@ -689,7 +678,6 @@ public sealed record BillEffect
 
 public sealed record ResearchEffect
 {
-    public SnapshotEvidence? Snapshot { get; init; }
 }
 
 public sealed record CellResult
@@ -711,8 +699,6 @@ public sealed record CreatedZone
 
 public sealed record ZoneEffect
 {
-    public SnapshotEvidence? Snapshot { get; init; }
-
     public string? ZoneId { get; init; }
 
     public bool? Present { get; init; }
@@ -731,11 +717,6 @@ public sealed record DeconstructEffect
     public string? TargetId { get; init; }
 
     public string? DesignationId { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> WorkerIds { get; init; }
-
-    public bool? DemolitionObserved { get; init; }
 
     public SnapshotEvidence? Site { get; init; }
 
@@ -830,8 +811,6 @@ public sealed record RemoveRoofEffect
 /// </summary>
 public sealed record BuildRoofEffect
 {
-    public int? Designated { get; init; }
-
     public int? Roofed { get; init; }
 }
 
@@ -1032,8 +1011,6 @@ public sealed record TradeEffect
 
     public string? FactionId { get; init; }
 
-    public SnapshotEvidence? Snapshot { get; init; }
-
     public bool? ActuallyTraded { get; init; }
 }
 
@@ -1062,8 +1039,6 @@ public sealed record CaravanEffect
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> PawnIds { get; init; }
-
-    public SnapshotEvidence? Snapshot { get; init; }
 }
 
 public sealed record QuestEffect
@@ -1073,8 +1048,6 @@ public sealed record QuestEffect
     public bool? Accepted { get; init; }
 
     public QuestStatus? State { get; init; }
-
-    public SnapshotEvidence? Snapshot { get; init; }
 }
 
 public sealed record QuestShuttleEffect

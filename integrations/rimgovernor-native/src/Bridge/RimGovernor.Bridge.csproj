@@ -16,7 +16,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../../../scripts/fixtures/GuardedConstructionFixture.cs" Condition="'$(GuardedConstructionFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/StorageHaulFixture.cs" Condition="'$(StorageHaulFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HazardFixture.cs" Condition="'$(HazardFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ShelterFixture.cs" Condition="'$(ShelterFixture)' == 'true'" />
     <!-- The wire records (RimGovernor.Brain.Contracts, serialised with WireJson) come from the brain assemblies the mod shares with the in-process brain (#3080): one set of types, one build graph. -->
@@ -66,8 +65,6 @@
     <Compile Include="../../../../scripts/fixtures/FreezeNeedsFixture.cs" Condition="'$(FreezeNeedsFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/UpkeepFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SleepingFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(SleepingFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/WallUpgradeFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(WallUpgradeFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/ClearanceFixture.cs" Condition="'$(WallUpgradeFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/TradeFixture.cs" Condition="'$(TradeFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/EmergencyDevelopmentFixture.cs" Condition="'$(EmergencyDevelopmentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DraftFaultFixture.cs" Condition="'$(DraftFaultFixture)' == 'true'" />
@@ -106,8 +103,6 @@
     <Compile Include="../../../../scripts/fixtures/SparringFixture.cs" Condition="'$(SparringFixture)' == 'true' Or '$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SparringWatchFixture.cs" Condition="'$(SparringWatchFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LightingFixture.cs" Condition="'$(LightingFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/FlooringFixture.cs" Condition="'$(FlooringFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/RoutesFixture.cs" Condition="'$(RoutesFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BabyCareFixture.cs" Condition="'$(BabyCareFixture)' == 'true'" />
     <ProjectReference Include="../Runtime/RimGovernor.Runtime.csproj"><Private>false</Private></ProjectReference>
     <!-- The host (integrations/rimgovernor-host) ships the SDK and Newtonsoft.Json in the mod's Assemblies/. -->

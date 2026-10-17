@@ -147,13 +147,13 @@ namespace HomeBridge.BridgeTools
             if (pending != null)
                 return new Receipts.EffectEvidence { Effect = new Receipts.WallEffect { TargetId = id, RemovalId = pending.Id, DemolitionObserved = false } };
             var chosen = candidate!;
-            var before = chosen.Site.Snapshot?.Token ?? "";
+            var before = NativeWallUpgradeObservationTools.SiteToken(chosen.Site, context);
             if (WallUpgradeSafety.Prepare(chosen.Record) != null) throw new InvalidOperationException("Wall removal site changed before designation.");
             var blocker = WallUpgradeSafety.Commit(chosen.Record);
             if (blocker != null) throw new InvalidOperationException(blocker);
             var after = chosen.Reread();
             var effect = new Receipts.WallEffect { TargetId = id, RemovalId = chosen.Record.Id, DemolitionObserved = false,
-                Site = new Receipts.SnapshotEvidence { EntityId = id, BeforeToken = before, AfterToken = after?.Snapshot is { } afterSnapshot ? afterSnapshot.Token : null } };
+                Site = new Receipts.SnapshotEvidence { EntityId = id, BeforeToken = before, AfterToken = after != null ? NativeWallUpgradeObservationTools.SiteToken(after, context) : null } };
             return new Receipts.EffectEvidence { Effect = effect };
         }
     }

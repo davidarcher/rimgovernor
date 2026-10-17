@@ -75,7 +75,6 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.ResearchSnapshot Read(Obs.ResearchRequest request, Common.ObservationContext context, ResearchManager manager)
         {
-            var points = new Dictionary<string, double>(StringComparer.Ordinal);
             var progress = Backing<Dictionary<ResearchProjectDef, float>>(manager, "progress");
             var knowledge = Backing<Dictionary<ResearchProjectDef, float>>(manager, "anomalyKnowledge");
             var anomaly = ModsConfig.AnomalyActive;
@@ -125,7 +124,6 @@ namespace HomeBridge.BridgeTools
                     var kept = new Obs.ResearchProject { Project = slim.Project, Finished = slim.Finished, Current = slim.Current, Progress = slim.Progress };
                     if (slim.ProgressFraction is not null) kept = kept with { ProgressFraction = slim.ProgressFraction };
                     if (selectedRow || knowledgeRow) { kept = kept with { LockReasons = [.. kept.LockReasons, .. slim.LockReasons] }; kept = kept with { CanStart = slim.CanStart }; }
-                    points[def.defName] = reached;
                     built.Add(kept);
                     continue;
                 }
@@ -133,12 +131,10 @@ namespace HomeBridge.BridgeTools
                     && def.defName.IndexOf((request.NameContains ?? ""), StringComparison.OrdinalIgnoreCase) < 0
                     && (def.label ?? "").IndexOf((request.NameContains ?? ""), StringComparison.OrdinalIgnoreCase) < 0) continue;
                 var row = Project(def, manager, progress, knowledge, anomaly, reached, cost, finished, selected.Contains(def));
-                points[def.defName] = reached;
                 if (!finished && !row.CanStart.GetValueOrDefault() && !request.IncludeLocked.GetValueOrDefault()) continue;
                 built.Add(row);
             }
             snapshot = snapshot with { Projects = [.. snapshot.Projects, .. built] };
-            snapshot = snapshot with { Snapshot = Token(context, snapshot, points) };
             return snapshot;
         }
 
@@ -182,16 +178,5 @@ namespace HomeBridge.BridgeTools
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid research identifier.");
         private static Obs.DefinitionRef Definition(Def def) => new Obs.DefinitionRef { DefName = Id(def.defName) };
         private static Common.Unavailable Missing(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static Obs.ReadIssue Issue(string field, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Missing(Common.UnavailableReason.ReadFailed, detail) };
-        // Stateless hash over the fields this reply actually returned; recomputed
-        // fresh each call, same pattern as NativeObservationSnapshot's other tokens.
-        private static Obs.SnapshotRef Token(Common.ObservationContext context, Obs.ResearchSnapshot snapshot, IDictionary<string, double> points)
-            => NativeObservationSnapshot.Snapshot("research", context, "research-manager", w => {
-                w.Write(ModsConfig.AnomalyActive);
-                foreach (var name in snapshot.Finished) w.Write(name);
-                foreach (var slot in snapshot.Slots) { w.Write(slot.Category ?? ""); w.Write(slot.CurrentProject ?? ""); }
-                foreach (var project in snapshot.Projects.OrderBy(p => p.Project.DefName ?? "", StringComparer.Ordinal))
-                { w.Write(project.Project.DefName ?? ""); w.Write(points[project.Project.DefName ?? ""]); w.Write(project.Finished); w.Write(project.Current); }
-            });
-    }
+        private static Obs.ReadIssue Issue(string field, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Missing(Common.UnavailableReason.ReadFailed, detail) };    }
 }

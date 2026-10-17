@@ -59,9 +59,8 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        private static Receipts.EffectEvidence Evidence(string id, string after) =>
+        private static Receipts.EffectEvidence Evidence() =>
             new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Snapshot = new Receipts.SnapshotEvidence { EntityId = id, AfterToken = after },
                 Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.GrowerCrop, Outcome = Receipts.FieldOutcome.Applied }] } };
 
         internal static Common.Failure? Validate(Operations.BuildingPatchIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
@@ -72,7 +71,7 @@ namespace HomeBridge.BridgeTools
             if (failure != null) throw new InvalidOperationException(failure.Detail);
             grower!.SetPlantDefToGrow(plant!);
             if (grower.GetPlantDefToGrow()?.defName != intent.Change?.PlantDef) throw new InvalidOperationException("Native grower crop requires readback.");
-            return Evidence(grower.GetUniqueLoadID(), (Snapshot(grower, context)!.Token ?? ""));
+            return Evidence();
         }
     }
 }

@@ -111,9 +111,6 @@ The affected acceptance inventory is:
 | `clean/bench` | Typed (#3408): under the served colony the room gets cleaner and the bench produces, with participant occupancy counted. Selection and journal evidence are not asserted. |
 | `clean/care` | Typed (#3408): under the served colony the bleeding patient is tended within the fixture service budget and the room gets cleaner, with participant occupancy counted. Critical-owner treatment is `MedicalFamilyTests`'; selection and journal evidence are not asserted. The budget is not a health prognosis. |
 | `clean/care-routine` | Typed (#3408): treatment within the service budget and useful cleaning for a nonbleeding burn. One native burn is initialized under fixture-only seed `312735`, with surrounding RNG restored; setup asserts a real pending infection check beyond the care budget. This conditioned mechanics case makes no incidence claim. Self-tending is enabled as a legal alternative; external doctors remain available when native patient positioning permits. |
-| `storage/refill-hysteresis` | Rewrite: demand-bounded delivery and production; remove full-stack withholding assertions. The name remains for case continuity. |
-| `storage/changed-demand` | Add: withdraw a bill after selected pickup and observe release of the obsolete obligation. |
-| `clearance/chunk-dump` | Rewrite: demanded chunk pickup and bounded delivery while unrelated chunks stay untouched; remove global hauling expectations. Stonecutting output is diagnostic, not proof of a new exact recipe adapter. |
 | `control/pawn-activity-delivery` | Keep exact delivery, destination and storage-filter checks. |
 | `control/activity-*` | Keep native refusal, atomicity and player-takeover checks. |
 

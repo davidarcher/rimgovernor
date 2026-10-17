@@ -100,4 +100,10 @@ public static class FixtureJson
 [JsonSerializable(typeof(TombStaged))]
 [JsonSerializable(typeof(TombRead))]
 [JsonSerializable(typeof(SupportRead))]
+[JsonSerializable(typeof(PlayerDesignateReply))]
+[JsonSerializable(typeof(WallLayersReply))]
+[JsonSerializable(typeof(WallReplacementReply))]
+[JsonSerializable(typeof(RemotePickupReply))]
+[JsonSerializable(typeof(ConstructionSkillReply))]
+[JsonSerializable(typeof(TierGateReply))]
 internal sealed partial class FixtureJsonContext : JsonSerializerContext;

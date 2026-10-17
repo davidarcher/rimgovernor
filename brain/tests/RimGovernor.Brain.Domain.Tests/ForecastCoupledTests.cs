@@ -27,8 +27,8 @@ public sealed class ForecastCoupledTests
                     Tick = 100,
                     Pawns = [new() { Pawn = "pawn", State = "eligible", Mood = Known(.5), MoodTarget = Known(.5),
                 Memories = Known<EquatableArray<NeedMemory>>([]),
-                Needs = [new("food", Known(foodLevel), Known(.001), Known(.3), Known(1.0)),
-                    new("rest", Known(1.0), Known(0.0), Known(.3), Known(1.0))] }]
+                Needs = [new("food", Known(foodLevel), Known(.001), Known(.3)),
+                    new("rest", Known(1.0), Known(0.0), Known(.3))] }]
                 },
                 Coupled = new()
                 {
@@ -244,7 +244,7 @@ public sealed class ForecastCoupledTests
                 Needs = facts.ForecastObserved.Needs! with
                 {
                     Pawns = [facts.ForecastObserved.Needs!.Pawns[0] with
-                { Needs = [new("food",Known(1.0),Known(0.0),Known(.3),Known(1.0)),new("rest",Known(1.0),Known(0.0),Known(.3),Known(1.0))] }]
+                { Needs = [new("food",Known(1.0),Known(0.0),Known(.3)),new("rest",Known(1.0),Known(0.0),Known(.3))] }]
                 },
                 Coupled = facts.ForecastObserved.Coupled with
                 {

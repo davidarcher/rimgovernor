@@ -28,14 +28,12 @@ namespace HomeBridge.BridgeTools
             {
                 // The decoded sleeping temperature band and power coverage; a member is absent when the colony read did not carry it.
                 ["acceptance_read_colony_facts"] = (_, ct) => Reads.Value.ColonyFactsAsync(ct),
-                // The first layout plan in the store codec; cells true adds the scored map survey (about two megabytes).
-                ["acceptance_read_starter_site"] = (args, ct) => Reads.Value.StarterSiteAsync(args["cells"]?.GetValue<bool>() ?? false, ct),
+                // The first layout plan in the store codec.
+                ["acceptance_read_starter_site"] = (_, ct) => Reads.Value.StarterSiteAsync(ct),
                 // The minimum scores of the Impressiveness room stat's named stages and every stage in order.
                 ["acceptance_read_impressiveness"] = (_, ct) => Reads.Value.ImpressivenessAsync(ct),
                 // Per capture span, the sample count, min/median/max ms and median allocated bytes; iterations 1-20 after one warm-up.
                 ["acceptance_read_capture_profile"] = (args, ct) => ReadCaptureProfile(args["iterations"]?.GetValue<int>() ?? 5, ct),
-                // One row per TerrainDef: cleanliness stat and natural flag.
-                ["acceptance_read_floor_terrains"] = (_, ct) => Reads.Value.FloorTerrainsAsync(ct),
                 // The clock's session accounting: pause/run, probe and digest work, probe and hazard gaps, the frame account.
                 ["acceptance_read_clock_accounting"] = (_, ct) => ProtoBoundary.OnGameThread("rimgovernor/acceptance_read_clock_accounting", Supervisor.ClockAccountingJson, ct),
             };

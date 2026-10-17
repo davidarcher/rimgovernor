@@ -28,15 +28,13 @@ public sealed class SupportPortfolioFixture
     private static ThingDef? product;
     private static string scenario = "";
     private static IntVec3 staging;
-    private static int start, cancelledAt, tendAt, required, initialSource, delivered, lastTick, cleanTick, recipeTick, careTick;
-    private static bool patched, active, pickedUp, usefulPickedUp, produced, cleaned, released;
+    private static int start, tendAt, required, initialSource, lastTick, cleanTick, recipeTick, careTick;
+    private static bool patched, active, pickedUp, produced, cleaned;
     private static readonly List<Thing> filth = new();
-    private static readonly Dictionary<Thing, IntVec3> unrelated = new();
     private static readonly HashSet<string> methods = new(StringComparer.Ordinal);
     private static readonly Dictionary<string,int> criticalJobs = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, int> participantTicks = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, string> obligations = new(StringComparer.Ordinal);
-    private static readonly Dictionary<IntVec3,int> deliveryCells = new();
     private static float initialCleanliness;
 
     [Tool("test/support_bench_prepare", Description="UNSAFE FOR MODEL EXECUTION. Prepare dirty enclosed cooking station, ingredients and hunger; install no chosen work.")]
@@ -45,24 +43,18 @@ public sealed class SupportPortfolioFixture
     public Task<object> Care(IRimBridgeContext ctx, CancellationToken ct) => Prepare(ctx,ct,"care");
     [Tool("test/support_routine_prepare", Description="UNSAFE FOR MODEL EXECUTION. Prepare nonbleeding tendable injury and useful room cleaning for normal coupled treatment.")]
     public Task<object> Routine(IRimBridgeContext ctx, CancellationToken ct) => Prepare(ctx,ct,"routine");
-    [Tool("test/support_delivery_prepare", Description="UNSAFE FOR MODEL EXECUTION. Prepare small bill input demand and distant stock; install no chosen delivery.")]
-    public Task<object> Delivery(IRimBridgeContext ctx, CancellationToken ct) => Prepare(ctx,ct,"delivery");
-    [Tool("test/support_cancel_prepare", Description="UNSAFE FOR MODEL EXECUTION. Prepare bill demand withdrawn after selected pickup; install no chosen delivery.")]
-    public Task<object> Cancellation(IRimBridgeContext ctx, CancellationToken ct) => Prepare(ctx,ct,"cancel");
-    [Tool("test/support_chunks_prepare", Description="UNSAFE FOR MODEL EXECUTION. Prepare exact stonecutting demand and unrelated chunks; no global haulability change.")]
-    public Task<object> Chunks(IRimBridgeContext ctx, CancellationToken ct) => Prepare(ctx,ct,"chunks");
 
     private static async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken ct, string kind)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             active=false; map=Find.CurrentMap;
             if(map==null || !Find.TickManager.Paused || map.Size.x!=100) throw new InvalidOperationException("Paused disposable LabStart required.");
-            scenario=kind; start=lastTick=Find.TickManager.TicksGame; cancelledAt=tendAt=-1; cleanTick=recipeTick=careTick=-10000;
+            scenario=kind; start=lastTick=Find.TickManager.TicksGame; tendAt=-1; cleanTick=recipeTick=careTick=-10000;
             initialInfectionCheckTicks=0;
             routineTendGiver="";
-            bench=null; bill=null; source=null; product=null; delivered=0; required=0;
-            pickedUp=usefulPickedUp=produced=cleaned=released=false;
-            filth.Clear(); unrelated.Clear(); methods.Clear(); criticalJobs.Clear(); participantTicks.Clear(); obligations.Clear(); deliveryCells.Clear();
+            bench=null; bill=null; source=null; product=null; required=0;
+            pickedUp=produced=cleaned=false;
+            filth.Clear(); methods.Clear(); criticalJobs.Clear(); participantTicks.Clear(); obligations.Clear();
             var pawns=map.mapPawns.FreeColonistsSpawned.OrderBy(p=>p.thingIDNumber).Take(3).ToArray();
             if(pawns.Length!=3) throw new InvalidOperationException("Three colonists required.");
             var center=map.Center;
@@ -129,44 +121,31 @@ public sealed class SupportPortfolioFixture
                 if(!patient.health.HasHediffsNeedingTend()) throw new InvalidOperationException("Fixture injury requires tending.");
             }
             {
-                var chunks=kind=="chunks";
-                var def=ThingDef.Named(chunks?"TableStonecutter":"FueledStove");
+                var def=ThingDef.Named("FueledStove");
                 bench=(Building_WorkTable)ThingMaker.MakeThing(def,def.MadeFromStuff?ThingDefOf.WoodLog:null);
                 bench.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(bench,kind is "care" or "routine"?center+new IntVec3(1,0,0):center,map);
                 var fuel=bench.TryGetComp<CompRefuelable>(); if(fuel!=null) fuel.Refuel(fuel.Props.fuelCapacity);
-                var input=ThingDef.Named(chunks?"ChunkGranite":"RawRice");
-                var recipe=chunks?def.AllRecipes.First(r=>r.ingredients.Any(i=>i.filter.Allows(input)) && r.products.Count>0):DefDatabase<RecipeDef>.GetNamed("CookMealSimple");
+                var input=ThingDef.Named("RawRice");
+                var recipe=DefDatabase<RecipeDef>.GetNamed("CookMealSimple");
                 bill=(Bill_Production)recipe.MakeNewBill(); bill.repeatMode=BillRepeatModeDefOf.RepeatCount; bill.repeatCount=1;
                 bill.ingredientFilter.SetDisallowAll(); bill.ingredientFilter.SetAllow(input,true);
                 bill.SetStoreMode(BillStoreModeDefOf.DropOnFloor,null); bench.BillStack.AddBill(bill);
                 required=recipe.ingredients.Sum(i=>i.CountRequiredOfFor(input,recipe,bill));
                 product=recipe.products[0].thingDef;
                 source=GenSpawn.Spawn(input,center+new IntVec3(kind=="bench"?2:-15,0,1),map);
-                source.stackCount=chunks?1:Math.Min(input.stackLimit,required+20); initialSource=source.stackCount;
+                source.stackCount=Math.Min(input.stackLimit,required+20); initialSource=source.stackCount;
                 source.SetForbidden(false,false); staging=center+new IntVec3(-2,0,1);
                 AddStore(staging,input); AddStore(center+new IntVec3(2,0,-2),product);
-                if(chunks)
-                {
-                    foreach(var name in new[]{"ChunkMarble","ChunkSlagSteel"})
-                    {
-                        var thing=GenSpawn.Spawn(ThingDef.Named(name),center+new IntVec3(-12,0,unrelated.Count+3),map);
-                        unrelated.Add(thing,thing.Position);
-                    }
-                }
-                else
-                {
-                    foreach(var thing in map.listerThings.AllThings.Where(t=>t.def.IsNutritionGivingIngestible && t!=source && t is not Plant).ToArray()) thing.Destroy();
-                    pawns[0].needs.food.CurLevelPercentage=.45f;
-                    foreach(var pawn in pawns) pawn.foodRestriction.GetCurrentRespectedRestriction(pawn).filter.SetAllow(input,false);
-                }
+                foreach(var thing in map.listerThings.AllThings.Where(t=>t.def.IsNutritionGivingIngestible && t!=source && t is not Plant).ToArray()) thing.Destroy();
+                pawns[0].needs.food.CurLevelPercentage=.45f;
+                foreach(var pawn in pawns) pawn.foodRestriction.GetCurrentRespectedRestriction(pawn).filter.SetAllow(input,false);
             }
-            if(kind is "bench" or "care" or "routine")
-                foreach(var cell in room.Cells.Where(c=>c.x>room.minX && c.x<room.maxX && c.z>room.minZ && c.z<room.maxZ && c.GetEdifice(map)==null).Take(8))
-                {
-                    if(!FilthMaker.TryMakeFilth(cell,map,ThingDef.Named("Filth_Blood"),1,FilthSourceFlags.None)) continue;
-                    var dirt=cell.GetThingList(map).OfType<Filth>().First(); filth.Add(dirt);
-                    AccessTools.Field(typeof(Filth),"growTick").SetValue(dirt,-10000);
-                }
+            foreach(var cell in room.Cells.Where(c=>c.x>room.minX && c.x<room.maxX && c.z>room.minZ && c.z<room.maxZ && c.GetEdifice(map)==null).Take(8))
+            {
+                if(!FilthMaker.TryMakeFilth(cell,map,ThingDef.Named("Filth_Blood"),1,FilthSourceFlags.None)) continue;
+                var dirt=cell.GetThingList(map).OfType<Filth>().First(); filth.Add(dirt);
+                AccessTools.Field(typeof(Filth),"growTick").SetValue(dirt,-10000);
+            }
             map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
             if(!patched)
             {
@@ -177,7 +156,7 @@ public sealed class SupportPortfolioFixture
                 patched=true;
             }
             initialCleanliness=bench?.GetRoom()?.GetStat(RoomStatDefOf.Cleanliness) ?? 0;
-            if(kind is "bench" or "care" or "routine" && (bench?.GetRoom()?.GetStat(RoomStatDefOf.FoodPoisonChance) ?? 0)<=0)
+            if((bench?.GetRoom()?.GetStat(RoomStatDefOf.FoodPoisonChance) ?? 0)<=0)
                 throw new InvalidOperationException("Prepared room must have actual native cleanliness-related food contamination risk.");
             active=true;
             return new {success=true,tick=start,scenario,careServiceBudgetTicks=CareServiceBudgetTicks,required,source=source?.GetUniqueLoadID(),bill=bill?.GetUniqueLoadID(),patient=patient.GetUniqueLoadID()};
@@ -195,14 +174,6 @@ public sealed class SupportPortfolioFixture
         {
             methods.Add(order.Method);
             if(!participantTicks.ContainsKey(order.Pawn)) { participantTicks.Add(order.Pawn,0); obligations.Add(order.Pawn,"selected_not_started"); }
-            if(order.Release) released=true;
-            foreach(var step in order.Steps.Where(s=>s.Kind==PawnActivityKind.Deliver && s.Destination!=null))
-            {
-                var target=RefIndex.Thing(map, step.Target);
-                if(target?.def!=source?.def) continue;
-                var cell=new IntVec3(step.Destination!.Value.X,0,step.Destination.Value.Z);
-                if(!deliveryCells.ContainsKey(cell)) deliveryCells.Add(cell,CountAt(cell));
-            }
         }
     }
     private static void CriticalApplied(JobOrder intent)
@@ -226,29 +197,15 @@ public sealed class SupportPortfolioFixture
             if(___pawn.CurJobDef==JobDefOf.DoBill) recipeTick=Find.TickManager.TicksGame;
             if((___pawn.CurJobDef==JobDefOf.TendPatient || ___pawn.jobs.curDriver is JobDriver_GovernorTend)
                 && ___pawn.CurJob?.targetA.Thing==patient) careTick=Find.TickManager.TicksGame;
-            if(___pawn.carryTracker.CarriedThing?.def==source?.def)
-            { pickedUp=true; if(scenario=="chunks") usefulPickedUp=true; }
+            if(___pawn.carryTracker.CarriedThing?.def==source?.def) pickedUp=true;
         }
         var now=Find.TickManager.TicksGame;
         if(now==lastTick) return; lastTick=now;
         if(scenario is "care" or "routine" && tendAt<0 && now-careTick<=2 && !patient.health.HasHediffsNeedingTend()) tendAt=now;
         cleaned|=now-cleanTick<=2 && filth.Count>0 && filth.Any(t=>t.Destroyed);
         produced|=now-recipeTick<=2 && product!=null && map.listerThings.AllThings.Any(t=>t.Spawned && t.def==product);
-        foreach(var cell in deliveryCells.Keys.ToArray())
-        {
-            var count=CountAt(cell); delivered+=Math.Max(0,count-deliveryCells[cell]); deliveryCells[cell]=count;
-        }
     }
-    private static bool InTransit() => map.mapPawns.FreeColonistsSpawned.Any(p=>p.carryTracker.CarriedThing?.def==source?.def
-        && NativePawnActivities.Read(p)?.Method is string method && methods.Contains(method));
-    private static int CountAt(IntVec3 cell) => cell.GetThingList(map).Where(t=>t.def==source?.def).Sum(t=>t.stackCount);
-    [Tool("test/support_cancel", Description="UNSAFE FOR MODEL EXECUTION. Withdraw prepared bill demand only; do not cancel or replace pawn orders.")]
-    public async Task<object> Cancel(IRimBridgeContext ctx,CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(()=>
-    {
-        if(!active || scenario!="cancel" || bill==null || !InTransit()) throw new InvalidOperationException("Wrong fixture.");
-        bill.suspended=true; cancelledAt=Find.TickManager.TicksGame;
-        return new {success=true,tick=cancelledAt};
-    },ct).ConfigureAwait(false);
+    }
     [Tool("test/support_read", Description="UNSAFE FOR MODEL EXECUTION. Read actual support outcomes, all participant occupied ticks and still unfinished native obligations; writes no orders.")]
     public async Task<object> Read(IRimBridgeContext ctx,CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(()=>new
     {
@@ -257,11 +214,9 @@ public sealed class SupportPortfolioFixture
         methods=methods.OrderBy(x=>x).ToArray(),participants=participantTicks.OrderBy(x=>x.Key).Select(x=>new{pawn=x.Key,occupiedTicks=x.Value,obligation=obligations[x.Key]}).ToArray(),
         unfinished=map.mapPawns.FreeColonistsSpawned.Select(p=>new{pawn=p.GetUniqueLoadID(),execution=NativePawnActivities.Read(p)}).Where(x=>x.execution!=null && methods.Contains(x.execution.Method)).ToArray(),
         participantAccounting=participantTicks.Count>0 && participantTicks.Values.All(v=>v>=0) && participantTicks.Values.Any(v=>v>0),
-        cleaned=cleaned && (bench?.GetRoom()?.GetStat(RoomStatDefOf.Cleanliness) ?? initialCleanliness)>initialCleanliness,initialCleanliness,currentCleanliness=bench?.GetRoom()?.GetStat(RoomStatDefOf.Cleanliness),produced,pickedUp,inTransit=InTransit(),usefulPickedUp,delivered=delivered>0,deliveredCount=delivered,required,quantityBounded=delivered<=required,
+        cleaned=cleaned && (bench?.GetRoom()?.GetStat(RoomStatDefOf.Cleanliness) ?? initialCleanliness)>initialCleanliness,initialCleanliness,currentCleanliness=bench?.GetRoom()?.GetStat(RoomStatDefOf.Cleanliness),produced,pickedUp,required,
         tended=tendAt>=0,tendTick=tendAt,careWithinServiceBudget=tendAt>=0 && tendAt-start<=CareServiceBudgetTicks,careServiceBudgetTicks=CareServiceBudgetTicks,
         conditionedBurnSeed=scenario=="routine"?ConditionedBurnSeed:0,initialInfectionCheckTicks,selfTendEnabled=patient.playerSettings.selfTend,routineTendGiver,
-        unrelatedUnmoved=unrelated.All(x=>!x.Key.Destroyed && x.Key.Spawned && x.Key.Position==x.Value),
-        cancelled=cancelledAt>=0,released=cancelledAt>=0 && released && !map.mapPawns.FreeColonistsSpawned.Any(p=>NativePawnActivities.Read(p)?.Method is string m && methods.Contains(m)),
         liveOwnedWorkers=map.mapPawns.FreeColonistsSpawned.Where(p=>NativePawnActivities.Read(p)?.Method is string m && methods.Contains(m)).Select(p=>new{pawn=p.GetUniqueLoadID(),drafted=p.Drafted,dead=p.Dead}).ToArray(),
         remainingSource=source is {Destroyed:false}?source.stackCount:0,initialSource
     },ct).ConfigureAwait(false);

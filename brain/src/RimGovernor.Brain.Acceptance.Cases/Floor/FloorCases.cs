@@ -8,6 +8,5 @@ public static class FloorCases
     {
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(FloorKitchen.Case());
-        registry.Register(FloorStandingRoom.Case());
     }
 }

@@ -40,7 +40,7 @@ internal static class NativeSupportActivities
                     var deficit = needed - Staged(map, destination, source.def);
                     if (deficit <= 0 || source.Position == destination) continue;
                     var id = "bill:" + bill.GetUniqueLoadID() + ":" + source.def.defName;
-                    if (!demands.Any(d => d.Id == id)) demands.Add(new(id, "delivery", bench.GetUniqueLoadID(), At(destination), default, default, default, default));
+                    if (!demands.Any(d => d.Id == id)) demands.Add(new(id, "delivery", bench.GetUniqueLoadID(), At(destination), default, default, default));
                     foreach (var pawn in roster)
                     {
                         if (!Available(pawn) || source.IsForbidden(pawn) || bench.IsForbidden(pawn)
@@ -150,7 +150,7 @@ internal static class NativeSupportActivities
             var surgeryFactor = DefDatabase<RoomStatDef>.GetNamedSilentFail("SurgerySuccessChanceCleanlinessFactor");
             Fact<double> after = cleanliness.IsKnown && definition.inputStat == RoomStatDefOf.Cleanliness && definition.curve != null
                 ? Fact.Known((double)definition.curve.Evaluate((float)(cleanliness.Value + delta))) : default;
-            demands.Add(new(id, kind, target.GetUniqueLoadID(), At(location), cleanliness, poison,
+            demands.Add(new(id, kind, target.GetUniqueLoadID(), At(location), poison,
                 target is Pawn patient ? Fact.Known((double)patient.health.hediffSet.BleedRateTotal) : default, default)
                 { FoodPoisonChanceClean = after,
                     SurgerySuccessFactor = room != null && surgeryFactor != null ? Fact.Known((double)room.GetStat(surgeryFactor)) : default,

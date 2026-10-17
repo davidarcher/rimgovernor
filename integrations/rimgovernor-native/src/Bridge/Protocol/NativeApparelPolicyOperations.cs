@@ -105,7 +105,6 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(c, context, out var p);
             if (failure != null) throw new InvalidOperationException("Apparel policy prerequisites changed before apply: " + (failure.Detail ?? ""));
-            var before = Token(p);
             if (!Matches(p, c))
             {
                 var outfit = Own(p, (c.Name ?? ""));
@@ -120,7 +119,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var pawn in PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive.Where(v => v.outfits?.CurrentApparelPolicy == outfit)) pawn.mindState?.Notify_OutfitChanged();
                 if (!Matches(p, c)) throw new InvalidOperationException("Apparel filter readback differs.");
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect { Snapshot = new Receipts.SnapshotEvidence { EntityId = p.GetUniqueLoadID(), BeforeToken = before, AfterToken = Token(p) } } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect() };
         }
     }
 

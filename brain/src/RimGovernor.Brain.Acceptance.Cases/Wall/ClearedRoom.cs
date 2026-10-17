@@ -1,145 +1,127 @@
-using System.Text.Json.Nodes;
+using System.Globalization;
+using RimGovernor.Brain.Domain;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>wall/cleared-room</c> (Go <c>cleared_room.go</c>).</summary>
+/// <summary>
+/// <c>wall/cleared-room</c> (#1366, #1245, epic #1249): clearance of a staged walled, roofed player room with a stool on
+/// a laid WoodPlankFloor ends with no building, no roof and no constructed floor, in the clearance order: the stool, then
+/// the walls and door (designated first, waiting on the roof), then remove_roof, then remove_floor once the cells are
+/// clear. No wall comes down while the room is roofed, and a designated wall of a second roofed room is held by the
+/// roof-support wait with that room's roof kept. Native: vanilla room geometry, the NoRoof and RemoveFloor jobs and the
+/// native job guard. The lab crew builds (Construction first, all hours work): without it nothing is cleared.
+/// </summary>
 internal static class WallClearedRoom
 {
-    internal static AcceptanceCase Case() => new()
+    private const int Width = 17;
+    private const int Height = 9;
+    private const string Floor = "WoodPlankFloor";
+
+    private static readonly Fx.StageRect Cleared = new(9, 2, 5, 5);
+    private static readonly Fx.StageRect Held = new(1, 2, 5, 5);
+    private static readonly Fx.StageRect ClearedInterior = new(10, 3, 3, 3);
+    private static readonly Fx.StageRect HeldInterior = new(2, 3, 3, 3);
+
+    internal static TypedCase Case() => new()
     {
         Name = "wall/cleared-room",
-        Scope = "Cleared-ground deconstruction (#1366, epic #1249): a small walled, roofed player room inside the " +
-            "cleared ground ends unroofed with its walls and door gone, through a remove_roof intent and " +
-            "DECONSTRUCT Designate whose walls wait (designated, waitingForRoof) until pawns remove the roof; " +
-            "a wall of a room straddling the ground's edge is admitted and held by the roof-support wait. A Go snapshot test cannot see vanilla room " +
-            "geometry, the NoRoof area work or the native job guard.",
-        Start = new LabStart(),
-        RequiredOps = [DebugGame.LabSpawnTool, FixtureStage.Tool, "test/deconstruct_target"],
+        Scope = "A staged roofed WoodLog room with a stool on a WoodPlankFloor is cleared in order (stool, walls and door designated "
+            + "and waiting on the roof, remove_roof, then remove_floor once clear): it ends with no building, roof or floor, no wall "
+            + "came down while it was roofed, and a designated wall of a second roofed room stands, held, with that room's roof kept.",
+        Ticks = 20000,
+        Tier = CaseTier.OnDemand,
         QuietWorld = true,
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
+        Stage = new Fx.StageSpec
+        {
+            Paused = true,
+            Site = WallKit.Site(Width, Height),
+            Clear = [WallKit.Clear(Width, Height)],
+            Cells =
+            [
+                new Fx.StageCells { Rect = new Fx.StageRect(0, 0, Width, Height), Home = true },
+                new Fx.StageCells { Rect = ClearedInterior, Terrain = Floor },
+            ],
+            Rooms =
+            [
+                new Fx.StageRoom { Name = "cleared", Rect = Cleared, Stuff = "WoodLog", Doors = [new(9, 4)], Roof = true },
+                new Fx.StageRoom { Name = "held", Rect = Held, Stuff = "WoodLog", Doors = [new(5, 4)], Roof = true },
+            ],
+            Buildings = [new Fx.StageBuilding { Name = "stool", Def = "Stool", Stuff = "WoodLog", Cells = [new(11, 4)] }],
+            Pawns = WallKit.Builders,
+        },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var report = s.Report;
-        var (cx, cz) = CaseSupport.Center(s);
+        var staged = s.Staged!;
+        var site = staged.Site ?? throw new AcceptanceException("stage: no site");
+        var room = staged.Rooms["cleared"];
+        var held = staged.Rooms["held"];
+        var stool = staged.Buildings["stool"].Ids.Single();
+        List<string> enclosure = [.. room.Walls, .. room.Doors];
+        var footprint = WallKit.Cells(site, Cleared);
+        var interior = WallKit.Cells(site, ClearedInterior);
+        var heldInterior = WallKit.Cells(site, HeldInterior);
 
-        // Room A (inside the ground) east of the centre, room B (straddling) west of it; each a 3x3 interior with a door on its centre-facing side.
-        var (aWalls, aInterior) = WallGeometry.Ring(cx + 3, cz - 2, cx + 7, cz + 2);
-        var (bWalls, bInterior) = WallGeometry.Ring(cx - 7, cz - 2, cx - 3, cz + 2);
-        var aDoor = new WallCell(cx + 3, cz);
-        var bDoor = new WallCell(cx - 3, cz);
-
-        async Task<List<string>> Spawn(List<WallCell> walls, WallCell door)
+        var start = await TypedApply.CellsAsync(s, "start", site, cancellationToken).ConfigureAwait(false);
+        if (WallKit.Roofed(start, interior) != interior.Count || WallKit.WithTerrain(start, interior, Floor) != interior.Count || WallKit.Roofed(start, heldInterior) != heldInterior.Count)
         {
-            var ids = new List<string>();
-            foreach (var c in walls)
-            {
-                ids.Add(await WallGeometry.SpawnRingCellAsync(h, c, door, cancellationToken).ConfigureAwait(false));
-            }
-
-            return ids;
+            throw new AcceptanceException("start: want both rooms roofed and the cleared room floored");
         }
 
-        var aIds = await Spawn(aWalls, aDoor).ConfigureAwait(false);
-        var bIds = await Spawn(bWalls, bDoor).ConfigureAwait(false);
-        await WallGeometry.RoofAsync(h, "roof-a", aInterior, cancellationToken).ConfigureAwait(false);
-        var roofA = await WallGeometry.RoofedAsync(s, "roofed-a", aInterior, cancellationToken).ConfigureAwait(false);
-        if (roofA != aInterior.Count)
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "stool", WallKit.Deconstruct(stool), cancellationToken).ConfigureAwait(false);
+        for (var i = 0; i < enclosure.Count; i++)
         {
-            throw new AcceptanceException($"roof room A: {roofA} roofed");
+            var key = "wall-" + i.ToString(CultureInfo.InvariantCulture);
+            _ = await TypedApply.AppliedAsync(s, key, WallKit.Deconstruct(enclosure[i]), cancellationToken).ConfigureAwait(false);
         }
 
-        await WallGeometry.RoofAsync(h, "roof-b", bInterior, cancellationToken).ConfigureAwait(false);
-        var roofB = await WallGeometry.RoofedAsync(s, "roofed-b", bInterior, cancellationToken).ConfigureAwait(false);
-        if (roofB != bInterior.Count)
-        {
-            throw new AcceptanceException($"roof room B: {roofB} roofed");
-        }
-
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "clear-authority", s.Identity, cancellationToken).ConfigureAwait(false);
-
-        // The straddling room's west wall (x0, cz) is admitted (no room-extent refusal); the work giver holds it while its removal would drop a roof.
-        var straddle = await WallGeometry.ApplyActionAsync(s, "straddle", WallCases.DeconstructIntent("straddle", JsonValue.Create(bIds[2]), null), cancellationToken).ConfigureAwait(false);
-        if (straddle["applied"].AsMap() is null)
-        {
-            throw new AcceptanceException($"straddling room wall not admitted: {straddle.ToJson()}");
-        }
-
-        report["straddle"] = straddle;
-
-        // Room A: designate its walls first, which wait on the roof, then the roof.
-        for (var i = 0; i < aIds.Count; i++)
-        {
-            var key = "wall-a-" + CaseSupport.Tag(i);
-            var result = await WallGeometry.ApplyActionAsync(s, key, WallCases.DeconstructIntent(key, JsonValue.Create(aIds[i]), null), cancellationToken).ConfigureAwait(false);
-            var applied = result["applied"].AsMap() ?? throw new AcceptanceException($"{key}: not applied: {result.ToJson()}");
-            if (i == 0)
-            {
-                if (!applied.ToJson().Contains("\"waitingForRoof\":true", StringComparison.Ordinal))
-                {
-                    throw new AcceptanceException($"{key}: roofed room wall does not report waiting for the roof: {applied.ToJson()}");
-                }
-
-                report["first_wall"] = applied;
-            }
-        }
+        var heldWall = held.Walls[held.Walls.Count / 2];
+        _ = await TypedApply.AppliedAsync(s, "held-wall", WallKit.Deconstruct(heldWall), cancellationToken).ConfigureAwait(false);
 
         // Vanilla roofs the walls too (auto-roof), so clearance unroofs the room's whole footprint.
-        List<WallCell> aFootprint = [.. aWalls, .. aInterior];
-        var roof = await WallGeometry.ApplyActionAsync(
-            s,
-            "roof-a",
-            new JsonObject { ["key"] = "roof-a", ["removeRoof"] = new JsonObject { ["cells"] = WallGeometry.CellArray(aFootprint) } },
-            cancellationToken).ConfigureAwait(false);
-        if (roof["applied"].AsMap() is null)
+        var unroof = await TypedApply.AppliedAsync(s, "remove-roof", new Operations.RemoveRoofIntent { Cells = [.. footprint.Select(WallKit.Wire)] }, cancellationToken).ConfigureAwait(false);
+        if (unroof.Effect()?.RemoveRoof is not { Designated: > 0 })
         {
-            throw new AcceptanceException($"remove_roof not applied: {roof.ToJson()}");
+            throw new AcceptanceException($"remove-roof: want fresh NoRoof cells designated over the roofed footprint, got {unroof.Effect()}");
+        }
+        List<string> buildings = [stool, .. enclosure];
+        var cleared = await s.RunUntilAsync("buildings-cleared", 14000, async ct =>
+        {
+            var grid = await TypedApply.CellsAsync(s, "cleared-probe", site, ct).ConfigureAwait(false);
+            var roofed = WallKit.Roofed(grid, footprint);
+            var standing = await WallKit.PresentAsync(s, "cleared-probe", buildings, ct).ConfigureAwait(false);
+            if (roofed > 0 && enclosure.Any(id => !standing.Contains(id)))
+            {
+                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"a wall came down while {roofed} room cells were still roofed"));
+            }
+
+            return (Wait.Signature(roofed, standing.Count), roofed == 0 && standing.Count == 0);
+        }, cancellationToken).ConfigureAwait(false);
+        s.Record("buildings_cleared_after_ticks", cleared);
+
+        for (var i = 0; i < interior.Count; i++)
+        {
+            _ = await TypedApply.AppliedAsync(s, "floor-" + i.ToString(CultureInfo.InvariantCulture), new Operations.RemoveFloorIntent { Cell = WallKit.Wire(interior[i]), DefName = Floor }, cancellationToken).ConfigureAwait(false);
         }
 
-        report["remove_roof"] = roof;
-        var unroofedAt = -1;
-        for (var advanced = 0; advanced < 12000; advanced += 300)
+        var floors = await s.RunUntilAsync("floors-cleared", s.TicksLeft, async ct =>
         {
-            _ = await s.AdvanceAsync(300, null, cancellationToken).ConfigureAwait(false);
-            var n = await WallGeometry.RoofedAsync(s, "roof-read-" + CaseSupport.Tag(advanced), aFootprint, cancellationToken).ConfigureAwait(false);
-            if (n == 0 && unroofedAt < 0)
-            {
-                unroofedAt = advanced + 300;
-            }
+            var left = WallKit.WithTerrain(await TypedApply.CellsAsync(s, "floors-probe", site, ct).ConfigureAwait(false), interior, Floor);
+            return (Wait.Signature(left), left == 0);
+        }, cancellationToken).ConfigureAwait(false);
+        s.Record("floors_cleared_after_ticks", floors);
 
-            var standing = 0;
-            foreach (var id in aIds)
-            {
-                if (await WallGeometry.PresentAsync(h, "inspect-" + id, JsonValue.Create(id), cancellationToken).ConfigureAwait(false))
-                {
-                    standing++;
-                }
-            }
-
-            // The walls hold the roof: none may come down while it stands.
-            if (n > 0 && standing < aIds.Count)
-            {
-                throw new AcceptanceException($"a wall came down at +{advanced + 300} ticks while {n} room cells were still roofed");
-            }
-
-            if (n == 0 && standing == 0)
-            {
-                report["unroofed_after_ticks"] = unroofedAt;
-                report["cleared_after_ticks"] = advanced + 300;
-                var kept = await WallGeometry.RoofedAsync(s, "roof-b-kept", bInterior, cancellationToken).ConfigureAwait(false);
-                if (kept != bInterior.Count)
-                {
-                    throw new AcceptanceException($"straddling room lost its roof: {kept} roofed");
-                }
-
-                return;
-            }
+        var end = await TypedApply.CellsAsync(s, "held-kept", site, cancellationToken).ConfigureAwait(false);
+        var kept = WallKit.Roofed(end, heldInterior);
+        var heldStands = (await WallKit.PresentAsync(s, "held-kept", [heldWall], cancellationToken).ConfigureAwait(false)).Contains(heldWall);
+        if (kept != heldInterior.Count || !heldStands)
+        {
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"held room: {kept} of {heldInterior.Count} cells roofed, designated wall standing={heldStands}; want the roof kept and the wall held"));
         }
-
-        throw new AcceptanceException($"room A not cleared within 12000 ticks (unroofed at {unroofedAt})");
     }
 }

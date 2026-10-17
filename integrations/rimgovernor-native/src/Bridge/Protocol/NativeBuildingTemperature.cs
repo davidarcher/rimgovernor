@@ -46,9 +46,8 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        private static Receipts.EffectEvidence Evidence(string id, string after) =>
+        private static Receipts.EffectEvidence Evidence() =>
             new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Snapshot = new Receipts.SnapshotEvidence { EntityId = id, AfterToken = after },
                 Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.Temperature, Outcome = Receipts.FieldOutcome.Applied }] } };
 
         internal static Common.Failure? Validate(Operations.BuildingPatchIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _);
@@ -61,7 +60,7 @@ namespace HomeBridge.BridgeTools
             var wanted = intent.Change?.TargetTemperature ?? throw new InvalidOperationException("A temperature patch requires a target temperature.");
             comp.targetTemperature = wanted;
             if (Math.Abs(comp.targetTemperature - wanted) >= 0.001f) throw new InvalidOperationException("Native building temperature requires readback.");
-            return Evidence(thing!.GetUniqueLoadID(), (Snapshot(thing!, context)!.Token ?? ""));
+            return Evidence();
         }
     }
 

@@ -1,449 +1,108 @@
-using System.Globalization;
-using System.Text.Json.Nodes;
-using RimGovernor.Brain.Domain;
-using RimGovernor.Brain.Policy;
-using Journal = RimGovernor.Brain.Store.Store;
-using ReviewRecord = RimGovernor.Brain.Store.Rounds;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>route/stockpile</c> (Go <c>route/route.go</c>): the layout/routes Need vertical (#3265). A stockpile zone sits
-/// in a roofed room walled on every side with no door. The native reachability census (the game's own pathing per
-/// colonist, never a flood fill) must read it unreachable and list breach walls; the layout family must file the
-/// routes Need unmet, admit exactly one door Method on a listed breach wall, the colonists build it, and the next
-/// measured census must read the stockpile reachable with a measured path and the Need met (no progress row). An
-/// independent native read then confirms the reachability
-/// and that observed traffic samples exist (actual travel evidence), reporting the door cell's own. Uses the private
-/// disposable <c>test/routes_prepare</c> fixture.
+/// <c>route/stockpile</c> (#3265): the upkeep routes census the layout/routes Need reads, over two staged roofed home
+/// rooms each holding a stockpile, one sealed and one with a door. The census paths with the game's own pathing per
+/// colonist, so only a live game shows the sealed stockpile unreachable with its walls as breaches and the open one
+/// reached by a measured path. The Need's door choice is covered by the routes policy tests.
 /// </summary>
 internal static class RouteStockpile
 {
-    private const string Prefix = "route-accept";
+    private static readonly Fx.StageRect Sealed = new(1, 1, 5, 5);
+    private static readonly Fx.StageRect Open = new(7, 1, 5, 5);
 
-    internal static AcceptanceCase Case() => new()
+    internal static TypedCase Case() => new()
     {
         Name = "route/stockpile",
-        Scope = "Native layout/routes Need vertical: a walled-in stockpile the native reachability census reads unreachable "
-            + "files the routes Need unmet and admits exactly one door Method on a listed breach wall; the colonists "
-            + "build it and the measured census, not the receipt, meets the Need, confirmed by an independent native read "
-            + "with observed traffic samples.",
-        Start = new FixtureStart { Op = "test/routes_prepare", On = new LabStart() },
+        Scope = "The upkeep routes census over a staged sealed roofed room and an open one, each holding a stockpile: the "
+            + "sealed stockpile reads kind STOCKPILE with every mobile colonist unreachable and breach walls on its own border "
+            + "only; the open one reads reachable by a measured path with no breaches.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
 
-        // The census paths between the colonists and a staged room; the wild map is unobserved.
+        // The census paths between the colonists and the staged rooms; the wild map is unobserved.
         QuietWorld = true,
-        Service = true,
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
+        Stage = new Fx.StageSpec
+        {
+            Paused = true,
+            Site = new Fx.StageSite
+            {
+                Width = 13,
+                Height = 7,
+                Near = Fx.StageAnchor.Colonist,
+                OffsetX = 6,
+                Radius = 30,
+                Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Unfogged, Fx.StageGround.Unroofed, Fx.StageGround.Unzoned],
+            },
+            Clear = [new Fx.StageClear { Rect = new Fx.StageRect(0, 0, 13, 7), Kinds = [Fx.StageClearKind.Things, Fx.StageClearKind.Pawns, Fx.StageClearKind.Roofs, Fx.StageClearKind.Zones] }],
+            Cells = [new Fx.StageCells { Rect = new Fx.StageRect(0, 0, 13, 7), Home = true }],
+            Rooms =
+            [
+                new Fx.StageRoom { Name = "sealed", Rect = Sealed, Stuff = "WoodLog", Roof = true },
+                new Fx.StageRoom { Name = "open", Rect = Open, Stuff = "WoodLog", Doors = [new(9, 1)], Roof = true },
+            ],
+            Zones =
+            [
+                new Fx.StageZone { Name = "sealed", Kind = Fx.StageZoneKind.Stockpile, Cells = Interior(Sealed) },
+                new Fx.StageZone { Name = "open", Kind = Fx.StageZoneKind.Stockpile, Cells = Interior(Open) },
+            ],
+        },
         Run = RunAsync,
     };
 
-    private static CellRect RectOf(JsonNode? value)
+    private static Fx.StageCell[] Interior(Fx.StageRect r) =>
+        [.. from x in Enumerable.Range(r.X + 1, r.Width - 2) from z in Enumerable.Range(r.Z + 1, r.Height - 2) select new Fx.StageCell(x, z)];
+
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var rect = value.AsMap();
-        return new CellRect((int)rect?["minX"].AsNumber()!, (int)rect["minZ"].AsNumber(), (int)rect["maxX"].AsNumber(), (int)rect["maxZ"].AsNumber());
-    }
+        var staged = s.Staged!;
+        var site = staged.Site ?? throw new AcceptanceException("stage: no site");
+        var upkeep = await TypedApply.UpkeepAsync(s, "routes", cancellationToken).ConfigureAwait(false);
+        var routes = upkeep.Routes?.Outcome?.Observed ?? throw new AcceptanceException($"routes: section unavailable: {upkeep.Routes?.Outcome}");
+        var colonists = routes.PawnIds.Count;
+        var problems = new List<string>();
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
-    {
-        var report = s.Report;
-        var h = s.Harness;
-        var identity = s.Identity;
-        var prepared = s.Prepared ?? [];
-        ServiceProcess? service = null;
-        var facility = "";
-        var door = new Cell(0, 0);
-
-        try
+        Observations.RouteFacility Facility(string name)
         {
-            facility = prepared["facility"].AsString();
-            var room = RectOf(prepared["room"]);
-            var interior = RectOf(prepared["interior"]);
-            var colonists = (int)prepared["colonists"].AsNumber();
-            var routes = PolicyFunctions.DefaultRoutesPolicy();
-
-            // Before: the typed routes census must list the stockpile with every mobile colonist's reachability false
-            // and at least one breach wall on the room's border -- the exact facts the routes Need reads unmet.
-            var before = await ReadRoutesAsync(h, identity, "routes-before", facility, cancellationToken).ConfigureAwait(false);
-            report["routes_before"] = before.Evidence();
-            if (before.Kind != "ROUTE_FACILITY_KIND_STOCKPILE" || before.Travel.Count != colonists || before.Reachable() != 0)
-            {
-                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"routes-before: {facility} reads kind {before.Kind}, {before.Travel.Count} of {colonists} travel rows, {before.Reachable()} reachable"));
-            }
-
-            if (before.Breaches.Count == 0)
-            {
-                throw new AcceptanceException($"routes-before: {facility} lists no breach wall");
-            }
-
-            foreach (var b in before.Breaches)
-            {
-                if (!room.Contains(b.Cell) || interior.Contains(b.Cell) || b.Edifice != "Wall")
-                {
-                    throw new AcceptanceException($"routes-before: breach {b} is not a wall of the fixture room {room}");
-                }
-            }
-
-            // "work" rides along because every building method's builder check requires the colony's work priorities
-            // to match the controller's own assignment, which only the work family applies.
-            service = await s.LaunchAsync(new ServiceLaunch { Families = ["routes", "work"] }, cancellationToken).ConfigureAwait(false);
-            var token = await service.SessionTokenAsync(cancellationToken).ConfigureAwait(false);
-            var attached = await service.WaitAttachedAsync(identity, TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
-            report["service_state_attached"] = attached.DeepClone();
-            var rootPlanId = await service.ResumeAsync(Prefix, identity, token, report, cancellationToken).ConfigureAwait(false);
-            report["root_plan"] = rootPlanId;
-            var keepAlive = new AuthorityKeepAlive(service, Prefix, identity, token);
-            var stopKeepAlive = keepAlive.Start(cancellationToken);
-            try
-            {
-                using var journal = await ServiceJournal.OpenWithRetryAsync(ServiceJournal.PathOf(s.Config), cancellationToken).ConfigureAwait(false);
-                var (review, diagnostics) = await ServiceJournal.WaitRoundsAsync(service, journal, TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
-                report["diagnostic_post_acquire"] = new JsonArray([.. diagnostics.Select(d => (JsonNode?)d.DeepClone())]);
-                report["rounds_review_first"] = review.Revision;
-
-                // The layout family must file the routes Need unmet.
-                ReviewRecord latched;
-                try
-                {
-                    latched = await ServiceJournal.BoundedAsync(
-                        TimeSpan.FromMinutes(3),
-                        ct => WaitLatchAsync(journal, service, facility, ct),
-                        cancellationToken).ConfigureAwait(false);
-                }
-                catch (AcceptanceException e)
-                {
-                    throw new AcceptanceException($"routes need: {e.Message}", e);
-                }
-
-                report["unmet_review_revision"] = latched.Revision;
-
-                // The routes Need's Method: one door of the policy's material on a breach wall of the room, never inside
-                // it. Incidental cancellations renew the Method; the measured census meets the Need once reachable.
-                string? previous = null;
-                var plans = new List<string>();
-                var released = false;
-                for (var renewals = 0; !released && plans.Count < 4;)
-                {
-                    ServiceMethod method;
-                    try
-                    {
-                        method = await ServiceJournal.BoundedAsync(
-                        TimeSpan.FromMinutes(8),
-                        ct => service.WaitMethodAsync(LayoutFamily.Routes.Value, previous, ct),
-                        cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (AcceptanceException e)
-                    {
-                        throw new AcceptanceException($"routes method: {e.Message}", e);
-                    }
-
-                    report["need_id"] = method.Concern;
-                    if (!(await ServiceJournal.NeedMethodsAsync(journal, LayoutFamily.Routes, cancellationToken).ConfigureAwait(false)).Contains(method.Method))
-                    {
-                        throw new AcceptanceException($"routes method {method.Method} is not bound to the {LayoutFamily.Routes} Need's Methods");
-                    }
-                    previous = method.Plan;
-                    var plan = await journal.LoadPlanAsync(new PlanId(method.Plan), cancellationToken).ConfigureAwait(false);
-                    var actions = plan.Spec.Actions;
-                    if (actions.Count != 1)
-                    {
-                        throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"routes plan {method.Plan} has {actions.Count} actions; expected one door"));
-                    }
-
-                    if (actions[0].Building is not { } b || b.Definition != routes.Door || b.Stuff != routes.Stuff)
-                    {
-                        throw new AcceptanceException($"routes admitted {actions[0]}; expected a {routes.Door} of {routes.Stuff}");
-                    }
-
-                    var listed = before.Breaches.Any(breach => breach.Cell == b.Cell);
-                    if (!listed || !room.Contains(b.Cell) || interior.Contains(b.Cell))
-                    {
-                        throw new AcceptanceException($"door placed at {b.Cell}: not a listed breach wall of {room} (breaches {string.Join(", ", before.Breaches)})");
-                    }
-
-                    door = b.Cell;
-                    (JsonObject State, bool Incidental) done;
-                    try
-                    {
-                        done = await ServiceJournal.BoundedAsync(
-                        TimeSpan.FromMinutes(10),
-                        ct => service.WaitPlanTerminalAsync(method.Plan, ct),
-                        cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (AcceptanceException e)
-                    {
-                        throw new AcceptanceException($"routes plan: {e.Message}", e);
-                    }
-
-                    if (done.Incidental)
-                    {
-                        renewals++;
-                        report["incidental_renewals"] = renewals;
-                        continue;
-                    }
-
-                    plans.Add(method.Plan);
-                    report["routes_plans"] = new JsonArray([.. plans.Select(p => (JsonNode?)p)]);
-                    var finished = await journal.LoadPlanAsync(new PlanId(method.Plan), cancellationToken).ConfigureAwait(false);
-                    report["routes_completed_tick"] = finished.Progress[0].View.Tick.Value;
-                    report["door_cell"] = new JsonObject { ["x"] = door.X, ["z"] = door.Z };
-                    ReviewRecord releasedReview;
-                    try
-                    {
-                        releasedReview = await ServiceJournal.BoundedAsync(
-                        TimeSpan.FromMinutes(4),
-                        ct => WaitMetAsync(journal, service, ct),
-                        cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (AcceptanceException e)
-                    {
-                        throw new AcceptanceException($"routes release: {e.Message}", e);
-                    }
-
-                    released = true;
-                    report["met_review_revision"] = releasedReview.Revision;
-                }
-
-                if (!released)
-                {
-                    throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"facility {facility} still unreachable after {plans.Count} plans"));
-                }
-
-                await Rounds.AssertRoundsRunningAsync(service.GetAsync, cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                report["authority_reacquisitions"] = await stopKeepAlive().ConfigureAwait(false);
-            }
-
-            // Independent native read after the service releases the game slot.
-            _ = await service.StopAsync().ConfigureAwait(false);
-            h = s.Reattach();
-            _ = await h.CallAsync("pause-after", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
-            var after = await ReadRoutesAsync(h, identity, "routes-after", facility, cancellationToken).ConfigureAwait(false);
-            report["routes_after"] = after.Evidence();
-            if (after.Reachable() == 0)
-            {
-                throw new AcceptanceException($"routes-after: {facility} still reads unreachable by every colonist");
-            }
-
-            if (!after.Travel.Any(t => t.Reachable && t.PathCost > 0 && t.PathCells > 0))
-            {
-                throw new AcceptanceException($"routes-after: no colonist reports a measured path to {facility}: {string.Join(", ", after.Travel)}");
-            }
-
-            if (after.Breaches.Count != 0)
-            {
-                throw new AcceptanceException($"routes-after: a reachable facility still lists breaches: {string.Join(", ", after.Breaches)}");
-            }
-
-            if (after.TrafficSamples == 0)
-            {
-                throw new AcceptanceException("routes-after: no observed traffic samples");
-            }
-
-            report["door_traffic_samples"] = after.SamplesAt(door);
-        }
-        finally
-        {
-            // Failure evidence: the same independent routes read a pass ends with.
-            if (report["routes_after"] is null)
-            {
-                await PostmortemAsync(s, service, identity, facility).ConfigureAwait(false);
-            }
-        }
-    }
-
-    private static async Task PostmortemAsync(ISession s, ServiceProcess? service, JsonObject identity, string facility)
-    {
-        var report = s.Report;
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
-        try
-        {
-            if (service is not null)
-            {
-                _ = await service.StopAsync().ConfigureAwait(false);
-            }
-
-            var ph = s.Reattach();
-            try
-            {
-                var after = await ReadRoutesAsync(ph, identity, "routes-postmortem", facility, cts.Token).ConfigureAwait(false);
-                report["routes_postmortem"] = after.Evidence();
-            }
-            catch (AcceptanceException e)
-            {
-                report["routes_postmortem_error"] = e.Message;
-            }
-        }
-        catch (Exception e) when (e is AcceptanceException or OperationCanceledException or InvalidOperationException)
-        {
-            report["postmortem_error"] = "reopen session for the postmortem: " + e.Message;
-        }
-    }
-
-    /// <summary>Whether the review files the routes Need: the layout family's last run found it unmet or working a Method.</summary>
-    private static bool Filed(ReviewRecord review) => review.Progress.Any(p => p.Concern == LayoutFamily.Routes.FilingKey);
-
-    private static Wait StoreWait(ServiceProcess service) => new() { Stall = Wait.StallBudget(), Terminal = service.Exited };
-
-    private static async Task<ReviewRecord> WaitLatchAsync(Journal journal, ServiceProcess service, string key, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await ServiceJournal.WaitReviewAsync(
-                journal,
-                StoreWait(service),
-                Filed,
-                cancellationToken).ConfigureAwait(false);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"review never filed the {LayoutFamily.Routes} Need for facility {key}: {e.Message}", e);
-        }
-    }
-
-    private static async Task<ReviewRecord> WaitMetAsync(Journal journal, ServiceProcess service, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await ServiceJournal.WaitReviewAsync(journal, StoreWait(service), r => r.Revision != 0 && !Filed(r), cancellationToken).ConfigureAwait(false);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"review never met the {LayoutFamily.Routes} Need: {e.Message}", e);
-        }
-    }
-
-    private readonly record struct CellRect(int MinX, int MinZ, int MaxX, int MaxZ)
-    {
-        public bool Contains(Cell c) => c.X >= MinX && c.X <= MaxX && c.Z >= MinZ && c.Z <= MaxZ;
-    }
-
-    private sealed record TravelRow(string Pawn, bool Reachable, int PathCost, int PathCells);
-
-    private sealed record BreachRow(Cell Cell, string Edifice, string Pending, int Distance);
-
-    private sealed class RoutesSummary
-    {
-        public string Kind { get; set; } = "";
-
-        public string RoomId { get; set; } = "";
-
-        public Cell Cell { get; set; }
-
-        public List<TravelRow> Travel { get; } = [];
-
-        public List<BreachRow> Breaches { get; } = [];
-
-        public Dictionary<Cell, uint> Traffic { get; } = [];
-
-        public uint TrafficSamples { get; set; }
-
-        public int Reachable() => Travel.Count(t => t.Reachable);
-
-        public uint SamplesAt(Cell c) => Traffic.TryGetValue(c, out var samples) ? samples : 0;
-
-        public JsonObject Evidence()
-        {
-            var travel = new JsonArray([.. Travel.Select(t => (JsonNode?)new JsonObject { ["pawn"] = t.Pawn, ["reachable"] = t.Reachable, ["path_cost"] = t.PathCost, ["path_cells"] = t.PathCells })]);
-            var breaches = new JsonArray([.. Breaches.Select(b => (JsonNode?)new JsonObject { ["x"] = b.Cell.X, ["z"] = b.Cell.Z, ["edifice"] = b.Edifice, ["pending"] = b.Pending, ["distance"] = b.Distance })]);
-            var keys = Traffic.Keys.OrderByDescending(c => Traffic[c]).ThenBy(c => c.Z).ThenBy(c => c.X).ToList();
-            var traffic = new JsonArray([.. keys.Select(c => (JsonNode?)new JsonObject { ["x"] = c.X, ["z"] = c.Z, ["samples"] = Traffic[c] })]);
-            return new JsonObject
-            {
-                ["kind"] = Kind,
-                ["room_id"] = RoomId,
-                ["cell"] = new JsonObject { ["x"] = Cell.X, ["z"] = Cell.Z },
-                ["travel"] = travel,
-                ["reachable"] = Reachable(),
-                ["breaches"] = breaches,
-                ["traffic"] = traffic,
-                ["traffic_samples"] = TrafficSamples,
-            };
-        }
-    }
-
-    private static Cell CellOf(JsonNode? value)
-    {
-        var map = value.AsMap();
-        return new Cell((int)map?["x"].AsNumber()!, (int)map["z"].AsNumber());
-    }
-
-    /// <summary>Decodes the typed upkeep routes section, keeping the fixture facility's row and the traffic census.</summary>
-    private static async Task<RoutesSummary> ReadRoutesAsync(Harness h, JsonObject identity, string label, string facility, CancellationToken cancellationToken)
-    {
-        var reply = await h.WireAsync(
-            label,
-            "observations_read_colony_facts",
-            new JsonObject { ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() }, ["planning"] = false },
-            cancellationToken).ConfigureAwait(false);
-        var (_, observed) = Harness.Outcome(reply, "observed");
-        var upkeepSection = observed["upkeep"].AsMap() ?? [];
-        JsonObject upkeep;
-        try
-        {
-            upkeep = Harness.Outcome(upkeepSection, "observed").Value;
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"{label}: upkeep unavailable: {e.Message}", e);
+            var interior = staged.Rooms[name].Interior.ToHashSet();
+            var row = routes.Facilities.FirstOrDefault(f => f.Kind == Observations.RouteFacilityKind.Stockpile && f.Cell is Common.Cell { X: { } x, Z: { } z } && interior.Contains(new(x, z)))
+                ?? throw new AcceptanceException($"routes: no STOCKPILE facility in the {name} room");
+            s.RecordWire(name, row);
+            return row;
         }
 
-        foreach (var raw in upkeep["issues"].AsSlice())
+        var sealedRow = Facility("sealed");
+        if (colonists == 0 || sealedRow.Travel.Count != colonists || sealedRow.Travel.Any(t => t.Reachable == true))
         {
-            var issue = raw.AsMap() ?? [];
-            if (issue["field"].AsString() == "routes")
-            {
-                throw new AcceptanceException($"{label}: routes census unavailable: {issue.ToJson()}");
-            }
+            problems.Add($"sealed: want {colonists} travel rows, none reachable, got {string.Join("; ", sealedRow.Travel)}");
         }
 
-        var section = upkeep["routes"].AsMap() ?? [];
-        JsonObject facts;
-        try
+        bool OnBorder(Common.Cell? c, Fx.StageRect r)
         {
-            facts = Harness.Outcome(section, "observed").Value;
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"{label}: routes section unavailable: {e.Message}", e);
+            var (x, z) = ((c?.X ?? -1) - site.X, (c?.Z ?? -1) - site.Z);
+            var inside = x >= r.X && x < r.X + r.Width && z >= r.Z && z < r.Z + r.Height;
+            var interior = x > r.X && x < r.X + r.Width - 1 && z > r.Z && z < r.Z + r.Height - 1;
+            return inside && !interior;
         }
 
-        var summary = new RoutesSummary { TrafficSamples = (uint)facts["trafficSamples"].AsNumber() };
-        foreach (var raw in facts["traffic"].AsSlice())
+        if (sealedRow.Breaches.Count == 0 || sealedRow.Breaches.Any(b => b.Edifice != "Wall" || !OnBorder(b.Cell, Sealed)))
         {
-            var row = raw.AsMap() ?? [];
-            summary.Traffic[CellOf(row["cell"])] = (uint)row["samples"].AsNumber();
+            problems.Add($"sealed: want breach walls on its border only, got {string.Join("; ", sealedRow.Breaches)}");
         }
 
-        foreach (var raw in facts["facilities"].AsSlice())
+        var openRow = Facility("open");
+        if (!openRow.Travel.Any(t => t is { Reachable: true, PathCells: > 0 }) || openRow.Breaches.Count != 0)
         {
-            var row = raw.AsMap() ?? [];
-            var reference = row["facility"].AsMap();
-            if (reference?["id"].AsString() != facility)
-            {
-                continue;
-            }
-
-            summary.Kind = row["kind"].AsString();
-            summary.RoomId = row["room"].RefId();
-            summary.Cell = CellOf(row["cell"]);
-            foreach (var rawTravel in row["travel"].AsSlice())
-            {
-                var t = rawTravel.AsMap() ?? [];
-                summary.Travel.Add(new TravelRow(t["pawnId"].AsString(), t["reachable"].AsBool() == true, (int)t["pathCost"].AsNumber(), (int)t["pathCells"].AsNumber()));
-            }
-
-            foreach (var rawBreach in row["breaches"].AsSlice())
-            {
-                var b = rawBreach.AsMap() ?? [];
-                summary.Breaches.Add(new BreachRow(CellOf(b["cell"]), b["edifice"].AsString(), b["pending"].AsString(), (int)b["distance"].AsNumber()));
-            }
-
-            return summary;
+            problems.Add($"open: want a measured reachable path and no breaches, got {string.Join("; ", openRow.Travel)} / {string.Join("; ", openRow.Breaches)}");
         }
 
-        throw new AcceptanceException($"{label}: routes census lists no facility {facility}");
+        if (problems.Count > 0)
+        {
+            throw new AcceptanceException(string.Join("; ", problems));
+        }
     }
 }

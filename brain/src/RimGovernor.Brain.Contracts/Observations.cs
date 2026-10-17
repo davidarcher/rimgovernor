@@ -1418,8 +1418,6 @@ public sealed record PawnState
     /// </summary>
     public Common.Ref? OwnedBed { get; init; }
 
-    public SnapshotRef Snapshot { get; init; } = new();
-
     /// <summary>
     /// Native lord evidence for hostile groups: the LordJob and current LordToil
     /// class names (e.g. LordJob_AssaultColony / LordToil_AssaultColonySappers,
@@ -1867,8 +1865,6 @@ public sealed record ResourceStock
 
     public long PlayerFaction { get; init; }
 
-    public long Fogged { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<StockItem>))]
     public EquatableArray<StockItem> Items { get; init; }
 
@@ -1877,8 +1873,6 @@ public sealed record ResourceStock
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
-
-    public SnapshotRef? Snapshot { get; init; }
 
     /// <summary>
     /// Biocode facts keyed by items' exact identities.
@@ -2069,7 +2063,6 @@ public sealed record BillStackRow
 
     public bool? Usable { get; init; }
 
-    public uint? Capacity { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<BillState>))]
     public EquatableArray<BillState> Bills { get; init; }
@@ -2230,11 +2223,6 @@ public sealed record BuildingState
     public bool Burning { get; init; }
 
     /// <summary>
-    /// The list read's CAS token for the row; absent on the bundle's building table.
-    /// </summary>
-    public SnapshotRef? Snapshot { get; init; }
-
-    /// <summary>
     /// The building's occupied rect, inclusive.
     /// </summary>
     public Rectangle Occupied { get; init; } = new();
@@ -2367,9 +2355,6 @@ public sealed record RoomStat
 public sealed record StockpileMembership
 {
     public Common.Ref? Zone { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ResourceStock>))]
-    public EquatableArray<ResourceStock> Contents { get; init; }
 }
 
 public sealed record RoomState
@@ -2541,9 +2526,6 @@ public sealed record ZoneState
     public string? CropDefName { get; init; }
 
     public StockpileFilter? Filter { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
-    public EquatableArray<Quantity> Contents { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
@@ -2775,8 +2757,6 @@ public sealed record ResearchSlot
 public sealed record ResearchSnapshot
 {
     public Common.ObservationContext? Context { get; init; }
-
-    public SnapshotRef? Snapshot { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ResearchSlot>))]
     public EquatableArray<ResearchSlot> Slots { get; init; }
@@ -3191,8 +3171,6 @@ public abstract record LinesOfFireReplyOutcome
 public sealed record RoofSupportCell
 {
     public Common.Cell? Cell { get; init; }
-
-    public string? Blocker { get; init; }
 }
 
 public sealed record RoofSupportSnapshot
@@ -3206,8 +3184,6 @@ public sealed record RoofSupportSnapshot
 public sealed record RoofSupportRequest
 {
     public ReadScope? Scope { get; init; }
-
-    public string? TargetId { get; init; }
 }
 
 public sealed record RoofSupportReply
@@ -3360,8 +3336,6 @@ public sealed record WallUpgradeSite
 
     public string? RemovalId { get; init; }
 
-    public SnapshotRef? Snapshot { get; init; }
-
     public Common.Cell Normal { get; init; } = new();
 
     public Common.Ref Original { get; init; } = new();
@@ -3448,8 +3422,6 @@ public sealed record ResourceSource
     public bool? Designated { get; init; }
 
     public string? Safety { get; init; }
-
-    public string? Blocker { get; init; }
 
     public double? Distance { get; init; }
 
@@ -4110,8 +4082,6 @@ public sealed record WorldTile
 
     public double? Longitude { get; init; }
 
-    public double? TemperatureC { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
 }
@@ -4185,8 +4155,6 @@ public sealed record WorldRoute
     public long? EstimatedTicks { get; init; }
 
     public string? Reason { get; init; }
-
-    public double? TemperatureC { get; init; }
 
     public bool? Hostile { get; init; }
 
@@ -4732,8 +4700,6 @@ public sealed record FactionState
     public bool? Hostile { get; init; }
 
     public int? Goodwill { get; init; }
-
-    public SnapshotRef? Snapshot { get; init; }
 }
 
 public sealed record WorldMap
@@ -5202,8 +5168,6 @@ public sealed record GearCandidate
     public double? Gain { get; init; }
 
     public string? Reason { get; init; }
-
-    public string? Blocker { get; init; }
 }
 
 /// <summary>
@@ -6080,8 +6044,6 @@ public sealed record UpkeepPerson
 
     public double? ComfortableMaxC { get; init; }
 
-    public double? TemperatureC { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> Partners { get; init; }
 
@@ -6440,12 +6402,6 @@ public sealed record GrowRoom
     public double? TemperatureC { get; init; }
 
     public uint? CellCount { get; init; }
-
-    public uint? OpenRoofCount { get; init; }
-
-    public bool? ProperRoom { get; init; }
-
-    public bool? PsychologicallyOutdoors { get; init; }
 }
 
 public sealed record PowerHeadroom
@@ -6924,22 +6880,12 @@ public abstract record PlanningSectionOutcome
 public sealed record WallRemovalRecord
 {
     public string? Id { get; init; }
-
-    public string? TargetId { get; init; }
-
-    public string? Blocker { get; init; }
-
-    public bool? TargetPresent { get; init; }
-
-    public bool? Designated { get; init; }
 }
 
 public sealed record WallRemovalFacts
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<WallRemovalRecord>))]
     public EquatableArray<WallRemovalRecord> Records { get; init; }
-
-    public SnapshotRef? Snapshot { get; init; }
 }
 
 public sealed record WallRemovalSection
@@ -7003,8 +6949,6 @@ public sealed record HomeCoverageTarget
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
     public EquatableArray<Common.Cell> Cells { get; init; }
-
-    public SnapshotRef? Snapshot { get; init; }
 
     public HomeExtentGeometry? ExtentGeometry { get; init; }
 }

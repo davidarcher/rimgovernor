@@ -146,11 +146,6 @@ namespace HomeBridge.BridgeTools
             else row = row with { Issues = [.. row.Issues, Issue("owned_bed",Common.UnavailableReason.NotApplicable,"No owned bed.")] };
             return row;
         }
-        internal static Obs.SnapshotRef PawnSnapshotToken(Obs.PawnState row,Common.ObservationContext context)
-            => NativeObservationSnapshot.Snapshot("pawn-state", context, (row.Pawn.Id ?? ""), w => {
-                w.Write(row.Dead); w.Write(row.Downed); w.Write(row.Drafted); w.Write(row.InBed); w.Write(row.Hostile);
-                w.Write(row.MentalState?.DefName??""); w.Write(row.Faction?.Id??"");
-            });
         private static long Distance(IntVec3 a,IntVec3 b)=>Math.Max(Math.Abs((long)a.x-b.x),Math.Abs((long)a.z-b.z));
         internal static Obs.EntityRef Entity(Thing thing) {
             var row=new Obs.EntityRef { Id=Id(thing.GetUniqueLoadID()),DefName=Id(thing.def.defName),Label=Text(thing.LabelCap) };

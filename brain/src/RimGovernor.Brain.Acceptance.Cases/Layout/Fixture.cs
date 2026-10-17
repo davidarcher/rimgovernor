@@ -5,8 +5,7 @@ using Observations = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// The tiered colony layout cases' shared fixture constants and plan check, staged on the layout grid fixture hut
-/// (<c>test/layout_grid_prepare</c>) (Go <c>fixture.go</c>).
+/// The layout grid fixture hut (<c>test/layout_grid_prepare</c>) the shelter and sleeping cases start on, and its shell read.
 /// </summary>
 internal static class LayoutFixture
 {
@@ -28,42 +27,5 @@ internal static class LayoutFixture
             row.Stuff ?? "",
             TypedReads.CellOf(row.Building.Position, label),
             row.Status == Observations.BuildingStatus.Built))];
-    }
-
-    /// <summary>
-    /// The sleeping spots the hut is furnished with: fewer than the eight colonists the baseline houses, so the
-    /// capacity goal has a deficit to plan a second ring against from the first review.
-    /// </summary>
-    internal const int Bunks = 5;
-
-    /// <summary>The stone blocks dropped beside the hut door: a module ring is 48 cells, and a stone wall costs five blocks.</summary>
-    internal const int Blocks = 400;
-
-    /// <summary>
-    /// Reports a plan of the sampled goal, active or retired, whose method matches: with <paramref name="complete"/>
-    /// set, every one of its actions has completed, otherwise it need only hold actions.
-    /// </summary>
-    internal static bool Planned(JsonObject? sample, Func<string, bool> match, bool complete)
-    {
-        var plans = sample?["plans"].AsSlice() ?? [];
-        var retired = sample?["retired_plans"].AsSlice() ?? [];
-        foreach (var raw in plans.Concat(retired))
-        {
-            var plan = raw.AsMap() ?? [];
-            var method = plan["method"].AsString();
-            var actions = (int)plan["actions"].AsNumber();
-            var completed = (int)(plan["stages"].AsMap()?["completed"].AsNumber() ?? 0);
-            if (!match(method) || actions == 0)
-            {
-                continue;
-            }
-
-            if (!complete || completed == actions)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

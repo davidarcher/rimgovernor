@@ -106,9 +106,8 @@ namespace HomeBridge.BridgeTools
                 NativeStockpileSettings.Apply(settings.filter, target.Body, StockpileFilter.ParentFilter(target.Parent), StockpileFilter.StorableDefs(target.Parent));
                 if (!Standing(target)) throw new InvalidOperationException("Native stockpile settings readback did not apply.");
             }
-            if (target.Parent is Building_Storage storage)
-                return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect { Snapshot = new Receipts.SnapshotEvidence {
-                    EntityId = storage.GetUniqueLoadID(), AfterToken = NativeStockpilePatch.StorageToken(storage, context).Token } } };
+            if (target.Parent is Building_Storage)
+                return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect() };
             return NativeZoneCreation.Evidence(action.Intent?.Zone?.Zone?.Id ?? "", target.Parent as Zone, map);
         }
     }

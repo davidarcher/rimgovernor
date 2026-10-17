@@ -244,13 +244,12 @@ namespace HomeBridge.BridgeTools
                 var now = ExcavationTools.RockAt(p.Cell, p.Map);
                 var designated = now != null && ExcavationTools.Designated(p.Cell, p.Map);
                 return new Receipts.EffectEvidence { Effect = new Receipts.ExcavationEffect { Cell = cell,
-                    Cleared = now == null, Designated = designated, Cancelled = now != null && !designated } };
+                    Cleared = now == null, Cancelled = now != null && !designated } };
             }
             if (p.Designation == Operations.ThingDesignation.Deconstruct)
             {
                 var target = (Building)p.Target!;
-                var effect = new Receipts.DeconstructEffect { TargetId = target.GetUniqueLoadID(), DesignationId = record?.Id ?? "",
-                    DemolitionObserved = record != null && record.Finished >= 0 };
+                var effect = new Receipts.DeconstructEffect { TargetId = target.GetUniqueLoadID(), DesignationId = record?.Id ?? "" };
                 if (record?.ReplacementId != null) effect = effect with { ReplacementId = record.ReplacementId };
                 return new Receipts.EffectEvidence { Effect = effect };
             }

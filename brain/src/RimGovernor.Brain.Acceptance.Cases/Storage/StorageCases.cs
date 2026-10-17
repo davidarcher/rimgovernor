@@ -7,8 +7,6 @@ public static class StorageCases
     public static void Register(CaseRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
-        registry.Register(StorageRefillHysteresis.Case());
-        registry.Register(StorageRefillHysteresis.CancellationCase());
         registry.Register(StorageStrandedLoot.Case());
         registry.Register(StorageYardShelf.Case());
         registry.Register(StorageOccupancyRing.Case());

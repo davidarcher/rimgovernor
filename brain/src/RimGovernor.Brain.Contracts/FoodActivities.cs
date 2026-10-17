@@ -28,5 +28,4 @@ public sealed record FoodActivityRead
     [JsonConverter(typeof(EquatableArrayJsonConverter<FoodActivityOption>))]
     public EquatableArray<FoodActivityOption> Options { get; init; }
     public RimGovernor.Contracts.Wire.Operations.PawnActivityExecution? Execution { get; init; }
-    public bool Carrying { get; init; }
 }

@@ -160,14 +160,18 @@ namespace HomeBridge.BridgeTools
             var pending = WallUpgradeSafety.Pending(target);
             row = row with { Designated = designation != null };
             if (pending != null) row = row with { RemovalId = pending.Id };
-            row = row with { Snapshot = NativeObservationSnapshot.Snapshot("wall-site", context, target.GetUniqueLoadID(), w => {
-                w.Write(original.GetUniqueLoadID()); w.Write(normal.x); w.Write(normal.z); w.Write(target.HitPoints);
-                w.Write(row.Designated); w.Write(row.RemovalId ?? "");
-                w.Write((row.LeftSupport.Id ?? "")); w.Write((row.RightSupport.Id ?? ""));
-                foreach (var backup in row.CompletedBackups) w.Write((backup.Id ?? ""));
-            }) };
             return row;
         }
+
+        // SiteToken is the wall removal receipt's site version: the target's
+        // own token plus the site's geometry, designation and backups.
+        internal static string SiteToken(Obs.WallUpgradeSite row, Common.ObservationContext context) =>
+            NativeObservationSnapshot.Snapshot("wall-site", context, row.Target.Id ?? "", w => {
+                w.Write(row.Original.Id ?? ""); w.Write(row.Normal.X); w.Write(row.Normal.Z); w.Write(row.TargetSnapshot?.Token ?? "");
+                w.Write(row.Designated); w.Write(row.RemovalId ?? "");
+                w.Write(row.LeftSupport.Id ?? ""); w.Write(row.RightSupport.Id ?? "");
+                foreach (var backup in row.CompletedBackups) w.Write(backup.Id ?? "");
+            }).Token ?? "";
 
         // The stony stuffs a wall may be rebuilt from, by name: the order a corner replacement tries them in.
         internal static List<ThingDef> StonyStuffs() =>

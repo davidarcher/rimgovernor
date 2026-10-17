@@ -46,8 +46,8 @@ public sealed class ForecastCoupledSelectionTests
                     MoodIntervalTicks = Known(150d), MoodFreezesWhileAsleep = Known(true), BreakThreshold = Known(.3),
                     ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]),
                     Memories = Known<EquatableArray<NeedMemory>>([]),
-                    Needs = [new("food", Known(level), Known(fall), Known(.3), Known(1d)),
-                        new("rest", Known(1d), Known(0d), Known(.3), Known(1d))],
+                    Needs = [new("food", Known(level), Known(fall), Known(.3)),
+                        new("rest", Known(1d), Known(0d), Known(.3))],
                 }] },
                 Coupled = new()
                 {
@@ -74,7 +74,7 @@ public sealed class ForecastCoupledSelectionTests
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
         {
             Location = new(1, 1),
-            Needs = [new("joy", Known(.2), Known(.003), Known(.3), Known(1d))],
+            Needs = [new("joy", Known(.2), Known(.003), Known(.3))],
             Targets = [new("shared-service", "joy", "", 1, Known(0d), Known(10d), Known(0d), Known(.01))
                 { Location = new(1, 1) }]
         };
@@ -156,11 +156,11 @@ public sealed class ForecastCoupledSelectionTests
     {
         var facts = Review(1, 0);
         var candidates = facts.CoupledAlternatives!;
-        var pawn = candidates.Context.Needs.Pawns[0] with { Location = new(8, 9), Needs = [new("food", default, Known(0d), Known(.3), Known(1d))] };
+        var pawn = candidates.Context.Needs.Pawns[0] with { Location = new(8, 9), Needs = [new("food", default, Known(0d), Known(.3))] };
         facts = facts with { CoupledAlternatives = candidates with { Alternatives = [], Context = candidates.Context with
         { Needs = candidates.Context.Needs with { Pawns = [pawn] } } } };
         Assert.Empty(Select(facts).Deferred);
-        pawn = pawn with { Needs = [new("food", Known(1d), Known(0d), Known(.3), Known(1d))] };
+        pawn = pawn with { Needs = [new("food", Known(1d), Known(0d), Known(.3))] };
         facts = facts with { CoupledAlternatives = candidates with { Alternatives = [], Context = candidates.Context with
         { Needs = candidates.Context.Needs with { Pawns = [pawn] }, Resources = candidates.Context.Resources with
         { Claims = candidates.Context.Resources.Claims with { Pawns = ["pawn"] } } } } };
@@ -175,8 +175,8 @@ public sealed class ForecastCoupledSelectionTests
         foreach (var blocked in new[]
         {
             pawn with { VoluntaryControlBlockers = ["unsupported_psyfocus"] },
-            pawn with { Needs = [new("food", Known(1d), Known(double.NaN), Known(.3), Known(1d))] },
-            pawn with { Needs = [new("food", Known(1d), Known(0d), Known(double.PositiveInfinity), Known(1d))] },
+            pawn with { Needs = [new("food", Known(1d), Known(double.NaN), Known(.3))] },
+            pawn with { Needs = [new("food", Known(1d), Known(0d), Known(double.PositiveInfinity))] },
         })
         {
             var candidates = original with { Alternatives = [], Context = original.Context with

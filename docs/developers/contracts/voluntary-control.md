@@ -146,9 +146,6 @@ not satisfy #3135's actual-gameplay gate.
 | `clean/bench` | Keep shared useful cleaning plus real production and native room improvement. |
 | `clean/care` | Keep urgent treatment under the critical owner, with separately useful shared cleanup; cleaning must not delay urgent care. |
 | `clean/care-routine` | Keep routine shared exact tend and useful cleaning; no legacy direct-tend substitution. |
-| `storage/refill-hysteresis` | Keep rewritten exact demand-driven quantity and actual delivery; the old refill threshold is not an assertion. |
-| `storage/changed-demand` | Keep withdrawal during owned carry and release; no obsolete continued delivery. |
-| `clearance/chunk-dump` | Keep useful demanded chunk transfer with unrelated chunks unchanged; no global haulability assumption. |
 | `control/pawn-activities` | Keep exact job execution, supported needs mechanics, preemption and refusal checks. It is an execution contract, not normal-planner economic evidence. |
 | `control/activity-*` | Keep save/load, ownership, revision, continuation and release mechanics. |
 | `control/pawn-activity-cooking` | Keep exact recipe/input execution and unavailable/reserved-target refusal. |

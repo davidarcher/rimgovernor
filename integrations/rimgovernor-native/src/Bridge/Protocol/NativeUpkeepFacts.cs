@@ -367,7 +367,7 @@ namespace HomeBridge.BridgeTools
                 Obs.UpkeepPerson Person(Pawn p) => new Obs.UpkeepPerson {
                     Pawn = NativePawnObservationTools.Ref(p), OwnedBed = NativeRef.Of(p.ownership?.OwnedBed),
                     ComfortableMinC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMin)),
-                    ComfortableMaxC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMax)), TemperatureC = Number(p.AmbientTemperature)
+                    ComfortableMaxC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMax))
                 };
                 var values = people.Select(Person).ToList();
                 for (var i = 0; i < people.Count; i++) values[i] = SleepingRelations(people[i], values[i]);

@@ -27,7 +27,7 @@ public sealed class ForecastActivityCompositionTests
             FoodConversions = EquatableArray.From(conversions),
             FoodUses = [new("pawn", "Meal", new(3, 1), Known(true), Known(.8), Known(10d), 1, Known(1000d))],
             Support = new() { Known = true,
-                Demands = [new("patient-care", "care", "patient", new(1, 1), Known(0d), default, Known(0d), default)],
+                Demands = [new("patient-care", "care", "patient", new(1, 1), default, Known(0d), default)],
                 Workers = [new("patient-care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(10d))] }
         };
         facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = read } };
@@ -225,7 +225,7 @@ public sealed class ForecastActivityCompositionTests
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = new() { Tick = 100, Pawns = [new() { Pawn = "pawn", State = "eligible",
-                    Needs = [new("food", Known(.2), Known(.001), Known(.3), Known(1d))] }] },
+                    Needs = [new("food", Known(.2), Known(.001), Known(.3))] }] },
                 Coupled = new() { Tick = 100, Food = new() { Known = true, Context = context },
                     FoodSources = [new("a", "Rice", new(1, 1), 2, Known(1000d)), new("b", "Rice", new(1, 1), 2, Known(1000d)), new("unused-unknown", "Rice", new(9, 9), 2, default),
                         new("unrelated-meal", "Meal", new(9, 9), 1, existingMealFreshness < 0 ? default : Known(existingMealFreshness))],

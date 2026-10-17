@@ -45,8 +45,7 @@ public sealed record NeedThoughtStage(string Thought, string Role, int Stage, do
 public sealed record NeedRate(string Kind,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> Level,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> FallPerTick,
-    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> Threshold,
-    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> Capacity)
+    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> Threshold)
 {
     /// <summary>Current-rate approximation; observed threshold crossings require fresh native rates.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]

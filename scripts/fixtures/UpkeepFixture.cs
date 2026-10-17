@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using RimGovernor.Fixtures.Contracts;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
@@ -13,36 +14,6 @@ namespace HomeBridge.BridgeTools
     // Disposable scenario preparation; never included in production builds.
     public sealed class UpkeepFixture
     {
-        [Tool("test/deconstruct_prepare", Description = "Stage exact non-colony deconstruction targets. Test builds only.")]
-        public async Task<object> PrepareDeconstruction(IRimBridgeContext ctx, CancellationToken cancellationToken)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                var pawn = map.mapPawns.FreeColonistsSpawned.First(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction));
-                var cells = GenRadial.RadialCellsAround(pawn.Position, 25, true).Where(c => c.InBounds(map)
-                    && !c.Fogged(map) && c.Standable(map) && c.GetEdifice(map) == null && !c.Roofed(map)
-                    && RoofSupportSafety.GeometryKnown(map, c)
-                    && c.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy)).Take(30).ToList();
-                if (cells.Count < 30) throw new InvalidOperationException("No open deconstruction fixture site.");
-                var ids = new System.Collections.Generic.List<string>();
-                for (int i = 0; i < 6; i++) {
-                    var wall = (Building)ThingMaker.MakeThing(ThingDefOf.Wall, ThingDefOf.WoodLog);
-                    if (i == 0) wall.SetFaction(Faction.OfPlayer);
-                    GenSpawn.Spawn(wall, cells[i * 5], map);
-                    wall.SetForbidden(false, false);
-                    ids.Add(wall.GetUniqueLoadID());
-                }
-                foreach (var p in map.mapPawns.FreeColonistsSpawned) {
-                    foreach (var h in p.health.hediffSet.hediffs.Where(h => h.def.isBad && !(h is Hediff_MissingPart)).ToList()) p.health.RemoveHediff(h);
-                    if (!p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) p.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
-                    p.timetable.SetAssignment(GenLocalDate.HourOfDay(p), TimeAssignmentDefOf.Work);
-                }
-                var player = map.listerThings.AllThings.First(t => t.GetUniqueLoadID() == ids[1]);
-                map.designationManager.AddDesignation(new Designation(player, DesignationDefOf.Deconstruct));
-                return new { success = true, ids };
-            }, cancellationToken);
-        }
-
         // The thing list probe: spawns one of each thing category on a
         // row of seven cells from cell ("x,z") eastward (item, wall, wall
         // blueprint, wall frame, plant, filth, corpse), then a shelf on the
@@ -91,23 +62,18 @@ namespace HomeBridge.BridgeTools
                     FrameId = frame.thingIDNumber, ReadMs = readMs });
             }, cancellationToken);
 
-        [Tool("test/deconstruct_target", Description = "Inspect or mutate one staged deconstruction target. Test builds only.")]
-        public async Task<object> DeconstructionTarget(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Exact target id.")] string target,
-            [ToolParameter(Description = "inspect, replace, vanish, or colony.", DefaultValue = "inspect")] string action = "inspect")
+        [Tool("test/player_designate", Description = "UNSAFE FOR MODEL EXECUTION. Lay a player Deconstruct designation (replacing any prior one) on one thing by id, as a player's own order the supervisor may adopt. Test builds only.")]
+        public async Task<object> PlayerDesignate(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Exact target id.")] string target)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
-                var thing = RefIndex.Thing(map, target);
-                if (thing != null && action == "replace") {
-                    var prior = map.designationManager.DesignationOn(thing, DesignationDefOf.Deconstruct);
-                    if (prior != null) map.designationManager.RemoveDesignation(prior);
-                    map.designationManager.AddDesignation(new Designation(thing, DesignationDefOf.Deconstruct));
-                }
-                if (thing != null && action == "vanish") thing.Destroy(DestroyMode.Vanish);
-                if (thing != null && action == "colony") thing.SetFaction(Faction.OfPlayer);
-                return new { success = true, present = thing != null && thing.Spawned,
-                    designated = thing != null && map.designationManager.DesignationOn(thing, DesignationDefOf.Deconstruct) != null };
+                var thing = map == null ? null : RefIndex.Thing(map, target);
+                if (thing == null || !thing.Spawned) return new PlayerDesignateReply { Success = false };
+                var prior = map.designationManager.DesignationOn(thing, DesignationDefOf.Deconstruct);
+                if (prior != null) map.designationManager.RemoveDesignation(prior);
+                map.designationManager.AddDesignation(new Designation(thing, DesignationDefOf.Deconstruct));
+                return new PlayerDesignateReply { Success = true, Designated = map.designationManager.DesignationOn(thing, DesignationDefOf.Deconstruct) != null };
             }, cancellationToken);
         }
 

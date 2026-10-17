@@ -55,4 +55,21 @@ internal static class TypedAuthority
 
         return granted.Context?.NativeGeneration ?? throw new AcceptanceException($"{label}: no granted generation: {granted}");
     }
+
+    /// <summary>Revokes the grant manually at the generation the status reads: the supervisor releases the work it owns.</summary>
+    internal static async Task RevokeManualAsync(ITypedSession s, CancellationToken cancellationToken)
+    {
+        var status = await s.CallAsync("release-status", NativeOps.ReadAuthorityStatus, new Control.StatusRequest { Identity = s.Identity }, cancellationToken).ConfigureAwait(false);
+        var generation = status.Outcome?.Status?.Context?.NativeGeneration
+            ?? throw new AcceptanceException($"release-status: no native generation: {status.Outcome}");
+        var control = await s.CallAsync(
+            "release",
+            NativeOps.ControlAuthority,
+            new Control.ControlRequest { Operation = new Control.Revoke { Identity = s.Identity, ExpectedGeneration = generation, Reason = Control.RevocationReason.Manual } },
+            cancellationToken).ConfigureAwait(false);
+        if (control.Outcome?.Revoked is null)
+        {
+            throw new AcceptanceException($"release: expected revoked, got {control.Outcome}");
+        }
+    }
 }

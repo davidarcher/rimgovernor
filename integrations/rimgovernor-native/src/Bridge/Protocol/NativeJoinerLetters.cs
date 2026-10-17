@@ -89,7 +89,7 @@ namespace HomeBridge.BridgeTools
                 Find.LetterStack.RemoveLetter(letter);
                 if (pawn.Dead || !pawn.IsFreeColonist) throw new InvalidOperationException("Creepjoiner did not join.");
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.DialogEffect { Advanced = false } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.DialogEffect() };
         }
 
         internal static List<Obs.JoinerLetter> Snapshot()
@@ -152,7 +152,7 @@ namespace HomeBridge.BridgeTools
                 option.action();
                 if (!letter.ArchivedOnly || !Joined(letter, pawn)) throw new InvalidOperationException("Joiner did not arrive.");
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.DialogEffect { Advanced = false } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.DialogEffect() };
         }
     }
 }

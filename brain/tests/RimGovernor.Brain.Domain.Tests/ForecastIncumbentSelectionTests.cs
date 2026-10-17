@@ -17,9 +17,9 @@ public sealed class ForecastIncumbentSelectionTests
         var original = facts.CoupledAlternatives!;
         var pawn = original.Context.Needs.Pawns[0] with
         {
-            Needs = [new("food", Known(food), Known(fall), Known(.3), Known(1d)),
-                new("rest", Known(1d), Known(0d), Known(.3), Known(1d)),
-                new("joy", Known(.5), Known(0d), Known(.3), Known(1d))]
+            Needs = [new("food", Known(food), Known(fall), Known(.3)),
+                new("rest", Known(1d), Known(0d), Known(.3)),
+                new("joy", Known(.5), Known(0d), Known(.3))]
         };
         ForecastCommitment current = new("current-joy", []) { ActivityCompletions = ["ongoing-joy"] };
         ForecastCommitment eat = new("eat", []) { ActivityCompletions = ["meal"] };

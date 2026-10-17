@@ -63,9 +63,8 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        private static Receipts.EffectEvidence Evidence(string id, string after) =>
+        private static Receipts.EffectEvidence Evidence() =>
             new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Snapshot = new Receipts.SnapshotEvidence { EntityId = id, AfterToken = after },
                 Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.Claim, Outcome = Receipts.FieldOutcome.Applied }] } };
 
         internal static Common.Failure? Validate(Operations.BuildingPatchIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _);
@@ -76,7 +75,7 @@ namespace HomeBridge.BridgeTools
             if (failure != null) throw new InvalidOperationException(failure.Detail);
             if (!PlayerOwned(building!)) building!.SetFaction(Faction.OfPlayer);
             if (!PlayerOwned(building!)) throw new InvalidOperationException("Native claim requires readback.");
-            return Evidence(building!.GetUniqueLoadID(), (Snapshot(building, context)!.Token ?? ""));
+            return Evidence();
         }
     }
 }

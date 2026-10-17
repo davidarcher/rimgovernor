@@ -18,22 +18,6 @@ public static class GameCatalogReader
     /// </summary>
     public static Func<Harness, JsonObject, CancellationToken, Task<ImpressivenessLevels>>? ImpressivenessReader { get; set; }
 
-    /// <summary>
-    /// Reads the terrain table of the loaded game's definition catalog (<c>DefinitionCatalog.FloorTerrains</c>): the
-    /// cleanliness and natural flag of every TerrainDef, for the game identified by <c>identity</c>.
-    /// </summary>
-    public static Func<Harness, JsonObject, CancellationToken, Task<IReadOnlyDictionary<string, FloorTerrainRow>>>? FloorTerrainsReader { get; set; }
-
-    /// <summary>The terrain table of the game identified by <paramref name="identity"/>.</summary>
-    public static Task<IReadOnlyDictionary<string, FloorTerrainRow>> FloorTerrainsAsync(Harness harness, JsonObject identity, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(harness);
-        ArgumentNullException.ThrowIfNull(identity);
-        var read = FloorTerrainsReader
-            ?? throw new AcceptanceException("no catalog reader is wired for the floor terrains (GameCatalogReader.FloorTerrainsReader): the case cannot read terrain stats");
-        return read(harness, identity, cancellationToken);
-    }
-
     /// <summary>The Impressiveness stage scores of the game identified by <paramref name="identity"/>.</summary>
     public static Task<ImpressivenessLevels> ImpressivenessLevelsAsync(Harness harness, JsonObject identity, CancellationToken cancellationToken)
     {
@@ -45,5 +29,3 @@ public static class GameCatalogReader
     }
 }
 
-/// <summary>One terrain of the definition catalog: the cleanliness stat a flooring census scores a cell by, and whether the ground is unbuilt.</summary>
-public sealed record FloorTerrainRow(double Cleanliness, bool Natural);

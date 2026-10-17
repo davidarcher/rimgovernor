@@ -20,9 +20,9 @@ public sealed class ForecastNeedsTests
     private static NeedsForecastPawn Pawn() => new()
     {
         Pawn = "pawn", State = "eligible", Awake = Known(true), SleepThreshold = Known(.75), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(0d), Mood = Known(.5), MoodTarget = Known(.5), BreakThreshold = Known(.3),
-        Needs = [new("rest", Known(.2), Known(.0005), Known(.28), Known(1.0)),
-            new("food", Known(.5), Known(.0001), Known(.3), Known(1.0)),
-            new("joy", Known(.4), Known(.0001), Known(.3), Known(1.0))],
+        Needs = [new("rest", Known(.2), Known(.0005), Known(.28)),
+            new("food", Known(.5), Known(.0001), Known(.3)),
+            new("joy", Known(.4), Known(.0001), Known(.3))],
         Memories = Known<EquatableArray<NeedMemory>>([]),
         Targets = [new("bed", "rest", "", 1, Known(20.0), default, default, Known(.002)),
             new("rice", "food", "Rice", 10, Known(10.0), Known(20.0), Known(.2), default),
@@ -40,9 +40,9 @@ public sealed class ForecastNeedsTests
         // The native portfolio selected materially worse rest trajectories because
         // irrelevant joy breakpoints changed earlier food metrics below log precision.
         var pawn = Pawn() with { Needs =
-            [new("food", Known(.257004916667938), Known(.0000166666676249588), Known(.3), Known(1d)),
-             new("rest", Known(.875153124332428), Known(.0000169642857142857), Known(.3), Known(1d)),
-             new("joy", Known(.1), Known(.00000833333376795053), Known(.3), Known(1d))] };
+            [new("food", Known(.257004916667938), Known(.0000166666676249588), Known(.3)),
+             new("rest", Known(.875153124332428), Known(.0000169642857142857), Known(.3)),
+             new("joy", Known(.1), Known(.00000833333376795053), Known(.3))] };
         var input = Input(60000);
         var baseline = ForecastNeedsTimeline(pawn, input, []);
         var joy = new ForecastNeedChoice("joy", "pawn", "joy", "pin", "", 0, start, start, end, .5, []);
@@ -56,9 +56,9 @@ public sealed class ForecastNeedsTests
     public void SleepAndItsNativeWakeBreakpointCannotPerturbUnchangedFoodTrajectory()
     {
         var pawn = Pawn() with { SleepWhileStarving = Known(false), Needs =
-            [new("food", Known(.528273165225983), Known(.0000166666676249588), Known(.3), Known(1d)),
-             new("rest", Known(.25), Known(.0000169642857142857), Known(.3), Known(1d)),
-             new("joy", Known(.1), Known(.00000833333376795053), Known(.3), Known(1d))] };
+            [new("food", Known(.528273165225983), Known(.0000166666676249588), Known(.3)),
+             new("rest", Known(.25), Known(.0000169642857142857), Known(.3)),
+             new("joy", Known(.1), Known(.00000833333376795053), Known(.3))] };
         var input = Input(60000);
         var baseline = ForecastNeedsTimeline(pawn, input, []);
         var sleep = Sleep(97.325204571088, 1280.2626);
@@ -77,7 +77,7 @@ public sealed class ForecastNeedsTests
     [InlineData(1, 140, 66)]
     public void SaturationCutsRemainDistinctAcrossRecoveryDecayAndRepeatedCalls(double threshold, double exposure, double depth)
     {
-        var pawn = Pawn() with { Needs = [new("joy", Known(.2), Known(.01), Known(threshold), Known(1d))] };
+        var pawn = Pawn() with { Needs = [new("joy", Known(.2), Known(.01), Known(threshold))] };
         var recovery = new ForecastNeedChoice("joy", "pawn", "joy", "pin", "", 0, 0, 0, 100, 2, []);
         var first = ForecastNeedsTimeline(pawn, Input(200), [recovery]);
         var metric = Assert.Single(first.Needs);
@@ -158,7 +158,7 @@ public sealed class ForecastNeedsTests
     [Fact]
     public void UnknownMechanicsNeverGiveFreeWorkAndMissingRoutesDoNotMakeInstantMeals()
     {
-        var pawn = Pawn() with { Needs = [new("rest", Known(.2), default, Known(.28), Known(1.0))] };
+        var pawn = Pawn() with { Needs = [new("rest", Known(.2), default, Known(.28))] };
         Assert.False(ForecastNeedsTimeline(pawn, Input(), []).Capacity.FreeTicks.IsKnown);
         var targets = Pawn() with { Targets = [Pawn().Targets[1] with { TravelTicks = default }] };
         var generated = GenerateNeedsAlternatives(targets, ForecastPawnCapacityOf(Input()), 1000);

@@ -116,7 +116,7 @@ public static class FixtureCommand
 
         if (positional.Count == 0)
         {
-            throw new UsageException("fixture needs an op name (e.g. test/routes_prepare)");
+            throw new UsageException("fixture needs an op name (e.g. test/stage)");
         }
 
         var opArgs = new JsonObject();

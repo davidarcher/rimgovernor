@@ -22,7 +22,7 @@ public sealed class ForecastConditionalMoodTests
             ? [new("day-effect", 11, 18, true, -10, 0, "observed-worker"), new("night-effect", 23, 6, true, 16, 0, "observed-worker")]
             : []),
         Memories = Known<EquatableArray<NeedMemory>>([]),
-        Needs = [new("rest", Known(.3), Known(0d), Known(.28), Known(1d))],
+        Needs = [new("rest", Known(.3), Known(0d), Known(.28))],
         Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.7 / (7 * Hour)))],
     };
     private static ForecastNeedChoice Sleep(string id, double from, double to)
@@ -221,7 +221,7 @@ public sealed class ForecastConditionalMoodTests
     {
         var pawn = Pawn() with { LocalHour = Known(11d), MoodUnclampedTarget = Known(.4),
             ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([new("day", 11, 18, true, -10, -10, "observed")]),
-            WakeThreshold = Known(.8), Needs = [new("rest", Known(.3), Known(0d), Known(.28), Known(1d))] };
+            WakeThreshold = Known(.8), Needs = [new("rest", Known(.3), Known(0d), Known(.28))] };
         var sleep = new ForecastNeedChoice("long", "pawn", "rest", "bed", "", 0, 0, 0, 1000, 1, []);
         var result = ForecastNeedsTimeline(pawn, Capacity() with { HorizonTicks = 1000 }, [sleep]);
         Assert.Equal(.8, result.Needs.Single(n => n.Kind == "rest").FinalLevel.Value, 8);
@@ -234,7 +234,7 @@ public sealed class ForecastConditionalMoodTests
     [Fact]
     public void DelayedGenerationRecalculatesWakeTimeInsteadOfSlowingTheObservedRecoveryRate()
     {
-        var pawn = Pawn() with { WakeThreshold = Known(.8), Needs = [new("rest", Known(.3), Known(.00001), Known(.28), Known(1d))] };
+        var pawn = Pawn() with { WakeThreshold = Known(.8), Needs = [new("rest", Known(.3), Known(.00001), Known(.28))] };
         var generated = GenerateNeedsAlternatives(pawn, ForecastPawnCapacityOf(Capacity()), Day);
         Assert.All(generated.Choices, choice =>
         {
@@ -262,8 +262,8 @@ public sealed class ForecastConditionalMoodTests
     public void StarvingSleepRequiresCompletedMealAndInterruptedEatingCannotUnlockIt()
     {
         var pawn = Pawn() with { SleepWhileStarving = Known(false),
-            Needs = [new("rest", Known(.3), Known(0d), Known(.28), Known(1d)),
-                new("food", Known(0d), Known(0d), Known(.2), Known(1d))] };
+            Needs = [new("rest", Known(.3), Known(0d), Known(.28)),
+                new("food", Known(0d), Known(0d), Known(.2))] };
         var sleep = Sleep("sleep", 200, 1000);
         var meal = new ForecastNeedChoice("meal", "pawn", "food", "food", "Rice", 1, 0, 0, 100, .5, []);
         Assert.False(ForecastNeedsTimeline(pawn, Capacity(), [sleep]).Needs.Single(n => n.Kind == "rest").FinalLevel.IsKnown);
@@ -302,7 +302,7 @@ public sealed class ForecastConditionalMoodTests
         Assert.True(selected.SelectedVector.BreakRisk.Value < selected.BaselineVector.BreakRisk.Value);
         var (_, control) = SelectObserved(Pawn(false));
         Assert.Empty(control.Selection.Selected);
-        var (_, urgent) = SelectObserved(Pawn() with { Needs = [new("rest", Known(.27), Known(0d), Known(.28), Known(1d))] });
+        var (_, urgent) = SelectObserved(Pawn() with { Needs = [new("rest", Known(.27), Known(0d), Known(.28))] });
         Assert.Equal(0, Assert.Single(urgent.Selected.Plan.Allocations).Start);
         var (_, shortHorizon) = SelectObserved(Pawn(), 2 * Hour);
         Assert.Empty(shortHorizon.Selection.Selected);
@@ -310,7 +310,7 @@ public sealed class ForecastConditionalMoodTests
     [Fact]
     public void NativeThresholdAndDisturbanceDelayActivationAndTinyResponseIntervalIsExplicitlyBounded()
     {
-        var pawn = Pawn() with { Needs = [new("rest", Known(.9), Known(.00001), Known(.28), Known(1d))], SleepBlockedUntilTicks = Known(20000d) };
+        var pawn = Pawn() with { Needs = [new("rest", Known(.9), Known(.00001), Known(.28))], SleepBlockedUntilTicks = Known(20000d) };
         var generated = GenerateNeedsAlternatives(pawn, ForecastPawnCapacityOf(Capacity()), Day);
         Assert.NotEmpty(generated.Choices);
         Assert.All(generated.Choices, c => Assert.True(c.Start >= 20000 && Math.Max(0, .9 - .00001 * c.Start) < .75));

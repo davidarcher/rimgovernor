@@ -1,5 +1,6 @@
-using System.Globalization;
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -10,99 +11,61 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 internal static class StorageStrandedLoot
 {
-    internal static AcceptanceCase Case() => new()
+    internal static TypedCase Case() => new()
     {
         Name = "storage/stranded_loot",
-        Scope = "Native loot census on the lab: a one-cell stockpile accepting Steel and WoodLog holds a Steel stack, so a loose "
-            + "unforbidden WoodLog stack reads zero storage headroom and names that zone in acceptedBy; read-only, the game stays paused.",
-        Start = new LabStart(),
-        Budget = TimeSpan.FromMinutes(3),
-        Crew = new Crew { Size = 3 },
+        Scope = "Native loot census over a staged one-cell stockpile accepting Steel and WoodLog that holds a Steel stack: a loose "
+            + "unforbidden WoodLog stack reads zero storage headroom and names that zone in acceptedBy. Read-only, paused.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
+        QuietWorld = true,
+        Stage = new Fx.StageSpec
+        {
+            Paused = true,
+            Site = new Fx.StageSite
+            {
+                Width = 6,
+                Height = 6,
+                Near = Fx.StageAnchor.Colonist,
+                OffsetX = 8,
+                Radius = 30,
+                Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Unfogged, Fx.StageGround.Unroofed, Fx.StageGround.Unzoned],
+            },
+            Clear = [new Fx.StageClear { Rect = new Fx.StageRect(0, 0, 6, 6), Kinds = [Fx.StageClearKind.Things, Fx.StageClearKind.Pawns, Fx.StageClearKind.Zones] }],
+
+            // Steel fills the only cell; WoodLog cannot stack on it, so the zone accepts WoodLog with no room for it.
+            Zones = [new Fx.StageZone { Name = "store", Kind = Fx.StageZoneKind.Stockpile, Cells = [new(1, 1)], Allow = ["Steel", "WoodLog"] }],
+            Things =
+            [
+                new Fx.StageThing { Name = "steel", Def = "Steel", Count = 50, Cell = new(1, 1) },
+                new Fx.StageThing { Name = "wood", Def = "WoodLog", Count = 20, Cell = new(1, 4) },
+            ],
+        },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var identity = s.Identity;
-        var c = LabWorld.LabMapSize / 2;
-        var store = (X: c + 8, Z: c + 3);
+        var staged = s.Staged!;
+        var zone = staged.Zones["store"];
+        var wood = staged.Things["wood"].Ids.Single();
 
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "acquire", identity, cancellationToken).ConfigureAwait(false);
-        var reply = await h.WireAsync(
-            "stranded-zone",
-            "operations_apply",
-            new JsonObject
-            {
-                ["identity"] = identity.DeepClone(),
-                ["actions"] = new JsonArray(new JsonObject
-                {
-                    ["key"] = "stranded-stockpile",
-                    ["zone"] = new JsonObject
-                    {
-                        ["label"] = "Stranded store",
-                        ["kind"] = "ZONE_TYPE_STOCKPILE",
-                        ["addCells"] = new JsonObject
-                        {
-                            ["rectangle"] = new JsonObject { ["origin"] = new JsonObject { ["x"] = store.X, ["z"] = store.Z }, ["width"] = 1, ["height"] = 1 },
-                        },
-                        ["stockpile"] = new JsonObject
-                        {
-                            ["priority"] = "STORAGE_PRIORITY_NORMAL",
-                            ["preset"] = "FILTER_PRESET_NOTHING",
-                            ["filter"] = new JsonObject { ["allow"] = new JsonArray(new JsonObject { ["thingDef"] = "Steel" }, new JsonObject { ["thingDef"] = "WoodLog" }) },
-                        },
-                    },
-                }),
-            },
-            cancellationToken).ConfigureAwait(false);
-        var results = reply["results"].AsSlice();
-        var effect = results.Count == 1 ? CaseSupport.AppliedEffect(results[0].AsMap() ?? [], "zone") : null;
-        var created = effect?["created"].AsSlice() ?? [];
-        var zone = created.Count == 1 ? created[0].AsMap()?["zoneId"].AsString() ?? "" : "";
-        if (zone.Length == 0)
+        var reply = await s.CallAsync("stranded-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var facts = TypedReads.Observed("stranded-facts", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
+        var census = facts.EventLoot?.Outcome?.Observed ?? throw new AcceptanceException($"colony facts carry no eventLoot census: {facts.EventLoot?.Outcome}");
+        var row = census.Items.FirstOrDefault(i => i.Item?.Id == wood)
+            ?? throw new AcceptanceException($"the loot census lists no row for the WoodLog stack {wood}: {string.Join("; ", census.Items)}");
+        s.RecordWire("wood-row", row);
+
+        if (row is not { Forbidden: false, SafeToHaul: true, StorageHeadroom: 0 })
         {
-            throw new AcceptanceException($"stranded-zone: expected one created stockpile: {reply.ToJson()}");
+            throw new AcceptanceException($"want an unforbidden safe WoodLog stack with zero storage headroom, got {row}");
         }
 
-        // Steel fills the only cell; WoodLog cannot stack on it, so the zone accepts WoodLog with no room for it.
-        _ = await DebugGame.LabSpawnAsync(h, new LabThing { Def = "Steel", X = store.X, Z = store.Z, Count = 50 }, cancellationToken).ConfigureAwait(false);
-        var (wood, _) = await DebugGame.LabSpawnAsync(h, new LabThing { Def = "WoodLog", X = c + 8, Z = c + 6, Count = 20 }, cancellationToken).ConfigureAwait(false);
-
-        var observed = await NativeReads.ColonyFactsAsync(s, "stranded-facts", false, cancellationToken).ConfigureAwait(false);
-        var section = observed["eventLoot"].AsMap() ?? throw new AcceptanceException("colony facts carry no eventLoot section");
-        var census = Harness.Outcome(section, "observed").Value;
-        JsonObject? row = null;
-        foreach (var raw in census["items"].AsSlice())
-        {
-            if (raw.AsMap()?["item"].AsMap()?["id"].AsString() == wood)
-            {
-                row = raw.AsMap();
-            }
-        }
-
-        if (row is null)
-        {
-            throw new AcceptanceException($"the loot census lists no row for the WoodLog stack {wood}: {census.ToJson()}");
-        }
-
-        s.Report["wood_row"] = row.DeepClone();
-        if (row["forbidden"].AsBool() != false || row["safeToHaul"].AsBool() != true)
-        {
-            throw new AcceptanceException($"the WoodLog stack is not an unforbidden safe stack: {row.ToJson()}");
-        }
-
-        if (row["storageHeadroom"].AsNumber() != 0)
-        {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"the WoodLog stack reads storage headroom {row["storageHeadroom"].ToJson()}, want 0"));
-        }
-
-        var accepted = row["acceptedBy"].AsSlice().Select(r => r.AsMap()?["id"].AsString() ?? "").ToList();
+        var accepted = row.AcceptedBy.Select(r => r.Id).ToList();
         if (!accepted.Contains(zone))
         {
             throw new AcceptanceException($"the stranded WoodLog stack names [{string.Join(", ", accepted)}], not the accepting zone {zone}");
         }
-
-        s.Report["accepting_zone"] = zone;
     }
 }

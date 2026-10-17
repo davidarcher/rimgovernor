@@ -1,183 +1,127 @@
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>wall/upgrade</c> (Go <c>upgrade.go</c>): the typed wall-upgrade census behind
-/// <c>rimgovernor/observations_list_wall_upgrade_sites</c> on a loaded save: the cleanup census (no target) is complete, and for every
-/// colonist wall each per-target replacement row names the target with its CAS token, a normal, both side supports, its backup cells and
-/// priced stone materials. At least one wall must yield a site or the run is vacuous. A fixture build's test/lighting_prepare first builds
-/// an enclosed roofed room so the census has colonist walls to read; the stock saves hold none.
+/// <c>wall/upgrade</c>: the typed wall-upgrade census (observations_list_wall_upgrade_sites) over a staged roofed
+/// WoodLog room. The cleanup census (no target) lists only complete cleanup rows; per room wall, every replacement row
+/// targets the original wall with its CAS token, a normal, both side supports, and three backup cells for a straight
+/// site or none for a corner; at least one straight site is found. A blank target is refused as invalid, an unknown one
+/// as not found, and the pass spends no ticks. Native: vanilla room, roof and wall geometry.
 /// </summary>
 internal static class WallUpgrade
 {
-    /// <summary>Bounds the colonist walls cross-checked per target (the first N by id).</summary>
-    private const int MaxWalls = 64;
+    internal const int Width = 11;
+    internal const int Height = 11;
 
-    internal static AcceptanceCase Case() => new()
+    /// <summary>The room's rectangle: a 3x3 roofed interior with its door mid-south, so the north, east and west middles are straight sites.</summary>
+    internal static readonly Fx.StageRect Room = new(3, 3, 5, 5);
+
+    internal static TypedCase Case() => new()
     {
         Name = "wall/upgrade",
-        Scope = "Typed wall-upgrade site census: complete cleanup rows and, per colonist wall, complete replacement sites with supports, backup cells and priced stone materials; read-only, no designation or construction.",
-
-        // The save carries its own expansion list (the runner enables them); the lighting fixture builds the walls on top of it.
-        Start = new FixtureStart { Op = "test/lighting_prepare", On = new LabStart() },
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
+        Scope = "Typed wall-upgrade census over a staged roofed WoodLog room: complete cleanup rows; per room wall, replacement rows "
+            + "naming the original with a CAS token, a normal, both supports and 3 backup cells straight or 0 at a corner, at least one "
+            + "straight; blank and unknown targets refused (INVALID_REQUEST, NOT_FOUND); read-only, no ticks spent.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
+        QuietWorld = true,
+        Stage = Stage(),
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    /// <summary>The upgrade room on open heavy ground with room for backups outside it, and the builder crew.</summary>
+    internal static Fx.StageSpec Stage() => new()
     {
-        var report = s.Report;
-        var h = s.Harness;
-        if (!Dyn.Contains(s.Names, "rimgovernor/observations_list_wall_upgrade_sites"))
+        Paused = true,
+        Site = WallKit.Site(Width, Height),
+        Clear = [WallKit.Clear(Width, Height)],
+        Cells = [new Fx.StageCells { Rect = new Fx.StageRect(0, 0, Width, Height), Home = true }],
+        Rooms = [new Fx.StageRoom { Name = "room", Rect = Room, Stuff = "WoodLog", Doors = [new(5, 3)], Roof = true }],
+        Pawns = WallKit.Builders,
+    };
+
+    /// <summary>The census rows for <paramref name="target"/> (null: the cleanup census).</summary>
+    internal static async Task<Observations.WallUpgradeSnapshot> CensusAsync(ITypedSession s, string label, string? target, CancellationToken cancellationToken)
+    {
+        var reply = await s.CallAsync(label, NativeOps.ListWallUpgradeSites, new Observations.WallUpgradeSitesRequest { Scope = s.Scope, TargetId = target }, cancellationToken).ConfigureAwait(false);
+        var snapshot = TypedReads.Observed(label, NativeOps.ListWallUpgradeSites, reply, reply.Outcome?.Observed);
+        s.RecordWire(label, snapshot);
+        return snapshot;
+    }
+
+    /// <summary>Whether a site's normal is diagonal (a corner, replaced in place).</summary>
+    internal static bool Corner(Observations.WallUpgradeSite site) => site.Normal is { X: not 0, Z: not 0 };
+
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    {
+        var walls = s.Staged!.Rooms["room"].Walls;
+        var cleanup = await CensusAsync(s, "cleanup-census", null, cancellationToken).ConfigureAwait(false);
+        foreach (var row in cleanup.Sites)
         {
-            throw new AcceptanceException("missing rimgovernor/observations_list_wall_upgrade_sites in discovery");
-        }
-
-        var identityReply = await h.WireAsync("identity-before", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var (_, before) = Harness.Outcome(identityReply, "loaded");
-        var beforeContext = before["context"];
-        var identity = beforeContext.Member("identity");
-        var scope = WallCensus.Scope(identity);
-
-        var walls = await WallCensus.ColonistWallsAsync(h, scope, "walls", cancellationToken).ConfigureAwait(false);
-        if (walls.Count == 0)
-        {
-            throw new AcceptanceException("save has no colonist wall; the census assertion would be vacuous");
-        }
-
-        report["colonist_walls"] = walls.Count;
-
-        var cleanupReply = await h.WireAsync("cleanup-census", "observations_list_wall_upgrade_sites", new JsonObject { ["scope"] = scope.DeepClone() }, cancellationToken).ConfigureAwait(false);
-        var cleanup = WallCensus.Observed("cleanup census", cleanupReply);
-        if (!Dyn.DeepEqual(cleanup["context"], beforeContext))
-        {
-            throw new AcceptanceException("cleanup census context drifted mid-run");
-        }
-
-        var cleanupRows = cleanup["sites"].AsSlice();
-        foreach (var raw in cleanupRows)
-        {
-            var row = raw.AsMap() ?? [];
-            if (!row.ContainsKey("replacement") || row["completedBackups"].AsSlice().Count == 0)
+            if (row.Replacement is null || row.CompletedBackups.Count == 0)
             {
-                throw new AcceptanceException($"cleanup row without a permanent replacement and remaining backups: {row["target"].ToJson()}");
+                throw new AcceptanceException($"cleanup row without a permanent replacement and remaining backups: {row.Target?.Id}");
             }
         }
 
-        report["cleanup_sites"] = cleanupRows.Count;
-
-        if (walls.Count > MaxWalls)
-        {
-            walls = walls.GetRange(0, MaxWalls);
-        }
-
-        var sitesFound = 0;
-        var wallsWithSites = 0;
+        var straight = 0;
         foreach (var wall in walls)
         {
-            var typedReply = await h.WireAsync("typed-" + wall, "observations_list_wall_upgrade_sites", new JsonObject { ["scope"] = scope.DeepClone(), ["targetId"] = wall }, cancellationToken).ConfigureAwait(false);
-            var observed = WallCensus.Observed(wall, typedReply);
-            var rows = observed["sites"].AsSlice();
-            CheckSites(wall, rows);
-            if (rows.Count > 0)
+            foreach (var row in (await CensusAsync(s, "census-" + wall, wall, cancellationToken).ConfigureAwait(false)).Sites)
             {
-                wallsWithSites++;
-                sitesFound += rows.Count;
+                Check(wall, row);
+                straight += Corner(row) ? 0 : 1;
             }
         }
 
-        if (sitesFound == 0)
+        if (straight == 0)
         {
-            throw new AcceptanceException("no colonist wall yielded a replacement site; the geometry assertion is vacuous");
+            throw new AcceptanceException($"no wall of the staged room yielded a straight replacement site among {walls.Count} walls");
         }
 
-        report["walls_checked"] = walls.Count;
-        report["walls_with_sites"] = wallsWithSites;
-        report["replacement_sites"] = sitesFound;
-
-        foreach (var (label, targetId, code) in new[]
+        s.Record("straight_sites", straight);
+        foreach (var (label, target, code) in new[] { ("blank-target", " ", Common.FailureCode.InvalidRequest), ("unknown-target", "Thing_NoSuchWall0", Common.FailureCode.NotFound) })
         {
-            ("blank-target", " ", "FAILURE_CODE_INVALID_REQUEST"),
-            ("unknown-target", "Thing_NoSuchWall0", "FAILURE_CODE_NOT_FOUND"),
-        })
-        {
-            var reply = await h.WireAsync(label, "observations_list_wall_upgrade_sites", new JsonObject { ["scope"] = scope.DeepClone(), ["targetId"] = targetId }, cancellationToken).ConfigureAwait(false);
-            var got = WallCensus.FailureCode(reply);
-            if (got != code)
+            var reply = await s.CallAsync(label, NativeOps.ListWallUpgradeSites, new Observations.WallUpgradeSitesRequest { Scope = s.Scope, TargetId = target }, cancellationToken).ConfigureAwait(false);
+            if (reply.Outcome?.Failure?.Code != code)
             {
-                throw new AcceptanceException($"{label}: expected {code}, got \"{got}\"");
+                throw new AcceptanceException($"{label}: want {code}, got {reply.Outcome}");
             }
         }
 
-        var identityAfterReply = await h.WireAsync("identity-after", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var (_, after) = Harness.Outcome(identityAfterReply, "loaded");
-        if (!Dyn.DeepEqual(after["context"], beforeContext))
+        var after = await CensusAsync(s, "cleanup-census-after", null, cancellationToken).ConfigureAwait(false);
+        if (after.Context != cleanup.Context)
         {
-            throw new AcceptanceException("identity/tick changed during a read-only pass");
+            throw new AcceptanceException($"the read-only pass moved the observation context: {cleanup.Context} -> {after.Context}");
         }
     }
 
-    /// <summary>Asserts every per-target row is a complete replacement site.</summary>
-    private static void CheckSites(string wall, IReadOnlyList<JsonNode?> rows)
+    /// <summary>Asserts a per-target row is a complete replacement site of <paramref name="wall"/>.</summary>
+    private static void Check(string wall, Observations.WallUpgradeSite row)
     {
-        foreach (var raw in rows)
+        if (row.Target?.Id != wall || row.Original?.Id != wall || string.IsNullOrEmpty(row.TargetSnapshot?.Token) || row.TargetPresent != true)
         {
-            var row = raw.AsMap() ?? [];
-            if (row["target"].Member("id").AsString() != wall || row["original"].Member("id").AsString() != wall || row["targetSnapshot"].Member("token").AsString().Length == 0)
-            {
-                throw new AcceptanceException($"{wall}: replacement row must target the original wall with a CAS token");
-            }
+            throw new AcceptanceException($"{wall}: a replacement row must target the present original wall with a CAS token: {row}");
+        }
 
-            if (row["targetPresent"].AsBool() != true)
-            {
-                throw new AcceptanceException($"{wall}: target reported absent");
-            }
+        if (row.Normal is not { X: { } x, Z: { } z } || (x == 0 && z == 0))
+        {
+            throw new AcceptanceException($"{wall}: site without a normal: {row}");
+        }
 
-            var normal = row["normal"];
-            var nx = normal.Member("x").AsNumber();
-            var nz = normal.Member("z").AsNumber();
-            if (nx == 0 && nz == 0)
-            {
-                throw new AcceptanceException($"{wall}: site without a normal");
-            }
+        if (string.IsNullOrEmpty(row.LeftSupport?.Id) || string.IsNullOrEmpty(row.RightSupport?.Id))
+        {
+            throw new AcceptanceException($"{wall}: site without both supports: {row}");
+        }
 
-            if (row["leftSupport"].Member("id").AsString().Length == 0 || row["rightSupport"].Member("id").AsString().Length == 0)
-            {
-                throw new AcceptanceException($"{wall}: site without both supports: {row.ToJson()}");
-            }
-
-            // A corner (diagonal normal) is replaced in place and has no backup cells; a straight site has its three exterior backups.
-            var corner = nx != 0 && nz != 0;
-            var backups = row["backupCells"].AsSlice().Count;
-            if ((corner && backups != 0) || (!corner && backups != 3))
-            {
-                throw new AcceptanceException($"{wall}: site with {backups} backup cells for normal {normal.ToJson()}: {row.ToJson()}");
-            }
-
-            var options = row["replacementMaterials"].AsSlice();
-            if (options.Count == 0)
-            {
-                throw new AcceptanceException($"{wall}: site without replacement materials");
-            }
-
-            foreach (var option in options)
-            {
-                var costs = option.Member("costs").AsSlice();
-                if (option.Member("stuff").AsString().Length == 0 || costs.Count == 0)
-                {
-                    throw new AcceptanceException($"{wall}: material without a stuff or costs: {option.ToJson()}");
-                }
-
-                foreach (var cost in costs)
-                {
-                    if (cost.Member("defName").AsString().Length == 0 || cost.Member("units").AsNumber() <= 0)
-                    {
-                        throw new AcceptanceException($"{wall}: material {option.Member("stuff").ToJson()} has an unpriced cost {cost.ToJson()}");
-                    }
-                }
-            }
+        var want = Corner(row) ? 0 : 3;
+        if (row.BackupCells.Count != want)
+        {
+            throw new AcceptanceException($"{wall}: {row.BackupCells.Count} backup cells, want {want} for normal {row.Normal}: {row}");
         }
     }
 }

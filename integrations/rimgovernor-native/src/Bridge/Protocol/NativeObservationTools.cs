@@ -249,7 +249,7 @@ namespace HomeBridge.BridgeTools
             row = row with { Anomaly = NativeAnomalyFacts.Pawn(pawn) };
             row = NativePawnRoyalty.Apply(pawn, row);
             row = NativePawnControlObservation.Apply(pawn, row, context);
-            return row with { Snapshot = NativePawnObservationTools.PawnSnapshotToken(row, context) };
+            return row;
         }
         private static Obs.EntityRef Entity(Thing thing)
         {

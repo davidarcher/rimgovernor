@@ -82,25 +82,6 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
             ct => (IReadOnlyList<JsonObject>)[.. _store.PlanHistoryWithMethods(Math.Clamp(limit, 1, 256), methodPatterns, ct).Select(PlanRow)],
             cancellationToken);
 
-    public Task<JsonObject?> RecoveryEntryAsync(string id, CancellationToken cancellationToken) =>
-        ReadAsync(
-            "recovery entry " + id,
-            ct =>
-            {
-                var entry = _store.LoadRounds(ct).RecoveryQueue?.Entries.FirstOrDefault(e => e.ID == id);
-                return entry is null
-                    ? null
-                    : new JsonObject
-                    {
-                        ["id"] = entry.ID,
-                        ["status"] = Wire.Name(entry.Status),
-                        ["tier"] = Wire.Name(entry.Tier),
-                        ["short"] = new JsonArray([.. entry.Short.Select(r => (JsonNode?)r.Value)]),
-                        ["reason"] = entry.Reason,
-                    };
-            },
-            cancellationToken);
-
     async Task<(ulong Revision, ulong Tick)?> IPhaseStore.LoadRoundsAsync(CancellationToken cancellationToken)
     {
         var review = await ReadAsync("read rounds", ct => _store.LoadRounds(ct), cancellationToken).ConfigureAwait(false);

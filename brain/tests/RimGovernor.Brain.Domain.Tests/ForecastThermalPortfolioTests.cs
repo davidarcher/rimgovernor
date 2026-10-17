@@ -34,7 +34,7 @@ public sealed class ForecastThermalPortfolioTests
             MoodUnclampedTarget = Known(.5), MoodIntervalTicks = Known(150d), MoodRisePerTick = Known(.12 / GameTime.TicksPerHour),
             MoodFallPerTick = Known(.08 / GameTime.TicksPerHour), MoodFreezesWhileAsleep = Known(true), BreakThreshold = Known(.3),
             ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]),
-            Needs = [new("food", Known(1d), Known(0d), Known(.3), Known(1d)), new("rest", Known(restDemand ? .2 : .6), Known(0d), Known(.3), Known(1d))],
+            Needs = [new("food", Known(1d), Known(0d), Known(.3)), new("rest", Known(restDemand ? .2 : .6), Known(0d), Known(.3))],
             Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.0005)) { Location = bed }],
         };
         facts = facts with

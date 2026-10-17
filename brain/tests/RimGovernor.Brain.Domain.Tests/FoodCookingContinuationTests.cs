@@ -115,7 +115,7 @@ public sealed class FoodCookingContinuationTests
                 new("helper", "idle-owner", "coupled-test", 0, 1, false, [idle.Step]) { Task = idle.Id }] };
         }
         var read = Done(supply) with { Needs = new() { Tick = 200, Pawns = [new() { Pawn = "pawn", State = "eligible",
-            Needs = [new("food", known ? Known(1d) : default, Known(0d), Known(.3), Known(1d))] }] } };
+            Needs = [new("food", known ? Known(1d) : default, Known(0d), Known(.3))] }] } };
         var need = ReviewServiceActivityNeed(supply, Known(true), read);
         Assert.Equal(Known(!known), need);
         if (known) Assert.True(ContinueCoordinatedActivity(supply, need, read)!.Orders[0].Release);

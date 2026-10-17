@@ -16,7 +16,7 @@ public sealed record SupportActivityRead
     public EquatableArray<string> Findings { get; init; }
 }
 public sealed record SupportDemand(string Id, string Kind, string Target, Cell Location,
-    Fact<double> Cleanliness, Fact<double> FoodPoisonChance, Fact<double> BleedRate, Fact<double> DeadlineTicks)
+    Fact<double> FoodPoisonChance, Fact<double> BleedRate, Fact<double> DeadlineTicks)
 {
     public Fact<double> FoodPoisonChanceClean { get; init; }
     public Fact<double> InfectionChanceFactor { get; init; }

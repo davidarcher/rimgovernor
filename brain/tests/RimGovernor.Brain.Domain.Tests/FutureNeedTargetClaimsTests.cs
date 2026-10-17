@@ -48,7 +48,7 @@ public sealed class FutureNeedTargetClaimsTests
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
         {
             Location = new(1, 1),
-            Needs = [new("joy", Known(.2), Known(.003), Known(.3), Known(1d))],
+            Needs = [new("joy", Known(.2), Known(.003), Known(.3))],
             Targets = [new("pin", "joy", "", 1, Known(0d), Known(10d), Known(0d), Known(.01))
                 { Location = new(2, 2) }]
         };

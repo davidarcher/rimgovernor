@@ -42,7 +42,7 @@ internal static class NativeFoodActivity
         {
             pawns = pawns.Where(p => p.GetUniqueLoadID() == existing.Pawn).ToArray();
             if (pawns.Length != 1) return result; // Missing pawn is unknown, not a completed delivery.
-            result = result with { Execution = NativePawnActivities.Read(pawns[0]), Carrying = pawns[0].carryTracker.CarriedThing != null };
+            result = result with { Execution = NativePawnActivities.Read(pawns[0]) };
             if (result.Execution?.State is not ("completed" or "failed") && !(existing.Preparing && result.Execution?.State == "holding")) return result with { Known = true };
         }
         var plants = request.Plants.Select(id => RefIndex.Thing(map, id))

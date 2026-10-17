@@ -16,7 +16,7 @@ public sealed class AcceptanceCatalogTests
     /// The cases still on the frozen legacy <see cref="AcceptanceCase"/> API. Shrink-only: a port or deletion lowers it
     /// in the same commit, and a new legacy case fails (write a <see cref="TypedCase"/>).
     /// </summary>
-    private const int LegacyCases = 42;
+    private const int LegacyCases = 5;
 
     [Fact]
     public void CatalogHoldsEveryCaseToTheCharter()

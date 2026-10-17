@@ -151,7 +151,7 @@ namespace HomeBridge.BridgeTools
                 Entry = new Receipts.FieldResultEntry.WorkTypeDefCase(row.WorkTypeDef ?? ""), Outcome = Receipts.FieldOutcome.Applied });
             if (intent.AllowedArea != null) fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.AllowedArea, Outcome = Receipts.FieldOutcome.Applied });
             if (intent.Schedule != null) fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.Schedule, Outcome = Receipts.FieldOutcome.Applied });
-            return new Receipts.SettingsEffect { Snapshot = new Receipts.SnapshotEvidence { EntityId = intent.PawnId }, Fields = [.. fields] };
+            return new Receipts.SettingsEffect { Fields = [.. fields] };
         }
     }
 }

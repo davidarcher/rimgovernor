@@ -48,10 +48,9 @@ public sealed class AcceptanceReads
     }
 
     /// <summary>
-    /// The first layout plan of the loaded game (the seed rooms and the outskirts: no ledger, no stock), the map bounds,
-    /// the tick and colonist count, and, with <paramref name="cells"/>, the scored map survey.
+    /// The first layout plan of the loaded game (the seed rooms and the outskirts: no ledger, no stock) and the map bounds.
     /// </summary>
-    public async Task<string> StarterSiteAsync(bool cells, CancellationToken cancellationToken)
+    public async Task<string> StarterSiteAsync(CancellationToken cancellationToken)
     {
         // The review's rooms read, as the colony plan derives from: the station catalog, item facts and dining furniture
         // ride the rounds frame, not the bare colony read.
@@ -68,22 +67,14 @@ public sealed class AcceptanceReads
         var facts = StationFactsBuilder.StationFacts(catalog, StationFactsBuilder.FirstPlanFacts(projection, survey, new Dictionary<Resource, long>(), PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewNone)));
         var (fact, _) = PolicyFunctions.DeriveLayoutPlan(survey, facts, []);
         var planJson = fact.TryGetValue(out var plan) ? StoreJson.Serialize(plan) : null;
-        projection.Facts.Colonists.TryGetValue(out var colonists);
         return Write(w =>
         {
-            w.WriteNumber("tick", projection.Identity.Tick.Value);
-            w.WriteNumber("colonists", colonists);
             w.WriteNumber("width", projection.Bounds.Width);
             w.WriteNumber("height", projection.Bounds.Height);
             if (planJson is not null)
             {
                 w.WritePropertyName("plan");
                 w.WriteRawValue(planJson);
-            }
-
-            if (cells)
-            {
-                WriteSurvey(w, survey);
             }
         });
     }
@@ -141,27 +132,6 @@ public sealed class AcceptanceReads
         });
     }
 
-    /// <summary>One row per TerrainDef of the loaded game's catalog: its cleanliness stat and natural flag.</summary>
-    public async Task<string> FloorTerrainsAsync(CancellationToken cancellationToken)
-    {
-        var (_, catalog) = await ReadIdentityAndCatalogAsync(cancellationToken).ConfigureAwait(false);
-        var terrains = catalog.FloorTerrains();
-        return Write(w =>
-        {
-            w.WriteStartArray("terrains");
-            foreach (var (def, terrain) in terrains.OrderBy(t => t.Key, StringComparer.Ordinal))
-            {
-                w.WriteStartObject();
-                w.WriteString("def", def);
-                w.WriteNumber("cleanliness", terrain.Cleanliness);
-                w.WriteBoolean("natural", terrain.Natural);
-                w.WriteEndObject();
-            }
-
-            w.WriteEndArray();
-        });
-    }
-
     private async Task<(PbCommon.Identity Identity, DefinitionCatalog Catalog, ColonyReading Reading)> ReadColonyAsync(CancellationToken cancellationToken)
     {
         var expected = await ReadIdentityAsync(cancellationToken).ConfigureAwait(false);
@@ -188,47 +158,6 @@ public sealed class AcceptanceReads
 
     private static PbCommon.Identity IdentityOf(RimGovernor.Brain.Observation.Identity expected) =>
         new() { ColonyId = expected.Colony.Value, LoadToken = expected.Load.Value, MapId = expected.Map.Value };
-
-    // Cells are packed [x, z, flags, footing, fertility, terrain index] to keep a 250x250 map near two megabytes.
-    private static void WriteSurvey(Utf8JsonWriter w, MapSurvey survey)
-    {
-        var terrains = new List<string>();
-        var index = new Dictionary<string, int>(StringComparer.Ordinal);
-        w.WriteStartObject("survey");
-        w.WriteBoolean("cold", survey.Cold);
-        w.WriteBoolean("hot", survey.Hot);
-        w.WriteStartArray("cells");
-        foreach (var c in survey.Cells)
-        {
-            if (!index.TryGetValue(c.Terrain, out var terrain))
-            {
-                terrain = terrains.Count;
-                index[c.Terrain] = terrain;
-                terrains.Add(c.Terrain);
-            }
-
-            var flags = (c.Walkable ? 1 : 0) | (c.Rock ? 2 : 0) | (c.Built ? 4 : 0) | (c.Bridgeable ? 8 : 0) | (c.Dries ? 16 : 0)
-                | (c.Hazard ? 32 : 0) | (c.ThickRoof ? 64 : 0) | (c.Ore ? 128 : 0) | (c.Tree ? 256 : 0) | (c.Prop ? 512 : 0) | (c.Ruin ? 1024 : 0);
-            w.WriteStartArray();
-            w.WriteNumberValue(c.Cell.X);
-            w.WriteNumberValue(c.Cell.Z);
-            w.WriteNumberValue(flags);
-            w.WriteNumberValue((int)c.Footing);
-            w.WriteNumberValue(c.Fertility);
-            w.WriteNumberValue(terrain);
-            w.WriteEndArray();
-        }
-
-        w.WriteEndArray();
-        w.WriteStartArray("terrains");
-        foreach (var t in terrains)
-        {
-            w.WriteStringValue(t);
-        }
-
-        w.WriteEndArray();
-        w.WriteEndObject();
-    }
 
     private static void Optional(Utf8JsonWriter w, string name, bool known, double value)
     {

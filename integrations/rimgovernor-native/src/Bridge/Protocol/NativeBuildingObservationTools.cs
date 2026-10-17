@@ -40,16 +40,10 @@ namespace HomeBridge.BridgeTools
         }
 
         // Row is one listed building as the read emits it: the projection
-        // with its CAS snapshot and the settings row of the patchable kinds.
+        // with the settings row of the patchable kinds.
         private static Obs.BuildingState Row(Thing thing, Common.ObservationContext context)
         {
             var row = Project(thing);
-            row = row with { Snapshot = row.Construction != null
-                ? NativeObservationSnapshot.Snapshot("construction", context, row.Building.Id, w => {
-                    w.Write((int)row.Status); w.Write(row.HitPoints.GetValueOrDefault()); w.Write(row.Burning);
-                    w.Write(row.Construction.WorkLeft.GetValueOrDefault()); w.Write(row.Construction.ResourcesComplete);
-                })
-                : Token(thing, context) };
             // Only the implemented BuildingPatchIntent arms carry a
             // settings row with their own dedicated CAS snapshot:
             // target_temperature_c (NativeBuildingTemperature), a

@@ -6,54 +6,6 @@ dotnet_diagnostic.RS0030.severity = error
 # records each use in banned-api.sarif. It only shrinks: the gate's banned-API job fails a section whose file no
 # longer uses a banned API (delete the section). Never add one; port the case to TypedCase instead.
 
-[/Clearance/ClearanceKit.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Clearance/ClearancePackReinstall.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Clearance/ClearanceRecoveryRemote.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Clearance/ClearanceSalvageRemote.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Floor/FloorKitchen.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Floor/FloorStandingRoom.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Layout/Fixture.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Layout/PowerSites.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Layout/RichSoil.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Layout/Ring.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Layout/SeaIceEnvelope.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Layout/SoilAudit.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Layout/StorageSuccessor.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Movement/MovementArrival.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Rooms/RoomsReads.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Route/RouteStockpile.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Shared/CaseJournal.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -61,15 +13,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Shared/RoutineService.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Storage/StorageOccupancyRing.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Storage/StorageStrandedLoot.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Storage/StorageYardShelf.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Support/CaseStore.cs]
@@ -84,59 +27,5 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Support/NativeReads.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/SupportPortfolioCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Wall/Adoption.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Wall/ClearedFloor.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Wall/ClearedRoom.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Wall/ConstructionSkill.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Wall/Deconstruct.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Wall/DoorSwap.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Wall/Layers.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Wall/RemotePickup.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Wall/Removal.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Wall/Replace.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Wall/TierGate.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Wall/Upgrade.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Wall/WallCases.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Wall/WallCensus.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Wall/WallGeometry.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Zone/Delete.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Zone/Invalidation.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Zone/Rectangle.cs]
 dotnet_diagnostic.RS0030.severity = suggestion

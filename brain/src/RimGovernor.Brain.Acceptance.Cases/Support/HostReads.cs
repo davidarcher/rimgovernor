@@ -7,8 +7,8 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// The harness side of the mod's read-only acceptance tools (<c>rimgovernor/acceptance_read_*</c>, registered by the mod
-/// from <c>AcceptanceReads</c>): the decoded colony facts, first layout plan and map survey, and two
-/// catalog tables exist only inside the game process, so each seam calls its tool through the generic native route and
+/// from <c>AcceptanceReads</c>): the decoded colony facts, first layout plan and the
+/// Impressiveness catalog stages exist only inside the game process, so each seam calls its tool through the generic native route and
 /// parses the JSON in the reply's <c>payload</c>. <see cref="HostSeams.Install"/> assigns them.
 /// </summary>
 internal static class HostReads
@@ -20,46 +20,6 @@ internal static class HostReads
         _ = identity;
         var read = await ReadAsync(harness, label, "colony_facts", null, cancellationToken).ConfigureAwait(false);
         return new ColonyFactsReading(Number(read, "sleepingMin"), Number(read, "sleepingMax"), Flag(read, "powerRequired"), Number(read, "powerHeadroom"), Flag(read, "disabledConsumers"));
-    }
-
-    internal static async Task<StarterSiteSurvey> SurveyAsync(Harness harness, CancellationToken cancellationToken)
-    {
-        var read = await ReadAsync(harness, "starter-site-survey", "starter_site", new JsonObject { ["cells"] = true }, cancellationToken).ConfigureAwait(false);
-        var survey = read["survey"] as JsonObject ?? throw new AcceptanceException("starter site read: no map survey in the reply");
-        var terrains = (survey["terrains"] as JsonArray ?? []).Select(t => t!.GetValue<string>()).ToList();
-        var cells = new List<SurveyCell>();
-        foreach (var raw in survey["cells"] as JsonArray ?? [])
-        {
-            var c = (JsonArray)raw!;
-            var flags = c[2]!.GetValue<int>();
-            cells.Add(new SurveyCell
-            {
-                Cell = new Cell(c[0]!.GetValue<int>(), c[1]!.GetValue<int>()),
-                Walkable = (flags & 1) != 0,
-                Rock = (flags & 2) != 0,
-                Built = (flags & 4) != 0,
-                Bridgeable = (flags & 8) != 0,
-                Dries = (flags & 16) != 0,
-                Hazard = (flags & 32) != 0,
-                ThickRoof = (flags & 64) != 0,
-                Ore = (flags & 128) != 0,
-                Tree = (flags & 256) != 0,
-                Prop = (flags & 512) != 0,
-                Ruin = (flags & 1024) != 0,
-                Footing = (Footing)c[3]!.GetValue<int>(),
-                Fertility = c[4]!.GetValue<double>(),
-                Terrain = terrains[c[5]!.GetValue<int>()],
-            });
-        }
-
-        var map = new MapSurvey
-        {
-            Bounds = new Bounds((int)Number(read, "width")!.Value, (int)Number(read, "height")!.Value),
-            Cells = cells,
-            Cold = Flag(survey, "cold") == true,
-            Hot = Flag(survey, "hot") == true,
-        };
-        return new StarterSiteSurvey((ulong)Number(read, "tick")!.Value, (long)Number(read, "colonists")!.Value, map);
     }
 
     internal static async Task<ImpressivenessLevels> ImpressivenessAsync(Harness harness, JsonObject identity, CancellationToken cancellationToken)
@@ -76,26 +36,12 @@ internal static class HostReads
         };
     }
 
-    internal static async Task<IReadOnlyDictionary<string, FloorTerrainRow>> FloorTerrainsAsync(Harness harness, JsonObject identity, CancellationToken cancellationToken)
-    {
-        _ = identity;
-        var read = await ReadAsync(harness, "catalog-floor-terrains", "floor_terrains", null, cancellationToken).ConfigureAwait(false);
-        var rows = new Dictionary<string, FloorTerrainRow>(StringComparer.Ordinal);
-        foreach (var raw in read["terrains"] as JsonArray ?? [])
-        {
-            var row = (JsonObject)raw!;
-            rows[Text(row, "def")] = new FloorTerrainRow(Number(row, "cleanliness")!.Value, row["natural"]?.GetValue<bool>() ?? false);
-        }
-
-        return rows;
-    }
-
     /// <summary>Plans the first layout from the mod's read: the plan in the store codec and the map bounds.</summary>
     internal sealed class StarterSiteReader : IStarterSitePlanner
     {
         public async Task<StarterSitePlan> PlanAsync(Harness harness, CancellationToken cancellationToken)
         {
-            var read = await ReadAsync(harness, "starter-site-plan", "starter_site", new JsonObject { ["cells"] = false }, cancellationToken).ConfigureAwait(false);
+            var read = await ReadAsync(harness, "starter-site-plan", "starter_site", null, cancellationToken).ConfigureAwait(false);
             if (read["plan"] is not { } plan)
             {
                 throw new AcceptanceException("no layout plan on this map");

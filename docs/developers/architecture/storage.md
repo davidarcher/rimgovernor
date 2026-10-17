@@ -210,6 +210,4 @@ obsolete obligations through the existing Method lifecycle.
 
 Creating a store does not prove a supply need or completed hauling. Chunks enter
 the supported acquisition path only for an actual material requirement; no global
-chunk definition mutation makes unrelated chunks automatically haulable. The
-`storage/refill-hysteresis` case name remains, but its assertions now cover
-demand-bounded delivery; `storage/changed-demand` covers withdrawal.
+chunk definition mutation makes unrelated chunks automatically haulable.

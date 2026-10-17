@@ -80,9 +80,8 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        private static Receipts.EffectEvidence Evidence(Operations.BuildingPatchIntent intent, string after) =>
+        private static Receipts.EffectEvidence Evidence(Operations.BuildingPatchIntent intent) =>
             new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Snapshot = new Receipts.SnapshotEvidence { EntityId = intent.ThingId, AfterToken = after },
                 Fields = [new Receipts.FieldResult { Field = Prisoners(intent) ? Receipts.SettingsField.PrisonerBed : Slaves(intent) ? Receipts.SettingsField.SlaveBed : Receipts.SettingsField.MedicalBed,
                     Outcome = Receipts.FieldOutcome.Applied }] } };
 
@@ -96,7 +95,7 @@ namespace HomeBridge.BridgeTools
             else if (Slaves(intent)) { if (!bed!.ForSlaves) bed.ForOwnerType = BedOwnerType.Slave; }
             else bed!.Medical = intent.Change?.Medical ?? false;
             if (!Matches(bed, intent)) throw new InvalidOperationException("Native bed use requires readback.");
-            return Evidence(intent, (Snapshot(bed, context)!.Token ?? ""));
+            return Evidence(intent);
         }
     }
 }

@@ -18,7 +18,7 @@ public sealed class ActivityNeedBoundaryTests
         Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
             new(o.Assignment, o.Method, o.Revision, 0, state, "", null, 200)))),
         Needs = new() { Tick = 200, Pawns = [new() { Pawn = "pawn", State = "eligible",
-            Needs = [new("rest", Known(rest), Known(.00002), Known(.3), Known(1d)), new("food", Known(.9), Known(.00003), Known(.3), Known(1d))] }] }
+            Needs = [new("rest", Known(rest), Known(.00002), Known(.3)), new("food", Known(.9), Known(.00003), Known(.3))] }] }
     };
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class ActivityNeedBoundaryTests
             Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 },
             Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
                 new(o.Assignment, o.Method, o.Revision, o.Preparing ? 1 : 0, o.Pawn == "producer" ? "started" : "holding", "", null, 300)))),
-            Needs = new() { Tick = 300, Pawns = [new() { Pawn = "helper", State = "eligible", Needs = [new("rest", Known(.05), Known(.00002), Known(.3), Known(1d))] }] }
+            Needs = new() { Tick = 300, Pawns = [new() { Pawn = "helper", State = "eligible", Needs = [new("rest", Known(.05), Known(.00002), Known(.3))] }] }
         };
         var next = ContinueCoordinatedActivity(batch, Known(true), read)!;
         Assert.False(next.Orders.Single(o => o.Pawn == "producer").Release);

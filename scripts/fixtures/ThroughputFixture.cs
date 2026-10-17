@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
                 if (itemCount < 1 || itemCount > 8) return Refuse("Use 1..8 items.");
                 if (wallSegments < 1 || wallSegments > 12) return Refuse("Use 1..12 wall segments.");
                 // Loose rock chunks trip the upkeep census row limit and starve
-                // MaintainStorage of its items fact (see StorageHaulFixture).
+                // MaintainStorage of its items fact.
                 var chunks = map.listerThings.AllThings
                     .Where(t => t.def.category == ThingCategory.Item && t.def.defName.StartsWith("Chunk")).ToList();
                 foreach (var chunk in chunks) { try { chunk.Destroy(DestroyMode.Vanish); } catch { } }

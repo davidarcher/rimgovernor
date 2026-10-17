@@ -97,7 +97,7 @@ namespace HomeBridge.BridgeTools
             var stack = giver.BillStack ?? throw new InvalidOperationException("Bench bill stack unavailable.");
             var usable = NativeProductionBills.Usable(bench);
             var row = new Obs.BillStackRow { Snapshot = NativeProductionBills.Snapshot(bench, giver, context), Bench = NativeBuildingObservationTools.Ref(bench),
-                Usable = usable, Capacity = BillStack.MaxCount};
+                Usable = usable };
             // RecipeDef defaults workTableSpeedStat to this stat, so it is the
             // speed the game applies to a recipe that names none; the stat
             // parts (outdoors, temperature, ...) are included by GetStatValue.

@@ -1,113 +1,72 @@
 using System.Globalization;
-using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
 using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>wall/door-swap</c> (Go <c>door_swap.go</c>).</summary>
+/// <summary>
+/// <c>wall/door-swap</c> (#1245, epic #1249): the door of a staged walled, roofed room, given DECONSTRUCT Designate with
+/// replace_with_wall, ends a built Wall of the door's stuff on the same cell while the room keeps its roof throughout,
+/// built by the lab crew under normal game rules. Records which path vanilla took (a wall blueprint over the door named
+/// at apply, or deconstruct then place). Native: GenConstruct's placement rule, the jobs and the built wall. The crew
+/// builds (Construction first, all hours work): without it nothing is swapped.
+/// </summary>
 internal static class WallDoorSwap
 {
-    internal static AcceptanceCase Case() => new()
+    private const int Width = 11;
+    private const int Height = 9;
+
+    private static readonly Fx.StageCell Door = new(3, 4);
+    private static readonly Fx.StageRect Interior = new(4, 3, 3, 3);
+
+    internal static TypedCase Case() => new()
     {
         Name = "wall/door-swap",
-        Scope = "Planned-ground door swap (#1245, epic #1249): a player door on a walled, roofed room's ring, " +
-            "given DECONSTRUCT Designate.replace_with_wall, ends a Wall of the door's stuff on the same cell while the " +
-            "room keeps its roof, built by force-ordered pawns under normal game rules. Reports which path vanilla " +
-            "took (wall blueprint over the door in one apply, or deconstruct then place). A Go snapshot test cannot " +
-            "see GenConstruct's placement rule, the ordered jobs or the built wall.",
-        Start = new LabStart(),
-        RequiredOps = [DebugGame.LabSpawnTool, FixtureStage.Tool],
+        Scope = "The door of a staged roofed WoodLog room, given DECONSTRUCT Designate.replace_with_wall, ends a built WoodLog Wall on "
+            + "the same cell with no door while the room keeps its roof on every read; records the path vanilla took.",
+        Ticks = 12000,
+        Tier = CaseTier.OnDemand,
         QuietWorld = true,
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
+        Stage = new Fx.StageSpec
+        {
+            Paused = true,
+            Site = WallKit.Site(Width, Height),
+            Clear = [WallKit.Clear(Width, Height)],
+            Cells = [new Fx.StageCells { Rect = new Fx.StageRect(0, 0, Width, Height), Home = true }],
+            Rooms = [new Fx.StageRoom { Name = "room", Rect = new Fx.StageRect(3, 2, 5, 5), Stuff = "WoodLog", Doors = [Door], Roof = true }],
+            Things = [new Fx.StageThing { Name = "wood", Def = "WoodLog", Count = 50, Cell = new(1, 1) }],
+            Pawns = WallKit.Builders,
+        },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var report = s.Report;
-        var (cx, cz) = CaseSupport.Center(s);
+        var staged = s.Staged!;
+        var site = staged.Site ?? throw new AcceptanceException("stage: no site");
+        var door = staged.Rooms["room"].Doors.Single();
+        var at = WallKit.At(site, Door);
+        var interior = WallKit.Cells(site, Interior);
 
-        // A 3x3 roofed room east of the centre with its door on the west side.
-        var (walls, interior) = WallGeometry.Ring(cx + 3, cz - 2, cx + 7, cz + 2);
-        var door = new WallCell(cx + 3, cz);
-        var doorId = string.Empty;
-        foreach (var c in walls)
-        {
-            var id = await WallGeometry.SpawnRingCellAsync(h, c, door, cancellationToken).ConfigureAwait(false);
-            if (c == door)
-            {
-                doorId = id;
-            }
-        }
-
-        await WallGeometry.RoofAsync(h, "roof", interior, cancellationToken).ConfigureAwait(false);
-        var roofed = await WallGeometry.RoofedAsync(s, "roofed", interior, cancellationToken).ConfigureAwait(false);
-        if (roofed != interior.Count)
-        {
-            throw new AcceptanceException($"roof the room: {roofed} roofed");
-        }
-
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "swap-authority", s.Identity, cancellationToken).ConfigureAwait(false);
-        var result = await WallGeometry.ApplyActionAsync(
-            s,
-            "swap",
-            WallCases.DeconstructIntent("swap", JsonValue.Create(doorId), new JsonObject { ["replaceWithWall"] = true }),
-            cancellationToken).ConfigureAwait(false);
-        var applied = result["applied"].AsMap() ?? throw new AcceptanceException($"swap not applied: {result.ToJson()}");
-        report["swap"] = applied;
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+        var swap = await TypedApply.AppliedAsync(s, "swap", WallKit.Deconstruct(door, replaceWithWall: true), cancellationToken).ConfigureAwait(false);
 
         // A replacement named at apply is the in-place path: vanilla accepted the wall blueprint over the standing door.
-        var inPlace = ContainsKey(applied, "replacementId");
-        report["path"] = inPlace ? "blueprint_over_door" : "deconstruct_then_place";
-        var where = string.Create(CultureInfo.InvariantCulture, $"{door.X},{door.Z}");
-        for (var advanced = 0; advanced < 12000; advanced += 300)
+        s.Record("path", string.IsNullOrEmpty(swap.Effect()?.Deconstruct?.ReplacementId) ? "deconstruct_then_place" : "blueprint_over_door");
+        var ticks = await s.RunUntilAsync("swapped", s.TicksLeft, async ct =>
         {
-            _ = await s.AdvanceAsync(300, null, cancellationToken).ConfigureAwait(false);
-            var n = await WallGeometry.RoofedAsync(s, "roof-read-" + CaseSupport.Tag(advanced), interior, cancellationToken).ConfigureAwait(false);
-            if (n != interior.Count)
+            var roofed = WallKit.Roofed(await TypedApply.CellsAsync(s, "swap-probe", site, ct).ConfigureAwait(false), interior);
+            if (roofed != interior.Count)
             {
-                throw new AcceptanceException($"the room lost roof during the swap at +{advanced + 300} ticks: {n} of {interior.Count} roofed");
+                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"the room lost roof during the swap: {roofed} of {interior.Count} roofed"));
             }
 
-            var built = await h.BuildingsAsync(
-                "cell-" + CaseSupport.Tag(advanced),
-                new Observations.ListBuildingsRequest { Scope = TypedReads.Scope(s.Identity), DefNames = ["Wall", "Door"], Statuses = [Observations.BuildingStatus.Built] },
-                cancellationToken).ConfigureAwait(false);
-            var here = built.Where(b => b.Building?.Position is { } p && p.X == door.X && p.Z == door.Z).ToList();
-            var wall = here.Any(b => b.Building?.DefName == "Wall" && b.Stuff == "WoodLog");
-            var doorStands = here.Any(b => b.Building?.DefName == "Door");
-
-            if (wall && !doorStands)
-            {
-                report["swapped_after_ticks"] = advanced + 300;
-                return;
-            }
-        }
-
-        throw new AcceptanceException($"door at {where} not swapped for a WoodLog wall within 12000 ticks");
-    }
-
-    /// <summary>Finds <paramref name="key"/> anywhere in a decoded evidence tree.</summary>
-    private static bool ContainsKey(JsonNode? value, string key)
-    {
-        switch (value)
-        {
-            case JsonObject map:
-                foreach (var (name, child) in map)
-                {
-                    if (string.Equals(name, key, StringComparison.Ordinal) || ContainsKey(child, key))
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            case JsonArray array:
-                return array.Any(item => ContainsKey(item, key));
-            default:
-                return false;
-        }
+            var built = await s.BuildingsAsync("swap-probe", new Observations.ListBuildingsRequest { DefNames = ["Wall", "Door"], Statuses = [Observations.BuildingStatus.Built] }, ct).ConfigureAwait(false);
+            var here = built.Where(b => b.Building.Position is { X: { } x, Z: { } z } && x == at.X && z == at.Z).ToList();
+            var wall = here.Any(b => b.Building.DefName == "Wall" && b.Stuff == "WoodLog");
+            var doorStands = here.Any(b => b.Building.DefName == "Door");
+            return (Wait.Signature(wall, doorStands), wall && !doorStands);
+        }, cancellationToken).ConfigureAwait(false);
+        s.Record("swapped_after_ticks", ticks);
     }
 }

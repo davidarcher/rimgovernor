@@ -94,8 +94,8 @@ public sealed class PlannedRoomActivitiesTests
         MoodIntervalTicks = Known(150d), MoodFreezesWhileAsleep = Known(true), BreakThreshold = Known(.3),
         ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]),
         Memories = Known<EquatableArray<NeedMemory>>([]),
-        Needs = [new("food", Known(level), Known(fall), Known(.3), Known(1d)),
-            new("rest", Known(1d), Known(0d), Known(.3), Known(1d))],
+        Needs = [new("food", Known(level), Known(fall), Known(.3)),
+            new("rest", Known(1d), Known(0d), Known(.3))],
     };
 
     /// <summary>

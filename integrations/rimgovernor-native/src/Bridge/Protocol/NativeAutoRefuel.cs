@@ -41,7 +41,6 @@ namespace HomeBridge.BridgeTools
             comp.allowAutoRefuel = wanted;
             if (comp.allowAutoRefuel != wanted) throw new InvalidOperationException("Native auto-refuel requires readback.");
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Snapshot = new Receipts.SnapshotEvidence { EntityId = thing!.GetUniqueLoadID() },
                 Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.AutoRefuel, Outcome = Receipts.FieldOutcome.Applied }] } };
         }
     }

@@ -21,13 +21,6 @@ public interface ICaseJournal : IWatchStore, IDisposable
     /// </summary>
     Task<IReadOnlyList<JsonObject>> PlanHistoryAsync(int limit, IReadOnlyList<string> methodPatterns, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// The recovery queue's row for <paramref name="id"/> in the latest persisted review (Go <c>LoadRounds</c> then
-    /// <c>RecoveryQueue.Entries</c>): <c>{id, status, tier, short, reason}</c> with <c>status</c> and <c>tier</c> the
-    /// lower-case enum names (<c>held</c>, <c>rest</c>...) and <c>short</c> an array. Null when the review has no queue or
-    /// no such row.
-    /// </summary>
-    Task<JsonObject?> RecoveryEntryAsync(string id, CancellationToken cancellationToken);
 }
 
 /// <summary>Opens and reads the case journal.</summary>

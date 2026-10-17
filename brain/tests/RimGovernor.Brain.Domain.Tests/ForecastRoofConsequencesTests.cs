@@ -59,7 +59,7 @@ public sealed class ForecastRoofConsequencesTests
             MoodUnclampedTarget = Known(.5), MoodIntervalTicks = Known(150d), MoodRisePerTick = Known(.12 / GameTime.TicksPerHour),
             MoodFallPerTick = Known(.08 / GameTime.TicksPerHour), MoodFreezesWhileAsleep = Known(true), BreakThreshold = Known(.3),
             ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]), Memories = Known<EquatableArray<NeedMemory>>([]),
-            Needs = [new("food", Known(1d), Known(0d), Known(.3), Known(1d)), new("rest", Known(.2), Known(0d), Known(.3), Known(1d))],
+            Needs = [new("food", Known(1d), Known(0d), Known(.3)), new("rest", Known(.2), Known(0d), Known(.3))],
             // 0.8 rest at 0.00005 a tick: a 16000-tick sleep, long enough that ApplyBedThoughts always runs at the wake.
             Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.00005))
                 { Location = Inside, Cell = OpenCell, Bed = new("None", Known(0), false) }],

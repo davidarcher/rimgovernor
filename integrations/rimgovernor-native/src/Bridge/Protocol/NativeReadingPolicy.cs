@@ -52,7 +52,6 @@ namespace HomeBridge.BridgeTools
                 outcome = Receipts.FieldOutcome.Applied;
             }
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Snapshot = new Receipts.SnapshotEvidence { EntityId = policy.GetUniqueLoadID() },
                 Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.ReadingPolicy, Outcome = outcome }] } };
         }
     }
