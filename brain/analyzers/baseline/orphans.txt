@@ -130,15 +130,6 @@ Contracts|Observations.ZoneState.AllowCut
 Contracts|Observations.ZoneState.AllowSow
 Contracts|Observations.ZoneState.ExplicitlySetCrop
 Contracts|Observations.ZonesSnapshot.Completeness
-Contracts|Operations.BillSettings.BeerReserve
-Contracts|Operations.BillSettings.Ingredients
-Contracts|Operations.BillSettings.PauseWhenSatisfied
-Contracts|Operations.BillSettings.RepeatCount
-Contracts|Operations.BillSettings.SkillMax
-Contracts|Operations.BillSettings.SkillMin
-Contracts|Operations.BillSettings.TargetCount
-Contracts|Operations.BillSettings.UnpauseThreshold
-Contracts|Operations.PawnActivityExecution.Step
 Contracts|Presentation.Alert.Activatable
 Contracts|Presentation.Alert.AnyCulpritValid
 Contracts|Presentation.Alert.EnabledWithActiveExpansions

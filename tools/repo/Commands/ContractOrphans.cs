@@ -12,8 +12,8 @@ namespace RimGovernor.Tools.Workflow.Commands;
 
 /// <summary>
 /// The orphan gate over the brain's records: every member of a wire record in <c>RimGovernor.Brain.Contracts</c> and of
-/// a record in <c>RimGovernor.Brain.Policy</c> must be read outside its declaration, and one the native side writes
-/// must be read by the brain. It reads the built assemblies, so a reference is the member token the compiler
+/// a record in <c>RimGovernor.Brain.Policy</c> must be read outside its declaration, and an observation (any wire record outside <c>Operations</c>)
+/// the native side writes must be read by the brain. It reads the built assemblies, so a reference is the member token the compiler
 /// bound (a getter call, an initializer's setter, a positional constructor), never a text match. A reference into the
 /// declaring assembly is followed through that assembly's own calls to the backing fields it reaches: a computed
 /// property reads what it computes from, a positional constructor writes its parameters, a Policy function reads the
@@ -26,7 +26,7 @@ namespace RimGovernor.Tools.Workflow.Commands;
 internal static class ContractOrphans
 {
     /// <summary>The wire records: the public types of the wire namespace, enums aside.</summary>
-    public static readonly Target Wire = new("Contracts", "RimGovernor.Contracts.Wire", RecordsOnly: false);
+    public static readonly Target Wire = new("Contracts", "RimGovernor.Contracts.Wire", RecordsOnly: false, IntentNamespaces: ["Operations"]);
 
     /// <summary>Policy's records, of any visibility: IDE0051/IDE0052 see only private members.</summary>
     public static readonly Target PolicyRecords = new("Policy", "RimGovernor.Brain.Policy", RecordsOnly: true);
@@ -60,8 +60,15 @@ internal static class ContractOrphans
     /// Which members of an assembly are checked. <paramref name="Name"/> prefixes every finding; members are the
     /// public types under <paramref name="Namespace"/> or, with <paramref name="RecordsOnly"/>, its records. With
     /// <paramref name="ReferenceIsUse"/>, a consumer's write uses a member as a read does.
+    /// A member under one of <paramref name="IntentNamespaces"/> (sub-namespaces of the target, such as <c>Operations</c>) is a
+    /// brain-to-native intent record: the native side reads it, and may construct its own copy to compare against, so
+    /// "written by the native side, never read by the brain" applies only to the rest, the native-to-brain observations.
     /// </summary>
-    internal sealed record Target(string Name, string Namespace, bool RecordsOnly, bool ReferenceIsUse = false);
+    internal sealed record Target(string Name, string Namespace, bool RecordsOnly, bool ReferenceIsUse = false, IReadOnlyList<string>? IntentNamespaces = null)
+    {
+        public bool IsIntent(string member) =>
+            IntentNamespaces?.Any(n => member.StartsWith(n + ".", StringComparison.Ordinal)) == true;
+    }
 
     /// <summary>How the brain and the native side use one member.</summary>
     private sealed class Use
@@ -113,7 +120,7 @@ internal static class ContractOrphans
         }
         checkedCount = uses.Count;
         return [.. uses
-            .Select(u => (Key: $"{target.Name}|{u.Key}", Reason: target.ReferenceIsUse && u.Value.BrainWrite ? null : Verdict(u.Value)))
+            .Select(u => (Key: $"{target.Name}|{u.Key}", Reason: target.ReferenceIsUse && u.Value.BrainWrite ? null : Verdict(u.Value, target.IsIntent(u.Key))))
             .Where(u => u.Reason is not null)
             .Select(u => (u.Key, u.Reason!))
             .OrderBy(u => u.Key, StringComparer.Ordinal)];
@@ -189,10 +196,10 @@ internal static class ContractOrphans
         return names;
     }
 
-    private static string? Verdict(Use use) =>
-        use.NativeWrite && !use.BrainRead ? "written by the native side, never read by the brain"
+    private static string? Verdict(Use use, bool intent) =>
+        use.NativeWrite && !use.BrainRead && !intent ? "written by the native side, never read by the brain"
         : use.BrainRead || use.NativeRead ? null
-        : use.BrainWrite ? "written, never read"
+        : use.BrainWrite || use.NativeWrite ? "written, never read"
         : "not referenced outside its declaration";
 
     /// <summary>A method a consumer calls (<paramref name="New"/> when it constructs) or a field it touches.</summary>

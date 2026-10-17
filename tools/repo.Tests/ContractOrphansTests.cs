@@ -81,6 +81,44 @@ public sealed class ContractOrphansTests : IDisposable
     }
 
     [Fact]
+    public void AnIntentRecordTheNativeSideReadsAndConstructsIsLiveButAnObservationItWritesIsNot()
+    {
+        var contracts = Compile("RimGovernor.Brain.Contracts", """
+            namespace RimGovernor.Contracts.Wire.Operations
+            {
+                public sealed record Setting { public int Count { get; init; } public string Name { get; init; } = ""; public int Spare { get; init; } }
+            }
+            namespace RimGovernor.Contracts.Wire.Observations
+            {
+                public sealed record Reading { public int Value { get; init; } }
+            }
+            """);
+        var brain = Compile("RimGovernor.Brain.Policy", """
+            using RimGovernor.Contracts.Wire.Operations;
+            public static class Planner
+            {
+                public static Setting Plan() => new() { Count = 3, Name = "bill", Spare = 1 };
+            }
+            """, contracts);
+        var native = Compile("RimGovernor.Bridge", """
+            using RimGovernor.Contracts.Wire.Observations;
+            using RimGovernor.Contracts.Wire.Operations;
+            public static class Reader
+            {
+                public static bool Verify(Setting actual) => actual.Count == new Setting { Count = 3, Name = "bill" }.Count && actual.Name.Length > 0;
+                public static Reading Read() => new() { Value = 1 };
+            }
+            """, contracts);
+
+        var orphans = ContractOrphans.Find(ContractOrphans.Wire, contracts, [brain], [native], out _);
+
+        // Count and Name are intent the native side reads (its own copy's writes do not flag them); Spare is never read.
+        Assert.Equal(
+            [("Contracts|Observations.Reading.Value", "written by the native side, never read by the brain"), ("Contracts|Operations.Setting.Spare", "written, never read")],
+            orphans);
+    }
+
+    [Fact]
     public void FailsOnAMemberNothingReferencesAndIgnoresEqualityAndCloning()
     {
         var orphans = Find(

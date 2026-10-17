@@ -117,7 +117,11 @@ member or through a Policy `RoomTier`/`PlannerTier`/`AdoptedTier`/
 This is a gate job (`contract orphans` in `RimGovernor.cmd test`,
 `tools/repo/Commands/ContractOrphans.cs`): every member of a public wire type in
 `RimGovernor.Brain.Contracts` (enums aside) and of a record in `RimGovernor.Brain.Policy` must be
-read somewhere outside its declaration, and a member the native mod writes must be read by the brain.
+read somewhere outside its declaration, and an observation member the native mod writes must be read by the brain.
+The check is direction-aware by sub-namespace: `Wire.Operations` records are brain-to-native intent (the brain
+writes, the native side reads, and the native side may build its own copy to compare against, which is not a
+brain-read obligation); every other wire record is a native-to-brain observation. The list is
+`IntentNamespaces` on `ContractOrphans.Wire`.
 An analyzer sees one project at a time, and IDE0051/IDE0052 only private members, so this
 reads the built assemblies instead: every other `brain/src` assembly (tests excluded) and the native
 mod's own `RimGovernor.*` assemblies, by the member tokens the compiler bound (getter calls,
