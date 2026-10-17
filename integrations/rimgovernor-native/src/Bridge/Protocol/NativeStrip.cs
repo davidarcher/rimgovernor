@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
             new Designator_Strip().DesignateThing(target!);
             if (!Designated(target!)) throw new InvalidOperationException("Native Strip designation was not observed.");
             return new Receipts.EffectEvidence { Effect = new Receipts.DesignationEffect { ThingId = target!.GetUniqueLoadID(), DesignationDef = DesignationDef,
-                Present = true, ResourceDef = target.def.defName, Cell = new Common.Cell { X = target.Position.x, Z = target.Position.z } } };
+                Present = true, Cell = new Common.Cell { X = target.Position.x, Z = target.Position.z } } };
         }
     }
 }

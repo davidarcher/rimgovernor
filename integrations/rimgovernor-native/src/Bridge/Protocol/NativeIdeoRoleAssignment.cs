@@ -61,7 +61,6 @@ namespace HomeBridge.BridgeTools
             }
             if (!role.IsAssigned(pawn)) throw new InvalidOperationException("Native role assignment did not take effect.");
             var effect = new Receipts.AssignEffect { PawnId = pawn.GetUniqueLoadID(), ThingId = role.GetUniqueLoadID(), Assigned = true };
-            if (intent.ExpectedPrevious?.Value is Operations.AssignmentValue.EntityIdCase { Value: var previousThingId }) effect = effect with { PreviousThingId = previousThingId };
             return new Receipts.EffectEvidence { Effect = effect };
         }
     }

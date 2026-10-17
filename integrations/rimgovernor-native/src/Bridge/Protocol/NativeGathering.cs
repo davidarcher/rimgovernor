@@ -66,8 +66,6 @@ namespace HomeBridge.BridgeTools
                 Effect = new Receipts.GatheringEffect
                 {
                     GatheringDef = command.GatheringDef,
-                    OrganizerId = (job.Organizer ?? plan.Organizer).GetUniqueLoadID(),
-                    Spot = new Common.Cell { X = job.Spot.x, Z = job.Spot.z }
                 }
             };
         }

@@ -204,10 +204,6 @@ public abstract record ReceiptOutcome
 {
     private protected ReceiptOutcome() { }
 
-    /// <summary>The <c>NoChange</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public NoChange? NoChange => (this as NoChangeCase)?.Value;
-
     public sealed record NoChangeCase(NoChange Value) : ReceiptOutcome;
 
     public static implicit operator ReceiptOutcome(NoChange value) => new NoChangeCase(value);
@@ -314,10 +310,6 @@ public abstract record EffectEvidenceEffect
     public sealed record ConstructionCase(ConstructionEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(ConstructionEffect value) => new ConstructionCase(value);
-
-    /// <summary>The <c>Installation</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public InstallationEffect? Installation => (this as InstallationCase)?.Value;
 
     public sealed record InstallationCase(InstallationEffect Value) : EffectEvidenceEffect;
 
@@ -435,10 +427,6 @@ public abstract record EffectEvidenceEffect
 
     public static implicit operator EffectEvidenceEffect(AcquisitionEffect value) => new AcquisitionCase(value);
 
-    /// <summary>The <c>Excavation</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ExcavationEffect? Excavation => (this as ExcavationCase)?.Value;
-
     public sealed record ExcavationCase(ExcavationEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(ExcavationEffect value) => new ExcavationCase(value);
@@ -499,10 +487,6 @@ public abstract record EffectEvidenceEffect
 
     public static implicit operator EffectEvidenceEffect(RemoveRoofEffect value) => new RemoveRoofCase(value);
 
-    /// <summary>The <c>AreaPlantCut</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public AreaPlantCutEffect? AreaPlantCut => (this as AreaPlantCutCase)?.Value;
-
     public sealed record AreaPlantCutCase(AreaPlantCutEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(AreaPlantCutEffect value) => new AreaPlantCutCase(value);
@@ -514,10 +498,6 @@ public abstract record EffectEvidenceEffect
     public sealed record RitualCase(RitualEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(RitualEffect value) => new RitualCase(value);
-
-    /// <summary>The <c>Ability</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public AbilityEffect? Ability => (this as AbilityCase)?.Value;
 
     public sealed record AbilityCase(AbilityEffect Value) : EffectEvidenceEffect;
 
@@ -571,10 +551,6 @@ public abstract record EffectEvidenceEffect
 
     public static implicit operator EffectEvidenceEffect(GatheringEffect value) => new GatheringCase(value);
 
-    /// <summary>The <c>BuildRoof</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public BuildRoofEffect? BuildRoof => (this as BuildRoofCase)?.Value;
-
     public sealed record BuildRoofCase(BuildRoofEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(BuildRoofEffect value) => new BuildRoofCase(value);
@@ -600,8 +576,6 @@ public sealed record GiveItemEffect
 
     public long? ExpectedRemaining { get; init; }
 
-    public string? SourceItemId { get; init; }
-
     public JobEffect? Job { get; init; }
 }
 
@@ -610,10 +584,6 @@ public sealed record IdeoligionEffect
     public string? IdeoId { get; init; }
 
     public Common.IdeoligionDesign? Design { get; init; }
-
-    public int? ReformCount { get; init; }
-
-    public int? DevelopmentPoints { get; init; }
 }
 
 public sealed record SnapshotEvidence
@@ -625,44 +595,13 @@ public sealed record SnapshotEvidence
     public string? AfterToken { get; init; }
 }
 
-/// <summary>
-/// Output quantities come from ordinary native placement callbacks or exact
-/// source-to-corpse identity. Expected yield never populates produced_units.
-/// </summary>
-public sealed record AcquisitionOutput
-{
-    public string? ThingId { get; init; }
-
-    public int? Units { get; init; }
-}
-
 public sealed record AcquisitionEffect
 {
     public string? SourceId { get; init; }
 
-    public string? ResourceDef { get; init; }
-
     public Common.Cell? Cell { get; init; }
 
     public bool? Designated { get; init; }
-
-    public bool? LaborFinished { get; init; }
-
-    public int? ProducedUnits { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<AcquisitionOutput>))]
-    public EquatableArray<AcquisitionOutput> Outputs { get; init; }
-
-    public bool? OutputObserved { get; init; }
-
-    public bool? OutputComplete { get; init; }
-
-    /// <summary>
-    /// Why a still-designated plant harvest has no worker (forbidden, below
-    /// harvest growth, no enabled plant cutter, unreachable, cutters busy on
-    /// other work); set only on a pending effect.
-    /// </summary>
-    public string? PendingReason { get; init; }
 }
 
 /// <summary>
@@ -672,11 +611,7 @@ public sealed record ExcavationEffect
 {
     public Common.Cell? Cell { get; init; }
 
-    public string? MineableDefName { get; init; }
-
     public bool? Designated { get; init; }
-
-    public bool? AdoptedExistingDesignation { get; init; }
 
     public bool? Cleared { get; init; }
 
@@ -686,37 +621,20 @@ public sealed record ExcavationEffect
 }
 
 /// <summary>
-/// activated: the exact option's native Activate ran. closed: the window left
-/// the stack; advanced: the dialog moved to a linked node instead (a new
+/// closed: the window left the stack; advanced: the dialog moved to a linked node instead (a new
 /// ColonyFactsSnapshot.dialog observation names the next choice).
 /// </summary>
 public sealed record DialogEffect
 {
     public int? WindowId { get; init; }
 
-    public int? OptionIndex { get; init; }
-
-    public string? OptionLabel { get; init; }
-
-    public bool? Activated { get; init; }
-
     public bool? Closed { get; init; }
 
     public bool? Advanced { get; init; }
-
-    public string? JoinerLetterToken { get; init; }
-
-    public string? JoinerPawnId { get; init; }
-
-    public bool? Joined { get; init; }
 }
 
 public sealed record ConstructionEffect
 {
-    public string? OriginThingId { get; init; }
-
-    public string? CurrentThingId { get; init; }
-
     public string? DefName { get; init; }
 
     public string? Stuff { get; init; }
@@ -734,22 +652,10 @@ public sealed record ConstructionEffect
     public bool? Failed { get; init; }
 
     public string? Blocker { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> CancelledFrameIds { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> WipedThingIds { get; init; }
 }
 
 public sealed record InstallationEffect
 {
-    public string? InnerThingId { get; init; }
-
-    public string? PackedThingId { get; init; }
-
-    public string? BlueprintId { get; init; }
-
     public string? DefName { get; init; }
 
     public string? Stuff { get; init; }
@@ -769,8 +675,6 @@ public sealed record DesignationEffect
 
     public bool? Present { get; init; }
 
-    public string? ResourceDef { get; init; }
-
     public Common.Cell? Cell { get; init; }
 }
 
@@ -789,7 +693,6 @@ public sealed record FieldResult
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(FieldResultEntry.WorkTypeDefCase), "workTypeDef")]
 [JsonDerivedType(typeof(FieldResultEntry.TrainableDefCase), "trainableDef")]
-[JsonDerivedType(typeof(FieldResultEntry.ScheduleHourCase), "scheduleHour")]
 public abstract record FieldResultEntry
 {
     private protected FieldResultEntry() { }
@@ -805,12 +708,6 @@ public abstract record FieldResultEntry
     public string? TrainableDef => (this as TrainableDefCase)?.Value;
 
     public sealed record TrainableDefCase(string Value) : FieldResultEntry;
-
-    /// <summary>The <c>ScheduleHour</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public int? ScheduleHour => (this as ScheduleHourCase)?.Value;
-
-    public sealed record ScheduleHourCase(int Value) : FieldResultEntry;
 }
 
 public sealed record SettingsEffect
@@ -835,10 +732,6 @@ public sealed record BillEffect
 
 public sealed record ResearchEffect
 {
-    public string? PreviousProjectDef { get; init; }
-
-    public string? CurrentProjectDef { get; init; }
-
     public SnapshotEvidence? Snapshot { get; init; }
 }
 
@@ -849,8 +742,6 @@ public sealed record CellResult
     public bool? Accepted { get; init; }
 
     public string? Reason { get; init; }
-
-    public string? TakenFromZoneId { get; init; }
 }
 
 public sealed record CreatedZone
@@ -869,16 +760,10 @@ public sealed record ZoneEffect
 
     public bool? Present { get; init; }
 
-    public int? ChangedCells { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<CellResult>))]
     public EquatableArray<CellResult> Cells { get; init; }
 
     public int? ListedCellCount { get; init; }
-
-    public int? GridCellCount { get; init; }
-
-    public int? PhantomCellCount { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<CreatedZone>))]
     public EquatableArray<CreatedZone> Created { get; init; }
@@ -889,8 +774,6 @@ public sealed record AssignEffect
     public string? PawnId { get; init; }
 
     public string? ThingId { get; init; }
-
-    public string? PreviousThingId { get; init; }
 
     public bool? Assigned { get; init; }
 
@@ -909,8 +792,6 @@ public sealed record DeconstructEffect
     public bool? DemolitionObserved { get; init; }
 
     public SnapshotEvidence? Site { get; init; }
-
-    public bool? WaitingForRoof { get; init; }
 
     public string? ReplacementId { get; init; }
 }
@@ -955,7 +836,7 @@ public sealed record SurgeryEffect
 }
 
 /// <summary>
-/// One AreaIntent's result: the bot area key, home or pollution_clear, the area's load
+/// One AreaIntent's result: the bot area key or home, the area's load
 /// id (absent once deleted), whether it stands, and its cell count after the
 /// edit.
 /// </summary>
@@ -970,8 +851,6 @@ public sealed record AreaEffect
     public bool? Present { get; init; }
 
     public int? CellCount { get; init; }
-
-    public bool? PollutionClear { get; init; }
 }
 
 /// <summary>
@@ -991,49 +870,35 @@ public sealed record PolicyPruneEffect
 }
 
 /// <summary>
-/// One RemoveRoofIntent's result: cells this apply designated, cells
-/// whose RemoveRoof designation already stood, and cells already unroofed.
+/// One RemoveRoofIntent's result: cells this apply designated.
 /// Applied means designated; the roof read decides when pawns finished.
 /// </summary>
 public sealed record RemoveRoofEffect
 {
     public int? Designated { get; init; }
-
-    public int? Adopted { get; init; }
-
-    public int? Unroofed { get; init; }
 }
 
 /// <summary>
-/// One BuildRoofIntent's result: cells this apply designated, cells whose BuildRoof
-/// designation already stood, and cells already roofed. Applied means designated.
+/// One BuildRoofIntent's result: cells this apply designated and cells already roofed.
+/// Applied means designated.
 /// </summary>
 public sealed record BuildRoofEffect
 {
     public int? Designated { get; init; }
 
-    public int? Adopted { get; init; }
-
     public int? Roofed { get; init; }
 }
 
 /// <summary>
-/// One AreaPlantCutIntent's result: plants this apply designated
-/// CutPlant, trees it designated chop-wood, and plants whose cut or chop
-/// designation already stood. Applied means designated; the plant cut census
-/// decides when pawns finished.
+/// One AreaPlantCutIntent's result, carrying no fields. Applied means designated;
+/// the plant cut census decides when pawns finished.
 /// </summary>
 public sealed record AreaPlantCutEffect
 {
-    public int? Cut { get; init; }
-
-    public int? Chopped { get; init; }
-
-    public int? Adopted { get; init; }
 }
 
 /// <summary>
-/// One RitualIntent's result: the ritual and verb applied to the pawn
+/// One RitualIntent's result: the ritual applied to the pawn
 /// and whether the ritual is started afterwards (the bestowing lord job's
 /// ceremonyStarted flag).
 /// </summary>
@@ -1042,8 +907,6 @@ public sealed record RitualEffect
     public string? PawnId { get; init; }
 
     public string? Ritual { get; init; }
-
-    public string? Verb { get; init; }
 
     public bool? Started { get; init; }
 }
@@ -1069,17 +932,9 @@ public abstract record AbilityEffectOutcome
 {
     private protected AbilityEffectOutcome() { }
 
-    /// <summary>The <c>Permit</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public PermitUseEffect? Permit => (this as PermitCase)?.Value;
-
     public sealed record PermitCase(PermitUseEffect Value) : AbilityEffectOutcome;
 
     public static implicit operator AbilityEffectOutcome(PermitUseEffect value) => new PermitCase(value);
-
-    /// <summary>The <c>Psycast</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public PsycastUseEffect? Psycast => (this as PsycastCase)?.Value;
 
     public sealed record PsycastCase(PsycastUseEffect Value) : AbilityEffectOutcome;
 
@@ -1087,24 +942,11 @@ public abstract record AbilityEffectOutcome
 }
 
 /// <summary>
-/// cooldown_started_tick is FactionPermit.LastUsedTick read back after the use
-/// (equal to the tick of the apply); favor_after == favor_before - the permit's
-/// favor cost. aid_things counts the things the use placed when countable
-/// (reported, not gated).
+/// The permit outcome, carrying no fields: native has read back that the permit's
+/// cooldown started at the apply tick and the favor cost was spent before it returns.
 /// </summary>
 public sealed record PermitUseEffect
 {
-    public string? FactionDef { get; init; }
-
-    public string? Permit { get; init; }
-
-    public long? CooldownStartedTick { get; init; }
-
-    public int? FavorBefore { get; init; }
-
-    public int? FavorAfter { get; init; }
-
-    public int? AidThings { get; init; }
 }
 
 /// <summary>
@@ -1115,8 +957,6 @@ public sealed record PermitUseEffect
 /// </summary>
 public sealed record PsycastUseEffect
 {
-    public string? Ability { get; init; }
-
     public string? JobDef { get; init; }
 }
 
@@ -1169,44 +1009,17 @@ public sealed record JobEffect
 
     public JobTarget? TargetA { get; init; }
 
-    public JobTarget? TargetB { get; init; }
-
-    public string? WorkGiverDef { get; init; }
-
     public string? WorkTypeDef { get; init; }
 
     public int? Count { get; init; }
 
     public bool? Issued { get; init; }
 
-    public bool? Verified { get; init; }
-
-    public string? VerifiedReason { get; init; }
-
     public bool? Drafted { get; init; }
-
-    public string? DraftOwner { get; init; }
-
-    public bool? AutoDrafted { get; init; }
-
-    public bool? AutoUndrafted { get; init; }
-
-    public string? SupplyThingId { get; init; }
 
     public int? HitPoints { get; init; }
 
-    public float? NeedBefore { get; init; }
-
-    public bool? CanTry { get; init; }
-
     public string? ResultingSnapshotToken { get; init; }
-
-    /// <summary>
-    /// Fresh CAS token for the operation's non-pawn target (e.g. RecoverService's
-    /// building), populated only by an unconstrained preview discovery read;
-    /// distinct from resulting_snapshot_token's post-effect pawn meaning.
-    /// </summary>
-    public string? TargetSnapshotToken { get; init; }
 }
 
 public sealed record AnimalEffect
@@ -1254,10 +1067,6 @@ public sealed record PrisonerEffect
 public sealed record TradeLineEffect
 {
     public string? LineId { get; init; }
-
-    public int? BeforeCount { get; init; }
-
-    public int? AfterCount { get; init; }
 }
 
 public sealed record TradeEffect
@@ -1279,14 +1088,7 @@ public sealed record TradeEffect
 
     public int? AfterSilver { get; init; }
 
-    public int? BeforeGoodwill { get; init; }
-
-    public int? AfterGoodwill { get; init; }
-
     public string? FactionId { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> ReceivedQuestIds { get; init; }
 
     public SnapshotEvidence? Snapshot { get; init; }
 
@@ -1305,14 +1107,6 @@ public sealed record CommsTradeRequestEffect
 
     public bool? WorkQueued { get; init; }
 
-    public long? BeforeRequestTick { get; init; }
-
-    public long? AfterRequestTick { get; init; }
-
-    public int? BeforeGoodwill { get; init; }
-
-    public int? AfterGoodwill { get; init; }
-
     public long? ArrivalTick { get; init; }
 }
 
@@ -1321,8 +1115,6 @@ public sealed record CaravanEffect
     public string? CaravanId { get; init; }
 
     public bool? AssemblyStarted { get; init; }
-
-    public bool? PathStarted { get; init; }
 
     public bool? Stopped { get; init; }
 
@@ -1340,11 +1132,7 @@ public sealed record QuestEffect
 
     public bool? Accepted { get; init; }
 
-    public bool? RequestActive { get; init; }
-
     public QuestStatus? State { get; init; }
-
-    public long? AcceptanceTick { get; init; }
 
     public SnapshotEvidence? Snapshot { get; init; }
 }
@@ -1353,13 +1141,7 @@ public sealed record QuestShuttleEffect
 {
     public string? QuestId { get; init; }
 
-    public string? ShuttleId { get; init; }
-
     public bool? Autoload { get; init; }
-
-    public bool? Loading { get; init; }
-
-    public bool? LaunchRequested { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> PawnIds { get; init; }
@@ -1407,10 +1189,6 @@ public abstract record LookupReplyOutcome
 
     public static implicit operator LookupReplyOutcome(Receipt value) => new ReceiptCase(value);
 
-    /// <summary>The <c>InFlight</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public InFlight? InFlight => (this as InFlightCase)?.Value;
-
     public sealed record InFlightCase(InFlight Value) : LookupReplyOutcome;
 
     public static implicit operator LookupReplyOutcome(InFlight value) => new InFlightCase(value);
@@ -1444,7 +1222,6 @@ public sealed record CompletedEffect
 
 public sealed record AbsentEffect
 {
-    public string? InspectionToken { get; init; }
 }
 
 public sealed record UnknownEffect
@@ -1466,11 +1243,6 @@ public sealed record Progress
     public Common.AttemptKey? Attempt { get; init; }
 
     public Common.ObservationContext? Context { get; init; }
-
-    /// <summary>
-    /// Required true for absence/completion. Not inferred from empty result arrays.
-    /// </summary>
-    public bool? CompleteInspection { get; init; }
 
     public ProgressEffect? Effect { get; init; }
 }
@@ -1533,9 +1305,5 @@ public abstract record ProgressEffect
 public sealed record GatheringEffect
 {
     public string? GatheringDef { get; init; }
-
-    public string? OrganizerId { get; init; }
-
-    public Common.Cell? Spot { get; init; }
 }
 

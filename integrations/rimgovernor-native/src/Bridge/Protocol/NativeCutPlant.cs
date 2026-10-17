@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
             if (!Designated(plant!)) new Designator_PlantsCut().DesignateThing(plant);
             if (!Designated(plant!)) throw new InvalidOperationException("Native CutPlant designation was not observed.");
             return new Receipts.EffectEvidence { Effect = new Receipts.DesignationEffect { ThingId = plant!.GetUniqueLoadID(), DesignationDef = DesignationDef,
-                Present = true, ResourceDef = plant.def.defName, Cell = new Common.Cell { X = plant.Position.x, Z = plant.Position.z } } };
+                Present = true, Cell = new Common.Cell { X = plant.Position.x, Z = plant.Position.z } } };
         }
     }
 

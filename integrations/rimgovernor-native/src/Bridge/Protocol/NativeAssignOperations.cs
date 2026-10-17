@@ -117,7 +117,6 @@ namespace HomeBridge.BridgeTools
             if (comp == null || !comp.AssignedPawnsForReading.Contains(pawn)) throw new InvalidOperationException("Native assignment did not take effect.");
             var effect = new Receipts.AssignEffect { PawnId = pawn.GetUniqueLoadID(), ThingId = thing.GetUniqueLoadID(), Assigned = true };
             if (thing is Building_Bed assigned) effect = effect with { Sleeping = pawn.CurrentBed() == assigned };
-            if (intent.ExpectedPrevious?.Value is Operations.AssignmentValue.EntityIdCase { Value: var previousId }) effect = effect with { PreviousThingId = previousId };
             return new Receipts.EffectEvidence { Effect = effect };
         }
     }

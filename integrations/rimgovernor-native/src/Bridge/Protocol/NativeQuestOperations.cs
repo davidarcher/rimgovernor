@@ -71,7 +71,6 @@ namespace HomeBridge.BridgeTools
             Effect = new Receipts.QuestEffect
             {
                 QuestId = quest.GetUniqueLoadID(), Accepted = quest.State != QuestState.NotYetAccepted, State = NativeEnums.Quest(quest.State),
-                AcceptanceTick = quest.acceptanceTick,
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = quest.GetUniqueLoadID(), AfterToken = Token(quest) },
             }
         };

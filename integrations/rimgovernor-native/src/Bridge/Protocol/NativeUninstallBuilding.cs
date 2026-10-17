@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
                 designations.AddDesignation(new Designation(building, DesignationDefOf.Uninstall));
             if (designations.DesignationOn(building, DesignationDefOf.Uninstall) == null) throw new InvalidOperationException("Native uninstall designation was not observed.");
             return new Receipts.EffectEvidence { Effect = new Receipts.InstallationEffect {
-                InnerThingId = building.GetUniqueLoadID(), DefName = building.def.defName, Stuff = building.Stuff?.defName ?? "",
+                DefName = building.def.defName, Stuff = building.Stuff?.defName ?? "",
                 Cell = new Common.Cell { X = building.Position.x, Z = building.Position.z },
                 Rotation = (Placement.Rotation)(building.Rotation.AsInt + 1), Stage = Receipts.InstallationStage.UninstallQueued } };
         }

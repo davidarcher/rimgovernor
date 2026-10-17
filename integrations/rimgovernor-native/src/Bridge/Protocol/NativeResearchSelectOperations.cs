@@ -42,13 +42,9 @@ namespace HomeBridge.BridgeTools
             var failure = Resolve(action.Intent?.Research, out var def);
             if (failure != null) throw new InvalidOperationException("Research prerequisites changed before apply: " + (failure.Detail ?? ""));
             var manager = Find.ResearchManager;
-            var previous = Current(def)?.defName ?? "";
-            if (previous != def.defName) manager.SetCurrentProject(def);
-            var current = Current(def)?.defName ?? "";
-            if (current != def.defName) throw new InvalidOperationException("Research selection did not verify after SetCurrentProject.");
-            var effect = new Receipts.ResearchEffect { CurrentProjectDef = current };
-            if (previous.Length != 0) effect = effect with { PreviousProjectDef = previous };
-            return new Receipts.EffectEvidence { Effect = effect };
+            if (Current(def)?.defName != def.defName) manager.SetCurrentProject(def);
+            if (Current(def)?.defName != def.defName) throw new InvalidOperationException("Research selection did not verify after SetCurrentProject.");
+            return new Receipts.EffectEvidence { Effect = new Receipts.ResearchEffect() };
         }
     }
 }

@@ -64,13 +64,13 @@ namespace HomeBridge.BridgeTools
             Install();
             var refusal = Refusal(intent, context, out var map, out var cells);
             if (refusal != null) throw new InvalidOperationException("Remove roof prerequisites changed before apply: " + refusal);
-            int designatedCount = 0, adoptedCount = 0, unroofedCount = 0;
+            int designatedCount = 0;
             var noRoof = map!.areaManager.NoRoof;
             var designator = new Designator_AreaNoRoof();
             foreach (var cell in cells)
             {
                 var unroofed = map.roofGrid.RoofAt(cell) == null;
-                if (noRoof[cell]) { if (unroofed) unroofedCount++; else adoptedCount++; continue; }
+                if (noRoof[cell]) continue;
                 // An unroofed cell joins the NoRoof area too: left out, it
                 // stays in the BuildRoof area auto-roof gave it (a room's
                 // walls) and pawns roof it after the intent applied.
@@ -78,9 +78,9 @@ namespace HomeBridge.BridgeTools
                 if (!accepted.Accepted) throw new InvalidOperationException($"Native remove-roof (NoRoof area) is not accepted at {cell}: {accepted.Reason}");
                 designator.DesignateSingleCell(cell);
                 if (!noRoof[cell]) throw new InvalidOperationException($"NoRoof area was not observed at {cell}.");
-                if (unroofed) unroofedCount++; else designatedCount++;
+                if (!unroofed) designatedCount++;
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.RemoveRoofEffect { Designated = designatedCount, Adopted = adoptedCount, Unroofed = unroofedCount } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.RemoveRoofEffect { Designated = designatedCount } };
         }
     }
 

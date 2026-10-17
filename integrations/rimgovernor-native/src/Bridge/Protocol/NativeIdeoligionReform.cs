@@ -47,7 +47,7 @@ namespace HomeBridge.BridgeTools
             if (failure != null) throw new ApplyRefusedException(failure);
             if (candidate != null) IdeoDevelopmentUtility.ApplyChangesToIdeo(source!, candidate);
             return new Receipts.EffectEvidence { Effect = new Receipts.IdeoligionEffect {
-                IdeoId = source!.GetUniqueLoadID(), Design = ReadDesign(source), ReformCount = source.development.reformCount, DevelopmentPoints = source.development.Points } };
+                IdeoId = source!.GetUniqueLoadID(), Design = ReadDesign(source) } };
         }
     }
 }

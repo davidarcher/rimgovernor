@@ -89,10 +89,7 @@ namespace HomeBridge.BridgeTools
                 Find.LetterStack.RemoveLetter(letter);
                 if (pawn.Dead || !pawn.IsFreeColonist) throw new InvalidOperationException("Creepjoiner did not join.");
             }
-            var joined = Find.Archive.ArchivablesListForReading.OfType<ChoiceLetter_AcceptCreepJoiner>().First(l => l.ID == c.WindowId.GetValueOrDefault()).pawn;
-            return new Receipts.EffectEvidence { Effect = new Receipts.DialogEffect { WindowId = c.WindowId, OptionIndex = 0,
-                OptionLabel = c.OptionLabel, JoinerLetterToken = c.JoinerLetterToken, JoinerPawnId = joined.GetUniqueLoadID(),
-                Activated = true, Closed = true, Advanced = false, Joined = true } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.DialogEffect { WindowId = c.WindowId, Closed = true, Advanced = false } };
         }
 
         internal static List<Obs.JoinerLetter> Snapshot()
@@ -155,9 +152,7 @@ namespace HomeBridge.BridgeTools
                 option.action();
                 if (!letter.ArchivedOnly || !Joined(letter, pawn)) throw new InvalidOperationException("Joiner did not arrive.");
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.DialogEffect { WindowId = c.WindowId, OptionIndex = 0,
-                OptionLabel = c.OptionLabel, JoinerLetterToken = (c.JoinerLetterToken ?? ""), JoinerPawnId = pawn.GetUniqueLoadID(),
-                Activated = true, Closed = true, Advanced = false, Joined = true } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.DialogEffect { WindowId = c.WindowId, Closed = true, Advanced = false } };
         }
     }
 }

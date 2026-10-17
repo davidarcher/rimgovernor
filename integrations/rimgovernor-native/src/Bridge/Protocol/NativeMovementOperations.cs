@@ -44,9 +44,8 @@ namespace HomeBridge.BridgeTools
         }
 
         internal static Receipts.EffectEvidence Evidence(Pawn pawn,IntVec3 destination,bool issued)=>new Receipts.EffectEvidence {Effect=new Receipts.JobEffect {
-            PawnId=pawn.GetUniqueLoadID(),JobDef="Goto",Issued=issued,Verified=issued,Drafted=pawn.Drafted,
-            TargetA=new Receipts.JobTarget {Target=new Common.Cell {X=destination.x,Z=destination.z}},
-            VerifiedReason=issued?"Native Goto ordered.":"The order already matched; nothing issued."}};
+            PawnId=pawn.GetUniqueLoadID(),JobDef="Goto",Issued=issued,Drafted=pawn.Drafted,
+            TargetA=new Receipts.JobTarget {Target=new Common.Cell {X=destination.x,Z=destination.z}}}};
 
         internal static Receipts.EffectEvidence Apply(Operations.MoveIntent move,Common.ObservationContext context)
         {

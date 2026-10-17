@@ -364,7 +364,7 @@ namespace HomeBridge.BridgeTools
             return new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect
             {
                 SessionId = _sessionId ?? "", DealSignature = DealSignature(), Executed = false, Closed = false,
-                BeforeSilver = SessionSilver(), BeforeGoodwill = faction != null ? SafeInt(() => faction.PlayerGoodwill) : 0,
+                BeforeSilver = SessionSilver(),
                 FactionId = faction != null ? faction.GetUniqueLoadID() : "",
             } };
         }
@@ -377,7 +377,7 @@ namespace HomeBridge.BridgeTools
             return new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect
             {
                 SessionId = "", DealSignature = "", Executed = false, Closed = false,
-                BeforeSilver = 0, BeforeGoodwill = faction != null ? SafeInt(() => faction.PlayerGoodwill) : 0,
+                BeforeSilver = 0,
                 FactionId = faction != null ? faction.GetUniqueLoadID() : "",
             } };
         }
@@ -390,8 +390,8 @@ namespace HomeBridge.BridgeTools
         }
 
         // --------------------------------------------------------- set lines
-        private readonly struct PreparedLine { internal readonly int Index; internal readonly int Target; internal readonly int Before;
-            internal PreparedLine(int index, int target, int before) { Index = index; Target = target; Before = before; } }
+        private readonly struct PreparedLine { internal readonly int Index; internal readonly int Target;
+            internal PreparedLine(int index, int target) { Index = index; Target = target; } }
 
         // Resolves a line_id to exactly one row: "#N" absolute index, or an
         // exact defName match. A typed caller already holds an exact defName or
@@ -442,7 +442,7 @@ namespace HomeBridge.BridgeTools
                 AcceptanceReport report;
                 try { report = row.CanAdjustTo(target); } catch (Exception e) { failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "CanAdjustTo threw: " + e.GetType().Name); return false; }
                 if (!report.Accepted) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, string.IsNullOrEmpty(report.Reason) ? "The game rejected that count." : report.Reason); return false; }
-                prepared.Add(new PreparedLine(index, target, SafeInt(() => row.CountToTransfer)));
+                prepared.Add(new PreparedLine(index, target));
             }
             return true;
         }
@@ -603,7 +603,7 @@ namespace HomeBridge.BridgeTools
             {
                 var row = all[line.Index];
                 row.AdjustTo(line.Target);
-                lineEffects.Add(new Receipts.TradeLineEffect { LineId = "#" + line.Index, BeforeCount = line.Before, AfterCount = SafeInt(() => row.CountToTransfer) });
+                lineEffects.Add(new Receipts.TradeLineEffect { LineId = "#" + line.Index });
             }
             SafeUpdateCurrency(deal);
             var evidence = new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect
@@ -618,24 +618,22 @@ namespace HomeBridge.BridgeTools
         {
             if (!PrepareAccept(command, traderId, negotiatorId, identity, out _)) throw new InvalidOperationException("Accept prerequisites changed after validation.");
             var deal = _sessionDeal!; var traderPawn = _sessionTrader; var faction = traderPawn?.Faction;
-            var beforeSilver = SessionSilver(); var beforeGoodwill = faction != null ? SafeInt(() => faction.PlayerGoodwill) : 0;
+            var beforeSilver = SessionSilver();
             bool executed, actuallyTraded;
             try { executed = deal.TryExecute(out actuallyTraded); }
             catch { executed = false; actuallyTraded = false; }
             _sessionNegotiator?.GetCaravan()?.RecacheInventory();
-            var afterGoodwill = faction != null ? SafeInt(() => faction.PlayerGoodwill) : beforeGoodwill;
             var afterSilver = ColonySilverNow(traderPawn, _sessionNegotiator, beforeSilver);
             var sessionIdForEvidence = _sessionId ?? "";
             var receiveQuest = command.ReceiveQuest is null || command.ReceiveQuest.GetValueOrDefault();
-            var quest = false;
             if (receiveQuest && traderPawn is Pawn questPawn)
             {
                 try
                 {
                     if (questPawn.mindState != null && questPawn.mindState.hasQuest && _sessionNegotiator != null)
-                    { TradeUtility.ReceiveQuestFromTrader(questPawn, _sessionNegotiator); quest = true; }
+                        TradeUtility.ReceiveQuestFromTrader(questPawn, _sessionNegotiator);
                 }
-                catch { quest = false; }
+                catch { }
             }
             try { TradeSession.Close(); } catch { }
             _sessionId = null; _sessionColonyId = null; _sessionLoadToken = null; _sessionMap = null;
@@ -647,9 +645,8 @@ namespace HomeBridge.BridgeTools
             {
                 SessionId = sessionIdForEvidence, DealSignature = command.ExpectedDealSignature is not null ? (command.ExpectedDealSignature ?? "") : "",
                 Executed = executed, ActuallyTraded = actuallyTraded, Closed = true,
-                BeforeSilver = beforeSilver, AfterSilver = afterSilver, BeforeGoodwill = beforeGoodwill, AfterGoodwill = afterGoodwill,
+                BeforeSilver = beforeSilver, AfterSilver = afterSilver,
                 FactionId = faction != null ? faction.GetUniqueLoadID() : "",
-                ReceivedQuestIds = quest ? [sessionIdForEvidence] : [],
             } };
             return evidence;
         }

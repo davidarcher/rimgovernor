@@ -195,10 +195,9 @@ namespace HomeBridge.BridgeTools
             if (Acquisition(intent)) return NativeAcquire.Apply(intent, context);
             var refusal = Resolve(intent, context, out var plan, out _);
             if (refusal != null) throw new InvalidOperationException("Designate prerequisites changed before apply: " + refusal);
-            if (plan.Cleared) return Evidence(plan, null, adopted: false);
-            var adopted = plan.Present;
+            if (plan.Cleared) return Evidence(plan, null);
             var record = plan.Guard == null ? null : NativeDesignationGuards.Open(plan.Map, plan.Def, plan.Cell, plan.Target);
-            if (record != null) return Evidence(plan, record, adopted);
+            if (record != null) return Evidence(plan, record);
             if (plan.Guard != null)
                 record = new GuardedDesignation { Id = "designation-" + Guid.NewGuid().ToString("N"), Guard = plan.Guard, Designation = plan.Def.defName,
                     ExpectedDef = plan.ExpectedDef, MapId = plan.Map.uniqueID, X = plan.Cell.x, Z = plan.Cell.z,
@@ -210,9 +209,9 @@ namespace HomeBridge.BridgeTools
                 // swap the game lets the blueprint replace in place is one
                 // build (the construct giver deconstructs the door).
                 var standing = plan.Cell.GetThingList(plan.Map).FirstOrDefault(t => t is Blueprint_Build b && b.def.entityDefToBuild == ThingDefOf.Wall);
-                if (standing != null) { record!.ReplacementId = standing.GetUniqueLoadID(); return Evidence(plan, record, adopted); }
+                if (standing != null) { record!.ReplacementId = standing.GetUniqueLoadID(); return Evidence(plan, record); }
                 if (GenConstruct.CanPlaceBlueprintAt(ThingDefOf.Wall, plan.Cell, Rot4.North, plan.Map, false, null, null, plan.WallStuff).Accepted)
-                { PlaceWall(record!, plan.Map, null, queued: false); return Evidence(plan, record, adopted); }
+                { PlaceWall(record!, plan.Map, null, queued: false); return Evidence(plan, record); }
             }
             if (!plan.Present)
             {
@@ -227,38 +226,37 @@ namespace HomeBridge.BridgeTools
             {
                 record!.Finished = Find.TickManager.TicksGame;
                 if (record.WallStuff != null) PlaceWall(record, plan.Map, null, queued: false);
-                return Evidence(plan, record, adopted);
+                return Evidence(plan, record);
             }
             if (!Standing(plan)) throw new InvalidOperationException("Native " + plan.Def.defName + " designation was not observed.");
             if (record != null) NativeDesignationGuards.Add(record);
             // Swap: the nearest capable builder takes the deconstruction now;
             // the wall follows it.
             if (plan.WallStuff != null) Order(plan.Target!, null, DeconstructGiver, queued: false);
-            return Evidence(plan, record, adopted);
+            return Evidence(plan, record);
         }
 
-        private static Receipts.EffectEvidence Evidence(Plan p, GuardedDesignation? record, bool adopted)
+        private static Receipts.EffectEvidence Evidence(Plan p, GuardedDesignation? record)
         {
             var cell = new Common.Cell { X = p.Cell.x, Z = p.Cell.z };
             if (p.Designation == Operations.ThingDesignation.Mine)
             {
                 var now = ExcavationTools.RockAt(p.Cell, p.Map);
                 var designated = now != null && ExcavationTools.Designated(p.Cell, p.Map);
-                return new Receipts.EffectEvidence { Effect = new Receipts.ExcavationEffect { Cell = cell, MineableDefName = p.ExpectedDef,
-                    AdoptedExistingDesignation = adopted, Cleared = now == null, Designated = designated, Cancelled = now != null && !designated } };
+                return new Receipts.EffectEvidence { Effect = new Receipts.ExcavationEffect { Cell = cell,
+                    Cleared = now == null, Designated = designated, Cancelled = now != null && !designated } };
             }
             if (p.Designation == Operations.ThingDesignation.Deconstruct)
             {
                 var target = (Building)p.Target!;
                 var effect = new Receipts.DeconstructEffect { TargetId = target.GetUniqueLoadID(), DesignationId = record?.Id ?? "",
-                    DemolitionObserved = record != null && record.Finished >= 0,
-                    WaitingForRoof = record != null && record.Finished < 0 && NativeDesignationGuards.RoofWait(target) != null };
+                    DemolitionObserved = record != null && record.Finished >= 0 };
                 if (record?.ReplacementId != null) effect = effect with { ReplacementId = record.ReplacementId };
                 return new Receipts.EffectEvidence { Effect = effect };
             }
             var id = p.Target?.GetUniqueLoadID() ?? "foundation-" + p.Cell.x + "-" + p.Cell.z;
             return new Receipts.EffectEvidence { Effect = new Receipts.DesignationEffect { ThingId = id, DesignationDef = p.Def.defName,
-                Present = p.Cleared || Standing(p), ResourceDef = p.ExpectedDef, Cell = cell } };
+                Present = p.Cleared || Standing(p), Cell = cell } };
         }
 
         // ---- door-to-wall swap ----

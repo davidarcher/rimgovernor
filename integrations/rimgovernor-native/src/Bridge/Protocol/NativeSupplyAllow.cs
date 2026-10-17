@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
             if (thing!.IsForbidden(Faction.OfPlayer) != forbid) throw new InvalidOperationException("Native supply designation did not achieve its forbid state.");
             return new Receipts.EffectEvidence { Effect = new Receipts.DesignationEffect { ThingId = thing!.GetUniqueLoadID(),
                 DesignationDef = forbid ? "Forbid" : "Allow", Present = true,
-                ResourceDef = thing!.def.defName, Cell = new Common.Cell { X = thing!.Position.x, Z = thing!.Position.z } } };
+                Cell = new Common.Cell { X = thing!.Position.x, Z = thing!.Position.z } } };
         }
 
     }

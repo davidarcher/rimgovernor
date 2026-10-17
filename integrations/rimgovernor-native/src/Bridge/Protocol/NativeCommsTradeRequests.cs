@@ -115,10 +115,9 @@ namespace HomeBridge.BridgeTools
             var contact = new Contact { Intent = intent, Identity = context.Identity, Pawn = pawn!, Faction = faction!, Console = console!, Job = job, JobId = job.loadID };
             Contacts.Add(contact);
             if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc)) { Contacts.Remove(contact); throw new InvalidOperationException("comms_job_refused"); }
-            var last = intent.Kind == Common.TradeRequestKind.Orbital ? faction!.lastOrbitalTraderRequestTick : faction!.lastTraderRequestTick;
             return new Receipts.EffectEvidence { Effect = new Receipts.CommsTradeRequestEffect {
                 FactionId = intent.FactionId, Kind = intent.Kind, TraderKind = intent.TraderKind, NegotiatorId = intent.NegotiatorId,
-                WorkQueued = true, BeforeRequestTick = last, AfterRequestTick = last, BeforeGoodwill = faction.PlayerGoodwill, AfterGoodwill = faction.PlayerGoodwill } };
+                WorkQueued = true } };
         }
     }
 }

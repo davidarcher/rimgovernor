@@ -69,13 +69,13 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        private static Receipts.EffectEvidence Evidence(Pawn pawn, Thing thing, Job? job, bool issued, bool canTry) => new Receipts.EffectEvidence
+        private static Receipts.EffectEvidence Evidence(Pawn pawn, Thing thing, Job? job, bool issued) => new Receipts.EffectEvidence
         {
             Effect = new Receipts.JobEffect
             {
                 PawnId = pawn.GetUniqueLoadID(), JobId = job?.loadID ?? -1, JobDef = job?.def?.defName ?? "HaulToCell",
                 TargetA = new Receipts.JobTarget { Target = new Receipts.JobTargetTarget.ThingIdCase(thing.GetUniqueLoadID()) },
-                CanTry = canTry, Issued = issued, Verified = job != null, Drafted = false,
+                Issued = issued, Drafted = false,
             }
         };
 
@@ -86,11 +86,11 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(intent, context, out var pawn, out var thing);
             if (failure != null) throw new System.InvalidOperationException(failure.Detail);
-            if (Hauling(pawn!, thing!)) return Evidence(pawn!, thing!, pawn!.CurJob, false, true);
+            if (Hauling(pawn!, thing!)) return Evidence(pawn!, thing!, pawn!.CurJob, false);
             var result = Job(pawn!, thing!, out _) ?? throw new System.InvalidOperationException("No hauling job is available.");
             if (!pawn!.jobs.TryTakeOrderedJobPrioritizedWork(result.Job, result.Scanner, thing!.Position) || !ReferenceEquals(pawn.CurJob, result.Job))
                 throw new System.InvalidOperationException("The pawn did not take the hauling job.");
-            return Evidence(pawn, thing, result.Job, true, true);
+            return Evidence(pawn, thing, result.Job, true);
         }
     }
 

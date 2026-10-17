@@ -75,19 +75,16 @@ namespace HomeBridge.BridgeTools
             var map = ProtoBoundary.ResolveMap(context) ?? throw new InvalidOperationException("Area plant cut prerequisites changed before apply: current map required.");
             var refusal = Refusal(intent.Cells, map, out var cells);
             if (refusal != null) throw new InvalidOperationException("Area plant cut prerequisites changed before apply: " + refusal);
-            int cut = 0, chopped = 0, adopted = 0;
             foreach (var cell in cells)
                 foreach (var plant in Plants(map, cell).ToList())
                 {
-                    if (Designated(plant)) { adopted++; continue; }
+                    if (Designated(plant)) continue;
                     var designator = DesignatorFor(plant);
                     if (!designator.CanDesignateThing(plant).Accepted) continue;
-                    var chop = ChopWood(plant);
                     designator.DesignateThing(plant);
                     if (!Designated(plant)) throw new InvalidOperationException($"Native plant cut designation was not observed at {cell}.");
-                    if (chop) chopped++; else cut++;
                 }
-            return new Receipts.EffectEvidence { Effect = new Receipts.AreaPlantCutEffect { Cut = cut, Chopped = chopped, Adopted = adopted } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.AreaPlantCutEffect() };
         }
 
 

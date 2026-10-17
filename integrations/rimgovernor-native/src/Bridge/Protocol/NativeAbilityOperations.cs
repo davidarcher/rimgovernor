@@ -203,11 +203,7 @@ namespace HomeBridge.BridgeTools
                 Effect = new Receipts.AbilityEffect
                 {
                     PawnId = call.Pawn.GetUniqueLoadID(),
-                    Outcome = new Receipts.PermitUseEffect
-                    {
-                        FactionDef = call.Faction.def.defName, Permit = call.Def.defName, CooldownStartedTick = call.Held.LastUsedTick,
-                        FavorBefore = favorBefore, FavorAfter = favorAfter,
-                    },
+                    Outcome = new Receipts.PermitUseEffect(),
                 },
             };
         }
@@ -378,7 +374,7 @@ namespace HomeBridge.BridgeTools
                 Effect = new Receipts.AbilityEffect
                 {
                     PawnId = cast.Pawn.GetUniqueLoadID(),
-                    Outcome = new Receipts.PsycastUseEffect { Ability = cast.Ability.def.defName, JobDef = job.def.defName },
+                    Outcome = new Receipts.PsycastUseEffect { JobDef = job.def.defName },
                 },
             };
         }

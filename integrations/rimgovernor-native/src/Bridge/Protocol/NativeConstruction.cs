@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Call inside the admitted native authority scope. Every mutation uses ordinary architect behavior.
-        internal Thing Place(ref Receipts.ConstructionEffect observed, bool replaceWall = false)
+        internal Thing Place(bool replaceWall = false)
         {
             // A wall replacement keeps the built wall standing: vanilla wipes it in the
             // same call that turns the blueprint into a Frame, so the cell is never open.
@@ -91,20 +91,9 @@ namespace HomeBridge.BridgeTools
             {
                 if (frame.Destroyed || blueprint.replaceTags == null || frame.def.replaceTags == null
                     || !blueprint.replaceTags.Intersect(frame.def.replaceTags).Any()) continue;
-                var id = frame.GetUniqueLoadID();
                 frame.Destroy(DestroyMode.Cancel);
-                if (frame.Destroyed) observed = observed with { CancelledFrameIds = [.. observed.CancelledFrameIds, id] };
             }
-            if (!Instant)
-            {
-                var wiped = GenAdj.CellsOccupiedBy(Cell, Rotation, blueprint.Size).Where(cell => cell.InBounds(Map))
-                    .SelectMany(cell => Map.thingGrid.ThingsListAt(cell)).Distinct()
-                    .Where(thing => !thing.Destroyed && GenSpawn.SpawningWipes(blueprint, thing.def)).ToArray();
-                var ids = wiped.Select(thing => thing.GetUniqueLoadID()).ToArray();
-                GenSpawn.WipeExistingThings(Cell, Rotation, blueprint, Map, DestroyMode.Deconstruct);
-                for (var index = 0; index < wiped.Length; index++)
-                    if (wiped[index].Destroyed) observed = observed with { WipedThingIds = [.. observed.WipedThingIds, ids[index]] };
-            }
+            if (!Instant) GenSpawn.WipeExistingThings(Cell, Rotation, blueprint, Map, DestroyMode.Deconstruct);
             if (!Instant) return GenConstruct.PlaceBlueprintForBuild(Definition, Cell, Map, Rotation, Player, Stuff);
             var building = ThingMaker.MakeThing((ThingDef)Definition, Stuff);
             building.SetFactionDirect(Player);

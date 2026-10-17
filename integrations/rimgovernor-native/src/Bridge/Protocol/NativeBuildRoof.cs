@@ -48,20 +48,20 @@ namespace HomeBridge.BridgeTools
         {
             var refusal = Refusal(intent, context, out var map, out var cells);
             if (refusal != null) throw new InvalidOperationException("Build roof prerequisites changed before apply: " + refusal);
-            int designatedCount = 0, adoptedCount = 0, roofedCount = 0;
+            int designatedCount = 0, roofedCount = 0;
             var buildRoof = map!.areaManager.BuildRoof;
             var designator = new Designator_AreaBuildRoof();
             foreach (var cell in cells)
             {
                 var roofed = map.roofGrid.RoofAt(cell) != null;
-                if (buildRoof[cell]) { if (roofed) roofedCount++; else adoptedCount++; continue; }
+                if (buildRoof[cell]) { if (roofed) roofedCount++; continue; }
                 var accepted = designator.CanDesignateCell(cell);
                 if (!accepted.Accepted) throw new InvalidOperationException($"Native build-roof (BuildRoof area) is not accepted at {cell}: {accepted.Reason}");
                 designator.DesignateSingleCell(cell);
                 if (!buildRoof[cell]) throw new InvalidOperationException($"BuildRoof area was not observed at {cell}.");
                 if (roofed) roofedCount++; else designatedCount++;
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.BuildRoofEffect { Designated = designatedCount, Adopted = adoptedCount, Roofed = roofedCount } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.BuildRoofEffect { Designated = designatedCount, Roofed = roofedCount } };
         }
     }
 

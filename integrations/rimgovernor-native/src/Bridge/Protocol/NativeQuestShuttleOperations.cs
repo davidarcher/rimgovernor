@@ -84,8 +84,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var pawn in pawns) pawn.jobs.TryTakeOrderedJob(JobMaker.MakeJob(JobDefOf.EnterTransporter, shuttle.parent), JobTag.Misc);
             }
             send?.action();
-            var effect = new Receipts.QuestShuttleEffect { QuestId = command.QuestId, ShuttleId = shuttle.parent.GetUniqueLoadID(),
-                Autoload = shuttle.Autoload, Loading = shuttle.Transporter.LoadingInProgressOrReadyToLaunch, LaunchRequested = send != null };
+            var effect = new Receipts.QuestShuttleEffect { QuestId = command.QuestId, Autoload = shuttle.Autoload };
             if (command.Loading?.ExplicitPawns is { } explicitPawns) effect = effect with { PawnIds = [.. effect.PawnIds, .. explicitPawns.PawnIds] };
             return new Receipts.EffectEvidence { Effect = effect };
         }

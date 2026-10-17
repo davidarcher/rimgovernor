@@ -29,7 +29,7 @@ namespace HomeBridge.BridgeTools
         private static Receipts.EffectEvidence Evidence(Pawn hauler, Pawn recipient, Thing source, Job job, int remaining, bool issued)
             => new Receipts.EffectEvidence { Effect = new Receipts.GiveItemEffect {
                 HaulerId = hauler.GetUniqueLoadID(), RecipientId = recipient.GetUniqueLoadID(), Definition = source.def.defName,
-                ExpectedRemaining = remaining, SourceItemId = source.GetUniqueLoadID(), Job = NativeGiveJob.Evidence(hauler, source, job, issued).Effect?.Job } };
+                ExpectedRemaining = remaining, Job = NativeGiveJob.Evidence(hauler, source, job, issued).Effect?.Job } };
         private static Common.Failure? Resolve(string haulerId, string recipientId, string defName, int expectedRemaining, Common.ObservationContext context, out Pawn? hauler, out Pawn? recipient, out Thing? source, out Lord? lord, out bool running)
         {
             hauler = null; recipient = null; source = null; lord = null; running = false;

@@ -254,11 +254,10 @@ namespace HomeBridge.BridgeTools
             if (!NativeConstructionPlan.Prepare(map, candidate, context, out var plan, out _, out var failure))
                 throw new InvalidOperationException("Placement became invalid: " + (failure.Detail ?? ""));
             var observed = plan.Proposed();
-            var placed = plan.Place(ref observed, intent.ReplaceWall.GetValueOrDefault()) ??throw new InvalidOperationException("Native placement returned no object.");
+            var placed = plan.Place(intent.ReplaceWall.GetValueOrDefault()) ??throw new InvalidOperationException("Native placement returned no object.");
             if (intent.MinimumFinishingSkill is { } placedSkill) ConstructionSkillGuard.Set(placed, placedSkill);
             // An instant building is placed finished: there is no site to gate, so the tier has nothing to bind (#2733).
             if (intent.Tier is { } tier && (placed is Blueprint_Build || placed is Frame)) ConstructionSkillGuard.SetTier(placed, tier);
-            observed = observed with { OriginThingId = placed.GetUniqueLoadID(), CurrentThingId = placed.GetUniqueLoadID() };
             observed = observed with { Stage = Stage(placed), Present = true, Started = true, Failed = false };
             return new Receipts.EffectEvidence { Effect = observed };
         }
@@ -295,7 +294,7 @@ namespace HomeBridge.BridgeTools
         private static Receipts.ConstructionEffect Effect(Thing thing, RimGovernor.Contracts.Wire.Placement.PlacementCandidate candidate) => new Receipts.ConstructionEffect
         {
             DefName = candidate.DefName, Stuff = candidate.Stuff ?? "", Cell = new Common.Cell { X = candidate.X, Z = candidate.Z },
-            Rotation = candidate.Rotation, OriginThingId = thing.GetUniqueLoadID(), CurrentThingId = thing.GetUniqueLoadID(),
+            Rotation = candidate.Rotation,
             Stage = Stage(thing), Present = true, Started = true, Failed = false,
         };
     }

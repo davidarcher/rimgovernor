@@ -121,7 +121,7 @@ wall is admitted.
 
 - Roof collapse is a hold at the work giver, not an admission refusal: the
   `WorkGiver_Deconstruct.HasJobOnThing` postfix keeps pawns off a standing designation while
-  removal would drop a roof (unproven roof support or unknown support geometry), reporting `DeconstructEffect.waiting_for_roof`. A
+  removal would drop a roof (unproven roof support or unknown support geometry). A
   completion-time check in `FinishedRemoving` is the backstop. The removal job resets its
   work on every start, so a hold at the work giver loses no progress; the hold lifts when the
   support is proven. Clearance first issues `remove_roof` over the rooms.

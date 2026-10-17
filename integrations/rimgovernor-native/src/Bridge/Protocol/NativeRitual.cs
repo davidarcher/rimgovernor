@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
 
         private static Receipts.EffectEvidence Evidence(Operations.RitualIntent command, Target target) => new Receipts.EffectEvidence
         {
-            Effect = new Receipts.RitualEffect { PawnId = command.PawnId, Ritual = command.Ritual, Verb = command.Verb, Started = target.Job.ceremonyStarted || !(target.Lord.CurLordToil is LordToil_BestowingCeremony_Wait) }
+            Effect = new Receipts.RitualEffect { PawnId = command.PawnId, Ritual = command.Ritual, Started = target.Job.ceremonyStarted || !(target.Lord.CurLordToil is LordToil_BestowingCeremony_Wait) }
         };
 
         internal static Common.Failure? Validate(Operations.RitualIntent command) =>
@@ -216,7 +216,7 @@ namespace HomeBridge.BridgeTools
 
         private static Receipts.EffectEvidence Evidence(Operations.RitualIntent command, Plan plan) => new Receipts.EffectEvidence
         {
-            Effect = new Receipts.RitualEffect { PawnId = command.PawnId, Ritual = command.Ritual, Verb = command.Verb, Started = Running(plan.Ritual) }
+            Effect = new Receipts.RitualEffect { PawnId = command.PawnId, Ritual = command.Ritual, Started = Running(plan.Ritual) }
         };
 
         internal static Common.Failure? Validate(Operations.RitualIntent command) => Resolve(command, out _);

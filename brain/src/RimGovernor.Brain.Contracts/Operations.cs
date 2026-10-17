@@ -312,7 +312,7 @@ public enum DesignationGuard
     /// admitted. A removal that would collapse a roof (unproven roof support, or
     /// rooms of cleared ground still roofed) holds at the work giver without
     /// cancelling the designation or losing progress, and releases when the
-    /// support is proven (waiting_for_roof).
+    /// support is proven.
     /// </summary>
     [WireName("DESIGNATION_GUARD_ENCLOSURE")]
     Enclosure = 1,
