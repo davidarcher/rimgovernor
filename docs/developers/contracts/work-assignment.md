@@ -426,7 +426,7 @@ weapon batches, armor ladder and mortar-shell stock (`policy.DeclareGearOrders`,
 policies, the crafting spot). An existing bill that makes a need is declared as it
 stands (so its spec key never drifts), a new batch is declared only while no wear
 candidate is pending, and the declared batches are the ingredient demand of
-`openBills`. `production/gear-ledger` is the nightly signal.
+`openBills`.
 
 The second migration (#2604) is declare-only: `RoundsMedicalPlanner` declares
 the `medical/reserves` Need's stock-target medicine bill (`policy.DeclareMedicine`) and

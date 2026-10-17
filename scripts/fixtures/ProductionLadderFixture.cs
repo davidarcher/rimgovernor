@@ -71,36 +71,6 @@ namespace HomeBridge.BridgeTools
             return project;
         }
 
-        [Tool("test/production_stone_audit", Description = "Private read-only fixture: Stonecutting state, stonecutter's tables with their room role and bills, live stone block counts by definition, and the stone chunks within 40 cells of the colonists.")]
-        public async Task<object> AuditStone(IRimBridgeContext ctx, CancellationToken cancellationToken)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                if (map == null) throw new InvalidOperationException("No current map.");
-                var project = DefDatabase<ResearchProjectDef>.GetNamed(StoneProject);
-                string RoleAt(IntVec3 cell) => cell.GetRoom(map)?.Role?.defName;
-                var tables = map.listerBuildings.allBuildingsColonist.OfType<Building_WorkTable>()
-                    .Where(b => b.def.defName == "TableStonecutter")
-                    .Select(b => new { thingId = b.GetUniqueLoadID(), x = b.Position.x, z = b.Position.z, roomRole = RoleAt(b.Position),
-                        bills = b.BillStack.Bills.Select(bill => bill.recipe.defName).ToArray() }).ToArray();
-                var blocks = DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.IsStuff && d.stuffProps?.categories != null && d.stuffProps.categories.Contains(StuffCategoryDefOf.Stony) && d.defName.StartsWith("Blocks"))
-                    .Select(d => new { defName = d.defName, count = map.listerThings.ThingsOfDef(d).Where(t => t.Spawned).Sum(t => t.stackCount) })
-                    .Where(row => row.count > 0).OrderBy(row => row.defName, StringComparer.Ordinal).ToArray();
-                var pawn = map.mapPawns.FreeColonistsSpawned.FirstOrDefault();
-                return new { success = true, project = StoneProject, finished = project.IsFinished, progress = project.ProgressPercent,
-                    current = Find.ResearchManager.GetProject()?.defName, tables, blocks,
-                    chunks = pawn == null ? new object[0] : StoneChunks(map, pawn.Position), tick = Find.TickManager.TicksGame };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
-        const string StoneProject = "Stonecutting";
-
-        static object[] StoneChunks(Map map, IntVec3 center) => map.listerThings.AllThings
-            .Where(t => t.Spawned && !t.IsForbidden(Faction.OfPlayer) && !t.Position.Fogged(map) && t.def.thingCategories != null
-                && t.def.thingCategories.Contains(ThingCategoryDefOf.StoneChunks) && t.Position.InHorDistOf(center, 40f))
-            .GroupBy(t => t.def.defName).OrderBy(g => g.Key, StringComparer.Ordinal)
-            .Select(g => (object)new { defName = g.Key, count = g.Sum(t => t.stackCount) }).ToArray();
-
         [Tool("test/production_ladder_audit", Description = "Private read-only fixture: Fabrication state, fabrication benches with their room role and bills, stockpile zones with their room role and steel allowance, and the stored component count.")]
         public async Task<object> Audit(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {

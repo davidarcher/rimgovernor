@@ -108,7 +108,6 @@
     <Compile Include="../../../../scripts/fixtures/BedAssignFixture.cs" Condition="'$(BedAssignFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/StartupLaborFixture.cs" Condition="'$(StartupLaborFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BuriedSteelFixture.cs" Condition="'$(BuriedSteelFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/ArtFixture.cs" Condition="'$(ArtFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ApplyRefusalFixture.cs" Condition="'$(ApplyRefusalFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BlightFixture.cs" Condition="'$(BlightFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PlantationFixture.cs" Condition="'$(PlantationFixture)' == 'true'" />
@@ -116,7 +115,6 @@
     <Compile Include="../../../../scripts/fixtures/NonFoodFieldFixture.cs" Condition="'$(NonFoodFieldFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/WinterFixture.cs" Condition="'$(WinterFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RefrigerationFixture.cs" Condition="'$(RefrigerationFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/PowerFixture.cs" Condition="'$(PowerFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FoodChannelFixture.cs" Condition="'$(FoodChannelFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DeepResourcesFixture.cs" Condition="'$(DeepResourcesFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FishingFixture.cs" Condition="'$(FishingFixture)' == 'true'" />

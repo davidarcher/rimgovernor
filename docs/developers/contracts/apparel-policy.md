@@ -55,9 +55,8 @@ the standing [clothing material demand](equipment-upkeep.md#clothing-material-de
 ## Acceptance
 
 `production/apparel-policy` is a short native smoke case (create/update/assign,
-reapply, manual-policy override, clearing forced/locked apparel);
-`production/per-pawn-outfits` is the end-to-end signal that every lab colonist ends
-on its own outfit and the rest are pruned. `apparel/tainted_filter` (#3285) is the
+reapply, manual-policy override, clearing forced/locked apparel), read back
+through the colony-facts gear section. `apparel/tainted_filter` (#3285) is the
 end-to-end signal for the tainted-apparel choice: a content colonist in a cold
 snap whose only parka is tainted ends on its own outfit with tainted apparel
 allowed. The choice itself is covered by domain parity tests

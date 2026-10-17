@@ -8,6 +8,6 @@ public static class PowerCases
     {
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(PowerFuel.Case());
-        registry.Register(PowerWindThinRoof.Case());
+        registry.Register(PowerWindPath.Case());
     }
 }

@@ -1,5 +1,4 @@
 using RimGovernor.Brain.NativeFacade;
-using Control = RimGovernor.Contracts.Wire.Authority;
 using Observations = RimGovernor.Contracts.Wire.Observations;
 using Operations = RimGovernor.Contracts.Wire.Operations;
 using Receipts = RimGovernor.Contracts.Wire.Receipts;
@@ -21,7 +20,7 @@ internal static class UpkeepAutoHomeArea
 
     private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        await GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
         async Task<bool> ReadAsync(string label)
         {
@@ -59,22 +58,5 @@ internal static class UpkeepAutoHomeArea
         await ApplyAsync("auto-home-flip", !initial, Receipts.FieldOutcome.Applied).ConfigureAwait(false);
         await ApplyAsync("auto-home-again", !initial, Receipts.FieldOutcome.Unchanged).ConfigureAwait(false);
         await ApplyAsync("auto-home-restore", initial, Receipts.FieldOutcome.Applied).ConfigureAwait(false);
-    }
-
-    // SetMode(Auto) at the generation the status reads: operations_apply admits a controller's actions only.
-    private static async Task GrantAutoAsync(ITypedSession s, CancellationToken cancellationToken)
-    {
-        var status = await s.CallAsync("acquire-status", NativeOps.ReadAuthorityStatus, new Control.StatusRequest { Identity = s.Identity }, cancellationToken).ConfigureAwait(false);
-        var generation = status.Outcome?.Status?.Context?.NativeGeneration
-            ?? throw new AcceptanceException($"acquire-status: no native generation: {status.Outcome}");
-        var control = await s.CallAsync(
-            "acquire",
-            NativeOps.ControlAuthority,
-            new Control.ControlRequest { Operation = new Control.SetMode { Identity = s.Identity, ExpectedGeneration = generation, Mode = Control.Mode.Auto } },
-            cancellationToken).ConfigureAwait(false);
-        if (control.Outcome?.Granted?.Authority?.Mode != Control.Mode.Auto)
-        {
-            throw new AcceptanceException($"acquire: expected MODE_AUTO, got {control.Outcome}");
-        }
     }
 }

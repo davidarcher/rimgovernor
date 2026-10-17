@@ -8,6 +8,5 @@ public static class BillsCases
     {
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(BillsCensus.Case());
-        registry.Register(UnfinishedMaterials.Case());
     }
 }

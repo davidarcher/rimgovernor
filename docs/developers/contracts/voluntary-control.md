@@ -267,7 +267,6 @@ Additional affected-case disposition:
 | combatlab/repair | Keep: explicit native combat mechanics, outside ordinary Standard selection. |
 | recovery/service, recovery/area | Keep: separately owned emergency recovery and protection. |
 | control/pawn-activities, control/pawn-activity-lifecycle | Keep: exact native mechanics, continuation stops, physiology and player takeover. |
-| production/art | Rewrite: two prepared finished packed sculptures and a native exotic trader replace the long production precondition. Normal review reports unsupported trade labor with no Trade admission; explicit signed sale must move the exact packed item to trader inventory and increase colony silver. Native room/quality observations remain. Autonomous art manufacture and installation are unsupported and unproven; prepared art is not production evidence. |
 | ideology/first-ritual | Rewrite: normal review must report unsupported ritual labor with no admitted Ritual action. A separate explicit intent carries native dialog assignments; after authority release the native lord completes and advances the ritual's finished tick. No automatic participant-selection claim. |
 | mood/gathering | Rewrite: normal review must report unsupported gathering labor with no admitted Gathering action. Explicit native Party intent uses an observed legal organizer; assert exactly one native lord at the prepared spot. |
 

@@ -114,7 +114,6 @@ Contracts|Observations.Relation.Opinion
 Contracts|Observations.Relation.OpinionReconstructed
 Contracts|Observations.Relation.RelationDefName
 Contracts|Observations.ResearchProject.LockDetail
-Contracts|Observations.ResearchProject.ProgressFraction
 Contracts|Observations.ResearchProject.TechprintsApplied
 Contracts|Observations.ResearchRequest.ProgressOnly
 Contracts|Observations.ResearchSnapshot.AnomalyActive

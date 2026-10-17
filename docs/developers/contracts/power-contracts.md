@@ -143,7 +143,9 @@ what budget, and the `connect` contract above is unchanged. No action kind carri
 
 ## Acceptance
 
-`power/fuel` (`brain/src/RimGovernor.Brain.Acceptance.Cases/Power`) covers the refuel hold natively on the blank lab.
+`power/fuel` (`brain/src/RimGovernor.Brain.Acceptance.Cases/Power`) stages an empty wood-fired generator and shows
+ordinary hauling refuel it until its stove is powered; the planner's refuel hold is `PowerMethodTests`.
+`power/wind-path` reads `wind_path_blocked_cells` for a clear and a roofed turbine.
 The generation shortfall on a draining reserve, storage for a solar-only network (one `Battery` sited
 indoors), a wind turbine on a clear catch zone and a geothermal generator on a free geyser ahead of
 every other generator are decided by the power planner over recorded reviews

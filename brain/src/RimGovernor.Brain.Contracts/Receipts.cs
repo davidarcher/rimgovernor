@@ -1195,8 +1195,6 @@ public sealed record JobEffect
 
     public int? HitPoints { get; init; }
 
-    public float? Fuel { get; init; }
-
     public float? NeedBefore { get; init; }
 
     public bool? CanTry { get; init; }

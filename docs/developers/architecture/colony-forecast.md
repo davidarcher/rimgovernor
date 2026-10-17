@@ -818,11 +818,10 @@ remaining count. No new ownership store or game-order writer is introduced.
 
 `UnfinishedMaterialTests` covers the shared acquisition/construction/trade values,
 pause/resume, completion and cancellation, alternative embedded material,
-remaining native holds, duplicate identity and wire unknowns. The registered
-`bills/unfinished-materials` case probes native object bindings and lifecycle
-callbacks in a prepared lab, including the production ownership check. It does
-not demonstrate autonomous pawn crafting, recovery yield, route feasibility or
-full coordinated dispatch. Ordinary stock-target cooking remains outside this slice.
+remaining native holds, duplicate identity and wire unknowns. No acceptance case
+covers the native unfinished-thing bindings (#3409 deleted the fixture-only probe).
+Autonomous pawn crafting, recovery yield, route feasibility and full coordinated
+dispatch are not demonstrated. Ordinary stock-target cooking remains outside this slice.
 
 ### Fixed-batch material admission
 

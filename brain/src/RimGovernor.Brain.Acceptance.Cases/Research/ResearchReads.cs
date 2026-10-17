@@ -1,118 +1,85 @@
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>research/reads</c> (Go <c>research/reads.go</c>): typed research-project reads; a full read repeated after the
-/// default and filtered reads proves the reads never mutate research state.
+/// <c>research/reads</c>: observations_read_research reports the native research state the stage set (one project
+/// finished, another part done), a name filter narrows the projects, and the full read repeated after the filtered
+/// one is unchanged: the read never writes research.
 /// </summary>
 internal static class ResearchReads
 {
-    internal static AcceptanceCase Case() => new()
+    private const string Finished = "Stonecutting";
+
+    // Deep in the tree: never finished or started on the lab.
+    private const string Started = "MultiAnalyzer";
+    private const float Progress = 0.25f;
+
+    internal static TypedCase Case() => new()
     {
         Name = "research/reads",
-        Scope = "Typed research read invariance: the full read is unchanged by repeated, default and filtered reads, and identity and tick hold. No selection, save or pawn work.",
-        Start = new LabStart(),
-
-        // Reads only; the wild map is unobserved.
+        Scope = "observations_read_research reads the native ResearchManager: a staged finished project reads finished, a staged "
+            + "quarter-done project reads its progress fraction, a name filter returns only matching projects, and the full read "
+            + "repeated after the filtered read is equal (the read never mutates research).",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
+        Stage = new Fx.StageSpec
+        {
+            Paused = true,
+            Research = [new Fx.StageResearch { Def = Finished }, new Fx.StageResearch { Def = Started, Progress = Progress }],
+        },
         QuietWorld = true,
-        Quiet = QuietMode.Required,
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var report = s.Report;
-        var h = s.Harness;
-        var names = s.Names;
-        if (!Dyn.Contains(names, "rimgovernor/observations_read_research"))
+        async Task<Observations.ResearchSnapshot> ReadAsync(string label, string? nameContains)
         {
-            throw new AcceptanceException("missing rimgovernor/observations_read_research in discovery");
+            var reply = await s.CallAsync(label, NativeOps.ReadResearch, new Observations.ResearchRequest
+            {
+                Scope = s.Scope,
+                IncludeLocked = true,
+                IncludeFinished = true,
+                NameContains = nameContains,
+            }, cancellationToken).ConfigureAwait(false);
+            return TypedReads.Observed(label, NativeOps.ReadResearch, reply, reply.Outcome?.Observed);
         }
 
-        var identityBefore = await h.WireAsync("identity-before", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var (_, before) = Harness.Outcome(identityBefore, "loaded");
-        if (before["paused"].AsBool() != true)
+        var full = await ReadAsync("full", null).ConfigureAwait(false);
+        var problems = new List<string>();
+        var finished = full.Projects.FirstOrDefault(p => p.Project?.DefName == Finished);
+        if (finished?.Finished != true || !full.Finished.Contains(Finished))
         {
-            throw new AcceptanceException("fresh debug game did not start paused");
+            problems.Add($"{Finished} not read finished: {finished}");
         }
 
-        var beforeContext = before["context"].AsMap();
-        var identity = beforeContext?["identity"].AsMap() ?? [];
-
-        JsonObject Scope() => new() { ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() } };
-        JsonObject Full() => Dyn.Merge(Scope(), new JsonObject { ["includeLocked"] = true, ["includeFinished"] = true, ["includeCapability"] = true });
-
-        var fullReply = await h.WireAsync("full", "observations_read_research", Full(), cancellationToken).ConfigureAwait(false);
-        var (_, observed) = Harness.Outcome(fullReply, "observed");
-        if (!observed.ContainsKey("snapshot"))
+        var started = full.Projects.FirstOrDefault(p => p.Project?.DefName == Started);
+        if (started is not { Finished: false, ProgressFraction: { } fraction } || Math.Abs(fraction - Progress) > 0.01)
         {
-            throw new AcceptanceException("expected a populated research snapshot on the full read");
+            problems.Add($"{Started} not read {Progress} done: {started}");
         }
 
-        try
+        var filtered = await ReadAsync("filtered", Started).ConfigureAwait(false);
+        if (filtered.Projects.Count == 0 || filtered.Projects.Any(p => p.Project?.DefName?.Contains(Started, StringComparison.OrdinalIgnoreCase) != true))
         {
-            NativeAssert.RequireSnapshot(observed["snapshot"]);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"research read missing a populated CAS snapshot: {e.Message}", e);
+            problems.Add($"filter \"{Started}\" returned [{string.Join(' ', filtered.Projects.Select(p => p.Project?.DefName))}]");
         }
 
-        var projects = observed["projects"].AsSlice();
-        if (projects.Count <= 1)
+        var again = await ReadAsync("full-again", null).ConfigureAwait(false);
+        if (again != full)
         {
-            throw new AcceptanceException("expected more than 1 research project");
+            problems.Add("the full read changed after the filtered read");
         }
 
-        var repeatReply = await h.WireAsync("repeat", "observations_read_research", Full(), cancellationToken).ConfigureAwait(false);
-        var (_, repeatObserved) = Harness.Outcome(repeatReply, "observed");
-        if (!Dyn.DeepEqual(repeatObserved, observed))
+        s.RecordWire("finished", finished);
+        s.RecordWire("started", started);
+        s.Record("projects", full.Projects.Count);
+        if (problems.Count > 0)
         {
-            throw new AcceptanceException("repeating the full read returned a different snapshot");
+            throw new AcceptanceException(string.Join("; ", problems));
         }
-
-        var defaultsReply = await h.WireAsync("defaults", "observations_read_research", Scope(), cancellationToken).ConfigureAwait(false);
-        var (_, defaults) = Harness.Outcome(defaultsReply, "observed");
-        if (defaults["benches"].AsSlice().Count != 0 || defaults["researchers"].AsSlice().Count != 0)
-        {
-            throw new AcceptanceException("default (unrequested) benches/researchers were unexpectedly populated");
-        }
-
-        var needle = projects[0].AsMap()?["project"].AsMap()?["defName"].AsString() ?? "";
-        var filteredReply = await h.WireAsync("filtered", "observations_read_research", Dyn.Merge(Full(), new JsonObject { ["nameContains"] = needle }), cancellationToken).ConfigureAwait(false);
-        var (_, filtered) = Harness.Outcome(filteredReply, "observed");
-        if (filtered["projects"].AsSlice().Count == 0)
-        {
-            throw new AcceptanceException($"filtered read for \"{needle}\" returned no projects");
-        }
-
-        // After the default and filtered reads, the full read (progress, slots, techprints, finished) is unchanged.
-        var afterReply = await h.WireAsync("full-after", "observations_read_research", Full(), cancellationToken).ConfigureAwait(false);
-        var (_, afterObserved) = Harness.Outcome(afterReply, "observed");
-        if (!Dyn.DeepEqual(afterObserved, observed))
-        {
-            throw new AcceptanceException("typed research reads changed the research state the full read reports");
-        }
-
-        report["saved_state_unchanged"] = true;
-
-        var identityAfterReply = await h.WireAsync("identity-after", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var (_, after) = Harness.Outcome(identityAfterReply, "loaded");
-        if (after["paused"].AsBool() != true)
-        {
-            throw new AcceptanceException("game unexpectedly resumed during the read pass");
-        }
-
-        if (!Dyn.DeepEqual(after["context"], beforeContext))
-        {
-            throw new AcceptanceException("identity/tick changed during a read-only pass");
-        }
-
-        report["projects"] = projects.Count;
-        report["researchers"] = observed["researchers"].AsSlice().Count;
-        report["benches"] = observed["benches"].AsSlice().Count;
     }
 }

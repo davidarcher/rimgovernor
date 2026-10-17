@@ -30,9 +30,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Bed/BedAssign.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Bills/BillsCensus.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Burial/GraveOverMorgue.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -501,34 +498,10 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/PortfolioThermalCase.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Power/PowerFuel.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Power/PowerKit.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Power/PowerWindThinRoof.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Presentation/PresentationRoster.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Production/ProductionApparelPolicy.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Production/ProductionArt.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Production/ProductionBuriedSteel.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Production/ProductionGearLedger.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Production/ProductionLadder.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Production/ProductionPerPawnOutfits.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/ProductiveCookingCase.cs]
@@ -571,9 +544,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Refrigeration/RefrigerationBuild.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Research/ResearchReads.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Review/ReviewColonyWeek.cs]

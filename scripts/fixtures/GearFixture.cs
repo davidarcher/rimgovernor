@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using RimGovernor.Fixtures.Contracts;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
@@ -46,8 +47,8 @@ namespace HomeBridge.BridgeTools
                         areas = map.areaManager.AllAreas.OfType<Area_Allowed>().Select(a => a.GetUniqueLoadID()).ToArray() };
                 }
                 if (mode == "outfits") {
-                    // production/per-pawn-outfits: every free colonist's
-                    // outfit and the whole outfit database.
+                    // apparel/tainted-filter: every free colonist's outfit
+                    // and the whole outfit database.
                     return new { success = true,
                         pawns = Find.CurrentMap.mapPawns.FreeColonistsSpawned.Select(p => new { pawn = p.GetUniqueLoadID(), shortName = NativeApparelPolicyOperations.ShortName(p),
                             outfit = p.outfits?.CurrentApparelPolicy?.GetUniqueLoadID() ?? "", label = p.outfits?.CurrentApparelPolicy?.label ?? "",
@@ -55,7 +56,9 @@ namespace HomeBridge.BridgeTools
                             wornTainted = p.apparel?.WornApparel.Count(a => a.WornByCorpse) ?? 0 }).ToArray(),
                         outfits = Current.Game.outfitDatabase.AllOutfits.Select(o => o.GetUniqueLoadID()).ToArray() };
                 }
-                if (mode.StartsWith("policy_")) {
+                if (mode == "policy_setup" || mode == "policy_edit") {
+                    // production/apparel-policy: a player outfit and forced,
+                    // locked apparel the primitives cannot stage.
                     if (mode == "policy_setup") {
                         subject = Find.CurrentMap.mapPawns.FreeColonistsSpawned.First(p => !p.Downed && !p.InMentalState);
                         subject.drafter.Drafted = false;
@@ -65,15 +68,8 @@ namespace HomeBridge.BridgeTools
                         foreach (var old in subject.apparel.WornApparel.ToList()) old.Destroy();
                         subject.apparel.Wear(shirt); subject.outfits.forcedHandler.SetForced(shirt, true); subject.apparel.Lock(shirt);
                     }
-                    if (mode == "policy_edit") subject.outfits.CurrentApparelPolicy.filter.SetAllow(SpecialThingFilterDefOf.AllowDeadmansApparel, true);
-                    var outfit = subject.outfits.CurrentApparelPolicy;
-                    return new { success = true, pawn = subject.GetUniqueLoadID(), shortName = NativeApparelPolicyOperations.ShortName(subject), token = NativeApparelPolicyOperations.Token(subject),
-                        policy = outfit.id, name = outfit.label, defs = outfit.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d).ToArray(),
-                        minHP = outfit.filter.AllowedHitPointsPercents.min, maxHP = outfit.filter.AllowedHitPointsPercents.max,
-                        minQuality = (int)outfit.filter.AllowedQualityLevels.min, maxQuality = (int)outfit.filter.AllowedQualityLevels.max,
-                        tainted = outfit.filter.Allows(SpecialThingFilterDefOf.AllowDeadmansApparel), clean = outfit.filter.Allows(SpecialThingFilterDefOf.AllowNonDeadmansApparel),
-                        forced = subject.outfits.forcedHandler.ForcedApparel.Count, locked = subject.apparel.AnyApparelLocked,
-                        count = Current.Game.outfitDatabase.AllOutfits.Count };
+                    else subject.outfits.CurrentApparelPolicy.filter.SetAllow(SpecialThingFilterDefOf.AllowDeadmansApparel, true);
+                    return new GearPolicyReply { Success = true, Pawn = subject.GetUniqueLoadID(), ShortName = NativeApparelPolicyOperations.ShortName(subject) };
                 }
                 if (mode == "weapon_setup" || mode == "weapon_assigned" || mode == "weapon_damage") {
                     var map = Find.CurrentMap;

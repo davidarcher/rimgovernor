@@ -1,123 +1,230 @@
-using System.Text.Json.Nodes;
-using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.NativeFacade;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>production/buried-steel</c> and <c>production/buried-steel-stockpile</c> (Go <c>buried_steel.go</c>): mines compacted
-/// steel under a thick mountain roof. test/buried_steel raises a granite block east of the lab colonists with one two-cell
-/// steel deposit on the face (bordering open ground) and one buried five cells in, fogged. The steel runway target
-/// (recurring spend over the horizon) is short from zero, both deposits together hold less than it, so the economy/resource Need must
-/// mine the face deposit as supported_roof and tunnel to the buried one and mine it too. Why not a snapshot test: the
-/// roof-support verdict is native ExcavationSafety.Check reading the true map through fog, and the roof holding is vanilla
-/// physics; only a live game shows the roof stay up.
+/// <c>production/buried-steel</c> and <c>production/buried-steel-stockpile</c>: the native mining rules behind the steel
+/// floor (#1075, #1133). The first reads observations_read_excavation_site over a staged thick-roofed granite block: a
+/// face deposit and a fogged buried deposit both come out supported (the verdict reads the true map through fog), and
+/// hollowing the block is not. The second mines a staged steel cell beside a stockpile under the acquisition guard and
+/// reads the replacement wall blueprint the guard places on the mined cell. The planner's choice to mine is covered by
+/// the resource policy tests; the roof verdict and the wall are native, so only a live game shows them.
 /// </summary>
 internal static class ProductionBuriedSteel
 {
-    private const string Op = "test/buried_steel";
+    // The block's columns start past three open columns the miner stands on.
+    private const int BlockX = 3;
+    private const int BlockSide = 17;
 
-    internal static IEnumerable<AcceptanceCase> Cases()
+    private static readonly Fx.StageCell[] Face = [new(BlockX, 5), new(BlockX, 6)];
+
+    // Five columns into the block: fogged, and out of every colonist's reach.
+    private static readonly Fx.StageCell[] Buried = [new(BlockX + 5, 10), new(BlockX + 5, 11)];
+
+    internal static IEnumerable<TypedCase> Cases()
     {
-        yield return new AcceptanceCase
+        yield return new TypedCase
         {
             Name = "production/buried-steel",
-            Scope = "The steel floor mines a face deposit and tunnels to a buried one under a thick rock roof; the steel runway goes positive, both deposits are mined and no roof collapses (#1075). Native: roof support through fog and vanilla collapse physics.",
-            Start = new FixtureStart { Op = Op, Args = new JsonObject { ["action"] = "prepare" }, On = new LabStart { Colonists = 6 } },
-            RequiredOps = [Op],
+            Scope = "observations_read_excavation_site over a staged granite block under thick rock roof: the face steel deposit "
+                + "and the fogged buried deposit each read MineableSteel and SUPPORTED after removal (roof support read through "
+                + "fog), the buried cells read fogged, and hollowing the block's interior reads UNSUPPORTED (#1075). Read-only.",
+            Ticks = 0,
+            Tier = CaseTier.OnDemand,
+            Stage = BlockStage(),
             QuietWorld = true,
-            Serve = new ServeSpec { Families = ["resource", "supply"], NativeTimeout = TimeSpan.FromSeconds(15), Prefix = "buried-steel" },
-            Budget = TimeSpan.FromMinutes(14),
-            Crew = new Crew { Size = 3 },
-            Run = (s, ct) => RunAsync(s, false, ct),
+            Run = ReadBlockAsync,
         };
 
-        // The stockpile against the face deposit: ore is always mined, and each face cell beside colony space is followed by a wall.
-        yield return new AcceptanceCase
+        yield return new TypedCase
         {
             Name = "production/buried-steel-stockpile",
-            Scope = "production/buried-steel with the stockpile beside the face deposit: the face is still mined and replacement walls are queued on the mined face cells (#1133).",
-            Start = new FixtureStart { Op = Op, Args = new JsonObject { ["action"] = "prepare", ["stockpile"] = "face" }, On = new LabStart { Colonists = 6 } },
-            RequiredOps = [Op],
+            Scope = "A MINE designate under the acquisition guard on a staged steel cell beside a stockpile: a colonist mines it, "
+                + "and the guard follows the mined cell, which opens colony space, with a Wall blueprint on it (#1133).",
+            Ticks = 15000,
+            Tier = CaseTier.OnDemand,
+            Stage = FaceStage(),
             QuietWorld = true,
-            Serve = new ServeSpec { Families = ["resource", "supply"], NativeTimeout = TimeSpan.FromSeconds(15), Prefix = "buried-steel-stockpile" },
-            Budget = TimeSpan.FromMinutes(14),
-            Crew = new Crew { Size = 3 },
-            Run = (s, ct) => RunAsync(s, true, ct),
+            Run = MineBesideStockpileAsync,
         };
     }
 
-    private static async Task RunAsync(ISession s, bool besideFace, CancellationToken cancellationToken)
+    // The block: granite under thick roof, fogged past its face column, with the two steel deposits.
+    private static Fx.StageSpec BlockStage()
     {
-        var report = s.Report;
-        var prepared = s.Prepared ?? [];
-        report["fixture"] = prepared;
-        if (prepared["success"].AsBool() != true)
+        var deposits = Face.Concat(Buried).ToHashSet();
+        var granite = (from x in Enumerable.Range(BlockX, BlockSide)
+                       from z in Enumerable.Range(0, BlockSide)
+                       select new Fx.StageCell(x, z)).Where(c => !deposits.Contains(c)).ToList();
+        return new Fx.StageSpec
         {
-            throw new AcceptanceException($"fixture: {prepared.ToJson()}");
-        }
-
-        if (prepared["buriedFogged"].AsBool() != true)
-        {
-            throw new AcceptanceException($"the buried deposit is not fogged: {prepared.ToJson()}");
-        }
-
-        _ = await SustainedFood.ObserveAsync(
-            ObservedSession.Of(s),
-            new SustainedObservation
+            Paused = true,
+            Site = new Fx.StageSite
             {
-                // Three in-game days: a face deposit, a five-cell granite corridor and a second deposit for three lab colonists.
-                Watch = new WatchConfig { Watch = TimeSpan.FromMinutes(11), Window = 180000, Concern = EconomyFamily.Resource.Value },
-                Prepare = async (h, rep, ct) =>
-                {
-                    var before = await h.CallAsync("audit-before", Op, new JsonObject { ["action"] = "audit" }, ct).ConfigureAwait(false);
-                    rep["before"] = before;
-                    if (before["steelOnMap"].AsNumber() != 0 || before["openLeft"].AsNumber() != 2 || before["buriedLeft"].AsNumber() != 2)
-                    {
-                        throw new AcceptanceException($"fixture did not start from zero steel and two intact deposits: {before.ToJson()}");
-                    }
-                },
-                Audit = async (h, rep, ct) =>
-                {
-                    var after = await h.CallAsync("audit-after", Op, new JsonObject { ["action"] = "audit" }, ct).ConfigureAwait(false);
-                    rep["after"] = after;
-                    Verdict(after, besideFace);
-                },
+                Width = BlockX + BlockSide,
+                Height = BlockSide,
+                Near = Fx.StageAnchor.Colonist,
+                OffsetX = 10,
+                Radius = 40,
+                Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Unzoned, Fx.StageGround.Unfogged, Fx.StageGround.Unroofed],
             },
-            cancellationToken).ConfigureAwait(false);
+            Cells =
+            [
+                new Fx.StageCells { Rect = new Fx.StageRect(BlockX, 0, BlockSide, BlockSide), Roof = "RoofRockThick" },
+                new Fx.StageCells { Rect = new Fx.StageRect(BlockX + 1, 0, BlockSide - 1, BlockSide), Fogged = true },
+            ],
+            Buildings =
+            [
+                new Fx.StageBuilding { Name = "granite", Def = "Granite", Cells = granite, Faction = Fx.StageFaction.None },
+                new Fx.StageBuilding { Name = "face", Def = "MineableSteel", Cells = Face, Faction = Fx.StageFaction.None },
+                new Fx.StageBuilding { Name = "buried", Def = "MineableSteel", Cells = Buried, Faction = Fx.StageFaction.None },
+            ],
+        };
     }
 
-    /// <summary>The case's assertion over the final audit.</summary>
-    private static void Verdict(JsonObject after, bool besideFace)
+    private static async Task ReadBlockAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var failures = new List<string>();
-        if (besideFace && after["replacementWalls"].AsNumber() != 2)
+        var staged = s.Staged!;
+        var site = staged.Site ?? throw new AcceptanceException("stage: no site");
+        var access = new Common.Cell { X = site.X, Z = site.Z + Face[0].Z };
+
+        async Task<Observations.ExcavationSiteSnapshot> ReadAsync(string label, IEnumerable<Fx.StageCell> cells)
         {
-            failures.Add($"face beside the stockpile not walled: {after["replacementWalls"].ToJson()} of 2 cells");
+            var reply = await s.CallAsync(label, NativeOps.ReadExcavationSite, new Observations.ExcavationSiteRequest
+            {
+                Scope = s.Scope,
+                Cells = [.. cells.Select(c => new Common.Cell { X = c.X, Z = c.Z })],
+                AccessCell = access,
+            }, cancellationToken).ConfigureAwait(false);
+            var snapshot = TypedReads.Observed(label, NativeOps.ReadExcavationSite, reply, reply.Outcome?.Observed);
+            s.RecordWire(label, snapshot);
+            return snapshot;
         }
 
-        if (after["roofless"].AsNumber() + after["collapsedRocks"].AsNumber() + after["collapsing"].AsNumber() != 0)
+        var problems = new List<string>();
+        void Deposit(string name, Observations.ExcavationSiteSnapshot read, bool fogged)
         {
-            failures.Add($"roof collapse: roofless={after["roofless"].ToJson()} collapsedRocks={after["collapsedRocks"].ToJson()} collapsing={after["collapsing"].ToJson()}");
+            if (read.SupportAfterRemoval != Observations.ExcavationSupport.Supported)
+            {
+                problems.Add($"{name}: want SUPPORTED, got {read.SupportAfterRemoval} ({read.SupportBlocker})");
+            }
+
+            problems.AddRange(read.Cells
+                .Where(c => c.MineableDefName != "MineableSteel" || c.Fogged != fogged)
+                .Select(c => $"{name}: want MineableSteel fogged={fogged}, got {c}"));
         }
 
-        if (after["openLeft"].AsNumber() != 0)
+        Deposit("face", await ReadAsync("face", staged.Buildings["face"].Cells).ConfigureAwait(false), fogged: false);
+        Deposit("buried", await ReadAsync("buried", staged.Buildings["buried"].Cells).ConfigureAwait(false), fogged: true);
+
+        // Everything but the block's outer ring: the middle is further than the support radius from any holder.
+        var hollow = await ReadAsync("hollow", from x in Enumerable.Range(site.X + BlockX + 1, BlockSide - 2)
+                                               from z in Enumerable.Range(site.Z + 1, BlockSide - 2)
+                                               select new Fx.StageCell(x, z)).ConfigureAwait(false);
+        if (hollow.SupportAfterRemoval != Observations.ExcavationSupport.Unsupported)
         {
-            failures.Add($"face deposit not mined: {after["openLeft"].ToJson()} cells left");
+            problems.Add($"hollowed block: want UNSUPPORTED, got {hollow.SupportAfterRemoval}");
         }
 
-        if (after["buriedLeft"].AsNumber() != 0)
+        if (problems.Count > 0)
         {
-            failures.Add($"buried deposit not mined: {after["buriedLeft"].ToJson()} cells left");
+            throw new AcceptanceException(string.Join("; ", problems));
+        }
+    }
+
+    // A granite face three columns deep with one steel cell, a stockpile against it and one miner.
+    private static readonly Fx.StageCell Ore = new(5, 3);
+
+    private static Fx.StageSpec FaceStage() => new()
+    {
+        Paused = true,
+        Site = new Fx.StageSite
+        {
+            Width = 8,
+            Height = 7,
+            Near = Fx.StageAnchor.Colonist,
+            OffsetX = 6,
+            Radius = 30,
+            Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Unzoned, Fx.StageGround.Unfogged, Fx.StageGround.Unroofed],
+        },
+        Buildings =
+        [
+            new Fx.StageBuilding
+            {
+                Name = "granite",
+                Def = "Granite",
+                Cells = [.. (from x in Enumerable.Range(5, 3) from z in Enumerable.Range(0, 7) select new Fx.StageCell(x, z)).Where(c => c != Ore)],
+                Faction = Fx.StageFaction.None,
+            },
+            new Fx.StageBuilding { Name = "ore", Def = "MineableSteel", Cells = [Ore], Faction = Fx.StageFaction.None },
+        ],
+        Zones = [new Fx.StageZone { Name = "stockpile", Kind = Fx.StageZoneKind.Stockpile, Cells = [new(3, 2), new(4, 2), new(3, 3), new(4, 3), new(3, 4), new(4, 4)] }],
+        Pawns =
+        [
+            new Fx.StagePawn
+            {
+                Name = "miner",
+                Colonist = 0,
+                Cell = new(2, 3),
+                AllWork = 0,
+                Work = new Dictionary<string, int> { ["Mining"] = 1 },
+                Timetable = Fx.StageTimeAssignment.Work,
+            },
+        ],
+    };
+
+    private static async Task MineBesideStockpileAsync(ITypedSession s, CancellationToken cancellationToken)
+    {
+        var ore = s.Staged!.Buildings["ore"];
+        var at = ore.Cells.Single();
+        var cell = new Common.Cell { X = at.X, Z = at.Z };
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+        var apply = await s.CallAsync("designate", NativeOps.Apply, new Operations.ApplyRequest
+        {
+            Identity = s.Identity,
+            Actions =
+            [
+                new Operations.Action
+                {
+                    Key = "mine-ore",
+                    Intent = new Operations.DesignateIntent
+                    {
+                        Designation = Operations.ThingDesignation.Mine,
+                        Target = new Common.Ref { Id = ore.Ids.Single() },
+                        Cell = cell,
+                        Guard = Operations.DesignationGuard.Acquisition,
+                        ExpectedDef = "Steel",
+                    },
+                },
+            ],
+        }, cancellationToken).ConfigureAwait(false);
+        if (apply.Results.ToList() is not [{ Outcome.Applied.Outcome.Applied: not null }])
+        {
+            throw new AcceptanceException($"designate: want one applied mine, got {apply.BatchFailure} {string.Join("; ", apply.Results)}");
         }
 
-        if (after["steelStored"].AsNumber() <= 0)
+        Observations.ExcavationCell? row = null;
+        Observations.BuildingState? wall = null;
+        _ = await s.RunUntilAsync("mined", 15000, async ct =>
         {
-            failures.Add($"steel runway did not go positive: stored={after["steelStored"].ToJson()} onMap={after["steelOnMap"].ToJson()}");
-        }
-
-        if (failures.Count > 0)
-        {
-            throw new AcceptanceException($"[{string.Join(", ", failures)}] (audit {after.ToJson()})");
-        }
+            var reply = await s.CallAsync("ore-cell", NativeOps.ReadExcavationSite, new Observations.ExcavationSiteRequest
+            {
+                Scope = s.Scope,
+                Cells = [cell],
+                AccessCell = cell,
+            }, ct).ConfigureAwait(false);
+            row = TypedReads.Observed("ore-cell", NativeOps.ReadExcavationSite, reply, reply.Outcome?.Observed).Cells.Single();
+            var buildings = await s.BuildingsAsync("blueprints", new Observations.ListBuildingsRequest(), ct).ConfigureAwait(false);
+            wall = buildings.FirstOrDefault(b => b is { Status: Observations.BuildingStatus.Blueprint, BuildDefName: "Wall" }
+                && b.Building?.Position?.X == at.X && b.Building?.Position?.Z == at.Z);
+            var mined = row.MineableDefName is null;
+            return (Wait.Signature(row.MineDesignated, row.MineableDefName, wall?.Building?.Id), mined && wall is not null);
+        }, cancellationToken).ConfigureAwait(false);
+        s.RecordWire("ore_cell", row);
+        s.RecordWire("wall", wall);
     }
 }

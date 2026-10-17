@@ -6268,8 +6268,6 @@ public sealed record TradeSheetRequest
     public bool? IncludeUntradeable { get; init; }
 
     public bool? OnlyChanged { get; init; }
-
-    public string? NameContains { get; init; }
 }
 
 public sealed record TradeSheetReply

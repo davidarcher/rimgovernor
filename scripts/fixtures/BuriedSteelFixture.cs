@@ -25,8 +25,7 @@ namespace HomeBridge.BridgeTools
         private const int HalfWidth = 6;    // block extent either side of the centre line
         private const int BuriedDepth = 5;  // buried deposit columns past the face
 
-        // Layout is fixed from the lab centre, so an audit on a resumed or
-        // restarted process reads the same cells prepare wrote.
+        // Layout is fixed from the lab centre.
         private static (CellRect block, List<IntVec3> open, List<IntVec3> buried) Layout(Map map)
         {
             var center = map.Center;
@@ -36,19 +35,18 @@ namespace HomeBridge.BridgeTools
                 new List<IntVec3> { new IntVec3(face + BuriedDepth, 0, center.z + 2), new IntVec3(face + BuriedDepth, 0, center.z + 3) });
         }
 
-        [Tool("test/buried_steel", Description = "UNSAFE FOR MODEL EXECUTION. Disposable lab fixture (#1075): action=prepare raises a thick-roofed granite block beside the colonists with one compacted steel deposit on the face and one buried and fogged behind it, a stockpile and frozen needs; action=audit reads the deposits left, the steel on the map and in storage, and any roof lost, collapsed rock or pending collapse in the block.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "prepare", string stockpile = "west")
+        [Tool("test/buried_steel", Description = "UNSAFE FOR MODEL EXECUTION. Disposable lab fixture (#1075): action=prepare raises a thick-roofed granite block beside the colonists with one compacted steel deposit on the face and one buried and fogged behind it, a stockpile and frozen needs.")]
+        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "prepare")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded game with a current map is required.");
-                if (action == "audit") return Audit(map);
-                if (action != "prepare") throw new ArgumentException("action must be prepare or audit.");
+                if (action != "prepare") throw new ArgumentException("action must be prepare.");
                 if (!Find.TickManager.Paused) return new { success = false, reason = "Paused map required for prepare." };
-                return Prepare(map, stockpile == "face");
+                return Prepare(map);
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        private static object Prepare(Map map, bool besideFace)
+        private static object Prepare(Map map)
         {
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
             if (people.Count == 0) return new { success = false, reason = "No colonists." };
@@ -72,10 +70,8 @@ namespace HomeBridge.BridgeTools
             var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
             map.zoneManager.RegisterZone(zone);
             // The stockpile (the colony extent) sits west of the colonists,
-            // away from the face: colony space next to a deposit protects it.
-            // stockpile=face puts it against the face deposit instead:
-            // ore is still mined, followed by a replacement wall.
-            var zoneRect = besideFace ? new CellRect(center.x + FaceOffset - 3, center.z - 4, 3, 4) : new CellRect(center.x - 7, center.z - 2, 4, 4);
+            // away from the face.
+            var zoneRect = new CellRect(center.x - 7, center.z - 2, 4, 4);
             foreach (var c in zoneRect.Cells) zone.AddCell(c);
             // Lab colonists start unarmed, and resource reach holds every
             // source outside the base below two armed colonists (far reach,
@@ -96,27 +92,6 @@ namespace HomeBridge.BridgeTools
                 buriedFogged = buriedDeposit.All(c => c.Fogged(map)),
                 colonists = people.Count,
                 frozen,
-            };
-        }
-
-        private static object Audit(Map map)
-        {
-            var (block, openDeposit, buriedDeposit) = Layout(map);
-            int Left(List<IntVec3> cells) => cells.Count(c => c.GetEdifice(map)?.def.defName == "MineableSteel");
-            var inBlock = block.Cells.ToList();
-            var steel = map.listerThings.ThingsOfDef(ThingDefOf.Steel).Where(t => t.Spawned).ToList();
-            return new {
-                success = true,
-                tick = Find.TickManager.TicksGame,
-                openLeft = Left(openDeposit),
-                buriedLeft = Left(buriedDeposit),
-                steelOnMap = steel.Sum(t => t.stackCount),
-                steelStored = map.resourceCounter.GetCount(ThingDefOf.Steel),
-                roofless = inBlock.Count(c => c.GetRoof(map) == null),
-                collapsedRocks = inBlock.Count(c => c.GetEdifice(map)?.def.defName == "CollapsedRocks"),
-                collapsing = inBlock.Count(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)),
-                mined = inBlock.Count(c => c.GetEdifice(map) == null),
-                replacementWalls = openDeposit.Count(c => c.GetThingList(map).Any(t => t.def == ThingDefOf.Wall || t.def.entityDefToBuild == ThingDefOf.Wall)),
             };
         }
 

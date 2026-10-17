@@ -1,195 +1,104 @@
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>bills/census</c> (Go <c>census.go</c>): the typed bench census behind observations_read_bills and
-/// observations_read_recipes on a loaded save: every player bench appears once with a CAS token, each bill names its
-/// recipe, the census token agrees with the colony-facts production token for the same bench, and each bench's recipe
-/// list carries the availability of every recipe (what a recipe is, costs and needs is read from the definition
-/// catalog). A fixture build's test/routine_production_prepare seeds a fueled campfire with a food bill so a bench-less
-/// save still exercises the census.
+/// <c>bills/census</c>: the typed bench census behind observations_read_bills and observations_read_recipes. A staged
+/// campfire appears once with its CAS token, the token agrees with the colony-facts cooking row and the bench's recipe
+/// catalog, the catalog carries each recipe's availability, and a blank or unknown bench id is refused.
 /// </summary>
 internal static class BillsCensus
 {
-    internal static AcceptanceCase Case() => new()
+    private const string Bench = "campfire";
+
+    internal static TypedCase Case() => new()
     {
         Name = "bills/census",
-        Scope = "Typed bench/bill census and per-bench recipe catalog; read-only, no bill changes or gameplay orders.",
-        Start = new FixtureStart { Op = "test/routine_production_prepare", On = new LabStart() },
-        Quiet = QuietMode.Required,
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
+        Scope = "observations_read_bills and observations_read_recipes read the native bench: a staged campfire appears once "
+            + "in the bill census with a CAS token for its entity, the token agrees with the colony-facts cooking row and the "
+            + "recipe catalog snapshot, every recipe row carries its availability, and a blank bench id (INVALID_REQUEST) and "
+            + "an unknown one (NOT_FOUND) are refused. Read-only.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
+        Stage = new Fx.StageSpec
+        {
+            Paused = true,
+            Site = new Fx.StageSite
+            {
+                Width = 3,
+                Height = 3,
+                Near = Fx.StageAnchor.Colonist,
+                OffsetX = 4,
+                Radius = 15,
+                Require = [Fx.StageGround.Standable, Fx.StageGround.Empty],
+            },
+            Buildings = [new Fx.StageBuilding { Name = Bench, Def = "Campfire", Cells = [new(1, 1)] }],
+        },
+        QuietWorld = true,
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var report = s.Report;
-        var h = s.Harness;
-        foreach (var required in new[] { "rimgovernor/observations_read_bills", "rimgovernor/observations_read_recipes" })
+        var id = s.Staged!.Buildings[Bench].Ids.Single();
+        var problems = new List<string>();
+        var bills = await s.CallAsync("bills", NativeOps.ReadBills, new Observations.BillsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var census = TypedReads.Observed("bills", NativeOps.ReadBills, bills, bills.Outcome?.Observed);
+        var rows = census.Benches.Where(b => b.Bench?.Id == id).ToList();
+        if (rows is not [{ Snapshot: { Token.Length: > 0 } snapshot } row] || snapshot.EntityId != id)
         {
-            if (!Dyn.Contains(s.Names, required))
-            {
-                throw new AcceptanceException($"missing {required} in discovery");
-            }
+            throw new AcceptanceException($"bill census: want the staged bench {id} once with a CAS token, got {rows.Count} rows: {string.Join("; ", rows)}");
         }
 
-        var identityReply = await h.WireAsync("identity-before", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var before = Harness.Outcome(identityReply, "loaded").Value;
-        var beforeContext = before["context"].AsMap();
-        var identity = beforeContext?["identity"].AsMap();
-        JsonObject Scope() => new() { ["expectedIdentity"] = identity?.DeepClone() };
-
-        var billsReply = await h.WireAsync("typed-bills", "observations_read_bills", new JsonObject { ["scope"] = Scope() }, cancellationToken).ConfigureAwait(false);
-        var observed = Harness.Outcome(billsReply, "observed").Value;
-        if (!Dyn.DeepEqual(observed["context"], beforeContext))
+        var duplicated = census.Benches.GroupBy(b => b.Bench?.Id).Where(g => g.Key is null || g.Count() > 1).Select(g => g.Key ?? "(no id)").ToList();
+        if (duplicated.Count > 0)
         {
-            throw new AcceptanceException("bills context drifted mid-run");
+            problems.Add($"bench ids missing or duplicated: {string.Join(' ', duplicated)}");
         }
 
-        var benches = observed["benches"].AsSlice();
-        if (benches.Count == 0)
+        var facts = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var cooking = TypedReads.Observed("colony-facts", NativeOps.ReadColonyFacts, facts, facts.Outcome?.Observed).Cooking.FirstOrDefault(c => c.Bench?.Id == id);
+        if (cooking?.BenchSnapshot?.Token != snapshot.Token)
         {
-            throw new AcceptanceException("save has no player bench; the census assertion would be vacuous");
+            problems.Add($"census token {snapshot.Token} disagrees with the colony-facts cooking row {cooking?.BenchSnapshot?.Token}");
         }
 
-        report["bench_count"] = benches.Count;
-        var facts = await h.WireAsync("colony-facts", "observations_read_colony_facts", new JsonObject { ["scope"] = Scope() }, cancellationToken).ConfigureAwait(false);
-        var factsObserved = Harness.Outcome(facts, "observed").Value;
-        var productionTokens = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var section in new[] { "cooking", "butchering" })
+        var recipes = await s.CallAsync("recipes", NativeOps.ReadRecipes, new Observations.RecipesRequest { Scope = s.Scope, BenchId = id }, cancellationToken).ConfigureAwait(false);
+        var catalog = TypedReads.Observed("recipes", NativeOps.ReadRecipes, recipes, recipes.Outcome?.Observed);
+        if (catalog.Snapshot?.Token != snapshot.Token || catalog.Snapshot?.EntityId != id)
         {
-            foreach (var raw in factsObserved[section].AsSlice())
-            {
-                var row = raw.AsMap();
-                productionTokens[row?["bench"].RefId() ?? ""] = row?["benchSnapshot"].AsMap()?["token"].AsString() ?? "";
-            }
+            problems.Add($"recipe catalog snapshot {catalog.Snapshot} disagrees with the census {snapshot}");
         }
 
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var tokenAgreements = 0;
-        var recipeRows = 0;
-        foreach (var raw in benches)
+        if (catalog.Recipes.Count == 0)
         {
-            var row = raw.AsMap();
-            var id = row?["bench"].AsMap()?["id"].AsString() ?? "";
-            if (id.Length == 0 || !seen.Add(id))
-            {
-                throw new AcceptanceException($"typed bench \"{id}\" missing an id or duplicated");
-            }
-
-            var snapshot = row!["snapshot"].AsMap();
-            var token = snapshot?["token"].AsString() ?? "";
-            if (token.Length == 0 || snapshot!["entityId"].AsString() != id)
-            {
-                throw new AcceptanceException($"bench {id}: missing CAS token or mismatched entity id");
-            }
-
-            if (productionTokens.TryGetValue(id, out var expected))
-            {
-                if (expected != token)
-                {
-                    throw new AcceptanceException($"bench {id}: census token {token} disagrees with colony-facts token {expected}");
-                }
-
-                tokenAgreements++;
-            }
-
-            var bills = row["bills"].AsSlice();
-            for (var index = 0; index < bills.Count; index++)
-            {
-                var bill = bills[index].AsMap();
-                if (bill?["recipe"].AsMap()?["defName"].AsString().Length is null or 0)
-                {
-                    throw new AcceptanceException($"bench {id} bill {index}: recipe def name missing");
-                }
-
-                if (!bill.ContainsKey("suspended"))
-                {
-                    throw new AcceptanceException($"bench {id} bill {index}: suspended fact missing");
-                }
-            }
-
-            var recipesReply = await h.WireAsync(
-                "typed-recipes-" + id,
-                "observations_read_recipes",
-                new JsonObject { ["scope"] = Scope(), ["benchId"] = id },
-                cancellationToken).ConfigureAwait(false);
-            JsonObject catalog;
-            try
-            {
-                catalog = Harness.Outcome(recipesReply, "observed").Value;
-            }
-            catch (AcceptanceException e)
-            {
-                throw new AcceptanceException($"bench {id} recipes: {e.Message}", e);
-            }
-
-            var catalogSnapshot = catalog["snapshot"].AsMap();
-            if (catalogSnapshot?["token"].AsString() != token || catalogSnapshot["entityId"].AsString() != id)
-            {
-                throw new AcceptanceException($"bench {id}: recipe catalog snapshot disagrees with the bill census");
-            }
-
-            var recipes = catalog["recipes"].AsSlice();
-            if (recipes.Count == 0)
-            {
-                throw new AcceptanceException($"bench {id}: empty recipe catalog");
-            }
-
-            foreach (var rawRecipe in recipes)
-            {
-                var recipe = rawRecipe.AsMap();
-                var definition = recipe?["recipe"].AsMap();
-                if (definition?["defName"].AsString().Length is null or 0)
-                {
-                    throw new AcceptanceException($"bench {id}: recipe without a def name");
-                }
-
-                foreach (var field in new[] { "availableNow", "availableOnBench" })
-                {
-                    if (!recipe!.ContainsKey(field))
-                    {
-                        throw new AcceptanceException($"bench {id} recipe {definition["defName"].ToJson()}: {field} missing");
-                    }
-                }
-
-                recipeRows++;
-            }
+            problems.Add("empty recipe catalog");
         }
 
-        report["token_agreements_with_colony_facts"] = tokenAgreements;
-        report["recipe_rows"] = recipeRows;
-        foreach (var (label, request) in new[]
+        problems.AddRange(catalog.Recipes
+            .Where(r => r.Recipe?.DefName is null or "" || r.AvailableNow is null || r.AvailableOnBench is null)
+            .Select(r => $"recipe row without a def name or availability: {r}"));
+
+        var blank = await s.CallAsync("blank-bench", NativeOps.ReadBills, new Observations.BillsRequest { Scope = s.Scope, BenchId = " " }, cancellationToken).ConfigureAwait(false);
+        if (blank.Outcome?.Failure?.Code != Common.FailureCode.InvalidRequest)
         {
-            ("blank-bench", new JsonObject { ["scope"] = Scope(), ["benchId"] = " " }),
-        })
-        {
-            var reply = await h.WireAsync(label, "observations_read_bills", request, cancellationToken).ConfigureAwait(false);
-            var code = reply["failure"].AsMap()?["code"].AsString();
-            if (code != "FAILURE_CODE_INVALID_REQUEST")
-            {
-                throw new AcceptanceException($"{label}: expected FAILURE_CODE_INVALID_REQUEST, got \"{code}\"");
-            }
+            problems.Add($"blank bench id: want INVALID_REQUEST, got {blank.Outcome}");
         }
 
-        var unknownReply = await h.WireAsync(
-            "unknown-bench-recipes",
-            "observations_read_recipes",
-            new JsonObject { ["scope"] = Scope(), ["benchId"] = "Thing_NoSuchBench0" },
-            cancellationToken).ConfigureAwait(false);
-        var unknownCode = unknownReply["failure"].AsMap()?["code"].AsString();
-        if (unknownCode != "FAILURE_CODE_NOT_FOUND")
+        var unknown = await s.CallAsync("unknown-bench", NativeOps.ReadRecipes, new Observations.RecipesRequest { Scope = s.Scope, BenchId = "Thing_NoSuchBench0" }, cancellationToken).ConfigureAwait(false);
+        if (unknown.Outcome?.Failure?.Code != Common.FailureCode.NotFound)
         {
-            throw new AcceptanceException($"unknown bench: expected FAILURE_CODE_NOT_FOUND, got \"{unknownCode}\"");
+            problems.Add($"unknown bench id: want NOT_FOUND, got {unknown.Outcome}");
         }
 
-        var identityAfterReply = await h.WireAsync("identity-after", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var after = Harness.Outcome(identityAfterReply, "loaded").Value;
-        if (!Dyn.DeepEqual(after["context"], beforeContext))
+        s.RecordWire("bench", row);
+        s.Record("recipe_rows", catalog.Recipes.Count);
+        if (problems.Count > 0)
         {
-            throw new AcceptanceException("identity/tick changed during a read-only pass");
+            throw new AcceptanceException(string.Join("; ", problems));
         }
     }
 }

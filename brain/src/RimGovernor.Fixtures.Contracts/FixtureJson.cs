@@ -21,4 +21,5 @@ public static class FixtureJson
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(StageSpec))]
 [JsonSerializable(typeof(StageReply))]
+[JsonSerializable(typeof(GearPolicyReply))]
 internal sealed partial class FixtureJsonContext : JsonSerializerContext;

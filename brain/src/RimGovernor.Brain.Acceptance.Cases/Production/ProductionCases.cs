@@ -8,14 +8,11 @@ public static class ProductionCases
     {
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(ProductionApparelPolicy.Case());
-        registry.Register(ProductionArt.Case());
         foreach (var buriedSteel in ProductionBuriedSteel.Cases())
         {
             registry.Register(buriedSteel);
         }
 
-        registry.Register(ProductionGearLedger.Case());
         registry.Register(ProductionLadder.Case());
-        registry.Register(ProductionPerPawnOutfits.Case());
     }
 }

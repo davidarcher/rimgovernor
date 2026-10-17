@@ -1,124 +1,145 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>production/apparel-policy</c> (Go <c>apparel_policy.go</c>): the ApparelPolicyIntent creates, assigns and updates the
-/// pawn's own outfit, labelled with its short name (#1302), reapplies as applied, and overrides manual policies and
-/// forced/locked apparel under autonomous control. A Go test cannot see the native filter write.
+/// <c>production/apparel-policy</c>: the ApparelPolicyIntent's native filter write. The pawn starts on a player outfit
+/// wearing a forced, locked shirt (test/gear_fixture, which the primitives cannot express); each write reuses that
+/// outfit as the pawn's own, labelled with its short name (#1302), with the requested filter, and clears forcing and
+/// locks; a repeat applies again; and a player's tainted edit is overridden. The colony-facts gear read shows each
+/// result.
 /// </summary>
 internal static class ProductionApparelPolicy
 {
-    internal static AcceptanceCase Case() => new()
+    private const string Tool = "test/gear_fixture";
+
+    private static readonly FixtureOp<string, Fx.GearPolicyReply> Gear = new(
+        Tool,
+        mode => new JsonObject([new KeyValuePair<string, JsonNode?>("mode", mode)]),
+        (label, reply) => reply is not null && Fx.FixtureJson.Deserialize<Fx.GearPolicyReply>(reply.ToJsonString()) is { Success: true, Pawn.Length: > 0, ShortName.Length: > 0 } read
+            ? read
+            : throw new AcceptanceException($"{label}: {Tool} refused: {reply?.ToJsonString()}"));
+
+    internal static TypedCase Case() => new()
     {
         Name = "production/apparel-policy",
-        Scope = "The ApparelPolicyIntent creates, assigns and updates the pawn's own outfit, labelled with its short name (#1302),, reapplies as applied, and overrides manual policies and forced/locked apparel under autonomous control. A Go test cannot see the native filter write.",
-        Start = new LabStart(),
-        Budget = TimeSpan.FromMinutes(2),
-        Crew = new Crew { Size = 3 },
+        Scope = "The ApparelPolicyIntent on operations_apply writes the native outfit: the pawn's player outfit is reused, "
+            + "labelled with its short name (#1302), with the requested defs, hit-point and quality bounds and tainted "
+            + "apparel excluded, its forced and locked apparel released; the same write applies again, and a player's tainted "
+            + "edit is overridden. Read back through the colony-facts gear section.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
+        Ops = [Tool],
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var identity = s.Identity;
+        var subject = await s.FixtureAsync("policy-setup", Gear, "policy_setup", cancellationToken).ConfigureAwait(false);
 
-        Task<JsonObject> Fixture(string mode) =>
-            h.CallAsync(mode, "test/gear_fixture", new JsonObject { ["mode"] = mode }, cancellationToken);
-
-        var before = await Fixture("policy_setup").ConfigureAwait(false);
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "apparel-auto", identity, cancellationToken).ConfigureAwait(false);
-
-        async Task Apply(string label, JsonObject row, double hp, IReadOnlyList<string> defs)
+        async Task<Observations.GearLoadout> ReadAsync(string label)
         {
-            var intent = new JsonObject
+            var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = true }, cancellationToken).ConfigureAwait(false);
+            var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
+            var gear = facts.Planning?.Outcome?.Observed?.Gear ?? throw new AcceptanceException($"{label}: no planning gear section");
+            return gear.Pawns.FirstOrDefault(p => p.Pawn?.Id == subject.Pawn) ?? throw new AcceptanceException($"{label}: no gear row for {subject.Pawn}");
+        }
+
+        var setup = await ReadAsync("setup").ConfigureAwait(false);
+        s.RecordWire("setup", setup.ApparelPolicy);
+        var outfit = setup.ApparelPolicy?.PolicyId;
+        if (outfit is null || setup.Equipment?.Apparel.Any(a => a is { Forced: true, Locked: true }) != true)
+        {
+            throw new AcceptanceException($"setup: want a player outfit and a forced, locked shirt, got {setup.ApparelPolicy} / {setup.Equipment}");
+        }
+
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+
+        async Task WriteAsync(string label, float minHitPoints, IReadOnlyList<string> defs)
+        {
+            var apply = await s.CallAsync(label, NativeOps.Apply, new Operations.ApplyRequest
             {
-                ["pawnId"] = row["pawn"]?.DeepClone(),
-                ["name"] = row["shortName"]?.DeepClone(),
-                ["allowedDefs"] = new JsonArray([.. defs.Select(d => (JsonNode?)JsonValue.Create(d))]),
-                ["minHitPoints"] = hp,
-                ["maxHitPoints"] = 1,
-                ["minQuality"] = 1,
-                ["maxQuality"] = 6,
-            };
-            var reply = await h.WireAsync(
-                label,
-                "operations_apply",
-                new JsonObject
-                {
-                    ["identity"] = identity.DeepClone(),
-                    ["actions"] = new JsonArray(new JsonObject { ["key"] = label, ["apparelPolicy"] = intent }),
-                },
-                cancellationToken).ConfigureAwait(false);
-            var results = reply["results"].AsSlice();
-            if (results.Count != 1)
+                Identity = s.Identity,
+                Actions =
+                [
+                    new Operations.Action
+                    {
+                        Key = label,
+                        Intent = new Operations.ApparelPolicyIntent
+                        {
+                            PawnId = subject.Pawn,
+                            Name = subject.ShortName,
+                            AllowedDefs = [.. defs],
+                            MinHitPoints = minHitPoints,
+                            MaxHitPoints = 1,
+                            MinQuality = 1,
+                            MaxQuality = 6,
+                        },
+                    },
+                ],
+            }, cancellationToken).ConfigureAwait(false);
+            if (apply.Results.ToList() is not [{ Outcome.Applied: not null }])
             {
-                throw new AcceptanceException($"{label}: expected one result: {reply.ToJson()}");
+                throw new AcceptanceException($"{label}: want one applied apparel policy, got {apply.BatchFailure} {string.Join("; ", apply.Results)}");
             }
 
-            if (results[0].AsMap()?["applied"].AsMap() is null)
+            var after = await ReadAsync(label + "-read").ConfigureAwait(false);
+            s.RecordWire(label, after.ApparelPolicy);
+            var policy = after.ApparelPolicy;
+            var problems = new List<string>();
+            if (policy?.PolicyId != outfit)
             {
-                throw new AcceptanceException($"{label}: apparel not applied: {reply.ToJson()}");
+                problems.Add($"outfit {policy?.PolicyId}, want the reused {outfit}");
+            }
+
+            if (policy?.Name != subject.ShortName)
+            {
+                problems.Add($"label {policy?.Name}, want {subject.ShortName}");
+            }
+
+            if (policy is null || !policy.AllowedDefs.SequenceEqual(defs.Order(StringComparer.Ordinal)))
+            {
+                problems.Add($"defs [{string.Join(' ', policy?.AllowedDefs ?? [])}], want [{string.Join(' ', defs)}]");
+            }
+
+            if (policy?.MinHitPoints is not { } min || Math.Abs(min - minHitPoints) > 0.00001 || policy.MinQuality != 1 || policy.MaxQuality != 6)
+            {
+                problems.Add($"bounds hp {policy?.MinHitPoints} quality {policy?.MinQuality}..{policy?.MaxQuality}, want hp {minHitPoints.ToString(CultureInfo.InvariantCulture)} quality 1..6");
+            }
+
+            if (policy?.ExcludesTainted != true)
+            {
+                problems.Add("tainted apparel allowed");
+            }
+
+            if (after.Equipment?.Apparel.Any(a => a.Forced == true || a.Locked == true) != false)
+            {
+                problems.Add($"forced or locked apparel left: {after.Equipment}");
+            }
+
+            if (problems.Count > 0)
+            {
+                throw new AcceptanceException($"{label}: {string.Join("; ", problems)}");
             }
         }
 
-        IReadOnlyList<string> defs = ["Apparel_BasicShirt", "Apparel_Pants"];
-        double[] hitPoints = [.51, .65, .65];
-        for (var i = 0; i < hitPoints.Length; i++)
+        await WriteAsync("apparel-write-0", .51f, ["Apparel_BasicShirt", "Apparel_Pants"]).ConfigureAwait(false);
+        await WriteAsync("apparel-write-1", .65f, ["Apparel_Pants"]).ConfigureAwait(false);
+        await WriteAsync("apparel-write-again", .65f, ["Apparel_Pants"]).ConfigureAwait(false);
+
+        // A player edit on the pawn's own outfit is overridden on the next write.
+        _ = await s.FixtureAsync("policy-edit", Gear, "policy_edit", cancellationToken).ConfigureAwait(false);
+        var edited = await ReadAsync("player-edit").ConfigureAwait(false);
+        if (edited.ApparelPolicy?.ExcludesTainted != false)
         {
-            var hp = hitPoints[i];
-            var row = before;
-            if (i > 0)
-            {
-                row = await Fixture("policy_read").ConfigureAwait(false);
-                defs = ["Apparel_Pants"];
-            }
-
-            var label = string.Create(CultureInfo.InvariantCulture, $"apparel-write-{i}");
-            await Apply(label, row, hp, defs).ConfigureAwait(false);
-            var after = await Fixture("policy_read").ConfigureAwait(false);
-            var forced = after["forced"] is null ? 0 : after["forced"].AsNumber();
-            var locked = after["locked"].AsBool() == true;
-            var tainted = after["tainted"].AsBool() == true;
-            var clean = after["clean"].AsBool() == true;
-            var minHp = after["minHP"] is null ? 0 : after["minHP"].AsNumber();
-            var actualDefs = after["defs"].AsSlice();
-            if (after["name"].AsString() != before["shortName"].AsString()
-                || forced != 0 || locked || tainted || !clean
-                || minHp < hp - .00001 || minHp > hp + .00001
-                || actualDefs.Count != defs.Count
-                || after["minQuality"].AsNumber() != 1 || after["maxQuality"].AsNumber() != 6)
-            {
-                throw new AcceptanceException($"native filter/assignment mismatch: {after.ToJson()}");
-            }
-
-            for (var j = 0; j < defs.Count; j++)
-            {
-                if (actualDefs[j].AsString() != defs[j])
-                {
-                    throw new AcceptanceException($"definition mismatch: {after["defs"].ToJson()}");
-                }
-            }
-
-            // The player's outfit the pawn alone held is reused, relabelled.
-            if (!Dyn.DeepEqual(after["policy"], before["policy"]))
-            {
-                throw new AcceptanceException("update created another policy");
-            }
-
-            s.Report[label] = after;
+            throw new AcceptanceException($"player-edit: the tainted edit did not land: {edited.ApparelPolicy}");
         }
 
-        var edited = await Fixture("policy_edit").ConfigureAwait(false);
-        await Apply("apparel-repair-player-edit", edited, .51, ["Apparel_Pants"]).ConfigureAwait(false);
-        var final = await Fixture("policy_read").ConfigureAwait(false);
-        if (final["tainted"].AsBool() == true)
-        {
-            throw new AcceptanceException("manual tainted edit not overridden");
-        }
-
-        s.Report["autonomous_override"] = final;
+        await WriteAsync("apparel-repair-player-edit", .51f, ["Apparel_Pants"]).ConfigureAwait(false);
     }
 }
