@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -7,21 +6,23 @@ using RimGovernor.Tools.Common;
 namespace RimGovernor.Tools.Workflow.Commands;
 
 /// <summary>
-/// The serial landing lane: takes a task branch from its worktree onto local main as one squash commit, so agents
-/// call it once instead of polling main, rebasing and retesting against every peer (Go: <c>cmd/land</c>).
+/// The serial landing lane: takes a task branch from its worktree onto main as one squash commit and pushes it, so
+/// agents call it once instead of polling main, rebasing and retesting against every peer.
 /// <code>RimGovernor.cmd land [flags] [branch]</code>
 /// Run from anywhere inside the branch's worktree (the branch defaults to the checked-out one). In order it:
 /// <list type="number">
-/// <item>takes the repository-wide landing lock (one landing at a time);</item>
+/// <item>takes the repository-wide landing lock (one landing at a time; the lock is an open file handle, so a killed
+/// lane never leaves it held);</item>
 /// <item>fetches origin/main and fast-forwards local main to it (a diverged local main is refused; an unreachable
-/// origin is reported and the lane continues), then merges main into the branch's worktree, which must be clean; a
-/// conflict aborts the merge, and a merged tree that puts a path back to its content before one of main's recent
-/// landings is refused, naming the paths and the landings;</item>
-/// <item>optionally runs tests with -test; callers normally run the test tool before landing;</item>
-/// <item>commits the merged branch's tree onto main as one squash commit and moves the main ref only if main has not
-/// moved since step 2, with a message built from the branch's commits (-m or -F overrides the subject and body)
-/// carrying the branch's Co-Authored-By trailers; a worktree that has main checked out must be clean and is
-/// brought along after the move;</item>
+/// origin fails the landing), then merges main into the branch's worktree, which must be clean; a conflict aborts the
+/// merge, and a merged tree that puts a path back to its content before one of main's recent landings is refused,
+/// naming the paths and the landings;</item>
+/// <item>optionally runs tests with -test, once; callers normally run the test tool before landing;</item>
+/// <item>commits the merged branch's tree onto main as one squash commit, with a message built from the branch's
+/// commits (-m or -F overrides the subject and body) carrying the branch's Co-Authored-By trailers, and pushes it to
+/// origin's main. Local main moves only after origin accepted it, so the two never diverge. When origin's main moved
+/// meanwhile the push is rejected and the lane fetches, merges and squashes again, up to <see cref="Attempts"/> times;
+/// a worktree that has main checked out must be clean and is brought along after the move;</item>
 /// <item>resets the branch to the new main when its tree is identical;</item>
 /// <item>closes the GitHub issue the branch is for (the number in a branch name like claude/github-issue-128-abc, or
 /// -issue N) with a comment naming the landing commit; -no-close skips it, and a missing gh or a failed close is
@@ -32,10 +33,39 @@ internal static partial class LandCommand
 {
     private const string LockName = "rimgovernor-land.lock";
 
+    /// <summary>How many times the lane squashes and pushes before giving up on a main that keeps moving.</summary>
+    internal const int Attempts = 3;
+
     private const string Usage = "usage: land [-m msg | -F file] [-lock-timeout d] [-test] [-issue N | -no-close] [<branch>]";
 
     [GeneratedRegex(@"(?:^|[/-])issue-(\d+)(?:-|$)", RegexOptions.CultureInvariant)]
     private static partial Regex IssueInBranch();
+
+    /// <summary>One landing's inputs.</summary>
+    internal sealed record Options
+    {
+        /// <summary>Any directory inside the branch's worktree.</summary>
+        public required string Worktree { get; init; }
+
+        /// <summary>The branch to land; empty means the checked-out one.</summary>
+        public string Branch { get; init; } = "";
+
+        public string Message { get; init; } = "";
+
+        public string MessageFile { get; init; } = "";
+
+        public TimeSpan LockTimeout { get; init; } = TimeSpan.FromMinutes(15);
+
+        public TimeSpan LockPoll { get; init; } = TimeSpan.FromSeconds(5);
+
+        public bool RunTests { get; init; }
+
+        /// <summary>Called with the worktree, branch and short landing hash once the landing is on origin.</summary>
+        public Func<string, string, string, Task>? Close { get; init; }
+
+        /// <summary>Called with the attempt number just before each push (tests move origin's main here).</summary>
+        public Func<int, Task>? BeforePush { get; init; }
+    }
 
     public static async Task<int> RunAsync(string[] args, CancellationToken ct)
     {
@@ -59,29 +89,26 @@ internal static partial class LandCommand
             throw new UsageException(Usage);
         }
         var issue = flags.Int("issue");
-        var noClose = flags.Bool("no-close");
         await LandAsync(
-                flags.Positional.Count == 1 ? flags.Positional[0] : "",
-                flags.String("m"),
-                flags.String("F"),
-                flags.Duration("lock-timeout", TimeSpan.FromMinutes(15)),
-                flags.Bool("test"),
-                noClose ? null : (worktree, branch, landed) => CloseIssueAsync(issue, worktree, branch, landed, ct),
+                new Options
+                {
+                    Worktree = Directory.GetCurrentDirectory(),
+                    Branch = flags.Positional.Count == 1 ? flags.Positional[0] : "",
+                    Message = flags.String("m"),
+                    MessageFile = flags.String("F"),
+                    LockTimeout = flags.Duration("lock-timeout", TimeSpan.FromMinutes(15)),
+                    RunTests = flags.Bool("test"),
+                    Close = flags.Bool("no-close") ? null : (worktree, branch, landed) => CloseIssueAsync(issue, worktree, branch, landed, ct),
+                },
                 ct)
             .ConfigureAwait(false);
         return 0;
     }
 
-    private static async Task LandAsync(
-        string branch,
-        string message,
-        string messageFile,
-        TimeSpan lockTimeout,
-        bool runTests,
-        Func<string, string, string, Task>? close,
-        CancellationToken ct)
+    internal static async Task LandAsync(Options options, CancellationToken ct)
     {
-        var worktree = Repo.Require(Directory.GetCurrentDirectory());
+        var worktree = Repo.Require(options.Worktree);
+        var branch = options.Branch;
         var current = await Git.RunAsync(worktree, ct, "rev-parse", "--abbrev-ref", "HEAD").ConfigureAwait(false);
         if (branch.Length == 0)
         {
@@ -99,76 +126,85 @@ internal static partial class LandCommand
         // land moves the main ref itself; a worktree that has main checked out is optional and only brought along
         // after the move.
         var mainCheckout = trees.LastOrDefault(wt => wt.Branch == "main")?.Path ?? "";
-        if (messageFile.Length > 0)
+        var message = options.Message;
+        if (options.MessageFile.Length > 0)
         {
-            message = await File.ReadAllTextAsync(messageFile, ct).ConfigureAwait(false);
+            message = await File.ReadAllTextAsync(options.MessageFile, ct).ConfigureAwait(false);
         }
 
-        using var landingLock = await AcquireLockAsync(worktree, branch, lockTimeout, ct).ConfigureAwait(false);
+        var common = await Git.RunAsync(worktree, ct, "rev-parse", "--path-format=absolute", "--git-common-dir").ConfigureAwait(false);
+        using var landingLock = await FileLock.AcquireAsync(
+                Path.Combine(common, LockName),
+                "branch=" + branch,
+                options.LockTimeout,
+                options.LockPoll,
+                holder => Log.Info($"waiting for landing lock held by {holder}"),
+                ct)
+            .ConfigureAwait(false);
 
         await RequireCleanAsync(worktree, "branch worktree", ct).ConfigureAwait(false);
         if (mainCheckout.Length > 0)
         {
             await LandChecks.RequireCleanMainAsync(mainCheckout, trees, ct).ConfigureAwait(false);
         }
-        await LandChecks.SyncMainAsync(worktree, mainCheckout, ct).ConfigureAwait(false);
-        var oldMain = await Git.RunAsync(worktree, ct, "rev-parse", "main").ConfigureAwait(false);
-        var merge = await Proc.CaptureAsync(worktree, "git", ["merge", "--no-edit", oldMain], ct).ConfigureAwait(false);
-        if (merge.ExitCode != 0)
+        var tested = false;
+        string oldMain;
+        string squash;
+        for (var attempt = 1; ; attempt++)
         {
-            await Proc.CaptureAsync(worktree, "git", ["merge", "--abort"], ct).ConfigureAwait(false);
-            throw new ToolException(
-                $"merging main into {branch}: git merge exited {merge.ExitCode}: {merge.Stderr.Trim()}\nresolve the conflict on the branch (git merge main), commit, and run land again");
-        }
-        await LandChecks.RefuseRevertsAsync(worktree, ct).ConfigureAwait(false);
-        if (await Git.SucceedsAsync(worktree, ct, "diff", "--quiet", "main").ConfigureAwait(false))
-        {
-            Log.Info($"{branch} has nothing to land: its tree matches main");
-            return;
-        }
-        var changed = await Affected.ChangedFilesAsync(worktree, "main", ct).ConfigureAwait(false);
-        if (runTests)
-        {
-            await Affected.TestAsync(worktree, changed, full: false, ct).ConfigureAwait(false);
-        }
-        else
-        {
-            Log.Info("tests: not run by the lane (run the test tool before landing, or pass -test)");
+            await LandChecks.SyncMainAsync(worktree, mainCheckout, ct).ConfigureAwait(false);
+            oldMain = await Git.RunAsync(worktree, ct, "rev-parse", "main").ConfigureAwait(false);
+            var merge = await Proc.CaptureAsync(worktree, "git", ["merge", "--no-edit", oldMain], ct).ConfigureAwait(false);
+            if (merge.ExitCode != 0)
+            {
+                await Proc.CaptureAsync(worktree, "git", ["merge", "--abort"], ct).ConfigureAwait(false);
+                throw new ToolException(
+                    $"merging main into {branch}: git merge exited {merge.ExitCode}: {merge.Stderr.Trim()}\nresolve the conflict on the branch (git merge main), commit, and run land again");
+            }
+            await LandChecks.RefuseRevertsAsync(worktree, ct).ConfigureAwait(false);
+            if (await Git.SucceedsAsync(worktree, ct, "diff", "--quiet", "main").ConfigureAwait(false))
+            {
+                Log.Info($"{branch} has nothing to land: its tree matches main");
+                return;
+            }
+            if (options.RunTests && !tested)
+            {
+                var changed = await Affected.ChangedFilesAsync(worktree, "main", ct).ConfigureAwait(false);
+                await Affected.TestAsync(worktree, changed, full: false, ct).ConfigureAwait(false);
+                tested = true;
+            }
+            else if (attempt == 1)
+            {
+                Log.Info("tests: not run by the lane (run the test tool before landing, or pass -test)");
+            }
+
+            var head = await Git.RunAsync(worktree, ct, "rev-parse", "HEAD").ConfigureAwait(false);
+            var body = await SquashMessageAsync(worktree, branch, message, ct).ConfigureAwait(false);
+            squash = await CommitSquashAsync(worktree, branch, head, oldMain, body, ct).ConfigureAwait(false);
+            if (options.BeforePush is { } beforePush)
+            {
+                await beforePush(attempt).ConfigureAwait(false);
+            }
+            if (await PushAsync(worktree, squash, ct).ConfigureAwait(false))
+            {
+                break;
+            }
+            if (attempt >= Attempts)
+            {
+                throw new ToolException($"origin's main moved during each of {Attempts} attempts; nothing landed, run land again");
+            }
+            Log.Info("origin's main moved before the push; landing again on the new main");
         }
 
-        var head = await Git.RunAsync(worktree, ct, "rev-parse", "HEAD").ConfigureAwait(false);
-        var body = await SquashMessageAsync(worktree, branch, message, ct).ConfigureAwait(false);
-        // The merged branch's tree is the squash: commit it onto the main land merged and move the ref only if main
-        // is still there, so no checkout of main is needed and a concurrent move is refused, not overwritten.
-        var messagePath = Path.Combine(Path.GetTempPath(), $"land-{Environment.ProcessId}.txt");
-        await File.WriteAllTextAsync(messagePath, body.TrimEnd('\n') + "\n", new UTF8Encoding(false), ct).ConfigureAwait(false);
-        string squash;
-        try
-        {
-            try
-            {
-                squash = await Git.RunAsync(worktree, ct, "commit-tree", head + "^{tree}", "-p", oldMain, "-F", messagePath).ConfigureAwait(false);
-            }
-            catch (ToolException e)
-            {
-                throw new ToolException($"committing the squash of {branch}: {e.Message}", e);
-            }
-        }
-        finally
-        {
-            File.Delete(messagePath);
-        }
-        try
-        {
-            await Git.RunAsync(worktree, ct, "update-ref", "-m", "land: " + branch, "refs/heads/main", squash, oldMain).ConfigureAwait(false);
-        }
-        catch (ToolException e)
-        {
-            throw new ToolException($"main moved off {oldMain[..Math.Min(9, oldMain.Length)]} while {branch} was landing; nothing landed, run land again: {e.Message}", e);
-        }
         var landed = await Git.RunAsync(worktree, ct, "rev-parse", "--short", squash).ConfigureAwait(false);
-        Log.Info($"landed {branch} on main as {landed}");
-        if (mainCheckout.Length > 0)
+        Log.Info($"landed {branch} on origin's main as {landed}");
+        // Origin has the squash; local main follows unless something else moved it under the lock, in which case the
+        // next landing fast-forwards it from origin.
+        if (!await Git.SucceedsAsync(worktree, ct, "update-ref", "-m", "land: " + branch, "refs/heads/main", squash, oldMain).ConfigureAwait(false))
+        {
+            Log.Info($"local main moved off {oldMain[..Math.Min(9, oldMain.Length)]} during the landing and was not updated; the next land fast-forwards it from origin");
+        }
+        else if (mainCheckout.Length > 0)
         {
             var readTree = await Proc.CaptureAsync(mainCheckout, "git", ["read-tree", "-m", "-u", oldMain, squash], ct).ConfigureAwait(false);
             if (readTree.ExitCode != 0)
@@ -176,8 +212,7 @@ internal static partial class LandCommand
                 Log.Info($"main checkout {mainCheckout} not updated to {landed} ({readTree.Stderr.Trim()}); bring it along with git reset --keep main there");
             }
         }
-        // main may have moved again while the tests ran; catch the branch up so the identical-tree check below sees
-        // only what this landing missed.
+        // Catch the branch up so the identical-tree check below sees only what this landing missed.
         if (!await Git.SucceedsAsync(worktree, ct, "merge", "--no-edit", "main").ConfigureAwait(false))
         {
             await Git.SucceedsAsync(worktree, ct, "merge", "--abort").ConfigureAwait(false);
@@ -191,10 +226,50 @@ internal static partial class LandCommand
         {
             Log.Info($"{branch} left as is: its tree differs from the landed main");
         }
-        if (close is not null)
+        if (options.Close is { } close)
         {
             await close(worktree, branch, landed).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>The merged branch's tree as one commit on <paramref name="oldMain"/>; no checkout of main is needed.</summary>
+    private static async Task<string> CommitSquashAsync(string worktree, string branch, string head, string oldMain, string body, CancellationToken ct)
+    {
+        var messagePath = Path.Combine(Path.GetTempPath(), $"land-{Environment.ProcessId}-{Guid.NewGuid():N}.txt");
+        await File.WriteAllTextAsync(messagePath, body.TrimEnd('\n') + "\n", new UTF8Encoding(false), ct).ConfigureAwait(false);
+        try
+        {
+            return await Git.RunAsync(worktree, ct, "commit-tree", head + "^{tree}", "-p", oldMain, "-F", messagePath).ConfigureAwait(false);
+        }
+        catch (ToolException e)
+        {
+            throw new ToolException($"committing the squash of {branch}: {e.Message}", e);
+        }
+        finally
+        {
+            File.Delete(messagePath);
+        }
+    }
+
+    /// <summary>
+    /// Pushes the squash to origin's main. True when origin took it, false when origin's main moved first (a
+    /// non-fast-forward rejection, which the caller retries); any other failure throws, with nothing landed.
+    /// </summary>
+    private static async Task<bool> PushAsync(string worktree, string squash, CancellationToken ct)
+    {
+        var push = await Proc.CaptureAsync(worktree, "git", ["push", "--porcelain", "origin", squash + ":refs/heads/main"], ct).ConfigureAwait(false);
+        if (push.ExitCode == 0)
+        {
+            return true;
+        }
+        // --porcelain marks a refused ref "!" and names a fast-forward refusal "[rejected]" (a hook or a protected
+        // branch says "[remote rejected]").
+        var rejected = push.Stdout.Split('\n').Any(line => line.StartsWith('!') && line.Contains("[rejected]", StringComparison.Ordinal));
+        if (rejected)
+        {
+            return false;
+        }
+        throw new ToolException($"pushing to origin's main failed; nothing landed: git push exited {push.ExitCode}: {(push.Stdout + push.Stderr).Trim()}");
     }
 
     /// <summary>Closes the GitHub issue a landed branch was for, or does nothing; it never fails the landing.</summary>
@@ -229,70 +304,6 @@ internal static partial class LandCommand
         if (status.Length > 0)
         {
             throw new ToolException($"{what} {dir} has uncommitted changes:\n{status}");
-        }
-    }
-
-    /// <summary>
-    /// Takes the repository-wide landing lock under the shared git directory, waiting for a holder to finish up to
-    /// <paramref name="timeout"/>. Disposing releases it.
-    /// </summary>
-    private static async Task<IDisposable> AcquireLockAsync(string repo, string branch, TimeSpan timeout, CancellationToken ct)
-    {
-        var common = await Git.RunAsync(repo, ct, "rev-parse", "--path-format=absolute", "--git-common-dir").ConfigureAwait(false);
-        var path = Path.Combine(common, LockName);
-        var deadline = Stopwatch.StartNew();
-        while (true)
-        {
-            try
-            {
-                var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
-                using (var writer = new StreamWriter(stream, new UTF8Encoding(false), leaveOpen: true))
-                {
-                    writer.Write(string.Create(CultureInfo.InvariantCulture, $"pid={Environment.ProcessId} branch={branch} since={DateTimeOffset.Now:yyyy-MM-ddTHH:mm:sszzz}\n"));
-                }
-                return new LockHandle(stream, path);
-            }
-            catch (IOException) when (File.Exists(path))
-            {
-                var holder = TryRead(path);
-                if (deadline.Elapsed > timeout)
-                {
-                    throw new ToolException(
-                        $"landing lock {path} held for over {Durations.Format(timeout)} by {holder}; remove it only if that process is gone");
-                }
-                Log.Info($"waiting for landing lock held by {holder}");
-                await Task.Delay(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
-            }
-        }
-    }
-
-    private static string TryRead(string path)
-    {
-        try
-        {
-            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var reader = new StreamReader(stream);
-            return reader.ReadToEnd().Trim();
-        }
-        catch (IOException)
-        {
-            return "another landing";
-        }
-    }
-
-    private sealed class LockHandle(FileStream stream, string path) : IDisposable
-    {
-        public void Dispose()
-        {
-            stream.Dispose();
-            try
-            {
-                File.Delete(path);
-            }
-            catch (IOException)
-            {
-                // A lingering lock names its holder; the next landing reports it.
-            }
         }
     }
 

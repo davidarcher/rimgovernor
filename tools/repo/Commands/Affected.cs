@@ -20,7 +20,7 @@ internal static class Affected
     /// <summary>Roots of the C# projects the root Taskfile builds and tests.</summary>
     private static readonly string[] CSharpRoots =
     [
-        "brain/", "tools/rg/", "tools/launcher/", "integrations/", "contracts/", "scripts/",
+        "brain/", "tools/", "integrations/", "contracts/", "scripts/",
     ];
 
     public static async Task<int> RunAsync(string[] args, CancellationToken ct)

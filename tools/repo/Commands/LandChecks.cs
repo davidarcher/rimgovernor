@@ -59,16 +59,16 @@ internal static partial class LandChecks
 
     /// <summary>
     /// Fetches origin/main and fast-forwards local main to it, so a landing never builds on a main that is behind
-    /// what others have pushed. A main checkout (already verified clean) is moved with it. A local main holding
-    /// unpushed landings that origin/main lacks is refused: the caller pushes or rebases them first.
+    /// what others have pushed. A main checkout (already verified clean) is moved with it. An unreachable origin fails
+    /// the landing, since the lane pushes. A local main holding commits origin/main lacks while origin/main moved too
+    /// is refused; the lane never makes that state, because local main moves only after origin took a landing.
     /// </summary>
     public static async Task SyncMainAsync(string worktree, string mainCheckout, CancellationToken ct)
     {
         var fetch = await Proc.CaptureAsync(worktree, "git", ["fetch", "origin", "main"], ct).ConfigureAwait(false);
         if (fetch.ExitCode != 0)
         {
-            Log.Info($"origin/main not fetched (git fetch origin main: exit code {fetch.ExitCode}: {fetch.Stderr.Trim()}); landing on local main as it is");
-            return;
+            throw new ToolException($"fetching origin's main failed; nothing landed: git fetch origin main exited {fetch.ExitCode}: {fetch.Stderr.Trim()}");
         }
         if (!await Git.SucceedsAsync(worktree, ct, "rev-parse", "--verify", "-q", "refs/heads/main").ConfigureAwait(false))
         {
@@ -83,7 +83,9 @@ internal static partial class LandChecks
         }
         if (!await Git.SucceedsAsync(worktree, ct, "merge-base", "--is-ancestor", "main", "origin/main").ConfigureAwait(false))
         {
-            throw new ToolException("local main holds landings origin/main lacks and origin/main has moved too; rebase them (git rebase origin/main main), then run land again");
+            throw new ToolException(
+                "local main holds commits origin/main lacks and origin/main has moved too; land that work again from its branch, "
+                + "then point local main at origin (git update-ref refs/heads/main origin/main) and run land again");
         }
         if (mainCheckout.Length > 0)
         {
