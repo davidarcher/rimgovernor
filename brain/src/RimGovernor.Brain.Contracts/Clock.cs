@@ -127,6 +127,12 @@ public enum HoldReason
     /// <summary>An armed combat event (WatchPolicy.combat_stop_events) happened; the clock held at the boundary of the tick it happened on.</summary>
     [WireName("HOLD_REASON_COMBAT_EVENT")]
     CombatEvent = 25,
+    /// <summary>
+    /// Colony mode: a colonist not in WatchPolicy.acknowledged_hungry_colonist_ids reached
+    /// WatchPolicy.hunger_hold_category, so the brain reviews their food under a held clock.
+    /// </summary>
+    [WireName("HOLD_REASON_COLONIST_NEED")]
+    ColonistNeed = 26,
 }
 
 /// <summary>
@@ -253,6 +259,20 @@ public sealed record WatchPolicy
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> MedicalRestIds { get; init; }
+
+    /// <summary>
+    /// Required: colony mode holds (HOLD_REASON_COLONIST_NEED) when a colonist's food need reaches this hunger
+    /// category (Need_Food.CurCategory, the game's own per-pawn thresholds) and they are not acknowledged. Hungry,
+    /// UrgentlyHungry or Starving; Fed is refused. A combat watch never holds for hunger.
+    /// </summary>
+    public Defs.HungerCategory? HungerHoldCategory { get; init; }
+
+    /// <summary>
+    /// Colonists already at or past <see cref="HungerHoldCategory"/> when the brain last reviewed them under a held
+    /// clock; native holds for none of them until they leave this list.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> AcknowledgedHungryColonistIds { get; init; }
 
     /// <summary>
     /// WATCH_MODE_COMBAT only: the combat events that hold the clock on the

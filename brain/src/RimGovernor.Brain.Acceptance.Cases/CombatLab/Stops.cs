@@ -50,6 +50,8 @@ internal static class CombatLabStops
         MeleeReachCells = (float)HazardThresholdsRules.MeleeReachCells,
         InjurySeverityFloorTicks = (uint)HazardThresholdsRules.InjurySeverityFloorTicks,
         PredatorMarginCells = (float)HazardThresholdsRules.HuntPredatorMarginCells,
+        // Only starvation holds here: these cases inject other hazards and must not stop for an ordinary hungry pawn.
+        HungerHoldCategory = RimGovernor.Contracts.Wire.Defs.HungerCategory.Starving,
     };
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)

@@ -52,7 +52,11 @@ public static class ClockValidation
         {
             throw BridgeContractException.Contract("clock policy injury severity floor bounds");
         }
-        foreach (var ids in new[] { p.AcknowledgedHostileIds, p.AcknowledgedDownedColonistIds, p.AcknowledgedInjuredColonistIds, p.SurgicalRecoveryIds, p.MedicalRestIds })
+        if (p.HungerHoldCategory is not { } hunger || !Enum.IsDefined(hunger) || hunger == RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed)
+        {
+            throw BridgeContractException.Contract("clock policy hunger hold category missing or fed");
+        }
+        foreach (var ids in new[] { p.AcknowledgedHostileIds, p.AcknowledgedDownedColonistIds, p.AcknowledgedInjuredColonistIds, p.SurgicalRecoveryIds, p.MedicalRestIds, p.AcknowledgedHungryColonistIds })
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var id in ids)

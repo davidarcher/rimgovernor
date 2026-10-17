@@ -157,6 +157,8 @@ namespace HomeBridge.BridgeTools
             s.SurgicalRecovery = PawnIds(ResolveIds(map, p.SurgicalRecoveryIds));
             s.MedicalRest = PawnIds(ResolveIds(map, p.MedicalRestIds));
             s.InjuryStopCooldownMs = Clamp((int)p.InjuryStopCooldownMs.GetValueOrDefault(), 0, 1800000);
+            s.HungerHold = (HungerCategory)(int)p.HungerHoldCategory.GetValueOrDefault();
+            s.IgnoredHungry = PawnIds(ResolveIds(map, p.AcknowledgedHungryColonistIds));
         }
 
         private static Common.Failure? ChangeRun(State s, TypedEpoch typed, TimeSpeed speed)
@@ -482,7 +484,7 @@ namespace HomeBridge.BridgeTools
             });
         }
         private static IEnumerable<IEnumerable<string>> PolicyIds(Clock.WatchPolicy policy)
-        { yield return policy.AcknowledgedHostileIds; yield return policy.AcknowledgedDownedColonistIds; yield return policy.AcknowledgedInjuredColonistIds; yield return policy.SurgicalRecoveryIds; yield return policy.MedicalRestIds; }
+        { yield return policy.AcknowledgedHostileIds; yield return policy.AcknowledgedDownedColonistIds; yield return policy.AcknowledgedInjuredColonistIds; yield return policy.SurgicalRecoveryIds; yield return policy.MedicalRestIds; yield return policy.AcknowledgedHungryColonistIds; }
         /// A watched hostile (a hunt's prey included) that has since died is no longer on the map and needs no acknowledging: the run goes on without it.
         private static string ResolveHostiles(Map map, IEnumerable<string> ids) => string.Join(",", ids.SelectMany(id => map.mapPawns.AllPawns.Where(p => p.GetUniqueLoadID() == id)).Select(p => p.thingIDNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         private static string ResolveIds(Map map, IEnumerable<string> ids) => string.Join(",", ids.Select(id => map.mapPawns.AllPawns.Single(p => p.GetUniqueLoadID() == id).thingIDNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)));
@@ -500,6 +502,7 @@ namespace HomeBridge.BridgeTools
                 && policy.MeleeReachCells is not null && Positive(policy.MeleeReachCells.GetValueOrDefault())
                 && policy.InjurySeverityFloorTicks is not null && policy.InjurySeverityFloorTicks.GetValueOrDefault() > 0 && policy.InjurySeverityFloorTicks.GetValueOrDefault() <= int.MaxValue
                 && policy.PredatorMarginCells is not null && Positive(policy.PredatorMarginCells.GetValueOrDefault())
+                && policy.HungerHoldCategory is { } hunger && hunger != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed && Enum.IsDefined(typeof(RimGovernor.Contracts.Wire.Defs.HungerCategory), hunger)
                 && (policy.CombatStopEvents.Count == 0 || policy.Mode.GetValueOrDefault() == Clock.WatchMode.Combat)
                 && policy.CombatStopEvents.All(e => e != Clock.CombatEvent.Unspecified && Enum.IsDefined(typeof(Clock.CombatEvent), e))
                 && policy.CombatStopEvents.Distinct().Count() == policy.CombatStopEvents.Count

@@ -29,4 +29,11 @@ public static class HazardThresholdsRules
 
     /// <summary>A hunt route passing within this many cells (Chebyshev) of a wild predator is unsafe.</summary>
     public const float HuntPredatorMarginCells = 25f;
+
+    /// <summary>
+    /// A colony-mode run holds when an unacknowledged colonist's food reaches this category: urgently hungry is the
+    /// game's own "eat now" line (Need_Food.PercentageThreshUrgentlyHungry), above starving, so the review
+    /// that answers it runs under a held clock instead of racing a running one (#3435).
+    /// </summary>
+    public const RimGovernor.Contracts.Wire.Defs.HungerCategory HungerHoldCategory = RimGovernor.Contracts.Wire.Defs.HungerCategory.UrgentlyHungry;
 }

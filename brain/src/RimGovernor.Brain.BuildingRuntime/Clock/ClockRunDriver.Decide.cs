@@ -312,6 +312,7 @@ public sealed partial class ClockRunDriver
             HuntPrey = huntPrey,
             SquadUnanswered = squadUnanswered,
             Sheltered = sheltered,
+            AcknowledgedHungry = _sentPolicy is { } sent ? [.. sent.AcknowledgedHungryColonistIds.Select(id => new PawnId(id))] : [],
         };
         var decision = ClockWatchRules.EvaluateClockWatch(facts, new ClockWatchLimits { MaxAge = _scheduler.Config.MaxAge });
         note.Decision = decision;
@@ -326,7 +327,11 @@ public sealed partial class ClockRunDriver
             throw new HeldException("clock run refused");
         }
 
-        var policy = _config.Policy with { AcknowledgedDownedColonistIds = [.. decision.Downed.Select(d => d.Value)] };
+        var policy = _config.Policy with
+        {
+            AcknowledgedDownedColonistIds = [.. decision.Downed.Select(d => d.Value)],
+            AcknowledgedHungryColonistIds = [.. decision.Hungry.Select(h => h.Value)],
+        };
         if (decision.Mode == ClockWatchMode.Combat)
         {
             // The native watcher holds on any unacknowledged hostile within HostileWithin; a combat watch acknowledges

@@ -712,6 +712,17 @@ namespace HomeBridge.BridgeTools
                     && !SafeSurgicalRecovery(s, p)
                     && !(s.MedicalRest.Contains(p.thingIDNumber) && MedicalRestSafety.Eligible(p, s.Policy!.SeriousSummaryHealthFloor.GetValueOrDefault())))
                     return PawnHit(Clock.HoldReason.ColonistDowned, p, GameWatchReads.SafeDead(p) ? "dead" : "downed", DownedTick(p));
+                // A colony-mode run holds when an unacknowledged colonist's
+                // food reaches the brain's hunger category: the review that
+                // answers it runs under a held clock, not a running one that
+                // starves the pawn while it plans (#3435). A fight never holds
+                // for hunger.
+                if (s.Mode == "colony"
+                    && GameWatchReads.SafeIsColonist(p)
+                    && !GameWatchReads.SafeDowned(p) && !GameWatchReads.SafeDead(p)
+                    && !s.IgnoredHungry.Contains(p.thingIDNumber)
+                    && SafeHunger(p) is { } hunger && hunger >= s.HungerHold)
+                    return PawnHit(Clock.HoldReason.ColonistNeed, p, hunger == HungerCategory.Starving ? "starving" : hunger == HungerCategory.UrgentlyHungry ? "urgently hungry" : "hungry");
                 if (ThreateningPredatorHunt(p)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
                     && colonists.Any(c => Distance(p, c) <= 40))
@@ -958,6 +969,7 @@ namespace HomeBridge.BridgeTools
             // the stop's detect_ticks; absent when it does not.
             new HoldCause(reason, GameWatchReads.SafeName(pawn) + " (" + why + ")", new PawnEvidence(PawnOf(pawn, why)),
                 occurrenceTick.HasValue && occurrenceTick.Value >= 0 ? occurrenceTick.Value : null);
+        private static HungerCategory? SafeHunger(Pawn pawn) { try { return pawn.needs?.food?.CurCategory; } catch { return null; } }
         private static int SafeArrivalTick(Letter letter) { try { return letter.arrivalTick; } catch { return -1; } }
         private static int? JobStartTick(Pawn pawn) { try { var job = pawn.CurJob; return job != null && job.startTick >= 0 ? job.startTick : (int?)null; } catch { return null; } }
         /// One new alert; the key is type|priority|normalized-label.
@@ -1197,6 +1209,7 @@ namespace HomeBridge.BridgeTools
             public readonly Dictionary<int, int> MedicalWakes = new Dictionary<int, int>();
             public HashSet<int> IgnoredHostiles = new HashSet<int>(); public HashSet<int> IgnoredDowned = new HashSet<int>(); public HashSet<int> SurgicalRecovery = new HashSet<int>(); public HashSet<int> MedicalRest = new HashSet<int>();
             public HashSet<int> IgnoredInjured = new HashSet<int>(); public int InjuryStopCooldownMs;
+            public HashSet<int> IgnoredHungry = new HashSet<int>(); public HungerCategory HungerHold = HungerCategory.UrgentlyHungry;
         }
 
         private sealed class InjuryStop

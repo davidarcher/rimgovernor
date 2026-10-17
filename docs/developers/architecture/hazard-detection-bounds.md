@@ -60,6 +60,7 @@ reports every class unhooked and the polled interval bound still holds.
 | `hunting_route_unsafe` | a colonist hunting prey along an unsafe route | polled | 30 | the hunter's `Hunt` job `startTick` | (hunting/* areas) |
 | `colonist_injury` | a new wound past the severity floor (colony mode): a life-threatening hediff stage, or blood loss killing the pawn within the policy's `injury_severity_floor_ticks` (the brain sends 5000) | polled | 30 | the newest wound's age (`ageTicks`) | (a lighter wound is demoted; `hazard/injury` proves the demotion) |
 | `colonist_health` | a combat health threshold crossed | polled | 30 | the newest wound's age | (defense/* areas) |
+| `colonist_need` | colony mode: a colonist not in `acknowledged_hungry_colonist_ids` whose food reached `hunger_hold_category` (`Need_Food.CurCategory`) | polled | 30 | absent | (`needs/target-capacity`; `ClockWatchHungerTests`) |
 
 Non-stopping observations (`alert_new`, `hostiles_cleared`,
 `injury_observed`) ride the same probe and carry the same 30-tick bound.
@@ -85,6 +86,14 @@ constants.
 | `melee_reach_cells` | 1.5 | range assumed for a pawn without a ranged weapon |
 | `injury_severity_floor_ticks` | 5000 | a new wound bleeding out inside this many ticks keeps the stop |
 | `predator_margin_cells` | 25 | a hunt route within this many cells of a wild predator is unsafe (`HuntingSafety.RouteSafe`) |
+| `hunger_hold_category` | `URGENTLY_HUNGRY` | a colony run holds when an unacknowledged colonist's food reaches it (`colonist_need`); `FED` is refused |
+
+The hunger hold exists so a review that takes seconds never runs while a
+colonist starves (#3435). The brain acknowledges a colonist only on a resume
+of a held clock, whose planning step read that held world; a `Run` that
+adjusts a running clock keeps only colonists already acknowledged. A colonist
+whose hunger the census cannot read is acknowledged rather than pinning the
+clock. A combat watch never holds for hunger.
 
 `RouteSafe` takes the margin from its caller: the policy (the supervisor's
 hunt withdrawal), `ColonyFactsRequest` / `SnapshotStreamRequest`

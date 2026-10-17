@@ -280,13 +280,13 @@ Native does not yet observe:
 
 ## Milestones (proposed)
 
-Each milestone becomes a GitHub issue after review.
+Each milestone has a GitHub issue.
 
-1. Search stage 1 (no behavior change).
-2. Search stage 2, including exact mood segments.
-3. Capability-days and floors over today's one-day horizon. This replaces the
+1. [#3467](https://github.com/davidarcher/rimgovernor/issues/3467) Search stage 1 (no behavior change).
+2. [#3468](https://github.com/davidarcher/rimgovernor/issues/3468) Search stage 2, including exact mood segments.
+3. [#3469](https://github.com/davidarcher/rimgovernor/issues/3469) Capability-days and floors over today's one-day horizon. This replaces the
    lexicographic ranking; the vector stays as explanation.
-4. Tier 2: pawn cycle, stocks and flows, project graph, crop growth by twelfth.
-5. Harm model v1: threat schedule, composition, armor response,
+4. [#3470](https://github.com/davidarcher/rimgovernor/issues/3470) Tier 2: pawn cycle, stocks and flows, project graph, crop growth by twelfth.
+5. [#3471](https://github.com/davidarcher/rimgovernor/issues/3471) Harm model v1: threat schedule, composition, armor response,
    consequences, with exposure calibrated from simulator sweeps.
-6. Search stage 3 and a larger budget.
+6. [#3472](https://github.com/davidarcher/rimgovernor/issues/3472) Search stage 3 and a larger budget.

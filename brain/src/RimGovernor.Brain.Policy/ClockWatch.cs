@@ -188,6 +188,7 @@ public static class ClockWatchRules
             Tick = f.Tick,
             Mode = ClockWatchMode.Colony,
             Downed = EquatableArray.From(KnownDownedPatients(f.Emergency)),
+            Hungry = EquatableArray.From(AcknowledgedHungry(f)),
         };
         if (hostiles.Count > 0 || combat)
         {
@@ -221,6 +222,24 @@ public static class ClockWatchRules
     /// them so the native watcher lets ticks pass for their rescue instead of holding at once on a casualty
     /// the service already holds a CriticalMedical goal for.
     /// </summary>
+    private static List<PawnId> AcknowledgedHungry(ClockWatchFacts f)
+    {
+        var kept = new HashSet<PawnId>(f.AcknowledgedHungry);
+        var hungry = new List<PawnId>();
+        foreach (var pawn in f.Emergency.Facts.Colonists)
+        {
+            // A colonist whose hunger the census cannot read is acknowledged too: native would otherwise hold for them
+            // on every resume and pin the clock.
+            var due = !pawn.Hunger.TryGetValue(out var hunger) || hunger >= HazardThresholdsRules.HungerHoldCategory;
+            if (due && (f.Status.State == ClockWatchState.Held || kept.Contains(pawn.Id)))
+            {
+                hungry.Add(pawn.Id);
+            }
+        }
+
+        return [.. hungry.OrderBy(p => p.Value, StringComparer.Ordinal)];
+    }
+
     private static List<PawnId> KnownDownedPatients(EmergencySnapshot snapshot)
     {
         var downed = new List<PawnId>();

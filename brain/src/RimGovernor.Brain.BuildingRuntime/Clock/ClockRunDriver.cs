@@ -103,7 +103,7 @@ public sealed partial class ClockRunDriver : IDisposable
     {
         var p = config.Policy;
         if (p.Mode.GetValueOrDefault() != PbClock.WatchMode.Colony
-            || p.AcknowledgedHostileIds.Count + p.AcknowledgedDownedColonistIds.Count + p.AcknowledgedInjuredColonistIds.Count + p.SurgicalRecoveryIds.Count + p.MedicalRestIds.Count != 0
+            || p.AcknowledgedHostileIds.Count + p.AcknowledgedDownedColonistIds.Count + p.AcknowledgedInjuredColonistIds.Count + p.SurgicalRecoveryIds.Count + p.MedicalRestIds.Count + p.AcknowledgedHungryColonistIds.Count != 0
             || p.InjuryStopCooldownMs.GetValueOrDefault() != 0)
         {
             throw new ControlException("NewClockRunDriver: the base policy is not a plain colony watch");

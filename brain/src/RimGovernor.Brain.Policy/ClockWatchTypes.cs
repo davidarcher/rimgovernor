@@ -69,6 +69,9 @@ public sealed record ClockWatchFacts
     /// is a combat one that watches them.
     /// </summary>
     public EquatableArray<PawnId> HuntPrey { get; init; }
+
+    /// <summary>The hungry colonists the last Run sent acknowledged (WatchPolicy.acknowledged_hungry_colonist_ids).</summary>
+    public EquatableArray<PawnId> AcknowledgedHungry { get; init; }
 }
 
 /// <summary>The bound the decision's facts must be fresh within.</summary>
@@ -127,4 +130,12 @@ public sealed record ClockWatchDecision
     public EquatableArray<PawnId> Hostiles { get; init; }
 
     public EquatableArray<PawnId> Downed { get; init; }
+
+    /// <summary>
+    /// The colonists the Run acknowledges as at or past the hunger hold category, sorted. Only a resume of a held
+    /// clock adds to it: the step that planned the resume read the held world, so it saw them. A Run that adjusts a
+    /// running clock keeps only those already acknowledged, so a colonist who got hungry since the step read still
+    /// holds the clock and gets a review under it.
+    /// </summary>
+    public EquatableArray<PawnId> Hungry { get; init; }
 }

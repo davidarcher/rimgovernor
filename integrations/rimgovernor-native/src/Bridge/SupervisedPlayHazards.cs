@@ -75,6 +75,7 @@ namespace HomeBridge.BridgeTools
             new HazardClass("colonist_injury", ProbeIntervalTicks, false),
             new HazardClass("colonist_health", ProbeIntervalTicks, false),
             new HazardClass("medical_rest_changed", ProbeIntervalTicks, false),
+            new HazardClass("colonist_need", ProbeIntervalTicks, false),
         };
 
         /// The declared bound in ticks for a stop kind, 0 for a kind Probe

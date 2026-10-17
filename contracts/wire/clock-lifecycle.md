@@ -16,7 +16,9 @@
 
 `Run` requires current authority (identity plus the expected native generation), one ordinary speed and a complete
 watch policy. Policy fractions must be finite in 0.01–1, hostile distance finite in 1–250, cooldown 0–1800000 ms.
-Each exact pawn ID set has at most 256 entries without duplicates. Medical-rest exceptions require their bounded
+`hunger_hold_category` is required and is `HUNGRY`, `URGENTLY_HUNGRY` or `STARVING` (`FED` is refused); a colony-mode
+run holds with `HOLD_REASON_COLONIST_NEED` for a colonist at or past it who is not in
+`acknowledged_hungry_colonist_ids`. Each exact pawn ID set has at most 256 entries without duplicates. Medical-rest exceptions require their bounded
 ticks. Native eligibility is checked on every sweep; acknowledgements cannot disable death or severe-health checks.
 Unknown numeric enum values, omitted required fields and unsupported policies are refusals.
 

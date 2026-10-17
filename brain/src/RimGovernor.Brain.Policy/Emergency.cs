@@ -33,6 +33,9 @@ public sealed record EmergencyPawn
 
     /// <summary>The colonist's cell when the pawn table row carried one.</summary>
     public Fact<Cell> Position { get; init; }
+
+    /// <summary>Need_Food.CurCategory when the pawn table row carried the pawn's needs.</summary>
+    public Fact<RimGovernor.Contracts.Wire.Defs.HungerCategory> Hunger { get; init; }
 }
 
 /// <summary>
