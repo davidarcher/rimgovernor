@@ -15,7 +15,7 @@ internal static class CombatLabStops
         Name = "combatlab/stops",
         Scope = "Event-triggered combat holds (#849): on lab-open a combat run armed with downed and entered-range holds the clock on the exact tick a raider's weapon reaches a colonist or a colonist's reaches a raider (the hold event's tick equals its occurrence tick), once per raider and direction per combat, and a colonist going down holds on its tick.",
         Start = new LabStart { Colonists = 3 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },

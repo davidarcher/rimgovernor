@@ -14,7 +14,7 @@ internal static class WallClearedFloor
             "remove_floor once the cells are clear. A Go snapshot test cannot see vanilla's deconstruct and " +
             "RemoveFloor jobs, the roof guard or the terrain left behind.",
         Start = new LabStart(),
-        RequiredOps = [DebugGame.LabSpawnTool, CombatFixtures.StageTool, "test/deconstruct_target"],
+        RequiredOps = [DebugGame.LabSpawnTool, FixtureStage.Tool, "test/deconstruct_target"],
         QuietWorld = true,
         Budget = TimeSpan.FromMinutes(6),
         Crew = new Crew { Size = 3 },

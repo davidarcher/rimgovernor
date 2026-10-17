@@ -23,6 +23,7 @@
     <Project Path="brain/src/RimGovernor.Brain.Snapshot/RimGovernor.Brain.Snapshot.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.Store/RimGovernor.Brain.Store.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
+    <Project Path="brain/src/RimGovernor.Fixtures.Contracts/RimGovernor.Fixtures.Contracts.csproj" />
     <Project Path="brain/tests/RimGovernor.Brain.Domain.Tests/RimGovernor.Brain.Domain.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">

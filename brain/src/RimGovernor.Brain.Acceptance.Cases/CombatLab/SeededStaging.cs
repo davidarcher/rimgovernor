@@ -10,7 +10,7 @@ internal static class CombatLabSeededStaging
         Name = "combatlab/seeded-staging",
         Scope = "Seeded lab staging (#2833): lab-ranged staged twice under seed 7 reads back the same digest and echoes the seed, seed 8 reads a different digest (hostile skills vary), and seed 0 reads the unseeded staging's digest.",
         Start = new LabStart { Colonists = 5 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },

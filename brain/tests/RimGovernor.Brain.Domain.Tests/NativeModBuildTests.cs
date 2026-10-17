@@ -75,4 +75,30 @@ public sealed class NativeModBuildTests : IDisposable
         NativeModBuild.SyncWork(source, work, copied);
         Assert.Equal(synced, File.GetLastWriteTimeUtc(target));
     }
+
+    /// <summary>
+    /// The production check (#3393) reads an assembly's fixture surface from metadata: the contracts assembly carries
+    /// its records, an assembly with a <c>[Tool("test/...")]</c> op carries that op, and the harness assembly neither.
+    /// </summary>
+    [Fact]
+    public void TheFixtureSurfaceIsTheContractsTypesAndTheTestOps()
+    {
+        Assert.Contains(
+            "RimGovernor.Fixtures.Contracts.StageSpec",
+            NativeModBuild.FixtureSurface(typeof(global::RimGovernor.Fixtures.Contracts.StageSpec).Assembly.Location));
+        Assert.Contains("test/probe", NativeModBuild.FixtureSurface(typeof(NativeModBuildTests).Assembly.Location));
+        Assert.Empty(NativeModBuild.FixtureSurface(typeof(NativeModBuild).Assembly.Location));
+    }
+
+    [Tool("test/probe")]
+    internal static void Probe()
+    {
+    }
+
+    /// <summary>Stands in for the host SDK's tool attribute, which the check matches by name.</summary>
+    [AttributeUsage(AttributeTargets.Method)]
+    private sealed class ToolAttribute(string name) : Attribute
+    {
+        public string Name { get; } = name;
+    }
 }

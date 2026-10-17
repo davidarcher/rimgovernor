@@ -15,7 +15,7 @@ internal static class CombatLabRepair
         Scope = "Drafted Repair (#900), a native op contract no snapshot can prove: on lab-choke with a damaged wooden door in the gap, "
             + "the brawlers are drafted and one combat.orders repair order on the door applies with job Repair; one tick later that brawler's job is Repair on the door and it is still drafted.",
         Start = new LabStart { Colonists = 5 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },

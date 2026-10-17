@@ -1,17 +1,18 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// A fixture as test/lab_stage read it back: each pawn's load id in spec order and the name-free map digest
+/// A fixture as test/stage read it back: each pawn in spec order and the name-free map digest
 /// (Go <c>combatlab.Staged</c>).
 /// </summary>
 internal sealed class StagedFixture
 {
     internal required LabFixture Fixture { get; init; }
 
-    internal List<JsonObject> Pawns { get; } = [];
+    internal List<Fx.StagedPawn> Pawns { get; } = [];
 
     /// <summary>The staged things' load ids, spec order.</summary>
     internal List<string> Things { get; } = [];
@@ -20,9 +21,7 @@ internal sealed class StagedFixture
 
     internal List<string> Rows { get; } = [];
 
-    internal string Faction { get; init; } = "";
-
-    /// <summary>The seed test/lab_stage echoed back.</summary>
+    /// <summary>The seed test/stage echoed back.</summary>
     internal int Seed { get; init; }
 
     /// <summary>The lab wipe's centre the fixture was built around.</summary>
@@ -50,7 +49,7 @@ internal sealed class StagedFixture
         {
             if (Fixture.Pawns[i].Side == side)
             {
-                output.Add(Pawns[i]["id"].AsString());
+                output.Add(Pawns[i].Id);
             }
         }
 
@@ -98,42 +97,24 @@ internal static class CombatStage
             edit(f, cx, cz);
         }
 
-        var spec = f.ToJson().ToJsonString();
-        var reply = await h.CallAsync("combatlab-stage-" + name, CombatFixtures.StageTool, new JsonObject { ["spec"] = spec }, cancellationToken).ConfigureAwait(false);
-        if (reply["success"].AsBool() != true)
+        var reply = await FixtureStage.ApplyAsync(h, "combatlab-stage-" + name, f.ToSpec(), cancellationToken).ConfigureAwait(false);
+        if (reply.Pawns.Count != f.Pawns.Count)
         {
-            throw new AcceptanceException($"{CombatFixtures.StageTool} {name} refused: {reply.ToJson()}");
+            throw new AcceptanceException($"{FixtureStage.Tool} {name}: {reply.Pawns.Count} pawns read back, want {f.Pawns.Count}");
         }
 
-        var rows = reply["pawns"].AsSlice();
-        if (rows.Count != f.Pawns.Count)
-        {
-            throw new AcceptanceException($"{CombatFixtures.StageTool} {name}: {rows.Count} pawns read back, want {f.Pawns.Count}");
-        }
-
-        var seed = (int)reply["seed"].AsNumber();
-        var output = new StagedFixture
-        {
-            Fixture = f,
-            Digest = reply["digest"].AsString(),
-            Faction = reply["faction"].AsString(),
-            Seed = seed,
-            Center = new LabCell(cx, cz),
-        };
+        var output = new StagedFixture { Fixture = f, Digest = reply.Digest, Seed = reply.Seed, Center = new LabCell(cx, cz) };
         if (output.Seed != f.Seed)
         {
-            throw new AcceptanceException($"{CombatFixtures.StageTool} {name}: staged under seed {output.Seed}, want {f.Seed}");
+            throw new AcceptanceException($"{FixtureStage.Tool} {name}: staged under seed {output.Seed}, want {f.Seed}");
         }
 
-        foreach (var r in reply["digestRows"].AsSlice())
-        {
-            output.Rows.Add(r.AsString());
-        }
-
+        output.Rows.AddRange(reply.DigestRows);
+        var lord = f.Siege is not null ? "LordJob_Siege" : "LordJob_AssaultColony";
         for (var i = 0; i < f.Pawns.Count; i++)
         {
-            var row = rows[i].AsMap() ?? [];
-            var lord = f.Siege is not null ? "LordJob_Siege" : "LordJob_AssaultColony";
+            var row = reply.Pawns.GetValueOrDefault(LabFixture.PawnName(i))
+                ?? throw new AcceptanceException($"{FixtureStage.Tool} {name}: pawn {i} not read back");
             try
             {
                 CheckPawn(f.Pawns[i], row, lord);
@@ -146,15 +127,11 @@ internal static class CombatStage
             output.Pawns.Add(row);
         }
 
-        var things = reply["things"].AsSlice();
-        if (things.Count != f.Things.Count)
+        for (var i = 0; i < f.Things.Count; i++)
         {
-            throw new AcceptanceException($"{CombatFixtures.StageTool} {name}: {things.Count} things staged, want {f.Things.Count}");
-        }
-
-        foreach (var t in things)
-        {
-            output.Things.Add((t.AsMap() ?? [])["id"].AsString());
+            var key = LabFixture.ThingName(i);
+            var made = reply.Buildings.GetValueOrDefault(key) ?? reply.Things.GetValueOrDefault(key);
+            output.Things.Add(made is { Ids.Count: > 0 } ? made.Ids[0] : throw new AcceptanceException($"{FixtureStage.Tool} {name}: thing {i} not staged"));
         }
 
         return output;
@@ -174,7 +151,7 @@ internal static class CombatStage
         var spec = new JsonObject { ["seed"] = seed }.ToJsonString();
         var reply = await h.CallAsync(
             "combatlab-reseed-" + seed.ToString(CultureInfo.InvariantCulture),
-            CombatFixtures.StageTool,
+            CombatFixtures.LabTool,
             new JsonObject { ["action"] = "reseed", ["spec"] = spec },
             cancellationToken).ConfigureAwait(false);
         return ParseReseed(reply, seed);
@@ -185,13 +162,13 @@ internal static class CombatStage
     {
         if (reply["success"].AsBool() != true)
         {
-            throw new AcceptanceException($"{CombatFixtures.StageTool} reseed {seed} refused: {reply.ToJson()}");
+            throw new AcceptanceException($"{CombatFixtures.LabTool} reseed {seed} refused: {reply.ToJson()}");
         }
 
         var got = (int)reply["seed"].AsNumber();
         if (got != seed)
         {
-            throw new AcceptanceException($"{CombatFixtures.StageTool} reseeded under {got}, want {seed}");
+            throw new AcceptanceException($"{CombatFixtures.LabTool} reseeded under {got}, want {seed}");
         }
 
         var draws = new List<int>();
@@ -201,7 +178,7 @@ internal static class CombatStage
         }
 
         return draws.Count == 0
-            ? throw new AcceptanceException($"{CombatFixtures.StageTool} reseed {seed} read back no draws: {reply.ToJson()}")
+            ? throw new AcceptanceException($"{CombatFixtures.LabTool} reseed {seed} read back no draws: {reply.ToJson()}")
             : draws;
     }
 
@@ -218,10 +195,10 @@ internal static class CombatStage
 
     private static async Task<(Dictionary<string, LabPosition> Pawns, int Tick)> ReadCoreAsync(Harness h, JsonObject args, CancellationToken cancellationToken)
     {
-        var reply = await h.CallAsync("combatlab-" + args["action"].AsString(), CombatFixtures.StageTool, args, cancellationToken).ConfigureAwait(false);
+        var reply = await h.CallAsync("combatlab-" + args["action"].AsString(), CombatFixtures.LabTool, args, cancellationToken).ConfigureAwait(false);
         if (reply["success"].AsBool() != true)
         {
-            throw new AcceptanceException($"{CombatFixtures.StageTool} read refused: {reply.ToJson()}");
+            throw new AcceptanceException($"{CombatFixtures.LabTool} read refused: {reply.ToJson()}");
         }
 
         var output = new Dictionary<string, LabPosition>(StringComparer.Ordinal);
@@ -301,61 +278,48 @@ internal static class CombatStage
         return string.Join("; ", only);
     }
 
-    private static void CheckPawn(LabPawn want, JsonObject got, string lord)
+    private static void CheckPawn(LabPawn want, Fx.StagedPawn got, string lord)
     {
-        var wantX = want.X;
-        var wantZ = want.Z;
-
         // A pod hostile lands where its arrival mode drops the pod.
-        if (got["inPod"].AsBool() == true)
+        var wantCell = got.Spawned ? new Fx.StageCell(want.X, want.Z) : got.Cell;
+        if (got.Cell != wantCell)
         {
-            wantX = (int)got["x"].AsNumber();
-            wantZ = (int)got["z"].AsNumber();
+            throw new AcceptanceException($"at {got.Cell.X},{got.Cell.Z}, want {wantCell.X},{wantCell.Z}: {got}");
         }
 
-        var j = want.Jitter;
-        var x = (int)got["x"].AsNumber();
-        var z = (int)got["z"].AsNumber();
-        if (x < wantX - j || x > wantX + j || z < wantZ - j || z > wantZ + j)
+        if ((got.Weapon ?? "") != want.Weapon)
         {
-            throw new AcceptanceException($"at {x},{z}, want {wantX},{wantZ}: {got.ToJson()}");
+            throw new AcceptanceException($"weapon {got.Weapon}, want {want.Weapon}");
         }
 
-        if (got["side"].AsString() != want.Side)
-        {
-            throw new AcceptanceException($"side {got["side"].AsString()}, want {want.Side}");
-        }
-
-        if (got["weapon"].AsString() != want.Weapon)
-        {
-            throw new AcceptanceException($"weapon {got["weapon"].AsString()}, want {want.Weapon}");
-        }
-
-        var hostile = got["hostile"].AsBool() == true;
         var wantHostile = want.Side is CombatFixtures.Hostile or CombatFixtures.Manhunter or CombatFixtures.Mech;
-        if (hostile != wantHostile)
+        if (got.Hostile != wantHostile)
         {
-            throw new AcceptanceException($"hostile {hostile} for side {want.Side}");
+            throw new AcceptanceException($"hostile {got.Hostile} for side {want.Side}");
+        }
+
+        if (got.Prisoner != (want.Side == CombatFixtures.Prisoner))
+        {
+            throw new AcceptanceException($"prisoner {got.Prisoner} for side {want.Side}");
         }
 
         if (want.Side == CombatFixtures.Hostile)
         {
-            if (got["lordJob"].AsString() != lord)
+            if (got.LordJob != lord)
             {
-                throw new AcceptanceException($"lord job {got["lordJob"].AsString()}, want {lord}");
+                throw new AcceptanceException($"lord job {got.LordJob}, want {lord}");
             }
 
-            var n = (int)got["apparel"].AsNumber();
-            if (n != 0)
+            var wantWorn = want.Apparel.Length > 0 ? 1 : 0;
+            if (got.Worn.Count != wantWorn)
             {
-                throw new AcceptanceException($"hostile wears {n} apparel, want none");
+                throw new AcceptanceException($"hostile wears {got.Worn.Count} apparel, want {wantWorn}");
             }
         }
 
-        var health = got["health"].AsNumber();
-        if (health < 0.999)
+        if (got.Health < 0.999)
         {
-            throw new AcceptanceException($"health {health.ToString("0.000", CultureInfo.InvariantCulture)}, want full");
+            throw new AcceptanceException($"health {got.Health.ToString("0.000", CultureInfo.InvariantCulture)}, want full");
         }
     }
 }

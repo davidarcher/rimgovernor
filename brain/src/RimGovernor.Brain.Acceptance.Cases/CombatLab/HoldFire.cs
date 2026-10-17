@@ -15,7 +15,7 @@ internal static class CombatLabHoldFire
             + "one ordered stop and fire_mode hold, the other ordered to attack; the attacker fires and the held one fires no shot over at least 600 ticks, "
             + "then fire_mode at_will and the formerly held one fires within 1200 ticks.",
         Start = new LabStart { Colonists = 4 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },

@@ -37,7 +37,7 @@ public static class CombatLabResume
         Scope = "Defenders stay drafted through a --resume restart (#916): lab-choke served by the routine defense planner under --resume until its fight drafts a roster, "
             + "the controller killed and restarted on the same journal; once the restarted controller is back in automate every standing defender is still on the fight's roster, and each reads drafted in the game.",
         Start = new LabStart { Colonists = 5 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool, CombatServe.PauseModeTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool, CombatServe.PauseModeTool],
         QuietWorld = true,
 
         // A checkpoint capture pauses the served game mid-fight.

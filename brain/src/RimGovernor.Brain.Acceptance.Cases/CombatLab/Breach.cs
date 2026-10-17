@@ -14,7 +14,7 @@ internal static class CombatLabBreach
         Scope = "The sapper Mine job on lab-breach (#1149, #913-#915): a sapper raid staged against a doorless walled room digs in, and a frame's combat_pawns row "
             + "reads a raider's job Mine while it stands against the wall outside the room, within 3000 ticks. Native because the job is vanilla's sapper AI digging, not a recorded fact.",
         Start = new LabStart { Colonists = 3 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },

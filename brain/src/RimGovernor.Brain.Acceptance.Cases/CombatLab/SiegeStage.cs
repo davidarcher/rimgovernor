@@ -17,12 +17,12 @@ internal static class CombatLabSiegeStage
     internal static AcceptanceCase Case() => new()
     {
         Name = "combatlab/siege-stage",
-        Scope = "The lab_stage siege option (#1147) and the siege fight's native facts (#1154): lab-siege stages its raiders under a real LordJob_Siege at the camp spot; within "
+        Scope = "The stage spec's siege raid (#1147) and the siege fight's native facts (#1154): lab-siege stages its raiders under a real LordJob_Siege at the camp spot; within "
             + "10,000 ticks the lord is in LordToil_Siege and at least one raider works a FinishFrame job on a camp frame. While camped, the combat frame's "
             + "emergency census lists an engaging besieger at least 25 cells from every colonist (the fight is open while the camp is far away), and a drafted "
             + "colonist's attack order on the builder's frame applies as AttackStatic on that frame.",
         Start = new LabStart { Colonists = 3 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },

@@ -14,7 +14,7 @@ internal static class WallClearedRoom
             "a wall of a room straddling the ground's edge is admitted and held by the roof-support wait. A Go snapshot test cannot see vanilla room " +
             "geometry, the NoRoof area work or the native job guard.",
         Start = new LabStart(),
-        RequiredOps = [DebugGame.LabSpawnTool, CombatFixtures.StageTool, "test/deconstruct_target"],
+        RequiredOps = [DebugGame.LabSpawnTool, FixtureStage.Tool, "test/deconstruct_target"],
         QuietWorld = true,
         Budget = TimeSpan.FromMinutes(5),
         Crew = new Crew { Size = 3 },

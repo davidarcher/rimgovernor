@@ -1199,7 +1199,7 @@ planner sells the products from stock. No depot or room is sited for them; see
 The `production/ladder` case (`acceptance run production/ladder`, `brain/src/RimGovernor.Brain.Acceptance.Cases/Production`) opens the
 Core tribal baseline; `test/production_ladder_prepare` stages a roofed
 starter hut with a sleeping spot per colonist (the room the workshop rung
-furnishes, `scripts/fixtures/FixtureHut.cs`), a simple research bench inside
+furnishes, `scripts/fixtures/FixtureKit.cs`), a simple research bench inside
 it with a fueled generator, steel, wood and the bench's 12 components loose
 beside its door and Fabrication at 97%; the default component floor (10)
 drives the ladder, and the case requires live native evidence for every rung:

@@ -35,7 +35,7 @@ internal static class AnomalyHorror
         Start = new LabStart { Colonists = 4 },
         Expansions = ["ludeon.rimworld.anomaly"],
         NoKeep = true,
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool, LetterPauseModeTool, IncidentTool, InspectTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool, LetterPauseModeTool, IncidentTool, InspectTool],
         QuietWorld = true,
 
         // A checkpoint capture pauses the served game mid-fight.

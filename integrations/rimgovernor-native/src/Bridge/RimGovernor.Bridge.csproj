@@ -59,6 +59,13 @@
     <Compile Include="../../../../scripts/fixtures/QuietStorytellerFixture.cs" Condition="'$(QuietStorytellerFixture)' == 'true'" />
     <!-- The native build (NativeModBuild) adds QuietStorytellerFixture, DebugStartFixture, LetterFixture and FreezeNeedsFixture to every fixture build; the extra conditions cover direct dotnet builds of the fixtures that call into them. -->
     <Compile Include="../../../../scripts/fixtures/DebugStartFixture.cs" Condition="'$(DebugStartFixture)' == 'true'" />
+    <!-- The shared fixture primitives and test/stage (#3393). The stage spec's contract records are compiled in from
+         their sources, not referenced as a project: this project restores locked (packages.lock.json records project
+         references), so a reference present in fixture builds only would break the production build's restore. The
+         production build carries none of them, which NativeModBuild checks on the built assembly. -->
+    <Compile Include="../../../../scripts/fixtures/FixtureKit.cs" Condition="'$(DebugStartFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/StageFixture.cs" Condition="'$(DebugStartFixture)' == 'true'" />
+    <Compile Include="../../../../brain/src/RimGovernor.Fixtures.Contracts/*.cs" Condition="'$(DebugStartFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HuntingPredictionFixture.cs" Condition="'$(DebugStartFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LetterFixture.cs" Condition="'$(LetterFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DialogFixture.cs" Condition="'$(DialogFixture)' == 'true'" />
@@ -108,7 +115,6 @@
     <Compile Include="../../../../scripts/fixtures/PlanStageFixture.cs" Condition="'$(PlanStageFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RecoveryAreaFixture.cs" Condition="'$(RecoveryAreaFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BedAssignFixture.cs" Condition="'$(BedAssignFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/ZoneDeleteFixture.cs" Condition="'$(ZoneDeleteFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/StartupLaborFixture.cs" Condition="'$(StartupLaborFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BuriedSteelFixture.cs" Condition="'$(BuriedSteelFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ArtFixture.cs" Condition="'$(ArtFixture)' == 'true'" />
@@ -133,7 +139,6 @@
     <Compile Include="../../../../scripts/fixtures/TrainingFixture.cs" Condition="'$(TrainingFixture)' == 'true' Or '$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SparringFixture.cs" Condition="'$(SparringFixture)' == 'true' Or '$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SparringWatchFixture.cs" Condition="'$(SparringWatchFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/FixtureHut.cs" Condition="'$(PawnControlFixture)' == 'true' Or '$(ProductionLadderFixture)' == 'true' Or '$(GearFixture)' == 'true' Or '$(MoodFixture)' == 'true' Or '$(SubdueFixture)' == 'true' Or '$(LayoutGridFixture)' == 'true' Or '$(UpkeepFixture)' == 'true' Or '$(ShelterFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LightingFixture.cs" Condition="'$(LightingFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FlooringFixture.cs" Condition="'$(FlooringFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RoutesFixture.cs" Condition="'$(RoutesFixture)' == 'true'" />

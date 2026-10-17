@@ -1,4 +1,4 @@
-using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -19,27 +19,29 @@ internal sealed class FixtureThing
     /// <summary>When set, stages the building damaged.</summary>
     internal int HitPoints { get; set; }
 
-    internal JsonObject ToJson()
+    /// <summary>An item (a chunk, a shell) rather than a building: the stage spec spawns it as a thing.</summary>
+    internal bool Item { get; set; }
+
+    /// <summary>This entry as the stage spec's building or thing named <paramref name="name"/>.</summary>
+    internal void AddTo(string name, List<Fx.StageBuilding> buildings, List<Fx.StageThing> things)
     {
-        var o = new JsonObject { ["def"] = Def };
-        if (Stuff.Length > 0)
+        var cell = new Fx.StageCell(X, Z);
+        var stuff = Stuff.Length > 0 ? Stuff : null;
+        if (Item)
         {
-            o["stuff"] = Stuff;
+            things.Add(new Fx.StageThing { Name = name, Def = Def, Stuff = stuff, Cell = cell });
+            return;
         }
 
-        o["x"] = X;
-        o["z"] = Z;
-        if (Hostile)
+        buildings.Add(new Fx.StageBuilding
         {
-            o["hostile"] = true;
-        }
-
-        if (HitPoints != 0)
-        {
-            o["hitPoints"] = HitPoints;
-        }
-
-        return o;
+            Name = name,
+            Def = Def,
+            Stuff = stuff,
+            Cells = [cell],
+            Faction = Hostile ? Fx.StageFaction.Hostile : Fx.StageFaction.Player,
+            HitPoints = HitPoints,
+        });
     }
 }
 
@@ -81,81 +83,51 @@ internal sealed class LabPawn
     /// <summary>Stuns the pawn directly for that many ticks.</summary>
     internal int StunTicks { get; set; }
 
-    /// <summary>Lets a seeded staging move a spawned hostile up to this many cells from X,Z; 0 pins it.</summary>
-    internal int Jitter { get; set; }
-
-    internal JsonObject ToJson()
+    /// <summary>
+    /// This combatant as the stage spec's pawn named <paramref name="name"/>: a side is a faction and the fixed staging
+    /// the combat lab gives it (hostiles and prisoners an adult of 30, no traits, Shooting and Melee 8 varied by a seed,
+    /// stripped of their own gear; animals 3 years old).
+    /// </summary>
+    internal Fx.StagePawn ToSpec(string name)
     {
-        var o = new JsonObject { ["side"] = Side, ["index"] = Index };
-        if (Kind.Length > 0)
+        var gear = new Fx.StageGear
         {
-            o["kind"] = Kind;
-        }
-
-        o["x"] = X;
-        o["z"] = Z;
-        if (Weapon.Length > 0)
+            Weapon = Weapon.Length > 0 ? Weapon : null,
+            WeaponStuff = WeaponStuff.Length > 0 ? WeaponStuff : null,
+            Apparel = Apparel.Length > 0 ? [Apparel] : [],
+            Inventory = Inventory,
+            Strip = Side is CombatFixtures.Hostile or CombatFixtures.Prisoner,
+        };
+        var pawn = new Fx.StagePawn
         {
-            o["weapon"] = Weapon;
-        }
-
-        if (WeaponStuff.Length > 0)
+            Name = name,
+            Cell = new Fx.StageCell(X, Z),
+            Gear = gear,
+            Downed = Downed,
+            Hediffs = Hediffs,
+            Injured = Injured,
+            StunTicks = StunTicks,
+        };
+        return Side switch
         {
-            o["weaponStuff"] = WeaponStuff;
-        }
-
-        if (Downed)
-        {
-            o["downed"] = true;
-        }
-
-        if (Hediffs.Count > 0)
-        {
-            o["hediffs"] = Strings(Hediffs);
-        }
-
-        if (Apparel.Length > 0)
-        {
-            o["apparel"] = Apparel;
-        }
-
-        if (Trained.Count > 0)
-        {
-            o["trained"] = Strings(Trained);
-        }
-
-        if (Injured)
-        {
-            o["injured"] = true;
-        }
-
-        if (Inventory.Count > 0)
-        {
-            o["inventory"] = Strings(Inventory);
-        }
-
-        if (StunTicks != 0)
-        {
-            o["stunTicks"] = StunTicks;
-        }
-
-        if (Jitter != 0)
-        {
-            o["jitter"] = Jitter;
-        }
-
-        return o;
-    }
-
-    private static JsonArray Strings(List<string> values)
-    {
-        var array = new JsonArray();
-        foreach (var value in values)
-        {
-            array.Add(value);
-        }
-
-        return array;
+            CombatFixtures.Colonist => pawn with { Colonist = Index },
+            CombatFixtures.Hostile or CombatFixtures.Prisoner => pawn with
+            {
+                Kind = Kind,
+                Faction = Fx.StageFaction.Hostile,
+                Prisoner = Side == CombatFixtures.Prisoner,
+                Age = 30,
+                Traits = [],
+                SkillLevel = 8,
+                SkillSpread = 2,
+            },
+            CombatFixtures.Insect => pawn with { Kind = Kind, Faction = Fx.StageFaction.Insect },
+            CombatFixtures.Mech => pawn with { Kind = Kind, Faction = Fx.StageFaction.Mechanoid },
+            CombatFixtures.Animal => pawn with { Kind = Kind, Faction = Fx.StageFaction.Player, Age = 3, Trained = Trained },
+            CombatFixtures.Manhunter => pawn with { Kind = Kind, Faction = Fx.StageFaction.None, Age = 3, Manhunter = true },
+            CombatFixtures.Wild => pawn with { Kind = Kind, Faction = Fx.StageFaction.None, Age = 3 },
+            _ => throw new AcceptanceException($"combatlab: unknown side \"{Side}\""),
+        };
     }
 }
 
@@ -213,54 +185,47 @@ internal sealed class LabFixture
 
     internal LabLayout? Layout { get; set; }
 
-    /// <summary>The wire spec test/lab_stage takes (Go <c>json.Marshal(fixture)</c>).</summary>
-    internal JsonObject ToJson()
+    /// <summary>
+    /// The stage spec test/stage applies (#3393), on absolute cells: pawn i is named <c>p{i}</c> and thing i
+    /// <c>t{i}</c>, so the reply reads back in fixture order.
+    /// </summary>
+    internal Fx.StageSpec ToSpec()
     {
-        var things = new JsonArray();
-        foreach (var t in Things)
+        var buildings = new List<Fx.StageBuilding>();
+        var things = new List<Fx.StageThing>();
+        for (var i = 0; i < Things.Count; i++)
         {
-            things.Add(t.ToJson());
+            Things[i].AddTo(ThingName(i), buildings, things);
         }
 
-        var pawns = new JsonArray();
-        foreach (var p in Pawns)
+        var roof = Roof is null
+            ? []
+            : new List<Fx.StageCells> { new() { Rect = new Fx.StageRect(Roof.MinX, Roof.MinZ, Roof.MaxX - Roof.MinX + 1, Roof.MaxZ - Roof.MinZ + 1), Roof = Roof.Def } };
+        var raid = Arrival.Length > 0 || Siege is not null || PrisonBreak || Sappers
+            ? new Fx.StageRaid
+            {
+                Arrival = Arrival.Length > 0 ? Arrival : null,
+                Sappers = Sappers,
+                Siege = Siege is null ? null : new Fx.StageSiege(new Fx.StageCell(Siege.X, Siege.Z), (float)Siege.Points),
+                PrisonBreak = PrisonBreak,
+            }
+            : null;
+        return new Fx.StageSpec
         {
-            pawns.Add(p.ToJson());
-        }
-
-        var o = new JsonObject { ["things"] = things, ["pawns"] = pawns };
-        if (Arrival.Length > 0)
-        {
-            o["arrival"] = Arrival;
-        }
-
-        if (Roof is not null)
-        {
-            o["roof"] = new JsonObject { ["def"] = Roof.Def, ["minX"] = Roof.MinX, ["minZ"] = Roof.MinZ, ["maxX"] = Roof.MaxX, ["maxZ"] = Roof.MaxZ };
-        }
-
-        if (Siege is not null)
-        {
-            o["siege"] = new JsonObject { ["x"] = Siege.X, ["z"] = Siege.Z, ["points"] = Siege.Points };
-        }
-
-        if (PrisonBreak)
-        {
-            o["prisonBreak"] = true;
-        }
-
-        if (Sappers)
-        {
-            o["sappers"] = true;
-        }
-
-        if (Seed != 0)
-        {
-            o["seed"] = Seed;
-        }
-
-        return o;
+            Seed = Seed,
+            Cells = roof,
+            Buildings = buildings,
+            Things = things,
+            Pawns = [.. Pawns.Select((p, i) => p.ToSpec(PawnName(i)))],
+            Raid = raid,
+        };
     }
+
+    /// <summary>Pawn <paramref name="i"/>'s name in <see cref="ToSpec"/>.</summary>
+    internal static string PawnName(int i) => "p" + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>Thing <paramref name="i"/>'s name in <see cref="ToSpec"/>.</summary>
+    internal static string ThingName(int i) => "t" + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }
 
 /// <summary>
@@ -270,7 +235,7 @@ internal sealed class LabFixture
 internal static class CombatFixtures
 {
     /// <summary>Stages a fixture spec on a wiped lab.</summary>
-    internal const string StageTool = "test/lab_stage";
+    internal const string LabTool = "test/lab_stage";
 
     internal const string Colonist = "colonist";
     internal const string Hostile = "hostile";
@@ -346,6 +311,8 @@ internal static class CombatFixtures
         new() { Side = side, Index = index, Kind = kind, X = x, Z = z, Weapon = weapon, WeaponStuff = weaponStuff };
 
     private static FixtureThing T(string def, int x, int z, string stuff = "") => new() { Def = def, Stuff = stuff, X = x, Z = z };
+
+    private static FixtureThing I(string def, int x, int z) => new() { Def = def, X = x, Z = z, Item = true };
 
     // horror: lab-ranged's four riflemen behind its sandbag line and no hostile; the case fires an Anomaly incident.
     private static LabFixture Horror(int cx, int cz)
@@ -467,7 +434,7 @@ internal static class CombatFixtures
         var f = new LabFixture { Name = "lab-open", Colonists = 3 };
         foreach (var dx in new[] { -3, -1, 1, 3 })
         {
-            f.Things.Add(T("ChunkGranite", cx + dx, cz - 9));
+            f.Things.Add(I("ChunkGranite", cx + dx, cz - 9));
         }
 
         var i = 0;
@@ -487,7 +454,7 @@ internal static class CombatFixtures
         var f = new LabFixture { Name = "lab-split-ranged", Colonists = 4 };
         foreach (var dx in new[] { -3, -1, 1, 3 })
         {
-            f.Things.Add(T("ChunkGranite", cx + dx, cz - 9));
+            f.Things.Add(I("ChunkGranite", cx + dx, cz - 9));
         }
 
         f.Layout = new LabLayout { Toward = "south" };
@@ -578,8 +545,8 @@ internal static class CombatFixtures
     {
         var f = new LabFixture { Name = "lab-siege", Colonists = 3 };
         f.Things.Add(T("Turret_Mortar", cx, cz + SiegeOurMortar));
-        f.Things.Add(T("Shell_HighExplosive", cx + 2, cz + SiegeOurMortar - 1));
-        f.Things.Add(T("Shell_EMP", cx - 2, cz + SiegeOurMortar - 1));
+        f.Things.Add(I("Shell_HighExplosive", cx + 2, cz + SiegeOurMortar - 1));
+        f.Things.Add(I("Shell_EMP", cx - 2, cz + SiegeOurMortar - 1));
         f.Siege = new LabSiege(cx, cz + SiegeCampMortar, SiegePoints);
         var i = 0;
         foreach (var dx in new[] { -2, 0, 2 })

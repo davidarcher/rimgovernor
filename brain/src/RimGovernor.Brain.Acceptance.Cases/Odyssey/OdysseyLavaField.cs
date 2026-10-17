@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using P = RimGovernor.Brain.Policy;
+using Fx = RimGovernor.Fixtures.Contracts;
 using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -16,7 +17,7 @@ internal static class OdysseyLavaField
     // The ticks the field planner is given after the layout plan is recorded (the hourly layout trigger).
     private const ulong FieldHour = 2500;
 
-    // The hazard patch is the 16x16 block, laid as one test/lab_stage terrain rectangle, whose south-west corner is PatchOffset cells east and
+    // The hazard patch is the 16x16 block, laid as one test/stage set-cells rectangle, whose south-west corner is PatchOffset cells east and
     // PatchHalf south of the lab's centre: beside the colonists' start, inside the plan's reach.
     private const int PatchSize = 16;
     private const int PatchOffset = 5;
@@ -32,7 +33,7 @@ internal static class OdysseyLavaField
             + "terrain now at the cell (NativeOdysseyColony.IsHazard on the live TerrainGrid), and the zones and buildings are the game's "
             + "own state after the controller's writes; the planner's refusal of hazard cells replays offline in "
             + "policy TestZoningKeepsHazardOffCoreFieldPasture. No eruption is fired: no existing test op fires one.",
-        Start = new FixtureStart { Op = CombatFixtures.StageTool, ArgsFrom = PatchArgsAsync, On = new LabStart() },
+        Start = new FixtureStart { Op = FixtureStage.Tool, ArgsFrom = PatchArgsAsync, On = new LabStart() },
 
         // The Odyssey profile needs its own process.
         Expansions = ["ludeon.rimworld.odyssey"],
@@ -94,30 +95,15 @@ internal static class OdysseyLavaField
         }
 
         var centre = LabWorld.LabMapSize / 2;
-        var spec = new JsonObject
-        {
-            ["terrain"] = new JsonObject
-            {
-                ["def"] = burning[0],
-                ["minX"] = centre + PatchOffset,
-                ["minZ"] = centre - PatchHalf,
-                ["maxX"] = centre + PatchOffset + PatchSize - 1,
-                ["maxZ"] = centre - PatchHalf + PatchSize - 1,
-            },
-        };
-        return new JsonObject { ["spec"] = spec.ToJsonString() };
+        var patch = new Fx.StageCells { Rect = new Fx.StageRect(centre + PatchOffset, centre - PatchHalf, PatchSize, PatchSize), Terrain = burning[0] };
+        return FixtureStage.Args(new Fx.StageSpec { Cells = [patch] });
     }
 
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
     {
         var report = s.Report;
-        var prepared = s.Prepared ?? [];
-        if (prepared["success"].AsBool() != true)
-        {
-            throw new AcceptanceException($"{CombatFixtures.StageTool} refused: {prepared.ToJson()}");
-        }
-
-        report["fixture"] = prepared.DeepClone();
+        _ = FixtureStage.Prepared(s);
+        report["fixture"] = s.Prepared?.DeepClone();
         await ServeFieldsAsync(s, cancellationToken).ConfigureAwait(false);
         var h = s.Reattach();
         _ = await h.CallAsync("pause", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);

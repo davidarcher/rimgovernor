@@ -65,6 +65,8 @@ public static partial class NativeSourceInputs
         new("brain/src/RimGovernor.Brain.BuildingRuntime", "brain/src/RimGovernor.Brain.BuildingRuntime", NotBuildOutput),
         new("brain/src/RimGovernor.Brain.PlayerApi", "brain/src/RimGovernor.Brain.PlayerApi", NotBuildOutput),
         new("brain/src/RimGovernor.Brain.Simulation", "brain/src/RimGovernor.Brain.Simulation", NotBuildOutput),
+        // The stage spec records fixture builds compile in from source (#3393).
+        new("brain/src/RimGovernor.Fixtures.Contracts", "brain/src/RimGovernor.Fixtures.Contracts", NotBuildOutput),
         new("scripts/fixtures", "scripts/fixtures", FixtureSource),
         new("THIRD_PARTY.md", "THIRD_PARTY.md"),
     ];

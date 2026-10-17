@@ -84,10 +84,10 @@ internal static class LabOps
     /// <summary><see cref="TickReadAsync"/> over <paramref name="n"/> ticks.</summary>
     internal static async Task<LabState> TickReadNAsync(Harness h, int n, CancellationToken cancellationToken)
     {
-        var reply = await h.CallAsync("combat-orders-tick", CombatFixtures.StageTool, new JsonObject { ["action"] = "tick", ["ticks"] = n }, cancellationToken).ConfigureAwait(false);
+        var reply = await h.CallAsync("combat-orders-tick", CombatFixtures.LabTool, new JsonObject { ["action"] = "tick", ["ticks"] = n }, cancellationToken).ConfigureAwait(false);
         if (reply["success"].AsBool() != true)
         {
-            throw new AcceptanceException($"{CombatFixtures.StageTool} tick refused: {reply.ToJson()}");
+            throw new AcceptanceException($"{CombatFixtures.LabTool} tick refused: {reply.ToJson()}");
         }
 
         var output = new LabState { Doors = reply["doors"].AsSlice() };

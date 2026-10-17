@@ -19,6 +19,7 @@
 | [brain/src/RimGovernor.Brain.Snapshot](../../brain/src/RimGovernor.Brain.Snapshot) | Recorded-fact planner regression support |
 | [brain/src/RimGovernor.Brain.Telemetry](../../brain/src/RimGovernor.Brain.Telemetry) | OTLP file telemetry: decisions, events, spans and metrics |
 | [brain/src/RimGovernor.Brain.Acceptance](../../brain/src/RimGovernor.Brain.Acceptance), [Acceptance.Cases](../../brain/src/RimGovernor.Brain.Acceptance.Cases) | Acceptance harness (`RimGovernor.cmd acceptance`), case registry, fixtures and gameplay evidence |
+| [brain/src/RimGovernor.Fixtures.Contracts](../../brain/src/RimGovernor.Fixtures.Contracts) | The typed stage spec and reply of `test/stage`: the harness references it, fixture builds of the mod compile it in, production never does |
 | [brain/src/RimGovernor.Brain.RemoteAccept](../../brain/src/RimGovernor.Brain.RemoteAccept), [RemoteBundle](../../brain/src/RimGovernor.Brain.RemoteBundle) | Remote acceptance evidence and encrypted bundles |
 | [brain/analyzers](../../brain/analyzers) | Architecture gates: Roslyn analyzers `RGARCH001`-`009`; baselined gates are shrink-only, construction tiers and live Method stages have no baseline |
 | [brain/tests](../../brain/tests) | Bug-driven xUnit tests |

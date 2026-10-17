@@ -20,7 +20,7 @@ internal static class CombatLabDoorHold
             + "one combat.orders call forbids the door and zones both huskies onto a cell outside it (both applied). For 600 ticks, while the wargs are on the map, "
             + "both huskies stay inside the room and the door reads forbidden; a second call allows the door and a husky then walks out to its area within 600 ticks.",
         Start = new LabStart { Colonists = 1 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
 
         // The wargs are manhunters pressing on the room; a quiet world would freeze them (AcceptanceWorld.WildAnimal) and the hold would prove nothing.
         QuietWorld = false,

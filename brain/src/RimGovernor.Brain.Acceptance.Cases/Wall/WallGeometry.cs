@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -44,20 +45,13 @@ internal static class WallGeometry
         return array;
     }
 
-    /// <summary>Stages a constructed roof over the rectangle <paramref name="cells"/> span through test/lab_stage.</summary>
-    internal static Task RoofAsync(Harness h, string label, IReadOnlyCollection<WallCell> cells, CancellationToken cancellationToken)
-    {
-        var (min, max) = Bounds(cells);
-        return StageAsync(h, label, new LabFixture { Roof = new LabRoof("RoofConstructed", min.X, min.Z, max.X, max.Z) }.ToJson(), cancellationToken);
-    }
+    /// <summary>Stages a constructed roof over the rectangle <paramref name="cells"/> span through test/stage.</summary>
+    internal static Task RoofAsync(Harness h, string label, IReadOnlyCollection<WallCell> cells, CancellationToken cancellationToken) =>
+        FixtureStage.ApplyAsync(h, label, new Fx.StageSpec { Cells = [new() { Rect = Span(cells), Roof = "RoofConstructed" }] }, cancellationToken);
 
-    /// <summary>Lays the terrain <paramref name="def"/> over the rectangle <paramref name="cells"/> span through test/lab_stage.</summary>
-    internal static Task LayTerrainAsync(Harness h, string label, IReadOnlyCollection<WallCell> cells, string def, CancellationToken cancellationToken)
-    {
-        var (min, max) = Bounds(cells);
-        var spec = new JsonObject { ["terrain"] = new JsonObject { ["def"] = def, ["minX"] = min.X, ["minZ"] = min.Z, ["maxX"] = max.X, ["maxZ"] = max.Z } };
-        return StageAsync(h, label, spec, cancellationToken);
-    }
+    /// <summary>Lays the terrain <paramref name="def"/> over the rectangle <paramref name="cells"/> span through test/stage.</summary>
+    internal static Task LayTerrainAsync(Harness h, string label, IReadOnlyCollection<WallCell> cells, string def, CancellationToken cancellationToken) =>
+        FixtureStage.ApplyAsync(h, label, new Fx.StageSpec { Cells = [new() { Rect = Span(cells), Terrain = def }] }, cancellationToken);
 
     /// <summary>How many of <paramref name="cells"/> the cells read shows roofed.</summary>
     internal static async Task<int> RoofedAsync(ISession s, string label, IReadOnlyCollection<WallCell> cells, CancellationToken cancellationToken) =>
@@ -81,13 +75,10 @@ internal static class WallGeometry
             ? throw new AcceptanceException("no cells")
             : (new Cell(cells.Min(c => c.X), cells.Min(c => c.Z)), new Cell(cells.Max(c => c.X), cells.Max(c => c.Z)));
 
-    private static async Task StageAsync(Harness h, string label, JsonObject spec, CancellationToken cancellationToken)
+    private static Fx.StageRect Span(IReadOnlyCollection<WallCell> cells)
     {
-        var reply = await h.CallAsync(label, CombatFixtures.StageTool, new JsonObject { ["spec"] = spec.ToJsonString() }, cancellationToken).ConfigureAwait(false);
-        if (reply["success"].AsBool() != true)
-        {
-            throw new AcceptanceException($"{label}: {reply.ToJson()}");
-        }
+        var (min, max) = Bounds(cells);
+        return new Fx.StageRect(min.X, min.Z, max.X - min.X + 1, max.Z - min.Z + 1);
     }
 
     /// <summary>Sends one operations_apply action under <paramref name="key"/> and returns its single ActionResult (applied or refused).</summary>

@@ -15,7 +15,7 @@ internal static class WallDoorSwap
             "took (wall blueprint over the door in one apply, or deconstruct then place). A Go snapshot test cannot " +
             "see GenConstruct's placement rule, the ordered jobs or the built wall.",
         Start = new LabStart(),
-        RequiredOps = [DebugGame.LabSpawnTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabSpawnTool, FixtureStage.Tool],
         QuietWorld = true,
         Budget = TimeSpan.FromMinutes(5),
         Crew = new Crew { Size = 3 },

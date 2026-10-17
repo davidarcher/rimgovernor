@@ -12,7 +12,7 @@ internal static class CombatLabEmp
             + "downed in a clump 11 cells past the sandbags, each wearing a charged shield belt, one combat.orders call drafts the thrower and orders attack_ground "
             + "at the clump's centre; within 600 ticks every raider's shield energy reads 0.",
         Start = new LabStart { Colonists = 4 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },

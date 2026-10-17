@@ -14,7 +14,7 @@ internal static class CombatLabAnimals
             + "cell (applied). One tick later the trained husky attacks the warg and the other stands restricted to a one-cell area; a clear order then "
             + "restores it to no area.",
         Start = new LabStart { Colonists = 1 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },
@@ -26,7 +26,7 @@ internal static class CombatLabAnimals
         Name = "combatlab/orphan-animal-area",
         Scope = "Native area deletion after death, despawn and lost ownership; Go snapshots cannot prove native areaManager effects. Repeated clears model a fresh cleanup after a lost reply.",
         Start = new LabStart { Colonists = 1 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },
@@ -145,7 +145,7 @@ internal static class CombatLabAnimals
             }
 
             var setup = new JsonObject { ["animal"] = animal, ["mode"] = mode }.ToJsonString();
-            _ = await h.CallAsync("orphan-setup-" + mode, CombatFixtures.StageTool, new JsonObject { ["action"] = "orphan-animal", ["spec"] = setup }, cancellationToken).ConfigureAwait(false);
+            _ = await h.CallAsync("orphan-setup-" + mode, CombatFixtures.LabTool, new JsonObject { ["action"] = "orphan-animal", ["spec"] = setup }, cancellationToken).ConfigureAwait(false);
             for (var i = 0; i < 2; i++)
             {
                 var n = i.ToString(CultureInfo.InvariantCulture);
@@ -161,7 +161,7 @@ internal static class CombatLabAnimals
                     throw new AcceptanceException($"clear {mode}: {new JsonArray([.. results.Select(r => (JsonNode?)r.DeepClone())]).ToJson()}");
                 }
 
-                var read = await h.CallAsync($"orphan-read-{mode}-{n}", CombatFixtures.StageTool, new JsonObject { ["action"] = "read" }, cancellationToken).ConfigureAwait(false);
+                var read = await h.CallAsync($"orphan-read-{mode}-{n}", CombatFixtures.LabTool, new JsonObject { ["action"] = "read" }, cancellationToken).ConfigureAwait(false);
                 foreach (var area in read["areas"].AsSlice())
                 {
                     if (area.AsString() == "Combat " + animal)

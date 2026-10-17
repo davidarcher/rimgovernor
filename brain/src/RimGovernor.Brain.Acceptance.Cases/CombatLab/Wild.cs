@@ -11,7 +11,7 @@ internal static class CombatLabWild
         Scope = "The combat mirror's wild-animal side (#1116) on lab-ranged with three calm wild animals: a thrumbo 4 cells past the raiders is a "
             + "COMBAT_SIDE_WILD_ANIMAL row; a hare beside them (small, no predator) and a warg 40+ cells away are no row.",
         Start = new LabStart { Colonists = 4 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },

@@ -15,7 +15,7 @@ internal static class CombatLabStrip
             + "one Actions/Apply designate STRIP on the raider applies with Strip designation evidence, a second one refuses as already designated, "
             + "and within 2400 ticks a colonist strips the duster off through ordinary Hauling work. Who to strip is #1079.",
         Start = new LabStart { Colonists = 3 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool, "rimgovernor/operations_apply"],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool, "rimgovernor/operations_apply"],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },
@@ -109,7 +109,7 @@ internal static class CombatLabStrip
     // readWorn is one pawn's worn apparel defs from the lab read.
     private static async Task<HashSet<string>> ReadWornAsync(Harness h, string id, CancellationToken cancellationToken)
     {
-        var reply = await h.CallAsync("strip-worn", CombatFixtures.StageTool, new JsonObject { ["action"] = "read" }, cancellationToken).ConfigureAwait(false);
+        var reply = await h.CallAsync("strip-worn", CombatFixtures.LabTool, new JsonObject { ["action"] = "read" }, cancellationToken).ConfigureAwait(false);
         foreach (var r in reply["pawns"].AsSlice())
         {
             var row = r.AsMap() ?? [];

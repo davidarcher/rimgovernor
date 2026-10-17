@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -11,24 +12,37 @@ internal static class ZoneRectangle
     {
         Name = "zone/rectangle",
         Scope = "Native stockpile rectangle placement uses vanilla cell eligibility, keeps both components across a wall barrier and ground holding Steel, skips an existing player stockpile without changing it, and replays all created IDs without duplicates. A Go snapshot cannot verify the native designator, zone grid, hauling settings or replay cache.",
-        Start = new FixtureStart { On = new LabStart(), Op = "test/stockpile_rectangle_prepare" },
+        Start = FixtureStage.Start(Fixture),
         Budget = TimeSpan.FromMinutes(3),
         Crew = new Crew { Size = 3 },
         Run = RunAsync,
+    };
+
+    // The pinned lab rectangle, 7x5 cells 14 east and 4 north of the map centre, cleared to bare soil: a wall barrier
+    // splitting it at x=3 with an obstacle at (1,2), five Steel stored at its corner, and an existing low-priority player
+    // stockpile allowing nothing on its far corner.
+    private static readonly Fx.StageSpec Fixture = new()
+    {
+        Paused = true,
+        Site = new Fx.StageSite { Width = 7, Height = 5, OffsetX = 14, OffsetZ = 4 },
+        Clear = [new Fx.StageClear
+        {
+            Rect = new Fx.StageRect(0, 0, 7, 5),
+            Kinds = [Fx.StageClearKind.Things, Fx.StageClearKind.Pawns, Fx.StageClearKind.Zones, Fx.StageClearKind.Roofs, Fx.StageClearKind.Fog],
+        }],
+        Cells = [new Fx.StageCells { Rect = new Fx.StageRect(0, 0, 7, 5), Terrain = "Soil" }],
+        Buildings = [new Fx.StageBuilding { Name = "walls", Def = "Wall", Stuff = "WoodLog", Cells = [new(3, 0), new(3, 1), new(3, 2), new(3, 3), new(3, 4), new(1, 2)] }],
+        Things = [new Fx.StageThing { Name = "steel", Def = "Steel", Count = 5, Cell = new(0, 0) }],
+        Zones = [new Fx.StageZone { Name = "player", Kind = Fx.StageZoneKind.Stockpile, Label = "Player stockpile", Cells = [new(6, 4)], Priority = Fx.StageStoragePriority.Low, Allow = [] }],
     };
 
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
     {
         var h = s.Harness;
         var identity = s.Identity;
-        var prepared = s.Prepared ?? [];
-        var x = (int)prepared["x"].AsNumber();
-        var z = (int)prepared["z"].AsNumber();
-        var playerId = prepared["playerZoneId"].AsString();
-        if (playerId.Length == 0)
-        {
-            throw new AcceptanceException($"missing prepared player zone: {prepared.ToJson()}");
-        }
+        var staged = FixtureStage.Prepared(s);
+        var (x, z) = (staged.Site!.Value.X, staged.Site.Value.Z);
+        var playerId = staged.Zones["player"];
 
         _ = await Authority.GrantAutoAsync(h.WireFunc(), "acquire", identity, cancellationToken).ConfigureAwait(false);
         var intent = new JsonObject

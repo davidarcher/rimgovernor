@@ -14,7 +14,7 @@ internal static class CombatLabRescue
             + "one combat.orders call forbids the door, orders colonist 0 to rescue colonist 2 and refuses colonist 1's rescue of a standing raider (cannot_rescue); "
             + "one tick later colonist 0's job is Rescue on colonist 2 and the door reads forbidden; a second call allows it again.",
         Start = new LabStart { Colonists = 3 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },

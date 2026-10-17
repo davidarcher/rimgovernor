@@ -16,7 +16,7 @@ internal static class CombatLabMortarShell
             + "and a man_mortar crew load Shell_HighExplosive (the combat_mortars row's loaded_shell), a mortar_fire naming Steel refuses unknown_shell, "
             + "and a mortar_fire alone naming Shell_EMP unloads the HE (if still loaded) and the crew loads the EMP shell (#1202).",
         Start = new LabStart { Colonists = 3 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },

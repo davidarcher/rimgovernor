@@ -13,136 +13,6 @@ using Verse.AI.Group;
 
 namespace HomeBridge.BridgeTools
 {
-    // The blank lab map: a fixture case spawns what it needs at known
-    // coordinates on it instead of searching a random world for a site.
-    // Wipe turns the loaded map into flat Soil with nothing on it but N
-    // fixture-made adult colonists, pins clear weather and a fixed outdoor
-    // temperature (persisted through AcceptanceWorld.LabTemperature, so a
-    // reloaded lab save keeps them), and quiets the storyteller. Every draw
-    // runs under a fixed Rand seed, so the same map in gives the same lab.
-    public static class LabStart
-    {
-        public const float Temperature = 21f;
-        public const int DefaultColonists = 3, MaxColonists = 12, SkillLevel = 8;
-        private const int Seed = 730;
-        private static bool patched;
-
-        public static void EnsurePatched()
-        {
-            if (patched) return;
-            var harmony = new Harmony("rimgovernor.test.lab-start");
-            harmony.Patch(AccessTools.PropertyGetter(typeof(MapTemperature), nameof(MapTemperature.OutdoorTemp)), postfix: new HarmonyMethod(typeof(LabStart), nameof(PinTemperature)));
-            harmony.Patch(AccessTools.PropertyGetter(typeof(MapTemperature), nameof(MapTemperature.SeasonalTemp)), postfix: new HarmonyMethod(typeof(LabStart), nameof(PinTemperature)));
-            harmony.Patch(AccessTools.Method(typeof(WeatherDecider), nameof(WeatherDecider.WeatherDeciderTick)), prefix: new HarmonyMethod(typeof(LabStart), nameof(SkipWeather)));
-            patched = true;
-        }
-
-        private static void PinTemperature(ref float __result)
-        {
-            var pinned = AcceptanceWorld.Lab;
-            if (!float.IsNaN(pinned)) __result = pinned;
-        }
-
-        private static bool SkipWeather() => float.IsNaN(AcceptanceWorld.Lab);
-
-        public static object Wipe(Map map, int colonists)
-        {
-            if (colonists < 1 || colonists > MaxColonists) throw new ArgumentException($"colonists must be within 1..{MaxColonists}.");
-            EnsurePatched();
-            // A destroyed holder (a casket, a crate) drops what it held, so
-            // the sweep repeats until nothing is left.
-            for (var pass = 0; map.listerThings.AllThings.Count > 0 || map.mapPawns.AllPawnsSpawned.Count > 0; pass++)
-            {
-                if (pass == 10) throw new InvalidOperationException($"{map.listerThings.AllThings.Count} things survived 10 wipe passes, e.g. {map.listerThings.AllThings.FirstOrDefault()?.def.defName}.");
-                foreach (var pawn in map.mapPawns.AllPawnsSpawned.ToList())
-                    if (!pawn.Destroyed) pawn.Destroy(DestroyMode.Vanish);
-                foreach (var thing in map.listerThings.AllThings.ToList())
-                {
-                    if (thing.Destroyed) continue;
-                    if (thing.def.destroyable) thing.Destroy(DestroyMode.Vanish);
-                    else if (thing.Spawned) thing.DeSpawn();
-                }
-            }
-            foreach (var zone in map.zoneManager.AllZones.ToList()) zone.Delete();
-            foreach (var cell in map.AllCells)
-            {
-                map.roofGrid.SetRoof(cell, null);
-                map.snowGrid.SetDepth(cell, 0f);
-                if (map.terrainGrid.foundationGrid[map.cellIndices.CellToIndex(cell)] != null) map.terrainGrid.RemoveFoundation(cell, false);
-                map.terrainGrid.SetTerrain(cell, TerrainDefOf.Soil);
-            }
-            // Despawning the mountains marked their roofs to collapse; the
-            // roofs are gone, so the pending collapse is too.
-            map.roofCollapseBuffer.Clear();
-            map.fogGrid.ClearAllFog();
-            map.areaManager.Home.Clear();
-            foreach (var condition in map.gameConditionManager.ActiveConditions.ToList()) condition.End();
-            foreach (var condition in Find.World.gameConditionManager.ActiveConditions.ToList()) condition.End();
-            map.weatherManager.curWeather = map.weatherManager.lastWeather = WeatherDefOf.Clear;
-            map.weatherManager.curWeatherAge = 0;
-            AcceptanceWorld.SetLab(Temperature);
-            var quiet = QuietStoryteller.Apply(map);
-
-            var center = map.Center;
-            var ids = new List<string>();
-            Rand.PushState(Seed);
-            try
-            {
-                for (var i = 0; i < colonists; i++)
-                {
-                    var pawn = Colonist(i);
-                    GenSpawn.Spawn(pawn, new IntVec3(center.x - colonists + 1 + 2 * i, 0, center.z), map);
-                    ids.Add(pawn.ThingID);
-                }
-            }
-            finally
-            {
-                Rand.PopState();
-            }
-            return new { success = true, mapSize = map.Size.x, mapSizeZ = map.Size.z, center = new { x = center.x, z = center.z },
-                colonists = ids, temperatureC = Temperature, weather = map.weatherManager.curWeather.defName, quiet, digest = Digest(map) };
-        }
-
-        // An adult baseliner with every work type enabled and on, no traits,
-        // no bad hediffs and every skill at SkillLevel without passion.
-        internal static Pawn Colonist(int index)
-        {
-            for (var tries = 0; tries < 50; tries++)
-            {
-                var request = new PawnGenerationRequest(PawnKindDefOf.Colonist, Faction.OfPlayer, PawnGenerationContext.PlayerStarter,
-                    forceGenerateNewPawn: true, canGeneratePawnRelations: false, mustBeCapableOfViolence: true, colonistRelationChanceFactor: 0f,
-                    allowAddictions: false, fixedBiologicalAge: 30f, fixedChronologicalAge: 30f, fixedGender: index % 2 == 0 ? Gender.Male : Gender.Female,
-                    fixedIdeo: Faction.OfPlayer.ideos?.PrimaryIdeo, forceBaselinerChance: 1f, developmentalStages: DevelopmentalStage.Adult);
-                var pawn = PawnGenerator.GeneratePawn(request);
-                foreach (var trait in pawn.story.traits.allTraits.ToList()) pawn.story.traits.RemoveTrait(trait);
-                pawn.Notify_DisabledWorkTypesChanged();
-                if (pawn.CombinedDisabledWorkTags != WorkTags.None) { Find.WorldPawns.PassToWorld(pawn, PawnDiscardDecideMode.Discard); continue; }
-                foreach (var hediff in pawn.health.hediffSet.hediffs.Where(h => h.def.isBad).ToList()) pawn.health.RemoveHediff(hediff);
-                foreach (var skill in pawn.skills.skills) { skill.Level = SkillLevel; skill.xpSinceLastLevel = 0f; skill.passion = Passion.None; }
-                pawn.workSettings.EnableAndInitialize();
-                foreach (var work in DefDatabase<WorkTypeDef>.AllDefsListForReading) pawn.workSettings.SetPriority(work, 3);
-                return pawn;
-            }
-            throw new InvalidOperationException($"No work-capable lab colonist {index} after 50 generations.");
-        }
-
-        // A stable hash of what makes two labs the same: terrain, roofs and
-        // every thing's def and cell, plus each colonist's name and skills.
-        public static string Digest(Map map)
-        {
-            var hash = 2166136261u;
-            void Add(string s) { foreach (var ch in s) hash = (hash ^ ch) * 16777619u; hash = (hash ^ '|') * 16777619u; }
-            Add($"{map.Size.x}x{map.Size.z}");
-            foreach (var cell in map.AllCells) Add($"{map.terrainGrid.TerrainAt(cell).defName}{map.roofGrid.RoofAt(cell)?.defName}");
-            foreach (var thing in map.listerThings.AllThings.OrderBy(t => t.Position.x).ThenBy(t => t.Position.z).ThenBy(t => t.def.defName))
-            {
-                Add($"{thing.def.defName}@{thing.Position.x},{thing.Position.z}");
-                if (thing is Pawn pawn) Add($"{pawn.Name?.ToStringFull}:{string.Join(",", pawn.skills.skills.Select(s => s.Level))}:{pawn.story.traits.allTraits.Count}");
-            }
-            return hash.ToString("x8");
-        }
-    }
-
     public sealed class LabStartFixture
     {
         static LabStartFixture() { LabStart.EnsurePatched(); }
@@ -295,17 +165,9 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    // Stages a whole combat lab fixture on a wiped lab in one call:
-    // the spec (built by the CombatLab acceptance cases) lists
-    // structures, the lab colonists' cells and gear, and hostiles with fixed
-    // weapons, skills and no apparel, spawned under a fixed seed and given an
-    // assault lord. The reply reads every staged pawn back from the live map,
-    // and a digest without generated names, so two stagings compare equal.
+    // A combat lab fight is staged by test/stage (StageFixture); test/lab_stage reads, ticks and reseeds it.
     public static class LabStage
     {
-        private const int Seed = 854;
-        private const int HostileSkill = 8;
-
         // Reseed (#2849) sets the game's Rand seed from spec.seed after a checkpoint
         // load, so one staged save serves runs seeds 1..N. It uses the same
         // derivation as the post-staging reseed, so a seed means one RNG start. The
@@ -314,254 +176,12 @@ namespace HomeBridge.BridgeTools
         {
             var seed = (int?)spec["seed"] ?? 0;
             if (seed == 0) throw new ArgumentException("reseed needs a non-zero spec seed.");
-            Rand.Seed = unchecked(Seed ^ (seed * 31337));
+            Rand.Seed = StageSeed.After(seed);
             var draws = new List<int>();
             Rand.PushState();
             try { for (var i = 0; i < 4; i++) draws.Add(Rand.Int); }
             finally { Rand.PopState(); }
             return new { success = true, seed, draws, tick = Find.TickManager.TicksGame };
-        }
-
-        public static object Stage(Map map, JObject spec)
-        {
-            var things = new List<object>();
-            var pawns = new List<Pawn>();
-            var hostiles = new List<Pawn>();
-            var prisoners = new List<Pawn>();
-            var insects = new List<Pawn>();
-            var mechs = new List<Pawn>();
-            // seed: non-zero varies hostile skills and jitters pawns that declare a
-            // jitter, from a state derived from it, and reseeds Rand once staging
-            // ends. Zero draws nothing extra: the pinned staging, byte for byte.
-            var seed = (int?)spec["seed"] ?? 0;
-            Rand.PushState(seed == 0 ? Seed : unchecked(Seed + seed * 7919));
-            try
-            {
-                var faction = HostileFaction();
-                foreach (JObject t in spec["things"] as JArray ?? new JArray())
-                {
-                    var def = DefDatabase<ThingDef>.GetNamedSilentFail((string)t["def"]) ?? throw new ArgumentException($"No ThingDef {t["def"]}.");
-                    var stuffName = (string)t["stuff"] ?? "";
-                    var stuff = def.MadeFromStuff ? (stuffName == "" ? GenStuff.DefaultStuffFor(def) : DefDatabase<ThingDef>.GetNamedSilentFail(stuffName) ?? throw new ArgumentException($"No stuff {stuffName}.")) : null;
-                    var cell = Cell(map, t);
-                    var thing = ThingMaker.MakeThing(def, stuff);
-                    // hostile: the lab hostiles' faction, e.g. a ship part to attack.
-                    // A hive is the insects'; natural rock no one's.
-                    if (thing is Hive) thing.SetFaction(Faction.OfInsects);
-                    else if (def.category == ThingCategory.Building && def.CanHaveFaction) thing.SetFaction((bool?)t["hostile"] == true ? faction : Faction.OfPlayer);
-                    // hitPoints: a damaged building, e.g. a door to repair.
-                    if ((int?)t["hitPoints"] is int hp && def.useHitPoints) thing.HitPoints = Math.Max(1, Math.Min(hp, thing.MaxHitPoints));
-                    GenSpawn.Spawn(thing, cell, map, new Rot4((int?)t["rotation"] ?? 0));
-                    things.Add(new { id = thing.GetUniqueLoadID(), def = def.defName, x = cell.x, z = cell.z });
-                }
-                // roof: a RoofDef over a rectangle, e.g. overhead mountain.
-                if (spec["roof"] is JObject roof)
-                {
-                    var roofDef = DefDatabase<RoofDef>.GetNamedSilentFail((string)roof["def"]) ?? throw new ArgumentException($"No RoofDef {roof["def"]}.");
-                    foreach (var cell in CellRect.FromLimits((int)roof["minX"], (int)roof["minZ"], (int)roof["maxX"], (int)roof["maxZ"]))
-                        if (cell.InBounds(map)) map.roofGrid.SetRoof(cell, roofDef);
-                }
-                // terrain: a TerrainDef laid over a rectangle, e.g. a constructed floor or a hazard patch.
-                if (spec["terrain"] is JObject terrain)
-                {
-                    var terrainDef = DefDatabase<TerrainDef>.GetNamedSilentFail((string)terrain["def"]) ?? throw new ArgumentException($"No TerrainDef {terrain["def"]}.");
-                    foreach (var cell in CellRect.FromLimits((int)terrain["minX"], (int)terrain["minZ"], (int)terrain["maxX"], (int)terrain["maxZ"]))
-                        if (cell.InBounds(map)) map.terrainGrid.SetTerrain(cell, terrainDef);
-                }
-                var colonists = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
-                // An arrival mode drops the hostiles in by the game's
-                // own PawnsArrivalModeWorker, landing around the first
-                // hostile's cell, instead of spawning each at its cell.
-                var arrivalName = (string)spec["arrival"] ?? "";
-                var arrival = arrivalName == "" ? null : DefDatabase<PawnsArrivalModeDef>.GetNamedSilentFail(arrivalName) ?? throw new ArgumentException($"No PawnsArrivalModeDef {arrivalName}.");
-                IntVec3? arrivalCenter = null;
-                foreach (JObject p in spec["pawns"] as JArray ?? new JArray())
-                {
-                    var cell = Cell(map, p);
-                    Pawn pawn;
-                    if ((string)p["side"] == "colonist")
-                    {
-                        var index = (int)p["index"];
-                        if (index < 0 || index >= colonists.Count) throw new ArgumentException($"Colonist index {index}: the lab has {colonists.Count}.");
-                        pawn = colonists[index];
-                        pawn.Position = cell;
-                        pawn.Notify_Teleported(true, true);
-                    }
-                    else if ((string)p["side"] == "hostile" || (string)p["side"] == "prisoner")
-                    {
-                        var kind = DefDatabase<PawnKindDef>.GetNamedSilentFail((string)p["kind"]) ?? throw new ArgumentException($"No PawnKindDef {p["kind"]}.");
-                        pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, faction, forceGenerateNewPawn: true, canGeneratePawnRelations: false, mustBeCapableOfViolence: true,
-                            allowAddictions: false, fixedBiologicalAge: 30f, fixedChronologicalAge: 30f, forceBaselinerChance: 1f, developmentalStages: DevelopmentalStage.Adult));
-                        foreach (var trait in pawn.story.traits.allTraits.ToList()) pawn.story.traits.RemoveTrait(trait);
-                        foreach (var hediff in pawn.health.hediffSet.hediffs.Where(h => h.def.isBad).ToList()) pawn.health.RemoveHediff(hediff);
-                        foreach (var skill in pawn.skills.skills) { skill.Level = seed == 0 ? HostileSkill : HostileSkill + Rand.RangeInclusive(-2, 2); skill.passion = Passion.None; }
-                        pawn.apparel?.DestroyAll();
-                        pawn.inventory?.DestroyAll();
-                        if ((string)p["side"] == "prisoner")
-                        {
-                            // held by the colony, no lord until it breaks out.
-                            GenSpawn.Spawn(pawn, cell, map);
-                            pawn.guest.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
-                            prisoners.Add(pawn);
-                        }
-                        else
-                        {
-                            if (seed != 0 && arrival == null && (int?)p["jitter"] is int jitter && jitter > 0) cell = Jittered(map, cell, jitter);
-                            if (arrival == null) GenSpawn.Spawn(pawn, cell, map);
-                            hostiles.Add(pawn);
-                        }
-                    }
-                    else if ((string)p["side"] == "insect")
-                    {
-                        // an insect of the insects' faction, assaulting the colony.
-                        var kind = DefDatabase<PawnKindDef>.GetNamedSilentFail((string)p["kind"]) ?? throw new ArgumentException($"No PawnKindDef {p["kind"]}.");
-                        pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, Faction.OfInsects, forceGenerateNewPawn: true, canGeneratePawnRelations: false, developmentalStages: DevelopmentalStage.Adult));
-                        foreach (var hediff in pawn.health.hediffSet.hediffs.Where(h => h.def.isBad).ToList()) pawn.health.RemoveHediff(hediff);
-                        GenSpawn.Spawn(pawn, cell, map);
-                        insects.Add(pawn);
-                    }
-                    else if ((string)p["side"] == "mech")
-                    {
-                        // a mechanoid of the mechanoids' faction, assaulting the colony.
-                        var kind = DefDatabase<PawnKindDef>.GetNamedSilentFail((string)p["kind"]) ?? throw new ArgumentException($"No PawnKindDef {p["kind"]}.");
-                        pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, Faction.OfMechanoids, forceGenerateNewPawn: true, canGeneratePawnRelations: false));
-                        GenSpawn.Spawn(pawn, cell, map);
-                        mechs.Add(pawn);
-                    }
-                    else if ((string)p["side"] == "animal" || (string)p["side"] == "manhunter" || (string)p["side"] == "wild")
-                    {
-                        // "wild" is a factionless animal left calm.
-                        // a player animal with the named trainables
-                        // learned, or a wild animal gone permanently manhunter.
-                        var kind = DefDatabase<PawnKindDef>.GetNamedSilentFail((string)p["kind"]) ?? throw new ArgumentException($"No PawnKindDef {p["kind"]}.");
-                        bool ours = (string)p["side"] == "animal";
-                        pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, ours ? Faction.OfPlayer : null, forceGenerateNewPawn: true, canGeneratePawnRelations: false,
-                            fixedBiologicalAge: 3f, fixedChronologicalAge: 3f, developmentalStages: DevelopmentalStage.Adult));
-                        foreach (var hediff in pawn.health.hediffSet.hediffs.Where(h => h.def.isBad).ToList()) pawn.health.RemoveHediff(hediff);
-                        GenSpawn.Spawn(pawn, cell, map);
-                        if (ours)
-                            foreach (var name in p["trained"] as JArray ?? new JArray())
-                                pawn.training.Train(DefDatabase<TrainableDef>.GetNamedSilentFail((string)name) ?? throw new ArgumentException($"No TrainableDef {name}."), null, complete: true);
-                        else if ((string)p["side"] == "manhunter" && !pawn.mindState.mentalStateHandler.TryStartMentalState(MentalStateDefOf.ManhunterPermanent, forced: true))
-                            throw new InvalidOperationException($"{kind.defName} did not go manhunter.");
-                    }
-                    else throw new ArgumentException($"Unknown side {p["side"]}.");
-                    if (pawn.equipment != null) Arm(pawn, (string)p["weapon"] ?? "", (string)p["weaponStuff"] ?? "");
-                    // apparel: one worn apparel def, a shield belt for the EMP case or a psychic shock lance.
-                    if ((string)p["apparel"] is string apparel && apparel != "")
-                    {
-                        var apparelDef = DefDatabase<ThingDef>.GetNamedSilentFail(apparel) ?? throw new ArgumentException($"No apparel {apparel}.");
-                        var worn = (Apparel)ThingMaker.MakeThing(apparelDef, apparelDef.MadeFromStuff ? GenStuff.DefaultStuffFor(apparelDef) : null);
-                        pawn.apparel.Wear(worn, false, true);
-                        // A new shield starts empty; stage it fully charged.
-                        if (worn.GetComp<CompShield>() is CompShield shield)
-                            Traverse.Create(shield).Field("energy").SetValue(worn.GetStatValue(StatDefOf.EnergyShieldEnergyMax));
-                    }
-                    // downed: anesthetic downs the pawn without wounds.
-                    if ((bool?)p["downed"] == true) pawn.health.AddHediff(HediffDefOf.Anesthetic);
-                    // hediffs: extra hediff def names, e.g. a drug high or addiction.
-                    foreach (var name in (p["hediffs"] as JArray)?.Select(t => (string)t) ?? Enumerable.Empty<string>())
-                        pawn.health.AddHediff(DefDatabase<HediffDef>.GetNamedSilentFail(name) ?? throw new ArgumentException($"No HediffDef {name}."));
-                    // injured: a blunt blow bruises without bleeding.
-                    if ((bool?)p["injured"] == true) pawn.TakeDamage(new DamageInfo(DamageDefOf.Blunt, 8f));
-                    // inventory: one of each ThingDef name in the pawn's inventory, e.g. a carried go-juice.
-                    foreach (var name in (p["inventory"] as JArray)?.Select(t => (string)t) ?? Enumerable.Empty<string>())
-                        pawn.inventory.innerContainer.TryAdd(ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamedSilentFail(name) ?? throw new ArgumentException($"No ThingDef {name}.")));
-                    // stunTicks: stun the pawn directly for that many ticks.
-                    if ((int?)p["stunTicks"] is int stun && stun > 0) pawn.stances.stunner.StunFor(stun, null, addBattleLog: false);
-                    pawns.Add(pawn);
-                    if (arrival != null && pawn.Faction != Faction.OfPlayer && arrivalCenter == null) arrivalCenter = cell;
-                }
-                if (arrival != null && hostiles.Count > 0)
-                    arrival.Worker.Arrive(hostiles, new IncidentParms { target = map, faction = faction, raidArrivalMode = arrival, spawnCenter = arrivalCenter!.Value, spawnRotation = Rot4.South, points = 500f });
-            }
-            finally
-            {
-                Rand.PopState();
-            }
-            // The fight's later draws are a function of the seed.
-            if (seed != 0) Rand.Seed = unchecked(Seed ^ (seed * 31337));
-            // siege: the hostiles are a real siege lord camped at the
-            // spot; the game's own LordToil_Siege places the blueprints, drops
-            // the supplies and sets the builders to work on the frames.
-            if (hostiles.Count > 0 && spec["siege"] is JObject siege)
-                LordMaker.MakeNewLord(hostiles[0].Faction, new LordJob_Siege(hostiles[0].Faction, Cell(map, siege), (float?)siege["points"] ?? 500f), map, hostiles);
-            else if (hostiles.Count > 0)
-                LordMaker.MakeNewLord(hostiles[0].Faction, new LordJob_AssaultColony(hostiles[0].Faction, canKidnap: false, canTimeoutOrFlee: false, sappers: (bool?)spec["sappers"] == true, canSteal: false), map, hostiles);
-            if (insects.Count > 0)
-                LordMaker.MakeNewLord(Faction.OfInsects, new LordJob_AssaultColony(Faction.OfInsects, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, insects);
-            if (mechs.Count > 0)
-                LordMaker.MakeNewLord(Faction.OfMechanoids, new LordJob_AssaultColony(Faction.OfMechanoids, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, mechs);
-            // prisonBreak: the game's own break, started by the first prisoner.
-            if ((bool?)spec["prisonBreak"] == true)
-            {
-                if (prisoners.Count == 0) throw new ArgumentException("prisonBreak needs a prisoner.");
-                PrisonBreakUtility.StartPrisonBreak(prisoners[0], out _, out _, out _, out var escaping);
-                if (escaping == null || escaping.Count == 0) throw new InvalidOperationException("The prison break freed no prisoner.");
-            }
-            var rows = pawns.Select(p => new { id = p.GetUniqueLoadID(),
-                side = p.Faction == Faction.OfInsects ? "insect" : p.Faction == Faction.OfMechanoids ? "mech" : p.RaceProps.Animal ? (p.Faction == Faction.OfPlayer ? "animal" : p.InMentalState ? "manhunter" : "wild") : p.Faction == Faction.OfPlayer ? "colonist" : p.HostFaction == Faction.OfPlayer ? "prisoner" : "hostile", kind = p.kindDef.defName,
-                x = p.PositionHeld.x, z = p.PositionHeld.z, inPod = !p.Spawned, weapon = p.equipment?.Primary?.def.defName, hostile = p.HostileTo(Faction.OfPlayer),
-                lordJob = p.GetLord()?.LordJob?.GetType().Name, health = p.health.summaryHealth.SummaryHealthPercent, apparel = p.apparel?.WornApparelCount ?? 0,
-                worn = p.apparel?.WornApparel.Select(a => new { id = a.GetUniqueLoadID(), def = a.def.defName }).ToList() }).ToList();
-            return new { success = true, seed, faction = hostiles.FirstOrDefault()?.Faction.def.defName, things, pawns = rows, digest = Digest(map), digestRows = DigestRows(map) };
-        }
-
-        private static IntVec3 Cell(Map map, JObject o)
-        {
-            var cell = new IntVec3((int)o["x"], 0, (int)o["z"]);
-            if (!cell.InBounds(map)) throw new ArgumentException($"Cell {cell.x},{cell.z} is out of bounds.");
-            return cell;
-        }
-
-        // A random standable, unoccupied cell within jitter of cell, else cell.
-        private static IntVec3 Jittered(Map map, IntVec3 cell, int jitter)
-        {
-            var near = new IntVec3(cell.x + Rand.RangeInclusive(-jitter, jitter), 0, cell.z + Rand.RangeInclusive(-jitter, jitter));
-            return near.InBounds(map) && near.Standable(map) && !near.GetThingList(map).OfType<Pawn>().Any() ? near : cell;
-        }
-
-        private static void Arm(Pawn pawn, string weapon, string stuffName)
-        {
-            pawn.equipment.DestroyAllEquipment();
-            if (weapon == "") return;
-            var def = DefDatabase<ThingDef>.GetNamedSilentFail(weapon) ?? throw new ArgumentException($"No weapon {weapon}.");
-            var stuff = def.MadeFromStuff ? (stuffName == "" ? GenStuff.DefaultStuffFor(def) : DefDatabase<ThingDef>.GetNamed(stuffName)) : null;
-            var thing = (ThingWithComps)ThingMaker.MakeThing(def, stuff);
-            thing.TryGetComp<CompQuality>()?.SetQuality(QualityCategory.Normal, ArtGenerationContext.Outsider);
-            pawn.equipment.AddEquipment(thing);
-        }
-
-        // Pirates when the world has them, else the first hostile humanlike
-        // faction by def name, so the choice does not depend on list order.
-        private static Faction HostileFaction()
-        {
-            return Find.FactionManager.AllFactionsListForReading
-                .Where(f => !f.IsPlayer && !f.def.hidden && f.def.humanlikeFaction && f.HostileTo(Faction.OfPlayer))
-                .OrderBy(f => f.def == FactionDefOf.Pirate ? 0 : 1).ThenBy(f => f.def.defName).FirstOrDefault()
-                ?? throw new InvalidOperationException("No hostile humanlike faction for lab hostiles.");
-        }
-
-        // What a staging controls, one row per thing and pawn: a pawn is its
-        // side, kind, cell, weapon, Shooting and Melee and apparel count.
-        // Generated names and backstories (and the non-combat skills a
-        // backstory disables) differ between stagings in one world.
-        public static List<string> DigestRows(Map map)
-        {
-            var rows = new List<string>();
-            foreach (var thing in map.listerThings.AllThings.Where(t => !(t is Pawn)).OrderBy(t => t.Position.x).ThenBy(t => t.Position.z).ThenBy(t => t.def.defName))
-                rows.Add($"{thing.def.defName}:{thing.Stuff?.defName}@{thing.Position.x},{thing.Position.z}");
-            foreach (var pawn in map.mapPawns.AllPawnsSpawned.OrderBy(p => p.Position.x).ThenBy(p => p.Position.z))
-                rows.Add($"{(pawn.Faction == Faction.OfPlayer ? "c" : "h")}:{pawn.kindDef.defName}@{pawn.Position.x},{pawn.Position.z}:{pawn.equipment?.Primary?.def.defName}"
-                    + $":{pawn.skills?.GetSkill(SkillDefOf.Shooting).Level},{pawn.skills?.GetSkill(SkillDefOf.Melee).Level}:{pawn.apparel?.WornApparelCount ?? 0}");
-            return rows;
-        }
-
-        public static string Digest(Map map)
-        {
-            var hash = 2166136261u;
-            foreach (var row in DigestRows(map)) { foreach (var ch in row) hash = (hash ^ ch) * 16777619u; hash = (hash ^ '|') * 16777619u; }
-            return hash.ToString("x8");
         }
     }
 
@@ -738,10 +358,10 @@ namespace HomeBridge.BridgeTools
         static LabStageFixture() { LabDamageLedger.EnsurePatched(); LabShotLedger.EnsurePatched(); }
         public LabStageFixture() { LabDamageLedger.EnsurePatched(); LabShotLedger.EnsurePatched(); }
 
-        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile,hitPoints}], pawns:[{side:colonist|hostile|animal|manhunter|prisoner|insect, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, injured, trained (animal TrainableDefs), apparel, hediffs:[HediffDef], inventory:[ThingDef]}], roof:{def,minX,minZ,maxX,maxZ}, terrain:{def,minX,minZ,maxX,maxZ}, prisonBreak, sappers, seed (non-zero varies hostile skills and jitters hostiles that declare jitter, then reseeds Rand after staging; 0 or absent is the pinned staging; the reply echoes it), pawns also take jitter (cells)}. Hostiles get fixed skills, only the named apparel and an assault lord (a sapper one with sappers, #1149). Replies each staged pawn read back from the map (with worn apparel ids) and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, hediff defs, every player door's hold-open and forbidden flag, and the tick.")]
+        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): read, tick or reseed a combat lab fight test/stage staged. action read replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, hediff defs, every player door's hold-open and forbidden flag, the damage ledger since the last staging, and the tick.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Fixture spec JSON (action stage).")] string spec = "{}",
-            [ToolParameter(Description = "stage (default), read, reseed (spec {seed: non-zero}: set the game Rand seed the way a seeded staging ends, reply the next four draws; #2849), orphan-animal (spec animal and mode: despawn, dead or foreign), shots (the shot tap since the last staging: launches, impacts, jobs, stances, draft changes and each pawn's first think ticks, #2917), or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",
+            [ToolParameter(Description = "Action spec JSON (reseed and orphan-animal).")] string spec = "{}",
+            [ToolParameter(Description = "read (default), reseed (spec {seed: non-zero}: set the game Rand seed the way a seeded staging ends, reply the next four draws; #2849), orphan-animal (spec animal and mode: despawn, dead or foreign), shots (the shot tap since the last staging: launches, impacts, jobs, stances, draft changes and each pawn's first think ticks, #2917), or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "read",
             [ToolParameter(Description = "Ticks for action tick, 1..2000.")] int ticks = 0)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -785,10 +405,7 @@ namespace HomeBridge.BridgeTools
                         doors = map.listerBuildings.allBuildingsColonist.OfType<Building_Door>().Select(d => new { x = d.Position.x, z = d.Position.z, open = d.Open, holdOpen = d.HoldOpen, forbidden = d.IsForbidden(Faction.OfPlayer) }).ToList(),
                         areas = map.areaManager.AllAreas.Select(a => a.Label).ToList(),
                         damage = LabDamageLedger.Rows(), damageDropped = LabDamageLedger.Dropped };
-                if (action != "stage") throw new ArgumentException("Unknown action.");
-                LabDamageLedger.Reset();
-                LabShotLedger.Reset();
-                return LabStage.Stage(map, JObject.Parse(spec ?? "{}"));
+                throw new ArgumentException("Unknown action.");
             }, cancellationToken).ConfigureAwait(false);
         }
     }

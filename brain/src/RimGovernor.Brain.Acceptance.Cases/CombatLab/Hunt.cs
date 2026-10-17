@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Host;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -42,7 +43,7 @@ internal static class CombatLabHunt
             + "and no corpse is left unbutchered on the map while butchered meat stands spawned. Native because no Go snapshot over recorded colony facts can "
             + "cover the end-to-end signal: the real draft, real shooting at fleeing animals, real hauling to the butcher spot and vanilla butchery.",
         Start = new LabStart { Colonists = 4 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool, CombatServe.PauseModeTool, ObserveChannelsTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool, CombatServe.PauseModeTool, ObserveChannelsTool],
         QuietWorld = true,
 
         // A checkpoint capture pauses the served game mid-hunt.
@@ -61,7 +62,7 @@ internal static class CombatLabHunt
             + "Within the tick budget the bear is dead and no colonist is downed or dead. Native because no Go snapshot over recorded colony facts can cover the end-to-end signal: "
             + "the real draft kept across the restart, the real door closing and opening, shooting and vanilla bear physics.",
         Start = new LabStart { Colonists = 4 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool, CombatServe.PauseModeTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool, CombatServe.PauseModeTool],
         QuietWorld = true,
         NoCheckpoint = true,
         Serve = new ServeSpec { Families = Families, ClockSpeed = CombatServe.MetricsSpeed, Prefix = "combatlab-hunt-door", Env = WorkerEnv() },
@@ -230,23 +231,11 @@ internal static class CombatLabHunt
         }
 
         // The bear charges from 25 cells beyond the prey; the squad is mid-hunt.
-        var spec = new JsonObject
+        var spec = new Fx.StageSpec
         {
-            ["pawns"] = new JsonArray(new JsonObject { ["side"] = "manhunter", ["kind"] = "Bear_Grizzly", ["x"] = cx, ["z"] = cz + 25 }),
-        }.ToJsonString();
-        var reply = await h.CallAsync("combatlab-stage-bear", CombatFixtures.StageTool, new JsonObject { ["spec"] = spec }, cancellationToken).ConfigureAwait(false);
-        if (reply["success"].AsBool() != true)
-        {
-            throw new AcceptanceException($"{CombatFixtures.StageTool} bear refused: {reply.ToJson()}");
-        }
-
-        var rows = reply["pawns"].AsSlice();
-        if (rows.Count != 1)
-        {
-            throw new AcceptanceException($"staged {CaseSupport.Tag(rows.Count)} pawns for the bear, want 1");
-        }
-
-        var bear = (rows[0].AsMap() ?? [])["id"].AsString();
+            Pawns = [new LabPawn { Side = CombatFixtures.Manhunter, Kind = "Bear_Grizzly", X = cx, Z = cz + 25 }.ToSpec("bear")],
+        };
+        var bear = (await FixtureStage.ApplyAsync(h, "combatlab-stage-bear", spec, cancellationToken).ConfigureAwait(false)).Pawns["bear"].Id;
         h = await CombatServe.ServedWindowAsync(s, DoorTicks, true, cancellationToken).ConfigureAwait(false);
         var (pawns, tick) = await CombatStage.ReadAsync(h, cancellationToken).ConfigureAwait(false);
         s.Report["tick"] = tick;

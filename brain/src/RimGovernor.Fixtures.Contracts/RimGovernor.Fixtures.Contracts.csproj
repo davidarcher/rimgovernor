@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The fixture stage spec and its reply (#3393): plain records with a source-generated JSON context. The acceptance
+       harness and cases reference this project; fixture builds of the native mod compile its sources in (the Bridge's
+       DebugStartFixture-conditioned Compile item). No production project references it, and the native build refuses a
+       production Bridge that carries its types (NativeModBuild.FixtureSurface). The sources compile in both places, so
+       they declare their own usings and nullable context. -->
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Fixtures.Contracts</RootNamespace>
+    <AssemblyName>RimGovernor.Fixtures.Contracts</AssemblyName>
+    <!-- tools/rg publishes win-x64 ReadyToRun and restores this project with that RID; declaring it keeps the lock file stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+</Project>

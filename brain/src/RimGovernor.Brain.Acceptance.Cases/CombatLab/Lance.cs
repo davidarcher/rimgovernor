@@ -16,7 +16,7 @@ internal static class CombatLabLance
             + "UseVerbOnThingStatic job on the raider, and within 1200 ticks the raider is down with PsychicShock and alive. The planner's choice of target "
             + "and wearer is the policy test (population_lance_test.go).",
         Start = new LabStart { Colonists = 3 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool, "rimgovernor/operations_apply"],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool, "rimgovernor/operations_apply"],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },
@@ -60,28 +60,8 @@ internal static class CombatLabLance
 
         var user = colonists[0];
         var raider = hostiles[0];
-        var lance = "";
-        foreach (var row in staged.Pawns)
-        {
-            if (row["id"].AsString() != user)
-            {
-                continue;
-            }
-
-            foreach (var w in row["worn"].AsSlice())
-            {
-                var item = w.AsMap() ?? [];
-                if (item["def"].AsString() == ShockLance)
-                {
-                    lance = item["id"].AsString();
-                }
-            }
-        }
-
-        if (lance.Length == 0)
-        {
-            throw new AcceptanceException($"colonist 0 wears no {ShockLance}: {new JsonArray([.. staged.Pawns.Select(p => (JsonNode?)p.DeepClone())]).ToJson()}");
-        }
+        var lance = staged.Pawns.Where(p => p.Id == user).SelectMany(p => p.Worn).LastOrDefault(w => w.Def == ShockLance)?.Id
+            ?? throw new AcceptanceException($"colonist 0 wears no {ShockLance}: {string.Join("; ", staged.Pawns.Select(p => $"{p.Id} [{string.Join(", ", p.Worn.Select(w => w.Def))}]"))}");
 
         report["lance"] = lance;
         report["user"] = user;
@@ -136,7 +116,7 @@ internal static class CombatLabLance
     // readHediffs is one pawn's hediff defs from the lab read.
     private static async Task<List<string>> ReadHediffsAsync(Harness h, string id, CancellationToken cancellationToken)
     {
-        var reply = await h.CallAsync("lance-hediffs", CombatFixtures.StageTool, new JsonObject { ["action"] = "read" }, cancellationToken).ConfigureAwait(false);
+        var reply = await h.CallAsync("lance-hediffs", CombatFixtures.LabTool, new JsonObject { ["action"] = "read" }, cancellationToken).ConfigureAwait(false);
         foreach (var r in reply["pawns"].AsSlice())
         {
             var row = r.AsMap() ?? [];

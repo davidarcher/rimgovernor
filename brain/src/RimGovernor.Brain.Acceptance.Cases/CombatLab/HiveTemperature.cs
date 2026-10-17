@@ -11,7 +11,7 @@ internal static class CombatLabHiveTemperature
         Scope = "The combat frame's hive temperature (#1073) on lab-infestation: one step after staging, a snapshot frame carries "
             + "combat_hive_temperature_c, it decodes as a known fact, and an unheated mountain room reads between -60 and 60 C.",
         Start = new LabStart { Colonists = 5 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },

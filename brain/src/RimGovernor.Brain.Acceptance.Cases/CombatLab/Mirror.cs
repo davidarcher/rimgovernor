@@ -24,7 +24,7 @@ internal static class CombatLabMirror
             + "the pawn's row (downed, stamped with the event's watermark) or its absence; then lab-pods' center drop arrives as a hostile_arrived row with strategy pods, "
             + "landing cells and an open tick by which every raider is out of its pod (#870).",
         Start = new LabStart { Colonists = 4 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },

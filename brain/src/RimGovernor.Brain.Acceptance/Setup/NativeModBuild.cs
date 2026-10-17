@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -148,6 +150,11 @@ public static class NativeModBuild
         _ = Directory.CreateDirectory(assemblies);
         CopyRequired(Path.Combine(compiled, "RimGovernor.Runtime.dll"), assemblies);
         CopyRequired(Path.Combine(compiled, "RimGovernor.Bridge.dll"), bridgeTools);
+        if (role == "production" && FixtureSurface(Path.Combine(compiled, "RimGovernor.Bridge.dll")) is { Count: > 0 } surface)
+        {
+            throw new SetupException($"the production Bridge carries fixture surface (#3393): {string.Join(", ", surface.Take(5))}");
+        }
+
         // The host ships in the mod's general Assemblies/ (the game loads it as a mod assembly): its own assemblies plus
         // the resolved NuGet runtime DLLs, each with a retained notice.
         foreach (var dll in Directory.EnumerateFiles(hostCompiled, "RimGovernor.Host*.dll"))
@@ -433,6 +440,55 @@ public static class NativeModBuild
             throw new SetupException($"missing {kind} dependency notice: {dep.Package}|{dep.Version}|{dep.File}");
         }
     }
+
+    /// <summary>
+    /// The fixture surface an assembly carries, read from its metadata: each type in the fixture contracts' namespace and
+    /// each <c>[Tool("test/...")]</c> op. A production Bridge carries none; a fixture build carries test/stage and the
+    /// contract records it compiles in (#3393).
+    /// </summary>
+    internal static IReadOnlyList<string> FixtureSurface(string assemblyPath)
+    {
+        using var stream = File.OpenRead(assemblyPath);
+        using var pe = new PEReader(stream);
+        var md = pe.GetMetadataReader();
+        // Fully qualified: the plan-stage StageSpec of this assembly's namespace would win over a using.
+        var contracts = typeof(global::RimGovernor.Fixtures.Contracts.StageSpec).Namespace;
+        var found = new List<string>();
+        foreach (var handle in md.TypeDefinitions)
+        {
+            var type = md.GetTypeDefinition(handle);
+            if (md.GetString(type.Namespace) == contracts)
+            {
+                found.Add(contracts + "." + md.GetString(type.Name));
+            }
+        }
+
+        foreach (var handle in md.CustomAttributes)
+        {
+            var attribute = md.GetCustomAttribute(handle);
+            if (AttributeTypeName(md, attribute.Constructor) != "ToolAttribute")
+            {
+                continue;
+            }
+
+            // The value blob: the 0x0001 prolog, then the first constructor argument, the op name.
+            var blob = md.GetBlobReader(attribute.Value);
+            if (blob.Length >= 2 && blob.ReadUInt16() == 1 && blob.ReadSerializedString() is { } op && op.StartsWith("test/", StringComparison.Ordinal))
+            {
+                found.Add(op);
+            }
+        }
+
+        return found;
+    }
+
+    private static string AttributeTypeName(MetadataReader md, EntityHandle constructor) => constructor.Kind switch
+    {
+        HandleKind.MemberReference when md.GetMemberReference((MemberReferenceHandle)constructor).Parent is { Kind: HandleKind.TypeReference } parent
+            => md.GetString(md.GetTypeReference((TypeReferenceHandle)parent).Name),
+        HandleKind.MethodDefinition => md.GetString(md.GetTypeDefinition(md.GetMethodDefinition((MethodDefinitionHandle)constructor).GetDeclaringType()).Name),
+        _ => "",
+    };
 
     private static void CopyRequired(string file, string dir)
     {

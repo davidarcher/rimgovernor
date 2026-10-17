@@ -13,7 +13,7 @@ internal static class CombatLabMortar
             + "with a man_mortar crew, and the same pair on the chunk; the first three apply (AttackStatic, the aim, ManTurret) and the chunk pair refuses not_a_mortar (#1202). One tick later the rifleman "
             + "shoots the part and the crew mans the mortar; then a mortar_fire with no target applies on the mortar (clearing its forced target) and refuses not_a_mortar on the chunk (#1235).",
         Start = new LabStart { Colonists = 3 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },
@@ -33,7 +33,7 @@ internal static class CombatLabMortar
             cz = z;
             f.Things.Add(new FixtureThing { Def = "DefoliatorShipPart", X = x, Z = z + 20, Hostile = true });
             f.Things.Add(new FixtureThing { Def = "Turret_Mortar", X = x, Z = z - 15 });
-            f.Things.Add(new FixtureThing { Def = "Shell_HighExplosive", X = x + 2, Z = z - 16 });
+            f.Things.Add(new FixtureThing { Def = "Shell_HighExplosive", X = x + 2, Z = z - 16, Item = true });
         }).ConfigureAwait(false);
         var colonists = staged.Colonists();
         var things = staged.Things;

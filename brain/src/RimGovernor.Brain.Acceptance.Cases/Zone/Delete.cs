@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -22,10 +23,25 @@ internal static class ZoneDelete
             "applied evidence and ListZones readbacks, and resends of effects that already hold applying again. The " +
             "re-add runs under a playing clock and the journal's observation_invalidated names the zone id and " +
             "its cell rectangle (#359).",
-        Start = new FixtureStart { On = new LabStart(), Op = "test/zone_delete_prepare" },
+        Start = FixtureStage.Start(Fixture),
         Budget = TimeSpan.FromMinutes(5),
         Crew = new Crew { Size = 3 },
         Run = RunAsync,
+    };
+
+    // One small walled, roofed, empty and unzoned 2x2 interior near the first free colonist, on open heavy ground.
+    private static readonly Fx.StageSpec Fixture = new()
+    {
+        Paused = true,
+        Site = new Fx.StageSite
+        {
+            Width = 4,
+            Height = 4,
+            Near = Fx.StageAnchor.Colonist,
+            Radius = 40,
+            Require = [Fx.StageGround.Unfogged, Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Unzoned, Fx.StageGround.Heavy],
+        },
+        Rooms = [new Fx.StageRoom { Name = "hut", Rect = new Fx.StageRect(0, 0, 4, 4), Stuff = "WoodLog", Roof = true }],
     };
 
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
@@ -35,7 +51,7 @@ internal static class ZoneDelete
         var report = s.Report;
         var h = s.Harness;
         var identity = s.Identity;
-        var prepared = s.Prepared ?? [];
+        var interior = FixtureStage.Prepared(s).Rooms["hut"].Interior;
         foreach (var required in new[] { "rimgovernor/operations_apply", "rimgovernor/observations_list_zones" })
         {
             if (!s.Names.Contains(required))
@@ -44,18 +60,8 @@ internal static class ZoneDelete
             }
         }
 
-        var cellRows = prepared["cells"].AsSlice();
-        if (cellRows.Count == 0)
-        {
-            throw new AcceptanceException($"prepare: missing fixture cells: {prepared.ToJson()}");
-        }
-
-        var cells = new List<JsonObject>();
-        foreach (var row in cellRows)
-        {
-            var cell = row.AsMap() ?? [];
-            cells.Add(new JsonObject { ["x"] = cell["x"]?.DeepClone(), ["z"] = cell["z"]?.DeepClone() });
-        }
+        // Long, not int: Dyn.AsNumber reads a JsonValue as double or long only.
+        var cells = interior.Select(c => new JsonObject { ["x"] = (long)c.X, ["z"] = (long)c.Z }).ToList();
 
         report["fixture_cell_count"] = cells.Count;
 

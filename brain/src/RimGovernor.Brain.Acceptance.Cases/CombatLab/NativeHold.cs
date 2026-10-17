@@ -15,7 +15,7 @@ internal static class CombatLabNativeHold
             + "Native shot events must name two targets, with a later shot at another live hostile after the first target is observed unavailable through ordinary combat. "
             + "Every observed hold position must equal the assigned cell; no attack, movement or renewed hold orders follow assignment.",
         Start = new LabStart { Colonists = 1 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         NoCheckpoint = true,
         Budget = AcceptanceCase.LabBudget,

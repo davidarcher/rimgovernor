@@ -10,7 +10,7 @@ internal static class CombatLabReseed
         Name = "combatlab/reseed",
         Scope = "Post-load reseed (#2849): reseeding the game RNG under seed 7 reads the same next draws every time, even after ticks advanced the RNG between, and seed 8 reads different draws. The same-checkpoint-twice property is also visible across combatlab/metrics-* runs: pass -run-seed and compare the report's run_seed_draws and staged_digest.",
         Start = new LabStart { Colonists = 5 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },
@@ -21,7 +21,7 @@ internal static class CombatLabReseed
     {
         var h = s.Harness;
         var a = await CombatStage.ReseedAsync(h, 7, cancellationToken).ConfigureAwait(false);
-        _ = await h.CallAsync("reseed-advance", CombatFixtures.StageTool, new JsonObject { ["action"] = "tick", ["ticks"] = 50 }, cancellationToken).ConfigureAwait(false);
+        _ = await h.CallAsync("reseed-advance", CombatFixtures.LabTool, new JsonObject { ["action"] = "tick", ["ticks"] = 50 }, cancellationToken).ConfigureAwait(false);
         var b = await CombatStage.ReseedAsync(h, 7, cancellationToken).ConfigureAwait(false);
         var c = await CombatStage.ReseedAsync(h, 8, cancellationToken).ConfigureAwait(false);
         if (!a.SequenceEqual(b))

@@ -19,6 +19,7 @@
           "RimGovernor.Brain.Simulation": "[1.0.0, )",
           "RimGovernor.Brain.Store": "[1.0.0, )",
           "RimGovernor.Brain.Telemetry": "[1.0.0, )",
+          "RimGovernor.Fixtures.Contracts": "[1.0.0, )",
           "SQLitePCLRaw.provider.e_sqlite3": "[2.1.11, )",
           "SourceGear.sqlite3": "[3.53.4, )"
         }
@@ -101,8 +102,7 @@
       "rimgovernor.brain.nativefacade": {
         "type": "Project",
         "dependencies": {
-          "RimGovernor.Brain.Contracts": "[1.0.0, )",
-          "RimGovernor.Brain.Domain": "[1.0.0, )"
+          "RimGovernor.Brain.Contracts": "[1.0.0, )"
         }
       },
       "rimgovernor.brain.observation": {
@@ -168,6 +168,9 @@
         }
       },
       "rimgovernor.brain.telemetry": {
+        "type": "Project"
+      },
+      "rimgovernor.fixtures.contracts": {
         "type": "Project"
       },
       "Microsoft.Data.Sqlite.Core": {

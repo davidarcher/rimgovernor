@@ -38,10 +38,10 @@ internal static class CombatServe
     /// <summary>A lab_stage read or other action that must succeed (Go <c>rawRead</c>).</summary>
     internal static async Task<JsonObject> RawReadAsync(Harness h, JsonObject args, CancellationToken cancellationToken)
     {
-        var reply = await h.CallAsync("combatlab-metrics-" + args["action"].AsString(), CombatFixtures.StageTool, args, cancellationToken).ConfigureAwait(false);
+        var reply = await h.CallAsync("combatlab-metrics-" + args["action"].AsString(), CombatFixtures.LabTool, args, cancellationToken).ConfigureAwait(false);
         return reply["success"].AsBool() == true
             ? reply
-            : throw new AcceptanceException($"{CombatFixtures.StageTool} {args["action"].ToJson()} refused: {reply.ToJson()}");
+            : throw new AcceptanceException($"{CombatFixtures.LabTool} {args["action"].ToJson()} refused: {reply.ToJson()}");
     }
 
     /// <summary>The served game's tick from the player API, -1 until it reports one.</summary>

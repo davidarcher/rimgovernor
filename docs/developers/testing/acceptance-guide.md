@@ -57,8 +57,6 @@ of every case without a game (#3397).
 
 ### Staging
 
-<!-- #3393: name the stage spec type and its primitives here. -->
-
 The stage spec is a typed, declarative description of the precondition. It is built from a small set of
 primitives (spawn pawns, items and buildings, clear an area, set priorities and timetables, set needs, research,
 world, incident and quest state). The primitives live in the separate `Fixtures.Contracts` assembly. That assembly
@@ -66,6 +64,17 @@ is compiled into fixture builds only, and production projects never reference it
 added only for something the primitives cannot express: a fault hook, a recorder, an equality or benchmark check,
 or a content flow. Read-only probes are not test ops: a missing read is promoted into the
 [observations contract](../contracts/README.md) and read through production.
+
+The spec is `StageSpec` (`brain/src/RimGovernor.Fixtures.Contracts`). Its core primitives are find site
+(`StageSite`), clear area (`StageClear`), set cells (`StageCells`: terrain, roof, home, fog), build room
+(`StageRoom`), place building (`StageBuilding`: complete, frame or blueprint), spawn thing (`StageThing`), spawn or
+set pawn (`StagePawn`: kind, faction, age, skills, traits, gear, hediffs, work, timetable, needs, policies), zone
+(`StageZone`) and the raid that drives staged hostiles (`StageRaid`). One fixture op, `test/stage`, applies a spec
+and replies a `StageReply` keyed by the names in the spec: each entry's ids and cells. A case stages through
+`FixtureStage`: `FixtureStage.Start(spec)` as its start (the reply is `FixtureStage.Prepared(s)`), or
+`FixtureStage.ApplyAsync` mid-case. The shared primitives on the mod side live in `scripts/fixtures/FixtureKit.cs`.
+The native setup refuses a production Bridge that carries a contracts type or a `test/*` op. Research, world,
+incident and quest primitives come next (#3388).
 
 A lab start is a pinned blank 100×100 map with a colonist count. Spawn at known offsets from its center. A
 prepared save or scenario is appropriate when history, biome or season is the precondition.

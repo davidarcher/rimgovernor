@@ -11,7 +11,7 @@ internal static class CombatLabStun
         Scope = "The combat_pawns stun_ticks_left fact (#1050, #1118) on lab-mech: a scyther staged stunned for 600 ticks reads stun_ticks_left > 0 and at most the "
             + "stun left in the first frame after one 60-tick step, and absent in the first frame after the stun expires.",
         Start = new LabStart { Colonists = 1 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },

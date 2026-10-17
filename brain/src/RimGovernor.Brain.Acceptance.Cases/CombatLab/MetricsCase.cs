@@ -50,7 +50,7 @@ internal static class CombatLabMetrics
                 Name = "combatlab/metrics-" + name,
                 Scope = scope,
                 Start = new LabStart { Colonists = probe.Colonists },
-                RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool, CombatServe.PauseModeTool],
+                RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool, CombatServe.PauseModeTool],
                 QuietWorld = false,
                 // A ring capture pauses the served game mid-fight: the external pause revokes authority and drops the
                 // fight plan (lab-open at t+2m). The stage bundle is taken right after staging, before the planner is

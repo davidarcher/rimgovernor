@@ -12,7 +12,7 @@ internal static class CombatLabCombatDrug
             + "carrying nothing and colonist 2 carrying nothing, all drafted, one combat.orders call orders combat_drug for each; "
             + "colonist 0's applies as Ingest, colonists 1 and 2 refuse no_drug, and 300 ticks later colonist 0 is GoJuiceHigh.",
         Start = new LabStart { Colonists = 3 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },

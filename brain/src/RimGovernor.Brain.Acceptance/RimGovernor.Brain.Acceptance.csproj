@@ -21,6 +21,8 @@
     <ProjectReference Include="..\RimGovernor.Brain.NativeFacade\RimGovernor.Brain.NativeFacade.csproj" />
     <ProjectReference Include="..\RimGovernor.Brain.Policy\RimGovernor.Brain.Policy.csproj" />
     <ProjectReference Include="..\RimGovernor.Brain.Store\RimGovernor.Brain.Store.csproj" />
+    <!-- The fixture stage spec (#3393); no production project references it. -->
+    <ProjectReference Include="..\RimGovernor.Fixtures.Contracts\RimGovernor.Fixtures.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="RimGovernor.Brain.Domain.Tests" />

@@ -13,7 +13,7 @@ internal static class CombatLabStage
         Name = "combatlab/stage",
         Scope = "Combat lab fixtures (#854): lab-open, lab-choke and lab-ranged each stage on a wiped lab with every pawn at its cell, armed as specified, hostiles under an assault lord, a second staging reads back the same digest, combat.geometry's adjacent_to_choke proposes exactly lab-choke's three inner cells behind the gap (#881), and lab-open's raiders close on the colonists within 300 ticks.",
         Start = new LabStart { Colonists = 5 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },
@@ -36,7 +36,6 @@ internal static class CombatLabStage
             var row = new JsonObject
             {
                 ["digest"] = first.Digest,
-                ["faction"] = first.Faction,
                 ["colonists"] = first.Colonists().Count,
                 ["hostiles"] = first.Hostiles().Count,
             };

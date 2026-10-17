@@ -12,7 +12,7 @@ internal static class CombatLabOrders
             + "orders attack_ground, move, attack, fire_mode hold, hold_position, move-then-stop and door hold_open, plus an unowned hostile and a non-door cell; "
             + "every order applies or refuses with its named reason, and one tick later each pawn's job, target, fire mode and the door read back as ordered. A second call closes the door.",
         Start = new LabStart { Colonists = 5 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },

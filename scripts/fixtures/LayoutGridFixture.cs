@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
                 var def = DefDatabase<ResearchProjectDef>.GetNamed(name);
                 Finish(def);
-                var hut = FixtureHut.Build(map, 9, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ), sleepingSpots, builders ? "Bed" : "SleepingSpot");
+                var hut = FixtureHut.Build(map, 9, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ), sleepingSpots, builders ? ThingDefOf.Bed : null);
                 FixtureHut.DropOutside(map, hut, ThingDefOf.WoodLog, 4 * ThingDefOf.WoodLog.stackLimit);
                 // A bedroom case starts once everyone owns a hut bed,
                 // with food for the stage to leave Foothold.

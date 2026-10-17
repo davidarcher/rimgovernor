@@ -10,85 +10,8 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Disposable test setup only; every fixture build carries this file. A colonist that wanders off to
-    // eat, sleep or break mid-assertion reruns a harness for a reason
-    // unrelated to it. Freezing pins every colonist need at its maximum after
-    // each needs tick except the ones the scenario keeps live (Food for a
-    // cooking harness, Rest for a sleeping one). This bends "preserve normal
-    // game rules" for the test game only: the op lives here, never in
-    // rimgovernor-native, and the reply names what was frozen so a report
-    // cannot pass silently because nobody ever ate or slept.
-    public static class FrozenNeeds
-    {
-        private static bool patched;
-        private static Game game;
-        private static HashSet<string> keep = new HashSet<string>();
-
-        public static bool Active => game != null && ReferenceEquals(game, Current.Game);
-        public static IEnumerable<string> Keep => keep.OrderBy(k => k);
-
-        public static object Apply(IEnumerable<string> keepDefs)
-        {
-            var set = new HashSet<string>(keepDefs ?? Enumerable.Empty<string>());
-            foreach (var name in set)
-                if (DefDatabase<NeedDef>.GetNamedSilentFail(name) == null) throw new ArgumentException($"Unknown NeedDef {name}.");
-            keep = set; game = Current.Game;
-            EnsurePatched();
-            var pinned = 0;
-            foreach (var pawn in Colonists()) pinned += Pin(pawn);
-            return new { success = true, frozen = true, keep = Keep.ToArray(), colonists = Colonists().Count(), pinned,
-                needs = Inspect() };
-        }
-
-        public static object Release()
-        {
-            game = null; keep = new HashSet<string>();
-            return new { success = true, frozen = false, needs = Inspect() };
-        }
-
-        public static object[] Inspect()
-        {
-            return Colonists().Select(p => (object)new {
-                pawn = p.GetUniqueLoadID(), name = p.LabelShort,
-                needs = p.needs.AllNeeds.Select(n => new { def = n.def.defName, level = n.CurLevelPercentage, frozen = Active && !keep.Contains(n.def.defName) }).ToArray(),
-            }).ToArray();
-        }
-
-        private static IEnumerable<Pawn> Colonists()
-        {
-            if (Current.Game == null) return Enumerable.Empty<Pawn>();
-            return Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned).Where(p => p.needs != null);
-        }
-
-        private static int Pin(Pawn pawn)
-        {
-            var pinned = 0;
-            foreach (var need in pawn.needs.AllNeeds)
-            {
-                if (keep.Contains(need.def.defName)) continue;
-                need.CurLevelPercentage = 1f;
-                pinned++;
-            }
-            return pinned;
-        }
-
-        private static void EnsurePatched()
-        {
-            if (patched) return;
-            // Need.NeedInterval is overridden per need without calling base,
-            // so the pin runs after the whole tracker's interval instead.
-            new Harmony("rimgovernor.test.freeze-needs").Patch(
-                AccessTools.Method(typeof(Pawn_NeedsTracker), nameof(Pawn_NeedsTracker.NeedsTrackerTickInterval)),
-                postfix: new HarmonyMethod(typeof(FrozenNeeds), nameof(AfterTick)));
-            patched = true;
-        }
-
-        private static void AfterTick(Pawn ___pawn)
-        {
-            if (!Active || ___pawn == null || ___pawn.needs == null || !___pawn.IsColonist || ___pawn.Faction != Faction.OfPlayer) return;
-            Pin(___pawn);
-        }
-    }
+    // Disposable test setup only; every fixture build carries this file. The needs test/freeze_needs pins
+    // (FrozenNeeds) live in FixtureKit.cs with the other shared fixture primitives.
 
     // Disposable test setup only (#3230). Under an active controller authority
     // NativePawnActivities owns every player-controlled colonist's voluntary job

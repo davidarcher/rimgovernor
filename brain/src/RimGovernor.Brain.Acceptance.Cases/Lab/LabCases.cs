@@ -15,6 +15,7 @@ public static class LabCases
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(LabGridThings.Case());
         registry.Register(LabSpawn.Case());
+        registry.Register(LabStage.Case());
         registry.Register(LabSpoilagePick.Case());
         registry.Register(LabTraining.Case());
         registry.Register(LabSkillLearning.Case());

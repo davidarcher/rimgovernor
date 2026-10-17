@@ -33,7 +33,7 @@ internal static class DefenseSiegeMortar
         Scope = "A forced siege answered by mortar fire (#1208): on lab-siege, served by the routine defense planner, the fight's combat evidence records "
             + "an applied man_mortar on the colony mortar and an applied counter_battery mortar_fire aimed at the camped besiegers. Native: a live siege lord, the served fight and the native mortar ops end to end, which no colony-facts snapshot replays.",
         Start = new LabStart { Colonists = 3 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool, LetterPauseModeTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool, LetterPauseModeTool],
         QuietWorld = true,
         // A checkpoint capture pauses the served game mid-fight.
         NoCheckpoint = true,

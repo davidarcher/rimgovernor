@@ -891,10 +891,7 @@ namespace HomeBridge.BridgeTools
         // from-checkpoint raid musters them there first.
         private static object Muster(Map map, List<Pawn> colonists, string cells)
         {
-            var targets = (cells ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(pair => {
-                var xz = pair.Split(',');
-                return new IntVec3(int.Parse(xz[0].Trim()), 0, int.Parse(xz[1].Trim()));
-            }).ToList();
+            var targets = FixtureKit.Cells(cells);
             if (targets.Count == 0) return Refuse("muster needs cells=x,z;x,z;...");
             var moved = new List<object>();
             for (var i = 0; i < colonists.Count; i++)

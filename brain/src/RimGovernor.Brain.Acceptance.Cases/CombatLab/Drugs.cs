@@ -13,7 +13,7 @@ internal static class CombatLabDrugs
             + "luciferium_addicted on the second, and neither on the third raider or any colonist. Colonist 0 carries go-juice and steel; "
             + "the native carried_drugs read lists only GoJuice for it and establishes empty drug inventories for the other colonists.",
         Start = new LabStart { Colonists = 3 },
-        RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
+        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
         QuietWorld = true,
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },
