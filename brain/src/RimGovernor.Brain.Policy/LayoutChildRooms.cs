@@ -17,7 +17,7 @@ public static partial class PolicyConstants
         [PlannedRole.Playroom, PlannedRole.Classroom, PlannedRole.DeathrestChamber, PlannedRole.Worship, PlannedRole.ContainmentCell, PlannedRole.IsolationRoom];
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutChildRoomsRules
 {
     /// <summary>The shapes of every need whose furniture resolves, planned or not.</summary>
     public static IReadOnlyList<ChildRoomShape> ChildRoomShapes(IReadOnlyList<ChildRoomNeed> needs, IReadOnlyList<FurnitureDefinition> defs)
@@ -84,9 +84,9 @@ public static partial class PolicyFunctions
     public static IReadOnlyList<(int W, int D)> ChildRoomSizes(ChildRoomShape s)
     {
         var output = new List<(int W, int D)>();
-        for (var d = ThroneMinSide; d <= CoreMaxDepth; d++)
+        for (var d = LayoutThroneRules.ThroneMinSide; d <= CoreMaxDepth; d++)
         {
-            for (var w = ThroneMinSide; ; w++)
+            for (var w = LayoutThroneRules.ThroneMinSide; ; w++)
             {
                 if (s.Holds(w, d))
                 {
@@ -95,7 +95,7 @@ public static partial class PolicyFunctions
                 }
 
                 // Width past the whole demand in one row cannot help.
-                if (w > ChildRowDemand(s) + ThroneMinSide)
+                if (w > ChildRowDemand(s) + LayoutThroneRules.ThroneMinSide)
                 {
                     break;
                 }
@@ -112,6 +112,12 @@ public static partial class PolicyFunctions
         });
     }
 
+    /// <summary>The width one row would need for every piece.</summary>
+    private static int ChildRowDemand(ChildRoomShape s) => s.Pieces.Sum(p => p.Size.X * p.Count);
+}
+
+partial record LayoutPlan
+{
     /// <summary>
     /// The playroom, classroom, deathrest chamber, worship room, containment cell and isolation room the colony
     /// owes (shapes, ChildRoomShapes) or the plan holds as room nodes. An owed room is the smallest interior
@@ -126,7 +132,7 @@ public static partial class PolicyFunctions
             int w = 0, d = 0;
             foreach (var s in shapes)
             {
-                var sizes = ChildRoomSizes(s);
+                var sizes = LayoutChildRoomsRules.ChildRoomSizes(s);
                 if (s.Module == role && sizes.Count > 0)
                 {
                     (w, d) = sizes[0];
@@ -149,15 +155,12 @@ public static partial class PolicyFunctions
         return nodes;
     }
 
-    /// <summary>The width one row would need for every piece.</summary>
-    private static int ChildRowDemand(ChildRoomShape s) => s.Pieces.Sum(p => p.Size.X * p.Count);
-
     /// <summary>The plan's first room of the shape's role that holds it.</summary>
-    public static bool ChildRoomFor(this LayoutPlan p, ChildRoomShape s, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out PlannedRoom? room)
+    public bool ChildRoomFor(ChildRoomShape s, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out PlannedRoom? room)
     {
-        foreach (var r in p.Rooms)
+        foreach (var r in this.Rooms)
         {
-            var (w, d) = FrameDims(r);
+            var (w, d) = PlannedRoom.FrameDims(r);
             if (r.Role == s.Module && s.Holds(w, d))
             {
                 room = r;
@@ -167,7 +170,10 @@ public static partial class PolicyFunctions
         room = null;
         return false;
     }
+}
 
+partial record PlannedRoom
+{
     /// <summary>
     /// The room's interior as its furniture frame sees it: width along the door's wall, depth away from it. A
     /// room beside a north-south hallway is stored transposed, so its door faces east or west and the frame's

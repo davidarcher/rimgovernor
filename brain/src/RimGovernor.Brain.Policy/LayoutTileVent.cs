@@ -20,7 +20,7 @@ internal sealed record VentChannel(List<Cell> Cells, int Other);
 /// cooler and the vents want the same outside wall cells, so the vents leave as many outside cells as the room's group
 /// has wall stations.
 /// </summary>
-public static partial class PolicyFunctions
+public static partial class LayoutTileVentRules
 {
     /// <summary>NodeVent is a vent standing in a room's wall.</summary>
     public static NodeKind NodeVent => NodeKind.Vent;
@@ -115,7 +115,7 @@ internal sealed partial class Tiler
     /// <summary>The band a room is held in: under the full-rot temperature when its group stores cold, else the colonists' comfortable range. Null when the full-rot temperature is unknown.</summary>
     internal Band? VentBand(RoomGroup g)
     {
-        if (GroupCold(g))
+        if (LayoutTileRules.GroupCold(g))
         {
             if (In.FullRotRateC <= 0)
             {
@@ -169,7 +169,7 @@ internal sealed partial class Tiler
             Add(new Cell(rc.X - 1, z), new Cell(rc.X - 2, z));
             Add(new Cell(rc.X + rc.Width, z), new Cell(rc.X + rc.Width + 1, z));
         }
-        SortCells(output);
+        LayoutSiteGroundRules.SortCells(output);
         return output;
     }
 
@@ -186,7 +186,7 @@ internal sealed partial class Tiler
                 output.Add(c);
             }
         }
-        SortCells(output);
+        LayoutSiteGroundRules.SortCells(output);
         return output;
     }
 
@@ -212,7 +212,7 @@ internal sealed partial class Tiler
         var known = In.OutdoorCurve.TryGetValue(out var curve);
         if (!known || !m.HasLiving() || !QuestCapacityForecast.FinitePositive(In.SteelValue))
         {
-            Note(-1, -1, TileUnsatisfied, ReasonTileVentClimateUnknown);
+            Note(-1, -1, LayoutTileRules.TileUnsatisfied, LayoutTileVentRules.ReasonTileVentClimateUnknown);
             return;
         }
         In.VentAvailable.TryGetValue(out var available);
@@ -229,7 +229,7 @@ internal sealed partial class Tiler
             var g = In.Groups[r.Group];
             if (VentBand(g) is null)
             {
-                Note(r.Group, -1, TileUnsatisfied, ReasonTileVentClimateUnknown);
+                Note(r.Group, -1, LayoutTileRules.TileUnsatisfied, LayoutTileVentRules.ReasonTileVentClimateUnknown);
                 continue;
             }
 
@@ -247,7 +247,7 @@ internal sealed partial class Tiler
             var neighbours = Linked(i);
             foreach (var j in neighbours)
             {
-                var cells = LinkCandidates(PairOf(i, j), used);
+                var cells = LinkCandidates(LayoutTileRules.PairOf(i, j), used);
                 if (cells.Count > 0)
                 {
                     channels.Add(new VentChannel(cells, j));
@@ -329,19 +329,19 @@ internal sealed partial class Tiler
             }
             if (p.Failed is not null)
             {
-                Note(r.Group, -1, TileUnsatisfied, ReasonTileVentClimateUnknown);
+                Note(r.Group, -1, LayoutTileRules.TileUnsatisfied, LayoutTileVentRules.ReasonTileVentClimateUnknown);
                 p.Failed = null;
                 continue;
             }
             var wanted = n2.Sum();
             if (wanted == 0 || Total(n2, -2) >= doorsOnly - 1e-9)
             {
-                Note(r.Group, -1, TileAbsent, ReasonTileVentNotCheaper);
+                Note(r.Group, -1, LayoutTileVentRules.TileAbsent, LayoutTileVentRules.ReasonTileVentNotCheaper);
                 continue;
             }
             if (!available)
             {
-                Note(r.Group, -1, TileUnsatisfied, ReasonTileVentUnavailable);
+                Note(r.Group, -1, LayoutTileRules.TileUnsatisfied, LayoutTileVentRules.ReasonTileVentUnavailable);
                 continue;
             }
             for (var c = 0; c < n2.Length; c++)
@@ -349,15 +349,15 @@ internal sealed partial class Tiler
                 foreach (var cell in channels[c].Cells.Take(n2[c]))
                 {
                     used.Add(cell);
-                    var reason = ReasonTileVent;
+                    var reason = LayoutTileVentRules.ReasonTileVent;
                     var other = -1;
                     if (channels[c].Other >= 0)
                     {
-                        reason = ReasonTileVentLink;
+                        reason = LayoutTileVentRules.ReasonTileVentLink;
                         other = Rooms[channels[c].Other].Group;
                     }
                     Vents.Add(new TileVent(cell, i, channels[c].Other, reason));
-                    Note(r.Group, other, TilePlace, reason);
+                    Note(r.Group, other, LayoutTileRules.TilePlace, reason);
                 }
             }
         }
@@ -371,7 +371,7 @@ internal sealed partial class Tiler
         var output = new List<PlannedSite>(vents.Count);
         foreach (var v in vents)
         {
-            var site = NewSite($"vent_{v.Cell.X}_{v.Cell.Z}", NodeVent, RegionRules.RectRegion(new Rectangle { X = v.Cell.X, Z = v.Cell.Z, Width = 1, Height = 1 }), v.Reason);
+            var site = LayoutPerimeterSitesRules.NewSite($"vent_{v.Cell.X}_{v.Cell.Z}", LayoutTileVentRules.NodeVent, RegionRules.RectRegion(new Rectangle { X = v.Cell.X, Z = v.Cell.Z, Width = 1, Height = 1 }), v.Reason);
             var (rot, _) = DoorSide(Rooms[v.Room].Rect, v.Cell);
             output.Add(site with { Rotation = rot });
         }

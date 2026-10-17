@@ -46,7 +46,7 @@ public sealed record PerimeterSection
     public List<Building> Buildings { get; init; } = [];
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutDefenseRules
 {
     private static readonly Regex PerimeterRevision = new(@"^r\d+-", RegexOptions.CultureInvariant);
 
@@ -62,6 +62,24 @@ public static partial class PolicyFunctions
         return m.Success ? rest[m.Length..] : rest;
     }
 
+    public static Rectangle UnionRect(Rectangle a, Rectangle b)
+    {
+        if (a.Width == 0)
+        {
+            return b;
+        }
+        if (b.Width == 0)
+        {
+            return a;
+        }
+        int x0 = Math.Min(a.X, b.X), z0 = Math.Min(a.Z, b.Z);
+        int x1 = Math.Max(a.X + a.Width, b.X + b.Width), z1 = Math.Max(a.Z + a.Height, b.Z + b.Height);
+        return new Rectangle(x0, z0, x1 - x0, z1 - z0);
+    }
+}
+
+partial record LayoutPlan
+{
     /// <summary>
     /// The live killbox node's id and a digest of its footprint, the identity a stored defense layout was
     /// proposed on. Ok is false while the plan has no opening.
@@ -139,19 +157,19 @@ public static partial class PolicyFunctions
             return (default!, default, default, false);
         }
         // Home is the yard cell behind the killbox's back-wall doorway.
-        var home = DefenseLayout.AddCell(k.Entry, DefenseLayout.Scale(DefenseTurretsPolicy.DirectionOf(k.Toward), PerimeterThick + k.Depth));
+        var home = DefenseLayout.AddCell(k.Entry, DefenseLayout.Scale(DefenseTurretsPolicy.DirectionOf(k.Toward), LayoutPerimeterRules.PerimeterThick + k.Depth));
         var cover = killbox;
-        foreach (var a in approaches.Append(RectOf(k.Entry, k.Entry)))
+        foreach (var a in approaches.Append(LayoutPerimeterRules.RectOf(k.Entry, k.Entry)))
         {
-            cover = UnionRect(cover, a);
+            cover = LayoutDefenseRules.UnionRect(cover, a);
         }
-        var region = ClipRect(Pad(cover, 3), new Rectangle(0, 0, bounds.Width, bounds.Height));
-        if (region.Width == 0 || !Contains(region, home))
+        var region = LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(cover, 3), new Rectangle(0, 0, bounds.Width, bounds.Height));
+        if (region.Width == 0 || !LayoutPerimeterRules.Contains(region, home))
         {
             return (default!, default, default, false);
         }
         // Only the wall near the opening matters to the funnel.
-        k = k with { Walled = [.. k.Walled.Where(c => Contains(region, c))] };
+        k = k with { Walled = [.. k.Walled.Where(c => LayoutPerimeterRules.Contains(region, c))] };
         return (k, region, home, true);
     }
 
@@ -214,7 +232,7 @@ public static partial class PolicyFunctions
                     end = end with { Z = a.Z };
                 }
                 var entry = DefenseLayout.AddCell(end, d);
-                if (Contains(killbox, DefenseLayout.AddCell(entry, DefenseLayout.Scale(d, PerimeterThick))))
+                if (LayoutPerimeterRules.Contains(killbox, DefenseLayout.AddCell(entry, DefenseLayout.Scale(d, LayoutPerimeterRules.PerimeterThick))))
                 {
                     k = k with { Entry = entry, Toward = DefenseLayout.RotationOf(d), Width = 3, Depth = killbox.Height };
                     found = true;
@@ -277,7 +295,7 @@ public static partial class PolicyFunctions
         if (ringFound)
         {
             ringID = ringSite!.Node;
-            runs = RegionRects(ringSite.Footprint);
+            runs = LayoutPerimeterSitesRules.RegionRects(ringSite.Footprint);
             foreach (var c in ringSite.Ring!.Light.Cells())
             {
                 woodInner.Add(c);
@@ -304,7 +322,7 @@ public static partial class PolicyFunctions
             if (geothermal.Width == 0)
             {
                 geothermal = r.Area.Bounds();
-                geothermalID = GeothermalNodeId(nth);
+                geothermalID = LayoutPowerNodesRules.GeothermalNodeId(nth);
             }
         }
         var centre = new Cell(killbox.X + (killbox.Width / 2), killbox.Z + (killbox.Height / 2));
@@ -312,7 +330,7 @@ public static partial class PolicyFunctions
         var ringRect = default(Rectangle);
         foreach (var r in runs)
         {
-            ringRect = UnionRect(ringRect, r);
+            ringRect = LayoutDefenseRules.UnionRect(ringRect, r);
             var horizontal = r.Width >= r.Height;
             var length = horizontal ? r.Width : r.Height;
             for (var off = 0; off < length; off += PerimeterSectionRun)
@@ -370,15 +388,15 @@ public static partial class PolicyFunctions
                 output.Add(section);
             }
         }
-        if (geothermal.Width > 2 * GeothermalShell && geothermal.Height > 2 * GeothermalShell)
+        if (geothermal.Width > 2 * LayoutUtilityRules.GeothermalShell && geothermal.Height > 2 * LayoutUtilityRules.GeothermalShell)
         {
-            var gen = Pad(geothermal, -GeothermalShell);
+            var gen = LayoutPerimeterRules.Pad(geothermal, -LayoutUtilityRules.GeothermalShell);
             // The doorway crosses the shell on the side facing the ring's centre (the core), mid-side.
             var core = new Cell(ringRect.X + (ringRect.Width / 2), ringRect.Z + (ringRect.Height / 2));
             var mid = new Cell(gen.X + (gen.Width / 2), gen.Z + (gen.Height / 2));
             int dx = core.X - mid.X, dz = core.Z - mid.Z;
             var doorway = new HashSet<Cell>();
-            for (var t = 1; t <= GeothermalShell; t++)
+            for (var t = 1; t <= LayoutUtilityRules.GeothermalShell; t++)
             {
                 var c = mid;
                 if (Math.Abs(dx) >= Math.Abs(dz) && dx >= 0)
@@ -402,7 +420,7 @@ public static partial class PolicyFunctions
             var s = new PerimeterSection { Name = TierGeothermal, Nodes = [geothermalID] };
             foreach (var c in PlannedRules.RectCells(geothermal))
             {
-                if (Contains(gen, c))
+                if (LayoutPerimeterRules.Contains(gen, c))
                 {
                     continue;
                 }
@@ -442,7 +460,7 @@ public static partial class PolicyFunctions
         var carry = new HashSet<Cell>();
         foreach (var c in wi.Cells())
         {
-            if (!Contains(killbox, c)) { allowed.Add(c); }
+            if (!LayoutPerimeterRules.Contains(killbox, c)) { allowed.Add(c); }
         }
         foreach (var c in sites)
         {
@@ -491,20 +509,5 @@ public static partial class PolicyFunctions
             output.Add(s);
         }
         return output;
-    }
-
-    public static Rectangle UnionRect(Rectangle a, Rectangle b)
-    {
-        if (a.Width == 0)
-        {
-            return b;
-        }
-        if (b.Width == 0)
-        {
-            return a;
-        }
-        int x0 = Math.Min(a.X, b.X), z0 = Math.Min(a.Z, b.Z);
-        int x1 = Math.Max(a.X + a.Width, b.X + b.Width), z1 = Math.Max(a.Z + a.Height, b.Z + b.Height);
-        return new Rectangle(x0, z0, x1 - x0, z1 - z0);
     }
 }

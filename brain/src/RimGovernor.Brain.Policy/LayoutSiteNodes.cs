@@ -13,7 +13,7 @@ public sealed record SiteLane
     public int Blocked { get; init; }
 
     /// <summary>The fraction of its rated output a wind lane leaves.</summary>
-    public double WindOutput() => PolicyFunctions.WindOutput(Blocked);
+    public double WindOutput() => LayoutPowerNodesRules.WindOutput(Blocked);
 }
 
 /// <summary>A site element of the station graph.</summary>
@@ -89,7 +89,7 @@ public sealed record SiteEmbedding
 public sealed class SiteNodeException(string message) : DomainException("site node: " + message);
 
 /// <summary>Ports <c>layout_site_nodes.go</c>: the things the colony builds that have no walls and no door as nodes of the station graph.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutSiteNodesRules
 {
     /// <summary>The site node was placed at its fixed anchor.</summary>
     public const string ReasonSiteAnchored = "site_placed_at_anchor";

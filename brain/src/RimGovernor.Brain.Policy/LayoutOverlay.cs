@@ -50,7 +50,7 @@ public readonly record struct OverlayHue(float R, float G, float B)
 /// <summary>A role's hue and label.</summary>
 public readonly record struct OverlayStyleOf(OverlayHue Hue, string Label);
 
-public static partial class PolicyFunctions
+public static partial class LayoutOverlayRules
 {
     public static OverlayHue PlanGray => new(0.6f, 0.6f, 0.6f);
     public static OverlayHue PlanRed => new(0.9f, 0.2f, 0.2f);
@@ -74,39 +74,39 @@ public static partial class PolicyFunctions
     {
         public static readonly Dictionary<ZoneKind, OverlayStyleOf> Zone = new()
         {
-            [ZoneField] = St(PlanGreen, "field"),
-            [ZoneMining] = St(PlanBrown, "mining"),
-            [ZoneNoGo] = St(PlanDarkPurple, "no-go"),
+            [LayoutPlanRules.ZoneField] = St(PlanGreen, "field"),
+            [LayoutPlanRules.ZoneMining] = St(PlanBrown, "mining"),
+            [LayoutPlanRules.ZoneNoGo] = St(PlanDarkPurple, "no-go"),
         };
 
         public static readonly Dictionary<PlannedRole, OverlayStyleOf> Room = new()
         {
-            [PlannedBedroom] = St(PlanBlue, "bedroom"),
-            [PlannedSuite] = St(PlanBlue, "suite"),
-            [PlannedShelter] = St(PlanLightBlue, "shelter"),
+            [LayoutSurveyRules.PlannedBedroom] = St(PlanBlue, "bedroom"),
+            [LayoutTripsRules.PlannedSuite] = St(PlanBlue, "suite"),
+            [LayoutSurveyRules.PlannedShelter] = St(PlanLightBlue, "shelter"),
             [PlannedRole.Airlock] = St(PlanLightBlue, "airlock"),
-            [PlannedPorch] = St(PlanLightBlue, "porch"),
-            [PlannedDining] = St(PlanAmber, "dining"),
-            [PlannedRec] = St(PlanPink, "rec room"),
-            [PlannedLab] = St(PlanViolet, "research"),
-            [PlannedBattery] = St(PlanCyan, "battery room"),
-            [PlannedHospital] = St(PlanWhite, "hospital"),
-            [PlannedPrison] = St(PlanDarkPurple, "jail"),
-            [PlannedKitchen] = St(PlanYellow, "kitchen"),
-            [PlannedFreezer] = St(PlanCyan, "freezer"),
+            [LayoutPorchRules.PlannedPorch] = St(PlanLightBlue, "porch"),
+            [LayoutSurveyRules.PlannedDining] = St(PlanAmber, "dining"),
+            [LayoutSurveyRules.PlannedRec] = St(PlanPink, "rec room"),
+            [LayoutSurveyRules.PlannedLab] = St(PlanViolet, "research"),
+            [LayoutUtilityRules.PlannedBattery] = St(PlanCyan, "battery room"),
+            [LayoutSurveyRules.PlannedHospital] = St(PlanWhite, "hospital"),
+            [LayoutSurveyRules.PlannedPrison] = St(PlanDarkPurple, "jail"),
+            [LayoutSurveyRules.PlannedKitchen] = St(PlanYellow, "kitchen"),
+            [LayoutSurveyRules.PlannedFreezer] = St(PlanCyan, "freezer"),
             [PlannedRole.MealCloset] = St(PlanCyan, "meal closet"),
-            [PlannedButchery] = St(PlanBrown, "butchery"),
-            [PlannedStorage] = St(PlanTan, "storage"),
-            [PlannedWorkshop] = St(PlanBrown, "workshop"),
-            [PlannedReserve] = St(PlanGray, "reserve"),
+            [LayoutSurveyRules.PlannedButchery] = St(PlanBrown, "butchery"),
+            [LayoutSurveyRules.PlannedStorage] = St(PlanTan, "storage"),
+            [LayoutSurveyRules.PlannedWorkshop] = St(PlanBrown, "workshop"),
+            [LayoutSurveyRules.PlannedReserve] = St(PlanGray, "reserve"),
             [PlannedRole.Circulation] = St(PlanGray, "circulation"),
-            [PlannedTomb] = St(PlanGray, "tomb"),
-            [PlannedMorgue] = St(PlanCyan, "morgue"),
-            [PlannedTrainingRange] = St(PlanBrown, "training range"),
-            [PlannedSparringRing] = St(PlanBrown, "sparring ring"),
-            [PlannedYard] = St(PlanTan, "materials yard"),
+            [LayoutSurveyRules.PlannedTomb] = St(PlanGray, "tomb"),
+            [LayoutSurveyRules.PlannedMorgue] = St(PlanCyan, "morgue"),
+            [LayoutRangeRules.PlannedTrainingRange] = St(PlanBrown, "training range"),
+            [LayoutRingRules.PlannedSparringRing] = St(PlanBrown, "sparring ring"),
+            [LayoutYardRules.PlannedYard] = St(PlanTan, "materials yard"),
             [PlannedRole.Pen] = St(PlanGreen, "pen"),
-            [PlannedThrone] = St(PlanAmber, "throne room"),
+            [LayoutThroneRules.PlannedThrone] = St(PlanAmber, "throne room"),
             [PlannedRole.Nursery] = St(PlanGreen, "nursery"),
             [PlannedRole.Playroom] = St(PlanYellow, "playroom"),
             [PlannedRole.Classroom] = St(PlanWhite, "classroom"),
@@ -118,23 +118,23 @@ public static partial class PolicyFunctions
 
         public static readonly Dictionary<ReservationKind, OverlayStyleOf> Reservation = new()
         {
-            [ReserveBatteryRoom] = St(PlanCyan, "battery room"),
-            [ReserveGeothermal] = St(PlanCyan, "geothermal"),
+            [LayoutPlanRules.ReserveBatteryRoom] = St(PlanCyan, "battery room"),
+            [LayoutPlanRules.ReserveGeothermal] = St(PlanCyan, "geothermal"),
         };
 
         public static readonly Dictionary<NodeKind, OverlayStyleOf> Site = new()
         {
-            [NodeRing] = St(PlanRed, "perimeter"),
-            [NodeGate] = St(PlanYellow, "gate"),
-            [NodePump] = St(PlanCyan, "moisture pump"),
-            [NodeKillbox] = St(PlanRed, "killbox"),
-            [NodeFence] = St(PlanYellow, "killbox fence"),
-            [NodeMortar] = St(PlanRed, "mortar"),
-            [NodeCoverClear] = St(PlanGray, "clear cover"),
-            [NodePocketWall] = St(PlanRed, "pocket wall"),
-            [NodeVent] = St(PlanCyan, "vent"),
-            [NodeTurbine] = St(PlanCyan, "turbine"),
-            [NodeSolar] = St(PlanCyan, "solar"),
+            [LayoutPerimeterSitesRules.NodeRing] = St(PlanRed, "perimeter"),
+            [LayoutPerimeterSitesRules.NodeGate] = St(PlanYellow, "gate"),
+            [LayoutPerimeterSitesRules.NodePump] = St(PlanCyan, "moisture pump"),
+            [LayoutPerimeterSitesRules.NodeKillbox] = St(PlanRed, "killbox"),
+            [LayoutPerimeterSitesRules.NodeFence] = St(PlanYellow, "killbox fence"),
+            [LayoutPerimeterSitesRules.NodeMortar] = St(PlanRed, "mortar"),
+            [LayoutPerimeterSitesRules.NodeCoverClear] = St(PlanGray, "clear cover"),
+            [LayoutPerimeterSitesRules.NodePocketWall] = St(PlanRed, "pocket wall"),
+            [LayoutTileVentRules.NodeVent] = St(PlanCyan, "vent"),
+            [LayoutPowerNodesRules.NodeTurbine] = St(PlanCyan, "turbine"),
+            [LayoutPowerNodesRules.NodeSolar] = St(PlanCyan, "solar"),
 
             // The defense tiers PlanDefenseTiers cuts under the killbox.
             [NodeKind.DefCorridor] = St(PlanRed, "corridor"),
@@ -246,7 +246,7 @@ public static partial class PolicyFunctions
         var fields = new LayoutOverlay();
         foreach (var l in o.Layers)
         {
-            if (l.Label == OverlayTables.Zone[ZoneField].Label)
+            if (l.Label == OverlayTables.Zone[LayoutPlanRules.ZoneField].Label)
             {
                 fields.Layers.Add(l);
             }
@@ -279,7 +279,7 @@ public sealed partial record LayoutPlan
         var centres = new Dictionary<int, Cell>();
         foreach (var r in Rooms)
         {
-            centres[r.Id] = LabelCell(r.Region);
+            centres[r.Id] = LayoutOverlayRules.LabelCell(r.Region);
         }
         return centres;
     }
@@ -319,13 +319,13 @@ public sealed partial record LayoutPlan
         }
         var sets = new (OverlayStyleOf Style, List<OverlayLine> Lines)[]
         {
-            (new OverlayStyleOf(PlanWhite, "link"), links),
-            (new OverlayStyleOf(PlanAmber, "successor arrow"), successors),
-            (new OverlayStyleOf(PlanCyan, "trip"), trips),
+            (new OverlayStyleOf(LayoutOverlayRules.PlanWhite, "link"), links),
+            (new OverlayStyleOf(LayoutOverlayRules.PlanAmber, "successor arrow"), successors),
+            (new OverlayStyleOf(LayoutOverlayRules.PlanCyan, "trip"), trips),
         };
         foreach (var (style, lines) in sets)
         {
-            if (OverlayLineLayer(style, bounds, lines) is { } layer)
+            if (LayoutOverlayRules.OverlayLineLayer(style, bounds, lines) is { } layer)
             {
                 output.Layers.Add(layer);
             }
@@ -364,7 +364,7 @@ public sealed partial record LayoutPlan
                 lines.Add(new OverlayLine(a.Cell, b.Cell));
             }
         }
-        if (OverlayLineLayer(new OverlayStyleOf(PlanRed, "requirement"), bounds, lines) is { } layer)
+        if (LayoutOverlayRules.OverlayLineLayer(new OverlayStyleOf(LayoutOverlayRules.PlanRed, "requirement"), bounds, lines) is { } layer)
         {
             o.Layers.Add(layer);
         }
@@ -386,14 +386,14 @@ public sealed partial record LayoutPlan
             var layer = new OverlayLayer { Style = shape, Label = style.Label, Color = shape == OverlayStyle.Outline ? style.Hue.Outline() : style.Hue.Fill() };
             foreach (var r in rects ?? [])
             {
-                if (Clip(r, bounds) is { } c)
+                if (LayoutOverlayRules.Clip(r, bounds) is { } c)
                 {
                     layer.Rects.Add(c);
                 }
             }
             foreach (var r in runs ?? [])
             {
-                if (ClipRun(r, bounds) is { } c)
+                if (LayoutOverlayRules.ClipRun(r, bounds) is { } c)
                 {
                     layer.Runs.Add(c);
                 }
@@ -409,14 +409,14 @@ public sealed partial record LayoutPlan
 
         foreach (var z in Zones)
         {
-            if (ZoneOverlayStyle(z.Kind) is { } style)
+            if (LayoutOverlayRules.ZoneOverlayStyle(z.Kind) is { } style)
             {
                 Add(style, OverlayStyle.Fill, null, z.Runs);
             }
         }
         foreach (var r in Reservations)
         {
-            if (ReservationOverlayStyle(r.Kind) is not { } style)
+            if (LayoutOverlayRules.ReservationOverlayStyle(r.Kind) is not { } style)
             {
                 continue;
             }
@@ -429,11 +429,11 @@ public sealed partial record LayoutPlan
         // The defense nodes draw as their own cells. The cover band is one wide region: one label, on its first run.
         foreach (var s in Sites)
         {
-            if (SiteOverlayStyle(s.Kind) is not { } style)
+            if (LayoutOverlayRules.SiteOverlayStyle(s.Kind) is not { } style)
             {
                 continue;
             }
-            var shape = s.Kind == NodeRing || s.Kind == NodeKillbox ? OverlayStyle.Outline : OverlayStyle.Fill;
+            var shape = s.Kind == LayoutPerimeterSitesRules.NodeRing || s.Kind == LayoutPerimeterSitesRules.NodeKillbox ? OverlayStyle.Outline : OverlayStyle.Fill;
 
             // A rectangle goes out as one, any other shape as its row runs.
             IReadOnlyList<Rectangle>? rects = null;
@@ -445,15 +445,15 @@ public sealed partial record LayoutPlan
             }
             foreach (var l in s.Lanes)
             {
-                Add(LaneOverlay, OverlayStyle.Fill, null, l.Region.Runs);
+                Add(LayoutOverlayRules.LaneOverlay, OverlayStyle.Fill, null, l.Region.Runs);
             }
             var drawn = Add(style, shape, rects, runs);
             if (s.Ring is not null)
             {
-                Add(BridgeOverlay, OverlayStyle.Fill, null, s.Ring.Bridged.Runs);
-                Add(GapOverlay, OverlayStyle.Fill, null, s.Ring.Gaps.Runs);
+                Add(LayoutOverlayRules.BridgeOverlay, OverlayStyle.Fill, null, s.Ring.Bridged.Runs);
+                Add(LayoutOverlayRules.GapOverlay, OverlayStyle.Fill, null, s.Ring.Gaps.Runs);
             }
-            else if (drawn && s.Kind == NodeCoverClear)
+            else if (drawn && s.Kind == LayoutPerimeterSitesRules.NodeCoverClear)
             {
                 var first = s.Footprint.Runs[0];
                 Label(style.Label, new Cell(first.X + (first.Length / 2), first.Z));
@@ -465,7 +465,7 @@ public sealed partial record LayoutPlan
         }
         foreach (var r in Rooms)
         {
-            if (RoomOverlayStyle(r.Role) is not { } style)
+            if (LayoutOverlayRules.RoomOverlayStyle(r.Role) is not { } style)
             {
                 continue;
             }
@@ -474,7 +474,7 @@ public sealed partial record LayoutPlan
             var shape = r.Region;
             if (!r.Unfenced())
             {
-                shape = UnionRegions(r.Region, r.Region.Walls());
+                shape = LayoutOverlayRules.UnionRegions(r.Region, r.Region.Walls());
             }
             var text = style.Label;
             if (r.Id > 0)
@@ -489,7 +489,7 @@ public sealed partial record LayoutPlan
             }
             if (Add(style, OverlayStyle.Outline, null, shape.Runs))
             {
-                Label(text, LabelCell(r.Region));
+                Label(text, LayoutOverlayRules.LabelCell(r.Region));
             }
         }
         var doors = new List<Cell>();
@@ -501,7 +501,7 @@ public sealed partial record LayoutPlan
             }
             doors.AddRange(DoorsOf(r));
         }
-        Add(new OverlayStyleOf(PlanWhite, "door"), OverlayStyle.Fill, null, CellRuns(doors));
+        Add(new OverlayStyleOf(LayoutOverlayRules.PlanWhite, "door"), OverlayStyle.Fill, null, LayoutOverlayRules.CellRuns(doors));
         LinesOverlay(bounds, output);
         return output;
     }

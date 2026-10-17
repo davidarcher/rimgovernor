@@ -33,11 +33,11 @@ public sealed partial record LayoutPlan
         {
             Sites = [.. Sites.Select(s =>
             {
-                if (!PolicyFunctions.PerimeterFamily(s.Kind))
+                if (!LayoutPerimeterReplaceRules.PerimeterFamily(s.Kind))
                 {
                     return s;
                 }
-                var revised = s with { Node = PolicyFunctions.RevisedId(s.Node, rev) };
+                var revised = s with { Node = LayoutPerimeterReplaceRules.RevisedId(s.Node, rev) };
                 return s.Ring is null ? revised : revised with { Ring = s.Ring with { Revision = rev } };
             })],
         };
@@ -66,7 +66,7 @@ public sealed partial record LayoutPlan
     internal LayoutPlan WithPerimeterSitesOf(LayoutPlan from)
     {
         var p = WithoutPerimeterSites();
-        return p with { Sites = [.. p.Sites, .. from.Sites.Where(s => PolicyFunctions.PerimeterSiteKinds.Contains(s.Kind))] };
+        return p with { Sites = [.. p.Sites, .. from.Sites.Where(s => LayoutPerimeterSitesRules.PerimeterSiteKinds.Contains(s.Kind))] };
     }
 
     /// <summary>
@@ -82,7 +82,7 @@ public sealed partial record LayoutPlan
             {
                 sites.Add(s with { ReplacesSites = [] });
             }
-            else if (s.Kind == PolicyFunctions.NodeKillbox && !ReplacedSite(s.Node))
+            else if (s.Kind == LayoutPerimeterSitesRules.NodeKillbox && !ReplacedSite(s.Node))
             {
                 sites.Add(s);
             }
@@ -94,7 +94,7 @@ public sealed partial record LayoutPlan
     internal LayoutPlan Replacing(LayoutPlan prev, PerimeterHold hold)
     {
         var (old, hasOld) = prev.Ring();
-        if (!hasOld || !hold.Held.Contains(old.Node) || PolicyFunctions.SameFamily(prev, this))
+        if (!hasOld || !hold.Held.Contains(old.Node) || SameFamily(prev, this))
         {
             return this;
         }
@@ -103,7 +103,7 @@ public sealed partial record LayoutPlan
         var ids = new List<string>();
         foreach (var s in prev.Sites)
         {
-            if (PolicyFunctions.PerimeterFamily(s.Kind) && !prev.ReplacedSite(s.Node) && hold.Held.Contains(s.Node))
+            if (LayoutPerimeterReplaceRules.PerimeterFamily(s.Kind) && !prev.ReplacedSite(s.Node) && hold.Held.Contains(s.Node))
             {
                 retired.Add(s);
                 ids.Add(s.Node);
@@ -112,9 +112,9 @@ public sealed partial record LayoutPlan
         var sites = new List<PlannedSite>(p.Sites);
         for (var i = 0; i < sites.Count; i++)
         {
-            if (sites[i].Kind == PolicyFunctions.NodeRing && sites[i].Ring is not null)
+            if (sites[i].Kind == LayoutPerimeterSitesRules.NodeRing && sites[i].Ring is not null)
             {
-                sites[i] = sites[i] with { ReplacesSites = ids, Reason = PolicyFunctions.ReasonRingReplaced };
+                sites[i] = sites[i] with { ReplacesSites = ids, Reason = LayoutPerimeterSitesRules.ReasonRingReplaced };
                 break;
             }
         }
@@ -132,10 +132,10 @@ public sealed partial record LayoutPlan
 /// the plan once the record no longer names them. One rebuild runs at a time: while the record holds a retired node or
 /// a removal tier the ring is not traced again.
 /// </summary>
-public static partial class PolicyFunctions
+public static partial class LayoutPerimeterReplaceRules
 {
     /// <summary>The node kinds whose ids carry the ring's revision: the ring and what the defense record cuts from it.</summary>
-    internal static bool PerimeterFamily(NodeKind k) => k == NodeRing || k == NodeGate || k == NodeFence || k == NodePump;
+    internal static bool PerimeterFamily(NodeKind k) => k == LayoutPerimeterSitesRules.NodeRing || k == LayoutPerimeterSitesRules.NodeGate || k == LayoutPerimeterSitesRules.NodeFence || k == LayoutPerimeterSitesRules.NodePump;
 
     private static readonly Regex RevisionSuffix = new(@"-r[0-9]+$", RegexOptions.CultureInvariant);
 
@@ -145,7 +145,10 @@ public static partial class PolicyFunctions
         id = RevisionSuffix.Replace(id, "");
         return rev == 0 ? id : $"{id}-r{rev}";
     }
+}
 
+partial record LayoutPlan
+{
     /// <summary>Reports retired nodes in the plan that the record no longer names: a replan drops them.</summary>
     public static bool PerimeterRetirable(LayoutPlan p, IReadOnlySet<string> held) => p.Sites.Any(s => p.ReplacedSiteNode(s.Node) && !held.Contains(s.Node));
 
@@ -154,12 +157,12 @@ public static partial class PolicyFunctions
     {
         List<PlannedSite> Pick(LayoutPlan p) =>
         [
-            .. p.Sites.Where(s => PerimeterFamily(s.Kind) && !p.ReplacedSiteNode(s.Node))
+            .. p.Sites.Where(s => LayoutPerimeterReplaceRules.PerimeterFamily(s.Kind) && !p.ReplacedSiteNode(s.Node))
                 .Select(s => s.Ring is null ? s : s with { Ring = new RingFacts { Light = s.Ring.Light, Bridged = s.Ring.Bridged, Gaps = s.Ring.Gaps, Revision = s.Ring.Revision } }),
         ];
         var x = Pick(a);
         var y = Pick(b);
-        return x.Count == y.Count && x.Zip(y).All(t => t.First.Node == t.Second.Node && t.First.Kind == t.Second.Kind && t.First.Footprint.Equal(t.Second.Footprint) && SameRing(t.First.Ring, t.Second.Ring));
+        return x.Count == y.Count && x.Zip(y).All(t => t.First.Node == t.Second.Node && t.First.Kind == t.Second.Kind && t.First.Footprint.Equal(t.Second.Footprint) && LayoutPerimeterSitesRules.SameRing(t.First.Ring, t.Second.Ring));
     }
 
     /// <summary>

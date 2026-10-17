@@ -80,7 +80,7 @@ public sealed class MilitaryRounds
     };
 
     /// <summary>The definitions the range step reads availability and stuff for: the range's own buildings.</summary>
-    internal static readonly string[] TrainingDefinitions = [TrainingRules.RangeDefNames[RangePieceKind.Stand], TrainingRules.RangeDefNames[RangePieceKind.Dummy], RingMarkerDef];
+    internal static readonly string[] TrainingDefinitions = [TrainingRules.RangeDefNames[RangePieceKind.Stand], TrainingRules.RangeDefNames[RangePieceKind.Dummy], LayoutRingRules.RingMarkerDef];
 
     /// <summary>
     /// Reads the family's facts in <paramref name="scope"/>'s world. Throws when the scope is another world or older
@@ -332,13 +332,13 @@ public sealed class MilitaryRounds
         if (ranges.Count > 0)
         {
             var room = ranges[0];
-            rooms.Add(new RoomReconcile { Room = room, Template = RangeTemplate(room), Name = RoundsBurialFacts.RoomName("range", room), Reason = "range" });
+            rooms.Add(new RoomReconcile { Room = room, Template = PlannedRoom.RangeTemplate(room), Name = RoundsBurialFacts.RoomName("range", room), Reason = "range" });
         }
         var rings = layout.RingRooms();
         if (rings.Count > 0)
         {
             var room = rings[0];
-            rooms.Add(new RoomReconcile { Room = room, Template = RingTemplate(room), Name = RoundsBurialFacts.RoomName("ring", room), Reason = "ring" });
+            rooms.Add(new RoomReconcile { Room = room, Template = PlannedRoom.RingTemplate(room), Name = RoundsBurialFacts.RoomName("ring", room), Reason = "ring" });
         }
         if (rooms.Count == 0)
         {
@@ -369,7 +369,7 @@ public sealed class MilitaryRounds
         {
             return (Unknown<int>(), Unknown<int>());
         }
-        return (Known(review.ShootingBelow > 0 ? RangeStandsFor(review.Capable) : 0),
-            Known(review.MeleeBelow > 0 ? RingMarkersFor(Math.Max(2, review.Capable)) : 0));
+        return (Known(review.ShootingBelow > 0 ? LayoutRangeRules.RangeStandsFor(review.Capable) : 0),
+            Known(review.MeleeBelow > 0 ? LayoutRingRules.RingMarkersFor(Math.Max(2, review.Capable)) : 0));
     }
 }

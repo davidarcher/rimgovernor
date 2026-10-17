@@ -6,7 +6,7 @@ using Placement = RimGovernor.Contracts.Wire.Placement;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>layout/power-sites</c> (#838): the footprint conventions <see cref="PolicyFunctions.PlannedPowerSites"/> assumes
+/// <c>layout/power-sites</c> (#838): the footprint conventions <see cref="LayoutUtilityRules.PlannedPowerSites"/> assumes
 /// for battery and solar sites, against the cells RimWorld's placement_preview reports at the same centre and rotation.
 /// The plan is not needed: only the def sizes and the game's rotation math decide the footprint, and only a live game
 /// has them.
@@ -19,7 +19,7 @@ internal static class LayoutPowerSites
     [
         (PolicyConstants.BatteryDefinition, new(2, 2), Placement.Rotation.North, new(2, 2, 1, 2)),
         (PolicyConstants.BatteryDefinition, new(2, 6), Placement.Rotation.East, new(2, 6, 2, 1)),
-        (PolicyFunctions.SolarDefinition, new(7, 3), Placement.Rotation.North, new(6, 2, 4, 4)),
+        (LayoutUtilityRules.SolarDefinition, new(7, 3), Placement.Rotation.North, new(6, 2, 4, 4)),
     ];
 
     internal static TypedCase Case() => new()

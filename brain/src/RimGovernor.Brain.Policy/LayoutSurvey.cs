@@ -77,7 +77,7 @@ public sealed record MapSurvey
     public bool Hot { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutSurveyRules
 {
     public static PlannedRole PlannedHospital => PlannedRole.Hospital;
     public static PlannedRole PlannedPrison => PlannedRole.Prison;
@@ -110,6 +110,4 @@ public static partial class PolicyFunctions
 
     /// <summary>The room for human corpses, planned from the start in the outskirts cluster and shelled only once one lies waiting.</summary>
     public static PlannedRole PlannedMorgue => PlannedRole.Morgue;
-
-    /// <summary>The unfenced, unfloored Outdoor room of graves, planned from the start in the outskirts cluster.</summary>
 }

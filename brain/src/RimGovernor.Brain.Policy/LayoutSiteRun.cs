@@ -92,7 +92,7 @@ public sealed class SiteRun
         this.input = input;
         price = input.Price;
         ground = new WindGround(input);
-        var (depth, _) = PolicyFunctions.RoomLimits(input.Embed.RoofDistance);
+        var (depth, _) = LayoutClusterRules.RoomLimits(input.Embed.RoofDistance);
         var scorer = new PlanScorer(input.Embed.Zones, input.Embed.Reservations, input.Embed.Survey);
         e = new Embedder(input.Embed, depth, scorer, input.Embedding.Level, new EmbedFixed(input.Embed, scorer));
         (w, h) = (input.Embed.Survey.Bounds.Width, input.Embed.Survey.Bounds.Height);
@@ -108,7 +108,7 @@ public sealed class SiteRun
             }
             var i = (c.Cell.Z * w) + c.Cell.X;
             walk[i] = !(c.Rock || c.Hazard || (!c.Walkable && !c.Built));
-            if (!c.Rock && c.Fertility >= PolicyFunctions.ZoneFieldFertilityValue)
+            if (!c.Rock && c.Fertility >= LayoutSiteRunRules.ZoneFieldFertilityValue)
             {
                 soilUnits[i] = (int)(c.Fertility * SoilFixed);
             }
@@ -143,11 +143,11 @@ public sealed class SiteRun
     /// <summary>Marks the enclosure a block at b needs: its wall cells and the killbox yard (PerimeterGap), and the ring cells (PerimeterThick) outside them.</summary>
     private void Cover(Rectangle b)
     {
-        const int yard = 1 + PolicyFunctions.PerimeterGap;
+        const int yard = 1 + LayoutPerimeterRules.PerimeterGap;
         var onMap = new Rectangle { Width = w, Height = h };
         void Mark(bool[] cover, Rectangle rc)
         {
-            rc = PolicyFunctions.ClipRect(rc, onMap);
+            rc = LayoutPerimeterRules.ClipRect(rc, onMap);
             for (var z = rc.Z; z < rc.Z + rc.Height; z++)
             {
                 for (var x = rc.X; x < rc.X + rc.Width; x++)
@@ -156,22 +156,22 @@ public sealed class SiteRun
                 }
             }
         }
-        Mark(coverIn, PolicyFunctions.Pad(b, yard));
-        Mark(coverGrown, PolicyFunctions.Pad(b, yard + PolicyFunctions.PerimeterThick));
+        Mark(coverIn, LayoutPerimeterRules.Pad(b, yard));
+        Mark(coverGrown, LayoutPerimeterRules.Pad(b, yard + LayoutPerimeterRules.PerimeterThick));
     }
 
     private void RebuildWall()
     {
-        wallIn = new Prefix(w, h, c => { var i = (c.Z * w) + c.X; return PolicyFunctions.B2i(walk[i] && !coverIn[i]); });
-        wallGrown = new Prefix(w, h, c => { var i = (c.Z * w) + c.X; return PolicyFunctions.B2i(walk[i] && !coverGrown[i]); });
+        wallIn = new Prefix(w, h, c => { var i = (c.Z * w) + c.X; return LayoutEmbedRules.B2i(walk[i] && !coverIn[i]); });
+        wallGrown = new Prefix(w, h, c => { var i = (c.Z * w) + c.X; return LayoutEmbedRules.B2i(walk[i] && !coverGrown[i]); });
     }
 
     /// <summary>The ring cells a footprint at b adds to the enclosure: the walkable ground its grown extent covers beyond the enclosure, less the walkable ground its own yard turns from ring into interior.</summary>
     private int WallCells(Rectangle b)
     {
-        const int yard = 1 + PolicyFunctions.PerimeterGap;
+        const int yard = 1 + LayoutPerimeterRules.PerimeterGap;
         var onMap = new Rectangle { Width = w, Height = h };
-        return (int)Math.Max(wallGrown.Sum(PolicyFunctions.ClipRect(PolicyFunctions.Pad(b, yard + PolicyFunctions.PerimeterThick), onMap)) - wallIn.Sum(PolicyFunctions.ClipRect(PolicyFunctions.Pad(b, yard), onMap)), 0);
+        return (int)Math.Max(wallGrown.Sum(LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(b, yard + LayoutPerimeterRules.PerimeterThick), onMap)) - wallIn.Sum(LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(b, yard), onMap)), 0);
     }
 
     /// <summary>The conduit run a footprint at b needs: the Manhattan gap to the nearest room or placed site; none while nothing stands.</summary>
@@ -180,7 +180,7 @@ public sealed class SiteRun
         var best = -1;
         void Consider(Rectangle t)
         {
-            var d = Math.Max(PolicyFunctions.AxisGap(b.X, b.Width, t.X, t.Width), 0) + Math.Max(PolicyFunctions.AxisGap(b.Z, b.Height, t.Z, t.Height), 0);
+            var d = Math.Max(LayoutEmbedRules.AxisGap(b.X, b.Width, t.X, t.Width), 0) + Math.Max(LayoutEmbedRules.AxisGap(b.Z, b.Height, t.Z, t.Height), 0);
             if (best < 0 || d < best)
             {
                 best = d;
@@ -202,14 +202,14 @@ public sealed class SiteRun
     {
         foreach (var t in rooms)
         {
-            if (PolicyFunctions.Collides(b, t))
+            if (LayoutEmbedRules.Collides(b, t))
             {
                 return false;
             }
         }
         foreach (var t in fields)
         {
-            if (PolicyFunctions.AxisGap(b.X, b.Width, t.X, t.Width) < 0 && PolicyFunctions.AxisGap(b.Z, b.Height, t.Z, t.Height) < 0)
+            if (LayoutEmbedRules.AxisGap(b.X, b.Width, t.X, t.Width) < 0 && LayoutEmbedRules.AxisGap(b.Z, b.Height, t.Z, t.Height) < 0)
             {
                 return false;
             }
@@ -217,7 +217,7 @@ public sealed class SiteRun
         for (var i = 0; i < foot.Count; i++)
         {
             var t = foot[i];
-            if (PolicyFunctions.AxisGap(b.X, b.Width, t.X, t.Width) < 0 && PolicyFunctions.AxisGap(b.Z, b.Height, t.Z, t.Height) < 0 && (taken[i].IsRect() || taken[i].OverlapsRect(b)))
+            if (LayoutEmbedRules.AxisGap(b.X, b.Width, t.X, t.Width) < 0 && LayoutEmbedRules.AxisGap(b.Z, b.Height, t.Z, t.Height) < 0 && (taken[i].IsRect() || taken[i].OverlapsRect(b)))
             {
                 return false;
             }
@@ -230,7 +230,7 @@ public sealed class SiteRun
         var b = fp.Bounds();
         foreach (var t in rooms)
         {
-            if (PolicyFunctions.Collides(b, t))
+            if (LayoutEmbedRules.Collides(b, t))
             {
                 return false;
             }
@@ -278,7 +278,7 @@ public sealed class SiteRun
             }
             if (add > 0)
             {
-                loss += (PolicyFunctions.WindOutput(l.Blocked) - PolicyFunctions.WindOutput(l.Blocked + add)) * price.WindW;
+                loss += (LayoutPowerNodesRules.WindOutput(l.Blocked) - LayoutPowerNodesRules.WindOutput(l.Blocked + add)) * price.WindW;
             }
         }
         return loss;
@@ -337,7 +337,7 @@ public sealed class SiteRun
                         q.Blocked += ground.BlockedAt(l.Region, o.X, o.Z, b);
                     }
                 }
-                q.LaneW = ((PolicyFunctions.WindOutput(0) - PolicyFunctions.WindOutput(q.Blocked)) * price.WindW) + Inflicted(b);
+                q.LaneW = ((LayoutPowerNodesRules.WindOutput(0) - LayoutPowerNodesRules.WindOutput(q.Blocked)) * price.WindW) + Inflicted(b);
                 if (best is null || q.PriceW() < best.PriceW())
                 {
                     best = q;
@@ -353,10 +353,10 @@ public sealed class SiteRun
         if (n.Anchor is { } anchor)
         {
             var p = new SitePlacement { Node = n.Id, Replaces = n.Replaces, Rotation = n.Rotation, Origin = anchor, Anchored = true, Footprint = n.Footprint.Translate(anchor.X, anchor.Z) };
-            var (verdict, reason) = (EmbedPlace, PolicyFunctions.ReasonSiteAnchored);
+            var (verdict, reason) = (EmbedPlace, LayoutSiteNodesRules.ReasonSiteAnchored);
             if (!FreeRegion(p.Footprint))
             {
-                (verdict, reason) = (EmbedUnsatisfied, PolicyFunctions.ReasonSiteAnchorBlocked);
+                (verdict, reason) = (EmbedUnsatisfied, LayoutSiteNodesRules.ReasonSiteAnchorBlocked);
             }
             Add(p, n.Lanes, verdict, reason);
             return;
@@ -364,7 +364,7 @@ public sealed class SiteRun
         var q = Quote(n);
         if (q is null)
         {
-            outDecisions.Add(new SiteDecision { Node = n.Id, Verdict = EmbedUnplaceable, Reason = PolicyFunctions.ReasonSiteNoGround });
+            outDecisions.Add(new SiteDecision { Node = n.Id, Verdict = EmbedUnplaceable, Reason = LayoutSiteNodesRules.ReasonSiteNoGround });
             return;
         }
         Take(n, q);
@@ -374,7 +374,7 @@ public sealed class SiteRun
     public void Take(SiteNode n, SiteQuote q)
     {
         var p = new SitePlacement { Node = n.Id, Replaces = n.Replaces, Origin = q.Origin, Rotation = q.Shape.Rotation, Footprint = q.Shape.Footprint.Translate(q.Origin.X, q.Origin.Z) };
-        Add(p, q.Shape.Lanes, EmbedPlace, PolicyFunctions.ReasonSiteFree);
+        Add(p, q.Shape.Lanes, EmbedPlace, LayoutSiteNodesRules.ReasonSiteFree);
     }
 
     private void Add(SitePlacement p, IReadOnlyList<SiteLane> siteLanes, string verdict, string reason)
@@ -430,7 +430,7 @@ public sealed class SiteRun
                 lanesOut.Add(l with { Blocked = blocked });
                 if (blocked > 0)
                 {
-                    decisions.Add(new SiteDecision { Node = p.Node, Verdict = EmbedUnsatisfied, Reason = PolicyFunctions.ReasonSiteWindBlocked });
+                    decisions.Add(new SiteDecision { Node = p.Node, Verdict = EmbedUnsatisfied, Reason = LayoutSiteNodesRules.ReasonSiteWindBlocked });
                 }
             }
             sites.Add(p with { Lanes = lanesOut });
@@ -440,10 +440,10 @@ public sealed class SiteRun
 }
 
 /// <summary>Ports <c>layout_site_run.go</c>: the site embedder entry point.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutSiteRunRules
 {
     /// <summary>The least fertility a field cell needs (plain soil), shared with the site run.</summary>
-    internal const double ZoneFieldFertilityValue = ZoneFieldFertility;
+    internal const double ZoneFieldFertilityValue = LayoutZoningRules.ZoneFieldFertility;
 
     /// <summary>Places the site nodes around the rooms. Anchored nodes stand first, on their anchors; the rest take, in turn, the origin of least price, so the result depends only on the inputs.</summary>
     public static SiteEmbedding EmbedSites(SiteEmbedInput input)

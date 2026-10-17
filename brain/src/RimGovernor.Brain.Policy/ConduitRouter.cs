@@ -77,7 +77,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            foreach (var c in RegionRules.RectRegion(RoomWalls(r)).Cells())
+            foreach (var c in RegionRules.RectRegion(PlannedRoom.RoomWalls(r)).Cells())
             {
                 dug.Add(c);
             }

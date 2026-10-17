@@ -11,8 +11,8 @@ public static partial class SpotOverlayRules
     /// </summary>
     private static readonly Dictionary<string, OverlayStyleOf> SpotLabels = new(StringComparer.Ordinal)
     {
-        ["ButcherSpot"] = new(PlanBrown, "butcher spot"),
-        ["CraftingSpot"] = new(PlanTan, "crafting spot"),
+        ["ButcherSpot"] = new(LayoutOverlayRules.PlanBrown, "butcher spot"),
+        ["CraftingSpot"] = new(LayoutOverlayRules.PlanTan, "crafting spot"),
     };
 
     /// <summary>
@@ -35,7 +35,7 @@ public static partial class SpotOverlayRules
             {
                 return;
             }
-            var runs = CellRuns(kept);
+            var runs = LayoutOverlayRules.CellRuns(kept);
             layers.Add(new OverlayLayer { Color = style.Hue.Fill(), Style = OverlayStyle.Fill, Label = text, Runs = runs });
             layers.Add(new OverlayLayer { Color = style.Hue.Outline(), Style = OverlayStyle.Outline, Label = text, Runs = runs });
             labels.Add(new OverlayLabel { Text = text, Cell = kept[0] });

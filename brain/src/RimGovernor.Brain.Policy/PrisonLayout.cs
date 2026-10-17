@@ -24,7 +24,7 @@ public static partial class PrisonLayoutRules
     {
         foreach (var d in DefenseLayout.Directions)
         {
-            if (Contains(r.Region.Bounds(), DefenseLayout.AddCell(r.Door, d)))
+            if (LayoutPerimeterRules.Contains(r.Region.Bounds(), DefenseLayout.AddCell(r.Door, d)))
             {
                 var outward = new Cell(-d.X, -d.Z);
                 return (DefenseLayout.AddCell(r.Door, outward), outward, true);
@@ -42,7 +42,7 @@ public static partial class PrisonLayoutRules
         var blocked = new HashSet<Cell>();
         foreach (var r in plan.Rooms)
         {
-            foreach (var c in PlannedRules.RectCells(Pad(r.Region.Bounds(), 1)))
+            foreach (var c in PlannedRules.RectCells(LayoutPerimeterRules.Pad(r.Region.Bounds(), 1)))
             {
                 blocked.Add(c);
             }
@@ -57,7 +57,7 @@ public static partial class PrisonLayoutRules
         var output = new List<Cell>();
         foreach (var r in plan.Rooms)
         {
-            if (r.Role != PlannedPrison)
+            if (r.Role != LayoutSurveyRules.PlannedPrison)
             {
                 continue;
             }
@@ -97,14 +97,14 @@ public static partial class PrisonLayoutRules
         {
             killbox = k!.Footprint.Bounds();
         }
-        var wi = PlanInterior(plan, 0);
+        var wi = LayoutPlan.PlanInterior(plan, 0);
         var allowed = new HashSet<Cell>();
         var carry = new HashSet<Cell>();
         if (wi is not null)
         {
             foreach (var c in wi.Cells())
             {
-                if (!Contains(killbox, c))
+                if (!LayoutPerimeterRules.Contains(killbox, c))
                 {
                     allowed.Add(c);
                 }
@@ -148,9 +148,9 @@ public static partial class PrisonLayoutRules
         var output = new List<Cell>();
         foreach (var r in plan.Rooms)
         {
-            if (r.Role == PlannedPrison)
+            if (r.Role == LayoutSurveyRules.PlannedPrison)
             {
-                output.AddRange(PlannedRules.RectCells(Pad(r.Region.Bounds(), 1)));
+                output.AddRange(PlannedRules.RectCells(LayoutPerimeterRules.Pad(r.Region.Bounds(), 1)));
             }
         }
         return output;

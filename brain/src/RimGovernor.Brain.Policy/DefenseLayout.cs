@@ -363,7 +363,7 @@ public sealed partial record DefenseLayout
     internal static Hallway SnakeCorridor(int half, int legs)
     {
         var h = new Hallway();
-        for (var k = -PerimeterThick; k < 0; k++)
+        for (var k = -LayoutPerimeterRules.PerimeterThick; k < 0; k++)
         {
             h.Lane.Add(new Cell(0, k));
         }
@@ -488,7 +488,7 @@ public sealed partial record DefenseLayout
             var size = Math.Max(Math.Max(q.Size.Width, q.Size.Height), 1);
             half += (DefenseTurretsPolicy.TurretSpacing + size - 1) * ((q.Max + 1) / 2);
         }
-        half = Math.Min(Math.Max(half, KillboxMinHalf), KillboxHalf - 1);
+        half = Math.Min(Math.Max(half, KillboxMinHalf), LayoutPerimeterRules.KillboxHalf - 1);
         var legs = Math.Min((r.Killbox.Depth - KillboxZoneRows) / KillboxLegPitch, KillboxMaxLegs);
         if (legs < 1)
         {
@@ -514,7 +514,7 @@ public sealed partial record DefenseLayout
         var (half, legs) = DefenseShape(r);
         var d = DefenseTurretsPolicy.DirectionOf(kb.Toward);
         var p = Perpendicular(d);
-        Cell At(int k, int a) => AddCell(kb.Entry, AddCell(Scale(d, PerimeterThick + k), Scale(p, a)));
+        Cell At(int k, int a) => AddCell(kb.Entry, AddCell(Scale(d, LayoutPerimeterRules.PerimeterThick + k), Scale(p, a)));
         var hall = SnakeCorridor(half, legs);
         var want = new List<RoleCell>();
         foreach (var c in hall.Lane)
@@ -583,7 +583,7 @@ public sealed partial record DefenseLayout
         var p = Perpendicular(d);
         var entry = kb.Entry;
         // at is a killbox cell: row k inward from the ring's inner face (the ring rows are -PerimeterThick..-1), column a across the opening.
-        Cell At(int k, int a) => AddCell(entry, AddCell(Scale(d, PerimeterThick + k), Scale(p, a)));
+        Cell At(int k, int a) => AddCell(entry, AddCell(Scale(d, LayoutPerimeterRules.PerimeterThick + k), Scale(p, a)));
         var layout = new DefenseLayout { Toward = RotationOf(d), Width = kb.Width, Entry = entry };
         var (half, legs) = DefenseShape(r);
         int low = -half, high = half;
@@ -626,7 +626,7 @@ public sealed partial record DefenseLayout
         var openLow = -kb.Width / 2;
         for (var a = openLow; a < openLow + kb.Width; a++)
         {
-            for (var k = -PerimeterThick; k < 0 && a != 0; k++)
+            for (var k = -LayoutPerimeterRules.PerimeterThick; k < 0 && a != 0; k++)
             {
                 cellsToWall.Add(At(k, a));
             }

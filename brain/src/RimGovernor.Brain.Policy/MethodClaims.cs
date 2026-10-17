@@ -88,7 +88,7 @@ public static partial class MethodClaimsRules
         if (size.TryGetValue(out var known))
         {
             var rect = OccupiedRect(building.Cell, known, building.Rotation);
-            if (rect.Width > 0 && rect.Height > 0) return [.. RectangleCells(rect).Select(CellClaimTarget)];
+            if (rect.Width > 0 && rect.Height > 0) return [.. LayoutUtilityRules.RectangleCells(rect).Select(CellClaimTarget)];
         }
         return [WorkRules.BuildingClaimTarget(building)];
     }

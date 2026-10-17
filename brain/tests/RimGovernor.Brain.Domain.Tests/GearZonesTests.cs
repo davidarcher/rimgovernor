@@ -27,7 +27,7 @@ public sealed class GearZonesTests
     [Fact]
     public void TheWeaponsZoneIsNeverSitedWithinAPrisonsWeaponClearance()
     {
-        var plan = Plan(Room(1, PlannedStorage, 10, 10, 15, 7), Room(2, PlannedPrison, 26, 10, 5, 5));
+        var plan = Plan(Room(1, LayoutSurveyRules.PlannedStorage, 10, 10, 15, 7), Room(2, LayoutSurveyRules.PlannedPrison, 26, 10, 5, 5));
         var patches = StoreRules.GearPatchesOf(plan);
         var weapons = Assert.IsType<Rectangle>(patches.Weapons);
         Assert.NotNull(patches.Apparel);
@@ -45,7 +45,7 @@ public sealed class GearZonesTests
     [Fact]
     public void AWarehouseEntirelyInsideAPrisonsClearanceHostsNoWeaponsZone()
     {
-        var plan = Plan(Room(1, PlannedStorage, 10, 10, 8, 5), Room(2, PlannedPrison, 19, 10, 5, 5));
+        var plan = Plan(Room(1, LayoutSurveyRules.PlannedStorage, 10, 10, 8, 5), Room(2, LayoutSurveyRules.PlannedPrison, 19, 10, 5, 5));
         var patches = StoreRules.GearPatchesOf(plan);
         Assert.Null(patches.Weapons);
         Assert.NotNull(patches.Apparel);
@@ -57,7 +57,7 @@ public sealed class GearZonesTests
     [Fact]
     public void TheWeaponsZoneMovesToAWarehouseClearOfEveryPrison()
     {
-        var plan = Plan(Room(1, PlannedStorage, 10, 10, 8, 5), Room(2, PlannedPrison, 19, 10, 5, 5), Room(3, PlannedStorage, 60, 10, 15, 7));
+        var plan = Plan(Room(1, LayoutSurveyRules.PlannedStorage, 10, 10, 8, 5), Room(2, LayoutSurveyRules.PlannedPrison, 19, 10, 5, 5), Room(3, LayoutSurveyRules.PlannedStorage, 60, 10, 15, 7));
         var weapons = Assert.IsType<Rectangle>(StoreRules.GearPatchesOf(plan).Weapons);
         Assert.True(weapons.X >= 60);
     }

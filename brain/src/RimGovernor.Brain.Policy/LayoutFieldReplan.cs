@@ -18,7 +18,7 @@ public static partial class PolicyConstants
     public const string ReasonFieldDefaultCrop = "field_crop_unsown_default";
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutFieldReplanRules
 {
     /// <summary>The crop a field is planned for while none is sown: the first of the FieldCrops table that choices offers as available and edible.</summary>
     public static (CropChoice? Crop, bool Ok) DefaultFieldCrop(IReadOnlyList<CropChoice> choices)

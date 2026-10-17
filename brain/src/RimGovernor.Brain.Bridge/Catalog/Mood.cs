@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Bridge;
 // threshold stat (a hand-built one) has an unknown model, not an error.
 //
 // A break counts in its tier when it is generic: not anomalous and not gated on a trait, gene or precept. Its weight is
-// baseCommonality and its length the mean days its state lasts (P.PolicyFunctions.StateDays), or for a hediff break the
+// baseCommonality and its length the mean days its state lasts (P.LayoutMoodRules.StateDays), or for a hediff break the
 // mean of the hediff's disappear range. A break the game gives no length for (an unpriced one, or a modded one with
 // neither a state nor a hediff) is left out, which makes the cost a lower bound.
 
@@ -17,7 +17,7 @@ public sealed partial class DefinitionCatalog
 {
     private P.MoodModel MoodModel()
     {
-        var game = P.PolicyFunctions.MoodGame();
+        var game = P.LayoutMoodRules.MoodGame();
         if (DefRow<StatDef>(game.ThresholdStat) is not { } stat)
         {
             return new P.MoodModel();
@@ -47,7 +47,7 @@ public sealed partial class DefinitionCatalog
         }
 
         var stages = new Dictionary<string, IReadOnlyList<P.MoodStage>>(StringComparer.Ordinal);
-        var seeker = P.PolicyFunctions.SeekerGame();
+        var seeker = P.LayoutComfortRules.SeekerGame();
         foreach (var name in new[] { game.DarkThought, seeker.Comfort.Thought, seeker.Beauty.Thought }.Concat(game.RoleThoughts.Values))
         {
             if (ThoughtFacts(name) is { } facts)
@@ -64,7 +64,7 @@ public sealed partial class DefinitionCatalog
     {
         if (row.mentalState is { } state)
         {
-            return P.PolicyFunctions.StateDays(state.minTicksBeforeRecovery, state.maxTicksBeforeRecovery, state.recoveryMtbDays);
+            return P.LayoutMoodRules.StateDays(state.minTicksBeforeRecovery, state.maxTicksBeforeRecovery, state.recoveryMtbDays);
         }
 
         if (!game.HediffBreaks.TryGetValue(row.defName, out var hediffName) || DefRow<HediffDef>(hediffName) is not { } hediff)

@@ -89,7 +89,7 @@ public static class RefrigerationReads
         {
             if (projection.TechTier.TryGetValue(out var tier) && tier >= TechTier.Masonry)
             {
-                result = result with { Planned = EquatableArray.From(PolicyFunctions.PlannedCoolerSites(plan)) };
+                result = result with { Planned = EquatableArray.From(LayoutPlan.PlannedCoolerSites(plan)) };
             }
         }
         foreach (var d in projection.Definitions)

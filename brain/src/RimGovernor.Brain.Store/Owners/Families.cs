@@ -150,7 +150,7 @@ public sealed record DefenseLayoutRecord
         foreach (var t in Tiers)
         {
             held.UnionWith(t.Nodes);
-            removing = removing || (t.Remove && PolicyFunctions.IsPerimeterTier(t.Name));
+            removing = removing || (t.Remove && LayoutDefenseRules.IsPerimeterTier(t.Name));
         }
         return new PerimeterHold { Held = held, Removing = removing };
     }

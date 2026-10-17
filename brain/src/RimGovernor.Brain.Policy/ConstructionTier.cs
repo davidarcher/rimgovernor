@@ -7,7 +7,7 @@ public static partial class PolicyFunctions
     /// docs/developers/contracts/construction-tiers.md). Tier orders construction only; it is not the tech
     /// ladder. Unlisted rooms are Expand by decision; the armory and wardrobe equip the defense and are Secure (#2527).
     /// </summary>
-    private static readonly Dictionary<PlannedRole, ConstructionTier> PlannedRoleTier = new()
+    internal static readonly Dictionary<PlannedRole, ConstructionTier> PlannedRoleTier = new()
     {
         [PlannedRole.Shelter] = ConstructionTier.Survive,
         [PlannedRole.Airlock] = ConstructionTier.Survive,

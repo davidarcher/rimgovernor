@@ -51,7 +51,7 @@ public sealed record RoomGrowth
     public PerimeterHold Perimeter { get; init; } = new();
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutDeriveRules
 {
     /// <summary>
     /// Lays a fresh plan over the survey from the station chain: the facts (a first plan's, StationFacts.Derive)
@@ -66,7 +66,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static (Fact<LayoutPlan> Plan, StationAdvice Advice) DeriveLayoutPlan(MapSurvey s, StationFacts f, IReadOnlyList<PowerGeyser> geysers)
     {
-        var zones = Zone(s);
+        var zones = LayoutZoningRules.Zone(s);
         var footprints = GeyserFootprints(geysers);
         f = f with
         {
@@ -81,20 +81,20 @@ public static partial class PolicyFunctions
                 Reservations = GeothermalReservations(zones, footprints),
             },
         };
-        var advice = TileStations(f);
+        var advice = LayoutStationPlanRules.TileStations(f);
         var plan = advice.Tiled!.Plan;
         if (plan.Rooms.Count == 0)
         {
             return (Unknown<LayoutPlan>(), advice);
         }
         // The survey's zones less its field patches, then the fields the tiler placed.
-        plan = plan with { Zones = [.. WithFieldZones(zones, null), .. plan.Zones.Skip(f.Plan.Zones.Count)], Cold = s.Cold, Hot = s.Hot };
-        plan = PlanMountainPockets(PlanPerimeter(plan, s), s);
-        return (Known(WithoutCore(plan).WithRoomIDs()), advice);
+        plan = plan with { Zones = [.. LayoutFieldReplanRules.WithFieldZones(zones, null), .. plan.Zones.Skip(f.Plan.Zones.Count)], Cold = s.Cold, Hot = s.Hot };
+        plan = LayoutPlan.PlanMountainPockets(LayoutPlan.PlanPerimeter(plan, s), s);
+        return (Known(LayoutPlan.WithoutCore(plan).WithRoomIDs()), advice);
     }
 
     /// <summary>The enclosures of the geysers whose cells all lie on core ground; a site that does not fit is left out.</summary>
-    private static List<LayoutReservation> GeothermalReservations(IReadOnlyList<LayoutZone> zones, IReadOnlyList<Rectangle> footprints)
+    internal static List<LayoutReservation> GeothermalReservations(IReadOnlyList<LayoutZone> zones, IReadOnlyList<Rectangle> footprints)
     {
         var core = new HashSet<Cell>();
         foreach (var z in zones)
@@ -115,7 +115,7 @@ public static partial class PolicyFunctions
         foreach (var g in footprints)
         {
             var area = GeothermalArea(g);
-            if (!RectangleCells(area).Any(c => !core.Contains(c)))
+            if (!LayoutUtilityRules.RectangleCells(area).Any(c => !core.Contains(c)))
             {
                 output.Add(new LayoutReservation { Kind = ReservationKind.Geothermal, Area = RegionRules.RectRegion(area) });
             }
@@ -123,6 +123,134 @@ public static partial class PolicyFunctions
         return output;
     }
 
+    /// <summary>
+    /// The retired ground prev holds that clearance has not cleared, and the ground (ring and attached
+    /// children) of each standing room of prev the plan next no longer holds: the building comes down through
+    /// planned-ground clearance.
+    /// </summary>
+    internal static List<Region> RetiredGround(LayoutPlan prev, LayoutPlan next, IReadOnlySet<int> built)
+    {
+        var output = new List<Region>(prev.RetiredGround);
+        var held = new HashSet<int>(next.Rooms.Select(r => r.Id));
+        foreach (var r in prev.Rooms)
+        {
+            if (r.Attached() || held.Contains(r.Id) || !built.Contains(r.Id))
+            {
+                continue;
+            }
+            output.Add(RegionRules.RectRegion(RoomGround(r.Region.Bounds())));
+            foreach (var c in prev.ChildrenOf(r.Id))
+            {
+                output.Add(RegionRules.RectRegion(c.AttachedGround()));
+            }
+        }
+        return output;
+    }
+
+    internal static string Counts(Dictionary<string, int> m)
+    {
+        var keys = m.Keys.ToList();
+        keys.Sort(StringComparer.Ordinal);
+        return string.Join(" ", keys.Select(k => string.Create(CultureInfo.InvariantCulture, $"{k}:{m[k]}")));
+    }
+
+    internal static bool RectHits(Rectangle r, IReadOnlySet<Cell> cells)
+    {
+        for (var z = r.Z; z < r.Z + r.Height; z++)
+        {
+            for (var x = r.X; x < r.X + r.Width; x++)
+            {
+                if (cells.Contains(new Cell(x, z)))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /// <summary>Each reported geyser's bounding rectangle.</summary>
+    internal static List<Rectangle> GeyserFootprints(IReadOnlyList<PowerGeyser> geysers)
+    {
+        var output = new List<Rectangle>();
+        foreach (var g in geysers)
+        {
+            if (g.Cells.Count == 0)
+            {
+                continue;
+            }
+            var r = default(Rectangle);
+            foreach (var c in g.Cells)
+            {
+                r = LayoutDefenseRules.UnionRect(r, new Rectangle(c.X, c.Z, 1, 1));
+            }
+            output.Add(r);
+        }
+        return output;
+    }
+
+    /// <summary>The enclosure the plan reserves over a geyser: the generator centred on it and its shell.</summary>
+    private static Rectangle GeothermalArea(Rectangle geyser)
+    {
+        int cx = geyser.X + (geyser.Width / 2), cz = geyser.Z + (geyser.Height / 2);
+        var side = LayoutUtilityRules.GeothermalSide + (2 * LayoutUtilityRules.GeothermalShell);
+        return new Rectangle(cx - (side / 2), cz - (side / 2), side, side);
+    }
+
+    /// <summary>Every cell of the geysers' enclosures: rooms stay off them so each geyser keeps its generator site.</summary>
+    internal static HashSet<Cell> GeothermalCells(IReadOnlyList<Rectangle> footprints)
+    {
+        var output = new HashSet<Cell>();
+        foreach (var f in footprints)
+        {
+            foreach (var c in LayoutUtilityRules.RectangleCells(GeothermalArea(f)))
+            {
+                output.Add(c);
+            }
+        }
+        return output;
+    }
+
+    /// <summary>Drops cells from the core candidates.</summary>
+    internal static IReadOnlyList<LayoutZone> CoreWithout(IReadOnlyList<LayoutZone> zones, HashSet<Cell> cells)
+    {
+        if (cells.Count == 0)
+        {
+            return zones;
+        }
+        var output = new List<LayoutZone>();
+        foreach (var z in zones)
+        {
+            if (z.Kind != ZoneKind.Core)
+            {
+                output.Add(z);
+                continue;
+            }
+            var runs = new List<RowRun>();
+            foreach (var r in z.Runs)
+            {
+                var start = r.X;
+                for (var x = r.X; x <= r.X + r.Length; x++)
+                {
+                    if (x < r.X + r.Length && !cells.Contains(new Cell(x, r.Z)))
+                    {
+                        continue;
+                    }
+                    if (x > start)
+                    {
+                        runs.Add(new RowRun(r.Z, start, x - start));
+                    }
+                    start = x + 1;
+                }
+            }
+            output.Add(z with { Runs = runs });
+        }
+        return output;
+    }
+}
+
+partial record LayoutPlan
+{
     /// <summary>
     /// The next plan of a review (#3005, J4 of #2965): the tiled plan of the station chain, wholesale, over the
     /// plan prev the colony holds. f are the facts of the review (the plan's Built rooms, the chain's inputs):
@@ -138,21 +266,21 @@ public static partial class PolicyFunctions
     {
         prev = prev.WithRoomIDs();
         f = f with { Plan = prev, Pinned = TilePinned(prev, growth), Pens = growth.Pens };
-        f = ReplanTileFacts(f, s, geysers);
-        var advice = TileStations(f);
+        f = LayoutReplanTiledRules.ReplanTileFacts(f, s, geysers);
+        var advice = LayoutStationPlanRules.TileStations(f);
         var plan = advice.Tiled!.Plan;
         if (plan.Rooms.Count == 0)
         {
             throw new ReplanEmptyException();
         }
         // The survey's zones less its field patches, then the fields the tiler placed.
-        plan = plan with { Zones = [.. WithFieldZones(Zone(s), null), .. plan.Zones.Skip(f.Plan.Zones.Count)], Cold = s.Cold, Hot = s.Hot };
+        plan = plan with { Zones = [.. LayoutFieldReplanRules.WithFieldZones(LayoutZoningRules.Zone(s), null), .. plan.Zones.Skip(f.Plan.Zones.Count)], Cold = s.Cold, Hot = s.Hot };
         var tiled = plan;
         plan = KeepHeld(prev, plan, growth);
         var (conduits, joined) = RejoinHeld(prev, tiled, plan, s);
         plan = plan with { Conduits = EquatableArray.From(conduits) };
         advice.Tiled!.ConduitDecisions.AddRange(joined);
-        plan = plan with { RetiredGround = RetiredGround(prev, plan, f!.Built!) };
+        plan = plan with { RetiredGround = LayoutDeriveRules.RetiredGround(prev, plan, f!.Built!) };
         return (LayPerimeter(prev, plan, s, growth.Perimeter).WithRoomIDs(), advice);
     }
 
@@ -218,7 +346,7 @@ public static partial class PolicyFunctions
     private static (IReadOnlyList<ConduitLink> Links, IReadOnlyList<ConduitDecision> Decisions) RejoinHeld(LayoutPlan prev, LayoutPlan tiled, LayoutPlan plan, MapSurvey s)
     {
         var planned = new HashSet<int>(tiled.Rooms.Select(r => r.Id));
-        var held = HeldLinks(prev.Conduits, plan);
+        var held = LayoutConduitRules.HeldLinks(prev.Conduits, plan);
         var consumers = new List<ConduitNode>();
         foreach (var r in plan.Rooms)
         {
@@ -226,9 +354,9 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            if (held.ContainsKey(RoomRef(r.Id)))
+            if (held.ContainsKey(LayoutConduitRules.RoomRef(r.Id)))
             {
-                consumers.Add(new ConduitNode(RoomRef(r.Id), r.Region.Cells().SortedBy(CombatManhunterRules.CellLess)));
+                consumers.Add(new ConduitNode(LayoutConduitRules.RoomRef(r.Id), r.Region.Cells().SortedBy(CombatManhunterRules.CellLess)));
             }
         }
         if (consumers.Count == 0)
@@ -236,30 +364,6 @@ public static partial class PolicyFunctions
             return (plan.Conduits, []);
         }
         return JoinConduits(plan, consumers, s, prev.Conduits);
-    }
-
-    /// <summary>
-    /// The retired ground prev holds that clearance has not cleared, and the ground (ring and attached
-    /// children) of each standing room of prev the plan next no longer holds: the building comes down through
-    /// planned-ground clearance.
-    /// </summary>
-    private static List<Region> RetiredGround(LayoutPlan prev, LayoutPlan next, IReadOnlySet<int> built)
-    {
-        var output = new List<Region>(prev.RetiredGround);
-        var held = new HashSet<int>(next.Rooms.Select(r => r.Id));
-        foreach (var r in prev.Rooms)
-        {
-            if (r.Attached() || held.Contains(r.Id) || !built.Contains(r.Id))
-            {
-                continue;
-            }
-            output.Add(RegionRules.RectRegion(RoomGround(r.Region.Bounds())));
-            foreach (var c in prev.ChildrenOf(r.Id))
-            {
-                output.Add(RegionRules.RectRegion(c.AttachedGround()));
-            }
-        }
-        return output;
     }
 
     /// <summary>Reports whether a and b are the same plan as it is saved.</summary>
@@ -276,32 +380,32 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The plan's service-log line: rooms by role, zones by kind, reservations by kind, and the route check (busiest hallway cell's path count, or the rejection).</summary>
-    public static string Summary(this LayoutPlan p)
+    public string Summary()
     {
         var rooms = new Dictionary<string, int>();
         var zones = new Dictionary<string, int>();
         var reserved = new Dictionary<string, int>();
         void Count(Dictionary<string, int> m, string key) => m[key] = m.GetValueOrDefault(key) + 1;
-        foreach (var r in p.Rooms)
+        foreach (var r in this.Rooms)
         {
             Count(rooms, Wire.Name(r.Role));
         }
-        foreach (var z in p.Zones)
+        foreach (var z in this.Zones)
         {
             Count(zones, Wire.Name(z.Kind));
         }
-        foreach (var r in p.Reservations)
+        foreach (var r in this.Reservations)
         {
             Count(reserved, Wire.Name(r.Kind));
         }
-        foreach (var s in p.Sites)
+        foreach (var s in this.Sites)
         {
             Count(reserved, Wire.Name(s.Kind));
         }
         string route;
         try
         {
-            var traffic = CheckRoutes(p);
+            var traffic = CheckRoutes(this);
             var busiest = 0;
             foreach (var n in traffic.Traffic.Values)
             {
@@ -313,110 +417,9 @@ public static partial class PolicyFunctions
         {
             route = e.Message;
         }
-        return $"rooms=[{Counts(rooms)}] zones=[{Counts(zones)}] reservations=[{Counts(reserved)}] routes={route}";
+        return $"rooms=[{LayoutDeriveRules.Counts(rooms)}] zones=[{LayoutDeriveRules.Counts(zones)}] reservations=[{LayoutDeriveRules.Counts(reserved)}] routes={route}";
     }
 
-    private static string Counts(Dictionary<string, int> m)
-    {
-        var keys = m.Keys.ToList();
-        keys.Sort(StringComparer.Ordinal);
-        return string.Join(" ", keys.Select(k => string.Create(CultureInfo.InvariantCulture, $"{k}:{m[k]}")));
-    }
-
-    private static LayoutPlan WithoutCore(LayoutPlan p) =>
+    internal static LayoutPlan WithoutCore(LayoutPlan p) =>
         p with { Zones = [.. p.Zones.Where(z => z.Kind != ZoneKind.Core)] };
-
-    private static bool RectHits(Rectangle r, IReadOnlySet<Cell> cells)
-    {
-        for (var z = r.Z; z < r.Z + r.Height; z++)
-        {
-            for (var x = r.X; x < r.X + r.Width; x++)
-            {
-                if (cells.Contains(new Cell(x, z)))
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    /// <summary>Each reported geyser's bounding rectangle.</summary>
-    private static List<Rectangle> GeyserFootprints(IReadOnlyList<PowerGeyser> geysers)
-    {
-        var output = new List<Rectangle>();
-        foreach (var g in geysers)
-        {
-            if (g.Cells.Count == 0)
-            {
-                continue;
-            }
-            var r = default(Rectangle);
-            foreach (var c in g.Cells)
-            {
-                r = UnionRect(r, new Rectangle(c.X, c.Z, 1, 1));
-            }
-            output.Add(r);
-        }
-        return output;
-    }
-
-    /// <summary>The enclosure the plan reserves over a geyser: the generator centred on it and its shell.</summary>
-    private static Rectangle GeothermalArea(Rectangle geyser)
-    {
-        int cx = geyser.X + (geyser.Width / 2), cz = geyser.Z + (geyser.Height / 2);
-        var side = GeothermalSide + (2 * GeothermalShell);
-        return new Rectangle(cx - (side / 2), cz - (side / 2), side, side);
-    }
-
-    /// <summary>Every cell of the geysers' enclosures: rooms stay off them so each geyser keeps its generator site.</summary>
-    private static HashSet<Cell> GeothermalCells(IReadOnlyList<Rectangle> footprints)
-    {
-        var output = new HashSet<Cell>();
-        foreach (var f in footprints)
-        {
-            foreach (var c in RectangleCells(GeothermalArea(f)))
-            {
-                output.Add(c);
-            }
-        }
-        return output;
-    }
-
-    /// <summary>Drops cells from the core candidates.</summary>
-    private static IReadOnlyList<LayoutZone> CoreWithout(IReadOnlyList<LayoutZone> zones, HashSet<Cell> cells)
-    {
-        if (cells.Count == 0)
-        {
-            return zones;
-        }
-        var output = new List<LayoutZone>();
-        foreach (var z in zones)
-        {
-            if (z.Kind != ZoneKind.Core)
-            {
-                output.Add(z);
-                continue;
-            }
-            var runs = new List<RowRun>();
-            foreach (var r in z.Runs)
-            {
-                var start = r.X;
-                for (var x = r.X; x <= r.X + r.Length; x++)
-                {
-                    if (x < r.X + r.Length && !cells.Contains(new Cell(x, r.Z)))
-                    {
-                        continue;
-                    }
-                    if (x > start)
-                    {
-                        runs.Add(new RowRun(r.Z, start, x - start));
-                    }
-                    start = x + 1;
-                }
-            }
-            output.Add(z with { Runs = runs });
-        }
-        return output;
-    }
 }

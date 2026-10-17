@@ -546,7 +546,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var (_, built) = CensusRoomIn(room, r);
+            var (_, built) = PlannedRoom.CensusRoomIn(room, r);
             if (built)
             {
                 found.Add(room.Id);

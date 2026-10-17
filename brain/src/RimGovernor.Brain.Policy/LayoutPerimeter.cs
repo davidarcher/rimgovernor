@@ -129,7 +129,7 @@ internal sealed class FloodGrid
 /// firm cell farthest from the wall. Moisture pump sites inside the wall cover the soft ring cells a pump dries. The
 /// colony's own buildings read as the ground under them, and a replan keeps the opening while it still opens.
 /// </summary>
-public static partial class PolicyFunctions
+public static partial class LayoutPerimeterRules
 {
     public const int PerimeterThick = 3;
 
@@ -151,7 +151,7 @@ public static partial class PolicyFunctions
     /// <summary>A moisture pump's reach, 6.9 cells, squared.</summary>
     public const int PumpRadiusSq = 47;
 
-    private static readonly Cell[] Neighbours8Cells = [new(-1, -1), new(0, -1), new(1, -1), new(-1, 0), new(1, 0), new(-1, 1), new(0, 1), new(1, 1)];
+    internal static readonly Cell[] Neighbours8Cells = [new(-1, -1), new(0, -1), new(1, -1), new(-1, 0), new(1, 0), new(-1, 1), new(0, 1), new(1, 1)];
 
     /// <summary>The smallest rectangle holding both cells.</summary>
     internal static Rectangle RectOf(Cell a, Cell b)
@@ -177,7 +177,10 @@ public static partial class PolicyFunctions
 
     /// <summary>Whether the cell lies in r.</summary>
     public static bool Contains(Rectangle r, Cell c) => c.X >= r.X && c.Z >= r.Z && c.X < r.X + r.Width && c.Z < r.Z + r.Height;
+}
 
+partial record LayoutPlan
+{
     /// <summary>
     /// Adds the wall, gates, killbox, approach, cover-clear band and mortar spot to plan (which needs its core rooms),
     /// replacing any it held. A plan without rooms comes back unchanged.
@@ -208,10 +211,10 @@ public static partial class PolicyFunctions
 
         // orphans are ring cells no side position holds (outline corners too tight for a full column); each is walled on its own.
         var orphans = enc.RingCells().Where(c => !owner.ContainsKey(c)).ToList();
-        var ringBox = Pad(enc.Bbox, PerimeterThick);
+        var ringBox = LayoutPerimeterRules.Pad(enc.Bbox, LayoutPerimeterRules.PerimeterThick);
 
         // built is a cell the core's rooms hold.
-        bool Built(Cell c) => plan.Rooms.Any(r => Contains(Pad(r.Region.Bounds(), 1), c));
+        bool Built(Cell c) => plan.Rooms.Any(r => LayoutPerimeterRules.Contains(LayoutPerimeterRules.Pad(r.Region.Bounds(), 1), c));
 
         // Soft ground on the ring. Each connected stretch of it is closed by a shoreline detour inside the ring where that stays short, else crossed where the ring runs.
         var wet = new HashSet<Crossing>();
@@ -220,7 +223,7 @@ public static partial class PolicyFunctions
             var sd = sides[k];
             for (var p = sd.Lo; p <= sd.Hi; p++)
             {
-                for (var t = 0; t < PerimeterThick; t++)
+                for (var t = 0; t < LayoutPerimeterRules.PerimeterThick; t++)
                 {
                     if (Soft(sd.At(p, t)))
                     {
@@ -229,7 +232,7 @@ public static partial class PolicyFunctions
                 }
             }
         }
-        var box = ClipRect(Pad(ringBox, PerimeterGap), new Rectangle { Width = w, Height = h });
+        var box = LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(ringBox, LayoutPerimeterRules.PerimeterGap), new Rectangle { Width = w, Height = h });
         var detour = new HashSet<Cell>(); // wall cells of kept detours
         var shut = new HashSet<Cell>(); // soft cells a kept detour leaves outside
         var detoured = new HashSet<Crossing>(); // wet positions a kept detour closes
@@ -250,10 +253,10 @@ public static partial class PolicyFunctions
             while (queue.Count > 0)
             {
                 var c = queue.Dequeue();
-                foreach (var d in Neighbours8Cells)
+                foreach (var d in LayoutPerimeterRules.Neighbours8Cells)
                 {
                     var n = DefenseLayout.AddCell(c, d);
-                    if (Contains(box, n) && Soft(n) && flooded.Add(n))
+                    if (LayoutPerimeterRules.Contains(box, n) && Soft(n) && flooded.Add(n))
                     {
                         stretch.Add(n);
                         queue.Enqueue(n);
@@ -281,9 +284,9 @@ public static partial class PolicyFunctions
                 {
                     ok = false;
                 }
-                for (var dx = -PerimeterThick; dx <= PerimeterThick && ok; dx++)
+                for (var dx = -LayoutPerimeterRules.PerimeterThick; dx <= LayoutPerimeterRules.PerimeterThick && ok; dx++)
                 {
-                    for (var dz = -PerimeterThick; dz <= PerimeterThick && ok; dz++)
+                    for (var dz = -LayoutPerimeterRules.PerimeterThick; dz <= LayoutPerimeterRules.PerimeterThick && ok; dz++)
                     {
                         var n = new Cell(c.X + dx, c.Z + dz);
                         if ((!enc.Inside(n) && !enc.OnRing(n)) || inStretch.Contains(n) || wall.Contains(n) || Impassable(n))
@@ -307,7 +310,7 @@ public static partial class PolicyFunctions
                     extra++;
                 }
             }
-            if (!ok || extra > PerimeterDetour * PerimeterThick * crossed.Count)
+            if (!ok || extra > LayoutPerimeterRules.PerimeterDetour * LayoutPerimeterRules.PerimeterThick * crossed.Count)
             {
                 failed.UnionWith(crossed);
                 continue;
@@ -323,14 +326,14 @@ public static partial class PolicyFunctions
             var sd = sides[x.Side];
             var b = sd.Base(x.Pos);
             Cell At(int inward, int along) => new(b.X + (sd.Inward.X * inward) + (sd.Along.X * along), b.Z + (sd.Inward.Z * inward) + (sd.Along.Z * along));
-            return (ClipRect(RectOf(At(PerimeterThick, -KillboxHalf), At(PerimeterThick + KillboxDepth - 1, KillboxHalf)), enc.Bbox), At);
+            return (LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.RectOf(At(LayoutPerimeterRules.PerimeterThick, -LayoutPerimeterRules.KillboxHalf), At(LayoutPerimeterRules.PerimeterThick + LayoutPerimeterRules.KillboxDepth - 1, LayoutPerimeterRules.KillboxHalf)), enc.Bbox), At);
         }
 
         // fields are the plan's field cells: a killbox on one would build over crops, so an opening off the patches is preferred.
         var fields = new HashSet<Cell>();
         foreach (var z in plan.Zones)
         {
-            if (z.Kind != ZoneField)
+            if (z.Kind != LayoutPlanRules.ZoneField)
             {
                 continue;
             }
@@ -355,7 +358,7 @@ public static partial class PolicyFunctions
                 {
                     return false;
                 }
-                for (var t = 0; t < PerimeterThick; t++)
+                for (var t = 0; t < LayoutPerimeterRules.PerimeterThick; t++)
                 {
                     if (detour.Contains(sd.At(p, t)))
                     {
@@ -366,8 +369,8 @@ public static partial class PolicyFunctions
             var (kb, at) = OpeningAt(x);
 
             // The killbox keeps its full width across the opening: a box the enclosure clips sideways leaves the opening off its centre, and no funnel reads from it.
-            var mouth = RectOf(at(PerimeterThick, -KillboxHalf), at(PerimeterThick, KillboxHalf));
-            if (ClipRect(mouth, kb) != mouth)
+            var mouth = LayoutPerimeterRules.RectOf(at(LayoutPerimeterRules.PerimeterThick, -LayoutPerimeterRules.KillboxHalf), at(LayoutPerimeterRules.PerimeterThick, LayoutPerimeterRules.KillboxHalf));
+            if (LayoutPerimeterRules.ClipRect(mouth, kb) != mouth)
             {
                 return false;
             }
@@ -378,7 +381,7 @@ public static partial class PolicyFunctions
                     return false;
                 }
             }
-            if (detour.Any(c => Contains(kb, c)) || shut.Any(c => Contains(kb, c)))
+            if (detour.Any(c => LayoutPerimeterRules.Contains(kb, c)) || shut.Any(c => LayoutPerimeterRules.Contains(kb, c)))
             {
                 return false;
             }
@@ -396,7 +399,7 @@ public static partial class PolicyFunctions
                 var reach = sd.Hi - sd.Lo;
                 if (strict)
                 {
-                    reach = Math.Min(reach, KillboxHalf);
+                    reach = Math.Min(reach, LayoutPerimeterRules.KillboxHalf);
                 }
                 for (var d = 0; d <= reach; d++)
                 {
@@ -517,7 +520,7 @@ public static partial class PolicyFunctions
 
         // The opening already planned stays while it still opens.
         var keptReason = "";
-        foreach (var prev in plan.LiveSites(NodeKillbox))
+        foreach (var prev in plan.LiveSites(LayoutPerimeterSitesRules.NodeKillbox))
         {
             for (var k = 0; k < sides.Count; k++)
             {
@@ -545,7 +548,7 @@ public static partial class PolicyFunctions
             }
         }
 
-        var openingReason = ReasonOpeningNone;
+        var openingReason = LayoutPerimeterSitesRules.ReasonOpeningNone;
         if (pinned && keptReason != "")
         {
             // A kept opening keeps the reason it was chosen for, so a replan that changes nothing stores nothing new.
@@ -553,12 +556,12 @@ public static partial class PolicyFunctions
         }
         else if (opened)
         {
-            openingReason = ReasonOpeningRoutes;
+            openingReason = LayoutPerimeterSitesRules.ReasonOpeningRoutes;
         }
         var sites = new Dictionary<NodeKind, List<Region>>();
         void AddSite(NodeKind kind, Rectangle r)
         {
-            r = ClipRect(r, new Rectangle { Width = w, Height = h });
+            r = LayoutPerimeterRules.ClipRect(r, new Rectangle { Width = w, Height = h });
             if (r.Width > 0 && r.Height > 0)
             {
                 if (!sites.TryGetValue(kind, out var list))
@@ -573,14 +576,14 @@ public static partial class PolicyFunctions
         {
             Func<int, int, Cell> at;
             (killbox, at) = OpeningAt(open);
-            AddSite(NodeKillbox, killbox);
+            AddSite(LayoutPerimeterSitesRules.NodeKillbox, killbox);
 
             // The approach leaves the opening straight out, then turns along the wall, so the lane breaks line of sight into the killbox.
-            AddSite(NodeApproach, RectOf(at(-1, -1), at(-ApproachLeg, 1)));
-            AddSite(NodeApproach, RectOf(at(-ApproachLeg + 2, 2), at(-ApproachLeg, ApproachLeg + 1)));
+            AddSite(LayoutPerimeterSitesRules.NodeApproach, LayoutPerimeterRules.RectOf(at(-1, -1), at(-LayoutPerimeterRules.ApproachLeg, 1)));
+            AddSite(LayoutPerimeterSitesRules.NodeApproach, LayoutPerimeterRules.RectOf(at(-LayoutPerimeterRules.ApproachLeg + 2, 2), at(-LayoutPerimeterRules.ApproachLeg, LayoutPerimeterRules.ApproachLeg + 1)));
 
             // The fence closes the opening on its outer face, flush with the wall: the one lane stays the single way through.
-            AddSite(NodeFence, RectOf(at(0, -1), at(0, 1)));
+            AddSite(LayoutPerimeterSitesRules.NodeFence, LayoutPerimeterRules.RectOf(at(0, -1), at(0, 1)));
         }
 
         // Wall runs and gates along the dry ring, side by side. A run shorter than the pitch (a step of a squared-off diagonal) takes its gate only a pitch clear of every other, so a staircase is gated about as often as a straight side.
@@ -591,10 +594,10 @@ public static partial class PolicyFunctions
         {
             var sd = sides[k];
             var kk = k;
-            var (g, sg) = WallRuns(sd, Impassable, walls, p =>
+            var (g, sg) = LayoutPerimeterOuterRules.WallRuns(sd, Impassable, walls, p =>
             {
                 var terrain = true;
-                for (var t = 0; t < PerimeterThick; t++)
+                for (var t = 0; t < LayoutPerimeterRules.PerimeterThick; t++)
                 {
                     terrain = terrain && Impassable(sd.At(p, t));
                 }
@@ -603,10 +606,10 @@ public static partial class PolicyFunctions
             gates.AddRange(g);
             stepGates.AddRange(sg);
         }
-        gates = PitchGates(gates, stepGates, c => walls.Contains(c) || Impassable(c));
+        gates = LayoutPerimeterOuterRules.PitchGates(gates, stepGates, c => walls.Contains(c) || Impassable(c));
         foreach (var g in gates)
         {
-            AddSite(NodeGate, g);
+            AddSite(LayoutPerimeterSitesRules.NodeGate, g);
         }
 
         // Soft stretches: a detour's wall, else the ring crossing them.
@@ -650,7 +653,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            for (var t = 0; t < PerimeterThick; t++)
+            for (var t = 0; t < LayoutPerimeterRules.PerimeterThick; t++)
             {
                 CloseCell(sides[x.Side].At(x.Pos, t));
             }
@@ -665,7 +668,7 @@ public static partial class PolicyFunctions
             }
         }
         Region InMap(HashSet<Cell> set) => RegionRules.RegionOf([.. PlannedRules.SortedCells(set).Where(c => c.X >= 0 && c.Z >= 0 && c.X < w && c.Z < h)]);
-        var ring = NewSite("perimeter-ring", NodeRing, InMap(walls), ReasonRingTraced);
+        var ring = LayoutPerimeterSitesRules.NewSite("perimeter-ring", LayoutPerimeterSitesRules.NodeRing, InMap(walls), LayoutPerimeterSitesRules.ReasonRingTraced);
         var facts = new RingFacts { Light = InMap(light), Bridged = InMap(bridges), Gaps = InMap(gaps), Opening = openingReason };
 
         // Moisture pumps: sites inside the wall, greedily covering the soft ring cells a pump dries, each within PumpRadiusSq of its pump.
@@ -682,14 +685,14 @@ public static partial class PolicyFunctions
         var pumps = new HashSet<Cell>();
         bool PumpSite(Cell c, bool kept) =>
             cells.TryGetValue(c, out var sc) && enc.Inside(c) && !sc.Hazard && ((sc.Walkable && !sc.Built) || (kept && sc.Built)) && !sc.Rock && sc.Footing == Footing.Firm
-            && !Built(c) && !Contains(killbox, c) && !detour.Contains(c) && !shut.Contains(c);
-        int Drying(Cell pump) => dries.Count(d => PlannedRules.SquaredDistance(pump, d) <= PumpRadiusSq);
+            && !Built(c) && !LayoutPerimeterRules.Contains(killbox, c) && !detour.Contains(c) && !shut.Contains(c);
+        int Drying(Cell pump) => dries.Count(d => PlannedRules.SquaredDistance(pump, d) <= LayoutPerimeterRules.PumpRadiusSq);
         void Cover(Cell pump)
         {
             pumps.Add(pump);
-            dries.RemoveWhere(d => PlannedRules.SquaredDistance(pump, d) <= PumpRadiusSq);
+            dries.RemoveWhere(d => PlannedRules.SquaredDistance(pump, d) <= LayoutPerimeterRules.PumpRadiusSq);
         }
-        foreach (var old in plan.LiveSites(NodePump))
+        foreach (var old in plan.LiveSites(LayoutPerimeterSitesRules.NodePump))
         {
             if (PumpSite(old.Origin, true) && Drying(old.Origin) > 0)
             {
@@ -704,7 +707,7 @@ public static partial class PolicyFunctions
                 for (var dz = -6; dz <= 6; dz++)
                 {
                     var n = new Cell(c.X + dx, c.Z + dz);
-                    if ((dx * dx) + (dz * dz) <= PumpRadiusSq && PumpSite(n, false))
+                    if ((dx * dx) + (dz * dz) <= LayoutPerimeterRules.PumpRadiusSq && PumpSite(n, false))
                     {
                         candidates.Add(n);
                     }
@@ -732,14 +735,14 @@ public static partial class PolicyFunctions
         }
         foreach (var c in PlannedRules.SortedCells(pumps))
         {
-            AddSite(NodePump, RectOf(c, c));
+            AddSite(LayoutPerimeterSitesRules.NodePump, LayoutPerimeterRules.RectOf(c, c));
         }
 
         // Cover-clear band: everything within PerimeterCoverBand outside the ring.
         var band = new HashSet<Cell>();
         for (var i = 0; i < enc.Dist.Length; i++)
         {
-            if (enc.Dist[i] > PerimeterThick)
+            if (enc.Dist[i] > LayoutPerimeterRules.PerimeterThick)
             {
                 band.Add(new Cell(i % w, i / w));
             }
@@ -748,7 +751,7 @@ public static partial class PolicyFunctions
 
         // Mortar: the firm cell deepest inside the wall, off rooms, hallway, killbox and detours.
         var outside = enc.In.Select(v => !v).ToArray();
-        var deep = ChebyshevField(w, h, outside, w + h);
+        var deep = LayoutPerimeterEnclosureRules.ChebyshevField(w, h, outside, w + h);
         var mortar = new Cell();
         var depth = -1;
         for (var z = enc.Bbox.Z; z < enc.Bbox.Z + enc.Bbox.Height; z++)
@@ -756,7 +759,7 @@ public static partial class PolicyFunctions
             for (var x = enc.Bbox.X; x < enc.Bbox.X + enc.Bbox.Width; x++)
             {
                 var c = new Cell(x, z);
-                if (!cells.TryGetValue(c, out var sc) || !enc.Inside(c) || sc.Hazard || !sc.Walkable || sc.Rock || sc.Footing != Footing.Firm || Built(c) || Contains(killbox, c) || detour.Contains(c) || pumps.Contains(c))
+                if (!cells.TryGetValue(c, out var sc) || !enc.Inside(c) || sc.Hazard || !sc.Walkable || sc.Rock || sc.Footing != Footing.Firm || Built(c) || LayoutPerimeterRules.Contains(killbox, c) || detour.Contains(c) || pumps.Contains(c))
                 {
                     continue;
                 }
@@ -769,7 +772,7 @@ public static partial class PolicyFunctions
         }
         if (depth >= 0)
         {
-            AddSite(NodeMortar, RectOf(mortar, mortar));
+            AddSite(LayoutPerimeterSitesRules.NodeMortar, LayoutPerimeterRules.RectOf(mortar, mortar));
         }
 
         // The ring's inside is stored on the node: the rooms' flood, stopped by the band and the wall.
@@ -778,11 +781,11 @@ public static partial class PolicyFunctions
         {
             wallCells.UnionWith(region.Cells());
         }
-        foreach (var g in sites.GetValueOrDefault(NodeGate) ?? [])
+        foreach (var g in sites.GetValueOrDefault(LayoutPerimeterSitesRules.NodeGate) ?? [])
         {
             wallCells.UnionWith(g.Cells());
         }
-        var (inner, sealedRegion) = TraceInterior(plan.Rooms, wallCells, band);
+        var (inner, sealedRegion) = LayoutPerimeterEnclosureRules.TraceInterior(plan.Rooms, wallCells, band);
         ring = ring with { Ring = facts with { Inner = inner, Sealed = sealedRegion } };
 
         var rev = plan.RingRevision();
@@ -790,22 +793,22 @@ public static partial class PolicyFunctions
         var planSites = new List<PlannedSite>(plan.Sites) { ring };
 
         // Each kind in a stable order, its parts as ordinals, so the same inputs store the same nodes.
-        foreach (var kind in new[] { NodeGate, NodeKillbox, NodeApproach, NodeFence, NodePump, NodeMortar })
+        foreach (var kind in new[] { LayoutPerimeterSitesRules.NodeGate, LayoutPerimeterSitesRules.NodeKillbox, LayoutPerimeterSitesRules.NodeApproach, LayoutPerimeterSitesRules.NodeFence, LayoutPerimeterSitesRules.NodePump, LayoutPerimeterSitesRules.NodeMortar })
         {
             var parts = sites.GetValueOrDefault(kind) ?? [];
             for (var i = 0; i < parts.Count; i++)
             {
                 string id = $"{Wire.Name(kind)}-{i:D2}", reason = "";
-                if (kind == NodeKillbox)
+                if (kind == LayoutPerimeterSitesRules.NodeKillbox)
                 {
                     (id, reason) = (Wire.Name(kind), openingReason);
                 }
-                planSites.Add(NewSite(id, kind, parts[i], reason) with { Anchored = kind == NodeKillbox });
+                planSites.Add(LayoutPerimeterSitesRules.NewSite(id, kind, parts[i], reason) with { Anchored = kind == LayoutPerimeterSitesRules.NodeKillbox });
             }
         }
         if (!coverBand.Empty())
         {
-            planSites.Add(NewSite("cover-clear", NodeCoverClear, coverBand, ""));
+            planSites.Add(LayoutPerimeterSitesRules.NewSite("cover-clear", LayoutPerimeterSitesRules.NodeCoverClear, coverBand, ""));
         }
         return (plan with { Sites = planSites }).WithRevision(rev);
     }

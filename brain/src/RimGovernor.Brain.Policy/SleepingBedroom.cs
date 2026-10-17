@@ -58,7 +58,7 @@ public static partial class SleepingRules
                 continue;
             }
             // Census: the shelter's beds are read off its room.
-            var (room, ok) = CensusRoomIn(r, rooms);
+            var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
             if (ok)
             {
                 foreach (var b in room!.Beds)
@@ -188,7 +188,7 @@ public static partial class SleepingRules
                 continue;
             }
             // Census: the suite's beds are read off its room.
-            var (room, ok) = CensusRoomIn(r, rooms);
+            var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
             if (ok)
             {
                 foreach (var b in room!.Beds)
@@ -229,7 +229,7 @@ public static partial class SleepingRules
             {
                 continue;
             }
-            var (room, ok) = CensusRoomIn(r, rooms);
+            var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
             if (!ok)
             {
                 owed.Add(r);

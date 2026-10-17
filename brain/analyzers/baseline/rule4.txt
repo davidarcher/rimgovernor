@@ -82,8 +82,8 @@ Observation/StuffChoice.cs|ColonyProjection.BulkBuildStuffExcept
 PlayerApi/PlayerRoutes.cs|PlayerRoutes.ReadControlAsync
 Policy/DefenseTiers.cs|DefenseTiersPolicy.PlanDefenseTiers
 Policy/Hostility.cs|PolicyFunctions.HostilityChanges
-Policy/LayoutCapability.cs|PolicyFunctions.DeriveRoleCapabilities
-Policy/LayoutMining.cs|PolicyFunctions.RoomRock
+Policy/LayoutCapability.cs|LayoutCapabilityRules.DeriveRoleCapabilities
+Policy/LayoutMining.cs|LayoutPlan.RoomRock
 Policy/LayoutRooms.cs|LayoutPlan.PlannedShells
 Policy/MedicalCareCap.cs|MedicalRules.MedicalCareChanges
 Policy/MedicineCarry.cs|MedicineCarryRules.MedicineCarryChanges

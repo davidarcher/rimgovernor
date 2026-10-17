@@ -5,23 +5,8 @@ namespace RimGovernor.Brain.Policy;
 // the open ground: no animal asks for a roof, so there is no barn. A pen is matched to its herd by key: every pen of a
 // herd, a top-up included, carries PlannedRoom.Herd, the herd's race; the misc unit's carry none.
 
-public static partial class PolicyFunctions
+public static partial class LayoutHerdRules
 {
-    /// <summary>The plan's races with a ceiling above zero, in name order: the herd by race the station graph's pen nodes are sized from (#2996).</summary>
-    public static IReadOnlyList<StationHerd> StationHerds(this HerdPlan p)
-    {
-        var output = new List<StationHerd>();
-        foreach (var race in p.Policy.PopulationMax.Keys.OrderBy(r => r.Value, StringComparer.Ordinal))
-        {
-            var n = p.Policy.PopulationMax[race];
-            if (n > 0)
-            {
-                output.Add(new StationHerd { Race = race, Animals = (int)n });
-            }
-        }
-        return output;
-    }
-
     /// <summary>
     /// A plan saved with its pens and yards as reservations: each outline becomes the room it was derived
     /// as, in plan order, under the next ids. kind is the reservation's wire name ("pen" or "yard"; a saved "barn" is
@@ -49,37 +34,6 @@ public static partial class PolicyFunctions
 
     /// <summary>Why the graph holds a pen: the herd's grazing outgrows its pens, or the plan already holds the pen.</summary>
     public const string ReasonHerdRoom = "herd_room_owed";
-
-    /// <summary>
-    /// The pens the plan holds and the herds still lack, as graph nodes. A standing pen is a node of the floor it has,
-    /// keyed to its herd (RoomNode.Herd), so the tiler pins it; a herd short of the cells its pen wants (pens) gets one
-    /// more pen node holding the shortfall. The ground it stands on is not constrained: a pen may stand on rock, at the
-    /// price of the hay its herd is then hauled (PenNode.HandFed), a choice the forecast is to make among placements,
-    /// not the embedder's.
-    /// </summary>
-    public static IReadOnlyList<RoomNode> HerdRoomNodes(LayoutPlan plan, IReadOnlyList<PenWant> pens)
-    {
-        var nodes = new List<RoomNode>();
-        var herds = plan.RoomsOf(PlannedPen).Select(r => r.Herd).Concat(pens.Select(p => p.Race)).Distinct().Order(StringComparer.Ordinal);
-        foreach (var herd in herds)
-        {
-            var n = 0;
-            string Id() => $"{Wire.Name(PlannedPen)}/{herd}/{++n}";
-            foreach (var pen in plan.HerdRooms(PlannedPen, herd))
-            {
-                var b = pen.Region.Bounds();
-                nodes.Add(new RoomNode { Id = Id(), Role = PlannedPen, Herd = herd, Area = b.Width * b.Height, Reason = ReasonHerdRoom });
-            }
-            var want = pens.FirstOrDefault(p => p.Race == herd);
-            var owed = want is null ? 0 : want.Cells - plan.PenCells(herd);
-            if (owed > 0)
-            {
-                var (w, h) = PenSide(owed);
-                nodes.Add(new RoomNode { Id = Id(), Role = PlannedPen, Herd = herd, Area = w * h, Reason = ReasonHerdRoom });
-            }
-        }
-        return nodes;
-    }
 
     /// <summary>The cells of the wall two outlines share between the corners both walls stand on, in order; empty unless they overlap in exactly one wall line.</summary>
     internal static List<Cell> SharedWallRun(Rectangle a, Rectangle b)
@@ -113,5 +67,57 @@ public static partial class PolicyFunctions
             return Run(a.X, a.X + a.Width, b.X, b.X + b.Width, x => new Cell(x, z));
         }
         return [];
+    }
+}
+
+partial record HerdPlan
+{
+    /// <summary>The plan's races with a ceiling above zero, in name order: the herd by race the station graph's pen nodes are sized from (#2996).</summary>
+    public IReadOnlyList<StationHerd> StationHerds()
+    {
+        var output = new List<StationHerd>();
+        foreach (var race in this.Policy.PopulationMax.Keys.OrderBy(r => r.Value, StringComparer.Ordinal))
+        {
+            var n = this.Policy.PopulationMax[race];
+            if (n > 0)
+            {
+                output.Add(new StationHerd { Race = race, Animals = (int)n });
+            }
+        }
+        return output;
+    }
+}
+
+partial record LayoutPlan
+{
+    /// <summary>
+    /// The pens the plan holds and the herds still lack, as graph nodes. A standing pen is a node of the floor it has,
+    /// keyed to its herd (RoomNode.Herd), so the tiler pins it; a herd short of the cells its pen wants (pens) gets one
+    /// more pen node holding the shortfall. The ground it stands on is not constrained: a pen may stand on rock, at the
+    /// price of the hay its herd is then hauled (PenNode.HandFed), a choice the forecast is to make among placements,
+    /// not the embedder's.
+    /// </summary>
+    public static IReadOnlyList<RoomNode> HerdRoomNodes(LayoutPlan plan, IReadOnlyList<PenWant> pens)
+    {
+        var nodes = new List<RoomNode>();
+        var herds = plan.RoomsOf(PlannedPen).Select(r => r.Herd).Concat(pens.Select(p => p.Race)).Distinct().Order(StringComparer.Ordinal);
+        foreach (var herd in herds)
+        {
+            var n = 0;
+            string Id() => $"{Wire.Name(PlannedPen)}/{herd}/{++n}";
+            foreach (var pen in plan.HerdRooms(PlannedPen, herd))
+            {
+                var b = pen.Region.Bounds();
+                nodes.Add(new RoomNode { Id = Id(), Role = PlannedPen, Herd = herd, Area = b.Width * b.Height, Reason = LayoutHerdRules.ReasonHerdRoom });
+            }
+            var want = pens.FirstOrDefault(p => p.Race == herd);
+            var owed = want is null ? 0 : want.Cells - plan.PenCells(herd);
+            if (owed > 0)
+            {
+                var (w, h) = PenSide(owed);
+                nodes.Add(new RoomNode { Id = Id(), Role = PlannedPen, Herd = herd, Area = w * h, Reason = LayoutHerdRules.ReasonHerdRoom });
+            }
+        }
+        return nodes;
     }
 }

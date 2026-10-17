@@ -177,7 +177,7 @@ public sealed class RouteGrid
         var closed = new bool[rooms.Count];
         for (var i = 0; i < rooms.Count; i++)
         {
-            closed[i] = !PolicyFunctions.WalkedThrough(rooms[i]);
+            closed[i] = !PlannedRoom.WalkedThrough(rooms[i]);
         }
         var reached = Flood(entrances, closed, rooms.Count);
         for (var i = 0; i < rooms.Count; i++)
@@ -283,26 +283,26 @@ public sealed class RouteGrid
 }
 
 /// <summary>Ports <c>layout_route.go</c>: route checks and traffic over the planned core.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutRouteRules
 {
-    private readonly record struct RouteTrip(PlannedRole From, PlannedRole To, int Weight);
+    internal readonly record struct RouteTrip(PlannedRole From, PlannedRole To, int Weight);
 
     /// <summary>The room pairs pawns travel between; the empty role is the entrance. Weight is the trip's frequency, the affinity between the two ends: plan scoring weights each walking distance by it.</summary>
-    private static RouteTrip[] RouteTrips =>
+    internal static RouteTrip[] RouteTrips =>
     [
-        new(PlannedBedroom, PlannedDining, 3),
-        new(PlannedSuite, PlannedDining, 3),
-        new(PlannedKitchen, PlannedFreezer, 3),
-        new(default, PlannedFreezer, 2),
-        new(PlannedStorage, PlannedWorkshop, 2),
-        new(default, PlannedStorage, 1),
-        new(PlannedHospital, default, 1),
+        new(LayoutSurveyRules.PlannedBedroom, LayoutSurveyRules.PlannedDining, 3),
+        new(LayoutTripsRules.PlannedSuite, LayoutSurveyRules.PlannedDining, 3),
+        new(LayoutSurveyRules.PlannedKitchen, LayoutSurveyRules.PlannedFreezer, 3),
+        new(default, LayoutSurveyRules.PlannedFreezer, 2),
+        new(LayoutSurveyRules.PlannedStorage, LayoutSurveyRules.PlannedWorkshop, 2),
+        new(default, LayoutSurveyRules.PlannedStorage, 1),
+        new(LayoutSurveyRules.PlannedHospital, default, 1),
     ];
 
     /// <summary>The roles nobody walks through in a room with no RoomCrossing (one that is not a station group); a station group's room carries its own RoomCrossing instead.</summary>
-    private static bool NoThroughfare(PlannedRole role) =>
-        role == PlannedBedroom || role == PlannedSuite || role == PlannedShelter || role == PlannedPrison
-        || role == PlannedKitchen || role == PlannedHospital || role == PlannedLab || role == PlannedThrone;
+    internal static bool NoThroughfare(PlannedRole role) =>
+        role == LayoutSurveyRules.PlannedBedroom || role == LayoutTripsRules.PlannedSuite || role == LayoutSurveyRules.PlannedShelter || role == LayoutSurveyRules.PlannedPrison
+        || role == LayoutSurveyRules.PlannedKitchen || role == LayoutSurveyRules.PlannedHospital || role == LayoutSurveyRules.PlannedLab || role == LayoutThroneRules.PlannedThrone;
 
     /// <summary>The crossing facts of a group: whether it is kept cold (GroupCold), its player-faction beds and whether it needs cleanliness.</summary>
     internal static RoomCrossing CrossingOf(RoomGroup g)
@@ -315,9 +315,12 @@ public static partial class PolicyFunctions
                 beds += s.Count;
             }
         }
-        return new RoomCrossing { Cold = GroupCold(g), Clean = g.Requires.Contains(EnvRequirement.Clean), Beds = beds };
+        return new RoomCrossing { Cold = LayoutTileRules.GroupCold(g), Clean = g.Requires.Contains(EnvRequirement.Clean), Beds = beds };
     }
+}
 
+partial record PlannedRoom
+{
     /// <summary>
     /// Whether pawns may cross room r on the way between two others. A room with crossing facts is walked freely when
     /// crossing triggers nothing, when the plan marks it Through if crossing costs, and never when cold; one without
@@ -327,7 +330,7 @@ public static partial class PolicyFunctions
     {
         if (r.Crossing is null)
         {
-            return !NoThroughfare(r.Role);
+            return !LayoutRouteRules.NoThroughfare(r.Role);
         }
         if (!r.Crossing.Crossable())
         {
@@ -335,7 +338,10 @@ public static partial class PolicyFunctions
         }
         return r.Crossing.Mechanisms() == 0 || r.Through;
     }
+}
 
+partial record LayoutPlan
+{
     /// <summary>Paths every trip over p and returns how many paths cross each cell (for the overlay). A thoroughfare or an unreachable trip is an error. Trips whose rooms the plan lacks are skipped.</summary>
     public static RouteCheck CheckRoutes(LayoutPlan p)
     {
@@ -343,7 +349,7 @@ public static partial class PolicyFunctions
         var walk = new RouteGrid(walkMap);
         var cells = TripCells(p, rooms);
         var traffic = new Dictionary<Cell, int>();
-        foreach (var trip in RouteTrips)
+        foreach (var trip in LayoutRouteRules.RouteTrips)
         {
             var tos = cells(trip.To);
             var froms = cells(trip.From);
@@ -370,7 +376,7 @@ public static partial class PolicyFunctions
                 {
                     traffic[c] = traffic.GetValueOrDefault(c) + 1;
                     var i = walk.At(c);
-                    if (i >= 0 && !ends.Contains(i) && !WalkedThrough(rooms[i]))
+                    if (i >= 0 && !ends.Contains(i) && !PlannedRoom.WalkedThrough(rooms[i]))
                     {
                         var err = new ThroughfareError { From = trip.From, To = trip.To, Crossed = rooms[i].Role, Room = rooms[i].Id, Cell = c };
                         return new RouteCheck { Error = err.Message, Thoroughfare = err };
@@ -455,7 +461,7 @@ public static partial class PolicyFunctions
             var walled = new HashSet<Cell>();
             foreach (var r in rooms)
             {
-                var block = RoomWalls(r);
+                var block = PlannedRoom.RoomWalls(r);
                 if (r.Unfenced())
                 {
                     // No wall to walk round: the margin a range or ring keeps free of buildings is open ground.
@@ -463,7 +469,7 @@ public static partial class PolicyFunctions
                 }
                 walled.UnionWith(PlannedRules.RectCells(block));
             }
-            foreach (var c in PlannedRules.RectCells(Pad(fp, 1)))
+            foreach (var c in PlannedRules.RectCells(LayoutPerimeterRules.Pad(fp, 1)))
             {
                 if (!walk.ContainsKey(c) && !walled.Contains(c))
                 {

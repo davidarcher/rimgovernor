@@ -16,7 +16,7 @@ public sealed partial class DefinitionCatalog
 {
     private P.ComfortModel ComfortModel(P.RoomFurniture furniture)
     {
-        var game = P.PolicyFunctions.SeekerGame();
+        var game = P.LayoutComfortRules.SeekerGame();
         P.NeedCurve Curve(string name) =>
             DefRow<NeedDef>(name) is { } row ? new P.NeedCurve(Decimal32(row.baseLevel), Decimal32(row.seekerRisePerHour), Decimal32(row.seekerFallPerHour), row.freezeWhileSleeping) : default;
 

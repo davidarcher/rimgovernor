@@ -120,7 +120,7 @@ internal sealed class ConduitNet(HashSet<Cell> allowed, IReadOnlyDictionary<Cond
             var path = PolicyFunctions.RouteCells(n.Cells, Net, _allowed);
             if (path.Count == 0)
             {
-                return (null, new ConduitDecision(n.Ref, default, PolicyFunctions.TileUnsatisfied, PolicyConstants.ReasonConduitBlocked), false);
+                return (null, new ConduitDecision(n.Ref, default, LayoutTileRules.TileUnsatisfied, PolicyConstants.ReasonConduitBlocked), false);
             }
             path = [.. Enumerable.Reverse(path)]; // from the node to the net
             link = new ConduitLink(default, default, EquatableArray.From(path));
@@ -135,11 +135,11 @@ internal sealed class ConduitNet(HashSet<Cell> allowed, IReadOnlyDictionary<Cond
             }
         }
         Stand(n);
-        return (link, new ConduitDecision(n.Ref, link.To, PolicyFunctions.TilePlace, reason), true);
+        return (link, new ConduitDecision(n.Ref, link.To, LayoutTileRules.TilePlace, reason), true);
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutConduitRules
 {
     /// <summary>The ref of the site node with the given id.</summary>
     public static ConduitRef SiteRef(string node) => ConduitRef.ForSite(node);
@@ -151,24 +151,59 @@ public static partial class PolicyFunctions
     public static string ReservationSiteID(ReservationKind kind, int i) =>
         Wire.Name(kind) + "-" + i.ToString(CultureInfo.InvariantCulture);
 
+    /// <summary>
+    /// The links prev holds, by their From end, for the plan to keep where they still hold (#2966). A link of a
+    /// room the plan replaces, or of a site it replaces, is the successor's: the successor joins the net by the
+    /// path its predecessor's power runs on, so a replaced room keeps its conduit.
+    /// </summary>
+    internal static Dictionary<ConduitRef, ConduitLink> HeldLinks(IReadOnlyList<ConduitLink> prev, LayoutPlan plan)
+    {
+        var held = new Dictionary<ConduitRef, ConduitLink>();
+        foreach (var l in prev)
+        {
+            held[l.From] = l;
+        }
+        foreach (var r in plan.Rooms)
+        {
+            if (held.TryGetValue(RoomRef(r.Replaces), out var l) && r.Replaces != 0 && !held.ContainsKey(RoomRef(r.Id)))
+            {
+                held[RoomRef(r.Id)] = l;
+            }
+        }
+        foreach (var s in plan.Sites)
+        {
+            foreach (var old in s.ReplacesSites)
+            {
+                if (held.TryGetValue(SiteRef(old), out var l) && !held.ContainsKey(SiteRef(s.Node)))
+                {
+                    held[SiteRef(s.Node)] = l;
+                }
+            }
+        }
+        return held;
+    }
+}
+
+partial record LayoutPlan
+{
     /// <summary>The stored turbines and solar plots, in plan order.</summary>
-    private static IReadOnlyList<PlannedSite> PowerSiteNodes(this LayoutPlan p) =>
-        [.. p.LiveSites(NodeKind.Turbine), .. p.LiveSites(NodeKind.Solar)];
+    private IReadOnlyList<PlannedSite> PowerSiteNodes() =>
+        [.. this.LiveSites(NodeKind.Turbine), .. this.LiveSites(NodeKind.Solar)];
 
     /// <summary>The power site node ids the plan holds.</summary>
-    private static HashSet<string> ConduitSites(this LayoutPlan p)
+    private HashSet<string> ConduitSites()
     {
         var output = new HashSet<string>();
-        foreach (var s in p.PowerSiteNodes())
+        foreach (var s in this.PowerSiteNodes())
         {
             output.Add(s.Node);
         }
-        for (var i = 0; i < p.Reservations.Count; i++)
+        for (var i = 0; i < this.Reservations.Count; i++)
         {
-            var r = p.Reservations[i];
+            var r = this.Reservations[i];
             if (PowerSiteKinds.Contains(r.Kind))
             {
-                output.Add(ReservationSiteID(r.Kind, i));
+                output.Add(LayoutConduitRules.ReservationSiteID(r.Kind, i));
             }
         }
         return output;
@@ -178,9 +213,9 @@ public static partial class PolicyFunctions
     /// Reports the conduit links as well formed: both ends name a room or a power site of the plan, differ,
     /// and the cells are a non-empty 4-connected path with no repeat.
     /// </summary>
-    internal static bool ValidConduits(this LayoutPlan p, IReadOnlyDictionary<int, Rectangle> rooms)
+    internal bool ValidConduits(IReadOnlyDictionary<int, Rectangle> rooms)
     {
-        var sites = p.ConduitSites();
+        var sites = this.ConduitSites();
         bool Known(ConduitRef r)
         {
             var (id, ok) = r.Room();
@@ -191,7 +226,7 @@ public static partial class PolicyFunctions
             var (node, sok) = r.Site();
             return sok && sites.Contains(node);
         }
-        foreach (var l in p.Conduits)
+        foreach (var l in this.Conduits)
         {
             if (l.From == l.To || !Known(l.From) || !Known(l.To) || l.Cells.Count == 0)
             {
@@ -226,54 +261,22 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The power sites of the plan as net nodes, in plan order.</summary>
-    private static List<ConduitNode> SiteNodes(this LayoutPlan p)
+    private List<ConduitNode> SiteNodes()
     {
         var nodes = new List<ConduitNode>();
-        foreach (var s in p.PowerSiteNodes())
+        foreach (var s in this.PowerSiteNodes())
         {
-            nodes.Add(new ConduitNode(SiteRef(s.Node), s.Footprint.Cells().SortedBy(CombatManhunterRules.CellLess)));
+            nodes.Add(new ConduitNode(LayoutConduitRules.SiteRef(s.Node), s.Footprint.Cells().SortedBy(CombatManhunterRules.CellLess)));
         }
-        for (var i = 0; i < p.Reservations.Count; i++)
+        for (var i = 0; i < this.Reservations.Count; i++)
         {
-            var r = p.Reservations[i];
+            var r = this.Reservations[i];
             if (PowerSiteKinds.Contains(r.Kind))
             {
-                nodes.Add(new ConduitNode(SiteRef(ReservationSiteID(r.Kind, i)), r.Area.Cells().SortedBy(CombatManhunterRules.CellLess)));
+                nodes.Add(new ConduitNode(LayoutConduitRules.SiteRef(LayoutConduitRules.ReservationSiteID(r.Kind, i)), r.Area.Cells().SortedBy(CombatManhunterRules.CellLess)));
             }
         }
         return nodes;
-    }
-
-    /// <summary>
-    /// The links prev holds, by their From end, for the plan to keep where they still hold (#2966). A link of a
-    /// room the plan replaces, or of a site it replaces, is the successor's: the successor joins the net by the
-    /// path its predecessor's power runs on, so a replaced room keeps its conduit.
-    /// </summary>
-    private static Dictionary<ConduitRef, ConduitLink> HeldLinks(IReadOnlyList<ConduitLink> prev, LayoutPlan plan)
-    {
-        var held = new Dictionary<ConduitRef, ConduitLink>();
-        foreach (var l in prev)
-        {
-            held[l.From] = l;
-        }
-        foreach (var r in plan.Rooms)
-        {
-            if (held.TryGetValue(RoomRef(r.Replaces), out var l) && r.Replaces != 0 && !held.ContainsKey(RoomRef(r.Id)))
-            {
-                held[RoomRef(r.Id)] = l;
-            }
-        }
-        foreach (var s in plan.Sites)
-        {
-            foreach (var old in s.ReplacesSites)
-            {
-                if (held.TryGetValue(SiteRef(old), out var l) && !held.ContainsKey(SiteRef(s.Node)))
-                {
-                    held[SiteRef(s.Node)] = l;
-                }
-            }
-        }
-        return held;
     }
 
     /// <summary>
@@ -288,11 +291,11 @@ public static partial class PolicyFunctions
         var nodes = plan.SiteNodes();
         if (nodes.Count == 0)
         {
-            var unsourced = consumers.Select(n => new ConduitDecision(n.Ref, default, TileUnsatisfied, ReasonConduitNoSource)).ToList();
+            var unsourced = consumers.Select(n => new ConduitDecision(n.Ref, default, LayoutTileRules.TileUnsatisfied, ReasonConduitNoSource)).ToList();
             return ([], unsourced);
         }
         nodes.AddRange(consumers);
-        var g = NewConduitNet(plan, nodes, survey, HeldLinks(prev, plan));
+        var g = NewConduitNet(plan, nodes, survey, LayoutConduitRules.HeldLinks(prev, plan));
         g.Stand(nodes[0]);
         var links = new List<ConduitLink>();
         var decisions = new List<ConduitDecision>();
@@ -316,7 +319,7 @@ public static partial class PolicyFunctions
     public static (IReadOnlyList<ConduitLink> Links, IReadOnlyList<ConduitDecision> Decisions) JoinConduits(LayoutPlan plan, IReadOnlyList<ConduitNode> consumers, MapSurvey survey, IReadOnlyList<ConduitLink> prev)
     {
         var sites = plan.SiteNodes();
-        var g = NewConduitNet(plan, sites.Concat(consumers), survey, HeldLinks(prev, plan));
+        var g = NewConduitNet(plan, sites.Concat(consumers), survey, LayoutConduitRules.HeldLinks(prev, plan));
         foreach (var n in sites)
         {
             g.Stand(n);
@@ -344,28 +347,31 @@ public static partial class PolicyFunctions
         }
         return (links, decisions);
     }
+}
 
+partial class Tiler
+{
     /// <summary>
     /// Plans the conduit net over the furnished plan and records it. Consumers are the planned rooms holding a
     /// station whose def draws power (Station.BaseW &lt; 0); a room's cells are those stations' footprints, or the
     /// whole room while the placer set none.
     /// </summary>
-    internal static void RouteTileConduits(this Tiler t)
+    internal void RouteTileConduits()
     {
         var consumers = new List<ConduitNode>();
-        var rooms = t.Out.Plan.Rooms;
+        var rooms = this.Out.Plan.Rooms;
         for (var i = 0; i < rooms.Count; i++)
         {
-            if (i >= t.Rooms.Count)
+            if (i >= this.Rooms.Count)
             {
                 break; // the airlocks follow the group rooms and draw nothing
             }
             var room = rooms[i];
-            var g = t.In.Groups[t.Rooms[i].Group];
+            var g = this.In.Groups[this.Rooms[i].Group];
             var draws = new HashSet<string>();
             foreach (var s in g.Stations)
             {
-                var (st, ok) = t.In.Catalog.Station(s.Def);
+                var (st, ok) = this.In.Catalog.Station(s.Def);
                 if (ok && st!.DrawsPower())
                 {
                     draws.Add(s.Def);
@@ -376,7 +382,7 @@ public static partial class PolicyFunctions
                 continue;
             }
             var cells = new List<Cell>();
-            foreach (var p in t.Out.Pieces.GetValueOrDefault(room.Id) ?? [])
+            foreach (var p in this.Out.Pieces.GetValueOrDefault(room.Id) ?? [])
             {
                 if (draws.Contains(p.Def))
                 {
@@ -387,11 +393,11 @@ public static partial class PolicyFunctions
             {
                 cells.AddRange(room.Region.Cells());
             }
-            consumers.Add(new ConduitNode(RoomRef(room.Id), [.. cells.SortedBy(CombatManhunterRules.CellLess).Distinct()]));
+            consumers.Add(new ConduitNode(LayoutConduitRules.RoomRef(room.Id), [.. cells.SortedBy(CombatManhunterRules.CellLess).Distinct()]));
         }
-        var (links, decisions) = RouteConduits(t.Out.Plan, consumers, t.In.Survey, t.In.Conduits);
-        t.Out.Plan = t.Out.Plan with { Conduits = EquatableArray.From(links) };
-        t.Out.ConduitDecisions.Clear();
-        t.Out.ConduitDecisions.AddRange(decisions);
+        var (links, decisions) = LayoutPlan.RouteConduits(this.Out.Plan, consumers, this.In.Survey, this.In.Conduits);
+        this.Out.Plan = this.Out.Plan with { Conduits = EquatableArray.From(links) };
+        this.Out.ConduitDecisions.Clear();
+        this.Out.ConduitDecisions.AddRange(decisions);
     }
 }

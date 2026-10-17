@@ -254,7 +254,7 @@ public static partial class PolicyFunctions
             Interior = bounds,
             Doors = [r.Door],
             Shapes = shapes,
-            Capabilities = CapabilitiesOf(r.Role),
+            Capabilities = LayoutCapabilityRules.CapabilitiesOf(r.Role),
             WorkChairs = r.WorkChairs,
             Region = r.Region.IsRect() ? null : r.Region,
         }, true);

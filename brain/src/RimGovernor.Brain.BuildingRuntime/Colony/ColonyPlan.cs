@@ -74,7 +74,7 @@ internal static class LayoutPlanning
         }
         foreach (var d in advice.Tiled.Decisions)
         {
-            if (d.Reason == PolicyFunctions.ReasonInteriorSearchMove)
+            if (d.Reason == LayoutTileRules.ReasonInteriorSearchMove)
             {
                 Tel.Decide(new Decision
                 {
@@ -113,7 +113,7 @@ internal static class LayoutPlanning
     /// <summary>Writes the layout_plan rows of the traced ring and its opening (target perimeter): the ring is traced, the opening stands where the raider routes cross it or is absent.</summary>
     public static void LogPerimeter(LayoutPlan plan, int colonists)
     {
-        foreach (var d in PolicyFunctions.PerimeterDecisions(plan))
+        foreach (var d in LayoutPlan.PerimeterDecisions(plan))
         {
             var dec = LayoutPlanDecision(d.Verdict, d.Reason, colonists, "", new Dictionary<string, object?> { ["node"] = d.Node });
             dec = dec with { Target = "perimeter" };
@@ -247,7 +247,7 @@ public sealed partial class Rounder
     {
         var growth = await RoomGrowthAsync(snapshot, projection, layout.Plan, survey, Stockpiles.LayoutDemand(RoundsStockpilePlanner.StockpileWorld(snapshot)), ct).ConfigureAwait(false);
         var keyed = growth with { Grazing = null };
-        StationAdviceFor(snapshot, projection, layout.Plan, PolicyFunctions.TilePinned(layout.Plan, growth), growth, growth.Demand, survey, catalog);
+        StationAdviceFor(snapshot, projection, layout.Plan, LayoutPlan.TilePinned(layout.Plan, growth), growth, growth.Demand, survey, catalog);
         var key = string.Create(CultureInfo.InvariantCulture, $"{grown} {pawns} {string.Join(",", geysers)} {keyed} {StationInputs.Key}");
         return (new LayoutInputs(layout.Tick, key, survey.Bounds, [.. survey.Cells]), growth);
     }
@@ -271,23 +271,23 @@ public sealed partial class Rounder
         // A room whose need has ended and that is in use stays.
         if (projection.Facts.CurrentConstruction.TryGetValue(out var construction) && construction.Colony)
         {
-            var ended = PolicyFunctions.EndedRoomRoles(projection.WorkPawns, projection.Facts.Ideology, projection.Facts.Containment, projection.Isolation, RoundsSleepingUpkeepPlanner.ChildRoomNeeds(projection));
-            if (PolicyFunctions.RoomsOfRoles(plan, ended) > 0)
+            var ended = LayoutRoomsRules.EndedRoomRoles(projection.WorkPawns, projection.Facts.Ideology, projection.Facts.Containment, projection.Isolation, RoundsSleepingUpkeepPlanner.ChildRoomNeeds(projection));
+            if (LayoutPlan.RoomsOfRoles(plan, ended) > 0)
             {
-                growth = growth with { InUse = PolicyFunctions.RoomsInUse(plan, construction.Buildings, RoundsSleepingUpkeepPlanner.FurnitureDefinitions(projection)) };
+                growth = growth with { InUse = LayoutPlan.RoomsInUse(plan, construction.Buildings, RoundsSleepingUpkeepPlanner.FurnitureDefinitions(projection)) };
             }
         }
         // Bedrooms, workshop and laboratory stand and every colonist is housed: the shelter leaves the plan.
         // Re-read every review, no latch.
-        growth = growth with { RetireShelter = projection.Rooms.TryGetValue(out var census) && projection.Facts.Sleeping.TryGetValue(out var sleeping) && projection.Facts.CurrentConstruction.TryGetValue(out var built) && built.Colony && PolicyFunctions.ShelterRetirable(plan, census, sleeping, built.Buildings) };
+        growth = growth with { RetireShelter = projection.Rooms.TryGetValue(out var census) && projection.Facts.Sleeping.TryGetValue(out var sleeping) && projection.Facts.CurrentConstruction.TryGetValue(out var built) && built.Colony && LayoutPlan.ShelterRetirable(plan, census, sleeping, built.Buildings) };
         var occupancy = await LayoutOccupiedAsync(projection, plan, ct).ConfigureAwait(false);
         if (occupancy is { } found)
         {
             var (ground, _) = RoundsBuildingPlanner.ColonyGround(projection);
             growth = growth with
             {
-                Fixed = PolicyFunctions.FixedRooms(plan, ground, found.Cells),
-                InFlight = PolicyFunctions.InFlightRooms(plan, found.Origins, found.Rooms),
+                Fixed = LayoutPlan.FixedRooms(plan, ground, found.Cells),
+                InFlight = LayoutPlan.InFlightRooms(plan, found.Origins, found.Rooms),
             };
         }
         else
@@ -342,7 +342,7 @@ public sealed partial class Rounder
             {
                 layout.Plan.RequirementOverlay(StationLast, projection.Bounds, overlay);
             }
-            var (layer, fields) = PolicyFunctions.SplitFields(overlay);
+            var (layer, fields) = LayoutOverlayRules.SplitFields(overlay);
             await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), LayoutPlanning.FieldLayer, fields, fields.Layers.Count > 0, ct).ConfigureAwait(false);
             await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), LayoutPlanning.OverlayLayer, layer, true, ct).ConfigureAwait(false);
             OverlayKey = key;
@@ -391,7 +391,7 @@ public sealed partial class Rounder
         try
         {
             f = StationFactsBuilder.StationFacts(catalog, f);
-            (fact, advice) = PolicyFunctions.DeriveLayoutPlan(survey, f, geysers);
+            (fact, advice) = LayoutDeriveRules.DeriveLayoutPlan(survey, f, geysers);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -444,7 +444,7 @@ public sealed partial class Rounder
         StationAdvice advice;
         try
         {
-            (next, advice) = PolicyFunctions.ReplanLayout(plan, stationFacts, survey, geysers, growth);
+            (next, advice) = LayoutPlan.ReplanLayout(plan, stationFacts, survey, geysers, growth);
         }
         catch (StationFactsException e)
         {
@@ -466,10 +466,10 @@ public sealed partial class Rounder
             return false;
         }
         decision = decision with { Dur = DateTimeOffset.UtcNow - start };
-        var changed = !PolicyFunctions.SamePlan(plan, next);
+        var changed = !LayoutPlan.SamePlan(plan, next);
         decision = decision with { Verdict = "replanned" };
         decision = decision with { Reason = "tiled_plan" };
-        var tiledAttrs = StationAdviceLog.TiledReplanAttrs(PolicyFunctions.DiffReplanTile(plan, stationFacts.Built ?? new HashSet<int>(), advice), stationFacts.Built?.Count ?? 0, advice.Tiled!.Plan.Rooms.Count);
+        var tiledAttrs = StationAdviceLog.TiledReplanAttrs(LayoutPlan.DiffReplanTile(plan, stationFacts.Built ?? new HashSet<int>(), advice), stationFacts.Built?.Count ?? 0, advice.Tiled!.Plan.Rooms.Count);
         tiledAttrs["changed"] = changed;
         decision = decision with { Attrs = tiledAttrs };
         Tel.Decide(decision);
@@ -481,7 +481,7 @@ public sealed partial class Rounder
         }
         await Player.Journal.RecordLayoutPlanAsync(snapshot, tick, next, ct).ConfigureAwait(false);
         Tel.Decide(LayoutPlanning.LayoutPlanDecision("replanned", reason, pawns, next.Summary(), null));
-        if (PolicyFunctions.PerimeterChanged(plan, next))
+        if (LayoutPlan.PerimeterChanged(plan, next))
         {
             LayoutPlanning.LogPerimeter(next, pawns);
             ColonyPlanCut.LogPerimeterCut(next, survey, wall, pawns);

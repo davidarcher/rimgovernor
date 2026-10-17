@@ -137,12 +137,12 @@ public sealed partial class DefinitionCatalog
         }
     }
 
-    // The lamps the plan places (P.PolicyFunctions.LightDefs): for each the power it draws, the market value of its
+    // The lamps the plan places (P.LayoutLightRules.LightDefs): for each the power it draws, the market value of its
     // cheapest cost list and its glow radius. A catalog without a def (a hand-built one) has an unknown model for it, not
     // an error: the standing lamp unknown leaves the lamps unpriced, the wall lamp unknown leaves it out of the options.
     private P.LightModel LightModel()
     {
-        var defs = P.PolicyFunctions.LightDefs();
+        var defs = P.LayoutLightRules.LightDefs();
         return new P.LightModel { Standing = LampModel(defs.LampDef), Wall = LampModel(defs.WallLampDef) };
     }
 

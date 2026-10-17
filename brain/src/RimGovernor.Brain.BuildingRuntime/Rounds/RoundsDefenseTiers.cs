@@ -92,7 +92,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var tiers = new Dictionary<DefenseTierName, DefenseTier>();
         foreach (var t in record.Tiers)
         {
-            if (!DefenseTierStarted(t, census) || t.Remove || t.NodeBacked || PolicyApi.IsPerimeterTier(t.Name))
+            if (!DefenseTierStarted(t, census) || t.Remove || t.NodeBacked || LayoutDefenseRules.IsPerimeterTier(t.Name))
             {
                 continue;
             }

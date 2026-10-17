@@ -130,7 +130,7 @@ public sealed record StationFacts
         var held = 0;
         foreach (var r in Plan.Rooms)
         {
-            if (r.Role == PolicyFunctions.PlannedThrone)
+            if (r.Role == LayoutThroneRules.PlannedThrone)
             {
                 var b = r.Region.Bounds();
                 held = Math.Max(held, b.Width * b.Height);
@@ -141,7 +141,7 @@ public sealed record StationFacts
         {
             s = s with { ThroneArea = area };
         }
-        if (Plan.Rooms.Any(r => r.Role == PolicyFunctions.PlannedShelter))
+        if (Plan.Rooms.Any(r => r.Role == LayoutSurveyRules.PlannedShelter))
         {
             if (RetireShelter)
             {
@@ -154,7 +154,7 @@ public sealed record StationFacts
         }
         if (!Colonists.TryGetValue(out var colonists))
         {
-            throw PolicyFunctions.UnknownStationFact("colonists");
+            throw LayoutStationPlanRules.UnknownStationFact("colonists");
         }
         return s with { Shelter = true, Colonists = (int)colonists, Cold = Survey.Cold, Hot = Survey.Hot };
     }
@@ -166,12 +166,12 @@ public sealed record StationFacts
     /// </summary>
     public (int Stands, int Markers) TrainingAsk()
     {
-        var stands = Math.Min(Demand.Ranges, PolicyFunctions.RangeMaxStands);
-        var markers = Math.Min(Demand.Rings, PolicyFunctions.RingMaxMarkers);
+        var stands = Math.Min(Demand.Ranges, LayoutRangeRules.RangeMaxStands);
+        var markers = Math.Min(Demand.Rings, LayoutRingRules.RingMaxMarkers);
         var ranges = Plan.RangeRooms();
         if (ranges.Count > 0)
         {
-            stands = Math.Max(stands, PolicyFunctions.RangeStandCount(ranges[0]));
+            stands = Math.Max(stands, PlannedRoom.RangeStandCount(ranges[0]));
         }
         var rings = Plan.RingRooms();
         if (rings.Count > 0)
@@ -182,32 +182,32 @@ public sealed record StationFacts
     }
 
     /// <summary>What the regrouping prices conflicts with: a colonist's work from the food census and crops, the mood model and the expected mood.</summary>
-    public RegroupPrice RegroupPriceOf() => new() { Work = PolicyFunctions.StationWorkPrice(this), Mood = Catalog.Mood, Expected = ExpectedMood };
+    public RegroupPrice RegroupPriceOf() => new() { Work = LayoutRegroupRules.StationWorkPrice(this), Mood = Catalog.Mood, Expected = ExpectedMood };
 
     /// <summary>The room nodes the facts ask beyond the station chain's: the child rooms, the yards, and the pens.</summary>
     internal IReadOnlyList<RoomNode> RoomNodes() =>
-        [.. PolicyFunctions.ChildRoomNodes(Plan, Child), .. PolicyFunctions.YardRoomNodes(Plan, Demand), .. PolicyFunctions.HerdRoomNodes(Plan, Pens)];
+        [.. LayoutPlan.ChildRoomNodes(Plan, Child), .. LayoutPlan.YardRoomNodes(Plan, Demand), .. LayoutPlan.HerdRoomNodes(Plan, Pens)];
 
     /// <summary>Assembles the graph's input, or throws a StationFactsException naming the unknown fact.</summary>
     public StationGraphInput GraphInput()
     {
-        var population = PolicyFunctions.StationPopulationOf(this);
+        var population = LayoutStationPlanRules.StationPopulationOf(this);
         if (!Food.TryGetValue(out var supply))
         {
-            throw PolicyFunctions.UnknownStationFact("food census");
+            throw LayoutStationPlanRules.UnknownStationFact("food census");
         }
-        var (nutrition, nutritionOk) = PolicyFunctions.HumanNutritionPerDay(supply);
+        var (nutrition, nutritionOk) = LayoutStationPlanRules.HumanNutritionPerDay(supply);
         if (!nutritionOk)
         {
-            throw PolicyFunctions.UnknownStationFact("nutrition per day");
+            throw LayoutStationPlanRules.UnknownStationFact("nutrition per day");
         }
         if (!Orders.TryGetValue(out var orders))
         {
-            throw PolicyFunctions.UnknownStationFact("work ledger orders");
+            throw LayoutStationPlanRules.UnknownStationFact("work ledger orders");
         }
         if (!Stock.TryGetValue(out var stock))
         {
-            throw PolicyFunctions.UnknownStationFact("resource demand");
+            throw LayoutStationPlanRules.UnknownStationFact("resource demand");
         }
         var seed = SeedRoomsOf();
         var (stands, markers) = TrainingAsk();
@@ -259,10 +259,10 @@ public sealed record StationFacts
     /// <summary>Tiles the embedding of the advice: what the tiler reads of the advice and the facts.</summary>
     internal TileInput TileInputOf(StationAdvice advice)
     {
-        var steel = PolicyFunctions.SteelValueOrZero(this); // unknown stays zero: the airlocks and vents go unpriced
+        var steel = LayoutStationPlanRules.SteelValueOrZero(this); // unknown stays zero: the airlocks and vents go unpriced
         var groups = advice.Clustering.Groups;
         var emb = advice.Embedding;
-        var (held, blocks) = PolicyFunctions.HeldBlocks(groups.Count, emb.Held);
+        var (held, blocks) = LayoutStationPlanRules.HeldBlocks(groups.Count, emb.Held);
         return new TileInput
         {
             Groups = [.. groups, .. held],
@@ -276,8 +276,8 @@ public sealed record StationFacts
             FullRotRateC = FullRotRateC,
             SteelValue = steel,
             VentAvailable = VentAvailable,
-            Light = PolicyFunctions.StationLightPrice(this, steel),
-            Sites = PolicyFunctions.PowerSitesOf(advice.Graph.Sites, advice.Sites),
+            Light = LayoutLightRules.StationLightPrice(this, steel),
+            Sites = LayoutPowerNodesRules.PowerSitesOf(advice.Graph.Sites, advice.Sites),
             Graph = advice.Graph,
             Furniture = Furniture,
             Dining = Dining,
@@ -378,14 +378,14 @@ public sealed record BuiltRegion
     public string Herd { get; init; } = string.Empty;
 
     /// <summary>The key a room is matched to groups under.</summary>
-    internal string MatchKey() => Planned != PlannedRole.None ? PolicyFunctions.MatchKeyOf(Planned, Herd) : Role.ToString();
+    internal string MatchKey() => Planned != PlannedRole.None ? LayoutStationPlanRules.MatchKeyOf(Planned, Herd) : Role.ToString();
 }
 
 /// <summary>The built rooms matched to one group: Rooms are the matched room ids, ascending; Capacity their summed floor.</summary>
 public sealed record GroupRooms(int Group, IReadOnlyList<int> Rooms, int Capacity);
 
 /// <summary>Ports <c>layout_station_plan.go</c>: the station chain over the live colony. The colony is read into StationFacts, the chain (BuildStationGraph, ClusterStations, Embed) runs over it, and each group is matched to the rooms already built for its predicted role.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutStationPlanRules
 {
     /// <summary>Names the unknown fact an advice could not be assembled for.</summary>
     internal static StationFactsException UnknownStationFact(string name) => new(name);
@@ -467,7 +467,7 @@ public static partial class PolicyFunctions
     /// <summary>Reports a rebuild in flight: a successor pending in the plan or a pinned room not yet standing (as rebuildInFlight reads the census).</summary>
     internal static bool RebuildPending(StationFacts f)
     {
-        if (SuccessorPending(f.Plan))
+        if (LayoutPlan.SuccessorPending(f.Plan))
         {
             return true;
         }
@@ -484,7 +484,7 @@ public static partial class PolicyFunctions
         var output = AdviseStations(f);
         try
         {
-            var tiled = TileEmbedding(f.TileInputOf(output));
+            var tiled = LayoutTileRules.TileEmbedding(f.TileInputOf(output));
             return output with { Tiled = tiled };
         }
         catch (TileException e)
@@ -519,7 +519,7 @@ public static partial class PolicyFunctions
         }
         if (err is null)
         {
-            graph = BuildStationGraph(input!);
+            graph = StationGraph.BuildStationGraph(input!);
         }
         else if (f.Derive)
         {
@@ -531,15 +531,15 @@ public static partial class PolicyFunctions
             {
                 throw UnknownStationFact("roof support distance");
             }
-            graph = SeedGraph(new StationGraphInput { Catalog = f.Catalog, Seed = seed, Rooms = f.RoomNodes() });
+            graph = StationGraph.SeedGraph(new StationGraphInput { Catalog = f.Catalog, Seed = seed, Rooms = f.RoomNodes() });
             graph.Fields = [.. f.SeedFields()];
         }
         else
         {
             throw err;
         }
-        var built = BuiltRegions(f.Plan, f.StandingIds()!).Select(b => b with { Pinned = f.Pinned.Contains(b.Room) }).ToList();
-        var regrouped = Regroup(new RegroupInput
+        var built = LayoutPlan.BuiltRegions(f.Plan, f.StandingIds()!).Select(b => b with { Pinned = f.Pinned.Contains(b.Room) }).ToList();
+        var regrouped = LayoutRegroupRules.Regroup(new RegroupInput
         {
             Cluster = new ClusterInput { Graph = graph, Catalog = f.Catalog, RoofDistance = f.RoofDistance },
             Embed = new EmbedInput
@@ -568,7 +568,7 @@ public static partial class PolicyFunctions
             Regroup = regrouped.Decisions,
             SeedOnly = seedOnly,
             Sites = placed,
-            Comfort = AdviseComfort(f, graph, SteelValueOrZero(f)),
+            Comfort = LayoutComfortChooseRules.AdviseComfort(f, graph, SteelValueOrZero(f)),
         };
         var groups = new List<GroupAdvice>();
         foreach (var m in MatchGroupRooms(clustering.Groups, built))
@@ -587,18 +587,18 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static IReadOnlyDictionary<PlannedRole, RoomRole> MatchedPlanned => new Dictionary<PlannedRole, RoomRole>
     {
-        [PlannedFreezer] = RoomRole.Storeroom,
-        [PlannedButchery] = RoomRole.Kitchen,
-        [PlannedSuite] = RoomRoleSuite,
+        [LayoutSurveyRules.PlannedFreezer] = RoomRole.Storeroom,
+        [LayoutSurveyRules.PlannedButchery] = RoomRole.Kitchen,
+        [LayoutTripsRules.PlannedSuite] = LayoutTripsRules.RoomRoleSuite,
     };
 
     private static readonly Lazy<HashSet<PlannedRole>> RoomNodeRolesSet = new(() =>
     {
-        var nodes = new List<RoomNode>(OutskirtsRoomNodes());
-        nodes.AddRange(TrainingRoomNodes(1, 1));
-        nodes.AddRange(YardRoomNodes(new LayoutPlan(), new RoomDemand()));
+        var nodes = new List<RoomNode>(LayoutOutskirtsRules.OutskirtsRoomNodes());
+        nodes.AddRange(LayoutTrainingNodesRules.TrainingRoomNodes(1, 1));
+        nodes.AddRange(LayoutPlan.YardRoomNodes(new LayoutPlan(), new RoomDemand()));
         nodes.Add(new RoomNode { Role = PlannedRole.Pen });
-        nodes.AddRange(SeedRoomNodes(new SeedRooms { Shelter = true, Colonists = 1, ThroneArea = 1 }));
+        nodes.AddRange(LayoutTripsRules.SeedRoomNodes(new SeedRooms { Shelter = true, Colonists = 1, ThroneArea = 1 }));
         nodes.Add(new RoomNode { Role = PlannedRole.Circulation });
         var output = new HashSet<PlannedRole>(nodes.Select(n => n.Role));
         foreach (var role in ChildNodeRoles)
@@ -622,51 +622,12 @@ public static partial class PolicyFunctions
     /// <summary>The key a group is matched to rooms under.</summary>
     internal static string MatchKeyOfGroup(RoomGroup g)
     {
-        var (p, ok) = PlannedRoleOfGroup(g);
+        var (p, ok) = LayoutTileRules.PlannedRoleOfGroup(g);
         if (ok && (MatchedPlanned.ContainsKey(p) || RoomNodeRoles.Contains(p)))
         {
             return MatchKeyOf(p, g.Herd);
         }
         return g.Role.ToString();
-    }
-
-    /// <summary>
-    /// The plan's standing rooms that carry a native role (ModuleRoomRoles, and the freezer and butchery of
-    /// MatchedPlanned) or a room node of the graph (RoomNodeRoles), by room id. Outdoor rooms and rooms with no native
-    /// role are left out unless they are a room node's, and so is a room whose successor stands: the pair is one room.
-    /// </summary>
-    public static List<BuiltRegion> BuiltRegions(LayoutPlan plan, IReadOnlySet<int> built)
-    {
-        var output = new List<BuiltRegion>();
-        var replaced = new HashSet<int>(plan.Rooms.Where(r => built.Contains(r.Id) && r.Replaces != 0).Select(r => r.Replaces));
-        var matched = MatchedPlanned;
-        var nodeRoles = RoomNodeRoles;
-        foreach (var r in plan.Rooms)
-        {
-            var ok = ModuleRoomRoles.TryGetValue(r.Role, out var role);
-            var planned = default(PlannedRole);
-            if (matched.TryGetValue(r.Role, out var native))
-            {
-                role = native;
-                ok = true;
-                planned = r.Role;
-            }
-            if (nodeRoles.Contains(r.Role))
-            {
-                ok = true;
-                planned = r.Role; // a room node's room: matched by planned role, outdoor or with no native role
-            }
-            else if (r.Outdoor)
-            {
-                continue;
-            }
-            if (!ok || !built.Contains(r.Id) || replaced.Contains(r.Id))
-            {
-                continue;
-            }
-            output.Add(new BuiltRegion { Room = r.Id, Role = role, Planned = planned, Region = r.Region, Herd = r.Herd });
-        }
-        return [.. output.OrderBy(b => b.Room)];
     }
 
     /// <summary>
@@ -762,6 +723,48 @@ public static partial class PolicyFunctions
             blocks.Add(new EmbeddedBlock { Group = id, Interior = h.Interior, Built = h.Room });
         }
         return (gs, blocks);
+    }
+}
+
+partial record LayoutPlan
+{
+    /// <summary>
+    /// The plan's standing rooms that carry a native role (ModuleRoomRoles, and the freezer and butchery of
+    /// MatchedPlanned) or a room node of the graph (RoomNodeRoles), by room id. Outdoor rooms and rooms with no native
+    /// role are left out unless they are a room node's, and so is a room whose successor stands: the pair is one room.
+    /// </summary>
+    public static List<BuiltRegion> BuiltRegions(LayoutPlan plan, IReadOnlySet<int> built)
+    {
+        var output = new List<BuiltRegion>();
+        var replaced = new HashSet<int>(plan.Rooms.Where(r => built.Contains(r.Id) && r.Replaces != 0).Select(r => r.Replaces));
+        var matched = LayoutStationPlanRules.MatchedPlanned;
+        var nodeRoles = LayoutStationPlanRules.RoomNodeRoles;
+        foreach (var r in plan.Rooms)
+        {
+            var ok = ModuleRoomRoles.TryGetValue(r.Role, out var role);
+            var planned = default(PlannedRole);
+            if (matched.TryGetValue(r.Role, out var native))
+            {
+                role = native;
+                ok = true;
+                planned = r.Role;
+            }
+            if (nodeRoles.Contains(r.Role))
+            {
+                ok = true;
+                planned = r.Role; // a room node's room: matched by planned role, outdoor or with no native role
+            }
+            else if (r.Outdoor)
+            {
+                continue;
+            }
+            if (!ok || !built.Contains(r.Id) || replaced.Contains(r.Id))
+            {
+                continue;
+            }
+            output.Add(new BuiltRegion { Room = r.Id, Role = role, Planned = planned, Region = r.Region, Herd = r.Herd });
+        }
+        return [.. output.OrderBy(b => b.Room)];
     }
 }
 

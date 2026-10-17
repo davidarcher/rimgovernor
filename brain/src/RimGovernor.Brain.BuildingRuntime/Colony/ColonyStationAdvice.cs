@@ -18,7 +18,7 @@ public sealed partial class Rounder
             ThroneArea = Known(growth.ThroneArea),
             RetireShelter = growth.RetireShelter,
             Demand = demand,
-            Child = PolicyFunctions.ChildRoomShapes(RoundsSleepingUpkeepPlanner.ChildRoomNeeds(projection), RoundsSleepingUpkeepPlanner.FurnitureDefinitions(projection)),
+            Child = LayoutChildRoomsRules.ChildRoomShapes(RoundsSleepingUpkeepPlanner.ChildRoomNeeds(projection), RoundsSleepingUpkeepPlanner.FurnitureDefinitions(projection)),
             Crops = FieldCrops.Of(projection),
             FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays,
             Suites = RoundsSleepingUpkeepPlanner.SuiteWishesOf(projection, plan) is { } wishes ? [.. wishes] : [],
@@ -81,10 +81,10 @@ internal static class StationAdviceLog
             .ToList();
         return new Dictionary<string, object?>
         {
-            ["same"] = diff.Count(PolicyFunctions.TileDiffSame),
-            ["moved"] = diff.Count(PolicyFunctions.TileDiffMoved),
-            ["new"] = diff.Count(PolicyFunctions.TileDiffNew),
-            ["dropped"] = diff.Count(PolicyFunctions.TileDiffDropped),
+            ["same"] = diff.Count(LayoutReplanTiledRules.TileDiffSame),
+            ["moved"] = diff.Count(LayoutReplanTiledRules.TileDiffMoved),
+            ["new"] = diff.Count(LayoutReplanTiledRules.TileDiffNew),
+            ["dropped"] = diff.Count(LayoutReplanTiledRules.TileDiffDropped),
             ["rooms"] = rooms,
             ["unmatched_built"] = unmatched,
             ["built"] = built,
@@ -122,7 +122,7 @@ internal static class StationAdviceLog
         {
             try
             {
-                advice = PolicyFunctions.AdviseStations(facts);
+                advice = LayoutStationPlanRules.AdviseStations(facts);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -261,13 +261,13 @@ internal static class StationAdviceLog
         var ventIssues = new List<Dictionary<string, object?>>();
         if (a.Tiled is not null)
         {
-            foreach (var v in a.Tiled.Plan.LiveSites(PolicyFunctions.NodeVent))
+            foreach (var v in a.Tiled.Plan.LiveSites(LayoutTileVentRules.NodeVent))
             {
                 vents.Add(new Dictionary<string, object?> { ["x"] = v.Origin.X, ["z"] = v.Origin.Z, ["rotation"] = v.Rotation is { } ventRotation ? Wire.Name(ventRotation) : "", ["reason"] = v.Reason });
             }
             foreach (var d in a.Tiled.Decisions)
             {
-                if (d.Reason.StartsWith("tile_vent", StringComparison.Ordinal) && d.Verdict != PolicyFunctions.TilePlace)
+                if (d.Reason.StartsWith("tile_vent", StringComparison.Ordinal) && d.Verdict != LayoutTileRules.TilePlace)
                 {
                     ventIssues.Add(new Dictionary<string, object?> { ["group"] = d.Group, ["verdict"] = d.Verdict, ["reason"] = d.Reason });
                 }
@@ -325,7 +325,7 @@ internal static class StationFactsBuilder
     {
         var recipes = catalog.StationRecipeFlows(f.Catalog);
         var stock = f.Stock.TryGetValue(out var held) ? held : new Dictionary<Resource, long>();
-        var (stackLimit, perishable) = catalog.StationItemFacts(stock, recipes, PolicyFunctions.PenItems(f.Herds, f.Races));
+        var (stackLimit, perishable) = catalog.StationItemFacts(stock, recipes, LayoutPenNodesRules.PenItems(f.Herds, f.Races));
         return f with { Recipes = recipes, StackLimit = stackLimit, Perishable = perishable };
     }
 
@@ -373,7 +373,7 @@ internal static class StationFactsBuilder
         }
         if (RoundsBuildingPlanner.ColonyGround(projection) is (var ground, true))
         {
-            f = f with { Built = PolicyFunctions.BuiltRooms(plan, ground) };
+            f = f with { Built = LayoutPlan.BuiltRooms(plan, ground) };
         }
         if (projection.Facts.Prisoners.TryGetValue(out var prisoners))
         {
@@ -467,6 +467,6 @@ internal static class FieldCrops
         {
             return sown;
         }
-        return PolicyFunctions.DefaultFieldCrop(RoundsFieldPlanner.CropChoices(projection)) is ({ } crop, true) ? [crop] : [];
+        return LayoutFieldReplanRules.DefaultFieldCrop(RoundsFieldPlanner.CropChoices(projection)) is ({ } crop, true) ? [crop] : [];
     }
 }

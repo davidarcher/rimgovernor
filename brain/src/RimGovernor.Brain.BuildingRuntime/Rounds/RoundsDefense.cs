@@ -199,7 +199,7 @@ public sealed partial class RoundsDefensePlanner
         {
             if (p.Journal.LayoutPlan(state.Snapshot, new Tick(combat.Context?.Tick ?? 0), call) is { Plan: { } layoutPlan })
             {
-                var opening = PolicyApi.KillboxOpening(layoutPlan);
+                var opening = LayoutPlan.KillboxOpening(layoutPlan);
                 if (opening.Ok)
                 {
                     var combatLayout = new CombatLayout { Firing = [.. layout.Firing], Retreat = [.. layout.Retreat], Toward = opening.Killbox.Toward };

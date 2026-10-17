@@ -69,8 +69,8 @@ internal partial class EmbedFixed
                     }
                 }
                 var list = new List<Cell>(soil);
-                PolicyFunctions.SortCells(list);
-                m = (new Prefix(input.Survey.Bounds.Width, input.Survey.Bounds.Height, c => PolicyFunctions.B2i(soil.Contains(c))), list);
+                LayoutSiteGroundRules.SortCells(list);
+                m = (new Prefix(input.Survey.Bounds.Width, input.Survey.Bounds.Height, c => LayoutEmbedRules.B2i(soil.Contains(c))), list);
                 byFertility[f.Node.FertilityMin] = m;
             }
             masks.Add(m.Sum);
@@ -105,12 +105,12 @@ internal sealed partial class Embedder
             }
             if (IsField(j))
             {
-                if (PolicyFunctions.AxisGap(r.X, r.Width, b.X, b.Width) < 0 && PolicyFunctions.AxisGap(r.Z, r.Height, b.Z, b.Height) < 0)
+                if (LayoutEmbedRules.AxisGap(r.X, r.Width, b.X, b.Width) < 0 && LayoutEmbedRules.AxisGap(r.Z, r.Height, b.Z, b.Height) < 0)
                 {
                     return false;
                 }
             }
-            else if (PolicyFunctions.Collides(r, b))
+            else if (LayoutEmbedRules.Collides(r, b))
             {
                 return false;
             }
@@ -124,7 +124,7 @@ internal sealed partial class Embedder
 
     /// <summary>The walking gap between group i at r and group j at b.</summary>
     public int Gap(int i, Rectangle r, int j, Rectangle b) =>
-        IsField(i) || IsField(j) ? PolicyFunctions.FieldGap(r, b) : PolicyFunctions.GapDist(r, b);
+        IsField(i) || IsField(j) ? LayoutFieldPlaceRules.FieldGap(r, b) : LayoutEmbedRules.GapDist(r, b);
 }
 
 internal sealed partial class EmbedRun
@@ -145,7 +145,80 @@ internal sealed partial class EmbedRun
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutFieldPlaceRules
+{
+    /// <summary>
+    /// The input with each field appended to the groups as a block of its area, and the reverse of its links
+    /// on the groups it links (clustering's links run both ways). The input's groups are not changed.
+    /// </summary>
+    internal static EmbedInput WithFields(this EmbedInput input)
+    {
+        var groups = new List<RoomGroup>(input.Groups.Count + input.Fields.Count);
+        foreach (var g in input.Groups)
+        {
+            groups.Add(g with { Links = [.. g.Links] });
+        }
+        foreach (var f in input.Fields)
+        {
+            var id = groups.Count;
+            var links = new List<GroupLink>();
+            foreach (var l in f.Links)
+            {
+                if (l.To < 0 || l.To >= input.Groups.Count || l.Weight <= 0)
+                {
+                    continue;
+                }
+                links.Add(new GroupLink { To = l.To, Weight = l.Weight });
+                groups[l.To].Links.Add(new GroupLink { To = id, Weight = l.Weight });
+            }
+            groups.Add(new RoomGroup { Id = id, Area = f.Node.Area, Links = links });
+        }
+        return input with { Groups = groups };
+    }
+
+    /// <summary>
+    /// The walking gap between a field and a block in cells: the cells between their nearest edges, floored at
+    /// 1 (touching, as sharing a wall is for rooms), so LinkCost's gap-1 is the cells walked.
+    /// </summary>
+    internal static int FieldGap(Rectangle a, Rectangle b)
+    {
+        int sx = LayoutEmbedRules.AxisGap(a.X, a.Width, b.X, b.Width), sz = LayoutEmbedRules.AxisGap(a.Z, a.Height, b.Z, b.Height);
+        return Math.Max(Math.Max(sx, 0) + Math.Max(sz, 0), 1);
+    }
+
+    /// <summary>A placed field as a zone: its rows, less the cells the survey lacks (fogged cells get no zone).</summary>
+    internal static LayoutZone FieldZone(Rectangle r, MapSurvey s)
+    {
+        var known = new HashSet<Cell>();
+        foreach (var c in s.Cells)
+        {
+            if (c.Cell.X >= r.X && c.Cell.X < r.X + r.Width && c.Cell.Z >= r.Z && c.Cell.Z < r.Z + r.Height)
+            {
+                known.Add(c.Cell);
+            }
+        }
+        var runs = new List<RowRun>();
+        for (var row = r.Z; row < r.Z + r.Height; row++)
+        {
+            for (var x = r.X; x < r.X + r.Width; x++)
+            {
+                if (!known.Contains(new Cell(x, row)))
+                {
+                    continue;
+                }
+                var start = x;
+                while (x + 1 < r.X + r.Width && known.Contains(new Cell(x + 1, row)))
+                {
+                    x++;
+                }
+                runs.Add(new RowRun(row, start, x - start + 1));
+            }
+        }
+        return new LayoutZone { Kind = ZoneKind.Field, Runs = runs };
+    }
+}
+
+partial class StationGraph
 {
     /// <summary>
     /// The graph's fields with their crop-flow edges moved onto the groups. A node held by several groups (its
@@ -208,90 +281,23 @@ public static partial class PolicyFunctions
         }
         return output;
     }
+}
 
-    /// <summary>
-    /// The input with each field appended to the groups as a block of its area, and the reverse of its links
-    /// on the groups it links (clustering's links run both ways). The input's groups are not changed.
-    /// </summary>
-    internal static EmbedInput WithFields(this EmbedInput input)
-    {
-        var groups = new List<RoomGroup>(input.Groups.Count + input.Fields.Count);
-        foreach (var g in input.Groups)
-        {
-            groups.Add(g with { Links = [.. g.Links] });
-        }
-        foreach (var f in input.Fields)
-        {
-            var id = groups.Count;
-            var links = new List<GroupLink>();
-            foreach (var l in f.Links)
-            {
-                if (l.To < 0 || l.To >= input.Groups.Count || l.Weight <= 0)
-                {
-                    continue;
-                }
-                links.Add(new GroupLink { To = l.To, Weight = l.Weight });
-                groups[l.To].Links.Add(new GroupLink { To = id, Weight = l.Weight });
-            }
-            groups.Add(new RoomGroup { Id = id, Area = f.Node.Area, Links = links });
-        }
-        return input with { Groups = groups };
-    }
-
-    /// <summary>
-    /// The walking gap between a field and a block in cells: the cells between their nearest edges, floored at
-    /// 1 (touching, as sharing a wall is for rooms), so LinkCost's gap-1 is the cells walked.
-    /// </summary>
-    internal static int FieldGap(Rectangle a, Rectangle b)
-    {
-        int sx = AxisGap(a.X, a.Width, b.X, b.Width), sz = AxisGap(a.Z, a.Height, b.Z, b.Height);
-        return Math.Max(Math.Max(sx, 0) + Math.Max(sz, 0), 1);
-    }
-
+partial class Tiler
+{
     /// <summary>Adds each placed field to the plan as a field zone, after the whole-map zones, and notes it. TileDecision.Field names the field.</summary>
-    internal static void FieldZones(this Tiler t)
+    internal void FieldZones()
     {
-        t.Plan = t.Plan with { Zones = [.. t.In.Zones] };
-        foreach (var f in t.In.Embedding.Fields)
+        this.Plan = this.Plan with { Zones = [.. this.In.Zones] };
+        foreach (var f in this.In.Embedding.Fields)
         {
-            var z = FieldZone(f.Interior, t.In.Survey);
+            var z = LayoutFieldPlaceRules.FieldZone(f.Interior, this.In.Survey);
             if (z.Runs.Count == 0)
             {
                 continue;
             }
-            t.Plan = t.Plan with { Zones = [.. t.Plan.Zones, z] };
-            t.Out.Decisions.Add(new TileDecision { Group = -1, Verdict = TilePlace, Reason = ReasonTileField });
+            this.Plan = this.Plan with { Zones = [.. this.Plan.Zones, z] };
+            this.Out.Decisions.Add(new TileDecision { Group = -1, Verdict = LayoutTileRules.TilePlace, Reason = ReasonTileField });
         }
-    }
-
-    /// <summary>A placed field as a zone: its rows, less the cells the survey lacks (fogged cells get no zone).</summary>
-    internal static LayoutZone FieldZone(Rectangle r, MapSurvey s)
-    {
-        var known = new HashSet<Cell>();
-        foreach (var c in s.Cells)
-        {
-            if (c.Cell.X >= r.X && c.Cell.X < r.X + r.Width && c.Cell.Z >= r.Z && c.Cell.Z < r.Z + r.Height)
-            {
-                known.Add(c.Cell);
-            }
-        }
-        var runs = new List<RowRun>();
-        for (var row = r.Z; row < r.Z + r.Height; row++)
-        {
-            for (var x = r.X; x < r.X + r.Width; x++)
-            {
-                if (!known.Contains(new Cell(x, row)))
-                {
-                    continue;
-                }
-                var start = x;
-                while (x + 1 < r.X + r.Width && known.Contains(new Cell(x + 1, row)))
-                {
-                    x++;
-                }
-                runs.Add(new RowRun(row, start, x - start + 1));
-            }
-        }
-        return new LayoutZone { Kind = ZoneKind.Field, Runs = runs };
     }
 }

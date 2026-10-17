@@ -222,7 +222,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Maps a race product to the job it serves.</summary>
-    private static (HerdJob Job, bool Ok) HerdProductJob(RaceProduct p)
+    internal static (HerdJob Job, bool Ok) HerdProductJob(RaceProduct p)
     {
         if (p.Kind == "milk")
         {

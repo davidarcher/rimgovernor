@@ -420,11 +420,11 @@ internal sealed class GroupEval
     public bool Placeable()
     {
         var group = new RoomGroup { Role = Role, Planned = PlannedRole(), Requires = Requires() };
-        return PolicyFunctions.PlannedRoleOfGroup(group).Ok;
+        return LayoutTileRules.PlannedRoleOfGroup(group).Ok;
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutClusterRules
 {
     /// <summary>
     /// The largest interior area a roofed room can have. A rectangle is roofed while its centre lies within
@@ -776,7 +776,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var (next, d) = AddCirculation(current, r, depth);
+            var (next, d) = LayoutCirculationRules.AddCirculation(current, r, depth);
             current = next;
             decisions.Add(d);
         }
@@ -838,7 +838,7 @@ public static partial class PolicyFunctions
             groups[b].Links.Add(new GroupLink { To = a, Required = true });
             foreach (var g in new[] { a, b })
             {
-                if (ExactFloor(groups[g].Planned))
+                if (LayoutTrainingNodesRules.ExactFloor(groups[g].Planned))
                 {
                     continue;
                 }
@@ -996,7 +996,7 @@ internal sealed class Clusterer
     {
         _in = input;
         MaxArea = maxArea;
-        (Cooler, HasCooler) = PolicyFunctions.BestCooler(input.Catalog);
+        (Cooler, HasCooler) = LayoutClusterRules.BestCooler(input.Catalog);
         if (HasCooler)
         {
             var size = input.Catalog.Stations[Cooler].Shape.Size;
@@ -1051,7 +1051,7 @@ internal sealed class Clusterer
             var st = _in.Catalog.Stations[n.Def];
             for (var k = 0; k < u.Count; k++)
             {
-                output.Add(new RoomPiece { Def = n.Def, State = PolicyFunctions.PieceState(n.Purpose, st) });
+                output.Add(new RoomPiece { Def = n.Def, State = LayoutClusterRules.PieceState(n.Purpose, st) });
             }
         }
         return output;

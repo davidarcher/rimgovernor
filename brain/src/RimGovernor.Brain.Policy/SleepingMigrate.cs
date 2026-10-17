@@ -43,7 +43,7 @@ public static partial class SleepingRules
         foreach (var r in RetiringBedrooms(plan))
         {
             // Census: the room's beds are the retiring beds.
-            var (room, ok) = CensusRoomIn(r, rooms);
+            var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
             if (ok)
             {
                 foreach (var b in room!.Beds)
@@ -85,7 +85,7 @@ public static partial class SleepingRules
             var slept = !rk || !sk;
             if (rk && sk)
             {
-                var (room, ok) = CensusRoomIn(r, census!);
+                var (room, ok) = PlannedRoom.CensusRoomIn(r, census!);
                 if (ok)
                 {
                     foreach (var b in room!.Beds)
@@ -154,7 +154,7 @@ public static partial class SleepingRules
                 continue;
             }
             // Census: the room's beds say vacant, empty or unbuilt.
-            var (room, ok) = CensusRoomIn(r, rooms);
+            var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
             if (!ok)
             {
                 Append(unbuilt, r.Role, r);

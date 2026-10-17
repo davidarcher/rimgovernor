@@ -93,11 +93,11 @@ internal sealed record BuildGround
             {
                 soil[c.Cell] = SoilCostOther;
             }
-            else if (c.Fertility > ZoneRichFertility)
+            else if (c.Fertility > LayoutZoningRules.ZoneRichFertility)
             {
                 soil[c.Cell] = SoilCostRich;
             }
-            else if (c.Fertility >= PolicyFunctions.ZoneFieldFertility)
+            else if (c.Fertility >= LayoutZoningRules.ZoneFieldFertility)
             {
                 soil[c.Cell] = SoilCostNormal;
             }

@@ -286,7 +286,7 @@ public sealed record MoodPrice
     public bool Capped { get; set; }
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutMoodRules
 {
     /// <summary>The table the bridge reads the break model with.</summary>
     public static MoodGameTable MoodGame() => PolicyConstants.MoodJudgment;

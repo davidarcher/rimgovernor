@@ -121,12 +121,12 @@ public static partial class StockOverlayRules
         }
         var layers = new List<OverlayLayer>();
         string[] names = ["short", "low", "met"];
-        var hues = new[] { PlanRed, PlanAmber, PlanGreen };
+        var hues = new[] { LayoutOverlayRules.PlanRed, LayoutOverlayRules.PlanAmber, LayoutOverlayRules.PlanGreen };
         for (var i = 0; i < hues.Length; i++)
         {
             if (bands[i].Count > 0)
             {
-                layers.Add(new OverlayLayer { Color = hues[i].Fill(), Style = OverlayStyle.Fill, Label = names[i], Runs = CellRuns(bands[i]) });
+                layers.Add(new OverlayLayer { Color = hues[i].Fill(), Style = OverlayStyle.Fill, Label = names[i], Runs = LayoutOverlayRules.CellRuns(bands[i]) });
             }
         }
         return new LayoutOverlay { Layers = layers };

@@ -23,7 +23,7 @@ public sealed partial class RoundsBuildingPlanner
     internal IReadOnlyList<string> LightingDefinitions()
     {
         var output = Reviewer.Policy.Lighting.Lamps.Select(lamp => lamp.Name).ToList();
-        var defs = PolicyFunctions.LightDefs();
+        var defs = LayoutLightRules.LightDefs();
         foreach (var name in new[] { defs.LampDef, defs.WallLampDef })
         {
             if (!output.Contains(name))

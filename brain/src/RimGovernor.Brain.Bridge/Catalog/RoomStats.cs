@@ -69,7 +69,7 @@ public sealed partial class DefinitionCatalog
     // fade, prices no poisoning (the zero model).
     private P.PoisoningModel PoisoningModel()
     {
-        var table = P.PolicyFunctions.FoodPoisonGame();
+        var table = P.LayoutFilthRules.FoodPoisonGame();
         if (DefRow<HediffDef>(table.Hediff) is not { } hediff)
         {
             return new P.PoisoningModel();
@@ -100,7 +100,7 @@ public sealed partial class DefinitionCatalog
             Cleanliness = blood.statBases.Seq().LastOrDefault(modifier => modifier.stat?.defName == StatNames.Cleanliness)?.value ?? 0,
             FoodPoison = [.. stat.curve?.Points.Select(point => new P.CurvePoint(point.x, point.y)) ?? []],
             CleaningWork = blood.filth?.cleaningWorkToReduceThickness ?? 0,
-            CleaningSpeed = DefRow<StatDef>(P.PolicyFunctions.FilthGameTable().SpeedStat)?.defaultBaseValue ?? 0,
+            CleaningSpeed = DefRow<StatDef>(P.LayoutFilthRules.FilthGameTable().SpeedStat)?.defaultBaseValue ?? 0,
             StandTicks = GameConstants.MinTicksSinceThickened,
         };
     }

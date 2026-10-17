@@ -26,7 +26,57 @@ public static partial class PolicyConstants
     public const string TierLightPrefix = TierPerimeterPrefix + "light-";
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutInfestationRules
+{
+    /// <summary>
+    /// Lights a non-rectangular region (an L, a ring): one lamp on the floor cell nearest the middle of each
+    /// span-square of the bounds that holds floor, then a lamp on every floor cell still farther than reach from
+    /// all lamps, row-major. Lamps never stand off the floor.
+    /// </summary>
+    internal static List<Cell> ShapedRoomLamps(Region region, int span, double reach)
+    {
+        var interior = region.Bounds();
+        var cells = region.Cells().OrderBy(c => c.Z).ThenBy(c => c.X).ToList();
+        int nx = (interior.Width + span - 1) / span, nz = (interior.Height + span - 1) / span;
+        var output = new List<Cell>();
+        for (var iz = 0; iz < nz; iz++)
+        {
+            for (var ix = 0; ix < nx; ix++)
+            {
+                var mid = new Cell(interior.X + ((((2 * ix) + 1) * interior.Width) / (2 * nx)), interior.Z + ((((2 * iz) + 1) * interior.Height) / (2 * nz)));
+                int x0 = interior.X + (ix * interior.Width / nx), z0 = interior.Z + (iz * interior.Height / nz);
+                int x1 = interior.X + ((ix + 1) * interior.Width / nx), z1 = interior.Z + ((iz + 1) * interior.Height / nz);
+                var best = default(Cell);
+                var found = false;
+                foreach (var c in cells)
+                {
+                    if (c.X < x0 || c.X >= x1 || c.Z < z0 || c.Z >= z1)
+                    {
+                        continue;
+                    }
+                    if (!found || DistanceSquared(c, mid) < DistanceSquared(best, mid))
+                    {
+                        (best, found) = (c, true);
+                    }
+                }
+                if (found)
+                {
+                    output.Add(best);
+                }
+            }
+        }
+        foreach (var c in cells)
+        {
+            if (!output.Any(l => Distance(l, c) <= reach))
+            {
+                output.Add(c);
+            }
+        }
+        return output;
+    }
+}
+
+partial record LayoutPlan
 {
     /// <summary>
     /// Replaces plan's pocket-wall nodes with one per small pocket: a 4-connected patch of at most
@@ -51,7 +101,7 @@ public static partial class PolicyFunctions
         }
         foreach (var r in plan.Rooms)
         {
-            foreach (var c in PlannedRules.RectCells(RoomWalls(r)))
+            foreach (var c in PlannedRules.RectCells(PlannedRoom.RoomWalls(r)))
             {
                 used.Add(c);
             }
@@ -104,7 +154,7 @@ public static partial class PolicyFunctions
             }
             var live = (plan with { Sites = sites }).LiveSites(NodeKind.PocketWall).Count;
             var id = string.Create(CultureInfo.InvariantCulture, $"{Wire.Name(NodeKind.PocketWall)}-{live:D2}");
-            sites.Add(NewSite(id, NodeKind.PocketWall, RegionRules.RegionOfRuns(CellRuns(patch)), ReasonPocketBesideBase));
+            sites.Add(LayoutPerimeterSitesRules.NewSite(id, NodeKind.PocketWall, RegionRules.RegionOfRuns(LayoutOverlayRules.CellRuns(patch)), ReasonPocketBesideBase));
         }
         return plan with { Sites = sites };
     }
@@ -148,7 +198,7 @@ public static partial class PolicyFunctions
             var span = (int)Math.Floor(reach * Math.Sqrt(2));
             if (!r.Region.IsRect())
             {
-                output.AddRange(ShapedRoomLamps(r.Region, span, reach));
+                output.AddRange(LayoutInfestationRules.ShapedRoomLamps(r.Region, span, reach));
                 continue;
             }
             int nx = (interior.Width + span - 1) / span, nz = (interior.Height + span - 1) / span;
@@ -179,52 +229,5 @@ public static partial class PolicyFunctions
                 Buildings = cells.Select(c => new Building(lamp, c, Rotation.North, string.Empty)).ToList(),
             },
         ];
-    }
-
-    /// <summary>
-    /// Lights a non-rectangular region (an L, a ring): one lamp on the floor cell nearest the middle of each
-    /// span-square of the bounds that holds floor, then a lamp on every floor cell still farther than reach from
-    /// all lamps, row-major. Lamps never stand off the floor.
-    /// </summary>
-    private static List<Cell> ShapedRoomLamps(Region region, int span, double reach)
-    {
-        var interior = region.Bounds();
-        var cells = region.Cells().OrderBy(c => c.Z).ThenBy(c => c.X).ToList();
-        int nx = (interior.Width + span - 1) / span, nz = (interior.Height + span - 1) / span;
-        var output = new List<Cell>();
-        for (var iz = 0; iz < nz; iz++)
-        {
-            for (var ix = 0; ix < nx; ix++)
-            {
-                var mid = new Cell(interior.X + ((((2 * ix) + 1) * interior.Width) / (2 * nx)), interior.Z + ((((2 * iz) + 1) * interior.Height) / (2 * nz)));
-                int x0 = interior.X + (ix * interior.Width / nx), z0 = interior.Z + (iz * interior.Height / nz);
-                int x1 = interior.X + ((ix + 1) * interior.Width / nx), z1 = interior.Z + ((iz + 1) * interior.Height / nz);
-                var best = default(Cell);
-                var found = false;
-                foreach (var c in cells)
-                {
-                    if (c.X < x0 || c.X >= x1 || c.Z < z0 || c.Z >= z1)
-                    {
-                        continue;
-                    }
-                    if (!found || DistanceSquared(c, mid) < DistanceSquared(best, mid))
-                    {
-                        (best, found) = (c, true);
-                    }
-                }
-                if (found)
-                {
-                    output.Add(best);
-                }
-            }
-        }
-        foreach (var c in cells)
-        {
-            if (!output.Any(l => Distance(l, c) <= reach))
-            {
-                output.Add(c);
-            }
-        }
-        return output;
     }
 }

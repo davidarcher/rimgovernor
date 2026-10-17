@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Ports <c>layout_training_nodes.go</c>: the training range and the sparring ring as station-less room nodes of the station graph.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutTrainingNodesRules
 {
     /// <summary>Why the graph holds a training room: the colony's capable adults need a place to train.</summary>
     public const string ReasonTrainingRoom = "training_room_demanded";
@@ -15,16 +15,16 @@ public static partial class PolicyFunctions
         var nodes = new List<RoomNode>();
         if (stands > 0)
         {
-            var n = Math.Min(Math.Max(stands, RangeMinStands), RangeMaxStands);
-            nodes.Add(new RoomNode { Id = Wire.Name(PlannedTrainingRange), Role = PlannedTrainingRange, Area = n * (TrainingRules.RangeDistance + 1), Width = TrainingRules.RangeDistance + 1, Reason = ReasonTrainingRoom });
+            var n = Math.Min(Math.Max(stands, LayoutRangeRules.RangeMinStands), LayoutRangeRules.RangeMaxStands);
+            nodes.Add(new RoomNode { Id = Wire.Name(LayoutRangeRules.PlannedTrainingRange), Role = LayoutRangeRules.PlannedTrainingRange, Area = n * (TrainingRules.RangeDistance + 1), Width = TrainingRules.RangeDistance + 1, Reason = ReasonTrainingRoom });
         }
         if (markers > 0)
         {
-            var m = Math.Min(Math.Max(markers, RingMinMarkers), RingMaxMarkers);
-            var ring = new RoomNode { Id = Wire.Name(PlannedSparringRing), Role = PlannedSparringRing, Area = RingSide * RingSide, Width = RingSide, Markers = m, Reason = ReasonTrainingRoom };
+            var m = Math.Min(Math.Max(markers, LayoutRingRules.RingMinMarkers), LayoutRingRules.RingMaxMarkers);
+            var ring = new RoomNode { Id = Wire.Name(LayoutRingRules.PlannedSparringRing), Role = LayoutRingRules.PlannedSparringRing, Area = LayoutRingRules.RingSide * LayoutRingRules.RingSide, Width = LayoutRingRules.RingSide, Markers = m, Reason = ReasonTrainingRoom };
             if (stands > 0)
             {
-                ring = ring with { Beside = Wire.Name(PlannedTrainingRange) };
+                ring = ring with { Beside = Wire.Name(LayoutRangeRules.PlannedTrainingRange) };
             }
             nodes.Add(ring);
         }
@@ -32,7 +32,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>A role whose floor is its exact shape (a range's rows, the ring's square): a required link adds no door threshold to it, for it has no wall to open a door in.</summary>
-    internal static bool ExactFloor(PlannedRole role) => role == PlannedTrainingRange || role == PlannedSparringRing;
+    internal static bool ExactFloor(PlannedRole role) => role == LayoutRangeRules.PlannedTrainingRange || role == LayoutRingRules.PlannedSparringRing;
 
     /// <summary>The embedding's interiors indexed by group (the zero rectangle for a group left out).</summary>
     internal static List<Rectangle> PlacedBlocks(IReadOnlyList<RoomGroup> groups, IEnumerable<EmbeddedBlock> blocks)
@@ -50,8 +50,8 @@ public static partial class PolicyFunctions
 
     /// <summary>The roles of the rooms the graph sites by their own terms, not as part of the base: the outskirts rooms, the training rooms and the shelter.</summary>
     private static bool ApartFromBase(PlannedRole role) =>
-        role == PlannedTomb || role == PlannedMorgue
-        || role == PlannedTrainingRange || role == PlannedSparringRing || role == PlannedShelter;
+        role == LayoutSurveyRules.PlannedTomb || role == LayoutSurveyRules.PlannedMorgue
+        || role == LayoutRangeRules.PlannedTrainingRange || role == LayoutRingRules.PlannedSparringRing || role == LayoutSurveyRules.PlannedShelter;
 
     /// <summary>The bounding box of the placed blocks of the groups outside the rooms that stand apart: the base a facing group points away from. Null while none is placed.</summary>
     internal static Rectangle? AwayReference(IReadOnlyList<RoomGroup> groups, IReadOnlyList<Rectangle> blocks)

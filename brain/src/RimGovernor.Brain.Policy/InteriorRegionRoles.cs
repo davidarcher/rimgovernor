@@ -286,7 +286,7 @@ public static partial class PolicyFunctions
     /// <summary>As many of the piece as the template's bands held on this room, one slot each ("child.0", ...); a room asked for no piece plans nothing.</summary>
     internal static (IReadOnlyList<RegionWant> Wants, bool Ok) ChildRoomWants(InteriorRoom _, InteriorPieceDef piece, RegionFrame f)
     {
-        var n = ChildSlots(f.Width, f.Depth, f.Entrance, piece.Size).Count;
+        var n = LayoutChildRoomsRules.ChildSlots(f.Width, f.Depth, f.Entrance, piece.Size).Count;
         if (piece.Def == string.Empty || n == 0)
         {
             return (NoWants, false);

@@ -55,7 +55,7 @@ public static partial class RoomRoleRules
             {
                 throw new DomainException($"contents name room {c.Room}, which the plan does not hold");
             }
-            var (census, standing) = CensusRoomIn(planned[idx], rooms);
+            var (census, standing) = PlannedRoom.CensusRoomIn(planned[idx], rooms);
             if (!standing || !census!.Role.TryGetValue(out var native))
             {
                 continue;

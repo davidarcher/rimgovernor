@@ -83,7 +83,7 @@ partial class Rounder
                 var r = OccupiedRect(b.Cell, new Cell(size.Width, size.Height), b.Rotation);
                 if (r.Width > 0 && r.Height > 0)
                 {
-                    return RectangleCells(r);
+                    return LayoutUtilityRules.RectangleCells(r);
                 }
             }
             return [b.Cell];
@@ -158,7 +158,7 @@ public sealed partial class Rounder
         }
         var origins = Rounder.RoomMethodOrigins(plans);
         var rooms = Rounder.RoomMethodIds(plans);
-        foreach (var c in InFlightRoomCells(plan, origins, rooms))
+        foreach (var c in LayoutPlan.InFlightRoomCells(plan, origins, rooms))
         {
             cells.Add(c);
         }

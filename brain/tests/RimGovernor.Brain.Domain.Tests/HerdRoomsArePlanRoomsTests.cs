@@ -12,13 +12,13 @@ public sealed class HerdRoomsArePlanRoomsTests
 {
     private static LayoutPlan Core(params PlannedRoom[] rooms) => new()
     {
-        Zones = [new LayoutZone { Kind = ZoneCore, Runs = [.. Enumerable.Range(0, 80).Select(z => new RowRun(z, 0, 80))] }],
+        Zones = [new LayoutZone { Kind = LayoutZoningRules.ZoneCore, Runs = [.. Enumerable.Range(0, 80).Select(z => new RowRun(z, 0, 80))] }],
         Rooms = rooms,
         NextRoomId = rooms.Length + 1,
     };
 
     private static PlannedRoom Shelter(int id, int x, int z) =>
-        new() { Id = id, Role = PlannedShelter, Region = RegionRules.RectRegion(new Rectangle { X = x, Z = z, Width = 5, Height = 5 }), Door = new Cell(x + 2, z - 1), DoorRot = Rotation.South };
+        new() { Id = id, Role = LayoutSurveyRules.PlannedShelter, Region = RegionRules.RectRegion(new Rectangle { X = x, Z = z, Width = 5, Height = 5 }), Door = new Cell(x + 2, z - 1), DoorRot = Rotation.South };
 
     private static string Json<T>(T value)
     {
@@ -34,7 +34,7 @@ public sealed class HerdRoomsArePlanRoomsTests
     public void APenIsANodeOfTheGraphPerHerdShortOfCells()
     {
         var plan = Core(Shelter(1, 38, 38));
-        var nodes = HerdRoomNodes(plan, [new PenWant("Muffalo", 30), new PenWant("", 12)]);
+        var nodes = LayoutPlan.HerdRoomNodes(plan, [new PenWant("Muffalo", 30), new PenWant("", 12)]);
         Assert.Equal(["", "Muffalo"], nodes.Select(n => n.Herd));
         Assert.All(nodes, n =>
         {
@@ -44,7 +44,7 @@ public sealed class HerdRoomsArePlanRoomsTests
         Assert.Equal(nodes.Count, nodes.Select(n => n.Id).Distinct().Count());
         // A standing pen is a node of its own floor and keeps its herd's key; a herd it holds asks for no more.
         var pen = new PlannedRoom { Id = 2, Role = PlannedRole.Pen, Herd = "Muffalo", Outdoor = true, Region = RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 6, Height = 5 }), Door = new Cell(12, 9), DoorRot = Rotation.South };
-        var held = HerdRoomNodes(plan with { Rooms = [.. plan.Rooms, pen] }, [new PenWant("Muffalo", 30)]);
+        var held = LayoutPlan.HerdRoomNodes(plan with { Rooms = [.. plan.Rooms, pen] }, [new PenWant("Muffalo", 30)]);
         Assert.Equal([("Muffalo", 30)], held.Select(n => (n.Herd, n.Area)));
     }
 
@@ -73,7 +73,7 @@ public sealed class HerdRoomsArePlanRoomsTests
         Assert.Contains("\"barn\"", json, StringComparison.Ordinal);
         using var doc = JsonDocument.Parse(json);
         var back = Codecs.Default.Read<LayoutPlan>(doc.RootElement);
-        Assert.Equal([PlannedShelter], back.Rooms.Select(r => r.Role));
+        Assert.Equal([LayoutSurveyRules.PlannedShelter], back.Rooms.Select(r => r.Role));
         Assert.Empty(back.Links);
     }
 }

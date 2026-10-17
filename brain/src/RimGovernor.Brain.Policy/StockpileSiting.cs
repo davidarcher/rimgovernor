@@ -125,7 +125,7 @@ public sealed record StoreSite
             }
             if (changed)
             {
-                regions = PolicyFunctions.CellRects(allowed);
+                regions = LayoutPerimeterEnclosureRules.CellRects(allowed);
             }
             var output = new List<Rectangle>();
             foreach (var r in regions)

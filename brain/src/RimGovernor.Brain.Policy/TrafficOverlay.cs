@@ -71,7 +71,7 @@ public static partial class TrafficRules
                     Color = color,
                     Style = OverlayStyle.Fill,
                     Label = "heat " + Wire.Name(layer),
-                    Runs = CellRuns(bands[b]),
+                    Runs = LayoutOverlayRules.CellRuns(bands[b]),
                 }
             );
         }

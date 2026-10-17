@@ -648,7 +648,7 @@ public static partial class PolicyFunctions
     /// <summary>The catalog's cooling station that draws the least power per heat moved, null when it has none.</summary>
     public static string? BestCoolerByPower(this StationCatalog c)
     {
-        var (def, ok) = BestCooler(c);
+        var (def, ok) = LayoutClusterRules.BestCooler(c);
         return ok ? def : null;
     }
 

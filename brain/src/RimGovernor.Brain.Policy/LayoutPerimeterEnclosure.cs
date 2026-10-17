@@ -16,15 +16,15 @@ internal sealed class Enclosure
         this.h = h;
         In = inside;
         Ring = new bool[w * h];
-        Dist = PolicyFunctions.ChebyshevField(w, h, inside, PolicyFunctions.PerimeterThick + PolicyFunctions.PerimeterCoverBand);
+        Dist = LayoutPerimeterEnclosureRules.ChebyshevField(w, h, inside, LayoutPerimeterRules.PerimeterThick + LayoutPerimeterRules.PerimeterCoverBand);
         for (var i = 0; i < Dist.Length; i++)
         {
             int x = i % w, z = i / w;
             if (inside[i])
             {
-                Bbox = PolicyFunctions.UnionRect(Bbox, new Rectangle { X = x, Z = z, Width = 1, Height = 1 });
+                Bbox = LayoutDefenseRules.UnionRect(Bbox, new Rectangle { X = x, Z = z, Width = 1, Height = 1 });
             }
-            Ring[i] = Dist[i] >= 1 && Dist[i] <= PolicyFunctions.PerimeterThick;
+            Ring[i] = Dist[i] >= 1 && Dist[i] <= LayoutPerimeterRules.PerimeterThick;
         }
     }
 
@@ -100,14 +100,14 @@ internal sealed class Enclosure
                     {
                         if (!Inside(CellOf(a, lo - 1)))
                         {
-                            lo -= PolicyFunctions.PerimeterThick;
+                            lo -= LayoutPerimeterRules.PerimeterThick;
                         }
                         if (!Inside(CellOf(a, hi + 1)))
                         {
-                            hi += PolicyFunctions.PerimeterThick;
+                            hi += LayoutPerimeterRules.PerimeterThick;
                         }
                     }
-                    var face = a + (PolicyFunctions.PerimeterThick * (outward.X + outward.Z));
+                    var face = a + (LayoutPerimeterRules.PerimeterThick * (outward.X + outward.Z));
                     raw.Add(new RingSide(inward, along, lo, hi, face, vertical));
                 }
             }
@@ -127,7 +127,7 @@ internal sealed class Enclosure
                     output.Add(s);
                     for (var p = start; p <= end; p++)
                     {
-                        for (var t = 0; t < PolicyFunctions.PerimeterThick; t++)
+                        for (var t = 0; t < LayoutPerimeterRules.PerimeterThick; t++)
                         {
                             owner[s.At(p, t)] = new Crossing(k, p);
                         }
@@ -138,7 +138,7 @@ internal sealed class Enclosure
             for (var p = sd.Lo; p <= sd.Hi; p++)
             {
                 var full = true;
-                for (var t = 0; t < PolicyFunctions.PerimeterThick; t++)
+                for (var t = 0; t < LayoutPerimeterRules.PerimeterThick; t++)
                 {
                     var c = sd.At(p, t);
                     full = full && OnRing(c) && !owned.Contains(c);
@@ -148,7 +148,7 @@ internal sealed class Enclosure
                     Flush(p - 1);
                     continue;
                 }
-                for (var t = 0; t < PolicyFunctions.PerimeterThick; t++)
+                for (var t = 0; t < LayoutPerimeterRules.PerimeterThick; t++)
                 {
                     owned.Add(sd.At(p, t));
                 }
@@ -180,7 +180,7 @@ internal sealed class WallInterior
     /// <summary>Inside or on the ring.</summary>
     public bool[] Closed { get; set; } = [];
 
-    public int? At(Cell c) => PolicyFunctions.Contains(Box, c) ? ((c.Z - Box.Z) * Box.Width) + c.X - Box.X : null;
+    public int? At(Cell c) => LayoutPerimeterRules.Contains(Box, c) ? ((c.Z - Box.Z) * Box.Width) + c.X - Box.X : null;
 
     /// <summary>Lists the inside row by row.</summary>
     public List<Cell> Cells()
@@ -199,7 +199,7 @@ internal sealed class WallInterior
     /// <summary>Each cell's Chebyshev distance from the ring or its inside, -1 beyond limit or off the box.</summary>
     public Func<Cell, int> Near(int limit)
     {
-        var d = PolicyFunctions.ChebyshevField(Box.Width, Box.Height, Closed, limit);
+        var d = LayoutPerimeterEnclosureRules.ChebyshevField(Box.Width, Box.Height, Closed, limit);
         return c => At(c) is { } i ? d[i] : -1;
     }
 
@@ -219,7 +219,7 @@ internal sealed class WallInterior
 }
 
 /// <summary>Ports <c>layout_perimeter_enclosure.go</c>: the enclosure, its sides and the interior flood.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutPerimeterEnclosureRules
 {
     /// <summary>Each cell's Chebyshev distance from src, -1 beyond limit.</summary>
     internal static int[] ChebyshevField(int w, int h, bool[] src, int limit)
@@ -281,20 +281,20 @@ public static partial class PolicyFunctions
     {
         for (var i = 0; i < grown.Length; i++)
         {
-            grown[i] = grown[i] && Contains(yard, new Cell(i % w, i / w));
+            grown[i] = grown[i] && LayoutPerimeterRules.Contains(yard, new Cell(i % w, i / w));
         }
 
         // Closing: dilate, then erode by as much.
-        var d = ChebyshevField(w, h, grown, PerimeterThick);
+        var d = ChebyshevField(w, h, grown, LayoutPerimeterRules.PerimeterThick);
         var output = new bool[grown.Length];
         for (var i = 0; i < d.Length; i++)
         {
             output[i] = d[i] < 0;
         }
-        d = ChebyshevField(w, h, output, PerimeterThick);
+        d = ChebyshevField(w, h, output, LayoutPerimeterRules.PerimeterThick);
         for (var i = 0; i < d.Length; i++)
         {
-            output[i] = d[i] < 0 && Contains(yard, new Cell(i % w, i / w));
+            output[i] = d[i] < 0 && LayoutPerimeterRules.Contains(yard, new Cell(i % w, i / w));
         }
 
         // Holes: whatever the map edge cannot reach around it.
@@ -339,7 +339,7 @@ public static partial class PolicyFunctions
     {
         var rects = new List<Rectangle>();
         var open = new Dictionary<(int, int), int>(); // span -> rect index ending on the last row
-        foreach (var r in CellRuns([.. set]))
+        foreach (var r in LayoutOverlayRules.CellRuns([.. set]))
         {
             var key = (r.X, r.Length);
             if (open.TryGetValue(key, out var i) && rects[i].Z + rects[i].Height == r.Z)
@@ -354,37 +354,6 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Reads the ring node's stored inside back into a grid; null for a plan without a ring. grow widens the box past
-    /// the band for callers measuring out from the ring.
-    /// </summary>
-    internal static WallInterior? PlanInterior(LayoutPlan plan, int grow)
-    {
-        var (ring, hasRing) = plan.Ring();
-        if (!hasRing)
-        {
-            return null;
-        }
-        var wi = new WallInterior { Box = Pad(UnionRect(ring.Footprint.Bounds(), ring.Ring!.Sealed.Bounds()), PerimeterCoverBand + grow) };
-        wi.In = new bool[wi.Box.Width * wi.Box.Height];
-        wi.Closed = new bool[wi.Box.Width * wi.Box.Height];
-        foreach (var c in ring.Ring.Inner.Cells())
-        {
-            if (wi.At(c) is { } i)
-            {
-                wi.In[i] = true;
-            }
-        }
-        foreach (var c in ring.Ring.Sealed.Cells())
-        {
-            if (wi.At(c) is { } i)
-            {
-                wi.Closed[i] = true;
-            }
-        }
-        return wi;
-    }
-
-    /// <summary>
     /// Floods the ground the ring closes in from rooms: the cover-clear band lies wholly outside the ring, so a flood
     /// that the band and the wall stop is the inside; cells within PerimeterThick of the band are the ring itself (the
     /// opening and terrain stretches included) and are left out of inner, though sealed holds them. wall is every cell
@@ -395,13 +364,13 @@ public static partial class PolicyFunctions
         var ring = new Rectangle();
         foreach (var c in wall)
         {
-            ring = UnionRect(ring, new Rectangle { X = c.X, Z = c.Z, Width = 1, Height = 1 });
+            ring = LayoutDefenseRules.UnionRect(ring, new Rectangle { X = c.X, Z = c.Z, Width = 1, Height = 1 });
         }
         if (ring.Width == 0)
         {
             return (new Region(), new Region());
         }
-        var wi = new WallInterior { Box = Pad(ring, PerimeterCoverBand) };
+        var wi = new WallInterior { Box = LayoutPerimeterRules.Pad(ring, LayoutPerimeterRules.PerimeterCoverBand) };
         int w = wi.Box.Width, h = wi.Box.Height;
         var banded = new bool[w * h];
         foreach (var c in band)
@@ -411,7 +380,7 @@ public static partial class PolicyFunctions
                 banded[i] = true;
             }
         }
-        var nearBand = ChebyshevField(w, h, banded, PerimeterThick);
+        var nearBand = ChebyshevField(w, h, banded, LayoutPerimeterRules.PerimeterThick);
         wi.In = new bool[w * h];
         wi.Closed = new bool[w * h];
         var q = new Queue<int>();
@@ -455,5 +424,39 @@ public static partial class PolicyFunctions
             }
         }
         return (wi.RegionOfSet(wi.In), wi.RegionOfSet(wi.Closed));
+    }
+}
+
+partial record LayoutPlan
+{
+    /// <summary>
+    /// Reads the ring node's stored inside back into a grid; null for a plan without a ring. grow widens the box past
+    /// the band for callers measuring out from the ring.
+    /// </summary>
+    internal static WallInterior? PlanInterior(LayoutPlan plan, int grow)
+    {
+        var (ring, hasRing) = plan.Ring();
+        if (!hasRing)
+        {
+            return null;
+        }
+        var wi = new WallInterior { Box = LayoutPerimeterRules.Pad(LayoutDefenseRules.UnionRect(ring.Footprint.Bounds(), ring.Ring!.Sealed.Bounds()), LayoutPerimeterRules.PerimeterCoverBand + grow) };
+        wi.In = new bool[wi.Box.Width * wi.Box.Height];
+        wi.Closed = new bool[wi.Box.Width * wi.Box.Height];
+        foreach (var c in ring.Ring.Inner.Cells())
+        {
+            if (wi.At(c) is { } i)
+            {
+                wi.In[i] = true;
+            }
+        }
+        foreach (var c in ring.Ring.Sealed.Cells())
+        {
+            if (wi.At(c) is { } i)
+            {
+                wi.Closed[i] = true;
+            }
+        }
+        return wi;
     }
 }

@@ -40,7 +40,7 @@ public static partial class TrainingRules
     public static IReadOnlyList<RangePiece> RangeLayout(PlannedRoom room)
     {
         var interior = room.Region.Bounds();
-        var n = RangeStandCount(room);
+        var n = PlannedRoom.RangeStandCount(room);
         var pieces = new List<RangePiece>(2 * n);
         for (var i = 0; i < n; i++)
         {

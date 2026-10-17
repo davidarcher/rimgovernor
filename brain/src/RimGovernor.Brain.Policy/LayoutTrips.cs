@@ -7,7 +7,7 @@ public readonly record struct RoomTrip(int A, int B, double Weight);
 public readonly record struct OutsideTrip(int Room, double Weight);
 
 /// <summary>Ports <c>layout_trips.go</c>, <c>layout_succession.go</c>, <c>layout_suite_role.go</c>, <c>layout_switch.go</c>, <c>layout_search_rand.go</c>, <c>layout_seed_rooms.go</c> and <c>layout_room_sizes.go</c>.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutTripsRules
 {
     /// <summary>A suite's plan role.</summary>
     public static PlannedRole PlannedSuite => PlannedRole.Suite;
@@ -51,12 +51,6 @@ public static partial class PolicyFunctions
         return (bw, bd);
     }
 
-    /// <summary>
-    /// The score a move of built room r must gain: the replan gain plus what building the room twice costs (the walls,
-    /// floor and furniture built again), so a replan never flickers between near-equal layouts.
-    /// </summary>
-    internal static int SwitchThreshold(PlannedRoom r) => PlanWeights.ReplanGain + PlanWeights.BuiltSwitch + (PlanWeights.BuiltSwitchCell * r.Region.Area());
-
     /// <summary>Why the graph holds the shelter: a fresh plan owes the colonists a roof from day one.</summary>
     public const string ReasonShelterRoom = "shelter_day_one_room";
 
@@ -69,12 +63,12 @@ public static partial class PolicyFunctions
         var nodes = new List<RoomNode>();
         if (s.Shelter)
         {
-            var area = ShelterInteriorArea(s.Colonists, ShelterCampfires(s.Cold), ShelterCoolers(s.Hot));
-            nodes.Add(new RoomNode { Id = Wire.Name(PlannedShelter), Role = PlannedShelter, Area = area, Reason = ReasonShelterRoom });
+            var area = LayoutShelterRules.ShelterInteriorArea(s.Colonists, LayoutShelterRules.ShelterCampfires(s.Cold), LayoutShelterRules.ShelterCoolers(s.Hot));
+            nodes.Add(new RoomNode { Id = Wire.Name(LayoutSurveyRules.PlannedShelter), Role = LayoutSurveyRules.PlannedShelter, Area = area, Reason = ReasonShelterRoom });
         }
         if (s.ThroneArea > 0)
         {
-            nodes.Add(new RoomNode { Id = Wire.Name(PlannedThrone), Role = PlannedThrone, Area = s.ThroneArea, Reason = ReasonThroneRoom });
+            nodes.Add(new RoomNode { Id = Wire.Name(LayoutThroneRules.PlannedThrone), Role = LayoutThroneRules.PlannedThrone, Area = s.ThroneArea, Reason = ReasonThroneRoom });
         }
         return nodes;
     }
@@ -94,20 +88,29 @@ public static partial class PolicyFunctions
     internal static int[] RoomSize(PlannedRole role)
     {
         var t = RoomSizeTableValue;
-        if (role == PlannedTomb)
+        if (role == LayoutSurveyRules.PlannedTomb)
         {
             return t.Tomb;
         }
-        if (role == PlannedMorgue)
+        if (role == LayoutSurveyRules.PlannedMorgue)
         {
             return t.Morgue;
         }
-        if (role == PlannedBattery)
+        if (role == LayoutUtilityRules.PlannedBattery)
         {
             return t.Battery;
         }
         return [0, 0];
     }
+}
+
+partial record PlannedRoom
+{
+    /// <summary>
+    /// The score a move of built room r must gain: the replan gain plus what building the room twice costs (the walls,
+    /// floor and furniture built again), so a replan never flickers between near-equal layouts.
+    /// </summary>
+    internal static int SwitchThreshold(PlannedRoom r) => PlanWeights.ReplanGain + PlanWeights.BuiltSwitch + (PlanWeights.BuiltSwitchCell * r.Region.Area());
 }
 
 /// <summary>The special rooms a plan is asked to hold beyond its stations.</summary>
@@ -173,7 +176,7 @@ public sealed partial record LayoutPlan
     internal HashSet<int> Superseded() => [.. Rooms.Where(r => r.Replaces != 0).Select(r => r.Replaces)];
 }
 
-public static partial class PolicyFunctions
+partial record LayoutPlan
 {
     /// <summary>A successor whose predecessor is still in the plan: a rebuild in flight.</summary>
     public static bool SuccessorPending(LayoutPlan plan)

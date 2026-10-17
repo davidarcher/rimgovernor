@@ -28,12 +28,12 @@ public static partial class PolicyConstants
     public const string ReasonClusterNoCirculation = "cluster_circulation_not_needed";
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutCirculationRules
 {
     /// <summary>Reports a room nobody may walk through that is not cold: it has crossing costs to price (RoomCrossing.Mechanisms).</summary>
     private static bool PrivateGroup(RoomGroup g)
     {
-        var c = CrossingOf(g);
+        var c = LayoutRouteRules.CrossingOf(g);
         return c.Crossable() && c.Mechanisms() > 0;
     }
 
@@ -44,7 +44,7 @@ public static partial class PolicyFunctions
     /// </summary>
     private static int Frontage(RoomGroup g, int depth)
     {
-        var s = BlockShapes(g.Area + 1, depth)[0]; // the door onto the corridor adds a clear cell
+        var s = LayoutEmbedRules.BlockShapes(g.Area + 1, depth)[0]; // the door onto the corridor adds a clear cell
         return Math.Max(s.W, s.H) + 1;
     }
 

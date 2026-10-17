@@ -15,8 +15,8 @@ public sealed class PlannedShellDemandTests
     {
         Rooms =
         [
-            new PlannedRoom { Id = 1, Role = PlannedShelter, Region = RegionRules.RectRegion(Rect(0, 0)) },
-            new PlannedRoom { Id = 2, Role = PlannedKitchen, Region = RegionRules.RectRegion(Rect(4, 0)) },
+            new PlannedRoom { Id = 1, Role = LayoutSurveyRules.PlannedShelter, Region = RegionRules.RectRegion(Rect(0, 0)) },
+            new PlannedRoom { Id = 2, Role = LayoutSurveyRules.PlannedKitchen, Region = RegionRules.RectRegion(Rect(4, 0)) },
         ],
     };
 
@@ -105,7 +105,7 @@ public sealed class PlannedShellDemandTests
     public void FloorsAreDemandedBeforeTheColonyCanPayForThem()
     {
         // Nothing is paid for yet, and the bedroom's nine floor cells are demanded in full.
-        var plan = new LayoutPlan { Rooms = [new PlannedRoom { Id = 1, Role = PlannedBedroom, Region = RegionRules.RectRegion(Rect(0, 0)) }] };
+        var plan = new LayoutPlan { Rooms = [new PlannedRoom { Id = 1, Role = LayoutSurveyRules.PlannedBedroom, Region = RegionRules.RectRegion(Rect(0, 0)) }] };
         var demand = Owed(plan, new GroundCensus(), NoPrice, null, name => [new Amount(Wood, 2)], _ => "WoodPlankFloor");
         Assert.Equal(9 * 2, demand[Wood]);
     }
@@ -116,7 +116,7 @@ public sealed class PlannedShellDemandTests
         var bench = new InteriorPiece { Slot = "bench", Def = "TableButcher", Size = new Cell(1, 1), Rect = new Rectangle { X = 1, Z = 1, Width = 1, Height = 1 } };
         var plan = new LayoutPlan
         {
-            Rooms = [new PlannedRoom { Id = 1, Role = PlannedKitchen, Region = RegionRules.RectRegion(Rect(0, 0)) }],
+            Rooms = [new PlannedRoom { Id = 1, Role = LayoutSurveyRules.PlannedKitchen, Region = RegionRules.RectRegion(Rect(0, 0)) }],
             Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [1] = [bench, bench with { Slot = "bench2", Rect = new Rectangle { X = 2, Z = 1, Width = 1, Height = 1 } }] },
         };
         IReadOnlyList<Amount>? price(string def) => [new Amount(Wood, 20)];

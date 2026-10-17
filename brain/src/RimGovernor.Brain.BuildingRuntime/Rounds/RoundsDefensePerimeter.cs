@@ -80,9 +80,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static (List<PerimeterSection> Ring, List<PerimeterSection> Fences, List<PerimeterSection> Pumps) DefenseNodeSections(LayoutPlan plan, string bridge, IReadOnlyList<Cell> transmitters)
     {
-        var ring = PolicyApi.PerimeterSections(plan, DefenseDefinitionNames.Wall, DefenseDefinitionNames.Door, bridge).ToList();
-        var fences = PolicyApi.FenceSections(plan, DefenseDefinitionNames.Fence, DefenseDefinitionNames.FenceStuff).ToList();
-        var pumps = PolicyApi.PerimeterPumps(plan, DefenseMoisturePump, DefenseConduitDefinition, transmitters).ToList();
+        var ring = LayoutPlan.PerimeterSections(plan, DefenseDefinitionNames.Wall, DefenseDefinitionNames.Door, bridge).ToList();
+        var fences = LayoutPlan.FenceSections(plan, DefenseDefinitionNames.Fence, DefenseDefinitionNames.FenceStuff).ToList();
+        var pumps = LayoutPlan.PerimeterPumps(plan, DefenseMoisturePump, DefenseConduitDefinition, transmitters).ToList();
         return (ring, fences, pumps);
     }
 
@@ -93,10 +93,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return (named[0], true);
         }
-        var baseName = PolicyApi.PerimeterSectionBase(tier.Name);
+        var baseName = LayoutDefenseRules.PerimeterSectionBase(tier.Name);
         foreach (var s in named)
         {
-            if (PolicyApi.PerimeterSectionBase(s.Name) == baseName)
+            if (LayoutDefenseRules.PerimeterSectionBase(s.Name) == baseName)
             {
                 return (s, true);
             }
@@ -127,7 +127,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var taken = new HashSet<Cell>();
         foreach (var t in tiers)
         {
-            if (PolicyApi.IsPerimeterTier(t.Name))
+            if (LayoutDefenseRules.IsPerimeterTier(t.Name))
             {
                 continue;
             }
@@ -176,7 +176,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var building = new HashSet<Cell>();
         foreach (var t in tiers)
         {
-            if (!PolicyApi.IsPerimeterTier(t.Name) || t.Remove)
+            if (!LayoutDefenseRules.IsPerimeterTier(t.Name) || t.Remove)
             {
                 continue;
             }
@@ -214,7 +214,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var have = new HashSet<Cell>();
         foreach (var t in record.Tiers)
         {
-            if (!PolicyApi.IsPerimeterTier(t.Name))
+            if (!LayoutDefenseRules.IsPerimeterTier(t.Name))
             {
                 kept.Add(t);
                 continue;
@@ -234,7 +234,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         if (old.Count > 0)
         {
-            var (id, digest, ok) = PolicyApi.KillboxNode(cut.Plan);
+            var (id, digest, ok) = LayoutPlan.KillboxNode(cut.Plan);
             if (!ok)
             {
                 DefenseHydrate(record, cut);
@@ -247,8 +247,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
             }
         }
         var (ring, fences, pumps) = DefenseNodeSections(cut.Plan, cut.Bridge, cut.Transmitters);
-        var pockets = PolicyApi.PocketSections(cut.Plan, DefenseDefinitionNames.Wall).ToList();
-        var lights = PolicyApi.LightSections(cut.Plan, DefenseRoomLamp, cut.LampReach).ToList();
+        var pockets = LayoutPlan.PocketSections(cut.Plan, DefenseDefinitionNames.Wall).ToList();
+        var lights = LayoutPlan.LightSections(cut.Plan, DefenseRoomLamp, cut.LampReach).ToList();
         var spare = cut.Spare;
         for (var i = 0; i < pumps.Count; i++)
         {

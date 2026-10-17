@@ -6,7 +6,7 @@ public sealed partial record LayoutPlan
     public List<RoomFootprint> PlannedShells(RoomRole role)
     {
         var shells = new List<RoomFootprint>();
-        if (PolicyFunctions.PlannedRoleFor(role) is not { } want)
+        if (LayoutRoomsRules.PlannedRoleFor(role) is not { } want)
         {
             return shells;
         }
@@ -52,62 +52,62 @@ public sealed partial record LayoutPlan
 }
 
 /// <summary>Ports <c>layout_rooms.go</c> and <c>layout_plan_rooms.go</c>: room construction to plan shapes and room queries over a LayoutPlan.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutRoomsRules
 {
     /// <summary>The v2 plan role a builder's room role fills; null for a role the core plans no room for.</summary>
     public static PlannedRole? PlannedRoleFor(RoomRole role)
     {
         if (role == RoomRole.Bedroom)
         {
-            return PlannedBedroom;
+            return LayoutSurveyRules.PlannedBedroom;
         }
-        if (role == RoomRoleSuite)
+        if (role == LayoutTripsRules.RoomRoleSuite)
         {
-            return PlannedSuite;
+            return LayoutTripsRules.PlannedSuite;
         }
         if (role == RoomRole.Shelter)
         {
-            return PlannedShelter;
+            return LayoutSurveyRules.PlannedShelter;
         }
         if (role == RoomRole.Kitchen)
         {
-            return PlannedKitchen;
+            return LayoutSurveyRules.PlannedKitchen;
         }
         if (role == RoomRole.DiningRoom)
         {
-            return PlannedDining;
+            return LayoutSurveyRules.PlannedDining;
         }
         if (role == RoomRole.RecRoom)
         {
-            return PlannedRec;
+            return LayoutSurveyRules.PlannedRec;
         }
         if (role == RoomRole.Hospital)
         {
-            return PlannedHospital;
+            return LayoutSurveyRules.PlannedHospital;
         }
         if (role == RoomRole.PrisonCell || role == RoomRole.PrisonBarracks)
         {
-            return PlannedPrison;
+            return LayoutSurveyRules.PlannedPrison;
         }
         if (role == RoomRole.Workshop)
         {
-            return PlannedWorkshop;
+            return LayoutSurveyRules.PlannedWorkshop;
         }
         if (role == RoomRole.Storeroom)
         {
-            return PlannedStorage;
+            return LayoutSurveyRules.PlannedStorage;
         }
         if (role == RoomRole.Laboratory)
         {
-            return PlannedLab;
+            return LayoutSurveyRules.PlannedLab;
         }
         if (role == RoomRole.Tomb)
         {
-            return PlannedTomb;
+            return LayoutSurveyRules.PlannedTomb;
         }
         if (role == RoomRole.ThroneRoom)
         {
-            return PlannedThrone;
+            return LayoutThroneRules.PlannedThrone;
         }
         if (role == RoomRole.Nursery)
         {
@@ -139,53 +139,6 @@ public static partial class PolicyFunctions
         }
         return null;
     }
-
-    /// <summary>The ids of the plan's rooms whose ring stands as planned (GroundMatches).</summary>
-    public static HashSet<int> BuiltRooms(LayoutPlan plan, GroundCensus ground) => [.. plan.Rooms.Where(r => plan.GroundMatches(r, ground)).Select(r => r.Id)];
-
-    /// <summary>
-    /// The ids of the plan's rooms with anything of ours on them: its ring standing as planned, or a cell of occupied (a
-    /// building, blueprint, frame, edifice, doorway or journal claim) on its walls or floor. A replan must not move a
-    /// fixed room; an untouched planned room is not fixed.
-    /// </summary>
-    public static HashSet<int> FixedRooms(LayoutPlan plan, GroundCensus ground, IReadOnlySet<Cell> occupied)
-    {
-        var fixedRooms = BuiltRooms(plan, ground);
-        foreach (var r in plan.Rooms)
-        {
-            if (!fixedRooms.Contains(r.Id) && RectHits(RoomWalls(r), occupied))
-            {
-                fixedRooms.Add(r.Id);
-            }
-        }
-        return fixedRooms;
-    }
-
-    /// <summary>Every room of plan.</summary>
-    internal static HashSet<int> AllPins(LayoutPlan plan) => [.. plan.Rooms.Select(r => r.Id)];
-
-    internal static int BedroomCount(LayoutPlan p) => p.Rooms.Count(r => r.Role == PlannedBedroom);
-
-    /// <summary>The walls of the plan's rooms an open journal plan is working on, keyed by the room's interior origin as the plan's method ids are: added to the occupied cells, they make such a room fixed before any building of it is accepted.</summary>
-    public static HashSet<Cell> InFlightRoomCells(LayoutPlan plan, IReadOnlySet<Cell> origins, IReadOnlySet<int>? ids = null)
-    {
-        var output = new HashSet<Cell>();
-        foreach (var r in plan.Rooms)
-        {
-            if (origins.Contains(new Cell(r.Region.Bounds().X, r.Region.Bounds().Z)) || (ids?.Contains(r.Id) ?? false))
-            {
-                output.UnionWith(PlannedRules.RectCells(RoomWalls(r)));
-            }
-        }
-        return output;
-    }
-
-    /// <summary>The ids of the plan's rooms an open journal plan is working on: those a shell method names by id, and those the origin-keyed methods name by their interior origin.</summary>
-    public static HashSet<int> InFlightRooms(LayoutPlan plan, IReadOnlySet<Cell> origins, IReadOnlySet<int>? ids = null) =>
-        [.. plan.Rooms.Where(r => origins.Contains(new Cell(r.Region.Bounds().X, r.Region.Bounds().Z)) || (ids?.Contains(r.Id) ?? false)).Select(r => r.Id)];
-
-    /// <summary>How many planned rooms hold one of roles.</summary>
-    public static int RoomsOfRoles(LayoutPlan plan, IEnumerable<PlannedRole> roles) => roles.Sum(role => plan.RoomsOf(role).Count);
 
     internal static List<PlannedRoom> WithoutRooms(IEnumerable<PlannedRoom> rooms, ISet<int> drop) => [.. rooms.Where(r => !drop.Contains(r.Id))];
 
@@ -238,11 +191,61 @@ public static partial class PolicyFunctions
         Add(isolatedKnown && isolated!.Count == 0, PlannedRole.IsolationRoom);
         return ended;
     }
+}
+
+partial record LayoutPlan
+{
+    /// <summary>The ids of the plan's rooms whose ring stands as planned (GroundMatches).</summary>
+    public static HashSet<int> BuiltRooms(LayoutPlan plan, GroundCensus ground) => [.. plan.Rooms.Where(r => plan.GroundMatches(r, ground)).Select(r => r.Id)];
+
+    /// <summary>
+    /// The ids of the plan's rooms with anything of ours on them: its ring standing as planned, or a cell of occupied (a
+    /// building, blueprint, frame, edifice, doorway or journal claim) on its walls or floor. A replan must not move a
+    /// fixed room; an untouched planned room is not fixed.
+    /// </summary>
+    public static HashSet<int> FixedRooms(LayoutPlan plan, GroundCensus ground, IReadOnlySet<Cell> occupied)
+    {
+        var fixedRooms = BuiltRooms(plan, ground);
+        foreach (var r in plan.Rooms)
+        {
+            if (!fixedRooms.Contains(r.Id) && LayoutDeriveRules.RectHits(PlannedRoom.RoomWalls(r), occupied))
+            {
+                fixedRooms.Add(r.Id);
+            }
+        }
+        return fixedRooms;
+    }
+
+    /// <summary>Every room of plan.</summary>
+    internal static HashSet<int> AllPins(LayoutPlan plan) => [.. plan.Rooms.Select(r => r.Id)];
+
+    internal static int BedroomCount(LayoutPlan p) => p.Rooms.Count(r => r.Role == LayoutSurveyRules.PlannedBedroom);
+
+    /// <summary>The walls of the plan's rooms an open journal plan is working on, keyed by the room's interior origin as the plan's method ids are: added to the occupied cells, they make such a room fixed before any building of it is accepted.</summary>
+    public static HashSet<Cell> InFlightRoomCells(LayoutPlan plan, IReadOnlySet<Cell> origins, IReadOnlySet<int>? ids = null)
+    {
+        var output = new HashSet<Cell>();
+        foreach (var r in plan.Rooms)
+        {
+            if (origins.Contains(new Cell(r.Region.Bounds().X, r.Region.Bounds().Z)) || (ids?.Contains(r.Id) ?? false))
+            {
+                output.UnionWith(PlannedRules.RectCells(PlannedRoom.RoomWalls(r)));
+            }
+        }
+        return output;
+    }
+
+    /// <summary>The ids of the plan's rooms an open journal plan is working on: those a shell method names by id, and those the origin-keyed methods name by their interior origin.</summary>
+    public static HashSet<int> InFlightRooms(LayoutPlan plan, IReadOnlySet<Cell> origins, IReadOnlySet<int>? ids = null) =>
+        [.. plan.Rooms.Where(r => origins.Contains(new Cell(r.Region.Bounds().X, r.Region.Bounds().Z)) || (ids?.Contains(r.Id) ?? false)).Select(r => r.Id)];
+
+    /// <summary>How many planned rooms hold one of roles.</summary>
+    public static int RoomsOfRoles(LayoutPlan plan, IEnumerable<PlannedRole> roles) => roles.Sum(role => plan.RoomsOf(role).Count);
 
     /// <summary>The ids of the plan's rooms that stand as planned or hold a building of furniture's definitions.</summary>
     public static HashSet<int> RoomsInUse(LayoutPlan plan, IReadOnlyList<CurrentBuilding> built, IReadOnlyList<FurnitureDefinition> furniture)
     {
-        var inUse = BuiltRooms(plan, GroundOf(built));
+        var inUse = BuiltRooms(plan, LayoutGroundRules.GroundOf(built));
         var names = furniture.Select(d => d.Name).ToList();
         foreach (var r in plan.Rooms)
         {
@@ -270,6 +273,6 @@ public static partial class PolicyFunctions
         }
 
         // A door joins two rooms: one that leaves takes its Links entries with it.
-        return (plan with { Rooms = WithoutRooms(plan.Rooms, drop), Links = [.. plan.Links.Where(l => !drop.Contains(l.A) && !drop.Contains(l.B))] }, true);
+        return (plan with { Rooms = LayoutRoomsRules.WithoutRooms(plan.Rooms, drop), Links = [.. plan.Links.Where(l => !drop.Contains(l.A) && !drop.Contains(l.B))] }, true);
     }
 }

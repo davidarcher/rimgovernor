@@ -65,7 +65,7 @@ public static class CombatLabLayout
 
         // Combat reads the direction toward home from the plan's killbox opening, so the staged world holds a plan whose
         // only content is that opening.
-        var plan = PolicyFunctions.OpeningPlan(Toward(l.Toward));
+        var plan = LayoutPlan.OpeningPlan(Toward(l.Toward));
         blobs[Store.Store.GovernorLayoutPlanKey] = FamilyBlob(StoreJson.Serialize(plan), (world.Colony.Value, world.Map.Value));
         var reply = await h.CallAsync("store-layout", NativeOps.PutGovernorStateBatch, new Wl.PutGovernorStateBatchRequest { Blobs = blobs }, cancellationToken).ConfigureAwait(false);
         _ = reply.Outcome?.Loaded ?? throw new AcceptanceException($"store-layout: {WireJson.Serialize(reply)}");

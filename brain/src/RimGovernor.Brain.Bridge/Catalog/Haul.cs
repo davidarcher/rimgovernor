@@ -18,7 +18,7 @@ public sealed partial class DefinitionCatalog
     /// </summary>
     internal P.HaulModel HaulModel()
     {
-        var game = P.PolicyFunctions.HaulGame();
+        var game = P.LayoutHaulNodesRules.HaulGame();
         var stat = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var name in new[] { game.MiningSpeed, game.MiningYield, game.PlantWorkSpeed, game.PlantHarvestYield })
         {

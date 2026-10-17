@@ -28,9 +28,8 @@ public sealed partial record LayoutPlan
 }
 
 /// <summary>Ports <c>layout_roof.go</c>: on a map whose outdoor temperature is not good for pawns, every room except the outdoor roles is roofed.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutRoofRules
 {
-
     /// <summary>The temperature range pawns are comfortable in: the temperature planner's cold and hot limits.</summary>
     public static Band ComfortBand()
     {
@@ -42,13 +41,16 @@ public static partial class PolicyFunctions
     public static bool BadClimate(RoofInput input)
     {
         var known = input.Curve.TryGetValue(out var curve);
-        return input.Cold || input.Hot || (known && (ColdMapCurve(curve!) || HotMapCurve(curve!)));
+        return input.Cold || input.Hot || (known && (LayoutShelterRules.ColdMapCurve(curve!) || LayoutShelterRules.HotMapCurve(curve!)));
     }
+}
 
+partial record LayoutPlan
+{
     /// <summary>The roofed set of a plan: empty on a temperate map; else the floor of every room that is not an outdoor role. It is a pure function of the plan and the input.</summary>
     public static RoofResult PlanRoofed(LayoutPlan p, RoofInput input)
     {
-        if (!BadClimate(input))
+        if (!LayoutRoofRules.BadClimate(input))
         {
             return new RoofResult();
         }

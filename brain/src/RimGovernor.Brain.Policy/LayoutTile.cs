@@ -75,7 +75,7 @@ public sealed class TileResult
     public Dictionary<int, List<PlannedLamp>> Lamps { get; } = [];
 
     /// <summary>The groups whose room the placer could not furnish.</summary>
-    public List<int> Unfit() => [.. Decisions.Where(d => d.Reason == PolicyFunctions.ReasonTileNoFit).Select(d => d.Group)];
+    public List<int> Unfit() => [.. Decisions.Where(d => d.Reason == LayoutTileRules.ReasonTileNoFit).Select(d => d.Group)];
 }
 
 /// <summary>ErrTile: an embedding that cannot be tiled into a valid plan. Partial is the result as far as the tiling got.</summary>
@@ -111,7 +111,7 @@ internal readonly record struct TileRoom(int Group, Rectangle Rect);
 /// links last; when none can go, a room that MayBeThrough is marked Through. After the routes are kept, vents are
 /// placed where the climate model prices them under holding the doors alone.
 /// </summary>
-public static partial class PolicyFunctions
+public static partial class LayoutTileRules
 {
     /// <summary>Verdict of a tiling decision: the thing is placed.</summary>
     public const string TilePlace = "place";
@@ -154,7 +154,7 @@ public static partial class PolicyFunctions
         }
         if (g.Role == RoomRole.Storeroom)
         {
-            return GroupCold(g) ? (PlannedFreezer, true) : (PlannedStorage, true);
+            return GroupCold(g) ? (LayoutSurveyRules.PlannedFreezer, true) : (LayoutSurveyRules.PlannedStorage, true);
         }
         return PlannedRoleOf(g.Role);
     }
@@ -182,24 +182,6 @@ public static partial class PolicyFunctions
         return t.Out;
     }
 
-    /// <summary>Whether crossing r costs less the lower it ranks, higher first: by what crossing the neighbour triggers (RoomCrossing.Mechanisms), a circulation room first, and a cold room, which is never crossed, last.</summary>
-    internal static long ThroughRank(PlannedRoom r)
-    {
-        if (r.Role == PlannedRole.Circulation)
-        {
-            return long.MaxValue;
-        }
-        if (r.Crossing is null)
-        {
-            return 0;
-        }
-        if (!r.Crossing.Crossable())
-        {
-            return long.MinValue;
-        }
-        return -r.Crossing.Mechanisms();
-    }
-
     /// <summary>The buildable cells outside every room and wall that join the largest such area: an entrance in a pocket the rooms close in is no entrance.</summary>
     internal static HashSet<Cell> TileOpenGround(PlanScorer scorer, HashSet<Cell> occupied)
     {
@@ -211,7 +193,7 @@ public static partial class PolicyFunctions
                 cells.Add(c);
             }
         }
-        SortCells(cells);
+        LayoutSiteGroundRules.SortCells(cells);
         var free = new HashSet<Cell>(cells);
         List<Cell> best = [];
         var seen = new HashSet<Cell>();
@@ -253,6 +235,27 @@ public static partial class PolicyFunctions
     }
 }
 
+partial record PlannedRoom
+{
+    /// <summary>Whether crossing r costs less the lower it ranks, higher first: by what crossing the neighbour triggers (RoomCrossing.Mechanisms), a circulation room first, and a cold room, which is never crossed, last.</summary>
+    internal static long ThroughRank(PlannedRoom r)
+    {
+        if (r.Role == PlannedRole.Circulation)
+        {
+            return long.MaxValue;
+        }
+        if (r.Crossing is null)
+        {
+            return 0;
+        }
+        if (!r.Crossing.Crossable())
+        {
+            return long.MinValue;
+        }
+        return -r.Crossing.Mechanisms();
+    }
+}
+
 /// <summary>The tiler's state: the rooms, the door graph chosen so far, the vents and the plan under construction.</summary>
 internal sealed partial class Tiler(TileInput input)
 {
@@ -282,7 +285,7 @@ internal sealed partial class Tiler(TileInput input)
         var scorer = new PlanScorer(In.Zones, In.Reservations, In.Survey);
         var index = new Dictionary<int, int>();
         var blocks = In.Blocks.ToList();
-        var placed = PlacedBlocks(In.Groups, blocks);
+        var placed = LayoutTrainingNodesRules.PlacedBlocks(In.Groups, blocks);
         blocks = [.. blocks.OrderBy(b => b.Group)];
         Plan = new LayoutPlan { Zones = In.Zones, Reservations = In.Reservations, Sites = [.. In.Sites], NextRoomId = In.NextRoomId };
         this.FieldZones(); // the placed fields, no walls or doors (layout_field_place.go)
@@ -293,7 +296,7 @@ internal sealed partial class Tiler(TileInput input)
         var owed = new List<PlannedRole>(Plan.Owed);
         foreach (var g in In.Groups)
         {
-            var (role, ok) = PlannedRoleOfGroup(g);
+            var (role, ok) = LayoutTileRules.PlannedRoleOfGroup(g);
             if (ok)
             {
                 owed.Add(role);
@@ -309,7 +312,7 @@ internal sealed partial class Tiler(TileInput input)
                 throw new TileException($"block of unknown group {b.Group}");
             }
             var g = In.Groups[b.Group];
-            var (role, ok) = PlannedRoleOfGroup(g);
+            var (role, ok) = LayoutTileRules.PlannedRoleOfGroup(g);
             if (!ok)
             {
                 throw new TileRoleException($"group {g.Id} predicts {g.Role}");
@@ -329,15 +332,15 @@ internal sealed partial class Tiler(TileInput input)
                 Replaces = b.Replaces,
                 Role = role,
                 Region = RegionRules.RectRegion(b.Interior),
-                Crossing = CrossingOf(g),
+                Crossing = LayoutRouteRules.CrossingOf(g),
                 Outdoor = role.IsOutdoor(),
                 Markers = g.Markers,
                 Herd = g.Herd,
-                WorkChairs = WorkChairsOf(g, In.Comfort),
+                WorkChairs = LayoutComfortChooseRules.WorkChairsOf(g, In.Comfort),
             };
-            if (role == PlannedTrainingRange && AwayReference(In.Groups, placed) is { } reference)
+            if (role == LayoutRangeRules.PlannedTrainingRange && LayoutTrainingNodesRules.AwayReference(In.Groups, placed) is { } reference)
             {
-                room = room with { Facing = DummyFacing(b.Interior, reference) };
+                room = room with { Facing = LayoutTrainingNodesRules.DummyFacing(b.Interior, reference) };
             }
             room = room with { Dug = scorer.G.Dug(room) };
             rooms.Add(room);
@@ -348,17 +351,17 @@ internal sealed partial class Tiler(TileInput input)
         {
             var r = Rooms[i];
             Out.Rooms[r.Group] = Plan.Rooms[i].Id;
-            var reason = ReasonTileRoom;
+            var reason = LayoutTileRules.ReasonTileRoom;
             var b = blocks[blocks.FindIndex(x => x.Group == r.Group)];
             if (b.Built != 0)
             {
-                reason = ReasonTileRoomBuilt; // the standing room, kept as it stands
+                reason = LayoutTileRules.ReasonTileRoomBuilt; // the standing room, kept as it stands
             }
             else if (b.Replaces != 0)
             {
-                reason = ReasonTileRoomMoved; // a successor for the standing room it replaces
+                reason = LayoutTileRules.ReasonTileRoomMoved; // a successor for the standing room it replaces
             }
-            Note(r.Group, -1, TilePlace, reason);
+            Note(r.Group, -1, LayoutTileRules.TilePlace, reason);
         }
         foreach (var b in blocks)
         {
@@ -368,7 +371,7 @@ internal sealed partial class Tiler(TileInput input)
                 {
                     continue;
                 }
-                var k = PairOf(index[b.Group], j);
+                var k = LayoutTileRules.PairOf(index[b.Group], j);
                 if (b.Group < l.To)
                 {
                     Weight[k] = Weight.GetValueOrDefault(k) + l.Weight;
@@ -384,7 +387,7 @@ internal sealed partial class Tiler(TileInput input)
                 {
                     continue; // an unfenced room has no wall to share
                 }
-                var run = SharedWallRun(Pad(Rooms[i].Rect, 1), Pad(Rooms[j].Rect, 1));
+                var run = LayoutHerdRules.SharedWallRun(LayoutPerimeterRules.Pad(Rooms[i].Rect, 1), LayoutPerimeterRules.Pad(Rooms[j].Rect, 1));
                 if (run.Count > 0)
                 {
                     Adj[(i, j)] = [.. run];
@@ -395,7 +398,7 @@ internal sealed partial class Tiler(TileInput input)
         {
             if (required && Adj.GetValueOrDefault(k) is not { Count: > 0 } && !Open(k.Item1) && !Open(k.Item2))
             {
-                Note(Rooms[k.Item1].Group, Rooms[k.Item2].Group, TileUnsatisfied, ReasonTileNoLink);
+                Note(Rooms[k.Item1].Group, Rooms[k.Item2].Group, LayoutTileRules.TileUnsatisfied, LayoutTileRules.ReasonTileNoLink);
             }
         }
         Parent = [.. Enumerable.Range(0, Rooms.Count)];
@@ -411,12 +414,12 @@ internal sealed partial class Tiler(TileInput input)
             throw new TileException("the tiled plan is not valid");
         }
         Furnish();
-        var roof = PlanRoofed(Out.Plan, RoofInputOf());
+        var roof = LayoutPlan.PlanRoofed(Out.Plan, RoofInputOf());
         Out.Plan = Out.Plan with { Roofed = roof.Roofed };
         if (PlaceAirlocks())
         {
             // the vestibules are rooms too: roof them
-            roof = PlanRoofed(Out.Plan, RoofInputOf());
+            roof = LayoutPlan.PlanRoofed(Out.Plan, RoofInputOf());
             Out.Plan = Out.Plan with { Roofed = roof.Roofed };
         }
         this.PlaceLamps();
@@ -517,7 +520,7 @@ internal sealed partial class Tiler(TileInput input)
             }
             Links[k] = cell;
             Parent[Find(k.Item1)] = Find(k.Item2);
-            Note(Rooms[k.Item1].Group, Rooms[k.Item2].Group, TilePlace, ReasonTileLinkDoor);
+            Note(Rooms[k.Item1].Group, Rooms[k.Item2].Group, LayoutTileRules.TilePlace, LayoutTileRules.ReasonTileLinkDoor);
         }
     }
 
@@ -541,14 +544,14 @@ internal sealed partial class Tiler(TileInput input)
         long cz = 0;
         foreach (var r in Rooms)
         {
-            foreach (var c in PlannedRules.RectCells(Pad(r.Rect, 1)))
+            foreach (var c in PlannedRules.RectCells(LayoutPerimeterRules.Pad(r.Rect, 1)))
             {
                 occupied.Add(c);
             }
             cx += r.Rect.X + (r.Rect.Width / 2);
             cz += r.Rect.Z + (r.Rect.Height / 2);
         }
-        var open = TileOpenGround(scorer, occupied);
+        var open = LayoutTileRules.TileOpenGround(scorer, occupied);
         Free = open;
         var centre = default(Cell);
         long n = Rooms.Count;
@@ -603,7 +606,7 @@ internal sealed partial class Tiler(TileInput input)
             }
             ExtDoor[i] = pick.Door;
             ExtOut[i] = pick.Out;
-            Note(r.Group, -1, TilePlace, ReasonTileExteriorDoor);
+            Note(r.Group, -1, LayoutTileRules.TilePlace, LayoutTileRules.ReasonTileExteriorDoor);
         }
     }
 
@@ -618,7 +621,7 @@ internal sealed partial class Tiler(TileInput input)
                 output.Add(cell);
             }
         }
-        SortCells(output);
+        LayoutSiteGroundRules.SortCells(output);
         return output;
     }
 
@@ -714,7 +717,7 @@ internal sealed partial class Tiler(TileInput input)
                         continue;
                     }
                     var score = Weight.GetValueOrDefault(k);
-                    var through = ThroughRank(Plan.Rooms[b]);
+                    var through = PlannedRoom.ThroughRank(Plan.Rooms[b]);
                     if (Links.ContainsKey(k))
                     {
                         continue;
@@ -742,7 +745,7 @@ internal sealed partial class Tiler(TileInput input)
                 {
                     if (!ok[i])
                     {
-                        Note(Rooms[i].Group, -1, TileUnsatisfied, ReasonTileSealedRoom);
+                        Note(Rooms[i].Group, -1, LayoutTileRules.TileUnsatisfied, LayoutTileRules.ReasonTileSealedRoom);
                         throw new TileClosedException($"group {Rooms[i].Group}");
                     }
                 }
@@ -750,7 +753,7 @@ internal sealed partial class Tiler(TileInput input)
             }
             Links[best] = PickLink(best).Cell;
             Parent[Find(best.Item1)] = Find(best.Item2);
-            Note(Rooms[best.Item1].Group, Rooms[best.Item2].Group, TilePlace, ReasonTileSealedRoom);
+            Note(Rooms[best.Item1].Group, Rooms[best.Item2].Group, LayoutTileRules.TilePlace, LayoutTileRules.ReasonTileSealedRoom);
         }
     }
 
@@ -760,7 +763,7 @@ internal sealed partial class Tiler(TileInput input)
         while (true)
         {
             Out.Plan = Build();
-            var check = CheckRoutes(Out.Plan);
+            var check = LayoutPlan.CheckRoutes(Out.Plan);
             if (check.Thoroughfare is not { } through)
             {
                 if (check.Error is not null)
@@ -804,7 +807,7 @@ internal sealed partial class Tiler(TileInput input)
                     Links[k] = cell;
                     continue;
                 }
-                Note(Rooms[k.Item1].Group, Rooms[k.Item2].Group, TileUnsatisfied, ReasonTileLinkDropped);
+                Note(Rooms[k.Item1].Group, Rooms[k.Item2].Group, LayoutTileRules.TileUnsatisfied, LayoutTileRules.ReasonTileLinkDropped);
                 dropped = true;
                 break;
             }
@@ -813,12 +816,12 @@ internal sealed partial class Tiler(TileInput input)
                 // No door can go without stranding a room: the packed base has no other way in, so the private room is
                 // walked through.
                 Through[room] = true;
-                Note(Rooms[room].Group, -1, TilePlace, ReasonTilePassThrough);
+                Note(Rooms[room].Group, -1, LayoutTileRules.TilePlace, LayoutTileRules.ReasonTilePassThrough);
                 continue;
             }
             if (!dropped)
             {
-                Note(Rooms[Math.Max(room, 0)].Group, -1, TileUnsatisfied, ReasonTileRoutes);
+                Note(Rooms[Math.Max(room, 0)].Group, -1, LayoutTileRules.TileUnsatisfied, LayoutTileRules.ReasonTileRoutes);
                 throw new TileClosedException(through.Message);
             }
         }
@@ -875,7 +878,7 @@ internal sealed partial class Tiler(TileInput input)
             var (rot, _) = DoorSide(r.Region.Bounds(), door);
             rooms[i] = r with { Door = door, DoorRot = rot };
         }
-        SortCells(entrances);
+        LayoutSiteGroundRules.SortCells(entrances);
         var compact = new List<Cell>();
         foreach (var c in entrances)
         {
@@ -922,13 +925,13 @@ internal sealed partial class Tiler(TileInput input)
             var g = In.Groups[Rooms[i].Group];
             var doors = new List<Cell> { room.Door };
             doors.AddRange(Out.Plan.LinkCells(room.Id));
-            SortCells(doors);
+            LayoutSiteGroundRules.SortCells(doors);
             doors = [.. doors.Distinct()];
             var (wants, walls) = Wants(i);
             if (walls)
             {
                 // A wall building stands in the wall ring, not on the floor.
-                Note(g.Id, -1, TilePlace, ReasonTileWallStation);
+                Note(g.Id, -1, LayoutTileRules.TilePlace, LayoutTileRules.ReasonTileWallStation);
             }
             var req = new RegionPlacement { Region = room.Region, Doors = EquatableArray.From(doors), Wants = EquatableArray.From(wants) };
             if (In.Graph.Nodes.Count > 0)
@@ -939,19 +942,19 @@ internal sealed partial class Tiler(TileInput input)
             IReadOnlyList<SearchMove> moves;
             try
             {
-                (pieces, moves) = PlaceAndSearch(req);
+                (pieces, moves) = LayoutTileRules.PlaceAndSearch(req);
             }
             catch (DomainException)
             {
                 // The group's area undercounts what the placer needs: the room stands without furniture and the
                 // decision says so.
-                Note(g.Id, -1, TileUnsatisfied, ReasonTileNoFit);
+                Note(g.Id, -1, LayoutTileRules.TileUnsatisfied, LayoutTileRules.ReasonTileNoFit);
                 continue;
             }
             Out.Pieces[room.Id] = pieces;
             foreach (var m in moves)
             {
-                Out.Decisions.Add(new TileDecision { Group = g.Id, Verdict = TilePlace, Reason = ReasonInteriorSearchMove, Move = m.Slot + ":" + m.Reason() });
+                Out.Decisions.Add(new TileDecision { Group = g.Id, Verdict = LayoutTileRules.TilePlace, Reason = LayoutTileRules.ReasonInteriorSearchMove, Move = m.Slot + ":" + m.Reason() });
             }
         }
     }

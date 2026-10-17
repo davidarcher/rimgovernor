@@ -145,8 +145,8 @@ public static class DefenseTiersPolicy
     /// </summary>
     public static DefenseTiers PlanDefenseTiers(LayoutPlan plan, DefenseRequest census, DefenseTierPins pins)
     {
-        var (id, _, ok) = KillboxNode(plan);
-        var (kb, region, home, found) = LayoutKillbox(plan, census.Bounds);
+        var (id, _, ok) = LayoutPlan.KillboxNode(plan);
+        var (kb, region, home, found) = LayoutPlan.LayoutKillbox(plan, census.Bounds);
         if (!ok || !found)
         {
             throw new DefenseException("plan has no killbox opening");
@@ -156,7 +156,7 @@ public static class DefenseTiersPolicy
             Killbox = kb,
             Home = home,
             Region = region,
-            Entrances = EquatableArray.From(census.Entrances.Where(c => Contains(region, c))),
+            Entrances = EquatableArray.From(census.Entrances.Where(c => LayoutPerimeterRules.Contains(region, c))),
             Cells = EquatableArray.From(PinnedCensus(census.Cells, region, pins)),
         };
 
@@ -250,7 +250,7 @@ public static class DefenseTiersPolicy
         foreach (var c0 in cells)
         {
             var c = c0;
-            if (!Contains(region, c.Cell))
+            if (!LayoutPerimeterRules.Contains(region, c.Cell))
             {
                 continue;
             }
@@ -357,7 +357,7 @@ public static class DefenseTiersPolicy
                 Pinned = pinned.ContainsKey(tier.Name),
                 Places = EquatableArray.From(places.Select(b => new TierPlacement(b.Definition, b.Cell, b.Rotation, b.Stuff))),
             };
-            var site = NewSite($"{under}-{Wire.Name(kind)}", kind, RegionRules.RegionOf(cells), "");
+            var site = LayoutPerimeterSitesRules.NewSite($"{under}-{Wire.Name(kind)}", kind, RegionRules.RegionOf(cells), "");
             output.Add(site with { Tier = facts });
         }
 

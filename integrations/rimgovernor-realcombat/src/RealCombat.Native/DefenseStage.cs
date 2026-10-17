@@ -44,7 +44,7 @@ public sealed class DefenseStage(Rotation toward, int defenders, double minRange
     public void Raise(Map map)
     {
         var bounds = new Bounds(map.Size.x, map.Size.z);
-        var (killbox, region, home, ok) = PolicyFunctions.LayoutKillbox(PolicyFunctions.OpeningPlan(toward), bounds);
+        var (killbox, region, home, ok) = LayoutDefenseRules.LayoutKillbox(LayoutDefenseRules.OpeningPlan(toward), bounds);
         if (!ok)
         {
             Failure = "no killbox opening in a map this size";
@@ -60,7 +60,7 @@ public sealed class DefenseStage(Rotation toward, int defenders, double minRange
         // The ring: PerimeterThick rows from the entry inward, across the whole map but for the opening.
         var ring = new List<Cell>();
         var openLow = -killbox.Width / 2;
-        for (var row = 0; row < PolicyFunctions.PerimeterThick; row++)
+        for (var row = 0; row < LayoutPerimeterRules.PerimeterThick; row++)
         {
             for (var a = -Math.Max(bounds.Width, bounds.Height); a <= Math.Max(bounds.Width, bounds.Height); a++)
             {

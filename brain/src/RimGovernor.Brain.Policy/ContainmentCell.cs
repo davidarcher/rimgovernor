@@ -142,7 +142,7 @@ public static partial class PolicyFunctions
         var floored = false;
         if (need.Shape(furniture) is { } shape)
         {
-            var sizes = ChildRoomSizes(shape);
+            var sizes = LayoutChildRoomsRules.ChildRoomSizes(shape);
             if (sizes.Count > 0)
             {
                 floored = ContainmentFloorLaid(defs.Floor, floors, sizes[0].W * sizes[0].D);

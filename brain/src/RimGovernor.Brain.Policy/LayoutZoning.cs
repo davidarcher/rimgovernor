@@ -8,7 +8,7 @@ public sealed partial record LayoutPlan
         var output = new HashSet<Cell>();
         foreach (var z in Zones)
         {
-            if (z.Kind != PolicyFunctions.ZoneField)
+            if (z.Kind != LayoutPlanRules.ZoneField)
             {
                 continue;
             }
@@ -25,7 +25,7 @@ public sealed partial record LayoutPlan
 }
 
 /// <summary>Ports <c>layout_zoning.go</c>: whole-map zoning, every surveyed cell classified from terrain.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutZoningRules
 {
     /// <summary>Ground the core may grow over.</summary>
     public static ZoneKind ZoneCore => ZoneKind.Core;
@@ -57,7 +57,7 @@ public static partial class PolicyFunctions
                 cells[(c.Cell.Z * w) + c.Cell.X] = c;
             }
         }
-        var e = LayoutEdgeMargin;
+        var e = LayoutSurveyRules.LayoutEdgeMargin;
         bool NoGo(int i)
         {
             var c = cells[i];
@@ -81,7 +81,7 @@ public static partial class PolicyFunctions
             var runs = ZoneRuns(w, h, inZone);
             if (runs.Count > 0)
             {
-                zones.Add(new LayoutZone { Kind = ZoneMining, Runs = runs, Ore = true });
+                zones.Add(new LayoutZone { Kind = LayoutPlanRules.ZoneMining, Runs = runs, Ore = true });
             }
         }
         Add(ZoneCore, Has(c => (c.Rock || c.Walkable || c.Ruin) && !c.Prop));
@@ -96,13 +96,13 @@ public static partial class PolicyFunctions
                 inField[i] = true;
             }
             var set = f.ToHashSet();
-            Add(ZoneField, i => set.Contains(i));
+            Add(LayoutPlanRules.ZoneField, i => set.Contains(i));
         }
-        Add(ZonePasture, Has(c => !c.Rock && c.Walkable && c.Fertility > 0 && !inField[(c.Cell.Z * w) + c.Cell.X]));
+        Add(LayoutPlanRules.ZonePasture, Has(c => !c.Rock && c.Walkable && c.Fertility > 0 && !inField[(c.Cell.Z * w) + c.Cell.X]));
         AddOre(Has(c => c.Rock && c.Ore));
-        Add(ZoneMining, Has(c => c.Rock && !c.Ore));
-        Add(ZoneWood, Has(c => c.Tree));
-        Add(ZoneNoGo, i => cells[i] is not null && NoGo(i));
+        Add(LayoutPlanRules.ZoneMining, Has(c => c.Rock && !c.Ore));
+        Add(LayoutPlanRules.ZoneWood, Has(c => c.Tree));
+        Add(LayoutPlanRules.ZoneNoGo, i => cells[i] is not null && NoGo(i));
         return zones;
     }
 

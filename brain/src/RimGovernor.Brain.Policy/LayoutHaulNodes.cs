@@ -155,7 +155,7 @@ internal sealed partial class GraphBuilder
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutHaulNodesRules
 {
     /// <summary>The table the bridge reads the haul sources with.</summary>
     public static HaulTable HaulGame() => PolicyConstants.HaulJudgment;

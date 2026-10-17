@@ -608,7 +608,7 @@ public static partial class ThroneRules
             return empty;
         }
         // Census: the target is keyed by the room's id.
-        var (standing, sok) = CensusRoomIn(room, rooms);
+        var (standing, sok) = PlannedRoom.CensusRoomIn(room, rooms);
         if (!sok)
         {
             return empty;

@@ -76,7 +76,7 @@ public readonly record struct LampModel(double PowerW, double Build, double Radi
 {
     internal bool Priced() => QuestCapacityForecast.FinitePositive(PowerW) && QuestCapacityForecast.FinitePositive(Build);
 
-    internal double Reach() => PolicyFunctions.GlowReach(Radius, Brightness);
+    internal double Reach() => LayoutLightRules.GlowReach(Radius, Brightness);
 }
 
 /// <summary>The catalog's two lamps; an unknown one is an absent option.</summary>
@@ -103,10 +103,10 @@ public readonly record struct LightPrice(double WorkDayW, double LampW, double C
         QuestCapacityForecast.FinitePositive(WorkDayW) && QuestCapacityForecast.FinitePositive(LampW) && QuestCapacityForecast.FinitePositive(CellWalkDays) && QuestCapacityForecast.FinitePositive(LampReach);
 
     /// <summary>What a dark work cell costs: the work speed lost over one colonist's work-day.</summary>
-    public double WorkCellW() => (1 - PolicyFunctions.LightSpeed(0)) * WorkDayW;
+    public double WorkCellW() => (1 - LayoutLightRules.LightSpeed(0)) * WorkDayW;
 
     /// <summary>What a dark cell costs the movements a day through it: the extra time each passage takes at the dark speed, as a share of a work-day.</summary>
-    public double WalkCellW(double movements) => movements * CellWalkDays * ((1 / PolicyFunctions.LightSpeed(0)) - 1) * WorkDayW;
+    public double WalkCellW(double movements) => movements * CellWalkDays * ((1 / LayoutLightRules.LightSpeed(0)) - 1) * WorkDayW;
 
     /// <summary>The standing lamps that could stand on spots.</summary>
     internal List<LampCand> StandingCands(IReadOnlyList<Cell> spots)
@@ -137,10 +137,10 @@ public readonly record struct LightPrice(double WorkDayW, double LampW, double C
                 wall.Add(c);
             }
         }
-        PolicyFunctions.SortCells(standing);
-        PolicyFunctions.SortCells(wall);
+        LayoutSiteGroundRules.SortCells(standing);
+        LayoutSiteGroundRules.SortCells(wall);
         var output = StandingCands(standing);
-        output.AddRange(PolicyFunctions.WallLampCands(wall, isWall, this));
+        output.AddRange(LayoutLightRules.WallLampCands(wall, isWall, this));
         return output;
     }
 }
@@ -183,7 +183,7 @@ internal readonly record struct LampCand(PlannedLamp Lamp, double W, double Reac
     public Cell Cell => Lamp.Cell;
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutLightRules
 {
     /// <summary>
     /// The Euclidean radius (cells) within which a lamp of the given glow radius and brightest colour channel
@@ -297,7 +297,7 @@ public static partial class PolicyFunctions
         {
             return (0, 0, false);
         }
-        var (nutrition, nk) = HumanNutritionPerDay(supply);
+        var (nutrition, nk) = LayoutStationPlanRules.HumanNutritionPerDay(supply);
         if (colonists <= 0 || !nk)
         {
             return (0, 0, false);
@@ -374,32 +374,6 @@ public static partial class PolicyFunctions
         }
     }
 
-    /// <summary>Reports a room with a roof and no sky: a fenced room that is not an outdoor role. An outdoor room gets the sun's light and no lamp.</summary>
-    internal static bool LightRoofed(PlannedRoom r) => !r.Role.IsOutdoor() && !r.Unfenced();
-
-    /// <summary>
-    /// The cells of the plan a wall lamp can hang on: the wall ring of every fenced indoor room (a fence, or no
-    /// ring at all, supports nothing), less the cells another building holds: the floor of every room and
-    /// hallway, the doors, links and entrances of the plan and the vents the tiler placed (#2915). Natural rock
-    /// supports a lamp as a wall does: a survey rock cell outside the held cells counts.
-    /// </summary>
-    internal static Func<Cell, bool> PlainWalls(LayoutPlan p, IReadOnlySet<Cell> rock)
-    {
-        var held = HeldWallCells(p);
-        var ring = new HashSet<Cell>();
-        foreach (var r in p.Rooms)
-        {
-            if (LightRoofed(r))
-            {
-                foreach (var c in r.Region.Walls().Cells())
-                {
-                    ring.Add(c);
-                }
-            }
-        }
-        return c => !held.Contains(c) && (ring.Contains(c) || rock.Contains(c));
-    }
-
     /// <summary>The survey's natural rock cells.</summary>
     internal static HashSet<Cell> SurveyRock(MapSurvey s)
     {
@@ -412,6 +386,65 @@ public static partial class PolicyFunctions
             }
         }
         return output;
+    }
+
+    /// <summary>
+    /// The wall lamps that could hang over floor spots: on a spot with a cardinal neighbour that is a plain
+    /// wall, the first in the plan's direction order carrying the lamp. The lamp stands on the floor and takes
+    /// no wall cell; it needs only that a wall is there.
+    /// </summary>
+    internal static List<LampCand> WallLampCands(IReadOnlyList<Cell> spots, Func<Cell, bool>? isWall, LightPrice p)
+    {
+        var output = new List<LampCand>();
+        if (p.WallLampW <= 0 || p.WallReach <= 0 || isWall is null)
+        {
+            return output;
+        }
+        foreach (var s in spots)
+        {
+            foreach (var dir in DefenseLayout.Directions)
+            {
+                if (!isWall(DefenseLayout.AddCell(s, dir)))
+                {
+                    continue;
+                }
+                output.Add(new LampCand(new PlannedLamp { Def = PolicyConstants.LightJudgment.WallLampDef, Cell = s, Facing = DefenseLayout.RotationOf(dir) }, p.WallLampW, p.WallReach));
+                break;
+            }
+        }
+        return output;
+    }
+}
+
+partial record PlannedRoom
+{
+    /// <summary>Reports a room with a roof and no sky: a fenced room that is not an outdoor role. An outdoor room gets the sun's light and no lamp.</summary>
+    internal static bool LightRoofed(PlannedRoom r) => !r.Role.IsOutdoor() && !r.Unfenced();
+}
+
+partial record LayoutPlan
+{
+    /// <summary>
+    /// The cells of the plan a wall lamp can hang on: the wall ring of every fenced indoor room (a fence, or no
+    /// ring at all, supports nothing), less the cells another building holds: the floor of every room and
+    /// hallway, the doors, links and entrances of the plan and the vents the tiler placed (#2915). Natural rock
+    /// supports a lamp as a wall does: a survey rock cell outside the held cells counts.
+    /// </summary>
+    internal static Func<Cell, bool> PlainWalls(LayoutPlan p, IReadOnlySet<Cell> rock)
+    {
+        var held = HeldWallCells(p);
+        var ring = new HashSet<Cell>();
+        foreach (var r in p.Rooms)
+        {
+            if (PlannedRoom.LightRoofed(r))
+            {
+                foreach (var c in r.Region.Walls().Cells())
+                {
+                    ring.Add(c);
+                }
+            }
+        }
+        return c => !held.Contains(c) && (ring.Contains(c) || rock.Contains(c));
     }
 
     /// <summary>The plan's cells that are not a bare wall: floor, doors, links, entrances and vents.</summary>
@@ -444,32 +477,24 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// The wall lamps that could hang over floor spots: on a spot with a cardinal neighbour that is a plain
-    /// wall, the first in the plan's direction order carrying the lamp. The lamp stands on the floor and takes
-    /// no wall cell; it needs only that a wall is there.
+    /// The lamps the plan places in the room whose floor holds c, in the order the plan placed them (the most
+    /// valuable first); empty when c is in no room or its room was planned no lamp.
     /// </summary>
-    internal static List<LampCand> WallLampCands(IReadOnlyList<Cell> spots, Func<Cell, bool>? isWall, LightPrice p)
+    public IReadOnlyList<PlannedLamp> PlannedLampsAt(Cell c)
     {
-        var output = new List<LampCand>();
-        if (p.WallLampW <= 0 || p.WallReach <= 0 || isWall is null)
+        foreach (var r in this.Rooms)
         {
-            return output;
-        }
-        foreach (var s in spots)
-        {
-            foreach (var dir in DefenseLayout.Directions)
+            if (r.Region.Contains(c))
             {
-                if (!isWall(DefenseLayout.AddCell(s, dir)))
-                {
-                    continue;
-                }
-                output.Add(new LampCand(new PlannedLamp { Def = PolicyConstants.LightJudgment.WallLampDef, Cell = s, Facing = DefenseLayout.RotationOf(dir) }, p.WallLampW, p.WallReach));
-                break;
+                return this.Lamps.GetValueOrDefault(r.Id) ?? [];
             }
         }
-        return output;
+        return [];
     }
+}
 
+partial class Tiler
+{
     /// <summary>
     /// Lights the roofed rooms where the lamps pay. A room's priced cells are its work cells (a worker station's
     /// interaction cell, a full work-day of speed) and every cell the plan's trips walk; a standing lamp stands
@@ -477,26 +502,26 @@ public static partial class PolicyFunctions
     /// Full-fill station does not hold, whichever lights more dark for its cost. Lamps are placed when lighting
     /// the dark costs less than leaving it, never vetoed either way; a room under the sky gets none.
     /// </summary>
-    internal static void PlaceLamps(this Tiler t)
+    internal void PlaceLamps()
     {
-        var p = t.Out.Plan;
+        var p = this.Out.Plan;
         Dictionary<Cell, double>? moves = null;
         Func<Cell, bool>? isWall = null;
-        for (var i = 0; i < t.Rooms.Count; i++)
+        for (var i = 0; i < this.Rooms.Count; i++)
         {
             var room = p.Rooms[i];
-            var g = t.In.Groups[t.Rooms[i].Group];
-            if (!LightRoofed(room))
+            var g = this.In.Groups[this.Rooms[i].Group];
+            if (!PlannedRoom.LightRoofed(room))
             {
-                t.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsSky, PolicyFunctions.TilePlace);
+                this.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsSky, LayoutTileRules.TilePlace);
                 continue;
             }
             var work = new HashSet<Cell>();
             var taken = new HashSet<Cell>();
             var filled = new HashSet<Cell>(); // cells a wall lamp cannot share
-            foreach (var piece in t.Out.Pieces.GetValueOrDefault(room.Id) ?? [])
+            foreach (var piece in this.Out.Pieces.GetValueOrDefault(room.Id) ?? [])
             {
-                var (s, known) = t.In.Catalog.Station(piece.Def);
+                var (s, known) = this.In.Catalog.Station(piece.Def);
                 foreach (var c in PlannedRules.RectCells(piece.Rect))
                 {
                     taken.Add(c);
@@ -514,67 +539,51 @@ public static partial class PolicyFunctions
                     }
                 }
             }
-            if (!t.In.Light.Valid())
+            if (!this.In.Light.Valid())
             {
                 if (work.Count > 0)
                 {
-                    t.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsUnpriced, PolicyFunctions.TileUnsatisfied);
+                    this.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsUnpriced, LayoutTileRules.TileUnsatisfied);
                 }
                 continue;
             }
             if (moves is null)
             {
-                moves = TripCellMovements(p);
-                isWall = PlainWalls(p, SurveyRock(t.In.Survey));
+                moves = LayoutPlan.TripCellMovements(p);
+                isWall = LayoutPlan.PlainWalls(p, LayoutLightRules.SurveyRock(this.In.Survey));
             }
             var cells = new List<DarkCell>();
             foreach (var c in room.Region.Cells())
             {
-                var w = t.In.Light.WalkCellW(moves.GetValueOrDefault(c));
+                var w = this.In.Light.WalkCellW(moves.GetValueOrDefault(c));
                 if (work.Contains(c))
                 {
-                    w += t.In.Light.WorkCellW();
+                    w += this.In.Light.WorkCellW();
                 }
                 if (w > 0)
                 {
                     cells.Add(new DarkCell(c, w));
                 }
             }
-            var lamps = PlanLamps(cells, t.In.Light.RoomCands(room.Region.Cells(), taken, work, filled, isWall));
+            var lamps = LayoutLightRules.PlanLamps(cells, this.In.Light.RoomCands(room.Region.Cells(), taken, work, filled, isWall));
             if (lamps.Count == 0)
             {
                 if (cells.Sum(c => c.W) > 0)
                 {
-                    t.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsNotPaid, PolicyFunctions.TileUnsatisfied);
+                    this.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsNotPaid, LayoutTileRules.TileUnsatisfied);
                 }
                 continue;
             }
-            if (!t.Out.Lamps.TryGetValue(room.Id, out var list))
+            if (!this.Out.Lamps.TryGetValue(room.Id, out var list))
             {
                 list = [];
-                t.Out.Lamps[room.Id] = list;
+                this.Out.Lamps[room.Id] = list;
             }
             list.AddRange(lamps.Select(l => l.Lamp));
-            t.NoteLamps(g.Id, PolicyConstants.ReasonTileLamps, PolicyFunctions.TilePlace);
+            this.NoteLamps(g.Id, PolicyConstants.ReasonTileLamps, LayoutTileRules.TilePlace);
         }
     }
 
-    internal static void NoteLamps(this Tiler t, int group, string reason, string verdict) =>
-        t.Out.Decisions.Add(new TileDecision { Group = group, Verdict = verdict, Reason = reason });
-
-    /// <summary>
-    /// The lamps the plan places in the room whose floor holds c, in the order the plan placed them (the most
-    /// valuable first); empty when c is in no room or its room was planned no lamp.
-    /// </summary>
-    public static IReadOnlyList<PlannedLamp> PlannedLampsAt(this LayoutPlan p, Cell c)
-    {
-        foreach (var r in p.Rooms)
-        {
-            if (r.Region.Contains(c))
-            {
-                return p.Lamps.GetValueOrDefault(r.Id) ?? [];
-            }
-        }
-        return [];
-    }
+    internal void NoteLamps(int group, string reason, string verdict) =>
+        this.Out.Decisions.Add(new TileDecision { Group = group, Verdict = verdict, Reason = reason });
 }

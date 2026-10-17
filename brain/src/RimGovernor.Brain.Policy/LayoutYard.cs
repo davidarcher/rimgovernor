@@ -4,11 +4,11 @@ public sealed partial record LayoutPlan
 {
     /// <summary>The materials yard an outline holds: an Outdoor room on the outline less its one-cell margin.</summary>
     internal static PlannedRoom YardRoom(Rectangle outline) =>
-        new() { Role = PolicyFunctions.PlannedYard, Region = RegionRules.RectRegion(PolicyFunctions.Pad(outline, -1)), Outdoor = true };
+        new() { Role = LayoutYardRules.PlannedYard, Region = RegionRules.RectRegion(LayoutPerimeterRules.Pad(outline, -1)), Outdoor = true };
 }
 
 /// <summary>Ports <c>layout_yard.go</c>: the materials yard, a planned Outdoor room beside the core.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutYardRules
 {
     /// <summary>The plan role of a yard viewed as an Outdoor room.</summary>
     public static PlannedRole PlannedYard => PlannedRole.Yard;
@@ -23,15 +23,18 @@ public static partial class PolicyFunctions
 
     /// <summary>Why the graph holds a yard: one from the start, more when the demand asks, or the plan already holds them.</summary>
     public const string ReasonYardRoom = "yard_room_owed";
+}
 
+partial record LayoutPlan
+{
     /// <summary>The yards the plan holds or the demand asks for as graph nodes, each of the one size; the tiler sites them in the base.</summary>
     public static IReadOnlyList<RoomNode> YardRoomNodes(LayoutPlan plan, RoomDemand demand)
     {
-        var wanted = Math.Max(YardRoomsWanted(demand), plan.RoomsOf(PlannedYard).Count);
+        var wanted = Math.Max(LayoutYardRules.YardRoomsWanted(demand), plan.RoomsOf(LayoutYardRules.PlannedYard).Count);
         var nodes = new List<RoomNode>();
         for (var n = 1; n <= wanted; n++)
         {
-            nodes.Add(new RoomNode { Id = n == 1 ? Wire.Name(PlannedYard) : $"{Wire.Name(PlannedYard)}-{n}", Role = PlannedYard, Area = YardW * YardH, Width = YardH, Reason = ReasonYardRoom });
+            nodes.Add(new RoomNode { Id = n == 1 ? Wire.Name(LayoutYardRules.PlannedYard) : $"{Wire.Name(LayoutYardRules.PlannedYard)}-{n}", Role = LayoutYardRules.PlannedYard, Area = LayoutYardRules.YardW * LayoutYardRules.YardH, Width = LayoutYardRules.YardH, Reason = LayoutYardRules.ReasonYardRoom });
         }
         return nodes;
     }

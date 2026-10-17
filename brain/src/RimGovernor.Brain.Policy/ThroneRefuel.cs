@@ -41,7 +41,7 @@ public static partial class ThroneRules
             return new ThroneStep();
         }
         // Census: the lamp refuel needs the roofed room, not just a ring.
-        if (!CensusRoomIn(room, rooms).Ok)
+        if (!PlannedRoom.CensusRoomIn(room, rooms).Ok)
         {
             return new ThroneStep();
         }
@@ -49,7 +49,7 @@ public static partial class ThroneRules
         var best = "";
         foreach (var l in lamps)
         {
-            if (!glow.Contains(l.Definition) || !Contains(room.Region.Bounds(), l.Cell) || l.Lit)
+            if (!glow.Contains(l.Definition) || !LayoutPerimeterRules.Contains(room.Region.Bounds(), l.Cell) || l.Lit)
             {
                 continue;
             }

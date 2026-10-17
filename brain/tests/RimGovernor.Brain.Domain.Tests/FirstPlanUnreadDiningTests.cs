@@ -25,7 +25,7 @@ public sealed class FirstPlanUnreadDiningTests
         };
 
         Assert.False(f.Dining.Known());
-        var e = Record.Exception(() => PolicyFunctions.AdviseStations(f));
+        var e = Record.Exception(() => LayoutStationPlanRules.AdviseStations(f));
         // Past the dining check, a fact this sparse catalog lacks is a typed unknown, which the callers report.
         Assert.True(e is null or StationFactsException, e?.ToString());
     }

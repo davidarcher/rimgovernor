@@ -73,7 +73,7 @@ public static partial class SafetyOverlayRules
         }
         if (danger.Count > 0)
         {
-            var runs = CellRuns(SetCells(danger));
+            var runs = LayoutOverlayRules.CellRuns(SetCells(danger));
             layers.Add(new OverlayLayer { Color = DangerHue.Fill(), Style = OverlayStyle.Fill, Label = "danger", Runs = runs });
             layers.Add(new OverlayLayer { Color = DangerHue.Outline(), Style = OverlayStyle.Outline, Label = "danger", Runs = runs });
             labels.AddRange(AreaLabels(danger, seeds, cause));
@@ -104,7 +104,7 @@ public static partial class SafetyOverlayRules
         }
         if (vetoed.Count > 0)
         {
-            layers.Add(new OverlayLayer { Color = VetoHue.Outline(), Style = OverlayStyle.Outline, Label = "unsafe route", Runs = CellRuns(SetCells(vetoed)) });
+            layers.Add(new OverlayLayer { Color = VetoHue.Outline(), Style = OverlayStyle.Outline, Label = "unsafe route", Runs = LayoutOverlayRules.CellRuns(SetCells(vetoed)) });
             labels.AddRange(AreaLabels(vetoed, vetoSeeds, vetoCause));
         }
         return new LayoutOverlay { Layers = layers, Labels = labels };

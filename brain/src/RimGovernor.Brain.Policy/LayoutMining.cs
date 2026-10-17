@@ -13,26 +13,44 @@ public static partial class PolicyConstants
     public const int MineTierStone = 3;
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutMiningRules
+{
+    internal static bool InRoomRing(Rectangle interior, Cell cell) =>
+        cell.X >= interior.X - 1 && cell.X <= interior.X + interior.Width && cell.Z >= interior.Z - 1 && cell.Z <= interior.Z + interior.Height;
+
+    internal static bool ZoneHas(LayoutZone z, Cell cell)
+    {
+        foreach (var run in z.Runs)
+        {
+            if (run.Z == cell.Z && cell.X >= run.X && cell.X < run.X + run.Length)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+partial record LayoutPlan
 {
     /// <summary>Ranks cell under plan; a cell in the zone zoning marked Ore ranks first.</summary>
-    public static int MineTier(this LayoutPlan p, Cell cell)
+    public int MineTier(Cell cell)
     {
-        foreach (var z in p.Zones)
+        foreach (var z in this.Zones)
         {
-            if (z.Kind == ZoneKind.Mining && z.Ore && ZoneHas(z, cell))
+            if (z.Kind == ZoneKind.Mining && z.Ore && LayoutMiningRules.ZoneHas(z, cell))
             {
                 return MineTierOre;
             }
         }
-        foreach (var r in p.Rooms)
+        foreach (var r in this.Rooms)
         {
-            if (r.Dug && IsStoreRoom(r.Role) && InRoomRing(r.Region.Bounds(), cell))
+            if (r.Dug && IsStoreRoom(r.Role) && LayoutMiningRules.InRoomRing(r.Region.Bounds(), cell))
             {
                 return MineTierStore;
             }
         }
-        foreach (var r in p.Rooms)
+        foreach (var r in this.Rooms)
         {
             var interior = r.Region.Bounds();
             if (r.Dug && cell.X >= interior.X - 1 && cell.X <= interior.X + interior.Width && cell.Z >= interior.Z - 1 && cell.Z <= interior.Z + interior.Height)
@@ -40,7 +58,7 @@ public static partial class PolicyFunctions
                 return MineTierCore;
             }
         }
-        foreach (var e in p.Reservations)
+        foreach (var e in this.Reservations)
         {
             if (e.Kind == ReservationKind.Exhaust && e.Area.Contains(cell))
             {
@@ -50,9 +68,6 @@ public static partial class PolicyFunctions
         return MineTierStone;
     }
 
-    internal static bool InRoomRing(Rectangle interior, Cell cell) =>
-        cell.X >= interior.X - 1 && cell.X <= interior.X + interior.Width && cell.Z >= interior.Z - 1 && cell.Z <= interior.Z + interior.Height;
-
     /// <summary>
     /// The shared rock step (RockStep) over the cells a planned room's shell waits on: its door and interior
     /// and, for a cooled room, its cooler's wall cell and exhaust shaft, mined before the ring so the ring walls
@@ -60,21 +75,21 @@ public static partial class PolicyFunctions
     /// or walked, so each needs a floor; rock on the rest of the ring stays and walls the room. Dig is in that
     /// priority order.
     /// </summary>
-    public static RockStepResult RoomRock(this LayoutPlan p, PlannedRoom room, IReadOnlyList<SiteCell> cells)
+    public RockStepResult RoomRock(PlannedRoom room, IReadOnlyList<SiteCell> cells)
     {
         var planned = new List<RoleCell>();
         void Add(Cell c) => planned.Add(new RoleCell { Cell = c, Role = RockRole.NeedsFloor });
 
         Add(room.Door);
-        foreach (var c in RectangleCells(room.Region.Bounds()))
+        foreach (var c in LayoutUtilityRules.RectangleCells(room.Region.Bounds()))
         {
             Add(c);
         }
-        var coolerFound = p.CoolerExhaust(room);
+        var coolerFound = this.CoolerExhaust(room);
         if (coolerFound is { } cooler)
         {
             Add(cooler.Site.Cell);
-            foreach (var c in RectangleCells(cooler.Exhaust))
+            foreach (var c in LayoutUtilityRules.RectangleCells(cooler.Exhaust))
             {
                 Add(c);
             }
@@ -94,10 +109,10 @@ public static partial class PolicyFunctions
             // A room entered through a neighbour's wall (the butchery behind the freezer) is reached only by
             // walking that neighbour: its interior, door and the corridor from its own threshold are mined too,
             // or the miners have no way in to the link.
-            var (through, ok) = p.LinkedNeighbour(room);
+            var (through, ok) = this.LinkedNeighbour(room);
             if (ok)
             {
-                foreach (var c in RectangleCells(through!.Region.Bounds()))
+                foreach (var c in LayoutUtilityRules.RectangleCells(through!.Region.Bounds()))
                 {
                     Add(c);
                 }
@@ -121,13 +136,13 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The other room whose wall holds one of room's link doors.</summary>
-    internal static (PlannedRoom? Room, bool Ok) LinkedNeighbour(this LayoutPlan p, PlannedRoom room)
+    internal (PlannedRoom? Room, bool Ok) LinkedNeighbour(PlannedRoom room)
     {
-        foreach (var link in p.LinksOf(room))
+        foreach (var link in this.LinksOf(room))
         {
-            foreach (var o in p.Rooms)
+            foreach (var o in this.Rooms)
             {
-                if (o.Region.Bounds() != room.Region.Bounds() && InWall(o.Region.Bounds(), link))
+                if (o.Region.Bounds() != room.Region.Bounds() && LayoutGeometryRules.InWall(o.Region.Bounds(), link))
                 {
                     return (o, true);
                 }
@@ -141,30 +156,18 @@ public static partial class PolicyFunctions
     /// is in Dig while the room's back wall is still rock: mining it would open the room, so the caller mines it
     /// only in the plan that places the cooler there.
     /// </summary>
-    public static (RockStepResult Result, bool Ok) ExhaustRock(this LayoutPlan p, PlannedRoom room, IReadOnlyList<SiteCell> cells)
+    public (RockStepResult Result, bool Ok) ExhaustRock(PlannedRoom room, IReadOnlyList<SiteCell> cells)
     {
-        var coolerFound = p.CoolerExhaust(room);
+        var coolerFound = this.CoolerExhaust(room);
         if (coolerFound is not { } cooler)
         {
             return (default!, false);
         }
         var planned = new List<RoleCell> { new() { Cell = cooler.Site.Cell, Role = RockRole.NeedsFloor } };
-        foreach (var c in RectangleCells(cooler.Exhaust))
+        foreach (var c in LayoutUtilityRules.RectangleCells(cooler.Exhaust))
         {
             planned.Add(new RoleCell { Cell = c, Role = RockRole.NeedsFloor });
         }
         return (RockStepRules.RockStep(planned, cells), true);
-    }
-
-    internal static bool ZoneHas(LayoutZone z, Cell cell)
-    {
-        foreach (var run in z.Runs)
-        {
-            if (run.Z == cell.Z && cell.X >= run.X && cell.X < run.X + run.Length)
-            {
-                return true;
-            }
-        }
-        return false;
     }
 }

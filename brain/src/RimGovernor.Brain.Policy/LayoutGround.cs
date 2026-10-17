@@ -23,7 +23,7 @@ public sealed class GroundCensus
     public HashSet<Cell> Rock { get; set; } = [];
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutGroundRules
 {
     /// <summary>Reads the walls and doors out of the colony's built buildings.</summary>
     public static GroundCensus GroundOf(IReadOnlyList<CurrentBuilding> buildings)
@@ -61,10 +61,6 @@ public static partial class PolicyFunctions
         return g;
     }
 
-    /// <summary>The defs r's ring is raised from: a wall and a door, or a fence and a gate round an outdoor room.</summary>
-    public static (string Wall, string Door) RingDefs(this PlannedRoom r) =>
-        r.Outdoor ? (PenFenceDefinition, PenGateDefinition) : (ShellWallDefinition, ShellDoorDefinition);
-
     /// <summary>A copy of set that can be written.</summary>
     internal static HashSet<Cell> WithCells(IEnumerable<Cell> set) => [.. set];
 
@@ -82,51 +78,6 @@ public static partial class PolicyFunctions
         }
         return (g.Walls, g.Doors);
     }
-
-    /// <summary>
-    /// Reports r's wall ring and doors as standing as planned: a wall on every ring cell, a door on each cell
-    /// the plan holds one (ShellDoors) and none elsewhere on the ring. Geometry only; floors and furniture are
-    /// separate diffs. No census room need be enclosed yet (a ring still unroofed matches).
-    /// </summary>
-    public static bool GroundMatches(this LayoutPlan p, PlannedRoom r, GroundCensus g)
-    {
-        if (r.Unfenced())
-        {
-            return true; // no ring owed
-        }
-        var doors = new HashSet<Cell>(p.ShellDoors(r));
-        var (walls, standing) = p.Ring(r, g);
-        foreach (var c in r.WallRing().Cells())
-        {
-            if (doors.Contains(c) != standing.Contains(c) || (!doors.Contains(c) && !walls.Contains(c)))
-            {
-                return false;
-            }
-        }
-        foreach (var a in p.ChildrenOfRole(r.Id, PlannedRole.Airlock))
-        {
-            if (!standing.Contains(a.Door))
-            {
-                return false;
-            }
-            foreach (var c in a.AirlockWalls())
-            {
-                if (standing.Contains(c) || !walls.Contains(c))
-                {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    /// <summary>
-    /// The cells r's shell stands on: the region's wall ring (Region.Walls). A sparring ring and the unfenced
-    /// roles with no walls of their own keep their rectangle behaviour: the border of the block they reserve
-    /// (ringBlock, rangeBlock, the interior).
-    /// </summary>
-    internal static Region WallRing(this PlannedRoom r) =>
-        r.Unfenced() ? RegionRules.RectRegion(RoomWalls(r)).Perimeter() : r.Region.Walls();
 
     /// <summary>
     /// The region cell nearest its bounding-box centre (ties to the first in cell order): the centre of a
@@ -155,6 +106,21 @@ public static partial class PolicyFunctions
         }
         return best;
     }
+}
+
+partial record PlannedRoom
+{
+    /// <summary>The defs r's ring is raised from: a wall and a door, or a fence and a gate round an outdoor room.</summary>
+    public (string Wall, string Door) RingDefs() =>
+        this.Outdoor ? (PenFenceDefinition, PenGateDefinition) : (ShellWallDefinition, ShellDoorDefinition);
+
+    /// <summary>
+    /// The cells r's shell stands on: the region's wall ring (Region.Walls). A sparring ring and the unfenced
+    /// roles with no walls of their own keep their rectangle behaviour: the border of the block they reserve
+    /// (ringBlock, rangeBlock, the interior).
+    /// </summary>
+    internal Region WallRing() =>
+        this.Unfenced() ? RegionRules.RectRegion(RoomWalls(this)).Perimeter() : this.Region.Walls();
 
     /// <summary>
     /// The census room standing enclosed on the planned room's anchor cell and lying wholly inside its region:
@@ -195,31 +161,71 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The room's shell: its region walled round, the door where the plan put it. Any region the footprint rules accept (4-connected, at most 3844 cells, a ring of at most 255) shells, rectangular or not.</summary>
-    public static RoomFootprint Footprint(this PlannedRoom r) => new(r.Region.Cells(), r.Door, r.DoorRot ?? default);
+    public RoomFootprint Footprint() => new(this.Region.Cells(), this.Door, this.DoorRot ?? default);
+}
+
+partial record LayoutPlan
+{
+    /// <summary>
+    /// Reports r's wall ring and doors as standing as planned: a wall on every ring cell, a door on each cell
+    /// the plan holds one (ShellDoors) and none elsewhere on the ring. Geometry only; floors and furniture are
+    /// separate diffs. No census room need be enclosed yet (a ring still unroofed matches).
+    /// </summary>
+    public bool GroundMatches(PlannedRoom r, GroundCensus g)
+    {
+        if (r.Unfenced())
+        {
+            return true; // no ring owed
+        }
+        var doors = new HashSet<Cell>(this.ShellDoors(r));
+        var (walls, standing) = this.Ring(r, g);
+        foreach (var c in r.WallRing().Cells())
+        {
+            if (doors.Contains(c) != standing.Contains(c) || (!doors.Contains(c) && !walls.Contains(c)))
+            {
+                return false;
+            }
+        }
+        foreach (var a in this.ChildrenOfRole(r.Id, PlannedRole.Airlock))
+        {
+            if (!standing.Contains(a.Door))
+            {
+                return false;
+            }
+            foreach (var c in a.AirlockWalls())
+            {
+                if (standing.Contains(c) || !walls.Contains(c))
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 
     /// <summary>
     /// The cells of r's ring that take a door rather than a wall: its own doors, its Link, and any other room's
     /// Link that lies in r's ring (the kitchen's side of the freezer door).
     /// </summary>
-    public static IReadOnlyList<Cell> ShellDoors(this LayoutPlan p, PlannedRoom r)
+    public IReadOnlyList<Cell> ShellDoors(PlannedRoom r)
     {
         if (r.Unfenced())
         {
             return [];
         }
-        var doors = new List<Cell>(p.DoorsOf(r));
-        foreach (var a in p.ChildrenOfRole(r.Id, PlannedRole.Airlock))
+        var doors = new List<Cell>(this.DoorsOf(r));
+        foreach (var a in this.ChildrenOfRole(r.Id, PlannedRole.Airlock))
         {
             doors.Add(a.Door);
         }
         var ring = r.Region.Walls();
-        foreach (var o in p.Rooms)
+        foreach (var o in this.Rooms)
         {
             if (o.Region.Runs.SequenceEqual(r.Region.Runs))
             {
                 continue;
             }
-            foreach (var l in p.LinksOf(o))
+            foreach (var l in this.LinksOf(o))
             {
                 if (ring.Contains(l) && r.Region.Adjacent(l) && !doors.Contains(l))
                 {

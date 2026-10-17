@@ -17,13 +17,13 @@ public sealed partial record LayoutPlan
 }
 
 /// <summary>Ports <c>layout_throne.go</c>: the throne room, one core room sized from the next title's minimum area.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutThroneRules
 {
     /// <summary>The throne room's plan role.</summary>
     public static PlannedRole PlannedThrone => PlannedRole.Throne;
 
     /// <summary>The shortest throne room side.</summary>
-    private const int ThroneMinSide = 4;
+    internal const int ThroneMinSide = 4;
 
     /// <summary>
     /// The throne room interiors (width along the spine, depth away from it) holding at least area cells, best first:

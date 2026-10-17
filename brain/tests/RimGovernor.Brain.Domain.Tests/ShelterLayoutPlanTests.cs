@@ -36,8 +36,8 @@ public sealed class ShelterLayoutPlanTests
         {
             Cell = new Cell(x, z), Walkable = true, Footing = Footing.Firm, Fertility = 1, Terrain = "Soil",
         }))],
-        Cold = ColdMapCurve(Curve(climate)),
-        Hot = HotMapCurve(Curve(climate)),
+        Cold = LayoutShelterRules.ColdMapCurve(Curve(climate)),
+        Hot = LayoutShelterRules.HotMapCurve(Curve(climate)),
     };
 
     /// <summary>A first plan's facts (Derive, no ledger or census): the catalog prices only the lamp and the power sites the chain needs.</summary>
@@ -68,7 +68,7 @@ public sealed class ShelterLayoutPlanTests
     private static LayoutPlan FirstPlan(string climate, long colonists)
     {
         var s = Survey(climate);
-        var (plan, _) = DeriveLayoutPlan(s, Facts(s, colonists), []);
+        var (plan, _) = LayoutDeriveRules.DeriveLayoutPlan(s, Facts(s, colonists), []);
         Assert.True(plan.IsKnown, "no first plan on an open " + climate + " map");
         return plan.Value;
     }
@@ -99,9 +99,9 @@ public sealed class ShelterLayoutPlanTests
     public void TheShelterTemplateHoldsTheClimatesSlotsOnTheShelterInterior(string climate)
     {
         var plan = FirstPlan(climate, 3);
-        var shelter = Assert.Single(plan.RoomsOf(PlannedShelter));
+        var shelter = Assert.Single(plan.RoomsOf(LayoutSurveyRules.PlannedShelter));
         var bounds = shelter.Region.Bounds();
-        var (room, ok) = ShelterRules.ShelterRoom(shelter, [], Shapes, 3, ShelterCampfires(plan.Cold), ShelterCoolers(plan.Hot), []);
+        var (room, ok) = ShelterRules.ShelterRoom(shelter, [], Shapes, 3, LayoutShelterRules.ShelterCampfires(plan.Cold), LayoutShelterRules.ShelterCoolers(plan.Hot), []);
         Assert.True(ok);
         var (pieces, planned) = PlanRoomInterior(room, new InteriorPieceDef());
         Assert.True(planned);
@@ -138,16 +138,16 @@ public sealed class ShelterLayoutPlanTests
     public void TheFirstPlanHoldsOneShelterSizedForTheColonyAndClearOfEveryOtherRoom(string climate, int colonists)
     {
         var plan = FirstPlan(climate, colonists);
-        var shelter = Assert.Single(plan.RoomsOf(PlannedShelter));
+        var shelter = Assert.Single(plan.RoomsOf(LayoutSurveyRules.PlannedShelter));
         var inner = shelter.Region.Bounds();
-        Assert.True(inner.Width * inner.Height >= ShelterInteriorArea(colonists, ShelterCampfires(plan.Cold), ShelterCoolers(plan.Hot)),
+        Assert.True(inner.Width * inner.Height >= LayoutShelterRules.ShelterInteriorArea(colonists, LayoutShelterRules.ShelterCampfires(plan.Cold), LayoutShelterRules.ShelterCoolers(plan.Hot)),
             $"shelter interior {inner.Width}x{inner.Height} for {colonists} colonists on a {climate} map");
-        var floor = RectangleCells(inner).ToHashSet();
-        foreach (var other in plan.Rooms.Where(r => r.Role != PlannedShelter))
+        var floor = LayoutUtilityRules.RectangleCells(inner).ToHashSet();
+        foreach (var other in plan.Rooms.Where(r => r.Role != LayoutSurveyRules.PlannedShelter))
         {
-            Assert.DoesNotContain(RectangleCells(other.Region.Bounds()), floor.Contains);
+            Assert.DoesNotContain(LayoutUtilityRules.RectangleCells(other.Region.Bounds()), floor.Contains);
         }
         // Research is the shelter's capability, so the first plan holds no laboratory, a colony of one's included.
-        Assert.Empty(plan.RoomsOf(PlannedLab));
+        Assert.Empty(plan.RoomsOf(LayoutSurveyRules.PlannedLab));
     }
 }

@@ -241,14 +241,14 @@ internal partial class EmbedFixed
         {
             cells[c.Cell] = c;
         }
-        Base = new Prefix(w, h, c => PolicyFunctions.B2i(scorer.G.Core.Contains(c)));
-        Soil = new Prefix(w, h, c => -((PlanWeights.Soil * scorer.G.Soil.GetValueOrDefault(c)) + (PlanWeights.Rock * PolicyFunctions.B2i(scorer.G.Rock.Contains(c)))));
+        Base = new Prefix(w, h, c => LayoutEmbedRules.B2i(scorer.G.Core.Contains(c)));
+        Soil = new Prefix(w, h, c => -((PlanWeights.Soil * scorer.G.Soil.GetValueOrDefault(c)) + (PlanWeights.Rock * LayoutEmbedRules.B2i(scorer.G.Rock.Contains(c)))));
         var clear = scorer.EdgeClear();
         Edge = new Prefix(w, h, c => -PlanScorer.EdgeCellCost(scorer.Ground, c, clear));
         Centre = new Prefix(w, h, c => -scorer.CentreCell(c));
-        Rich = new Prefix(w, h, c => PolicyFunctions.B2i(scorer.G.Soil.GetValueOrDefault(c) == PolicyConstants.SoilCostRich));
-        Solid = new Prefix(w, h, c => PolicyFunctions.B2i(scorer.G.Rock.Contains(c) || (cells.TryGetValue(c, out var sc) && sc.ThickRoof)));
-        Walkable = new Prefix(w, h, c => PolicyFunctions.B2i(PolicyFunctions.WalkableCell(cells, c)));
+        Rich = new Prefix(w, h, c => LayoutEmbedRules.B2i(scorer.G.Soil.GetValueOrDefault(c) == PolicyConstants.SoilCostRich));
+        Solid = new Prefix(w, h, c => LayoutEmbedRules.B2i(scorer.G.Rock.Contains(c) || (cells.TryGetValue(c, out var sc) && sc.ThickRoof)));
+        Walkable = new Prefix(w, h, c => LayoutEmbedRules.B2i(LayoutEmbedEnclosureRules.WalkableCell(cells, c)));
         FieldMasks(input, scorer);
         var retired = new HashSet<Cell>();
         foreach (var g in input.RetiredGround)
@@ -258,7 +258,7 @@ internal partial class EmbedFixed
                 retired.Add(c);
             }
         }
-        Retired = new Prefix(w, h, c => PolicyFunctions.B2i(retired.Contains(c)));
+        Retired = new Prefix(w, h, c => LayoutEmbedRules.B2i(retired.Contains(c)));
     }
 
     /// <summary>Copies the shared pricing into one level's embedder.</summary>
@@ -339,16 +339,16 @@ internal sealed partial class Embedder : EmbedFixed
         for (var i = 0; i < input.Groups.Count; i++)
         {
             var g = input.Groups[i];
-            _shapes.Add(i >= _nRooms ? PolicyFunctions.BlockShapes(g.Area, g.Area) : PolicyFunctions.GroupShapes(g, depth)); // no roof bounds a field
+            _shapes.Add(i >= _nRooms ? LayoutEmbedRules.BlockShapes(g.Area, g.Area) : LayoutEmbedRules.GroupShapes(g, depth)); // no roof bounds a field
             _sky.Add(g.Requires.Contains(EnvRequirement.OpenSky));
         }
         var lg = scorer.G.Without(scorer.G.CoreObstaclesFor(input.Zones, level, input.Fields.Count == 0));
-        _level = new Prefix(w, h, c => PolicyFunctions.B2i(lg.Core.Contains(c)));
+        _level = new Prefix(w, h, c => LayoutEmbedRules.B2i(lg.Core.Contains(c)));
         _core = [.. lg.Core];
-        PolicyFunctions.SortCells(_core);
+        LayoutSiteGroundRules.SortCells(_core);
         _inFlight = input.InFlight;
         _pinned = new bool[input.Groups.Count];
-        var (home, homeRoom, outgrown, report) = PolicyFunctions.BuiltHomes([.. input.Groups.Take(_nRooms)], input.Built);
+        var (home, homeRoom, outgrown, report) = LayoutBuiltRules.BuiltHomes([.. input.Groups.Take(_nRooms)], input.Built);
         _outgrown = outgrown;
         _builtReport = [.. report];
         _home = [.. home, .. new Rectangle[input.Groups.Count - _nRooms]];
@@ -356,7 +356,7 @@ internal sealed partial class Embedder : EmbedFixed
         for (var i = 0; i < _home.Count; i++)
         {
             // A room whose ring is off the map is no block.
-            if (_home[i].Width > 0 && !Base.Inside(PolicyFunctions.Pad(_home[i], 1)))
+            if (_home[i].Width > 0 && !Base.Inside(LayoutPerimeterRules.Pad(_home[i], 1)))
             {
                 _builtReport.Add(new EmbedDecision { Group = i, Other = -1, Verdict = PolicyConstants.EmbedKeep, Reason = PolicyConstants.ReasonEmbedBuiltOffMap, Room = _homeRoom[i] });
                 _home[i] = default;
@@ -378,8 +378,8 @@ internal sealed partial class Embedder : EmbedFixed
         {
             return;
         }
-        var seeds = lg.SiteSeeds(PolicyFunctions.SiteSearchTop);
-        _seeds = seeds.Count == 0 ? PolicyFunctions.Stepped(_core, PolicyFunctions.SiteSearchTop) : seeds;
+        var seeds = lg.SiteSeeds(LayoutSiteGroundRules.SiteSearchTop);
+        _seeds = seeds.Count == 0 ? LayoutSiteGroundRules.Stepped(_core, LayoutSiteGroundRules.SiteSearchTop) : seeds;
     }
 
     internal IReadOnlyList<RoomGroup> Groups => _groups;
@@ -408,7 +408,7 @@ internal sealed partial class Embedder : EmbedFixed
         {
             return FieldFits(i, r, blocks);
         }
-        var ring = PolicyFunctions.Pad(r, 1);
+        var ring = LayoutPerimeterRules.Pad(r, 1);
         if (!Base.Inside(ring) || Base.Sum(ring) != (long)ring.Width * ring.Height || _level.Sum(r) != (long)r.Width * r.Height)
         {
             return false;
@@ -419,7 +419,7 @@ internal sealed partial class Embedder : EmbedFixed
         }
         for (var j = 0; j < blocks.Count; j++)
         {
-            if (j != i && blocks[j].Width > 0 && PolicyFunctions.Collides(r, blocks[j]))
+            if (j != i && blocks[j].Width > 0 && LayoutEmbedRules.Collides(r, blocks[j]))
             {
                 return false;
             }
@@ -451,7 +451,7 @@ internal sealed partial class Embedder : EmbedFixed
         }
         else
         {
-            cost = -(Soil.Sum(r) + Centre.Sum(r) + Edge.Sum(PolicyFunctions.Pad(r, 1)));
+            cost = -(Soil.Sum(r) + Centre.Sum(r) + Edge.Sum(LayoutPerimeterRules.Pad(r, 1)));
             if (enc is not null)
             {
                 cost += EnclosureCost(r, enc);
@@ -462,7 +462,7 @@ internal sealed partial class Embedder : EmbedFixed
             var b = blocks[l.To];
             if (b.Width > 0 && l.To != i)
             {
-                cost += PolicyFunctions.LinkCost(l, Gap(i, r, l.To, b));
+                cost += LayoutEmbedRules.LinkCost(l, Gap(i, r, l.To, b));
             }
         }
         return cost;
@@ -484,7 +484,7 @@ internal sealed partial class Embedder : EmbedFixed
                 var fieldGap = IsField(i) || IsField(a);
                 foreach (var sh in _shapes[i])
                 {
-                    PolicyFunctions.RingPositions(ab, sh, ring, fieldGap, (x, z) =>
+                    LayoutEmbedRules.RingPositions(ab, sh, ring, fieldGap, (x, z) =>
                     {
                         var r = new Rectangle(x, z, sh.W, sh.H);
                         if (!Fits(i, r, blocks, _sky[i]))
@@ -492,7 +492,7 @@ internal sealed partial class Embedder : EmbedFixed
                             return;
                         }
                         var c = BlockCostWith(i, r, blocks, enc);
-                        if (PolicyFunctions.Better(c, r, bestCost, best, found))
+                        if (LayoutEmbedRules.Better(c, r, bestCost, best, found))
                         {
                             best = r;
                             bestCost = c;
@@ -539,7 +539,7 @@ internal sealed partial class Embedder : EmbedFixed
                 {
                     cost = BlockCostWith(i, r, blocks, enc);
                 }
-                if (PolicyFunctions.Better(cost, r, bestCost, best, found))
+                if (LayoutEmbedRules.Better(cost, r, bestCost, best, found))
                 {
                     best = r;
                     bestCost = cost;
@@ -765,7 +765,7 @@ internal sealed partial class Embedder : EmbedFixed
                 continue;
             }
             var c = BlockCost(i, r, blocks);
-            if (PolicyFunctions.Better(c, r, bestCost, best, found))
+            if (LayoutEmbedRules.Better(c, r, bestCost, best, found))
             {
                 best = r;
                 bestCost = c;
@@ -793,7 +793,7 @@ internal sealed partial class Embedder : EmbedFixed
                 var b = blocks[l.To];
                 if (b.Width > 0 && l.To > i)
                 {
-                    total -= PolicyFunctions.LinkCost(l, Gap(i, r, l.To, b));
+                    total -= LayoutEmbedRules.LinkCost(l, Gap(i, r, l.To, b));
                 }
             }
         }
@@ -898,7 +898,7 @@ internal sealed partial class EmbedRun
             output.Score.Cells += b.Width * b.Height;
             output.Score.Soil += (int)e.Soil.Sum(b);
             output.Score.Centre += (int)e.Centre.Sum(b);
-            output.Score.Edge += (int)e.Edge.Sum(PolicyFunctions.Pad(b, 1));
+            output.Score.Edge += (int)e.Edge.Sum(LayoutPerimeterRules.Pad(b, 1));
             foreach (var req in g.Requires)
             {
                 if (req == EnvRequirement.Clean)
@@ -926,7 +926,7 @@ internal sealed partial class EmbedRun
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutEmbedRules
 {
     internal static int B2i(bool b) => b ? 1 : 0;
 
@@ -1054,14 +1054,17 @@ public static partial class PolicyFunctions
             }
         }
     }
+}
 
+partial class Embedding
+{
     /// <summary>
     /// Places the groups on the site. The result is deterministic: the seeds and the search stream come from
     /// the site, and ties break by position.
     /// </summary>
     public static Embedding Embed(EmbedInput input)
     {
-        var (depth, _) = RoomLimits(input.RoofDistance);
+        var (depth, _) = LayoutClusterRules.RoomLimits(input.RoofDistance);
         for (var i = 0; i < input.Groups.Count; i++)
         {
             var g = input.Groups[i];
@@ -1076,7 +1079,7 @@ public static partial class PolicyFunctions
         EmbedRun? best = null;
         foreach (var level in ObstacleLevels.All)
         {
-            var run = EmbedLevel(input, depth, scorer, level, fixedPricing);
+            var run = EmbedRun.EmbedLevel(input, depth, scorer, level, fixedPricing);
             // A looser level takes over only by FieldGain: the strictest level keeps the plan unless the
             // ground it spares costs more than that.
             if (best is null || run.Failed() < best.Failed() || (run.Failed() == best.Failed() && run.Obj + PlanWeights.FieldGain < best.Obj))
@@ -1086,8 +1089,11 @@ public static partial class PolicyFunctions
         }
         return best!.ToEmbedding(input, scorer);
     }
+}
 
-    private static EmbedRun EmbedLevel(EmbedInput input, int depth, PlanScorer scorer, ObstacleLevel level, EmbedFixed fixedPricing)
+partial class EmbedRun
+{
+    internal static EmbedRun EmbedLevel(EmbedInput input, int depth, PlanScorer scorer, ObstacleLevel level, EmbedFixed fixedPricing)
     {
         var e = new Embedder(input, depth, scorer, level, fixedPricing);
         if (input.Groups.Count == 0 || e.Core.Count == 0)
@@ -1106,9 +1112,9 @@ public static partial class PolicyFunctions
             return emptyRun;
         }
         var runs = new EmbedRun[e.Seeds.Count];
-        EachIndex(runs.Length, i =>
+        LayoutSiteGroundRules.EachIndex(runs.Length, i =>
         {
-            var (blocks, built) = e.Start(e.Seeds[i], SiteSearchIters);
+            var (blocks, built) = e.Start(e.Seeds[i], LayoutSiteGroundRules.SiteSearchIters);
             var run = new EmbedRun { E = e, Level = level, Seed = e.Seeds[i], Blocks = blocks, Built = built };
             for (var k = 0; k < e.NRooms; k++)
             {

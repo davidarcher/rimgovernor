@@ -20,9 +20,9 @@ public static partial class PolicyConstants
         new Dictionary<PlannedRole, IReadOnlyList<Capability>> { [PlannedRole.Shelter] = ShelterCapabilities };
 }
 
-public static partial class PolicyFunctions
+partial record LayoutPlan
 {
     /// <summary>Reports a planned room other than except that is designated to host c.</summary>
-    public static bool HostsCapability(this LayoutPlan p, Capability c, PlannedRole except) =>
-        p.Rooms.Any(r => r.Role != except && DesignatedHosts.TryGetValue(r.Role, out var hosted) && hosted.Contains(c));
+    public bool HostsCapability(Capability c, PlannedRole except) =>
+        this.Rooms.Any(r => r.Role != except && DesignatedHosts.TryGetValue(r.Role, out var hosted) && hosted.Contains(c));
 }

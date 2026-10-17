@@ -10,7 +10,13 @@ namespace RimGovernor.Brain.Policy;
 /// airlock out, and the decision says so. Door traffic is the plan's own trips, walked over the plan (RouteWalk)
 /// between its rooms' centres.
 /// </summary>
-public static partial class PolicyFunctions
+public static partial class LayoutTileAirlockRules
+{
+    /// <summary>Whether every floor cell of r is in the roofed set.</summary>
+    internal static bool RoofedRoom(Region roofed, PlannedRoom r) => r.Region.Cells().All(roofed.Contains);
+}
+
+partial record LayoutPlan
 {
     /// <summary>
     /// The movements a day through each room's exterior door (its Door, when no link door stands there): every trip
@@ -139,9 +145,6 @@ public static partial class PolicyFunctions
         }
         return output;
     }
-
-    /// <summary>Whether every floor cell of r is in the roofed set.</summary>
-    internal static bool RoofedRoom(Region roofed, PlannedRoom r) => r.Region.Cells().All(roofed.Contains);
 }
 
 internal sealed partial class Tiler
@@ -156,29 +159,29 @@ internal sealed partial class Tiler
         var p = Out.Plan;
         if (p.Roofed.Empty())
         {
-            NoteAirlock(-1, ReasonTileAirlockTemperate, TilePlace);
+            NoteAirlock(-1, LayoutTileRules.ReasonTileAirlockTemperate, LayoutTileRules.TilePlace);
             return false;
         }
         var known = In.OutdoorCurve.TryGetValue(out var curve);
         var m = In.Catalog.Climate;
         if (!known || !m.Valid() || !QuestCapacityForecast.FinitePositive(In.SteelValue))
         {
-            NoteAirlock(-1, ReasonTileAirlockUnpriced, TileUnsatisfied);
+            NoteAirlock(-1, LayoutTileRules.ReasonTileAirlockUnpriced, LayoutTileRules.TileUnsatisfied);
             return false;
         }
-        var movements = ExteriorDoorMovements(p);
+        var movements = LayoutPlan.ExteriorDoorMovements(p);
         var claimed = new HashSet<Cell>();
         var placed = false;
         for (var i = 0; i < Rooms.Count; i++)
         {
             var room = p.Rooms[i];
-            if (ExtDoor[i] is null || room.Unfenced() || !RoofedRoom(p.Roofed, room))
+            if (ExtDoor[i] is null || room.Unfenced() || !LayoutTileAirlockRules.RoofedRoom(p.Roofed, room))
             {
                 continue;
             }
             var g = In.Groups[Rooms[i].Group];
-            var band = ComfortBand();
-            if (GroupCold(g) && In.FullRotRateC > 0)
+            var band = LayoutRoofRules.ComfortBand();
+            if (LayoutTileRules.GroupCold(g) && In.FullRotRateC > 0)
             {
                 band = new Band { MinC = double.NegativeInfinity, MaxC = In.FullRotRateC };
             }
@@ -190,22 +193,22 @@ internal sealed partial class Tiler
             }
             catch (DomainException)
             {
-                NoteAirlock(g.Id, ReasonTileAirlockUnpriced, TileUnsatisfied);
+                NoteAirlock(g.Id, LayoutTileRules.ReasonTileAirlockUnpriced, LayoutTileRules.TileUnsatisfied);
                 continue;
             }
             var door = options[0].TotalW;
             var airlock = options[1].TotalW;
             if (airlock >= door)
             {
-                NoteAirlock(g.Id, ReasonTileAirlockNotPaid, TileUnsatisfied);
+                NoteAirlock(g.Id, LayoutTileRules.ReasonTileAirlockNotPaid, LayoutTileRules.TileUnsatisfied);
                 continue;
             }
             var rot = room.DoorRot!.Value;
-            var child = AttachAirlock(room.Door, rot);
+            var child = PlannedRoom.AttachAirlock(room.Door, rot);
             var ground = new List<Cell>(child.AirlockWalls()) { child.Vestibule(), child.Door };
-            if (ground.Any(c => !Free.Contains(c) || claimed.Contains(c)) || !Free.Contains(Outside(child.Door, rot)))
+            if (ground.Any(c => !Free.Contains(c) || claimed.Contains(c)) || !Free.Contains(LayoutAirlockRules.Outside(child.Door, rot)))
             {
-                NoteAirlock(g.Id, ReasonTileAirlockNoGround, TileUnsatisfied);
+                NoteAirlock(g.Id, LayoutTileRules.ReasonTileAirlockNoGround, LayoutTileRules.TileUnsatisfied);
                 continue;
             }
             foreach (var c in ground)
@@ -214,7 +217,7 @@ internal sealed partial class Tiler
             }
             child = child with { Id = Out.Plan.NextRoomId, Parent = room.Id };
             Out.Plan = Out.Plan with { NextRoomId = Out.Plan.NextRoomId + 1, Rooms = [.. Out.Plan.Rooms, child] };
-            NoteAirlock(g.Id, ReasonTileAirlock, TilePlace);
+            NoteAirlock(g.Id, LayoutTileRules.ReasonTileAirlock, LayoutTileRules.TilePlace);
             placed = true;
         }
         return placed;

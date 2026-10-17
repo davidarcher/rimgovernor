@@ -205,7 +205,7 @@ public static partial class StorageRules
     /// </summary>
     public static Fact<EquatableArray<Cell>> PlannedWalkways(LayoutPlan plan)
     {
-        var routes = CheckRoutes(plan);
+        var routes = LayoutPlan.CheckRoutes(plan);
         return routes.Ok ? Known(EquatableArray.From(StockpileRules.StockpileSorted(routes.Traffic.Keys))) : Unknown<EquatableArray<Cell>>();
     }
 

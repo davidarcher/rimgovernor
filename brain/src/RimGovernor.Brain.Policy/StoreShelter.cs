@@ -81,7 +81,7 @@ public sealed partial record StoreView
             {
                 continue;
             }
-            if (PolicyFunctions.CensusRoomIn(planned, Rooms).Ok)
+            if (PlannedRoom.CensusRoomIn(planned, Rooms).Ok)
             {
                 return true;
             }

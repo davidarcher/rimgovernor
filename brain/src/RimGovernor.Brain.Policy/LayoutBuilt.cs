@@ -91,7 +91,7 @@ internal sealed partial class Embedder
                     _builtReport.Add(new EmbedDecision { Group = -1, Other = -1, Verdict = PolicyConstants.EmbedKeep, Reason = PolicyConstants.ReasonEmbedBuiltNotRect, Room = b.Room });
                 }
             }
-            else if (!Base.Inside(PolicyFunctions.Pad(b.Region.Bounds(), 1)))
+            else if (!Base.Inside(LayoutPerimeterRules.Pad(b.Region.Bounds(), 1)))
             {
                 _builtReport.Add(new EmbedDecision { Group = -1, Other = -1, Verdict = PolicyConstants.EmbedKeep, Reason = PolicyConstants.ReasonEmbedBuiltOffMap, Room = b.Room });
             }
@@ -106,7 +106,7 @@ internal sealed partial class Embedder
     }
 
     /// <summary>Reports a block that touches a held room.</summary>
-    private bool HitsHeld(Rectangle r) => _held.Any(h => PolicyFunctions.Collides(r, h.Interior));
+    private bool HitsHeld(Rectangle r) => _held.Any(h => LayoutEmbedRules.Collides(r, h.Interior));
 
     /// <summary>
     /// The relocation pass over a placed embedding: the single built room that gains most by moving moves, when
@@ -140,7 +140,7 @@ internal sealed partial class Embedder
                 sizes = [.. _shapes[i]];
             }
             var richHere = Rich.Sum(h);
-            var threshold = (double)PolicyFunctions.SwitchThreshold(new PlannedRoom { Region = RegionRules.RectRegion(h) });
+            var threshold = (double)PlannedRoom.SwitchThreshold(new PlannedRoom { Region = RegionRules.RectRegion(h) });
             RelocateMove? bestBad = null;
             RelocateMove? bestGain = null;
             var any = false;
@@ -150,7 +150,7 @@ internal sealed partial class Embedder
                 foreach (var sh in sizes)
                 {
                     var r = new Rectangle(c.X, c.Z, sh.W, sh.H);
-                    if (r == h || PolicyFunctions.Collides(r, h) || !Fits(i, r, blocks, _sky[i]))
+                    if (r == h || LayoutEmbedRules.Collides(r, h) || !Fits(i, r, blocks, _sky[i]))
                     {
                         continue;
                     }
@@ -166,7 +166,7 @@ internal sealed partial class Embedder
                         cand.Hard = true;
                         cand.Grown = true;
                         cand.Margin = _groups[i].Area - (h.Width * h.Height); // the floor it lacks
-                        if (bestBad is null || PolicyFunctions.Better(cost, r, bestBad.Cost, bestBad.Rect, true))
+                        if (bestBad is null || LayoutEmbedRules.Better(cost, r, bestBad.Cost, bestBad.Rect, true))
                         {
                             bestBad = cand;
                         }
@@ -174,12 +174,12 @@ internal sealed partial class Embedder
                     else if (richHere > 0 && Rich.Sum(r) < richHere)
                     {
                         cand.Hard = true;
-                        if (bestBad is null || PolicyFunctions.Better(cost, r, bestBad.Cost, bestBad.Rect, true))
+                        if (bestBad is null || LayoutEmbedRules.Better(cost, r, bestBad.Cost, bestBad.Rect, true))
                         {
                             bestBad = cand;
                         }
                     }
-                    if (cand.Margin >= threshold && (bestGain is null || PolicyFunctions.Better(cost, r, bestGain.Cost, bestGain.Rect, true)))
+                    if (cand.Margin >= threshold && (bestGain is null || LayoutEmbedRules.Better(cost, r, bestGain.Cost, bestGain.Rect, true)))
                     {
                         bestGain = cand;
                     }
@@ -235,7 +235,7 @@ internal sealed partial class Embedder
                 }
                 else
                 {
-                    output.Price = PolicyFunctions.SwitchThreshold(new PlannedRoom { Region = RegionRules.RectRegion(_home[i]) });
+                    output.Price = PlannedRoom.SwitchThreshold(new PlannedRoom { Region = RegionRules.RectRegion(_home[i]) });
                 }
             }
             else if (trigger.TryGetValue(i, out var tr) && tr.Group == i && tr.Rect.Width > 0)
@@ -257,7 +257,7 @@ internal sealed partial class Embedder
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutBuiltRules
 {
     /// <summary>
     /// Picks, for each room group, the standing room that is its block: the largest rectangular room
@@ -275,7 +275,7 @@ public static partial class PolicyFunctions
         {
             byId[b.Room] = b;
         }
-        foreach (var m in MatchGroupRooms(groups, built))
+        foreach (var m in LayoutStationPlanRules.MatchGroupRooms(groups, built))
         {
             if (m.Rooms.Count == 0)
             {
@@ -299,7 +299,7 @@ public static partial class PolicyFunctions
             {
                 home[m.Group] = pick.Region.Bounds();
                 room[m.Group] = pick.Room;
-                outgrown[m.Group] = GroupOutgrown(groups[m.Group], m);
+                outgrown[m.Group] = LayoutStationPlanRules.GroupOutgrown(groups[m.Group], m);
             }
         }
         return (home, room, outgrown, decisions);

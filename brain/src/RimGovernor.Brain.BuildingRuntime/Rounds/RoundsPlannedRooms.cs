@@ -76,18 +76,18 @@ public sealed partial class RoundsBuildingPlanner
         var known = facts.LayoutPlan.TryGetValue(out var plan);
         if (Facility is not null)
         {
-            return Facility.Role == Pol.RoomRole.Laboratory && !AdvancedLab && PolicyFunctions.ShelterHosts(Capability.Research);
+            return Facility.Role == Pol.RoomRole.Laboratory && !AdvancedLab && LayoutCapabilityRules.ShelterHosts(Capability.Research);
         }
 
         if (CraftingSpot)
         {
-            return PolicyFunctions.ShelterHosts(Capability.Craft);
+            return LayoutCapabilityRules.ShelterHosts(Capability.Craft);
         }
 
         if (Definition == PolicyConstants.ShelterHeatDef)
         {
             var cooking = Concern == PolicyFunctions.CookingNeed.FilingKey && Paste.Count == 0;
-            return known && plan!.Cold && PolicyFunctions.ShelterHosts(Capability.Heat) && (cooking || (Temperature is not null && Temperature.Method == TemperatureMethod.Heat));
+            return known && plan!.Cold && LayoutCapabilityRules.ShelterHosts(Capability.Heat) && (cooking || (Temperature is not null && Temperature.Method == TemperatureMethod.Heat));
         }
 
         if (Definition == PolicyConstants.ShelterCoolDef)
@@ -132,7 +132,7 @@ partial class RoundsBuildingPlanner
             return (default!, false);
         }
 
-        return (PolicyFunctions.GroundOf(construction.Buildings), true);
+        return (LayoutGroundRules.GroundOf(construction.Buildings), true);
     }
 
     internal static IReadOnlyList<Cell>? PlannedRoomCells(ColonyProjection facts, PlannedRole module)
@@ -150,7 +150,7 @@ partial class RoundsBuildingPlanner
                 continue;
             }
 
-            var (_, ok) = PolicyFunctions.CensusRoomIn(r, rooms);
+            var (_, ok) = PlannedRoom.CensusRoomIn(r, rooms);
             if (!ok)
             {
                 continue;
@@ -200,9 +200,9 @@ partial class RoundsBuildingPlanner
     internal static MethodId PlannedRoomMethod(PlannedRoom room) =>
         new($"{Wire.Name(room.Role)}-shell-room{room.Id}");
 
-    internal static int ShelterCampfires(ColonyProjection facts) => PolicyFunctions.ShelterCampfires(facts.LayoutPlan.TryGetValue(out var plan) && plan.Cold);
+    internal static int ShelterCampfires(ColonyProjection facts) => LayoutShelterRules.ShelterCampfires(facts.LayoutPlan.TryGetValue(out var plan) && plan.Cold);
 
-    internal static int ShelterCoolers(ColonyProjection facts) => PolicyFunctions.ShelterCoolers(facts.LayoutPlan.TryGetValue(out var plan) && plan.Hot);
+    internal static int ShelterCoolers(ColonyProjection facts) => LayoutShelterRules.ShelterCoolers(facts.LayoutPlan.TryGetValue(out var plan) && plan.Hot);
 
     internal static IReadOnlyList<InteriorRoom> PlannedShelterRooms(ColonyProjection facts)
     {
@@ -210,7 +210,7 @@ partial class RoundsBuildingPlanner
         var rooms = PlannedInteriorRooms(facts, planned => planned.Role == PlannedRole.Shelter).ToList();
         for (var i = 0; i < rooms.Count; i++)
         {
-            rooms[i] = rooms[i] with { Campfires = PolicyFunctions.ShelterCampfires(known && plan!.Cold), Coolers = PolicyFunctions.ShelterCoolers(known && plan!.Hot) };
+            rooms[i] = rooms[i] with { Campfires = LayoutShelterRules.ShelterCampfires(known && plan!.Cold), Coolers = LayoutShelterRules.ShelterCoolers(known && plan!.Hot) };
         }
 
         return rooms;
@@ -283,7 +283,7 @@ partial class RoundsBuildingPlanner
     }
 
     internal static IReadOnlyList<InteriorRoom> ResearchHostRooms(ColonyProjection facts) =>
-        PolicyFunctions.CapabilitiesOf(PlannedRole.Shelter).Contains(Capability.Research) ? PlannedShelterRooms(facts) : [];
+        LayoutCapabilityRules.CapabilitiesOf(PlannedRole.Shelter).Contains(Capability.Research) ? PlannedShelterRooms(facts) : [];
 
     internal static IReadOnlyList<RoleMismatch> RoleMismatches(ColonyProjection facts)
     {

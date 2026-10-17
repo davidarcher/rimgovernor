@@ -30,7 +30,7 @@ public static partial class RoomRoleRules
         var output = new List<RoomContents>();
         foreach (var planned in plan.Rooms)
         {
-            var (census, standing) = CensusRoomIn(planned, rooms);
+            var (census, standing) = PlannedRoom.CensusRoomIn(planned, rooms);
             if (!standing)
             {
                 continue;

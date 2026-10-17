@@ -3,13 +3,13 @@ namespace RimGovernor.Brain.Policy;
 public sealed partial record PlannedRoom
 {
     /// <summary>The rectangle the porch occupies beyond its parent's ring; empty for any room but a porch.</summary>
-    public Rectangle PorchGround() => Role != PolicyFunctions.PlannedPorch ? new Rectangle() : Region.Bounds();
+    public Rectangle PorchGround() => Role != LayoutPorchRules.PlannedPorch ? new Rectangle() : Region.Bounds();
 
     /// <summary>The porch's battery footprints, nearest the interior's near corner first: 1x2 turned east across a strip along x, facing north along one along z.</summary>
     public List<Rectangle> PorchSlots()
     {
         var output = new List<Rectangle>();
-        if (Role != PolicyFunctions.PlannedPorch)
+        if (Role != LayoutPorchRules.PlannedPorch)
         {
             return output;
         }
@@ -31,10 +31,10 @@ public sealed partial record PlannedRoom
 }
 
 /// <summary>Ports <c>layout_porch.go</c>: a cold-map shelter's open lean-to child room.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutPorchRules
 {
     /// <summary>The porch's long side in cells: two batteries end to end.</summary>
-    private const int PorchLength = 4;
+    internal const int PorchLength = 4;
 
     /// <summary>
     /// A cold-map shelter's open lean-to child room: a one-cell strip on the exterior face of the wall opposite the
@@ -43,28 +43,34 @@ public static partial class PolicyFunctions
     /// 1x2 batteries turned east, one longer along z batteries facing north.
     /// </summary>
     public static PlannedRole PlannedPorch => PlannedRole.Porch;
+}
 
+partial record PlannedRoom
+{
     /// <summary>The porch for a shelter on interior in whose door faces rot: against the wall opposite the door, from the interior's near corner.</summary>
     internal static PlannedRoom AttachPorch(Rectangle ins, Rotation rot)
     {
         var strip = rot switch
         {
             // door on the north wall: the porch is outside the south wall
-            Rotation.North => new Rectangle { X = ins.X, Z = ins.Z - 2, Width = PorchLength, Height = 1 },
-            Rotation.South => new Rectangle { X = ins.X, Z = ins.Z + ins.Height + 1, Width = PorchLength, Height = 1 },
-            Rotation.East => new Rectangle { X = ins.X - 2, Z = ins.Z, Width = 1, Height = PorchLength },
-            _ => new Rectangle { X = ins.X + ins.Width + 1, Z = ins.Z, Width = 1, Height = PorchLength },
+            Rotation.North => new Rectangle { X = ins.X, Z = ins.Z - 2, Width = LayoutPorchRules.PorchLength, Height = 1 },
+            Rotation.South => new Rectangle { X = ins.X, Z = ins.Z + ins.Height + 1, Width = LayoutPorchRules.PorchLength, Height = 1 },
+            Rotation.East => new Rectangle { X = ins.X - 2, Z = ins.Z, Width = 1, Height = LayoutPorchRules.PorchLength },
+            _ => new Rectangle { X = ins.X + ins.Width + 1, Z = ins.Z, Width = 1, Height = LayoutPorchRules.PorchLength },
         };
-        return new PlannedRoom { Role = PlannedPorch, Region = RegionRules.RectRegion(strip), DoorRot = rot };
+        return new PlannedRoom { Role = LayoutPorchRules.PlannedPorch, Region = RegionRules.RectRegion(strip), DoorRot = rot };
     }
+}
 
+partial record LayoutPlan
+{
     /// <summary>The cells to designate in the Build Roof area for every porch in the plan, in plan order.</summary>
     public static List<Cell> PorchRoofCells(LayoutPlan plan)
     {
         var output = new List<Cell>();
-        foreach (var r in plan.RoomsOf(PlannedPorch))
+        foreach (var r in plan.RoomsOf(LayoutPorchRules.PlannedPorch))
         {
-            output.AddRange(RectangleCells(r.Region.Bounds()));
+            output.AddRange(LayoutUtilityRules.RectangleCells(r.Region.Bounds()));
         }
         return output;
     }
@@ -73,7 +79,7 @@ public static partial class PolicyFunctions
     internal static List<PlannedPowerSite> PorchSites(LayoutPlan plan)
     {
         var output = new List<PlannedPowerSite>();
-        foreach (var r in plan.RoomsOf(PlannedPorch))
+        foreach (var r in plan.RoomsOf(LayoutPorchRules.PlannedPorch))
         {
             foreach (var s in r.PorchSlots())
             {

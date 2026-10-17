@@ -121,7 +121,7 @@ public sealed record SeekerNeed(NeedCurve Curve, SeekerGameDef Game)
     /// <summary>Simulates the need over the day, repeated until it settles. False for an invalid curve or a day that is not 24 hours of segments.</summary>
     public (EnvRun? Run, bool Ok) Run(IReadOnlyList<EnvSegment> day)
     {
-        var steps = PolicyFunctions.EnvDaySteps();
+        var steps = LayoutComfortRules.EnvDaySteps();
         if (!Curve.Valid())
         {
             return (null, false);
@@ -185,7 +185,7 @@ public sealed record SeekerNeed(NeedCurve Curve, SeekerGameDef Game)
         {
             return level;
         }
-        var perStep = PolicyFunctions.SeekerGame().IntervalTicks / GameTime.TicksPerHour;
+        var perStep = LayoutComfortRules.SeekerGame().IntervalTicks / GameTime.TicksPerHour;
         if (target > level)
         {
             level = Math.Min(level + (Curve.RisePerHour * perStep), target);
@@ -220,7 +220,7 @@ public sealed record SeekerNeed(NeedCurve Curve, SeekerGameDef Game)
         {
             return (default, false);
         }
-        var (price, pok) = PolicyFunctions.PriceMood(new MoodPriceInput { Model = input.Mood.Break, WorkDayW = input.WorkDayW, Points = mb - ma, Pawns = input.Pawns, ExpectedMood = input.ExpectedMood });
+        var (price, pok) = LayoutMoodRules.PriceMood(new MoodPriceInput { Model = input.Mood.Break, WorkDayW = input.WorkDayW, Points = mb - ma, Pawns = input.Pawns, ExpectedMood = input.ExpectedMood });
         if (!pok)
         {
             return (default, false);
@@ -288,18 +288,18 @@ public sealed record ComfortModel
     public double BedOffset { get; init; }
 
     /// <summary>The comfort need over the model.</summary>
-    public SeekerNeed ComfortNeed() => new(Comfort, PolicyFunctions.SeekerGame().Comfort);
+    public SeekerNeed ComfortNeed() => new(Comfort, LayoutComfortRules.SeekerGame().Comfort);
 
     /// <summary>
     /// The beauty need over the model. Beauty is fed by the cells around a spot, not by furniture comfort; a
     /// caller with decor candidates prices them through SeekerNeed.Price with BeautyTarget, the same shape as a
     /// chair.
     /// </summary>
-    public SeekerNeed BeautyNeed() => new(Beauty, PolicyFunctions.SeekerGame().Beauty);
+    public SeekerNeed BeautyNeed() => new(Beauty, LayoutComfortRules.SeekerGame().Beauty);
 
     /// <summary>The instant level of beauty at a spot whose visible cells have the given mean beauty (Need_Beauty.LevelFromBeauty).</summary>
     public double BeautyTarget(double meanBeauty) =>
-        Math.Min(Math.Max(Beauty.Base + (PolicyFunctions.SeekerGame().BeautyImpact * meanBeauty), 0), 1);
+        Math.Min(Math.Max(Beauty.Base + (LayoutComfortRules.SeekerGame().BeautyImpact * meanBeauty), 0), 1);
 }
 
 /// <summary>
@@ -343,7 +343,7 @@ public sealed record ComfortInput
     public double Steel { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutComfortRules
 {
     private static readonly SeekerTable SeekerGameTable = new(
         IntervalTicks: 150,

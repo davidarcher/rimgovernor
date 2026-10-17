@@ -109,7 +109,7 @@ public sealed partial class DefinitionCatalog
     // power supply.
     internal P.PowerModel PowerModel()
     {
-        string[] needed = [WindTurbineDefinition, SolarDefinition, BatteryDefinition, PowerConduitDefinition, ShellWallDefinition];
+        string[] needed = [WindTurbineDefinition, P.LayoutUtilityRules.SolarDefinition, BatteryDefinition, P.LayoutPowerDeriveRules.PowerConduitDefinition, ShellWallDefinition];
         if (needed.Any(name => !_thingDefs.ContainsKey(name)))
         {
             return new P.PowerModel();
@@ -126,9 +126,9 @@ public sealed partial class DefinitionCatalog
         return new P.PowerModel
         {
             Wind = Supply(WindTurbineDefinition),
-            Solar = Supply(SolarDefinition),
+            Solar = Supply(P.LayoutUtilityRules.SolarDefinition),
             Battery = PowerBattery(BatteryDefinition),
-            Conduit = CheapestCostValue(PowerConduitDefinition),
+            Conduit = CheapestCostValue(P.LayoutPowerDeriveRules.PowerConduitDefinition),
             Wall = CheapestCostValue(ShellWallDefinition),
         };
     }

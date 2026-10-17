@@ -26,9 +26,9 @@ public sealed record PowerModel
     /// <summary>The storage of the planned battery room: its slots at the catalog battery's capacity.</summary>
     internal double BatteryRoomCapacityWD()
     {
-        var table = PolicyFunctions.RoomSizes;
-        var room = new PlannedRoom { Role = PolicyFunctions.PlannedBattery, Region = RegionRules.RectRegion(new Rectangle { Width = table.Battery[0], Height = table.Battery[1] }), DoorRot = Rotation.South };
-        return PolicyFunctions.BatterySlots(room).Count * Battery.CapacityWD;
+        var table = LayoutTripsRules.RoomSizes;
+        var room = new PlannedRoom { Role = LayoutUtilityRules.PlannedBattery, Region = RegionRules.RectRegion(new Rectangle { Width = table.Battery[0], Height = table.Battery[1] }), DoorRot = Rotation.South };
+        return PlannedRoom.BatterySlots(room).Count * Battery.CapacityWD;
     }
 }
 
@@ -39,7 +39,7 @@ public sealed record PowerModel
 /// price (build, conduit, wall and ground, in watts) is least per watt it delivers. A catalog without the rows, or a
 /// colony without the steel price, makes the count unknown, never a default.
 /// </summary>
-public static partial class PolicyFunctions
+public static partial class LayoutPowerDeriveRules
 {
     /// <summary>The DefTables table that owns the conduit's name.</summary>
     private const string SiteConduit = "PowerConduit";
@@ -69,7 +69,7 @@ public static partial class PolicyFunctions
             }
             if (!QuestCapacityForecast.FinitePositive(lamp.PowerW) || !QuestCapacityForecast.FinitePositive(reach))
             {
-                throw UnknownStationFact("lamp");
+                throw LayoutStationPlanRules.UnknownStationFact("lamp");
             }
             demand += lamp.PowerW * Math.Ceiling(g.Area / (Math.PI * reach * reach));
         }
@@ -107,7 +107,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static (List<SiteNode> Nodes, SiteEmbedding Placed) PowerSites(this StationFacts f, IReadOnlyList<RoomGroup> groups, EmbedInput embedIn, Embedding embedding)
     {
-        var nodes = PowerNodesOf(f.Plan);
+        var nodes = LayoutPlan.PowerNodesOf(f.Plan);
         var priced = f.SitePriceOf(); // a replan's advice places the sites it holds, priced or not
         var input = new SiteEmbedInput { Embed = embedIn, Embedding = embedding, Nodes = nodes, Price = priced ?? new SitePrice() };
         if (!f.Derive)
@@ -116,16 +116,16 @@ public static partial class PolicyFunctions
             {
                 return ([], new SiteEmbedding());
             }
-            return (nodes, EmbedSites(input));
+            return (nodes, LayoutSiteRunRules.EmbedSites(input));
         }
         var demand = f.PlannedDemandW(groups);
         if (demand > 0 && priced is null)
         {
             if (SteelValue(f) is null)
             {
-                throw UnknownStationFact("steel value");
+                throw LayoutStationPlanRules.UnknownStationFact("steel value");
             }
-            throw UnknownStationFact("power supply");
+            throw LayoutStationPlanRules.UnknownStationFact("power supply");
         }
         var run = new SiteRun(input);
         foreach (var n in nodes)
@@ -168,8 +168,8 @@ public static partial class PolicyFunctions
             {
                 return nodes;
             }
-            var turbine = TurbineNode(WindNodeId(turbines + 1));
-            var plot = SolarNode(SolarNodeId(plots + 1));
+            var turbine = LayoutPowerNodesRules.TurbineNode(LayoutPowerNodesRules.WindNodeId(turbines + 1));
+            var plot = LayoutPowerNodesRules.SolarNode(LayoutPowerNodesRules.SolarNodeId(plots + 1));
             var tq = run.Quote(turbine);
             var sq = run.Quote(plot);
 
@@ -215,15 +215,15 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            if (n.Kind == NodeTurbine)
+            if (n.Kind == LayoutPowerNodesRules.NodeTurbine)
             {
                 var blocked = site.Lanes.Where(l => l.Wind).Sum(l => l.Blocked);
-                var output = WindOutput(blocked);
+                var output = LayoutPowerNodesRules.WindOutput(blocked);
                 producers.Add(new PowerProducer { Definition = WindTurbineDefinition, NominalW = p.Wind.NominalW, Profile = new PowerSourceProfile { Daily = p.Wind.Profile.Daily * output, Night = p.Wind.Profile.Night * output } });
             }
-            else if (n.Kind == NodeSolar)
+            else if (n.Kind == LayoutPowerNodesRules.NodeSolar)
             {
-                producers.Add(new PowerProducer { Definition = SolarDefinition, NominalW = p.Solar.NominalW, Profile = p.Solar.Profile });
+                producers.Add(new PowerProducer { Definition = LayoutUtilityRules.SolarDefinition, NominalW = p.Solar.NominalW, Profile = p.Solar.Profile });
             }
         }
         var input = new PowerBudgetInput { DemandW = demand, CapacityWD = p.BatteryRoomCapacityWD(), ChargeEfficiency = p.Battery.Efficiency, StorageMargin = PowerRules.DefaultPowerPlanning().StorageMargin, Producers = producers };

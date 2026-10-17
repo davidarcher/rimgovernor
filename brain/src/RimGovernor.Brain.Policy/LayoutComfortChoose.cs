@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class LayoutComfortChooseRules
 {
     /// <summary>
     /// Advises a comfort tier for the sleep node and each worked bench. The bed is chosen first against the
@@ -39,7 +39,7 @@ public static partial class PolicyFunctions
             var choice = new ComfortChoice { Node = sleep.Id, Option = baseOption };
             if (known && found)
             {
-                IReadOnlyList<EnvSegment> DayOf(ComfortOption o) => EnvDay(o.Comfort + input.Model.BedOffset, []);
+                IReadOnlyList<EnvSegment> DayOf(ComfortOption o) => LayoutComfortRules.EnvDay(o.Comfort + input.Model.BedOffset, []);
                 choice = ChooseOption(need, price, choice.Node, DayOf(baseOption), baseOption, UndominatedWith(input.Model.Beds, baseOption), sleep.Count, BuildCost, DayOf);
                 bedTarget = choice.Option.Comfort + input.Model.BedOffset;
                 bedKnown = true;
@@ -54,8 +54,8 @@ public static partial class PolicyFunctions
             {
                 var hours = n.DailyWork / GameTime.TicksPerHour / input.Pawns;
                 var earlier = spots.ToList();
-                IReadOnlyList<EnvSegment> DayOf(ComfortOption o) => EnvDay(bedTarget, [.. earlier, new EnvSpot(hours, o.Comfort)]);
-                choice = ChooseOption(need, price, n.Id, EnvDay(bedTarget, earlier), new ComfortOption(), Undominated(input.Model.Chairs), n.Count, BuildCost, DayOf);
+                IReadOnlyList<EnvSegment> DayOf(ComfortOption o) => LayoutComfortRules.EnvDay(bedTarget, [.. earlier, new EnvSpot(hours, o.Comfort)]);
+                choice = ChooseOption(need, price, n.Id, LayoutComfortRules.EnvDay(bedTarget, earlier), new ComfortOption(), LayoutComfortRules.Undominated(input.Model.Chairs), n.Count, BuildCost, DayOf);
                 if (choice.Option.Def != string.Empty)
                 {
                     spots.Add(new EnvSpot(hours, choice.Option.Comfort));
@@ -93,7 +93,7 @@ public static partial class PolicyFunctions
 
     /// <summary>The undominated options with base kept: the baseline stays a candidate however the rest rank.</summary>
     private static List<ComfortOption> UndominatedWith(IReadOnlyList<ComfortOption> options, ComfortOption baseOption) =>
-        Undominated([.. options, baseOption]);
+        LayoutComfortRules.Undominated([.. options, baseOption]);
 
     /// <summary>The baseline bed: the def's option with the most comfort per cost (the planner's own rule), the most comfort when free, by stuff when equal.</summary>
     private static (ComfortOption Option, bool Found) BedOption(IReadOnlyList<ComfortOption> beds, string def)
@@ -169,7 +169,7 @@ public static partial class PolicyFunctions
             Graph = graph,
             Baseline = f.Furniture.PrimaryBed(),
             Pawns = (int)colonists,
-            WorkDayW = StationWorkDayW(f),
+            WorkDayW = LayoutLightRules.StationWorkDayW(f),
             ExpectedMood = mood,
             Steel = steel,
         });

@@ -201,7 +201,7 @@ partial class RoundsSleepingUpkeepPlanner
             return v;
         }
         // Census: the floor requirement is keyed by the room's id.
-        var (standing, found) = CensusRoomIn(room, rooms);
+        var (standing, found) = PlannedRoom.CensusRoomIn(room, rooms);
         if (!found || standing is null)
         {
             return v;

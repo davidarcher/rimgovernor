@@ -110,7 +110,7 @@ public sealed record SiteGround
 }
 
 /// <summary>Ports <c>layout_site_ground.go</c>: siting seeds and the survey's shared ground state.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutSiteGroundRules
 {
     /// <summary>Search the best SiteSearchTop candidates for at most SiteSearchIters moves each. Iteration counts keep results deterministic; hourly replans use a separate, smaller budget.</summary>
     public const int SiteSearchTop = 8;

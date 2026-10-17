@@ -649,7 +649,7 @@ public static partial class PerimeterCutRules
         {
             return new PerimeterCut();
         }
-        var enc = CoreEnclosure(plan, w, h);
+        var enc = LayoutPlan.CoreEnclosure(plan, w, h);
         if (enc.Bbox.Width == 0)
         {
             return new PerimeterCut();
@@ -719,12 +719,12 @@ public static partial class PerimeterCutRules
         }
 
         // The opening: its channel through the ring, the lane outside it.
-        var (k, kok) = KillboxOpening(plan);
+        var (k, kok) = LayoutPlan.KillboxOpening(plan);
         if (kok)
         {
             var d = DefenseTurretsPolicy.DirectionOf(k.Toward);
             var p = DefenseLayout.Perpendicular(d);
-            for (var t = 0; t < PerimeterThick; t++)
+            for (var t = 0; t < LayoutPerimeterRules.PerimeterThick; t++)
             {
                 for (var a = -1; a <= 1; a++)
                 {

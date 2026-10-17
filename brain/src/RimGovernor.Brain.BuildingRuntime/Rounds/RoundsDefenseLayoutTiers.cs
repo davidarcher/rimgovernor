@@ -190,7 +190,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var walls = new List<Cell>();
         foreach (var tier in record.Tiers)
         {
-            if (tier.Name == DefenseTurretsPolicy.TierTurrets || PolicyApi.IsPerimeterTier(tier.Name) || tier.Name.Value.StartsWith(DefenseTurretReplacePrefix, StringComparison.Ordinal))
+            if (tier.Name == DefenseTurretsPolicy.TierTurrets || LayoutDefenseRules.IsPerimeterTier(tier.Name) || tier.Name.Value.StartsWith(DefenseTurretReplacePrefix, StringComparison.Ordinal))
             {
                 continue;
             }

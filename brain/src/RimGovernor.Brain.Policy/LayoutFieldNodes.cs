@@ -71,9 +71,9 @@ internal sealed partial class GraphBuilder
             crop.FertilityMin.TryGetValue(out var fertility);
             var node = new FieldNode
             {
-                Id = PolicyFunctions.FieldId(crop.Name),
+                Id = LayoutFieldNodesRules.FieldId(crop.Name),
                 Area = cells,
-                FertilityMin = Math.Max(fertility, PolicyFunctions.ZoneFieldFertility),
+                FertilityMin = Math.Max(fertility, LayoutZoningRules.ZoneFieldFertility),
             };
             output.Add(node);
             var uk = crop.UnitsPerCell.TryGetValue(out var perCell);
@@ -89,11 +89,11 @@ internal sealed partial class GraphBuilder
             }
             foreach (var l in loads)
             {
-                foreach (var pick in PolicyFunctions.RecipePicks(In.Recipes[l.Recipe]))
+                foreach (var pick in LayoutGraphRules.RecipePicks(In.Recipes[l.Recipe]))
                 {
                     if (pick.Resource == harvests)
                     {
-                        AddEdge(node.Id, PolicyFunctions.NodeId(l.Station, StationPurpose.Work), l.Runs * pick.Count, false);
+                        AddEdge(node.Id, LayoutGraphRules.NodeId(l.Station, StationPurpose.Work), l.Runs * pick.Count, false);
                     }
                 }
             }
@@ -103,7 +103,7 @@ internal sealed partial class GraphBuilder
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutFieldNodesRules
 {
     internal static string FieldId(string crop) => "field/" + crop;
 }

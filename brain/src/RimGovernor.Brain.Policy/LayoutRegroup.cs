@@ -26,7 +26,7 @@ public sealed record RegroupPrice
         {
             return 0;
         }
-        var (price, priced) = PolicyFunctions.PriceMood(new MoodPriceInput { Model = Mood.Break, WorkDayW = Work.WorkDayW, Points = lost, Pawns = l.Pawns, ExpectedMood = level });
+        var (price, priced) = LayoutMoodRules.PriceMood(new MoodPriceInput { Model = Mood.Break, WorkDayW = Work.WorkDayW, Points = lost, Pawns = l.Pawns, ExpectedMood = level });
         return priced ? Work.Points(price.WorkDays) : 0;
     }
 
@@ -159,9 +159,9 @@ internal sealed class Regrouper(RegroupInput input)
     public RegroupTrial Evaluate(IReadOnlyList<NodePair> pairs)
     {
         var ci = In.Cluster with { Pairs = pairs };
-        var cl = PolicyFunctions.ClusterStations(ci);
-        var embed = In.Embed with { Groups = cl.Groups, Fields = PolicyFunctions.FieldEmbedLinks(ci.Graph, cl.Groups) };
-        var emb = PolicyFunctions.Embed(embed);
+        var cl = LayoutClusterRules.ClusterStations(ci);
+        var embed = In.Embed with { Groups = cl.Groups, Fields = StationGraph.FieldEmbedLinks(ci.Graph, cl.Groups) };
+        var emb = Embedding.Embed(embed);
         var t = new RegroupTrial { Pairs = pairs, Clustering = cl, Embed = embed, Embedding = emb };
         t.Failed = emb.Unplaceable().Count + emb.Score.UnmetLinks;
         t.EmbedPts = -(double)emb.Score.Total();
@@ -195,7 +195,7 @@ internal sealed class Regrouper(RegroupInput input)
             RoomRole role;
             try
             {
-                role = RoomRoleRules.PredictRole(cat, [new RoomPiece { Def = s.Def, State = PolicyFunctions.PieceState(s.Purpose, cat.Stations[s.Def]) }]).Role;
+                role = RoomRoleRules.PredictRole(cat, [new RoomPiece { Def = s.Def, State = LayoutClusterRules.PieceState(s.Purpose, cat.Stations[s.Def]) }]).Role;
             }
             catch (DomainException)
             {
@@ -221,7 +221,7 @@ internal sealed class Regrouper(RegroupInput input)
         {
             return output;
         }
-        foreach (var m in PolicyFunctions.MatchGroupRooms(groups, In.Embed.Built))
+        foreach (var m in LayoutStationPlanRules.MatchGroupRooms(groups, In.Embed.Built))
         {
             var g = groups[m.Group];
             foreach (var mm in In.Mismatches)
@@ -257,7 +257,7 @@ internal sealed class Regrouper(RegroupInput input)
 
     /// <summary>A split of a room that carries a role-guard cost.</summary>
     public static bool GuardedPair(RegroupTrial cur, RegroupProposal m) =>
-        cur.Clustering.Groups.Any(g => cur.Guarded.GetValueOrDefault(g.Id) && PolicyFunctions.HoldsNode(g, m.A) && PolicyFunctions.HoldsNode(g, m.B));
+        cur.Clustering.Groups.Any(g => cur.Guarded.GetValueOrDefault(g.Id) && LayoutRegroupRules.HoldsNode(g, m.A) && LayoutRegroupRules.HoldsNode(g, m.B));
 
     /// <summary>The moves open from a grouping, in a fixed order.</summary>
     public List<RegroupProposal> Candidates(RegroupTrial cur)
@@ -276,27 +276,27 @@ internal sealed class Regrouper(RegroupInput input)
         // merge: pairs the seed kept for a lost bench speed alone.
         foreach (var d in cur.Clustering.Decisions)
         {
-            if (d.Verdict != ClusterKeep || d.Reason != ReasonClusterLostEffect || d.LostEffects.Count > 0 || d.A == "" || d.B == "" || d.A == d.B || PolicyFunctions.RuleOf(cur.Pairs, d.A, d.B) != PairRule.None)
+            if (d.Verdict != ClusterKeep || d.Reason != ReasonClusterLostEffect || d.LostEffects.Count > 0 || d.A == "" || d.B == "" || d.A == d.B || LayoutRegroupRules.RuleOf(cur.Pairs, d.A, d.B) != PairRule.None)
             {
                 continue;
             }
-            Add(new RegroupProposal(PolicyFunctions.RegroupMerge, PolicyFunctions.ReasonRegroupMerge, d.A, d.B, [new NodePair(d.A, d.B, PairRule.Together)]));
+            Add(new RegroupProposal(LayoutRegroupRules.RegroupMerge, LayoutRegroupRules.ReasonRegroupMerge, d.A, d.B, [new NodePair(d.A, d.B, PairRule.Together)]));
         }
 
         // merge: a filth node kept in its closet joins the room of the node it flows to, when the walk saved outweighs the poisoning it costs the room's cooks. A filth model that cannot price the poisoning proposes nothing: the merge would look free.
         var priced = In.Cluster.Catalog.Filth.Priced();
         foreach (var d in cur.Clustering.Decisions)
         {
-            if (!priced || d.Verdict != ClusterKeep || d.Reason != ReasonClusterFilthPriced || d.A == "" || d.B == "" || d.A == d.B || PolicyFunctions.RuleOf(cur.Pairs, d.A, d.B) != PairRule.None)
+            if (!priced || d.Verdict != ClusterKeep || d.Reason != ReasonClusterFilthPriced || d.A == "" || d.B == "" || d.A == d.B || LayoutRegroupRules.RuleOf(cur.Pairs, d.A, d.B) != PairRule.None)
             {
                 continue;
             }
-            Add(new RegroupProposal(PolicyFunctions.RegroupMerge, PolicyFunctions.ReasonRegroupFilthMerge, d.A, d.B, [new NodePair(d.A, d.B, PairRule.Together)]));
+            Add(new RegroupProposal(LayoutRegroupRules.RegroupMerge, LayoutRegroupRules.ReasonRegroupFilthMerge, d.A, d.B, [new NodePair(d.A, d.B, PairRule.Together)]));
         }
         var groups = cur.Clustering.Groups;
         foreach (var g in groups)
         {
-            var nodes = PolicyFunctions.RoomNodes(g);
+            var nodes = LayoutRegroupRules.RoomNodes(g);
             if (nodes.Count < 2)
             {
                 continue;
@@ -310,9 +310,9 @@ internal sealed class Regrouper(RegroupInput input)
                 for (var j = i + 1; j < nodes.Count; j++)
                 {
                     string a = nodes[i], b = nodes[j];
-                    if ((whole || suffers.Contains(a) || suffers.Contains(b)) && PolicyFunctions.RuleOf(cur.Pairs, a, b) != PairRule.Apart)
+                    if ((whole || suffers.Contains(a) || suffers.Contains(b)) && LayoutRegroupRules.RuleOf(cur.Pairs, a, b) != PairRule.Apart)
                     {
-                        Add(new RegroupProposal(PolicyFunctions.RegroupSplit, PolicyFunctions.ReasonRegroupSplitConflict, a, b, [new NodePair(a, b, PairRule.Apart)]));
+                        Add(new RegroupProposal(LayoutRegroupRules.RegroupSplit, LayoutRegroupRules.ReasonRegroupSplitConflict, a, b, [new NodePair(a, b, PairRule.Apart)]));
                     }
                 }
             }
@@ -322,11 +322,11 @@ internal sealed class Regrouper(RegroupInput input)
             {
                 foreach (var h in groups)
                 {
-                    if (h.Id == g.Id || PolicyFunctions.RoomNodes(h).Count == 0 || PolicyFunctions.HoldsNode(h, c.Node) || !Target(c, g, h))
+                    if (h.Id == g.Id || LayoutRegroupRules.RoomNodes(h).Count == 0 || LayoutRegroupRules.HoldsNode(h, c.Node) || !Target(c, g, h))
                     {
                         continue;
                     }
-                    var first = PolicyFunctions.RoomNodes(h)[0];
+                    var first = LayoutRegroupRules.RoomNodes(h)[0];
                     var rules = new List<NodePair> { new(c.Node, first, PairRule.Together) };
                     foreach (var o in nodes)
                     {
@@ -335,7 +335,7 @@ internal sealed class Regrouper(RegroupInput input)
                             rules.Add(new NodePair(c.Node, o, PairRule.Apart));
                         }
                     }
-                    Add(new RegroupProposal(PolicyFunctions.RegroupMove, PolicyFunctions.ReasonRegroupMove, c.Node, first, rules));
+                    Add(new RegroupProposal(LayoutRegroupRules.RegroupMove, LayoutRegroupRules.ReasonRegroupMove, c.Node, first, rules));
                 }
             }
         }
@@ -373,7 +373,7 @@ internal sealed class Regrouper(RegroupInput input)
 /// current grouping. The moves are listed in a fixed order and sampled with the site's seeded stream when more than
 /// RegroupProposals are open, so the result is the same at any thread count.
 /// </remarks>
-public static partial class PolicyFunctions
+public static partial class LayoutRegroupRules
 {
     public const string RegroupMerge = "merge";
     public const string RegroupSplit = "split";
@@ -397,8 +397,8 @@ public static partial class PolicyFunctions
     public const string ReasonRegroupFilthKept = "regroup_filth_merge_poison_beats_walk";
 
     // The search budget, as SiteSearchTop / SiteSearchIters bound the embedding's: moves tried a round and rounds, each trial one clustering and one embedding.
-    internal const int RegroupProposals = SiteSearchTop;
-    internal const int RegroupRounds = SiteSearchTop / 2;
+    internal const int RegroupProposals = LayoutSiteGroundRules.SiteSearchTop;
+    internal const int RegroupRounds = LayoutSiteGroundRules.SiteSearchTop / 2;
 
     /// <summary>Prices a colonist's time from the station facts: the lamp price's own work-day and the walk of a cell at the game's ticks a second and a colonist's move speed. Invalid while the food census, the colonists, a crop or the game's tick rate is unknown.</summary>
     public static WorkPrice StationWorkPrice(StationFacts f)
@@ -408,7 +408,7 @@ public static partial class PolicyFunctions
         {
             return default;
         }
-        var p = new WorkPrice(StationWorkDayW(f), ticks / CombatManhunterRules.ColonistMoveSpeed / GameTime.TicksPerDay);
+        var p = new WorkPrice(LayoutLightRules.StationWorkDayW(f), ticks / CombatManhunterRules.ColonistMoveSpeed / GameTime.TicksPerDay);
         return p.Valid() ? p : default;
     }
 
@@ -477,7 +477,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Counts the groups no planned room carries (a barracks): the tiler cannot place them, so no move may add one.</summary>
-    private static int Unplaceable(IReadOnlyList<RoomGroup> groups) => groups.Count(g => !PlannedRoleOfGroup(g).Ok);
+    private static int Unplaceable(IReadOnlyList<RoomGroup> groups) => groups.Count(g => !LayoutTileRules.PlannedRoleOfGroup(g).Ok);
 
     /// <summary>The move m taking the grouping from to to.</summary>
     private static RegroupDecision MoveDecision(RegroupProposal m, RegroupTrial from, RegroupTrial to, string verdict, string reason) =>

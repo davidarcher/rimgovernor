@@ -40,7 +40,7 @@ public sealed partial record LayoutPlan
     }
 
     /// <summary>The plan's hospital rooms, in plan order.</summary>
-    internal IReadOnlyList<PlannedRoom> Hospitals() => Rooms.Where(r => r.Role == PolicyFunctions.PlannedHospital).ToList();
+    internal IReadOnlyList<PlannedRoom> Hospitals() => Rooms.Where(r => r.Role == LayoutSurveyRules.PlannedHospital).ToList();
 }
 
 public static partial class PolicyFunctions
@@ -103,7 +103,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static IReadOnlyList<InteriorPiece> WardSlots(PlannedRoom room, PieceShapes shapes, InteriorPieceDef bed)
     {
-        if (room.Role != PlannedHospital || string.IsNullOrEmpty(bed.Def) || bed.Size.X < 1 || bed.Size.Z < 1)
+        if (room.Role != LayoutSurveyRules.PlannedHospital || string.IsNullOrEmpty(bed.Def) || bed.Size.X < 1 || bed.Size.Z < 1)
         {
             return [];
         }
@@ -235,7 +235,7 @@ public static partial class PolicyFunctions
         var unread = false;
         foreach (var room in plan.Hospitals())
         {
-            var (_, standing) = CensusRoomIn(room, rooms);
+            var (_, standing) = PlannedRoom.CensusRoomIn(room, rooms);
             if (!standing)
             {
                 continue;

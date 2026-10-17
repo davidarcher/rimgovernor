@@ -41,7 +41,7 @@ public sealed record ReplanTileDiff
 /// and ReplanLayout takes the tiled plan as the next plan. DiffReplanTile says, room by room, what the tiled plan did
 /// with the plan the colony held; it is the layout_replan_tiled row's telemetry.
 /// </summary>
-public static partial class PolicyFunctions
+public static partial class LayoutReplanTiledRules
 {
     /// <summary>Verdict of a room in the replan diff: the tiled plan holds the room where the old plan has it.</summary>
     public const string TileDiffSame = "same";
@@ -79,20 +79,35 @@ public static partial class PolicyFunctions
     /// </summary>
     public static StationFacts ReplanTileFacts(StationFacts f, MapSurvey s, IReadOnlyList<PowerGeyser> geysers)
     {
-        var zones = Zone(s);
-        var footprints = GeyserFootprints(geysers);
+        var zones = LayoutZoningRules.Zone(s);
+        var footprints = LayoutDeriveRules.GeyserFootprints(geysers);
         return f with
         {
             Plan = f.Plan with
             {
-                Zones = CoreWithout(zones, GeothermalCells(footprints)),
-                Reservations = GeothermalReservations(zones, footprints),
+                Zones = LayoutDeriveRules.CoreWithout(zones, LayoutDeriveRules.GeothermalCells(footprints)),
+                Reservations = LayoutDeriveRules.GeothermalReservations(zones, footprints),
                 Sites = [],
             },
             Survey = s,
         };
     }
 
+    internal sealed record Claim(int Tiled, bool Successor);
+
+    internal sealed record PendingRoom(PlannedRoom Room, string Unmatched);
+
+    /// <summary>The straight distance between two rectangles' centres.</summary>
+    internal static double RectCentreDistance(Rectangle a, Rectangle b)
+    {
+        var dx = (double)((2 * a.X) + a.Width - (2 * b.X) - b.Width) / 2;
+        var dz = (double)((2 * a.Z) + a.Height - (2 * b.Z) - b.Height) / 2;
+        return Math.Sqrt((dx * dx) + (dz * dz));
+    }
+}
+
+partial record LayoutPlan
+{
     /// <summary>
     /// The rooms the tiled replan holds where they stand (#3004, decision 3 of #2965): the rooms the colony holds
     /// (HeldRooms) and the pairs of a rebuild in flight. Nothing else is pinned: a standing room with no node in the
@@ -124,10 +139,6 @@ public static partial class PolicyFunctions
         return held;
     }
 
-    private sealed record Claim(int Tiled, bool Successor);
-
-    private sealed record PendingRoom(PlannedRoom Room, string Unmatched);
-
     /// <summary>
     /// Compares the tiled plan of advice with old, the plan the colony held, whose standing rooms are built. A
     /// standing room the embedding kept or superseded is claimed through its block (Built, Replaces); the unbuilt
@@ -141,7 +152,7 @@ public static partial class PolicyFunctions
         if (advice.Tiled is { } tiledResult)
         {
             var all = tiledResult.Plan.Rooms.ToList();
-            var (_, held) = HeldBlocks(advice.Clustering.Groups.Count, advice.Embedding.Held);
+            var (_, held) = LayoutStationPlanRules.HeldBlocks(advice.Clustering.Groups.Count, advice.Embedding.Held);
             foreach (var b in advice.Embedding.Blocks.Concat(held))
             {
                 if (!tiledResult.Rooms.TryGetValue(b.Group, out var id))
@@ -156,18 +167,18 @@ public static partial class PolicyFunctions
                 }
             }
         }
-        var claims = new Dictionary<int, Claim>();
+        var claims = new Dictionary<int, LayoutReplanTiledRules.Claim>();
         var free = new List<int>();
         for (var i = 0; i < blocks.Count; i++)
         {
             var b = blocks[i];
             if (b.Built != 0)
             {
-                claims[b.Built] = new Claim(i, false);
+                claims[b.Built] = new LayoutReplanTiledRules.Claim(i, false);
             }
             else if (b.Replaces != 0)
             {
-                claims[b.Replaces] = new Claim(i, true);
+                claims[b.Replaces] = new LayoutReplanTiledRules.Claim(i, true);
             }
             else
             {
@@ -205,7 +216,7 @@ public static partial class PolicyFunctions
 
         // pending are the rooms no block claims: the unbuilt rooms and the standing ones the chain cannot pin
         // (unmatched, with the reason).
-        var pending = new List<PendingRoom>();
+        var pending = new List<LayoutReplanTiledRules.PendingRoom>();
         foreach (var r in rooms)
         {
             seen.Add(r.Id);
@@ -217,34 +228,34 @@ public static partial class PolicyFunctions
                     Tiled = tiled[c.Tiled].Id,
                     Role = r.Role,
                     Built = built.Contains(r.Id),
-                    Verdict = TileDiffSame,
-                    Reason = ReasonDiffKept,
+                    Verdict = LayoutReplanTiledRules.TileDiffSame,
+                    Reason = LayoutReplanTiledRules.ReasonDiffKept,
                     ShortBy = shortBy.GetValueOrDefault(blocks[c.Tiled].Group),
                 };
                 if (c.Successor)
                 {
-                    row = row with { Verdict = TileDiffMoved, Reason = ReasonDiffSuccessor };
+                    row = row with { Verdict = LayoutReplanTiledRules.TileDiffMoved, Reason = LayoutReplanTiledRules.ReasonDiffSuccessor };
                 }
                 else if (tiled[c.Tiled].Region.Bounds() != r.Region.Bounds())
                 {
-                    row = row with { Verdict = TileDiffMoved };
+                    row = row with { Verdict = LayoutReplanTiledRules.TileDiffMoved };
                 }
                 rows.Add(row);
                 continue;
             }
             if (!built.Contains(r.Id))
             {
-                pending.Add(new PendingRoom(r, ""));
+                pending.Add(new LayoutReplanTiledRules.PendingRoom(r, ""));
                 continue;
             }
             if (superseded.Contains(r.Id))
             {
-                rows.Add(new TileRoomDiff { Room = r.Id, Role = r.Role, Verdict = TileDiffDropped, Reason = ReasonDiffSuperseded, Built = true });
+                rows.Add(new TileRoomDiff { Room = r.Id, Role = r.Role, Verdict = LayoutReplanTiledRules.TileDiffDropped, Reason = LayoutReplanTiledRules.ReasonDiffSuperseded, Built = true });
                 continue;
             }
-            var reason = UnmatchedReason(r, notBlock.Contains(r.Id));
+            var reason = PlannedRoom.UnmatchedReason(r, notBlock.Contains(r.Id));
             unmatched.Add(new UnmatchedBuilt(r.Id, r.Role, reason));
-            pending.Add(new PendingRoom(r, reason));
+            pending.Add(new LayoutReplanTiledRules.PendingRoom(r, reason));
         }
 
         // The pending rooms take the free blocks of their role: the same interior first, then the nearest. A standing
@@ -277,7 +288,7 @@ public static partial class PolicyFunctions
                         }
                         continue;
                     }
-                    var d = RectCentreDistance(tiled[i].Region.Bounds(), r.Region.Bounds());
+                    var d = LayoutReplanTiledRules.RectCentreDistance(tiled[i].Region.Bounds(), r.Region.Bounds());
                     if (best < 0 || d < bestDist)
                     {
                         best = i;
@@ -294,21 +305,21 @@ public static partial class PolicyFunctions
         foreach (var p in pending)
         {
             var r = p.Room;
-            var row = new TileRoomDiff { Room = r.Id, Role = r.Role, Built = p.Unmatched != "", Verdict = TileDiffDropped, Reason = p.Unmatched };
+            var row = new TileRoomDiff { Room = r.Id, Role = r.Role, Built = p.Unmatched != "", Verdict = LayoutReplanTiledRules.TileDiffDropped, Reason = p.Unmatched };
             if (row.Reason == "")
             {
-                row = row with { Reason = ReasonDiffNoNode };
+                row = row with { Reason = LayoutReplanTiledRules.ReasonDiffNoNode };
             }
             if (match.TryGetValue(r.Id, out var i))
             {
-                row = row with { Tiled = tiled[i].Id, Verdict = TileDiffMoved, Reason = ReasonDiffSited };
+                row = row with { Tiled = tiled[i].Id, Verdict = LayoutReplanTiledRules.TileDiffMoved, Reason = LayoutReplanTiledRules.ReasonDiffSited };
                 if (tiled[i].Region.Bounds() == r.Region.Bounds())
                 {
-                    row = row with { Verdict = TileDiffSame };
+                    row = row with { Verdict = LayoutReplanTiledRules.TileDiffSame };
                 }
                 if (p.Unmatched != "")
                 {
-                    row = row with { Reason = ReasonDiffUnpinned };
+                    row = row with { Reason = LayoutReplanTiledRules.ReasonDiffUnpinned };
                 }
             }
             rows.Add(row);
@@ -322,16 +333,19 @@ public static partial class PolicyFunctions
             }
             if ((b.Built != 0 && !seen.Contains(b.Built)) || (b.Replaces != 0 && !seen.Contains(b.Replaces)))
             {
-                rows.Add(new TileRoomDiff { Tiled = tiled[i].Id, Role = tiled[i].Role, Verdict = TileDiffNew, Reason = ReasonDiffRetired });
+                rows.Add(new TileRoomDiff { Tiled = tiled[i].Id, Role = tiled[i].Role, Verdict = LayoutReplanTiledRules.TileDiffNew, Reason = LayoutReplanTiledRules.ReasonDiffRetired });
             }
             else if (b.Built == 0 && b.Replaces == 0)
             {
-                rows.Add(new TileRoomDiff { Tiled = tiled[i].Id, Role = tiled[i].Role, Verdict = TileDiffNew, Reason = ReasonDiffNoOldRoom });
+                rows.Add(new TileRoomDiff { Tiled = tiled[i].Id, Role = tiled[i].Role, Verdict = LayoutReplanTiledRules.TileDiffNew, Reason = LayoutReplanTiledRules.ReasonDiffNoOldRoom });
             }
         }
         return new ReplanTileDiff { Rooms = rows, Unmatched = unmatched };
     }
+}
 
+partial record PlannedRoom
+{
     /// <summary>
     /// Why a standing room has no block: the chain does not see outdoor rooms or rooms with no native role
     /// (BuiltRegions), a room that is no rectangle is no block, and any other had no block in its group.
@@ -339,33 +353,25 @@ public static partial class PolicyFunctions
     internal static string UnmatchedReason(PlannedRoom r, bool notBlock)
     {
         var native = ModuleRoomRoles.ContainsKey(r.Role);
-        var special = MatchedPlanned.ContainsKey(r.Role);
-        if (RoomNodeRoles.Contains(r.Role))
+        var special = LayoutStationPlanRules.MatchedPlanned.ContainsKey(r.Role);
+        if (LayoutStationPlanRules.RoomNodeRoles.Contains(r.Role))
         {
             // BuiltRegions pins it (a room node's room); it has no block only because no node of its role stands in
             // the graph or it is no rectangle.
-            return notBlock ? ReasonDiffNotBlock : ReasonDiffNoNode;
+            return notBlock ? LayoutReplanTiledRules.ReasonDiffNotBlock : LayoutReplanTiledRules.ReasonDiffNoNode;
         }
         if (r.Outdoor)
         {
-            return ReasonDiffOutdoor;
+            return LayoutReplanTiledRules.ReasonDiffOutdoor;
         }
         if (!native && !special)
         {
-            return ReasonDiffNoNativeRole;
+            return LayoutReplanTiledRules.ReasonDiffNoNativeRole;
         }
         if (notBlock)
         {
-            return ReasonDiffNotBlock;
+            return LayoutReplanTiledRules.ReasonDiffNotBlock;
         }
-        return ReasonDiffNoNode;
-    }
-
-    /// <summary>The straight distance between two rectangles' centres.</summary>
-    internal static double RectCentreDistance(Rectangle a, Rectangle b)
-    {
-        var dx = (double)((2 * a.X) + a.Width - (2 * b.X) - b.Width) / 2;
-        var dz = (double)((2 * a.Z) + a.Height - (2 * b.Z) - b.Height) / 2;
-        return Math.Sqrt((dx * dx) + (dz * dz));
+        return LayoutReplanTiledRules.ReasonDiffNoNode;
     }
 }

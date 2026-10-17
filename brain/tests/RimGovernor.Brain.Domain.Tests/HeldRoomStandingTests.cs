@@ -15,9 +15,9 @@ public sealed class HeldRoomStandingTests
         {
             Rooms =
             [
-                new PlannedRoom { Id = 6, Role = PlannedShelter },
-                new PlannedRoom { Id = 7, Role = PlannedKitchen },
-                new PlannedRoom { Id = 8, Role = PlannedKitchen, Replaces = 7 },
+                new PlannedRoom { Id = 6, Role = LayoutSurveyRules.PlannedShelter },
+                new PlannedRoom { Id = 7, Role = LayoutSurveyRules.PlannedKitchen },
+                new PlannedRoom { Id = 8, Role = LayoutSurveyRules.PlannedKitchen, Replaces = 7 },
             ],
         },
         Built = built,

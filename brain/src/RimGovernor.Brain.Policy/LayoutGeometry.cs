@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static partial class LayoutGeometryRules
 {
     /// <summary>Reports c in the ring of walls round r, corners excluded.</summary>
     public static bool InWall(Rectangle r, Cell c)
@@ -21,6 +21,12 @@ public static partial class PolicyFunctions
         _ => rot,
     };
 
+    internal static bool RectsOverlap(Rectangle a, Rectangle b) =>
+        a.X < b.X + b.Width && b.X < a.X + a.Width && a.Z < b.Z + b.Height && b.Z < a.Z + a.Height;
+}
+
+partial record PlannedRoom
+{
     /// <summary>Swaps X and Z; a door facing south faces west once transposed, north east, and back.</summary>
     internal static PlannedRoom TransposeRoom(PlannedRoom r)
     {
@@ -28,12 +34,9 @@ public static partial class PolicyFunctions
         return r with
         {
             Region = RegionRules.RectRegion(new Rectangle(bounds.Z, bounds.X, bounds.Height, bounds.Width)),
-            Door = TransposeCell(r.Door),
-            DoorRot = r.DoorRot is { } dr ? TransposeRot(dr) : null,
-            Facing = r.Facing is { } fc ? TransposeRot(fc) : null,
+            Door = LayoutGeometryRules.TransposeCell(r.Door),
+            DoorRot = r.DoorRot is { } dr ? RimGovernor.Brain.Policy.LayoutGeometryRules.TransposeRot(dr) : null,
+            Facing = r.Facing is { } fc ? RimGovernor.Brain.Policy.LayoutGeometryRules.TransposeRot(fc) : null,
         };
     }
-
-    internal static bool RectsOverlap(Rectangle a, Rectangle b) =>
-        a.X < b.X + b.Width && b.X < a.X + a.Width && a.Z < b.Z + b.Height && b.Z < a.Z + a.Height;
 }

@@ -14,7 +14,7 @@ public sealed class PlannedSitesTests
     private static readonly HashSet<(string, Cell)> NonePlaced = [];
 
     private static PlannedRoom Room(int id, int x) =>
-        new() { Id = id, Role = PlannedShelter, Region = RegionRules.RectRegion(new Rectangle { X = x, Z = 0, Width = 3, Height = 3 }) };
+        new() { Id = id, Role = LayoutSurveyRules.PlannedShelter, Region = RegionRules.RectRegion(new Rectangle { X = x, Z = 0, Width = 3, Height = 3 }) };
 
     /// <summary>A def made from WoodLog (5) or Steel (2); anything else is unavailable.</summary>
     private static (string, IReadOnlyList<Amount>)? Ring(string def, string stuff) => stuff switch

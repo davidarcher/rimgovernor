@@ -19,19 +19,10 @@ public sealed record PenNode
 }
 
 /// <summary>Ports <c>layout_pen_nodes.go</c>: pens as outdoor nodes of the station graph.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutPenNodesRules
 {
     /// <summary>Why the graph holds a pen: the herd the plan keeps of a race.</summary>
     public const string ReasonPenHerd = "pen_herd_of_race";
-
-
-    internal static string PenId(Resource race) => "pen/" + race.Value;
-
-    /// <summary>The pen node with the id; null when absent.</summary>
-    public static PenNode? Pen(this StationGraph g, string id) => g.Pens.FirstOrDefault(p => p.Id == id);
-
-    /// <summary>Whether a node is outside the base: the outside node or a pen.</summary>
-    internal static bool Outdoor(this StationGraph g, string id) => id == OutsideNode || g.Pen(id) is not null;
 
     /// <summary>The items the herds' pens move: their products and feed items. The caller reads their rot and stacks beside the recipes' items.</summary>
     public static List<Resource> PenItems(IEnumerable<StationHerd> herds, AnimalRaceCatalog races)
@@ -58,19 +49,37 @@ public static partial class PolicyFunctions
         }
         return [.. output.Select(r => r.Value).Order(StringComparer.Ordinal).Distinct(StringComparer.Ordinal).Select(v => new Resource(v))];
     }
+}
 
+partial record struct Resource
+{
+
+    internal static string PenId(Resource race) => "pen/" + race.Value;
+}
+
+partial class StationGraph
+{
+    /// <summary>The pen node with the id; null when absent.</summary>
+    public PenNode? Pen(string id) => this.Pens.FirstOrDefault(p => p.Id == id);
+
+    /// <summary>Whether a node is outside the base: the outside node or a pen.</summary>
+    internal bool Outdoor(string id) => id == OutsideNode || this.Pen(id) is not null;
+}
+
+partial class GraphBuilder
+{
     /// <summary>Adds a node for each race of the pen herd the catalog knows and the haul edges of its products and feed.</summary>
-    internal static List<PenNode> PenNodes(this GraphBuilder b)
+    internal List<PenNode> PenNodes()
     {
         var output = new List<PenNode>();
-        foreach (var h in b.In.Population.Herds)
+        foreach (var h in this.In.Population.Herds)
         {
-            var ok = b.In.Races.Race(h.Race, out var race);
+            var ok = this.In.Races.Race(h.Race, out var race);
             if (!ok || h.Animals <= 0)
             {
                 continue;
             }
-            var node = new PenNode { Id = PenId(h.Race), Hunger = Unknown<double>() };
+            var node = new PenNode { Id = Resource.PenId(h.Race), Hunger = Unknown<double>() };
             if (race.AdultFeedPerDay.TryGetValue(out var feed) && FoodNumber(feed))
             {
                 node = node with { Hunger = Known(feed * h.Animals) };
@@ -85,22 +94,22 @@ public static partial class PolicyFunctions
                 {
                     continue;
                 }
-                var (store, found) = b.StoreFor(p.Def);
+                var (store, found) = this.StoreFor(p.Def);
                 if (found)
                 {
-                    b.AddEdge(node.Id, store, h.Animals * amount / interval, false);
+                    this.AddEdge(node.Id, store, h.Animals * amount / interval, false);
                 }
             }
-            node = b.PenFeed(node, race);
+            node = this.PenFeed(node, race);
             output.Add(node);
         }
         return [.. output.OrderBy(p => p.Id, StringComparer.Ordinal)];
     }
 
     /// <summary>Sizes the pen's hand feeding: the hunger less what PenCells' worth of the weakest grazing terrain grows, hauled in the race's richest feed item (the fewest items) from the store that holds it.</summary>
-    private static PenNode PenFeed(this GraphBuilder b, PenNode node, AnimalRace race)
+    private PenNode PenFeed(PenNode node, AnimalRace race)
     {
-        if (!node.Hunger.TryGetValue(out var hunger) || !b.In.Pasture.TryGetValue(out var pasture))
+        if (!node.Hunger.TryGetValue(out var hunger) || !this.In.Pasture.TryGetValue(out var pasture))
         {
             return node;
         }
@@ -123,10 +132,10 @@ public static partial class PolicyFunctions
         {
             return node;
         }
-        var (store, found) = b.StoreFor(feed.Def);
+        var (store, found) = this.StoreFor(feed.Def);
         if (found)
         {
-            b.AddEdge(node.Id, store, shortfall / feed.Nutrition, false);
+            this.AddEdge(node.Id, store, shortfall / feed.Nutrition, false);
         }
         return node;
     }

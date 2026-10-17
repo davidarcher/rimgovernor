@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Ports <c>layout_shelter.go</c> and <c>layout_shelter_retire.go</c>: the temporary starter room and its retirement.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutShelterRules
 {
     /// <summary>The deepest shelter interior.</summary>
     private const int ShelterMaxDepth = 6;
@@ -66,95 +66,24 @@ public static partial class PolicyFunctions
         return [.. output.OrderBy(s => s.W * s.D).ThenBy(s => Abs32((2 * s.W) - (3 * s.D)))];
     }
 
-    /// <summary>The room on interior ins with its door at the middle of the wall facing seed.</summary>
-    internal static PlannedRoom ShelterRoom(Rectangle ins, Cell seed)
-    {
-        int cx = ins.X + (ins.Width / 2), cz = ins.Z + (ins.Height / 2);
-        int dx = seed.X - cx, dz = seed.Z - cz;
-        var r = new PlannedRoom { Role = PlannedShelter, Region = RegionRules.RectRegion(ins) };
-        if (Abs32(dx) > Abs32(dz) && dx > 0)
-        {
-            return r with { Door = new Cell(ins.X + ins.Width, cz), DoorRot = Rotation.East };
-        }
-        if (Abs32(dx) > Abs32(dz))
-        {
-            return r with { Door = new Cell(ins.X - 1, cz), DoorRot = Rotation.West };
-        }
-        if (dz > 0)
-        {
-            return r with { Door = new Cell(cx, ins.Z + ins.Height), DoorRot = Rotation.North };
-        }
-        return r with { Door = new Cell(cx, ins.Z - 1), DoorRot = Rotation.South };
-    }
-
     /// <summary>The shelter room followed by its children: an airlock outside its door when airlock is set and a battery porch on the far wall when porch is set (a cold map). The children carry no Parent yet; WithRoomIDs hands it out with their ids.</summary>
     internal static List<PlannedRoom> ShelterWithChildren(Rectangle ins, Cell seed, bool airlock, bool porch)
     {
-        var r = ShelterRoom(ins, seed);
+        var r = PlannedRoom.ShelterRoom(ins, seed);
         var output = new List<PlannedRoom> { r };
         if (airlock)
         {
-            output.Add(AttachAirlock(r.Door, r.DoorRot!.Value));
+            output.Add(PlannedRoom.AttachAirlock(r.Door, r.DoorRot!.Value));
         }
         if (porch)
         {
-            output.Add(AttachPorch(ins, r.DoorRot!.Value));
+            output.Add(PlannedRoom.AttachPorch(ins, r.DoorRot!.Value));
         }
         return output;
     }
 
-    /// <summary>
-    /// Whether every capability the plan's shelter hosts has a better home. Unknown or partial facts never retire it,
-    /// and a colony with nothing else built keeps the shelter as its permanent home.
-    /// </summary>
-    public static bool ShelterRetirable(LayoutPlan plan, RoomObservation rooms, SleepingObservation sleeping, IReadOnlyList<CurrentBuilding> built)
-    {
-        var shelters = plan.RoomsOf(PlannedShelter);
-        if (shelters.Count == 0 || sleeping.People.Count == 0 || sleeping.People.Count != sleeping.Colonists)
-        {
-            return false;
-        }
-        var inShelter = new HashSet<string>(StringComparer.Ordinal);
-        var shelterRooms = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var s in shelters)
-        {
-            // Census: the shelter's beds are read off its room.
-            var (room, ok) = CensusRoomIn(s, rooms);
-            if (ok && room is not null)
-            {
-                shelterRooms.Add(room.Id);
-                foreach (var b in room.Beds)
-                {
-                    inShelter.Add(b);
-                }
-            }
-        }
-        var bedroomOf = new Dictionary<string, Room>(StringComparer.Ordinal);
-        foreach (var room in rooms.Rooms)
-        {
-            if (room.Role.TryGetValue(out var role) && role == RoomRole.Bedroom)
-            {
-                foreach (var b in room.Beds)
-                {
-                    if (!inShelter.Contains(b))
-                    {
-                        bedroomOf[b] = room;
-                    }
-                }
-            }
-        }
-        foreach (var c in ShelterCapabilities)
-        {
-            if (!CapabilityHoused(c, plan, rooms, sleeping, built, shelterRooms, bedroomOf))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
     /// <summary>Whether a shelter-hosted capability has a standing home elsewhere. Cooking has no tested home yet, so it never holds the shelter.</summary>
-    private static bool CapabilityHoused(Capability c, LayoutPlan plan, RoomObservation rooms, SleepingObservation sleeping, IReadOnlyList<CurrentBuilding> built, HashSet<string> shelterRoom, Dictionary<string, Room> bedroomOf)
+    internal static bool CapabilityHoused(Capability c, LayoutPlan plan, RoomObservation rooms, SleepingObservation sleeping, IReadOnlyList<CurrentBuilding> built, HashSet<string> shelterRoom, Dictionary<string, Room> bedroomOf)
     {
         if (c == Capability.Sleep)
         {
@@ -183,27 +112,13 @@ public static partial class PolicyFunctions
         }
         else if (c == Capability.Craft)
         {
-            return RoleStands(plan, PlannedWorkshop, rooms);
+            return LayoutPlan.RoleStands(plan, LayoutSurveyRules.PlannedWorkshop, rooms);
         }
         else if (c == Capability.Research)
         {
-            return RoleStands(plan, PlannedLab, rooms) || BenchOutside(built, rooms, shelterRoom);
+            return LayoutPlan.RoleStands(plan, LayoutSurveyRules.PlannedLab, rooms) || BenchOutside(built, rooms, shelterRoom);
         }
         return true;
-    }
-
-    /// <summary>Whether there is a planned room of the role, every one standing as a roofed census room.</summary>
-    private static bool RoleStands(LayoutPlan plan, PlannedRole role, RoomObservation rooms)
-    {
-        var planned = plan.RoomsOf(role);
-        foreach (var r in planned)
-        {
-            if (!CensusRoomIn(r, rooms).Item2)
-            {
-                return false;
-            }
-        }
-        return planned.Count > 0;
     }
 
     /// <summary>Whether a built research bench stands in an enclosed census room other than the shelter's.</summary>
@@ -228,5 +143,96 @@ public static partial class PolicyFunctions
             }
         }
         return false;
+    }
+}
+
+partial record PlannedRoom
+{
+    /// <summary>The room on interior ins with its door at the middle of the wall facing seed.</summary>
+    internal static PlannedRoom ShelterRoom(Rectangle ins, Cell seed)
+    {
+        int cx = ins.X + (ins.Width / 2), cz = ins.Z + (ins.Height / 2);
+        int dx = seed.X - cx, dz = seed.Z - cz;
+        var r = new PlannedRoom { Role = LayoutSurveyRules.PlannedShelter, Region = RegionRules.RectRegion(ins) };
+        if (Abs32(dx) > Abs32(dz) && dx > 0)
+        {
+            return r with { Door = new Cell(ins.X + ins.Width, cz), DoorRot = Rotation.East };
+        }
+        if (Abs32(dx) > Abs32(dz))
+        {
+            return r with { Door = new Cell(ins.X - 1, cz), DoorRot = Rotation.West };
+        }
+        if (dz > 0)
+        {
+            return r with { Door = new Cell(cx, ins.Z + ins.Height), DoorRot = Rotation.North };
+        }
+        return r with { Door = new Cell(cx, ins.Z - 1), DoorRot = Rotation.South };
+    }
+}
+
+partial record LayoutPlan
+{
+    /// <summary>
+    /// Whether every capability the plan's shelter hosts has a better home. Unknown or partial facts never retire it,
+    /// and a colony with nothing else built keeps the shelter as its permanent home.
+    /// </summary>
+    public static bool ShelterRetirable(LayoutPlan plan, RoomObservation rooms, SleepingObservation sleeping, IReadOnlyList<CurrentBuilding> built)
+    {
+        var shelters = plan.RoomsOf(LayoutSurveyRules.PlannedShelter);
+        if (shelters.Count == 0 || sleeping.People.Count == 0 || sleeping.People.Count != sleeping.Colonists)
+        {
+            return false;
+        }
+        var inShelter = new HashSet<string>(StringComparer.Ordinal);
+        var shelterRooms = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var s in shelters)
+        {
+            // Census: the shelter's beds are read off its room.
+            var (room, ok) = PlannedRoom.CensusRoomIn(s, rooms);
+            if (ok && room is not null)
+            {
+                shelterRooms.Add(room.Id);
+                foreach (var b in room.Beds)
+                {
+                    inShelter.Add(b);
+                }
+            }
+        }
+        var bedroomOf = new Dictionary<string, Room>(StringComparer.Ordinal);
+        foreach (var room in rooms.Rooms)
+        {
+            if (room.Role.TryGetValue(out var role) && role == RoomRole.Bedroom)
+            {
+                foreach (var b in room.Beds)
+                {
+                    if (!inShelter.Contains(b))
+                    {
+                        bedroomOf[b] = room;
+                    }
+                }
+            }
+        }
+        foreach (var c in ShelterCapabilities)
+        {
+            if (!LayoutShelterRules.CapabilityHoused(c, plan, rooms, sleeping, built, shelterRooms, bedroomOf))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>Whether there is a planned room of the role, every one standing as a roofed census room.</summary>
+    internal static bool RoleStands(LayoutPlan plan, PlannedRole role, RoomObservation rooms)
+    {
+        var planned = plan.RoomsOf(role);
+        foreach (var r in planned)
+        {
+            if (!PlannedRoom.CensusRoomIn(r, rooms).Item2)
+            {
+                return false;
+            }
+        }
+        return planned.Count > 0;
     }
 }

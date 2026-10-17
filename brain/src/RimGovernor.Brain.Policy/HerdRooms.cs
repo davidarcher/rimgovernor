@@ -129,7 +129,7 @@ public static partial class PolicyFunctions
         var taken = BuiltCells(built);
         foreach (var room in plan.Hospitals())
         {
-            var (_, standing) = CensusRoomIn(room, rooms);
+            var (_, standing) = PlannedRoom.CensusRoomIn(room, rooms);
             if (!standing)
             {
                 continue;
@@ -140,7 +140,7 @@ public static partial class PolicyFunctions
                 return new HerdStep
                 {
                     Kind = HerdStepKind.Medical,
-                    Role = PlannedHospital,
+                    Role = LayoutSurveyRules.PlannedHospital,
                     Room = room,
                     Bed = bed,
                 };
@@ -151,7 +151,7 @@ public static partial class PolicyFunctions
                 return new HerdStep
                 {
                     Kind = HerdStepKind.Reconcile,
-                    Role = PlannedHospital,
+                    Role = LayoutSurveyRules.PlannedHospital,
                     Room = room,
                     Template = template,
                 };

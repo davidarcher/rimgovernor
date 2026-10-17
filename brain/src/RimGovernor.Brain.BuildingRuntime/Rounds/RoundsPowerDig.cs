@@ -49,7 +49,7 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>Clears roofs and rock above a wind turbine or solar site; not handled when no planned site needs it.</summary>
     internal async Task<(RoundsBuildingResult Result, bool Handled)> DigSkyAsync(ExcavationStep s, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken call, CancellationToken epoch)
     {
-        if (Power is null || Power.Method != PowerMethod.Generate || (Definition != PolicyConstants.WindTurbineDefinition && Definition != PolicyFunctions.SolarDefinition))
+        if (Power is null || Power.Method != PowerMethod.Generate || (Definition != PolicyConstants.WindTurbineDefinition && Definition != LayoutUtilityRules.SolarDefinition))
         {
             return (new RoundsBuildingResult(), false);
         }
@@ -76,11 +76,11 @@ public sealed partial class RoundsBuildingPlanner
         var roofs = await RoofRulesForAsync(s.State.Snapshot, [new RoleCell { Role = RockRole.NeedsSky }], call).ConfigureAwait(false);
         PlannedPowerSite? pick = null;
         List<RoleCell> pickCells = [];
-        foreach (var site in PolicyFunctions.PlannedPowerSites(plan!, Definition))
+        foreach (var site in LayoutPlan.PlannedPowerSites(plan!, Definition))
         {
-            var footprint = PolicyFunctions.RectangleCells(site.Area);
+            var footprint = LayoutUtilityRules.RectangleCells(site.Area);
             var cells = footprint.Select(c => new RoleCell { Cell = c, Role = RockRole.NeedsSky }).ToList();
-            var zone = PolicyFunctions.TurbineCatchZone(plan!, site.Area);
+            var zone = LayoutPlan.TurbineCatchZone(plan!, site.Area);
             foreach (var lane in zone)
             {
                 cells.Add(new RoleCell { Cell = lane, Role = RockRole.NeedsSky });

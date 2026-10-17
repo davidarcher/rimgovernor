@@ -83,7 +83,7 @@ public static partial class PolicyFunctions
             }
             // Census: the room's id keys the beds read inside it. A room the census does not show enclosed (a
             // map-edge room is not) stands for nothing: native would force its beds back to colonist.
-            var (standing, stands) = CensusRoomIn(r, rooms);
+            var (standing, stands) = PlannedRoom.CensusRoomIn(r, rooms);
             var marks = new List<string>();
             foreach (var b in beds)
             {

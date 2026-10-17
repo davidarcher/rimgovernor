@@ -52,7 +52,7 @@ public static partial class ShelterRules
             Occupants = occupants,
             Campfires = campfires,
             Coolers = coolers,
-            Capabilities = CapabilitiesOf(PlannedRole.Shelter),
+            Capabilities = LayoutCapabilityRules.CapabilitiesOf(PlannedRole.Shelter),
         };
         var (_, ok) = DoorSide(interior.Interior, room.Door);
         if (!ok)

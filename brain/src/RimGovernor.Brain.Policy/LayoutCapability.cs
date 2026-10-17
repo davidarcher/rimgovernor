@@ -48,7 +48,7 @@ public static partial class PolicyConstants
     };
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutCapabilityRules
 {
     /// <summary>
     /// What a room of each planned role can host, derived from FacilityCatalog's Compatible lists through

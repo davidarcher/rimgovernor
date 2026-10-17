@@ -622,7 +622,7 @@ Policy|PlannedSite.Placement
 Policy|PrisonerMedicineRules.CareOp.Part
 Policy|PrisonerMedicineRules.CareOp.Pawn
 Policy|PrisonerMedicineRules.CareOp.Recipe
-Policy|PolicyFunctions.RouteTrip.Weight
+Policy|LayoutRouteRules.RouteTrip.Weight
 Policy|CombatFireRules.SightKey.Cell
 Policy|CombatFireRules.SightKey.Hostile
 Policy|PowerBudget.DemandWD

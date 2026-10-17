@@ -163,7 +163,7 @@ public static partial class TitleClaimRules
             return Known(false);
         }
         // Census: impressiveness is read by the room's id.
-        var (standing, censused) = CensusRoomIn(room, f.Rooms);
+        var (standing, censused) = PlannedRoom.CensusRoomIn(room, f.Rooms);
         var (_, stands) = ThroneRules.StandingThroneIn(room, need, f.Built);
         if (!censused || !stands)
         {

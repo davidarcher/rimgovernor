@@ -238,12 +238,8 @@ Policy/LayoutJoyNodes.cs|PolicyConstants.JoyGameValue|2500
 Policy/LayoutLight.cs|PolicyConstants.LightTableValue|"StandingLamp"
 Policy/LayoutLight.cs|PolicyConstants.LightTableValue|"WallLamp"
 Policy/LayoutMood.cs|PolicyConstants.MoodGameValue|15000
-Policy/LayoutPowerDerive.cs|PolicyFunctions.SiteConduit|"PowerConduit"
 Policy/LayoutScore.cs|PlanWeights.FieldGain|2000
-Policy/LayoutTrips.cs|PolicyFunctions.RoomSizeTableValue|"Grave"
-Policy/LayoutTrips.cs|PolicyFunctions.RoomSizeTableValue|"Sarcophagus"
-Policy/LayoutTrips.cs|PolicyFunctions.RoomSizeTableValue|"Shelf"
-Policy/LayoutUtility.cs|PolicyFunctions.SolarDefinition|"SolarGenerator"
+Policy/LayoutUtility.cs|LayoutUtilityRules.SolarDefinition|"SolarGenerator"
 Policy/Lighting.cs|LightingPolicy.Default|"StandingLamp"
 Policy/Lighting.cs|LightingPolicy.Default|"TorchLamp"
 Policy/OrganHarvest.cs|PolicyConstants.SilverPerCapacity|1500

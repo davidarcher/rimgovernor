@@ -258,7 +258,7 @@ public static partial class ReconcileRules
         var vents = new Dictionary<Cell, PlannedSite>();
         if (!r.Outdoor)
         {
-            foreach (var s in input.Plan.LiveSites(NodeVent))
+            foreach (var s in input.Plan.LiveSites(LayoutTileVentRules.NodeVent))
             {
                 if (ring.Contains(s.Origin) && !doorWanted.Contains(s.Origin))
                 {

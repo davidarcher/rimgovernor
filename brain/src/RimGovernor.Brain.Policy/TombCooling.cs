@@ -36,7 +36,7 @@ public static partial class TombRules
                 continue;
             }
             // Census: the room's cells and floors are cooled.
-            var (room, ok) = CensusRoomIn(planned, r!);
+            var (room, ok) = PlannedRoom.CensusRoomIn(planned, r!);
             if (!ok)
             {
                 continue;

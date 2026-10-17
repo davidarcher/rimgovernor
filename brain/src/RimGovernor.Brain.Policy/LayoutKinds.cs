@@ -295,7 +295,7 @@ public enum ReservationKind
     DefBait,
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutKindsRules
 {
     /// <summary>Go's <c>ReservationKind(s.Kind)</c>: the reservation kind that holds a site node's ground.</summary>
     internal static ReservationKind ReservationKindOf(NodeKind kind) =>

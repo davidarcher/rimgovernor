@@ -37,9 +37,9 @@ public sealed class SleepingPlannerTests
         SleepingRules.NextBedroomStep(plan, new RoomObservation { Rooms = [.. rooms] }, sleeping, targets ?? [], new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());
 
     // sleeping/bedrooms: a shelter for two, then two bedroom-wing rooms in plan order.
-    private static readonly PlannedRoom Shelter = Planned(1, PlannedShelter, Rect(0, 5, 5));
-    private static readonly PlannedRoom Wing1 = Planned(2, PlannedBedroom, Rect(10, 3, 4));
-    private static readonly PlannedRoom Wing2 = Planned(3, PlannedBedroom, Rect(14, 3, 4));
+    private static readonly PlannedRoom Shelter = Planned(1, LayoutSurveyRules.PlannedShelter, Rect(0, 5, 5));
+    private static readonly PlannedRoom Wing1 = Planned(2, LayoutSurveyRules.PlannedBedroom, Rect(10, 3, 4));
+    private static readonly PlannedRoom Wing2 = Planned(3, LayoutSurveyRules.PlannedBedroom, Rect(14, 3, 4));
     private static readonly LayoutPlan Wing = new() { Rooms = [Shelter, Wing1, Wing2], NextRoomId = 4 };
 
     [Fact]
@@ -80,9 +80,9 @@ public sealed class SleepingPlannerTests
     }
 
     // sleeping/suites: a 3x4 standard bedroom, a 7x7 suite sized for Greedy (SuiteSize(50)), and its 7x8 successor.
-    private static readonly PlannedRoom Standard = Planned(1, PlannedBedroom, Rect(0, 3, 4));
-    private static readonly PlannedRoom Suite = Planned(2, PlannedSuite, Rect(10, 7, 7));
-    private static readonly PlannedRoom Larger = Planned(3, PlannedSuite, Rect(20, 7, 8)) with { Replaces = 2 };
+    private static readonly PlannedRoom Standard = Planned(1, LayoutSurveyRules.PlannedBedroom, Rect(0, 3, 4));
+    private static readonly PlannedRoom Suite = Planned(2, LayoutTripsRules.PlannedSuite, Rect(10, 7, 7));
+    private static readonly PlannedRoom Larger = Planned(3, LayoutTripsRules.PlannedSuite, Rect(20, 7, 8)) with { Replaces = 2 };
 
     private static UpkeepRoom Quality(string id, double impressiveness) =>
         new() { Id = id, Quality = Known(new RoomQuality(impressiveness, 0, 0, 0, impressiveness)) };
@@ -92,7 +92,7 @@ public sealed class SleepingPlannerTests
     [Fact]
     public void AGreedyColonistIsGivenASuiteAndATitleThatOutgrowsItGetsANewLargerSuiteWhileTheFirstStaysHeld()
     {
-        Assert.Equal((7, 7), SuiteSize(50));
+        Assert.Equal((7, 7), LayoutTripsRules.SuiteSize(50));
         var plan = new LayoutPlan { Rooms = [Standard, Suite], NextRoomId = 3 };
         var standard = Standing("std", Standard, "b1");
         var greedy = new SleepingObservation
@@ -139,7 +139,7 @@ public sealed class SleepingPlannerTests
         Assert.True(Larger.Region.Area() > Suite.Region.Area());
         var slept = SleepingRules.SleptBedrooms(replanned, Known(rooms), Known(inSuite));
         Assert.Equal([Suite.Id], slept);
-        Assert.Contains(Suite.Id, TilePinned(replanned, new RoomGrowth { Fixed = [], Slept = slept }));
+        Assert.Contains(Suite.Id, LayoutPlan.TilePinned(replanned, new RoomGrowth { Fixed = [], Slept = slept }));
 
         // Once the larger suite stands with a bed, the colonist moves on out of the first suite's bed.
         var larger = inSuite with { Beds = [.. inSuite.Beds, Bed("b3", "larger")] };

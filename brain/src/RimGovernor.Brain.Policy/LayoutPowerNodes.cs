@@ -22,12 +22,12 @@ public sealed class WindGround
         foreach (var b in input.Embedding.Blocks)
         {
             // An open-air room (the range, the ring) has no roof and no walls.
-            var (role, ok) = PolicyFunctions.PlannedRoleOfGroup(input.Embed.Groups[b.Group]);
-            if (ok && PolicyFunctions.ExactFloor(role))
+            var (role, ok) = LayoutTileRules.PlannedRoleOfGroup(input.Embed.Groups[b.Group]);
+            if (ok && LayoutTrainingNodesRules.ExactFloor(role))
             {
                 continue;
             }
-            Add(RegionRules.RectRegion(PolicyFunctions.Pad(b.Interior, 1)));
+            Add(RegionRules.RectRegion(LayoutPerimeterRules.Pad(b.Interior, 1)));
         }
     }
 
@@ -59,7 +59,7 @@ public sealed class WindGround
             for (var x = run.X + dx; x < run.X + dx + run.Length; x++)
             {
                 var c = new Cell(x, z);
-                if (x < 0 || z < 0 || x >= bounds.Width || z >= bounds.Height || (Cells.Contains(c) && !PolicyFunctions.Contains(own, c)))
+                if (x < 0 || z < 0 || x >= bounds.Width || z >= bounds.Height || (Cells.Contains(c) && !LayoutPerimeterRules.Contains(own, c)))
                 {
                     n++;
                 }
@@ -73,7 +73,7 @@ public sealed class WindGround
 internal readonly record struct TurbineTurn(Rotation Rot, bool LowRow, bool Turned);
 
 /// <summary>Ports <c>layout_power_nodes.go</c>: the power sites as site nodes of the station graph.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutPowerNodesRules
 {
     // The wind path is a game rule, read from CompPowerPlantWind and WindTurbineUtility.CalculateWindCells and
     // registered in DefTables under the WindTurbine def: the path is windPathWidth wide, windPathAhead rows in front
@@ -98,7 +98,7 @@ public static partial class PolicyFunctions
     public static NodeKind NodeTurbine => NodeKind.Turbine;
     public static NodeKind NodeSolar => NodeKind.Solar;
 
-    private static TurbineTurn[] TurbineTurns =>
+    internal static TurbineTurn[] TurbineTurns =>
     [
         new(Rotation.North, true, false),
         new(Rotation.South, false, false),
@@ -113,8 +113,8 @@ public static partial class PolicyFunctions
         foreach (var t in TurbineTurns)
         {
             var pad = t.Turned ? new Rectangle { Width = 2, Height = WindPathWidth } : new Rectangle { Width = WindPathWidth, Height = 2 };
-            var (centre, rot) = TurbinePlacement(pad, t.LowRow);
-            var lane = new SiteLane { Id = "wind", Region = RegionRules.RegionOf(TurbineWindCells(centre, rot)), Reason = ReasonWindLane, Wind = true };
+            var (centre, rot) = LayoutUtilityRules.TurbinePlacement(pad, t.LowRow);
+            var lane = new SiteLane { Id = "wind", Region = RegionRules.RegionOf(LayoutUtilityRules.TurbineWindCells(centre, rot)), Reason = ReasonWindLane, Wind = true };
             shapes.Add(new SiteNode { Id = id, Footprint = RegionRules.RectRegion(pad), Lanes = [lane], Rotation = rot });
         }
         return shapes[0] with { Alts = shapes.Skip(1).ToList(), Kind = NodeTurbine, Reason = ReasonPowerSite };
@@ -150,8 +150,14 @@ public static partial class PolicyFunctions
 
     /// <summary>Solar plot i: a free square.</summary>
     internal static SiteNode SolarNode(string id) =>
-        new() { Id = id, Kind = NodeSolar, Footprint = RegionRules.RectRegion(new Rectangle { Width = SolarSide, Height = SolarSide }), Reason = ReasonPowerSite };
+        new() { Id = id, Kind = NodeSolar, Footprint = RegionRules.RectRegion(new Rectangle { Width = LayoutUtilityRules.SolarSide, Height = LayoutUtilityRules.SolarSide }), Reason = ReasonPowerSite };
 
+    /// <summary>The id of the i-th (from 1) geothermal enclosure node, in plan order; the defense record names the enclosure's tier by it.</summary>
+    internal static string GeothermalNodeId(int i) => $"geothermal-{i}";
+}
+
+partial record LayoutPlan
+{
     /// <summary>
     /// The site nodes for the plan's power sites: a node per turbine, solar plot and geothermal enclosure, ids numbered
     /// in plan order. A plan holds the sites it was grown with; a first plan derives how many it owes from the demand it
@@ -162,26 +168,23 @@ public static partial class PolicyFunctions
         var nodes = new List<SiteNode>();
         for (var i = 0; i < PlannedPowerSites(plan, WindTurbineDefinition).Count; i++)
         {
-            nodes.Add(TurbineNode(WindNodeId(i + 1)));
+            nodes.Add(LayoutPowerNodesRules.TurbineNode(LayoutPowerNodesRules.WindNodeId(i + 1)));
         }
-        for (var i = 0; i < PlannedPowerSites(plan, SolarDefinition).Count; i++)
+        for (var i = 0; i < PlannedPowerSites(plan, LayoutUtilityRules.SolarDefinition).Count; i++)
         {
-            nodes.Add(SolarNode(SolarNodeId(i + 1)));
+            nodes.Add(LayoutPowerNodesRules.SolarNode(LayoutPowerNodesRules.SolarNodeId(i + 1)));
         }
         var n = 0;
         foreach (var r in plan.Reservations)
         {
-            if (r.Kind != ReserveGeothermal)
+            if (r.Kind != LayoutPlanRules.ReserveGeothermal)
             {
                 continue;
             }
             n++;
             var area = r.Area.Bounds();
-            nodes.Add(new SiteNode { Id = GeothermalNodeId(n), Footprint = RegionRules.RectRegion(new Rectangle { Width = area.Width, Height = area.Height }), Anchor = new Cell(area.X, area.Z), Reason = ReasonPowerSite });
+            nodes.Add(new SiteNode { Id = LayoutPowerNodesRules.GeothermalNodeId(n), Footprint = RegionRules.RectRegion(new Rectangle { Width = area.Width, Height = area.Height }), Anchor = new Cell(area.X, area.Z), Reason = LayoutPowerNodesRules.ReasonPowerSite });
         }
         return nodes;
     }
-
-    /// <summary>The id of the i-th (from 1) geothermal enclosure node, in plan order; the defense record names the enclosure's tier by it.</summary>
-    internal static string GeothermalNodeId(int i) => $"geothermal-{i}";
 }

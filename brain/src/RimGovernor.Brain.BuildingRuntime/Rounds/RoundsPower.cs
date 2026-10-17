@@ -226,7 +226,7 @@ public sealed partial class RoundsBuildingPlanner
             return ([], stock, false);
         }
 
-        var sites = PolicyFunctions.PlannedPowerSites(plan!, Definition);
+        var sites = LayoutPlan.PlannedPowerSites(plan!, Definition);
         if (sites.Count == 0)
         {
             return ([], stock, false);
@@ -281,7 +281,7 @@ async
             var ck = v.CanPlace.TryGetValue(out var can);
             var sk = v.SafeToPlace.TryGetValue(out var safe);
             var mk = v.MadeFromStuff.TryGetValue(out var made);
-            if (!fk || !ck || !sk || !mk || !can || !safe || made != (stuff != "") || !RoundsBuildingPlanner.SameCells(footprint!, PolicyFunctions.RectangleCells(area)))
+            if (!fk || !ck || !sk || !mk || !can || !safe || made != (stuff != "") || !RoundsBuildingPlanner.SameCells(footprint!, LayoutUtilityRules.RectangleCells(area)))
             {
                 return (default!, false);
             }
@@ -305,7 +305,7 @@ async
                 break;
             }
 
-            var cells = PolicyFunctions.RectangleCells(s.Area);
+            var cells = LayoutUtilityRules.RectangleCells(s.Area);
             var free = true;
             foreach (var c in cells)
             {
@@ -325,7 +325,7 @@ async
 
             selected.Add(v);
             placed++;
-            foreach (var c in PolicyFunctions.RectangleCells(s.Block))
+            foreach (var c in LayoutUtilityRules.RectangleCells(s.Block))
             {
                 if (built.Contains(c) || blocked.Contains(c))
                 {
@@ -478,7 +478,7 @@ partial class RoundsBuildingPlanner
         var output = new HashSet<Cell>();
         if (facts.LayoutPlan.TryGetValue(out var plan))
         {
-            foreach (var c in PolicyFunctions.PorchRoofCells(plan))
+            foreach (var c in LayoutPlan.PorchRoofCells(plan))
             {
                 output.Add(c);
             }
@@ -509,7 +509,7 @@ partial class RoundsBuildingPlanner
             return (default!, false);
         }
 
-        var roof = new BuildRoof(PolicyFunctions.PorchRoofCells(plan));
+        var roof = new BuildRoof(LayoutPlan.PorchRoofCells(plan));
         var action = DomainAction.NewBuildRoofAction(new ActionId($"{a.Snapshot.Plan}-{ordinal}"), roof);
         return (action, true);
     }

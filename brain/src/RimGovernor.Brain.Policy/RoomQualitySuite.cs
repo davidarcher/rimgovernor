@@ -45,7 +45,7 @@ public static partial class RoomQualityRules
     internal static int SuiteCells(double target)
     {
         var space = 125 * Math.Max(target, 0) / 100;
-        return (int)Math.Ceiling((space + (0.9 * SuiteFurnitureTiles)) / 1.4);
+        return (int)Math.Ceiling((space + (0.9 * LayoutTripsRules.SuiteFurnitureTiles)) / 1.4);
     }
 
     /// <summary>Maps the census id of each standing planned room of role to its plan room.</summary>
@@ -59,7 +59,7 @@ public static partial class RoomQualityRules
                 continue;
             }
             // Census: the room's id keys the quality targets.
-            var (room, ok) = CensusRoomIn(r, rooms);
+            var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
             if (ok)
             {
                 output[room!.Id] = r;
@@ -114,7 +114,7 @@ public static partial class RoomQualityRules
             if (suites.TryGetValue(s.Room, out var suite))
             {
                 var area = suite.Region.Bounds().Width * suite.Region.Bounds().Height;
-                var (w, d) = SuiteSize(t.Min);
+                var (w, d) = LayoutTripsRules.SuiteSize(t.Min);
                 if (SuiteCells(t.Min) <= area || w * d <= area)
                 {
                     continue;
@@ -195,7 +195,7 @@ public static partial class RoomQualityRules
                 continue;
             }
             // Census: the room's beds say whether a suite is taken.
-            var (room, ok) = CensusRoomIn(r, rooms);
+            var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
             var taken = false;
             if (ok)
             {
@@ -269,7 +269,7 @@ public static partial class RoomQualityRules
                 continue;
             }
             var w = new SuiteWish { Kept = r.Region.Area() };
-            var (room, ok) = CensusRoomIn(r, rooms);
+            var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
             if (ok && owned.Contains(room!.Id))
             {
                 w = w with { Target = targets.TryGetValue(room.Id, out var t) ? t.Min : 0 };
@@ -306,7 +306,7 @@ public static partial class RoomQualityRules
             }
             var r = vacant[i];
             // Census: the room's beds decide the next bedroom step.
-            var (room, ok) = CensusRoomIn(r, rooms);
+            var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
             if (!ok || room!.Beds.Count == 0)
             {
                 return new BedroomStep { Kind = BedroomStepKind.Reconcile, Room = r };

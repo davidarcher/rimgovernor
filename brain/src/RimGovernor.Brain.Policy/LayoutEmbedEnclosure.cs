@@ -88,7 +88,7 @@ internal sealed class CoverScratch
             {
                 break;
             }
-            var c = PolicyFunctions.ClipRect(r, k);
+            var c = LayoutPerimeterRules.ClipRect(r, k);
             if (c.Width > 0)
             {
                 _clipped.Add(c);
@@ -228,7 +228,7 @@ internal sealed class CoverGrid
                 {
                     v = 0;
                     var c = new Rectangle(x + x0, z + z0, 1, 1);
-                    if (PolicyFunctions.OnMapCell(onMap, c))
+                    if (LayoutEmbedEnclosureRules.OnMapCell(onMap, c))
                     {
                         v = (int)weight.Sum(c);
                     }
@@ -241,7 +241,7 @@ internal sealed class CoverGrid
     /// <summary>The covered weight inside k.</summary>
     public int Covered(Rectangle k)
     {
-        k = PolicyFunctions.ClipRect(k, _bounds);
+        k = LayoutPerimeterRules.ClipRect(k, _bounds);
         if (k.Width == 0)
         {
             return 0;
@@ -285,7 +285,7 @@ internal sealed partial class Embedder
     /// <summary>The EnclosureSet of group i against the other blocks.</summary>
     public EnclosureSet EnclosureRects(int i, IReadOnlyList<Rectangle> blocks)
     {
-        const int yard = 1 + PolicyFunctions.PerimeterGap; // the wall cells and the killbox yard
+        const int yard = 1 + LayoutPerimeterRules.PerimeterGap; // the wall cells and the killbox yard
         var inRects = new List<Rectangle>();
         var grown = new List<Rectangle>();
         var walls = new List<Rectangle>();
@@ -296,9 +296,9 @@ internal sealed partial class Embedder
             {
                 continue;
             }
-            inRects.Add(PolicyFunctions.Pad(b, yard));
-            grown.Add(PolicyFunctions.Pad(b, yard + PolicyFunctions.PerimeterThick));
-            walls.Add(PolicyFunctions.Pad(b, 1));
+            inRects.Add(LayoutPerimeterRules.Pad(b, yard));
+            grown.Add(LayoutPerimeterRules.Pad(b, yard + LayoutPerimeterRules.PerimeterThick));
+            walls.Add(LayoutPerimeterRules.Pad(b, 1));
         }
         return new EnclosureSet(new XRects(inRects), new XRects(grown), new XRects(walls));
     }
@@ -306,7 +306,7 @@ internal sealed partial class Embedder
     /// <summary>The Wall and Footprint cost of a group at r given the EnclosureSet of the other blocks.</summary>
     public double EnclosureCost(Rectangle r, EnclosureSet s)
     {
-        const int yard = 1 + PolicyFunctions.PerimeterGap; // the wall cells and the killbox yard
+        const int yard = 1 + LayoutPerimeterRules.PerimeterGap; // the wall cells and the killbox yard
         var onMap = new Rectangle(0, 0, Base.W, Base.H);
         s.Calls++;
         if (s.Grids is null && s.Calls >= Math.Max(PolicyConstants.CoverGridMinCalls, onMap.Width * onMap.Height / PolicyConstants.CoverGridCellsPerCall))
@@ -315,17 +315,17 @@ internal sealed partial class Embedder
         }
         if (s.Grids is { } g)
         {
-            var gridWall = g[0].Uncovered(PolicyFunctions.ClipRect(PolicyFunctions.Pad(r, yard + PolicyFunctions.PerimeterThick), onMap), Walkable) -
-                g[1].Uncovered(PolicyFunctions.ClipRect(PolicyFunctions.Pad(r, yard), onMap), Walkable);
-            return (PlanWeights.Wall * gridWall) + (PlanWeights.Footprint * g[2].Uncovered(PolicyFunctions.Pad(r, 1), null));
+            var gridWall = g[0].Uncovered(LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(r, yard + LayoutPerimeterRules.PerimeterThick), onMap), Walkable) -
+                g[1].Uncovered(LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(r, yard), onMap), Walkable);
+            return (PlanWeights.Wall * gridWall) + (PlanWeights.Footprint * g[2].Uncovered(LayoutPerimeterRules.Pad(r, 1), null));
         }
-        var wall = s.Scratch.Uncovered(PolicyFunctions.ClipRect(PolicyFunctions.Pad(r, yard + PolicyFunctions.PerimeterThick), onMap), s.Grown, Walkable) -
-            s.Scratch.Uncovered(PolicyFunctions.ClipRect(PolicyFunctions.Pad(r, yard), onMap), s.In, Walkable);
-        return (PlanWeights.Wall * wall) + (PlanWeights.Footprint * s.Scratch.Uncovered(PolicyFunctions.Pad(r, 1), s.Walls, null));
+        var wall = s.Scratch.Uncovered(LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(r, yard + LayoutPerimeterRules.PerimeterThick), onMap), s.Grown, Walkable) -
+            s.Scratch.Uncovered(LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(r, yard), onMap), s.In, Walkable);
+        return (PlanWeights.Wall * wall) + (PlanWeights.Footprint * s.Scratch.Uncovered(LayoutPerimeterRules.Pad(r, 1), s.Walls, null));
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutEmbedEnclosureRules
 {
     /// <summary>The number of cells of k, weighted by weight (each counts 1 when null), that none of rects covers. k lies on the map.</summary>
     internal static int Uncovered(Rectangle k, IEnumerable<Rectangle> rects, Prefix? weight) =>

@@ -100,7 +100,7 @@ public sealed partial class RoundsDefensePlanner
             var recorded = p.Journal.LayoutPlan(current, tick, ct);
             if (recorded?.Plan is { } plan)
             {
-                var (killbox, opening) = PolicyApi.KillboxOpening(plan);
+                var (killbox, opening) = LayoutPlan.KillboxOpening(plan);
                 if (opening)
                 {
                     d.Toward = killbox.Toward;

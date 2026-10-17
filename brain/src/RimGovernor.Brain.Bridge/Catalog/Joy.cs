@@ -126,7 +126,7 @@ public sealed partial class DefinitionCatalog
     // no NeedDef for joy leaves the model unknown.
     internal P.JoyModel JoyModel()
     {
-        var game = P.PolicyFunctions.JoyGame();
+        var game = P.LayoutJoyNodesRules.JoyGame();
         if (DefRow<NeedDef>(game.Need) is null)
         {
             return new P.JoyModel();

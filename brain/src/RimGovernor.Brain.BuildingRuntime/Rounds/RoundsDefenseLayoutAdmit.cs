@@ -23,7 +23,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var roamer = DefenseRoamerOwned(read.Projection);
         for (var i = 0; i < buildings.Count; i++)
         {
-            candidates.Add(DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), buildings[i], DefenseTier.DefenseBuildTier(promoted, PolicyApi.IsCorePerimeterTier(tier.Name), roamer)));
+            candidates.Add(DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), buildings[i], DefenseTier.DefenseBuildTier(promoted, LayoutPerimeterSitesRules.IsCorePerimeterTier(tier.Name), roamer)));
         }
         IReadOnlyList<BridgeBuildingPreview> evaluated = [];
         if (candidates.Count > 0)
@@ -37,14 +37,14 @@ public sealed partial class RoundsDefenseLayoutPlanner
             var (preview, ok) = ClassifyDefensePreview(evaluated[i], building.Cell);
             if (!ok && preview.NativeWorkPending)
             {
-                if (PolicyApi.IsPerimeterTier(tier.Name))
+                if (LayoutDefenseRules.IsPerimeterTier(tier.Name))
                 {
                     placed++;
                     continue;
                 }
                 return new RoundsDefenseLayoutResult { Verdict = BuildingReasonExistingWork, Tier = tier.Name.Value };
             }
-            if (!ok && ((tier.Name == DefenseLayout.TierFiringLine && building.Definition == DefenseDefinitionNames.Floor) || PolicyApi.IsPerimeterTier(tier.Name) || tier.Name == DefenseIEDs.TierIEDs))
+            if (!ok && ((tier.Name == DefenseLayout.TierFiringLine && building.Definition == DefenseDefinitionNames.Floor) || LayoutDefenseRules.IsPerimeterTier(tier.Name) || tier.Name == DefenseIEDs.TierIEDs))
             {
                 unfloorable.Add(building.Cell);
                 continue;
@@ -65,7 +65,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         if (unfloorable.Count > 0)
         {
-            tier.Buildings = DefenseWithoutFloors(tier.Buildings, unfloorable, PolicyApi.IsPerimeterTier(tier.Name) || tier.Name == DefenseIEDs.TierIEDs);
+            tier.Buildings = DefenseWithoutFloors(tier.Buildings, unfloorable, LayoutDefenseRules.IsPerimeterTier(tier.Name) || tier.Name == DefenseIEDs.TierIEDs);
             record.SetTier(tier);
             DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "refused", "placement_refused_natively", tier.Name.Value, new Dictionary<string, object?> { ["cells"] = unfloorable.Count }, call);
             p.Journal.SaveDefenseLayout(record, call);
@@ -90,7 +90,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 }
             }
         }
-        if (!PolicyApi.IsPerimeterTier(tier.Name))
+        if (!LayoutDefenseRules.IsPerimeterTier(tier.Name))
         {
             var (killbox, _, _, kok) = DefenseKillbox(projection);
             if (!kok)
@@ -300,7 +300,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return (new DefenseKillbox(), new BridgeCellRect(), default, false);
         }
-        var (k, region, home, ok) = PolicyApi.LayoutKillbox(plan, projection.Bounds);
+        var (k, region, home, ok) = LayoutPlan.LayoutKillbox(plan, projection.Bounds);
         if (!ok)
         {
             return (new DefenseKillbox(), new BridgeCellRect(), default, false);
@@ -323,7 +323,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         foreach (var tier in record.Tiers)
         {
-            if (tier.Name.Value != section && (section != "" || PolicyApi.IsPerimeterTier(tier.Name)))
+            if (tier.Name.Value != section && (section != "" || LayoutDefenseRules.IsPerimeterTier(tier.Name)))
             {
                 continue;
             }
@@ -346,7 +346,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var output = DefenseRecordRegion(record, bounds, baseRegion, "");
         foreach (var tier in record.Tiers)
         {
-            if (!PolicyApi.IsPerimeterTier(tier.Name) || tier.Buildings.Count == 0)
+            if (!LayoutDefenseRules.IsPerimeterTier(tier.Name) || tier.Buildings.Count == 0)
             {
                 continue;
             }

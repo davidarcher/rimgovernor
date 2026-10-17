@@ -359,7 +359,7 @@ public sealed partial class StationGraph
     /// <summary>The summed edge weight between two nodes, 0 when none.</summary>
     public double Weight(string a, string b)
     {
-        (a, b) = PolicyFunctions.OrderedPair(a, b);
+        (a, b) = LayoutGraphRules.OrderedPair(a, b);
         var total = 0.0;
         foreach (var e in Edges)
         {
@@ -374,7 +374,7 @@ public sealed partial class StationGraph
     /// <summary>Reports a required link between two nodes.</summary>
     public bool Requires(string a, string b)
     {
-        (a, b) = PolicyFunctions.OrderedPair(a, b);
+        (a, b) = LayoutGraphRules.OrderedPair(a, b);
         return Edges.Any(e => e.A == a && e.B == b && e.Required);
     }
 }
@@ -406,14 +406,14 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         var (s, ok) = In.Catalog.Station(def);
         if (!ok)
         {
-            throw new StationGraphException($"{PolicyFunctions.Quote(def)} is no station in the catalog");
+            throw new StationGraphException($"{LayoutGraphRules.Quote(def)} is no station in the catalog");
         }
         return s!;
     }
 
     public string AddNode(string def, StationPurpose purpose, int count, IReadOnlyList<EnvNeed> needs, string reason)
     {
-        var id = PolicyFunctions.NodeId(def, purpose);
+        var id = LayoutGraphRules.NodeId(def, purpose);
         Nodes[id] = new StationNode { Id = id, Def = def, Purpose = purpose, Count = count, Needs = needs };
         return id;
     }
@@ -424,7 +424,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         {
             return;
         }
-        (a, c) = PolicyFunctions.OrderedPair(a, c);
+        (a, c) = LayoutGraphRules.OrderedPair(a, c);
         var key = (a, c);
         if (!Edges.TryGetValue(key, out var e))
         {
@@ -461,9 +461,9 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         (StationPurpose Purpose, int People, string Def, string Reason)[] kinds =
         [
             (StationPurpose.Sleep, p.Colonists + PolicyConstants.HousingSparePlaces, f.PrimaryBed(), PolicyConstants.ReasonBedsPopulationReserve),
-            (StationPurpose.SleepMed, p.Injured, PolicyFunctions.First(hospital), PolicyConstants.ReasonBedsPatients),
+            (StationPurpose.SleepMed, p.Injured, LayoutGraphRules.First(hospital), PolicyConstants.ReasonBedsPatients),
             (StationPurpose.SleepPrison, p.Prisoners, f.PrimaryBed(), PolicyConstants.ReasonBedsPrisoners),
-            (StationPurpose.SleepBaby, p.Babies, PolicyFunctions.First(nurseries), PolicyConstants.ReasonBedsBabies),
+            (StationPurpose.SleepBaby, p.Babies, LayoutGraphRules.First(nurseries), PolicyConstants.ReasonBedsBabies),
         ];
         foreach (var k in kinds)
         {
@@ -484,7 +484,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
                 for (var i = 0; i < suites.Count; i++)
                 {
                     var w = suites[i];
-                    var id = string.Create(CultureInfo.InvariantCulture, $"{PolicyFunctions.NodeId(k.Def, k.Purpose)}/suite{i}");
+                    var id = string.Create(CultureInfo.InvariantCulture, $"{LayoutGraphRules.NodeId(k.Def, k.Purpose)}/suite{i}");
                     Nodes[id] = new StationNode { Id = id, Def = k.Def, Purpose = k.Purpose, Count = 1, Floor = (int)RoomQualityRules.SuiteCells(w.Target), Kept = w.Kept };
                     people -= Math.Max(s.Capacity.Slots, 1);
                 }
@@ -493,7 +493,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
                     continue;
                 }
             }
-            AddNode(k.Def, k.Purpose, PolicyFunctions.CeilDiv(people, Math.Max(s.Capacity.Slots, 1)), [], k.Reason);
+            AddNode(k.Def, k.Purpose, LayoutGraphRules.CeilDiv(people, Math.Max(s.Capacity.Slots, 1)), [], k.Reason);
         }
     }
 
@@ -526,7 +526,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             var (s, ok) = In.Catalog.Station(def);
             if (ok && s!.Capacity.Kind == CapacityKind.Workers)
             {
-                var w = PolicyFunctions.HostWork(s, recipe);
+                var w = LayoutGraphRules.HostWork(s, recipe);
                 if (w > 0)
                 {
                     return (def, w);
@@ -540,7 +540,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             {
                 continue;
             }
-            var w = PolicyFunctions.HostWork(s, recipe);
+            var w = LayoutGraphRules.HostWork(s, recipe);
             if (w > 0)
             {
                 return (def, w);
@@ -723,7 +723,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         }
         var s = Station(table.Def);
         var seats = 2 * (table.Size.X + table.Size.Z);
-        AddNode(table.Def, StationPurpose.Dine, PolicyFunctions.CeilDiv(eaters, seats), s.Needs, PolicyConstants.ReasonDineSeats);
+        AddNode(table.Def, StationPurpose.Dine, LayoutGraphRules.CeilDiv(eaters, seats), s.Needs, PolicyConstants.ReasonDineSeats);
     }
 
     /// <summary>The shelf a stock is stored on: the catalog's item store of the storeroom role holding the most stacks per cell, wanting cold when cold is asked for.</summary>
@@ -788,7 +788,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             var (def, s, ok) = StorageStation(true);
             if (ok)
             {
-                AddNode(def, StationPurpose.StoreCold, PolicyFunctions.CeilDiv(coldStacks, s!.Capacity.Slots), PolicyFunctions.ColdNeeds(s), PolicyConstants.ReasonStoreStock);
+                AddNode(def, StationPurpose.StoreCold, LayoutGraphRules.CeilDiv(coldStacks, s!.Capacity.Slots), LayoutGraphRules.ColdNeeds(s), PolicyConstants.ReasonStoreStock);
             }
             else
             {
@@ -802,7 +802,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             {
                 throw new StationGraphException("no item store in the catalog");
             }
-            AddNode(def, StationPurpose.Store, PolicyFunctions.CeilDiv(plainStacks, s!.Capacity.Slots), PolicyFunctions.WithoutCold(s.Needs), PolicyConstants.ReasonStoreStock);
+            AddNode(def, StationPurpose.Store, LayoutGraphRules.CeilDiv(plainStacks, s!.Capacity.Slots), LayoutGraphRules.WithoutCold(s.Needs), PolicyConstants.ReasonStoreStock);
         }
     }
 
@@ -850,9 +850,9 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         }
         foreach (var l in loads)
         {
-            var work = PolicyFunctions.NodeId(l.Station, StationPurpose.Work);
+            var work = LayoutGraphRules.NodeId(l.Station, StationPurpose.Work);
             var flow = Flow(l.Recipe);
-            foreach (var pick in PolicyFunctions.RecipePicks(flow))
+            foreach (var pick in LayoutGraphRules.RecipePicks(flow))
             {
                 var (store, ok) = StoreFor(pick.Resource);
                 if (!ok)
@@ -988,7 +988,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutGraphRules
 {
     internal static (string, string) OrderedPair(string a, string b) => string.CompareOrdinal(b, a) < 0 ? (b, a) : (a, b);
 
@@ -1061,6 +1061,19 @@ public static partial class PolicyFunctions
         return output;
     }
 
+    /// <summary>The station-less rooms the graph holds: the outskirts, the training rooms and the seed rooms.</summary>
+    internal static List<RoomNode> StationRoomNodes(StationGraphInput input)
+    {
+        var nodes = new List<RoomNode>(LayoutOutskirtsRules.OutskirtsRoomNodes());
+        nodes.AddRange(LayoutTrainingNodesRules.TrainingRoomNodes(input.TrainingStands, input.TrainingMarkers));
+        nodes.AddRange(input.Rooms);
+        nodes.AddRange(LayoutTripsRules.SeedRoomNodes(input.Seed));
+        return nodes;
+    }
+}
+
+partial class StationGraph
+{
     /// <summary>Derives the graph from the models in input.</summary>
     public static StationGraph BuildStationGraph(StationGraphInput input)
     {
@@ -1081,7 +1094,7 @@ public static partial class PolicyFunctions
         g.Fields = fields;
         g.Pens = pens;
         g.Recreation = recreation;
-        g.Rooms = StationRoomNodes(input);
+        g.Rooms = LayoutGraphRules.StationRoomNodes(input);
         b.ShelterMeals(g.Rooms, meals);
         foreach (var n in g.Nodes)
         {
@@ -1100,19 +1113,9 @@ public static partial class PolicyFunctions
         return g;
     }
 
-    /// <summary>The station-less rooms the graph holds: the outskirts, the training rooms and the seed rooms.</summary>
-    private static List<RoomNode> StationRoomNodes(StationGraphInput input)
-    {
-        var nodes = new List<RoomNode>(OutskirtsRoomNodes());
-        nodes.AddRange(TrainingRoomNodes(input.TrainingStands, input.TrainingMarkers));
-        nodes.AddRange(input.Rooms);
-        nodes.AddRange(SeedRoomNodes(input.Seed));
-        return nodes;
-    }
-
     /// <summary>
     /// The graph of the rooms that need no live fact: no station and no edge, only the station-less rooms. A
     /// first plan derived before the colony is read grows from it, and the rest grows on replan.
     /// </summary>
-    public static StationGraph SeedGraph(StationGraphInput input) => new() { Rooms = StationRoomNodes(input) };
+    public static StationGraph SeedGraph(StationGraphInput input) => new() { Rooms = LayoutGraphRules.StationRoomNodes(input) };
 }

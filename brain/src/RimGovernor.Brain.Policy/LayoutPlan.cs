@@ -54,7 +54,7 @@ public sealed partial record PlannedRoom
     internal Rectangle AttachedGround() => Role == PlannedRole.Airlock ? this.AirlockGround() : PorchGround();
 
     /// <summary>A child room that hangs off a parent: an airlock or porch.</summary>
-    internal bool Attached() => Role == PlannedRole.Airlock || Role == PlannedPorch;
+    internal bool Attached() => Role == PlannedRole.Airlock || Role == LayoutPorchRules.PlannedPorch;
 
     /// <summary>Whether two rooms are identical, the comparison Region and Crossing rule out for value equality.</summary>
     public bool Same(PlannedRoom o) =>
@@ -191,7 +191,7 @@ public sealed partial record LayoutPlan
     /// <summary>The interior centre of the first room for want that free accepts (every one when free is null), in plan order. A full role falls back to reserve rooms; null means the plan holds no slot.</summary>
     public Cell? Anchor(PlannedRole want, Func<Rectangle, bool>? free)
     {
-        foreach (var role in new[] { want, PlannedReserve })
+        foreach (var role in new[] { want, LayoutSurveyRules.PlannedReserve })
         {
             foreach (var r in Rooms)
             {
@@ -210,7 +210,7 @@ public sealed partial record LayoutPlan
     {
         foreach (var r in Rooms)
         {
-            if (r.Role == PlannedStorage)
+            if (r.Role == LayoutSurveyRules.PlannedStorage)
             {
                 var b = r.Region.Bounds();
                 return new Cell(b.X + (b.Width / 2), b.Z + (b.Height / 2));
@@ -236,7 +236,7 @@ public sealed partial record LayoutPlan
         var fp = new Rectangle();
         foreach (var r in Rooms)
         {
-            fp = UnionRect(fp, RoomWalls(r));
+            fp = LayoutDefenseRules.UnionRect(fp, PlannedRoom.RoomWalls(r));
         }
         return fp.Width != 0 ? fp : null;
     }
@@ -289,7 +289,7 @@ public sealed partial record LayoutPlan
         var seen = new HashSet<RoomLink>();
         foreach (var l in Links)
         {
-            if (!rooms.TryGetValue(l.A, out var a) || !rooms.TryGetValue(l.B, out var b) || l.A >= l.B || seen.Contains(l) || !InWall(a, l.Cell) || !InWall(b, l.Cell))
+            if (!rooms.TryGetValue(l.A, out var a) || !rooms.TryGetValue(l.B, out var b) || l.A >= l.B || seen.Contains(l) || !LayoutGeometryRules.InWall(a, l.Cell) || !LayoutGeometryRules.InWall(b, l.Cell))
             {
                 return false;
             }
@@ -345,12 +345,12 @@ public sealed partial record LayoutPlan
         var siteIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var s in Sites)
         {
-            if (s.Kind == NodeKind.None || s.Node == "" || siteIds.Contains(s.Node) || s.Footprint.Empty() || (s.Kind == NodeRing && s.Ring is null))
+            if (s.Kind == NodeKind.None || s.Node == "" || siteIds.Contains(s.Node) || s.Footprint.Empty() || (s.Kind == LayoutPerimeterSitesRules.NodeRing && s.Ring is null))
             {
                 return false;
             }
             siteIds.Add(s.Node);
-            if (s.Kind == NodeVent && !ValidVent(s))
+            if (s.Kind == LayoutTileVentRules.NodeVent && !ValidVent(s))
             {
                 return false;
             }
@@ -392,7 +392,7 @@ public sealed partial record LayoutPlan
             {
                 return false;
             }
-            inRing = inRing || InWall(r.Region.Bounds(), c);
+            inRing = inRing || LayoutGeometryRules.InWall(r.Region.Bounds(), c);
         }
         return inRing;
     }
@@ -442,7 +442,7 @@ public sealed partial record LayoutPlan
         {
             foreach (var o in Rooms)
             {
-                if (o.Id != r.Id && o.Role == role && InWall(o.Region.Bounds(), c))
+                if (o.Id != r.Id && o.Role == role && LayoutGeometryRules.InWall(o.Region.Bounds(), c))
                 {
                     return c;
                 }
@@ -468,13 +468,13 @@ public sealed partial record LayoutPlan
         {
             rects.Add(s.Footprint.Bounds());
         }
-        return RectUnion(rects.ToArray());
+        return LayoutPlanRules.RectUnion(rects.ToArray());
     }
 
     /// <summary>The interior centre of the free planned room of role want nearest to point to (squared distance, plan order on ties); free filters out occupied rooms (every room when null). With no free room of that role it falls back to the nearest free reserve room; null means the plan holds no slot.</summary>
     public Cell? NearestAnchor(PlannedRole want, Cell to, Func<Rectangle, bool>? free)
     {
-        foreach (var role in new[] { want, PlannedReserve })
+        foreach (var role in new[] { want, LayoutSurveyRules.PlannedReserve })
         {
             Cell best = default;
             long bestD = 0;
@@ -508,7 +508,7 @@ public sealed partial record LayoutPlan
     {
         foreach (var z in Zones)
         {
-            if (z.Kind != ZoneField)
+            if (z.Kind != LayoutPlanRules.ZoneField)
             {
                 continue;
             }
@@ -525,7 +525,7 @@ public sealed partial record LayoutPlan
     }
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutPlanRules
 {
     public static ZoneKind ZoneField => ZoneKind.Field;
     public static ZoneKind ZonePasture => ZoneKind.Pasture;

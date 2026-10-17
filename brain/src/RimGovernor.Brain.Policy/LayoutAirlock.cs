@@ -6,21 +6,8 @@ namespace RimGovernor.Brain.Policy;
 // vestibule's left and right are walls. The parent's wall ring owns the walls and the outer door
 // (AirlockCells), so the child owes no ring of its own (Unfenced). Nothing here is specific to a shelter: any
 // parent door takes one (AttachAirlock).
-public static partial class PolicyFunctions
+public static partial class LayoutAirlockRules
 {
-    /// <summary>The airlock for a room whose door is door facing rot.</summary>
-    internal static PlannedRoom AttachAirlock(Cell door, Rotation rot)
-    {
-        var v = Outside(door, rot);
-        return new PlannedRoom
-        {
-            Role = PlannedRole.Airlock,
-            Region = RegionRules.RectRegion(new Rectangle(v.X, v.Z, 1, 1)),
-            Door = Outside(v, rot),
-            DoorRot = rot,
-        };
-    }
-
     /// <summary>The cell beyond door d, away from the room whose wall side it faces.</summary>
     internal static Cell Outside(Cell d, Rotation side) => side switch
     {
@@ -30,23 +17,39 @@ public static partial class PolicyFunctions
         Rotation.East => new Cell(d.X + 1, d.Z),
         _ => d,
     };
+}
+
+partial record PlannedRoom
+{
+    /// <summary>The airlock for a room whose door is door facing rot.</summary>
+    internal static PlannedRoom AttachAirlock(Cell door, Rotation rot)
+    {
+        var v = LayoutAirlockRules.Outside(door, rot);
+        return new PlannedRoom
+        {
+            Role = PlannedRole.Airlock,
+            Region = RegionRules.RectRegion(new Rectangle(v.X, v.Z, 1, 1)),
+            Door = LayoutAirlockRules.Outside(v, rot),
+            DoorRot = rot,
+        };
+    }
 
     /// <summary>The airlock's one floor cell.</summary>
-    public static Cell Vestibule(this PlannedRoom r)
+    public Cell Vestibule()
     {
-        var b = r.Region.Bounds();
+        var b = this.Region.Bounds();
         return new Cell(b.X, b.Z);
     }
 
     /// <summary>The two wall cells beside the vestibule; empty for any room but an airlock.</summary>
-    public static IReadOnlyList<Cell> AirlockWalls(this PlannedRoom r)
+    public IReadOnlyList<Cell> AirlockWalls()
     {
-        if (r.Role != PlannedRole.Airlock)
+        if (this.Role != PlannedRole.Airlock)
         {
             return [];
         }
-        var v = r.Vestibule();
-        if (r.DoorRot is Rotation.East or Rotation.West)
+        var v = this.Vestibule();
+        if (this.DoorRot is Rotation.East or Rotation.West)
         {
             return [new Cell(v.X, v.Z - 1), new Cell(v.X, v.Z + 1)];
         }
@@ -54,29 +57,32 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The rectangle the airlock occupies beyond its parent's ring: the vestibule, its two walls and the outer door. Empty for any room but an airlock.</summary>
-    public static Rectangle AirlockGround(this PlannedRoom r)
+    public Rectangle AirlockGround()
     {
-        if (r.Role != PlannedRole.Airlock)
+        if (this.Role != PlannedRole.Airlock)
         {
             return default;
         }
-        var g = new Rectangle(r.Door.X, r.Door.Z, 1, 1);
-        foreach (var c in r.AirlockWalls().Append(r.Vestibule()))
+        var g = new Rectangle(this.Door.X, this.Door.Z, 1, 1);
+        foreach (var c in this.AirlockWalls().Append(this.Vestibule()))
         {
-            g = UnionRect(g, new Rectangle(c.X, c.Z, 1, 1));
+            g = LayoutDefenseRules.UnionRect(g, new Rectangle(c.X, c.Z, 1, 1));
         }
         return g;
     }
 
     /// <summary>The cells the airlock adds to its parent's ring: the two walls, then the outer door. Empty for any room but an airlock.</summary>
-    internal static IReadOnlyList<Cell> AirlockCells(this PlannedRoom r) =>
-        r.Role != PlannedRole.Airlock ? [] : [.. r.AirlockWalls(), r.Door];
+    internal IReadOnlyList<Cell> AirlockCells() =>
+        this.Role != PlannedRole.Airlock ? [] : [.. this.AirlockWalls(), this.Door];
+}
 
+partial record LayoutPlan
+{
     /// <summary>The children of room id with role.</summary>
-    internal static IReadOnlyList<PlannedRoom> ChildrenOfRole(this LayoutPlan p, int id, PlannedRole role) =>
-        [.. p.ChildrenOf(id).Where(c => c.Role == role)];
+    internal IReadOnlyList<PlannedRoom> ChildrenOfRole(int id, PlannedRole role) =>
+        [.. this.ChildrenOf(id).Where(c => c.Role == role)];
 
     /// <summary>The ring cells r's airlocks add: walls and outer doors.</summary>
-    internal static IReadOnlyList<Cell> AirlockCells(this LayoutPlan p, PlannedRoom r) =>
-        [.. p.ChildrenOfRole(r.Id, PlannedRole.Airlock).SelectMany(a => a.AirlockCells())];
+    internal IReadOnlyList<Cell> AirlockCells(PlannedRoom r) =>
+        [.. this.ChildrenOfRole(r.Id, PlannedRole.Airlock).SelectMany(a => a.AirlockCells())];
 }

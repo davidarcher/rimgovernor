@@ -99,10 +99,10 @@ public sealed partial record LayoutPlan
         var output = new List<LayoutReservation>(Reservations);
         foreach (var s in Sites)
         {
-            output.Add(new LayoutReservation { Kind = ReservationKindOf(s.Kind), Area = s.Footprint });
+            output.Add(new LayoutReservation { Kind = LayoutKindsRules.ReservationKindOf(s.Kind), Area = s.Footprint });
             if (s.Ring is not null && !s.Ring.Gaps.Empty())
             {
-                output.Add(new LayoutReservation { Kind = ReservationKindOf(s.Kind), Area = s.Ring.Gaps });
+                output.Add(new LayoutReservation { Kind = LayoutKindsRules.ReservationKindOf(s.Kind), Area = s.Ring.Gaps });
             }
         }
         return output;
@@ -112,7 +112,7 @@ public sealed partial record LayoutPlan
     public HashSet<Cell> WallCells()
     {
         var output = new HashSet<Cell>();
-        foreach (var s in LiveSites(PolicyFunctions.NodeRing))
+        foreach (var s in LiveSites(LayoutPerimeterSitesRules.NodeRing))
         {
             output.UnionWith(s.Footprint.Cells());
             if (s.Ring is not null)
@@ -120,7 +120,7 @@ public sealed partial record LayoutPlan
                 output.UnionWith(s.Ring.Gaps.Cells());
             }
         }
-        foreach (var s in LiveSites(PolicyFunctions.NodeGate))
+        foreach (var s in LiveSites(LayoutPerimeterSitesRules.NodeGate))
         {
             output.UnionWith(s.Footprint.Cells());
         }
@@ -128,14 +128,14 @@ public sealed partial record LayoutPlan
     }
 
     /// <summary>Drops the nodes that stand or fall with the ring.</summary>
-    internal LayoutPlan WithoutPerimeterSites() => this with { Sites = [.. Sites.Where(s => !PolicyFunctions.PerimeterSiteKinds.Contains(s.Kind))] };
+    internal LayoutPlan WithoutPerimeterSites() => this with { Sites = [.. Sites.Where(s => !LayoutPerimeterSitesRules.PerimeterSiteKinds.Contains(s.Kind))] };
 
     /// <summary>Drops the nodes of the given kinds.</summary>
     internal LayoutPlan WithoutSites(params NodeKind[] kinds) => this with { Sites = [.. Sites.Where(s => !kinds.Contains(s.Kind))] };
 }
 
 /// <summary>Ports <c>layout_perimeter_sites.go</c> and <c>layout_perimeter_tiers.go</c>: the defense ground as site nodes.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutPerimeterSitesRules
 {
     public static NodeKind NodeRing => NodeKind.Ring;
     public static NodeKind NodeGate => NodeKind.Gate;
@@ -170,6 +170,26 @@ public static partial class PolicyFunctions
         return new PlannedSite { Node = id, Origin = new Cell(b.X, b.Z), Footprint = fp, Kind = kind, Reason = reason };
     }
 
+    internal static bool SameRing(RingFacts? a, RingFacts? b)
+    {
+        if (a is null || b is null)
+        {
+            return a is null && b is null;
+        }
+        return a.Revision == b.Revision && a.Light.Equal(b.Light) && a.Bridged.Equal(b.Bridged) && a.Gaps.Equal(b.Gaps) && a.Inner.Equal(b.Inner) && a.Sealed.Equal(b.Sealed);
+    }
+
+    /// <summary>The region as the rectangles the wall sections cut: the same decomposition CellRects makes of its cells.</summary>
+    internal static List<Rectangle> RegionRects(Region g) => LayoutPerimeterEnclosureRules.CellRects([.. g.Cells()]);
+
+    private static readonly System.Text.RegularExpressions.Regex CorePerimeterTier = new("^" + System.Text.RegularExpressions.Regex.Escape(TierPerimeterPrefix) + "(r[0-9]+-)?[0-9]+$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>Whether a tier is one of the perimeter wall's own sections (perimeter-NN, or perimeter-rN-NN after a re-cut), not a pump, light, fence or removal tier.</summary>
+    public static bool IsCorePerimeterTier(DefenseTierName name) => CorePerimeterTier.IsMatch(name.Value);
+}
+
+partial record LayoutPlan
+{
     /// <summary>The ring's and the opening's decisions, for the caller to journal: the ring is traced, and the opening is kept, chosen by the routes, or absent; then each pocket wall placed.</summary>
     public static List<SiteDecision> PerimeterDecisions(LayoutPlan p)
     {
@@ -186,9 +206,9 @@ public static partial class PolicyFunctions
         }
         else
         {
-            output.Add(new SiteDecision { Node = Wire.Name(NodeKillbox), Verdict = EmbedUnplaceable, Reason = ring.Ring!.Opening });
+            output.Add(new SiteDecision { Node = Wire.Name(LayoutPerimeterSitesRules.NodeKillbox), Verdict = EmbedUnplaceable, Reason = ring.Ring!.Opening });
         }
-        foreach (var s in p.LiveSites(NodePocketWall))
+        foreach (var s in p.LiveSites(LayoutPerimeterSitesRules.NodePocketWall))
         {
             output.Add(new SiteDecision { Node = s.Node, Verdict = EmbedPlace, Reason = s.Reason });
         }
@@ -199,7 +219,7 @@ public static partial class PolicyFunctions
     public static bool PerimeterChanged(LayoutPlan prev, LayoutPlan next) => !SameSites(prev, next);
 
     /// <summary>Whether a and b hold the same perimeter nodes: the same ground, whatever the reasons they stand (a kept opening reads as chosen).</summary>
-    internal static bool SameSites(LayoutPlan a, LayoutPlan b) => SameSitesOf(a, b, PerimeterSiteKinds);
+    internal static bool SameSites(LayoutPlan a, LayoutPlan b) => SameSitesOf(a, b, LayoutPerimeterSitesRules.PerimeterSiteKinds);
 
     /// <summary>SameSites over the nodes of the given kinds.</summary>
     internal static bool SameSitesOf(LayoutPlan a, LayoutPlan b, HashSet<NodeKind> kinds)
@@ -213,23 +233,6 @@ public static partial class PolicyFunctions
             && t.First.Footprint.Equal(t.Second.Footprint)
             && t.First.Anchored == t.Second.Anchored
             && t.First.ReplacesSites.SequenceEqual(t.Second.ReplacesSites)
-            && SameRing(t.First.Ring, t.Second.Ring));
+            && LayoutPerimeterSitesRules.SameRing(t.First.Ring, t.Second.Ring));
     }
-
-    private static bool SameRing(RingFacts? a, RingFacts? b)
-    {
-        if (a is null || b is null)
-        {
-            return a is null && b is null;
-        }
-        return a.Revision == b.Revision && a.Light.Equal(b.Light) && a.Bridged.Equal(b.Bridged) && a.Gaps.Equal(b.Gaps) && a.Inner.Equal(b.Inner) && a.Sealed.Equal(b.Sealed);
-    }
-
-    /// <summary>The region as the rectangles the wall sections cut: the same decomposition CellRects makes of its cells.</summary>
-    internal static List<Rectangle> RegionRects(Region g) => CellRects([.. g.Cells()]);
-
-    private static readonly System.Text.RegularExpressions.Regex CorePerimeterTier = new("^" + System.Text.RegularExpressions.Regex.Escape(TierPerimeterPrefix) + "(r[0-9]+-)?[0-9]+$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
-
-    /// <summary>Whether a tier is one of the perimeter wall's own sections (perimeter-NN, or perimeter-rN-NN after a re-cut), not a pump, light, fence or removal tier.</summary>
-    public static bool IsCorePerimeterTier(DefenseTierName name) => CorePerimeterTier.IsMatch(name.Value);
 }

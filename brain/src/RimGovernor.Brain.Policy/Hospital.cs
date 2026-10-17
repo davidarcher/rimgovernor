@@ -78,7 +78,7 @@ public static partial class PolicyFunctions
     /// condition, e.g. a scar) keeps the deficit and does not size the ward. Not ok when the census or a patient's
     /// rest or death is unknown.
     /// </summary>
-    private static (HashSet<PawnId> Ill, bool Ok) IllPatients(Fact<EquatableArray<CarePawn>> patients, IReadOnlyList<PawnId> surgical)
+    internal static (HashSet<PawnId> Ill, bool Ok) IllPatients(Fact<EquatableArray<CarePawn>> patients, IReadOnlyList<PawnId> surgical)
     {
         if (!patients.TryGetValue(out var rows))
         {

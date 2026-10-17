@@ -95,7 +95,7 @@ public sealed record JoyModel
             return Unknown<RecreationNode>();
         }
         var game = PolicyConstants.JoyJudgment;
-        var need = game.FallPerInterval * GameTime.TicksPerDay / game.IntervalTicks * PolicyFunctions.AwakeShare();
+        var need = game.FallPerInterval * GameTime.TicksPerDay / game.IntervalTicks * LayoutJoyNodesRules.AwakeShare();
         var session = gain / weight;
         var sessions = need / session;
         var share = outdoor / weight;
@@ -116,7 +116,7 @@ public sealed record RecreationNode
 
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutJoyNodesRules
 {
     /// <summary>The table the bridge reads the joy givers with.</summary>
     public static JoyTable JoyGame() => PolicyConstants.JoyJudgment;

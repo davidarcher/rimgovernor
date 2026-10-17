@@ -25,7 +25,7 @@ internal readonly record struct StepGate(Rectangle Area, Cell Face, Cell Out, Ce
 }
 
 /// <summary>Ports <c>layout_perimeter_outer.go</c>: the core ring also walls in the geothermal enclosures that crowd it; the outer ring that once walled the rest apart was removed.</summary>
-public static partial class PolicyFunctions
+public static partial class LayoutPerimeterOuterRules
 {
     /// <summary>The free cells between the core ring (and the killbox approach) and the outer ring.</summary>
     internal const int PerimeterOuterGap = 1;
@@ -34,7 +34,7 @@ public static partial class PolicyFunctions
     internal const int PerimeterOuterYard = 1;
 
     /// <summary>The reservation kinds the outer ring walls in whole: the geothermal enclosures.</summary>
-    private static bool OuterEnclosed(ReservationKind k) => k == ReserveGeothermal;
+    internal static bool OuterEnclosed(ReservationKind k) => k == LayoutPlanRules.ReserveGeothermal;
 
     /// <summary>
     /// Walls side sd's open cells into walls, run by run between the positions skip reports (an opening, bare terrain,
@@ -60,7 +60,7 @@ public static partial class PolicyFunctions
         }
         bool OpenColumn(int p)
         {
-            for (var t = 0; t < PerimeterThick; t++)
+            for (var t = 0; t < LayoutPerimeterRules.PerimeterThick; t++)
             {
                 if (impassable(sd.At(p, t)))
                 {
@@ -78,7 +78,7 @@ public static partial class PolicyFunctions
             }
             for (var p = start; p <= end; p++)
             {
-                for (var t = 0; t < PerimeterThick; t++)
+                for (var t = 0; t < LayoutPerimeterRules.PerimeterThick; t++)
                 {
                     var c = sd.At(p, t);
                     if (!impassable(c) && !Sealed(p, t))
@@ -90,15 +90,15 @@ public static partial class PolicyFunctions
             var n = end - start + 1;
             if (n >= 5)
             {
-                var first = start + Math.Min(PerimeterGatePitch / 2, n / 2);
-                for (var p = first; p <= end; p += PerimeterGatePitch)
+                var first = start + Math.Min(LayoutPerimeterRules.PerimeterGatePitch / 2, n / 2);
+                for (var p = first; p <= end; p += LayoutPerimeterRules.PerimeterGatePitch)
                 {
                     if (!OpenColumn(p))
                     {
                         continue;
                     }
-                    var g = RectOf(sd.Base(p), sd.At(p, PerimeterThick - 1));
-                    if (n < PerimeterGatePitch)
+                    var g = LayoutPerimeterRules.RectOf(sd.Base(p), sd.At(p, LayoutPerimeterRules.PerimeterThick - 1));
+                    if (n < LayoutPerimeterRules.PerimeterGatePitch)
                     {
                         stepGates.Add(new StepGate(g, sd.Base(p), new Cell(-sd.Inward.X, -sd.Inward.Z), sd.Along));
                     }
@@ -134,7 +134,7 @@ public static partial class PolicyFunctions
             var clear = step.OpensOut(blocked);
             foreach (var o in gates)
             {
-                clear = clear && Math.Max(Math.Max(o.X - g.X, g.X - o.X), Math.Max(o.Z - g.Z, g.Z - o.Z)) >= PerimeterGatePitch;
+                clear = clear && Math.Max(Math.Max(o.X - g.X, g.X - o.X), Math.Max(o.Z - g.Z, g.Z - o.Z)) >= LayoutPerimeterRules.PerimeterGatePitch;
             }
             if (clear)
             {
@@ -142,21 +142,6 @@ public static partial class PolicyFunctions
             }
         }
         return gates;
-    }
-
-    /// <summary>The cells of a w x h map the core ring walls in: each room's interior with its walls, and the turbine pairs beside them.</summary>
-    internal static bool[] CoreBaseFootprint(LayoutPlan plan, int w, int h)
-    {
-        var fp = new bool[Math.Max(w, 0) * Math.Max(h, 0)];
-        foreach (var r in plan.Rooms)
-        {
-            MarkRect(fp, w, h, Pad(r.Region.Bounds(), 1));
-        }
-        foreach (var s in plan.LiveSites(NodeTurbine))
-        {
-            MarkRegion(fp, w, h, s.Footprint.Grow(1));
-        }
-        return fp;
     }
 
     /// <summary>Sets the cells of r that lie on the w x h map.</summary>
@@ -187,36 +172,8 @@ public static partial class PolicyFunctions
         }
     }
 
-    /// <summary>
-    /// Traces the core ring's enclosure: the core grown by the killbox yard, plus each outer-ring unit it takes in
-    /// (CrowdsCore) grown only by PerimeterOuterYard, as a blob of its own: a geothermal has no killbox lane to clear,
-    /// so it stands hard against the wall.
-    /// </summary>
-    internal static Enclosure CoreEnclosure(LayoutPlan plan, int w, int h)
-    {
-        var baseFp = CoreBaseFootprint(plan, w, h);
-        const int gap = PerimeterGap;
-        var tight = new bool[baseFp.Length];
-        foreach (var r in plan.Reservations)
-        {
-            if (OuterEnclosed(r.Kind) && CrowdsCore(baseFp, w, h, r.Area, gap))
-            {
-                MarkRegion(tight, w, h, r.Area);
-            }
-        }
-        const int m = LayoutEdgeMargin + PerimeterThick;
-        var yard = new Rectangle { X = m, Z = m, Width = w - (2 * m), Height = h - (2 * m) };
-        var grown = GrowRegion(baseFp, w, h, gap);
-        var near = GrowRegion(tight, w, h, PerimeterOuterYard);
-        for (var i = 0; i < near.Length; i++)
-        {
-            grown[i] = grown[i] || near[i];
-        }
-        return NewEnclosure(CloseRegion(grown, w, h, yard), w, h);
-    }
-
     /// <summary>How far the outer ring needs a unit to stand off the core footprint: the core ring's yard, its thickness, the gap and the outer ring's thickness.</summary>
-    internal const int OuterClear = PerimeterGap + PerimeterThick + PerimeterOuterGap + PerimeterThick;
+    internal const int OuterClear = LayoutPerimeterRules.PerimeterGap + LayoutPerimeterRules.PerimeterThick + PerimeterOuterGap + LayoutPerimeterRules.PerimeterThick;
 
     /// <summary>
     /// Whether area stands within OuterClear (Chebyshev), widened by the yard (gap) a herd grew past PerimeterGap, of the
@@ -224,7 +181,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static bool CrowdsCore(bool[] fp, int w, int h, Region area, int gap)
     {
-        var clear = OuterClear + gap - PerimeterGap;
+        var clear = OuterClear + gap - LayoutPerimeterRules.PerimeterGap;
         foreach (var run in area.Grow(clear).Runs)
         {
             if (run.Z < 0 || run.Z >= h)
@@ -240,5 +197,51 @@ public static partial class PolicyFunctions
             }
         }
         return false;
+    }
+}
+
+partial record LayoutPlan
+{
+    /// <summary>The cells of a w x h map the core ring walls in: each room's interior with its walls, and the turbine pairs beside them.</summary>
+    internal static bool[] CoreBaseFootprint(LayoutPlan plan, int w, int h)
+    {
+        var fp = new bool[Math.Max(w, 0) * Math.Max(h, 0)];
+        foreach (var r in plan.Rooms)
+        {
+            LayoutPerimeterOuterRules.MarkRect(fp, w, h, LayoutPerimeterRules.Pad(r.Region.Bounds(), 1));
+        }
+        foreach (var s in plan.LiveSites(LayoutPowerNodesRules.NodeTurbine))
+        {
+            LayoutPerimeterOuterRules.MarkRegion(fp, w, h, s.Footprint.Grow(1));
+        }
+        return fp;
+    }
+
+    /// <summary>
+    /// Traces the core ring's enclosure: the core grown by the killbox yard, plus each outer-ring unit it takes in
+    /// (CrowdsCore) grown only by PerimeterOuterYard, as a blob of its own: a geothermal has no killbox lane to clear,
+    /// so it stands hard against the wall.
+    /// </summary>
+    internal static Enclosure CoreEnclosure(LayoutPlan plan, int w, int h)
+    {
+        var baseFp = CoreBaseFootprint(plan, w, h);
+        const int gap = LayoutPerimeterRules.PerimeterGap;
+        var tight = new bool[baseFp.Length];
+        foreach (var r in plan.Reservations)
+        {
+            if (LayoutPerimeterOuterRules.OuterEnclosed(r.Kind) && LayoutPerimeterOuterRules.CrowdsCore(baseFp, w, h, r.Area, gap))
+            {
+                LayoutPerimeterOuterRules.MarkRegion(tight, w, h, r.Area);
+            }
+        }
+        const int m = LayoutSurveyRules.LayoutEdgeMargin + LayoutPerimeterRules.PerimeterThick;
+        var yard = new Rectangle { X = m, Z = m, Width = w - (2 * m), Height = h - (2 * m) };
+        var grown = LayoutPerimeterEnclosureRules.GrowRegion(baseFp, w, h, gap);
+        var near = LayoutPerimeterEnclosureRules.GrowRegion(tight, w, h, LayoutPerimeterOuterRules.PerimeterOuterYard);
+        for (var i = 0; i < near.Length; i++)
+        {
+            grown[i] = grown[i] || near[i];
+        }
+        return LayoutPerimeterEnclosureRules.NewEnclosure(LayoutPerimeterEnclosureRules.CloseRegion(grown, w, h, yard), w, h);
     }
 }

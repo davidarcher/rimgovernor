@@ -13,7 +13,7 @@ public sealed class PolicyDefaultsTests
     [Fact]
     public void ShelterInteriorAreaCountsOnlyTheCapabilitiesWithACellFootprint()
     {
-        Assert.True(PolicyFunctions.ShelterInteriorArea(3, 0, 0) > 0);
+        Assert.True(LayoutShelterRules.ShelterInteriorArea(3, 0, 0) > 0);
     }
 
     [Fact]

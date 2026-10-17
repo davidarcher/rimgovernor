@@ -224,7 +224,7 @@ public sealed partial class RoundsBuildingPlanner
 
             var site = exhaust.Site;
 
-            var (standing, found) = PolicyFunctions.CensusRoomIn(room, rooms);
+            var (standing, found) = PlannedRoom.CensusRoomIn(room, rooms);
             if (!found || standing is null || standing.Id != Refrigeration?.Room)
             {
                 continue;

@@ -106,9 +106,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var ring = new List<DefenseTierName>();
         foreach (var t in record.Tiers)
         {
-            if (PolicyApi.IsPerimeterTier(t.Name))
+            if (LayoutDefenseRules.IsPerimeterTier(t.Name))
             {
-                if (roamerOwned && !t.Built && !t.Remove && PolicyApi.IsCorePerimeterTier(t.Name))
+                if (roamerOwned && !t.Built && !t.Remove && LayoutPerimeterSitesRules.IsCorePerimeterTier(t.Name))
                 {
                     ring.Add(t.Name);
                 }
@@ -225,7 +225,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 }
                 return new RoundsDefenseLayoutResult { Verdict = held };
             }
-            var (killbox, digest, _) = PolicyApi.KillboxNode(cut.Plan);
+            var (killbox, digest, _) = LayoutPlan.KillboxNode(cut.Plan);
             record = DefenseLayoutRecord.From(world, layout, entrances, killbox, digest);
             DefenseRecutPerimeter(record, cut);
             p.Journal.SaveDefenseLayout(record, call);
@@ -262,7 +262,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 continue;
             }
-            if (pipe.Piped() && (!PolicyApi.IsPerimeterTier(name) || tier.Remove))
+            if (pipe.Piped() && (!LayoutDefenseRules.IsPerimeterTier(name) || tier.Remove))
             {
                 break;
             }
@@ -295,7 +295,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 continue;
             }
-            if (PolicyApi.IsPerimeterTier(name) && DefenseNeedsStone(buildings))
+            if (LayoutDefenseRules.IsPerimeterTier(name) && DefenseNeedsStone(buildings))
             {
                 var (stuff, sok) = DefensePerimeterStone(read.Projection, buildings);
                 if (!sok)

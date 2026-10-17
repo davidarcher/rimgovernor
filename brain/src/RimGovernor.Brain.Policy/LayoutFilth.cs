@@ -95,13 +95,13 @@ public sealed record FilthModel
         {
             units = onset / per;
         }
-        var chance = PolicyFunctions.EvaluateCurve(FoodPoison, per);
+        var chance = LayoutFilthRules.EvaluateCurve(FoodPoison, per);
         var output = new List<FilthCost>();
         foreach (var node in filthy)
         {
             var r = runs.GetValueOrDefault(node);
-            var (standing, exposure) = PolicyFunctions.Residual(r.Runs * PolicyConstants.FilthGameJudgment.UnitsPerRun, r.Ticks, StandTicks);
-            var standingChance = PolicyFunctions.EvaluateCurve(FoodPoison, per * standing);
+            var (standing, exposure) = LayoutFilthRules.Residual(r.Runs * PolicyConstants.FilthGameJudgment.UnitsPerRun, r.Ticks, StandTicks);
+            var standingChance = LayoutFilthRules.EvaluateCurve(FoodPoison, per * standing);
             var poisonings = meals * exposure * standingChance;
             output.Add(new FilthCost
             {
@@ -240,7 +240,7 @@ public sealed record FilthCost
     public double WorkDays() => PoisonWorkDays;
 }
 
-public static partial class PolicyFunctions
+public static partial class LayoutFilthRules
 {
     /// <summary>The table the bridge reads the cleaning model with.</summary>
     public static FilthGame FilthGameTable() => PolicyConstants.FilthGameJudgment;
