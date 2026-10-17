@@ -112,13 +112,13 @@ internal static class PopulationDecoder
                 colonists++;
                 foreach (var s in person.Biography?.Skills ?? [])
                 {
-                    var name = s.DefName ?? "";
-                    var level = s.Level.GetValueOrDefault();
-                    if (!s.Disabled.GetValueOrDefault() && level > bestSkill.GetValueOrDefault(name))
+                    var name = s.DefName;
+                    var level = s.Level;
+                    if (!s.Disabled && level > bestSkill.GetValueOrDefault(name))
                     {
                         bestSkill[name] = level;
                     }
-                    if (name == "Medicine" && !s.Disabled.GetValueOrDefault())
+                    if (name == "Medicine" && !s.Disabled)
                     {
                         medicine[new Domain.PawnId(id)] = level;
                     }
@@ -216,19 +216,19 @@ internal static class PopulationDecoder
     private static Fact<P.PrisonerProspect> Prospect(PbObservations.PopulationPerson person, BridgeCatalog? catalog)
     {
         var bio = person.Biography;
-        if (bio is null || bio.BiologicalAgeYears is null || person.HealthSummary is null)
+        if (bio is null || person.HealthSummary is null)
         {
             return Unknown<P.PrisonerProspect>();
         }
         var skills = new List<P.PrisonerSkill>(bio.Skills.Count);
         foreach (var s in bio.Skills)
         {
-            skills.Add(new P.PrisonerSkill { Name = s.DefName ?? "", Level = s.Level.GetValueOrDefault(), Passion = BridgeFunctions.PassionName(s.Passion.GetValueOrDefault()), Disabled = s.Disabled.GetValueOrDefault() });
+            skills.Add(new P.PrisonerSkill { Name = s.DefName, Level = s.Level, Passion = BridgeFunctions.PassionName(s.Passion), Disabled = s.Disabled });
         }
         var traits = new List<P.PrisonerTrait>(bio.Traits.Count);
         foreach (var t in bio.Traits)
         {
-            var trait = new P.PrisonerTrait { Def = t.DefName ?? "", Degree = t.Degree.GetValueOrDefault() };
+            var trait = new P.PrisonerTrait { Def = t.DefName, Degree = t.Degree };
             if (catalog is not null)
             {
                 trait = trait with { Worth = catalog.TraitBalance(trait.Def, trait.Degree).Worth() };
@@ -237,7 +237,7 @@ internal static class PopulationDecoder
         }
         return Known(new P.PrisonerProspect
         {
-            Age = bio.BiologicalAgeYears.GetValueOrDefault(),
+            Age = bio.BiologicalAgeYears,
             Health = person.HealthSummary.GetValueOrDefault(),
             Incapable = [.. bio.IncapableWorkTypes],
             Skills = skills,

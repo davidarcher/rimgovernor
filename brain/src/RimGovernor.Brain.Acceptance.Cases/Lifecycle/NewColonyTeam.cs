@@ -132,7 +132,7 @@ internal static class LifecycleNewColonyTeam
             foreach (var skill in (bio?["skills"]).AsSlice())
             {
                 var def = skill.Member("defName").AsString();
-                p.Levels[def] = (int)skill.Member("level").AsNumber();
+                p.Levels[def] = (int)Math.Max(skill.Member("level").AsNumber(), 0);
                 var passion = skill.Member("passion").AsString();
                 p.Passions[def] = passion.StartsWith("PASSION_", StringComparison.Ordinal) ? passion["PASSION_".Length..] : passion;
                 if (skill.Member("disabled").AsBool() == true)
@@ -143,7 +143,7 @@ internal static class LifecycleNewColonyTeam
 
             foreach (var trait in (bio?["traits"]).AsSlice())
             {
-                p.Traits.Add(string.Create(CultureInfo.InvariantCulture, $"{trait.Member("defName").AsString()}:{(int)trait.Member("degree").AsNumber()}"));
+                p.Traits.Add(string.Create(CultureInfo.InvariantCulture, $"{trait.Member("defName").AsString()}:{(int)(trait.Member("degree") is null ? 0 : trait.Member("degree").AsNumber())}"));
             }
 
             foreach (var work in (bio?["incapableWorkTypes"]).AsSlice())

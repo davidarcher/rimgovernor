@@ -981,9 +981,12 @@ public sealed record SurgeryOperation
     public IReadOnlyDictionary<string, double> DoctorChances { get; init; } = new Dictionary<string, double>();
 }
 
+/// <summary>
+/// One equipped, worn or stocked item. Stuff, quality and the hit points are absent when the def has none.
+/// </summary>
 public sealed record GearItem
 {
-    public Common.Ref? Thing { get; init; }
+    public Common.Ref Thing { get; init; } = new();
 
     public string? Stuff { get; init; }
 
@@ -995,17 +998,15 @@ public sealed record GearItem
 
     public double? ConditionFraction { get; init; }
 
-    public bool? Forced { get; init; }
+    /// <summary>
+    /// Worn apparel the outfit cannot drop automatically (the forced handler's own test); false for other gear.
+    /// </summary>
+    public bool Forced { get; init; }
 
-    public bool? Locked { get; init; }
-
-    public double? ArmorSharp { get; init; }
-
-    public double? ArmorBlunt { get; init; }
-
-    public double? InsulationCold { get; init; }
-
-    public double? InsulationHeat { get; init; }
+    /// <summary>
+    /// Worn apparel the player locked; false for other gear.
+    /// </summary>
+    public bool Locked { get; init; }
 
     /// <summary>
     /// Native pawn ID, only when the coded owner still exists.
@@ -1013,18 +1014,20 @@ public sealed record GearItem
     public string? BiocodedTo { get; init; }
 
     /// <summary>
-    /// True also when the coded owner reference was lost; absent on older producers.
+    /// True also when the coded owner reference was lost.
     /// </summary>
-    public bool? Biocoded { get; init; }
-
-    /// <summary>
-    /// A loose candidate's supply CAS token.
-    /// </summary>
-    public SnapshotRef? ThingSnapshot { get; init; }
+    public bool Biocoded { get; init; }
 }
 
+/// <summary>
+/// The pawn's equipment and worn apparel. A pawn without an equipment or apparel tracker (an animal) carries
+/// neither and is unarmed.
+/// </summary>
 public sealed record PawnEquipment
 {
+    /// <summary>
+    /// The equipped primary's load id; absent when the pawn is unarmed.
+    /// </summary>
     public string? PrimaryId { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<GearItem>))]
@@ -1033,17 +1036,7 @@ public sealed record PawnEquipment
     [JsonConverter(typeof(EquatableArrayJsonConverter<GearItem>))]
     public EquatableArray<GearItem> Apparel { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<GearItem>))]
-    public EquatableArray<GearItem> InventoryWeapons { get; init; }
-
-    public string? CarriedThingId { get; init; }
-
-    public uint? InventoryItemCount { get; init; }
-
-    public bool? Armed { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
+    public bool Armed { get; init; }
 
     /// <summary>
     /// Defense capacity: the primary ranged verb's damage per second
@@ -1060,55 +1053,55 @@ public sealed record PawnEquipment
 /// </summary>
 public sealed record Skill
 {
+    /// <summary>
+    /// The learning forecast inputs; only the pawn biography read carries them.
+    /// </summary>
     public SkillLearning? Learning { get; init; }
 
-    public string? DefName { get; init; }
+    public string DefName { get; init; } = "";
 
-    public int? Level { get; init; }
+    public int Level { get; init; }
 
+    /// <summary>
+    /// The unclamped stored level; only the pawn biography read carries it.
+    /// </summary>
     public double? StoredLevel { get; init; }
 
-    public Passion? Passion { get; init; }
+    public Passion Passion { get; init; }
 
-    public bool? Disabled { get; init; }
+    public bool Disabled { get; init; }
 }
 
 public sealed record Trait
 {
-    public string? DefName { get; init; }
+    public string DefName { get; init; } = "";
 
-    public int? Degree { get; init; }
+    public int Degree { get; init; }
 }
 
 public sealed record WorkSetting
 {
-    public string? DefName { get; init; }
+    public string DefName { get; init; } = "";
 
-    public int? Priority { get; init; }
+    public int Priority { get; init; }
 
-    public bool? Disabled { get; init; }
+    public bool Disabled { get; init; }
 }
 
 public sealed record TimetableSlot
 {
-    public uint? Hour { get; init; }
+    public uint Hour { get; init; }
 
-    public string? AssignmentDefName { get; init; }
+    public string AssignmentDefName { get; init; } = "";
 }
 
+/// <summary>
+/// The pawn's age, skills, traits and work incapabilities. A pawn without a story or skill tracker (an animal)
+/// has no traits or skills, and its medicine skill is then unknown to the tend facts.
+/// </summary>
 public sealed record PawnBiography
 {
-    public double? BiologicalAgeYears { get; init; }
-
-    public double? ChronologicalAgeYears { get; init; }
-
-    public string? ChildhoodDefName { get; init; }
-
-    public string? AdulthoodDefName { get; init; }
-
-    public string? Title { get; init; }
-
-    public string? TitleSource { get; init; }
+    public double BiologicalAgeYears { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Skill>))]
     public EquatableArray<Skill> Skills { get; init; }
@@ -1120,37 +1113,25 @@ public sealed record PawnBiography
     public EquatableArray<string> IncapableWorkTypes { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> IncapableSources { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> DisabledWorkTags { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
 }
 
+/// <summary>
+/// One Mood-tab row: identical thoughts stacked, with their summed mood offset.
+/// </summary>
 public sealed record Thought
 {
-    public string? DefName { get; init; }
+    public string DefName { get; init; } = "";
 
-    public uint? Count { get; init; }
+    public uint Count { get; init; }
 
-    public double? MoodOffsetEach { get; init; }
-
-    public double? MoodOffsetTotal { get; init; }
+    public double MoodOffsetTotal { get; init; }
 }
 
-public sealed record Relation
-{
-    public Common.Ref? Other { get; init; }
-
-    public string? RelationDefName { get; init; }
-
-    public int? Opinion { get; init; }
-
-    public bool? OpinionReconstructed { get; init; }
-}
-
+/// <summary>
+/// The pawn's expectation and thoughts, read without recalculating the situational cache. A pawn without a
+/// mood need has no expectation and no thoughts.
+/// </summary>
 public sealed record PawnSocial
 {
     public bool? HighExpectations { get; init; }
@@ -1163,15 +1144,19 @@ public sealed record PawnSocial
     [JsonConverter(typeof(EquatableArrayJsonConverter<Thought>))]
     public EquatableArray<Thought> Situational { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Relation>))]
-    public EquatableArray<Relation> Relations { get; init; }
-
-    public bool? SituationalCacheStale { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
+    /// <summary>
+    /// The situational handler's own dirty flag: the cached situational thoughts are due a recalculation.
+    /// </summary>
+    public bool SituationalCacheStale { get; init; }
 }
 
+/// <summary>
+/// The requested settings families: care policy (medical care, self tend, hostility response) under
+/// PawnDetails.settings, work priorities with the allowed area, food restriction, policy inputs and body stats
+/// under PawnDetails.work, the 24 timetable slots under PawnDetails.schedule. A family's fields are absent when
+/// it was not requested; the care fields are absent too for a pawn without player settings, and the hostility
+/// response when it is not configurable.
+/// </summary>
 public sealed record PawnSettings
 {
     public Operations.MedicalCare? MedicalCare { get; init; }
@@ -1180,25 +1165,22 @@ public sealed record PawnSettings
 
     public Operations.HostilityResponse? HostilityResponse { get; init; }
 
+    /// <summary>
+    /// The current-map area restriction's load id; absent when the pawn is unrestricted.
+    /// </summary>
     public string? AllowedAreaId { get; init; }
 
-    public string? MasterId { get; init; }
-
-    public bool? FollowDrafted { get; init; }
-
-    public bool? FollowFieldwork { get; init; }
-
+    /// <summary>
+    /// One row per work type; empty when the pawn never works or its work settings are uninitialized.
+    /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<WorkSetting>))]
     public EquatableArray<WorkSetting> Work { get; init; }
 
+    /// <summary>
+    /// The 24 hourly slots, hour 0 first; empty for a pawn without a timetable.
+    /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<TimetableSlot>))]
     public EquatableArray<TimetableSlot> Schedule { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<DefinitionRef>))]
-    public EquatableArray<DefinitionRef> AllowedAreas { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
 
     public bool? WorkApplies { get; init; }
 
@@ -1263,8 +1245,7 @@ public sealed record PawnBodyStats
 
 /// <summary>
 /// The inputs per-pawn outfit/drug/food/reading planners compose from.
-/// Traits, mood and break thresholds (biography, needs) and animal
-/// bonds (social relations, relation_def_name "Bond") are observed elsewhere.
+/// Traits, mood and break thresholds (biography, needs) are observed elsewhere.
 /// Policy ids are Policy.GetUniqueLoadID(); absent when the pawn has no
 /// tracker for that policy kind. A field the pawn has no source for (no
 /// Royalty title, no ideoligion, not a guest) is absent or empty, never an

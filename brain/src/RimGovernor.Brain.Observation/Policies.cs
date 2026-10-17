@@ -95,7 +95,7 @@ public static partial class ObservationPackage
             var traits = new List<PawnTrait>();
             foreach (var t in e.PawnTraits)
             {
-                traits.Add(new PawnTrait { Name = t.DefName ?? "", Degree = t.Degree.GetValueOrDefault() });
+                traits.Add(new PawnTrait { Name = t.DefName, Degree = t.Degree });
             }
             eaters.Add(new FoodEater { Pawn = new PawnId(e.PawnId ?? ""), Animal = e.Kind == O.FoodEaterKind.Animal, Precepts = [.. e.Precepts], Traits = traits });
         }

@@ -63,7 +63,7 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        internal static Obs.PawnState Apply(Pawn pawn,System.Collections.Generic.List<Pawn> colonists,Obs.PawnState row,Obs.PawnDetails? requested,Common.ObservationContext context)
+        internal static Obs.PawnState Apply(Pawn pawn,Obs.PawnState row,Obs.PawnDetails? requested,Common.ObservationContext context)
         {
             var d=Defaults(requested);
             // An unrequested family is an absent block.
@@ -90,7 +90,7 @@ namespace HomeBridge.BridgeTools
                 if(d.Schedule) settings = Schedule(pawn,settings);
                 row = row with { Settings = settings };
             }
-            if(d.Social) row = row with { Social = Social(pawn,colonists) };
+            if(d.Social) row = row with { Social = Social(pawn) };
             if(d.Animals && pawn.RaceProps.Animal) row = row with { AnimalState = Animal(pawn) };
             return row;
         }
@@ -372,45 +372,9 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.PawnEquipment Equipment(Pawn pawn)
         {
-            var row=new Obs.PawnEquipment();
-            if(pawn.equipment==null) {
-                row = row with { Issues = [.. row.Issues, Missing("equipped")] };row = row with { Issues = [.. row.Issues, Missing("primary_id")] };row = row with { Issues = [.. row.Issues, Missing("armed")] };
-            }
-            else {
-                var list=pawn.equipment.AllEquipmentListForReading; 
-                foreach(var thing in list) row = row with { Equipped = [.. row.Equipped, Gear(thing)] };
-                row = row with { Armed = pawn.equipment.Primary!=null };
-                // Defense capacity: observed damage per second.
-                try {row = row with { RangedDps = NativeDefenseStats.PawnRangedDps(pawn) };row = row with { MeleeDps = pawn.GetStatValue(StatDefOf.MeleeDPS) };} catch {}
-                if(pawn.equipment.Primary!=null) row = row with { PrimaryId = Id(pawn.equipment.Primary.GetUniqueLoadID()) };
-                else row = row with { Issues = [.. row.Issues, Issue("primary_id",Common.UnavailableReason.NotApplicable,"No equipped primary weapon.")] };
-            }
-            if(pawn.apparel==null) row = row with { Issues = [.. row.Issues, Missing("apparel")] };
-            else {foreach(var thing in pawn.apparel.WornApparel) row = row with { Apparel = [.. row.Apparel, Gear(thing)] };}
-            if(pawn.inventory?.innerContainer==null) {row = row with { Issues = [.. row.Issues, Missing("inventory_weapons")] };row = row with { Issues = [.. row.Issues, Missing("inventory_item_count")] };}
-            else {
-                var list=pawn.inventory.innerContainer; row = row with { InventoryItemCount = checked((uint)list.Count) };
-                for(var i=0;i<list.Count;i++) if(list[i].def.IsWeapon) row = row with { InventoryWeapons = [.. row.InventoryWeapons, Gear(list[i])] };
-            }
-            if(pawn.carryTracker==null) row = row with { Issues = [.. row.Issues, Missing("carried_thing_id")] };
-            else if(pawn.carryTracker.CarriedThing!=null) row = row with { CarriedThingId = Id(pawn.carryTracker.CarriedThing.GetUniqueLoadID()) };
-            else row = row with { Issues = [.. row.Issues, Issue("carried_thing_id",Common.UnavailableReason.NotApplicable,"Pawn is carrying no thing.")] };
-            foreach(var collection in new[]{"equipped","apparel","inventory_weapons"})
-                foreach(var field in new[]{"forced","locked","armor_sharp","armor_blunt","insulation_cold","insulation_heat"})
-                    row = row with { Issues = [.. row.Issues, Unsupported(collection+"."+field,"Gear ownership and protection stats are not projected.")] };
-            return row;
-        }
-        private static Obs.GearItem Gear(Thing thing)
-        {
-            var row=new Obs.GearItem {Thing=NativeRef.Thing(thing)};
-            row = NativeGearFacts.Biocode(thing, row);
-            if(thing.Stuff!=null) row = row with { Stuff = Id(thing.Stuff.defName) };
-            if(thing.TryGetQuality(out var quality)) row = row with { Quality = (Defs.QualityCategory)(int)quality };
-            if(thing.def.useHitPoints) {
-                if(thing.MaxHitPoints<=0 || thing.HitPoints<0) throw new InvalidOperationException("Invalid native hit points.");
-                row = row with { HitPoints = thing.HitPoints };row = row with { MaxHitPoints = thing.MaxHitPoints };
-                row = row with { ConditionFraction = Number((double)thing.HitPoints/thing.MaxHitPoints) };
-            }
+            var row=NativeGearFacts.Equipment(pawn);
+            // Defense capacity: observed damage per second.
+            if(pawn.equipment!=null) try {row = row with { RangedDps = NativeDefenseStats.PawnRangedDps(pawn), MeleeDps = pawn.GetStatValue(StatDefOf.MeleeDPS) };} catch {}
             return row;
         }
 
@@ -419,37 +383,16 @@ namespace HomeBridge.BridgeTools
 
         internal static Obs.PawnBiography Biography(Pawn pawn)
         {
-            var row=new Obs.PawnBiography();
-            if(pawn.ageTracker!=null) {row = row with { BiologicalAgeYears = Number(pawn.ageTracker.AgeBiologicalYearsFloat) };row = row with { ChronologicalAgeYears = Number(pawn.ageTracker.AgeChronologicalYearsFloat) };}
-            else {row = row with { Issues = [.. row.Issues, Missing("biological_age_years")] };row = row with { Issues = [.. row.Issues, Missing("chronological_age_years")] };}
-            if(pawn.story==null) {
-                row = row with { Issues = [.. row.Issues, Missing("childhood")] };row = row with { Issues = [.. row.Issues, Missing("adulthood")] };
-                row = row with { Issues = [.. row.Issues, Missing("traits")] };
-            }
-            else {
-                if(pawn.story.Childhood!=null) {
-                    row = row with { ChildhoodDefName = Id(pawn.story.Childhood.defName) };
-                } else row = row with { Issues = [.. row.Issues, Issue("childhood",Common.UnavailableReason.NotApplicable,"No childhood backstory.")] };
-                if(pawn.story.Adulthood!=null) {
-                    row = row with { AdulthoodDefName = Id(pawn.story.Adulthood.defName) };
-                } else row = row with { Issues = [.. row.Issues, Issue("adulthood",Common.UnavailableReason.NotApplicable,"No adulthood backstory.")] };
-                if(pawn.story.traits==null) row = row with { Issues = [.. row.Issues, Missing("traits")] };
-                else {foreach(var trait in pawn.story.traits.allTraits) row = row with { Traits = [.. row.Traits, new Obs.Trait {DefName=Id(trait.def.defName),Degree=trait.Degree}] };}
-            }
-            if(pawn.skills==null) row = row with { Issues = [.. row.Issues, Missing("skills")] };
-            else {
-                foreach(var skill in pawn.skills.skills) {
-                    var defName=Id(skill.def.defName);
-                    row = row with { Skills = [.. row.Skills, new Obs.Skill {Learning=NativeSkillLearning.Read(pawn,skill),DefName=defName,Level=skill.Level,StoredLevel=skill.levelInt,Passion=NativeEnums.Passion(skill.passion),Disabled=skill.TotallyDisabled}] };
-                }
-            }
+            var row=new Obs.PawnBiography { BiologicalAgeYears = Number(pawn.ageTracker.AgeBiologicalYearsFloat) };
+            // A pawn without a story or skill tracker (an animal) has no traits or skills.
+            if(pawn.story?.traits!=null)
+                foreach(var trait in pawn.story.traits.allTraits) row = row with { Traits = [.. row.Traits, new Obs.Trait {DefName=Id(trait.def.defName),Degree=trait.Degree}] };
+            if(pawn.skills!=null)
+                foreach(var skill in pawn.skills.skills)
+                    row = row with { Skills = [.. row.Skills, new Obs.Skill {Learning=NativeSkillLearning.Read(pawn,skill),DefName=Id(skill.def.defName),Level=skill.Level,StoredLevel=skill.levelInt,Passion=NativeEnums.Passion(skill.passion),Disabled=skill.TotallyDisabled}] };
             var tags=pawn.CombinedDisabledWorkTags;
             foreach(var tag in SingleWorkTags) if((tags&tag)!=0) row = row with { DisabledWorkTags = [.. row.DisabledWorkTags, tag.ToString()] };
-            var defs=DefDatabase<WorkTypeDef>.AllDefsListForReading; 
-            foreach(var def in defs) if(pawn.WorkTypeIsDisabled(def)) row = row with { IncapableWorkTypes = [.. row.IncapableWorkTypes, Id(def.defName)] };
-            row = row with { Issues = [.. row.Issues, Unsupported("incapable_sources","Individual incapability sources are not projected.")] };
-            row = row with { Issues = [.. row.Issues, Unsupported("title","Royal, role and story title selection is not projected.")] };
-            row = row with { Issues = [.. row.Issues, Unsupported("title_source","Title source is not projected.")] };
+            foreach(var def in DefDatabase<WorkTypeDef>.AllDefsListForReading) if(pawn.WorkTypeIsDisabled(def)) row = row with { IncapableWorkTypes = [.. row.IncapableWorkTypes, Id(def.defName)] };
             return row;
         }
 
@@ -464,25 +407,20 @@ namespace HomeBridge.BridgeTools
         // allowed_area_id belongs to the work snapshot (AllowedArea below).
         private static Obs.PawnSettings CarePolicy(Pawn pawn,Obs.PawnSettings row)
         {
+            // A pawn without player settings has no care policy.
             var settings=pawn.playerSettings;
-            if(settings==null) {
-                row = row with { Issues = [.. row.Issues, Missing("medical_care")] };row = row with { Issues = [.. row.Issues, Missing("self_tend")] };row = row with { Issues = [.. row.Issues, Missing("hostility_response")] };
-            } else {
-                row = row with { MedicalCare = NativeEnums.Care(settings.medCare) };row = row with { SelfTend = settings.selfTend };
-                if(settings.UsesConfigurableHostilityResponse) row = row with { HostilityResponse = NativeEnums.Hostility(settings.hostilityResponse) };
-                else row = row with { Issues = [.. row.Issues, Issue("hostility_response",Common.UnavailableReason.NotApplicable,"Pawn has no configurable hostility response.")] };
-            }
+            if(settings==null) return row;
+            row = row with { MedicalCare = NativeEnums.Care(settings.medCare), SelfTend = settings.selfTend };
+            if(settings.UsesConfigurableHostilityResponse) row = row with { HostilityResponse = NativeEnums.Hostility(settings.hostilityResponse) };
             return row;
         }
 
         private static Obs.PawnSettings Work(Pawn pawn,Obs.PawnSettings row)
         {
             row = row with { WorkApplies = pawn.workSettings?.EverWork==true };
-            var manual=PawnSettingsRead.ManualPriorities();
-            if(manual.HasValue) row = row with { ManualWorkPriorities = manual.Value };
-            else row = row with { Issues = [.. row.Issues, Missing("manual_work_priorities")] };
-            // GetPriority can initialize an unreadable tracker; never read it then.
-            if(pawn.workSettings?.Initialized!=true || !row.WorkApplies.GetValueOrDefault()) { row = row with { Issues = [.. row.Issues, Missing("work")] };return row; }
+            // GetPriority can initialize an unreadable tracker; never read it then: no work rows.
+            if(pawn.workSettings?.Initialized!=true || row.WorkApplies!=true) return row;
+            row = row with { ManualWorkPriorities = PawnSettingsRead.ManualPriorities() ?? throw new InvalidOperationException("A pawn read has no game play settings.") };
             var defs=DefDatabase<WorkTypeDef>.AllDefsListForReading;
             foreach(var def in defs) row = row with { Work = [.. row.Work, new Obs.WorkSetting {DefName=Id(def.defName),Priority=pawn.workSettings.GetPriority(def),Disabled=pawn.WorkTypeIsDisabled(def)}] };
             return row;
@@ -509,7 +447,7 @@ namespace HomeBridge.BridgeTools
                 body = body with { Consciousness = Number(capacities.GetLevel(PawnCapacityDefOf.Consciousness)) };
                 row = row with { Body = body };
             } catch(InvalidOperationException) {
-                row = row with { Issues = [.. row.Issues, Missing("body")] };
+                // A failed stat read leaves the whole block absent, never zeros.
             }
             return row;
         }
@@ -534,7 +472,7 @@ namespace HomeBridge.BridgeTools
         private static Obs.PawnSettings AllowedArea(Pawn pawn,Obs.PawnSettings row)
         {
             var settings=pawn.playerSettings;
-            if(settings==null) { row = row with { Issues = [.. row.Issues, Missing("allowed_area_id")] }; return row; }
+            if(settings==null) return row;
             var area=settings.AreaRestrictionInPawnCurrentMap;
             if(area!=null) row = row with { AllowedAreaId = Id(area.GetUniqueLoadID()) };
             return row;
@@ -550,8 +488,8 @@ namespace HomeBridge.BridgeTools
         private static Obs.PawnSettings Schedule(Pawn pawn,Obs.PawnSettings row)
         {
             var times=pawn.timetable?.times;
-            if(times==null) { row = row with { Issues = [.. row.Issues, Issue("schedule",Common.UnavailableReason.NotApplicable,"Pawn has no timetable tracker.")] }; return row; }
-            if(times.Count!=24 || times.Any(t=>t==null)) { row = row with { Issues = [.. row.Issues, Missing("schedule")] }; return row; }
+            if(times==null) return row;
+            if(times.Count!=24 || times.Any(t=>t==null)) throw new InvalidOperationException("The pawn's timetable is not 24 assigned hours.");
             for(var hour=0;hour<times.Count;hour++) row = row with { Schedule = [.. row.Schedule, new Obs.TimetableSlot {Hour=(uint)hour,AssignmentDefName=Id(times[hour].defName)}] };
             return row;
         }
@@ -613,35 +551,23 @@ namespace HomeBridge.BridgeTools
         // recalculates situational social thoughts -- see PawnConfigTool's class
         // remarks for why (Thought_Situational.Notify_BecameActive deletes memories
         // of the def it produces). Ported from PawnSettingsRead.RelationsBlock/OpinionRow.
-        private static Obs.PawnSocial Social(Pawn pawn,System.Collections.Generic.List<Pawn> colonists)
+        private static Obs.PawnSocial Social(Pawn pawn)
         {
             var row=new Obs.PawnSocial();
             var current=ExpectationsUtility.CurrentExpectationFor(pawn);
             if(current!=null)row = row with { ExpectationDefName = current.defName };
             var high=DefDatabase<ExpectationDef>.GetNamedSilentFail("High");
             if(high!=null&&current!=null)row = row with { HighExpectations = current.order>=high.order };
-            var memories=PawnSettingsRead.LiveMemories(pawn);
-            if(memories==null) row = row with { Issues = [.. row.Issues, Missing("memories")] };
-            else foreach(var t in PawnSettingsRead.GroupThoughtRows(memories))
-                row = row with { Memories = [.. row.Memories, new Obs.Thought {DefName=t.DefName??"",Count=(uint)t.Count,MoodOffsetEach=Number(t.Each),MoodOffsetTotal=Number(t.Total)}] };
-
+            foreach(var t in PawnSettingsRead.GroupThoughtRows(PawnSettingsRead.LiveMemories(pawn)))
+                row = row with { Memories = [.. row.Memories, ThoughtRow(t.DefName,t.Count,t.Total)] };
             var (situational,stale)=PawnSettingsRead.LiveSituational(pawn);
-            if(situational==null) row = row with { Issues = [.. row.Issues, Missing("situational")] };
-            else foreach(var t in PawnSettingsRead.GroupThoughtRows(situational))
-                row = row with { Situational = [.. row.Situational, new Obs.Thought {DefName=t.DefName??"",Count=(uint)t.Count,MoodOffsetEach=Number(t.Each),MoodOffsetTotal=Number(t.Total)}] };
-            if(stale.HasValue) row = row with { SituationalCacheStale = stale.Value };
-            else row = row with { Issues = [.. row.Issues, Missing("situational_cache_stale")] };
-
-            var direct=PawnSettingsRead.DirectRelationTargets(pawn);
-            foreach(var other in colonists) {
-                if(other==pawn) continue;
-                var opinion=PawnSettingsRead.ReconstructedOpinion(pawn,other,out _);
-                var relation=new Obs.Relation {Other=NativeRef.Thing(other),Opinion=opinion,OpinionReconstructed=true};
-                if(direct.TryGetValue(other,out var defName)) relation = relation with { RelationDefName = defName };
-                row = row with { Relations = [.. row.Relations, relation] };
-            }
-            return row;
+            foreach(var t in PawnSettingsRead.GroupThoughtRows(situational))
+                row = row with { Situational = [.. row.Situational, ThoughtRow(t.DefName,t.Count,t.Total)] };
+            return row with { SituationalCacheStale = stale };
         }
+
+        private static Obs.Thought ThoughtRow(string? defName,int count,double total)=>
+            new Obs.Thought {DefName=defName ?? throw new InvalidOperationException("A thought has no def."),Count=checked((uint)count),MoodOffsetTotal=Number(total)};
 
         private static Obs.DefinitionRef Definition(Def def)=>new Obs.DefinitionRef {DefName=Id(def.defName)};
         private static Obs.ReadIssue Missing(string field)=>Issue(field,Common.UnavailableReason.NativeComponentMissing,"Native component is absent or uninitialized.");

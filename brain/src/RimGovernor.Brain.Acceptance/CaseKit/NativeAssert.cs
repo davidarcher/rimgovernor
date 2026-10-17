@@ -40,19 +40,14 @@ public static class NativeAssert
         }
     }
 
-    /// <summary>Asserts a populated <c>social</c> block on a pawn row with its explicit staleness flag (Go <c>RequireSocial</c>).</summary>
+    /// <summary>Asserts a populated <c>social</c> block on a pawn row (Go <c>RequireSocial</c>).</summary>
     public static void RequireSocial(JsonObject row)
     {
         ArgumentNullException.ThrowIfNull(row);
-        if (row["social"].AsMap() is not { } social)
+        // Empty thought lists and a false staleness flag are omitted from the wire, so only the block itself is required.
+        if (row["social"].AsMap() is null)
         {
             throw new AcceptanceException($"expected a populated \"social\" block, found {row["social"].ToJson()}");
-        }
-
-        // memories and relations are repeated fields the wire omits when empty, so their absence is not a failure.
-        if (social["situationalCacheStale"].AsBool() is null)
-        {
-            throw new AcceptanceException($"social.situationalCacheStale must be an explicit boolean: {social.ToJson()}");
         }
     }
 

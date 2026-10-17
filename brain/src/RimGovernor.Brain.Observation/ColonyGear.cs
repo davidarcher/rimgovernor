@@ -93,7 +93,7 @@ public static partial class ObservationPackage
         var traits = new List<PawnTrait>();
         foreach (var t in m.Traits)
         {
-            traits.Add(ResolveTrait(catalog, new PawnTrait { Name = t.DefName ?? "", Degree = (int)t.Degree.GetValueOrDefault() }));
+            traits.Add(ResolveTrait(catalog, new PawnTrait { Name = t.DefName, Degree = (int)t.Degree }));
         }
         var work = input.Role.Work with { Traits = Known(EquatableArray.From(traits)) };
         if (work.Work.TryGetValue(out var rows))
@@ -298,17 +298,13 @@ public static partial class ObservationPackage
     }
 
     /// <summary>
-    /// Decodes one pawn's worn apparel from the loadout's equipment read: unknown when the native apparel tracker
-    /// could not be read (the equipment carries an "apparel" issue), otherwise each garment's definition, condition
-    /// fraction (1 without hit points) and body-part groups.
+    /// Decodes one pawn's worn apparel from the loadout's equipment read: unknown while a garment's row or catalog
+    /// apparel is missing, otherwise each garment's definition, condition fraction (1 without hit points) and
+    /// body-part groups.
     /// </summary>
     public static Fact<EquatableArray<GearApparel>> GearApparelFacts(O.PawnEquipment? equipment, Tables tables, DefinitionCatalog catalog)
     {
         if (equipment is null || !Headed(tables, equipment.Apparel, item => item.Thing))
-        {
-            return Unknown<EquatableArray<GearApparel>>();
-        }
-        if (HasIssue(equipment.Issues, "apparel"))
         {
             return Unknown<EquatableArray<GearApparel>>();
         }
@@ -435,7 +431,7 @@ public static partial class ObservationPackage
         s = s with { Definitions = ApparelDefinitions(catalog, wearer) };
         foreach (var a in p.Equipment?.Apparel ?? [])
         {
-            s = s with { Overrides = s.Overrides || a.Forced.GetValueOrDefault() || a.Locked.GetValueOrDefault() };
+            s = s with { Overrides = s.Overrides || a.Forced || a.Locked };
         }
         var priorities = new List<WorkPriority>();
         foreach (var w in v.Work)
@@ -444,7 +440,7 @@ public static partial class ObservationPackage
             {
                 continue;
             }
-            priorities.Add(new WorkPriority { Work = WireParse<WorkType>(w.DefName), Priority = (int)w.Priority.GetValueOrDefault(), Disabled = w.Disabled.GetValueOrDefault() });
+            priorities.Add(new WorkPriority { Work = WireParse<WorkType>(w.DefName), Priority = (int)w.Priority, Disabled = w.Disabled });
         }
         var work = s.Role.Work with { Work = Known(EquatableArray.From(priorities)) };
         // An older producer omits skills; the role then splits on priorities alone.
@@ -453,7 +449,7 @@ public static partial class ObservationPackage
             var skills = new List<WorkSkill>();
             foreach (var sk in v.Skills)
             {
-                skills.Add(new WorkSkill { Learning = sk.Learning, Name = sk.DefName ?? "", Level = (int)sk.Level.GetValueOrDefault(), Passion = SkillPassion(sk.Passion.GetValueOrDefault()), Disabled = sk.Disabled.GetValueOrDefault() });
+                skills.Add(new WorkSkill { Learning = sk.Learning, Name = sk.DefName, Level = (int)sk.Level, Passion = SkillPassion(sk.Passion), Disabled = sk.Disabled });
             }
             work = work with { Skills = Known(EquatableArray.From(skills)) };
         }

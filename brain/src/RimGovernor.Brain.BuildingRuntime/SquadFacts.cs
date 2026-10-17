@@ -22,7 +22,7 @@ internal sealed partial class Armament
     /// </summary>
     internal (Pol.WeaponDef Weapon, bool Known) Primary(ObservationsPb.PawnEquipment? equipment)
     {
-        if (equipment is null || Boundary.IssueField(equipment.Issues, "equipped") || Boundary.IssueField(equipment.Issues, "armed"))
+        if (equipment is null)
         {
             return (new Pol.WeaponDef(), false);
         }
@@ -32,7 +32,7 @@ internal sealed partial class Armament
     /// <summary>The def name of the equipment's primary weapon, empty while <see cref="Primary"/> does not know it or the pawn is unarmed.</summary>
     internal string PrimaryDefName(ObservationsPb.PawnEquipment? equipment)
     {
-        if (equipment is null || equipment.Armed != true || equipment.PrimaryId is null)
+        if (equipment is null || !equipment.Armed || equipment.PrimaryId is null)
         {
             return "";
         }
@@ -47,17 +47,13 @@ internal sealed partial class Armament
     }
 
     /// <summary>
-    /// Go's DefinitionCatalog.PrimaryWeapon: false while the equipment does not say (no armed flag, no primary id), the
+    /// Go's DefinitionCatalog.PrimaryWeapon: false while an armed pawn names no primary id, the
     /// primary is not among the equipped items, or the things table does not hold its row yet; an unarmed pawn is the
     /// known empty weapon.
     /// </summary>
     private (Pol.WeaponDef Weapon, bool Known) PrimaryWeapon(ObservationsPb.PawnEquipment equipment)
     {
-        if (equipment.Armed is null)
-        {
-            return (new Pol.WeaponDef(), false);
-        }
-        if (!equipment.Armed.GetValueOrDefault())
+        if (!equipment.Armed)
         {
             return (new Pol.WeaponDef(), true);
         }
@@ -100,12 +96,12 @@ internal static partial class BuildingRuntimePackage
     /// </summary>
     internal static Fact<bool> MeleeCapable(ObservationsPb.PawnEquipment? equipment)
     {
-        if (equipment is null || equipment.Armed is null || Boundary.IssueField(equipment.Issues, "equipped") || Boundary.IssueField(equipment.Issues, "armed"))
+        if (equipment is null)
         {
             return Fact.Unknown<bool>();
         }
-        var known = !equipment.Armed.GetValueOrDefault();
-        if (equipment.Armed.GetValueOrDefault() && equipment.PrimaryId is not null)
+        var known = !equipment.Armed;
+        if (equipment.Armed && equipment.PrimaryId is not null)
         {
             foreach (var item in equipment.Equipped)
             {
@@ -133,7 +129,7 @@ internal static partial class BuildingRuntimePackage
             Animal = Fact.Known(row.Animal),
         };
         facts = facts with { Anomaly = BridgeApi.PawnAnomaly(row.Anomaly), RangedEquipped = ranged };
-        // A wild animal has no equipment tracker (the equipped field reads as a missing native component); it
+        // A row without the equipment detail leaves the weapon unknown; an animal
         // carries no ranged weapon either way, and neither does an entity whose attack native read as melee only.
         if (!facts.RangedEquipped.IsKnown && (facts.Animal == Fact.Known(true) || Pol.PolicyFunctions.MeleeEntity(facts)))
         {
@@ -180,15 +176,15 @@ internal static partial class BuildingRuntimePackage
         {
             facts = facts with { NeedsTend = Fact.Known(health.NeedsTend), HealthFraction = Fact.Known(health.SummaryFraction) };
         }
-        if (row.Biography is { } biography && !Boundary.IssueField(biography.Issues, "disabled_work_tags"))
+        if (row.Biography is { } biography)
         {
             var capable = !biography.DisabledWorkTags.Contains("Violent");
             facts = facts with { ViolenceCapable = Fact.Known(capable) };
         }
         facts = facts with { RangedEquipped = ranged, MeleeEquipped = MeleeCapable(row.Equipment) };
-        if (row.Equipment is { } equipment && equipment.Armed is not null && !Boundary.IssueField(equipment.Issues, "armed"))
+        if (row.Equipment is { } equipment)
         {
-            facts = facts with { Armed = Fact.Known(equipment.Armed.GetValueOrDefault()) };
+            facts = facts with { Armed = Fact.Known(equipment.Armed) };
         }
         return facts;
     }

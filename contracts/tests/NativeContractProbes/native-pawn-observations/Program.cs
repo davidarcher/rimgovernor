@@ -83,8 +83,7 @@ internal static class NativePawnObservationsProbe
         var title=definition.Invoke(null,new object?[]{"Backstory1","Nurse"})!;
         Check((string?)Get(title,"Label")=="Nurse","actual backstory title is retained");
         var core=Wire("PawnState","{}");
-        var emptyColonists=Activator.CreateInstance(typeof(List<>).MakeGenericType(Assembly.Load("Assembly-CSharp").GetType("Verse.Pawn",true)!))!;
-        core=detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{null,emptyColonists,core,optOut,null})!;
+        core=detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{null,core,optOut,null})!;
         foreach(var block in new[]{"Needs","Health","Equipment","Biography","Settings","Social","AnimalState"})
             Check(core.GetType().GetProperty(block)!.GetValue(core)==null,"explicit opt-out leaves the block absent without native reads "+block);
         var native=Assembly.Load("Assembly-CSharp");
@@ -94,24 +93,21 @@ internal static class NativePawnObservationsProbe
         Check((string)Get(nativeDefinition,"DefName")=="BackstoryWithoutGenericLabel"&&Get(nativeDefinition,"Label")==null,"real native BackstoryDef with null generic label does not crash projection");
         var emptyPawn=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(native.GetType("Verse.Pawn",true)!);
         var missingEquipment=detailsType.GetMethod("Equipment",Flags)!.Invoke(null,new[]{emptyPawn})!;
-        Check(Get(missingEquipment,"Armed")==null,"missing equipment tracker is not known unarmed");
-        Check(Get(missingEquipment,"InventoryItemCount")==null,"missing inventory tracker is not zero items");
-        var gearIssues=((IEnumerable)Get(missingEquipment,"Issues")).Cast<object>().ToArray();
-        foreach(var field in new[]{"armed","equipped","primary_id","apparel","inventory_weapons","inventory_item_count","carried_thing_id"})
-            Check(gearIssues.Any(i=>(string)Get(i,"Field")==field&&Get(Get(i,"Unavailable"),"Reason").ToString()=="NativeComponentMissing"),"missing tracker issue "+field);
+        Check(!(bool)Get(missingEquipment,"Armed")!&&Get(missingEquipment,"PrimaryId")==null,"a pawn without an equipment tracker carries no weapon");
+        Check(((IEnumerable)Get(missingEquipment,"Equipped")).Cast<object>().Count()==0&&((IEnumerable)Get(missingEquipment,"Apparel")).Cast<object>().Count()==0,"a pawn without gear trackers has no gear rows");
         var missingSettings=Wire("PawnSettings","{}");
         foreach(var projection in new[]{"CarePolicy","Work","AllowedArea","Schedule"})
             missingSettings=detailsType.GetMethod(projection,Flags)!.Invoke(null,new[]{emptyPawn,missingSettings})!;
-        Check(Get(missingSettings,"SelfTend")==null,"missing settings tracker is not self-tend false");
-        Check(((IEnumerable)Get(missingSettings,"Issues")).Cast<object>().Any(i=>(string)Get(i,"Field")=="work"),"uninitialized work tracker is not queried");
+        Check(Get(missingSettings,"SelfTend")==null&&Get(missingSettings,"MedicalCare")==null,"a pawn without player settings has no care policy");
+        Check(Get(missingSettings,"WorkApplies") is false&&((IEnumerable)Get(missingSettings,"Work")).Cast<object>().Count()==0,"uninitialized work tracker is not queried");
 
-        // ---- N01.03: populated Social fixture (real relation + present-but-empty thought trackers) ----
+        // ---- N01.03: Social fixture (present-but-empty thought trackers) ----
         // Thought/Thought_Memory/Thought_Situational cannot be constructed in this offline harness:
         // touching any field declared on RimWorld.Thought forces its static cctor, which reaches
         // ContentFinder<Texture2D>.Get -> Verse.UnityData -> a Unity Application/StackTraceUtility
         // ECall that throws SecurityException outside the real game process. So this fixture proves
-        // the "trackers present but empty" path (correct empty collections, no spurious Missing
-        // issues, and the relation/cache-stale wiring), rather than populated thought rows.
+        // the "trackers present but empty" path (correct empty collections and the cache-stale
+        // wiring), rather than populated thought rows.
         Type[] allNativeTypes;
         try { allNativeTypes=native.GetTypes(); }
         catch(ReflectionTypeLoadException rtle) { allNativeTypes=rtle.Types.Where(t=>t!=null).ToArray()!; }
@@ -144,27 +140,7 @@ internal static class NativePawnObservationsProbe
             socialPawnType.GetField("mindState",Flags)!.SetValue(p,mindState);
             return p;
         }
-        var ada=MakeSocialPawn(101,"Ada"); var bo=MakeSocialPawn(102,"Bo");
-        var relTrackerT=allNativeTypes.First(t=>t.Name=="Pawn_RelationsTracker");
-        var directRelT=allNativeTypes.First(t=>t.Name=="DirectPawnRelation");
-        var pawnRelDefT=allNativeTypes.First(t=>t.Name=="PawnRelationDef");
-        var boTracker=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(relTrackerT);
-        relTrackerT.GetField("pawn",Flags)!.SetValue(boTracker,bo);
-        relTrackerT.GetField("directRelations",Flags)!.SetValue(boTracker,Activator.CreateInstance(typeof(List<>).MakeGenericType(directRelT)));
-        socialPawnType.GetField("relations",Flags)!.SetValue(bo,boTracker);
-        var adaTracker=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(relTrackerT);
-        relTrackerT.GetField("pawn",Flags)!.SetValue(adaTracker,ada);
-        var rivalDef=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(pawnRelDefT);
-        pawnRelDefT.GetField("defName")!.SetValue(rivalDef,"Rival");
-        pawnRelDefT.GetField("opinionOffset")!.SetValue(rivalDef,-10);
-        var rivalRelation=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(directRelT);
-        directRelT.GetField("def")!.SetValue(rivalRelation,rivalDef);
-        directRelT.GetField("otherPawn")!.SetValue(rivalRelation,bo);
-        directRelT.GetField("startTicks")!.SetValue(rivalRelation,0);
-        var adaDirectRelations=(IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(directRelT))!;
-        adaDirectRelations.Add(rivalRelation);
-        relTrackerT.GetField("directRelations",Flags)!.SetValue(adaTracker,adaDirectRelations);
-        socialPawnType.GetField("relations",Flags)!.SetValue(ada,adaTracker);
+        var ada=MakeSocialPawn(101,"Ada");
 
         var needsTrackerT=native.GetType("RimWorld.Pawn_NeedsTracker",true)!;
         var moodT=native.GetType("RimWorld.Need_Mood",true)!;
@@ -191,36 +167,21 @@ internal static class NativePawnObservationsProbe
         needsTrackerT.GetField("mood",Flags)!.SetValue(needsTrackerInst,moodInst);
         socialPawnType.GetField("needs",Flags)!.SetValue(ada,needsTrackerInst);
 
-        var socialColonists=(IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(socialPawnType))!;
-        socialColonists.Add(ada); socialColonists.Add(bo);
         var socialMethod=detailsType.GetMethod("Social",Flags)!;
 
-        var socialResultDirty=socialMethod.Invoke(null,new object?[]{ada,socialColonists})!;
+        var socialResultDirty=socialMethod.Invoke(null,new object?[]{ada})!;
         Check((bool)Get(socialResultDirty,"SituationalCacheStale"),"stale situational cache reflected when thoughtsDirty is true");
 
         sitHandlerT.GetField("thoughtsDirty",Flags)!.SetValue(sitHandlerInst,false);
-        var socialResultFresh=socialMethod.Invoke(null,new object?[]{ada,socialColonists})!;
+        var socialResultFresh=socialMethod.Invoke(null,new object?[]{ada})!;
         Check(!(bool)Get(socialResultFresh,"SituationalCacheStale"),"fresh situational cache reflected when thoughtsDirty is false");
 
-        var relations=((IEnumerable)Get(socialResultFresh,"Relations")).Cast<object>().ToArray();
-        var rival=relations.FirstOrDefault(r=>(string)Get(r,"RelationDefName")=="Rival");
-        Check(rival!=null,"populated direct relation is projected by defName");
-        Check(rival!=null&&(bool)Get(rival,"OpinionReconstructed"),"relation opinion is marked reconstructed, not read via OpinionOf");
-        // NOTE: GetRelations(a,b)'s own numeric opinion accumulation NREs in this offline
-        // harness (DefDatabase<PawnRelationDef> is empty outside the real game's def-loading
-        // pipeline), so ReconstructedOpinion's try/catch silently yields 0 regardless of the
-        // fixture's opinionOffset. We only assert the direct-relation defName wiring here,
-        // which does not depend on GetRelations.
-        Check(((IEnumerable)Get(socialResultFresh,"Memories")).Cast<object>().Count()==0,"present-but-empty memories yields zero rows, not a Missing issue");
-        Check(((IEnumerable)Get(socialResultFresh,"Situational")).Cast<object>().Count()==0,"present-but-empty situational cache yields zero rows, not a Missing issue");
-        var socialIssues=((IEnumerable)Get(socialResultFresh,"Issues")).Cast<object>().ToArray();
-        Check(!socialIssues.Any(i=>(string)Get(i,"Field")=="memories"||(string)Get(i,"Field")=="situational"),"present-but-empty thought trackers report no Missing issues");
+        Check(((IEnumerable)Get(socialResultFresh,"Memories")).Cast<object>().Count()==0,"present-but-empty memories yields zero rows");
+        Check(((IEnumerable)Get(socialResultFresh,"Situational")).Cast<object>().Count()==0,"present-but-empty situational cache yields zero rows");
 
-        // Regression guard: Social() must never mutate the underlying relation/thought
-        // fixtures (i.e. never call Pawn_RelationsTracker.OpinionOf or recalculate
-        // situational thoughts, both of which delete/recreate memories as a side effect
-        // in real RimWorld -- see PawnSettingsRead's class remarks).
-        Check(adaDirectRelations.Count==1&&ReferenceEquals(((IList)relTrackerT.GetField("directRelations",Flags)!.GetValue(adaTracker)!)[0],rivalRelation),"direct relation fixture is unchanged after Social()");
+        // Regression guard: Social() must never mutate the thought fixtures (never
+        // recalculate situational thoughts, which deletes/recreates memories as a side
+        // effect in real RimWorld -- see PawnSettingsRead's class remarks).
         Check(ReferenceEquals(memHandlerT.GetField("memories",Flags)!.GetValue(memHandlerInst),memoriesList)&&memoriesList is IList{Count:0},"memories list reference and emptiness unchanged after Social()");
         Check(ReferenceEquals(sitHandlerT.GetField("cachedThoughts",Flags)!.GetValue(sitHandlerInst),cachedThoughtsList)&&cachedThoughtsList is IList{Count:0},"cached situational thoughts reference and emptiness unchanged after Social()");
 
@@ -248,11 +209,9 @@ internal static class NativePawnObservationsProbe
         billStackT.GetField("bills",Flags)!.SetValue(billStackInst,Activator.CreateInstance(typeof(List<>).MakeGenericType(native.GetType("RimWorld.Bill",true)!)));
         healthTrackerT.GetField("surgeryBills",Flags)!.SetValue(healthTrackerInst,billStackInst);
         socialPawnType.GetField("health",Flags)!.SetValue(corpse,healthTrackerInst);
-        var corpseColonists=(IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(socialPawnType))!;
-        corpseColonists.Add(corpse);
         var corpseRow=Wire("PawnState","{}");
         var corpseDetail=Wire("PawnDetails","{\"needs\":false,\"health\":false,\"equipment\":true,\"biography\":false,\"settings\":true,\"social\":false,\"animals\":false}");
-        corpseRow=detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{corpse,corpseColonists,corpseRow,corpseDetail,null})!;
+        corpseRow=detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{corpse,corpseRow,corpseDetail,null})!;
         Check(Get(corpseRow,"Equipment")!=null,"corpse equipment projection still populates for a dead pawn");
         Check(Get(corpseRow,"Settings")!=null,"corpse settings projection still populates for a dead pawn");
         Check(Get(corpseRow,"Needs")==null&&Get(corpseRow,"Health")==null&&Get(corpseRow,"Biography")==null,"corpse needs/health/biography stay disabled (Blocker: ModsConfig static cctor)");

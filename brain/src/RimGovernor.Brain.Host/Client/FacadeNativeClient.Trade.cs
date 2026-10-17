@@ -379,12 +379,12 @@ internal sealed partial class FacadeNativeClient
         var skills = new List<TradeSheetSkill>();
         foreach (var skill in v.Skills)
         {
-            if (!IsValidId(skill.DefName ?? "") || skill.Level is null || (skill.Passion is { } passion && PassionName(passion).Length == 0))
+            if (!IsValidId(skill.DefName) || PassionName(skill.Passion).Length == 0)
             {
                 throw Contract("invalid trade sheet pawn skill");
             }
 
-            skills.Add(new TradeSheetSkill(skill.DefName!, skill.Level.Value, PassionName(skill.Passion.GetValueOrDefault()), skill.Disabled ?? false));
+            skills.Add(new TradeSheetSkill(skill.DefName, skill.Level, PassionName(skill.Passion), skill.Disabled));
         }
 
         return new TradeSheetRow

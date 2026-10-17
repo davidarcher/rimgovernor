@@ -228,7 +228,7 @@ public static partial class ObservationPackage
     {
         var unknown = Unknown<EquatableArray<MoodThought>>();
         var social = r.Social;
-        if (social is null || HasIssue(social.Issues, "memories") || HasIssue(social.Issues, "situational"))
+        if (social is null)
         {
             return unknown;
         }
@@ -237,11 +237,7 @@ public static partial class ObservationPackage
         {
             foreach (var t in rows)
             {
-                if (t is null || t.MoodOffsetTotal is null)
-                {
-                    return unknown;
-                }
-                byDef[(t.DefName ?? "")] = byDef.GetValueOrDefault((t.DefName ?? "")) + t.MoodOffsetTotal.GetValueOrDefault();
+                byDef[t.DefName] = byDef.GetValueOrDefault(t.DefName) + t.MoodOffsetTotal;
             }
         }
         var result = new List<MoodThought>();
@@ -291,15 +287,15 @@ public static partial class ObservationPackage
             };
             if (byId.TryGetValue(m.Id.Value, out var r))
             {
-                if (r.Biography is { } b && !HasIssue(b.Issues, "traits"))
+                if (r.Biography is { } b)
                 {
-                    pawn = pawn with { Traits = Known<EquatableArray<string>>([.. b.Traits.Select(t => (t.DefName ?? ""))]) };
+                    pawn = pawn with { Traits = Known<EquatableArray<string>>([.. b.Traits.Select(t => (t.DefName))]) };
                 }
                 if (r.Social is { } s && s.ExpectationDefName is not null)
                 {
                     pawn = pawn with { Expectation = Known((s.ExpectationDefName ?? "")) };
                 }
-                if (r.Settings is { } settings && !HasIssue(settings.Issues, "policy_inputs") && PawnPolicyInputs(settings.PolicyInputs).TryGetValue(out var inputs))
+                if (r.Settings is { } settings && PawnPolicyInputs(settings.PolicyInputs).TryGetValue(out var inputs))
                 {
                     pawn = pawn with { Precepts = Known<EquatableArray<string>>([.. inputs.Precepts]) };
                 }
@@ -345,11 +341,11 @@ public static partial class ObservationPackage
             {
                 continue;
             }
-            if (row.Equipment is null || row.Equipment.Armed is null)
+            if (row.Equipment is null)
             {
                 return (unknown, unknown);
             }
-            if (row.Equipment.Armed.GetValueOrDefault())
+            if (row.Equipment.Armed)
             {
                 armed++;
                 continue;
@@ -360,7 +356,7 @@ public static partial class ObservationPackage
             {
                 continue;
             }
-            if (row.Biography is null || HasIssue(row.Biography.Issues, "disabled_work_tags"))
+            if (row.Biography is null)
             {
                 unarmedKnown = false;
                 continue;
@@ -408,7 +404,7 @@ public static partial class ObservationPackage
             {
                 d = d with { Deathresting = bt.IsDeathresting() };
             }
-            if (row.Biography is { } bio && !HasIssue(bio.Issues, "disabled_work_tags"))
+            if (row.Biography is { } bio)
             {
                 var violent = true;
                 foreach (var tag in bio.DisabledWorkTags)

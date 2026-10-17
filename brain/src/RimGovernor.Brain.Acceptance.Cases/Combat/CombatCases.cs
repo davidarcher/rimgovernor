@@ -385,11 +385,6 @@ public static class CombatCases
                 continue;
             }
 
-            if (biography?["issues"].AsSlice().Any(raw => raw.AsMap()?["field"].AsString() == "disabled_work_tags") == true)
-            {
-                continue;
-            }
-
             result.Add(r);
         }
 

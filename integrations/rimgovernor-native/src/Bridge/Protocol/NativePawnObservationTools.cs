@@ -53,7 +53,7 @@ namespace HomeBridge.BridgeTools
             // The tend detail is pairwise across the page, so it runs once over
             // the whole page before the per-row detail.
             if (details.Tend) page = NativePawnDetails.Tend(page, details.TendReachBudgetMs);
-            foreach (var item in page) result = result with { Pawns = [.. result.Pawns, Detail(item.Key, colonists, item.Value, parsed.Details ?? new Obs.PawnDetails(), raidArmor, context)] };
+            foreach (var item in page) result = result with { Pawns = [.. result.Pawns, Detail(item.Key, item.Value, parsed.Details ?? new Obs.PawnDetails(), raidArmor, context)] };
             return result;
         }
 
@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
                 var details = !pawn.Dead && pawn.IsFreeColonist ? ColonistDetail : combat.Contains(Id(pawn.GetUniqueLoadID())) ? CombatDetail
                     : dependentPatients.Contains(pawn) ? PatientDetail : pawn.RaceProps.Animal ? AnimalDetail : CoreDetail;
                 if (details.Equipment.GetValueOrDefault() && !armorRead) { raidArmor = NativeGearFacts.RaidArmor(map); armorRead = true; }
-                result = result with { Pawns = [.. result.Pawns, Detail(pawn, colonists, Core(pawn, colonists, context), details, raidArmor, context)] };
+                result = result with { Pawns = [.. result.Pawns, Detail(pawn, Core(pawn, colonists, context), details, raidArmor, context)] };
             }
             return result;
         }
@@ -89,10 +89,10 @@ namespace HomeBridge.BridgeTools
 
         // Detail is the one pawn row builder: the core row with the
         // requested detail families and the row's snapshot token.
-        private static Obs.PawnState Detail(Pawn pawn, List<Pawn> colonists, Obs.PawnState row, Obs.PawnDetails details, double? raidArmor, Common.ObservationContext context)
+        private static Obs.PawnState Detail(Pawn pawn, Obs.PawnState row, Obs.PawnDetails details, double? raidArmor, Common.ObservationContext context)
         {
             if (raidArmor.HasValue && NativePawnDetails.Defaults(details).Equipment) row = row with { RaidArmor = raidArmor.Value };
-            row = NativePawnDetails.Apply(pawn, colonists, row, details, context);
+            row = NativePawnDetails.Apply(pawn, row, details, context);
             return row with { ActivityExecution = NativePawnActivities.Read(pawn) };
         }
 

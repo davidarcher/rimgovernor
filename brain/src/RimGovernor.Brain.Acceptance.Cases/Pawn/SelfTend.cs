@@ -22,7 +22,7 @@ internal static class PawnSelfTend
         var pawn = PawnSupport.Fixture(s, "pawn", "pawn");
         s.Report["pawn"] = pawn;
         var before = await PawnSupport.ReadPawnAsync(s.Harness, s, "self-tend-before", pawn, true, cancellationToken).ConfigureAwait(false);
-        if (before["settings"].Member("selfTend").AsBool() != false)
+        if (before["settings"].Member("selfTend").AsBool() == true)
             throw new AcceptanceException("Prepared pawn did not start with self-tend disabled.");
         var write = await ApplyIntents.ApplyOneAsync(s.Harness, "enable-self-tend", s.Identity, "enable-self-tend",
             new() { ["pawnSettings"] = JsonNode.Parse(WireJson.Serialize(new Op.PawnSettingsIntent

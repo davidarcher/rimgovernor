@@ -90,9 +90,10 @@ internal static class PegCycle
 
             foreach (var skill in row["biography"].AsMap()?["skills"].Rows() ?? [])
             {
-                if (skill["level"].Strict() is { } level && skill["definition"].AsMap()?["defName"].AsString() == "Medicine")
+                if (skill["defName"].AsString() == "Medicine")
                 {
-                    total += level;
+                    // A level-0 skill omits its level from the wire.
+                    total += skill["level"] is null ? 0 : skill["level"].AsNumber();
                     seen = true;
                 }
             }

@@ -11,11 +11,7 @@ public static partial class ObservationPackage
     private static bool PrimaryWeapon(DefinitionCatalog catalog, O.PawnEquipment equipment, Things things, out WeaponDef weapon)
     {
         weapon = new WeaponDef();
-        if (equipment.Armed is null)
-        {
-            return false;
-        }
-        if (!equipment.Armed.GetValueOrDefault())
+        if (!equipment.Armed)
         {
             return true;
         }
@@ -147,12 +143,12 @@ public static partial class ObservationPackage
         w = w with { Available = Known(!row.Dead && !row.Downed && !row.Drafted && row.MentalState is null) };
         if (row.Settings is { } s)
         {
-            if (s.FoodRestriction is { } food && food.PolicyId is not null && !HasIssue(s.Issues, "food_restriction"))
+            if (s.FoodRestriction is { } food && food.PolicyId is not null)
             {
                 w = w with { FoodRestriction = Known(new FoodRestriction { PolicyId = (food.PolicyId ?? ""), Allowed = [.. food.AllowedDefs] }) };
             }
             w = w with { PolicyInputs = PawnPolicyInputs(s.PolicyInputs) };
-            if (s.Body is { } b && !HasIssue(s.Issues, "body"))
+            if (s.Body is { } b)
             {
                 w = w with
                 {
@@ -174,53 +170,30 @@ public static partial class ObservationPackage
                     }),
                 };
             }
-            if (s.MedicalCare is not null && !HasIssue(s.Issues, "medical_care"))
+            if (s.MedicalCare is not null)
             {
                 w = w with { MedicalCare = Known(MedicalCareName(s.MedicalCare.GetValueOrDefault())) };
             }
             w = w with { Applies = Optional(s.WorkApplies is not null, s.WorkApplies.GetValueOrDefault()), Manual = Optional(s.ManualWorkPriorities is not null, s.ManualWorkPriorities.GetValueOrDefault()) };
-            if (!HasIssue(s.Issues, "schedule") && s.Schedule.Count == 24)
+            // Native sends the 24 hourly slots hour 0 first, or none for a pawn without a timetable.
+            if (s.Schedule.Count == 24)
             {
-                var slots = new string[24];
-                var known = true;
-                var seen = new bool[24];
-                foreach (var slot in s.Schedule)
-                {
-                    if (slot.Hour is null || slot.AssignmentDefName is null || slot.Hour.GetValueOrDefault() >= 24 || seen[slot.Hour.GetValueOrDefault()] || (slot.AssignmentDefName ?? "").Length == 0)
-                    {
-                        known = false;
-                        break;
-                    }
-                    seen[slot.Hour.GetValueOrDefault()] = true;
-                    slots[slot.Hour.GetValueOrDefault()] = slot.AssignmentDefName ?? "";
-                }
-                if (known)
-                {
-                    w = w with { Schedule = Known(EquatableArray.From(slots)) };
-                }
+                w = w with { Schedule = Known(EquatableArray.From(s.Schedule.Select(slot => slot.AssignmentDefName))) };
             }
-            if (!HasIssue(s.Issues, "work"))
+            // Work rows exist only for a pawn that works.
+            if (s.WorkApplies == true)
             {
                 var work = new List<WorkPriority>();
-                var known = true;
                 foreach (var entry in s.Work)
                 {
-                    if (entry.Priority is null || entry.Disabled is null)
-                    {
-                        known = false;
-                        break;
-                    }
                     // Another mod's work type has no planner meaning and nothing to write back: it is left out of the rows.
                     if (WireParseOpen(entry.DefName, WorkType.Unrecognized) == WorkType.Unrecognized)
                     {
                         continue;
                     }
-                    work.Add(new WorkPriority { Work = WireParse<WorkType>(entry.DefName), Priority = (int)entry.Priority.GetValueOrDefault(), Disabled = entry.Disabled.GetValueOrDefault() });
+                    work.Add(new WorkPriority { Work = WireParse<WorkType>(entry.DefName), Priority = entry.Priority, Disabled = entry.Disabled });
                 }
-                if (known)
-                {
-                    w = w with { Work = Known(EquatableArray.From(work)) };
-                }
+                w = w with { Work = Known(EquatableArray.From(work)) };
             }
         }
         if (row.Job is { } j)
@@ -236,52 +209,29 @@ public static partial class ObservationPackage
         }
         if (row.Biography is { } bio)
         {
-            if (!HasIssue(bio.Issues, "skills"))
+            w = w with
             {
-                var skills = new List<WorkSkill>();
-                var known = true;
-                foreach (var entry in bio.Skills)
-                {
-                    if (entry.Level is null || entry.Disabled is null || entry.Passion is null)
-                    {
-                        known = false;
-                        break;
-                    }
-                    skills.Add(new WorkSkill { Learning = entry.Learning, Name = entry.DefName ?? "", Level = (int)entry.Level.GetValueOrDefault(), Stored = (int)entry.StoredLevel.GetValueOrDefault(), Disabled = entry.Disabled.GetValueOrDefault(), Passion = SkillPassion(entry.Passion.GetValueOrDefault()) });
-                }
-                if (known)
-                {
-                    w = w with { Skills = Known(EquatableArray.From(skills)) };
-                }
-            }
-            // Traits, incapable work types and age feed the pawn profile; a read issue on them leaves the row
-            // unknown and the planner skill-only for this pawn.
-            if (!HasIssue(bio.Issues, "traits"))
-            {
-                var traits = new List<PawnTrait>();
-                foreach (var entry in bio.Traits)
-                {
-                    traits.Add(new PawnTrait { Name = entry.DefName ?? "", Degree = (int)entry.Degree.GetValueOrDefault() });
-                }
-                w = w with { Traits = Known(EquatableArray.From(traits)) };
-            }
+                Skills = Known(EquatableArray.From(bio.Skills.Select(entry => new WorkSkill { Learning = entry.Learning, Name = entry.DefName, Level = entry.Level, Stored = (int)entry.StoredLevel.GetValueOrDefault(), Disabled = entry.Disabled, Passion = SkillPassion(entry.Passion) }))),
+                // Traits, incapable work types and age feed the pawn profile.
+                Traits = Known(EquatableArray.From(bio.Traits.Select(entry => new PawnTrait { Name = entry.DefName, Degree = entry.Degree }))),
+            };
             var incapable = new List<WorkType>();
             foreach (var name in bio.IncapableWorkTypes)
             {
                 incapable.Add(WireParseOpen(name, WorkType.Unrecognized));
             }
-            w = w with { Incapable = Known(EquatableArray.From(incapable)), Age = Optional(bio.BiologicalAgeYears is not null, bio.BiologicalAgeYears.GetValueOrDefault()) };
+            w = w with { Incapable = Known(EquatableArray.From(incapable)), Age = Known(bio.BiologicalAgeYears) };
         }
         w = w with { Inspiration = Optional(row.Inspiration is not null, (row.Inspiration ?? "")), Biotech = PawnBiotech(row.Biotech) };
         if (w.Biotech.TryGetValue(out var bt) && bt.IsDeathresting())
         {
             w = w with { Available = Known(false) };
         }
-        if (row.Settings is { } hs && hs.HostilityResponse is not null && !HasIssue(hs.Issues, "hostility_response") && HostilityName(hs.HostilityResponse.GetValueOrDefault()) is { } hostility)
+        if (row.Settings is { } hs && hs.HostilityResponse is not null && HostilityName(hs.HostilityResponse.GetValueOrDefault()) is { } hostility)
         {
             w = w with { Hostility = Known(hostility) };
         }
-        if (row.Biography is { } db && !HasIssue(db.Issues, "disabled_work_tags"))
+        if (row.Biography is { } db)
         {
             var violent = true;
             foreach (var tag in db.DisabledWorkTags)

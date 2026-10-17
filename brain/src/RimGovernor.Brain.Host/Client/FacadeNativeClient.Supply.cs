@@ -121,7 +121,7 @@ internal sealed partial class FacadeNativeClient
 
     /// <summary>Go <c>validBiocode</c>: a gear item biocoded to a valid pawn, and never stated as not biocoded.</summary>
     private static bool SupplyValidBiocode(PbObservations.GearItem weapon) =>
-        weapon.BiocodedTo is null || (BridgeFunctions.IsValidId(weapon.BiocodedTo) && (weapon.Biocoded is null || weapon.Biocoded.GetValueOrDefault()));
+        weapon.BiocodedTo is null || (BridgeFunctions.IsValidId(weapon.BiocodedTo) && weapon.Biocoded);
 
     /// <summary>Go <c>decodeEquipWeapons</c>.</summary>
     private static EquipRead SupplyDecodeEquipWeapons(PbObservations.ListSuppliesReply? reply, PbCommon.Identity identity, DomainCell minimum, DomainCell maximum)
@@ -201,7 +201,7 @@ internal sealed partial class FacadeNativeClient
                         Cell = new DomainCell(at.X.GetValueOrDefault(), at.Z.GetValueOrDefault()),
                         Token = item.Snapshot.Token ?? "",
                         BiocodedTo = new RimGovernor.Brain.Domain.PawnId(weapon?.BiocodedTo ?? ""),
-                        Biocoded = weapon?.Biocoded.GetValueOrDefault() ?? false,
+                        Biocoded = weapon?.Biocoded ?? false,
                     }
                 );
             }

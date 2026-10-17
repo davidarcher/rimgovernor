@@ -382,18 +382,17 @@ Kept, reason recorded:
 | MissingBodyPart | message | 269 | 5 | mixed | Missing body part at its common ancestor | part_def_name; parent_index; parent_def_name; vital | BodyDef BodyPartRecord tree (def and parent per index); vital: BodyPartDef.tags BodyPartTagDef.vital |
 | SurgeryKind | enum | 270 | 7 | code | Tag classifying a surgery recipe |  | Go rule over RecipeDef (addsHediff removesHediff workerClass) |
 | SurgeryOperation | message | 283 | 16 | mixed | Available operation on one part with success chance and market values | kind; yield_market_value; yield_thing_def; medicine_market_value (base value) | kind: Go rule over RecipeDef; yield_thing_def: HediffDef.spawnThingOnRemoved; yield_market_value and medicine_market_value: ThingDef.statBases MarketValue x count |
-| GearItem | message | 311 | 15 | code | Worn or held gear with quality hp and computed armor and insulation |  |  |
-| PawnEquipment | message | 321 | 10 | code | Pawn equipment and apparel lists with ranged and melee DPS |  |  |
+| GearItem | message | 311 | 10 | code | Worn or held gear with quality hp and biocode |  |  |
+| PawnEquipment | message | 321 | 6 | code | Pawn equipment and apparel lists with ranged and melee DPS |  |  |
 | Passion | enum | 331 | 4 | state | Skill passion level tag |  |  |
 | Skill | message | 333 | 5 | state | Pawn skill level passion |  |  |
 | Trait | message | 334 | 2 | state | Pawn trait def and degree |  |  |
 | WorkSetting | message | 335 | 3 | state | Pawn work priority |  |  |
 | TimetableSlot | message | 336 | 2 | state | Pawn schedule hour assignment |  |  |
-| PawnBiography | message | 337 | 12 | state | Pawn ages backstories skills traits incapabilities |  |  |
-| Thought | message | 343 | 4 | state | Mood thought def count offsets |  |  |
-| Relation | message | 344 | 4 | state | Pawn relation to another pawn |  |  |
-| PawnSocial | message | 345 | 6 | state | Memories situational thoughts relations |  |  |
-| PawnSettings | message | 346 | 15 | state | Pawn medical care areas work priorities schedule policies |  |  |
+| PawnBiography | message | 337 | 5 | state | Pawn age skills traits incapabilities |  |  |
+| Thought | message | 343 | 3 | state | Mood thought def count total offset |  |  |
+| PawnSocial | message | 345 | 5 | state | Memories and situational thoughts |  |  |
+| PawnSettings | message | 346 | 11 | state | Pawn medical care area work priorities schedule policies |  |  |
 | PawnPolicyInputs | message | 363 | 18 | mixed | Inputs for per-pawn outfit drug food planners | role_apparel | role_apparel: kept, the pawn's Precept_Role instance requirements (the role's ApparelRequirements are per-ideo instance state, not the PreceptDef row) |
 | InventoryStockSetting | message | 389 | 3 | state | Pawn inventory stock tracker entry |  |  |
 | ChemicalState | message | 393 | 4 | state | Pawn addiction and tolerance per chemical |  |  |

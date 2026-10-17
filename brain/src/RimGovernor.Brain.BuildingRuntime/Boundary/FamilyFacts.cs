@@ -85,15 +85,9 @@ public static class TendFacts
     {
         foreach (var s in skills)
         {
-            if (s is null || s.DefName is null)
+            if (s.DefName == "Medicine")
             {
-                continue;
-            }
-            if ((s.DefName ?? "") == "Medicine")
-            {
-                var disabled = s.Disabled is not null ? Known(s.Disabled.GetValueOrDefault()) : Unknown<bool>();
-                var level = s.Level is not null ? Known(s.Level.GetValueOrDefault()) : Unknown<int>();
-                return (level, disabled);
+                return (Known(s.Level), Known(s.Disabled));
             }
         }
         return (Unknown<int>(), Unknown<bool>());
@@ -103,17 +97,9 @@ public static class TendFacts
     {
         foreach (var w in work)
         {
-            if (w is null)
+            if (w.DefName == "Doctor")
             {
-                continue;
-            }
-            if ((w.DefName ?? "") == "Doctor")
-            {
-                if (w.Disabled is null || w.Priority is null)
-                {
-                    return (Unknown<bool>(), Unknown<bool>());
-                }
-                return (Known(!w.Disabled.GetValueOrDefault()), Known(w.Priority.GetValueOrDefault() == 0));
+                return (Known(!w.Disabled), Known(w.Priority == 0));
             }
         }
         return (Unknown<bool>(), Unknown<bool>());
@@ -142,12 +128,12 @@ public static class TendFacts
                 facts = facts with { ExistingJobDef = Known(jobDef) };
             }
         }
-        if (row.Biography is { } biography && !Boundary.IssueField(biography.Issues, "skills"))
+        if (row.Biography is { } biography)
         {
             var (level, disabled) = MedicineSkillLevel(biography.Skills);
             facts = facts with { MedicineSkill = level, MedicineSkillDisabled = disabled };
         }
-        if (row.Settings is { } settings && !Boundary.IssueField(settings.Issues, "work"))
+        if (row.Settings is { WorkApplies: true } settings)
         {
             var (enabled, overrideDisabled) = DoctorWorkFacts(settings.Work);
             facts = facts with { DoctorWorkEnabled = enabled, DoctorWorkOverrideDisabled = overrideDisabled };
@@ -210,7 +196,7 @@ public static class TendFacts
                 facts = facts with { HoursUntilDeathFromBloodLoss = Known(health.HoursUntilDeathFromBloodLoss.GetValueOrDefault()) };
             }
         }
-        if (row.Settings is { } settings && !Boundary.IssueField(settings.Issues, "medical_care") && settings.MedicalCare is not null)
+        if (row.Settings is { MedicalCare: not null } settings)
         {
             facts = facts with { NoCare = Known(settings.MedicalCare.GetValueOrDefault() == PbOperations.MedicalCare.NoCare) };
         }

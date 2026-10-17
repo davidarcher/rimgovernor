@@ -28,9 +28,9 @@ public static partial class BridgeFunctions
                 result = result with { CreepJoiner = lifted.CreepJoiner };
             }
         }
-        if (row.Biography is { } biography && !FailedFields(biography.Issues).Contains("traits"))
+        if (row.Biography is { } biography)
         {
-            result = result with { Traits = Known(EquatableArray.From(biography.Traits.Select(trait => (trait.DefName ?? "")))) };
+            result = result with { Traits = Known(EquatableArray.From(biography.Traits.Select(trait => trait.DefName))) };
         }
         if (row.Health is { } health)
         {

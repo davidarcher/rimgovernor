@@ -90,7 +90,7 @@ namespace HomeBridge.BridgeTools
                         return found;
                     });
                     foreach (var candidate in candidates.OrderByDescending(c => c.Value).ThenBy(c => c.Key.thingIDNumber))
-                        row = row with { Candidates = [.. row.Candidates, new Obs.GearCandidate { Item = Candidate(candidate.Key, context), Gain = Number(candidate.Value) }] };
+                        row = row with { Candidates = [.. row.Candidates, new Obs.GearCandidate { Item = Gear(candidate.Key), Gain = Number(candidate.Value) }] };
                 }
                 Lap();
                 row = row with { LoadoutModel = Model(pawn, row, catalog, byId, billOptions) };
@@ -210,45 +210,30 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        private static Obs.PawnEquipment Equipment(Pawn pawn)
+        // The pawn's equipment and worn apparel, shared by the loadout upkeep and the pawn detail reads. A pawn
+        // without an equipment or apparel tracker (an animal) carries neither and is unarmed.
+        internal static Obs.PawnEquipment Equipment(Pawn pawn)
         {
             var result = new Obs.PawnEquipment();
-            if (pawn.equipment == null) result = result with { Issues = [.. result.Issues, Issue("equipped", Common.UnavailableReason.ReadFailed, "No equipment tracker.")] };
-            else {
+            if (pawn.equipment != null) {
                 foreach (var thing in pawn.equipment.AllEquipmentListForReading) result = result with { Equipped = [.. result.Equipped, Gear(thing)] };
-                result = result with { Armed = pawn.equipment.Primary != null };
-                if (pawn.equipment.Primary != null) result = result with { PrimaryId = Id(pawn.equipment.Primary.GetUniqueLoadID()) };
-                else result = result with { Issues = [.. result.Issues, Issue("primary_id", Common.UnavailableReason.NotApplicable, "No equipped primary weapon.")] };
+                var primary = pawn.equipment.Primary;
+                result = result with { Armed = primary != null, PrimaryId = primary == null ? null : Id(primary.GetUniqueLoadID()) };
             }
-            if (pawn.apparel == null) result = result with { Issues = [.. result.Issues, Issue("apparel", Common.UnavailableReason.ReadFailed, "No apparel tracker.")] };
-            else {
-                foreach (var apparel in pawn.apparel.WornApparel) {
-                    var item = Gear(apparel);
-                    item = item with { Forced = !pawn.outfits.forcedHandler.AllowedToAutomaticallyDrop(apparel) };
-                    item = item with { Locked = pawn.apparel.IsLocked(apparel) };
-                    result = result with { Apparel = [.. result.Apparel, item] };
-                }
+            if (pawn.apparel != null) {
+                var forced = pawn.outfits?.forcedHandler;
+                foreach (var apparel in pawn.apparel.WornApparel)
+                    result = result with { Apparel = [.. result.Apparel, Gear(apparel) with {
+                        Forced = forced != null && !forced.AllowedToAutomaticallyDrop(apparel), Locked = pawn.apparel.IsLocked(apparel) }] };
             }
-            result = result with { Issues = [.. result.Issues, Issue("inventory_weapons", Common.UnavailableReason.NotRequested, "Loadout upkeep excludes inventory.")] };
-            result = result with { Issues = [.. result.Issues, Issue("inventory_item_count", Common.UnavailableReason.NotRequested, "Loadout upkeep excludes inventory.")] };
-            result = result with { Issues = [.. result.Issues, Issue("carried_thing_id", Common.UnavailableReason.NotRequested, "Loadout upkeep excludes carried items.")] };
             return result;
-        }
-
-        // A loose candidate carries the supply ("allow-") token.
-        private static Obs.GearItem Candidate(Thing thing, Common.ObservationContext context)
-        {
-            var row = Gear(thing);
-            var snapshot = NativeSupplyAllow.Snapshot(thing, context);
-            if (snapshot != null) row = row with { ThingSnapshot = snapshot };
-            return row;
         }
 
         internal static Obs.GearItem Biocode(Thing thing, Obs.GearItem row)
         {
             var comp = thing.TryGetComp<CompBiocodable>();
             row = row with { Biocoded = comp?.Biocoded == true };
-            if (row.Biocoded.GetValueOrDefault() && comp?.CodedPawn != null) row = row with { BiocodedTo = Id(comp.CodedPawn.GetUniqueLoadID()) };
+            if (row.Biocoded && comp?.CodedPawn != null) row = row with { BiocodedTo = Id(comp.CodedPawn.GetUniqueLoadID()) };
             return row;
         }
 
@@ -275,17 +260,15 @@ namespace HomeBridge.BridgeTools
             return armor;
         }
 
-        private static Obs.GearItem Gear(Thing thing)
+        // One gear item: its biocode, stuff, quality and hit points (each absent when the def has none).
+        internal static Obs.GearItem Gear(Thing thing)
         {
-            var row = new Obs.GearItem { Thing = NativeRef.Thing(thing),
-                ArmorSharp = Number(thing.GetStatValue(StatDefOf.ArmorRating_Sharp)), ArmorBlunt = Number(thing.GetStatValue(StatDefOf.ArmorRating_Blunt)),
-                InsulationCold = Number(thing.GetStatValue(StatDefOf.Insulation_Cold)), InsulationHeat = Number(thing.GetStatValue(StatDefOf.Insulation_Heat)) };
-            Biocode(thing, row);
+            var row = Biocode(thing, new Obs.GearItem { Thing = NativeRef.Thing(thing) });
             if (thing.Stuff != null) row = row with { Stuff = Id(thing.Stuff.defName) };
             if (thing.TryGetQuality(out var quality)) row = row with { Quality = (Defs.QualityCategory)(int)quality };
             if (thing.def.useHitPoints) {
-                row = row with { HitPoints = thing.HitPoints }; row = row with { MaxHitPoints = thing.MaxHitPoints };
-                row = row with { ConditionFraction = Number((double)thing.HitPoints / thing.MaxHitPoints) };
+                if (thing.MaxHitPoints <= 0 || thing.HitPoints < 0) throw new InvalidOperationException("Invalid native hit points.");
+                row = row with { HitPoints = thing.HitPoints, MaxHitPoints = thing.MaxHitPoints, ConditionFraction = Number((double)thing.HitPoints / thing.MaxHitPoints) };
             }
             return row;
         }

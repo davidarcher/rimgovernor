@@ -50,11 +50,6 @@ Contracts|Observations.FireState.SafeWorkers
 Contracts|Observations.FishingZoneFacts.TargetPopulationPct
 Contracts|Observations.ForecastFacts.AnimalIds
 Contracts|Observations.ForecastFacts.Crops
-Contracts|Observations.GearItem.ArmorBlunt
-Contracts|Observations.GearItem.ArmorSharp
-Contracts|Observations.GearItem.InsulationCold
-Contracts|Observations.GearItem.InsulationHeat
-Contracts|Observations.GearItem.ThingSnapshot
 Contracts|Observations.GeneTuningFacts.BaseMaxComplexity
 Contracts|Observations.GeneTuningFacts.BiostatMax
 Contracts|Observations.GeneTuningFacts.BiostatMin
@@ -85,16 +80,6 @@ Contracts|Observations.PatientForecast.ExtremeBreakThreshold
 Contracts|Observations.PatientForecast.HoursUntilDeathFromBloodLoss
 Contracts|Observations.PatientForecast.MajorBreakThreshold
 Contracts|Observations.PatientForecast.MinorBreakThreshold
-Contracts|Observations.PawnBiography.AdulthoodDefName
-Contracts|Observations.PawnBiography.ChildhoodDefName
-Contracts|Observations.PawnBiography.ChronologicalAgeYears
-Contracts|Observations.PawnBiography.IncapableSources
-Contracts|Observations.PawnBiography.TitleSource
-Contracts|Observations.PawnEquipment.CarriedThingId
-Contracts|Observations.PawnEquipment.InventoryItemCount
-Contracts|Observations.PawnEquipment.InventoryWeapons
-Contracts|Observations.PawnSettings.AllowedAreas
-Contracts|Observations.PawnSocial.Relations
 Contracts|Observations.PlannedSiteBlocker.Clearing
 Contracts|Observations.PlannedSiteRejection.Illegal
 Contracts|Observations.PowerNetwork.Batteries
@@ -110,9 +95,6 @@ Contracts|Observations.QuestState.Description
 Contracts|Observations.RecipeActivityRead.Findings
 Contracts|Observations.RecoveryRestriction.Leased
 Contracts|Observations.RecoveryRestriction.UntilTick
-Contracts|Observations.Relation.Opinion
-Contracts|Observations.Relation.OpinionReconstructed
-Contracts|Observations.Relation.RelationDefName
 Contracts|Observations.ResearchProject.LockDetail
 Contracts|Observations.ResearchProject.TechprintsApplied
 Contracts|Observations.ResearchRequest.ProgressOnly
@@ -151,7 +133,6 @@ Contracts|Observations.SupportDemand.DeadlineTicks
 Contracts|Observations.SupportFilth.CleanlinessDelta
 Contracts|Observations.ThermalCell.FutureDefinition
 Contracts|Observations.Thing.HarvestableNow
-Contracts|Observations.Thought.MoodOffsetEach
 Contracts|Observations.ThreatBuilding.HostileReason
 Contracts|Observations.TradeLine.BuyPriceType
 Contracts|Observations.TradeLine.CannotSellReasons

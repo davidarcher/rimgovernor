@@ -372,7 +372,7 @@ public static partial class ObservationPackage
                 var traits = new List<PawnTrait>();
                 foreach (var t in candidate.PawnTraits)
                 {
-                    traits.Add(ResolveTrait(catalog, new PawnTrait { Name = t.DefName ?? "", Degree = (int)t.Degree.GetValueOrDefault() }));
+                    traits.Add(ResolveTrait(catalog, new PawnTrait { Name = t.DefName, Degree = (int)t.Degree }));
                 }
                 butchers.Add(new HumanButcherCandidate
                 {

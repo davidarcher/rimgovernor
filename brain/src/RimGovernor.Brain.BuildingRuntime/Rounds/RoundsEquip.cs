@@ -58,7 +58,7 @@ internal static class EquipCandidates
             facts = facts with { RaidArmor = Known(row.RaidArmor.GetValueOrDefault()) };
         }
         facts = facts with { Position = new Cell(row.Pawn.Position?.X ?? 0, row.Pawn.Position?.Z ?? 0) };
-        if (row.Biography is { } biography && !Boundary.IssueField(biography.Issues, "disabled_work_tags"))
+        if (row.Biography is { } biography)
         {
             var capable = true;
             foreach (var tag in biography.DisabledWorkTags)
@@ -74,9 +74,9 @@ internal static class EquipCandidates
             }
             facts = facts with { IncapableOfViolence = Known(!capable) };
         }
-        if (row.Equipment is { Armed: not null } equipment && !Boundary.IssueField(equipment.Issues, "armed"))
+        if (row.Equipment is { } equipment)
         {
-            facts = facts with { Armed = Known(equipment.Armed.GetValueOrDefault()) };
+            facts = facts with { Armed = Known(equipment.Armed) };
         }
         facts = facts with { NoArms = catalog.CreepJoinerDownsides().ArmsHold(BridgeApi.CreepJoinerPawn(row)) };
         return facts;

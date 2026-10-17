@@ -347,7 +347,7 @@ internal static class LifecycleNewColony
             var skills = (pawn?["biography"].AsMap()?["skills"]).AsSlice()
                 .Select(skill => string.Create(
                     CultureInfo.InvariantCulture,
-                    $"{skill.Member("defName").AsString()}={(int)skill.Member("level").AsNumber()}/{skill.Member("passion").AsString()}"))
+                    $"{skill.Member("defName").AsString()}={(int)Math.Max(skill.Member("level").AsNumber(), 0)}/{skill.Member("passion").AsString()}"))
                 .Order(StringComparer.Ordinal);
             colonists.Add($"{pawn?["pawn"].AsMap()?["label"].AsString()}[{string.Join(',', skills)}]");
         }

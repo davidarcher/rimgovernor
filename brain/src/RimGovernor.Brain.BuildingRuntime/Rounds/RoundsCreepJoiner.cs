@@ -88,7 +88,7 @@ internal static partial class BuildingRuntimePackage
             };
         }
         // An unset allowed area is an unrestricted pawn (native AllowedArea).
-        if (row.Settings is { } settings && !Boundary.IssueField(settings.Issues, "allowed_area_id"))
+        if (row.Settings is { } settings)
         {
             hand = hand with { Area = Known((settings.AllowedAreaId ?? "")) };
         }
@@ -97,9 +97,9 @@ internal static partial class BuildingRuntimePackage
             hand = hand with { Hungry = Known(needs.HungerCategory.GetValueOrDefault() != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed) };
         }
         hand = hand with { Available = Known(!row.Dead && !row.Downed && !row.Drafted && row.MentalState is null) };
-        if (row.Equipment is { Armed: not null } equipment && !Boundary.IssueField(equipment.Issues, "armed"))
+        if (row.Equipment is { } equipment)
         {
-            if (!equipment.Armed.GetValueOrDefault())
+            if (!equipment.Armed)
             {
                 hand = hand with { Weapon = Known("") };
             }

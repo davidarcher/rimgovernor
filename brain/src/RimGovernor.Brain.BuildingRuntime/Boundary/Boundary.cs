@@ -209,11 +209,11 @@ public static class Boundary
         var seen = new bool[24];
         foreach (var slot in slots)
         {
-            if (slot is null || slot.Hour is null || slot.AssignmentDefName is null || slot.Hour.GetValueOrDefault() >= 24 || seen[slot.Hour.GetValueOrDefault()] || (slot.AssignmentDefName ?? "") != wanted[(int)slot.Hour.GetValueOrDefault()])
+            if (slot.Hour >= 24 || seen[slot.Hour] || slot.AssignmentDefName != wanted[(int)slot.Hour])
             {
                 return false;
             }
-            seen[slot.Hour.GetValueOrDefault()] = true;
+            seen[slot.Hour] = true;
         }
         return true;
     }
