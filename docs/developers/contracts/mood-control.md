@@ -217,7 +217,8 @@ do (`ObservationPackage.MoodThoughts`), and compares the thought's offset with `
 outfit: none for n = 0, -5/-8/-11/-14 for n = 1-4 and none with Bloodlust at n = 2. For n = 5 it requires the thought
 and records the observed stage against the card's clamp. With Bloodlust the situational row stays in the cache at
 offset 0 (`ThoughtUtility.ThoughtNullified` zeroes `MoodOffset`), so the lifted mood thoughts omit it. The case
-declares `VanillaColonists`: without a service the voluntary-control hold stops the scenario clock on the idle colonist.
+declares `VanillaColonists`: it predates the scenario clock's standby stand-in (`test/standby_colonists`, #3322), which
+should make the opt-out unnecessary once a run confirms it.
 
 The probes for `EnvironmentCold` and `EnvironmentHot` are `environment/cold` and `environment/hot` (#3328), on a
 one-colonist lab. The fixture op `test/environment_temperature` seals the colonist in a doorless roofed 3x3 room and

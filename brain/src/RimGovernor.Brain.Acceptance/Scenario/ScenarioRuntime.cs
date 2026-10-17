@@ -15,6 +15,12 @@ public sealed class ScenarioRuntime : IScenarioRuntime
     public const string DismissLetterTool = "test/dismiss_letter";
 
     /// <summary>
+    /// The fixture op the clock calls before each Run when the runtime's tools carry it (#3322): the brain's standby
+    /// stand-in, so a controlled colonist with no Hands assignment does not hold a native-only case's clock.
+    /// </summary>
+    public const string StandbyTool = "test/standby_colonists";
+
+    /// <summary>
     /// The letter defs AdvanceGame acknowledges by default: informational events and the choice letters whose
     /// unanswered outcome is harmless to an assertion (a joiner leaves, a quest stays offered). Threat letters are
     /// never here: they still need an expected-letters option, and the window's own safety checks (no hostiles, no

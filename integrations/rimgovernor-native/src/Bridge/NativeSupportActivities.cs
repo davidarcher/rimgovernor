@@ -165,7 +165,7 @@ internal static class NativeSupportActivities
     private static Fact<double> Add(Fact<double> a, Fact<double> b) => a.IsKnown && b.IsKnown ? Fact.Known(a.Value + b.Value) : default;
     private static Cell At(IntVec3 cell) => new(cell.x, cell.z);
     private static bool Available(Pawn pawn) => !pawn.Downed && !pawn.Drafted && !pawn.InMentalState && NativeFoodActivity.Available(pawn)
-        && !NativePawnActivities.Owned(pawn) && pawn.CurJob?.playerForced != true && pawn.jobs.jobQueue.Count == 0 && pawn.carryTracker.CarriedThing == null;
+        && !NativePawnActivities.Committed(pawn) && pawn.CurJob?.playerForced != true && pawn.jobs.jobQueue.Count == 0 && pawn.carryTracker.CarriedThing == null;
     private static (Fact<bool> Applies, Fact<double> Ticks) InfectionEffect(Pawn patient, bool medicine)
     {
         var batch = new List<Hediff>();

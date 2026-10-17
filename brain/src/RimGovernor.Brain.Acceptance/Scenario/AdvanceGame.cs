@@ -272,6 +272,13 @@ public static class AdvanceGame
                 return await FinishAsync(rt, evidence, current, targetTick, cancellationToken).ConfigureAwait(false);
             }
 
+            // The brain would give every unassigned controlled colonist standby; a native-only case has no brain, so the
+            // clock installs it before each Run, or the first idle colonist holds the clock (unassigned_voluntary_pawn).
+            if (Dyn.Contains(rt.Tools, ScenarioRuntime.StandbyTool))
+            {
+                evidence["standby"] = (await rt.Query("scenario-standby", ScenarioRuntime.StandbyTool, new JsonObject(), cancellationToken).ConfigureAwait(false)).DeepClone();
+            }
+
             var speed = supervisor.TestAcceleration ? "Ultrafast" : "Superfast";
             var started = await supervisor.RunAsync(speed, cancellationToken).ConfigureAwait(false);
             var startTick = started["startTick"].AsUInt64() ?? 0;

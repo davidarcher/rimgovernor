@@ -4,10 +4,12 @@ public sealed partial class Rounder
 {
     /// <summary>Normal review sequencing only. Policy selected the graph; the admin/work-assignments Need's
     /// claimed commit, the Method journal and Hands retain admission, claims, execution and observed continuation.</summary>
-    private void AdmitCoupledSelection(RoundsResult review, RoundsFacts facts, EquatableArray<ForecastObservedIncumbent> incumbents, GenerationSnapshot snapshot,
+    /// <returns>The pawns whose orders this review just committed or released: standby must not take them.</returns>
+    private HashSet<string> AdmitCoupledSelection(RoundsResult review, RoundsFacts facts, EquatableArray<ForecastObservedIncumbent> incumbents, GenerationSnapshot snapshot,
         CancellationToken call, CancellationToken epoch)
     {
-        if (review.Needs.CoupledSelection is not { } selection || facts.CoupledAlternatives is not { } candidates) return;
+        var taken = new HashSet<string>(StringComparer.Ordinal);
+        if (review.Needs.CoupledSelection is not { } selection || facts.CoupledAlternatives is not { } candidates) return taken;
         var execution = PolicyFunctions.ReviewCoupledExecution(selection, incumbents, facts.Tick.Value);
         if (execution.Releases.Count > 0)
         {
@@ -16,20 +18,21 @@ public sealed partial class Rounder
             foreach (var release in execution.Releases)
             {
                 var next = PlanIds.MintPlanId();
+                taken.UnionWith(release.Batch.Orders.Select(o => o.Pawn));
                 Player.Journal.ContinueActivityMethod(release.Incumbent.Plan, snapshot, facts.Tick,
                     [release.Incumbent.Ownership, .. release.Incumbent.ReleasedOwnership], new PlanSpec(next, new PlanRevision(1),
                         [DomainAction.NewPawnActivitiesAction(new ActionId($"{next}-0"), release.Batch)]), call);
             }
             RecordCoupledSelection(selection, facts.Tick.Value, "release_for_reconsideration");
-            return; // Fresh native ownership evidence precedes replacement admission.
+            return taken; // Fresh native ownership evidence precedes replacement admission.
         }
         if (execution.Dispatch is not { } dispatch)
-        { RecordCoupledSelection(selection, facts.Tick.Value, "retained_method_future_work", true); return; }
+        { RecordCoupledSelection(selection, facts.Tick.Value, "retained_method_future_work", true); return taken; }
         selection = dispatch;
         if (selection.Selection.Selected.Length == 0 && selection.Deferred.Count == 0)
-        { RecordCoupledSelection(selection, facts.Tick.Value, "continue", facts.CoupledWorkActive); return; }
+        { RecordCoupledSelection(selection, facts.Tick.Value, "continue", facts.CoupledWorkActive); return taken; }
         // The activity is the admin/work-assignments Need's Method (#3304); a runtime without the Need starts none.
-        if (!Needs.Contains(AdminFamily.WorkAssignments)) return;
+        if (!Needs.Contains(AdminFamily.WorkAssignments)) return taken;
         var id = PlanIds.MintPlanId();
         var method = new MethodId($"coupled-{id}");
         var activity = PolicyFunctions.StartCoupledActivity(selection, candidates, snapshot.Native.Value, method.Value, facts.Tick.Value);
@@ -37,7 +40,7 @@ public sealed partial class Rounder
         {
             // Selected planned sites start no order: the room reconcile places them from the review's RoomSelection (#3278).
             if (selection.Selected.PlannedRooms.Count > 0) RecordCoupledSelection(selection, facts.Tick.Value, "planned_unplaced");
-            return;
+            return taken;
         }
         Player.Current(call, epoch);
         if (Player.Session.State().Snapshot != snapshot) throw new ControlException("coupled activity scope changed");
@@ -46,12 +49,48 @@ public sealed partial class Rounder
             var commit = Player.Journal.CommitClaimedMethod(AdminFamily.WorkAssignments, snapshot, method, "shared colony consequence portfolio",
                 new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), activity)]), call);
             RecordCoupledSelection(selection, facts.Tick.Value, method.Value, admissionFailure: commit.Conflict?.Reason);
+            if (commit.Outcome != ClaimOutcome.Conflict) taken.UnionWith(activity.Orders.Select(o => o.Pawn));
         }
         catch (NotAdmittedException refusal)
         {
             // A proposal owns nothing until admitted. Refusal must not revoke authority
             // or interrupt the useful Methods whose current claims prevented it.
             RecordCoupledSelection(selection, facts.Tick.Value, method.Value, admissionFailure: refusal.Message);
+        }
+        return taken;
+    }
+
+    /// <summary>
+    /// The explicit idle (#3322): after this review's coupled admission, each controlled colonist still without a Hands
+    /// assignment gets standby, one claimed Method per colonist under the admin/work-assignments Need. Without it an
+    /// unassigned colonist holds the clock (unassigned_voluntary_pawn) and a quiet colony never advances.
+    /// </summary>
+    private void AdmitStandby(RoundsFacts facts, WorkActionCensus actions, IReadOnlySet<string> taken, GenerationSnapshot snapshot,
+        CancellationToken call, CancellationToken epoch)
+    {
+        if (!Needs.Contains(AdminFamily.WorkAssignments)) return;
+        var pawns = PolicyFunctions.StandbyPawnsOf(facts, actions, taken);
+        if (pawns.Count == 0) return;
+        Player.Current(call, epoch);
+        if (Player.Session.State().Snapshot != snapshot) throw new ControlException("standby scope changed");
+        foreach (var pawn in pawns)
+        {
+            var id = PlanIds.MintPlanId();
+            var method = new MethodId($"standby-{id}");
+            try
+            {
+                var commit = Player.Journal.CommitClaimedMethod(AdminFamily.WorkAssignments, snapshot, method, "explicit idle: nothing selected",
+                    new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"),
+                        PolicyFunctions.StandbyActivity(pawn, snapshot.Native.Value, method.Value))]), call);
+                Tel.Decide(new Decision { Kind = "standby", Component = "rounds", Target = pawn,
+                    Verdict = commit.Outcome == ClaimOutcome.Conflict ? "deferred" : "selected",
+                    Reason = commit.Conflict?.Reason ?? "nothing_selected", Attrs = new Dictionary<string, object?> { ["method"] = method.Value } });
+            }
+            catch (NotAdmittedException refusal)
+            {
+                Tel.Decide(new Decision { Kind = "standby", Component = "rounds", Target = pawn, Verdict = "deferred",
+                    Reason = "method_not_admitted", Attrs = new Dictionary<string, object?> { ["method"] = method.Value, ["refusal"] = refusal.Message } });
+            }
         }
     }
 

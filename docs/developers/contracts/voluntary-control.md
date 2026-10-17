@@ -64,7 +64,12 @@ legality, reservation checks and completion mechanics still run.
 The shared selector may retain no change only for an observed, finite safe
 interval. A missing estimate is not evidence that indefinite idleness is safe.
 An unassigned controlled pawn exposes `unassigned_voluntary_pawn` through the
-Supervisor rather than silently borrowing vanilla job selection. Unsupported
+Supervisor rather than silently borrowing vanilla job selection. The hold is the
+review trigger, not a resting state: the brain's next round assigns every such
+pawn it selects nothing for an explicit `Standby` (colony wander, no work, no
+deadline; see [pawn activities](pawn-activities.md)), so a quiet colony's clock
+runs. The hold recurs once after an authority grant, a release or an involuntary
+interruption, until that review. Unsupported
 need/state observations are excluded from ordinary capacity and defer admission.
 This is a visible unsupported outcome, not successful autonomous coverage.
 
@@ -81,8 +86,9 @@ Bounded `Idle` is selected only for an eligible pawn with known available
 capacity, no selected task/claim and known needs above their thresholds. Its
 deadline is at most 600 ticks and no later than the earliest forecast threshold
 crossing or available-window end. Truncated observations or unknown need
-estimates do not authorize this defer. Review must renew or replace it; missing
-plans are visible unavailable outcomes, not successful endless holds. A completed or failed
+estimates do not authorize this defer. Review must renew or replace it. `Standby`
+is not a defer: it claims no capacity, authorizes no work and is replaced as soon
+as review selects anything, including eating or sleeping for a falling need. A completed or failed
 assignment keeps its exact ownership pending continuation or release, but stops the existing
 Supervisor clock; readmitting time cannot turn that terminal assignment into indefinite idle.
 
@@ -171,11 +177,16 @@ A native-only case that probes a vanilla mechanic through a colonist's own job
 choice (`burial/stranger_sarcophagus`, `burial/grave_over_morgue`) declares
 `AcceptanceCase.VanillaColonists` with a Reason. The runner then calls the
 test-only `test/vanilla_colonists` fixture op, so colonists choose voluntary jobs
-natively for that game while the scenario clock holds the authority. A probe that
-only needs game ticks to pass on an idle colonist (`apparel/dead_mans`, `environment/cold`,
-`environment/hot`) declares it
-too, since the hold stops the clock on an unassigned voluntary pawn. It is
+natively for that game while the scenario clock holds the authority. It is
 absent from production builds and is not evidence of controlled execution.
+
+A native-only case runs no brain, so before each Run the scenario clock calls the
+test-only `test/standby_colonists` fixture op, its stand-in for the brain's
+standby: each controlled colonist with no assignment and an idle job gets the
+same `Standby` order. Under `VanillaColonists` no colonist is controlled and the
+op installs nothing. The probes that declared the opt-out only for the hold
+(`apparel/dead_mans`, `environment/cold`, `environment/hot`) keep it until a run
+shows they pass on the stand-in.
 
 Native disorientation and the native imposed-sleep/force-job ability effects retain
 their direct job authority through exact source-method scopes. The scope applies only

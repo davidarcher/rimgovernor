@@ -85,7 +85,7 @@ Register an `AcceptanceCase` (`brain/src/RimGovernor.Brain.Acceptance/Cases/Acce
 | `RequiredOps` | Fixture operations called by the body or service hooks. |
 | `Run` | Exercise the behavior and watch progress. |
 | `Postmortem` | Read and assert native outcomes after services stop. |
-| `VanillaColonists` | Test-only opt-out from voluntary control for a native-only probe of a vanilla mechanic; needs a `Reason` ([voluntary control](../contracts/voluntary-control.md)). |
+| `VanillaColonists` | Test-only opt-out from voluntary control for a native-only probe of a vanilla mechanic (a colonist's own hauling); needs a `Reason` ([voluntary control](../contracts/voluntary-control.md)). An idle colonist alone should not need it: the scenario clock installs the brain's standby stand-in (#3322). |
 
 For service-driven cases, declare `Serve = new ServeSpec { ... }` (the harness-side session: save, families,
 environment entries). Store assertion inputs with the checkpoint state, `Session.Resumed` or

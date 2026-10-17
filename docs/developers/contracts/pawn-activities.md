@@ -123,7 +123,7 @@ before plan creation or Method binding; refusal leaves both unchanged. They do
 not reserve pawns across different owners or prove current native availability.
 
 The initial step families are exact thing-target work (Clean, Repair, Harvest and BeatFire through a named native WorkGiver), selected food/count,
-selected bed/rest, selected horseshoes recreation, exact delivery, exact cooking, material Supply, FinishFrame, Approach, Hold and bounded Idle. Unsupported families are refused, not sent to a
+selected bed/rest, selected horseshoes recreation, exact delivery, exact cooking, material Supply, FinishFrame, Approach, Hold, bounded Idle and Standby (explicit idle). Unsupported families are refused, not sent to a
 native economic selector. Other recreation adapters remain outside this
 initial execution slice. Firefighting is an explicit policy-selected emergency revision, not an automatic native fallback. Work givers use forced:false, required capacities,
 capabilities, native target checks and native reservations. They may still perform
@@ -329,6 +329,20 @@ first supported need threshold, whichever comes first. Unknown needs, unmet
 needs, explicit unsupported-state blockers and shared claims cannot authorize
 that interval. Idle completion wakes review and release; it creates no inventory
 or recovery benefit. Hold remains solely an already-authorized task dependency.
+
+Under brain authority every controlled colonist holds a Hands assignment (#3322).
+After a round's coupled selection, the brain gives each available, unoccupied
+colonist that no admitted plan, in-flight activity action or native assignment
+takes an explicit `Standby`: one order whose single step has no target, count,
+workgiver, task or deadline (`standby-<id>` Method, revision zero). Native
+execution offers a colony wander (`JobGiver_WanderColony`, else `Wait_Wander`),
+never work. Standby claims no pawn or target, so selected work, eat or sleep
+acquires the pawn from revision zero and the standby Method ends; work candidacy
+and food/support availability treat a standby pawn as free. Standby never
+steps, completes or fails: a wander ending re-offers it, and drafting, an
+involuntary state, a player order or an admitted direct job (hunt, equip) yields
+it quietly (`released`) instead of faulting. Needs are met by the brain's ordinary
+selection replacing standby, not by standby itself.
 
 An eligible pawn without an authorized activity returns no native voluntary job
 and stops the existing clock as unavailable, naming that pawn. It does not

@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools;
 /// <summary>Native legality and route observations. No orders, demand or economic selection.</summary>
 public sealed class NativeFoodActivity
 {
-    internal static bool Available(Pawn pawn) => pawn.CurJob == null || pawn.CurJob.def == JobDefOf.Wait || pawn.CurJob.def == JobDefOf.Wait_Wander;
+    internal static bool Available(Pawn pawn) => pawn.CurJob == null || pawn.CurJob.def == JobDefOf.Wait || pawn.CurJob.def == JobDefOf.Wait_Wander || pawn.CurJob.def == JobDefOf.GotoWander;
     [Tool("rimgovernor/food_activity", Description = "Read eligible harvest/delivery routes and current loose food. Read-only FoodActivityRequest; known=false is unavailable, truncated=true is an incomplete cooking search.")]
     public async Task<object> Observe(IRimBridgeContext ctx, CancellationToken ct,
         [ToolParameter(Description = "FoodActivityRequest JSON.")] object? request = null)
@@ -57,7 +57,7 @@ public sealed class NativeFoodActivity
             if (pawn.Downed || pawn.InMentalState || pawn.Drafted || !pawn.IsColonistPlayerControlled
                 || pawn.carryTracker.CarriedThing != null || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)
                 || pawn.WorkTagIsDisabled(WorkTags.ManualDumb) || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)) continue;
-            if (existing is null && (NativePawnActivities.Owned(pawn) || !Available(pawn) || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0)) continue;
+            if (existing is null && (NativePawnActivities.Committed(pawn) || !Available(pawn) || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0)) continue;
             IEnumerable<Thing> sources = plants;
             if (existing?.OutputDelivery is { } output)
                 sources = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver)
