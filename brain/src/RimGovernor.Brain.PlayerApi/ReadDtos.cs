@@ -135,12 +135,9 @@ internal sealed record RoundsSectionDto(string Section, string Family, long AsOf
 internal sealed record RoundsRosterDto(
     long Tick,
     IReadOnlyList<RoundsCoverageDto> Coverage,
-    IReadOnlyList<RoundsDecayingDto> Decaying,
     IReadOnlyList<RoundsRosterPawnDto> Pawns);
 
 internal sealed record RoundsCoverageDto(string Work, int Demand, int Owners, int Capable);
-
-internal sealed record RoundsDecayingDto(string Pawn, string Skill, int Level);
 
 internal sealed record RoundsRosterPawnDto(
     string Pawn,

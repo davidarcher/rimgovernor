@@ -633,23 +633,6 @@ internal sealed class DashWindowConverter : ObjectCodec<DashWindow>
     }
 }
 
-internal sealed class DecayingSkillConverter : ObjectCodec<DecayingSkill>
-{
-    protected override DecayingSkill Read(JsonElement e, Codecs o) =>
-        new(
-            e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
-            e.Str("Skill"),
-            e.I32("Level")
-        );
-
-    protected override void WriteFields(Utf8JsonWriter w, DecayingSkill v, Codecs o)
-    {
-        w.Put("Pawn", v.Pawn, o);
-        w.WriteString("Skill", v.Skill);
-        w.WriteNumber("Level", v.Level);
-    }
-}
-
 internal sealed class DefenseBuildingConverter : ObjectCodec<DefenseBuilding>
 {
     protected override DefenseBuilding Read(JsonElement e, Codecs o) =>
@@ -2577,7 +2560,6 @@ internal sealed class WorkRosterReportConverter : ObjectCodec<WorkRosterReport>
         {
             Tick = e.Get<Tick>("Tick", o),
             Coverage = e.Get<EquatableArray<WorkCoverage>>("Coverage", o),
-            Decaying = e.Get<EquatableArray<DecayingSkill>>("Decaying", o),
             Profiles = e.Get<EquatableArray<PawnProfile>>("Profiles", o),
             Help = e.GetOr<ConstructionHelpRecord?>("Help", null, o),
         };
@@ -2586,7 +2568,6 @@ internal sealed class WorkRosterReportConverter : ObjectCodec<WorkRosterReport>
     {
         w.Put("Tick", v.Tick, o);
         w.Put("Coverage", v.Coverage, o);
-        w.Put("Decaying", v.Decaying, o);
         w.Put("Profiles", v.Profiles, o);
         if (v.Help is { } vHelp)
         {

@@ -408,9 +408,6 @@ public sealed record RoundsFacts
 
     public Fact<bool> QuestColonyCalm { get; init; }
 
-    /// <summary>The same plan's skills above 10 that no assignment exercises (WorkDecision.Decaying); a presentation fact the review records, never a planner input.</summary>
-    public Fact<EquatableArray<DecayingSkill>> WorkDecaying { get; init; }
-
     /// <summary>Every work pawn's typed profile (Profiles); a presentation fact the review records, never a planner input.</summary>
     public Fact<EquatableArray<PawnProfile>> WorkProfiles { get; init; }
 

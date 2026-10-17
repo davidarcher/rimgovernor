@@ -165,10 +165,8 @@ internal static class ReadProjections
     private static RoundsRosterDto Roster(WorkRosterReport r)
     {
         var coverage = r.Coverage.Select(c => new RoundsCoverageDto(Wire.Name(c.Work), c.Demand, c.Owners, c.Capable)).OrderBy(c => c.Work, StringComparer.Ordinal).ToList();
-        var decaying = r.Decaying.Select(d => new RoundsDecayingDto(d.Pawn.Value, d.Skill, d.Level))
-            .OrderBy(d => d.Pawn, StringComparer.Ordinal).ThenBy(d => d.Skill, StringComparer.Ordinal).ToList();
         var pawns = r.Profiles.Select(RosterPawn).OrderBy(p => p.Pawn, StringComparer.Ordinal).ToList();
-        return new RoundsRosterDto(r.Tick.Value, coverage, decaying, pawns);
+        return new RoundsRosterDto(r.Tick.Value, coverage, pawns);
     }
 
     private static RoundsRosterPawnDto RosterPawn(PawnProfile p)

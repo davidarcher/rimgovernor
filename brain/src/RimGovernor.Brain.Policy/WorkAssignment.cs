@@ -271,13 +271,7 @@ public sealed record WorkCoverage
 }
 
 /// <summary>
-/// A skill above 10 that no owner or secondary assignment exercises; the planner gives it a maintenance slot when
-/// the pawn owns nothing else.
-/// </summary>
-public sealed record DecayingSkill(PawnId Pawn, string Skill, int Level);
-
-/// <summary>
-/// What a Rounds pass records of the roster planner for presentation: the coverage census, the decaying skills and
+/// What a Rounds pass records of the roster planner for presentation: the coverage census and
 /// every work pawn's typed profile as of Tick. Presentation only; no planner reads it back.
 /// </summary>
 public sealed record WorkRosterReport
@@ -285,8 +279,6 @@ public sealed record WorkRosterReport
     public Tick Tick { get; init; }
 
     public EquatableArray<WorkCoverage> Coverage { get; init; }
-
-    public EquatableArray<DecayingSkill> Decaying { get; init; }
 
     public EquatableArray<PawnProfile> Profiles { get; init; }
 
@@ -303,8 +295,6 @@ public sealed record WorkDecision
     public Fact<bool> Matches { get; init; }
 
     public IReadOnlyList<WorkCoverage> Coverage { get; init; } = [];
-
-    public IReadOnlyList<DecayingSkill> Decaying { get; init; } = [];
 
     /// <summary>The construction helper decision; null without WorkDemand.Help.</summary>
     public ConstructionHelpRecord? Help { get; init; }
@@ -685,7 +675,6 @@ public static partial class WorkRules
         }
         var capacity = true;
         var coverageRows = new List<WorkCoverage>();
-        var decaying = new List<DecayingSkill>();
         var owners = new Dictionary<WorkType, List<WorkWorker>>();
         foreach (var work in types)
         {
@@ -880,7 +869,6 @@ public static partial class WorkRules
             Matches = Known(matches),
             Assignments = assignments,
             Coverage = coverageRows,
-            Decaying = decaying,
             Help = help,
         };
     }

@@ -73,7 +73,7 @@ public sealed record Rounds
     /// <summary>The combat standing this enabled review filed; null while combat has nothing to answer or settle.</summary>
     public RoundsCombat? Combat { get; init; }
 
-    /// <summary>The roster planner's last recorded report: coverage, decaying skills and pawn profiles as of its tick. A disabled review keeps the last one.</summary>
+    /// <summary>The roster planner's last recorded report: coverage and pawn profiles as of its tick. A disabled review keeps the last one.</summary>
     public WorkRosterReport? Roster { get; init; }
 
     /// <summary>Every active goal's progress record, keyed by need.</summary>

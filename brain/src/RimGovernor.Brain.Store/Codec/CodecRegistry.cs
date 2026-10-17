@@ -83,7 +83,6 @@ internal static class CodecRegistry
         codecs.Register(new CutPlantConverter());
         codecs.Register(new DashTripConverter());
         codecs.Register(new DashWindowConverter());
-        codecs.Register(new DecayingSkillConverter());
         codecs.Register(new DeconstructionConverter());
         codecs.Register(new DefenseBuildingConverter());
         codecs.Register(new DefenseLayoutRecordConverter());

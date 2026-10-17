@@ -595,7 +595,6 @@ public sealed partial class Rounder
                         reading = reading.WithFacts(rf => rf with { QuestSparePawns = QuestCapacity.QuestSpareColonists(reading.Projection.WorkPawns, reading.Projection.Facts.MoodPawns, work) });
                         reading = reading.WithFacts(rf => rf with { QuestHomeFloor = QuestCapacity.QuestHomeFloor(reading.Projection.WorkPawns, reading.Projection.Facts.MoodPawns, work) });
                         reading = reading.WithFacts(rf => rf with { QuestDepartureWork = Known<EquatableArray<PawnWorkAssignment>>([.. work.Assignments]) });
-                        reading = reading.WithFacts(rf => rf with { WorkDecaying = Known<EquatableArray<DecayingSkill>>([.. work.Decaying]) });
                         reading = reading.WithFacts(rf => rf with { WorkHelp = work.Help });
                     }
                 }

@@ -85,7 +85,6 @@ public sealed partial class Store
         if (r.Roster is { } roster
             && (roster.Tick > r.Tick
                 || roster.Coverage.Count > 256
-                || roster.Decaying.Count > 4096
                 || roster.Profiles.Count > 256
                 || (roster.Help is { } help && (help.Tick > roster.Tick || help.Idle.Count > 256 || help.Helpers.Count > 256 || help.Withheld.Count > 256))))
         {
@@ -388,13 +387,11 @@ public sealed partial class Store
         {
             return reset ? null : previous.Roster;
         }
-        _ = request.Facts.WorkDecaying.TryGetValue(out var decaying);
         _ = request.Facts.WorkProfiles.TryGetValue(out var profiles);
         return new WorkRosterReport
         {
             Tick = request.Tick,
             Coverage = coverage,
-            Decaying = decaying,
             Profiles = profiles,
             Help = request.Facts.WorkHelp is { } help && help.Tick <= request.Tick ? help : null,
         };
