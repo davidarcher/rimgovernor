@@ -199,7 +199,7 @@ project builds the Bridge project, which writes its gitignored `BridgeTools/RimG
 
 `PolicyController` decides a fight with the code that decides one in the game. Every ten ticks it captures a snapshot
 frame with the mod's own `SnapshotFrames.Capture`, publishes it to a facade (`PolicyFacade`, a `DispatchProxy` over
-`INativeFacade` that serves only the catalog, the frame stream and the stat service; any other call throws by name) and
+`INativeFacade` that serves only the catalog and the frame stream; any other call throws by name) and
 reads it with the brain's own `FacadeNativeClient.ReadCombatAsync`. `BuildingRuntimePackage.DecideCombatStep` then runs the
 defense round's chain (frame inputs, `CombatView`, the newest stop, `DecideCombat`) and builds the wire batch, which
 `NativeSeat.Apply` hands to the order handler. It decides at the first check, at each stop event and at a 300-tick backstop.

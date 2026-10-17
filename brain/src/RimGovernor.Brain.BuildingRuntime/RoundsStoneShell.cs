@@ -11,8 +11,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public interface IRoundsStoneShellSource
 {
-    Task<(WallUpgradeSites Sites, BridgeResult Result)> ReadWallUpgradeSitesAsync(C.Identity identity, string wall, CancellationToken ct);
-    Task<(BuildingPreview Preview, BridgeResult Result)> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
+    Task<WallUpgradeSites> ReadWallUpgradeSitesAsync(C.Identity identity, string wall, CancellationToken ct);
+    Task<BuildingPreview> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
 }
 
 /// <summary>The stone-shell step of the layout family (#3256): one wall upgrade bundle per flammable owned wall, under the Need owner.</summary>
@@ -105,7 +105,7 @@ public sealed partial class LayoutRounds
         var none = (default(Verdict), false);
         var p = _reviewer.Player;
         var projection = read.Projection;
-        var (sites, _) = await _stone!.ReadWallUpgradeSitesAsync(Boundary.Identity(state.Snapshot), wall, call).ConfigureAwait(false);
+        var sites = await _stone!.ReadWallUpgradeSitesAsync(Boundary.Identity(state.Snapshot), wall, call).ConfigureAwait(false);
         GenerationSnapshot current;
         try
         {
@@ -269,7 +269,7 @@ public sealed partial class LayoutRounds
 
     private async Task<BuildingPreview?> PreviewWallAsync(DomainAction action, GenerationSnapshot snapshot, Cell cell, CancellationToken ct)
     {
-        var (preview, _) = await _stone!.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
+        var preview = await _stone!.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
         var v = preview.Preview;
         var fk = v.Footprint.TryGetValue(out var footprint);
         var mk = v.MadeFromStuff.TryGetValue(out var made);

@@ -14,7 +14,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             return (0, Unknown<double>(), false);
         }
         var ids = read.Emergency.Colonists.Select(p => p.Id.Value).ToList();
-        var (reply, _) = await _native.ReadCombatPawnsAsync(Boundary.Identity(state.Snapshot), ids, call).ConfigureAwait(false);
+        var reply = await _native.ReadCombatPawnsAsync(Boundary.Identity(state.Snapshot), ids, call).ConfigureAwait(false);
         var observed = reply.Outcome?.Observed;
         if (observed is null || observed.Pawns.Count != ids.Count)
         {

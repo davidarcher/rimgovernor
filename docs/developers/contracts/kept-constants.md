@@ -24,8 +24,58 @@ not a silent exemption.
 | Overlay bounds `MaxCells`, `MaxLabels`, `MaxLayerId` | `ProtoOverlayTools.cs` | 250000, 4096, 64 | Input bounds on an output-only draw request. |
 | Placement candidates | `PlacementProtocol.cs` | 1..64 | Input bound on one placement preview/apply request, a main-thread budget. |
 | Request id lists | room and supplies observation tools (256), zone observation `MaxIds` (16), quest shuttle explicit pawns (256) | 256 / 16 | The caller names exact ids; an input bound; larger sets are several requests. |
-| `CombatGeometryTools` `MaxCells`, `MaxHostiles`, `MaxRadius` | `NativeCombatGeometryTools.cs` | 64, 16, 12 | Measured on `lab-ranged` against the 50 ms main-thread budget (64 cells x 8 pawns took 1.3-6.6 ms, about 13 ms at the caps). |
+| `CombatGeometryTools` `MaxCells`, `MaxHostiles`, `MaxRadius` | `NativeCombatGeometryTools.cs` | 64, 16, 12 | Measured on `lab-ranged`: 64 cells x 8 pawns took 1.3-6.6 ms, about 13 ms at the caps. |
 | Door and mortar frame caps | `SnapshotFrames.cs` | 64, 16 | Transport caps on a frame section; census #2641 kept them. |
+
+## Forecast native reads: no cap, measured (#3341)
+
+The forecast's native reads (planned sites, planned routes, needs, and the coupled read with its construction,
+food, cooking, recipe, thermal, support, practice and hunt sub-reads) cap nothing: every colonist, candidate and
+location pair is read. Each read searches a path once (`NativePathLegs`) and re-prices it per colonist. The
+main-thread time on `observations/large-colony-reads` (32 free colonists, five planned rooms, twenty wood stacks,
+eight meal stacks, eight beds; one lab map, 2026-10-16) is a measured fact, not a bound:
+
+| Read (one call a round) | Cold ms | Warm ms | Size |
+| --- | --- | --- | --- |
+| Planned sites (`NativeConstructionActivity`, `Planned`) | 288 | 269 | 20 sites (largest 144 cells), 4420 rows, 1275 path searches |
+| Planned routes (`NativeConstructionActivity`, `Routes`) | 98 | 92 | 311 probes, 9952 routes, 451 path searches |
+| Needs (`NativeNeedsForecast`) | 55 | 45 | 32 colonists, 240 targets |
+| Coupled (`NativeCoupledForecast`, needs passed in) | 104 | 99 | all sub-reads, 16 locations, 8192 routes |
+| Round total | 546 | 506 | |
+
+The round stalls the main thread about half a second on this colony. No limit is set from it; spreading a read
+across frames is the remedy if the stall matters.
+
+## Mirrored game literals (#3339)
+
+The roof and room consequences use game literals that RimWorld 1.7 keeps in method
+bodies or private fields, where no read can reach them. Each is mirrored once, and
+its code comment cites the 1.7 member; no fixture check compares them. A game update
+that changes one changes the forecast silently until the comment's member is
+re-read. The brain's are `PolicyConstants` in `ForecastRoofConsequences.cs`, the
+native ones `NativeRoomPrediction.cs`.
+
+| Constant | Value | 1.7 member |
+| --- | --- | --- |
+| `PsychologicallyOutdoorsOpenRoofCells`, native `PsychOutdoorsOpenRoof` | 300 | `Room.PsychologicallyOutdoors` (`OpenRoofCountStopAt(300)`) |
+| `PsychologicallyOutdoorsEdgeOpenFraction`, native `PsychOutdoorsEdgeFraction` | 0.5 | `Room.PsychologicallyOutdoors` (map edge, open/cells) |
+| `OutdoorTemperatureOpenFraction` | 0.25 | `Room.UsesOutdoorTemperature` |
+| `BedThoughtsEarliestTicks`, `BedThoughtsLatestTicks` | 2500 (`GameTime.TicksPerHour`), 10000 | `Toils_LayDown.LayDown` (`Rand.Range(2500, 10000)` before `ApplyBedThoughts`) |
+| `NeedIntervalTicks` | 150 | `Pawn_NeedsTracker.NeedsTrackerTick` |
+| `OutdoorsDeltaScale` | 0.0025 | `Need_Outdoors.NeedInterval` |
+| `Outdoors*Roof` deltas | -0.45, -0.4, -0.32, 1, 5, 8 | `Need_Outdoors.Delta_{Indoors,Outdoors}{ThickRoof,ThinRoof,NoRoof}` |
+| `OutdoorsFallFloor`, `OutdoorsInBedFactor` | 0.2, 0.2 | `Need_Outdoors.Minimum_IndoorsThinRoof`, `DeltaFactor_InBed` |
+| `OutdoorsFree` .. `OutdoorsTrapped` | 0.8, 0.6, 0.4, 0.2, 0.05 | `Need_Outdoors.CurCategory` |
+| `SteadyCellsFractionPerTick` | 0.0006 | `SteadyEnvironmentEffects.MapFractionCheckPerTick` |
+| `DeteriorationMinimumRate`, `DeteriorationChanceDivisor` | 0.001, 36 | `SteadyEnvironmentEffects.TryDoDeteriorate` |
+| `DeteriorationRainLow`, `DeteriorationRainHigh` | 1, 5 | `StatPart_EnvironmentalEffects.TransformValue` (rain lerp) |
+| `WorkTableOutdoorsFactor` | 0.8 | `StatPart_WorkTableOutdoors.WorkRateFactor` |
+| native `MaxRegionsForRole` | 60 | `Room.UpdateRoomStatsAndRole` |
+| native `SpaceStandable`, `SpaceWalkable`, `SpaceCap` | 1.4, 0.5, 350 | `RoomStatWorker_Space.GetScore` |
+| native `RoofedFilthBeautyFactor`, `PollutedTerrainBeauty` | 0.3, -1 | `BeautyUtility.CellBeauty` |
+
+The weather thought's 120-tick interval (`Pawn_MindState.MindStateTick`) is not
+used as a number: the thought is applied for whole spans.
 
 ## Tracked in follow-up issues
 

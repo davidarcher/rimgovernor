@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsGearSource : Observation.IColonySource, IColonyFactsReader
 {
-    Task<(IReadOnlyList<GearBenchRead> Benches, BridgeResult Result)> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
+    Task<IReadOnlyList<GearBenchRead>> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
 }
 
 internal interface IFrameThingsSource

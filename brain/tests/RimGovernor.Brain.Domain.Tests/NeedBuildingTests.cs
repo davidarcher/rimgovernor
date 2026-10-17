@@ -48,7 +48,7 @@ public sealed class NeedBuildingTests
                 Preview = new Preview { Action = action, Snapshot = snapshot, Tick = new(100), CanPlace = Known(true), SafeToPlace = Known(true) },
                 Stock = new StockObservation { Snapshot = snapshot, Tick = new(100) },
             };
-            return Task.FromResult((preview, Result.Empty));
+            return Task.FromResult(preview);
         }
     }
 #pragma warning restore CA1852

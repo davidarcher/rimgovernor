@@ -1,5 +1,4 @@
 using System.Threading.Channels;
-using RimGovernor.Brain.Domain;
 using Authority = RimGovernor.Contracts.Wire.Authority;
 using Clock = RimGovernor.Contracts.Wire.Clock;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
@@ -34,13 +33,6 @@ namespace RimGovernor.Brain.NativeFacade;
 /// </remarks>
 public interface INativeFacade
 {
-    /// <summary>
-    /// Def-level stat reads answered by the game on its own thread (<c>GameThreadStatService</c>). Its calls are synchronous
-    /// and block the calling thread until the game thread drains them, so they must not be made on the game thread
-    /// (they throw there). Memoized per load; per-frame game-thread budget documented in <c>docs/developers/architecture/native-facade.md</c>.
-    /// </summary>
-    IStatSource Stats { get; }
-
     // Lifecycle.
 
     Task<Lifecycle.IdentityReply> ReadIdentityAsync(Lifecycle.IdentityRequest request, CancellationToken cancellationToken);

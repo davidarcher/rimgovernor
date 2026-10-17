@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Observation;
 /// </summary>
 public interface IRefrigerationSource
 {
-    Task<(O.ListBuildingsReply Reply, Result Receipt)> ReadConstructionBuildingsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken);
+    Task<O.ListBuildingsReply> ReadConstructionBuildingsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken);
 }
 
 public static partial class ObservationPackage
@@ -16,14 +16,14 @@ public static partial class ObservationPackage
     /// building read does not return, or returns without temperature control, makes the census unknown: the
     /// planner must not build a second cooler on a fact it cannot see.
     /// </summary>
-    public static async Task<(Fact<EquatableArray<RefrigerationCooler>> Coolers, Result? Receipt)> ReadRefrigerationCoolers(
+    public static async Task<Fact<EquatableArray<RefrigerationCooler>>> ReadRefrigerationCoolers(
         IRefrigerationSource source, Identity expected, Fact<PowerTopology> topology, CancellationToken cancellationToken)
     {
         var unknown = Unknown<EquatableArray<RefrigerationCooler>>();
         var identity = new C.Identity { ColonyId = expected.Colony.Value, LoadToken = expected.Load.Value, MapId = expected.Map.Value };
         if (!topology.TryGetValue(out var v))
         {
-            return (unknown, null);
+            return unknown;
         }
         var rows = new Dictionary<string, RefrigerationCooler>(StringComparer.Ordinal);
         var ids = new List<string>();
@@ -38,25 +38,25 @@ public static partial class ObservationPackage
         }
         if (ids.Count == 0)
         {
-            return (Known(EquatableArray.From(new List<RefrigerationCooler>())), null);
+            return Known(EquatableArray.From(new List<RefrigerationCooler>()));
         }
         ids.Sort(StringComparer.Ordinal);
         if (ids.Count > 256)
         {
-            return (unknown, null);
+            return unknown;
         }
-        var (reply, receipt) = await source.ReadConstructionBuildingsAsync(identity, ids, cancellationToken).ConfigureAwait(false);
+        var reply = await source.ReadConstructionBuildingsAsync(identity, ids, cancellationToken).ConfigureAwait(false);
         var observed = reply?.Outcome?.Observed;
         if (observed is null || observed.Buildings.Count != ids.Count)
         {
-            return (unknown, receipt);
+            return unknown;
         }
         var coolers = new List<RefrigerationCooler>(ids.Count);
         foreach (var row in observed.Buildings)
         {
             if (!rows.TryGetValue(row.Building?.Id ?? "", out var cooler))
             {
-                return (unknown, receipt);
+                return unknown;
             }
             cooler = cooler with { Rotation = RotationOf(row.Rotation.GetValueOrDefault()) };
             if (row.Settings is { } settings)
@@ -66,7 +66,7 @@ public static partial class ObservationPackage
             coolers.Add(cooler);
         }
         coolers.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));
-        return (Known(EquatableArray.From(coolers)), receipt);
+        return Known(EquatableArray.From(coolers));
     }
 
     /// <summary>Assembles the method's observation from a rooms routine reading (rooms with cells, planning definitions, site cells) and the cooler census.</summary>

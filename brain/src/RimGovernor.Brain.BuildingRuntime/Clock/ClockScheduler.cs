@@ -202,7 +202,7 @@ public sealed partial class ClockScheduler
             var window = new PlanningWindow(_native, _facts.Store);
             using var windowScope = ObservationApi.WithPlanningWindow(window);
             var started = _clock.Now();
-            var loaded = await _native.ReadStepAsync(new BridgeApi.StepRequest { ClockStatus = true, Emergency = true }, call).ConfigureAwait(false)
+            var loaded = await _native.ReadStepAsync(new BridgeApi.StepRequest { ClockStatus = true }, call).ConfigureAwait(false)
                 ?? throw new HeldException("step read returned nothing");
             var loadedContext = loaded.Context ?? throw new BridgeContractException("step read carried no context");
             if (await _player.ExpeditionIncomingHandoffAsync(loaded, call, epoch).ConfigureAwait(false))

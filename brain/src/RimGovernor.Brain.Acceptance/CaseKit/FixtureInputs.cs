@@ -27,6 +27,14 @@ public static partial class FixtureInputs
     [GeneratedRegex(@"scripts/fixtures/([A-Za-z0-9_]+)\.cs""\s+Condition=""'\$\(([A-Za-z0-9_]+)\)'\s*==\s*'true'""", RegexOptions.CultureInvariant)]
     private static partial Regex FixtureCompileItem();
 
+    /// <summary>A fixture source's Compile item in the native project, with its whole condition.</summary>
+    [GeneratedRegex(@"scripts/fixtures/[A-Za-z0-9_]+\.cs""\s+Condition=""([^""]*)""", RegexOptions.CultureInvariant)]
+    private static partial Regex FixtureCompileCondition();
+
+    /// <summary>A property a condition reads.</summary>
+    [GeneratedRegex(@"\$\(([A-Za-z0-9_]+)\)", RegexOptions.CultureInvariant)]
+    private static partial Regex ConditionProperty();
+
     /// <summary>
     /// Maps each fixture source (file base) <see cref="NativeProject"/> compiles to the build flag admitting it; a
     /// missing project maps nothing, and a source the project does not list is taken as its own flag.
@@ -54,6 +62,29 @@ public static partial class FixtureInputs
         }
 
         return flags;
+    }
+
+    /// <summary>
+    /// Every build flag a fixture source's condition in <see cref="NativeProject"/> reads (both of an
+    /// <c>'$(A)' == 'true' Or '$(B)' == 'true'</c>), sorted: what a build serving every case sets, so any flag a case
+    /// asks for is in its manifest. A missing project has none.
+    /// </summary>
+    public static IReadOnlyList<string> BuildFlags(string repo)
+    {
+        string source;
+        try
+        {
+            source = File.ReadAllText(Path.Combine(repo, NativeProject.Replace('/', Path.DirectorySeparatorChar)));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+
+        return [.. FixtureCompileCondition().Matches(source)
+            .SelectMany(m => ConditionProperty().Matches(m.Groups[1].Value).Select(p => p.Groups[1].Value))
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)];
     }
 
     private static string[] FixtureFiles(string repo)
@@ -91,7 +122,7 @@ public static partial class FixtureInputs
     }
 
     /// <summary>
-    /// Lists, sorted, the fixture build flags (the names build_native_mod.ps1 -Fixture takes and a package manifest
+    /// Lists, sorted, the fixture build flags (the names <see cref="NativeModBuild"/> takes and a package manifest
     /// records) admitting the sources under <see cref="FixtureRoot"/> that register any of <paramref name="ops"/> as a
     /// <c>[Tool("test/...")]</c>: what a build must include for a case whose Start calls those ops. A source is its
     /// own flag unless <see cref="NativeProject"/> conditions it on another one. An op no fixture registers is left

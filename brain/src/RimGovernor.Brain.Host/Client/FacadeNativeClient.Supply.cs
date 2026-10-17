@@ -13,9 +13,9 @@ internal sealed partial class FacadeNativeClient
     /// Go <c>Client.ReadEquipWeapons</c>: observes loose weapons within one rectangle, forbidden or not: equipping a
     /// forbidden weapon is simply refused downstream by the native preview, not filtered out here.
     /// </summary>
-    internal async Task<(EquipRead Value, BridgeResult Receipt)> ReadEquipWeaponsAsync(PbCommon.Identity identity, DomainCell minimum, DomainCell maximum, CancellationToken cancellationToken)
+    internal async Task<EquipRead> ReadEquipWeaponsAsync(PbCommon.Identity identity, DomainCell minimum, DomainCell maximum, CancellationToken cancellationToken)
     {
-        if (!SupplyIdentityValid(identity) || minimum.X < 0 || minimum.Z < 0 || maximum.X < minimum.X || maximum.Z < minimum.Z)
+        if (minimum.X < 0 || minimum.Z < 0 || maximum.X < minimum.X || maximum.Z < minimum.Z)
         {
             throw BridgeFunctions.Contract("invalid equip scope");
         }
@@ -40,22 +40,22 @@ internal sealed partial class FacadeNativeClient
         {
             throw Failure(failure);
         }
-        return (SupplyDecodeEquipWeapons(reply, identity, minimum, maximum), NoReceipt);
+        return SupplyDecodeEquipWeapons(reply, identity, minimum, maximum);
     }
 
     /// <summary>Go <c>Client.ReadAllowSupplies</c>: the loose forbidden supply items at one cell, as allow targets.</summary>
-    internal Task<(SupplyRead Value, BridgeResult Receipt)> ReadAllowSuppliesAsync(PbCommon.Identity identity, DomainCell cell, CancellationToken cancellationToken) =>
+    internal Task<SupplyRead> ReadAllowSuppliesAsync(PbCommon.Identity identity, DomainCell cell, CancellationToken cancellationToken) =>
         SupplyReadAccessAsync(identity, cell, false, cancellationToken);
 
     /// <summary>Go <c>Client.ReadForbidSupplies</c>: the loose unforbidden supply items at one cell, as forbid targets.</summary>
-    internal Task<(SupplyRead Value, BridgeResult Receipt)> ReadForbidSuppliesAsync(PbCommon.Identity identity, DomainCell cell, CancellationToken cancellationToken) =>
+    internal Task<SupplyRead> ReadForbidSuppliesAsync(PbCommon.Identity identity, DomainCell cell, CancellationToken cancellationToken) =>
         SupplyReadAccessAsync(identity, cell, true, cancellationToken);
 
     /// <summary>
     /// Go <c>Client.ReadFoodReserveSupplies</c>: locates durable shared food through the existing supply census; the
     /// food forecast intentionally carries no item positions.
     /// </summary>
-    internal async Task<(SupplyRead Value, BridgeResult Receipt)> ReadFoodReserveSuppliesAsync(PbCommon.Identity identity, bool forbid, CancellationToken cancellationToken)
+    internal async Task<SupplyRead> ReadFoodReserveSuppliesAsync(PbCommon.Identity identity, bool forbid, CancellationToken cancellationToken)
     {
         var request = new PbObservations.ListSuppliesRequest
         {
@@ -77,13 +77,13 @@ internal sealed partial class FacadeNativeClient
                 throw BridgeFunctions.Contract("unexpected reserve definition");
             }
         }
-        return (result, NoReceipt);
+        return result;
     }
 
     /// <summary>Go <c>Client.readSupplyAccess</c>.</summary>
-    private async Task<(SupplyRead Value, BridgeResult Receipt)> SupplyReadAccessAsync(PbCommon.Identity identity, DomainCell cell, bool forbid, CancellationToken cancellationToken)
+    private async Task<SupplyRead> SupplyReadAccessAsync(PbCommon.Identity identity, DomainCell cell, bool forbid, CancellationToken cancellationToken)
     {
-        if (!SupplyIdentityValid(identity) || cell.X < 0 || cell.Z < 0)
+        if (cell.X < 0 || cell.Z < 0)
         {
             throw BridgeFunctions.Contract("invalid supply scope");
         }
@@ -108,33 +108,7 @@ internal sealed partial class FacadeNativeClient
         {
             throw Failure(failure);
         }
-        return (SupplyDecodeAccessAt(reply, identity, cell, forbid), NoReceipt);
-    }
-
-    /// <summary>Go <c>ValidateIdentity(identity) == nil</c>.</summary>
-    private static bool SupplyIdentityValid(PbCommon.Identity? identity)
-    {
-        try
-        {
-            return true;
-        }
-        catch (BridgeContractException)
-        {
-            return false;
-        }
-    }
-
-    /// <summary>Go <c>buildingContext(value, identity, 0, false) == nil</c>: a valid context of the same identity.</summary>
-    private static bool SupplyContextMatches(PbCommon.ObservationContext? context, PbCommon.Identity identity)
-    {
-        try
-        {
-        }
-        catch (BridgeContractException)
-        {
-            return false;
-        }
-        return BridgeFunctions.SameIdentity(context!.Identity, identity);
+        return SupplyDecodeAccessAt(reply, identity, cell, forbid);
     }
 
     /// <summary>Go <c>refSnapshot</c>: whether <paramref name="snapshot"/> is the CAS token of <paramref name="reference"/> read under <paramref name="context"/>.</summary>
@@ -157,7 +131,7 @@ internal sealed partial class FacadeNativeClient
             throw BridgeFunctions.Contract("invalid equip reply");
         }
         var v = reply.Outcome?.Observed;
-        if (v is null || !SupplyContextMatches(v.Context, identity))
+        if (v is null || !BridgeFunctions.SameIdentity(v.Context?.Identity, identity))
         {
             throw BridgeFunctions.Contract("equip census unavailable");
         }
@@ -243,7 +217,7 @@ internal sealed partial class FacadeNativeClient
             throw BridgeFunctions.Contract("invalid supply reply");
         }
         var v = reply.Outcome?.Observed;
-        if (v is null || !SupplyContextMatches(v.Context, identity))
+        if (v is null || !BridgeFunctions.SameIdentity(v.Context?.Identity, identity))
         {
             throw BridgeFunctions.Contract("supply census unavailable");
         }

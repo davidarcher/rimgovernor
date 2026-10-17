@@ -13,13 +13,17 @@ public static class LabCases
     public static void Register(CaseRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
-        registry.Register(LabGridDelta.Case());
         registry.Register(LabGridThings.Case());
         registry.Register(LabSpawn.Case());
         registry.Register(LabSpoilagePick.Case());
         registry.Register(LabTraining.Case());
         registry.Register(LabSkillLearning.Case());
         foreach (var c in LabTrainingRange.Cases())
+        {
+            registry.Register(c);
+        }
+
+        foreach (var c in LabCaptureProfile.Cases())
         {
             registry.Register(c);
         }

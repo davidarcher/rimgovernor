@@ -246,7 +246,7 @@ public sealed partial class DefinitionCatalog
                 continue;
             }
 
-            var (nutrition, shown) = ShownStatValue(row.defName, string.Empty, StatNames.Nutrition);
+            var (nutrition, shown) = ShownStatValue(row.defName, string.Empty, CatalogStats.Nutrition);
             if (shown && nutrition > 0)
             {
                 return true;

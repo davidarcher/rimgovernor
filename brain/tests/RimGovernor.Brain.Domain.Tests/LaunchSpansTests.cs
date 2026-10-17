@@ -4,6 +4,7 @@ using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
+[Collection(SpanWriters.Name)]
 public sealed class LaunchSpansTests
 {
     [Fact]

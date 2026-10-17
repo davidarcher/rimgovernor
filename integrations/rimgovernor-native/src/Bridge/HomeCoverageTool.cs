@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using HarmonyLib;
 using RimWorld;
@@ -99,11 +98,8 @@ namespace HomeBridge.BridgeTools
             if (cells.Count == 0 || cells.Any(c => !c.InBounds(map) || c.Fogged(map))) return null;
             return cells.OrderBy(c => c.x).ThenBy(c => c.z).ToList();
         }
-        internal static string Shape(string target, List<IntVec3> cells)
-        {
-            using (var hash = SHA256.Create()) return BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(
-                target + ":" + string.Join(";", cells.Select(c => c.x + "," + c.z))))).Replace("-", "").ToLowerInvariant();
-        }
+        internal static string Shape(string target, List<IntVec3> cells) =>
+            NativeSnapshotVersions.Token("home-shape", null, target, string.Join(";", cells.Select(c => c.x + "," + c.z)));
         internal static HomeCoverageState State(Map map)
         {
             Install();

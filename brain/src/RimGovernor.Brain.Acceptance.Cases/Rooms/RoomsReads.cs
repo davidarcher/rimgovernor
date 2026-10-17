@@ -180,7 +180,7 @@ internal static class RoomsReads
     /// Validates one typed room row's CAS snapshot and, given the map grid's rooms, its cell geometry (the grid cells
     /// carrying its gridRoom key) against its own cellCount, center and extents.
     /// </summary>
-    private static void CheckRoom(JsonObject row, IReadOnlyDictionary<string, IReadOnlyList<Cell>>? gridRooms)
+    private static void CheckRoom(JsonObject row, IReadOnlyDictionary<int, IReadOnlyList<Cell>>? gridRooms)
     {
         var id = row["id"].ToJson();
         try
@@ -205,7 +205,7 @@ internal static class RoomsReads
             return;
         }
 
-        var actual = gridRooms.TryGetValue(row["gridRoom"].AsString(), out var cells) ? cells : [];
+        var actual = gridRooms.TryGetValue((int)row["gridRoom"].AsNumber(), out var cells) ? cells : [];
         if (actual.Count == 0 || actual.Count != (int)row["cellCount"].AsNumber())
         {
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"room {id} grid cells ({actual.Count}) do not match cellCount"));

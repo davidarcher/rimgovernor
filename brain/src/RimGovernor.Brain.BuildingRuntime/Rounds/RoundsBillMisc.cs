@@ -134,7 +134,7 @@ internal static partial class BuildingRuntimePackage
         {
             return (parts, []);
         }
-        var reads = (await source.ReadGearBenchesAsync(identity, call).ConfigureAwait(false)).Reads;
+        var reads = (await source.ReadGearBenchesAsync(identity, call).ConfigureAwait(false));
         var benches = reads.Select(read => read.Bench).ToList();
         return SurgeryPartsOn(pawns, ctx, benches);
     }

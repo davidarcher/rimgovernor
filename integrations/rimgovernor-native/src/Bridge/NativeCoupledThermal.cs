@@ -14,73 +14,69 @@ namespace HomeBridge.BridgeTools;
 
 internal static class NativeCoupledThermal
 {
-    private const int CellCap = 1024, HeaterCap = 16, RoomCap = 4;
-
-    internal static Obs.CoupledThermalRead Read(Map map, Thing[] sites)
+    /// <summary>
+    /// The cells around every site and heater, every heater as a source, and every free colonist's route to every cell
+    /// marked to roof (#3341). A colonist's routes run from its own cell, so each is its own search.
+    /// </summary>
+    internal static Obs.CoupledThermalRead Read(Map map, Thing[] sites, NativePathLegs? legs = null)
     {
+        legs ??= new(map);
         var heaters = map.listerThings.AllThings.Where(t => t is Building_Heater
             || t is IConstructible && t.def.entityDefToBuild is ThingDef d && d.thingClass == typeof(Building_Heater))
-            .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Take(HeaterCap + 1).ToArray();
-        var cells = new SortedSet<(int X, int Z)>(); var truncated = heaters.Length > HeaterCap;
-        foreach (var origin in sites.Concat(heaters.Take(HeaterCap)).Select(t => t.Position).Distinct())
+            .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+        var cells = new SortedSet<(int X, int Z)>();
+        foreach (var origin in sites.Concat(heaters).Select(t => t.Position).Distinct())
         for (var x = origin.x - 6; x <= origin.x + 6; x++)
         for (var z = origin.z - 6; z <= origin.z + 6; z++)
-            truncated |= !Add(map, cells, x, z);
+            Add(map, cells, x, z);
         var rows = cells.Select(c => Row(map, c)).ToArray();
-        var sources = heaters.Take(HeaterCap).Select(t =>
+        var sources = heaters.Select(t =>
         {
             var definition = t is IConstructible ? (ThingDef)t.def.entityDefToBuild : t.def;
             return Source(map, t.GetUniqueLoadID(), t.Position, definition, t is Building_Heater, t.TryGetComp<CompPowerTrader>(),
                 t.TryGetComp<CompTempControl>()?.targetTemperature);
         }).ToArray();
         var roofRoutes = new List<Obs.ThermalRoofRoute>();
-        foreach (var pawn in map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Take(16))
-        foreach (var cell in rows.Where(c => c.BuildRoof && c.Roof == "none").Take(32))
+        foreach (var pawn in map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
+        foreach (var cell in rows.Where(c => c.BuildRoof && c.Roof == "none"))
         {
-            if (roofRoutes.Count == 128) { truncated = true; break; }
-            using var route = map.pathFinder.FindPathNow(pawn.Position, new IntVec3(cell.Cell.X, 0, cell.Cell.Z),
-                TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.OnCell);
-            roofRoutes.Add(new(pawn.GetUniqueLoadID(), cell.Cell, route.Found ? Fact.Known((double)route.TotalCost) : default));
+            var ticks = legs.Cost(pawn, pawn.Position, new IntVec3(cell.Cell.X, 0, cell.Cell.Z), PathEndMode.OnCell);
+            roofRoutes.Add(new(pawn.GetUniqueLoadID(), cell.Cell, ticks is { } t ? Fact.Known((double)t) : default));
         }
         return Mechanics(map) with { Cells = EquatableArray.From(rows), Sources = EquatableArray.From(sources),
-            RoofRoutes = EquatableArray.From(roofRoutes), Truncated = truncated };
+            RoofRoutes = EquatableArray.From(roofRoutes) };
     }
 
     /// <summary>
     /// An unplaced planned shelter (#3323): its interior and ring cells, and each planned heater as a source of its def at
     /// its planned cell, never complete, supplied from the network a connector there would join. A def that is not a
-    /// native heater, or a cell off the map, gives no source; a room past the caps sets Truncated.
+    /// native heater, or a cell off the map, gives no source. Every room and heater asked is read (#3341).
     /// </summary>
     internal static Obs.CoupledThermalRead ReadPlanned(Map map, Obs.PlannedThermalRequest request)
     {
         var cells = new SortedSet<(int X, int Z)>();
-        var truncated = request.Rooms.Count > RoomCap || request.Heaters.Count > HeaterCap;
-        foreach (var room in request.Rooms.Take(RoomCap))
+        foreach (var room in request.Rooms)
         {
             if (room.Width <= 0 || room.Height <= 0) continue;
             for (var x = room.Origin.X - 1; x <= room.Origin.X + room.Width; x++)
             for (var z = room.Origin.Z - 1; z <= room.Origin.Z + room.Height; z++)
-                truncated |= !Add(map, cells, x, z);
+                Add(map, cells, x, z);
         }
         var sources = new List<Obs.ThermalSource>();
-        foreach (var heater in request.Heaters.Take(HeaterCap))
+        foreach (var heater in request.Heaters)
         {
             var cell = new IntVec3(heater.Cell.X, 0, heater.Cell.Z);
             if (!cell.InBounds(map) || DefDatabase<ThingDef>.GetNamedSilentFail(heater.Definition) is not { } definition
                 || !typeof(Building_Heater).IsAssignableFrom(definition.thingClass)) continue;
             sources.Add(Source(map, heater.Site, cell, definition, false, null, null));
         }
-        return Mechanics(map) with { Cells = EquatableArray.From(cells.Select(c => Row(map, c))), Sources = EquatableArray.From(sources),
-            Truncated = truncated };
+        return Mechanics(map) with { Cells = EquatableArray.From(cells.Select(c => Row(map, c))), Sources = EquatableArray.From(sources) };
     }
 
-    // Adds an in-bounds cell under the shared cap; false when the cap refused it.
-    private static bool Add(Map map, SortedSet<(int X, int Z)> cells, int x, int z)
+    // Adds an in-bounds cell.
+    private static void Add(Map map, SortedSet<(int X, int Z)> cells, int x, int z)
     {
-        if (!new IntVec3(x, 0, z).InBounds(map)) return true;
-        if (cells.Count == CellCap && !cells.Contains((x, z))) return false;
-        cells.Add((x, z));
-        return true;
+        if (new IntVec3(x, 0, z).InBounds(map)) cells.Add((x, z));
     }
 
     private static Obs.ThermalCell Row(Map map, (int X, int Z) c)
@@ -121,7 +117,7 @@ internal static class NativeCoupledThermal
     // The map's builders and exchange constants, shared by both reads.
     private static Obs.CoupledThermalRead Mechanics(Map map)
     {
-        var workers = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Take(16)
+        var workers = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)
             .Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)).Select(p => new Obs.ThermalWorker(p.GetUniqueLoadID(),
                 p.GetStatValue(StatDefOf.ConstructionSpeed) > 0
                     ? Fact.Known(65.0 / (p.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7)) : default)).ToArray();

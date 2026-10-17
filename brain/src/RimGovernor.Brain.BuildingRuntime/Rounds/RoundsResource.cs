@@ -2,11 +2,11 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsResourceSource : IColonySource, IFieldNative
 {
-    Task<(IReadOnlyList<GearBenchRead> Benches, BridgeResult Result)> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
+    Task<IReadOnlyList<GearBenchRead>> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
 
-    Task<(IReadOnlyList<Stock> Stock, BridgeResult Result)> ReadSupplyStockAsync(C.Identity identity, IReadOnlyList<string> names, CancellationToken ct);
+    Task<IReadOnlyList<Stock>> ReadSupplyStockAsync(C.Identity identity, IReadOnlyList<string> names, CancellationToken ct);
 
-    Task<(IReadOnlyList<ResourceSource> Sources, ResourceStorage Storage, BridgeResult Result)> ReadResourceSourcesAsync(C.Identity identity, string resource, CancellationToken ct);
+    Task<(IReadOnlyList<ResourceSource> Sources, ResourceStorage Storage)> ReadResourceSourcesAsync(C.Identity identity, string resource, CancellationToken ct);
 }
 
 /// <summary>What the resource planner decided: a plan, a wait, or the sources it settled on.</summary>
@@ -138,7 +138,7 @@ public sealed partial class RoundsResourcePlanner
         BuildingRuntimePackage.CancelStalledExcavation(p.Journal, goal, review.Tick, call);
         var started = reviewer.Clock.Now();
         var identity = Boundary.Identity(state.Snapshot);
-        var (reply, _) = await native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
+        var reply = await native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
         var observed = reply.Outcome?.Observed ?? throw new ControlException("step: observed == null");
         try
         {
@@ -221,13 +221,13 @@ public sealed partial class RoundsResourcePlanner
 
     internal async Task<(ResourceMethod Choice, IReadOnlyList<Stock> Supply)> MethodChoiceAsync(C.Identity identity, Resource resource, long target, CancellationToken call)
     {
-        var (census, _) = await native.ReadGearBenchesAsync(identity, call).ConfigureAwait(false);
+        var census = await native.ReadGearBenchesAsync(identity, call).ConfigureAwait(false);
         var benches = census.Select(row => row.Bench).ToList();
         IReadOnlyList<Stock> supply = [];
         var names = RecipeIngredientNames(census, resource);
         if (names.Count > 0)
         {
-            (supply, _) = await native.ReadSupplyStockAsync(identity, names, call).ConfigureAwait(false);
+            supply = await native.ReadSupplyStockAsync(identity, names, call).ConfigureAwait(false);
         }
 
         var request = new ResourceMethodRequest { Resource = resource, Target = target, Benches = Known<EquatableArray<GearBench>>([.. benches]), Stock = [.. supply] };
@@ -382,7 +382,7 @@ public sealed partial class RoundsResourcePlanner
         ResourceStorage storage;
         try
         {
-            (sources, storage, _) = await native.ReadResourceSourcesAsync(identity, resource.Value, ct).ConfigureAwait(false);
+            (sources, storage) = await native.ReadResourceSourcesAsync(identity, resource.Value, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -401,7 +401,7 @@ public sealed partial class RoundsResourcePlanner
 
     internal async Task<RemoteWorkRequest> MiningReachAsync(ControlState state, Tick tick, CancellationToken ct)
     {
-        var (last, _) = await reviewer.Native.IdentityAsync(ct).ConfigureAwait(false);
+        var last = await reviewer.Native.IdentityAsync(ct).ConfigureAwait(false);
         var expected = ObservationPackage.DecodeIdentity(last);
         if (!BuildingRuntimePackage.RoundsBuildingBoundary(expected, state.Snapshot, tick))
         {

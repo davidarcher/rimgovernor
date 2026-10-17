@@ -4,49 +4,33 @@ public sealed partial class Rounder
 {
     /// <summary>
     /// The round's planned-site facts (#3275): the plan's owed operations as sites, one per op x ring stuff, and the
-    /// unplaced shelf candidates as one-piece sites, each joined to the native planned-site read. The read is asked
-    /// PlannedSitesPerRead sites at a time through the construction activity read, then the routes between each room's
-    /// answered sites (PlannedRouteBatches, #3313), each batch once per page of the colonists (PlannedPawnPages, #3312);
-    /// without that read every site and route stays unknown. Unknown while the plan, the construction census or the
-    /// colonists are.
+    /// unplaced shelf candidates as one-piece sites, each joined to the native planned-site read. Every site is asked in
+    /// one construction activity read, then every route between each room's answered sites in a second (PlannedRouteProbes,
+    /// #3313); each read covers every free colonist and caps nothing (#3341). Without a read its sites or routes stay
+    /// unknown. Unknown while the plan or the construction census is.
     /// </summary>
     internal async Task<Fact<PlannedSiteFacts>> PlannedSitesAsync(GenerationSnapshot snapshot, ColonyProjection colony, FlooringPolicy flooring,
         IReadOnlyList<ShelfCandidate> shelves, CancellationToken ct)
     {
-        if (PlannedRoomSitesOf(colony, flooring) is not { } roomSites || !colony.WorkPawns.TryGetValue(out var colonists))
+        if (PlannedRoomSitesOf(colony, flooring) is not { } roomSites)
         {
             return Unknown<PlannedSiteFacts>();
         }
-        var pages = PolicyApi.PlannedPawnPages(colonists.Select(p => p.Id.Value));
         var sites = new List<PlannedBuildSite>(roomSites);
         if (shelves.Count > 0)
         {
             var stuff = colony.BuildStuff(PolicyApi.ShelfDefinition);
             sites.AddRange(PolicyApi.ShelfPlannedSites(shelves, PlannedRingPrice(colony, PolicyApi.ShelfDefinition, stuff)));
         }
-        var (batches, findings) = PolicyApi.PlannedSiteBatches(sites);
-        var reads = new List<(EquatableArray<O.PlannedConstructionSite>, O.ConstructionActivityRead?)>(batches.Count * pages.Count);
-        foreach (var batch in batches)
-        {
-            foreach (var page in pages)
-            {
-                reads.Add((batch, await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Planned = batch, Pawns = page }, ct)
-                    .ConfigureAwait(false)));
-            }
-        }
-        var joined = PolicyApi.JoinPlannedSites(sites, findings, reads);
+        var asked = PolicyApi.PlannedSiteRequest(sites);
+        var read = asked.Count == 0 ? null
+            : await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Planned = asked }, ct).ConfigureAwait(false);
+        var joined = PolicyApi.JoinPlannedSites(sites, read);
         // Routes between the answered sites (#3313): their sources and clearing are known only once the sites are.
-        var (probes, routeFindings) = PolicyApi.PlannedRouteBatches(joined.Sites);
-        var routes = new List<(EquatableArray<O.PlannedRouteProbe>, O.ConstructionActivityRead?)>(probes.Count * pages.Count);
-        foreach (var batch in probes)
-        {
-            foreach (var page in pages)
-            {
-                routes.Add((batch, await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Routes = batch, Pawns = page }, ct)
-                    .ConfigureAwait(false)));
-            }
-        }
-        return Known(PolicyApi.JoinPlannedRoutes(joined, routeFindings, routes));
+        var probes = PolicyApi.PlannedRouteProbes(joined.Sites);
+        var routes = probes.Count == 0 ? null
+            : await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Routes = probes }, ct).ConfigureAwait(false);
+        return Known(PolicyApi.JoinPlannedRoutes(joined, probes, routes));
     }
 
     /// <summary>One construction activity read of planned sites or routes; null without the read.</summary>

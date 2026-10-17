@@ -229,7 +229,8 @@ public static partial class PolicyFunctions
             foreach (var order in batch.Orders)
             {
                 // Accepted release ends ownership. A pending release must retain its predecessor's claim.
-                if (order.Release) continue;
+                // Standby claims nothing: any selected work replaces it (#3322).
+                if (order.Release || PawnActivities.IsStandby(order)) continue;
                 if (progress.Attempt.Value > 0 && !progress.Unresolved && progress.Tick < evidence.Tick
                     && evidence.WorkResources.TryGetValue(out var observedOwners)
                     && observedOwners.Any(n => n.Pawn == order.Pawn && (n.Assignment != order.Assignment || n.Revision != order.Revision))) continue;

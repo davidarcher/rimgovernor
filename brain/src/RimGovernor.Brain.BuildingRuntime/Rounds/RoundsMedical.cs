@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsMedicalSource : Observation.IColonySource, IColonyFactsReader
 {
-    Task<(IReadOnlyList<GearBenchRead> Reads, BridgeResult Result)> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
+    Task<IReadOnlyList<GearBenchRead>> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
 }
 
 /// <summary>
@@ -111,7 +111,7 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         }
 
         var seen = owner.Methods.Select(m => m.Method).ToList();
-        var (census, _) = await native.ReadGearBenchesAsync(identity, call).ConfigureAwait(false);
+        var census = await native.ReadGearBenchesAsync(identity, call).ConfigureAwait(false);
         var benches = census.Select(row => row.Bench).ToList();
         var choice = PolicyFunctions.SelectMedicineMethod(new MedicinePlanningRequest { Review = medicalReview, Resource = medicineResource, Seen = seen, Benches = Known<EquatableArray<GearBench>>([.. benches]) });
         if (choice.Kind == MedicineMethodKind.Blocked)

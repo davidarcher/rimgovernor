@@ -3,13 +3,13 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native equipment reads: emergency, combat pawns, map bounds and weapons.</summary>
 public interface IRoundsEquipSource : Observation.IDefinitionSource
 {
-    Task<(EmergencyObservation Observation, BridgeResult Result)> ReadEmergencyAsync(C.Identity identity, CancellationToken ct);
+    Task<EmergencyObservation> ReadEmergencyAsync(C.Identity identity, CancellationToken ct);
 
-    Task<(O.ListPawnsReply Reply, BridgeResult Result)> ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
+    Task<O.ListPawnsReply> ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
 
-    Task<(BridgeMapBounds Bounds, BridgeResult Result)> ReadMapBoundsAsync(C.Identity identity, Cell origin, CancellationToken ct);
+    Task<BridgeMapBounds> ReadMapBoundsAsync(C.Identity identity, Cell origin, CancellationToken ct);
 
-    Task<(BridgeEquipRead Read, BridgeResult Result)> ReadEquipWeaponsAsync(C.Identity identity, Cell from, Cell toCell, CancellationToken ct);
+    Task<BridgeEquipRead> ReadEquipWeaponsAsync(C.Identity identity, Cell from, Cell toCell, CancellationToken ct);
 
 }
 

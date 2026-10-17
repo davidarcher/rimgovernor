@@ -21,6 +21,8 @@ public static partial class PolicyFunctions
         if (batch.Orders.Any(o => !rows.ContainsKey(o.Pawn))) return new(null, false, "unknown_activity_ownership");
         var owned = batch.Orders.Where(o => !o.Release && MatchesActivityOwner(o, rows[o.Pawn])).ToArray();
         if (owned.Length == 0) return new(null, true, "activity_ownership_ended");
+        // Standby serves no Concern and has no deadline: it ends only when other work or native state takes the pawn (#3322).
+        if (owned.All(PawnActivities.IsStandby)) return new(null, false, "standby");
         var failed = owned.Any(o => rows[o.Pawn].State == "failed");
         var expired = owned.Any(o => o.Steps.Length > 0 && o.Steps.Max(s => s.Deadline) <= tick);
         var knownNeed = needed.TryGetValue(out var useful);

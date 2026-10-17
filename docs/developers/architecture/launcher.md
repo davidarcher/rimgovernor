@@ -9,12 +9,16 @@ the brain solution and references the acceptance harness
 (`brain/src/RimGovernor.Brain.Acceptance`) for setup and case runs. 
 
 A double-click publishes only when the launcher is stale: `RimGovernor.cmd`
-brings the tool host up to date, then runs `rg launcher-stale`, which compares
+brings the front door up to date, then runs `repo launcher-stale`, which compares
 the sources (`tools/launcher` including `ui/index.html`, its project-reference
 closure and the shared `brain/` build files) with the stamp
 `.rimgovernor/launcher-build/current`, written after a successful publish and
-copy. The check is `SelfBuild`, the same mtime logic the tool host uses on
-itself.
+copy. The check is `SelfBuild`, the same mtime logic the front door uses on
+itself. The publish runs under `.rimgovernor/launcher-build.lock`, so a second
+double-click waits and then opens the launcher the first one built. It builds
+into its own artifacts root (`.rimgovernor/launcher-build/artifacts`), so it
+never shares the brain projects' `obj` with the test gate or an editor's
+background builds (#3346).
 
 It embeds one WebView2 page (`ui/index.html`, an embedded resource) without a
 web server or frontend build. C# owns the view models and the game's HTTP calls;

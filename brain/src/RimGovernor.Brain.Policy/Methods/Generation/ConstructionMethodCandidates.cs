@@ -8,7 +8,7 @@ internal static class ConstructionMethodCandidates
     {
         var bindings = new Dictionary<(string, string), ActivityTaskCandidate>();
         if (!read.Known || read.Context?.Tick is not { } tick || deadline <= tick || resources.Claims.Truncated)
-            return new(null, [], bindings, read.Truncated || resources.Claims.Truncated);
+            return new(null, [], bindings, resources.Claims.Truncated);
         var horizon = deadline - tick;
         var groups = read.Options.Where(o => !resources.Claims.Pawns.Contains(o.Pawn) && !resources.Claims.Targets.Contains(o.Site)
             && (o.Input.Length == 0 || !resources.Claims.Targets.Contains(o.Input))).GroupBy(o => (o.Site, o.Input))
@@ -91,7 +91,7 @@ internal static class ConstructionMethodCandidates
             Deadline = Known((double)horizon),
             AlternativeLaborCost = Known((double)horizon)
         }, outcomes.ToArray(), bindings,
-            read.Truncated || groups.Length > 16)
+            groups.Length > 16)
         { Operations = EquatableArray.From(operations), Observed = EquatableArray.From(observed.Values) };
     }
 }

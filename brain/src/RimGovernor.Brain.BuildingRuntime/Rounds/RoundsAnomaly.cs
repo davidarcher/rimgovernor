@@ -106,7 +106,7 @@ public sealed class AnomalyRounds
     private async Task<bool> LanceUsableAsync(ControlState state, Tick reviewTick, PawnId target, CancellationToken call)
     {
         var identity = Boundary.Identity(state.Snapshot);
-        var (emergency, _) = await _native.ReadEmergencyAsync(identity, call).ConfigureAwait(false);
+        var emergency = await _native.ReadEmergencyAsync(identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(emergency.Context, state.Snapshot);
@@ -132,7 +132,7 @@ public sealed class AnomalyRounds
             return false;
         }
 
-        var (reply, _) = await _native.ReadCombatPawnsAsync(identity, ids, call).ConfigureAwait(false);
+        var reply = await _native.ReadCombatPawnsAsync(identity, ids, call).ConfigureAwait(false);
         var observed = reply.Outcome?.Observed ?? throw new ControlException("anomaly lance: observed == nil");
         try
         {

@@ -45,7 +45,7 @@ public sealed class SupportMethodTests
     {
         Known = true,
         Demands = [new("bench", "bench", "bench", new(1, 1), Known(-2d), known ? Known(.15) : default, Known(0d), default)
-            { FoodPoisonChanceClean = known ? Known(.01) : default, CleaningComplete = true }],
+            { FoodPoisonChanceClean = known ? Known(.01) : default }],
         Filth = [new("bench", "filth", new(1, 1), Known(2d))],
         Workers = [new("bench", "pawn", "filth", "Clean", "Clean", new(1, 1), Known(0d), Known(self)),
             new("bench", "helper", "filth", "Clean", "Clean", new(1, 1), Known(0d), Known(helper))]
@@ -138,7 +138,7 @@ public sealed class SupportMethodTests
     {
         var read = new SupportActivityRead { Known = true,
             Demands = [new("care", "care", "patient", new(1, 1), Known(0d), default, Known(0d), default)
-                { InfectionChanceFactor = Known(1d), InfectionChanceFactorClean = Known(1d), CleaningComplete = true }],
+                { InfectionChanceFactor = Known(1d), InfectionChanceFactorClean = Known(1d) }],
             Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d))
                 { TendQuality = Known(.2) },
                 new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d))
@@ -159,7 +159,7 @@ public sealed class SupportMethodTests
         var read = Cleaning() with
         {
             Demands = [new("care", "care", "patient", new(1, 1), Known(-2d), default, Known(0d), default)
-                { InfectionChanceFactor = Known(2d), InfectionChanceFactorClean = Known(.5), CleaningComplete = true }],
+                { InfectionChanceFactor = Known(2d), InfectionChanceFactorClean = Known(.5) }],
             Filth = [new("care", "filth", new(1, 1), Known(2d))],
             Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d))
                 { InfectionRoomEffectApplies = applicable is { } value ? Known(value) : default,
@@ -178,7 +178,7 @@ public sealed class SupportMethodTests
     public void SurgeryUsesItsOwnQueuedServiceAndNativeRoomMultiplier()
     {
         var read = Cleaning() with { Demands = [new("surgery", "surgery", "patient", new(1, 1), Known(-2d), default, Known(0d), default)
-                { SurgerySuccessFactor = Known(.6), SurgerySuccessFactorClean = Known(1d), CleaningComplete = true }],
+                { SurgerySuccessFactor = Known(.6), SurgerySuccessFactorClean = Known(1d) }],
             Filth = [new("surgery", "filth", new(1, 1), Known(2d))], Workers =
             [new("surgery", "pawn", "patient", "DoBill", "Doctor", new(1, 1), Known(0d), Known(20d))
                 { Recipe = new("selected-medical-bill", "selected-operation", []) },

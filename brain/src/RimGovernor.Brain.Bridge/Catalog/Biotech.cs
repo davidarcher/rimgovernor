@@ -62,7 +62,7 @@ public sealed partial class DefinitionCatalog
             return null;
         }
 
-        var (cost, _) = ShownStatValue(race.defName, string.Empty, "BandwidthCost");
+        var (cost, _) = ShownStatValue(race.defName, string.Empty, CatalogStats.BandwidthCost);
         var workTypes = (race.race?.mechEnabledWorkTypes ?? []).Select(w => w.defName).Order(StringComparer.Ordinal).ToList();
         return new MechKindRow(race.defName, workTypes.Count > 0, cost, kind.combatPower, workTypes);
     }

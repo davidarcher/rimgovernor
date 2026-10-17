@@ -424,8 +424,6 @@ public sealed record UiElement
 
     public string? ParentTargetId { get; init; }
 
-    public ScreenRect? Rect { get; init; }
-
     public ScreenRect? ScreenRect { get; init; }
 
     public UiScroll? Scroll { get; init; }
@@ -448,8 +446,6 @@ public sealed record UiSurface
     public string? Label { get; init; }
 
     public string? SemanticKind { get; init; }
-
-    public ScreenRect? Rect { get; init; }
 
     public ScreenRect? ScreenRect { get; init; }
 
@@ -604,8 +600,6 @@ public sealed record Tab
     public bool? ValidWithoutMap { get; init; }
 
     public bool? Minimized { get; init; }
-
-    public ScreenRect? Rect { get; init; }
 
     public uint? Ordinal { get; init; }
 

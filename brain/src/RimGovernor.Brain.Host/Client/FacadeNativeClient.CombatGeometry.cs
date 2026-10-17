@@ -13,7 +13,7 @@ internal sealed partial class FacadeNativeClient
     /// is named. The reply's cells and lines are in request order; with a propose block its proposed cells follow,
     /// ranked, scored alike.
     /// </summary>
-    internal async Task<(PbMirror.CombatGeometry Value, BridgeResult Receipt)> CombatGeometryAsync(PbMirror.CombatGeometryRequest request, CancellationToken cancellationToken)
+    internal async Task<PbMirror.CombatGeometry> CombatGeometryAsync(PbMirror.CombatGeometryRequest request, CancellationToken cancellationToken)
     {
         CombatGeometryChecks.ValidateCombatGeometryRequest(request);
         var reply = await Facade.ReadCombatGeometryAsync(request, cancellationToken).ConfigureAwait(false);
@@ -24,7 +24,7 @@ internal sealed partial class FacadeNativeClient
         if (reply.Outcome?.Observed is { } observed)
         {
             CombatGeometryChecks.ValidateCombatGeometry(observed, request);
-            return (observed, NoReceipt);
+            return observed;
         }
         throw Contract("combat geometry outcome missing");
     }
@@ -240,7 +240,7 @@ internal sealed partial class FacadeNativeClient
     /// Go <c>ReadPawnCargo</c>: reuses the complete held-stock census. Only the named pawns' inventory and carry slots
     /// count; loose home stock cannot prove delivery.
     /// </summary>
-    internal async Task<(IReadOnlyDictionary<string, long> Value, BridgeResult Receipt)> ReadPawnCargoAsync(PbCommon.Identity identity, IReadOnlyList<string> pawns, CancellationToken cancellationToken)
+    internal async Task<IReadOnlyDictionary<string, long>> ReadPawnCargoAsync(PbCommon.Identity identity, IReadOnlyList<string> pawns, CancellationToken cancellationToken)
     {
         var request = new PbObservations.ListSuppliesRequest
         {
@@ -259,14 +259,7 @@ internal sealed partial class FacadeNativeClient
         {
             throw Contract("unknown pawn cargo census");
         }
-        try
-        {
-        }
-        catch (BridgeContractException)
-        {
-            throw Contract("unknown pawn cargo census");
-        }
-        if (!SameIdentity(snapshot.Context!.Identity, identity) || snapshot.Completeness is null || snapshot.Completeness.Filtered is null)
+        if (!SameIdentity(snapshot.Context?.Identity, identity) || snapshot.Completeness is null || snapshot.Completeness.Filtered is null)
         {
             throw Contract("unknown pawn cargo census");
         }
@@ -303,6 +296,6 @@ internal sealed partial class FacadeNativeClient
                 }
             }
         }
-        return (cargo, NoReceipt);
+        return cargo;
     }
 }

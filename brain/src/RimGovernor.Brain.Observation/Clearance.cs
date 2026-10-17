@@ -2,13 +2,13 @@ namespace RimGovernor.Brain.Observation;
 
 public interface IClearanceSource
 {
-    Task<(O.ClearanceTargetsReply Reply, Result Receipt)> ReadClearanceTargetsAsync(C.Identity identity, bool includeSalvage, CancellationToken cancellationToken);
+    Task<O.ClearanceTargetsReply> ReadClearanceTargetsAsync(C.Identity identity, bool includeSalvage, CancellationToken cancellationToken);
 }
 
 /// <summary>Widens the census to planned ground.</summary>
 public interface IGroundClearanceSource : IClearanceSource
 {
-    Task<(O.ClearanceTargetsReply Reply, Result Receipt)> ReadClearanceTargetsOnGroundAsync(C.Identity identity, bool includeSalvage, IReadOnlyList<O.Rectangle> ground, CancellationToken cancellationToken);
+    Task<O.ClearanceTargetsReply> ReadClearanceTargetsOnGroundAsync(C.Identity identity, bool includeSalvage, IReadOnlyList<O.Rectangle> ground, CancellationToken cancellationToken);
 }
 
 public static partial class ObservationPackage
@@ -58,11 +58,11 @@ public static partial class ObservationPackage
                         Maximum = new C.Cell { X = g.X + g.Width - 1, Z = g.Z + g.Height - 1 },
                     });
                 }
-                (reply, _) = await widened.ReadClearanceTargetsOnGroundAsync(id, includeSalvage, rects, cancellationToken).ConfigureAwait(false);
+                reply = await widened.ReadClearanceTargetsOnGroundAsync(id, includeSalvage, rects, cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                (reply, _) = await source.ReadClearanceTargetsAsync(id, includeSalvage, cancellationToken).ConfigureAwait(false);
+                reply = await source.ReadClearanceTargetsAsync(id, includeSalvage, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (BridgeUnavailableException)

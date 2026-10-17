@@ -403,7 +403,7 @@ public sealed partial class Rounder
         {
             throw new ControlException("benchCensus: native lacks the bench census");
         }
-        var (rows, _) = await BenchSource(native, expected, false).ReadGearBenchesAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
+        var rows = await BenchSource(native, expected, false).ReadGearBenchesAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
         return rows;
     }
 }

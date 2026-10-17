@@ -270,7 +270,7 @@ public sealed class BiotechRounds
         {
             var building = new Building(definition, PolicyFunctions.AnchorForRect(site, new Cell(size.Width, size.Height), Rotation.North), Rotation.North, "");
             var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, ConstructionTier.Expand);
-            var (got, _) = await _building!.Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
+            var got = await _building!.Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var pv = got.Preview;
             if (!pv.Footprint.TryGetValue(out var footprint) || !pv.MadeFromStuff.TryGetValue(out var made) || !pv.CanPlace.TryGetValue(out var legal)
                 || !pv.SafeToPlace.TryGetValue(out var safe) || !pv.WatchCellsAccessible.TryGetValue(out var reachable))

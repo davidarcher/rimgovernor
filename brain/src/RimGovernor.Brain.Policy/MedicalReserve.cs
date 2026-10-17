@@ -1,6 +1,3 @@
-using System.Security.Cryptography;
-using System.Text.Json;
-
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>An observed medicine stack, not a recipe or promised output.</summary>
@@ -171,13 +168,8 @@ public static partial class PolicyFunctions
         return r with { Active = nowActive, Stock = Known(stock), Entry = Known(entry), Target = Known(target), Replenish = Known(replenishment) };
     }
 
-    private static MethodId MedicineMethodId(Resource resource, string bench, string recipe)
-    {
-        // The Go id hashes the JSON of this struct; the same bytes keep the ids stable.
-        var data = JsonSerializer.SerializeToUtf8Bytes(new { Resource = resource.Value, Bench = bench, Recipe = recipe });
-        var sum = SHA256.HashData(data);
-        return new MethodId("medicine-produce-" + Convert.ToHexStringLower(sum.AsSpan(0, 16)));
-    }
+    private static MethodId MedicineMethodId(Resource resource, string bench, string recipe) =>
+        new($"medicine-produce-{resource.Value}-{bench}-{recipe}");
 
     /// <summary>
     /// Proposes one repeat-count StockTarget bill that keeps at least the reviewed recovery Target units of

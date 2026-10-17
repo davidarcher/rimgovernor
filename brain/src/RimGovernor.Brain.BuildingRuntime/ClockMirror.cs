@@ -39,7 +39,7 @@ internal static class ClockMirror
     /// </summary>
     public static async Task<KeyedTable<string, GearBenchRead>> PublishBenchesAsync(FactStore m, FactScope scope, IRoundsWorkBenchSource native, PbCommon.Identity id, long tick, CancellationToken ct)
     {
-        var census = (await native.ReadGearBenchesAsync(id, ct).ConfigureAwait(false)).Reads;
+        var census = (await native.ReadGearBenchesAsync(id, ct).ConfigureAwait(false));
         var rows = new Dictionary<string, GearBenchRead>(census.Count, StringComparer.Ordinal);
         foreach (var row in census)
         {

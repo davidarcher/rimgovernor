@@ -67,7 +67,7 @@ public static partial class ObservationPackage
             {
                 humanlike = catalog.BedHumanlike((head.DefName ?? ""));
                 crib = catalog.BedCrib((head.DefName ?? ""));
-                rest = catalog.PlannerStatValue((head.DefName ?? ""), b.Stuff ?? "", StatBedRestEffectiveness);
+                rest = catalog.PlannerStatValue((head.DefName ?? ""), b.Stuff ?? "", CatalogStats.BedRestEffectiveness);
             }
             catch (DomainException e)
             {

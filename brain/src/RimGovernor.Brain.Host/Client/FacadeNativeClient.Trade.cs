@@ -14,7 +14,7 @@ internal sealed partial class FacadeNativeClient
     /// facts stay absent: an absent cost, relation, eligibility or sampled timing is never a zero or permission to
     /// dispatch. <paramref name="pack"/> is the existing formation intent, used solely as a calculation input.
     /// </summary>
-    internal async Task<(PbObservations.TradeAcquisition Value, BridgeResult Receipt)> ReadTradeAcquisitionAsync(PbCommon.Identity identity, PbOperations.FormCaravanIntent? pack, CancellationToken cancellationToken)
+    internal async Task<PbObservations.TradeAcquisition> ReadTradeAcquisitionAsync(PbCommon.Identity identity, PbOperations.FormCaravanIntent? pack, CancellationToken cancellationToken)
     {
         var request = new PbObservations.TradeAcquisitionRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, Pack = pack };
         var reply = await Facade.ReadTradeAcquisitionAsync(request, cancellationToken).ConfigureAwait(false);
@@ -34,7 +34,7 @@ internal sealed partial class FacadeNativeClient
         {
             TradeValidateAcquisition(observed, identity);
             cancellationToken.ThrowIfCancellationRequested();
-            return (observed, NoReceipt);
+            return observed;
         }
 
         throw Contract("trade acquisition outcome missing");
@@ -214,7 +214,7 @@ internal sealed partial class FacadeNativeClient
     /// Go <c>Client.ReadTradeSession</c>: which negotiator is walking to or trading with which trader. The read issues no
     /// order: a walk the game ended simply reads as absent.
     /// </summary>
-    internal async Task<(TradeSessionRead Value, BridgeResult Receipt)> ReadTradeSessionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
+    internal async Task<TradeSessionRead> ReadTradeSessionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         var request = new PbObservations.TradeSessionRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
         var reply = await Facade.ReadTradeSessionAsync(request, cancellationToken).ConfigureAwait(false);
@@ -262,14 +262,14 @@ internal sealed partial class FacadeNativeClient
             }
         }
 
-        return (new TradeSessionRead { Target = session.Target, Context = session.Context, Trader = trader, Negotiator = negotiator, Open = open }, NoReceipt);
+        return new TradeSessionRead { Target = session.Target, Context = session.Context, Trader = trader, Negotiator = negotiator, Open = open };
     }
 
     /// <summary>
     /// Go <c>Client.ReadTradeSheet</c>: the whole trade sheet of the live session (always with untradeable rows and no name
     /// filter). A reply that is not complete and well formed is refused rather than returned partial.
     /// </summary>
-    internal async Task<(TradeSheetRead Value, BridgeResult Receipt)> ReadTradeSheetAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
+    internal async Task<TradeSheetRead> ReadTradeSheetAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         var request = new PbObservations.TradeSheetRequest
         {
@@ -295,7 +295,7 @@ internal sealed partial class FacadeNativeClient
         var rows = new List<TradeSheetRow>();
         var header = TradeSheetPage(sheet, identity, seen, rows);
         cancellationToken.ThrowIfCancellationRequested();
-        return (header with { Rows = rows }, NoReceipt);
+        return header with { Rows = rows };
     }
 
     /// <summary>Go <c>tradeSheetPage</c>: validates the sheet's header and appends its rows.</summary>
@@ -433,7 +433,7 @@ internal sealed partial class FacadeNativeClient
     /// <summary>
     /// Go <c>Client.ListTraders</c>: the map's trader caravans and eligible negotiators, one complete unfiltered census.
     /// </summary>
-    internal async Task<(TradersRead Value, BridgeResult Receipt)> ListTradersAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
+    internal async Task<TradersRead> ListTradersAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         var request = new PbObservations.TradersRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
         var reply = await Facade.ListTradersAsync(request, cancellationToken).ConfigureAwait(false);
@@ -452,7 +452,7 @@ internal sealed partial class FacadeNativeClient
         var snapshot = outcome?.Observed ?? throw Contract("traders outcome missing");
         var decoded = TradeDecodeTraders(snapshot, identity);
         cancellationToken.ThrowIfCancellationRequested();
-        return (decoded, NoReceipt);
+        return decoded;
     }
 
     /// <summary>Go <c>decodeTraders</c>: validates and decodes a complete trader census.</summary>

@@ -28,7 +28,7 @@ internal sealed class ZoneRefresher(IZonesNative native, FactStore store) : IZon
         {
             return held;
         }
-        var (read, _) = await native.ReadZoneSectionAsync(id, ct).ConfigureAwait(false);
+        var read = await native.ReadZoneSectionAsync(id, ct).ConfigureAwait(false);
         _refreshed = Review;
         var output = new Held<ZonesRead> { Value = read, AsOf = read.AsOf, Complete = true, Source = "rimgovernor/observations_list_zones" };
         FactStore.Put(store, Scope, FactSection.Zones, output);

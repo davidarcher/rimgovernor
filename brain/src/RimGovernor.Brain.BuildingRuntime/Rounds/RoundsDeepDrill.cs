@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native reads of the deep drill planner: the building census and the research read on top of the building source.</summary>
 internal interface IDeepDrillBuildingSource : IRoundsBuildingSource, Observation.IResearchSource
 {
-    Task<(EntityRows<O.BuildingState> Rows, BridgeResult Result)> ReadBuildingsAsync(C.Identity identity, CancellationToken ct);
+    Task<EntityRows<O.BuildingState>> ReadBuildingsAsync(C.Identity identity, CancellationToken ct);
 
 }
 
@@ -96,7 +96,7 @@ public sealed partial class RoundsResourcePlanner
         {
             return null;
         }
-        var id = (await deepNative.IdentityAsync(call).ConfigureAwait(false)).Reply;
+        var id = (await deepNative.IdentityAsync(call).ConfigureAwait(false));
         Identity expected;
         try
         {
@@ -112,7 +112,7 @@ public sealed partial class RoundsResourcePlanner
         }
         var reading = await reviewer.ObserveColonyAsync(deepNative, expected, ["DeepDrill"], call).ConfigureAwait(false);
         var f = reading.Projection;
-        var research = (await deepNative.ReadResearchAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false)).Read;
+        var research = (await deepNative.ReadResearchAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false));
         try
         {
             Boundary.Context(research.Context, state.Snapshot);
@@ -138,7 +138,7 @@ public sealed partial class RoundsResourcePlanner
         {
             return output;
         }
-        var buildings = (await deepNative.ReadBuildingsAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false)).Rows;
+        var buildings = (await deepNative.ReadBuildingsAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false));
         try
         {
             Boundary.Context(buildings.Context, state.Snapshot);
@@ -178,7 +178,7 @@ public sealed partial class RoundsResourcePlanner
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
         var building = new Building("DeepDrill", site.Centre, Rotation.North, "");
         var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, PolicyApi.PlannerTier(EconomyFamily.Resource.FilingKey, Pol.Phase.None));
-        var preview = (await native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false)).Preview;
+        var preview = (await native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false));
         var p = preview.Preview;
         var fk = p.Footprint.TryGetValue(out var footprint);
         var lk = p.CanPlace.TryGetValue(out var legal);

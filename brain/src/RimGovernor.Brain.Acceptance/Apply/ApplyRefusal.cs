@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// valid when the fixture read it, after the fixture has moved the world under that token, and asserts the refusal names
 /// the fact that moved (the reason strings in docs/developers/contracts/action-contracts.md) rather than the token. The
 /// token comparison is the closing rule of every kind; the zone-creation and excavation steps reach it by moving only
-/// what the token hashes, so their documented closing reasons are asserted too. Every refusal is a terminal failure
+/// what the token versions, so their documented closing reasons are asserted too. Every refusal is a terminal failure
 /// reply, never a receipt.
 /// </summary>
 internal static class ApplyRefusal

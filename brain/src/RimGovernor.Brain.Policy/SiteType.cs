@@ -832,11 +832,11 @@ public static partial class PolicyFunctions
             var key = "";
             if (byRoom)
             {
-                if (!s.Room.TryGetValue(out var room) || room == "")
+                if (!s.Room.TryGetValue(out var room))
                 {
                     continue;
                 }
-                key = room;
+                key = room.ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
             if (!groups.TryGetValue(key, out var group))
             {

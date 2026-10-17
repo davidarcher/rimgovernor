@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
 using Xunit;
@@ -24,6 +23,6 @@ public sealed class BiotechCatalogTests
                 new TerrainDef { defName = "Soil" },
                 .. extra,
             ],
-            new FakeStatSource(),
+            DefStatTable.Empty,
             new CatalogDerived("Silver", "Wort", 10f));
 }

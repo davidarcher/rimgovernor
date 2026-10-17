@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native reads of the food stores family beside the rounds census: one resource's storage sites for the meal order.</summary>
 public interface IRoundsFoodStoresSource
 {
-    Task<(IReadOnlyList<ResourceSource> Rows, ResourceStorage Storage, BridgeResult Result)> ReadResourceSourcesAsync(C.Identity identity, string definition, CancellationToken ct);
+    Task<(IReadOnlyList<ResourceSource> Rows, ResourceStorage Storage)> ReadResourceSourcesAsync(C.Identity identity, string definition, CancellationToken ct);
 }
 
 /// <summary>
@@ -109,7 +109,7 @@ public sealed class FoodStoresRounds
             {
                 continue;
             }
-            var (read, _) = await supplies.ReadFoodReserveSuppliesAsync(Boundary.Identity(scope.World), forbid, ct).ConfigureAwait(false);
+            var read = await supplies.ReadFoodReserveSuppliesAsync(Boundary.Identity(scope.World), forbid, ct).ConfigureAwait(false);
             try
             {
                 Boundary.Context(read.Context, scope.World);
@@ -226,7 +226,7 @@ public sealed class FoodStoresRounds
             ResourceStorage storage;
             try
             {
-                (_, storage, _) = await _native.ReadResourceSourcesAsync(identity, name, ct).ConfigureAwait(false);
+                (_, storage) = await _native.ReadResourceSourcesAsync(identity, name, ct).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {

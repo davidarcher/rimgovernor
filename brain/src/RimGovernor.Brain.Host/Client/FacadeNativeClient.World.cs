@@ -13,7 +13,7 @@ internal sealed partial class FacadeNativeClient
     /// <paramref name="tile"/>, with the requested tile's longitude. It requires the same single complete page every
     /// observation reader enforces.
     /// </summary>
-    internal async Task<(WorldRead Value, BridgeResult Receipt)> ReadWorldAsync(PbCommon.Identity identity, int tile, double settlementRadius, CancellationToken cancellationToken)
+    internal async Task<WorldRead> ReadWorldAsync(PbCommon.Identity identity, int tile, double settlementRadius, CancellationToken cancellationToken)
     {
         if (tile < 0 || settlementRadius < 0)
         {
@@ -36,7 +36,7 @@ internal sealed partial class FacadeNativeClient
 
         if (outcome?.Observed is { } observed)
         {
-            return (WorldSelected(observed, identity), NoReceipt);
+            return WorldSelected(observed, identity);
         }
 
         throw Contract("world outcome missing");
@@ -120,7 +120,7 @@ internal sealed partial class FacadeNativeClient
     /// Go <c>Client.ReadWorldProgression</c>: the world progression census (maps, caravans, quests, factions, sites),
     /// validated against the identity. <paramref name="includeStorage"/> asks for the storage census too.
     /// </summary>
-    internal async Task<(WorldProgressionRead Value, BridgeResult Receipt)> ReadWorldProgressionAsync(PbCommon.Identity identity, bool includeStorage, CancellationToken cancellationToken)
+    internal async Task<WorldProgressionRead> ReadWorldProgressionAsync(PbCommon.Identity identity, bool includeStorage, CancellationToken cancellationToken)
     {
         var request = new PbObservations.WorldProgressionRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, IncludeStorage = includeStorage };
         var reply = await Facade.ReadWorldProgressionAsync(request, cancellationToken).ConfigureAwait(false);
@@ -138,7 +138,7 @@ internal sealed partial class FacadeNativeClient
 
         if (outcome?.Observed is { } observed)
         {
-            return (DecodeWorldProgressionSnapshot(observed, identity), NoReceipt);
+            return DecodeWorldProgressionSnapshot(observed, identity);
         }
 
         throw Contract("world progression outcome missing");

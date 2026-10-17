@@ -197,7 +197,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             var building = new Domain.Building(u.Def, cells[i], u.Rot, stuff);
             var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{i}")), building, ConstructionTier.Sustain);
-            var (preview, _) = await Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
+            var preview = await Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var v = preview.Preview;
             var ck = v.CanPlace.TryGetValue(out var can);
             var sk = v.SafeToPlace.TryGetValue(out var safe);

@@ -2,101 +2,83 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using RimWorld;
 using Verse;
 using RimGovernor.Brain.Domain;
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
+using P = RimGovernor.Brain.Policy;
 
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// One thing on a cell as the grid read holds it: the mirror's
-    /// Thing with its strings still strings, so reads compare against the
-    /// keyframe's without a string table. Encode turns it into the wire
-    /// message. Fractions are held to 1/100 so a growing plant or rotting
-    /// corpse does not re-send its cell every rare tick.
-    /// </summary>
-    internal sealed class ThingRec : IEquatable<ThingRec>
-    {
-        internal string Def = "";
-        internal Mirror.ThingCategory Category;
-        internal Mirror.ThingFaction Faction;
-        internal uint Flags;
-        internal ulong Id;
-        internal uint Count;
-        // Plant
-        internal float Growth;
-        internal bool Blighted;
-        // Corpse
-        internal Mirror.CorpseClass Class;
-        internal float Rot;
-        // Filth
-        internal uint Thickness;
-        // Item
-        internal float Deterioration;
-        // Building (blueprints and frames too)
-        internal uint HitPoints;
-        internal bool Burning, Reserved;
-        internal (string Def, uint Count)[] Needed = Array.Empty<(string, uint)>();
-        internal string[] Casket = Array.Empty<string>();
-
-        public bool Equals(ThingRec? o) => o != null && Def == o.Def && Category == o.Category && Faction == o.Faction && Flags == o.Flags && Id == o.Id
-            && Count == o.Count && Growth == o.Growth && Blighted == o.Blighted && Class == o.Class && Rot == o.Rot && Thickness == o.Thickness
-            && Deterioration == o.Deterioration && HitPoints == o.HitPoints && Burning == o.Burning && Reserved == o.Reserved
-            && Needed.SequenceEqual(o.Needed) && Casket.SequenceEqual(o.Casket);
-        public override bool Equals(object? obj) => Equals(obj as ThingRec);
-        public override int GetHashCode() => (int)Id;
-
-        internal static bool SameList(ThingRec[]? a, ThingRec[]? b)
-        {
-            var n = a?.Length ?? 0;
-            if (n != (b?.Length ?? 0)) return false;
-            for (int i = 0; i < n; i++) if (!a![i].Equals(b![i])) return false;
-            return true;
-        }
-
-        /// The wire thing, its strings interned through put.
-        internal Mirror.Thing Wire(Func<string, uint> put)
-        {
-            var t = new Mirror.Thing { Def = put(Def), Category = Category, Faction = Faction, Flags = Flags, Id = Id, Count = Count };
-            switch (Category)
-            {
-                case Mirror.ThingCategory.Plant: t = t with { State = new Mirror.ThingState.PlantCase(new Mirror.PlantState { Growth = Growth, Blighted = Blighted }) }; break;
-                case Mirror.ThingCategory.Corpse: t = t with { State = new Mirror.ThingState.CorpseCase(new Mirror.CorpseState { Class = Class, Rot = Rot }) }; break;
-                case Mirror.ThingCategory.Filth: t = t with { State = new Mirror.ThingState.FilthCase(new Mirror.FilthState { Thickness = Thickness }) }; break;
-                case Mirror.ThingCategory.Item: t = t with { State = new Mirror.ThingState.ItemCase(new Mirror.ItemState { Deterioration = Deterioration }) }; break;
-                case Mirror.ThingCategory.Building:
-                    var b = new Mirror.BuildingState { HitPoints = HitPoints, Burning = Burning, Reserved = Reserved };
-                    b = b with { Needed = EquatableArray.From(Needed.Select(need => new Mirror.MaterialNeed { Def = put(need.Def), Count = need.Count })), Casket = EquatableArray.From(Casket.Select(held => put(held))) };
-                    t = t with { State = new Mirror.ThingState.BuildingCase(b) };
-                    break;
-            }
-            return t;
-        }
-    }
-
-    /// <summary>
-    /// Reads the things on a map's cells for CellGridEncoder. One
-    /// instance serves one read: it caches the per-thing record (a building
-    /// is listed on each cell it covers) and the map-wide sets (designated,
-    /// reserved things, ancient-temple triggers) a per-thing query would
-    /// otherwise rescan.
+    /// Reads the things on a map's cells for CellGridReader as the policy's thing records. One instance serves one
+    /// read: it caches the per-thing record (a building is listed on each cell it covers) and the map-wide sets
+    /// (designated, reserved things, ancient-temple triggers) a per-thing query would otherwise rescan. A whole-map
+    /// read also keeps the map's last whole read: a thing whose facts are unchanged keeps its record, and a cell whose
+    /// records are all kept keeps its array, so a steady map allocates no thing records. Records and arrays are never
+    /// modified once read. Game thread only.
     /// </summary>
     internal sealed class ThingReader
     {
+        // The last whole-map read of each map, and the dictionary the next one fills.
+        private sealed class Memo
+        {
+            internal Dictionary<Thing, P.Thing> Last = new Dictionary<Thing, P.Thing>(), Spare = new Dictionary<Thing, P.Thing>();
+            internal P.Thing[]?[] Cells = Array.Empty<P.Thing[]?>();
+        }
+
+        private static readonly ConditionalWeakTable<Map, Memo> Memos = new ConditionalWeakTable<Map, Memo>();
+        private static readonly Dictionary<Thing, P.Thing> None = new Dictionary<Thing, P.Thing>();
+        private static readonly P.PlantState NoPlant = new P.PlantState();
+        private static readonly P.CorpseState NoCorpse = new P.CorpseState();
+
         private readonly Map map;
         private readonly Faction? player;
-        private readonly Dictionary<Thing, ThingRec?> records = new Dictionary<Thing, ThingRec?>();
+        private readonly Memo? memo;
+        private readonly Dictionary<Thing, P.Thing> records;
+        private readonly Dictionary<Thing, P.Thing> previous;
+        private readonly P.Thing[]?[] previousCells;
+        private readonly List<P.Thing> scratch = new List<P.Thing>();
         private readonly HashSet<Thing> designatedThings = new HashSet<Thing>();
         private readonly HashSet<IntVec3> designatedCells = new HashSet<IntVec3>();
         private readonly HashSet<IntVec3> foundationRemovals = new HashSet<IntVec3>();
         private readonly HashSet<Thing> reserved = new HashSet<Thing>();
         private List<RectTrigger>? triggers;
 
-        internal ThingReader(Map map, Faction? player)
+        /// A reader for a whole-map read, against the map's last whole read.
+        internal static ThingReader Whole(Map map)
+        {
+            if (!Memos.TryGetValue(map, out var memo))
+            {
+                memo = new Memo();
+                Memos.Add(map, memo);
+            }
+            return new ThingReader(map, memo);
+        }
+
+        /// A reader for a read of part of the map: no record carries over.
+        internal ThingReader(Map map) : this(map, null)
+        {
+        }
+
+        private ThingReader(Map map, Memo? memo)
         {
             this.map = map;
-            this.player = player;
+            this.memo = memo;
+            player = Faction.OfPlayerSilentFail;
+            if (memo != null)
+            {
+                records = memo.Spare;
+                records.Clear();
+                previous = memo.Last;
+                previousCells = memo.Cells.Length == map.Size.x * map.Size.z ? memo.Cells : Array.Empty<P.Thing[]?>();
+            }
+            else
+            {
+                records = new Dictionary<Thing, P.Thing>();
+                previous = None;
+                previousCells = Array.Empty<P.Thing[]?>();
+            }
             foreach (var d in map.designationManager.AllDesignations)
             {
                 if (d.target.HasThing) designatedThings.Add(d.target.Thing); else designatedCells.Add(d.target.Cell);
@@ -109,98 +91,140 @@ namespace HomeBridge.BridgeTools
         /// A RemoveFoundation designation stands on the cell.
         internal bool FoundationRemoval(IntVec3 cell) => foundationRemovals.Contains(cell);
 
-        /// The cell's things in native order, null for none. Pawns, motes
+        /// The cell's things in native order, null for none; j is the cell's index in a whole-map read. Pawns, motes
         /// and projectiles are not listed.
-        internal ThingRec[]? At(IntVec3 cell)
+        internal P.Thing[]? At(IntVec3 cell, int j)
         {
             var list = map.thingGrid.ThingsListAtFast(cell);
-            List<ThingRec>? found = null;
+            scratch.Clear();
             for (int i = 0; i < list.Count; i++)
             {
                 var thing = list[i];
-                if (!thing.Spawned) continue;
+                var category = thing.def.category;
+                if (!thing.Spawned || thing is Pawn || category == ThingCategory.Pawn || category == ThingCategory.Mote || category == ThingCategory.Projectile) continue;
                 if (!records.TryGetValue(thing, out var rec))
                 {
                     rec = Record(thing, cell);
                     records[thing] = rec;
                 }
-                if (rec != null) (found ??= new List<ThingRec>()).Add(rec);
+                scratch.Add(rec);
             }
-            return found?.ToArray();
+            if (scratch.Count == 0) return null;
+            var last = j < previousCells.Length ? previousCells[j] : null;
+            if (last != null && last.Length == scratch.Count)
+            {
+                var same = true;
+                for (int i = 0; i < last.Length && same; i++) same = ReferenceEquals(last[i], scratch[i]);
+                if (same) return last;
+            }
+            return scratch.ToArray();
+        }
+
+        /// Ends a whole-map read: its records and cell arrays become the map's last read.
+        internal void Finish(P.Thing[]?[] cells)
+        {
+            if (memo == null) return;
+            previous.Clear();
+            memo.Spare = previous;
+            memo.Last = records;
+            memo.Cells = cells;
         }
 
         private static float Q(float x) => (float)Math.Round(Math.Max(0f, Math.Min(1f, float.IsNaN(x) ? 0f : x)) * 100f) / 100f;
         private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value!) ? value! : throw new InvalidOperationException("Native identifier unavailable.");
 
-        private ThingRec? Record(Thing thing, IntVec3 cell)
+        private P.Thing Record(Thing thing, IntVec3 cell)
         {
             var def = thing.def;
-            if (thing is Pawn || def.category == ThingCategory.Pawn || def.category == ThingCategory.Mote || def.category == ThingCategory.Projectile) return null;
-            var rec = new ThingRec { Id = (ulong)Math.Max(0, thing.thingIDNumber), Count = (uint)Math.Max(1, thing.stackCount) };
+            var id = (ulong)Math.Max(0, thing.thingIDNumber);
+            var count = (uint)Math.Max(1, thing.stackCount);
             var constructible = thing is Blueprint || thing is Frame;
             // A blueprint or frame is listed as what it builds.
-            rec.Def = Identifier(constructible && def.entityDefToBuild != null ? def.entityDefToBuild.defName : def.defName);
+            var name = Identifier(constructible && def.entityDefToBuild != null ? def.entityDefToBuild.defName : def.defName);
             var building = thing as Verse.Building;
-            var flags = 0u;
-            if (map.edificeGrid[cell] == thing) flags |= 1;                      // EDIFICE
-            if (thing is Blueprint) flags |= 2;                                  // BLUEPRINT
-            if (thing is Frame) flags |= 4;                                      // FRAME
-            if (def.passability == Traversability.Impassable) flags |= 8;        // IMPASSABLE
-            if (def.holdsRoof) flags |= 16;                                      // HOLDS_ROOF
+            var flags = P.ThingMarks.None;
+            if (map.edificeGrid[cell] == thing) flags |= P.ThingMarks.Edifice;
+            if (thing is Blueprint) flags |= P.ThingMarks.Blueprint;
+            if (thing is Frame) flags |= P.ThingMarks.Frame;
+            if (def.passability == Traversability.Impassable) flags |= P.ThingMarks.Impassable;
+            if (def.holdsRoof) flags |= P.ThingMarks.HoldsRoof;
             if (building != null && player != null)
             {
-                if (building.DeconstructibleBy(player).Accepted) flags |= 32;    // DECONSTRUCTIBLE
-                if (def.Minifiable) flags |= 64;                                 // MINIFIABLE
-                if (building.ClaimableBy(player).Accepted) flags |= 128;         // CLAIMABLE
-                if ((flags & 32) != 0 && building.Faction != player && !def.building.isNaturalRock && !def.mineable
+                if (building.DeconstructibleBy(player).Accepted) flags |= P.ThingMarks.Deconstructible;
+                if (def.Minifiable) flags |= P.ThingMarks.Minifiable;
+                if (building.ClaimableBy(player).Accepted) flags |= P.ThingMarks.Claimable;
+                if ((flags & P.ThingMarks.Deconstructible) != 0 && building.Faction != player && !def.building.isNaturalRock && !def.mineable
                     && NativeClearanceObservationTools.AncientDanger(map, building, player, triggers ??= NativeClearanceObservationTools.TempleTriggers(map)))
-                    flags |= 2048;                                               // ANCIENT_DANGER
+                    flags |= P.ThingMarks.AncientDanger;
             }
-            if (designatedThings.Contains(thing) || (map.edificeGrid[cell] == thing && designatedCells.Contains(cell))) flags |= 256; // DESIGNATED
-            if (thing.TryGetComp<CompForbiddable>()?.Forbidden == true) flags |= 512; // FORBIDDEN
-            if (def.EverHaulable) flags |= 1024;                                 // HAULABLE
-            if (building != null && def.building != null && def.building.isNaturalRock) flags |= 4096; // NATURAL_ROCK
-            rec.Flags = flags;
-            rec.Faction = thing.Faction == null ? Mirror.ThingFaction.None
-                : thing.Faction == player ? Mirror.ThingFaction.Player
-                : player != null && thing.Faction.HostileTo(player) ? Mirror.ThingFaction.Hostile : Mirror.ThingFaction.Neutral;
+            if (designatedThings.Contains(thing) || (map.edificeGrid[cell] == thing && designatedCells.Contains(cell))) flags |= P.ThingMarks.Designated;
+            if (thing.TryGetComp<CompForbiddable>()?.Forbidden == true) flags |= P.ThingMarks.Forbidden;
+            if (def.EverHaulable) flags |= P.ThingMarks.Haulable;
+            if (building != null && def.building != null && def.building.isNaturalRock) flags |= P.ThingMarks.NaturalRock;
+            var faction = thing.Faction == null ? P.ThingFaction.None
+                : thing.Faction == player ? P.ThingFaction.Player
+                : player != null && thing.Faction.HostileTo(player) ? P.ThingFaction.Hostile : P.ThingFaction.Neutral;
 
+            P.ThingCategory category;
+            float growth = 0f, rot = 0f, deterioration = 0f;
+            bool blighted = false, burning = false, isReserved = false;
+            var corpseClass = P.CorpseClass.Other;
+            uint thickness = 0, hitPoints = 0;
+            EquatableArray<P.Material> needed = default;
+            EquatableArray<string> casket = default;
             if (building != null || constructible)
             {
-                rec.Category = Mirror.ThingCategory.Building;
-                rec.HitPoints = (uint)Math.Max(0, thing.HitPoints);
-                rec.Burning = thing.IsBurning();
-                rec.Reserved = reserved.Contains(thing);
+                category = P.ThingCategory.Building;
+                hitPoints = (uint)Math.Max(0, thing.HitPoints);
+                burning = thing.IsBurning();
+                isReserved = reserved.Contains(thing);
                 if (thing is IConstructible owed)
-                    rec.Needed = owed.TotalMaterialCost().Select(m => (m.thingDef, need: owed.ThingCountNeeded(m.thingDef))).Where(m => m.need > 0).Select(m => (Identifier(m.thingDef.defName), (uint)m.need)).ToArray();
-                if (thing is Building_Casket casket)
-                    rec.Casket = casket.GetDirectlyHeldThings().Select(t => Identifier(t.def.defName)).ToArray();
+                    needed = EquatableArray.From(owed.TotalMaterialCost().Select(m => (m.thingDef, need: owed.ThingCountNeeded(m.thingDef))).Where(m => m.need > 0).Select(m => new P.Material(Identifier(m.thingDef.defName), (uint)m.need)));
+                if (thing is Building_Casket holder)
+                    casket = EquatableArray.From(holder.GetDirectlyHeldThings().Select(t => Identifier(t.def.defName)));
             }
             else if (thing is Corpse corpse)
             {
-                rec.Category = Mirror.ThingCategory.Corpse;
+                category = P.ThingCategory.Corpse;
                 var race = corpse.InnerPawn?.RaceProps;
-                rec.Class = race == null ? Mirror.CorpseClass.Other : race.Humanlike ? Mirror.CorpseClass.Humanlike : race.Animal ? Mirror.CorpseClass.Animal : Mirror.CorpseClass.Other;
-                rec.Rot = Q(corpse.GetComp<CompRottable>()?.RotProgressPct ?? 0f);
+                corpseClass = race == null ? P.CorpseClass.Other : race.Humanlike ? P.CorpseClass.Humanlike : race.Animal ? P.CorpseClass.Animal : P.CorpseClass.Other;
+                rot = Q(corpse.GetComp<CompRottable>()?.RotProgressPct ?? 0f);
             }
             else if (thing is Filth filth)
             {
-                rec.Category = Mirror.ThingCategory.Filth;
-                rec.Thickness = (uint)Math.Max(0, filth.thickness);
+                category = P.ThingCategory.Filth;
+                thickness = (uint)Math.Max(0, filth.thickness);
             }
             else if (thing is Plant plant)
             {
-                rec.Category = Mirror.ThingCategory.Plant;
-                rec.Growth = Q(plant.Growth);
-                rec.Blighted = plant.Blighted;
+                category = P.ThingCategory.Plant;
+                growth = Q(plant.Growth);
+                blighted = plant.Blighted;
             }
             else if (def.category == ThingCategory.Item)
             {
-                rec.Category = Mirror.ThingCategory.Item;
-                rec.Deterioration = def.useHitPoints && thing.MaxHitPoints > 0 ? Q(1f - (float)thing.HitPoints / thing.MaxHitPoints) : 0f;
+                category = P.ThingCategory.Item;
+                deterioration = def.useHitPoints && thing.MaxHitPoints > 0 ? Q(1f - (float)thing.HitPoints / thing.MaxHitPoints) : 0f;
             }
-            else rec.Category = Mirror.ThingCategory.Other;
-            return rec;
+            else category = P.ThingCategory.Other;
+
+            // The last read's record when every fact is unchanged.
+            if (previous.TryGetValue(thing, out var old) && string.Equals(old.Def, name, StringComparison.Ordinal) && old.Category == category
+                && old.Faction == faction && old.Flags == flags && old.Id == id && old.Count == count
+                && old.Plant.Growth == growth && old.Plant.Blighted == blighted && old.Corpse.Class == corpseClass && old.Corpse.Rot == rot
+                && old.FilthThickness == thickness && old.ItemDeterioration == deterioration
+                && (category == P.ThingCategory.Building
+                    ? old.Building is { } b && b.HitPoints == hitPoints && b.Burning == burning && b.Reserved == isReserved && b.Needed == needed && b.Casket == casket
+                    : old.Building == null))
+                return old;
+            return new P.Thing
+            {
+                Def = name, Category = category, Faction = faction, Flags = flags, Id = id, Count = count,
+                Plant = category == P.ThingCategory.Plant ? new P.PlantState { Growth = growth, Blighted = blighted } : NoPlant,
+                Corpse = category == P.ThingCategory.Corpse ? new P.CorpseState { Class = corpseClass, Rot = rot } : NoCorpse,
+                FilthThickness = thickness, ItemDeterioration = deterioration,
+                Building = category == P.ThingCategory.Building ? new P.BuildingState { HitPoints = hitPoints, Burning = burning, Reserved = isReserved, Needed = needed, Casket = casket } : null,
+            };
         }
     }
 }

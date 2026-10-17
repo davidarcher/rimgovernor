@@ -18,7 +18,7 @@ internal sealed partial class FacadeNativeClient
     private const string CombatFrameMethod = "rimgovernor/snapshot_frame_combat";
 
     /// <summary>Go <c>Client.Identity</c>: the loaded identity with its validated capability list.</summary>
-    internal async Task<(PbLifecycle.IdentityReply Reply, BridgeResult Receipt)> IdentityAsync(CancellationToken cancellationToken)
+    internal async Task<PbLifecycle.IdentityReply> IdentityAsync(CancellationToken cancellationToken)
     {
         var reply = await Facade.ReadIdentityAsync(new PbLifecycle.IdentityRequest(), cancellationToken).ConfigureAwait(false);
         var outcome = reply.Outcome;
@@ -47,21 +47,18 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract(outcome is null ? "identity outcome missing" : "missing loaded identity");
         }
-        return (reply, NoReceipt);
+        return reply;
     }
 
     /// <summary>
     /// Go <c>Client.Tick</c>: the bare observation scope, the identity's context and pause state without the
     /// capability list.
     /// </summary>
-    internal async Task<(PbLifecycle.TickReply Reply, BridgeResult Receipt)> TickAsync(CancellationToken cancellationToken)
+    internal async Task<PbLifecycle.TickReply> TickAsync(CancellationToken cancellationToken)
     {
         var reply = await Facade.ReadTickAsync(new PbLifecycle.TickRequest(), cancellationToken).ConfigureAwait(false);
         var outcome = reply.Outcome;
-        if (outcome?.Loaded is { } loaded)
-        {
-        }
-        else if (outcome?.Unavailable is { } unavailable)
+        if (outcome?.Unavailable is { } unavailable)
         {
             BridgeFunctions.ValidateUnavailable(unavailable);
         }
@@ -69,11 +66,11 @@ internal sealed partial class FacadeNativeClient
         {
             BridgeFunctions.ValidateFailure(failure);
         }
-        else
+        else if (outcome?.Loaded is null)
         {
             throw BridgeFunctions.Contract("tick outcome missing");
         }
-        return (reply, NoReceipt);
+        return reply;
     }
 
     /// <summary>
@@ -81,7 +78,7 @@ internal sealed partial class FacadeNativeClient
     /// the read first waits for a frame past this client's last write, then reads live: the frame's status section is
     /// the emergency census, a different shape.
     /// </summary>
-    internal async Task<(PbObservations.StatusReply Reply, BridgeResult Receipt)> StatusAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
+    internal async Task<PbObservations.StatusReply> StatusAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         var request = new PbObservations.StatusRequest
         {
@@ -153,14 +150,14 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("status outcome missing");
         }
-        return (reply, NoReceipt);
+        return reply;
     }
 
     /// <summary>
     /// Go <c>Client.ReadColonyFacts</c>: the colony census, from the newest frame when it carries the planning form
     /// (the form the stream seeds the section under), else read live. Validated against the expected identity.
     /// </summary>
-    internal async Task<(PbObservations.ColonyFactsReply Reply, BridgeResult Receipt)> ReadColonyFactsAsync(PbCommon.Identity identity, bool planning, CancellationToken cancellationToken)
+    internal async Task<PbObservations.ColonyFactsReply> ReadColonyFactsAsync(PbCommon.Identity identity, bool planning, CancellationToken cancellationToken)
     {
         var request = ColonyFactsRequest(identity, planning);
         PbObservations.ColonyFactsReply? reply = null;
@@ -204,7 +201,7 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("missing colony outcome");
         }
-        return (reply, NoReceipt);
+        return reply;
     }
 
     /// <summary>
@@ -223,15 +220,12 @@ internal sealed partial class FacadeNativeClient
 
     /// <summary>
     /// Go <c>Client.ReadStep</c>: composes the step's snapshot, the live tick (scope and pause state), then the clock
-    /// status the controller owns, then the emergency census, served from the snapshot stream. A clock status that is
-    /// unavailable leaves the snapshot's <c>ClockStatus</c> unset (Go returned the snapshot with the unavailable error).
+    /// status the controller owns. A clock status that is unavailable leaves the snapshot's <c>ClockStatus</c> unset
+    /// (Go returned the snapshot with the unavailable error).
     /// </summary>
     internal async Task<PbObservations.BundleSnapshot?> ReadStepAsync(BridgeFunctions.StepRequest request, CancellationToken cancellationToken)
     {
-        if (request.Identity is not null)
-        {
-        }
-        var (tick, _) = await TickAsync(cancellationToken).ConfigureAwait(false);
+        var tick = await TickAsync(cancellationToken).ConfigureAwait(false);
         var outcome = tick.Outcome;
         if (outcome?.Failure is { } tickFailure)
         {
@@ -246,10 +240,6 @@ internal sealed partial class FacadeNativeClient
             throw BridgeFunctions.Contract("step tick missing");
         }
         var identity = loaded.Context!.Identity!;
-        if (request.Identity is not null && !BridgeFunctions.SameIdentity(identity, request.Identity))
-        {
-            throw new BridgeRefusedException("step identity changed");
-        }
         var step = new PbObservations.BundleSnapshot { Context = loaded.Context, Paused = loaded.Paused };
         if (request.ClockStatus)
         {
@@ -262,60 +252,6 @@ internal sealed partial class FacadeNativeClient
                 // The owned clock status is unavailable: the step goes on without it.
             }
         }
-        if (request.Emergency)
-        {
-            var observed = await ReadEmergencyStatusAsync(identity, cancellationToken).ConfigureAwait(false);
-            // The census references resolve against the pawn table.
-            var table = await FramePawnSnapshotAsync(identity, cancellationToken).ConfigureAwait(false);
-            var pawns = PawnTable(table, identity);
-            EmergencyDecode.DecodeEmergencyStatus(observed, pawns, identity);
-            step = step with { Emergency = observed, Pawns = table };
-            // A drop-pod raid's raiders are in no census row until the pods open; the stream's arrival rows carry it.
-            if (UseFrames)
-            {
-                var combat = await FrameSectionAsync(CombatFrameMethod, identity, anyFrame: false, view => view.Snapshot, cancellationToken).ConfigureAwait(false);
-                step = step with { CombatEvents = PodArrivals(combat.CombatEvents) };
-            }
-        }
         return step;
-    }
-
-    /// <summary>The emergency census read of a step: the frame's emergency section, else the live status read.</summary>
-    private async Task<PbObservations.StatusSnapshot> ReadEmergencyStatusAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
-    {
-        var request = EmergencyRequest(identity);
-        if (UseFrames)
-        {
-            var served = await FrameReadAsync(
-                ReadStatusMethod,
-                identity,
-                fallback: true,
-                anyFrame: false,
-                view =>
-                {
-                    var emergency = view.Snapshot.Emergency;
-                    return new FrameLookup<PbObservations.StatusSnapshot>(emergency is not null, emergency, emergency is not null);
-                },
-                cancellationToken).ConfigureAwait(false);
-            if (served.Served)
-            {
-                return served.Value!;
-            }
-        }
-        var reply = await Facade.ReadStatusAsync(request, cancellationToken).ConfigureAwait(false);
-        var outcome = reply.Outcome;
-        if (outcome?.Observed is { } observed)
-        {
-            return observed;
-        }
-        if (outcome?.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        if (outcome?.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        throw BridgeFunctions.Contract("emergency status outcome missing");
     }
 }

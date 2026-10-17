@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
@@ -19,19 +18,13 @@ namespace HomeBridge.BridgeTools
     // otherwise.
     internal static class NativeHusbandryOperations
     {
-        private static string Hash(string text)
-        {
-            using (var hash = SHA256.Create())
-                return BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLowerInvariant();
-        }
-
         internal static bool Designated(Pawn animal, DesignationDef def) => animal.Map.designationManager.DesignationOn(animal, def) != null;
 
         // Settings token: exact designation/training state; the before and
         // after evidence of an applied husbandry order.
         internal static string Settings(Pawn animal)
         {
-            var values = new List<string> { animal.GetUniqueLoadID(),
+            var values = new List<string> {
                 Designated(animal, DesignationDefOf.Slaughter).ToString(),
                 Designated(animal, DesignationDefOf.ReleaseAnimalToWild).ToString(),
                 Designated(animal, DesignationDefOf.Tame).ToString(),
@@ -42,7 +35,7 @@ namespace HomeBridge.BridgeTools
             if (animal.training != null)
                 values.AddRange(DefDatabase<TrainableDef>.AllDefsListForReading.OrderBy(t => t.defName, StringComparer.Ordinal)
                     .Select(t => t.defName + "=" + animal.training.GetWanted(t)));
-            return "husbandry-" + Hash(string.Join("|", values));
+            return NativeSnapshotVersions.Token("husbandry", null, animal.GetUniqueLoadID(), string.Join("|", values));
         }
 
         // The Sterilized hediff, and the queued sterilize surgery bill (the

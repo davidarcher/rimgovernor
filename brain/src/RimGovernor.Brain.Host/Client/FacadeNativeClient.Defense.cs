@@ -18,7 +18,7 @@ internal sealed partial class FacadeNativeClient
     private const int DefenseMaxExtent = 4096;
 
     /// <summary>Go <c>Client.ReadDefenseSite</c>: reads one inclusive rectangle; the read never samples or truncates.</summary>
-    internal async Task<(DefenseSite Value, BridgeResult Receipt)> ReadDefenseSiteAsync(PbCommon.Identity identity, CellRect region, CancellationToken cancellationToken)
+    internal async Task<DefenseSite> ReadDefenseSiteAsync(PbCommon.Identity identity, CellRect region, CancellationToken cancellationToken)
     {
         if (!BridgeFunctions.IsValidDefenseRegion(region))
         {
@@ -38,7 +38,7 @@ internal sealed partial class FacadeNativeClient
             case PbObservations.DefenseSiteReplyOutcome.UnavailableCase unavailable:
                 throw Unavailable(unavailable.Value);
             case PbObservations.DefenseSiteReplyOutcome.ObservedCase observed:
-                return (DefenseValidateSite(observed.Value, identity, region), NoReceipt);
+                return DefenseValidateSite(observed.Value, identity, region);
             default:
                 throw BridgeFunctions.Contract("defense site outcome missing");
         }
@@ -48,7 +48,7 @@ internal sealed partial class FacadeNativeClient
     /// Go <c>Client.ReadLinesOfFire</c>: reads every (firing, approach) pair of unique cells, firing-major, under the
     /// lines-of-fire budget; <see cref="LinesOfFire.Skipped"/> reports a read cut short.
     /// </summary>
-    internal async Task<(LinesOfFire Value, BridgeResult Receipt)> ReadLinesOfFireAsync(PbCommon.Identity identity, IReadOnlyList<DomainCell> firing, IReadOnlyList<DomainCell> approach, CancellationToken cancellationToken)
+    internal async Task<LinesOfFire> ReadLinesOfFireAsync(PbCommon.Identity identity, IReadOnlyList<DomainCell> firing, IReadOnlyList<DomainCell> approach, CancellationToken cancellationToken)
     {
         DefenseValidateLineCells(firing);
         DefenseValidateLineCells(approach);
@@ -69,7 +69,7 @@ internal sealed partial class FacadeNativeClient
                 throw Unavailable(unavailable.Value);
             case PbObservations.LinesOfFireReplyOutcome.ObservedCase observed:
                 var lines = DefenseValidateLinesOfFire(observed.Value, identity, firing, approach);
-                return (new LinesOfFire(observed.Value.Context, lines, observed.Value.Skipped.GetValueOrDefault()), NoReceipt);
+                return new LinesOfFire(observed.Value.Context, lines, observed.Value.Skipped.GetValueOrDefault());
             default:
                 throw BridgeFunctions.Contract("lines of fire outcome missing");
         }
@@ -80,7 +80,7 @@ internal sealed partial class FacadeNativeClient
     /// impassable and targets checked; empty <paramref name="pawnIds"/> audits every mobile free colonist. Unknown never
     /// becomes access: an incomplete or partial reply is a contract error.
     /// </summary>
-    internal async Task<(SpatialAccess Value, BridgeResult Receipt)> ReadSpatialAccessAsync(
+    internal async Task<SpatialAccess> ReadSpatialAccessAsync(
         PbCommon.Identity identity,
         IReadOnlyList<DomainCell> blocked,
         IReadOnlyList<DomainCell> targets,
@@ -124,26 +124,13 @@ internal sealed partial class FacadeNativeClient
             case PbObservations.SpatialAccessReplyOutcome.UnavailableCase unavailable:
                 throw Unavailable(unavailable.Value);
             case PbObservations.SpatialAccessReplyOutcome.ObservedCase observed:
-                return (DefenseValidateSpatialAccess(observed.Value, identity, blocked, targets, pawnIds), NoReceipt);
+                return DefenseValidateSpatialAccess(observed.Value, identity, blocked, targets, pawnIds);
             default:
                 throw BridgeFunctions.Contract("spatial access outcome missing");
         }
     }
 
     private static PbCommon.Cell DefenseWireCell(DomainCell cell) => new() { X = cell.X, Z = cell.Z };
-
-    /// <summary>Go <c>ValidateContext(ctx) == nil &amp;&amp; sameIdentity(ctx.Identity, identity)</c>.</summary>
-    private static bool DefenseContextMatches(PbCommon.ObservationContext? context, PbCommon.Identity identity)
-    {
-        try
-        {
-        }
-        catch (BridgeContractException)
-        {
-            return false;
-        }
-        return BridgeFunctions.SameIdentity(context!.Identity, identity);
-    }
 
     /// <summary>Go <c>validateLineCells</c>.</summary>
     private static void DefenseValidateLineCells(IReadOnlyList<DomainCell> cells)
@@ -165,7 +152,7 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>validateDefenseSite</c>.</summary>
     private static DefenseSite DefenseValidateSite(PbObservations.DefenseSiteSnapshot? v, PbCommon.Identity identity, CellRect region)
     {
-        if (v is null || !DefenseContextMatches(v.Context, identity))
+        if (v is null || !BridgeFunctions.SameIdentity(v.Context?.Identity, identity))
         {
             throw BridgeFunctions.Contract("invalid defense site context");
         }
@@ -289,7 +276,7 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>validateLinesOfFire</c>.</summary>
     internal static List<LineOfFire> DefenseValidateLinesOfFire(PbObservations.LinesOfFireSnapshot? v, PbCommon.Identity identity, IReadOnlyList<DomainCell> firing, IReadOnlyList<DomainCell> approach)
     {
-        if (v is null || !DefenseContextMatches(v.Context, identity))
+        if (v is null || !BridgeFunctions.SameIdentity(v.Context?.Identity, identity))
         {
             throw BridgeFunctions.Contract("invalid lines of fire context");
         }
@@ -365,7 +352,7 @@ internal sealed partial class FacadeNativeClient
         IReadOnlyList<string> pawnIds
     )
     {
-        if (v is null || !DefenseContextMatches(v.Context, identity))
+        if (v is null || !BridgeFunctions.SameIdentity(v.Context?.Identity, identity))
         {
             throw BridgeFunctions.Contract("invalid spatial access context");
         }

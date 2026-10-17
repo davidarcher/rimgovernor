@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools;
 
 public sealed class NativeRecipeActivity
 {
-    [Tool("rimgovernor/recipe_activity", Description = "Read bounded exact tailoring recipe, stuff, input, route and unfinished-work alternatives without selecting or issuing work.")]
+    [Tool("rimgovernor/recipe_activity", Description = "Read every exact tailoring recipe, stuff, input, route and unfinished-work alternatives without selecting or issuing work.")]
     public async Task<object> Observe(IRimBridgeContext ctx, CancellationToken ct,
         [ToolParameter(Description = "RecipeActivityRequest JSON.")] object? request = null)
     {
@@ -25,12 +25,16 @@ public sealed class NativeRecipeActivity
         return ProtoBoundary.Encode(result);
     }
 
-    internal static Obs.RecipeActivityRead Read(Obs.RecipeActivityRequest request)
+    /// <summary>
+    /// Every free colonist's tailoring alternatives at every bench, stuff, stack and accepting storage cell (#3341). A
+    /// stack's carry and return legs and a bench's output legs are searched once for every colonist (NativePathLegs).
+    /// </summary>
+    internal static Obs.RecipeActivityRead Read(Obs.RecipeActivityRequest request, NativePathLegs? legs = null)
     {
         if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out var context, out _)) return new();
+        legs ??= new(map);
         var options = new List<Obs.RecipeActivityOption>(); var findings = new HashSet<string>();
         var retained = new List<Obs.RecipeRetainedOutput>();
-        var budget = 512; var truncated = false;
         var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         foreach (var bench in map.listerThings.AllThings.OfType<Building_WorkTable>().OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal))
         foreach (var recipe in bench.def.AllRecipes.Where(r => r.products.Any(p => p.thingDef.IsApparel)).OrderBy(r => r.defName, StringComparer.Ordinal))
@@ -55,7 +59,6 @@ public sealed class NativeRecipeActivity
                 && product.stuffCategories.Any(c => s.stuffProps.categories.Contains(c)) && recipe.ingredients.All(i => i.filter.Allows(s))).OrderBy(s => s.defName, StringComparer.Ordinal))
             foreach (var pawn in pawns)
             {
-                if (--budget < 0) { truncated = true; return Result(); }
                 if (pawn.Downed || pawn.Drafted || pawn.InMentalState || pawn.carryTracker.CarriedThing != null
                     || !NativeProductionBills.Usable(bench) || bench.IsForbidden(pawn)
                     || recipe.FirstSkillRequirementPawnDoesntSatisfy(pawn) != null
@@ -81,18 +84,16 @@ public sealed class NativeRecipeActivity
                     .Where(t => t.Spawned && !t.IsForbidden(pawn) && !t.IsBurning()).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
                 foreach (var stack in stocks)
                 {
-                    if (--budget < 0) { truncated = true; return Result(); }
                     if (!pawn.CanReserveAndReach(stack, PathEndMode.ClosestTouch, Danger.None)
                         || selectedBill != null && uft == null && stack.Position.DistanceTo(bench.Position) > selectedBill.ingredientSearchRadius) continue;
                     var capacity = pawn.carryTracker.MaxStackSpaceEver(stack.def);
                     if (capacity <= 0) continue;
-                    using var approach = map.pathFinder.FindPathNow(pawn.Position, stack.Position, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.ClosestTouch);
-                    using var carry = map.pathFinder.FindPathNow(stack.Position, bench.InteractionCell, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.OnCell);
-                    using var back = map.pathFinder.FindPathNow(bench.InteractionCell, stack.Position, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.ClosestTouch);
-                    if (!approach.Found || !carry.Found || !back.Found) continue;
+                    if (legs.Cost(pawn, pawn.Position, stack.Position, PathEndMode.ClosestTouch) is not { } approach
+                        || legs.Cost(pawn, stack.Position, bench.InteractionCell, PathEndMode.OnCell) is not { } carry
+                        || legs.Cost(pawn, bench.InteractionCell, stack.Position, PathEndMode.ClosestTouch) is not { } back) continue;
                     if (uft == null) inputs.Add(new(stack.GetUniqueLoadID(), stuff.defName, stack.stackCount, new(stack.Position.x, stack.Position.z), stack.stackCount)
-                    { Capacity = capacity, ApproachTicks = Fact.Known((double)approach.TotalCost), CarryTicks = Fact.Known((double)carry.TotalCost), ReturnTicks = Fact.Known((double)back.TotalCost) });
-                    else travel = approach.TotalCost + carry.TotalCost;
+                    { Capacity = capacity, ApproachTicks = Fact.Known((double)approach), CarryTicks = Fact.Known((double)carry), ReturnTicks = Fact.Known((double)back) });
+                    else travel = approach + carry;
                 }
                 if (uft == null && inputs.Sum(i => (long)i.Count) < required) continue;
                 var destinations = map.haulDestinationManager.AllGroupsListInPriorityOrder.Where(g => g.Settings.filter.Allows(product))
@@ -103,20 +104,17 @@ public sealed class NativeRecipeActivity
                 if (work < 0) { findings.Add("unknown_recipe_work:" + recipe.defName); continue; }
                 foreach (var destination in destinations)
                 {
-                    if (--budget < 0) { truncated = true; return Result(); }
                     if (!JobDriver_GovernorDeliver.DestinationAvailable(pawn, destination)) continue;
-                    using var output = map.pathFinder.FindPathNow(bench.InteractionCell, destination, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.OnCell);
-                    if (!output.Found) continue;
+                    if (legs.Cost(pawn, bench.InteractionCell, destination, PathEndMode.OnCell) is not { } output) continue;
                     options.Add(new(options.Count.ToString(System.Globalization.CultureInfo.InvariantCulture), pawn.GetUniqueLoadID(), bench.GetUniqueLoadID(), giver.defName,
                         recipe.defName, product.defName, stuff.defName, selectedBill?.GetUniqueLoadID() ?? "", uft?.GetUniqueLoadID() ?? "",
                         new(bench.InteractionCell.x, bench.InteractionCell.z), EquatableArray.From(inputs), Fact.Known(travel), Fact.Known((double)work / speed),
-                        Fact.Known((double)output.TotalCost), new(destination.x, destination.z)) { RequiredCount = (int)required, Learning = RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveRecipeLearning(recipe) });
+                        Fact.Known((double)output), new(destination.x, destination.z)) { RequiredCount = (int)required, Learning = RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveRecipeLearning(recipe) });
                 }
                 }
             }
         }
-        Obs.RecipeActivityRead Result() => new() { Context = context, Known = true, Truncated = truncated, Options = EquatableArray.From(options), Retained = EquatableArray.From(retained.Distinct()), Findings = EquatableArray.From(findings.Order(StringComparer.Ordinal)) };
-        return new() { Context = context, Known = true, Truncated = truncated,
+        return new() { Context = context, Known = true,
             Options = EquatableArray.From(options), Retained = EquatableArray.From(retained.Distinct()), Findings = EquatableArray.From(findings.Order(StringComparer.Ordinal)) };
     }
 }

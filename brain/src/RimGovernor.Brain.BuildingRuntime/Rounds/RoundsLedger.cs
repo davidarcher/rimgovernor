@@ -197,7 +197,7 @@ public sealed partial class Rounder
         IReadOnlyList<GearBenchRead> reads;
         try
         {
-            (reads, _) = await BenchSource(native, expected, false).ReadGearBenchesAsync(Boundary.Identity(snapshot), call).ConfigureAwait(false);
+            reads = await BenchSource(native, expected, false).ReadGearBenchesAsync(Boundary.Identity(snapshot), call).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface ITradeMissionPackSource
 {
-    Task<(ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result)> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
+    Task<ObservationsPb.TradeAcquisition> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
 }
 
 internal static partial class BuildingRuntimePackage
@@ -82,7 +82,7 @@ async
             {
                 pack = pack with { Cargo = [.. pack.Cargo, new OperationsPb.DefCount { DefName = item.Definition, Count = (int)item.Count }] };
             }
-            var (read, _) = await source.ReadTradeAcquisitionAsync(Boundary.Identity(world), pack, ct).ConfigureAwait(false);
+            var read = await source.ReadTradeAcquisitionAsync(Boundary.Identity(world), pack, ct).ConfigureAwait(false);
             return read?.Pack ?? throw new DomainException("pack_unknown");
         }
 

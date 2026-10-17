@@ -375,7 +375,7 @@ public static partial class PolicyFunctions
     /// Reconsider at most every 600 ticks and before the first supported need threshold.</summary>
     private static EquatableArray<ForecastDeferredPawn> DeferUnselectedPawns(ForecastCoupledContext context, ForecastActivityPlan plan, long tick)
     {
-        if (context.Resources.Claims.Truncated || context.Needs.Truncated
+        if (context.Resources.Claims.Truncated
             || !context.Activities.Deadline.TryGetValue(out var horizon) || !double.IsFinite(horizon) || horizon <= 0) return [];
         var limit = Math.Min(600d, horizon);
         var selected = plan.Allocations.Select(a => a.Pawn).ToHashSet(StringComparer.Ordinal);

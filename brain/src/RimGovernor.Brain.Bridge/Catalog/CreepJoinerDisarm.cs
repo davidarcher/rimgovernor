@@ -64,7 +64,7 @@ public sealed partial class DefinitionCatalog
             var allowed = slot.filter.AllowedThingDefs.Take(2).ToList();
             if (allowed.Count == 1)
             {
-                total += (double)StatValue(allowed[0].defName, string.Empty, StatNames.MarketValue) * slot.GetBaseCount();
+                total += (double)StatValue(allowed[0].defName, string.Empty, CatalogStats.MarketValue) * slot.GetBaseCount();
             }
         }
 

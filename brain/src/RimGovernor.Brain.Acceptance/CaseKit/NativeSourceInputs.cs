@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Acceptance;
 public static partial class NativeSourceInputs
 {
     /// <summary>
-    /// One rule of the source copy build_native_mod.ps1 makes under build/source: which repository path it takes,
+    /// One rule of the source copy <see cref="NativeModBuild"/> makes under build/source: which repository path it takes,
     /// where it lands relative to the copy and which files it keeps (a relative path under the repo with forward
     /// slashes; null keeps everything).
     /// </summary>
@@ -35,7 +35,7 @@ public static partial class NativeSourceInputs
         return (ext is ".cs" or ".csproj") && !BuildOutputDir().IsMatch(relative);
     }
 
-    /// <summary>Mirrors build_native_mod.ps1's copy loops; keep the two in step when the build takes a new input.</summary>
+    /// <summary>What the native build compiles: every file under these, copied to the same relative path.</summary>
     private static readonly Input[] Inputs =
     [
         new("integrations/rimgovernor-native/src", "integrations/rimgovernor-native/src", NotNativeBuildOutput),
@@ -65,16 +65,15 @@ public static partial class NativeSourceInputs
         new("brain/src/RimGovernor.Brain.BuildingRuntime", "brain/src/RimGovernor.Brain.BuildingRuntime", NotBuildOutput),
         new("brain/src/RimGovernor.Brain.PlayerApi", "brain/src/RimGovernor.Brain.PlayerApi", NotBuildOutput),
         new("brain/src/RimGovernor.Brain.Simulation", "brain/src/RimGovernor.Brain.Simulation", NotBuildOutput),
-        new("scripts/build_native_mod.ps1", "scripts/build_native_mod.ps1"),
         new("scripts/fixtures", "scripts/fixtures", FixtureSource),
         new("THIRD_PARTY.md", "THIRD_PARTY.md"),
     ];
 
-    /// <summary>The paths build_native_mod.ps1 copies from, repo-relative with forward slashes (the same rules <see cref="SourceTreeHash(string)"/> walks).</summary>
+    /// <summary>The paths the native build copies from, repo-relative with forward slashes (the same rules <see cref="SourceTreeHash(string)"/> walks).</summary>
     public static IReadOnlyList<string> NativeSourceRoots() => [.. Inputs.Select(input => input.Repo)];
 
     /// <summary>
-    /// The hash build_native_mod.ps1 records as sourceTree: over the sorted list of the build's copied source files,
+    /// The hash the native build records as sourceTree: over the sorted list of the build's copied source files,
     /// one <c>"&lt;path&gt;\t&lt;sha256&gt;\n"</c> line each with the path relative to the copy root (forward
     /// slashes), it is the hex SHA-256 of those lines. Computed over the worktree at <paramref name="repo"/>, it
     /// equals the manifest's when the installed build was made from these exact sources.
@@ -143,6 +142,34 @@ public static partial class NativeSourceInputs
         {
             Cached.Clear();
         }
+    }
+
+    /// <summary>
+    /// Copies the build's inputs from <paramref name="repo"/> to the same relative paths under <paramref name="to"/>
+    /// (keeping timestamps) and returns each copy's sha256, keyed by that path: <see cref="HashLines"/> of it is the
+    /// copy's sourceTree.
+    /// </summary>
+    internal static SortedDictionary<string, string> CopySources(string repo, string to)
+    {
+        var files = InputFiles(repo).ToList();
+        var hashes = new string[files.Count];
+        _ = Parallel.For(0, files.Count, i =>
+        {
+            var (copy, file) = files[i];
+            var target = Path.Combine(to, copy.Replace('/', Path.DirectorySeparatorChar));
+            _ = Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            var bytes = File.ReadAllBytes(file.FullName);
+            File.WriteAllBytes(target, bytes);
+            File.SetLastWriteTimeUtc(target, file.LastWriteTimeUtc);
+            hashes[i] = Convert.ToHexStringLower(SHA256.HashData(bytes));
+        });
+        var copied = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        for (var i = 0; i < files.Count; i++)
+        {
+            copied[files[i].Key] = hashes[i];
+        }
+
+        return copied;
     }
 
     /// <summary>The build's copied source files under <paramref name="repo"/>, keyed by their path relative to the copy root.</summary>
@@ -224,7 +251,7 @@ public static partial class NativeSourceInputs
     }
 
     /// <summary>Hashes a path to sha256 map the way <see cref="SourceTreeHash(string)"/> describes.</summary>
-    private static string HashLines(Dictionary<string, string> lines)
+    internal static string HashLines(IReadOnlyDictionary<string, string> lines)
     {
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         foreach (var path in lines.Keys.Order(StringComparer.Ordinal))

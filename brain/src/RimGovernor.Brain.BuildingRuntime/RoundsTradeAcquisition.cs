@@ -13,7 +13,7 @@ internal sealed class TradeAcquisitionMemory
 /// <summary>The native read the acquisition options need beyond the definition catalog.</summary>
 public interface ITradeAcquisitionSource : Observation.IDefinitionSource
 {
-    Task<(ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result)> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
+    Task<ObservationsPb.TradeAcquisition> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
 }
 
 public sealed partial class Rounder
@@ -119,7 +119,7 @@ public sealed partial class Rounder
             ObservationsPb.TradeAcquisition? facts = null;
             try
             {
-                (facts, _) = await source.ReadTradeAcquisitionAsync(identity, null, ct).ConfigureAwait(false);
+                facts = await source.ReadTradeAcquisitionAsync(identity, null, ct).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {

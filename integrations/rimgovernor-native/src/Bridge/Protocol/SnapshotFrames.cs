@@ -44,16 +44,11 @@ namespace HomeBridge.BridgeTools
         private static long Now() { return System.Diagnostics.Stopwatch.GetTimestamp(); }
 
         // On the main thread: one snapshot stream frame, every state
-        // family plus the subscription's, or null when the map has no
+        // family plus the subscription's and the whole-map cell grid
+        // (absent when its read failed), or null when the map has no
         // readable context.
-        internal static Obs.BundleSnapshot? Capture(Map map, Obs.SnapshotStreamRequest request) => Capture(map, request, out _);
-
-        // Capture, with the whole-map cell grid read that
-        // CellGridEncoder.Attach encodes off the game thread; null when it
-        // failed to read.
-        internal static Obs.BundleSnapshot? Capture(Map map, Obs.SnapshotStreamRequest request, out CellGridEncoder.GridRead? grid)
+        internal static Obs.BundleSnapshot? Capture(Map map, Obs.SnapshotStreamRequest request)
         {
-            grid = null;
             if (!ProtoBoundary.TryReadContext(map, out var context, out _)) return null;
             var observed = new Obs.BundleSnapshot { Context = context, Paused = Find.TickManager.Paused };
             Obs.BundleSnapshot? sections = null;
@@ -64,8 +59,8 @@ namespace HomeBridge.BridgeTools
             try { observed = observed with { Things = NativeObservationTools.Things(referenced, context) }; } catch (System.Exception ex) { ObservationWork.Failed("things", ex); }
             ObservationWork.Captured("things", Now() - thingsBegan, observed.Things != null ? observed.Things.Things.Count : 0);
             var gridBegan = Now();
-            try { grid = CellGridEncoder.Read(map); } catch (System.Exception ex) { ObservationWork.Failed("grid", ex); }
-            ObservationWork.Captured("grid", Now() - gridBegan, grid != null ? grid.Count : 0);
+            try { observed = observed with { Grid = CellGridReader.Read(map) }; } catch (System.Exception ex) { ObservationWork.Failed("grid", ex); }
+            ObservationWork.Captured("grid", Now() - gridBegan, observed.Grid != null ? observed.Grid.Held.Length : 0);
             return observed;
         }
 
@@ -125,30 +120,34 @@ namespace HomeBridge.BridgeTools
             if (!threats.Pawns.Any(Engaged) && threats.HostileBuildings.Count == 0
                 && !colonists.Any(p => p.MentalState is not null)) return;
             // The hottest live hive's temperature, for the heat-stroke hold.
+            var hottest = observed.CombatHiveTemperatureC;
             foreach (var hive in map.listerThings.ThingsOfDef(RimWorld.ThingDefOf.Hive))
             {
                 if (!hive.Spawned || hive.Destroyed) continue;
                 var t = hive.Position.GetTemperature(map);
-                if (observed.CombatHiveTemperatureC is null || t > observed.CombatHiveTemperatureC.GetValueOrDefault()) observed = observed with { CombatHiveTemperatureC = t };
+                if (hottest is null || t > hottest.GetValueOrDefault()) hottest = t;
             }
             // The damaged player doors, for a fight's door repair.
+            var doors = new List<RimGovernor.Contracts.Wire.Mirror.CombatDoorRow>(observed.CombatDoors);
             foreach (var door in map.listerBuildings.AllBuildingsColonistOfClass<RimWorld.Building_Door>())
             {
                 if (!door.Spawned || !door.def.useHitPoints || door.HitPoints >= door.MaxHitPoints) continue;
-                observed = observed with { CombatDoors = [.. observed.CombatDoors, new RimGovernor.Contracts.Wire.Mirror.CombatDoorRow { Id = door.GetUniqueLoadID(),
-                    Cell = new Common.Cell { X = door.Position.x, Z = door.Position.z }, HitPoints = door.HitPoints, MaxHitPoints = door.MaxHitPoints }] };
+                doors.Add(new RimGovernor.Contracts.Wire.Mirror.CombatDoorRow { Id = door.GetUniqueLoadID(),
+                    Cell = new Common.Cell { X = door.Position.x, Z = door.Position.z }, HitPoints = door.HitPoints, MaxHitPoints = door.MaxHitPoints });
             }
             // The unroofed player mortars, for counter-battery.
+            var mortars = new List<RimGovernor.Contracts.Wire.Mirror.CombatMortarRow>(observed.CombatMortars);
             foreach (var mortar in map.listerBuildings.AllBuildingsColonistOfClass<RimWorld.Building_TurretGun>())
             {
                 if (!mortar.Spawned || mortar.def.building?.IsMortar != true || mortar.AttackVerb == null || map.roofGrid.Roofed(mortar.Position)) continue;
                 // The loaded shell, for the shell the fight asks for.
                 var loaded = mortar.gun?.TryGetComp<RimWorld.CompChangeableProjectile>()?.LoadedShell;
-                observed = observed with { CombatMortars = [.. observed.CombatMortars, new RimGovernor.Contracts.Wire.Mirror.CombatMortarRow { Id = mortar.GetUniqueLoadID(),
+                mortars.Add(new RimGovernor.Contracts.Wire.Mirror.CombatMortarRow { Id = mortar.GetUniqueLoadID(),
                     Cell = new Common.Cell { X = mortar.Position.x, Z = mortar.Position.z },
                     MinRange = mortar.AttackVerb.verbProps.minRange, MaxRange = mortar.AttackVerb.verbProps.range,
-                    LoadedShell = loaded?.defName }] };
+                    LoadedShell = loaded?.defName });
             }
+            observed = observed with { CombatHiveTemperatureC = hottest, CombatDoors = [.. doors], CombatMortars = [.. mortars] };
             var firing = new List<IntVec3>();
             foreach (var row in colonists)
             {
@@ -273,14 +272,16 @@ namespace HomeBridge.BridgeTools
         private static void ReadSubscribed(Map map, Obs.SnapshotStreamRequest request, Common.ObservationContext context, ref Obs.BundleSnapshot observed)
         {
             Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity };
+            var read = new List<Obs.ResourceSourcesSnapshot>(observed.ResourceSources);
             foreach (var resource in request.ResourceSources)
             {
                 if (!ProtoBoundary.IsIdentifier(resource)) continue;
                 var began = Now();
                 var sources = NativeResourceSourcesTool.Read(map, new Obs.ResourceSourcesRequest { Scope = Scope(), Resource = resource }, context).Outcome?.Observed;
                 ObservationWork.Captured("resourceSources", Now() - began, sources != null ? sources.Sources.Count : 0);
-                if (sources != null) { observed = observed with { ResourceSources = [.. observed.ResourceSources, sources] }; }
+                if (sources != null) read.Add(sources);
             }
+            observed = observed with { ResourceSources = [.. read] };
         }
     }
 }

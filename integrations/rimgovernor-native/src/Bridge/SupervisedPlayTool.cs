@@ -23,20 +23,12 @@ namespace HomeBridge.BridgeTools
         // far short of anything a person would sit through.
         private const int ForcePauseGraceMs = 20000;
         private static readonly object Gate = new object();
-        private static ClockEventJournal? Journal;
-        private static ClockEventJournal EnsureJournal()
-        {
-            if (Journal != null) return Journal;
-            var journal = Journal = new ClockEventJournal();
-            _cursor = journal.Newest;
-            return journal;
-        }
+        private static readonly ClockEventJournal Journal = new ClockEventJournal();
         private static State? _state;
         // The one ceiling outlives a hold: a Run resumes under the heartbeat and
         // frame-budget state the previous run segment left, beaten at the Run.
         private static ClockCeiling? _ceiling;
         private static ClockCeiling SharedCeiling() => _ceiling ??= new ClockCeiling(NowMs());
-        private static long _cursor;
         private static int _patched;
         private static string? _patchError;
         // Injury holds are remembered across run segments on purpose. Resuming the
@@ -1125,13 +1117,7 @@ namespace HomeBridge.BridgeTools
         }
         private static void Add(string kind, string? detail, State s, Dictionary<string, object?>? payload)
         {
-            var journal = EnsureJournal();
-            var identity = (s.Session as Game)?.GetComponent<ColonyIdentity>();
-            var row = new Dictionary<string, object?> { { "cursor", _cursor + 1 },
-                { "kind", kind }, { "detail", detail }, { "event", payload },
-                { "colonyId", identity?.ColonyId }, { "loadToken", identity?.LoadToken }, { "mapId", s.Map.uniqueID },
-                { "tick", Find.TickManager != null ? Find.TickManager.TicksGame : s.LastTick }, { "atMs", NowMs() } };
-            try { AttachTypedEvent(row, kind, detail, s, payload); AppendRow(journal, row); }
+            try { Append(TypedEvent(kind, detail, s, payload)); }
             catch
             {
                 var sameContext = ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map);
@@ -1151,24 +1137,6 @@ namespace HomeBridge.BridgeTools
                 throw;
             }
         }
-        // The only journal writer. Appending can re-enter through the authority
-        // seam (a context read may revoke, which publishes), so a publication
-        // that arrives mid-append is queued and written right after this row
-        // instead of racing it for the same cursor.
-        private static bool _appending;
-        private static readonly List<Action> DeferredPublications = new List<Action>();
-        private static void AppendRow(ClockEventJournal journal, Dictionary<string, object?> row)
-        {
-            if (_appending) throw new InvalidOperationException("Reentrant clock journal append");
-            _appending = true;
-            try { journal.Append(row); _cursor = journal.Newest; }
-            finally { _appending = false; }
-            while (DeferredPublications.Count != 0)
-            {
-                var next = DeferredPublications[0]; DeferredPublications.RemoveAt(0);
-                next();
-            }
-        }
         // Epoch-less producers (authority changes observed while no epoch is
         // running). The row carries no owner; the current map supplies its
         // context. Nothing is armed, so a failed publication only logs.
@@ -1176,18 +1144,12 @@ namespace HomeBridge.BridgeTools
         {
             lock (Gate)
             {
-                if (_appending) { DeferredPublications.Add(() => Publish(kind, detail, payload)); return false; }
                 try
                 {
-                    var journal = EnsureJournal();
                     if (Current.Game == null || Find.CurrentMap == null) return false;
-                    var identity = Current.Game.GetComponent<ColonyIdentity>();
-                    var row = new Dictionary<string, object?> { { "cursor", _cursor + 1 },
-                        { "kind", kind }, { "detail", detail }, { "event", payload },
-                        { "colonyId", identity?.ColonyId }, { "loadToken", identity?.LoadToken }, { "mapId", Find.CurrentMap.uniqueID },
-                        { "tick", Find.TickManager != null ? Find.TickManager.TicksGame : 0 }, { "atMs", NowMs() } };
-                    if (!AttachOwnerlessEvent(row, kind, detail, payload)) return false;
-                    AppendRow(journal, row);
+                    var value = OwnerlessEvent(kind, detail, payload);
+                    if (value == null) return false;
+                    Append(value);
                     return true;
                 }
                 catch (Exception error) { ModLog.Warn("clock", "clock publication of " + kind + " failed: " + error.GetType().Name); return false; }

@@ -70,8 +70,8 @@ that is unmeasured; a measured save duration and tolerable intent loss should re
 The catalog reads need `CatalogFactory` and the `governor_ideoligion` resolver `StartingIdeoligion`; the mod's
 `BrainBootstrap` installs both (see below). Both live in the mod
 (`NativeCatalogFactory`), because only the mod may read the Def databases (rule 7): the catalog is built over the game's
-Def objects, the wire catalog's derived and race facts and `INativeFacade.Stats`, and the catalog reply carries no def
-rows or game constants. Both run off the game thread, as the stat source blocks until the game thread drains it. Every
+Def objects, the wire catalog's derived and race facts and the load's def stat table (`NativeStatTable`, built on the game
+thread by the catalog read), and the catalog reply carries no def rows or game constants. Both run off the game thread. Every
 `InProcessNativeFacade` operation label must name a registered tool; `NativeFacadeLabelTests` (brain tests) checks it
 from the sources.
 

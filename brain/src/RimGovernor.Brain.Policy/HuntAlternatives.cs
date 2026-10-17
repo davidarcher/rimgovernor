@@ -39,7 +39,6 @@ public static class HuntAlternatives
     {
         var findings = new SortedSet<string>(read.Findings, StringComparer.Ordinal);
         if (!read.Known) { findings.Add("hunt_observation_unknown"); return ([], EquatableArray.From(findings)); }
-        if (read.Truncated) findings.Add("hunt_observation_truncated");
         var pool = read.Hunters.Where(h => h.Available && !busy.Contains(h.Pawn) && h.Weapon is not null && h.WeaponRange.IsKnown && h.WeaponRange.Value > 0)
             .OrderByDescending(h => h.Skills.FirstOrDefault(s => s.Skill == "Shooting")?.Level ?? 0).ThenBy(h => h.Pawn, StringComparer.Ordinal)
             .Take(MaxGunnerPool).ToArray();
@@ -76,7 +75,7 @@ public static class HuntAlternatives
     /// </summary>
     public static (HuntEstimate? Estimate, string Refusal) EstimateOf(HuntActivityRead read, HuntRoster roster, EncounterRequest request, EncounterPrediction prediction)
     {
-        if (prediction.Status != EncounterStatus.Evidence) return (null, "prediction_" + prediction.Status.ToString().ToLowerInvariant());
+        if (prediction.Status != EncounterStatus.Evidence) return (null, "prediction_" + prediction.Status.ToString().ToLowerInvariant() + (prediction.Reason.Length == 0 ? "" : ":" + prediction.Reason));
         if (prediction.Samples.Count == 0) return (null, "prediction_without_samples");
         // The request's actor ids are the observed pawn ids, so the estimate is for exactly this roster.
         var gunnerIds = request.Actors.Where(a => !a.Wild).Select(a => a.Id).ToArray();

@@ -8,8 +8,8 @@ namespace RimGovernor.Brain.Bridge;
 // or sowable definition and every research project. They hold for the whole game process. The catalog is built
 // over the game's own Def objects (a bare host constructs them, see the conventions doc), so it needs no wire
 // rows, class-chain tables or fingerprints: a class test is typeof(X).IsAssignableFrom, a comp is
-// GetCompProperties<T>, the game's constants are the game's own members. Stat values that depend on world state
-// are read through IStatSource. One partial file per Go file.
+// GetCompProperties<T>, the game's constants are the game's own members. Stat, stuff and cost values come from the
+// load's precomputed DefStatTable. One partial file per Go file.
 
 /// <summary>A catalog invariant failed: a def the catalog needs is absent or states something it must not (Go's <c>contract()</c> error).</summary>
 public sealed class CatalogException(string message) : DomainException(message);
@@ -40,7 +40,7 @@ public sealed record CatalogDerived(string CurrencyDef, string WortDef, float Fu
 /// <summary>
 /// What the game's own race code says about one race that its def fields do not (Go <c>RaceFacts</c>): the
 /// foods <c>RaceProperties.CanEverEat</c> accepts, the taming facts and the adult feed figure. They come from the
-/// game thread (#3080) with the stat service.
+/// game thread (#3080) with the definition catalog read.
 /// </summary>
 public sealed record RaceGameFacts(IReadOnlyList<string> EdibleDefs, bool TamenessCanDecay, int TamenessDecayPeriodTicks, float TameChanceFactor, double? AdultFeedPerDay);
 
@@ -65,7 +65,7 @@ public sealed partial class DefinitionCatalog
     private readonly Lazy<IReadOnlyDictionary<string, P.ResearchProjectFacts>> _research;
 
     /// <summary>Builds the catalog over <paramref name="defs"/> (every Def of the game); duplicate def names of one class refuse.</summary>
-    public DefinitionCatalog(IEnumerable<Def> defs, IStatSource stats, CatalogDerived derived, IReadOnlyDictionary<string, RaceGameFacts>? raceFacts = null)
+    public DefinitionCatalog(IEnumerable<Def> defs, DefStatTable stats, CatalogDerived derived, IReadOnlyDictionary<string, RaceGameFacts>? raceFacts = null)
     {
         Stats = stats;
         Derived = derived;
@@ -105,8 +105,8 @@ public sealed partial class DefinitionCatalog
         _biotech = new(BuildBiotech);
     }
 
-    /// <summary>The stat source every stat read goes through.</summary>
-    public IStatSource Stats { get; }
+    /// <summary>The load's def stat table every stat, stuff and cost read goes through.</summary>
+    public DefStatTable Stats { get; }
 
     /// <summary>The three facts the game computes in code.</summary>
     public CatalogDerived Derived { get; }

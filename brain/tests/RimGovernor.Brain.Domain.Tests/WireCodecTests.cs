@@ -119,7 +119,7 @@ public sealed class WireCodecTests
         };
         var read = new RimGovernor.Contracts.Wire.Observations.CoupledForecastRead
         {
-            Hunt = new() { Known = true, Hunters = [hunter], Prey = [prey], Truncated = true, Findings = ["f"],
+            Hunt = new() { Known = true, Hunters = [hunter], Prey = [prey], Findings = ["f"],
                 Scene = new("w", "build", "mods", "Clear", "Soil", 0, 0, 40, 40, 21.5, 1.0) { Ground = [new(1, 2, 3, 2, "Sand", "")], Obstacles = [new("Wall", "", 5, 5)] } },
         };
         var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.CoupledForecastRead>(WireJson.Serialize(read)).Hunt;
@@ -129,7 +129,6 @@ public sealed class WireCodecTests
         Assert.False(decoded.Prey[0].Leather.IsKnown);
         Assert.False(decoded.Prey[0].WeaponRange.IsKnown);
         Assert.Equal("Sand", Assert.Single(decoded.Scene!.Ground).Terrain);
-        Assert.True(decoded.Truncated);
     }
     [Fact]
     public void PlannedSitesRoundTripWithUnknownRouteIllegalAndUnknownVerdicts()
@@ -137,15 +136,10 @@ public sealed class WireCodecTests
         var request = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest(new() { ColonyId = "c", LoadToken = "l", MapId = 1 }, default)
         {
             Planned = [new("walls", "Wall", "WoodLog", RimGovernor.Brain.Domain.Rotation.East, [new(1, 1), new(2, 1)])],
-            Pawns = ["Thing_Human17", "Thing_Human18"],
         };
         var decodedRequest = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest>(WireJson.Serialize(request));
         Assert.Equal(request.Planned, decodedRequest.Planned);
         Assert.Equal(RimGovernor.Brain.Domain.Rotation.East, decodedRequest.Planned[0].Rotation);
-        // The page of colonists the read covers (#3312); none named reads the map's own.
-        Assert.Equal(request.Pawns, decodedRequest.Pawns);
-        Assert.Empty(WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest>(
-            WireJson.Serialize(request with { Pawns = default })).Pawns);
 
         var read = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead
         {
@@ -156,7 +150,6 @@ public sealed class WireCodecTests
                 new("on-water", RimGovernor.Brain.Domain.Fact.Known(false)) { Rejections = [new(new(7, 5), "Terrain lacks affordance")],
                     Blockers = [new(new(7, 5), "Wall_1", "Wall", "Building")] },
                 new("unresolved", default),
-                new("cut", RimGovernor.Brain.Domain.Fact.Known(true)) { Truncated = true },
             ],
             Findings = ["planned_site_definition_unresolved"],
         };
@@ -174,8 +167,6 @@ public sealed class WireCodecTests
         Assert.Equal("Wall_1", Assert.Single(water.Blockers).Thing);
         Assert.False(decoded.Planned[2].CanPlace.IsKnown);
         Assert.Empty(decoded.Planned[2].Options);
-        Assert.False(decoded.Planned[0].Truncated);
-        Assert.True(decoded.Planned[3].Truncated);
         Assert.Equal(read.Planned, decoded.Planned);
     }
 
@@ -233,7 +224,6 @@ public sealed class WireCodecTests
                     RimGovernor.Brain.Domain.Fact.Known(21.0), default) { AdditionalWatts = RimGovernor.Brain.Domain.Fact.Known(175.0) }],
                 Workers = [new("pawn", RimGovernor.Brain.Domain.Fact.Known(38.2))],
                 Outdoors = RimGovernor.Brain.Domain.Fact.Known(-12.5),
-                Truncated = true,
             },
         };
         var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead>(WireJson.Serialize(read)).Thermal!;
@@ -246,7 +236,6 @@ public sealed class WireCodecTests
         Assert.Equal("", source.PowerNetwork);
         Assert.Equal(read.Thermal.Workers, decoded.Workers);
         Assert.Empty(decoded.RoofRoutes);
-        Assert.True(decoded.Truncated);
         Assert.Null(WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead>(WireJson.Serialize(read with { Thermal = null })).Thermal);
     }
 
@@ -339,6 +328,54 @@ public sealed class WireCodecTests
         targets[1]!["maxPawns"] = null;
         var explicitNull = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.NeedsForecastRead>(node.ToJsonString()).Pawns[0].Targets;
         Assert.False(explicitNull[1].MaxPawns.IsKnown);
+    }
+
+    [Fact]
+    public void NeedsRoofReadsRoundTripKnownAndUnknown()
+    {
+        var known = RimGovernor.Brain.Domain.Fact.Known(true);
+        var read = new RimGovernor.Contracts.Wire.Observations.NeedsForecastRead
+        {
+            Tick = 1, WeatherThought = "SoakingWet", WeatherThoughtStages = 1, RainRate = RimGovernor.Brain.Domain.Fact.Known(.5),
+            MapArea = RimGovernor.Brain.Domain.Fact.Known(62500), Deterioration = new(.5, .5, 0),
+            Pawns = [new()
+            {
+                Pawn = "p", OutdoorsLevel = RimGovernor.Brain.Domain.Fact.Known(.7), OutdoorsDisabled = true, OwnedBed = "bed", Ascetic = true,
+                ThoughtStages = [new("SleptInBedroom", "slept_in_bedroom", 2, 3, RimGovernor.Brain.Domain.Fact.Known(60000d), false),
+                    new("NeedOutdoors", "need_outdoors", 4, -3, default, false)],
+                Targets = [
+                    new("stack", "food", "Meal", 4, default, default, default, default)
+                        { Cell = new(known, default, known, known, known), Deterioration = new(50, RimGovernor.Brain.Domain.Fact.Known(10d), true, .5, false) },
+                    new("bed", "rest", "", 1, default, default, default, default) { Bed = new("Bedroom", RimGovernor.Brain.Domain.Fact.Known(2), false, true) },
+                    new("pin", "joy", "", 1, default, default, default, default),
+                ],
+            }],
+        };
+        Assert.Equal(read, WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.NeedsForecastRead>(WireJson.Serialize(read)));
+        var unread = new RimGovernor.Contracts.Wire.Observations.NeedsForecastRead { Tick = 1 };
+        var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.NeedsForecastRead>(WireJson.Serialize(unread));
+        Assert.Equal(unread, decoded);
+        Assert.False(decoded.RainRate.IsKnown);
+        Assert.Null(decoded.Deterioration);
+    }
+
+    [Fact]
+    public void PlannedRoomPredictionsRoundTripRequestAndRead()
+    {
+        var request = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest(new() { ColonyId = "c", LoadToken = "l", MapId = 1 }, default)
+        {
+            RoomPredictions = [new("1", "WoodLog", [new(1, 1), new(1, 2)], [new(new(0, 1), "Wall", "WoodLog"), new(new(2, 1), "Door", "WoodLog")])],
+        };
+        Assert.Equal(request.RoomPredictions, WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest>(WireJson.Serialize(request)).RoomPredictions);
+        var read = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead
+        {
+            RoomPredictions = [
+                new("1", "WoodLog", "Bedroom", RimGovernor.Brain.Domain.Fact.Known(31.5), RimGovernor.Brain.Domain.Fact.Known(2), 2, 0, false)
+                    { Beds = ["bed"], Benches = [new("stove", true)] },
+                new("1", "Steel", "None", default, default, 2, 2, true),
+            ],
+        };
+        Assert.Equal(read.RoomPredictions, WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead>(WireJson.Serialize(read)).RoomPredictions);
     }
 
     // The largest case count of any choice reachable from the type: how many documents cover every case.

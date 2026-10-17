@@ -250,6 +250,70 @@ not prove that a pawn wears it or gains physiological protection. The garment's
 comfort shift (#3330) applies to its wearer from the delivery's completion as a
 forecast assumption, which prices temperature mood only.
 
+### Roof and room consequences
+
+A planned room changes more than temperature once its ring and roof stand (#3339,
+`ForecastRoofConsequences.cs`). Rounds ask native, in the same construction activity
+read as the thermal read, for each unplaced planned room closed in each ring stuff
+(`PlannedRoomPredictionRequestOf`, the
+[room prediction read](../contracts/forecast-contracts.md#planned-room-prediction-read)).
+`PlannedClosuresOf` joins each answer to the room's ring (wall and door sites of that
+stuff) and roof sites. In a schedule a room closes when the last of its ring sites
+finishes, earliest stuff first, and is roofed when its roof site (or the planned
+shelter's roof cells) has finished. Between those times a cell's state is the
+mirrored `Room` formulas over the predicted cell and open-roof counts:
+PsychologicallyOutdoors (300 open roof cells, or half open at the map edge) and
+UsesOutdoorTemperature (a quarter open, or the map edge). Before closure the cell's
+observed state holds.
+
+- **Bed thoughts.** `ApplyBedThoughts` runs at each modeled rest's wake, as one
+  `ForecastMemoryRenewal`: it ends every slept\_\* memory and gains SleptOutside when
+  the bed's room is psychologically outdoors, and, for a non-Ascetic owner of a bed
+  not for prisoners, SleptInBedroom or SleptInBarracks at the impressiveness stage.
+  Role and stage come from the prediction when a room closed by the wake lists the bed,
+  else from the bed's observed room. A sleep shorter than 2500 ticks gains nothing;
+  one shorter than 10000 (the game's random onset window) is unassessed. SleptOnGround
+  and the temperature sleep thoughts are held at their observed contribution
+  (`sleep_ground_and_temperature_memories_constant`). An unknown role, stage or
+  outdoors leaves the pawn's mood unassessed; an unread room keeps the baseline with
+  `sleep_room_thoughts_unread`.
+- **Memory renewal.** The mood timeline ends an observed memory at the first renewal
+  that names its def and runs each gained memory from its renewal to the next renewal
+  of its def (or its duration). A renewal whose def is also a meal memory refuses with
+  `unsupported_memory_renewal_or_stacking`.
+- **Weather.** The weather thought (`Pawn_MindState`, every 120 ticks, asleep too)
+  applies at stage 0 unroofed or, for a two-stage thought, stage 1 under a roof. Each
+  joy or rest span takes the roof state at its start; the weather itself is held
+  (`weather_held_constant`), and stage changes replace rather than stack.
+- **Outdoors need.** `Need_Outdoors` is simulated over the awake joy and rest spans
+  with the mirrored per-interval deltas (no, thin or thick roof; indoors or outdoors),
+  frozen asleep and scaled in bed. Each category change from the observed one becomes
+  a banded span of the NeedOutdoors stage offset less the observed contribution. A
+  disabled need (PrefersIndoors) costs nothing. Spans with no known location, such as
+  food, hold the level (`outdoors_need_constant_outside_known_location`).
+- **Undergrounder.** The trait's indoors, underground and outdoors thoughts follow the
+  same spans' roof state as banded spans.
+- **Deterioration.** A food lot with deterioration inputs loses hit points at its
+  observed final rate (`SteadyEnvironmentEffects.FinalDeteriorationRate`): each tick
+  visits `ceil(area * 0.0006)` cells and a visited stack loses one point with chance
+  rate/36. A planned closure or roof over the lot rescales the rate by the
+  environmental part's factor (unroofed and outdoors offsets, rain from 1 to 5,
+  terrain, edifice protection). The lot is lost (`observed_lot_deteriorated`) when the
+  expected loss reaches its hit points; an ingestion after that refuses
+  (`food_deteriorated_before_ingestion`). Rain and the other stat parts are held
+  (`deterioration_rain_and_other_stat_parts_held`); an unknown input notes
+  `food_deterioration_unassessed`.
+- **Bench speed.** A bench inside an unclosed planned room that the closed room would
+  bring indoors (`StatPart_WorkTableOutdoors`, x0.8 outdoors) gets a closure-conditional
+  copy of each single-completion task root that uses it, `{task}/closed/{room}/{stuff}`:
+  the ring sites' finishes are prerequisites and the bench work takes 0.8 of the
+  observed ticks. The root copy excludes the room's other-stuff roots, as the `/after/`
+  variants do.
+
+The location is known only at joy and rest targets; travel, work and food spans hold
+the observed roof consequences. Bed thoughts land at the wake rather than at the
+game's random onset during sleep.
+
 ### Bounds and evidence
 
 The native census, family generation, recovery combinations and shared schedule
@@ -452,26 +516,19 @@ Shared ring cells go to the lowest room id. Ring cells and pieces with a bluepri
 as `PlannedOwedCost` counts them. `Material` is the op's cost list times its pieces. The stockpile review's
 unplaced `ShelfCandidates` are added as one-piece sites (`ShelfPlannedSites`, room 0, the candidate's zone).
 
-`PlannedSiteBatches` asks native `PlannedSitesPerRead` (4) sites per construction activity read. A read covers
-at most 16 colonists, so `PlannedPawnPages` pages the round's colonists (`WorkPawns`, by id) `PlannedPawnsPerRead`
-(16) to a page, and each batch is read once per page (#3312). Every colonist is named, since any free one may
-build, cut, mine or haul; native gives a pawn that cannot no row. The facts are unknown while the colonists are.
-`JoinPlannedSites` merges the pages of each site: per pawn x source `Options` and each clearing op's rows from every
-page; `CanPlace`, `Rejections`, `Blockers` (unclassified, as native reports them), `Verdict` (feasibility once
-cleared) and `Clearing` (its cut, haul and mine prerequisites) from any, by site id. A site stays unknown when:
-
-- no answer on some page names it;
-- a read that asked it is missing or unknown (`planned_site_read_unknown`);
-- a cap cut its answer on some page (`planned_site_read_truncated`, the answer's `Truncated`). The read's other
-  answers are kept;
-- its pages disagree on legality, verdict, blockers or clearing ops (`planned_site_pages_disagree`): the world
-  moved between the reads;
-- it has more positions than the read takes (`planned_site_positions_exceeded`). Such a site is not asked.
+`PlannedSiteRequest` asks native every site but the roof in one construction activity read (#3341). The read covers
+every free colonist, since any may build, cut, mine or haul; native gives a pawn that cannot no row, and caps no
+sites, rows, sources, positions, rejections or blockers. It searches each path once (`NativePathLegs`): a colonist's
+leg to a stack or site once per (colonist cell, target), a stack's legs to a site and back once per (stack, site),
+re-priced at each colonist's move ticks, since free colonists share the cell grid. `JoinPlannedSites` takes each
+site's answer by id: per pawn x source `Options`, `CanPlace`, `Rejections`, `Blockers` (unclassified, as native
+reports them), `Verdict` (feasibility once cleared) and `Clearing` (its cut, haul and mine prerequisites). A site
+stays unknown when no answer names it, or when the read is missing or unknown (`planned_site_read_unknown`).
 
 The roof has no native placement and is never asked. Its work per cell is the coupled read's
 `ThermalWorker.RoofCellWorkTicks`, which the generator joins.
 
-Then the routes between the answered sites (#3313). `PlannedRouteBatches` builds, per room with a site native
+Then the routes between the answered sites (#3313). `PlannedRouteProbes` builds, per room with a site native
 answered with rows, one `PlannedRouteProbe` from each place an activity of the room ends to each place another
 starts:
 
@@ -480,11 +537,24 @@ starts:
   `Origin`), and each clearing's start (a haul's origin, a cut or mine row's location);
 - the roof also from each pawn's own start (`FromStart`), since no native row routes to it.
 
-The probed sites are those with rows, plus the roof. `PlannedRoutesPerRead` (16) probes go to a construction
-activity read, once per colonist page, at most `PlannedRouteProbeCap` (128) a round (`planned_route_probes_exceeded`). Native answers a
-`CoupledRoute` per probe x free pawn, unknown where no path is found. `JoinPlannedRoutes` keeps each read's rows
-for its own probes in `PlannedSiteFacts.Routes`; a missing, unknown or truncated read adds none
-(`planned_route_read_unknown`, `planned_route_read_truncated`), so those routes stay unknown.
+The probed sites are those with rows, plus the roof. Every probe goes to one construction activity read (#3341).
+Native answers a `CoupledRoute` per probe x free pawn, unknown where no path is found; a probe's path is searched
+once for every colonist. `JoinPlannedRoutes` keeps the read's rows in `PlannedSiteFacts.Routes`; a missing or
+unknown read adds none (`planned_route_read_unknown`), so those routes stay unknown.
+
+The forecast's native reads cap nothing (#3341): every colonist, candidate and location pair. Measured on
+`observations/large-colony-reads` (32 free colonists; main-thread ms per call, one call each a round):
+
+| Read (one call a round) | Cold ms | Warm ms | Size |
+| --- | --- | --- | --- |
+| Planned sites (`NativeConstructionActivity`, `Planned`) | 288 | 269 | 20 sites (largest 144 cells), 4420 rows, 1275 path searches |
+| Planned routes (`NativeConstructionActivity`, `Routes`) | 98 | 92 | 311 probes, 9952 routes, 451 path searches |
+| Needs (`NativeNeedsForecast`) | 55 | 45 | 32 colonists, 240 targets |
+| Coupled (`NativeCoupledForecast`, needs passed in) | 104 | 99 | all sub-reads, 16 locations, 8192 routes |
+| Round total | 546 | 506 | |
+
+A round stalls the main thread about half a second there; no limit is set from it
+([kept constants](../contracts/kept-constants.md#forecast-native-reads-no-cap-measured-3341)).
 
 ### Planned room activities
 
@@ -1299,9 +1369,9 @@ alternatives. Counts respect the observed single-ingestion limit and projected
 nutrition wanted; a raw-food serving chews once, not once per item. Target travel
 uses native route cost. Starts include now, the need threshold event, half the
 bounded horizon and protected-window ends. These are finite search samples, not
-proof of globally optimal timing. The policy expansion budget is 256; the native
-read bounds 16 pawns, eight targets per family/pawn and 128 route probes. Both
-report truncation; omitted choices have not been compared. Continue/defer is the
+proof of globally optimal timing. The policy expansion budget is 256 and reports
+truncation; the native read covers every colonist and every target (#3341).
+Omitted choices have not been compared. Continue/defer is the
 empty selected-needs set, not another mutable Method.
 
 `ForecastNeedsTimeline` evaluates a selected set on the existing pawn timeline.

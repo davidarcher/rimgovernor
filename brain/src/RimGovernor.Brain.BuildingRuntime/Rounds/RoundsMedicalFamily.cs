@@ -2,16 +2,16 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsTendSource
 {
-    Task<(EmergencyObservation Observation, BridgeResult Result)> ReadEmergencyAsync(C.Identity identity, CancellationToken ct);
+    Task<EmergencyObservation> ReadEmergencyAsync(C.Identity identity, CancellationToken ct);
 
-    Task<(ObservationsPb.ListPawnsReply Reply, BridgeResult Result)> ReadTendPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
+    Task<ObservationsPb.ListPawnsReply> ReadTendPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
 }
 
 public interface IRoundsRescueSource
 {
-    Task<(EmergencyObservation Emergency, BridgeResult Result)> ReadEmergencyAsync(C.Identity identity, CancellationToken ct);
+    Task<EmergencyObservation> ReadEmergencyAsync(C.Identity identity, CancellationToken ct);
 
-    Task<(O.ListPawnsReply Reply, BridgeResult Result)> ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
+    Task<O.ListPawnsReply> ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
 }
 
 /// <summary>
@@ -78,8 +78,8 @@ public sealed class MedicalRounds
     /// <summary>The emergency census, through whichever care source the native serves.</summary>
     private async Task<EmergencyObservation> ReadEmergencyAsync(C.Identity identity, CancellationToken ct) => _native switch
     {
-        IRoundsTendSource tend => (await tend.ReadEmergencyAsync(identity, ct).ConfigureAwait(false)).Observation,
-        IRoundsRescueSource rescue => (await rescue.ReadEmergencyAsync(identity, ct).ConfigureAwait(false)).Emergency,
+        IRoundsTendSource tend => (await tend.ReadEmergencyAsync(identity, ct).ConfigureAwait(false)),
+        IRoundsRescueSource rescue => (await rescue.ReadEmergencyAsync(identity, ct).ConfigureAwait(false)),
         _ => throw new ControlException("medical read: native cannot read the emergency census"),
     };
 
@@ -196,7 +196,7 @@ public sealed class MedicalRounds
         {
             var eligible = PolicyFunctions.EmergencyTendPatients(emergency).ToHashSet();
             var ids = workers.Union(eligible).Select(pawn => pawn.Value).Order(StringComparer.Ordinal).ToList();
-            var (reply, _) = await _tend.ReadTendPawnsAsync(identity, ids, ct).ConfigureAwait(false);
+            var reply = await _tend.ReadTendPawnsAsync(identity, ids, ct).ConfigureAwait(false);
             var observed = PawnRows(reply.Outcome?.Observed, world, ids, "tend");
             var threatened = PolicyFunctions.ThreatenedPatients(emergency);
             var doctors = new List<TendDoctorFacts>();
@@ -219,7 +219,7 @@ public sealed class MedicalRounds
         {
             var eligible = PolicyFunctions.EmergencyRescuePatients(emergency).ToHashSet();
             var ids = workers.Union(eligible).Select(pawn => pawn.Value).Order(StringComparer.Ordinal).ToList();
-            var (reply, _) = await _rescue.ReadCombatPawnsAsync(identity, ids, ct).ConfigureAwait(false);
+            var reply = await _rescue.ReadCombatPawnsAsync(identity, ids, ct).ConfigureAwait(false);
             var observed = PawnRows(reply.Outcome?.Observed, world, ids, "rescue");
             var rescuers = new List<RescuerFacts>();
             var rescuePatients = new List<RescuePatientFacts>();

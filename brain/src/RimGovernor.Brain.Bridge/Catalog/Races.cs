@@ -6,16 +6,11 @@ using P = RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Bridge;
 
 // Go catalog_races.go: every animal race of the catalog, a ThingDef with RaceProperties that the game's own race code
-// calls an animal, built from the defs, the stat source and the game-computed race facts. A catalog without race facts
+// calls an animal, built from the defs, the def stat table and the game-computed race facts. A catalog without race facts
 // has no races.
 
 public sealed partial class DefinitionCatalog
 {
-    private const string StatCarryingCapacity = "CarryingCapacity";
-    private const string StatWildness = "Wildness";
-    private const string StatMinimumHandlingSkill = "MinimumHandlingSkill";
-    private const string StatLeatherAmount = "LeatherAmount";
-
     /// <summary>Every animal race of the catalog, built once.</summary>
     public P.AnimalRaceCatalog AnimalRaces() => _races.Value;
 
@@ -74,9 +69,9 @@ public sealed partial class DefinitionCatalog
             EatsPlant = (props.foodType & FoodTypeFlags.Plant) != 0,
             GestationDays = props.gestationPeriodDays,
             Trainability = props.trainability is { } trainability ? Known(trainability.defName) : default,
-            CarryingCapacity = ShownFact(name, StatCarryingCapacity),
-            Wildness = ShownFact(name, StatWildness),
-            MarketValue = ShownFact(name, StatNames.MarketValue),
+            CarryingCapacity = ShownFact(name, CatalogStats.CarryingCapacity),
+            Wildness = ShownFact(name, CatalogStats.Wildness),
+            MarketValue = ShownFact(name, CatalogStats.MarketValue),
             MateMtbHours = Known((double)props.mateMtbHours),
             AdultMinAgeTicks = Known(ages.Adult),
             ReproductiveMinAgeTicks = ages.Reproductive is { } r ? Known(r) : default,
@@ -91,7 +86,7 @@ public sealed partial class DefinitionCatalog
             CombatPower = power.TryGetValue(name, out var p) ? Known(p) : default,
         };
 
-        var (skill, skillShown) = ShownStatValue(name, string.Empty, StatMinimumHandlingSkill);
+        var (skill, skillShown) = ShownStatValue(name, string.Empty, CatalogStats.MinimumHandlingSkill);
         if (skillShown && skill >= 0)
         {
             race = race with { MinimumHandlingSkill = Known((int)Math.Round((double)skill, MidpointRounding.AwayFromZero)) };
@@ -100,7 +95,7 @@ public sealed partial class DefinitionCatalog
         var butchery = new List<P.SourceProduct>();
         if (props.leatherDef is { } leather)
         {
-            var (amount, shown) = ShownStatValue(name, string.Empty, StatLeatherAmount);
+            var (amount, shown) = ShownStatValue(name, string.Empty, CatalogStats.LeatherAmount);
             if (shown && amount > 0)
             {
                 butchery.Add(new P.SourceProduct(new P.Resource(leather.defName), amount));
@@ -119,7 +114,7 @@ public sealed partial class DefinitionCatalog
 
         if (RaceMeatDef(row) is { Length: > 0 } meat)
         {
-            var (amount, shown) = ShownStatValue(name, string.Empty, StatMeatAmount);
+            var (amount, shown) = ShownStatValue(name, string.Empty, CatalogStats.MeatAmount);
             if (!shown)
             {
                 throw new CatalogException($"race {name} has meat {meat} but the stat table shows no {StatMeatAmount}");
@@ -134,7 +129,7 @@ public sealed partial class DefinitionCatalog
         var feedItems = new List<P.RaceFeedItem>();
         foreach (var item in produced.Where(item => facts.EdibleDefs.Contains(item)))
         {
-            var (nutrition, shown) = ShownStatValue(item, string.Empty, StatNames.Nutrition);
+            var (nutrition, shown) = ShownStatValue(item, string.Empty, CatalogStats.Nutrition);
             if (shown && nutrition > 0)
             {
                 feedItems.Add(new P.RaceFeedItem(new P.Resource(item), nutrition));
@@ -144,7 +139,7 @@ public sealed partial class DefinitionCatalog
         return race with { FeedItems = new([.. feedItems]) };
     }
 
-    private Fact<double> ShownFact(string def, string stat)
+    private Fact<double> ShownFact(string def, CatalogStat stat)
     {
         var (value, shown) = ShownStatValue(def, string.Empty, stat);
         return shown ? Known((double)value) : default;
@@ -152,7 +147,7 @@ public sealed partial class DefinitionCatalog
 
     private Fact<double> NutritionFact(string def)
     {
-        var (n, shown) = ShownStatValue(def, string.Empty, StatNames.Nutrition);
+        var (n, shown) = ShownStatValue(def, string.Empty, CatalogStats.Nutrition);
         return shown && n > 0 ? Known((double)n) : Unknown<double>();
     }
 

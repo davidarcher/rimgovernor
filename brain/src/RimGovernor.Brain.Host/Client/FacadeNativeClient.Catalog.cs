@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Host;
 //
 // What this port can and cannot do: Go decoded the wire catalog into def rows (thing_defs, terrain_defs, defs). The
 // wire contract no longer carries them (Contracts/Observations.cs drops `defs`, `thing_defs`, `terrain_defs` and
-// `game_constants`), and the C# DefinitionCatalog is built over the game's own Def objects with an IStatSource
+// `game_constants`), and the C# DefinitionCatalog is built over the game's own Def objects with the load's DefStatTable
 // (Bridge/Catalog/Catalog.cs). So the read here validates everything the wire still carries (context, class chains,
 // derived facts, stat environment, thing facts) and hands the validated wire catalog to CatalogFactory, which the lead
 // installs and which builds the C# DefinitionCatalog from the game's Defs. Without a factory the catalog cannot be

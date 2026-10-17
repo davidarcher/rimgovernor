@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Observation;
 
 public interface IZonesNative
 {
-    Task<(ZonesRead Read, Result Receipt)> ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken);
+    Task<ZonesRead> ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken);
 }
 
 public interface IZonesSource
@@ -36,7 +36,7 @@ public static partial class ObservationPackage
         {
             throw new BridgeUnavailableException();
         }
-        var (read, _) = await native.ReadZoneSectionAsync(id, cancellationToken).ConfigureAwait(false);
+        var read = await native.ReadZoneSectionAsync(id, cancellationToken).ConfigureAwait(false);
         return new Held<ZonesRead> { Value = read, AsOf = read.AsOf, Complete = true, Source = "rimgovernor/observations_list_zones" };
     }
 

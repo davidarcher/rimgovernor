@@ -18,7 +18,7 @@ internal sealed record SupportMethodCandidates(ForecastCompositionOperation[] Op
         var bindings = existingBindings.ToDictionary(p => p.Key, p => p.Value);
         var observed = new List<ForecastCompositionSupply>(); var roots = new List<ForecastCommitment>();
         var routes = new List<ForecastActivityRoute>(); var findings = new SortedSet<string>(read.Findings, StringComparer.Ordinal);
-        var horizon = (double)(deadline - tick); var truncated = read.Truncated;
+        var horizon = (double)(deadline - tick); var truncated = false;
         if (!read.Known) findings.Add("support_observation_unknown");
         bool Space() { if (operations.Count < 384) return true; truncated = true; return false; }
         bool Free(string pawn, string target) => !resources.Claims.Pawns.Contains(pawn) && !resources.Claims.Targets.Contains(target);

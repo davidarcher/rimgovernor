@@ -200,9 +200,9 @@ internal static class ShelterBunks
         var standing = new HashSet<Cell>();
         for (var i = 0; i < grid.Cells.Count; i++)
         {
-            foreach (var (def, flags) in grid.Things[i])
+            foreach (var thing in grid.Things[i])
             {
-                if (def == PolicyFunctions.ShellWallDefinition && (flags & (uint)ThingMarks.Edifice) != 0)
+                if (thing.Def == PolicyFunctions.ShellWallDefinition && thing.Has(ThingMarks.Edifice))
                 {
                     standing.Add(grid.Cells[i].Cell);
                 }

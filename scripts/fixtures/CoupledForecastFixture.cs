@@ -51,6 +51,6 @@ public sealed partial class PawnControlFixture
                 sourceCount = source.Count, bulkProducts = otherBill.recipe.products.Single().count,
                 roofRate = thermal.ThinRoofExchangePerTick.Value, wallRate = thermal.WallExchangePerTick.Value,
                 heatPerTick = heater.HeatPerTick.Value, powerUnassessed = !heater.SupplyTicks.IsKnown,
-                truncated = read.Truncated, limitations = "Current condition observations; no future weather, fuel guarantee, wearing or calibrated thermal residual claim." };
+                limitations = "Current condition observations; no future weather, fuel guarantee, wearing or calibrated thermal residual claim." };
         },ct).ConfigureAwait(false);
 }

@@ -4,7 +4,6 @@ namespace RimGovernor.Contracts.Wire.Observations;
 public sealed record SupportActivityRead
 {
     public bool Known { get; init; }
-    public bool Truncated { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<SupportDemand>))]
     public EquatableArray<SupportDemand> Demands { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<SupportFilth>))]
@@ -20,7 +19,6 @@ public sealed record SupportDemand(string Id, string Kind, string Target, Cell L
     Fact<double> Cleanliness, Fact<double> FoodPoisonChance, Fact<double> BleedRate, Fact<double> DeadlineTicks)
 {
     public Fact<double> FoodPoisonChanceClean { get; init; }
-    public bool CleaningComplete { get; init; }
     public Fact<double> InfectionChanceFactor { get; init; }
     public Fact<double> InfectionChanceFactorClean { get; init; }
     public Fact<double> SurgerySuccessFactor { get; init; }

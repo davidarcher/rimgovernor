@@ -3,20 +3,31 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class Rounder
 {
     /// <summary>
-    /// The native thermal read of the round's unplaced planned shelters (#3323): their cells and planned heaters
-    /// (PlannedThermalRequestOf), through the construction activity read. Null when no shelter qualifies, the planned
-    /// sites are unknown, or native does not answer; the shelter then stays explicitly unknown.
+    /// The native reads of the round's unplaced planned shelters, in one construction activity read: the thermal read
+    /// (#3323; PlannedThermalRequestOf, null when no shelter qualifies) and the closed-room predictions (#3339;
+    /// PlannedRoomPredictionRequestOf, unknown when nothing was asked). Both stay unknown when the planned sites are unknown
+    /// or native does not answer.
     /// </summary>
-    internal async Task<O.CoupledThermalRead?> PlannedThermalAsync(GenerationSnapshot snapshot, ColonyProjection colony,
-        IEnumerable<PlannedRoom> shelters, Fact<PlannedSiteFacts> sites, CancellationToken ct)
+    internal async Task<(O.CoupledThermalRead? Thermal, Fact<EquatableArray<O.PlannedRoomPrediction>> Predictions)> PlannedShelterReadsAsync(
+        GenerationSnapshot snapshot, ColonyProjection colony, IEnumerable<PlannedRoom> shelters, Fact<PlannedSiteFacts> sites, CancellationToken ct)
     {
-        if (Native is not IActivityTaskSource source || !sites.TryGetValue(out var planned)
-            || PolicyApi.PlannedThermalRequestOf(shelters, planned.Sites, colony.Shapes.Furniture.Heater) is not { } request)
+        if (Native is not IActivityTaskSource source || !sites.TryGetValue(out var planned))
         {
-            return null;
+            return (null, default);
         }
-        var read = await source.ReadConstructionActivityAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Thermal = request }, ct)
-            .ConfigureAwait(false);
-        return read is { Known: true } ? read.Thermal : null;
+        var rooms = shelters.ToList();
+        var thermal = PolicyApi.PlannedThermalRequestOf(rooms, planned.Sites, colony.Shapes.Furniture.Heater);
+        var predictions = PolicyApi.PlannedRoomPredictionRequestOf(rooms, planned.Sites);
+        if (thermal is null && predictions.Count == 0)
+        {
+            return (null, default);
+        }
+        var read = await source.ReadConstructionActivityAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), [])
+            { Thermal = thermal, RoomPredictions = predictions }, ct).ConfigureAwait(false);
+        if (read is not { Known: true })
+        {
+            return (null, default);
+        }
+        return (read.Thermal, predictions.Count == 0 ? default : Known(read.RoomPredictions));
     }
 }

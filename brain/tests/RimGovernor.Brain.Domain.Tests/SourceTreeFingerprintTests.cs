@@ -12,7 +12,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class SourceTreeFingerprintTests : IDisposable
 {
-    private static readonly string[] FileInputs = [".md", ".props", ".ps1"];
+    private static readonly string[] FileInputs = [".md", ".props"];
 
     private readonly string repo = Path.Combine(Path.GetTempPath(), "rg-source-tree-" + Guid.NewGuid().ToString("N"));
 
@@ -64,7 +64,7 @@ public sealed class SourceTreeFingerprintTests : IDisposable
         return NativeSourceInputs.SourceTreeHash(repo, CountingRead);
     }
 
-    /// <summary>The content hash as build_native_mod.ps1 records it, computed independently of the cache.</summary>
+    /// <summary>The content hash as the native build records it, computed independently of the cache.</summary>
     private string ContentHash()
     {
         var lines = new SortedDictionary<string, string>(StringComparer.Ordinal);
@@ -188,5 +188,22 @@ public sealed class SourceTreeFingerprintTests : IDisposable
         File.Delete(Path.Combine(repo, "THIRD_PARTY.md"));
 
         _ = Assert.Throws<AcceptanceException>(Hash);
+    }
+
+    /// <summary>
+    /// The manifest's sourceTree is the hash of the build's private copy; the stale check recomputes it from the
+    /// worktree. They agree, and the copy holds exactly the inputs (build output stays behind).
+    /// </summary>
+    [Fact]
+    public void TheBuildCopyHashesToTheWorktreeHash()
+    {
+        var to = Path.Combine(repo, "copy");
+        var copied = NativeSourceInputs.CopySources(repo, to);
+
+        Assert.Equal(Hash(), NativeSourceInputs.HashLines(copied));
+        Assert.Equal(
+            copied.Keys,
+            Directory.EnumerateFiles(to, "*", SearchOption.AllDirectories).Select(f => Path.GetRelativePath(to, f).Replace(Path.DirectorySeparatorChar, '/')).Order(StringComparer.Ordinal));
+        Assert.DoesNotContain(copied.Keys, k => k.Contains("/obj/", StringComparison.Ordinal));
     }
 }

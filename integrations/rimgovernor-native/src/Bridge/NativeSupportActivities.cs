@@ -10,33 +10,30 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 using Cell = RimGovernor.Brain.Domain.Cell;
 namespace HomeBridge.BridgeTools;
 
-// One bounded native census. These are conditional mechanics and current bill deficits, never new demand.
+// One native census of every free colonist against every bench bill, patient, surgery and room filth (#3341). These are
+// conditional mechanics and current bill deficits, never new demand. A path is searched once for every colonist (NativePathLegs).
 internal static class NativeSupportActivities
 {
-    internal static Obs.SupportActivityRead Read(Map map)
+    internal static Obs.SupportActivityRead Read(Map map, NativePathLegs? legs = null)
     {
+        legs ??= new(map);
         var demands = new List<Obs.SupportDemand>(); var filthRows = new List<Obs.SupportFilth>();
         var workers = new List<Obs.SupportWorker>(); var deliveries = new List<Obs.SupportDelivery>();
-        var findings = new HashSet<string>(StringComparer.Ordinal); var budget = 128; var truncated = false;
-        var observedRoutes = new Dictionary<(string Pawn, IntVec3 From, IntVec3 To, PathEndMode Mode), Fact<double>>();
-        var roster = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Take(17).ToArray();
-        truncated |= roster.Length > 16;
+        var findings = new HashSet<string>(StringComparer.Ordinal);
+        var roster = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var clean = NativeCleanOperations.Giver();
         var benches = map.listerThings.AllThings.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer
-            && b.BillStack.Bills.OfType<Bill_Production>().Any(bill => bill.ShouldDoNow())).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).Take(9).ToArray();
-        truncated |= benches.Length > 8;
-        foreach (var bench in benches.Take(8))
+            && b.BillStack.Bills.OfType<Bill_Production>().Any(bill => bill.ShouldDoNow())).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+        foreach (var bench in benches)
         {
             AddRoom(bench, bench.InteractionCell, "bench");
-            truncated |= bench.BillStack.Bills.OfType<Bill_Production>().Count(b => b.ShouldDoNow()) > 8;
-            foreach (var bill in bench.BillStack.Bills.OfType<Bill_Production>().Where(b => b.ShouldDoNow()).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).Take(8))
+            foreach (var bill in bench.BillStack.Bills.OfType<Bill_Production>().Where(b => b.ShouldDoNow()).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal))
             {
                 // Mixed ingredient substitution requires coupled recipe alternatives, not independent refill credit.
                 var sources = map.listerThings.AllThings.Where(t => t.Spawned && t.def.category == ThingCategory.Item
                     && bill.IsFixedOrAllowedIngredient(t) && bill.recipe.ingredients.Count > 0
-                    && bill.recipe.ingredients.All(i => i.filter.Allows(t))).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Take(17).ToArray();
-                truncated |= sources.Length > 16;
-                foreach (var source in sources.Take(16))
+                    && bill.recipe.ingredients.All(i => i.filter.Allows(t))).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+                foreach (var source in sources)
                 {
                     var destination = Staging(map, bench, source.def);
                     var needed = Required(bill, source.def);
@@ -44,7 +41,7 @@ internal static class NativeSupportActivities
                     if (deficit <= 0 || source.Position == destination) continue;
                     var id = "bill:" + bill.GetUniqueLoadID() + ":" + source.def.defName;
                     if (!demands.Any(d => d.Id == id)) demands.Add(new(id, "delivery", bench.GetUniqueLoadID(), At(destination), default, default, default, default));
-                    foreach (var pawn in roster.Take(16))
+                    foreach (var pawn in roster)
                     {
                         if (!Available(pawn) || source.IsForbidden(pawn) || bench.IsForbidden(pawn)
                             || !NativeProductionBills.Usable(bench) || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)
@@ -61,13 +58,12 @@ internal static class NativeSupportActivities
             }
         }
         var patients = map.mapPawns.SpawnedPawnsWithAnyHediff.Where(p => p.Faction == Faction.OfPlayer && HealthAIUtility.ShouldBeTendedNowByPlayer(p))
-            .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Take(9).ToArray();
-        truncated |= patients.Length > 8;
-        foreach (var patient in patients.Take(8))
+            .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+        foreach (var patient in patients)
         {
             var id = AddRoom(patient, patient.Position, "care");
             if (patient.RaceProps.Humanlike && !patient.InBed()) findings.Add("care_patient_not_in_bed_external_doctor_unavailable:" + id);
-            foreach (var pawn in roster.Take(16))
+            foreach (var pawn in roster)
             {
                 if (!Available(pawn)) continue;
                 var tend = TendGiver(pawn, patient);
@@ -75,8 +71,7 @@ internal static class NativeSupportActivities
                 var medicines = NoMedicine(patient) ? new Thing?[] { null } : map.listerThings.AllThings
                     .Where(t => t.Spawned && t.def.IsMedicine && patient.playerSettings != null && patient.playerSettings.medCare.AllowsMedicine(t.def)
                         && !t.IsForbidden(pawn) && pawn.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.None))
-                    .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Take(8).Cast<Thing?>().Append(null).ToArray();
-                truncated |= medicines.Length > 8;
+                    .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Cast<Thing?>().Append(null).ToArray();
                 var speed = pawn.GetStatValue(StatDefOf.MedicalTendSpeed);
                 // One selected native treatment batch. Remaining wounds need fresh observation and selection.
                 var count = patient.health.hediffSet.hediffs.Count(h => h.TendableNow());
@@ -95,24 +90,19 @@ internal static class NativeSupportActivities
         findings.Add("routes_and_cleaning_are_conditional_duration_estimates");
         findings.Add("surgery_mixed_or_unique_ingredients_unassessed");
         findings.Add("care_one_native_tend_batch_remaining_wounds_require_observed_reconsideration");
-        truncated |= map.mapPawns.FreeColonistsSpawned.Count(p => p.BillStack?.Bills.OfType<Bill_Medical>().Any(b => b.ShouldDoNow()) == true) > 8;
-        foreach (var patient in map.mapPawns.FreeColonistsSpawned.Where(p => p.BillStack?.Bills.OfType<Bill_Medical>().Any(b => b.ShouldDoNow()) == true).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Take(8))
+        foreach (var patient in map.mapPawns.FreeColonistsSpawned.Where(p => p.BillStack?.Bills.OfType<Bill_Medical>().Any(b => b.ShouldDoNow()) == true).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
         {
-
-            truncated |= patient.BillStack.Bills.OfType<Bill_Medical>().Count(b => b.ShouldDoNow()) > 8;
-            foreach (var bill in patient.BillStack.Bills.OfType<Bill_Medical>().Where(b => b.ShouldDoNow()).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).Take(8))
+            foreach (var bill in patient.BillStack.Bills.OfType<Bill_Medical>().Where(b => b.ShouldDoNow()).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal))
             {
             var id = AddRoom(patient, patient.Position, "surgery", bill.GetUniqueLoadID());
-            foreach (var pawn in roster.Take(16).Where(Available))
+            foreach (var pawn in roster.Where(Available))
             {
                 var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is WorkGiver_DoBill scanner && scanner.ThingIsUsableBillGiver(patient));
                 if (giver == null) continue;
                 var sources = map.listerThings.AllThings.Where(t => t.Spawned && t.def.category == ThingCategory.Item
-                    && bill.IsFixedOrAllowedIngredient(t) && bill.recipe.ingredients.Count > 0 && bill.recipe.ingredients.All(i => i.filter.Allows(t))).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Take(9).ToArray();
-                truncated |= sources.Length > 8;
-                foreach (var source in sources.Take(8))
+                    && bill.IsFixedOrAllowedIngredient(t) && bill.recipe.ingredients.Count > 0 && bill.recipe.ingredients.All(i => i.filter.Allows(t))).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+                foreach (var source in sources)
                 {
-                    if (--budget < 0) { truncated = true; break; }
                     var count = bill.recipe.ingredients.Sum(i => (int)i.CountRequiredOfFor(source.def, bill.recipe, bill));
                     if (count <= 0 || source.stackCount < count) continue;
                     var recipe = new PawnActivityRecipe(bill.GetUniqueLoadID(), bill.recipe.defName, [new(source.GetUniqueLoadID(), count)]) { Resource = source.def.defName };
@@ -128,31 +118,24 @@ internal static class NativeSupportActivities
             }
         }
         }
-        return new() { Known = true, Truncated = truncated, Demands = EquatableArray.From(demands), Filth = EquatableArray.From(filthRows),
+        return new() { Known = true, Demands = EquatableArray.From(demands), Filth = EquatableArray.From(filthRows),
             Workers = EquatableArray.From(workers), Deliveries = EquatableArray.From(deliveries), Findings = EquatableArray.From(findings.OrderBy(x => x, StringComparer.Ordinal)) };
 
-        Fact<double> Route(Pawn pawn, IntVec3 from, IntVec3 to, PathEndMode mode)
-        {
-            var key = (pawn.GetUniqueLoadID(), from, to, mode);
-            if (observedRoutes.TryGetValue(key, out var observed)) return observed;
-            if (--budget < 0) { truncated = true; return default; }
-            using var route = map.pathFinder.FindPathNow(from, to, TraverseParms.For(pawn, Danger.None), peMode: mode);
-            return observedRoutes[key] = route.Found ? Fact.Known((double)route.TotalCost) : default;
-        }
+        Fact<double> Route(Pawn pawn, IntVec3 from, IntVec3 to, PathEndMode mode) =>
+            legs.Cost(pawn, from, to, mode) is { } ticks ? Fact.Known((double)ticks) : default;
         string AddRoom(Thing target, IntVec3 location, string kind, string suffix = "")
         {
             var id = kind + ":" + target.GetUniqueLoadID() + (suffix.Length == 0 ? "" : ":" + suffix); var room = location.GetRoom(map);
             var all = room?.ContainedAndAdjacentThings.OfType<Filth>().Where(f => f.Spawned).OrderBy(f => f.GetUniqueLoadID(), StringComparer.Ordinal).ToArray() ?? [];
-            var selected = all.Take(16).ToArray(); truncated |= all.Length > 16;
             var cleanliness = room == null ? default : Fact.Known((double)room.GetStat(RoomStatDefOf.Cleanliness));
             var poison = room == null ? Fact.Known((double)RoomStatDefOf.FoodPoisonChance.roomlessScore) : Fact.Known((double)room.GetStat(RoomStatDefOf.FoodPoisonChance));
             var delta = 0d;
-            foreach (var filth in selected)
+            foreach (var filth in all)
             {
                 var change = room?.CellCount > 0 ? Fact.Known(-(double)filth.stackCount * filth.GetStatValue(StatDefOf.Cleanliness) / room.CellCount) : default;
                 if (change.IsKnown) delta += change.Value;
                 filthRows.Add(new(id, filth.GetUniqueLoadID(), At(filth.Position), change));
-                foreach (var pawn in roster.Take(16))
+                foreach (var pawn in roster)
                 {
                     if (!Available(pawn) || clean == null || !CanWork(pawn, clean) || !clean.HasJobOnThing(pawn, filth, false)
                         || !pawn.CanReserveAndReach(filth, PathEndMode.Touch, Danger.None)) continue;
@@ -165,16 +148,16 @@ internal static class NativeSupportActivities
             }
             var definition = RoomStatDefOf.FoodPoisonChance;
             var surgeryFactor = DefDatabase<RoomStatDef>.GetNamedSilentFail("SurgerySuccessChanceCleanlinessFactor");
-            Fact<double> after = all.Length <= 16 && cleanliness.IsKnown && definition.inputStat == RoomStatDefOf.Cleanliness && definition.curve != null
+            Fact<double> after = cleanliness.IsKnown && definition.inputStat == RoomStatDefOf.Cleanliness && definition.curve != null
                 ? Fact.Known((double)definition.curve.Evaluate((float)(cleanliness.Value + delta))) : default;
             demands.Add(new(id, kind, target.GetUniqueLoadID(), At(location), cleanliness, poison,
                 target is Pawn patient ? Fact.Known((double)patient.health.hediffSet.BleedRateTotal) : default, default)
-                { CleaningComplete = all.Length <= 16, FoodPoisonChanceClean = after,
+                { FoodPoisonChanceClean = after,
                     SurgerySuccessFactor = room != null && surgeryFactor != null ? Fact.Known((double)room.GetStat(surgeryFactor)) : default,
-                    SurgerySuccessFactorClean = all.Length <= 16 && cleanliness.IsKnown && surgeryFactor?.inputStat == RoomStatDefOf.Cleanliness && surgeryFactor.curve != null
+                    SurgerySuccessFactorClean = cleanliness.IsKnown && surgeryFactor?.inputStat == RoomStatDefOf.Cleanliness && surgeryFactor.curve != null
                         ? Fact.Known((double)surgeryFactor.curve.Evaluate((float)(cleanliness.Value + delta))) : default,
                     InfectionChanceFactor = room == null ? default : Fact.Known((double)room.GetStat(RoomStatDefOf.InfectionChanceFactor)),
-                    InfectionChanceFactorClean = all.Length <= 16 && cleanliness.IsKnown && RoomStatDefOf.InfectionChanceFactor.inputStat == RoomStatDefOf.Cleanliness && RoomStatDefOf.InfectionChanceFactor.curve != null
+                    InfectionChanceFactorClean = cleanliness.IsKnown && RoomStatDefOf.InfectionChanceFactor.inputStat == RoomStatDefOf.Cleanliness && RoomStatDefOf.InfectionChanceFactor.curve != null
                         ? Fact.Known((double)RoomStatDefOf.InfectionChanceFactor.curve.Evaluate((float)(cleanliness.Value + delta))) : default });
             return id;
         }
@@ -182,7 +165,7 @@ internal static class NativeSupportActivities
     private static Fact<double> Add(Fact<double> a, Fact<double> b) => a.IsKnown && b.IsKnown ? Fact.Known(a.Value + b.Value) : default;
     private static Cell At(IntVec3 cell) => new(cell.x, cell.z);
     private static bool Available(Pawn pawn) => !pawn.Downed && !pawn.Drafted && !pawn.InMentalState && NativeFoodActivity.Available(pawn)
-        && !NativePawnActivities.Owned(pawn) && pawn.CurJob?.playerForced != true && pawn.jobs.jobQueue.Count == 0 && pawn.carryTracker.CarriedThing == null;
+        && !NativePawnActivities.Committed(pawn) && pawn.CurJob?.playerForced != true && pawn.jobs.jobQueue.Count == 0 && pawn.carryTracker.CarriedThing == null;
     private static (Fact<bool> Applies, Fact<double> Ticks) InfectionEffect(Pawn patient, bool medicine)
     {
         var batch = new List<Hediff>();

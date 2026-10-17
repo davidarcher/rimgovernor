@@ -18,7 +18,6 @@ public sealed record HuntActivityRead
     public HuntSceneRead? Scene { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Findings { get; init; }
-    public bool Truncated { get; init; }
 }
 
 /// <summary>A pawn as the predictor's actor: Pawn is the game's unique load id, Kind the race (prey) or pawn kind (hunter).</summary>

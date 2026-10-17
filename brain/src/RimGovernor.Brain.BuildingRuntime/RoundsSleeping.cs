@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native reads a building planner needs: the colony reads plus the native placement preview.</summary>
 public interface IRoundsBuildingSource : Observation.IColonySource
 {
-    Task<(BuildingPreview Preview, BridgeResult Result)> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
+    Task<BuildingPreview> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
 }
 
 public sealed record RoundsBuildingResult : IPlannerMethod
@@ -248,7 +248,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonBunksOpen };
         }
-        var (identity, _) = await r.Native.IdentityAsync(call).ConfigureAwait(false);
+        var identity = await r.Native.IdentityAsync(call).ConfigureAwait(false);
         var expected = ObservationPackage.DecodeIdentity(identity);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
@@ -893,7 +893,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("step: p.session.State() != state");
         }
-        var (last, _) = await Native.IdentityAsync(call).ConfigureAwait(false);
+        var last = await Native.IdentityAsync(call).ConfigureAwait(false);
         Observation.Identity actual;
         try
         {
@@ -1262,7 +1262,7 @@ public sealed partial class RoundsBuildingPlanner
             check();
             var b = new Building(Definition, c, rotation, Stuff);
             var a = DomainAction.NewBuildingAction(new ActionId(id), b, PlannerTier(Concern, Phase));
-            var (preview, _) = await Native.PreviewBuildingAsync(a, snapshot, call).ConfigureAwait(false);
+            var preview = await Native.PreviewBuildingAsync(a, snapshot, call).ConfigureAwait(false);
             lastPreview = preview.Preview;
             var madeKnown = preview.Preview.MadeFromStuff.TryGetValue(out var made);
             if ((Phase == Pol.Phase.ComfortRanked || Phase == Pol.Phase.ComfortBasic) && watchBuildings.Contains(Definition))

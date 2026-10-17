@@ -52,7 +52,7 @@ public sealed partial class HomeUpkeepReader
             return new HomeUpkeepFacts();
         }
         var review = _reviewer.Player.Journal.LoadRounds(call);
-        var identity = (await _native.IdentityAsync(call).ConfigureAwait(false)).Reply;
+        var identity = (await _native.IdentityAsync(call).ConfigureAwait(false));
         var expected = ObservationApi.DecodeIdentity(identity);
         if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {

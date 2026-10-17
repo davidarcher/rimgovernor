@@ -10,7 +10,7 @@ internal static partial class BuildingRuntimePackage
     /// </summary>
     internal static async Task<Observation.Identity> StepScopeAsync(Observation.ISource native, CancellationToken ct)
     {
-        var (reply, _) = await native.TickAsync(ct).ConfigureAwait(false);
+        var reply = await native.TickAsync(ct).ConfigureAwait(false);
         return ObservationApi.DecodeTick(reply);
     }
 }

@@ -12,20 +12,23 @@ namespace HomeBridge.BridgeTools;
 
 internal static class NativeCoupledFood
 {
-    internal static (Obs.CoupledFoodConversion[] Conversions, Obs.CoupledFoodUse[] Uses, Obs.CoupledFoodSource[] Sources, bool Truncated) Read(Map map, Obs.FoodActivityRead food)
+    /// <summary>
+    /// Every food source's cooking conversions at every player bench, for every free colonist, to every accepting
+    /// storage cell (#3341). The source-to-bench, bench-to-cell and return legs are searched once each for every
+    /// colonist (NativePathLegs).
+    /// </summary>
+    internal static (Obs.CoupledFoodConversion[] Conversions, Obs.CoupledFoodUse[] Uses, Obs.CoupledFoodSource[] Sources) Read(Map map, Obs.FoodActivityRead food,
+        NativePathLegs? legs = null)
     {
+        legs ??= new(map);
         var conversions = new List<Obs.CoupledFoodConversion>(); var uses = new List<Obs.CoupledFoodUse>();
         var sourceRows = new List<Obs.CoupledFoodSource>();
-        var budget = 128; var truncated = map.mapPawns.FreeColonistsSpawned.Count > 16;
-        var benches = map.listerThings.AllThings.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer).OrderBy(b => b.GetUniqueLoadID(),StringComparer.Ordinal).Take(9).ToArray();
-        truncated |= benches.Length > 8;
-        var roster = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Take(16).ToArray();
-                var plants = food.Options.Select(o => o.Target).Distinct().Select(id => map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == id)).OfType<Plant>().Take(9).Cast<Thing>().ToArray();
-        truncated |= plants.Length > 8;
+        var benches = map.listerThings.AllThings.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer).OrderBy(b => b.GetUniqueLoadID(),StringComparer.Ordinal).ToArray();
+        var roster = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+        var plants = food.Options.Select(o => o.Target).Distinct().Select(id => map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == id)).OfType<Plant>().Cast<Thing>().ToArray();
         var loose = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).Where(t => t.Spawned && t.def.IsNutritionGivingIngestible)
-            .OrderBy(t => t.GetUniqueLoadID(),StringComparer.Ordinal).Take(9).ToArray();
-        truncated |= loose.Length > 8;
-        var sources = plants.Take(8).Concat(loose.Take(8));
+            .OrderBy(t => t.GetUniqueLoadID(),StringComparer.Ordinal).ToArray();
+        var sources = plants.Concat(loose);
         foreach (var source in sources)
         {
                         var plant = source as Plant; var raw = plant?.def.plant.harvestedThingDef ?? source.def;
@@ -34,7 +37,7 @@ internal static class NativeCoupledFood
             if (plant == null) sourceRows.Add(new(source.GetUniqueLoadID(),raw.defName,new(source.Position.x,source.Position.z),source.stackCount,
                 Fact.Known((double)(source.TryGetComp<CompRottable>()?.TicksUntilRotAtCurrentTemp ?? RimGovernor.Brain.Domain.GameTime.TicksPerDay))));
             foreach (var target in food.Options.Where(o => o.Target == source.GetUniqueLoadID()).Select(o => o.Destination).Distinct()) AddUses(raw, target);
-            foreach (var bench in benches.Take(8))
+            foreach (var bench in benches)
             foreach (var bill in bench.BillStack.Bills.OfType<Bill_Production>().OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal))
             {
                 var recipe = bill.recipe;
@@ -46,7 +49,6 @@ internal static class NativeCoupledFood
                 if (required <= 0 || availableInput <= 0 || required > int.MaxValue) continue;
                 foreach (var pawn in roster)
                 {
-                    if (--budget < 0) { truncated = true; return Result(); }
                     if (pawn.Downed || pawn.Drafted || pawn.InMentalState || !NativeProductionBills.Usable(bench)
                         || bench.IsForbidden(pawn) || source.IsForbidden(pawn)
 
@@ -71,27 +73,22 @@ internal static class NativeCoupledFood
                     foreach (var product in recipe.products)
                     {
                         var destinations = map.haulDestinationManager.AllGroupsListInPriorityOrder.Where(g => g.Settings.filter.Allows(product.thingDef))
-                            .SelectMany(g => g.CellsList).Distinct().OrderBy(c => c.x).ThenBy(c => c.z).Take(3).ToArray();
-                        if (destinations.Length > 2) truncated = true;
-                        foreach (var destination in destinations.Take(2))
+                            .SelectMany(g => g.CellsList).Distinct().OrderBy(c => c.x).ThenBy(c => c.z).ToArray();
+                        foreach (var destination in destinations)
                         {
                             if (!JobDriver_GovernorDeliver.DestinationAvailable(pawn, destination)) continue;
-                            using var approach = map.pathFinder.FindPathNow(pawn.Position, source, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.Touch);
-                            using var supply = map.pathFinder.FindPathNow(source.Position, stage, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.OnCell);
-                            using var delivery = map.pathFinder.FindPathNow(bench.InteractionCell, destination, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.OnCell);
-                            if (!approach.Found || !supply.Found || !delivery.Found) continue;
+                            if (legs.Cost(pawn, pawn.Position, source, PathEndMode.Touch) is not { } approach
+                                || legs.Cost(pawn, source.Position, stage, PathEndMode.OnCell) is not { } supply
+                                || legs.Cost(pawn, bench.InteractionCell, destination, PathEndMode.OnCell) is not { } delivery) continue;
                             var productCapacity = pawn.carryTracker.MaxStackSpaceEver(product.thingDef);
                             var trips = productCapacity > 0 ? Math.Ceiling((double)product.count / productCapacity) : 0;
-                            Fact<double> deliveryTicks = trips == 1 ? Fact.Known((double)delivery.TotalCost) : default;
-                            if (trips > 1)
-                            {
-                                using var back = map.pathFinder.FindPathNow(destination,bench.InteractionCell,TraverseParms.For(pawn,Danger.None),peMode: PathEndMode.OnCell);
-                                if (back.Found) deliveryTicks = Fact.Known(trips * delivery.TotalCost + (trips - 1) * back.TotalCost);
-                            }
+                            Fact<double> deliveryTicks = trips == 1 ? Fact.Known((double)delivery) : default;
+                            if (trips > 1 && legs.Cost(pawn, destination, bench.InteractionCell, PathEndMode.OnCell) is { } back)
+                                deliveryTicks = Fact.Known(trips * delivery + (trips - 1) * back);
                             conversions.Add(new(source.GetUniqueLoadID(), pawn.GetUniqueLoadID(), bench.GetUniqueLoadID(), recipe.defName,
                                 raw.defName, (int)required, product.thingDef.defName, product.count,
                                 new(source.Position.x, source.Position.z), new(stage.x, stage.z), new(destination.x, destination.z),
-                                Fact.Known((double)approach.TotalCost), Fact.Known((double)supply.TotalCost),
+                                Fact.Known((double)approach), Fact.Known((double)supply),
                                 speed > 0 ? Fact.Known(recipe.WorkAmountTotal(null) / (double)speed) : default, deliveryTicks, capacity, availableInput) { WorkGiver = giver.defName, Bill = bill.GetUniqueLoadID(), RequiresHarvest = plant != null, CanCook = canCook, CanSupply = canHaul, CanDeliver = canHaul && productCapacity > 0,
                                     SkillWork = skillWork });
                             AddUses(product.thingDef, new(destination.x, destination.z));
@@ -100,8 +97,7 @@ internal static class NativeCoupledFood
                 }
             }
         }
-        return Result();
-        (Obs.CoupledFoodConversion[], Obs.CoupledFoodUse[], Obs.CoupledFoodSource[], bool) Result() => (conversions.ToArray(), uses.Distinct().ToArray(), sourceRows.ToArray(), truncated);
+        return (conversions.ToArray(), uses.Distinct().ToArray(), sourceRows.ToArray());
         void AddUses(ThingDef resource, Cell location)
         {
             foreach (var pawn in roster)

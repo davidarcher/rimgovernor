@@ -271,7 +271,7 @@ internal static partial class BuildingRuntimePackage
         {
             return none;
         }
-        var (census, _) = await benches.ReadGearBenchesAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
+        var census = await benches.ReadGearBenchesAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
         if (!RoundsBillWork(bills, census).TryGetValue(out var output))
         {
             return Unknown<IReadOnlyList<Pol.WorkRequirement>>();

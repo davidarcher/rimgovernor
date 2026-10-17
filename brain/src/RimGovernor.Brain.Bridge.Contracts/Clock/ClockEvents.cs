@@ -44,7 +44,6 @@ public static partial class BridgeFunctions
             || page.NextCursor is null
             || page.Gap is null
             || page.LostCount is null
-            || (page.OldestCursor is not null && page.OldestCursor.GetValueOrDefault() < 0)
             || page.NewestCursor.GetValueOrDefault() < 0
             || page.NextCursor.GetValueOrDefault() < request.AfterCursor.GetValueOrDefault()
             || page.NextCursor.GetValueOrDefault() > page.NewestCursor.GetValueOrDefault()
@@ -53,19 +52,9 @@ public static partial class BridgeFunctions
         {
             throw Contract("clock events cursor presence or bounds");
         }
-        if (page.OldestCursor is not null && (page.OldestCursor.GetValueOrDefault() > page.NewestCursor.GetValueOrDefault() + 1 || (page.OldestCursor.GetValueOrDefault() == 0 && page.NewestCursor.GetValueOrDefault() != 0)))
-        {
-            throw Contract("clock journal retained range");
-        }
-        // oldest_cursor is the native process's first cursor; those below it predate the process, so a read from
-        // below starts just before it with no loss. From there native scans cursor positions, counting evicted rows
-        // as lost. Subtract validated nonnegative ordered cursors before converting to avoid overflow.
-        var start = Math.Max(request.AfterCursor.GetValueOrDefault(), page.OldestCursor.GetValueOrDefault() - 1);
-        if (page.NextCursor.GetValueOrDefault() < start)
-        {
-            throw Contract("clock events cursor presence or bounds");
-        }
-        var span = (ulong)(page.NextCursor.GetValueOrDefault() - start);
+        // Native scans cursor positions after the request's cursor, counting evicted events as lost. The cursors are
+        // validated nonnegative and ordered, so the subtraction cannot overflow.
+        var span = (ulong)(page.NextCursor.GetValueOrDefault() - request.AfterCursor.GetValueOrDefault());
         if (span > request.Limit.GetValueOrDefault() || (ulong)page.Events.Count > span || page.LostCount.GetValueOrDefault() != span - (ulong)page.Events.Count)
         {
             throw Contract("clock events scanned span/loss mismatch");
@@ -75,7 +64,6 @@ public static partial class BridgeFunctions
         {
             ClockJournalEvent(@event);
             if (@event.Cursor.GetValueOrDefault() <= previous
-                || (page.OldestCursor is not null && @event.Cursor.GetValueOrDefault() < page.OldestCursor.GetValueOrDefault())
                 || @event.Cursor.GetValueOrDefault() > page.NextCursor.GetValueOrDefault())
             {
                 throw Contract("clock events order/range");

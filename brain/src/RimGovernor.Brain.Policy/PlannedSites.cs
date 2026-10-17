@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Policy;
 /// unplaced shelf candidate (Zone, Op Build, Room 0). Positions are its placement anchors, one per piece (every cell
 /// of a wall run or floor op, a piece's one anchor). Material is the piece cost times the pieces, priced the way
 /// PlannedOwedCost prices the op. The rest is the native planned-site answer (#3273) joined back by Id: CanPlace is
-/// unknown while native has not answered (no read, a truncated or unknown read, an unresolved def), Options are the
+/// unknown while native has not answered (no read, an unknown read, an unresolved def), Options are the
 /// per pawn x material source rows, and Blockers are the footprint's things unclassified, as native reports them.
 /// A RoofIn site has no native placement: its work per cell is the coupled read's ThermalWorker.RoofCellWorkTicks,
 /// so it is never requested and stays unknown here.
@@ -35,7 +35,7 @@ public sealed record PlannedBuildSite(string Id, int Room, OpKind Op, string Def
 }
 
 /// <summary>
-/// Every planned site of a round with the findings of building and reading them (a truncated read among them), and
+/// Every planned site of a round with the findings of building and reading them, and
 /// the native routes between the sites of each room (#3313, PlannedRouteProbes): per pawn, from a site's location
 /// (its first position) or a clearing's end to another site's location, a material source or a clearing's start,
 /// and from each pawn's start to a roof.
@@ -59,21 +59,6 @@ public static partial class PolicyFunctions
 
     /// <summary>Stuffs a ring is read in: the first takes the three scopes, each further stuff one alternative.</summary>
     public const int PlannedRingStuffCount = PlannedAlternativesPerRoom - 3 + 1;
-
-    /// <summary>Planned sites one construction activity read carries: few, so the read's shared 128-row budget covers each.</summary>
-    public const int PlannedSitesPerRead = 4;
-
-    /// <summary>The native read's per-site position cap: a longer site is not asked for and stays unknown.</summary>
-    public const int PlannedSitePositionCap = 128;
-
-    /// <summary>Colonists one construction activity read covers (the read's own cap); a larger colony is paged (#3312).</summary>
-    public const int PlannedPawnsPerRead = 16;
-
-    /// <summary>Route probes one construction activity read carries (the read's own cap, 16 probes x 16 colonists).</summary>
-    public const int PlannedRoutesPerRead = 16;
-
-    /// <summary>Route probes asked per round over every room; the rest are not asked and stay unknown.</summary>
-    public const int PlannedRouteProbeCap = 8 * PlannedRoutesPerRead;
 
     /// <summary>
     /// The stuffs a planned ring is read in, cheapest available first (PlannedRingStuffCount of them): the stocked
@@ -246,96 +231,34 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// The native requests for sites, PlannedSitesPerRead to a read. A roof (no native placement) is not asked for, nor
-    /// is a site over the read's position cap (finding planned_site_positions_exceeded): both stay unknown.
+    /// The native request for the round's sites: every site but a roof (no native placement), which stays unknown. One
+    /// read answers them all (#3341), so a path the sites share is searched once.
     /// </summary>
-    public static (IReadOnlyList<EquatableArray<PlannedConstructionSite>> Batches, IReadOnlyList<string> Findings) PlannedSiteBatches(IReadOnlyList<PlannedBuildSite> sites)
-    {
-        var findings = new List<string>();
-        var asked = new List<PlannedConstructionSite>();
-        foreach (var site in sites)
-        {
-            if (site.Op == OpKind.RoofIn)
-            {
-                continue;
-            }
-            if (site.Positions.Count > PlannedSitePositionCap)
-            {
-                findings.Add("planned_site_positions_exceeded");
-                continue;
-            }
-            asked.Add(new PlannedConstructionSite(site.Id, site.Definition, site.Stuff, site.Rotation, site.Positions));
-        }
-        return ([.. asked.Chunk(PlannedSitesPerRead).Select(c => EquatableArray.From(c))], findings);
-    }
+    public static EquatableArray<PlannedConstructionSite> PlannedSiteRequest(IReadOnlyList<PlannedBuildSite> sites) =>
+        EquatableArray.From(sites.Where(s => s.Op != OpKind.RoofIn).Select(s => new PlannedConstructionSite(s.Id, s.Definition, s.Stuff, s.Rotation, s.Positions)));
 
     /// <summary>
-    /// The colonists the planned reads page over (#3312), PlannedPawnsPerRead to a page, ordered by id. Every colonist is
-    /// named, since any free one may build, cut, mine or haul for a site; native gives a pawn that cannot no row. Each
-    /// site and probe batch is read once per page. No colonist, no page: nothing is read and every site stays unknown.
+    /// The sites with the read's answers joined back by id. The read covers every free colonist (#3341), so an answer
+    /// is the site's whole answer. A missing or unknown read (planned_site_read_unknown) answers none, and a site no
+    /// answer names stays unknown. The read's own findings are kept. Null with nothing asked adds no finding.
     /// </summary>
-    public static IReadOnlyList<EquatableArray<string>> PlannedPawnPages(IEnumerable<string> pawns) =>
-        [.. pawns.Where(p => p.Length > 0).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Chunk(PlannedPawnsPerRead).Select(c => EquatableArray.From(c))];
-
-    /// <summary>
-    /// The sites with the reads' answers joined back by id, merging the pawn pages (#3312) of each site: its rows and
-    /// clearing rows from every page, the rest from any page. A site is answered only when every read that asked it
-    /// answered it whole: a read that is missing or unknown (planned_site_read_unknown), an answer a cap cut
-    /// (planned_site_read_truncated), no answer, or pages that disagree on its legality, verdict, blockers or clearing
-    /// (planned_site_pages_disagree, the world moved between reads) leave it unknown. Another site's answer in a
-    /// truncated read is kept. The reads' own findings are kept.
-    /// </summary>
-    public static PlannedSiteFacts JoinPlannedSites(IReadOnlyList<PlannedBuildSite> sites, IEnumerable<string> findings,
-        IEnumerable<(EquatableArray<PlannedConstructionSite> Asked, ConstructionActivityRead? Read)> reads)
+    public static PlannedSiteFacts JoinPlannedSites(IReadOnlyList<PlannedBuildSite> sites, ConstructionActivityRead? read)
     {
-        var all = new SortedSet<string>(findings, StringComparer.Ordinal);
-        var pages = new Dictionary<string, List<PlannedSiteAnswer?>>(StringComparer.Ordinal);
-        foreach (var (asked, read) in reads)
+        var all = new SortedSet<string>(StringComparer.Ordinal);
+        var answers = new Dictionary<string, PlannedSiteAnswer>(StringComparer.Ordinal);
+        if (read is { Known: true })
         {
-            if (read is not { Known: true })
+            all.UnionWith(read.Findings);
+            foreach (var answer in read.Planned)
             {
-                all.Add("planned_site_read_unknown");
-            }
-            else
-            {
-                all.UnionWith(read.Findings);
-                if (read.Truncated)
-                {
-                    all.Add("planned_site_read_truncated");
-                }
-            }
-            foreach (var site in asked)
-            {
-                var answer = read is { Known: true } ? read.Planned.FirstOrDefault(a => a.Site == site.Id && !a.Truncated) : null;
-                (pages.TryGetValue(site.Id, out var list) ? list : pages[site.Id] = []).Add(answer);
+                answers[answer.Site] = answer;
             }
         }
-        PlannedSiteAnswer? Merged(string id)
+        else if (sites.Any(s => s.Op != OpKind.RoofIn))
         {
-            if (!pages.TryGetValue(id, out var answers) || answers.Any(a => a is null))
-            {
-                return null;
-            }
-            static PlannedSiteAnswer Shape(PlannedSiteAnswer a) => a with
-            {
-                Options = default, Clearing = EquatableArray.From(a.Clearing.Select(c => c with { Options = default })),
-            };
-            var first = answers[0]!;
-            if (answers.Any(a => Shape(a!) != Shape(first)))
-            {
-                all.Add("planned_site_pages_disagree");
-                return null;
-            }
-            return first with
-            {
-                Options = EquatableArray.From(answers.SelectMany(a => a!.Options)),
-                Clearing = EquatableArray.From(first.Clearing.Select((c, i) => c with
-                {
-                    Options = EquatableArray.From(answers.SelectMany(a => a!.Clearing[i].Options)),
-                })),
-            };
+            all.Add("planned_site_read_unknown");
         }
-        var joined = sites.Select(site => Merged(site.Id) is { } a
+        var joined = sites.Select(site => answers.TryGetValue(site.Id, out var a)
             ? site with
             {
                 CanPlace = a.CanPlace,
@@ -345,19 +268,19 @@ public static partial class PolicyFunctions
                 Verdict = a.Verdict,
                 Clearing = a.Clearing,
             }
-            : site).ToArray();
+            : site);
         return new PlannedSiteFacts { Sites = EquatableArray.From(joined), Findings = EquatableArray.From(all) };
     }
 
     /// <summary>
-    /// The route probes between a room's answered sites (#3313), PlannedRoutesPerRead to a read. A room is probed when
+    /// The route probes between each room's answered sites (#3313), all asked in one read (#3341). A room is probed when
     /// one of its sites has native rows; its probed sites are those with rows, plus its roof. Each route runs from
     /// where an activity of the room ends (a site's location, its first position; a clearing row's Location) to where
     /// another starts: a site's location (reaching its nearest position), a material source (a row's Origin), a
     /// clearing's start (a haul's Origin, a cut or mine row's Location). A roof is also probed from each pawn's start,
-    /// since no native row routes to it. Probes past PlannedRouteProbeCap are not asked (planned_route_probes_exceeded).
+    /// since no native row routes to it.
     /// </summary>
-    public static (IReadOnlyList<EquatableArray<PlannedRouteProbe>> Batches, IReadOnlyList<string> Findings) PlannedRouteBatches(IReadOnlyList<PlannedBuildSite> sites)
+    public static EquatableArray<PlannedRouteProbe> PlannedRouteProbes(IReadOnlyList<PlannedBuildSite> sites)
     {
         var probes = new List<PlannedRouteProbe>();
         foreach (var room in sites.Where(s => s.Room > 0 && s.Zone.Length == 0 && s.Positions.Count > 0).GroupBy(s => s.Room).OrderBy(g => g.Key))
@@ -394,40 +317,26 @@ public static partial class PolicyFunctions
                 probes.AddRange(targets.Where(t => t.To != from).Select(t => new PlannedRouteProbe(from, t.To, t.Reach)));
             }
         }
-        var findings = new List<string>();
-        if (probes.Count > PlannedRouteProbeCap)
-        {
-            findings.Add("planned_route_probes_exceeded");
-        }
-        return ([.. probes.Take(PlannedRouteProbeCap).Chunk(PlannedRoutesPerRead).Select(c => EquatableArray.From(c))], findings);
+        return EquatableArray.From(probes);
     }
 
     /// <summary>
-    /// The facts with each route read's rows for its own probes. A read that is missing or unknown
-    /// (planned_route_read_unknown) or truncated (planned_route_read_truncated) contributes no route, so those routes
-    /// stay unknown; the reads' own findings are kept.
+    /// The facts with the route read's rows. A missing or unknown read (planned_route_read_unknown) contributes no
+    /// route, so every route stays unknown; the read's own findings are kept. Null with nothing asked adds no finding.
     /// </summary>
-    public static PlannedSiteFacts JoinPlannedRoutes(PlannedSiteFacts facts, IEnumerable<string> findings,
-        IEnumerable<(EquatableArray<PlannedRouteProbe> Asked, ConstructionActivityRead? Read)> reads)
+    public static PlannedSiteFacts JoinPlannedRoutes(PlannedSiteFacts facts, EquatableArray<PlannedRouteProbe> asked, ConstructionActivityRead? read)
     {
-        var all = new SortedSet<string>(facts.Findings.Concat(findings), StringComparer.Ordinal);
-        var routes = new List<CoupledRoute>();
-        foreach (var (asked, read) in reads)
+        var all = new SortedSet<string>(facts.Findings, StringComparer.Ordinal);
+        if (read is not { Known: true })
         {
-            if (read is not { Known: true })
+            if (asked.Count > 0)
             {
                 all.Add("planned_route_read_unknown");
-                continue;
             }
-            all.UnionWith(read.Findings);
-            if (read.Truncated)
-            {
-                all.Add("planned_route_read_truncated");
-                continue;
-            }
-            routes.AddRange(read.Routes.Where(r => asked.Any(p => p.To == r.To && p.FromStart == r.FromStart && (p.FromStart || p.From == r.From))));
+            return facts with { Routes = [], Findings = EquatableArray.From(all) };
         }
-        return facts with { Routes = EquatableArray.From(routes), Findings = EquatableArray.From(all) };
+        all.UnionWith(read.Findings);
+        return facts with { Routes = read.Routes, Findings = EquatableArray.From(all) };
     }
 
     private static string RingSiteKind(OpKind kind) => kind switch

@@ -12,9 +12,11 @@ namespace HomeBridge.BridgeTools;
 
 internal static class NativePracticeActivities
 {
-    internal static Obs.PracticeActivityRead Read(Map map)
+    /// <summary>Every free colonist's practice at every stand or marker (#3341).</summary>
+    internal static Obs.PracticeActivityRead Read(Map map, NativePathLegs? legs = null)
     {
-        var workers = new List<Obs.PracticeWorker>(); var truncated = false;
+        legs ??= new(map);
+        var workers = new List<Obs.PracticeWorker>();
         foreach (var pawn in map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
         {
             if (!NativeFoodActivity.Available(pawn)) continue;
@@ -37,15 +39,13 @@ internal static class NativePracticeActivities
                 var targets = ranged ? RangeTraining.Stands(map) : map.listerThings.ThingsOfDef(SparringBouts.MarkerDef);
                 foreach (var target in targets.OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal))
                 {
-                    if (workers.Count >= 32) { truncated = true; break; }
                     if (target.IsForbidden(pawn) || !pawn.CanReserveAndReach(target, PathEndMode.OnCell, Danger.None)) continue;
                     var dummy = ranged ? RangeTraining.DummyFor(target) : null;
                     if (ranged && (dummy == null || dummy.IsForbidden(pawn) || !pawn.CanReserve(dummy))) continue;
-                    using var path = map.pathFinder.FindPathNow(pawn.Position, target.Position, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.OnCell);
-                    if (!path.Found) continue;
+                    if (legs.Cost(pawn, pawn.Position, target.Position, PathEndMode.OnCell) is not { } path) continue;
                     workers.Add(new(pawn.GetUniqueLoadID(), skill.defName, target.GetUniqueLoadID(), new(target.Position.x, target.Position.z),
                         ranged ? "RimGovernor_TrainRange" : "RimGovernor_Spar", ranged ? RangeTraining.ShootingJob : SparringBouts.JobName,
-                        Fact.Known((double)path.TotalCost), Fact.Known(duration), learning)
+                        Fact.Known((double)path), Fact.Known(duration), learning)
                     {
                         PreparationTicks = ranged ? 0 : SparringBouts.JoinWindowTicks, CallbackIntervalTicks = Fact.Known(cycle), RawXpPerCallback = Fact.Known(ranged ? (double)RangeTraining.ShotXp(weapon) : 200d * cycle / 60d),
                         Equipment = dummy == null ? [] : [dummy.GetUniqueLoadID()],
@@ -57,7 +57,7 @@ internal static class NativePracticeActivities
                 }
             }
         }
-        return new() { Known = true, Workers = EquatableArray.From(workers), Truncated = truncated };
+        return new() { Known = true, Workers = EquatableArray.From(workers) };
     }
 
     internal static bool Assigned(Pawn pawn, PawnActivityPractice practice)

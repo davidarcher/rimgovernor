@@ -2,7 +2,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
@@ -39,21 +38,12 @@ namespace HomeBridge.BridgeTools
         internal static bool Eligible(Thing thing) => thing is Building_Bed bed && !bed.Destroyed && bed.Spawned
             && ProtoBoundary.IsLoaded(bed.Map) && bed.def?.building != null;
 
-        internal static string Token(Common.Identity identity, Building_Bed bed)
-        {
-            using (var bytes = new MemoryStream())
-            {
-                using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
-                {
-                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId);
-                    writer.Write(bed.GetUniqueLoadID()); writer.Write(bed.Medical); writer.Write(bed.ForPrisoners); writer.Write(bed.ForSlaves);
-                    foreach (var owner in bed.OwnersForReading.Select(p => p.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal))
-                        writer.Write(owner);
-                }
-                using (var hash = SHA256.Create())
-                    return "bed-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
-            }
-        }
+        internal static string Token(Common.Identity identity, Building_Bed bed) =>
+            NativeSnapshotVersions.Token("bed", identity, bed.GetUniqueLoadID(), writer => {
+                writer.Write(bed.Medical); writer.Write(bed.ForPrisoners); writer.Write(bed.ForSlaves);
+                foreach (var owner in bed.OwnersForReading.Select(p => p.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal))
+                    writer.Write(owner);
+            });
 
         internal static Obs.SnapshotRef? Snapshot(Thing thing, Common.ObservationContext context)
         {

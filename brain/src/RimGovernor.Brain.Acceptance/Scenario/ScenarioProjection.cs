@@ -190,11 +190,6 @@ public static class ScenarioProjection
             throw new AcceptanceException($"event page cursor precedes requested afterCursor: {page.ToJson()}");
         }
 
-        if (page.ContainsKey("oldestCursor") && (!TryInteger(page["oldestCursor"], out var oldest) || oldest > newest))
-        {
-            throw new AcceptanceException($"event page oldestCursor: {page.ToJson()}");
-        }
-
         var rows = new JsonArray();
         var previous = after;
         foreach (var raw in page["events"].AsSlice())

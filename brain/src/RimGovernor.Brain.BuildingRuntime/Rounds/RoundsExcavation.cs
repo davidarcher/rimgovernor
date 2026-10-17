@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native read of an excavation site.</summary>
 public interface IRoundsExcavationSource
 {
-    Task<(BridgeExcavationSite Site, BridgeResult Result)> ReadExcavationSiteAsync(C.Identity identity, IReadOnlyList<Cell> cells, Cell access, CancellationToken ct);
+    Task<BridgeExcavationSite> ReadExcavationSiteAsync(C.Identity identity, IReadOnlyList<Cell> cells, Cell access, CancellationToken ct);
 }
 
 /// <summary>The state one excavation step works from.</summary>
@@ -36,7 +36,7 @@ public sealed partial class RoundsBuildingPlanner
     internal async Task<BridgeExcavationSite> ReadExcavationSiteAsync(GenerationSnapshot snapshot, Tick tick, string purpose, ExcavationTarget target, IReadOnlyList<Cell> cells, Cell access, Action check, CancellationToken call)
     {
         check();
-        var (site, _) = await Excavation!.ReadExcavationSiteAsync(Boundary.Identity(snapshot), cells, access, call).ConfigureAwait(false);
+        var site = await Excavation!.ReadExcavationSiteAsync(Boundary.Identity(snapshot), cells, access, call).ConfigureAwait(false);
         check();
         try
         {
@@ -128,7 +128,7 @@ public sealed partial class RoundsBuildingPlanner
     internal async Task<RoundsBuildingResult> AdmitExcavationAsync(ExcavationStep s, GenerationSnapshot snapshot, MethodId method, PlanSpec plan, IReadOnlyList<Preview>? previews, StockObservation stock, Action check, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
-        var (last, _) = await Reviewer.Native.IdentityAsync(call).ConfigureAwait(false);
+        var last = await Reviewer.Native.IdentityAsync(call).ConfigureAwait(false);
         Identity actual;
         try
         {

@@ -1,7 +1,8 @@
 # Architecture rules
 
 Six rules are mechanical gates, one more gate (the world-state ban) bans game APIs from the
-brain, and three are review questions. The C# brain enforces them as Roslyn
+brain, the record-orphan job of the repo gate catches unread contract and Policy record members
+(see [Record orphans](#record-orphans)), and three are review questions. The C# brain enforces the rules as Roslyn
 analyzers in `brain/analyzers/RimGovernor.Brain.Analyzers`, loaded into every
 `brain/src` project by `brain/Directory.Build.props`, so they run inside every
 `dotnet build`, the gate's among them (the tests projects are not gated). Each gate
@@ -99,8 +100,8 @@ attributes, `typeof(X)` and generic type arguments (class tokens that a Def's
 banned lists (`GraphicData`, `StatModifier`, `CompProperties`), and the
 members in `WorldStateAnalyzer.PureMembers` (`GenCollection.Any`). World state
 reaches the brain only as facts decoded from the wire, and computed stats
-come from `IStatSource`. Baseline (`worldstate.txt`) `file|Type.Member|Namespace.Type[.Member]`;
-`worldstate.txt` starts empty. The game-thread side (the stat service, #3080, and the
+come from the def stat table. Baseline (`worldstate.txt`) `file|Type.Member|Namespace.Type[.Member]`;
+`worldstate.txt` starts empty. The game-thread side (the def stat table pass and the
 native mod) is not brain code and is not analyzed.
 
 Construction tiers (`RGARCH008`, no baseline): every call of
@@ -109,6 +110,40 @@ member or through a Policy `RoomTier`/`PlannerTier`/`AdoptedTier`/
 `DefenseBuildTier` call. The only pass-through caller is the store codec's
 `ReadBuilding` (a row without a tier does not load); see
 [construction tiers](../contracts/construction-tiers.md).
+
+### Record orphans
+
+This is a gate job (`contract orphans` in `RimGovernor.cmd test`,
+`tools/repo/Commands/ContractOrphans.cs`): every member of a public wire type in
+`RimGovernor.Brain.Contracts` (enums aside) and of a record in `RimGovernor.Brain.Policy` must be
+read somewhere outside its declaration, and a member the native mod writes must be read by the brain.
+An analyzer sees one project at a time, and IDE0051/IDE0052 only private members, so this
+reads the built assemblies instead: every other `brain/src` assembly (tests excluded) and the native
+mod's own `RimGovernor.*` assemblies, by the member tokens the compiler bound (getter calls,
+initializer setters, positional constructors, property patterns), never by name. A reference into the
+declaring assembly is followed through its calls to the backing fields they reach, so a computed
+property reads what it computes from and a Policy function reads the records it decides over.
+Constructing a type reaches its virtual methods (overrides, interface implementations, iterator
+bodies). Record equality, hashing, printing and cloning, and the JSON context and converters, touch
+every member and count as nothing: a member that only takes part in equality is an orphan. Findings
+read `Contracts|Type.Member` or `Policy|Type.Member` with a reason (`not referenced outside its
+declaration`, `written, never read`, `written by the native side, never read by the brain`). The baseline
+`brain/analyzers/baseline/orphans.txt` holds the orphans that predate the check (burndown: [#3351](https://github.com/davidarcher/rimgovernor/issues/3351)), and it only shrinks: a new
+orphan fails (delete it through every layer, never add a line), and so does a line that is no
+longer an orphan (delete the line). The check is unavailable without the game, because then the
+native mod is not built and the game-reading brain projects are empty.
+
+Acceptance cases read many native replies by JSON key (`WireCodec`'s flat view, `JsonNode`
+lookups such as `view["shown"]`), which no symbol shows. As a stopgap until the cases read typed
+Contracts records (a migration that will be its own epic), the check counts as read every wire
+member whose JSON name (taken from `WireJsonContext`'s own metadata, so naming policy and
+`[JsonPropertyName]` apply) equals an identifier-shaped string literal anywhere in the
+`RimGovernor.Brain.Acceptance*` assemblies. This is deliberately loose: no field a case reads by key
+is flagged, at the cost that a common key such as `"label"` keeps a real orphan alive. A new or
+touched case reads the typed record instead (`WireCodec.ToRecord<T>` and the member), so the read
+is compile-checked and visible to the gate. PlayerApi also serves Presentation records as JSON to
+HTTP clients ([player API](../contracts/player-api.md)); a field that contract documents has a
+reader the check cannot see.
 
 ## Refreshing
 

@@ -16,10 +16,10 @@ internal sealed class DefenseRecorder : IRoundsDefenseSource
 
     public BridgeLinesOfFire? Lines { get; private set; }
 
-    public (M.CombatGeometry Geometry, BridgeResult Result) CombatGeometry(M.CombatGeometryRequest request, CancellationToken ct) =>
+    public M.CombatGeometry CombatGeometry(M.CombatGeometryRequest request, CancellationToken ct) =>
         _inner.CombatGeometry(request, ct);
 
-    public async Task<(BridgeDefenseSite Site, BridgeResult Result)> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct) =>
+    public async Task<BridgeDefenseSite> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct) =>
         await _inner.ReadDefenseSiteAsync(identity, region, ct).ConfigureAwait(false);
 
     public async Task<BridgeCombat> ReadCombatAsync(C.Identity identity, CancellationToken ct)

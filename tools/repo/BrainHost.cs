@@ -15,7 +15,7 @@ internal static class BrainHost
     /// <summary>The subcommands tools/rg implements.</summary>
     public static readonly IReadOnlySet<string> Tools = new HashSet<string>(StringComparer.Ordinal)
     {
-        "acceptance", "remoteaccept", "remotebundle", "thoughtaudit", "colonyreview", "pawnactivity", "launch-phases",
+        "acceptance", "remoteaccept", "remotebundle", "thoughtaudit", "colonyreview", "pawnactivity", "launch-phases", "native-build",
     };
 
     public static async Task<int> RunAsync(string[] args, CancellationToken ct)

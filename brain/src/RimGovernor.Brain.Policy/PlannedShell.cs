@@ -60,8 +60,11 @@ public sealed partial record SiteCell
     /// <summary>Names the native zone covering the cell when Zone is true.</summary>
     public Fact<string> ZoneId { get; init; }
 
-    /// <summary>Names the native room holding the cell: growing-room kinds pick a block per room interior.</summary>
-    public Fact<string> Room { get; init; }
+    /// <summary>
+    /// Keys the native room holding the cell (the grid's room key): growing-room kinds pick a block per room
+    /// interior. Unknown outside any room.
+    /// </summary>
+    public Fact<int> Room { get; init; }
 
     // The per-cell thing list and the tile columns that join it. Terrain names the terrain def; InHome is
     // inside the home area; BaseTerrain names the terrain def under a floor or bridge; its affordances are

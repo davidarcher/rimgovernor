@@ -266,7 +266,7 @@ public static partial class ObservationPackage
         row = row with { BabyEdible = Known(catalog.BabyEdible(name)), Kind = catalog.FoodKindOf(name) ?? FoodKind.None };
         try
         {
-            row = row with { Nutrition = Known((double)catalog.StatValue(name, "", BridgeConstants.StatNutrition)) };
+            row = row with { Nutrition = Known((double)catalog.StatValue(name, "", CatalogStats.Nutrition)) };
         }
         catch (DomainException)
         {

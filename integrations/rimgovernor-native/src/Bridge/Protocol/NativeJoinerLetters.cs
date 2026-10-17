@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
@@ -29,15 +28,15 @@ namespace HomeBridge.BridgeTools
 
         private static string Token(ChoiceLetter_AcceptJoiner letter, Pawn pawn)
         {
-            var text = string.Join("|", letter.GetUniqueLoadID(), letter.quest.GetUniqueLoadID(), letter.quest.State,
+            var text = string.Join("|", letter.quest.GetUniqueLoadID(), letter.quest.State,
                 pawn.GetUniqueLoadID(), pawn.Dead, pawn.Faction?.GetUniqueLoadID(), letter.MapToUse?.uniqueID,
                 letter.disappearAtTick, letter.signalAccept, letter.signalReject,
                 string.Join("|", letter.Choices.Take(2).Select(o => ChoiceDialogTools.Label(o) + ":" + o.disabled)));
-            using (var hash = SHA256.Create())
-                return "joiner-" + BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLowerInvariant();
+            return NativeSnapshotVersions.Token("joiner", null, letter.GetUniqueLoadID(), text);
         }
 
-        private const string CreepJoinerTokenPrefix = "creepjoiner-";
+        private const string CreepJoinerKind = "creepjoiner";
+        private const string CreepJoinerTokenPrefix = CreepJoinerKind + "-";
 
         private static IEnumerable<ChoiceLetter_AcceptCreepJoiner> PendingCreepJoiners() => Find.LetterStack.LettersListForReading
             .OfType<ChoiceLetter_AcceptCreepJoiner>().Where(l => l.CanShowInLetterStack && !l.TimeoutPassed && l.pawn != null
@@ -45,10 +44,9 @@ namespace HomeBridge.BridgeTools
 
         private static string CreepJoinerToken(ChoiceLetter_AcceptCreepJoiner letter)
         {
-            var text = string.Join("|", letter.GetUniqueLoadID(), letter.pawn.GetUniqueLoadID(), letter.pawn.Dead, letter.pawn.Faction?.GetUniqueLoadID(),
+            var text = string.Join("|", letter.pawn.GetUniqueLoadID(), letter.pawn.Dead, letter.pawn.Faction?.GetUniqueLoadID(),
                 letter.pawn.Map?.uniqueID, letter.disappearAtTick, letter.signalAccept);
-            using (var hash = SHA256.Create())
-                return CreepJoinerTokenPrefix + BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLowerInvariant();
+            return NativeSnapshotVersions.Token(CreepJoinerKind, null, letter.GetUniqueLoadID(), text);
         }
 
         private static List<Obs.JoinerLetter> CreepJoinerSnapshot()

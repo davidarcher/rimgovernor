@@ -40,7 +40,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("rimgovernor/observations_get_cells", Title = "Read map cells",
-            Description = "Official GetCellsRequest ProtoJSON. An inclusive rectangle of at most 1048576 cells on the map, returned with the map dimensions as a CellGrid keyframe (the snapshot frame grid's arrays; a fogged cell is not held). The grid carries each cell's things, terrain and foundation affordances. Read-only.")]
+            Description = "Official GetCellsRequest ProtoJSON. An inclusive rectangle of at most 1048576 cells on the map, returned with the map dimensions as a CellGrid (the snapshot frame grid's typed arrays; a fogged cell is not held). The grid carries each cell's things, terrain and foundation affordances. Read-only.")]
         [ToolResponse("payload", "string", "Official observations GetCellsReply ProtoJSON.", Always = true)]
         public async Task<object> GetCells(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a GetCellsRequest ProtoJSON string.")] object? request = null)
@@ -67,10 +67,10 @@ namespace HomeBridge.BridgeTools
                 var min = parsed.Rectangle?.Minimum ?? new Common.Cell(); var max = parsed.Rectangle?.Maximum ?? new Common.Cell();
                 if (!new IntVec3(min.X.GetValueOrDefault(), 0, min.Z.GetValueOrDefault()).InBounds(map) || !new IntVec3(max.X.GetValueOrDefault(), 0, max.Z.GetValueOrDefault()).InBounds(map)) return new Obs.GetCellsReply {
                     Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Selected cell is outside the current map.") };
-                var read = CellGridEncoder.Read(map, min.X.GetValueOrDefault(), min.Z.GetValueOrDefault(), max.X.GetValueOrDefault() - min.X.GetValueOrDefault() + 1, max.Z.GetValueOrDefault() - min.Z.GetValueOrDefault() + 1);
+                var grid = CellGridReader.Read(map, min.X.GetValueOrDefault(), min.Z.GetValueOrDefault(), max.X.GetValueOrDefault() - min.X.GetValueOrDefault() + 1, max.Z.GetValueOrDefault() - min.Z.GetValueOrDefault() + 1);
                 var snapshot = new Obs.CellsSnapshot { Context = context,
                     MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) },
-                    Grid = CellGridEncoder.Encode(read, null) };
+                    Grid = grid };
                 return new Obs.GetCellsReply { Outcome = snapshot };
             }
             catch (Exception) { return new Obs.GetCellsReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native cell facts could not be read completely.") }; }
@@ -323,31 +323,24 @@ namespace HomeBridge.BridgeTools
             if (thing.MapHeld != null) { row = row with { MapId = thing.MapHeld.uniqueID }; row = row with { Position = Cell(thing.PositionHeld.x,thing.PositionHeld.z) }; }
             return row;
         }
-        // Self-computed, self-checked CAS token for one thing; the hash input
-        // is a wire contract (observation rows and combat orders compare it).
+        // Self-checked CAS token for one thing (observation rows and combat
+        // orders compare it): its version over def, cell, stack, forbidden,
+        // rot stage and a corpse's faction and name.
         internal static string Token(Common.Identity identity, Thing thing)
         {
             var rot = thing.TryGetComp<CompRottable>();
             var corpse = thing as Corpse;
-            using (var bytes = new System.IO.MemoryStream())
-            {
-                using (var writer = new System.IO.BinaryWriter(bytes, Encoding.UTF8, true))
-                {
-                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId);
-                    writer.Write(thing.GetUniqueLoadID()); writer.Write(thing.def.defName);
-                    writer.Write(thing.Position.x); writer.Write(thing.Position.z); writer.Write(thing.stackCount);
-                    writer.Write(thing.IsForbidden(Faction.OfPlayer)); writer.Write(rot?.Stage.ToString() ?? "");
-                    writer.Write(corpse?.InnerPawn?.Faction?.GetUniqueLoadID() ?? "");
-                    writer.Write(corpse?.InnerPawn?.Name?.ToStringFull ?? "");
-                }
-                using (var hash = System.Security.Cryptography.SHA256.Create())
-                    return "waste-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
-            }
+            return NativeSnapshotVersions.Token("thing", identity, thing.GetUniqueLoadID(), writer => {
+                writer.Write(thing.def.defName);
+                writer.Write(thing.Position.x); writer.Write(thing.Position.z); writer.Write(thing.stackCount);
+                writer.Write(thing.IsForbidden(Faction.OfPlayer)); writer.Write(rot?.Stage.ToString() ?? "");
+                writer.Write(corpse?.InnerPawn?.Faction?.GetUniqueLoadID() ?? "");
+                writer.Write(corpse?.InnerPawn?.Name?.ToStringFull ?? "");
+            });
         }
         // ThingRow is the one thing row builder: the cells read's
         // things and the bundle's things table. Each row carries the thing's
-        // own CAS token via Token, the self-computed hash a combat order
-        // checks.
+        // own CAS token via Token, the one a combat order checks.
         internal static Obs.Thing ThingRow(Thing thing, Common.ObservationContext context)
         {
             var entity = Entity(thing);

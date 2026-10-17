@@ -50,7 +50,7 @@ public sealed partial class Rounder
         {
             return Unknown<bool>();
         }
-        var reads = (await source.ReadGearBenchesAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false)).Reads;
+        var reads = (await source.ReadGearBenchesAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false));
         foreach (var read in reads)
         {
             read.Bench.Usable.TryGetValue(out var usable);

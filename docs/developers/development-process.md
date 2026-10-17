@@ -67,10 +67,11 @@ order, [RimGovernor.slnx](../../RimGovernor.slnx) (every C# project; locked rest
 warnings as errors), the native contract probes, the real-Harmony hook set probe and
 the native mod, then runs `dotnet test` on the solution, the pure probes, the
 proto-boundary probe and the hook set probe at once, printing each when it finishes.
-Outputs live under `.rimgovernor/gate/`; the native mod is rebuilt only when a file
-it reads changed.
+Outputs live under `.rimgovernor/gate/`; the native mod is rebuilt (`native-build
+-if-current`) only when its manifest no longer records the worktree's sources and
+the game's assemblies.
 
-Missing machine-local inputs report `unavailable`. The native build accepts
+Missing machine-local inputs report `unavailable`. The gate's native build accepts
 `RIMWORLD_DIR` (the directory holding `Assembly-CSharp.dll`) and `HARMONY_ASSEMBLY`; game-free remote compilation is
 described in the [runbook](agent-runbook.md#remote-agents).
 

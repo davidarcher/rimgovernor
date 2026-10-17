@@ -3,9 +3,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>What <see cref="Rounder.SettlementAcquisitionOptions"/> needs of the native source beyond the mission pack source.</summary>
 internal interface ISettlementOptionsSource : ITradeMissionPackSource
 {
-    Task<(WorldProgressionRead Read, BridgeResult Result)> ReadWorldProgressionAsync(C.Identity identity, bool full, CancellationToken ct);
+    Task<WorldProgressionRead> ReadWorldProgressionAsync(C.Identity identity, bool full, CancellationToken ct);
 
-    Task<(WorldRead Read, BridgeResult Result)> ReadWorldAsync(C.Identity identity, int home, double radius, CancellationToken ct);
+    Task<WorldRead> ReadWorldAsync(C.Identity identity, int home, double radius, CancellationToken ct);
 }
 
 public sealed partial class Rounder
@@ -52,7 +52,7 @@ public sealed partial class Rounder
         WorldProgressionRead progress;
         try
         {
-            (progress, _) = await source.ReadWorldProgressionAsync(id, false, ct).ConfigureAwait(false);
+            progress = await source.ReadWorldProgressionAsync(id, false, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -75,7 +75,7 @@ public sealed partial class Rounder
         WorldRead destinations;
         try
         {
-            (destinations, _) = await source.ReadWorldAsync(id, home, double.MaxValue, ct).ConfigureAwait(false);
+            destinations = await source.ReadWorldAsync(id, home, double.MaxValue, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -113,7 +113,7 @@ public sealed partial class Rounder
                     {
                         Definition = name,
                         Prepared = MissionOptional(food?.Prepared ?? false, known),
-                        Nutrition = MissionCatalogStat(catalog, name, Bridge.StatNames.Nutrition),
+                        Nutrition = MissionCatalogStat(catalog, name, Bridge.CatalogStats.Nutrition),
                         CanSupply = catalog.TraderKindCanSupply(settlement.TraderKind, new Pol.ResourceKey { Def = new Pol.Resource(name) }),
                     });
                 }

@@ -180,14 +180,12 @@ public sealed class ClothingChoiceTests
     }
 
     [Fact]
-    public void UnknownsPhysicalReplacementsAndGenerationBoundsRemainVisible()
+    public void UnknownsAndPhysicalReplacementsRemainVisible()
     {
         var census = Census();
         Assert.Contains("unknown_clothing_stock", ClothingActivityRequirements(census with { Stored = default }).Findings);
         var physical = census with { Pawns = [census.Pawns[0] with { Candidates = Known<EquatableArray<GearCandidate>>([new("stored-shirt", 1, new("Shirt"))]) }] };
         Assert.Empty(ClothingActivityRequirements(physical).Alternatives);
-        Start(census, Read(Option("Cloth")) with { Truncated = true }, Resources(), out var bounded);
-        Assert.Contains("coupled_generation_truncated", bounded!.Findings);
     }
 
     [Fact]

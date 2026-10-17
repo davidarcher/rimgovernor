@@ -54,7 +54,7 @@ public sealed partial class DefinitionCatalog
     public double CostValue(string def, string stuff) => CostValueOf(def, stuff);
 
     private double CostValueOf(string def, string stuff) =>
-        AdjustedCosts(def, stuff).Sum(cost => (double)StatValue(cost.Def, string.Empty, StatNames.MarketValue) * cost.Units);
+        AdjustedCosts(def, stuff).Sum(cost => (double)StatValue(cost.Def, string.Empty, CatalogStats.MarketValue) * cost.Units);
 
     /// <summary>The names of the Building_MechCharger defs, sorted.</summary>
     public IReadOnlyList<string> MechChargers() =>

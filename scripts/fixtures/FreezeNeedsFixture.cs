@@ -142,6 +142,56 @@ namespace HomeBridge.BridgeTools
         }
     }
 
+    // Disposable test setup only (#3322). Under brain authority every controlled colonist holds a Hands
+    // assignment: the brain gives a colonist it selected nothing for an explicit standby. A native-only case runs
+    // no brain, so the scenario clock stands in for that one decision: before each Run it calls this op, which
+    // installs the same standby order (native wander, no work, no deadline) for each controlled colonist with no
+    // assignment and an idle job. It never replaces an assignment, so a fixture's own orders keep their pawns;
+    // under VanillaColonists no colonist is controlled and nothing is installed.
+    public static class StandbyColonists
+    {
+        public static object Apply()
+        {
+            if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
+                return new { success = true, active = false, standby = 0 };
+            var status = authority.Status();
+            if (!status.Active || status.Identity?.Map is not Map map) return new { success = true, active = false, standby = 0 };
+            var controlled = AccessTools.Method(typeof(NativePawnActivities), "Controlled")
+                ?? throw new MissingMethodException("NativePawnActivities.Controlled");
+            var context = new RimGovernor.Contracts.Wire.Common.ObservationContext { NativeGeneration = status.Generation,
+                Tick = Find.TickManager.TicksGame, Identity = new RimGovernor.Contracts.Wire.Common.Identity
+                { ColonyId = status.Identity.ColonyId, LoadToken = status.Identity.LoadToken, MapId = status.Identity.MapId } };
+            var installed = new List<string>();
+            var refused = new List<string>();
+            foreach (var pawn in map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray())
+            {
+                if (NativePawnActivities.Owned(pawn) || !(bool)controlled.Invoke(null, new object[] { pawn })
+                    || !NativeFoodActivity.Available(pawn)) continue;
+                var id = pawn.GetUniqueLoadID();
+                var batch = new RimGovernor.Brain.Domain.PawnActivities(status.Generation, new[] {
+                    new RimGovernor.Brain.Domain.PawnActivityOrder(id, "harness-standby/" + id, "harness-standby", 0, 1, false,
+                        new[] { new RimGovernor.Brain.Domain.PawnActivityStep(RimGovernor.Brain.Domain.PawnActivityKind.Standby, "", "", "", 0, long.MaxValue) }) });
+                var invalid = NativePawnActivities.Validate(batch, context);
+                if (invalid != null) { refused.Add(id + ":" + invalid.Detail); continue; }
+                NativePawnActivities.Apply(batch, context);
+                installed.Add(id);
+            }
+            return new { success = true, active = true, standby = installed.Count, pawns = installed, refused };
+        }
+    }
+
+    public sealed class StandbyColonistsFixture
+    {
+        [Tool("test/standby_colonists", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#3322): the scenario clock's stand-in for the brain's standby. Installs the explicit idle for each controlled colonist with no Hands assignment and an idle job; never replaces an assignment.")]
+        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                if (Current.Game == null || Find.CurrentMap == null) throw new InvalidOperationException("A loaded game is required.");
+                return StandbyColonists.Apply();
+            }, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     public sealed class FreezeNeedsFixture
     {
         [Tool("test/freeze_needs", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: pin every free colonist's needs at maximum after each needs tick except the NeedDefs in keep (e.g. Food, Rest, Joy), for the current game only. action=apply (default), inspect or release. Scenarios about eating, sleeping or mood keep those needs.")]

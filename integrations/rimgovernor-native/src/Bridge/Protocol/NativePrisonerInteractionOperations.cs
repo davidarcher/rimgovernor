@@ -1,7 +1,6 @@
 #nullable enable
 using System;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
@@ -13,16 +12,10 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativePrisonerInteractionOperations
     {
-        private static string Hash(string text)
-        {
-            using (var hash = SHA256.Create())
-                return BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLowerInvariant();
-        }
-
         // Exact custody and interaction state; NativePopulationObservation
         // publishes it as each person's PawnState.snapshot.
-        internal static string Settings(Pawn pawn) => "prisoner-interaction-" + Hash(string.Join("|",
-            pawn.GetUniqueLoadID(), pawn.Dead.ToString(), pawn.IsPrisonerOfColony.ToString(), pawn.IsFreeColonist.ToString(),
+        internal static string Settings(Pawn pawn) => NativeSnapshotVersions.Token("prisoner-interaction", null, pawn.GetUniqueLoadID(), string.Join("|",
+            pawn.Dead.ToString(), pawn.IsPrisonerOfColony.ToString(), pawn.IsFreeColonist.ToString(),
             (pawn.HostFaction == Faction.OfPlayerSilentFail).ToString(),
             pawn.guest?.ExclusiveInteractionMode?.defName ?? "", pawn.guest?.Recruitable.ToString() ?? ""));
     }

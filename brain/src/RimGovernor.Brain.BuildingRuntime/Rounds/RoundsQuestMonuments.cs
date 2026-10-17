@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsMonumentPreviewSource
 {
-    Task<(BuildingPreview Preview, BridgeResult Result)> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
+    Task<BuildingPreview> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
 }
 
 public sealed partial class JoinersRounds
@@ -70,7 +70,7 @@ public sealed partial class JoinersRounds
                     return (default, false);
                 }
 
-                (preview, _) = await native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
+                preview = await native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
                 break;
             }
 

@@ -236,8 +236,7 @@ public sealed class PolicyController : IFightController
     private RimGovernor.Contracts.Wire.Mirror.CombatGeometry GeometryOf(RimGovernor.Contracts.Wire.Mirror.CombatGeometryRequest request) =>
         _client!.CombatGeometryAsync(request, CancellationToken.None).GetAwaiter().GetResult().Value;
 
-    // The catalog of the load over the game's Defs, with stats read inline: the mod's GameThreadStatService refuses a
-    // caller on the game thread, which is where an arena fight is decided.
+    // The catalog of the load over the game's Defs, with the def stat table its definition catalog read built.
     private static DefinitionCatalog CatalogOfArena(Obs.DefinitionCatalog wire, RimGovernor.Contracts.Wire.Common.Identity identity)
     {
         var derived = wire.Derived ?? throw new InvalidOperationException("The definition catalog carries no derived facts.");
@@ -250,6 +249,6 @@ public sealed class PolicyController : IFightController
             }
         }
 
-        return new DefinitionCatalog(NativeCatalogFactory.AllDefs(), InlineStatService.Instance, new CatalogDerived(derived.CurrencyDef, derived.WortDef, derived.FullRotRateC), races);
+        return new DefinitionCatalog(NativeCatalogFactory.AllDefs(), NativeStatTable.ForLoad(identity.LoadToken), new CatalogDerived(derived.CurrencyDef, derived.WortDef, derived.FullRotRateC), races);
     }
 }

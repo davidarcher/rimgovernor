@@ -23,8 +23,6 @@ public sealed record RoundsReading
     /// <summary>When the embedded reading finished (Go's promoted field).</summary>
     public DateTimeOffset ObservedAt => Reading.ObservedAt;
 
-    /// <summary>The embedded reading's receipt (Go's promoted field).</summary>
-    public Result? Receipt => Reading.Receipt;
 
     public required EmergencyFacts Emergency { get; init; }
 
@@ -41,12 +39,12 @@ public sealed record RoundsReading
 /// <summary>Answers ObserveColony's colony facts and zone reads from the frame.</summary>
 internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : IColonySource, IZonesNative, IZonesSource, IDefinitionSource, IResearchSource
 {
-    public Task<(L.TickReply Reply, Result Receipt)> TickAsync(CancellationToken cancellationToken) => inner.TickAsync(cancellationToken);
+    public Task<L.TickReply> TickAsync(CancellationToken cancellationToken) => inner.TickAsync(cancellationToken);
 
-    public Task<(L.IdentityReply Reply, Result Receipt)> IdentityAsync(CancellationToken cancellationToken) => inner.IdentityAsync(cancellationToken);
+    public Task<L.IdentityReply> IdentityAsync(CancellationToken cancellationToken) => inner.IdentityAsync(cancellationToken);
 
-    public Task<(O.ColonyFactsReply Reply, Result Receipt)> ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken) =>
-        Task.FromResult((new O.ColonyFactsReply { Outcome = frame.Colony is { } colony ? (O.ColonyFactsReplyOutcome)colony : null }, new Result()));
+    public Task<O.ColonyFactsReply> ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken) =>
+        Task.FromResult(new O.ColonyFactsReply { Outcome = frame.Colony is { } colony ? (O.ColonyFactsReplyOutcome)colony : null });
 
     public Task<Tables> FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken)
     {
@@ -59,18 +57,18 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
         return Task.FromResult(tables);
     }
 
-    public Task<(ZonesRead Read, Result Receipt)> ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken)
+    public Task<ZonesRead> ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken)
     {
         if (frame.Zones is not { } zones)
         {
             throw new BridgeUnavailableException();
         }
-        return Task.FromResult((zones, new Result()));
+        return Task.FromResult(zones);
     }
 
     public async Task<Held<ZonesRead>> ZonesAsync(C.Identity identity, CancellationToken cancellationToken)
     {
-        var (read, _) = await ReadZoneSectionAsync(identity, cancellationToken).ConfigureAwait(false);
+        var read = await ReadZoneSectionAsync(identity, cancellationToken).ConfigureAwait(false);
         return new Held<ZonesRead> { Value = read, AsOf = read.AsOf, Complete = true, Source = "native_frame" };
     }
 
@@ -78,13 +76,13 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
     public Task<DefinitionCatalog?> DefinitionCatalogAsync(C.Identity id, CancellationToken cancellationToken) => inner.DefinitionCatalogAsync(id, cancellationToken);
 
     /// <summary>The frame's research section.</summary>
-    public Task<(ResearchRead Read, Result Receipt)> ReadResearchAsync(C.Identity id, CancellationToken cancellationToken)
+    public Task<ResearchRead> ReadResearchAsync(C.Identity id, CancellationToken cancellationToken)
     {
         if (frame.Research is not { } research)
         {
             throw new BridgeUnavailableException();
         }
-        return Task.FromResult((research, new Result()));
+        return Task.FromResult(research);
     }
 }
 

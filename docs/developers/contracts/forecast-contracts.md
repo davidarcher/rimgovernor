@@ -190,6 +190,35 @@ hand-written temperature-mood constants, and mood is valued only as `BreakRisk`.
   `unsupported_situational_change_stacking`. Hypothermia and heatstroke stay
   unmodelled; the exposure degree-ticks consequence is unchanged.
 
+### Roof, room and deterioration reads
+
+The needs read carries the facts the roof and room consequences use (#3339; the
+model is in [ColonyForecast](../architecture/colony-forecast.md#roof-and-room-consequences)).
+Every field is unknown, or null, when unread; nothing is capped.
+
+- `NeedsForecastRead`: the current weather's `WeatherThought` and its stage count,
+  `RainRate`, `MapArea`, and `Deterioration`, the DeteriorationRate stat's
+  `StatPart_EnvironmentalEffects` def data (unroofed and outdoors offsets, edifice
+  protection factor).
+- `NeedsForecastPawn`: `OutdoorsLevel` and `OutdoorsDisabled` (Need\_Outdoors),
+  `OwnedBed` and `Ascetic` (the two pawn facts `ApplyBedThoughts` reads), and
+  `ThoughtStages`, one `NeedThoughtStage` per thought stage the pawn can get, priced
+  by the game's `MoodOffset` for this pawn, with its duration. `Role` names why the
+  row was read: `slept_outside`, `slept_in_bedroom`, `slept_in_barracks`, `weather`,
+  `need_outdoors`, `undergrounder_indoors`, `undergrounder_underground`,
+  `undergrounder_outdoors`. A stage the game cannot price is left out.
+- `NeedTarget.Cell`: the target cell's roof (roofed, thick, natural) and its room's
+  UsesOutdoorTemperature and PsychologicallyOutdoors (no room reads as outdoors).
+- `NeedTarget.Bed`: a rest target's room role, impressiveness stage, ForPrisoners and
+  whether it is slept on the ground (empty cost list).
+- `NeedTarget.Deterioration`: a food stack's hit points, its
+  `SteadyEnvironmentEffects.FinalDeteriorationRate` now (every DeteriorationRate part
+  applied), whether the environmental part applies, the terrain's
+  extraDeteriorationFactor and edifice protection.
+
+The brain mirrors the game literals these mechanics use; each constant cites its
+1.7 member ([kept constants](kept-constants.md#mirrored-game-literals-3339)).
+
 ## Coherent coupled observation frame
 
 The routine forecast read includes `CoupledForecastRead` alongside needs in one
@@ -259,9 +288,9 @@ bed-bearing first), then planned rooms in layout ID order. Omission is reported 
 less valuable. Missing physical geometry remains unknown. A complete-roof `Enclosed`
 flag is not required for roof repair: the existing per-cell shell, source and route
 checks still determine whether the thermal estimate is supported. Nonrectangular
-rooms and missing thermal observations retain explicit unsupported/unknown findings. Unsupported or
-truncated reads retain findings and unknown estimates, including missing route
-pairs and unpowered heaters.
+rooms and missing thermal observations retain explicit unsupported/unknown findings. Unsupported
+reads retain findings and unknown estimates, including unreachable route pairs and
+unpowered heaters.
 
 The [coupled trajectory](../architecture/colony-forecast.md#coupled-food-needs-and-production-trajectory)
 consumes this frame with shared resource ownership. It distinguishes loose stock,
@@ -341,19 +370,10 @@ probe's `To`, `FromStart`, and `Ticks`, the native path cost (`FindPathNow`, tou
 to the `Reach` cell nearest the origin, else `To`. No path leaves `Ticks` unknown; a
 probe out of bounds has no row (finding `planned_route_out_of_bounds`).
 
-`ConstructionActivityRequest.Pawns` names the colonists a read covers (#3312), at
-most 16; a named pawn that is not a free spawned colonist has no row (finding
-`construction_pawn_absent`). Empty covers the map's free colonists, the first 16 by
-id. Rounds name every colonist, paging a larger colony over several reads.
-
-Caps per read: 16 planned sites, 16 colonists, 16 sources per site, 128 positions
-per site, 32 rejections and 32 blockers per site and 128 rows over all planned
-sites (placed sites have their own 128, and clearing rows another 128); 16 route
-probes and 256 route rows. Excess sets `Truncated`; the caller batches. A planned
-answer a cap cut (its rows, clearing rows, sources, rejections or blockers, or more
-than 16 colonists) also sets its own `PlannedSiteAnswer.Truncated`, so the read's
-other answers stay usable. Verdicts classify every footprint thing, including
-those past the 32 reported. The coupled census passes no planned sites; Rounds ask
+A read covers every free spawned colonist (#3341). Its only bound is on input: at
+most 16 placed sites, 16 planned sites and 16 route probes; a longer list sets
+`Truncated` and the caller batches. Rows, sources, positions, rejections, blockers
+and colonists are not capped. The coupled census passes no planned sites; Rounds ask
 them per round ([planned-site facts](../architecture/colony-forecast.md#planned-site-facts)).
 The prepared `observations/planned-site` case checks open-ground walls, a door and a
 shelf; rejection on a standing wall (`Unestimable`) and on deep water (`Illegal`);
@@ -386,6 +406,34 @@ Rounds ask once per round
 ([planned shelter](../architecture/colony-forecast.md#planned-shelter-and-occupancy)).
 The prepared `observations/planned-shelter-thermal` case reads an empty, unroofed
 3x3 room with a planned Heater beside a generator's conduit run, and a planned bed.
+
+### Planned room prediction read
+
+`ConstructionActivityRequest.RoomPredictions` asks (#3339), per planned room and ring
+stuff, for the room as it would stand once its ring is built: a `PlannedRoomShape` is
+the room id, the stuff, the interior cells and the ring `PlannedRoomPiece`s (cell,
+definition, stuff) the planned wall and door sites would build. Rounds ask it in the
+same read as the thermal read, for every enclosed unplaced planned room with ring
+sites, once per ring stuff (`PlannedRoomPredictionRequestOf`); nothing is capped.
+`ConstructionActivityRead.RoomPredictions` answers one `PlannedRoomPrediction` per
+shape:
+
+- `Role`: the game's `RoomRoleDef` with the highest `Worker.GetScore` over an
+  unregistered room that lists the things the closed room would contain or touch;
+  `None` at the map edge or over 60 regions, "" when unknown.
+- `Impressiveness` and `Stage`: `RoomStatWorker_Impressiveness` over the predicted
+  Wealth, Beauty, Space and Cleanliness (the game's worker bodies run over the planned
+  interior with the planned pieces counted), and `RoomStatDef.GetScoreStageIndex`.
+- `Cells`, `OpenRoofCells`, `TouchesMapEdge`: what PsychologicallyOutdoors and
+  UsesOutdoorTemperature read once closed.
+- `Beds`: the beds inside; `Benches`: the bill-giving buildings inside, each with
+  whether `StatPart_WorkTableOutdoors` applies to it now.
+
+The unregistered room is never added to the map. The prepared
+`observations/planned-room-prediction` case predicts an open 3x3 patch with a wooden
+bed closed by a wood ring and door, spawns that ring, and requires the prediction's
+role, impressiveness (within 0.001), stage, cell and open-roof counts to equal the
+game's own room.
 
 ## Food reserve components
 

@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsHospitalSource : IRoundsBuildingSource
 {
-    Task<(BedUseTarget Target, BridgeResult Result)> ReadBedUseTargetAsync(C.Identity identity, string bed, CancellationToken ct);
+    Task<BedUseTarget> ReadBedUseTargetAsync(C.Identity identity, string bed, CancellationToken ct);
 }
 
 /// <summary>The medical/care Need's work (#3258): a hospital bed built, converted or already standing, under the Need and admitted by claims.</summary>
@@ -120,7 +120,7 @@ public sealed partial class RoundsHospitalPlanner
         }
 
         var started = Reviewer.Clock.Now();
-        var (identity, _) = await Native.IdentityAsync(call).ConfigureAwait(false);
+        var identity = await Native.IdentityAsync(call).ConfigureAwait(false);
         var expected = ObservationPackage.DecodeIdentity(identity);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
@@ -145,7 +145,7 @@ public sealed partial class RoundsHospitalPlanner
                 return await Building.Copy().StepAsync(work.Arbiter!, call, work.Epoch).ConfigureAwait(false);
         }
 
-        var (target, _) = await Native.ReadBedUseTargetAsync(Boundary.Identity(state.Snapshot), choice.Bed, call).ConfigureAwait(false);
+        var target = await Native.ReadBedUseTargetAsync(Boundary.Identity(state.Snapshot), choice.Bed, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(target.Context, state.Snapshot);

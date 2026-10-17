@@ -126,7 +126,7 @@ internal sealed partial class FacadeNativeClient
     /// the always-populated storage capacity payload, in one complete page. The rows come back nearest first (ties by
     /// thing id).
     /// </summary>
-    internal async Task<(IReadOnlyList<Policy.ResourceSource> Rows, Policy.ResourceStorage Storage, BridgeResult Receipt)> ReadResourceSourcesAsync(PbCommon.Identity identity, string resource, CancellationToken cancellationToken)
+    internal async Task<(IReadOnlyList<Policy.ResourceSource> Rows, Policy.ResourceStorage Storage)> ReadResourceSourcesAsync(PbCommon.Identity identity, string resource, CancellationToken cancellationToken)
     {
         if (!IsValidId(resource))
         {
@@ -235,7 +235,7 @@ internal sealed partial class FacadeNativeClient
         }
 
         IReadOnlyList<Policy.ResourceSource> ordered = [.. rows.OrderBy(r => r.Distance).ThenBy(r => r.ThingId, StringComparer.Ordinal)];
-        return (ordered, storage, NoReceipt);
+        return (ordered, storage);
     }
 
     /// <summary>

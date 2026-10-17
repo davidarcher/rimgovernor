@@ -2,9 +2,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface ITradeMissionNative
 {
-    Task<(WorldProgressionRead Read, BridgeResult Result)> ReadWorldProgressionAsync(C.Identity identity, bool full, CancellationToken ct);
+    Task<WorldProgressionRead> ReadWorldProgressionAsync(C.Identity identity, bool full, CancellationToken ct);
 
-    Task<(IReadOnlyDictionary<string, long> Cargo, BridgeResult Result)> ReadPawnCargoAsync(C.Identity identity, IReadOnlyList<string> pawns, CancellationToken ct);
+    Task<IReadOnlyDictionary<string, long>> ReadPawnCargoAsync(C.Identity identity, IReadOnlyList<string> pawns, CancellationToken ct);
 }
 
 public static partial class TradeMissions
@@ -89,7 +89,7 @@ internal static partial class BuildingRuntimePackage
 
     internal static Fact<T> MissionOptional<T>(T v, bool known) => known ? Fact.Known(v) : Fact.Unknown<T>();
 
-    internal static Fact<double> MissionCatalogStat(Bridge.DefinitionCatalog? catalog, string def, string stat)
+    internal static Fact<double> MissionCatalogStat(Bridge.DefinitionCatalog? catalog, string def, Bridge.CatalogStat stat)
     {
         if (catalog is null)
         {
@@ -141,7 +141,7 @@ public sealed partial class RoundsTradePlanner
         }
         var step = new MissionStep(work.Owner, record, record.Missions[0].Id);
         var m = record.Missions[0].Mission;
-        var (world, _) = await source.ReadWorldProgressionAsync(Boundary.Identity(state.Snapshot), false, call).ConfigureAwait(false);
+        var world = await source.ReadWorldProgressionAsync(Boundary.Identity(state.Snapshot), false, call).ConfigureAwait(false);
         if (!TradeMissionCurrentRead(state.Snapshot, world))
         {
             throw new ControlException("mission: world progression read is not current");
@@ -173,7 +173,7 @@ public sealed partial class RoundsTradePlanner
             if (TradeMissionCrewAtHome(m, world))
             {
                 var crew = m.Crew.Select(id => id.Value).ToList();
-                var (cargo, _) = await source.ReadPawnCargoAsync(Boundary.Identity(state.Snapshot), crew, call).ConfigureAwait(false);
+                var cargo = await source.ReadPawnCargoAsync(Boundary.Identity(state.Snapshot), crew, call).ConfigureAwait(false);
                 if (TradeMissions.TradeMissionDelivered(m, world, cargo))
                 {
                     return MissionRecord(step, m with { Phase = TradeMissionPhase.Delivered }, call);
@@ -200,7 +200,7 @@ public sealed partial class RoundsTradePlanner
         }
         if (m.Phase == TradeMissionPhase.Returning)
         {
-            var (session, _) = await Native.ReadTradeSessionAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
+            var session = await Native.ReadTradeSessionAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
             var target = new TradeParticipant(TradeParticipantKind.Settlement, m.Settlement, caravan.Id);
             if (session.Trader == target.Key())
             {
@@ -288,7 +288,7 @@ public sealed partial class RoundsTradePlanner
     {
         var target = new TradeParticipant(TradeParticipantKind.Settlement, m.Settlement, caravan.Id);
         var trader = target.Key();
-        var (session, _) = await Native.ReadTradeSessionAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
+        var session = await Native.ReadTradeSessionAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         if (m.PurchaseCommitted)
         {
             return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
@@ -304,7 +304,7 @@ public sealed partial class RoundsTradePlanner
             {
                 return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
             }
-            var (census, _) = await Native.ListTradersAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
+            var census = await Native.ListTradersAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
             if (!census.Traders.Any(row => row.Id == trader && row.CanTrade))
             {
                 return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
@@ -316,7 +316,7 @@ public sealed partial class RoundsTradePlanner
         {
             return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
         }
-        var (sheet, _) = await Native.ReadTradeSheetAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
+        var sheet = await Native.ReadTradeSheetAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         IReadOnlyList<TradeLine> lines;
         IReadOnlyList<CargoItem> goods;
         try
@@ -359,7 +359,7 @@ public sealed partial class RoundsTradePlanner
     /// </summary>
     internal async Task<(IReadOnlyList<TradeLine> Lines, IReadOnlyList<CargoItem> Goods)> MissionPurchasesAsync(ControlState state, Sto.Rounds review, TradeMission m, TradeSheetRead sheet, CaravanJourney caravan, CancellationToken ct)
     {
-        var (reply, _) = await Native.ReadColonyFactsAsync(Boundary.Identity(state.Snapshot), false, ct).ConfigureAwait(false);
+        var reply = await Native.ReadColonyFactsAsync(Boundary.Identity(state.Snapshot), false, ct).ConfigureAwait(false);
         var tables = await Native.FrameTablesAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
         if (Native is not IDefinitionSource definitions)
         {
@@ -382,7 +382,7 @@ public sealed partial class RoundsTradePlanner
         var nutrition = new Dictionary<string, Fact<double>>(StringComparer.Ordinal);
         foreach (var item in m.Demand)
         {
-            nutrition[item.Definition] = MissionCatalogStat(catalog, item.Definition, "Nutrition");
+            nutrition[item.Definition] = MissionCatalogStat(catalog, item.Definition, CatalogStats.Nutrition);
         }
         var rows = new List<Pol.MissionPurchaseRow>();
         foreach (var row in sheet.Rows)
@@ -396,7 +396,7 @@ public sealed partial class RoundsTradePlanner
                 Currency = row.Currency,
                 BuyPrice = MissionOptional(row.BuyPrice, row.BuyPriceKnown),
                 WillTrade = MissionOptional(row.TraderWillTrade, row.TraderWillTradeKnown),
-                UnitMass = MissionCatalogStat(catalog, row.DefName, "Mass"),
+                UnitMass = MissionCatalogStat(catalog, row.DefName, CatalogStats.Mass),
             });
         }
         var (silver, _, known) = TradeSheetSilver(sheet.Rows);

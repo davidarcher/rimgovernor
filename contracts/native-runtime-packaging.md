@@ -10,7 +10,7 @@ Use new disposable state; saved-game compatibility is not required.
 | --- | --- |
 | Early native runtime | `src/Runtime/RimGovernor.Runtime.csproj`; persistence and batch-gated headless startup; `Assemblies/RimGovernor.Runtime.dll`. |
 | SDK tool adapter | `src/Bridge/RimGovernor.Bridge.csproj`; references Runtime; `BridgeTools/RimGovernor/RimGovernor.Bridge.dll`. |
-| Package builder | `scripts/build_native_mod.ps1`; one About manifest, private build inputs, fresh staging, notices/source and artifact manifest. |
+| Package builder | `RimGovernor.cmd native-build` (`NativeModBuild` in the acceptance harness); one About manifest, private build inputs, fresh staging, notices/source and artifact manifest. |
 | Native consumers | the launcher (`tools/launcher`) and the native acceptance runner (`RimGovernor.cmd acceptance`) use the unified package in batch and graphical modes. |
 
 Both assemblies target net10.0 with warnings as errors. Runtime is loaded early

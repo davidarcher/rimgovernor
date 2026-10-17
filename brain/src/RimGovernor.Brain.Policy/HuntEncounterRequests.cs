@@ -30,6 +30,8 @@ public static class HuntEncounterRequests
     public const int Samples = 16, SeedBase = 2000001;
     /// <summary>An estimate is reused while its pawns have moved no more than this many cells and nothing about them changed.</summary>
     public const int MoveTolerance = 8;
+    /// <summary>Biological age grows every tick, so an estimate is reused while the pawns have aged less than this many years.</summary>
+    public const double AgeTolerance = 0.25;
     /// <summary>An estimate is reused for at most one game day.</summary>
     public const long Lifetime = GameTime.TicksPerDay;
 
@@ -49,6 +51,9 @@ public static class HuntEncounterRequests
             actors.Add(Actor(hunter, false, scene, target.Pawn));
         }
         actors.AddRange(prey.Select(p => Actor(p!, true, scene, "")));
+        // Native names a herd by the animals near the prey, but the request holds only the roster's prey: a herd with one member in it is a lone animal, which states none.
+        var herds = actors.Where(a => a.Herd.Length > 0).GroupBy(a => a.Herd).Where(g => g.Count() == 1).Select(g => g.Key).ToHashSet(StringComparer.Ordinal);
+        if (herds.Count > 0) actors = actors.Select(a => herds.Contains(a.Herd) ? a with { Herd = "" } : a).ToList();
         if (actors.Any(a => a.X < 0 || a.Z < 0 || a.X >= scene.Width || a.Z >= scene.Height)) return (null, "actor_outside_scene");
         return (new EncounterRequest
         {
@@ -69,7 +74,8 @@ public static class HuntEncounterRequests
             || (a.World, a.GameBuild, a.Mods, a.Weather, a.Terrain) != (b.World, b.GameBuild, b.Mods, b.Weather, b.Terrain)) return false;
         bool Same(HuntActorRead? x, HuntActorRead? y) => x is not null && y is not null
             && Math.Abs(x.Location.X - y.Location.X) <= MoveTolerance && Math.Abs(x.Location.Z - y.Location.Z) <= MoveTolerance
-            && x with { Location = default } == y with { Location = default };
+            && Math.Abs(x.Age - y.Age) < AgeTolerance
+            && x with { Location = default, Age = 0 } == y with { Location = default, Age = 0 };
         return roster.Gunners.All(g => Same(made.Hunters.FirstOrDefault(h => h.Pawn == g), now.Hunters.FirstOrDefault(h => h.Pawn == g)))
             && roster.Prey.All(p => Same(made.Prey.FirstOrDefault(h => h.Pawn == p), now.Prey.FirstOrDefault(h => h.Pawn == p)));
     }

@@ -35,6 +35,8 @@ public sealed partial class RoundsDefensePlanner
         var memory = a.Memory;
         if (memory.Roles.Count == 0)
         {
+            var refusals = a.In.Hunters.Count > 0 || a.In.Prey.Count > 0 ? PolicyApi.HuntFormationRefusals(CombatView(a.Combat, a.In, [], a.Held)) : [];
+            DefenseAction("routine-defense", TelemetryLevel.Info, "refused", "no_squad_roles", EngageMethod(state.Snapshot).Value, new Dictionary<string, object?> { ["tactic"] = memory.Tactic.ToString(), ["gate"] = memory.Refusal, ["hunt_prey"] = a.In.Prey.Count, ["hunt_hunters"] = a.In.Hunters.Count, ["hunt_refusals"] = string.Join(";", refusals), ["hunt_primary"] = string.Join(";", a.In.Hunters.Select(h => h + "=" + (a.In.Primary.TryGetValue(h, out var def) ? "def:" + def : "no_equipment_read") + "/ranged:" + (a.In.Ranged.TryGetValue(h, out var r) ? r.ToString() : "none"))), ["combat_pawns"] = a.Combat.Pawns.Count }, call);
             return new RoundsDefenseResult { Verdict = BuildingReasonNoSquad };
         }
         var pawns = new List<PawnId>(memory.Roles.Count);
@@ -214,7 +216,7 @@ public sealed partial class RoundsDefensePlanner
     /// <summary>Answers the policy's geometry question from the native; see <see cref="BuildingRuntimePackage.AnswerGeometry"/>.</summary>
     internal GeometryReply AnswerGeometry(C.Identity identity, GeometryRequest? ask, CancellationToken ct) =>
         BuildingRuntimePackage.AnswerGeometry(
-            request => _native.CombatGeometry(request, ct).Geometry,
+            request => _native.CombatGeometry(request, ct),
             (what, target, ex) => DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", what, target, new Dictionary<string, object?> { ["error"] = ex }, ct),
             identity,
             ask);

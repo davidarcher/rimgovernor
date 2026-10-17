@@ -8,24 +8,45 @@ namespace RimGovernor.Contracts.Wire.Observations;
 
 /// <summary>
 /// Placed sites (<see cref="Buildings"/>), hypothetical, unplaced sites (<see cref="Planned"/>) and routes between
-/// planned sites (<see cref="Routes"/>). At most 16 of each and 16 colonists are read; the caller batches the rest.
+/// planned sites (<see cref="Routes"/>) for every free spawned colonist. Every one asked is read: nothing is capped (#3341).
 /// </summary>
 public sealed record ConstructionActivityRequest(Identity Identity,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<Building>))] EquatableArray<Building> Buildings)
 {
-    /// <summary>
-    /// The colonists the read covers, by id (#3312): at most 16, so a larger colony is paged over several reads. A
-    /// named pawn that is not a free spawned colonist has no row. Empty covers the map's free colonists, the first 16
-    /// by id, and truncates above.
-    /// </summary>
-    public EquatableArray<string> Pawns { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedConstructionSite>))]
     public EquatableArray<PlannedConstructionSite> Planned { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRouteProbe>))]
     public EquatableArray<PlannedRouteProbe> Routes { get; init; }
     /// <summary>Unplaced planned shelters whose thermal cells and planned heaters the read samples (#3323); null asks nothing.</summary>
     public PlannedThermalRequest? Thermal { get; init; }
+    /// <summary>Planned rooms whose closed role and impressiveness the read predicts (#3339); empty asks nothing.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomShape>))]
+    public EquatableArray<PlannedRoomShape> RoomPredictions { get; init; }
 }
+/// <summary>
+/// One planned room closed in one ring stuff (#3339): its interior cells and the unbuilt ring pieces (walls, doors) its
+/// planned sites would build there. The read counts the pieces as built; every other cell and thing is as observed.
+/// </summary>
+public sealed record PlannedRoomShape(string Room, string Stuff,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Interior,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomPiece>))] EquatableArray<PlannedRoomPiece> Pieces);
+public sealed record PlannedRoomPiece(Cell Cell, string Definition, string Stuff);
+/// <summary>
+/// The predicted closed room (#3339): the game's RoomRoleWorkers' role ("None" when not a proper room or over 60 regions)
+/// and RoomStatWorker_Impressiveness over the predicted base stats, with its RoomStatDef stage; the closed room's
+/// cell count, observed open-roof cells and map-edge contact (the outdoors rules' inputs); the existing beds inside with
+/// their owners, and the work tables inside whose speed stat has StatPart_WorkTableOutdoors with their current
+/// room's PsychologicallyOutdoors. Unknown score or stage when a stat could not be read.
+/// </summary>
+public sealed record PlannedRoomPrediction(string Room, string Stuff, string Role, Fact<double> Impressiveness, Fact<int> Stage,
+    int Cells, int OpenRoofCells, bool TouchesMapEdge)
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> Beds { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomBench>))]
+    public EquatableArray<PlannedRoomBench> Benches { get; init; }
+}
+public sealed record PlannedRoomBench(string Bench, bool PsychologicallyOutdoors);
 /// <summary>
 /// One route the planned read probes per free colonist (#3313): from <see cref="From"/> (or, with
 /// <see cref="FromStart"/>, from the pawn's own position) to the cell of <see cref="Reach"/> nearest that origin, or to
@@ -47,7 +68,7 @@ public sealed record ConstructionActivityOption(string Site, string Definition, 
 /// <summary>
 /// One hypothetical site: <see cref="Positions"/> are the placement anchors of one piece each of
 /// <see cref="Definition"/> in <see cref="Stuff"/> at <see cref="Rotation"/> (a wall run lists every wall cell; a 2x1
-/// piece lists its one anchor). Work is summed over the pieces; at most 128 positions per site.
+/// piece lists its one anchor). Work is summed over the pieces.
 /// </summary>
 public sealed record PlannedConstructionSite(string Id, string Definition, string Stuff, RimGovernor.Brain.Domain.Rotation Rotation,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Positions);
@@ -135,11 +156,6 @@ public sealed record PlannedSiteClearing(string Id, PlannedClearingKind Kind,
 /// </summary>
 public sealed record PlannedSiteAnswer(string Site, Fact<bool> CanPlace)
 {
-    /// <summary>
-    /// The read's caps cut this site's rows, rejections or blockers (#3312), so a pawn without a row may yet do it. The
-    /// read's other answers stay complete.
-    /// </summary>
-    public bool Truncated { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSiteRejection>))]
     public EquatableArray<PlannedSiteRejection> Rejections { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSiteBlocker>))]
@@ -154,7 +170,6 @@ public sealed record ConstructionActivityRead
 {
     public ObservationContext? Context { get; init; }
     public bool Known { get; init; }
-    public bool Truncated { get; init; }
     public EquatableArray<string> Findings { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<ConstructionActivityOption>))]
     public EquatableArray<ConstructionActivityOption> Options { get; init; }
@@ -168,4 +183,7 @@ public sealed record ConstructionActivityRead
     public EquatableArray<CoupledRoute> Routes { get; init; }
     /// <summary>The answer to <see cref="ConstructionActivityRequest.Thermal"/>; null when nothing was asked.</summary>
     public CoupledThermalRead? Thermal { get; init; }
+    /// <summary>The answer to <see cref="ConstructionActivityRequest.RoomPredictions"/>, one row per asked room and stuff.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomPrediction>))]
+    public EquatableArray<PlannedRoomPrediction> RoomPredictions { get; init; }
 }

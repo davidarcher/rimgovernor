@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
@@ -15,12 +14,12 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeApparelPolicyOperations
     {
-        private static string Hash(string s) { using (var h = SHA256.Create()) return BitConverter.ToString(h.ComputeHash(Encoding.UTF8.GetBytes(s))).Replace("-", ""); }
-        internal static string Signature(ApparelPolicy p) => CensusMemo.Of(("signature", (object?)p), () => Hash(p.label + "|" + string.Join(",", p.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d))
+        // A policy's guarded content; the apparel token covers every policy's.
+        private static string Signature(ApparelPolicy p) => CensusMemo.Of(("signature", (object?)p), () => (p.label + "|" + string.Join(",", p.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d))
             + "|" + string.Join(",", DefDatabase<SpecialThingFilterDef>.AllDefs.Where(d => !p.filter.Allows(d)).Select(d => d.defName).OrderBy(d => d))
             + "|" + p.filter.AllowedHitPointsPercents.min.ToString("R", System.Globalization.CultureInfo.InvariantCulture)
             + "|" + p.filter.AllowedHitPointsPercents.max.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "|" + p.filter.AllowedQualityLevels));
-        internal static string Token(Pawn p) => Hash(GearUpkeepTools.Identity(p) + "|" + CensusMemo.Of(("outfits", (object?)null), () => string.Join(";",
+        internal static string Token(Pawn p) => NativeSnapshotVersions.Token("apparel", null, p.GetUniqueLoadID(), GearUpkeepTools.Identity(p) + "|" + CensusMemo.Of(("outfits", (object?)null), () => string.Join(";",
             Current.Game.outfitDatabase.AllOutfits.OrderBy(o => o.id).Select(o => o.GetUniqueLoadID() + ":" + Signature(o)))));
         internal static Obs.ApparelPolicyState Read(Pawn p)
         {

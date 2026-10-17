@@ -85,14 +85,19 @@ public sealed class AcceptanceReads
     /// </summary>
     public async Task<string> StarterSiteAsync(bool cells, CancellationToken cancellationToken)
     {
-        var (_, catalog, reading) = await ReadColonyAsync(cancellationToken).ConfigureAwait(false);
+        // The review's rooms read, as the colony plan derives from: the station catalog, item facts and dining furniture
+        // ride the rounds frame, not the bare colony read.
+        var expected = await ReadIdentityAsync(cancellationToken).ConfigureAwait(false);
+        var catalog = await _client.DefinitionCatalogAsync(IdentityOf(expected), cancellationToken).ConfigureAwait(false);
+        using var window = ClockPlanning.StandaloneWindow(_client);
+        var reading = await ObservationPackage.ObserveRoundsRooms(_client, SystemClock.Instance, expected, MaxAge, Fact.Unknown<EquatableArray<ConstructionClaim>>(), [], cancellationToken).ConfigureAwait(false);
         var projection = reading.Projection;
         var survey = catalog.SurveyFromCells(projection.Cells, projection.Bounds) with
         {
             Cold = projection.ColdMap.TryGetValue(out var cold) && cold,
             Hot = projection.HotMap.TryGetValue(out var hot) && hot,
         };
-        var facts = StationFactsBuilder.FirstPlanFacts(projection, survey, new Dictionary<Resource, long>(), PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewNone, 0));
+        var facts = StationFactsBuilder.StationFacts(catalog, StationFactsBuilder.FirstPlanFacts(projection, survey, new Dictionary<Resource, long>(), PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewNone, 0)));
         var (fact, _) = PolicyFunctions.DeriveLayoutPlan(survey, facts, []);
         var planJson = fact.TryGetValue(out var plan) ? StoreJson.Serialize(plan) : null;
         projection.Facts.Colonists.TryGetValue(out var colonists);
@@ -113,6 +118,38 @@ public sealed class AcceptanceReads
                 WriteSurvey(w, survey);
             }
         });
+    }
+
+    /// <summary>
+    /// Measures the brain's reads of one captured frame for the capture profile probe: the held tables and the
+    /// whole-map planning window over the frame's grid, each <paramref name="iterations"/> times on the calling thread.
+    /// Returns (span, ms, allocated bytes) samples; nothing is kept.
+    /// </summary>
+    public static IReadOnlyList<(string Span, double Ms, long Bytes)> FrameDecodeProfile(RimGovernor.Contracts.Wire.Observations.BundleSnapshot frame, int iterations)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        var samples = new List<(string, double, long)>();
+        T Time<T>(string span, Func<T> body)
+        {
+            var bytes = GC.GetAllocatedBytesForCurrentThread();
+            var started = System.Diagnostics.Stopwatch.GetTimestamp();
+            var result = body();
+            samples.Add((span, System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - bytes));
+            return result;
+        }
+        for (var i = 0; i < iterations; i++)
+        {
+            if (frame.Context is { } context)
+            {
+                Time("brain.heldTables", () => FrameHeld.Of(frame, context));
+            }
+            if (frame.Grid is { } wire)
+            {
+                var grid = new FrameCellGrid(wire);
+                Time("brain.windowWholeMap", () => grid.Window(grid.Rect));
+            }
+        }
+        return samples;
     }
 
     /// <summary>The Impressiveness room stat's score stages of the loaded game.</summary>
@@ -190,7 +227,7 @@ public sealed class AcceptanceReads
 
     private async Task<RimGovernor.Brain.Observation.Identity> ReadIdentityAsync(CancellationToken cancellationToken)
     {
-        var (reply, _) = await ((IColonySource)_client).IdentityAsync(cancellationToken).ConfigureAwait(false);
+        var reply = await ((IColonySource)_client).IdentityAsync(cancellationToken).ConfigureAwait(false);
         return ObservationPackage.DecodeIdentity(reply);
     }
 

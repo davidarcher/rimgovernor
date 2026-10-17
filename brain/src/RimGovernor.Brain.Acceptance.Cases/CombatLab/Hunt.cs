@@ -17,9 +17,10 @@ internal static class CombatLabHunt
     private const int Ticks = 12000;
 
     // huntDoorLeadStep and huntDoorLeadMax bound the lead: the hunt runs in steps until the squad is drafted, then the
-    // manhunter is staged.
+    // manhunter is staged. The roster comparison waits for every proposed roster's estimate, which the worker answers one at a time
+    // in real time (about forty for four riflemen and three animals), so the lead is a hang guard, not an expectation.
     private const int DoorLeadStep = 300;
-    private const int DoorLeadMax = 6000;
+    private const int DoorLeadMax = 30000;
 
     // huntDoorTicks bounds the door fight after the manhunter appears.
     private const int DoorTicks = 6000;

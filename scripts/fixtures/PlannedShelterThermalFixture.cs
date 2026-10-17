@@ -84,7 +84,6 @@ public sealed partial class PawnControlFixture
                 },
             });
             var thermal = read.Thermal ?? throw new InvalidOperationException("The construction activity read answered no planned thermal read; findings " + string.Join(",", read.Findings));
-            if (thermal.Truncated) throw new InvalidOperationException("The planned thermal read is truncated for one 3x3 room.");
             var rows = thermal.Cells.ToDictionary(c => c.Cell);
             foreach (var cell in ring.Cells)
             {

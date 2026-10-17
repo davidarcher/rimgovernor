@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsPsylinkSource
 {
-    Task<(IReadOnlyList<string> Items, BridgeResult Result)> ReadNeuroformerItemsAsync(C.Identity identity, string neuroformer, CancellationToken ct);
+    Task<IReadOnlyList<string>> ReadNeuroformerItemsAsync(C.Identity identity, string neuroformer, CancellationToken ct);
 }
 
 /// <summary>
@@ -89,7 +89,7 @@ public sealed class RoyaltyRounds
             {
                 try
                 {
-                    var (read, _) = await native.ReadNeuroformerItemsAsync(identity, PolicyConstants.PsylinkNeuroformer, ct).ConfigureAwait(false);
+                    var read = await native.ReadNeuroformerItemsAsync(identity, PolicyConstants.PsylinkNeuroformer, ct).ConfigureAwait(false);
                     items = Known<EquatableArray<string>>([.. read]);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)

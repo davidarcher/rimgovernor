@@ -23,7 +23,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Medical care contracts](medical-care.md)
 - [Material extraction contracts](mining-contracts.md)
 - [Mood relief contracts](mood-control.md)
-- [Stat evaluation](stat-classes.md): the `IStatSource` seam the brain reads game-computed stats through
+- [Stat evaluation](stat-classes.md): the load's def stat table the brain reads game-computed stats, stuffs and costs from
 - [Construction tiers](construction-tiers.md): per-target tier on place, native store, set-tier, readback
 - [Persistence contracts](persistence-contracts.md)
 - [OTEL signals](otel-signals.md)

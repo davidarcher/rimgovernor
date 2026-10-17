@@ -486,8 +486,8 @@ public sealed partial class Rounder
         });
         var vPlannedSites = await PlannedSitesAsync(state.Snapshot, reading.Projection, Policy.Flooring, shelfCandidates, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { PlannedSites = vPlannedSites });
-        var vPlannedThermal = await PlannedThermalAsync(state.Snapshot, reading.Projection, reading.Projection.Facts.PlannedShelters, vPlannedSites, ct).ConfigureAwait(false);
-        reading = reading.WithFacts(rf => rf with { PlannedThermal = vPlannedThermal });
+        var (vPlannedThermal, vRoomPredictions) = await PlannedShelterReadsAsync(state.Snapshot, reading.Projection, reading.Projection.Facts.PlannedShelters, vPlannedSites, ct).ConfigureAwait(false);
+        reading = reading.WithFacts(rf => rf with { PlannedThermal = vPlannedThermal, PlannedRoomPredictions = vRoomPredictions });
         if (Firebreak is not null)
         {
             // The ring plan's dwell clock advances every review; the layout family reads the work it leaves.
@@ -668,9 +668,25 @@ public sealed partial class Rounder
         WorkAssignments.Set(result.Review.Snapshot, result.Needs.WorkAssignments);
         NoteGearChoices(GearChoices, result.Review.Snapshot, reading.Projection.Facts.CoupledAlternatives, result.Needs.CoupledSelection);
         RoomSelection.Set(result.Review.Snapshot, PlannedSelectionReviewed(RoomSelection.Get(result.Review.Snapshot), reading.Projection, result.Needs.CoupledSelection));
-        AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
+        var taken = AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
+        AdmitStandby(reading.Projection.Facts, workActions, taken, state.Snapshot, ct, epoch);
         var attrs = new List<(string Key, object? Value)> { ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value) };
         attrs.AddRange(RoundsFoodAttrs(reading.Projection.Facts, Seasonal(reading.Projection.Facts)));
+        attrs.Add(("hunt_sources", reading.Projection.Acquisition.TryGetValue(out var offered) ? offered.Count(s => s.Hunt && s.Food) : -1));
+        if (reading.Projection.HuntHolds.Count > 0)
+        {
+            attrs.Add(("hunt_holds", reading.Projection.HuntHolds.Select(h => h.ID + ":" + h.Reason + (h.Detail.Count == 0 ? "" : "(" + string.Join(";", h.Detail) + ")")).ToArray()));
+        }
+        if (reading.Projection.Facts.ForecastObserved.Coupled?.Hunt is { } huntRead)
+        {
+            attrs.Add(("hunt_read", $"known={huntRead.Known} hunters={huntRead.Hunters.Count} prey={huntRead.Prey.Count} findings=[{string.Join(";", huntRead.Findings)}]"));
+            attrs.Add(("hunt_choice", Census.HuntNote));
+            if (HuntEstimates is { } estimates)
+            {
+                var view = estimates.Current(huntRead, reading.Projection.Identity.Tick.Value);
+                attrs.Add(("hunt_estimates", $"answered={view.Estimates.Count} pending={view.Pending.Count} refused=[{string.Join(";", view.Refusals.Select(r => r.Key + "=" + r.Value))}]"));
+            }
+        }
         ClockEvents.Event("routine", "rounds_review", "rounds ran", [.. attrs]);
         if (Needs.Contains(MilitaryFamily.Equipment))
         {

@@ -5,13 +5,13 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native reads of the defense layout planner.</summary>
 public interface IRoundsDefenseLayoutSource
 {
-    Task<(BridgeDefenseSite Site, BridgeResult Result)> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct);
+    Task<BridgeDefenseSite> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct);
 
-    Task<(BridgeSpatialAccess Access, BridgeResult Result)> ReadSpatialAccessAsync(C.Identity identity, IReadOnlyList<Cell> from, IReadOnlyList<Cell> toCells, IReadOnlyList<string> kinds, CancellationToken ct);
+    Task<BridgeSpatialAccess> ReadSpatialAccessAsync(C.Identity identity, IReadOnlyList<Cell> from, IReadOnlyList<Cell> toCells, IReadOnlyList<string> kinds, CancellationToken ct);
 
-    Task<(O.ListPawnsReply Reply, BridgeResult Result)> ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
+    Task<O.ListPawnsReply> ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
 
-    Task<(IReadOnlyList<BridgeBuildingPreview> Previews, BridgeResult Result)> PreviewBuildingsAsync(IReadOnlyList<DomainAction> actions, GenerationSnapshot snapshot, CancellationToken ct);
+    Task<IReadOnlyList<BridgeBuildingPreview>> PreviewBuildingsAsync(IReadOnlyList<DomainAction> actions, GenerationSnapshot snapshot, CancellationToken ct);
 }
 
 public sealed class RoundsDefenseLayoutResult : IPlannerMethod

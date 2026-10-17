@@ -2,7 +2,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
@@ -28,19 +27,8 @@ namespace HomeBridge.BridgeTools
             && PlantUtility.CanSowOnGrower(plant, grower)
             && (plant.plant.sowResearchPrerequisites == null || plant.plant.sowResearchPrerequisites.All(r => r.IsFinished));
 
-        internal static string Token(Common.Identity identity, Building_PlantGrower grower)
-        {
-            using (var bytes = new MemoryStream())
-            {
-                using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
-                {
-                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId);
-                    writer.Write(grower.GetUniqueLoadID()); writer.Write(grower.GetPlantDefToGrow()?.defName ?? string.Empty);
-                }
-                using (var hash = SHA256.Create())
-                    return "crop-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
-            }
-        }
+        internal static string Token(Common.Identity identity, Building_PlantGrower grower) =>
+            NativeSnapshotVersions.Token("crop", identity, grower.GetUniqueLoadID(), w => w.Write(grower.GetPlantDefToGrow()?.defName ?? string.Empty));
 
         internal static Obs.SnapshotRef? Snapshot(Thing thing, Common.ObservationContext context)
         {

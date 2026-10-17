@@ -56,7 +56,7 @@ public sealed partial class DefinitionCatalog
             var ratio = double.NegativeInfinity;
             foreach (var stuff in stuffs.Count == 0 ? [string.Empty] : stuffs)
             {
-                var (comfort, shown) = ShownStatValue(name, stuff, StatNames.Comfort);
+                var (comfort, shown) = ShownStatValue(name, stuff, CatalogStats.Comfort);
                 if (!shown)
                 {
                     continue;

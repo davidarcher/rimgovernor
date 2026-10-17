@@ -49,7 +49,7 @@ public sealed partial class PawnControlFixture
             return new { success = true, stage, pawn = sample.Pawn, world = sample.World, start = sample.Tick,
                 kind = selected.Kind, initial = need.Level.Value, fall = need.FallPerTick.Value,
                 gain = selected.GainPerTick.IsKnown ? selected.GainPerTick.Value : selected.GainPerUnit.Value,
-                travel = selected.TravelTicks.Value, target = selected.Id, truncated = observed.Truncated };
+                travel = selected.TravelTicks.Value, target = selected.Id };
         }, ct).ConfigureAwait(false);
 
     [Tool("test/needs_forecast_read", Description="UNSAFE FOR MODEL EXECUTION. Read needs and terminal execution for the prepared forecast residual scene.")]

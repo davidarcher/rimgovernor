@@ -25,7 +25,7 @@ internal sealed partial class FacadeNativeClient
     /// observed something. The frame reads belong to another part of the client, so the caller binds them here.
     /// </param>
     /// <param name="cancellationToken">Cancels the reads.</param>
-    internal async Task<(Bridge.Contracts.EmergencyObservation Value, BridgeResult Receipt)> ReadEmergencyAsync(
+    internal async Task<Bridge.Contracts.EmergencyObservation> ReadEmergencyAsync(
         PbCommon.Identity identity,
         Func<PbCommon.Identity, CancellationToken, Task<Pawns>> framePawns,
         CancellationToken cancellationToken)
@@ -44,7 +44,7 @@ internal sealed partial class FacadeNativeClient
             throw Contract("emergency status outcome missing");
         }
         var pawns = await framePawns(identity, cancellationToken).ConfigureAwait(false);
-        return (EmergencyDecode.DecodeEmergencyStatus(observed, pawns, identity), NoReceipt);
+        return EmergencyDecode.DecodeEmergencyStatus(observed, pawns, identity);
     }
 
     /// <summary>Go <c>emergencyRequest</c>: the status read <see cref="ReadEmergencyAsync"/> issues; a bundle's emergency section is seeded into the step cache under the same request.</summary>

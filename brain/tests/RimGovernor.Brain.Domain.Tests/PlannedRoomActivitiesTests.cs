@@ -67,15 +67,15 @@ public sealed class PlannedRoomActivitiesTests
     private static PlannedBuildSite Roof() => new("planned/room1/roof", 1, OpKind.RoofIn, "", "", Rotation.North, EquatableArray.From(Interior));
 
     /// <summary>
-    /// The planned-site facts with native routes between the sites (#3313): the production probes (PlannedRouteBatches),
+    /// The planned-site facts with native routes between the sites (#3313): the production probes (PlannedRouteProbes),
     /// answered per probe at 2 ticks a cell, joined by JoinPlannedRoutes. Without routes, the facts native gave before #3313.
     /// </summary>
     private static PlannedSiteFacts PlannedFacts(IEnumerable<PlannedBuildSite> planned, bool routes)
     {
         var facts = new PlannedSiteFacts { Sites = EquatableArray.From(planned) };
         if (!routes) return facts;
-        var (batches, findings) = PlannedRouteBatches(facts.Sites);
-        return JoinPlannedRoutes(facts, findings, batches.Select(probes => (probes, (ConstructionActivityRead?)new ConstructionActivityRead
+        var probes = PlannedRouteProbes(facts.Sites);
+        return JoinPlannedRoutes(facts, probes, new ConstructionActivityRead
         {
             Known = true,
             Routes = EquatableArray.From(probes.Select(p =>
@@ -83,13 +83,30 @@ public sealed class PlannedRoomActivitiesTests
                 var origin = p.FromStart ? Start : p.From;
                 return new CoupledRoute(Pawn, origin, p.To, Known(Ticks(origin, p.Reach.Count == 0 ? p.To : Nearest(p.Reach, origin)))) { FromStart = p.FromStart };
             })),
-        })));
+        });
     }
 
-    private static RoundsFacts Review(IEnumerable<PlannedBuildSite> planned, double level = 1, double fall = 0, double horizon = Horizon,
-        bool routes = true, double roofCellWork = 0)
+    private static NeedsForecastPawn Idle(string pawn, double level = 1, double fall = 0) => new()
     {
-        var facts = WorkResourceTestFacts.Create(Pawn);
+        Pawn = pawn, State = "eligible", Mood = Known(.5), MoodTarget = Known(.5),
+        MoodUnclampedTarget = Known(.5), LocalHour = Known(6d), Awake = Known(true),
+        MoodRisePerTick = Known(.12 / GameTime.TicksPerHour), MoodFallPerTick = Known(.08 / GameTime.TicksPerHour),
+        MoodIntervalTicks = Known(150d), MoodFreezesWhileAsleep = Known(true), BreakThreshold = Known(.3),
+        ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]),
+        Memories = Known<EquatableArray<NeedMemory>>([]),
+        Needs = [new("food", Known(level), Known(fall), Known(.3), Known(1d)),
+            new("rest", Known(1d), Known(0d), Known(.3), Known(1d))],
+    };
+
+    /// <summary>
+    /// The round's facts for the builder and, with colonists over one, idle colonists colonist-01.. whose ids sort before
+    /// the builder's, so the builder is the last colonist by id. Only the builder has planned rows.
+    /// </summary>
+    private static RoundsFacts Review(IEnumerable<PlannedBuildSite> planned, double level = 1, double fall = 0, double horizon = Horizon,
+        bool routes = true, double roofCellWork = 0, int colonists = 1)
+    {
+        var others = Enumerable.Range(1, colonists - 1).Select(i => "colonist-" + i.ToString("D2", System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        var facts = WorkResourceTestFacts.Create([.. others, Pawn]);
         facts = facts with
         {
             // The colony holds what the stacks hold.
@@ -98,17 +115,7 @@ public sealed class PlannedRoomActivitiesTests
             PlannedSites = Known(PlannedFacts(planned, routes)),
             ForecastObserved = facts.ForecastObserved with
             {
-                Needs = new() { Tick = 100, Pawns = [new()
-                {
-                    Pawn = "pawn", State = "eligible", Mood = Known(.5), MoodTarget = Known(.5),
-                    MoodUnclampedTarget = Known(.5), LocalHour = Known(6d), Awake = Known(true),
-                    MoodRisePerTick = Known(.12 / GameTime.TicksPerHour), MoodFallPerTick = Known(.08 / GameTime.TicksPerHour),
-                    MoodIntervalTicks = Known(150d), MoodFreezesWhileAsleep = Known(true), BreakThreshold = Known(.3),
-                    ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]),
-                    Memories = Known<EquatableArray<NeedMemory>>([]),
-                    Needs = [new("food", Known(level), Known(fall), Known(.3), Known(1d)),
-                        new("rest", Known(1d), Known(0d), Known(.3), Known(1d))],
-                }] },
+                Needs = new() { Tick = 100, Pawns = EquatableArray.From(others.Select(p => Idle(p)).Append(Idle(Pawn, level, fall))) },
                 Coupled = new()
                 {
                     Tick = 100,
@@ -191,6 +198,24 @@ public sealed class PlannedRoomActivitiesTests
 
         var unrouted = Review(room, horizon: day, routes: false, roofCellWork: 65);
         Assert.DoesNotContain(Select(unrouted, day).Selected.PlannedRooms, r => r.Complete.Count > 0);
+    }
+
+    /// <summary>
+    /// Twenty colonists (#3341): every free colonist is in the native needs and planned-site reads, so the builder's
+    /// planned rows reach the forecast problem though it is the twentieth colonist by id, and it builds the room.
+    /// </summary>
+    [Fact]
+    public void TheTwentiethColonistBuildsThePlannedRoom()
+    {
+        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 60)], colonists: 20);
+        var pawns = facts.ForecastObserved.Needs!.Pawns.Select(p => p.Pawn).Order(StringComparer.Ordinal).ToArray();
+        Assert.Equal(20, pawns.Length);
+        Assert.Equal(Pawn, pawns[^1]);
+        var result = Select(facts);
+        Assert.True(PlannedSelected(result, "planned/room1/wall/WoodLog"), Why(facts, result));
+        Assert.Equal(["planned/room1/WoodLog/Shell"], Assert.Single(result.Selected.PlannedRooms).Complete);
+        Assert.All(result.Selected.Plan.Allocations.Where(a => a.Activity.StartsWith("planned/room1/", StringComparison.Ordinal)),
+            a => Assert.Equal(Pawn, a.Pawn));
     }
 
     [Fact]

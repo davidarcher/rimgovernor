@@ -65,8 +65,8 @@ inputs and environment have not changed; record skipped coverage in the commit.
 
 Wall-clock deadlines guard hangs. Use game ticks for simulated progress and
 synchronized events or virtual time for ordering. A test timeout under machine
-load is not a latency measurement. Use the accepted shared guard (fixture `CallTimeout` or the case's budget)
-rather than tightening per-test deadlines or trimming behavior to fit.
+load is not a latency measurement. Use the accepted shared guard (fixture `CallTimeout`, or the hang guard the
+runner derives from a case's tick budget) rather than tightening per-test deadlines or trimming behavior to fit.
 
 A load-sensitive failure that passes alone does not justify another suite.
 Record it in the commit and let the nightly supply broader evidence.
@@ -85,6 +85,5 @@ do not infer omitted coverage. What a cloud session can and cannot run is in the
 
 ## Adding a case
 
-Use the [acceptance authoring guide](acceptance-guide.md#adding-a-case).
-A planner-decision failure belongs in a unit or snapshot test; replace and deregister
-a native case whose only claim is a planner choice.
+Follow the [acceptance charter](acceptance-guide.md#charter) and
+[writing a case](acceptance-guide.md#writing-a-case).

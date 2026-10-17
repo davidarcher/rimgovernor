@@ -3,6 +3,7 @@ using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
+[Collection(SpanWriters.Name)]
 public sealed class PawnActivityTests
 {
     private static PawnActivitySample Sample(long tick, string activity = "travel", int job = 1, string world = "load1") =>

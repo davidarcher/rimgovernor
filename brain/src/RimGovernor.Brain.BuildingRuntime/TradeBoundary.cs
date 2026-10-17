@@ -9,14 +9,14 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public interface ITradeNative
 {
-    Task<(TradeSessionRead Read, BridgeResult Result)> ReadTradeSessionAsync(C.Identity identity, CancellationToken ct);
+    Task<TradeSessionRead> ReadTradeSessionAsync(C.Identity identity, CancellationToken ct);
 }
 
 public interface ICommsTradeRequestNative
 {
-    Task<(ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result)> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
+    Task<ObservationsPb.TradeAcquisition> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
 
-    Task<(TradersRead Read, BridgeResult Result)> ListTradersAsync(C.Identity identity, CancellationToken ct);
+    Task<TradersRead> ListTradersAsync(C.Identity identity, CancellationToken ct);
 }
 
 public sealed class TradeCapabilities
@@ -60,7 +60,7 @@ internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITr
         {
             throw new EvidenceException(e);
         }
-        var (session, _) = await Trade.Native!.ReadTradeSessionAsync(Boundary.Identity(target.Snapshot), ct).ConfigureAwait(false);
+        var session = await Trade.Native!.ReadTradeSessionAsync(Boundary.Identity(target.Snapshot), ct).ConfigureAwait(false);
         var observed = Boundary.Context(session.Context, target.Snapshot);
         output = output with
         {
@@ -78,7 +78,7 @@ internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITr
         {
             throw new EvidenceException();
         }
-        var (facts, _) = await Trade.Requests!.ReadTradeAcquisitionAsync(Boundary.Identity(target.Snapshot), null, ct).ConfigureAwait(false);
+        var facts = await Trade.Requests!.ReadTradeAcquisitionAsync(Boundary.Identity(target.Snapshot), null, ct).ConfigureAwait(false);
         if (facts is null || facts.Context is null)
         {
             throw new EvidenceException();
@@ -116,7 +116,7 @@ internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITr
                 output = output with { MatchingArrival = true };
             }
         }
-        var (sellers, _) = await Trade.Requests.ListTradersAsync(Boundary.Identity(target.Snapshot), ct).ConfigureAwait(false);
+        var sellers = await Trade.Requests.ListTradersAsync(Boundary.Identity(target.Snapshot), ct).ConfigureAwait(false);
         try
         {
             Boundary.Context(sellers.Context, target.Snapshot);

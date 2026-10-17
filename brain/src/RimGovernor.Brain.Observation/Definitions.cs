@@ -9,7 +9,7 @@ public interface IDefinitionSource
 /// <summary>The research read whose finished projects make a definition available.</summary>
 public interface IResearchSource
 {
-    Task<(ResearchRead Read, Result Receipt)> ReadResearchAsync(C.Identity id, CancellationToken cancellationToken);
+    Task<ResearchRead> ReadResearchAsync(C.Identity id, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -116,7 +116,7 @@ public static partial class ObservationPackage
         {
             try
             {
-                var (read, _) = await research.ReadResearchAsync(id, cancellationToken).ConfigureAwait(false);
+                var read = await research.ReadResearchAsync(id, cancellationToken).ConfigureAwait(false);
                 finished = FinishedSet(read.Finished);
             }
             catch (BridgeUnavailableException)

@@ -151,7 +151,7 @@ public sealed partial class DefinitionCatalog
         var free = false;
         foreach (var stuff in options)
         {
-            var (value, shown) = ShownStatValue(name, stuff, StatNames.Comfort);
+            var (value, shown) = ShownStatValue(name, stuff, CatalogStats.Comfort);
             var cost = CostValueOf(name, stuff);
             if (cost <= 0)
             {

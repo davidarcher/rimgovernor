@@ -28,6 +28,14 @@ public sealed partial class Rounder
         MarkUnpriced(ref p);
     }
 
+    /// <summary>The last hunt comparison for telemetry: its findings, the roster chosen and why the others were unusable.</summary>
+    private static string DescribeHuntPlan(HuntPlan h)
+    {
+        var chosen = h.Selection?.Selected.Roster?.Key ?? "none";
+        var why = h.Selection is { } sel ? string.Join(",", sel.Alternatives.Where(a => a.Roster is not null).GroupBy(a => a.Refusal.Length == 0 ? "usable" : a.Refusal).OrderBy(g => g.Key, StringComparer.Ordinal).Select(g => g.Key + "=" + g.Count())) : "";
+        return $"chosen={chosen} rosters=[{why}] unestimated={h.Unestimated.Count} findings=[{string.Join(";", h.Findings)}]";
+    }
+
     /// <summary>The cached food plan for the projection; recomputed when the census generation, the offers, the seasonal thresholds or the observed identity moved.</summary>
     internal Fact<FoodPlan> FoodPlanOf(ColonyProjection p)
     {
@@ -44,7 +52,7 @@ public sealed partial class Rounder
                 return s.FoodPlanFact;
             }
 
-            var plan = ReviewFoodPlan(p, Policy, FoodCredit, HuntAdmission, trade, HuntEstimates, huntView);
+            var plan = ReviewFoodPlan(p, Policy, FoodCredit, HuntAdmission, trade, HuntEstimates, huntView, h => s.HuntNote = DescribeHuntPlan(h));
             if (plan.TryGetValue(out var v))
             {
                 HuntAdmission.Admit(PolicyFunctions.HuntRequest(Known(v)).Select(id => (Domain.PawnId)id));
@@ -123,7 +131,7 @@ public sealed partial class Rounder
 
 internal static partial class BuildingRuntimePackage
 {
-    internal static Fact<FoodPlan> ReviewFoodPlan(ColonyProjection p, RoundsPolicy thresholds, DeliveryCredit credit, HuntAdmission hunt, FoodTrade trade, IHuntEstimates? estimates, HuntEstimateView huntView)
+    internal static Fact<FoodPlan> ReviewFoodPlan(ColonyProjection p, RoundsPolicy thresholds, DeliveryCredit credit, HuntAdmission hunt, FoodTrade trade, IHuntEstimates? estimates, HuntEstimateView huntView, Action<HuntPlan>? onHunt = null)
     {
         if (!p.CombinedFoodSupply.TryGetValue(out var supply) || !p.Acquisition.TryGetValue(out var sources))
         {
@@ -171,12 +179,13 @@ internal static partial class BuildingRuntimePackage
         var huntRead = p.Facts.ForecastObserved.Coupled?.Hunt;
         var needed = Math.Max(0, (forecast.Consumers.Sum(c => c.NutritionPerDay) * thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays) - forecast.UsableNutrition);
         var huntPlan = PolicyFunctions.PlanHunt(huntRead, sources, p.Facts.ForecastObserved.Coupled?.Routes ?? [], huntView, needed);
+        onHunt?.Invoke(huntPlan);
         if (huntRead is not null && huntPlan.Unestimated.Count > 0)
         {
             _ = estimates?.Request(huntRead, huntPlan.Unestimated, p.Identity.Tick.Value);
         }
 
-        channels.AddRange(PolicyFunctions.HuntCandidates(sources, gunners, huntPlan.Channel(sources)));
+        channels.AddRange(PolicyFunctions.HuntCandidates(sources, gunners, hunt.Formation(huntPlan.Channel(sources), huntPlan, sources), huntPlan.Awaiting));
         channels.AddRange(PolicyFunctions.HuntPrerequisiteCandidates(p.HuntHolds));
         var hunting = FoodHuntInput(p);
         channels = PolicyFunctions.HuntThroughput(channels, hunters, PolicyFunctions.HuntCadence(hunting.Kills, hunters, p.Identity.Tick.Value)).ToList();
