@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using RimGovernor.Tools.Common;
 
-namespace RimGovernor.Tools.Commands;
+namespace RimGovernor.Tools.Workflow.Commands;
 
 /// <summary>The landing lane's guards: worktree discovery, the dirty-main refusal, main sync and the stale-revert refusal.</summary>
 internal static partial class LandChecks

@@ -3,7 +3,7 @@ using System.Text;
 
 namespace RimGovernor.Tools.Common;
 
-internal static class Durations
+public static class Durations
 {
     /// <summary>Parses Go-style duration text (<c>1h30m</c>, <c>90s</c>, <c>500ms</c>).</summary>
     public static bool TryParse(string text, out TimeSpan value)

@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- The repo tool host (#3086): one console tool, many subcommands. RimGovernor.cmd publishes it ReadyToRun into .rimgovernor/tools/. -->
+  <!-- The brain tool host (#3086): the subcommands built on brain/ projects. The repo front door (tools/repo) publishes it
+       ReadyToRun into .rimgovernor/rg/ and forwards RimGovernor.cmd acceptance, remoteaccept, ... to it. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>rg</AssemblyName>
@@ -29,9 +30,10 @@
     <EmbeddedResource Include="Commands\ColonyReview\player.js" LogicalName="colonyreview.player.js" />
     <EmbeddedResource Include="Commands\ColonyReview\review.css" LogicalName="colonyreview.review.css" />
   </ItemGroup>
-  <!-- The acceptance harness (#3087) and its cases; SelfBuild.IsStale follows these references so an edit under
-       brain/ marks the published host stale. -->
+  <!-- The acceptance harness (#3087) and its cases; the front door's staleness check follows these references so an edit
+       under brain/ marks the published host stale. -->
   <ItemGroup>
+    <ProjectReference Include="..\common\common.csproj" />
     <ProjectReference Include="..\..\brain\src\RimGovernor.Brain.Acceptance\RimGovernor.Brain.Acceptance.csproj" />
     <ProjectReference Include="..\..\brain\src\RimGovernor.Brain.Acceptance.Cases\RimGovernor.Brain.Acceptance.Cases.csproj" />
     <ProjectReference Include="..\..\brain\src\RimGovernor.Brain.RemoteAccept\RimGovernor.Brain.RemoteAccept.csproj" />

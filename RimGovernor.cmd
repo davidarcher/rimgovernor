@@ -1,10 +1,11 @@
 @echo off
 rem RimGovernor.cmd
-rem   no arguments:  double-click to play. Publishes the launcher when its sources changed (rg launcher-stale) and opens it.
-rem   with arguments: runs the repo tool host (tools\rg), e.g.  RimGovernor.cmd issue 3086
-rem                   tools: land, test, issue, affected, acceptance   (RimGovernor.cmd -help)
-rem The tool host is published ReadyToRun into .rimgovernor\tools\<version>\ and .rimgovernor\tools\current names the
-rem live version. A binary older than tools\rg\*.cs|csproj or the brain\ projects rg references reports itself stale (exit 75) before doing anything;
+rem   no arguments:  double-click to play. Publishes the launcher when its sources changed (repo launcher-stale) and opens it.
+rem   with arguments: runs the repo front door (tools\repo), e.g.  RimGovernor.cmd issue 3086
+rem                   tools: land, test, issue, affected; acceptance and the other brain tools are forwarded to tools\rg
+rem                   (RimGovernor.cmd -help)
+rem The front door is published ReadyToRun into .rimgovernor\tools\<version>\ and .rimgovernor\tools\current names the
+rem live version. A binary older than its sources (tools\repo, tools\common) reports itself stale (exit 75) before doing anything;
 rem this shim then rebuilds under a lock (parallel invocations wait, never share a half-written output) and re-runs.
 rem Needs the .NET SDK 10 on PATH only to (re)build. Arguments containing % or ^ are mangled by cmd; use -F for those.
 if "%~1"=="" goto :launcher
@@ -17,14 +18,14 @@ set "REBUILT="
 set "CUR="
 if exist "%TOOLS%\current" set /p CUR=<"%TOOLS%\current"
 if not defined CUR goto :build
-if not exist "%TOOLS%\%CUR%\rg.exe" goto :build
-"%TOOLS%\%CUR%\rg.exe" %*
+if not exist "%TOOLS%\%CUR%\repo.exe" goto :build
+"%TOOLS%\%CUR%\repo.exe" %*
 if "%ERRORLEVEL%"=="75" goto :build
 exit /b %ERRORLEVEL%
 
 :build
 if defined REBUILT (
-    echo RimGovernor.cmd: the tool is still stale after a rebuild; check the clock and tools\rg. 1>&2
+    echo RimGovernor.cmd: the tool is still stale after a rebuild; check the clock and tools\repo. 1>&2
     exit /b 1
 )
 set "REBUILT=1"
@@ -46,22 +47,20 @@ set "BUILDFAIL="
 set "CUR="
 if exist "%TOOLS%\current" set /p CUR=<"%TOOLS%\current"
 rem Another invocation may have rebuilt while this one waited for the lock.
-if defined CUR if exist "%TOOLS%\%CUR%\rg.exe" (
-    "%TOOLS%\%CUR%\rg.exe" --check-stale
+if defined CUR if exist "%TOOLS%\%CUR%\repo.exe" (
+    "%TOOLS%\%CUR%\repo.exe" --check-stale
     if not errorlevel 75 goto :eof
 )
 set "PREV=%CUR%"
 :pick
 set "VER=v%RANDOM%%RANDOM%"
 if exist "%TOOLS%\%VER%" goto :pick
-echo RimGovernor.cmd: building the tool host (tools\rg) ... 1>&3
-rem rg references brain projects (Acceptance.Cases -> Host -> NativeFacade ...). Their bin\obj belong to the brain build,
-rem which may be running at the same moment; two builds writing one dll once left a zero-filled NativeFacade output.
-rem The tool host therefore builds every project under its own artifacts root, shared only with itself (under the lock).
-dotnet publish "%ROOT%tools\rg\rg.csproj" -c Release -r win-x64 --self-contained false -p:PublishReadyToRun=true -p:NodeReuse=false -p:UseArtifactsOutput=true "-p:ArtifactsPath=%TOOLS%\build" --nologo -v q -o "%TOOLS%\%VER%" >"%TOOLS%\build.log" 2>&1
+echo RimGovernor.cmd: building the repo front door (tools\repo) ... 1>&3
+rem Its own artifacts root, shared only with itself (under the lock): the test gate builds the same projects in bin\obj.
+dotnet publish "%ROOT%tools\repo\repo.csproj" -c Release -r win-x64 --self-contained false -p:PublishReadyToRun=true -p:NodeReuse=false -p:UseArtifactsOutput=true "-p:ArtifactsPath=%TOOLS%\build" --nologo -v q -o "%TOOLS%\%VER%" >"%TOOLS%\build.log" 2>&1
 if errorlevel 1 (
     type "%TOOLS%\build.log" 1>&3
-    echo RimGovernor.cmd: building the tool host failed. 1>&3
+    echo RimGovernor.cmd: building the repo front door failed. 1>&3
     set "BUILDFAIL=1"
     goto :eof
 )
@@ -78,13 +77,13 @@ rem Already open: a running exe cannot be rebuilt, and one window is enough.
 tasklist /fi "imagename eq RimGovernorLauncher.exe" | find /i "RimGovernorLauncher.exe" >nul && exit /b 0
 setlocal EnableExtensions
 set "LBUILD=%~dp0.rimgovernor\launcher-build"
-rem The tool host decides whether the launcher's sources changed since the last publish (tools\rg\SelfBuild.cs, #3295).
-rem Bringing the tool host up to date first means a 75 from launcher-stale can only mean the launcher is stale.
+rem The front door decides whether the launcher's sources changed since the last publish (tools\repo\SelfBuild.cs, #3295).
+rem Bringing the front door up to date first means a 75 from launcher-stale can only mean the launcher is stale.
 call "%~f0" --check-stale || goto :fail
 set "CUR="
 if exist "%~dp0.rimgovernor\tools\current" set /p CUR=<"%~dp0.rimgovernor\tools\current"
 if not defined CUR goto :fail
-"%~dp0.rimgovernor\tools\%CUR%\rg.exe" launcher-stale
+"%~dp0.rimgovernor\tools\%CUR%\repo.exe" launcher-stale
 if "%ERRORLEVEL%"=="0" goto :startlauncher
 if not "%ERRORLEVEL%"=="75" goto :fail
 rem Published single-file into a staging directory, then copied over the root exe (tools\launcher, #3098). The stamp

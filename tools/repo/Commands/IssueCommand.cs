@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 using RimGovernor.Tools.Common;
 
-namespace RimGovernor.Tools.Commands;
+namespace RimGovernor.Tools.Workflow.Commands;
 
 /// <summary>
 /// Prints a GitHub issue with its comments as compact markdown, in one call, however long the thread is (Go:

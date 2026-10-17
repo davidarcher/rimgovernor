@@ -1,6 +1,6 @@
 using RimGovernor.Tools.Common;
 
-namespace RimGovernor.Tools.Commands;
+namespace RimGovernor.Tools.Workflow.Commands;
 
 /// <summary>
 /// Runs the checks a change owes: the native contract probes build when its inputs changed, then task build and

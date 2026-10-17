@@ -1,7 +1,7 @@
 namespace RimGovernor.Tools.Common;
 
 /// <summary>Shared console output for every subcommand.</summary>
-internal static class Log
+public static class Log
 {
     public static void Info(string line) => Console.Out.WriteLine(line);
 

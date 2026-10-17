@@ -1,20 +1,22 @@
 using System.Text.RegularExpressions;
 
-namespace RimGovernor.Tools;
+namespace RimGovernor.Tools.Workflow;
 
 /// <summary>
 /// Detects that a published binary is older than its sources, by file modification time against a stamp file written
-/// after the publish succeeded. Two binaries use it:
+/// after the publish succeeded. Three binaries use it:
 /// <list type="bullet">
-/// <item>The tool host itself. RimGovernor.cmd publishes it into <c>.rimgovernor/tools/&lt;version&gt;/</c> and writes the
-/// version into <c>.rimgovernor/tools/current</c>; a binary cannot replace itself while running, so a stale one exits
-/// with <see cref="StaleExitCode"/> before doing anything and the shim rebuilds and runs the command again. A binary
-/// run from anywhere else (dotnet run, the build output) has no <c>current</c> file and is never stale.</item>
+/// <item>The front door itself (tools/repo). RimGovernor.cmd publishes it into <c>.rimgovernor/tools/&lt;version&gt;/</c>
+/// and writes the version into <c>.rimgovernor/tools/current</c>; a binary cannot replace itself while running, so a
+/// stale one exits with <see cref="StaleExitCode"/> before doing anything and the shim rebuilds and runs the command
+/// again. A binary run from anywhere else (dotnet run, the build output) has no <c>current</c> file and is never
+/// stale.</item>
+/// <item>The brain tool host (tools/rg), which <see cref="BrainHost"/> republishes into <c>.rimgovernor/rg/</c>.</item>
 /// <item>The launcher (<c>launcher-stale</c>). RimGovernor.cmd's double-click path publishes <c>tools/launcher</c> only
 /// when this reports it stale, then writes <c>.rimgovernor/launcher-build/current</c>.</item>
 /// </list>
 /// A project's sources are its directory, every project it references (found by following the <c>ProjectReference</c>
-/// closure) and the shared brain build files above them (<c>brain/Directory.Build.props</c>, ...).
+/// closure) and the shared build files (<c>Directory.Build.props</c>, ...) in the directories above each of them.
 /// </summary>
 internal static partial class SelfBuild
 {
@@ -31,7 +33,7 @@ internal static partial class SelfBuild
 
     public static bool IsStale()
     {
-        // <root>/.rimgovernor/tools/<version>/rg.dll
+        // <root>/.rimgovernor/tools/<version>/repo.dll
         var binaryDir = AppContext.BaseDirectory.TrimEnd('\\', '/');
         var toolsDir = Path.GetDirectoryName(binaryDir);
         var stamp = toolsDir is null ? null : Path.Combine(toolsDir, "current");
@@ -40,7 +42,7 @@ internal static partial class SelfBuild
             return false;
         }
         var root = Path.GetDirectoryName(Path.GetDirectoryName(toolsDir));
-        var project = root is null ? null : Path.Combine(root, "tools", "rg", "rg.csproj");
+        var project = root is null ? null : Path.Combine(root, "tools", "repo", "repo.csproj");
         if (root is null || project is null || !File.Exists(project))
         {
             return false;
@@ -66,11 +68,11 @@ internal static partial class SelfBuild
     }
 
     /// <summary>
-    /// Whether any source of <paramref name="projectFile"/> (its directory, its project references, the shared brain
-    /// build files), counting <paramref name="extraExtensions"/> as sources too, is newer than <paramref name="stamp"/>.
+    /// Whether any source of <paramref name="projectFile"/> (its directory, its project references, the shared build
+    /// files above them), counting <paramref name="extraExtensions"/> as sources too, is newer than <paramref name="stamp"/>.
     /// A missing stamp is stale.
     /// </summary>
-    private static bool IsStale(string root, string projectFile, string[] extraExtensions, string stamp)
+    public static bool IsStale(string root, string projectFile, string[] extraExtensions, string stamp)
     {
         if (!File.Exists(stamp))
         {
@@ -79,20 +81,22 @@ internal static partial class SelfBuild
         string[] extensions = [.. SourceExtensions, .. extraExtensions];
         var built = File.GetLastWriteTimeUtc(stamp);
         var projectDir = Path.GetDirectoryName(Path.GetFullPath(projectFile)) ?? root;
-        if (NewerThan(projectDir, built, extensions))
+        List<string> dirs = [projectDir, .. ReferencedProjectDirectories(projectFile)];
+        if (dirs.Any(dir => NewerThan(dir, built, extensions)))
         {
             return true;
         }
-        foreach (var dir in ReferencedProjectDirectories(projectFile))
+        // Shared build files (Directory.Build.props, Directory.Packages.props, ...) between each project and the root.
+        var top = Path.GetFullPath(root).TrimEnd('\\', '/');
+        var ancestors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var dir in dirs)
         {
-            if (NewerThan(dir, built, extensions))
+            for (var up = Path.GetDirectoryName(dir); up is not null && up.Length > top.Length; up = Path.GetDirectoryName(up))
             {
-                return true;
+                ancestors.Add(up);
             }
         }
-        // Shared build files that change every brain project (Directory.Build.props, Directory.Packages.props, ...).
-        var brain = Path.Combine(root, "brain");
-        return Directory.Exists(brain) && TopLevelNewerThan(brain, built, extensions);
+        return ancestors.Any(dir => TopLevelNewerThan(dir, built, extensions));
     }
 
     /// <summary>The directories of every project the project file references, transitively (not the project itself).</summary>

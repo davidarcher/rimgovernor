@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using RimGovernor.Tools.Common;
 
-namespace RimGovernor.Tools.Commands;
+namespace RimGovernor.Tools.Workflow.Commands;
 
 /// <summary>
 /// The serial landing lane: takes a task branch from its worktree onto local main as one squash commit, so agents

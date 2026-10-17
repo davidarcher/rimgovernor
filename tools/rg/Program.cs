@@ -7,19 +7,17 @@ using RimGovernor.Tools.Common;
 namespace RimGovernor.Tools;
 
 /// <summary>
-/// The repo tool host: one console tool, one subcommand per workflow tool. Started by RimGovernor.cmd, which
-/// publishes it into .rimgovernor/tools/ and rebuilds when it reports itself stale.
+/// The brain tool host: the subcommands that build on brain/ projects (the acceptance harness and its cases, remote
+/// acceptance, telemetry readers, the game audits). RimGovernor.cmd reaches it through the repo front door
+/// (tools/repo), which publishes it into .rimgovernor/rg/ when its sources changed and forwards the command line;
+/// workflows publish it on their own.
 /// </summary>
 internal static class Program
 {
     private const string Usage = """
-        usage: RimGovernor.cmd <tool> [flags] [args]
+        usage: rg <tool> [flags] [args]   (from a checkout: RimGovernor.cmd <tool> ...)
 
         tools:
-          land      squash a task branch onto local main under the landing lock
-          test      run the checks the working tree's changes owe
-          issue     print a GitHub issue and its comments as markdown
-          affected  list the changed files and the checks they owe
           acceptance  the native acceptance harness (list, stop, ...)
           remoteaccept  remote acceptance evidence: export, aggregate, import, index, soak, progress
           remotebundle  encrypted remote-acceptance bundles: pack, publish, verify, extract, bootstrap
@@ -27,31 +25,18 @@ internal static class Program
           colonyreview  render a colony-week recording into an HTML report or a site index
           pawnactivity  report pawn time and gaps from the OTLP ring
           launch-phases  print a run's launch waterfall (or two runs' per-phase delta) from its traces
-          launcher-stale  exit 75 when RimGovernorLauncher.exe is older than its sources, 0 when current
 
         <tool> -help shows a tool's flags.
         """;
 
     private static async Task<int> Main(string[] args)
     {
-        // Subcommands print UTF-8 (issue text carries non-ASCII); no byte-order mark.
+        // Subcommands print UTF-8; no byte-order mark.
         Console.OutputEncoding = new UTF8Encoding(false);
-        if (SelfBuild.IsStale())
-        {
-            return SelfBuild.StaleExitCode;
-        }
         if (args.Length == 0 || args[0] is "-h" or "-help" or "--help" or "help")
         {
             Console.Out.WriteLine(Usage);
             return args.Length == 0 ? 2 : 0;
-        }
-        if (args[0] == "--check-stale")
-        {
-            return 0; // reaching here means not stale
-        }
-        if (args[0] == "launcher-stale")
-        {
-            return SelfBuild.LauncherStale();
         }
 
         using var cts = new CancellationTokenSource();
@@ -67,10 +52,6 @@ internal static class Program
             return tool switch
             {
                 "pawnactivity" => await PawnActivityCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
-                "land" => await LandCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
-                "test" => await TestCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
-                "issue" => await IssueCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
-                "affected" => await Affected.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "acceptance" => await AcceptanceTool.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "remoteaccept" => await RemoteAcceptTool.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "remotebundle" => await RemoteBundleTool.RunAsync(rest, cts.Token).ConfigureAwait(false),

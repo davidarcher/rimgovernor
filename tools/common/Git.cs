@@ -1,7 +1,7 @@
 namespace RimGovernor.Tools.Common;
 
 /// <summary>git and gh helpers over <see cref="Proc"/>.</summary>
-internal static class Git
+public static class Git
 {
     /// <summary>Runs git and returns trimmed stdout; a non-zero exit throws.</summary>
     public static async Task<string> RunAsync(string dir, CancellationToken ct, params string[] args) =>
@@ -25,7 +25,7 @@ internal static class Git
     public static Task<string> GhAsync(string dir, CancellationToken ct, params string[] args) => Proc.OutputAsync(dir, "gh", args, ct);
 }
 
-internal static class Repo
+public static class Repo
 {
     /// <summary>
     /// Walks up from <paramref name="dir"/> to the checkout root: the directory holding .git, a directory in the main

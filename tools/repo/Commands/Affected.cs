@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using RimGovernor.Tools.Common;
 
-namespace RimGovernor.Tools.Commands;
+namespace RimGovernor.Tools.Workflow.Commands;
 
 /// <summary>
 /// Finds the files a change touched and the checks worth running for them: the native contract probes build when its

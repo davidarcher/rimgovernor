@@ -17,6 +17,7 @@ includes:
   native: { taskfile: integrations/rimgovernor-native, dir: integrations/rimgovernor-native }
   probes: { taskfile: contracts/tests, dir: contracts/tests }
   brain: { taskfile: brain, dir: brain }
+  repo: { taskfile: tools/repo, dir: tools/repo }
   rg: { taskfile: tools/rg, dir: tools/rg }
   launcher: { taskfile: tools/launcher, dir: tools/launcher }
 
@@ -27,6 +28,7 @@ tasks:
       - task: native:build
       - task: probes:build
       - task: brain:build
+      - task: repo:build
       - task: rg:build
       - task: launcher:build
 
@@ -36,5 +38,6 @@ tasks:
       - native:test
       - probes:test
       - brain:test
+      - repo:test
       - rg:test
       - launcher:test

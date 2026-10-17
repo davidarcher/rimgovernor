@@ -1,0 +1,14 @@
+# Repo front door (tools/repo, with tools/common): the C# console tool behind RimGovernor.cmd (land, test, issue,
+# affected). Needs only the .NET SDK 10; this build is the static gate (nullable, warnings as errors).
+version: '3'
+
+tasks:
+  build:
+    desc: Front door with nullable and warnings as errors
+    cmds:
+      - dotnet build repo.csproj --configuration Release --nologo -p:TreatWarningsAsErrors=true
+
+  test:
+    desc: Smoke test that the built tool starts and lists its tools
+    cmds:
+      - dotnet bin/Release/repo.dll --help

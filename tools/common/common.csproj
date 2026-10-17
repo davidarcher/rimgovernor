@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Helpers shared by the repo front door (tools/repo) and the brain tool host (tools/rg): flags, logging, child
+       processes, git, file locks. No references, so a change here rebuilds both and nothing else. -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <AssemblyName>RimGovernor.Tools.Common</AssemblyName>
+    <RootNamespace>RimGovernor.Tools.Common</RootNamespace>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningLevel>9999</WarningLevel>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <DebugType>none</DebugType>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Flags.String/Int/Bool name the value type they read on purpose. -->
+    <NoWarn>$(NoWarn);CA1720</NoWarn>
+  </PropertyGroup>
+</Project>

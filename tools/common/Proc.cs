@@ -4,7 +4,7 @@ using System.Text;
 namespace RimGovernor.Tools.Common;
 
 /// <summary>Child processes: captured, or streamed with a heartbeat (Go: <c>os/exec</c> plus <c>internal/childproc</c>).</summary>
-internal static class Proc
+public static class Proc
 {
     /// <summary>How often a running command reports that it is alive.</summary>
     public static readonly TimeSpan HeartbeatEvery = TimeSpan.FromSeconds(30);

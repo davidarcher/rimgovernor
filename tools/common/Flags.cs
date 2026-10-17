@@ -6,7 +6,7 @@ namespace RimGovernor.Tools.Common;
 /// Go-flag-style parsing: <c>-name</c> or <c>--name</c>, <c>-name value</c> or <c>-name=value</c>; flags stop at the
 /// first non-flag argument or <c>--</c>. Booleans are bare (or <c>-name=false</c>).
 /// </summary>
-internal sealed class Flags
+public sealed class Flags
 {
     private readonly Dictionary<string, string> _values = new(StringComparer.Ordinal);
 

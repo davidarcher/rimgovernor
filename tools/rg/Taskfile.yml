@@ -1,5 +1,5 @@
-# Repo tool host (#3086): the C# console tool behind RimGovernor.cmd (land, test, issue, affected).
-# Needs only the .NET SDK 10. RimGovernor.cmd publishes it ReadyToRun into .rimgovernor/tools/;
+# Brain tool host (#3086): the subcommands built on brain/ projects, behind RimGovernor.cmd acceptance, remoteaccept, ...
+# Needs only the .NET SDK 10. The front door (tools/repo) publishes it ReadyToRun into .rimgovernor/rg/;
 # this build is the static gate (nullable, warnings as errors).
 version: '3'
 
