@@ -57,7 +57,7 @@ public static partial class BridgeFunctions
                 var cooldowns = new Dictionary<string, PolicyPermitCooldown>(StringComparer.Ordinal);
                 foreach (var cooldown in holding.PermitCooldowns)
                 {
-                    if (!IsValidId((cooldown.Permit ?? "")) || cooldown.LastUsedTick.GetValueOrDefault() < 0 || cooldown.CooldownRemainingTicks.GetValueOrDefault() < 0)
+                    if (!IsValidId((cooldown.Permit ?? "")) || cooldown.CooldownRemainingTicks.GetValueOrDefault() < 0)
                     {
                         throw Contract("invalid royalty permit cooldown");
                     }
@@ -65,7 +65,6 @@ public static partial class BridgeFunctions
                         (cooldown.Permit ?? ""),
                         new PolicyPermitCooldown
                         {
-                            LastUsedTick = OptionalInt(cooldown.LastUsedTick is not null, cooldown.LastUsedTick.GetValueOrDefault()),
                             RemainingTicks = OptionalInt(cooldown.CooldownRemainingTicks is not null, cooldown.CooldownRemainingTicks.GetValueOrDefault()),
                         }))
                     {

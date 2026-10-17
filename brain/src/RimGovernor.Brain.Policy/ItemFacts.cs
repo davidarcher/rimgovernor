@@ -50,12 +50,6 @@ public sealed record ItemFacts
     /// <summary>The catalog's drug defs (a CompProperties_Drug with a chemical) in preference order: social drugs before hard ones, then the game's listOrder, then name.</summary>
     public IReadOnlyList<Drug> Drugs { get; init; } = [];
 
-    /// <summary>The chemicals the drugs build tolerance of and addiction to, by name.</summary>
-    public IReadOnlyDictionary<string, Chemical> Chemicals { get; init; } = new Dictionary<string, Chemical>();
-
-    /// <summary>The drug that makes its taker immune to diseases, null when the game has none.</summary>
-    public Prevention? Prevention { get; init; }
-
     /// <summary>The art recipes (RoleSculpture), smallest first.</summary>
     public IReadOnlyList<Sculpture> Sculptures { get; init; } = [];
 
@@ -72,19 +66,6 @@ public sealed record ItemFacts
 
     /// <summary>The combat-enhancing drugs, preferred first.</summary>
     public IReadOnlyList<Drug> CombatDrugs() => DrugsWhere(d => d.Combat);
-
-    /// <summary>The drugs that build chemical, preferred first.</summary>
-    public IReadOnlyList<Drug> DrugsOf(string chemical) => DrugsWhere(d => d.Chemical == chemical);
-
-    /// <summary>The drug a chemical-dependency gene's chemical is satisfied with: the preferred drug of the chemical.</summary>
-    public (Resource Def, bool Ok) DependencyDrug(string chemical)
-    {
-        var drugs = DrugsOf(chemical);
-        return drugs.Count == 0 ? (default, false) : (drugs[0].Def, true);
-    }
-
-    /// <summary>The chemicals some drug builds, by name.</summary>
-    public IReadOnlyList<string> DrugChemicals() => [.. Drugs.Select(d => d.Chemical).Distinct().Order(StringComparer.Ordinal)];
 
     private List<Drug> DrugsWhere(Func<Drug, bool> keep) => [.. Drugs.Where(keep)];
 
@@ -232,11 +213,5 @@ public sealed record Sculpture(string Recipe, string Def, Cell Size, long Cost, 
     }
 }
 
-/// <summary>One drug def: the chemical it builds addiction to, whether the game files it as a social drug (IngestibleProperties.drugCategory) and whether it enhances combat (CompProperties_Drug.isCombatEnhancingDrug).</summary>
-public sealed record Drug(Resource Def, string Chemical, bool Social = false, bool Combat = false);
-
-/// <summary>What the colony needs to know of a chemical: whether its addiction hediff fades on its own severity per day, which is what a weaning plan relies on.</summary>
-public sealed record Chemical(bool Weanable);
-
-/// <summary>A drug whose hediff makes the taker immune to Diseases for Days (the hediff's disappearance time).</summary>
-public sealed record Prevention(Resource Drug, double Days, EquatableArray<string> Diseases);
+/// <summary>One drug def (a CompProperties_Drug with a chemical): whether the game files it as a social drug (IngestibleProperties.drugCategory) and whether it enhances combat (CompProperties_Drug.isCombatEnhancingDrug).</summary>
+public sealed record Drug(Resource Def, bool Social = false, bool Combat = false);

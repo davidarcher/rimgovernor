@@ -200,16 +200,14 @@ public static partial class PolicyFunctions
     /// <summary>
     /// Narrows mining to safe, observed-route deposits. Existing designations reserve estimated yield but are
     /// never adopted or removed. Each new method still contains at most one rock; its final native yield may
-    /// overshoot the remaining demand by one rock's output. Every mine source kept back is returned as a hold
-    /// with its explicit reason (RemoteHoldReason): a known threat or urgent competing work holds every
-    /// deposit, then the open-surface roof check, then the observed route.
+    /// overshoot the remaining demand by one rock's output. A known threat or urgent competing work keeps back
+    /// every mine source, then the open-surface roof check, then the observed route.
     /// </summary>
-    public static (IReadOnlyList<ResourceSource> Sources, IReadOnlyList<RemoteWorkHold> Holds) SelectReachableResourceSources(
+    public static IReadOnlyList<ResourceSource> SelectReachableResourceSources(
         IReadOnlyList<ResourceSource> sources, long target, long stock, RemoteWorkRequest r)
     {
         long pending = 0;
         var candidates = new List<ResourceSource>();
-        var holds = new List<RemoteWorkHold>();
         foreach (var original in sources)
         {
             var source = original;
@@ -236,7 +234,6 @@ public static partial class PolicyFunctions
                 }
                 if (reason.Length != 0)
                 {
-                    holds.Add(new RemoteWorkHold { Kind = RemoteWorkKind.Mining, Target = source.ThingId, Reason = reason });
                     continue;
                 }
                 if (r.Plan.TryGetValue(out var plan))
@@ -246,7 +243,7 @@ public static partial class PolicyFunctions
             }
             candidates.Add(source);
         }
-        return (SelectResourceSources(candidates, target, stock, pending), holds);
+        return SelectResourceSources(candidates, target, stock, pending);
     }
 
     /// <summary>

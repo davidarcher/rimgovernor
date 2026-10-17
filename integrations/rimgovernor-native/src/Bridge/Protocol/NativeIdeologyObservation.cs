@@ -28,8 +28,8 @@ namespace HomeBridge.BridgeTools
             if (!ModsConfig.IdeologyActive) return null;
             var ideo = Faction.OfPlayerSilentFail?.ideos?.PrimaryIdeo;
             if (ideo == null) return null;
-            var row = new Obs.IdeologySnapshot { Context = context, IdeoId = Id(ideo.GetUniqueLoadID()), ObligationsActive = ideo.ObligationsActive,
-                Believers = ideo.ColonistBelieverCountCached, MinBelieversForObligations = Ideo.MinBelieversToEnableObligations };
+            var row = new Obs.IdeologySnapshot { Context = context, IdeoId = Id(ideo.GetUniqueLoadID()),
+                Believers = ideo.ColonistBelieverCountCached };
             row = row with { Memes = [.. Sorted(Names(ideo.memes))] };
             row = row with { Fluid = ideo.Fluid };
             if (ideo.Fluid && ideo.development == null) return null;

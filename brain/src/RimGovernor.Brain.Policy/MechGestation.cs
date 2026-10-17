@@ -256,12 +256,11 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            bench.Token.TryGetValue(out var token);
             foreach (var recipe in bench.Recipes)
             {
                 if (recipe.Available.TryGetValue(out var ok) && ok && recipe.MechKind == choice.Kind)
                 {
-                    options.Add(new BillSelection { Bench = bench.Id, Recipe = recipe.Name, Token = token ?? "", Mode = BillMode.GearBatch, Target = 1 });
+                    options.Add(new BillSelection { Bench = bench.Id, Recipe = recipe.Name, Mode = BillMode.GearBatch, Target = 1 });
                     bulk[recipe.Name] = recipe.Bulk;
                 }
             }

@@ -190,7 +190,6 @@ public static partial class PolicyFunctions
                             {
                                 Bench = bench.Id,
                                 Recipe = recipe.Name,
-                                Token = token!,
                                 Mode = BillMode.GearBatch,
                                 Target = 1,
                             };

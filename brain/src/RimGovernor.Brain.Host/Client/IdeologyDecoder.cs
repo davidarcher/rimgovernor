@@ -22,7 +22,7 @@ internal static class IdeologyDecoder
             throw BridgeFunctions.Contract("invalid ideology context");
         }
         var defs = catalog.IdeologyDefs() ?? throw BridgeFunctions.Contract("ideology section without catalog ideology defs");
-        if (!BridgeFunctions.IsValidId(v.IdeoId ?? "") || v.ObligationsActive is null || v.Believers is null || v.Believers < 0 || v.MinBelieversForObligations is null || v.MinBelieversForObligations < 0)
+        if (!BridgeFunctions.IsValidId(v.IdeoId ?? "") || v.Believers is null || v.Believers < 0)
         {
             throw BridgeFunctions.Contract("invalid ideology section");
         }
@@ -30,9 +30,7 @@ internal static class IdeologyDecoder
         {
             IdeoId = v.IdeoId ?? "",
             Memes = [.. v.Memes],
-            ObligationsActive = v.ObligationsActive.GetValueOrDefault(),
             Believers = v.Believers.GetValueOrDefault(),
-            MinBelievers = v.MinBelieversForObligations.GetValueOrDefault(),
         };
         if (v.Fluid is not null || v.CanReform is not null || v.DevelopmentPoints is not null || v.ReformCount is not null || v.NextReformPoints is not null)
         {
@@ -48,7 +46,7 @@ internal static class IdeologyDecoder
             {
                 throw BridgeFunctions.Contract("invalid ideoligion development state");
             }
-            facts = facts with { Development = Known(new P.IdeoDevelopment(fluid, canReform, points, reforms, next)) };
+            facts = facts with { Development = Known(new P.IdeoDevelopment(fluid, canReform, reforms)) };
         }
         foreach (var meme in v.Memes)
         {
@@ -116,7 +114,6 @@ internal static class IdeologyDecoder
             rituals.Add(new P.HeldRitual
             {
                 Id = row.Id ?? "",
-                Def = row.DefName ?? "",
                 Pattern = row.Pattern ?? "",
                 LastFinishedTick = row.LastFinishedTick.GetValueOrDefault(),
                 ActiveObligations = row.ActiveObligations.GetValueOrDefault(),
@@ -132,7 +129,7 @@ internal static class IdeologyDecoder
             {
                 throw BridgeFunctions.Contract($"invalid ideology building \"{row.Id}\"");
             }
-            buildings.Add(new P.HeldBuilding(row.Id ?? "", row.DefName ?? "", row.Building ?? ""));
+            buildings.Add(new P.HeldBuilding(row.Building ?? ""));
         }
         return new P.Ideoligion(defs, facts with { Precepts = precepts, Roles = roles, Rituals = rituals, Buildings = buildings });
     }

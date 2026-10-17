@@ -36,10 +36,6 @@ public sealed record ProductionProduct
 
     public Fact<double> Nutrition { get; init; }
 
-    public Fact<double> Demand { get; init; }
-
-    public Fact<double> RotDays { get; init; }
-
     public Fact<bool> Edible { get; init; }
 
     public Fact<bool> Perishable { get; init; }
@@ -119,8 +115,6 @@ public sealed record ExistingProductionBill
 
     public string Id { get; init; } = "";
 
-    public Fact<bool> Managed { get; init; }
-
     public Fact<bool> Active { get; init; }
 
     public string Recipe { get; init; } = "";
@@ -163,8 +157,6 @@ public sealed record BillSelection
     public string Bench { get; init; } = "";
 
     public string Recipe { get; init; } = "";
-
-    public string Token { get; init; } = "";
 
     public string Replace { get; init; } = "";
 
@@ -372,7 +364,6 @@ public static partial class PolicyFunctions
                 {
                     Bench = bench.Id,
                     Recipe = recipe.Name,
-                    Token = token!,
                     Mode = BillMode.FoodTarget,
                     Target = (int)(count * 3),
                 };

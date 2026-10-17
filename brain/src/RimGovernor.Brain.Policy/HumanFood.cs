@@ -156,7 +156,6 @@ public static partial class PolicyFunctions
                     {
                         Bench = b.Id,
                         Recipe = butcher,
-                        Token = token!,
                         Mode = BillMode.HumanButcherForever,
                         Worker = worker.Value,
                     }

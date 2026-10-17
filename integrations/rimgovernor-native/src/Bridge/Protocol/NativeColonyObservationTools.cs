@@ -318,7 +318,7 @@ namespace HomeBridge.BridgeTools
                     row = row with { Recipes = [.. row.Recipes, NativeProductionBills.RecipeRow(bench,recipe)] };
                     var production = new Obs.FoodProduction { Recipe = recipe.defName, Available = NativeProductionBills.Recipe(bench,recipe) };
                     foreach(var product in recipe.products){
-                        var food=new Obs.FoodProduct{DefName=product.thingDef.defName,Count=product.count,Edible=humanFood(product.thingDef),NutritionDemandPerDay=result.NutritionPerDay};
+                        var food=new Obs.FoodProduct{DefName=product.thingDef.defName,Count=product.count,Edible=humanFood(product.thingDef)};
                         food = food with { Storable = NativeResourceSourcesTool.Capacity(map,product.thingDef,haulers,out var stored)+stored };
                         production = production with { Products = [.. production.Products, food] };
                     }

@@ -547,7 +547,6 @@ public sealed partial class Rounder
         var resourceTargets = ResourceTargets(state.Snapshot);
         if (reading.Projection.WorkPawns.TryGetValue(out var pawns))
         {
-            reading = reading.WithFacts(rf => rf with { Workers = PolicyApi.RoundsWorkers(pawns) });
             reading = reading.WithFacts(rf => rf with { Labor = PolicyApi.RoundsLabor(pawns) });
             reading = reading.WithFacts(rf => rf with { WorkProfiles = Known<EquatableArray<PawnProfile>>([.. PolicyApi.Profiles(pawns)]) });
             var requiredFact = RoundsProjectWork(definitions, reading.Projection.Definitions);
@@ -626,7 +625,6 @@ public sealed partial class Rounder
                 var (others, player) = PolicyApi.SplitGroundRows(census.Targets);
                 reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Clearance = Known<EquatableArray<ClearanceTarget>>([.. others]) } });
                 reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { RoomObstructions = PolicyApi.RoomObstructionIDs(others, ground) } });
-                reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Ground = Known<EquatableArray<string>>([.. PlannedGroundWork(reading.Projection, player, census.Floors, ClearFloors(reading.Projection))]) } });
                 reading = reading.WithProjection(DropClearedRetiredGround(state.Snapshot, reading.Projection, player, census.Floors, ct));
                 reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });
             }
@@ -650,7 +648,6 @@ public sealed partial class Rounder
         // The ledger's declared batches are read after the declaration above.
         var vOpenBills = await OpenBillsAsync(state.Snapshot, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { OpenBills = [.. vOpenBills] });
-        reading = reading.WithFacts(rf => rf with { UnmetThroughput = [.. LedgerUnmet()] });
         var reconsideration = PolicyApi.PrepareCoupledIncumbents(reading.Projection.Facts, batches, workActions);
         reading = reading.WithFacts(_ => reconsideration.Facts);
         // Acquisition uses the review's completed home staffing and defense facts.

@@ -10,7 +10,6 @@ public static partial class BridgeFunctions
     public static PolicyRoomDoor RoomDoorFacts(RoomDoorWire door) =>
         new()
         {
-            Id = door.Id ?? "",
             Cell = ToDomainCell(door.Cell),
             Outside = ToDomainCell(door.Outside),
             Outdoors = OptionalFact(door.Outdoors is not null, door.Outdoors.GetValueOrDefault()),

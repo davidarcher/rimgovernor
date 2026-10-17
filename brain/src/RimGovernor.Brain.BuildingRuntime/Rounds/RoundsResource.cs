@@ -389,7 +389,7 @@ public sealed partial class RoundsResourcePlanner
             return (default, false);
         }
 
-        var (selected, _) = PolicyFunctions.SelectReachableResourceSources(sources, target, have, remote);
+        var selected = PolicyFunctions.SelectReachableResourceSources(sources, target, have, remote);
         var output = new SourceSelection { Selected = selected, Storage = storage, None = sources.Count == 0 };
         foreach (var s in sources)
         {

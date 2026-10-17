@@ -58,20 +58,10 @@ public static partial class PolicyFunctions
             // Drugs are Core's, in the catalog's preference order.
             Drugs =
             [
-                new Drug(R("Beer"), "Alcohol", Social: true), new Drug(R("SmokeleafJoint"), "Smokeleaf", Social: true), new Drug(R("PsychiteTea"), "Psychite", Social: true),
-                new Drug(R("Flake"), "Psychite"), new Drug(R("GoJuice"), "GoJuice", Combat: true), new Drug(R("Luciferium"), "Luciferium"),
-                new Drug(R("WakeUp"), "WakeUp"), new Drug(R("Yayo"), "Psychite", Combat: true),
+                new Drug(R("Beer"), Social: true), new Drug(R("SmokeleafJoint"), Social: true), new Drug(R("PsychiteTea"), Social: true),
+                new Drug(R("Flake")), new Drug(R("GoJuice"), Combat: true), new Drug(R("Luciferium")),
+                new Drug(R("WakeUp")), new Drug(R("Yayo"), Combat: true),
             ],
-            Chemicals = new Dictionary<string, Chemical>
-            {
-                ["Alcohol"] = new(true),
-                ["Smokeleaf"] = new(true),
-                ["Psychite"] = new(true),
-                ["GoJuice"] = new(true),
-                ["WakeUp"] = new(true),
-                ["Luciferium"] = new(false),
-            },
-            Prevention = new Prevention(R("Penoxycyline"), 5, new EquatableArray<string>(["Malaria", "Plague"])),
         };
     }
 }

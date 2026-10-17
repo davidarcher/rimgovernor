@@ -36,7 +36,6 @@ public sealed partial class DefinitionCatalog
                 Name = permit.defName,
                 PermitPoints = Known(permit.permitPointCost),
                 Acts = Known(permit.royalAid is not null),
-                CooldownDays = Known((double)permit.cooldownDays),
                 Worker = permit.workerClass?.Name ?? string.Empty,
             };
             if (permit.minTitle is { } min)
@@ -55,7 +54,7 @@ public sealed partial class DefinitionCatalog
         return facts with { Ladder = Domain.EquatableArray.From(titles.Select(RoyalRung)), Permits = permits };
     }
 
-    // Title's ladder row: seniority, favor needed (favorCost), the bedroom requirements and the throne requirement.
+    // Title's ladder row: seniority, favor needed (favorCost), the bedroom impressiveness and furniture requirements and the throne requirement.
     private P.RoyalRung RoyalRung(RoyalTitleDef title)
     {
         var bedroom = BedroomRequirements(title, _ => false);
@@ -66,19 +65,9 @@ public sealed partial class DefinitionCatalog
             FavorNeeded = Known(title.favorCost),
             BedroomThings = Domain.EquatableArray.From(bedroom.Things),
         };
-        if (bedroom.HaveArea)
-        {
-            rung = rung with { BedroomMinArea = Known(bedroom.Area) };
-        }
-
         if (bedroom.HaveImpressiveness)
         {
             rung = rung with { BedroomMinImpressiveness = Known(bedroom.Impressiveness) };
-        }
-
-        if (bedroom.Floored)
-        {
-            rung = rung with { BedroomFloored = Known(true) };
         }
 
         var throne = ThroneRequirements(title.defName);
@@ -171,7 +160,7 @@ public sealed partial class DefinitionCatalog
     }
 
     /// <summary>
-    /// The ability row's static half of a P.Psycast: the psylink level that unlocks it, the psyfocus it spends (statBases
+    /// The ability row's static half of a P.Psycast: the psyfocus it spends (statBases
     /// Ability_PsyfocusCost), the neural heat it adds (Ability_EntropyGain), the longest cooldown (cooldownTicksRange.max)
     /// and what it targets (the verb's targetParams). A def with no row, or a row naming a value out of range, is an error.
     /// </summary>
@@ -189,7 +178,6 @@ public sealed partial class DefinitionCatalog
         return new P.Psycast
         {
             Def = name,
-            Level = Known(row.level),
             PsyfocusCost = Known(cost),
             Entropy = Known(entropy),
             Target = PsycastTarget(row.verbProperties?.targetParams),
@@ -213,8 +201,7 @@ public sealed partial class DefinitionCatalog
     };
 
     /// <summary>
-    /// <paramref name="colony"/> with each neuroformer's trainer ability (the ability its
-    /// <c>CompProperties_UseEffect_GainAbility</c> teaches) and tradeability (a trader can sell a Sellable or All thing)
+    /// <paramref name="colony"/> with each neuroformer's tradeability (a trader can sell a Sellable or All thing)
     /// read from its ThingDef row. The colony is not changed; a neuroformer with no row is an error.
     /// </summary>
     public P.RoyaltyColony WithNeuroformerDefs(P.RoyaltyColony colony)
@@ -223,11 +210,7 @@ public sealed partial class DefinitionCatalog
         foreach (var (name, n) in colony.Neuroformers)
         {
             var row = ThingRow(name);
-            neuroformers[name] = n with
-            {
-                TeachesPsycast = row.GetCompProperties<CompProperties_UseEffect_GainAbility>()?.ability?.defName ?? string.Empty,
-                Tradeable = Known(row.tradeability is Tradeability.Sellable or Tradeability.All),
-            };
+            neuroformers[name] = n with { Tradeable = Known(row.tradeability is Tradeability.Sellable or Tradeability.All) };
         }
 
         return colony with { Neuroformers = neuroformers };

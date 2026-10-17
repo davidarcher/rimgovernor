@@ -249,7 +249,6 @@ public static partial class ObservationPackage
         var row = new ProductionProduct
         {
             Name = name,
-            Demand = Optional(product.NutritionDemandPerDay is not null, product.NutritionDemandPerDay.GetValueOrDefault()),
             Edible = Optional(product.Edible is not null, product.Edible.GetValueOrDefault()),
             Storable = Optional(product.Storable is not null, product.Storable.GetValueOrDefault()),
         };
@@ -259,10 +258,6 @@ public static partial class ObservationPackage
         }
         var rot = catalog.RotDays(name);
         row = row with { Perishable = Known(rot is not null) };
-        if (rot is { } days)
-        {
-            row = row with { RotDays = Known(days) };
-        }
         row = row with { BabyEdible = Known(catalog.BabyEdible(name)), Kind = catalog.FoodKindOf(name) ?? FoodKind.None };
         try
         {
@@ -349,7 +344,6 @@ public static partial class ObservationPackage
                     RepeatMode = RepeatModeFact(b.RepeatMode is not null, b.RepeatMode.GetValueOrDefault()),
                     Ingredients = BillIngredients(b, role),
                     Id = b.Id ?? "",
-                    Managed = Optional(b.ManagedUnchanged is not null, b.ManagedUnchanged.GetValueOrDefault()),
                     Active = BillActive(b.Suspended is not null, b.Suspended.GetValueOrDefault()),
                     Recipe = b.Recipe?.DefName ?? "",
                     TargetCount = Optional(b.TargetCount is not null, b.TargetCount.GetValueOrDefault()),

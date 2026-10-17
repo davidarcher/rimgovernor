@@ -180,7 +180,6 @@ namespace HomeBridge.BridgeTools
                     var room = cell.GetRoom(map);
                     if (room != null)
                     {
-                        row = row with { Room = NativeRef.Room(room) };
                         // The plants a proper room grows, standing or set in its
                         // growing zones: Go reads which die to light (cave
                         // fungus) off their def rows.
@@ -193,8 +192,6 @@ namespace HomeBridge.BridgeTools
                 foreach (var b in lamps) {
                     var glower = b.TryGetComp<CompGlower>();
                     var row = new Obs.LampState { Building = NativeBuildingObservationTools.Ref(b), Lit = glower.Glows };
-                    var room = b.Position.GetRoom(map);
-                    if (room != null) row = row with { Room = NativeRef.Room(room) };
                     facts = facts with { Lamps = [.. facts.Lamps, row] };
                 }
                 result = result with { Lighting = new Obs.LightingSection { Outcome = facts } };

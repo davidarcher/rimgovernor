@@ -57,7 +57,7 @@ public sealed class FoodFamilyTests
         var met = facts with
         {
             FoodDays = Known(1000.0), GrowingCells = Known(10_000L), FieldCoverage = Known(1.0),
-            ButcherBenches = Known<EquatableArray<ButcherBench>>([new() { Id = "bench", Definition = "TableButcher" }]),
+            ButcherBenches = Known<EquatableArray<ButcherBench>>([new() { Definition = "TableButcher" }]),
         };
         foreach (var f in new[] { facts, met, met with { FoodDays = Known(0.0) }, met with { ButcherBenches = Known<EquatableArray<ButcherBench>>([]) } })
         {

@@ -229,7 +229,7 @@ public sealed partial class Store
             medical = PolicyFunctions.ReviewMedicalCare(facts.MedicalPawns, medical);
             facts = facts with { MedicalCareRecovered = medical.Recovered() };
             mood = PolicyFunctions.ReviewMood(facts.MoodPawns, mood);
-            facts = facts with { Mood = mood, Disaster = disaster, DisasterTick = request.Tick };
+            facts = facts with { Disaster = disaster, DisasterTick = request.Tick };
             detection = new RoundsDetection(facts, latches, request.Policy);
             needs = PolicyFunctions.InspectRounds(facts, latches, request.Policy);
             disaster = needs.Disaster;

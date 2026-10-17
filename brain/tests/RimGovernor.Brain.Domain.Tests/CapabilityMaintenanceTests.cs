@@ -18,7 +18,7 @@ public sealed class CapabilityMaintenanceTests
         PracticeEligible = Known(true), PracticeCeiling = Known(2), RangeAppliedBudget = Known(3000d)
     };
     internal static Ideoligion Ideology(params string[] holders) => new(new() { Roles = new Dictionary<string, RoleDef>
-    { ["soldier"] = new("soldier", 2, [new([new("Shooting", 1), new("Melee", 1)])]) } },
+    { ["soldier"] = new(2, [new([new("Shooting", 1), new("Melee", 1)])]) } },
         new() { Roles = [new("role", "soldier", true, holders.Select(h => new PawnId(h)).ToArray())] });
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class CapabilityMaintenanceTests
     {
         var facts = ForecastPortfolioChoiceTests.Observed([], [], helper: melee);
         var skill = melee ? "Melee" : "Shooting";
-        var requirement = new RoleDef("soldier", 1, [new([new(skill, 1)])]);
+        var requirement = new RoleDef(1,[new([new(skill, 1)])]);
         var ideology = Ideology("pawn") with { Defs = new() { Roles = new Dictionary<string, RoleDef> { ["soldier"] = requirement } } };
         var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = skill, Level = 1, Learning = Learning() }]) }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, skill, "target/" + i, new(i + 1, 1),

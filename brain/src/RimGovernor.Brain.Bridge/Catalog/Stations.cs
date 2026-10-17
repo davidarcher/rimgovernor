@@ -42,13 +42,10 @@ public sealed partial class DefinitionCatalog
             var recipesHere = recipes.GetValueOrDefault(name) ?? [];
             var station = new P.Station
             {
-                Def = name,
                 Shape = shape,
                 Access = row.building is { canPlaceOverWall: true } or { isPlaceOverableWall: true } || row.placeWorkers.Seq().Contains(typeof(Placeworker_AttachedToWall))
                     ? P.StationAccess.Wall
                     : P.StationAccess.Floor,
-                Content = row.modContentPack?.PackageId ?? string.Empty,
-                Minifiable = row.minifiedDef is not null,
                 FillsCell = row.fillPercent > FullFillPercent,
                 Contributions = Contributions(row, recipesHere, rec, child),
                 EmptyCountsForBarracks = row.building?.bed_emptyCountsForBarracks ?? false,
@@ -319,18 +316,18 @@ public sealed partial class DefinitionCatalog
                 {
                     case StatPart_RoomStat roomStat:
                         var name = GameMembers.RoomStat(roomStat).defName;
-                        needs.Add(new P.EnvNeed { Kind = P.EnvNeedKind.RoomStat, Stat = name, Input = RootRoomStat(name), Via = stat, Base = subject.GetValueOrDefault(stat) });
+                        needs.Add(new P.EnvNeed { Kind = P.EnvNeedKind.RoomStat, Input = RootRoomStat(name) });
                         break;
                     case StatPart_WorkTableTemperature when table:
-                        needs.Add(new P.EnvNeed { Kind = P.EnvNeedKind.Temperature, Via = stat, Min = StatPart_WorkTableTemperature.MinTemp, Max = StatPart_WorkTableTemperature.MaxTemp, Factor = StatPart_WorkTableTemperature.WorkRateFactor });
+                        needs.Add(new P.EnvNeed { Kind = P.EnvNeedKind.Temperature, Factor = StatPart_WorkTableTemperature.WorkRateFactor });
                         break;
                     case StatPart_WorkTableOutdoors when table:
-                        needs.Add(new P.EnvNeed { Kind = P.EnvNeedKind.Indoors, Via = stat, Factor = StatPart_WorkTableOutdoors.WorkRateFactor });
+                        needs.Add(new P.EnvNeed { Kind = P.EnvNeedKind.Indoors, Factor = StatPart_WorkTableOutdoors.WorkRateFactor });
                         break;
                     case StatPart_WorkTableRoomRole when table:
                         if (row.building?.workTableRoomRole?.defName is { Length: > 0 } role && Wire.TryParse<P.RoomRole>(role, out var roomRole))
                         {
-                            needs.Add(new P.EnvNeed { Kind = P.EnvNeedKind.Role, Via = stat, Role = roomRole, Factor = row.building.workTableNotInRoomRoleFactor });
+                            needs.Add(new P.EnvNeed { Kind = P.EnvNeedKind.Role, Role = roomRole, Factor = row.building.workTableNotInRoomRoleFactor });
                         }
 
                         break;
@@ -340,17 +337,17 @@ public sealed partial class DefinitionCatalog
 
         if (row.placeWorkers.Seq().Contains(typeof(PlaceWorker_MustBeIndoors)))
         {
-            needs.Add(new P.EnvNeed { Kind = P.EnvNeedKind.Indoors, Via = "RimWorld.PlaceWorker_MustBeIndoors" });
+            needs.Add(new P.EnvNeed { Kind = P.EnvNeedKind.Indoors });
         }
 
         if (row.placeWorkers.Seq().Contains(typeof(PlaceWorker_NotUnderRoof)))
         {
-            needs.Add(new P.EnvNeed { Kind = P.EnvNeedKind.OpenSky, Via = "RimWorld.PlaceWorker_NotUnderRoof" });
+            needs.Add(new P.EnvNeed { Kind = P.EnvNeedKind.OpenSky });
         }
 
         if (StoresPerishables(row))
         {
-            needs.Add(new P.EnvNeed { Kind = P.EnvNeedKind.Cold, Via = "fixedStorageSettings" });
+            needs.Add(new P.EnvNeed { Kind = P.EnvNeedKind.Cold });
         }
 
         return needs;

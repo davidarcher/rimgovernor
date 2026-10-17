@@ -265,7 +265,7 @@ public static partial class PolicyFunctions
                 {
                     continue;
                 }
-                var selected = new BillSelection { Bench = bench.Id, Recipe = recipe.Name, Token = token!, Mode = BillMode.FoodTarget, Target = (int)target };
+                var selected = new BillSelection { Bench = bench.Id, Recipe = recipe.Name, Mode = BillMode.FoodTarget, Target = (int)target };
                 var exists = false;
                 var siblingBill = false;
                 foreach (var other in rows)

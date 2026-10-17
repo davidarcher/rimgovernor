@@ -136,14 +136,6 @@ public sealed partial class Rounder
         }
     }
 
-    internal IReadOnlyList<UnmetThroughput> LedgerUnmet()
-    {
-        lock (Ledger.Mu)
-        {
-            return Ledger.Unmet;
-        }
-    }
-
     internal IReadOnlyList<string> LedgerFurtherBenches(IReadOnlyList<GearBench> benches)
     {
         lock (Ledger.Mu)

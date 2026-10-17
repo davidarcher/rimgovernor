@@ -150,16 +150,6 @@ public enum RemoteWorkKind
     Mining,
 }
 
-/// <summary>Names one candidate a remote selection kept back.</summary>
-public sealed record RemoteWorkHold
-{
-    public RemoteWorkKind Kind { get; init; }
-
-    public string Target { get; init; } = "";
-
-    public string Reason { get; init; } = "";
-}
-
 /// <summary>
 /// The observed outdoor safety every remote selection holds on: a hostile on the map (unknown holds too) and
 /// the outdoor hazard, which an open dash window lifts for extreme cold only. Distance is not a hold; the
@@ -176,7 +166,7 @@ public sealed record RemoteSafety
 }
 
 /// <summary>
-/// Carries what every remote selection filters against: the outdoor safety, the demand and the urgent work
+/// Carries what every remote selection filters against: the outdoor safety and the urgent work
 /// competing for the colonists. Extent geometry decides which loot is base scope; the rest is remote.
 /// </summary>
 public sealed record RemoteWorkRequest
@@ -184,8 +174,6 @@ public sealed record RemoteWorkRequest
     public RemoteSafety Safety { get; init; } = new();
 
     public Fact<ColonyExtent> Extent { get; init; }
-
-    public Fact<EquatableArray<ResourceDemand>> Demand { get; init; }
 
     public AcquisitionCompetition Competition { get; init; } = new();
 

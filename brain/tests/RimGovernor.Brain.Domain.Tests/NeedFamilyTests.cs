@@ -230,10 +230,9 @@ public sealed class NeedFamilyTests
     }
 
     [Fact]
-    public void NeedIdsAreFamilyKindAndSubjectAndNeverACollidingConcernKey()
+    public void NeedIdsAreFamilyAndKindAndNeverACollidingConcernKey()
     {
-        Assert.Equal(("test-care", "bleeding", "a"), (Bleeding.Family, Bleeding.Kind, Bleeding.Subject));
-        Assert.Equal("", Rest.Subject);
+        Assert.Equal(("test-care", "bleeding"), (Bleeding.Family, Bleeding.Kind));
         Assert.False(new NeedId("Test/kind").IsValid);
         Assert.False(new NeedId("fam").IsValid);
         Assert.False(new NeedId("fam/kind/sub ject").IsValid);

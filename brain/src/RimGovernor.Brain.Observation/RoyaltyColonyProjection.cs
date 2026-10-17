@@ -27,7 +27,7 @@ public static partial class ObservationPackage
             {
                 throw new BridgeContractException("invalid royalty neuroformer");
             }
-            if (!neuroformers.TryAdd(name, new Neuroformer { Def = name, Held = Optional(row.Held is not null, (int)row.Held.GetValueOrDefault()), Craftable = Optional(row.Craftable is not null, row.Craftable.GetValueOrDefault()) }))
+            if (!neuroformers.TryAdd(name, new Neuroformer { Held = Optional(row.Held is not null, (int)row.Held.GetValueOrDefault()), Craftable = Optional(row.Craftable is not null, row.Craftable.GetValueOrDefault()) }))
             {
                 throw new BridgeContractException($"duplicate royalty neuroformer {name}");
             }
@@ -63,7 +63,7 @@ public static partial class ObservationPackage
             {
                 throw new BridgeContractException("invalid royalty throne");
             }
-            thrones.Add(new RoyalThrone { Id = id, Def = row.DefName is not null ? (row.DefName ?? "") : "", Owner = new PawnId(owner) });
+            thrones.Add(new RoyalThrone { Id = id, Owner = new PawnId(owner) });
         }
         return new RoyaltyColony { Neuroformers = neuroformers, Ceremonies = EquatableArray.From(ceremonies), Thrones = EquatableArray.From(thrones) };
     }

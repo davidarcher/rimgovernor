@@ -64,7 +64,7 @@ internal static partial class BuildingRuntimePackage
     /// </summary>
     internal static Pol.StockpileRequest StockpileRequest(Observation.ColonyProjection projection, IReadOnlyList<Sto.OwnedZone> owned, IReadOnlyDictionary<string, Sto.AppliedStockpile>? patches, IReadOnlyDictionary<string, List<Pol.ShelfRecord>> shelves, Fact<IReadOnlyDictionary<string, bool>> benches, IReadOnlyList<Pol.BenchInput> inputs, Pol.GearStore? gear, IReadOnlyList<Cell> protectedCells)
     {
-        var request = new Pol.StockpileRequest { Tick = projection.Identity.Tick, Cells = projection.Cells, Bounds = projection.Bounds, Protected = protectedCells, Loot = projection.Facts.EventLoot };
+        var request = new Pol.StockpileRequest { Cells = projection.Cells, Bounds = projection.Bounds, Protected = protectedCells, Loot = projection.Facts.EventLoot };
         var rooms = new List<Pol.PlannedRole>();
         foreach (var module in new[] { Pol.PlannedRole.Storage })
         {

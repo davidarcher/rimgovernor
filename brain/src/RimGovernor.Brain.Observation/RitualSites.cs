@@ -33,11 +33,7 @@ public static partial class ObservationPackage
             {
                 continue;
             }
-            if (!RowCell(row.Building.Position).TryGetValue(out var cell))
-            {
-                return Unknown<EquatableArray<RitualSite>>();
-            }
-            output.Add(new RitualSite { Id = row.Building.Id, Def = def, Cell = cell });
+            output.Add(new RitualSite { Id = row.Building.Id, Def = def });
         }
         return Known(EquatableArray.From(output));
     }

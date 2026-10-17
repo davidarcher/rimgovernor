@@ -63,10 +63,10 @@ public readonly record struct SkillRequirement(string Skill, int MinLevel);
 public sealed record RoleRequirement(IReadOnlyList<SkillRequirement> Skills);
 
 /// <summary>One role precept def: how many pawns hold it and what it asks of them.</summary>
-public sealed record RoleDef(string Name, int MaxCount, IReadOnlyList<RoleRequirement> Requirements);
+public sealed record RoleDef(int MaxCount,IReadOnlyList<RoleRequirement> Requirements);
 
 /// <summary>A ritual behavior's role slot.</summary>
-public sealed record RitualRoleSlot(string Id, string Precept, int MaxCount, bool Required);
+public sealed record RitualRoleSlot(string Precept, int MaxCount, bool Required);
 
 /// <summary>
 /// One ritual pattern: its cadence in days, whether it may start freely, the buildings its obligation target
@@ -74,8 +74,6 @@ public sealed record RitualRoleSlot(string Id, string Precept, int MaxCount, boo
 /// </summary>
 public sealed record RitualDef
 {
-    public string Name { get; init; } = string.Empty;
-
     public double IntervalDaysMin { get; init; }
 
     public IReadOnlyList<string> RequiredBuildings { get; init; } = [];
@@ -111,8 +109,6 @@ public sealed record HeldRitual
 {
     public string Id { get; init; } = string.Empty;
 
-    public string Def { get; init; } = string.Empty;
-
     public string Pattern { get; init; } = string.Empty;
 
     public long LastFinishedTick { get; init; }
@@ -124,8 +120,8 @@ public sealed record HeldRitual
     public bool Running { get; init; }
 }
 
-/// <summary>A building precept and the ThingDef it takes.</summary>
-public sealed record HeldBuilding(string Id, string Def, string Building);
+/// <summary>A building precept: the ThingDef it takes.</summary>
+public sealed record HeldBuilding(string Building);
 
 /// <summary>The player faction's primary ideoligion as it stands.</summary>
 public sealed record IdeoligionFacts
@@ -142,16 +138,12 @@ public sealed record IdeoligionFacts
 
     public IReadOnlyList<HeldBuilding> Buildings { get; init; } = [];
 
-    public bool ObligationsActive { get; init; }
-
     public int Believers { get; init; }
-
-    public int MinBelievers { get; init; }
 
     public Fact<IdeoDevelopment> Development { get; init; }
 }
 
-public readonly record struct IdeoDevelopment(bool Fluid, bool CanReform, int Points, int ReformCount, int NextPoints);
+public readonly record struct IdeoDevelopment(bool Fluid, bool CanReform, int ReformCount);
 
 /// <summary>The ideoligion with the defs its rows resolve against.</summary>
 public sealed partial record Ideoligion(IdeologyDefs Defs, IdeoligionFacts Facts)

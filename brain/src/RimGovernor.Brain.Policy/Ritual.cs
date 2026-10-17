@@ -1,37 +1,25 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>A finished building a ritual may be held at: its ThingDef and the cell the game addresses it by.</summary>
+/// <summary>A finished building a ritual may be held at: its ThingDef.</summary>
 public sealed record RitualSite
 {
     public string Id { get; init; } = "";
 
     public string Def { get; init; } = "";
-
-    public Cell Cell { get; init; }
 }
 
 /// <summary>The pawns that fill one role slot of a ritual's behavior, by the catalog's slot id, in priority order.</summary>
 public sealed record RitualSlotFill
 {
-    public string Slot { get; init; } = "";
-
     public EquatableArray<PawnId> Pawns { get; init; }
 }
 
 /// <summary>
-/// One ritual precept ready to begin: Ritual is the precept's load id (HeldRitual.ID), Def the ritual
-/// pattern. Sites are the cells of the finished required buildings, in building id order: the game offers the
-/// begin command at the building its obligation targets, so the planner tries them in turn. Organizer leads
+/// One ritual precept ready to begin, at a finished required building. Organizer leads
 /// the first filled slot; Slots fill the behavior's role slots and Spectators attend without a role.
 /// </summary>
 public sealed record RitualPlan
 {
-    public string Ritual { get; init; } = "";
-
-    public string Def { get; init; } = "";
-
-    public EquatableArray<Cell> Sites { get; init; }
-
     public PawnId Organizer { get; init; }
 
     public EquatableArray<RitualSlotFill> Slots { get; init; }
@@ -140,15 +128,7 @@ public static partial class PolicyFunctions
                 continue;
             }
             var at = known.Where(site => def.RequiredBuildings.Contains(site.Def)).OrderBy(site => site.Id, StringComparer.Ordinal).ToList();
-            var planSites = new List<Cell>();
-            foreach (var site in at)
-            {
-                if (!planSites.Contains(site.Cell))
-                {
-                    planSites.Add(site.Cell);
-                }
-            }
-            if (planSites.Count == 0)
+            if (at.Count == 0)
             {
                 continue;
             }
@@ -198,7 +178,7 @@ public static partial class PolicyFunctions
                     }
                     continue;
                 }
-                slots.Add(new RitualSlotFill { Slot = slot.Id, Pawns = EquatableArray.From(fill) });
+                slots.Add(new RitualSlotFill { Pawns = EquatableArray.From(fill) });
             }
             if (!fillable)
             {
@@ -228,9 +208,6 @@ public static partial class PolicyFunctions
             }
             var plan = new RitualPlan
             {
-                Ritual = held.Id,
-                Def = held.Pattern,
-                Sites = EquatableArray.From(planSites),
                 Organizer = organizer,
                 Slots = EquatableArray.From(slots),
                 Spectators = EquatableArray.From(spectators),

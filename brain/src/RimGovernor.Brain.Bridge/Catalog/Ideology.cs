@@ -109,7 +109,6 @@ public sealed partial class DefinitionCatalog
     // lists the skills of which one must meet its minimum; other requirements have none).
     private static P.RoleDef RoleDef(PreceptDef row) =>
         new(
-            row.defName,
             row.maxCount,
             [.. row.roleRequirements.Seq().Select(requirement =>
                 requirement switch
@@ -138,8 +137,8 @@ public sealed partial class DefinitionCatalog
                 ?? throw new CatalogException($"ritual {row.defName}: catalog has no behavior {behavior.defName}");
             foreach (var role in rows.roles.Seq())
             {
+                _ = role ?? throw new CatalogException($"ritual {row.defName} behavior {behavior.defName}: null role");
                 slots.Add(new P.RitualRoleSlot(
-                    role?.id ?? throw new CatalogException($"ritual {row.defName} behavior {behavior.defName}: null role"),
                     role.precept?.defName ?? string.Empty,
                     role.maxCount,
                     role.required));
@@ -148,7 +147,6 @@ public sealed partial class DefinitionCatalog
 
         return new P.RitualDef
         {
-            Name = row.defName,
             IntervalDaysMin = Decimal32(row.ritualFreeStartIntervalDaysRange.min),
             CanStartAnytime = row.canStartAnytime,
             AlwaysStartAnytime = row.alwaysStartAnytime,

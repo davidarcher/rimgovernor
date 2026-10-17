@@ -45,7 +45,6 @@ public static partial class ObservationPackage
                 Pawns = EquatableArray.From(pawns),
                 Beds = EquatableArray.From(beds),
                 Contents = Known(EquatableArray.From(contents)),
-                Cleanliness = RoomStat(room, "Cleanliness"),
                 Cells = EquatableArray.From(cells.TryGetValue((room.Id ?? ""), out var found) ? found : []),
                 Roofed = room.OpenRoofCount is not null ? Known(room.OpenRoofCount.GetValueOrDefault() == 0) : Unknown<bool>(),
                 Doors = EquatableArray.From(doors),

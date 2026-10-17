@@ -80,8 +80,6 @@ public sealed record StationCatalog
 /// <summary>One buildable definition as the planner sees it.</summary>
 public sealed record Station
 {
-    public string Def { get; init; } = "";
-
     /// <summary>The footprint: size, interaction cell and slot family, the same value PieceShapes holds for the def.</summary>
     public InteriorPieceDef Shape { get; init; } = new();
 
@@ -112,15 +110,6 @@ public sealed record Station
     /// holding a station with BaseW &lt; 0 (DrawsPower).
     /// </summary>
     public double BaseW { get; init; }
-
-    /// <summary>
-    /// The package id of the content that defines the station ("ludeon.rimworld" for the base game, an
-    /// expansion's id otherwise); the station is plannable only while that content is active.
-    /// </summary>
-    public string Content { get; init; } = "";
-
-    /// <summary>ThingDef.Minifiable (minifiedDef set): the built building can be uninstalled and reinstalled elsewhere (BuiltPiece.Movable).</summary>
-    public bool Minifiable { get; init; }
 
     /// <summary>
     /// ThingDef.Fillage == Full (fillPercent over 0.99): no attachment, a wall lamp among them, may hang on a
@@ -226,13 +215,12 @@ public enum EnvNeedKind
     None,
 
     /// <summary>
-    /// The station's effect scales with a room stat. Stat is the RoomStatDef a StatPart_RoomStat reads, Input
-    /// the RoomStatDef at the end of its inputStat chain (Cleanliness for surgery success), Via the StatDef
-    /// carrying the part and Base that stat's value on the station.
+    /// The station's effect scales with a room stat. Input is the RoomStatDef at the end of the
+    /// inputStat chain of the one a StatPart_RoomStat reads (Cleanliness for surgery success).
     /// </summary>
     RoomStat,
 
-    /// <summary>The work rate is multiplied by Factor outside [Min, Max] degrees (StatPart_WorkTableTemperature).</summary>
+    /// <summary>The work rate is multiplied by Factor outside the comfortable temperature range (StatPart_WorkTableTemperature).</summary>
     Temperature,
 
     /// <summary>Factor applies when the room is outdoors (StatPart_WorkTableOutdoors, PlaceWorker_MustBeIndoors: Factor 0 there).</summary>
@@ -256,19 +244,9 @@ public sealed record EnvNeed
 {
     public EnvNeedKind Kind { get; init; }
 
-    public string Stat { get; init; } = "";
-
     public string Input { get; init; } = "";
 
-    public string Via { get; init; } = "";
-
     public RoomRole Role { get; init; }
-
-    public double Base { get; init; }
-
-    public double Min { get; init; }
-
-    public double Max { get; init; }
 
     public double Factor { get; init; }
 }

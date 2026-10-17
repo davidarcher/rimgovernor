@@ -42,32 +42,32 @@ public sealed record MonolithFacts
 
     /// <summary>
     /// The awakening quest's next interaction, in the order the quest offers them: the void node, the Gleaming
-    /// monolith, then a void structure. Nothing is owed (empty target, no hold) outside the quest. A node nobody
+    /// monolith, then a void structure. Nothing is owed (no interaction, no hold) outside the quest. A node nobody
     /// on its map can touch is a hold; an unread Gleaming fact is an issue.
     /// </summary>
-    internal (string Target, IReadOnlyList<string> Performers, string Hold, IReadOnlyList<string> Issues) Endgame(string monolith)
+    internal (bool Interact, string Hold, IReadOnlyList<string> Issues) Endgame(string monolith)
     {
         if (NodeId != "")
         {
             if (NodePawns.Count == 0)
             {
-                return ("", [], "no colonist on the void node's map can touch it", []);
+                return (false, "no colonist on the void node's map can touch it", []);
             }
-            return (NodeId, NodePawns, "", []);
+            return (true, "", []);
         }
         if (!Gleaming.TryGetValue(out var gleaming))
         {
-            return ("", [], "", ["whether the Gleaming monolith can be used is unread"]);
+            return (false, "", ["whether the Gleaming monolith can be used is unread"]);
         }
         if (gleaming)
         {
-            return (monolith, [], "", []);
+            return (monolith != "", "", []);
         }
         if (PendingStructures.Count > 0)
         {
-            return (PendingStructures[0], [], "", []);
+            return (PendingStructures[0] != "", "", []);
         }
-        return ("", [], "", []);
+        return (false, "", []);
     }
 
     internal string CannotActivate()
@@ -111,18 +111,11 @@ public sealed record AwakenGate
 
 /// <summary>
 /// The rule's decision. Order is None when nothing is owed; Hold says why an advance the game allows is withheld
-/// (or the game does not allow it yet), and Issues name the unread facts that kept the rule from deciding. Target
-/// is the thing a MonolithInteract order is for; Performers, when set, are the only pawns that can carry it out
-/// (the void node's, on the pocket map), otherwise any able colonist on the colony map.
+/// (or the game does not allow it yet), and Issues name the unread facts that kept the rule from deciding.
 /// </summary>
 public sealed record MonolithAdvance
 {
     public MonolithOrder Order { get; init; }
-    public string Monolith { get; init; } = "";
-    public int Level { get; init; }
-    public bool Awaken { get; init; }
-    public string Target { get; init; } = "";
-    public IReadOnlyList<string> Performers { get; init; } = [];
     public string Hold { get; init; } = "";
     public IReadOnlyList<string> Issues { get; init; } = [];
 }
@@ -180,14 +173,14 @@ public static partial class PolicyFunctions
         {
             return none with { Issues = missing };
         }
-        var outcome = none with { Monolith = id!, Level = level };
-        var (target, performers, hold, issues) = f.Endgame(id!);
-        if (target != "" || hold != "" || issues.Count > 0)
+        var outcome = none;
+        var (interact, hold, issues) = f.Endgame(id!);
+        if (interact || hold != "" || issues.Count > 0)
         {
             outcome = outcome with { Hold = hold, Issues = issues };
-            if (target != "")
+            if (interact)
             {
-                outcome = outcome with { Order = MonolithOrder.Interact, Target = target, Performers = performers };
+                outcome = outcome with { Order = MonolithOrder.Interact };
             }
             return outcome;
         }
@@ -209,7 +202,7 @@ public static partial class PolicyFunctions
             return outcome;
         }
         var (awakenHold, awakenIssues) = AwakenHold(gate);
-        outcome = outcome with { Awaken = true, Hold = awakenHold, Issues = awakenIssues };
+        outcome = outcome with { Hold = awakenHold, Issues = awakenIssues };
         if (outcome.Hold != "" || outcome.Issues.Count > 0)
         {
             outcome = outcome with { Order = MonolithOrder.None };

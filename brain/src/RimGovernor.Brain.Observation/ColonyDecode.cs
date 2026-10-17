@@ -378,7 +378,7 @@ public static partial class ObservationPackage
             var standing = new List<ButcherBench>();
             foreach (var b in benches)
             {
-                standing.Add(new ButcherBench { Id = b.Id, Definition = b.Definition, Room = b.Room });
+                standing.Add(new ButcherBench { Definition = b.Definition, Room = b.Room });
             }
             f = f with { ButcherBenches = Known(EquatableArray.From(standing)) };
             r = r with { ButcheringBenches = Known(EquatableArray.From(benches)) };

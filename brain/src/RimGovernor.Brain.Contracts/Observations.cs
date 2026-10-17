@@ -6219,16 +6219,12 @@ public sealed record UpkeepPerson
 }
 
 /// <summary>
-/// permit_cooldowns: one row per held permit.
-/// last_used_tick is FactionPermit.LastUsedTick (absent when never used) and
-/// cooldown_remaining_ticks the ticks until it can be used again (0 when ready),
-/// both read at the read's tick.
+/// permit_cooldowns: one row per held permit. cooldown_remaining_ticks is the ticks until it can be
+/// used again (0 when ready), read at the read's tick.
 /// </summary>
 public sealed record PermitCooldown
 {
     public string? Permit { get; init; }
-
-    public int? LastUsedTick { get; init; }
 
     public int? CooldownRemainingTicks { get; init; }
 }
@@ -6667,8 +6663,6 @@ public sealed record FoodProduct
     public long? Count { get; init; }
 
     public bool? Edible { get; init; }
-
-    public double? NutritionDemandPerDay { get; init; }
 
     /// <summary>
     /// storable is the product count roofed, reachable storage accepting it can
@@ -7213,8 +7207,6 @@ public sealed record WorkLightCell
 
     public bool? Roofed { get; init; }
 
-    public Common.Ref? Room { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> PlantDefs { get; init; }
 }
@@ -7224,8 +7216,6 @@ public sealed record LampState
     public Common.Ref? Building { get; init; }
 
     public bool? Lit { get; init; }
-
-    public Common.Ref? Room { get; init; }
 }
 
 public sealed record LightingFacts
@@ -9859,15 +9849,8 @@ public sealed record IdeologySnapshot
     [JsonConverter(typeof(EquatableArrayJsonConverter<IdeoBuilding>))]
     public EquatableArray<IdeoBuilding> Buildings { get; init; }
 
-    /// <summary>
-    /// Ideo.ObligationsActive, Ideo.ColonistBelieverCountCached and
-    /// Ideo.MinBelieversToEnableObligations.
-    /// </summary>
-    public bool? ObligationsActive { get; init; }
-
+    /// <summary>Ideo.ColonistBelieverCountCached.</summary>
     public int? Believers { get; init; }
-
-    public int? MinBelieversForObligations { get; init; }
 
     public bool? Fluid { get; init; }
 

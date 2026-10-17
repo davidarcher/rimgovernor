@@ -158,8 +158,6 @@ public sealed record RoundsFacts
     /// <summary>Where the colony loses mood, built each review from the mood census and the catalog thought facts; unknown with the census.</summary>
     public Fact<MoodLedger> MoodLedger { get; init; }
 
-    public MoodHistory Mood { get; init; } = new();
-
     public Fact<HomeCoverageObservation> HomeCoverage { get; init; }
 
     public Fact<EquatableArray<StoneStructure>> StoneStructures { get; init; }
@@ -231,9 +229,6 @@ public sealed record RoundsFacts
 
     /// <summary>A bedroom below target, weakest in beauty, has a free cell for a sculpture (SculptureRoomsOwed); the work ledger's art bills read it. Unknown unless the rooms/art Need is composed.</summary>
     public Fact<bool> SculptureRoomsOwed { get; init; }
-
-    /// <summary>The dispatcher's unmet throughput per bench kind (units a day short and why), sorted by kind; the facilities ladder reads it. Empty when nothing is short or the ledger has no declarers.</summary>
-    public EquatableArray<UnmetThroughput> UnmetThroughput { get; init; }
 
     /// <summary>The Safe allowed area differs from the enclosed roofed rooms (PlanSafeArea); it keeps the shelter/safe-area Need unmet. Unknown unless that Need is composed.</summary>
     public Fact<bool> SafeAreaOwed { get; init; }
@@ -385,9 +380,7 @@ public sealed record RoundsFacts
 
     public Fact<bool> MedicalCareRecovered { get; init; }
 
-    public Fact<int> Workers { get; init; }
-
-    /// <summary>The per-work-type census of the same pawns Workers counts (RoundsLabor); unknown labor remains unavailable evidence.</summary>
+    /// <summary>The per-work-type census of the colony workers (RoundsLabor); unknown labor remains unavailable evidence.</summary>
     public Fact<IReadOnlyDictionary<WorkType, int>> Labor { get; init; }
 
     /// <summary>The planner's per-work-type coverage (PlanWork): the owners each type wanted and found and the pawns capable of it, so a goal can name a missing capability instead of stalling.</summary>
@@ -517,8 +510,6 @@ public sealed record RoundsFacts
     /// Needs count every critical patient (#3258).
     /// </summary>
     public Fact<long> UrgentPatients { get; init; }
-
-    public Fact<bool> AllPatientsResting { get; init; }
 
     public Fact<bool> CleanupPawns { get; init; }
 
@@ -861,8 +852,6 @@ public static partial class PolicyFunctions
 /// <summary>A standing butcher bench and the room it stands in (unknown outdoors).</summary>
 public sealed record ButcherBench
 {
-    public string Id { get; init; } = "";
-
     public string Definition { get; init; } = "";
 
     public Fact<string> Room { get; init; }

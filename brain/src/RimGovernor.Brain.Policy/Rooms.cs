@@ -115,12 +115,6 @@ public sealed record Room
 
     public Fact<double> Temperature { get; init; }
 
-    /// <summary>
-    /// RimWorld's own room Cleanliness stat (0 clean, negative dirtier), the same number the game's
-    /// food-poisoning and infection chances read. Unknown when the native stat read failed.
-    /// </summary>
-    public Fact<double> Cleanliness { get; init; }
-
     public EquatableArray<string> Beds { get; init; }
 
     public Fact<EquatableArray<Amount>> Contents { get; init; }
@@ -148,8 +142,6 @@ public sealed record Room
 /// </summary>
 public sealed record RoomDoor
 {
-    public string Id { get; init; } = "";
-
     public Cell Cell { get; init; }
 
     public Cell Outside { get; init; }
@@ -195,51 +187,19 @@ public sealed record RoomObservation
     }
 }
 
-/// <summary>One row of the per-role implementation matrix.</summary>
-public enum FacilityStatus
-{
-    [WireName("")]
-    None = 0,
-
-    /// <summary>Roles with a routine planner that observes their demand and stages, furnishes or reuses a room for them.</summary>
-    [WireName("implemented")]
-    Implemented,
-
-    /// <summary>Roles catalogued but no planner pursues them yet.</summary>
-    [WireName("pending")]
-    Pending,
-}
-
 /// <summary>
-/// What a routine planner needs before it can pursue a room role: the native content the role belongs to
-/// (empty for Core), which other roles may host the same function without a dedicated room, and the
-/// furniture definitions whose presence gives the room its role natively.
+/// What a routine planner needs before it can pursue a room role: which other roles may host the same
+/// function without a dedicated room.
 /// </summary>
 public sealed record FacilityRequirement
 {
     public RoomRole Role { get; init; }
-
-    public FacilityStatus Status { get; init; }
-
-    public string Content { get; init; } = "";
 
     /// <summary>
     /// Roles whose room may host this function as a shared room. A hosting room keeps whatever role the game
     /// scores highest, so a table in a rec room leaves it a RecRoom while still seating diners.
     /// </summary>
     public EquatableArray<RoomRole> Compatible { get; init; }
-
-    /// <summary>The building definitions the implemented planner may place; an empty list marks a pending role.</summary>
-    public EquatableArray<string> Furniture { get; init; }
-
-    /// <summary>Marks an implemented role whose furniture the planner reads from the game's definitions rather than listing here.</summary>
-    public bool FurnitureFromGame { get; init; }
-
-    /// <summary>
-    /// The catalog room-role furniture the planner places (the native definition catalog assigns each
-    /// definition its roles); an implemented role names Furniture, Roles or FurnitureFromGame.
-    /// </summary>
-    public EquatableArray<FurnitureRole> Roles { get; init; }
 
     /// <summary>Whether a room of the given role can serve this function.</summary>
     public bool Hosts(RoomRole role) => role == Role || Compatible.Contains(role);
@@ -297,10 +257,9 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// The per-role implementation matrix: every RoomRoleDef the installed game and expansions define, with
-    /// its planner status. Roles a planner pursues appear as implemented with their furniture; every other
-    /// role stays an explicit pending row rather than a silent gap. Content-gated roles are only pursued when
-    /// their definitions are present in the planning census, never assumed from the row alone.
+    /// The per-role catalog: every RoomRoleDef the installed game and expansions define, with the roles that
+    /// may host its function. Content-gated roles are only pursued when their definitions are present in the
+    /// planning census, never assumed from the row alone.
     /// </summary>
     public static List<FacilityRequirement> FacilityCatalog()
     {
@@ -308,58 +267,58 @@ public static partial class PolicyFunctions
 
         return
         [
-            new() { Role = RoomRole.DiningRoom, Status = FacilityStatus.Implemented, Compatible = Hosts(RoomRole.RecRoom), FurnitureFromGame = true },
-            new() { Role = RoomRole.RecRoom, Status = FacilityStatus.Implemented, Compatible = Hosts(RoomRole.DiningRoom), FurnitureFromGame = true },
+            new() { Role = RoomRole.DiningRoom, Compatible = Hosts(RoomRole.RecRoom) },
+            new() { Role = RoomRole.RecRoom, Compatible = Hosts(RoomRole.DiningRoom) },
             // A bedroom is a hosted colonist bed: shelter/sleeping stages one in any room that already sleeps
             // colonists or in a generic room, then assigns it; the game scores the room Bedroom or Barracks by count.
-            new() { Role = RoomRole.Bedroom, Status = FacilityStatus.Implemented, Compatible = Hosts(RoomRole.Barracks), FurnitureFromGame = true },
-            new() { Role = RoomRole.Barracks, Status = FacilityStatus.Pending },
-            new() { Role = RoomRole.Shelter, Status = FacilityStatus.Pending },
+            new() { Role = RoomRole.Bedroom, Compatible = Hosts(RoomRole.Barracks) },
+            new() { Role = RoomRole.Barracks },
+            new() { Role = RoomRole.Shelter },
             // A jail is its own planned room: prisoners/recruit shells it while a prisoner is held and keeps a
             // prisoner bed per prisoner.
-            new() { Role = RoomRole.PrisonCell, Status = FacilityStatus.Implemented, FurnitureFromGame = true },
-            new() { Role = RoomRole.PrisonBarracks, Status = FacilityStatus.Pending },
+            new() { Role = RoomRole.PrisonCell },
+            new() { Role = RoomRole.PrisonBarracks },
             // A hospital is a hosted medical bed, not a dedicated room: the game scores a room holding any
             // ordinary bed a Bedroom or Barracks, and a bed flagged medical inside it still draws patients,
             // doctors and the room's cleanliness into tending. Doctor coverage is AssignWork's standing
             // requirement; medicine is medical/reserves.
-            new() { Role = RoomRole.Hospital, Status = FacilityStatus.Implemented, Compatible = Hosts(RoomRole.Bedroom, RoomRole.Barracks), FurnitureFromGame = true },
+            new() { Role = RoomRole.Hospital, Compatible = Hosts(RoomRole.Bedroom, RoomRole.Barracks) },
             // A laboratory is a hosted research bench: the economy/research Need stages the simple bench in the shelter
             // (scored a Barracks once the bunks stand) when a ladder rung waits on it.
-            new() { Role = RoomRole.Laboratory, Status = FacilityStatus.Implemented, Compatible = Hosts(RoomRole.Workshop, RoomRole.Barracks), FurnitureFromGame = true },
+            new() { Role = RoomRole.Laboratory, Compatible = Hosts(RoomRole.Workshop, RoomRole.Barracks) },
             // A workshop shares the shelter: the ladder furnishes the first enclosed room rather than siting a
             // second ring (rounds_sleeping.go), and once the sleeping spots move indoors the game scores that
             // room a Barracks while the bench keeps working.
-            new() { Role = RoomRole.Workshop, Status = FacilityStatus.Implemented, Compatible = Hosts(RoomRole.Barracks), FurnitureFromGame = true },
-            new() { Role = RoomRole.Storeroom, Status = FacilityStatus.Pending },
+            new() { Role = RoomRole.Workshop, Compatible = Hosts(RoomRole.Barracks) },
+            new() { Role = RoomRole.Storeroom },
             // A kitchen is its own planned room: the food/cooking Need shells it at Masonry and above and holds the
             // stove to its interior.
-            new() { Role = RoomRole.Kitchen, Status = FacilityStatus.Implemented, FurnitureFromGame = true },
+            new() { Role = RoomRole.Kitchen },
             // A tomb is its own planned room: the admin/burial Need shells it and places a sarcophagus while a dead
             // colonist has none waiting.
-            new() { Role = RoomRole.Tomb, Status = FacilityStatus.Implemented, FurnitureFromGame = true },
+            new() { Role = RoomRole.Tomb },
             // A throne room is its own planned room: shelter/sleeping shells it sized to the next title's area,
             // places a throne and furnishes it to the title's impressiveness; assigning the throne awaits an
             // action kind.
-            new() { Role = RoomRole.ThroneRoom, Status = FacilityStatus.Implemented, Content = "Royalty", Furniture = ["Throne", "GrandThrone"] },
+            new() { Role = RoomRole.ThroneRoom },
             // A worship room is its own planned room, staged like the child rooms: shelter/sleeping shells it
             // and places the buildings the ideoligion requires, which the game's defs name (the ideology
             // section), not this row.
-            new() { Role = RoomRole.WorshipRoom, Status = FacilityStatus.Implemented, Content = "Ideology", FurnitureFromGame = true },
+            new() { Role = RoomRole.WorshipRoom },
             // The child rooms are their own planned rooms: shelter/sleeping shells each while a baby (nursery),
             // baby or child (playroom) or child (classroom) lives and places the furniture the game scores the
             // role from (ChildRoomNeeds); a nursery room holds no other bed.
-            new() { Role = RoomRole.Nursery, Status = FacilityStatus.Implemented, Content = "Biotech", Roles = [FurnitureRole.BabyBed] },
-            new() { Role = RoomRole.Playroom, Status = FacilityStatus.Implemented, Content = "Biotech", Roles = [FurnitureRole.Toy, FurnitureRole.Decoration] },
-            new() { Role = RoomRole.Classroom, Status = FacilityStatus.Implemented, Content = "Biotech", Roles = [FurnitureRole.Board, FurnitureRole.Desk] },
+            new() { Role = RoomRole.Nursery },
+            new() { Role = RoomRole.Playroom },
+            new() { Role = RoomRole.Classroom },
             // A deathrest chamber is its own planned room: shelter/sleeping shells it while a deathrester lives
             // and places a casket per deathrester and the accelerators its capacity allows.
-            new() { Role = RoomRole.DeathrestChamber, Status = FacilityStatus.Implemented, Content = "Biotech", Roles = [FurnitureRole.DeathrestCasket, FurnitureRole.DeathrestAccelerator] },
+            new() { Role = RoomRole.DeathrestChamber },
             // A containment cell is its own planned room: shelter/sleeping shells it while a capturable entity
             // has no platform able to hold it and places the holding platform the game's defs name, once the
             // predicted containment strength reaches what the entity needs.
-            new() { Role = RoomRole.ContainmentCell, Status = FacilityStatus.Implemented, Content = "Anomaly", FurnitureFromGame = true },
-            new() { Role = RoomRole.CeremonialChamber, Status = FacilityStatus.Pending, Content = "Anomaly" },
+            new() { Role = RoomRole.ContainmentCell },
+            new() { Role = RoomRole.CeremonialChamber },
         ];
     }
 

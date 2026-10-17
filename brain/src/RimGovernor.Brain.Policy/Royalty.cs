@@ -39,8 +39,6 @@ public sealed record RoyalThrone
 {
     public string Id { get; init; } = "";
 
-    public string Def { get; init; } = "";
-
     public PawnId Owner { get; init; }
 }
 
@@ -77,14 +75,12 @@ public enum PsycastTarget
 }
 
 /// <summary>
-/// One known psycast: Level is the psylink level that unlocks it, PsyfocusCost the 0-1 Psyfocus it spends,
+/// One known psycast: PsyfocusCost is the 0-1 Psyfocus it spends,
 /// Entropy the neural heat it adds and Target is None when native did not classify it.
 /// </summary>
 public sealed record Psycast
 {
     public string Def { get; init; } = "";
-
-    public Fact<int> Level { get; init; }
 
     public Fact<double> PsyfocusCost { get; init; }
 
@@ -99,16 +95,11 @@ public sealed record Psycast
 }
 
 /// <summary>
-/// The stock of one neuroformer def: the psylink neuroformer or a psycast neurotrainer (TeachesPsycast names
-/// its ability). Held counts unforbidden stacks on the home maps; Craftable is an available recipe; Tradeable
-/// is a trader selling it.
+/// The stock of one neuroformer def: the psylink neuroformer or a psycast neurotrainer. Held counts
+/// unforbidden stacks on the home maps; Craftable is an available recipe; Tradeable is a trader selling it.
 /// </summary>
 public sealed record Neuroformer
 {
-    public string Def { get; init; } = "";
-
-    public string TeachesPsycast { get; init; } = "";
-
     public Fact<int> Held { get; init; }
 
     public Fact<bool> Craftable { get; init; }
@@ -131,12 +122,7 @@ public sealed record RoyalRung
 
     public Fact<ThroneRequirements> Throne { get; init; }
 
-    /// <summary>The title's bedroom area requirement: an absent one is none.</summary>
-    public Fact<int> BedroomMinArea { get; init; }
-
     public Fact<int> BedroomMinImpressiveness { get; init; }
-
-    public Fact<bool> BedroomFloored { get; init; }
 
     /// <summary>The title's bedroom furniture; none needs no furniture.</summary>
     public EquatableArray<BedroomThing> BedroomThings { get; init; }
@@ -157,8 +143,6 @@ public sealed record RoyalPermit
     public Fact<bool> Acts { get; init; }
 
     public Fact<int> FavorCost { get; init; }
-
-    public Fact<double> CooldownDays { get; init; }
 
     /// <summary>The permit def's workerClass type name, empty when the read left it absent: what the permit does (PermitWorker* constants).</summary>
     public string Worker { get; init; } = "";
@@ -181,11 +165,9 @@ public sealed record RoyalHolding
     public IReadOnlyDictionary<string, PermitCooldown> Cooldowns { get; init; } = new Dictionary<string, PermitCooldown>();
 }
 
-/// <summary>One held permit's native cooldown at the read's tick. LastUsedTick is unknown when the permit was never used; RemainingTicks is 0 when it can be used.</summary>
+/// <summary>One held permit's native cooldown at the read's tick. RemainingTicks is 0 when it can be used.</summary>
 public sealed record PermitCooldown
 {
-    public Fact<int> LastUsedTick { get; init; }
-
     public Fact<int> RemainingTicks { get; init; }
 }
 
@@ -197,32 +179,4 @@ public sealed record RoyaltyColony
     public EquatableArray<BestowingCeremony> Ceremonies { get; init; }
 
     public EquatableArray<RoyalThrone> Thrones { get; init; }
-}
-
-public static partial class PolicyFunctions
-{
-    /// <summary>
-    /// Whether the pawn's permit for the faction was used at or after tick since, from a royalty read taken
-    /// after the attempt: the replay rule's way to resolve an uncertain ability receipt (an effective use is
-    /// never re-sent). An unknown cooldown is false and the caller re-reads. A null facts is false.
-    /// </summary>
-    public static bool PermitUsedSince(this RoyaltyFacts? f, PawnId pawn, string faction, string permit, int since)
-    {
-        if (f is null || !f.Holders.TryGetValue(pawn, out var holdings))
-        {
-            return false;
-        }
-        foreach (var h in holdings)
-        {
-            if (h.FactionDef != faction)
-            {
-                continue;
-            }
-            if (h.Cooldowns.TryGetValue(permit, out var cooldown) && cooldown.LastUsedTick.TryGetValue(out var last) && last >= since)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
 }

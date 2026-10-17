@@ -16,9 +16,6 @@ public readonly record struct NeedId(string Value) : IComparable<NeedId>
     /// <summary>The kind of Need: the second segment.</summary>
     public string Kind => Segment(1);
 
-    /// <summary>The occurrence or target the Need is about; empty for a colony-wide Need.</summary>
-    public string Subject => Segment(2);
-
     /// <summary>Whether the id is <c>family/kind[/subject]</c> in the allowed alphabets and within the id bound.</summary>
     public bool IsValid
     {

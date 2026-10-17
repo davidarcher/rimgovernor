@@ -334,7 +334,6 @@ public static partial class PolicyFunctions
                     {
                         Bench = b.Id,
                         Recipe = r.Name,
-                        Token = token!,
                         Mode = BillMode.FoodTarget,
                         Target = (int)target,
                         Ingredients = EquatableArray.From(ingredients),

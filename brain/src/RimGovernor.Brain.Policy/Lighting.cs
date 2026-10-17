@@ -84,11 +84,9 @@ public sealed record LightingObservation
 public sealed record WorkLightCell
 {
     public string Bench { get; init; } = "";
-    public string Definition { get; init; } = "";
     public Cell Cell { get; init; }
     public double Glow { get; init; }
     public bool Roofed { get; init; }
-    public Fact<string> Room { get; init; }
 
     /// <summary>
     /// Native's word that the cell's room grows a plant that dies to light (cave fungus); such a room is protected
@@ -107,13 +105,9 @@ public sealed record Lamp
     /// <summary>Native's own "currently emits light" flag, false while the fixture is unpowered, out of fuel, switched off or broken down.</summary>
     public bool Lit { get; init; }
 
-    public Fact<string> Room { get; init; }
-    public Fact<bool> Powered { get; init; }
-    public Fact<bool> Connected { get; init; }
     public Fact<bool> SwitchedOn { get; init; }
     public Fact<bool> OutOfFuel { get; init; }
     public Fact<bool> BrokenDown { get; init; }
-    public IReadOnlyList<string> FuelDefinitions { get; init; } = [];
 }
 
 /// <summary>
@@ -187,11 +181,6 @@ public sealed record LightingProposal
 {
     public LightingMethod Method { get; init; }
     public MethodId Key { get; init; }
-
-    /// <summary>Bench and Target name the dark work cell served.</summary>
-    public string Bench { get; init; } = "";
-
-    public Cell Target { get; init; }
 
     /// <summary>Definition and Cells are the chosen lamp and its candidate cells nearest first, each to be validated by a native placement preview before admission.</summary>
     public string Definition { get; init; } = "";
@@ -356,8 +345,6 @@ public static partial class PolicyFunctions
             {
                 Method = LightingMethod.Build,
                 Key = new MethodId("lighting-" + Convert.ToHexStringLower(digest.AsSpan(0, 12))),
-                Bench = bench,
-                Target = target.Cell,
                 Definition = definition,
                 Cells = candidates,
                 Planned = planned,
@@ -380,7 +367,6 @@ public static partial class PolicyFunctions
                 {
                     Method = LightingMethod.Build,
                     Key = new MethodId("lighting-" + Convert.ToHexStringLower(digest.AsSpan(0, 12))),
-                    Target = planned[0].Cell,
                     Definition = planned[0].Def,
                     Planned = planned,
                 };

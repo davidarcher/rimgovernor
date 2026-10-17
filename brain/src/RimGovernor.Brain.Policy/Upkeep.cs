@@ -7,9 +7,6 @@ public sealed record UpkeepObservation
 {
     public Fact<EquatableArray<ClearanceTarget>> Clearance { get; init; }
 
-    /// <summary>The planned-ground clearance work of the same read (PlannedGroundWork): unplanned buildings and floors on the ground of planned rooms not yet standing.</summary>
-    public Fact<EquatableArray<string>> Ground { get; init; }
-
     /// <summary>The clearance rows standing on the ground of a planned room (RoomObstructionIDs): tier 1 of the recovery queue.</summary>
     public IReadOnlySet<string> RoomObstructions { get; init; } = new HashSet<string>();
 

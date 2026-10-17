@@ -102,19 +102,11 @@ public sealed record PerimeterCutDecision
 }
 
 /// <summary>
-/// The advised wall: Cut is the one-cell chain that closes the routes, Walls the cut thickened outward by its
-/// segments, Unclosable the cut cells that stand on ground nothing can wall.
+/// The advised wall, as the decisions the caller journals: the one-cell chain that closes the routes, the walls
+/// that chain thickened outward by its segments, and the cut cells that stand on ground nothing can wall.
 /// </summary>
 public sealed record PerimeterCut
 {
-    public IReadOnlyList<Cell> Cut { get; init; } = [];
-
-    public IReadOnlyList<Cell> Walls { get; init; } = [];
-
-    public IReadOnlyList<Cell> Unclosable { get; init; } = [];
-
-    public IReadOnlyList<CutSegment> Segments { get; init; } = [];
-
     public IReadOnlyList<PerimeterCutDecision> Decisions { get; init; } = [];
 }
 
@@ -641,14 +633,7 @@ public static partial class PolicyFunctions
                 },
             });
         }
-        return new PerimeterCut
-        {
-            Cut = cutCells,
-            Walls = wallCells,
-            Unclosable = unclosable,
-            Segments = segments,
-            Decisions = decisions,
-        };
+        return new PerimeterCut { Decisions = decisions };
     }
 
     /// <summary>

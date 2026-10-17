@@ -258,11 +258,9 @@ public static partial class ObservationPackage
             cells.Add(new WorkLightCell
             {
                 Bench = row.Bench?.Id ?? "",
-                Definition = head.DefName ?? "",
                 Cell = CellOf(row.Cell),
                 Glow = row.Glow.GetValueOrDefault(),
                 Roofed = row.Roofed.GetValueOrDefault(),
-                Room = OptionalRef(row.Room),
                 LightSensitive = sensitive,
             });
         }
@@ -284,13 +282,9 @@ public static partial class ObservationPackage
                 Cell = CellOf(reference.Position),
                 Radius = radius,
                 Lit = row.Lit.GetValueOrDefault(),
-                Room = OptionalRef(row.Room),
-                Powered = Optional(s.PowerOn is not null, s.PowerOn.GetValueOrDefault()),
-                Connected = Optional(s.Connected is not null, s.Connected.GetValueOrDefault()),
                 SwitchedOn = Known(s.SwitchedOn),
                 OutOfFuel = Optional(s.OutOfFuel is not null, s.OutOfFuel.GetValueOrDefault()),
                 BrokenDown = Known(s.BrokenDown),
-                FuelDefinitions = RequireCatalog(catalog).RefuelFuels(reference.DefName),
             });
         }
         return Known(new LightingObservation { WorkCells = cells, Lamps = lamps });
