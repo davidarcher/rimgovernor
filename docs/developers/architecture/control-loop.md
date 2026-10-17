@@ -101,7 +101,7 @@ is refused while one is open or held (`CombatOpenWork`,
 `CombatWorkOpenException`).
 
 **Implemented (#3250).** Policy `Needs.cs` holds `NeedId`, `Need` (tier,
-`Satisfaction` Unknown/Unmet/Met, deficit, evidence, preconditions), `NeedMethod`
+`Satisfaction` Unknown/Unmet/Met, deficit, preconditions), `NeedMethod`
 and `IFamily<TFacts>` (`Reads`, `SeriousHarmReads`, `Derive`, `Propose`);
 `NeedStandings` resolves preconditions within one family, and Unknown never
 counts as met. Store `NeedOwner` and `Store.CommitClaimedMethod(NeedId, ...)`

@@ -49,7 +49,6 @@ public sealed class EconomyFamilyTests
 
         var idle = EconomyFamily.ResearchNeed(Facts(["Smithing"], projects: Project("Smithing")));
         Assert.Equal((Satisfaction.Unmet, 1.0), (idle.Satisfaction, idle.Deficit.Value));
-        Assert.Contains(idle.Evidence, e => e.Fact == "research_target" && e.Value.Value == "Smithing");
 
         // A derived target stays owed while its project is current: the ladder waits on it finishing.
         Assert.Equal(Satisfaction.Unmet, EconomyFamily.ResearchNeed(Facts(["Smithing"], current: "Smithing", projects: Project("Smithing"))).Satisfaction);
@@ -160,7 +159,6 @@ public sealed class EconomyFamilyTests
     {
         var met = EconomyRules.ResourceNeedOf(Stock(150));
         Assert.Equal((EconomyFamily.Resource, Satisfaction.Met, NeedTier.Wellbeing), (met.Id, met.Satisfaction, met.Tier));
-        Assert.Contains(met.Evidence, e => e.Fact == "resource_targets");
 
         var unmet = EconomyRules.ResourceNeedOf(Stock(25));
         Assert.Equal(Satisfaction.Unmet, unmet.Satisfaction);
@@ -248,7 +246,6 @@ public sealed class EconomyFamilyTests
         Assert.Equal(Satisfaction.Met, EconomyFamily.TradeNeed(new TradeReview { SilverGap = Known(0.0) }).Satisfaction);
         var gap = EconomyFamily.TradeNeed(new TradeReview { SilverGap = Known(120.0) });
         Assert.Equal((EconomyFamily.Trade, NeedTier.Development, Satisfaction.Unmet, 1.0), (gap.Id, gap.Tier, gap.Satisfaction, gap.Deficit.Value));
-        Assert.Contains(gap.Evidence, e => e.Fact == "silver_gap" && e.Value.Value == "120");
 
         // The caravan Need: met once every caravan present is traded out.
         Assert.Equal(Satisfaction.Unknown, EconomyFamily.CaravanNeed(new TradeReview()).Satisfaction);

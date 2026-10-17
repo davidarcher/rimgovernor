@@ -12,8 +12,6 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record BabyFeeding
 {
-    public int Babies { get; init; }
-
     /// <summary>A colonist can breastfeed, which feeds every baby.</summary>
     public bool Breastfed { get; init; }
 
@@ -49,7 +47,6 @@ public static class BabyFeedingRules
         var byDefinition = new Dictionary<Resource, double>();
         var r = new BabyFeeding
         {
-            Babies = babies.Count,
             Breastfed = breastfeeders > 0,
             ByDefinition = byDefinition,
         };

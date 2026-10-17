@@ -36,8 +36,6 @@ public sealed class AdminFamilyTests
 
         var unmet = Derive(new CreepJoinerWork { Owed = Known(true), Inspections = Inspect("a", "b"), Isolation = [new IsolationMove(new("c"), "Area_1")] });
         Assert.Equal((Satisfaction.Unmet, 3.0), (unmet.Satisfaction, unmet.Deficit.Value));
-        Assert.Contains(unmet.Evidence, e => e.Fact == "inspections" && e.Value.Value == "2");
-        Assert.Contains(unmet.Evidence, e => e.Fact == "isolation_moves" && e.Value.Value == "1");
 
         // A record change alone (an ended bill) is owed work with no order.
         var recorded = Derive(new CreepJoinerWork { Owed = Known(true) });
@@ -63,8 +61,6 @@ public sealed class AdminFamilyTests
 
         var unmet = Supply(new AdminFacts { SupplySafety = Known(EquatableArray.From([Stack("s1", 1, true), Stack("s2", 2, false), Stack("s3", 3, false)])) });
         Assert.Equal((Satisfaction.Unmet, 3.0), (unmet.Satisfaction, unmet.Deficit.Value));
-        Assert.Contains(unmet.Evidence, e => e.Fact == "forbid" && e.Value.Value == "1");
-        Assert.Contains(unmet.Evidence, e => e.Fact == "allow" && e.Value.Value == "2");
 
         // An unread census (or a read that never ran) is Unknown, never met.
         Assert.Equal(Satisfaction.Unknown, Supply(new AdminFacts()).Satisfaction);

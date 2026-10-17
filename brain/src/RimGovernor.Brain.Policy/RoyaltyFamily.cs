@@ -55,7 +55,6 @@ public sealed class RoyaltyFamily(bool permits = true, bool psylink = true) : IF
                 Tier = NeedTier.Development,
                 Satisfaction = !facts.PsylinkOwed.TryGetValue(out var owed) ? Satisfaction.Unknown : owed ? Satisfaction.Unmet : Satisfaction.Met,
                 Deficit = facts.PsylinkOwed.TryGetValue(out var d) ? Known(d ? 1.0 : 0.0) : Unknown<double>(),
-                Evidence = [new("psylink_owed", facts.PsylinkOwed.TryGetValue(out var e) ? Known(e ? "yes" : "no") : Unknown<string>())],
             });
         }
         return output;
@@ -97,7 +96,6 @@ public static partial class RoyaltyFamilyRules
             Tier = NeedTier.Development,
             Satisfaction = !known ? Satisfaction.Unknown : done ? Satisfaction.Met : Satisfaction.Unmet,
             Deficit = known ? Known(done ? 0.0 : 1.0) : Unknown<double>(),
-            Evidence = [new("next_permit", known ? Known(PermitChoiceRules.NextPermitOf(royalty) is { } next ? $"{next.Holder}/{next.Permit}" : "none") : Unknown<string>())],
         };
     }
 }

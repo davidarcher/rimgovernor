@@ -175,7 +175,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
     {
         if (!work.Owed.TryGetValue(out var owed))
         {
-            return new Need { Id = CreepJoiners, Tier = NeedTier.Wellbeing, Evidence = [new("creepjoiner_work", default)] };
+            return new Need { Id = CreepJoiners, Tier = NeedTier.Wellbeing };
         }
         return new Need
         {
@@ -183,13 +183,6 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
             Tier = NeedTier.Wellbeing,
             Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known((double)work.Count),
-            Evidence =
-            [
-                new("weapon_drops", Count(work.Drops.Count)),
-                new("inspections", Count(work.Inspections.Orders.Count)),
-                new("isolation_moves", Count(work.Isolation.Count)),
-                new("disarm_orders", Count(work.Disarm.Orders.Count)),
-            ],
         };
     }
 
@@ -201,7 +194,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
     {
         if (!pending.TryGetValue(out var rows))
         {
-            return new Need { Id = SupplySafety, Tier = NeedTier.Wellbeing, Evidence = [new("event_loot", default)] };
+            return new Need { Id = SupplySafety, Tier = NeedTier.Wellbeing };
         }
         var forbid = rows.Count(r => r.Forbid);
         return new Need
@@ -210,7 +203,6 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
             Tier = NeedTier.Wellbeing,
             Satisfaction = rows.Count > 0 ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known((double)rows.Count),
-            Evidence = [new("forbid", Count(forbid)), new("allow", Count(rows.Count - forbid))],
         };
     }
 
@@ -219,7 +211,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
     {
         if (!owed.TryGetValue(out var due))
         {
-            return new Need { Id = Burial, Tier = NeedTier.Wellbeing, Evidence = [new("burial_owed", default)] };
+            return new Need { Id = Burial, Tier = NeedTier.Wellbeing };
         }
         return new Need
         {
@@ -227,7 +219,6 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
             Tier = NeedTier.Wellbeing,
             Satisfaction = due ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known(due ? 1.0 : 0.0),
-            Evidence = [new("burial_owed", Fact.Known(due ? "true" : "false"))],
         };
     }
 
@@ -236,7 +227,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
     {
         if (!owed.TryGetValue(out var diff))
         {
-            return new Need { Id = WorkLedger, Tier = NeedTier.Wellbeing, Evidence = [new("ledger_diff", default)] };
+            return new Need { Id = WorkLedger, Tier = NeedTier.Wellbeing };
         }
         return new Need
         {
@@ -244,7 +235,6 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
             Tier = NeedTier.Wellbeing,
             Satisfaction = diff ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known(diff ? 1.0 : 0.0),
-            Evidence = [new("ledger_diff", Fact.Known(diff ? "true" : "false"))],
         };
     }
 
@@ -253,7 +243,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
     {
         if (!active.TryGetValue(out var owed))
         {
-            return new Need { Id = Stockpiles, Tier = NeedTier.Wellbeing, Evidence = [new("stockpile_work", default)] };
+            return new Need { Id = Stockpiles, Tier = NeedTier.Wellbeing };
         }
         return new Need
         {
@@ -261,7 +251,6 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
             Tier = NeedTier.Wellbeing,
             Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known(owed ? 1.0 : 0.0),
-            Evidence = [new("stockpile_work", Fact.Known(owed ? "true" : "false"))],
         };
     }
 
@@ -270,7 +259,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
     {
         if (!owed.TryGetValue(out var due))
         {
-            return new Need { Id = WorkAssignments, Tier = NeedTier.Wellbeing, Evidence = [new("work_assignments_owed", default)] };
+            return new Need { Id = WorkAssignments, Tier = NeedTier.Wellbeing };
         }
         return new Need
         {
@@ -278,9 +267,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
             Tier = NeedTier.Wellbeing,
             Satisfaction = due ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known(due ? 1.0 : 0.0),
-            Evidence = [new("work_assignments_owed", Fact.Known(due ? "true" : "false"))],
         };
     }
 
-    private static Fact<string> Count(int n) => Fact.Known(n.ToString(CultureInfo.InvariantCulture));
 }

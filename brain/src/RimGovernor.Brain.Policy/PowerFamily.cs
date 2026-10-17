@@ -55,10 +55,5 @@ public static partial class PowerRules
         Tier = NeedTier.Wellbeing,
         Satisfaction = f.Standing.TryGetValue(out var v) ? v ? Satisfaction.Met : Satisfaction.Unmet : Satisfaction.Unknown,
         Deficit = f.Standing.TryGetValue(out var d) ? Known(d ? 0.0 : 1.0) : Unknown<double>(),
-        Evidence =
-        [
-            new("grid", f.Standing.TryGetValue(out var s) ? Known(s ? "standing" : "short") : Unknown<string>()),
-            new("outage", Known(f.OutageHeld ? "held" : "none")),
-        ],
     };
 }

@@ -75,7 +75,6 @@ public sealed class PrisonersFamilyTests
 
         var unmet = Derive(Census(Colony1, Prisoner("a"), Prisoner("b"), Prisoner("c", PrisonerInteractionMode.Recruit)), PrisonersFamily.Recruit);
         Assert.Equal((Satisfaction.Unmet, 2.0), (unmet.Satisfaction, unmet.Deficit.Value));
-        Assert.Contains(unmet.Evidence, e => e.Fact == "prisoner_interactions_owed" && e.Value.Value == "2");
 
         // An unknown census, or one prisoner whose decision facts are missing, never reads as settled.
         Assert.Equal(Satisfaction.Unknown, Derive(new PrisonersFacts(), PrisonersFamily.Recruit).Satisfaction);

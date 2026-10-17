@@ -172,13 +172,6 @@ public sealed partial class EconomyFamily(bool research = true, bool resource = 
             Tier = NeedTier.Development,
             Satisfaction = satisfaction,
             Deficit = satisfaction == Satisfaction.Unknown ? Unknown<double>() : deficit,
-            Evidence =
-            [
-                new("research_needs", Known(string.Join("+", needs))),
-                new("research_target", target.Length != 0 ? Known(target) : Unknown<string>()),
-                new("current_project", census.TryGetValue(out var c) ? Known(c!.Current.Value) : Unknown<string>()),
-                new("knowledge_pick", census.IsKnown ? Known(pick) : Unknown<string>()),
-            ],
         };
     }
 }
@@ -244,13 +237,6 @@ public static class EconomyRules
             Tier = NeedTier.Wellbeing,
             Satisfaction = satisfaction,
             Deficit = satisfaction == Satisfaction.Unknown ? Unknown<double>() : deficit,
-            Evidence =
-            [
-                new("resource_targets", Known(f.Targets.Count.ToString(System.Globalization.CultureInfo.InvariantCulture))),
-                new("worst_target", worst),
-                new("short_runways", Known(string.Join("+", shortRunways))),
-                new("research_gate", Known(f.ResearchGate)),
-            ],
         };
     }
 

@@ -51,7 +51,6 @@ public sealed class JoinersAnomalyFamilyTests
 
         var unmet = Joiner(Census(Letter(7)), JoinersFamily.Letters);
         Assert.Equal((Satisfaction.Unmet, 1.0), (unmet.Satisfaction, unmet.Deficit.Value));
-        Assert.Contains(unmet.Evidence, e => e.Fact == "joiner_letters" && e.Value.Value == "1");
 
         // A letter the colony may have no room for, or an unread census, never reads as settled.
         Assert.Equal(Satisfaction.Unknown, Joiner(Census(Letter(7)) with { FoodDays = default }, JoinersFamily.Letters).Satisfaction);
@@ -133,7 +132,6 @@ public sealed class JoinersAnomalyFamilyTests
         var unmet = Containment([Holder("e1", 1, holdOpen: true), Holder("e2", 3, holdOpen: true)], Held("e1"), Held("e2"));
         var doors = Anomaly(unmet, AnomalyFamily.Doors);
         Assert.Equal((Satisfaction.Unmet, 2.0), (doors.Satisfaction, doors.Deficit.Value));
-        Assert.Contains(doors.Evidence, e => e.Fact == "doors_to_close" && e.Value.Value == "2");
         Assert.Equal((Satisfaction.Unmet, 2.0), (Anomaly(unmet, AnomalyFamily.Bioferrite).Satisfaction, Anomaly(unmet, AnomalyFamily.Bioferrite).Deficit.Value));
 
         // Unread containment, research, gear or monolith facts leave their Needs unknown, never met.

@@ -33,20 +33,16 @@ public sealed class RoomsFamilyTests
     {
         var met = Of(new() { Lighting = Known(new LightingReview { Known = true }) }, RoomsFamily.Lighting);
         Assert.Equal((RoomsFamily.Lighting, NeedTier.Development, Satisfaction.Met, Known(0.0)), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
-        Assert.Contains(new NeedEvidence("dark_benches", Known("0")), met.Evidence);
 
         var dark = Of(new() { Lighting = Known(new LightingReview { Known = true, Active = true, Dark = ["bench-1"] }) }, RoomsFamily.Lighting);
         Assert.Equal((Satisfaction.Unmet, Known(1.0)), (dark.Satisfaction, dark.Deficit));
-        Assert.Contains(new NeedEvidence("dark_benches", Known("1")), dark.Evidence);
 
         // A planned room's unbuilt lamps reopen the Need with no bench dark.
         var planned = Of(new() { Lighting = Known(new LightingReview { Known = true }.WithPlanned(Known<EquatableArray<int>>([4]))) }, RoomsFamily.Lighting);
         Assert.Equal(Satisfaction.Unmet, planned.Satisfaction);
-        Assert.Contains(new NeedEvidence("planned_rooms", Known("1")), planned.Evidence);
 
         var unread = Of(new(), RoomsFamily.Lighting);
         Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
-        Assert.Contains(new NeedEvidence("dark_benches", Unknown<string>()), unread.Evidence);
     }
 
     [Fact]
@@ -60,7 +56,6 @@ public sealed class RoomsFamilyTests
 
         var unread = Of(new(), RoomsFamily.Flooring);
         Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
-        Assert.Contains(new NeedEvidence("floor_deficits", Unknown<string>()), unread.Evidence);
     }
 
     [Fact]
@@ -68,11 +63,9 @@ public sealed class RoomsFamilyTests
     {
         var none = Of(new() { Profiles = Known<EquatableArray<PawnProfile>>([Artist("a")]), SculptureRoomsOwed = Known(false) }, RoomsFamily.Art);
         Assert.Equal((RoomsFamily.Art, NeedTier.Development, Satisfaction.Met, Known(0.0)), (none.Id, none.Tier, none.Satisfaction, none.Deficit));
-        Assert.Contains(new NeedEvidence("sculpture_rooms", Known("none")), none.Evidence);
 
         var owed = Of(new() { Profiles = Known<EquatableArray<PawnProfile>>([Artist("a")]), SculptureRoomsOwed = Known(true) }, RoomsFamily.Art);
         Assert.Equal((Satisfaction.Unmet, Known(1.0)), (owed.Satisfaction, owed.Deficit));
-        Assert.Contains(new NeedEvidence("artists", Known("1")), owed.Evidence);
 
         // No colonist can sculpt: an owed bedroom has no remedy, so the Need is met.
         Assert.Equal(Satisfaction.Met, Of(new() { Profiles = Known<EquatableArray<PawnProfile>>([]), SculptureRoomsOwed = Known(true) }, RoomsFamily.Art).Satisfaction);
@@ -95,7 +88,6 @@ public sealed class RoomsFamilyTests
         // A colonist with no seat nor recreation: both halves short.
         var bare = Of(new() { BasicComfort = Known(empty with { People = [new PawnId("a")] }) }, RoomsFamily.Comfort);
         Assert.Equal((Satisfaction.Unmet, Known(1.0)), (bare.Satisfaction, bare.Deficit));
-        Assert.Contains(new NeedEvidence("dining", Known(ComfortNeed.Capacity.ToString())), bare.Evidence);
 
         // The variety catalog unread with the core met is unknown, never met.
         Assert.Equal(Satisfaction.Unknown, Of(new() { BasicComfort = Known(empty with { Joy = null }) }, RoomsFamily.Comfort).Satisfaction);

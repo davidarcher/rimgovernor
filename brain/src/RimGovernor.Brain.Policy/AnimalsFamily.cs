@@ -198,14 +198,6 @@ public static class AnimalsFamilyRules
             Tier = NeedTier.Development,
             Satisfaction = satisfaction,
             Deficit = satisfaction == Satisfaction.Unknown ? Unknown<double>() : Known(owed ? 1.0 : 0.0),
-            Evidence =
-            [
-                new("herd_deficit", deficit.TryGetValue(out var d) ? Known(d ? "owed" : "none") : Unknown<string>()),
-                new("herd_removal", removal.Reason == HusbandryPlanReason.Unknown ? Unknown<string>() : Known(removal.Method is { } m ? Wire.Name(m) : "none")),
-                new("food_slaughter", Known(slaughter ? "owed" : "none")),
-                new("food_tame", Known(tame ? "owed" : "none")),
-                new("master", Known(master ? "owed" : "none")),
-            ],
         };
     }
 
@@ -227,11 +219,6 @@ public static class AnimalsFamilyRules
             Tier = NeedTier.Wellbeing,
             Satisfaction = satisfaction,
             Deficit = satisfaction == Satisfaction.Unknown ? Unknown<double>() : Known(count + (penOwed ? 1.0 : 0.0)),
-            Evidence =
-            [
-                new("uncontained_animals", known ? Known(count.ToString(CultureInfo.InvariantCulture)) : Unknown<string>()),
-                new("pen_step", penKnown ? Known(pen!.Owed() ? "owed" : "none") : Unknown<string>()),
-            ],
         };
     }
 
@@ -247,11 +234,6 @@ public static class AnimalsFamilyRules
             Tier = NeedTier.Wellbeing,
             Satisfaction = satisfaction,
             Deficit = known ? Known(owed ? 1.0 : 0.0) : Unknown<double>(),
-            Evidence =
-            [
-                new("ward_step", known ? Known(owed ? Wire.Name(step!.Kind) : "none") : Unknown<string>()),
-                new("ward_ready", f.WardRoom.Ready.TryGetValue(out var ready) ? Known(ready ? "ready" : "not_ready") : Unknown<string>()),
-            ],
         };
     }
 
@@ -265,7 +247,7 @@ public static class AnimalsFamilyRules
         var need = new Need { Id = AnimalsFamily.Sterilize, Tier = NeedTier.Development, Preconditions = ward ? [AnimalsFamily.Ward] : [] };
         if (!f.Animals.TryGetValue(out var animals))
         {
-            return need with { Evidence = [new("sterilize_wanted", Unknown<string>())] };
+            return need with { };
         }
         var wanted = HerdSterilizeRules.SterilizeWanted(animals, f.Herd).Count;
         var areaKnown = f.WardRoom.Area.TryGetValue(out var area);
@@ -275,11 +257,6 @@ public static class AnimalsFamilyRules
         {
             Satisfaction = satisfaction,
             Deficit = satisfaction == Satisfaction.Unknown ? Unknown<double>() : Known((double)wanted),
-            Evidence =
-            [
-                new("sterilize_wanted", Known(wanted.ToString(CultureInfo.InvariantCulture))),
-                new("in_ward", areaKnown ? Known(inWard ? "yes" : "no") : Unknown<string>()),
-            ],
         };
     }
 }

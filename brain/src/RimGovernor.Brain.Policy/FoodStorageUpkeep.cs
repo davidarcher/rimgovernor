@@ -112,10 +112,6 @@ public sealed record FoodStorageReview
     /// <summary>Whether the larder has a corpse change due (part of Active).</summary>
     public bool Larder { get; init; }
 
-    public Fact<double> StoredNutrition { get; init; }
-
-    public Fact<double> UnstoredNutrition { get; init; }
-
     public Fact<double> TotalNutrition { get; init; }
 
     public Fact<double> Target { get; init; }
@@ -283,7 +279,7 @@ public static class FoodStorageUpkeepRules
             }
         }
         DomainException.Require(FoodForecastRules.FoodNumber(stored) && FoodForecastRules.FoodNumber(unstored) && FoodForecastRules.FoodNumber(total), "invalid food storage facts or thresholds");
-        r = r with { StoredNutrition = Known(stored), UnstoredNutrition = Known(unstored), TotalNutrition = Known(total) };
+        r = r with { TotalNutrition = Known(total) };
         if (total == 0)
         {
             return r with { Active = false, Target = Known(0.0), Deficit = Known(0.0) };

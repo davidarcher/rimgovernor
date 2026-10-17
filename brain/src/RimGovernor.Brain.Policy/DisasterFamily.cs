@@ -72,7 +72,7 @@ public sealed class DisasterFamily : IFamily<DisasterFacts>
     {
         if (!changes.TryGetValue(out var owed))
         {
-            return new Need { Id = Sheltering, Tier = NeedTier.SeriousHarm, Evidence = [new("area_changes", default)] };
+            return new Need { Id = Sheltering, Tier = NeedTier.SeriousHarm };
         }
         return new Need
         {
@@ -80,7 +80,6 @@ public sealed class DisasterFamily : IFamily<DisasterFacts>
             Tier = NeedTier.SeriousHarm,
             Satisfaction = owed.Count > 0 ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known((double)owed.Count),
-            Evidence = [new("area_changes", Fact.Known(owed.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)))],
         };
     }
 
@@ -92,7 +91,7 @@ public sealed class DisasterFamily : IFamily<DisasterFacts>
     {
         var finding = history is null && !conditionsKnown ? Finding.Unclear : RecoveryRules.RecoveryNeed(history);
         var phase = history is null ? (conditionsKnown ? Fact.Known("none") : default) : Fact.Known(Wire.Name(history.Phase));
-        var need = new Need { Id = Services, Tier = NeedTier.Wellbeing, Evidence = [new("disaster_phase", phase)], Preconditions = [Sheltering] };
+        var need = new Need { Id = Services, Tier = NeedTier.Wellbeing, Preconditions = [Sheltering] };
         return finding switch
         {
             Finding.Met => need with { Satisfaction = Satisfaction.Met, Deficit = Fact.Known(0.0) },

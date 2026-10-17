@@ -40,7 +40,6 @@ public sealed class LayoutFamilyTests
 
         var unmet = Single(composed, new() { HomeCoverage = Known(Diff((1, 1), (1, 2))) });
         Assert.Equal((Satisfaction.Unmet, Known(2.0)), (unmet.Satisfaction, unmet.Deficit));
-        Assert.Contains(new NeedEvidence("set_cells", Known("2")), unmet.Evidence);
 
         // Auto-expand still on is a diff of its own.
         Assert.Equal(Satisfaction.Unmet, Single(composed, new() { HomeCoverage = Known(Diff() with { AutoOff = true }) }).Satisfaction);
@@ -169,7 +168,6 @@ public sealed class LayoutFamilyTests
 
         var met = Of(standing: true, verified: true, waiting: false);
         Assert.Equal((LayoutFamily.Defense, NeedTier.Development, Satisfaction.Met, Known(0.0)), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
-        Assert.Contains(new NeedEvidence("verified", Known("true")), met.Evidence);
 
         // A fight waiting in rooms to harden, or a verification that is not current, is work; a tier owed is the deficit.
         Assert.Equal((Satisfaction.Unmet, Known(0.0)), (Of(true, true, true).Satisfaction, Of(true, true, true).Deficit));

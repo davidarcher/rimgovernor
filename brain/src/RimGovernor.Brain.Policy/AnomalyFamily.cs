@@ -80,16 +80,15 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
         var monolith = MonolithRules.MonolithAdvanceOwed(f.Monolith, MonolithRules.MonolithGate(f));
         return
         [
-            Counted(Doors, NeedTier.Wellbeing, holders ? doors : null, "doors_to_close"),
-            Counted(Capture, NeedTier.Wellbeing, entities ? (EntityCaptureRules.EntityCaptureTarget(p) is null ? 0 : 1) : null, "entities_to_capture"),
-            Counted(Tend, NeedTier.Wellbeing, entities ? (EntityUpkeepRules.EntityTendTarget(p) is null ? 0 : 1) : null, "entities_to_tend"),
-            Counted(Lance, NeedTier.Wellbeing, LanceTargets(f), "lance_targets"),
+            Counted(Doors, NeedTier.Wellbeing, holders ? doors : null),
+            Counted(Capture, NeedTier.Wellbeing, entities ? (EntityCaptureRules.EntityCaptureTarget(p) is null ? 0 : 1) : null),
+            Counted(Tend, NeedTier.Wellbeing, entities ? (EntityUpkeepRules.EntityTendTarget(p) is null ? 0 : 1) : null),
+            Counted(Lance, NeedTier.Wellbeing, LanceTargets(f)),
             // An unread fact that kept the rule from deciding leaves the Need unknown, never met.
-            Counted(Bioferrite, NeedTier.Development, entities && (harvest.Enable.Count > 0 || harvest.Issues.Count == 0) ? harvest.Enable.Count : null, "entities_to_extract"),
+            Counted(Bioferrite, NeedTier.Development, entities && (harvest.Enable.Count > 0 || harvest.Issues.Count == 0) ? harvest.Enable.Count : null),
             Counted(Monolith, NeedTier.Development,
                 f.Monolith.TryGetValue(out _) && (monolith.Order != MonolithOrder.None || !MonolithRules.MonolithInPlay(f.Monolith) || monolith.Issues.Count == 0)
-                    ? (monolith.Order == MonolithOrder.None ? 0 : 1) : null,
-                "monolith_advance"),
+                    ? (monolith.Order == MonolithOrder.None ? 0 : 1) : null),
         ];
     }
 
@@ -159,11 +158,11 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
         return PopulationRules.LanceCandidate(f) is null ? 0 : 1;
     }
 
-    private static Need Counted(NeedId id, NeedTier tier, int? owed, string fact)
+    private static Need Counted(NeedId id, NeedTier tier, int? owed)
     {
         if (owed is not { } n)
         {
-            return new Need { Id = id, Tier = tier, Evidence = [new(fact, default)] };
+            return new Need { Id = id, Tier = tier };
         }
         return new Need
         {
@@ -171,7 +170,6 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
             Tier = tier,
             Satisfaction = n > 0 ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known((double)n),
-            Evidence = [new(fact, Fact.Known(n.ToString(CultureInfo.InvariantCulture)))],
         };
     }
 }

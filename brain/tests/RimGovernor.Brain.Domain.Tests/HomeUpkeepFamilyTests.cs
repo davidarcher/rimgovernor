@@ -29,7 +29,6 @@ public sealed class HomeUpkeepFamilyTests
 
         var unmet = Derive(new HomeUpkeepFacts { Structures = Known<EquatableArray<UpkeepStructure>>([Structure("wall", 60), Structure("door", 90)]) }, HomeUpkeepFamily.Repairs);
         Assert.Equal((Satisfaction.Unmet, 50.0), (unmet.Satisfaction, unmet.Deficit.Value));
-        Assert.Contains(unmet.Evidence, e => e.Fact == "damaged_structures" && e.Value.Value == "2");
 
         var unknown = Derive(new HomeUpkeepFacts(), HomeUpkeepFamily.Repairs);
         Assert.Equal(Satisfaction.Unknown, unknown.Satisfaction);

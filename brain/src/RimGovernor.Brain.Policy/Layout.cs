@@ -213,7 +213,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
     {
         if (!planned.TryGetValue(out var diff))
         {
-            return new Need { Id = HomeCoverage, Tier = NeedTier.Wellbeing, Evidence = [new("home_coverage", default)] };
+            return new Need { Id = HomeCoverage, Tier = NeedTier.Wellbeing };
         }
         var cells = diff.Set.Count + diff.Clear.Count;
         return new Need
@@ -222,7 +222,6 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
             Tier = NeedTier.Wellbeing,
             Satisfaction = diff.Empty() ? Satisfaction.Met : Satisfaction.Unmet,
             Deficit = Fact.Known((double)cells + (diff.AutoOff ? 1 : 0)),
-            Evidence = [new("set_cells", Count(diff.Set.Count)), new("clear_cells", Count(diff.Clear.Count)), new("auto_off", Fact.Known(diff.AutoOff ? "true" : "false"))],
         };
     }
 
@@ -231,7 +230,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
     {
         if (!ring.TryGetValue(out var work))
         {
-            return new Need { Id = Firebreak, Tier = NeedTier.Wellbeing, Evidence = [new("firebreak_work", default)] };
+            return new Need { Id = Firebreak, Tier = NeedTier.Wellbeing };
         }
         return new Need
         {
@@ -239,7 +238,6 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
             Tier = NeedTier.Wellbeing,
             Satisfaction = work.Owed ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known((double)(work.Cut.Count + work.Deconstruct.Count)),
-            Evidence = [new("cut_cells", Count(work.Cut.Count)), new("ruins", Count(work.Deconstruct.Count))],
         };
     }
 
@@ -248,7 +246,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
     {
         if (!owed.TryGetValue(out var rooms))
         {
-            return new Need { Id = ClimateEnvelope, Tier = NeedTier.Wellbeing, Evidence = [new("envelope_rooms", default)] };
+            return new Need { Id = ClimateEnvelope, Tier = NeedTier.Wellbeing };
         }
         DomainException.Require(rooms >= 0, "invalid envelope room count");
         return new Need
@@ -257,7 +255,6 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
             Tier = NeedTier.Wellbeing,
             Satisfaction = rooms > 0 ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known((double)rooms),
-            Evidence = [new("envelope_rooms", Count(rooms))],
         };
     }
 
@@ -266,7 +263,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
     {
         if (!walls.TryGetValue(out var rows))
         {
-            return new Need { Id = StoneShell, Tier = NeedTier.Development, Evidence = [new("flammable_walls", default)] };
+            return new Need { Id = StoneShell, Tier = NeedTier.Development };
         }
         return new Need
         {
@@ -274,7 +271,6 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
             Tier = NeedTier.Development,
             Satisfaction = rows.Count > 0 ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known((double)rows.Count),
-            Evidence = [new("flammable_walls", Count(rows.Count))],
         };
     }
 
@@ -287,7 +283,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
     {
         if (!layout.TryGetValue(out var f))
         {
-            return new Need { Id = Defense, Tier = NeedTier.Development, Evidence = [new("defense_layout", default)] };
+            return new Need { Id = Defense, Tier = NeedTier.Development };
         }
         return new Need
         {
@@ -295,7 +291,6 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
             Tier = NeedTier.Development,
             Satisfaction = f.Verified && !f.WaitingFight ? Satisfaction.Met : Satisfaction.Unmet,
             Deficit = Fact.Known(f.Standing ? 0.0 : 1.0),
-            Evidence = [new("standing", Flag(f.Standing)), new("verified", Flag(f.Verified)), new("waiting_fight", Flag(f.WaitingFight))],
         };
     }
 
@@ -307,7 +302,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
     {
         if (!standing.TryGetValue(out var s) || !s.Review.Known)
         {
-            return new Need { Id = Routes, Tier = NeedTier.Development, Evidence = [new("routes_census", default)] };
+            return new Need { Id = Routes, Tier = NeedTier.Development };
         }
         var unreachable = s.Review.Deficits.Count;
         return new Need
@@ -316,7 +311,6 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
             Tier = NeedTier.Development,
             Satisfaction = s.Review.Active || s.DoorOwed ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known((double)unreachable + (s.DoorOwed ? 1 : 0)),
-            Evidence = [new("unreachable_facilities", Count(unreachable)), new("door_owed", Flag(s.DoorOwed))],
         };
     }
 
@@ -324,7 +318,4 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
     public static RoutesStanding RoutesStandingOf(Fact<RoutesObservation> routes, Fact<RoomObservation> rooms, RoundsPolicy p) =>
         new(RoutesRules.ReviewRoutes(routes, p.Routes), DoorControlRules.DoorChanges(rooms, routes, p).Any(d => !d.Heat));
 
-    private static Fact<string> Flag(bool b) => Fact.Known(b ? "true" : "false");
-
-    private static Fact<string> Count(int n) => Fact.Known(n.ToString(CultureInfo.InvariantCulture));
 }

@@ -119,7 +119,6 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
         Tier = NeedTier.Development,
         Satisfaction = !count.TryGetValue(out var n) ? Satisfaction.Unknown : n > 0 ? Satisfaction.Unmet : Satisfaction.Met,
         Deficit = count.TryGetValue(out var d) ? Known((double)d) : Unknown<double>(),
-        Evidence = [new(fact, count.TryGetValue(out var e) ? Known(e.ToString(CultureInfo.InvariantCulture)) : Unknown<string>())],
     };
 }
 
@@ -140,11 +139,6 @@ public static class IdeologyFamilyRules
             Tier = NeedTier.Development,
             Satisfaction = satisfaction,
             Deficit = known ? Known(owed ? 1.0 : 0.0) : Unknown<double>(),
-            Evidence =
-            [
-                new("design_decision", known ? Known(choice!.Comparison is { } c ? Wire.Name(c.Decision) : "none") : Unknown<string>()),
-                new("reform_observed", Known(f.ReformObserved ? "yes" : "no")),
-            ],
         };
     }
 }

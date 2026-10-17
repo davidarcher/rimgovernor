@@ -49,7 +49,6 @@ public sealed partial class EconomyFamily
             Tier = NeedTier.Development,
             Satisfaction = satisfaction,
             Deficit = Whole(satisfaction),
-            Evidence = [new("silver_gap", f.SilverGap.TryGetValue(out var g) ? Known(g.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)) : Unknown<string>())],
         };
     }
 
@@ -66,7 +65,6 @@ public sealed partial class EconomyFamily
             Tier = NeedTier.Wellbeing,
             Satisfaction = satisfaction,
             Deficit = Whole(satisfaction),
-            Evidence = [new("caravan", satisfaction == Satisfaction.Unknown ? Unknown<string>() : Known(recovered ? "settled" : "trade"))],
         };
     }
 
@@ -83,11 +81,6 @@ public sealed partial class EconomyFamily
             Tier = NeedTier.Development,
             Satisfaction = satisfaction,
             Deficit = Whole(satisfaction),
-            Evidence =
-            [
-                new("mission", f.Active.TryGetValue(out var a) ? Known(a ? "active" : "none") : Unknown<string>()),
-                new("proposed", Known(f.Proposed ? "settlement" : "none")),
-            ],
         };
     }
 

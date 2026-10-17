@@ -87,7 +87,6 @@ public sealed partial class FoodStoresRounds
         }
         var facts = FoodStoresFacts.From(reading.Projection.Facts) with
         {
-            Haulers = ShelterRules.DangerHaulers(reading.Projection.WorkPawns),
             WarmRooms = warm,
             MealClosetOwed = closet,
         };

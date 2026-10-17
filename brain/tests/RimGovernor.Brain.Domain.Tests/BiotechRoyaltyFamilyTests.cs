@@ -42,7 +42,6 @@ public sealed class BiotechRoyaltyFamilyTests
         var unknown = Biotech(With(Unknown<bool>()), id);
         Assert.Equal(Satisfaction.Unknown, unknown.Satisfaction);
         Assert.False(unknown.Deficit.IsKnown);
-        Assert.NotEmpty(owed.Evidence);
     }
 
     [Fact]
@@ -133,7 +132,6 @@ public sealed class BiotechRoyaltyFamilyTests
     {
         var owed = Royalty(new RoyaltyFamilyFacts { Royalty = Known(Titled("a")) }, RoyaltyFamily.Permits);
         Assert.Equal((Satisfaction.Unmet, NeedTier.Development), (owed.Satisfaction, owed.Tier));
-        Assert.Contains(owed.Evidence, e => e.Fact == "next_permit" && e.Value.Value == "a/CallAid");
         Assert.Equal(Satisfaction.Met, Royalty(new RoyaltyFamilyFacts { Royalty = Known(new RoyaltyFacts()) }, RoyaltyFamily.Permits).Satisfaction);
         Assert.Equal(Satisfaction.Unknown, Royalty(new RoyaltyFamilyFacts(), RoyaltyFamily.Permits).Satisfaction);
 

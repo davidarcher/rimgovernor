@@ -174,7 +174,6 @@ public sealed class BiotechFamily(BiotechNeeds needs) : IFamily<BiotechFacts>
         Tier = tier,
         Satisfaction = !owed.TryGetValue(out var o) ? Satisfaction.Unknown : o ? Satisfaction.Unmet : Satisfaction.Met,
         Deficit = owed.TryGetValue(out var d) ? Known(d ? 1.0 : 0.0) : Unknown<double>(),
-        Evidence = [new(fact, owed.TryGetValue(out var e) ? Known(e ? "yes" : "no") : Unknown<string>())],
     };
 }
 
@@ -195,11 +194,6 @@ public static class BiotechFamilyRules
             Tier = NeedTier.Wellbeing,
             Satisfaction = !known ? Satisfaction.Unknown : owed ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = known ? Known(owed ? 1.0 : 0.0) : Unknown<double>(),
-            Evidence =
-            [
-                new("wastepacks", facts.Pollution.TryGetValue(out var p) ? Known(p.Wastepacks.Count.ToString(CultureInfo.InvariantCulture)) : Unknown<string>()),
-                new("uncovered_cells", uncovered),
-            ],
         };
     }
 }

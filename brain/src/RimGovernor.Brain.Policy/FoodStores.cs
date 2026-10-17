@@ -23,9 +23,6 @@ public sealed record FoodStoresFacts
     /// <summary>The supply actions the native reserve reads offer, the release read first; unknown when not read.</summary>
     public Fact<EquatableArray<SupplyAllow>> ReserveTargets { get; init; }
 
-    /// <summary>The colonists who haul in danger (<see cref="ShelterRules.DangerHaulers"/>): explain names why unstored food stays put.</summary>
-    public Fact<EquatableArray<PawnId>> Haulers { get; init; }
-
     /// <summary>The warm standing tombs, morgues and meal closets (<see cref="TombRules.WarmCoolingRooms"/>); unknown while the plan, rooms or cooler research are unread.</summary>
     public Fact<EquatableArray<string>> WarmRooms { get; init; }
 
@@ -39,7 +36,6 @@ public sealed record FoodStoresFacts
         Reserve = f.FoodReserve,
         Stockpile = StockpileRules.FoodStorageStanding(f),
         StockProtection = FoodOrdersRules.FoodPlanSupport(f.FoodPlan, CandidateKind.Reserve, "stock-protection"),
-        Haulers = f.DangerHaulers,
         WarmRooms = f.WarmRooms,
         MealClosetOwed = f.MealClosetOwed,
     };
@@ -192,16 +188,6 @@ public static class FoodStoresRules
             Tier = NeedTier.Wellbeing,
             Satisfaction = satisfaction,
             Deficit = satisfaction == Satisfaction.Unknown ? Unknown<double>() : Known(owed.Count == 0 ? 0.0 : owed.Max()),
-            Evidence =
-            [
-                new("reserve_access", reserveKnown ? Known($"hold:{reserve!.Hold.Count} release:{reserve.Release.Count}") : Unknown<string>()),
-                new("reserve_deficit_nutrition", reserveKnown ? Known(reserve!.Emergency ? "emergency" : reserve.DeficitNutrition.ToString("0.##", CultureInfo.InvariantCulture)) : Unknown<string>()),
-                new("food_stockpile", f.Stockpile.TryGetValue(out var standing) ? Known(standing ? "standing" : "missing") : Unknown<string>()),
-                new("stored_nutrition", Nutrition(storage?.StoredNutrition ?? default)),
-                new("unstored_nutrition", Nutrition(storage?.UnstoredNutrition ?? default)),
-                new("corpse_larder", census ? Known(storage!.Larder ? "change" : "none") : Unknown<string>()),
-                new("food_not_stored", census && storage!.Deficit.TryGetValue(out var shortfall) && shortfall > 0 ? Known(Wire.Name(FoodStorageStuckRules.FoodStorageStuckReason(f.Storage, p, f.Haulers))) : Unknown<string>()),
-            ],
         };
     }
 
@@ -247,15 +233,7 @@ public static class FoodStoresRules
             Tier = NeedTier.Wellbeing,
             Satisfaction = satisfaction,
             Deficit = satisfaction == Satisfaction.Unknown ? Unknown<double>() : Known(deficit),
-            Evidence =
-            [
-                new("warm_nutrition", Nutrition(review.WarmNutrition)),
-                new("warm_rooms", f.WarmRooms.TryGetValue(out var warm) ? Known(warm.Count == 0 ? "none" : string.Join(",", warm)) : Unknown<string>()),
-                new("meal_closet", f.MealClosetOwed.TryGetValue(out var owed) ? Known(owed ? "owed" : "none") : Unknown<string>()),
-            ],
         };
     }
 
-    private static Fact<string> Nutrition(Fact<double> v) =>
-        v.TryGetValue(out var n) ? Known(n.ToString("0.##", CultureInfo.InvariantCulture)) : Unknown<string>();
 }

@@ -172,7 +172,7 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
     {
         if (!census.TryGetValue(out var structures))
         {
-            return new Need { Id = Repairs, Tier = NeedTier.Wellbeing, Evidence = [new("damaged_structures", default)] };
+            return new Need { Id = Repairs, Tier = NeedTier.Wellbeing };
         }
         var (targets, missing) = DamagedStructures(structures);
         return new Need
@@ -181,7 +181,6 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
             Tier = NeedTier.Wellbeing,
             Satisfaction = targets.Count == 0 ? Satisfaction.Met : Satisfaction.Unmet,
             Deficit = Fact.Known(missing),
-            Evidence = [new("damaged_structures", Count(targets.Count)), new("missing_hit_points", Fact.Known(missing.ToString(CultureInfo.InvariantCulture)))],
         };
     }
 
@@ -189,7 +188,7 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
     {
         if (!census.TryGetValue(out var rows))
         {
-            return new Need { Id = Clearance, Tier = NeedTier.Development, Evidence = [new("obstructions", default)] };
+            return new Need { Id = Clearance, Tier = NeedTier.Development };
         }
         var targets = ClearanceTargets(rows, ground);
         return new Need
@@ -198,9 +197,7 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
             Tier = NeedTier.Development,
             Satisfaction = targets.Count == 0 ? Satisfaction.Met : Satisfaction.Unmet,
             Deficit = Fact.Known((double)targets.Count),
-            Evidence = [new("obstructions", Count(targets.Count))],
         };
     }
 
-    private static Fact<string> Count(int n) => Fact.Known(n.ToString(CultureInfo.InvariantCulture));
 }

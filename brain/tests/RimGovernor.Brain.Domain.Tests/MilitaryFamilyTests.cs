@@ -26,7 +26,6 @@ public sealed class MilitaryFamilyTests
         var unarmed = Derive(new MilitaryFacts { Hostiles = Known(0L), Armed = Known(3L), Unarmed = Known(1L), Foothold = Known(3L) }, MilitaryFamily.Defense);
         Assert.Equal(Satisfaction.Unmet, unarmed.Satisfaction);
         Assert.True(unarmed.Deficit.Value > 0);
-        Assert.Contains(unarmed.Evidence, e => e.Fact == "unarmed" && e.Value.Value == "1");
 
         var hostile = Derive(new MilitaryFacts { Hostiles = Known(2L), Armed = Known(3L), Unarmed = Known(0L), Foothold = Known(3L) }, MilitaryFamily.Defense);
         Assert.Equal(Satisfaction.Unmet, hostile.Satisfaction);
@@ -48,7 +47,6 @@ public sealed class MilitaryFamilyTests
         // A hunt of the Need's own whose animal is gone keeps the Need unmet until the work step cancels it.
         var stale = Derive(new MilitaryFacts { Pests = Known(0), StaleHunts = [new StaleHunt(new("p"), new("p-0"))] }, MilitaryFamily.Pests);
         Assert.Equal((Satisfaction.Unmet, 1.0), (stale.Satisfaction, stale.Deficit.Value));
-        Assert.Contains(stale.Evidence, e => e.Fact == "stale_hunts" && e.Value.Value == "1");
 
         Assert.Equal(Satisfaction.Unknown, Derive(new MilitaryFacts(), MilitaryFamily.Pests).Satisfaction);
     }
@@ -100,7 +98,6 @@ public sealed class MilitaryFamilyTests
     {
         var unmet = Derive(new MilitaryFacts { StrayDrafts = Known(2), Hostiles = Known(0L) }, MilitaryFamily.RestoreWorkers);
         Assert.Equal((Satisfaction.Unmet, 2.0, NeedTier.SeriousHarm), (unmet.Satisfaction, unmet.Deficit.Value, unmet.Tier));
-        Assert.Contains(unmet.Evidence, e => e.Fact == "stray_drafts" && e.Value.Value == "2");
 
         // A standing hostile owns the drafts; no stray draft is met whatever the hostiles.
         Assert.Equal(Satisfaction.Met, Derive(new MilitaryFacts { StrayDrafts = Known(2), Hostiles = Known(1L) }, MilitaryFamily.RestoreWorkers).Satisfaction);
@@ -121,11 +118,9 @@ public sealed class MilitaryFamilyTests
 
         var retire = Derive(new MilitaryFacts { CraftingSpotRetireOwed = Known(true) }, MilitaryFamily.Equipment);
         Assert.Equal((Satisfaction.Unmet, 1.0), (retire.Satisfaction, retire.Deficit.Value));
-        Assert.Contains(retire.Evidence, e => e.Fact == "crafting_spot_retire" && e.Value.Value == "true");
 
         var shells = Derive(new MilitaryFacts { ShellsShort = Known(true), CraftingSpotRetireOwed = Known(false) }, MilitaryFamily.Equipment);
         Assert.Equal(Satisfaction.Unmet, shells.Satisfaction);
-        Assert.Contains(shells.Evidence, e => e.Fact == "shells_short" && e.Value.Value == "true");
 
         Assert.Equal(Satisfaction.Unknown, Derive(new MilitaryFacts { ShellsShort = Known(false), CraftingSpotRetireOwed = Known(false) }, MilitaryFamily.Equipment).Satisfaction);
     }

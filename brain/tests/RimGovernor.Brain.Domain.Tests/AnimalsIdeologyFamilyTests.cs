@@ -50,7 +50,6 @@ public sealed class AnimalsIdeologyFamilyTests
         Assert.Equal(Satisfaction.Met, Animal(new AnimalsFacts { Ward = Known(Step(HerdStepKind.None)) }, AnimalsFamily.Ward).Satisfaction);
         var medical = Animal(new AnimalsFacts { Ward = Known(Step(HerdStepKind.Medical)) }, AnimalsFamily.Ward);
         Assert.Equal(Satisfaction.Unmet, medical.Satisfaction);
-        Assert.Contains(medical.Evidence, e => e.Fact == "ward_step" && e.Value.Value == "medical");
         Assert.Equal(Satisfaction.Unknown, Animal(new AnimalsFacts(), AnimalsFamily.Ward).Satisfaction);
     }
 

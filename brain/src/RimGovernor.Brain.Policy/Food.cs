@@ -143,23 +143,12 @@ public static class FoodRules
     {
         var met = RoundsRules.AllFacts(f.HumanFoodSettled, f.FootholdFood, f.FootholdProduction, f.FieldsCovered, f.ButcherFacility, f.ReserveCovered);
         var satisfaction = met.TryGetValue(out var known) ? known ? Satisfaction.Met : Satisfaction.Unmet : Satisfaction.Unknown;
-        static NeedEvidence Check(string key, Fact<bool> fact, string ok, string shortfall) =>
-            new(key, fact.TryGetValue(out var v) ? Known(v ? ok : shortfall) : Unknown<string>());
         return new Need
         {
             Id = FoodSupplyNeed,
             Tier = NeedTier.Wellbeing,
             Satisfaction = satisfaction,
             Deficit = WholeDeficit(satisfaction),
-            Evidence =
-            [
-                Check("human_food", f.HumanFoodSettled, "settled", "pending"),
-                Check("foothold_food", f.FootholdFood, "covered", "short"),
-                Check("foothold_production", f.FootholdProduction, "covered", "short"),
-                Check("fields", f.FieldsCovered, "covered", "short"),
-                Check("butcher_facility", f.ButcherFacility, "standing", "missing"),
-                Check("reserve_days", f.ReserveCovered, "covered", "short"),
-            ],
         };
     }
 
@@ -178,11 +167,6 @@ public static class FoodRules
             Tier = NeedTier.Wellbeing,
             Satisfaction = satisfaction,
             Deficit = WholeDeficit(satisfaction),
-            Evidence =
-            [
-                new("cooking_ready", f.Cooking.TryGetValue(out var known) ? Known(known ? "ready" : "missing") : Unknown<string>()),
-                new("campfire_retire", f.CampfireRetireOwed.TryGetValue(out var owed) ? Known(owed ? "owed" : "none") : Unknown<string>()),
-            ],
         };
     }
 
@@ -206,11 +190,6 @@ public static class FoodRules
             Tier = NeedTier.Wellbeing,
             Satisfaction = satisfaction,
             Deficit = WholeDeficit(satisfaction),
-            Evidence =
-            [
-                new("babies", f.BabyFeeding.TryGetValue(out var b) ? Known(b.Babies.ToString(System.Globalization.CultureInfo.InvariantCulture)) : Unknown<string>()),
-                new("baby_food", f.BabyFeeding.TryGetValue(out var s) ? Known(s.Breastfed ? "breastfed" : s.IsShort ? "short" : "stocked") : Unknown<string>()),
-            ],
         };
     }
 
@@ -228,10 +207,6 @@ public static class FoodRules
             Tier = NeedTier.Wellbeing,
             Satisfaction = satisfaction,
             Deficit = WholeDeficit(satisfaction),
-            Evidence =
-            [
-                new("blighted_plants", f.Blight.TryGetValue(out var rows) ? Known(rows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)) : Unknown<string>()),
-            ],
         };
     }
 

@@ -133,11 +133,6 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
             Tier = NeedTier.Development,
             Satisfaction = satisfaction,
             Deficit = Whole(satisfaction),
-            Evidence =
-            [
-                new("dark_benches", known ? Fact.Known(Count(review!.Dark.Count)) : Fact.Unknown<string>()),
-                new("planned_rooms", known ? Fact.Known(Count(review!.Planned.Count)) : Fact.Unknown<string>()),
-            ],
         };
     }
 
@@ -152,7 +147,6 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
             Tier = NeedTier.Development,
             Satisfaction = satisfaction,
             Deficit = Whole(satisfaction),
-            Evidence = [new("floor_deficits", known ? Fact.Known(Count(review!.Deficits.Count)) : Fact.Unknown<string>())],
         };
     }
 
@@ -183,11 +177,6 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
             Tier = NeedTier.Development,
             Satisfaction = satisfaction,
             Deficit = Whole(satisfaction),
-            Evidence =
-            [
-                new("artists", pk ? Fact.Known(Count(ArtRules.Artists(profiles!).Count)) : Fact.Unknown<string>()),
-                new("sculpture_rooms", ok ? Fact.Known(owed ? "owed" : "none") : Fact.Unknown<string>()),
-            ],
         };
     }
 
@@ -202,11 +191,6 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
             Tier = NeedTier.Wellbeing,
             Satisfaction = Of(recovered),
             Deficit = review.Deficit(),
-            Evidence =
-            [
-                new("dining", f.BasicComfort.IsKnown ? Fact.Known(review.Dining.ToString()) : Fact.Unknown<string>()),
-                new("recreation", f.BasicComfort.IsKnown ? Fact.Known(review.Recreation.ToString()) : Fact.Unknown<string>()),
-            ],
         };
     }
 
@@ -217,7 +201,6 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
         Tier = NeedTier.Development,
         Satisfaction = Of(f.HostingRecovered),
         Deficit = f.HostingDeficit,
-        Evidence = [new("hosting", f.HostingRecovered.TryGetValue(out var v) ? Fact.Known(v ? "recovered" : "short") : Fact.Unknown<string>())],
         Preconditions = [Comfort],
     };
 
@@ -231,7 +214,6 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
             Tier = NeedTier.Development,
             Satisfaction = satisfaction,
             Deficit = Whole(satisfaction),
-            Evidence = [new("party_spot", f.PartySpotOwed.TryGetValue(out var v) ? Fact.Known(v ? "owed" : "standing") : Fact.Unknown<string>())],
             Preconditions = [Hosting],
         };
     }
@@ -250,7 +232,6 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
             Tier = NeedTier.Wellbeing,
             Satisfaction = satisfaction,
             Deficit = Whole(satisfaction),
-            Evidence = [new("organizer", f.Gathering.TryGetValue(out var plan) ? Fact.Known(plan.Organizer.IsEmpty ? "none" : plan.Organizer.ToString()) : Fact.Unknown<string>())],
             Preconditions = partySpot ? [PartySpot] : [],
         };
     }

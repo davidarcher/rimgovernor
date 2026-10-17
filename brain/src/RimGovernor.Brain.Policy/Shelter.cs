@@ -148,11 +148,6 @@ public static partial class ShelterRules
             Tier = NeedTier.Wellbeing,
             Satisfaction = Satisfy(met),
             Deficit = met.TryGetValue(out var v) ? Known(v ? 0.0 : 1.0) : Unknown<double>(),
-            Evidence =
-            [
-                new("indoor_place", Standing(f.Indoor)),
-                new("sleeping_place", Standing(f.Beds)),
-            ],
         };
     }
 
@@ -167,7 +162,6 @@ public static partial class ShelterRules
         Tier = NeedTier.Wellbeing,
         Satisfaction = Satisfy(f.SleepingRecovered),
         Deficit = f.SleepingRecovered.TryGetValue(out var v) ? Known(v ? 0.0 : 1.0) : Unknown<double>(),
-        Evidence = [new("sleeping_recovered", Standing(f.SleepingRecovered))],
         Preconditions = starter ? [ShelterFamily.Starter] : [],
     };
 
@@ -192,11 +186,6 @@ public static partial class ShelterRules
             Tier = NeedTier.Development,
             Satisfaction = Satisfy(met),
             Deficit = deficit,
-            Evidence =
-            [
-                new("colonists", Count(f.Colonists)),
-                new("indoor_capacity", Count(f.IndoorCapacity)),
-            ],
             Preconditions = [.. starter ? [ShelterFamily.Starter] : Array.Empty<NeedId>(), .. sleeping ? [ShelterFamily.Sleeping] : Array.Empty<NeedId>()],
         };
     }
@@ -217,13 +206,6 @@ public static partial class ShelterRules
             Tier = NeedTier.Wellbeing,
             Satisfaction = Satisfy(met),
             Deficit = met.TryGetValue(out var v) ? Known(v ? 0.0 : 1.0) : Unknown<double>(),
-            Evidence =
-            [
-                new("sleeping_min_c", Celsius(f.SleepingMin)),
-                new("sleeping_max_c", Celsius(f.SleepingMax)),
-                new("temperature_owed", Owed(f.TemperatureOwed)),
-                new("heat_door_owed", Owed(f.HeatDoorOwed)),
-            ],
         };
     }
 
@@ -237,7 +219,6 @@ public static partial class ShelterRules
         Tier = NeedTier.SeriousHarm,
         Satisfaction = Satisfy(RoundsRules.NotFact(f.SafeAreaOwed)),
         Deficit = f.SafeAreaOwed.TryGetValue(out var owed) ? Known(owed ? 1.0 : 0.0) : Unknown<double>(),
-        Evidence = [new("area_edits", Owed(f.SafeAreaOwed))],
     };
 
     /// <summary>
@@ -249,15 +230,4 @@ public static partial class ShelterRules
     private static Satisfaction Satisfy(Fact<bool> met) =>
         met.TryGetValue(out var v) ? v ? Satisfaction.Met : Satisfaction.Unmet : Satisfaction.Unknown;
 
-    private static Fact<string> Standing(Fact<bool> v) =>
-        v.TryGetValue(out var b) ? Known(b ? "standing" : "short") : Unknown<string>();
-
-    private static Fact<string> Owed(Fact<bool> v) =>
-        v.TryGetValue(out var b) ? Known(b ? "owed" : "none") : Unknown<string>();
-
-    private static Fact<string> Count(Fact<long> v) =>
-        v.TryGetValue(out var n) ? Known(n.ToString(CultureInfo.InvariantCulture)) : Unknown<string>();
-
-    private static Fact<string> Celsius(Fact<double> v) =>
-        v.TryGetValue(out var c) ? Known(c.ToString("0.#", CultureInfo.InvariantCulture)) : Unknown<string>();
 }

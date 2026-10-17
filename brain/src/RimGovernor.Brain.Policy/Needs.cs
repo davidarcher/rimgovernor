@@ -102,9 +102,6 @@ public enum Satisfaction
     Met,
 }
 
-/// <summary>One fact a Need's finding rests on, for explain: its name and value, or unknown.</summary>
-public readonly record struct NeedEvidence(string Fact, Fact<string> Value);
-
 /// <summary>
 /// A Need (#3250): derived fresh from facts on every review, never stored. It replaces the Concern registry row,
 /// the Rounds assessment and the Standard episode. A Standard's target, an Incident's occurrence and a Once outcome
@@ -121,8 +118,6 @@ public sealed record Need
 
     /// <summary>How far from met, in the family's own unit; unknown when the facts do not say.</summary>
     public Fact<double> Deficit { get; init; }
-
-    public EquatableArray<NeedEvidence> Evidence { get; init; }
 
     /// <summary>Other Needs whose predicate must be met before this one is proposed for; ordering between Needs.</summary>
     public EquatableArray<NeedId> Preconditions { get; init; }

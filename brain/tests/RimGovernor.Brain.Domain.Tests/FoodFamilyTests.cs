@@ -36,7 +36,6 @@ public sealed class FoodFamilyTests
         // A runway short of the season's target reopens the Need: no latch holds it open or shut.
         var shortRunway = Supply(SupplyFacts(reserve: false));
         Assert.Equal((Satisfaction.Unmet, Known(1.0)), (shortRunway.Satisfaction, shortRunway.Deficit));
-        Assert.Contains(new NeedEvidence("reserve_days", Known("short")), shortRunway.Evidence);
 
         // A known shortfall decides the Need while other checks are unread.
         Assert.Equal(Satisfaction.Unmet, Supply(new() { ButcherFacility = Known(false) }).Satisfaction);
@@ -45,7 +44,6 @@ public sealed class FoodFamilyTests
         // An unread check with none short is unknown, never met.
         var unread = Supply(SupplyFacts() with { FieldsCovered = Unknown<bool>() });
         Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
-        Assert.Contains(new NeedEvidence("fields", Unknown<string>()), unread.Evidence);
     }
 
     [Fact]
@@ -312,17 +310,14 @@ public sealed class FoodFamilyTests
     [Fact]
     public void TheBabyFeedingNeedIsUnmetWhileBabyFoodIsShortAndUnknownUnread()
     {
-        var stocked = BabyFeedingOf(new() { BabyFeeding = Known(new BabyFeeding { Babies = 1, StockNutrition = 10, TargetNutrition = 5 }) });
+        var stocked = BabyFeedingOf(new() { BabyFeeding = Known(new BabyFeeding { StockNutrition = 10, TargetNutrition = 5 }) });
         Assert.Equal((FoodRules.BabyFeedingNeed, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (stocked.Id, stocked.Tier, stocked.Satisfaction, stocked.Deficit));
-        Assert.Contains(new NeedEvidence("baby_food", Known("stocked")), stocked.Evidence);
 
-        var breastfed = BabyFeedingOf(new() { BabyFeeding = Known(new BabyFeeding { Babies = 2, Breastfed = true }) });
+        var breastfed = BabyFeedingOf(new() { BabyFeeding = Known(new BabyFeeding { Breastfed = true }) });
         Assert.Equal(Satisfaction.Met, breastfed.Satisfaction);
-        Assert.Contains(new NeedEvidence("baby_food", Known("breastfed")), breastfed.Evidence);
 
-        var shortFood = BabyFeedingOf(new() { BabyFeeding = Known(new BabyFeeding { Babies = 1, TargetNutrition = 5, IsShort = true }) });
+        var shortFood = BabyFeedingOf(new() { BabyFeeding = Known(new BabyFeeding { TargetNutrition = 5, IsShort = true }) });
         Assert.Equal((Satisfaction.Unmet, Known(1.0)), (shortFood.Satisfaction, shortFood.Deficit));
-        Assert.Contains(new NeedEvidence("babies", Known("1")), shortFood.Evidence);
 
         var unread = BabyFeedingOf(new());
         Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
@@ -341,7 +336,6 @@ public sealed class FoodFamilyTests
         // A designated plant still stands: the Need is met by the cut, not the order.
         var standing = BlightOf(Census(Blighted("plant-1", 1, designated: true)));
         Assert.Equal((Satisfaction.Unmet, Known(1.0)), (standing.Satisfaction, standing.Deficit));
-        Assert.Contains(new NeedEvidence("blighted_plants", Known("1")), standing.Evidence);
 
         var unread = BlightOf(new());
         Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));

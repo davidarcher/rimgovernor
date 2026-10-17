@@ -596,9 +596,6 @@ Policy|Methods.Generation.CoupledShelterCandidatesResult.Tasks
 Policy|Methods.Generation.EffectSourceOutfit.Items
 Policy|MoodPawnLoss.Id
 Policy|MoodPrice.Capped
-Policy|Need.Evidence
-Policy|NeedEvidence.Fact
-Policy|NeedEvidence.Value
 Policy|OrganHarvest.Organ
 Policy|OutdoorBudget.Ticks
 Policy|OutdoorBudget.Unbounded

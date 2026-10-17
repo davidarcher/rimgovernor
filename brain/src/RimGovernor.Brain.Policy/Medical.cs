@@ -153,8 +153,7 @@ public static partial class MedicalRules
     {
         if (!f.Critical.TryGetValue(out var patients))
         {
-            return [new Need { Id = CriticalCensusNeed, Tier = NeedTier.SeriousHarm, Satisfaction = Satisfaction.Unknown, Deficit = Unknown<double>(),
-                Evidence = [new("patients", Unknown<string>())] }];
+            return [new Need { Id = CriticalCensusNeed, Tier = NeedTier.SeriousHarm, Satisfaction = Satisfaction.Unknown, Deficit = Unknown<double>() }];
         }
         return [.. patients.Select(p => new Need
         {
@@ -162,7 +161,6 @@ public static partial class MedicalRules
             Tier = NeedTier.SeriousHarm,
             Satisfaction = Satisfaction.Unmet,
             Deficit = Known(1.0),
-            Evidence = [new("patient", Known(p.Value))],
         })];
     }
 
@@ -179,7 +177,6 @@ public static partial class MedicalRules
             Tier = NeedTier.SeriousHarm,
             Satisfaction = satisfaction,
             Deficit = FoodRules.WholeDeficit(satisfaction),
-            Evidence = [new("patients", patients.TryGetValue(out var count) ? Known(count.ToString(System.Globalization.CultureInfo.InvariantCulture)) : Unknown<string>())],
         };
     }
 
@@ -193,7 +190,6 @@ public static partial class MedicalRules
             Tier = NeedTier.Wellbeing,
             Satisfaction = satisfaction,
             Deficit = FoodRules.WholeDeficit(satisfaction),
-            Evidence = [new("sick", f.CareRecovered.TryGetValue(out var known) ? Known(known ? "none" : "in_care") : Unknown<string>())],
         };
     }
 
@@ -212,14 +208,12 @@ public static partial class MedicalRules
             _ => f.MedicineStock.TryGetValue(out var stock) && f.MedicineTarget.TryGetValue(out var target) && target > 0
                 ? Known(Math.Clamp((target - stock) / (double)target, 0, 1)) : Known(1.0),
         };
-        static Fact<string> Count(Fact<long> n) => n.TryGetValue(out var v) ? Known(v.ToString(System.Globalization.CultureInfo.InvariantCulture)) : Unknown<string>();
         return new Need
         {
             Id = MedicalReservesNeed,
             Tier = NeedTier.Wellbeing,
             Satisfaction = satisfaction,
             Deficit = deficit,
-            Evidence = [new("medicine_stock", Count(f.MedicineStock)), new("medicine_target", Count(f.MedicineTarget))],
         };
     }
 
@@ -233,7 +227,6 @@ public static partial class MedicalRules
             Tier = NeedTier.Wellbeing,
             Satisfaction = satisfaction,
             Deficit = FoodRules.WholeDeficit(satisfaction),
-            Evidence = [new("operations", f.SurgeryRecovered.TryGetValue(out var known) ? Known(known ? "none" : "owed") : Unknown<string>())],
         };
     }
 

@@ -95,7 +95,7 @@ public sealed class PeopleFamily(PeopleNeeds needs) : IFamily<PeopleFacts>
     {
         if (!open.TryGetValue(out var waiting))
         {
-            return new Need { Id = Dialog, Tier = NeedTier.Wellbeing, Evidence = [new("choice_dialog", default)] };
+            return new Need { Id = Dialog, Tier = NeedTier.Wellbeing };
         }
         return new Need
         {
@@ -103,7 +103,6 @@ public sealed class PeopleFamily(PeopleNeeds needs) : IFamily<PeopleFacts>
             Tier = NeedTier.Wellbeing,
             Satisfaction = waiting ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known(waiting ? 1.0 : 0.0),
-            Evidence = [new("choice_dialog", Fact.Known(waiting ? "open" : "none"))],
         };
     }
 
@@ -116,7 +115,7 @@ public sealed class PeopleFamily(PeopleNeeds needs) : IFamily<PeopleFacts>
     {
         if (!mood.TryGetValue(out var states))
         {
-            return [new Need { Id = MoodCensus, Tier = NeedTier.Wellbeing, Deficit = Fact.Unknown<double>(), Evidence = [new("mood_states", default)] }];
+            return [new Need { Id = MoodCensus, Tier = NeedTier.Wellbeing, Deficit = Fact.Unknown<double>() }];
         }
         return [.. states.Select(s =>
         {
@@ -132,7 +131,6 @@ public sealed class PeopleFamily(PeopleNeeds needs) : IFamily<PeopleFacts>
                 Tier = NeedTier.Wellbeing,
                 Satisfaction = satisfaction,
                 Deficit = FoodRules.WholeDeficit(satisfaction),
-                Evidence = [new("mood_risk", satisfaction == Satisfaction.Unknown ? default : Fact.Known(satisfaction == Satisfaction.Unmet ? "active" : "recovered"))],
             };
         })];
     }

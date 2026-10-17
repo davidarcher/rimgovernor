@@ -68,19 +68,17 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
     {
         var f = facts.Rounds;
         var capacity = PopulationRules.JoinerCapacity(f.JoinerCapacity());
-        var known = f.QuestOffers.TryGetValue(out var offers);
-        var count = known ? offers.Count : 0;
+        var known = f.QuestOffers.TryGetValue(out _);
         return
         [
-            FromFact(Offers, PopulationRules.JoinerDeficit(f.QuestOffers, capacity, f), "quest_offers", known ? Count(count) : default),
-            FromFact(Letters, PopulationRules.JoinerLetterDeficit(f.JoinerLetters, capacity), "joiner_letters",
-                f.JoinerLetters.TryGetValue(out var letters) ? Count(letters.Count) : default),
+            FromFact(Offers, PopulationRules.JoinerDeficit(f.QuestOffers, capacity, f)),
+            FromFact(Letters, PopulationRules.JoinerLetterDeficit(f.JoinerLetters, capacity)),
             Ceremonies(f.Royalty),
-            Quest(Quests, known, () => QuestSelection.QuestDeficit(f).ValueOrDefault || QuestRefugees.RefugeeDeficit(f), count),
-            Quest(Decrees, known, () => QuestDecrees.DecreeDeficit(f), count),
-            Quest(Monuments, known, () => QuestMonument.MonumentDeficit(f), count),
-            Quest(Departures, known, () => QuestDeparture.DepartureDeficit(f), count),
-            Quest(GravInspection, known, () => QuestGravInspection.GravInspectionDeficit(f), count),
+            Quest(Quests, known, () => QuestSelection.QuestDeficit(f).ValueOrDefault || QuestRefugees.RefugeeDeficit(f)),
+            Quest(Decrees, known, () => QuestDecrees.DecreeDeficit(f)),
+            Quest(Monuments, known, () => QuestMonument.MonumentDeficit(f)),
+            Quest(Departures, known, () => QuestDeparture.DepartureDeficit(f)),
+            Quest(GravInspection, known, () => QuestGravInspection.GravInspectionDeficit(f)),
         ];
     }
 
@@ -128,11 +126,11 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
         return new NeedMethod(need, method, "", id => new PlanSpec(id, new PlanRevision(1), [DomainAction.NewQuestAcceptAction(new ActionId(id.Value + "-0"), accept)]));
     }
 
-    private static Need FromFact(NeedId id, Fact<bool> deficit, string fact, Fact<string> evidence)
+    private static Need FromFact(NeedId id, Fact<bool> deficit)
     {
         if (!deficit.TryGetValue(out var owed))
         {
-            return new Need { Id = id, Tier = NeedTier.Development, Evidence = [new(fact, evidence)] };
+            return new Need { Id = id, Tier = NeedTier.Development };
         }
         return new Need
         {
@@ -140,7 +138,6 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
             Tier = NeedTier.Development,
             Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known(owed ? 1.0 : 0.0),
-            Evidence = [new(fact, evidence)],
         };
     }
 
@@ -149,15 +146,13 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
     {
         if (!royalty.TryGetValue(out _))
         {
-            return FromFact(Ceremony, default, "ceremony_waiting", default);
+            return FromFact(Ceremony, default);
         }
         var waiting = CeremonyRules.CeremonyStartOf(royalty) is not null;
-        return FromFact(Ceremony, Fact.Known(waiting), "ceremony_waiting", Count(waiting ? 1 : 0));
+        return FromFact(Ceremony, Fact.Known(waiting));
     }
 
     /// <summary>A quest-census Need: unknown while the census is unread, otherwise <paramref name="owed"/>.</summary>
-    private static Need Quest(NeedId id, bool known, Func<bool> owed, int offers) =>
-        FromFact(id, known ? Fact.Known(owed()) : default, "quest_offers", known ? Count(offers) : default);
-
-    private static Fact<string> Count(int n) => Fact.Known(n.ToString(CultureInfo.InvariantCulture));
+    private static Need Quest(NeedId id, bool known, Func<bool> owed) =>
+        FromFact(id, known ? Fact.Known(owed()) : default);
 }

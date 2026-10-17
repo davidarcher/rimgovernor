@@ -113,7 +113,7 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
     {
         if (!PopulationRules.PrisonerRecruitDeficit(facts.Prisoners, facts.Colony, facts.FoodDays, policy).TryGetValue(out var deficit))
         {
-            return new Need { Id = Recruit, Tier = NeedTier.Development, Evidence = [new("prisoner_interactions_owed", default)] };
+            return new Need { Id = Recruit, Tier = NeedTier.Development };
         }
         var owed = 0;
         if (deficit && facts.Prisoners.TryGetValue(out var rows) && facts.Colony.TryGetValue(out var colony))
@@ -126,7 +126,6 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
             Tier = NeedTier.Development,
             Satisfaction = deficit ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known((double)owed),
-            Evidence = [new("prisoner_interactions_owed", Count(owed))],
         };
     }
 
@@ -134,7 +133,7 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
     {
         if (!PopulationRules.CustodyDeficit(census).TryGetValue(out var deficit) || !census.TryGetValue(out var rows))
         {
-            return new Need { Id = Custody, Tier = NeedTier.Wellbeing, Evidence = [new("custody_candidates", default)] };
+            return new Need { Id = Custody, Tier = NeedTier.Wellbeing };
         }
         var candidates = rows.Count(row => PopulationRules.CustodyEligible(row).Ok);
         return new Need
@@ -143,9 +142,7 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
             Tier = NeedTier.Wellbeing,
             Satisfaction = deficit ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known((double)candidates),
-            Evidence = [new("custody_candidates", Count(candidates))],
         };
     }
 
-    private static Fact<string> Count(int n) => Fact.Known(n.ToString(CultureInfo.InvariantCulture));
 }

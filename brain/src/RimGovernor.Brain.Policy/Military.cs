@@ -264,18 +264,13 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     private static Need EquipmentNeed(MilitaryFacts f)
     {
         var gear = GearRules.ReviewGear(f.Gear);
-        var evidence = EquatableArray.From<NeedEvidence>([
-            new("gear_recovered", Flag(gear.Recovered)),
-            new("crafting_spot_retire", Flag(f.CraftingSpotRetireOwed)),
-            new("shells_short", Flag(f.ShellsShort)),
-        ]);
         if (!EquipmentMet(f).TryGetValue(out var ok))
         {
-            return new Need { Id = Equipment, Tier = NeedTier.Wellbeing, Evidence = evidence };
+            return new Need { Id = Equipment, Tier = NeedTier.Wellbeing };
         }
         // The gear review's deficit while gear is short; a retire or a shell shortage alone is a whole deficit.
         var deficit = ok ? Known(0.0) : gear.Recovered.TryGetValue(out var recovered) && !recovered ? gear.Deficit : Known(1.0);
-        return new Need { Id = Equipment, Tier = NeedTier.Wellbeing, Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet, Deficit = deficit, Evidence = evidence };
+        return new Need { Id = Equipment, Tier = NeedTier.Wellbeing, Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet, Deficit = deficit };
     }
 
     /// <summary>
@@ -318,8 +313,6 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
 
     private static bool Positive(Fact<bool> v) => v.TryGetValue(out var b) && b;
 
-    private static Fact<string> Flag(Fact<bool> v) => v.TryGetValue(out var b) ? Known(b ? "true" : "false") : default;
-
     /// <summary>
     /// The basic-defense predicate: the foothold's armed fighters (<see cref="RoundsRules.ArmedTarget"/>) with
     /// no hostile standing, and no fighting-capable colonist left unarmed; unknown when the facts do not say.
@@ -333,10 +326,9 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     private static Need DefenseNeed(MilitaryFacts f)
     {
         var met = DefenseMet(f);
-        var evidence = EquatableArray.From<NeedEvidence>([new("hostiles", Text(f.Hostiles)), new("armed", Text(f.Armed)), new("unarmed", Text(f.Unarmed))]);
         if (!met.TryGetValue(out var ok))
         {
-            return new Need { Id = Defense, Tier = NeedTier.Wellbeing, Evidence = evidence };
+            return new Need { Id = Defense, Tier = NeedTier.Wellbeing };
         }
         var deficit = ok ? Known(0.0) : Unknown<double>();
         if (!ok && f.Foothold.TryGetValue(out var n) && f.Armed.TryGetValue(out var stock) && n > 0)
@@ -350,7 +342,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
             }
             deficit = Known(share);
         }
-        return new Need { Id = Defense, Tier = NeedTier.Wellbeing, Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet, Deficit = deficit, Evidence = evidence };
+        return new Need { Id = Defense, Tier = NeedTier.Wellbeing, Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet, Deficit = deficit };
     }
 
     /// <summary>
@@ -372,18 +364,16 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
 
     private static Need RestoreWorkersNeed(MilitaryFacts f)
     {
-        var evidence = EquatableArray.From<NeedEvidence>([new("stray_drafts", f.StrayDrafts.TryGetValue(out var n) ? Count(n) : default), new("hostiles", Text(f.Hostiles))]);
         if (!RestoreWorkersMet(f).TryGetValue(out var ok))
         {
-            return new Need { Id = RestoreWorkers, Tier = NeedTier.SeriousHarm, Evidence = evidence };
+            return new Need { Id = RestoreWorkers, Tier = NeedTier.SeriousHarm };
         }
         return new Need
         {
             Id = RestoreWorkers,
             Tier = NeedTier.SeriousHarm,
             Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = Known(ok ? 0.0 : n),
-            Evidence = evidence,
+            Deficit = Known(ok ? 0.0 : f.StrayDrafts.ValueOrDefault),
         };
     }
 
@@ -393,11 +383,10 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     /// </summary>
     private static Need CombatNeed(MilitaryFacts f)
     {
-        var evidence = EquatableArray.From<NeedEvidence>([new("hostiles", Text(f.Hostiles)), new("hunt_prey", Count(f.HuntPrey.Count))]);
         var situation = RoundsRules.CombatSituation(f.Hostiles, f.HuntPrey.Count);
         if (situation == Situation.Unclear || !f.Hostiles.TryGetValue(out var hostiles))
         {
-            return new Need { Id = Combat, Tier = NeedTier.SeriousHarm, Evidence = evidence };
+            return new Need { Id = Combat, Tier = NeedTier.SeriousHarm };
         }
         var met = situation == Situation.Clear;
         return new Need
@@ -406,7 +395,6 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
             Tier = NeedTier.SeriousHarm,
             Satisfaction = met ? Satisfaction.Met : Satisfaction.Unmet,
             Deficit = Known(met ? 0.0 : (double)(hostiles + f.HuntPrey.Count)),
-            Evidence = evidence,
         };
     }
 
@@ -414,7 +402,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     {
         if (!f.Pests.TryGetValue(out var count))
         {
-            return new Need { Id = Pests, Tier = NeedTier.Wellbeing, Evidence = [new("pests", default)] };
+            return new Need { Id = Pests, Tier = NeedTier.Wellbeing };
         }
         var owed = count + f.StaleHunts.Count;
         return new Need
@@ -423,7 +411,6 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
             Tier = NeedTier.Wellbeing,
             Satisfaction = owed == 0 ? Satisfaction.Met : Satisfaction.Unmet,
             Deficit = Known((double)owed),
-            Evidence = [new("pests", Count(count)), new("stale_hunts", Count(f.StaleHunts.Count))],
         };
     }
 
@@ -431,7 +418,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     {
         if (!review.TryGetValue(out var r))
         {
-            return new Need { Id = Training, Tier = NeedTier.Development, Evidence = [new("below_requirement", default)] };
+            return new Need { Id = Training, Tier = NeedTier.Development };
         }
         return new Need
         {
@@ -439,7 +426,6 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
             Tier = NeedTier.Development,
             Satisfaction = r.Below == 0 ? Satisfaction.Met : Satisfaction.Unmet,
             Deficit = Known(r.Below == 0 || r.Capable == 0 ? 0.0 : (double)r.Below / r.Capable),
-            Evidence = [new("below_requirement", Count(r.Below)), new("capable", Count(r.Capable))],
         };
     }
 
@@ -447,7 +433,4 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
         new(id, new PlanRevision(1), hunt.Rows.Select((row, i) =>
             DomainAction.NewAcquisitionAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id.Value}-{i}")), new Acquisition(row.Id, row.Resource, row.Cell))));
 
-    private static Fact<string> Count(long n) => Known(n.ToString(CultureInfo.InvariantCulture));
-
-    private static Fact<string> Text(Fact<long> v) => v.TryGetValue(out var n) ? Count(n) : default;
 }
