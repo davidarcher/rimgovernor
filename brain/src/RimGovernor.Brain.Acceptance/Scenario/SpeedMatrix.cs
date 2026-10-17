@@ -403,9 +403,9 @@ public static class SpeedMatrix
                     break;
             }
 
-            if (maxPausedFraction > 0 && row.Speed is "Superfast" or "Ultrafast" && row.PausedShare > maxPausedFraction)
+            if (maxPausedFraction > 0 && row.Speed is "Superfast" or "Ultrafast" && row.PausedFractionNative > maxPausedFraction)
             {
-                problems.Add(string.Create(CultureInfo.InvariantCulture, $"{row.Case}: paused fraction {row.PausedShare:F2} exceeds {maxPausedFraction:F2}"));
+                problems.Add(string.Create(CultureInfo.InvariantCulture, $"{row.Case}: paused fraction {row.PausedFractionNative:F2} exceeds {maxPausedFraction:F2}"));
             }
         }
 
@@ -452,7 +452,7 @@ public static class SpeedMatrix
                 AchievedTps = row.WallTps,
                 CeilingTps = ceiling,
                 Ratio = row.WallTps / ceiling,
-                PausedFractionNative = row.PausedShare,
+                PausedFractionNative = row.PausedFractionNative,
             });
         }
 
@@ -489,9 +489,8 @@ public sealed record CeilingRatio
 
 /// <summary>
 /// The per-case row a speed matrix reports (caseMetrics in cases/speedmatrix): the fields CheckSpeedMetrics and
-/// SpeedRowProblems read, decoded from the report's metrics rows. PausedFraction is the status-sample ratio (a sampling
-/// diagnostic); PausedFractionNative is native's own account of its hold/run time, the paused share the
-/// thresholds bound where the row carries it.
+/// SpeedRowProblems read, decoded from the report's metrics rows. PausedFractionNative is native's own account of its hold/run time, the paused share the
+/// thresholds bound.
 /// </summary>
 public sealed record SpeedMetrics
 {
@@ -503,11 +502,7 @@ public sealed record SpeedMetrics
 
     public double TicksAdvanced { get; init; }
 
-    public double PausedFraction { get; init; }
-
     public double PausedFractionNative { get; init; }
-
-    public double NativePauseSamples { get; init; }
 
     /// <summary>The holds the row's journal carried, the mean native time a Run took to resume one, and wall TPS as a share of the speed's own rate.</summary>
     public double Holds { get; init; }
@@ -516,12 +511,8 @@ public sealed record SpeedMetrics
 
     public double EffectiveSpeed { get; init; }
 
-    /// <summary>The paused fraction a threshold bounds: native's account when the row sampled it, else the sample ratio.</summary>
-    public double PausedShare => NativePauseSamples > 0 ? PausedFractionNative : PausedFraction;
-
     /// <summary>
-    /// Decodes the "case", "speed", "wall_tps", "ticks_advanced", "paused_fraction", "paused_fraction_native",
-    /// "native_pause_samples", "holds",
+    /// Decodes the "case", "speed", "wall_tps", "ticks_advanced", "paused_fraction_native", "holds",
     /// "resume_latency_ms_mean" and "effective_speed" fields of each metrics row.
     /// </summary>
     public static IReadOnlyList<SpeedMetrics> FromRows(IEnumerable<JsonObject> rows)
@@ -533,9 +524,7 @@ public sealed record SpeedMetrics
             Speed = row.Speed,
             WallTps = row.WallTps,
             TicksAdvanced = row.TicksAdvanced,
-            PausedFraction = row.PausedFraction,
             PausedFractionNative = row.PausedFractionNative,
-            NativePauseSamples = row.NativePauseSamples,
             Holds = row.Holds,
             MeanResumeMs = row.ResumeLatencyMsMean,
             EffectiveSpeed = row.EffectiveSpeed,

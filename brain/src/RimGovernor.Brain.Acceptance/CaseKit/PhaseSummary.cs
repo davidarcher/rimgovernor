@@ -55,25 +55,12 @@ public sealed class DispatchSample
     public double RefusedFraction() => Calls == 0 ? 0 : (double)Refused / Calls;
 }
 
-/// <summary>Wall TPS and the paused state the clock status samples report.</summary>
+/// <summary>The native clock accounting: differences between two <see cref="ClockAccounting"/> reads, 0 without them.</summary>
 public sealed class ClockSample
 {
-    public double WallTps { get; set; }
-
-    public ulong PausedSamples { get; set; }
-
-    public ulong ClockSamples { get; set; }
-
-    public double PausedSecs { get; set; }
-
-    public double SampledSecs { get; set; }
-
-    /// <summary>The native accounting below: differences between two <see cref="ClockAccounting"/> reads (NativePauseSamples 2), 0 without them.</summary>
     public ulong NativePausedMs { get; set; }
 
     public ulong NativeRunningMs { get; set; }
-
-    public ulong NativePauseSamples { get; set; }
 
     public double NativeProbeMs { get; set; }
 
@@ -98,7 +85,6 @@ public sealed class ClockSample
     {
         ArgumentNullException.ThrowIfNull(first);
         ArgumentNullException.ThrowIfNull(last);
-        NativePauseSamples = 2;
         if (last.PausedMs >= first.PausedMs && last.RunningMs >= first.RunningMs)
         {
             NativePausedMs = last.PausedMs - first.PausedMs;
@@ -140,10 +126,6 @@ public sealed class ClockSample
 
     /// <summary>Native's paused share of the accounted wall time, or 0 without any.</summary>
     public double PausedFractionNative() => NativePausedMs + NativeRunningMs == 0 ? 0 : (double)NativePausedMs / (NativePausedMs + NativeRunningMs);
-
-    /// <summary>The time-weighted share of the sampled wall time the clock was paused, or the sample count ratio when no sample spans time.</summary>
-    public double PausedFraction() =>
-        SampledSecs > 0 ? PausedSecs / SampledSecs : ClockSamples > 0 ? (double)PausedSamples / ClockSamples : 0;
 }
 
 /// <summary>

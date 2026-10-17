@@ -3,8 +3,7 @@ using System.Globalization;
 namespace RimGovernor.Brain.Telemetry.Otlp;
 
 /// <summary>
-/// One row read back from the log ring. Every decision and event row, and the bridge's native_call, native_request,
-/// native_frame and native_poll rows, is an OTEL log record in <c>logs.jsonl</c> (docs/developers/contracts/otel-signals.md,
+/// One row read back from the log ring. Every decision and event row is an OTEL log record in <c>logs.jsonl</c> (docs/developers/contracts/otel-signals.md,
 /// "Mapping"). <see cref="OtlpTimeline.FromLog"/> is the inverse of <see cref="TelemetryEmitter.EmitRow"/>.
 /// </summary>
 public sealed record TimelineRecord

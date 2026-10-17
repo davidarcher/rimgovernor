@@ -671,10 +671,8 @@ internal sealed partial class SpeedmatrixRun
             gateWaitMean = steps.GateWaitMs / steps.Steps;
         }
 
-        // Time-weighted (ClockSample.PausedFraction): the count ratio over-represents pauses, when the service issues
-        // most of its reads. A sampling diagnostic; native's own account of its hold and run time
-        // (paused_fraction_native) is the headline.
-        var pausedFraction = clock.PausedFraction();
+        // Wall TPS from the row's own tick reads, as the governor-off row computes it; holds count as wall time.
+        var wallTps = wallSeconds > 0 && lastTick > startTick ? (lastTick - startTick) / wallSeconds : 0.0;
 
         // Holds per 6000 ticks: how often the clock was held, however the row's length differs across speeds.
         double holdsPer6000 = 0;
@@ -705,16 +703,15 @@ internal sealed partial class SpeedmatrixRun
 
             ("ticks_advanced", lastTick - startTick),
             ("wall_seconds", wallSeconds),
-            ("wall_tps", clock.WallTps),
+            ("wall_tps", wallTps),
 
             // Effective speed: the share of the speed's own rate the row achieved, holds included (1 is a clock that was
             // never held and never slowed).
-            ("effective_speed", SpeedMatrix.EffectiveSpeed(clock.WallTps, c.Speed)),
+            ("effective_speed", SpeedMatrix.EffectiveSpeed(wallTps, c.Speed)),
             ("target_tps", SpeedMatrix.TargetTps(c.Speed)),
             ("paused_ms", clock.NativePausedMs),
             ("running_ms", clock.NativeRunningMs),
             ("paused_fraction_native", clock.PausedFractionNative()),
-            ("native_pause_samples", clock.NativePauseSamples),
 
             // The supervisor's probe path split: hazard probe against the fact-change digests, session-cumulative
             // between the row's two clock accounting reads, and the detection gaps the session reported.
@@ -725,11 +722,6 @@ internal sealed partial class SpeedmatrixRun
             ("digests", clock.NativeDigests),
             ("max_probe_tick_gap", clock.NativeMaxProbeTickGap),
             ("hazard_gaps", hazardGaps),
-            ("paused_fraction", pausedFraction),
-            ("paused_fraction_sampling", "status-sample ratio, a sampling diagnostic; paused_fraction_native is the measure"),
-            ("paused_samples", clock.PausedSamples),
-            ("clock_samples", clock.ClockSamples),
-            ("paused_sampled_seconds", clock.SampledSecs),
             ("steps", steps.Steps),
             ("reads_per_step", readsPerStep),
 

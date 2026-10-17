@@ -77,11 +77,7 @@ internal sealed record SpeedMetricsRow
 
     public double TicksAdvanced { get; init; } = -1;
 
-    public double PausedFraction { get; init; } = -1;
-
     public double PausedFractionNative { get; init; } = -1;
-
-    public double NativePauseSamples { get; init; } = -1;
 
     public double Holds { get; init; } = -1;
 

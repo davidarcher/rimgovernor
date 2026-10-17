@@ -11,24 +11,16 @@ rules for reading them.
 
 ## Record
 
-The in-process brain writes one OTLP log record per native call, marker and internal
-sample to `otlp/logs.jsonl` under `RIMGOVERNOR_OTLP_DIR` (default
+The in-process brain writes one OTLP log record per decision and event
+to `otlp/logs.jsonl` under `RIMGOVERNOR_OTLP_DIR` (default
 `<save-data>/RimGovernor/otlp`; each row's `run` is its launch's `service.instance.id`).
 The acceptance runner sets the directory per case. Segments rotate beside the file; the reader picks them all up.
 
 Row kinds a phase report reads:
-
-- native call rows carry `timing`: gate wait (`class` is `control`,
-  `observation` or `mirror`), round trip, receipt and reply decode, and,
-  when present, main-thread queue and execute time. Absent blocks read
-  unknown, never zero.
-- `native_frame` with `outcome` `hit`: a read the snapshot frame stream served without a round trip.
 - `clock_step`: one row per `ClockScheduler.Step` (round trips by tool, reason,
   hold-to-step latency, budgets against use: `budget`,
   `critical_wave_ms`, `missed_cutoff`, `held_by`).
 - `clock_run`: one row per Run, Hold or refusal the brain made (verdict, reason, `coupled_orders`, `held_for`).
-- `clock_read_status` replies: the ticks and paused status behind wall TPS and
-  the paused fraction.
 
 There is no text log or debug flag: everything is a log record in `otlp/logs.jsonl`.
 
@@ -50,9 +42,7 @@ and the rows logged inside them are `otlp/logs.jsonl` records carrying the same
 `trace_id` and a `span_id`. A scheduler step is a trace root (census,
 planner reads, admission, its `clock_step` and `planner_step` rows); the Worker's
 step and each dispatch are child spans, so `dispatch` rows and a dispatch's
-native calls join the trace of the step that admitted them. Spans export when they end, so a
-native call that never returned has no span: its `native_request` marker (written
-once a call is 2 s outstanding) is the only trace of it.
+native calls join the trace of the step that admitted them.
 
 ## Reading the rows
 
@@ -69,9 +59,7 @@ Traps in the numbers:
 - Wall TPS **includes paused time**: a run that is held often reads low even if
   the game ran fast between holds.
 - The headline paused number is `paused_fraction_native` (native's own
-  hold->run / run->hold account on a monotonic clock). `paused_samples` /
-  `clock_samples` is a sampling diagnostic that over-represents pauses, because
-  the service reads mostly while the clock is held.
+  hold->run / run->hold account on a monotonic clock).
 - `step reasons`: a healthy running clock is mostly `wake`; mostly `timer`
   means the colony event consumer is not seeing events. `timer` runs only planners due on
   the queue, `wake` is pushed colony event evidence, `settled` and `full` re-plan
@@ -124,7 +112,7 @@ brain attached (the simulation ceiling): it reports only `ticks_advanced`,
 `brain/src/RimGovernor.Brain.Acceptance/Scenario/SpeedMatrix.cs`). Key rules:
 
 - `paused_fraction_native` (with `paused_ms`/`running_ms`, reset on reload) is
-  the paused number; `paused_fraction` is the sampling diagnostic. The native
+  the paused number. The native
   accounting (pause/run, `probe_ms`/`digest_ms`, the frame account,
   `max_probe_tick_gap`, `hazard_gaps`) is the difference between two
   `rimgovernor/acceptance_read_clock_accounting` reads, one when the row
@@ -176,7 +164,7 @@ staged work, so differences are observation cost.
 
 Each row's `speed_metrics` carries the speed matrix's clock, step and hold
 columns; the companion's per-hop observation and frame accounts are no longer
-recorded (their source, `native_call`, is gone). `provenance` records the
+recorded. `provenance` records the
 revision, host, mod set, launch arguments, rows, tick target, stage and camera,
 and the report's `world` block the seed, save and fixture hashes.
 

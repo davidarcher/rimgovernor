@@ -46,10 +46,6 @@ Register a kind and a consuming reader before adding an emission.
 
 | Kind | Shape and fields |
 |---|---|
-| `native_call` | event row, one per completed call (the native client writes it after typed reply decoding). `request` (sequence of the in-flight marker, only when one was written), `tool`, `native_tool`, `arguments` (a `games_call_tool` call keeps only the inner `request` string), `ok`, `error`, `refused_text`, `reply_type`, `result` (the reply without its native `timing` block, which `timing` already carries), `timing` (native timing phases plus `proto_decode_ms`, `payload_bytes`, `wire_bytes`, `proto_decode_error`). A payload over 64 KiB is replaced by a 4 KiB `preview` and its hash. Every call writes it, except a successful quiet poll (the lifecycle and clock heartbeats, the recipe and supply lists) after its first in each 5 s: those fold into `native_poll`. The hot-poll denylist otherwise applies to HTTP rows only. The acceptance postmortems read the error and failure cases from `native_call` rows. |
-| `native_request` | slow or outstanding marker only, written (durable) once a call has run past `bridge.slowCallMarker` (2 s): `tool`, `native_tool`, `arguments`. The completed `native_call` names it in `request`; a hung call leaves the marker last, and `trace` prints `(no reply recorded)` |
-| `native_frame` | event row. `outcome` (`decoded`, `miss`; a cache hit writes no row and counts in `native_poll`), `native_tool`, `frame`, `why` (miss), plus decoded-frame fields. The in-process client writes the `miss` row (warn) when a frame read gives up after `FrameReadTimeout` (30 s): `native_tool` is the read, `why` the unavailable detail, `waited_ms`, `latest_frame`, and `latest_writes`. Reader: the OTLP timeline |
-| `native_poll` | event row, at most one per 5 s, only when something folded: `window_ms`, `tools` (per `native_tool`: `wrapper`, `calls`, `native_timed` and the summed `gate_wait_ms`, `call_ms`, `decode_ms`, `total_ms`, `response_bytes`, `proto_decode_ms`, `native_queue_ms`, `native_execute_ms` of the folded quiet-poll calls), `frame_hits` (cache hits per `native_tool`). `SummarizePhases` adds them to the tool's calls, timings and cache hits; `trace` does not show them |
 | `combat_order` (decision) | `target` pawn, `verdict` `applied`/`refused`, `reason` refusal, attrs `index`, `job` |
 | `clock_step` (decision) | `verdict` step outcome (`planned`, `deferred`, `failed`), `reason` `step`, `deferred` or `step_error`, `target` the step's cause (`timer`, `wake`, `settled`, `full`), `dur_ms` step wall; attrs also `gate_wait_ms`, `journal_ms`, `stop` and `stop_latency_ms` (a step woken by a native hold: hold stamp to step start), the pacing fields (`pacing_reason`, `paced_tps`, `tps_ceiling`, `effective_tps`) and `error`; attrs `reads`, `tools` (calls per native facade method), `running` (read tally) |
 | `clock_run` (decision) | one per scheduler step that changed or refused the clock, filed by `ClockRunDriver`. `verdict` `run`, `adjust`, `hold`, `refused` or `failed`, `reason` `resumed`, `watch_changed`, `speed_changed`, `coupled_order`, `autosave`, `combat_event`, the first refused reason, or `run_error`; attrs `running`, `unwatched`, `coupled_orders`, `held_for` (the native hold reason), `combat`, `refused`, `error` |
@@ -163,14 +159,6 @@ when the emitter runs under a recording span, an event on that span. The code is
 host log call with a `kind`, and the direct emitters (`mod_log`, `log_overflow`,
 `http_access`, `ReadTally.Publish`) all reach it, so the kinds registry and the
 consuming-reader rule above apply unchanged: a kind is the record's `eventName`.
-The native client's `native_call`, `native_request`, `native_frame` and `native_poll`
-rows are mapped too, as ordinary event records: the
-acceptance oracles read reply bodies (clock status, `failure.code`, startup and
-speedmatrix replies) that only these rows carry, so they are rows, not derived
-from spans or metrics. `native_request` is durable (fsynced) and its `request`
-attribute is the id the answering `native_call` repeats (a per-process counter).
-Recording is on for the host (`ProcessConfig.RecordRows`) and off for a
-bare client.
 
 This attribute schema is what log readers parse. Changing it is a contract change.
 
