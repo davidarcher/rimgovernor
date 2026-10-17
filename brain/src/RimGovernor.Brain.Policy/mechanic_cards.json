@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": 2,
   "game": "1.7.4980 rev60",
   "cards": [
     {
@@ -216,6 +216,750 @@
               "follows": []
             }
           ]
+        }
+      ]
+    },
+    {
+      "def": "EnvironmentCold",
+      "kind": "situational",
+      "status": "extracted",
+      "xml": {
+        "nullifyingTraits": [],
+        "nullifyingHediffs": [],
+        "stages": [
+          {
+            "baseMoodEffect": -4
+          },
+          {
+            "baseMoodEffect": -8
+          },
+          {
+            "baseMoodEffect": -12
+          },
+          {
+            "baseMoodEffect": -16
+          }
+        ]
+      },
+      "sites": [
+        {
+          "site": "ThoughtWorker_Cold.CurrentStateInternal",
+          "bodyHash": "fb32a60173b9d762",
+          "access": "protected override",
+          "callers": 14,
+          "guards": [
+            {
+              "origin": "early-exit",
+              "expr": {
+                "op": "not",
+                "args": [
+                  {
+                    "op": "<=",
+                    "args": [
+                      {
+                        "op": "-",
+                        "args": [
+                          {
+                            "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMin)",
+                            "kind": "stat",
+                            "decl": "StatDefOf.ComfyTemperatureMin",
+                            "type": "float"
+                          },
+                          {
+                            "sym": "p.AmbientTemperature",
+                            "kind": "prop",
+                            "decl": "Thing.AmbientTemperature",
+                            "type": "float"
+                          }
+                        ]
+                      },
+                      {
+                        "lit": "0f"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "origin": "if",
+              "expr": {
+                "op": ">=",
+                "args": [
+                  {
+                    "op": "+",
+                    "args": [
+                      {
+                        "op": "cond",
+                        "args": [
+                          {
+                            "op": "not",
+                            "args": [
+                              {
+                                "op": "<",
+                                "args": [
+                                  {
+                                    "op": "-",
+                                    "args": [
+                                      {
+                                        "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMin)",
+                                        "kind": "stat",
+                                        "decl": "StatDefOf.ComfyTemperatureMin",
+                                        "type": "float"
+                                      },
+                                      {
+                                        "sym": "p.AmbientTemperature",
+                                        "kind": "prop",
+                                        "decl": "Thing.AmbientTemperature",
+                                        "type": "float"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "lit": "10f"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "op": "cond",
+                            "args": [
+                              {
+                                "op": "<",
+                                "args": [
+                                  {
+                                    "op": "-",
+                                    "args": [
+                                      {
+                                        "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMin)",
+                                        "kind": "stat",
+                                        "decl": "StatDefOf.ComfyTemperatureMin",
+                                        "type": "float"
+                                      },
+                                      {
+                                        "sym": "p.AmbientTemperature",
+                                        "kind": "prop",
+                                        "decl": "Thing.AmbientTemperature",
+                                        "type": "float"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "lit": "20f"
+                                  }
+                                ]
+                              },
+                              {
+                                "lit": "1"
+                              },
+                              {
+                                "op": "cond",
+                                "args": [
+                                  {
+                                    "op": "not",
+                                    "args": [
+                                      {
+                                        "op": "<",
+                                        "args": [
+                                          {
+                                            "op": "-",
+                                            "args": [
+                                              {
+                                                "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMin)",
+                                                "kind": "stat",
+                                                "decl": "StatDefOf.ComfyTemperatureMin",
+                                                "type": "float"
+                                              },
+                                              {
+                                                "sym": "p.AmbientTemperature",
+                                                "kind": "prop",
+                                                "decl": "Thing.AmbientTemperature",
+                                                "type": "float"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "lit": "30f"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "lit": "3"
+                                  },
+                                  {
+                                    "lit": "2"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "lit": "0"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "cond",
+                        "args": [
+                          {
+                            "op": "and",
+                            "args": [
+                              {
+                                "op": "and",
+                                "args": [
+                                  {
+                                    "sym": "ModsConfig.IdeologyActive",
+                                    "kind": "prop",
+                                    "decl": "ModsConfig.IdeologyActive",
+                                    "type": "bool"
+                                  },
+                                  {
+                                    "op": "!=",
+                                    "args": [
+                                      {
+                                        "sym": "p.Ideo",
+                                        "kind": "prop",
+                                        "decl": "Pawn.Ideo",
+                                        "type": "Ideo"
+                                      },
+                                      {
+                                        "lit": "null"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "op": "call",
+                                "args": [
+                                  {
+                                    "sym": "p.Ideo.HasPrecept",
+                                    "kind": "method",
+                                    "decl": "Ideo.HasPrecept",
+                                    "type": "bool"
+                                  },
+                                  {
+                                    "sym": "PreceptDefOf.Temperature_Tough",
+                                    "kind": "field",
+                                    "decl": "PreceptDefOf.Temperature_Tough",
+                                    "type": "PreceptDef"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "lit": "-2"
+                          },
+                          {
+                            "lit": "0"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "lit": "0"
+                  }
+                ]
+              }
+            }
+          ],
+          "writers": [
+            {
+              "field": "Thing.AmbientTemperature",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "ModsConfig.IdeologyActive",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "Pawn.Ideo",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "PreceptDefOf.Temperature_Tough",
+              "kind": "field",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            }
+          ],
+          "stage": {
+            "input": {
+              "op": "-",
+              "args": [
+                {
+                  "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMin)",
+                  "kind": "stat",
+                  "decl": "StatDefOf.ComfyTemperatureMin",
+                  "type": "float"
+                },
+                {
+                  "sym": "p.AmbientTemperature",
+                  "kind": "prop",
+                  "decl": "Thing.AmbientTemperature",
+                  "type": "float"
+                }
+              ]
+            },
+            "thresholds": [
+              {
+                "below": 10,
+                "stage": 0
+              },
+              {
+                "below": 20,
+                "stage": 1
+              },
+              {
+                "below": 30,
+                "stage": 2
+              }
+            ],
+            "else": 3,
+            "modifiers": [
+              {
+                "when": {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "and",
+                      "args": [
+                        {
+                          "sym": "ModsConfig.IdeologyActive",
+                          "kind": "prop",
+                          "decl": "ModsConfig.IdeologyActive",
+                          "type": "bool"
+                        },
+                        {
+                          "op": "!=",
+                          "args": [
+                            {
+                              "sym": "p.Ideo",
+                              "kind": "prop",
+                              "decl": "Pawn.Ideo",
+                              "type": "Ideo"
+                            },
+                            {
+                              "lit": "null"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "op": "call",
+                      "args": [
+                        {
+                          "sym": "p.Ideo.HasPrecept",
+                          "kind": "method",
+                          "decl": "Ideo.HasPrecept",
+                          "type": "bool"
+                        },
+                        {
+                          "sym": "PreceptDefOf.Temperature_Tough",
+                          "kind": "field",
+                          "decl": "PreceptDefOf.Temperature_Tough",
+                          "type": "PreceptDef"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "delta": -2
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "def": "EnvironmentHot",
+      "kind": "situational",
+      "status": "extracted",
+      "xml": {
+        "nullifyingTraits": [],
+        "nullifyingHediffs": [],
+        "stages": [
+          {
+            "baseMoodEffect": -4
+          },
+          {
+            "baseMoodEffect": -8
+          },
+          {
+            "baseMoodEffect": -12
+          },
+          {
+            "baseMoodEffect": -16
+          }
+        ]
+      },
+      "sites": [
+        {
+          "site": "ThoughtWorker_Hot.CurrentStateInternal",
+          "bodyHash": "9dcc407db3c4c99c",
+          "access": "protected override",
+          "callers": 14,
+          "guards": [
+            {
+              "origin": "early-exit",
+              "expr": {
+                "op": "not",
+                "args": [
+                  {
+                    "op": "<=",
+                    "args": [
+                      {
+                        "op": "-",
+                        "args": [
+                          {
+                            "sym": "p.AmbientTemperature",
+                            "kind": "prop",
+                            "decl": "Thing.AmbientTemperature",
+                            "type": "float"
+                          },
+                          {
+                            "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMax)",
+                            "kind": "stat",
+                            "decl": "StatDefOf.ComfyTemperatureMax",
+                            "type": "float"
+                          }
+                        ]
+                      },
+                      {
+                        "lit": "0f"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "origin": "if",
+              "expr": {
+                "op": ">=",
+                "args": [
+                  {
+                    "op": "+",
+                    "args": [
+                      {
+                        "op": "cond",
+                        "args": [
+                          {
+                            "op": "not",
+                            "args": [
+                              {
+                                "op": "<",
+                                "args": [
+                                  {
+                                    "op": "-",
+                                    "args": [
+                                      {
+                                        "sym": "p.AmbientTemperature",
+                                        "kind": "prop",
+                                        "decl": "Thing.AmbientTemperature",
+                                        "type": "float"
+                                      },
+                                      {
+                                        "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMax)",
+                                        "kind": "stat",
+                                        "decl": "StatDefOf.ComfyTemperatureMax",
+                                        "type": "float"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "lit": "10f"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "op": "cond",
+                            "args": [
+                              {
+                                "op": "<",
+                                "args": [
+                                  {
+                                    "op": "-",
+                                    "args": [
+                                      {
+                                        "sym": "p.AmbientTemperature",
+                                        "kind": "prop",
+                                        "decl": "Thing.AmbientTemperature",
+                                        "type": "float"
+                                      },
+                                      {
+                                        "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMax)",
+                                        "kind": "stat",
+                                        "decl": "StatDefOf.ComfyTemperatureMax",
+                                        "type": "float"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "lit": "20f"
+                                  }
+                                ]
+                              },
+                              {
+                                "lit": "1"
+                              },
+                              {
+                                "op": "cond",
+                                "args": [
+                                  {
+                                    "op": "not",
+                                    "args": [
+                                      {
+                                        "op": "<",
+                                        "args": [
+                                          {
+                                            "op": "-",
+                                            "args": [
+                                              {
+                                                "sym": "p.AmbientTemperature",
+                                                "kind": "prop",
+                                                "decl": "Thing.AmbientTemperature",
+                                                "type": "float"
+                                              },
+                                              {
+                                                "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMax)",
+                                                "kind": "stat",
+                                                "decl": "StatDefOf.ComfyTemperatureMax",
+                                                "type": "float"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "lit": "30f"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "lit": "3"
+                                  },
+                                  {
+                                    "lit": "2"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "lit": "0"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "cond",
+                        "args": [
+                          {
+                            "op": "and",
+                            "args": [
+                              {
+                                "op": "and",
+                                "args": [
+                                  {
+                                    "sym": "ModsConfig.IdeologyActive",
+                                    "kind": "prop",
+                                    "decl": "ModsConfig.IdeologyActive",
+                                    "type": "bool"
+                                  },
+                                  {
+                                    "op": "!=",
+                                    "args": [
+                                      {
+                                        "sym": "p.Ideo",
+                                        "kind": "prop",
+                                        "decl": "Pawn.Ideo",
+                                        "type": "Ideo"
+                                      },
+                                      {
+                                        "lit": "null"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "op": "call",
+                                "args": [
+                                  {
+                                    "sym": "p.Ideo.HasPrecept",
+                                    "kind": "method",
+                                    "decl": "Ideo.HasPrecept",
+                                    "type": "bool"
+                                  },
+                                  {
+                                    "sym": "PreceptDefOf.Temperature_Tough",
+                                    "kind": "field",
+                                    "decl": "PreceptDefOf.Temperature_Tough",
+                                    "type": "PreceptDef"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "lit": "-2"
+                          },
+                          {
+                            "lit": "0"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "lit": "0"
+                  }
+                ]
+              }
+            }
+          ],
+          "writers": [
+            {
+              "field": "Thing.AmbientTemperature",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "ModsConfig.IdeologyActive",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "Pawn.Ideo",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "PreceptDefOf.Temperature_Tough",
+              "kind": "field",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            }
+          ],
+          "stage": {
+            "input": {
+              "op": "-",
+              "args": [
+                {
+                  "sym": "p.AmbientTemperature",
+                  "kind": "prop",
+                  "decl": "Thing.AmbientTemperature",
+                  "type": "float"
+                },
+                {
+                  "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMax)",
+                  "kind": "stat",
+                  "decl": "StatDefOf.ComfyTemperatureMax",
+                  "type": "float"
+                }
+              ]
+            },
+            "thresholds": [
+              {
+                "below": 10,
+                "stage": 0
+              },
+              {
+                "below": 20,
+                "stage": 1
+              },
+              {
+                "below": 30,
+                "stage": 2
+              }
+            ],
+            "else": 3,
+            "modifiers": [
+              {
+                "when": {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "and",
+                      "args": [
+                        {
+                          "sym": "ModsConfig.IdeologyActive",
+                          "kind": "prop",
+                          "decl": "ModsConfig.IdeologyActive",
+                          "type": "bool"
+                        },
+                        {
+                          "op": "!=",
+                          "args": [
+                            {
+                              "sym": "p.Ideo",
+                              "kind": "prop",
+                              "decl": "Pawn.Ideo",
+                              "type": "Ideo"
+                            },
+                            {
+                              "lit": "null"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "op": "call",
+                      "args": [
+                        {
+                          "sym": "p.Ideo.HasPrecept",
+                          "kind": "method",
+                          "decl": "Ideo.HasPrecept",
+                          "type": "bool"
+                        },
+                        {
+                          "sym": "PreceptDefOf.Temperature_Tough",
+                          "kind": "field",
+                          "decl": "PreceptDefOf.Temperature_Tough",
+                          "type": "PreceptDef"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "delta": -2
+              }
+            ]
+          }
         }
       ]
     },

@@ -252,6 +252,107 @@ public sealed class GuardAnalysisTests
         Assert.Contains("virtual-call", card.Reasons);
     }
 
+    // #3324: the temperature-worker shape, generic. A stage local from a nested conditional over a traced input, shifted
+    // by an if-guarded compound assignment; LoopWorker's local is written in a loop, so it stays untraced.
+    private const string Banded = """
+        namespace Game;
+
+        public struct ThoughtState { public static ThoughtState Inactive; public static ThoughtState ActiveAtStage(int i) => default; }
+        public class StatDef { }
+        public static class StatDefOf { public static StatDef ComfyMin; }
+        public static class StatExtension { public static float GetStatValue(this Thing thing, StatDef stat, bool applyPostProcess = true, int cacheStaleAfterTicks = -1) => 0f; }
+        public class PreceptDef { }
+        public static class PreceptDefOf { public static PreceptDef Tough; }
+        public static class ModsConfig { public static bool IdeologyActive => true; }
+        public class Ideo { public bool HasPrecept(PreceptDef def) => true; }
+        public class Thing { public float AmbientTemperature; }
+        public class Pawn : Thing { public Ideo Ideo; public List<Thing> worn; }
+        public abstract class Worker { protected abstract ThoughtState CurrentStateInternal(Pawn p); }
+        public class ColdWorker : Worker
+        {
+            protected override ThoughtState CurrentStateInternal(Pawn p)
+            {
+                float statValue = p.GetStatValue(StatDefOf.ComfyMin, applyPostProcess: true, 10);
+                float num = statValue - p.AmbientTemperature;
+                if (num <= 0f)
+                {
+                    return ThoughtState.Inactive;
+                }
+                int num2 = ((!(num < 10f)) ? ((num < 20f) ? 1 : ((!(num < 30f)) ? 3 : 2)) : 0);
+                if (ModsConfig.IdeologyActive)
+                {
+                    Ideo ideo = p.Ideo;
+                    if (ideo != null && ideo.HasPrecept(PreceptDefOf.Tough))
+                    {
+                        num2 -= 2;
+                    }
+                }
+                if (num2 >= 0)
+                {
+                    return ThoughtState.ActiveAtStage(num2);
+                }
+                return ThoughtState.Inactive;
+            }
+        }
+        public class LoopWorker : Worker
+        {
+            protected override ThoughtState CurrentStateInternal(Pawn p)
+            {
+                float warmth = 0f;
+                foreach (Thing t in p.worn)
+                {
+                    warmth += t.AmbientTemperature;
+                }
+                if (warmth > 5f && p.AmbientTemperature < 0f)
+                {
+                    return ThoughtState.ActiveAtStage(0);
+                }
+                return ThoughtState.Inactive;
+            }
+        }
+        """;
+
+    private static Card BandedCard(string worker)
+    {
+        var index = SourceIndex.Build([("banded.cs", Banded)]);
+        var def = new ThoughtDef("D", worker, "", new Dictionary<string, System.Xml.Linq.XElement>());
+        return Assert.Single(new GuardCards(index, ".", new HashSet<string> { "D" }).Build([def], new Dictionary<string, string>(), new Dictionary<string, IReadOnlyList<string>>()));
+    }
+
+    [Fact]
+    public void AStageLocalBecomesAStageBandOverItsTracedInput()
+    {
+        var card = BandedCard("ColdWorker");
+
+        Assert.Equal("resolved", card.Status);
+        var site = Assert.Single(card.Sites);
+        var band = Assert.IsType<StageBand>(site.Stage);
+        Assert.Equal("(p.GetStatValue(StatDefOf.ComfyMin) - p.AmbientTemperature)", Exprs.Render(band.Input));
+        Assert.Equal([("stat", "StatDefOf.ComfyMin"), ("field", "Thing.AmbientTemperature")], Exprs.Syms(band.Input).Select(s => (s.Kind, s.Decl)));
+        Assert.Equal([(10.0, 0), (20.0, 1), (30.0, 2)], band.Thresholds);
+        Assert.Equal(3, band.Else);
+        var (when, delta) = Assert.Single(band.Modifiers);
+        Assert.Equal(-2, delta);
+        Assert.Equal("((ModsConfig.IdeologyActive and (p.Ideo != null)) and p.Ideo.HasPrecept(PreceptDefOf.Tough))", Exprs.Render(when));
+        // The activity guards stay guards, resolved through the traced locals.
+        Assert.Equal(2, site.Guards.Count);
+        Assert.All(site.Guards, g => Assert.True(Exprs.Resolved(g)));
+        Assert.Equal("!((p.GetStatValue(StatDefOf.ComfyMin) - p.AmbientTemperature) <= 0f)", Exprs.Render(site.Guards[0]));
+    }
+
+    [Fact]
+    public void AGuardOverAnUntracedLocalIsUnknownAndTheCardPartial()
+    {
+        var card = BandedCard("LoopWorker");
+
+        Assert.Equal("partial", card.Status);
+        var site = Assert.Single(card.Sites);
+        Assert.Null(site.Stage);
+        var unknown = Assert.Single(site.Guards.SelectMany(g => Exprs.Unknowns(g)));
+        Assert.Equal((Exprs.UntracedLocal, "warmth"), (unknown.Reason, unknown.Text));
+        Assert.Contains(Exprs.UntracedLocal, card.Reasons);
+    }
+
     [Fact]
     public void TheSameSourceYieldsTheSameHash()
     {

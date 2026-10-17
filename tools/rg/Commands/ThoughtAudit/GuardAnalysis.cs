@@ -37,6 +37,12 @@ internal sealed record CountSpec(Expr Over, Expr Where, Expr Stage, string? Via 
 /// <summary>A local counted by a loop (#3281): <c>foreach (x in Over) if (Where(x)) Local++;</c> or the indexed-for form, ending at <see cref="End"/>.</summary>
 internal sealed record CountLoop(string Local, int End, Expr Over, Expr Where, string? Via, string? ViaHash);
 
+/// <summary>
+/// The stage a site returns through <c>ActiveAtStage(local)</c> (#3324): the stage is the first threshold whose
+/// <c>Below</c> the <see cref="Input"/> is under, else <see cref="Else"/>, plus every modifier delta whose When holds.
+/// </summary>
+internal sealed record StageBand(Expr Input, IReadOnlyList<(double Below, int Stage)> Thresholds, int Else, IReadOnlyList<(Expr When, double Delta)> Modifiers);
+
 /// <summary>Renders, and inspects, expression trees.</summary>
 internal static class Exprs
 {
@@ -88,6 +94,19 @@ internal static class Exprs
     };
 
     public static bool Resolved(Expr e) => !Unknowns(e).Any();
+
+    /// <summary>The unknown reason of a guard leaf over a local whose value <see cref="GuardAnalysis"/> could not trace (#3324).</summary>
+    public const string UntracedLocal = "untraced-local";
+
+    /// <summary>The expression with every remaining local symbol (one the analysis left untraced) an unknown <see cref="UntracedLocal"/>.</summary>
+    public static Expr Untraced(Expr e) => Replace(e, s => s.Kind == "local" ? new Unknown(UntracedLocal, s.Path) : null);
+
+    /// <summary>The guard with <see cref="Untraced(Expr)"/> applied to its condition and to what a count guard counts.</summary>
+    public static Guard Untraced(Guard g) => g with
+    {
+        Cond = Untraced(g.Cond),
+        Count = g.Count is { } c ? c with { Over = Untraced(c.Over), Where = Untraced(c.Where), Stage = Untraced(c.Stage) } : null,
+    };
 }
 
 /// <summary>
@@ -109,13 +128,13 @@ internal sealed class GuardAnalysis(SourceIndex index)
 
     private Element? element;
 
-    /// <summary>The guards on the path from the node's member entry to the node, outermost first.</summary>
-    public IReadOnlyList<Guard> GuardsAt(SyntaxNode node)
+    /// <summary>The guards on the path from the node's member entry (or from below <paramref name="stop"/>, an ancestor) to the node, outermost first.</summary>
+    public IReadOnlyList<Guard> GuardsAt(SyntaxNode node, SyntaxNode? stop = null)
     {
         var member = MemberOf(node);
         var levels = new List<List<Guard>>();
         var cur = node;
-        while (cur.Parent is { } parent && cur != member)
+        while (cur.Parent is { } parent && cur != member && parent != stop)
         {
             var level = new List<Guard>();
             switch (parent)
@@ -487,7 +506,8 @@ internal sealed class GuardAnalysis(SourceIndex index)
         switch (e)
         {
             case ParenthesizedExpressionSyntax p:
-                return Eval(member, p.Expression, at, d);
+                // Parentheses add no structure; decompiled nested conditionals carry many (#3324).
+                return Eval(member, p.Expression, at, depth);
             case IdentifierNameSyntax or ElementAccessExpressionSyntax when element is { } el && Squash(e) == el.Text:
                 return el.Res;
             case LiteralExpressionSyntax l:
@@ -579,7 +599,12 @@ internal sealed class GuardAnalysis(SourceIndex index)
         {
             var type = local.Type is { IsVar: false } t ? SourceIndex.TypeName(t)
                 : local.Init is { } init ? Eval(member, init, local.Position, depth).T?.Name : null;
-            return new Res(new Sym(name, local.Kind, "", type), type is null ? null : new Ty(type, false));
+            var ty = type is null ? null : new Ty(type, false);
+            if (local.Kind == "local" && !IsWriteTarget(id) && Trace(member, name, local, at) is { } traced)
+            {
+                return new Res(traced.Mods.Aggregate(traced.Base, (acc, m) => new Op("+", [acc, new Op("cond", [m.When, m.Delta, new Lit("0")])])), ty);
+            }
+            return new Res(new Sym(name, local.Kind, "", type), ty);
         }
         var owner = SourceIndex.OwnerOf(member);
         var found = owner.Length > 0 ? index.Find(owner, name, out _) : [];
@@ -668,6 +693,13 @@ internal sealed class GuardAnalysis(SourceIndex index)
         {
             return Fail("virtual-call", inv) with { E = new Unknown("virtual-call", found[0].Owner + "." + name + "()") };
         }
+        // A stat read (#3324), x.GetStatValue(StatDefOf.S) with post-processing, is one symbol: kind stat, decl StatDefOf.S.
+        if (name == "GetStatValue" && found[0].Owner == "StatExtension" && recv.T is { IsStatic: false } && inv.ArgumentList.Arguments is [var stat, ..]
+            && Eval(member, stat.Expression, at, depth).E is Sym { Kind: "field", Decl: var statDecl } && statDecl.StartsWith("StatDefOf.", StringComparison.Ordinal)
+            && !inv.ArgumentList.Arguments.Skip(1).Any(a => a.Expression is LiteralExpressionSyntax { Token.Text: "false" }))
+        {
+            return new Res(new Sym(Exprs.Render(recv.E) + ".GetStatValue(" + statDecl + ")", "stat", statDecl, "float"), new Ty("float", false));
+        }
         var hit = Hit(Exprs.Render(recv.E) + "." + name, found, recv.T, inv);
         var args = inv.ArgumentList.Arguments.Select(a => Eval(member, a.Expression, at, depth).E);
         return new Res(new Op("call", [hit.E, .. args]), hit.T);
@@ -693,7 +725,7 @@ internal sealed class GuardAnalysis(SourceIndex index)
         return new Res(new Sym(path, kind, first.Owner + "." + first.Name, type), type is null ? null : new Ty(type, isStatic));
     }
 
-    private sealed record LocalInfo(string Kind, TypeSyntax? Type, ExpressionSyntax? Init, int Position);
+    private sealed record LocalInfo(string Kind, TypeSyntax? Type, ExpressionSyntax? Init, int Position, SyntaxNode? Decl = null);
 
     private static LocalInfo? Local(SyntaxNode member, string name, int at)
     {
@@ -704,7 +736,7 @@ internal sealed class GuardAnalysis(SourceIndex index)
             {
                 ParameterSyntax p when p.Identifier.Text == name => new LocalInfo("param", p.Type, null, p.SpanStart),
                 VariableDeclaratorSyntax v when v.Identifier.Text == name && v.Parent is VariableDeclarationSyntax vd && vd.Parent is not FieldDeclarationSyntax
-                    && Scoped(v, at) => new LocalInfo("local", vd.Type, v.Initializer?.Value, v.SpanStart),
+                    && Scoped(v, at) => new LocalInfo("local", vd.Type, v.Initializer?.Value, v.SpanStart, v),
                 ForEachStatementSyntax f when f.Identifier.Text == name && f.Span.Contains(at) => new LocalInfo("local", f.Type, null, f.SpanStart),
                 SingleVariableDesignationSyntax s when s.Identifier.Text == name && Scoped(s, at) => DesignationType(s),
                 _ => null,
@@ -716,6 +748,197 @@ internal sealed class GuardAnalysis(SourceIndex index)
         }
         return best;
     }
+
+    /// <summary>A traced local (#3324): its last straight-line value, plus each later if-guarded compound assignment's delta and condition.</summary>
+    private sealed record Traced(Expr Base, IReadOnlyList<(Expr When, Expr Delta)> Mods);
+
+    /// <summary>
+    /// The value a declared local holds at <paramref name="at"/>, from syntax only (#3324): the initializer, replaced by
+    /// each later plain assignment and shifted by each later <c>+=</c>, <c>-=</c>, <c>++</c> or <c>--</c>. A write
+    /// counts only when it ends before <paramref name="at"/> in an earlier statement of a block enclosing
+    /// <paramref name="at"/>, reached through blocks only (a plain assignment) or blocks and if/else (a compound
+    /// assignment, guarded by those conditions). Null, so the local stays untraced, when it has no initializer, the
+    /// member has a goto, the read is in a lambda or local function the declaration is outside, or any write is a ref/out
+    /// argument, a tuple target, another compound operator, inside a loop or lambda the declaration is outside, or off those paths.
+    /// </summary>
+    private Traced? Trace(SyntaxNode member, string name, LocalInfo local, int at)
+    {
+        if (local.Decl is not VariableDeclaratorSyntax decl || decl.Initializer?.Value is not { } init
+            || member.DescendantNodes().Any(n => n is GotoStatementSyntax or LabeledStatementSyntax))
+        {
+            return null;
+        }
+        var scope = decl.Ancestors().FirstOrDefault(a => a is BlockSyntax or SwitchSectionSyntax) ?? member;
+        if (scope.DescendantNodes().Any(n => n is AssignmentExpressionSyntax { Left: TupleExpressionSyntax t }
+            && t.DescendantNodes().OfType<IdentifierNameSyntax>().Any(i => i.Identifier.Text == name)))
+        {
+            return null;
+        }
+        var before = new List<SyntaxNode>();
+        // A lambda reading a captured local runs later: the initializer (a factory call, say) was evaluated at capture time,
+        // so substituting it would re-evaluate it in another context.
+        if (member.FindToken(at).Parent?.Ancestors().TakeWhile(a => a != scope).Any(a => a is AnonymousFunctionExpressionSyntax or LocalFunctionStatementSyntax) == true)
+        {
+            return null;
+        }
+        foreach (var w in scope.DescendantNodes().Where(n => Writes(n, name)))
+        {
+            if (w is ArgumentSyntax || w.Ancestors().TakeWhile(a => a != scope).Any(a => a is ForStatementSyntax or CommonForEachStatementSyntax
+                or WhileStatementSyntax or DoStatementSyntax or AnonymousFunctionExpressionSyntax or LocalFunctionStatementSyntax))
+            {
+                return null;
+            }
+            if (w.SpanStart > decl.SpanStart && w.Span.End <= at)
+            {
+                before.Add(w);
+            }
+        }
+        var value = Eval(member, init, local.Position, 0).E;
+        var mods = new List<(Expr When, Expr Delta)>();
+        foreach (var w in before)
+        {
+            var lca = w.Ancestors().FirstOrDefault(a => a.Span.Contains(at));
+            if (lca is not BlockSyntax || w.Parent is not ExpressionStatementSyntax)
+            {
+                return null;
+            }
+            var path = w.Ancestors().Skip(1).TakeWhile(a => a != lca).ToList();
+            var guarded = path.Any(a => a is IfStatementSyntax or ElseClauseSyntax);
+            if (path.Any(a => a is not (BlockSyntax or IfStatementSyntax or ElseClauseSyntax)))
+            {
+                return null;
+            }
+            if (w is AssignmentExpressionSyntax { RawKind: (int)SyntaxKind.SimpleAssignmentExpression } plain && !guarded)
+            {
+                (value, mods) = (Eval(member, plain.Right, plain.Right.SpanStart, 0).E, []);
+                continue;
+            }
+            Expr? delta = w switch
+            {
+                AssignmentExpressionSyntax { RawKind: (int)SyntaxKind.AddAssignmentExpression } a => Eval(member, a.Right, a.Right.SpanStart, 0).E,
+                AssignmentExpressionSyntax { RawKind: (int)SyntaxKind.SubtractAssignmentExpression } a => Negate(Eval(member, a.Right, a.Right.SpanStart, 0).E),
+                PrefixUnaryExpressionSyntax or PostfixUnaryExpressionSyntax => new Lit(w.IsKind(SyntaxKind.PreIncrementExpression) || w.IsKind(SyntaxKind.PostIncrementExpression) ? "1" : "-1"),
+                _ => null,
+            };
+            if (delta is null)
+            {
+                return null;
+            }
+            if (guarded)
+            {
+                mods.Add((GuardsAt(w, lca).Select(g => g.Cond).Aggregate((a, b) => new Op("and", [a, b])), delta));
+            }
+            else
+            {
+                value = new Op("+", [value, delta]);
+            }
+        }
+        return new Traced(value, mods);
+    }
+
+    private static Expr Negate(Expr e) => e is Lit { Text: var t } && Number(t) is { } n ? new Lit(Format(-n)) : new Op("-", [e]);
+
+    private static string Format(double n) => n.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>A numeric literal's value, without its type suffix (<c>10f</c> is 10).</summary>
+    private static double? Number(string text) =>
+        double.TryParse(text.TrimEnd('f', 'F', 'd', 'D', 'm', 'M', 'L', 'l', 'u', 'U'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var n) ? n : null;
+
+    private static bool IsWriteTarget(IdentifierNameSyntax id) => id.Parent switch
+    {
+        AssignmentExpressionSyntax a => a.Left == id,
+        PrefixUnaryExpressionSyntax or PostfixUnaryExpressionSyntax => true,
+        ArgumentSyntax { RefKindKeyword.Text: "ref" or "out" } => true,
+        _ => false,
+    };
+
+    /// <summary>
+    /// The stage band of a site returning <c>ThoughtState.ActiveAtStage(local)</c> (#3324): the local's traced value must be
+    /// a nested conditional of integer stages over <c>input &lt; c</c> comparisons of one input (in any of its strict
+    /// forms), and every if-guarded modifier a numeric literal. Null for any other shape; it is never guessed.
+    /// </summary>
+    public StageBand? StageBandAt(SyntaxNode member, ExpressionSyntax leaf)
+    {
+        if (leaf is not InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax { Name.Identifier.Text: "ActiveAtStage" } } inv
+            || inv.ArgumentList.Arguments is not [{ Expression: IdentifierNameSyntax id }]
+            || Local(member, id.Identifier.Text, id.SpanStart) is not { Kind: "local" } local
+            || Trace(member, id.Identifier.Text, local, id.SpanStart) is not { } traced)
+        {
+            return null;
+        }
+        var mods = new List<(Expr When, double Delta)>();
+        foreach (var (when, delta) in traced.Mods)
+        {
+            if (delta is not Lit l || Number(l.Text) is not { } d)
+            {
+                return null;
+            }
+            mods.Add((when, d));
+        }
+        var cuts = new SortedSet<double>();
+        Expr? input = null;
+        if (!Cuts(traced.Base, cuts, ref input) || input is null)
+        {
+            return null;
+        }
+        var bounds = cuts.ToList();
+        var stages = new List<int>();
+        for (var j = 0; j <= bounds.Count; j++)
+        {
+            // On the interval [bounds[j-1], bounds[j]), input < c holds exactly for c >= bounds[j].
+            var upper = j < bounds.Count ? bounds[j] : double.PositiveInfinity;
+            if (StageOn(traced.Base, upper) is not { } s)
+            {
+                return null;
+            }
+            stages.Add(s);
+        }
+        var thresholds = new List<(double Below, int Stage)>();
+        for (var j = 0; j < bounds.Count; j++)
+        {
+            if (stages[j] != stages[j + 1])
+            {
+                thresholds.Add((bounds[j], stages[j]));
+            }
+        }
+        return new StageBand(input, thresholds, stages[^1], mods);
+    }
+
+    /// <summary>The comparison as (input, cut, input &lt; cut holds), for the strict forms <c>x &lt; c</c>, <c>x &gt;= c</c>, <c>c &gt; x</c>, <c>c &lt;= x</c> and their negations.</summary>
+    private static (Expr Input, double Cut, bool Less)? Compare(Expr cond) => cond switch
+    {
+        Op { Name: "not", Args: [var inner] } => Compare(inner) is { } c ? (c.Input, c.Cut, !c.Less) : null,
+        Op { Name: "<" or ">=", Args: [var x, Lit l] } when Number(l.Text) is { } n => (x, n, ((Op)cond).Name == "<"),
+        Op { Name: ">" or "<=", Args: [Lit l, var x] } when Number(l.Text) is { } n => (x, n, ((Op)cond).Name == ">"),
+        _ => null,
+    };
+
+    private static bool Cuts(Expr e, SortedSet<double> cuts, ref Expr? input)
+    {
+        switch (e)
+        {
+            case Lit l when int.TryParse(l.Text, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _):
+                return true;
+            case Op { Name: "cond", Args: [var cond, var yes, var no] } when Compare(cond) is { } c:
+                if (input is not null && Exprs.Render(input) != Exprs.Render(c.Input))
+                {
+                    return false;
+                }
+                input = c.Input;
+                cuts.Add(c.Cut);
+                return Cuts(yes, cuts, ref input) && Cuts(no, cuts, ref input);
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>The stage the conditional gives on the interval below <paramref name="upper"/> and at or above the cut before it.</summary>
+    private static int? StageOn(Expr e, double upper) => e switch
+    {
+        Lit l => int.Parse(l.Text, System.Globalization.CultureInfo.InvariantCulture),
+        Op { Args: [var cond, var yes, var no] } => Compare(cond)!.Value is var c && (c.Cut >= upper) == c.Less ? StageOn(yes, upper) : StageOn(no, upper),
+        _ => null,
+    };
 
     private static bool Scoped(SyntaxNode decl, int at)
     {

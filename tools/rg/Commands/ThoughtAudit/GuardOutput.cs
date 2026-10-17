@@ -102,7 +102,7 @@ internal static class GuardOutput
     }
 
     /// <summary>The schema of the shipped card file; <c>MechanicCards</c> in Brain.Policy rejects any other.</summary>
-    public const int ShippedSchema = 1;
+    public const int ShippedSchema = 2;
 
     private static readonly string[] ShippedNumbers = ["durationDays", "stackLimit", "stackedEffectMultiplier"];
 
@@ -282,6 +282,33 @@ internal static class GuardOutput
             WriteFieldWriters(w, f, shipped);
         }
         w.WriteEndArray();
+        if (s.Stage is { } band)
+        {
+            w.WriteStartObject("stage");
+            w.WritePropertyName("input");
+            WriteExpr(w, band.Input);
+            w.WriteStartArray("thresholds");
+            foreach (var (below, stage) in band.Thresholds)
+            {
+                w.WriteStartObject();
+                w.WriteNumber("below", below);
+                w.WriteNumber("stage", stage);
+                w.WriteEndObject();
+            }
+            w.WriteEndArray();
+            w.WriteNumber("else", band.Else);
+            w.WriteStartArray("modifiers");
+            foreach (var (when, delta) in band.Modifiers)
+            {
+                w.WriteStartObject();
+                w.WritePropertyName("when");
+                WriteExpr(w, when);
+                w.WriteNumber("delta", delta);
+                w.WriteEndObject();
+            }
+            w.WriteEndArray();
+            w.WriteEndObject();
+        }
         w.WriteEndObject();
     }
 

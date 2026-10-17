@@ -37,10 +37,13 @@ internal static class ThoughtAuditCommand
 
     private static readonly string[] DefaultVerified = ["brain", "src", "RimGovernor.Brain.Policy", "mechanic_cards_verified.tsv"];
 
-    private static readonly string[] DefaultBenchmarks = ["KnowBuriedInSarcophagus", "AteWithoutTable", "EnvironmentDark", "DeadMansApparel"];
+    private static readonly string[] DefaultBenchmarks = ["KnowBuriedInSarcophagus", "AteWithoutTable", "EnvironmentDark", "DeadMansApparel", "EnvironmentCold", "EnvironmentHot"];
 
-    /// <summary>The defs whose cards ship in mechanic_cards.json: those with a live consumer (#3217: the stranger sarcophagus, now unreachable, and the Gate 1 lever, dead man's apparel, #3281).</summary>
-    private static readonly string[] LiveConsumers = ["KnowBuriedInSarcophagus", "DeadMansApparel"];
+    /// <summary>
+    /// The defs whose cards ship in mechanic_cards.json: those with a live consumer (#3217: the stranger sarcophagus, now
+    /// unreachable, the Gate 1 lever, dead man's apparel, #3281, and the Gate 2 temperature stage bands, #3324).
+    /// </summary>
+    private static readonly string[] LiveConsumers = ["KnowBuriedInSarcophagus", "DeadMansApparel", "EnvironmentCold", "EnvironmentHot"];
 
     public static async Task<int> RunAsync(string[] args, CancellationToken ct)
     {

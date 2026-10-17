@@ -33,6 +33,20 @@ syntax only, and for every vanilla ThoughtDef writes a draft card:
   is an unknown `virtual-call`. A local in `where` is an unknown `loop-local`. The pattern is generic: besides
   `DeadMansApparel` it matches `WearingColor_Favorite` and `WearingColor_Ideo` (still `unknown`: external casts and
   loop-locals); no def changed status.
+- **Local tracing (#3324).** A declared local reads as its value: the initializer, replaced by a later plain
+  assignment and shifted by a later `+=`, `-=`, `++` or `--`, where the write ends in an earlier statement of a block
+  enclosing the read and is reached through blocks only (a plain assignment) or blocks and `if`/`else` (a compound
+  assignment, which becomes `+ cond(when, delta, 0)`). Syntax only. A local with no initializer (a `foreach` variable,
+  a pattern or `out` variable), a write in a loop or lambda the declaration is outside, a `ref`/`out` or tuple write,
+  any other write shape, a goto in the member, or a read in a lambda the declaration is outside (the initializer ran
+  at capture time) leaves it untraced, and a guard leaf that is an untraced local (kind `local`) is an unknown
+  `untraced-local`. A member chain rooted at an untraced local (`toil.actor.Map`) is still a resolved symbol.
+  `x.GetStatValue(StatDefOf.S)` with post-processing is one symbol, kind `stat`, decl `StatDefOf.S`.
+- **Stage bands (#3324).** A situational site returning `ThoughtState.ActiveAtStage(local)` whose traced value is a
+  nested conditional of integer stages over `input < c` comparisons of one input (or the equivalent `>=`, `>`, `<=`
+  forms with the literal on the matching side, and their negations), with literal if-guarded modifiers, carries a
+  `stage` block: `input`, ascending `thresholds` (`{below, stage}`, adjacent equal stages merged), `else` and
+  `modifiers` (`{when, delta}`). Any other shape gets no block, never a guessed one.
 - **Writers.** For each guard that ends in a field (or auto-property): every assignment, `++`/`--`, `ref`/`out`
   argument, serialization load and field initializer in the sources, with the written value, the guards on that
   writer's own path, and a `resetWriters` count; the fields a writer copies from are followed one level. A computed
@@ -42,7 +56,7 @@ syntax only, and for every vanilla ThoughtDef writes a draft card:
 - **Unknown, never guessed.** Anything the syntax cannot resolve becomes an `unknown` leaf inside the guard with a
   reason: `external-type` (not declared in `Assembly-CSharp`: BCL, Unity), `unresolved-symbol`, `unresolved-type`,
   `virtual-call` (a `virtual`/`abstract`/`override` member or an interface member, other than a `base.` call),
-  `indexer`, `construction`, `lambda`, `switch`, `pattern`, `state-expression`, `depth-limit` and
+  `indexer`, `construction`, `lambda`, `switch`, `pattern`, `state-expression`, `untraced-local`, `depth-limit` and
   `unsupported-syntax:<kind>`. A def with no code site is `xml-granted` or `no-code-or-xml-reference`; a site with no
   guard is `conditions-in-callers` (it has callers) or `event-driven` (it has none).
 
@@ -79,7 +93,7 @@ verifies it (`DeadMansApparel`, #3283).
 
 | File | Content |
 | --- | --- |
-| [`mechanic-card-drafts.json`](mechanic-card-drafts.json) | Coverage summary plus the draft cards for `KnowBuriedInSarcophagus`, `AteWithoutTable`, `EnvironmentDark` and `DeadMansApparel` (`-only` picks others). |
+| [`mechanic-card-drafts.json`](mechanic-card-drafts.json) | Coverage summary plus the draft cards for `KnowBuriedInSarcophagus`, `AteWithoutTable`, `EnvironmentDark`, `DeadMansApparel`, `EnvironmentCold` and `EnvironmentHot` (`-only` picks others). |
 | [`mechanic-card-coverage.tsv`](mechanic-card-coverage.tsv) | One line per ThoughtDef: kind, owner (read from `thought_triggers.tsv`), status, counts and primary unknown reason. |
 | [`mechanic_cards.json`](../../brain/src/RimGovernor.Brain.Policy/mechanic_cards.json) | The shipped cards (#3220): live-consumer defs only, typed XML numbers, status `extracted` or `verified` (`-shipped` overrides the path). |
 
@@ -90,35 +104,42 @@ two runs). Regenerate with `RimGovernor.cmd thoughtaudit -guards`.
 
 | | Defs | Share |
 | --- | ---: | ---: |
-| resolved | 135 | 14.6% |
-| partial | 293 | 31.7% |
-| unknown | 494 | 53.5% |
+| resolved | 113 | 12.2% |
+| partial | 304 | 32.9% |
+| unknown | 505 | 54.7% |
 | unreachable | 1 | 0.1% |
 
-By kind: memory 98 resolved / 37 partial / 443 unknown / 1 unreachable (579 defs); situational 37 / 256 / 51 / 0 (344
+By kind: memory 77 resolved / 51 partial / 450 unknown / 1 unreachable (579 defs); situational 36 / 253 / 55 / 0 (344
 defs). The unreachable check (#3243) moved one def, `KnowBuriedInSarcophagus`, from `resolved`; no other def and no
 other owned lever changed. Only one other guard met the check's field conditions apart from its writers:
 `BuildingProperties.bed_crib` (`ThoughtWorker_CribQuality`), which no code writes (the Biotech XML sets it), so it is
 excluded. Over the
-749 sites found, 1665 of 2408 guards (69.1%) resolved.
+749 sites found, 1552 of 2408 guards (64.5%) resolved.
+
+Local tracing (#3324) moved 27 defs, all down: 22 from `resolved` (135 to 113) and 5 from `partial` to `unknown`.
+Before it a bare local was a resolved leaf whatever it held. Now 13 such defs hold an untraced local (for example
+`SleptInCold`, whose comfort bound is summed over genes in a loop), and 14 a local whose traced initializer is itself
+unknown (`indexer`, `virtual-call`, `construction`, `?.`; for example the `Trial*` defs). `EnvironmentCold` and
+`EnvironmentHot` stay `resolved`, now through their traced input, and the 16 owned defs keep their statuses.
 
 Dominant reasons a def is not `resolved` (the most frequent unknown reason of the def):
 
 | Reason | Defs |
 | --- | ---: |
 | `no-code-or-xml-reference` (memory def never named in the code or in other def XML) | 266 |
-| `external-type` (BCL or Unity type: `HashSet` 144 leaves, `List` 61) | 175 |
+| `external-type` (BCL or Unity type: `HashSet` 142 leaves, `List` 53) | 175 |
 | `xml-granted` (named only in other def XML) | 156 |
-| `state-expression` (worker returns a value, not a condition) | 65 |
-| `unsupported-syntax` (`?.` 49 leaves, `switch` expressions 12, `out var` 7) | 54 |
-| `conditions-in-callers` | 26 |
-| `indexer` | 14 |
-| `virtual-call` | 9 |
-| `pattern` 6, `unresolved-symbol` 5, `switch` 4, `event-driven` 3, `lambda` 3, `depth-limit` 1 | 22 |
+| `unsupported-syntax` (`?.` 69 leaves, `switch` expressions 12, `out var` 10) | 60 |
+| `state-expression` (worker returns a value, not a condition) | 56 |
+| `conditions-in-callers` | 24 |
+| `untraced-local` | 20 |
+| `indexer` | 18 |
+| `virtual-call` | 11 |
+| `pattern` 6, `construction` 4, `switch` 4, `event-driven` 3, `lambda` 3, `unresolved-symbol` 3 | 23 |
 
 The two biggest blocks are not a parser limit: 422 memory defs have no grant in the code at all (156 appear in other
-def XML, 266 nowhere; the 266 were not investigated). The 743 unresolved guards hold 758 unknown leaves: `external-type` 224,
-`state-expression` 200, `virtual-call` 153, `unsupported-syntax` 69, `indexer` 63 (the remaining 49 are smaller). `?.` and `switch` expressions are
+def XML, 266 nowhere; the 266 were not investigated). The 856 unresolved guards hold 913 unknown leaves: `external-type` 226,
+`state-expression` 200, `virtual-call` 160, `untraced-local` 98, `unsupported-syntax` 92, `indexer` 79 (the remaining 58 are smaller). `?.` and `switch` expressions are
 cheap to model; `external-type` and `virtual-call` are not and stay unknown by design.
 
 ### Benchmarks
@@ -143,8 +164,9 @@ Gate 1 negative benchmark.
 Two further owned-lever thoughts from the `thought_triggers.tsv` owner column resolve their guards:
 
 - `AteWithoutTable` (owner rooms/comfort; `resolved`): `Toils_Ingest.FinalizeIngest`, eight guards including
-  `thing.def.ingestible.chairSearchRadius > 10f`, `!(ingester.Position + ingester.Rotation.FacingCell).HasEatSurface(actor.Map)`,
-  `ingester.GetPosture() == PawnPosture.Standing`, `!ingester.IsWildMan()` and `thing.def.ingestible.tableDesired`, plus
+  `toil.actor.jobs.curJob.GetTarget(ingestibleInd).Thing.def.ingestible.chairSearchRadius > 10f` (the delegate's locals
+  traced; the captured `toil` is not), `!(ingester.Position + ingester.Rotation.FacingCell).HasEatSurface(toil.actor.Map)`,
+  `ingester.GetPosture() == PawnPosture.Standing`, `!ingester.IsWildMan()` and the `tableDesired` flag, plus
   the deferred-delegate note.
 - `EnvironmentDark` (owner rooms/lighting; `resolved`): `ThoughtWorker_Dark.CurrentStateInternal` returns
   `p.Awake() && p.needs.mood.recentMemory.TicksSinceLastLight > 240 && !PawnUtility.IsBiologicallyOrArtificiallyBlind(p) && (p.Ideo == null || !p.Ideo.IdeoPrefersDarkness())`.
@@ -156,6 +178,14 @@ The Gate 1 lever (#3217 re-grooming), `DeadMansApparel` (owner MaintainEquipment
 `count - 1`. Stages -5/-8/-11/-14; nullifiers `Bloodlust` and `Inhumanized` (Anomaly). Native clamps stage 4 to the last
 stage (`ThoughtState.StageIndexFor`). The native probe `apparel/dead_mans` (#3283) observed -5/-8/-11/-14 for one to four tainted
 items, -14 (stage 3, the clamp) for five, and no offset with Bloodlust, so the card ships `verified`.
+
+The Gate 2 temperature cards (#3324), `EnvironmentCold` and `EnvironmentHot` (owner shelter/temperature; `resolved`,
+shipped `extracted`): `ThoughtWorker_Cold.CurrentStateInternal` has one site whose stage band has input
+`p.GetStatValue(StatDefOf.ComfyTemperatureMin) - p.AmbientTemperature` (Hot: `p.AmbientTemperature` minus
+`ComfyTemperatureMax`), thresholds below 10 stage 0, below 20 stage 1, below 30 stage 2, else 3, and a -2 modifier when
+`ModsConfig.IdeologyActive`, `p.Ideo != null` and `p.Ideo.HasPrecept(PreceptDefOf.Temperature_Tough)`. Its guards are the
+input above 0 and the shifted stage at least 0. Stages -4/-8/-12/-16. Before #3324 both were `resolved` over the bare
+locals `num` and `num2`.
 
 Across the 16 owned defs, 9 are `resolved` (also `SleptInBarracks`, `SleptOutside`, `EnvironmentCold`,
 `EnvironmentHot`, `DeadMansApparel`, `BabySick`, `Sick`), 6 `partial` and 1 `unknown`. All three benchmark cards were

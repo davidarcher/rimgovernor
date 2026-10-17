@@ -33,6 +33,25 @@ internal static class GuardTableCheck
         {
             Collect(decls, site.Guards);
             Collect(decls, site.Writers);
+            if (site.Stage is { } band)
+            {
+                // A stage band's symbols (#3324) are checked against the sources even when no table row binds them.
+                var bandDecls = new HashSet<string>(StringComparer.Ordinal);
+                Collect(bandDecls, band.Input);
+                foreach (var m in band.Modifiers)
+                {
+                    Collect(bandDecls, m.When);
+                }
+                foreach (var decl in bandDecls.Order(StringComparer.Ordinal))
+                {
+                    var dot = decl.LastIndexOf('.');
+                    if (index is not null && (dot <= 0 || index.Find(decl[..dot], decl[(dot + 1)..], out _).Count == 0))
+                    {
+                        problems.Add($"stage symbol {decl} of site {site.Site} is not declared in the decompiled sources");
+                    }
+                }
+                decls.UnionWith(bandDecls);
+            }
         }
         foreach (var decl in bindings)
         {

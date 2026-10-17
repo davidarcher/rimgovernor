@@ -10,8 +10,8 @@ internal sealed record Writer(string Method, string Hash, string Kind, Expr Valu
 /// <summary>A guard field with every writer found in the sources; Following holds the fields its writers copy from; Derived a computed property's inputs.</summary>
 internal sealed record FieldWriters(string Field, string Kind, int Total, IReadOnlyList<Writer> Writers, IReadOnlyList<FieldWriters> Following, IReadOnlyList<string> Derived);
 
-/// <summary>A place that grants a thought, with the guards on its path inside the granting member.</summary>
-internal sealed record Site(string Name, string File, string Hash, string Access, int Callers, IReadOnlyList<Guard> Guards, IReadOnlyList<FieldWriters> Writers);
+/// <summary>A place that grants a thought, with the guards on its path inside the granting member and, when it returns a banded stage (#3324), the band.</summary>
+internal sealed record Site(string Name, string File, string Hash, string Access, int Callers, IReadOnlyList<Guard> Guards, IReadOnlyList<FieldWriters> Writers, StageBand? Stage = null);
 
 /// <summary>A draft mechanic card for one ThoughtDef: XML data, grant sites with guards and writers, and the coverage status.</summary>
 internal sealed record Card(string Def, string Kind, string Owner, ThoughtDef Data, string Status, IReadOnlyList<Site> Sites, IReadOnlyList<string> Reasons);
@@ -198,7 +198,7 @@ internal sealed class GuardCards
                 {
                     var guards = analysis.GuardsAt(leaf).ToList();
                     guards.AddRange(ReturnValueGuard(md, leaf));
-                    sites.Add(MakeSite(md, CountGuards(md, leaf, guards, loops), reasons));
+                    sites.Add(MakeSite(md, CountGuards(md, leaf, guards, loops), reasons, analysis.StageBandAt(md, leaf)));
                 }
             }
             break;
@@ -269,8 +269,11 @@ internal sealed class GuardCards
         return [new Guard(boolean || e is Unknown ? e : new Unknown("state-expression", Exprs.Render(e)), "return-value")];
     }
 
-    private Site MakeSite(SyntaxNode member, IReadOnlyList<Guard> guards, List<string> reasons)
+    /// <summary>The site; a local the analysis left untraced becomes an unknown leaf (#3324), so its guard never counts as resolved.</summary>
+    private Site MakeSite(SyntaxNode member, IReadOnlyList<Guard> guards, List<string> reasons, StageBand? stage = null)
     {
+        guards = [.. guards.Select(g => Exprs.Untraced(g))];
+        stage = stage is null ? null : stage with { Input = Exprs.Untraced(stage.Input), Modifiers = [.. stage.Modifiers.Select(m => (Exprs.Untraced(m.When), m.Delta))] };
         var name = GuardAnalysis.NameOf(member);
         var simple = name[(name.LastIndexOf('.') + 1)..];
         var count = callers.GetValueOrDefault(simple)?.Count ?? 0;
@@ -295,7 +298,7 @@ internal sealed class GuardCards
             }
         }
         guards = [.. guards.Select(g => UnreachableReason(member, simple, g, fields) is { } why ? g with { Unreachable = why } : g)];
-        return new Site(name, file, GuardAnalysis.Hash(member), mods, count, guards, fields);
+        return new Site(name, file, GuardAnalysis.Hash(member), mods, count, guards, fields, stage);
     }
 
     /// <summary>
@@ -373,7 +376,7 @@ internal sealed class GuardCards
             }
             total++;
             var m = GuardAnalysis.MemberOf(node);
-            writers.Add(new Writer(GuardAnalysis.NameOf(m), GuardAnalysis.Hash(m), WriteKind(node), ValueOf(m, node), analysis.GuardsAt(node), unresolved, m is MethodDeclarationSyntax));
+            writers.Add(new Writer(GuardAnalysis.NameOf(m), GuardAnalysis.Hash(m), WriteKind(node), ValueOf(m, node), [.. analysis.GuardsAt(node).Select(g => Exprs.Untraced(g))], unresolved, m is MethodDeclarationSyntax));
         }
         writers = [.. writers.OrderBy(w => w.Method, StringComparer.Ordinal).ThenBy(w => w.Kind, StringComparer.Ordinal).Take(MaxWriters)];
         var following = new List<FieldWriters>();

@@ -98,6 +98,8 @@ public sealed class MechanicCardGuardsTests
 
         var problems = GuardTableCheck.Problems(MechanicCards.ByDef, ["Corpse.everBuriedInSarcophagus", "RaceProperties.Humanlike"], [], index);
 
-        Assert.Equal(["binding RaceProperties.Humanlike is not declared in the decompiled sources"], problems);
+        Assert.Equal(["binding RaceProperties.Humanlike is not declared in the decompiled sources"], problems.Where(p => p.StartsWith("binding", StringComparison.Ordinal)));
+        // #3324: a stage band's symbols are checked against the sources too.
+        Assert.Contains("stage symbol Ideo.HasPrecept of site ThoughtWorker_Cold.CurrentStateInternal is not declared in the decompiled sources", problems);
     }
 }

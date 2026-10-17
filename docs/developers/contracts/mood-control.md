@@ -133,7 +133,8 @@ expectations reach the review only through the pawn's `HighExpectations` flag.
 #### Mechanic cards
 
 `brain/src/RimGovernor.Brain.Policy/mechanic_cards.json` holds a mechanic card for each ThoughtDef with a live
-consumer (an allowlist in `ThoughtAuditCommand`; today `KnowBuriedInSarcophagus` and the Gate 1 lever `DeadMansApparel`, epic #3217). `RimGovernor.cmd
+consumer (an allowlist in `ThoughtAuditCommand`; today `KnowBuriedInSarcophagus`, the Gate 1 lever `DeadMansApparel`
+and the Gate 2 temperature cards `EnvironmentCold` and `EnvironmentHot`, epic #3217). `RimGovernor.cmd
 thoughtaudit -guards` regenerates it with the [spike's](../mechanic-card-spike.md) syntax-only extraction; the output is
 byte-identical for one decompiled tree. A card carries the def, its kind, the XML fields (`durationDays`, `stackLimit`,
 `stackedEffectMultiplier`, the `nullifyingTraits` and `nullifyingHediffs` lists, stages with `baseMoodEffect`), and each granting site (member, access,
@@ -142,7 +143,17 @@ guards read (method and `bodyHash`, write kind, value, guards, `resetWriters`, `
 A count guard (origin `count`, #3281) also carries `count`: `over` (the collection a worker loop iterates), `where`
 (the per-element predicate, resolved through the def's `workerClass` override named by `via`) and `stage` (the stage
 index the site returns, over the count); its expression compares the count symbol with literals. Unresolved leaves
-stay `unknown` with their reason. Modded defs get no cards.
+stay `unknown` with their reason; a local the extraction could not trace to its value is `untraced-local`. Modded
+defs get no cards.
+
+A site that returns `ThoughtState.ActiveAtStage(local)` over a banded local (schema 2, #3324) also carries `stage`:
+`input` (the traced expression, for example the stat symbol `p.GetStatValue(StatDefOf.ComfyTemperatureMin)`, kind
+`stat`, minus `Thing.AmbientTemperature`), ascending `thresholds` of `{below, stage}`, the `else` stage and
+`modifiers` of `{when, delta}` (an if-guarded `+=`/`-=` on the local). The stage is the first threshold the input is
+under, else `else`, plus each delta whose `when` holds; the site's guards still decide whether the thought is active
+(for the temperature cards, input above 0 and final stage at least 0). `EnvironmentCold` and `EnvironmentHot` carry
+thresholds 10/20/30, else 3, and -2 when Ideology is active and the pawn's ideo has `Temperature_Tough`; they ship
+`extracted` until #3328 probes them.
 
 `MechanicCards.ByDef` embeds the file and parses it on first use into `MechanicCard` records. A malformed file, an
 unknown or missing field, an unknown status or a schema other than `MechanicCards.Schema` throws; it never yields an
@@ -168,7 +179,8 @@ consumer read. A `SiteActions` row with the constraint `disallow-counted`
 (`MechanicCardGuards.DisallowCounted`) is a prevention row: its action disallows the items the site's count guard
 counts, which makes the count 0. The one row maps `ThoughtWorker_ApparelThought.CurrentStateInternal` (the
 `DeadMansApparel` sites) to `ApparelPolicy`; the tool check requires every guard of such a site to be a count. `thoughtaudit -guards` fails when a table row names a decl or site
-absent from the shipped cards or the decompiled sources (`GuardTableCheck`, also run over the embedded cards by a test).
+absent from the shipped cards or the decompiled sources, or when a stage band names a symbol the sources do not
+declare (`GuardTableCheck`, also run over the embedded cards by a test).
 
 `MechanicCardGuards.CardStageOffset` (pure, #3281) prices a count card for one pawn (`CardPawnFacts`: observed trait
 and hediff def names, whether Anomaly is active) and one outfit (its `GearOption` items). Each item is counted when the

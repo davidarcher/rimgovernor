@@ -41,8 +41,24 @@ public sealed record MechanicCardXml(IReadOnlyList<string> NullifyingTraits, IRe
 
 public sealed record MechanicCardStage(double? BaseMoodEffect = null);
 
-/// <summary>A granting member, with its access, caller count and drift hash (<see cref="BodyHash"/>, of the member's normalized syntax).</summary>
-public sealed record MechanicCardSite(string Site, string BodyHash, string Access, int Callers, IReadOnlyList<MechanicCardGuard> Guards, IReadOnlyList<MechanicCardField> Writers);
+/// <summary>
+/// A granting member, with its access, caller count and drift hash (<see cref="BodyHash"/>, of the member's normalized syntax).
+/// <see cref="Stage"/> is set when the site returns a banded stage (#3324).
+/// </summary>
+public sealed record MechanicCardSite(string Site, string BodyHash, string Access, int Callers, IReadOnlyList<MechanicCardGuard> Guards, IReadOnlyList<MechanicCardField> Writers, MechanicCardStageBand? Stage = null);
+
+/// <summary>
+/// The stage a site returns over a traced input (#3324): the <see cref="MechanicCardThreshold.Stage"/> of the first of the
+/// ascending <see cref="Thresholds"/> whose <see cref="MechanicCardThreshold.Below"/> the <see cref="Input"/> is under, else
+/// <see cref="Else"/>; then each modifier's <see cref="MechanicCardModifier.Delta"/> whose condition holds is added. The site's
+/// guards still say when the thought is active at all (for example a negative stage is inactive).
+/// </summary>
+public sealed record MechanicCardStageBand(MechanicCardExpr Input, IReadOnlyList<MechanicCardThreshold> Thresholds, int Else, IReadOnlyList<MechanicCardModifier> Modifiers);
+
+public sealed record MechanicCardThreshold(double Below, int Stage);
+
+/// <summary>A stage shift: <see cref="Delta"/> applies when <see cref="When"/> holds.</summary>
+public sealed record MechanicCardModifier(MechanicCardExpr When, double Delta);
 
 /// <summary>
 /// One condition on the path to a site or writer; <see cref="Origin"/> is the syntax it came from (early-exit, if, foreach, ...).
@@ -82,7 +98,8 @@ public sealed record MechanicCardWriter(string Method, string BodyHash, string W
 /// <summary>The embedded card catalog, loaded on first use. A malformed or unknown-schema file throws instead of yielding an empty catalog.</summary>
 public static class MechanicCards
 {
-    public const int Schema = 1;
+    /// <summary>The card file schema; 2 adds the site stage band (#3324).</summary>
+    public const int Schema = 2;
 
     private static readonly JsonSerializerOptions Options = new()
     {
