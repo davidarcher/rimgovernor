@@ -29,9 +29,6 @@ Contracts|Mirror.CombatPawn.ShieldBroken
 Contracts|Mirror.CombatPawn.StanceTicksLeft
 Contracts|Mirror.CombatPawn.WeaponCooldownTicks
 Contracts|Mirror.CombatPawn.WeaponWarmupTicks
-Contracts|Mirror.FieldArrayForm.Indexes
-Contracts|Mirror.FieldArrayForm.Numbers
-Contracts|Mirror.FieldArrayForm.Sparse
 Contracts|Observations.AnimalState.FertileAdult
 Contracts|Observations.AnimalState.MilkFullness
 Contracts|Observations.AnimalState.ParentIds
@@ -58,7 +55,6 @@ Contracts|Observations.BuildingState.InstallOfDefName
 Contracts|Observations.BuildingState.ThermalSides
 Contracts|Observations.BuildingsSnapshot.Completeness
 Contracts|Observations.BuildingsSnapshot.PowerNetworks
-Contracts|Observations.BundleSnapshot.KeyframeSeq
 Contracts|Observations.BundleSnapshot.ResourceSources
 Contracts|Observations.BundleSnapshot.Watermarks
 Contracts|Observations.CaravanAssembly.GatheringItems
@@ -567,10 +563,6 @@ Policy|BillPurpose.Value
 Policy|BillSelection.Token
 Policy|BudgetVerdict.Class
 Policy|BuildingAnomaly.Study
-Policy|BuildingState.Burning
-Policy|BuildingState.HitPoints
-Policy|BuildingState.Needed
-Policy|BuildingState.Reserved
 Policy|ButcherBench.Id
 Policy|CapturePatientFacts.Dead
 Policy|CapturePatientFacts.Downed
@@ -685,8 +677,6 @@ Policy|CoreSiteWork.Help
 Policy|CoreSiteWork.Quest
 Policy|CorpseHandling.InStorage
 Policy|CorpseLarderMethod.Cell
-Policy|CorpseState.Class
-Policy|CorpseState.Rot
 Policy|CoupleBed.Partner
 Policy|CoupleBed.Pawn
 Policy|CoverLine.Hostile
@@ -1050,8 +1040,6 @@ Policy|LightingProposal.Bench
 Policy|LightingProposal.Target
 Policy|LightingStyle.Scope
 Policy|LostEffect.Factor
-Policy|Material.Count
-Policy|Material.Def
 Policy|MaterialInstall.Material
 Policy|MealStore.Anchor
 Policy|MealStore.Avoid
@@ -1185,7 +1173,6 @@ Policy|PlantGrower.Network
 Policy|PlantGrower.PowerW
 Policy|PlantGrower.Powered
 Policy|PlantGrower.Room
-Policy|PlantState.Growth
 Policy|PolicyFunctions.CareOp.Part
 Policy|PolicyFunctions.CareOp.Pawn
 Policy|PolicyFunctions.CareOp.Recipe
@@ -1439,9 +1426,6 @@ Policy|TemperatureProposal.Room
 Policy|TendDoctorFacts.ReachesPatient
 Policy|TendDoctorFacts.SnapshotToken
 Policy|TendPatientFacts.SnapshotToken
-Policy|Thing.Corpse
-Policy|Thing.FilthThickness
-Policy|Thing.ItemDeterioration
 Policy|ThoughtFacts.Def
 Policy|ThoughtFacts.Dependency
 Policy|ThoughtFacts.Owner

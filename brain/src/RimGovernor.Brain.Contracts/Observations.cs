@@ -2823,11 +2823,11 @@ public sealed record RoomState
     public EquatableArray<RoomDoor> Doors { get; init; }
 
     /// <summary>
-    /// The room's key in the whole-map cell grid (CellGrid.room): the
-    /// row-major map index of its first unfogged cell; its cells are the grid
-    /// cells carrying it. Absent when every cell is fogged.
+    /// The room's key in the cell grid (CellGrid.Room): the row-major map
+    /// index of its first unfogged cell; its cells are the grid cells
+    /// carrying it. Absent when every cell is fogged.
     /// </summary>
-    public string? GridRoom { get; init; }
+    public int? GridRoom { get; init; }
 
     public bool? Burning { get; init; }
 
@@ -3104,11 +3104,8 @@ public sealed record ThingsSnapshot
 
 /// <summary>
 /// One observations_get_cells read: the map's dimensions and the
-/// requested rectangle as a CellGrid keyframe (mirror.proto's arrays and
-/// sentinels: a fogged cell is not held; glow is artificial light only).
-/// room keys a native room by the whole-map row-major index of its first
-/// held cell inside the read. Things, terrain and foundation affordances ride
-/// the grid's thing list and tile columns.
+/// requested rectangle as a CellGrid, the arrays the snapshot frame's
+/// grid carries.
 /// </summary>
 public sealed record CellsSnapshot
 {
@@ -10241,19 +10238,10 @@ public sealed record BundleSnapshot
     public ThingsSnapshot? Things { get; init; }
 
     /// <summary>
-    /// The whole map as a cell grid, every frame: a keyframe on an
-    /// open or keyframe request, on a map change and at least every 30
-    /// seconds, else a delta against that keyframe. keyframe_seq numbers
-    /// keyframes since the stream opened; a delta whose keyframe_seq is not
-    /// the keyframe the reader holds follows a keyframe it missed: it asks
-    /// for a keyframe. sky_glow is the map's sky light (0..1), which grid
-    /// glow leaves out.
+    /// The whole map as a cell grid, read on the game thread with the rest
+    /// of the frame; absent when its read failed.
     /// </summary>
     public Mirror.CellGrid? Grid { get; init; }
-
-    public ulong? KeyframeSeq { get; init; }
-
-    public double? SkyGlow { get; init; }
 
     /// <summary>
     /// The player faction's primary ideoligion as it stands: the

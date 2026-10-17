@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
+using RimGovernor.Brain.Policy;
 using DomainWire = RimGovernor.Brain.Domain.Wire;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -130,22 +130,22 @@ internal static class StorageYardShelf
             _ = await s.AdvanceAsync(HaulStep, null, cancellationToken).ConfigureAwait(false);
         }
 
-        var (grid, _) = await CellsAsync(s, "yard-shelf-census", cx, cz, cancellationToken).ConfigureAwait(false);
+        var grid = await CellsAsync(s, "yard-shelf-census", cx, cz, cancellationToken).ConfigureAwait(false);
         var stacks = 0;
         foreach (var at in shelfCells)
         {
             var cell = grid.Cells().FirstOrDefault(c => c.Cell == at) ?? throw new AcceptanceException($"the cells read holds no shelf cell {at}");
-            if (cell.Roofed != false)
+            if (cell.Roofed)
             {
-                throw new AcceptanceException($"shelf cell {at} is not read as unroofed: roofed={cell.Roofed?.ToString() ?? "unknown"}");
+                throw new AcceptanceException($"shelf cell {at} is not read as unroofed");
             }
 
             if (cell.StorageCapacity != 3)
             {
-                throw new AcceptanceException($"shelf cell {at} reads capacity {cell.StorageCapacity?.ToString(CultureInfo.InvariantCulture) ?? "unknown"} stacks, want 3");
+                throw new AcceptanceException($"shelf cell {at} reads capacity {cell.StorageCapacity.ToString(CultureInfo.InvariantCulture)} stacks, want 3");
             }
 
-            stacks += cell.StorageStacks ?? throw new AcceptanceException($"shelf cell {at} reads an unknown stack count");
+            stacks += cell.StorageStacks;
         }
 
         s.Report["shelf_stacks"] = stacks;
@@ -204,29 +204,15 @@ internal static class StorageYardShelf
     /// <summary>The loose and stored items around the lab center, by thing id, from one cells read.</summary>
     private static async Task<Dictionary<ulong, Item>> ReadAsync(ISession s, string label, int cx, int cz, CancellationToken cancellationToken)
     {
-        var (grid, wire) = await CellsAsync(s, label, cx, cz, cancellationToken).ConfigureAwait(false);
+        var grid = await CellsAsync(s, label, cx, cz, cancellationToken).ConfigureAwait(false);
         var items = new Dictionary<ulong, Item>();
-        var list = wire.Things ?? throw new AcceptanceException($"{label}: the cells read carries no thing list");
-        if (list.Offsets.Count != list.Cells.Count + 1)
+        var cells = grid.Cells();
+        var things = grid.Things();
+        for (var i = 0; i < cells.Count; i++)
         {
-            throw new AcceptanceException($"{label}: the cells read has malformed thing offsets");
-        }
-
-        for (var p = 0; p < list.Cells.Count; p++)
-        {
-            var index = (int)list.Cells[p];
-            var cell = new Cell(grid.X + (index % grid.Width), grid.Z + (index / grid.Width));
-            for (var t = (int)list.Offsets[p]; t < (int)list.Offsets[p + 1]; t++)
+            foreach (var thing in things[i].Where(t => t.Category == ThingCategory.Item))
             {
-                var thing = list.Things[t];
-                if (thing.Category != Mirror.ThingCategory.Item)
-                {
-                    continue;
-                }
-
-                var def = thing.Def == 0 || thing.Def > wire.Strings.Count ? "" : wire.Strings[(int)thing.Def - 1];
-                var forbidden = (thing.Flags & (uint)Mirror.ThingFlagBit.Forbidden) != 0;
-                items[thing.Id] = new Item(def, thing.Count, forbidden, thing.State?.Item?.Deterioration ?? 0f, cell);
+                items[thing.Id] = new Item(thing.Def, thing.Count, thing.Has(ThingMarks.Forbidden), thing.ItemDeterioration, cells[i].Cell);
             }
         }
 
@@ -234,7 +220,7 @@ internal static class StorageYardShelf
     }
 
     /// <summary>One <c>observations_get_cells</c> read of the square around the lab center that holds the case's things.</summary>
-    private static async Task<(MapCellGrid Grid, Mirror.CellGrid Wire)> CellsAsync(ISession s, string label, int cx, int cz, CancellationToken cancellationToken)
+    private static async Task<MapCellGrid> CellsAsync(ISession s, string label, int cx, int cz, CancellationToken cancellationToken)
     {
         var reply = await s.Harness.WireAsync(
             label,
@@ -250,7 +236,6 @@ internal static class StorageYardShelf
             },
             cancellationToken).ConfigureAwait(false);
         var (_, observed) = Harness.Outcome(reply, "observed");
-        var (snapshot, grid) = CellReads.DecodeCells(observed);
-        return (grid, snapshot.Grid ?? throw new AcceptanceException($"{label}: the cells read carries no grid"));
+        return CellReads.DecodeCells(observed).Grid;
     }
 }

@@ -42,49 +42,14 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
-        // The cell grid delta probe: reads the whole-map grid, spawns
-        // one player wall at cell, reads it again and encodes the second read
-        // against the first as the stream's delta, replying each carried
-        // array's form and entry count and both grids' encoded sizes.
-        [Tool("test/grid_delta", Description = "UNSAFE FOR MODEL EXECUTION. Disposable probe (#1551): spawn one player wood wall at cell (\"x,z\") between two whole-map grid reads and reply the delta's carried arrays. Test builds only.")]
-        public async Task<object> GridDelta(IRimBridgeContext ctx, CancellationToken cancellationToken, string cell)
-            => await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                var p = (cell ?? "").Split(',');
-                if (map == null || p.Length != 2 || !int.TryParse(p[0], out var x) || !int.TryParse(p[1], out var z) || !new IntVec3(x, 0, z).InBounds(map))
-                    return new { success = false, error = "Expected one in-bounds x,z cell on the current map" };
-                var at = new IntVec3(x, 0, z);
-                var before = CellGridEncoder.Read(map);
-                var wall = (Building)ThingMaker.MakeThing(ThingDefOf.Wall, ThingDefOf.WoodLog);
-                wall.SetFaction(Faction.OfPlayer);
-                GenSpawn.Spawn(wall, at, map);
-                var after = CellGridEncoder.Read(map);
-                var keyframe = CellGridEncoder.Encode(after, null)!;
-                var delta = CellGridEncoder.Encode(after, before);
-                if (delta == null) return new { success = false, error = "Every array changed" };
-                var arrays = new System.Collections.Generic.List<object>();
-                for (int i = 0; i < CellGridEncoder.FieldCount; i++) {
-                    var name = CellGridEncoder.FieldName(i);
-                    var property = typeof(RimGovernor.Contracts.Wire.Mirror.CellGrid).GetProperty(string.Concat(name.Split('_').Select(w => char.ToUpperInvariant(w[0]) + w.Substring(1))));
-                    if (!(property.GetValue(delta) is RimGovernor.Contracts.Wire.Mirror.FieldArray array)) continue;
-                    var sparse = (array.Form as RimGovernor.Contracts.Wire.Mirror.FieldArrayForm.SparseCase)?.Value;
-                    arrays.Add(new { field = name, form = array.Form?.GetType().Name.Replace("Case", ""), entries = sparse != null ? sparse.Index.Count : -1,
-                        wallCell = sparse != null && sparse.Index.Contains((uint)(z * map.Size.x + x)) });
-                }
-                // The thing list is not a column: it rides the delta as sparse cell lists.
-                if (delta.Things != null)
-                    arrays.Add(new { field = "things", form = "Sparse", entries = delta.Things.Cells.Count, wallCell = delta.Things.Cells.Contains((uint)(z * map.Size.x + x)) });
-                return new { success = true, wall = wall.GetUniqueLoadID(), keyframeBytes = RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(keyframe).Length, deltaBytes = RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(delta).Length, arrays };
-            }, cancellationToken);
-
         // The thing list probe: spawns one of each thing category on a
         // row of seven cells from cell ("x,z") eastward (item, wall, wall
         // blueprint, wall frame, plant, filth, corpse), then a shelf on the
         // next two holding two stacks on its first, and replies the row as
-        // a keyframe grid (base64 mirror.CellGrid), for the case to decode on
+        // a serialized grid (base64 mirror.CellGrid), for the case to decode on
         // the brain side and compare with what was spawned. Also replies the
         // timed capture of the whole map (ms).
-        [Tool("test/grid_things", Description = "UNSAFE FOR MODEL EXECUTION. Disposable probe (#2261): spawn one of each thing category on seven cells east of cell (\"x,z\") and a shelf holding two stacks on the next two, and reply that row as a base64 mirror.CellGrid keyframe plus the whole-map read and encode cost. Test builds only.")]
+        [Tool("test/grid_things", Description = "UNSAFE FOR MODEL EXECUTION. Disposable probe (#2261): spawn one of each thing category on seven cells east of cell (\"x,z\") and a shelf holding two stacks on the next two, and reply that row as a base64 mirror.CellGrid plus the whole-map read cost. Test builds only.")]
         public async Task<object> GridThings(IRimBridgeContext ctx, CancellationToken cancellationToken, string cell)
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -117,15 +82,12 @@ namespace HomeBridge.BridgeTools
                 GenSpawn.Spawn(shelfSteel, At(7), map);
                 var shelfWood = ThingMaker.MakeThing(ThingDefOf.WoodLog); shelfWood.stackCount = 10;
                 GenSpawn.Spawn(shelfWood, At(7), map);
-                var row = CellGridEncoder.Encode(CellGridEncoder.Read(map, x, z, 9, 1), null)!;
+                var row = CellGridReader.Read(map, x, z, 9, 1);
                 var watch = System.Diagnostics.Stopwatch.StartNew();
-                var whole = CellGridEncoder.Read(map);
+                CellGridReader.Read(map);
                 var readMs = watch.Elapsed.TotalMilliseconds;
-                watch.Restart();
-                var wire = CellGridEncoder.Encode(whole, null)!;
-                var encodeMs = watch.Elapsed.TotalMilliseconds;
                 return new { success = true, grid = Convert.ToBase64String(RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(row)),
-                    frameId = frame.thingIDNumber, wallId = wall.thingIDNumber, steelId = steel.thingIDNumber, readMs, encodeMs, keyframeBytes = RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(wire).Length };
+                    frameId = frame.thingIDNumber, wallId = wall.thingIDNumber, steelId = steel.thingIDNumber, readMs };
             }, cancellationToken);
 
         [Tool("test/roof_cells", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture (#1366): with set, put a constructed roof over exact cells (\"x,z;x,z\"); always reply how many of them are roofed. Test builds only.")]

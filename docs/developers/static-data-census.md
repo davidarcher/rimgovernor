@@ -156,9 +156,8 @@ Kept, reason recorded:
 
 | File | Lines | Class | What it does | Static items | Replacement |
 |---|---|---|---|---|---|
-| CellGridCache.cs | 81 | state | Per-map cache of walkability, doorway, empty storage, terrain/base terrain names and room per cell, invalidated by map events. |  |  |
-| CellGridEncoder.cs | 367 | state | Reads the whole-map cell grid each frame and encodes keyframe/delta arrays; terrain light and foundation affordances are derived in Go from the terrain and base_terrain columns (#2657). | none | none |
-| CellGridThings.cs | 199 | state | Reads the non-pawn things on each cell into ThingRec with flags (edifice, impassable, haulable, deconstructible, forbidden, designated) for the grid. | flags from def: passability impassable, holdsRoof, Minifiable, EverHaulable, building.isNaturalRock (copied per thing) | ThingDef.passability / holds_roof / minifiable / ever_haulable / building.is_natural_rock (Go could derive these four flag bits from the def row via thing def name) |
+| CellGridReader.cs | 144 | state | Reads the whole-map cell grid each frame into typed per-fact arrays, rooms stamped from the room graph; terrain light and foundation affordances are derived in Go from the terrain and base_terrain columns (#2657). | none | none |
+| CellGridThings.cs | 230 | state | Reads the non-pawn things on each cell into policy Thing records (kept across captures while unchanged) with flags (edifice, impassable, haulable, deconstructible, forbidden, designated) for the grid. | flags from def: passability impassable, holdsRoof, Minifiable, EverHaulable, building.isNaturalRock (copied per thing) | ThingDef.passability / holds_roof / minifiable / ever_haulable / building.is_natural_rock (Go could derive these four flag bits from the def row via thing def name) |
 | DefMirrorFill.cs | 304 | code | Reflection-based filler that mirrors game def objects into defs.proto messages from clr_type options. |  |  |
 | DeterministicGenSeed.cs | 61 | code | Harmony patch replacing per-process-salted HashCode.Combine map-gen seeds with a fixed hash. |  |  |
 | GovernorStatusPanel.cs | 91 | state | Draws the in-game bot connection label from authority state. | layout constants Margin Pad Height (UI) |  |
@@ -463,7 +462,7 @@ Kept, reason recorded:
 | ListZonesReply | message | 773 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | Thing | message | 784 | 22 | state | Canonical thing row: stack, stuff, hp, forbidden, food facts |  |  |
 | ThingsSnapshot | message | 790 | 3 | state | Things table with removed ids |  |  |
-| CellsSnapshot | message | 799 | 3 | state | Map size plus requested CellGrid keyframe |  |  |
+| CellsSnapshot | message | 799 | 3 | state | Map size plus requested CellGrid |  |  |
 | GetCellsRequest | message | 806 | 2 | state | Read request parameters |  |  |
 | GetCellsReply | message | 810 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | ResearchUnlock | message | 811 | 3 | static | What a research project unlocks (def, native type, label) | def_name;native_type;label | Go rule over ThingDef.researchPrerequisites, RecipeDef.researchPrerequisite(s), TerrainDef.researchPrerequisites rows keyed by ResearchProjectDef.defName |

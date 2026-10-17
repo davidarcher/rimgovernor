@@ -51,12 +51,13 @@ the tool only parses JSON before and encodes after.
 ## Frame handoff
 
 `OpenFramesAsync` subscribes in process: `SnapshotStream` marks the handoff attached and captures on the same
-cadence, pause edge and write triggers. The
-encoder worker publishes each frame to `FrameHandoff`, a bounded channel of one with `DropOldest`: latest wins,
+cadence, pause edge and write triggers. A
+worker publishes each frame to `FrameHandoff`, a bounded channel of one with `DropOldest`: latest wins,
 the game side never waits, a reader that falls behind sees only the newest frame.
 
-Every handed-over frame is whole: every section is present and the cell grid is complete
-(`CellGridEncoder.AttachWhole`). A frame is immutable once published. The acceptance harness pulls the newest frame
+Every handed-over frame is whole: every section is present and the cell grid covers the whole map, read on the
+game thread as one typed grid (`CellGridReader`: an array per cell fact, thing records per cell). A frame is
+immutable once published. The acceptance harness pulls the newest frame
 over the tool channel with `observations_read_snapshot` (`SnapshotStream.Read`), which subscribes the same capture
 schedule; there is no shared-memory ring.
 

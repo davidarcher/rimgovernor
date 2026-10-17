@@ -133,7 +133,7 @@ namespace HomeBridge.BridgeTools
             row = row with { Extents = new Obs.Rectangle { Minimum = Cell(new IntVec3(cells.Min(c => c.x), 0, cells.Min(c => c.z))), Maximum = Cell(new IntVec3(cells.Max(c => c.x), 0, cells.Max(c => c.z))) } };
             row = row with { Center = Cell(Center(cells)) };
             var held = cells.Where(c => !c.Fogged(map)).ToList();
-            if (held.Count > 0) row = row with { GridRoom = held.Min(c => c.z * map.Size.x + c.x).ToString(System.Globalization.CultureInfo.InvariantCulture) };
+            if (held.Count > 0) row = row with { GridRoom = held.Min(c => c.z * map.Size.x + c.x) };
             var stockpiles = new List<Zone_Stockpile>();
             foreach (var cell in cells) if (map.zoneManager.ZoneAt(cell) is Zone_Stockpile stockpile && !stockpiles.Contains(stockpile)) stockpiles.Add(stockpile);
             row = row with { StockpileZones = [.. row.StockpileZones, .. NativeRef.All(stockpiles.Select(z => Name(z.GetUniqueLoadID())).OrderBy(v => v, StringComparer.Ordinal))] };

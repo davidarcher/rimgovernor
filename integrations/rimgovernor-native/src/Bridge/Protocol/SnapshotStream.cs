@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
     /// latest wins). The game thread captures a frame right after a frame's
     /// ticks (Supervisor.OnFrame) every PeriodTicks, on a pause edge and after
     /// every applied write (a deferred write waits for observations_flush_snapshot
-    /// or DeferredSeconds); an encoder worker finishes it, so the game thread never
+    /// or DeferredSeconds); a worker publishes it, so the game thread never
     /// waits on a reader. Nothing is captured until a subscriber attaches: the
     /// brain through the facade, or the acceptance harness through the
     /// observations_read_snapshot tool, which pulls the newest frame.
@@ -89,7 +89,7 @@ namespace HomeBridge.BridgeTools
         internal const long DeferredSeconds = 1;
         private static int capturedTick = int.MinValue;
         private static bool capturedPaused;
-        private static int pending; // captures handed to the encoder, not yet written
+        private static int pending; // captures handed to the publisher, not yet published
 
         /// On the game thread: an applied write the next frame must reflect,
         /// or, deferred, one a flush or the safety net makes it capture.
@@ -201,22 +201,20 @@ namespace HomeBridge.BridgeTools
             // of wall time (a capture is ~200 ms, a period at
             // Ultrafast ~150 ms). Writes and pause edges capture at once.
             if (periodic && Stopwatch.GetTimestamp() - capturedAt < (long)lastCaptureMicros * DutyCycle * Stopwatch.Frequency / 1_000_000) return;
-            // One frame in flight at a time: a slow encode delays the next
+            // One frame in flight at a time: a slow publish delays the next
             // capture instead of queueing stale ones.
             if (Interlocked.CompareExchange(ref pending, 1, 0) != 0) return;
             Obs.BundleSnapshot? frame;
-            CellGridEncoder.GridRead? grid;
             Obs.SnapshotStreamRequest shape;
             lock (Gate) shape = subscription;
             var captureStarted = Stopwatch.GetTimestamp();
             var account = ObservationWork.BeginCapture();
-            var failed = false;
-            try { frame = SnapshotFrames.Capture(map, shape, out grid); }
+            try { frame = SnapshotFrames.Capture(map, shape); }
             catch (SnapshotFrames.SnapshotSectionException e)
             {
                 // A section threw: the frame is the failure alone, so the
                 // reader refuses its reads with the section named.
-                frame = e.Frame(); grid = null; failed = true;
+                frame = e.Frame();
             }
             catch (Exception e)
             {
@@ -236,14 +234,11 @@ namespace HomeBridge.BridgeTools
             {
                 try
                 {
-                    // Subscribers get the whole frame, with a whole-map cell grid.
-                    var copy = captured;
-                    if (!failed) copy = CellGridEncoder.AttachWhole(copy, grid);
                     if (pulled)
                     {
-                        lock (Gate) { pullFrame = copy; pullFrameWrites = w; pullHead++; }
+                        lock (Gate) { pullFrame = captured; pullFrameWrites = w; pullHead++; }
                     }
-                    if (Handoff.Attached) Handoff.Publish(new RimGovernor.Brain.NativeFacade.NativeFrame(copy, w, captureMicros));
+                    if (Handoff.Attached) Handoff.Publish(new RimGovernor.Brain.NativeFacade.NativeFrame(captured, w, captureMicros));
                 }
                 catch (Exception e) { ModLog.Warn("snapshot", "frame publish failed: " + e.Message); }
                 finally { Interlocked.Exchange(ref pending, 0); }

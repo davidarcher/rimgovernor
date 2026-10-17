@@ -36,7 +36,7 @@ internal sealed partial class FacadeNativeClient
         {
             routine = routine with { Buildings = census with { Memo = _frameCensus } };
         }
-        var grid = view.Grid.Grid;
+        var grid = view.Grid;
         if (grid is not null && BridgeFunctions.SameIdentity(view.Snapshot.Context?.Identity, identity))
         {
             routine = routine with { RoomCells = RoomCellsOf(routine.Rooms, grid) };

@@ -103,115 +103,6 @@ public enum CombatLogKind
 }
 
 /// <summary>
-/// What a thing is. Spawned pawns are never listed.
-/// </summary>
-[JsonConverter(typeof(WireEnumConverter<ThingCategory>))]
-public enum ThingCategory
-{
-    /// <summary>
-    /// refused
-    /// </summary>
-    [WireName("THING_CATEGORY_UNSPECIFIED")]
-    Unspecified = 0,
-    /// <summary>
-    /// state: item
-    /// </summary>
-    [WireName("THING_CATEGORY_ITEM")]
-    Item = 1,
-    /// <summary>
-    /// state: building (blueprints and frames too, by flag)
-    /// </summary>
-    [WireName("THING_CATEGORY_BUILDING")]
-    Building = 2,
-    /// <summary>
-    /// state: plant
-    /// </summary>
-    [WireName("THING_CATEGORY_PLANT")]
-    Plant = 3,
-    /// <summary>
-    /// state: filth
-    /// </summary>
-    [WireName("THING_CATEGORY_FILTH")]
-    Filth = 4,
-    /// <summary>
-    /// state: corpse
-    /// </summary>
-    [WireName("THING_CATEGORY_CORPSE")]
-    Corpse = 5,
-    /// <summary>
-    /// no state
-    /// </summary>
-    [WireName("THING_CATEGORY_OTHER")]
-    Other = 6,
-}
-
-/// <summary>
-/// Whose a thing is.
-/// </summary>
-[JsonConverter(typeof(WireEnumConverter<ThingFaction>))]
-public enum ThingFaction
-{
-    /// <summary>
-    /// unowned
-    /// </summary>
-    [WireName("THING_FACTION_NONE")]
-    None = 0,
-    [WireName("THING_FACTION_PLAYER")]
-    Player = 1,
-    [WireName("THING_FACTION_NEUTRAL")]
-    Neutral = 2,
-    [WireName("THING_FACTION_HOSTILE")]
-    Hostile = 3,
-}
-
-/// <summary>
-/// Thing.flags bits (a value is a mask; any other bit is refused).
-/// </summary>
-[JsonConverter(typeof(WireEnumConverter<ThingFlagBit>))]
-public enum ThingFlagBit
-{
-    [WireName("THING_FLAG_NONE")]
-    None = 0,
-    [WireName("THING_FLAG_EDIFICE")]
-    Edifice = 1,
-    [WireName("THING_FLAG_BLUEPRINT")]
-    Blueprint = 2,
-    [WireName("THING_FLAG_FRAME")]
-    Frame = 4,
-    [WireName("THING_FLAG_IMPASSABLE")]
-    Impassable = 8,
-    [WireName("THING_FLAG_HOLDS_ROOF")]
-    HoldsRoof = 16,
-    [WireName("THING_FLAG_DECONSTRUCTIBLE")]
-    Deconstructible = 32,
-    [WireName("THING_FLAG_MINIFIABLE")]
-    Minifiable = 64,
-    [WireName("THING_FLAG_CLAIMABLE")]
-    Claimable = 128,
-    [WireName("THING_FLAG_DESIGNATED")]
-    Designated = 256,
-    [WireName("THING_FLAG_FORBIDDEN")]
-    Forbidden = 512,
-    [WireName("THING_FLAG_HAULABLE")]
-    Haulable = 1024,
-    [WireName("THING_FLAG_ANCIENT_DANGER")]
-    AncientDanger = 2048,
-    [WireName("THING_FLAG_NATURAL_ROCK")]
-    NaturalRock = 4096,
-}
-
-[JsonConverter(typeof(WireEnumConverter<CorpseClass>))]
-public enum CorpseClass
-{
-    [WireName("CORPSE_CLASS_OTHER")]
-    Other = 0,
-    [WireName("CORPSE_CLASS_HUMANLIKE")]
-    Humanlike = 1,
-    [WireName("CORPSE_CLASS_ANIMAL")]
-    Animal = 2,
-}
-
-/// <summary>
 /// One combat pawn row (BundleSnapshot.combat_pawns). Numbers are thresholded so a
 /// row only changes when a decision could: fractions to 0.01, bleed and pain
 /// to 0.05, move speed to 0.1 cells/s.
@@ -740,366 +631,77 @@ public sealed record Watermark
 }
 
 /// <summary>
-/// The whole-map cell grid: native sends it in every snapshot frame
-/// (BundleSnapshot.grid); the Go snapshot recorder stores planning_cells
-/// section lines in it too.
+/// A cell grid: the facts of every cell of a rect of the map (the whole map in a snapshot frame), one typed array per
+/// fact, indexed row-major by <c>(z - Z) * Width + (x - X)</c>. The native read builds it on the game thread as a copy
+/// (def names are the defs' own strings, rooms are keys, never live game objects) and nothing writes it after: the
+/// brain reads the arrays where they lie. A cell <see cref="Held"/> is false for (fogged) holds no facts; the other
+/// arrays' entries there mean nothing. Glow is artificial light only (GroundGlowAt ignoring the sky).
 /// </summary>
-public sealed record CellRect
+public sealed class CellGrid
 {
-    public int? X { get; init; }
+    public int X { get; init; }
 
-    public int? Z { get; init; }
+    public int Z { get; init; }
 
-    public int? Width { get; init; }
+    public int Width { get; init; }
 
-    public int? Height { get; init; }
+    public int Height { get; init; }
+
+    /// <summary>The cell is not fogged: every other array holds its facts.</summary>
+    public bool[] Held { get; init; } = [];
+
+    public bool[] Walkable { get; init; } = [];
+
+    /// <summary>The cell lies in a proper room that is not psychologically outdoors.</summary>
+    public bool[] Indoors { get; init; } = [];
+
+    /// <summary>A door, or a door blueprint or frame, stands on the cell.</summary>
+    public bool[] Doorway { get; init; } = [];
+
+    public bool[] Polluted { get; init; } = [];
+
+    /// <summary>Inside the home area.</summary>
+    public bool[] InHome { get; init; } = [];
+
+    /// <summary>The top terrain layer can be removed.</summary>
+    public bool[] TopLayerRemovable { get; init; } = [];
+
+    /// <summary>A RemoveFoundation designation stands on the cell.</summary>
+    public bool[] FoundationRemoval { get; init; } = [];
+
+    /// <summary>The item stacks on the cell (0 for none; up to StorageCapacity).</summary>
+    public int[] StorageStacks { get; init; } = [];
+
+    /// <summary>
+    /// The stacks the cell can hold: a storage building's maxItemsInCell (3 on a shelf), 0 under any other edifice, 1
+    /// on open ground.
+    /// </summary>
+    public int[] StorageCapacity { get; init; } = [];
+
+    public float[] Fertility { get; init; } = [];
+
+    public float[] Glow { get; init; } = [];
+
+    public float[] SnowDepth { get; init; } = [];
+
+    /// <summary>The terrain def's name.</summary>
+    public string[] Terrain { get; init; } = [];
+
+    /// <summary>The terrain def under a floor or bridge (its affordances are what a foundation stands on).</summary>
+    public string[] BaseTerrain { get; init; } = [];
+
+    /// <summary>The roof def's name; null for no roof.</summary>
+    public string?[] Roof { get; init; } = [];
+
+    /// <summary>The covering zone's load id; null for no zone.</summary>
+    public string?[] ZoneId { get; init; } = [];
+
+    /// <summary>
+    /// The room holding the cell, null for none: keyed by the map index (z * map width + x) of the room's first held
+    /// cell, which stays put across the room regeneration an edifice change triggers (the room census's GridRoom).
+    /// </summary>
+    public int?[] Room { get; init; } = [];
+
+    /// <summary>The cell's non-pawn things in native order, null for none.</summary>
+    public RimGovernor.Brain.Policy.Thing[]?[] Things { get; init; } = [];
 }
-
-/// <summary>
-/// One field's array over a CellGrid's rect, row-major (index
-/// (z - rect.z) * rect.width + x - rect.x). Dense forms hold every cell;
-/// sparse holds (index, value) pairs over a base: in a keyframe the
-/// all-sentinel array, in a delta the keyframe's array. The sender picks
-/// whichever form is smaller.
-/// </summary>
-public sealed record FieldArray
-{
-    public FieldArrayForm? Form { get; init; }
-}
-
-/// <summary>The <c>form</c> choice of <see cref="FieldArray"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(FieldArrayForm.CodesCase), "codes")]
-[JsonDerivedType(typeof(FieldArrayForm.IndexesCase), "indexes")]
-[JsonDerivedType(typeof(FieldArrayForm.NumbersCase), "numbers")]
-[JsonDerivedType(typeof(FieldArrayForm.SparseCase), "sparse")]
-public abstract record FieldArrayForm
-{
-    private protected FieldArrayForm() { }
-
-    /// <summary>
-    /// presence and Fact[bool] fields, one byte per cell
-    /// </summary>
-    /// <summary>The <c>Codes</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public byte[]? Codes => (this as CodesCase)?.Value;
-
-    public sealed record CodesCase(byte[] Value) : FieldArrayForm;
-
-    /// <summary>
-    /// string fields: string table indexes
-    /// </summary>
-    /// <summary>The <c>Indexes</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public PackedUint32? Indexes => (this as IndexesCase)?.Value;
-
-    public sealed record IndexesCase(PackedUint32 Value) : FieldArrayForm;
-
-    public static implicit operator FieldArrayForm(PackedUint32 value) => new IndexesCase(value);
-
-    /// <summary>
-    /// Fact[float64] fields
-    /// </summary>
-    /// <summary>The <c>Numbers</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public PackedDouble? Numbers => (this as NumbersCase)?.Value;
-
-    public sealed record NumbersCase(PackedDouble Value) : FieldArrayForm;
-
-    public static implicit operator FieldArrayForm(PackedDouble value) => new NumbersCase(value);
-
-    /// <summary>The <c>Sparse</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public SparseArray? Sparse => (this as SparseCase)?.Value;
-
-    public sealed record SparseCase(SparseArray Value) : FieldArrayForm;
-
-    public static implicit operator FieldArrayForm(SparseArray value) => new SparseCase(value);
-}
-
-public sealed record PackedUint32
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<uint>))]
-    public EquatableArray<uint> Values { get; init; }
-}
-
-public sealed record PackedDouble
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<double>))]
-    public EquatableArray<double> Values { get; init; }
-}
-
-/// <summary>
-/// index ascending and distinct; value in code for code and index fields, in
-/// number for number fields, one per index.
-/// </summary>
-public sealed record SparseArray
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<uint>))]
-    public EquatableArray<uint> Index { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<uint>))]
-    public EquatableArray<uint> Code { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<double>))]
-    public EquatableArray<double> Number { get; init; }
-}
-
-/// <summary>
-/// A cell grid: one array per policy.SiteCell field over
-/// rect. Sentinels mark a cell the grid does not hold (fogged, or outside
-/// the read) and an unknown fact:
-/// cell: 0 not held, 1 held;
-/// Fact[bool] codes: 0 unknown, 1 false, 2 true;
-/// Fact[float64] numbers: NaN unknown (native values are finite);
-/// Fact[string] indexes: 0 unknown, k for strings[k-1].
-/// A keyframe carries every array; a delta, on the same rect, only the
-/// arrays that differ from its keyframe's (deltas are cumulative against
-/// the keyframe, never chained), and never every array: a frame whose grid
-/// carries every array is a keyframe. strings is this grid's own table.
-/// glow is artificial light only (GroundGlowAt ignoring the sky); the
-/// frame's sky_glow is the map's sky light, lighting an unroofed cell to
-/// max(glow, sky_glow). room keys the native room holding the cell by the
-/// index of that room's first held cell (row-major), stable across the room
-/// regeneration an edifice change triggers; it is not the native room id.
-/// </summary>
-public sealed record CellGrid
-{
-    public CellRect? Rect { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Strings { get; init; }
-
-    public FieldArray? Cell { get; init; }
-
-    public FieldArray? Walkable { get; init; }
-
-    public FieldArray? Zone { get; init; }
-
-    public FieldArray? Roofed { get; init; }
-
-    public FieldArray? Indoors { get; init; }
-
-    /// <summary>
-    /// numbers: the item stacks on the cell (0 for none; up to storage_capacity)
-    /// </summary>
-    public FieldArray? StorageStacks { get; init; }
-
-    public FieldArray? Doorway { get; init; }
-
-    public FieldArray? Fertility { get; init; }
-
-    public FieldArray? Polluted { get; init; }
-
-    public FieldArray? Glow { get; init; }
-
-    public FieldArray? Roof { get; init; }
-
-    public FieldArray? ZoneId { get; init; }
-
-    public FieldArray? Room { get; init; }
-
-    /// <summary>
-    /// Columns 23 on carry the per-cell thing list and tile facts; a keyframe carries every one, things included. A fogged cell
-    /// (cell code 0) stays unknown, distinct from a held cell with no things.
-    /// string: the terrain def
-    /// </summary>
-    public FieldArray? Terrain { get; init; }
-
-    /// <summary>
-    /// bool codes: inside the home area
-    /// </summary>
-    public FieldArray? InHome { get; init; }
-
-    /// <summary>
-    /// string: the base terrain def under a floor or bridge (its affordances are what a foundation stands on)
-    /// </summary>
-    public FieldArray? BaseTerrain { get; init; }
-
-    /// <summary>
-    /// numbers
-    /// </summary>
-    public FieldArray? SnowDepth { get; init; }
-
-    /// <summary>
-    /// bool codes: the top terrain layer can be removed
-    /// </summary>
-    public FieldArray? TopLayerRemovable { get; init; }
-
-    public ThingList? Things { get; init; }
-
-    /// <summary>
-    /// bool codes: a RemoveFoundation designation stands on the cell
-    /// </summary>
-    public FieldArray? FoundationRemoval { get; init; }
-
-    /// <summary>
-    /// numbers: the stacks the cell can hold: a storage building's maxItemsInCell (3 on a shelf), 0 under any other
-    /// edifice, 1 on open ground
-    /// </summary>
-    public FieldArray? StorageCapacity { get; init; }
-}
-
-/// <summary>
-/// The things on a grid's cells, sparse over a base: in a keyframe
-/// every cell has none, in a delta the keyframe's lists (cumulative, never
-/// chained). cells lists, ascending and distinct, the cells whose list
-/// is replaced; offsets (cells.length + 1 prefix sums, from 0, never
-/// decreasing, ending at things.length) cut things into one list per listed
-/// cell, an empty list clearing the cell. A delta lists only cells whose list
-/// differs from the keyframe's.
-/// </summary>
-public sealed record ThingList
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<uint>))]
-    public EquatableArray<uint> Cells { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<uint>))]
-    public EquatableArray<uint> Offsets { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Thing>))]
-    public EquatableArray<Thing> Things { get; init; }
-}
-
-/// <summary>
-/// One thing on a cell. def and the string fields below are string table
-/// indexes (k for strings[k-1]; 0 is refused). state must match category.
-/// A blueprint or frame lists the def it builds. A thing spanning cells is listed
-/// on each, with the same id. Fractions are held to 1/100.
-/// </summary>
-public sealed record Thing
-{
-    public uint Def { get; init; }
-
-    public ThingCategory Category { get; init; }
-
-    public ThingFaction Faction { get; init; }
-
-    public uint Flags { get; init; }
-
-    public ulong Id { get; init; }
-
-    /// <summary>
-    /// stack count
-    /// </summary>
-    public uint Count { get; init; }
-
-    public ThingState? State { get; init; }
-}
-
-/// <summary>The <c>state</c> choice of <see cref="Thing"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ThingState.PlantCase), "plant")]
-[JsonDerivedType(typeof(ThingState.CorpseCase), "corpse")]
-[JsonDerivedType(typeof(ThingState.FilthCase), "filth")]
-[JsonDerivedType(typeof(ThingState.BuildingCase), "building")]
-[JsonDerivedType(typeof(ThingState.ItemCase), "item")]
-public abstract record ThingState
-{
-    private protected ThingState() { }
-
-    /// <summary>The <c>Plant</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public PlantState? Plant => (this as PlantCase)?.Value;
-
-    public sealed record PlantCase(PlantState Value) : ThingState;
-
-    public static implicit operator ThingState(PlantState value) => new PlantCase(value);
-
-    /// <summary>The <c>Corpse</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CorpseState? Corpse => (this as CorpseCase)?.Value;
-
-    public sealed record CorpseCase(CorpseState Value) : ThingState;
-
-    public static implicit operator ThingState(CorpseState value) => new CorpseCase(value);
-
-    /// <summary>The <c>Filth</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public FilthState? Filth => (this as FilthCase)?.Value;
-
-    public sealed record FilthCase(FilthState Value) : ThingState;
-
-    public static implicit operator ThingState(FilthState value) => new FilthCase(value);
-
-    /// <summary>The <c>Building</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public BuildingState? Building => (this as BuildingCase)?.Value;
-
-    public sealed record BuildingCase(BuildingState Value) : ThingState;
-
-    public static implicit operator ThingState(BuildingState value) => new BuildingCase(value);
-
-    /// <summary>The <c>Item</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ItemState? Item => (this as ItemCase)?.Value;
-
-    public sealed record ItemCase(ItemState Value) : ThingState;
-
-    public static implicit operator ThingState(ItemState value) => new ItemCase(value);
-}
-
-public sealed record PlantState
-{
-    /// <summary>
-    /// 0..1
-    /// </summary>
-    public float Growth { get; init; }
-
-    public bool Blighted { get; init; }
-}
-
-public sealed record CorpseState
-{
-    public CorpseClass Class { get; init; }
-
-    /// <summary>
-    /// rot progress, 0 fresh .. 1 dessicated
-    /// </summary>
-    public float Rot { get; init; }
-}
-
-public sealed record FilthState
-{
-    public uint Thickness { get; init; }
-}
-
-public sealed record MaterialNeed
-{
-    /// <summary>
-    /// string table index
-    /// </summary>
-    public uint Def { get; init; }
-
-    public uint Count { get; init; }
-}
-
-public sealed record BuildingState
-{
-    public uint HitPoints { get; init; }
-
-    public bool Burning { get; init; }
-
-    /// <summary>
-    /// a blueprint or frame's materials still owed
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<MaterialNeed>))]
-    public EquatableArray<MaterialNeed> Needed { get; init; }
-
-    /// <summary>
-    /// def indexes of what a casket holds
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<uint>))]
-    public EquatableArray<uint> Casket { get; init; }
-
-    public bool Reserved { get; init; }
-}
-
-public sealed record ItemState
-{
-    /// <summary>
-    /// 0 sound .. 1 ruined
-    /// </summary>
-    public float Deterioration { get; init; }
-}
-

@@ -121,8 +121,8 @@ public sealed class AcceptanceReads
     }
 
     /// <summary>
-    /// Measures the brain's decode of one captured frame for the capture profile probe: the cell grid decode, the
-    /// held tables and the whole-map planning window, each <paramref name="iterations"/> times on the calling thread.
+    /// Measures the brain's reads of one captured frame for the capture profile probe: the held tables and the
+    /// whole-map planning window over the frame's grid, each <paramref name="iterations"/> times on the calling thread.
     /// Returns (span, ms, allocated bytes) samples; nothing is kept.
     /// </summary>
     public static IReadOnlyList<(string Span, double Ms, long Bytes)> FrameDecodeProfile(RimGovernor.Contracts.Wire.Observations.BundleSnapshot frame, int iterations)
@@ -139,13 +139,13 @@ public sealed class AcceptanceReads
         }
         for (var i = 0; i < iterations; i++)
         {
-            var view = Time("brain.gridDecode", () => FrameGridView.Of(frame));
             if (frame.Context is { } context)
             {
                 Time("brain.heldTables", () => FrameHeld.Of(frame, context));
             }
-            if (view.Grid is { } grid)
+            if (frame.Grid is { } wire)
             {
+                var grid = new FrameCellGrid(wire);
                 Time("brain.windowWholeMap", () => grid.Window(grid.Rect));
             }
         }

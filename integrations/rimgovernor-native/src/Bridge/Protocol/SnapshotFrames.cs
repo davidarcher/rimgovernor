@@ -44,16 +44,11 @@ namespace HomeBridge.BridgeTools
         private static long Now() { return System.Diagnostics.Stopwatch.GetTimestamp(); }
 
         // On the main thread: one snapshot stream frame, every state
-        // family plus the subscription's, or null when the map has no
+        // family plus the subscription's and the whole-map cell grid
+        // (absent when its read failed), or null when the map has no
         // readable context.
-        internal static Obs.BundleSnapshot? Capture(Map map, Obs.SnapshotStreamRequest request) => Capture(map, request, out _);
-
-        // Capture, with the whole-map cell grid read that
-        // CellGridEncoder.Attach encodes off the game thread; null when it
-        // failed to read.
-        internal static Obs.BundleSnapshot? Capture(Map map, Obs.SnapshotStreamRequest request, out CellGridEncoder.GridRead? grid)
+        internal static Obs.BundleSnapshot? Capture(Map map, Obs.SnapshotStreamRequest request)
         {
-            grid = null;
             if (!ProtoBoundary.TryReadContext(map, out var context, out _)) return null;
             var observed = new Obs.BundleSnapshot { Context = context, Paused = Find.TickManager.Paused };
             Obs.BundleSnapshot? sections = null;
@@ -64,8 +59,8 @@ namespace HomeBridge.BridgeTools
             try { observed = observed with { Things = NativeObservationTools.Things(referenced, context) }; } catch (System.Exception ex) { ObservationWork.Failed("things", ex); }
             ObservationWork.Captured("things", Now() - thingsBegan, observed.Things != null ? observed.Things.Things.Count : 0);
             var gridBegan = Now();
-            try { grid = CellGridEncoder.Read(map); } catch (System.Exception ex) { ObservationWork.Failed("grid", ex); }
-            ObservationWork.Captured("grid", Now() - gridBegan, grid != null ? grid.Count : 0);
+            try { observed = observed with { Grid = CellGridReader.Read(map) }; } catch (System.Exception ex) { ObservationWork.Failed("grid", ex); }
+            ObservationWork.Captured("grid", Now() - gridBegan, observed.Grid != null ? observed.Grid.Held.Length : 0);
             return observed;
         }
 

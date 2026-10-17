@@ -112,10 +112,6 @@ internal sealed partial class FacadeNativeClient :
         return client;
     }
 
-    /// <summary>The value half of a cell-grid read's (Value, Receipt) result: what Go callers got when they dropped the Result.</summary>
-    private static async Task<T> Only<T>(Task<(T Value, BridgeResult Receipt)> call) =>
-        (await call.ConfigureAwait(false)).Value;
-
     // ---- Observation ----------------------------------------------------------------------------------------
 
     Task<LifecyclePb.IdentityReply> IColonySource.IdentityAsync(CancellationToken cancellationToken) =>
@@ -175,7 +171,7 @@ internal sealed partial class FacadeNativeClient :
         ReadClockEventsAsync(request, ct);
 
     Task<Bridge.Contracts.PlanningWindow> IPlanningWindowNative.ReadPlanningWindowAsync(C.Identity identity, Policy.Rectangle region, CancellationToken ct) =>
-        Only(ReadPlanningWindowAsync(identity, region, ct));
+        ReadPlanningWindowAsync(identity, region, ct);
 
     Task<EmergencyObservation> IClockDriverNative.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
         ReadEmergencyAsync(identity, FramePawnsAsync, ct);
@@ -224,7 +220,7 @@ internal sealed partial class FacadeNativeClient :
         PreviewBuildingAsync(action, snapshot, ct);
 
     Task<MapBounds> IBoundaryNative.ReadMapBoundsAsync(C.Identity identity, Cell anchor, CancellationToken ct) =>
-        Only(ReadMapBoundsAsync(identity, anchor, ct));
+        ReadMapBoundsAsync(identity, anchor, ct);
 
     Task<Things> IFrameThingsSource.FrameThingsAsync(C.Identity identity, CancellationToken ct) =>
         FrameThingsAsync(identity, ct);

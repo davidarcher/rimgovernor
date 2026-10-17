@@ -13,7 +13,6 @@ public static class LabCases
     public static void Register(CaseRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
-        registry.Register(LabGridDelta.Case());
         registry.Register(LabGridThings.Case());
         registry.Register(LabSpawn.Case());
         registry.Register(LabSpoilagePick.Case());

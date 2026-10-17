@@ -16,18 +16,18 @@ namespace RimGovernor.Brain.Host;
 internal sealed class FrameView
 {
     private readonly Lazy<FramePrepared> _prepared;
-    private readonly Lazy<FrameGridView> _grid;
+    private readonly Lazy<FrameCellGrid?> _grid;
 
     internal FrameView(long number, NativeFrame frame)
     {
         Number = number;
         Frame = frame;
         _prepared = new Lazy<FramePrepared>(() => FramePrepared.Of(frame.Snapshot), LazyThreadSafetyMode.ExecutionAndPublication);
-        _grid = new Lazy<FrameGridView>(() => FrameGridView.Of(frame.Snapshot), LazyThreadSafetyMode.ExecutionAndPublication);
+        _grid = new Lazy<FrameCellGrid?>(() => frame.Snapshot.Grid is { } grid ? new FrameCellGrid(grid) : null, LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
-    /// <summary>The frame's whole-map grid, decoded once (Go <c>gridHold.apply</c>).</summary>
-    internal FrameGridView Grid => _grid.Value;
+    /// <summary>The reader over the frame's whole-map grid, null for a frame without one.</summary>
+    internal FrameCellGrid? Grid => _grid.Value;
 
     /// <summary>The order the feed took the frame in (Go <c>snapshotshm.Frame.Number</c>).</summary>
     internal long Number { get; }
@@ -40,38 +40,6 @@ internal sealed class FrameView
     internal long Writes => Frame.Writes;
 
     internal FramePrepared Prepared => _prepared.Value;
-}
-
-/// <summary>
-/// A frame's decoded grid, or why it could not be. A frame without a grid, and a frame whose grid is a delta (the
-/// facade never hands one over), have neither.
-/// </summary>
-internal sealed record FrameGridView(FrameCellGrid? Grid, Exception? Error)
-{
-    /// <summary>Go <c>gridHold.apply</c> for a whole frame: the sky glow is validated but kept out of the cells.</summary>
-    internal static FrameGridView Of(PbObservations.BundleSnapshot v)
-    {
-        if (v.Grid is not { } wire)
-        {
-            return new FrameGridView(null, null);
-        }
-        if (v.SkyGlow is not { } sky || double.IsNaN(sky) || sky < 0 || sky > 1)
-        {
-            return new FrameGridView(null, BridgeFunctions.Contract("frame grid sky glow"));
-        }
-        if (!FrameCellGrid.Complete(wire))
-        {
-            return new FrameGridView(null, null);
-        }
-        try
-        {
-            return new FrameGridView(FrameCellGrid.Apply(wire), null);
-        }
-        catch (BridgeContractException problem)
-        {
-            return new FrameGridView(null, problem);
-        }
-    }
 }
 
 /// <summary>

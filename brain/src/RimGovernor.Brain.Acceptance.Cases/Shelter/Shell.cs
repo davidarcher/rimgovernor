@@ -261,15 +261,15 @@ internal static class ShelterShell
         report[label.Replace('-', '_')] = result["allowed"]?.DeepClone();
     }
 
-    /// <summary>The held cells of a whole-map read with the things standing on each (the harness grid keeps no thing list).</summary>
+    /// <summary>The held cells of a whole-map read with the things standing on each.</summary>
     internal sealed class ThingGrid
     {
         internal required MapCellGrid Grid { get; init; }
 
         internal required IReadOnlyList<GridCell> Cells { get; init; }
 
-        /// <summary>The things on each held cell, aligned with <see cref="Cells"/>: the def and the flag bits.</summary>
-        internal required IReadOnlyList<IReadOnlyList<(string Def, uint Flags)>> Things { get; init; }
+        /// <summary>The things on each held cell, aligned with <see cref="Cells"/>.</summary>
+        internal required IReadOnlyList<IReadOnlyList<Thing>> Things { get; init; }
 
         /// <summary>Reads the whole map's cells with their things (<c>observations_get_cells</c>: an anchor read for the size, then the map).</summary>
         internal static async Task<ThingGrid> ReadAsync(Harness h, string label, JsonObject identity, CancellationToken cancellationToken)
@@ -295,40 +295,8 @@ internal static class ShelterShell
             var (anchor, _) = CellReads.DecodeCells(await Read("-size", 0, 0).ConfigureAwait(false));
             var width = (long)(anchor.MapSize?.Width ?? 0);
             var height = (long)(anchor.MapSize?.Height ?? 0);
-            var (snapshot, grid) = CellReads.DecodeCells(await Read(string.Empty, width - 1, height - 1).ConfigureAwait(false));
-            var cells = grid.Cells();
-            var things = new List<(string Def, uint Flags)>[cells.Count];
-            for (var i = 0; i < things.Length; i++)
-            {
-                things[i] = [];
-            }
-
-            if (snapshot.Grid?.Things is { } list)
-            {
-                if (list.Offsets.Count != list.Cells.Count + 1)
-                {
-                    throw new AcceptanceException($"{label}: the native keyframe has malformed thing offsets");
-                }
-
-                var strings = snapshot.Grid.Strings;
-                for (var p = 0; p < list.Cells.Count; p++)
-                {
-                    var index = (int)list.Cells[p];
-                    if (index >= things.Length)
-                    {
-                        throw new AcceptanceException($"{label}: the native keyframe lists a thing past the row");
-                    }
-
-                    for (var t = (int)list.Offsets[p]; t < (int)list.Offsets[p + 1]; t++)
-                    {
-                        var thing = list.Things[t];
-                        var def = thing.Def == 0 || thing.Def > strings.Count ? "" : strings[(int)thing.Def - 1];
-                        things[index].Add((def, thing.Flags));
-                    }
-                }
-            }
-
-            return new ThingGrid { Grid = grid, Cells = cells, Things = [.. things.Select(t => (IReadOnlyList<(string Def, uint Flags)>)t)] };
+            var (_, grid) = CellReads.DecodeCells(await Read(string.Empty, width - 1, height - 1).ConfigureAwait(false));
+            return new ThingGrid { Grid = grid, Cells = grid.Cells(), Things = grid.Things() };
         }
     }
 
@@ -374,7 +342,7 @@ internal static class ShelterShell
             foreach (var raw in observed["rooms"].AsSlice())
             {
                 var row = raw.AsMap() ?? [];
-                var cells = gridRooms.GetValueOrDefault(row["gridRoom"].AsString()) ?? [];
+                var cells = (row["gridRoom"] is { } key ? gridRooms.GetValueOrDefault((int)key.AsNumber()) : null) ?? [];
                 if (cells.Count == 1 && cells[0] == door)
                 {
                     doorway = row;
@@ -720,7 +688,7 @@ internal static class ShelterShell
             var defs = string.Join(' ', grid.Things[at].Select(t => t.Def));
             text.Append(
                 CultureInfo.InvariantCulture,
-                $" {ShelterStage.Describe(c)}{{room {cell.Room ?? "<none>"} walkable {Show(cell.Walkable)} roofed {Show(cell.Roofed)} indoors {Show(cell.Indoors)} terrain {cell.Terrain} things [{defs}]}}");
+                $" {ShelterStage.Describe(c)}{{room {cell.Room?.ToString(CultureInfo.InvariantCulture) ?? "<none>"} walkable {Show(cell.Walkable)} roofed {Show(cell.Roofed)} indoors {Show(cell.Indoors)} terrain {cell.Terrain} things [{defs}]}}");
         }
 
         return text.ToString();

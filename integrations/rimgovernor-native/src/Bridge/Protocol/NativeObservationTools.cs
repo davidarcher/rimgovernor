@@ -40,7 +40,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("rimgovernor/observations_get_cells", Title = "Read map cells",
-            Description = "Official GetCellsRequest ProtoJSON. An inclusive rectangle of at most 1048576 cells on the map, returned with the map dimensions as a CellGrid keyframe (the snapshot frame grid's arrays; a fogged cell is not held). The grid carries each cell's things, terrain and foundation affordances. Read-only.")]
+            Description = "Official GetCellsRequest ProtoJSON. An inclusive rectangle of at most 1048576 cells on the map, returned with the map dimensions as a CellGrid (the snapshot frame grid's typed arrays; a fogged cell is not held). The grid carries each cell's things, terrain and foundation affordances. Read-only.")]
         [ToolResponse("payload", "string", "Official observations GetCellsReply ProtoJSON.", Always = true)]
         public async Task<object> GetCells(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a GetCellsRequest ProtoJSON string.")] object? request = null)
@@ -67,10 +67,10 @@ namespace HomeBridge.BridgeTools
                 var min = parsed.Rectangle?.Minimum ?? new Common.Cell(); var max = parsed.Rectangle?.Maximum ?? new Common.Cell();
                 if (!new IntVec3(min.X.GetValueOrDefault(), 0, min.Z.GetValueOrDefault()).InBounds(map) || !new IntVec3(max.X.GetValueOrDefault(), 0, max.Z.GetValueOrDefault()).InBounds(map)) return new Obs.GetCellsReply {
                     Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Selected cell is outside the current map.") };
-                var read = CellGridEncoder.Read(map, min.X.GetValueOrDefault(), min.Z.GetValueOrDefault(), max.X.GetValueOrDefault() - min.X.GetValueOrDefault() + 1, max.Z.GetValueOrDefault() - min.Z.GetValueOrDefault() + 1);
+                var grid = CellGridReader.Read(map, min.X.GetValueOrDefault(), min.Z.GetValueOrDefault(), max.X.GetValueOrDefault() - min.X.GetValueOrDefault() + 1, max.Z.GetValueOrDefault() - min.Z.GetValueOrDefault() + 1);
                 var snapshot = new Obs.CellsSnapshot { Context = context,
                     MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) },
-                    Grid = CellGridEncoder.Encode(read, null) };
+                    Grid = grid };
                 return new Obs.GetCellsReply { Outcome = snapshot };
             }
             catch (Exception) { return new Obs.GetCellsReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native cell facts could not be read completely.") }; }

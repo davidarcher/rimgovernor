@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
-using RimGovernor.Contracts.Wire.Mirror;
+using P = RimGovernor.Brain.Policy;
 using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -206,23 +206,15 @@ internal static class OdysseyLavaField
         var (anchor, _) = await Read("lava-cells-size", 0, 0).ConfigureAwait(false);
         var width = (long)(anchor.MapSize?.Width ?? 0);
         var height = (long)(anchor.MapSize?.Height ?? 0);
-        var (snapshot, grid) = await Read("lava-cells", width - 1, height - 1).ConfigureAwait(false);
+        var (_, grid) = await Read("lava-cells", width - 1, height - 1).ConfigureAwait(false);
         var built = new HashSet<Cell>();
-        if (snapshot.Grid?.Things is { } list)
+        var cells = grid.Cells();
+        var things = grid.Things();
+        for (var i = 0; i < cells.Count; i++)
         {
-            for (var i = 0; i < list.Cells.Count; i++)
+            if (things[i].Any(t => t.Has(P.ThingMarks.Edifice) && t.Faction == P.ThingFaction.Player))
             {
-                var index = (int)list.Cells[i];
-                var cell = new Cell(grid.X + (index % grid.Width), grid.Z + (index / grid.Width));
-                for (var t = (int)list.Offsets[i]; t < (int)list.Offsets[i + 1]; t++)
-                {
-                    // The edifice bit (Policy ThingMarks.Edifice) on a thing the player owns.
-                    var thing = list.Things[t];
-                    if ((thing.Flags & 1) != 0 && thing.Faction == ThingFaction.Player)
-                    {
-                        _ = built.Add(cell);
-                    }
-                }
+                _ = built.Add(cells[i].Cell);
             }
         }
 

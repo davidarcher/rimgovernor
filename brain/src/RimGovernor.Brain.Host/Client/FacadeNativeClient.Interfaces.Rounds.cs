@@ -132,10 +132,10 @@ internal sealed partial class FacadeNativeClient
         ReadSpatialAccessAsync(identity, from, toCells, kinds, ct);
 
     Task<BridgeMapBounds> IRoundsEquipSource.ReadMapBoundsAsync(C.Identity identity, Cell origin, CancellationToken ct) =>
-        Only(ReadMapBoundsAsync(identity, origin, ct));
+        ReadMapBoundsAsync(identity, origin, ct);
 
     Task<MapBounds> ILoadoutWeaponSource.ReadMapBoundsAsync(C.Identity identity, Cell origin, CancellationToken ct) =>
-        Only(ReadMapBoundsAsync(identity, origin, ct));
+        ReadMapBoundsAsync(identity, origin, ct);
 
     Task<BridgeEquipRead> IRoundsEquipSource.ReadEquipWeaponsAsync(C.Identity identity, Cell from, Cell toCell, CancellationToken ct) =>
         ReadEquipWeaponsAsync(identity, from, toCell, ct);

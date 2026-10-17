@@ -101,9 +101,9 @@ public static partial class PolicyFunctions
         var roomOf = new Dictionary<Cell, string>();
         foreach (var s in site.Cells)
         {
-            if (s.Room.TryGetValue(out var id) && id != "")
+            if (s.Room.TryGetValue(out var id))
             {
-                roomOf[s.Cell] = id;
+                roomOf[s.Cell] = id.ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
         }
         string RoomAt(Cell cell) => roomOf.TryGetValue(cell, out var room) ? room : "";
