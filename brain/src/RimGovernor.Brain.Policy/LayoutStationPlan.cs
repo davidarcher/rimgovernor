@@ -18,7 +18,10 @@ public sealed record StationFacts
 {
     public StationCatalog Catalog { get; init; } = default!;
     public RoomFurniture Furniture { get; init; } = default!;
-    public DiningFurniture Dining { get; init; } = default!;
+
+    /// <summary>The catalog's dining furniture, carried by the rooms census; while that is unread it stays empty, which a first plan treats as an unknown fact (the seed rooms).</summary>
+    public DiningFurniture Dining { get; init; } = new();
+
     public ItemFacts Items { get; init; } = default!;
     public IReadOnlyDictionary<string, RecipeFlow> Recipes { get; init; } = new Dictionary<string, RecipeFlow>();
 

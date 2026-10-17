@@ -85,14 +85,19 @@ public sealed class AcceptanceReads
     /// </summary>
     public async Task<string> StarterSiteAsync(bool cells, CancellationToken cancellationToken)
     {
-        var (_, catalog, reading) = await ReadColonyAsync(cancellationToken).ConfigureAwait(false);
+        // The review's rooms read, as the colony plan derives from: the station catalog, item facts and dining furniture
+        // ride the rounds frame, not the bare colony read.
+        var expected = await ReadIdentityAsync(cancellationToken).ConfigureAwait(false);
+        var catalog = await _client.DefinitionCatalogAsync(IdentityOf(expected), cancellationToken).ConfigureAwait(false);
+        using var window = ClockPlanning.StandaloneWindow(_client);
+        var reading = await ObservationPackage.ObserveRoundsRooms(_client, SystemClock.Instance, expected, MaxAge, Fact.Unknown<EquatableArray<ConstructionClaim>>(), [], cancellationToken).ConfigureAwait(false);
         var projection = reading.Projection;
         var survey = catalog.SurveyFromCells(projection.Cells, projection.Bounds) with
         {
             Cold = projection.ColdMap.TryGetValue(out var cold) && cold,
             Hot = projection.HotMap.TryGetValue(out var hot) && hot,
         };
-        var facts = StationFactsBuilder.FirstPlanFacts(projection, survey, new Dictionary<Resource, long>(), PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewNone, 0));
+        var facts = StationFactsBuilder.StationFacts(catalog, StationFactsBuilder.FirstPlanFacts(projection, survey, new Dictionary<Resource, long>(), PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewNone, 0)));
         var (fact, _) = PolicyFunctions.DeriveLayoutPlan(survey, facts, []);
         var planJson = fact.TryGetValue(out var plan) ? StoreJson.Serialize(plan) : null;
         projection.Facts.Colonists.TryGetValue(out var colonists);
