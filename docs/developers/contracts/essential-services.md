@@ -161,7 +161,9 @@ at the task boundary while a running task is never interrupted (`ActivityNeedBou
 and changed skill or decay is covered by `ProductiveLearningTests` and `CapabilityMaintenanceTests`.
 Retirement on changed demand is the lifecycle case's deleted bill. A reassigned or lost participant is
 the lost-participant unit test above; its real-game case, `production/development-reassignment`,
-currently FAILS: after the Cooking priority is withdrawn the cooking colonist holds its task for
-thousands of ticks and nothing cooks. Whether that is a Method bug or the case's withdrawal is not
-established (no unreassigned control was completed). Peg-leg doctor training is outside this epic
-(#3344).
+currently FAILS, and the failure is the case's premise, not the withdrawal: a control run with
+no reassignment shows the same state 3300 ticks after the first completion (one colonist still
+owned, nothing cooking, no further work, bill still active), because the prepared stock is fully
+consumed and the Method holds its owner until demand is withdrawn. The case must withdraw the
+assignment while work remains, so the finding is not yet evidence either way. Peg-leg doctor
+training is outside this epic (#3344).
