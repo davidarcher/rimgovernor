@@ -75,6 +75,11 @@ pushes), or edit the main checkout. Details: [landing](docs/developers/developme
 
 - Prove planner decisions with a bug-driven xUnit test in `brain/tests` where one is
   needed; native cases prove native reads, operations or simulation. An accepted order is not completed pawn work.
+- Cases read wire replies through the typed Contracts records
+  (`WireCodec.ToRecord<T>`), not by string keys on the flat JSON view
+  (`reply["pawns"]`). New cases, and any lines you touch in an existing case,
+  use the typed records, so a renamed or deleted field breaks the build instead
+  of the nightly.
 - New native cases start from a prepared fixture, normally `cases.LabStart()`;
   state why a unit test cannot prove the claim. Use a small quiet world,
   bounded progress waits and minute-scale budgets. Do not play for twenty
