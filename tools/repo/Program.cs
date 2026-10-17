@@ -29,6 +29,7 @@ internal static class Program
           colonyreview  render a colony-week recording into an HTML report or a site index
           pawnactivity  report pawn time and gaps from the OTLP ring
           launch-phases  print a run's launch waterfall (or two runs' per-phase delta) from its traces
+          native-build  build the native mod package from this checkout
 
         <tool> -help shows a tool's flags.
         """;

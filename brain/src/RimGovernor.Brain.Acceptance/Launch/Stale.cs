@@ -175,11 +175,11 @@ public static class StalePackage
         var flags = FixtureFlags(repo, manifest.Fixtures, fixtureOps);
         if (flags.Count > 0)
         {
-            fixtures = " -Fixture " + string.Join(',', flags);
+            fixtures = " -fixtures " + string.Join(',', flags);
         }
 
         return new StalePackageException(
-            $"installed native build is stale for this worktree: {pkg} was built at {Short(manifest.SourceRevision)} and {why}; rebuild it (pwsh scripts/build_native_mod.ps1{fixtures} -OutputRoot <fresh dir>, then install the RimGovernor package over {pkg}) or set {AllowStaleModEnv}=1 to run against it anyway");
+            $"installed native build is stale for this worktree: {pkg} was built at {Short(manifest.SourceRevision)} and {why}; rebuild it (RimGovernor.cmd native-build -out <fresh dir>{fixtures}, then install the RimGovernor package over {pkg}) or set {AllowStaleModEnv}=1 to run against it anyway");
     }
 
     /// <summary>

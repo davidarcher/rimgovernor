@@ -14,13 +14,13 @@ reference package and no Linux compile path.
 Build a complete local development package from the repository root:
 
 ```powershell
-./scripts/build_native_mod.ps1 -RimWorldDir 'C:/path/to/RimWorld' -HarmonyAssembly 'C:/path/to/0Harmony.dll' -DotNet 'C:/path/to/dotnet.exe'
+RimGovernor.cmd native-build -out <fresh dir> [-rimworld 'C:/path/to/RimWorld'] [-harmony 'C:/path/to/0Harmony.dll']
 ```
 
-The command prints the staged `RimGovernor` directory. `-OutputRoot` chooses a
-fresh parent directory; an existing directory is refused. Default outputs live
-under `.rimgovernor/native-builds`. Add `-Fixture InstallFixture` (or an array of
-the supported fixture property names) for test-only tools. Production and fixture
+The command (`NativeModBuild` in the acceptance harness) prints the staged
+`RimGovernor` directory under `-out`, which must not exist yet; the game and
+Harmony default to what acceptance setup discovers. Add `-fixtures A,B` (fixture
+build flags of `src/Bridge/RimGovernor.Bridge.csproj`) for test-only tools. Production and fixture
 builds use separate source, restore and output directories. The manifest records
 the role, enabled fixtures, compiler version and source/dependency/artifact hashes.
 

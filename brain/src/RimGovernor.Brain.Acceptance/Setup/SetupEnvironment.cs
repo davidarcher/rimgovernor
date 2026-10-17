@@ -52,7 +52,7 @@ public sealed class SetupOptions
 
     public required SetupInputs Inputs { get; init; }
 
-    /// <summary>The fixture classes the mod build takes; null means every class build_native_mod.ps1 accepts; empty is the production build.</summary>
+    /// <summary>The fixture classes the mod build takes; null means every build flag of the native project; empty is the production build.</summary>
     public IReadOnlyList<string>? Fixtures { get; init; }
 
     /// <summary>Forces a mod build even when the installed one is current.</summary>
@@ -111,14 +111,8 @@ public static partial class SetupEnvironment
     /// <summary>The configured game every runner flag defaults to.</summary>
     public const string GameId = "rimgovernor-trial";
 
-    /// <summary>The mod build, relative to the checkout.</summary>
-    public const string BuildScript = "scripts/build_native_mod.ps1";
-
     /// <summary>The install's directories the copy junctions to Steam instead of copying: the bulk of the game, read-only for a DirectPath launch.</summary>
     public static readonly IReadOnlyList<string> JunctionDirs = ["Data"];
-
-    /// <summary>What the build script adds to any fixture build.</summary>
-    private static readonly string[] AlwaysFixtures = ["QuietStorytellerFixture", "DebugStartFixture", "LetterFixture", "FreezeNeedsFixture"];
 
     /// <summary>Enough of a Prefs.xml for RimWorld to launch and TrimPrefs to fill in; the game writes the rest on first run.</summary>
     private const string MinimalPrefs = """
@@ -477,53 +471,16 @@ public static partial class SetupEnvironment
         return File.Exists(path) ? path : "";
     }
 
-    /// <summary>The fixture classes BuildScript's <c>-Fixture</c> accepts (its ValidateSet), sorted: what a build serving every case needs.</summary>
-    public static IReadOnlyList<string> AllFixtures(string repo)
-    {
-        var src = File.ReadAllText(Path.Combine(repo, BuildScript.Replace('/', Path.DirectorySeparatorChar)));
-        return ParseValidateSet(src);
-    }
-
-    /// <summary>Extracts the quoted names of the first <c>[ValidateSet(...)]</c> in a PowerShell source, sorted.</summary>
-    public static IReadOnlyList<string> ParseValidateSet(string src)
-    {
-        ArgumentNullException.ThrowIfNull(src);
-        var m = ValidateSet().Match(src);
-        if (!m.Success)
-        {
-            throw new SetupException("no [ValidateSet(...)] in " + BuildScript);
-        }
-
-        return [.. Quoted().Matches(m.Groups[1].Value).Select(q => q.Groups[1].Value).Order(StringComparer.Ordinal)];
-    }
-
-    [GeneratedRegex(@"\[ValidateSet\(([^)]*)\)\]", RegexOptions.CultureInvariant)]
-    private static partial Regex ValidateSet();
-
-    [GeneratedRegex("'([A-Za-z0-9_]+)'", RegexOptions.CultureInvariant)]
-    private static partial Regex Quoted();
-
-    /// <summary>The manifest's fixture list a build with <paramref name="wanted"/> would record.</summary>
-    internal static IReadOnlyList<string> ExpectedFixtures(IReadOnlyList<string> wanted)
-    {
-        if (wanted.Count == 0)
-        {
-            return [];
-        }
-
-        return [.. wanted.Concat(AlwaysFixtures).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
-    }
-
     /// <summary>
     /// Brings the copy's Mods/RimGovernor to a build of this worktree's native sources with the wanted fixtures: it skips
     /// when the installed manifest already records that source tree and fixture set, otherwise builds through
-    /// BuildScript and installs the package -- never while a game runs from the copy.
+    /// <see cref="NativeModBuild"/> and installs the package -- never while a game runs from the copy.
     /// </summary>
     private static async Task InstallModAsync(SetupOptions o, SetupSummary s, Action<string> note, CancellationToken cancellationToken)
     {
         var l = o.Layout;
-        var wanted = o.Fixtures ?? AllFixtures(l.Repo);
-        s.Fixtures = ExpectedFixtures(wanted);
+        var wanted = o.Fixtures ?? FixtureInputs.BuildFlags(l.Repo);
+        s.Fixtures = NativeModBuild.RecordedFixtures(wanted);
         var installed = Path.Combine(l.GameCopy, "Mods", "RimGovernor");
         var current = o.SourceTree ?? SetupPackage.SourceTreeHash(l.Repo);
         var reason = "no installed build";
@@ -571,7 +528,9 @@ public static partial class SetupEnvironment
         var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
         var output = Path.Combine(l.Builds, $"{role}-{stamp}");
         note($"building the {role} mod ({reason}) into {output}");
-        await RunBuildScriptAsync(l, o.Inputs, wanted, output, o.Log, cancellationToken).ConfigureAwait(false);
+        _ = await NativeModBuild.BuildAsync(
+            new NativeModBuildOptions { Repo = l.Repo, RimWorldDir = o.Inputs.RimWorldDir, Harmony = o.Inputs.Harmony, Fixtures = wanted, OutputRoot = output, Log = o.Log },
+            cancellationToken).ConfigureAwait(false);
         s.ModBuilt = true;
         s.ModBuild = output;
         var pkg = Path.Combine(output, "RimGovernor");
@@ -614,96 +573,5 @@ public static partial class SetupEnvironment
         _ = CopyTree(pkg, installed);
         SetupPackage.RequireNativePackage(Path.Combine(l.GameCopy, "Mods"));
         note($"installed {installed} (fixtures [{string.Join(' ', s.Fixtures)}])");
-    }
-
-    /// <summary>Runs BuildScript in PowerShell (pwsh, else Windows PowerShell) with the discovered inputs, streaming its output to <paramref name="log"/>.</summary>
-    private static async Task RunBuildScriptAsync(SetupLayout l, SetupInputs inputs, IReadOnlyList<string> fixtures, string output, TextWriter log, CancellationToken cancellationToken)
-    {
-        var shell = OnPath("pwsh.exe") ?? OnPath("powershell.exe") ?? throw new SetupException("neither pwsh nor powershell is on PATH");
-        var q = SetupDiscovery.Quote;
-        var command = $"& {q(Path.Combine(l.Repo, BuildScript.Replace('/', Path.DirectorySeparatorChar)))} -RimWorldDir {q(inputs.RimWorldDir)} -HarmonyAssembly {q(inputs.Harmony)} -OutputRoot {q(output)}";
-        if (fixtures.Count > 0)
-        {
-            command += " -Fixture @(" + string.Join(',', fixtures.Select(q)) + ")";
-        }
-
-        command += "; exit $LASTEXITCODE";
-        var info = new ProcessStartInfo(shell)
-        {
-            WorkingDirectory = l.Repo,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            RedirectStandardInput = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-        foreach (var a in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", command })
-        {
-            info.ArgumentList.Add(a);
-        }
-
-        using var process = new Process { StartInfo = info };
-        var gate = new object();
-        void Write(object sender, DataReceivedEventArgs e)
-        {
-            if (e.Data is null)
-            {
-                return;
-            }
-
-            lock (gate)
-            {
-                log.WriteLine(e.Data);
-            }
-        }
-
-        process.OutputDataReceived += Write;
-        process.ErrorDataReceived += Write;
-        try
-        {
-            _ = process.Start();
-        }
-        catch (Win32Exception e)
-        {
-            throw new SetupException($"{BuildScript}: {e.Message}", e);
-        }
-
-        process.StandardInput.Close();
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-        try
-        {
-            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            process.Kill(entireProcessTree: true);
-            throw;
-        }
-
-        if (process.ExitCode != 0)
-        {
-            throw new SetupException(string.Create(CultureInfo.InvariantCulture, $"{BuildScript}: exit status {process.ExitCode}"));
-        }
-    }
-
-    private static string? OnPath(string exe)
-    {
-        foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-        {
-            try
-            {
-                var candidate = Path.Combine(dir.Trim('"'), exe);
-                if (File.Exists(candidate))
-                {
-                    return candidate;
-                }
-            }
-            catch (ArgumentException)
-            {
-            }
-        }
-
-        return null;
     }
 }

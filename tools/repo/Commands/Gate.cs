@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Security.Cryptography;
 using System.Text;
 using RimGovernor.Tools.Common;
 
@@ -28,13 +27,6 @@ internal static class Gate
         "native-threat-classifier", "native-acquisition-token", "native-ref-index",
     ];
 
-    /// <summary>What the native build reads, relative to the repo; a change to any of them rebuilds the mod.</summary>
-    private static readonly string[] NativeInputs =
-    [
-        "integrations/rimgovernor-native/src", "integrations/rimgovernor-native/About",
-        "integrations/rimgovernor-native/Notices", "integrations/rimgovernor-host", "scripts/build_native_mod.ps1",
-    ];
-
     private sealed record Paths(string Repo)
     {
         public string Out => Path.Combine(Repo, ".rimgovernor", "gate");
@@ -49,8 +41,6 @@ internal static class Gate
         public string HookSet => Path.Combine(Out, "hookset");
 
         public string Mod => Path.Combine(Out, "native", "mod");
-
-        public string ModStamp => Path.Combine(Out, "native", "inputs.sha256");
 
         public string Manifest => Path.Combine(Mod, "RimGovernor", "native-manifest.json");
 
@@ -101,7 +91,10 @@ internal static class Gate
 
     private static string[] Strict => ["-c", "Release", "-v", "minimal", "-nologo", "-p:RestoreLockedMode=true", "-p:TreatWarningsAsErrors=true"];
 
-    /// <summary>Packages the native mod when the game is installed and something it reads changed since the last build.</summary>
+    /// <summary>
+    /// Packages the native mod when the game is installed, with the rg it just built: <c>native-build -if-current</c>
+    /// keeps the last package when it records these sources, game inputs and fixtures.
+    /// </summary>
     private static async Task BuildNativeAsync(Paths p, CancellationToken ct)
     {
         var game = Path.Combine(p.RimWorldDir, "Assembly-CSharp.dll");
@@ -111,51 +104,11 @@ internal static class Gate
             Log.Info($"build native mod: unavailable (missing {string.Join(", ", missing)})");
             return;
         }
-        var fingerprint = Fingerprint(p.Repo, [game, p.Harmony]);
-        if (File.Exists(p.Manifest) && File.Exists(p.ModStamp) && File.ReadAllText(p.ModStamp) == fingerprint)
-        {
-            Log.Info("build native mod: inputs unchanged, kept");
-            return;
-        }
-        if (Directory.Exists(p.Mod))
-        {
-            Directory.Delete(p.Mod, recursive: true);
-        }
-        Directory.CreateDirectory(Path.GetDirectoryName(p.ModStamp)!);
-        File.Delete(p.ModStamp);
         await StepAsync(
             p.Repo,
             "build native mod",
-            ["-NoProfile", "-File", Path.Combine(p.Repo, "scripts", "build_native_mod.ps1"), "-RimWorldDir", p.RimWorldDir, "-HarmonyAssembly", p.Harmony, "-OutputRoot", p.Mod],
-            ct,
-            "pwsh").ConfigureAwait(false);
-        File.WriteAllText(p.ModStamp, fingerprint);
-    }
-
-    /// <summary>A digest of every native input's path, size and write time, plus the game assemblies it compiles against.</summary>
-    private static string Fingerprint(string repo, string[] external)
-    {
-        var lines = new List<string>();
-        foreach (var input in NativeInputs)
-        {
-            var path = Path.Combine(repo, input);
-            var files = File.Exists(path)
-                ? [path]
-                : Directory.Exists(path)
-                    ? Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories)
-                        .Where(f => !f.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Any(part => part is "bin" or "obj"))
-                    : [];
-            lines.AddRange(files.Select(f => Describe(Path.GetRelativePath(repo, f), f)));
-        }
-        lines.AddRange(external.Select(f => Describe(f, f)));
-        lines.Sort(StringComparer.Ordinal);
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join('\n', lines))));
-    }
-
-    private static string Describe(string name, string file)
-    {
-        var info = new FileInfo(file);
-        return $"{name.Replace('\\', '/')} {info.Length} {info.LastWriteTimeUtc.Ticks}";
+            [Path.Combine(p.Bin("rg"), "rg.dll"), "native-build", "-if-current", "-out", p.Mod, "-rimworld", p.RimWorldDir, "-harmony", p.Harmony],
+            ct).ConfigureAwait(false);
     }
 
     private static async Task TestAsync(Paths p, CancellationToken ct)
@@ -232,11 +185,11 @@ internal static class Gate
         return output;
     }
 
-    private static async Task StepAsync(string dir, string name, IReadOnlyList<string> args, CancellationToken ct, string file = "dotnet")
+    private static async Task StepAsync(string dir, string name, IReadOnlyList<string> args, CancellationToken ct)
     {
         var started = Stopwatch.StartNew();
         Log.Info($"{name} ...");
-        await Proc.RunAsync(dir, file, args, ct).ConfigureAwait(false);
+        await Proc.RunAsync(dir, "dotnet", args, ct).ConfigureAwait(false);
         Log.Info($"{name}: done ({Durations.Format(started.Elapsed)})");
     }
 }

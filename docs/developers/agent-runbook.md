@@ -38,7 +38,7 @@ publishes it ReadyToRun into the gitignored `.rimgovernor/tools/<version>/` on f
 use (a few seconds), names the live version in `.rimgovernor/tools/current`, and
 afterwards starts it in well under 150 ms. The brain tools (`acceptance`,
 `remoteaccept`, `remotebundle`, `thoughtaudit`, `colonyreview`, `pawnactivity`,
-`launch-phases`) live in `tools/rg`, which references the `brain/` projects; the
+`launch-phases`, `native-build`) live in `tools/rg`, which references the `brain/` projects; the
 front door publishes it the same way into `.rimgovernor/rg/` when first needed and
 forwards to it. A `.cs`, `.csproj` or `.props` newer than the last publish, in a
 tool's projects or the build files above them, makes the next run rebuild first;
@@ -103,8 +103,8 @@ RimGovernor supports RimWorld 1.7 (Waylith) only. The install is flat:
 the install root beside `Data/`, `Rendering/` and `Assets.zip`, with Harmony 3
 from the Workshop item's `1.7/Assemblies`. The native mod, host and probes
 target net10.0 and compile against that root, passed as `RimWorldDir`
-(`-RimWorldDir` for `scripts/build_native_mod.ps1`; setup supplies it).
-The script publishes the mod's own assemblies (Bridge, brain, host, Runtime) win-x64 ReadyToRun against the
+(`-rimworld` for `RimGovernor.cmd native-build`; setup supplies it).
+The build publishes the mod's own assemblies (Bridge, brain, host, Runtime) win-x64 ReadyToRun against the
 stock .NET 10 runtime pack, with the game's assemblies passed to crossgen2 as references; NuGet runtime DLLs ship
 as restored. The game's runtime runs that precompiled code, which took 3–4 s off a headless boot (#3291).
 
@@ -117,8 +117,8 @@ instance's log is the stdout the harness captures to
 `<config>/<game>/game.log`; message and error lines stay, stack traces do not (a
 headless run of a minute or two writes about 5 KB, against about 15 MB a minute with stacks).
 
-Build mods through `acceptance setup -rebuild [-fixture A,B]`, never by invoking
-`scripts/build_native_mod.ps1` directly. Setup supplies paths safely and refuses
+Build mods through `acceptance setup -rebuild [-fixture A,B]`, never by running
+`RimGovernor.cmd native-build` and copying the package by hand. Setup supplies paths safely and refuses
 to install while a game uses that copy. Do not rebuild a binary or mod while
 a harness runs from it.
 

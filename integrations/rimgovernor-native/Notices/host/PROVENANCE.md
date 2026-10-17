@@ -35,7 +35,7 @@ Tool names were `rimworld/*` and `rimbridge/*` upstream; here they are `rimgover
 ## Packages shipped beside the host
 
 Restored in locked mode from `packages.lock.json`; their runtime DLLs are staged by
-`scripts/build_native_mod.ps1` and each needs a `<id>/<version>/LICENSE` here.
+`RimGovernor.cmd native-build` (`NativeModBuild`) and each needs a `<id>/<version>/LICENSE` here.
 
 | Package | Version | License | Notice |
 | --- | --- | --- | --- |

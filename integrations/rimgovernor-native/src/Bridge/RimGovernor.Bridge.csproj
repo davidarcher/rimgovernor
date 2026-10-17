@@ -58,7 +58,7 @@
     <Compile Include="../../../../scripts/fixtures/HutShellFixture.cs" Condition="'$(HutShellFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ColonyReviewFixture.cs" Condition="'$(ColonyReviewFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/QuietStorytellerFixture.cs" Condition="'$(QuietStorytellerFixture)' == 'true'" />
-    <!-- build_native_mod.ps1 adds QuietStorytellerFixture, DebugStartFixture, LetterFixture and FreezeNeedsFixture to every fixture build; the extra conditions cover direct dotnet builds of the fixtures that call into them. -->
+    <!-- The native build (NativeModBuild) adds QuietStorytellerFixture, DebugStartFixture, LetterFixture and FreezeNeedsFixture to every fixture build; the extra conditions cover direct dotnet builds of the fixtures that call into them. -->
     <Compile Include="../../../../scripts/fixtures/DebugStartFixture.cs" Condition="'$(DebugStartFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HuntingPredictionFixture.cs" Condition="'$(DebugStartFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LetterFixture.cs" Condition="'$(LetterFixture)' == 'true'" />

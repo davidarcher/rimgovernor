@@ -34,7 +34,6 @@ Acceptance/Setup/SetupDiscovery.cs|SetupDiscovery.AbsClean
 Acceptance/Setup/SetupDiscovery.cs|SetupDiscovery.ReadSteamRegistry
 Acceptance/Setup/SetupEnvironment.cs|SetupEnvironment.BridgeRoot
 Acceptance/Setup/SetupEnvironment.cs|SetupEnvironment.InstallModAsync
-Acceptance/Setup/SetupEnvironment.cs|SetupEnvironment.OnPath
 Acceptance/Setup/SetupProcesses.cs|SetupProcesses.StopPids
 Acceptance/Stages/RingPlanning.cs|RingPlanning.Fingerprint
 Acceptance/Stages/StagePlanning.cs|StagePlanning.CachedStage

@@ -33,7 +33,7 @@ public static class SetupPackage
     /// <summary>The unified native mod's package ID.</summary>
     public const string NativePackage = "davidarcher.rimgovernor.native";
 
-    /// <summary>The build record scripts/build_native_mod.ps1 writes at the package root.</summary>
+    /// <summary>The build record <see cref="NativeModBuild"/> writes at the package root.</summary>
     public const string PackageManifestName = "native-manifest.json";
 
     /// <summary>Split/superseded native package IDs that must never coexist with the unified package.</summary>

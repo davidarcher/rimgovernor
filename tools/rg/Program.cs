@@ -25,6 +25,7 @@ internal static class Program
           colonyreview  render a colony-week recording into an HTML report or a site index
           pawnactivity  report pawn time and gaps from the OTLP ring
           launch-phases  print a run's launch waterfall (or two runs' per-phase delta) from its traces
+          native-build  build the native mod package from this checkout
 
         <tool> -help shows a tool's flags.
         """;
@@ -58,6 +59,7 @@ internal static class Program
                 "thoughtaudit" => await ThoughtAuditCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "colonyreview" => await ColonyReviewCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "launch-phases" => await LaunchPhasesCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
+                "native-build" => await NativeBuildCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 _ => throw new UsageException($"unknown tool \"{tool}\"\n\n{Usage}"),
             };
         }

@@ -2,7 +2,7 @@
 
 This probe is now part of the consolidated `NativeContractProbes.csproj`; it no
 longer has its own `.csproj`. Build the private production package with
-`scripts/build_native_mod.ps1`, then build the merged project in Release. Run it
+`RimGovernor.cmd native-build`, then build the merged project in Release. Run it
 with:
 
 ```powershell
