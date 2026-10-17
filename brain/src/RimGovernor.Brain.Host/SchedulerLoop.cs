@@ -163,7 +163,7 @@ internal sealed class SchedulerLoop
                 }
             }
 
-            var faulted = outcome != Outcome.Done && !IsRetry(error, outcome);
+            var faulted = outcome != Outcome.Done && !IsRetry(error, outcome == Outcome.Faulted);
             Report(outcome, error, result, previous, out var key);
             if (outcome == Outcome.Done)
             {
@@ -221,8 +221,11 @@ internal sealed class SchedulerLoop
         }
     }
 
-    private static bool IsRetry(Exception? error, Outcome outcome) =>
-        outcome == Outcome.Faulted && error is RimGovernor.Brain.Executor.AuthorityException or RimGovernor.Brain.Observation.ObservationChangedException or ControlException or RimGovernor.Brain.Executor.HeldException;
+    // A step cancelled by its call budget is slow, not faulty (the lifetime ends the loop before this is asked): it is
+    // retried, as a full step because the scheduler replans after the cancellation, and never counts toward the fault
+    // limit that suspends authority.
+    internal static bool IsRetry(Exception? error, bool faulted) =>
+        faulted && error is OperationCanceledException or RimGovernor.Brain.Executor.AuthorityException or RimGovernor.Brain.Observation.ObservationChangedException or ControlException or RimGovernor.Brain.Executor.HeldException;
 
     /// <summary>
     /// Runs <paramref name="work"/> on the pool and waits for it on this thread, bounded by the watchdog. A work
@@ -350,7 +353,7 @@ internal sealed class SchedulerLoop
         }
         if (outcome != Outcome.Done)
         {
-            if (IsRetry(error, outcome))
+            if (IsRetry(error, outcome == Outcome.Faulted))
             {
                 _log.Info("step_retry", "scheduler step waiting on authority or observation", ("error", error?.Message ?? ""));
             }

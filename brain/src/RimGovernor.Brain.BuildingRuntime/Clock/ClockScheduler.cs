@@ -278,7 +278,7 @@ public sealed partial class ClockScheduler
                 {
                     result.Planners = await RunPlannerWaveAsync(result, sel, statusTick, false, call, epoch).ConfigureAwait(false);
                 }
-                catch (Exception e) when (e is not OperationCanceledException)
+                catch
                 {
                     ReplanAfterFailure();
                     throw;

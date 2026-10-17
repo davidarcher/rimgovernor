@@ -32,7 +32,8 @@ through the same control intent the resume route submits.
 Each step runs on the pool behind a guard: past `StallAfter` it is recorded as a stall, past `AbandonAfter` the thread
 stops waiting and the brain is wedged. `FaultLimit` consecutive faults or any stall/wedge suspends authority
 (`Session.Disable`), logs it, and keeps the game running; only the player's resume clears the suspension. Hazard stops
-stay native and never wait on a planner. Planners that miss the wave cutoff `PlannerMissLimit` times in a row are
+reported in `BrainHost.Status()`. A step cancelled by its call budget (`CallTimeout`) is a retry, not a fault: it does not count toward
+`FaultLimit`, and the scheduler replans with a full step after it (#3435).
 reported in `BrainHost.Status()`.
 
 ## Native client and composition (#3113)
