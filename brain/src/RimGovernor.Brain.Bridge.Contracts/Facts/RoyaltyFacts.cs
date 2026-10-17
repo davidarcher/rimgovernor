@@ -29,7 +29,7 @@ public static partial class BridgeFunctions
         var casters = new Dictionary<PawnId, PolicyPsycasterState>();
         foreach (var pawn in pawns.Pawns)
         {
-            var id = pawn.Pawn?.Id ?? "";
+            var id = pawn.Pawn.Id ?? "";
             if (IssueNames(pawn.Issues, "royalty"))
             {
                 throw Contract($"royalty of pawn {id} unread");

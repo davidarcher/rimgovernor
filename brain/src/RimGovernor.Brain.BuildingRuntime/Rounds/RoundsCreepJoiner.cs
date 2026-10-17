@@ -68,7 +68,7 @@ internal static partial class BuildingRuntimePackage
     {
         var hand = new CreepJoinerHand
         {
-            Pawn = new PawnId(row.Pawn?.Id ?? ""),
+            Pawn = new PawnId(row.Pawn.Id ?? ""),
             Facts = BridgeApi.CreepJoinerPawn(row),
             Available = Unknown<bool>(),
             Weapon = Unknown<string>(),
@@ -96,15 +96,7 @@ internal static partial class BuildingRuntimePackage
         {
             hand = hand with { Hungry = Known(needs.HungerCategory.GetValueOrDefault() != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed) };
         }
-        var mental = BridgeApi.CellPresence(row.MentalState is not null ? (row.MentalState ?? "") : null, row.Issues, "mental_state", false);
-        if (row.Dead.GetValueOrDefault() || row.Downed.GetValueOrDefault() || row.Drafted.GetValueOrDefault())
-        {
-            hand = hand with { Available = Known(false) };
-        }
-        else if (mental.TryGetValue(out var inMental) && row.Dead is not null && row.Downed is not null && row.Drafted is not null)
-        {
-            hand = hand with { Available = Known(!inMental) };
-        }
+        hand = hand with { Available = Known(!row.Dead && !row.Downed && !row.Drafted && row.MentalState is null) };
         if (row.Equipment is { Armed: not null } equipment && !Boundary.IssueField(equipment.Issues, "armed"))
         {
             if (!equipment.Armed.GetValueOrDefault())

@@ -88,12 +88,8 @@ public static partial class ObservationPackage
             {
                 return Unknown<ContainmentDemand>();
             }
-            if (!entity || row.Dead is null || row.Dead.GetValueOrDefault())
+            if (!entity || row.Dead)
             {
-                if (row.Dead is null)
-                {
-                    return Unknown<ContainmentDemand>();
-                }
                 continue;
             }
             if (!a.Held.TryGetValue(out var held))
@@ -171,9 +167,9 @@ public static partial class ObservationPackage
             }
             var e = new CapturableEntity
             {
-                Pawn = new RimGovernor.Brain.Domain.PawnId(row.Pawn?.Id ?? ""),
-                Dead = Optional(row.Dead is not null, row.Dead.GetValueOrDefault()),
-                Downed = Optional(row.Downed is not null, row.Downed.GetValueOrDefault()),
+                Pawn = new RimGovernor.Brain.Domain.PawnId(row.Pawn.Id ?? ""),
+                Dead = Known(row.Dead),
+                Downed = Known(row.Downed),
                 CanBeCaptured = Unknown<bool>(),
                 Held = Unknown<bool>(),
                 Need = a.MinContainmentStrength,
@@ -235,7 +231,7 @@ public static partial class ObservationPackage
         var mechs = new List<MechInput>();
         foreach (var row in rows)
         {
-            if (row is null || row.Dead.GetValueOrDefault())
+            if (row is null || row.Dead)
             {
                 continue;
             }
@@ -243,15 +239,15 @@ public static partial class ObservationPackage
             {
                 continue;
             }
-            var id = new PawnId(row.Pawn?.Id ?? "");
-            var cell = RowCell(row.Pawn?.Position);
-            if (bt.Mechanitor.TryGetValue(out var m) && m is not null && row.Colonist.GetValueOrDefault())
+            var id = new PawnId(row.Pawn.Id ?? "");
+            var cell = RowCell(row.Pawn.Position);
+            if (bt.Mechanitor.TryGetValue(out var m) && m is not null && row.Colonist)
             {
                 mechanitors.Add(new MechanitorInput { Id = id, Mechanitor = m, Cell = cell });
             }
-            if (bt.Mech.TryGetValue(out var mm) && mm is not null && row.Mechanoid.GetValueOrDefault())
+            if (bt.Mech.TryGetValue(out var mm) && mm is not null && row.Mechanoid)
             {
-                var mech = new MechInput { Id = id, Kind = row.KindDefName ?? "", Mech = mm, Cell = cell, Downed = row.Downed.GetValueOrDefault(), Drafted = row.Drafted.GetValueOrDefault() };
+                var mech = new MechInput { Id = id, Kind = row.KindDefName, Mech = mm, Cell = cell, Downed = row.Downed, Drafted = row.Drafted };
                 if (row.Job?.TargetA?.Target?.Entity is { } target)
                 {
                     mech = mech with { Target = new PawnId(target.Id ?? "") };
@@ -263,7 +259,7 @@ public static partial class ObservationPackage
     }
 
     /// <summary>The pawn row's position.</summary>
-    public static Fact<Cell> RowCellOf(O.PawnState row) => RowCell(row.Pawn?.Position);
+    public static Fact<Cell> RowCellOf(O.PawnState row) => RowCell(row.Pawn.Position);
 
     // rounds_medical.go
 
@@ -279,7 +275,7 @@ public static partial class ObservationPackage
         var byId = new Dictionary<string, O.PawnState>(StringComparer.Ordinal);
         foreach (var row in snapshot.Pawns)
         {
-            if (row is null || row.Pawn is null || byId.ContainsKey((row.Pawn.Id ?? "")))
+            if (row is null || byId.ContainsKey((row.Pawn.Id ?? "")))
             {
                 return unknown;
             }
@@ -291,7 +287,7 @@ public static partial class ObservationPackage
             byId.TryGetValue(pawn.Id.Value, out var row);
             var dk = pawn.Dead.TryGetValue(out var dead);
             var nk = pawn.Downed.TryGetValue(out var downed);
-            if (row is null || !dk || !nk || row.Dead is null || row.Downed is null || row.Dead.GetValueOrDefault() != dead || row.Downed.GetValueOrDefault() != downed || row.Colonist is null || !row.Colonist.GetValueOrDefault())
+            if (row is null || !dk || !nk || row.Dead != dead || row.Downed != downed || !row.Colonist)
             {
                 return unknown;
             }

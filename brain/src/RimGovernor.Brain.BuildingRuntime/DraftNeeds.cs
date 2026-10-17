@@ -52,7 +52,7 @@ internal static class DraftNeeds
         var output = new List<PawnId>();
         foreach (var row in rows)
         {
-            if (row?.Pawn is null)
+            if (row is null)
             {
                 continue;
             }
@@ -61,9 +61,7 @@ internal static class DraftNeeds
             {
                 continue;
             }
-            if (Boundary.FactBool(row.Colonist is not null, row.Colonist.GetValueOrDefault()) != Known(true) || Boundary.FactBool(row.Drafted is not null, row.Drafted.GetValueOrDefault()) != Known(true)
-                || Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()) != Known(false) || Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()) != Known(false)
-                || Boundary.FactPresence(row.MentalState is not null, row.Issues, "mental_state") != Known(false))
+            if (!row.Colonist || !row.Drafted || row.Dead || row.Downed || row.MentalState is not null)
             {
                 continue;
             }

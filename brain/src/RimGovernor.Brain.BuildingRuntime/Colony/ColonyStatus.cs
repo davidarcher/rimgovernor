@@ -178,11 +178,11 @@ public sealed class ColonyStatus
         var rows = new List<ColonyStatusPawn>();
         foreach (var row in pawns.Pawns)
         {
-            if (row?.Pawn is null || (row.Pawn.Id ?? "") == "" || row.Dead.GetValueOrDefault())
+            if (row is null || (row.Pawn.Id ?? "") == "" || row.Dead)
             {
                 continue;
             }
-            var pawn = new ColonyStatusPawn { Id = new PawnId((row.Pawn.Id ?? "")), Label = row.Pawn.Label ?? "", Downed = OptionalFact(row.Downed is not null, row.Downed.GetValueOrDefault()) };
+            var pawn = new ColonyStatusPawn { Id = new PawnId((row.Pawn.Id ?? "")), Label = row.Pawn.Label ?? "", Downed = Known(row.Downed) };
             if (row.Needs is { } needs)
             {
                 pawn = pawn with { Mood = OptionalFact(needs.Mood is not null, needs.Mood.GetValueOrDefault()), Food = OptionalFact(needs.Food is not null, needs.Food.GetValueOrDefault()) };

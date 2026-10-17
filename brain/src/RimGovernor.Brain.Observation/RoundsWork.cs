@@ -49,7 +49,7 @@ public static partial class ObservationPackage
         var byId = new Dictionary<string, O.PawnState>(StringComparer.Ordinal);
         foreach (var row in snapshot.Pawns)
         {
-            byId[row.Pawn?.Id ?? ""] = row;
+            byId[row.Pawn.Id ?? ""] = row;
         }
         var biotech = catalog?.Biotech;
         var rows = new List<WorkPawn>(snapshot.Pawns.Count);
@@ -57,7 +57,7 @@ public static partial class ObservationPackage
         {
             if (!byId.TryGetValue(p.Id.Value, out var row)
                 || !p.Dead.TryGetValue(out var dead) || !p.Downed.TryGetValue(out var downed)
-                || row.Dead is null || row.Downed is null || row.Dead.GetValueOrDefault() != dead || row.Downed.GetValueOrDefault() != downed || row.Colonist is null || !row.Colonist.GetValueOrDefault())
+                || row.Dead != dead || row.Downed != downed || !row.Colonist)
             {
                 return Unknown<EquatableArray<WorkPawn>>();
             }
@@ -66,7 +66,7 @@ public static partial class ObservationPackage
             {
                 if (bt.IsChild() is (true, true))
                 {
-                    var ages = RequireBiotech(biotech).WorkMinAges(row.Pawn?.DefName ?? "");
+                    var ages = RequireBiotech(biotech).WorkMinAges(row.Pawn.DefName ?? "");
                     bt = bt with { WorkMinAges = Known(ages) };
                     w = w with { Biotech = Known(bt) };
                 }
@@ -100,7 +100,7 @@ public static partial class ObservationPackage
         // stage; a row without one is a contract break, not an adult.
         if (row.Biotech is { } b && b.DevelopmentalStage is null)
         {
-            throw new ObservationContractException($"pawn {(row.Pawn?.Id ?? "")} has a Biotech block without a developmental stage");
+            throw new ObservationContractException($"pawn {(row.Pawn.Id ?? "")} has a Biotech block without a developmental stage");
         }
         if (row.Equipment is { } e)
         {
@@ -143,16 +143,8 @@ public static partial class ObservationPackage
 
     private static WorkPawn WorkPawnRowFrom(O.PawnState row)
     {
-        var w = new WorkPawn { Id = new PawnId(row.Pawn?.Id ?? ""), ConstructionAble = Optional(row.ConstructionCapable is not null, row.ConstructionCapable.GetValueOrDefault()) };
-        var mentalKnown = NativePresence(row.MentalState is not null ? (row.MentalState ?? "") : null, row.Issues, "mental_state").TryGetValue(out var mental);
-        if (row.Dead.GetValueOrDefault() || row.Downed.GetValueOrDefault() || row.Drafted.GetValueOrDefault() || (mentalKnown && mental))
-        {
-            w = w with { Available = Known(false) };
-        }
-        else if (row.Dead is not null && row.Downed is not null && row.Drafted is not null && mentalKnown)
-        {
-            w = w with { Available = Known(true) };
-        }
+        var w = new WorkPawn { Id = new PawnId(row.Pawn.Id ?? ""), ConstructionAble = Optional(row.ConstructionCapable is not null, row.ConstructionCapable.GetValueOrDefault()) };
+        w = w with { Available = Known(!row.Dead && !row.Downed && !row.Drafted && row.MentalState is null) };
         if (row.Settings is { } s)
         {
             if (s.FoodRestriction is { } food && food.PolicyId is not null && !HasIssue(s.Issues, "food_restriction"))

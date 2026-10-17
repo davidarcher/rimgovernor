@@ -270,7 +270,7 @@ internal sealed partial class FacadeNativeClient
         {
             if (row is not null && IsMechRow(row))
             {
-                ids.Add(row.Pawn?.Id ?? "");
+                ids.Add(row.Pawn.Id ?? "");
             }
         }
         var output = new List<PbObservations.PawnState>();
@@ -295,7 +295,7 @@ internal sealed partial class FacadeNativeClient
 
     /// <summary>Go <c>isMechRow</c>: a living pawn carrying a mechanitor or mech block.</summary>
     private static bool IsMechRow(PbObservations.PawnState row) =>
-        !row.Dead.GetValueOrDefault() && (row.Biotech?.Mechanitor is not null || row.Biotech?.Mech is not null);
+        !row.Dead && (row.Biotech?.Mechanitor is not null || row.Biotech?.Mech is not null);
 
     /// <summary>
     /// Go <c>DecodeCombat</c>: validates and decodes a frame's combat part. The census pawns and weapons are keyed from

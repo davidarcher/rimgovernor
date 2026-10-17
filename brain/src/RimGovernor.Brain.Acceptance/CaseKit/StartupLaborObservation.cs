@@ -156,7 +156,7 @@ public static partial class StartupLabor
                 Drafted = row["drafted"].AsBool() == true,
                 Downed = row["downed"].AsBool() == true,
                 InBed = row["inBed"].AsBool() == true,
-                Mental = row["mentalState"].AsString(),
+                Mental = row["mentalState"].Member("defName").AsString(),
                 JobKnown = job is not null || !hasIssues,
                 Job = job is null ? "" : job["defName"].AsString(),
             });

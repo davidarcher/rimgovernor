@@ -383,7 +383,7 @@ public static partial class ObservationPackage
         var rows = new Dictionary<string, O.PawnState>(pawns.Pawns.Count, StringComparer.Ordinal);
         foreach (var row in pawns.Pawns)
         {
-            rows[row.Pawn?.Id ?? ""] = row;
+            rows[row.Pawn.Id ?? ""] = row;
         }
         var stamped = new List<GearPawn>(gear.Pawns);
         for (var i = 0; i < stamped.Count; i++)

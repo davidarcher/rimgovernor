@@ -103,10 +103,10 @@ internal static class SustainedStableCase
                     {
                         var id = Colonists.RowID(row);
                         var dead = row["dead"].AsBool();
-                        alive[id] = dead is false;
+                        alive[id] = dead != true;
                         if (!alive[id])
                         {
-                            failures.Add(new AcceptanceException($"colonist {id} dead or death status unknown"));
+                            failures.Add(new AcceptanceException($"colonist {id} dead"));
                         }
 
                         if (row["health"].AsMap() is not { } health)

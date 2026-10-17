@@ -124,7 +124,7 @@ internal static partial class BuildingRuntimePackage
             {
                 continue;
             }
-            if (combat.Detail.TryGetValue((row.Id ?? ""), out var detail) && detail is not null && detail.Humanlike is not null && !detail.Humanlike.GetValueOrDefault())
+            if (combat.Detail.TryGetValue((row.Id ?? ""), out var detail) && detail is not null && !detail.Humanlike)
             {
                 continue; // an animal has nothing to strip and is never captured here
             }

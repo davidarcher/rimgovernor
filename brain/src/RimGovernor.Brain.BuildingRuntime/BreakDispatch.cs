@@ -13,7 +13,7 @@ internal static class BreakDispatch
 {
     public static Fact<Cell> BreakCell(PbObservations.PawnState row)
     {
-        var p = row.Pawn?.Position;
+        var p = row.Pawn.Position;
         if (p is null || p.X is null || p.Z is null)
         {
             return Unknown<Cell>();
@@ -128,7 +128,7 @@ public sealed partial class Worker
             _ = Boundary.Context(observed.Context, current);
             foreach (var row in observed.Pawns)
             {
-                positions[row.Pawn?.Id ?? ""] = BreakDispatch.BreakCell(row);
+                positions[row.Pawn.Id ?? ""] = BreakDispatch.BreakCell(row);
             }
         }
         foreach (var plan in plans)

@@ -373,7 +373,7 @@ internal static class SoloSeaIce
         foreach (var pawn in listed)
         {
             var id = Colonists.RowID(pawn);
-            alive[id] = pawn["dead"].AsBool() is false;
+            alive[id] = pawn["dead"].AsBool() != true;
             foreach (var entry in pawn["health"].Member("hediffs").AsSlice())
             {
                 if (entry.AsMap() is { } hediff && Colonists.HediffDef(hediff) == "Hypothermia")

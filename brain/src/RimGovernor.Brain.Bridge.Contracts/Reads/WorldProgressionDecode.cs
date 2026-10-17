@@ -60,7 +60,7 @@ public static partial class BridgeFunctions
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var pawn in row.Pawns)
             {
-                if (pawn is null || pawn.Pawn is null || !IsValidId((pawn.Pawn.Id ?? "")) || !seen.Add((pawn.Pawn.Id ?? "")))
+                if (!IsValidId((pawn.Pawn.Id ?? "")) || !seen.Add((pawn.Pawn.Id ?? "")))
                 {
                     throw Contract("invalid or duplicate world progression map pawn");
                 }
@@ -87,16 +87,14 @@ public static partial class BridgeFunctions
                 throw Contract("invalid world progression caravan tile or crew");
             }
             var pawnIds = new List<string>(row.Pawns.Count);
-            var pawns = new List<CaravanPawnFact>(row.Pawns.Count);
             var seenPawns = new HashSet<string>(StringComparer.Ordinal);
             foreach (var pawn in row.Pawns)
             {
-                if (pawn is null || pawn.Pawn is null || !IsValidId((pawn.Pawn.Id ?? "")) || !seenPawns.Add((pawn.Pawn.Id ?? "")))
+                if (!IsValidId((pawn.Pawn.Id ?? "")) || !seenPawns.Add((pawn.Pawn.Id ?? "")))
                 {
                     throw Contract("invalid or duplicate world progression caravan pawn");
                 }
                 pawnIds.Add((pawn.Pawn.Id ?? ""));
-                pawns.Add(new CaravanPawnFact((pawn.Pawn.Id ?? ""), pawn.Dead is not null && pawn.Dead.GetValueOrDefault(), pawn.Dead is not null, pawn.Downed is not null && pawn.Downed.GetValueOrDefault(), pawn.Downed is not null));
             }
             var inventory = new Dictionary<string, long>(row.Inventory.Count, StringComparer.Ordinal);
             var seenDefs = new HashSet<string>(StringComparer.Ordinal);
@@ -158,7 +156,6 @@ public static partial class BridgeFunctions
                 Tile = row.Tile.GetValueOrDefault(),
                 Moving = row.Moving.GetValueOrDefault(),
                 PawnIds = pawnIds,
-                Pawns = pawns,
                 HomeRoutes = routes,
                 Inventory = inventory,
                 SettlementRoutes = settlementRoutes,

@@ -91,39 +91,6 @@ internal sealed partial class FacadeNativeClient
             }
         }
 
-        /// <summary>
-        /// Go <c>PawnMentalState</c>: preserves absence from older producers as unknown. A known value describes an
-        /// active state; it never invents a state from mood alone.
-        /// </summary>
-        internal static Fact<PolicyMentalState> PawnMentalState(PbObservations.PawnState? row)
-        {
-            var unknown = Unknown<PolicyMentalState>();
-            if (row is null)
-            {
-                return unknown;
-            }
-            EmergencyIssues(row.Issues, field => field switch
-            {
-                "mental_state" => row.MentalState is not null,
-                "mental_state_is_aggro" => row.MentalStateIsAggro is not null,
-                "mental_state_ticks" => row.MentalStateTicks is not null,
-                _ => false,
-            });
-            if (row.MentalState is not null && !IsValidId(row.MentalState))
-            {
-                throw Contract("invalid mental state defName");
-            }
-            if (row.MentalStateTicks is not null && row.MentalStateTicks.GetValueOrDefault() < 0)
-            {
-                throw Contract("negative mental state age");
-            }
-            if (row.MentalState is null || row.MentalStateIsAggro is null || row.MentalStateTicks is null)
-            {
-                return unknown;
-            }
-            return Known(new PolicyMentalState { DefName = row.MentalState, IsAggro = row.MentalStateIsAggro.GetValueOrDefault(), TicksInState = row.MentalStateTicks.GetValueOrDefault() });
-        }
-
         /// <summary>Go <c>emergencyPawn</c>: reads one census reference's facts from its table row (returned too); an unresolved reference has only its id known.</summary>
         private static (PolicyEmergencyPawn Pawn, PbObservations.PawnState? State) EmergencyPawn(PbCommon.Ref? reference, Pawns pawns)
         {
@@ -141,26 +108,20 @@ internal sealed partial class FacadeNativeClient
         /// <summary>Go <c>emergencyFacts</c>.</summary>
         private static PolicyEmergencyPawn EmergencyFacts(PbObservations.PawnState row)
         {
-            EmergencyIssues(row.Issues, field => field switch
-            {
-                "dead" => row.Dead is not null,
-                "downed" => row.Downed is not null,
-                "in_bed" or "inBed" => row.InBed is not null,
-                "health" => row.Health is not null,
-                _ => false,
-            });
+            EmergencyIssues(row.Issues, field => field == "health" && row.Health is not null);
             var result = new PolicyEmergencyPawn
             {
-                Id = new PawnId(row.Pawn?.Id ?? ""),
-                Dead = EmergencyBool(row.Dead),
-                Downed = EmergencyBool(row.Downed),
-                InBed = EmergencyBool(row.InBed),
+                Id = new PawnId(row.Pawn.Id ?? ""),
+                Dead = Known(row.Dead),
+                Downed = Known(row.Downed),
+                InBed = Known(row.InBed),
+                // A known value is an active state; no mental state reads as unknown to the policy.
+                MentalState = row.MentalState is { } m ? Known(new PolicyMentalState { DefName = m.DefName, IsAggro = m.IsAggro, TicksInState = m.Ticks }) : Unknown<PolicyMentalState>(),
             };
-            if (row.Pawn?.Position is { X: not null, Z: not null } at)
+            if (row.Pawn.Position is { X: not null, Z: not null } at)
             {
                 result = result with { Position = Known(new DomainCell(at.X.GetValueOrDefault(), at.Z.GetValueOrDefault())) };
             }
-            result = result with { MentalState = PawnMentalState(row) };
             if (row.Health is { } h)
             {
                 EmergencyIssues(h.Issues, field => (field.StartsWith("health.", StringComparison.Ordinal) ? field["health.".Length..] : field) switch
@@ -292,8 +253,8 @@ internal sealed partial class FacadeNativeClient
                     }
                     if (state is not null)
                     {
-                        threat = threat with { Animal = EmergencyBool(state.Animal), Fogged = EmergencyBool(state.Fogged) };
-                        if (state.Pawn?.Position is { X: not null, Z: not null } at)
+                        threat = threat with { Animal = Known(state.Animal), Fogged = Known(state.Fogged) };
+                        if (state.Pawn.Position is { X: not null, Z: not null } at)
                         {
                             threat = threat with { Position = Known(new DomainCell(at.X.GetValueOrDefault(), at.Z.GetValueOrDefault())) };
                         }

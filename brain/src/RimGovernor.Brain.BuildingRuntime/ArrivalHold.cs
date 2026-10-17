@@ -84,7 +84,7 @@ public sealed partial class Worker
                     continue;
                 }
                 held.Add(waiting);
-                if (row.Drafted.GetValueOrDefault() && (row.Job?.DefName ?? "") != "Goto" && resent.Add(move.Action.Id) && _config.Moves is not null)
+                if (row.Drafted && (row.Job?.DefName ?? "") != "Goto" && resent.Add(move.Action.Id) && _config.Moves is not null)
                 {
                     await ResendMoveAsync(current, move, tick, ct).ConfigureAwait(false);
                 }
@@ -124,7 +124,7 @@ public sealed partial class Worker
         }
         foreach (var row in observed.Pawns)
         {
-            rows[row.Pawn?.Id ?? ""] = row;
+            rows[row.Pawn.Id ?? ""] = row;
         }
         return (rows, observed.Context?.Tick ?? 0);
     }

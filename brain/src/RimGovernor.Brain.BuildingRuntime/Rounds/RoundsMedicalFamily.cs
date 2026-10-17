@@ -203,7 +203,7 @@ public sealed class MedicalRounds
             var tendPatients = new List<TendPatientFacts>();
             foreach (var row in observed.Pawns)
             {
-                var pawn = new PawnId(row.Pawn!.Id ?? "");
+                var pawn = new PawnId(row.Pawn.Id ?? "");
                 if (workers.Contains(pawn))
                 {
                     doctors.Add(TendFacts.NewTendDoctorFacts(pawn, row, ""));
@@ -225,7 +225,7 @@ public sealed class MedicalRounds
             var rescuePatients = new List<RescuePatientFacts>();
             foreach (var row in observed.Pawns)
             {
-                var pawn = new PawnId(row.Pawn!.Id ?? "");
+                var pawn = new PawnId(row.Pawn.Id ?? "");
                 if (workers.Contains(pawn))
                 {
                     rescuers.Add(RescueFacts.NewRescuerFacts(pawn, row, ""));
@@ -262,7 +262,7 @@ public sealed class MedicalRounds
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in observed.Pawns)
         {
-            if (row?.Pawn is null || !ids.Contains(row.Pawn.Id ?? "") || !seen.Add(row.Pawn.Id ?? ""))
+            if (row is null || !ids.Contains(row.Pawn.Id ?? "") || !seen.Add(row.Pawn.Id ?? ""))
             {
                 throw new ControlException($"medical read: missing or duplicate {read} pawn row");
             }

@@ -223,6 +223,10 @@ namespace HomeBridge.BridgeTools
             var row = new Obs.PawnState { Pawn=Entity(pawn), KindDefName=Identifier(pawn.kindDef?.defName), Dead=pawn.Dead, Downed=pawn.Downed,
                 Drafted=pawn.drafter?.Drafted == true, InBed=RestUtility.InBed(pawn), Colonist=pawn.IsColonist, FreeColonist=pawn.IsFreeColonist,
                 Prisoner=pawn.IsPrisoner, Humanlike=pawn.RaceProps.Humanlike, Animal=pawn.RaceProps.Animal, Mechanoid=pawn.RaceProps.IsMechanoid };
+            var player=Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
+            var manhunter=pawn.MentalStateDef?.defName.IndexOf("Manhunter",StringComparison.OrdinalIgnoreCase)>=0;
+            row = row with { Tame = pawn.RaceProps.Animal && pawn.Faction==player, Wild = pawn.RaceProps.Animal && pawn.Faction==null,
+                Hostile = manhunter || pawn.Faction!=null && pawn.Faction!=player && pawn.Faction.HostileTo(player) };
             var constructionCapable = ConstructionSkillGuard.Capability(pawn);
             if (constructionCapable.HasValue) row = row with { ConstructionCapable = constructionCapable.Value };
             if (pawn.Faction != null) row = row with { Faction = NativeRef.Of(Identifier(pawn.Faction.GetUniqueLoadID())) };
@@ -230,11 +234,7 @@ namespace HomeBridge.BridgeTools
             // the colony has never seen is no emergency.
             row = row with { Fogged = pawn.Spawned && pawn.Map != null && pawn.Position.Fogged(pawn.Map) };
             var mental = pawn.MentalState;
-            if (mental != null) {
-                row = row with { MentalState = Identifier(mental.def.defName) };
-                row = row with { MentalStateIsAggro = mental.def.IsAggro };
-                row = row with { MentalStateTicks = mental.Age };
-            }
+            if (mental != null) row = row with { MentalState = new Obs.PawnMentalState { DefName = Identifier(mental.def.defName), IsAggro = mental.def.IsAggro, Ticks = mental.Age } };
             // Inspiration: empty is a known "none"; a pawn without a
             // mind state handler leaves the field absent (unknown).
             if (pawn.mindState?.inspirationHandler != null)
@@ -250,7 +250,7 @@ namespace HomeBridge.BridgeTools
             row = row with { Anomaly = NativeAnomalyFacts.Pawn(pawn) };
             row = NativePawnRoyalty.Apply(pawn, row);
             row = NativePawnControlObservation.Apply(pawn, row, context);
-            var needs=new Obs.PawnNeeds(); row = row with { Needs = needs };
+            var needs=new Obs.PawnNeeds();
             if (pawn.needs?.mood != null) needs = needs with { Mood = Finite(pawn.needs.mood.CurLevelPercentage) };
             else needs = needs with { Issues = [.. needs.Issues, Issue("mood",Common.UnavailableReason.NativeComponentMissing,"Mood tracker unavailable.")] };
             if (detail) {
@@ -266,6 +266,7 @@ namespace HomeBridge.BridgeTools
             if(breaker != null) { needs = needs with { BreakThresholdMinor = Finite(breaker.BreakThresholdMinor) }; needs = needs with { BreakThresholdMajor = Finite(breaker.BreakThresholdMajor) }; needs = needs with { BreakThresholdExtreme = Finite(breaker.BreakThresholdExtreme) };
                 if(needs.Mood is not null) needs = needs with { BreakRisk = needs.Mood.GetValueOrDefault()<=needs.BreakThresholdExtreme.GetValueOrDefault()?Obs.BreakRisk.Extreme:needs.Mood.GetValueOrDefault()<=needs.BreakThresholdMajor.GetValueOrDefault()?Obs.BreakRisk.Major:needs.Mood.GetValueOrDefault()<=needs.BreakThresholdMinor.GetValueOrDefault()?Obs.BreakRisk.Minor:Obs.BreakRisk.None }; }
             else needs = needs with { Issues = [.. needs.Issues, Issue("break_thresholds",Common.UnavailableReason.NativeComponentMissing,"Mental breaker unavailable.")] };
+            row = row with { Needs = needs };
             if(pawn.health?.summaryHealth == null || pawn.health.hediffSet == null) row = row with { Issues = [.. row.Issues, Issue("health",Common.UnavailableReason.NativeComponentMissing,"Health tracker unavailable.")] };
             else {
                 var health=new Obs.PawnHealth { SummaryFraction=Finite(pawn.health.summaryHealth.SummaryHealthPercent), NeedsTend=pawn.health.HasHediffsNeedingTend(false), BleedRatePerDay=Finite(pawn.health.hediffSet.BleedRateTotal) };
@@ -280,7 +281,7 @@ namespace HomeBridge.BridgeTools
                 } else health = health with { Issues = [.. health.Issues, Issue("hediffs",Common.UnavailableReason.NotRequested,"Hediff detail not requested.")] };
                 row = row with { Health = health };
             }
-            return row;
+            return row with { Snapshot = NativePawnObservationTools.PawnSnapshotToken(row, context) };
         }
         private static Obs.EntityRef Entity(Thing thing)
         {

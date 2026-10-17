@@ -68,7 +68,7 @@ namespace HomeBridge.BridgeTools
                 if(System.Diagnostics.Stopwatch.GetTimestamp()-began>=budgetTicks) {row = row with { ReachSkipped = true };result.Add(new System.Collections.Generic.KeyValuePair<Pawn,Obs.PawnState>(pawn,item.Value with { TendDoctor = row }));continue;}
                 foreach(var other in page) {
                     if(ReferenceEquals(other.Key,pawn) || !other.Key.Spawned || other.Key.Dead) continue;
-                    if(pawn.CanReach(other.Key,PathEndMode.ClosestTouch,Danger.Deadly)) row = row with { ReachablePawnIds = [.. row.ReachablePawnIds, (other.Value.Pawn?.Id ?? "")] };
+                    if(pawn.CanReach(other.Key,PathEndMode.ClosestTouch,Danger.Deadly)) row = row with { ReachablePawnIds = [.. row.ReachablePawnIds, (other.Value.Pawn.Id ?? "")] };
                 }
                 result.Add(new System.Collections.Generic.KeyValuePair<Pawn,Obs.PawnState>(pawn,item.Value with { TendDoctor = row }));
             }

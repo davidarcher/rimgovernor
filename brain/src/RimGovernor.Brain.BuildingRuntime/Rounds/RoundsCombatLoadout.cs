@@ -28,7 +28,7 @@ public sealed partial class RoundsDefensePlanner
         var beltless = false;
         foreach (var pawn in pawns)
         {
-            if (!rows.TryGetValue(pawn.Value, out var row) || row.Pawn is null)
+            if (!rows.TryGetValue(pawn.Value, out var row))
             {
                 continue;
             }

@@ -175,31 +175,10 @@ public static class Boundary
 
     public static Fact<uint> FactUint(bool has, uint value) => has ? Known(value) : Unknown<uint>();
 
-    /// <summary>
-    /// Handles fields (like MentalState) that native leaves unset, rather than reporting a false-ish value, when
-    /// the fact is genuinely known not to apply. An unset value is only unknown when no matching NOT_APPLICABLE
-    /// issue confirms the omission; otherwise it is known-absent.
-    /// </summary>
-    public static Fact<bool> FactPresence(bool has, IEnumerable<PbObservations.ReadIssue> issues, string field)
-    {
-        if (has)
-        {
-            return Known(true);
-        }
-        foreach (var issue in issues)
-        {
-            if ((issue.Field ?? "") == field && (issue.Unavailable?.Reason).GetValueOrDefault() == PbCommon.UnavailableReason.NotApplicable)
-            {
-                return Known(false);
-            }
-        }
-        return Unknown<bool>();
-    }
-
     public static string PawnToken(PbObservations.PawnState row, PbCommon.ObservationContext ctx)
     {
         var reference = row.PawnSnapshot;
-        if (reference is null || (reference.EntityId ?? "") != (row.Pawn?.Id ?? "") || !Equals(reference.Context, ctx) || reference.Token is not { } token || !ValidId(token))
+        if (reference is null || (reference.EntityId ?? "") != (row.Pawn.Id ?? "") || !Equals(reference.Context, ctx) || reference.Token is not { } token || !ValidId(token))
         {
             throw new HeldException();
         }

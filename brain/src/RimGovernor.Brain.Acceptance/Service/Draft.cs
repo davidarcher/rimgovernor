@@ -34,8 +34,8 @@ public static class Draft
             throw new AcceptanceException("expected at least one pawn row");
         }
 
-        var row = rows[0].AsMap();
-        var pawn = row?["pawn"].AsMap();
+        var row = rows[0].AsMap() ?? throw new AcceptanceException("pawn row is not an object");
+        var pawn = row["pawn"].AsMap();
         if (pawnId.Length > 0)
         {
             // A multi-id filter returns one row per id; pick the requested one.
@@ -63,7 +63,7 @@ public static class Draft
             }
         }
 
-        var snapshot = row?["pawnSnapshot"].AsMap();
+        var snapshot = row["pawnSnapshot"].AsMap();
         if (snapshot?["entityId"].AsString() != pawn?["id"].AsString() || snapshot?["token"].AsString() is null or "")
         {
             throw new AcceptanceException($"pawn snapshot missing entityId/token: {snapshot.ToJson()}");
@@ -72,11 +72,6 @@ public static class Draft
         if (!Dyn.DeepEqual(snapshot?["context"], observed["context"]))
         {
             throw new AcceptanceException("pawn snapshot context does not match the observed read context");
-        }
-
-        if (row?["drafted"].AsBool() is null)
-        {
-            throw new AcceptanceException("pawn row drafted must be an explicit boolean");
         }
 
         return row;

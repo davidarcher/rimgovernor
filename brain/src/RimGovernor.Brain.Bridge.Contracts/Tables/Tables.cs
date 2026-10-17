@@ -21,7 +21,7 @@ public readonly record struct Pawns(Table<PawnState> Table)
         var table = default(Table<PawnState>);
         foreach (var row in rows)
         {
-            table = table.Set(row.Pawn?.Id ?? "", row);
+            table = table.Set(row.Pawn.Id ?? "", row);
         }
         return new Pawns(table);
     }

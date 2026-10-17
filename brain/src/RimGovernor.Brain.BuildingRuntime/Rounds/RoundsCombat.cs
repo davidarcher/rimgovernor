@@ -422,8 +422,8 @@ internal static partial class BuildingRuntimePackage
         foreach (var id in ids)
         {
             var row = rows[id];
-            var s = new CombatPawnState { Id = new PawnId(id), Downed = row.Downed.GetValueOrDefault(), Dead = row.Dead.GetValueOrDefault() };
-            if (row.Pawn?.Position is { X: not null, Z: not null } position)
+            var s = new CombatPawnState { Id = new PawnId(id), Downed = row.Downed, Dead = row.Dead };
+            if (row.Pawn.Position is { X: not null, Z: not null } position)
             {
                 s = s with { Cell = Known(new Cell(position.X.GetValueOrDefault(), position.Z.GetValueOrDefault())) };
             }
@@ -456,8 +456,8 @@ internal static partial class BuildingRuntimePackage
         {
             return s;
         }
-        s = s with { Kind = row.KindDefName ?? "" };
-        var (mech, insect) = catalog.RaceFlags(row.Pawn?.DefName ?? "");
+        s = s with { Kind = row.KindDefName };
+        var (mech, insect) = catalog.RaceFlags(row.Pawn.DefName ?? "");
         s = s with { Mech = mech, Insect = insect };
         if (row.Health is { } h)
         {

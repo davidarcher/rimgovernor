@@ -10,12 +10,6 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 public sealed record WorldRouteFact(string SettlementId, int DestinationTile, bool Reachable, long EstimatedTicks, bool EstimatedTicksKnown);
 
 /// <summary>
-/// Go's <c>CaravanPawnFact</c>: one crew member's identity and dead/downed status. An absent status stays
-/// unknown (<c>DeadKnown</c>/<c>DownedKnown</c> false), which the world-evaluation advisory treats as not proven alive.
-/// </summary>
-public sealed record CaravanPawnFact(string Id, bool Dead, bool DeadKnown, bool Downed, bool DownedKnown);
-
-/// <summary>
 /// Go's <c>CaravanJourney</c>: the validated subset of one player caravan's world-progression census row that
 /// travel/arrival tracking and the world-evaluation advisory need. <see cref="Inventory"/> is the full per-caravan
 /// cargo census (defName to units); an absent row is a known zero.
@@ -31,8 +25,6 @@ public sealed record CaravanJourney
     public bool Moving { get; init; }
 
     public IReadOnlyList<string> PawnIds { get; init; } = [];
-
-    public IReadOnlyList<CaravanPawnFact> Pawns { get; init; } = [];
 
     public double FoodDays { get; init; }
 

@@ -460,7 +460,7 @@ internal static class LayoutSeaIceEnvelope
         foreach (var pawn in listed)
         {
             var id = Colonists.RowID(pawn);
-            alive[id] = pawn["dead"].AsBool() is false;
+            alive[id] = pawn["dead"].AsBool() != true;
             foreach (var entry in pawn["health"].AsMap()?["hediffs"].AsSlice() ?? [])
             {
                 var hediff = entry.AsMap() ?? [];

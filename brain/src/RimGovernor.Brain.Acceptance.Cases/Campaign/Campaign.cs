@@ -401,7 +401,7 @@ internal sealed class CampaignRun
         var alive = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var row in listed)
         {
-            alive[Colonists.RowID(row)] = row["dead"].AsBool() is false;
+            alive[Colonists.RowID(row)] = row["dead"].AsBool() != true;
         }
 
         foreach (var id in initial)

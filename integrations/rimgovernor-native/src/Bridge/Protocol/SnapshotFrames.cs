@@ -116,7 +116,7 @@ namespace HomeBridge.BridgeTools
             var table = observed.Pawns;
             if (census == null || threats == null || table == null) return;
             var colonistIds = new HashSet<string>(census.Colonists.Select(p => p.Id ?? ""), System.StringComparer.Ordinal);
-            var colonists = table.Pawns.Where(p => colonistIds.Contains(p.Pawn?.Id ?? "")).ToList();
+            var colonists = table.Pawns.Where(p => colonistIds.Contains(p.Pawn.Id ?? "")).ToList();
             if (!threats.Pawns.Any(Engaged) && threats.HostileBuildings.Count == 0
                 && !colonists.Any(p => p.MentalState is not null)) return;
             // The hottest live hive's temperature, for the heat-stroke hold.

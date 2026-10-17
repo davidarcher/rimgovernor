@@ -130,7 +130,7 @@ public static partial class ObservationPackage
                 {
                     continue;
                 }
-                if (!races.Race(new Resource(row.Pawn?.DefName ?? ""), out var race))
+                if (!races.Race(new Resource(row.Pawn.DefName ?? ""), out var race))
                 {
                     continue;
                 }

@@ -102,12 +102,12 @@ internal static class PopulationDecoder
             }
             custody.Add(custodyRow);
 
-            if (person.Guest.GetValueOrDefault() && !pawn.Prisoner.GetValueOrDefault() && !pawn.Dead.GetValueOrDefault() && person.MedicalCare is not null)
+            if (person.Guest.GetValueOrDefault() && !pawn.Prisoner && !pawn.Dead && person.MedicalCare is not null)
             {
                 var (conditions, life) = BridgeFunctions.CareConditions(person.Conditions);
                 guests.Add(new P.CarePatient { Id = new Domain.PawnId(id), Care = Known(BridgeFunctions.MedicalCareName(person.MedicalCare.GetValueOrDefault())), Conditions = conditions, LifeThreatening = life });
             }
-            if (person.Admitted.GetValueOrDefault() && !pawn.Dead.GetValueOrDefault())
+            if (person.Admitted.GetValueOrDefault() && !pawn.Dead)
             {
                 colonists++;
                 foreach (var s in person.Biography?.Skills ?? [])
@@ -124,7 +124,7 @@ internal static class PopulationDecoder
                     }
                 }
             }
-            if (pawn.Prisoner is null || !pawn.Prisoner.GetValueOrDefault())
+            if (!pawn.Prisoner)
             {
                 continue; // prisoners/recruit's census only ever considers colony prisoners.
             }
@@ -188,7 +188,7 @@ internal static class PopulationDecoder
                 QueuedRecipes = BridgeFunctions.QueuedSurgeryRecipes(health) ?? [],
             };
         }
-        f = f with { Kind = pawn.KindDefName ?? "", CreepJoiner = Unknown<bool>() };
+        f = f with { Kind = pawn.KindDefName, CreepJoiner = Unknown<bool>() };
         if (BridgeFunctions.CreepJoinerPawn(pawn).CreepJoiner.TryGetValue(out var joiner))
         {
             f = f with { CreepJoiner = Known(joiner is not null) };

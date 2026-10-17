@@ -126,18 +126,12 @@ internal static partial class BuildingRuntimePackage
     {
         var facts = new Pol.SquadThreatFacts
         {
-            Id = new PawnId(row.Pawn?.Id ?? ""),
-            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
-            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
+            Id = new PawnId(row.Pawn.Id ?? ""),
+            Dead = Fact.Known(row.Dead),
+            Downed = Fact.Known(row.Downed),
+            Humanlike = Fact.Known(row.Humanlike),
+            Animal = Fact.Known(row.Animal),
         };
-        if (row.Humanlike is not null)
-        {
-            facts = facts with { Humanlike = Fact.Known(row.Humanlike.GetValueOrDefault()) };
-        }
-        if (row.Animal is not null)
-        {
-            facts = facts with { Animal = Fact.Known(row.Animal.GetValueOrDefault()) };
-        }
         facts = facts with { Anomaly = BridgeApi.PawnAnomaly(row.Anomaly), RangedEquipped = ranged };
         // A wild animal has no equipment tracker (the equipped field reads as a missing native component); it
         // carries no ranged weapon either way, and neither does an entity whose attack native read as melee only.
@@ -145,32 +139,12 @@ internal static partial class BuildingRuntimePackage
         {
             facts = facts with { RangedEquipped = Fact.Known(false) };
         }
-        facts = facts with { Manhunter = ManhunterFact(row.MentalState is not null ? (row.MentalState ?? "") : null, row.Issues) };
-        if (races.Race(new Pol.Resource(row.Pawn?.DefName ?? ""), out var race))
+        facts = facts with { Manhunter = Fact.Known(row.MentalState?.DefName is "Manhunter" or "ManhunterPermanent") };
+        if (races.Race(new Pol.Resource(row.Pawn.DefName ?? ""), out var race))
         {
             facts = facts with { BodySize = race.BodySize };
         }
         return facts;
-    }
-
-    /// <summary>
-    /// An exact mentalState comparison rather than the looser substring match NativePawnObservationTools.cs uses
-    /// for HostileReason: only the two Manhunter mental-state defNames count.
-    /// </summary>
-    internal static Fact<bool> ManhunterFact(string? state, IEnumerable<ObservationsPb.ReadIssue> issues)
-    {
-        if (state is not null)
-        {
-            return Fact.Known(state is "Manhunter" or "ManhunterPermanent");
-        }
-        foreach (var issue in issues)
-        {
-            if ((issue.Field ?? "") == "mental_state" && (issue.Unavailable?.Reason).GetValueOrDefault() == CommonPb.UnavailableReason.NotApplicable)
-            {
-                return Fact.Known(false);
-            }
-        }
-        return Fact.Unknown<bool>();
     }
 
     /// <summary>
@@ -187,11 +161,11 @@ internal static partial class BuildingRuntimePackage
     {
         var facts = seed with
         {
-            Id = new PawnId(row.Pawn?.Id ?? ""),
-            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
-            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
-            Drafted = Boundary.FactBool(row.Drafted is not null, row.Drafted.GetValueOrDefault()),
-            MentalState = Boundary.FactPresence(row.MentalState is not null, row.Issues, "mental_state"),
+            Id = new PawnId(row.Pawn.Id ?? ""),
+            Dead = Fact.Known(row.Dead),
+            Downed = Fact.Known(row.Downed),
+            Drafted = Fact.Known(row.Drafted),
+            MentalState = Fact.Known(row.MentalState is not null),
         };
         facts = facts with { DraftOwned = Fact.Known(needed.Contains(facts.Id)) };
         if (BridgeApi.PawnBiotech(row.Biotech).TryGetValue(out var bt))

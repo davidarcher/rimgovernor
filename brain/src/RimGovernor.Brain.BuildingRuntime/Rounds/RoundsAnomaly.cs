@@ -27,7 +27,7 @@ internal static partial class BuildingRuntimePackage
             {
                 if (PolicyConstants.LanceDefs.ContainsKey(new Resource(GearDef(things, item.Thing))) && (item.Thing?.Id ?? "") != "")
                 {
-                    output.Add(new LanceUser(new PawnId(row.Pawn?.Id ?? ""), item.Thing?.Id ?? ""));
+                    output.Add(new LanceUser(new PawnId(row.Pawn.Id ?? ""), item.Thing?.Id ?? ""));
                     break;
                 }
             }
@@ -145,7 +145,7 @@ public sealed class AnomalyRounds
 
         foreach (var row in observed.Pawns)
         {
-            if (row is null || row.Pawn is null)
+            if (row is null)
             {
                 throw new ControlException("anomaly lance: row or its pawn is missing");
             }

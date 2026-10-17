@@ -47,7 +47,7 @@ public sealed class FirstSeenRecord
             foreach (var (pawnId, row) in pawns.Table.All())
             {
                 var standing = row.Standing;
-                if (standing is null || !row.Humanlike.GetValueOrDefault())
+                if (standing is null || !row.Humanlike)
                 {
                     continue;
                 }

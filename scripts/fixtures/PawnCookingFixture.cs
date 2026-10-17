@@ -77,7 +77,7 @@ namespace HomeBridge.BridgeTools
                     { OutputDelivery = new(raw.defName, new(center.x, center.z), new(destination.x, destination.z), 60, deadline, 3) };
                 NativeFoodCooking.Add(worker, unselectedIngredient, 60, 0, obligation, observations, ref budget, ref truncated);
                 if (!observations.Any(o => o.Cooking?.Continuation.Bill == selectedBill.GetUniqueLoadID()
-                    && o.Cooking.IngredientCount == needed && o.Cooking.CookTicks > 0 && o.Cooking.ProductNutrition.IsKnown))
+                    && o.Cooking.IngredientCount == needed))
                 {
                     var probeGiver = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(g => g.workType == ExtraWorkTypeDefOf.Cooking
                         && g.Worker is WorkGiver_DoBill scanner && scanner.ThingIsUsableBillGiver(cookingBench));

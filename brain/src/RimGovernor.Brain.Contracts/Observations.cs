@@ -1575,45 +1575,45 @@ public sealed record AnimalState
 
 public sealed record PawnState
 {
-    public EntityRef? Pawn { get; init; }
+    public EntityRef Pawn { get; init; } = new();
 
-    public string? KindDefName { get; init; }
+    public string KindDefName { get; init; } = "";
 
+    /// <summary>
+    /// The pawn's faction; absent when it has none.
+    /// </summary>
     public Common.Ref? Faction { get; init; }
 
-    public bool? Colonist { get; init; }
+    public bool Colonist { get; init; }
 
-    public bool? FreeColonist { get; init; }
+    public bool FreeColonist { get; init; }
 
-    public bool? Prisoner { get; init; }
+    public bool Prisoner { get; init; }
 
-    public bool? Humanlike { get; init; }
+    public bool Humanlike { get; init; }
 
-    public bool? Animal { get; init; }
+    public bool Animal { get; init; }
 
-    public bool? Mechanoid { get; init; }
+    public bool Mechanoid { get; init; }
 
-    public bool? Tame { get; init; }
+    public bool Tame { get; init; }
 
-    public bool? Wild { get; init; }
+    public bool Wild { get; init; }
 
-    public bool? Dead { get; init; }
+    public bool Dead { get; init; }
 
-    public bool? Downed { get; init; }
+    public bool Downed { get; init; }
 
-    public bool? Drafted { get; init; }
+    public bool Drafted { get; init; }
 
-    public bool? Hostile { get; init; }
+    public bool Hostile { get; init; }
 
-    public string? HostileReason { get; init; }
+    /// <summary>
+    /// The active mental state; absent when the pawn has none.
+    /// </summary>
+    public PawnMentalState? MentalState { get; init; }
 
-    public string? MentalState { get; init; }
-
-    public bool? InBed { get; init; }
-
-    public bool? Burning { get; init; }
-
-    public bool? PlayerControlled { get; init; }
+    public bool InBed { get; init; }
 
     public Operations.PawnActivityExecution? ActivityExecution { get; init; }
     public JobEvidence? Job { get; init; }
@@ -1632,8 +1632,9 @@ public sealed record PawnState
 
     public AnimalState? AnimalState { get; init; }
 
-    public Common.Ref? NearestColonist { get; init; }
-
+    /// <summary>
+    /// Chebyshev distance to the nearest other live colonist on the map; absent when there is none.
+    /// </summary>
     public double? NearestColonistDistance { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
@@ -1644,7 +1645,7 @@ public sealed record PawnState
     /// </summary>
     public Common.Ref? OwnedBed { get; init; }
 
-    public SnapshotRef? Snapshot { get; init; }
+    public SnapshotRef Snapshot { get; init; } = new();
 
     /// <summary>
     /// Native lord evidence for hostile groups: the LordJob and current LordToil
@@ -1654,14 +1655,6 @@ public sealed record PawnState
     public string? LordJobClass { get; init; }
 
     public string? LordToilClass { get; init; }
-
-    /// <summary>
-    /// Active MentalStateDef.IsAggro and MentalState.Age (native ticks, 30-tick granularity).
-    /// Absent without an active state or on older producers; mental_state is its defName.
-    /// </summary>
-    public bool? MentalStateIsAggro { get; init; }
-
-    public int? MentalStateTicks { get; init; }
 
     /// <summary>
     /// Mean of each active spawned hostile's highest natural/worn sharp armor rating.
@@ -1682,7 +1675,7 @@ public sealed record PawnState
     /// emergency -- the ancient-danger mechanoid behind a sealed wall held
     /// every window and deselected every development goal for good.
     /// </summary>
-    public bool? Fogged { get; init; }
+    public bool Fogged { get; init; }
 
     /// <summary>
     /// Current InspirationDef defName: empty when the pawn has no
@@ -1722,6 +1715,19 @@ public sealed record PawnState
     /// capacities. Jobs, draft, schedule and skill level do not change this fact.
     /// </summary>
     public bool? ConstructionCapable { get; init; }
+}
+
+/// <summary>
+/// A pawn's active mental state: its MentalStateDef defName, MentalStateDef.IsAggro
+/// and MentalState.Age (native ticks, 30-tick granularity).
+/// </summary>
+public sealed record PawnMentalState
+{
+    public string DefName { get; init; } = "";
+
+    public bool IsAggro { get; init; }
+
+    public int Ticks { get; init; }
 }
 
 /// <summary>

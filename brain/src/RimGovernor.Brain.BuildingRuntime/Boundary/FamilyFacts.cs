@@ -15,9 +15,9 @@ public static class CaptureFacts
         {
             Pawn = pawn,
             SnapshotToken = token,
-            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
-            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
-            Prisoner = Boundary.FactBool(row.Prisoner is not null, row.Prisoner.GetValueOrDefault()),
+            Dead = Fact.Known(row.Dead),
+            Downed = Fact.Known(row.Downed),
+            Prisoner = Fact.Known(row.Prisoner),
         };
         if (row.Job is { } job && !Boundary.IssueField(job.Issues, "def_name") && job.DefName is not null)
         {
@@ -36,10 +36,10 @@ public static class RescueFacts
         {
             Pawn = pawn,
             SnapshotToken = token,
-            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
-            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
-            Drafted = Boundary.FactBool(row.Drafted is not null, row.Drafted.GetValueOrDefault()),
-            MentalState = Boundary.FactPresence(row.MentalState is not null, row.Issues, "mental_state"),
+            Dead = Fact.Known(row.Dead),
+            Downed = Fact.Known(row.Downed),
+            Drafted = Fact.Known(row.Drafted),
+            MentalState = Fact.Known(row.MentalState is not null),
         };
         if (row.Job is { } job && !Boundary.IssueField(job.Issues, "player_forced") && !Boundary.IssueField(job.Issues, "queued_jobs") && !Boundary.IssueField(job.Issues, "def_name"))
         {
@@ -62,9 +62,9 @@ public static class RescueFacts
         {
             Pawn = pawn,
             SnapshotToken = token,
-            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
-            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
-            InBed = Boundary.FactBool(row.InBed is not null, row.InBed.GetValueOrDefault()),
+            Dead = Fact.Known(row.Dead),
+            Downed = Fact.Known(row.Downed),
+            InBed = Fact.Known(row.InBed),
         };
         if (row.Job is { } job && !Boundary.IssueField(job.Issues, "def_name") && job.DefName is not null)
         {
@@ -125,10 +125,10 @@ public static class TendFacts
         {
             Pawn = pawn,
             SnapshotToken = token,
-            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
-            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
-            Drafted = Boundary.FactBool(row.Drafted is not null, row.Drafted.GetValueOrDefault()),
-            MentalState = Boundary.FactPresence(row.MentalState is not null, row.Issues, "mental_state"),
+            Dead = Fact.Known(row.Dead),
+            Downed = Fact.Known(row.Downed),
+            Drafted = Fact.Known(row.Drafted),
+            MentalState = Fact.Known(row.MentalState is not null),
         };
         if (row.Job is { } job && !Boundary.IssueField(job.Issues, "player_forced") && !Boundary.IssueField(job.Issues, "queued_jobs") && !Boundary.IssueField(job.Issues, "def_name"))
         {
@@ -174,7 +174,7 @@ public static class TendFacts
         foreach (var row in rows)
         {
             var doctor = row.TendDoctor;
-            if (row.Pawn is null || doctor is null || doctor.ReachSkipped.GetValueOrDefault() || Boundary.IssueField(doctor.Issues, "reachable_pawn_ids"))
+            if (doctor is null || doctor.ReachSkipped.GetValueOrDefault() || Boundary.IssueField(doctor.Issues, "reachable_pawn_ids"))
             {
                 continue;
             }
@@ -189,9 +189,9 @@ public static class TendFacts
         {
             Pawn = pawn,
             SnapshotToken = token,
-            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
-            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
-            InBed = Boundary.FactBool(row.InBed is not null, row.InBed.GetValueOrDefault()),
+            Dead = Fact.Known(row.Dead),
+            Downed = Fact.Known(row.Downed),
+            InBed = Fact.Known(row.InBed),
         };
         if (row.Job is { } job && !Boundary.IssueField(job.Issues, "def_name") && job.DefName is not null)
         {

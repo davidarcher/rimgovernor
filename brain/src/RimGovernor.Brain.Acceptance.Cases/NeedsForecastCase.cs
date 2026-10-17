@@ -34,7 +34,7 @@ internal static class NeedsForecastCase
                         Details = new() { Needs = true },
                     }, ct).ConfigureAwait(false);
                     var read = TypedReads.Observed(label, NativeOps.ListPawns, reply, reply.Outcome?.Observed);
-                    worker = read.Pawns.SingleOrDefault(p => p.Pawn?.Id == pawnId) ?? throw new AcceptanceException($"{label}: prepared pawn {pawnId} missing from the pawn read");
+                    worker = read.Pawns.SingleOrDefault(p => p.Pawn.Id == pawnId) ?? throw new AcceptanceException($"{label}: prepared pawn {pawnId} missing from the pawn read");
                     to = read.Context?.Tick ?? throw new AcceptanceException($"{label}: pawn read carries no tick");
                     if (worker.ActivityExecution?.State == "failed")
                         throw new AcceptanceException("Prepared needs execution failed: " + worker.ActivityExecution);

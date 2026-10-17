@@ -152,7 +152,7 @@ public static partial class ObservationPackage
         var byId = new Dictionary<string, O.PawnState>(StringComparer.Ordinal);
         foreach (var p in snapshot.Pawns)
         {
-            if (p is null || p.Pawn is null || byId.ContainsKey((p.Pawn.Id ?? "")))
+            if (p is null || byId.ContainsKey((p.Pawn.Id ?? "")))
             {
                 return unknown;
             }
@@ -176,7 +176,7 @@ public static partial class ObservationPackage
             }
             var dk = pawn.Dead.TryGetValue(out var dead);
             var nk = pawn.Downed.TryGetValue(out var downed);
-            if (!dk || !nk || r.Dead is null || r.Downed is null || r.Dead.GetValueOrDefault() != dead || r.Downed.GetValueOrDefault() != downed || r.Colonist is null || !r.Colonist.GetValueOrDefault())
+            if (!dk || !nk || r.Dead != dead || r.Downed != downed || !r.Colonist)
             {
                 return unknown;
             }
@@ -184,10 +184,10 @@ public static partial class ObservationPackage
             {
                 Break = pawn.MentalState,
                 Id = pawn.Id,
-                Dead = Optional(r.Dead is not null, r.Dead.GetValueOrDefault()),
-                Downed = Optional(r.Downed is not null, r.Downed.GetValueOrDefault()),
-                Drafted = Optional(r.Drafted is not null, r.Drafted.GetValueOrDefault()),
-                Mental = NativePresence(r.MentalState, r.Issues, "mental_state"),
+                Dead = Known(r.Dead),
+                Downed = Known(r.Downed),
+                Drafted = Known(r.Drafted),
+                Mental = Known(r.MentalState is not null),
             };
             if (r.Job is { } job && !HasIssue(r.Issues, "job"))
             {
@@ -275,7 +275,7 @@ public static partial class ObservationPackage
         {
             foreach (var p in snapshot.Pawns)
             {
-                byId[p.Pawn?.Id ?? ""] = p;
+                byId[p.Pawn.Id ?? ""] = p;
             }
         }
         var pawns = new List<MoodLedgerPawn>(moods.Count);
@@ -328,7 +328,7 @@ public static partial class ObservationPackage
         var byId = new Dictionary<string, O.PawnState>(pawns.Pawns.Count, StringComparer.Ordinal);
         foreach (var row in pawns.Pawns)
         {
-            byId[row.Pawn?.Id ?? ""] = row;
+            byId[row.Pawn.Id ?? ""] = row;
         }
         long armed = 0, unarmed = 0;
         var unarmedKnown = true;
@@ -337,7 +337,7 @@ public static partial class ObservationPackage
             byId.TryGetValue(pawn.Id.Value, out var row);
             var dk = pawn.Dead.TryGetValue(out var dead);
             var nk = pawn.Downed.TryGetValue(out var downed);
-            if (row is null || !dk || !nk || row.Dead is null || row.Downed is null || row.Dead.GetValueOrDefault() != dead || row.Downed.GetValueOrDefault() != downed || row.Colonist is null || !row.Colonist.GetValueOrDefault())
+            if (row is null || !dk || !nk || row.Dead != dead || row.Downed != downed || !row.Colonist)
             {
                 return (unknown, unknown);
             }
@@ -394,7 +394,7 @@ public static partial class ObservationPackage
         var byId = new Dictionary<string, O.PawnState>(pawns.Pawns.Count, StringComparer.Ordinal);
         foreach (var row in pawns.Pawns)
         {
-            byId[row.Pawn?.Id ?? ""] = row;
+            byId[row.Pawn.Id ?? ""] = row;
         }
         var output = new List<SquadDefenderFacts>(emergency.Colonists.Count);
         foreach (var pawn in emergency.Colonists)

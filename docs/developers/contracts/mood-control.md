@@ -469,12 +469,12 @@ memory), `test/mood_thoughts` (a named memory scaled to a mood size), `test/part
 
 ## Observations
 
-**Active mental state.** The colonist status and pawn list reads carry the native
-`mental_state` defName, `mental_state_is_aggro` (`MentalStateDef.IsAggro`) and
-`mental_state_ticks` (`MentalState.Age`, 30-tick granularity). They describe the
-active state, not a prediction from mood, and are absent when no state is active. the brain
-projects them as `EmergencyPawn.MentalState`, a `Fact[policy.MentalState]`; missing
-fields leave it unknown. Worker eligibility uses mental-state presence.
+**Active mental state.** Every pawn row carries `mentalState`, a `PawnMentalState`
+of the native defName, `isAggro` (`MentalStateDef.IsAggro`) and `ticks`
+(`MentalState.Age`, 30-tick granularity). It describes the active state, not a
+prediction from mood, and is absent exactly when no state is active. The brain
+projects it as `EmergencyPawn.MentalState`, a `Fact[policy.MentalState]` that is
+known only while a state is active. Worker eligibility uses mental-state presence.
 `pawn/mental-state` stages Berserk on a colonist through `test/stage` (`StagePawn.MentalState`)
 and verifies both reads.
 

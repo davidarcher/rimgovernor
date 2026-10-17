@@ -94,7 +94,7 @@ internal sealed partial class FacadeNativeClient
             }
 
             var dossier = row with { Settings = null, AnimalState = null };
-            if (!dossier.Colonist.GetValueOrDefault() || dossier.Dead.GetValueOrDefault())
+            if (!dossier.Colonist || dossier.Dead)
             {
                 throw Contract("dossier is not a live colonist");
             }

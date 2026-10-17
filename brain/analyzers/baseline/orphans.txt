@@ -110,10 +110,6 @@ Contracts|Observations.PawnNeeds.BreakThresholdExtreme
 Contracts|Observations.PawnNeeds.BreakThresholdMajor
 Contracts|Observations.PawnSettings.AllowedAreas
 Contracts|Observations.PawnSocial.Relations
-Contracts|Observations.PawnState.Burning
-Contracts|Observations.PawnState.HostileReason
-Contracts|Observations.PawnState.NearestColonist
-Contracts|Observations.PawnState.PlayerControlled
 Contracts|Observations.PawnTendDoctor.MissingCapacity
 Contracts|Observations.PlannedSiteBlocker.Clearing
 Contracts|Observations.PlannedSiteRejection.Illegal

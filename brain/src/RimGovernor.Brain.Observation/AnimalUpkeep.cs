@@ -43,10 +43,10 @@ public static partial class ObservationPackage
             {
                 SupportsAreas = Optional(state.SupportsAllowedAreas is not null, state.SupportsAllowedAreas.GetValueOrDefault()),
                 AllowedArea = area,
-                Id = new PawnId(pawn.Pawn?.Id ?? ""),
-                Label = pawn.Pawn?.Label ?? "",
+                Id = new PawnId(pawn.Pawn.Id ?? ""),
+                Label = pawn.Pawn.Label ?? "",
                 Gender = state.Gender ?? "",
-                Definition = new Resource(pawn.Pawn?.DefName ?? ""),
+                Definition = new Resource(pawn.Pawn.DefName ?? ""),
                 RequiresPen = Optional(a.RequiresPen is not null, a.RequiresPen.GetValueOrDefault()),
                 Contained = Optional(state.Contained is not null, state.Contained.GetValueOrDefault()),
                 Release = Optional(state.Release is not null, state.Release.GetValueOrDefault()),
@@ -104,8 +104,8 @@ public static partial class ObservationPackage
             var race = RaceOf(pawn, races);
             rows.Add(new UpkeepAnimal
             {
-                Id = new PawnId(pawn.Pawn?.Id ?? ""),
-                Definition = new Resource(pawn.Pawn?.DefName ?? ""),
+                Id = new PawnId(pawn.Pawn.Id ?? ""),
+                Definition = new Resource(pawn.Pawn.DefName ?? ""),
                 RequiresPen = Known(false),
                 Contained = Known(false),
                 Release = Known(false),
@@ -141,7 +141,7 @@ public static partial class ObservationPackage
     /// <summary>The catalog row of the pawn's race; a race the catalog does not hold is the zero row, whose numbers are unknown.</summary>
     private static AnimalRace RaceOf(O.PawnState pawn, AnimalRaceCatalog races)
     {
-        races.Race(new Resource(pawn.Pawn?.DefName ?? ""), out var race);
+        races.Race(new Resource(pawn.Pawn.DefName ?? ""), out var race);
         return race;
     }
 

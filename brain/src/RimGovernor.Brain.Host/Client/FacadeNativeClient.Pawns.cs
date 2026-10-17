@@ -180,10 +180,10 @@ internal sealed partial class FacadeNativeClient
         var result = new List<PolicyMechInput>();
         foreach (var row in snapshot?.Pawns ?? [])
         {
-            var id = row.Pawn?.Id ?? "";
-            if (!row.Mechanoid.GetValueOrDefault() || row.KindDefName is null)
+            var id = row.Pawn.Id ?? "";
+            if (!row.Mechanoid)
             {
-                throw Contract($"mech {id}: not a mechanoid with a kind");
+                throw Contract($"mech {id}: not a mechanoid");
             }
             if (!PawnBiotech(row.Biotech).TryGetValue(out var biotech) || !biotech.Mech.TryGetValue(out var mech) || mech is null)
             {
@@ -194,8 +194,8 @@ internal sealed partial class FacadeNativeClient
                 Id = new PawnId(id),
                 Kind = row.KindDefName,
                 Mech = mech,
-                Downed = row.Downed.GetValueOrDefault(),
-                Drafted = row.Drafted.GetValueOrDefault(),
+                Downed = row.Downed,
+                Drafted = row.Drafted,
             });
         }
         return result;

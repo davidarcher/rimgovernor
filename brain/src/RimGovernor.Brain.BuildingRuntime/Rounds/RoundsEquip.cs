@@ -35,11 +35,11 @@ internal static class EquipCandidates
     {
         var facts = new EquipCandidatePawn
         {
-            Pawn = new Domain.PawnId((row.Pawn?.Id ?? "")),
-            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
-            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
-            Drafted = Boundary.FactBool(row.Drafted is not null, row.Drafted.GetValueOrDefault()),
-            MentalState = Boundary.FactPresence(row.MentalState is not null, row.Issues, "mental_state"),
+            Pawn = new Domain.PawnId((row.Pawn.Id ?? "")),
+            Dead = Fact.Known(row.Dead),
+            Downed = Fact.Known(row.Downed),
+            Drafted = Fact.Known(row.Drafted),
+            MentalState = Fact.Known(row.MentalState is not null),
         };
         var work = ObservationApi.WorkPawnRow(row, catalog, things);
         facts = facts with { Profile = PolicyApi.BuildProfile(work) };
@@ -57,7 +57,7 @@ internal static class EquipCandidates
         {
             facts = facts with { RaidArmor = Known(row.RaidArmor.GetValueOrDefault()) };
         }
-        facts = facts with { Position = new Cell(row.Pawn?.Position?.X ?? 0, row.Pawn?.Position?.Z ?? 0) };
+        facts = facts with { Position = new Cell(row.Pawn.Position?.X ?? 0, row.Pawn.Position?.Z ?? 0) };
         if (row.Biography is { } biography && !Boundary.IssueField(biography.Issues, "disabled_work_tags"))
         {
             var capable = true;

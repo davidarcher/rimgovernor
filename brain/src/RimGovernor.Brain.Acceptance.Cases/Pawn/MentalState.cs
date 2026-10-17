@@ -17,13 +17,12 @@ internal static class PawnMentalState
     };
 
     /// <summary>
-    /// The row's mental state as a known fact: all three members present (Go <c>bridge.PawnMentalState</c>); null when any
-    /// is absent, which the Go projection reads as unknown.
+    /// The row's active mental state; null when the pawn has none. False and zero members are omitted on the wire.
     /// </summary>
     private static (string DefName, bool IsAggro, double Ticks)? Known(JsonObject row) =>
-        row["mentalState"] is null || row["mentalStateIsAggro"] is null || row["mentalStateTicks"] is null
+        row["mentalState"] is not JsonObject state
             ? null
-            : (row["mentalState"].AsString(), row["mentalStateIsAggro"].AsBool() == true, row["mentalStateTicks"].AsNumber());
+            : (state["defName"].AsString(), state["isAggro"].AsBool() == true, state["ticks"] is null ? 0 : state["ticks"].AsNumber());
 
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
     {
@@ -32,7 +31,7 @@ internal static class PawnMentalState
         var row = await PawnSupport.ReadPawnAsync(h, s, "mental-state", pawnId, false, cancellationToken).ConfigureAwait(false);
         if (Known(row) is not { } state || state.DefName != "Berserk" || !state.IsAggro || state.Ticks != 0)
         {
-            throw new AcceptanceException($"berserk readback: known={Known(row) is not null} state={row["mentalState"].ToJson()}/{row["mentalStateIsAggro"].ToJson()}/{row["mentalStateTicks"].ToJson()}");
+            throw new AcceptanceException($"berserk readback: known={Known(row) is not null} state={row["mentalState"].ToJson()}");
         }
 
         s.Report["pawn_mental_state"] = new JsonObject { ["DefName"] = state.DefName, ["IsAggro"] = state.IsAggro, ["TicksInState"] = state.Ticks };

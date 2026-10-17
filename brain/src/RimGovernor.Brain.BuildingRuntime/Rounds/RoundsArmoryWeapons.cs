@@ -36,7 +36,7 @@ public sealed partial class RoundsArmoryPlanner
             pawns.Add(EquipCandidates.EquipCandidatePawnFacts(p, catalog, things));
             if (ArmoryPrimaryOf(p, things, catalog) is { } primary)
             {
-                primaries[new Domain.PawnId(p.Pawn?.Id ?? "")] = primary;
+                primaries[new Domain.PawnId(p.Pawn.Id ?? "")] = primary;
             }
         }
         var bounds = await source.ReadMapBoundsAsync(identity, default(Cell), ct).ConfigureAwait(false);

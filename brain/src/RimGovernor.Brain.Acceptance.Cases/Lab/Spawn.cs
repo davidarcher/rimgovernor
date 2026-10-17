@@ -54,7 +54,7 @@ internal static class LabSpawn
             cancellationToken).ConfigureAwait(false);
         var observed = TypedReads.Observed("animal", NativeOps.ListPawns, pawns, pawns.Outcome?.Observed);
         var rows = observed.Pawns.ToList();
-        if (rows is not [{ KindDefName: "Muffalo" } pawn] || pawn.Pawn?.Id != animal)
+        if (rows is not [{ KindDefName: "Muffalo" } pawn] || pawn.Pawn.Id != animal)
         {
             throw new AcceptanceException($"list_pawns {animal}: want the staged Muffalo, got {string.Join("; ", rows)}");
         }

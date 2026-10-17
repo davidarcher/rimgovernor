@@ -45,13 +45,13 @@ namespace HomeBridge.BridgeTools
                 var row = Core(pawn, colonists, context);
                 if (Matches(row, parsed.Filter)) selected.Add(new KeyValuePair<Pawn, Obs.PawnState>(pawn, row));
             }
-            var ordered = selected.OrderBy(p => (p.Value.Pawn?.Id ?? ""), StringComparer.Ordinal).ToList();
+            var ordered = selected.OrderBy(p => (p.Value.Pawn.Id ?? ""), StringComparer.Ordinal).ToList();
             var page = ordered;
             var result = new Obs.PawnSnapshot { Context = context, Completeness = Complete(page.Count, source.Count-selected.Count), MeditateAssignmentAvailable = DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate") != null };
             var details = NativePawnDetails.Defaults(parsed.Details);
             var raidArmor = details.Equipment.GetValueOrDefault() ? NativeGearFacts.RaidArmor(map) : null;
             // The tend detail is pairwise across the page, so it runs once over
-            // the whole page before the per-row snapshot tokens are taken.
+            // the whole page before the per-row detail.
             if (details.Tend.GetValueOrDefault()) page = NativePawnDetails.Tend(page, details.TendReachBudgetMs is not null ? details.TendReachBudgetMs.GetValueOrDefault() : (uint?)null);
             foreach (var item in page) result = result with { Pawns = [.. result.Pawns, Detail(item.Key, colonists, item.Value, parsed.Details ?? new Obs.PawnDetails(), raidArmor, context)] };
             return result;
@@ -93,9 +93,7 @@ namespace HomeBridge.BridgeTools
         {
             if (raidArmor.HasValue && NativePawnDetails.Defaults(details).Equipment.GetValueOrDefault()) row = row with { RaidArmor = raidArmor.Value };
             row = NativePawnDetails.Apply(pawn, colonists, row, details, context);
-            row = row with { ActivityExecution = NativePawnActivities.Read(pawn) };
-            row = row with { Snapshot = PawnSnapshotToken(pawn, row, context) };
-            return row;
+            return row with { ActivityExecution = NativePawnActivities.Read(pawn) };
         }
 
         // A reference to a pawn's table row: every other message names a
@@ -117,31 +115,23 @@ namespace HomeBridge.BridgeTools
         // Pure predicate: optional false is an actual exclusion, never an omitted filter.
         internal static bool Matches(Obs.PawnState row, Obs.PawnFilter? f)
         {
-            if (row.Dead.GetValueOrDefault() && (f?.IncludeDead).GetValueOrDefault() != true) return false;
+            if (row.Dead && (f?.IncludeDead).GetValueOrDefault() != true) return false;
             if (f==null) return true;
-            return (f.Ids.Count==0 || f.Ids.Contains((row.Pawn?.Id ?? "")))
-                && (f.NameContains is null || (row.Pawn?.Label ?? "").IndexOf((f.NameContains ?? ""),StringComparison.OrdinalIgnoreCase)>=0)
-                && (f.Colonist is null || f.Colonist.GetValueOrDefault()==row.Colonist.GetValueOrDefault()) && (f.Prisoner is null || f.Prisoner.GetValueOrDefault()==row.Prisoner.GetValueOrDefault())
-                && (f.Animal is null || f.Animal.GetValueOrDefault()==row.Animal.GetValueOrDefault()) && (f.Humanlike is null || f.Humanlike.GetValueOrDefault()==row.Humanlike.GetValueOrDefault())
-                && (f.Mechanoid is null || f.Mechanoid.GetValueOrDefault()==row.Mechanoid.GetValueOrDefault()) && (f.Tame is null || f.Tame.GetValueOrDefault()==row.Tame.GetValueOrDefault())
-                && (f.Wild is null || f.Wild.GetValueOrDefault()==row.Wild.GetValueOrDefault()) && (f.Hostile is null || f.Hostile.GetValueOrDefault()==row.Hostile.GetValueOrDefault())
-                && (f.Downed is null || f.Downed.GetValueOrDefault()==row.Downed.GetValueOrDefault()) && (f.Drafted is null || f.Drafted.GetValueOrDefault()==row.Drafted.GetValueOrDefault())
+            return (f.Ids.Count==0 || f.Ids.Contains((row.Pawn.Id ?? "")))
+                && (f.NameContains is null || (row.Pawn.Label ?? "").IndexOf((f.NameContains ?? ""),StringComparison.OrdinalIgnoreCase)>=0)
+                && (f.Colonist is null || f.Colonist==row.Colonist) && (f.Prisoner is null || f.Prisoner==row.Prisoner)
+                && (f.Animal is null || f.Animal==row.Animal) && (f.Humanlike is null || f.Humanlike==row.Humanlike)
+                && (f.Mechanoid is null || f.Mechanoid==row.Mechanoid) && (f.Tame is null || f.Tame==row.Tame)
+                && (f.Wild is null || f.Wild==row.Wild) && (f.Hostile is null || f.Hostile==row.Hostile)
+                && (f.Downed is null || f.Downed==row.Downed) && (f.Drafted is null || f.Drafted==row.Drafted)
                 && (f.WithinColonistDistance is null || row.NearestColonistDistance is not null && row.NearestColonistDistance.GetValueOrDefault()<=f.WithinColonistDistance.GetValueOrDefault());
         }
 
         internal static Obs.PawnState Core(Pawn pawn, List<Pawn> colonists, Common.ObservationContext context)
         {
             var row=NativeObservationTools.PawnRow(pawn,false,context);
-            row = row with { Pawn = (row.Pawn ?? new Obs.EntityRef()) with { Label = Text(pawn.LabelCap) } };
-            var player=Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
-            row = row with { Tame = pawn.RaceProps.Animal && pawn.Faction==player };
-            row = row with { Wild = pawn.RaceProps.Animal && pawn.Faction==null };
-            row = row with { Burning = pawn.IsBurning() }; row = row with { PlayerControlled = pawn.IsColonistPlayerControlled };
-            var mental=pawn.MentalStateDef?.defName;
-            var manhunter=mental?.IndexOf("Manhunter",StringComparison.OrdinalIgnoreCase)>=0;
-            row = row with { Hostile = manhunter || pawn.Faction!=null && pawn.Faction!=player && pawn.Faction.HostileTo(player) };
-            row = row with { HostileReason = manhunter ? "manhunter:"+mental : row.Hostile.GetValueOrDefault() ? "faction:"+Id(pawn.Faction!.GetUniqueLoadID()) : "none" };
-            if (pawn.MapHeld!=null) { row = row with { Pawn = (row.Pawn ?? new Obs.EntityRef()) with { MapId = pawn.MapHeld.uniqueID, Position = Cell(pawn.PositionHeld) } }; }
+            row = row with { Pawn = row.Pawn with { Label = Text(pawn.LabelCap) } };
+            if (pawn.MapHeld!=null) { row = row with { Pawn = row.Pawn with { MapId = pawn.MapHeld.uniqueID, Position = Cell(pawn.PositionHeld) } }; }
             Pawn? nearest=null; long nearestDistance=0;
             foreach(var other in colonists) {
                 if(other==pawn) continue;
@@ -149,14 +139,8 @@ namespace HomeBridge.BridgeTools
                 if(nearest==null || d<nearestDistance
                     || d==nearestDistance && string.CompareOrdinal(other.GetUniqueLoadID(),nearest.GetUniqueLoadID())<0) { nearest=other; nearestDistance=d; }
             }
-            if (nearest!=null) { row = row with { NearestColonist = NativeRef.Thing(nearest) }; row = row with { NearestColonistDistance = nearestDistance }; }
-            else {
-                row = row with { Issues = [.. row.Issues, Issue("nearest_colonist",Common.UnavailableReason.NotApplicable,"No other live colonist on this map.")] };
-                row = row with { Issues = [.. row.Issues, Issue("nearest_colonist_distance",Common.UnavailableReason.NotApplicable,"No other live colonist on this map.")] };
-            }
+            if (nearest!=null) row = row with { NearestColonistDistance = nearestDistance };
             if(pawn.RaceProps.Humanlike) row = row with { Standing = Standing(pawn) };
-            if(pawn.Faction==null) row = row with { Issues = [.. row.Issues, Issue("faction",Common.UnavailableReason.NotApplicable,"Pawn has no faction.")] };
-            if(pawn.MentalStateDef==null) row = row with { Issues = [.. row.Issues, Issue("mental_state",Common.UnavailableReason.NotApplicable,"Pawn has no mental state.")] };
             if (pawn.ownership?.OwnedBed!=null) row = row with { OwnedBed = NativeRef.Of(Id(pawn.ownership.OwnedBed.GetUniqueLoadID())) };
             else row = row with { Issues = [.. row.Issues, Issue("owned_bed",Common.UnavailableReason.NotApplicable,"No owned bed.")] };
             if (row.Job is { } jobRow && pawn.CurJob!=null) {
@@ -183,10 +167,10 @@ namespace HomeBridge.BridgeTools
             }
             return standing;
         }
-        internal static Obs.SnapshotRef PawnSnapshotToken(Pawn pawn,Obs.PawnState row,Common.ObservationContext context)
-            => NativeObservationSnapshot.Snapshot("pawn-state", context, (row.Pawn?.Id ?? ""), w => {
-                w.Write(row.Dead.GetValueOrDefault()); w.Write(row.Downed.GetValueOrDefault()); w.Write(row.Drafted.GetValueOrDefault()); w.Write(row.InBed.GetValueOrDefault()); w.Write(row.Hostile.GetValueOrDefault());
-                w.Write(row.MentalState??""); w.Write(row.HostileReason??""); w.Write(row.Faction?.Id??"");
+        internal static Obs.SnapshotRef PawnSnapshotToken(Obs.PawnState row,Common.ObservationContext context)
+            => NativeObservationSnapshot.Snapshot("pawn-state", context, (row.Pawn.Id ?? ""), w => {
+                w.Write(row.Dead); w.Write(row.Downed); w.Write(row.Drafted); w.Write(row.InBed); w.Write(row.Hostile);
+                w.Write(row.MentalState?.DefName??""); w.Write(row.Faction?.Id??"");
             });
         private static long Distance(IntVec3 a,IntVec3 b)=>Math.Max(Math.Abs((long)a.x-b.x),Math.Abs((long)a.z-b.z));
         internal static Obs.EntityRef Entity(Thing thing) {
