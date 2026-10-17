@@ -46,11 +46,8 @@ internal static class TendGates
                 throw new AcceptanceException($"{id} carries no tendDoctor detail; the tend gates are unobserved");
             }
 
-            if (doctor["controlEligible"].AsBool() is not { } eligible)
-            {
-                throw new AcceptanceException($"{id} controlEligible unknown: {doctor.ToJson()}");
-            }
-
+            // The writer omits false, so an absent gate is false; every gate is always read.
+            var eligible = doctor["controlEligible"].AsBool() == true;
             var spawned = doctor["spawned"].AsBool() == true;
             var drafter = doctor["hasDrafter"].AsBool() == true;
             var dead = row["dead"].AsBool() == true;
@@ -60,28 +57,9 @@ internal static class TendGates
                 throw new AcceptanceException($"{id} controlEligible = {(eligible ? "true" : "false")} for a spawned live undowned colonist");
             }
 
-            if (doctor["capacitiesOk"].AsBool() is null)
-            {
-                throw new AcceptanceException($"{id} capacitiesOk unknown: {doctor.ToJson()}");
-            }
-
-            if (doctor["workTypeDisabled"].AsBool() is null)
-            {
-                throw new AcceptanceException($"{id} workTypeDisabled unknown: {doctor.ToJson()}");
-            }
-
-            // A row whose reachability could not be evaluated (unspawned) carries an issue instead of a list, and one
-            // past the tend budget carries reachSkipped; neither takes part in the symmetry check.
-            var unevaluated = doctor["reachSkipped"].AsBool() == true;
-            foreach (var issue in doctor["issues"].Rows())
-            {
-                if (issue["field"].AsString() == "reachable_pawn_ids")
-                {
-                    unevaluated = true;
-                }
-            }
-
-            if (unevaluated)
+            // An unspawned row reaches nobody and one past the tend budget carries reachSkipped; neither takes part in
+            // the symmetry check.
+            if (!spawned || doctor["reachSkipped"].AsBool() == true)
             {
                 continue;
             }

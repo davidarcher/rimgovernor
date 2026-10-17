@@ -189,16 +189,16 @@ public static partial class ObservationPackage
                 Drafted = Known(r.Drafted),
                 Mental = Known(r.MentalState is not null),
             };
-            if (r.Job is { } job && !HasIssue(r.Issues, "job"))
+            if (r.Job is { } job)
             {
-                p = p with { PlayerForced = Optional(job.PlayerForced is not null, job.PlayerForced.GetValueOrDefault()) };
+                p = p with { PlayerForced = Known(job.PlayerForced) };
             }
-            if (r.Needs is { } n && !HasIssue(r.Issues, "needs"))
+            if (r.Needs is { } n)
             {
                 p = p with
                 {
                     Mood = Optional(n.Mood is not null, n.Mood.GetValueOrDefault()),
-                    Threshold = Optional(n.BreakThresholdMinor is not null, n.BreakThresholdMinor.GetValueOrDefault()),
+                    Threshold = Known(n.BreakThresholdMinor),
                     Food = Optional(n.Food is not null, n.Food.GetValueOrDefault()),
                     Rest = Optional(n.Rest is not null, n.Rest.GetValueOrDefault()),
                     Joy = Optional(n.Joy is not null, n.Joy.GetValueOrDefault()),
@@ -209,7 +209,7 @@ public static partial class ObservationPackage
                 p = p with { Target = Optional(f.MoodTarget is not null, f.MoodTarget.GetValueOrDefault()) };
             }
             p = p with { Thoughts = MoodThoughts(r) };
-            if (r.Social is { } social && !HasIssue(r.Issues, "social"))
+            if (r.Social is { } social)
             {
                 p = p with { HighExpectations = Optional(social.HighExpectations is not null, social.HighExpectations.GetValueOrDefault()) };
             }
@@ -228,7 +228,7 @@ public static partial class ObservationPackage
     {
         var unknown = Unknown<EquatableArray<MoodThought>>();
         var social = r.Social;
-        if (social is null || HasIssue(r.Issues, "social") || HasIssue(social.Issues, "memories") || HasIssue(social.Issues, "situational"))
+        if (social is null || HasIssue(social.Issues, "memories") || HasIssue(social.Issues, "situational"))
         {
             return unknown;
         }
@@ -295,7 +295,7 @@ public static partial class ObservationPackage
                 {
                     pawn = pawn with { Traits = Known<EquatableArray<string>>([.. b.Traits.Select(t => (t.DefName ?? ""))]) };
                 }
-                if (r.Social is { } s && !HasIssue(r.Issues, "social") && s.ExpectationDefName is not null)
+                if (r.Social is { } s && s.ExpectationDefName is not null)
                 {
                     pawn = pawn with { Expectation = Known((s.ExpectationDefName ?? "")) };
                 }
@@ -420,9 +420,9 @@ public static partial class ObservationPackage
             if (row.Equipment is { } e)
             {
                 d = d with { RangedDPS = Optional(e.RangedDps is not null, e.RangedDps.GetValueOrDefault()) };
-                if (e.MeleeDps is not null && row.Health is { } health && health.SummaryFraction is not null)
+                if (e.MeleeDps is not null && row.Health is { } health)
                 {
-                    d = d with { MeleePower = Known(e.MeleeDps.GetValueOrDefault() * health.SummaryFraction.GetValueOrDefault()) };
+                    d = d with { MeleePower = Known(e.MeleeDps.GetValueOrDefault() * health.SummaryFraction) };
                 }
             }
             output.Add(d);

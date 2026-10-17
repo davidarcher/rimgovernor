@@ -8,7 +8,6 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 internal static class PawnReads
 {
-    private static readonly string[] CoreFlags = ["colonist", "freeColonist", "prisoner", "animal", "humanlike", "mechanoid", "tame", "wild", "hostile", "dead", "downed", "drafted"];
 
     private static readonly string[] Sections = ["needs", "health", "equipment", "biography", "settings", "social", "animalState"];
 
@@ -321,7 +320,7 @@ internal static class PawnReads
         }
     }
 
-    /// <summary>Checks every core classification of every typed row is an explicit boolean.</summary>
+    /// <summary>Checks the typed read returned rows and every row carries its pawn's id and def.</summary>
     private static void RequireCore(List<JsonObject> typed)
     {
         if (typed.Count == 0)
@@ -335,14 +334,6 @@ internal static class PawnReads
             if (pawn["id"].AsString().Length == 0 || pawn["defName"].AsString().Length == 0)
             {
                 throw new AcceptanceException($"typed pawn row without an id and defName: {pawn.ToJson()}");
-            }
-
-            foreach (var key in CoreFlags)
-            {
-                if (row[key].AsBool() is null)
-                {
-                    throw new AcceptanceException($"{key} must be an explicit boolean for pawn {pawn["id"].AsString()}, found {row[key].ToJson()}");
-                }
             }
         }
     }

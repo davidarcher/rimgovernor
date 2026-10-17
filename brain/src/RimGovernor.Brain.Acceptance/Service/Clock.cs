@@ -9,8 +9,8 @@ public static class ClockFixture
 
     /// <summary>
     /// Asserts a fresh observations_list_pawns reply (filter colonist=true) is a complete, fully-matched,
-    /// fully-readable census with none dead, downed, bleeding, or needing tend: a missing health fact is never
-    /// treated as healthy, only an explicit false is. Pawns the colonist filter dropped (animals, prisoners) are
+    /// fully-readable census with none dead, downed, bleeding, or needing tend: a missing health block is never
+    /// treated as healthy; the writer omits false flags, so an absent flag is false. Pawns the colonist filter dropped (animals, prisoners) are
     /// expected, not a defect.
     /// </summary>
     public static void RequireHealthyColonists(JsonObject reply)
@@ -30,18 +30,23 @@ public static class ClockFixture
             var blocked = new List<string>();
             foreach (var name in HealthFields)
             {
-                if (!ExplicitFalse(pawn?[name]))
+                if (pawn?[name].AsBool() == true)
                 {
                     blocked.Add(name);
                 }
             }
 
-            if (!ExplicitFalse(health?["bleeding"]))
+            if (health is null)
+            {
+                blocked.Add("health");
+            }
+
+            if (health?["bleeding"].AsBool() == true)
             {
                 blocked.Add("bleeding");
             }
 
-            if (!ExplicitFalse(health?["needsTend"]))
+            if (health?["needsTend"].AsBool() == true)
             {
                 blocked.Add("needsTend");
             }
@@ -53,6 +58,4 @@ public static class ClockFixture
             }
         }
     }
-
-    private static bool ExplicitFalse(JsonNode? value) => value.AsBool() is false;
 }

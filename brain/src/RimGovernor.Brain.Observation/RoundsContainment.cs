@@ -296,45 +296,36 @@ public static partial class ObservationPackage
             {
                 p = p with { Care = CareName(settings.MedicalCare) };
             }
-            if (row.Health is { } h && !HasIssue(row.Issues, "health"))
+            if (row.Health is { } h)
             {
-                var (_, operations) = SurgeryFacts(h, parts);
-                p = p with { Operations = operations, QueuedSurgeries = QueuedSurgeries(h) };
-                var recipes = QueuedSurgeryRecipes(h) ?? [];
+                var (_, operations) = SurgeryFacts(h.Surgery, parts);
+                p = p with { Operations = operations, QueuedSurgeries = QueuedSurgeries(h.Surgery) };
+                var recipes = QueuedSurgeryRecipes(h.Surgery) ?? [];
                 p = p with { QueuedItems = QueuedSurgeryItems(recipes, parts) };
                 var (conditions, lifeThreatening) = CareConditions(h);
                 p = p with
                 {
                     Conditions = conditions,
                     LifeThreatening = lifeThreatening,
-                    NeedsRest = Optional(h.ShouldSeekMedicalRest is not null, h.ShouldSeekMedicalRest.GetValueOrDefault()),
-                    NeedsTend = Optional(h.NeedsTend is not null, h.NeedsTend.GetValueOrDefault()),
+                    NeedsRest = Known(h.ShouldSeekMedicalRest),
+                    NeedsTend = Known(h.NeedsTend),
                 };
-                var c = h.HediffCompleteness;
-                // A visible-only or incomplete list cannot prove that bad conditions have resolved. Other health
-                // details remain independent evidence.
-                if (c is not null && c.Filtered.GetValueOrDefault() == 0 && h.HiddenHediffs is not null && h.HiddenHediffs.GetValueOrDefault() == 0 && !HasIssue(h.Issues, "hediffs"))
+                // The list is every hediff, so it proves bad conditions resolved; a hediff the catalog cannot
+                // classify leaves the answer unknown.
+                var bad = false;
+                var known = true;
+                foreach (var condition in h.Hediffs)
                 {
-                    var bad = false;
-                    var known = true;
-                    foreach (var condition in h.Hediffs)
+                    if (!catalog.HediffBad(condition.DefName).TryGetValue(out var isBad))
                     {
-                        if (condition is null || condition.DefName is null)
-                        {
-                            known = false;
-                            break;
-                        }
-                        if (!catalog.HediffBad((condition.DefName ?? "")).TryGetValue(out var isBad))
-                        {
-                            known = false;
-                            break;
-                        }
-                        bad = bad || isBad;
+                        known = false;
+                        break;
                     }
-                    if (known)
-                    {
-                        p = p with { BadConditions = Known(bad) };
-                    }
+                    bad = bad || isBad;
+                }
+                if (known)
+                {
+                    p = p with { BadConditions = Known(bad) };
                 }
             }
             rows.Add(p);

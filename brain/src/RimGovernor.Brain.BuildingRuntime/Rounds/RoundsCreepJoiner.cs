@@ -77,14 +77,14 @@ internal static partial class BuildingRuntimePackage
             Area = Unknown<string>(),
             Hungry = Unknown<bool>(),
         };
-        if (row.Health is { } health && !Boundary.IssueField(row.Issues, "health"))
+        if (row.Health is { } health)
         {
             // The weapon drop and inspections read recipe names only, no part items.
             hand = hand with
             {
-                Operations = BridgeApi.SurgeryFacts(health, null).Operations,
-                QueuedSurgeries = BridgeApi.QueuedSurgeries(health),
-                QueuedRecipes = BridgeApi.QueuedSurgeryRecipes(health) is { } recipes ? EquatableArray.From(recipes) : null,
+                Operations = BridgeApi.SurgeryFacts(health.Surgery, null).Operations,
+                QueuedSurgeries = BridgeApi.QueuedSurgeries(health.Surgery),
+                QueuedRecipes = BridgeApi.QueuedSurgeryRecipes(health.Surgery) is { } recipes ? EquatableArray.From(recipes) : null,
             };
         }
         // An unset allowed area is an unrestricted pawn (native AllowedArea).
@@ -92,7 +92,7 @@ internal static partial class BuildingRuntimePackage
         {
             hand = hand with { Area = Known((settings.AllowedAreaId ?? "")) };
         }
-        if (row.Needs is { HungerCategory: not null } needs && !Boundary.IssueField(needs.Issues, "hunger_category"))
+        if (row.Needs is { HungerCategory: not null } needs)
         {
             hand = hand with { Hungry = Known(needs.HungerCategory.GetValueOrDefault() != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed) };
         }

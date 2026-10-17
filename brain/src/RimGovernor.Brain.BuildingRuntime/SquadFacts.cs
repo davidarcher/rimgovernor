@@ -172,17 +172,13 @@ internal static partial class BuildingRuntimePackage
         {
             facts = facts with { Deathresting = bt.IsDeathresting() };
         }
-        if (row.Job is { } job && !Boundary.IssueField(job.Issues, "player_forced") && !Boundary.IssueField(job.Issues, "queued_jobs"))
+        if (row.Job is { } job)
         {
-            facts = facts with { PlayerForced = Boundary.FactBool(job.PlayerForced is not null, job.PlayerForced.GetValueOrDefault()), QueuedJobs = Boundary.FactUint(job.QueuedJobs is not null, job.QueuedJobs.GetValueOrDefault()) };
+            facts = facts with { PlayerForced = Fact.Known(job.PlayerForced), QueuedJobs = Fact.Known(job.QueuedJobs) };
         }
-        if (row.Health is { } health && !Boundary.IssueField(health.Issues, "health"))
+        if (row.Health is { } health)
         {
-            facts = facts with { NeedsTend = Boundary.FactBool(health.NeedsTend is not null, health.NeedsTend.GetValueOrDefault()) };
-            if (health.SummaryFraction is not null)
-            {
-                facts = facts with { HealthFraction = Fact.Known(health.SummaryFraction.GetValueOrDefault()) };
-            }
+            facts = facts with { NeedsTend = Fact.Known(health.NeedsTend), HealthFraction = Fact.Known(health.SummaryFraction) };
         }
         if (row.Biography is { } biography && !Boundary.IssueField(biography.Issues, "disabled_work_tags"))
         {

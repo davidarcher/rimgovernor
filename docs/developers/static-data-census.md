@@ -377,7 +377,6 @@ Kept, reason recorded:
 | JobEvidence | message | 207 | 12 | state | Pawn current job def load id target and priority |  |  |
 | PawnNeeds | message | 225 | 13 | mixed | Pawn need levels hunger category break risk thresholds | break_threshold_minor; break_threshold_major; break_threshold_extreme | Pawn-computed (traits genes) so effectively code; MentalBreakDef thresholds only the base |
 | Hediff | message | 235 | 17 | state | One health condition on a pawn with severity tend and immunity state (label, part label, isBad read from the catalog row, #2656) |  |  |
-| Capacity | message | 246 | 3 | state | Pawn capacity level |  |  |
 | SurgeryBill | message | 247 | 4 | state | Queued surgery bill on a pawn |  |  |
 | PawnHealth | message | 248 | 22 | state | Pawn health summary conditions capacities hediffs and surgery facts |  |  |
 | MissingBodyPart | message | 269 | 5 | mixed | Missing body part at its common ancestor | part_def_name; parent_index; parent_def_name; vital | BodyDef BodyPartRecord tree (def and parent per index); vital: BodyPartDef.tags BodyPartTagDef.vital |
@@ -414,7 +413,6 @@ Kept, reason recorded:
 | PawnSnapshot | message | 588 | 5 | state | Pawn list snapshot with completeness |  |  |
 | ListPawnsRequest | message | 594 | 3 | state | List pawns request |  |  |
 | ListPawnsReply | message | 595 | 3 | state | List pawns reply envelope |  |  |
-| BreakRisk | enum | 600 | 5 | state | Mental break band tag |  |  |
 | HolderKind | enum | 603 | 5 | state | What holds a stack |  |  |
 | WasteKind | enum | 605 | 3 | state | Why an item is waste |  |  |
 | BenchUnusableReason | enum | 607 | 6 | state | Why a bench takes no bills |  |  |

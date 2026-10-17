@@ -75,6 +75,6 @@ public static class Colonists
     public static string HediffDef(JsonObject hediff)
     {
         ArgumentNullException.ThrowIfNull(hediff);
-        return hediff["definition"].Member("defName").AsString();
+        return hediff["defName"].AsString();
     }
 }

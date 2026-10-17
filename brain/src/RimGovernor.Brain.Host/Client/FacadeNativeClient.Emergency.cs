@@ -108,7 +108,7 @@ internal sealed partial class FacadeNativeClient
         /// <summary>Go <c>emergencyFacts</c>.</summary>
         private static PolicyEmergencyPawn EmergencyFacts(PbObservations.PawnState row)
         {
-            EmergencyIssues(row.Issues, field => field == "health" && row.Health is not null);
+            EmergencyIssues(row.Issues, _ => false);
             var result = new PolicyEmergencyPawn
             {
                 Id = new PawnId(row.Pawn.Id ?? ""),
@@ -124,13 +124,7 @@ internal sealed partial class FacadeNativeClient
             }
             if (row.Health is { } h)
             {
-                EmergencyIssues(h.Issues, field => (field.StartsWith("health.", StringComparison.Ordinal) ? field["health.".Length..] : field) switch
-                {
-                    "bleeding" => h.Bleeding is not null,
-                    "needs_tend" or "needsTend" => h.NeedsTend is not null,
-                    _ => false,
-                });
-                result = result with { Bleeding = EmergencyBool(h.Bleeding), NeedsTend = EmergencyBool(h.NeedsTend) };
+                result = result with { Bleeding = Known(h.Bleeding), NeedsTend = Known(h.NeedsTend) };
             }
             return result;
         }

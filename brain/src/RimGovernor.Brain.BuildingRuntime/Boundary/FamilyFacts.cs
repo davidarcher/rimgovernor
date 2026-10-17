@@ -19,9 +19,9 @@ public static class CaptureFacts
             Downed = Fact.Known(row.Downed),
             Prisoner = Fact.Known(row.Prisoner),
         };
-        if (row.Job is { } job && !Boundary.IssueField(job.Issues, "def_name") && job.DefName is not null)
+        if (row.Job?.DefName is { } jobDef)
         {
-            facts = facts with { ExistingJobDef = Known((job.DefName ?? "")) };
+            facts = facts with { ExistingJobDef = Known(jobDef) };
         }
         return facts;
     }
@@ -41,16 +41,16 @@ public static class RescueFacts
             Drafted = Fact.Known(row.Drafted),
             MentalState = Fact.Known(row.MentalState is not null),
         };
-        if (row.Job is { } job && !Boundary.IssueField(job.Issues, "player_forced") && !Boundary.IssueField(job.Issues, "queued_jobs") && !Boundary.IssueField(job.Issues, "def_name"))
+        if (row.Job is { } job)
         {
             facts = facts with
             {
-                PlayerForced = Boundary.FactBool(job.PlayerForced is not null, job.PlayerForced.GetValueOrDefault()),
-                QueuedJobs = Boundary.FactUint(job.QueuedJobs is not null, job.QueuedJobs.GetValueOrDefault()),
+                PlayerForced = Known(job.PlayerForced),
+                QueuedJobs = Known(job.QueuedJobs),
             };
-            if (job.DefName is not null)
+            if (job.DefName is { } jobDef)
             {
-                facts = facts with { ExistingJobDef = Known((job.DefName ?? "")) };
+                facts = facts with { ExistingJobDef = Known(jobDef) };
             }
         }
         return facts;
@@ -66,13 +66,13 @@ public static class RescueFacts
             Downed = Fact.Known(row.Downed),
             InBed = Fact.Known(row.InBed),
         };
-        if (row.Job is { } job && !Boundary.IssueField(job.Issues, "def_name") && job.DefName is not null)
+        if (row.Job?.DefName is { } jobDef)
         {
-            facts = facts with { ExistingJobDef = Known((job.DefName ?? "")) };
+            facts = facts with { ExistingJobDef = Known(jobDef) };
         }
-        if (row.Health is { } health && !Boundary.IssueField(health.Issues, "health") && health.BedId is not null)
+        if (row.Health?.BedId is { } bed)
         {
-            facts = facts with { BedID = Known((health.BedId ?? "")) };
+            facts = facts with { BedID = Known(bed) };
         }
         return facts;
     }
@@ -130,16 +130,16 @@ public static class TendFacts
             Drafted = Fact.Known(row.Drafted),
             MentalState = Fact.Known(row.MentalState is not null),
         };
-        if (row.Job is { } job && !Boundary.IssueField(job.Issues, "player_forced") && !Boundary.IssueField(job.Issues, "queued_jobs") && !Boundary.IssueField(job.Issues, "def_name"))
+        if (row.Job is { } job)
         {
             facts = facts with
             {
-                PlayerForced = Boundary.FactBool(job.PlayerForced is not null, job.PlayerForced.GetValueOrDefault()),
-                QueuedJobs = Boundary.FactUint(job.QueuedJobs is not null, job.QueuedJobs.GetValueOrDefault()),
+                PlayerForced = Known(job.PlayerForced),
+                QueuedJobs = Known(job.QueuedJobs),
             };
-            if (job.DefName is not null)
+            if (job.DefName is { } jobDef)
             {
-                facts = facts with { ExistingJobDef = Known((job.DefName ?? "")) };
+                facts = facts with { ExistingJobDef = Known(jobDef) };
             }
         }
         if (row.Biography is { } biography && !Boundary.IssueField(biography.Issues, "skills"))
@@ -156,8 +156,8 @@ public static class TendFacts
         {
             facts = facts with
             {
-                ControlEligible = Boundary.FactBool(doctor.ControlEligible is not null, doctor.ControlEligible.GetValueOrDefault()),
-                TendCapacities = Boundary.FactBool(doctor.CapacitiesOk is not null, doctor.CapacitiesOk.GetValueOrDefault()),
+                ControlEligible = Known(doctor.ControlEligible),
+                TendCapacities = Known(doctor.CapacitiesOk),
             };
         }
         return facts;
@@ -165,7 +165,7 @@ public static class TendFacts
 
     /// <summary>
     /// Collects the pairwise CanReach facts one list_pawns reply carries. A row without the tend detail, or whose
-    /// reachability read carried an issue or reach_skipped (budget spent), contributes no fact: the doctor is then
+    /// reach_skipped is set (budget spent), contributes no fact: the doctor is then
     /// never proposed.
     /// </summary>
     public static TendReachability TendReachabilityOf(IEnumerable<PbObservations.PawnState> rows)
@@ -174,7 +174,7 @@ public static class TendFacts
         foreach (var row in rows)
         {
             var doctor = row.TendDoctor;
-            if (doctor is null || doctor.ReachSkipped.GetValueOrDefault() || Boundary.IssueField(doctor.Issues, "reachable_pawn_ids"))
+            if (doctor is null || doctor.ReachSkipped)
             {
                 continue;
             }
@@ -193,17 +193,17 @@ public static class TendFacts
             Downed = Fact.Known(row.Downed),
             InBed = Fact.Known(row.InBed),
         };
-        if (row.Job is { } job && !Boundary.IssueField(job.Issues, "def_name") && job.DefName is not null)
+        if (row.Job?.DefName is { } jobDef)
         {
-            facts = facts with { ExistingJobDef = Known((job.DefName ?? "")) };
+            facts = facts with { ExistingJobDef = Known(jobDef) };
         }
-        if (row.Health is { } health && !Boundary.IssueField(health.Issues, "health"))
+        if (row.Health is { } health)
         {
             facts = facts with
             {
-                NeedsTend = Boundary.FactBool(health.NeedsTend is not null, health.NeedsTend.GetValueOrDefault()),
-                Bleeding = Boundary.FactBool(health.Bleeding is not null, health.Bleeding.GetValueOrDefault()),
-                LifeThreatening = Boundary.FactBool(health.LifeThreatening is not null, health.LifeThreatening.GetValueOrDefault()),
+                NeedsTend = Known(health.NeedsTend),
+                Bleeding = Known(health.Bleeding),
+                LifeThreatening = Known(health.LifeThreatening),
             };
             if (health.HoursUntilDeathFromBloodLoss is not null)
             {

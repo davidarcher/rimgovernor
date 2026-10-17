@@ -85,17 +85,7 @@ namespace HomeBridge.BridgeTools
                 }
                 if (p.IsPrisonerOfColony)
                 {
-                    var health = new Obs.PawnHealth();
-                    var bills = p.BillStack?.Bills;
-                    if (bills == null) health = health with { Issues = [.. health.Issues, NativePawnObservationTools.Issue("surgery_bills", Common.UnavailableReason.NativeComponentMissing, "No bill stack.")] };
-                    else foreach (var bill in bills.OfType<Bill_Medical>())
-                    {
-                        var b = new Obs.SurgeryBill { Id = NativePawnObservationTools.Id(bill.GetUniqueLoadID()), Recipe = NativePawnObservationTools.Id(bill.recipe.defName), Suspended = bill.suspended };
-                        if (bill.Part != null) b = b with { PartIndex = p.RaceProps.body.AllParts.IndexOf(bill.Part) };
-                        health = health with { SurgeryBills = [.. health.SurgeryBills, b] };
-                    }
-                    health = NativePawnDetails.Surgery(p, health);
-                    person = person with { Surgery = health };
+                    person = person with { Surgery = NativePawnDetails.Surgery(p) };
                     if (p.playerSettings != null) person = person with { MedicalCare = NativeEnums.Care(p.playerSettings.medCare) };
                     // Peg-leg control: an addiction a prisoner cannot feed.
                     person = person with { Withdrawal = p.health?.hediffSet?.hediffs?.Any(h => h is Hediff_Addiction) == true };

@@ -13,21 +13,19 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativePawnDetails
     {
-        internal static Obs.PawnDetails Defaults(Obs.PawnDetails? source)
+        // The detail families one request resolves to: an absent family of
+        // the first seven is requested, an absent work, schedule or tend is not.
+        internal sealed class Requested
         {
-            var d=new Obs.PawnDetails {
-                Needs=source==null || source.Needs is null || source.Needs.GetValueOrDefault(),
-                Health=source==null || source.Health is null || source.Health.GetValueOrDefault(),
-                Equipment=source==null || source.Equipment is null || source.Equipment.GetValueOrDefault(),
-                Biography=source==null || source.Biography is null || source.Biography.GetValueOrDefault(),
-                Settings=source==null || source.Settings is null || source.Settings.GetValueOrDefault(),
-                Social=source==null || source.Social is null || source.Social.GetValueOrDefault(),
-                Animals=source==null || source.Animals is null || source.Animals.GetValueOrDefault(),
-                VisibleHediffsOnly=(source?.VisibleHediffsOnly).GetValueOrDefault()==true, Work=(source?.Work).GetValueOrDefault()==true, Schedule=(source?.Schedule).GetValueOrDefault()==true,
-                Tend=(source?.Tend).GetValueOrDefault()==true };
-            if(source!=null && source.TendReachBudgetMs is not null) d = d with { TendReachBudgetMs = source.TendReachBudgetMs };
-            return d;
+            internal bool Needs, Health, Equipment, Biography, Settings, Social, Animals, Work, Schedule, Tend;
+            internal uint? TendReachBudgetMs;
         }
+
+        internal static Requested Defaults(Obs.PawnDetails? source) => new Requested {
+            Needs=source?.Needs ?? true, Health=source?.Health ?? true, Equipment=source?.Equipment ?? true,
+            Biography=source?.Biography ?? true, Settings=source?.Settings ?? true, Social=source?.Social ?? true,
+            Animals=source?.Animals ?? true, Work=source?.Work ?? false, Schedule=source?.Schedule ?? false,
+            Tend=source?.Tend ?? false, TendReachBudgetMs=source?.TendReachBudgetMs };
 
         // Doctor-side tend gates for one reply's rows, mirroring
         // NativeTendOperations.Prepare: pawn-control eligibility (the gate
@@ -38,7 +36,8 @@ namespace HomeBridge.BridgeTools
         {
             var giver=DefDatabase<WorkGiverDef>.AllDefsListForReading
                 .Where(d => d.giverClass!=null && typeof(WorkGiver_Tend).IsAssignableFrom(d.giverClass))
-                .Select(d => d.Worker as WorkGiver_Tend).FirstOrDefault(w => w!=null);
+                .Select(d => d.Worker as WorkGiver_Tend).FirstOrDefault(w => w!=null)
+                ?? throw new InvalidOperationException("WorkGiver_Tend is missing from the game's work givers.");
             // Pairwise reachability is quadratic in the page (about 0.3 us a pair), so
             // it runs under Go's budget: a doctor reached after it is spent reports
             // reach_skipped (list unknown), never a partial list.
@@ -46,22 +45,11 @@ namespace HomeBridge.BridgeTools
             var began=System.Diagnostics.Stopwatch.GetTimestamp();
             var result=new System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<Pawn,Obs.PawnState>>(page.Count);
             foreach(var item in page) {
-                var pawn=item.Key; var row=new Obs.PawnTendDoctor();
-                row = row with { Spawned = pawn.Spawned }; row = row with { HasDrafter = pawn.drafter!=null };
-                row = row with { ControlEligible = pawn.drafter!=null && pawn.Spawned && !pawn.Dead && !pawn.Downed
-                    && !pawn.InMentalState && pawn.IsColonistPlayerControlled };
-                row = row with { WorkTypeDisabled = pawn.WorkTypeIsDisabled(WorkTypeDefOf.Doctor) };
-                if(giver==null) {
-                    row = row with { Issues = [.. row.Issues, Issue("capacities_ok",Common.UnavailableReason.NotApplicable,"WorkGiver_Tend is unavailable in this game.")] };
-                    row = row with { Issues = [.. row.Issues, Issue("missing_capacity",Common.UnavailableReason.NotApplicable,"WorkGiver_Tend is unavailable in this game.")] };
-                } else {
-                    var missing=giver.MissingRequiredCapacity(pawn);
-                    row = row with { CapacitiesOk = missing==null };
-                    if(missing!=null) row = row with { MissingCapacity = Id(missing.defName) };
-                    else row = row with { Issues = [.. row.Issues, Issue("missing_capacity",Common.UnavailableReason.NotApplicable,"No tend capacity is missing.")] };
-                }
+                var pawn=item.Key;
+                var row=new Obs.PawnTendDoctor { Spawned = pawn.Spawned, HasDrafter = pawn.drafter!=null,
+                    ControlEligible = pawn.drafter!=null && pawn.Spawned && !pawn.Dead && !pawn.Downed && !pawn.InMentalState && pawn.IsColonistPlayerControlled,
+                    CapacitiesOk = giver.MissingRequiredCapacity(pawn)==null };
                 if(!pawn.Spawned || pawn.Dead) {
-                    row = row with { Issues = [.. row.Issues, Issue("reachable_pawn_ids",Common.UnavailableReason.NotApplicable,"An unspawned or dead pawn reaches nothing.")] };
                     result.Add(new System.Collections.Generic.KeyValuePair<Pawn,Obs.PawnState>(pawn,item.Value with { TendDoctor = row }));
                     continue;
                 }
@@ -78,23 +66,12 @@ namespace HomeBridge.BridgeTools
         internal static Obs.PawnState Apply(Pawn pawn,System.Collections.Generic.List<Pawn> colonists,Obs.PawnState row,Obs.PawnDetails? requested,Common.ObservationContext context)
         {
             var d=Defaults(requested);
-            if(d.Needs.GetValueOrDefault()) {
-                var needs=row.Needs ?? new Obs.PawnNeeds();
-                if(pawn.needs?.food!=null) {needs = needs with { Food = Number(pawn.needs.food.CurLevelPercentage) };needs = needs with { HungerCategory = (Defs.HungerCategory)(int)pawn.needs.food.CurCategory };}
-                else {needs = needs with { Issues = [.. needs.Issues, Missing("food")] };needs = needs with { Issues = [.. needs.Issues, Missing("hunger_category")] };}
-                if(pawn.needs?.rest!=null) needs = needs with { Rest = Number(pawn.needs.rest.CurLevelPercentage) }; else needs = needs with { Issues = [.. needs.Issues, Missing("rest")] };
-                if(pawn.needs?.joy!=null) needs = needs with { Joy = Number(pawn.needs.joy.CurLevelPercentage) }; else needs = needs with { Issues = [.. needs.Issues, Missing("joy")] };
-                row = row with { Needs = needs };
-            } else {row = row with { Needs = null };row = row with { Issues = [.. row.Issues, Skipped("needs")] };}
-            if(d.Health.GetValueOrDefault() && row.Health!=null) row = row with { Health = Health(pawn,row.Health,d.VisibleHediffsOnly.GetValueOrDefault(),context) };
-            else if(!d.Health.GetValueOrDefault()) {
-                row = row with { Health = null };
-                row = row with { Issues = [.. row.Issues.Where(i=>(i.Field ?? "")!="health")] };
-                row = row with { Issues = [.. row.Issues, Skipped("health")] };
-            }
-            if(d.Equipment.GetValueOrDefault()) row = row with { Equipment = Equipment(pawn) }; else row = row with { Issues = [.. row.Issues, Skipped("equipment")] };
-            if(d.Biography.GetValueOrDefault()) row = row with { Biography = Biography(pawn) }; else row = row with { Issues = [.. row.Issues, Skipped("biography")] };
-            if(d.Settings.GetValueOrDefault() || d.Work.GetValueOrDefault() || d.Schedule.GetValueOrDefault()) {
+            // An unrequested family is an absent block.
+            if(d.Needs) row = row with { Needs = Needs(pawn) };
+            if(d.Health) row = row with { Health = Health(pawn,context) };
+            if(d.Equipment) row = row with { Equipment = Equipment(pawn) };
+            if(d.Biography) row = row with { Biography = Biography(pawn) };
+            if(d.Settings || d.Work || d.Schedule) {
                 var settings = new Obs.PawnSettings();
                 // The bridge contract (the brain's settings
                 // validation) enforces that a PawnSettings reply carries
@@ -108,26 +85,21 @@ namespace HomeBridge.BridgeTools
                 // never the wider Assign-tab row (follow
                 // flags, master, allowed area) that home/pawn_config's own
                 // PawnSettingsRead.SettingsBlock reports instead.
-                if(d.Settings.GetValueOrDefault()) settings = CarePolicy(pawn,settings);
-                if(d.Work.GetValueOrDefault()) { settings = Work(pawn,settings); settings = AllowedArea(pawn,settings); settings = settings with { FoodRestriction = NativeFoodPolicy.Read(pawn), PolicyInputs = NativePolicyFacts.Inputs(pawn) }; settings = BodyStats(pawn,settings); }
-                if(d.Schedule.GetValueOrDefault()) settings = Schedule(pawn,settings);
+                if(d.Settings) settings = CarePolicy(pawn,settings);
+                if(d.Work) { settings = Work(pawn,settings); settings = AllowedArea(pawn,settings); settings = settings with { FoodRestriction = NativeFoodPolicy.Read(pawn), PolicyInputs = NativePolicyFacts.Inputs(pawn) }; settings = BodyStats(pawn,settings); }
+                if(d.Schedule) settings = Schedule(pawn,settings);
                 row = row with { Settings = settings };
-            } else row = row with { Issues = [.. row.Issues, Skipped("settings")] };
-            if(d.Social.GetValueOrDefault()) row = row with { Social = Social(pawn,colonists) };
-            else row = row with { Issues = [.. row.Issues, Skipped("social")] };
-            if(!d.Tend.GetValueOrDefault()) row = row with { Issues = [.. row.Issues, Skipped("tend_doctor")] };
-            if(!d.Animals.GetValueOrDefault()) row = row with { Issues = [.. row.Issues, Skipped("animal_state")] };
-            else if(!pawn.RaceProps.Animal) row = row with { Issues = [.. row.Issues, Issue("animal_state",Common.UnavailableReason.NotApplicable,"Pawn is not an animal.")] };
-            else row = row with { AnimalState = Animal(pawn) };
+            }
+            if(d.Social) row = row with { Social = Social(pawn,colonists) };
+            if(d.Animals && pawn.RaceProps.Animal) row = row with { AnimalState = Animal(pawn) };
             return row;
         }
 
         // One hediff row of a health read.
-        private static Obs.Hediff HediffRow(Pawn pawn,Hediff h,Obs.PawnHealth row)
+        private static Obs.Hediff HediffRow(Pawn pawn,Hediff h)
         {
                 var item=new Obs.Hediff {DefName=Id(h.def.defName),Severity=Number(h.Severity),
-                    Visible=h.Visible,Permanent=h.IsPermanent(),LifeThreatening=h.IsCurrentlyLifeThreatening,
-                    TendableNow=h.TendableNow(false),Tended=h.IsTended()};
+                    Visible=h.Visible,Permanent=h.IsPermanent(),Tended=h.IsTended()};
                 if(h.Part!=null) {
                     var index=pawn.RaceProps.body.AllParts.IndexOf(h.Part);
                     if(index<0) throw new InvalidOperationException("Hediff body part is not in this pawn's body.");
@@ -145,75 +117,47 @@ namespace HomeBridge.BridgeTools
                         item = item with { ImmunityPerDay = Number(GameTime.PerDay(record.ImmunityChangePerTick(pawn,true,h))) };
                 }
                 var tend=h.TryGetComp<HediffComp_TendDuration>();
-                if(tend!=null) {
-                    if(item.Tended.GetValueOrDefault()) item = item with { TendQuality = Number(tend.tendQuality) };
-                    if(!tend.TProps.TendIsPermanent) {item = item with { TendExpiresInTicks = Math.Max(0,tend.tendTicksLeft) };item = item with { NextTendInTicks = Math.Max(0,tend.tendTicksLeft-tend.TProps.TendTicksOverlap) };}
-                }
+                if(tend!=null && item.Tended) item = item with { TendQuality = Number(tend.tendQuality) };
                 return item;
             }
 
-        // Medical care cap inputs: the life threat and every hediff,
-        // none filtered; the other PawnHealth fields stay absent.
-        internal static Obs.PawnHealth Conditions(Pawn pawn)
+        // The need levels; a need the pawn lacks is absent.
+        private static Obs.PawnNeeds Needs(Pawn pawn)
         {
-            var row=new Obs.PawnHealth();
-            var all=pawn.health?.hediffSet?.hediffs;
-            if(all==null) {row = row with { Issues = [.. row.Issues, Missing("hediffs")] };return row;}
-            row = row with { LifeThreatening = all.Any(h=>h.IsCurrentlyLifeThreatening) };
-            foreach(var h in all) row = row with { Hediffs = [.. row.Hediffs, HediffRow(pawn,h,row)] };
-            row = row with { HiddenHediffs = 0 };
-            row = row with { HediffCompleteness = Complete(all.Count,0) };
-            return row;
+            var needs=new Obs.PawnNeeds { BreakThresholdMinor = Number(pawn.mindState.mentalBreaker.BreakThresholdMinor) };
+            if(pawn.needs?.mood!=null) needs = needs with { Mood = Number(pawn.needs.mood.CurLevelPercentage) };
+            if(pawn.needs?.food!=null) needs = needs with { Food = Number(pawn.needs.food.CurLevelPercentage), HungerCategory = (Defs.HungerCategory)(int)pawn.needs.food.CurCategory };
+            if(pawn.needs?.rest!=null) needs = needs with { Rest = Number(pawn.needs.rest.CurLevelPercentage) };
+            if(pawn.needs?.joy!=null) needs = needs with { Joy = Number(pawn.needs.joy.CurLevelPercentage) };
+            if(ModsConfig.RoyaltyActive && pawn.psychicEntropy!=null && pawn.GetPsylinkLevel() is var psylink && psylink>0)
+                needs = needs with { Psyfocus = new Obs.PawnPsyfocus { Current = Number(pawn.psychicEntropy.CurrentPsyfocus), Target = Number(pawn.psychicEntropy.TargetPsyfocus), PsylinkLevel = psylink } };
+            return needs;
         }
 
-        private static Obs.PawnHealth Health(Pawn pawn,Obs.PawnHealth row,bool visibleOnly,Common.ObservationContext context)
+        // Medical care cap inputs: the life threat and every hediff, none filtered.
+        internal static Obs.PawnConditions Conditions(Pawn pawn)
         {
-            row = row with { Issues = [] };
+            var all=pawn.health.hediffSet.hediffs;
+            return new Obs.PawnConditions { LifeThreatening = all.Any(h=>h.IsCurrentlyLifeThreatening), Hediffs = [.. all.Select(h=>HediffRow(pawn,h))] };
+        }
+
+        private static Obs.PawnHealth Health(Pawn pawn,Common.ObservationContext context)
+        {
             var set=pawn.health.hediffSet;
-            var all=set.hediffs.ToList(); 
-            row = row with { Pain = Number(set.PainTotal) };
-            row = row with { LifeThreatening = all.Any(h=>h.IsCurrentlyLifeThreatening) };
-            row = row with { BloodLoss = Number(all.Where(h=>h.def==HediffDefOf.BloodLoss).Sum(h=>(double)h.Severity)) };
-            row = row with { Issues = [.. row.Issues, Unsupported("stable_rest_eligible","The existing medical-rest safety owner does not distinguish unreadable facts from ineligibility.")] };
-            row = row with { ShouldSeekMedicalRest = HealthAIUtility.ShouldSeekMedicalRest(pawn) };
-            row = row with { UrgentMedicalRest = HealthAIUtility.ShouldSeekMedicalRestUrgent(pawn) };
+            var all=set.hediffs.ToList();
+            var row=new Obs.PawnHealth { SummaryFraction=Number(pawn.health.summaryHealth.SummaryHealthPercent), NeedsTend=pawn.health.HasHediffsNeedingTend(false),
+                BleedRatePerDay=Number(set.BleedRateTotal), Bleeding=set.BleedRateTotal>0, Pain=Number(set.PainTotal),
+                LifeThreatening=all.Any(h=>h.IsCurrentlyLifeThreatening), BloodLoss=Number(all.Where(h=>h.def==HediffDefOf.BloodLoss).Sum(h=>(double)h.Severity)),
+                ShouldSeekMedicalRest=HealthAIUtility.ShouldSeekMedicalRest(pawn), Hediffs=[.. all.Select(h=>HediffRow(pawn,h))], Surgery=Surgery(pawn) };
             if(pawn.CurrentBed()!=null) row = row with { BedId = Id(pawn.CurrentBed().GetUniqueLoadID()) };
-            else row = row with { Issues = [.. row.Issues, Issue("bed_id",Common.UnavailableReason.NotApplicable,"Pawn is not in a bed.")] };
-            if(row.Bleeding.GetValueOrDefault() && !pawn.Dead) {
+            if(row.Bleeding && !pawn.Dead) {
                 var ticks=HealthUtility.TicksUntilDeathDueToBloodLoss(pawn);
                 if(ticks>0 && ticks<int.MaxValue) row = row with { HoursUntilDeathFromBloodLoss = GameTime.Hours((double)ticks) };
-                else row = row with { Issues = [.. row.Issues, Issue("hours_until_death_from_blood_loss",Common.UnavailableReason.NotApplicable,"No finite native bleed-out estimate.")] };
-            } else row = row with { Issues = [.. row.Issues, Issue("hours_until_death_from_blood_loss",Common.UnavailableReason.NotApplicable,"No living bleeding pawn.")] };
-            if(pawn.Dead) row = row with { Issues = [.. row.Issues, Issue("capacities",Common.UnavailableReason.NotApplicable,"Capacities are not evaluated for dead pawns.")] };
-            else if(pawn.health.capacities==null) row = row with { Issues = [.. row.Issues, Missing("capacities")] };
-            else {
-                var defs=DefDatabase<PawnCapacityDef>.AllDefsListForReading; 
-                foreach(var def in defs) row = row with { Capacities = [.. row.Capacities, new Obs.Capacity {DefName=Id(def.defName),Level=Number(pawn.health.capacities.GetLevel(def))}] };
             }
-            var visible=all.Where(h=>!visibleOnly || h.Visible).ToList();
-            row = row with { HiddenHediffs = checked((uint)(all.Count-visible.Count)) };
-            foreach(var h in visible) row = row with { Hediffs = [.. row.Hediffs, HediffRow(pawn,h,row)] };
-            row = row with { HediffCompleteness = Complete(visible.Count,all.Count-visible.Count) };
-            var bills=pawn.BillStack?.Bills;
-            if(bills==null) row = row with { Issues = [.. row.Issues, Missing("surgery_bills")] };
-            else {
-                foreach(var bill in bills) {
-                    var b=new Obs.SurgeryBill {Id=Id(bill.GetUniqueLoadID()),Recipe=Id(bill.recipe.defName),Suspended=bill.suspended};
-                    if(bill is Bill_Medical medical && medical.Part!=null) {
-                        var index=pawn.RaceProps.body.AllParts.IndexOf(medical.Part);
-                        if(index<0) throw new InvalidOperationException("Surgery body part is not in this pawn's body.");
-                        b = b with { PartIndex = index };
-                    }
-                    row = row with { SurgeryBills = [.. row.SurgeryBills, b] };
-                }
-            }
-            if(pawn.Dead) {row = row with { Issues = [.. row.Issues, Issue("missing_parts",Common.UnavailableReason.NotApplicable,"Dead pawn.")] };row = row with { Issues = [.. row.Issues, Issue("operations",Common.UnavailableReason.NotApplicable,"Dead pawn.")] };row = row with { Issues = [.. row.Issues, Issue("installed_parts",Common.UnavailableReason.NotApplicable,"Dead pawn.")] };}
-            else row = Surgery(pawn,row);
             row = row with { Snapshot = NativeObservationSnapshot.Snapshot("pawn-health",context,pawn.GetUniqueLoadID(),w => {
-                w.Write(row.Pain.GetValueOrDefault());w.Write(row.LifeThreatening.GetValueOrDefault());w.Write(row.BloodLoss.GetValueOrDefault());
-                w.Write(row.ShouldSeekMedicalRest.GetValueOrDefault());w.Write(row.UrgentMedicalRest.GetValueOrDefault());w.Write(row.BedId??"");
-                w.Write(row.HiddenHediffs.GetValueOrDefault());
-                foreach(var h in visible.OrderBy(h=>h.def.defName,StringComparer.Ordinal)
+                w.Write(row.Pain);w.Write(row.LifeThreatening);w.Write(row.BloodLoss);
+                w.Write(row.ShouldSeekMedicalRest);w.Write(row.BedId??"");
+                foreach(var h in all.OrderBy(h=>h.def.defName,StringComparer.Ordinal)
                     .ThenBy(h=>h.Part!=null?pawn.RaceProps.body.AllParts.IndexOf(h.Part):-1)) {
                     w.Write(h.def.defName);w.Write((double)h.Severity);
                     w.Write(h.Part!=null?pawn.RaceProps.body.AllParts.IndexOf(h.Part):-1);
@@ -224,17 +168,28 @@ namespace HomeBridge.BridgeTools
 
         // Surgery facts, all through vanilla: recipe discovery from the
         // retired home/medical_operations tool, success chance from the recipe's
-        // own SurgeryOutcomeEffectDef comps. Go never recomputes any of it.
-        internal static Obs.PawnHealth Surgery(Pawn pawn,Obs.PawnHealth row)
+        // own SurgeryOutcomeEffectDef comps. The brain never recomputes any of it.
+        // Absent for a dead pawn or one off every map.
+        internal static Obs.PawnSurgery? Surgery(Pawn pawn)
         {
+            var map=pawn.MapHeld;
+            if(pawn.Dead || map==null) return null;
+            var row=new Obs.PawnSurgery();
             var parts=pawn.RaceProps.body.AllParts;
+            foreach(var bill in pawn.BillStack.Bills) {
+                var b=new Obs.SurgeryBill {Id=Id(bill.GetUniqueLoadID()),Recipe=Id(bill.recipe.defName),Suspended=bill.suspended};
+                if(bill is Bill_Medical medical && medical.Part!=null) {
+                    var index=parts.IndexOf(medical.Part);
+                    if(index<0) throw new InvalidOperationException("Surgery body part is not in this pawn's body.");
+                    b = b with { PartIndex = index };
+                }
+                row = row with { SurgeryBills = [.. row.SurgeryBills, b] };
+            }
             foreach(var missing in pawn.health.hediffSet.GetMissingPartsCommonAncestors()) {
                 var part=missing.Part; if(part==null) continue;
                 var m=new Obs.MissingBodyPart {PartIndex=parts.IndexOf(part),PartDefName=Id(part.def.defName)};
                 row = row with { MissingParts = [.. row.MissingParts, m] };
             }
-            var map=pawn.MapHeld;
-            if(map==null) {row = row with { Issues = [.. row.Issues, Issue("operations",Common.UnavailableReason.NotApplicable,"Pawn is not on a map.")] };return row;}
             var facts=SurgeryScope.Facts(map);
             var bestBed=facts.BestBed; var bedFactor=facts.BedFactor; var idealFactor=facts.IdealFactor;
             foreach(var def in pawn.def.AllRecipes) {
@@ -690,7 +645,6 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.DefinitionRef Definition(Def def)=>new Obs.DefinitionRef {DefName=Id(def.defName)};
         private static Obs.ReadIssue Missing(string field)=>Issue(field,Common.UnavailableReason.NativeComponentMissing,"Native component is absent or uninitialized.");
-        private static Obs.ReadIssue Skipped(string field)=>Issue(field,Common.UnavailableReason.NotRequested,"Detail was explicitly disabled.");
         private static Obs.ReadIssue Unsupported(string field,string detail)=>Issue(field,Common.UnavailableReason.Unsupported,detail);
     }
 }

@@ -171,7 +171,7 @@ internal static class SurgeryCases
 
         if (!MedicalKit.OperationAt(health, "InstallBionicEye", "SURGERY_KIND_INSTALL", part))
         {
-            throw new AcceptanceException($"no InstallBionicEye install operation on the cataract eye {part}: {health["operations"].ToJson()}");
+            throw new AcceptanceException($"no InstallBionicEye install operation on the cataract eye {part}: {MedicalKit.Surgery(health)["operations"].ToJson()}");
         }
 
         var run = await SurgeryRun.StartAsync(s, "surgery-cataract", cancellationToken).ConfigureAwait(false);
@@ -208,7 +208,7 @@ internal static class SurgeryCases
 
         if (!MedicalKit.OperationAt(health, "RemoveBodyPart", "SURGERY_KIND_AMPUTATE", part))
         {
-            throw new AcceptanceException($"no RemoveBodyPart amputate operation on the infected hand {part}: {health["operations"].ToJson()}");
+            throw new AcceptanceException($"no RemoveBodyPart amputate operation on the infected hand {part}: {MedicalKit.Surgery(health)["operations"].ToJson()}");
         }
 
         var run = await SurgeryRun.StartAsync(s, "surgery-amputation", cancellationToken).ConfigureAwait(false);

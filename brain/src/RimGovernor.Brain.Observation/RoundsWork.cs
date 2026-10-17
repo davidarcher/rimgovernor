@@ -223,18 +223,16 @@ public static partial class ObservationPackage
                 }
             }
         }
-        if (row.Job is { } j && !HasIssue(row.Issues, "job"))
+        if (row.Job is { } j)
         {
-            // JobRow: a pawn with no job carries the current_job issue and no def; a job always carries its def and,
-            // when a work giver issued it, that giver's work type.
-            if (HasIssue(j.Issues, "current_job") && j.DefName is null)
+            // JobRow: a pawn with no job carries no def; a job always carries its def and, when a work giver issued
+            // it, that giver's work type.
+            w = w with
             {
-                w = w with { Job = Known(new PawnJob()) };
-            }
-            else if (!HasIssue(j.Issues, "current_job") && j.DefName is not null)
-            {
-                w = w with { Job = Known(new PawnJob { Def = (j.DefName ?? ""), Work = WireParseOpen(j.WorkTypeDefName, WorkType.Unrecognized), Target = JobTarget(j.TargetA, j.TargetACell) }) };
-            }
+                Job = Known(j.DefName is null
+                    ? new PawnJob()
+                    : new PawnJob { Def = j.DefName, Work = WireParseOpen(j.WorkTypeDefName, WorkType.Unrecognized), Target = JobTarget(j.TargetA, j.TargetACell) }),
+            };
         }
         if (row.Biography is { } bio)
         {
@@ -294,24 +292,22 @@ public static partial class ObservationPackage
         }
         if (row.Health is { } h)
         {
-            w = w with { BloodLoss = Optional(h.BloodLoss is not null, h.BloodLoss.GetValueOrDefault()), Health = Optional(h.SummaryFraction is not null, h.SummaryFraction.GetValueOrDefault()) };
+            w = w with { BloodLoss = Known(h.BloodLoss), Health = Known(h.SummaryFraction) };
         }
-        if (row.Needs is { } n && !HasIssue(row.Issues, "needs"))
+        if (row.Needs is { } n)
         {
+            // A psylink level is known only for a psycaster: an absent psyfocus is no psylink (Psylink.cs).
             w = w with
             {
                 Rest = Optional(n.Rest is not null, n.Rest.GetValueOrDefault()),
                 Mood = Optional(n.Mood is not null, n.Mood.GetValueOrDefault()),
-                BreakThreshold = Optional(n.BreakThresholdMinor is not null, n.BreakThresholdMinor.GetValueOrDefault()),
+                BreakThreshold = Known(n.BreakThresholdMinor),
+                PsylinkLevel = Optional(n.Psyfocus is not null, n.Psyfocus?.PsylinkLevel ?? 0),
             };
         }
-        if (row.Social is { } social && !HasIssue(row.Issues, "social"))
+        if (row.Social is { } social)
         {
             w = w with { HighExpectations = Optional(social.HighExpectations is not null, social.HighExpectations.GetValueOrDefault()) };
-        }
-        if (row.Needs is { } pn && pn.Psyfocus is not null && pn.PsyfocusTarget is not null && pn.PsylinkLevel is not null)
-        {
-            w = w with { PsylinkLevel = Known((int)pn.PsylinkLevel.GetValueOrDefault()) };
         }
         return w;
     }

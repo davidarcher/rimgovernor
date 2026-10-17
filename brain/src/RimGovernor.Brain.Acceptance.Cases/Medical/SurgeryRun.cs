@@ -59,7 +59,7 @@ internal sealed class SurgeryRun
         foreach (var row in observed["pawns"].Rows())
         {
             var pawn = row["pawn"].RefId();
-            foreach (var bill in row["health"].AsMap()?["surgeryBills"].Rows() ?? [])
+            foreach (var bill in MedicalKit.Surgery(row["health"].AsMap() ?? [])["surgeryBills"].Rows())
             {
                 var intent = new SurgeryIntent(pawn, (int)bill["partIndex"].AsNumber(), bill["recipe"].AsString());
                 if (intent.Recipe.Length > 0 && _seen.Add(intent))
@@ -151,7 +151,7 @@ internal sealed class SurgeryRun
         {
             throw new AcceptanceException(string.Create(
                 CultureInfo.InvariantCulture,
-                $"{label}: operation not completed after {at - from} served ticks (missing={health["missingParts"].ToJson()} bills={health["surgeryBills"].ToJson()})"));
+                $"{label}: operation not completed after {at - from} served ticks (missing={MedicalKit.Surgery(health)["missingParts"].ToJson()} bills={MedicalKit.Surgery(health)["surgeryBills"].ToJson()})"));
         }
     }
 }

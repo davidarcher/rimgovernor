@@ -19,7 +19,7 @@ internal static class NativePawnObservationsProbe
         var type=typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire.Observations."+name,true)!;
         return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize",new[]{typeof(string)})!.MakeGenericMethod(type).Invoke(null,new object[]{json})!;
     }
-    private static object Get(object value,string name)=>value.GetType().GetProperty(name)!.GetValue(value)!;
+    private static object Get(object value,string name)=>value.GetType().GetProperty(name) is { } property ? property.GetValue(value)! : value.GetType().GetField(name,Flags)!.GetValue(value)!;
     private static void Set(object value,string name,object? field)=>value.GetType().GetProperty(name)!.SetValue(value,field);
     private static bool Valid(string json)=>(bool)tools.GetMethod("Validate",Flags)!.Invoke(null,new object?[]{Wire("ListPawnsRequest",json),null})!;
     private static bool Match(object pawn,string filter)=>(bool)tools.GetMethod("Matches",Flags)!.Invoke(null,new object?[]{pawn,Wire("PawnFilter",filter)})!;
@@ -72,23 +72,21 @@ internal static class NativePawnObservationsProbe
         var detail=defaults.Invoke(null,new object?[]{null})!;
         foreach(var name in new[]{"Needs","Health","Equipment","Biography","Settings","Social","Animals"})
             Check(Get(detail,name) is true,"useful default detail "+name);
-        Check(Get(detail,"VisibleHediffsOnly") is false,"no hidden hediff filtering by default");
-        detail=defaults.Invoke(null,new[]{Wire("PawnDetails","{\"needs\":false,\"health\":false,\"equipment\":false,\"biography\":false,\"settings\":false,\"social\":false,\"animals\":false,\"visibleHediffsOnly\":true}")})!;
+        foreach(var name in new[]{"Work","Schedule","Tend"}) Check(Get(detail,name) is false,"opt-in detail off by default "+name);
+        var optOut=Wire("PawnDetails","{\"needs\":false,\"health\":false,\"equipment\":false,\"biography\":false,\"settings\":false,\"social\":false,\"animals\":false}");
+        detail=defaults.Invoke(null,new[]{optOut})!;
         foreach(var name in new[]{"Needs","Health","Equipment","Biography","Settings","Social","Animals"}) Check(Get(detail,name) is false,"explicit detail opt-out "+name);
-        Check((bool)Get(detail,"VisibleHediffsOnly"),"visible-only selection retained");
         var detailsType=bridge.GetType("HomeBridge.BridgeTools.NativePawnDetails",true)!;
         var definition=detailsType.GetMethod("DefinitionLabel",Flags)!;
         var absentLabel=definition.Invoke(null,new object?[]{"Backstory1",null})!;
         Check((string)Get(absentLabel,"DefName")=="Backstory1"&&Get(absentLabel,"Label")==null,"missing native definition label preserves exact ID and absence");
         var title=definition.Invoke(null,new object?[]{"Backstory1","Nurse"})!;
         Check((string?)Get(title,"Label")=="Nurse","actual backstory title is retained");
-        var core=Wire("PawnState","{\"needs\":{\"mood\":0},\"health\":{\"summaryFraction\":1}}");
+        var core=Wire("PawnState","{}");
         var emptyColonists=Activator.CreateInstance(typeof(List<>).MakeGenericType(Assembly.Load("Assembly-CSharp").GetType("Verse.Pawn",true)!))!;
-        core=detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{null,emptyColonists,core,detail,null})!;
-        Check(core.GetType().GetProperty("Needs")!.GetValue(core)==null&&core.GetType().GetProperty("Health")!.GetValue(core)==null,"explicit opt-out removes inherited status detail without native reads");
-        var issues=((IEnumerable)Get(core,"Issues")).Cast<object>().ToArray();
-        foreach(var field in new[]{"needs","health","equipment","biography","settings","social","animal_state"})
-            Check(issues.Any(i=>(string)Get(i,"Field")==field&&Get(Get(i,"Unavailable"),"Reason").ToString()=="NotRequested"),"opt-out retains explicit issue "+field);
+        core=detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{null,emptyColonists,core,optOut,null})!;
+        foreach(var block in new[]{"Needs","Health","Equipment","Biography","Settings","Social","AnimalState"})
+            Check(core.GetType().GetProperty(block)!.GetValue(core)==null,"explicit opt-out leaves the block absent without native reads "+block);
         var native=Assembly.Load("Assembly-CSharp");
         var backstory=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(native.GetType("RimWorld.BackstoryDef",true)!);
         backstory.GetType().GetField("defName")!.SetValue(backstory,"BackstoryWithoutGenericLabel");
@@ -252,19 +250,12 @@ internal static class NativePawnObservationsProbe
         socialPawnType.GetField("health",Flags)!.SetValue(corpse,healthTrackerInst);
         var corpseColonists=(IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(socialPawnType))!;
         corpseColonists.Add(corpse);
-        var corpseRow=Wire("PawnState","{\"needs\":{\"mood\":0},\"health\":{\"summaryFraction\":1}}");
-        var corpseDetail=Wire("PawnDetails","{\"needs\":true,\"health\":false,\"equipment\":true,\"biography\":false,\"settings\":true,\"social\":false,\"animals\":false}");
+        var corpseRow=Wire("PawnState","{}");
+        var corpseDetail=Wire("PawnDetails","{\"needs\":false,\"health\":false,\"equipment\":true,\"biography\":false,\"settings\":true,\"social\":false,\"animals\":false}");
         corpseRow=detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{corpse,corpseColonists,corpseRow,corpseDetail,null})!;
-        Check(Get(corpseRow,"Needs")!=null,"corpse needs projection still populates for a dead pawn");
         Check(Get(corpseRow,"Equipment")!=null,"corpse equipment projection still populates for a dead pawn");
         Check(Get(corpseRow,"Settings")!=null,"corpse settings projection still populates for a dead pawn");
-        Check(Get(corpseRow,"Health")==null&&Get(corpseRow,"Biography")==null,"corpse health/biography stay disabled (Blocker: ModsConfig static cctor)");
-        var corpseNeedsIssues=((IEnumerable)Get(Get(corpseRow,"Needs"),"Issues")).Cast<object>().ToArray();
-        foreach(var field in new[]{"food","hunger_category","rest","joy"})
-            Check(corpseNeedsIssues.Any(i=>(string)Get(i,"Field")==field&&Get(Get(i,"Unavailable"),"Reason").ToString()=="NativeComponentMissing"),"corpse without a needs tracker reports missing "+field);
-        var corpseIssues=((IEnumerable)Get(corpseRow,"Issues")).Cast<object>().ToArray();
-        foreach(var field in new[]{"health","biography","social","animal_state"})
-            Check(corpseIssues.Any(i=>(string)Get(i,"Field")==field&&Get(Get(i,"Unavailable"),"Reason").ToString()=="NotRequested"),"corpse detail explicitly disables blocked-path section "+field);
+        Check(Get(corpseRow,"Needs")==null&&Get(corpseRow,"Health")==null&&Get(corpseRow,"Biography")==null,"corpse needs/health/biography stay disabled (Blocker: ModsConfig static cctor)");
 
         var number=tools.GetMethod("Number",Flags)!;
         Check((double)number.Invoke(null,new object[]{0d})! == 0,"observed zero retained");

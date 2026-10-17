@@ -7,39 +7,36 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 public static partial class BridgeFunctions
 {
     /// <summary>
-    /// Go's <c>CareConditions</c>: decodes a health row's conditions and life threat, the inputs of the care
-    /// planners. A visible-only or incomplete hediff list leaves the conditions unknown: it cannot prove a
-    /// condition absent.
+    /// Go's <c>CareConditions</c>: decodes a pawn's conditions and life threat, the inputs of the care planners.
+    /// An absent conditions block leaves both unknown.
     /// </summary>
-    public static (Fact<EquatableArray<CareCondition>> Conditions, Fact<bool> LifeThreatening) CareConditions(PawnHealth? health)
+    public static (Fact<EquatableArray<CareCondition>> Conditions, Fact<bool> LifeThreatening) CareConditions(PawnConditions? conditions) =>
+        conditions is null
+            ? (Unknown<EquatableArray<CareCondition>>(), Unknown<bool>())
+            : CareConditions(conditions.LifeThreatening, conditions.Hediffs);
+
+    /// <summary>The care inputs of a health row: every hediff, none filtered.</summary>
+    public static (Fact<EquatableArray<CareCondition>> Conditions, Fact<bool> LifeThreatening) CareConditions(PawnHealth health) =>
+        CareConditions(health.LifeThreatening, health.Hediffs);
+
+    private static (Fact<EquatableArray<CareCondition>> Conditions, Fact<bool> LifeThreatening) CareConditions(bool lifeThreatening, EquatableArray<Hediff> hediffs)
     {
-        var unknown = Unknown<EquatableArray<CareCondition>>();
-        if (health is null)
-        {
-            return (unknown, Unknown<bool>());
-        }
-        var life = OptionalFact(health.LifeThreatening is not null, health.LifeThreatening.GetValueOrDefault());
-        var completeness = health.HediffCompleteness;
-        if (completeness is null || completeness.Filtered.GetValueOrDefault() != 0 || health.HiddenHediffs is null || health.HiddenHediffs.GetValueOrDefault() != 0 || IssueNames(health.Issues, "hediffs"))
-        {
-            return (unknown, life);
-        }
-        var rows = new List<CareCondition>(health.Hediffs.Count);
-        foreach (var condition in health.Hediffs)
+        var rows = new List<CareCondition>(hediffs.Count);
+        foreach (var condition in hediffs)
         {
             rows.Add(
                 new CareCondition
                 {
-                    Severity = OptionalFact(condition.Severity is not null, condition.Severity.GetValueOrDefault()),
+                    Severity = Known(condition.Severity),
                     SeverityPerDay = OptionalFact(condition.SeverityPerDay is not null, condition.SeverityPerDay.GetValueOrDefault()),
                     Immunity = OptionalFact(condition.Immunity is not null, condition.Immunity.GetValueOrDefault()),
                     ImmunityPerDay = OptionalFact(condition.ImmunityPerDay is not null, condition.ImmunityPerDay.GetValueOrDefault()),
-                    Tended = OptionalFact(condition.Tended is not null, condition.Tended.GetValueOrDefault()),
+                    Tended = Known(condition.Tended),
                     PartIndex = OptionalInt(condition.PartIndex is not null, condition.PartIndex.GetValueOrDefault()),
-                    DefName = OptionalFact(condition.DefName is not null, (condition.DefName ?? "")),
+                    DefName = Known(condition.DefName),
                 }
             );
         }
-        return (Known(EquatableArray.From(rows)), life);
+        return (Known(EquatableArray.From(rows)), Known(lifeThreatening));
     }
 }

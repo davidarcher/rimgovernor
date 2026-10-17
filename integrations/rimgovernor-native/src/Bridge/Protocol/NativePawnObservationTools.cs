@@ -49,10 +49,10 @@ namespace HomeBridge.BridgeTools
             var page = ordered;
             var result = new Obs.PawnSnapshot { Context = context, Completeness = Complete(page.Count, source.Count-selected.Count), MeditateAssignmentAvailable = DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate") != null };
             var details = NativePawnDetails.Defaults(parsed.Details);
-            var raidArmor = details.Equipment.GetValueOrDefault() ? NativeGearFacts.RaidArmor(map) : null;
+            var raidArmor = details.Equipment ? NativeGearFacts.RaidArmor(map) : null;
             // The tend detail is pairwise across the page, so it runs once over
             // the whole page before the per-row detail.
-            if (details.Tend.GetValueOrDefault()) page = NativePawnDetails.Tend(page, details.TendReachBudgetMs is not null ? details.TendReachBudgetMs.GetValueOrDefault() : (uint?)null);
+            if (details.Tend) page = NativePawnDetails.Tend(page, details.TendReachBudgetMs);
             foreach (var item in page) result = result with { Pawns = [.. result.Pawns, Detail(item.Key, colonists, item.Value, parsed.Details ?? new Obs.PawnDetails(), raidArmor, context)] };
             return result;
         }
@@ -91,7 +91,7 @@ namespace HomeBridge.BridgeTools
         // requested detail families and the row's snapshot token.
         private static Obs.PawnState Detail(Pawn pawn, List<Pawn> colonists, Obs.PawnState row, Obs.PawnDetails details, double? raidArmor, Common.ObservationContext context)
         {
-            if (raidArmor.HasValue && NativePawnDetails.Defaults(details).Equipment.GetValueOrDefault()) row = row with { RaidArmor = raidArmor.Value };
+            if (raidArmor.HasValue && NativePawnDetails.Defaults(details).Equipment) row = row with { RaidArmor = raidArmor.Value };
             row = NativePawnDetails.Apply(pawn, colonists, row, details, context);
             return row with { ActivityExecution = NativePawnActivities.Read(pawn) };
         }
@@ -129,7 +129,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Obs.PawnState Core(Pawn pawn, List<Pawn> colonists, Common.ObservationContext context)
         {
-            var row=NativeObservationTools.PawnRow(pawn,false,context);
+            var row=NativeObservationTools.PawnRow(pawn,context);
             row = row with { Pawn = row.Pawn with { Label = Text(pawn.LabelCap) } };
             if (pawn.MapHeld!=null) { row = row with { Pawn = row.Pawn with { MapId = pawn.MapHeld.uniqueID, Position = Cell(pawn.PositionHeld) } }; }
             Pawn? nearest=null; long nearestDistance=0;
@@ -143,16 +143,6 @@ namespace HomeBridge.BridgeTools
             if(pawn.RaceProps.Humanlike) row = row with { Standing = Standing(pawn) };
             if (pawn.ownership?.OwnedBed!=null) row = row with { OwnedBed = NativeRef.Of(Id(pawn.ownership.OwnedBed.GetUniqueLoadID())) };
             else row = row with { Issues = [.. row.Issues, Issue("owned_bed",Common.UnavailableReason.NotApplicable,"No owned bed.")] };
-            if (row.Job is { } jobRow && pawn.CurJob!=null) {
-                var job=pawn.CurJob; var target=job.targetA;
-                if (target.HasThing) { jobRow = jobRow with { TargetA = new Obs.TargetRef { Target=NativeRef.Thing(target.Thing) } }; if (target.Thing.Spawned) jobRow = jobRow with { TargetACell = Cell(target.Thing.Position) }; }
-                else if (target.IsValid) jobRow = jobRow with { TargetA = new Obs.TargetRef { Target=Cell(target.Cell) } };
-                else jobRow = jobRow with { TargetA = new Obs.TargetRef { Target=Unavailable(Common.UnavailableReason.NotApplicable,"Job has no target A.") } };
-                var jobIssues = new List<Obs.ReadIssue>(jobRow.Issues) { Issue("order_generation",Common.UnavailableReason.Unsupported,"Order generation is not observed by this reader.") };
-                foreach(var field in new[]{"report","interruptible","native_priority"})
-                    jobIssues.Add(Issue(field,Common.UnavailableReason.Unsupported,"Job driver detail is not observed by this reader."));
-                row = row with { Job = jobRow with { Issues = [.. jobIssues] } };
-            }
             return row;
         }
         // Faction standing of a humanlike pawn, colonist or not.

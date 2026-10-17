@@ -38,16 +38,16 @@ public static partial class BridgeFunctions
 
     /// <summary>
     /// Go's <c>SurgeryFacts</c>: maps the native surgery facts as observed, for a colonist's care read and a
-    /// prisoner's population row. A list carrying a read issue is unknown; values are never recomputed here. Each
+    /// prisoner's population row; both are unknown without a surgery block (a dead or map-less pawn). Values are never recomputed here. Each
     /// operation carries the part item its recipe installs, read from the catalog's recipe rows; a recipe the
     /// catalog has no row for throws. Without a catalog (<paramref name="catalog"/> null) the weapon drop and
     /// inspections read recipe names only, no part items.
     /// </summary>
-    public static (Fact<EquatableArray<PolicyMissingPart>> Parts, Fact<EquatableArray<PolicySurgeryOperation>> Operations) SurgeryFacts(PawnHealth health, IPartCatalog? catalog)
+    public static (Fact<EquatableArray<PolicyMissingPart>> Parts, Fact<EquatableArray<PolicySurgeryOperation>> Operations) SurgeryFacts(PawnSurgery? health, IPartCatalog? catalog)
     {
         var parts = Unknown<EquatableArray<PolicyMissingPart>>();
         var operations = Unknown<EquatableArray<PolicySurgeryOperation>>();
-        if (!IssueNames(health.Issues, "missing_parts"))
+        if (health is not null)
         {
             var rows = new List<PolicyMissingPart>(health.MissingParts.Count);
             foreach (var part in health.MissingParts)
@@ -61,7 +61,7 @@ public static partial class BridgeFunctions
             }
             parts = Known(EquatableArray.From(rows));
         }
-        if (!IssueNames(health.Issues, "operations"))
+        if (health is not null)
         {
             var rows = new List<PolicySurgeryOperation>(health.Operations.Count);
             foreach (var op in health.Operations)
@@ -130,13 +130,13 @@ public static partial class BridgeFunctions
         return items;
     }
 
-    /// <summary>Go's <c>QueuedSurgeries</c>: counts the medical bills on the patient; unknown when the bill stack carried a read issue.</summary>
-    public static Fact<int> QueuedSurgeries(PawnHealth health) =>
-        IssueNames(health.Issues, "surgery_bills") ? Unknown<int>() : Known(health.SurgeryBills.Count);
+    /// <summary>Go's <c>QueuedSurgeries</c>: counts the medical bills on the patient; unknown without a surgery block.</summary>
+    public static Fact<int> QueuedSurgeries(PawnSurgery? health) =>
+        health is null ? Unknown<int>() : Known(health.SurgeryBills.Count);
 
-    /// <summary>Go's <c>QueuedSurgeryRecipes</c>: each medical bill's recipe on the patient; null when the bill stack carried a read issue.</summary>
-    public static IReadOnlyList<string>? QueuedSurgeryRecipes(PawnHealth health) =>
-        IssueNames(health.Issues, "surgery_bills")
+    /// <summary>Go's <c>QueuedSurgeryRecipes</c>: each medical bill's recipe on the patient; null without a surgery block.</summary>
+    public static IReadOnlyList<string>? QueuedSurgeryRecipes(PawnSurgery? health) =>
+        health is null
             ? null
             : [.. health.SurgeryBills.Where(bill => bill.Recipe is not null && (bill.Recipe ?? "").Length > 0).Select(bill => (bill.Recipe ?? ""))];
 }

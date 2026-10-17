@@ -214,11 +214,11 @@ namespace HomeBridge.BridgeTools
                     if (target.Thing.Spawned) row = row with { TargetACell = Cell(target.Thing.Position.x, target.Thing.Position.z) };
                 } else if (target.IsValid) row = row with { TargetA = new Obs.TargetRef { Target = Cell(target.Cell.x, target.Cell.z) } };
                 else row = row with { TargetA = new Obs.TargetRef { Target = new Common.Unavailable { Reason = Common.UnavailableReason.NotApplicable, Detail = "Job has no target." } } };
-            } else row = row with { Issues = [.. row.Issues, Issue("current_job", Common.UnavailableReason.NotApplicable, "Pawn has no current job.")] };
+            }
             return row;
         }
 
-        internal static Obs.PawnState PawnRow(Pawn pawn, bool detail, Common.ObservationContext context)
+        internal static Obs.PawnState PawnRow(Pawn pawn, Common.ObservationContext context)
         {
             var row = new Obs.PawnState { Pawn=Entity(pawn), KindDefName=Identifier(pawn.kindDef?.defName), Dead=pawn.Dead, Downed=pawn.Downed,
                 Drafted=pawn.drafter?.Drafted == true, InBed=RestUtility.InBed(pawn), Colonist=pawn.IsColonist, FreeColonist=pawn.IsFreeColonist,
@@ -244,43 +244,12 @@ namespace HomeBridge.BridgeTools
             // and breach toils are distinct classes). No lord means no field.
             var lord = pawn.GetLord();
             if (lord?.LordJob != null) { row = row with { LordJobClass = Identifier(lord.LordJob.GetType().Name) }; if (lord.CurLordToil != null) row = row with { LordToilClass = Identifier(lord.CurLordToil.GetType().Name) }; }
+            // A pawn without a job tracker (a corpse's) carries no job block.
             if (pawn.jobs?.jobQueue != null) row = row with { Job = JobRow(pawn.CurJob, pawn.jobs.jobQueue.Count) };
-            else row = row with { Issues = [.. row.Issues, Issue("job",Common.UnavailableReason.NativeComponentMissing,"Pawn job tracker or queue is unavailable.")] };
             row = row with { Biotech = NativeBiotechFacts.Pawn(pawn) };
             row = row with { Anomaly = NativeAnomalyFacts.Pawn(pawn) };
             row = NativePawnRoyalty.Apply(pawn, row);
             row = NativePawnControlObservation.Apply(pawn, row, context);
-            var needs=new Obs.PawnNeeds();
-            if (pawn.needs?.mood != null) needs = needs with { Mood = Finite(pawn.needs.mood.CurLevelPercentage) };
-            else needs = needs with { Issues = [.. needs.Issues, Issue("mood",Common.UnavailableReason.NativeComponentMissing,"Mood tracker unavailable.")] };
-            if (detail) {
-                if(pawn.needs?.food != null) { needs = needs with { Food = Finite(pawn.needs.food.CurLevelPercentage) }; needs = needs with { HungerCategory = (Defs.HungerCategory)(int)pawn.needs.food.CurCategory }; }
-                else needs = needs with { Issues = [.. needs.Issues, Issue("food",Common.UnavailableReason.NativeComponentMissing,"Food tracker unavailable.")] };
-                if(pawn.needs?.rest != null) needs = needs with { Rest = Finite(pawn.needs.rest.CurLevelPercentage) }; else needs = needs with { Issues = [.. needs.Issues, Issue("rest",Common.UnavailableReason.NativeComponentMissing,"Rest tracker unavailable.")] };
-                if(pawn.needs?.joy != null) needs = needs with { Joy = Finite(pawn.needs.joy.CurLevelPercentage) }; else needs = needs with { Issues = [.. needs.Issues, Issue("joy",Common.UnavailableReason.NativeComponentMissing,"Joy tracker unavailable.")] };
-            }
-            // Psyfocus: absent without Royalty or a psylink.
-            if (ModsConfig.RoyaltyActive && pawn.psychicEntropy != null) { var psylink=pawn.GetPsylinkLevel();
-                if (psylink > 0) { needs = needs with { Psyfocus = Finite(pawn.psychicEntropy.CurrentPsyfocus) }; needs = needs with { PsyfocusTarget = Finite(pawn.psychicEntropy.TargetPsyfocus) }; needs = needs with { PsylinkLevel = psylink }; } }
-            var breaker=pawn.mindState?.mentalBreaker;
-            if(breaker != null) { needs = needs with { BreakThresholdMinor = Finite(breaker.BreakThresholdMinor) }; needs = needs with { BreakThresholdMajor = Finite(breaker.BreakThresholdMajor) }; needs = needs with { BreakThresholdExtreme = Finite(breaker.BreakThresholdExtreme) };
-                if(needs.Mood is not null) needs = needs with { BreakRisk = needs.Mood.GetValueOrDefault()<=needs.BreakThresholdExtreme.GetValueOrDefault()?Obs.BreakRisk.Extreme:needs.Mood.GetValueOrDefault()<=needs.BreakThresholdMajor.GetValueOrDefault()?Obs.BreakRisk.Major:needs.Mood.GetValueOrDefault()<=needs.BreakThresholdMinor.GetValueOrDefault()?Obs.BreakRisk.Minor:Obs.BreakRisk.None }; }
-            else needs = needs with { Issues = [.. needs.Issues, Issue("break_thresholds",Common.UnavailableReason.NativeComponentMissing,"Mental breaker unavailable.")] };
-            row = row with { Needs = needs };
-            if(pawn.health?.summaryHealth == null || pawn.health.hediffSet == null) row = row with { Issues = [.. row.Issues, Issue("health",Common.UnavailableReason.NativeComponentMissing,"Health tracker unavailable.")] };
-            else {
-                var health=new Obs.PawnHealth { SummaryFraction=Finite(pawn.health.summaryHealth.SummaryHealthPercent), NeedsTend=pawn.health.HasHediffsNeedingTend(false), BleedRatePerDay=Finite(pawn.health.hediffSet.BleedRateTotal) };
-                health = health with { Bleeding = health.BleedRatePerDay.GetValueOrDefault()>0 };
-                if(detail) {
-                    foreach(var h in pawn.health.hediffSet.hediffs) {
-                        var condition=new Obs.Hediff { DefName=Identifier(h.def.defName), Severity=Finite(h.Severity), Visible=h.Visible };
-                        if(h.Part != null) { condition = condition with { PartDefName = Identifier(h.Part.def.defName) }; condition = condition with { PartIndex = pawn.RaceProps.body.AllParts.IndexOf(h.Part) }; }
-                        health = health with { Hediffs = [.. health.Hediffs, condition] };
-                    }
-                    health = health with { HediffCompleteness = Complete(health.Hediffs.Count) };
-                } else health = health with { Issues = [.. health.Issues, Issue("hediffs",Common.UnavailableReason.NotRequested,"Hediff detail not requested.")] };
-                row = row with { Health = health };
-            }
             return row with { Snapshot = NativePawnObservationTools.PawnSnapshotToken(row, context) };
         }
         private static Obs.EntityRef Entity(Thing thing)

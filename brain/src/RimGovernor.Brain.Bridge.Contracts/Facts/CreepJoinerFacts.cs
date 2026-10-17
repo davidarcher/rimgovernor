@@ -32,29 +32,9 @@ public static partial class BridgeFunctions
         {
             result = result with { Traits = Known(EquatableArray.From(biography.Traits.Select(trait => (trait.DefName ?? "")))) };
         }
-        if (row.Health is { } health
-            && !FailedFields(row.Issues).Contains("health")
-            && !FailedFields(health.Issues).Contains("hediffs")
-            && health.HediffCompleteness is { Filtered: 0 })
+        if (row.Health is { } health)
         {
-            var hediffs = new List<string>();
-            var known = true;
-            foreach (var hediff in health.Hediffs)
-            {
-                if (hediff.Visible is null)
-                {
-                    known = false;
-                    break;
-                }
-                if (hediff.Visible.GetValueOrDefault())
-                {
-                    hediffs.Add((hediff.DefName ?? ""));
-                }
-            }
-            if (known)
-            {
-                result = result with { Hediffs = Known(EquatableArray.From(hediffs)) };
-            }
+            result = result with { Hediffs = Known(EquatableArray.From(health.Hediffs.Where(hediff => hediff.Visible).Select(hediff => hediff.DefName))) };
         }
         return result;
     }

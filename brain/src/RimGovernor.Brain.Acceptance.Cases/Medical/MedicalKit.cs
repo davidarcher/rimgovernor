@@ -66,17 +66,20 @@ internal static class MedicalKit
         throw new AcceptanceException($"{label}: pawn {pawn} not in the pawn read");
     }
 
+    /// <summary>The health detail's surgery block (bills, missing parts, operations); empty for a pawn off a map.</summary>
+    internal static JsonObject Surgery(JsonObject health) => health["surgery"].AsMap() ?? [];
+
     /// <summary>Whether the health detail reports body part <paramref name="part"/> missing.</summary>
     internal static bool PartMissing(JsonObject health, int part) =>
-        health["missingParts"].Rows().Any(m => m["partIndex"].Strict() is { } index && (int)index == part);
+        Surgery(health)["missingParts"].Rows().Any(m => m["partIndex"].Strict() is { } index && (int)index == part);
 
     /// <summary>Whether the health detail carries hediff <paramref name="def"/> on <paramref name="part"/>.</summary>
     internal static bool HediffAt(JsonObject health, string def, int part) =>
-        health["hediffs"].Rows().Any(h => h["definition"].AsMap()?["defName"].AsString() == def && h["partIndex"].Strict() is { } index && (int)index == part);
+        health["hediffs"].Rows().Any(h => h["defName"].AsString() == def && h["partIndex"].Strict() is { } index && (int)index == part);
 
     /// <summary>Whether the health detail offers operation <paramref name="recipe"/> of <paramref name="kind"/> on <paramref name="part"/>.</summary>
     internal static bool OperationAt(JsonObject health, string recipe, string kind, int part) =>
-        health["operations"].Rows().Any(op =>
+        Surgery(health)["operations"].Rows().Any(op =>
             op["recipe"].AsMap()?["defName"].AsString() == recipe && op["kind"].AsString() == kind && op["partIndex"].Strict() is { } index && (int)index == part);
 
     /// <summary>The condition patient and part the setup op replied (Go <c>conditionFixture</c>).</summary>

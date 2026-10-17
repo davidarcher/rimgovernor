@@ -75,24 +75,6 @@ public enum Passion
     Major = 3,
 }
 
-/// <summary>
-/// Closed vanilla value sets read off pawns, stock and bills.
-/// BreakRisk is the mental-break band the mood sits in.
-/// </summary>
-[JsonConverter(typeof(WireEnumConverter<BreakRisk>))]
-public enum BreakRisk
-{
-    [WireName("BREAK_RISK_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("BREAK_RISK_NONE")]
-    None = 1,
-    [WireName("BREAK_RISK_MINOR")]
-    Minor = 2,
-    [WireName("BREAK_RISK_MAJOR")]
-    Major = 3,
-    [WireName("BREAK_RISK_EXTREME")]
-    Extreme = 4,
-}
 
 /// <summary>
 /// HolderKind is what holds a held stack: a building container, a corpse's
@@ -733,28 +715,21 @@ public sealed record Amount
     public double? Value { get; init; }
 }
 
+/// <summary>
+/// The pawn's job tracker: the current job (def_name, load_id and target_a absent when it has none),
+/// whether the player forced it and how many jobs are queued behind it.
+/// </summary>
 public sealed record JobEvidence
 {
     public string? DefName { get; init; }
 
     public string? LoadId { get; init; }
 
-    public bool? PlayerForced { get; init; }
-
-    public string? Report { get; init; }
+    public bool PlayerForced { get; init; }
 
     public TargetRef? TargetA { get; init; }
 
-    public ulong? OrderGeneration { get; init; }
-
-    public uint? QueuedJobs { get; init; }
-
-    public bool? Interruptible { get; init; }
-
-    public double? NativePriority { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
+    public uint QueuedJobs { get; init; }
 
     /// <summary>
     /// work_type_def_name: the WorkTypeDef of the job's work giver, absent for
@@ -769,6 +744,10 @@ public sealed record JobEvidence
     public Common.Cell? TargetACell { get; init; }
 }
 
+/// <summary>
+/// The pawn's need levels (0-1). Each level is absent when the pawn lacks that need (an animal has no joy, a
+/// mechanoid no food); hunger_category is the food need's category, absent with it.
+/// </summary>
 public sealed record PawnNeeds
 {
     public double? Food { get; init; }
@@ -781,27 +760,27 @@ public sealed record PawnNeeds
 
     public Defs.HungerCategory? HungerCategory { get; init; }
 
-    public BreakRisk? BreakRisk { get; init; }
-
-    public double? BreakThresholdMinor { get; init; }
-
-    public double? BreakThresholdMajor { get; init; }
-
-    public double? BreakThresholdExtreme { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
+    /// <summary>
+    /// MentalBreaker.BreakThresholdMinor: the mood below which minor breaks can start.
+    /// </summary>
+    public double BreakThresholdMinor { get; init; }
 
     /// <summary>
-    /// Psyfocus: Pawn_PsychicEntropyTracker CurrentPsyfocus and
-    /// TargetPsyfocus (0-1) and Pawn.GetPsylinkLevel(); all three are absent
-    /// when Royalty is inactive or the pawn has no psylink.
+    /// The pawn's psyfocus; absent when Royalty is inactive or the pawn has no psylink.
     /// </summary>
-    public double? Psyfocus { get; init; }
+    public PawnPsyfocus? Psyfocus { get; init; }
+}
 
-    public double? PsyfocusTarget { get; init; }
+/// <summary>
+/// Pawn_PsychicEntropyTracker CurrentPsyfocus and TargetPsyfocus (0-1) and Pawn.GetPsylinkLevel().
+/// </summary>
+public sealed record PawnPsyfocus
+{
+    public double Current { get; init; }
 
-    public int? PsylinkLevel { get; init; }
+    public double Target { get; init; }
+
+    public int PsylinkLevel { get; init; }
 }
 
 public sealed record Hediff
@@ -809,31 +788,29 @@ public sealed record Hediff
     /// <summary>
     /// The HediffDef is the catalog row by def_name; its label is the row's.
     /// </summary>
-    public string? DefName { get; init; }
+    public string DefName { get; init; } = "";
 
+    /// <summary>
+    /// The body part: its def and index in the race's body; both absent for a whole-body hediff.
+    /// </summary>
     public string? PartDefName { get; init; }
 
     public int? PartIndex { get; init; }
 
-    public double? Severity { get; init; }
+    public double Severity { get; init; }
 
-    public bool? Visible { get; init; }
+    public bool Visible { get; init; }
 
-    public bool? Permanent { get; init; }
+    public bool Permanent { get; init; }
 
-    public bool? LifeThreatening { get; init; }
+    public bool Tended { get; init; }
 
-    public bool? TendableNow { get; init; }
-
-    public bool? Tended { get; init; }
-
+    /// <summary>
+    /// The tend's quality; absent unless the hediff is tended and has a tend duration.
+    /// </summary>
     public double? TendQuality { get; init; }
 
-    public long? TendExpiresInTicks { get; init; }
-
-    public long? NextTendInTicks { get; init; }
-
-    public bool? Immunizable { get; init; }
+    public bool Immunizable { get; init; }
 
     public double? Immunity { get; init; }
 
@@ -847,15 +824,6 @@ public sealed record Hediff
     public double? ImmunityPerDay { get; init; }
 }
 
-public sealed record Capacity
-{
-    public string? DefName { get; init; }
-
-    public double? Level { get; init; }
-
-    public Common.Unavailable? Unavailable { get; init; }
-}
-
 public sealed record SurgeryBill
 {
     public string? Id { get; init; }
@@ -867,54 +835,67 @@ public sealed record SurgeryBill
     public bool? Suspended { get; init; }
 }
 
+/// <summary>
+/// The pawn's health detail: every hediff, none filtered, and the vanilla health summaries.
+/// </summary>
 public sealed record PawnHealth
 {
-    public double? SummaryFraction { get; init; }
+    public double SummaryFraction { get; init; }
 
-    public bool? NeedsTend { get; init; }
+    public bool NeedsTend { get; init; }
 
-    public bool? Bleeding { get; init; }
+    public bool Bleeding { get; init; }
 
-    public double? BleedRatePerDay { get; init; }
+    public double BleedRatePerDay { get; init; }
 
-    public double? Pain { get; init; }
+    public double Pain { get; init; }
 
-    public double? BloodLoss { get; init; }
+    public double BloodLoss { get; init; }
 
+    /// <summary>
+    /// HealthUtility.TicksUntilDeathDueToBloodLoss in hours; absent unless a living pawn bleeds toward a finite death.
+    /// </summary>
     public double? HoursUntilDeathFromBloodLoss { get; init; }
 
-    public bool? LifeThreatening { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Capacity>))]
-    public EquatableArray<Capacity> Capacities { get; init; }
+    public bool LifeThreatening { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Hediff>))]
     public EquatableArray<Hediff> Hediffs { get; init; }
 
-    public Completeness? HediffCompleteness { get; init; }
+    public bool ShouldSeekMedicalRest { get; init; }
 
-    public uint? HiddenHediffs { get; init; }
-
-    public bool? StableRestEligible { get; init; }
-
-    public bool? ShouldSeekMedicalRest { get; init; }
-
-    public bool? UrgentMedicalRest { get; init; }
-
+    /// <summary>
+    /// The bed the pawn lies in; absent when it is in none.
+    /// </summary>
     public string? BedId { get; init; }
 
+    public SnapshotRef Snapshot { get; init; } = new();
+
+    /// <summary>
+    /// The pawn's surgery facts; absent for a dead pawn or one off every map.
+    /// </summary>
+    public PawnSurgery? Surgery { get; init; }
+}
+
+/// <summary>
+/// The medical care cap inputs of a pawn: the life threat and every hediff, none filtered.
+/// </summary>
+public sealed record PawnConditions
+{
+    public bool LifeThreatening { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Hediff>))]
+    public EquatableArray<Hediff> Hediffs { get; init; }
+}
+
+/// <summary>
+/// Surgery facts. Native computes every value through vanilla; the brain never recomputes them.
+/// </summary>
+public sealed record PawnSurgery
+{
     [JsonConverter(typeof(EquatableArrayJsonConverter<SurgeryBill>))]
     public EquatableArray<SurgeryBill> SurgeryBills { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
-
-    public SnapshotRef? Snapshot { get; init; }
-
-    /// <summary>
-    /// Surgery facts. Native computes every value through vanilla; Go
-    /// never recomputes them. Absent lists with a read issue are unknown.
-    /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<MissingBodyPart>))]
     public EquatableArray<MissingBodyPart> MissingParts { get; init; }
 
@@ -1499,7 +1480,7 @@ public sealed record AnimalState
 
     public bool? Bonded { get; init; }
 
-    public PawnHealth? Conditions { get; init; }
+    public PawnConditions? Conditions { get; init; }
 
     /// <summary>
     /// Sterilized hediff present, and a queued sterilize surgery bill on the
@@ -1858,42 +1839,31 @@ public sealed record PawnTendDoctor
     /// alive, not downed, not in a mental state and player-controlled. This is
     /// the gate whose native refusal reads "Tend requires an eligible doctor".
     /// </summary>
-    public bool? ControlEligible { get; init; }
+    public bool ControlEligible { get; init; }
 
-    public bool? Spawned { get; init; }
+    public bool Spawned { get; init; }
 
-    public bool? HasDrafter { get; init; }
-
-    /// <summary>
-    /// WorkGiver_Tend.MissingRequiredCapacity(pawn) == null; missing_capacity
-    /// names the failing PawnCapacityDef when it does not.
-    /// </summary>
-    public bool? CapacitiesOk { get; init; }
-
-    public string? MissingCapacity { get; init; }
+    public bool HasDrafter { get; init; }
 
     /// <summary>
-    /// WorkTypeIsDisabled(Doctor): the same gate the work settings report, read
-    /// here from the pawn so a doctor row carries it without PawnDetails.work.
+    /// WorkGiver_Tend.MissingRequiredCapacity(pawn) == null.
     /// </summary>
-    public bool? WorkTypeDisabled { get; init; }
+    public bool CapacitiesOk { get; init; }
 
     /// <summary>
     /// Pawn IDs from this same reply this pawn can reach
     /// (CanReach ClosestTouch, Danger.Deadly); self is excluded. The list is
-    /// exhaustive over the reply's other rows unless reach_skipped is set.
+    /// exhaustive over the reply's other rows unless reach_skipped is set; an
+    /// unspawned or dead pawn reaches nothing.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> ReachablePawnIds { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
 
     /// <summary>
     /// PawnDetails.tend_reach_budget_ms ran out before this pawn's reachability
     /// was read: reachable_pawn_ids is empty and unknown, not "reaches nothing".
     /// </summary>
-    public bool? ReachSkipped { get; init; }
+    public bool ReachSkipped { get; init; }
 }
 
 public sealed record PawnFilter
@@ -1943,8 +1913,6 @@ public sealed record PawnDetails
     public bool? Social { get; init; }
 
     public bool? Animals { get; init; }
-
-    public bool? VisibleHediffsOnly { get; init; }
 
     public bool? Work { get; init; }
 
@@ -4484,14 +4452,13 @@ public sealed record PopulationPerson
     public bool? WearingApparel { get; init; }
 
     /// <summary>
-    /// Organ harvest facts, for a prisoner of the colony only: its
-    /// surgery facts (missing_parts, operations and surgery_bills filled as on
-    /// the pawn care read, other PawnHealth fields absent), its faction's load
+    /// Organ harvest facts, for a prisoner of the colony on a map only: its
+    /// surgery facts as on the pawn care read, its faction's load
     /// id, and the goodwill change vanilla's Recipe_RemoveBodyPart violation
     /// report (-70) would make with it after CalculateAdjustedGoodwillChange and
     /// the -100 floor; 0 when the faction's goodwill cannot change or none.
     /// </summary>
-    public PawnHealth? Surgery { get; init; }
+    public PawnSurgery? Surgery { get; init; }
 
     public Common.Ref? Faction { get; init; }
 
@@ -4511,11 +4478,9 @@ public sealed record PopulationPerson
     public bool? Withdrawal { get; init; }
 
     /// <summary>
-    /// Medical care cap inputs, for a colony prisoner or guest: life
-    /// threat, every hediff (definition, severity, immunity and their rates)
-    /// and the completeness; other PawnHealth fields absent.
+    /// Medical care cap inputs, for a colony prisoner or guest.
     /// </summary>
-    public PawnHealth? Conditions { get; init; }
+    public PawnConditions? Conditions { get; init; }
 
     /// <summary>
     /// Policy inputs, for a prisoner of the colony only: its current

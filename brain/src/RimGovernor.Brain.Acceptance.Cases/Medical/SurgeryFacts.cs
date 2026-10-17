@@ -44,7 +44,7 @@ internal static class SurgeryFactsCase
             }
 
             var health = row["health"].AsMap() ?? [];
-            s.Report["surgery_health"] = new JsonObject { ["missingParts"] = health["missingParts"].Copy(), ["operations"] = health["operations"].Copy() };
+            s.Report["surgery_health"] = new JsonObject { ["missingParts"] = MedicalKit.Surgery(health)["missingParts"].Copy(), ["operations"] = MedicalKit.Surgery(health)["operations"].Copy() };
             Observe(health, (int)part.Value);
             return;
         }
@@ -57,10 +57,10 @@ internal static class SurgeryFactsCase
     {
         if (!MedicalKit.PartMissing(health, part))
         {
-            throw new AcceptanceException($"missing leg {part} not reported: {health["missingParts"].ToText()}");
+            throw new AcceptanceException($"missing leg {part} not reported: {MedicalKit.Surgery(health)["missingParts"].ToText()}");
         }
 
-        foreach (var op in health["operations"].Rows())
+        foreach (var op in MedicalKit.Surgery(health)["operations"].Rows())
         {
             if (op["partIndex"].Strict() is { } index && (int)index == part && op["kind"].AsString() == "SURGERY_KIND_RESTORE" && op["successChance"].Strict() is > 0)
             {
@@ -68,6 +68,6 @@ internal static class SurgeryFactsCase
             }
         }
 
-        throw new AcceptanceException($"no restore operation with success_chance > 0 on part {part}: {health["operations"].ToText()}");
+        throw new AcceptanceException($"no restore operation with success_chance > 0 on part {part}: {MedicalKit.Surgery(health)["operations"].ToText()}");
     }
 }

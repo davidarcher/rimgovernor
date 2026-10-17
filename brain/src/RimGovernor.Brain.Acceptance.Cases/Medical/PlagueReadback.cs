@@ -47,7 +47,7 @@ internal static class PlagueReadback
 
             foreach (var condition in pawn["health"].AsMap()?["hediffs"].Rows() ?? [])
             {
-                if (condition["definition"].AsMap()?["defName"].AsString() != "Plague")
+                if (condition["defName"].AsString() != "Plague")
                 {
                     continue;
                 }
@@ -68,8 +68,9 @@ internal static class PlagueReadback
                     throw new AcceptanceException($"{id} immunity/day = {condition["immunityPerDay"].ToText()}");
                 }
 
-                var tended = condition["tended"].AsBool();
-                if (tended is null || tended != (index == 1))
+                // The writer omits false, so an absent flag is untended.
+                var tended = condition["tended"].AsBool() == true;
+                if (tended != (index == 1))
                 {
                     throw new AcceptanceException($"{id} tended = {condition["tended"].ToText()}");
                 }

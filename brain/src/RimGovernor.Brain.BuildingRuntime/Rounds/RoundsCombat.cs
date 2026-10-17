@@ -461,14 +461,7 @@ internal static partial class BuildingRuntimePackage
         s = s with { Mech = mech, Insect = insect };
         if (row.Health is { } h)
         {
-            if (h.BloodLoss is not null)
-            {
-                s = s with { BloodLoss = Known(h.BloodLoss.GetValueOrDefault()) };
-            }
-            if (h.BleedRatePerDay is not null)
-            {
-                s = s with { BleedRatePerDay = Known(h.BleedRatePerDay.GetValueOrDefault()) };
-            }
+            s = s with { BloodLoss = Known(h.BloodLoss), BleedRatePerDay = Known(h.BleedRatePerDay) };
             if (h.HoursUntilDeathFromBloodLoss is not null)
             {
                 s = s with { HoursUntilBleedDeath = Known(h.HoursUntilDeathFromBloodLoss.GetValueOrDefault()) };
