@@ -26,6 +26,6 @@
   </ItemGroup>
   <ItemGroup>
     <!-- The host's native client (#3113) decodes and validates the replies this assembly's read models describe. -->
-    <InternalsVisibleTo Include="RimGovernor.Brain.Host" />
+    <InternalsVisibleTo Include="RimGovernor.Brain.BuildingRuntime" />
   </ItemGroup>
 </Project>

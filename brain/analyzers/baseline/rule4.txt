@@ -65,7 +65,7 @@ BuildingRuntime/Worker.cs|Worker.Steps
 BuildingRuntime/Worker.cs|Worker.Worker
 Executor/Intent.cs|Executor.RunIntentsAsync
 Host/BrainHost.cs|BrainHost.StartAsync
-Host/Client/FacadeNativeClient.Colony.cs|FacadeNativeClient.ReadStepAsync
+BuildingRuntime/Client/FacadeNativeClient.Colony.cs|FacadeNativeClient.ReadStepAsync
 Host/HostSnapshots.cs|HostSnapshots.PollAsync
 Host/PlayerProviders.cs|HostPlayerControl.RunAsync
 Host/SchedulerLoop.cs|SchedulerLoop.Run

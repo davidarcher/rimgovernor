@@ -45,6 +45,7 @@ public sealed partial class BrainComposition(BrainCompositionOptions options) : 
         client.Telemetry = telemetry;
         // The writers go through the client's counting facade, so their native calls are tallied like its reads.
         var writer = new FacadeActionsWriter(client.Facade);
+        var player = new FacadePlayerAdapter(client);
         _client = client;
         _writer = writer;
         var families = _options.Families;
@@ -60,10 +61,10 @@ public sealed partial class BrainComposition(BrainCompositionOptions options) : 
             Player = new PlayerNatives
             {
                 Source = client,
-                Presentation = client,
-                Media = client,
-                Notifications = client,
-                Lifecycle = client,
+                Presentation = player,
+                Media = player,
+                Notifications = player,
+                Lifecycle = player,
                 Colony = client,
             },
             Orphans = (plans, ct) => SweepOrphans(client, writer, new HostLog(telemetry, "governor-state"), plans, ct),

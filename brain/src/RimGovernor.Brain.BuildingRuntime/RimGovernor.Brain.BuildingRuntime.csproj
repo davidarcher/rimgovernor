@@ -53,6 +53,8 @@
     <Using Include="RimGovernor.Contracts.Wire.Receipts" Alias="PbReceipts" />
     <Using Include="RimGovernor.Contracts.Wire.Presentation" Alias="PbPresentation" />
     <Using Include="RimGovernor.Contracts.Wire.Lifecycle" Alias="PbLifecycle" />
+    <Using Include="RimGovernor.Contracts.Wire.Placement" Alias="PbPlacement" />
+    <Using Include="RimGovernor.Contracts.Wire.Mirror" Alias="PbMirror" />
     <!-- Names two imported namespaces both declare: Policy and Telemetry/Executor shapes win (issue #3111). -->
     <Using Include="RimGovernor.Brain.Domain.PawnId" Alias="PawnId" />
     <Using Include="RimGovernor.Brain.Policy.Amount" Alias="Amount" />
@@ -94,7 +96,7 @@
     <Using Include="RimGovernor.Brain.Bridge.Contracts.BridgeFunctions" Alias="BridgeApi" />
   </ItemGroup>
   <ItemGroup>
-    <!-- The host's native client (#3113) implements this assembly's internal source interfaces. -->
+    <!-- The host composes the native client and planners from this assembly's internal types. -->
     <InternalsVisibleTo Include="RimGovernor.Brain.Host" />
     <!-- The headless real-engine host drives the live combat read and decision over its arena (#3142). -->
     <InternalsVisibleTo Include="RimGovernor.RealCombat.Native" />

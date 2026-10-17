@@ -42,7 +42,7 @@ The helper writes the row only; nothing is rendered to stderr.
 
 Register a kind and a consuming reader before adding an emission.
 
-### Native bridge (`RimGovernor.Brain.Host/Client`)
+### Native bridge (`RimGovernor.Brain.BuildingRuntime/Client`)
 
 | Kind | Shape and fields |
 |---|---|

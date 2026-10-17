@@ -46,7 +46,7 @@
   </ItemGroup>
   <ItemGroup>
     <!-- The host's native client (#3113) implements this assembly's source interfaces. -->
-    <InternalsVisibleTo Include="RimGovernor.Brain.Host" />
+    <InternalsVisibleTo Include="RimGovernor.Brain.BuildingRuntime" />
     <!-- The headless combat host reads the royalty facts of its arena frame as the rounds do. -->
     <InternalsVisibleTo Include="RimGovernor.RealCombat.Native" />
   </ItemGroup>

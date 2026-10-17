@@ -16,6 +16,6 @@
   </ItemGroup>
   <ItemGroup>
     <!-- The host's native client (#3113) reads the frames the recorder types decode. -->
-    <InternalsVisibleTo Include="RimGovernor.Brain.Host" />
+    <InternalsVisibleTo Include="RimGovernor.Brain.BuildingRuntime" />
   </ItemGroup>
 </Project>

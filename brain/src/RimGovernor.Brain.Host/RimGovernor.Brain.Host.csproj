@@ -34,12 +34,7 @@
     <Using Include="RimGovernor.Contracts.Wire.Common" Alias="PbCommon" />
     <Using Include="RimGovernor.Contracts.Wire.Lifecycle" Alias="PbLifecycle" />
     <Using Include="RimGovernor.Contracts.Wire.Operations" Alias="PbOperations" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations" Alias="PbObservations" />
     <Using Include="RimGovernor.Contracts.Wire.Clock" Alias="PbClock" />
     <Using Include="RimGovernor.Contracts.Wire.Presentation" Alias="PbPresentation" />
-    <Using Include="RimGovernor.Contracts.Wire.Placement" Alias="PbPlacement" />
-    <Using Include="RimGovernor.Contracts.Wire.Mirror" Alias="PbMirror" />
-    <Using Include="RimGovernor.Contracts.Wire.Receipts" Alias="PbReceipts" />
-    <Using Include="RimGovernor.Brain.Bridge.Contracts.Result" Alias="BridgeResult" />
   </ItemGroup>
 </Project>

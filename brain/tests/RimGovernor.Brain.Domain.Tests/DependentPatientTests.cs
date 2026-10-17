@@ -1,6 +1,6 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
-using RimGovernor.Brain.Host;
+using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using Xunit;
 using C = RimGovernor.Contracts.Wire.Common;

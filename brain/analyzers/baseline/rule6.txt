@@ -123,10 +123,10 @@ Domain/StockpileFilter.cs|StockpileFilter.PerishablesFilter|"MealSurvivalPack"
 Domain/StockpileFilter.cs|StockpileFilter.PerishablesFilter|"Pemmican"
 Domain/TradeMission.cs|TradeMission.Validate|"Silver"
 Executor/Flows.cs|Executor.CommsTradeRequestEffect|360000
-Host/Client/FacadeNativeClient.Defense.cs|FacadeNativeClient.DefenseSpatialAccessBudgetMs|2500
-Host/Client/FacadeNativeClient.Placement.cs|PlacementReads.BuildingPreviewRow|"HiddenConduit"
-Host/Client/FacadeNativeClient.Placement.cs|PlacementReads.BuildingPreviewRow|"PowerConduit"
-Host/Client/FacadeNativeClient.Sites.cs|PlacementReads.SalvageMaxAgeTicks|2500
+BuildingRuntime/Client/FacadeNativeClient.Defense.cs|FacadeNativeClient.DefenseSpatialAccessBudgetMs|2500
+BuildingRuntime/Client/FacadeNativeClient.Placement.cs|PlacementReads.BuildingPreviewRow|"HiddenConduit"
+BuildingRuntime/Client/FacadeNativeClient.Placement.cs|PlacementReads.BuildingPreviewRow|"PowerConduit"
+BuildingRuntime/Client/FacadeNativeClient.Sites.cs|PlacementReads.SalvageMaxAgeTicks|2500
 Observation/ColonyDecode.cs|ObservationPackage.DecodeColony|"PowerConduit"
 Observation/ColonyDecode.cs|ObservationPackage.DecodeColony|"WoodLog"
 Observation/Definitions.cs|ObservationPackage.StarterDefinitions|"Barricade"
