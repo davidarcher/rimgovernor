@@ -300,8 +300,6 @@ public sealed partial class ClockRunDriver
             SinceObserved = _clock.Now() - observedAt,
             Emergency = emergencyFacts,
             EventsOpen = _events.Opened,
-            // A step that recorded no count is treated as one that missed evidence.
-            EventsSinceStep = step.EventsSeen is not { } seen || _events.Seen != seen,
             Status = new ClockWatchStatus
             {
                 Snapshot = state.Snapshot,

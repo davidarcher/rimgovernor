@@ -192,7 +192,9 @@ unmeasured guesses until this run is recorded (#3199).
 
 1. Run `acceptance speedmatrix -profile observations` (above) for frame time at each speed: read `frames` p50/p95/p99 per row and the
    `clock_step` fields `pacing_reason`, `paced_tps`, `tps_ceiling` and `effective_tps` in `otlp/logs.jsonl` for
-   how the one ceiling holds the rate and recovers.
+   how the one ceiling holds the rate and recovers. Every `clock_hold` row also carries the run it ended: `run_ticks`,
+   `run_ms`, `run_tps`, `run_frames`, `run_frames_over_budget` and `ceiling_tps`, so effective ticks/s per run segment
+   needs no step to catch the clock running.
 2. Critical wave and review scope: take `critical_wave_ms` from the `clock_step` rows and `dur_ms` from `rounds_review` /
    `planner_step` rows of the same run; report p50/p95/max.
 3. Hazard hold to resume: take `stop_latency_ms` from `clock_step` rows that follow a `clock_stop` or `clock_hold`;

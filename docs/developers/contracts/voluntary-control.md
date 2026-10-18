@@ -69,12 +69,13 @@ legality, reservation checks and completion mechanics still run.
 The shared selector may retain no change only for an observed, finite safe
 interval. A missing estimate is not evidence that indefinite idleness is safe.
 An unassigned controlled pawn exposes `unassigned_voluntary_pawn` through the
-Supervisor rather than silently borrowing vanilla job selection. The hold is the
-review trigger, not a resting state: the brain's next round assigns every such
-pawn it selects nothing for an explicit `Standby` (colony wander, no work, no
-deadline; see [pawn activities](pawn-activities.md)), so a quiet colony's clock
-runs. The hold recurs once after an authority grant, a release or an involuntary
-interruption, until that review. Unsupported
+Supervisor rather than silently borrowing vanilla job selection: one Pawns-family
+`ObservationInvalidated` naming the pawn, which wakes the brain while the clock
+keeps running (it never holds the clock, #3518). The report is the review trigger,
+not a resting state: the brain's next round assigns every such pawn it selects
+nothing for an explicit `Standby` (colony wander, no work, no deadline; see
+[pawn activities](pawn-activities.md)). The report recurs once after an authority
+grant, a release or an involuntary interruption, until that review. Unsupported
 need/state observations are excluded from ordinary capacity and defer admission.
 This is a visible unsupported outcome, not successful autonomous coverage.
 

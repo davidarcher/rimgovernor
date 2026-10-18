@@ -50,8 +50,7 @@ internal sealed partial class ColonyEventConsumer(Session session, IColonyEventN
     public bool Opened => Volatile.Read(ref _opened) != 0;
 
     /// <summary>
-    /// The evidence the consumer has delivered: one per event of this world and one per loss it saw. A step records it
-    /// at its clock read; a held clock resumes only from a step after which it did not move.
+    /// The evidence the consumer has delivered: one per event of this world and one per loss it saw (the tests wait on it).
     /// </summary>
     public long Seen => Interlocked.Read(ref _seen);
 

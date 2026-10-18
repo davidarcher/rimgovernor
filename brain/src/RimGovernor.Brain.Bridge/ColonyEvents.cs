@@ -21,7 +21,14 @@ public abstract record ColonyEvent(ColonyEventOrigin Origin, string Detail);
 /// <param name="OccurrenceTick">The tick the hazard arose, when the evidence carries one (a new wound's age).</param>
 /// <param name="StopAtUnixMs">Native's Unix ms when the hold took: the stamp Status reports as held-at.</param>
 public sealed record HoldEntered(ColonyEventOrigin Origin, string Detail, Clock.HoldReason Reason, ColonyHoldEvidence Evidence,
-    long DetectedTick, long? OccurrenceTick, long StopAtUnixMs) : ColonyEvent(Origin, Detail);
+    long DetectedTick, long? OccurrenceTick, long StopAtUnixMs, RunSegment Run) : ColonyEvent(Origin, Detail);
+
+/// <summary>
+/// The run the hold ended, measured by native from its Run to this hold: game ticks and wall ms (effective ticks per
+/// second is their ratio), the frames that carried ticks and how many of them went over the frame budget, and the one
+/// ceiling's rate when the hold took. The live clock baseline (brain-host.md) reads these from the clock_hold rows.
+/// </summary>
+public sealed record RunSegment(long Ticks, long Ms, ulong Frames, ulong FramesOverBudget, int CeilingTicksPerSecond);
 
 /// <summary>A Run took while held (the first Run of a loaded game included).</summary>
 /// <param name="From">The reason the clock was held before this Run.</param>

@@ -165,13 +165,8 @@ public static class ClockWatchRules
         Check(f.Status.NativeTickBoundary, true, ClockWatchReason.Unknown);
         if (!f.EventsOpen)
         {
-            Hold(ClockWatchReason.Unreviewed);
-        }
-        else if (f.Status.State == ClockWatchState.Held && f.EventsSinceStep)
-        {
-            // A held clock resumes only from a step that planned against every event and loss delivered so far; a
-            // running one keeps producing them, so they arrive under its steps by design. The Run's hold serial is
-            // the guard behind this one: a hold whose event has not arrived yet still refuses the resume.
+            // Before the brain opens the colony events nothing it planned has seen them. The Run's hold serial is the
+            // only other guard: a hold the step did not read refuses the resume at native.
             Hold(ClockWatchReason.Unreviewed);
         }
 

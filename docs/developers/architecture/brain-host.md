@@ -107,8 +107,8 @@ meaning in the [control loop](control-loop.md#constants-that-are-not-measured).
 
 | Quantity | Measured | Current constant | Source row |
 | --- | --- | --- | --- |
-| Frame time at each speed (p50/p95/p99) | not measured | 30 ms budget (`ClockCeiling.DefaultFrameBudgetMs`) | none (native keeps no frame-interval account) |
-| Effective ticks/s at Ultrafast (boosted, up to 9000 ticks/s, with the one ceiling lowering it on over-budget frames) | not measured | 0.7 down, 1.25 up per 250 ms | `clock_step` pacing fields (`pacing_reason`, `paced_tps`, `tps_ceiling`, `effective_tps`) |
+| Frame time at each speed (p50/p95/p99) | not measured | 30 ms budget (`ClockCeiling.DefaultFrameBudgetMs`) | `clock_hold` `run_frames` and `run_frames_over_budget` per run (the frame account keeps no per-frame distribution) |
+| Effective ticks/s at Ultrafast (boosted, up to 9000 ticks/s, with the one ceiling lowering it on over-budget frames) | not measured | 0.7 down, 1.25 up per 250 ms | `clock_hold` `run_tps` per run (`run_ticks` / `run_ms`), `ceiling_tps` at the hold; `clock_step` pacing fields (`pacing_reason`, `paced_tps`, `tps_ceiling`, `effective_tps`) while running |
 | Critical planner wave wall time | not measured | none | `clock_step.critical_wave_ms` |
 | Immediate review scope wall time | not measured | none | `rounds_review`, `planner_step` `dur_ms` |
 | Combat hold to resume latency | not measured | 2 s budget (`ClockCombatStops.ResumeBudget`) | `clock_stop.resume_latency_ms`, `combat_summary` p50/p95 |

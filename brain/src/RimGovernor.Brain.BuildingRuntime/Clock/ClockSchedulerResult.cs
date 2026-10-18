@@ -15,12 +15,6 @@ public sealed class ClockSchedulerResult
     /// </summary>
     public ulong? HoldSerial { get; set; }
 
-    /// <summary>
-    /// The colony event evidence the run driver's consumer had delivered when the step read the clock; null without a
-    /// driver. A held clock resumes only when it has not moved since.
-    /// </summary>
-    public long? EventsSeen { get; set; }
-
     /// <summary>Whether the clock was found running when the step read it (reported by the run driver).</summary>
     public bool Running { get; set; }
 

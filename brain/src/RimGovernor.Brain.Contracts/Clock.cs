@@ -90,6 +90,7 @@ public enum HoldReason
     GameForced = 5,
     [WireName("HOLD_REASON_SESSION_CHANGED")]
     SessionChanged = 6,
+    /// <summary>The clock itself is unavailable: the tick manager, the native hooks or the authority behind the epoch are gone. Nothing else (a pawn activity, a job) raises it.</summary>
     [WireName("HOLD_REASON_UNAVAILABLE")]
     Unavailable = 7,
     [WireName("HOLD_REASON_EXTERNAL_PAUSE")]

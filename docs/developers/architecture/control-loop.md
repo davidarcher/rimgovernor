@@ -779,6 +779,12 @@ While the bot is on, the clock is in one of two states.
   brain sends `Run`, and the brain sends it when the reason is finished, not on
   a timer. Native never resumes by itself.
 
+One rule says who may hold. Native holds the clock for a hazard it probed, a game-forced pause
+or the loss of its authority or hooks, and for nothing else. The brain holds it for a coupled
+order, an autosave or a review, and for nothing else. Progress is never a hold: a pawn activity
+completing or failing, a controlled pawn with no activity, a zone turning ripe or any other fact
+change is an `ObservationInvalidated` event that wakes the brain while the game keeps running.
+
 ```mermaid
 stateDiagram-v2
     [*] --> Held: NeverRun
@@ -931,7 +937,10 @@ The earlier model admitted finite tick windows under a renewable wall-clock leas
 with a per-window admission decision, brain and native pace regulators, and
 following of the player's own speed. All of it is gone, as are the clock attempt,
 epoch and receipt stores. Do not reintroduce a tick budget or a second regulator;
-the one ceiling, the target speed and named holds replace them.
+the one ceiling, the target speed and named holds replace them. Pawn-activity completion,
+failure and unassigned-pawn holds (`Unavailable` holds raised every 600 ticks, two scheduler
+steps each, #3518) are gone too: they were a tick budget by another name. A fact change
+wakes the brain through an invalidation; it never stops the clock.
 
 ### Event delivery
 

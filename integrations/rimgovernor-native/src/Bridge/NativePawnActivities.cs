@@ -35,6 +35,9 @@ namespace HomeBridge.BridgeTools
         }
         private sealed record Offer(Entry Entry, int Step, int JobId);
         private static readonly Dictionary<Pawn, Entry> Entries = new();
+        // Controlled pawns whose missing or refused activity the brain was told about once; an assignment, a release or an
+        // authority change makes the next report due again (voluntary-control.md).
+        private static readonly HashSet<Pawn> Reported = new();
         private static readonly ConditionalWeakTable<Job, Offer> Offers = new();
         private sealed class ExactRecreation : JoyGiver_WatchBuilding
         {
@@ -255,7 +258,7 @@ namespace HomeBridge.BridgeTools
                 oldJobs.Add((pawn, order.Release ? old?.Running : old?.Running ?? pawn.CurJob));
                 var e = new Entry { Pawn = pawn, Order = order with { Steps = order.Steps.ToArray() }, Identity = identity, Generation = batch.AuthorityGeneration,
                     SelectedTask = batch.Tasks.FirstOrDefault(t => t.Id == order.Task), Tick = Find.TickManager.TicksGame, Dependencies = order.Steps.Select(s => s.WaitForFilth.Length == 0 ? null : Thing(s.WaitForFilth)).ToArray() };
-                Entries[pawn] = e;
+                Entries[pawn] = e; Reported.Remove(pawn);
                 changed.Add(e);
             }
             replacing = true;
@@ -314,8 +317,9 @@ namespace HomeBridge.BridgeTools
             {
                 if (!Controlled(___pawn)) return true;
                 __result = ThinkResult.NoJob;
-                Supervisor.ActivityUnavailable("unassigned_voluntary_pawn:" + ___pawn.GetUniqueLoadID()
-                    + ":" + string.Join(",", NativeNeedsForecast.VoluntaryControlBlockers(___pawn)));
+                if (Reported.Add(___pawn))
+                    Supervisor.ActivityChanged("unassigned_voluntary_pawn:" + ___pawn.GetUniqueLoadID()
+                        + ":" + string.Join(",", NativeNeedsForecast.VoluntaryControlBlockers(___pawn)), ___pawn);
                 return false;
             }
             thinkTree = ___pawn.thinker.MainThinkTree;
@@ -335,7 +339,7 @@ namespace HomeBridge.BridgeTools
         private static Job OfferJob(Entry e)
         {
             if (e.Step >= e.Order.Steps.Length || e.State == "failed")
-            { Supervisor.ActivityExecutionChanged(e.Order.Assignment + ":awaiting_continuation"); return JobMaker.MakeJob(holdDef); }
+            return JobMaker.MakeJob(holdDef);
             var step = e.Order.Steps[e.Step];
             if (Find.TickManager.TicksGame >= step.Deadline) { Fault(e, "deadline"); return JobMaker.MakeJob(holdDef); }
             var p = e.Pawn;
@@ -504,7 +508,7 @@ namespace HomeBridge.BridgeTools
             if (!TryOwned(___pawn, out var e))
             {
                 if (!Controlled(___pawn) || NativeControlAuthority.TryGetForGame(Current.Game, out var authority) && authority?.IsOwned == true) return true;
-                Supervisor.ActivityUnavailable("unauthorized_direct_job:" + ___pawn.GetUniqueLoadID() + ":" + newJob.def.defName);
+                if (Reported.Add(___pawn)) Supervisor.ActivityChanged("unauthorized_direct_job:" + ___pawn.GetUniqueLoadID() + ":" + newJob.def.defName, ___pawn);
                 return false;
             }
             if (___pawn.Downed || ___pawn.InMentalState || ___pawn.Drafted) { Fault(e, "involuntary_or_combat_state"); Release(e); return true; }
@@ -555,7 +559,7 @@ namespace HomeBridge.BridgeTools
                 if (sowing == null || e.Sown >= sowing.Count) e.Step++;
                 e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed"; e.Reason = "Succeeded";
             }
-            else if (condition != JobCondition.Succeeded) { e.State = "failed"; e.Reason = condition.ToString(); Find.TickManager.Pause(); }
+            else if (condition != JobCondition.Succeeded) { e.State = "failed"; e.Reason = condition.ToString(); }
             e.Tick = Find.TickManager.TicksGame; Emit(e);
         }
         private static void Ended(Pawn ___pawn, bool __state)
@@ -573,7 +577,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!TryOwned(pawn, out var e)) { pawn.jobs.EndCurrentJob(JobCondition.InterruptForced); return; }
             // A terminal assignment retains ownership for continuation, not permission to advance time.
-            if (e.State == "failed" || e.Step >= e.Order.Steps.Length) { Supervisor.ActivityExecutionChanged(e.Order.Assignment + ":awaiting_continuation"); return; }
+            if (e.State == "failed" || e.Step >= e.Order.Steps.Length) return;
             var step = e.Order.Steps[e.Step];
             if (step.Kind == PawnActivityKind.Idle)
             {
@@ -606,7 +610,7 @@ namespace HomeBridge.BridgeTools
         private static void Yield(Entry e, string reason)
         { e.State = "released"; e.Reason = reason; e.Tick = Find.TickManager.TicksGame; PawnActivityTracker.Execution(Row(e), e.Pawn); }
         private static void Fault(Entry e, string reason)
-        { if (e.State != "failed") { e.State = "failed"; e.Reason = reason; e.Tick = Find.TickManager.TicksGame; Emit(e); } Find.TickManager.Pause(); }
+        { if (e.State != "failed") { e.State = "failed"; e.Reason = reason; e.Tick = Find.TickManager.TicksGame; Emit(e); } }
         private static void Release(Entry e)
         {
             Entries.Remove(e.Pawn);
@@ -617,32 +621,36 @@ namespace HomeBridge.BridgeTools
         }
         private static void AuthorityChanged(NativeControlAuthority authority, NativeControlSnapshot snapshot, ulong old)
         {
+            Reported.Clear();
             foreach (var e in Entries.Values.ToArray()) if (!snapshot.Active || snapshot.Generation != e.Generation) Release(e);
             if (snapshot.Active && snapshot.Identity?.Map is { } map)
                 foreach (var pawn in map.mapPawns.FreeColonistsSpawned.ToArray())
                     if (Controlled(pawn) && !Owned(pawn) && pawn.CurJob != null)
                         pawn.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
         }
-        private static void WorldChanging() { foreach (var e in Entries.Values.ToArray()) Release(e); }
-        private static void Despawn(Pawn __instance) { if (Entries.TryGetValue(__instance, out var e)) Release(e); }
+        private static void WorldChanging() { Reported.Clear(); foreach (var e in Entries.Values.ToArray()) Release(e); }
+        private static void Despawn(Pawn __instance) { Reported.Remove(__instance); if (Entries.TryGetValue(__instance, out var e)) Release(e); }
         private static void Emit(Entry e)
         {
             PawnActivityTracker.Execution(Row(e), e.Pawn);
-            if (e.State is "failed" or "completed") Supervisor.ActivityExecutionChanged(e.Order.Assignment + ":" + e.State + ":" + e.Reason);
+            if (e.State is "failed" or "completed") Supervisor.ActivityChanged(e.Order.Assignment + ":" + e.State + ":" + e.Reason, e.Pawn);
         }
     }
     internal static partial class Supervisor
     {
-        internal static void ActivityUnavailable(string detail)
+        private static readonly RimGovernor.Contracts.Wire.Clock.FactFamily[] PawnsFamily = { RimGovernor.Contracts.Wire.Clock.FactFamily.Pawns };
+        /// A pawn activity changed: an assignment completed or failed, or a controlled pawn has no authorized
+        /// activity. The Pawns facts are stale and the brain wakes to plan again through the existing invalidation
+        /// path; the clock keeps running. Native holds the clock for hazards and loss of authority only
+        /// (control-loop.md). Without a running epoch nobody is listening and the row of the execution itself stands.
+        internal static void ActivityChanged(string detail, Pawn pawn)
         {
-            if (_state?.Active == true) Stop(_state, RimGovernor.Contracts.Wire.Clock.HoldReason.Unavailable, "voluntary_control:" + detail, true);
-            else Find.TickManager.Pause();
-        }
-        // Reuse the existing clock stop/journal/invalidation path, not a second event store.
-        internal static void ActivityExecutionChanged(string detail)
-        {
-            if (_state?.Active == true) Stop(_state, RimGovernor.Contracts.Wire.Clock.HoldReason.Unavailable, "pawn_activity:" + detail, true);
-            else Find.TickManager.Pause();
+            var s = _state;
+            if (s == null || !s.Active) return;
+            string id;
+            try { id = pawn.GetUniqueLoadID(); } catch { id = ""; }
+            Invalidate(s, "pawn_activity:" + detail, PawnsFamily, ProtoBoundary.IsIdentifier(id) ? new[] { id } : null,
+                detail: "Pawn activity changed: " + detail + ".");
         }
     }
     public sealed class JobDriver_GovernorWait : JobDriver

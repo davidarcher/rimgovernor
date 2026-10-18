@@ -172,7 +172,8 @@ namespace HomeBridge.BridgeTools
             {
                 var modeChanged = running.Policy.Mode != typed.Policy.Mode;
                 running.Policy = typed.Policy;
-                ApplyPolicy(s, typed.Policy);
+                (s.FramesAtResume, s.OverBudgetAtResume, _) = FrameAccount();
+            ApplyPolicy(s, typed.Policy);
                 if (modeChanged) ResetCombatStops(s);
             }
             if (s.RequestedSpeed == speed && Find.TickManager.CurTimeSpeed == speed) return null;
@@ -212,7 +213,7 @@ namespace HomeBridge.BridgeTools
             var tm = Find.TickManager;
             var s = new State(Current.Game, Find.CurrentMap) {
                 Active = true, RequestedSpeed = speed, Typed = typed,
-                StartTick = tm.TicksGame, LastTick = tm.TicksGame,
+                StartTick = tm.TicksGame, LastTick = tm.TicksGame, ResumeMs = NowMs(),
                 LastProbeTick = tm.TicksGame, LastProbeMs = NowMs(), LastDigestTick = tm.TicksGame
             };
             ApplyPolicy(s, typed.Policy);

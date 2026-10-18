@@ -270,7 +270,7 @@ public sealed class ClockRunDriverTests
             _reason = reason;
             _heldAtMs = 1_000_000 + _appended;
             var heldAt = _heldAtMs;
-            Append(o => new NativeEvents.HoldEntered(o, "", reason, evidence, o.Tick, null, heldAt));
+            Append(o => new NativeEvents.HoldEntered(o, "", reason, evidence, o.Tick, null, heldAt, new NativeEvents.RunSegment(0, 0, 0, 0, 0)));
         }
 
         public PbClock.HeartbeatReply Heartbeat()
@@ -493,7 +493,7 @@ public sealed class ClockRunDriverTests
         /// One scheduler step has finished, and the driver acts on it. The step read the game's current hold serial
         /// and the evidence the consumer had delivered by then.
         /// </summary>
-        public Task<bool> StepAsync() => Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = Game.HoldSerial, EventsSeen = Driver.EventsSeen }, Ct);
+        public Task<bool> StepAsync() => Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = Game.HoldSerial }, Ct);
 
         /// <summary>Waits until the consumer has delivered every event the game pushed.</summary>
         public Task DeliveredAsync() => UntilAsync(() => Driver.EventsSeen >= Game.Pushed);
@@ -638,7 +638,7 @@ public sealed class ClockRunDriverTests
         using var rig = await Rig.StartAsync();
         var stepRead = await HeldAfterTheStepReadAsync(rig);
 
-        await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = stepRead, EventsSeen = rig.Driver.EventsSeen }, Ct));
+        await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = stepRead }, Ct));
         Assert.Equal([stepRead], rig.Game.StaleSerials);
         Assert.Equal(1, rig.Game.Runs);
     }
@@ -649,7 +649,7 @@ public sealed class ClockRunDriverTests
         using var rig = await Rig.StartAsync();
         var stepRead = await HeldAfterTheStepReadAsync(rig);
 
-        var refused = await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = stepRead, EventsSeen = rig.Driver.EventsSeen }, Ct));
+        var refused = await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = stepRead }, Ct));
         Assert.Contains("clock run refused", refused.Message, StringComparison.Ordinal);
         Assert.True(rig.Game.Held);
         Assert.Equal(PbClock.HoldReason.Hostile, rig.Game.Reason);
@@ -854,7 +854,7 @@ public sealed class ClockRunDriverTests
         Assert.Equal(0, rig.Game.Holds);
 
         await rig.DeliveredAsync();
-        await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = earlySerial, EventsSeen = rig.Driver.EventsSeen }, Ct));
+        await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = earlySerial }, Ct));
         Assert.True(rig.Game.Held);
         Assert.True(await rig.StepAsync());
         Assert.False(rig.Game.Held);
@@ -1160,26 +1160,22 @@ public sealed class ClockRunDriverTests
     }
 
     [Fact]
-    public async Task AHeldClockWithEventsSinceTheStepReadIsNotResumed()
+    public async Task AHeldClockWithEventsSinceTheStepReadResumesOnTheCurrentSerial()
     {
         using var rig = await Rig.StartAsync();
         await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
         rig.Game.HostileHazard();
         await rig.DeliveredAsync();
-        var stepRead = rig.Driver.EventsSeen;
+        var stepRead = rig.Game.HoldSerial;
 
-        // An event arrives after the step read the held clock: that step did not plan against it.
+        // An invalidation arrives after the step read the held clock. It is not a hold, so the serial the step read is
+        // current and the Run takes: the hold serial is the one stale-read guard (#3518, two steps per hold before it).
         rig.Game.Invalidate(PbClock.FactFamily.Colony);
         await rig.DeliveredAsync();
-        var refused = await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = rig.Game.HoldSerial, EventsSeen = stepRead }, Ct));
-        Assert.Contains("clock run refused", refused.Message, StringComparison.Ordinal);
-        Assert.True(rig.Game.Held);
-        Assert.Equal(1, rig.Game.Runs);
-
-        // A step that read the clock after it resumes.
-        Assert.True(await rig.StepAsync());
+        Assert.True(await rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = stepRead }, Ct));
         Assert.False(rig.Game.Held);
+        Assert.Equal(2, rig.Game.Runs);
     }
 
     [Fact]

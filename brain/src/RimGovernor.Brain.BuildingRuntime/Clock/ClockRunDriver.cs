@@ -62,7 +62,7 @@ public sealed partial class ClockRunDriver : IDisposable
 
     /// <summary>
     /// Builds the driver for <paramref name="scheduler"/>, attaches it to the session's clock worker slot and starts the
-    /// colony event consumer and the heartbeat loop (with the policy validation). Each scheduler step then records the consumer's evidence count at its clock read.
+    /// colony event consumer and the heartbeat loop (with the policy validation).
     /// </summary>
     public static ClockRunDriver Create(
         Player player,
@@ -89,7 +89,6 @@ public sealed partial class ClockRunDriver : IDisposable
         Validated(config);
         var driver = new ClockRunDriver(player, session, scheduler, native, writer, config, clock, wake);
         session.AttachClockWorker(driver);
-        scheduler.ColonyEventsSeen = () => driver._events.Seen;
         driver._eventsTask = Task.Run(() => driver.EventsLoopAsync(lifetime), CancellationToken.None);
         driver._heartbeatTask = Task.Run(() => driver.HeartbeatLoopAsync(lifetime), CancellationToken.None);
         return driver;

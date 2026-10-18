@@ -41,9 +41,6 @@ public sealed record ClockWatchFacts
     /// <summary>Whether the brain has opened the colony events native pushes; before it, nothing it plans has seen them.</summary>
     public bool EventsOpen { get; init; }
 
-    /// <summary>Whether colony events or a loss of them arrived after the step being decided read the clock.</summary>
-    public bool EventsSinceStep { get; init; }
-
     public ClockWatchStatus Status { get; init; } = new();
 
     /// <summary>Whether the military/combat Need holds an admitted plan with open work. Only then may live hostiles be watched instead of refused.</summary>

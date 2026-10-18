@@ -59,9 +59,6 @@ public sealed partial class ClockScheduler
     private PbCommon.ObservationContext? _stepContext;
     private volatile bool _running;
 
-    /// <summary>The run driver's colony event evidence count (<see cref="ClockRunDriver.Create"/> sets it); each step records it.</summary>
-    internal Func<long>? ColonyEventsSeen { get; set; }
-
     public ClockScheduler(Player player, IClockStepNative native, ClockSchedulerConfig config, IClock clock)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -209,8 +206,6 @@ public sealed partial class ClockScheduler
             var window = new PlanningWindow(_native, _facts.Store);
             using var windowScope = PlanningWindowReads.WithPlanningWindow(window);
             var started = _clock.Now();
-            // Taken before the clock read: evidence the consumer delivers from here on is evidence this step missed.
-            result.EventsSeen = ColonyEventsSeen?.Invoke();
             var loaded = await _native.ReadStepAsync(new StepRequest { ClockStatus = true }, call).ConfigureAwait(false)
                 ?? throw new HeldException("step read returned nothing");
             var loadedContext = loaded.Context ?? throw new BridgeContractException("step read carried no context");

@@ -15,7 +15,7 @@ public sealed class ColonyEventRowTests
     private static ColonyEventOrigin Origin(long tick, long observedAt) => new("colony", "load", 0, tick, observedAt);
 
     private static HoldEntered Hold(long tick, long observedAt) => new(Origin(tick, observedAt), "Colonist downed.", Clock.HoldReason.ColonistDowned,
-        new PawnEvidence(new EventPawn("Human12", "Ann", 5, 6, null)), DetectedTick: tick - 4, OccurrenceTick: tick - 10, StopAtUnixMs: 49_990);
+        new PawnEvidence(new EventPawn("Human12", "Ann", 5, 6, null)), DetectedTick: tick - 4, OccurrenceTick: tick - 10, StopAtUnixMs: 49_990, Run: new RunSegment(600, 1000, 12, 1, 9000));
 
     private static Resumed Resume(long tick, long observedAt) => new(Origin(tick, observedAt), "Clock resumed at Fast.", Clock.Speed.Fast, Clock.HoldReason.ColonistDowned);
 
@@ -82,7 +82,7 @@ public sealed class ColonyEventRowTests
             (new ForcePauseWaiting(o, ""), TelemetryKinds.ClockLongEvent),
             (new ForcePauseCleared(o, ""), TelemetryKinds.ClockLongEvent),
             (new PauseFailed(o, "", Clock.HoldReason.LetterPause), TelemetryKinds.ClockPauseFailed),
-            (new HoldEntered(o, "", Clock.HoldReason.CombatEvent, new CombatEvidence(Clock.CombatEvent.Downed, "Human1", "downed"), 5, null, 1), TelemetryKinds.ClockHold),
+            (new HoldEntered(o, "", Clock.HoldReason.CombatEvent, new CombatEvidence(Clock.CombatEvent.Downed, "Human1", "downed"), 5, null, 1, new RunSegment(600, 1000, 12, 1, 9000)), TelemetryKinds.ClockHold),
         };
         foreach (var (e, kind) in cases)
         {

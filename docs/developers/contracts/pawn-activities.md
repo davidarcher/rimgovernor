@@ -228,14 +228,17 @@ the Method owns its service window. Native joy gain, tolerance, target legality,
 player authority and the absolute deadline still apply.
 Native exhaustion sleep and the exact Vomit job may interrupt an assignment; the
 interruption records failure and releases ownership before native physiology runs.
-Completed or failed assignments awaiting continuation stop the existing Supervisor;
-retained ownership does not authorize indefinite idle time.
+A completed or failed assignment awaiting continuation keeps its pawn waiting on
+the hold job while the clock runs; retained ownership does not authorize other work.
 Work deadline exhaustion is a failure. Native food/rest levels and physiological
 consequences are not modified by execution.
 
-Completion/failure holds the clock through the existing requested
-pause journal path, exposing typed readback for replanning. A terminal coordinated participant waits without repeatedly pausing useful work by other participants. A nongraph assignment still pauses while awaiting a decision. Downing, mental state or drafting encountered at selection/start
-pauses and releases this voluntary-work owner; native involuntary behavior and
+Completion and failure never hold the clock (#3518): each publishes one `ObservationInvalidated` of the
+Pawns family naming the pawn (`pawn_activity:<assignment>:<state>:<reason>`), which wakes the brain to plan
+again while the game keeps running, and the typed execution readback carries the terminal state. Native holds
+the clock for hazards and loss of authority only ([control loop](../architecture/control-loop.md#execute-under-supervision)).
+Downing, mental state or drafting encountered at selection/start
+fails and releases this voluntary-work owner; native involuntary behavior and
 the existing combat owner are not replaced. This is not a complete autonomous
 emergency-response policy; full-control production cutover requires that coverage.
 
@@ -375,7 +378,8 @@ it quietly (`released`) instead of faulting. Needs are met by the brain's ordina
 selection replacing standby, not by standby itself.
 
 An eligible pawn without an authorized activity returns no native voluntary job
-and stops the existing clock as unavailable, naming that pawn. It does not
+and reports it once (`unassigned_voluntary_pawn`, a Pawns invalidation naming that pawn)
+without holding the clock. It does not
 silently start native work or represent an unsupported condition as a successful
 indefinite wait. See [supported scope and remaining owners](voluntary-control.md).
 Native disorientation and the native imposed-sleep/force-job ability effects retain

@@ -81,7 +81,9 @@ the next step re-plans against the held world.
 ## Run decision
 
 `policy.EvaluateClockWatch` requires fresh same-authority status and emergency facts and a complete catalog. The event
-consumer must have opened the queue, and no colony event or loss may have arrived since the step read a held clock. Native
+consumer must have opened the queue. Events that arrive after the step read a held clock do not refuse the Run: the
+hold serial the Run quotes is the one stale-read guard, so a hold the step did not read is refused at native and
+any other event is planned against by the next step while the clock runs. Native
 tick boundaries must be known (a never-run clock reports `HOLD_REASON_NEVER_RUN`). The decision names the watch mode
 and the acknowledgements the next `Run` carries. A refusal (`stale_facts`, `unknown_facts`, `unsafe_colony` or
 `unreviewed_events`) only keeps a held clock held; it never stops a running one.

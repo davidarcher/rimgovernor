@@ -1044,12 +1044,21 @@ namespace HomeBridge.BridgeTools
             var stopAt = NowMs();
             s.StopAtMs = stopAt;
             s.Active = false; s.StopReason = cause.Reason; s.StopDetail = cause.Detail; ClockPauseAccounting.Stopped();
-            Publish(new HoldEntered(Origin(s), cause.Detail, cause.Reason, EvidenceOf(s, cause), s.DetectedTick, cause.OccurrenceTick, stopAt));
+            Publish(new HoldEntered(Origin(s), cause.Detail, cause.Reason, EvidenceOf(s, cause), s.DetectedTick, cause.OccurrenceTick, stopAt, RunSegmentOf(s, stopAt)));
             LogTiming(s, cause.Reason.ToString());
         }
         /// What a hold carries: the hazard's own evidence, else the pause
         /// itself while its game is loaded (the letter vanilla paused for, the
         /// force-pausing dialog), else nothing beyond its reason.
+        /// The run this hold ends, from its Run to the stop: ticks, wall ms, the frames that carried ticks and the
+        /// over-budget ones among them (the session account's growth since the Run), and the ceiling's rate now.
+        private static RunSegment RunSegmentOf(State s, long stopAt)
+        {
+            var (frames, overBudget, _) = FrameAccount();
+            return new RunSegment(Math.Max(0, s.DetectedTick - s.StartTick), Math.Max(0, stopAt - s.ResumeMs),
+                frames >= s.FramesAtResume ? frames - s.FramesAtResume : frames,
+                overBudget >= s.OverBudgetAtResume ? overBudget - s.OverBudgetAtResume : overBudget, s.Ceiling.TicksPerSecond);
+        }
         private static ColonyHoldEvidence EvidenceOf(State s, HoldCause cause)
         {
             if (cause.Evidence != null) return cause.Evidence;
@@ -1158,6 +1167,8 @@ namespace HomeBridge.BridgeTools
             public string? Mode; public float HostileWithin; public float HealthDropFraction; public float MinHealthFraction;
             public long LastProbeMs; public int LastTick; public bool PausedAtStop;
             public int StartTick;
+            // The run segment's start (wall ms and the session frame account at the Run), measured against at the hold.
+            public long ResumeMs; public ulong FramesAtResume, OverBudgetAtResume;
             // What the game's TickRateMultiplier asked for before the ceiling, as of the last frame.
             public volatile float UnclampedMultiplier;
             public bool TestAcceleration; public bool PriorBoost; public bool BoostOwned; public bool PriorNeverForceNormal; public bool NeverForceNormalOwned;

@@ -87,13 +87,20 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // A hold's reason, evidence, stamp and latency legs: the tick it was raised at and, where the hazard carries one, the tick it arose.
+        // A hold's reason, evidence, stamp and latency legs (the tick it was raised at and, where the hazard carries one, the
+        // tick it arose), and the run it ended: ticks, wall ms, effective ticks/s, frames and over-budget frames, the ceiling's rate.
         private static void Hold(Dictionary<string, object?> p, HoldEntered held)
         {
             p[ColonyEventTelemetry.ReasonKey] = held.Reason.ToString();
             p[ColonyEventTelemetry.StopAtMsKey] = held.StopAtUnixMs;
             p[ColonyEventTelemetry.DetectedTickKey] = held.DetectedTick;
             p["hold_ticks"] = held.Origin.Tick - held.DetectedTick;
+            p["run_ticks"] = held.Run.Ticks;
+            p["run_ms"] = held.Run.Ms;
+            if (held.Run.Ms > 0) p["run_tps"] = held.Run.Ticks * 1000.0 / held.Run.Ms;
+            p["run_frames"] = checked((long)held.Run.Frames);
+            p["run_frames_over_budget"] = checked((long)held.Run.FramesOverBudget);
+            p["ceiling_tps"] = held.Run.CeilingTicksPerSecond;
             if (held.OccurrenceTick is { } occurrence) p["detect_ticks"] = held.DetectedTick - occurrence;
             p[ColonyEventTelemetry.OccurrenceTickKey] = held.OccurrenceTick;
             switch (held.Evidence)
