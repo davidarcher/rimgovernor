@@ -58,6 +58,10 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         switch (step.Kind)
         {
             case Pol.CoupleBedKind.CouplePack:
+                if (step.Pack.Any(piece => facts.Facts.Preferences.Protects(piece.Thing)))
+                {
+                    return none;
+                }
                 var key = "";
                 foreach (var piece in step.Pack)
                 {

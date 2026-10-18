@@ -50,6 +50,10 @@ public sealed partial class RoundsResourcePlanner
         var history = reviewer.Player.Journal.OwnerMethodHistory(goal, call);
         foreach (var drill in ExhaustedDrills(deep))
         {
+            if (f.Facts.Preferences.Protects(drill.ID))
+            {
+                continue;
+            }
             var prefix = $"deconstruct-drill-{drill.ID}-";
             var plans = history.Where(m => m.Method.Value.StartsWith(prefix, StringComparison.Ordinal)).Select(m => m.Plan).ToList();
             var (_, ok) = RoundsRefusalBudget.AdmitSubject(reviewer.Player.Journal, prefix, plans, state.Snapshot, call);

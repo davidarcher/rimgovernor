@@ -230,6 +230,15 @@ public sealed record PreferencesRecord
 
     public DrugPolicyPreference? DrugPolicy { get; init; }
 
+    /// <summary>Whether the colony does not use <paramref name="method"/>.</summary>
+    public bool Forbids(ForbiddenMethod method) => Forbidden.Contains(method);
+
+    /// <summary>Whether <paramref name="thingId"/> is a thing the player left alone.</summary>
+    public bool Protects(string thingId) => ProtectedThings.Contains(thingId, StringComparer.Ordinal);
+
+    /// <summary>Whether <paramref name="pawnId"/> is a pawn the player left alone.</summary>
+    public bool ProtectsPawn(string pawnId) => ProtectedPawns.Contains(pawnId, StringComparer.Ordinal);
+
     /// <summary>Whether every preference is at its default.</summary>
     public bool IsDefault =>
         RiskProfile == RiskProfile.Normal && Pace == Pace.Balanced && WealthCap is null && Apparel is null && DrugPolicy is null

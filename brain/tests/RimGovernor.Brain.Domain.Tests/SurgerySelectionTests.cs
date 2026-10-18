@@ -151,6 +151,26 @@ public sealed class SurgerySelectionTests
     }
 
     [Fact]
+    public void ForbiddingOrganHarvestProposesNoHarvestOrPartRecovery()
+    {
+        var pawns = Census(KidneyPatient());
+        var wants = SurgeryRules.SelectSurgery(pawns, null, new SurgeryContext()).Wants;
+        var needs = OrganHarvestRules.OrganNeeds(pawns, wants, false, new Dictionary<Resource, long>(), Recipes);
+        var prisoners = Prisoners(Prisoner([Harvest(KidneyPart), Harvest(OtherKidneyPart)]));
+        var forbidding = Colony with { Preferences = new PreferencesRecord { Forbidden = [ForbiddenMethod.OrganHarvest] } };
+
+        Assert.NotNull(OrganHarvestRules.SelectOrganHarvest(prisoners, Known(Colony), needs, null));
+        Assert.Null(OrganHarvestRules.SelectOrganHarvest(prisoners, Known(forbidding), needs, null));
+        Assert.Null(OrganHarvestRules.SelectPartRecovery(prisoners, Known(forbidding), needs, null, Recipes));
+    }
+
+    [Fact]
+    public void ForbiddingSlaveryStopsTheColonyEnslaving()
+    {
+        Assert.False((Colony with { IdeologyActive = true, Preferences = new PreferencesRecord { Forbidden = [ForbiddenMethod.Slavery] } }).SlaveryAllowed());
+    }
+
+    [Fact]
     public void ACareLimitedHarvestIsRefusedAndReportedAsCareLimited()
     {
         var pawns = Census(KidneyPatient());

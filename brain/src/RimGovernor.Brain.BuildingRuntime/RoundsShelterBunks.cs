@@ -356,7 +356,7 @@ public sealed partial class RoundsBuildingPlanner
         var standing = new List<Pol.SleepingBed>();
         foreach (var b in obs.Beds)
         {
-            if ((b.Definition.Value == SleepingRules.SleepingSpotDefinition || b.Definition.Value == SleepingRules.SleepingBedrollDefinition) && BunkRank(b.Definition.ToString()) < BunkRank(definition) && OnBunkSlot(b.Cell, bunks))
+            if (!s.Facts.Facts.Preferences.Protects(b.Id) && (b.Definition.Value == SleepingRules.SleepingSpotDefinition || b.Definition.Value == SleepingRules.SleepingBedrollDefinition) && BunkRank(b.Definition.ToString()) < BunkRank(definition) && OnBunkSlot(b.Cell, bunks))
             {
                 standing.Add(b);
             }

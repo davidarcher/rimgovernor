@@ -467,7 +467,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
             }
-            var (_, player) = ClearanceGroundRules.SplitGroundRows(census.Targets);
+            var (_, player) = ClearanceGroundRules.SplitGroundRows(census.Targets, facts.Facts.Preferences);
             input = input with { Rows = ReconcileRules.OwnRows(HomeUpkeepReader.StampPacking(player, facts), rr.Template, rr.Forbidden), Floors = census.Floors, Furniture = rr.Template };
             var want = RoundsTierStyle.ShellStyleOf(facts).WallStuff;
             if (want != "" && !rr.Room.Outdoor)

@@ -71,7 +71,7 @@ public sealed partial class HomeUpkeepReader
         {
             return facts;
         }
-        var (others, player) = ClearanceGroundRules.SplitGroundRows(census.Targets);
+        var (others, player) = ClearanceGroundRules.SplitGroundRows(census.Targets, colony.Projection.Facts.Preferences);
         var wants = _reviewer.ClearFloors(colony.Projection);
         facts = facts with
         {

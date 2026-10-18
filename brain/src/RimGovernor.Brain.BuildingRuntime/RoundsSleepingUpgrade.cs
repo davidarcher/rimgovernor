@@ -66,7 +66,7 @@ partial class RoundsSleepingUpkeepPlanner
                 }
             }
         }
-        return RoomQualityRules.NextBedReplacement(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), materials);
+        return RoomQualityRules.NextBedReplacement(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), materials, facts.Facts.Preferences);
     }
 
     /// <summary>The next unmet royal bedroom thing.</summary>
@@ -134,6 +134,10 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// <summary>Deconstructs a replaced bed, once per bed per Episode.</summary>
     internal async Task<RoundsBuildingResult> RemoveOldBedAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.BedReplacement rep, CancellationToken call, CancellationToken epoch)
     {
+        if (reading.Projection.Facts.Preferences.Protects(rep.Bed))
+        {
+            return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "protected_thing") };
+        }
         var p = Reviewer.Player;
         var method = new MethodId("bedroom-replace-remove-" + RoundsBuildingPlanner.DigestHex(rep.Bed, 8));
         if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)

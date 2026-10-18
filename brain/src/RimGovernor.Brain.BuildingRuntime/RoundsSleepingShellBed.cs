@@ -42,7 +42,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var shell = SleepingRules.ShellBedIds(plan!, rooms!);
         // empty beds first, then an owner's
         var vacant = obs!.Beds
-            .Where(b => shell.Contains(b.Id) && b.Definition.Value == shellBed)
+            .Where(b => shell.Contains(b.Id) && b.Definition.Value == shellBed && !facts.Facts.Preferences.Protects(b.Id))
             .OrderBy(b => b.Owners.Count == 0 ? 0 : 1)
             .ThenBy(b => b.Id, StringComparer.Ordinal)
             .ToList();

@@ -170,6 +170,15 @@ reads it through `BrainHost.GoalsView` (a cached snapshot, never inference) and 
 `BrainHost.GoalsEditor` (validated, stored for the observed colony, wakes the `goals` planner; #3492). Both exist
 whether or not routes are served, and there is no HTTP goals route.
 
+The preferences reach the policies as `RoundsFacts.Preferences` (#3495), stamped once where the review facts are observed
+(`ObserveRoundsAsync`, with the combat inputs and the break responders loading the same record). There is no veto layer:
+the owning policy reads them and never proposes what they forbid. Diet overrides and `Forbidden` human butchery and insect
+meat shape `FoodPolicyRules.DietOf`, `Forbidden` human butchery empties `SelectHumanButcher`, organ harvest and part
+recovery and the peg cycle return nothing under `Forbidden` organ harvest, slavery is refused under `Forbidden` slavery,
+human leather leaves the stuff catalog and the apparel options, a protected thing is in no clearance, retire or bed-removal
+step (reason `protected_thing`), and a protected pawn is held back from the draft while another eligible fighter can fight
+(`defense_action` reason `protected_pawn_drafted_no_other_fighter` when none can).
+
 Before accepting a settlement deal, the `economy/trade-mission` Need atomically records bounded
 authorized return definitions/counts and purchase commitment with its Hands
 Method (`CommitTradeMissionMethod`). These are intent, not an inventory baseline or purchase receipt. They

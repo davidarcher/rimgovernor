@@ -313,9 +313,14 @@ public sealed partial class Rounder
         var reading = rooms
             ? await RoundsReads.ObserveRoundsRooms(source, Clock, expected, MaxAge, claims, definitions, ct).ConfigureAwait(false)
             : await RoundsReads.ObserveRoundsOwned(source, Clock, expected, MaxAge, claims, definitions, ct).ConfigureAwait(false);
-        var choices = GearChoices.Get(Player.Session.State().Snapshot);
-        return reading.WithFacts(f => WithGearChoices(f, choices));
+        var snapshot = Player.Session.State().Snapshot;
+        var choices = GearChoices.Get(snapshot);
+        var preferences = PreferencesOf(snapshot, ct);
+        return reading.WithFacts(f => WithGearChoices(f, choices).WithPreferences(preferences));
     }
+
+    /// <summary>The player's preferences from the goals record of the colony (the default without a record): the one load every owning policy's facts and the combat inputs read.</summary>
+    internal PreferencesRecord PreferencesOf(GenerationSnapshot snapshot, CancellationToken ct) => Player.Journal.LoadGoals(Player.PlayerWorld(snapshot), ct).Preferences;
 
     /// <summary>The facts with each census pawn's filter and floor set from <paramref name="choices"/> (the default without one); an unread census stays unread.</summary>
     internal static RoundsFacts WithGearChoices(RoundsFacts f, EquatableArray<GearChoice> choices)

@@ -179,6 +179,7 @@ public sealed partial class RoundsDefensePlanner
         }
         var inp = inputs;
         inp.Needed = await DraftNeeds.PlannedDraftsAsync(p.Journal, call).ConfigureAwait(false);
+        inp.Preferences = _reviewer.PreferencesOf(state.Snapshot, call);
         var emergency = combat.Emergency;
         var rows = inp.Rows;
         var broke = await PlanBreakAsync(owner, state, started, arbiter, new Tick(combat.Context?.Tick ?? 0), emergency.Facts, rows, call, epoch).ConfigureAwait(false);
@@ -384,6 +385,9 @@ internal sealed class CombatInputs
     /// <summary>The gunners of the chosen hunt roster: the only pawns a hunt may send.</summary>
     public List<string> Hunters = [];
     public HashSet<PawnId> Needed = [];
+
+    /// <summary>The player's preferences: protected pawns are held back from the squad while another defender is eligible.</summary>
+    public PreferencesRecord Preferences = new();
     public Dictionary<string, WeaponDef> Weapons = new(StringComparer.Ordinal);
     public Dictionary<string, Fact<bool>> Ranged = new(StringComparer.Ordinal);
     public Dictionary<string, double> Reach = new(StringComparer.Ordinal);
@@ -525,7 +529,9 @@ partial class RoundsDefensePlanner
         }
         var (front, _) = PawnRules.FrontLine(profiles);
         var holds = new HashSet<PawnId>(front);
-        defenders = [.. defenders.Select(d => d with { FrontLine = holds.Contains(d.Id) })];
+        var heldBack = PreferenceRules.HeldBackFromDraft(inp.Preferences, defenders);
+        // A protected pawn already in the fight stays in it; the hold-back is for who is drafted next.
+        defenders = [.. defenders.Where(d => !heldBack.Contains(d.Id) || owned.Contains(d.Id)).Select(d => d with { FrontLine = holds.Contains(d.Id) })];
         var threats = new List<SquadThreatFacts>();
         var races = catalog.AnimalRaces();
         var positional = new List<DefensiveThreatFacts>(inp.HostileIds.Count);

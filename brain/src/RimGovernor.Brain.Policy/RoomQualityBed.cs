@@ -157,7 +157,8 @@ public static partial class RoomQualityRules
         IReadOnlyDictionary<string, RoomTarget> targets,
         IReadOnlyList<FurnitureRoom> rooms,
         Func<string, bool> available,
-        BedMaterials materials)
+        BedMaterials materials,
+        PreferencesRecord preferences)
     {
         if (!obs.Rooms.TryGetValue(out var census))
         {
@@ -208,7 +209,7 @@ public static partial class RoomQualityRules
             var spare = new List<SleepingBed>();
             foreach (var b in inRoom.GetValueOrDefault(s.Room) ?? [])
             {
-                if (b.Id != owned.Id && b.Owners.Count == 0)
+                if (b.Id != owned.Id && b.Owners.Count == 0 && !preferences.Protects(b.Id))
                 {
                     spare.Add(b);
                 }

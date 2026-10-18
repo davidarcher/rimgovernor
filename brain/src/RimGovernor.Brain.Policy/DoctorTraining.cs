@@ -110,7 +110,7 @@ public static class DoctorTrainingRules
         RecipeFacts facts,
         IReadOnlyDictionary<PawnId, bool>? inFlight)
     {
-        if (!prisoners.TryGetValue(out var rows) || !colony.TryGetValue(out var c) || OrganHarvestRules.SurgeryInFlight(rows, inFlight))
+        if (!prisoners.TryGetValue(out var rows) || !colony.TryGetValue(out var c) || c.Preferences.Forbids(ForbiddenMethod.OrganHarvest) || OrganHarvestRules.SurgeryInFlight(rows, inFlight))
         {
             return null;
         }

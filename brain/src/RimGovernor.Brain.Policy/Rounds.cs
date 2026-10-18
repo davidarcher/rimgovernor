@@ -109,6 +109,9 @@ public sealed record RoundsPolicy
 /// </summary>
 public sealed record RoundsFacts
 {
+    /// <summary>The player's standing preferences (the goals record's); owning policies read them and never propose what they forbid. The default is the behavior without any.</summary>
+    public PreferencesRecord Preferences { get; init; } = new();
+
     /// <summary>The catalog's item numbers (market value, nutrition, medical potency, stuff factors); the zero value without a catalog.</summary>
     public ItemFacts Items { get; init; } = new();
 

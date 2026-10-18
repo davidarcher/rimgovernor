@@ -205,7 +205,7 @@ public static partial class OrganHarvestRules
         IReadOnlyDictionary<PawnId, bool>? inFlight)
     {
         if (!prisoners.TryGetValue(out var rows) || !colony.TryGetValue(out var c) || needs.Count == 0
-            || SurgeryInFlight(rows, inFlight))
+            || c.Preferences.Forbids(ForbiddenMethod.OrganHarvest) || SurgeryInFlight(rows, inFlight))
         {
             return null;
         }
@@ -433,7 +433,7 @@ public static partial class OrganHarvestRules
         IReadOnlyDictionary<PawnId, bool>? inFlight,
         RecipeFacts facts)
     {
-        if (!prisoners.TryGetValue(out var rows) || !colony.TryGetValue(out var c) || SurgeryInFlight(rows, inFlight))
+        if (!prisoners.TryGetValue(out var rows) || !colony.TryGetValue(out var c) || c.Preferences.Forbids(ForbiddenMethod.OrganHarvest) || SurgeryInFlight(rows, inFlight))
         {
             return null;
         }

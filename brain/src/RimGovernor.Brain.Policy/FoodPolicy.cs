@@ -174,7 +174,7 @@ public static class FoodPolicyRules
     private static readonly string[] FungusEvents = ["AteFungus", "AteFungusAsIngredient"];
 
     /// <summary>Reads the pawn's diet; unknown while its traits or policy inputs are, or, for a pawn with precepts, the ideoligion defs.</summary>
-    public static (Diet Diet, bool Ok) PawnDiet(WorkPawn pawn, Fact<Ideoligion> ideology)
+    public static (Diet Diet, bool Ok) PawnDiet(WorkPawn pawn, Fact<Ideoligion> ideology, PreferencesRecord preferences)
     {
         var ok = pawn.Traits.TryGetValue(out var traits);
         var known = pawn.PolicyInputs.TryGetValue(out var inputs);
@@ -182,7 +182,7 @@ public static class FoodPolicyRules
         {
             return (new Diet(), false);
         }
-        var (d, dok) = DietOf(traits!, inputs!.Precepts, ideology);
+        var (d, dok) = DietOf(traits!, inputs!.Precepts, ideology, preferences);
         if (!dok)
         {
             return (new Diet(), false);
@@ -195,9 +195,36 @@ public static class FoodPolicyRules
     /// through the shared precept rule. A pawn without precepts has no ideoligion and so no precept diet; one
     /// with precepts is unknown while the ideoligion defs are. Human meat is accepted when no precept costs mood
     /// for it; insect meat and fungus where a precept approves; vegetarian and carnivore are precepts that
-    /// penalise meat or non-meat; fungus is despised where a precept penalises it.
+    /// penalise meat or non-meat; fungus is despised where a precept penalises it. The player's preferences then
+    /// override it: a diet override applies to every pawn, and a forbidden method removes its food whatever the
+    /// traits and precepts say.
     /// </summary>
-    public static (Diet Diet, bool Ok) DietOf(IReadOnlyList<PawnTrait> traits, IReadOnlyList<string> precepts, Fact<Ideoligion> ideology)
+    public static (Diet Diet, bool Ok) DietOf(IReadOnlyList<PawnTrait> traits, IReadOnlyList<string> precepts, Fact<Ideoligion> ideology, PreferencesRecord preferences)
+    {
+        var (d, ok) = PreceptDiet(traits, precepts, ideology);
+        return ok ? (WithPreferences(d, preferences), true) : (d, false);
+    }
+
+    /// <summary>The diet with the player's overrides applied; a forbidden method wins over an override.</summary>
+    private static Diet WithPreferences(Diet d, PreferencesRecord preferences)
+    {
+        foreach (var o in preferences.Diet)
+        {
+            d = o switch
+            {
+                DietOverride.Cannibal => d with { Cannibal = true },
+                DietOverride.InsectMeat => d with { InsectMeat = true },
+                _ => d with { Vegetarian = true },
+            };
+        }
+        return d with
+        {
+            Cannibal = d.Cannibal && !preferences.Forbids(ForbiddenMethod.HumanButchery),
+            InsectMeat = d.InsectMeat && !preferences.Forbids(ForbiddenMethod.InsectMeat),
+        };
+    }
+
+    private static (Diet Diet, bool Ok) PreceptDiet(IReadOnlyList<PawnTrait> traits, IReadOnlyList<string> precepts, Fact<Ideoligion> ideology)
     {
         var d = TraitDiet(traits);
         if (precepts.Count == 0)
@@ -317,7 +344,8 @@ public static class FoodPolicyRules
         IReadOnlyList<OwnedName> names,
         IReadOnlyList<FoodPolicyEntry> policies,
         IReadOnlyList<Food> foods,
-        bool reserveFood
+        bool reserveFood,
+        PreferencesRecord preferences
     )
     {
         var rows = new List<(PawnId Id, IReadOnlyList<string> Want)>();
@@ -327,7 +355,7 @@ public static class FoodPolicyRules
             {
                 continue;
             }
-            var (diet, ok) = PawnDiet(pawn, ideology);
+            var (diet, ok) = PawnDiet(pawn, ideology, preferences);
             if (!ok)
             {
                 continue;
@@ -350,7 +378,7 @@ public static class FoodPolicyRules
             }
             else
             {
-                var (diet, ok) = DietOf(e.Traits, e.Precepts, ideology);
+                var (diet, ok) = DietOf(e.Traits, e.Precepts, ideology, preferences);
                 if (!ok)
                 {
                     continue;

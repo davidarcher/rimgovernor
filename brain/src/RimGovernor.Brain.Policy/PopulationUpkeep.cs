@@ -80,14 +80,17 @@ public sealed record PrisonerColony
     /// </summary>
     public IReadOnlyDictionary<PawnId, int> Medicine { get; init; } = new Dictionary<PawnId, int>();
 
+    /// <summary>The player's preferences, stamped from the review facts: slavery and organ use read what they forbid.</summary>
+    public PreferencesRecord Preferences { get; init; } = new();
+
     /// <summary>
     /// Reports whether the colony's ideoligion lets it enslave without a mood cost or refusal: the precept
     /// rule's stance for the EnslavedPrisoner event is allowed or approved. Classic mode, an unread
-    /// ideoligion and a game without Ideology hold.
+    /// ideoligion and a game without Ideology hold; so does a player who forbids slavery.
     /// </summary>
     public bool SlaveryAllowed()
     {
-        if (!IdeologyActive || ClassicIdeo)
+        if (!IdeologyActive || ClassicIdeo || Preferences.Forbids(ForbiddenMethod.Slavery))
         {
             return false;
         }

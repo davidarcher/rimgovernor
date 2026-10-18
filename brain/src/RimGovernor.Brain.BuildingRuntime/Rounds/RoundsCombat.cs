@@ -47,6 +47,12 @@ public sealed partial class RoundsDefensePlanner
         {
             return new RoundsDefenseResult { Verdict = WaitFor(Cause.MethodUsed, "combat_pawn_claim") };
         }
+        // The hold-back lets a protected pawn through only when no other defender is eligible: say so.
+        var protectedDrafted = pawns.Where(x => a.In.Preferences.ProtectsPawn(x.Value)).Select(x => x.Value).ToList();
+        if (protectedDrafted.Count > 0)
+        {
+            DefensePipeline.DefenseAction("routine-defense", TelemetryLevel.Info, "admitted", "protected_pawn_drafted_no_other_fighter", EngageMethod(state.Snapshot).Value, new Dictionary<string, object?> { ["pawns"] = string.Join(",", protectedDrafted) }, call);
+        }
         var loadout = await FightLoadoutAsync(state, CombatView(a.Combat, a.In, pawns, a.Held), a.In.Rows, pawns, a.Combat.Catalog ?? throw new ControlException("fight admission: no definition catalog"), call).ConfigureAwait(false);
         var method = EngageMethod(state.Snapshot);
         var id = PlanIds.MintPlanId();

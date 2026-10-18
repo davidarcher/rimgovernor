@@ -31,6 +31,10 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>Deconstructs one standing building through an excavation-style admission, once per building.</summary>
     internal async Task<RoundsBuildingResult> RetireBuildingAsync(ControlState state, RoundsReview review, NeedOwner goal, ColonyReading reading, string id, string def, Cell cell, string prefix, string reason, CancellationToken call, CancellationToken epoch)
     {
+        if (reading.Projection.Facts.Preferences.Protects(id))
+        {
+            return new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "protected_thing") };
+        }
         var p = Reviewer.Player;
         var method = RetireMethodId(prefix, id);
         if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)

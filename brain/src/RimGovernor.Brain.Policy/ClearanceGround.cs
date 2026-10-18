@@ -176,13 +176,17 @@ public static class ClearanceGroundRules
     /// <summary>A building clearance of retired ground <paramref name="g"/> takes down: everything but a kept room's walls.</summary>
     private static bool GroundTarget(ClearanceTarget row, Region g, RetiredGround rg) => row.Player && Overlaps(row, g) && !rg.HeldRow(row);
 
-    /// <summary>Separates the player rows only planned ground reports from the non-player census home clearance and salvage read.</summary>
-    public static (List<ClearanceTarget> Others, List<ClearanceTarget> Player) SplitGroundRows(IEnumerable<ClearanceTarget> rows)
+    /// <summary>Separates the player rows only planned ground reports from the non-player census home clearance and salvage read; a thing the player protects is in neither.</summary>
+    public static (List<ClearanceTarget> Others, List<ClearanceTarget> Player) SplitGroundRows(IEnumerable<ClearanceTarget> rows, PreferencesRecord preferences)
     {
         var others = new List<ClearanceTarget>();
         var player = new List<ClearanceTarget>();
         foreach (var row in rows)
         {
+            if (preferences.Protects(row.EntityId))
+            {
+                continue;
+            }
             (row.Player ? player : others).Add(row);
         }
 

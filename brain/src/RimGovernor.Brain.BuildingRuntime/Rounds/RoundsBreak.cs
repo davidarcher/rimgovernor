@@ -218,6 +218,9 @@ public sealed partial class RoundsDefensePlanner
             d = d with { MeleeEquipped = BreakMelee(row, arms) };
             responders.Add(new BreakResponder { SquadDefenderFacts = d, Cell = BreakDispatch.BreakCell(row) });
         }
+        var preferences = _reviewer.PreferencesOf(state.Snapshot, call);
+        var heldBack = PreferenceRules.HeldBackFromDraft(preferences, responders.Select(r => r.SquadDefenderFacts));
+        responders = [.. responders.Where(r => !heldBack.Contains(r.ID))];
         List<PawnId> chosen = [];
         PawnId victim = default;
         foreach (var target in targets)
@@ -232,6 +235,11 @@ public sealed partial class RoundsDefensePlanner
         if (chosen.Count == 0)
         {
             return new RoundsDefenseResult { Verdict = BuildingReasonNoSquad };
+        }
+        var protectedDrafted = chosen.Where(c => preferences.ProtectsPawn(c.Value)).Select(c => c.Value).ToList();
+        if (protectedDrafted.Count > 0)
+        {
+            DefensePipeline.DefenseAction("routine-defense", TelemetryLevel.Info, "admitted", "protected_pawn_drafted_no_other_fighter", SubdueMethodPrefix + victim.Value, new Dictionary<string, object?> { ["pawns"] = string.Join(",", protectedDrafted) }, call);
         }
         var claim = chosen.ToList();
         claim.Add(victim);

@@ -149,7 +149,7 @@ public sealed partial class RoundsWorkPlanner
             }
         }
         var food = new List<FoodPolicy>();
-        var dietChanges = RoundsDietChanges(read.Projection.Facts.Ideology, read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns, read.Projection.Facts.FoodReserve);
+        var dietChanges = RoundsDietChanges(read.Projection.Facts.Ideology, read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns, read.Projection.Facts.FoodReserve, read.Projection.Facts.Preferences);
         if (dietChanges.Count > 0)
         {
             foreach (var c in dietChanges.Take(8))
@@ -338,7 +338,7 @@ partial class RoundsWorkPlanner
     }
 
     /// <summary>The food-policy writes and assignments the review's policies and reserve call for.</summary>
-    internal static IReadOnlyList<FoodPolicyChange> RoundsDietChanges(Fact<Ideoligion> ideology, Fact<ObservationPolicies> policies, Fact<EquatableArray<OwnedName>> names, IReadOnlyList<WorkPawn> pawns, Fact<FoodReserveReview> reserve)
+    internal static IReadOnlyList<FoodPolicyChange> RoundsDietChanges(Fact<Ideoligion> ideology, Fact<ObservationPolicies> policies, Fact<EquatableArray<OwnedName>> names, IReadOnlyList<WorkPawn> pawns, Fact<FoodReserveReview> reserve, PreferencesRecord preferences)
     {
         var ok = policies.TryGetValue(out var p);
         var named = names.TryGetValue(out var owned);
@@ -348,7 +348,7 @@ partial class RoundsWorkPlanner
         }
         var entries = p.Food.Select(e => new FoodPolicyEntry { Id = e.ID, Label = e.Label, Pawns = e.Pawns, Allowed = e.Allowed }).ToList();
         reserve.TryGetValue(out var stock);
-        return FoodPolicyRules.DietPolicyChanges(ideology, pawns, p.FoodEaters, owned, entries, p.Foods, stock?.IsShort ?? false);
+        return FoodPolicyRules.DietPolicyChanges(ideology, pawns, p.FoodEaters, owned, entries, p.Foods, stock?.IsShort ?? false, preferences);
     }
 
     /// <summary>A string in double quotes, with backslashes and quotes escaped.</summary>
