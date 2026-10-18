@@ -1,3 +1,5 @@
+using TechLevel = RimGovernor.Contracts.Wire.Defs.TechLevel;
+
 namespace RimGovernor.Brain.Policy;
 
 // The research Need (economy family): pure, native-shape-preserving primitives (prerequisite queue and the
@@ -57,6 +59,9 @@ public sealed record ResearchProjectFacts
 
     /// <summary>The project's apparent cost (knowledge points for a knowledge-category project), from the definition catalog.</summary>
     public double Cost { get; init; }
+
+    /// <summary>The project's tech level (ResearchProjectDef.techLevel), from the definition catalog.</summary>
+    public TechLevel TechLevel { get; init; }
 }
 
 public static partial class ResearchRules

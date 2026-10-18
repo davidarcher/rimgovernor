@@ -1,3 +1,5 @@
+using TechLevel = RimGovernor.Contracts.Wire.Defs.TechLevel;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -18,6 +20,9 @@ public sealed record ResearchFacts
 
     /// <summary>The knowledge project an empty Anomaly knowledge slot should fund now (KnowledgePick), empty when none is owed.</summary>
     public ResearchProjectId KnowledgePick { get; init; }
+
+    /// <summary>The tech level of each listed project: what a ResearchTier goal expands to.</summary>
+    public IReadOnlyDictionary<ResearchProjectId, TechLevel> Levels { get; init; } = new Dictionary<ResearchProjectId, TechLevel>();
 }
 
 public static partial class ResearchRules

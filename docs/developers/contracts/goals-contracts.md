@@ -15,7 +15,7 @@ in the kind's unit (projects, tiers, items, colonists or animals short; 1 for an
 | Kind | Predicate | Demand | Owning Need |
 |---|---|---|---|
 | `ResearchProject` | the project is in the finished list (Unknown when the census does not list it) | the project joins the research-wanted set while unfinished | `economy/research` |
-| `ResearchTier` | the tech tier reached is at least the named `TechTier` | the first unlocking project of every tier above the one reached | `economy/research` |
+| `ResearchTier` | the tech tier reached is at least the named `TechTier`; a name that is only a `TechLevel` (Neolithic, Medieval, Ultra, ...) is met once no listed project at that level is unfinished | the first unlocking project of every tier above the one reached, unioned with the unfinished projects of the named tech level while the goal is unmet ([Research tier](#research-tier)) | `economy/research` |
 | `StockCount` | the economy stock of the thing is at least `Count` | `Count` is a floor in `RoundsFacts.ResourceNeeds` (max-merged with the other floors) | `economy/resource` |
 | `Colonists` | the colonist count is at least `Count` | the joiner capacity and lance population target is `max(100, Count)` | `joiners/offers` |
 | `Animals` | the colony holds at least `Count` of the race | the herd plan raises the race's band to `Count` and does not retire it | `animals/herd` |
@@ -27,6 +27,15 @@ in the kind's unit (projects, tiers, items, colonists or animals short; 1 for an
 A kind with no pursuit is accepted and reported, never refused. A goal's demand is replaced each review, so a
 finished or removed goal stops asking. Safety floors are never relaxed: a goal only raises a stock floor, a head
 count or a herd band, and the existing planners keep their own refusals.
+
+## Research tier
+
+`ResearchProjectFacts.TechLevel` is `ResearchProjectDef.techLevel`, filled from the definition catalog
+(`Bridge/Catalog/Research.cs`) and carried to the review as `ResearchFacts.Levels` (project to level). A
+`ResearchTier` target is read as a `TechTier` (the unlock chain, unchanged) and as a `TechLevel`; only `Industrial`
+and `Spacer` name both. While the goal is unmet, its demand is the chain's projects plus every unfinished project
+the census lists at that level; all of them join the research-wanted set. An unread census asks for nothing from the
+level and leaves a level-only goal Unknown.
 
 ## Status
 

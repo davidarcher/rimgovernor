@@ -81,6 +81,47 @@ public sealed class GoalsFamilyTests
         Assert.Equal(Satisfaction.Unknown, Derive(facts with { Tier = default }, goal).Satisfaction);
     }
 
+    private static GoalsFacts WithLevels(GoalsFacts facts, string[] finished, params (string Project, RimGovernor.Contracts.Wire.Defs.TechLevel Level)[] levels) => facts with
+    {
+        Research = Known(new ResearchFacts
+        {
+            Projects = [.. levels.Select(l => new ResearchProjectId(l.Project))],
+            Finished = [.. finished.Select(f => new ResearchProjectId(f))],
+            Levels = levels.ToDictionary(l => new ResearchProjectId(l.Project), l => l.Level),
+        }),
+    };
+
+    [Fact]
+    public void AResearchTierGoalListsTheUnfinishedProjectsAtThatTechLevelBesideTheUnlockChain()
+    {
+        var goal = Goal(1, GoalKind.ResearchTier, "Industrial");
+        var facts = WithLevels(Facts(goal), ["Smithing", "Machining"],
+            ("Smithing", RimGovernor.Contracts.Wire.Defs.TechLevel.Medieval),
+            ("Machining", RimGovernor.Contracts.Wire.Defs.TechLevel.Industrial),
+            ("Fabrication", RimGovernor.Contracts.Wire.Defs.TechLevel.Industrial),
+            ("Geothermal", RimGovernor.Contracts.Wire.Defs.TechLevel.Industrial),
+            ("Cryptosleep", RimGovernor.Contracts.Wire.Defs.TechLevel.Spacer));
+        Assert.Equal(["Electricity", "Fabrication", "Geothermal", "Machining", "Stonecutting"], GoalRules.DemandOf(facts).Research);
+        Assert.DoesNotContain("Cryptosleep", GoalRules.DemandOf(facts).Research);
+        Assert.DoesNotContain("Smithing", GoalRules.DemandOf(facts).Research);
+        Assert.Equal(Satisfaction.Met, Derive(facts with { Tier = Known(TechTier.Industrial) }, goal).Satisfaction);
+        Assert.Empty(GoalRules.DemandOf(facts with { Tier = Known(TechTier.Industrial) }).Research);
+    }
+
+    [Fact]
+    public void ATechLevelThatIsNoConstructionTierIsMetOnceItsProjectsAreFinished()
+    {
+        var goal = Goal(1, GoalKind.ResearchTier, "Medieval");
+        var medieval = RimGovernor.Contracts.Wire.Defs.TechLevel.Medieval;
+        var open = WithLevels(Facts(goal), ["Smithing"], ("Smithing", medieval), ("Smelting", medieval), ("Machining", RimGovernor.Contracts.Wire.Defs.TechLevel.Industrial));
+        Assert.Equal(["Smelting"], GoalRules.DemandOf(open).Research);
+        Assert.Equal((Satisfaction.Unmet, 1.0), (Derive(open, goal).Satisfaction, Derive(open, goal).Deficit.Value));
+        var done = WithLevels(open, ["Smithing", "Smelting"], ("Smithing", medieval), ("Smelting", medieval));
+        Assert.Equal(Satisfaction.Met, Derive(done, goal).Satisfaction);
+        Assert.Empty(GoalRules.DemandOf(done).Research);
+        Assert.Equal(Satisfaction.Unknown, Derive(open with { Research = default }, goal).Satisfaction);
+    }
+
     [Fact]
     public void AStockCountGoalAddsExactlyItsFloorToTheResourceNeeds()
     {

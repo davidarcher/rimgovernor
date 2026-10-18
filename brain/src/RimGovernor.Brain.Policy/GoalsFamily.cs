@@ -1,3 +1,5 @@
+using TechLevel = RimGovernor.Contracts.Wire.Defs.TechLevel;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Where one goal stands.</summary>
@@ -189,7 +191,7 @@ public static class GoalRules
                 owner = EconomyFamily.Research;
                 break;
             case GoalKind.ResearchTier:
-                (met, deficit) = TierMet(goal.Target, f.Tier);
+                (met, deficit) = Enum.TryParse<TechTier>(goal.Target, true, out _) ? TierMet(goal.Target, f.Tier) : LevelMet(goal.Target, f.Research);
                 owner = EconomyFamily.Research;
                 break;
             case GoalKind.StockCount:
@@ -337,6 +339,10 @@ public static class GoalRules
                         {
                             research.Add(TechTierRules.Unlocks[t][0]);
                         }
+                    }
+                    if (Evaluate(goal, f).State != GoalState.Met)
+                    {
+                        research.UnionWith(LevelProjects(goal.Target, f.Research));
                     }
                     break;
                 case GoalKind.StockCount when goal.Target != "" && goal.Count > 0:
@@ -488,6 +494,28 @@ public static class GoalRules
             return (default, default);
         }
         return (Fact.Known(reached >= wanted), Fact.Known((double)Math.Max(0, wanted - reached)));
+    }
+
+    /// <summary>The unfinished projects at the tech level <paramref name="target"/> names; none when it names no level or the census is unread.</summary>
+    private static IReadOnlyList<string> LevelProjects(string target, Fact<ResearchFacts> research)
+    {
+        if (!Enum.TryParse<TechLevel>(target, true, out var level) || !Enum.IsDefined(level) || !research.TryGetValue(out var facts))
+        {
+            return [];
+        }
+        var finished = facts.Finished.Select(p => p.Value).ToHashSet(StringComparer.Ordinal);
+        return [.. facts.Levels.Where(l => l.Value == level && !finished.Contains(l.Key.Value)).Select(l => l.Key.Value)];
+    }
+
+    /// <summary>A tech level that is not a construction tier: met once no listed project at that level is unfinished.</summary>
+    private static (Fact<bool> Met, Fact<double> Deficit) LevelMet(string target, Fact<ResearchFacts> research)
+    {
+        if (!Enum.TryParse<TechLevel>(target, true, out var level) || !Enum.IsDefined(level) || !research.TryGetValue(out _))
+        {
+            return (default, default);
+        }
+        var open = LevelProjects(target, research).Count;
+        return (Fact.Known(open == 0), Fact.Known((double)open));
     }
 
     private static (Fact<bool> Met, Fact<double> Deficit) Shortfall(long wanted, Fact<long> have)
