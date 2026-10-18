@@ -43,5 +43,7 @@
     <InternalsVisibleTo Include="RimGovernor.Brain.BuildingRuntime" />
     <!-- The headless combat host reads the royalty facts of its arena frame as the rounds do. -->
     <InternalsVisibleTo Include="RimGovernor.RealCombat.Native" />
+    <!-- The catalog decode tests read the planning rows the views build. -->
+    <InternalsVisibleTo Include="RimGovernor.Brain.Domain.Tests" />
   </ItemGroup>
 </Project>

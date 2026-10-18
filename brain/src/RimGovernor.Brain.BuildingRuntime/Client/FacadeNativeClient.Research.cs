@@ -49,7 +49,12 @@ public sealed partial class FacadeNativeClient
             // The census computes lock_reasons from the same predicates as the native CanStartNow; an absent list is a
             // project that can start. A row carries can_start exactly when the census computed its lock reasons
             // (current projects and unfinished knowledge ones).
-            facts = facts with { LockReasons = row.LockReasons, Census = row.CanStart is not null };
+            facts = facts with
+            {
+                LockReasons = row.LockReasons,
+                Census = row.CanStart is not null,
+                Progress = row.ProgressFraction is { } progress && double.IsFinite(progress) ? Known(progress) : Unknown<double>(),
+            };
             foreach (var reason in row.LockReasons)
             {
                 if (reason == Policy.ResearchRules.ResearchLockHidden)

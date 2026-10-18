@@ -120,6 +120,15 @@ Malnutrition's per-pawn rate factor (`Lerp(0.8, 1.2, ...)` seeded by the thing i
 number) is not observed either: the mean 1 is used and `malnutrition_rate_pawn_factor_unobserved`
 is reported.
 
+## Mirrored game literals: plant resting (#3523)
+
+`PlantResting` (`brain/src/RimGovernor.Brain.Policy/ColonyModel/PlantResting.cs`) mirrors a method-body literal no def carries.
+The tier-2 colony model integrates crop growth per twelfth and needs the fraction of a day a plant grows. Read with ilspycmd (1.7).
+
+| Literal | Value | 1.7 member |
+| --- | --- | --- |
+| A plant does not grow while the local day fraction is under 0.25 or over 0.8 | resting 0.45 of a day, growing 0.55 (22.5 grow days take about 41 calendar days) | `Plant.Resting`, used by `Plant.GrowthPerTick` |
+
 ## Policy constants (#3469)
 
 `ForecastValuePolicy` (`brain/src/RimGovernor.Brain.Policy/ForecastValue.cs`)

@@ -1,0 +1,116 @@
+using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Policy;
+using RimGovernor.Contracts.Wire.Observations;
+using static RimGovernor.Brain.Domain.Fact;
+
+namespace RimGovernor.Brain.Domain.Tests;
+
+/// <summary>
+/// The tier-2 colony model's worked case (forecast value, "Devilstrand worked through"): 800 research points, Plants 10, 400 sow work
+/// per plant on soil of at least 0.5 fertility, 22.5 grow days, 6 fibre per plant and a duster of 80 fabric and 10,000 work.
+/// <see cref="Projection"/> is a review frame carrying it, so <c>RoundsColonyModel.InputOf</c> is tested on the same numbers.
+/// </summary>
+internal static class ColonyModelFixtures
+{
+    internal const string Crop = "Plant_Devilstrand";
+
+    internal const string Project = "Devilstrand";
+
+    internal const string Prerequisite = "ComplexClothing";
+
+    internal const string Cloth = "DevilstrandCloth";
+
+    internal const string Recipe = "Make_Apparel_Duster";
+
+    internal static GearClimate Climate() => new()
+    {
+        Temperatures = EquatableArray.From(new[] { -10.0, -8, -2, 5, 12, 18, 22, 21, 15, 8, 0, -7 }),
+        CurrentTwelfth = 4,
+        TicksToNextTwelfth = 12_000,
+    };
+
+    internal static PlanningDefinition CropRow() => new()
+    {
+        Name = Crop,
+        Available = Known(false),
+        GrowDays = Known(22.5),
+        SowMinSkill = Known(10),
+        SowWork = Known(400.0),
+        FertilityMin = Known(0.5),
+        FertilitySensitivity = Known(0.7),
+        HarvestYield = Known(6.0),
+        HarvestMinGrowth = Known(0.65),
+        MinGrowthTemperature = Known(0.0),
+        MinOptimalGrowthTemperature = Known(10.0),
+        MaxOptimalGrowthTemperature = Known(42.0),
+        MaxGrowthTemperature = Known(58.0),
+        RestingDayFraction = Known(PlantResting.RestingDayFraction),
+    };
+
+    internal static ColonyProjection Projection() => new()
+    {
+        Facts = new RoundsFacts
+        {
+            Gear = Known(new GearObservation { Pawns = [new GearPawn { Climate = Climate() }] }),
+            Calendar = Known(new Calendar { Season = "Spring", DayOfYear = 12, GrowingDays = 40, GrowingDaysRemaining = 25, GrowingDaysUntil = 0, NonGrowingDays = 0 }),
+            Research = Known(new ResearchFacts
+            {
+                Current = new ResearchProjectId(Project),
+                Finished = [new ResearchProjectId(Prerequisite)],
+                Projects = [new ResearchProjectId(Prerequisite), new ResearchProjectId(Project)],
+                Details = new Dictionary<string, ResearchProjectFacts>
+                {
+                    [Prerequisite] = new() { Cost = 650 },
+                    [Project] = new() { Cost = 800, Prerequisites = [new ResearchProjectId(Prerequisite)], Progress = Known(0.25) },
+                },
+            }),
+            MedicalReserve = new MedicalReserveObservation
+            {
+                Items = Known(EquatableArray.From(new[]
+                {
+                    new MedicineStackRow { Id = "m1", Definition = new Resource("MedicineHerbal"), Count = 4 },
+                    new MedicineStackRow { Id = "m2", Definition = new Resource("MedicineIndustrial"), Count = 9, Forbidden = true },
+                })),
+            },
+            NeedsAlternatives = new ForecastNeedsReview(new NeedsForecastRead
+            {
+                Pawns = [Pawn()],
+            }, new Dictionary<string, ForecastNeedsCandidates>()),
+            WorkAdmission = new WorkAdmissionObservation
+            {
+                Recipes = Known(EquatableArray.From(new[]
+                {
+                    new ProductionRecipeInput(Recipe, Known(EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(new Resource(Cloth), 80) }) })), Known(false))
+                    {
+                        Products = Known(EquatableArray.From(new[] { new Amount(new Resource("Apparel_Duster"), 1) })),
+                        WorkAmount = Known(10_000.0),
+                    },
+                })),
+            },
+            CurrentConstruction = Known(new CurrentConstruction()),
+            PlannedSites = Known(new PlannedSiteFacts()),
+        },
+        CombinedFoodSupply = Known(new FoodSupply { Complete = Known(true), Stocks = [new RimGovernor.Brain.Policy.FoodStock { Id = "meal", Nutrition = Known(12.5) }] }),
+        Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new Resource("Steel")] = 120, [new Resource(Cloth)] = 0 }),
+        Definitions = [CropRow()],
+        Farms = [new FarmZoneFact { Id = "zone1", Crop = Crop }],
+        Cells = [.. Enumerable.Range(0, 4).Select(x => new SiteCell { Cell = new Cell(x, 0), Zone = Known(true), ZoneId = Known("zone1"), Fertility = Known(0.5 + (0.1 * x)) })],
+        WorkPawns = Known(EquatableArray.From(new[] { new WorkPawn { Id = new PawnId("Anna"), Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Plants", Level = 10 } })) } })),
+    };
+
+    /// <summary>The model input of the worked case.</summary>
+    internal static ColonyModelInput Devilstrand() => RoundsColonyModel.InputOf(Projection()).Input;
+
+    private static NeedsForecastPawn Pawn() => new()
+    {
+        Pawn = "Anna",
+        Needs = [new NeedRate("food", Known(0.6), Known(0.00002), Known(0.3))],
+        Targets = [new NeedTarget("meal", "food", "MealSimple", 1, Known(40.0), Known(300.0), Known(0.9), Known(0.003))],
+        Consciousness = Known(1.0),
+        Moving = Known(1.0),
+        Manipulation = Known(1.0),
+        Sight = Known(1.0),
+        Talking = Known(1.0),
+    };
+}

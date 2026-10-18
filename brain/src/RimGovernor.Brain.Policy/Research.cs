@@ -62,6 +62,9 @@ public sealed record ResearchProjectFacts
 
     /// <summary>The project's tech level (ResearchProjectDef.techLevel), from the definition catalog.</summary>
     public TechLevel TechLevel { get; init; }
+
+    /// <summary>The native progress fraction of the cost already researched (0 to 1); unknown for a project the census did not list or a zero-cost one.</summary>
+    public Fact<double> Progress { get; init; }
 }
 
 public static partial class ResearchRules

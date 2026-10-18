@@ -61,8 +61,6 @@ Policy|ConstructionMaterial.Resource
 Policy|ConstructionMaterial.ShortfallUnits
 Policy|ConstructionMaterial.Stock
 Policy|ConstructionProjection.Materials
-Policy|ConstructionSite.MaterialsOwed
-Policy|ConstructionSite.WorkLeft
 Policy|ContainmentFacility.MaxDistance
 Policy|ContainmentVerdict.Reason
 Policy|CoreSiteWork.Help
@@ -218,7 +216,6 @@ Policy|ForecastNeedWindow.Ticks
 Policy|ForecastNeedsResult.MemoryAdjustedMoodTarget
 Policy|ForecastNeedsResult.ThoughtOffsetAtHorizon
 Policy|ForecastNeedsReview.Alternatives
-Policy|ForecastNeedsReview.Observation
 Policy|ForecastPlannedSite.Stuff
 Policy|ForecastProjectProgress.PointsPerTick
 Policy|ForecastProjectProgress.Project
@@ -326,8 +323,6 @@ Policy|PowerProposal.Target
 Policy|PreceptVerdict.Effects
 Policy|PreceptVerdict.Reason
 Policy|Preview.Tick
-Policy|ProductionRecipeInput.Products
-Policy|ProductionRecipeInput.WorkAmount
 Policy|ProgressContract.Expected
 Policy|QuestGiftWork.Waiting
 Policy|QuestGravInspectionWork.Service
@@ -343,7 +338,6 @@ Policy|RescuePatientFacts.BedID
 Policy|RescuePatientFacts.SnapshotToken
 Policy|RescuerFacts.SnapshotToken
 Policy|RoomSizeTable.Holds
-Policy|RoundsFacts.NeedsAlternatives
 Policy|RoundsFindings.EssentialServices
 Policy|RouteFacility.Cell
 Policy|RoutesObservation.TrafficSince

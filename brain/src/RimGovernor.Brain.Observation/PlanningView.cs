@@ -187,6 +187,7 @@ public static class PlanningViewReads
             MinOptimalGrowthTemperature = FiniteFact(plant.minOptimalGrowthTemperature),
             MaxOptimalGrowthTemperature = FiniteFact(plant.maxOptimalGrowthTemperature),
             MaxGrowthTemperature = FiniteFact(plant.maxGrowthTemperature),
+            RestingDayFraction = Known(PlantResting.RestingDayFraction),
             SowTags = Known(EquatableArray.From(plant.sowTags ?? [])),
             SowMinSkill = Known(plant.sowMinSkill),
             BlockAdjacentSow = Known(plant.blockAdjacentSow),

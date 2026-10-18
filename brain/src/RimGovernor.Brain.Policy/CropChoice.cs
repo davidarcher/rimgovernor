@@ -98,6 +98,18 @@ public sealed record CropChoice
     public Fact<double> RotDays { get; init; }
 
     public Fact<bool> Perishable { get; init; }
+
+    /// <summary>The crop's growth temperature band (PlantProperties): no growth below the first or above the last, full rate between the two optimals.</summary>
+    public Fact<double> MinGrowthTemperature { get; init; }
+
+    public Fact<double> MinOptimalGrowthTemperature { get; init; }
+
+    public Fact<double> MaxOptimalGrowthTemperature { get; init; }
+
+    public Fact<double> MaxGrowthTemperature { get; init; }
+
+    /// <summary>The fraction of every day the plant rests and does not grow (<see cref="PlantResting"/>).</summary>
+    public Fact<double> RestingDayFraction { get; init; }
 }
 
 /// <summary>One expansion decision: which edible crop to sow, and where, so that observed coverage reaches the reserve target.</summary>

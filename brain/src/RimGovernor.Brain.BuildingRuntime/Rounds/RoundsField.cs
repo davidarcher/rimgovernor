@@ -569,6 +569,11 @@ partial class RoundsFieldPlanner
                 RequiresCleanSoil = d.RequiresCleanSoil,
                 RotDays = d.HarvestRotDays,
                 Perishable = d.HarvestPerishable,
+                MinGrowthTemperature = d.MinGrowthTemperature,
+                MinOptimalGrowthTemperature = d.MinOptimalGrowthTemperature,
+                MaxOptimalGrowthTemperature = d.MaxOptimalGrowthTemperature,
+                MaxGrowthTemperature = d.MaxGrowthTemperature,
+                RestingDayFraction = d.RestingDayFraction,
             };
             choices.Add(WithHarvestFacts(choice, d));
         }

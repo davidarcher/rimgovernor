@@ -103,6 +103,9 @@ public sealed partial record PlanningDefinition
 
     public Fact<double> MaxGrowthTemperature { get; init; }
 
+    /// <summary>The fraction of a day the plant rests (<see cref="PlantResting"/>).</summary>
+    public Fact<double> RestingDayFraction { get; init; }
+
     public Fact<string> SowTag { get; init; }
 
     /// <summary>Floor definition facts: Terrain marks a TerrainDef and the stats are what a laid floor carries.</summary>

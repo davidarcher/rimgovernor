@@ -23,6 +23,9 @@ public sealed record ResearchFacts
 
     /// <summary>The tech level of each listed project: what a ResearchTier goal expands to.</summary>
     public IReadOnlyDictionary<ResearchProjectId, TechLevel> Levels { get; init; } = new Dictionary<ResearchProjectId, TechLevel>();
+
+    /// <summary>The census's facts of each listed project by defName: its cost, prerequisites and progress (the colony model's research input).</summary>
+    public IReadOnlyDictionary<string, ResearchProjectFacts> Details { get; init; } = new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal);
 }
 
 public static partial class ResearchRules

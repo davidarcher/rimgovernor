@@ -253,6 +253,7 @@ public static class EconomyRules
             Finished = [.. read.Finished.Select(name => new ResearchProjectId(name))],
             KnowledgePick = new ResearchProjectId(ResearchRules.KnowledgePick(read.Projects, read.Finished, read.Knowledge)),
             Levels = read.Projects.ToDictionary(p => new ResearchProjectId(p.Key), p => p.Value.TechLevel),
+            Details = read.Projects,
         };
     }
 
