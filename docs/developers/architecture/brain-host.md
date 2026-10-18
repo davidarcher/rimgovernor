@@ -298,6 +298,27 @@ of the same colony):
   0.1 s. Every replan still records a plan (`changed=true`): the tiled plan differs from the held one even when no
   room moved, which is the next thing to read before the ~1 GB replan allocation is profiled.
 
+The search cut (#3563; session `9a713eed0644434a85ce035d96f7c5e9`, 22 rounds reviews, one passing colony-review day
+of the same colony):
+
+- **What changed.** The coupled search ([portfolio selection](portfolio-selection.md)) ran to its 16,384-expansion
+  bound in 33 of the 34 reviews of the layout-cut day: after the greedy extension and the confirmed leader, the
+  cardinality sweep spent whatever was left (11,330 expansions mean over the 17 reviews that reached it) and chose
+  the selection in none. The sweep now runs only when the budget left can finish it, else the search ends at the
+  confirmed leader; with the budget a ceiling the converged search rarely reaches, the default rose to 65,536 (the
+  seed pass, a quarter of it, screened about 64 of up to 99 roots before, every root now).
+- **After.** 0 of 22 reviews reached the bound (max 34,932 expansions); 13,893 p50, 15,740 mean (16,384 and 15,902
+  before), so the raised budget spent in the extension what the sweep used to burn: the extension 15,659 expansions
+  mean (10,734) and every extension reached the confirm pass (6 of 20 before; the other 14 ran out of budget in the
+  extension). The 10 reviews whose baseline won ended at 238 to 6,837 expansions in 35 to 378 ms of `inspect_ms`; the
+  12 the extension or the warm start won at 13,893 to 34,932 in 279 to 1263 ms. `inspect_ms` 378 ms p50, 1174 p95,
+  1263 max, 10.5 s over the day (647, 1570, 1697 and 23.1 s over 34 reviews). Rounds 1179 ms p50 (1559), `clock_step`
+  3213 ms p50 (3493).
+- **What is left.** The warm start (`warm_start`) found no previous selection to seed from in 12 of the 19 reviews
+  after the first two (`missing`; 7 `seeded`, 1 selection taken from it): the key the previous selection is filed
+  under misses more often than the alternatives change, which is worth reading before the extension is tuned. The
+  rounds allocation is unchanged at 898 MB p50 per review (the ~1 GB above): the search was 10 to 30 MB of it.
+
 ## Hosting in the mod (#3115)
 
 Decided (user, 2026-10-13):
