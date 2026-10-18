@@ -112,20 +112,27 @@ and 29.6 s held. Holds: 5 (`ColonistNeed` 3, `NotificationBatch` 1, `SessionChan
 cost one more step before the resume). Native observed the whole day at about 1100 ticks/s with the ceiling at 2100 to
 4000 ticks/s: the game's own tick rate, not the ceiling, bounded the speed.
 
-| Quantity | Measured | Current constant | Source row |
-| --- | --- | --- | --- |
-| Frame time at each speed (p50/p95/p99) | Ultrafast only: 1645 paced frames over 55.9 s running (34 ms mean), 61 over the 30 ms budget (3.7 %). No per-frame distribution; the per-run split was cumulative in this run (fixed after it). | 30 ms budget (`ClockCeiling.DefaultFrameBudgetMs`) | `clock_hold` `run_frames` and `run_frames_over_budget` per run (the frame account keeps no per-frame distribution) |
-| Effective ticks/s at Ultrafast (boosted, up to 9000 ticks/s, with the one ceiling lowering it on over-budget frames) | `run_tps` 1067, 1110 and 1365 on the three long runs (29876, 19941 and 12155 ticks); 1110 over the day. `ceiling_tps` at the holds 2532 to 3956; `clock_step` `paced_tps` 2128 to 2891 with `pacing_reason` `frame_budget`; `effective_tps` between steps 860 to 1196. | 0.7 down, 1.25 up per 250 ms | `clock_hold` `run_tps` per run (`run_ticks` / `run_ms`), `ceiling_tps` at the hold; `clock_step` pacing fields (`pacing_reason`, `paced_tps`, `tps_ceiling`, `effective_tps`) while running |
-| Critical planner wave wall time | p50 5.8 s, p95 7.8 s, max 13.5 s (12 steps) | none | `clock_step.critical_wave_ms` |
-| Immediate review scope wall time | `clock_step` `dur_ms` p50 7.0 s, p95 10.0 s, max 14.0 s; rounds `planner_step` p50 4.0 s, p95 5.8 s, max 12.0 s; the slowest other planners economy p50 2.2 s and food p50 1.3 s | none | `rounds_review`, `planner_step` `dur_ms` |
-| Hazard hold to resume latency | Hunger holds 5.4, 5.7, 8.2 and 10.3 s: every hold costs a full scheduler step before the Run, and a refused Run costs a second one | none | `clock_hold` to the next `clock_resume` |
-| Combat hold to resume latency | not measured (no combat in the run) | 2 s budget (`ClockCombatStops.ResumeBudget`) | `clock_stop.resume_latency_ms`, `combat_summary` p50/p95 |
-| Brain silence before the heartbeat lapses | not measured (no `heartbeat` pacing row; the ceiling never fell to Normal) | 1 s beat, 5 s tolerance | `clock_step` rows with `pacing_reason` `heartbeat`; `heartbeat` failure events |
-| Autosave hold duration | not measured (no autosave in one day) | one in-game day cadence | `clock_run` rows with reason `autosave` and the next `resumed` |
+Re-measured 2026-10-18 (#3556 item 4) after the rounds cuts below, on the same colony and machine, revision 03433bfcd, brain
+session `4a7c9e93e3ab45adb3a48cdf84781d5f`: 100 s of wall time from `brain_started` to the end-of-day autosave hold at tick
+62127 (81 s from the first Run): 68.9 s running at Ultrafast, the rest held in reviews. Holds: 5 (`ColonistNeed` 3,
+`NotificationBatch` 1, `Autosave` 1 at the day's end); 24 `clock_step` rows (the last the failed step at the stop); 8
+`clock_run` rows, 5 resumed, 2 refused because a hold entered after the step's read, 1 the autosave. The third column of
+the table is that day; the fourth the constants as they stand.
+
+| Quantity | Measured (#3199, 21a4a5196) | Re-measured (#3556 item 4, 03433bfcd) | Current constant | Source row |
+| --- | --- | --- | --- | --- |
+| Frame time at each speed (p50/p95/p99) | Ultrafast only: 1645 paced frames over 55.9 s running (34 ms mean), 61 over the 30 ms budget (3.7 %). No per-frame distribution; the per-run split was cumulative in this run (fixed after it). | Ultrafast only: 2085 paced frames over 68.9 s running (33 ms mean), 75 over the 30 ms budget (3.6 %): 54 of 1370, 14 of 462 and 7 of 253 on the three long runs | 30 ms budget (`ClockCeiling.DefaultFrameBudgetMs`) | `clock_hold` `run_frames` and `run_frames_over_budget` per run (the frame account keeps no per-frame distribution) |
+| Effective ticks/s at Ultrafast (boosted, up to 9000 ticks/s, with the one ceiling lowering it on over-budget frames) | `run_tps` 1067, 1110 and 1365 on the three long runs (29876, 19941 and 12155 ticks); 1110 over the day. `ceiling_tps` at the holds 2532 to 3956; `clock_step` `paced_tps` 2128 to 2891 with `pacing_reason` `frame_budget`; `effective_tps` between steps 860 to 1196. | `run_tps` 693, 1216 and 1317 on the three long runs (29861, 20107 and 12033 ticks; the first ran from tick 0 under the first steps' reviews); 902 over the day's 68.9 s of running. `ceiling_tps` at the holds 1908 to 2613; `clock_step` `paced_tps` 372 to 4658 with `pacing_reason` `frame_budget`; `effective_tps` between steps 29 to 1352 | 0.7 down, 1.25 up per 250 ms | `clock_hold` `run_tps` per run (`run_ticks` / `run_ms`), `ceiling_tps` at the hold; `clock_step` pacing fields (`pacing_reason`, `paced_tps`, `tps_ceiling`, `effective_tps`) while running |
+| Critical planner wave wall time | p50 5.8 s, p95 7.8 s, max 13.5 s (12 steps) | p50 1.8 s, p95 4.0 s, max 5.7 s (23 steps) | none | `clock_step.critical_wave_ms` |
+| Immediate review scope wall time | `clock_step` `dur_ms` p50 7.0 s, p95 10.0 s, max 14.0 s; rounds `planner_step` p50 4.0 s, p95 5.8 s, max 12.0 s; the slowest other planners economy p50 2.2 s and food p50 1.3 s | `clock_step` `dur_ms` p50 3.3 s, p95 5.1 s, max 6.2 s (24 steps); rounds `planner_step` p50 1.3 s, p95 3.0 s, max 4.6 s; the slowest other planners economy p50 1.9 s and food p50 0.7 s | none | `rounds_review`, `planner_step` `dur_ms` |
+| Hazard hold to resume latency | Hunger holds 5.4, 5.7, 8.2 and 10.3 s: every hold costs a full scheduler step before the Run, and a refused Run costs a second one | Hunger holds 4.3, 2.7 and 2.1 s (the first refused a Run and cost a second step); the notification-batch hold 3.5 s (also refused once) | none | `clock_hold` to the next `clock_resume` |
+| Combat hold to resume latency | not measured (no combat in the run) | not measured (no combat in the run) | 2 s budget (`ClockCombatStops.ResumeBudget`) | `clock_stop.resume_latency_ms`, `combat_summary` p50/p95 |
+| Brain silence before the heartbeat lapses | not measured (no `heartbeat` pacing row; the ceiling never fell to Normal) | not measured (the one `heartbeat` row is the shutdown's; the ceiling never fell to Normal) | 1 s beat, 5 s tolerance | `clock_step` rows with `pacing_reason` `heartbeat`; `heartbeat` failure events |
+| Autosave hold duration | not measured (no autosave in one day) | not measured (the autosave hold at tick 62127 was the day's end; the harness stopped the game) | one in-game day cadence | `clock_run` rows with reason `autosave` and the next `resumed` |
 
 | Recommended budget | Value | Status |
 | --- | --- | --- |
-| Native frame budget | 30 ms | measured once: 3.7 % of paced frames over budget at about 1100 ticks/s; keep |
+| Native frame budget | 30 ms | measured twice: 3.7 % and 3.6 % of paced frames over budget at 900 to 1300 ticks/s; keep |
 | Brain heartbeat interval and tolerance | 1 s and 5 s | guess; derive from the p99 brain silence |
 | Resume-latency budget for combat holds | 2 s | guess; derive from the p95 `resume_latency_ms` |
 | Combat fallback speed | Normal | guess; the safest choice, not a measured one |
@@ -353,6 +360,59 @@ passing colony-review day of the same colony):
   1409 ms p50 (review 529, derive 155, d_planned 119, d_stock 80). One lead outside rounds: the colony facts read
   (`hop_run` `facade/observations_read_colony_facts`) costs 614 ms p50 of game-thread time per step, 12.5 s over
   the day, more than any rounds lap.
+
+The derive and stock cuts (#3566; two colony-review days of the same colony, cuts `ca2768dee` and `03433bfcd`).
+
+The first cut (session `bb3d35cf81fb4e9887a452cc22484139`, 26 rounds reviews; the game exited at tick 59,085 of 60,000
+after a run of 7 s game-thread stalls, so the harness marked the day failed with its measurement complete):
+
+- **What changed.** The `d_stock` lap read the journal's zone claims and shelf plans twice (the zone census, whose
+  result the review then dropped, and the stockpile request); they are read once and shared, and the census lands,
+  so `Facts.StockpileZones` is known once the claims are. The `derive` lap rewrote the `ledger_rows` table after every
+  review for a launcher tab removed long ago; the table and the dashboard view it flattened are deleted through every
+  layer (the station planner keeps the status and the wanted orders). The rounds row gained `fine_ms` /
+  `fine_alloc_kb`, `d_stock` and `derive` split further.
+- **After.** Rounds 1155 ms p50 (1409 the day before), `clock_step` 2828 ms p50 (3213). `derive` 158 ms p50
+  (`derive/ledger` 129, p95 444, max 505, 4.3 s over the day; `derive/incumbents` 24; `derive/model` 5; `derive/bills`
+  0), `d_stock` 87 (`d_stock/stockpile` 83, p95 309; `d_stock/zones` 3.6; meals and ore under 1), `review` 146 (p95
+  1096), `d_planned` 136 (p95 742), `acquisition` 68, `d_file` 55, `layout` 33 (max 2148, one replan adopted). The
+  rounds allocation fell from 898 MB p50 per review to 512 MB: the rows (one JSON document per order, rewritten every
+  review) and the view were most of the difference; `derive/ledger` still allocated 32 MB p50 (272 MB p95) and the
+  stockpile review 57 MB (206 MB p95).
+- **What the hops say.** `hop_run` per operation over the day: the colony facts read 11.4 s (26 reads, 1.5 GB), the
+  construction read 1.8 s, the clearance targets 0.6 s; every operation the ledger and the stockpile review issue (the
+  trade requests, the world progression, the settlements, the supply stock, the resource sources, the storage
+  occupancy) runs under 2 ms a hop. Their cost is the queue: a hop in the review chain waits its turn for the game
+  thread, about 15 to 20 ms a hop in sequence (the ledger's 300 ms spread between a review whose export declarer read
+  nothing and one whose silver gap was open, over its eighteen reads). The next cut is in the number of frames the
+  chain waits for, not in the game-thread work.
+
+The second cut (session `4a7c9e93e3ab45adb3a48cdf84781d5f`, 22 rounds reviews, one passing colony-review day):
+
+- **What changed.** The ledger's twelve declarers ran one after another, each waiting its own frames; they now start
+  together from the same reading (each writes only its own memory) and are awaited in composition order, so the first
+  to fail in that order still fails the review. The trade-export declarer starts its supply, source and packed-art
+  reads together and its trade-acquisition read beside the settlements read, with the home tile cached per snapshot.
+  Finer laps: `d_stock/stockpile/census|build|shelves|occupancy|plan`, `d_planned/sites|shelter|firebreak`,
+  `derive/ledger/benches|declare|<declarer>|reconcile`.
+- **After.** `derive` 87 ms p50 (158): `derive/ledger` 53 (129), p95 119 (444), max 132 (505), 1.3 s over the day
+  (4.3). `derive/ledger/armory` 48 ms p50 (p95 111, 1.2 s over the day) is the whole `declare` lap of 53: the other
+  declarers finish under it (`tradeexport` 18 p50, `gear` 1.8; the rest, the bench read and the reconcile under 1 ms).
+  The ledger allocates 14 MB p50 (32), 43 MB p95 (272). `derive/incumbents` 27 (p95 133), `derive/model` 5. `d_stock`
+  83 (87) did not move: `d_stock/stockpile` 78 p50, of which `plan` 43 (47 MB p50), `occupancy` 12, `census` 11 p50
+  but 271 p95 and 293 max (1.0 s over the day: the bench mirror refreshes with a fresh bills read, then one recipe
+  hop per bench), `build` 5, `shelves` 2. `d_planned` 156 p50: `sites` 94 (p95 446; 43 MB p50, 288 MB p95),
+  `shelter` 19, `firebreak` 0. Rounds 1332 ms p50 (1155) and `clock_step` 3313 (2828): the difference is `review` at
+  351 p50 (146; p95 1337, 11.1 s over the day) and `layout` at p95 811 with 7 replans adopted, the day's colony rather
+  than the cut; the rounds allocation 908 MB p50 (512) is the sites and the replans. The hops read as on the first
+  day: colony facts 12.0 s over 22 reads (1.45 GB), construction 1.9 s, every ledger and stockpile operation under
+  2 ms a hop.
+- **What is left.** The issue's mark (`derive` and `d_stock` together under 0.1 s p50) is not reached: 87 + 83 ms.
+  The armory declarer issues five hops in sequence (the frame things, the combat pawns, the map bounds, the equip
+  weapons, then the mortar shell targets, which `d_reads` already read for `ShellsShort`): overlapping them, or
+  sharing the shell targets, is most of the ledger's remaining 48 ms. The stockpile plan (43 ms, 47 MB per review)
+  and the census refresh spikes are the stock lap's remainder; the planned sites (94 ms, 288 MB p95) are
+  `d_planned`'s.
 
 ## Hosting in the mod (#3115)
 
