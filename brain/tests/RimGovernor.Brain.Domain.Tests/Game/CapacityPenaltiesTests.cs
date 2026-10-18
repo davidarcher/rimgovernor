@@ -7,7 +7,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Domain.Tests.Game;
 
-// #3519: the capacity penalty tables decoded from the malnutrition and food poisoning defs, shaped as the 1.7 Core defs state them.
+// #3519, #3521: the capacity penalty tables decoded from the malnutrition, food poisoning, hypothermia and heatstroke defs, shaped as the 1.7 Core defs state them.
 public sealed class CapacityPenaltiesTests
 {
     private static readonly Dictionary<string, PawnCapacityDef> Capacities =
@@ -17,10 +17,10 @@ public sealed class CapacityPenaltiesTests
     [Fact]
     public void TheTablesHaveStagesOrderedBySeverityAndCapacitiesNamedByDefOfFields()
     {
-        var tables = Catalog(Malnutrition(), FoodPoisoning(), Moving()).CapacityPenalties();
+        var tables = Catalog(Malnutrition(), FoodPoisoning(), Thermal(nameof(HediffDefOf.Hypothermia)), Thermal(nameof(HediffDefOf.Heatstroke)), Moving()).CapacityPenalties();
 
         Assert.True(tables.Valid());
-        foreach (var table in new[] { tables.Malnutrition, tables.FoodPoisoning })
+        foreach (var table in new[] { tables.Malnutrition, tables.FoodPoisoning, tables.Hypothermia, tables.Heatstroke })
         {
             Assert.True(table.Known);
             Assert.Equal(table.Stages.Select(s => s.MinSeverity).Order(), table.Stages.Select(s => s.MinSeverity));
@@ -99,6 +99,13 @@ public sealed class CapacityPenaltiesTests
             Stage(0.6f, 0, Mod("Consciousness", -0.30f)),
             Stage(0.8f, 0, Mod("Consciousness", setMax: 0.1f)),
         ],
+    };
+
+    private static HediffDef Thermal(string name) => new()
+    {
+        defName = name,
+        lethalSeverity = 1,
+        stages = [Stage(0, 0, Mod("Moving", postFactor: 0.9f)), Stage(0.35f, 0.1f, Mod("Consciousness", -0.1f), Mod("Moving", postFactor: 0.5f))],
     };
 
     private static HediffDef FoodPoisoning() => new()

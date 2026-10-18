@@ -188,8 +188,8 @@ hand-written temperature-mood constants, and mood is valued only as `BreakRisk`.
   `situational_thought_constant_outside_exposure:<thought>` names it. Unknown
   card facts, observed thoughts or offsets leave the whole thought constant.
 - A thought changed both by a card and by a `SituationalChanges` row is
-  `unsupported_situational_change_stacking`. Hypothermia and heatstroke stay
-  unmodelled; the exposure degree-ticks consequence is unchanged.
+  `unsupported_situational_change_stacking`. Hypothermia and heatstroke are
+  priced by the capability-days thermal term (#3521), not here; the exposure degree-ticks consequence is unchanged.
 
 ### Roof, room and deterioration reads
 
@@ -223,9 +223,9 @@ The brain mirrors the game literals these mechanics use; each constant cites its
 ### Capacity penalty tables and per-pawn capacities
 
 The capability-days ledger ([forecast value](../architecture/forecast-value.md#capability-days),
-`ForecastValue.Of`) prices what malnutrition and food poisoning take from a pawn
-with the game's own tables (#3519, #3520). Hypothermia and heatstroke join with
-the thermal pricing.
+`ForecastValue.Of`) prices what malnutrition, food poisoning, hypothermia and heatstroke take from a pawn
+with the game's own tables (#3519, #3520, #3521). Hypothermia and heatstroke are priced from the
+pawn's `ForecastThermalExposure.Spans`: exact piecewise integration of the givers' severity (quadratic gain under a linear temperature, exponential recovery), the stage path priced as the other terms are, and a severity reaching `LethalSeverity` charging the remaining horizon plus `DeathTerminalValue`. A pawn with unknown occupancy has the term unassessed, with `unassessed_thermal_exposure`.
 
 - `RoundsFacts.CapacityPenalties` (`CapacityPenaltyTables`): one
   `HediffPenaltyTable` each for `Malnutrition` and `FoodPoisoning`, decoded by
@@ -242,7 +242,7 @@ the thermal pricing.
 - `RoundsFacts.MoodBreak` (`MoodBreakModel`): the catalog's break curve, whose
   tier mixes give the mean days a break of each tier lasts.
 - `NeedsForecastPawn`: `Consciousness`, `Moving`, `Manipulation`, `Sight` and
-  `Talking` (`health.capacities.GetLevel`), and `MalnutritionSeverity` and
+  `Talking` (`health.capacities.GetLevel`), and `MalnutritionSeverity`, `HypothermiaSeverity`, `HeatstrokeSeverity` and
   `FoodPoisoningSeverity` (0 when absent), each unknown without a health tracker.
   Each capacity ratio of the ledger is the level a stage leaves against the
   observed one.

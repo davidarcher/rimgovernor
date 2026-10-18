@@ -115,7 +115,8 @@ internal static class NativeNeedsForecast
                 Consciousness = Capacity(pawn, PawnCapacityDefOf.Consciousness), Moving = Capacity(pawn, PawnCapacityDefOf.Moving),
                 Manipulation = Capacity(pawn, PawnCapacityDefOf.Manipulation), Sight = Capacity(pawn, PawnCapacityDefOf.Sight),
                 Talking = Capacity(pawn, PawnCapacityDefOf.Talking),
-                MalnutritionSeverity = Severity(pawn, HediffDefOf.Malnutrition), FoodPoisoningSeverity = Severity(pawn, HediffDefOf.FoodPoisoning) });
+                MalnutritionSeverity = Severity(pawn, HediffDefOf.Malnutrition), FoodPoisoningSeverity = Severity(pawn, HediffDefOf.FoodPoisoning),
+                HypothermiaSeverity = Severity(pawn, HediffDefOf.Hypothermia), HeatstrokeSeverity = Severity(pawn, HediffDefOf.Heatstroke) });
         }
         var weather = map.weatherManager.CurWeatherLerped;
         return new() { Tick = Find.TickManager.TicksGame, Pawns = EquatableArray.From(rows),

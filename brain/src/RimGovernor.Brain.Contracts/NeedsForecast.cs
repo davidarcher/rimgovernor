@@ -126,6 +126,8 @@ public sealed record NeedsForecastPawn
     /// <summary>The current severity of each hediff the capacity penalty tables decode; 0 when the pawn does not have it (#3519).</summary>
     public Fact<double> MalnutritionSeverity { get; init; }
     public Fact<double> FoodPoisoningSeverity { get; init; }
+    public Fact<double> HypothermiaSeverity { get; init; }
+    public Fact<double> HeatstrokeSeverity { get; init; }
 }
 /// <summary>Native legality and mechanics, not a selected need action. Travel is an observed route cost.</summary>
 public sealed record NeedTarget(string Id, string Kind, string Resource, int AvailableCount,

@@ -180,7 +180,7 @@ public sealed partial class Rounder
     private static Dictionary<string, object?> LedgerAttrs(ForecastValueResult value) => new()
     {
         ["total"] = Number(value.Total), ["hunger"] = Number(value.Hunger), ["rest"] = Number(value.Rest),
-        ["food_poisoning"] = Number(value.FoodPoisoning), ["mood_breaks"] = Number(value.MoodBreaks), ["wellbeing"] = Number(value.Wellbeing),
+        ["food_poisoning"] = Number(value.FoodPoisoning), ["thermal"] = Number(value.Thermal), ["mood_breaks"] = Number(value.MoodBreaks), ["wellbeing"] = Number(value.Wellbeing),
         ["harm"] = Number(value.Harm), ["investment"] = Number(value.Investment), ["unknown"] = value.Findings.ToArray()
     };
 

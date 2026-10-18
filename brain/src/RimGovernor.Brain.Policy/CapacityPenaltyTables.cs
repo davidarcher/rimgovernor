@@ -1,9 +1,9 @@
 namespace RimGovernor.Brain.Policy;
 
-// The game's own capacity penalty tables for the two conditions the capability-days ledger prices today (#3519, #3520 of
-// #3469): malnutrition and food poisoning. The bridge decodes each hediff's stages from its def
+// The game's own capacity penalty tables for the four conditions the capability-days ledger prices (#3519, #3520, #3521 of
+// #3469): malnutrition, food poisoning, hypothermia and heatstroke. The bridge decodes each hediff's stages from its def
 // (Catalog/CapacityPenalties.cs), so the ledger prices a pawn's lost capacities without a hand-chosen number. The brain
-// derives no penalty itself; it reads these tables. Hypothermia and heatstroke join with their pricing (thermal, #3469).
+// derives no penalty itself; it reads these tables. Hypothermia and heatstroke are priced from the thermal spans (#3521).
 
 /// <summary>One capacity modifier of a hediff stage: a PawnCapacityDef by name with its offset, its ceiling (null when the stage sets none) and its post factor (1 is none).</summary>
 public sealed record CapacityModifier(string Capacity, double Offset, double? SetMax, double PostFactor);
@@ -90,9 +90,13 @@ public sealed record CapacityPenaltyTables
 
     public HediffPenaltyTable FoodPoisoning { get; init; } = new();
 
+    public HediffPenaltyTable Hypothermia { get; init; } = new();
+
+    public HediffPenaltyTable Heatstroke { get; init; } = new();
+
     /// <summary>PawnCapacityDefOf.Moving's minForCapable; null when the catalog lacks the def.</summary>
     public double? MovingMinForCapable { get; init; }
 
-    /// <summary>Reports both tables known and valid, and the Moving minimum finite.</summary>
-    public bool Valid() => Malnutrition.Valid() && FoodPoisoning.Valid() && MovingMinForCapable is { } min && double.IsFinite(min);
+    /// <summary>Reports all four tables known and valid, and the Moving minimum finite.</summary>
+    public bool Valid() => Malnutrition.Valid() && FoodPoisoning.Valid() && Hypothermia.Valid() && Heatstroke.Valid() && MovingMinForCapable is { } min && double.IsFinite(min);
 }

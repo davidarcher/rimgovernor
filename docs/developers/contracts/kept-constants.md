@@ -84,7 +84,7 @@ method-body literals that move their severity, the downing thresholds, and the
 need categories that carry an effect. The capability-days ledger
 (`ForecastValue`, #3520) mirrors the malnutrition rate and the awake threshold as
 constants whose comment cites the member below; the other rows document the
-mechanics the thermal and rest pricing will read. All 1.7 members, read with
+mechanics the thermal and rest pricing read (`ForecastValueThermal.cs`, #3521: the giver steps every 60 ticks, the ledger integrates its continuous limit over each span). All 1.7 members, read with
 ilspycmd.
 
 | Literal | Value | 1.7 member |
@@ -100,7 +100,7 @@ ilspycmd.
 | Rest gain while resting, per need interval | 0.005714286 × rest effectiveness × `RestRateMultiplier` | `Need_Rest.NeedInterval` |
 | Involuntary sleep MTB once rest has been 0 for over 1000 ticks | 0.25 days (under 15000 ticks), 0.125 (30000), 1/12 (45000), 0.0625 | `Need_Rest.ShouldInvoluntarySleepFromMTB` |
 | Hypothermia severity gain, every 60 ticks below the safe minimum | `max(\|ambient − safeMin\| × 6.45E-05, 0.00075)` | `HediffGiver_Hypothermia.OnIntervalPassed` |
-| Hypothermia and heatstroke recovery, every 60 ticks inside the comfort range | `Clamp(severity × 0.027, 0.0015, 0.015)` off | `HediffGiver_Hypothermia`, `HediffGiver_Heat.OnIntervalPassed` |
+| Hypothermia and heatstroke recovery, every 60 ticks inside the comfort range | `Clamp(severity × 0.027, 0.0015, 0.015)` off | `HediffGiver_Hypothermia`, `HediffGiver_Heat.OnIntervalPassed` (only while the ambient is above the comfort minimum, respectively below the comfort maximum; between comfort and safe the severity holds) |
 | Safe temperature range | the comfortable range widened by 10 each side | `GenTemperature.SafeTemperatureRange` |
 | Heatstroke severity gain, every 60 ticks above the safe maximum | `max(curve(ambient − safeMax) × 6.45E-05, 0.000375)`, curve (0,0) (25,25) (50,40) (100,60) (200,80) (400,100) (4000,1000) | `HediffGiver_Heat.OnIntervalPassed`, `TemperatureOverageAdjustmentCurve` |
 
@@ -131,7 +131,7 @@ them through `ForecastCoupledContext.Value`; production uses the defaults.
 
 | Constant | Default | Unit | Why it is a choice |
 | --- | --- | --- | --- |
-| `DeathTerminalValue` | 60 | capability-days | What a colonist is worth beyond the horizon: about two game months of full capability. Read by the harm term (#3471). |
+| `DeathTerminalValue` | 60 | capability-days | What a colonist is worth beyond the horizon: about two game months of full capability. Read by the harm term (#3471) and, on a lethal thermal severity, the thermal term (#3521). |
 | `WellbeingWeight` | 0.1 | capability-days per mood-day | Wellbeing valued for itself, above the break risk the mood term already counts. The game states no exchange rate. Priced today. |
 | `HarmRiskAlpha` | 0.9 | fraction | The CVaR tail of raid harm: the mean of the worst 10% of outcomes. Read by the harm term (#3471). |
 | `HarmRiskWeight` | 0.5 | fraction | How much of raid harm is priced at that tail against the mean. Read by the harm term (#3471). |

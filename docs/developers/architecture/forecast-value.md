@@ -3,7 +3,7 @@
 [Architecture](overview.md) · [Normal portfolio selection](portfolio-selection.md) · [ColonyForecast](colony-forecast.md) · [Combat predictability](combat-predictability-research.md)
 
 **Status: proposed; the capability-days ledger is implemented, nothing ranks on it.**
-`ForecastValue.Of` (#3520) prices hunger, rest, food poisoning, mood breaks and
+`ForecastValue.Of` (#3520, #3521) prices hunger, rest, food poisoning, thermal exposure, mood breaks and
 wellbeing per outcome and `coupled_selection` reports it ([policy constants](../contracts/kept-constants.md#policy-constants-3469),
 [tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm and investment are 0 and unassessed.
 The rest of this page describes no current behavior. Current selection is described in

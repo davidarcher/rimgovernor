@@ -48,6 +48,9 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
     /// <summary>Expected food-poisoning cases times the capacity one case loses over its course, clipped to the horizon.</summary>
     public Fact<double> FoodPoisoning { get; init; }
 
+    /// <summary>Capacity lost to hypothermia and heatstroke over the severity the stationary thermal spans give them, and the remaining horizon plus the terminal value when it reaches lethal.</summary>
+    public Fact<double> Thermal { get; init; }
+
     /// <summary>Mental-break risk times the mean days a break of its tier takes the colonist out of work.</summary>
     public Fact<double> MoodBreaks { get; init; }
 
@@ -62,7 +65,7 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
 }
 
 /// <summary>The capability-days ledger: pure, term by term, every number from a game table or a named policy constant (#3520).</summary>
-public static class ForecastValue
+public static partial class ForecastValue
 {
     // The five capacities a pawn-day of capability is counted in, by PawnCapacityDef name. Policy cannot reference the
     // game's PawnCapacityDefOf, so these are the names the catalog decodes the tables by (Catalog/CapacityPenalties.cs).
@@ -127,6 +130,13 @@ public static class ForecastValue
         else
             poisoning = FoodPoisoningLoss(cases, pawns, observed, tables.FoodPoisoning, poisonMoving, horizon, findings);
 
+        var thermal = default(Fact<double>);
+        if (!tables.Hypothermia.Valid() || !tables.Heatstroke.Valid() || tables.MovingMinForCapable is not { } thermalMoving)
+            findings.Add("capacity_penalty_table_unknown:" + nameof(tables.Hypothermia) + "/" + nameof(tables.Heatstroke));
+        else
+            thermal = OverPawns("thermal", (pawn, _, seen) => ThermalLoss(pawn, outcome.ThermalExposure.FirstOrDefault(t => t.Pawn == pawn), seen,
+                tables, thermalMoving, horizon, context.Value, findings));
+
         var breaks = OverPawns("mood_breaks", (pawn, result, _) =>
         {
             if (result.Mood is { BreakRisk.IsKnown: true } mood && context.MoodBreaks.DaysLost(mood.BreakTierTicks) is { } days) return days;
@@ -147,12 +157,12 @@ public static class ForecastValue
             });
 
         findings.Add("harm_capability_unassessed");
-        var terms = new[] { hunger, rest, poisoning, breaks, wellbeing };
+        var terms = new[] { hunger, rest, poisoning, thermal, breaks, wellbeing };
         var total = terms.All(t => t.IsKnown) ? Known(terms.Sum(t => t.Value)) : default;
         if (!total.IsKnown) findings.Add("capability_value_unassessed");
         return new(total, EquatableArray.From(findings))
         {
-            Hunger = hunger, Rest = rest, FoodPoisoning = poisoning, MoodBreaks = breaks, Wellbeing = wellbeing,
+            Hunger = hunger, Rest = rest, FoodPoisoning = poisoning, Thermal = thermal, MoodBreaks = breaks, Wellbeing = wellbeing,
             Harm = Known(0d), Investment = Known(0d),
         };
     }
@@ -229,6 +239,10 @@ public static class ForecastValue
         private bool pain;
         private bool lethal;
 
+        public void MarkLethal() => lethal = true;
+
+        public HediffPenaltyTable Table => table;
+
         public double Severity { get; set; } = observedSeverity;
 
         public double LostTicks { get; private set; }
@@ -274,7 +288,7 @@ public static class ForecastValue
             if (lethal) findings.Add("lethal_severity_reached:" + table.Hediff + ":" + pawn);
         }
 
-        private void Piece(double ticks, double from, double to)
+        public void Piece(double ticks, double from, double to)
         {
             if (table.StageAt((from + to) / 2) is not { } stage) return;
             pain |= stage.PainOffset > 0;

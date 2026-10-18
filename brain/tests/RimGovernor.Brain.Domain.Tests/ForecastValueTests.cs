@@ -18,7 +18,7 @@ public sealed class ForecastValueTests
         Needs = [new("rest", Known(1d), Known(0d), Known(.28)), new("food", Known(foodLevel), Known(fall), Known(.3))],
         Memories = Known<EquatableArray<NeedMemory>>([]),
         Consciousness = Known(consciousness), Moving = Known(1d), Manipulation = Known(1d), Sight = Known(1d), Talking = Known(1d),
-        MalnutritionSeverity = Known(0d), FoodPoisoningSeverity = Known(0d),
+        MalnutritionSeverity = Known(0d), FoodPoisoningSeverity = Known(0d), HypothermiaSeverity = Known(0d), HeatstrokeSeverity = Known(0d),
     };
 
     private static ForecastCapacityInput Input() => new()
@@ -37,9 +37,10 @@ public sealed class ForecastValueTests
         PressureTicks = Known(pressure), BreakRisk = tiers is null ? default : Known(0.0), BreakTierTicks = tiers is null ? default : EquatableArray.From(tiers),
     };
 
-    private static ForecastCoupledOutcome Outcome(ForecastNeedsResult needs, double poisonCases = 0) =>
+    // By default the pawn's whole day is assessed with no span outside its comfort range, so the thermal term is a known 0.
+    private static ForecastCoupledOutcome Outcome(ForecastNeedsResult needs, double poisonCases = 0, ForecastThermalExposure? exposure = null) =>
         new(new([], 0, 0), Known(true), [], new Dictionary<string, ForecastNeedsResult> { ["pawn"] = needs }, [])
-        { Support = new() { FoodPoisonExposure = Known(poisonCases) } };
+        { Support = new() { FoodPoisonExposure = Known(poisonCases) }, ThermalExposure = [exposure ?? new("pawn", Day, 0, 0, 0)] };
 
     private static HediffPenaltyTable Malnutrition(params PenaltyStage[] stages) => new()
     {
@@ -54,6 +55,7 @@ public sealed class ForecastValueTests
     {
         Malnutrition = malnutrition ?? Malnutrition(Stage(0, Half("Consciousness"))),
         FoodPoisoning = poisoning ?? new() { Known = true, Hediff = "FoodPoisoning", InitialSeverity = 1, SeverityPerDay = -1, Stages = [Stage(0, Half("Consciousness"))] },
+        Hypothermia = Thermal("Hypothermia"), Heatstroke = Thermal("Heatstroke"),
         MovingMinForCapable = 0.15,
     };
 
@@ -212,8 +214,123 @@ public sealed class ForecastValueTests
         Assert.False(unknown.Total.IsKnown);
         Assert.Contains("capacity_penalty_table_unknown:Malnutrition", unknown.Findings);
         Assert.Contains("harm_capability_unassessed", known.Findings);
-        Assert.Equal(known.Hunger.Value + known.Rest.Value + known.FoodPoisoning.Value + known.MoodBreaks.Value + known.Wellbeing.Value
+        Assert.Equal(known.Hunger.Value + known.Rest.Value + known.FoodPoisoning.Value + known.Thermal.Value + known.MoodBreaks.Value + known.Wellbeing.Value
             + known.Harm.Value + known.Investment.Value, known.Total.Value, 9);
         Assert.True(known.Total.Value > 0);
+    }
+
+    private static HediffPenaltyTable Thermal(string name, params PenaltyStage[] stages) => new()
+    {
+        Known = true, Hediff = name, LethalSeverity = 1, InitialSeverity = 0.001, Stages = stages.Length > 0 ? stages : [Stage(0, Half("Consciousness"))],
+    };
+
+    private static CapacityModifier Post(double factor) => new("Consciousness", 0, null, factor);
+
+    private static CapacityPenaltyTables ThermalTables(HediffPenaltyTable cold, HediffPenaltyTable? hot = null) =>
+        Tables() with { Hypothermia = cold, Heatstroke = hot ?? Thermal("Heatstroke") };
+
+    // Comfort 10..30, so the safe range is 0..40.
+    private static ForecastThermalSpan Span(double start, double end, double from, double to) => new(start, end, from, to, 10, 30);
+
+    private static ForecastThermalExposure Exposure(params ForecastThermalSpan[] spans) => new("pawn", Day, 0, 0, 0) { Spans = EquatableArray.From(spans) };
+
+    private static ForecastValueResult Thermally(NeedsForecastPawn pawn, CapacityPenaltyTables tables, params ForecastThermalSpan[] spans) =>
+        ForecastValue.Of(Outcome(Calm(), exposure: Exposure(spans)), Context(pawn, tables), Day, Outcome(Calm()));
+
+    // 20 degrees under the comfort minimum is 10 under the safe minimum: shallower than the floor's depth, so the gain is the floor.
+    [Fact]
+    public void SixHoursTwentyDegreesUnderComfortAccruesTheFloorSeverityAndLosesTheStagePath()
+    {
+        const double SixHours = 6 * GameTime.TicksPerHour;
+        const double PerTick = 0.00075 / 60;
+        var table = Thermal("Hypothermia", Stage(0, Post(0.8)), Stage(0.1, Post(0.5)));
+
+        var cold = Thermally(Pawn(), ThermalTables(table), Span(0, SixHours, -10, -10));
+        var comfortable = Thermally(Pawn(), ThermalTables(table), Span(0, SixHours, 20, 20));
+
+        var inFirstStage = 0.1 / PerTick;
+        Assert.Equal((inFirstStage * 0.2 + (SixHours - inFirstStage) * 0.5) / Day, cold.Thermal.Value, 9);
+        Assert.Equal(0, comfortable.Thermal.Value);
+        Assert.Equal(cold.Thermal.Value, cold.Total.Value, 9);
+    }
+
+    [Fact]
+    public void ARampDeeperUnderTheSafeMinimumGainsAQuadraticSeverityCutAtTheStageBoundary()
+    {
+        // Depth under the safe minimum (0) ramps 20 -> 60 over 15,000 ticks: gain per tick is 6.45E-05 * depth / 60, so the
+        // severity at u ticks is 6.45E-05 / 60 * (20 u + 40 u^2 / (2 * 15,000)). Stage 2 begins at severity 0.1.
+        const double Length = 15000;
+        const double Per = 6.45E-05 / 60;
+        var table = Thermal("Hypothermia", Stage(0, Post(0.8)), Stage(0.1, Post(0.5)));
+        var a = 20 / Length;
+        var u = (-20 + Math.Sqrt(400 + 4 * a * 0.1 / Per)) / (2 * a);
+
+        var value = Thermally(Pawn(), ThermalTables(table), Span(0, Length, -20, -60));
+
+        Assert.Equal((u * 0.2 + (Length - u) * 0.5) / Day, value.Thermal.Value, 6);
+    }
+
+    [Fact]
+    public void RecoveryInsideComfortLowersTheSeverityAtTheMirroredRateBeforeTheNextColdSpan()
+    {
+        // From severity 0.5 (the pawn already carries stage 1's 0.5 consciousness), 1,000 ticks inside comfort decay it by
+        // exp(-0.027 / 60 * t) to 0.5 * exp(-0.45), then the floor gain of 0.00075 per 60 ticks reaches stage 2 (0.6, post 0.4: consciousness 0.8 of what it is, still awake).
+        var table = Thermal("Hypothermia", Stage(0, Post(0.5)), Stage(0.6, Post(0.4)));
+        var pawn = Pawn(consciousness: 0.5) with { HypothermiaSeverity = Known(0.5) };
+        var recovered = 0.5 * Math.Exp(-0.027 / 60 * 1000);
+        var reach = (0.6 - recovered) / (0.00075 / 60);
+
+        var withRecovery = Thermally(pawn, ThermalTables(table), Span(0, 1000, 20, 20), Span(1000, 40000, -10, -10));
+        var withoutRecovery = Thermally(pawn, ThermalTables(table), Span(1000, 40000, -10, -10));
+
+        Assert.Equal((39000 - reach) * 0.2 / Day, withRecovery.Thermal.Value, 9);
+        Assert.Equal((39000 - 0.1 / (0.00075 / 60)) * 0.2 / Day, withoutRecovery.Thermal.Value, 9);
+    }
+
+    [Fact]
+    public void SeverityReachingLethalChargesTheRemainingHorizonAndTheTerminalValue()
+    {
+        // At 0.9 the floor gain reaches the lethal 1 in 8,000 ticks; the pawn already carries the only stage, so nothing is lost before.
+        var table = Thermal("Hypothermia", Stage(0, Post(0.5)));
+        var pawn = Pawn(consciousness: 0.5) with { HypothermiaSeverity = Known(0.9) };
+
+        var value = Thermally(pawn, ThermalTables(table), Span(0, 20000, -10, -10));
+
+        Assert.Equal((Day - 0.1 / (0.00075 / 60)) / Day + new ForecastValuePolicy().DeathTerminalValue, value.Thermal.Value, 9);
+        Assert.Contains("lethal_severity_reached:Hypothermia:pawn", value.Findings);
+    }
+
+    [Fact]
+    public void HeatAboveTheSafeMaximumGainsThroughTheOverageCurve()
+    {
+        // 65 is 25 over the safe maximum (40), where the curve is 25: 25 * 6.45E-05 per 60 ticks. Stage 2 begins at 0.05.
+        var hot = Thermal("Heatstroke", Stage(0, Post(0.9)), Stage(0.05, Post(0.5)));
+        const double Length = 4000;
+        var perTick = 25 * 6.45E-05 / 60;
+        var first = 0.05 / perTick;
+
+        var value = Thermally(Pawn(), ThermalTables(Thermal("Hypothermia"), hot), Span(0, Length, 65, 65));
+
+        Assert.Equal((first * 0.1 + (Length - first) * 0.5) / Day, value.Thermal.Value, 9);
+    }
+
+    [Fact]
+    public void UnknownOccupancyLeavesTheThermalTermUnassessedWithItsFinding()
+    {
+        var value = ForecastValue.Of(Outcome(Calm(), exposure: new("pawn", Day / 2, Day / 2, 0, 0)), Context(Pawn()), Day, Outcome(Calm()));
+
+        Assert.False(value.Thermal.IsKnown);
+        Assert.False(value.Total.IsKnown);
+        Assert.Contains("unassessed_thermal_exposure", value.Findings);
+        Assert.True(value.Hunger.IsKnown);
+    }
+
+    [Fact]
+    public void ATableTheCatalogLacksLeavesTheThermalTermUnknown()
+    {
+        var value = ForecastValue.Of(Outcome(Calm()), Context(Pawn(), Tables() with { Hypothermia = new() }), Day, Outcome(Calm()));
+
+        Assert.False(value.Thermal.IsKnown);
+        Assert.Contains("capacity_penalty_table_unknown:Hypothermia/Heatstroke", value.Findings);
     }
 }

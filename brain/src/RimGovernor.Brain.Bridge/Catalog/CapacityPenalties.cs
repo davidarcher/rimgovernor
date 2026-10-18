@@ -4,7 +4,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// The capacity penalty tables of #3519, read by the capability-days ledger (#3520): malnutrition and food poisoning, each
+// The capacity penalty tables of #3519, read by the capability-days ledger (#3520, #3521): malnutrition, food poisoning, hypothermia and heatstroke, each
 // decoded from its HediffDef (stages by minSeverity, the capacity modifiers, pain, the lethal severity and the severity
 // comps), and the Moving capacity's minForCapable. A hediff the catalog lacks is an unknown table, never an empty one.
 //
@@ -27,6 +27,8 @@ public sealed partial class DefinitionCatalog
     {
         Malnutrition = PenaltyTable(nameof(HediffDefOf.Malnutrition)),
         FoodPoisoning = PenaltyTable(nameof(HediffDefOf.FoodPoisoning)),
+        Hypothermia = PenaltyTable(nameof(HediffDefOf.Hypothermia)),
+        Heatstroke = PenaltyTable(nameof(HediffDefOf.Heatstroke)),
         MovingMinForCapable = DefRow<PawnCapacityDef>(nameof(PawnCapacityDefOf.Moving)) is { } moving ? Decimal32(moving.minForCapable) : null,
     };
 
