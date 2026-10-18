@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Telemetry.Otlp;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -269,7 +270,8 @@ public sealed partial class ServiceProcess
             Pid = pid,
             Launch = launch,
             Spec = spec,
-            LogPath = ServiceLogs.LogsPath(otlpDir),
+            // The in-mod brain writes its rings to the channel directory (RIMGOVERNOR_OTLP_DIR), not under the output.
+            LogPath = OtlpFiles.RingPath(endpointDir, OtlpSignal.Logs),
             _output = output,
             _configDir = configDir,
             _harness = harness,

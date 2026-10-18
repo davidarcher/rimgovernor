@@ -174,19 +174,21 @@ internal static class SweepSeed
         report["run_seed_draws"] = new JsonArray([.. draws.Select(d => (JsonNode?)JsonValue.Create(d))]);
         update(r => r with { RunSeedDraws = [.. draws] });
 
-        var logPath = ServiceLogs.ServiceLogsPath(dir);
+        var combatRows = Path.Combine(dir, CombatLabBundle.CombatRowsFile);
         var clock = new ServedClock();
         var spec = new ServeSpec
         {
             Families = CombatServe.MetricsFamilies,
             Prefix = string.Create(CultureInfo.InvariantCulture, $"combatlab-s{seed}"),
         };
+        // The game's ring outlives a seed (a kept process, an appended file): this seed owns the rows from here on.
+        var since = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
         var service = await ServiceProcess.ServeAsync(cfg, h, session.Identity, spec, report, cancellationToken).ConfigureAwait(false);
         try
         {
             _ = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
             service.KeepAuthority(cancellationToken);
-            await ServeUntilAsync(service, report, logPath, start + Ticks - StopMargin, clock, cancellationToken).ConfigureAwait(false);
+            await ServeUntilAsync(service, report, service.LogPath, start + Ticks - StopMargin, clock, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -208,13 +210,13 @@ internal static class SweepSeed
         await WriteReadsAsync(dir, [first, last], cancellationToken).ConfigureAwait(false);
         var shots = await CombatServe.RawReadAsync(h, "shots", cancellationToken).ConfigureAwait(false);
         await CombatLabShots.WriteShotsAsync(dir, CombatServe.Typed<Fx.LabShotsRead>(CombatFixtures.LabTool, shots), cancellationToken).ConfigureAwait(false);
-        await WriteCombatRowsAsync(logPath, Path.Combine(dir, CombatLabBundle.CombatRowsFile), cancellationToken).ConfigureAwait(false);
+        await WriteCombatRowsAsync(service.LogPath, combatRows, since, cancellationToken).ConfigureAwait(false);
         var aggregate = await CombatLabBundle.AggregateBundleAsync(dir, name, cancellationToken).ConfigureAwait(false);
         var text = CombatLabBundle.MetricsText(aggregate);
         await File.WriteAllTextAsync(Path.Combine(dir, CombatLabBundle.MetricsFile), text, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
         report["metrics"] = CombatLabBundle.MetricsJson(aggregate);
         var response = ResponseEvidence.Create(name, CombatServe.MetricsSpeed, start);
-        response.ReadLogs(logPath);
+        response.ReadLogs(combatRows);
         foreach (var row in CombatServe.Typed<Fx.LabFightRead>(CombatFixtures.LabTool, last).Damage)
         {
             if (row.InstigatorSide == CombatFixtures.Colonist && row.VictimSide == CombatFixtures.Hostile && row.Dealt > 0)
@@ -267,7 +269,7 @@ internal static class SweepSeed
     // until the served clock has sat still for Idle, which ends the run without failing it.
     private static async Task ServeUntilAsync(ServiceProcess service, Report report, string logPath, int until, ServedClock clock, CancellationToken cancellationToken)
     {
-        var tail = LogTail.FromStart(logPath);
+        var tail = LogTail.Create(logPath);
         var ended = false;
         var wait = new Wait { Stall = Idle, Interval = TimeSpan.FromMilliseconds(200), Terminal = service.Exited };
         try
@@ -289,7 +291,7 @@ internal static class SweepSeed
 
     // Copies the combat rows ScanLogs reads from the rotated segments (oldest first) and the live file of the service's
     // OTLP log ring into the bundle, one OTLP line each (the bundle is itself a log ring that ScanLogs reads back).
-    private static async Task WriteCombatRowsAsync(string from, string to, CancellationToken cancellationToken)
+    private static async Task WriteCombatRowsAsync(string from, string to, double since, CancellationToken cancellationToken)
     {
         var kept = new List<byte>();
         OtlpRing.ReadLines(
@@ -297,7 +299,7 @@ internal static class SweepSeed
             line =>
             {
                 var span = line.Span;
-                if (LogTail.ParseLogRow(span) is { } row && CombatLabBundle.CombatRow(row))
+                if (LogTail.ParseLogRow(span) is { } row && CombatLabBundle.CombatRow(row) && WallTime(span) >= since)
                 {
                     kept.AddRange(span.ToArray());
                     kept.Add(0x0a);
@@ -310,6 +312,10 @@ internal static class SweepSeed
 
         await File.WriteAllBytesAsync(to, [.. kept], cancellationToken).ConfigureAwait(false);
     }
+
+    // The Unix time in seconds of one logs.jsonl line (0 for a line that is no log record).
+    private static double WallTime(ReadOnlySpan<byte> line) =>
+        OtlpReader.DecodeLog(line.ToArray()) is { } log && OtlpTimeline.FromLog(log) is { } record ? record.WallTime : 0;
 
     private static async Task WriteReadsAsync(string dir, IReadOnlyList<JsonObject> reads, CancellationToken cancellationToken)
     {
