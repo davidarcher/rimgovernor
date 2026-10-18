@@ -96,8 +96,11 @@ internal static class NativeActivityTasks
                     foreach (var target in targets.Take(16))
                     {
                         if (--budget < 0) { truncated = true; break; }
+                        // Reserve with the claim the start-time job makes (#3570): a multi-seat building, bed or stack
+                        // another pawn holds under the same maxPawns stays bindable while its capacity lasts.
+                        var (maxPawns, stackCount) = NativeNeedsForecast.ServiceReservation(step.Kind, target, step.Count);
                         if (target.IsForbidden(pawn) || target.IsBurning()
-                            || !pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.None)) continue;
+                            || !pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.None, maxPawns, stackCount)) continue;
                         if (step.Kind == PawnActivityKind.Eat && (pawn.needs.food == null || !target.IngestibleNow
                             || target.stackCount < step.Count || !pawn.WillEat(target) || !FoodSupplyFacts.PolicyAllows(pawn, target))) continue;
                         if (step.Kind == PawnActivityKind.Sleep && (pawn.needs.rest == null || !RestUtility.CanUseBedNow(target, pawn, true))) continue;

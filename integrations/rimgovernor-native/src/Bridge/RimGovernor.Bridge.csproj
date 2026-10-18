@@ -18,6 +18,7 @@
     <Compile Include="../../../../scripts/fixtures/GuardedConstructionFixture.cs" Condition="'$(GuardedConstructionFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HazardFixture.cs" Condition="'$(HazardFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ShelterFixture.cs" Condition="'$(ShelterFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/RecreationSeatFixture.cs" Condition="'$(RecreationSeatFixture)' == 'true'" />
     <!-- The wire records (RimGovernor.Brain.Contracts, serialised with WireJson) come from the brain assemblies the mod shares with the in-process brain (#3080): one set of types, one build graph. -->
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Contracts/RimGovernor.Brain.Contracts.csproj" />
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
