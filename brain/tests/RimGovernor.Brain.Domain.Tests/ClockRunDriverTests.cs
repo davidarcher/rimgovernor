@@ -1226,9 +1226,8 @@ public sealed class ClockRunDriverTests
         // The next brain's open completes that wait (shutdown, not data) and native keeps neither the waiter nor the old queue.
         var fresh = channel.Open();
         Assert.False(await woke.WaitAsync(Ct));
-        Collect();
-        Assert.False(waiter.IsAlive);
-        Assert.False(reader.IsAlive);
+        Assert.True(await Released(waiter));
+        Assert.True(await Released(reader));
 
         // A write after the open reaches only the new reader.
         channel.Publish(new NativeEvents.HostilesCleared(new NativeEvents.ColonyEventOrigin(Colony, Load, Map, StartTick, 0), ""));
@@ -1245,8 +1244,7 @@ public sealed class ClockRunDriverTests
         var (_, waiter, woke) = PendingWait(channel, stop.Token);
         await stop.CancelAsync();
         _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => woke.WaitAsync(Ct));
-        Collect();
-        Assert.False(waiter.IsAlive);
+        Assert.True(await Released(waiter));
     }
 
     private static void Collect()
@@ -1255,6 +1253,26 @@ public sealed class ClockRunDriverTests
         {
             GC.Collect();
             GC.WaitForPendingFinalizers();
+        }
+    }
+
+    // Collects until the target is gone. The waiter's continuation may still be unwinding on a pool thread after it set
+    // Woke, holding the waiter on its stack, so one collect can race it under load; the deadline is a hang guard.
+    private static async Task<bool> Released(WeakReference target)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
+        while (true)
+        {
+            Collect();
+            if (!target.IsAlive)
+            {
+                return true;
+            }
+            if (DateTime.UtcNow >= deadline)
+            {
+                return false;
+            }
+            await Task.Delay(10, Ct);
         }
     }
 
