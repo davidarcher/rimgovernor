@@ -53,6 +53,37 @@ namespace HomeBridge.BridgeTools
         static void SetViewport(bool on)
         {
             if (Find.Camera is Camera camera && camera.enabled != on) camera.enabled = on;
+            SetRenderInterval(on ? 1 : IdleRenderInterval);
+        }
+
+        // Frames the engine skips presenting between two it does: the game logic runs every frame, the CPU-rendered
+        // runner's cores are not spent on frames nobody reads, and the shots render by hand regardless. Looked up by
+        // reflection so an engine without it only logs.
+        const int IdleRenderInterval = 600;
+        static bool renderIntervalReported;
+
+        static void SetRenderInterval(int interval)
+        {
+            try
+            {
+                var property = Type.GetType("UnityEngine.Rendering.OnDemandRendering, UnityEngine.CoreModule")
+                    ?.GetProperty("renderFrameInterval", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                if (property == null)
+                {
+                    if (!renderIntervalReported) Log.Warning("[colony-review] OnDemandRendering.renderFrameInterval is not available");
+                }
+                else if ((int)property.GetValue(null) != interval)
+                {
+                    property.SetValue(null, interval);
+                    if (!renderIntervalReported) Log.Message("[colony-review] render frame interval set to " + interval);
+                }
+            }
+            catch (Exception e)
+            {
+                if (!renderIntervalReported) Log.Warning("[colony-review] render frame interval not set: " + e.Message);
+            }
+
+            renderIntervalReported = true;
         }
 
         public static object Status() => new { success = true, recording = dir != null, dir, interval, size, nextTick, frames,
