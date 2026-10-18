@@ -365,92 +365,27 @@ public static class ChildRoomsRules
                 continue;
             }
 
-            var taken = new HashSet<Cell>();
-            foreach (var b in built)
-            {
-                foreach (var c in b.Cells.Items)
-                {
-                    taken.Add(c);
-                }
-            }
+            var furnishing = RoomFurnishingRules.RoomFurnishing(
+                room,
+                interior,
+                [.. pieces.Select(p => new FurnishingWant { Things = p.Defs, Count = p.Count, Piece = p.Piece })],
+                built
+            );
 
-            var template = new List<WantedPiece>();
-            var absent = false;
-            foreach (var p in pieces)
-            {
-                var count = 0;
-                foreach (var b in built)
-                {
-                    if (count < p.Count && b.Cells.Count > 0 && FurnitureRoomsRules.RectInside(room.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells.Items)) && p.Defs.Contains(b.Building!.Definition))
-                    {
-                        var r = PlacementSearchRules.CellsRectangle(b.Cells.Items);
-                        template.Add(
-                            new WantedPiece
-                            {
-                                DefName = b.Building.Definition,
-                                Minimum = new Cell(r.X, r.Z),
-                                Maximum = new Cell(r.X + r.Width - 1, r.Z + r.Height - 1),
-                            }
-                        );
-                        count++;
-                    }
-                }
-
-                if (count >= p.Count)
-                {
-                    continue;
-                }
-
-                var (planned, plannedOk) = InteriorRegionRules.PlanRoomInterior(interior, p.Piece);
-                if (!plannedOk)
-                {
-                    continue;
-                }
-
-                foreach (var slot in planned.Pieces)
-                {
-                    if (count >= p.Count || slot.Def != p.Piece.Def || CellsTaken(slot.Rect, taken))
-                    {
-                        continue;
-                    }
-
-                    foreach (var c in PlannedRules.RectCells(slot.Rect))
-                    {
-                        taken.Add(c);
-                    }
-
-                    template.Add(
-                        new WantedPiece
-                        {
-                            DefName = slot.Def,
-                            Minimum = new Cell(slot.Rect.X, slot.Rect.Z),
-                            Maximum = new Cell(slot.Rect.X + slot.Rect.Width - 1, slot.Rect.Z + slot.Rect.Height - 1),
-                            Slot = slot.Slot,
-                            Size = slot.Size,
-                            Rot = slot.Rot,
-                        }
-                    );
-                    absent = true;
-                    count++;
-                }
-            }
-
-            if (absent || !plan.GroundMatches(room, ground))
+            if (furnishing.Absent || !plan.GroundMatches(room, ground))
             {
                 return new ChildRoomStep
                 {
                     Kind = ChildRoomStepKind.Reconcile,
                     Need = n,
                     Room = room,
-                    Template = EquatableArray.From(template),
+                    Template = EquatableArray.From(furnishing.Pieces),
                 };
             }
         }
 
         return new ChildRoomStep();
     }
-
-    private static bool CellsTaken(Rectangle r, HashSet<Cell> taken) => PlannedRules.RectCells(r).Any(taken.Contains);
 
     /// <summary>The buildings of any of <paramref name="defs"/> inside the room's interior.</summary>
     internal static int StandingChildPieces(PlannedRoom r, IReadOnlyCollection<string> defs, IEnumerable<CurrentBuilding> built)
