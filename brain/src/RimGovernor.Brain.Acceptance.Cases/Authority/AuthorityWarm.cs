@@ -50,6 +50,8 @@ internal static class AuthorityWarm
                 Speed = Clock.Speed.Superfast,
                 Policy = new Clock.WatchPolicy { Mode = Clock.WatchMode.Colony, HealthDropFraction = 0.5f, MinHealthFraction = 0.2f, HostileWithin = 40, InjuryStopCooldownMs = 0 },
                 PlannedHoldSerial = before.HoldSerial,
+                // A review a day out: the case runs an hour and drops the session before the clock reaches it.
+                HoldAtTick = (ulong)(Math.Max(before.Context?.Tick ?? 0, 0) + 60_000),
             }, cancellationToken).ConfigureAwait(false);
             if (run.Outcome?.Status is not { State: Clock.ClockState.Running } running)
             {

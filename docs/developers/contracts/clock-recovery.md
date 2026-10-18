@@ -228,11 +228,16 @@ native handles or the journal. Concurrent Stop calls serialize, successful clean
 cleanup is retryable; Stop drops authority and holds the clock for review. Autonomous play attaches the driver;
 observe-only (`RIMGOVERNOR_OBSERVE`) does not.
 
-### Wake, backoff and deferral
+### Wake, retry and deferral
 
-Unchanged scheduling decisions back off, except while a combat watch is running. A captured page wakes the step
-loop through `WakeSignal` and resets the backoff, carrying invalidated families and the authority flag as the step's
-`StepReason`. The Worker also steps on that signal.
+The step loop waits for a hold (#3556). Every `Run` names the review tick native holds the clock at
+(`RunRequest.HoldAtTick`, required, `ClockRunConfig.ReviewEveryTicks` past the step's read); every hold entry, the
+brain's own included, wakes the step through `WakeSignal`, carrying the hold's stamp, the invalidated families
+accumulated since the last step and the authority flag as the step's `StepReason`. An invalidation alone marks its
+planners and hints the Worker, which steps on that signal; it never wakes a step while the clock runs. An authority
+change or a loss on the event queue does. There is no wall-time step interval and no back-off: a step that did not
+complete, deferred, or left the clock held retries after the watchdog's `FaultBackoff` (at once when the run driver
+acted and the clock is still held), and a step whose `Run` resumed the clock waits for the next hold.
 
 Dispatch never waits for a hold: every routine kind the worker
 dispatches validates its preconditions natively at apply time (action-contracts.md
@@ -253,15 +258,17 @@ snapshot (one main-thread hop) and commit plans the worker dispatches under the 
 
 ### Step causes and the due queue
 
-`StepReason.Cause` is `timer`, `wake`, `settled` or `full`. A `settled` step follows a hold or `Run` the driver just made. The scheduler
+`StepReason.Cause` is `review`, `wake`, `retry` or `full`. A `review` step starts from the review hold the last `Run`
+named, with no other hold or authority change pending; a `wake` step from any other hold, or an authority change or a
+loss under a running clock; a `retry` step follows one that did not complete or left the clock held. The scheduler
 queues the `plannerCatalog` entries `plannerSelection` picks over its due queue
 (`plannerQueue`):
 
 | Cause | Entries run |
 | --- | --- |
-| `full`, `settled` | every configured entry |
-| `timer` | entries whose next review tick (`plannerEntry.reviewEvery`) has passed (see the code for per-class cadence); with nothing due the step runs the driver tail alone. Promoted to `full` once `FullStepEvery` has passed without a full wave |
-| `wake` | entries whose dispatched `kinds` include a latched outcome's kind (an unremembered action selects all) or whose declared `sections` include one an `ObservationInvalidated` row dirtied (`facts.Invalidation.Sections`); all of them when authority changed |
+| `full` | every configured entry |
+| `review`, `retry` | entries an invalidation since the last step dirtied (their declared `sections` include one an `ObservationInvalidated` row dirtied, `facts.Invalidation.Sections`) and entries whose next review tick (`plannerEntry.reviewEvery`) has passed (see the code for per-class cadence); with nothing dirty or due the step runs the driver tail alone. Promoted to `full` once `FullStepEvery` has passed without a full wave |
+| `wake` | the dirtied entries as above; a hold carrying no evidence (a hazard, a game pause, a brain hold) is an early review of everything and marks every entry; all of them when authority changed |
 
 An entry that reported `existing_work` waits on the open attempts of its kinds
 (`plannerQueue.waits`): it is not selected again until one reaches its outcome row,

@@ -25,9 +25,12 @@ collected and thrown together after everything else ran.
 
 ## Scheduler thread and authority
 
-One dedicated thread (`rimgovernor-brain-scheduler`) steps the `ClockScheduler` with the `ClockWorker.stepLoop`
-cadence: first step Full, delay doubling to the maximum on an unchanged step key, evidence resets it, a settled step
-after the run driver held or resumed the clock. It idles unless the player is enabled with a known observation. Authority is the loaded world's:
+One dedicated thread (`rimgovernor-brain-scheduler`) steps the `ClockScheduler` on the clock's cadence (#3556): the
+first step is Full, and every later step starts from a hold. Each `Run` names the review tick native holds at
+(`ClockRunConfig.ReviewEveryTicks`, 600); a hazard, a letter, a game pause or a brain hold is an early review; an
+authority change or a loss on the event queue wakes a step while the clock runs. A step that did not complete, or
+left the clock held, retries after `FaultBackoff` or at once. Invalidations only mark planners for the next review.
+There is no wall-time step interval. It idles unless the player is enabled with a known observation. Authority is the loaded world's:
 `FacadeAuthority` implements `INativeAuthority` over the facade, and `AutoResumer` offers each fresh world one resume
 through the same control intent the resume route submits.
 
@@ -92,7 +95,7 @@ The thresholds are unmeasured guesses:
 | `StallAfter` | 90 s | A step may use its whole 1 min `StepTimeout` plus half again before it counts as a stall. |
 | `AbandonAfter` | 30 s | A step that ignores its cancellation token this long after the stall is abandoned and authority suspended. |
 | `FaultLimit` | 5 | Consecutive faulted or stalled steps before authority is suspended; five is a pattern, not a blip. |
-| `FaultBackoff` | 5 s | Half the worker's maximum idle delay (10 s), so a fault does not spin and recovery stays prompt. |
+| `FaultBackoff` | 5 s | The wait before a step that faulted, stalled, deferred or was cancelled retries, and the idle loop's poll; a hold wakes the retry sooner. Half the Worker's maximum idle delay (10 s), so a fault does not spin and recovery stays prompt. |
 | `PlannerMissLimit` | 3 | Consecutive missed wave cutoffs before a planner is reported stalled in `BrainHost.Status()`. |
 
 Measured once (one in-game day, 2026-10-18, #3199); see [Live clock baseline](#live-clock-baseline).

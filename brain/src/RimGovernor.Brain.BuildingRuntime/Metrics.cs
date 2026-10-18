@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal static class Metrics
 {
     private static readonly Vocabulary StepCauseVocabulary = Vocabulary.Words(
-        Wire.Name(StepCause.Timer), Wire.Name(StepCause.Wake), Wire.Name(StepCause.Settled), Wire.Name(StepCause.Full));
+        Wire.Name(StepCause.Review), Wire.Name(StepCause.Wake), Wire.Name(StepCause.Retry), Wire.Name(StepCause.Full));
 
     // Every policy Reason; a test keeps it equal to the constants declared in package policy.
     private static readonly Vocabulary RefusalReasonVocabulary = Vocabulary.Words(

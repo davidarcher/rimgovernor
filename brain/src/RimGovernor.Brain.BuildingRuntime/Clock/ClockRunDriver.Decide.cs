@@ -5,10 +5,13 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 // The hold state machine, run after the planning step (the admission tail, reduced to the
 // continuous clock). Native is Running at the target speed or Held for a named reason, and only a Run ends a hold.
+// Every Run names the tick native holds at for the next review (ClockRunConfig.ReviewEveryTicks past the status
+// tick), so a step normally starts from a held clock (#3556).
 //
-//   Running  the watch policy the facts imply is diffed against the last one sent and resent when it differs (Run is
-//            idempotent and doubles as the speed change); a coupled order newly ready, or an autosave that is due,
-//            takes a brain hold. A refused decision never stops a running clock: native holds on what it sees.
+//   Running  (a step an authority change or lost events woke) the watch policy the facts imply is diffed against the
+//            last one sent and resent when it differs (Run is idempotent and doubles as the speed change); a coupled
+//            order newly ready, or an autosave that is due, takes a brain hold. A refused decision never stops a
+//            running clock: native holds on what it sees.
 //   Held     the autosave runs when one is due, and Run resumes the clock when the decision allows it. The Run quotes
 //            the hold serial the step read, so native refuses it when a hold entered after that read.
 //
@@ -35,6 +38,9 @@ public sealed partial class ClockRunDriver
         public ClockWatchDecision? Decision { get; set; }
 
         public PbClock.HoldReason? HeldFor { get; set; }
+
+        /// <summary>The review tick the Run named; null when no Run was sent.</summary>
+        public long? HoldAt { get; set; }
     }
 
     /// <summary>
@@ -86,6 +92,10 @@ public sealed partial class ClockRunDriver
         if (note.HeldFor is { } heldFor)
         {
             attrs["held_for"] = Wire.Name(heldFor);
+        }
+        if (note.HoldAt is { } holdAt)
+        {
+            attrs["hold_at_tick"] = holdAt;
         }
         if (note.Combat)
         {
@@ -216,30 +226,32 @@ public sealed partial class ClockRunDriver
         var newlyCoupled = coupled.Any(a => !_coupledHeld.Contains(a));
         _coupledHeld.IntersectWith(coupled);
 
-        if (running)
+        if (running && newlyCoupled)
         {
             // The brain's own holds come first: both end in a Run once the step that follows them has planned.
-            if (newlyCoupled)
+            _coupledHeld.UnionWith(coupled);
+            return await HoldAsync(note, PbClock.HoldReason.CoupledOrder, "coupled_order", call).ConfigureAwait(false);
+        }
+        if (_config.Autosave is not null)
+        {
+            // The interval is counted on the game clock from the previous due point. A review that finds the save due
+            // saves right there, with the clock already held and paused; a running step (rare) holds for it first.
+            if (_autosaveMark == long.MinValue || statusTick < _autosaveMark)
             {
-                _coupledHeld.UnionWith(coupled);
-                return await HoldAsync(note, PbClock.HoldReason.CoupledOrder, "coupled_order", call).ConfigureAwait(false);
+                _autosaveMark = statusTick;
+                _autosaveDue = false;
             }
-            if (_config.Autosave is not null)
+            else if (statusTick - _autosaveMark >= _config.AutosaveEveryTicks)
             {
-                if (_autosaveMark == long.MinValue || statusTick < _autosaveMark)
+                _autosaveMark = statusTick;
+                _autosaveDue = true;
+                if (running)
                 {
-                    _autosaveMark = statusTick;
-                    _autosaveDue = false;
-                }
-                else if (statusTick - _autosaveMark >= _config.AutosaveEveryTicks)
-                {
-                    _autosaveMark = statusTick;
-                    _autosaveDue = true;
                     return await HoldAsync(note, PbClock.HoldReason.Autosave, "autosave", call).ConfigureAwait(false);
                 }
             }
         }
-        else
+        if (!running)
         {
             note.HeldFor = status.Reason;
             // The stop on an armed combat event is the open fight's next decision: the defense planner runs once more
@@ -372,13 +384,24 @@ public sealed partial class ClockRunDriver
         // The Run quotes the hold serial of the step's own read, not this decision's later one: a hold native entered
         // after the step planned refuses the resume, and the next step re-plans against it.
         var plannedHoldSerial = step.HoldSerial ?? throw new HeldException("the step read no hold serial");
+        // The next review: the cadence past the tick this decision read. A running clock may have passed it by the
+        // time the Run lands; native then holds at its next tick, an early review that re-plans from a fresh read.
+        var holdAt = statusTick + _config.ReviewEveryTicks;
         PbClock.Status after;
         try
         {
             using var bounded = CancellationTokenSource.CreateLinkedTokenSource(call);
             bounded.CancelAfter(_config.CallTimeout);
             after = await _writer.RunAsync(
-                new PbClock.RunRequest { Identity = Boundary.Identity(state.Snapshot), ExpectedGeneration = (ulong)state.Snapshot.Native.Value, Speed = speed, Policy = policy, PlannedHoldSerial = plannedHoldSerial },
+                new PbClock.RunRequest
+                {
+                    Identity = Boundary.Identity(state.Snapshot),
+                    ExpectedGeneration = (ulong)state.Snapshot.Native.Value,
+                    Speed = speed,
+                    Policy = policy,
+                    PlannedHoldSerial = plannedHoldSerial,
+                    HoldAtTick = (ulong)holdAt,
+                },
                 bounded.Token).ConfigureAwait(false);
         }
         catch (Exception e) when (e is NativeFailureException or NativeUnavailableException)
@@ -391,6 +414,7 @@ public sealed partial class ClockRunDriver
         _sentSpeed = speed;
         Interlocked.Exchange(ref _ran, 1);
         _scheduler.SetRunning(after.State == PbClock.ClockState.Running);
+        note.HoldAt = holdAt;
         note.Action = resumed ? "run" : "adjust";
         note.Reason = resumed ? "resumed" : (status.TargetSpeed == speed ? "watch_changed" : "speed_changed");
         return true;

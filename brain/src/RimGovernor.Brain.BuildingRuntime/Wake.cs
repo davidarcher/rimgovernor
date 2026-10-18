@@ -13,11 +13,15 @@ public readonly record struct WakeOutcome(ActionId Action, AttemptId Attempt, bo
 /// Carries clock evidence from the colony event consumer to the scheduler step loop and the Worker. Only events the
 /// consumer has read against the current world wake anyone; a wake is a hint to act now, never a fact by itself. A
 /// caller that has no signal holds null and uses <see cref="Wait"/>, which never completes for it.
+/// The step loop and the Worker wait on separate channels: the Worker is hinted by everything, the step loop only by
+/// a hold entry, an authority change or lost events (<see cref="WaitStep"/>). Invalidations and planner marks only
+/// accumulate for the step that the next hold wakes: nothing wakes a step while the clock runs (#3556).
 /// </summary>
 public sealed class WakeSignal
 {
     private readonly object _mu = new();
-    private readonly Channel<bool> _ch = Channel.CreateBounded<bool>(new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite });
+    private readonly Channel<bool> _step = Channel.CreateBounded<bool>(new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite });
+    private readonly Channel<bool> _hint = Channel.CreateBounded<bool>(new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite });
     private readonly HashSet<FactFamily> _families = [];
 
     // The store sections the events' invalidations made stale, as narrowed as native attributed them; the
@@ -31,36 +35,22 @@ public sealed class WakeSignal
     // Set when colony events were lost: the step that takes the evidence plans Full.
     private bool _full;
 
-    // The native stamp of the earliest stop still pending for the step loop, null when the events carried none;
-    // the step that acts on it publishes the stop-to-step latency.
+    // The native stamp of the earliest hold still pending for the step loop, null when the events carried none;
+    // the step that acts on it publishes the hold-to-step latency (clock_step stop_latency_ms).
     private DateTimeOffset? _stopAt;
 
-    // Counts committed stops; _stopsTaken is the count the step loop last drained, so a step reason reports
-    // whether a stop is pending. No admission waits for a stop: every kind the Worker dispatches is validated
-    // natively at apply time and dispatches under a running window as readily as between windows.
-    private ulong _stops;
-
-    /// <summary>Signals without blocking.</summary>
-    public void Notify(bool authority) =>
-        NotifyInvalidated([], authority);
-
-    /// <summary>Notify carrying the fact families the events' ObservationInvalidated named as well.</summary>
-    public void NotifyInvalidated(IReadOnlyList<FactFamily> families, bool authority) =>
-        NotifyStopped(families, authority, false);
-
-    /// <summary>NotifyInvalidated that also records whether the events stopped the clock.</summary>
-    public void NotifyStopped(IReadOnlyList<FactFamily> families, bool authority, bool stopped) =>
-        NotifyStopAt(families, authority, stopped, null);
-
-    /// <summary>NotifyStopped carrying the native stamp of the stop (the Stopped event's observed_at), null when unknown.</summary>
-    public void NotifyStopAt(IReadOnlyList<FactFamily> families, bool authority, bool stopped, DateTimeOffset? stopAt) =>
-        NotifySections(families, [], authority, stopped, stopAt);
+    // Whether a hold is pending for the step loop, and whether every pending hold was the review tick a Run named:
+    // a step for the review alone runs the dirty and due planners, any other hold is an early review of everything.
+    private bool _stopped;
+    private bool _onlyReview = true;
 
     /// <summary>
-    /// NotifyStopAt carrying the sections the events' invalidations narrowed to (EventSections).
-    /// Invalidations coalesce into one set; authority stays set until taken.
+    /// Records one batch of colony events: the fact families and store sections its invalidations named
+    /// (EventSections), whether authority changed, whether the clock entered a hold (with the native stamp of the
+    /// earliest, null when unknown) and whether every such hold was the review tick. Invalidations coalesce into one
+    /// set and only hint the Worker; a hold or an authority change also wakes the step loop.
     /// </summary>
-    public void NotifySections(IReadOnlyList<FactFamily> families, IReadOnlyList<Facts.Section> sections, bool authority, bool stopped, DateTimeOffset? stopAt)
+    public void NotifySections(IReadOnlyList<FactFamily> families, IReadOnlyList<Facts.Section> sections, bool authority, bool stopped, DateTimeOffset? stopAt, bool review)
     {
         lock (_mu)
         {
@@ -75,14 +65,19 @@ public sealed class WakeSignal
             _authority = _authority || authority;
             if (stopped)
             {
-                _stops++;
+                _stopped = true;
+                _onlyReview = _onlyReview && review;
                 if (_stopAt is null || (stopAt is { } at && at < _stopAt))
                 {
                     _stopAt = stopAt;
                 }
             }
         }
-        _ch.Writer.TryWrite(true);
+        _hint.Writer.TryWrite(true);
+        if (stopped || authority)
+        {
+            _step.Writer.TryWrite(true);
+        }
     }
 
     /// <summary>Marks the named planner due at the next step, for a change no fact family carries; a name no composed planner bears is ignored.</summary>
@@ -92,7 +87,7 @@ public sealed class WakeSignal
         {
             _ = _planners.Add(planner);
         }
-        _ch.Writer.TryWrite(true);
+        _hint.Writer.TryWrite(true);
     }
 
     /// <summary>Signals that colony events were lost: what they would have invalidated is unknown, so the next step plans Full.</summary>
@@ -102,12 +97,13 @@ public sealed class WakeSignal
         {
             _full = true;
         }
-        _ch.Writer.TryWrite(true);
+        _hint.Writer.TryWrite(true);
+        _step.Writer.TryWrite(true);
     }
 
     /// <summary>
-    /// Completes when a wake is signalled or <paramref name="ct"/> is cancelled. A null signal never fires, so
-    /// loops that also wait on a timer need no special case.
+    /// Completes when any evidence is signalled (the Worker's hint) or <paramref name="ct"/> is cancelled. A null
+    /// signal never fires, so loops that also wait on a timer need no special case.
     /// </summary>
     public static async Task Wait(WakeSignal? signal, CancellationToken ct)
     {
@@ -116,41 +112,64 @@ public sealed class WakeSignal
             await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
             return;
         }
-        await signal._ch.Reader.ReadAsync(ct).ConfigureAwait(false);
+        await signal._hint.Reader.ReadAsync(ct).ConfigureAwait(false);
     }
 
-    /// <summary>Drains the invalidated families, the authority flag and a loss into one step reason: Full after a loss.</summary>
+    /// <summary>Completes when a hold entry, an authority change or a loss is signalled (the step loop's wake) or <paramref name="ct"/> is cancelled.</summary>
+    public static async Task WaitStep(WakeSignal? signal, CancellationToken ct)
+    {
+        if (signal is null)
+        {
+            await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+            return;
+        }
+        await signal._step.Reader.ReadAsync(ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Whether a step wake is signalled right now; taking it leaves the evidence for <see cref="TakeInvalidated"/>.</summary>
+    public bool TryTakeStep() => _step.Reader.TryRead(out _);
+
+    /// <summary>
+    /// Drains the evidence into one step reason: Full after a loss; Review when the only holds pending were the review
+    /// tick and authority did not change; Wake otherwise. The reason carries the hold and its earliest stamp.
+    /// </summary>
     public StepReason TakeInvalidated()
     {
         lock (_mu)
         {
             var reason = new StepReason
             {
-                Cause = _full ? StepCause.Full : StepCause.Wake,
+                Cause = _full ? StepCause.Full : _stopped && _onlyReview && !_authority ? StepCause.Review : StepCause.Wake,
                 Families = [.. _families.Order()],
                 Sections = [.. _sections.Order()],
                 Planners = [.. _planners.Order(StringComparer.Ordinal)],
                 Authority = _authority,
+                Stopped = _stopped,
+                StopAt = _stopAt,
             };
             _families.Clear();
             _sections.Clear();
             _planners.Clear();
             _authority = false;
             _full = false;
+            _stopped = false;
+            _onlyReview = true;
+            _stopAt = null;
             return reason;
         }
     }
 }
 
 /// <summary>What one batch of colony events says that should wake the step loop.</summary>
-internal sealed record ColonyEventWake(IReadOnlyList<FactFamily> Families, bool Authority, bool Stopped, DateTimeOffset? StopAt);
+internal sealed record ColonyEventWake(IReadOnlyList<FactFamily> Families, bool Authority, bool Stopped, DateTimeOffset? StopAt, bool Review);
 
 partial class ColonyEventConsumer
 {
     /// <summary>
     /// Reads the wake-relevant facts out of one batch of this world's events: the families its
-    /// ObservationInvalidated events named, whether authority changed, and whether the batch carried a native hold
-    /// with the earliest such event's native stamp.
+    /// ObservationInvalidated events named, whether authority changed, and whether the batch carried a hold entry
+    /// (every hold wakes the step that starts from it, the brain's own coupled-order and autosave holds included)
+    /// with the earliest such event's native stamp, and whether every hold was the review tick.
     /// </summary>
     internal static ColonyEventWake EventsWake(IReadOnlyList<NativeEvents.ColonyEvent> events)
     {
@@ -158,21 +177,19 @@ partial class ColonyEventConsumer
         var seen = new HashSet<FactFamily>();
         var authority = false;
         var stopped = false;
+        var review = true;
         DateTimeOffset? stopAt = null;
         foreach (var @event in events)
         {
             switch (@event)
             {
                 case NativeEvents.HoldEntered held:
-                    // The brain's own holds are not wakes: the driver that took them plans again itself.
-                    if (!BrainRequestedHold(held.Reason))
+                    stopped = true;
+                    review = review && held.Reason == ClockPb.HoldReason.Review;
+                    var at = DateTimeOffset.FromUnixTimeMilliseconds(held.Origin.ObservedAtUnixMs);
+                    if (stopAt is null || at < stopAt)
                     {
-                        stopped = true;
-                        var at = DateTimeOffset.FromUnixTimeMilliseconds(held.Origin.ObservedAtUnixMs);
-                        if (stopAt is null || at < stopAt)
-                        {
-                            stopAt = at;
-                        }
+                        stopAt = at;
                     }
                     break;
                 case NativeEvents.AuthorityChanged:
@@ -195,7 +212,7 @@ partial class ColonyEventConsumer
                     break;
             }
         }
-        return new ColonyEventWake(families, authority, stopped, stopAt);
+        return new ColonyEventWake(families, authority, stopped, stopAt, stopped && review);
     }
 
     /// <summary>
@@ -253,8 +270,4 @@ partial class ColonyEventConsumer
         var a = @event.Origin;
         return !string.Equals(a.ColonyId, current.ColonyId ?? "", StringComparison.Ordinal) || !string.Equals(a.LoadToken, current.LoadToken ?? "", StringComparison.Ordinal) || a.MapId != current.MapId;
     }
-
-    /// <summary>Whether the hold was the brain's own request (a coupled order, a review or an autosave) rather than native's.</summary>
-    internal static bool BrainRequestedHold(ClockPb.HoldReason reason) =>
-        reason is ClockPb.HoldReason.CoupledOrder or ClockPb.HoldReason.Review or ClockPb.HoldReason.Autosave;
 }

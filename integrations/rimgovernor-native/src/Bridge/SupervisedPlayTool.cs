@@ -118,6 +118,11 @@ namespace HomeBridge.BridgeTools
                 if (StopInvalidTypedAuthority(s)) return;
                 // An armed combat event stops at this tick's boundary.
                 if (StopOnCombatEvent(s)) return;
+                // The review tick the Run named: the brain's cadence hold, on the
+                // tick boundary like a hazard (#3556). A tick already passed when
+                // the Run landed holds here, at the first tick of the segment.
+                if (tm.TicksGame >= s.HoldAtTick)
+                { Stop(s, Clock.HoldReason.Review, "Review due at tick " + s.HoldAtTick + ".", true); return; }
                 // Preserve player and letter attribution if the final tick also
                 // changed the clock. The frame watcher handles those stops.
                 if (tm.CurTimeSpeed != s.RequestedSpeed) return;
@@ -1171,6 +1176,8 @@ namespace HomeBridge.BridgeTools
             public string? Mode; public float HostileWithin; public float HealthDropFraction; public float MinHealthFraction;
             public long LastProbeMs; public int LastTick; public bool PausedAtStop;
             public int StartTick;
+            // The game tick this segment holds at for Review (the Run's HoldAtTick); every Run moves it.
+            public int HoldAtTick;
             // The run segment's start (wall ms and the session frame account at the Run), measured against at the hold.
             public long ResumeMs; public ulong FramesAtResume, OverBudgetAtResume;
             // What the game's TickRateMultiplier asked for before the ceiling, as of the last frame.

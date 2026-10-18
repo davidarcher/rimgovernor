@@ -60,13 +60,15 @@ Traps in the numbers:
   the game ran fast between holds.
 - The headline paused number is `paused_fraction_native` (native's own
   hold->run / run->hold account on a monotonic clock).
-- `step reasons`: a healthy running clock is mostly `wake`; mostly `timer`
-  means the colony event consumer is not seeing events. `timer` runs only planners due on
-  the queue, `wake` is pushed colony event evidence, `settled` and `full` re-plan
-  everything.
-- `resume_latency_ms_*` is the native time a hold lasted before a Run resumed it, the stall a held colony waits on the brain; it
-  should sit well under one `StepInterval`. Rows without a native stamp count
-  but are not sampled.
+- `step reasons`: a healthy running clock is mostly `review` (the review tick each
+  Run names, about 100 per in-game day at the 600-tick cadence); `wake` is a hazard,
+  a letter, a game pause or an authority change, `retry` a step after one that did
+  not complete or left the clock held, `full` the first step, a loss or the safety
+  net. A day with few `review` rows means the clock is not reaching its review ticks
+  (held elsewhere, or not running); many `wake` rows mean hazards.
+- `resume_latency_ms_*` is the native time a hold lasted before a Run resumed it, the stall a held colony waits on the brain; at
+  a review hold it is the review's own wall, the number the 2-minute-per-day budget is
+  made of. Rows without a native stamp count but are not sampled.
 - `journal_ms` growing over a long save means a catalog read stopped using its
   index. `gate_wait_ms` large means a slow Worker dispatch, not a slow planner.
 - Per tool, `call ms` includes native queue and execute time; `queue ms`/`exec
@@ -82,13 +84,14 @@ Traps in the numbers:
 - Slow steps, high reads/step: a planner is re-reading; check `parent_hits`
   and the by-tool split.
 - Low wall TPS with a high paused fraction: the game waits on the brain;
-  check `resume_latency_ms_mean` and whether `reasons` is `timer`-heavy. With a low
+  check `resume_latency_ms_mean` and how many `review` rows ran against the ticks
+  the day covered. With a low
   paused fraction the game itself is slow; the brain is not the bottleneck.
 
 ## Across clock speeds
 
-The brain must make the same decisions per game tick and react to a hold
-within one step interval at every speed.
+The brain must make the same decisions per game tick and review at the same
+game ticks at every speed; only the wall per review changes.
 
 **Native (about 2 minutes per speed):**
 

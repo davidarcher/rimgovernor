@@ -11,10 +11,10 @@ public interface IClockDriverNative : IColonyEventNative
 }
 
 /// <summary>
-/// Runs the native clock of a session: sends Run at the target speed under the watch policy the facts imply, takes
-/// the brain's own holds (a coupled order, a review, an autosave), keeps the heartbeat, and consumes the colony events
-/// native pushes, which say what held it. The host calls <see cref="AfterStepAsync"/> after every scheduler step and
-/// <see cref="StopAsync"/> on shutdown.
+/// Runs the native clock of a session: sends Run at the target speed under the watch policy the facts imply, naming
+/// the next review tick, takes the brain's own holds (a coupled order, an autosave, a review when the bot stops),
+/// keeps the heartbeat, and consumes the colony events native pushes, which say what held it. The host calls
+/// <see cref="AfterStepAsync"/> after every scheduler step and <see cref="StopAsync"/> on shutdown.
 /// </summary>
 public sealed partial class ClockRunDriver : IDisposable
 {
@@ -116,6 +116,10 @@ public sealed partial class ClockRunDriver : IDisposable
         if (config.HeartbeatInterval <= TimeSpan.Zero || config.HeartbeatInterval >= TimeSpan.FromSeconds(5))
         {
             throw new ControlException("NewClockRunDriver: the heartbeat interval must be under the native tolerance of five seconds");
+        }
+        if (config.ReviewEveryTicks <= 0)
+        {
+            throw new ControlException("NewClockRunDriver: the review cadence must be a positive number of ticks");
         }
     }
 

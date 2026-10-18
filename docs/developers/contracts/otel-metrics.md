@@ -18,7 +18,7 @@ All names are prefixed `rimgovernor.`; durations are milliseconds.
 | --- | --- | --- | --- |
 | `native.phase.duration` | histogram, `ms` (native buckets) | `native_tool`, `phase` | each native call: `gate_wait`, `call`, `decode`, `native_queue`, `native_execute` (when the companion reported its split) in `Client.core`; `proto_decode` in `protoCall` |
 | `native.calls` | counter, `{call}` | `native_tool`, `outcome` (`ok`, `refused`, `error`) | each native call |
-| `scheduler.step.duration` | histogram, `ms` (scheduler buckets) | `step_cause` (`timer`, `wake`, `settled`, `full`) | end of every `ClockScheduler.StepWithReason` |
+| `scheduler.step.duration` | histogram, `ms` (scheduler buckets) | `step_cause` (`review`, `wake`, `retry`, `full`) | end of every `ClockScheduler.StepWithReason` |
 | `scheduler.stop_latency` | histogram, `ms` | none | a step woken by a native hold: hold stamp to step start |
 | `scheduler.critical_wave.duration` | histogram, `ms` | none | critical planner wave wall time |
 | `game.ticks_per_second` | gauge, `{tick}/s` | none | the clock status's effective ticks per wall second, set by each step that read one |

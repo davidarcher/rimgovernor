@@ -88,9 +88,6 @@ public sealed class PlannerContext
     /// <summary>Where the goals Family files its latest statuses and the host's goals view reads them (#3497).</summary>
     public required GoalStatusBoard GoalStatuses { get; init; }
 
-    /// <summary>Asks the scheduler loop to step now (the Worker's <c>Advanced</c>).</summary>
-    public required Action Nudge { get; init; }
-
     /// <summary>
     /// The autosave a run start at a paused tick calls with the loaded world's identity and tick.
     /// It flushes the governor state before it saves. Null saves nothing.

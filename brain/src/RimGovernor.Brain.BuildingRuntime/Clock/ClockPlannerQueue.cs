@@ -15,8 +15,8 @@ internal sealed record PlannerSelectionResult(bool Planners, Func<PlannerEntry, 
     public static PlannerSelectionResult None { get; } = new(false, null, [], 0);
 
     /// <summary>
-    /// Why each selected planner runs: <c>dirty</c> (a wake marked it), <c>due</c> (its cadence passed),
-    /// <c>dirty+due</c>, <c>settled</c> (a run just ended), <c>full</c> or <c>all</c> (every planner). Each
+    /// Why each selected planner runs: <c>dirty</c> (an invalidation or a hold marked it), <c>due</c> (its cadence
+    /// passed), <c>dirty+due</c>, <c>full</c> or <c>all</c> (every planner). Each
     /// planner's planner_step row carries its word as <c>selected</c>, and the clock_step row the counts.
     /// </summary>
     public IReadOnlyDictionary<string, string>? Why { get; init; }
@@ -48,7 +48,7 @@ internal sealed class PlannerQueue
     // armed): the next planner wave runs everything, waits included.
     private bool _all;
 
-    /// <summary>Whether every planner is owed a run (an authority change or a settled run).</summary>
+    /// <summary>Whether every planner is owed a run (an authority change).</summary>
     public bool All
     {
         get => _all;
@@ -94,9 +94,11 @@ internal sealed class PlannerQueue
 
     /// <summary>
     /// Folds one wake reason into the queue: the consumers of the dirty sections are marked and authority
-    /// marks everything. A wake carrying nothing selectable is a settled run: every planner is
-    /// marked. Families without sections on the reason are widened to their sections; a sectionless family
-    /// (world) matches by name.
+    /// marks everything. A hold other than the review tick carrying nothing selectable (a hazard, a game pause,
+    /// the brain's own hold) is an early review of everything: every planner is marked. The review tick itself
+    /// (<see cref="StepCause.Review"/>) marks nothing beyond its evidence, so a quiet review runs only the planners
+    /// due at the tick (#3556). Families without sections on the reason are widened to their sections; a
+    /// sectionless family (world) matches by name.
     /// </summary>
     public void Wake(StepReason reason)
     {
@@ -127,7 +129,7 @@ internal sealed class PlannerQueue
         }
         if (sections.Count == 0 && families.Count == 0 && !reason.Authority)
         {
-            if (reason.Planners.Count == 0)
+            if (reason.Planners.Count == 0 && reason.Cause != StepCause.Review)
             {
                 MarkAll();
             }
@@ -161,7 +163,7 @@ internal sealed class PlannerQueue
         _dirty[name] = _seq;
     }
 
-    /// <summary>Marks every catalog planner dirty: the settled-run wake.</summary>
+    /// <summary>Marks every catalog planner dirty: the wake of a hold that is an early review of everything.</summary>
     private void MarkAll()
     {
         foreach (var entry in Entries())
@@ -172,23 +174,17 @@ internal sealed class PlannerQueue
 
     /// <summary>
     /// Decides the planners a step at <paramref name="tick"/> runs. <paramref name="full"/> runs every planner
-    /// (a full step, or pending all-evidence) and clears the waits; <paramref name="settled"/> marks every planner
-    /// first (a run just ended). Otherwise the dirty and due planners run, less those whose wait
-    /// <paramref name="stillOpen"/> confirms (every attempt waited on still open) and whose deadline is ahead of
-    /// the tick; null <paramref name="stillOpen"/> confirms every wait. A wait whose attempt is no longer open is
-    /// released here.
+    /// (a full step, or pending all-evidence) and clears the waits. Otherwise the dirty and due planners run,
+    /// less those whose wait <paramref name="stillOpen"/> confirms (every attempt waited on still open) and whose
+    /// deadline is ahead of the tick; null <paramref name="stillOpen"/> confirms every wait. A wait whose attempt
+    /// is no longer open is released here.
     /// </summary>
-    public PlannerSelectionResult Selection(long tick, bool full, bool settled, Func<ActionId, bool>? stillOpen)
+    public PlannerSelectionResult Selection(long tick, bool full, Func<ActionId, bool>? stillOpen)
     {
         if (full || _all)
         {
             var everything = full ? "full" : "all";
             return new PlannerSelectionResult(true, null, [], _seq) { Why = Entries().ToDictionary(e => e.Name, _ => everything, StringComparer.Ordinal) };
-        }
-        var dirtyBefore = settled ? new HashSet<string>(_dirty.Keys, StringComparer.Ordinal) : null;
-        if (settled)
-        {
-            MarkAll();
         }
         foreach (var (name, wait) in _waits.ToList())
         {
@@ -215,10 +211,7 @@ internal sealed class PlannerQueue
                 continue;
             }
             chosen.Add(entry.Name);
-            why[entry.Name] = dirty && due ? "dirty+due"
-                : !dirty ? "due"
-                : dirtyBefore is not null && !dirtyBefore.Contains(entry.Name) ? "settled"
-                : "dirty";
+            why[entry.Name] = dirty && due ? "dirty+due" : !dirty ? "due" : "dirty";
         }
         if (chosen.Count == 0)
         {

@@ -38,10 +38,7 @@ public sealed record BrainTimings
     /// <summary>The executor's limits.</summary>
     public required RimGovernor.Brain.Executor.Limits Executor { get; init; }
 
-    /// <summary>The cadence of a scheduler step that no evidence woke.</summary>
-    public required TimeSpan StepInterval { get; init; }
-
-    /// <summary>The bound of one scheduler step.</summary>
+    /// <summary>The bound of one scheduler step. The step cadence is the review tick each Run names, not a wall interval (#3556).</summary>
     public required TimeSpan StepTimeout { get; init; }
 
     /// <summary>The Worker's step cadence, its longest back-off, its step bound and its renew bounds.</summary>
@@ -85,7 +82,6 @@ public sealed record BrainTimings
                 RunTimeout = TimeSpan.FromSeconds(8),
                 JournalTimeout = TimeSpan.FromSeconds(3),
             },
-            StepInterval = TimeSpan.FromSeconds(1),
             StepTimeout = TimeSpan.FromMinutes(1),
             WorkerStepInterval = TimeSpan.FromSeconds(1),
             WorkerMaxBackoff = TimeSpan.FromSeconds(10),
@@ -112,7 +108,6 @@ public sealed record BrainTimings
         Positive(CallTimeout, nameof(CallTimeout));
         Positive(PlayerCallTimeout, nameof(PlayerCallTimeout));
         Positive(JournalTimeout, nameof(JournalTimeout));
-        Positive(StepInterval, nameof(StepInterval));
         Positive(StepTimeout, nameof(StepTimeout));
         Positive(RefreshInterval, nameof(RefreshInterval));
         Positive(ShutdownAttemptTimeout, nameof(ShutdownAttemptTimeout));

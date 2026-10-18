@@ -34,9 +34,6 @@ public sealed class WorkerConfig
     /// <summary>Names attempts whose outcome the native clock latched; the next step reconciles them first and ignores their backoff. Null keeps the ticker cadence.</summary>
     public WakeSignal? Wake { get; set; }
 
-    /// <summary>Called after a step that moved an action to a new stage, so the clock step loop reviews at once.</summary>
-    public Action? Advanced { get; set; }
-
     /// <summary>
     /// The scheduler's decoded state store. A dispatch native refuses for a map-consuming kind (a placement or
     /// zone whose CAS token no longer matches) asks it to resync the planning window in full on its next
@@ -754,10 +751,6 @@ public sealed partial class Worker
                 {
                     break;
                 }
-            }
-            if (_advanced)
-            {
-                _config.Advanced?.Invoke();
             }
         }
         finally

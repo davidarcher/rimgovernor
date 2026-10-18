@@ -95,6 +95,7 @@ public sealed class ClockRunDriverTests
         private long _heldAtMs;
         private PbClock.Speed _speed;
         private long _tick = StartTick;
+        private long _holdAt = long.MaxValue;
         private int _runs;
         private ulong _holdSerial;
         private readonly List<ulong> _staleSerials = [];
@@ -163,11 +164,16 @@ public sealed class ClockRunDriverTests
             }
         }
 
+        /// <summary>Moves the game clock; a running clock that reaches the review tick its Run named holds for Review, as native's tick body does.</summary>
         public void Advance(long ticks)
         {
             lock (_mu)
             {
                 _tick += ticks;
+                if (!_held && _tick >= _holdAt)
+                {
+                    TakeHold(PbClock.HoldReason.Review, new NativeEvents.PauseEvidence(true, true, null, null));
+                }
             }
         }
 
@@ -211,6 +217,11 @@ public sealed class ClockRunDriverTests
                 {
                     return Failure(PbCommon.FailureCode.StaleGeneration);
                 }
+                if (request.HoldAtTick is null)
+                {
+                    // Native requires the review tick on every Run (#3556).
+                    return Failure(PbCommon.FailureCode.InvalidRequest);
+                }
                 if (_held && request.PlannedHoldSerial.GetValueOrDefault() != _holdSerial)
                 {
                     _staleSerials.Add(request.PlannedHoldSerial.GetValueOrDefault());
@@ -219,6 +230,7 @@ public sealed class ClockRunDriverTests
                 _runs++;
                 _runRequests.Add(request);
                 _speed = request.Speed.GetValueOrDefault();
+                _holdAt = (long)Math.Min(request.HoldAtTick.Value, long.MaxValue);
                 if (_held)
                 {
                     var from = _reason;
@@ -551,13 +563,15 @@ public sealed class ClockRunDriverTests
         using var rig = await Rig.StartAsync();
         await rig.DeliveredAsync();
 
-        // A clock never run is held for NeverRun: the first step Runs it at the target speed under the base colony watch.
+        // A clock never run is held for NeverRun: the first step Runs it at the target speed under the base colony watch,
+        // naming the review tick one cadence past the tick it read (#3556).
         Assert.True(await rig.StepAsync());
         Assert.False(rig.Game.Held);
         var run = Assert.Single(rig.Game.RunRequests);
         Assert.Equal(PbClock.Speed.Ultrafast, run.Speed);
         Assert.Equal(PbClock.WatchMode.Colony, run.Policy!.Mode);
         Assert.Empty(run.Policy.AcknowledgedHostileIds);
+        Assert.Equal((ulong)(StartTick + ClockRunConfig.DefaultReviewEveryTicks), run.HoldAtTick);
         Assert.True(rig.Scheduler.ClockRunning);
 
         // Run is idempotent and doubles as the speed change: the same watch and speed are not sent again.
@@ -681,14 +695,15 @@ public sealed class ClockRunDriverTests
         await rig.DeliveredAsync();
 
         // The first step finds the clock held before it ever ran and Runs it without a save: only a due autosave saves.
-        // The first running step only marks where the save interval starts, and a short run is not due.
+        // That step marks where the save interval starts, and a short run is not due.
         Assert.True(await rig.StepAsync());
         Assert.Empty(saved);
         rig.Game.Advance(100);
         Assert.False(await rig.StepAsync());
         Assert.Equal(0, rig.Game.Holds);
 
-        rig.Game.Advance(500);
+        // Due under a running clock, before the review tick: the brain holds for the save.
+        rig.Game.Advance(400);
         Assert.True(await rig.StepAsync());
         Assert.Equal(1, rig.Game.Holds);
         Assert.Equal(PbClock.HoldReason.Autosave, rig.Game.Reason);
@@ -706,15 +721,17 @@ public sealed class ClockRunDriverTests
         Assert.Equal(1, rig.Game.Holds);
         Assert.Equal([true], heldWhenSaving);
 
-        // The next interval holds and saves once more; no save ever happens at a running step.
+        // Due at the review tick: the review hold is already paused, so the save runs there without a second hold
+        // (#3556), and no save ever happens at a running step.
         rig.Game.Advance(600);
-        Assert.True(await rig.StepAsync());
-        Assert.Single(saved);
+        Assert.Equal(PbClock.HoldReason.Review, rig.Game.Reason);
         await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
         Assert.Equal(2, saved.Count);
+        Assert.Equal(1, rig.Game.Holds);
         Assert.All(heldWhenSaving, held => Assert.True(held));
         Assert.False(rig.Game.Held);
+        Assert.Equal(3, rig.Game.Runs);
     }
 
     [Fact]
@@ -745,7 +762,7 @@ public sealed class ClockRunDriverTests
         Assert.False(await rig.StepAsync());
 
         // A hazard that fires as the autosave hold lands keeps its reason; the due save still runs inside that hold.
-        rig.Game.Advance(600);
+        rig.Game.Advance(500);
         rig.Game.BeforeHold = rig.Game.HostileHazard;
         Assert.True(await rig.StepAsync());
         Assert.Equal(PbClock.HoldReason.Hostile, rig.Game.Reason);
@@ -766,8 +783,9 @@ public sealed class ClockRunDriverTests
         Assert.True(await rig.StepAsync());
         rig.Game.Advance(100);
         Assert.False(await rig.StepAsync());
-        rig.Game.Advance(500);
+        rig.Game.Advance(400);
         Assert.True(await rig.StepAsync());
+        Assert.Equal(PbClock.HoldReason.Autosave, rig.Game.Reason);
         await rig.DeliveredAsync();
 
         Assert.True(await rig.StepAsync());
@@ -843,7 +861,7 @@ public sealed class ClockRunDriverTests
         Assert.True(await rig.StepAsync());
         rig.Game.Advance(100);
         Assert.False(await rig.StepAsync());
-        rig.Game.Advance(500);
+        rig.Game.Advance(400);
 
         // A step that read the hold serial before the hazard is refused. The hazard fires inside the next step, so the
         // serial read before that step predates it, whenever the consumer delivers it.
@@ -1005,23 +1023,32 @@ public sealed class ClockRunDriverTests
     }
 
     [Fact]
-    public async Task ALongRunWithNoHoldsStaysRunningAndSendsRunOnce()
+    public async Task EveryReviewHoldResumesWithARunNamingTheNextReviewTick()
     {
         using var rig = await Rig.StartAsync();
         await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
 
-        for (var i = 0; i < 300; i++)
+        // The cadence is the clock's (#3556): a step before the review tick changes nothing, native holds for Review at
+        // the tick the Run named, and the step from that hold Runs again naming the next one. The brain holds nothing.
+        for (var i = 0; i < 20; i++)
         {
             rig.Game.Advance(250);
             Assert.False(await rig.StepAsync());
+            Assert.False(rig.Game.Held);
+
+            rig.Game.Advance(350);
+            Assert.True(rig.Game.Held);
+            Assert.Equal(PbClock.HoldReason.Review, rig.Game.Reason);
+            await rig.DeliveredAsync();
+            Assert.True(await rig.StepAsync());
+            Assert.False(rig.Game.Held);
+            Assert.Equal(i + 2, rig.Game.Runs);
+            Assert.Equal((ulong)(rig.Game.Tick + ClockRunConfig.DefaultReviewEveryTicks), rig.Game.RunRequests[^1].HoldAtTick);
         }
 
-        Assert.False(rig.Game.Held);
         Assert.True(rig.Scheduler.ClockRunning);
-        Assert.Equal(1, rig.Game.Runs);
         Assert.Equal(0, rig.Game.Holds);
-        Assert.Single(rig.Game.RunRequests);
         Assert.Empty(rig.Game.HoldRequests);
         Assert.True(rig.Session.State().Enabled);
         await UntilAsync(() => rig.Game.Heartbeats > 0);
@@ -1124,6 +1151,46 @@ public sealed class ClockRunDriverTests
         Assert.Equal(StepCause.Wake, reason.Cause);
         Assert.Equal(new[] { FactFamily.Research }, reason.Families);
         Assert.NotEmpty(reason.Sections);
+    }
+
+    [Fact]
+    public async Task OnlyAHoldWakesTheStepLoopAndTheReviewTickIsItsOwnCause()
+    {
+        var wake = new WakeSignal();
+        using var rig = await Rig.StartAsync(new RigOptions { Wake = wake });
+        await rig.DeliveredAsync();
+        Assert.True(await rig.StepAsync());
+        await rig.DeliveredAsync();
+        _ = wake.TakeInvalidated();
+
+        // An invalidation under the running clock marks its family for the next review and hints the Worker; it never
+        // wakes a step (#3556).
+        rig.Game.Invalidate(PbClock.FactFamily.Research);
+        await rig.DeliveredAsync();
+        Assert.False(wake.TryTakeStep());
+
+        // The review tick holds the clock: the step wakes with cause Review, the hold's stamp and the evidence so far.
+        rig.Game.Advance(ClockRunConfig.DefaultReviewEveryTicks);
+        Assert.Equal(PbClock.HoldReason.Review, rig.Game.Reason);
+        await rig.DeliveredAsync();
+        Assert.True(wake.TryTakeStep());
+        var review = wake.TakeInvalidated();
+        Assert.Equal(StepCause.Review, review.Cause);
+        Assert.True(review.Stopped);
+        Assert.NotNull(review.StopAt);
+        Assert.Equal(new[] { FactFamily.Research }, review.Families);
+        Assert.False(wake.TryTakeStep());
+
+        // A hazard hold is an early review of everything: cause Wake, so the queue marks every planner.
+        Assert.True(await rig.StepAsync());
+        await rig.DeliveredAsync();
+        _ = wake.TakeInvalidated();
+        rig.Game.HostileHazard();
+        await rig.DeliveredAsync();
+        Assert.True(wake.TryTakeStep());
+        var hazard = wake.TakeInvalidated();
+        Assert.Equal(StepCause.Wake, hazard.Cause);
+        Assert.True(hazard.Stopped);
     }
 
     [Fact]

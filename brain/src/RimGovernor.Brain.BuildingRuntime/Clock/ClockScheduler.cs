@@ -126,8 +126,11 @@ public sealed partial class ClockScheduler
         return v;
     }
 
-    /// <summary>Makes the next timer step a full one after a planner wave failed with its selection spent.</summary>
+    /// <summary>Makes the next review or retry step a full one after a planner wave failed with its selection spent.</summary>
     internal void ReplanAfterFailure() => _lastFull = default;
+
+    // A review or retry step is promoted to a full one once the safety-net interval has passed since the last full wave.
+    private static bool Promotable(StepCause cause) => cause is StepCause.Review or StepCause.Retry;
 
     private bool FullStepDue()
     {
@@ -146,7 +149,7 @@ public sealed partial class ClockScheduler
     // expects to observe over a copy of the queue.
     private PlannerSelectionResult PreviewSelection(StepReason reason)
     {
-        if (reason.Cause == StepCause.Timer && FullStepDue())
+        if (Promotable(reason.Cause) && FullStepDue())
         {
             reason = reason with { Cause = StepCause.Full };
         }
@@ -165,9 +168,8 @@ public sealed partial class ClockScheduler
         }
         return reason.Cause switch
         {
-            StepCause.Settled => _queue.Selection(tick, false, true, stillOpen),
-            StepCause.Timer or StepCause.Wake => _queue.Selection(tick, false, false, stillOpen),
-            _ => _queue.Selection(tick, true, false, stillOpen),
+            StepCause.Review or StepCause.Wake or StepCause.Retry => _queue.Selection(tick, false, stillOpen),
+            _ => _queue.Selection(tick, true, stillOpen),
         };
     }
 
@@ -198,7 +200,7 @@ public sealed partial class ClockScheduler
         try
         {
             // A wake's evidence lands on the due queue once, here, so it outlives a step that runs no planners.
-            if (reason.Cause == StepCause.Wake)
+            if (reason.Cause is StepCause.Wake or StepCause.Review)
             {
                 _queue.Wake(reason);
             }
@@ -259,7 +261,7 @@ public sealed partial class ClockScheduler
             // the run this step may start, judge their facts against this validity.
             using var validity = ReadValidityScope.With(FixValidity(state.Snapshot, statusTick));
             Tel.ObserveTick(statusTick);
-            if (reason.Cause == StepCause.Timer && FullStepDue())
+            if (Promotable(reason.Cause) && FullStepDue())
             {
                 reason = reason with { Cause = StepCause.Full };
             }

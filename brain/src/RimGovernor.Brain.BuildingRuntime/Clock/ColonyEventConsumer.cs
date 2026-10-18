@@ -4,9 +4,9 @@ using NativeEvents = RimGovernor.Brain.Bridge;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // The brain end of the colony events native pushes (the native-owned queue behind INativeFacade.OpenColonyEventsAsync).
-// It wakes the step loop and checks authority; nothing about events is kept. It never disables authority for a hold and
-// never releases one: native holds itself on a hazard and stays held until the run driver sends a Run whose hold serial
-// matches.
+// It wakes the step loop on a hold entry or an authority change, marks the planners an invalidation dirties, and checks
+// authority; nothing about events is kept. It never disables authority for a hold and never releases one: native holds
+// itself on a hazard or the review tick and stays held until the run driver sends a Run whose hold serial matches.
 
 /// <summary>What the native clock exposes to the colony event consumer.</summary>
 public interface IColonyEventNative
@@ -172,7 +172,7 @@ internal sealed partial class ColonyEventConsumer(Session session, IColonyEventN
         }
         Tel.ObserveTick(current.Tick);
         var found = ColonyEventConsumer.EventsWake(events);
-        wake?.NotifySections(found.Families, ColonyEventConsumer.EventSections(events), found.Authority, found.Stopped, found.StopAt);
+        wake?.NotifySections(found.Families, ColonyEventConsumer.EventSections(events), found.Authority, found.Stopped, found.StopAt, found.Review);
         Interlocked.Add(ref _seen, events.Count);
     }
 

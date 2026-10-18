@@ -191,6 +191,18 @@ public sealed class TypedSession
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(whileRunning);
         Budget(label, ticks);
+        if (request.HoldAtTick is null || request.PlannedHoldSerial is null)
+        {
+            // Native requires both: the review tick is the budget's end (the wait's own ceiling), the hold serial the
+            // one the clock holds under now, so a hold that entered between the read and the Run refuses it.
+            var before = await CallAsync(label + "-before", NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = Identity }, cancellationToken).ConfigureAwait(false);
+            var current = before.Outcome?.Status ?? throw new AcceptanceException($"{label}: no clock status before the run: {before.Outcome}");
+            request = request with
+            {
+                HoldAtTick = request.HoldAtTick ?? (ulong)(Math.Max(current.Context?.Tick ?? 0, 0) + ticks),
+                PlannedHoldSerial = request.PlannedHoldSerial ?? current.HoldSerial,
+            };
+        }
         var run = await CallAsync(label + "-run", NativeOps.RunClock, request with { Identity = Identity }, cancellationToken).ConfigureAwait(false);
         var status = run.Outcome?.Status is { State: Clock.ClockState.Running } started
             ? started

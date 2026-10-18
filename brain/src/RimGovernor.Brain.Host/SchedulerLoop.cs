@@ -13,9 +13,11 @@ namespace RimGovernor.Brain.Host;
 /// The thread never calls a game API. Every native read goes through the facade, which queues it to the game
 /// thread and completes on the pool. Hazard stops stay native and independent of this thread: nothing here is on
 /// the path of a stop, so a wedged scheduler cannot delay one.
-/// The cadence: the first step plans everything, later
-/// steps are woken by the timer or by committed evidence, an unchanged outcome backs off to the longest
-/// back-off, and evidence resets it.
+/// The cadence is the clock's (#3556): the first step plans everything, and every later step starts from a hold.
+/// Each Run names the review tick native holds at; a hazard, a game pause or the brain's own hold is an early
+/// review; an authority change wakes a step while the clock runs. Invalidations only mark planners for the next
+/// review. There is no wall-time cadence and no back-off: a step that did not complete, or left the clock held,
+/// retries after the watchdog's fault back-off, or at once when the run driver acted.
 /// </remarks>
 internal sealed class SchedulerLoop
 {
@@ -103,11 +105,9 @@ internal sealed class SchedulerLoop
 
     private void Loop()
     {
-        var delay = _timings.StepInterval;
-        // The first step plans everything; each later step's reason is what ended the wait before it.
+        // The first step plans everything; each later step's reason is the hold or wake that ended the wait before it.
         var reason = new StepReason { Cause = StepCause.Full };
         StepKey? previous = null;
-        long? settledAt = null;
         var idle = true;
         while (!_lifetime.IsCancellationRequested)
         {
@@ -117,7 +117,7 @@ internal sealed class SchedulerLoop
                 // Nothing to plan for: no authority, or the watchdog withdrew it. Evidence stays on the signal
                 // for the first step after authority returns, which plans everything.
                 idle = true;
-                if (!WaitOrWake(_timings.StepInterval, takeEvidence: false, out _))
+                if (!WaitOrWake(_watchdog.FaultBackoff, takeEvidence: false, out _))
                 {
                     return;
                 }
@@ -128,7 +128,6 @@ internal sealed class SchedulerLoop
                 idle = false;
                 reason = new StepReason { Cause = StepCause.Full };
                 previous = null;
-                delay = _timings.StepInterval;
             }
 
             ClockSchedulerResult? result = null;
@@ -142,14 +141,14 @@ internal sealed class SchedulerLoop
             {
                 return;
             }
-            var settled = false;
+            var acted = false;
             if (outcome == Outcome.Done && result is not null)
             {
                 _planners.Observe(result);
                 if (_clock is not null)
                 {
-                    bool? clockSettled = null;
-                    var clockOutcome = Guard("clock", async ct => clockSettled = await _clock.AfterStepAsync(result, ct).ConfigureAwait(false), out var clockError);
+                    bool? clockActed = null;
+                    var clockOutcome = Guard("clock", async ct => clockActed = await _clock.AfterStepAsync(result, ct).ConfigureAwait(false), out var clockError);
                     if (clockOutcome == Outcome.Cancelled)
                     {
                         return;
@@ -159,12 +158,13 @@ internal sealed class SchedulerLoop
                         outcome = clockOutcome;
                         error = clockError;
                     }
-                    settled = clockSettled == true;
+                    acted = clockActed == true;
                 }
             }
 
             var faulted = outcome != Outcome.Done && !IsRetry(error, outcome == Outcome.Faulted);
             Report(outcome, error, result, previous, out var key);
+            previous = key;
             if (outcome == Outcome.Done)
             {
                 _steps.Succeeded();
@@ -184,56 +184,33 @@ internal sealed class SchedulerLoop
                 Suspend(kind, error?.Message ?? outcome.ToString());
             }
 
-            if (faulted)
+            if (outcome != Outcome.Done || result is { Deferred: true })
             {
-                // A fault waits out the watchdog's back-off rather than hot-looping on the same failure.
-                delay = _watchdog.FaultBackoff;
-                previous = null;
-                if (!WaitOrWake(delay, takeEvidence: true, out var woken, out var faultReason))
+                // A step that did not complete, or deferred, retries after the watchdog's back-off rather than
+                // hot-looping on the same failure; a hold or an authority change in the meantime steps sooner.
+                if (!WaitOrWake(_watchdog.FaultBackoff, takeEvidence: true, out var woken, out var wakeReason))
                 {
                     return;
                 }
-                reason = woken ? faultReason : new StepReason { Cause = StepCause.Timer };
+                reason = woken ? wakeReason : new StepReason { Cause = StepCause.Retry };
                 continue;
             }
 
-            // A deferred or unchanged step backs off; a changed outcome resets the cadence.
-            delay = previous is { } p && p == key ? TimeSpan.FromTicks(Math.Min(_timings.WorkerMaxBackoff.Ticks, delay.Ticks * 2)) : _timings.StepInterval;
-            previous = key;
-
-            // A hold the driver took or a resume it just sent has left the planners for the next step: run it now
-            // rather than idle a step interval with the game held. Never twice at the same game tick: a hold that
-            // keeps ending without settling is a back-off case, not a hot loop, while a fight's next hold at a later
-            // tick (a combat stop, then its resume) is the next decision and must not wait out the back-off.
-            var at = result?.ClockTick;
-            if (SettledNow(settled, settledAt, at))
+            // The run driver acted and the clock is still held (a brain hold it took, a combat mark, a Run native
+            // refused): the planners run again at once against the held game, a pending hold wake first. A driver that
+            // ran the clock, or did nothing to a held one, waits for the next hold.
+            if (acted && !_scheduler.ClockRunning)
             {
-                settledAt = at ?? NoTick;
-                reason = new StepReason { Cause = StepCause.Settled };
+                reason = _wake.TryTakeStep() ? _wake.TakeInvalidated() : new StepReason { Cause = StepCause.Retry };
                 continue;
             }
-            settledAt = null;
-            if (!WaitOrWake(delay, takeEvidence: true, out var wokenByEvidence, out var next))
+            if (!WaitOrWake(Timeout.InfiniteTimeSpan, takeEvidence: true, out _, out var next))
             {
                 return;
             }
-            reason = new StepReason { Cause = StepCause.Timer };
-            if (wokenByEvidence)
-            {
-                delay = _timings.StepInterval;
-                previous = null;
-                reason = next;
-            }
+            reason = next;
         }
     }
-
-    private const long NoTick = -1;
-
-    /// <summary>
-    /// Whether a step the run driver settled repeats at once: not when the previous settled repeat ran at the same game
-    /// tick (<paramref name="settledAt"/>); a step whose tick is unknown counts as the same tick.
-    /// </summary>
-    internal static bool SettledNow(bool settled, long? settledAt, long? tick) => settled && settledAt != (tick ?? NoTick);
 
     // A step cancelled by its call budget is slow, not faulty (the lifetime ends the loop before this is asked): it is
     // retried, as a full step because the scheduler replans after the cancellation, and never counts toward the fault
@@ -301,15 +278,15 @@ internal sealed class SchedulerLoop
         return task.IsCompleted;
     }
 
-    /// <summary>Sleeps for <paramref name="delay"/> unless committed evidence wakes the loop first; false when the host is stopping.</summary>
+    /// <summary>Sleeps for <paramref name="delay"/> unless a hold or an authority change wakes the loop first; false when the host is stopping.</summary>
     private bool WaitOrWake(TimeSpan delay, bool takeEvidence, out bool woken) => WaitOrWake(delay, takeEvidence, out woken, out _);
 
     private bool WaitOrWake(TimeSpan delay, bool takeEvidence, out bool woken, out StepReason reason)
     {
         woken = false;
-        reason = new StepReason { Cause = StepCause.Timer };
+        reason = new StepReason { Cause = StepCause.Retry };
         using var cancel = CancellationTokenSource.CreateLinkedTokenSource(_lifetime);
-        var wakeTask = takeEvidence ? WakeSignal.Wait(_wake, cancel.Token) : Task.Delay(Timeout.Infinite, cancel.Token);
+        var wakeTask = takeEvidence ? WakeSignal.WaitStep(_wake, cancel.Token) : Task.Delay(Timeout.Infinite, cancel.Token);
         var timer = Task.Delay(delay, cancel.Token);
         try
         {

@@ -69,8 +69,8 @@ namespace HomeBridge.BridgeTools
         {
             if (request.Speed is null || !OrdinarySpeed(request.Speed.GetValueOrDefault()) || request.Policy is null
                 || request.ExpectedGeneration is null || request.ExpectedGeneration.GetValueOrDefault() == 0 || !ValidPolicy(request.Policy)
-                || request.PlannedHoldSerial is null)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Run requires an ordinary speed, the current authority generation, a complete bounded watch policy and the hold serial its step read.");
+                || request.PlannedHoldSerial is null || request.HoldAtTick is null)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Run requires an ordinary speed, the current authority generation, a complete bounded watch policy, the hold serial its step read and the tick to hold at for review.");
             if (request.Speed.GetValueOrDefault() == Clock.Speed.Ultrafast && !BoostAvailable)
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The native tick boost behind Ultrafast is unavailable.");
             lock (Gate)
@@ -91,20 +91,22 @@ namespace HomeBridge.BridgeTools
         }
 
         /// Run: resumes a held clock (the first Run of a loaded game included) at
-        /// the target speed, or, while running, changes the speed and the policy
-        /// in place. Idempotent. Refused while a long event or a force-pausing
-        /// window holds the game.
+        /// the target speed, or, while running, changes the speed, the policy and
+        /// the review tick in place. Idempotent. Refused while a long event or a
+        /// force-pausing window holds the game. The segment holds for Review on
+        /// the first tick at or past the request's hold tick (TickBody).
         internal static Clock.StatusReply TypedRun(Clock.RunRequest request, Common.ObservationContext context)
         {
             lock (Gate)
             {
                 var typed = new TypedEpoch(context, request.ExpectedGeneration.GetValueOrDefault(), request.Policy ?? throw new InvalidOperationException("Missing policy"));
-                var failure = RunClock(typed, NativeSpeed(request.Speed.GetValueOrDefault()), request.PlannedHoldSerial.GetValueOrDefault());
+                var holdAt = (int)Math.Min(request.HoldAtTick.GetValueOrDefault(), int.MaxValue);
+                var failure = RunClock(typed, NativeSpeed(request.Speed.GetValueOrDefault()), request.PlannedHoldSerial.GetValueOrDefault(), holdAt);
                 return new Clock.StatusReply { Outcome = failure != null ? failure : (Clock.StatusReplyOutcome)TypedStatus(context) };
             }
         }
 
-        private static Common.Failure? RunClock(TypedEpoch typed, TimeSpeed speed, ulong plannedHoldSerial)
+        private static Common.Failure? RunClock(TypedEpoch typed, TimeSpeed speed, ulong plannedHoldSerial, int holdAtTick)
         {
             if (Current.Game == null || Find.TickManager == null || Find.CurrentMap == null)
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "No playable map is loaded.");
@@ -118,12 +120,12 @@ namespace HomeBridge.BridgeTools
                     Stop(existing, Clock.HoldReason.SessionChanged, "Loaded game changed.", false);
                 else if (existing.Pending != null)
                     return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The clock is entering a hold and its pause has not taken yet.");
-                else return ChangeRun(existing, typed, speed);
+                else return ChangeRun(existing, typed, speed, holdAtTick);
             }
             // Only a resume can release a hold, so only a resume is guarded:
             // a hold entered after the step's read refuses it and stays.
             if (refusal != null) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, refusal);
-            return ResumeRun(existing, typed, speed);
+            return ResumeRun(existing, typed, speed, holdAtTick);
         }
 
         private static void SetBoost(State s, bool on)
@@ -161,12 +163,14 @@ namespace HomeBridge.BridgeTools
             s.IgnoredHungry = PawnIds(ResolveIds(map, p.AcknowledgedHungryColonistIds));
         }
 
-        private static Common.Failure? ChangeRun(State s, TypedEpoch typed, TimeSpeed speed)
+        private static Common.Failure? ChangeRun(State s, TypedEpoch typed, TimeSpeed speed, int holdAtTick)
         {
             var boost = speed == TimeSpeed.Ultrafast;
             if (boost && !BoostAvailable) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The native tick boost behind Ultrafast is unavailable.");
             var running = TypedOf(s);
             running.ExpectedGeneration = typed.ExpectedGeneration;
+            // The review moves with the Run: a tick already passed holds at the next tick (TickBody).
+            s.HoldAtTick = holdAtTick;
             s.Ceiling.Beat(NowMs());
             if (!Equals(running.Policy, typed.Policy))
             {
@@ -190,7 +194,7 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        private static Common.Failure? ResumeRun(State? previous, TypedEpoch typed, TimeSpeed speed)
+        private static Common.Failure? ResumeRun(State? previous, TypedEpoch typed, TimeSpeed speed, int holdAtTick)
         {
             if (!GameWatchReads.CoreWatchersAvailable)
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Alert or transient-message reflection watcher is unavailable; refusing blind play.");
@@ -212,7 +216,7 @@ namespace HomeBridge.BridgeTools
             var tm = Find.TickManager;
             var (frames, overBudget, _) = FrameAccount();
             var s = new State(Current.Game, Find.CurrentMap) {
-                Active = true, RequestedSpeed = speed, Typed = typed,
+                Active = true, RequestedSpeed = speed, Typed = typed, HoldAtTick = holdAtTick,
                 StartTick = tm.TicksGame, LastTick = tm.TicksGame, ResumeMs = NowMs(),
                 LastProbeTick = tm.TicksGame, LastProbeMs = NowMs(), LastDigestTick = tm.TicksGame,
                 FramesAtResume = frames, OverBudgetAtResume = overBudget

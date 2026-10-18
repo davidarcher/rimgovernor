@@ -81,6 +81,7 @@ public enum HoldReason
     NeverRun = 1,
     [WireName("HOLD_REASON_COUPLED_ORDER")]
     CoupledOrder = 2,
+    /// <summary>The review tick the Run named was reached (native's cadence hold), or the bot stopped acting (a brain hold).</summary>
     [WireName("HOLD_REASON_REVIEW")]
     Review = 3,
     [WireName("HOLD_REASON_AUTOSAVE")]
@@ -311,8 +312,8 @@ public sealed record WatchPolicy
 }
 
 /// <summary>
-/// Run the clock at the target speed under the watch policy. Idempotent: while
-/// running it changes the speed and the policy in place, while held it resumes
+/// Run the clock at the target speed under the watch policy until <see cref="HoldAtTick"/>. Idempotent: while
+/// running it changes the speed, the policy and the hold tick in place, while held it resumes
 /// (and re-baselines the hazard watches). A game-forced pause refuses it.
 /// </summary>
 public sealed record RunRequest
@@ -332,10 +333,17 @@ public sealed record RunRequest
     /// released.
     /// </summary>
     public ulong? PlannedHoldSerial { get; init; }
+
+    /// <summary>
+    /// The game tick native holds the clock at for <see cref="HoldReason.Review"/>: the brain's next review. Required.
+    /// A tick the clock has already reached holds at the next tick (an early review). The hold is native's, on the
+    /// tick boundary; the brain's step starts from it and ends with the next Run, which names the review after.
+    /// </summary>
+    public ulong? HoldAtTick { get; init; }
 }
 
 /// <summary>
-/// Hold the clock for a brain reason (coupled order, review, autosave). Needs only
+/// Hold the clock for a brain reason (coupled order, autosave, or review when the bot stops acting). Needs only
 /// the loaded identity, never current authority, so cleanup can always stop play.
 /// While already held the first reason stands.
 /// </summary>

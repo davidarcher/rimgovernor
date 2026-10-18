@@ -783,17 +783,29 @@ While the bot is on, the clock is in one of two states.
   brain sends `Run`, and the brain sends it when the reason is finished, not on
   a timer. Native never resumes by itself.
 
-One rule says who may hold. Native holds the clock for a hazard it probed, a game-forced pause
-or the loss of its authority or hooks, and for nothing else. The brain holds it for a coupled
-order, an autosave or a review, and for nothing else. Progress is never a hold: a pawn activity
+One rule says who may hold. Native holds the clock for a hazard it probed, a game-forced pause,
+the loss of its authority or hooks, and the review tick the last `Run` named, and for nothing
+else. The brain holds it for a coupled order, an autosave or a review when the bot stops acting,
+and for nothing else. Progress is never a hold: a pawn activity
 completing or failing, a controlled pawn with no activity, a zone turning ripe or any other fact
-change is an `ObservationInvalidated` event that wakes the brain while the game keeps running.
+change is an `ObservationInvalidated` event that marks planners for the next review while the
+game keeps running.
+
+The cadence is the clock's (#3556). Every `Run` carries the tick native holds the clock at for
+`Review`: `ClockRunConfig.ReviewEveryTicks` (600, ten in-game seconds) past the tick the step
+read. The brain's step starts from that hold and ends with the next `Run`, which names the next
+review tick from its own read. A hazard hold, a letter, a game-forced pause or a brain hold is an
+early review: the `Run` that ends it names the next review from there. Nothing wakes a step while
+the clock runs except an authority change or a loss on the event queue; nothing holds the clock
+for progress; there is no wall-time step interval and no back-off. A review that finds nothing
+dirty or due is a clock read and a `Run`.
 
 ```mermaid
 stateDiagram-v2
     [*] --> Held: NeverRun
-    Held --> Running: Run(target speed, watch policy)
+    Held --> Running: Run(target speed, watch policy, review tick)
     Running --> Running: Run (speed or policy changed)
+    Running --> Held: review tick reached (Review)
     Running --> Held: native hazard hold
     Running --> Held: brain Hold(reason)
     Running --> Held: game-forced pause
@@ -819,8 +831,9 @@ or the player's speed.
 | Native | A tick-bounded hazard (`hostile`, `colonist_downed`, `predator_hunt`, `colonist_injury`, `colonist_need`, `notification_batch`, and the rest of the [hazard table](hazard-detection-bounds.md#declared-bound-per-hazard-class)) | a hostile spawns, a colonist is downed, a stopping letter |
 | Native | An armed combat event, only while an admitted fight plan owns the combat | see Combat |
 | Native | A game-forced pause (`GAME_FORCED`, dialog and letter pauses) | a force-pausing dialog, a long event |
+| Native | The review tick the last `Run` named (`Review`): the brain's cadence, every 600 ticks of running | the ordinary review |
 | Brain `Hold(CoupledOrder)` | A coupled order whose prerequisite just completed, so the next order needs a quiet world | a build order that waits on the haul that fills it |
-| Brain `Hold(Autosave)` | A due autosave | see Autosave |
+| Brain `Hold(Autosave)` | An autosave that fell due while the clock ran | see Autosave |
 | Brain `Hold(Review)` | The bot stops acting: Pause, a checkpoint save, shutdown, or authority ended under a `Run` the driver sent | the player pressed Pause |
 
 A `Hold` of an already held clock keeps the first reason. `Hold` needs only the
@@ -850,15 +863,17 @@ After each planning step the driver reads the clock status and decides:
 - Holds that native took (a hazard, a letter) need no acknowledgement: a step
   that read the hold's serial has planned against it. The brain finishes the
   reason, then resumes at its target speed.
-- A step that follows a driver hold or `Run` repeats at once (a `settled` step,
-  never twice at the same game tick) so the planners work against the held world
-  without waiting a step interval. A fight's stop and its resume are two such
-  steps; the second, at the same tick, waits for the timer.
+- A step that the driver left with the clock still held (a brain hold it took, a
+  combat mark, a `Run` native refused) repeats at once (a `retry` step), so the
+  planners work against the held world. A step whose `Run` resumed the clock
+  waits for the next hold.
 
-A `Run` carries the speed and a complete watch policy: colony mode, or combat mode
-with the live hostiles it acknowledges. The hazard thresholds are the brain's
+A `Run` carries the speed, a complete watch policy (colony mode, or combat mode
+with the live hostiles it acknowledges) and the review tick. The hazard thresholds are the brain's
 (see [hazard bounds](hazard-detection-bounds.md#brain-authored-thresholds)); native
-holds no literal for them.
+holds no literal for them. Native refuses a `Run` without a hold serial or a review
+tick (`ValidateTypedRun`). A review tick the clock has already passed holds at the
+next tick: an early review, never a lost one.
 
 ### The one ceiling and the heartbeat
 
@@ -906,13 +921,14 @@ would close the combat).
 
 ### Autosave
 
-A periodic hold flushes governor state, saves and resumes. Every
+A periodic save flushes governor state, saves and resumes. Every
 `ClockRunConfig.AutosaveEveryTicks` game ticks (default one in-game day, counted
-on the game clock from the previous autosave hold) the driver takes
-`Hold(Autosave)`, saves into the rotating `Autosave-1..5` slots at the first step
-that finds the clock held and paused, and then sends `Run`. No save is made while
-the clock runs; a failed save never keeps the clock from running. It is not the
-game's own autosave.
+on the game clock from the previous due point) the driver saves into the rotating
+`Autosave-1..5` slots at the first step that finds the clock held and paused, then
+sends `Run`. Since every step starts from a hold, the save normally runs inside a
+review hold; a step that finds it due under a running clock (an authority wake)
+takes `Hold(Autosave)` first. No save is made while the clock runs; a failed save
+never keeps the clock from running. It is not the game's own autosave.
 
 ### Player keys
 
@@ -937,6 +953,11 @@ table in [brain host](brain-host.md#live-clock-baseline).
 | Combat resume budget | 2 s | `ClockCombatStops.ResumeBudget` |
 | Combat fallback speed | Normal | `ClockCombatStops.FallbackSpeed` |
 | Autosave cadence | one in-game day | `ClockRunConfig.DefaultAutosaveEveryTicks` |
+| Review cadence | 600 ticks from the step's read to the review hold the `Run` names | `ClockRunConfig.DefaultReviewEveryTicks` |
+
+The review cadence is the one chosen number of the control loop; the budget it serves is under
+2 wall minutes of brain time per in-game day (about 100 reviews, 0.65 s each on average, a
+no-op review tens of milliseconds). Its measurement is in [brain host](brain-host.md#live-clock-baseline).
 
 ### What was removed
 
@@ -947,7 +968,22 @@ epoch and receipt stores. Do not reintroduce a tick budget or a second regulator
 the one ceiling, the target speed and named holds replace them. Pawn-activity completion,
 failure and unassigned-pawn holds (`Unavailable` holds raised every 600 ticks, two scheduler
 steps each, #3518) are gone too: they were a tick budget by another name. A fact change
-wakes the brain through an invalidation; it never stops the clock.
+marks planners through an invalidation; it never stops the clock.
+
+The scheduler's wall-time cadence went with them (#3556): the 1 s step interval, the
+back-off to 10 s on an unchanged step, the `settled` repeat after a driver hold or `Run`, the
+`timer` step and the mid-run wake on every invalidation. The brain reviewed at wall cadence
+while the clock ran at game speed, so a 7 s step was 8000 ticks of game time and a selection
+made at one tick was dispatched 16000 ticks later; the colony saw 12 reviews in a day where
+the retired activity holds had given about 100.
+
+The review tick is not the tick window coming back. A window was a budget native enforced:
+the game could not advance past it until the brain admitted the next one under a lease that
+expired on the wall clock, and the admission decision read the colony to decide whether to
+grant it. The review tick is one number on each `Run`, and nothing decides anything at it: native
+holds, the brain reads and plans from the hold, and the next `Run` names the next tick. There
+is no lease to renew, no admission to grant or refuse, no window size to tune per hazard, and
+a hazard hold before the tick is the same review earlier. One number, no decision.
 
 ### Event delivery
 
@@ -966,13 +1002,15 @@ A held clock resumes only from a step that read the clock after every event and
 loss delivered so far, and only once the consumer has opened the queue. The
 Run's planned hold serial backs this up for a hold whose event has not arrived.
 
-Events wake the scheduler and worker. Named action outcomes reconcile first.
-A hold may warm admission observations, reusable only when tick, identity,
-generation and invalidation state still match.
+A hold entry wakes the scheduler's step; an invalidation marks the planners that
+read the dirtied sections for the next review and hints the Worker, which steps
+at once. An authority change or a loss on the queue wakes a step while the clock
+runs. Named action outcomes reconcile first.
 
-Routine operation outcomes wake work without holding the clock. A running clock
+Routine operation outcomes mark work without holding the clock. A running clock
 arms no watch on a completed order; dispatched construction and haul attempts
-are evidence only. Coupled orders wake when their prerequisite outcome arrives.
+are evidence only. A coupled order whose prerequisite outcome arrives is taken at
+the next review.
 
 ```mermaid
 sequenceDiagram
@@ -982,11 +1020,11 @@ sequenceDiagram
     participant D as Run driver
     participant H as Hands
     N-->>P: Push events and outcomes (bounded queue)
-    P->>S: Wake affected work (Full after a loss)
+    P->>S: A hold wakes the step; invalidations mark planners (Full after a loss)
     S->>H: Reconcile and dispatch
     H->>N: Guarded native operations
     S->>D: Step result
-    D->>N: Run, Hold or nothing
+    D->>N: Run (naming the next review tick), Hold or nothing
     D-->>N: Heartbeat (independent loop)
 ```
 
@@ -994,14 +1032,14 @@ sequenceDiagram
 
 | Trigger | Work |
 | --- | --- |
-| `settled`: the step after a driver hold or `Run` | Every planner not waiting on a dependency |
-| `full`: the first step, a step after idle, or a `timer` step promoted by the two-minute safety net | Every planner |
-| `timer` | Due planner entries; with none due, the driver tail alone |
-| `wake` | Outcome or fact wake: affected planners; authority changes expand to all |
+| `review`: the review tick the last `Run` named held the clock, and nothing else woke the step | Dirty planners (the invalidations since the last review) and due entries; with none, the driver tail alone |
+| `wake`: any other hold (a hazard, a letter, a game pause, a brain hold), or an authority change or a loss under a running clock | An early review of everything: every planner not waiting on a dependency; a hold with evidence selects its consumers; authority changes expand to all |
+| `retry`: the step after one that did not complete, deferred, or left the clock held | Dirty and due planners, as a review |
+| `full`: the first step, a step after idle, a loss on the event queue, or a `review` or `retry` step promoted by the two-minute safety net | Every planner |
 
 `clock_step` records why a step ran. `stop_latency_ms` measures native-hold-to-step
-time, not hazard onset to protective effect. `clock_run` records each `Run`, `Hold`
-or refusal the driver made. Precise guards live in the
+time, not hazard onset to protective effect. `clock_run` records each `Run` (with the
+review tick it named, `hold_at_tick`), `Hold` or refusal the driver made. Precise guards live in the
 [clock contract](../contracts/clock-recovery.md) and
 [hazard bounds](hazard-detection-bounds.md).
 

@@ -43,7 +43,7 @@ public sealed class PlannerQueueStarvationTests
         var worst = Catalog.ToDictionary(e => e.Name, _ => 0L);
         for (long tick = 0; tick <= Horizon; tick += StepTicks)
         {
-            var sel = queue.Selection(tick, full: tick == 0, settled: false, stillOpen);
+            var sel = queue.Selection(tick, full: tick == 0, stillOpen);
             if (!sel.Planners)
             {
                 continue;
@@ -80,6 +80,23 @@ public sealed class PlannerQueueStarvationTests
     [Fact]
     public void AnEntryThatMissedTheFullWaveCutoffIsStillDueOnTheClock() =>
         AssertWithinCadence(LongestGaps((name, tick) => !(tick == 0 && name == "six_hour")));
+
+    [Fact]
+    public void TheReviewTickMarksNothingWhileAnyOtherHoldMarksEveryPlanner()
+    {
+        // #3556: a quiet review runs only what is dirty or due; a hazard, a game pause or the brain's own hold is an
+        // early review of everything.
+        var queue = new PlannerQueue { Catalog = () => Catalog };
+        var seq = queue.Seq;
+        queue.Wake(new StepReason { Cause = StepCause.Review, Stopped = true });
+        Assert.Equal(seq, queue.Seq);
+
+        queue.Wake(new StepReason { Cause = StepCause.Wake, Stopped = true });
+        Assert.True(queue.Seq > seq);
+        var sel = queue.Selection(StepTicks, full: false, null);
+        Assert.True(sel.Planners);
+        Assert.All(Catalog, e => Assert.Contains("dirty", sel.Why![e.Name]));
+    }
 
     [Fact]
     public void AnEntryWaitingOnOpenWorkIsReleasedAtItsDeadline()

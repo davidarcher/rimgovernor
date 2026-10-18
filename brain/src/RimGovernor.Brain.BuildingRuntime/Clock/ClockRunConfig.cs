@@ -25,6 +25,17 @@ public sealed record ClockRunConfig
     /// <summary>The game ticks between autosave holds, measured on the game clock from the previous autosave hold; 0 holds at every running step.</summary>
     public long AutosaveEveryTicks { get; init; } = DefaultAutosaveEveryTicks;
 
+    /// <summary>
+    /// The review cadence: every Run names the tick native holds at for <see cref="PbClock.HoldReason.Review"/>, this
+    /// many game ticks after the status tick the run was decided against. One number, no admission: 600 ticks is ten
+    /// in-game seconds, about 100 reviews per in-game day, under a second of wall each at Ultrafast (#3556). A hazard
+    /// hold is an early review and the Run that ends it names the next one from its own tick.
+    /// </summary>
+    public const long DefaultReviewEveryTicks = 600;
+
+    /// <summary>The game ticks from a Run's status tick to the review hold it names.</summary>
+    public long ReviewEveryTicks { get; init; } = DefaultReviewEveryTicks;
+
     /// <summary>The longest a combat hold may take to resume before the gate trips (unmeasured default, #3180).</summary>
     public TimeSpan CombatResumeBudget { get; init; } = ClockCombatStops.ResumeBudget;
 
