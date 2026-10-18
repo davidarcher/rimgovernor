@@ -66,6 +66,9 @@ public sealed record CropChoice
 
     public Fact<bool> Available { get; init; }
 
+    /// <summary>The research the crop's sowing waits on (the plant's own prerequisites, Devilstrand and TreeSowing); finished ones are still listed.</summary>
+    public EquatableArray<ResearchProjectId> Research { get; init; }
+
     public Fact<bool> Edible { get; init; }
 
     public Fact<double> GrowDays { get; init; }

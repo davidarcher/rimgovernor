@@ -34,6 +34,7 @@ internal static class ColonyModelFixtures
     internal static PlanningDefinition CropRow() => new()
     {
         Name = Crop,
+        Research = [Project],
         Available = Known(false),
         GrowDays = Known(22.5),
         SowMinSkill = Known(10),

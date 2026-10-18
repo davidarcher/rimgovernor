@@ -554,6 +554,7 @@ partial class RoundsFieldPlanner
             {
                 Name = d.Name,
                 Available = d.Available,
+                Research = EquatableArray.From(d.Research.Select(project => new ResearchProjectId(project))),
                 Edible = d.Edible,
                 GrowDays = d.GrowDays,
                 FertilityMin = d.FertilityMin,

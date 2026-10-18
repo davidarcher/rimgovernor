@@ -55,13 +55,12 @@ public static class GoalPaths
         }
 
         var stuff = new Resource(goal.Qualifier);
-        if (!input.Recipes.TryGetValue(out var recipes) || !input.Stocks.Materials.TryGetValue(out var materials))
+        if (!input.Recipes.IsKnown || !input.Stocks.Materials.TryGetValue(out var materials))
         {
             return Unmodelled("recipes_or_stock_unread");
         }
 
-        var recipe = recipes.FirstOrDefault(r => r.Products.TryGetValue(out var made) && made.Any(p => p.Resource.Value == goal.Target && p.Count > 0)
-            && r.Slots.TryGetValue(out var slots) && slots.Count > 0 && slots[0].Count > 0 && slots[0][0].Resource == stuff);
+        var recipe = RecipeFor(input, goal.Target, stuff);
         if (recipe is null)
         {
             return Unmodelled("no_recipe:" + goal.Target);
@@ -98,6 +97,13 @@ public static class GoalPaths
             ? new(new ProjectGraph(), null, Reason("craft_unread", craft))
             : new(graph, Terminal(goal, f, [craft.Nodes[0].Id]), "");
     }
+
+    /// <summary>The recipe that makes <paramref name="product"/> from <paramref name="stuff"/> as its first ingredient alternative (the one <see cref="ProjectGraph.Craft"/> consumes); null when the input has none.</summary>
+    public static ProductionRecipeInput? RecipeFor(ColonyModelInput input, string product, Resource stuff) =>
+        input.Recipes.TryGetValue(out var recipes)
+            ? recipes.FirstOrDefault(r => r.Products.TryGetValue(out var made) && made.Any(p => p.Resource.Value == product && p.Count > 0)
+                && r.Slots.TryGetValue(out var slots) && slots.Count > 0 && slots[0].Count > 0 && slots[0][0].Resource == stuff)
+            : null;
 
     /// <summary>The path of <paramref name="goal"/>; a kind with no path through the project graph is unmodelled.</summary>
     public static GoalPath Of(GoalRecord goal, GoalsFacts f, ColonyModelInput input) => goal.Kind switch

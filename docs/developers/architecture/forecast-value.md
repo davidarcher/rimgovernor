@@ -238,8 +238,15 @@ and a pawn whose severity reaches lethal costs the rest of the horizon plus `Dea
 changes nothing, so it is worth nothing. Tier 1 reads the value per progress unit (research point, cell sown) from
 `ForecastCoupledContext.Investment`, keyed by `ForecastProjectProgress.Project`, and `ForecastValue.Of` writes
 `-(work ticks × progress per tick × value per unit)` to the `Investment` term, which `coupled_selection.value.terms.investment` logs.
-In a real review the graph is the current research chain and each standing field's crop from sowing to harvest: the frame carries
-no crop-to-research gate and no recipes the colony would craft, so the devilstrand payoff chain is priced in tests, not yet in play.
+In a real review (`ProjectGraph.Standing`, #3559) the graph is the current research chain and each standing field's crop from sowing to
+harvest. A crop's sowing waits on the research its plant def names (`CropChoice.Research`, the catalog's sowing prerequisites: Devilstrand,
+TreeSowing), so an unfinished one is a research node the sowing depends on. A crop whose yield is the stuff of a garment gets one craft node
+after its harvests (and after the research the garment's bill waits on). The garment is one deterministic choice: of the gear planner's bill
+options made from that stuff (excluding slave, child, shield, psychic and smoke-pop garments), the one with the most damage avoided per hit
+against the colony's expected raid (`GearArmorTerm`, the planner's own item score), ties by option id; none when no such option has armor.
+The recipe is the one that makes it with that stuff as its first ingredient alternative. The craft's value is the apparel harm avoided
+(above); no fibre stock is priced, and while the exposure table is a placeholder (#3543) the node exists, the harm is `apparel_harm_unassessed`
+and the chain's investment credit is 0.
 
 *Goal terminals (#3505).* `GoalPaths.Of` turns an unmet goal into a terminal of that graph: a research goal is the project's research
 chain, a `WornCount` goal the sow, grow, harvest and craft chain of its stuff (the crop's research gates, the garment's recipe, one

@@ -63,10 +63,12 @@ internal static class RoundsColonyModel
         // Each unmet goal with a path through the project graph is a terminal of it (#3505); the rest are named and keep the flat value.
         var paths = (goals?.Goals ?? []).Where(g => GoalRules.Evaluate(g, goals!).State != GoalState.Met).OrderBy(g => g.Id)
             .Select(g => (Goal: GoalRules.NeedOf(g).Value, Path: GoalPaths.Of(g, goals!, input))).ToList();
-        var policy = new ColonyModelPolicy { Projects = paths.Aggregate(ProjectGraph.Standing(input), (graph, p) => graph.Then(p.Path.Graph)) };
         var options = colony.Facts.Gear.TryGetValue(out var gear)
             ? gear.Pawns.Where(p => p.LoadoutModel.IsKnown).SelectMany(p => p.LoadoutModel.Value.Options).Where(o => o.Source == GearSource.Bill).DistinctBy(o => o.ID).ToArray()
             : [];
+        // The colony's expected raid is the same on every pawn's loadout input; the first known one is the colony's.
+        var threat = gear is null ? default : gear.Pawns.Where(p => p.LoadoutModel.IsKnown).Select(p => p.LoadoutModel.Value.Threat).FirstOrDefault(t => t.IsKnown);
+        var policy = new ColonyModelPolicy { Projects = paths.Aggregate(ProjectGraph.Standing(input, options, threat), (graph, p) => graph.Then(p.Path.Graph)) };
         var marginals = ProjectMarginalValue.Of(input, policy, new ColonyValue(context, options, policy.HorizonDays), [.. paths.Where(p => p.Path.Terminal is not null).Select(p => p.Path.Terminal!)]);
         var etas = new Dictionary<string, int>(StringComparer.Ordinal);
         var notes = new List<string>();

@@ -38,20 +38,71 @@ public sealed record ProjectGraph
 
     /// <summary>
     /// What a review runs: the research chain of the project being researched, and each field with a crop set, from sowing to
-    /// harvest. The facts carry no crop-to-research gate, so a crop that needs research is not chained to it here.
+    /// harvest, gated on the research the crop's sowing waits on (<see cref="CropChoice.Research"/>). A crop whose harvest is the
+    /// stuff of a garment the colony could craft (<see cref="Garment"/>) also gets that garment's craft after its harvests, so the
+    /// harm model prices what wearing it avoids.
     /// </summary>
-    public static ProjectGraph Standing(ColonyModelInput input)
+    public static ProjectGraph Standing(ColonyModelInput input, IReadOnlyList<GearOption> options, Fact<RaidThreat> threat)
     {
         var graph = input.Research.TryGetValue(out var research) && !research.Current.IsEmpty ? ResearchChain(input, research.Current) : new ProjectGraph();
         if (input.Land.TryGetValue(out var land))
         {
-            foreach (var field in land.Where(f => f.Crop.Length > 0))
+            var sown = land.Where(f => f.Crop.Length > 0).ToList();
+            foreach (var field in sown)
             {
-                graph = graph.Then(CropChain(input, field.Crop, field.Id));
+                var gates = input.Crops.TryGetValue(out var crops) && crops.FirstOrDefault(c => c.Name == field.Crop) is { } choice ? choice.Research : default;
+                graph = graph.Then(CropChain(input, field.Crop, field.Id, gates));
+            }
+
+            foreach (var crop in sown.Select(f => f.Crop).Distinct())
+            {
+                var harvests = sown.Where(f => f.Crop == crop && graph.Nodes.Any(n => n.Id == $"harvest:{f.Id}")).Select(f => $"harvest:{f.Id}").ToArray();
+                if (harvests.Length > 0)
+                {
+                    graph = graph.Then(GarmentCraft(input, crop, harvests, options, threat));
+                }
             }
         }
 
         return graph;
+    }
+
+    /// <summary>
+    /// The one garment a crop's harvest is made into: of the bill options made from the crop's yield (not a slave's, a child's, a
+    /// shield, a psychic or a smoke-pop garment), the one the gear planner scores highest, its damage avoided per hit against the
+    /// colony's expected raid (<see cref="GearArmorTerm"/>), ties by option id. Null when the crop yields no stuff a garment is made
+    /// of or none of them has armor.
+    /// </summary>
+    public static GearOption? Garment(CropChoice crop, IReadOnlyList<GearOption> options, Fact<RaidThreat> threat)
+    {
+        if (!crop.Harvests.TryGetValue(out var stuff))
+        {
+            return null;
+        }
+
+        var armor = new GearArmorTerm(threat);
+        return options.Where(o => o.Source == GearSource.Bill && o.Stuff == stuff && !o.SlaveOnly && !o.Shield && !o.Psychic && !o.Smokepop
+                && !o.Definition.Value.StartsWith("Kid", StringComparison.Ordinal) && !o.Definition.Value.StartsWith("Apparel_Kid", StringComparison.Ordinal) && armor.Of(o) > 0)
+            .OrderByDescending(armor.Of).ThenBy(o => o.ID, StringComparer.Ordinal).FirstOrDefault();
+    }
+
+    /// <summary>The craft of the crop's garment (<see cref="Garment"/>) after its harvests and the research the garment's bill waits on; empty when the crop has none.</summary>
+    private static ProjectGraph GarmentCraft(ColonyModelInput input, string crop, string[] harvests, IReadOnlyList<GearOption> options, Fact<RaidThreat> threat)
+    {
+        if (!input.Crops.TryGetValue(out var crops) || crops.FirstOrDefault(c => c.Name == crop) is not { } choice || Garment(choice, options, threat) is not { } garment)
+        {
+            return new ProjectGraph();
+        }
+
+        var recipe = GoalPaths.RecipeFor(input, garment.Definition.Value, garment.Stuff);
+        if (recipe is null)
+        {
+            return Gap($"garment_recipe_unknown:{garment.Definition.Value}");
+        }
+
+        var bill = garment.Research.Aggregate(new ProjectGraph(), (graph, project) => graph.Then(ResearchChain(input, new ResearchProjectId(project))));
+        var after = harvests.Concat(garment.Research.Select(p => ResearchId(new ResearchProjectId(p))).Where(id => bill.Nodes.Any(n => n.Id == id)));
+        return bill.Then(Craft(input, recipe.Recipe, EquatableArray.From(after), false));
     }
 
     /// <summary>
