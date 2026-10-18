@@ -29,6 +29,7 @@ namespace HomeBridge.BridgeTools
         static int interval = 2500, size = 1280, nextTick = -1, lastTick = -1, frames;
         static CellRect? viewOverride;
         static string? lastError;
+        static bool seenMapUpdate;
 
         public static object Start(string directory, int intervalTicks, int imageSize)
         {
@@ -79,6 +80,11 @@ namespace HomeBridge.BridgeTools
         static void BeforeMapUpdate(Map __instance)
         {
             if (dir == null || __instance != Find.CurrentMap) return;
+            if (!seenMapUpdate)
+            {
+                seenMapUpdate = true;
+                Log.Message("[colony-review] first recorded map update: viewport off, next shot at tick " + nextTick);
+            }
             SetViewport(false);
             if (Find.TickManager.TicksGame < nextTick) return;
             viewOverride = ColonyRect(__instance);

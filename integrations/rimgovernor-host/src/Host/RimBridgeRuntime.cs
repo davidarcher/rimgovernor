@@ -27,6 +27,7 @@ internal static class RimBridgePatches
             {
                 new Harmony(HarmonyId).Patch(
                     original: AccessTools.Method(typeof(Root), nameof(Root.Update)),
+                    prefix: new HarmonyMethod(typeof(Root_Update_Patch), nameof(Root_Update_Patch.Prefix)),
                     postfix: new HarmonyMethod(typeof(Root_Update_Patch), nameof(Root_Update_Patch.Postfix)));
                 Log.Message("[RimBridge] Applied essential Harmony patches.");
             }
@@ -52,6 +53,8 @@ internal static class RimBridgePatches
 [HarmonyPatch(typeof(Root), nameof(Root.Update))]
 internal static class Root_Update_Patch
 {
+    public static void Prefix() => FrameMeter.Begin();
+
     public static void Postfix()
     {
         FrameMeter.Tick();
@@ -77,10 +80,16 @@ internal static class FrameMeter
     private static float _last;
     private static float _worst;
     private static int _frames;
+    private static float _updateStart;
+    private static float _updateSum;
+
+    /// <summary>Marks the start of Root.Update, so the frame's logic time (Update to its postfix) is told from its render time.</summary>
+    public static void Begin() => _updateStart = Time.realtimeSinceStartup;
 
     public static void Tick()
     {
         var now = Time.realtimeSinceStartup;
+        _updateSum += now - _updateStart;
         if (_windowStart < 0f)
         {
             _windowStart = now;
@@ -95,10 +104,11 @@ internal static class FrameMeter
             return;
 
         var span = now - _windowStart;
-        Log.Message($"[frames] {_frames} frames in {span:F1}s, mean {span / _frames * 1000f:F0} ms, worst {_worst * 1000f:F0} ms");
+        Log.Message($"[frames] {_frames} frames in {span:F1}s, mean {span / _frames * 1000f:F0} ms, worst {_worst * 1000f:F0} ms, Root.Update mean {_updateSum / _frames * 1000f:F0} ms");
         _windowStart = now;
         _frames = 0;
         _worst = 0f;
+        _updateSum = 0f;
     }
 }
 
