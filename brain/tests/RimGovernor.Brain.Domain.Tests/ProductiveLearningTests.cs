@@ -11,13 +11,13 @@ public sealed class ProductiveLearningTests
     private static readonly double[] ExpectedDurations = [100, 80, 80];
     internal static ProductiveSkillWork Work(double speed = 1, double learning = .1) => new(new()
     {
-        Tick = 100, Provenance = "native-test", Disabled = Known(false), TrackerAllowsLearning = Known(true),
+        Disabled = Known(false), TrackerAllowsLearning = Known(true),
         StoredLevel = Known(1), Aptitude = Known(0), Xp = Known(95d), XpSinceMidnight = Known(0d),
         DirectFactor = Known(1d), UnsaturatedFactor = Known(1d), SaturationThreshold = Known(1000d),
         SaturatedFactor = Known(.2), LossThreshold = Known(-100d), DecayInterval = Known(200),
         NextDecay = Known(200), ValidForTicks = Known(1000),
         Levels = [new(0, 100, 0), new(1, 100, 0), new(2, 1000, 0)]
-    }, new("Cooking", Known(learning), false, "native-test"), Known(100d),
+    }, new("Cooking", Known(learning), false), Known(100d),
         [new(0, Known(speed)), new(1, Known(speed)), new(2, Known(1.25))], "native-test");
 
     internal static ForecastActivityProblem Meals(int count, double speed = 1, double learning = .1, double deadline = 950)

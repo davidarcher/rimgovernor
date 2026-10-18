@@ -36,7 +36,7 @@ public static partial class PlannedRules
         return new PlannedThermalRequest
         {
             Rooms = EquatableArray.From(chosen.Select(r => new PlannedThermalRoom(
-                r.Room.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), new Cell(r.Bounds.X, r.Bounds.Z), r.Bounds.Width, r.Bounds.Height))),
+                new Cell(r.Bounds.X, r.Bounds.Z), r.Bounds.Width, r.Bounds.Height))),
             Heaters = EquatableArray.From(heaters),
         };
     }

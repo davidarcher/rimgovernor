@@ -225,7 +225,7 @@ namespace HomeBridge.BridgeTools
                     ValidForTicks = RimGovernor.Brain.Domain.Fact.Known(2),
                 };
                 var events = Enumerable.Range(0, shots).Select(i => new RimGovernor.Brain.Policy.SkillXpEvent(
-                    i.ToString(), 1, learning.RangeRawXpPerShot, RimGovernor.Brain.Policy.SkillXpPath.Range)).ToArray();
+                    i.ToString(), 1, RimGovernor.Brain.Domain.Fact.Known((double)RangeTraining.ShotXp(RangeTraining.UnlockedWeapon())), RimGovernor.Brain.Policy.SkillXpPath.Range)).ToArray();
                 var projected = RimGovernor.Brain.Policy.ForecastSkillPolicy.ForecastSkill(baseline, events, 1);
                 return FixtureKit.Reply(new Fx.TrainingRead
                 {
@@ -283,7 +283,9 @@ namespace HomeBridge.BridgeTools
             {
                 var verb = pawn.equipment.PrimaryEq?.PrimaryVerb;
                 if (verb == null) { Failures.Add("missing_sparring_verb"); return; }
-                // The quote below comes from the normal learning observation.
+                if (verb is not Verb_MeleeAttack) { Failures.Add("sparring_quote_unknown"); return; }
+                // Native quotes one exchange as 200 XP per second of the verb's full cycle, the quote the brain plans with.
+                raw = 200d * verb.verbProps.AdjustedFullCycleTime(verb, pawn);
                 kind = "sparring";
             }
             else if (recipe != null && recipe.workSkill == __instance.def && !recipe.UsesUnfinishedThing
@@ -300,11 +302,6 @@ namespace HomeBridge.BridgeTools
             {
                 var evidence = NativeSkillLearning.Read(pawn, __instance) with {
                     ValidForTicks = RimGovernor.Brain.Domain.Fact.Known(2), NextDecay = RimGovernor.Brain.Domain.Fact.Known(200) };
-                if (kind == "sparring")
-                {
-                    if (!evidence.SparringRawXpPerExchange.IsKnown) { Failures.Add("sparring_quote_unknown"); return; }
-                    raw = evidence.SparringRawXpPerExchange.Value;
-                }
                 var predicted = RimGovernor.Brain.Policy.ForecastSkillPolicy.ForecastSkill(evidence,
                     new[] { new RimGovernor.Brain.Policy.SkillXpEvent("native-callback", 0,
                         RimGovernor.Brain.Domain.Fact.Known(raw), RimGovernor.Brain.Policy.SkillXpPath.NormalRecord) }, 0);

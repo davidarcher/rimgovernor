@@ -38,7 +38,7 @@ public class PolicyFacade : DispatchProxy
             case "ReadDefenseSiteAsync":
                 return Task.FromResult(NativeDefenseObservationTools.HandleReadDefenseSite((Obs.DefenseSiteRequest)args![0]!));
             case "OpenFramesAsync":
-                return Task.FromResult(new Obs.SnapshotStreamReply { Outcome = new Obs.SnapshotStreamReplyOutcome.OpenedCase(new Obs.SnapshotStreamOpened { Name = "in-process" }) });
+                return Task.FromResult(new Obs.SnapshotStreamReply());
             default:
                 throw new NotSupportedException($"realcombat: the policy facade serves a combat read only; {targetMethod.Name} is not part of one");
         }

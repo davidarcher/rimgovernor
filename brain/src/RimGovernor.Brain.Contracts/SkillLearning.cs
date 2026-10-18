@@ -6,8 +6,6 @@ namespace RimGovernor.Contracts.Wire.Observations;
 /// <summary>Read-only native skill mechanics at one frame. Missing evidence is never zero.</summary>
 public sealed record SkillLearning
 {
-    public int Tick { get; init; }
-    public string Provenance { get; init; } = "";
     public Fact<bool> Disabled { get; init; }
     public Fact<bool> TrackerAllowsLearning { get; init; }
     public Fact<int> StoredLevel { get; init; }
@@ -27,15 +25,13 @@ public sealed record SkillLearning
     public EquatableArray<SkillLevelMechanics> Levels { get; init; }
     public Fact<bool> PracticeEligible { get; init; }
     public Fact<int> PracticeCeiling { get; init; }
-    public Fact<double> RangeRawXpPerShot { get; init; }
-    public Fact<double> SparringRawXpPerExchange { get; init; }
     public Fact<double> RangeAppliedBudget { get; init; }
 }
 
 public sealed record SkillLevelMechanics(int Level, double RequiredXp, double DecayXp);
 
 /// <summary>Ordinary Toils_Recipe learning: unfinished recipes pay during work; others pay at completion.</summary>
-public sealed record RecipeLearning(string Skill, Fact<double> RawXpPerWorkTick, bool DuringWork, string Provenance);
+public sealed record RecipeLearning(string Skill, Fact<double> RawXpPerWorkTick, bool DuringWork);
 
 /// <summary>Native work amounts and per-stored-level rates for this pawn, recipe and station at one frame.
 /// Rates retain other observed conditions; no prediction of future health, equipment or facility changes.</summary>

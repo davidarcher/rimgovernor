@@ -26,7 +26,7 @@ public sealed class ForecastActivityCompositionTests
             FoodConversions = EquatableArray.From(conversions),
             FoodUses = [new("pawn", "Meal", new(3, 1), Known(true), Known(.8), Known(10d), 1, Known(1000d))],
             Support = new() { Known = true,
-                Demands = [new("patient-care", "care", "patient", new(1, 1), default, Known(0d), default)],
+                Demands = [new("patient-care", "care", "patient", new(1, 1), default, Known(0d))],
                 Workers = [new("patient-care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(10d))] }
         };
         facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = read } };
@@ -321,7 +321,7 @@ public sealed class ForecastActivityCompositionTests
                 {
                     Outdoors = Known(-10d), ThinRoofExchangePerTick = Known(.00005), WallExchangePerTick = Known(.000017),
                     Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10d), c == inside ? "none" : "thin",
-                        c != inside && c != wall, false, false, c == wall ? "wall" : "", c == wall ? "TestWall" : "",
+                        c != inside && c != wall, false, false, c == wall ? "wall" : "",
                         c == wall, false, 0, c == inside))),
                     Workers = [new("pawn", Known(5d))], RoofRoutes = [new("pawn", inside, Known(1d))],
                     Sources = [new("heater", inside, true, Known(.35), Known(20d), Known(1000d))],

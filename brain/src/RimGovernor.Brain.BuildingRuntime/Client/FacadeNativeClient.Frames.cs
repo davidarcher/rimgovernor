@@ -336,14 +336,13 @@ public sealed partial class FacadeNativeClient : IDisposable
             };
             PbObservations.SnapshotStreamReply reply;
             reply = await Facade.OpenFramesAsync(request, cancellationToken).ConfigureAwait(false);
-            var outcome = reply.Outcome;
-            if (outcome.Opened is null)
+            if (reply.Unavailable is { } refused)
             {
                 lock (_frameGate)
                 {
                     _frameStale = true;
                 }
-                throw Unavailable(outcome.Unavailable!);
+                throw Unavailable(refused);
             }
             await Feed.ResetAsync(cancellationToken).ConfigureAwait(false);
             lock (_frameGate)

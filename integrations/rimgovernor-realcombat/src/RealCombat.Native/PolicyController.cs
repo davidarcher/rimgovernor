@@ -236,6 +236,6 @@ public sealed class PolicyController : IFightController
         _client!.CombatGeometryAsync(request, CancellationToken.None).GetAwaiter().GetResult().Value;
 
     // The catalog of the load over the game's Defs, with the def stat table its definition catalog read built.
-    private static DefinitionCatalog CatalogOfArena(Obs.DefinitionCatalog wire, RimGovernor.Contracts.Wire.Common.Identity identity) =>
-        NativeCatalogFactory.Create(wire, identity);
+    private static DefinitionCatalog CatalogOfArena(RimGovernor.Contracts.Wire.Common.Identity identity) =>
+        NativeCatalogFactory.Create(identity);
 }

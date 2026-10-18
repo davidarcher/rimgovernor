@@ -1194,8 +1194,6 @@ public sealed record TrainingEntry
     public bool Wanted { get; init; }
 
     public bool Available { get; init; }
-
-    public string? Reason { get; init; }
 }
 
 /// <summary>
@@ -3591,11 +3589,6 @@ public sealed record RecoverySnapshot
     public EquatableArray<Common.Ref> Buildings { get; init; }
 }
 
-public sealed record RecoveryRequest
-{
-    public ReadScope? Scope { get; init; }
-}
-
 public sealed record RecoveryReply
 {
     public RecoveryReplyOutcome Outcome { get; init; } = null!;
@@ -4651,21 +4644,9 @@ public abstract record StatSubjectSubject
 {
     private protected StatSubjectSubject() { }
 
-    /// <summary>The <c>Definition</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public StatDefSubject? Definition => (this as DefinitionCase)?.Value;
-
     public sealed record DefinitionCase(StatDefSubject Value) : StatSubjectSubject;
 
-    /// <summary>The <c>ThingId</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public string? ThingId => (this as ThingIdCase)?.Value;
-
     public sealed record ThingIdCase(string Value) : StatSubjectSubject;
-
-    /// <summary>The <c>PawnId</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public string? PawnId => (this as PawnIdCase)?.Value;
 
     public sealed record PawnIdCase(string Value) : StatSubjectSubject;
 }
@@ -5224,8 +5205,6 @@ public sealed record TradeRequestOption
 
     public bool? Eligible { get; init; }
 
-    public string? Reason { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> NegotiatorIds { get; init; }
 }
@@ -5277,8 +5256,6 @@ public sealed record TradeCommsWork
 public sealed record TradePackEstimate
 {
     public bool? CanPack { get; init; }
-
-    public string? Reason { get; init; }
 
     public double? MassUsage { get; init; }
 
@@ -8432,15 +8409,6 @@ public sealed record SnapshotStreamRequest
 }
 
 /// <summary>
-/// The definition catalog: what the game computes in code that the planning
-/// views read beside the game's Def objects. `context` is per load; every other
-/// field is static for the game process (defs load once at boot).
-/// </summary>
-public sealed record DefinitionCatalog
-{
-}
-
-/// <summary>
 /// The player faction's primary ideoligion: FactionIdeosTracker.PrimaryIdeo.
 /// Precept ids are Precept.GetUniqueLoadID(); every def name resolves to a
 /// catalog def row (PreceptDef, MemeDef, RitualPatternDef).
@@ -8533,21 +8501,6 @@ public sealed record IdeoBuilding
     public string? Building { get; init; }
 }
 
-/// <summary>
-/// The Biotech tuning constants the defs do not carry, read natively
-/// from GeneTuning and the gene extractor, a singleton per load.
-/// biostat_min and biostat_max are GeneTuning.BiostatRange (the metabolism
-/// bound of a gene set); base_max_complexity GeneTuning.BaseMaxComplexity;
-/// creation_hours_curve ComplexityToCreationHoursCurve (complexity to hours of
-/// assembler work, ascending x); regrow_days_min and regrow_days_max
-/// GeneExtractorRegrowingDurationDaysRange; extract_ticks the extractor's
-/// TicksToExtract and no_power_eject_ticks its cumulative power-cut limit
-/// (private constants read by reflection, absent when unreadable). An absent
-/// scalar is unknown, never zero.
-/// </summary>
-public sealed record GeneTuningFacts
-{
-}
 
 
 /// <summary>
@@ -8698,77 +8651,17 @@ public sealed record DefinitionCatalogRequest
     public ReadScope? Scope { get; init; }
 }
 
+/// <summary>The catalog prepare reply: the load is prepared when neither <see cref="Unavailable"/> nor <see cref="Failure"/> is set.</summary>
 public sealed record DefinitionCatalogReply
 {
-    public DefinitionCatalogReplyOutcome Outcome { get; init; } = null!;
+    public Common.Unavailable? Unavailable { get; init; }
+    public Common.Failure? Failure { get; init; }
 }
 
-/// <summary>The <c>outcome</c> choice of <see cref="DefinitionCatalogReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(DefinitionCatalogReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(DefinitionCatalogReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(DefinitionCatalogReplyOutcome.FailureCase), "failure")]
-public abstract record DefinitionCatalogReplyOutcome
-{
-    private protected DefinitionCatalogReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public DefinitionCatalog? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(DefinitionCatalog Value) : DefinitionCatalogReplyOutcome;
-
-    public static implicit operator DefinitionCatalogReplyOutcome(DefinitionCatalog value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : DefinitionCatalogReplyOutcome;
-
-    public static implicit operator DefinitionCatalogReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : DefinitionCatalogReplyOutcome;
-
-    public static implicit operator DefinitionCatalogReplyOutcome(Common.Failure value) => new FailureCase(value);
-}
-
-public sealed record SnapshotStreamOpened
-{
-}
-
+/// <summary>The stream open reply: opened when <see cref="Unavailable"/> is absent.</summary>
 public sealed record SnapshotStreamReply
 {
-    public SnapshotStreamReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="SnapshotStreamReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(SnapshotStreamReplyOutcome.OpenedCase), "opened")]
-[JsonDerivedType(typeof(SnapshotStreamReplyOutcome.UnavailableCase), "unavailable")]
-public abstract record SnapshotStreamReplyOutcome
-{
-    private protected SnapshotStreamReplyOutcome() { }
-
-    /// <summary>The <c>Opened</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public SnapshotStreamOpened? Opened => (this as OpenedCase)?.Value;
-
-    public sealed record OpenedCase(SnapshotStreamOpened Value) : SnapshotStreamReplyOutcome;
-
-    public static implicit operator SnapshotStreamReplyOutcome(SnapshotStreamOpened value) => new OpenedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : SnapshotStreamReplyOutcome;
-
-    public static implicit operator SnapshotStreamReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+    public Common.Unavailable? Unavailable { get; init; }
 }
 
 /// <summary>

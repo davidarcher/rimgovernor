@@ -55,8 +55,8 @@ public sealed record NeedMemory(string Id, double Offset,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> RemainingTicks, bool Fades)
 { public bool Permanent { get; init; } }
 /// <summary>Native mood-point contribution in a half-open local-hour window; EndHour less than StartHour wraps midnight. CurrentOffset is already present in MoodUnclampedTarget.</summary>
-public sealed record NeedConditionalThought(string Id, double StartHour, double EndHour, bool AwakeOnly,
-    double Offset, double CurrentOffset, string Provenance);
+public sealed record NeedConditionalThought(double StartHour, double EndHour, bool AwakeOnly,
+    double Offset, double CurrentOffset);
 /// <summary>Exact observed continuous service. RemainingTicks is a current-mechanics projection,
 /// not a release guarantee; journal ownership still requires observed continuation/release.</summary>
 public sealed record NeedCurrentService(string Assignment, string Method, long Revision, string Target,

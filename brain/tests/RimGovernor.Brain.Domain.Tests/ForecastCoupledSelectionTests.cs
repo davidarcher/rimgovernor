@@ -423,7 +423,7 @@ public sealed class ForecastCoupledSelectionTests
                 Shelters = nearBreak ? candidates.Context.Shelters : [],
                 Thermal = nearBreak ? candidates.Context.Thermal : new()
                 {
-                    Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10.0), "none", false, false, false, "", "", false, false, 0, false))),
+                    Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10.0), "none", false, false, false, "", false, false, 0, false))),
                 },
             }
         } };
@@ -451,7 +451,7 @@ public sealed class ForecastCoupledSelectionTests
             {
                 Needs = candidates.Context.Needs with { Pawns = [pawn] },
                 Shelters = [],
-                Thermal = new() { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(mild ? 20.0 : -10.0), "none", false, false, false, "", "", false, false, 0, false))) },
+                Thermal = new() { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(mild ? 20.0 : -10.0), "none", false, false, false, "", false, false, 0, false))) },
                 Cards = new Dictionary<string, MechanicCard> { ["EnvironmentCold"] = MechanicCards.ByDef["EnvironmentCold"] with { Status = status } },
                 CardPawns = new Dictionary<string, CardPawnFacts> { ["pawn"] = new()
                 {
@@ -627,7 +627,7 @@ public sealed class ForecastCoupledSelectionTests
             {
                 Needs = candidates.Context.Needs with { Pawns = [wearer, template with { Pawn = "tailor", Mood = Known(.9), MoodTarget = Known(.9), MoodUnclampedTarget = Known(.9) }] },
                 Shelters = [],
-                Thermal = new() { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10.0), "none", false, false, false, "", "", false, false, 0, false))) },
+                Thermal = new() { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10.0), "none", false, false, false, "", false, false, 0, false))) },
                 Cards = new Dictionary<string, MechanicCard> { ["EnvironmentCold"] = MechanicCards.ByDef["EnvironmentCold"] with { Status = status } },
                 CardPawns = new Dictionary<string, CardPawnFacts> { ["pawn"] = new()
                 {

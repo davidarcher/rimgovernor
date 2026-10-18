@@ -31,7 +31,7 @@ public sealed record BrainCompositionOptions
     /// Builds the C# definition catalog of a load from its validated wire catalog and the game's Defs, which are not on the
     /// wire (see <c>FacadeNativeClient.Create</c>). Null composes a client whose catalog reads refuse.
     /// </summary>
-    public Func<RimGovernor.Contracts.Wire.Observations.DefinitionCatalog, RimGovernor.Contracts.Wire.Common.Identity, DefinitionCatalog>? CatalogFactory { get; init; }
+    public Func<RimGovernor.Contracts.Wire.Common.Identity, DefinitionCatalog>? CatalogFactory { get; init; }
 
     /// <summary>
     /// Resolves the ideoligion the governor chooses for a new colony's scenario (<c>CreationCatalog</c> then

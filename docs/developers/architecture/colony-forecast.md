@@ -515,11 +515,10 @@ unplaced `ShelfCandidates` are added as one-piece sites (`ShelfPlannedSites`, ro
 
 `PlannedSiteRequest` asks native every site but the roof in one construction activity read (#3341). The read covers
 every free colonist, since any may build, cut, mine or haul; native gives a pawn that cannot no row, and caps no
-sites, rows, sources, positions, rejections or blockers. It searches each path once (`NativePathLegs`): a colonist's
+sites, rows, sources or positions. It searches each path once (`NativePathLegs`): a colonist's
 leg to a stack or site once per (colonist cell, target), a stack's legs to a site and back once per (stack, site),
 re-priced at each colonist's move ticks, since free colonists share the cell grid. `JoinPlannedSites` takes each
-site's answer by id: per pawn x source `Options`, `CanPlace`, `Rejections`, `Blockers` (unclassified, as native
-reports them), `Verdict` (feasibility once cleared) and `Clearing` (its cut, haul and mine prerequisites). A site
+site's answer by id: per pawn x source `Options`, `CanPlace`, `Verdict` (feasibility once cleared) and `Clearing` (its cut, haul and mine prerequisites). A site
 stays unknown when no answer names it, or when the read is missing or unknown (`planned_site_read_unknown`).
 
 The roof has no native placement and is never asked. Its work per cell is the coupled read's

@@ -33,11 +33,11 @@ public sealed partial class FacadeNativeClient :
     /// </summary>
     /// <param name="facade">The in-process native facade.</param>
     /// <param name="catalogFactory">
-    /// Builds the C# definition catalog of a load from its validated wire catalog and the game's Defs
+    /// Builds the C# definition catalog of a load from the game's Defs
     /// (<see cref="CatalogFactory"/>). The game's Defs are not on the wire, so only the host composition that holds them
     /// can supply it; without one <c>DefinitionCatalogAsync</c> (and the reads that need the catalog) refuse.
     /// </param>
-    internal static FacadeNativeClient Create(INativeFacade facade, Func<PbObservations.DefinitionCatalog, PbCommon.Identity, BridgeCatalog>? catalogFactory = null)
+    internal static FacadeNativeClient Create(INativeFacade facade, Func<PbCommon.Identity, BridgeCatalog>? catalogFactory = null)
     {
         ArgumentNullException.ThrowIfNull(facade);
         FacadeNativeClient? client = null;

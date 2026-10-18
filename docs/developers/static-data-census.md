@@ -508,7 +508,6 @@ Kept, reason recorded:
 | WasteReply | message | 976 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | RecoveryRestriction | message | 977 | 4 | state | Recovery area restriction/lease on a pawn |  |  |
 | RecoverySnapshot | message | 978 | 3 | state | Recovery restrictions and buildings |  |  |
-| RecoveryRequest | message | 979 | 1 | state | Read request parameters |  |  |
 | RecoveryReply | message | 980 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | PopulationPerson | message | 983 | 24 | state | Prisoner/guest/colonist population facts |  |  |
 | PopulationSnapshot | message | 1015 | 11 | state | Population persons, ideology flags and storyteller outlook |  |  |
@@ -761,7 +760,6 @@ Kept, reason recorded:
 | ObservationBatchRequest | message | 2224 | 7 | state | Request envelope for the batch read |  |  |
 | ObservationBatchReply | message | 2225 | 3 | state | Outcome oneof of batch read |  |  |
 | SnapshotStreamRequest | message | 2247 | 5 | state | Stream subscription: resource sources, budgets |  |  |
-| DefinitionCatalog | message | 2265 | 12 | static | Catalog envelope holding def mirror, stat table, facts, constants | thing_defs,terrain_defs,defs,class_chains,research | already the def mirror itself (defs.proto ThingDef/TerrainDef/DefSets); research duplicates DefSets ResearchProjectDef rows |
 | ClassChain | message | 2299 | 2 | static | CLR class and its bases for def class matching | name,bases | none in defs.proto; reflection over assemblies; keep as Go ClassIsA index |
 | ThingDefFacts | message | 2310 | 4 | code | Game-computed ThingDef flags (food kind, meal ingredients; raw meat, medicine and room roles are Go, #2632) |  |  |
 | RaceFacts | message | 2329 | 5 | code | Edible foods, tameness decay, tame-chance factor, adult feed (game code; the rest is Go, #2632) |  |  |
@@ -787,7 +785,6 @@ Kept, reason recorded:
 | MechKindRow | message | 2512 | 12 | excluded | Biotech mech kind |  | excluded owner #2630 owner Biotech |
 | MechWorkModeRow | message | 2521 | 7 | excluded | Biotech MechWorkModeDef copy |  | excluded owner #2630 owner Biotech |
 | CurvePointRow | message | 2526 | 2 | excluded | Biotech curve point |  | excluded owner #2630 owner Biotech |
-| GeneTuningFacts | message | 2537 | 8 | excluded | Biotech gene tuning constants |  | excluded owner #2630 owner Biotech |
 | BiotechCatalog | message | 2543 | 7 | excluded | Biotech catalog container |  | excluded owner #2630 owner Biotech |
 | AnomalyCatalog | message | 2586 | 8 | excluded | Anomaly catalog container |  | excluded owner #2631 owner Anomaly |
 | CreepJoinerFormRow | message | 2595 | 7 | excluded | Anomaly creepjoiner form copy |  | excluded owner #2631 owner Anomaly |
@@ -812,9 +809,8 @@ Kept, reason recorded:
 | EntityHolderState | message | 2739 | 4 | excluded | Anomaly holder state |  | excluded owner #2631 owner Anomaly |
 | AnomalyDoor | message | 2745 | 5 | excluded | Anomaly holder door state |  | excluded owner #2631 owner Anomaly |
 | DefinitionCatalogRequest | message | 2746 | 2 | state | Request envelope for the catalog read |  |  |
-| DefinitionCatalogReply | message | 2749 | 4 | state | Outcome oneof of catalog read |  |  |
-| SnapshotStreamOpened | message | 2750 | 3 | state | Stream name (in-process) |  |  |
-| SnapshotStreamReply | message | 2755 | 3 | state | Outcome oneof of stream open |  |  |
+| DefinitionCatalogReply | message | 2749 | 4 | state | Unavailable or Failure of the catalog prepare |  |  |
+| SnapshotStreamReply | message | 2755 | 3 | state | Unavailable when the stream could not open |  |  |
 | FlushSnapshotRequest | message | 2758 | 0 | state | Flush request (empty) |  |  |
 | FlushSnapshotReply | message | 2759 | 2 | state | Outcome oneof of flush |  |  |
 | TradeFoodFacts | message | 2806 | 1 | code | Nutrition of a food def for trade (game-classified) | nutrition | candidate: Nutrition stat (Go evaluator) or ThingDef.ingestible.nutrition |

@@ -43,9 +43,9 @@ public sealed class SupportMethodTests
     private static SupportActivityRead Cleaning(double self = 30, double helper = 5, bool known = true) => new()
     {
         Known = true,
-        Demands = [new("bench", "bench", "bench", new(1, 1), known ? Known(.15) : default, Known(0d), default)
+        Demands = [new("bench", "bench", "bench", new(1, 1), known ? Known(.15) : default, Known(0d))
             { FoodPoisonChanceClean = known ? Known(.01) : default }],
-        Filth = [new("bench", "filth", new(1, 1), Known(2d))],
+        Filth = [new("bench", "filth", new(1, 1))],
         Workers = [new("bench", "pawn", "filth", "Clean", "Clean", new(1, 1), Known(0d), Known(self)),
             new("bench", "helper", "filth", "Clean", "Clean", new(1, 1), Known(0d), Known(helper))]
     };
@@ -76,8 +76,8 @@ public sealed class SupportMethodTests
     [Fact]
     public void UrgentCareBeatsCleaningAndPostcareDoesNotInventHealthBenefit()
     {
-        var read = Cleaning() with { Demands = [new("care", "care", "patient", new(1, 1), default, Known(.1), default)],
-            Filth = [new("care", "filth", new(1, 1), Known(2d))], Workers =
+        var read = Cleaning() with { Demands = [new("care", "care", "patient", new(1, 1), default, Known(.1))],
+            Filth = [new("care", "filth", new(1, 1))], Workers =
             [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d)),
                 new("care", "helper", "filth", "Clean", "Clean", new(1, 1), Known(0d), Known(10d))] };
         var facts = Facts(read); var result = Select(facts); var tasks = Tasks(facts, result);
@@ -121,7 +121,7 @@ public sealed class SupportMethodTests
     {
         foreach (var approach in new[] { Known(200d), default(Fact<double>) })
         {
-            var support = Cleaning() with { Filth = [new("bench", "filth", new(2, 2), Known(2d))], Workers =
+            var support = Cleaning() with { Filth = [new("bench", "filth", new(2, 2))], Workers =
                 [new("bench", "pawn", "filth", "Clean", "Clean", new(2, 2), Known(0d), Known(5d)),
                  new("bench", "helper", "filth", "Clean", "Clean", new(2, 2), approach, Known(1d))] };
             var facts = Facts(support, true);
@@ -136,7 +136,7 @@ public sealed class SupportMethodTests
     public void ExactMedicineChoiceConsumesOneObservedLotAndPreservesIntent()
     {
         var read = new SupportActivityRead { Known = true,
-            Demands = [new("care", "care", "patient", new(1, 1), default, Known(0d), default)
+            Demands = [new("care", "care", "patient", new(1, 1), default, Known(0d))
                 { InfectionChanceFactor = Known(1d), InfectionChanceFactorClean = Known(1d) }],
             Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d))
                 { TendQuality = Known(.2) },
@@ -157,9 +157,9 @@ public sealed class SupportMethodTests
     {
         var read = Cleaning() with
         {
-            Demands = [new("care", "care", "patient", new(1, 1), default, Known(0d), default)
+            Demands = [new("care", "care", "patient", new(1, 1), default, Known(0d))
                 { InfectionChanceFactor = Known(2d), InfectionChanceFactorClean = Known(.5) }],
-            Filth = [new("care", "filth", new(1, 1), Known(2d))],
+            Filth = [new("care", "filth", new(1, 1))],
             Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d))
                 { InfectionRoomEffectApplies = applicable is { } value ? Known(value) : default,
                     InfectionCheckTicks = Known(checkTicks), TendQuality = Known(.5) },
@@ -176,9 +176,9 @@ public sealed class SupportMethodTests
     [Fact]
     public void SurgeryUsesItsOwnQueuedServiceAndNativeRoomMultiplier()
     {
-        var read = Cleaning() with { Demands = [new("surgery", "surgery", "patient", new(1, 1), default, Known(0d), default)
+        var read = Cleaning() with { Demands = [new("surgery", "surgery", "patient", new(1, 1), default, Known(0d))
                 { SurgerySuccessFactor = Known(.6), SurgerySuccessFactorClean = Known(1d) }],
-            Filth = [new("surgery", "filth", new(1, 1), Known(2d))], Workers =
+            Filth = [new("surgery", "filth", new(1, 1))], Workers =
             [new("surgery", "pawn", "patient", "DoBill", "Doctor", new(1, 1), Known(0d), Known(20d))
                 { Recipe = new("selected-medical-bill", "selected-operation", []) },
                 new("surgery", "helper", "filth", "Clean", "Clean", new(1, 1), Known(0d), Known(5d))] };
@@ -203,8 +203,8 @@ public sealed class SupportMethodTests
     public void PostcareCleanupCanServeLaterActualProducerThroughSharedCondition()
     {
         var clean = Cleaning(5, 500);
-        var read = clean with { Demands = [.. clean.Demands, new("care", "care", "patient", new(1, 1), default, Known(.1), default)],
-            Filth = [.. clean.Filth, new("care", "filth", new(1, 1), Known(2d))],
+        var read = clean with { Demands = [.. clean.Demands, new("care", "care", "patient", new(1, 1), default, Known(.1))],
+            Filth = [.. clean.Filth, new("care", "filth", new(1, 1))],
             Workers = [clean.Workers[0], new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d))] };
         var facts = Facts(read, true); var result = Select(facts); var tasks = Tasks(facts, result);
         var care = Assert.Single(tasks, t => t.Step.Job == "TendPatient");

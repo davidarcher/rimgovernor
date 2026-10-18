@@ -49,7 +49,7 @@ public sealed class PlannedShelterTests
         {
             Outdoors = Known(ambient), ThinRoofExchangePerTick = Known(.00005), WallExchangePerTick = Known(.000017),
             Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(ambient), "none",
-                !open.Contains(c), false, false, "", "", false, false, 0, buildRoof && c == Inside))),
+                !open.Contains(c), false, false, "", false, false, 0, buildRoof && c == Inside))),
             Workers = [new("pawn", Known(5d))], RoofRoutes = [new("pawn", Inside, Known(1d))],
             Sources = [new("heater", Inside, true, Known(.35), Known(20d), Known(60000d))],
         };
@@ -231,7 +231,7 @@ public sealed class PlannedShelterTests
             new() { Id = 3, Region = RegionRules.RectRegion(new(20, 20, 2, 2)) },  // nothing owed: already built
             new() { Id = 4, Region = RegionRules.RectRegion(new(30, 30, 2, 2)), Outdoor = true }];
         var request = PlannedRules.PlannedThermalRequestOf(rooms, sites, "Heater")!;
-        Assert.Equal([new PlannedThermalRoom("1", Inside, 1, 1)], request.Rooms);
+        Assert.Equal([new PlannedThermalRoom(Inside, 1, 1)], request.Rooms);
         Assert.Equal([new PlannedThermalHeater(HeaterSite, "Heater", Inside)], request.Heaters);
         Assert.Empty(PlannedRules.PlannedThermalRequestOf(rooms, sites, "")!.Heaters);
         Assert.Null(PlannedRules.PlannedThermalRequestOf(rooms.Skip(1), sites, "Heater"));
@@ -240,7 +240,7 @@ public sealed class PlannedShelterTests
     [Fact]
     public void TheCoupledCaptureKeepsItsCellsAndSourcesOverThePlannedRead()
     {
-        ThermalCell Row(Cell cell, double temperature) => new(cell, Known(temperature), "none", false, false, false, "", "", false, false, 0, false);
+        ThermalCell Row(Cell cell, double temperature) => new(cell, Known(temperature), "none", false, false, false, "", false, false, 0, false);
         var observed = new CoupledThermalRead { Cells = [Row(Inside, 5)], Sources = [new("heater", Inside, true, Known(.35), Known(20d), Known(60000d))] };
         var planned = new CoupledThermalRead
         {

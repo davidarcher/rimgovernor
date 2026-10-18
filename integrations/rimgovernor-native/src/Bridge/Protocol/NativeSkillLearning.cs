@@ -14,7 +14,7 @@ internal static class NativeSkillLearning
 {
     internal static Obs.SkillLearning Read(Pawn pawn, SkillRecord skill)
     {
-        if (pawn.story?.traits == null) return new() { Tick = Find.TickManager.TicksGame, Provenance = "unsupported_skill_tracker_without_traits" };
+        if (pawn.story?.traits == null) return new();
         var allowed = !(ModsConfig.AnomalyActive && pawn.IsMutant && !pawn.mutant.Def.canGainXP);
         var saturatedFactor = DebugSettings.fastLearning ? 1d : SkillRecord.SaturatedLearningFactor;
         var levels = Enumerable.Range(SkillRecord.MinLevel, SkillRecord.MaxLevel + 1).Select(level =>
@@ -32,11 +32,8 @@ internal static class NativeSkillLearning
         var localRemaining = GenLocalDate.HourInteger(pawn) == 0 ? 0 : Math.Max(0, (int)((1d - localDay) * GenDate.TicksPerDay) - 1);
         var globalRemaining = GenDate.TicksPerDay - Find.TickManager.TicksGame % GenDate.TicksPerDay;
         var practice = skill.def == SkillDefOf.Shooting || skill.def == SkillDefOf.Melee;
-        var verb = pawn.equipment?.PrimaryEq?.PrimaryVerb;
-        var sparring = skill.def == SkillDefOf.Melee && pawn.CurJob?.def.defName == "RimGovernor_Spar" && verb is Verb_MeleeAttack;
         return new()
         {
-            Tick = Find.TickManager.TicksGame, Provenance = "SkillRecord/Interval/LearnRateFactor; native training rules",
             Disabled = Known(skill.TotallyDisabled), TrackerAllowsLearning = Known(allowed),
             StoredLevel = Known(skill.levelInt), Aptitude = Known(skill.Aptitude), Xp = Known((double)skill.xpSinceLastLevel),
             XpSinceMidnight = Known((double)skill.xpSinceMidnight), DirectFactor = Known((double)skill.LearnRateFactor(true)),
@@ -46,8 +43,6 @@ internal static class NativeSkillLearning
             ValidForTicks = Known(Math.Min(localRemaining, globalRemaining)), Levels = EquatableArray.From(levels),
             PracticeEligible = practice ? Known(skill.def == SkillDefOf.Shooting ? RangeTraining.Eligible(pawn, skill.def) : SparringBouts.Eligible(pawn)) : default,
             PracticeCeiling = practice ? Known(RangeTraining.CeilingFor(skill.def)) : default,
-            RangeRawXpPerShot = skill.def == SkillDefOf.Shooting ? Known((double)RangeTraining.ShotXp(RangeTraining.UnlockedWeapon())) : default,
-            SparringRawXpPerExchange = sparring && verb != null ? Known(200d * verb.verbProps.AdjustedFullCycleTime(verb, pawn)) : default,
             RangeAppliedBudget = skill.def == SkillDefOf.Shooting ? Known((double)RangeTraining.Remaining(pawn)) : default,
         };
     }

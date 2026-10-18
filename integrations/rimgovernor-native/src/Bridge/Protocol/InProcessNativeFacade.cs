@@ -39,8 +39,6 @@ namespace HomeBridge.BridgeTools
             => Read(NativeOps.ReadActivityTasks, request, () => NativeActivityTasks.Read(request), cancellationToken);
         public Task<Obs.ConstructionActivityRead> ReadConstructionActivityAsync(Obs.ConstructionActivityRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadConstructionActivity, request, () => NativeConstructionActivity.Read(request), cancellationToken);
-        public Task<Obs.RecipeActivityRead> ReadRecipeActivityAsync(Obs.RecipeActivityRequest request, CancellationToken cancellationToken)
-            => Read(NativeOps.ReadRecipeActivity, request, () => NativeRecipeActivity.Read(request), cancellationToken);
 
         // A hop for a read (observation class) or a write (control class, which runs ahead of queued reads).
         private static Task<T> Read<TRequest, T>(NativeOp<TRequest, T> op, TRequest request, Func<T> core, CancellationToken cancellationToken) where TRequest : class where T : class

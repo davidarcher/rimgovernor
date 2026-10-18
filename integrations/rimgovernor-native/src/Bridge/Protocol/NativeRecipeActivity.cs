@@ -8,6 +8,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using RimGovernor.Brain.Domain;
+using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools;
@@ -18,9 +19,9 @@ internal static class NativeRecipeActivity
     /// Every free colonist's tailoring alternatives at every bench, stuff, stack and accepting storage cell (#3341). A
     /// stack's carry and return legs and a bench's output legs are searched once for every colonist (NativePathLegs).
     /// </summary>
-    internal static Obs.RecipeActivityRead Read(Obs.RecipeActivityRequest request, NativePathLegs? legs = null)
+    internal static Obs.RecipeActivityRead Read(Common.Identity identity, NativePathLegs? legs = null)
     {
-        if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out var context, out _)) return new();
+        if (!ProtoBoundary.ValidateIdentity(identity, out var map, out var context, out _)) return new();
         legs ??= new(map);
         var options = new List<Obs.RecipeActivityOption>();
         var retained = new List<Obs.RecipeRetainedOutput>();
@@ -41,7 +42,7 @@ internal static class NativeRecipeActivity
                     || worker.CurJob.targetB.Thing is not UnfinishedThing current) continue;
                 var rate = recipe.workSpeedStat == null ? 1 : worker.GetStatValue(recipe.workSpeedStat);
                 if (recipe.workTableSpeedStat != null) rate *= bench.GetStatValue(recipe.workTableSpeedStat);
-                retained.Add(new(current.GetUniqueLoadID(), product.defName, current.Stuff.defName, 1,
+                retained.Add(new(current.GetUniqueLoadID(), product.defName, current.Stuff.defName,
                     rate > 0 ? Fact.Known((double)running.workLeft / rate) : default));
             }
             foreach (var stuff in DefDatabase<ThingDef>.AllDefsListForReading.Where(s => s.IsStuff
@@ -97,7 +98,7 @@ internal static class NativeRecipeActivity
                     options.Add(new(options.Count.ToString(System.Globalization.CultureInfo.InvariantCulture), pawn.GetUniqueLoadID(), bench.GetUniqueLoadID(), giver.defName,
                         recipe.defName, product.defName, stuff.defName, selectedBill?.GetUniqueLoadID() ?? "", uft?.GetUniqueLoadID() ?? "",
                         new(bench.InteractionCell.x, bench.InteractionCell.z), EquatableArray.From(inputs), Fact.Known(travel), Fact.Known((double)work / speed),
-                        Fact.Known((double)output), new(destination.x, destination.z)) { RequiredCount = (int)required, Learning = RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveRecipeLearning(recipe) });
+                        Fact.Known((double)output), new(destination.x, destination.z)) { RequiredCount = (int)required });
                 }
                 }
             }

@@ -116,7 +116,6 @@ public static class NativeOps
     public static readonly NativeOp<Obs.ListPawnsRequest, Obs.ListPawnsReply> ListPawns = Op<Obs.ListPawnsRequest, Obs.ListPawnsReply>("observations_list_pawns", (f, r, c) => f.ListPawnsAsync(r, c));
     public static readonly NativeOp<Obs.ActivityTaskRequest, Obs.ActivityTaskRead> ReadActivityTasks = Op<Obs.ActivityTaskRequest, Obs.ActivityTaskRead>("activity_tasks", (f, r, c) => f.ReadActivityTasksAsync(r, c));
     public static readonly NativeOp<Obs.ConstructionActivityRequest, Obs.ConstructionActivityRead> ReadConstructionActivity = Op<Obs.ConstructionActivityRequest, Obs.ConstructionActivityRead>("construction_activity", (f, r, c) => f.ReadConstructionActivityAsync(r, c));
-    public static readonly NativeOp<Obs.RecipeActivityRequest, Obs.RecipeActivityRead> ReadRecipeActivity = Op<Obs.RecipeActivityRequest, Obs.RecipeActivityRead>("recipe_activity", (f, r, c) => f.ReadRecipeActivityAsync(r, c));
     public static readonly NativeOp<Obs.ListSuppliesRequest, Obs.ListSuppliesReply> ListSupplies = Op<Obs.ListSuppliesRequest, Obs.ListSuppliesReply>("observations_list_supplies", (f, r, c) => f.ListSuppliesAsync(r, c));
     public static readonly NativeOp<Obs.ListRoomsRequest, Obs.ListRoomsReply> ListRooms = Op<Obs.ListRoomsRequest, Obs.ListRoomsReply>("observations_list_rooms", (f, r, c) => f.ListRoomsAsync(r, c));
     public static readonly NativeOp<Obs.ResearchRequest, Obs.ResearchReply> ReadResearch = Op<Obs.ResearchRequest, Obs.ResearchReply>("observations_read_research", (f, r, c) => f.ReadResearchAsync(r, c));

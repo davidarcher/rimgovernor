@@ -169,10 +169,10 @@ namespace HomeBridge.BridgeTools
         internal static RimGovernor.Contracts.Wire.Observations.TradePackEstimate Preview(Operations.FormCaravanIntent command, Common.ObservationContext context)
         {
             var row = new RimGovernor.Contracts.Wire.Observations.TradePackEstimate();
-            if (!Valid(command)) { row = row with { CanPack = false }; row = row with { Reason = "invalid_pack" }; return row; }
+            if (!Valid(command)) { row = row with { CanPack = false }; return row; }
             var failure = PreparePacking(command, context, out var dialog);
-            if (failure != null || dialog == null) { row = row with { CanPack = false }; row = row with { Reason = failure?.Detail ?? "pack_unavailable" }; return row; }
-            row = row with { CanPack = true }; row = row with { Reason = "packing_ready" };
+            if (failure != null || dialog == null) { row = row with { CanPack = false }; return row; }
+            row = row with { CanPack = true };
             row = row with { MassUsage = dialog.MassUsage }; row = row with { MassCapacity = dialog.MassCapacity };
             var food = NativeCaravanCatalog.FoodDays(dialog);
             if (!float.IsNaN(food.days) && !float.IsInfinity(food.days)) row = row with { FoodDays = food.days };

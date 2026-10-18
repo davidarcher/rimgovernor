@@ -311,21 +311,8 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   Unknown when native cannot resolve the definition or stuff, the site is empty,
   out of bounds or over the position cap; the reason is a read finding
   (`planned_site_*`).
-- `Rejections`: each refused position with the native reason. `Illegal` is set when
-  the refusal outlasts clearing: native re-checks the piece with every removable
-  footprint thing skipped, and the reason is then the one that still refuses
-  (terrain affordance or water, map edge, research, interaction spots).
-- `Blockers`: every thing in the footprint (cell, thing id, definition)
-  with a `Verdict`, in `GenConstruct.HandleBlockingThingJob`'s kinds:
-  `NoClearing` (a pawn, something blueprint placement wipes, or something
-  `CanPlaceBlueprintOver` allows that does not `BlocksConstruction`); `Cleared`
-  with the op id in `Clearing` (a plant, a haulable item, natural rock);
-  `Unestimable` (removable but not estimated: a colony building or frame to
-  deconstruct or cancel, a non-natural mineable, a never-haulable item);
-  `Illegal` (another faction's building); `Unspecified` (unknown: a haulable with
-  no accepting storage, finding `planned_clearing_haul_destination_unknown`).
 - `Clearing`: the clearing prerequisites, each an id, a `Kind` (`Cut`, `Haul`,
-  `Mine`), its cells and per-pawn `ConstructionActivityOption` rows with `Site` set
+  `Mine`) and per-pawn `ConstructionActivityOption` rows with `Site` set
   to the op id and `Definition` to the planned site's. One `Cut` op (`<site>/cut`)
   covers the site's plants: `FinishTicks` sums `harvestWork /
   JobDriver_PlantWork.WorkDonePerTick` (PlantWorkSpeed scaled by growth), for a
@@ -342,10 +329,18 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   is a known 0. Native's own blocking haul moves the stack aside; the forecast
   charges a carry to storage instead (#3241). A speed of zero leaves `FinishTicks`
   unknown; a pawn with no route or unable to do the work has no row.
-- `Verdict`: `Illegal` when a rejection or a blocker is illegal (infeasible);
-  else `Unestimable` when a blocker is, or a refused piece is fogged (finding
-  `planned_site_fogged`): leave the alternative unvalued; else `Unspecified` when
-  a blocker is unknown; else `Feasible`. `CanPlace` stays native legality as the
+- `Verdict`, from `GenConstruct.HandleBlockingThingJob`'s kinds for every thing in
+  the footprint: `Illegal` when a refusal outlasts clearing (native re-checks each
+  piece with every removable footprint thing skipped: terrain affordance or water,
+  map edge, unfinished research, interaction spots) or a thing is not removable
+  (another faction's building), which is infeasible; else `Unestimable` when a
+  thing is removable but not estimated (a colony building or frame to deconstruct
+  or cancel, a non-natural mineable, a never-haulable item), or a refused piece is
+  fogged (finding `planned_site_fogged`): leave the alternative unvalued; else
+  `Unspecified` when a haulable has no accepting storage (finding
+  `planned_clearing_haul_destination_unknown`); else `Feasible`. A pawn, something
+  blueprint placement wipes, or something `CanPlaceBlueprintOver` allows that does
+  not `BlocksConstruction` needs no clearing. `CanPlace` stays native legality as the
   footprint stands, so a site needing only clearing reads `CanPlace` false and
   `Verdict` `Feasible`.
 - `Options`: the placed-site `ConstructionActivityOption` rows, one per pawn and
@@ -367,7 +362,7 @@ probe out of bounds has no row (finding `planned_route_out_of_bounds`).
 
 A read covers every free spawned colonist (#3341). Its only bound is on input: at
 most 16 placed sites, 16 planned sites and 16 route probes; a longer list sets
-`Truncated` and the caller batches. Rows, sources, positions, rejections, blockers
+`Truncated` and the caller batches. Rows, sources, positions
 and colonists are not capped. The coupled census passes no planned sites; Rounds ask
 them per round ([planned-site facts](../architecture/colony-forecast.md#planned-site-facts)).
 
@@ -376,7 +371,7 @@ them per round ([planned-site facts](../architecture/colony-forecast.md#planned-
 The coupled capture samples `ThermalCell` rows only within six cells of placed sites
 and heaters, so an unplaced planned shelter has none. `ConstructionActivityRequest.Thermal`
 (a `PlannedThermalRequest`) asks for them (#3323): each `PlannedThermalRoom` is a
-room id and its interior bounds, and each `PlannedThermalHeater` is a planned heater
+room's interior bounds, and each `PlannedThermalHeater` is a planned heater
 site id, definition and cell. `ConstructionActivityRead.Thermal` answers with a
 `CoupledThermalRead`:
 

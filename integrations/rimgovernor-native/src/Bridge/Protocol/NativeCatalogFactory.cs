@@ -36,9 +36,8 @@ namespace HomeBridge.BridgeTools
         /// stat table and race facts the load's definition catalog read built (<see cref="NativeStatTable"/>,
         /// <see cref="NativeRaceFacts"/>).
         /// </summary>
-        internal static BrainCatalog Create(Obs.DefinitionCatalog wire, Common.Identity identity)
+        internal static BrainCatalog Create(Common.Identity identity)
         {
-            ArgumentNullException.ThrowIfNull(wire);
             ArgumentNullException.ThrowIfNull(identity);
             return new BrainCatalog(AllDefs(), NativeStatTable.ForLoad(identity.LoadToken), NativeDefinitionCatalogTool.BrainDerived(), NativeRaceFacts.ForLoad(identity.LoadToken));
         }

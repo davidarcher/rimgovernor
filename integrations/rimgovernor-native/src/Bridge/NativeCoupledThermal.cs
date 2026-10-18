@@ -89,7 +89,7 @@ internal static class NativeCoupledThermal
         return new Obs.ThermalCell(new(c.X, c.Z), Fact.Known((double)cell.GetTemperature(map)),
             roof == null ? "none" : roof.isThickRoof ? "thick" : "thin",
             edifice?.def.Fillage == FillCategory.Full, door != null, door != null && !door.Open,
-            site?.GetUniqueLoadID() ?? "", future?.defName ?? "", future?.Fillage == FillCategory.Full,
+            site?.GetUniqueLoadID() ?? "", future?.Fillage == FillCategory.Full,
             future?.IsDoor == true, doorDef == null ? 0 : doorDef.building.doorTempEqualizeRate / (double)doorDef.building.doorTempEqualizeIntervalClosed,
             map.areaManager.BuildRoof[cell]);
     }

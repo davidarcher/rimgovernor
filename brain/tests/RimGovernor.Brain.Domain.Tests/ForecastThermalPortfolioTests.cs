@@ -21,7 +21,7 @@ public sealed class ForecastThermalPortfolioTests
             Outdoors = Known(ambient), ThinRoofExchangePerTick = Known(.00005), WallExchangePerTick = Known(.000017),
             Cells = EquatableArray.From(cells.Append(new Cell(3, 1)).Select(c => new ThermalCell(c, Known(ambient), "none",
                 c != inside && c != wall.Location && c != new Cell(3, 1), false, false,
-                c == wall.Location ? wall.Site : "", c == wall.Location ? "TestWall" : "", c == wall.Location,
+                c == wall.Location ? wall.Site : "", c == wall.Location,
                 false, 0, c == inside))),
             Workers = [new("pawn", Known(5d))], RoofRoutes = [new("pawn", inside, Known(1d))],
             Sources = [new("heater", inside, true, Known(.35), Known(20d), Known(60000d))],

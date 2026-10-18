@@ -28,7 +28,7 @@ public sealed class ObservedShelterTests
                     Outdoors = Known(-10d), ThinRoofExchangePerTick = Known(.00005), WallExchangePerTick = Known(.000017),
                     Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10d),
                         Interior.Contains(c) && c.Z == 1 ? "none" : "thin", !Interior.Contains(c), false, false,
-                        "", "", false, false, 0, Interior.Contains(c) && c.Z == 1))),
+                        "", false, false, 0, Interior.Contains(c) && c.Z == 1))),
                     Workers = [new("pawn", Known(5d))],
                     RoofRoutes = [new("pawn", new(1, 1), Known(1d)), new("pawn", new(2, 1), Known(1d))],
                     Sources = [new("heater", new(1, 2), true, Known(.35), Known(20d), Known(1000d))]

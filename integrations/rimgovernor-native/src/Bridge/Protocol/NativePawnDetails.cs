@@ -498,7 +498,6 @@ namespace HomeBridge.BridgeTools
                 foreach(var def in defs) {
                     var report=pawn.training.CanAssignToTrain(def,out var visible);
                     var item=new Obs.TrainingEntry {DefName=Id(def.defName),Learned=pawn.training.HasLearned(def),Wanted=pawn.training.GetWanted(def),Available=report.Accepted && visible};
-                    if(!item.Available) item = item with { Reason = Text(report.Reason??"Native training option is unavailable.") };
                     row = row with { Training = [.. row.Training, item] };
                 }
             }

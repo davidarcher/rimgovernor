@@ -67,7 +67,7 @@ public sealed class ForecastSkillTests
     [Fact]
     public void CompletionLearningRequiresCompletionAndSaturationUsesCallbackBoundaries()
     {
-        var recipe = new RecipeLearning("Cooking", Known(.1), false, "native");
+        var recipe = new RecipeLearning("Cooking", Known(.1), false);
         var interrupted = ForecastSkillPolicy.RecipeCompletionLearning(recipe, "recipe", 100, 100, false);
         var complete = ForecastSkillPolicy.RecipeCompletionLearning(recipe, "recipe", 100, 100, true);
         Assert.Equal(0, ForecastSkillPolicy.ForecastSkill(Evidence(), [interrupted], 100).AppliedGain.Value);

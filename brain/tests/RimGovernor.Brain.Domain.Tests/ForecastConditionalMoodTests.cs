@@ -18,7 +18,7 @@ public sealed class ForecastConditionalMoodTests
         MoodRisePerTick = Known(.12 / Hour), MoodFallPerTick = Known(.08 / Hour),
         MoodIntervalTicks = Known(150d), MoodFreezesWhileAsleep = Known(true),
         ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>(conditional
-            ? [new("day-effect", 11, 18, true, -10, 0, "observed-worker"), new("night-effect", 23, 6, true, 16, 0, "observed-worker")]
+            ? [new(11, 18, true, -10, 0), new(23, 6, true, 16, 0)]
             : []),
         Memories = Known<EquatableArray<NeedMemory>>([]),
         Needs = [new("rest", Known(.3), Known(0d), Known(.28))],
@@ -148,7 +148,7 @@ public sealed class ForecastConditionalMoodTests
     {
         var pawn = Pawn() with { LocalHour = Known(1d), MoodTarget = Known(.66), MoodUnclampedTarget = Known(.66),
             ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>(
-                [new("night-effect", 23, 6, true, 16, 16, "observed-worker")]) };
+                [new(23, 6, true, 16, 16)]) };
         var result = ForecastMood.ForecastMoodTimeline(pawn, Day, []);
         Assert.Equal(.66, result.Trajectory[0].Target.Value, 8);
         Assert.Equal(.5, At(result, 5 * Hour).Target.Value, 8);
@@ -190,7 +190,7 @@ public sealed class ForecastConditionalMoodTests
     public void UnclampedObservedTargetPreservesOverflowWhenCurrentEffectEnds()
     {
         var pawn = Pawn(false) with { LocalHour = Known(1d), MoodTarget = Known(1d), MoodUnclampedTarget = Known(1.1),
-            ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([new("night-effect", 23, 6, true, 16, 16, "observed-worker")]) };
+            ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([new(23, 6, true, 16, 16)]) };
         var result = ForecastMood.ForecastMoodTimeline(pawn, Day, []);
         Assert.Equal(1, result.Trajectory[0].Target.Value);
         Assert.Equal(.94, At(result, 5 * Hour).Target.Value, 8);
@@ -224,7 +224,7 @@ public sealed class ForecastConditionalMoodTests
     public void NativeWakeEndsRecoveryAndThoughtSuppressionAtSamePhysicalInstant()
     {
         var pawn = Pawn() with { LocalHour = Known(11d), MoodUnclampedTarget = Known(.4),
-            ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([new("day", 11, 18, true, -10, -10, "observed")]),
+            ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([new(11, 18, true, -10, -10)]),
             WakeThreshold = Known(.8), Needs = [new("rest", Known(.3), Known(0d), Known(.28))] };
         var sleep = new ForecastNeedChoice("long", "pawn", "rest", "bed", "", 0, 0, 0, 1000, 1, []);
         var result = ForecastNeeds.ForecastNeedsTimeline(pawn, Capacity() with { HorizonTicks = 1000 }, [sleep]);

@@ -112,7 +112,7 @@ public sealed class ClothingChoiceTests
     [Fact]
     public void RetainingObservedCurrentProductAndPostponingAreRealComparisonResults()
     {
-        var read = Read(Option("Cloth")) with { Retained = [new("running-uft", "Shirt", "Cloth", 1, Known(25.0))] };
+        var read = Read(Option("Cloth")) with { Retained = [new("running-uft", "Shirt", "Cloth", Known(25.0))] };
         Assert.Null(Start(Census(), read, Resources(), out var retained));
         Assert.StartsWith("retain-", Assert.Single(retained!.Selected));
         Assert.Null(Start(Census(), Read(Option("Cloth", work: 3000)), Resources(), out var postpone));
@@ -173,7 +173,7 @@ public sealed class ClothingChoiceTests
     public void RetainedGarmentCannotAddProtectionAlongsideAConflictingReplacement()
     {
         var census = Census(0, Garment("Shirt", "Cloth", 5), Garment("Parka", "Cloth", 10));
-        var read = Read(Option("Cloth", "Parka")) with { Retained = [new("ongoing", "Shirt", "Cloth", 1, Known(10.0))] };
+        var read = Read(Option("Cloth", "Parka")) with { Retained = [new("ongoing", "Shirt", "Cloth", Known(10.0))] };
         Start(census, read, Resources(), out var comparison);
         Assert.Single(comparison!.Selected);
     }

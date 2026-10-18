@@ -19,7 +19,7 @@ public sealed record CoupledThermalRead
     public Fact<double> WallExchangePerTick { get; init; }
 }
 public sealed record ThermalCell(Cell Cell, Fact<double> Temperature, string Roof,
-    bool Solid, bool Door, bool DoorClosed, string Site, string FutureDefinition,
+    bool Solid, bool Door, bool DoorClosed, string Site,
     bool FutureSolid, bool FutureDoor, double DoorExchangePerTick, bool BuildRoof);
 /// <summary>Electric heater mechanics at current conditions. Missing supply is unknown, not free energy.</summary>
 public sealed record ThermalSource(string Target, Cell Cell, bool Complete, Fact<double> HeatPerTick,
@@ -45,7 +45,7 @@ public sealed record PlannedThermalRequest
     public EquatableArray<PlannedThermalHeater> Heaters { get; init; }
 }
 /// <summary>A planned room's interior bounds; the read adds the one-cell ring around them.</summary>
-public sealed record PlannedThermalRoom(string Room, Cell Origin, int Width, int Height);
+public sealed record PlannedThermalRoom(Cell Origin, int Width, int Height);
 /// <summary>A planned heater site (its id is the source's Target) of Definition at Cell.</summary>
 public sealed record PlannedThermalHeater(string Site, string Definition, Cell Cell);
 

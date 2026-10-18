@@ -100,7 +100,6 @@ internal static class NativeConstructionActivity
         if (costs == null) { findings.Add("planned_site_costs_unreadable"); return unknown; }
         var rotation = new Rot4((int)request.Rotation);
         var research = definition.IsResearchFinished;
-        var rejections = new List<Obs.PlannedSiteRejection>();
         // The site's blueprint, never spawned (no thing id): GenConstruct.BlocksConstruction reads only its def.
         var plan = new Blueprint_Build { def = definition.blueprintDef };
         var kinds = new Dictionary<Thing, Clear>();
@@ -115,9 +114,7 @@ internal static class NativeConstructionActivity
             accepted &= row.accepted;
             footprint.UnionWith(row.Rect.Cells);
             things.AddRange(row.blockingThings.Where(b => seen.Add(b.Thing.thingIDNumber)));
-            Obs.PlannedSiteRejection? rejection = null;
-            if (!research) rejection = new(new(cell.x, cell.z), "Required research for this definition is not finished.") { Illegal = true };
-            else if (!row.accepted)
+            if (research && !row.accepted)
             {
                 // Native legality with every removable footprint thing skipped: what still refuses is not clearing's to fix.
                 var cleared = PlacementPreviewOperation.EvaluateRotation(map, definition, definition.blueprintDef, cell, rotation, stuff, godMode: false,
@@ -125,28 +122,12 @@ internal static class NativeConstructionActivity
                 var hidden = !cleared.accepted && cell.Fogged(map);
                 fogged |= hidden;
                 illegal |= !cleared.accepted && !hidden;
-                rejection = cleared.accepted || hidden ? new(new(cell.x, cell.z), row.reason) : new(new(cell.x, cell.z), cleared.reason) { Illegal = true };
             }
-            if (rejection != null) rejections.Add(rejection);
         }
         if (fogged) findings.Add("planned_site_fogged");
         var clearing = Clearing(map, legs, roster, request.Id, definition, things.Select(b => (b.Thing, Kind: Kind(b.Thing))).ToArray(), footprint, findings,
-            out var ops, out var unsure);
-        var blockers = new List<Obs.PlannedSiteBlocker>();
-        foreach (var blocker in things)
-        {
-            var thing = blocker.Thing;
-            illegal |= Kind(thing) == Clear.Illegal;
-            var verdict = Kind(thing) switch
-            {
-                Clear.None => Obs.PlannedBlockerVerdict.NoClearing,
-                Clear.Unestimable => Obs.PlannedBlockerVerdict.Unestimable,
-                Clear.Illegal => Obs.PlannedBlockerVerdict.Illegal,
-                _ => ops.ContainsKey(thing) ? Obs.PlannedBlockerVerdict.Cleared : Obs.PlannedBlockerVerdict.Unspecified,
-            };
-            blockers.Add(new(new(thing.Position.x, thing.Position.z), thing.GetUniqueLoadID(), thing.def.defName)
-                { Verdict = verdict, Clearing = ops.TryGetValue(thing, out var op) ? op : "" });
-        }
+            out var unsure);
+        foreach (var blocker in things) illegal |= Kind(blocker.Thing) == Clear.Illegal;
         var siteVerdict = illegal ? Obs.PlannedSiteVerdict.Illegal
             : fogged || things.Any(b => Kind(b.Thing) == Clear.Unestimable) ? Obs.PlannedSiteVerdict.Unestimable
             : unsure ? Obs.PlannedSiteVerdict.Unspecified : Obs.PlannedSiteVerdict.Feasible;
@@ -159,7 +140,7 @@ internal static class NativeConstructionActivity
         Rows(map, legs, roster, new Site(request.Id, definition, cells[0], Nearest, null, owed, work, _ => true, _ => true), finishGiver, findings, options);
         return new(request.Id, Fact.Known(accepted))
         {
-            Rejections = EquatableArray.From(rejections), Blockers = EquatableArray.From(blockers), Options = EquatableArray.From(options),
+            Options = EquatableArray.From(options),
             Verdict = siteVerdict, Clearing = EquatableArray.From(clearing)
         };
     }
@@ -183,13 +164,11 @@ internal static class NativeConstructionActivity
     }
 
     // Clearing ops: one Cut for the plants, one Mine for the natural rock, one Haul per haulable stack with per-pawn
-    // rows. A stack with no accepting storage outside the footprint has no op (unknown). ops maps each cleared thing
-    // to its op id.
+    // rows. A stack with no accepting storage outside the footprint has no op (unknown).
     private static List<Obs.PlannedSiteClearing> Clearing(Map map, NativePathLegs legs, Pawn[] roster, string site, BuildableDef definition,
-        (Thing Thing, Clear Kind)[] things, HashSet<IntVec3> footprint, HashSet<string> findings, out Dictionary<Thing, string> ops, out bool unknown)
+        (Thing Thing, Clear Kind)[] things, HashSet<IntVec3> footprint, HashSet<string> findings, out bool unknown)
     {
         var result = new List<Obs.PlannedSiteClearing>();
-        var cleared = ops = new Dictionary<Thing, string>();
         unknown = false;
         var pawns = roster.Where(Free).ToArray();
         string Giver<T>() => DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is T)?.defName ?? "";
@@ -216,7 +195,6 @@ internal static class NativeConstructionActivity
         {
             if (Destination(map, item, footprint) is not { } destination) { unknown = true; findings.Add("planned_clearing_haul_destination_unknown"); continue; }
             var id = site + "/haul/" + item.GetUniqueLoadID();
-            ops[item] = id;
             var rows = new List<Obs.ConstructionActivityOption>();
             foreach (var pawn in pawns)
             {
@@ -232,14 +210,13 @@ internal static class NativeConstructionActivity
                     Fact.Known((double)loaded * trips + returning * (trips - 1)), Fact.Known(0.0))
                     { SiteApproachTicks = Fact.Known((double)first), AvailableInput = Fact.Known((double)item.stackCount) });
             }
-            result.Add(new(id, Obs.PlannedClearingKind.Haul, [new(item.Position.x, item.Position.z)]) { Options = EquatableArray.From(rows) });
+            result.Add(new(id, Obs.PlannedClearingKind.Haul) { Options = EquatableArray.From(rows) });
         }
         return result;
 
         // A work op over its things: the route reaches the one nearest the pawn; finish is the summed native work.
         Obs.PlannedSiteClearing Work(string id, Obs.PlannedClearingKind kind, Thing[] targets, string giver, Func<Pawn, bool> able, Func<Pawn, Fact<double>> finish)
         {
-            foreach (var target in targets) cleared[target] = id;
             var rows = new List<Obs.ConstructionActivityOption>();
             foreach (var pawn in pawns.Where(able))
             {
@@ -249,7 +226,7 @@ internal static class NativeConstructionActivity
                 rows.Add(new(id, definition.defName, cell, pawn.GetUniqueLoadID(), "", "", cell, 0, 0, giver, default, default, finish(pawn))
                     { SiteApproachTicks = Fact.Known((double)route) });
             }
-            return new(id, kind, EquatableArray.From(targets.Select(t => new Cell(t.Position.x, t.Position.z)).Distinct())) { Options = EquatableArray.From(rows) };
+            return new(id, kind) { Options = EquatableArray.From(rows) };
         }
     }
 

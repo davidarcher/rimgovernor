@@ -105,13 +105,11 @@ namespace HomeBridge.BridgeTools
                         row = row with { NegotiatorIds = [.. row.NegotiatorIds, .. eligible.Where(p => kind.TitleRequiredToTrade == null ||
                             p.royalty != null && p.GetCurrentTitleSeniorityIn(faction) >= kind.TitleRequiredToTrade.seniority)
                             .Select(p => p.GetUniqueLoadID())] };
-                        row = row with { Reason = faction.PlayerRelationKind != FactionRelationKind.Ally ? "not_ally" :
-                            (row.RelationAfterPayment ?? "") != "Ally" ? "alliance_cost" :
-                            row.CooldownRemainingTicks.GetValueOrDefault() > 0 ? "cooldown" :
-                            orbital && result.PassingShips.Count != 0 ? "passing_ships" :
-                            !orbital && !faction.def.allowedArrivalTemperatureRange.ExpandedBy(-4f).Includes(map.mapTemperature.SeasonalTemp) ? "temperature" :
-                            consoles.Count == 0 ? "console_unavailable" : row.NegotiatorIds.Count == 0 ? "negotiator_unavailable" : "ready" };
-                        row = row with { Eligible = (row.Reason ?? "") == "ready" };
+                        var ready = faction.PlayerRelationKind == FactionRelationKind.Ally && (row.RelationAfterPayment ?? "") == "Ally"
+                            && row.CooldownRemainingTicks.GetValueOrDefault() <= 0 && !(orbital && result.PassingShips.Count != 0)
+                            && (orbital || faction.def.allowedArrivalTemperatureRange.ExpandedBy(-4f).Includes(map.mapTemperature.SeasonalTemp))
+                            && consoles.Count != 0 && row.NegotiatorIds.Count != 0;
+                        row = row with { Eligible = ready };
                         result = result with { Requests = [.. result.Requests, row] };
                     }
                 }

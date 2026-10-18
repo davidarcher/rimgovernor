@@ -40,7 +40,7 @@ internal static class NativeSupportActivities
                     var deficit = needed - Staged(map, destination, source.def);
                     if (deficit <= 0 || source.Position == destination) continue;
                     var id = "bill:" + bill.GetUniqueLoadID() + ":" + source.def.defName;
-                    if (!demands.Any(d => d.Id == id)) demands.Add(new(id, "delivery", bench.GetUniqueLoadID(), At(destination), default, default, default));
+                    if (!demands.Any(d => d.Id == id)) demands.Add(new(id, "delivery", bench.GetUniqueLoadID(), At(destination), default, default));
                     foreach (var pawn in roster)
                     {
                         if (!Available(pawn) || source.IsForbidden(pawn) || bench.IsForbidden(pawn)
@@ -134,7 +134,7 @@ internal static class NativeSupportActivities
             {
                 var change = room?.CellCount > 0 ? Fact.Known(-(double)filth.stackCount * filth.GetStatValue(StatDefOf.Cleanliness) / room.CellCount) : default;
                 if (change.IsKnown) delta += change.Value;
-                filthRows.Add(new(id, filth.GetUniqueLoadID(), At(filth.Position), change));
+                filthRows.Add(new(id, filth.GetUniqueLoadID(), At(filth.Position)));
                 foreach (var pawn in roster)
                 {
                     if (!Available(pawn) || clean == null || !CanWork(pawn, clean) || !clean.HasJobOnThing(pawn, filth, false)
@@ -151,7 +151,7 @@ internal static class NativeSupportActivities
             Fact<double> after = cleanliness.IsKnown && definition.inputStat == RoomStatDefOf.Cleanliness && definition.curve != null
                 ? Fact.Known((double)definition.curve.Evaluate((float)(cleanliness.Value + delta))) : default;
             demands.Add(new(id, kind, target.GetUniqueLoadID(), At(location), poison,
-                target is Pawn patient ? Fact.Known((double)patient.health.hediffSet.BleedRateTotal) : default, default)
+                target is Pawn patient ? Fact.Known((double)patient.health.hediffSet.BleedRateTotal) : default)
                 { FoodPoisonChanceClean = after,
                     SurgerySuccessFactor = room != null && surgeryFactor != null ? Fact.Known((double)room.GetStat(surgeryFactor)) : default,
                     SurgerySuccessFactorClean = cleanliness.IsKnown && surgeryFactor?.inputStat == RoomStatDefOf.Cleanliness && surgeryFactor.curve != null

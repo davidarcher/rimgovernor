@@ -95,7 +95,6 @@ public sealed class FoodActivityContinuationTests
                         .Select(observed => new ActivityTaskBinding(task.Id, task.Step with
                             { Target = observed.Target, Count = Math.Min(task.Step.Count, observed.Count) })))),
             });
-        public Task<RecipeActivityRead> ReadRecipeActivityAsync(RecipeActivityRequest request, CancellationToken ct) => Task.FromResult(new RecipeActivityRead());
         public Task<ConstructionActivityRead> ReadConstructionActivityAsync(ConstructionActivityRequest request, CancellationToken ct) => Task.FromResult(new ConstructionActivityRead());
         public Task<ListPawnsReply> ReadCombatPawnsAsync(RimGovernor.Contracts.Wire.Common.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
             Task.FromResult(new ListPawnsReply { Outcome = new PawnSnapshot { Context = read.Context } });

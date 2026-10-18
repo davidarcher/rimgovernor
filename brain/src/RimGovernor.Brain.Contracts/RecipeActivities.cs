@@ -1,13 +1,11 @@
 using System.Text.Json.Serialization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Contracts.Wire.Common;
-using Identity = RimGovernor.Contracts.Wire.Common.Identity;
 using Cell = RimGovernor.Brain.Domain.Cell;
 
 namespace RimGovernor.Contracts.Wire.Observations;
 
 /// <summary>Observed recipe mechanics; policy still owns garment, material and worker choices.</summary>
-public sealed record RecipeActivityRequest(Identity Identity);
 public sealed record RecipeIngredientObservation(string Thing, string Resource, int Count, Cell Location, int AvailableCount)
 {
     public Fact<double> ApproachTicks { get; init; }
@@ -20,7 +18,6 @@ public sealed record RecipeActivityOption(string Id, string Pawn, string Bench, 
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<RecipeIngredientObservation>))] EquatableArray<RecipeIngredientObservation> Inputs, Fact<double> TravelTicks, Fact<double> WorkTicks,
     Fact<double> OutputTravelTicks, Cell Destination)
 {
-    public RecipeLearning? Learning { get; init; }
     public int RequiredCount { get; init; }
 }
 public sealed record RecipeActivityRead
@@ -32,4 +29,4 @@ public sealed record RecipeActivityRead
     [JsonConverter(typeof(EquatableArrayJsonConverter<RecipeRetainedOutput>))]
     public EquatableArray<RecipeRetainedOutput> Retained { get; init; }
 }
-public sealed record RecipeRetainedOutput(string Id, string Product, string Stuff, int Count, Fact<double> CompletionTicks);
+public sealed record RecipeRetainedOutput(string Id, string Product, string Stuff, Fact<double> CompletionTicks);

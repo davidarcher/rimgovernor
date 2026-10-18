@@ -37,7 +37,7 @@ internal static class NativeCoupledForecast
         var construction = NativeConstructionActivity.Read(new(context.Identity, EquatableArray.From(placed.Select(t =>
             new RimGovernor.Brain.Domain.Building(t.def.entityDefToBuild.defName, new(t.Position.x, t.Position.z),
                 (Rotation)t.Rotation.AsInt, t.Stuff?.defName ?? "")))), legs); Lap("construction");
-        var clothing = NativeRecipeActivity.Read(new(context.Identity), legs); Lap("clothing");
+        var clothing = NativeRecipeActivity.Read(context.Identity, legs); Lap("clothing");
         var future = NativeCoupledFood.Read(map, food, legs); Lap("future");
         var thermal = NativeCoupledThermal.Read(map, sites, legs); Lap("thermal");
         var support = NativeSupportActivities.Read(map, legs); Lap("support");

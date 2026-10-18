@@ -345,11 +345,8 @@ separate read tool. Both are absent without Biotech (`ModsConfig.BiotechActive`)
 The life stage, race, gene, xenotype, mech kind and work mode defs are read from the Defs
 themselves (`LifeStageDef`, `RaceProperties.lifeStageAges` and
 `lifeStageWorkSettings`, `GeneDef`, `XenotypeDef`, `PawnKindDef`,
-`MechWorkModeDef`); no wire catalog field carries them. `gene_tuning` (`GeneTuningFacts`) is a singleton of the game's own
-`GeneTuning` constants: the biostat (metabolism) range, base max complexity, the
-complexity to assembler hours curve, the extractor regrow days range, and the
-extractor's private `TicksToExtract` and power-cut eject limit (absent when
-reflection cannot read them). The brain builds `bridge.BiotechCatalog` as a facade
+`MechWorkModeDef`); no wire catalog field carries them.
+The brain builds `bridge.BiotechCatalog` as a facade
 over the catalog's rows once per load token: genes by name, the humanlike
 races' work minimum ages, the controllable mech kinds (a `PawnKindDef` of a
 mechanoid race with an overseer-subject comp; its bandwidth cost is the race's

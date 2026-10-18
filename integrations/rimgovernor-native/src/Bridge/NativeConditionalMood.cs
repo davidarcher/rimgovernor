@@ -51,8 +51,7 @@ internal static class NativeConditionalMood
             // Unattached stage probe delegates nullification, stat and worker multipliers to native Thought.MoodOffset.
             var probe = new StageProbe { def = def, pawn = pawn };
             var current = groups.Where(t => t.def == def).Sum(t => mood.thoughts.MoodOffsetOfGroup(t));
-            conditional.Add(new(def.defName, day ? 11 : 23, day ? 18 : 6, true, probe.MoodOffset(), current,
-                def.workerClass.FullName + ";HourInteger;Awake;native_stage_and_multipliers"));
+            conditional.Add(new(day ? 11 : 23, day ? 18 : 6, true, probe.MoodOffset(), current));
         }
         unsupported.Add("other_conditional_thought_changes");
         unsupported.Add("mood_response_discrete_150_tick_phase_unobserved");

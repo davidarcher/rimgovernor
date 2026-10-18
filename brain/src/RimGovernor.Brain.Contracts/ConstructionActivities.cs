@@ -72,43 +72,6 @@ public sealed record ConstructionActivityOption(string Site, string Definition, 
 /// </summary>
 public sealed record PlannedConstructionSite(string Id, string Definition, string Stuff, RimGovernor.Brain.Domain.Rotation Rotation,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Positions);
-/// <summary>
-/// A position native placement rejected, with its reason. <see cref="Illegal"/> is true when the refusal outlasts
-/// clearing every removable blocker (terrain, water, map edge, another faction's building, research): the reason is
-/// then the one native gives once cleared. False: clearing (or revealing a fogged cell) removes it.
-/// </summary>
-public sealed record PlannedSiteRejection(Cell Position, string Reason)
-{
-    public bool Illegal { get; init; }
-}
-/// <summary>
-/// A thing in a planned footprint, with its clearing <see cref="Verdict"/>. A <see cref="PlannedBlockerVerdict.Cleared"/>
-/// blocker names the clearing op in <see cref="Clearing"/>; the others leave it empty.
-/// </summary>
-public sealed record PlannedSiteBlocker(Cell Position, string Thing, string Definition)
-{
-    public PlannedBlockerVerdict Verdict { get; init; }
-    public string Clearing { get; init; } = "";
-}
-/// <summary>What clearing one footprint thing takes. Unspecified: unknown (a haulable with no accepting storage).</summary>
-[JsonConverter(typeof(WireEnumConverter<PlannedBlockerVerdict>))]
-public enum PlannedBlockerVerdict
-{
-    [WireName("PLANNED_BLOCKER_VERDICT_UNSPECIFIED")]
-    Unspecified = 0,
-    /// <summary>Nothing to clear: placement wipes it, it does not block construction, or it is a pawn.</summary>
-    [WireName("PLANNED_BLOCKER_VERDICT_NO_CLEARING")]
-    NoClearing = 1,
-    /// <summary>A Cut, Haul or Mine op of the answer removes it.</summary>
-    [WireName("PLANNED_BLOCKER_VERDICT_CLEARED")]
-    Cleared = 2,
-    /// <summary>Removable, but native cannot estimate the work (a colony building to deconstruct, a non-natural mineable).</summary>
-    [WireName("PLANNED_BLOCKER_VERDICT_UNESTIMABLE")]
-    Unestimable = 3,
-    /// <summary>Not removable by the colony (another faction's building): the site is infeasible.</summary>
-    [WireName("PLANNED_BLOCKER_VERDICT_ILLEGAL")]
-    Illegal = 4,
-}
 /// <summary>A planned site's feasibility once its footprint is cleared. Unspecified: unknown.</summary>
 [JsonConverter(typeof(WireEnumConverter<PlannedSiteVerdict>))]
 public enum PlannedSiteVerdict
@@ -142,8 +105,7 @@ public enum PlannedClearingKind
 /// one Haul op per haulable stack. <see cref="Options"/> are per-pawn rows in the <see cref="ConstructionActivityOption"/>
 /// shape with <c>Site</c> = <see cref="Id"/>; a pawn that cannot do it or has no route has no row.
 /// </summary>
-public sealed record PlannedSiteClearing(string Id, PlannedClearingKind Kind,
-    [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Cells)
+public sealed record PlannedSiteClearing(string Id, PlannedClearingKind Kind)
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<ConstructionActivityOption>))]
     public EquatableArray<ConstructionActivityOption> Options { get; init; }
@@ -156,10 +118,6 @@ public sealed record PlannedSiteClearing(string Id, PlannedClearingKind Kind,
 /// </summary>
 public sealed record PlannedSiteAnswer(string Site, Fact<bool> CanPlace)
 {
-    [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSiteRejection>))]
-    public EquatableArray<PlannedSiteRejection> Rejections { get; init; }
-    [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSiteBlocker>))]
-    public EquatableArray<PlannedSiteBlocker> Blockers { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<ConstructionActivityOption>))]
     public EquatableArray<ConstructionActivityOption> Options { get; init; }
     public PlannedSiteVerdict Verdict { get; init; }
