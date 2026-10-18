@@ -30,6 +30,55 @@ public sealed record ForecastValuePolicy
 
     /// <summary>Capability-days under which two values tie and the incumbent is kept.</summary>
     public double TieResolution { get; init; } = 0.01;
+
+    /// <summary>Capability-days a whole goal is worth at each importance (#3503); a goal's progress inside the horizon earns that fraction of it.</summary>
+    public GoalImportanceValues GoalImportanceValue { get; init; } = new(0.5, 2, 8);
+
+    /// <summary>The multiplier on a goal's worth per day past its deadline (#3503); 1 until the deadline.</summary>
+    public double GoalDeadlineDecay { get; init; } = 0.8;
+
+    /// <summary>The least a goal's worth decays to (#3503), as a fraction of its full worth.</summary>
+    public double GoalDeadlineFloor { get; init; } = 0.1;
+
+    /// <summary>
+    /// A goal's worth at <paramref name="tick"/>: its importance's value, full until <paramref name="deadlineDay"/> (days
+    /// passed since the game began) and then <see cref="GoalDeadlineDecay"/> per day past it, never under <see cref="GoalDeadlineFloor"/>.
+    /// </summary>
+    public double GoalWorth(Importance importance, int? deadlineDay, long tick)
+    {
+        var late = deadlineDay is { } due ? tick / GameTime.TicksPerDay - due : 0;
+        var decay = late <= 0 ? 1 : Math.Max(GoalDeadlineFloor, Math.Pow(GoalDeadlineDecay, late));
+        return GoalImportanceValue.Of(importance) * decay;
+    }
+
+    /// <summary>The risk profile's row: the CVaR tail, its weight on raid harm and the death floor (#3503). Cautious is stricter than Normal, Bold looser.</summary>
+    public sealed record RiskRow(double HarmRiskAlpha, double HarmRiskWeight, double DeathRiskFloor);
+
+    public static readonly IReadOnlyDictionary<RiskProfile, RiskRow> RiskRows = new Dictionary<RiskProfile, RiskRow>
+    {
+        [RiskProfile.Cautious] = new(0.95, 0.8, 0.005),
+        [RiskProfile.Normal] = new(0.9, 0.5, 0.01),
+        [RiskProfile.Bold] = new(0.8, 0.2, 0.02),
+    };
+
+    /// <summary>The pace's row: capability-days per mood-day of wellbeing valued for itself (#3503).</summary>
+    public static readonly IReadOnlyDictionary<Pace, double> PaceWellbeingWeight = new Dictionary<Pace, double>
+    {
+        [Pace.Wellbeing] = 0.2,
+        [Pace.Balanced] = 0.1,
+        [Pace.Development] = 0.05,
+    };
+
+    /// <summary>The constants under the player's risk profile and pace (#3503); the defaults for the default preferences. Floors are only moved, never relaxed by a goal.</summary>
+    public static ForecastValuePolicy For(PreferencesRecord preferences)
+    {
+        var risk = RiskRows[preferences.RiskProfile];
+        return new()
+        {
+            HarmRiskAlpha = risk.HarmRiskAlpha, HarmRiskWeight = risk.HarmRiskWeight, DeathRiskFloor = risk.DeathRiskFloor,
+            WellbeingWeight = PaceWellbeingWeight[preferences.Pace],
+        };
+    }
 }
 
 /// <summary>
@@ -63,6 +112,12 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
     /// <summary>Capability added or loss avoided after completion: 0 until tier 2 (#3470).</summary>
     public Fact<double> Investment { get; init; }
 
+    /// <summary>The player's goals the outcome progresses inside the horizon, in capability-days: negative (a gain) by the goals' worth times their progress (#3503). Known, 0 with no goal progressed.</summary>
+    public Fact<double> Goals { get; init; } = Known(0d);
+
+    /// <summary>Each goal behind <see cref="Goals"/>: its progress, worth and value.</summary>
+    public EquatableArray<ForecastGoalContribution> GoalContributions { get; init; }
+
     /// <summary>
     /// This outcome's loss minus <paramref name="other"/>'s, summed over the terms BOTH assess (a negative number means this
     /// outcome loses less). A term either side cannot assess is left out of both, so missing data never rewards a side, and
@@ -73,7 +128,7 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
         double delta = 0;
         var shared = false;
         foreach (var (mine, theirs) in new[] { (Hunger, other.Hunger), (Rest, other.Rest), (FoodPoisoning, other.FoodPoisoning),
-            (Thermal, other.Thermal), (MoodBreaks, other.MoodBreaks), (Wellbeing, other.Wellbeing), (Harm, other.Harm), (Investment, other.Investment) })
+            (Thermal, other.Thermal), (MoodBreaks, other.MoodBreaks), (Wellbeing, other.Wellbeing), (Harm, other.Harm), (Investment, other.Investment), (Goals, other.Goals) })
         {
             if (!mine.TryGetValue(out var a) || !theirs.TryGetValue(out var b)) continue;
             delta += a - b;
@@ -125,7 +180,7 @@ public static partial class ForecastValue
     /// <paramref name="baseline"/>, the outcome the comparison started from (so only differences matter), and is unknown without one.
     /// </summary>
     public static ForecastValueResult Of(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
-        ForecastCoupledOutcome? baseline = null)
+        ForecastCoupledOutcome? baseline = null, IEnumerable<ForecastCommitment>? commitments = null)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var pawns = outcome.Needs.OrderBy(p => p.Key, StringComparer.Ordinal).ToArray();
@@ -198,19 +253,50 @@ public static partial class ForecastValue
             });
 
         findings.Add("harm_capability_unassessed");
-        var terms = new[] { hunger, rest, poisoning, thermal, breaks, wellbeing };
+        var contributions = GoalContributionsOf(outcome, context, commitments ?? []);
+        var goals = Known(-contributions.Sum(c => c.Value));
+        var terms = new[] { hunger, rest, poisoning, thermal, breaks, wellbeing, goals };
         var total = terms.All(t => t.IsKnown) ? Known(terms.Sum(t => t.Value)) : default;
         if (!total.IsKnown) findings.Add("capability_value_unassessed");
         return new(total, EquatableArray.From(findings))
         {
             Hunger = hunger, Rest = rest, FoodPoisoning = poisoning, Thermal = thermal, MoodBreaks = breaks, Wellbeing = wellbeing,
-            Harm = Known(0d), Investment = Known(0d),
+            Harm = Known(0d), Investment = Known(0d), Goals = goals, GoalContributions = EquatableArray.From(contributions),
         };
+    }
+
+    /// <summary>
+    /// What the outcome earns of the player's goals (#3503). Research: the points its scheduled work at a goal's project adds,
+    /// at the goal's share per point. Relief: each requirement relief a selected commitment carries that a goal injected, once
+    /// per relief need, at the goal's share. A goal's progress is capped at the whole goal; its value is the progress times
+    /// the goal's worth at the observed tick, which carries the deadline's decay.
+    /// </summary>
+    private static List<ForecastGoalContribution> GoalContributionsOf(ForecastCoupledOutcome outcome, ForecastCoupledContext context,
+        IEnumerable<ForecastCommitment> commitments)
+    {
+        var result = new List<ForecastGoalContribution>();
+        if (context.GoalValues.Count == 0) return result;
+        var progress = new Dictionary<string, double>(StringComparer.Ordinal);
+        foreach (var allocation in outcome.Plan.Allocations)
+            if (context.Activities.Activities.FirstOrDefault(a => a.Id == allocation.Activity)?.ProjectProgress is { } research)
+                progress[research.Project] = progress.GetValueOrDefault(research.Project) + allocation.WorkTicks * research.PointsPerTick;
+        var relief = commitments.Where(c => c.Outcome?.Requirements is not null).SelectMany(c => c.Outcome!.Requirements!.Relief)
+            .GroupBy(r => r.Need, StringComparer.Ordinal).ToDictionary(g => g.Key, g => Math.Min(1, g.Sum(r => r.Fraction)), StringComparer.Ordinal);
+        foreach (var goal in context.GoalValues)
+        {
+            var share = goal.Research.Sum(r => progress.GetValueOrDefault(r.Project) * r.SharePerPoint)
+                + goal.Relief.Sum(r => relief.GetValueOrDefault(r.Need) * r.Share);
+            share = Math.Min(1, share);
+            if (share <= 0) continue;
+            var worth = context.Value.GoalWorth(goal.Importance, goal.DeadlineDay, context.Needs.Tick);
+            result.Add(new(goal.Goal, share, worth, share * worth));
+        }
+        return result;
     }
 
     /// <summary>The ledger and the floors of one outcome, as the comparison reads them (#3522). Wellbeing is against <paramref name="reference"/>, the same for every outcome of a search.</summary>
     public static ForecastValueExplanation Explain(ForecastCoupledOutcome outcome, Fact<double> urgentZeroTicks, ForecastCoupledContext context,
-        double horizon, ForecastCoupledOutcome reference)
+        double horizon, ForecastCoupledOutcome reference, IEnumerable<ForecastCommitment>? commitments = null)
     {
         var policy = context.Value;
         var days = horizon / GameTime.TicksPerDay;
@@ -221,7 +307,7 @@ public static partial class ForecastValue
             if (result.Mood is { BreakRisk: { IsKnown: true } risk } && days > 0) worst = Math.Max(worst, risk.Value / days - policy.BreakRiskCap);
             else assessed = false;
         }
-        return new(Of(outcome, context, horizon, reference), policy)
+        return new(Of(outcome, context, horizon, reference, commitments), policy)
         {
             UrgentZero = new(urgentZeroTicks.IsKnown, urgentZeroTicks.IsKnown ? Math.Max(0, urgentZeroTicks.Value) : 0),
             BreakRisk = new(assessed, worst),

@@ -169,7 +169,9 @@ public sealed partial class Rounder
         ["total"] = Number(value.Ledger.Total), ["hunger"] = Number(value.Ledger.Hunger), ["rest"] = Number(value.Ledger.Rest),
         ["food_poisoning"] = Number(value.Ledger.FoodPoisoning), ["thermal"] = Number(value.Ledger.Thermal),
         ["mood_breaks"] = Number(value.Ledger.MoodBreaks), ["wellbeing"] = Number(value.Ledger.Wellbeing),
-        ["harm"] = Number(value.Ledger.Harm), ["investment"] = Number(value.Ledger.Investment), ["unknown"] = value.Ledger.Findings.ToArray(),
+        ["harm"] = Number(value.Ledger.Harm), ["investment"] = Number(value.Ledger.Investment), ["goals"] = Number(value.Ledger.Goals),
+        ["goal_contributions"] = value.Ledger.GoalContributions.Select(c => new Dictionary<string, object?> { ["goal"] = c.Goal, ["progress"] = c.Progress, ["worth"] = c.Worth, ["value"] = c.Value }).ToArray(),
+        ["unknown"] = value.Ledger.Findings.ToArray(),
         ["floors"] = new Dictionary<string, object?>
         {
             ["urgent_zero"] = FloorAttrs(value.UrgentZero), ["break_risk_cap"] = FloorAttrs(value.BreakRisk), ["death_risk_floor"] = FloorAttrs(value.Death)
@@ -179,7 +181,8 @@ public sealed partial class Rounder
             ["death_terminal_value"] = value.Policy.DeathTerminalValue, ["wellbeing_weight"] = value.Policy.WellbeingWeight,
             ["harm_risk_alpha"] = value.Policy.HarmRiskAlpha, ["harm_risk_weight"] = value.Policy.HarmRiskWeight,
             ["death_risk_floor"] = value.Policy.DeathRiskFloor, ["break_risk_cap"] = value.Policy.BreakRiskCap,
-            ["tie_resolution"] = value.Policy.TieResolution
+            ["tie_resolution"] = value.Policy.TieResolution, ["goal_value_low"] = value.Policy.GoalImportanceValue.Low, ["goal_value_normal"] = value.Policy.GoalImportanceValue.Normal,
+            ["goal_value_high"] = value.Policy.GoalImportanceValue.High, ["goal_deadline_decay"] = value.Policy.GoalDeadlineDecay, ["goal_deadline_floor"] = value.Policy.GoalDeadlineFloor
         }
     };
 

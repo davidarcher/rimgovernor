@@ -55,6 +55,7 @@ public sealed partial class GoalsRounds
             }
         }
         var facts = GoalsFacts.From(reading.Projection.Facts, reading.Projection.TechTier, reading.Projection.WorkPawns, goals.Goals, goals.Themes, owners, StuffResearch(reading.Projection.Definitions)) with { Rooms = reading.Projection.Rooms };
+        facts = facts with { Infeasible = _reviewer.GoalInfeasible.Get(review.Snapshot) };
         var targets = GoalRules.IdeoTargets(goals.Goals);
         if (targets.Count > 0)
         {
@@ -128,6 +129,7 @@ public sealed partial class GoalsRounds
                 GoalState.Met => "met",
                 GoalState.Pursuing => "pursuing",
                 GoalState.Blocked => "blocked",
+                GoalState.Infeasible => "infeasible",
                 _ => "no_method",
             },
             Reason = status.Reason,

@@ -52,6 +52,9 @@ public sealed partial class Rounder
     /// <summary>What the player's goals asked of the existing channels in the latest review (derived state, none until the first review after a restart); ObserveRoundsAsync stamps it onto a fresh planner read.</summary>
     internal ReviewMemory<GoalDemand> GoalDemands = new(GoalDemand.None);
 
+    /// <summary>The safety floor every route to a goal broke in the latest coupled comparison, by goal need id (#3503; derived state, none until the first comparison after a restart); the goals read reports those goals infeasible.</summary>
+    internal ReviewMemory<IReadOnlyDictionary<string, string>> GoalInfeasible = new(new Dictionary<string, string>());
+
     /// <summary>The per-pawn outfit filter and insulation floor the latest review with a coupled selection chose (GearChoices; derived state, none until the first such review after a restart).</summary>
     internal ReviewMemory<EquatableArray<GearChoice>> GearChoices = new([]);
 
@@ -671,6 +674,7 @@ public sealed partial class Rounder
         WorkAssignments.Set(result.Review.Snapshot, result.Needs.WorkAssignments);
         NoteGearChoices(GearChoices, result.Review.Snapshot, reading.Projection.Facts.CoupledAlternatives, result.Needs.CoupledSelection);
         RoomSelection.Set(result.Review.Snapshot, PlannedSelectionReviewed(RoomSelection.Get(result.Review.Snapshot), reading.Projection, result.Needs.CoupledSelection));
+        if (result.Needs.CoupledSelection is { } compared) GoalInfeasible.Set(result.Review.Snapshot, GoalRules.InfeasibleOf(compared));
         var taken = AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
         AdmitStandby(reading.Projection.Facts, workActions, taken, state.Snapshot, ct, epoch);
         var attrs = new List<(string Key, object? Value)> { ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value) };

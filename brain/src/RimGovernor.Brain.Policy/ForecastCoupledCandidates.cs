@@ -284,6 +284,8 @@ public sealed partial record ForecastCoupledCandidates
             InitialLots = EquatableArray.From(lots),
             Bindings = bindings,
             CapacityPenalties = facts.CapacityPenalties,
+            Value = ForecastValuePolicy.For(facts.Preferences),
+            GoalValues = facts.GoalValues,
             MoodBreaks = facts.MoodBreak,
             NeedTasks = EquatableArray.From(needTasks),
             Findings = EquatableArray.From(findings),

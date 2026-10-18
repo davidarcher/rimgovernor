@@ -16,6 +16,9 @@ public enum GoalState
 
     /// <summary>No Need pursues the goal; <see cref="GoalStatus.Reason"/> says why.</summary>
     NoMethod,
+
+    /// <summary>Every route the forecast found to the goal breaks a safety floor the colony holds today (#3503); <see cref="GoalStatus.Reason"/> names the floor.</summary>
+    Infeasible,
 }
 
 /// <summary>One goal's standing: its state with the reason, the Need that pursues it and how far it is from met.</summary>
@@ -58,6 +61,9 @@ public sealed record GoalDemand
 
     /// <summary>What the goals ask the build channels for (#3496): the rooms and the hospital bed floor.</summary>
     public GoalBuildDemand Build { get; init; } = GoalBuildDemand.None;
+
+    /// <summary>The unmet goals as the forecast's ledger values them (#3503).</summary>
+    public EquatableArray<ForecastGoalValue> Values { get; init; }
 }
 
 /// <summary>
@@ -136,6 +142,9 @@ public sealed record GoalsFacts
     /// <summary>The research each harvested stuff waits on (a plant's sowing prerequisites, keyed by its harvested thing def), the way a worn-count goal reaches the research-wanted set (#3496).</summary>
     public IReadOnlyDictionary<string, IReadOnlyList<string>> StuffResearch { get; init; } = new Dictionary<string, IReadOnlyList<string>>();
 
+    /// <summary>The safety floor every forecast route to a goal breaks, by goal need id (#3503): the latest coupled selection's <c>goal_infeasible</c> findings.</summary>
+    public IReadOnlyDictionary<string, string> Infeasible { get; init; } = new Dictionary<string, string>();
+
     /// <summary>The progress row of each owning Need that has one.</summary>
     public IReadOnlyDictionary<NeedId, OwnerProgress> Owners { get; init; } = new Dictionary<NeedId, OwnerProgress>();
 
@@ -200,6 +209,7 @@ public sealed class GoalsFamily : IFamily<GoalsFacts>
             {
                 GoalState.Pursuing => ("pursuing:" + status.Owner.Value, "Pursued by " + status.Owner.Value + "."),
                 GoalState.Blocked => ("blocked:" + status.Reason, "The goal cannot advance: " + status.Reason + "."),
+                GoalState.Infeasible => ("infeasible:" + status.Reason, "Every route to the goal breaks the " + status.Reason + " floor."),
                 _ => ("no_method:" + status.Reason, "Nothing pursues this goal: " + status.Reason + "."),
             };
             output.Add(NeedMethod.Held(need.Id, subject, detail));
@@ -208,7 +218,7 @@ public sealed class GoalsFamily : IFamily<GoalsFacts>
     }
 }
 
-public static class GoalRules
+public static partial class GoalRules
 {
     /// <summary>The NeedId of <paramref name="goal"/>: <c>goals/&lt;kind&gt;/&lt;id&gt;</c>.</summary>
     public static NeedId NeedOf(GoalRecord goal) => NeedId.Of(GoalsFamily.FamilyId, KindSlug(goal.Kind), goal.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -229,8 +239,16 @@ public static class GoalRules
         return text.ToString();
     }
 
-    /// <summary>Evaluates one goal against the facts: the predicate, then who pursues it.</summary>
+    /// <summary>Evaluates one goal against the facts: the predicate, then who pursues it, then whether the forecast found a route that holds every floor (#3503).</summary>
     public static GoalStatus Evaluate(GoalRecord goal, GoalsFacts f)
+    {
+        var status = EvaluateOwned(goal, f);
+        return status.State is GoalState.Pursuing or GoalState.Blocked && f.Infeasible.TryGetValue(NeedOf(goal).Value, out var floor)
+            ? status with { State = GoalState.Infeasible, Reason = floor }
+            : status;
+    }
+
+    private static GoalStatus EvaluateOwned(GoalRecord goal, GoalsFacts f)
     {
         Fact<bool> met;
         Fact<double> deficit;
@@ -500,6 +518,34 @@ public static class GoalRules
         return [.. f.Themes.Select(t => new ThemeStatus(t.Id, t.Members.Count(met.Contains), t.Members.Count))];
     }
 
+    /// <summary>The unfinished projects a research goal waits on, in project id order: its project, or the first project of each tier it still has to reach and the unfinished projects of a tech level; none once it is met or while the census is unread.</summary>
+    internal static IReadOnlyList<string> ResearchOf(GoalRecord goal, GoalsFacts f)
+    {
+        var projects = new SortedSet<string>(StringComparer.Ordinal);
+        if (goal.Kind == GoalKind.ResearchProject)
+        {
+            if (goal.Target != "" && Evaluate(goal, f).State != GoalState.Met && f.Research.TryGetValue(out _))
+            {
+                projects.Add(goal.Target);
+            }
+        }
+        else if (goal.Kind == GoalKind.ResearchTier)
+        {
+            if (Enum.TryParse<TechTier>(goal.Target, true, out var target) && f.Tier.TryGetValue(out var tier))
+            {
+                for (var t = tier + 1; t <= target; t++)
+                {
+                    projects.Add(TechTierRules.Unlocks[t][0]);
+                }
+            }
+            if (Evaluate(goal, f).State != GoalState.Met)
+            {
+                projects.UnionWith(LevelProjects(goal.Target, f.Research));
+            }
+        }
+        return [.. projects];
+    }
+
     /// <summary>What the goals ask the existing channels for.</summary>
     public static GoalDemand DemandOf(GoalsFacts f)
     {
@@ -532,23 +578,8 @@ public static class GoalRules
                     quests.Add(new QuestId(goal.Target));
                     break;
                 case GoalKind.ResearchProject:
-                    if (goal.Target != "" && Evaluate(goal, f).State != GoalState.Met && f.Research.TryGetValue(out _))
-                    {
-                        research.Add(goal.Target);
-                    }
-                    break;
                 case GoalKind.ResearchTier:
-                    if (Enum.TryParse<TechTier>(goal.Target, true, out var target) && f.Tier.TryGetValue(out var tier))
-                    {
-                        for (var t = tier + 1; t <= target; t++)
-                        {
-                            research.Add(TechTierRules.Unlocks[t][0]);
-                        }
-                    }
-                    if (Evaluate(goal, f).State != GoalState.Met)
-                    {
-                        research.UnionWith(LevelProjects(goal.Target, f.Research));
-                    }
+                    research.UnionWith(ResearchOf(goal, f));
                     break;
                 case GoalKind.StockCount when goal.Target != "" && goal.Count > 0:
                     stock[new Resource(goal.Target)] = Math.Max(stock.GetValueOrDefault(new Resource(goal.Target)), goal.Count);
@@ -577,7 +608,7 @@ public static class GoalRules
             }
         }
         var believers = ConversionRules.Shortfall(f.Goals, f.Ideology, f.Pawns).TryGetValue(out var lacking) && lacking > 0;
-        return new GoalDemand { Research = [.. research], Stock = stock, Colonists = colonists, Animals = animals, Prisoners = prisoners, Quests = quests, Believers = believers, Worn = worn, Build = new GoalBuildDemand { Rooms = EquatableArray.From(rooms), HospitalBeds = hospitalBeds, Turrets = turrets } };
+        return new GoalDemand { Research = [.. research], Stock = stock, Colonists = colonists, Animals = animals, Prisoners = prisoners, Quests = quests, Believers = believers, Worn = worn, Build = new GoalBuildDemand { Rooms = EquatableArray.From(rooms), HospitalBeds = hospitalBeds, Turrets = turrets }, Values = ValuesOf(f) };
     }
 
     /// <summary>The review facts with the goals' stock floors in them, and everything <see cref="Stamp"/> carries.</summary>
@@ -586,7 +617,7 @@ public static class GoalRules
     /// <summary>The facts with the goals' colonist head count, herd targets, named quests, named prisoners and believer demand: what every read of the world carries.</summary>
     public static RoundsFacts Stamp(RoundsFacts f, GoalDemand d)
     {
-        f = StampWorn(f with { ColonistGoal = d.Colonists, AnimalGoals = d.Animals, NamedQuests = d.Quests, GoalBuild = d.Build }, d.Worn);
+        f = StampWorn(f with { ColonistGoal = d.Colonists, AnimalGoals = d.Animals, NamedQuests = d.Quests, GoalBuild = d.Build, GoalValues = d.Values }, d.Worn);
         return f.PrisonerColony.TryGetValue(out var colony) ? f with { PrisonerColony = Fact.Known(colony with { NamedPrisoners = d.Prisoners, BelieversWanted = d.Believers }) } : f;
     }
 

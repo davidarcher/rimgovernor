@@ -67,10 +67,13 @@ view model that a pool-thread refresh swaps in every 1.5 s, and edits queue and 
 
 ## Value
 
-Not landed. Goal Needs are Development Needs and importance and deadline do not enter selection yet. The design is in
-the [forecast value note](forecast-value.md): importance maps to capability-days and the deadline shapes the curve once
-the currency is built (#3469, then #3503), and tier 2 supplies a goal's marginal value and estimated day (#3470, then
-#3505). Floors stay floors at every importance.
+Goal Needs are Development Needs and importance and deadline do not enter Need selection. They enter the coupled
+selection (#3503): an unmet research or worn-garment goal earns its importance's capability-days for the fraction of the
+goal a schedule progresses, decayed per day past its deadline, and a goal whose every route breaks a floor is
+`Infeasible` and names it ([goals contracts](../contracts/goals-contracts.md#importance-and-deadline),
+[forecast value note](forecast-value.md#goal-value)). The player's risk profile and pace set the forecast's harm weight,
+death floor and wellbeing weight. Tier 2 will supply a goal's marginal value and estimated day (#3470, then #3505).
+Floors stay floors at every importance.
 
 ## Related contracts
 

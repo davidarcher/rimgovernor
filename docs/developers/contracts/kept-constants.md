@@ -147,6 +147,24 @@ them through `ForecastCoupledContext.Value`; production uses the defaults.
 | `DeathRiskFloor` | 0.01 | expected deaths per day above baseline | The most a portfolio may add before it is infeasible. Read by `ForecastValue.Explain`; the harm model that feeds it is #3471, so the floor is reported unassessed (`death_floor_unassessed`) until then. |
 | `BreakRiskCap` | 0.5 | expected breaks per pawn per day | The most break risk one pawn may carry, as expected breaks per pawn-day. Read by `ForecastValue.Explain` (#3522). |
 | `TieResolution` | 0.01 | capability-days | A summed loss difference within this is a tie; the ranking then falls through to the unpriced terms, the incumbent and labor. Read by `CompareConsequences` (#3522). |
+| `GoalImportanceValue` (Low, Normal, High) | 0.5, 2, 8 | capability-days per whole goal | What completing a goal is worth at each importance; a schedule earns the fraction it progresses. Low is five mood-days at the default `WellbeingWeight`, each level four times the one below. Read by the ledger's `Goals` term (#3503). |
+| `GoalDeadlineDecay` | 0.8 | multiplier per day past the deadline | A goal's worth after its deadline. Read by `ForecastValuePolicy.GoalWorth` (#3503). |
+| `GoalDeadlineFloor` | 0.1 | fraction of the worth | The least a late goal decays to, so a missed deadline never makes the goal worthless. Read by `GoalWorth` (#3503). |
+
+The player's risk profile and pace choose the rows below (`ForecastValuePolicy.RiskRows`, `PaceWellbeingWeight`; `ForecastValuePolicy.For`),
+replacing the constants above for that colony. Normal and Balanced are the defaults in the table above. Cautious has the stricter (smaller) death floor and the larger tail weight; Bold the looser.
+
+| Risk profile | `HarmRiskAlpha` | `HarmRiskWeight` | `DeathRiskFloor` |
+| --- | --- | --- | --- |
+| Cautious | 0.95 | 0.8 | 0.005 |
+| Normal | 0.9 | 0.5 | 0.01 |
+| Bold | 0.8 | 0.2 | 0.02 |
+
+| Pace | `WellbeingWeight` |
+| --- | --- |
+| Wellbeing | 0.2 |
+| Balanced | 0.1 |
+| Development | 0.05 |
 
 ## Tracked in follow-up issues
 

@@ -6,7 +6,7 @@
 Tier-1 selection ranks on the safety floors, then on capability-days ([Comparator](#comparator) describes what runs).
 `ForecastValue.Of` (#3520, #3521) prices hunger, rest, food poisoning, thermal exposure, mood breaks and
 wellbeing per outcome; `ForecastValue.Explain` (#3522) adds the floors; `coupled_selection` reports both ([policy constants](../contracts/kept-constants.md#policy-constants-3469),
-[tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm and investment are 0 and unassessed.
+[tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm and investment are 0 and unassessed. The player's goals add a gain term ([Goal value](#goal-value), #3503).
 The tier-2 model's input (`ColonyModelInput`, assembled per review by `RoundsColonyModel.InputOf` from the review frame, #3523) exists and names
 each section the frame did not carry; nothing runs the model yet.
 Sections other than the comparator, the problems and the milestones describe the proposed design, not current behavior.
@@ -116,6 +116,25 @@ quality and room factors (same care services only), maintenance missing XP, joy 
 development, unsupplied demand and first-care time; then the incumbent, then less labor. Every decision
 reports each term's contribution in capability-days, the floors it passed, and which constants it used (the nested
 `value` attributes of `coupled_selection`).
+
+### Goal value
+
+The player's goals ([player goals](player-goals.md)) enter the currency as a ledger term, `Goals`, a gain (a negative loss)
+for the progress a schedule makes inside the horizon (#3503). A goal is worth `GoalImportanceValue[Low, Normal, High]`
+capability-days when it is completed, times `GoalDeadlineDecay` per day past its deadline (never under
+`GoalDeadlineFloor`); a schedule earns the fraction of that worth it progresses. Research is paid per point of the goal
+project's remaining cost, a worn-garment goal per colonist dressed (the requirement relief it injected), and relief a
+goal injected is not also counted as a unit of requested development. Other goal kinds have no forecast route and earn
+nothing yet; tier 2 gives the marginal value of progress that is not inside the horizon. Every decision lists each goal
+and its contribution (`goal_contributions`). The player's risk profile and pace choose rows of two tables
+(`ForecastValuePolicy.RiskRows`, `PaceWellbeingWeight`), so the constants a decision used are the ones for that colony.
+A goal adds value above the floors and never relaxes one: a goal whose every evaluated route breaks the urgent-zero or
+break-risk floor the colony holds today is reported `Infeasible`, naming the floor.
+
+The starting values are playtest constants ([kept constants](../contracts/kept-constants.md#policy-constants-3469)): a
+whole Low goal (0.5) is worth five mood-days at the default wellbeing weight, a Normal goal (2) four times that and a High
+goal (8) sixteen times; the deadline decays 0.8 per day to a floor of 0.1. So a High goal outranks a small wellbeing
+sacrifice and a Low one does not.
 
 **Other currencies considered.**
 

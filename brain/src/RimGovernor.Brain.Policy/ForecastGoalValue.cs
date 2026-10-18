@@ -1,0 +1,35 @@
+namespace RimGovernor.Brain.Policy;
+
+/// <summary>The capability-days a whole goal is worth at each importance level (#3503).</summary>
+public sealed record GoalImportanceValues(double Low, double Normal, double High)
+{
+    public double Of(Importance importance) => importance switch
+    {
+        Importance.Low => Low,
+        Importance.Normal => Normal,
+        _ => High,
+    };
+}
+
+/// <summary>A relief need (a requirement relief id the forecast's commitments carry) a goal owns, and the fraction of the goal's progress one unit of it is.</summary>
+public sealed record ForecastGoalRelief(string Need, double Share);
+
+/// <summary>A research project a goal waits on, and the fraction of the goal's progress one research point is.</summary>
+public sealed record ForecastGoalResearch(string Project, double SharePerPoint);
+
+/// <summary>
+/// One unmet goal as the comparator values it (#3503): its need id, its effective importance and deadline day, and the
+/// two ways a schedule can progress it. Progress is the fraction of the whole goal; the ledger's goal term is the goal's
+/// worth (<see cref="ForecastValuePolicy.GoalWorth"/>) times the progress the outcome makes inside the horizon.
+/// </summary>
+public sealed record ForecastGoalValue(string Goal, Importance Importance, int? DeadlineDay)
+{
+    /// <summary>Requirement relief the goal injected (a garment it requires of a colonist); each replaces that relief's unit of requested development.</summary>
+    public EquatableArray<ForecastGoalRelief> Relief { get; init; }
+
+    /// <summary>Research projects the goal is waiting on; an hour of work at one of them is progress.</summary>
+    public EquatableArray<ForecastGoalResearch> Research { get; init; }
+}
+
+/// <summary>One goal's contribution to an outcome's ledger (#3503): the fraction of the goal the outcome progresses, the goal's worth after its deadline's decay, and their product in capability-days gained.</summary>
+public sealed record ForecastGoalContribution(string Goal, double Progress, double Worth, double Value);

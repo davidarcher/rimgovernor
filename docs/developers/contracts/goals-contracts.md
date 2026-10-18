@@ -47,7 +47,7 @@ level and leaves a level-only goal Unknown.
 `GoalStatus` is `Met`, `Pursuing` (the owning Need is at work or has no block to report), `Blocked` (the owner has
 no method and an actionable or held block, or the goal's facts are unread: `facts_unread`) or `NoMethod`. The
 family's Method for an unmet goal is only `NeedMethod.Held`, with the subject `pursuing:<owner need>`,
-`blocked:<reason>` or `no_method:<reason>`. The owner's state is read from its rounds progress row.
+`blocked:<reason>`, `infeasible:<floor>` (below) or `no_method:<reason>`. The owner's state is read from its rounds progress row.
 
 ## Room goals
 
@@ -71,11 +71,30 @@ asking after the room stands: dropping the need would end the role in the plan a
 
 ## Importance and deadline
 
-`GoalRecord.Importance` and `DeadlineDay` (a theme's, unless the goal overrides them) are stored and shown, sort the
-panel, and weight theme progress. Every goal Need is a Development Need and neither field reaches Need selection, so
-they do not yet order or value anything the bot does. Their value in capability-days and the deadline's decay (#3503),
-and the estimated completion day (#3505), are not landed: they wait on the forecast currency (#3469) and the tier-2
-colony model (#3470). See the [forecast value note](../architecture/forecast-value.md).
+`GoalRecord.Importance` and `DeadlineDay` (a theme's, unless the goal overrides them: `GoalRules.ImportanceOf`,
+`GoalRules.DeadlineOf`) are stored, shown, sort the panel and weight theme progress. They also value the goal in the
+forecast's capability-days currency (#3503), in the coupled selection only; a goal Need is still a Development Need and
+neither field reaches Need selection. `GoalRules.ValuesOf` turns each unmet goal that has a forecast route into a
+`ForecastGoalValue` on `RoundsFacts.GoalValues`, and the ledger's `Goals` term pays the goal's worth times the
+fraction of the goal an evaluated schedule progresses:
+
+- **Research** (`ResearchProject`, `ResearchTier`): the goal's worth is split over the unfinished projects it waits on and
+  paid per research point of each project's remaining cost, so a scheduled research block at one of them earns its share.
+- **Worn garment** (`WornCount`): one share (`1 / missing`) per eligible colonist among the first `Count` not yet wearing
+  it, on the requirement relief `clothing/<pawn>/required/<garment>` the clothing planner gives that colonist. That relief
+  is valued by the goal and is not also counted as a unit of requested development; other relief keeps its unit.
+- Other kinds (stock, room, population, ideology, prisoner, quest) have no forecast route yet and earn no ledger value.
+
+The worth is `GoalImportanceValue[importance]` times the deadline's decay at the observed day (full until the deadline,
+then `GoalDeadlineDecay` per day, never under `GoalDeadlineFloor`); the constants are in
+[kept-constants](kept-constants.md#policy-constants-3469). The player's risk profile and pace set `HarmRiskAlpha`,
+`HarmRiskWeight`, `DeathRiskFloor` and `WellbeingWeight` through `ForecastValuePolicy.For`. A goal never relaxes a floor.
+The estimated completion day (#3505) waits on the tier-2 colony model (#3470).
+
+**Infeasible.** When every evaluated schedule that progresses a goal breaks the urgent-zero or break-risk floor by more
+than the unchanged colony does, the coupled selection reports `goal_infeasible:<goal need id>:<floor>`; the next goals
+read keeps a pursuing or blocked goal in `GoalState.Infeasible` with the floor as its reason (verdict `infeasible`).
+The death floor is unassessed until the harm model (#3471), so it is never named.
 
 ## Telemetry
 

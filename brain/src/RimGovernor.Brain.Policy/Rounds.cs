@@ -522,6 +522,9 @@ public sealed record RoundsFacts
     /// <summary>The rooms and hospital beds the player's goals ask the planned-room, hospital and station channels for (#3496).</summary>
     public GoalBuildDemand GoalBuild { get; init; } = GoalBuildDemand.None;
 
+    /// <summary>The player's unmet goals as the forecast's capability-days ledger values them (#3503).</summary>
+    public EquatableArray<ForecastGoalValue> GoalValues { get; init; }
+
     public Fact<long> Hostiles { get; init; }
 
     public Fact<long> CriticalPatients { get; init; }

@@ -33,6 +33,9 @@ public sealed partial record ForecastCoupledSelection
 {
     private static readonly System.Diagnostics.ActivitySource Spans = new("github.com/davidarcher/RimGovernor/policy");
 
+    /// <summary>A selection finding <c>goal_infeasible:&lt;goal need id&gt;:&lt;floor&gt;</c> (#3503): every evaluated route that progresses the goal breaks that floor where the baseline holds it.</summary>
+    public const string GoalInfeasiblePrefix = "goal_infeasible:";
+
     private const int SeedShare = 4;
     /// <summary>Scheduler bound of a screening evaluation. The depth-first schedule search reaches its first complete
     /// plans within a few expansions per activity and spends the rest of a larger bound varying the last tasks, so a
@@ -63,10 +66,25 @@ public sealed partial record ForecastCoupledSelection
         // Every outcome's wellbeing is priced against this one outcome, so the deltas between outcomes do not depend on which is the baseline.
         var reference = baseline;
         var horizonTicks = request.HorizonDays * GameTime.TicksPerDay;
+        // Relief a goal injected is valued by the goal's ledger term, not as a unit of development (#3503).
+        var goalRelief = candidates.Context.GoalValues.SelectMany(g => g.Relief.Select(r => r.Need)).ToHashSet(StringComparer.Ordinal);
         ForecastConsequenceVector Consequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments)
         {
-            var vector = CoupledConsequences(outcome, commitments);
-            return vector with { Value = ForecastValue.Explain(outcome, vector.Urgent[0], candidates.Context, horizonTicks, reference) };
+            var vector = CoupledConsequences(outcome, commitments, goalRelief);
+            return vector with { Value = ForecastValue.Explain(outcome, vector.Urgent[0], candidates.Context, horizonTicks, reference, commitments) };
+        }
+        // Per goal, the least-broken floor over the evaluated outcomes that progress it, while no such outcome holds every floor the baseline holds (#3503).
+        var goalRoutes = new Dictionary<string, (bool Open, string Floor, double Excess)>(StringComparer.Ordinal);
+        void NoteGoalRoutes(ForecastConsequenceVector vector, ForecastConsequenceVector against)
+        {
+            var zero = vector.Value.UrgentZero.Excess - against.Value.UrgentZero.Excess;
+            var cap = vector.Value.BreakRisk.Excess - against.Value.BreakRisk.Excess;
+            foreach (var contribution in vector.Value.Ledger.GoalContributions)
+            {
+                var route = zero > 0 ? ("urgent_zero", zero) : cap > 0 ? ("break_risk_cap", cap) : ("", 0d);
+                if (!goalRoutes.TryGetValue(contribution.Goal, out var seen) || route.Item1 == "" || !seen.Open && route.Item2 < seen.Excess)
+                    goalRoutes[contribution.Goal] = (route.Item1 == "" || seen.Open, route.Item1, route.Item2);
+            }
         }
         foreach (var candidate in baselineScenario.Alternatives.Where(a => a.Feasible == Known(true)))
         {
@@ -170,6 +188,7 @@ public sealed partial record ForecastCoupledSelection
             foreach (var outcome in feasible)
             {
                 var vector = Consequences(outcome, commitments);
+                NoteGoalRoutes(vector, baselineVector);
                 // Physical feasibility does not certify optional investment. Partial shells retain
                 // unknown exposure; they cannot win by hiding it. Keep expanding complementary roots.
                 // Construction a selected commitment values as requested development carries its own relief (#3276), and so
@@ -277,6 +296,8 @@ public sealed partial record ForecastCoupledSelection
         foreach (var (reasons, cut) in screened.Values) { findings.UnionWith(reasons); truncated |= cut; }
         if (truncated) findings.Add("portfolio_search_truncated");
         if (candidates.Truncated) findings.Add("portfolio_generation_truncated");
+        foreach (var (goal, route) in goalRoutes)
+            if (!route.Open) findings.Add(GoalInfeasiblePrefix + goal + ":" + route.Floor);
         findings.Add("beyond_horizon_unassessed");
         // The harm and death terms wait for the harm model (#3471); a break risk no mood threshold supports leaves that floor unchecked.
         findings.Add("harm_capability_unassessed");
@@ -303,7 +324,8 @@ public sealed partial record ForecastCoupledSelection
                 && (effect.Excludes.Contains(other.Outcome?.Id ?? other.Id) || effect.ExclusiveOutput.Length != 0 && effect.ExclusiveOutput == other.Outcome?.ExclusiveOutput)));
     }
 
-    public static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments)
+    public static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments,
+        IReadOnlySet<string>? goalRelief = null)
     {
         var unknown = new SortedSet<string>(StringComparer.Ordinal);
         Fact<double> Metric(string kind, Func<ForecastNeedMetric, Fact<double>> get, bool maximum = false)
@@ -338,7 +360,7 @@ public sealed partial record ForecastCoupledSelection
         // Delivered clothing is development, not wearing or physiological thermal protection. Planned development counts
         // what the schedule completes, whichever root built it, each physical site once (#3334).
         var development = commitments.Where(c => c.Outcome?.Requirements is not null && c.Outcome.Need != ForecastPlannedSite.DevelopmentNeed)
-            .SelectMany(c => c.Outcome!.Requirements!.Relief).GroupBy(r => r.Need).Sum(g => Math.Min(1, g.Sum(r => r.Fraction)))
+            .SelectMany(c => c.Outcome!.Requirements!.Relief).Where(r => goalRelief?.Contains(r.Need) != true).GroupBy(r => r.Need).Sum(g => Math.Min(1, g.Sum(r => r.Fraction)))
             + outcome.RequestedDevelopment.Count;
         var moods = outcome.Needs.Values.Select(n => n.Mood).ToArray();
         var moodKnown = moods.Length > 0 && moods.All(m => m is not null && m.TargetExposureTicks.IsKnown && m.PressureTicks.IsKnown);

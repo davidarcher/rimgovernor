@@ -71,7 +71,9 @@ public sealed record ForecastCoupledContext
     public IReadOnlyDictionary<string, Fact<EquatableArray<MoodThought>>> ObservedThoughts { get; init; } = new Dictionary<string, Fact<EquatableArray<MoodThought>>>();
     /// <summary>The mechanic cards; null is the shipped catalog. Only Live cards price.</summary>
     public IReadOnlyDictionary<string, MechanicCard>? Cards { get; init; }
-    /// <summary>The capability-days currency's constants (#3520); tests inject them, production uses the defaults.</summary>
+    /// <summary>The player's unmet goals as the ledger values them (#3503); none without goals.</summary>
+    public EquatableArray<ForecastGoalValue> GoalValues { get; init; }
+    /// <summary>The capability-days currency's constants (#3520), under the player's risk profile and pace (#3503); tests inject them.</summary>
     public ForecastValuePolicy Value { get; init; } = new();
     /// <summary>The game's malnutrition and food-poisoning tables the ledger prices capacity loss with (#3519); unknown by default.</summary>
     public CapacityPenaltyTables CapacityPenalties { get; init; } = new();

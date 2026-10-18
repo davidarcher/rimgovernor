@@ -93,6 +93,7 @@ public sealed record GoalsViewModel(GoalsRecord Record, IReadOnlyList<GoalGroupV
         GoalState.Met => ("Met", ""),
         GoalState.Pursuing => ("Pursuing", s.Owner.Value),
         GoalState.Blocked => ("Blocked", s.Reason),
+        GoalState.Infeasible => ("Infeasible", s.Reason),
         _ => ("No method", s.Reason),
     };
 
