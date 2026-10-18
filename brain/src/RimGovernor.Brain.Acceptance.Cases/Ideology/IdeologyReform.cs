@@ -14,10 +14,10 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 internal static class IdeologyReform
 {
-    private const string PrepareTool = "test/ideoligion_design_prepare";
+    internal const string PrepareTool = "test/ideoligion_design_prepare";
     private const string InspectTool = "test/ideoligion_design_inspect";
 
-    private static readonly FixtureOp<NoArgs, Fx.IdeoligionDesignPrepared> Prepare = new(
+    internal static readonly FixtureOp<NoArgs, Fx.IdeoligionDesignPrepared> Prepare = new(
         PrepareTool,
         _ => [],
         ServedOps.Succeeded<Fx.IdeoligionDesignPrepared>(PrepareTool, r => r.Success && r.IdeoId.Length > 0));
@@ -47,7 +47,7 @@ internal static class IdeologyReform
         Precepts = EquatableArray.From(design.Precepts.Order(StringComparer.Ordinal)),
     };
 
-    private static IdeoligionDesign Decode(string label, string text)
+    internal static IdeoligionDesign Decode(string label, string text)
     {
         try
         {

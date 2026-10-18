@@ -89,6 +89,11 @@ identity), `Staged` and `TicksLeft`. Its members:
   call a declared fixture op mid-wait to inject the next phase's precondition. `ReviewAsync` (the brain's last
   persisted review, a `Store.Rounds`) and `NeedTransitionsAsync` (the journal's need_transitions rows) read the
   run's durable journal, the brain-side state a served probe or audit needs.
+- **Seeded governor state:** `TypedGovernorState.InjectAsync(s, key, record, scoped)` (Cases `Shared/`) writes one
+  family record into the save's governor-state blobs before the case serves (it reads the blobs, adds the record and
+  batch-puts the set); `TypedLayoutPlan` is a one-line caller. `goals/research-goal` and `goals/theme-reform`
+  (`Goals/`) seed the player's `family/goals` blob this way, since no HTTP route writes goals, and read the
+  `goal_review` rows through `GoalReviews.Of`.
 
 `lab/stage`, `lab/spawn` and `upkeep/auto-home-area` are the reference ports.
 

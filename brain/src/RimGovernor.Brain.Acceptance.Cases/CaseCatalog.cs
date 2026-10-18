@@ -60,6 +60,7 @@ public static class CaseCatalog
         FarmCases.Register(registry);
         FloorCases.Register(registry);
         FoodCases.Register(registry);
+        GoalsCases.Register(registry);
         HazardCases.Register(registry);
         HusbandryCases.Register(registry);
         IdeologyCases.Register(registry);

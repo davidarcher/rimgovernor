@@ -32,6 +32,9 @@ public static class TelemetryKinds
     /// <summary>The kind the goals family's per-goal review rows are emitted under (#3494).</summary>
     public const string GoalReviewKind = "goal_review";
 
+    /// <summary>One goal's standing at a review (<see cref="GoalReviewKind"/>).</summary>
+    public static readonly TelemetryKind GoalReview = new(GoalReviewKind);
+
     /// <summary>The kind the stockpile, field and building layout decisions are emitted under.</summary>
     public const string LayoutEditKind = "layout_edit";
 
