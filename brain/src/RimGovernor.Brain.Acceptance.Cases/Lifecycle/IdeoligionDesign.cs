@@ -31,7 +31,7 @@ internal static class LifecycleIdeoligionDesign
     {
         Name = "lifecycle/ideoligion-design",
         Scope = "#1662/#1663: production colony creation from a fresh main menu with governorIdeoligion applies a well-formed design (1..5 memes, a decided fluid flag, "
-            + "duplicate-free memes and precepts) and the live colony's primary ideoligion holds it with no reform count or points spent. A snapshot cannot prove "
+            + "duplicate-free memes and precepts) and the live colony's primary ideoligion holds it with no reform count or points spent and no non-player faction holds it (#3591). A snapshot cannot prove "
             + "pre-map catalog availability or vanilla creation initialization. Spends no ticks.",
         Ticks = 0,
         Tier = CaseTier.OnDemand,
@@ -59,6 +59,11 @@ internal static class LifecycleIdeoligionDesign
                     || precepts.Distinct(StringComparer.Ordinal).Count() != precepts.Count || read.Count != 0 || read.Points != 0)
                 {
                     throw new AcceptanceException($"created design is not a fresh well-formed one: {design}, reforms {read.Count}, points {read.Points}");
+                }
+
+                if (read.SharedWith.Length > 0)
+                {
+                    throw new AcceptanceException($"the designed ideoligion is shared with [{string.Join(' ', read.SharedWith)}]");
                 }
             },
             cancellationToken);

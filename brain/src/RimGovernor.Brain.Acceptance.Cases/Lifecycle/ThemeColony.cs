@@ -31,7 +31,7 @@ internal static class LifecycleThemeColony
         Name = "lifecycle/theme-colony",
         Scope = "#3511: a new colony posted to the player API's /api/lifecycle/new with theme naked-cannibals (the launcher's request) starts with a "
             + "primary ideoligion that holds the Nudism and Cannibal memes, the preset's nudity, cannibalism and insect-meat precepts and the venerated "
-            + "monkey. A unit test cannot prove the design against the game's real meme and precept data or native creation. Spends no ticks.",
+            + "monkey, and no non-player faction holds that ideoligion (#3591). A unit test cannot prove the design against the game's real meme and precept data or native creation. Spends no ticks.",
         Ticks = 0,
         Tier = CaseTier.OnDemand,
         Start = new OwnedStart(),
@@ -60,6 +60,11 @@ internal static class LifecycleThemeColony
                 if (missing.Count > 0)
                 {
                     throw new AcceptanceException($"the themed colony's ideoligion lacks [{string.Join(' ', missing)}]: {design}");
+                }
+
+                if (read.SharedWith.Length > 0)
+                {
+                    throw new AcceptanceException($"the themed ideoligion is shared with [{string.Join(' ', read.SharedWith)}]");
                 }
             },
             cancellationToken);

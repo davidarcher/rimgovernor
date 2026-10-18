@@ -25,6 +25,8 @@
     <Reference Include="Waylith"><HintPath>$(RimWorldDir)/Waylith.dll</HintPath><Private>true</Private></Reference>
     <Reference Include="UnityStubs"><HintPath>$(RimWorldDir)/UnityStubs.dll</HintPath><Private>true</Private></Reference>
     <ProjectReference Include="../../src/RimGovernor.Brain.Bridge/RimGovernor.Brain.Bridge.csproj" />
+    <!-- ThemePresetHoldableTests reads the install's Def XML (Data/<pack>/Defs). -->
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute"><_Parameter1>RimWorldDir</_Parameter1><_Parameter2>$(RimWorldDir)</_Parameter2></AssemblyAttribute>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../analyzers/RimGovernor.Brain.Analyzers/RimGovernor.Brain.Analyzers.csproj" />

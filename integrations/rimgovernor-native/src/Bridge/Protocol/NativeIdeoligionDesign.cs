@@ -120,7 +120,17 @@ namespace HomeBridge.BridgeTools
 
         internal static void Create(Common.IdeoligionDesign design)
         {
-            var source = Faction.OfPlayer.ideos.PrimaryIdeo;
+            var player = Faction.OfPlayer;
+            var source = player.ideos.PrimaryIdeo;
+            // FactionIdeosTracker.ChooseOrGenerateIdeo can hand the player an ideo a world faction generated first (its
+            // 20% reuse branch, #3591); the design would rewrite that faction's ideo too, so the player gets one of its own.
+            if (Find.FactionManager.AllFactions.Any(f => f != player && f.ideos != null && f.ideos.Has(source)))
+            {
+                source = IdeoGenerator.GenerateIdeo(new IdeoGenerationParms(player.def));
+                source.primaryFactionColor = player.Color;
+                Find.IdeoManager.Add(source);
+                player.ideos.SetPrimary(source);
+            }
             var refusal = Prepare(source, design, false, out var candidate);
             if (refusal != null) throw new InvalidOperationException(refusal.Detail);
             candidate!.CopyTo(source);

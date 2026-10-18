@@ -7,6 +7,7 @@ using HarmonyLib;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
+using Pol = RimGovernor.Brain.Policy;
 
 namespace HomeBridge.BridgeTools
 {
@@ -40,8 +41,22 @@ namespace HomeBridge.BridgeTools
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var ideo = Faction.OfPlayer.ideos.PrimaryIdeo;
-                return new { design = RimGovernor.Contracts.Wire.WireJson.Serialize(IdeoligionReformActionHandler.ReadDesign(ideo)), count = ideo.development?.reformCount ?? 0, points = ideo.development?.Points ?? 0 };
+                var sharedWith = Find.FactionManager.AllFactions.Where(f => !f.IsPlayer && f.ideos != null && f.ideos.Has(ideo)).Select(f => f.def.defName).ToArray();
+                return new { design = RimGovernor.Contracts.Wire.WireJson.Serialize(IdeoligionReformActionHandler.ReadDesign(ideo)), count = ideo.development?.reformCount ?? 0, points = ideo.development?.Points ?? 0, sharedWith };
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/theme_preset_read", Description = "Read one shipped theme preset's meme and precept goal targets as they resolve over the installed game.")]
+        public Task<object> ReadThemePreset(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "The preset id.")] string preset = "")
+        {
+            // The preset book is built off the game thread (NativeCatalogFactory.Presets).
+            var book = NativeCatalogFactory.Presets();
+            var found = book.Find(preset);
+            if (found == null) return Task.FromResult<object>(new { success = false, reason = "No theme preset is named " + preset + "." });
+            var goals = Pol.PresetRules.Resolve(found, book.Catalog, new Pol.ThemeRecord { Name = found.Name, Preset = found.Id }).Goals().ToList();
+            string[] Of(Pol.GoalKind kind) => goals.Where(g => g.Kind == kind).Select(g => g.Target).ToArray();
+            return Task.FromResult<object>(new { success = true, memes = Of(Pol.GoalKind.Meme), precepts = Of(Pol.GoalKind.Precept) });
         }
     }
 

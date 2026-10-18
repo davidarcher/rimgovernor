@@ -1,36 +1,45 @@
 using System.Globalization;
+using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
+using Fx = RimGovernor.Fixtures.Contracts;
 using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>goals/theme-reform</c> (#3504): a theme that follows the naked-cannibals preset, seeded in the save's goals blob over a
-/// fluid ideoligion with development points, makes the served brain apply a first reform that adds the Nudism meme or a
-/// nudity precept, and the precept goals report Pursuing with the reform Need as owner.
+/// <c>goals/theme-reform</c> (#3504): the naked-cannibals preset's meme and precept goals, read from the shipped preset book
+/// as they resolve over the installed game and seeded in the save's goals blob over a fluid ideoligion with development
+/// points, make the served brain apply a first reform that adds one of them, and the precept goals report Pursuing with
+/// the reform Need as owner.
 /// </summary>
 internal static class GoalsThemeReform
 {
-    private const string Meme = "Nudism";
-    private static readonly string[] Precepts = ["Nudity_Male_NoRules", "Nudity_Female_NoRules"];
+    private const string Preset = "naked-cannibals";
+    private const string PresetTool = "test/theme_preset_read";
 
-    private const int MemeGoal = 1;
-    private const int ThemeId = 4;
+    private static readonly FixtureOp<string, Fx.ThemePresetRead> ReadPreset = new(
+        PresetTool,
+        preset => new JsonObject([new KeyValuePair<string, JsonNode?>("preset", preset)]),
+        (label, reply) => reply is not null
+            ? Fx.FixtureJson.Deserialize<Fx.ThemePresetRead>(reply.ToJsonString()) is var read && read.Success
+                ? read
+                : throw new AcceptanceException($"{label}: {PresetTool} refused: {read.Reason}")
+            : throw new AcceptanceException($"{label}: {PresetTool} replied nothing"));
 
     internal static TypedCase Case() => new()
     {
         Name = "goals/theme-reform",
-        Scope = "Under the served brain, a naked-cannibals theme in the save's goals blob over a fluid ideoligion with development "
-            + "points makes the brain apply a first reform that adds the Nudism meme or a nudity precept (a native ideoligion read), "
-            + "while the precept goals' goal_review rows report Pursuing with the ideology reform Need as owner. A unit test "
-            + "cannot prove the planner against the game's real meme and precept data or the native reform.",
+        Scope = "Under the served brain, the naked-cannibals preset's meme and precept goals (read from the shipped preset book) as a theme in "
+            + "the save's goals blob over a fluid ideoligion with development points make the brain apply a first reform that adds one of the "
+            + "theme's memes or precepts (a native ideoligion read), while the precept goals' goal_review rows report Pursuing with the ideology "
+            + "reform Need as owner. A unit test cannot prove the planner against the game's real meme and precept data or the native reform.",
         Ticks = 6_000,
         Tier = CaseTier.OnDemand,
         Expansions = ["ludeon.rimworld.ideology"],
         NoKeep = true,
         QuietWorld = true,
-        Ops = [IdeologyReform.PrepareTool],
+        Ops = [IdeologyReform.PrepareTool, PresetTool],
         Serve = new ServeSpec { Families = ["goals", "ideoligion-reform"], Prefix = "goals-theme-reform" },
         Run = RunAsync,
     };
@@ -43,21 +52,32 @@ internal static class GoalsThemeReform
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
+        var preset = await s.FixtureAsync("read-preset", ReadPreset, Preset, cancellationToken).ConfigureAwait(false);
+        if (preset.Memes.Length == 0 || preset.Precepts.Length == 0)
+        {
+            throw new AcceptanceException($"the {Preset} preset resolves no meme or precept goal: [{string.Join(' ', preset.Memes)}] / [{string.Join(' ', preset.Precepts)}]");
+        }
+
+        s.Record("preset", $"{string.Join(' ', preset.Memes)} / {string.Join(' ', preset.Precepts)}");
+
         // The staged precondition: the lab's primary ideoligion is fluid with the points for a reform (the fixture does not apply one).
         var prepared = await s.FixtureAsync("prepare-ideoligion", IdeologyReform.Prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         var baseline = IdeologyReform.Decode("prepare-ideoligion", prepared.Expected);
-        if (baseline.Memes.Contains(Meme) || Precepts.Any(baseline.Precepts.Contains))
+        if (preset.Memes.Any(baseline.Memes.Contains))
         {
-            throw new AcceptanceException($"the ideoligion already holds the theme's meme or precept: {string.Join(' ', baseline.Memes)} / {string.Join(' ', baseline.Precepts)}");
+            throw new AcceptanceException($"the ideoligion already holds a theme meme: {string.Join(' ', baseline.Memes)}");
         }
 
+        // Goal ids: the memes first, then the precepts; the theme takes the next id.
+        var targets = preset.Memes.Select(m => (Kind: GoalKind.Meme, Target: m)).Concat(preset.Precepts.Select(p => (Kind: GoalKind.Precept, Target: p))).ToList();
+        var themeId = targets.Count + 1;
+        var preceptIds = Enumerable.Range(preset.Memes.Length + 1, preset.Precepts.Length).ToList();
         var world = GoalReviews.Empty(s);
-        GoalRecord Member(GoalKind kind, string target, int id) => new() { Id = id, Kind = kind, Target = target, Theme = ThemeId };
         await GoalReviews.SeedAsync(s, world with
         {
-            NextId = ThemeId + 1,
-            Goals = [Member(GoalKind.Meme, Meme, MemeGoal), Member(GoalKind.Precept, Precepts[0], 2), Member(GoalKind.Precept, Precepts[1], 3)],
-            Themes = [new ThemeRecord { Id = ThemeId, Name = "Naked cannibals who worship insects", Preset = "naked-cannibals", Members = [1, 2, 3] }],
+            NextId = themeId + 1,
+            Goals = [.. targets.Select((t, i) => new GoalRecord { Id = i + 1, Kind = t.Kind, Target = t.Target, Theme = themeId })],
+            Themes = [new ThemeRecord { Id = themeId, Name = "Naked cannibals who worship monkeys", Preset = Preset, Members = [.. Enumerable.Range(1, targets.Count)] }],
         }, cancellationToken).ConfigureAwait(false);
 
         Observations.IdeologySnapshot? reformed = null;
@@ -77,11 +97,11 @@ internal static class GoalsThemeReform
             .Concat(reformed.Precepts.Select(p => p.DefName ?? "").Except(baseline.Precepts))
             .ToList();
         s.Record("added", string.Join(' ', added));
-        var rows = Enumerable.Range(2, 2).SelectMany(id => GoalReviews.Of(s, id)).ToList();
+        var rows = preceptIds.SelectMany(id => GoalReviews.Of(s, id)).ToList();
         s.Record("precept_rows", string.Join(' ', rows.Select(r => $"{r.Goal}:{r.Verdict}:{r.Owner}")));
-        if (!added.Contains(Meme) && !added.Intersect(Precepts).Any())
+        if (!added.Intersect(targets.Select(t => t.Target)).Any())
         {
-            throw new AcceptanceException($"the first reform added neither {Meme} nor a nudity precept: [{string.Join(' ', added)}]");
+            throw new AcceptanceException($"the first reform added none of the theme's memes or precepts: [{string.Join(' ', added)}]");
         }
 
         if (!rows.Any(r => r.Verdict == "pursuing" && r.Owner == IdeologyFamily.Reform.Value))

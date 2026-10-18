@@ -16,6 +16,10 @@ each new one through `PreceptDefOf.AnimalVenerated.Worker.CanUse`, the precept's
 `AddPrecept(init: true)`); the design is canonical (sorted lists). Roles, rituals and building instances are initialized or
 preserved by the game's foundation. Creation carries the design in
 `NewColonySpec.ideoligion`, before starting colonists receive their ideoligion.
+World generation can hand the player an ideoligion a world faction already holds
+(`FactionIdeosTracker.ChooseOrGenerateIdeo` reuses one 20% of the time); creation
+then generates a fresh one as the player's primary and applies the design to it,
+so the design never rewrites another faction's ideoligion (#3591).
 `governor_ideoligion` requests selection; an explicit player design takes
 precedence. Missing required facts fail explicitly, without a random fallback.
 The existing definition-catalog request's `creation` mode reads static generated
