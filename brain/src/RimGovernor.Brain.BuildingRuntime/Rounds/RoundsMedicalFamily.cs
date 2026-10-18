@@ -110,7 +110,10 @@ public sealed class MedicalRounds
             var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), ct).ConfigureAwait(false);
             var f = reading.Projection.Facts;
             f = f with { MedicalCareRecovered = MedicalRules.ReviewMedicalCare(f.MedicalPawns, review.MedicalCare).Recovered() };
-            facts = MedicalFacts.From(f, _reviewer.Policy, review.Latches.MedicalReserve);
+            facts = MedicalFacts.From(f, _reviewer.Policy, review.Latches.MedicalReserve) with
+            {
+                HospitalShort = HospitalRules.BedsShort(f.GoalBuild.HospitalBeds, reading.Projection.Rooms, f.Sleeping, SurgeryRules.SurgeryBedShortPatients(f.MedicalPawns).Count > 0),
+            };
             medicalPawns = f.MedicalPawns;
             emergency = EmergencySnapshot.New(scope.World, expected.Tick, reading.Emergency);
             emergencyTick = expected.Tick;

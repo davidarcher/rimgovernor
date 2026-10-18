@@ -548,7 +548,7 @@ public sealed partial class Rounder
             // The player's goals become demand before any family reads: stock floors, a colonist head count and herd
             // targets ride the facts, the research they wait on joins what the census asks for (#3494).
             var goals = await p.Journal.LoadGoalsAsync(Player.PlayerWorld(state.Snapshot), ct).ConfigureAwait(false);
-            var goalDemand = GoalRules.DemandOf(GoalsFacts.From(reading.Projection.Facts, reading.Projection.TechTier, reading.Projection.WorkPawns, goals.Goals, goals.Themes, new Dictionary<NeedId, OwnerProgress>(), GoalsRounds.StuffResearch(reading.Projection.Definitions)));
+            var goalDemand = GoalRules.DemandOf(GoalsFacts.From(reading.Projection.Facts, reading.Projection.TechTier, reading.Projection.WorkPawns, goals.Goals, goals.Themes, new Dictionary<NeedId, OwnerProgress>(), GoalsRounds.StuffResearch(reading.Projection.Definitions)) with { Rooms = reading.Projection.Rooms });
             GoalDemands.Set(state.Snapshot, goalDemand);
             _goalResearch = goalDemand.Research;
             reading = reading.WithFacts(rf => GoalRules.Apply(rf, goalDemand));

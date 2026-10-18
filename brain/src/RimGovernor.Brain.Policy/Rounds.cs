@@ -519,6 +519,9 @@ public sealed record RoundsFacts
     /// <summary>The quests the player's goals name (#3499); the quest step considers them before any other offer.</summary>
     public IReadOnlyList<QuestId> NamedQuests { get; init; } = [];
 
+    /// <summary>The rooms and hospital beds the player's goals ask the planned-room, hospital and station channels for (#3496).</summary>
+    public GoalBuildDemand GoalBuild { get; init; } = GoalBuildDemand.None;
+
     public Fact<long> Hostiles { get; init; }
 
     public Fact<long> CriticalPatients { get; init; }

@@ -193,7 +193,6 @@ Policy/FoodPolicy.cs|FoodPolicyRules.TravelReserve|"Pemmican"
 Policy/GearClimate.cs|GearClimateRules.GearTwelfthTicks|300000
 Policy/HazardThresholds.cs|HazardThresholdsRules.InjurySeverityFloorTicks|5000
 Policy/HerdPlan.cs|HerdPlanRules.HerdProductJob|"Chemfuel"
-Policy/Hospital.cs|HospitalRules.SelectHospitalBed|"SleepingSpot"
 Policy/HuntPrerequisite.cs|HuntPrerequisiteRules.HunterWeaponCraftTicks|6000
 Policy/InteriorHelpers.cs|InteriorHelpersRules.StandingLampDef|"StandingLamp"
 Policy/InteriorRegionRoles.cs|InteriorRegionRolesRules.WorkshopShelfDef|"ShelfSmall"

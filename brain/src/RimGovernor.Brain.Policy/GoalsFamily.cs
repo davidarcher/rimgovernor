@@ -55,6 +55,24 @@ public sealed record GoalDemand
 
     /// <summary>The garments the goals want worn (#3496): the outfit policy requires each for its first <see cref="WornGoal.Count"/> eligible colonists and the clothing runway prices the missing ones.</summary>
     public IReadOnlyList<WornGoal> Worn { get; init; } = [];
+
+    /// <summary>What the goals ask the build channels for (#3496): the rooms and the hospital bed floor.</summary>
+    public GoalBuildDemand Build { get; init; } = GoalBuildDemand.None;
+}
+
+/// <summary>
+/// What the goals ask the planned-room, hospital and station channels to build (#3496). It rides
+/// <see cref="RoundsFacts.GoalBuild"/>, so a room's goal is one more demand to the planner that owns the room.
+/// </summary>
+public sealed record GoalBuildDemand
+{
+    public static readonly GoalBuildDemand None = new();
+
+    /// <summary>The roles whose child room a goal names: the nursery, playroom, classroom and deathrest chamber (<see cref="ChildRoomsRules.GoalRoomNeeds"/>).</summary>
+    public EquatableArray<RoomRole> Rooms { get; init; }
+
+    /// <summary>The hosted medical beds a Hospital goal asks for; 0 for none. It is the minimum bed count of <see cref="HospitalRules.SelectHospitalBed"/> and the station graph's injured floor.</summary>
+    public int HospitalBeds { get; init; }
 }
 
 /// <summary>A worn-count goal's demand: <see cref="Count"/> colonists wear <see cref="Garment"/>, of <see cref="Stuff"/> when it names one.</summary>
@@ -89,6 +107,9 @@ public sealed record GoalsFacts
 
     /// <summary>The goal the reform in flight serves: the pending record's, else the chosen reform's.</summary>
     public int? ReformGoal { get; init; }
+
+    /// <summary>The room census a room goal is judged by.</summary>
+    public Fact<RoomObservation> Rooms { get; init; }
 
     /// <summary>The review's facts: the prisoner, custody and quest censuses the named-prisoner and named-quest goals are judged by.</summary>
     public RoundsFacts Rounds { get; init; } = new();
@@ -228,6 +249,8 @@ public static class GoalRules
                 return NamedPrisoner(goal, f);
             case GoalKind.NamedQuest:
                 return NamedQuest(goal, f);
+            case GoalKind.RoomRole:
+                return Room(goal, f);
             default:
                 return new GoalStatus(goal, Satisfaction.Unknown, GoalState.NoMethod, NoPursuit, default, default);
         }
@@ -314,6 +337,67 @@ public static class GoalRules
         return recruitable ? Pursued(goal, f, owner, one) : new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "not_recruitable", default, one);
     }
 
+    /// <summary>
+    /// A room of a role (#3496). Met once a standing room has the role (a Hospital goal: once the hosted medical beds
+    /// reach the goal's bed count, 1 when it names none). The child rooms are pursued by <c>shelter/sleeping</c>, which
+    /// builds the room the goal adds to its planned-room needs; the hospital by <c>medical/care</c>. A role no planner
+    /// stages has no method.
+    /// </summary>
+    private static GoalStatus Room(GoalRecord goal, GoalsFacts f)
+    {
+        if (!Wire.TryParse<RoomRole>(goal.Target, out var role) || role == RoomRole.Unset)
+        {
+            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.NoMethod, "unknown_role", default, default);
+        }
+        var staged = StagedRole(role);
+        var owner = role == RoomRole.Hospital ? MedicalRules.MedicalCareNeed : staged ? ShelterFamily.Sleeping : default;
+        if (!f.Rooms.TryGetValue(out var rooms))
+        {
+            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+        }
+        double deficit;
+        if (role == RoomRole.Hospital)
+        {
+            var (hosted, known) = HospitalRules.HostedMedicalBeds(rooms, f.Rounds.Sleeping, false);
+            if (!known)
+            {
+                return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+            }
+            deficit = Math.Max(0, HospitalBedsOf(goal) - hosted);
+        }
+        else
+        {
+            deficit = rooms.Rooms.Any(r => r.Role.TryGetValue(out var have) && have == role) ? 0 : 1;
+        }
+        if (deficit == 0)
+        {
+            return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, Fact.Known(0.0));
+        }
+        var unmet = Fact.Known(deficit);
+        if (!staged)
+        {
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NoPursuit, default, unmet);
+        }
+        if (role == RoomRole.WorshipRoom)
+        {
+            if (f.IdeologyInstalled.TryGetValue(out var installed) && !installed)
+            {
+                return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "missing_dlc", default, unmet);
+            }
+            if (f.Ideology.TryGetValue(out var ideo) && ideo.RequiredBuildings().Count == 0)
+            {
+                return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "no_required_buildings", default, unmet);
+            }
+        }
+        return Pursued(goal, f, owner, unmet);
+    }
+
+    /// <summary>Whether a planner stages a room of the role: the hospital and the child rooms.</summary>
+    private static bool StagedRole(RoomRole role) => role == RoomRole.Hospital || ChildRoomsRules.GoalRoles.Contains(role) || role == RoomRole.WorshipRoom;
+
+    /// <summary>The hosted medical beds a Hospital goal asks for: its count, 1 when it names none.</summary>
+    private static int HospitalBedsOf(GoalRecord goal) => Math.Max(1, goal.Count);
+
     /// <summary>A named quest: met when it completes, pursued by the quest step (the offers step for a joiner) while an admission check passes, blocked on the check that fails, no method once it expires or fails.</summary>
     private static GoalStatus NamedQuest(GoalRecord goal, GoalsFacts f)
     {
@@ -365,6 +449,8 @@ public static class GoalRules
         var colonists = 0;
         var prisoners = new List<PawnId>();
         var quests = new List<QuestId>();
+        var rooms = new SortedSet<RoomRole>();
+        var hospitalBeds = 0;
         var worn = new List<WornGoal>();
         foreach (var goal in f.Goals)
         {
@@ -412,10 +498,21 @@ public static class GoalRules
                 case GoalKind.Colonists:
                     colonists = Math.Max(colonists, goal.Count);
                     break;
+                case GoalKind.RoomRole when Wire.TryParse<RoomRole>(goal.Target, out var room):
+                    // A room goal keeps asking once the room stands: dropping the need would end the room's role in the plan.
+                    if (room == RoomRole.Hospital)
+                    {
+                        hospitalBeds = Math.Max(hospitalBeds, HospitalBedsOf(goal));
+                    }
+                    else if (ChildRoomsRules.GoalRoles.Contains(room))
+                    {
+                        rooms.Add(room);
+                    }
+                    break;
             }
         }
         var believers = ConversionRules.Shortfall(f.Goals, f.Ideology, f.Pawns).TryGetValue(out var lacking) && lacking > 0;
-        return new GoalDemand { Research = [.. research], Stock = stock, Colonists = colonists, Animals = animals, Prisoners = prisoners, Quests = quests, Believers = believers, Worn = worn };
+        return new GoalDemand { Research = [.. research], Stock = stock, Colonists = colonists, Animals = animals, Prisoners = prisoners, Quests = quests, Believers = believers, Worn = worn, Build = new GoalBuildDemand { Rooms = EquatableArray.From(rooms), HospitalBeds = hospitalBeds } };
     }
 
     /// <summary>The review facts with the goals' stock floors in them, and everything <see cref="Stamp"/> carries.</summary>
@@ -424,7 +521,7 @@ public static class GoalRules
     /// <summary>The facts with the goals' colonist head count, herd targets, named quests, named prisoners and believer demand: what every read of the world carries.</summary>
     public static RoundsFacts Stamp(RoundsFacts f, GoalDemand d)
     {
-        f = StampWorn(f with { ColonistGoal = d.Colonists, AnimalGoals = d.Animals, NamedQuests = d.Quests }, d.Worn);
+        f = StampWorn(f with { ColonistGoal = d.Colonists, AnimalGoals = d.Animals, NamedQuests = d.Quests, GoalBuild = d.Build }, d.Worn);
         return f.PrisonerColony.TryGetValue(out var colony) ? f with { PrisonerColony = Fact.Known(colony with { NamedPrisoners = d.Prisoners, BelieversWanted = d.Believers }) } : f;
     }
 

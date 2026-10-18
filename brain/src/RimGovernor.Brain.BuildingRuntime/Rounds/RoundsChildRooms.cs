@@ -80,6 +80,8 @@ partial class RoundsSleepingUpkeepPlanner
                 needs.Add(need);
             }
         }
+        // The rooms the player's goals name (#3496) join the rooms the pawns owe: layout sizes and places them, the sleeping step builds them.
+        needs.AddRange(ChildRoomsRules.GoalRoomNeeds(facts.Facts.GoalBuild.Rooms, needs));
         var (cell, verdict) = ContainmentCellNeed(facts);
         if (verdict.Owed && cell is not null)
         {

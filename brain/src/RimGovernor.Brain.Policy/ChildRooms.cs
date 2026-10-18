@@ -256,59 +256,97 @@ public static class ChildRoomsRules
         var output = new List<ChildRoomNeed>();
         if (babies > 0)
         {
-            output.Add(
-                new ChildRoomNeed
-                {
-                    Role = RoomRole.Nursery,
-                    Module = PlannedRole.Nursery,
-                    Furniture = EquatableArray.From([new ChildFurniture { Role = FurnitureRole.BabyBed, Count = Math.Max(babies, MinNurseryBeds) }]),
-                }
-            );
+            output.Add(NurseryNeed(babies));
         }
 
         if (toddlers > 0)
         {
-            output.Add(
-                new ChildRoomNeed
-                {
-                    Role = RoomRole.Playroom,
-                    Module = PlannedRole.Playroom,
-                    Furniture = EquatableArray.From(
-                        [new ChildFurniture { Role = FurnitureRole.Toy, Count = 1 }, new ChildFurniture { Role = FurnitureRole.Decoration, Count = 1 }]
-                    ),
-                }
-            );
+            output.Add(PlayroomNeed());
         }
 
         if (children > 0)
         {
-            output.Add(
-                new ChildRoomNeed
-                {
-                    Role = RoomRole.Classroom,
-                    Module = PlannedRole.Classroom,
-                    Furniture = EquatableArray.From(
-                        [new ChildFurniture { Role = FurnitureRole.Board, Count = 1 }, new ChildFurniture { Role = FurnitureRole.Desk, Count = children }]
-                    ),
-                }
-            );
+            output.Add(ClassroomNeed(children));
         }
 
         if (caskets > 0)
         {
-            output.Add(
-                new ChildRoomNeed
-                {
-                    Role = RoomRole.DeathrestChamber,
-                    Module = PlannedRole.DeathrestChamber,
-                    Furniture = EquatableArray.From(
-                        [
-                            new ChildFurniture { Role = FurnitureRole.DeathrestCasket, Count = caskets },
-                            new ChildFurniture { Role = FurnitureRole.DeathrestAccelerator, Count = accelerators, Optional = true },
-                        ]
-                    ),
-                }
-            );
+            output.Add(DeathrestNeed(caskets, accelerators));
+        }
+
+        return output;
+    }
+
+    private static ChildRoomNeed NurseryNeed(int babies) =>
+        new()
+        {
+            Role = RoomRole.Nursery,
+            Module = PlannedRole.Nursery,
+            Furniture = EquatableArray.From([new ChildFurniture { Role = FurnitureRole.BabyBed, Count = Math.Max(babies, MinNurseryBeds) }]),
+        };
+
+    private static ChildRoomNeed PlayroomNeed() =>
+        new()
+        {
+            Role = RoomRole.Playroom,
+            Module = PlannedRole.Playroom,
+            Furniture = EquatableArray.From([new ChildFurniture { Role = FurnitureRole.Toy, Count = 1 }, new ChildFurniture { Role = FurnitureRole.Decoration, Count = 1 }]),
+        };
+
+    private static ChildRoomNeed ClassroomNeed(int children) =>
+        new()
+        {
+            Role = RoomRole.Classroom,
+            Module = PlannedRole.Classroom,
+            Furniture = EquatableArray.From([new ChildFurniture { Role = FurnitureRole.Board, Count = 1 }, new ChildFurniture { Role = FurnitureRole.Desk, Count = children }]),
+        };
+
+    private static ChildRoomNeed DeathrestNeed(int caskets, int accelerators) =>
+        new()
+        {
+            Role = RoomRole.DeathrestChamber,
+            Module = PlannedRole.DeathrestChamber,
+            Furniture = EquatableArray.From(
+                [
+                    new ChildFurniture { Role = FurnitureRole.DeathrestCasket, Count = caskets },
+                    new ChildFurniture { Role = FurnitureRole.DeathrestAccelerator, Count = accelerators, Optional = true },
+                ]
+            ),
+        };
+
+    /// <summary>The child rooms a goal can name (#3496); the worship room rides <see cref="WorshipRules.WorshipRoomNeed"/>, which the ideoligion's required buildings size.</summary>
+    internal static readonly IReadOnlyList<RoomRole> GoalRoles = [RoomRole.Nursery, RoomRole.Playroom, RoomRole.Classroom, RoomRole.DeathrestChamber];
+
+    /// <summary>
+    /// The rooms the goals name that no pawn owes a room for: the smallest room of each role (the game's two baby beds,
+    /// a toy and a decoration, a blackboard and one desk, one casket). A role in <paramref name="have"/> keeps the need
+    /// the pawns size, which is never smaller.
+    /// </summary>
+    public static List<ChildRoomNeed> GoalRoomNeeds(IEnumerable<RoomRole> roles, IReadOnlyCollection<ChildRoomNeed> have)
+    {
+        var output = new List<ChildRoomNeed>();
+        foreach (var role in roles.Distinct())
+        {
+            if (have.Any(n => n.Role == role))
+            {
+                continue;
+            }
+
+            switch (role)
+            {
+                case RoomRole.Nursery:
+                    output.Add(NurseryNeed(MinNurseryBeds));
+                    break;
+                case RoomRole.Playroom:
+                    output.Add(PlayroomNeed());
+                    break;
+                case RoomRole.Classroom:
+                    output.Add(ClassroomNeed(1));
+                    break;
+                case RoomRole.DeathrestChamber:
+                    output.Add(DeathrestNeed(1, 0));
+                    break;
+            }
         }
 
         return output;

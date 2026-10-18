@@ -60,6 +60,7 @@ partial class RoundsHospitalPlanner
             IndoorCapacity = f.IndoorCapacity,
             Doctors = doctors,
             Surgical = SurgeryRules.SurgeryBedShortPatients(f.MedicalPawns),
+            MinBeds = f.GoalBuild.HospitalBeds,
         };
     }
 }

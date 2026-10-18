@@ -57,6 +57,9 @@ public sealed record HospitalRequest
 
     /// <summary>Patients whose operation waits on a better bed or room (SurgeryBedShortPatients): each needs a hosted medical bed, and while any waits a sleeping spot neither counts nor is staged.</summary>
     public IReadOnlyList<PawnId> Surgical { get; init; } = [];
+
+    /// <summary>The hosted medical beds a Hospital goal asks for whatever the patients (#3496); 0 for none.</summary>
+    public int MinBeds { get; init; }
 }
 
 public sealed record HospitalChoice
@@ -113,6 +116,61 @@ public static class HospitalRules
         return (ill, true);
     }
 
+    /// <summary>The beds standing in a room that can host the Hospital function; not ok while a room's role is unread.</summary>
+    private static (HashSet<string> Beds, bool Ok) HostedBeds(RoomObservation rooms)
+    {
+        var facility = RoomsRules.Facility(RoomRole.Hospital);
+        var hosted = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var room in rooms.Rooms)
+        {
+            if (!room.Role.TryGetValue(out var role))
+            {
+                return ([], false);
+            }
+            if (facility.Hosts(role))
+            {
+                foreach (var bed in room.Beds)
+                {
+                    hosted.Add(bed);
+                }
+            }
+        }
+        return (hosted, true);
+    }
+
+    /// <summary>Whether a bed counts towards the ward: hosted, humanlike and no prisoner's, and not a sleeping spot while an operation waits on a better bed.</summary>
+    private static bool Eligible(SleepingBed bed, HashSet<string> hosted, bool surgical) =>
+        hosted.Contains(bed.Id) && !(surgical && bed.Definition.Value == SleepingRules.SleepingSpotDefinition.ToString()) && bed.Humanlike && !bed.Prisoners;
+
+    /// <summary>The hosted medical beds standing; not ok while the room or sleeping census is unread.</summary>
+    public static (int Beds, bool Ok) HostedMedicalBeds(RoomObservation rooms, Fact<SleepingObservation> sleeping, bool surgical)
+    {
+        var (hosted, ok) = HostedBeds(rooms);
+        if (!ok || !sleeping.TryGetValue(out var census))
+        {
+            return (0, false);
+        }
+        return (census.Beds.Count(b => b.Medical && Eligible(b, hosted, surgical)), true);
+    }
+
+    /// <summary>
+    /// Whether the hosted medical beds fall below a Hospital goal's bed floor, the unmet half of the care Need when no
+    /// patient is sick (#3496); a known false without a floor, unknown while the censuses are unread.
+    /// </summary>
+    public static Fact<bool> BedsShort(int floor, Fact<RoomObservation> rooms, Fact<SleepingObservation> sleeping, bool surgical)
+    {
+        if (floor <= 0)
+        {
+            return Fact.Known(false);
+        }
+        if (!rooms.TryGetValue(out var census))
+        {
+            return Fact.Unknown<bool>();
+        }
+        var (beds, ok) = HostedMedicalBeds(census, sleeping, surgical);
+        return ok ? Fact.Known(beds < floor) : Fact.Unknown<bool>();
+    }
+
     /// <summary>
     /// Decides whether the colony's patients already have hosted medical beds, which existing bed to convert, or
     /// which definition to stage. Conversion prefers an unowned bed, then a bed a patient owns (the game drops the
@@ -127,7 +185,7 @@ public static class HospitalRules
             return new HospitalChoice { Method = HospitalMethod.Unknown };
         }
         var surgical = r.Surgical.Count > 0;
-        var choice = new HospitalChoice { Needed = ill.Count };
+        var choice = new HospitalChoice { Needed = Math.Max(ill.Count, r.MinBeds) };
         if (choice.Needed == 0)
         {
             return choice with { Method = HospitalMethod.NoDemand };
@@ -136,38 +194,23 @@ public static class HospitalRules
         {
             return choice with { Method = HospitalMethod.Unavailable };
         }
-        var facility = RoomsRules.Facility(RoomRole.Hospital);
         var sk = r.Sleeping.TryGetValue(out var sleeping);
         var rk = r.Rooms.TryGetValue(out var rooms);
         if (!sk || !rk)
         {
             return choice with { Method = HospitalMethod.Unknown };
         }
-        var hosted = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var room in rooms!.Rooms)
+        var (hosted, hostedKnown) = HostedBeds(rooms!);
+        if (!hostedKnown)
         {
-            if (!room.Role.TryGetValue(out var role))
-            {
-                return choice with { Method = HospitalMethod.Unknown };
-            }
-            if (facility.Hosts(role))
-            {
-                foreach (var bed in room.Beds)
-                {
-                    hosted.Add(bed);
-                }
-            }
+            return choice with { Method = HospitalMethod.Unknown };
         }
         var medical = 0;
         var spare = new List<SleepingBed>();
         var owned = new List<SleepingBed>();
         foreach (var bed in sleeping!.Beds)
         {
-            if (!hosted.Contains(bed.Id) || (surgical && bed.Definition.Value == "SleepingSpot"))
-            {
-                continue;
-            }
-            if (!bed.Humanlike || bed.Prisoners)
+            if (!Eligible(bed, hosted, surgical))
             {
                 continue;
             }

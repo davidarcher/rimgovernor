@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public sealed class GoalsRounds
 {
-    private static readonly NeedId[] Owners = [EconomyFamily.Research, EconomyFamily.Resource, AnimalsFamily.Herd, JoinersFamily.Offers, JoinersFamily.Quests, PrisonersFamily.Recruit];
+    private static readonly NeedId[] Owners = [EconomyFamily.Research, EconomyFamily.Resource, AnimalsFamily.Herd, JoinersFamily.Offers, JoinersFamily.Quests, PrisonersFamily.Recruit, ShelterFamily.Sleeping, MedicalRules.MedicalCareNeed];
 
     private readonly Rounder _reviewer;
     private readonly GoalStatusBoard _board;
@@ -51,7 +51,7 @@ public sealed class GoalsRounds
                 owners[owner] = new OwnerProgress(row.Method != "", row.Blocked.IsEmpty || row.Blocked.Waiting() ? "" : row.Blocked.Text);
             }
         }
-        var facts = GoalsFacts.From(reading.Projection.Facts, reading.Projection.TechTier, reading.Projection.WorkPawns, goals.Goals, goals.Themes, owners, StuffResearch(reading.Projection.Definitions));
+        var facts = GoalsFacts.From(reading.Projection.Facts, reading.Projection.TechTier, reading.Projection.WorkPawns, goals.Goals, goals.Themes, owners, StuffResearch(reading.Projection.Definitions)) with { Rooms = reading.Projection.Rooms };
         var targets = GoalRules.IdeoTargets(goals.Goals);
         if (targets.Count > 0)
         {

@@ -38,6 +38,9 @@ public sealed record StationFacts
 
     public IReadOnlyList<PawnId> Surgical { get; init; } = [];
 
+    /// <summary>The goals' hospital beds and nursery: floors under the injured and baby counts the graph sizes beds for (#3496).</summary>
+    public GoalBuildDemand GoalBuild { get; init; } = GoalBuildDemand.None;
+
     /// <summary>The held prisoners.</summary>
     public Fact<int> Prisoners { get; init; }
 
@@ -403,6 +406,10 @@ public static partial class LayoutStationPlanRules
         }
     }
 
+    /// <summary>The cribs a Nursery goal holds in the graph (#3496): the game's two, only while the catalog has a crib to place (without Biotech the goal asks for nothing).</summary>
+    private static int NurseryFloor(StationFacts f) =>
+        f.GoalBuild.Rooms.Items.Contains(RoomRole.Nursery) && f.Catalog.Contributors(RoomRole.Nursery).Count > 0 ? ChildRoomsRules.MinNurseryBeds : 0;
+
     /// <summary>The people the graph sizes beds for. Babies sleep in cribs, so they leave the colonists; the injured are colonists who need a medical bed now (IllPatients).</summary>
     public static StationPopulation StationPopulationOf(StationFacts f)
     {
@@ -424,7 +431,7 @@ public static partial class LayoutStationPlanRules
             throw UnknownStationFact("pawn stages");
         }
         var babies = BabyCount(pawns);
-        return new StationPopulation { Colonists = Math.Max((int)colonists - babies, 0), Injured = ill.Count, Prisoners = prisoners, Babies = babies, Herds = f.Herds };
+        return new StationPopulation { Colonists = Math.Max((int)colonists - babies, 0), Injured = Math.Max(ill.Count, f.GoalBuild.HospitalBeds), Prisoners = prisoners, Babies = Math.Max(babies, NurseryFloor(f)), Herds = f.Herds };
     }
 
     /// <summary>The pawns still in a crib: the newborn and baby stages ChildRoomNeeds gives a nursery bed. A pawn whose stage is unknown owes nothing, as there.</summary>

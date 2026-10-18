@@ -21,6 +21,7 @@ in the kind's unit (projects, tiers, items, colonists or animals short; 1 for an
 | `Animals` | the colony holds at least `Count` of the race | the herd plan raises the race's band to `Count` and does not retire it | `animals/herd` |
 | `NamedPrisoner` | the pawn (`Target`) is an admitted colonist; `NoMethod` `not a prisoner` when it is neither held nor a colonist, `not_recruitable` when held but unrecruitable | the prisoner is recruited whatever its worth (`PrisonerColony.NamedPrisoners`; Convert first when its ideoligion differs, as for any recruit); custody and food rules stay, and it is not an organ-harvest candidate | `prisoners/recruit` |
 | `NamedQuest` | the quest (`Target`) is `EndedSuccess`; `NoMethod` `expired` once the offer lapses, `ended` after another end state, `unknown_quest` when the census does not list it | the quest step considers it before every other offer (`RoundsFacts.NamedQuests`) and accepts it when its admission checks pass; `Blocked` with the failing check (`home_capacity`, `no_spare_pawn`, `capacity_unknown`, ...) otherwise; native `CanAcceptQuest` stays the final check | `joiners/quests` (`joiners/offers` for a joiner quest) |
+| `RoomRole` | a standing room has the role (`Target` the `RoomRole` wire name); a `Hospital` goal: the hosted medical beds reach `Count` (1 when it names none). `NoMethod` `no_pursuit` for a role no planner stages, `unknown_role`, `missing_dlc` or `no_required_buildings` for the worship room | see [Room goals](#room-goals) | `shelter/sleeping` (child rooms), `medical/care` (hospital) |
 | `Precept`, `Meme` | the ideoligion holds it | none: `NoMethod` `not fluid` on a non-fluid ideoligion, `missing_dlc` without Ideology, otherwise `no_pursuit` | none |
 | every other kind | Unknown | none: `NoMethod` `no_pursuit` | none |
 
@@ -43,6 +44,26 @@ level and leaves a level-only goal Unknown.
 no method and an actionable or held block, or the goal's facts are unread: `facts_unread`) or `NoMethod`. The
 family's Method for an unmet goal is only `NeedMethod.Held`, with the subject `pursuing:<owner need>`,
 `blocked:<reason>` or `no_method:<reason>`. The owner's state is read from its rounds progress row.
+
+## Room goals
+
+A `RoomRole` goal (#3496) adds demand to the planner that owns the room; it places and builds nothing itself.
+`GoalRules.DemandOf` collects it into `GoalDemand.Build` (`GoalBuildDemand`), which `GoalRules.Stamp` carries on
+`RoundsFacts.GoalBuild` into every read of the world, so room demand lags the goal by one review. A room goal keeps
+asking after the room stands: dropping the need would end the role in the plan and retire the room.
+
+- **Nursery, Playroom, Classroom, DeathrestChamber.** `ChildRoomsRules.GoalRoomNeeds` adds the smallest `ChildRoomNeed`
+  of the role (two baby beds; a toy and a decoration; a blackboard and a desk; a casket) to `ChildRoomNeeds`, unless the
+  pawns already owe the role, whose larger need stands. Layout sizes and places the room (the playroom, classroom and
+  deathrest chamber are `ChildNodeRoles` room nodes; the nursery is the crib station group, so the station population
+  floors its babies at the two beds while the catalog has a crib) and `shelter/sleeping` reconciles it.
+- **Worship.** The ideoligion's required buildings already size `WorshipRoomNeed`; the goal adds no need of its own and
+  reports `no_required_buildings` when the ideoligion requires none.
+- **Hospital.** `GoalBuildDemand.HospitalBeds` is the goal's `Count` (at least 1, the largest of several goals). It is the
+  minimum bed count of `HospitalRules.SelectHospitalBed` (`HospitalRequest.MinBeds`: demand is `max(patients, floor)`)
+  and the station graph's injured floor. The hospital step runs only while `medical/care` is unmet, so
+  `MedicalFacts.HospitalShort` (hosted medical beds below the floor, read in `RoundsMedicalFamily.ReadAsync`) keeps the
+  Need unmet while no patient is sick.
 
 ## Telemetry
 

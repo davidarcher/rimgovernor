@@ -344,6 +344,7 @@ internal static class StationFactsBuilder
             Colonists = projection.Facts.Colonists,
             Patients = projection.Facts.MedicalPawns,
             Surgical = SurgeryRules.SurgeryBedShortPatients(projection.Facts.MedicalPawns),
+            GoalBuild = projection.Facts.GoalBuild,
             Prisoners = Unknown<int>(),
             Herds = projection.Facts.PenHerds(),
             Races = projection.Facts.AnimalUpkeep.AnimalRaces,

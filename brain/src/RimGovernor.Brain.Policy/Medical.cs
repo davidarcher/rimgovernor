@@ -42,6 +42,13 @@ public sealed record MedicalFacts
     /// <summary>The colony's care census: no sick colonist resting or in bad condition. Unknown while a tracked pawn is unread.</summary>
     public Fact<bool> CareRecovered { get; init; }
 
+    /// <summary>
+    /// The hosted medical beds fall below a Hospital goal's bed floor (#3496). The hospital step runs only while the care
+    /// Need is unmet, and with no patient sick the census alone would leave it met, so a short ward keeps it unmet.
+    /// Unknown without a goal read.
+    /// </summary>
+    public Fact<bool> HospitalShort { get; init; }
+
     /// <summary>The medicine stock reaches the target bar (no hysteresis); unknown while the stock or the catalog is unread.</summary>
     public Fact<bool> ReservesCovered { get; init; }
 
@@ -184,6 +191,10 @@ public static partial class MedicalRules
     public static Need MedicalCareNeedOf(MedicalFacts f)
     {
         var satisfaction = f.CareRecovered.TryGetValue(out var recovered) ? recovered ? Satisfaction.Met : Satisfaction.Unmet : Satisfaction.Unknown;
+        if (satisfaction != Satisfaction.Unmet && f.HospitalShort.TryGetValue(out var wardShort) && wardShort)
+        {
+            satisfaction = Satisfaction.Unmet;
+        }
         return new Need
         {
             Id = MedicalCareNeed,
