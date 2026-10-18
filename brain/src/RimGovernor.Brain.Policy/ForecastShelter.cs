@@ -7,7 +7,11 @@ public readonly record struct ForecastShelterId(ForecastShelterSource Source, st
 {
     public override string ToString() => (Source == ForecastShelterSource.Observed ? "observed/" : "planned/") + Value;
 }
-internal sealed record ForecastShelterGeometry(ForecastShelterId Id, EquatableArray<Cell> Interior, Rectangle Bounds, Cell Door, bool Outdoor);
+internal sealed record ForecastShelterGeometry(ForecastShelterId Id, EquatableArray<Cell> Interior, Rectangle Bounds, Cell Door, bool Outdoor)
+{
+    /// <summary>The planned room an observed room realizes (same interior), or 0.</summary>
+    public int PlannedRoom { get; init; }
+}
 public sealed record ForecastShelterPlan(ForecastShelterId Room, EquatableArray<Cell> Interior,
     EquatableArray<string> Prerequisites, Fact<double> InitialTemperature,
     Fact<double> Outdoors, Fact<double> ExchangePerTick, Fact<double> HeatPerTick,
@@ -19,9 +23,13 @@ public sealed record ForecastShelterPlan(ForecastShelterId Room, EquatableArray<
     public Fact<double> SurplusWatts { get; init; }
     /// <summary>Each physical prerequisite needs one selected realization; distinct sites remain additive.</summary>
     public EquatableArray<EquatableArray<string>> AlternativePrerequisites { get; init; }
-    /// <summary>The per-cell native roof work of a planned room generated as planned sites, each cell's realizations (a
-    /// subset of AlternativePrerequisites). Together the cells are the room's one roof development unit (#3334); placed
-    /// construction, like the cells of a room with no generated planned site, is not requested development.</summary>
+    /// <summary>The planned room whose roof this shelter's roof cells complete: a planned room generated as planned sites, or
+    /// the planned room a standing observed room's interior matches; 0 for none.</summary>
+    public int PlannedRoom { get; init; }
+    /// <summary>The per-cell roof work of the planned room (<see cref="PlannedRoom"/>), each cell's realizations (a subset of
+    /// AlternativePrerequisites). Together the cells are the room's one roof development unit (#3334): a planned room's
+    /// designated roof is finished even where the room already holds its heat, since thermal relief misses the open cells'
+    /// heat loss and margin. A planned room still raised by placed construction is not requested development.</summary>
     public EquatableArray<EquatableArray<string>> RoofCells { get; init; }
 }
 public sealed record ForecastShelterOutcome(ForecastShelterId Room, Fact<double> CompleteAt,

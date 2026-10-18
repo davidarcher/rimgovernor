@@ -33,8 +33,15 @@ internal static class CoupledShelterCandidates
         var unique = new List<ForecastShelterGeometry>();
         foreach (var room in candidates)
         {
-            var same = unique.FirstOrDefault(r => r.Interior.Count == room.Interior.Count && r.Interior.All(room.Interior.Contains));
-            if (same is not null) continue;
+            var same = unique.FindIndex(r => r.Interior.Count == room.Interior.Count && r.Interior.All(room.Interior.Contains));
+            if (same >= 0)
+            {
+                // An observed room that realizes a planned room keeps the planned room's roof development (#3468 follow-up).
+                if (room.Id.Source == ForecastShelterSource.Planned && unique[same] is { Id.Source: ForecastShelterSource.Observed, PlannedRoom: 0 } match
+                    && int.TryParse(room.Id.Value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var id))
+                    unique[same] = match with { PlannedRoom = id };
+                continue;
+            }
             if (unique.Any(r => r.Interior.Any(room.Interior.Contains)))
             { findings.Add("overlapping_shelter_geometry:" + room.Id); continue; }
             unique.Add(room);
@@ -99,6 +106,9 @@ internal static class CoupledShelterCandidates
                 System.Globalization.CultureInfo.InvariantCulture, out var number) ? number : 0;
             var roomSites = plannedRoom == 0 ? [] : planned.Where(s => s.Room == plannedRoom && s.Zone.Length == 0).ToArray();
             var made = generated.Where(g => plannedRoom != 0 && g.Room == plannedRoom).ToDictionary(g => g.Site, g => g.Finish, StringComparer.Ordinal);
+            // The planned room whose roof unit the cells are: one generated as planned sites, or a standing observed room that
+            // realizes a planned room. A planned room still raised by placed construction is not requested development (#3334).
+            var developmentRoom = made.Count != 0 ? plannedRoom : room.PlannedRoom;
             var roomLocation = "planned/room" + plannedRoom;
             // One demand per planned kind (wall, door, roof), met by the finish of whichever generated site of it the
             // selection builds: the ring stuffs exclude each other, so any one realizes the shell.
@@ -184,7 +194,8 @@ internal static class CoupledShelterCandidates
                     + ring.Where(observed.ContainsKey).Sum(c => observed[c].DoorExchangePerTick * .5)) / interior.Count) : default;
             plans.Add(new(room.Id, interior, [], temperature, read?.Outdoors ?? default, exchange, source?.HeatPerTick ?? default,
                 source?.TargetTemperature ?? default, source?.SupplyTicks ?? default, EquatableArray.From(notes.Distinct()))
-                { AlternativePrerequisites = EquatableArray.From(groups), RoofCells = made.Count == 0 ? [] : EquatableArray.From(roofCells), PowerNetwork = source?.PowerNetwork ?? "", Source = source?.Target ?? "",
+                { AlternativePrerequisites = EquatableArray.From(groups), PlannedRoom = developmentRoom,
+                    RoofCells = developmentRoom == 0 ? [] : EquatableArray.From(roofCells), PowerNetwork = source?.PowerNetwork ?? "", Source = source?.Target ?? "",
                     AdditionalWatts = source?.AdditionalWatts ?? default, SurplusWatts = source?.SurplusWatts ?? default });
             if (demands.Count != 0) roots.Add("shelter/" + room.Id, EquatableArray.From(demands));
         }

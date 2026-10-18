@@ -164,8 +164,12 @@ public sealed partial record ForecastCoupledSelection
                 var vector = CoupledConsequences(outcome, commitments);
                 // Physical feasibility does not certify optional investment. Partial shells retain
                 // unknown exposure; they cannot win by hiding it. Keep expanding complementary roots.
-                // Construction a selected commitment values as requested development carries its own relief (#3276).
-                if (outcome.Plan.Allocations.Any(a => !requested.Contains(a.Activity)
+                // Construction a selected commitment values as requested development carries its own relief (#3276), and so
+                // does a planned room's roof cell when the schedule finishes that room's roof.
+                var roofed = candidates.Context.Shelters.Where(r => r.PlannedRoom != 0 && r.RoofCells.Count != 0
+                        && outcome.RequestedDevelopment.Contains(FormattableString.Invariant($"planned/room{r.PlannedRoom}/roof")))
+                    .SelectMany(r => r.RoofCells.SelectMany(cell => cell)).ToHashSet(StringComparer.Ordinal);
+                if (outcome.Plan.Allocations.Any(a => !requested.Contains(a.Activity) && !roofed.Contains(a.Activity)
                     && (unplaced.Contains(a.Activity) || candidates.Context.Bindings.TryGetValue((a.Activity, a.Pawn), out var binding)
                     && (binding.SiteDefinition.Length != 0 || binding.Job == "BuildRoof")))
                     && (!outcome.StationaryThermalRelief.IsKnown || outcome.StationaryThermalRelief.Value <= 0))

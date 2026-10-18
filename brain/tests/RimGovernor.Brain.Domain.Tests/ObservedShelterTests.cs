@@ -60,6 +60,43 @@ public sealed class ObservedShelterTests
     }
 
     [Fact]
+    public void APlannedRoomFinishesItsLastRoofCellEvenWhenTheRoomAlreadyHoldsItsHeat()
+    {
+        // One designated cell of six is open and the heater holds the room at 20°: closing it relieves no exposure.
+        static RoundsFacts Warm(RoundsFacts facts) => facts with { ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
+        {
+            Thermal = facts.ForecastObserved.Coupled!.Thermal! with
+            {
+                Cells = EquatableArray.From(facts.ForecastObserved.Coupled!.Thermal!.Cells.Select(c => c with
+                {
+                    Temperature = Interior.Contains(c.Cell) ? Known(20d) : c.Temperature,
+                    Roof = c.Cell == new Cell(1, 1) || !Interior.Contains(c.Cell) ? c.Roof : "thin", BuildRoof = c.Cell == new Cell(1, 1)
+                })),
+                RoofRoutes = [new("pawn", new(1, 1), Known(1d))]
+            }
+        } } };
+        ForecastCoupledSelection Select(RoundsFacts facts)
+        {
+            facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300) };
+            return ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), 300d / GameTime.TicksPerDay, facts,
+                new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
+        }
+
+        var planned = Warm(Facts() with { PlannedShelters = [new() { Id = 7, Region = RegionRules.RectRegion(new(1, 1, 2, 3)) }] });
+        var result = Select(planned);
+        var room = Assert.Single(result.Selected.Shelters);
+        Assert.Equal(7, Assert.Single(ForecastCoupledCandidates.GenerateCoupledActivities(planned, 300)!.Context.Shelters).PlannedRoom);
+        Assert.Contains(result.Selected.Plan.Allocations, a => a.Activity.StartsWith("roof/observed/room-7/1/1", StringComparison.Ordinal));
+        Assert.Contains("planned/room7/roof", result.Selected.RequestedDevelopment);
+        Assert.True(room.CompleteAt.IsKnown);
+
+        // An observed room no planned room matches keeps the relief gate: no exposure relieved, no roof work.
+        var unplanned = Select(Warm(Facts() with { PlannedShelters = [] }));
+        Assert.DoesNotContain(unplanned.Selected.Plan.Allocations, a => a.Activity.StartsWith("roof/", StringComparison.Ordinal));
+        Assert.Contains(unplanned.Rejected, r => r.Reason.StartsWith("construction_without_supported_service_relief", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void MissingObservedGeometryOrHeatSourceRemainsExplicit()
     {
         var facts = Facts();

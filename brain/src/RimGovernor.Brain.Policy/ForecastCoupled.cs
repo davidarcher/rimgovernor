@@ -599,9 +599,9 @@ public static class ForecastCoupled
         // Requested development counts each completed planned site once, whichever root built it, and a planned room's
         // per-cell native roof as that room's one roof unit once every cell completes (#3334).
         var development = new SortedSet<string>(builtSites, StringComparer.Ordinal);
-        foreach (var shelter in context.Shelters.Where(s => s.Room.Source == ForecastShelterSource.Planned && s.RoofCells.Count != 0))
+        foreach (var shelter in context.Shelters.Where(s => s.PlannedRoom != 0 && s.RoofCells.Count != 0))
             if (shelter.RoofCells.All(cell => cell.Any(f => completed.GetValueOrDefault(f) == Known(true))))
-                development.Add("planned/room" + shelter.Room.Value + "/roof");
+                development.Add(FormattableString.Invariant($"planned/room{shelter.PlannedRoom}/roof"));
         var thermalRelief = reliefKnown ? Known(unchanged.Sum(t => t.AssessedColdDegreeTicks + t.AssessedHotDegreeTicks)
             - changedUse.Sum(t => t.AssessedColdDegreeTicks + t.AssessedHotDegreeTicks)) : default;
         return new(plan, feasible, inventory.Stocks, needs, EquatableArray.From(findings))

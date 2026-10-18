@@ -101,8 +101,7 @@ public static class ForecastRoofConsequences
             var best = room.Where(c => c.Ring.Count > 0).Select(c => (Closure: c, At: AllAt(c.Ring))).OrderBy(c => c.At).FirstOrDefault();
             if (best.Closure is null || !double.IsFinite(best.At)) continue;
             var roofed = best.Closure.Roof.Count > 0 ? AllAt(best.Closure.Roof) : double.PositiveInfinity;
-            var key = room.Key.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            foreach (var shelter in context.Shelters.Where(s => s.Room.Source == ForecastShelterSource.Planned && s.Room.Value == key && s.RoofCells.Count > 0))
+            foreach (var shelter in context.Shelters.Where(s => s.PlannedRoom == room.Key && s.RoofCells.Count > 0))
                 roofed = Math.Min(roofed, shelter.RoofCells.Select(cell => cell.Where(finishedAt.ContainsKey).Select(f => finishedAt[f])
                     .DefaultIfEmpty(double.PositiveInfinity).Min()).Max());
             closed.Add(new(best.Closure.Interior, best.Closure.Prediction, best.At, roofed));
