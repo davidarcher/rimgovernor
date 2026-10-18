@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class Rounder
 {
     /// <summary>The reform the colony's ideoligion owes, or unknown while any input is unread or the pawns disagree on one faction.</summary>
-    internal static Fact<DesignChoice> ReformChoice(RoundsReading read, GenerationSnapshot snapshot)
+    internal static Fact<DesignChoice> ReformChoice(RoundsReading read, GenerationSnapshot snapshot, IReadOnlyList<IdeoGoalTarget> targets)
     {
         if (!read.Projection.Facts.Ideology.TryGetValue(out var ideo) || read.Catalog is not { } catalog || read.Frame.Pawns is null)
         {
@@ -68,7 +68,7 @@ public sealed partial class Rounder
             // No emergency snapshot leaves calm unknown.
         }
 
-        return IdeoligionDesignRules.ChooseIdeoligionReform(options, current, ideo.Facts.Development, calm);
+        return IdeoligionDesignRules.ChooseIdeoligionReform(options, current, ideo.Facts.Development, calm, targets);
     }
 }
 

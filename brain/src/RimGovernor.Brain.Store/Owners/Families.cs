@@ -314,10 +314,13 @@ public sealed record IdeologyReformRecord
 
     public IdeoligionReform? Reform { get; init; }
 
+    /// <summary>The goal (#3500) the reform serves; null for a reform no goal asked for.</summary>
+    public int? Goal { get; init; }
+
     public void Validate()
     {
         World.Validate();
-        DomainException.Require(Reform is not null, "invalid ideology reform record");
+        DomainException.Require(Reform is not null && Goal is null or > 0, "invalid ideology reform record");
     }
 }
 

@@ -49,6 +49,13 @@ public sealed class GoalsRounds
             }
         }
         var facts = GoalsFacts.From(reading.Projection.Facts, reading.Projection.TechTier, goals.Goals, goals.Themes, owners);
+        var targets = GoalRules.IdeoTargets(goals.Goals);
+        if (targets.Count > 0)
+        {
+            var reform = Rounder.ReformChoice(reading, scope.World, targets);
+            var pending = (await journal.LoadIdeologyReformAsync(Player.PlayerWorld(scope.World), ct).ConfigureAwait(false))?.Goal;
+            facts = facts with { Reform = reform, ReformGoal = pending ?? (reform.TryGetValue(out var chosen) ? chosen.Goal : null) };
+        }
         Record(facts);
         return facts;
     }

@@ -104,7 +104,16 @@ public sealed record DesignChoice
     public int Candidates { get; init; }
 
     public DesignComparison? Comparison { get; init; }
+
+    /// <summary>The goal (#3500) whose step this reform is; null for a reform no goal asked for.</summary>
+    public int? Goal { get; init; }
+
+    /// <summary>Each unmet goal with no reachable step, by goal id, with the first missing prerequisite.</summary>
+    public IReadOnlyDictionary<int, string> Blocked { get; init; } = new Dictionary<int, string>();
 }
+
+/// <summary>An ideoligion goal the reform plans toward: a meme or a plain precept the ideoligion should hold.</summary>
+public readonly record struct IdeoGoalTarget(int Goal, bool Meme, string Def);
 
 public enum DesignDecision
 {
@@ -114,6 +123,9 @@ public enum DesignDecision
     Unchanged,
     Ineligible,
     Unsafe,
+
+    /// <summary>A goal's next step is chosen and waits for development points.</summary>
+    Awaiting,
 }
 
 public sealed record DesignComparison
@@ -478,25 +490,158 @@ public static class IdeoligionDesignRules
         return Known(best with { Candidates = visits });
     }
 
+    private readonly record struct GoalStep(int Goal, IdeoligionDesign Design);
+
+    /// <summary>
+    /// The goals' next reform (#3500): the step of the first goal, by id, whose target the ideoligion does not hold and
+    /// that has a reachable one, and the first missing prerequisite of each goal with none. A precept whose meme is
+    /// missing steps by adding that meme; a precept conflicting with a held meme steps by removing it; otherwise it
+    /// replaces the held precept of its issue. A step is a design the catalog scores, so faction compatibility, meme
+    /// counts and meme requirements are the options' own; a step costs what the goal asked for and is not weighed
+    /// against the score.
+    /// </summary>
+    private static (GoalStep? Step, IReadOnlyDictionary<int, string> Blocked) PlanGoals(DesignOptions options, IdeoligionDesign current, IReadOnlyList<IdeoGoalTarget> targets)
+    {
+        var blocked = new SortedDictionary<int, string>();
+        GoalStep? step = null;
+        var wanted = targets.Where(t => !t.Meme).Select(t => t.Def).ToList();
+        foreach (var target in targets.OrderBy(t => t.Goal))
+        {
+            if (target.Meme ? current.Memes.Contains(target.Def) : current.Precepts.Contains(target.Def))
+            {
+                continue;
+            }
+            var (design, reason) = target.Meme ? AddMeme(options, current, target.Def, wanted) : StepToPrecept(options, current, target.Def, targets);
+            if (design is null)
+            {
+                blocked[target.Goal] = reason;
+            }
+            else
+            {
+                step ??= new GoalStep(target.Goal, design);
+            }
+        }
+        return (step, blocked);
+    }
+
+    private static (IdeoligionDesign? Design, string Reason) StepToPrecept(DesignOptions options, IdeoligionDesign current, string def, IReadOnlyList<IdeoGoalTarget> targets)
+    {
+        var precept = options.Precepts.FirstOrDefault(p => p.Name == def);
+        if (precept is null || !precept.Allowed || !precept.Supported)
+        {
+            return (null, "precept_unavailable:" + def);
+        }
+        if (precept.RequiredMemes.Count > 0 && !DesignOverlap(current.Memes, precept.RequiredMemes))
+        {
+            var meme = precept.RequiredMemes.Order(StringComparer.Ordinal).FirstOrDefault(m => options.Memes.Any(x => x.Name == m && x.Allowed && x.Supported));
+            return meme is null
+                ? (null, "precept_requires_meme:" + precept.RequiredMemes.Order(StringComparer.Ordinal).First())
+                : AddMeme(options, current, meme, targets.Where(t => !t.Meme).Select(t => t.Def).ToList());
+        }
+        if (DesignOverlap(current.Memes, precept.ConflictingMemes))
+        {
+            var meme = precept.ConflictingMemes.Order(StringComparer.Ordinal).First(current.Memes.Contains);
+            if (targets.Any(t => t.Meme && t.Def == meme) || options.RequiredMemes.Contains(meme) || options.Memes.Any(m => m.Name == meme && m.Structure))
+            {
+                return (null, "precept_conflicts_meme:" + meme);
+            }
+            var removed = new IdeoligionDesign(EquatableArray.From(current.Memes.Where(m => m != meme)), current.Precepts, true);
+            return Validated(options, removed, "meme_removal_invalid:" + meme);
+        }
+        var precepts = current.Precepts.ToList();
+        var old = precepts.FirstOrDefault(p => options.Precepts.Any(x => x.Name == p && x.Issue == precept.Issue));
+        if (old is not null)
+        {
+            if (targets.Any(t => !t.Meme && t.Def == old))
+            {
+                return (null, "precept_conflicts_goal:" + old);
+            }
+            precepts.Remove(old);
+        }
+        precepts.Add(def);
+        return Validated(options, new IdeoligionDesign(current.Memes, EquatableArray.From(precepts), true), "precept_incompatible:" + def);
+    }
+
+    /// <summary>The design adding <paramref name="name"/>, with the precept each of its requirements still lacks, preferring one a goal wants.</summary>
+    private static (IdeoligionDesign? Design, string Reason) AddMeme(DesignOptions options, IdeoligionDesign current, string name, IReadOnlyList<string> wanted)
+    {
+        var meme = options.Memes.FirstOrDefault(m => m.Name == name);
+        if (meme is null || !meme.Allowed || !meme.Supported)
+        {
+            return (null, "meme_unavailable:" + name);
+        }
+        var precepts = current.Precepts.ToList();
+        foreach (var group in meme.RequireOne)
+        {
+            if (DesignOverlap(group, precepts))
+            {
+                continue;
+            }
+            var pick = group
+                .OrderBy(p => wanted.Contains(p) ? 0 : 1).ThenBy(p => p, StringComparer.Ordinal)
+                .FirstOrDefault(p => options.Precepts.Any(x => x.Name == p && x.Allowed && x.Supported));
+            var picked = options.Precepts.FirstOrDefault(x => x.Name == pick);
+            if (picked is null)
+            {
+                return (null, "meme_requires_precept:" + name);
+            }
+            precepts.RemoveAll(p => options.Precepts.Any(x => x.Name == p && x.Issue == picked.Issue));
+            precepts.Add(picked.Name);
+        }
+        return Validated(options, new IdeoligionDesign(EquatableArray.From([.. current.Memes, name]), EquatableArray.From(precepts), true), "meme_incompatible:" + name);
+    }
+
+    private static (IdeoligionDesign? Design, string Reason) Validated(DesignOptions options, IdeoligionDesign design, string reason) =>
+        TryCanonicalDesign(design, out var canonical) && ScoreIdeoligion(options, canonical).TryGetValue(out _) ? (canonical, "") : (null, reason);
+
     /// <summary>
     /// Keeps memes and special instances when their transition cost cannot be valued. Plain-precept changes
     /// may improve known restrictions/mood while preserving obligations and every unvalued effect.
     /// </summary>
-    public static Fact<DesignChoice> ChooseIdeoligionReform(DesignOptions options, IdeoligionDesign current, Fact<IdeoDevelopment> development, Fact<bool> calm)
+    public static Fact<DesignChoice> ChooseIdeoligionReform(DesignOptions options, IdeoligionDesign current, Fact<IdeoDevelopment> development, Fact<bool> calm, IReadOnlyList<IdeoGoalTarget> targets)
     {
         if (!development.TryGetValue(out var state) || !calm.TryGetValue(out var safe))
         {
             return Unknown<DesignChoice>();
         }
-        if (!safe || !state.Fluid || !state.CanReform)
+        if (!safe || !state.Fluid)
         {
-            var decision = DesignDecision.Ineligible;
-            if (!safe)
-            {
-                decision = DesignDecision.Unsafe;
-            }
-            return Known(new DesignChoice { Design = current, Comparison = new DesignComparison { Decision = decision } });
+            return Known(new DesignChoice { Design = current, Comparison = new DesignComparison { Decision = safe ? DesignDecision.Ineligible : DesignDecision.Unsafe } });
         }
+        var (step, blocked) = PlanGoals(options, current, targets);
+        if (step is { } next)
+        {
+            var baseline = ScoreIdeoligion(options, current).TryGetValue(out var held) ? held : default;
+            var candidate = ScoreIdeoligion(options, next.Design).TryGetValue(out var scored) ? scored : default;
+            return Known(new DesignChoice
+            {
+                Design = next.Design,
+                Score = candidate,
+                Goal = next.Goal,
+                Blocked = blocked,
+                Comparison = new DesignComparison
+                {
+                    Decision = state.CanReform ? DesignDecision.Improves : DesignDecision.Awaiting,
+                    Current = baseline,
+                    Candidate = candidate,
+                },
+            });
+        }
+        var choice = state.CanReform
+            ? ChooseImprovement(options, current)
+            : Known(new DesignChoice { Design = current, Comparison = new DesignComparison { Decision = DesignDecision.Ineligible } });
+        if (choice.TryGetValue(out var chosen))
+        {
+            return Known(chosen with { Blocked = blocked });
+        }
+        // The goals' blockers stand whether or not the improvement search could read the believers' needs.
+        return blocked.Count == 0
+            ? choice
+            : Known(new DesignChoice { Design = current, Blocked = blocked, Comparison = new DesignComparison { Decision = DesignDecision.Unchanged } });
+    }
+
+    private static Fact<DesignChoice> ChooseImprovement(DesignOptions options, IdeoligionDesign current)
+    {
         if (!options.Needs.TryGetValue(out var needs) || needs.Believers <= 0)
         {
             return Unknown<DesignChoice>();

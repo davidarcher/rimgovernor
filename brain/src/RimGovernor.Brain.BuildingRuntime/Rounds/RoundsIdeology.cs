@@ -87,10 +87,15 @@ public sealed class IdeologyReader
     private async Task<IdeologyFacts> ReformAsync(IdeologyFacts facts, RoundsReading read, GenerationSnapshot world, CancellationToken call)
     {
         var journal = _reviewer.Player.Journal;
-        var choice = Rounder.ReformChoice(read, world);
+        var goals = _reviewer.Goals ? (await journal.LoadGoalsAsync(Player.PlayerWorld(world), call).ConfigureAwait(false)).Goals : [];
+        var choice = Rounder.ReformChoice(read, world, GoalRules.IdeoTargets(goals));
         var pending = (await journal.LoadIdeologyReformAsync(Player.PlayerWorld(world), call).ConfigureAwait(false))?.Reform;
         var ideoKnown = read.Projection.Facts.Ideology.TryGetValue(out var ideo);
         var current = ideoKnown && read.Catalog is { } catalog ? CurrentDesign(ideo!, catalog) : null;
+        if (ideoKnown)
+        {
+            facts = facts with { Development = ideo!.Facts.Development };
+        }
         if (pending is not null)
         {
             if (current is null)
@@ -166,7 +171,8 @@ public sealed class IdeologyReader
         {
             return none;
         }
-        await journal.SaveIdeologyReformAsync(new IdeologyReformRecord { World = world, Reform = intent }, call).ConfigureAwait(false);
+        var goal = facts.Reform.TryGetValue(out var chosen) ? chosen.Goal : null;
+        await journal.SaveIdeologyReformAsync(new IdeologyReformRecord { World = world, Reform = intent, Goal = goal }, call).ConfigureAwait(false);
         return none;
     }
 }

@@ -21,6 +21,9 @@ public sealed record IdeologyFacts
     public bool ReformObserved { get; init; }
 
     public IdeoligionReform? Intent { get; init; }
+
+    /// <summary>The ideoligion's development state: what a reform waiting for points reports.</summary>
+    public Fact<IdeoDevelopment> Development { get; init; }
 }
 
 /// <summary>
@@ -51,6 +54,9 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
 
     /// <summary>The hold of an owed reform whose ideoligion or catalog is unread.</summary>
     public const string ReformUnread = "ideoligion";
+
+    /// <summary>The stable hold subject of a goal's reform waiting for points; the counts follow as <c>:&lt;points&gt;/&lt;cost&gt;</c>.</summary>
+    public const string DevelopmentPoints = "development_points";
 
     public string Id => FamilyId;
 
@@ -91,6 +97,11 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
             }
             else if (need.Id == Reform)
             {
+                if (facts.Reform.TryGetValue(out var awaited) && awaited.Comparison?.Decision == DesignDecision.Awaiting && facts.Development.TryGetValue(out var development))
+                {
+                    output.Add(NeedMethod.Held(Reform, FormattableString.Invariant($"{DevelopmentPoints}:{development.DevelopmentPoints}/{development.NextReformPoints}"), "The next reform waits for development points."));
+                    continue;
+                }
                 output.Add(facts.Intent is { } intent && facts.Reform.TryGetValue(out var choice) && choice.Comparison is { } comparison
                     ? new NeedMethod(Reform, ReformMethodId(intent), ReformReason(comparison), id =>
                         new PlanSpec(id, new PlanRevision(1), [DomainAction.NewIdeoligionReformAction(new ActionId($"{id.Value}-0"), intent)]))
@@ -131,7 +142,7 @@ public static class IdeologyFamilyRules
     public static Need ReformNeedOf(IdeologyFacts f)
     {
         var known = f.Reform.TryGetValue(out var choice);
-        var owed = known && !f.ReformObserved && choice!.Design.Memes.Count > 0 && choice.Comparison?.Decision == DesignDecision.Improves;
+        var owed = known && !f.ReformObserved && choice!.Design.Memes.Count > 0 && choice.Comparison?.Decision is DesignDecision.Improves or DesignDecision.Awaiting;
         var satisfaction = !known ? Satisfaction.Unknown : owed ? Satisfaction.Unmet : Satisfaction.Met;
         return new Need
         {

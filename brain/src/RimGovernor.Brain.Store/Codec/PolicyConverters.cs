@@ -2285,12 +2285,14 @@ internal sealed class IdeologyReformRecordConverter : ObjectCodec<IdeologyReform
         {
             World = e.Get<World>("World", o),
             Reform = e.Get<global::RimGovernor.Brain.Domain.IdeoligionReform>("Reform", o),
+            Goal = e.Get<int?>("Goal", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, IdeologyReformRecord v, Codecs o)
     {
         w.Put("World", v.World, o);
         w.Put("Reform", v.Reform, o);
+        w.Put("Goal", v.Goal, o);
     }
 }
 

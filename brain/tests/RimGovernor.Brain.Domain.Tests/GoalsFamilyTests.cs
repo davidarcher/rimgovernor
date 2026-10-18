@@ -37,7 +37,7 @@ public sealed class GoalsFamilyTests
 
     private static Need Derive(GoalsFacts facts, GoalRecord goal) => Assert.Single(new GoalsFamily().Derive(facts), n => n.Id == GoalRules.NeedOf(goal));
 
-    private static Ideoligion Ideo(bool fluid, params string[] precepts) => new(new IdeologyDefs(), new IdeoligionFacts
+    private static Ideoligion Ideo(bool fluid, params string[] precepts) => new(new IdeologyDefs { Precepts = new Dictionary<string, PreceptDef> { ["Slavery_Acceptable"] = new("Slavery_Acceptable", []) } }, new IdeoligionFacts
     {
         Precepts = [.. precepts.Select((p, i) => new HeldPrecept("p" + i, p))],
         Development = Known(new IdeoDevelopment(fluid, fluid, 0, 0, 0)),
@@ -176,7 +176,7 @@ public sealed class GoalsFamilyTests
         Assert.Equal("no_method:not fluid", Assert.Single(new GoalsFamily().Propose([Derive(rigid, goal)], rigid)).Hold!.Subject);
 
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, rigid with { Ideology = Known(Ideo(fluid: false, "Slavery_Acceptable")) }).State);
-        Assert.Equal("no_pursuit", GoalRules.Evaluate(goal, rigid with { Ideology = Known(Ideo(fluid: true)) }).Reason);
+        Assert.Equal("facts_unread", GoalRules.Evaluate(goal, rigid with { Ideology = Known(Ideo(fluid: true)) }).Reason);
         Assert.Equal("missing_dlc", GoalRules.Evaluate(goal, rigid with { IdeologyInstalled = Known(false) }).Reason);
         Assert.Equal((GoalState.Blocked, "facts_unread"), (GoalRules.Evaluate(goal, Facts(goal)).State, GoalRules.Evaluate(goal, Facts(goal)).Reason));
     }

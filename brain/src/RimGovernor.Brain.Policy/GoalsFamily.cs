@@ -70,6 +70,12 @@ public sealed record GoalsFacts
 
     public Fact<bool> IdeologyInstalled { get; init; }
 
+    /// <summary>The reform the ideoligion goals plan (#3500); unknown while the ideoligion or catalog is unread.</summary>
+    public Fact<DesignChoice> Reform { get; init; }
+
+    /// <summary>The goal the reform in flight serves: the pending record's, else the chosen reform's.</summary>
+    public int? ReformGoal { get; init; }
+
     /// <summary>The review's facts: the prisoner, custody and quest censuses the named-prisoner and named-quest goals are judged by.</summary>
     public RoundsFacts Rounds { get; init; } = new();
 
@@ -193,6 +199,7 @@ public static class GoalRules
                 break;
             case GoalKind.Precept:
             case GoalKind.Meme:
+            case GoalKind.VeneratedAnimal:
                 return Adoption(goal, f);
             case GoalKind.NamedPrisoner:
                 return NamedPrisoner(goal, f);
@@ -363,17 +370,63 @@ public static class GoalRules
         {
             return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", default, default);
         }
-        var held = goal.Kind == GoalKind.Precept ? ideo.Facts.Precepts.Any(p => p.Def == goal.Target) : ideo.Facts.Memes.Contains(goal.Target);
+        var held = goal.Kind switch
+        {
+            GoalKind.Precept => ideo.Facts.Precepts.Any(p => p.Def == goal.Target),
+            GoalKind.Meme => ideo.Facts.Memes.Contains(goal.Target),
+            _ => ideo.Facts.VeneratedAnimals.Contains(goal.Target),
+        };
         if (held)
         {
             return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", default, Fact.Known(0.0));
+        }
+        var unmet = Fact.Known(1.0);
+        var defined = goal.Kind switch
+        {
+            GoalKind.Precept => ideo.Defs.Precepts.ContainsKey(goal.Target),
+            GoalKind.Meme => ideo.Defs.Memes.ContainsKey(goal.Target),
+            _ => goal.Target != "",
+        };
+        if (!defined)
+        {
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unavailable", default, unmet);
         }
         if (!ideo.Facts.Development.TryGetValue(out var development))
         {
             return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", default, default);
         }
-        return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, development.Fluid ? NoPursuit : "not fluid", default, Fact.Known(1.0));
+        if (!development.Fluid)
+        {
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "not fluid", default, unmet);
+        }
+        var owner = IdeologyFamily.Reform;
+        if (goal.Kind == GoalKind.VeneratedAnimal)
+        {
+            // A venerated animal is a precept of a class the reform design does not carry (plain precepts only).
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "venerated_animal", default, unmet);
+        }
+        if (!f.Reform.TryGetValue(out var reform))
+        {
+            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+        }
+        if (reform.Blocked.TryGetValue(goal.Id, out var missing))
+        {
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, missing, owner, unmet);
+        }
+        if (reform.Comparison?.Decision == DesignDecision.Unsafe)
+        {
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, "not_calm", owner, unmet);
+        }
+        if (!development.CanReform)
+        {
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, FormattableString.Invariant($"development points {development.DevelopmentPoints}/{development.NextReformPoints}"), owner, unmet);
+        }
+        return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Pursuing, f.ReformGoal == goal.Id ? "" : "queued", owner, unmet);
     }
+
+    /// <summary>The meme and precept goals the ideoligion's reform plans toward.</summary>
+    public static IReadOnlyList<IdeoGoalTarget> IdeoTargets(IEnumerable<GoalRecord> goals) =>
+        [.. goals.Where(g => g.Kind is GoalKind.Precept or GoalKind.Meme && g.Target != "").Select(g => new IdeoGoalTarget(g.Id, g.Kind == GoalKind.Meme, g.Target))];
 
     private static (Fact<bool> Met, Fact<double> Deficit) ProjectMet(string project, Fact<ResearchFacts> research)
     {

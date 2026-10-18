@@ -42,6 +42,25 @@ The pure result carries a typed comparison (current/candidate costs, work and
 mood relief, new mood cost and decision); an admitted Method's existing reason
 shows that comparison in player inspection without storing a second score.
 
+Meme and precept goals (`goals/meme/<id>`, `goals/precept/<id>`; #3500) steer the same reform.
+With goals, the planner takes the first unmet goal, by id, that has a reachable step, and the step is
+one design the catalog scores (faction permissions, meme counts and meme requirements are the catalog's).
+A precept whose meme the ideoligion lacks steps by adding that meme, along with any precept the meme
+requires; a precept conflicting with a held meme steps by removing that meme (never a structure meme, a
+faction-required meme or another goal's meme); otherwise the step replaces the held precept of the
+precept's issue, never one another goal wants. A step is not weighed against the design score: the goal
+asked for its cost. A goal with no reachable step reports `blocked` with the first missing
+prerequisite (`meme_unavailable:<def>`, `precept_requires_meme:<def>`, `meme_requires_precept:<def>`,
+`precept_conflicts_meme:<def>`, `precept_conflicts_goal:<def>`, `meme_incompatible:<def>`,
+`precept_incompatible:<def>`, `meme_removal_invalid:<def>`, `precept_unavailable:<def>`). A non-fluid
+ideoligion reports `NoMethod: not fluid`; a missing def `NoMethod: unavailable`; a venerated-animal goal
+is Met while held and otherwise `NoMethod: venerated_animal`, because the reform design carries plain
+precepts only and a venerated animal is a precept of another class. While the next step lacks development
+points the reform Need is held as `development_points:<points>/<cost>` and the goal reports
+`blocked` with `development points <points>/<cost>`. The `family/ideology/reform` record keeps the goal
+the reform serves, so status attributes `Pursuing` to the reform Need; other reachable goals read
+`Pursuing` with reason `queued`.
+
 Hands dispatches `IdeoligionReformIntent` with expected design and reform count.
 Native prepares a detached candidate, validates normal-game eligibility and
 compatibility, then commits with `IdeoDevelopmentUtility.ApplyChangesToIdeo`.

@@ -154,7 +154,7 @@ and rebuilds its views before the first review: the clock worker's step gate, th
 flusher all call the same once-per-world rebuild.
 
 The `family/ideology/reform` record (#3260) carries pending reform intent: ideoligion id,
-expected and target designs, and expected reform count, scoped to its colony and map. It
+expected and target designs, expected reform count and the goal it serves (#3500), scoped to its colony and map. It
 follows the save; an older (schema 6) save's `ImproveIdeoligion` `standard/<id>` blob is read into
 it once at load when the record is absent, and is not kept;
 Methods and action attempts remain in the session journal. Current design,

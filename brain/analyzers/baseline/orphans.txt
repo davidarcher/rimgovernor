@@ -419,11 +419,7 @@ Policy|WeaponDrop.Weapon
 Policy|WorkshopChoice.NeedsPower
 Policy|Believer.Certainty
 Policy|Believer.Id
-Policy|IdeoDevelopment.DevelopmentPoints
-Policy|IdeoDevelopment.NextReformPoints
 Policy|IdeoligionFacts.StyleCategories
-Policy|IdeoligionFacts.VeneratedAnimals
-Policy|IdeologyDefs.Memes
 Policy|MemeDef.ForbiddenPrecepts
 Policy|MemeDef.RequireOne
 Policy|MemeGate.Conflicting
