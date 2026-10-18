@@ -102,7 +102,7 @@ public sealed partial class Store
             {
                 if (LookupControlIn(tx, request.RequestId) is { } old)
                 {
-                    return old.Request == request ? (old, false) : throw new ConflictException();
+                    return old.Request == request ? (old, false) : throw new ConflictException($"control request {request.RequestId} already journaled with a different request");
                 }
                 if (tx.Scalar("SELECT count(*) FROM control_intents") >= ControlCapacity)
                 {
@@ -152,7 +152,7 @@ public sealed partial class Store
                 DomainException.Require(ValidControlResult(r.Request.Kind, phase, generation), "invalid control completion");
                 if (r.Phase != ControlPhase.Pending)
                 {
-                    return r.Phase == phase && r.NativeGeneration == generation ? r : throw new ConflictException();
+                    return r.Phase == phase && r.NativeGeneration == generation ? r : throw new ConflictException($"control request {id} already completed {Wire.Name(r.Phase)}");
                 }
                 _ = tx.Execute(
                     "UPDATE control_intents SET phase=$phase,native_generation=$generation WHERE request_id=$id",

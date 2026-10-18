@@ -28,7 +28,7 @@ public sealed record CombatRestoration(World World, PlanId Owner, EquatableArray
         {
             if (d.Cell.X < 0 || d.Cell.Z < 0 || !doors.Add(d.Cell))
             {
-                throw new ConflictException();
+                throw new ConflictException($"combat restoration repeats door {d.Cell} or names an off-map cell");
             }
         }
         var animals = new HashSet<PawnId>();
@@ -36,7 +36,7 @@ public sealed record CombatRestoration(World World, PlanId Owner, EquatableArray
         {
             if (!IdText.IsValidText(a.Pawn.Value) || (a.Area.Length != 0 && !IdText.IsValidText(a.Area)) || !animals.Add(a.Pawn))
             {
-                throw new ConflictException();
+                throw new ConflictException($"combat restoration repeats animal {a.Pawn.Value} or names an invalid pawn or area");
             }
         }
     }
@@ -217,7 +217,7 @@ public sealed partial class Store
             {
                 if (LoadCombatRestorationIn(tx) is { } kept && kept.Owner == plan)
                 {
-                    throw new ConflictException();
+                    throw new ConflictException($"fight {plan.Value} owns the kept combat restoration");
                 }
                 _ = tx.Execute("UPDATE combat_fights SET open=0 WHERE plan_id=$plan", ("$plan", plan));
                 SupersedeCombatBatches(tx, plan, plan, restored: false);
@@ -266,7 +266,7 @@ public sealed partial class Store
     {
         if (!IsValidPlan(plan) || plan.Actions.Count != 1 || plan.Actions[0].CombatBatch is not { } batch)
         {
-            throw new ConflictException();
+            throw new ConflictException($"combat batch plan {plan.Id.Value} is invalid or not a single combat batch");
         }
         return Run(
             tx =>
@@ -274,7 +274,7 @@ public sealed partial class Store
                 if (tx.Scalar("SELECT count(*) FROM plans WHERE id=$id", ("$id", plan.Id)) != 0)
                 {
                     var got = LoadIn(tx, plan.Id);
-                    return got.Spec.Actions.Count == 1 && got.Spec.Actions[0] == plan.Actions[0] ? got : throw new ConflictException();
+                    return got.Spec.Actions.Count == 1 && got.Spec.Actions[0] == plan.Actions[0] ? got : throw new ConflictException($"combat batch plan {plan.Id.Value} already exists with a different batch");
                 }
                 if (tx.Scalar(
                     "SELECT count(*) FROM need_methods n JOIN combat_fights f ON f.plan_id=n.plan_id WHERE f.plan_id=$fight AND f.open=1 AND n.need_id=$need AND n.colony=$colony AND n.load_token=$load AND n.map_id=$map",
@@ -315,7 +315,7 @@ public sealed partial class Store
                 var p = LoadIn(tx, id);
                 if (p.Progress.Count != 1 || p.Progress[0].Action.Kind != ActionKind.CombatBatch)
                 {
-                    throw new ConflictException();
+                    throw new ConflictException($"plan {id.Value} is not a single combat batch");
                 }
                 var v = p.Progress[0].View;
                 if (v.Unresolved || v.Stage is not (Stage.Completed or Stage.Unsuccessful))
@@ -338,11 +338,11 @@ public sealed partial class Store
             var successor = LoadIn(tx, next);
             if (successor.Progress.Count == 0)
             {
-                throw new ConflictException();
+                throw new ConflictException($"successor {next.Value} of fight {fight.Value} has no actions");
             }
             if (successor.Progress[0].Action.CombatBatch is not { } b || b.Fight != fight || successor.Progress[0].View.Attempt.Value == 0)
             {
-                throw new ConflictException();
+                throw new ConflictException($"successor {next.Value} is not an attempted batch of fight {fight.Value}");
             }
         }
         var ids = tx.Query(
@@ -411,7 +411,7 @@ public sealed partial class Store
                 {
                     if (old.Owner != r.Owner || old.World != r.World || old.Doors.Any(d => !r.Doors.Contains(d)) || old.Animals.Any(a => !r.Animals.Contains(a)))
                     {
-                        throw new ConflictException();
+                        throw new ConflictException($"combat restoration of {r.Owner.Value} does not extend the kept one of {old.Owner.Value}");
                     }
                     // The superset replaces the kept row.
                     _ = tx.Execute("DELETE FROM combat_restoration");
@@ -441,7 +441,7 @@ public sealed partial class Store
         }
         if (commands.Count == 0)
         {
-            throw new ConflictException();
+            throw new ConflictException($"combat restoration of {r.Owner.Value} restores nothing");
         }
         var actions = new List<DomainAction>
         {
@@ -482,13 +482,13 @@ public sealed partial class Store
             {
                 if (!IsValidPlan(plan) || !CombatRestorationPlan(tx, plan))
                 {
-                    throw new ConflictException();
+                    throw new ConflictException($"plan {plan.Id.Value} is not the kept combat restoration");
                 }
                 if (tx.Scalar("SELECT count(*) FROM plans WHERE id=$id", ("$id", plan.Id)) != 0)
                 {
                     if (!CombatRestorationPlan(tx, LoadIn(tx, plan.Id).Spec))
                     {
-                        throw new ConflictException();
+                        throw new ConflictException($"restoration plan {plan.Id.Value} already exists with different actions");
                     }
                     return;
                 }
@@ -523,7 +523,7 @@ public sealed partial class Store
                 var p = LoadIn(tx, plan);
                 if (!CombatRestorationPlan(tx, p.Spec))
                 {
-                    throw new ConflictException();
+                    throw new ConflictException($"plan {plan.Value} is not the kept combat restoration");
                 }
                 // Only a completed native clear can discharge an impossible animal's original setting. A
                 // missing or uncertain reply never proves cleanup.
@@ -532,7 +532,7 @@ public sealed partial class Store
                 var first = p.Progress[0].View;
                 if (first.Stage != Stage.Completed || first.Unresolved || !first.Combat.TryGetValue(out var results))
                 {
-                    throw new ConflictException();
+                    throw new ConflictException($"restoration plan {plan.Value} settings batch is not completed");
                 }
                 for (var i = 0; i < results.Orders.Count; i++)
                 {
@@ -548,7 +548,7 @@ public sealed partial class Store
                     }
                     else if (command.Kind != "door" || result.Refusal != "not_a_door")
                     {
-                        throw new ConflictException();
+                        throw new ConflictException($"restoration plan {plan.Value} order {command.Kind} refused {result.Refusal}");
                     }
                 }
                 for (var i = 0; i < p.Progress.Count; i++)
@@ -560,12 +560,12 @@ public sealed partial class Store
                     var v = p.Progress[i].View;
                     if (v.Stage != Stage.Completed || v.Unresolved)
                     {
-                        throw new ConflictException();
+                        throw new ConflictException($"restoration plan {plan.Value} action {p.Spec.Actions[i].Id.Value} is not completed");
                     }
                 }
                 if (LoadCombatRestorationIn(tx) is not { } kept || kept.Owner != owner)
                 {
-                    throw new ConflictException();
+                    throw new ConflictException($"restoration of {owner.Value} is not the kept one");
                 }
                 SupersedeCombatBatches(tx, owner, plan, restored: true);
                 _ = tx.Execute("DELETE FROM combat_restoration");

@@ -72,4 +72,29 @@ public sealed class WorkAssignmentsNeedTests
         Assert.ThrowsAny<Exception>(() => journal.CommitClaimedMethod(AdminFamily.Burial, World, new MethodId("work-c"), "", Plan(Assign("c")), ct));
         Assert.Empty(journal.LoadNeed(AdminFamily.Burial, World, ct).Methods);
     }
+
+    [Fact]
+    public void AFinishingSkillChoiceRidesTheWorkMethodBesideItsAssignments()
+    {
+        // #3558: the step commits work priorities and construction finishing-skill choices as one Method; admission
+        // refused the choice's building action as a non-assignment.
+        var ct = TestContext.Current.CancellationToken;
+        IntentActionRules.RegisterIntentKinds();
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-work-skill-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        var id = PlanIds.MintPlanId();
+        var assign = DomainAction.NewWorkAssignmentAction(new ActionId(id.Value + "-0"), WorkAssignment.NewWorkAssignment(new("a"), [new WorkSetting("TestWork", 1)]));
+        var wall = DomainAction.NewBuildingAction(new ActionId(id.Value + "-1"), new Building("TestWall", new Cell(3, 3), Rotation.North, "Wood"), ConstructionTier.Survive);
+        var plan = new PlanSpec(id, new PlanRevision(1), [assign, wall.WithFinishingSkill(6, "site-1")]);
+
+        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(AdminFamily.WorkAssignments, World, new MethodId("work-skill"), "", plan, ct).Outcome);
+
+        // A plain building action is still not the work method's, and the refusal names it.
+        var other = PlanIds.MintPlanId();
+        var refused = new PlanSpec(other, new PlanRevision(1), [
+            DomainAction.NewWorkAssignmentAction(new ActionId(other.Value + "-0"), WorkAssignment.NewWorkAssignment(new("b"), [new WorkSetting("TestWork", 2)])),
+            DomainAction.NewBuildingAction(new ActionId(other.Value + "-1"), new Building("TestWall", new Cell(5, 5), Rotation.North, "Wood"), ConstructionTier.Survive)]);
+        var error = Assert.Throws<ConflictException>(() => journal.CommitClaimedMethod(AdminFamily.WorkAssignments, World, new MethodId("work-wall"), "", refused, ct));
+        Assert.Contains(other.Value + "-1", error.Message);
+    }
 }

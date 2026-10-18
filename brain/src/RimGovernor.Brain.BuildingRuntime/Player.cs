@@ -227,7 +227,7 @@ public sealed partial class Player : IDisposable
         actual.Validate();
         if (actual != expected)
         {
-            throw new ConflictException();
+            throw new ConflictException($"native world {actual} is not the expected {expected}");
         }
         ct.ThrowIfCancellationRequested();
     }
@@ -243,7 +243,7 @@ public sealed partial class Player : IDisposable
             var old = await _journal.LookupControlAsync(request.RequestId, ct).ConfigureAwait(false);
             if (old.Request != request)
             {
-                throw new ConflictException();
+                throw new ConflictException($"control request {request.RequestId} already journaled with a different request");
             }
             return old;
         }
@@ -315,7 +315,7 @@ public sealed partial class Player : IDisposable
     {
         if (request.Kind != ControlKind.Resume)
         {
-            throw new ConflictException();
+            throw new ConflictException($"resume needs a resume request, got {Wire.Name(request.Kind)}");
         }
         if (await LookupAsync(request, call).ConfigureAwait(false) is { } old)
         {
@@ -394,7 +394,7 @@ public sealed partial class Player : IDisposable
         _ = await StopRoundsAsync(call).ConfigureAwait(false);
         if (request.Kind != ControlKind.Pause)
         {
-            throw new ConflictException();
+            throw new ConflictException($"pause needs a pause request, got {Wire.Name(request.Kind)}");
         }
         if (await LookupAsync(request, call).ConfigureAwait(false) is { } old)
         {

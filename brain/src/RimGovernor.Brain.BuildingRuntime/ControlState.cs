@@ -48,7 +48,7 @@ public sealed partial class Control
         {
             if (StateLocked() != expected)
             {
-                throw new ConflictException();
+                throw new ConflictException("control state moved since the observation was read");
             }
             if (_closing || _closed)
             {

@@ -210,7 +210,9 @@ The setting is journaled before dispatch and observed in `ConstructionState`.
 [construction tier](construction-tiers.md)) and transfers it
 only through the blueprint's own frame conversion. Cancellation/completion and a
 new same-cell target never inherit a setting. Setting adoption confers no upkeep
-ownership and consumes no pawn labor.
+ownership and consumes no pawn labor: the choice rides the work Method beside its
+assignments, and admission neither counts it as a work assignment nor holds it for
+the initial shelter's Construction labor (#3558).
 
 Vanilla finishing work selection and the completion backstop enforce the greater
 of the configured minimum and the inherent skill prerequisite, including prioritized

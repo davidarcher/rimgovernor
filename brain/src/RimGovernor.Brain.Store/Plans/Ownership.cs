@@ -287,7 +287,7 @@ public sealed partial class Store
     {
         if (!current.IsValid || tick.Value < 0)
         {
-            throw new ConflictException();
+            throw new ConflictException($"construction claims read needs a valid world and tick, got {current} at {tick.Value}");
         }
         return Run(tx => ConstructionClaimsIn(tx, current, tick), cancellationToken);
     }
@@ -334,7 +334,7 @@ public sealed partial class Store
     {
         if (!current.IsValid || tick.Value < 0)
         {
-            throw new ConflictException();
+            throw new ConflictException($"zone claims read needs a valid world and tick, got {current} at {tick.Value}");
         }
         return Run(tx => ZoneClaimsIn(tx, current, tick), cancellationToken);
     }
@@ -374,7 +374,7 @@ public sealed partial class Store
     {
         if (!current.IsValid || tick.Value < 0)
         {
-            throw new ConflictException();
+            throw new ConflictException($"stockpile patches read needs a valid world and tick, got {current} at {tick.Value}");
         }
         return Run(tx => (IReadOnlyDictionary<string, AppliedStockpile>)StockpilePatchesIn(tx, current, tick), cancellationToken);
     }

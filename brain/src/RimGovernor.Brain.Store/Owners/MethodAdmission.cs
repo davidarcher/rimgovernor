@@ -45,15 +45,17 @@ public sealed partial class Store
 
     // While the initial shelter is owed its builders are its own. An owner the review does not bind (a player
     // goal) is outside the rule, as it is outside the routine Safeguards.
+    // A finishing-skill choice sets who may finish a standing site: a setting, which draws no labor (#3558).
     private static void AdmitConstructionLabor(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
     {
-        if (!plan.Actions.Any(a => ConstructionLaborRules.DrawsConstructionLabor(a.Kind)))
+        var kinds = plan.Actions.Where(a => !a.FinishingSkill.IsKnown).Select(a => a.Kind).ToList();
+        if (!kinds.Any(ConstructionLaborRules.DrawsConstructionLabor))
         {
             return;
         }
         var review = LoadRounds(tx);
         // A Need owner is checked by its NeedId: the shelter housing Needs keep their builders.
-        if (ConstructionLaborRules.ConstructionLaborHeld(review.Latches, owner.Need.FilingKey, plan.Actions.Select(a => a.Kind)))
+        if (ConstructionLaborRules.ConstructionLaborHeld(review.Latches, owner.Need.FilingKey, kinds))
         {
             throw new ConstructionLaborException();
         }
@@ -162,7 +164,7 @@ public sealed partial class Store
         var limit = 32;
         if (!review.Enabled || review.Snapshot != owner.Snapshot)
         {
-            throw new ConflictException();
+            throw new ConflictException($"{owner.OwnerLabel}: zone method needs a current autopilot review");
         }
         var bound = false;
         var resource = false;
@@ -179,25 +181,25 @@ public sealed partial class Store
         }
         if (!bound || plan.Actions.Count > limit)
         {
-            throw new ConflictException();
+            throw new ConflictException($"{owner.OwnerLabel}: zone method not admitted for this owner or over {limit} actions");
         }
         var cells = new HashSet<Cell>();
         foreach (var action in plan.Actions)
         {
             if (action.ZoneCreate is not { } zone || stockpile != (zone.Kind == ZoneKind.Stockpile))
             {
-                throw new ConflictException();
+                throw new ConflictException($"zone method mixes action kinds at {action.Id.Value}");
             }
             // Any resource crop may be sown; the planner holds the social crops to their brewing gate and ceiling.
             if (resource && zone.Kind != ZoneKind.Growing)
             {
-                throw new ConflictException();
+                throw new ConflictException($"economy/resource zone {action.Id.Value} is not a growing zone");
             }
             foreach (var cell in zone.Cells)
             {
                 if (!cells.Add(cell))
                 {
-                    throw new ConflictException();
+                    throw new ConflictException($"zone method repeats cell {cell} at {action.Id.Value}");
                 }
             }
         }
@@ -212,7 +214,7 @@ public sealed partial class Store
         var review = LoadRounds(tx);
         if (!review.Enabled || review.Snapshot != owner.Snapshot || plan.Actions.Count > AcquisitionCatalogRules.MaxCatalogSelection + PawnRules.MaxHuntRows)
         {
-            throw new ConflictException();
+            throw new ConflictException($"{owner.OwnerLabel}: acquisition method needs a current autopilot review and at most {AcquisitionCatalogRules.MaxCatalogSelection + PawnRules.MaxHuntRows} actions");
         }
         // The military pests Need hunts its pests (#3259), the food/supply Need forages and hunts (#3254) and the
         // joiners/decrees Need hunts a royal decree's animals (#3302), the economy/resource Need chops, forages and
@@ -222,14 +224,14 @@ public sealed partial class Store
                 || held == MedicalRules.MedicalReservesNeed);
         if (!bound)
         {
-            throw new ConflictException();
+            throw new ConflictException($"{owner.OwnerLabel} does not admit acquisitions");
         }
         var sources = new HashSet<string>(StringComparer.Ordinal);
         foreach (var action in plan.Actions)
         {
             if (action.Acquisition is not { } w || !sources.Add(w.Thing))
             {
-                throw new ConflictException();
+                throw new ConflictException($"acquisition method mixes action kinds or repeats a source at {action.Id.Value}");
             }
         }
     }
@@ -243,7 +245,7 @@ public sealed partial class Store
         var review = LoadRounds(tx);
         if (!review.Enabled || review.Snapshot != owner.Snapshot)
         {
-            throw new ConflictException();
+            throw new ConflictException($"{owner.OwnerLabel}: work method needs a current autopilot review");
         }
         var bound = false;
         // A creepjoiner's isolation (the admin/creep-joiners Need) and a sheltering move (disaster/sheltering) are
@@ -254,24 +256,25 @@ public sealed partial class Store
         isolation = held == AdminFamily.CreepJoiners || held == DisasterFamily.Sheltering;
         if (!bound && !isolation)
         {
-            throw new ConflictException();
+            throw new ConflictException($"{owner.OwnerLabel} does not admit work assignments");
         }
-        // The admin/work-assignments plan also carries the pawn settings and per-pawn policies that ride its goal; the
-        // eight-pawn cap and one-assignment-per-pawn rule bind only the work assignments.
+        // The admin/work-assignments plan also carries the pawn settings, per-pawn policies and construction
+        // finishing-skill choices that ride its goal (#3558); the eight-pawn cap and one-assignment-per-pawn rule bind
+        // only the work assignments.
         var pawns = new HashSet<PawnId>();
         foreach (var action in plan.Actions)
         {
-            if (RoundsSettingsKinds.Contains(action.Kind) || (isolation && action.Kind != ActionKind.WorkAssignment))
+            if (RoundsSettingsKinds.Contains(action.Kind) || (bound && action.FinishingSkill.IsKnown) || (isolation && action.Kind != ActionKind.WorkAssignment))
             {
                 continue;
             }
             if (action.WorkAssignment is not { } w || pawns.Contains(w.Pawn) || pawns.Count == 8)
             {
-                throw new ConflictException();
+                throw new ConflictException($"work method carries a {Wire.Name(action.Kind)} action, repeats a pawn or exceeds 8 pawns at {action.Id.Value}");
             }
             if (isolation && (!w.HasArea || w.HasSchedule || w.Settings.Count != 0))
             {
-                throw new ConflictException();
+                throw new ConflictException($"{owner.OwnerLabel}: assignment {action.Id.Value} is not area-only");
             }
             _ = pawns.Add(w.Pawn);
         }
@@ -290,7 +293,7 @@ public sealed partial class Store
         var review = LoadRounds(tx);
         if (!review.Enabled || review.Snapshot != owner.Snapshot)
         {
-            throw new ConflictException();
+            throw new ConflictException($"{owner.OwnerLabel}: supply method needs a current autopilot review");
         }
         var bound = false;
         var reserve = new Dictionary<string, ReserveSupply>(StringComparer.Ordinal);
@@ -312,7 +315,7 @@ public sealed partial class Store
         }
         if (!bound)
         {
-            throw new ConflictException();
+            throw new ConflictException($"{owner.OwnerLabel} does not admit supply batches");
         }
         var pending = new Dictionary<string, StartingSupply>(StringComparer.Ordinal);
         foreach (var row in cohort)
@@ -323,7 +326,7 @@ public sealed partial class Store
         {
             if (action.SupplyAllow is not { } supply)
             {
-                throw new ConflictException();
+                throw new ConflictException($"supply method mixes action kinds at {action.Id.Value}");
             }
             var listed = pending.TryGetValue(supply.Thing, out var row);
             if (reserve.TryGetValue(supply.Thing, out var entry) && entry.Definition == supply.Definition && entry.Forbid == supply.Forbidden)
@@ -332,7 +335,7 @@ public sealed partial class Store
             }
             if (!listed || row!.Definition != supply.Definition || row.Cell != supply.Cell || row.Forbid != supply.Forbidden)
             {
-                throw new ConflictException();
+                throw new ConflictException($"supply {supply.Thing} at {action.Id.Value} is not the review's cohort row");
             }
         }
     }
