@@ -211,6 +211,24 @@ public sealed class ForecastNeedsTests
         Assert.Equal(bounded, ForecastNeeds.GenerateNeedsAlternatives(Pawn(), ForecastCapacity.ForecastPawnCapacityOf(input), 1000, budget: 2));
     }
     [Fact]
+    public void ManyFoodTargetsAndCountsCannotStarveTheBedOfTheGenerationBudget()
+    {
+        // #3167: food sorts before rest, and meals plus a 16-count rice stack spent all 32 units before the bed was reached,
+        // so a tired cook had no rest alternative (no_feasible_need_choice:rest) and kept cooking.
+        var pawn = Pawn() with { Needs = [new("rest", Known(.06), Known(.0000169), Known(.3)), new("food", Known(.2), Known(.0000166), Known(.3))],
+            Targets = [.. Enumerable.Range(0, 4).Select(i => new NeedTarget("meal" + i, "food", "MealSimple", 3, Known(40.0 + i), Known(300.0), Known(.9), default)),
+                new("rice", "food", "RawRice", 75, Known(60.0), Known(300.0), Known(.05), default),
+                new("bed", "rest", "", 1, Known(55.0), default, default, Known(.0000381))] };
+        var generated = ForecastNeeds.GenerateNeedsAlternatives(pawn, ForecastCapacity.ForecastPawnCapacityOf(Input(60000)), 60000, budget: 32);
+        Assert.Contains(generated.Choices, c => c.Kind == "rest" && c.Target == "bed");
+        Assert.Contains(generated.Choices, c => c.Kind == "food");
+        Assert.DoesNotContain("no_feasible_need_choice:rest", generated.Findings);
+        Assert.True(generated.Truncated);
+        Assert.Contains("needs_generation_truncated", generated.Findings);
+        Assert.Contains("needs_generation_truncated:food", generated.Findings);
+    }
+
+    [Fact]
     public void UnknownOrRepeatedMealMemoriesDoNotBecomeKnownMoodAndPermanentIsExplicit()
     {
         var first = new ForecastNeedChoice("eat", "pawn", "food", "fine", "FineMeal", 1, 0, 10, 100, .2,

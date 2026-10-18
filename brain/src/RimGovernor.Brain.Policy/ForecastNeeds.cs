@@ -56,12 +56,11 @@ public static class ForecastNeeds
         var choiceKeys = new HashSet<(string Target, string Kind, int Count, double Depart, double Start, double End)>();
         var findings = new SortedSet<string>(pawn.Unsupported, StringComparer.Ordinal);
         var truncated = pawn.Targets.Count > 256;
-        var expansions = 0;
         if (pawn.State != "eligible") return new([], ["needs_state:" + pawn.State], truncated);
         if (!capacity.Capacity.Windows.TryGetValue(out var windows)) return new([], ["unknown_needs_capacity"], truncated);
+        var plans = new List<(NeedTarget Target, double Level, double Fall, double Travel, List<(double Depart, (int Count, double Duration, double Gain) Variant)> Pairs)>();
         foreach (var target in pawn.Targets.Take(256).OrderBy(t => t.Kind, StringComparer.Ordinal).ThenBy(t => t.Id, StringComparer.Ordinal))
         {
-            if (expansions >= budget) { truncated = true; break; }
             var need = pawn.Needs.SingleOrDefault(n => n.Kind == target.Kind);
             findings.UnionWith(target.Unsupported);
             if (need is null || !need.Level.TryGetValue(out var level) || !need.FallPerTick.TryGetValue(out var fall)
@@ -152,10 +151,37 @@ public static class ForecastNeeds
                 foreach (var variant in variants) starts.Add(Math.Max(window.Start, window.End - travel - variant.Duration));
             }
             // Seed observed event boundaries across the horizon before secondary finish-at-event refinements.
-            foreach (var depart in starts.OrderBy(t => primaryStarts.Contains(t) ? 0 : 1).ThenBy(t => t).Take(budget))
-            foreach (var variant in (target.Kind == "rest" ? RestVariants(depart + travel) : variants).Take(budget))
+            // One past the budget, so a target with more pairs than the whole budget still reads as cut.
+            plans.Add((target, level, fall, travel, starts.OrderBy(t => primaryStarts.Contains(t) ? 0 : 1).ThenBy(t => t)
+                .SelectMany(depart => (target.Kind == "rest" ? RestVariants(depart + travel) : variants).Select(variant => (depart, variant)))
+                .Take(budget + 1).ToList()));
+        }
+        // Each (start, variant) pair costs one budget unit before any filter. Units go round-robin across need kinds, and
+        // within a kind across its targets, so many food targets and counts cannot starve rest of its first starts (#3167).
+        var allowance = new int[plans.Count];
+        var kinds = Enumerable.Range(0, plans.Count).GroupBy(i => plans[i].Target.Kind, StringComparer.Ordinal)
+            .OrderBy(g => g.Key, StringComparer.Ordinal).Select(g => g.ToArray()).ToArray();
+        var turn = new int[kinds.Length];
+        for (var left = budget; left > 0;)
+        {
+            var granted = false;
+            for (var k = 0; k < kinds.Length && left > 0; k++)
+                for (var tried = 0; tried < kinds[k].Length; tried++)
+                {
+                    var i = kinds[k][turn[k]];
+                    turn[k] = (turn[k] + 1) % kinds[k].Length;
+                    if (allowance[i] >= plans[i].Pairs.Count) continue;
+                    allowance[i]++; left--; granted = true;
+                    break;
+                }
+            if (!granted) break;
+        }
+        for (var p = 0; p < plans.Count; p++)
+        {
+            var (target, level, fall, travel, pairs) = plans[p];
+            if (allowance[p] < pairs.Count) { truncated = true; findings.Add("needs_generation_truncated:" + target.Kind); }
+            foreach (var (depart, variant) in pairs.Take(allowance[p]))
             {
-                if (expansions++ >= budget) { truncated = true; break; }
                 var start = depart + travel;
                 var end = start + variant.Duration;
                 if (target.Kind == "rest" && (start < pawn.SleepBlockedUntilTicks.Value

@@ -1366,8 +1366,12 @@ alternatives. Counts respect the observed single-ingestion limit and projected
 nutrition wanted; a raw-food serving chews once, not once per item. Target travel
 uses native route cost. Starts include now, the need threshold event, half the
 bounded horizon and protected-window ends. These are finite search samples, not
-proof of globally optimal timing. The policy expansion budget is 256 and reports
-truncation; the native read covers every colonist and every target (#3341).
+proof of globally optimal timing. The policy expansion budget is 256 (32 per
+pawn in coupled selection); every start/variant pair spends one unit before any
+filter. Units go round-robin across need kinds, then across a kind's targets, so
+many food targets and counts cannot starve rest (#3167). Truncation is reported,
+with `needs_generation_truncated:<kind>` naming each kind cut; the native read
+covers every colonist and every target (#3341).
 Omitted choices have not been compared. Continue/defer is the
 empty selected-needs set, not another mutable Method.
 
