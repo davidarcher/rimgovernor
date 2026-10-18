@@ -49,7 +49,7 @@ public static class CoupleBedRules
     public const string PackedFurnitureDefinition = "MinifiedThing";
 
     /// <summary>The bedroom template's bed slot for a DoubleBed in room, and the planned room of plan that room stands in; null when plan has none.</summary>
-    private static (PlannedRoom Planned, IReadOnlyList<WantedPiece> Template)? CoupleBedSlot(LayoutPlan plan, FurnitureRoom room)
+    private static (PlannedRoom Planned, IReadOnlyList<WantedPiece> Template)? CoupleBedSlot(LayoutPlan plan, FurnitureRoom room, IReadOnlyList<CurrentBuilding> built)
     {
         foreach (var planned in plan.Rooms)
         {
@@ -57,7 +57,7 @@ public static class CoupleBedRules
             {
                 continue;
             }
-            var template = SleepingRules.BedroomFurnishing(planned, room.Room.Shapes, SleepingRules.SleepingCoupleBedDefinition, [], null).Pieces;
+            var template = SleepingRules.BedroomFurnishing(planned, room.Room.Shapes, SleepingRules.SleepingCoupleBedDefinition, built, null).Pieces;
             return template.Count > 0 ? (planned, template) : null;
         }
         return null;
@@ -74,6 +74,7 @@ public static class CoupleBedRules
         LayoutPlan plan,
         IReadOnlyList<FurnitureRoom> rooms,
         IReadOnlyList<Cell> packed,
+        IReadOnlyList<CurrentBuilding> built,
         bool buildable)
     {
         var couples = SleepingRules.SleepingCouples(obs.People);
@@ -145,7 +146,7 @@ public static class CoupleBedRules
             }
             if (pack.Count > 0)
             {
-                if (CoupleBedSlot(plan, home!) is null || !buildable)
+                if (CoupleBedSlot(plan, home!, built) is null || !buildable)
                 {
                     continue;
                 }
@@ -159,7 +160,7 @@ public static class CoupleBedRules
             {
                 if (CellInRect(r.Room.Interior, packed[0]))
                 {
-                    if (CoupleBedSlot(plan, r) is not var (planned, template))
+                    if (CoupleBedSlot(plan, r, built) is not var (planned, template))
                     {
                         break;
                     }

@@ -167,12 +167,12 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                             var (replacement, replacementDue) = BedReplacementOf(facts);
                             if (replacementDue && replacement.Step == Pol.BedReplacementStep.Build)
                             {
-                                return await UpgradeBedroomAsync(state, review, goal, reading, new Pol.RoomUpgrade { Room = replacement.Room, Slot = "bed", Def = replacement.Def, Stuff = replacement.Stuff, Anchor = replacement.Cell, Rot = replacement.Rot }, call, epoch).ConfigureAwait(false);
+                                return await FurnishBedroomAsync(stock, state, review, goal, reading, replacement.Piece(), call, epoch).ConfigureAwait(false);
                             }
                             var (beauty, beautyDue) = BeautyUpgrade(facts);
                             if (beautyDue)
                             {
-                                return await (beauty.Cells.Count == 0 ? FurnishBedroomAsync(stock, state, review, goal, reading, beauty, call, epoch) : UpgradeBedroomAsync(state, review, goal, reading, beauty, call, epoch)).ConfigureAwait(false);
+                                return await (beauty.Cells.Count == 0 ? FurnishBedroomAsync(stock, state, review, goal, reading, beauty, call, epoch) : LayBeautyFloorAsync(state, review, goal, reading, beauty, call, epoch)).ConfigureAwait(false);
                             }
                             var (sculpted, sculptDue) = await SculptBedroomAsync(stock, state, goal, reading, call, epoch).ConfigureAwait(false);
                             if (sculptDue)

@@ -289,7 +289,15 @@ public static partial class SleepingRules
             var asked = add is not null && add.Def == def;
             wants.Add(new FurnishingWant { Things = [def], Count = standing + (asked ? 1 : 0), Slots = asked ? [add!.Slotted()] : [], Piece = new InteriorPieceDef { Def = def } });
         }
-        return RoomFurnishingRules.RoomFurnishing(room, interior, wants, built);
+        var furnishing = RoomFurnishingRules.RoomFurnishing(room, interior, wants, built);
+        if (add is null || add.Stuff.Length == 0)
+        {
+            return furnishing;
+        }
+
+        // The asked piece is the one at its slot's cell: it is built in the material the lever chose.
+        var slot = add.Slotted().Wanted();
+        return furnishing with { Pieces = [.. furnishing.Pieces.Select(p => p.DefName == slot.DefName && p.Minimum == slot.Minimum && p.Maximum == slot.Maximum ? p with { Stuff = add.Stuff } : p)] };
     }
 
     /// <summary>Unlocks Bed and DoubleBed.</summary>

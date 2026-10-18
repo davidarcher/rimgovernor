@@ -135,6 +135,47 @@ public sealed class RoomFurnishingTests
     }
 
     [Fact]
+    public void AReplacementBedIsBuiltInTheLeversStuffBesideTheOldBedAndASculptureIsNeverPacked()
+    {
+        var room = Room();
+        var plan = new LayoutPlan { Rooms = [room] };
+        var old = StandingAt(SleepingRules.BedroomFurnishing(room, Shapes, Bed, [], null).Pieces.Single());
+        var free = room.Region.Cells().Where(c => !old.Cells.Contains(c)).ToList();
+        var sculpture = Standing(Lever, free[0].X, free[0].Z);
+        var open = free.Skip(1).Where(c => free.Skip(1).Contains(new Cell(c.X, c.Z + 1))).First();
+        var replacement = new BedReplacement { Step = BedReplacementStep.Build, Room = "1", Def = Bed, Stuff = "Steel", Cell = open, Rot = Rotation.North }.Piece();
+        Assert.Equal(new Cell(1, 2), replacement.Size);
+
+        var furnishing = SleepingRules.BedroomFurnishing(room, Shapes, "", [old, sculpture], replacement);
+        Assert.True(furnishing.Absent);
+        Assert.Contains(furnishing.Pieces, p => p.DefName == Bed && p.Minimum == old.Cells[0]);
+        var asked = furnishing.Pieces.Single(p => p.DefName == Bed && p.Minimum != old.Cells[0]);
+        Assert.Equal("Steel", asked.Stuff);
+
+        var rows = new[] { old, sculpture }.Select(b => new ClearanceTarget
+        {
+            EntityId = b.Id,
+            DefName = b.Building!.Definition,
+            Minimum = b.Cells[0],
+            Maximum = b.Cells[^1],
+            Player = true,
+            Packable = true,
+        }).ToList();
+        var input = new ReconcileInput
+        {
+            Plan = plan,
+            Room = room,
+            Ground = new GroundCensus(),
+            Rows = ReconcileRules.OwnRows(rows, furnishing.Pieces, null),
+            Furniture = furnishing.Pieces,
+            Stock = new Dictionary<string, int> { [Bed] = 1 },
+        };
+        var ops = ReconcileRules.Reconcile(input).Owed;
+        Assert.DoesNotContain(ops, o => o.Kind is OpKind.Pack or OpKind.PackInUse or OpKind.FurnitureOut or OpKind.Install);
+        Assert.Equal(Bed, ops.Single(o => o.Kind == OpKind.Build).Pieces.Single().DefName);
+    }
+
+    [Fact]
     public void AStandingBedStaysListedWhereItStandsAndNothingIsAbsent()
     {
         var room = Room();

@@ -796,7 +796,7 @@ public sealed partial class RoundsBuildingPlanner
                     case Pol.OpKind.Build:
                         foreach (var piece in op.Pieces)
                         {
-                            builds.Add(new RoomBuild { Def = piece.DefName, Stuff = facts.BulkBuildStuff(piece.DefName, 1), Cell = piece.Anchor(), Rot = piece.Rot });
+                            builds.Add(new RoomBuild { Def = piece.DefName, Stuff = piece.Stuff.Length > 0 ? piece.Stuff : facts.BulkBuildStuff(piece.DefName, 1), Cell = piece.Anchor(), Rot = piece.Rot });
                         }
                         break;
                     case Pol.OpKind.VentIn:

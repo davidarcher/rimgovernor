@@ -110,6 +110,13 @@ public sealed record WantedPiece
 
     public Rotation Rot { get; init; }
 
+    /// <summary>
+    /// The material the owner chose for a piece it builds (a replacement bed's, never worse than the bed it
+    /// replaces); empty for the build side's ordinary choice. A piece with a stuff is built to it, never
+    /// installed from stock, whose stuff is not the owner's choice.
+    /// </summary>
+    public string Stuff { get; init; } = "";
+
     private Rectangle Footprint => new(Minimum.X, Minimum.Z, Maximum.X - Minimum.X + 1, Maximum.Z - Minimum.Z + 1);
 
     /// <summary>The cell a native order names for the piece's footprint.</summary>
@@ -536,7 +543,11 @@ public static partial class ReconcileRules
             {
                 continue;
             }
-            if (stock.GetValueOrDefault(p.DefName) > 0)
+            if (p.Stuff.Length > 0)
+            {
+                Add(new ReconcileItem { Kind = OpKind.Build, Piece = p });
+            }
+            else if (stock.GetValueOrDefault(p.DefName) > 0)
             {
                 stock[p.DefName]--;
                 Add(new ReconcileItem { Kind = OpKind.Install, Piece = p });

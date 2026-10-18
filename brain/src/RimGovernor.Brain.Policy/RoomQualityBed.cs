@@ -80,6 +80,18 @@ public sealed record BedReplacement
     public Cell Cell { get; init; }
 
     public Rotation Rot { get; init; }
+
+    /// <summary>The Build step as the furnishing piece it asks for: Def at Cell, Rot in Stuff.</summary>
+    public RoomUpgrade Piece() => new()
+    {
+        Room = Room,
+        Slot = "bed",
+        Def = Def,
+        Stuff = Stuff,
+        Size = RoomQualityRules.ReplacementBedSizes.GetValueOrDefault(new Resource(Def)),
+        Anchor = Cell,
+        Rot = Rot,
+    };
 }
 
 public static partial class RoomQualityRules

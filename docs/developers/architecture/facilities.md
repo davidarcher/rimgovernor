@@ -762,12 +762,19 @@ yields one piece; the same `BedroomFurnishing` lists every lever piece
 standing in the room where it stands plus the asked one, and
 `FurnishBedroomAsync` reconciles the planned room to that list (methods
 `bedroom-upgrade-<slot>-<room>-…`), so a standing lamp, dresser or animal
-bed is never repacked. A beauty floor and a replacement bed are not
-furniture pieces and still place directly. The couple's double bed is the
-same: the pack step takes the two single beds up, the install is a
-reconcile of the couple's planned room to a `DoubleBed` template
-(`CoupleBed.Template`), and a couple whose room is outside the plan is never
-packed for. `NextBedroomStep` yields one bedroom per step, the first owed room in
+bed is never repacked. A replacement bed is one more asked piece of the same
+list: the new bed is built to the stuff the lever chose (`WantedPiece.Stuff`;
+a piece with a stuff is built, never installed from stock), the old bed stays
+listed until `RemoveOldBedAsync` takes it down. A sculpture is installed from
+stock by its own op (`SculptBedroomAsync`) and, like the replaced bed, is not a
+template piece, so the owner's reconcile never packs it. A beauty floor is
+cells laid over the floor already there (`LayBeautyFloorAsync`), not a listed
+piece, because a reconcile tears the old floor out first and keeps any floor
+that meets the room's tier. The couple's double bed is the same list: the pack
+step takes the two single beds up, the install is a reconcile of the couple's
+planned room to a `DoubleBed` template (`CoupleBed.Template`, the standing
+lever pieces listed beside it), and a couple whose room is outside the plan
+is never packed for. `NextBedroomStep` yields one bedroom per step, the first owed room in
 plan order (a Retiring wing is never carried); bedrooms are not batched by
 wing, and the native tier gate orders delivery across them (see
 [construction tiers](../contracts/construction-tiers.md)). Suites keep their own ring-stock

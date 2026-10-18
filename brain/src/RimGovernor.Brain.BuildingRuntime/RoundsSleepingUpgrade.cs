@@ -3,24 +3,6 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 partial class RoundsSleepingUpkeepPlanner
 {
-    /// <summary>The stuff a bedroom upgrade piece is built in: the allowed stocked one with the best rest effectiveness, else the ordinary placement stuff.</summary>
-    internal static string PieceStuff(Observation.ColonyProjection facts, string def)
-    {
-        var stuff = facts.BuildStuff(def);
-        if (facts.TryDefinition(def, out var d))
-        {
-            facts.TryStock(out var stock);
-            try
-            {
-                stuff = d.StuffChoice(Observation.StuffCriterion.MaxRestEffectiveness, stock).Stuff;
-            }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-            }
-        }
-        return stuff;
-    }
-
     private static bool DefinitionBuildable(Observation.ColonyProjection facts, string def) =>
         facts.DefinitionAvailable(def).TryGetValue(out var v) && v;
 
@@ -203,8 +185,12 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         return await Building.ReconcileRoomAsync(state, review, goal, reading, stock, new RoomReconcile { Room = planned, Template = furnishing.Pieces, Name = name, Reason = "room upgrade " + u.Slot }, call, epoch).ConfigureAwait(false);
     }
 
-    /// <summary>Previews and admits one non-furniture upgrade (a floor's cells, a replacement bed), once per room and slot per Episode.</summary>
-    internal async Task<RoundsBuildingResult> UpgradeBedroomAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.RoomUpgrade u, CancellationToken call, CancellationToken epoch)
+    /// <summary>
+    /// Lays the beauty floor over a bedroom's cells, once per room per Episode. A floor is cells, not a listed
+    /// piece, and it is laid over the floor already there rather than reconciled (a reconcile tears the old
+    /// floor out first and keeps any floor that meets the room's tier), so it stays a special-case op.
+    /// </summary>
+    internal async Task<RoundsBuildingResult> LayBeautyFloorAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.RoomUpgrade u, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var facts = reading.Projection;
@@ -213,23 +199,22 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "bedroom_upgrade") };
         }
-        var stuff = u.Stuff != "" ? u.Stuff : PieceStuff(facts, u.Def);
+        var stuff = facts.BuildStuff(u.Def);
         var snapshot = state.Snapshot with { Plan = PlanIds.MintPlanId(), Revision = new PlanRevision(1) };
         void Check()
         {
             p.Current(call, epoch);
             if (p.Session.State() != state)
             {
-                throw new ControlException("upgradeBedroom: p.session.State() != state");
+                throw new ControlException("layBeautyFloor: p.session.State() != state");
             }
         }
         Check();
-        EquatableArray<Cell> cells = u.Cells.Count == 0 ? [u.Anchor] : u.Cells;
         var stock = new Pol.StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         var selected = new List<Pol.Preview>();
-        for (var i = 0; i < cells.Count; i++)
+        for (var i = 0; i < u.Cells.Count; i++)
         {
-            var building = new Domain.Building(u.Def, cells[i], u.Rot, stuff);
+            var building = new Domain.Building(u.Def, u.Cells[i], u.Rot, stuff);
             var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{i}")), building, ConstructionTier.Sustain);
             var preview = await Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var v = preview.Preview;
