@@ -451,6 +451,25 @@ public sealed class TypedSession
     {
         ArgumentNullException.ThrowIfNull(request);
         var reply = await CallAsync(label + "-start", NativeOps.StartNewColony, request, cancellationToken).ConfigureAwait(false);
+        return await FollowNewColonyAsync(label, request, reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// <see cref="NewColonyAsync"/> started through the in-process brain's player route (<c>POST /api/lifecycle/new</c>,
+    /// <see cref="Harness.StartNewColonyThroughBrainAsync"/>), for a spec that asks the brain to resolve a part before
+    /// native creation (<c>governorIdeoligion</c>); the native poll follows it from its first reply.
+    /// </summary>
+    public async Task<NewColonyResult> NewColonyThroughBrainAsync(string label, Lifecycle.NewColonyRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        await H.StartNewColonyThroughBrainAsync(label + "-start", request, Wait.StallBudget(), cancellationToken).ConfigureAwait(false);
+        return await FollowNewColonyAsync(label, request, null, cancellationToken).ConfigureAwait(false);
+    }
+
+    // Polls a started request to its terminal outcome; a null start reply is polled at once.
+    private async Task<NewColonyResult> FollowNewColonyAsync(string label, Lifecycle.NewColonyRequest request, Lifecycle.NewColonyReply? started, CancellationToken cancellationToken)
+    {
+        var reply = started;
         var phases = new List<Lifecycle.NewColonyPhase>();
         var polls = 0;
         var stall = Wait.StallBudget();
@@ -459,7 +478,7 @@ public sealed class TypedSession
             await new Wait { Stall = stall > NewColonyStall ? stall : NewColonyStall, Interval = TimeSpan.FromMilliseconds(250) }.WaitProgressAsync(
                 async ct =>
                 {
-                    if (polls++ > 0)
+                    if (polls++ > 0 || reply is null)
                     {
                         reply = await CallAsync(
                             string.Create(CultureInfo.InvariantCulture, $"{label}-poll-{polls}"),
@@ -493,7 +512,7 @@ public sealed class TypedSession
             throw new AcceptanceException($"{label}: the start stalled in {(phases.Count == 0 ? "no phase" : phases[^1])}: {e.Message}", e);
         }
 
-        switch (reply.Outcome)
+        switch (reply?.Outcome)
         {
             case Lifecycle.NewColonyReplyOutcome.CompletedCase { Value: var completed }:
                 if (!phases.Contains(Lifecycle.NewColonyPhase.Saving))
@@ -507,7 +526,7 @@ public sealed class TypedSession
             case Lifecycle.NewColonyReplyOutcome.FailureCase { Value: var failure }:
                 return new NewColonyResult { Phases = phases, Failure = failure };
             default:
-                throw new AcceptanceException($"{label}: expected a completed or failed start, got {reply.Outcome}");
+                throw new AcceptanceException($"{label}: expected a completed or failed start, got {reply?.Outcome}");
         }
     }
 

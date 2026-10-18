@@ -104,7 +104,7 @@ namespace HomeBridge.BridgeTools
 
             ResolvedSpec resolved;
             if (request.Spec.GovernorIdeoligion.GetValueOrDefault())
-                return Fail(Common.FailureCode.InvalidRequest, "Governor selection must be resolved by Go before native creation.");
+                return Fail(Common.FailureCode.InvalidRequest, "governor_ideoligion is resolved by the brain (POST /api/lifecycle/new) before native creation.");
             try { resolved = Resolve(request.Spec); }
             catch (Refusal refusal) { return Fail(refusal.Code, refusal.Message); }
 

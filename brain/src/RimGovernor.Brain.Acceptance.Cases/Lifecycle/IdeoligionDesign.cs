@@ -9,9 +9,10 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <c>lifecycle/ideoligion-design</c>: production colony creation applies the governor's ideoligion design and the live
 /// colony reports it.
 /// <para>
-/// The brain resolves the design in-process from the game's Defs (the spec's <c>governorIdeoligion</c> flag) and the
-/// acceptance process has no Def catalog to repeat that choice, so the case starts the colony with
-/// <c>governorIdeoligion</c> and asserts the design the live colony holds is a well-formed one (1..5 memes, a decided
+/// The brain resolves the design in-process from the game's Defs (the spec's <c>governorIdeoligion</c> flag) before it
+/// dispatches native creation, and native refuses the flag itself, so the case starts the colony through the brain's
+/// player route (<c>POST /api/lifecycle/new</c>, the launcher's) rather than the native op. The acceptance process has
+/// no Def catalog to repeat that choice, so the case asserts the design the live colony holds is a well-formed one (1..5 memes, a decided
 /// fluid flag, a duplicate-free selection) with no reform count or points spent.
 /// </para>
 /// </summary>
@@ -48,7 +49,7 @@ internal static class LifecycleIdeoligionDesign
             async () =>
             {
                 var spec = NewColonyStart.Spec() with { Storyteller = "Phoebe", Difficulty = "Peaceful", SaveName = "ideoligion-design-accept", GovernorIdeoligion = true };
-                _ = await NewColonyStart.CompleteAsync(s, "ideoligion", NewColonyStart.Request("ideoligion-create", spec), cancellationToken).ConfigureAwait(false);
+                _ = await NewColonyStart.CompleteAsync(s, "ideoligion", NewColonyStart.Request("ideoligion-create", spec), cancellationToken, throughBrain: true).ConfigureAwait(false);
                 var read = await s.FixtureAsync("created-design", Inspect, true, cancellationToken).ConfigureAwait(false);
                 var design = WireJson.Deserialize<Common.IdeoligionDesign>(read.Design);
                 s.RecordWire("design", design);

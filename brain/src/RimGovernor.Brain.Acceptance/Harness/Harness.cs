@@ -1,10 +1,13 @@
 using System.Diagnostics;
+using System.Globalization;
+using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
 using RimGovernor.Contracts.Wire;
+using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -68,6 +71,66 @@ public sealed partial class Harness : IAsyncDisposable
             throw new AcceptanceException($"{label}: {op.Name}: invalid reply: {e.Message}", e);
         }
     }
+
+    /// <summary>
+    /// Starts <paramref name="request"/> through the in-process brain's player route (<c>POST /api/lifecycle/new</c>, the
+    /// launcher's route), which resolves what the brain owns before it dispatches <c>lifecycle_new_colony</c> (the
+    /// ideoligion design a <c>governorIdeoligion</c> spec asks the governor to choose); the caller follows the start with
+    /// <c>lifecycle_read_new_colony</c>. The brain registers its routes after the channel's native ops, so a 404 or 503 is
+    /// asked again with the same request id until <paramref name="patience"/> is spent; any other non-2xx status is the
+    /// start's refusal. Each exchange is recorded as evidence.
+    /// </summary>
+    public async Task StartNewColonyThroughBrainAsync(string label, Lifecycle.NewColonyRequest request, TimeSpan patience, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (IsClosed)
+        {
+            throw Closed(NewColonyRoute, null);
+        }
+
+        var body = WireJson.Serialize(request);
+        var arguments = JsonNode.Parse(body) as JsonObject ?? [];
+        var waited = Stopwatch.StartNew();
+        using var pace = Wait.Pace(RouteRetryInterval);
+        while (true)
+        {
+            var sequence = Evidence.NextSequence(Output);
+            var sent = DateTimeOffset.UtcNow;
+            var clock = Stopwatch.StartNew();
+            HttpStatusCode status;
+            string text;
+            try
+            {
+                (status, text) = await Transport.PostRouteAsync(NewColonyRoute, body, cancellationToken).ConfigureAwait(false);
+            }
+            catch (NativeTransportException e)
+            {
+                EvidenceBudget.WriteEvidence(Evidence.PathFor(Output, sequence, label), Evidence.Row(sequence, "POST " + NewColonyRoute, arguments, sent, clock.Elapsed, null, e, null));
+                throw;
+            }
+
+            var reply = new JsonObject { { "status", (int)status }, { "text", text } };
+            EvidenceBudget.WriteEvidence(Evidence.PathFor(Output, sequence, label), Evidence.Row(sequence, "POST " + NewColonyRoute, arguments, sent, clock.Elapsed, reply, null, null));
+            if (status is HttpStatusCode.OK or HttpStatusCode.Created or HttpStatusCode.Accepted)
+            {
+                return;
+            }
+
+            if (status is not (HttpStatusCode.NotFound or HttpStatusCode.ServiceUnavailable) || waited.Elapsed >= patience)
+            {
+                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"{label}: POST {NewColonyRoute} answered {(int)status}: {text}"));
+            }
+
+            await pace.NextAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    // The brain's new-colony route (PlayerApi's LifecycleRoutes.NewPath; this assembly does not reference the brain's
+    // player API, which pulls in its runtime, so the path is spelled here as the launcher spells it).
+    private const string NewColonyRoute = "/api/lifecycle/new";
+
+    // How often a start the brain's routes are not ready for yet is asked again.
+    private static readonly TimeSpan RouteRetryInterval = TimeSpan.FromMilliseconds(250);
 
     /// <summary>
     /// The game's OTLP log ring: the channel directory the opened game writes its rings to, where native's clock and

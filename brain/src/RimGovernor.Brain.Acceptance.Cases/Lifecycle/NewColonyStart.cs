@@ -68,11 +68,17 @@ internal static class NewColonyStart
         }
     }
 
-    /// <summary>Starts <paramref name="request"/> and requires it to complete; a failed start fails <paramref name="label"/> with its code and phases.</summary>
+    /// <summary>
+    /// Starts <paramref name="request"/> (through the brain's player route when <paramref name="throughBrain"/>, which a
+    /// spec the brain resolves needs) and requires it to complete; a failed start fails <paramref name="label"/> with its
+    /// code and phases.
+    /// </summary>
     internal static async Task<(Lifecycle.NewColonyCompleted Completed, IReadOnlyList<Lifecycle.NewColonyPhase> Phases)> CompleteAsync(
-        TypedSession s, string label, Lifecycle.NewColonyRequest request, CancellationToken cancellationToken)
+        TypedSession s, string label, Lifecycle.NewColonyRequest request, CancellationToken cancellationToken, bool throughBrain = false)
     {
-        var result = await s.NewColonyAsync(label, request, cancellationToken).ConfigureAwait(false);
+        var result = throughBrain
+            ? await s.NewColonyThroughBrainAsync(label, request, cancellationToken).ConfigureAwait(false)
+            : await s.NewColonyAsync(label, request, cancellationToken).ConfigureAwait(false);
         return result.Completed is { } completed
             ? (completed, result.Phases)
             : throw new AcceptanceException($"{label}: the start failed after phases [{string.Join(' ', result.Phases)}]: {result.Failure}");

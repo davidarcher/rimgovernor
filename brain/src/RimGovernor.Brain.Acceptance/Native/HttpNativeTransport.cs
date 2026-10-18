@@ -147,6 +147,35 @@ public sealed class HttpNativeTransport : IAsyncDisposable
     }
 
     /// <summary>
+    /// POSTs <paramref name="body"/> to the in-process brain's player route <paramref name="path"/> (an <c>/api/</c> path
+    /// on the same channel) and returns the reply's status and text, whatever the status. Outside the lost-run accounting:
+    /// the caller reads the status.
+    /// </summary>
+    internal async Task<(HttpStatusCode Status, string Text)> PostRouteAsync(string path, string body, CancellationToken cancellationToken)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(_timeout);
+        try
+        {
+            var address = await ResolveAddressAsync(timeout.Token).ConfigureAwait(false);
+            using var message = new HttpRequestMessage(HttpMethod.Post, address + path)
+            {
+                Content = new StringContent(body, new UTF8Encoding(false), "application/json"),
+            };
+            using var response = await _client.SendAsync(message, HttpCompletionOption.ResponseContentRead, timeout.Token).ConfigureAwait(false);
+            return (response.StatusCode, await response.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false));
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new NativeTransportException($"route transport failure: POST {path}: no reply within {_timeout.TotalSeconds:0.#}s");
+        }
+        catch (HttpRequestException e)
+        {
+            throw new NativeTransportException($"route transport failure: POST {path}: {e.Message}", e);
+        }
+    }
+
+    /// <summary>
     /// The tools the channel routes right now (<c>GET /api/tools</c>), in the names a caller uses: a route without a
     /// namespace is a <c>rimgovernor/</c> tool, <c>test/lab_start</c> keeps its own. Null when the channel cannot say,
     /// so callers assume a tool is present.
