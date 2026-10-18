@@ -540,6 +540,48 @@ What the day says:
   hold-to-step latency, 45 s. (3) The family entries' sections, so a pawn invalidation selects the planners that read
   pawns and not all 22: the waves are 50 s. With rounds and the latency cut the day is about 80 s, under the budget.
 
+### Rounds cadence (#3556)
+
+Measured 2026-10-18 on the same colony and machine, revision 2ea666926 (the rounds review on its own cadence,
+`ClockSchedulerConfig.RoundsEveryTicks` 2500), brain session `d3ad27f717294951bfac61f9ce8b9c1f`, one passing
+colony-review day of 60530 ticks: 160.6 s of wall from the first step to the last, against 268 s on the 600-tick day
+above. The brain-held wall is 112 s: the day is under the 2-minute budget.
+
+| What | Value |
+| --- | --- |
+| `clock_step` rows | 105: 98 `review`, 5 `wake` (3 `ColonistNeed`, 1 `NotificationBatch`, 1 `SessionChanged`), 2 `full`; every one `planned` |
+| `clock_run` rows | 105: 104 `run`/`resumed` with `hold_at_tick` 600 past its tick; the same one refusal on the hold serial at the first review |
+| Steps that ran no planner | 59, p50 84 ms |
+| Steps that ran the rounder (`rounds` `due` 18, `wake` 4, `all` 3) | 25, p50 2114 ms: rounds 1126 ms p50 (3806 max, 34.4 s), then the waves |
+| Steps on the last committed review (`rounds` `last`) | 21, p50 1078 ms, max 1589 ms, 20.7 s: critical wave 296 ms, optional wave 607 ms |
+| Review step wall | p50 86 ms, p95 2199 ms, max 3517 ms, 58.3 s over 98 |
+| `stop_latency_ms` (hold stamp to step start) | p50 141 ms, p95 220 ms, max 2534 ms, 17.6 s over 103 (was 397 ms p50, 44.6 s) |
+| `clock_run` wall | p50 67 ms, p95 356 ms, 15.4 s over 105 |
+| Brain-held wall | steps 79.4 s + Runs 15.4 s + hold-to-step 17.6 s = 112 s of the 160.6 s; about 48 s running, about 1260 ticks/s |
+| `selection` words | `dirty` 302, `due` 285, `dirty+due` 32, `full` 44, `all` 22 |
+
+What the day says:
+
+- **The rounder ran 25 times, not 55.** Every fifth review is a `due` one: the first review tick at or past 2500 ticks
+  from the last rounds review is 3000 ticks on, so the effective cadence is 3000 ticks, about 20 a day, plus the early
+  reviews (the four hazard holds) and the two full steps. Rounds itself is unchanged at 1.1 s p50 (34 s a day, was
+  76 s). The 21 steps between due ticks that had dirty or due planners ran them against the last review in 1.1 s.
+- **Where the 112 s goes.** The planner waves 46 s (critical 12.6 s, optional 21.3 s, refresh and record 1 s, in 46
+  steps), rounds 34 s, hold-to-step 18 s, Runs 15 s, the floor 5 s. The waves are now the largest cost: the family
+  entries are dirty in most reviews (`dirty` 302 selections over 46 steps) because the pawn sections invalidate at every
+  review tick.
+- **Hold-to-step fell with the work.** 141 ms p50 from native's hold stamp to the step's first lap, 18 s a day (was
+  397 ms, 45 s), and the steps' own game-thread hops wait 33 ms p50 (`hop_wait_ms`, was 231 ms). The latency moved
+  with the rounds work and not with the hold path, which did not change; the remaining 141 ms is not explained.
+- **The tick rate while running recovered.** About 1260 ticks/s against about 900 on the 600-tick day (1160 to 1280 on
+  the wall-cadence day); the ceiling at the holds ranged 273 to 5695 ticks/s.
+- **What a need waits.** A need that first appears between two rounds reviews is ranked at the next `due` review, up to
+  3000 ticks (a little over an in-game hour) later, or at the next hazard hold, whichever comes first; the planners that
+  already hold a ranking act on it every 600 ticks. No case in the gate depends on a rounds review per step.
+- **Next cuts, in order.** (1) The family entries' sections (#3556 item 3's third cut): a pawn invalidation selects
+  every family entry, 46 s of waves a day; selecting the entries that read the dirtied section would leave the due
+  ones. (2) The hold-to-step latency that remains, 18 s. The day is under the budget without either.
+
 ## Hosting in the mod (#3115)
 
 Decided (user, 2026-10-13):
