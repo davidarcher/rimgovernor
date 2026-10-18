@@ -122,6 +122,14 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (1, PartySpotPlaceMethod(PartySpotRoom), default);
             }
+            if (Phase == Phase.ComfortWorkChair)
+            {
+                if (Cells is not [var seat])
+                {
+                    return (0, default, FieldUnavailable("work_chair_seat"));
+                }
+                return (1, new MethodId(string.Create(CultureInfo.InvariantCulture, $"work-chair-{Definition}-{seat.X}-{seat.Z}")), default);
+            }
             if (Phase == Phase.ComfortBasic)
             {
                 return (1, new MethodId("basic-comfort-" + Definition), default);

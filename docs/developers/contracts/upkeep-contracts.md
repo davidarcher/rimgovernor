@@ -571,7 +571,15 @@ and window start; the window restarts on load).
 
 The comfort Needs are plain thresholds chained by precondition, with no phase latch:
 `rooms/comfort`, then `rooms/hosting`, then `rooms/party-spot` (see
-[mood control](mood-control.md#the-partyspot)).
+[mood control](mood-control.md#the-partyspot)); `rooms/work-chairs` also follows `rooms/comfort`.
+
+- `rooms/work-chairs` (#3039): unmet while a bench stands in a planned room that chose a work
+  chair for its definition (`PlannedRoom.WorkChairs`, [spatial](spatial-contracts.md)) and the
+  bench's interaction cell, inside the room, holds no building, blueprint or frame
+  (`WorkChairRules.OwedSeats`, from the standing bench's def shape and rotation). Each seat is
+  one Method `work-chair-<chair>-<x>-<z>`, placed only on that cell in `BuildStuff`. A room
+  with no chair chosen, or a bench not yet standing, owes nothing; an unread plan or census is
+  unknown.
 
 - `rooms/comfort`: one
   eating surface, one adjacent seat and one recreation source every colonist can reach, read

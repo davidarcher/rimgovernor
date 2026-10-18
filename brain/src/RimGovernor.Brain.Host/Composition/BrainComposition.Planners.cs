@@ -27,6 +27,7 @@ public sealed partial class BrainComposition
         var families = new List<FamilyRunner>();
         RoundsBuildingPlanner? roomsHosting = null;
         RoundsBuildingPlanner? roomsPartySpot = null;
+        RoundsBuildingPlanner? roomsWorkChairs = null;
         RoundsDefensePlanner? cfgDefense = null;
         RoundsFieldPlanner? cfgFields = null;
         RoundsBuildingPlanner? roomsFlooring = null;
@@ -314,6 +315,7 @@ public sealed partial class BrainComposition
                 roomsComfort = RoundsBuildingPlanner.NewRoundsBasicComfortPlanner(reviewer, client);
                 roomsHosting = RoundsBuildingPlanner.NewRoundsComfortPlanner(reviewer, client);
                 roomsPartySpot = RoundsBuildingPlanner.NewRoundsPartySpotPlanner(reviewer, client);
+                roomsWorkChairs = RoundsBuildingPlanner.NewRoundsWorkChairPlanner(reviewer, client);
             }
             if (workshop)
             {
@@ -328,7 +330,7 @@ public sealed partial class BrainComposition
         if (roomsLighting is not null || roomsFlooring is not null || roomsComfort is not null || sc.Art || sc.Gathering)
         {
             // The lighting, flooring, art, comfort and gathering toggles compose the rooms family's Needs (#3255).
-            families.Add(new RoomsRounds(reviewer, roomsLighting, roomsFlooring, roomsComfort, roomsHosting, roomsPartySpot, sc.Art, sc.Gathering).Runner());
+            families.Add(new RoomsRounds(reviewer, roomsLighting, roomsFlooring, roomsComfort, roomsHosting, roomsPartySpot, roomsWorkChairs, sc.Art, sc.Gathering).Runner());
         }
         if (research || resourceTargets || acquisition || sc.Art || trade)
         {
@@ -458,7 +460,7 @@ public sealed partial class BrainComposition
         }
         if (sc.Comfort)
         {
-            needs.AddRange([RoomsFamily.Comfort, RoomsFamily.Hosting, RoomsFamily.PartySpot]);
+            needs.AddRange([RoomsFamily.Comfort, RoomsFamily.Hosting, RoomsFamily.PartySpot, RoomsFamily.WorkChairs]);
         }
         if (sc.Gathering)
         {

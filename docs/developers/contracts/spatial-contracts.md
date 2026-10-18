@@ -437,7 +437,8 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   bench's interaction cell, named `<bench slot>_chair`. The seats are added after the
   placement and the interior search, so the layout is the one without them (the cell was open
   floor already, and a chair is walked over); a bench without an interaction cell, a catalog
-  without a 1x1 row for the chair or a built bench gets none. No round builds the chair yet.
+  without a 1x1 row for the chair or a built bench gets none. The `rooms/work-chairs` Need builds
+  the chair ([comfort](upkeep-contracts.md#comfort)).
   Beauty has the shape (`BeautyTarget`) but no decor candidate feeds it.
   **Circulation (#2911).** The station graph carries station-less room nodes
   (`StationGraph.Rooms`, `RoomNode`: role, area demand, optional strip width; the tomb

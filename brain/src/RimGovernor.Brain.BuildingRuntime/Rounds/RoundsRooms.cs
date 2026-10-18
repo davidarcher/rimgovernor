@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// The runtime half of the rooms family (#3255): its read (the room census with its lighting, terrain and comfort,
 /// the colony's construction claims, the review's proof-of-use history, the party-spot Need's spent Methods and the
 /// mood census) and the work of its ready Needs, committed under the Need and admitted by claims. The lighting,
-/// flooring and three comfort Needs each work through their own building planner; the art Need's sculpture bills
+/// flooring and four comfort Needs each work through their own building planner; the art Need's sculpture bills
 /// are the work ledger's (<see cref="RoundsArtPlanner"/>), and a party is held by the family's Propose.
 /// </summary>
 public sealed class RoomsRounds
@@ -16,22 +16,23 @@ public sealed class RoomsRounds
     private readonly RoundsBuildingPlanner? _comfort;
     private readonly RoundsBuildingPlanner? _hosting;
     private readonly RoundsBuildingPlanner? _partySpot;
+    private readonly RoundsBuildingPlanner? _workChairs;
     private readonly bool _art;
     private readonly bool _gatherings;
 
     /// <summary>
     /// A <paramref name="lighting"/> or <paramref name="flooring"/> planner derives rooms/lighting or rooms/flooring;
-    /// the <paramref name="comfort"/>, <paramref name="hosting"/> and <paramref name="partySpot"/> planners, composed
-    /// together, derive rooms/comfort, rooms/hosting and rooms/party-spot. <paramref name="art"/> and
+    /// the <paramref name="comfort"/>, <paramref name="hosting"/>, <paramref name="partySpot"/> and <paramref name="workChairs"/> planners, composed
+    /// together, derive rooms/comfort, rooms/hosting, rooms/party-spot and rooms/work-chairs. <paramref name="art"/> and
     /// <paramref name="gatherings"/> derive rooms/art and rooms/gatherings.
     /// </summary>
     public RoomsRounds(Rounder reviewer, RoundsBuildingPlanner? lighting, RoundsBuildingPlanner? flooring,
-        RoundsBuildingPlanner? comfort, RoundsBuildingPlanner? hosting, RoundsBuildingPlanner? partySpot, bool art, bool gatherings)
+        RoundsBuildingPlanner? comfort, RoundsBuildingPlanner? hosting, RoundsBuildingPlanner? partySpot, RoundsBuildingPlanner? workChairs, bool art, bool gatherings)
     {
         _reviewer = reviewer ?? throw new ControlException("RoomsRounds: reviewer is missing");
-        if ((comfort is null) != (hosting is null) || (comfort is null) != (partySpot is null))
+        if ((comfort is null) != (hosting is null) || (comfort is null) != (partySpot is null) || (comfort is null) != (workChairs is null))
         {
-            throw new ControlException("RoomsRounds: the comfort, hosting and party-spot planners are composed together");
+            throw new ControlException("RoomsRounds: the comfort, hosting, party-spot and work-chair planners are composed together");
         }
         if (lighting is null && flooring is null && comfort is null && !art && !gatherings)
         {
@@ -42,11 +43,13 @@ public sealed class RoomsRounds
         Owned(comfort, RoomsFamily.Comfort);
         Owned(hosting, RoomsFamily.Hosting);
         Owned(partySpot, RoomsFamily.PartySpot);
+        Owned(workChairs, RoomsFamily.WorkChairs);
         _lighting = lighting;
         _flooring = flooring;
         _comfort = comfort;
         _hosting = hosting;
         _partySpot = partySpot;
+        _workChairs = workChairs;
         _art = art;
         _gatherings = gatherings;
     }
@@ -83,6 +86,7 @@ public sealed class RoomsRounds
             : id == RoomsFamily.Comfort ? _comfort
             : id == RoomsFamily.Hosting ? _hosting
             : id == RoomsFamily.PartySpot ? _partySpot
+            : id == RoomsFamily.WorkChairs ? _workChairs
             : null;
         if (planner is not null)
         {
@@ -145,8 +149,8 @@ public sealed class RoomsRounds
     /// <summary>
     /// The family's facts in <paramref name="projection"/>, each measured fresh: the lighting review with the plan's
     /// unlit rooms, the flooring review of the traffic-priced census, the artists and owed sculpture rooms, the
-    /// basic and hosted comfort against <paramref name="history"/>, and the PartySpot step against the
-    /// <paramref name="spot"/> Need's Methods.
+    /// basic and hosted comfort against <paramref name="history"/>, the PartySpot step against the
+    /// <paramref name="spot"/> Need's Methods, and the work chairs the plan owes standing benches.
     /// </summary>
     internal static RoomsFacts Facts(ColonyProjection projection, RoundsPolicy policy, ComfortHistory history, NeedOwner? spot, RoundsBuildingPlanner? flooring)
     {
@@ -181,6 +185,13 @@ public sealed class RoomsRounds
             HostingRecovered = hosting.Recovered(),
             HostingDeficit = hosting.Deficit(),
             PartySpotOwed = spot is not null ? Rounder.PartySpotOwed(spot, projection) : Unknown<bool>(),
+            WorkChairsOwed = WorkChairsOwed(projection),
         };
     }
+
+    /// <summary>Whether a standing bench's chosen work chair is missing; unknown while the plan or the census is unread.</summary>
+    internal static Fact<bool> WorkChairsOwed(ColonyProjection projection) =>
+        projection.LayoutPlan.TryGetValue(out var plan) && WorkChairRules.OwedSeats(plan, projection.Facts.CurrentConstruction, projection.Shapes).TryGetValue(out var seats)
+            ? Known(seats.Count > 0)
+            : Unknown<bool>();
 }

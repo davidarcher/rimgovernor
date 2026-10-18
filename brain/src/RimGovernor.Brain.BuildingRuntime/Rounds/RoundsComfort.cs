@@ -37,6 +37,48 @@ public sealed partial class RoundsBuildingPlanner
         };
     }
 
+    /// <summary>The rooms/work-chairs Need's planner: the work chair the plan chose for a standing bench, on its interaction cell.</summary>
+    public static RoundsBuildingPlanner NewRoundsWorkChairPlanner(Rounder reviewer, IRoundsBuildingSource native)
+    {
+        if (reviewer is null || native is null)
+        {
+            throw new ControlException("NewRoundsWorkChairPlanner: reviewer or native is missing");
+        }
+        if (native is not IRoundsSource)
+        {
+            throw new ControlException("NewRoundsWorkChairPlanner: native is not a rounds source");
+        }
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = RoomsFamily.WorkChairs.FilingKey, Need = RoomsFamily.WorkChairs, Phase = Pol.Phase.ComfortWorkChair };
+    }
+
+    /// <summary>
+    /// The planner resolved to the first owed work chair (WorkChairRules.OwedSeats): its chair definition in the
+    /// colony's build stuff, placed only on the bench's interaction cell. No seat owed is no deficit.
+    /// </summary>
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectWorkChair(ColonyProjection facts)
+    {
+        if (!facts.LayoutPlan.TryGetValue(out var plan))
+        {
+            return (null, FieldUnavailable("layout_plan"));
+        }
+        if (!WorkChairRules.OwedSeats(plan, facts.Facts.CurrentConstruction, facts.Shapes).TryGetValue(out var seats))
+        {
+            return (null, FieldUnavailable("current_construction"));
+        }
+        if (seats.Count == 0)
+        {
+            return (null, BuildingReasonNoDeficit);
+        }
+        var seat = seats[0];
+        var resolved = Copy();
+        resolved.Definition = seat.Chair;
+        resolved.Cells = [seat.Cell];
+        resolved.Adjacent = [seat.Cell];
+        resolved.Environment = Pol.PlacementEnvironment.Anywhere;
+        resolved.Stuff = facts.BuildStuff(seat.Chair);
+        return (resolved, default);
+    }
+
     /// <summary>The rooms/comfort Need's planner: a reachable table, seat and recreation source.</summary>
 
     public static RoundsBuildingPlanner NewRoundsBasicComfortPlanner(Rounder reviewer, IRoundsBuildingSource native)

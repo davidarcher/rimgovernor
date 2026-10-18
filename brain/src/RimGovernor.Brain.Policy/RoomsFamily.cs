@@ -33,6 +33,9 @@ public sealed record RoomsFacts
     /// <summary>The PartySpot is missing, duplicated or outranked by a better shared room, and the one-shot is not spent.</summary>
     public Fact<bool> PartySpotOwed { get; init; }
 
+    /// <summary>A standing bench of a planned room has the work chair the plan chose for it missing from its interaction cell (WorkChairRules.OwedSeats).</summary>
+    public Fact<bool> WorkChairsOwed { get; init; }
+
     /// <summary>The party the mood census owes now (an organizer named), or none.</summary>
     public Fact<GatheringPlan> Gathering { get; init; }
 }
@@ -52,6 +55,8 @@ public sealed record RoomsFacts
 /// use. Its furniture is building work.</item>
 /// <item><c>rooms/party-spot</c>, after hosting, is met while one PartySpot stands in the best shared room. Its
 /// placement or retirement is one building Method.</item>
+/// <item><c>rooms/work-chairs</c>, after comfort, is met while every standing bench whose planned room chose a work chair
+/// has it on its interaction cell. Each chair is one building Method.</item>
 /// <item><c>rooms/gatherings</c>, after the party spot, is met while no party is owed. A party is held: gathering
 /// participation needs shared forecast occupancy and need effects.</item>
 /// </list>
@@ -72,6 +77,8 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
 
     public static readonly NeedId PartySpot = NeedId.Of(FamilyId, "party-spot");
 
+    public static readonly NeedId WorkChairs = NeedId.Of(FamilyId, "work-chairs");
+
     public static readonly NeedId Gatherings = NeedId.Of(FamilyId, "gatherings");
 
     /// <summary>The stable hold subject of an owed party.</summary>
@@ -84,13 +91,13 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
 
     public IReadOnlyList<FactFamily> SeriousHarmReads { get; } = [];
 
-    /// <summary>Whether the Need is one of the three comfort steps, which build at the Comfort tier.</summary>
+    /// <summary>Whether the Need is one of the four comfort steps, which build at the Comfort tier.</summary>
     public static bool ComfortStep(ConcernId concern) =>
-        concern == Comfort.FilingKey || concern == Hosting.FilingKey || concern == PartySpot.FilingKey;
+        concern == Comfort.FilingKey || concern == Hosting.FilingKey || concern == PartySpot.FilingKey || concern == WorkChairs.FilingKey;
 
     public IReadOnlyList<Need> Derive(RoomsFacts facts)
     {
-        var needs = new List<Need>(7);
+        var needs = new List<Need>(8);
         if (lighting)
         {
             needs.Add(LightingNeed(facts));
@@ -108,6 +115,7 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
             needs.Add(ComfortNeed(facts));
             needs.Add(HostingNeed(facts));
             needs.Add(PartySpotNeed(facts));
+            needs.Add(WorkChairsNeed(facts));
         }
         if (gatherings)
         {
@@ -215,6 +223,20 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
             Satisfaction = satisfaction,
             Deficit = Whole(satisfaction),
             Preconditions = [Hosting],
+        };
+    }
+
+    /// <summary>After comfort: unmet while a standing bench's chosen work chair is missing, unknown while the census or plan is unread.</summary>
+    public static Need WorkChairsNeed(RoomsFacts f)
+    {
+        var satisfaction = f.WorkChairsOwed.TryGetValue(out var owed) ? owed ? Satisfaction.Unmet : Satisfaction.Met : Satisfaction.Unknown;
+        return new Need
+        {
+            Id = WorkChairs,
+            Tier = NeedTier.Development,
+            Satisfaction = satisfaction,
+            Deficit = Whole(satisfaction),
+            Preconditions = [Comfort],
         };
     }
 

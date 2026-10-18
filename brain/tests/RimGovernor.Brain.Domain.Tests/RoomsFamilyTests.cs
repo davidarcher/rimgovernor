@@ -110,6 +110,12 @@ public sealed class RoomsFamilyTests
         Assert.Equal(Satisfaction.Met, Of(new() { PartySpotOwed = Known(false) }, RoomsFamily.PartySpot).Satisfaction);
         Assert.Equal(Satisfaction.Unknown, Of(new(), RoomsFamily.PartySpot).Satisfaction);
 
+        var chairs = Of(new() { WorkChairsOwed = Known(true) }, RoomsFamily.WorkChairs);
+        Assert.Equal((NeedTier.Development, Satisfaction.Unmet, Known(1.0)), (chairs.Tier, chairs.Satisfaction, chairs.Deficit));
+        Assert.Equal([RoomsFamily.Comfort], chairs.Preconditions);
+        Assert.Equal(Satisfaction.Met, Of(new() { WorkChairsOwed = Known(false) }, RoomsFamily.WorkChairs).Satisfaction);
+        Assert.Equal(Satisfaction.Unknown, Of(new(), RoomsFamily.WorkChairs).Satisfaction);
+
         var party = Of(new() { Gathering = Known(new GatheringPlan { Def = "Party", Organizer = new("a") }) }, RoomsFamily.Gatherings);
         Assert.Equal((NeedTier.Wellbeing, Satisfaction.Unmet, Known(1.0)), (party.Tier, party.Satisfaction, party.Deficit));
         Assert.Equal([RoomsFamily.PartySpot], party.Preconditions);
@@ -118,7 +124,7 @@ public sealed class RoomsFamilyTests
 
         // Without the comfort Needs composed the gatherings Need has no precondition.
         Assert.Empty(Assert.Single(new RoomsFamily(false, false, false, false, true).Derive(new())).Preconditions);
-        Assert.Equal([RoomsFamily.Lighting, RoomsFamily.Flooring, RoomsFamily.Art, RoomsFamily.Comfort, RoomsFamily.Hosting, RoomsFamily.PartySpot, RoomsFamily.Gatherings],
+        Assert.Equal([RoomsFamily.Lighting, RoomsFamily.Flooring, RoomsFamily.Art, RoomsFamily.Comfort, RoomsFamily.Hosting, RoomsFamily.PartySpot, RoomsFamily.WorkChairs, RoomsFamily.Gatherings],
             All().Derive(new()).Select(n => n.Id));
     }
 

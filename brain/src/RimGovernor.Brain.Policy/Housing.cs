@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 /// The step a building planner serves. The three housing values name the shelter family's housing planners
 /// (#3257): the starter shelter with its bunks, bed ownership and bedrooms, and the spare room; their order is the
 /// Needs' preconditions, not a latch. The comfort phases name which rooms Need a building planner serves
-/// (rooms/comfort, rooms/hosting, rooms/party-spot), also ordered by Need preconditions. The empty phase is the
+/// (rooms/comfort, rooms/hosting, rooms/party-spot, rooms/work-chairs), also ordered by Need preconditions. The empty phase is the
 /// default.
 /// </summary>
 public readonly record struct Phase(string Value)
@@ -36,6 +36,9 @@ public readonly record struct Phase(string Value)
 
     /// <summary>The rooms/party-spot Need's planner: one PartySpot in the best shared room.</summary>
     public static Phase ComfortSpot => new("spot");
+
+    /// <summary>The rooms/work-chairs Need's planner: the chosen work chair on a standing bench's interaction cell.</summary>
+    public static Phase ComfortWorkChair => new("work_chair");
 
     public bool Equals(Phase other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
 

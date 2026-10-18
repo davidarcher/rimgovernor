@@ -107,6 +107,15 @@ internal sealed class RoundsCensusStore
         }
     }
 
+    /// <summary>The work chairs the remembered layout plan chose (WorkChairRules.ChairDefinitions); none before a plan is remembered.</summary>
+    internal IReadOnlyList<string> RememberedWorkChairs()
+    {
+        lock (Mu)
+        {
+            return Layout.TryGetValue(out var plan) ? WorkChairRules.ChairDefinitions(plan) : [];
+        }
+    }
+
     internal IReadOnlyList<string> RememberedWorship()
     {
         lock (Mu)

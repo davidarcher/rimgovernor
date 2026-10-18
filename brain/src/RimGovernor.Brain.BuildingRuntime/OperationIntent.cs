@@ -34,6 +34,7 @@ public static class OperationIntent
         [RoomsFamily.Comfort.FilingKey] = "Comfort",
         [RoomsFamily.Hosting.FilingKey] = "Hosting rooms",
         [RoomsFamily.PartySpot.FilingKey] = "Party spot",
+        [RoomsFamily.WorkChairs.FilingKey] = "Work chairs",
         [RoomsFamily.Gatherings.FilingKey] = "Gatherings",
         [EconomyFamily.Research.FilingKey] = "Research",
         [AdminFamily.WorkAssignments.FilingKey] = "Work",

@@ -305,6 +305,11 @@ public sealed partial class RoundsBuildingPlanner
             // The beds and the research bench are the furniture rules', read with every catalog (ColonyProjection.Shapes).
             definitions = [];
         }
+        if (r.Phase == Pol.Phase.ComfortWorkChair)
+        {
+            // The chairs the remembered plan chose; the seat itself is read from the fresh census below.
+            definitions = r.Reviewer.Census.RememberedWorkChairs();
+        }
         IReadOnlyList<string> pendingConsumers = [];
         if (r.Concern == PowerFamily.Basic.FilingKey)
         {
@@ -360,7 +365,7 @@ public sealed partial class RoundsBuildingPlanner
             var full = await r.Reviewer.ObserveRoomsAsync((Observation.IRoundsSource)r.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), [.. observed], call).ConfigureAwait(false);
             reading = full.Reading;
         }
-        else if (r.Concern == PowerFamily.Basic.FilingKey || r.Phase == Pol.Phase.ComfortBasic || r.Shelter)
+        else if (r.Concern == PowerFamily.Basic.FilingKey || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortWorkChair || r.Shelter)
         {
             // The shelter ring reconciles against the construction census, which only the rounds read carries.
             var full = await r.Reviewer.ObserveOwnedAsync((Observation.IRoundsSource)r.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), [.. observed], call).ConfigureAwait(false);
@@ -381,6 +386,15 @@ public sealed partial class RoundsBuildingPlanner
                 return spotResult;
             }
             r = placing;
+        }
+        if (r.Phase == Pol.Phase.ComfortWorkChair)
+        {
+            var (seating, seatReason) = r.SelectWorkChair(facts);
+            if (seating is null)
+            {
+                return new RoundsBuildingResult { Verdict = seatReason };
+            }
+            r = seating;
         }
         if (r.Concern == LayoutFamily.Routes.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey)
         {
@@ -664,7 +678,7 @@ public sealed partial class RoundsBuildingPlanner
                 }
             }
         }
-        if (r.Definition == "TableButcher" || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey)
+        if (r.Definition == "TableButcher" || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Phase == Pol.Phase.ComfortWorkChair || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey)
         {
             gate = ComfortBuilderGate(facts, r.Definition);
             if (r.Power is { Method: Pol.PowerMethod.Generate } generator)
