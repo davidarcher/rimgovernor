@@ -799,7 +799,7 @@ planner raises it under the `shelter/sleeping` Need, like the tomb:
    piece is built only when none is stored. A placement the native preview
    refuses is not ready this pass and the room waits. The ring's removals
    (wall or door out, roof off) are the plan-wide clear side's
-   (`PlannedGroundStep`), which now also reconciles standing rooms. The
+   (`PlannedGroundStep`), which now also reconciles standing rooms and leaves furniture wholly inside a planned room's interior alone (walls, doors and ring-cell furniture still clear). The
    throne's footprint is the native definition catalog's size, never a
    constant; an unavailable throne or an unknown size is the named
    `ThroneUnavailable` failure.

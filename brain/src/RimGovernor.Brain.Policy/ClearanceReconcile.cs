@@ -24,6 +24,7 @@ public static class ClearanceReconcileRules
         OpKind.FloorOut,
     ];
 
+
     /// <summary>The plan's open-ground rooms, vet rooms included, whose ring or doors differ from the plan.</summary>
     internal static List<PlannedRoom> GroundRooms(this LayoutPlan p, GroundCensus g) =>
         [.. p.Rooms.Where(r => !r.Dug && !p.GroundMatches(r, g))];
@@ -49,7 +50,7 @@ public static class ClearanceReconcileRules
                 Plan = plan,
                 Room = r,
                 Ground = g,
-                Rows = EquatableArray.From(HerdOwnFurnitureLeft(r, rows, rooms.Shapes.Furniture)),
+                Rows = EquatableArray.From(InteriorFurnitureLeft(r, rows)),
                 Floors = EquatableArray.From(floors),
                 Rooms = rooms,
             };
@@ -66,43 +67,21 @@ public static class ClearanceReconcileRules
     }
 
     /// <summary>
-    /// The rows without the animal beds and the heater standing in a hospital interior. The herd owner
-    /// builds those beside the ring (its template is not the clear side's), so while the ring differs from the
-    /// plan the clear side would deconstruct each one as it is finished and the owner would place it again.
+    /// The rows without the furniture standing wholly inside the room's interior. An owner builds its
+    /// furniture there while the ring differs from the plan, and the clear side would deconstruct each piece as
+    /// it is finished. Walls and doors (an ancient wall inside the interior), frames and stand-in beds stay,
+    /// and furniture on a ring cell is not inside the interior.
     /// </summary>
-    private static IReadOnlyList<ClearanceTarget> HerdOwnFurnitureLeft(PlannedRoom room, IReadOnlyList<ClearanceTarget> rows, RoomFurniture f)
-    {
-        if (room.Role != PlannedRole.Hospital)
-        {
-            return rows;
-        }
-
-        var output = new List<ClearanceTarget>();
-        foreach (var row in rows)
-        {
-            var own = row.DefName.Length != 0 && (row.DefName == f.AnimalSpot || row.DefName == f.AnimalBed || row.DefName == f.Heater);
-            if (
-                own
-                && FurnitureRoomsRules.RectInside(
-                    room.Region.Bounds(),
-                    new Rectangle
-                    {
-                        X = row.Minimum.X,
-                        Z = row.Minimum.Z,
-                        Width = row.Maximum.X - row.Minimum.X + 1,
-                        Height = row.Maximum.Z - row.Minimum.Z + 1,
-                    }
-                )
-            )
-            {
-                continue;
-            }
-
-            output.Add(row);
-        }
-
-        return output;
-    }
+    private static List<ClearanceTarget> InteriorFurnitureLeft(PlannedRoom room, IReadOnlyList<ClearanceTarget> rows) =>
+    [
+        .. rows.Where(row =>
+            !row.Player
+            || row.Class == "ancient_wall_door"
+            || row.DefName.StartsWith("Frame_", StringComparison.Ordinal)
+            || ClearanceGroundRules.StandInBed(row)
+            || !PlannedRules.RectCells(new Rectangle(row.Minimum.X, row.Minimum.Z, row.Maximum.X - row.Minimum.X + 1, row.Maximum.Z - row.Minimum.Z + 1)).All(room.Region.Contains)
+        ),
+    ];
 
     /// <summary>
     /// The next clearance method: the first removal kind with an operation ready in any planned room, all of
