@@ -90,9 +90,11 @@ Composition spends a shared 16,384-expansion generation budget, at most 2,048
 per root, with 32 realizations per root. Provider input limits are 512 operations
 and 2,048 observed supplies. At most 192 composed activities reserve room for
 current needs in the overall 256-activity generation bound. Omitted work is
-reported, never certified infeasible. Portfolio subset search spends 16,384
+reported, never certified infeasible. Portfolio subset search spends at most 65,536
 expansions including scheduled evaluations, with at most 4,096 per schedule
-search and 32 selected activities. Stable ordering makes replay deterministic;
+search and 32 selected activities; the budget was 16,384 until the sweep below
+stopped running when it cannot finish (#3563), which made the budget a ceiling the
+converged search rarely reaches rather than the amount every review spends. Stable ordering makes replay deterministic;
 the result is best found within bounds. Partial bundles remain expandable even
 when neither constituent has isolated benefit.
 
@@ -107,9 +109,14 @@ root in root order, again screened, and the extension repeats from every new lea
 until no root improves it, so a set of any cardinality is built one root at a time. A
 root exclusive with a leader member (another rest choice) swaps that member out, after
 the plain additions are tried. The
-final leader is confirmed at the full 4,096 bound, and the full cardinality sweep
-(singles, pairs, ...) resumes at that bound, skipping every subset already evaluated at
-it. A schedule search that finished within the screening bound is complete at any bound;
+final leader is confirmed at the full 4,096 bound. The full cardinality sweep (singles,
+pairs, ...) then resumes at that bound, skipping every subset already evaluated at it,
+but only when the budget left can finish it (the subsets not yet evaluated, at the mean
+cost of an evaluation so far): a sweep the budget cuts short has seen the subsets in root
+order up to some cardinality, a lottery rather than a search, and in game it chose the
+selection in none of 43 reviews while spending 13,000 of the 16,384 expansions per review
+(#3563). When it cannot finish, the search ends converged at the confirmed leader with
+the budget unspent, still reported truncated. A schedule search that finished within the screening bound is complete at any bound;
 a truncated one is searched again at the larger bound. A budget that cannot finish
 the single roots still reaches further contributions, and truncation stays explicit
 (`portfolio_search_truncated`). A screened search's truncation is reported only when no

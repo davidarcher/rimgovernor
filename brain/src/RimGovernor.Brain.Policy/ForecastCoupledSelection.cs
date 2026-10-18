@@ -58,7 +58,7 @@ public sealed partial record ForecastCoupledSelection
     /// subsets already evaluated at it. <paramref name="warmStart"/>, the previous review's selected ids, is screened
     /// before the seed pass (#3563) so the extension starts from last review's leader when it still stands.</summary>
     public static ForecastCoupledSelection CompareActivityOutcomes(ColonyForecastRequest request,
-        ForecastCoupledCandidates candidates, int budget = 16384, IReadOnlyList<string>? warmStart = null)
+        ForecastCoupledCandidates candidates, int budget = 65536, IReadOnlyList<string>? warmStart = null)
     {
         if (budget < 0) throw new DomainException("negative portfolio budget");
         // The in-game cost of the comparator: the review runs its planners in parallel, so only this span times it.
@@ -386,6 +386,18 @@ public sealed partial record ForecastCoupledSelection
                 var members = selected.ToHashSet(StringComparer.Ordinal);
                 if (!Evaluate(alternatives.Where(c => members.Contains(c.Id)).ToArray())) { continueSearch = false; truncated = true; }
             }
+        }
+        // The cardinality sweep is complete only when it finishes: a sweep the budget cuts short has evaluated the subsets
+        // in root order up to some cardinality, a lottery over the root order rather than a search (in game, 0 of 43
+        // selections came from it while it spent 13,000 of the 16,384 expansions per review, #3563). So it runs only when
+        // the budget left can finish it: the subsets not yet evaluated at the mean cost of an evaluation so far. Otherwise
+        // the search ends converged at the confirmed leader, truncated as before (the sweep was never finishing either).
+        if (continueSearch)
+        {
+            var evaluations = Math.Max(1, evaluatedByKey.Count);
+            var affordable = (budget - expansions) / Math.Max(1, expansions / evaluations);
+            var subsets = alternatives.Length >= 62 ? long.MaxValue : (1L << alternatives.Length) - 1 - evaluations;
+            if (subsets > affordable) { continueSearch = false; truncated = true; }
         }
         if (continueSearch) Phase("sweep");
         for (var size = 1; continueSearch && size <= alternatives.Length; size++)

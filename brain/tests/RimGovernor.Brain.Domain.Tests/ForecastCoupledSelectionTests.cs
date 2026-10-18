@@ -116,15 +116,26 @@ public sealed class ForecastCoupledSelectionTests
         var cold = Select(facts);
         Assert.NotEmpty(cold.Selection.Selected);
         Assert.Equal(cold.Selection.Expansions, cold.SearchPhases.Sum(p => p.Expansions));
-        Assert.Equal("baseline seed extend confirm sweep", string.Join(" ", cold.SearchPhases.Select(p => p.Phase)));
+        // The cardinality sweep is skipped when the budget left cannot finish it (#3563): the search ends converged at the
+        // confirmed leader with budget unspent, truncated since the subsets were not all seen.
+        Assert.Equal("baseline seed extend confirm", string.Join(" ", cold.SearchPhases.Select(p => p.Phase)));
+        Assert.True(cold.Selection.Expansions < 65536);
+        Assert.True(cold.Selection.SearchTruncated);
         Assert.Contains(cold.SelectedPhase, cold.SearchPhases.Select(p => p.Phase));
         Assert.Equal("", cold.WarmStart);
+        // A budget the sweep can finish in runs it to the end: the eight-root productive fixture exhausts its subsets at
+        // 65,536 with budget left (the review fixture above has too many roots for any budget to finish its sweep).
+        var original = ProductiveLearningTests.NormalFoodFacts();
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(original, 700)!.Priced(700);
+        var exhaustive = ForecastCoupledSelection.CompareActivityOutcomes(PortfolioAllocationTests.Request(original, generated), generated, 65536);
+        Assert.Equal("sweep", exhaustive.SearchPhases[^1].Phase);
+        Assert.True(exhaustive.Selection.Expansions < 65536);
 
         var warm = SelectWarm(facts, cold.Selection.Selected);
         Assert.Equal("seeded", warm.WarmStart);
         Assert.Equal("warm", warm.SelectedPhase);
         Assert.Equal(cold.Selection.Selected, warm.Selection.Selected);
-        Assert.Equal("baseline warm seed extend confirm sweep", string.Join(" ", warm.SearchPhases.Select(p => p.Phase)));
+        Assert.Equal("baseline warm seed extend confirm", string.Join(" ", warm.SearchPhases.Select(p => p.Phase)));
 
         // A previous id whose composition number moved still finds its root; an unknown id seeds nothing and changes nothing.
         var renumbered = SelectWarm(facts, cold.Selection.Selected.Select(id => id.Contains("/composition/", StringComparison.Ordinal) ? id[..id.IndexOf("/composition/", StringComparison.Ordinal)] + "/composition/999" : id).ToArray());

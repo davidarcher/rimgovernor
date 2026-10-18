@@ -880,3 +880,59 @@ landed code alike; the brain's search is not the round review's bound (`planner.
 rest of the scheduler step are, at 0.2 to 0.5 s and 0.9 to 1.3 s mean). `needs/target-capacity` and
 `shelter/service-investment` fail their native wait budgets identically on both builds, which is not
 this change.
+
+## Sweep skipped when the budget cannot finish it (#3563)
+
+After the greedy extension and the confirmed leader, the search swept every subset by
+cardinality at the full bound until the budget ran out. In game (43 reviews of one
+colony-review day, session `139dc2a8ced6498bae8450393361d084`) that sweep spent 13,000 of
+the 16,384 expansions per review and chose the selection in none of them: the baseline
+led in 33 reviews, the extension in 7, the warm start in 3. A sweep the budget cuts short
+has seen the subsets in root order up to some cardinality, a lottery over the root order
+rather than a search. It now runs only when the budget left can finish it, the subsets not
+yet evaluated at the mean cost of an evaluation so far; otherwise the search ends
+converged at the confirmed leader, still reported truncated (the sweep was never finishing
+either) and with the budget unspent.
+
+Measured with `MeasureWarmedAllocationMatrix` on a quiet machine, parent commit (before)
+and this change (after) in one sitting. Selections, labor and completion ticks are
+unchanged in every row; only the expansions and the findings the sweep's extra
+evaluations added moved.
+
+| Fixture | Budget | Expansions before / after | Allocated MB before / after | Elapsed ms before / after |
+| --- | ---: | ---: | ---: | ---: |
+| Original | 1,024 | 1,024 / 1,024 | 3.5 / 3.5 | 14.6 / 13.3 |
+| Original | 4,096 | 4,096 / 4,096 | 8.9 / 8.9 | 37.4 / 35.9 |
+| Original | 8,192 | 8,192 / 4,571 | 17.0 / 9.6 | 78.7 / 38.3 |
+| Original | 16,384 | 16,384 / 4,571 | 33.8 / 9.6 | 143.8 / 49.1 |
+| Original | 65,536 | 40,450 / 40,450 | 78.4 / 78.4 | 249.1 / 280.8 |
+| Original | 262,144 | 40,450 / 40,450 | 78.4 / 78.4 | 231.1 / 232.7 |
+| Four-worker | 1,024 | 1,024 / 1,024 | 5.7 / 5.7 | 13.4 / 13.9 |
+| Four-worker | 4,096 | 4,096 / 4,096 | 24.7 / 24.7 | 68.9 / 72.4 |
+| Four-worker | 8,192 | 8,192 / 8,192 | 43.0 / 43.0 | 121.0 / 124.9 |
+| Four-worker | 16,384 | 16,384 / 12,902 | 70.9 / 57.1 | 204.5 / 173.7 |
+| Four-worker | 65,536 | 65,536 / 12,902 | 245.2 / 57.1 | 1,070.2 / 189.0 |
+| Four-worker | 262,144 | 262,144 / 12,902 | 825.9 / 57.1 | 3,990.2 / 215.2 |
+
+The original fixture (8 roots) still exhausts its 255 subsets at 65,536 and above, where the
+sweep fits; at 8,192 and 16,384 it ends at the confirmed leader. The four-worker fixture
+(62 roots) has no budget that finishes its sweep, so every budget from 16,384 up ends at the
+same 12,902 expansions; the 65,536 and 262,144 rows (opt-in, not used by `Rounds`) stop
+spending 0.2 to 0.8 GB on a sweep that changed nothing. At the one-day production horizon
+and the default budget: original 16,384 expansions, 34.8 MB, 93 ms before, 4,768, 13.0 MB,
+37 ms after; four-worker 16,384, 72.1 MB, 306 ms before, 4,098, 23.2 MB, 72 ms after.
+
+With the sweep no longer spending whatever is left, the budget is a ceiling the converged
+search rarely reaches, so the default was raised from 16,384 to 65,536 in the same change:
+in game the extension ran out of budget before the confirm phase in 2 of the 10 reviews that
+found a leader, and the seed pass, capped at a quarter of the budget, screened about 64 of
+up to 99 roots. At the raised default the one-day rows are original 4,768 expansions,
+13.0 MB, 33 ms (unchanged: the search converged before either ceiling) and four-worker
+5,723, 30.7 MB, 87 ms (the larger seed share screens every root before the extension). The
+explicit-budget rows above and both baselines are unchanged by the default.
+
+Both embedded baselines were re-recorded (`RIMGOVERNOR_PORTFOLIO_OUTPUT`): the expansions
+rows above and the findings the sweep's extra evaluations added. It is the first
+re-recording since the consequence vectors changed, so the recorded vectors and findings
+moved with it. The phase test asserts the skipped sweep at the default budget and the
+finished one at 2^20; the diagnosis test asserts the budget left unspent.

@@ -217,9 +217,10 @@ public sealed class PortfolioSearchDiagnosisTests
 
         Assert.Equal(0d, selection.SelectedVector.Needs[4].Value);
 
-        // Cost stays at the default budget: the search is still bounded and says so. Cardinalities 3 and 4 were entered
-        // through one-root extension steps from the leader, not a subset sweep (which would need 28,580 / 339,189 subsets).
-        Assert.Equal(16384, selection.Selection.Expansions);
+        // Cost stays under the default budget: cardinalities 3 and 4 were entered through one-root extension steps from the
+        // leader, not a subset sweep (which would need 28,580 / 339,189 subsets), and the sweep the budget left could not
+        // finish is skipped (#3563), so the search ends converged with budget unspent and still says it is bounded.
+        Assert.True(selection.Selection.Expansions < 16384);
         Assert.True(selection.Selection.SearchTruncated);
         Assert.Contains("portfolio_search_truncated", selection.Selection.Findings);
         Assert.Contains(selection.Rejected, r => r.Commitments.Count == 4);

@@ -279,6 +279,25 @@ passing colony-review day of the same colony):
   building (both runs of the batched read, 3.6 k legs re-priced per colonist) now outweighs the searches; the next
   cut, if one is wanted, is there or in asking the three reads once per step.
 
+The layout cut (#3565; session `663cb825094049a88ab29cfc8fd70f6e`, 34 rounds reviews, one passing colony-review day
+of the same colony):
+
+- **What changed.** The hourly check ran the station chain twice (once for the inputs key, once in the replan) and
+  tiled on the hold path. It now reads the replan's inputs purely (`StationInputsOf`: the facts and their key, no
+  chain) and, when they drifted, starts the replan on a worker (`Rounder.LayoutPending`: the catalog rows onto the
+  facts, `ReplanFacts`, the chain once, the tiler over its advice). The review that finds the run complete adopts it
+  when the loaded world and the held plan are still the ones it started from (`layout_replan_tiled` attr `adopted`,
+  the ticks since the start), else drops it (`skipped/superseded`); no second replan starts while one is pending.
+- **After.** `layout` 45 ms p50 over every review (before: 1029 ms at the hourly check, 8 of 15 reviews, 5 ms
+  otherwise); the hourly checks and the adoptions take 25 to 160 ms. 10 replans were adopted, 0 to 6037 ticks after
+  they started (median about 2400: the next review is usually the next hour's). Rounds 1559 ms p50 (2253 after the
+  legs cut), `clock_step` 3493 ms p50 (4212).
+- **What is left on the hold path.** The two adoptions that changed the perimeter (the first two, which added the
+  bedrooms, kitchen and storage) took 1.3 and 1.6 s in `ColonyPlanCut.LogPerimeterCut`: the perimeter cut is computed
+  to be logged, and belongs on the same worker. The eight that re-tiled the same twelve rooms (`same=12`) took under
+  0.1 s. Every replan still records a plan (`changed=true`): the tiled plan differs from the held one even when no
+  room moved, which is the next thing to read before the ~1 GB replan allocation is profiled.
+
 ## Hosting in the mod (#3115)
 
 Decided (user, 2026-10-13):
