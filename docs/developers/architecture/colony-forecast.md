@@ -1432,9 +1432,9 @@ The [tier-2 model](forecast-value.md#tier-2-event-driven-colony-model) (#3470) l
 one-day coupled trajectory and tells tier 1 what an hour of research or sowing is worth. It lives in
 `Policy/ColonyModel` (pure) and runs from `RoundsColonyModel.Review`, once per review inside the Rounder, after the coupled
 candidates are built and before the comparison; nothing is cached between reviews. The Devilstrand payoff chain (the research
-gate, the crop's craft node and the garment they feed) is wired into real reviews by `ProjectGraph.Standing` (#3559); while the
-exposure table is a placeholder (#3543) the garment's harm is unassessed and the chain's investment credit is 0, so its in-play
-proof is #3560. `production/devilstrand-investment-starving`
+gate, the crop's craft node and the garment they feed) is wired into real reviews by `ProjectGraph.Standing` (#3559); where the
+exposure table is calibrated the garment's harm is priced and the chain's investment credit is negative (a loss avoided); the
+in-play proof is `production/devilstrand-investment` (#3560: a research block with `value.investment < 0`). `production/devilstrand-investment-starving`
 (#3532) proves the other half in play: while the urgent floor binds, the credit never outranks food.
 
 **Inputs.** `ColonyModelInput` (`ColonyModelInput.cs`, assembled by `RoundsColonyModel.InputOf`) reads facts the review frame

@@ -483,6 +483,11 @@ public sealed partial class BrainComposition
         {
             needs.Add(RoyaltyFamily.Psylink);
         }
+        if (sc.ResearchPlans)
+        {
+            // The coupled path's research block is gated on this Need (#3527); without it a composed brain never offers one.
+            needs.Add(EconomyFamily.Research);
+        }
         // The shelter family's Needs (#3257): the room census, sleeping review, temperature and safe-area reads.
         if (sc.Sleeping || sc.Shelter)
         {

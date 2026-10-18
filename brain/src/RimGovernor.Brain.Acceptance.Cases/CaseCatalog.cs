@@ -23,6 +23,7 @@ public static class CaseCatalog
         registry.Register(ProductionMaintenancePractice.Case(false));
         registry.Register(ProductionMaintenancePractice.Case(true));
         registry.Register(ProductionDevilstrandStarving.Case());
+        registry.Register(ProductionDevilstrandInvestment.Case());
         registry.Register(ProductionResearchBlock.Case());
         registry.Register(ProductionSowBlock.Case());
         registry.Register(ShelterServiceInvestment.Case());

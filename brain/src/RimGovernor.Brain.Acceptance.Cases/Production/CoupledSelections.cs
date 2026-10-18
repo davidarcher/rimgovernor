@@ -4,7 +4,7 @@ using RimGovernor.Brain.Telemetry;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>What a <c>coupled_selection</c> outcome vector was ranked by: the urgent-zero floor's excess (hunger-zero ticks) and the investment term.</summary>
-internal sealed record CoupledOutcome(double? UrgentZeroExcess, bool InvestmentLogged);
+internal sealed record CoupledOutcome(double? UrgentZeroExcess, bool InvestmentLogged, double? Investment = null, IReadOnlyList<string>? Unknown = null);
 
 /// <summary>One <c>coupled_selection</c> row: a review's shared portfolio comparison (#3532).</summary>
 internal sealed record CoupledSelectionRow(ulong Sequence, string Verdict, IReadOnlyList<string> Tasks, IReadOnlyList<string> RejectedIds, CoupledOutcome Baseline, CoupledOutcome Selected);
@@ -39,6 +39,8 @@ internal static class CoupledSelections
         double? excess = floor?.GetValueOrDefault("assessed") is true
             ? floor.GetValueOrDefault("excess") switch { double d => d, long l => l, _ => null }
             : null;
-        return new CoupledOutcome(excess, value?.ContainsKey("investment") == true);
+        double? investment = value?.GetValueOrDefault("investment") switch { double d => d, long l => l, _ => null };
+        var unknown = value?.GetValueOrDefault("unknown") is List<object?> list ? list.OfType<string>().ToList() : [];
+        return new CoupledOutcome(excess, value?.ContainsKey("investment") == true, investment, unknown);
     }
 }
