@@ -202,6 +202,44 @@ What the profile says:
   do nothing today. (3) The game-thread reads: 0.8 to 3 s of serialized facade work per step with the heavy planners each
   waiting 0.7 to 1.2 s; fold the family reads into the step read, or read them once per step and share.
 
+#### Rounds cuts (#3556, 2026-10-18)
+
+The three rounds stages were cut in the order the profile ranked them and each cut was measured the same way on the same
+colony (one colony-review day; brain sessions `4d1d320821a7440cb5cb864ebcdd5746` after the acquisition cut and
+`2265830e199e476db78b7fb325b1a18c` after the derive cuts, 12 and 15 rounds reviews). The rounds row now laps the derive
+chain (`d_owed`, `d_reads`, `d_stock`, `d_planned`, `d_file`, `d_work`, `d_clear`, then `derive` for the ledger and the
+colony model), the `layout_replan_tiled` row names the inputs that drifted since the last replan (`inputs_changed`) and
+the `clock_step` row carries `hop_run`, the game-thread run time per hop operation.
+
+| Rounds stage | Before p50 | After p50 | What changed |
+| --- | --- | --- | --- |
+| acquisition | 1584 ms, 859 MB | 63 ms, 28 MB | the settlement loop asked every ThingDef three uncached catalog questions per settlement, one of them a stat read that threw per definition; the supply definitions are now built once per trader kind per catalog (`TradeAcquisitionMemory.SupplyDefinitions`) and the stat read asks `ShownStatValue` |
+| derive, all laps | 1169 ms | 1070 ms (`d_planned` 684, `derive` 154, `d_stock` 150, `d_file` 47, the rest under 20) | the owed diff over every built room (`PlannedOwedOf`) is taken once per review instead of four times (pricing, planned sites, and twice in the store-room report); the firebreak's tile reads go out in one frame and overlap the planned-site reads; the stockpile review overlaps the consumption window; the surface-ore reads go out in one frame |
+| layout | 1005 ms | 1029 ms at the hourly check (8 of 15 reviews), 5 ms otherwise | the cost is unchanged; the key now bands the expected mood (below) |
+| review | 328 ms | 354 ms | unchanged |
+| rounds | 4645 ms | 3105 ms (max 10.9 s at the step that planned the layout) | |
+
+What the second profile says:
+
+- **`d_planned` is native work, not queueing.** `hop_run` per step: `facade/construction_activity` 637 ms p50 (1.2 s max)
+  for the three reads the lap issues (the planned sites, the routes between them, the shelters' thermal and room
+  predictions; 15 MB of reply), `facade/observations_read_colony_facts` 1056 ms (3 reads per step, 72 MB); every other
+  operation runs under 15 ms. Overlapping the hops around them gained 0.1 s; the 0.65 s left is the native estimate
+  itself (the route probes path every free colonist to every site and the site answers estimate every piece), so the next
+  derive cut is on the native side or in asking it once per step rather than once per review. The ledger (`derive`) and
+  the stock reads (`d_stock`) are 0.15 s each.
+- **The hourly replan re-tiled the same rooms.** 6 of 8 replans ended same=13 moved=0 new=0 and `inputs_changed` named
+  `expected_mood` in every one of them: alone 3 times, with `survey` 3 times, with `stock` once. The mean mood drifts
+  every hour and only prices the comfort tiers, so the key now carries it in bands of 0.05
+  (`StationFacts.ExpectedMoodBand`); `survey` (the cells change as the colony builds) and `stock` still replan, as they
+  should. The next day (session `67361dc552c14f0ca972c8027354ee82`, 16 reviews, rounds 2974 ms p50) tested the
+  band: every one of its 10 hourly checks still replanned, `survey` at 7 of them and a band edge crossed
+  (`expected_mood` alone) at 2, so the band skipped none. While the colony builds, the survey cells change every hour;
+  the hourly replan (0.7 to 0.9 s, the chain and the tiler) stays until the key reads what the chain reads of the
+  survey rather than every cell.
+- **The step.** `clock_step` p50 6.0 s before the derive cuts, 5.9 s after (7.2 s in the first profile): with rounds at
+  3.1 s the planner waves (critical 1.7 s, optional 0.8 s) are the larger half, cuts (2) and (3) above.
+
 ## Hosting in the mod (#3115)
 
 Decided (user, 2026-10-13):

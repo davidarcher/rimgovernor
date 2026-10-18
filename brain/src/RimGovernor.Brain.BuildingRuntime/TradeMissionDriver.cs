@@ -90,7 +90,9 @@ partial class RoundsTradePlanner
         }
         try
         {
-            return Fact.Known((double)catalog.StatValue(def, "", stat));
+            // A stat the game does not show for the def is unknown, not an exception per definition.
+            var (value, shown) = catalog.ShownStatValue(def, "", stat);
+            return shown ? Fact.Known((double)value) : Fact.Unknown<double>();
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

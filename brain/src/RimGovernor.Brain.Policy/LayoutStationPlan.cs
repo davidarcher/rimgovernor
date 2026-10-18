@@ -97,6 +97,13 @@ public sealed record StationFacts
     /// <summary>The colonists' mean mood level, 0 to 1, the mood price's baseline (#2975, #2878); unknown leaves the comfort tiers and the lost role effects unpriced.</summary>
     public Fact<double> ExpectedMood { get; init; }
 
+    /// <summary>
+    /// The mood the inputs key varies with: ExpectedMood in bands of 0.05, null while unknown. The chain prices mood, it
+    /// sites no room by it, so a drift inside a band would replan the same rooms (every hourly replan of a profiled day
+    /// named expected_mood among its drifted inputs and tiled the same rooms, #3556).
+    /// </summary>
+    public double? ExpectedMoodBand() => ExpectedMood.TryGetValue(out var mood) ? Math.Round(mood * 20) / 20 : null;
+
     /// <summary>The standing rooms whose native role is not the one PredictRole gives their contents (GuardNativeRoles, #2898): a cost input and a split move of the regrouping.</summary>
     public IReadOnlyList<RoleMismatch> Mismatches { get; init; } = [];
 
@@ -247,16 +254,54 @@ public sealed record StationFacts
     /// </summary>
     public string InputsKey()
     {
-        var key = KeyText.Of(Dining, RoofDistance, Built, Pinned, OutdoorCurve, ExpectedMood, Mismatches, Derive, ThroneArea, RetireShelter, Demand, Pens, Child, Plan);
+        var sb = new StringBuilder();
+        foreach (var (_, value) in InputsKeyParts())
+        {
+            sb.Append(value);
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// The named parts of InputsKey, what a replan varies with, each keyed on its own so an hourly check can say which
+    /// of them drifted since the last replan (the layout_replan_tiled row's inputs_changed).
+    /// </summary>
+    public IReadOnlyList<KeyValuePair<string, string>> InputsKeyParts()
+    {
+        var parts = new List<KeyValuePair<string, string>>
+        {
+            new("dining", KeyText.Of(Dining)),
+            new("roof_distance", KeyText.Of(RoofDistance)),
+            new("built", KeyText.Of(Built)),
+            new("pinned", KeyText.Of(Pinned)),
+            new("outdoor_curve", KeyText.Of(OutdoorCurve)),
+            new("expected_mood", KeyText.Of(ExpectedMoodBand())),
+            new("mismatches", KeyText.Of(Mismatches)),
+            new("derive", KeyText.Of(Derive)),
+            new("throne_area", KeyText.Of(ThroneArea)),
+            new("retire_shelter", KeyText.Of(RetireShelter)),
+            new("demand", KeyText.Of(Demand)),
+            new("pens", KeyText.Of(Pens)),
+            new("child", KeyText.Of(Child)),
+            new("plan", KeyText.Of(Plan)),
+        };
         try
         {
             var input = GraphInput();
-            return key + KeyText.Of(input.Population, input.NutritionPerDay, input.Orders, input.Stock, input.FoodReserveDays, input.Crops, input.Suites, input.Pasture);
+            parts.Add(new("population", KeyText.Of(input.Population)));
+            parts.Add(new("nutrition_per_day", KeyText.Of(input.NutritionPerDay)));
+            parts.Add(new("orders", KeyText.Of(input.Orders)));
+            parts.Add(new("stock", KeyText.Of(input.Stock)));
+            parts.Add(new("food_reserve_days", KeyText.Of(input.FoodReserveDays)));
+            parts.Add(new("crops", KeyText.Of(input.Crops)));
+            parts.Add(new("suites", KeyText.Of(input.Suites)));
+            parts.Add(new("pasture", KeyText.Of(input.Pasture)));
         }
         catch (StationFactsException e)
         {
-            return key + e.Message;
+            parts.Add(new("graph", e.Message));
         }
+        return parts;
     }
 
     /// <summary>Tiles the embedding of the advice: what the tiler reads of the advice and the facts.</summary>

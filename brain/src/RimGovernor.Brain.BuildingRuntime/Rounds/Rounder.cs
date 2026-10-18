@@ -447,6 +447,7 @@ public sealed partial class Rounder
         var vCraftingSpotRetireOwed = await CraftingSpotRetireOwedAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { CraftingSpotRetireOwed = vCraftingSpotRetireOwed });
         reading = reading.WithFacts(rf => rf with { TemperatureOwed = RoundsBuildingPlanner.TemperatureOwed(reading.Projection) });
+        stages.Lap("d_owed");
         var targets = await RoundsArmoryShells.ShellTargetsAsync(Native, p.Journal, state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { ShellsShort = ArmoryShellsRules.ShellsShort(targets, reading.Projection.Resources) });
         if (Needs.Contains(ShelterFamily.SafeArea))
@@ -465,10 +466,13 @@ public sealed partial class Rounder
         {
             reading = reading.WithFacts(rf => rf with { FabricableParts = SurgeryRules.FabricableParts(benches) });
         }
+        stages.Lap("d_reads");
         CensusStockpileZones(state.Snapshot, reading.Projection, ct);
         // The review's shelf candidates become planned sites below.
-        var shelfCandidates = await ReviewStockpilesAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
+        // The stockpile review and the consumption window read nothing of each other, so their hops share frames.
+        var stockpileReview = ReviewStockpilesAsync(state.Snapshot, reading.Projection, ct);
         var vResourceConsumption = await ResourceConsumptionAsync(state.Snapshot, ct).ConfigureAwait(false);
+        var shelfCandidates = await stockpileReview.ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { ResourceConsumption = vResourceConsumption });
         var vResourceSurfaceOre = await ResourceSurfaceOreAsync(state.Snapshot, reading.Projection.Facts.Items, reading.Projection.Facts.ResourceConsumption, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { ResourceSurfaceOre = vResourceSurfaceOre });
@@ -491,20 +495,26 @@ public sealed partial class Rounder
             reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Flooring = RoundsBuildingPlanner.TrafficFlooringFacts(reading.Projection, Policy.Flooring) } });
             reading = reading.WithColonySection(c => c with { Facts = c.Facts with { Upkeep = c.Facts.Upkeep with { Flooring = reading.Projection.Facts.Upkeep.Flooring } } });
         }
+        stages.Lap("d_stock");
+        // The owed diff over every built room is taken once a review; the pricing and the sites read it.
+        var plannedOwed = PlannedOwedOf(reading.Projection, Policy.Flooring);
         reading = reading.WithFacts(rf => rf with
         {
-            PlannedConstruction = PlannedConstructionOf(reading.Projection, Policy.Flooring),
+            PlannedConstruction = PlannedConstructionOf(reading.Projection, plannedOwed),
             PlannedShelters = reading.Projection.LayoutPlan.TryGetValue(out var layout) ? EquatableArray.From(layout.Rooms.Where(r => !r.Outdoor)) : []
         });
-        var vPlannedSites = await PlannedSitesAsync(state.Snapshot, reading.Projection, Policy.Flooring, shelfCandidates, ct).ConfigureAwait(false);
+        // The firebreak review reads nothing the planned sites answer, so its tile reads share frames with the site reads.
+        var firebreak = Firebreak?.ReviewAsync(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, FirebreakPlan.FirebreakBusy(plans, state.Snapshot), ct);
+        var vPlannedSites = await PlannedSitesAsync(state.Snapshot, reading.Projection, plannedOwed, shelfCandidates, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { PlannedSites = vPlannedSites });
         var (vPlannedThermal, vRoomPredictions) = await PlannedShelterReadsAsync(state.Snapshot, reading.Projection, reading.Projection.Facts.PlannedShelters, vPlannedSites, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { PlannedThermal = vPlannedThermal, PlannedRoomPredictions = vRoomPredictions });
-        if (Firebreak is not null)
+        if (firebreak is not null)
         {
             // The ring plan's dwell clock advances every review; the layout family reads the work it leaves.
-            _ = await Firebreak.ReviewAsync(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, FirebreakPlan.FirebreakBusy(plans, state.Snapshot), ct).ConfigureAwait(false);
+            _ = await firebreak.ConfigureAwait(false);
         }
+        stages.Lap("d_planned");
         Fact<EquatableArray<PawnId>> psylinkCandidates = default;
         if (Needs.Contains(RoyaltyFamily.Psylink))
         {
@@ -552,6 +562,7 @@ public sealed partial class Rounder
         // The workshop ladder's recorded research rung is the derived economy/research target; it is journal
         // evidence, not a native read, so a review costs no extra call for it.
         NoteEquipment(state.Snapshot, reading.Projection.Facts);
+        stages.Lap("d_file");
         GoalsFacts? goalFacts = null;
         if (Goals)
         {
@@ -634,6 +645,7 @@ public sealed partial class Rounder
             }
         }
         reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Rooms = reading.Projection.Rooms } });
+        stages.Lap("d_work");
         p.Current(ct, epoch);
         if (p.Session.State() != state)
         {
@@ -658,6 +670,7 @@ public sealed partial class Rounder
                 reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });
             }
         }
+        stages.Lap("d_clear");
         reading = reading.WithFacts(rf => rf with { AvailableNeeds = AvailableNeeds });
         // The admin/work-ledger Need reads the diff from the ledger's memory (LedgerOwedIn).
         var ledgerOwed = await ReviewLedgerAsync(state.Snapshot, expected, reading.Projection, ct).ConfigureAwait(false);
@@ -941,9 +954,13 @@ partial class Rounder
     /// the stuff the shell chooser takes (ShellSharedStuff) for the ring and the bulk chooser's for pieces; unknown while the plan or the construction census is.
     /// A roofed-set cell still open to the sky is owed a roof (RoofIn) once the ring stands; a roof costs no material.
     /// </summary>
-    internal static Fact<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>> PlannedConstructionOf(ColonyProjection colony, FlooringPolicy flooring)
+    internal static Fact<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>> PlannedConstructionOf(ColonyProjection colony, FlooringPolicy flooring) =>
+        PlannedConstructionOf(colony, PlannedOwedOf(colony, flooring));
+
+    /// <summary>PlannedConstructionOf over an owed diff already taken (PlannedOwedOf), so one review's readers share it; unknown without one.</summary>
+    internal static Fact<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>> PlannedConstructionOf(ColonyProjection colony, PlannedOwed? owed)
     {
-        if (PlannedOwedOf(colony, flooring) is not { } owed)
+        if (owed is null)
         {
             return Unknown<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>();
         }

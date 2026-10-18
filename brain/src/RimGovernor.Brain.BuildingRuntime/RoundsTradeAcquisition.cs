@@ -8,6 +8,27 @@ internal sealed partial class TradeAcquisitionMemory
     public Dictionary<string, Pol.TradeAcquisitionPlan> Proposals = [];
     public Dictionary<string, string> Active = [];
     public Dictionary<string, TradeMission> Missions = [];
+
+    /// <summary>
+    /// The catalog-derived supply facts of a trader kind, built once per catalog: the definitions a settlement of the
+    /// kind can be asked for (every ThingDef against the kind's stock generators) and whether it supplies a demanded
+    /// good. Pure catalog data, the same at every review; the settlement search once rebuilt them per settlement.
+    /// </summary>
+    public Bridge.DefinitionCatalog? SupplyCatalog;
+    public Dictionary<string, IReadOnlyList<Pol.MissionSupplyDefinition>> SupplyDefinitions = new(StringComparer.Ordinal);
+    public Dictionary<(string Kind, Pol.ResourceKey Good), Fact<bool>> SupplyCompatible = [];
+
+    /// <summary>Forgets the supply facts of another catalog (a new load). Call under Mu.</summary>
+    public void ForCatalog(Bridge.DefinitionCatalog catalog)
+    {
+        if (ReferenceEquals(SupplyCatalog, catalog))
+        {
+            return;
+        }
+        SupplyCatalog = catalog;
+        SupplyDefinitions.Clear();
+        SupplyCompatible.Clear();
+    }
 }
 
 public sealed partial class Rounder

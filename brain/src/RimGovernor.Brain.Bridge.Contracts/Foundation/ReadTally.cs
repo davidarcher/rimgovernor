@@ -21,6 +21,7 @@ public sealed class ReadTally(ReadTally? parent = null)
     private readonly object _lock = new();
     private readonly Dictionary<string, ulong> _counts = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _hopBytes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, double> _hopRunMs = new(StringComparer.Ordinal);
     private ulong _total;
     private double _waitMs;
     private double _runMs;
@@ -73,15 +74,17 @@ public sealed class ReadTally(ReadTally? parent = null)
             _waitMs += waitMs;
             _runMs += runMs;
             _hopBytes[operation] = _hopBytes.GetValueOrDefault(operation) + allocatedBytes;
+            _hopRunMs[operation] = _hopRunMs.GetValueOrDefault(operation) + runMs;
         }
         parent?.AddHop(operation, waitMs, runMs, allocatedBytes);
     }
 
-    /// <summary>The tally's reads, hop wait, run time and allocated KB, per-tool counts and per-operation hop KB, as row or span attributes.</summary>
+    /// <summary>The tally's reads, hop wait, run time and allocated KB, per-tool counts and per-operation hop KB and run ms, as row or span attributes.</summary>
     public Dictionary<string, object?> Attrs()
     {
         var tools = new Dictionary<string, object?>(StringComparer.Ordinal);
         var hopKb = new Dictionary<string, object?>(StringComparer.Ordinal);
+        var hopRun = new Dictionary<string, object?>(StringComparer.Ordinal);
         lock (_lock)
         {
             foreach (var (tool, n) in _counts)
@@ -92,6 +95,10 @@ public sealed class ReadTally(ReadTally? parent = null)
             {
                 hopKb[operation] = bytes / 1024;
             }
+            foreach (var (operation, ms) in _hopRunMs)
+            {
+                hopRun[operation] = Math.Round(ms, 1);
+            }
             return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["reads"] = _total,
@@ -100,6 +107,7 @@ public sealed class ReadTally(ReadTally? parent = null)
                 ["hop_alloc_kb"] = _hopBytes.Values.Sum() / 1024,
                 ["tools"] = tools,
                 ["hop_kb"] = hopKb,
+                ["hop_run"] = hopRun,
             };
         }
     }

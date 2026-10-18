@@ -83,33 +83,11 @@ public sealed partial class Rounder
             var compatibleFacts = new Dictionary<Pol.ResourceKey, Fact<bool>>();
             foreach (var d in demands)
             {
-                compatibleFacts[d.Demand.Good] = catalog.TraderKindCanSupply(settlement.TraderKind, d.Demand.Good);
+                compatibleFacts[d.Demand.Good] = TraderKindCanSupply(catalog, settlement.TraderKind, d.Demand.Good);
             }
-            var definitions = new List<Pol.MissionSupplyDefinition>();
-            if (compatibleFacts.ContainsKey(Pol.SupplyPlanRules.NutritionKey))
-            {
-                foreach (var name in catalog.ThingDefs.Keys.Order(StringComparer.Ordinal))
-                {
-                    Pol.TradeFoodGood? food = null;
-                    var known = false;
-                    try
-                    {
-                        food = catalog.TradeFood(name);
-                        known = food is not null;
-                    }
-                    catch (Exception e) when (e is not OperationCanceledException)
-                    {
-                        known = false;
-                    }
-                    definitions.Add(new Pol.MissionSupplyDefinition
-                    {
-                        Definition = name,
-                        Prepared = RoundsTradePlanner.MissionOptional(food?.Prepared ?? false, known),
-                        Nutrition = RoundsTradePlanner.MissionCatalogStat(catalog, name, Bridge.CatalogStats.Nutrition),
-                        CanSupply = catalog.TraderKindCanSupply(settlement.TraderKind, new Pol.ResourceKey { Def = new Pol.Resource(name) }),
-                    });
-                }
-            }
+            var definitions = compatibleFacts.ContainsKey(Pol.SupplyPlanRules.NutritionKey)
+                ? TraderSupplyDefinitions(catalog, settlement.TraderKind)
+                : [];
             var (cargo, compatible) = Pol.TradePolicyRules.TradeMissionCargo(demands, compatibleFacts, definitions, Policy.FoodTargetDays);
             if (cargo.Count == 0)
             {
@@ -133,5 +111,72 @@ public sealed partial class Rounder
             output.Add(option);
         }
         return output;
+    }
+
+    /// <summary>Whether a trader kind supplies a good, remembered per catalog (TradeAcquisitionMemory.SupplyCompatible).</summary>
+    internal Fact<bool> TraderKindCanSupply(Bridge.DefinitionCatalog catalog, string kind, Pol.ResourceKey good)
+    {
+        var m = TradeAcquisition;
+        lock (m.Mu)
+        {
+            m.ForCatalog(catalog);
+            if (m.SupplyCompatible.TryGetValue((kind, good), out var held))
+            {
+                return held;
+            }
+        }
+        var fact = catalog.TraderKindCanSupply(kind, good);
+        lock (m.Mu)
+        {
+            m.ForCatalog(catalog);
+            m.SupplyCompatible[(kind, good)] = fact;
+        }
+        return fact;
+    }
+
+    /// <summary>
+    /// Every ThingDef as a mission supply definition for a trader kind (its food class, nutrition and whether the
+    /// kind's stock generators supply it), by name, remembered per catalog: the settlement search once rebuilt this
+    /// list, thousands of stat reads long, for every settlement at every review.
+    /// </summary>
+    internal IReadOnlyList<Pol.MissionSupplyDefinition> TraderSupplyDefinitions(Bridge.DefinitionCatalog catalog, string kind)
+    {
+        var m = TradeAcquisition;
+        lock (m.Mu)
+        {
+            m.ForCatalog(catalog);
+            if (m.SupplyDefinitions.TryGetValue(kind, out var held))
+            {
+                return held;
+            }
+        }
+        var definitions = new List<Pol.MissionSupplyDefinition>(catalog.ThingDefs.Count);
+        foreach (var name in catalog.ThingDefs.Keys.Order(StringComparer.Ordinal))
+        {
+            Pol.TradeFoodGood? food = null;
+            var known = false;
+            try
+            {
+                food = catalog.TradeFood(name);
+                known = food is not null;
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                known = false;
+            }
+            definitions.Add(new Pol.MissionSupplyDefinition
+            {
+                Definition = name,
+                Prepared = RoundsTradePlanner.MissionOptional(food?.Prepared ?? false, known),
+                Nutrition = RoundsTradePlanner.MissionCatalogStat(catalog, name, Bridge.CatalogStats.Nutrition),
+                CanSupply = TraderKindCanSupply(catalog, kind, new Pol.ResourceKey { Def = new Pol.Resource(name) }),
+            });
+        }
+        lock (m.Mu)
+        {
+            m.ForCatalog(catalog);
+            m.SupplyDefinitions[kind] = definitions;
+        }
+        return definitions;
     }
 }

@@ -93,13 +93,14 @@ internal sealed class FirebreakMemory
         request = request with { Floors = floors };
         var ground = new Dictionary<Cell, Fact<FirebreakGround>>();
         var site = new Dictionary<Cell, DefenseCensusCell>();
-        foreach (var tile in FirebreakTiles(cells))
+        // Every tile is asked in one frame (the game-thread pump drains the queued reads together) instead of one frame each.
+        var tiles = FirebreakTiles(cells).Select(tile => tile with
         {
-            var rect = tile with
-            {
-                Max = new Cell(Math.Min(tile.Min.X + FirebreakPlan.FirebreakTile, projection.Bounds.Width) - 1, Math.Min(tile.Min.Z + FirebreakPlan.FirebreakTile, projection.Bounds.Height) - 1),
-            };
-            var read = await Native.ReadDefenseSiteAsync(identity, rect, ct).ConfigureAwait(false);
+            Max = new Cell(Math.Min(tile.Min.X + FirebreakPlan.FirebreakTile, projection.Bounds.Width) - 1, Math.Min(tile.Min.Z + FirebreakPlan.FirebreakTile, projection.Bounds.Height) - 1),
+        }).ToList();
+        var reads = await Task.WhenAll(tiles.Select(rect => Native.ReadDefenseSiteAsync(identity, rect, ct))).ConfigureAwait(false);
+        foreach (var read in reads)
+        {
             try
             {
                 Boundary.Context(read.Context, current);

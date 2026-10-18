@@ -26,6 +26,7 @@ public sealed class ReadTallyTests
         Assert.Equal(1UL, ((Dictionary<string, object?>)p["tools"]!)["ListPawnsAsync"]);
         Assert.Equal(4L, p["hop_alloc_kb"]);
         Assert.Equal(4L, ((Dictionary<string, object?>)p["hop_kb"]!)["pawns"]);
+        Assert.Equal(1.5, ((Dictionary<string, object?>)p["hop_run"]!)["pawns"]);
 
         var s = step.Tally.Attrs();
         Assert.Equal(2UL, s["reads"]);

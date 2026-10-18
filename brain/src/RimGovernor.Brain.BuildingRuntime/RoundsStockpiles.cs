@@ -142,8 +142,10 @@ partial class RoundsStockpilePlanner
             return Unknown<IReadOnlyList<Pol.PlannedStoreRoom>>();
         }
         var rooms = plan.Rooms.Where(r => r.Role == Pol.PlannedRole.Storage || r.Role == Pol.PlannedRole.Yard).ToList();
-        var owed = rooms.Any(r => !r.Unfenced()) ? Rounder.PlannedConstructionOf(projection, flooring) : default;
-        var sites = rooms.Any(r => !r.Unfenced()) ? Rounder.PlannedRoomSitesOf(projection, flooring) : null;
+        var fenced = rooms.Any(r => !r.Unfenced());
+        var plannedOwed = fenced ? Rounder.PlannedOwedOf(projection, flooring) : null;
+        var owed = fenced ? Rounder.PlannedConstructionOf(projection, plannedOwed) : default;
+        var sites = fenced ? Rounder.PlannedRoomSitesOf(projection, plannedOwed) : null;
         var floors = sites is null ? null : RoundsBuildingPlanner.FlooringFactsOf(projection);
         var output = new List<Pol.PlannedStoreRoom>(rooms.Count);
         foreach (var room in rooms)

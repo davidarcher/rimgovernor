@@ -10,10 +10,10 @@ public sealed partial class Rounder
     /// #3313); each read covers every free colonist and caps nothing (#3341). Without a read its sites or routes stay
     /// unknown. Unknown while the plan or the construction census is.
     /// </summary>
-    internal async Task<Fact<PlannedSiteFacts>> PlannedSitesAsync(GenerationSnapshot snapshot, ColonyProjection colony, FlooringPolicy flooring,
+    internal async Task<Fact<PlannedSiteFacts>> PlannedSitesAsync(GenerationSnapshot snapshot, ColonyProjection colony, PlannedOwed? owed,
         IReadOnlyList<ShelfCandidate> shelves, CancellationToken ct)
     {
-        if (PlannedRoomSitesOf(colony, flooring) is not { } roomSites)
+        if (PlannedRoomSitesOf(colony, owed) is not { } roomSites)
         {
             return Unknown<PlannedSiteFacts>();
         }
@@ -42,7 +42,11 @@ public sealed partial class Rounder
 
     /// <summary>The plan's owed operations as planned sites (PlannedSitesOf), unread; null while the plan or the construction census is unknown.</summary>
     internal static IReadOnlyList<PlannedBuildSite>? PlannedRoomSitesOf(ColonyProjection colony, FlooringPolicy flooring) =>
-        PlannedOwedOf(colony, flooring) is not { } owed ? null
+        PlannedRoomSitesOf(colony, PlannedOwedOf(colony, flooring));
+
+    /// <summary>PlannedRoomSitesOf over an owed diff already taken (PlannedOwedOf), so one review's readers share it; null without one.</summary>
+    internal static IReadOnlyList<PlannedBuildSite>? PlannedRoomSitesOf(ColonyProjection colony, PlannedOwed? owed) =>
+        owed is null ? null
             : PlannedRules.PlannedSitesOf(owed.Sited, room => PlannedRingStuffsOf(colony, room),
                 (def, stuff) => PlannedRingPrice(colony, def, stuff), def => PlannedPiecePrice(colony, def), owed.FloorPrice,
                 ClimateRules.ClimateDefs().VentDef, owed.Placed);

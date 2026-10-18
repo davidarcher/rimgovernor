@@ -24,7 +24,12 @@ public sealed partial class Rounder
             FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays,
             Suites = RoundsSleepingUpkeepPlanner.SuiteWishesOf(projection, plan) is { } wishes ? [.. wishes] : [],
         };
-        var inputs = new LayoutInputs(default, string.Create(CultureInfo.InvariantCulture, $"{snapshot.Load.Value}|{f.InputsKey()}"), survey.Bounds, [.. survey.Cells]);
+        var parts = new Dictionary<string, string>(StringComparer.Ordinal) { ["load"] = string.Create(CultureInfo.InvariantCulture, $"{snapshot.Load.Value}") };
+        foreach (var (name, value) in f.InputsKeyParts())
+        {
+            parts[name] = value;
+        }
+        var inputs = new LayoutInputs(default, string.Create(CultureInfo.InvariantCulture, $"{snapshot.Load.Value}|{f.InputsKey()}"), survey.Bounds, [.. survey.Cells]) { Parts = parts };
         if (inputs.Same(StationInputs))
         {
             return;

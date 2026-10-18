@@ -58,16 +58,25 @@ public sealed partial class Rounder : IDisposable
             return output;
         }
 
-        foreach (var resource in ResourceRules.MaterialRunwayKeys(items, consumptionFact))
+        // Every material's sources are read in one frame rather than one frame each.
+        var reads = ResourceRules.MaterialRunwayKeys(items, consumptionFact).Select(async Task<(Resource Key, Fact<long> Ore, bool Read)> (resource) =>
         {
             try
             {
                 var (rows, _) = await reader.ReadResourceSourcesAsync(Boundary.Identity(snapshot), resource.Value, ct).ConfigureAwait(false);
-                output[resource] = ResourceRules.SurfaceOre(rows);
+                return (resource, ResourceRules.SurfaceOre(rows), true);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
                 // an unreadable source leaves the resource's surface ore unknown
+                return (resource, default, false);
+            }
+        }).ToList();
+        foreach (var (resource, ore, read) in await Task.WhenAll(reads).ConfigureAwait(false))
+        {
+            if (read)
+            {
+                output[resource] = ore;
             }
         }
 

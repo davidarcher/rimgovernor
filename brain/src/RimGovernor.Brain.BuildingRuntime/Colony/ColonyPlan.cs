@@ -8,8 +8,50 @@ internal sealed record LayoutInputs(Tick PlanTick, string Key, Bounds Bounds, Eq
 {
     public static LayoutInputs Empty { get; } = new(default, "", default, default);
 
+    /// <summary>The key's named parts (StationFacts.InputsKeyParts and the replan's own), so Changed can name what drifted.</summary>
+    public IReadOnlyDictionary<string, string> Parts { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
+
     public bool Same(LayoutInputs other) =>
         PlanTick == other.PlanTick && Key == other.Key && Bounds == other.Bounds && Cells.Equals(other.Cells);
+
+    /// <summary>
+    /// What differs from other, by name: "plan_tick", "survey" (the bounds or cells) and each key part whose text
+    /// changed or that only one side has; "key" when the keys differ but no part says why.
+    /// </summary>
+    public IReadOnlyList<string> Changed(LayoutInputs other)
+    {
+        var names = new List<string>();
+        if (PlanTick != other.PlanTick)
+        {
+            names.Add("plan_tick");
+        }
+        if (Bounds != other.Bounds || !Cells.Equals(other.Cells))
+        {
+            names.Add("survey");
+        }
+        var parts = new List<string>();
+        foreach (var (name, value) in Parts)
+        {
+            if (!other.Parts.TryGetValue(name, out var was) || was != value)
+            {
+                parts.Add(name);
+            }
+        }
+        foreach (var name in other.Parts.Keys)
+        {
+            if (!Parts.ContainsKey(name))
+            {
+                parts.Add(name);
+            }
+        }
+        parts.Sort(StringComparer.Ordinal);
+        names.AddRange(parts);
+        if (names.Count == 0 && Key != other.Key)
+        {
+            names.Add("key");
+        }
+        return names;
+    }
 }
 
 /// <summary>A saved layout plan the world holds, with the tick that recorded it.</summary>
@@ -213,7 +255,7 @@ public sealed partial class Rounder
                             ["pawns"] = colonists != PlanPawns,
                             ["research"] = research,
                         });
-                        replanned = await ReplanLayoutAsync(snapshot, tick, layout.Plan, survey, growth, colonists, reason, topology.Geysers, ColonyPlanCut.PerimeterWallOf(projection), ct).ConfigureAwait(false);
+                        replanned = await ReplanLayoutAsync(snapshot, tick, layout.Plan, survey, growth, colonists, reason, topology.Geysers, ColonyPlanCut.PerimeterWallOf(projection), ct, inputs.Changed(PlanInputs)).ConfigureAwait(false);
                         if (replanned)
                         {
                             PlanGrownFor = grown;
@@ -249,7 +291,18 @@ public sealed partial class Rounder
         var growth = await RoomGrowthAsync(snapshot, projection, layout.Plan, Stockpiles.LayoutDemand(RoundsStockpilePlanner.StockpileWorld(snapshot)), ct).ConfigureAwait(false);
         StationAdviceFor(snapshot, projection, layout.Plan, LayoutPlan.TilePinned(layout.Plan, growth), growth, growth.Demand, survey, catalog);
         var key = string.Create(CultureInfo.InvariantCulture, $"{grown} {pawns} {string.Join(",", geysers)} {growth} {StationInputs.Key}");
-        return (new LayoutInputs(layout.Tick, key, survey.Bounds, [.. survey.Cells]), growth);
+        var parts = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["grown"] = grown,
+            ["pawns"] = string.Create(CultureInfo.InvariantCulture, $"{pawns}"),
+            ["geysers"] = string.Join(",", geysers),
+            ["growth"] = string.Create(CultureInfo.InvariantCulture, $"{growth}"),
+        };
+        foreach (var (name, value) in StationInputs.Parts)
+        {
+            parts[name] = value;
+        }
+        return (new LayoutInputs(layout.Tick, key, survey.Bounds, [.. survey.Cells]) { Parts = parts }, growth);
     }
 
     /// <summary>
@@ -424,7 +477,7 @@ public sealed partial class Rounder
     /// the colony has: the layout_replan_tiled row says why, and the replan is reported undone (false) so the
     /// next trigger tries again. Reports whether the plan was replanned, changed or not.
     /// </summary>
-    internal async Task<bool> ReplanLayoutAsync(GenerationSnapshot snapshot, Tick tick, LayoutPlan plan, MapSurvey survey, RoomGrowth growth, int pawns, string reason, IReadOnlyList<PowerGeyser> geysers, PerimeterWall wall, CancellationToken ct)
+    internal async Task<bool> ReplanLayoutAsync(GenerationSnapshot snapshot, Tick tick, LayoutPlan plan, MapSurvey survey, RoomGrowth growth, int pawns, string reason, IReadOnlyList<PowerGeyser> geysers, PerimeterWall wall, CancellationToken ct, IReadOnlyList<string>? drift = null)
     {
         var decision = new Decision { Kind = "layout_replan_tiled", Component = "layout", Target = "plan" };
         if (!StationHeld)
@@ -467,6 +520,11 @@ public sealed partial class Rounder
         decision = decision with { Reason = "tiled_plan" };
         var tiledAttrs = StationAdviceLog.TiledReplanAttrs(LayoutPlan.DiffReplanTile(plan, stationFacts.Built ?? new HashSet<int>(), advice), stationFacts.Built?.Count ?? 0, advice.Tiled!.Plan.Rooms.Count);
         tiledAttrs["changed"] = changed;
+        if (drift is { Count: > 0 })
+        {
+            // Which replan inputs drifted since the last replan: the hourly check replans on any of them.
+            tiledAttrs["inputs_changed"] = drift;
+        }
         decision = decision with { Attrs = tiledAttrs };
         Tel.Decide(decision);
         LayoutPlanning.LogInterior(advice);
