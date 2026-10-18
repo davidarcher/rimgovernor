@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using RimGovernor.Brain.Policy;
@@ -161,8 +162,12 @@ public sealed partial class Rounder
         }
     }
 
-    internal async Task<Fact<bool>> ReviewLedgerAsync(GenerationSnapshot snapshot, Identity expected, ColonyProjection projection, CancellationToken call)
+    // The review's parts are lapped onto fine under derive/ledger/ (#3566): benches (the mirrored bench read), declare
+    // (the declarers, which run together: each declares from the same reading and writes only its own memory, so
+    // their hops share frames; each one's own wall rides under its name), reconcile (the diff under the ledger lock).
+    internal async Task<Fact<bool>> ReviewLedgerAsync(GenerationSnapshot snapshot, Identity expected, ColonyProjection projection, CancellationToken call, StepStages? fine = null)
     {
+        var inner = new StepStages();
         var l = Ledger;
         List<IOrderDeclarer> declarers;
         lock (l.Mu)
@@ -218,20 +223,32 @@ public sealed partial class Rounder
             return Unknown<bool>();
         }
 
+        inner.Lap("derive/ledger/benches");
         var benches = reads.Select(read => read.Bench).ToList();
-        var declared = new List<Declared>();
-        var purposes = new List<LedgerPurpose>();
-        foreach (var d in declarers)
+        var timed = new Task<(Declared Declared, double Ms)>[declarers.Count];
+        for (var i = 0; i < declarers.Count; i++)
         {
-            declared.Add(await d.DeclareOrdersAsync(snapshot, projection, benches, call).ConfigureAwait(false));
-            var (purpose, ok) = PurposeOf(d, false);
+            timed[i] = DeclareTimedAsync(declarers[i], snapshot, projection, benches, call);
+        }
+
+        // Awaited in composition order, so the declared list (and the first failure) keeps the order the sequential loop had.
+        var declared = new List<Declared>(declarers.Count);
+        var purposes = new List<LedgerPurpose>();
+        for (var i = 0; i < declarers.Count; i++)
+        {
+            var (orders, ms) = await timed[i].ConfigureAwait(false);
+            declared.Add(orders);
+            inner.Add("derive/ledger/" + LapName(declarers[i]), ms);
+            var (purpose, ok) = PurposeOf(declarers[i], false);
             if (ok)
             {
                 purposes.Add(purpose);
             }
         }
 
+        inner.Lap("derive/ledger/declare");
         var (actual, known) = WorkRules.LedgerActuals(benches);
+        Fact<bool> result;
         lock (l.Mu)
         {
             l.Reports = purposes;
@@ -239,26 +256,58 @@ public sealed partial class Rounder
             if (!known)
             {
                 l.View = WorkRules.NewLedgerView(WorkRules.LedgerViewUnread);
-                return Unknown<bool>();
+                result = Unknown<bool>();
             }
-
-            EquatableArray<WorkPawn> pawns = projection.WorkPawns.TryGetValue(out var rows) ? rows : [];
-            var (copies, dispatched) = l.Dispatch.Dispatch(new DispatchInputs { Declared = declared, Benches = benches, Pawns = pawns, Stock = projection.Resources, Tick = projection.Identity.Tick.Value });
-            var plan = WorkRules.ReconcileLedger(declared, actual, l.Orphans ?? new Dictionary<string, int>(), copies);
-            l.Orphans = plan.Orphans;
-            var (placed, unplaced) = WorkRules.PlaceLedgerOrders(plan.Place, benches);
-            var (wanted, _) = WorkRules.WantedOrders(declared);
-            l.Unmet = [.. l.Dispatch.Unmet(dispatched, wanted, unplaced, benches)];
-            l.Colonists = pawns.Count;
-            l.View = WorkRules.BuildLedgerView(wanted);
-            var owed = WorkRules.LedgerDiffOwed(plan);
-            if (owed)
+            else
             {
-                l.Pending = new LedgerPending { Snapshot = snapshot, Remove = plan.Remove, Place = placed, Unplaced = unplaced };
-            }
+                EquatableArray<WorkPawn> pawns = projection.WorkPawns.TryGetValue(out var rows) ? rows : [];
+                var (copies, dispatched) = l.Dispatch.Dispatch(new DispatchInputs { Declared = declared, Benches = benches, Pawns = pawns, Stock = projection.Resources, Tick = projection.Identity.Tick.Value });
+                var plan = WorkRules.ReconcileLedger(declared, actual, l.Orphans ?? new Dictionary<string, int>(), copies);
+                l.Orphans = plan.Orphans;
+                var (placed, unplaced) = WorkRules.PlaceLedgerOrders(plan.Place, benches);
+                var (wanted, _) = WorkRules.WantedOrders(declared);
+                l.Unmet = [.. l.Dispatch.Unmet(dispatched, wanted, unplaced, benches)];
+                l.Colonists = pawns.Count;
+                l.View = WorkRules.BuildLedgerView(wanted);
+                var owed = WorkRules.LedgerDiffOwed(plan);
+                if (owed)
+                {
+                    l.Pending = new LedgerPending { Snapshot = snapshot, Remove = plan.Remove, Place = placed, Unplaced = unplaced };
+                }
 
-            return Known(owed);
+                result = Known(owed);
+            }
         }
+
+        inner.Lap("derive/ledger/reconcile");
+        fine?.Add(inner);
+        return result;
+    }
+
+    private static async Task<(Declared Declared, double Ms)> DeclareTimedAsync(IOrderDeclarer d, GenerationSnapshot snapshot, ColonyProjection projection, List<GearBench> benches, CancellationToken call)
+    {
+        var at = Stopwatch.GetTimestamp();
+        var declared = await d.DeclareOrdersAsync(snapshot, projection, benches, call).ConfigureAwait(false);
+        return (declared, Stopwatch.GetElapsedTime(at).TotalMilliseconds);
+    }
+
+    /// <summary>The fine lap name of a declarer: its type name without the Rounds prefix and the Declarer or Planner suffix, in lower case.</summary>
+    internal static string LapName(IOrderDeclarer d)
+    {
+        var name = d.GetType().Name;
+        if (name.StartsWith("Rounds", StringComparison.Ordinal))
+        {
+            name = name["Rounds".Length..];
+        }
+        if (name.EndsWith("Declarer", StringComparison.Ordinal))
+        {
+            name = name[..^"Declarer".Length];
+        }
+        else if (name.EndsWith("Planner", StringComparison.Ordinal))
+        {
+            name = name[..^"Planner".Length];
+        }
+        return name.ToLowerInvariant();
     }
 }
 

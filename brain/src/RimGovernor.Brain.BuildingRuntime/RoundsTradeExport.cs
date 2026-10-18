@@ -114,6 +114,11 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
     // The silver gap of the latest declaration: the economy/trade Need's measure, unknown before the first.
     private Fact<double> _gap = Unknown<double>();
 
+    // The home map's world tile of _homeSnapshot's world, once read (HomeTileAsync).
+    private GenerationSnapshot _homeSnapshot;
+    private int _home = -1;
+    private bool _homeKnown;
+
     /// <summary>Reads every settlement of the world, whatever its distance.</summary>
     internal const double AllSettlementsRadius = 1e9;
 
@@ -233,30 +238,34 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         request = request with { WorkFor = ExportWorkFor(catalog) };
         var names = ExportOrdersRules.ExportIngredients(request);
         var strs = names.Select(n => n.Value).ToList();
-        if (strs.Count > 0)
+        // The supply stock, every ingredient's sources and the packed art read nothing of each other, so their hops
+        // share frames (#3566); the results are read in the order the sequential reads had, so the first unread input
+        // still names the abstain.
+        var supplyRead = strs.Count > 0 ? Attempt(resource.ReadSupplyStockAsync(identity, strs, ct)) : null;
+        var sourceReads = new Task<(IReadOnlyList<Pol.ResourceSource> Rows, Exception? Error)>[names.Count];
+        for (var i = 0; i < names.Count; i++)
         {
-            try
+            sourceReads[i] = ReadSourcesAsync(resource, identity, names[i].Value, ct);
+        }
+        var packedRead = PackedArtAsync(snapshot, identity, projection, ct);
+        if (supplyRead is not null)
+        {
+            var (supply, error) = await supplyRead.ConfigureAwait(false);
+            if (error is not null)
             {
-                var supply = await resource.ReadSupplyStockAsync(identity, strs, ct).ConfigureAwait(false);
-                request = request with { Supply = supply };
+                return RoundsGearPlanner.AbstainOnRead(Pol.Cause.UnreadSupply, error, ct);
             }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-                return RoundsGearPlanner.AbstainOnRead(Pol.Cause.UnreadSupply, e, ct);
-            }
+            request = request with { Supply = supply };
         }
         var centered = projection.Center().TryGetValue(out var center);
         projection.Acquisition.TryGetValue(out var acquisition);
-        foreach (var name in names)
+        for (var i = 0; i < names.Count; i++)
         {
-            IReadOnlyList<Pol.ResourceSource> rows;
-            try
+            var name = names[i];
+            var (rows, error) = await sourceReads[i].ConfigureAwait(false);
+            if (error is not null)
             {
-                (rows, _) = await resource.ReadResourceSourcesAsync(identity, name.Value, ct).ConfigureAwait(false);
-            }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-                return RoundsGearPlanner.AbstainOnRead(Pol.Cause.UnreadSources, e, ct);
+                return RoundsGearPlanner.AbstainOnRead(Pol.Cause.UnreadSources, error, ct);
             }
             var mines = new List<Pol.ResourceSource>();
             foreach (var row in rows)
@@ -281,20 +290,32 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             }
             candidateSources[name] = sources;
         }
-        try
-        {
-            request = request with { Packed = await PackedArtAsync(snapshot, identity, projection, ct).ConfigureAwait(false) };
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            // An unread packed count leaves the fact unknown.
-        }
+        request = request with { Packed = await packedRead.ConfigureAwait(false) };
         var plan = ExportOrdersRules.DeclareExportOrders(request);
         SetWorking(plan.Declared.Orders.Count > 0);
         return plan.Declared;
     }
 
-    /// <summary>Counts the packed sculptures no owed room reserves.</summary>
+    /// <summary>The read's reply, or the exception it threw (a cancellation propagates).</summary>
+    private static async Task<(T Value, Exception? Error)> Attempt<T>(Task<T> read)
+    {
+        try
+        {
+            return (await read.ConfigureAwait(false), null);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return (default!, e);
+        }
+    }
+
+    private static async Task<(IReadOnlyList<Pol.ResourceSource> Rows, Exception? Error)> ReadSourcesAsync(FacadeNativeClient resource, C.Identity identity, string name, CancellationToken ct)
+    {
+        var (read, error) = await Attempt(resource.ReadResourceSourcesAsync(identity, name, ct)).ConfigureAwait(false);
+        return (error is null ? read.Rows : [], error);
+    }
+
+    /// <summary>Counts the packed sculptures no owed room reserves; unknown when the count is unread.</summary>
     private async Task<Fact<long>> PackedArtAsync(GenerationSnapshot snapshot, C.Identity identity, Observation.ColonyProjection projection, CancellationToken ct)
     {
         if (_reviewer.Native is not FacadeNativeClient native)
@@ -305,23 +326,21 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         {
             return Unknown<long>();
         }
-        var sale = await RoundsSleepingUpkeepPlanner.SaleSculpturesOfAsync(native, identity, projection, ct).ConfigureAwait(false);
-        return sale is null ? Unknown<long>() : Known((long)sale.Count);
+        var (sale, error) = await Attempt(RoundsSleepingUpkeepPlanner.SaleSculpturesOfAsync(native, identity, projection, ct)).ConfigureAwait(false);
+        return error is not null || sale is null ? Unknown<long>() : Known((long)sale.Count);
     }
 
-    /// <summary>The trader kinds the colony can reach: the orbital and caravan requests the comms consoles offer and the known settlements'.</summary>
-    private static async Task<(List<string> Kinds, bool Known)> TraderKindsAsync(FacadeNativeClient native, GenerationSnapshot snapshot, C.Identity identity, CancellationToken ct)
+    /// <summary>
+    /// The trader kinds the colony can reach: the orbital and caravan requests the comms consoles offer and the known
+    /// settlements'. The two reads share frames; the home tile the settlements read needs is read once per world
+    /// (a map's tile never changes), so after the first review the kinds cost two hops in one frame, not three in three (#3566).
+    /// </summary>
+    private async Task<(List<string> Kinds, bool Known)> TraderKindsAsync(FacadeNativeClient native, GenerationSnapshot snapshot, C.Identity identity, CancellationToken ct)
     {
-        ObservationsPb.TradeAcquisition? facts;
-        try
-        {
-            facts = await native.ReadTradeAcquisitionAsync(identity, null, ct).ConfigureAwait(false);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            return ([], false);
-        }
-        if (facts is null)
+        var requestsRead = Attempt(native.ReadTradeAcquisitionAsync(identity, null, ct));
+        var settlementsRead = SettlementTraderKindsAsync(native, snapshot, identity, ct);
+        var (facts, error) = await requestsRead.ConfigureAwait(false);
+        if (error is not null || facts is null)
         {
             return ([], false);
         }
@@ -337,14 +356,59 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
                 seen.Add((row.TraderKind ?? ""));
             }
         }
-        WorldProgressionRead progress;
-        try
-        {
-            progress = await native.ReadWorldProgressionAsync(identity, ct).ConfigureAwait(false);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
+        var settlements = await settlementsRead.ConfigureAwait(false);
+        if (settlements is null)
         {
             return ([], false);
+        }
+        seen.UnionWith(settlements);
+        var output = seen.ToList();
+        output.Sort(StringComparer.Ordinal);
+        return (output, true);
+    }
+
+    /// <summary>The known settlements' trader kinds; empty without a home tile, null when a read failed.</summary>
+    private async Task<List<string>?> SettlementTraderKindsAsync(FacadeNativeClient native, GenerationSnapshot snapshot, C.Identity identity, CancellationToken ct)
+    {
+        var home = await HomeTileAsync(native, snapshot, identity, ct).ConfigureAwait(false);
+        if (home is null)
+        {
+            return null;
+        }
+        if (home < 0)
+        {
+            return [];
+        }
+        var (world, error) = await Attempt(native.ReadWorldAsync(identity, home.Value, AllSettlementsRadius, ct)).ConfigureAwait(false);
+        if (error is not null)
+        {
+            return null;
+        }
+        var kinds = new List<string>();
+        foreach (var s in world.Settlements)
+        {
+            if (s.TraderKind != "")
+            {
+                kinds.Add(s.TraderKind);
+            }
+        }
+        return kinds;
+    }
+
+    /// <summary>The home map's world tile in snapshot's world, read once per world; -1 when the map is not a home, null when the read failed.</summary>
+    private async Task<int?> HomeTileAsync(FacadeNativeClient native, GenerationSnapshot snapshot, C.Identity identity, CancellationToken ct)
+    {
+        lock (_gate)
+        {
+            if (_homeSnapshot == snapshot && _homeKnown)
+            {
+                return _home;
+            }
+        }
+        var (progress, error) = await Attempt(native.ReadWorldProgressionAsync(identity, ct)).ConfigureAwait(false);
+        if (error is not null)
+        {
+            return null;
         }
         var home = -1;
         foreach (var row in progress.Maps)
@@ -354,28 +418,13 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
                 home = row.Tile;
             }
         }
-        if (home >= 0)
+        lock (_gate)
         {
-            WorldRead world;
-            try
-            {
-                world = await native.ReadWorldAsync(identity, home, AllSettlementsRadius, ct).ConfigureAwait(false);
-            }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-                return ([], false);
-            }
-            foreach (var s in world.Settlements)
-            {
-                if (s.TraderKind != "")
-                {
-                    seen.Add(s.TraderKind);
-                }
-            }
+            _homeSnapshot = snapshot;
+            _home = home;
+            _homeKnown = true;
         }
-        var output = seen.ToList();
-        output.Sort(StringComparer.Ordinal);
-        return (output, true);
+        return home;
     }
 
     /// <summary>The ledger key the export batches report under, a subject of the economy/trade Need.</summary>

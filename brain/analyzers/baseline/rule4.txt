@@ -55,7 +55,6 @@ BuildingRuntime/Rounds/RoundsFoodReserve.cs|Rounder.ReviewReserve
 BuildingRuntime/Rounds/RoundsIdeoligion.cs|Rounder.ReformChoice
 BuildingRuntime/RoundsSleepingShellBed.cs|RoundsSleepingUpkeepPlanner.PackShellBedAsync
 BuildingRuntime/RoundsTradeAcquisition.cs|Rounder.PlanFoodAcquisitionAsync
-BuildingRuntime/RoundsTradeExport.cs|RoundsTradeExportPlanner.DeclareOrdersInnerAsync
 BuildingRuntime/Worker.cs|Worker.Flush
 BuildingRuntime/Worker.cs|Worker.RunStep
 BuildingRuntime/Worker.cs|Worker.Steps

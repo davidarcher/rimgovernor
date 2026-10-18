@@ -348,7 +348,9 @@ owner that lacks a fact: `policy.Abstaining(Cause)` is the only constructor, the
 closed typed set, and the declarer stamps the owner and every order's `OrderSpec.Owner` with
 `Declared.For(filingKey)`. The owner is a filing-key string (decision 21): a Need's `FilingKey.Value` or an
 unmigrated Concern's id, so Needs and Concerns share one ledger. Owner is not part of `Key`; two owners declaring one spec coalesce into one
-order that lists both. Any abstain, of any concern, still skips orphan removal for the Round) and commits no bill method of its own. Each review calls every declarer,
+order that lists both. Any abstain, of any concern, still skips orphan removal for the Round) and commits no bill method of its own. Each review calls every declarer
+(together, since #3566: each declares from the same reading and writes only its own memory, so their native hops share
+frames; the declared list keeps the composition order, and the first declarer to fail, in that order, fails the review as before),
 reads every bench's bills through the bench census (`ReadGearBenches`;
 `policy.LedgerActuals` is unknown while any bench's bills or any bill's spec is
 unread), and runs `policy.ReconcileLedger`. The finding is the Need's

@@ -32,6 +32,27 @@ public sealed class StepStages
         _bytes = GC.GetTotalAllocatedBytes();
     }
 
+    /// <summary>
+    /// Adds <paramref name="ms"/> of wall under <paramref name="name"/> without touching the clock: the own time of one of
+    /// several tasks that ran together, whose allocation cannot be told apart (published as 0).
+    /// </summary>
+    public void Add(string name, double ms)
+    {
+        _ms[name] = _ms.GetValueOrDefault(name) + ms;
+        _allocKb.TryAdd(name, 0);
+    }
+
+    /// <summary>Adds every stage of <paramref name="other"/> (a finer timer that ran inside one stage of this one) without touching the clock.</summary>
+    public void Add(StepStages other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        foreach (var (name, ms) in other._ms)
+        {
+            _ms[name] = _ms.GetValueOrDefault(name) + ms;
+            _allocKb[name] = _allocKb.GetValueOrDefault(name) + other._allocKb.GetValueOrDefault(name);
+        }
+    }
+
     /// <summary>Each lapped stage's wall time in milliseconds.</summary>
     public IReadOnlyDictionary<string, double> Ms => _ms;
 
@@ -50,7 +71,7 @@ public sealed class StepStages
         foreach (var (name, value) in _ms)
         {
             ms[name] = value;
-            alloc[name] = _allocKb[name];
+            alloc[name] = _allocKb.GetValueOrDefault(name);
         }
         attrs[msKey] = ms;
         attrs[allocKey] = alloc;

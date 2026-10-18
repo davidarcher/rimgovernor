@@ -489,11 +489,13 @@ public sealed partial class Rounder
         fine.Lap("d_stock/zones");
         // The review's shelf candidates become planned sites below.
         // The stockpile review and the consumption window read nothing of each other, so their hops share frames.
-        var stockpileReview = ReviewStockpilesAsync(state.Snapshot, reading.Projection, zoneReads, ct);
+        var stockFine = new StepStages();
+        var stockpileReview = ReviewStockpilesAsync(state.Snapshot, reading.Projection, zoneReads, ct, stockFine);
         var vResourceConsumption = await ResourceConsumptionAsync(state.Snapshot, ct).ConfigureAwait(false);
         var shelfCandidates = await stockpileReview.ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { ResourceConsumption = vResourceConsumption });
         fine.Lap("d_stock/stockpile");
+        fine.Add(stockFine);
         var vResourceSurfaceOre = await ResourceSurfaceOreAsync(state.Snapshot, reading.Projection.Facts.Items, reading.Projection.Facts.ResourceConsumption, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { ResourceSurfaceOre = vResourceSurfaceOre });
         fine.Lap("d_stock/ore");
@@ -526,16 +528,20 @@ public sealed partial class Rounder
             PlannedShelters = reading.Projection.LayoutPlan.TryGetValue(out var layout) ? EquatableArray.From(layout.Rooms.Where(r => !r.Outdoor)) : []
         });
         // The firebreak review reads nothing the planned sites answer, so its tile reads share frames with the site reads.
+        fine.Mark();
         var firebreak = Firebreak?.ReviewAsync(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, FirebreakPlan.FirebreakBusy(plans, state.Snapshot), ct);
         var vPlannedSites = await PlannedSitesAsync(state.Snapshot, reading.Projection, plannedOwed, shelfCandidates, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { PlannedSites = vPlannedSites });
+        fine.Lap("d_planned/sites");
         var (vPlannedThermal, vRoomPredictions) = await PlannedShelterReadsAsync(state.Snapshot, reading.Projection, reading.Projection.Facts.PlannedShelters, vPlannedSites, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { PlannedThermal = vPlannedThermal, PlannedRoomPredictions = vRoomPredictions });
+        fine.Lap("d_planned/shelter");
         if (firebreak is not null)
         {
             // The ring plan's dwell clock advances every review; the layout family reads the work it leaves.
             _ = await firebreak.ConfigureAwait(false);
         }
+        fine.Lap("d_planned/firebreak");
         Lap("d_planned");
         Fact<EquatableArray<PawnId>> psylinkCandidates = default;
         if (Needs.Contains(RoyaltyFamily.Psylink))
@@ -696,7 +702,7 @@ public sealed partial class Rounder
         fine.Mark();
         reading = reading.WithFacts(rf => rf with { AvailableNeeds = AvailableNeeds });
         // The admin/work-ledger Need reads the diff from the ledger's memory (LedgerOwedIn).
-        var ledgerOwed = await ReviewLedgerAsync(state.Snapshot, expected, reading.Projection, ct).ConfigureAwait(false);
+        var ledgerOwed = await ReviewLedgerAsync(state.Snapshot, expected, reading.Projection, ct, fine).ConfigureAwait(false);
         lock (Ledger.Mu)
         {
             Ledger.Owed = ledgerOwed;

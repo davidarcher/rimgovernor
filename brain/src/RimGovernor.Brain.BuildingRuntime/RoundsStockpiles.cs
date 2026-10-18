@@ -223,20 +223,25 @@ public sealed partial class Rounder
     /// Need's read, and returns the shelf candidates it plans; none otherwise, or while a fact is unread.
     /// <paramref name="zones"/> is the review's zone reads, taken before the census; null reads them here.
     /// </summary>
-    internal async Task<IReadOnlyList<Pol.ShelfCandidate>> ReviewStockpilesAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, StockpileZoneReads? zones, CancellationToken ct)
+    // The review's parts are lapped onto fine under d_stock/stockpile/ (#3566): census (the patches and the mirrored
+    // bench census), build (the request: zones, stores, demand), shelves (the shelf stacks and rows), occupancy (the
+    // occupancy ring read), plan (the maintenance review).
+    internal async Task<IReadOnlyList<Pol.ShelfCandidate>> ReviewStockpilesAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, StockpileZoneReads? zones, CancellationToken ct, StepStages? fine = null)
     {
         if (!Needs.Contains(AdminFamily.Stockpiles))
         {
             return [];
         }
         Stockpiles.SetActive(snapshot, Unknown<bool>());
-        var (request, missing) = await StockpileRequestAsync(snapshot, projection, zones, ct).ConfigureAwait(false);
+        fine?.Mark();
+        var (request, missing) = await StockpileRequestAsync(snapshot, projection, zones, ct, fine).ConfigureAwait(false);
         if (missing != "")
         {
             return [];
         }
         Stockpiles.SetDemand(RoundsStockpilePlanner.StockpileWorld(snapshot), request.RoomDemand);
         var review = Pol.StockpileRules.PlanStockpileMaintenance(request);
+        fine?.Lap("d_stock/stockpile/plan");
         Stockpiles.SetActive(snapshot, review.Known ? Known(review.Active) : Unknown<bool>());
         foreach (var e in review.Edits)
         {
@@ -265,7 +270,7 @@ public sealed partial class Rounder
     internal Task<(Pol.StockpileRequest Request, string Missing)> StockpileRequestAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct) =>
         StockpileRequestAsync(snapshot, projection, null, ct);
 
-    internal async Task<(Pol.StockpileRequest Request, string Missing)> StockpileRequestAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, StockpileZoneReads? zones, CancellationToken ct)
+    internal async Task<(Pol.StockpileRequest Request, string Missing)> StockpileRequestAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, StockpileZoneReads? zones, CancellationToken ct, StepStages? fine = null)
     {
         var tick = projection.Identity.Tick;
         var reads = zones ?? ReadStockpileZones(snapshot, projection, ct);
@@ -284,10 +289,12 @@ public sealed partial class Rounder
         {
             benches[row.Bench.Id] = true;
         }
+        fine?.Lap("d_stock/stockpile/census");
         var gear = GearStore(projection);
         var protectedCells = ReservedGround(snapshot, projection, ct);
         var (plans, spent) = (reads.Shelves, reads.Spent);
         var request = RoundsStockpilePlanner.StockpileRequest(projection, owned, patches, plans, Known<IReadOnlyDictionary<string, bool>>(benches), StockpileBenchInputs.BenchInputs(census, projection), gear, protectedCells);
+        fine?.Lap("d_stock/stockpile/build");
         var canBuild = Native is IRoundsBuildingSource;
         request = request with { ShelfAvailable = canBuild && RoundsStockpilePlanner.ShelfAvailable(projection) };
         request = request with { Walkways = projection.LayoutPlan.TryGetValue(out var layout) ? Pol.StorageRules.PlannedWalkways(layout) : Unknown<EquatableArray<Cell>>() };
@@ -321,7 +328,9 @@ public sealed partial class Rounder
         request = request with { ShelfSpent = shelfSpent };
         request = request with { ShelfRecords = shelfRecords };
         request = request with { Shelves = shelfRows };
+        fine?.Lap("d_stock/stockpile/shelves");
         request = request with { Occupancy = await StorageOccupancyAsync(request, tick, ct).ConfigureAwait(false) };
+        fine?.Lap("d_stock/stockpile/occupancy");
         request = request with { RoomDemand = request.RoomDemand with { Yard = Pol.StoreRules.YardDemand(request) } };
         request = request with { ShelfCost = RoundsStockpilePlanner.ShelfCost(projection), StoreRooms = RoundsStockpilePlanner.StoreRooms(projection, Policy.Flooring), Items = projection.Facts.Items };
         return (request, "");
