@@ -39,7 +39,7 @@ public sealed record HuntActorRead(string Pawn, string Kind, Cell Location, doub
     public EquatableArray<string> MissingParts { get; init; }
     /// <summary>Hunters: able to take a hunt order now (free, standing, not mentally broken, hunting not disabled).</summary>
     public bool Available { get; init; }
-    /// <summary>Prey: asleep, downed, or in a mental state; unknown fields stay out of the request.</summary>
+    /// <summary>Downed or in a mental state: such a prey stays out of the request; such a rostered gunner releases the formation.</summary>
     public bool Downed { get; init; }
     public bool Mental { get; init; }
     /// <summary>Prey: the game's herd of this animal group, empty when it is alone.</summary>

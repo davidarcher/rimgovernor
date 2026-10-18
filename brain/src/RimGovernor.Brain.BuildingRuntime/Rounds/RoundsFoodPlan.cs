@@ -29,15 +29,18 @@ public sealed partial class Rounder
         MarkUnpriced(ref p);
     }
 
-    /// <summary>The last hunt comparison for telemetry: its findings, the roster chosen and why the others were unusable.</summary>
-    private static string DescribeHuntPlan(HuntPlan h)
+    /// <summary>The last hunt comparison for telemetry: its findings, the roster chosen, why the others were unusable and why a held formation was released.</summary>
+    private static string DescribeHuntPlan(HuntPlan h, string released)
     {
         var chosen = h.Selection?.Selected.Roster?.Key ?? "none";
         var why = h.Selection is { } sel ? string.Join(",", sel.Alternatives.Where(a => a.Roster is not null).GroupBy(a => a.Refusal.Length == 0 ? "usable" : a.Refusal).OrderBy(g => g.Key, StringComparer.Ordinal).Select(g => g.Key + "=" + g.Count())) : "";
-        return $"chosen={chosen} rosters=[{why}] unestimated={h.Unestimated.Count} findings=[{string.Join(";", h.Findings)}]";
+        return $"chosen={chosen} rosters=[{why}] unestimated={h.Unestimated.Count} findings=[{string.Join(";", h.Findings)}]" + (released.Length == 0 ? "" : " released:" + released);
     }
 
-    /// <summary>The cached food plan for the projection; recomputed when the census generation, the offers, the seasonal thresholds or the observed identity moved.</summary>
+    /// <summary>
+    /// The cached food plan for the projection; recomputed when the census generation, the offers, the seasonal thresholds
+    /// or the observed identity moved, or a held formation hunt is due for release, so the release's re-comparison is never skipped.
+    /// </summary>
     internal Fact<FoodPlan> FoodPlanOf(ColonyProjection p)
     {
         var s = Census;
@@ -48,12 +51,13 @@ public sealed partial class Rounder
             var huntRead = p.Facts.ForecastObserved.Coupled?.Hunt;
             var huntView = huntRead is not null && HuntEstimates is { } known ? known.Current(huntRead, p.Identity.Tick.Value) : HuntEstimateView.None;
             if (s.FoodPlanFact.IsKnown && s.FoodGeneration == s.Generation && s.FoodOffers == trade.Revision
-                && s.FoodHunt == huntView.Revision && s.FoodMin == seasonal.FoodMinDays && s.FoodTarget == seasonal.FoodTargetDays && RoundsCensus.SameObservedIdentity(s.FoodIdentity, p.Identity))
+                && s.FoodHunt == huntView.Revision && s.FoodMin == seasonal.FoodMinDays && s.FoodTarget == seasonal.FoodTargetDays && RoundsCensus.SameObservedIdentity(s.FoodIdentity, p.Identity)
+                && (!p.Acquisition.TryGetValue(out var sources) || HuntAdmission.Release(huntRead, sources).Length == 0))
             {
                 return s.FoodPlanFact;
             }
 
-            var plan = ReviewFoodPlan(p, Policy, FoodCredit, HuntAdmission, trade, HuntEstimates, huntView, h => s.HuntNote = DescribeHuntPlan(h));
+            var plan = ReviewFoodPlan(p, Policy, FoodCredit, HuntAdmission, trade, HuntEstimates, huntView, (h, released) => s.HuntNote = DescribeHuntPlan(h, released));
             if (plan.TryGetValue(out var v))
             {
                 HuntAdmission.Admit(HuntSquadRules.HuntRequest(Known(v)).Select(id => (Domain.PawnId)id));
@@ -132,7 +136,7 @@ public sealed partial class Rounder
 
 partial class Rounder
 {
-    internal static Fact<FoodPlan> ReviewFoodPlan(ColonyProjection p, RoundsPolicy thresholds, DeliveryCredit credit, HuntAdmission hunt, FoodTrade trade, IHuntEstimates? estimates, HuntEstimateView huntView, Action<HuntPlan>? onHunt = null)
+    internal static Fact<FoodPlan> ReviewFoodPlan(ColonyProjection p, RoundsPolicy thresholds, DeliveryCredit credit, HuntAdmission hunt, FoodTrade trade, IHuntEstimates? estimates, HuntEstimateView huntView, Action<HuntPlan, string>? onHunt = null)
     {
         if (!p.CombinedFoodSupply.TryGetValue(out var supply) || !p.Acquisition.TryGetValue(out var sources))
         {
@@ -180,13 +184,15 @@ partial class Rounder
         var huntRead = p.Facts.ForecastObserved.Coupled?.Hunt;
         var needed = Math.Max(0, (forecast.Consumers.Sum(c => c.NutritionPerDay) * thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays) - forecast.UsableNutrition);
         var huntPlan = HuntPlanningRules.PlanHunt(huntRead, sources, p.Facts.ForecastObserved.Coupled?.Routes ?? [], huntView, needed);
-        onHunt?.Invoke(huntPlan);
+        // The held formation stands until a release trigger; released, the plan's own choice is offered and the service re-asks what went stale.
+        var (formation, released) = hunt.Formation(huntPlan.Channel(sources), huntPlan, sources, huntRead);
+        onHunt?.Invoke(huntPlan, released);
         if (huntRead is not null && huntPlan.Unestimated.Count > 0)
         {
             _ = estimates?.Request(huntRead, huntPlan.Unestimated, p.Identity.Tick.Value);
         }
 
-        channels.AddRange(HuntSquadRules.HuntCandidates(sources, gunners, hunt.Formation(huntPlan.Channel(sources), huntPlan, sources), huntPlan.Awaiting));
+        channels.AddRange(HuntSquadRules.HuntCandidates(sources, gunners, formation, huntPlan.Awaiting));
         channels.AddRange(HuntPrerequisiteRules.HuntPrerequisiteCandidates(p.HuntHolds));
         var hunting = FoodHuntInput(p);
         channels = HuntCreditRules.HuntThroughput(channels, hunters, HuntCreditRules.HuntCadence(hunting.Kills, hunters, p.Identity.Tick.Value)).ToList();

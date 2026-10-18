@@ -31,6 +31,11 @@ public static class HuntAlternatives
     /// <summary>Herd-mates this close to a target are sent at together; a search aid for proposing targets, never a gate.</summary>
     private const int GroupRadius = 12;
 
+    /// <summary>Whether <paramref name="other"/> is in <paramref name="prey"/>'s group: a herd-mate of the same kind within the group radius.</summary>
+    public static bool Grouped(HuntActorRead other, HuntActorRead prey) =>
+        other.Herd.Length != 0 && other.Herd == prey.Herd && other.Kind == prey.Kind
+        && Math.Abs(other.Location.X - prey.Location.X) <= GroupRadius && Math.Abs(other.Location.Z - prey.Location.Z) <= GroupRadius;
+
     /// <summary>
     /// Bounded roster options: solos, pairs and a third gunner from the best-shooting available hunters, for each
     /// nearby prey group. No hunter is required; the no-hunt alternative is added by <see cref="Choose"/>.
@@ -47,9 +52,7 @@ public static class HuntAlternatives
         var groups = new List<string[]>();
         foreach (var prey in live)
         {
-            var group = live.Where(o => o.Pawn == prey.Pawn || o.Herd.Length != 0 && o.Herd == prey.Herd && o.Kind == prey.Kind
-                && Math.Abs(o.Location.X - prey.Location.X) <= GroupRadius && Math.Abs(o.Location.Z - prey.Location.Z) <= GroupRadius)
-                .Select(o => o.Pawn).Order(StringComparer.Ordinal).ToArray();
+            var group = live.Where(o => o.Pawn == prey.Pawn || Grouped(o, prey)).Select(o => o.Pawn).Order(StringComparer.Ordinal).ToArray();
             if (!groups.Any(g => g.SequenceEqual(group, StringComparer.Ordinal))) groups.Add(group);
             if (groups.Count >= MaxTargets) { findings.Add("hunt_targets_truncated"); break; }
         }

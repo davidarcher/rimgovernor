@@ -68,17 +68,30 @@ public static class HuntEncounterRequests
     }
 
     /// <summary>Whether an estimate made from <paramref name="made"/> still describes <paramref name="now"/> for the roster.</summary>
-    public static bool StillDescribes(HuntActivityRead made, HuntActivityRead now, HuntRoster roster)
+    public static bool StillDescribes(HuntActivityRead made, HuntActivityRead now, HuntRoster roster) =>
+        SameScene(made, now)
+        && roster.Gunners.All(g => SameActor(made.Hunters.FirstOrDefault(h => h.Pawn == g), now.Hunters.FirstOrDefault(h => h.Pawn == g), MoveTolerance))
+        && roster.Prey.All(p => SameActor(made.Prey.FirstOrDefault(h => h.Pawn == p), now.Prey.FirstOrDefault(h => h.Pawn == p), MoveTolerance));
+
+    /// <summary>
+    /// Whether the gunner is still the pawn the estimate described, apart from where the hunt has walked him and that it
+    /// drafted him: his kind, xenotype, weapon, apparel, skills, traits, health and missing parts in the same scene. An
+    /// executing formation moves and drafts its gunners, so neither stales it; a downed or breaking gunner is the
+    /// formation's own release (<see cref="HuntAdmission"/>).
+    /// </summary>
+    public static bool StillDescribesGunner(HuntActivityRead made, HuntActivityRead now, string gunner)
     {
-        if (made.Scene is not { } a || now.Scene is not { } b
-            || (a.World, a.GameBuild, a.Mods, a.Weather, a.Terrain) != (b.World, b.GameBuild, b.Mods, b.Weather, b.Terrain)) return false;
-        bool Same(HuntActorRead? x, HuntActorRead? y) => x is not null && y is not null
-            && Math.Abs(x.Location.X - y.Location.X) <= MoveTolerance && Math.Abs(x.Location.Z - y.Location.Z) <= MoveTolerance
-            && Math.Abs(x.Age - y.Age) < AgeTolerance
-            && x with { Location = default, Age = 0 } == y with { Location = default, Age = 0 };
-        return roster.Gunners.All(g => Same(made.Hunters.FirstOrDefault(h => h.Pawn == g), now.Hunters.FirstOrDefault(h => h.Pawn == g)))
-            && roster.Prey.All(p => Same(made.Prey.FirstOrDefault(h => h.Pawn == p), now.Prey.FirstOrDefault(h => h.Pawn == p)));
+        static HuntActorRead? Unplaced(HuntActorRead? a) => a is null ? null : a with { Available = false, Downed = false, Mental = false };
+        return SameScene(made, now) && SameActor(Unplaced(made.Hunters.FirstOrDefault(h => h.Pawn == gunner)), Unplaced(now.Hunters.FirstOrDefault(h => h.Pawn == gunner)), int.MaxValue);
     }
+
+    private static bool SameScene(HuntActivityRead made, HuntActivityRead now) =>
+        made.Scene is { } a && now.Scene is { } b && (a.World, a.GameBuild, a.Mods, a.Weather, a.Terrain) == (b.World, b.GameBuild, b.Mods, b.Weather, b.Terrain);
+
+    private static bool SameActor(HuntActorRead? x, HuntActorRead? y, int moveTolerance) => x is not null && y is not null
+        && Math.Abs((long)x.Location.X - y.Location.X) <= moveTolerance && Math.Abs((long)x.Location.Z - y.Location.Z) <= moveTolerance
+        && Math.Abs(x.Age - y.Age) < AgeTolerance
+        && x with { Location = default, Age = 0 } == y with { Location = default, Age = 0 };
 
     private static EncounterActor Actor(HuntActorRead read, bool wild, HuntSceneRead scene, string target) => new()
     {

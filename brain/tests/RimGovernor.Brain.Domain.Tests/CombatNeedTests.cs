@@ -15,11 +15,30 @@ public sealed class CombatNeedTests
 {
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
-    private static RoundsResult Reviewed(Journal journal, GenerationSnapshot world, long hostiles, long tick, CancellationToken ct) => journal.ReviewRounds(new()
+    private static RoundsResult Reviewed(Journal journal, GenerationSnapshot world, long hostiles, long tick, CancellationToken ct, Fact<FoodPlan> foodPlan = default) => journal.ReviewRounds(new()
     {
         Current = world, Tick = new(tick), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Revision = journal.LoadRounds(ct).Revision,
-        Facts = WorkResourceTestFacts.Create("a", "b") with { Hostiles = Known(hostiles), Tick = new(tick) },
+        Facts = WorkResourceTestFacts.Create("a", "b") with { Hostiles = Known(hostiles), Tick = new(tick), FoodPlan = foodPlan },
     }, ct);
+
+    /// <summary>
+    /// A roster hunt is the Need's hunt origin: the plan's open formation channel files its prey and gunners on the
+    /// standing, and once the formation is released (the plan opens none) the Need is met again with no hostile standing (#3514).
+    /// </summary>
+    [Fact]
+    public void ARosterHuntFilesItsPreyAndGunnersAndAReleasedOneLeavesTheNeedMet()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var journal = Open("rg-combat-hunt-", ct);
+        var formation = new SupplyCandidate { Kind = CandidateKind.Hunt, Id = "roster:a>boar", Prey = ["boar"], Hunters = ["a"] };
+        var opened = Known(new FoodPlan { Portfolio = [new() { Channel = formation, Decision = FoodPlanDecision.Open }] });
+        var standing = Reviewed(journal, World, 0, 100, ct, opened).Review.Combat;
+        Assert.Equal(Situation.Active, standing?.Situation);
+        Assert.Equal(["boar"], standing!.Prey.Select(p => p.Value));
+        Assert.Equal(["a"], standing.Hunters.Select(p => p.Value));
+
+        Assert.Null(Reviewed(journal, World, 0, 110, ct, Known(new FoodPlan())).Review.Combat);
+    }
 
     private static PlanSpec DraftPlan(string id) => new(new(id), new(1), [DomainAction.NewOwnedDraftAction(new(id + "-draft"), new(new("a")))]);
 

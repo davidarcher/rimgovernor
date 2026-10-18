@@ -441,7 +441,9 @@ of the selected gunners). The formation is the roster the hunt comparison chose 
 [forecast-contracts](forecast-contracts.md)): its gunners and prey are named on the channel, with no minimum
 roster, animal count or clustering radius. A gunner is a colonist whose primary weapon hunts (`WeaponDef.Hunts`:
 ranged, not explosive, not incendiary). A formation candidate is `Designated` once the plan opens its prey
-(`HuntRequest`, which raises the hunt origin; `policy.HuntAdmission`, in memory) and, like every hunt channel,
+(`HuntRequest`, which raises the hunt origin; `policy.HuntAdmission`, in memory), held without re-comparison until a
+release trigger (a gunner downed, breaking or gone, an animal gone, downed, out of the window or joined, or a gunner the
+estimate no longer describes; [forecast-contracts](forecast-contracts.md)) and, like every hunt channel,
 `Delivering` from the first credited ledger KILL ([hunting](../architecture/supply-model.md#hunting));
 Delivering keeps the hunt open while its fight runs, and stall and timeout handling stay
 on `HuntProgress`. Every hunt channel is a finite source (`StockCap`, the nutrition of the
@@ -656,7 +658,9 @@ deficit with the channel's prey and selected gunners on the review's combat stan
 `admitFight` with `CombatView.Hunt` and `CombatView.HuntHunters` set and the prey as its threats; `huntFormation`
 sends only the selected hunters that are eligible defenders with a hunting weapon, however many that is. The frame's
 detail rows cover the open hunt census rows. A hostile in the frame, or the plan no
-longer opening the hunt, ends the origin. An open hunt fight runs a combat watch
+longer opening the hunt (its formation released, [forecast-contracts](forecast-contracts.md)), ends the origin: the
+standing then names no prey or hunters and the Need is met until the next comparison opens a formation; the tactic
+never drafts a replacement or extends the hunt on its own. An open hunt fight runs a combat watch
 with the live prey as the watch's acknowledged ids (`ClockWatchFacts.HuntPrey`);
 no hostile exists to make the watch a combat one otherwise.
 

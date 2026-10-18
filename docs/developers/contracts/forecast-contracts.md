@@ -273,6 +273,20 @@ estimate's nutrition, labor and harm rate and the sample counts as terms; every 
 plan's open formation channel files the prey and the selected gunners on the `military/combat` standing
 (`RoundsCombat.Prey`, `RoundsCombat.Hunters`), and `HuntFormation` sends exactly those defenders, however many.
 
+An opened formation is held, not re-compared (`HuntAdmission`, pure policy in memory; a restart forgets it): the hunt
+walks and drafts its gunners and startles its prey, and none of that may stale the estimate it was chosen on. It is
+released only on an explicit trigger (#3514), and the same review then compares again from the current read, asking
+the service for every roster whose estimate went stale, so nothing extends a hunt without a comparison. The triggers,
+in the order they are checked and as the `hunt_choice` note's `released:<reason>` names them: an admitted animal gone
+from the hunt sources (`prey_gone`, the kill the delivery credit observes) or downed (`prey_downed`); with the hunt
+read known, an admitted animal out of the observed window (`prey_unobserved`), a live animal of the group that joined
+within the group radius (`prey_joined`), a rostered gunner absent from the read (`gunner_unobserved`), downed
+(`gunner_downed`) or in a mental state (`gunner_mental`), or a gunner the read the roster was chosen from no longer
+describes (`gunner_changed`, `HuntEncounterRequests.StillDescribesGunner`: kind, xenotype, weapon, apparel, skills,
+traits, health, missing parts and the scene identity, not his position or draft state). An unknown hunt read decides
+nothing about the gunners. A drafted gunner is not a trigger: the hunt's own draft and the player's read the same in
+`HuntActorRead.Available`. A released hunt whose prey still stands may be chosen again, by the comparison only.
+
 These are mechanics and current observations, not selected colony policy. Native
 does not spawn hypothetical food to estimate a future meal. Definition-based
 future ingestion facts do not claim ingredient-dependent memories or poisoning

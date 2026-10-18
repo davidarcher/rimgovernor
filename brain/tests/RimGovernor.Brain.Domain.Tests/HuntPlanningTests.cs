@@ -16,31 +16,136 @@ public sealed class HuntPlanningTests
     };
     static AcquisitionSource Source(string id, bool designated = false, bool downed = false) =>
         new() { Id = id, Food = true, Hunt = true, Designated = designated, Downed = downed };
-    static HuntActivityRead Read() => new() { Known = true, Hunters = [Hunter("a"), Hunter("b")], Prey = [Prey("boar", 10), Prey("far", 60)] };
+    static HuntActivityRead Read() => new()
+    {
+        Known = true, Hunters = [Hunter("a"), Hunter("b")], Prey = [Prey("boar", 10), Prey("far", 60)],
+        Scene = new("w", "build", "mods", "Clear", "Soil", 0, 0, 80, 40, 20, 1.0),
+    };
     static CoupledRoute Walk(string pawn, int x, double ticks) => new(pawn, new(0, 0), new(x, 10), Fact.Known(ticks)) { FromStart = true };
     static HuntEstimate Estimate(HuntRoster r, int harm = 0, int death = 0) => new(16, harm, death, 16, 6.0, 500);
     static readonly CoupledRoute[] Routes = [Walk("a", 10, 100), Walk("b", 10, 100), Walk("a", 60, 100), Walk("b", 60, 100)];
+    static HuntEstimateView Answered(IEnumerable<HuntRoster> rosters, Func<HuntRoster, HuntEstimate> estimate) =>
+        new(rosters.ToDictionary(r => r.Key, estimate), new Dictionary<string, string>(), new HashSet<string>());
+
+    /// <summary>Opens the pair formation at the boar (the solos are harmful) and admits it; the plan then holds nothing fresh.</summary>
+    static (HuntAdmission Admission, SupplyCandidate Opened, HuntPlan Stale) Opened(AcquisitionSource[] sources)
+    {
+        var asked = HuntPlanningRules.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5).Unestimated;
+        var answered = HuntPlanningRules.PlanHunt(Read(), sources, Routes, Answered(asked, r => Estimate(r, harm: r.Gunners.Count == 1 ? 4 : 0)), 5);
+        var admission = new HuntAdmission();
+        var (opened, released) = admission.Formation(answered.Channel(sources), answered, sources, Read());
+        Assert.Equal("", released);
+        Assert.Equal(["a", "b"], opened!.Hunters);
+        admission.Admit(opened.Prey.Select(id => new Domain.PawnId(id)));
+        return (admission, opened, HuntPlanningRules.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5));
+    }
+
+    static HuntActivityRead Hunters(Func<HuntActorRead, HuntActorRead> a) => Read() with { Hunters = [a(Hunter("a")), Hunter("b")] };
 
     [Fact]
-    public void AnOpenedFormationIsHeldWhileItsPreyStandEvenWhenItsEstimatesGoStale()
+    public void AnOpenedFormationIsHeldWhileItsGunnersWalkAndItsEstimatesGoStale()
     {
         var sources = new[] { Source("boar") };
-        var asked = HuntPlanningRules.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5).Unestimated;
-        var view = new HuntEstimateView(asked.ToDictionary(r => r.Key, r => Estimate(r)), new Dictionary<string, string>(), new HashSet<string>());
-        var answered = HuntPlanningRules.PlanHunt(Read(), sources, Routes, view, 5);
-        var admission = new HuntAdmission();
-        var opened = admission.Formation(answered.Channel(sources), answered, sources)!;
-        admission.Admit(opened.Prey.Select(id => new Domain.PawnId(id)));
-
-        // The animals moved, the estimates are gone and the pool is smaller: the plan offers nothing, the admitted formation stands.
-        var stale = HuntPlanningRules.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5);
+        var (admission, opened, stale) = Opened(sources);
         Assert.Null(stale.Channel(sources));
-        var held = admission.Formation(stale.Channel(sources), stale, sources)!;
-        Assert.Equal((opened.Hunters, opened.Prey), (held.Hunters, held.Prey));
 
-        // Once no admitted animal is offered any more the hunt is over and the plan decides again.
-        Assert.Null(admission.Formation(null, stale, []));
-        Assert.Null(admission.Formation(null, stale, sources));
+        // The gunners walked to the prey and the hunt drafted them, the animals moved and the estimates are gone: the plan offers nothing, the admitted formation stands.
+        var walked = Read() with
+        {
+            Hunters = [Hunter("a") with { Location = new(9, 9), Available = false }, Hunter("b") with { Location = new(30, 2), Available = false }],
+            Prey = [Prey("boar", 40), Prey("far", 70)],
+        };
+        Assert.Equal("", admission.Release(walked, sources));
+        var (held, released) = admission.Formation(stale.Channel(sources), stale, sources, walked);
+        Assert.Equal("", released);
+        Assert.Equal((opened.Hunters, opened.Prey), (held!.Hunters, held.Prey));
+        // An unknown hunt read decides nothing about the gunners.
+        Assert.Equal("", admission.Release(null, sources));
+        Assert.Equal("", admission.Release(new HuntActivityRead(), sources));
+    }
+
+    [Fact]
+    public void AGoneOrDownedPreyReleasesTheFormation()
+    {
+        var sources = new[] { Source("boar") };
+        var (admission, _, stale) = Opened(sources);
+        Assert.Equal("prey_gone:boar", admission.Release(Read(), []));
+        Assert.Equal("prey_downed:boar", admission.Release(Read(), [Source("boar", downed: true)]));
+        var (channel, released) = admission.Formation(null, stale, [], Read());
+        Assert.Null(channel);
+        Assert.Equal("prey_gone:boar", released);
+        // Released, nothing is held or admitted any more.
+        Assert.Equal("", admission.Release(Read(), []));
+        var (again, none) = admission.Formation(null, stale, sources, Read());
+        Assert.Null(again);
+        Assert.Equal("", none);
+    }
+
+    [Fact]
+    public void APreyOutOfTheObservedWindowReleasesTheFormation()
+    {
+        var sources = new[] { Source("boar") };
+        var (admission, _, _) = Opened(sources);
+        Assert.Equal("prey_unobserved:boar", admission.Release(Read() with { Prey = [Prey("far", 60)] }, sources));
+    }
+
+    [Fact]
+    public void ANewAnimalJoiningThePreyGroupReleasesTheFormation()
+    {
+        var sources = new[] { Source("boar") };
+        var (admission, _, _) = Opened(sources);
+        var joined = Read() with { Prey = [Prey("boar", 10) with { Herd = "wild-herd" }, Prey("boar2", 14) with { Herd = "wild-herd" }, Prey("far", 60)] };
+        Assert.Equal("prey_joined:boar2", admission.Release(joined, sources));
+        // A herd-mate beyond the group radius, or one downed, has not joined.
+        var apart = Read() with { Prey = [Prey("boar", 10) with { Herd = "wild-herd" }, Prey("boar2", 30) with { Herd = "wild-herd" }, Prey("far", 60)] };
+        Assert.Equal("", admission.Release(apart, sources));
+        var downed = Read() with { Prey = [Prey("boar", 10) with { Herd = "wild-herd" }, Prey("boar2", 14) with { Herd = "wild-herd", Downed = true }, Prey("far", 60)] };
+        Assert.Equal("", admission.Release(downed, sources));
+    }
+
+    [Fact]
+    public void ADownedBreakingOrAbsentGunnerReleasesTheFormationButADraftedOneDoesNot()
+    {
+        var sources = new[] { Source("boar") };
+        var (admission, _, _) = Opened(sources);
+        Assert.Equal("gunner_downed:a", admission.Release(Hunters(a => a with { Downed = true, Available = false }), sources));
+        Assert.Equal("gunner_mental:a", admission.Release(Hunters(a => a with { Mental = true, Available = false }), sources));
+        Assert.Equal("gunner_unobserved:a", admission.Release(Read() with { Hunters = [Hunter("b")] }, sources));
+        // The hunt's own draft and the player's read the same: a drafted gunner stays rostered.
+        Assert.Equal("", admission.Release(Hunters(a => a with { Available = false }), sources));
+    }
+
+    [Fact]
+    public void AGunnerTheEstimateNoLongerDescribesReleasesTheFormation()
+    {
+        var sources = new[] { Source("boar") };
+        var (admission, _, _) = Opened(sources);
+        Assert.Equal("gunner_changed:a", admission.Release(Hunters(a => a with { Health = [new("Cut", "arm", 0.5)] }), sources));
+        Assert.Equal("gunner_changed:a", admission.Release(Hunters(a => a with { Weapon = new("Gun_Autopistol", "", "Normal", 100) }), sources));
+        Assert.Equal("gunner_changed:a", admission.Release(Read() with { Scene = Read().Scene! with { Weather = "Rain" } }, sources));
+        // Walking and ageing a little during the hunt are not changes to the gunner.
+        Assert.Equal("", admission.Release(Hunters(a => a with { Location = new(50, 30), Age = a.Age + 0.001 }), sources));
+    }
+
+    [Fact]
+    public void AfterAReleaseTheFreshComparisonMaySendASmallerRosterAndTheChannelNamesOnlyIt()
+    {
+        var sources = new[] { Source("boar") };
+        var (admission, _, _) = Opened(sources);
+        // Gunner b is downed: the comparison proposes a alone, and its fresh estimate is safe.
+        var downed = Read() with { Hunters = [Hunter("a"), Hunter("b") with { Downed = true, Available = false }] };
+        var asked = HuntPlanningRules.PlanHunt(downed, sources, Routes, HuntEstimateView.None, 5).Unestimated;
+        Assert.All(asked, r => Assert.Equal(["a"], r.Gunners));
+        var fresh = HuntPlanningRules.PlanHunt(downed, sources, Routes, Answered(asked, r => Estimate(r)), 5);
+        var (channel, released) = admission.Formation(fresh.Channel(sources), fresh, sources, downed);
+        Assert.Equal("gunner_downed:b", released);
+        Assert.Equal(["a"], channel!.Hunters);
+        Assert.Equal(["boar"], channel.Prey);
+        // The plan's lone channels skip the formation's prey, and the admitted set was cleared with the release: nothing is Designated until the plan opens the new roster.
+        var candidates = admission.Apply(HuntSquadRules.HuntCandidates(sources, 1, channel));
+        Assert.Equal(Fact.Known(CandidateState.Closed), Assert.Single(candidates).State);
+        admission.Admit(channel.Prey.Select(id => new Domain.PawnId(id)));
+        Assert.Equal(Fact.Known(CandidateState.Designated), Assert.Single(admission.Apply(HuntSquadRules.HuntCandidates(sources, 1, channel))).State);
     }
 
     [Fact]
