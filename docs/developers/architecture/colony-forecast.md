@@ -36,8 +36,10 @@ explicit horizon in game days, current facts, existing commitments, a delta,
 and the caller's assumptions. The world string must identify the loaded
 timeline; it is provenance, not a replacement for native dispatch validation.
 `ColonyForecastFactsOf` assembles the available diagnostic facts from
-`RoundsFacts`. Coupled review inputs feed normal portfolio selection; full
-retirement of competing routine writers remains the separate control cutover.
+`RoundsFacts`. Coupled review inputs feed normal portfolio selection, the only
+selector of a controlled pawn's ordinary work: the voluntary-control cutover
+(#3135) retired the competing routine writers, so no timetable or adviser
+chooses a competing job ([voluntary control](../contracts/voluntary-control.md)).
 
 A commitment identifies a Method's supplied inventory effects by stable ID.
 Each effect has an exact resource, relative day and signed units, each numeric
@@ -91,7 +93,7 @@ their behavior. Proposed inventory changes do not rewrite these observations.
 | Food | Existing eligibility/rot-aware stock runway; no future delivery credit | Bounded acquisition, batches, delivery and recurring human ingestion |
 | Power | Current network reserves at observed drain | Current-network heater supply; future generation changes unassessed |
 | Temperature | Current sleeping extremes; current breach held over maintenance horizon | Conditional planned-room heat balance; future weather unassessed |
-| Defense | Current usable turret DPS and explicit gaps | #3129 qualified encounter estimates |
+| Defense | Current usable turret DPS and explicit gaps | Hunt rosters priced from the qualified [encounter estimates](../contracts/encounter-prediction.md); raid outcomes unassessed |
 | Construction | Exact-resource stock/need/shortfall in units; no fabricated ETA or interchangeable stone pools | Shared construction/material/needs timeline |
 | Fuel | Existing consumer burn and refill-demand diagnostic | Future scheduled supply/consumption |
 | Drugs/materials/medicine | Existing realized-use runway diagnostics | Future timed activity effects |
@@ -116,11 +118,11 @@ The observation collector's additional facts now use `ForecastObserved`.
 Independent maintenance functions remain because production supply consumes
 them. No second projector exists.
 
-Activity and needs forecasts now compose in the coupled trajectory below.
+Activity and needs forecasts compose in the coupled trajectory below.
 Normal production compares and binds Method bundles through existing Rounds/Hands.
-The supported meal/supply/construction/clothing activity callers use the shared
-portfolio path; final routine-writer retirement remains separate. There is no
-permanent shadow selector.
+The supported food, needs, planned-room, clothing and support activity callers
+use the shared portfolio path, and it is the only selector: no family keeps a
+private winner, and nothing shadows the comparison.
 
 ## Coupled food, needs and production trajectory
 
@@ -325,15 +327,16 @@ known results.
 
 `ForecastCoupledTests` uses ordinary review inputs to exercise conservation,
 recovery-dependent production and changing food, labor, material and thermal
-consequences. Neither is measured timing calibration or evidence of autonomous portfolio dispatch. The conditional estimates need
-observed prediction/outcome evidence through #3125 and the operational acceptance
-of #3135.
+consequences. These are not timing calibration or observed dispatch: that
+evidence is the nightly tier and the [colony review](../testing/colony-review.md)
+season, reported on the owning epic; comparing each coupled prediction with the
+game a day later is #3475.
 
 ## Bounded activity coordination proof
 
-`CompareActivityPlans` is the pure activity component being developed for
-#3127/#3128. It evaluates one supplied outcome DAG, not colony demand or a
-second production scheduler. `ForecastColony` calls it for the construction slice below; the [normal portfolio path](portfolio-selection.md) also compares supported coupled activities and binds selected Methods. `ResourceDemandOf` remains the demand owner, and dispatch belongs to Hands.
+`CompareActivityPlans` is the pure activity scheduler under the coupled
+trajectory (`ForecastCoupled`) and the construction slice. It evaluates one
+supplied outcome DAG, not colony demand or a second production scheduler. `ForecastColony` calls it for the construction slice below; the [normal portfolio path](portfolio-selection.md) also compares supported coupled activities and binds selected Methods. `ResourceDemandOf` remains the demand owner, and dispatch belongs to Hands.
 
 A `ForecastActivityProblem` supplies activities, prerequisite IDs, start/end
 locations, eligible pawn options, elapsed service durations, directed route
@@ -393,11 +396,10 @@ carrying capacity and skill are encoded in supplied elapsed durations; opportuni
 costs and the alternative budget are assumptions. Just-in-time travel assumes
 predictable prerequisite completion and divisible baseline work. The generic search
 accounts for declared exclusive equipment below; construction adds scoped material
-accounting and reevaluates current observations. Portable-tool transport, coupled
-needs, interruptions and dispatch remain unmodelled. It establishes combination generation and
-conditional valuation, not emergent expert play or production economic scheduling.
-Hauling, cleaning and eating helpers remain until their integrated #3128
-replacements establish the required native outcomes and deletion acceptance.
+accounting and reevaluates current observations. Portable-tool transport and
+interruptions remain unmodelled; coupled needs belong to the trajectory above and
+dispatch to the Method journal and Hands. It establishes combination generation and
+conditional valuation, not emergent expert play.
 
 
 ## Construction commitments and shared capacity
@@ -623,7 +625,7 @@ its 24-hour timetable, local time, remaining useful current-job time and declare
 needs/protected occupancy. Its horizon is bounded to seven game days. Non-work
 slots are protected; this consumes timetable constraints as observations and does
 not install a timetable or make native priorities the new activity selector.
-Needs transition estimates remain #3132's responsibility. `ForecastCurrentWorkOf`
+Needs transitions come from the [needs timeline](#needs-alternatives-and-future-capacity). `ForecastCurrentWorkOf`
 is shared with the live work-priority planner: an observed non-idle job with no
 remaining-time estimate makes capacity unknown rather than freeing the pawn. The
 existing idle-job classification contributes zero productive work, while an unread
@@ -853,9 +855,7 @@ changes or rewinds discard it. Disabled reviews cannot authorize admission.
 between independent database connections, atomic rollback and retry after
 cancellation, stale dispatch evidence, exact native-hold overlap, unknown inputs,
 and review/world lifecycle. These are policy/journal guarantees, not native
-resource locks or evidence of autonomous gameplay. Pending placements and food activities now share this boundary; see [shared live work resources](#shared-live-work-resources). Trade sales and indefinite production remain outside it. Native simulation can still change stock between reviews.
-The wider claim-overlap migration in #2742 and live timed selection in #3128 remain
-open; no existing hauling, cleaning or eating helper is removed.
+resource locks or evidence of autonomous gameplay. Pending placements and food activities share this boundary; see [shared live work resources](#shared-live-work-resources). Trade sales and indefinite production remain outside it. Native simulation can still change stock between reviews.
 
 ### Joint production material choices
 
@@ -899,9 +899,10 @@ stock/allowed filters changes the feasible combination, supplied values can chan
 the winner, sculpture declarations retain alternatives, ambiguous filters and
 unknowns cannot pretend to be exact, bounded search reports truncation, pinned
 readback avoids duplicate bills, and selected filters become exact shared journal
-claims. These are policy and journal tests. Native crafting completion, calibrated
-utility, joint pawn/time/bench/material scheduling, pending construction and sales
-admission, and integrated needs forecasts remain unproved #3127/#3128 work.
+claims. These are policy and journal tests. Native crafting completion is the
+claim of the `production/clothing-activity*` cases; joint pawn/bench/material
+scheduling with needs is the coupled trajectory's; sales admission stays outside
+this boundary.
 
 ### Need-based production valuation proof
 
@@ -1009,13 +1010,10 @@ These are supplied synthetic estimates, not calibrated exposure/hunger losses
 or a live shelter policy. Candidate graphs and material inputs are
 supplied; this comparison does not reserve stock, generate room designs, forecast
 weather or eating, or dispatch work. Partial shelter has no modeled benefit.
-Existing construction forecasting still evaluates declared commitments in its
-own order; it is not automatically composed with this optional-outcome call.
-Integration must use one coherent capacity/material frame and replace that
-separate allocation, not spend the same pawn time twice. Live adoption also needs
-construction/delivery adapters in planner-owned Hands activities, observed
-completion and replanning. The construction-labor admission gate and existing
-helpers remain until that replacement is demonstrated (#3127/#3128).
+Live shelter choice does not use this call: [planned room activities](#planned-room-activities)
+compete in the coupled trajectory on one capacity/material frame and execute
+through planner-owned construction and delivery activities with observed
+completion and replanning. This section is a supplied-estimate proof.
 
 ## Observed deadlines for shelter and food
 
@@ -1048,8 +1046,9 @@ The caller must supply a known labor-cost ceiling; plans at or above it wait.
 This ceiling, task rates/routes/availability and material feasibility remain
 estimates, not calibrated observations. Unknown ceilings refuse selection. Both
 objectives share candidate generation, dependency scheduling and a single
-expansion budget. No live shelter or food production caller dispatches this
-comparison yet.
+expansion budget. No live caller dispatches this comparison: the coupled
+trajectory owns selection, and `SurvivalNeedsOf` supplies the food generator's
+deadlines.
 
 Typed candidate effects are assessed on each scheduled plan to establish that completing the terminal task
 prevents its named shortfall through the assessed horizon. Unknown effects get
@@ -1064,9 +1063,10 @@ stock demand, reservations or another durable owner.
 competing consumption, rot, temperature and apparel changing the choice. It also
 covers unknown evidence/effects, already-serious cold, postponement, labor caps,
 frame consistency and bounded determinism. This proves the pure decision path,
-not native reads or completed shelter work. Live candidate generation and temperature-envelope estimation, work-time
-estimation, construction/delivery Hands adapters and observed replanning remain
-#3127/#3128/#3132-#3135 integration work.
+not native reads or completed shelter work. The live path (candidate generation,
+the planned-room thermal envelope, work-time estimation, construction/delivery
+adapters and observed replanning) is the coupled trajectory and the
+[pawn activity contract](../contracts/pawn-activities.md).
 
 ## Quantitative activity effects
 
@@ -1191,23 +1191,23 @@ horizons require more meals, native product counts affect output, and unavailabl
 missing transfer/bench evidence, carrying limits, immature/claimed sources,
 unsupported ingredient combinations and truncation are explicit. The catalog
 projection compiles against native definitions; these tests do not prove a live
-crop census or native execution. The generator is callable policy, not yet wired
-to live Rounds dispatch. Batch sizes omitted by the bounded enumeration remain
-untested, and the comparison does not model staggered delivery between iterations.
-Multi-source/multi-ingredient planning, native worker yield/rate calibration,
-power/fuel transitions and dispatch of this full generated food portfolio remain
-#3127/#3128/#3135 work. The
+crop census or native execution. This generator is a supplied-input proof; normal
+Rounds generates its food alternatives through `FoodMethodCandidates.GenerateCoupled`
+(the [live policy stages](#live-activity-policy-stages)). Batch sizes omitted by
+the bounded enumeration remain untested, and the comparison does not model
+staggered delivery between iterations. Multi-source/multi-ingredient planning,
+native worker yield/rate calibration and power/fuel transitions are explicit
+unknowns, not modelled. The
 [activity execution contract](../contracts/pawn-activities.md) now includes an
 exact one-trip delivery adapter alongside harvest, plus a one-iteration cooking
 adapter for exact single-resource ingredient stacks and an existing selected bill.
 Their native cases check physical output and explicit revision after refusal,
 with fixture-selected assignments.
-Those fixture cases do not prove autonomous portfolio selection. The separate
-live harvest/delivery caller below supplies observed loose-food rebinding and
-normal Method admission/Hands dispatch for its narrow path. Carried-item recovery,
-mixed-ingredient cooking, calibrated portfolio inputs and dispatch of the full
-generated chain remain unintegrated. Automatic hauling/cleaning/eating helpers
-remain in place until their replacement is proven.
+Those fixture cases prove execution, not selection; the nightly
+`coordination/food-delegated` and `coordination/food-carried-recovery` cases
+prove the selected chain, observed loose-food rebinding and carried-item recovery
+under normal Method admission and Hands dispatch. Mixed-ingredient cooking is an
+explicit unsupported-recipe finding.
 
 The existing Method journal now checks activity payload attribution against its
 committed Method and rejects repeated pawn revisions across actions in one plan.
@@ -1276,8 +1276,8 @@ before comparison. Exact native recipe eligibility, shared material lots,
 eater needs and delegated routes determine feasible chains. Shared Method
 claims protect participants and exact resources through observed continuation.
 See [live cooking](../contracts/pawn-activities.md#live-one-iteration-cooking)
-for binding, failure and native-read limits. Existing helpers stay until their
-replacement is proven.
+for binding, failure and native-read limits.
+
 ### Planned room alternatives
 
 `PlannedRoomAlternatives` (Policy, pure) names each planned room's alternatives from its planned sites. Each
@@ -1345,10 +1345,10 @@ with unknown material identity makes material availability unknown, while pawn
 and target evidence remains separate. Neither missing observations nor accepted
 orders prove completed work.
 
-Remaining consumers outside this admission coverage include terrain work,
-indefinite production, trade/export and non-activity legacy support jobs. Their
-planner-local accounting is still an architecture-rule-8 exception. Coupled consequences and needs-derived capacity use this owner as described below.
-Normal portfolio choice uses this view; helper retirement (#3149) remains separate.
+Remaining consumers outside this admission coverage are terrain work,
+indefinite production and trade/export. Their planner-local accounting is still
+an architecture-rule-8 exception. Coupled consequences and needs-derived capacity
+use this owner as described below, and normal portfolio choice uses this view.
 Supplied-estimate forecast APIs remain useful for tests, but are not evidence of live capacity.
 
 ## Needs alternatives and future capacity
@@ -1358,7 +1358,7 @@ levels, native current fall/recovery rates, thresholds, food capacity, expiring
 memories, authority state and bounded eligible food/bed/horseshoes targets.
 `ReviewWorkResources` generates `NeedsAlternatives` from this frame and its shared
 work view. The normal shared portfolio comparison selects supported needs services
-and dispatches through the existing Method journal; competing routine writer retirement remains separate work. No new scheduler,
+and dispatches through the existing Method journal. No new scheduler,
 state store or game-order writer is introduced.
 
 Generation retains food/count, now/later, partial/full bed recovery and horseshoes
@@ -1376,8 +1376,7 @@ Travel and need service occupy time once; overlapping need actions, current work
 and explicitly protected obligations are rejected. The legacy native timetable is
 not a strategic constraint on this forecast. Explicit player work, drafted,
 downed and mental-state authority remain protected, and journal ownership with
-unknown remaining duration remains unknown. Existing timetable-aware callers
-retain their behavior until the control cutover.
+unknown remaining duration remains unknown.
 
 Eating changes food at completed ingestion; an interruption before completion
 credits no food. Interrupted rest/recreation credits elapsed service only.
@@ -1410,8 +1409,7 @@ separately models supported conditional thoughts and actual seeker response,
 plus memories a commitment grants at completion, and prices
 [break risk](../contracts/forecast-contracts.md#coupled-mood-break-risk) for pawns
 with an observed threshold. Unmodeled need-category/room changes remain unassessed.
-Existing Mood/comfort functions retain current diagnostics until their separate
-routine-writer retirement; they are not a second forecast scheduler.
+Existing Mood/comfort functions are diagnostics, not a second forecast scheduler.
 
 Pure tests cover equal current
 mood with different thought expiry, meals, quantity waste, recovery, timing,

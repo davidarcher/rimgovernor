@@ -86,9 +86,12 @@ describes.
 ### Selection
 
 Tier order first (`SeriousHarm`, then `Wellbeing`, then `Development`). Within a
-tier, a family with forecast candidates uses the shared ColonyForecast comparator;
-any other family makes its own choice. The model adds no selection or valuation
-logic: the comparator and its adoption belong to #3124, #3160 and #3166.
+tier, a family with forecast candidates (food, needs, planned rooms, clothing,
+support, hunting, research) uses the shared ColonyForecast comparator
+([portfolio selection](portfolio-selection.md)); any other family makes its own
+choice. The model adds no selection or valuation logic of its own; moving a
+remaining family onto the comparator is that family's work (#3160 for
+development).
 
 ### Method journal: claim admission
 
@@ -242,8 +245,8 @@ ColonyForecast proposals and essential-service rows already attach to an owner
 and are recomputed every review. The owner is the NeedId: `ServiceTarget`s
 (`EssentialServices.cs`) and the coupled-candidate gates
 (`ForecastCoupledCandidates.cs`) are keyed by NeedIds, and coverage stays honest:
-an owner that moves must not turn its service row into Unknown. Moving a family's choice onto the shared comparator stays with
-#3124 and #3166.
+an owner that moves must not turn its service row into Unknown. A family whose
+choice is not yet on the shared comparator moves there under its own issue.
 
 ### Explain, progress and telemetry keys
 

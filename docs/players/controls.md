@@ -64,6 +64,16 @@ interval means the next review is due within 600 game ticks or sooner when a
 need reaches its observed threshold. Native timetable templates do not override
 these choices.
 
+Hunting is part of that comparison. A lone hunter is sent by designation. A
+drafted hunting party (two or three shooters, sometimes a hauler) is chosen only
+when the prediction worker is configured in the launcher's settings
+(`RIMGOVERNOR_ENCOUNTER_WORKER`): each party is simulated in a separate process
+before it is sent, ranked by the chance of a hunter dying or being seriously
+hurt, then by the meat it brings home and the time it costs. The simulation's
+estimates are coarse (sixteen samples per party) and a party is released as soon
+as a shooter is downed, the prey changes or the scene no longer matches; without
+the worker no party is ever formed.
+
 A controlled colonist with no supported assignment stops supervised play with
 an explicit unavailable-control reason. This can indicate unsupported needs or
 missing facts/resources; it is not a claim that the colony has nothing to do.

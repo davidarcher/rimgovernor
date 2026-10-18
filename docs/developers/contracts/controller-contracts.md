@@ -420,7 +420,7 @@ held row is not a source; the projection's `HuntHolds` names the first failing g
 colonist's `downed`, `mental_state`, `hunting_inactive`, `no_hunting_weapon`, `ranged_blocking_shield` or `too_far`).
 The 100-cell reach and the plant cutter's former 50-cell reach are no longer native filters:
 the 100 cells live only in the gate above, and a plant needs only a colonist with Plant Cutting
-enabled who can reach it. Selection designates as many prey as the nutrition gap (deficit less pending nutrition) needs, meatiest safe prey first, bounded by the budget; an open hunt does not block the next hunt method. Supervised play pauses when an
+enabled who can reach it. This is the lone designation channel: selection designates as many prey as the nutrition gap (deficit less pending nutrition) needs, meatiest safe prey first, bounded by the budget; an open hunt does not block the next hunt method. A formation hunt is the food plan's roster comparison ([forecast contracts](forecast-contracts.md#coherent-coupled-observation-frame)): its chosen prey and gunners file on `military/combat` and are released on that contract's triggers, and every animal the formation does not take stays a lone channel. Supervised play pauses when an
 active hunt loses its route.
 
 Acquisition reports revenge chance, same-race herd size within the request's `herd_radius`

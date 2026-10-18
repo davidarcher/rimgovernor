@@ -6,9 +6,13 @@ share a process, so a link cannot drop under it.
 
 The optional [encounter predictor](../contracts/encounter-prediction.md) is an
 isolated hypothetical worker behind a typed replaceable interface. Host owns its
-bounded process lifecycle; it has no live colony facade or order authority. This
-is not another brain/controller. The current service is research-only and is not
-composed into live hunting selection until qualification and #3130 integration.
+bounded process lifecycle (`LocalEncounterPredictor`); it has no live colony
+facade or order authority. This is not another brain/controller. When
+`RIMGOVERNOR_ENCOUNTER_WORKER` names the built worker, `BrainBootstrap` starts a
+`HuntEstimateService` over it and the food plan's
+[hunt comparison](../contracts/forecast-contracts.md#coherent-coupled-observation-frame)
+prices its rosters from the service's estimates; unset, rosters stay unestimated
+and no formation hunt is offered.
 
 ## Lifecycle
 

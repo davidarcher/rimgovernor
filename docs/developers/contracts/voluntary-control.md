@@ -137,8 +137,11 @@ the calculators or ignoring their commitments is not a cutover.
 
 The following inventory separates native execution evidence from policy
 comparison tests. “Keep” preserves the stated native claim; it does not claim a
-current passing gameplay run. Registered cases and successful compilation do
-not satisfy #3135's actual-gameplay gate.
+current passing gameplay run. Registered cases and successful compilation are
+not gameplay evidence: that comes from the nightly tier (`coordination/*`,
+`food/*`, `shelter/*` cases), the on-demand cases by name and the
+[colony review](../testing/colony-review.md) season, as reported on the owning
+epic (#3124).
 
 | Exact case | Disposition and retained claim |
 | --- | --- |
@@ -250,7 +253,7 @@ creates loading lords and interrupts jobs, so enabling it has the same labor
 boundary as explicit pawn loading; disabling autoload and launching a loaded
 shuttle retain their native operation.
 
-The audit includes Standard item use, delivery, custody and movement, and distinguishes actual Incident intent from its type name. The `economy/caravan` Need (#3316) cannot open a map or orbital session by assigning negotiator travel or comms work; existing-session operations and visiting-caravan settlement sessions remain available. A `people/mood/<pawn>` Need cannot dispatch preventative ability casts. Actual combat, mental-state containment, critical medicine and disaster recovery retain their existing protection owners. Dependent-patient critical rescue/tending uses the patient's `medical/critical/<pawn>` Need rather than duplicate Standard care. These boundaries preserve explicit native mechanics without claiming that unsupported ordinary outcomes have shared forecast alternatives. #3135 remains the completion owner.
+The audit includes Standard item use, delivery, custody and movement, and distinguishes actual Incident intent from its type name. The `economy/caravan` Need (#3316) cannot open a map or orbital session by assigning negotiator travel or comms work; existing-session operations and visiting-caravan settlement sessions remain available. A `people/mood/<pawn>` Need cannot dispatch preventative ability casts. Actual combat, mental-state containment, critical medicine and disaster recovery retain their existing protection owners. Dependent-patient critical rescue/tending uses the patient's `medical/critical/<pawn>` Need rather than duplicate Standard care. These boundaries preserve explicit native mechanics without claiming that unsupported ordinary outcomes have shared forecast alternatives. Supporting one of them is its own issue under the Need that owns the demand.
 
 Additional affected-case disposition:
 

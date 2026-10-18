@@ -30,7 +30,7 @@ flowchart LR
 | Brain host | Planner scheduling, authority, lifecycle, watchdog and composition ([brain host](brain-host.md)) | RimWorld simulation |
 | Store | Method admission, action identity, session journal and continuation ownership | Candidate valuation or game orders |
 | Hands | Dispatch of admitted actions and write reconciliation | Which Method best serves a Concern |
-| Native bridge | Typed observations, operation guards, clock supervision and leased rules (being removed in #3141) | Colony strategy |
+| Native bridge | Typed observations, operation guards and clock supervision | Colony strategy |
 | Native facade | In-process calls into the mod (typed, no serialization) and main-thread dispatch; the loopback HTTP channel serves the launcher and tools | Colony policy |
 | RimWorld | Legality, pathing, pawn jobs and physical outcomes | Governor intent |
 | Launcher | Starts/stops sessions and presents observed state | Planner execution |
@@ -86,6 +86,13 @@ timetable templates do not choose voluntary jobs for controlled colonists.
 An eligible pawn without an authorized activity stops the supervised clock with
 an explicit unavailable-control reason. Unsupported states and remaining
 independent owners are listed in [voluntary control](../contracts/voluntary-control.md).
+Hunting is the same comparison: the food plan prices hunt rosters (solos, pairs,
+a third gunner, a retriever) from the qualified
+[encounter estimates](../contracts/encounter-prediction.md) when the prediction
+worker is configured, drafts exactly the chosen roster and releases it on
+explicit triggers ([hunt comparison](../contracts/forecast-contracts.md#coherent-coupled-observation-frame));
+without the worker only lone designation hunts are offered. The estimate's known
+limits travel with the choice as uncertainty, never as a hidden safety claim.
 See [Method selection and binding](plans-and-hands.md#method-selection-and-binding)
 for the ownership boundaries and [live policy stages](colony-forecast.md#live-activity-policy-stages)
 for the implementation, enforced dependencies and current bounds.
