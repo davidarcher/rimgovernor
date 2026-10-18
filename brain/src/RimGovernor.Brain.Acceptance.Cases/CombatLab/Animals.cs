@@ -113,7 +113,7 @@ internal static class CombatLabAnimals
     private static async Task<Observations.AllowedAreaEntry?> PupAreaAsync(TypedSession s, string label, string pup, CancellationToken cancellationToken)
     {
         var areas = await CombatLabKit.AreasAsync(s, label + "-areas", cancellationToken).ConfigureAwait(false);
-        s.RecordWire(label + "_areas", areas);
+        s.RecordWireRows(label + "_areas", areas);
         var listing = areas.Where(a => a.PawnIds.Contains(pup)).ToList();
         var settings = (await CombatLabKit.PawnAsync(s, label + "-pup", pup, cancellationToken).ConfigureAwait(false)).Settings?.AllowedAreaId;
         if (listing.Count > 1 || listing.FirstOrDefault()?.Id != settings)

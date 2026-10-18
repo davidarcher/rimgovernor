@@ -179,7 +179,7 @@ internal static class ControlActivities
     {
         var reply = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         var rows = TypedReads.Observed("colony-facts", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed).WorkResources?.ToList() ?? [];
-        s.RecordWire("work_resources", rows);
+        s.RecordWireRows("work_resources", rows);
         if (rows.Count < 3 || !rows.Any(r => r.Assignment.Length > 0)
             || rows.Any(r => r.LocalHour is not (>= 0 and < 24) || r.CarriedCount < 0 || (r.CarriedThing.Length > 0) != (r.CarriedCount > 0)))
         {

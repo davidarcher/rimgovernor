@@ -78,7 +78,7 @@ internal static class WallReplace
 
         // The fixture ticks the game itself, one audited tick at a time; it stops at completion.
         var swapped = await s.FixtureAsync("replace-run", Cell, ("run", target.X, target.Z, Window), cancellationToken).ConfigureAwait(false);
-        s.RecordWire("replace_completed", swapped);
+        s.RecordFixture("replace_completed", swapped);
         if (swapped.Violations != 0 || swapped is not { BuiltDef: "Wall", BuiltStuff: "WoodLog" })
         {
             throw new AcceptanceException($"want a wood wall with the enclosure kept on every tick within {Window} ticks: {swapped}");
@@ -97,7 +97,7 @@ internal static class WallReplace
             ring = await s.FixtureAsync("ring-run", Cell, ("run", empty.X, empty.Z, 5), cancellationToken).ConfigureAwait(false);
         }
 
-        s.RecordWire("new_ring", ring);
+        s.RecordFixture("new_ring", ring);
         if (ring is not { FrameStandable: true, FrameDef: "Frame_Wall" })
         {
             throw new AcceptanceException($"a new-ring wall must keep the Standable Frame: {ring}");

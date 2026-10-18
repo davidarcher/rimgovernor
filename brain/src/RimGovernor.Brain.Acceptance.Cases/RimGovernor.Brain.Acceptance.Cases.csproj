@@ -13,4 +13,8 @@
     <ProjectReference Include="..\RimGovernor.Brain.Store\RimGovernor.Brain.Store.csproj" />
     <ProjectReference Include="..\RimGovernor.Brain.Host\RimGovernor.Brain.Host.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- AcceptanceJsonRegistrationTests names ServedOps' generic reply decoders. -->
+    <InternalsVisibleTo Include="RimGovernor.Brain.Domain.Tests" />
+  </ItemGroup>
 </Project>

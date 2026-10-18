@@ -294,6 +294,16 @@ public sealed class TypedSession
     public void RecordWire<T>(string key, T value) => _s.Report[key] = JsonNode.Parse(WireJson.Serialize(value));
 
     /// <summary>
+    /// Records the Contracts records <paramref name="rows"/> as a JSON array under <paramref name="key"/>. The wire context
+    /// registers element records, not the list or array types a case collects them in.
+    /// </summary>
+    public void RecordWireRows<T>(string key, IEnumerable<T> rows) =>
+        _s.Report[key] = new JsonArray([.. rows.Select(row => JsonNode.Parse(WireJson.Serialize(row)))]);
+
+    /// <summary>Records the Fixtures.Contracts reply <paramref name="value"/> of a <c>test/*</c> op under <paramref name="key"/>.</summary>
+    public void RecordFixture<T>(string key, T value) => _s.Report[key] = JsonNode.Parse(Fx.FixtureJson.Serialize(value));
+
+    /// <summary>
     /// Hands the clock to the case's declared <see cref="TypedCase.Serve"/>: starts the brain service, resumes automatic
     /// control under a kept authority and observes while the brain drives the game until <paramref name="probe"/> is done,
     /// at most <paramref name="ticks"/> game ticks from <see cref="TicksLeft"/>; then stops the service and parks the brain.

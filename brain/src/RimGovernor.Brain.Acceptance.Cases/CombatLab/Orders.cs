@@ -92,7 +92,7 @@ internal static class CombatLabOrders
 
         // The orders took their jobs on the paused game: read them before a tick moves anyone.
         var after = await CombatLabKit.PawnsAsync(s, "after", colonists, cancellationToken).ConfigureAwait(false);
-        s.RecordWire("after", after.Values.OrderBy(p => p.Pawn.Id, StringComparer.Ordinal).ToList());
+        s.RecordWireRows("after", after.Values.OrderBy(p => p.Pawn.Id, StringComparer.Ordinal));
         Observations.PawnState Row(int i) => after.GetValueOrDefault(colonists[i]) ?? throw new AcceptanceException($"colonist {i} not listed");
         void Check(int i, string job, bool forced, string? thing = null, Common.Cell? cell = null)
         {

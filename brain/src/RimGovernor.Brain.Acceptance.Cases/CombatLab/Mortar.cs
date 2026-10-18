@@ -67,7 +67,7 @@ internal static class CombatLabMortar
         CombatLabKit.Refused("man_mortar chunk", results[4], "not_a_mortar");
 
         var after = await CombatLabKit.PawnsAsync(s, "after", colonists, cancellationToken).ConfigureAwait(false);
-        s.RecordWire("after", after.Values.OrderBy(p => p.Pawn.Id, StringComparer.Ordinal).ToList());
+        s.RecordWireRows("after", after.Values.OrderBy(p => p.Pawn.Id, StringComparer.Ordinal));
         if (after.GetValueOrDefault(colonists[0]) is not { } rifleman || CombatLabKit.Job(rifleman) != "AttackStatic" || CombatLabKit.JobThing(rifleman) != part)
         {
             throw new AcceptanceException($"rifleman does not shoot the ship part {part}: {after.GetValueOrDefault(colonists[0])?.Job}");

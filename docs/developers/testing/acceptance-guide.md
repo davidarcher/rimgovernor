@@ -75,7 +75,10 @@ identity), `Staged` and `TicksLeft`. Its members:
 - **Telemetry:** `Telemetry(TelemetryKinds.<Kind>)` returns the game log ring's rows of that kind as `LogRow`s.
   A kind is added to `TelemetryKinds` (`brain/src/RimGovernor.Brain.Telemetry/TelemetryKinds.cs`) with its row in
   the kinds table.
-- **Evidence:** `Record(key, value)` and `RecordWire(key, record)`.
+- **Evidence:** `Record(key, value)`, `RecordWire(key, record)`, `RecordWireRows(key, records)` for a list or array
+  of Contracts records, and `RecordFixture(key, reply)` for a `test/*` op's Fixtures.Contracts reply. The JSON
+  contexts register records, not the collections a case gathers them in; `AcceptanceJsonRegistrationTests` fails
+  the gate on an unregistered type.
 - **Owned start:** `LaunchAsync(label)` opens a fresh main-menu game (a `GameReuse`) and routes the session's calls
   to it while it is open. `NewColonyAsync(label, request)` polls `lifecycle_new_colony` to its typed outcome
   (phases, then the completed reply or a failure code). `ReadSaveFileAsync(saveName)` and `ProfileSave(saveName)`

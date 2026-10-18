@@ -56,7 +56,7 @@ internal static class MapscopeIsolation
 
         // A second player map; a read for its identity answers about it while the home map stays viewed.
         var generated = await s.FixtureAsync("generate", Generate, "", cancellationToken).ConfigureAwait(false);
-        s.RecordWire("generated", generated);
+        s.RecordFixture("generated", generated);
         if (generated.HomeMapId != home.MapId || generated.SecondMapId == home.MapId || generated.ViewedMapId != home.MapId)
         {
             throw new AcceptanceException($"generate: want a distinct second map with map {home.MapId} still viewed, got {generated}");

@@ -67,7 +67,7 @@ internal static class WallLayers
         s.Record("built_after_ticks", ticks);
 
         var controls = await s.FixtureAsync("layers-controls", Ring, "controls", cancellationToken).ConfigureAwait(false);
-        s.RecordWire("completion_controls", controls);
+        s.RecordFixture("completion_controls", controls);
         if (controls is not { Refused: true, Skipped: true, Completed: true, Escaped: true })
         {
             throw new AcceptanceException($"completion controls: {controls}");

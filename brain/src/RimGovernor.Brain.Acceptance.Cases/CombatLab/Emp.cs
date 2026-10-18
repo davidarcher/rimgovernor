@@ -80,6 +80,6 @@ internal static class CombatLabEmp
         CombatLabKit.Applied("attack_ground", results[1]);
 
         var after = await frames.UntilAsync("dropped", CombatLabKit.ProbeTicks, before.Context?.Tick + 1 ?? 0, f => clump.All(id => LabFrames.Row(f, id) is { ShieldEnergy: 0 }), cancellationToken).ConfigureAwait(false);
-        s.RecordWire("after", clump.Select(id => LabFrames.Row(after, id)).ToList());
+        s.RecordWireRows("after", clump.Select(id => LabFrames.Row(after, id)));
     }
 }

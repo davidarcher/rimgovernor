@@ -44,7 +44,7 @@ internal static class RecoveryArea
     {
         // The fixture writes the map outside any authority scope, so it runs before the grant.
         var prepared = await s.FixtureAsync("prepare", Prepare, "", cancellationToken).ConfigureAwait(false);
-        s.RecordWire("prepared", prepared);
+        s.RecordFixture("prepared", prepared);
 
         var facts = await s.CallAsync("environment-census", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var observed = TypedReads.Observed("environment-census", NativeOps.ReadColonyFacts, facts, facts.Outcome?.Observed);

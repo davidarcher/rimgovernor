@@ -50,7 +50,7 @@ internal static class WallRemotePickup
                 row = await s.FixtureAsync(phase + "-audit", Pickup, "audit", ct).ConfigureAwait(false);
                 return (Wait.Signature(row.Delivered, row.Carrying), row.Delivered == row.Cost && row.Carrying == 0);
             }, cancellationToken).ConfigureAwait(false);
-            s.RecordWire(phase, row);
+            s.RecordFixture(phase, row);
             return row!;
         }
 

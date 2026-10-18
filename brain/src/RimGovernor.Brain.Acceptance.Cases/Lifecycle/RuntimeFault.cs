@@ -49,7 +49,7 @@ internal static class LifecycleRuntimeFault
 
         // The fixture reads the hook count on the game thread the instant after removal.
         var unpatched = await s.FixtureAsync("unpatch", Unpatch, Hook, cancellationToken).ConfigureAwait(false);
-        s.RecordWire("unpatched", unpatched);
+        s.RecordFixture("unpatched", unpatched);
         if (unpatched.Required < 1 || unpatched.Health != unpatched.Required - 1)
         {
             throw new AcceptanceException($"unpatch: expected {unpatched.Required - 1}/{unpatched.Required} hooks right after removal, got {unpatched}");

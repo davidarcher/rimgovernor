@@ -49,7 +49,7 @@ internal static class NeedsRecreationGain
         var needs = TypedReads.Observed("needs", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed).Forecast?.Outcome?.Needs
             ?? throw new AcceptanceException("needs: needs forecast unavailable");
         var row = needs.Pawns.SingleOrDefault(p => p.Pawn == colonist) ?? throw new AcceptanceException($"needs: no row for {colonist}");
-        s.RecordWire("joy_targets", row.Targets.Where(t => t.Kind == "joy").ToArray());
+        s.RecordWireRows("joy_targets", row.Targets.Where(t => t.Kind == "joy"));
         if (row.State != "eligible")
         {
             throw new AcceptanceException($"the colonist is not eligible, so no targets are read: {row.State} [{string.Join(' ', row.VoluntaryControlBlockers)}]");

@@ -54,7 +54,7 @@ internal static class RoomsReads
         {
             var reply = await s.CallAsync(label, NativeOps.ListRooms, request with { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
             var rooms = TypedReads.Observed(label, NativeOps.ListRooms, reply, reply.Outcome?.Observed).Rooms.ToList();
-            s.RecordWire(label, rooms);
+            s.RecordWireRows(label, rooms);
             return rooms;
         }
 

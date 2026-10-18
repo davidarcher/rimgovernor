@@ -127,7 +127,7 @@ internal static class ZoneRectangle
             IncludeFilter = true,
         }, cancellationToken).ConfigureAwait(false);
         var zones = TypedReads.Observed("rectangle-zone-settings", NativeOps.ListZones, zonesReply, zonesReply.Outcome?.Observed).Zones.ToList();
-        s.RecordWire("zones", zones);
+        s.RecordWireRows("zones", zones);
         if (zones.Count != 3)
         {
             throw new AcceptanceException($"expected three zones, got {zones.Count}");

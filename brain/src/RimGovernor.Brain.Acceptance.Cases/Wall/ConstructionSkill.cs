@@ -85,7 +85,7 @@ internal static class WallConstructionSkill
         }, cancellationToken).ConfigureAwait(false);
 
         var controls = await s.FixtureAsync("skill-controls", Skill, "controls", cancellationToken).ConfigureAwait(false);
-        s.RecordWire("construction_skill", controls);
+        s.RecordFixture("construction_skill", controls);
         if (controls is not { LowRefused: true, LowCompletionRefused: true, Completed: true, NoLeak: true })
         {
             throw new AcceptanceException($"completion controls: {controls}");
