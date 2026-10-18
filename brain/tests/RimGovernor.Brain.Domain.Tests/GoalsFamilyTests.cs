@@ -181,6 +181,86 @@ public sealed class GoalsFamilyTests
         Assert.Equal((GoalState.Blocked, "facts_unread"), (GoalRules.Evaluate(goal, Facts(goal)).State, GoalRules.Evaluate(goal, Facts(goal)).Reason));
     }
 
+    private static PrisonerFacts Held(string pawn, bool recruitable = true) => new()
+    {
+        Pawn = new(pawn),
+        Dead = Known(false),
+        Prisoner = Known(true),
+        Recruitable = Known(recruitable),
+    };
+
+    private static CustodyFacts Colonist(string pawn) => new() { Pawn = new(pawn), Dead = Known(false), Admitted = Known(true) };
+
+    private static GoalsFacts PrisonersCensus(IEnumerable<PrisonerFacts> prisoners, params CustodyFacts[] custody) =>
+        new() { Rounds = new RoundsFacts { Prisoners = Known<EquatableArray<PrisonerFacts>>([.. prisoners]), Custody = Known<EquatableArray<CustodyFacts>>([.. custody]) } };
+
+    [Fact]
+    public void ANamedPrisonerIsPursuedWhileHeldMetOnceAColonistAndHasNoMethodOtherwise()
+    {
+        var goal = Goal(1, GoalKind.NamedPrisoner, "p1");
+        Assert.Equal((GoalState.Pursuing, Satisfaction.Unmet), Pair(GoalRules.Evaluate(goal, PrisonersCensus([Held("p1")]))));
+        Assert.Equal(PrisonersFamily.Recruit, GoalRules.Evaluate(goal, PrisonersCensus([Held("p1")])).Owner);
+        Assert.Equal((GoalState.Met, Satisfaction.Met), Pair(GoalRules.Evaluate(goal, PrisonersCensus([], Colonist("p1")))));
+
+        var stranger = GoalRules.Evaluate(goal, PrisonersCensus([], Colonist("other")));
+        Assert.Equal((GoalState.NoMethod, "not a prisoner"), (stranger.State, stranger.Reason));
+        var unrecruitable = GoalRules.Evaluate(goal, PrisonersCensus([Held("p1", recruitable: false)]));
+        Assert.Equal((GoalState.NoMethod, "not_recruitable"), (unrecruitable.State, unrecruitable.Reason));
+        Assert.Equal(GoalState.Blocked, GoalRules.Evaluate(goal, new GoalsFacts()).State);
+
+        var demand = GoalRules.DemandOf(PrisonersCensus([Held("p1")]) with { Goals = [goal] });
+        Assert.Equal([new PawnId("p1")], demand.Prisoners);
+        var stamped = GoalRules.Stamp(new RoundsFacts { PrisonerColony = Known(new PrisonerColony()) }, demand);
+        Assert.Equal(demand.Prisoners, stamped.PrisonerColony.Value.NamedPrisoners);
+    }
+
+    private static (GoalState, Satisfaction) Pair(GoalStatus s) => (s.State, s.Satisfaction);
+
+    private static JoinerOffer Offer(string quest, string state = "NotYetAccepted", QuestCost cost = QuestCost.Free) => new()
+    {
+        Quest = new(quest),
+        ScriptDef = "MechanoidSignal",
+        State = state,
+        CanAccept = true,
+        Profile = Known(new QuestProfile { Family = QuestFamily.OdysseyGround, Cost = cost, Disposition = QuestDisposition.Decide }),
+    };
+
+    private static GoalsFacts QuestFacts(params JoinerOffer[] offers) =>
+        new() { Rounds = new RoundsFacts { QuestOffers = Known<EquatableArray<JoinerOffer>>([.. offers]) } };
+
+    [Fact]
+    public void ANamedQuestIsConsideredFirstAndAcceptedWhenFeasible()
+    {
+        var facts = QuestFacts(Offer("q1"), Offer("q9"));
+        Assert.Equal(new QuestId("q1"), QuestSelection.SelectQuestMethod(facts.Rounds).Quest);
+
+        var named = GoalRules.Stamp(facts.Rounds, GoalRules.DemandOf(facts with { Goals = [Goal(1, GoalKind.NamedQuest, "q9")] }));
+        var choice = QuestSelection.SelectQuestMethod(named);
+        Assert.Equal((JoinerPlanReason.None, new QuestId("q9")), (choice.Reason, choice.Quest));
+
+        // An infeasible named quest does not displace the others.
+        var blocked = GoalRules.Stamp(QuestFacts(Offer("q1"), Offer("q9", cost: QuestCost.Pawns)).Rounds, new GoalDemand { Quests = [new QuestId("q9")] });
+        Assert.Equal(new QuestId("q1"), QuestSelection.SelectQuestMethod(blocked).Quest);
+    }
+
+    [Fact]
+    public void ANamedQuestReportsTheFailingCheckAndItsEndedStates()
+    {
+        var goal = Goal(1, GoalKind.NamedQuest, "q9");
+        var infeasible = GoalRules.Evaluate(goal, QuestFacts(Offer("q9", cost: QuestCost.Pawns)));
+        Assert.Equal((GoalState.Blocked, "capacity_unknown", JoinersFamily.Quests), (infeasible.State, infeasible.Reason, infeasible.Owner));
+
+        Assert.Equal(GoalState.Pursuing, GoalRules.Evaluate(goal, QuestFacts(Offer("q9"))).State);
+        Assert.Equal(GoalState.Pursuing, GoalRules.Evaluate(goal, QuestFacts(Offer("q9", "Ongoing"))).State);
+        Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, QuestFacts(Offer("q9", "EndedSuccess"))).State);
+        var expired = GoalRules.Evaluate(goal, QuestFacts(Offer("q9", "EndedOfferExpired")));
+        Assert.Equal((GoalState.NoMethod, "expired"), (expired.State, expired.Reason));
+        var lapsed = GoalRules.Evaluate(goal, QuestFacts(Offer("q9") with { ExpiresInTicks = Known(0L) }));
+        Assert.Equal((GoalState.NoMethod, "expired"), (lapsed.State, lapsed.Reason));
+        Assert.Equal(GoalState.NoMethod, GoalRules.Evaluate(goal, QuestFacts(Offer("q1"))).State);
+        Assert.Equal(GoalState.Blocked, GoalRules.Evaluate(goal, new GoalsFacts()).State);
+    }
+
     [Fact]
     public void EveryGoalIsOneReviewRowWithItsThemeProgress()
     {

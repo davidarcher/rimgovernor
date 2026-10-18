@@ -84,6 +84,22 @@ public sealed class PrisonersFamilyTests
     }
 
     [Fact]
+    public void ALowWorthPrisonerNamedByAGoalIsRecruitedAndOtherwiseKeepsTodaysIntent()
+    {
+        var drifter = Prisoner("a") with { Prospect = Known(new PrisonerProspect { Age = 30, Health = 1 }) };
+        var named = Colony1 with { NamedPrisoners = [new PawnId("a")] };
+        Assert.Equal(((PrisonerInteractionMode?)PrisonerInteractionMode.Recruit, false), PopulationRules.PrisonerIntent(drifter, named, Known(20.0), Policy));
+        Assert.Equal(((PrisonerInteractionMode?)null, false), PopulationRules.PrisonerIntent(drifter, Colony1, Known(20.0), Policy));
+        // Another prisoner the goal does not name is judged on worth as before.
+        Assert.Equal(((PrisonerInteractionMode?)null, false), PopulationRules.PrisonerIntent(drifter with { Pawn = new("b") }, named, Known(20.0), Policy));
+        // The custody precondition stays: a dead prisoner is not recruited.
+        Assert.Equal(((PrisonerInteractionMode?)null, false), PopulationRules.PrisonerIntent(drifter with { Dead = Known(true) }, named, Known(20.0), Policy));
+        // A named prisoner is not an organ-harvest candidate.
+        Assert.False(drifter.HarvestEligible(named).Value);
+        Assert.True(drifter.HarvestEligible(Colony1).Value);
+    }
+
+    [Fact]
     public void CustodyIsMetUnmetOrUnknownByTheDownedHumanlikesOwedCustody()
     {
         var met = Derive(Census(Colony1), PrisonersFamily.Custody);

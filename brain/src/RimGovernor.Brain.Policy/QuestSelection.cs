@@ -337,7 +337,18 @@ public static class QuestSelection
     }
 
     /// <summary>
-    /// Keeps allowed title claims first, then the lowest-ID affordable family offer. Joiner selection precedes
+    /// Why a quest a player goal names is not accepted now: the failing admission check, empty when it is admitted. A
+    /// joiner offer is the joiners/offers step's and answers to its threat check; a quest no check refuses but no step
+    /// answers reads <c>not_pursued</c>.
+    /// </summary>
+    public static QuestSkipReason NamedQuestReason(JoinerOffer offer, RoundsFacts f)
+    {
+        var (accept, reason) = QuestDecision(offer, f);
+        return accept || !reason.IsNone ? reason : "not_pursued";
+    }
+
+    /// <summary>
+    /// Keeps a quest a player goal names first, then allowed title claims, then the lowest-ID affordable family offer. Joiner selection precedes
     /// this planner at runtime.
     /// </summary>
     public static JoinerChoice SelectQuestMethod(RoundsFacts f)
@@ -346,12 +357,25 @@ public static class QuestSelection
         {
             return new JoinerChoice { Reason = JoinerPlanReason.CensusUnknown };
         }
+        // A quest a player goal names goes first, when the same checks every offer passes admit it (#3499).
         JoinerOffer? best = null;
-        foreach (var offer in rows)
+        foreach (var named in f.NamedQuests)
         {
-            if (PopulationRules.ClaimAnswerable(offer, f.TitleClaimQuests) && QuestRewards.SelectQuestReward(offer, f).Reason.IsNone && (best is null || offer.Quest.CompareTo(best.Quest) < 0))
+            var offer = rows.FirstOrDefault(o => o.Quest == named);
+            if (offer is not null && QuestDecision(offer, f).Accept)
             {
                 best = offer;
+                break;
+            }
+        }
+        if (best is null)
+        {
+            foreach (var offer in rows)
+            {
+                if (PopulationRules.ClaimAnswerable(offer, f.TitleClaimQuests) && QuestRewards.SelectQuestReward(offer, f).Reason.IsNone && (best is null || offer.Quest.CompareTo(best.Quest) < 0))
+                {
+                    best = offer;
+                }
             }
         }
         if (best is null)

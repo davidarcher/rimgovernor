@@ -80,6 +80,9 @@ public sealed record PrisonerColony
     /// </summary>
     public IReadOnlyDictionary<PawnId, int> Medicine { get; init; } = new Dictionary<PawnId, int>();
 
+    /// <summary>The prisoners the player's goals name (#3499): recruited whatever their worth.</summary>
+    public IReadOnlyList<PawnId> NamedPrisoners { get; init; } = [];
+
     /// <summary>The player's preferences, stamped from the review facts: slavery and organ use read what they forbid.</summary>
     public PreferencesRecord Preferences { get; init; } = new();
 
@@ -170,6 +173,10 @@ public sealed partial record PrisonerFacts
 
     internal bool WorthRecruiting(PrisonerProspect p, PrisonerColony c)
     {
+        if (c.NamedPrisoners.Contains(Pawn))
+        {
+            return true;
+        }
         Resistance.TryGetValue(out var resistance);
         return PopulationRules.PrisonerWorth(p, resistance, c) >= PopulationRules.RecruitThreshold(c.Colonists);
     }
@@ -289,7 +296,7 @@ public static partial class PopulationRules
     /// <summary>
     /// The use the colony has for one living prisoner, or null while it is simply held. The rules, in order:
     /// a recruitable prisoner whose resistance is broken and who is already being recruited keeps recruiting;
-    /// worth recruiting (PrisonerWorth >= RecruitThreshold) and recruitable: Convert first when Ideology is
+    /// worth recruiting (PrisonerWorth >= RecruitThreshold, or named by a player goal) and recruitable: Convert first when Ideology is
     /// active outside classic mode and the prisoner holds another ideoligion, so the recruit joins without a
     /// foreign faith dragging mood and certainty, Recruit once it shares the colony's ideoligion (or without
     /// Ideology); otherwise, able to labor, not a wild man and the ideoligion allows slavery without mood

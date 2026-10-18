@@ -506,6 +506,9 @@ public sealed record RoundsFacts
     /// <summary>The head count per animal race the player's goals ask the herd to reach (#3494); the herd plan raises its race's band to it.</summary>
     public IReadOnlyDictionary<Resource, long> AnimalGoals { get; init; } = new Dictionary<Resource, long>();
 
+    /// <summary>The quests the player's goals name (#3499); the quest step considers them before any other offer.</summary>
+    public IReadOnlyList<QuestId> NamedQuests { get; init; } = [];
+
     public Fact<long> Hostiles { get; init; }
 
     public Fact<long> CriticalPatients { get; init; }

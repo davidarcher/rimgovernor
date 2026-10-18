@@ -41,6 +41,12 @@ public sealed record GoalDemand
     public int Colonists { get; init; }
 
     public IReadOnlyDictionary<Resource, long> Animals { get; init; } = new Dictionary<Resource, long>();
+
+    /// <summary>The prisoners the goals name (#3499): the prisoner step recruits them whatever their worth.</summary>
+    public IReadOnlyList<PawnId> Prisoners { get; init; } = [];
+
+    /// <summary>The quests the goals name (#3499): the quest step considers them first.</summary>
+    public IReadOnlyList<QuestId> Quests { get; init; } = [];
 }
 
 /// <summary>What the goals Family reads (#3494): the player's goals and the review facts they are judged by.</summary>
@@ -64,6 +70,9 @@ public sealed record GoalsFacts
 
     public Fact<bool> IdeologyInstalled { get; init; }
 
+    /// <summary>The review's facts: the prisoner, custody and quest censuses the named-prisoner and named-quest goals are judged by.</summary>
+    public RoundsFacts Rounds { get; init; } = new();
+
     /// <summary>The progress row of each owning Need that has one.</summary>
     public IReadOnlyDictionary<NeedId, OwnerProgress> Owners { get; init; } = new Dictionary<NeedId, OwnerProgress>();
 
@@ -79,6 +88,7 @@ public sealed record GoalsFacts
         Animals = f.AnimalUpkeep.Animals,
         Ideology = f.Ideology,
         IdeologyInstalled = f.IdeologyInstalled,
+        Rounds = f,
         Owners = owners,
     };
 }
@@ -184,6 +194,10 @@ public static class GoalRules
             case GoalKind.Precept:
             case GoalKind.Meme:
                 return Adoption(goal, f);
+            case GoalKind.NamedPrisoner:
+                return NamedPrisoner(goal, f);
+            case GoalKind.NamedQuest:
+                return NamedQuest(goal, f);
             default:
                 return new GoalStatus(goal, Satisfaction.Unknown, GoalState.NoMethod, NoPursuit, default, default);
         }
@@ -191,15 +205,81 @@ public static class GoalRules
         {
             return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, deficit);
         }
-        if (isMet)
+        return isMet ? new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, deficit) : Pursued(goal, f, owner, deficit);
+    }
+
+    /// <summary>An unmet goal an owning Need can work: blocked when that Need's progress row says why it has no method, else pursuing.</summary>
+    private static GoalStatus Pursued(GoalRecord goal, GoalsFacts f, NeedId owner, Fact<double> deficit) =>
+        f.Owners.TryGetValue(owner, out var row) && !row.Method && row.Blocked != ""
+            ? new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, row.Blocked, owner, deficit)
+            : new GoalStatus(goal, Satisfaction.Unmet, GoalState.Pursuing, "", owner, deficit);
+
+    /// <summary>A named prisoner: met once a colonist, pursued by the prisoners/recruit Need while held and recruitable.</summary>
+    private static GoalStatus NamedPrisoner(GoalRecord goal, GoalsFacts f)
+    {
+        var owner = PrisonersFamily.Recruit;
+        var one = Fact.Known(1.0);
+        var pawn = new PawnId(goal.Target);
+        if (!f.Rounds.Prisoners.TryGetValue(out var prisoners))
         {
-            return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, deficit);
+            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
         }
-        if (f.Owners.TryGetValue(owner, out var row) && !row.Method && row.Blocked != "")
+        var row = prisoners.FirstOrDefault(p => p.Pawn == pawn);
+        if (row is null)
         {
-            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, row.Blocked, owner, deficit);
+            if (!f.Rounds.Custody.TryGetValue(out var custody))
+            {
+                return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+            }
+            var colonist = custody.Any(c => c.Pawn == pawn && c.Admitted.TryGetValue(out var admitted) && admitted && c.Dead.TryGetValue(out var dead) && !dead);
+            return colonist
+                ? new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, Fact.Known(0.0))
+                : new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NotAPrisoner, default, one);
         }
-        return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Pursuing, "", owner, deficit);
+        if (!row.Dead.TryGetValue(out var gone) || !row.Recruitable.TryGetValue(out var recruitable))
+        {
+            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+        }
+        if (gone)
+        {
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NotAPrisoner, default, one);
+        }
+        return recruitable ? Pursued(goal, f, owner, one) : new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "not_recruitable", default, one);
+    }
+
+    /// <summary>A named quest: met when it completes, pursued by the quest step (the offers step for a joiner) while an admission check passes, blocked on the check that fails, no method once it expires or fails.</summary>
+    private static GoalStatus NamedQuest(GoalRecord goal, GoalsFacts f)
+    {
+        var one = Fact.Known(1.0);
+        if (!f.Rounds.QuestOffers.TryGetValue(out var offers))
+        {
+            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", JoinersFamily.Quests, default);
+        }
+        var quest = new QuestId(goal.Target);
+        var offer = offers.FirstOrDefault(o => o.Quest == quest);
+        if (offer is null)
+        {
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unknown_quest", default, one);
+        }
+        var owner = PopulationRules.IsJoinerOffer(offer.ScriptDef) ? JoinersFamily.Offers : JoinersFamily.Quests;
+        switch (offer.State)
+        {
+            case "EndedSuccess":
+                return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, Fact.Known(0.0));
+            case "EndedOfferExpired":
+                return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, Expired, default, one);
+            case "Ongoing":
+                return Pursued(goal, f, owner, one);
+            case "NotYetAccepted":
+                var reason = owner == JoinersFamily.Offers ? QuestSelection.JoinerThreatReason(offer, f.Rounds) : QuestSelection.NamedQuestReason(offer, f.Rounds);
+                if (reason == Expired)
+                {
+                    return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, Expired, default, one);
+                }
+                return reason.IsNone ? Pursued(goal, f, owner, one) : new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, reason.ToString(), owner, one);
+            default:
+                return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "ended", default, one);
+        }
     }
 
     /// <summary>Every theme's progress: its member goals that stand met.</summary>
@@ -216,10 +296,18 @@ public static class GoalRules
         var stock = new Dictionary<Resource, long>();
         var animals = new Dictionary<Resource, long>();
         var colonists = 0;
+        var prisoners = new List<PawnId>();
+        var quests = new List<QuestId>();
         foreach (var goal in f.Goals)
         {
             switch (goal.Kind)
             {
+                case GoalKind.NamedPrisoner when goal.Target != "":
+                    prisoners.Add(new PawnId(goal.Target));
+                    break;
+                case GoalKind.NamedQuest when goal.Target != "":
+                    quests.Add(new QuestId(goal.Target));
+                    break;
                 case GoalKind.ResearchProject:
                     if (goal.Target != "" && Evaluate(goal, f).State != GoalState.Met && f.Research.TryGetValue(out _))
                     {
@@ -246,19 +334,24 @@ public static class GoalRules
                     break;
             }
         }
-        return new GoalDemand { Research = [.. research], Stock = stock, Colonists = colonists, Animals = animals };
+        return new GoalDemand { Research = [.. research], Stock = stock, Colonists = colonists, Animals = animals, Prisoners = prisoners, Quests = quests };
     }
 
-    /// <summary>The review facts with the goals' stock floors, colonist head count and herd targets in them.</summary>
-    public static RoundsFacts Apply(RoundsFacts f, GoalDemand d) =>
-        f with
-        {
-            ResourceNeeds = ResourceRules.ResourceConcernTargets(f.ResourceNeeds, d.Stock),
-            ColonistGoal = d.Colonists,
-            AnimalGoals = d.Animals,
-        };
+    /// <summary>The review facts with the goals' stock floors in them, and everything <see cref="Stamp"/> carries.</summary>
+    public static RoundsFacts Apply(RoundsFacts f, GoalDemand d) => Stamp(f with { ResourceNeeds = ResourceRules.ResourceConcernTargets(f.ResourceNeeds, d.Stock) }, d);
+
+    /// <summary>The facts with the goals' colonist head count, herd targets, named quests and named prisoners: what every read of the world carries.</summary>
+    public static RoundsFacts Stamp(RoundsFacts f, GoalDemand d)
+    {
+        f = f with { ColonistGoal = d.Colonists, AnimalGoals = d.Animals, NamedQuests = d.Quests };
+        return f.PrisonerColony.TryGetValue(out var colony) ? f with { PrisonerColony = Fact.Known(colony with { NamedPrisoners = d.Prisoners }) } : f;
+    }
 
     private const string NoPursuit = "no_pursuit";
+
+    private const string NotAPrisoner = "not a prisoner";
+
+    private const string Expired = "expired";
 
     private static GoalStatus Adoption(GoalRecord goal, GoalsFacts f)
     {
