@@ -22,7 +22,9 @@ in the kind's unit (projects, tiers, items, colonists or animals short; 1 for an
 | `NamedPrisoner` | the pawn (`Target`) is an admitted colonist; `NoMethod` `not a prisoner` when it is neither held nor a colonist, `not_recruitable` when held but unrecruitable | the prisoner is recruited whatever its worth (`PrisonerColony.NamedPrisoners`; Convert first when its ideoligion differs, as for any recruit); custody and food rules stay, and it is not an organ-harvest candidate | `prisoners/recruit` |
 | `NamedQuest` | the quest (`Target`) is `EndedSuccess`; `NoMethod` `expired` once the offer lapses, `ended` after another end state, `unknown_quest` when the census does not list it | the quest step considers it before every other offer (`RoundsFacts.NamedQuests`) and accepts it when its admission checks pass; `Blocked` with the failing check (`home_capacity`, `no_spare_pawn`, `capacity_unknown`, ...) otherwise; native `CanAcceptQuest` stays the final check | `joiners/quests` (`joiners/offers` for a joiner quest) |
 | `RoomRole` | a standing room has the role (`Target` the `RoomRole` wire name); a `Hospital` goal: the hosted medical beds reach `Count` (1 when it names none). `NoMethod` `no_pursuit` for a role no planner stages, `unknown_role`, `missing_dlc` or `no_required_buildings` for the worship room | see [Room goals](#room-goals) | `shelter/sleeping` (child rooms), `medical/care` (hospital) |
-| `Precept`, `Meme` | the ideoligion holds it | none: `NoMethod` `not fluid` on a non-fluid ideoligion, `missing_dlc` without Ideology, otherwise `no_pursuit` | none |
+| `Precept`, `Meme` | the ideoligion holds it | the ideoligion reform steps toward it, one meme change or precept swap per reform, gated by development points (#3500, [ideology contracts](ideology-contracts.md#creation-and-reform)); `NoMethod` `not fluid` on a non-fluid ideoligion, `unavailable` for a missing def, `missing_dlc` without Ideology; `Blocked` with the first missing prerequisite or `development points <points>/<cost>` | `ideology/reform` |
+| `VeneratedAnimal` | the ideoligion venerates the race | none, not pursued (#3517): Met while held, otherwise `NoMethod` `venerated_animal`, because the reform design carries plain precepts only | none |
+| `Believers` | every free colonist (`Count` 0) or `Count` colonists share the ideoligion | moral-guide conversion of the free colonist with the lowest certainty, and conversion of recruitable prisoners whatever their worth (#3501, [conversion](ideology-contracts.md#conversion)) | `ideology/convert/<pawn>` |
 | every other kind | Unknown | none: `NoMethod` `no_pursuit` | none |
 
 A kind with no pursuit is accepted and reported, never refused. A goal's demand is replaced each review, so a
@@ -64,6 +66,14 @@ asking after the room stands: dropping the need would end the role in the plan a
   and the station graph's injured floor. The hospital step runs only while `medical/care` is unmet, so
   `MedicalFacts.HospitalShort` (hosted medical beds below the floor, read in `RoundsMedicalFamily.ReadAsync`) keeps the
   Need unmet while no patient is sick.
+
+## Importance and deadline
+
+`GoalRecord.Importance` and `DeadlineDay` (a theme's, unless the goal overrides them) are stored and shown, sort the
+panel, and weight theme progress. Every goal Need is a Development Need and neither field reaches Need selection, so
+they do not yet order or value anything the bot does. Their value in capability-days and the deadline's decay (#3503),
+and the estimated completion day (#3505), are not landed: they wait on the forecast currency (#3469) and the tier-2
+colony model (#3470). See the [forecast value note](../architecture/forecast-value.md).
 
 ## Telemetry
 

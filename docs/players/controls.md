@@ -10,6 +10,8 @@ The launcher controls the game and shows what the governor is doing.
 | Observe | Watch the running brain: Now, Concerns, Problems and Log. Its Resume and Pause buttons turn the bot on or off. |
 | Acceptance | Run a native test case visibly on this checkout's private game. Stop the brain and close its game first. |
 
+Goals are set inside the game, not in the launcher: see [goals and themes](goals.md).
+
 ## Speed and manual control
 
 **Play** enables automatic control on the loaded colony and after each load.

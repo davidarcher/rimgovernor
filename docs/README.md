@@ -10,6 +10,7 @@ Start with the [player guide](players/README.md).
 | Start a save or generate a colony | [Launch](players/launch.md) |
 | Understand the launcher and take control | [Controls](players/controls.md) |
 | Save, stop and resume | [Save and resume](players/save-and-resume.md) |
+| Tell the governor what you want: goals, themes and preferences | [Goals and themes](players/goals.md) |
 
 ## Develop
 
@@ -43,6 +44,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Account for material promises and exclusive equipment | [Forecast claims](developers/architecture/colony-forecast.md#material-promises-and-exclusive-equipment), [live fixed batches](developers/architecture/colony-forecast.md#live-fixed-batch-material-promises), [unfinished work](developers/architecture/colony-forecast.md#ingredients-inside-unfinished-work), [atomic batch admission](developers/architecture/colony-forecast.md#fixed-batch-material-admission), [joint material choices](developers/architecture/colony-forecast.md#joint-production-material-choices), [need valuation proof](developers/architecture/colony-forecast.md#need-based-production-valuation-proof), [live clothing recipe alternatives and acceptance](developers/contracts/equipment-upkeep.md#live-clothing-requirement-selection) |
 | Review the proposed value currency, long horizon and raid harm model | [Forecast value (proposed)](developers/architecture/forecast-value.md) |
 | Research predictive combat and tactical epics | [Combat predictability paper](developers/architecture/combat-predictability-research.md) |
+| Understand how player goals become Needs and how the in-game window reads them | [Player goals](developers/architecture/player-goals.md), [goals window](developers/architecture/in-game-panel.md), [goals contracts](developers/contracts/goals-contracts.md) |
 | Plan colony rooms and containment | [Facilities](developers/architecture/facilities.md) |
 | Understand territory and Home margins | [Colony extent](developers/contracts/colony-extent.md), [Home coverage](developers/contracts/upkeep-contracts.md#home-coverage) |
 | Change a subsystem | [Behavior contracts](developers/contracts/README.md) |

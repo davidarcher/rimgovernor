@@ -39,5 +39,9 @@
 | Spoilage buffer | The margin the `food-stores/storage` Need keeps: perishable nutrition already stored, at or above the target share (default 9/10) of total at-risk perishable nutrition on hand. |
 | Room / PlannedRoom | A Room is the game's own census room (`Room`, `RoomObservation`). A PlannedRoom is one room of the layout plan (`LayoutPlan.Rooms`), carrying a `PlannedRole`: the plan's intent, never an observation. |
 | Reconciler | The per-cell diff of a PlannedRoom's wanted ring, floor and furniture against the ground (`policy.Reconcile`, `ReconcileRoom`). Furniture off its slot is packed and the slot filled from packed stock or built on site; standing rooms are reconciled too. There is no separate tidy pass. |
+| Goal | A condition the player wants the colony to reach (`GoalRecord`): a closed kind, a target, a count, an importance and an optional deadline. The goals Family derives a Development Need `goals/<kind>/<id>` for it and reports its status; it adds demand to existing channels and proposes no plan. See [player goals](architecture/player-goals.md). |
+| Theme | A named bundle of goals (`ThemeRecord`) with one importance and deadline; a member may override them. Progress is the importance-weighted share of members met. |
+| Preset | A shipped theme definition, referenced by id from a theme and never copied; the player's removals are stored beside the id. Members the installed game cannot support are reported as unavailable. |
+| Preference | A standing player setting (risk, pace, apparel, diet, drug policy, forbidden methods, protections) read as a fact by the policy that owns the behavior. It is not a Need and has no veto layer. |
 
 See [plans and Hands](architecture/plans-and-hands.md) for these terms in context.

@@ -9,6 +9,7 @@ needs, or pause in RimWorld to take manual control.
 2. [Load a save or generate a colony](launch.md).
 3. [Use the launcher](controls.md).
 4. [Save and resume](save-and-resume.md).
+5. [Set goals and themes](goals.md) in the in-game window, such as a research tier, a hospital or a whole playstyle.
 
 ## When something stops
 
