@@ -84,6 +84,12 @@ Outputs live under `.rimgovernor/gate/`; the native mod is rebuilt (`native-buil
 -if-current`) only when its manifest no longer records the worktree's sources and
 the game's assemblies.
 
+The solution also lists the real-engine combat host projects
+([integrations/rimgovernor-realcombat](../../integrations/rimgovernor-realcombat)): they compile against the Bridge and
+the brain, nothing else builds them, and they build as stubs without the game, so an API move cannot break them
+unnoticed. The Bridge and the host SDK they reference build with the solution as a result, beside the native build's
+own copy.
+
 Missing machine-local inputs report `unavailable`. The gate's native build accepts
 `RIMWORLD_DIR` (the directory holding `Assembly-CSharp.dll`) and `HARMONY_ASSEMBLY`; game-free remote compilation is
 described in the [runbook](agent-runbook.md#remote-agents).

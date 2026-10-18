@@ -117,7 +117,7 @@ public sealed class PolicyController : IFightController
             PolicyFacade.Publish(_facade!, new NativeFrame(frame, ++_serial, 0));
             var combat = _client!.ReadCombatAsync(_seat!.Identity, CancellationToken.None).GetAwaiter().GetResult();
             var stop = RoundsDefensePlanner.CombatStop(combat, _memory.Tick);
-            if (stop.Kind.IsEmpty && _decided != int.MinValue && tick - _decided < BackstopTicks)
+            if (stop.Kind == RimGovernor.Contracts.Wire.Clock.CombatEvent.Unspecified && _decided != int.MinValue && tick - _decided < BackstopTicks)
             {
                 return;
             }
@@ -125,7 +125,7 @@ public sealed class PolicyController : IFightController
             var step = CombatReads.DecideCombatStep(combat, _orderable, _memory with { Tick = new Tick(tick) }, $"rc-{tick}", _seat.Identity, GeometryOf, Layout, ReadsOf(tick, frame));
             if (step is null)
             {
-                Idle = "no fight: " + RoundsDefensePlanner.CombatFrameInputs(combat, []).Reason;
+                Idle = "no fight: " + RoundsDefensePlanner.CombatFrameInputs(combat, [], []).Reason;
                 return;
             }
 
@@ -141,7 +141,7 @@ public sealed class PolicyController : IFightController
             }
 
             Decisions++;
-            Log?.Invoke($"t={tick} decide tactic={step.Memory.Tactic} roles=[{string.Join(" ", step.Memory.Roles.Select(r => $"{r.Pawn.Value}->{r.Target.Value}@{r.Cell?.X},{r.Cell?.Z}"))}] stop={stop.Kind.Value}");
+            Log?.Invoke($"t={tick} decide tactic={step.Memory.Tactic} roles=[{string.Join(" ", step.Memory.Roles.Select(r => $"{r.Pawn.Value}->{r.Target.Value}@{r.Cell?.X},{r.Cell?.Z}"))}] stop={stop.Kind}");
             foreach (var o in batch.Orders)
             {
                 Log?.Invoke($"   order {o.Pawn?.EntityId} {o.Order}");
@@ -223,7 +223,7 @@ public sealed class PolicyController : IFightController
     {
         try
         {
-            var colony = RimGovernor.Brain.Observation.ObservationPackage.ColonyRoyalty(frame.ColonyFacts?.Royalty);
+            var colony = RimGovernor.Brain.Observation.RoyaltyColonyProjectionReads.ColonyRoyalty(frame.ColonyFacts?.Royalty);
             return new RimGovernor.Brain.Observation.ColonyProjection { RoyaltyColony = colony }.RoyaltyOf(frame.Pawns, catalog);
         }
         catch (RimGovernor.Brain.Domain.DomainException)
@@ -233,7 +233,7 @@ public sealed class PolicyController : IFightController
     }
 
     private RimGovernor.Contracts.Wire.Mirror.CombatGeometry GeometryOf(RimGovernor.Contracts.Wire.Mirror.CombatGeometryRequest request) =>
-        _client!.CombatGeometryAsync(request, CancellationToken.None).GetAwaiter().GetResult().Value;
+        _client!.CombatGeometryAsync(request, CancellationToken.None).GetAwaiter().GetResult();
 
     // The catalog of the load over the game's Defs, with the def stat table its definition catalog read built.
     private static DefinitionCatalog CatalogOfArena(RimGovernor.Contracts.Wire.Common.Identity identity) =>

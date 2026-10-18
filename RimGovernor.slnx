@@ -1,5 +1,7 @@
 <!-- Every C# project the gate builds (RimGovernor.cmd test): one build, one restore, one test run. The native mod and
-     the contract probes build outside it (game inputs; separate output paths). -->
+     the contract probes build outside it (game inputs; separate output paths). The real-engine combat host
+     (integrations/rimgovernor-realcombat) is listed: it compiles against the Bridge and the brain, so an API move there
+     breaks it, and nothing else builds it; without the game its projects compile as stubs. -->
 <Solution>
   <Folder Name="/brain/">
     <Project Path="brain/analyzers/RimGovernor.Brain.Analyzers/RimGovernor.Brain.Analyzers.csproj" />
@@ -23,6 +25,12 @@
     <Project Path="brain/src/RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
     <Project Path="brain/src/RimGovernor.Fixtures.Contracts/RimGovernor.Fixtures.Contracts.csproj" />
     <Project Path="brain/tests/RimGovernor.Brain.Domain.Tests/RimGovernor.Brain.Domain.Tests.csproj" />
+  </Folder>
+  <Folder Name="/integrations/">
+    <Project Path="integrations/rimgovernor-realcombat/src/RealCombat/RealCombat.csproj" />
+    <Project Path="integrations/rimgovernor-realcombat/src/RealCombat.Host/RealCombat.Host.csproj" />
+    <Project Path="integrations/rimgovernor-realcombat/src/RealCombat.Native/RealCombat.Native.csproj" />
+    <Project Path="integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke/RealCombat.NativeSmoke.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/common/common.csproj" />

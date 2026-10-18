@@ -48,7 +48,7 @@ if (policy)
     var home = new RimGovernor.Brain.Domain.Cell(20, 30);
     if (!open)
     {
-        var (_, _, h, _) = RimGovernor.Brain.Policy.LayoutDefenseRules.LayoutKillbox(RimGovernor.Brain.Policy.LayoutDefenseRules.OpeningPlan(RimGovernor.Brain.Domain.Rotation.West), new RimGovernor.Brain.Policy.Bounds(request.Width, request.Height));
+        var (_, _, h, _) = RimGovernor.Brain.Policy.LayoutPlan.LayoutKillbox(RimGovernor.Brain.Policy.LayoutPlan.OpeningPlan(RimGovernor.Brain.Domain.Rotation.West), new RimGovernor.Brain.Policy.Bounds(request.Width, request.Height));
         home = h;
     }
 

@@ -44,7 +44,7 @@ public sealed class DefenseStage(Rotation toward, int defenders, double minRange
     public void Raise(Map map)
     {
         var bounds = new Bounds(map.Size.x, map.Size.z);
-        var (killbox, region, home, ok) = LayoutDefenseRules.LayoutKillbox(LayoutDefenseRules.OpeningPlan(toward), bounds);
+        var (killbox, region, home, ok) = LayoutPlan.LayoutKillbox(LayoutPlan.OpeningPlan(toward), bounds);
         if (!ok)
         {
             Failure = "no killbox opening in a map this size";
