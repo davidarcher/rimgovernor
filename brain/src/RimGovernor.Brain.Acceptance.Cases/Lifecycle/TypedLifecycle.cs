@@ -26,8 +26,8 @@ internal static class TypedLifecycle
     internal static async Task<(Common.Identity Identity, long Tick, bool Paused)> IdentityAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadIdentity, new Lifecycle.IdentityRequest(), cancellationToken).ConfigureAwait(false);
-        var context = reply.Outcome?.Loaded?.Context ?? throw new AcceptanceException($"{label}: no loaded game: {reply.Outcome}");
-        return (context.Identity, context.Tick, reply.Outcome.Loaded.Paused == true);
+        var context = reply.Loaded?.Context ?? throw new AcceptanceException($"{label}: no loaded game");
+        return (context.Identity, context.Tick, reply.Loaded.Paused == true);
     }
 
     /// <summary>A trusted checkpoint save of the paused game; anything but a completed save fails <paramref name="label"/>.</summary>

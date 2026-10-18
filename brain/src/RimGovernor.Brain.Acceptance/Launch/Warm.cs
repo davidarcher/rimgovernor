@@ -374,7 +374,7 @@ public sealed class Game
     private static async Task<Wl.MenuRequest> MenuRequestAsync(Harness h, string label, string requestId, CancellationToken cancellationToken)
     {
         var reply = await h.CallAsync(label + "-identity", NativeOps.ReadIdentity, new Wl.IdentityRequest(), cancellationToken).ConfigureAwait(false);
-        return reply.Outcome?.Loaded?.Context?.Identity is { } identity
+        return reply.Loaded?.Context?.Identity is { } identity
             ? new Wl.MenuRequest { RequestId = requestId, ExpectedPlayer = new() { Identity = identity, PlayerDirection = 1, RequestId = requestId } }
             : new Wl.MenuRequest { RequestId = requestId };
     }

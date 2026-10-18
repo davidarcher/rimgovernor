@@ -23,19 +23,10 @@ public static class DecodeReads
         {
             throw new ObservationContractException("missing identity");
         }
-        switch (reply.Outcome)
-        {
-            case IdentityReplyOutcome.LoadedCase:
-            {
-                var loaded = reply.Outcome?.Loaded ?? throw new ObservationContractException("missing loaded identity");
-                var result = ContextIdentity(loaded.Context);
-                return loaded.Paused is not null ? result with { Paused = Known(loaded.Paused.GetValueOrDefault()) } : result;
-            }
-            case IdentityReplyOutcome.UnavailableCase:
-                throw new BridgeUnavailableException();
-            default:
-                throw new ObservationContractException("identity outcome");
-        }
+        // Native read failed; it logged the reason.
+        var loaded = reply.Loaded ?? throw new BridgeUnavailableException();
+        var result = ContextIdentity(loaded.Context);
+        return loaded.Paused is not null ? result with { Paused = Known(loaded.Paused.GetValueOrDefault()) } : result;
     }
 
     /// <summary>The identity a lifecycle_read_tick reply reports; it is what <see cref="DecodeIdentity"/> reads.</summary>

@@ -39,9 +39,11 @@ namespace HomeBridge.BridgeTools
         internal static Lifecycle.IdentityReply HandleReadIdentity(Lifecycle.IdentityRequest parsed)
         {
             if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var context, out var unavailable))
-                return new Lifecycle.IdentityReply { Outcome = unavailable };
-            var loaded = new Lifecycle.LoadedIdentity { Context = context, Paused = Find.TickManager.Paused };
-            return new Lifecycle.IdentityReply { Outcome = loaded };
+            {
+                ReadFailureLog.Note("lifecycle_read_identity", unavailable.Reason + ": " + unavailable.Detail);
+                return new Lifecycle.IdentityReply();
+            }
+            return new Lifecycle.IdentityReply { Loaded = new Lifecycle.LoadedIdentity { Context = context, Paused = Find.TickManager.Paused } };
         }
     }
 }

@@ -57,7 +57,7 @@ public static class CombatLabLayout
 
         // The batch put replaces the whole set, so read the save's blobs and add the layout to them.
         var read = await h.CallAsync("store-layout-read", NativeOps.ReadGovernorState, new Wl.GovernorStateRequest(), cancellationToken).ConfigureAwait(false);
-        var loaded = read.Outcome?.Loaded ?? throw new AcceptanceException($"store-layout-read: {WireJson.Serialize(read)}");
+        var loaded = read.Loaded ?? throw new AcceptanceException($"store-layout-read: {WireJson.Serialize(read)}");
         var blobs = new Dictionary<string, string>(loaded.Blobs, StringComparer.Ordinal)
         {
             [Store.Store.GovernorDefenseLayoutKey] = blob,
@@ -68,7 +68,7 @@ public static class CombatLabLayout
         var plan = LayoutPlan.OpeningPlan(Toward(l.Toward));
         blobs[Store.Store.GovernorLayoutPlanKey] = FamilyBlob(StoreJson.Serialize(plan), (world.Colony.Value, world.Map.Value));
         var reply = await h.CallAsync("store-layout", NativeOps.PutGovernorStateBatch, new Wl.PutGovernorStateBatchRequest { Blobs = blobs }, cancellationToken).ConfigureAwait(false);
-        _ = reply.Outcome?.Loaded ?? throw new AcceptanceException($"store-layout: {WireJson.Serialize(reply)}");
+        _ = reply.Loaded ?? throw new AcceptanceException($"store-layout: {WireJson.Serialize(reply)}");
 
         return JsonNode.Parse(StoreJson.Serialize(record));
     }

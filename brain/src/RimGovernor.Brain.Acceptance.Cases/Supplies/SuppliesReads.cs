@@ -106,7 +106,7 @@ internal static class SuppliesReads
     private static async Task<Lifecycle.LoadedIdentity> IdentityAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadIdentity, new Lifecycle.IdentityRequest(), cancellationToken).ConfigureAwait(false);
-        return reply.Outcome?.Loaded ?? throw new AcceptanceException($"{label}: identity not loaded: {reply.Outcome}");
+        return reply.Loaded ?? throw new AcceptanceException($"{label}: identity not loaded");
     }
 
     private static async Task<Observations.SuppliesSnapshot> CensusAsync(TypedSession s, string label, Observations.StockFilter filter, CancellationToken cancellationToken)

@@ -87,29 +87,18 @@ internal sealed class FacadeGovernorState(INativeFacade facade)
     public async Task<IReadOnlyDictionary<string, string>> ReadAsync(CancellationToken ct)
     {
         var reply = await facade.ReadGovernorStateAsync(new PbLifecycle.GovernorStateRequest(), ct).ConfigureAwait(false);
-        return reply.Outcome switch
-        {
-            PbLifecycle.GovernorStateReplyOutcome.LoadedCase loaded => new Dictionary<string, string>(loaded.Value.Blobs, StringComparer.Ordinal),
-            PbLifecycle.GovernorStateReplyOutcome.UnavailableCase unavailable => throw FacadeReplies.Unavailable("GovernorState", unavailable.Value),
-            PbLifecycle.GovernorStateReplyOutcome.FailureCase failure => throw FacadeReplies.Refused("GovernorState", failure.Value),
-            _ => throw new BridgeContractException("GovernorState reply carried no outcome"),
-        };
+        // Absent when native could not read it; native logged the reason.
+        var loaded = reply.Loaded ?? throw new BridgeUnavailableException("GovernorState: native gave no state");
+        return new Dictionary<string, string>(loaded.Blobs, StringComparer.Ordinal);
     }
 
     public async Task PutAsync(IReadOnlyDictionary<string, string> blobs, CancellationToken ct)
     {
         var request = new PbLifecycle.PutGovernorStateBatchRequest { Blobs = new Dictionary<string, string>(blobs, StringComparer.Ordinal) };
         var reply = await facade.PutGovernorStateBatchAsync(request, ct).ConfigureAwait(false);
-        switch (reply.Outcome)
+        if (reply.Loaded is null)
         {
-            case PbLifecycle.GovernorStateReplyOutcome.LoadedCase:
-                return;
-            case PbLifecycle.GovernorStateReplyOutcome.UnavailableCase unavailable:
-                throw FacadeReplies.Unavailable("PutGovernorStateBatch", unavailable.Value);
-            case PbLifecycle.GovernorStateReplyOutcome.FailureCase failure:
-                throw FacadeReplies.Refused("PutGovernorStateBatch", failure.Value);
-            default:
-                throw new BridgeContractException("PutGovernorStateBatch reply carried no outcome");
+            throw new BridgeUnavailableException("PutGovernorStateBatch: native staged nothing");
         }
     }
 }

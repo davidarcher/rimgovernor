@@ -50,7 +50,7 @@ public sealed class ResumePauseClockOwnerTests
         public bool Held { get; private set; } = true;
 
         public Task<PbLifecycle.IdentityReply> IdentityAsync(CancellationToken ct) =>
-            Task.FromResult(new PbLifecycle.IdentityReply { Outcome = new PbLifecycle.IdentityReplyOutcome.LoadedCase(new PbLifecycle.LoadedIdentity { Context = Context, Paused = Held }) });
+            Task.FromResult(new PbLifecycle.IdentityReply { Loaded = new PbLifecycle.LoadedIdentity { Context = Context, Paused = Held } });
 
         public Task<PbClock.StatusReply> ReadClockStatusAsync(PbCommon.Identity identity, CancellationToken ct) =>
             Task.FromResult(new PbClock.StatusReply { Outcome = new PbClock.StatusReplyOutcome.StatusCase(Status()) });
@@ -74,7 +74,7 @@ public sealed class ResumePauseClockOwnerTests
         }
 
         public Task<PbClock.HeartbeatAck> HeartbeatAsync(PbClock.HeartbeatRequest request, CancellationToken ct) =>
-            Task.FromResult(new PbClock.HeartbeatAck { State = Held ? PbClock.ClockState.Held : PbClock.ClockState.Running, Reason = Held ? Reason : null });
+            Task.FromResult(new PbClock.HeartbeatAck());
 
         private PbClock.Status Status() => new()
         {

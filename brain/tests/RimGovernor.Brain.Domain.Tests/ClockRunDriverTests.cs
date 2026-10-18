@@ -280,7 +280,7 @@ public sealed class ClockRunDriverTests
                 _heartbeats++;
                 return new PbClock.HeartbeatReply
                 {
-                    Outcome = new PbClock.HeartbeatReplyOutcome.AckCase(new PbClock.HeartbeatAck { State = _held ? PbClock.ClockState.Held : PbClock.ClockState.Running, Reason = _held ? _reason : null }),
+                    Outcome = new PbClock.HeartbeatReplyOutcome.AckCase(new PbClock.HeartbeatAck()),
                 };
             }
         }

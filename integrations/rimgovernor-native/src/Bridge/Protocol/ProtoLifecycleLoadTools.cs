@@ -109,7 +109,6 @@ namespace HomeBridge.BridgeTools
                     // safe to supersede and proceed.
                     previous.Reply = new Lifecycle.LoadReply { Outcome = new Lifecycle.LoadSuperseded
                     {
-                        RequestId = previous.RequestId,
                         Detail = "A newer rimgovernor/lifecycle_load request (" + (request.RequestId ?? "") + ") started before this one completed."
                     } };
                 }
@@ -175,7 +174,6 @@ namespace HomeBridge.BridgeTools
             if (entry.ExpectedColonyIdentity != null && (entry.ExpectedColonyIdentity.ColonyId ?? "") != (context.Identity?.ColonyId ?? ""))
                 return CompleteWith(entry, new Lifecycle.LoadReply { Outcome = new Lifecycle.LoadSuperseded
                 {
-                    RequestId = entry.RequestId,
                     Detail = "Observed colony after load does not match the identity this request expected."
                 } });
 
@@ -207,7 +205,7 @@ namespace HomeBridge.BridgeTools
         private static Lifecycle.LoadReply PendingReply(Entry entry) =>
             new Lifecycle.LoadReply { Outcome = new Lifecycle.LoadPending
             {
-                RequestId = entry.RequestId, SaveName = entry.SaveName,
+                RequestId = entry.RequestId,
             } };
 
         private static Lifecycle.LoadReply CompleteWith(Entry entry, Lifecycle.LoadReply reply)

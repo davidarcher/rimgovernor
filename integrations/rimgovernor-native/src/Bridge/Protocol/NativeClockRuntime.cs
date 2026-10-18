@@ -331,14 +331,8 @@ namespace HomeBridge.BridgeTools
         {
             lock (Gate)
             {
-                var ceiling = SharedCeiling();
-                ceiling.Beat(NowMs());
-                var s = _state;
-                var live = s != null && ReferenceEquals(s.Session, Current.Game);
-                var running = live && s!.Active && s.Pending == null;
-                return new Clock.HeartbeatAck {
-                    State = running ? Clock.ClockState.Running : Clock.ClockState.Held,
-                    Reason = running ? null : live ? s!.Pending?.Reason ?? s.StopReason : Clock.HoldReason.NeverRun };
+                SharedCeiling().Beat(NowMs());
+                return new Clock.HeartbeatAck();
             }
         }
 

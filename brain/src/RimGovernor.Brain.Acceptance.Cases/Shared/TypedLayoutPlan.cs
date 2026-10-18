@@ -17,7 +17,7 @@ internal static class TypedLayoutPlan
     {
         // The batch put replaces the whole set, so read the save's blobs and add the plan to them.
         var read = await s.CallAsync("read-governor-state", NativeOps.ReadGovernorState, new Lifecycle.GovernorStateRequest(), cancellationToken).ConfigureAwait(false);
-        var loaded = read.Outcome?.Loaded ?? throw new AcceptanceException($"read-governor-state: not loaded: {read.Outcome}");
+        var loaded = read.Loaded ?? throw new AcceptanceException($"read-governor-state: not loaded");
         var blobs = new Dictionary<string, string>(loaded.Blobs, StringComparer.Ordinal)
         {
             [Store.Store.GovernorLayoutPlanKey] = ServedOps.Args(
@@ -26,9 +26,9 @@ internal static class TypedLayoutPlan
                 ("record", JsonNode.Parse(StoreJson.Serialize(plan)))).ToJsonString(),
         };
         var put = await s.CallAsync("put-governor-state", NativeOps.PutGovernorStateBatch, new Lifecycle.PutGovernorStateBatchRequest { Blobs = blobs }, cancellationToken).ConfigureAwait(false);
-        if (put.Outcome?.Loaded is null)
+        if (put.Loaded is null)
         {
-            throw new AcceptanceException($"put-governor-state: not loaded: {put.Outcome}");
+            throw new AcceptanceException($"put-governor-state: not loaded");
         }
     }
 }

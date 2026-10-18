@@ -256,7 +256,7 @@ public static class StartOps
     private static async Task<JsonObject> LoadLoadedAsync(Session session, CancellationToken cancellationToken)
     {
         var reply = await session.Harness.CallAsync("loaded-identity", NativeOps.ReadIdentity, new Wl.IdentityRequest(), cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome?.Loaded is null)
+        if (reply.Loaded is null)
         {
             throw new AcceptanceException("no game is loaded in the kept process; start from a save instead");
         }

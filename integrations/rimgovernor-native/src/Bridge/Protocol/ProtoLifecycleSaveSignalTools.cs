@@ -28,19 +28,19 @@ namespace HomeBridge.BridgeTools
         {
             var wait = parsed.TimeoutMs is not null ? Math.Min(Math.Max(parsed.TimeoutMs.GetValueOrDefault(), 1), MaxWaitMs) : DefaultWaitMs;
             var token = await SaveHandshake.WaitAsync(wait, cancellationToken).ConfigureAwait(false);
-            if (token != null)
-                return new Lifecycle.WaitSaveSignalReply { Outcome = new Lifecycle.SaveSignal { Kind = "pre_save", Token = token } };
-            if (cancellationToken.IsCancellationRequested)
-                return new Lifecycle.WaitSaveSignalReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.Cancelled, "Wait cancelled.") };
-            return new Lifecycle.WaitSaveSignalReply { Outcome = new Lifecycle.SaveSignalTimeout() };
+            // No signal is a timeout or the caller's own cancellation; neither is a failure to log.
+            return token != null
+                ? new Lifecycle.WaitSaveSignalReply { Signal = new Lifecycle.SaveSignal { Token = token } }
+                : new Lifecycle.WaitSaveSignalReply();
         }
         // Off the game thread: the typed core, shared with the in-process facade.
         internal static Lifecycle.FlushDoneReply FlushDoneCore(Lifecycle.FlushDoneRequest parsed)
         {
             if (parsed.Token is null || (parsed.Token ?? "").Length == 0)
-                return new Lifecycle.FlushDoneReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A token is required.") };
+                return new Lifecycle.FlushDoneReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A token is required.") };
             if (!SaveHandshake.Ack((parsed.Token ?? "")))
-                return new Lifecycle.FlushDoneReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Stale or unknown save token.") };
-            return new Lifecycle.FlushDoneReply { Outcome = new Lifecycle.FlushDoneAcked() };        }
+                return new Lifecycle.FlushDoneReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Stale or unknown save token.") };
+            return new Lifecycle.FlushDoneReply();
+        }
     }
 }

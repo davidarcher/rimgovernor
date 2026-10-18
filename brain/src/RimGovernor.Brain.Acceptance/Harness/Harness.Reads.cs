@@ -18,7 +18,7 @@ public sealed partial class Harness
     public async Task<Wl.LoadedIdentity> LoadedAsync(string label, CancellationToken cancellationToken)
     {
         var reply = await CallAsync(label, NativeOps.ReadIdentity, new Wl.IdentityRequest(), cancellationToken).ConfigureAwait(false);
-        return reply.Outcome?.Loaded ?? throw new AcceptanceException($"{label}: {NativeOps.ReadIdentity.Name} is not loaded: {WireJson.Serialize(reply)}");
+        return reply.Loaded ?? throw new AcceptanceException($"{label}: {NativeOps.ReadIdentity.Name} is not loaded: {WireJson.Serialize(reply)}");
     }
 
     /// <summary>lifecycle_read_tick's <c>loaded</c> arm; any other arm fails <paramref name="label"/> with the reply.</summary>

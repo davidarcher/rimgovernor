@@ -41,15 +41,15 @@ internal static class LifecycleLoad
 
         // Save handshake: with no save running the held wait returns its timeout, and an unissued token is refused.
         var wait = await s.CallAsync("save-signal-wait", NativeOps.WaitSaveSignal, new Lifecycle.WaitSaveSignalRequest { TimeoutMs = 200 }, cancellationToken).ConfigureAwait(false);
-        if (wait.Outcome?.Timeout is null)
+        if (wait.Signal is not null)
         {
-            throw new AcceptanceException($"save-signal-wait: want a timeout, got {wait.Outcome}");
+            throw new AcceptanceException("save-signal-wait: want a timeout, got a signal");
         }
 
         var flush = await s.CallAsync("save-signal-stale", NativeOps.FlushDone, new Lifecycle.FlushDoneRequest { Token = "never-issued" }, cancellationToken).ConfigureAwait(false);
-        if (flush.Outcome?.Failure is null)
+        if (flush.Failure is null)
         {
-            throw new AcceptanceException($"save-signal-stale: want a refusal, got {flush.Outcome}");
+            throw new AcceptanceException("save-signal-stale: want a refusal, got an ack");
         }
 
         // The batched put replaces the whole set: a second key goes in with the probe, then a batch without it removes it.
@@ -103,15 +103,15 @@ internal static class LifecycleLoad
     private static async Task PutAsync(TypedSession s, string label, Dictionary<string, string> blobs, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.PutGovernorStateBatch, new Lifecycle.PutGovernorStateBatchRequest { Blobs = blobs }, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome?.Loaded is null)
+        if (reply.Loaded is null)
         {
-            throw new AcceptanceException($"{label}: the put was not accepted: {reply.Outcome}");
+            throw new AcceptanceException($"{label}: the put was not accepted");
         }
     }
 
     private static async Task<IReadOnlyDictionary<string, string>> GovernorStateAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadGovernorState, new Lifecycle.GovernorStateRequest(), cancellationToken).ConfigureAwait(false);
-        return reply.Outcome?.Loaded?.Blobs ?? throw new AcceptanceException($"{label}: no governor state: {reply.Outcome}");
+        return reply.Loaded?.Blobs ?? throw new AcceptanceException($"{label}: no governor state");
     }
 }

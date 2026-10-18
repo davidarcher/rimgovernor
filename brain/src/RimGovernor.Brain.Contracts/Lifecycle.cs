@@ -96,34 +96,10 @@ public sealed record LoadedIdentity
     public bool? Paused { get; init; }
 }
 
+/// <summary>The identity read; <c>Loaded</c> is absent when native could not read it (native logs the reason).</summary>
 public sealed record IdentityReply
 {
-    public IdentityReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="IdentityReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(IdentityReplyOutcome.LoadedCase), "loaded")]
-[JsonDerivedType(typeof(IdentityReplyOutcome.UnavailableCase), "unavailable")]
-public abstract record IdentityReplyOutcome
-{
-    private protected IdentityReplyOutcome() { }
-
-    /// <summary>The <c>Loaded</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public LoadedIdentity? Loaded => (this as LoadedCase)?.Value;
-
-    public sealed record LoadedCase(LoadedIdentity Value) : IdentityReplyOutcome;
-
-    public static implicit operator IdentityReplyOutcome(LoadedIdentity value) => new LoadedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : IdentityReplyOutcome;
-
-    public static implicit operator IdentityReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+    public LoadedIdentity? Loaded { get; init; }
 }
 
 /// <summary>
@@ -312,15 +288,11 @@ public sealed record LoadPending
 {
     public string? RequestId { get; init; }
 
-    public string? SaveName { get; init; }
-
     public string? Detail { get; init; }
 }
 
 public sealed record LoadSuperseded
 {
-    public string? RequestId { get; init; }
-
     public string? Detail { get; init; }
 }
 
@@ -645,8 +617,6 @@ public sealed record NewColonyPending
 
 public sealed record NewColonySuperseded
 {
-    public string? RequestId { get; init; }
-
     public string? Detail { get; init; }
 }
 
@@ -706,43 +676,10 @@ public sealed record GovernorStateBlobs
     public IReadOnlyDictionary<string, string> Blobs { get; init; } = new Dictionary<string, string>();
 }
 
+/// <summary>The blobs read or staged; <c>Loaded</c> is absent when native could not (native logs the reason).</summary>
 public sealed record GovernorStateReply
 {
-    public GovernorStateReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="GovernorStateReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(GovernorStateReplyOutcome.LoadedCase), "loaded")]
-[JsonDerivedType(typeof(GovernorStateReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(GovernorStateReplyOutcome.FailureCase), "failure")]
-public abstract record GovernorStateReplyOutcome
-{
-    private protected GovernorStateReplyOutcome() { }
-
-    /// <summary>The <c>Loaded</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public GovernorStateBlobs? Loaded => (this as LoadedCase)?.Value;
-
-    public sealed record LoadedCase(GovernorStateBlobs Value) : GovernorStateReplyOutcome;
-
-    public static implicit operator GovernorStateReplyOutcome(GovernorStateBlobs value) => new LoadedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : GovernorStateReplyOutcome;
-
-    public static implicit operator GovernorStateReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : GovernorStateReplyOutcome;
-
-    public static implicit operator GovernorStateReplyOutcome(Common.Failure value) => new FailureCase(value);
+    public GovernorStateBlobs? Loaded { get; init; }
 }
 
 /// <summary>
@@ -769,46 +706,13 @@ public sealed record WaitSaveSignalRequest
 
 public sealed record SaveSignal
 {
-    public string? Kind { get; init; }
-
     public string? Token { get; init; }
 }
 
-public sealed record SaveSignalTimeout;
-
+/// <summary>The wait's answer; <c>Signal</c> is absent when the wait timed out or was cancelled.</summary>
 public sealed record WaitSaveSignalReply
 {
-    public WaitSaveSignalReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="WaitSaveSignalReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(WaitSaveSignalReplyOutcome.SignalCase), "signal")]
-[JsonDerivedType(typeof(WaitSaveSignalReplyOutcome.TimeoutCase), "timeout")]
-[JsonDerivedType(typeof(WaitSaveSignalReplyOutcome.FailureCase), "failure")]
-public abstract record WaitSaveSignalReplyOutcome
-{
-    private protected WaitSaveSignalReplyOutcome() { }
-
-    public sealed record SignalCase(SaveSignal Value) : WaitSaveSignalReplyOutcome;
-
-    public static implicit operator WaitSaveSignalReplyOutcome(SaveSignal value) => new SignalCase(value);
-
-    /// <summary>The <c>Timeout</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public SaveSignalTimeout? Timeout => (this as TimeoutCase)?.Value;
-
-    public sealed record TimeoutCase(SaveSignalTimeout Value) : WaitSaveSignalReplyOutcome;
-
-    public static implicit operator WaitSaveSignalReplyOutcome(SaveSignalTimeout value) => new TimeoutCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : WaitSaveSignalReplyOutcome;
-
-    public static implicit operator WaitSaveSignalReplyOutcome(Common.Failure value) => new FailureCase(value);
+    public SaveSignal? Signal { get; init; }
 }
 
 public sealed record FlushDoneRequest
@@ -816,31 +720,9 @@ public sealed record FlushDoneRequest
     public string? Token { get; init; }
 }
 
-public sealed record FlushDoneAcked;
-
+/// <summary>The flush ack: empty when acked, a failure otherwise.</summary>
 public sealed record FlushDoneReply
 {
-    public FlushDoneReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="FlushDoneReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(FlushDoneReplyOutcome.AckedCase), "acked")]
-[JsonDerivedType(typeof(FlushDoneReplyOutcome.FailureCase), "failure")]
-public abstract record FlushDoneReplyOutcome
-{
-    private protected FlushDoneReplyOutcome() { }
-
-    public sealed record AckedCase(FlushDoneAcked Value) : FlushDoneReplyOutcome;
-
-    public static implicit operator FlushDoneReplyOutcome(FlushDoneAcked value) => new AckedCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : FlushDoneReplyOutcome;
-
-    public static implicit operator FlushDoneReplyOutcome(Common.Failure value) => new FailureCase(value);
+    public Common.Failure? Failure { get; init; }
 }
 

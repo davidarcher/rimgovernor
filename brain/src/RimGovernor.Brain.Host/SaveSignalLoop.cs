@@ -61,13 +61,7 @@ internal sealed class SaveSignalLoop(INativeFacade facade, StateFlusher flusher,
     private async Task<string?> WaitAsync(CancellationToken ct)
     {
         var reply = await facade.WaitSaveSignalAsync(new PbLifecycle.WaitSaveSignalRequest(), ct).ConfigureAwait(false);
-        return reply.Outcome switch
-        {
-            PbLifecycle.WaitSaveSignalReplyOutcome.SignalCase signal => signal.Value.Token ?? string.Empty,
-            PbLifecycle.WaitSaveSignalReplyOutcome.TimeoutCase => null,
-            PbLifecycle.WaitSaveSignalReplyOutcome.FailureCase failure => throw FacadeReplies.Refused("WaitSaveSignal", failure.Value),
-            _ => throw new RimGovernor.Brain.Bridge.Contracts.BridgeContractException("WaitSaveSignal reply carried no outcome"),
-        };
+        return reply.Signal is { } signal ? signal.Token ?? string.Empty : null;
     }
 
     private async Task FlushAndAckAsync(string token, CancellationToken ct)
@@ -94,9 +88,9 @@ internal sealed class SaveSignalLoop(INativeFacade facade, StateFlusher flusher,
             try
             {
                 var reply = await facade.FlushDoneAsync(new PbLifecycle.FlushDoneRequest { Token = token }, ack.Token).ConfigureAwait(false);
-                if (reply.Outcome is PbLifecycle.FlushDoneReplyOutcome.FailureCase failure)
+                if (reply.Failure is { } failure)
                 {
-                    ackError = FacadeReplies.Refused("FlushDone", failure.Value).Message;
+                    ackError = FacadeReplies.Refused("FlushDone", failure).Message;
                 }
             }
             catch (Exception e)

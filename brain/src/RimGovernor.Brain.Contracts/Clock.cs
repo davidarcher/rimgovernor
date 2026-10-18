@@ -449,13 +449,8 @@ public abstract record StatusReplyOutcome
     public static implicit operator StatusReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
-/// <summary>What a heartbeat answers: the clock state, why it is held, and the ceiling.</summary>
-public sealed record HeartbeatAck
-{
-    public ClockState? State { get; init; }
-
-    public HoldReason? Reason { get; init; }
-}
+/// <summary>What a heartbeat answers: contact was recorded.</summary>
+public sealed record HeartbeatAck;
 
 public sealed record HeartbeatReply
 {
