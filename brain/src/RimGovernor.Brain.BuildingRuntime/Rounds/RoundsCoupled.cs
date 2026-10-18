@@ -110,7 +110,7 @@ public sealed partial class Rounder
     private static void RecordCoupledSelection(ForecastCoupledSelection selection, long tick, string method, bool protectedContinuation = false, string? admissionFailure = null)
         => Tel.Decide(new Decision
         {
-            Kind = "coupled_selection", Component = "rounds", Target = method,
+            Kind = TelemetryKinds.CoupledSelectionKind, Component = "rounds", Target = method,
             Verdict = admissionFailure is not null ? "deferred" : protectedContinuation || selection.Selection.Selected.Length == 0 ? "continue" : "selected",
             Reason = admissionFailure is not null ? "method_not_admitted" : protectedContinuation ? "protected_method_ownership" : selection.Selection.SearchTruncated ? "best_found_bounded" : "shared_consequences",
             Attrs = new Dictionary<string, object?>

@@ -77,6 +77,17 @@ estimated day, wait on the forecast work in
 [#3469](https://github.com/davidarcher/rimgovernor/issues/3469) and
 [#3470](https://github.com/davidarcher/rimgovernor/issues/3470). Treat both as your record of priority until then.
 
+## Long projects when food is secure
+
+Besides the day ahead, the governor models roughly a game year of the colony: research points, sowing, how long a crop
+takes to grow in your climate, and the food in stock. Research and sowing pay off weeks later, so it prices an hour of
+them by how much sooner the payoff arrives, in the same terms as an hour of food, rest or idle labor. When food is secure
+that hour beats idling, so a researcher at a bench or a grower with a growing zone starts a long project (Devilstrand is
+the worked example: 800 research points, then sowing at Plants 10) instead of waiting for a goal to demand it. When
+food is short, nothing ranks above eating and long projects wait. The apparel payoff of the Devilstrand chain is not yet
+priced in real play ([#3559](https://github.com/davidarcher/rimgovernor/issues/3559)), so that chain does not start on its
+own yet.
+
 ## Preferences
 
 The Goals tab ends with standing **Preferences**. These are not goals with a finish line; they change how the governor

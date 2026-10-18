@@ -1425,3 +1425,51 @@ exact recipes and observed-output delivery tasks. Conflicting wearables and
 shared destinations exclude one another. Normal clothing alternatives feed the
 coupled trajectory and shared portfolio comparison; the retired family-local
 winner and continuation wrappers are not executable selection paths.
+
+## Tier 2 colony model
+
+The [tier-2 model](forecast-value.md#tier-2-event-driven-colony-model) (#3470) looks about a game year past the
+one-day coupled trajectory and tells tier 1 what an hour of research or sowing is worth. It lives in
+`Policy/ColonyModel` (pure) and runs from `RoundsColonyModel.Review`, once per review inside the Rounder, after the coupled
+candidates are built and before the comparison; nothing is cached between reviews. The Devilstrand payoff chain (the research
+gate, the crop's craft node and the garment they feed) is wired into real reviews by #3559, and its in-play proof is #3560;
+until then a real review prices the current research chain and each standing field's crop from sowing to harvest, so the
+investment credit is 0 for a colony whose field has no priced payoff. `production/devilstrand-investment-starving`
+(#3532) proves the other half in play: while the urgent floor binds, the credit never outranks food.
+
+**Inputs.** `ColonyModelInput` (`ColonyModelInput.cs`, assembled by `RoundsColonyModel.InputOf`) reads facts the review frame
+already carries and makes no native call: the seasonal climate, the calendar, the growing zones and planned fields with
+per-cell fertility, the crop catalog, the research census, the stocks (nutrition of the edible food census, materials,
+medicine), the pawns (need mechanics, capacities, comfort range, research and plant work speed from the coupled research and
+sowing reads), the recipes, and the current and planned construction sites. A section the frame did not carry is an unknown
+`Fact`, never a default; `ColonyModelInput.Unknowns()` names each and the `colony_model` event reports it as `input:<section>`.
+
+**Pawn cycle.** `PawnCycle.Year` derives, per pawn, twelve entries (one per twelfth of the year) of sleep, recreation, eating,
+outdoor-capable and indoor labor hours from the pawn's need rates and the twelfth's daylight, and the skill gates of tasks
+(devilstrand sowing needs Plants 10). Timetables are not modelled.
+
+**Event loop.** `ColonyModel.Run` (`ColonyModel.cs`, `ColonyEvent.cs`, `ColonyTrajectory.cs`) steps stocks at piecewise-constant
+rates and jumps from event to event: a twelfth boundary, a scheduled project completion or harvest, a stock reaching zero, the
+food runway, the horizon. Its cost is the number of events (budget `ColonyModelPolicy.MaxEvents`, 4,096; a run that reaches it
+is `truncated`), never ticks, and the same input gives the same events.
+
+**Project graph.** `ProjectGraph.Standing` (`ProjectGraph.cs`, `ProjectNode.cs`, `ProjectRun.cs`, `CropGrowthModel.cs`) builds the
+nodes in labor-priority order: the current research chain, and per standing field with a crop the sow, grow and harvest nodes;
+growth per twelfth of the tile's temperature, with `crop_will_not_mature:<node>` when no growth comes before the crop is due.
+Labor goes to ready nodes in that fixed order; there is no search.
+
+**Marginal value.** `ProjectMarginalValue.Of` runs the model as it is and once per research and sowing node with one hour of work
+injected at time zero. `ColonyValue` prices each run in capability-days (starvation by the malnutrition stage table, apparel made
+by a craft node by the harm model, unassessed with a named finding when the harm model or the gear option is unknown), and the
+difference is the hour's value, `dV/dt`. A crop that cannot mature, or a chain whose payoff is unassessed, is worth nothing.
+
+**How the credit reaches tier 1.** `ProjectMarginals.PerUnit` is the value of one research point or one cell sown. The Rounder
+puts it in `ForecastCoupledContext.Investment`, keyed by `ForecastProjectProgress.Project`, which the research and sowing
+candidates carry on their tasks (`ResearchMethodCandidates`, `SowingMethodCandidates`). `ForecastValue.Of` writes
+`-(work ticks × progress per tick × value per unit)` to the ledger's `Investment` term, so the block competes with idle labor
+in the same capability-days as food, rest and harm. It competes below the safety floors: an outcome that breaks the urgent-zero
+floor loses to one that does not, whatever its investment.
+
+**The `colony_model` event.** One row per review that had coupled candidates, emitted by the Rounder before the comparison:
+horizon, events, `truncated`, `runway_day`, `value`, `nutrition_end`, `completions`, `dvdt` per node, `findings` and `elapsed_ms`
+([otel signals](../contracts/otel-signals.md#kinds)). The `coupled_selection` rows carry the term as `value.investment`.

@@ -35,6 +35,12 @@ public static class TelemetryKinds
     /// <summary>One goal's standing at a review (<see cref="GoalReviewKind"/>).</summary>
     public static readonly TelemetryKind GoalReview = new(GoalReviewKind);
 
+    /// <summary>The kind the shared portfolio comparison's selection decisions are emitted under.</summary>
+    public const string CoupledSelectionKind = "coupled_selection";
+
+    /// <summary>One review's coupled selection: the chosen tasks and the value each outcome was ranked by (<see cref="CoupledSelectionKind"/>).</summary>
+    public static readonly TelemetryKind CoupledSelection = new(CoupledSelectionKind);
+
     /// <summary>The kind the stockpile, field and building layout decisions are emitted under.</summary>
     public const string LayoutEditKind = "layout_edit";
 
