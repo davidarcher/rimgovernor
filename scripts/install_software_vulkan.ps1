@@ -4,20 +4,25 @@ param(
     [string]$Dir = 'C:\rg\vulkan'
 )
 # Gives a GPU-less hosted runner a Vulkan device so the colony review's rendered game (RimWorld 1.7 starts through
-# Vulkan and dies without a vulkan-1.dll: "No Vulkan loader found") can start. Two pinned, digest-checked downloads:
-#   - the Khronos/LunarG loader vulkan-1.dll (1.3.204.1), put in System32 where the game looks;
-#   - Mesa's lavapipe CPU driver (mesa-dist-win release-msvc), registered as the loader's only driver through the
-#     Khronos registry key, which every child process sees (no environment variable to scrub).
+# Vulkan and dies without a vulkan-1.dll: "No Vulkan loader found") can start. Two unmodified upstream files, mirrored
+# in this repository's software-vulkan-2026-10-17 release (no external host at run time) and pinned by SHA-256:
+#   - LunarG's Vulkan runtime components 1.3.296.0 (the Khronos loader vulkan-1.dll, signature-checked as LunarG's),
+#     put in System32 where the game looks;
+#   - Mesa's lavapipe CPU driver (mesa-dist-win 26.2.4 release-msvc), registered as the loader's only driver through
+#     the Khronos registry key, which every child process sees (no environment variable to scrub).
 # Neither file touches the decrypted game bundle or the identity. Run before the play step, in the review job only.
+# Origins: https://sdk.lunarg.com/sdk/download/1.3.296.0/windows/VulkanRT-1.3.296.0-Components.zip and
+# https://github.com/pal1000/mesa-dist-win/releases/tag/26.2.4 .
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$loader = @{
-    Url    = 'https://github.com/GpuZelenograd/memtest_vulkan/releases/download/support/vulkan-1.dll'
-    Sha256 = '3c3aa8ea119e69f4d245637efef46232ad56f062e87cdad738a4e0dabd8d9687'
+$release = 'https://github.com/davidarcher/rimgovernor/releases/download/software-vulkan-2026-10-17'
+$loaderZip = @{
+    Url    = "$release/VulkanRT-1.3.296.0-Components.zip"
+    Sha256 = 'e0429f91cf356fe99e381f7d22e568ac81945669f1be1772d933a0d189230452'
 }
 $mesa = @{
-    Url    = 'https://github.com/pal1000/mesa-dist-win/releases/download/26.2.4/mesa3d-26.2.4-release-msvc.7z'
+    Url    = "$release/mesa3d-26.2.4-release-msvc.7z"
     Sha256 = '351fc8c8b695878ffb3eaa044b3ead08672a48b1a045e3c3e3975811df0f6695'
 }
 
@@ -28,10 +33,18 @@ function Get-Verified($Item, $Path) {
 }
 
 New-Item -ItemType Directory -Force $Dir | Out-Null
-$loaderFile = Join-Path $Dir 'vulkan-1.dll'
 $archive = Join-Path $Dir 'mesa.7z'
-Get-Verified $loader $loaderFile
+$zip = Join-Path $Dir 'vulkanrt.zip'
+Get-Verified $loaderZip $zip
 Get-Verified $mesa $archive
+
+Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $Dir 'rt')
+Remove-Item -LiteralPath $zip
+$loaderFile = Join-Path $Dir 'rt\VulkanRT-1.3.296.0-Components\x64\vulkan-1.dll'
+$signature = Get-AuthenticodeSignature -LiteralPath $loaderFile
+if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O="?LunarG, Inc\.') {
+    throw "vulkan-1.dll is not validly signed by LunarG: $($signature.Status) $($signature.SignerCertificate.Subject)"
+}
 
 # The hosted image ships 7-Zip; take only the lavapipe driver (any folder in the archive, flattened).
 $sevenZip = 'C:\Program Files\7-Zip\7z.exe'
