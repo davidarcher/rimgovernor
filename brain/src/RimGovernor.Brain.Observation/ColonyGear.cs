@@ -189,6 +189,7 @@ public static class ColonyGearReads
             Ingredients = ingredients,
             Sharp = GearDefinitionsReads.OptionStat(catalog, def, stuff, CatalogStats.ArmorSharp, false),
             Blunt = GearDefinitionsReads.OptionStat(catalog, def, stuff, CatalogStats.ArmorBlunt, false),
+            ArmorHeat = GearDefinitionsReads.OptionStat(catalog, def, stuff, CatalogStats.ArmorHeat, true),
             Cold = GearDefinitionsReads.OptionStat(catalog, def, stuff, CatalogStats.InsulationCold, false),
             Heat = GearDefinitionsReads.OptionStat(catalog, def, stuff, CatalogStats.InsulationHeat, false),
             Cost = GearDefinitionsReads.OptionStat(catalog, def, stuff, CatalogStats.MarketValue, true),

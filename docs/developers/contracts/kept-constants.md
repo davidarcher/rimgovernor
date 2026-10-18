@@ -141,6 +141,20 @@ The tier-2 colony model integrates crop growth per twelfth and needs the fractio
 | Growth per tick | `1 / (60000 × growDays) × factors` while the plant is not resting | `Plant.GrowthPerTick` |
 | Research points per work tick | `ResearchSpeed × bench ResearchSpeedFactor × 0.00825` (difficulty and tech-level cost factors are not applied: the catalog cost is used as read) | `JobDriver_Research` toil, `ResearchManager.ResearchPerformed` |
 
+## Mirrored game rules: armor response (#3540)
+
+`ArmorResponseRules` (`brain/src/RimGovernor.Brain.Policy/Harm/ArmorResponse.cs`) mirrors the hit resolution no def carries.
+The harm model needs expected damage per hit and the chance it bleeds, per outfit and weapon bin. Read with ilspycmd (1.7).
+
+| Literal | Value | 1.7 member |
+| --- | --- | --- |
+| Layer order | Garments outermost first by their outermost layer's `drawOrder`, then the race's natural armor | `ArmorUtility.GetPostArmorDamage` |
+| Effective armor | `max(rating − armorPenetration, 0)` | `ArmorUtility.ApplyArmor` |
+| Deflect / halve | One draw: deflected below effective/2, halved below effective; a halved amount is rounded at random (the model halves it exactly) | `ArmorUtility.ApplyArmor` |
+| Halved sharp hit | Becomes blunt: later layers rate it by their blunt stat and it does not bleed | `ArmorUtility.ApplyArmor` |
+| Garment rating | stat × `GearQualityMultipliers(quality).Armor` × condition | the stat's quality part and hit-point scaling |
+| Hit location | `BodyPartRecord.coverageAbs` summed per set of apparel groups the part is in; a garment covers a part sharing any group | `DamageWorker_AddInjury.ChooseHitPart`, `ApparelProperties.CoversBodyPart` |
+
 ## Policy constants (#3469)
 
 `ForecastValuePolicy` (`brain/src/RimGovernor.Brain.Policy/ForecastValue.cs`)

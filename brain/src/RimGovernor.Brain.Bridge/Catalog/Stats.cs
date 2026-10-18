@@ -63,6 +63,7 @@ public static class CatalogStats
     public static readonly CatalogStat MeatAmount = Declare("MeatAmount");
     public static readonly CatalogStat ArmorSharp = Declare("ArmorRating_Sharp");
     public static readonly CatalogStat ArmorBlunt = Declare("ArmorRating_Blunt");
+    public static readonly CatalogStat ArmorHeat = Declare("ArmorRating_Heat");
     public static readonly CatalogStat InsulationCold = Declare("Insulation_Cold");
     public static readonly CatalogStat InsulationHeat = Declare("Insulation_Heat");
 

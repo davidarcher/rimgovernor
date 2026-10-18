@@ -112,6 +112,10 @@ public sealed record GearOption
     public double Condition { get; init; }
     public double Sharp { get; init; }
     public double Blunt { get; init; }
+
+    /// <summary>The def x stuff ArmorRating_Heat (zero when the catalog hides it); <see cref="Heat"/> is the heat insulation.</summary>
+    public double ArmorHeat { get; init; }
+
     public double Cold { get; init; }
     public double Heat { get; init; }
     public double MoveSpeed { get; init; }
@@ -193,7 +197,7 @@ public sealed record GearLoadoutInput
             DomainException.Require(o.Slot is >= GearSlot.SkinTorso and <= GearSlot.Primary, "invalid gear slot");
             DomainException.Require(o.Source is >= GearSource.Worn and <= GearSource.Bill, "invalid gear source");
             DomainException.Require(
-                FoodForecastRules.FoodNumber(o.Condition) && FoodForecastRules.FoodNumber(o.Sharp) && FoodForecastRules.FoodNumber(o.Blunt)
+                FoodForecastRules.FoodNumber(o.Condition) && FoodForecastRules.FoodNumber(o.Sharp) && FoodForecastRules.FoodNumber(o.Blunt) && FoodForecastRules.FoodNumber(o.ArmorHeat)
                     && FoodForecastRules.FoodNumber(o.Cold) && FoodForecastRules.FoodNumber(o.Heat) && FoodForecastRules.FoodNumber(o.Cost)
                     && FoodForecastRules.FoodNumber(o.Range) && FoodForecastRules.FoodNumber(o.MaxHitPoints) && FoodForecastRules.FoodNumber(o.WearPerDay),
                 "invalid gear stat"

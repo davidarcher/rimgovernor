@@ -276,6 +276,8 @@ raid harm per day. The output feeds the currency and the death floor.
    becomes blunt and stops bleeding. Part probabilities come from body
    coverage. The result is a fixed array per (pawn, outfit): expected damage
    per hit and the chance a hit bleeds. A changed outfit swaps one array.
+   `ArmorResponseRules.Of` and `OfOutfit` (#3540) are pure; the mirrored rules are in
+   [kept constants](../contracts/kept-constants.md#mirrored-game-rules-armor-response-3540).
 5. **Consequences.**
    - Bleeding: 0.06 × severity per day for cuts, stabs and gunshots, until
      tended. Untended, it stops by itself after 1.5–3 days.
