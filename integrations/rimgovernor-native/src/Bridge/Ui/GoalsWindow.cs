@@ -23,7 +23,10 @@ namespace HomeBridge.BridgeTools
         private const float PollSeconds = 1.5f;
         private const float RowHeight = 26f;
 
-        private readonly GoalsPanel panel = new(() => BrainBootstrap.Host?.GoalsView, () => BrainBootstrap.Host?.GoalsEditor);
+        private readonly GoalsPanel panel;
+        private volatile PresetBook? book;
+        private bool bookStarted;
+        private bool themesTab;
         private Vector2 scroll;
         private float viewHeight = 600f;
         private float nextPoll;
@@ -43,8 +46,20 @@ namespace HomeBridge.BridgeTools
         private string protectedThings = "";
         private string protectedPawns = "";
 
+        // The Themes tab's state: the adopt form, the member override form, the compose form.
+        private Importance adoptImportance = Importance.Normal;
+        private string adoptDeadlineText = "";
+        private int? overrideGoalId;
+        private Importance overrideImportance = Importance.Normal;
+        private string overrideDeadlineText = "";
+        private string composeName = "";
+        private Importance composeImportance = Importance.Normal;
+        private string composeDeadlineText = "";
+        private readonly HashSet<int> composeGoals = new HashSet<int>();
+
         public GoalsWindow()
         {
+            panel = new GoalsPanel(() => BrainBootstrap.Host?.GoalsView, () => BrainBootstrap.Host?.GoalsEditor, () => book);
             draggable = true;
             resizeable = true;
             forcePause = false;
@@ -61,6 +76,7 @@ namespace HomeBridge.BridgeTools
             base.WindowUpdate();
             if (Time.realtimeSinceStartup < nextPoll) return;
             nextPoll = Time.realtimeSinceStartup + PollSeconds;
+            StartBook();
             _ = panel.RefreshAsync(CancellationToken.None).ContinueWith(
                 t => Log.Warning($"[RimGovernor] The goals window could not read the goals: {t.Exception?.GetBaseException().Message}"),
                 TaskContinuationOptions.OnlyOnFaulted);
@@ -90,14 +106,161 @@ namespace HomeBridge.BridgeTools
             var list = new Listing_Standard();
             list.Begin(view);
             Message(list);
-            Table(list, model);
-            list.GapLine();
-            Form(list);
-            list.GapLine();
-            Preferences(list, model.Record.Preferences);
+            var tabs = list.GetRect(RowHeight);
+            if (Widgets.ButtonText(new Rect(tabs.x, tabs.y, tabs.width / 2f - 2f, tabs.height), themesTab ? "Goals" : "Goals (shown)")) themesTab = false;
+            if (Widgets.ButtonText(new Rect(tabs.x + tabs.width / 2f, tabs.y, tabs.width / 2f, tabs.height), themesTab ? "Themes (shown)" : "Themes")) themesTab = true;
+            if (themesTab)
+            {
+                Themes(list, model);
+            }
+            else
+            {
+                Table(list, model);
+                list.GapLine();
+                Form(list);
+                list.GapLine();
+                Preferences(list, model.Record.Preferences);
+            }
             viewHeight = list.CurHeight + 8f;
             list.End();
             Widgets.EndScrollView();
+        }
+
+        // The shipped presets over the installed game's catalog, built once off the game thread (the Def databases are
+        // written at boot and read-only after). Until it exists the Themes tab lists no presets.
+        private void StartBook()
+        {
+            if (bookStarted) return;
+            bookStarted = true;
+            _ = Task.Run(() => book = new PresetBook(RimGovernor.Brain.Bridge.ThemePresetCatalog.All, new RimGovernor.Brain.Bridge.DefinitionCatalog(NativeCatalogFactory.AllDefs(), RimGovernor.Brain.Bridge.DefStatTable.Empty, NativeDefinitionCatalogTool.BrainDerived()))).ContinueWith(
+                t => Log.Warning($"[RimGovernor] The goals window could not build the preset catalog: {t.Exception?.GetBaseException().Message}"),
+                TaskContinuationOptions.OnlyOnFaulted);
+        }
+
+        private void Themes(Listing_Standard list, GoalsViewModel model)
+        {
+            var presets = panel.Presets;
+            Text.Font = GameFont.Medium;
+            list.Label("Presets");
+            Text.Font = GameFont.Small;
+            if (presets == null) list.Label("Reading the game's definitions...");
+            Pick(list, "Adopt with importance", adoptImportance.ToString(), Enum.GetValues(typeof(Importance)).Cast<Importance>(), i => i.ToString(), i => adoptImportance = i);
+            Field(list, "Adopt deadline (game day, blank for none)", ref adoptDeadlineText);
+            foreach (var preset in model.Presets)
+            {
+                var rect = list.GetRect(RowHeight);
+                Widgets.Label(new Rect(rect.x, rect.y, rect.width * 0.7f, rect.height), preset.Adopted ? preset.Name + " (adopted)" : preset.Name);
+                if (!preset.Adopted && Widgets.ButtonText(new Rect(rect.x + rect.width * 0.7f, rect.y, rect.width * 0.3f, rect.height - 2f), "Adopt"))
+                {
+                    if (!TryNumber(adoptDeadlineText, out var deadline)) { formError = "Deadline must be a whole game day or blank."; }
+                    else
+                    {
+                        formError = "";
+                        var id = preset.Id;
+                        var level = adoptImportance;
+                        panel.Submit(r => ThemeEdits.Adopt(r, presets, id, level, deadline));
+                    }
+                }
+                foreach (var member in preset.Members)
+                    list.Label("    " + member.Title + (member.Available ? "" : "  -- " + member.Reason));
+            }
+            list.GapLine();
+            Text.Font = GameFont.Medium;
+            list.Label("Themes");
+            Text.Font = GameFont.Small;
+            if (model.Themes.Count == 0) list.Label("No themes yet. Adopt a preset above or compose one below.");
+            foreach (var theme in model.Themes) ThemeBlock(list, model, theme, presets);
+            list.GapLine();
+            Compose(list, model);
+        }
+
+        private void ThemeBlock(Listing_Standard list, GoalsViewModel model, ThemeView theme, PresetBook? presets)
+        {
+            Text.Font = GameFont.Medium;
+            list.Label($"{theme.Name}  ({theme.ProgressText}; {theme.Importance}{(theme.Deadline.Length > 0 ? "; " + theme.Deadline : "")})");
+            Text.Font = GameFont.Small;
+            foreach (var member in theme.Members)
+            {
+                var rect = list.GetRect(RowHeight);
+                var widths = new[] { 0.34f, 0.10f, 0.20f, 0.08f, 0.08f };
+                var texts = new[] { member.Title, member.State, member.Detail, member.Importance, member.Deadline };
+                var x = rect.x;
+                for (var i = 0; i < texts.Length; i++)
+                {
+                    var w = rect.width * widths[i];
+                    Widgets.Label(new Rect(x, rect.y, w - 4f, rect.height), texts[i].Truncate(w - 4f));
+                    x += w;
+                }
+                var rest = rect.xMax - x;
+                if (member.GoalId is { } goalId && Widgets.ButtonText(new Rect(x, rect.y, rest / 2f - 2f, rect.height - 2f), "Override"))
+                {
+                    var goal = model.Record.Goals.FirstOrDefault(g => g.Id == goalId);
+                    overrideGoalId = goalId;
+                    overrideImportance = goal?.ImportanceOverride ?? goal?.Importance ?? Importance.Normal;
+                    overrideDeadlineText = goal?.DeadlineOverride is { } d ? d.ToString(CultureInfo.InvariantCulture) : "";
+                }
+                if (theme.PresetId.Length > 0)
+                {
+                    var key = member.Key;
+                    var themeId = theme.ThemeId;
+                    var button = new Rect(x + rest / 2f, rect.y, rest / 2f, rect.height - 2f);
+                    if (member.Restorable)
+                    {
+                        if (Widgets.ButtonText(button, "Restore")) panel.Submit(r => ThemeEdits.RestoreMember(r, presets, themeId, key));
+                    }
+                    else if (Widgets.ButtonText(button, "Remove")) panel.Submit(r => ThemeEdits.RemoveMember(r, presets, themeId, key));
+                }
+                if (overrideGoalId is { } open && member.GoalId == open) OverrideForm(list, open);
+            }
+        }
+
+        private void OverrideForm(Listing_Standard list, int goalId)
+        {
+            Pick(list, "Member importance", overrideImportance.ToString(), Enum.GetValues(typeof(Importance)).Cast<Importance>(), i => i.ToString(), i => overrideImportance = i);
+            Field(list, "Member deadline (game day, blank for the theme's)", ref overrideDeadlineText);
+            var rect = list.GetRect(RowHeight);
+            if (Widgets.ButtonText(new Rect(rect.x, rect.y, rect.width / 3f - 2f, rect.height), "Apply override"))
+            {
+                if (!TryNumber(overrideDeadlineText, out var deadline)) { formError = "Deadline must be a whole game day or blank."; return; }
+                formError = "";
+                var level = overrideImportance;
+                panel.Submit(r => ThemeEdits.OverrideMember(r, goalId, level, deadline));
+                overrideGoalId = null;
+            }
+            if (Widgets.ButtonText(new Rect(rect.x + rect.width / 3f, rect.y, rect.width / 3f - 2f, rect.height), "Clear override"))
+            {
+                panel.Submit(r => ThemeEdits.OverrideMember(r, goalId, null, null));
+                overrideGoalId = null;
+            }
+            if (Widgets.ButtonText(new Rect(rect.x + 2f * rect.width / 3f, rect.y, rect.width / 3f, rect.height), "Cancel")) overrideGoalId = null;
+        }
+
+        private void Compose(Listing_Standard list, GoalsViewModel model)
+        {
+            Text.Font = GameFont.Medium;
+            list.Label("Compose a theme from goals");
+            Text.Font = GameFont.Small;
+            Field(list, "Name", ref composeName);
+            Pick(list, "Importance", composeImportance.ToString(), Enum.GetValues(typeof(Importance)).Cast<Importance>(), i => i.ToString(), i => composeImportance = i);
+            Field(list, "Deadline (game day, blank for none)", ref composeDeadlineText);
+            var free = model.Groups.FirstOrDefault(g => g.ThemeId == null)?.Rows ?? new List<GoalRowView>();
+            if (free.Count == 0) list.Label("Every goal already belongs to a theme.");
+            foreach (var row in free)
+            {
+                var on = composeGoals.Contains(row.Id);
+                var was = on;
+                list.CheckboxLabeled($"{row.Kind} {row.Target}", ref on);
+                if (on != was) { if (on) composeGoals.Add(row.Id); else composeGoals.Remove(row.Id); }
+            }
+            if (!list.ButtonText("Create theme")) return;
+            if (!TryNumber(composeDeadlineText, out var deadline)) { formError = "Deadline must be a whole game day or blank."; return; }
+            formError = "";
+            var name = composeName;
+            var level = composeImportance;
+            var ids = composeGoals.ToList();
+            panel.Submit(r => ThemeEdits.Compose(r, name, level, deadline, ids));
+            composeGoals.Clear();
+            composeName = composeDeadlineText = "";
         }
 
         private void Message(Listing_Standard list)

@@ -31,3 +31,25 @@ acceptance build has no toggle. It is not a `[StaticConstructorOnStartup]`: thos
 `GoalsRounds.ReadAsync` derives each goal's `GoalStatus` and each theme's `ThemeStatus` for its `goal_review` rows and
 publishes them to the `GoalStatusBoard` (in memory, keyed to the colony). `HostGoals.Current()` returns them with the
 record. Nothing is saved or sent over a wire.
+
+## Themes tab (#3502)
+
+The window's second tab lists the shipped presets (`ThemePresetCatalog`) with each member's availability, and the
+adopted or composed themes. The window builds a `PresetBook` (the presets plus the installed `DefinitionCatalog`) once
+on a pool thread and hands it to the panel; until it exists no presets are listed. `ThemesView` and `ThemeEdits` in
+`PlayerApi` are pure.
+
+- Adopt resolves the preset through `PresetRules.Resolve` and saves a `ThemeRecord` (preset id, importance, deadline)
+  plus one minted goal per available goal member, tagged with the theme. Unavailable members are listed with the
+  missing def and never minted. A preference member is shown, not applied: the standing preferences stay the player's
+  own on the Goals tab. A preset is adopted at most once.
+- A member's override of importance or deadline lives on its goal (`ImportanceOverride`, `DeadlineOverride`); the view
+  feeds those to `PresetRules.Resolve` as `MemberOverride`s. A preset member and its goal are matched by kind, target
+  and qualifier.
+- Remove adds the member key to `RemovedPresetMembers` and deletes the goal; Restore clears the key and mints the goal
+  again (with the theme's importance, not the lost override). Restore also re-mints a member whose goal was deleted on
+  the Goals tab.
+- Compose makes an authored theme (empty preset id) from goals that belong to no theme; the theme's importance
+  replaces its members' and its deadline fills those with none. An authored theme has no preference members.
+- Progress is value-weighted: each goal weighs its effective importance (Low 1, Normal 2, High 4) and the theme shows
+  the weight of the met goals over the weight of all its goals.

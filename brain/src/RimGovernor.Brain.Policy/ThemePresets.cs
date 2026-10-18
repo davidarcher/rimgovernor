@@ -54,7 +54,7 @@ public sealed record ResolvedMember(string Key, GoalRecord? Goal, PreferenceFrag
 }
 
 /// <summary>A preset expanded for one theme: every member in preset order, the unavailable ones kept and reasoned.</summary>
-public sealed record ResolvedPreset(string Id, IReadOnlyList<ResolvedMember> Members)
+public sealed record ResolvedPreset(IReadOnlyList<ResolvedMember> Members)
 {
     /// <summary>The goals of the available members.</summary>
     public IEnumerable<GoalRecord> Goals() => Members.Where(m => m.Available && m.Goal is not null).Select(m => m.Goal!);
@@ -94,7 +94,7 @@ public static class PresetRules
             members.Add(new ResolvedMember(member.Key, goal, member.Preference, missing.Count == 0 ? "" : "missing " + string.Join(", ", missing)));
         }
 
-        return new ResolvedPreset(preset.Id, members);
+        return new ResolvedPreset(members);
     }
 
     /// <summary>The defs a goal needs the installed game to carry; a kind that names none (counts, tiers, events) needs none.</summary>

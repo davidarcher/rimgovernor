@@ -43,12 +43,12 @@ public sealed record GoalEdit(GoalsRecord Record, string? Error)
 /// The pure model behind the in-game goals panel (#3497): the snapshot as table rows grouped by theme, built off the
 /// game thread and read by the draw without blocking. Rows sort by importance (high first), then theme, then id.
 /// </summary>
-public sealed record GoalsViewModel(GoalsRecord Record, IReadOnlyList<GoalGroupView> Groups)
+public sealed record GoalsViewModel(GoalsRecord Record, IReadOnlyList<GoalGroupView> Groups, IReadOnlyList<ThemeView> Themes, IReadOnlyList<PresetView> Presets)
 {
     /// <summary>The state of a goal the Family has not reviewed yet (it was added after the last review).</summary>
     public const string Pending = "Pending";
 
-    public static GoalsViewModel From(GoalsSnapshot snapshot)
+    public static GoalsViewModel From(GoalsSnapshot snapshot, PresetBook? book = null)
     {
         var record = snapshot.Record;
         var status = snapshot.Statuses.ToDictionary(s => s.Goal.Id);
@@ -70,7 +70,7 @@ public sealed record GoalsViewModel(GoalsRecord Record, IReadOnlyList<GoalGroupV
             var progress = themeStatus.TryGetValue(theme.Id, out var t) ? $"{t.Met}/{t.Total} met" : "not reviewed";
             groups.Add(new GoalGroupView(theme.Id, theme.Name, progress, rows));
         }
-        return new GoalsViewModel(record, groups);
+        return new GoalsViewModel(record, groups, ThemesView.Themes(record, book, status), ThemesView.Presets(record, book));
     }
 
     private static int? DeadlineOf(GoalRecord goal, ThemeRecord? theme) => goal.DeadlineOverride ?? goal.DeadlineDay ?? theme?.DeadlineDay;
@@ -88,7 +88,7 @@ public sealed record GoalsViewModel(GoalsRecord Record, IReadOnlyList<GoalGroupV
             detail);
     }
 
-    private static (string State, string Detail) Describe(GoalStatus s) => s.State switch
+    internal static (string State, string Detail) Describe(GoalStatus s) => s.State switch
     {
         GoalState.Met => ("Met", ""),
         GoalState.Pursuing => ("Pursuing", s.Owner.Value),
@@ -96,7 +96,7 @@ public sealed record GoalsViewModel(GoalsRecord Record, IReadOnlyList<GoalGroupV
         _ => ("No method", s.Reason),
     };
 
-    private static string TargetText(GoalRecord goal)
+    internal static string TargetText(GoalRecord goal)
     {
         var parts = new List<string>();
         if (goal.Target.Length > 0)

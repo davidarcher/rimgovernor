@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.PlayerApi;
 /// runs). Nothing here awaits on the caller; the game thread only reads <see cref="Model"/> and <see cref="Message"/>
 /// and starts <see cref="RefreshAsync"/> and <see cref="Submit"/>.
 /// </summary>
-public sealed class GoalsPanel(Func<IGoalsView?> view, Func<IGoalsEditor?> editor)
+public sealed class GoalsPanel(Func<IGoalsView?> view, Func<IGoalsEditor?> editor, Func<PresetBook?>? presets = null)
 {
     private readonly object _mu = new();
     private readonly Queue<Func<GoalsRecord, GoalEdit>> _edits = new();
@@ -19,6 +19,9 @@ public sealed class GoalsPanel(Func<IGoalsView?> view, Func<IGoalsEditor?> edito
     private bool _saving;
     private bool _refreshing;
     private long _version;
+
+    /// <summary>The shipped presets over the installed catalog; null until the host has built the catalog.</summary>
+    public PresetBook? Presets => presets?.Invoke();
 
     /// <summary>The latest model; null until the first refresh, or while no brain runs.</summary>
     public GoalsViewModel? Model
@@ -70,7 +73,7 @@ public sealed class GoalsPanel(Func<IGoalsView?> view, Func<IGoalsEditor?> edito
                 try
                 {
                     var snapshot = source.Current();
-                    var model = GoalsViewModel.From(snapshot);
+                    var model = GoalsViewModel.From(snapshot, Presets);
                     lock (_mu)
                     {
                         if (_version == version)
@@ -159,7 +162,7 @@ public sealed class GoalsPanel(Func<IGoalsView?> view, Func<IGoalsEditor?> edito
         lock (_mu)
         {
             _version++;
-            (_snapshot, _model) = (saved, GoalsViewModel.From(saved));
+            (_snapshot, _model) = (saved, GoalsViewModel.From(saved, Presets));
         }
         return "Saved";
     }
