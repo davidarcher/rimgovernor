@@ -78,6 +78,34 @@ namespace HomeBridge.BridgeTools
                     return Invalid("Precept conflicts with a faction sharing the ideoligion.");
                 copy.AddPrecept(PreceptMaker.MakePrecept(def), init: true, generatingFor: Faction.OfPlayer.def);
             }
+            // Venerated animals are the design's own list: those it omits go, and each added one passes the precept worker's
+            // CanUse, the precept's maxCount and the faction rules. Style categories are design identity only; a reform keeps them.
+            var animalDefs = new List<ThingDef>();
+            foreach (var name in design.VeneratedAnimals)
+            {
+                var animal = DefDatabase<ThingDef>.GetNamedSilentFail(name);
+                if (animal == null || animalDefs.Contains(animal))
+                    return Invalid("Design requires distinct known animals to venerate.");
+                animalDefs.Add(animal);
+            }
+            if (animalDefs.Count > PreceptDefOf.AnimalVenerated.maxCount)
+                return Invalid("Too many venerated animals.");
+            foreach (var precept in copy.PreceptsListForReading.OfType<Precept_Animal>().Where(p => !animalDefs.Contains(p.ThingDef)).ToList())
+                copy.RemovePrecept(precept, replacing: true);
+            foreach (var animal in animalDefs.OrderBy(d => d.defName, StringComparer.Ordinal))
+            {
+                if (copy.VeneratedAnimals.Contains(animal))
+                    continue;
+                if (!PreceptDefOf.AnimalVenerated.Worker.CanUse(animal, copy, Faction.OfPlayer.def).Accepted)
+                    return Invalid("The game does not offer this animal for veneration.");
+                if (!copy.foundation.CanAddForFaction(PreceptDefOf.AnimalVenerated, Faction.OfPlayer.def, null, checkDuplicates: false) ||
+                    (reform && Find.FactionManager.AllFactions.Any(f => f.def.humanlikeFaction && f.ideos != null &&
+                        (f.ideos.IsPrimary(source) || f.ideos.IsMinor(source)) && !copy.foundation.CanAddForFaction(PreceptDefOf.AnimalVenerated, f.def, null, checkDuplicates: false))))
+                    return Invalid("Animal veneration conflicts with a faction.");
+                var venerated = (Precept_Animal)PreceptMaker.MakePrecept(PreceptDefOf.AnimalVenerated);
+                venerated.ThingDef = animal;
+                copy.AddPrecept(venerated, init: true, generatingFor: Faction.OfPlayer.def);
+            }
             foreach (var meme in memes)
                 if (meme.requireOne?.Any(group => !copy.PreceptsListForReading.Any(p => group.Contains(p.def))) == true)
                     return Invalid("Missing a meme's required precept.");

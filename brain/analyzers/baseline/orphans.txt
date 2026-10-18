@@ -419,7 +419,6 @@ Policy|WeaponDrop.Weapon
 Policy|WorkshopChoice.NeedsPower
 Policy|Believer.Certainty
 Policy|Believer.Id
-Policy|IdeoligionFacts.StyleCategories
 Policy|MemeDef.ForbiddenPrecepts
 Policy|MemeDef.RequireOne
 Policy|MemeGate.Conflicting

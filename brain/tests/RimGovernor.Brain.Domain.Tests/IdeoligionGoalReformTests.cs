@@ -30,6 +30,8 @@ public sealed class IdeoligionGoalReformTests
             new DesignPrecept { Name = Despised, Issue = "Cannibalism", Default = true, Allowed = true, Supported = true },
             new DesignPrecept { Name = Approved, Issue = "Cannibalism", Allowed = true, Supported = true },
         ],
+        VeneratedAnimals = ["Monkey", "Muffalo", "Thrumbo"],
+        MaxVeneratedAnimals = 2,
     };
 
     private static IdeoligionDesign Design(string[] memes, params string[] precepts) => new(EquatableArray.From(memes), EquatableArray.From(precepts), true);
@@ -40,8 +42,8 @@ public sealed class IdeoligionGoalReformTests
 
     private static readonly IdeoGoalTarget[] NakedCannibals =
     [
-        new(1, false, Naked),
-        new(2, false, Approved),
+        new(1, IdeoGoalKind.Precept, Naked),
+        new(2, IdeoGoalKind.Precept, Approved),
     ];
 
     private static Fact<IdeoDevelopment> Points(int have = 40, int cost = 30, bool fluid = true) =>
@@ -78,7 +80,7 @@ public sealed class IdeoligionGoalReformTests
     public void AGoalSwapNeverUndoesAnotherGoalsPrecept()
     {
         var swapped = Design([Nudism, Rancher, Structure], Naked, Despised);
-        var choice = Choose(swapped, [new(1, false, Naked), new(2, false, Covered)]).Value;
+        var choice = Choose(swapped, [new(1, IdeoGoalKind.Precept, Naked), new(2, IdeoGoalKind.Precept, Covered)]).Value;
         Assert.Null(choice.Goal);
         Assert.Equal("precept_conflicts_goal:" + Naked, choice.Blocked[2]);
     }
@@ -95,20 +97,20 @@ public sealed class IdeoligionGoalReformTests
     [Fact]
     public void ADesignTheFactionDisallowsIsNotChosenAndTheGoalReportsTheFirstMissingPrerequisite()
     {
-        var choice = Choose(Lacking, [new(1, false, Naked)], options: Options(nudismAllowed: false)).Value;
+        var choice = Choose(Lacking, [new(1, IdeoGoalKind.Precept, Naked)], options: Options(nudismAllowed: false)).Value;
         Assert.Null(choice.Goal);
         Assert.Equal("precept_requires_meme:" + Nudism, choice.Blocked[1]);
 
-        var missing = Choose(Lacking, [new(1, true, "Unlisted")]).Value;
+        var missing = Choose(Lacking, [new(1, IdeoGoalKind.Meme, "Unlisted")]).Value;
         Assert.Equal("meme_unavailable:Unlisted", missing.Blocked[1]);
-        var absent = Choose(Lacking, [new(1, false, "Unlisted")]).Value;
+        var absent = Choose(Lacking, [new(1, IdeoGoalKind.Precept, "Unlisted")]).Value;
         Assert.Equal("precept_unavailable:Unlisted", absent.Blocked[1]);
     }
 
     [Fact]
     public void ABlockedGoalDoesNotHoldBackAnotherGoalsStep()
     {
-        var choice = Choose(Lacking, [new(1, false, "Unlisted"), new(2, false, Approved)]).Value;
+        var choice = Choose(Lacking, [new(1, IdeoGoalKind.Precept, "Unlisted"), new(2, IdeoGoalKind.Precept, Approved)]).Value;
         Assert.Equal(2, choice.Goal);
         Assert.Equal("precept_unavailable:Unlisted", choice.Blocked[1]);
     }
@@ -116,10 +118,10 @@ public sealed class IdeoligionGoalReformTests
     [Fact]
     public void AMemeGoalAddsThatMemeAndAHeldMemeIsLeftAlone()
     {
-        var choice = Choose(Lacking, [new(3, true, Nudism)]).Value;
+        var choice = Choose(Lacking, [new(3, IdeoGoalKind.Meme, Nudism)]).Value;
         Assert.Equal(3, choice.Goal);
         Assert.Contains(Nudism, choice.Design.Memes);
-        Assert.False(Choose(Nudist, [new(3, true, Nudism)]).TryGetValue(out _));
+        Assert.False(Choose(Nudist, [new(3, IdeoGoalKind.Meme, Nudism)]).TryGetValue(out _));
     }
 
     [Fact]
@@ -133,7 +135,7 @@ public sealed class IdeoligionGoalReformTests
                 new DesignPrecept { Name = "Meat_Raw", Issue = "Meat", Allowed = true, Supported = true, ConflictingMemes = [Rancher] },
             ],
         };
-        var choice = Choose(Nudist, [new(1, false, "Meat_Raw")], options: options).Value;
+        var choice = Choose(Nudist, [new(1, IdeoGoalKind.Precept, "Meat_Raw")], options: options).Value;
         Assert.Equal(1, choice.Goal);
         Assert.Equal([Nudism, Structure], choice.Design.Memes);
         Assert.DoesNotContain("Meat_Raw", choice.Design.Precepts);
@@ -170,16 +172,16 @@ public sealed class IdeoligionGoalReformTests
     public void TheGoalStatusFollowsTheReformPlan()
     {
         var goal = new GoalRecord { Id = 1, Kind = GoalKind.Precept, Target = Naked };
-        var plan = Choose(Lacking, [new(1, false, Naked)]);
+        var plan = Choose(Lacking, [new(1, IdeoGoalKind.Precept, Naked)]);
 
         var pursuing = GoalRules.Evaluate(goal, GoalFacts(goal, Points(), plan));
         Assert.Equal((GoalState.Pursuing, "", "ideology/reform"), (pursuing.State, pursuing.Reason, pursuing.Owner.Value));
         Assert.Equal("queued", GoalRules.Evaluate(goal, GoalFacts(goal, Points(), plan) with { ReformGoal = 9 }).Reason);
 
-        var points = GoalRules.Evaluate(goal, GoalFacts(goal, Points(have: 12, cost: 30), Choose(Lacking, [new(1, false, Naked)], Points(have: 12, cost: 30))));
+        var points = GoalRules.Evaluate(goal, GoalFacts(goal, Points(have: 12, cost: 30), Choose(Lacking, [new(1, IdeoGoalKind.Precept, Naked)], Points(have: 12, cost: 30))));
         Assert.Equal((GoalState.Blocked, "development points 12/30"), (points.State, points.Reason));
 
-        var broken = Choose(Lacking, [new(1, false, Naked)], options: Options(nudismAllowed: false));
+        var broken = Choose(Lacking, [new(1, IdeoGoalKind.Precept, Naked)], options: Options(nudismAllowed: false));
         var blocked = GoalRules.Evaluate(goal, GoalFacts(goal, Points(), broken));
         Assert.Equal((GoalState.Blocked, "precept_requires_meme:" + Nudism), (blocked.State, blocked.Reason));
 
@@ -199,8 +201,61 @@ public sealed class IdeoligionGoalReformTests
 
         var animal = new GoalRecord { Id = 1, Kind = GoalKind.VeneratedAnimal, Target = "Muffalo" };
         var facts = GoalFacts(animal, Points(), default);
-        Assert.Equal((GoalState.NoMethod, "venerated_animal"), (GoalRules.Evaluate(animal, facts).State, GoalRules.Evaluate(animal, facts).Reason));
         var held = facts with { Ideology = Known(facts.Ideology.Value with { Facts = facts.Ideology.Value.Facts with { VeneratedAnimals = ["Muffalo"] } }) };
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(animal, held).State);
+    }
+
+    private static readonly IdeoGoalTarget[] Worship = [new(1, IdeoGoalKind.Animal, "Monkey")];
+
+    [Fact]
+    public void AVeneratedAnimalGoalAddsThatAnimalLeavingTheRestOfTheDesignAndIsNotWeighedAgainstTheScore()
+    {
+        var current = Lacking with { VeneratedAnimals = ["Muffalo"], StyleCategories = ["Rustic"] };
+        var choice = Choose(current, Worship).Value;
+        Assert.Equal((1, DesignDecision.Improves), (choice.Goal, choice.Comparison!.Decision));
+        Assert.Equal(["Monkey", "Muffalo"], choice.Design.VeneratedAnimals);
+        Assert.Equal(["Rustic"], choice.Design.StyleCategories);
+        Assert.Equal(IdeoligionDesign.CanonicalIdeoligionDesign(current).Precepts, choice.Design.Precepts);
+        Assert.Equal(current.Memes, choice.Design.Memes);
+        Assert.False(Choose(current with { VeneratedAnimals = ["Monkey"] }, Worship).TryGetValue(out _));
+    }
+
+    [Fact]
+    public void AnAnimalTheGameDoesNotOfferOrBeyondTheLimitIsBlockedWithItsReason()
+    {
+        var insect = Choose(Lacking, [new(1, IdeoGoalKind.Animal, "Megaspider")]).Value;
+        Assert.Null(insect.Goal);
+        Assert.Equal("venerated_animal_unavailable:Megaspider", insect.Blocked[1]);
+
+        var full = Choose(Lacking with { VeneratedAnimals = ["Muffalo", "Thrumbo"] }, Worship).Value;
+        Assert.Null(full.Goal);
+        Assert.Equal("venerated_animal_unavailable:Monkey", full.Blocked[1]);
+    }
+
+    [Fact]
+    public void AnAnimalGoalWaitsForPointsLikeAnyOtherAndItsStatusFollowsThePlan()
+    {
+        Assert.Equal(DesignDecision.Awaiting, Choose(Lacking, Worship, Points(have: 12, cost: 30)).Value.Comparison!.Decision);
+
+        var goal = new GoalRecord { Id = 1, Kind = GoalKind.VeneratedAnimal, Target = "Monkey" };
+        var pursuing = GoalRules.Evaluate(goal, GoalFacts(goal, Points(), Choose(Lacking, Worship)));
+        Assert.Equal((GoalState.Pursuing, ""), (pursuing.State, pursuing.Reason));
+
+        var points = GoalRules.Evaluate(goal, GoalFacts(goal, Points(have: 12, cost: 30), Choose(Lacking, Worship, Points(have: 12, cost: 30))));
+        Assert.Equal((GoalState.Blocked, "development points 12/30"), (points.State, points.Reason));
+
+        var illegal = new GoalRecord { Id = 1, Kind = GoalKind.VeneratedAnimal, Target = "Megaspider" };
+        var blocked = GoalRules.Evaluate(illegal, GoalFacts(illegal, Points(), Choose(Lacking, [new(1, IdeoGoalKind.Animal, "Megaspider")])));
+        Assert.Equal((GoalState.Blocked, "venerated_animal_unavailable:Megaspider"), (blocked.State, blocked.Reason));
+    }
+
+    [Fact]
+    public void IdeoTargetsCarryTheAnimalGoalsAndTheAnimalsAreDesignIdentity()
+    {
+        var targets = GoalRules.IdeoTargets([new GoalRecord { Id = 4, Kind = GoalKind.VeneratedAnimal, Target = "Monkey" }]);
+        Assert.Equal([new IdeoGoalTarget(4, IdeoGoalKind.Animal, "Monkey")], targets);
+        Assert.NotEqual(Lacking, Lacking with { VeneratedAnimals = ["Monkey"] });
+        Assert.NotEqual(Lacking, Lacking with { StyleCategories = ["Rustic"] });
+        Assert.Equal(["A", "B"], IdeoligionDesign.CanonicalIdeoligionDesign(Lacking with { VeneratedAnimals = ["B", "A"] }).VeneratedAnimals);
     }
 }

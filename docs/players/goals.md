@@ -50,7 +50,7 @@ Kinds the governor can work toward today:
 | Named quest | Accept and finish one quest, by quest id. |
 
 The list also offers kinds the governor cannot pursue yet (ritual, skill, health, territory, ending, caravan, power
-surplus, venerated animal; the [goals contracts](../developers/contracts/goals-contracts.md) list exactly which kinds have a pursuit). They save and show with state **No method**. That is deliberate: the window
+surplus; the [goals contracts](../developers/contracts/goals-contracts.md) list exactly which kinds have a pursuit). They save and show with state **No method**. That is deliberate: the window
 doubles as a list of what the governor still cannot do.
 
 ## Read the state
@@ -112,14 +112,14 @@ importance applies to its members unless a member overrides it.
 
 Presets are updated with the mod, and a change to a preset changes the members of themes that follow it.
 
-## Example: naked cannibals who worship insects
+## Example: naked cannibals who worship monkeys
 
 You need Ideology, an ideoligion that can still be reformed (fluid), and the bot on.
 
 1. Open the goals window and the **Themes** tab. Choose an importance (Normal is fine) and press **Adopt** next to
-   "Naked cannibals who worship insects".
+   "Naked cannibals who worship monkeys".
 2. Switch to **Goals**. The theme's goals are grouped under it: the Nudism and Cannibal memes; precepts for nudity
-   (male and female), preferred cannibalism and loved insect meat; a Megaspider venerated-animal goal; and a Believers
+   (male and female), preferred cannibalism and loved insect meat; a Monkey venerated-animal goal; and a Believers
    goal for every colonist.
 3. In **Preferences** set **Apparel** to Nude, and tick **Cannibal** and **Insect meat** under **Diet**. This is the
    half of the theme the adopt step leaves to you.
@@ -127,8 +127,9 @@ You need Ideology, an ideoligion that can still be reformed (fluid), and the bot
    **Blocked** with a `development points` reason between steps, then **Met** as memes and precepts land. Believers
    converts colonists and prisoners of other ideoligions through your moral guide's Convert ability; with no role that
    grants it, the goal says why.
-5. The Megaspider goal reads **No method** (`venerated_animal`): the governor reforms plain precepts, not veneration.
-   The theme will not reach 100 percent on that account; the rest still completes.
+5. The Monkey goal is reformed like the precepts: one animal per reform, paid for with development points. RimWorld
+   decides which animals may be venerated (never insects or dryads); a goal for one it does not offer reads
+   **Blocked** (`venerated_animal_unavailable:<animal>`).
 
 A non-fluid ideoligion shows **No method** `not fluid` on the memes and precepts, and without Ideology they show
 `missing_dlc`.

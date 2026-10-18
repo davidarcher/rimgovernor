@@ -83,6 +83,12 @@ public sealed record DesignOptions
 
     public IReadOnlyList<string> RequiredMemes { get; init; } = [];
 
+    /// <summary>The ThingDef names the game offers for veneration (animals, neither insects nor dryads).</summary>
+    public IReadOnlyList<string> VeneratedAnimals { get; init; } = [];
+
+    /// <summary>The most animals an ideoligion may venerate.</summary>
+    public int MaxVeneratedAnimals { get; init; }
+
     public Fact<DesignNeeds> Needs { get; init; }
 }
 
@@ -112,8 +118,18 @@ public sealed record DesignChoice
     public IReadOnlyDictionary<int, string> Blocked { get; init; } = new Dictionary<int, string>();
 }
 
-/// <summary>An ideoligion goal the reform plans toward: a meme or a plain precept the ideoligion should hold.</summary>
-public readonly record struct IdeoGoalTarget(int Goal, bool Meme, string Def);
+/// <summary>What an ideoligion goal asks the ideoligion to hold.</summary>
+public enum IdeoGoalKind
+{
+    Meme,
+    Precept,
+
+    /// <summary>A venerated animal: a ThingDef name, held as an animal precept.</summary>
+    Animal,
+}
+
+/// <summary>An ideoligion goal the reform plans toward: a meme, a plain precept or a venerated animal the ideoligion should hold.</summary>
+public readonly record struct IdeoGoalTarget(int Goal, IdeoGoalKind Kind, string Def);
 
 public enum DesignDecision
 {
@@ -504,14 +520,25 @@ public static class IdeoligionDesignRules
     {
         var blocked = new SortedDictionary<int, string>();
         GoalStep? step = null;
-        var wanted = targets.Where(t => !t.Meme).Select(t => t.Def).ToList();
+        var wanted = targets.Where(t => t.Kind == IdeoGoalKind.Precept).Select(t => t.Def).ToList();
         foreach (var target in targets.OrderBy(t => t.Goal))
         {
-            if (target.Meme ? current.Memes.Contains(target.Def) : current.Precepts.Contains(target.Def))
+            var held = target.Kind switch
+            {
+                IdeoGoalKind.Meme => current.Memes.Contains(target.Def),
+                IdeoGoalKind.Precept => current.Precepts.Contains(target.Def),
+                _ => current.VeneratedAnimals.Contains(target.Def),
+            };
+            if (held)
             {
                 continue;
             }
-            var (design, reason) = target.Meme ? AddMeme(options, current, target.Def, wanted) : StepToPrecept(options, current, target.Def, targets);
+            var (design, reason) = target.Kind switch
+            {
+                IdeoGoalKind.Meme => AddMeme(options, current, target.Def, wanted),
+                IdeoGoalKind.Precept => StepToPrecept(options, current, target.Def, targets),
+                _ => AddVeneratedAnimal(options, current, target.Def),
+            };
             if (design is null)
             {
                 blocked[target.Goal] = reason;
@@ -522,6 +549,17 @@ public static class IdeoligionDesignRules
             }
         }
         return (step, blocked);
+    }
+
+    /// <summary>The design venerating one more animal: only one the game offers, within the animal limit.</summary>
+    private static (IdeoligionDesign? Design, string Reason) AddVeneratedAnimal(DesignOptions options, IdeoligionDesign current, string def)
+    {
+        var reason = "venerated_animal_unavailable:" + def;
+        if (!options.VeneratedAnimals.Contains(def) || current.VeneratedAnimals.Count >= options.MaxVeneratedAnimals)
+        {
+            return (null, reason);
+        }
+        return Validated(options, current with { VeneratedAnimals = EquatableArray.From([.. current.VeneratedAnimals, def]) }, reason);
     }
 
     private static (IdeoligionDesign? Design, string Reason) StepToPrecept(DesignOptions options, IdeoligionDesign current, string def, IReadOnlyList<IdeoGoalTarget> targets)
@@ -536,30 +574,30 @@ public static class IdeoligionDesignRules
             var meme = precept.RequiredMemes.Order(StringComparer.Ordinal).FirstOrDefault(m => options.Memes.Any(x => x.Name == m && x.Allowed && x.Supported));
             return meme is null
                 ? (null, "precept_requires_meme:" + precept.RequiredMemes.Order(StringComparer.Ordinal).First())
-                : AddMeme(options, current, meme, targets.Where(t => !t.Meme).Select(t => t.Def).ToList());
+                : AddMeme(options, current, meme, targets.Where(t => t.Kind == IdeoGoalKind.Precept).Select(t => t.Def).ToList());
         }
         if (DesignOverlap(current.Memes, precept.ConflictingMemes))
         {
             var meme = precept.ConflictingMemes.Order(StringComparer.Ordinal).First(current.Memes.Contains);
-            if (targets.Any(t => t.Meme && t.Def == meme) || options.RequiredMemes.Contains(meme) || options.Memes.Any(m => m.Name == meme && m.Structure))
+            if (targets.Any(t => t.Kind == IdeoGoalKind.Meme && t.Def == meme) || options.RequiredMemes.Contains(meme) || options.Memes.Any(m => m.Name == meme && m.Structure))
             {
                 return (null, "precept_conflicts_meme:" + meme);
             }
-            var removed = new IdeoligionDesign(EquatableArray.From(current.Memes.Where(m => m != meme)), current.Precepts, true);
+            var removed = current with { Memes = EquatableArray.From(current.Memes.Where(m => m != meme)) };
             return Validated(options, removed, "meme_removal_invalid:" + meme);
         }
         var precepts = current.Precepts.ToList();
         var old = precepts.FirstOrDefault(p => options.Precepts.Any(x => x.Name == p && x.Issue == precept.Issue));
         if (old is not null)
         {
-            if (targets.Any(t => !t.Meme && t.Def == old))
+            if (targets.Any(t => t.Kind == IdeoGoalKind.Precept && t.Def == old))
             {
                 return (null, "precept_conflicts_goal:" + old);
             }
             precepts.Remove(old);
         }
         precepts.Add(def);
-        return Validated(options, new IdeoligionDesign(current.Memes, EquatableArray.From(precepts), true), "precept_incompatible:" + def);
+        return Validated(options, current with { Precepts = EquatableArray.From(precepts) }, "precept_incompatible:" + def);
     }
 
     /// <summary>The design adding <paramref name="name"/>, with the precept each of its requirements still lacks, preferring one a goal wants.</summary>
@@ -588,7 +626,7 @@ public static class IdeoligionDesignRules
             precepts.RemoveAll(p => options.Precepts.Any(x => x.Name == p && x.Issue == picked.Issue));
             precepts.Add(picked.Name);
         }
-        return Validated(options, new IdeoligionDesign(EquatableArray.From([.. current.Memes, name]), EquatableArray.From(precepts), true), "meme_incompatible:" + name);
+        return Validated(options, current with { Memes = EquatableArray.From([.. current.Memes, name]), Precepts = EquatableArray.From(precepts) }, "meme_incompatible:" + name);
     }
 
     private static (IdeoligionDesign? Design, string Reason) Validated(DesignOptions options, IdeoligionDesign design, string reason) =>
@@ -694,7 +732,7 @@ public static class IdeoligionDesignRules
                 // Unknown transition effects are marked unsupported by the catalog adapter.
                 var precepts = current.Precepts.ToArray();
                 precepts[i] = p.Name;
-                var next = new IdeoligionDesign(current.Memes, EquatableArray.From(precepts), true);
+                var next = current with { Precepts = EquatableArray.From(precepts) };
                 if (!ScoreIdeoligion(options, next).TryGetValue(out var score)
                     || score.Compare(baseline) >= 0 || score.MoodBenefit < baseline.MoodBenefit || score.MoodCost > baseline.MoodCost
                     || score.Obligations > baseline.Obligations || score.Restrictions > baseline.Restrictions)

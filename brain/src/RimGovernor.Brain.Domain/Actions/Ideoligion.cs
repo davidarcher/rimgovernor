@@ -1,15 +1,24 @@
 namespace RimGovernor.Brain.Domain;
 
 /// <summary>A meme and precept selection for an ideoligion. Use <see cref="CanonicalIdeoligionDesign"/> to sort and validate it.</summary>
-public sealed record IdeoligionDesign(EquatableArray<string> Memes, EquatableArray<string> Precepts, bool Fluid)
+public sealed record IdeoligionDesign(
+    EquatableArray<string> Memes,
+    EquatableArray<string> Precepts,
+    bool Fluid,
+    EquatableArray<string> VeneratedAnimals = default,
+    EquatableArray<string> StyleCategories = default
+)
 {
     /// <summary>Names sorted ordinally, validated, duplicate free.</summary>
     public static IdeoligionDesign CanonicalIdeoligionDesign(IdeoligionDesign v)
     {
-        DomainException.Require(v.Memes.Count != 0 && v.Memes.Count <= 5 && v.Precepts.Count <= 256, "invalid ideoligion selection count");
+        DomainException.Require(
+            v.Memes.Count != 0 && v.Memes.Count <= 5 && v.Precepts.Count <= 256 && v.VeneratedAnimals.Count <= 256 && v.StyleCategories.Count <= 256,
+            "invalid ideoligion selection count"
+        );
         var memes = SortedNames(v.Memes);
         var precepts = SortedNames(v.Precepts);
-        return v with { Memes = memes, Precepts = precepts };
+        return v with { Memes = memes, Precepts = precepts, VeneratedAnimals = SortedNames(v.VeneratedAnimals), StyleCategories = SortedNames(v.StyleCategories) };
     }
 
     private static EquatableArray<string> SortedNames(EquatableArray<string> names)

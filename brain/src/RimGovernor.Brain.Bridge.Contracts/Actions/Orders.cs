@@ -147,7 +147,14 @@ public static class Orders
     }
 
     /// <summary>The wire form of a domain ideoligion design.</summary>
-    public static WireDesign WireIdeoligionDesign(IdeoligionDesign v) => new() { Memes = [.. v.Memes], Precepts = [.. v.Precepts], Fluid = v.Fluid };
+    public static WireDesign WireIdeoligionDesign(IdeoligionDesign v) => new()
+    {
+        Memes = [.. v.Memes],
+        Precepts = [.. v.Precepts],
+        Fluid = v.Fluid,
+        VeneratedAnimals = [.. v.VeneratedAnimals],
+        StyleCategories = [.. v.StyleCategories],
+    };
 
     internal static Op.Action IdeoligionReformAction(DomainAction action)
     {
@@ -170,11 +177,12 @@ public static class Orders
     /// </summary>
     public static void ValidateIdeoligionDesign(WireDesign? design)
     {
-        if (design is null || design.Fluid is null || design.Memes.Count == 0 || design.Memes.Count > 5 || design.Precepts.Count > 256)
+        if (design is null || design.Fluid is null || design.Memes.Count == 0 || design.Memes.Count > 5 || design.Precepts.Count > 256
+            || design.VeneratedAnimals.Count > 256 || design.StyleCategories.Count > 256)
         {
             throw BridgeContractException.Contract("invalid ideoligion design");
         }
-        foreach (var names in new[] { design.Memes, design.Precepts })
+        foreach (var names in new[] { design.Memes, design.Precepts, design.VeneratedAnimals, design.StyleCategories })
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var name in names)

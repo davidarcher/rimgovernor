@@ -152,7 +152,7 @@ public sealed class IdeologyReader
                 precepts.Add(held.Def);
             }
         }
-        return new IdeoligionDesign([.. ideo.Facts.Memes], [.. precepts], true);
+        return new IdeoligionDesign([.. ideo.Facts.Memes], [.. precepts], true, [.. ideo.Facts.VeneratedAnimals], [.. ideo.Facts.StyleCategories]);
     }
 
     /// <summary>

@@ -133,6 +133,14 @@ public sealed record IdeoligionDesign
     public EquatableArray<string> Precepts { get; init; }
 
     public bool? Fluid { get; init; }
+
+    /// <summary>The ThingDef names of the venerated animals (Precept_Animal), sorted. Native adds and removes them against the game's legality.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> VeneratedAnimals { get; init; }
+
+    /// <summary>The ideoligion's style category names, sorted. Part of the design identity (stale check); a reform does not change them.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> StyleCategories { get; init; }
 }
 
 /// <summary>

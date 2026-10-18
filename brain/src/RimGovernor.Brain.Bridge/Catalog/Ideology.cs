@@ -312,6 +312,9 @@ public sealed partial class DefinitionCatalog
             Memes = memes,
             Precepts = designPrecepts,
             RequiredMemes = [.. f.requiredMemes.Seq().Select(m => m.defName)],
+            // The game's own offer for the venerated-animal precept (animals, no insects or dryads); native rechecks CanUse.
+            VeneratedAnimals = [.. PreceptDefOf.AnimalVenerated.Worker.ThingDefs.Select(t => t.def.defName).OrderBy(n => n, StringComparer.Ordinal)],
+            MaxVeneratedAnimals = PreceptDefOf.AnimalVenerated.maxCount,
         };
     }
 }

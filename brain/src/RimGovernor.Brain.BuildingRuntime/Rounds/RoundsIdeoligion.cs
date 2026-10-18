@@ -54,7 +54,7 @@ public sealed partial class Rounder
             }
         }
 
-        var current = new IdeoligionDesign([.. ideo.Facts.Memes], [.. precepts], true);
+        var current = new IdeoligionDesign([.. ideo.Facts.Memes], [.. precepts], true, [.. ideo.Facts.VeneratedAnimals], [.. ideo.Facts.StyleCategories]);
         var calm = Unknown<bool>();
         var tick = read.Projection.Identity.Tick;
         try

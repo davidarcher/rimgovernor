@@ -7,8 +7,13 @@ concept is modelled once, and there is no Ideology read tool.
 
 ## Creation and reform
 
-`common.IdeoligionDesign` names memes, plain precept definitions and an explicit
-fluid/fixed mode. Roles, rituals and building instances are initialized or
+`common.IdeoligionDesign` names memes, plain precept definitions, the venerated
+animals (ThingDef names) and an explicit fluid/fixed mode, and carries the style
+category names as identity only (the reform stale check compares them; a reform does not
+change them). Native `Prepare` removes the venerated animals the design omits and adds
+each new one through `PreceptDefOf.AnimalVenerated.Worker.CanUse`, the precept's
+`maxCount` and the faction rules (`PreceptMaker.MakePrecept`, `ThingDef` set,
+`AddPrecept(init: true)`); the design is canonical (sorted lists). Roles, rituals and building instances are initialized or
 preserved by the game's foundation. Creation carries the design in
 `NewColonySpec.ideoligion`, before starting colonists receive their ideoligion.
 `governor_ideoligion` requests selection; an explicit player design takes
@@ -53,9 +58,14 @@ asked for its cost. A goal with no reachable step reports `blocked` with the fir
 prerequisite (`meme_unavailable:<def>`, `precept_requires_meme:<def>`, `meme_requires_precept:<def>`,
 `precept_conflicts_meme:<def>`, `precept_conflicts_goal:<def>`, `meme_incompatible:<def>`,
 `precept_incompatible:<def>`, `meme_removal_invalid:<def>`, `precept_unavailable:<def>`). A non-fluid
-ideoligion reports `NoMethod: not fluid`; a missing def `NoMethod: unavailable`; a venerated-animal goal
-is Met while held and otherwise `NoMethod: venerated_animal`, because the reform design carries plain
-precepts only and a venerated animal is a precept of another class. While the next step lacks development
+ideoligion reports `NoMethod: not fluid`; a missing def `NoMethod: unavailable`.
+
+A venerated-animal goal (`goals/venerated_animal/<id>`; #3517) steps by adding that animal to the design's
+`VeneratedAnimals`: one animal per reform, never a plain-precept change, not weighed against the score but
+it must score. RimWorld's legality stands: the catalog's `DesignOptions.VeneratedAnimals` is
+`PreceptDefOf.AnimalVenerated.Worker.ThingDefs` (animals, never insects or dryads) and `MaxVeneratedAnimals` its
+`maxCount`; a target the game does not offer, or one past the limit, is `blocked` with
+`venerated_animal_unavailable:<def>` (no insect is ever offered). While the next step lacks development
 points the reform Need is held as `development_points:<points>/<cost>` and the goal reports
 `blocked` with `development points <points>/<cost>`. The `family/ideology/reform` record keeps the goal
 the reform serves, so status attributes `Pursuing` to the reform Need; other reachable goals read

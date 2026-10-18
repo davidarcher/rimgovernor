@@ -70,7 +70,7 @@ public static class ThemePresetCatalog
     private static P.ThemePreset NakedCannibals() =>
         new(
             "naked-cannibals",
-            "Naked cannibals who worship insects",
+            "Naked cannibals who worship monkeys",
             [
                 Meme("Nudism"),
                 Meme("Cannibal"),
@@ -79,7 +79,9 @@ public static class ThemePresetCatalog
                 Precept("Nudity_Female_NoRules"),
                 Precept(nameof(PreceptDefOf.Cannibalism_Preferred)),
                 Precept("InsectMeatEating_Loved"),
-                new("venerated.Megaspider", Goal(P.GoalKind.VeneratedAnimal, "Megaspider")),
+                // ThingDefOf has no Monkey field (no typed route); the race is a non-insect Animals-category ThingDef, which
+                // PreceptWorker_Animal offers, and the installed catalog check reports it unavailable if absent.
+                new("venerated.Monkey", Goal(P.GoalKind.VeneratedAnimal, "Monkey")),
                 new("believers", Goal(P.GoalKind.Believers)),
                 Prefer("apparel", new() { Apparel = P.ApparelPreference.Nude }),
                 Prefer("diet", new() { Diet = [P.DietOverride.Cannibal, P.DietOverride.InsectMeat] }),

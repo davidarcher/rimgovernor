@@ -710,11 +710,6 @@ public static class GoalRules
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "not fluid", default, unmet);
         }
         var owner = IdeologyFamily.Reform;
-        if (goal.Kind == GoalKind.VeneratedAnimal)
-        {
-            // A venerated animal is a precept of a class the reform design does not carry (plain precepts only).
-            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "venerated_animal", default, unmet);
-        }
         if (!f.Reform.TryGetValue(out var reform))
         {
             return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
@@ -734,9 +729,18 @@ public static class GoalRules
         return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Pursuing, f.ReformGoal == goal.Id ? "" : "queued", owner, unmet);
     }
 
-    /// <summary>The meme and precept goals the ideoligion's reform plans toward.</summary>
+    /// <summary>The meme, precept and venerated-animal goals the ideoligion's reform plans toward.</summary>
     public static IReadOnlyList<IdeoGoalTarget> IdeoTargets(IEnumerable<GoalRecord> goals) =>
-        [.. goals.Where(g => g.Kind is GoalKind.Precept or GoalKind.Meme && g.Target != "").Select(g => new IdeoGoalTarget(g.Id, g.Kind == GoalKind.Meme, g.Target))];
+        [
+            .. goals
+                .Where(g => g.Kind is GoalKind.Precept or GoalKind.Meme or GoalKind.VeneratedAnimal && g.Target != "")
+                .Select(g => new IdeoGoalTarget(g.Id, g.Kind switch
+                {
+                    GoalKind.Meme => IdeoGoalKind.Meme,
+                    GoalKind.Precept => IdeoGoalKind.Precept,
+                    _ => IdeoGoalKind.Animal,
+                }, g.Target)),
+        ];
 
     private static (Fact<bool> Met, Fact<double> Deficit) ProjectMet(string project, Fact<ResearchFacts> research)
     {

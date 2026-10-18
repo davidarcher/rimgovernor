@@ -8,13 +8,21 @@ namespace RimGovernor.Brain.Store.Codec;
 public sealed class IdeoligionDesignConverter : ObjectCodec<IdeoligionDesign>
 {
     protected override IdeoligionDesign Read(JsonElement e, Codecs o) =>
-        new(e.Get<EquatableArray<string>>("Memes", o), e.Get<EquatableArray<string>>("Precepts", o), e.Bool("Fluid"));
+        new(
+            e.Get<EquatableArray<string>>("Memes", o),
+            e.Get<EquatableArray<string>>("Precepts", o),
+            e.Bool("Fluid"),
+            e.Get<EquatableArray<string>>("VeneratedAnimals", o),
+            e.Get<EquatableArray<string>>("StyleCategories", o)
+        );
 
     protected override void WriteFields(Utf8JsonWriter w, IdeoligionDesign v, Codecs o)
     {
         w.Put("Memes", v.Memes, o);
         w.Put("Precepts", v.Precepts, o);
         w.WriteBoolean("Fluid", v.Fluid);
+        w.Put("VeneratedAnimals", v.VeneratedAnimals, o);
+        w.Put("StyleCategories", v.StyleCategories, o);
     }
 }
 

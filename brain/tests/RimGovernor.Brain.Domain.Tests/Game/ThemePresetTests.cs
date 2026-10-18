@@ -111,7 +111,7 @@ public sealed class ThemePresetTests
     }
 
     [Fact]
-    public void NakedCannibalsResolveToPreceptsAVeneratedInsectABelieverGoalNudeApparelAndACannibalDiet()
+    public void NakedCannibalsResolveToPreceptsAVeneratedMonkeyABelieverGoalNudeApparelAndACannibalDiet()
     {
         var resolved = PresetRules.Resolve(ThemePresetCatalog.All.Single(p => p.Id == "naked-cannibals"), Catalog(), Theme);
 
@@ -119,7 +119,7 @@ public sealed class ThemePresetTests
         Assert.Contains(precepts, p => p.StartsWith("Nudity", StringComparison.Ordinal));
         Assert.Contains(precepts, p => p.StartsWith("Cannibalism", StringComparison.Ordinal));
         Assert.Contains(precepts, p => p.StartsWith("InsectMeat", StringComparison.Ordinal));
-        Assert.Equal("Megaspider", resolved.Goals().Single(g => g.Kind == GoalKind.VeneratedAnimal).Target);
+        Assert.Equal("Monkey", resolved.Goals().Single(g => g.Kind == GoalKind.VeneratedAnimal).Target);
         Assert.Single(resolved.Goals(), g => g.Kind == GoalKind.Believers);
         Assert.Contains(resolved.Members, m => m.Preference?.Apparel == ApparelPreference.Nude);
         Assert.Contains(resolved.Members, m => m.Preference?.Diet.Contains(DietOverride.Cannibal) == true);

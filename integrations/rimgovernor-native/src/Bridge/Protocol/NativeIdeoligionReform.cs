@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
@@ -16,13 +17,17 @@ namespace HomeBridge.BridgeTools
             var design = new Common.IdeoligionDesign { Fluid = ideo.Fluid };
             design = design with { Memes = [.. design.Memes, .. ideo.memes.Select(m => m.defName).OrderBy(n => n, StringComparer.Ordinal)] };
             design = design with { Precepts = [.. design.Precepts, .. ideo.PreceptsListForReading.Where(p => p.def.preceptClass == typeof(Precept)).Select(p => p.def.defName).OrderBy(n => n, StringComparer.Ordinal)] };
+            design = design with { VeneratedAnimals = [.. design.VeneratedAnimals, .. ideo.VeneratedAnimals.Select(t => t.defName).OrderBy(n => n, StringComparer.Ordinal)] };
+            design = design with { StyleCategories = [.. design.StyleCategories, .. ideo.thingStyleCategories.Where(c => c?.category != null).Select(c => c.category.defName).OrderBy(n => n, StringComparer.Ordinal)] };
             return design;
         }
 
+        private static bool SameNames(IReadOnlyList<string> a, IReadOnlyList<string> b) =>
+            a.Count == b.Count && a.OrderBy(n => n, StringComparer.Ordinal).SequenceEqual(b.OrderBy(n => n, StringComparer.Ordinal));
+
         private static bool Matches(Common.IdeoligionDesign? a, Common.IdeoligionDesign? b) => a != null && b != null && a.Fluid is not null && b.Fluid is not null && a.Fluid.GetValueOrDefault() == b.Fluid.GetValueOrDefault() &&
-            a.Memes.Count == b.Memes.Count && a.Precepts.Count == b.Precepts.Count &&
-            a.Memes.OrderBy(n => n, StringComparer.Ordinal).SequenceEqual(b.Memes.OrderBy(n => n, StringComparer.Ordinal)) &&
-            a.Precepts.OrderBy(n => n, StringComparer.Ordinal).SequenceEqual(b.Precepts.OrderBy(n => n, StringComparer.Ordinal));
+            SameNames(a.Memes, b.Memes) && SameNames(a.Precepts, b.Precepts) &&
+            SameNames(a.VeneratedAnimals, b.VeneratedAnimals) && SameNames(a.StyleCategories, b.StyleCategories);
 
         private static Common.Failure? Resolve(Operations.IdeoligionReformIntent? command, out Ideo? source, out Ideo? candidate)
         {
