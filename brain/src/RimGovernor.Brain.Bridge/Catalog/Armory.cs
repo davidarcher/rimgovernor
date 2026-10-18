@@ -78,13 +78,8 @@ public sealed partial class DefinitionCatalog
     public (P.ArmoryTier Tier, bool Known) ArmoryWeaponTier(string def)
     {
         var best = P.ArmoryTier.Unknown;
-        foreach (var row in Rows<RecipeDef>().Values.OrderBy(r => r.defName, StringComparer.Ordinal))
+        foreach (var row in RecipesMaking(def))
         {
-            if (!RecipeProductDefs(row).Contains(new P.Resource(def)))
-            {
-                continue;
-            }
-
             foreach (var bench in RecipeBenchesOf(row))
             {
                 var tier = RecipeArmoryTier(row.defName, bench);

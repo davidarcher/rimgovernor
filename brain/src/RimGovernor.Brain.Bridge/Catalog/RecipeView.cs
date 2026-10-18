@@ -63,20 +63,42 @@ public sealed partial class DefinitionCatalog
         return EquatableArray.From(result);
     }
 
-    private static List<P.Resource> RecipeProductDefs(RecipeDef row)
-    {
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var result = new List<P.Resource>();
-        foreach (var product in row.products.Seq())
-        {
-            if (product.thingDef is { } def && seen.Add(def.defName))
-            {
-                result.Add(new P.Resource(def.defName));
-            }
-        }
+    private IReadOnlyList<P.Resource> RecipeProductDefs(RecipeDef row) => RecipeProductIndex().Products[row.defName];
 
-        return result;
-    }
+    /// <summary>The recipes, by defName, that make def; none when nothing does.</summary>
+    private IReadOnlyList<RecipeDef> RecipesMaking(string def) =>
+        RecipeProductIndex().Makers.TryGetValue(def, out var rows) ? rows : [];
+
+    private sealed record RecipeProductRows(Dictionary<string, IReadOnlyList<P.Resource>> Products, Dictionary<string, IReadOnlyList<RecipeDef>> Makers);
+
+    private RecipeProductRows? _recipeProducts;
+
+    // The catalog's recipes do not change, and the host and tier queries asked for every recipe's products, sorted,
+    // per product per pawn option: the products and the recipes making each def are read once per catalog.
+    private RecipeProductRows RecipeProductIndex() => LazyInitializer.EnsureInitialized(ref _recipeProducts, () =>
+    {
+        var products = new Dictionary<string, IReadOnlyList<P.Resource>>(StringComparer.Ordinal);
+        var makers = new Dictionary<string, List<RecipeDef>>(StringComparer.Ordinal);
+        foreach (var row in Rows<RecipeDef>().Values.OrderBy(r => r.defName, StringComparer.Ordinal))
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var result = new List<P.Resource>();
+            foreach (var product in row.products.Seq())
+            {
+                if (product.thingDef is { } def && seen.Add(def.defName))
+                {
+                    result.Add(new P.Resource(def.defName));
+                    if (!makers.TryGetValue(def.defName, out var rows))
+                    {
+                        makers[def.defName] = rows = [];
+                    }
+                    rows.Add(row);
+                }
+            }
+            products[row.defName] = result;
+        }
+        return new(products, makers.ToDictionary(m => m.Key, IReadOnlyList<RecipeDef> (m) => m.Value, StringComparer.Ordinal));
+    });
 
     /// <summary>
     /// The recipe's ingredient slots as alternatives, each allowed def with the count the slot takes of it (the game's
@@ -314,14 +336,8 @@ public sealed partial class DefinitionCatalog
     public IReadOnlyList<P.RecipeHost> RecipeHosts(string product, IReadOnlySet<string>? finished)
     {
         var result = new List<P.RecipeHost>();
-        foreach (var row in Rows<RecipeDef>().Values.OrderBy(r => r.defName, StringComparer.Ordinal))
+        foreach (var row in RecipesMaking(product))
         {
-            var products = RecipeProductDefs(row);
-            if (!products.Contains(new P.Resource(product)))
-            {
-                continue;
-            }
-
             if (row.memePrerequisitesAny.Seq().Any() || row.factionPrerequisiteTags.Seq().Any() || row.fromIdeoBuildingPreceptOnly)
             {
                 continue;
@@ -345,7 +361,7 @@ public sealed partial class DefinitionCatalog
             result.Add(new P.RecipeHost
             {
                 Definition = row.defName,
-                Products = Domain.EquatableArray.From(products),
+                Products = Domain.EquatableArray.From(RecipeProductDefs(row)),
                 Benches = Domain.EquatableArray.From(benches),
                 Available = available,
                 Ingredients = RecipeIngredients(row.defName),

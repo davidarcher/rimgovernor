@@ -90,33 +90,39 @@ namespace HomeBridge.BridgeTools
             // as obstacles they must bash; reachability without opening doors is
             // the conservative "can arrive here from the edge" fact.
             var raider = TraverseParms.For(TraverseMode.NoPassClosedDoors, Danger.Deadly);
-            var snapshot = new Obs.DefenseSiteSnapshot { Context = context,
-                MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) } };
+            // Rows are built once each and the array once per read: appending through `with` copied the whole
+            // array per cell and cloned each row per field, the game thread's largest allocation per read.
+            var rows = new List<Obs.DefenseCell>(cells.Count);
             foreach (var cell in cells) {
-                var row = new Obs.DefenseCell { Cell = new Common.Cell { X = cell.x, Z = cell.z }, Fogged = cell.Fogged(map) };
-                if (row.Fogged.GetValueOrDefault()) { snapshot = snapshot with { Cells = [.. snapshot.Cells, row] }; continue; }
-                row = row with { Terrain = Identifier(cell.GetTerrain(map)?.defName) };
-                row = row with { FoundationRemovalDesignated = map.designationManager.DesignationAt(cell, DesignationDefOf.RemoveFoundation) != null };
-                row = row with { Walkable = cell.Walkable(map) }; row = row with { Passable = !cell.Impassable(map) };
-                row = row with { Roofed = cell.Roofed(map) };
+                var at = new Common.Cell { X = cell.x, Z = cell.z };
+                if (cell.Fogged(map)) { rows.Add(new Obs.DefenseCell { Cell = at, Fogged = true }); continue; }
                 var edifice = cell.GetEdifice(map);
                 var cover = cell.GetCover(map);
-                row = row with { CoverFill = Finite(cover?.def.fillPercent ?? edifice?.def.fillPercent ?? 0) };
                 var giver = cover ?? (edifice != null && edifice.def.fillPercent > 0 ? edifice : null);
-                if (giver != null && NativeClearCover.KindOf(giver) != Obs.CoverKind.Unspecified) {
-                    row = row with { CoverThingId = giver.GetUniqueLoadID() }; row = row with { CoverDefName = Identifier(giver.def.defName) };
-                    row = row with { CoverKind = NativeClearCover.KindOf(giver) }; row = row with { CoverDesignated = NativeClearCover.Designated(giver) };
-                }
-                if (edifice != null) {
-                    row = row with { EdificeDefName = Identifier(edifice.def.defName) }; if (edifice.Stuff != null) row = row with { EdificeStuffDefName = Identifier(edifice.Stuff.defName) };
-                    row = row with { PlayerOwned = edifice.Faction == player };
-                    row = row with { NaturalRock = edifice.def.building?.isNaturalRock == true || edifice.def.mineable };
-                    row = row with { Door = edifice is Building_Door };
-                } else { row = row with { PlayerOwned = false }; row = row with { NaturalRock = false }; row = row with { Door = false }; }
-                row = row with { EdgeReachable = row.Passable.GetValueOrDefault() && map.reachability.CanReachMapEdge(cell, raider) };
-                snapshot = snapshot with { Cells = [.. snapshot.Cells, row] };
+                var kind = giver != null ? NativeClearCover.KindOf(giver) : Obs.CoverKind.Unspecified;
+                var covered = kind != Obs.CoverKind.Unspecified;
+                var passable = !cell.Impassable(map);
+                rows.Add(new Obs.DefenseCell {
+                    Cell = at, Fogged = false,
+                    Terrain = Identifier(cell.GetTerrain(map)?.defName),
+                    FoundationRemovalDesignated = map.designationManager.DesignationAt(cell, DesignationDefOf.RemoveFoundation) != null,
+                    Walkable = cell.Walkable(map), Passable = passable,
+                    Roofed = cell.Roofed(map),
+                    CoverFill = Finite(cover?.def.fillPercent ?? edifice?.def.fillPercent ?? 0),
+                    CoverThingId = covered ? giver!.GetUniqueLoadID() : null,
+                    CoverDefName = covered ? Identifier(giver!.def.defName) : null,
+                    CoverKind = covered ? kind : null,
+                    CoverDesignated = covered ? NativeClearCover.Designated(giver!) : null,
+                    EdificeDefName = edifice != null ? Identifier(edifice.def.defName) : null,
+                    EdificeStuffDefName = edifice?.Stuff != null ? Identifier(edifice.Stuff.defName) : null,
+                    PlayerOwned = edifice != null && edifice.Faction == player,
+                    NaturalRock = edifice != null && (edifice.def.building?.isNaturalRock == true || edifice.def.mineable),
+                    Door = edifice is Building_Door,
+                    EdgeReachable = passable && map.reachability.CanReachMapEdge(cell, raider),
+                });
             }
-            return snapshot;
+            return new Obs.DefenseSiteSnapshot { Context = context,
+                MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) }, Cells = [.. rows] };
         }
 
         // The hostile lords RaidArrivalState has tracked since load, oldest first.
@@ -127,29 +133,27 @@ namespace HomeBridge.BridgeTools
             foreach (var track in raids.Tracks.Values.OrderBy(t => t.SpawnTick).ThenBy(t => t.LordId)) {
                 var row = new Obs.RaidTrack { LordId = "lord-" + track.LordId.ToString(System.Globalization.CultureInfo.InvariantCulture), FactionDef = Identifier(track.FactionDef),
                     SpawnTick = track.SpawnTick, Spawn = new Common.Cell { X = track.Spawn.x, Z = track.Spawn.z }, Ground = track.Ground, LastTick = track.LastTick };
-                foreach (var c in track.Trail) row = row with { Trail = [.. row.Trail, new Common.Cell { X = c.x, Z = c.z }] };
-                yield return row;
+                yield return row with { Trail = [.. track.Trail.Select(c => new Common.Cell { X = c.x, Z = c.z })] };
             }
         }
 
         internal static Obs.LinesOfFireSnapshot Lines(Map map, List<IntVec3> firing, List<IntVec3> approach, Common.ObservationContext context, uint? budgetMs)
         {
-            var snapshot = new Obs.LinesOfFireSnapshot { Context = context };
+            var lines = new List<Obs.LineOfFire>();
             var budgetTicks = budgetMs.HasValue ? budgetMs.Value * System.Diagnostics.Stopwatch.Frequency / 1000 : long.MaxValue;
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
             foreach (var from in firing) foreach (var to in approach) {
                 // About 3 us a pair; the budget is checked per pair, so the snapshot holds a
                 // firing-major prefix of the product and says so.
-                if (System.Diagnostics.Stopwatch.GetTimestamp() - began >= budgetTicks) { snapshot = snapshot with { Skipped = true }; return snapshot; }
+                if (System.Diagnostics.Stopwatch.GetTimestamp() - began >= budgetTicks) return new Obs.LinesOfFireSnapshot { Context = context, Lines = [.. lines], Skipped = true };
                 var row = new Obs.LineOfFire { From = new Common.Cell { X = from.x, Z = from.z }, To = new Common.Cell { X = to.x, Z = to.z },
                     Distance = Finite((from - to).LengthHorizontal) };
-                if (from.Fogged(map) || to.Fogged(map)) { snapshot = snapshot with { Lines = [.. snapshot.Lines, row] }; continue; }
-                row = row with { LineOfSight = GenSight.LineOfSight(from, to, map, true) };
-                row = row with { TargetCover = Finite(CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(to), from, map)) };
-                row = row with { ShooterCover = Finite(CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(from), to, map)) };
-                snapshot = snapshot with { Lines = [.. snapshot.Lines, row] };
+                if (from.Fogged(map) || to.Fogged(map)) { lines.Add(row); continue; }
+                lines.Add(row with { LineOfSight = GenSight.LineOfSight(from, to, map, true),
+                    TargetCover = Finite(CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(to), from, map)),
+                    ShooterCover = Finite(CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(from), to, map)) });
             }
-            return snapshot;
+            return new Obs.LinesOfFireSnapshot { Context = context, Lines = [.. lines] };
         }
 
         private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value!) ? value! : throw new InvalidOperationException("Native identifier unavailable.");

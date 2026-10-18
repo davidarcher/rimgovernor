@@ -15,17 +15,14 @@ public sealed partial class Store
     /// <summary>Reads and validates the stored review; an empty journal has the zero review.</summary>
     internal static Rounds LoadRounds(StoreTransaction tx)
     {
+        var version = tx.DataVersion();
+        if (tx.Rounds.Get(version) is { } kept)
+        {
+            return kept;
+        }
         var (data, found) = tx.QueryFirst("SELECT payload FROM rounds WHERE singleton=1", [], r => r.GetString(0));
-        if (!found)
-        {
-            return new Rounds();
-        }
-        if (tx.Rounds.Loaded is { } kept && string.Equals(kept.Payload, data, StringComparison.Ordinal))
-        {
-            return kept.Review;
-        }
-        var review = DecodeRounds(data!);
-        tx.Rounds.Loaded = new(data!, review);
+        var review = found ? DecodeRounds(data!) : new Rounds();
+        tx.Rounds.Put(version, review);
         return review;
     }
 
