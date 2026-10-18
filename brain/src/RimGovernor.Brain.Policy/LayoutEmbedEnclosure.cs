@@ -44,6 +44,7 @@ internal sealed class CoverScratch
 {
     private readonly List<Rectangle> _clipped = [];
     private List<Rectangle> _active = [];
+    private List<Rectangle> _kept = [];
     private readonly List<int> _xs = [];
     private readonly List<(int Lo, int Hi)> _spans = [];
 
@@ -88,22 +89,30 @@ internal sealed class CoverScratch
             }
         }
         _xs.Sort();
-        var xs = _xs.Distinct().ToList();
+        var distinct = 0;
+        for (var x = 0; x < _xs.Count; x++)
+        {
+            if (distinct == 0 || _xs[x] != _xs[distinct - 1])
+            {
+                _xs[distinct++] = _xs[x];
+            }
+        }
+        _xs.RemoveRange(distinct, _xs.Count - distinct);
         var total = 0;
         // clipped is sorted by X and the strips run left to right, so a rectangle covers every strip from its
         // left edge to its right: the active ones are those started (X <= x0) and not yet passed (right edge >
         // x0; every right edge is a strip boundary, so one still active covers the whole strip).
         _active.Clear();
         var next = 0;
-        for (var s = 0; s + 1 < xs.Count; s++)
+        for (var s = 0; s + 1 < _xs.Count; s++)
         {
-            int x0 = xs[s], x1 = xs[s + 1];
+            int x0 = _xs[s], x1 = _xs[s + 1];
             while (next < _clipped.Count && _clipped[next].X <= x0)
             {
                 _active.Add(_clipped[next]);
                 next++;
             }
-            var kept = new List<Rectangle>(_active.Count);
+            _kept.Clear();
             _spans.Clear();
             foreach (var c in _active)
             {
@@ -111,7 +120,7 @@ internal sealed class CoverScratch
                 {
                     continue;
                 }
-                kept.Add(c);
+                _kept.Add(c);
                 // Insertion sort by start: a strip holds a handful of spans.
                 var sp = (c.Z, c.Z + c.Height);
                 _spans.Add(sp);
@@ -122,7 +131,7 @@ internal sealed class CoverScratch
                 }
                 _spans[j] = sp;
             }
-            _active = kept;
+            (_active, _kept) = (_kept, _active);
             var at = k.Z;
             foreach (var sp in _spans)
             {

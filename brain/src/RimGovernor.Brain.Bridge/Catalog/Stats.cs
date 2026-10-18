@@ -141,10 +141,14 @@ public sealed partial class DefinitionCatalog
         ShownValue(CatalogStats.WorkToBuild, StatTerrain(terrain), null, true).Value;
 
     /// <summary>The game's <c>GetStatValueAbstract(stat)</c> of a TerrainDef; a stat the game does not show for it is an error.</summary>
-    public float TerrainStatValue(string terrain, CatalogStat stat)
+    public float TerrainStatValue(string terrain, CatalogStat stat) =>
+        TerrainShownStat(terrain, stat) ?? throw new CatalogException($"stat {stat} is not shown for terrain {terrain}");
+
+    /// <summary>The game's <c>GetStatValueAbstract(stat)</c> of a TerrainDef; null when the game does not show it for it.</summary>
+    public float? TerrainShownStat(string terrain, CatalogStat stat)
     {
         var (value, shown) = ShownValue(stat, StatTerrain(terrain), null, false);
-        return shown ? value : throw new CatalogException($"stat {stat} is not shown for terrain {terrain}");
+        return shown ? value : null;
     }
 
     private ThingDef StatThing(string def) =>

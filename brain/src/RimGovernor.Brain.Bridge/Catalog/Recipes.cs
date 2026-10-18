@@ -235,20 +235,29 @@ public sealed partial class DefinitionCatalog
     /// cost of the def made from the stuff (empty for a def not made from stuff). The recipe is the first by defName whose
     /// only product is the def (<c>RecipeDef.ProducedThingDef</c>); null when no recipe makes it.
     /// </summary>
-    public (IReadOnlyList<string> Research, IReadOnlyList<StatCost> Ingredients)? ApparelBill(string def, string stuff)
+    public (IReadOnlyList<string> Research, IReadOnlyList<StatCost> Ingredients)? ApparelBill(string def, string stuff) =>
+        LazyInitializer.EnsureInitialized(ref _soleProductResearch, SoleProductResearch).TryGetValue(def, out var research)
+            ? (research, AdjustedCosts(def, stuff))
+            : null;
+
+    // Each def made as the only product of a recipe without special products, with the sorted research of the first
+    // such recipe by defName. A gear census asks it for every bill option of every pawn, so the catalog builds it once.
+    private Dictionary<string, IReadOnlyList<string>>? _soleProductResearch;
+
+    private Dictionary<string, IReadOnlyList<string>> SoleProductResearch()
     {
+        var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         foreach (var row in Rows<RecipeDef>().Values.OrderBy(r => r.defName, StringComparer.Ordinal))
         {
-            if (row.specialProducts.Seq().Any() || row.products.Seq().ToList() is not [{ thingDef: { } product }] || product.defName != def)
+            if (row.specialProducts.Seq().Any() || row.products.Seq().ToList() is not [{ thingDef: { } product }])
             {
                 continue;
             }
 
-            var research = RecipeResearch(row).Order(StringComparer.Ordinal).ToList();
-            return (research, AdjustedCosts(def, stuff));
+            result.TryAdd(product.defName, RecipeResearch(row).Order(StringComparer.Ordinal).ToList());
         }
 
-        return null;
+        return result;
     }
 
     /// <summary>Whether the def has a smoke-pop verb (a <c>Verb_SmokePop</c> in its verbs).</summary>

@@ -21,33 +21,34 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>
         /// Runs body on the game thread under its admission class (control before observation), the per-frame
-        /// allowance and the watchdog, and returns its reply as built. A hop that ran reports its queue wait and run
-        /// time to <see cref="HopTimed"/> on the caller's flow.
+        /// allowance and the watchdog, and returns its reply as built. A hop that ran reports its queue wait, run time
+        /// and the bytes it allocated on the game thread to <see cref="HopTimed"/> on the caller's flow.
         /// </summary>
         internal static async Task<T> OnGameThread<T>(string operation, Func<T> body, CancellationToken cancellationToken, string? cls = null) where T : class
         {
             var mainThread = RimBridgeMainThreadAccess.Current ?? throw new InvalidOperationException("The host's game-thread access is not available.");
             var hop = MainThreadWatchdog.Enqueue(operation);
-            long queued = Stopwatch.GetTimestamp(), began = 0, ended = 0;
+            long queued = Stopwatch.GetTimestamp(), began = 0, ended = 0, allocated = 0;
             var task = MainThreadAdmission.Enqueue(mainThread, MainThreadAdmission.RankOf(cls), () =>
             {
                 began = Stopwatch.GetTimestamp();
+                var before = GC.GetAllocatedBytesForCurrentThread();
                 MainThreadWatchdog.Start(hop);
                 try { return body(); }
-                finally { MainThreadWatchdog.Finish(hop); ended = Stopwatch.GetTimestamp(); }
+                finally { MainThreadWatchdog.Finish(hop); ended = Stopwatch.GetTimestamp(); allocated = GC.GetAllocatedBytesForCurrentThread() - before; }
             }, cancellationToken);
             try { return (T)await task.ConfigureAwait(false); }
             // A hop the host never runs (cancelled while queued) still leaves the watchdog.
             finally
             {
                 MainThreadWatchdog.Finish(hop);
-                if (began != 0) HopTimed?.Invoke(Ms(began - queued), Ms(ended - began));
+                if (began != 0) HopTimed?.Invoke(operation, Ms(began - queued), Ms(ended - began), allocated);
             }
         }
 
-        // Receives each hop's queue wait and run time, in milliseconds, on the caller's flow: the brain's read
-        // tally, installed by the in-process facade.
-        internal static Action<double, double>? HopTimed { get; set; }
+        // Receives each hop's operation, queue wait and run time in milliseconds, and game-thread allocated bytes, on
+        // the caller's flow: the brain's read tally, installed by the in-process facade.
+        internal static Action<string, double, double, long>? HopTimed { get; set; }
 
         private static double Ms(long ticks) => ticks * 1000.0 / Stopwatch.Frequency;
 

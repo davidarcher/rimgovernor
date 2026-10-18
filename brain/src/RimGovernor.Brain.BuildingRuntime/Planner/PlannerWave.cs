@@ -80,6 +80,7 @@ internal sealed class PlannerWave : IDisposable
                 ["rimgovernor.class"] = entry.Class.ToString().ToLowerInvariant(),
                 ["rimgovernor.concern"] = entry.Concern.Value,
             });
+            using var runtime = Tel.RuntimeTags(span);
             var reason = default(Verdict);
             Exception? error = null;
             try

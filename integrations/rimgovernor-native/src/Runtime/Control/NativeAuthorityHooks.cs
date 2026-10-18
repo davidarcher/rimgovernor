@@ -109,6 +109,7 @@ namespace HomeBridge.BridgeTools
         {
             lock (Sync)
             {
+                healthAt = 0;
                 var harmony = new Harmony(Owner);
                 foreach (var spec in Specs)
                 {
@@ -163,20 +164,42 @@ namespace HomeBridge.BridgeTools
             }
         }
 
+        // Health is read on every UpdatePlay poll and every admission, and a verification asks Harmony for each
+        // target's patch info, which Harmony deserializes from its shared state and resolves by module token: per
+        // frame that was the game thread's largest allocator. A ready result is therefore re-verified at most once
+        // per AuditMillis (as NativePawnControlState audits its own hooks); another mod removing a patch is still
+        // seen within that, and a result that is not ready is never kept, so the repair in InitializeForCurrentGame
+        // retries on the next poll.
+        private const long AuditMillis = 1000;
+        private static long healthAt;
+        private static NativeAuthorityHookHealth? health;
+
         public static NativeAuthorityHookHealth Health
         {
             get
             {
-                try
+                lock (Sync)
                 {
-                    var rows = Statuses;
-                    var verified = rows.Count(r => r.Installed);
-                    var firstError = rows.FirstOrDefault(r => !r.Installed && r.Error.Length > 0);
-                    return new NativeAuthorityHookHealth(verified, Required, verified == Required ? "" :
-                        firstError == null ? "Required native authority hooks are not installed" : firstError.Name + ": " + firstError.Error);
+                    var now = System.Diagnostics.Stopwatch.GetTimestamp();
+                    if (health is { Ready: true } kept && healthAt != 0 && now - healthAt < AuditMillis * System.Diagnostics.Stopwatch.Frequency / 1000) return kept;
+                    health = Verify();
+                    healthAt = now;
+                    return health;
                 }
-                catch { return new NativeAuthorityHookHealth(0, Required, "Native authority hook verification failed"); }
             }
+        }
+
+        private static NativeAuthorityHookHealth Verify()
+        {
+            try
+            {
+                var rows = Statuses;
+                var verified = rows.Count(r => r.Installed);
+                var firstError = rows.FirstOrDefault(r => !r.Installed && r.Error.Length > 0);
+                return new NativeAuthorityHookHealth(verified, Required, verified == Required ? "" :
+                    firstError == null ? "Required native authority hooks are not installed" : firstError.Name + ": " + firstError.Error);
+            }
+            catch { return new NativeAuthorityHookHealth(0, Required, "Native authority hook verification failed"); }
         }
 
         /// <summary>Call on the main thread before trusted admission; UpdatePlay also polls while paused.</summary>

@@ -7,8 +7,8 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 /// Counts the native round trips issued under one scope. Every native call the host makes
 /// while a tally is attached (<see cref="Begin"/>, <see cref="ReadTallyScope.WithReadTally"/>) is counted by the
 /// native facade method it called (<see cref="ReadTallyRules.CountNativeRead"/>), errors included, and every
-/// game-thread hop adds how long it waited for the game thread and how long it ran there
-/// (<see cref="ReadTallyRules.CountHop"/>). A scheduler step attaches one at entry so the reads a full planner
+/// game-thread hop adds how long it waited for the game thread, how long it ran there and what it allocated there, by
+/// operation (<see cref="ReadTallyRules.CountHop"/>). A scheduler step attaches one at entry so the reads a full planner
 /// composition costs are visible per step and, through <see cref="Publish"/>, in the OTLP log ring the throughput
 /// profiler summarizes; each planner and each family phase nests one under it
 /// (<see cref="ReadTallyScope.Nested"/>), which forwards to the step's. It is safe for concurrent use; planners
@@ -20,6 +20,7 @@ public sealed class ReadTally(ReadTally? parent = null)
 
     private readonly object _lock = new();
     private readonly Dictionary<string, ulong> _counts = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, long> _hopBytes = new(StringComparer.Ordinal);
     private ulong _total;
     private double _waitMs;
     private double _runMs;
@@ -61,33 +62,44 @@ public sealed class ReadTally(ReadTally? parent = null)
         parent?.Add(tool);
     }
 
-    /// <summary>Adds one game-thread hop: <paramref name="waitMs"/> queued for the game thread, <paramref name="runMs"/> running on it.</summary>
-    public void AddHop(double waitMs, double runMs)
+    /// <summary>
+    /// Adds one game-thread hop of <paramref name="operation"/>: <paramref name="waitMs"/> queued for the game thread,
+    /// <paramref name="runMs"/> running on it and <paramref name="allocatedBytes"/> allocated there.
+    /// </summary>
+    public void AddHop(string operation, double waitMs, double runMs, long allocatedBytes)
     {
         lock (_lock)
         {
             _waitMs += waitMs;
             _runMs += runMs;
+            _hopBytes[operation] = _hopBytes.GetValueOrDefault(operation) + allocatedBytes;
         }
-        parent?.AddHop(waitMs, runMs);
+        parent?.AddHop(operation, waitMs, runMs, allocatedBytes);
     }
 
-    /// <summary>The tally's reads, hop wait and hop run time, and per-tool counts, as row or span attributes.</summary>
+    /// <summary>The tally's reads, hop wait, run time and allocated KB, per-tool counts and per-operation hop KB, as row or span attributes.</summary>
     public Dictionary<string, object?> Attrs()
     {
         var tools = new Dictionary<string, object?>(StringComparer.Ordinal);
+        var hopKb = new Dictionary<string, object?>(StringComparer.Ordinal);
         lock (_lock)
         {
             foreach (var (tool, n) in _counts)
             {
                 tools[tool] = n;
             }
+            foreach (var (operation, bytes) in _hopBytes)
+            {
+                hopKb[operation] = bytes / 1024;
+            }
             return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["reads"] = _total,
                 ["hop_wait_ms"] = Math.Round(_waitMs, 1),
                 ["hop_run_ms"] = Math.Round(_runMs, 1),
+                ["hop_alloc_kb"] = _hopBytes.Values.Sum() / 1024,
                 ["tools"] = tools,
+                ["hop_kb"] = hopKb,
             };
         }
     }
@@ -126,8 +138,9 @@ public static class ReadTallyRules
     /// <summary>The native call layer's hook: counts one round trip of <paramref name="nativeTool"/> on the attached tally, if any.</summary>
     public static void CountNativeRead(string nativeTool) => ReadTally.Current?.Add(nativeTool);
 
-    /// <summary>The game-thread boundary's hook: adds one hop's queue wait and run time to the attached tally, if any.</summary>
-    public static void CountHop(double waitMs, double runMs) => ReadTally.Current?.AddHop(waitMs, runMs);
+    /// <summary>The game-thread boundary's hook: adds one hop's queue wait, run time and game-thread allocation to the attached tally, if any.</summary>
+    public static void CountHop(string operation, double waitMs, double runMs, long allocatedBytes) =>
+        ReadTally.Current?.AddHop(operation, waitMs, runMs, allocatedBytes);
 }
 
 /// <summary>A tally attached by <see cref="ReadTallyScope.WithReadTally"/>; disposing it restores the previous one.</summary>

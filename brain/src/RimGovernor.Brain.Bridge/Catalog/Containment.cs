@@ -12,12 +12,28 @@ public sealed partial class DefinitionCatalog
 {
     private const string ContainmentStat = "ContainmentStrength";
 
+    // The holder, floor and facility inputs depend on the defs alone, so a catalog reads them once.
+    private P.ContainmentDefs? _containmentShared;
+
     /// <summary>
     /// The prediction's inputs for a cell shelled with the wall and door defs built from their stuff (empty for a def made
     /// of none). The holder is the platform def (a <c>CompProperties_EntityHolderPlatform</c> def) with the greatest
     /// containmentFactor, the first by name on a tie. Anything the defs do not carry is an error naming it.
     /// </summary>
     public P.ContainmentDefs ContainmentDefs(string wall, string wallStuff, string door, string doorStuff)
+    {
+        var shared = LazyInitializer.EnsureInitialized(ref _containmentShared, ContainmentShared);
+
+        double HitPoints(string def, string stuff)
+        {
+            var value = StatValue(def, stuff, CatalogStats.MaxHitPoints);
+            return value > 0 ? value : throw new CatalogException($"{def} has no {PlanningStatNames.MaxHitPoints}");
+        }
+
+        return shared with { WallHP = HitPoints(wall, wallStuff), DoorHP = HitPoints(door, doorStuff) };
+    }
+
+    private P.ContainmentDefs ContainmentShared()
     {
         var stat = DefRow<StatDef>(ContainmentStat) ?? throw new CatalogException($"the catalog has no {ContainmentStat} stat def");
         ThingDef? holder = null;
@@ -49,7 +65,11 @@ public sealed partial class DefinitionCatalog
             double value;
             try
             {
-                value = TerrainStatValue(name, CatalogStats.ContainmentStrength);
+                if (TerrainShownStat(name, CatalogStats.ContainmentStrength) is not { } shown)
+                {
+                    continue;
+                }
+                value = shown;
             }
             catch (Exception e) when (e is CatalogException or StatException)
             {
@@ -60,12 +80,6 @@ public sealed partial class DefinitionCatalog
             {
                 floor = new P.ContainmentFloor { Def = name, Strength = value };
             }
-        }
-
-        double HitPoints(string def, string stuff)
-        {
-            var value = StatValue(def, stuff, CatalogStats.MaxHitPoints);
-            return value > 0 ? value : throw new CatalogException($"{def} has no {PlanningStatNames.MaxHitPoints}");
         }
 
         var facilities = new List<P.ContainmentFacility>();
@@ -91,8 +105,6 @@ public sealed partial class DefinitionCatalog
             HolderBase = holderBase,
             FloorStrength = floorStrength,
             Floor = floor,
-            WallHP = HitPoints(wall, wallStuff),
-            DoorHP = HitPoints(door, doorStuff),
             Facilities = new([.. facilities]),
         };
     }

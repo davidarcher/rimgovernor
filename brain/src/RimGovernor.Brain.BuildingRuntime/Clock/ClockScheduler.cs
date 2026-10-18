@@ -183,6 +183,8 @@ public sealed partial class ClockScheduler
     {
         var result = new ClockSchedulerResult();
         using var span = Tel.StartSpan("buildingruntime", "scheduler.step", ("rimgovernor.step_cause", Wire.Name(reason.Cause)));
+        using var runtime = Tel.RuntimeTags(span);
+        using var profile = Tel.ProfileTags(span);
         var entered = Stopwatch.GetTimestamp();
         var stepBegan = _clock.Now();
         using var entry = await _player.EnterAsync("clock_step", false, ct).ConfigureAwait(false);
