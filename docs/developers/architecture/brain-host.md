@@ -414,6 +414,25 @@ The second cut (session `4a7c9e93e3ab45adb3a48cdf84781d5f`, 22 rounds reviews, o
   and the census refresh spikes are the stock lap's remainder; the planned sites (94 ms, 288 MB p95) are
   `d_planned`'s.
 
+The third cut, the armory declarer (session `abf485a16823439d917e6be65f1991ee`, 31 rounds reviews, one passing
+colony-review day of the same colony):
+
+- **What changed.** The declarer's weapon demand starts the frame-things, combat-pawns and map-bounds reads together
+  and issues the equip-weapons read as soon as the bounds answer, while the pawn facts are built; the replies are read
+  in the order the sequential reads had, so the first failure in that order still abstains the same way
+  (`SharedReads.Attempt` / `Reply`, the trade-export declarer's capture helper made common). The mortar shell targets
+  the `d_reads` lap reads for `ShellsShort` ride on the reading as `Facts.ShellTargets`, so the declarer reads them
+  from the projection instead of loading the defense layout and the catalog again.
+- **After.** `derive/ledger/armory` 24.8 ms p50 (48.3), p95 70 (111), max 72 (125), 0.87 s over the day (1.2 s over
+  22 reviews). `derive/ledger` 28 p50 (53), p95 79 (119), 1.2 s over 31 reviews (1.3 s over 22); `derive/ledger/declare`
+  28 p50, and the lap is no longer the armory's alone: `tradeexport` 18 p50 (p95 63, max 194, the lap's max of 205)
+  runs the length of it on the reviews whose silver gap is open; `gear` 3, the rest under 1. `derive` 66 ms p50 (87),
+  p95 147. Rounds 1291 ms p50 (1332), p95 2970; `d_stock` 101 (83) and `d_planned` 159 (156) are the day's colony.
+- **What is left.** The issue's mark is still not reached: `derive` 66 + `d_stock` 101 ms. The armory's 25 ms is two
+  frame waits (the three reads together, then the weapons read the bounds gate) plus the pawn facts; the map bounds
+  do not change within a load, so reading them once per load would collapse the two waits into one. The stock lap is
+  now the larger half of the mark.
+
 ## Hosting in the mod (#3115)
 
 Decided (user, 2026-10-13):

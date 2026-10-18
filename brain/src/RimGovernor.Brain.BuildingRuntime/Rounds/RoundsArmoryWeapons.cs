@@ -14,8 +14,15 @@ public sealed partial class RoundsArmoryPlanner
             return ([], [], 0);
         }
         var identity = Boundary.Identity(snapshot);
-        var things = await RoundsGear.FrameThingsOfAsync(_native, identity, ct).ConfigureAwait(false);
-        var reply = (await source.ReadCombatPawnsAsync(identity, ids, ct).ConfigureAwait(false));
+        // The frame things, the combat pawns and the map bounds read nothing of each other, so their hops share frames
+        // (#3566), and the loose weapons are read as soon as the bounds arrive, while the pawn facts are built. The
+        // replies are read in the order the sequential reads had, so the first failure in that order still throws.
+        var thingsRead = SharedReads.Attempt(RoundsGear.FrameThingsOfAsync(_native, identity, ct));
+        var pawnsRead = SharedReads.Attempt(source.ReadCombatPawnsAsync(identity, ids, ct));
+        var boundsRead = SharedReads.Attempt(source.ReadMapBoundsAsync(identity, default(Cell), ct));
+        var weaponsRead = EquipWeaponsAsync(source, identity, snapshot, boundsRead, ct);
+        var things = SharedReads.Reply(await thingsRead.ConfigureAwait(false));
+        var reply = SharedReads.Reply(await pawnsRead.ConfigureAwait(false));
         var observed = reply.Outcome?.Observed;
         if (observed is null)
         {
@@ -40,12 +47,12 @@ public sealed partial class RoundsArmoryPlanner
                 primaries[new Domain.PawnId(p.Pawn.Id ?? "")] = primary;
             }
         }
-        var bounds = await source.ReadMapBoundsAsync(identity, default(Cell), ct).ConfigureAwait(false);
-        if (!ContextMatches(bounds.Context, snapshot) || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0)
+        var bounds = SharedReads.Reply(await boundsRead.ConfigureAwait(false));
+        if (!BoundsKnown(bounds, snapshot))
         {
             throw new ControlException("weaponDemand: err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0");
         }
-        var weapons = await source.ReadEquipWeaponsAsync(identity, default(Cell), new Cell((int)bounds.Bounds.Width - 1, (int)bounds.Bounds.Height - 1), ct).ConfigureAwait(false);
+        var weapons = SharedReads.Reply(await weaponsRead.ConfigureAwait(false));
         if (!ContextMatches(weapons.Context, snapshot))
         {
             throw new ControlException("weaponDemand: err != nil");
@@ -79,6 +86,24 @@ public sealed partial class RoundsArmoryPlanner
         var (fighters, hunters) = ArmoryRules.ArmoryWeaponDemand(tier, pawns, primaries, candidates, recipes, products);
         _reviewer.Exports.SetWeapons(snapshot, GearSurplusRules.SpareWeaponCounts(tier, pawns, primaries, candidates, recipes, products));
         return (fighters, hunters, WeaponAssignmentRules.UnarmedFighters(pawns, candidates));
+    }
+
+    /// <summary>Whether the bounds reply belongs to the snapshot's world and spans cells.</summary>
+    private static bool BoundsKnown(MapBounds bounds, GenerationSnapshot snapshot) =>
+        ContextMatches(bounds.Context, snapshot) && bounds.Bounds.Width > 0 && bounds.Bounds.Height > 0;
+
+    /// <summary>
+    /// The map's loose weapons, read once the bounds read answers. Bounds that failed or are unknown issue no read: the
+    /// caller reads the bounds reply first and throws there, so the empty reply returned here is never read.
+    /// </summary>
+    private static async Task<(EquipRead Value, Exception? Error)> EquipWeaponsAsync(FacadeNativeClient source, C.Identity identity, GenerationSnapshot snapshot, Task<(MapBounds Value, Exception? Error)> boundsRead, CancellationToken ct)
+    {
+        var (bounds, error) = await boundsRead.ConfigureAwait(false);
+        if (error is not null || !BoundsKnown(bounds, snapshot))
+        {
+            return (default!, error);
+        }
+        return await SharedReads.Attempt(source.ReadEquipWeaponsAsync(identity, default(Cell), new Cell((int)bounds.Bounds.Width - 1, (int)bounds.Bounds.Height - 1), ct)).ConfigureAwait(false);
     }
 
     /// <summary>

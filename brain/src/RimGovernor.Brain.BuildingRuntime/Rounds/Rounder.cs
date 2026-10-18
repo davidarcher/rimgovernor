@@ -464,7 +464,7 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { TemperatureOwed = RoundsBuildingPlanner.TemperatureOwed(reading.Projection) });
         Lap("d_owed");
         var targets = await RoundsArmoryShells.ShellTargetsAsync(Native, p.Journal, state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
-        reading = reading.WithFacts(rf => rf with { ShellsShort = ArmoryShellsRules.ShellsShort(targets, reading.Projection.Resources) });
+        reading = reading.WithFacts(rf => rf with { ShellTargets = Known(EquatableArray.From(targets)), ShellsShort = ArmoryShellsRules.ShellsShort(targets, reading.Projection.Resources) });
         if (Needs.Contains(ShelterFamily.SafeArea))
         {
             reading = reading.WithFacts(rf => rf with { SafeAreaOwed = SafeArea.Review(RoundsStockpilePlanner.StockpileWorld(state.Snapshot), reading.Projection) });

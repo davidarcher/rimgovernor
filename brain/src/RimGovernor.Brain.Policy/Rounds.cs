@@ -348,6 +348,9 @@ public sealed record RoundsFacts
     /// <summary>The void monolith's state; unknown without Anomaly.</summary>
     public Fact<MonolithFacts> Monolith { get; init; }
 
+    /// <summary>The built mortars' shell targets (ArmoryShellsRules.MortarShellTargets), read once per review: ShellsShort and the armory declarer's shell orders derive from them (#3566). Empty without a built mortar or a known threat.</summary>
+    public Fact<EquatableArray<Amount>> ShellTargets { get; init; }
+
     /// <summary>The armory shell review: a built mortar's shell stock below half its target keeps the military/equipment Need unmet.</summary>
     public Fact<bool> ShellsShort { get; init; }
 

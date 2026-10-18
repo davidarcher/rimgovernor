@@ -64,14 +64,10 @@ public sealed partial class RoundsArmoryPlanner
             return RoundsGearPlanner.AbstainOnRead(Cause.UnreadWeapons, e, ct);
         }
 
-        IReadOnlyList<Amount> shells;
-        try
+        // The review's d_reads lap read the shell targets (Facts.ShellTargets); the declarer does not read them again (#3566).
+        if (!projection.Facts.ShellTargets.TryGetValue(out var shells))
         {
-            shells = await RoundsArmoryShells.ShellTargetsAsync(_native, _reviewer.Player.Journal, snapshot, projection, ct).ConfigureAwait(false);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            return RoundsGearPlanner.AbstainOnRead(Cause.UnreadShells, e, ct);
+            return WorkRules.Abstaining(Cause.UnreadShells);
         }
 
         SetSpotNeeded((unarmed > 0 && !WeaponBenchHosted(benches)) || RoundsBuildingPlanner.PositiveFact(projection.Facts.CraftingSpotRetireOwed));

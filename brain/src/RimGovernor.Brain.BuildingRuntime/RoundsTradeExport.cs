@@ -241,7 +241,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         // The supply stock, every ingredient's sources and the packed art read nothing of each other, so their hops
         // share frames (#3566); the results are read in the order the sequential reads had, so the first unread input
         // still names the abstain.
-        var supplyRead = strs.Count > 0 ? Attempt(resource.ReadSupplyStockAsync(identity, strs, ct)) : null;
+        var supplyRead = strs.Count > 0 ? SharedReads.Attempt(resource.ReadSupplyStockAsync(identity, strs, ct)) : null;
         var sourceReads = new Task<(IReadOnlyList<Pol.ResourceSource> Rows, Exception? Error)>[names.Count];
         for (var i = 0; i < names.Count; i++)
         {
@@ -296,22 +296,9 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         return plan.Declared;
     }
 
-    /// <summary>The read's reply, or the exception it threw (a cancellation propagates).</summary>
-    private static async Task<(T Value, Exception? Error)> Attempt<T>(Task<T> read)
-    {
-        try
-        {
-            return (await read.ConfigureAwait(false), null);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            return (default!, e);
-        }
-    }
-
     private static async Task<(IReadOnlyList<Pol.ResourceSource> Rows, Exception? Error)> ReadSourcesAsync(FacadeNativeClient resource, C.Identity identity, string name, CancellationToken ct)
     {
-        var (read, error) = await Attempt(resource.ReadResourceSourcesAsync(identity, name, ct)).ConfigureAwait(false);
+        var (read, error) = await SharedReads.Attempt(resource.ReadResourceSourcesAsync(identity, name, ct)).ConfigureAwait(false);
         return (error is null ? read.Rows : [], error);
     }
 
@@ -326,7 +313,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         {
             return Unknown<long>();
         }
-        var (sale, error) = await Attempt(RoundsSleepingUpkeepPlanner.SaleSculpturesOfAsync(native, identity, projection, ct)).ConfigureAwait(false);
+        var (sale, error) = await SharedReads.Attempt(RoundsSleepingUpkeepPlanner.SaleSculpturesOfAsync(native, identity, projection, ct)).ConfigureAwait(false);
         return error is not null || sale is null ? Unknown<long>() : Known((long)sale.Count);
     }
 
@@ -337,7 +324,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
     /// </summary>
     private async Task<(List<string> Kinds, bool Known)> TraderKindsAsync(FacadeNativeClient native, GenerationSnapshot snapshot, C.Identity identity, CancellationToken ct)
     {
-        var requestsRead = Attempt(native.ReadTradeAcquisitionAsync(identity, null, ct));
+        var requestsRead = SharedReads.Attempt(native.ReadTradeAcquisitionAsync(identity, null, ct));
         var settlementsRead = SettlementTraderKindsAsync(native, snapshot, identity, ct);
         var (facts, error) = await requestsRead.ConfigureAwait(false);
         if (error is not null || facts is null)
@@ -379,7 +366,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         {
             return [];
         }
-        var (world, error) = await Attempt(native.ReadWorldAsync(identity, home.Value, AllSettlementsRadius, ct)).ConfigureAwait(false);
+        var (world, error) = await SharedReads.Attempt(native.ReadWorldAsync(identity, home.Value, AllSettlementsRadius, ct)).ConfigureAwait(false);
         if (error is not null)
         {
             return null;
@@ -405,7 +392,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
                 return _home;
             }
         }
-        var (progress, error) = await Attempt(native.ReadWorldProgressionAsync(identity, ct)).ConfigureAwait(false);
+        var (progress, error) = await SharedReads.Attempt(native.ReadWorldProgressionAsync(identity, ct)).ConfigureAwait(false);
         if (error is not null)
         {
             return null;
