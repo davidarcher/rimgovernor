@@ -281,7 +281,8 @@ evidence. The postmortem's `crash dump` section names it and, when the game exit
 with 0xC0000005 before its channel came up (the intermittent MonoMod JIT-hook crash,
 #3190), the tail of the case's `game.log`. A kept process dumps into the case that
 launched it; the dump path never forces a relaunch. The dump holds process memory, so
-the remote exporter does not upload it (see [remote acceptance](../contracts/remote-acceptance.md)).
+the remote exporter does not upload it; the remote workflow exports its `dotnet-dump` text
+analysis instead (see [remote acceptance](../contracts/remote-acceptance.md)).
 
 `acceptance warm -root <root>` prepares the menu before a run.
 Use the suite runner for worker isolation and parallel cases rather than

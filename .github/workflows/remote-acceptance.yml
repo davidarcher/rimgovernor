@@ -183,6 +183,12 @@ jobs:
         env:
           SHARD: ${{ matrix.shard }}
         run: ./trusted/scripts/collect_crash_remote.ps1 -Out "C:\rg\crash\$env:SHARD"
+      # Before cleanup: the analysis loads the DAC from the game layout. Text only leaves (#3190).
+      - name: Analyze CoreCLR crash dumps on the runner
+        if: always() && steps.gate.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 15
+        run: if (Test-Path C:\rg\export-jobs.json) { ./trusted/scripts/analyze_dumps_remote.ps1 -Jobs C:\rg\export-jobs.json }
       - name: Stop this job's processes and remove identity
         if: always() && steps.gate.outcome == 'success'
         run: |

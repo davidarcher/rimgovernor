@@ -157,6 +157,13 @@ allowlisted, sanitized evidence tree (reports, metrics, the case's OTLP rings an
 never entire game/profile/work directories, credentials or licensed bytes. Raw
 restricted diagnostics stay out of public uploads; if required, #377/#380 use
 separately age-encrypted assets with a digest-bound reference and trusted retrieval.
+A CoreCLR crash minidump a case launch leaves (`coreclr-<pid>.dmp`, see the
+[acceptance guide](../testing/acceptance-guide.md)) never leaves the runner. Before cleanup,
+`scripts/analyze_dumps_remote.ps1` installs a pinned `dotnet-dump` (only when a dump exists)
+and writes its threads, managed stacks with native frames (`clrstack -all -f`), exception and
+module list to `coreclr-<pid>.analysis.txt` beside the dump, runner paths reduced to file
+names. The exporter carries that text like any `.txt` diagnostic. The step is bounded and
+non-fatal: a failed analysis is logged and does not change the shard result.
 Missing required diagnostics cannot be hidden by redaction: report incomplete
 until the importer can retrieve them. The initial evidence fixtures require no
 private diagnostic payloads. #377 inventories licensed inputs before packaging.

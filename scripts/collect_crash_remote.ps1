@@ -8,7 +8,8 @@ param(
 # the shard job), Application Error / WER events, crash dump inventory and
 # Unity crash-folder text logs. Dumps stay on the runner: they hold process
 # memory, which the public-artifact boundary never exports. Only text
-# leaves, with runner paths reduced to [runner-path].
+# leaves, with runner paths reduced to [runner-path]. A case's own CoreCLR
+# dump is analyzed to text by analyze_dumps_remote.ps1.
 $ErrorActionPreference = 'Continue'
 New-Item -ItemType Directory -Force $Out | Out-Null
 $names = 'RimWorld|rimgovernor|acceptance'

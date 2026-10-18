@@ -7,7 +7,8 @@ namespace RimGovernor.Brain.Acceptance;
 /// <c>createdump.exe</c>; with these variables in a launch's environment the runtime writes a minidump of a crashing
 /// process into the case's output directory. It is how an intermittent startup crash (an <c>Internal CLR error</c> in
 /// MonoMod's JIT compile hook, the process exiting with 0xC0000005 before its channel comes up) leaves more than a log
-/// line. The dump holds process memory, so it stays beside the case evidence and is never exported publicly.
+/// line. The dump holds process memory, so it stays beside the case evidence and is never exported publicly; the
+/// remote workflow exports its dotnet-dump text analysis (<c>scripts/analyze_dumps_remote.ps1</c>) instead.
 /// </summary>
 public static class CrashDump
 {
