@@ -24,27 +24,27 @@ public sealed partial class PawnControlFixture
     private static readonly Dictionary<string, int> productiveCompletions = new(StringComparer.Ordinal);
     private static readonly HashSet<string> productiveMethods = new(StringComparer.Ordinal);
 
-    [Tool("test/productive_cooking_prepare", Description="UNSAFE FOR MODEL EXECUTION. Prepared demanded simple meals and near-next-level cooks, no selected worker or activity. Verify native counterfactual rates before normal planner starts.")]
-    public async Task<object> ProductiveCookingPrepare(IRimBridgeContext ctx, CancellationToken ct)
-    {
-        await PrepareCooking(ctx, ct).ConfigureAwait(false);
-        return await ctx.MainThread.InvokeAsync<object>(() =>
+    [Tool("test/productive_cooking_prepare", Description="UNSAFE FOR MODEL EXECUTION. Bind the staged cook, stove, simple-meal bill and rice; clear other food; set near-next-level cooks, no selected worker or activity. Verify native counterfactual rates before normal planner starts.")]
+    public async Task<object> ProductiveCookingPrepare(IRimBridgeContext ctx, CancellationToken ct,
+        [ToolParameter(Description="The load id of the cook whose output is watched.")] string cook = "",
+        [ToolParameter(Description="The stove's load id.")] string bench = "",
+        [ToolParameter(Description="The simple-meal bill's load id.")] string bill = "",
+        [ToolParameter(Description="The rice stack's load id.")] string rice = "")
+        => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             productiveActive = false;
-            var map = worker!.Map;
-            var originalTick = Find.TickManager.TicksGame;
-            var hour = GenLocalDate.DayPercent(worker) * 24;
-            Find.TickManager.DebugSetTicksGame(originalTick + (int)Math.Round(((12 - hour + 24) % 24) * GenDate.TicksPerHour));
-            cookingBench.BillStack.Delete(otherBill);
-            selectedBill.repeatCount = 6;
-            firstIngredient.Destroy(); secondIngredient.Destroy();
-            foreach (var food in map.listerThings.AllThings.Where(t => t.Spawned && t != unselectedIngredient && t.def.IsNutritionGivingIngestible).ToArray()) food.Destroy();
+            var map = FixtureKit.PausedMap();
+            worker = FixtureKit.Spawned<Pawn>(map, cook);
+            cookingBench = FixtureKit.Spawned<Building_WorkTable>(map, bench);
+            selectedBill = StagedBill(cookingBench, bill);
+            var ingredient = FixtureKit.Spawned<Thing>(map, rice);
+            foreach (var food in map.listerThings.AllThings.Where(t => t.Spawned && t != ingredient && t.def.IsNutritionGivingIngestible).ToArray()) food.Destroy();
             foreach (var pawn in map.mapPawns.FreeColonistsSpawned.ToArray())
             {
                 pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
                 foreach (var type in DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(t => !pawn.WorkTypeIsDisabled(t))) pawn.workSettings.SetPriority(type, 0);
                 pawn.needs.food.CurLevelPercentage = .35f; pawn.needs.rest.CurLevelPercentage = .95f; pawn.needs.joy.CurLevelPercentage = .95f;
-                pawn.foodRestriction?.CurrentFoodPolicy?.filter.SetAllow(unselectedIngredient.def, false);
+                pawn.foodRestriction?.CurrentFoodPolicy?.filter.SetAllow(ingredient.def, false);
                 foreach (var food in pawn.inventory.innerContainer.Where(t => t.def.IsNutritionGivingIngestible).ToArray()) food.Destroy();
                 var skill = pawn.skills.GetSkill(SkillDefOf.Cooking);
                 skill.levelInt = 5; skill.xpSinceLastLevel = SkillRecord.XpRequiredToLevelUpFrom(5) - 1;
@@ -88,7 +88,6 @@ public sealed partial class PawnControlFixture
             productiveActive = true;
             return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
-    }
     private static void ProductiveLearned(SkillRecord __instance, float xp)
     {
         if (!productiveActive || xp <= 0 || __instance.def != SkillDefOf.Cooking
