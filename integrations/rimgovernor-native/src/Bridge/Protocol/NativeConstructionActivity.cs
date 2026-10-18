@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,16 +21,22 @@ internal static class NativeConstructionActivity
         Thing? Thing, (ThingDef Def, int Count)[] Owed, float Work, Func<Pawn, bool> Eligible, Func<Pawn, bool> Finishes);
 
     // Every site, probe and free spawned colonist asked (#3341): nothing is capped. Each path is searched once per read
-    // (NativePathLegs) and shared by every row that walks it.
+    // (NativePathLegs) and shared by every row that walks it, and the rows are built batched (NativePathLegs.Batched,
+    // #3556): the legs every row could ask are collected first and searched together on the game's path job workers.
     internal static Obs.ConstructionActivityRead Read(Obs.ConstructionActivityRequest request, NativePathLegs? legs = null)
     {
         if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out var context, out _)) return new();
         legs ??= new(map);
-        var options = new List<Obs.ConstructionActivityOption>();
+        // Where the hop's run time goes, per part of the read (hop_run parts): the placement legality, the rows (both
+        // runs of the batched read, less the searches), the path searches, the thermal read and the room predictions.
+        var mark = Stopwatch.GetTimestamp();
+        var searched = legs.SearchTicks;
+        void Lap(string part, long less = 0) { var now = Stopwatch.GetTimestamp(); ProtoBoundary.HopPart(part, now - mark - less); mark = now; }
         // Each colonist gets a row wherever it is free, eligible and routed.
         var roster = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var findings = new HashSet<string>(StringComparer.Ordinal);
         var finishGiver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is WorkGiver_ConstructFinishFrames);
+        var placed = new List<Site>();
         foreach (var building in request.Buildings)
         {
             var thing = map.thingGrid.ThingsListAt(new(building.Cell.X, 0, building.Cell.Z))
@@ -39,15 +46,32 @@ internal static class NativeConstructionActivity
                 .Where(c => c.Count > 0).ToArray();
             var floorKnown = !ConstructionSkillGuard.Quality(thing) || ConstructionSkillGuard.Setting(thing)?.Minimum >= 0;
             var work = thing is Frame frame ? frame.WorkLeft : definition.GetStatValueAbstract(StatDefOf.WorkToBuild, thing.Stuff);
-            Rows(map, legs, roster, new Site(thing.GetUniqueLoadID(), definition, thing.Position, _ => thing.Position, thing, owed, work,
-                p => !thing.IsForbidden(p), p => floorKnown && ConstructionSkillGuard.Allows(thing, p)), finishGiver, findings, options);
+            placed.Add(new Site(thing.GetUniqueLoadID(), definition, thing.Position, _ => thing.Position, thing, owed, work,
+                p => !thing.IsForbidden(p), p => floorKnown && ConstructionSkillGuard.Allows(thing, p)));
         }
-        var answers = request.Planned.Select(s => Planned(map, legs, roster, s, finishGiver, findings)).ToArray();
-        var routes = Routes(map, legs, roster, request.Routes, findings);
+        var planned = request.Planned.Select(s => Prepare(map, s, findings)).ToArray();
+        Lap("placement");
+        var (options, answers, routes, found) = legs.Batched(() =>
+        {
+            // The collecting run's rows and findings are discarded with it; the real run's are the read's.
+            var runFindings = new HashSet<string>(StringComparer.Ordinal);
+            var runOptions = new List<Obs.ConstructionActivityOption>();
+            foreach (var site in placed) Rows(map, legs, roster, site, finishGiver, runFindings, runOptions);
+            var runAnswers = planned.Select(p => p.Site is { } site ? Answer(map, legs, roster, site, finishGiver, runFindings) : p.Unknown).ToArray();
+            var runRoutes = Routes(map, legs, roster, request.Routes, runFindings);
+            return (runOptions, runAnswers, runRoutes, runFindings);
+        });
+        findings.UnionWith(found);
+        var paths = legs.SearchTicks - searched;
+        Lap("rows", paths);
+        ProtoBoundary.HopPart("paths", paths);
+        var thermal = request.Thermal is { } asked ? NativeCoupledThermal.ReadPlanned(map, asked) : null;
+        Lap("thermal");
+        var predictions = NativeRoomPrediction.Predict(map, request.RoomPredictions);
+        Lap("predictions");
         return new() { Context = context, Known = true,
             Options = EquatableArray.From(options), Planned = EquatableArray.From(answers), Routes = EquatableArray.From(routes),
-            Thermal = request.Thermal is { } thermal ? NativeCoupledThermal.ReadPlanned(map, thermal) : null,
-            RoomPredictions = NativeRoomPrediction.Predict(map, request.RoomPredictions),
+            Thermal = thermal, RoomPredictions = predictions,
             Findings = EquatableArray.From(findings.OrderBy(s => s, StringComparer.Ordinal)) };
     }
 
@@ -79,25 +103,30 @@ internal static class NativeConstructionActivity
         return rows;
     }
 
-    // A hypothetical site: native blueprint legality for every piece, then the placed-site rows against its cells.
-    // Anything native cannot resolve leaves the site unknown (no verdict, no rows), never a default.
-    private static Obs.PlannedSiteAnswer Planned(Map map, NativePathLegs legs, Pawn[] roster, Obs.PlannedConstructionSite request, WorkGiverDef? finishGiver, HashSet<string> findings)
+    // The leg-free half of a hypothetical site (Prepare): its resolved definition and cells, native blueprint legality
+    // over every piece, the footprint things with their clearing kinds, what it owes and its work.
+    private sealed record Prepared(string Id, BuildableDef Definition, IntVec3[] Cells, bool Accepted, bool Illegal, bool Fogged,
+        (Thing Thing, Clear Kind)[] Things, HashSet<IntVec3> Footprint, (ThingDef Def, int Count)[] Owed, float Work);
+
+    // A hypothetical site's leg-free half: native blueprint legality for every piece and its footprint. Anything native
+    // cannot resolve leaves the site unknown (no verdict, no rows; Site null with the unknown answer), never a default.
+    private static (Obs.PlannedSiteAnswer Unknown, Prepared? Site) Prepare(Map map, Obs.PlannedConstructionSite request, HashSet<string> findings)
     {
         var unknown = new Obs.PlannedSiteAnswer(request.Id, default);
-        if (request.Positions.Count == 0) { findings.Add("planned_site_empty"); return unknown; }
+        if (request.Positions.Count == 0) { findings.Add("planned_site_empty"); return (unknown, null); }
         if (!PlacementPreviewOperation.TryResolveBuildable(request.Definition, out var definition, out _)
-            || !definition.BuildableByPlayer || definition.blueprintDef == null) { findings.Add("planned_site_definition_unresolved"); return unknown; }
+            || !definition.BuildableByPlayer || definition.blueprintDef == null) { findings.Add("planned_site_definition_unresolved"); return (unknown, null); }
         ThingDef? stuff = null;
         if (definition.MadeFromStuff)
         {
             stuff = string.IsNullOrEmpty(request.Stuff) ? GenStuff.DefaultStuffFor(definition) : PlacementPreviewOperation.ResolveThingDef(request.Stuff);
-            if (stuff?.stuffProps == null || !stuff.IsStuff || !stuff.stuffProps.CanMake(definition)) { findings.Add("planned_site_stuff_unresolved"); return unknown; }
+            if (stuff?.stuffProps == null || !stuff.IsStuff || !stuff.stuffProps.CanMake(definition)) { findings.Add("planned_site_stuff_unresolved"); return (unknown, null); }
         }
-        else if (!string.IsNullOrEmpty(request.Stuff)) { findings.Add("planned_site_stuff_unresolved"); return unknown; }
+        else if (!string.IsNullOrEmpty(request.Stuff)) { findings.Add("planned_site_stuff_unresolved"); return (unknown, null); }
         var cells = request.Positions.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
-        if (cells.Any(c => !c.InBounds(map))) { findings.Add("planned_site_out_of_bounds"); return unknown; }
+        if (cells.Any(c => !c.InBounds(map))) { findings.Add("planned_site_out_of_bounds"); return (unknown, null); }
         var costs = PlacementPreviewOperation.ReadCosts(definition, stuff);
-        if (costs == null) { findings.Add("planned_site_costs_unreadable"); return unknown; }
+        if (costs == null) { findings.Add("planned_site_costs_unreadable"); return (unknown, null); }
         var rotation = new Rot4((int)request.Rotation);
         var research = definition.IsResearchFinished;
         // The site's blueprint, never spawned (no thing id): GenConstruct.BlocksConstruction reads only its def.
@@ -125,20 +154,27 @@ internal static class NativeConstructionActivity
             }
         }
         if (fogged) findings.Add("planned_site_fogged");
-        var clearing = Clearing(map, legs, roster, request.Id, definition, things.Select(b => (b.Thing, Kind: Kind(b.Thing))).ToArray(), footprint, findings,
-            out var unsure);
         foreach (var blocker in things) illegal |= Kind(blocker.Thing) == Clear.Illegal;
-        var siteVerdict = illegal ? Obs.PlannedSiteVerdict.Illegal
-            : fogged || things.Any(b => Kind(b.Thing) == Clear.Unestimable) ? Obs.PlannedSiteVerdict.Unestimable
-            : unsure ? Obs.PlannedSiteVerdict.Unspecified : Obs.PlannedSiteVerdict.Feasible;
         var owed = costs.Where(c => c.count > 0).Select(c => (c.Definition, Count: c.count * cells.Length)).ToArray();
         // No finishing minimum is stored before placement: gate on the native prerequisite alone and say so.
         if (definition is ThingDef built && built.HasComp(typeof(CompQuality))) findings.Add("planned_quality_minimum_unset");
         var work = definition.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff) * cells.Length;
+        return (unknown, new Prepared(request.Id, definition, cells, accepted, illegal, fogged,
+            things.Select(b => (b.Thing, Kind: Kind(b.Thing))).ToArray(), footprint, owed, work));
+    }
+
+    // A prepared site's answer: its clearing ops, then the placed-site rows against its cells, and the verdict.
+    private static Obs.PlannedSiteAnswer Answer(Map map, NativePathLegs legs, Pawn[] roster, Prepared site, WorkGiverDef? finishGiver, HashSet<string> findings)
+    {
+        var clearing = Clearing(map, legs, roster, site.Id, site.Definition, site.Things, site.Footprint, findings, out var unsure);
+        var siteVerdict = site.Illegal ? Obs.PlannedSiteVerdict.Illegal
+            : site.Fogged || site.Things.Any(t => t.Kind == Clear.Unestimable) ? Obs.PlannedSiteVerdict.Unestimable
+            : unsure ? Obs.PlannedSiteVerdict.Unspecified : Obs.PlannedSiteVerdict.Feasible;
+        var cells = site.Cells;
         IntVec3 Nearest(IntVec3 origin) => cells.OrderBy(c => c.DistanceToSquared(origin)).ThenBy(c => c.x).ThenBy(c => c.z).First();
         var options = new List<Obs.ConstructionActivityOption>();
-        Rows(map, legs, roster, new Site(request.Id, definition, cells[0], Nearest, null, owed, work, _ => true, _ => true), finishGiver, findings, options);
-        return new(request.Id, Fact.Known(accepted))
+        Rows(map, legs, roster, new Site(site.Id, site.Definition, cells[0], Nearest, null, site.Owed, site.Work, _ => true, _ => true), finishGiver, findings, options);
+        return new(site.Id, Fact.Known(site.Accepted))
         {
             Options = EquatableArray.From(options),
             Verdict = siteVerdict, Clearing = EquatableArray.From(clearing)

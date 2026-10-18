@@ -209,7 +209,8 @@ colony (one colony-review day; brain sessions `4d1d320821a7440cb5cb864ebcdd5746`
 `2265830e199e476db78b7fb325b1a18c` after the derive cuts, 12 and 15 rounds reviews). The rounds row now laps the derive
 chain (`d_owed`, `d_reads`, `d_stock`, `d_planned`, `d_file`, `d_work`, `d_clear`, then `derive` for the ledger and the
 colony model), the `layout_replan_tiled` row names the inputs that drifted since the last replan (`inputs_changed`) and
-the `clock_step` row carries `hop_run`, the game-thread run time per hop operation.
+the `clock_step` row carries `hop_run`, the game-thread run time per hop operation and, for the construction read, per
+part of it (`facade/construction_activity/<part>`, not summed into `hop_run_ms`).
 
 | Rounds stage | Before p50 | After p50 | What changed |
 | --- | --- | --- | --- |
@@ -226,8 +227,8 @@ What the second profile says:
   predictions; 15 MB of reply), `facade/observations_read_colony_facts` 1056 ms (3 reads per step, 72 MB); every other
   operation runs under 15 ms. Overlapping the hops around them gained 0.1 s; the 0.65 s left is the native estimate
   itself (the route probes path every free colonist to every site and the site answers estimate every piece), so the next
-  derive cut is on the native side or in asking it once per step rather than once per review. The ledger (`derive`) and
-  the stock reads (`d_stock`) are 0.15 s each.
+  derive cut is on the native side or in asking it once per step rather than once per review (the third cut, below).
+  The ledger (`derive`) and the stock reads (`d_stock`) are 0.15 s each.
 - **The hourly replan re-tiled the same rooms.** 6 of 8 replans ended same=13 moved=0 new=0 and `inputs_changed` named
   `expected_mood` in every one of them: alone 3 times, with `survey` 3 times, with `stock` once. The mean mood drifts
   every hour and only prices the comfort tiers, so the key now carries it in bands of 0.05
@@ -239,6 +240,26 @@ What the second profile says:
   survey rather than every cell.
 - **The step.** `clock_step` p50 6.0 s before the derive cuts, 5.9 s after (7.2 s in the first profile): with rounds at
   3.1 s the planner waves (critical 1.7 s, optional 0.8 s) are the larger half, cuts (2) and (3) above.
+
+The third cut, the path searches, measured on one colony-review day each of the same colony (sessions
+`47201e9f4881475c9c23ece9c1514fe3` before, 23 rounds reviews, and `6aa045a4ac324a6ea3e3d0f4bd0f0cba` after, 15):
+
+- **Where the hop went.** The parts of `facade/construction_activity` before: 956 ms of the 993 ms hop p50 were path
+  searches, one synchronous `FindPathNow` per leg, each clearing a grid-sized calc grid on the game thread (709 ms under
+  the planned sites, 289 ms under the route probes); blueprint legality, the thermal read and the room predictions were
+  under 3 ms together. That day's `d_planned` was 1332 ms p50 (p95 2041), double the second profile's 684 ms: the sites
+  grow as the colony builds.
+- **What changed.** `NativePathLegs.Batched` runs the read twice: a collecting run in which every leg not yet searched
+  is noted and answered 0, one batched search of the noted legs (`PathFinder.CreateRequest` and `PushRequest` in rounds
+  of 64, two `PathFinderTick` calls per round: the first schedules the round across the game's path job workers, the
+  second completes and resolves it), then the real run against the searched legs. The finder runs the same
+  `PathFinderJob` per request either way, so the legs are those the synchronous search found; a leg the real run asks
+  that the collecting run did not is searched on its own. The round is bounded because every scheduled request holds a
+  pooled grid-sized state and output the finder keeps for good.
+- **After.** `d_planned` 343 ms p50 (p95 420, max 1145), `facade/construction_activity` 271 ms p50 (p95 327: paths
+  233, rows 30, legality, thermal and predictions under 2 each); rounds 2532 ms p50 (3315 before), `clock_step`
+  5324 ms p50 (5994). The 0.23 s left is the batched searches themselves; the next cut is keeping the legs across
+  reviews while the sites, roster and cells they depend on are unchanged.
 
 ## Hosting in the mod (#3115)
 

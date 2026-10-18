@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
@@ -29,13 +30,19 @@ namespace HomeBridge.BridgeTools
             var mainThread = RimBridgeMainThreadAccess.Current ?? throw new InvalidOperationException("The host's game-thread access is not available.");
             var hop = MainThreadWatchdog.Enqueue(operation);
             long queued = Stopwatch.GetTimestamp(), began = 0, ended = 0, allocated = 0;
+            List<(string Part, double Ms)>? reported = null;
             var task = MainThreadAdmission.Enqueue(mainThread, MainThreadAdmission.RankOf(cls), () =>
             {
                 began = Stopwatch.GetTimestamp();
                 var before = GC.GetAllocatedBytesForCurrentThread();
                 MainThreadWatchdog.Start(hop);
+                parts = new List<(string, double)>();
                 try { return body(); }
-                finally { MainThreadWatchdog.Finish(hop); ended = Stopwatch.GetTimestamp(); allocated = GC.GetAllocatedBytesForCurrentThread() - before; }
+                finally
+                {
+                    MainThreadWatchdog.Finish(hop); ended = Stopwatch.GetTimestamp(); allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                    reported = parts; parts = null;
+                }
             }, cancellationToken);
             try { return (T)await task.ConfigureAwait(false); }
             // A hop the host never runs (cancelled while queued) still leaves the watchdog.
@@ -43,12 +50,27 @@ namespace HomeBridge.BridgeTools
             {
                 MainThreadWatchdog.Finish(hop);
                 if (began != 0) HopTimed?.Invoke(operation, Ms(began - queued), Ms(ended - began), allocated);
+                if (reported != null) foreach (var (part, ms) in reported) HopPartTimed?.Invoke(operation + "/" + part, ms);
             }
         }
 
         // Receives each hop's operation, queue wait and run time in milliseconds, and game-thread allocated bytes, on
         // the caller's flow: the brain's read tally, installed by the in-process facade.
         internal static Action<string, double, double, long>? HopTimed { get; set; }
+
+        // Receives each part a hop's core reported (HopPart) as "<operation>/<part>" with its run time in milliseconds,
+        // on the caller's flow after the hop's own report.
+        internal static Action<string, double>? HopPartTimed { get; set; }
+
+        // The parts the running hop's core has reported so far; null outside a hop (the game thread runs one at a time).
+        [ThreadStatic] private static List<(string Part, double Ms)>? parts;
+
+        /// <summary>
+        /// Reports where <paramref name="stopwatchTicks"/> of the running hop's run time went, as the hop's part
+        /// <paramref name="part"/> (the brain's tally lists it as <c>hop_run["&lt;operation&gt;/&lt;part&gt;"]</c>);
+        /// outside a hop, nothing.
+        /// </summary>
+        internal static void HopPart(string part, long stopwatchTicks) => parts?.Add((part, Ms(stopwatchTicks)));
 
         private static double Ms(long ticks) => ticks * 1000.0 / Stopwatch.Frequency;
 

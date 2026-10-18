@@ -79,6 +79,19 @@ public sealed class ReadTally(ReadTally? parent = null)
         parent?.AddHop(operation, waitMs, runMs, allocatedBytes);
     }
 
+    /// <summary>
+    /// Adds one part of a hop's run time: <paramref name="runMs"/> of the hop's work under <paramref name="operation"/>
+    /// (the hop's operation with the part's name), listed per operation beside the hops and summed into no total.
+    /// </summary>
+    public void AddHopPart(string operation, double runMs)
+    {
+        lock (_lock)
+        {
+            _hopRunMs[operation] = _hopRunMs.GetValueOrDefault(operation) + runMs;
+        }
+        parent?.AddHopPart(operation, runMs);
+    }
+
     /// <summary>The tally's reads, hop wait, run time and allocated KB, per-tool counts and per-operation hop KB and run ms, as row or span attributes.</summary>
     public Dictionary<string, object?> Attrs()
     {
@@ -149,6 +162,9 @@ public static class ReadTallyRules
     /// <summary>The game-thread boundary's hook: adds one hop's queue wait, run time and game-thread allocation to the attached tally, if any.</summary>
     public static void CountHop(string operation, double waitMs, double runMs, long allocatedBytes) =>
         ReadTally.Current?.AddHop(operation, waitMs, runMs, allocatedBytes);
+
+    /// <summary>The game-thread boundary's hook for one part of a hop's run time (<see cref="ReadTally.AddHopPart"/>) on the attached tally, if any.</summary>
+    public static void CountHopPart(string operation, double runMs) => ReadTally.Current?.AddHopPart(operation, runMs);
 }
 
 /// <summary>A tally attached by <see cref="ReadTallyScope.WithReadTally"/>; disposing it restores the previous one.</summary>
