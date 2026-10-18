@@ -1,0 +1,131 @@
+using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Policy;
+using RimGovernor.Contracts.Wire.Observations;
+using Xunit;
+using static RimGovernor.Brain.Domain.Fact;
+
+namespace RimGovernor.Brain.Domain.Tests;
+
+// #3544: the health consequences of one raid for one pawn. Each claim is one rule, over injected hits and responses.
+public sealed class HarmConsequencesTests
+{
+    private const double Day = GameTime.TicksPerDay;
+
+    private static NeedsForecastPawn Pawn(Fact<double>? shock = null) => new()
+    {
+        Pawn = "pawn",
+        Consciousness = Known(1d), Moving = Known(1d), Manipulation = Known(1d), Sight = Known(1d), Talking = Known(1d),
+        PainShockThreshold = shock ?? Known(0.8), HealthScale = Known(1d), IncomingDamageFactor = Known(1d), InjuryHealingFactor = Known(1d),
+    };
+
+    private static HediffPenaltyTable BloodLoss() => new()
+    {
+        Known = true, Hediff = "BloodLoss", LethalSeverity = 1,
+        Stages = [new PenaltyStage(0, 0, [new CapacityModifier("Consciousness", 0, null, 0.9)])],
+    };
+
+    private static HediffPenaltyTable WoundInfection() => new()
+    {
+        Known = true, Hediff = "WoundInfection", LethalSeverity = 1, InitialSeverity = 0.2,
+        Immunizable = new ImmunizableProps(1, 0.4, -0.5),
+        Stages = [new PenaltyStage(0, 0, [new CapacityModifier("Consciousness", 0, null, 0.8)])],
+    };
+
+    private static CapacityPenaltyTables Tables(bool infection = true) => new()
+    {
+        BloodLoss = BloodLoss(), WoundInfection = infection ? WoundInfection() : new(), MovingMinForCapable = 0.15,
+    };
+
+    private static WeaponBin[] Bins(double damage) => [new() { Damage = damage, Category = ArmorCategory.Sharp, Weight = 1 }];
+
+    private static ArmorResponse[] Response(double damage, double bleed) => [new() { ExpectedDamage = damage, BleedChance = bleed }];
+
+    private static ForecastSupportConsequences Care(double firstCareTicks) => new()
+    {
+        CareServices = "demand/tend", FirstCareTicks = firstCareTicks, TendQuality = Known(0.5), CareRoomFactor = Known(0.8),
+    };
+
+    private static HarmDistribution Of(HitRange hits, double damage = 2, double bleed = 0.8, NeedsForecastPawn? pawn = null,
+        CapacityPenaltyTables? tables = null, ForecastSupportConsequences? support = null) =>
+        HarmConsequences.Of(hits, Bins(damage), Response(damage, bleed), pawn ?? Pawn(), tables ?? Tables(false), support, new ForecastValuePolicy(), 5 * Day);
+
+    private static double Mean(HarmDistribution d) => d.Points.Sum(p => p.Loss * p.Probability);
+
+    [Fact]
+    public void ZeroHitsLoseNothing()
+    {
+        var d = Of(new HitRange(0, 0, 0));
+
+        Assert.True(d.Known);
+        Assert.All(d.Points, p => Assert.Equal(0, p.Loss));
+        Assert.Equal(1, d.Points.Sum(p => p.Probability), 9);
+        Assert.Equal(0, d.DeathProbability);
+        Assert.Equal(0, d.DownProbability);
+    }
+
+    [Fact]
+    public void ExpectedDamageOverTheLethalThresholdAtTheHighEndKillsWithTheTerminalValueInTheTail()
+    {
+        // 10 damage a hit: 20 hits at the range's high is 200 severity, over 150 x 1.
+        var d = Of(new HitRange(5, 3, 20), damage: 10, bleed: 0);
+
+        Assert.True(d.DeathProbability > 0);
+        Assert.True(d.DeathProbability < 1);
+        Assert.Contains(d.Points, p => p.Loss >= new ForecastValuePolicy().DeathTerminalValue);
+        Assert.Equal(1, d.Points.Sum(p => p.Probability), 9);
+    }
+
+    [Fact]
+    public void AHalvedBleedChanceLowersTheBleedingLoss()
+    {
+        // 6 damage in all: below the pain threshold, so the loss is blood loss alone.
+        var full = Mean(Of(new HitRange(3, 3, 3), bleed: 0.8));
+        var half = Mean(Of(new HitRange(3, 3, 3), bleed: 0.4));
+
+        Assert.True(full > 0);
+        Assert.True(half > 0);
+        Assert.True(half < 0.9 * full);
+    }
+
+    [Fact]
+    public void FirstCareInAnHourLosesLessThanUntended()
+    {
+        var hits = new HitRange(3, 3, 3);
+
+        var care = Mean(Of(hits, support: Care(Day / 24)));
+        var untended = Mean(Of(hits, support: null));
+
+        Assert.True(care < untended);
+    }
+
+    [Fact]
+    public void UnknownInfectionLeavesThatPartUnassessedWithTheFindingAndPricesTheRest()
+    {
+        var hits = new HitRange(3, 3, 3);
+
+        var without = Of(hits, tables: Tables(infection: false));
+        var with = Of(hits, tables: Tables(infection: true), damage: 2);
+
+        Assert.True(without.Known);
+        Assert.Contains("capacity_penalty_table_unknown:WoundInfection", without.Findings);
+        Assert.DoesNotContain("capacity_penalty_table_unknown:WoundInfection", with.Findings);
+        Assert.True(Mean(without) > 0);
+        Assert.True(Mean(with) > Mean(without));
+    }
+
+    [Fact]
+    public void AnUnknownPainShockThresholdMakesTheWholeDistributionUnknown()
+    {
+        var d = Of(new HitRange(3, 3, 3), pawn: Pawn(shock: default(Fact<double>)));
+
+        Assert.False(d.Known);
+        Assert.Empty(d.Points);
+        Assert.Contains("capacities_unobserved:pawn", d.Findings);
+    }
+
+    [Fact]
+    public void AdaptationFeedbackIsAlwaysReportedUnassessed()
+    {
+        Assert.Contains("adaptation_feedback_unassessed", Of(new HitRange(1, 1, 1)).Findings);
+    }
+}

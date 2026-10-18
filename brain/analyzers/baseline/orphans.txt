@@ -429,6 +429,8 @@ Policy|WeaponDrop.Weapon
 Policy|WorkshopChoice.NeedsPower
 Policy|Believer.Certainty
 Policy|Believer.Id
+Policy|CapacityPenaltyTables.BloodLoss
+Policy|CapacityPenaltyTables.WoundInfection
 Policy|MemeDef.ForbiddenPrecepts
 Policy|MemeDef.RequireOne
 Policy|MemeGate.Conflicting
@@ -458,6 +460,13 @@ Policy|ScheduledEffect.Id
 Policy|ScheduledEffect.Kind
 Policy|ScheduledEffect.Stock
 Policy|ColonyModelPolicy.Projects
+Policy|HarmDistribution.DeathProbability
+Policy|HarmDistribution.DownProbability
+Policy|HarmDistribution.Findings
+Policy|HarmDistribution.Known
+Policy|HarmDistribution.Points
+Policy|HarmPoint.Loss
+Policy|HarmPoint.Probability
 Policy|ProjectGraph.Nodes
 Policy|ProjectGraph.Findings
 Policy|ProjectNode.Id

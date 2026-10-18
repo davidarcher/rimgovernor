@@ -259,6 +259,26 @@ The severity rates that are method-body literals, and which need categories carr
 an effect, are mirrored in
 [kept constants](kept-constants.md#mirrored-game-literals-capacity-penalties-3519).
 
+### Raid health consequences (#3544)
+
+The harm model's fifth step ([harm model](../architecture/forecast-value.md#harm-model)).
+
+- `NeedsForecastPawn.PainShockThreshold`, `HealthScale`, `IncomingDamageFactor` and `InjuryHealingFactor` (`StatDefOf` stats and
+  `pawn.HealthScale`) are unknown without a health tracker.
+- `CapacityPenaltyTables.BloodLoss` and `WoundInfection` are decoded like the other tables; `HediffPenaltyTable.Immunizable`
+  (`HediffCompProperties_Immunizable`) and `SeverityPerDayTended` (`HediffCompProperties_TendDuration`) carry the infection's course.
+  They are not part of `CapacityPenaltyTables.Valid()`; an unknown one leaves its part unassessed.
+- `HarmConsequences.Of(hits, bins, response, pawn, tables, support, policy, horizon)` is pure. It returns a `HarmDistribution`:
+  `Points` (capability-days lost, probability) summing to 1, `DownProbability`, `DeathProbability`, `Findings`. Deaths carry the remaining
+  horizon plus `DeathTerminalValue`. Tended means the support serves a care (`CareServices`) with an observed `TendQuality` (quality and
+  room factor are the mean over services); first care is `FirstCareTicks`; otherwise the pawn is untended (`harm_untended`).
+  An unobserved pain shock threshold, health scale, incoming-damage or healing factor, capacity or weapon mix makes the distribution unknown
+  (`capacities_unobserved:<pawn>`, `weapon_mix_unobserved`). Unassessed parts are findings: `adaptation_feedback_unassessed`,
+  `rescue_labor_unassessed`, `injury_part_effects_unassessed`, `bleed_part_factors_unobserved`,
+  `capacity_penalty_table_unknown:BloodLoss` or `:WoundInfection`, and for infection `infection_immunity_gain_speed_unobserved`,
+  `infection_difficulty_factor_unobserved`, `infection_onset_delay_unmodelled`, `infection_room_factor_unobserved`.
+  Mirrored rules: [kept constants](kept-constants.md#mirrored-game-rules-raid-health-consequences-3544).
+
 ### Threat schedule (#3539)
 
 The harm model's first step ([harm model](../architecture/forecast-value.md#harm-model)) reads the storyteller the game is running.

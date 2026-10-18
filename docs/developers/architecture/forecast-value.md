@@ -299,6 +299,9 @@ raid harm per day. The output feeds the currency and the death floor.
      150 × health scale.
    - Infection: 15% per wound, reduced by tend quality and the room.
 
+   `HarmConsequences.Of` (#3544) prices these; the [contract](../contracts/forecast-contracts.md#raid-health-consequences-3544) and
+   [mirrored rules](../contracts/kept-constants.md#mirrored-game-rules-raid-health-consequences-3544) say how.
+
    Downs and deaths are thresholds, so each raid carries a small distribution
    (hits × damage per hit), not only a mean. The CVaR in the currency reads
    that distribution.

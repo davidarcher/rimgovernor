@@ -4,7 +4,8 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// The capacity penalty tables of #3519, read by the capability-days ledger (#3520, #3521): malnutrition, food poisoning, hypothermia and heatstroke, each
+// The capacity penalty tables of #3519, read by the capability-days ledger (#3520, #3521) and the harm model (#3544): malnutrition, food poisoning,
+// hypothermia, heatstroke, blood loss and wound infection, each
 // decoded from its HediffDef (stages by minSeverity, the capacity modifiers, pain, the lethal severity and the severity
 // comps), and the Moving capacity's minForCapable. A hediff the catalog lacks is an unknown table, never an empty one.
 //
@@ -29,6 +30,8 @@ public sealed partial class DefinitionCatalog
         FoodPoisoning = PenaltyTable(nameof(HediffDefOf.FoodPoisoning)),
         Hypothermia = PenaltyTable(nameof(HediffDefOf.Hypothermia)),
         Heatstroke = PenaltyTable(nameof(HediffDefOf.Heatstroke)),
+        BloodLoss = PenaltyTable(nameof(HediffDefOf.BloodLoss)),
+        WoundInfection = PenaltyTable(nameof(HediffDefOf.WoundInfection)),
         MovingMinForCapable = DefRow<PawnCapacityDef>(nameof(PawnCapacityDefOf.Moving)) is { } moving ? Decimal32(moving.minForCapable) : null,
     };
 
@@ -41,6 +44,8 @@ public sealed partial class DefinitionCatalog
 
         var perDay = hediff.comps.Seq().OfType<HediffCompProperties_SeverityPerDay>().FirstOrDefault();
         var gone = hediff.comps.Seq().OfType<HediffCompProperties_Disappears>().FirstOrDefault();
+        var immunizable = hediff.comps.Seq().OfType<HediffCompProperties_Immunizable>().FirstOrDefault();
+        var tend = hediff.comps.Seq().OfType<HediffCompProperties_TendDuration>().FirstOrDefault();
         return new P.HediffPenaltyTable
         {
             Known = true,
@@ -49,6 +54,9 @@ public sealed partial class DefinitionCatalog
             InitialSeverity = Decimal32(hediff.initialSeverity),
             SeverityPerDay = perDay is null ? null : Decimal32(perDay.severityPerDay),
             DisappearsAfterTicks = gone is null ? null : (gone.disappearsAfterTicks.min, gone.disappearsAfterTicks.max),
+            Immunizable = immunizable is null ? null : new P.ImmunizableProps(
+                Decimal32(immunizable.immunityPerDaySick), Decimal32(immunizable.severityPerDayNotImmune), Decimal32(immunizable.severityPerDayImmune)),
+            SeverityPerDayTended = tend is null ? null : Decimal32(tend.severityPerDayTended),
             Stages =
             [
                 .. hediff.stages.Seq().OrderBy(s => s.minSeverity).Select(s => new P.PenaltyStage(

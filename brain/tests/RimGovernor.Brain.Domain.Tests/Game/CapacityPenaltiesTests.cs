@@ -65,6 +65,36 @@ public sealed class CapacityPenaltiesTests
     }
 
     [Fact]
+    public void BloodLossAndWoundInfectionAreDecodedWithTheirCompProps()
+    {
+        var tables = Catalog(
+            new HediffDef { defName = nameof(HediffDefOf.BloodLoss), lethalSeverity = 1, stages = [Stage(0, 0, Mod("Consciousness", postFactor: 0.9f)), Stage(0.6f, 0, Mod("Consciousness", setMax: 0.2f))] },
+            new HediffDef
+            {
+                defName = nameof(HediffDefOf.WoundInfection),
+                lethalSeverity = 1,
+                initialSeverity = 0.2f,
+                comps =
+                [
+                    new HediffCompProperties_Immunizable { immunityPerDaySick = 0.5f, severityPerDayNotImmune = 0.25f, severityPerDayImmune = -0.5f },
+                    new HediffCompProperties_TendDuration { severityPerDayTended = -0.75f },
+                ],
+                stages = [Stage(0, 0, Mod("Consciousness", postFactor: 0.8f))],
+            }).CapacityPenalties();
+
+        Assert.True(tables.BloodLoss.Valid());
+        Assert.Equal(1, tables.BloodLoss.LethalSeverity);
+        Assert.Equal([0.0, 0.6], tables.BloodLoss.Stages.Select(s => s.MinSeverity));
+        Assert.Null(tables.BloodLoss.Immunizable);
+        Assert.Null(tables.BloodLoss.SeverityPerDayTended);
+        Assert.True(tables.WoundInfection.Valid());
+        Assert.Equal(new P.ImmunizableProps(0.5, 0.25, -0.5), tables.WoundInfection.Immunizable);
+        Assert.Equal(-0.75, tables.WoundInfection.SeverityPerDayTended);
+        Assert.Equal(0.2, tables.WoundInfection.InitialSeverity);
+        Assert.False(Catalog(Malnutrition()).CapacityPenalties().BloodLoss.Known);
+    }
+
+    [Fact]
     public void StagesOutOfOrderInTheDefAreOrdered()
     {
         var def = Malnutrition();

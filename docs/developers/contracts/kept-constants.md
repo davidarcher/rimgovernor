@@ -173,6 +173,28 @@ The harm model needs expected damage per hit and the chance it bleeds, per outfi
 | Garment rating | stat × `GearQualityMultipliers(quality).Armor` × condition | the stat's quality part and hit-point scaling |
 | Hit location | `BodyPartRecord.coverageAbs` summed per set of apparel groups the part is in; a garment covers a part sharing any group | `DamageWorker_AddInjury.ChooseHitPart`, `ApparelProperties.CoversBodyPart` |
 
+## Mirrored game rules: raid health consequences (#3544)
+
+`HarmConsequences.Of` (`brain/src/RimGovernor.Brain.Policy/Harm/HarmConsequences.cs`) mirrors the health rules no def carries.
+Read with ilspycmd (1.7). The BloodLoss and WoundInfection stages, lethal severities and comp props come from the catalog.
+
+| Literal | Value | 1.7 member |
+| --- | --- | --- |
+| Death by damage | total injury severity ≥ 150 × `HealthScale` (severity is the damage × `IncomingDamageFactor`) | `Pawn_HealthTracker.ShouldBeDeadFromLethalDamageThreshold` |
+| Natural healing | every 600 ticks one injury heals 8 × `HealthScale` × 0.01 × `InjuryHealingFactor`: 8 a day, 12 not standing (the bed's `bed_healPerDay` is not read) | `Pawn_HealthTracker.HealthTick` |
+| Tended healing | a further 8 × (0.5 + tend quality) a day on the same scale, from first care | `Pawn_HealthTracker.HealthTick`, `HediffComp_TendDuration` |
+| Pain | severity × 0.0125 ÷ `HealthScale`; pain shock at `PainShockThreshold` (0.8 is about 64 severity) | `Hediff_Injury.PainOffset` (`injuryProps.painPerSeverity`), `Pawn_HealthTracker.InPainShock` |
+| Pain on consciousness | `clamp(LerpDouble(0.1, 1, 0, 0.4, pain), 0, 0.4)` off consciousness; under 0.3 the pawn is downed | `PawnCapacityWorker_Consciousness`, `Pawn_HealthTracker.ShouldBeDowned` |
+| Bleed rate | severity × 0.06 (the bleeding kinds' `injuryProps.bleedRate`); the race's `bleedRateFactor` and the part's `bleedRate` are not observed | `Hediff_Injury.BleedRate` |
+| Untended bleeding stops after | 1.5 days + 1.5 × `InverseLerp(1, 30, wound severity)` | `Hediff_Injury.AgeTicksToStopBleeding`; tending stops it at first care |
+| Blood loss | every 60 ticks `BleedRateTotal ≥ 0.1` adds rate × 0.001 (1 a day per unit of rate), otherwise −0.00033333 (1/3 a day) | `HediffGiver_Bleeding.OnIntervalPassed` |
+| Infection chance | 0.15 per wound × (when tended) `Lerp(0.7, 0.4, tend quality)` × the room's infection factor × `Lerp(0.1, 1, InverseLerp(1, 12, wound severity))`; the difficulty's `playerPawnInfectionChanceFactor` is not observed | `HediffCompProperties_Infecter.infectionChance`, `HediffComp_Infecter.CheckMakeInfection` |
+| Infection course | severity rises at `severityPerDayNotImmune` until immunity (gained at `immunityPerDaySick` a day, the pawn's `ImmunityGainSpeed` taken as 1) is full, then falls at `severityPerDayImmune`; tended adds `severityPerDayTended` × tend quality throughout; the onset delay and the random factor are not modelled | `HediffComp_Immunizable.SeverityChangePerDay`, `HediffComp_TendDuration.SeverityChangePerDay` |
+
+The model's own choices, not game rules: the sum of the hits is a 32-point damage grid; the exposure range's low, mean and high stand for its
+5th, 50th and 95th percentiles with the Pearson-Tukey weights 0.185, 0.63 and 0.185 (Keefer and Bodily 1983); a hit's damage is its bin's
+armor-adjusted expectation and bleeds with the bin's bleed chance at the bin's full damage; healing is integrated in 48 steps.
+
 ## Policy constants (#3469)
 
 `ForecastValuePolicy` (`brain/src/RimGovernor.Brain.Policy/ForecastValue.cs`)

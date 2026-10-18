@@ -116,7 +116,9 @@ internal static class NativeNeedsForecast
                 Manipulation = Capacity(pawn, PawnCapacityDefOf.Manipulation), Sight = Capacity(pawn, PawnCapacityDefOf.Sight),
                 Talking = Capacity(pawn, PawnCapacityDefOf.Talking),
                 MalnutritionSeverity = Severity(pawn, HediffDefOf.Malnutrition), FoodPoisoningSeverity = Severity(pawn, HediffDefOf.FoodPoisoning),
-                HypothermiaSeverity = Severity(pawn, HediffDefOf.Hypothermia), HeatstrokeSeverity = Severity(pawn, HediffDefOf.Heatstroke) });
+                HypothermiaSeverity = Severity(pawn, HediffDefOf.Hypothermia), HeatstrokeSeverity = Severity(pawn, HediffDefOf.Heatstroke),
+                PainShockThreshold = HealthStat(pawn, StatDefOf.PainShockThreshold), HealthScale = HealthScaleOf(pawn),
+                IncomingDamageFactor = HealthStat(pawn, StatDefOf.IncomingDamageFactor), InjuryHealingFactor = HealthStat(pawn, StatDefOf.InjuryHealingFactor) });
         }
         var weather = map.weatherManager.CurWeatherLerped;
         return new() { Tick = Find.TickManager.TicksGame, Pawns = EquatableArray.From(rows),
@@ -300,5 +302,8 @@ internal static class NativeNeedsForecast
     /// <summary>The hediff's current severity, 0 when the pawn has none (#3519); unknown without a health tracker.</summary>
     private static Fact<double> Severity(Pawn pawn, HediffDef hediff) =>
         pawn.health?.hediffSet == null ? default : K(pawn.health.hediffSet.GetFirstHediffOfDef(hediff)?.Severity ?? 0);
+    /// <summary>The pawn's value of a health stat (#3544); unknown without a health tracker.</summary>
+    private static Fact<double> HealthStat(Pawn pawn, StatDef stat) => pawn.health == null ? default : K(pawn.GetStatValue(stat));
+    private static Fact<double> HealthScaleOf(Pawn pawn) => pawn.health == null ? default : K(pawn.HealthScale);
     private static Fact<double> K(double value) => double.IsFinite(value) ? Fact.Known(value) : default;
 }

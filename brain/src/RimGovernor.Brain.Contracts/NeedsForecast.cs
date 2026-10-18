@@ -128,6 +128,11 @@ public sealed record NeedsForecastPawn
     public Fact<double> FoodPoisoningSeverity { get; init; }
     public Fact<double> HypothermiaSeverity { get; init; }
     public Fact<double> HeatstrokeSeverity { get; init; }
+    /// <summary>The health reads of a raid's consequences (#3544): StatDefOf.PainShockThreshold, pawn.HealthScale, StatDefOf.IncomingDamageFactor and StatDefOf.InjuryHealingFactor; unknown without a health tracker.</summary>
+    public Fact<double> PainShockThreshold { get; init; }
+    public Fact<double> HealthScale { get; init; }
+    public Fact<double> IncomingDamageFactor { get; init; }
+    public Fact<double> InjuryHealingFactor { get; init; }
 }
 /// <summary>Native legality and mechanics, not a selected need action. Travel is an observed route cost.</summary>
 public sealed record NeedTarget(string Id, string Kind, string Resource, int AvailableCount,

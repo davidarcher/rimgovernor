@@ -168,7 +168,7 @@ public static partial class ForecastValue
     private static readonly string[] Capacities = ["Consciousness", "Moving", "Manipulation", "Sight", "Talking"];
 
     // PawnCapacitiesHandler.CanBeAwake: a pawn below this consciousness is downed (Pawn_HealthTracker.ShouldBeDowned).
-    private const double AwakeConsciousness = 0.3;
+    internal const double AwakeConsciousness = 0.3;
 
     // Need_Food.BaseMalnutritionSeverityPerDay (0.0011325 per 150-tick interval): malnutrition gains this while starving
     // and loses the same amount otherwise (Need_Food.NeedInterval). The pawn's own factor, Lerp(0.8, 1.2, a seeded random),
@@ -368,7 +368,7 @@ public static partial class ForecastValue
     }
 
     /// <summary>The pawn's five observed capacity levels, in <see cref="Capacities"/> order; null when any is unobserved.</summary>
-    private static double[]? Levels(NeedsForecastPawn pawn) =>
+    internal static double[]? Levels(NeedsForecastPawn pawn) =>
         pawn.Consciousness.TryGetValue(out var consciousness) && pawn.Moving.TryGetValue(out var moving)
             && pawn.Manipulation.TryGetValue(out var manipulation) && pawn.Sight.TryGetValue(out var sight)
             && pawn.Talking.TryGetValue(out var talking)
@@ -381,13 +381,19 @@ public static partial class ForecastValue
     /// the stage leaves (the game's (base + offsets) * post factors, held under the smallest ceiling; PawnCapacityUtility.CalculateCapacityLevel)
     /// against the observed one, and 0 for a pawn the stage downs that the observed levels do not.
     /// </summary>
-    private sealed class Course(HediffPenaltyTable table, double[] observed, double movingMin, double observedSeverity)
+    internal sealed class Course(HediffPenaltyTable table, double[] observed, double movingMin, double observedSeverity)
     {
         private readonly PenaltyStage? current = table.StageAt(observedSeverity);
         private bool pain;
         private bool lethal;
 
         public void MarkLethal() => lethal = true;
+
+        /// <summary>Whether the severity reached the def's lethal value.</summary>
+        public bool Lethal => lethal;
+
+        /// <summary>Whether some stretch of the course left the pawn downed (a stage that downs a pawn the observed levels do not).</summary>
+        public bool Downs { get; private set; }
 
         public HediffPenaltyTable Table => table;
 
@@ -440,7 +446,9 @@ public static partial class ForecastValue
         {
             if (table.StageAt((from + to) / 2) is not { } stage) return;
             pain |= stage.PainOffset > 0;
-            LostTicks += (1 - Factor(stage)) * ticks;
+            var factor = Factor(stage);
+            Downs |= factor <= 0 && ticks > 0;
+            LostTicks += (1 - factor) * ticks;
         }
 
         private double Factor(PenaltyStage stage)
