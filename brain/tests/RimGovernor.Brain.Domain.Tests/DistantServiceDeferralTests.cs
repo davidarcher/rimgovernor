@@ -35,6 +35,16 @@ public sealed class DistantServiceDeferralTests
     }
 
     [Fact]
+    public void ADistantMealDefersItsPawnInsteadOfHoldingItUntilMealtime()
+    {
+        // Live playtest: a coupled food Method held four colonists on "Waiting for the colony plan" for ~20k ticks until their meals.
+        var meal = Service("eater", 30000) with { Step = new(PawnActivityKind.Eat, "meal", "", "", 1, 32000) };
+        var deferred = new List<ForecastDeferredPawn>();
+        Assert.Null(CoordinatedActivityBinding.DeferDistantServices(Batch([Preparing(meal)], meal), Tick, deferred));
+        Assert.Equal("eater", Assert.Single(deferred).Pawn);
+    }
+
+    [Fact]
     public void ADistantServiceAloneLeavesOnlyTheDeferral()
     {
         var sleep = Service("sleeper", 30000);

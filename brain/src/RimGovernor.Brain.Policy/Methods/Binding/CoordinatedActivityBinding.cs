@@ -35,7 +35,7 @@ internal static class CoordinatedActivityBinding
     {
         if (active is null) return null;
         var far = active.Orders.Where(o => !o.Release && o.Preparing && active.Tasks.SingleOrDefault(t => t.Id == o.Task) is { } task
-            && task.Prerequisites.Count == 0 && task.Step.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation
+            && task.Prerequisites.Count == 0 && task.Step.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation or PawnActivityKind.Eat
             && task.DepartTick - tick > DistantServiceTicks
             && !active.Tasks.Any(t => t.Pawn != o.Pawn && t.Prerequisites.Any(p => active.Tasks.Any(r => r.Pawn == o.Pawn && r.Id == p))))
             .ToArray();
