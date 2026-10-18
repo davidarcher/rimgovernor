@@ -54,6 +54,13 @@ public sealed record WatchConfig
     /// relaunched sits at the main menu with no map, so without this the case waits out its whole Watch ceiling.
     /// </summary>
     public TimeSpan TickStall { get; init; }
+
+    /// <summary>
+    /// How long the scheduler gets to reach automate with a persisted Rounds pass before the window starts (default
+    /// <see cref="SustainedFood.DefaultAutomateWait"/>). A hang guard: a game rendering on a CPU-only device answers
+    /// the brain's hops seconds apart.
+    /// </summary>
+    public TimeSpan AutomateWait { get; init; }
 }
 
 /// <summary>
@@ -85,6 +92,8 @@ public static class SustainedFood
     public static readonly TimeSpan DefaultPoll = TimeSpan.FromSeconds(5);
 
     public static readonly TimeSpan DefaultTickStall = TimeSpan.FromMinutes(3);
+
+    public static readonly TimeSpan DefaultAutomateWait = TimeSpan.FromSeconds(60);
 
     /// <summary>
     /// The serve-driven family's observation window on a service just started (not yet acquired): it acquires player
@@ -124,7 +133,7 @@ public static class SustainedFood
 
         // Confirm the scheduler actually reaches automate and a Rounds pass gets persisted before starting the real
         // observation window.
-        var diagDeadline = DateTimeOffset.UtcNow.AddSeconds(60);
+        var diagDeadline = DateTimeOffset.UtcNow + (cfg.AutomateWait > TimeSpan.Zero ? cfg.AutomateWait : DefaultAutomateWait);
         var sawAutomate = false;
         ulong revision = 0;
         using (var pace = Wait.Pace(RunInterval))

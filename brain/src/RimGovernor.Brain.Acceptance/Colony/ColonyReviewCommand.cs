@@ -242,6 +242,11 @@ public static class ColonyReviewCommand
                     PollTicks = 2500,
                     Concern = FoodRules.FoodSupplyNeed.Value,
                     Extra = ColonyAudits.ColonyConcerns,
+
+                    // Hang guards sized for a CPU-rendered game (a hosted runner has no GPU): its game thread answers the
+                    // brain's hops seconds apart and a tick can take minutes.
+                    AutomateWait = TimeSpan.FromMinutes(10),
+                    TickStall = TimeSpan.FromMinutes(15),
                 },
                 Prepare = async (h, r, ct) =>
                 {
