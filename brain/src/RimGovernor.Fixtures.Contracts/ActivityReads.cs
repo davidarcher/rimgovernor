@@ -71,6 +71,16 @@ public sealed record CookingRead
     public bool Forced { get; init; }
 }
 
+/// <summary><c>test/pawn_sow_read</c>: the sower's execution and how many cells of the zone stand sown.</summary>
+public sealed record SowRead
+{
+    public ActivityExecution? Execution { get; init; }
+
+    public int Sown { get; init; }
+
+    public bool Forced { get; init; }
+}
+
 /// <summary><c>test/pawn_delivery_read</c>: the hauler's execution and the edible harvest at each cell.</summary>
 public sealed record DeliveryRead
 {

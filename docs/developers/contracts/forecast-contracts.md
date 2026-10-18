@@ -61,6 +61,7 @@ the native managed-configuration check excludes them while CAS snapshots include
 | --- | --- | --- |
 | Food and animal feed | Fed food fall, nutrition per eligible eater, food policy, safe reachability, holder and rot deadline | Demand-weighted allocation at current temperature/access; no grazing, future hauling or harvest credit. Downed pawns need assistance, which is not presumed. |
 | Harvest and labor | Growing-zone crop, fertility, growth stalls, native yield, sow/harvest work and pending construction work remaining | Native work units; no pawn-hour conversion, season guarantee or completion date. Filtered construction censuses remain unknown. |
+| Sowing work | Per pawn and growing zone with a crop set: the cells the grower sow giver accepts now, the pawn's plant work speed, the crop's sow work, route to the nearest cell | Candidate tasks only ([live sowing](pawn-activities.md#live-sowing)); nothing values them yet, no crop choice, and cells past the horizon are cut with a finding. |
 | Medical | Native total bleeding and untreated blood-loss death estimate | Current untreated estimate; no inferred disease prognosis or treatment completion. |
 | Mood | Current mood, thought target and pawn-specific native break thresholds | Current risk band and target pressure; no probability or time-to-break. |
 | Power | Per-network observed watts and stored watt-days | Reserve duration at current deficit; no assumed future generation or grid connectivity. Failed readings remain unavailable. |

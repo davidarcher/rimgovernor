@@ -135,6 +135,11 @@ public sealed partial record ForecastCoupledCandidates
         foreach (var binding in practice.Bindings) bindings.Add(binding.Key, binding.Value);
         foreach (var route in practice.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
         findings.UnionWith(practice.Findings);
+        var sowing = Methods.Generation.SowingMethodCandidates.Generate(read.Sowing, read.Tick, horizon, resources.Claims);
+        tasks.AddRange(sowing.Tasks); options.AddRange(sowing.Options); alternatives.AddRange(sowing.Roots);
+        foreach (var binding in sowing.Bindings) bindings.Add(binding.Key, binding.Value);
+        foreach (var route in sowing.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
+        findings.UnionWith(sowing.Findings);
         foreach (var task in practice.Practice.Where(p => p.Worker.JoyGainPerTick.IsKnown && p.Worker.JoyGainPerTick.Value > 0))
             needTasks.Add(new(task.Task, task.Worker.Pawn, "joy", task.Worker.Target, new(""), 0,
                 Known(task.Worker.JoyGainPerTick.Value * Math.Max(0, task.Worker.DurationTicks.Value - task.Worker.PreparationTicks)), [])
@@ -186,7 +191,8 @@ public sealed partial record ForecastCoupledCandidates
         // Planned work has no action template to delay (#3278).
         var productiveRoots = alternatives.Where(c => c.ActivityCompletions.Count == 1 && !unplaced.Contains(c.ActivityCompletions[0])
             && needTasks.All(n => n.Task != c.ActivityCompletions[0])
-            && practice.Practice.All(p => p.Task != c.ActivityCompletions[0])).ToArray();
+            && practice.Practice.All(p => p.Task != c.ActivityCompletions[0])
+            && sowing.Roots.All(r => r.Id != c.Id)).ToArray(); // Unvalued sowing would only spend the delayed-variant budget.
         var delayed = 0; var delayedTasks = new HashSet<string>(StringComparer.Ordinal); var delayedRoots = new HashSet<string>(StringComparer.Ordinal);
         foreach (var root in productiveRoots)
             foreach (var recovery in needTasks.ToArray())

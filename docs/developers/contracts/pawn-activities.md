@@ -69,6 +69,29 @@ costs are observed separately; pickup/setup time and route changes remain estima
 limits. Native construction tiers, skill/capacity guards and reservations still
 veto exact work. Existing construction demand owns the material budget.
 
+## Live sowing
+
+Sowing is a cell-targeted Work step through the grower sow giver (`WorkGiver_GrowerSow`), not a
+new activity kind. Native reads, for every free colonist and every growing zone or planter with a
+crop set, the cells the giver would accept now (crop set, cell free, fertility and season, adjacent
+sow block, the pawn's Plants level against `sowMinSkill`, reservable and reachable), the pawn's
+`PlantWorkSpeed`, the crop's sow work and the route to the nearest cell. Legality is the game's
+own giver read through a private subclass that sets the giver's shared wanted-plant cache around
+each call and accepts only a Sow job, so a cell the giver would answer with a cut-plant or
+haul-aside job is not sowable and the tree-lattice patch applies. Policy proposes one task per
+(pawn, zone) with as many cells as fit the horizon at that pawn's speed (`sowing_cells_truncated`
+when it cuts); a zone is one exclusive outcome, so one pawn sows it at a time. The zone's crop is
+read, never chosen, and a zone with no crop is reported (`sowing_zone_without_crop`). Nothing
+values the sowing yet: the roots carry no consequence until the project graph credits them.
+
+The step is `Destination` = the first cell, `Target` = the zone's (or planter's) unique load id and
+`Count` = the cells to sow, validated like a BuildRoof step (a cell is required, and a positive
+count). `JobDriver_PlantSow` sows one cell and ignores queued targets, so native offers one Sow job
+per cell and keeps a cells-sown counter on the in-memory execution entry: the step stays current,
+re-offering the nearest legal cell, until the count is sown. A step with no legal cell left ends
+without a fault (a full zone is done); a load restarts the count, as it restarts the entry.
+Continuation rebinds the nearest legal cell for the pawn and treats a fully sown grower as done.
+
 ## Continuation, observations and bounds
 
 A completed participant can progress while another keeps its byte-equivalent

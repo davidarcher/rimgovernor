@@ -30,6 +30,8 @@ namespace HomeBridge.BridgeTools
             internal int RunningId;
             internal long Tick;
             internal Thing?[] Dependencies = [];
+            /// <summary>Cells sown under the step <see cref="SownStep"/> (a Sow step repeats one job per cell). In memory only: a load restarts the count (#3528).</summary>
+            internal int Sown, SownStep = -1;
         }
         private sealed record Offer(Entry Entry, int Step, int JobId);
         private static readonly Dictionary<Pawn, Entry> Entries = new();
@@ -152,6 +154,13 @@ namespace HomeBridge.BridgeTools
                         if (roofGiver?.Worker is not WorkGiver_BuildRoof || !cell.InBounds(pawn.Map)
                             || !pawn.Map.areaManager.BuildRoof[cell] || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction)
                             || !pawn.CanReach(cell, PathEndMode.Touch, Danger.None)) return Refuse("Selected roof work unavailable.");
+                        continue;
+                    }
+                    if (step.Kind == PawnActivityKind.Work && step.Job == "Sow")
+                    {
+                        if (NativeSowingActivities.Giver?.defName != step.WorkGiver || NativeSowingActivities.NextJob(pawn, step, 0) is not { } probe)
+                            return Refuse("Selected sowing unavailable.");
+                        JobMaker.ReturnToPool(probe);
                         continue;
                     }
                     var target = Thing(step.Target) ?? (pawn.carryTracker.CarriedThing?.GetUniqueLoadID() == step.Target ? pawn.carryTracker.CarriedThing : null);
@@ -349,6 +358,18 @@ namespace HomeBridge.BridgeTools
                 var roofJob = roof.JobOnCell(p, cell, false) ?? throw new InvalidOperationException("roof_work_refused");
                 roofJob.workGiverDef = roofGiver; return roofJob;
             }
+            if (step.Kind == PawnActivityKind.Work && step.Job == "Sow")
+            {
+                // One Sow job per cell: the step repeats until its count is sown or no cell is legal any more (a full zone is done, not a fault).
+                var sowJob = NativeSowingActivities.NextJob(p, step, e.SownStep == e.Step ? e.Sown : 0);
+                if (sowJob == null)
+                {
+                    e.Step++; e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed";
+                    e.Reason = "no_legal_cell"; e.Tick = Find.TickManager.TicksGame; Emit(e);
+                    return OfferJob(e);
+                }
+                sowJob.workGiverDef = NativeSowingActivities.Giver; return sowJob;
+            }
             var target = Thing(step.Target) ?? (p.carryTracker.CarriedThing?.GetUniqueLoadID() == step.Target ? p.carryTracker.CarriedThing : null)
                 ?? throw new InvalidOperationException("target_missing");
             var (maxPawns, stackCount) = NativeNeedsForecast.ServiceReservation(step.Kind, target, step.Count);
@@ -521,7 +542,18 @@ namespace HomeBridge.BridgeTools
             if (e.State == "failed") return;
             // Standby never completes or fails on a job's end: Ended offers the next wander leg, and time keeps running.
             if (PawnActivities.IsStandby(e.Order)) return;
-            if (condition == JobCondition.Succeeded && !hold) { e.Step++; e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed"; e.Reason = "Succeeded"; }
+            if (condition == JobCondition.Succeeded && !hold)
+            {
+                // A Sow step stays current until its cell count is sown; every other step is done with its job.
+                var sowing = e.Step < e.Order.Steps.Length && e.Order.Steps[e.Step] is { Kind: PawnActivityKind.Work, Job: "Sow" } sow ? sow : null;
+                if (sowing != null)
+                {
+                    if (e.SownStep != e.Step) { e.SownStep = e.Step; e.Sown = 0; }
+                    e.Sown++;
+                }
+                if (sowing == null || e.Sown >= sowing.Count) e.Step++;
+                e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed"; e.Reason = "Succeeded";
+            }
             else if (condition != JobCondition.Succeeded) { e.State = "failed"; e.Reason = condition.ToString(); Find.TickManager.Pause(); }
             e.Tick = Find.TickManager.TicksGame; Emit(e);
         }

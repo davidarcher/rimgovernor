@@ -122,6 +122,14 @@ internal static class NativeActivityTasks
                         && giver.HasJobOnCell(pawn, cell, false) && pawn.CanReach(cell, PathEndMode.Touch, Danger.None))
                         bindings.Add(new(task.Id, step));
                 }
+                else if (step.Kind == PawnActivityKind.Work && step.Job == "Sow")
+                {
+                    // A fully sown grower is done; otherwise the nearest cell this pawn can sow now.
+                    if (NativeSowingActivities.FullySown(map, step.Target)) { satisfied.Add(task.Id); continue; }
+                    if (NativeSowingActivities.Giver?.defName == step.WorkGiver && NativeSowingActivities.Grower(map, step.Target) is { } grower
+                        && NativeSowingActivities.LegalCells(pawn, grower) is [var nearest, ..])
+                        bindings.Add(new(task.Id, step with { Destination = new(nearest.x, nearest.z) }));
+                }
                 else if (step.Kind == PawnActivityKind.Work)
                 {
                     var target = task.SiteDefinition.Length == 0
