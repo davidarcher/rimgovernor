@@ -22,9 +22,15 @@ namespace RimGovernor.Brain.Policy;
 internal sealed class XRects
 {
     public XRects(IEnumerable<Rectangle> rects)
+        : this(rects.ToArray())
     {
-        Rects = [.. rects];
-        Array.Sort(Rects, (a, b) => a.X.CompareTo(b.X));
+    }
+
+    /// <summary>Sorts and keeps <paramref name="rects"/> itself; the caller hands it over.</summary>
+    public XRects(Rectangle[] rects)
+    {
+        Rects = rects;
+        Array.Sort(Rects, static (a, b) => a.X.CompareTo(b.X));
         Reach = new int[Rects.Length];
         var far = int.MinValue;
         for (var i = 0; i < Rects.Length; i++)
@@ -39,9 +45,15 @@ internal sealed class XRects
     public int[] Reach { get; }
 }
 
-/// <summary>The buffers one Uncovered call fills, kept across the calls of a placement (one goroutine).</summary>
+/// <summary>The buffers one Uncovered call fills, kept across calls on one thread.</summary>
 internal sealed class CoverScratch
 {
+    [ThreadStatic]
+    private static CoverScratch? ThreadScratch;
+
+    /// <summary>This thread's scratch: the seeds of one Embedder run in parallel, and no Uncovered call nests another.</summary>
+    public static CoverScratch ForThread => ThreadScratch ??= new();
+
     private readonly List<Rectangle> _clipped = [];
     private List<Rectangle> _active = [];
     private List<Rectangle> _kept = [];
@@ -171,12 +183,41 @@ internal sealed class EnclosureSet(XRects inRects, XRects grown, XRects walls)
 
     public XRects Walls { get; } = walls;
 
-    public CoverScratch Scratch { get; } = new();
-
     public int Calls { get; set; }
 
-    /// <summary>Grown, in, walls: built after enough calls.</summary>
+    /// <summary>Grown, in, walls: built after enough calls, over this thread's CoverGridBuffers while this set holds them.</summary>
     public CoverGrid[]? Grids { get; set; }
+}
+
+/// <summary>
+/// The three prefix-sum arrays the cover grids of one thread are built in. Only the set that built its grids last
+/// holds them: a set that takes them drops the grids of the one before, which rebuilds if it is priced again.
+/// </summary>
+internal sealed class CoverGridBuffers
+{
+    [ThreadStatic]
+    private static CoverGridBuffers? ThreadBuffers;
+
+    private readonly int[]?[] _arrays = new int[]?[3];
+    private EnclosureSet? _owner;
+
+    /// <summary>Builds s's grids (grown, in, walls) in this thread's arrays.</summary>
+    public static CoverGrid[] Build(EnclosureSet s, Rectangle onMap, Prefix walkable)
+    {
+        var b = ThreadBuffers ??= new();
+        if (b._owner is { } prior && prior != s)
+        {
+            prior.Grids = null;
+        }
+        b._owner = s;
+        CoverGrid Grid(int k, XRects rects, Prefix? weight)
+        {
+            var grid = new CoverGrid(onMap, rects, weight, b._arrays[k]);
+            b._arrays[k] = grid.Buffer;
+            return grid;
+        }
+        return [Grid(0, s.Grown, walkable), Grid(1, s.In, walkable), Grid(2, s.Walls, null)];
+    }
 }
 
 /// <summary>
@@ -193,7 +234,7 @@ internal sealed class CoverGrid
     /// The grid over the bounding box of rects: nothing outside it is covered, so a query clipped to it reads the
     /// same sums as one over the whole map. weight (null: each cell counts 1) reads only cells on the map.
     /// </summary>
-    public CoverGrid(Rectangle onMap, XRects rects, Prefix? weight)
+    public CoverGrid(Rectangle onMap, XRects rects, Prefix? weight, int[]? buffer = null)
     {
         int x0 = int.MaxValue, z0 = int.MaxValue, x1 = int.MinValue, z1 = int.MinValue;
         foreach (var r in rects.Rects)
@@ -213,7 +254,16 @@ internal sealed class CoverGrid
         }
         _bounds = new Rectangle(x0, z0, x1 - x0, z1 - z0);
         var stride = _bounds.Width + 1;
-        _s = new int[stride * (_bounds.Height + 1)];
+        var size = stride * (_bounds.Height + 1);
+        if (buffer is null || buffer.Length < size)
+        {
+            buffer = new int[size];
+        }
+        else
+        {
+            Array.Clear(buffer, 0, size);
+        }
+        _s = buffer;
         foreach (var r in rects.Rects)
         {
             if (r.Width <= 0 || r.Height <= 0)
@@ -248,6 +298,9 @@ internal sealed class CoverGrid
             }
         }
     }
+
+    /// <summary>The array the sums are in, at least as long as the grid needs; a later grid may be built in it.</summary>
+    public int[] Buffer => _s;
 
     /// <summary>The covered weight inside k.</summary>
     public int Covered(Rectangle k)
@@ -297,19 +350,30 @@ internal sealed partial class Embedder
     public EnclosureSet EnclosureRects(int i, IReadOnlyList<Rectangle> blocks)
     {
         const int yard = 1 + LayoutPerimeterRules.PerimeterGap; // the wall cells and the killbox yard
-        var inRects = new List<Rectangle>();
-        var grown = new List<Rectangle>();
-        var walls = new List<Rectangle>();
+        bool Encloses(int j) => j != i && blocks[j].Width != 0 && !IsField(j);
+        var n = 0;
         for (var j = 0; j < blocks.Count; j++)
         {
-            var b = blocks[j];
-            if (j == i || b.Width == 0 || IsField(j))
+            if (Encloses(j))
+            {
+                n++;
+            }
+        }
+        var inRects = new Rectangle[n];
+        var grown = new Rectangle[n];
+        var walls = new Rectangle[n];
+        n = 0;
+        for (var j = 0; j < blocks.Count; j++)
+        {
+            if (!Encloses(j))
             {
                 continue;
             }
-            inRects.Add(LayoutPerimeterRules.Pad(b, yard));
-            grown.Add(LayoutPerimeterRules.Pad(b, yard + LayoutPerimeterRules.PerimeterThick));
-            walls.Add(LayoutPerimeterRules.Pad(b, 1));
+            var b = blocks[j];
+            inRects[n] = LayoutPerimeterRules.Pad(b, yard);
+            grown[n] = LayoutPerimeterRules.Pad(b, yard + LayoutPerimeterRules.PerimeterThick);
+            walls[n] = LayoutPerimeterRules.Pad(b, 1);
+            n++;
         }
         return new EnclosureSet(new XRects(inRects), new XRects(grown), new XRects(walls));
     }
@@ -322,7 +386,7 @@ internal sealed partial class Embedder
         s.Calls++;
         if (s.Grids is null && s.Calls >= Math.Max(LayoutEmbedEnclosureRules.CoverGridMinCalls, onMap.Width * onMap.Height / LayoutEmbedEnclosureRules.CoverGridCellsPerCall))
         {
-            s.Grids = [new CoverGrid(onMap, s.Grown, Walkable), new CoverGrid(onMap, s.In, Walkable), new CoverGrid(onMap, s.Walls, null)];
+            s.Grids = CoverGridBuffers.Build(s, onMap, Walkable);
         }
         if (s.Grids is { } g)
         {
@@ -330,9 +394,9 @@ internal sealed partial class Embedder
                 g[1].Uncovered(LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(r, yard), onMap), Walkable);
             return (PlanWeights.Wall * gridWall) + (PlanWeights.Footprint * g[2].Uncovered(LayoutPerimeterRules.Pad(r, 1), null));
         }
-        var wall = s.Scratch.Uncovered(LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(r, yard + LayoutPerimeterRules.PerimeterThick), onMap), s.Grown, Walkable) -
-            s.Scratch.Uncovered(LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(r, yard), onMap), s.In, Walkable);
-        return (PlanWeights.Wall * wall) + (PlanWeights.Footprint * s.Scratch.Uncovered(LayoutPerimeterRules.Pad(r, 1), s.Walls, null));
+        var wall = CoverScratch.ForThread.Uncovered(LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(r, yard + LayoutPerimeterRules.PerimeterThick), onMap), s.Grown, Walkable) -
+            CoverScratch.ForThread.Uncovered(LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(r, yard), onMap), s.In, Walkable);
+        return (PlanWeights.Wall * wall) + (PlanWeights.Footprint * CoverScratch.ForThread.Uncovered(LayoutPerimeterRules.Pad(r, 1), s.Walls, null));
     }
 }
 

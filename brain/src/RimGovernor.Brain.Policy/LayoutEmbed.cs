@@ -454,28 +454,39 @@ internal sealed partial class Embedder : EmbedFixed
         return cost;
     }
 
+    // The ring starts PlaceNear scans, reused across its rings and shapes. The seeds of one Embedder run in
+    // parallel, so each thread keeps its own.
+    [ThreadStatic]
+    private static List<(int X, int Z)>? RingStarts;
+
     /// <summary>The cheapest fitting position on the smallest ring around the anchors that has one.</summary>
     public (Rectangle Rect, bool Ok) PlaceNear(int i, Rectangle[] blocks, IReadOnlyList<int> anchors)
     {
         var maxRing = _level.W + _level.H;
         var enc = EnclosureFor(i, blocks);
+        var starts = RingStarts ??= [];
         for (var ring = 1; ring <= maxRing; ring++)
         {
             var best = default(Rectangle);
             double bestCost = 0;
             var found = false;
-            foreach (var a in anchors)
+            for (var ai = 0; ai < anchors.Count; ai++)
             {
+                var a = anchors[ai];
                 var ab = blocks[a];
                 var fieldGap = IsField(i) || IsField(a);
-                foreach (var sh in _shapes[i])
+                var shapes = _shapes[i];
+                for (var si = 0; si < shapes.Count; si++)
                 {
-                    LayoutEmbedRules.RingPositions(ab, sh, ring, fieldGap, (x, z) =>
+                    var sh = shapes[si];
+                    starts.Clear();
+                    LayoutEmbedRules.RingPositions(ab, sh, ring, fieldGap, starts);
+                    foreach (var (x, z) in starts)
                     {
                         var r = new Rectangle(x, z, sh.W, sh.H);
                         if (!Fits(i, r, blocks, _sky[i]))
                         {
-                            return;
+                            continue;
                         }
                         var c = BlockCostWith(i, r, blocks, enc);
                         if (LayoutEmbedRules.Better(c, r, bestCost, best, found))
@@ -484,7 +495,7 @@ internal sealed partial class Embedder : EmbedFixed
                             bestCost = c;
                             found = true;
                         }
-                    });
+                    }
                 }
             }
             if (found)
@@ -502,10 +513,14 @@ internal sealed partial class Embedder : EmbedFixed
         double bestCost = 0;
         var found = false;
         var enc = EnclosureFor(i, blocks);
-        foreach (var c in CellsFor(i))
+        var cells = CellsFor(i);
+        var shapes = _shapes[i];
+        for (var ci = 0; ci < cells.Count; ci++)
         {
-            foreach (var sh in _shapes[i])
+            var c = cells[ci];
+            for (var si = 0; si < shapes.Count; si++)
             {
+                var sh = shapes[si];
                 var r = new Rectangle(c.X, c.Z, sh.W, sh.H);
                 if (!Fits(i, r, blocks, sky))
                 {
@@ -1007,15 +1022,15 @@ public static partial class LayoutEmbedRules
     }
 
     /// <summary>
-    /// Calls f with every start (x, z) of a block of interior sh whose gap to the anchor ab is ring (GapDist,
+    /// Appends to <paramref name="into"/> every start (x, z) of a block of interior sh whose gap to the anchor ab is ring (GapDist,
     /// or the field gap when field): exactly the starts the window ab padded by ring holds with that gap,
     /// enumerated by axis gap (AxisGap) rather than filtered from the whole window. Each axis offers two starts
     /// at every gap s >= 1 (beside the anchor on either side), two at gap 0 (flush), and the starts in between
     /// that overlap it (gap &lt; 0). GapDist is sx+sz when both gaps are >= 1, sx plus one when sz is 0 and sx
     /// >= 1, sx alone when sz &lt; 0 (and the same turned); the field gap is max(sx,0)+max(sz,0), at least 1.
-    /// The order of the calls is not the window's, which no caller reads: Better ranks by cost and then (Z, X).
+    /// The order is not the window's, which no caller reads: Better ranks by cost and then (Z, X).
     /// </summary>
-    internal static void RingPositions(Rectangle ab, (int W, int H) sh, int ring, bool field, Action<int, int> f)
+    internal static void RingPositions(Rectangle ab, (int W, int H) sh, int ring, bool field, List<(int X, int Z)> into)
     {
         int w = sh.W, h = sh.H;
         var r = ring;
@@ -1025,7 +1040,17 @@ public static partial class LayoutEmbedRules
         var zLow = new AxisSet(ab.Z - h, ab.Z + ab.Height, false); // gap <= 0
         var xNeg = new AxisSet(ab.X - w + 1, ab.X + ab.Width - 1, false); // gap < 0
         var zNeg = new AxisSet(ab.Z - h + 1, ab.Z + ab.Height - 1, false);
-        void Product(AxisSet xa, AxisSet za) => za.Each(z => xa.Each(x => f(x, z)));
+        void Product(AxisSet xa, AxisSet za)
+        {
+            for (var zi = 0; zi < za.Count; zi++)
+            {
+                var z = za[zi];
+                for (var xi = 0; xi < xa.Count; xi++)
+                {
+                    into.Add((xa[xi], z));
+                }
+            }
+        }
         for (var s = 1; s < r; s++)
         {
             // Both gaps >= 1: they sum to ring.
@@ -1147,17 +1172,7 @@ partial class EmbedRun
 /// <summary>The start coordinates on one axis that put a block at one axis gap from an anchor: the two starts Lo and Hi when Pair, else every start from Lo to Hi.</summary>
 internal readonly record struct AxisSet(int Lo, int Hi, bool Pair)
 {
-    public void Each(Action<int> f)
-    {
-        if (Pair)
-        {
-            f(Lo);
-            f(Hi);
-            return;
-        }
-        for (var v = Lo; v <= Hi; v++)
-        {
-            f(v);
-        }
-    }
+    public int Count => Pair ? 2 : Math.Max(0, Hi - Lo + 1);
+
+    public int this[int k] => Pair ? (k == 0 ? Lo : Hi) : Lo + k;
 }

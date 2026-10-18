@@ -37,22 +37,41 @@ internal sealed class FrameCellGrid(PbMirror.CellGrid grid)
         }
     }
 
-    /// <summary>The held cells grouped by their room key, row-major within a key.</summary>
-    internal Dictionary<int, List<Cell>> CellsByRoom()
+    /// <summary>
+    /// The held cells of each of <paramref name="keys"/>' room keys, row-major within a key; a key no held cell
+    /// carries is absent. Each key's cells are counted first, so its array is built at its size.
+    /// </summary>
+    internal Dictionary<int, Cell[]> CellsByRoom(IReadOnlyCollection<int> keys)
     {
-        var result = new Dictionary<int, List<Cell>>();
+        var counts = new Dictionary<int, int>(keys.Count);
+        foreach (var key in keys)
+        {
+            counts[key] = 0;
+        }
         for (var j = 0; j < grid.Held.Length; j++)
         {
-            if (!grid.Held[j] || grid.Room[j] is not { } key)
+            if (grid.Held[j] && grid.Room[j] is { } key && counts.TryGetValue(key, out var n))
             {
-                continue;
+                counts[key] = n + 1;
             }
-            if (!result.TryGetValue(key, out var list))
+        }
+        var result = new Dictionary<int, Cell[]>(counts.Count);
+        foreach (var (key, n) in counts)
+        {
+            if (n > 0)
             {
-                list = [];
-                result[key] = list;
+                result[key] = new Cell[n];
             }
-            list.Add(new Cell(Rect.X + (j % Rect.Width), Rect.Z + (j / Rect.Width)));
+        }
+        var filled = new Dictionary<int, int>(result.Count);
+        for (var j = 0; j < grid.Held.Length; j++)
+        {
+            if (grid.Held[j] && grid.Room[j] is { } key && result.TryGetValue(key, out var cells))
+            {
+                var at = filled.GetValueOrDefault(key);
+                cells[at] = new Cell(Rect.X + (j % Rect.Width), Rect.Z + (j / Rect.Width));
+                filled[key] = at + 1;
+            }
         }
         return result;
     }
@@ -189,10 +208,18 @@ public sealed partial class FacadeNativeClient
         {
             return result;
         }
-        var byKey = grid.CellsByRoom();
+        var keys = new HashSet<int>();
         foreach (var room in rooms.Rooms)
         {
-            if (room.GridRoom is { } key && byKey.TryGetValue(key, out var cells) && cells.Count > 0)
+            if (room.GridRoom is { } key)
+            {
+                keys.Add(key);
+            }
+        }
+        var byKey = grid.CellsByRoom(keys);
+        foreach (var room in rooms.Rooms)
+        {
+            if (room.GridRoom is { } key && byKey.TryGetValue(key, out var cells))
             {
                 result[room.Id ?? ""] = cells;
             }
