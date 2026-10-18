@@ -295,7 +295,7 @@ public static class Orders
     internal static Op.Action AssignAction(DomainAction action)
     {
         var v = action.Assign ?? throw BridgeContractException.Contract("not an assign action");
-        var previous = v.Previous.Clear ? new Op.Assignment { Value = new Op.Clear() } : new Op.Assignment { Value = new Op.AssignmentValue.EntityIdCase(v.Previous.Id) };
+        var previous = v.Previous.Clear ? new Op.Assignment { Value = new Op.AssignmentValue.ClearCase() } : new Op.Assignment { Value = new Op.AssignmentValue.EntityIdCase(v.Previous.Id) };
         var intent = new Op.AssignIntent { PawnId = v.Pawn.Value, ThingId = v.Thing, ExpectedPrevious = previous };
         if (v.Swap)
         {

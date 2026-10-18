@@ -138,7 +138,9 @@ declaration`, `written, never read`, `written by the native side, never read by 
 exposed when it stopped counting acceptance string keys as reads (#3410; burndown for both:
 [#3351](https://github.com/davidarcher/rimgovernor/issues/3351)). It only shrinks: a new
 orphan fails (delete it through every layer, never add a line), and so does a line that is no
-longer an orphan (delete the line). The wire and Policy checks are unavailable without the game, because then the
+longer an orphan (delete the line). The baseline's `Operations.CombatOrderOrder.*`,
+`Operations.CombatAnimalAreaArea.Clear*` and `Operations.AbilityIntentTarget.*` lines stay on purpose: the combat
+shapes are unread only while combat is away, and its return will read them. The wire and Policy checks are unavailable without the game, because then the
 native mod is not built and the game-reading brain projects are empty.
 
 The public types of `RimGovernor.Fixtures.Contracts` (the stage spec and its reply, enums aside) are checked

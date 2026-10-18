@@ -63,7 +63,7 @@ internal static class ClearanceForeignIds
         _ = await TypedApply.AppliedAsync(s, "foreign-claim", new Operations.BuildingPatchIntent
         {
             ThingId = ruin,
-            Change = new Operations.BuildingPatchIntentChange.ClaimCase(new()),
+            Change = new Operations.BuildingPatchIntentChange.ClaimCase(),
         }, cancellationToken).ConfigureAwait(false);
         _ = await TypedApply.AppliedAsync(s, "foreign-harvest", new Operations.DesignateIntent
         {

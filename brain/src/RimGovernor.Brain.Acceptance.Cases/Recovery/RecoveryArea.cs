@@ -116,7 +116,7 @@ internal static class RecoveryArea
         }
 
         // Clearing the restriction under the roof hazard is refused and leaves it in place; so is a pawn not on the map.
-        Refused("hazard-clear", await ApplyAsync("hazard-clear", "area-hazard-clear", prepared.Pawn, new Operations.Clear()).ConfigureAwait(false), Common.FailureCode.InvalidRequest);
+        Refused("hazard-clear", await ApplyAsync("hazard-clear", "area-hazard-clear", prepared.Pawn, new Operations.AssignmentValue.ClearCase()).ConfigureAwait(false), Common.FailureCode.InvalidRequest);
         if (await AreaAsync("hazard-clear-unchanged").ConfigureAwait(false) != prepared.Outdoor)
         {
             throw new AcceptanceException("hazard-clear: the refused clear changed the restriction");

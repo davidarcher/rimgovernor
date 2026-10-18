@@ -49,15 +49,6 @@ Contracts|Observations.ThreatSectionOutcome.Unavailable
 Contracts|Observations.ThreatSectionOutcome.UnavailableCase.Value
 Contracts|Operations.AbilityIntentTarget.Cell
 Contracts|Operations.AbilityIntentTarget.NoTargetCase.Value
-Contracts|Operations.AssignmentValue.Clear
-Contracts|Operations.AssignmentValue.ClearCase.Value
-Contracts|Operations.BillSettings.Store
-Contracts|Operations.BillStore.Destination
-Contracts|Operations.BillStoreDestination.ModeCase.Value
-Contracts|Operations.BillStoreDestination.ZoneIdCase.Value
-Contracts|Operations.BuildingPatchIntentChange.ClaimCase.Value
-Contracts|Operations.BuildingPatchIntentChange.ForPrisonersCase.Value
-Contracts|Operations.BuildingPatchIntentChange.ForSlavesCase.Value
 Contracts|Operations.CombatAnimalAreaArea.Clear
 Contracts|Operations.CombatAnimalAreaArea.ClearCase.Value
 Contracts|Operations.CombatOrderOrder.Attack
@@ -70,9 +61,6 @@ Contracts|Operations.CombatOrderOrder.Release
 Contracts|Operations.CombatOrderOrder.Rescue
 Contracts|Operations.CombatOrderOrder.Stop
 Contracts|Operations.CombatOrderOrder.StopCase.Value
-Contracts|Operations.GiveJobIntent.Cells
-Contracts|Operations.GiveJobIntent.Count
-Contracts|Operations.TradeIntentStep.Accept
 Policy|ActivityContinuationDecision.Reason
 Policy|AdmissionDecision.Emergency
 Policy|AssignedCapability.Kind

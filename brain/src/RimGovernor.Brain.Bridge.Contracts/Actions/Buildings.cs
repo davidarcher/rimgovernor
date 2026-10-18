@@ -149,9 +149,9 @@ public static class BuildingsRules
     {
         var v = action.BedUse ?? throw BridgeContractException.Contract("not a bed use action");
         Op.BuildingPatchIntentChange change = v.Prisoners
-            ? new Op.BuildingPatchIntentChange.ForPrisonersCase(new Op.Clear())
+            ? new Op.BuildingPatchIntentChange.ForPrisonersCase()
             : v.Slaves
-                ? new Op.BuildingPatchIntentChange.ForSlavesCase(new Op.Clear())
+                ? new Op.BuildingPatchIntentChange.ForSlavesCase()
                 : new Op.BuildingPatchIntentChange.MedicalCase(v.Medical);
         return BuildingPatch(v.Thing, change);
     }
@@ -174,7 +174,7 @@ public static class BuildingsRules
     internal static Op.Action ClaimBuildingAction(DomainAction action)
     {
         var v = action.ClaimBuilding ?? throw BridgeContractException.Contract("not a claim building action");
-        return BuildingPatch(v.Thing, new Op.BuildingPatchIntentChange.ClaimCase(new Op.Clear()));
+        return BuildingPatch(v.Thing, new Op.BuildingPatchIntentChange.ClaimCase());
     }
 
     /// <summary>Wraps one DesignateIntent as an Actions/Apply action.</summary>

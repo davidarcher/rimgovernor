@@ -142,17 +142,6 @@ public enum RepeatMode
     Target = 3,
 }
 
-[JsonConverter(typeof(WireEnumConverter<StoreMode>))]
-public enum StoreMode
-{
-    [WireName("STORE_MODE_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("STORE_MODE_BEST_STOCKPILE")]
-    BestStockpile = 1,
-    [WireName("STORE_MODE_DROP_ON_FLOOR")]
-    DropOnFloor = 2,
-}
-
 [JsonConverter(typeof(WireEnumConverter<ZoneType>))]
 public enum ZoneType
 {
@@ -438,13 +427,7 @@ public abstract record AssignmentValue
 
     public sealed record EntityIdCase(string Value) : AssignmentValue;
 
-    /// <summary>The <c>Clear</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Clear? Clear => (this as ClearCase)?.Value;
-
-    public sealed record ClearCase(Clear Value) : AssignmentValue;
-
-    public static implicit operator AssignmentValue(Clear value) => new ClearCase(value);
+    public sealed record ClearCase : AssignmentValue;
 }
 
 public sealed record DefCount
@@ -795,24 +778,6 @@ public sealed record FilterPatch
     public string? QualityMax { get; init; }
 }
 
-public sealed record BillStore
-{
-    public BillStoreDestination? Destination { get; init; }
-}
-
-/// <summary>The <c>destination</c> choice of <see cref="BillStore"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(BillStoreDestination.ModeCase), "mode")]
-[JsonDerivedType(typeof(BillStoreDestination.ZoneIdCase), "zoneId")]
-public abstract record BillStoreDestination
-{
-    private protected BillStoreDestination() { }
-
-    public sealed record ModeCase(StoreMode Value) : BillStoreDestination;
-
-    public sealed record ZoneIdCase(string Value) : BillStoreDestination;
-}
-
 public sealed record BillSettings
 {
     public RepeatMode? RepeatMode { get; init; }
@@ -834,8 +799,6 @@ public sealed record BillSettings
     public int? SkillMax { get; init; }
 
     public Assignment? Worker { get; init; }
-
-    public BillStore? Store { get; init; }
 
     public FilterPatch? Ingredients { get; init; }
 
@@ -1954,11 +1917,6 @@ public sealed record GiveJobIntent
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> Targets { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Cells { get; init; }
-
-    public int? Count { get; init; }
-
     public GiveJobOptions? Options { get; init; }
 }
 
@@ -2063,7 +2021,7 @@ public abstract record BuildingPatchIntentChange
 
     public sealed record MedicalCase(bool Value) : BuildingPatchIntentChange;
 
-    public sealed record ForPrisonersCase(Clear Value) : BuildingPatchIntentChange;
+    public sealed record ForPrisonersCase : BuildingPatchIntentChange;
 
     /// <summary>The <c>PlantDef</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -2071,9 +2029,9 @@ public abstract record BuildingPatchIntentChange
 
     public sealed record PlantDefCase(string Value) : BuildingPatchIntentChange;
 
-    public sealed record ClaimCase(Clear Value) : BuildingPatchIntentChange;
+    public sealed record ClaimCase : BuildingPatchIntentChange;
 
-    public sealed record ForSlavesCase(Clear Value) : BuildingPatchIntentChange;
+    public sealed record ForSlavesCase : BuildingPatchIntentChange;
 
     /// <summary>The <c>AutoRefuel</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -2512,10 +2470,6 @@ public abstract record TradeIntentStep
     public sealed record SetLinesCase(SetTradeLines Value) : TradeIntentStep;
 
     public static implicit operator TradeIntentStep(SetTradeLines value) => new SetLinesCase(value);
-
-    /// <summary>The <c>Accept</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public AcceptTrade? Accept => (this as AcceptCase)?.Value;
 
     public sealed record AcceptCase(AcceptTrade Value) : TradeIntentStep;
 

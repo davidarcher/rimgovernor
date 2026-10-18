@@ -156,7 +156,6 @@ internal static class ApplyRefusal
                     RepeatMode = Operations.RepeatMode.Forever,
                     Suspended = false,
                     IngredientSearchRadius = 40,
-                    Store = new Operations.BillStore { Destination = new Operations.BillStoreDestination.ModeCase(Operations.StoreMode.DropOnFloor) },
                     CorpseClass = Common.CorpseClass.Animal,
                 },
             },

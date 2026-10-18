@@ -20,15 +20,13 @@ internal static class NativeProductionBillSettingsProbe
             RecipeDef = "Make_Apparel_BasicShirt",
             Settings = new Operations.BillSettings {
                 RepeatMode = Operations.RepeatMode.Target, TargetCount = 1, UnpauseThreshold = 1,
-                PauseWhenSatisfied = true, Suspended = false, IngredientSearchRadius = 40,
-                Store = DropOnFloor()
+                PauseWhenSatisfied = true, Suspended = false, IngredientSearchRadius = 40
             }
         };
         Check(NativeProductionBillSettings.Valid(bill), "recipe defaults rejected");
         // A finite batch (gear, sculpture) repeats a count, with no target.
         var batch = bill with { Settings = new Operations.BillSettings { RepeatMode = Operations.RepeatMode.Count, RepeatCount = 2,
-            Suspended = false, IngredientSearchRadius = 40,
-            Store = DropOnFloor() } };
+            Suspended = false, IngredientSearchRadius = 40 } };
         Check(NativeProductionBillSettings.Valid(batch), "finite batch rejected");
         batch = Settings(batch, s => s with { TargetCount = 2 });
         Check(!NativeProductionBillSettings.Valid(batch), "finite batch with a target accepted");
@@ -57,8 +55,7 @@ internal static class NativeProductionBillSettingsProbe
         }
         var butcher = bill with { RecipeDef = "ButcherCorpseFlesh" };
         butcher = butcher with { Settings = new Operations.BillSettings { RepeatMode = Operations.RepeatMode.Forever,
-            Suspended = false, IngredientSearchRadius = 40,
-            Store = DropOnFloor() } };
+            Suspended = false, IngredientSearchRadius = 40 } };
         Check(!NativeProductionBillSettings.Valid(butcher), "butcher bill without a corpse class accepted");
         butcher = Settings(butcher, s => s with { CorpseClass = RimGovernor.Contracts.Wire.Common.CorpseClass.Animal });
         Check(NativeProductionBillSettings.Valid(butcher), "animal butcher bill rejected" );
@@ -79,7 +76,6 @@ internal static class NativeProductionBillSettingsProbe
     }
     // Records are immutable: each change builds a modified copy.
     private static Operations.ProductionBillIntent Settings(Operations.ProductionBillIntent bill, Func<Operations.BillSettings, Operations.BillSettings> change) => bill with { Settings = change(bill.Settings) };
-    private static Operations.BillStore DropOnFloor() => new Operations.BillStore { Destination = new Operations.BillStoreDestination.ModeCase(Operations.StoreMode.DropOnFloor) };
     private static Operations.Assignment Worker(string entityId) => new Operations.Assignment { Value = new Operations.AssignmentValue.EntityIdCase(entityId) };
     private static Operations.FilterSelector ThingDef(string def) => new Operations.FilterSelector { Definition = new Operations.FilterSelectorDefinition.ThingDefCase(def) };
     private static void Check(bool condition, string message)

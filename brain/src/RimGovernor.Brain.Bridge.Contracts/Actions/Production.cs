@@ -33,7 +33,7 @@ public static class Production
         }
         if (w.HasArea)
         {
-            intent = intent with { AllowedArea = w.AreaClear ? new Op.Assignment { Value = new Op.Clear() } : new Op.Assignment { Value = new Op.AssignmentValue.EntityIdCase(w.Area) } };
+            intent = intent with { AllowedArea = w.AreaClear ? new Op.Assignment { Value = new Op.AssignmentValue.ClearCase() } : new Op.Assignment { Value = new Op.AssignmentValue.EntityIdCase(w.Area) } };
         }
         if (w.HasSchedule)
         {
@@ -52,7 +52,6 @@ public static class Production
         {
             Suspended = false,
             IngredientSearchRadius = 40,
-            Store = new Op.BillStore { Destination = new Op.BillStoreDestination.ModeCase(Op.StoreMode.DropOnFloor) },
         };
         if (bill.Mode == BillMode.BeerReserve)
         {

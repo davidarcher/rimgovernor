@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools {
    if(command?.ReplaceOwnedBill!=null && !ProtoBoundary.IsIdentifier(command.ReplaceOwnedBill.Id))return false;
    if(!ValidIngredients(s?.Ingredients))return false;
    if(command==null||command.BenchId is null||!ProtoBoundary.IsIdentifier(command.BenchId)||command.RecipeDef is null||!ProtoBoundary.IsIdentifier(command.RecipeDef)||s==null)return false;
-   var expected=new Operations.BillSettings{RepeatMode=s.RepeatMode,TargetCount=s.TargetCount,UnpauseThreshold=s.UnpauseThreshold,PauseWhenSatisfied=s.PauseWhenSatisfied,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Destination=new Operations.BillStoreDestination.ModeCase(Operations.StoreMode.DropOnFloor)},Ingredients=s.Ingredients};
+   var expected=new Operations.BillSettings{RepeatMode=s.RepeatMode,TargetCount=s.TargetCount,UnpauseThreshold=s.UnpauseThreshold,PauseWhenSatisfied=s.PauseWhenSatisfied,Suspended=false,IngredientSearchRadius=40,Ingredients=s.Ingredients};
    if(s.BeerReserve is not null){if(!s.BeerReserve.GetValueOrDefault())return false;expected = expected with { BeerReserve = true };}
    // Corpse bill: a corpse recipe plus whose corpses it takes. A
    // humanlike butcher bill pins its worker.
@@ -20,13 +20,13 @@ namespace HomeBridge.BridgeTools {
     if(s.CorpseClass is null||!Enum.IsDefined(typeof(Common.CorpseClass),s.CorpseClass.GetValueOrDefault())||s.CorpseClass.GetValueOrDefault()==Common.CorpseClass.Unspecified)return false;
     var pinned=s.CorpseClass.GetValueOrDefault()!=Common.CorpseClass.Animal;
     if(pinned!=(s.Worker!=null)||s.Worker!=null&&(s.Worker.Value is not Operations.AssignmentValue.EntityIdCase{Value:var workerId}||!ProtoBoundary.IsIdentifier(workerId)))return false;
-    var corpse=new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Forever,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Destination=new Operations.BillStoreDestination.ModeCase(Operations.StoreMode.DropOnFloor)},Worker=s.Worker,CorpseClass=s.CorpseClass};
+    var corpse=new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Forever,Suspended=false,IngredientSearchRadius=40,Worker=s.Worker,CorpseClass=s.CorpseClass};
     return Norm(s).Equals(Norm(corpse));
    }
    // A finite batch (gear, sculpture): repeat a count of times, no target.
    // It may pin one worker (an art bill per artist).
    if(s.RepeatMode.GetValueOrDefault()==Operations.RepeatMode.Count)
-    return s.BeerReserve is null&&s.RepeatCount is not null&&s.RepeatCount.GetValueOrDefault()>=1&&(s.Worker==null||s.Worker.Value is Operations.AssignmentValue.EntityIdCase{Value:var pinnedWorker}&&ProtoBoundary.IsIdentifier(pinnedWorker))&&Norm(s).Equals(Norm(new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Count,RepeatCount=s.RepeatCount,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Destination=new Operations.BillStoreDestination.ModeCase(Operations.StoreMode.DropOnFloor)},Ingredients=s.Ingredients,Worker=s.Worker}));
+    return s.BeerReserve is null&&s.RepeatCount is not null&&s.RepeatCount.GetValueOrDefault()>=1&&(s.Worker==null||s.Worker.Value is Operations.AssignmentValue.EntityIdCase{Value:var pinnedWorker}&&ProtoBoundary.IsIdentifier(pinnedWorker))&&Norm(s).Equals(Norm(new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Count,RepeatCount=s.RepeatCount,Suspended=false,IngredientSearchRadius=40,Ingredients=s.Ingredients,Worker=s.Worker}));
    return Norm(s).Equals(Norm(expected))&&s.RepeatMode.GetValueOrDefault()==Operations.RepeatMode.Target&&s.TargetCount is not null&&s.TargetCount.GetValueOrDefault()>=1&&s.UnpauseThreshold is not null&&s.UnpauseThreshold.GetValueOrDefault()==Math.Max(1,s.TargetCount.GetValueOrDefault()/2)&&s.PauseWhenSatisfied is not null&&s.PauseWhenSatisfied.GetValueOrDefault();
   }
   internal static bool CorpseRecipe(string recipe)=>NativeRecipeRoles.Corpse(NativeRecipeRoles.Named(recipe));
