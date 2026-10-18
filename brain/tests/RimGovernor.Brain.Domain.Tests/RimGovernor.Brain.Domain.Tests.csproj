@@ -52,6 +52,10 @@
   <ItemGroup>
     <Compile Include="../../../integrations/rimgovernor-native/src/Bridge/Protocol/ColonyEventRows.cs" Link="Native/ColonyEventRows.cs" />
   </ItemGroup>
+  <!-- The game-thread breadcrumb and the stall dump decision (#3576) are game-free; compiled in to pin the stall line and the one dump per process. -->
+  <ItemGroup>
+    <Compile Include="../../../integrations/rimgovernor-native/src/Bridge/Protocol/GameThreadStall.cs" Link="Native/GameThreadStall.cs" />
+  </ItemGroup>
   <!-- The thoughtaudit guard analysis (#3218 spike) is pure syntax analysis; compiled in to pin its unknown handling without the game. -->
   <ItemGroup>
     <Compile Include="../../../tools/rg/Commands/ThoughtAudit/GuardIndex.cs" Link="ThoughtAudit/GuardIndex.cs" />

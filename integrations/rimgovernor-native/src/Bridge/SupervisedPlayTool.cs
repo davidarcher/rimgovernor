@@ -90,6 +90,7 @@ namespace HomeBridge.BridgeTools
         // stops its frame batch at the boundary, including accelerated frames.
         internal static void OnTick()
         {
+            GameThreadTrace.Mark("tick");
             lock (Gate)
             {
                 var s = _state;
@@ -135,6 +136,7 @@ namespace HomeBridge.BridgeTools
         // the epoch timing summary; the monitoring itself is OnUpdate.
         internal static void OnFrame()
         {
+            GameThreadTrace.Mark("frame postfix");
             lock (Gate)
             {
                 MarkFrame();
@@ -154,8 +156,10 @@ namespace HomeBridge.BridgeTools
                     s.Timing.FrameTicks = 0;
                 }
             }
+            GameThreadTrace.Mark("frame update");
             OnUpdate();
             SnapshotStream.OnFrame();
+            GameThreadTrace.Mark("frame postfix returned");
         }
 
         internal static void OnUpdate()

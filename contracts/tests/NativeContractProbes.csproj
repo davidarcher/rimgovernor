@@ -89,6 +89,7 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeQuestTargetIdentity.cs" Link="Production/NativeQuestTargetIdentity.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/ProtoBoundary.cs" Link="Production/ProtoBoundary.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadWatchdog.cs" Link="Production/MainThreadWatchdog.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/GameThreadStall.cs" Link="Production/GameThreadStall.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadAdmission.cs" Link="Production/MainThreadAdmission.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ObservationWorkAccounting.cs" Link="Production/ObservationWorkAccounting.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeThreatClassifier.cs" Link="Production/NativeThreatClassifier.cs" />

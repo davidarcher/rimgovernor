@@ -49,12 +49,14 @@ namespace HomeBridge.BridgeTools
 
         internal static void OnUpdate()
         {
+            GameThreadTrace.Mark("frame prefix");
             // The one per-frame allowance opens here: it drains hops earlier
             // frames deferred; paused, hops are not budgeted.
             try
             {
                 var ticks = Find.TickManager;
                 if (Current.Game != null) MainThreadAdmission.Frame(ticks != null && !ticks.Paused);
+                GameThreadTrace.Mark("frame ticks");
             }
             catch (Exception)
             {

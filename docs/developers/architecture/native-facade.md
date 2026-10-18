@@ -44,6 +44,11 @@ refusals and replies are identical.
 - A call that touches game state runs on the game thread through `ProtoBoundary.OnGameThread`, which takes an
   admission class (`control` for writes, `observation` for reads), the per-frame allowance and a watchdog line, and the
   host's game-thread access from `RimBridgeMainThreadAccess.Current`.
+- A hop queued or running past the watchdog's 2 s logs a stall line that carries the game thread's breadcrumb: the phase
+  it last entered (a hop, the frame prefix, the ticks, the frame postfix, a snapshot capture and the section it last
+  finished) and how long ago. Once per process, a hop queued 20 s while the breadcrumb stays silent as long writes a
+  minidump of the game with the `createdump.exe` beside the game executable, into `RIMGOVERNOR_OTLP_DIR` (the run
+  folder); `RIMGOVERNOR_STALL_DUMP=0` turns it off and a test-acceleration launch never dumps (#3576).
 - Not on the game thread: `WaitSaveSignalAsync`, `FlushDoneAsync`, `FlushFramesAsync`, `OpenColonyEventsAsync`, and
   `PutGovernorStateBatchAsync` unless a save that predates the component needs it attached.
 - Callers must not be on the game thread (they would wait on themselves).

@@ -172,6 +172,7 @@ namespace HomeBridge.BridgeTools
             Obs.SnapshotStreamRequest shape;
             lock (Gate) shape = subscription;
             var captureStarted = Stopwatch.GetTimestamp();
+            GameThreadTrace.Mark("snapshot capture");
             var account = ObservationWork.BeginCapture();
             try { frame = SnapshotFrames.Capture(map, shape); }
             catch (SnapshotFrames.SnapshotSectionException e)
@@ -187,6 +188,7 @@ namespace HomeBridge.BridgeTools
                 return;
             }
             finally { ObservationWork.End(); }
+            GameThreadTrace.Mark("snapshot captured");
             var captureMicros = Micros(captureStarted);
             NoteSlowCapture(captureMicros, tick, account);
             Interlocked.Exchange(ref capturedWrites, w); capturedTick = tick; capturedPaused = paused;

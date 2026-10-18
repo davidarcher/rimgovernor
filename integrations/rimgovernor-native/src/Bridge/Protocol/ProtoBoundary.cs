@@ -36,11 +36,12 @@ namespace HomeBridge.BridgeTools
                 began = Stopwatch.GetTimestamp();
                 var before = GC.GetAllocatedBytesForCurrentThread();
                 MainThreadWatchdog.Start(hop);
+                GameThreadTrace.Mark("hop " + operation);
                 parts = new List<(string, double)>();
                 try { return body(); }
                 finally
                 {
-                    MainThreadWatchdog.Finish(hop); ended = Stopwatch.GetTimestamp(); allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                    MainThreadWatchdog.Finish(hop); GameThreadTrace.Mark("hop " + operation + " returned"); ended = Stopwatch.GetTimestamp(); allocated = GC.GetAllocatedBytesForCurrentThread() - before;
                     reported = parts; parts = null;
                 }
             }, cancellationToken);

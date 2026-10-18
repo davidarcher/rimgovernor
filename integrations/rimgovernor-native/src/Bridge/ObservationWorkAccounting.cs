@@ -78,6 +78,7 @@ namespace HomeBridge.BridgeTools
         {
             var hop = _current;
             if (hop == null) return;
+            GameThreadTrace.Mark("snapshot capture after " + section);
             var allocated = GC.GetAllocatedBytesForCurrentThread();
             var bytes = allocated - (detail ? hop.AnyMark : hop.CaptureMark);
             hop.AnyMark = allocated;
