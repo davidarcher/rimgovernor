@@ -145,6 +145,7 @@ jobs:
           New-Item -ItemType Directory -Force C:\rg\public | Out-Null
           if (Test-Path C:\rg\sampler.pid) { Stop-Process -Id ([int](Get-Content C:\rg\sampler.pid)) -Force -ErrorAction SilentlyContinue }
           if (Test-Path C:\rg-sampler\thread-samples.csv) { Copy-Item C:\rg-sampler\thread-samples.csv C:\rg\public }
+          if (Test-Path C:\rg-sampler\main-thread-stack.txt) { Copy-Item C:\rg-sampler\main-thread-stack.txt C:\rg\public }
           if (Test-Path C:\rg\crash\s1) { Copy-Item -LiteralPath C:\rg\crash\s1 -Destination C:\rg\public\crash -Recurse }
           if (Test-Path C:\rg\fixture\job\out\result.json) { Copy-Item -LiteralPath C:\rg\fixture\job\out\result.json -Destination C:\rg\public }
           # The in-process brain's store (clock holds, plans, decisions): what a stalled clock was waiting on.
