@@ -34,4 +34,7 @@ public sealed record ColonyModelPolicy
 
     /// <summary>Project completions and harvests to apply, any order.</summary>
     public EquatableArray<ScheduledEffect> Scheduled { get; init; }
+
+    /// <summary>The project graph (#3530): nodes in labor-priority order. Their completions and harvests are scheduled by the engine from the pawn cycles, not given.</summary>
+    public ProjectGraph Projects { get; init; } = new();
 }

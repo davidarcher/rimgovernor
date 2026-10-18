@@ -129,6 +129,18 @@ The tier-2 colony model integrates crop growth per twelfth and needs the fractio
 | --- | --- | --- |
 | A plant does not grow while the local day fraction is under 0.25 or over 0.8 | resting 0.45 of a day, growing 0.55 (22.5 grow days take about 41 calendar days) | `Plant.Resting`, used by `Plant.GrowthPerTick` |
 
+## Mirrored game formulas: crop growth and research (#3530)
+
+`CropGrowthModel` (`brain/src/RimGovernor.Brain.Policy/ColonyModel/CropGrowthModel.cs`) mirrors two static formulas and
+`ProjectRun` (`ProjectRun.cs`) one literal, because the tier-2 colony model integrates growth and research per twelfth. Read with ilspycmd.
+
+| Formula | Value | 1.7 member |
+| --- | --- | --- |
+| Temperature factor | `InverseLerp(min, minOptimal, t)` below the minimum optimum, `InverseLerp(max, maxOptimal, t)` above the maximum optimum, 1 between; 0 at or outside min and max | `PlantUtility.GrowthRateFactorFor_Temperature` |
+| Fertility factor | `fertility × sensitivity + (1 − sensitivity)` (the model takes the field's mean cell fertility and floors it at 0) | `PlantUtility.GrowthRateFactorFor_Fertility` |
+| Growth per tick | `1 / (60000 × growDays) × factors` while the plant is not resting | `Plant.GrowthPerTick` |
+| Research points per work tick | `ResearchSpeed × bench ResearchSpeedFactor × 0.00825` (difficulty and tech-level cost factors are not applied: the catalog cost is used as read) | `JobDriver_Research` toil, `ResearchManager.ResearchPerformed` |
+
 ## Policy constants (#3469)
 
 `ForecastValuePolicy` (`brain/src/RimGovernor.Brain.Policy/ForecastValue.cs`)

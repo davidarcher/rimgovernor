@@ -13,7 +13,7 @@ public static class ColonyModel
 {
     private const int Twelfths = 12;
 
-    private const double TwelfthDays = CalendarRules.YearDays / (double)Twelfths;
+    internal const double TwelfthDays = CalendarRules.YearDays / (double)Twelfths;
 
     private static readonly string[] StockNames = [nameof(ModelStock.Nutrition), nameof(ModelStock.Materials), nameof(ModelStock.Medicine), nameof(ModelStock.ResearchPoints)];
 
@@ -79,6 +79,7 @@ public static class ColonyModel
             findings.Add("food_lead_unknown");
         }
 
+        var graph = new ProjectRun(input, [.. pawns], cycles, policy.Projects, policy.HorizonDays, findings);
         var scheduled = policy.Scheduled.OrderBy(e => e.Day).ThenBy(e => e.Kind).ThenBy(e => e.Id, StringComparer.Ordinal).ToArray();
         var starved = new double[pawns.Count];
         var events = new List<ModelEvent>(Math.Min(policy.MaxEvents, 64));
@@ -97,17 +98,26 @@ public static class ColonyModel
                 break;
             }
 
+            // One labor pass per event interval: the rates it sets hold until the next event.
+            graph.Allocate(now, twelfth, boundary);
+
             // The earliest candidate; ties go to the lower kind, then the lower id.
             var when = policy.HorizonDays;
             var kind = ModelEventKind.HorizonEnd;
             var id = "";
-            void Consider(double at, ModelEventKind k, string i)
+            var fromGraph = false;
+            void Consider(double at, ModelEventKind k, string i, bool project = false)
             {
                 at = Math.Max(at, now);
                 if (at < when || at == when && (k < kind || k == kind && string.CompareOrdinal(i, id) < 0))
                 {
-                    (when, kind, id) = (at, k, i);
+                    (when, kind, id, fromGraph) = (at, k, i, project);
                 }
+            }
+
+            foreach (var (day, projectKind, projectId) in graph.Due())
+            {
+                Consider(day, projectKind, projectId, true);
             }
 
             Consider(boundary, ModelEventKind.TwelfthBoundary, "");
@@ -153,6 +163,8 @@ public static class ColonyModel
                 levels[s] = Math.Max(0, levels[s] + net[s] * span);
             }
 
+            graph.Advance(span);
+
             now = when;
             switch (kind)
             {
@@ -163,6 +175,12 @@ public static class ColonyModel
                     break;
                 case ModelEventKind.ProjectCompletion:
                 case ModelEventKind.Harvest:
+                    if (fromGraph)
+                    {
+                        graph.Complete(id, levels);
+                        break;
+                    }
+
                     var effect = scheduled[next++];
                     levels[(int)effect.Stock] = Math.Max(0, levels[(int)effect.Stock] + effect.Amount);
                     break;
@@ -181,6 +199,7 @@ public static class ColonyModel
             }
         }
 
+        graph.Finish();
         return new ColonyTrajectory
         {
             Events = EquatableArray.From(events),

@@ -441,3 +441,16 @@ Policy|ScheduledEffect.Day
 Policy|ScheduledEffect.Id
 Policy|ScheduledEffect.Kind
 Policy|ScheduledEffect.Stock
+Policy|ColonyModelPolicy.Projects
+Policy|ProjectGraph.Nodes
+Policy|ProjectGraph.Findings
+Policy|ProjectNode.Id
+Policy|ProjectNode.Kind
+Policy|ProjectNode.Prerequisites
+Policy|ProjectNode.Work
+Policy|ProjectNode.Field
+Policy|ProjectNode.Crop
+Policy|ProjectNode.Cells
+Policy|ProjectNode.Ingredients
+Policy|ProjectNode.Products
+Policy|ProjectNode.ProductsToStock

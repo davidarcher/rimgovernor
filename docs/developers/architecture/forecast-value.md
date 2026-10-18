@@ -35,7 +35,7 @@ search took 5–29 s per review in game while the clock ran.
 4. **A one-day horizon cannot see investment.** Devilstrand needs research
    (800 points), a Plants 10 sower, 22.5 growing days and tailoring before it
    pays anything. Plants rest when the day is under 25% or over 80% through
-   (`Plant.Resting`), so that is about 41 calendar days at full rate. Within
+   (`Plant.Resting`), so growth to harvestable takes about 27 calendar days at full rate (41 for full growth). Within
    one day it is pure cost.
 5. **Harm is unassessed.** `harm_capability_unassessed` is added to
    every review's findings. Apparel is valued by a heuristic,
@@ -179,13 +179,42 @@ Its cost grows with the number of events, not with ticks.
 - **Land.** A growing cell is one crop at a time; a devilstrand cell is not
   growing food.
 - **Projects.** A small graph of research, sowing, growth, harvest, crafting
-  and construction nodes with prerequisites and lead times.
+  and construction nodes with prerequisites (`ProjectNode`, `ProjectGraph`;
+  the builders read a `ColonyModelInput`, and a gap leaves the node out and
+  is named). The graph's order is the priority order of the labor allocation
+  (`ColonyModelPolicy.Projects`). v1 allocation is a fixed order with no
+  search: at each event the free hours of each pawn in this twelfth go to the
+  ready nodes in that order, a node taking all the hours of every pawn able to
+  work on it (research needs a read `ResearchSpeed`, sowing the Plants gate and
+  a read `PlantWorkSpeed`, harvest a read `PlantWorkSpeed`; an unread stat makes
+  the pawn unavailable and is named). Research, crafting and construction use
+  all free hours; sowing and harvest only the daylight ones. Research makes
+  speed × bench factor × 0.00825 points per work tick; the other nodes make
+  speed × 1 work per tick, with crafting and construction at speed 1 (named,
+  the pawn model has no such stat). A research bench factor not yet read is 1
+  and named. The rates are constant between events, so the engine fires each
+  node's completion (or, for a harvest, harvest) event at its exact finish
+  time. A craft takes its ingredients (the first alternative of each slot) from
+  a per-resource ledger when it starts, so a craft waits for the harvest that
+  feeds it; the materials stock moves at completion. A harvest delivers cells ×
+  `UnitsPerCell` of the crop's resource to materials, or cells ×
+  `HarvestNutrition` to nutrition for an edible crop. One harvest per chain;
+  regrowth is not modelled.
 - **Crop growth.** The game's rate is 1 / (60,000 × growDays) per tick while
   not resting, × fertility × temperature × light (`Plant.GrowthPerTick`,
   `PlantUtility`). Growth stops outside the growth temperature band. Tier 2
   integrates it per twelfth (five days) of the tile's seasonal temperature,
-  about ten segments per crop. That also answers "will it mature before
-  winter?"
+  about ten segments per crop (`CropGrowthModel`): per calendar day it is
+  (1 / growDays) × the fertility factor at the zone's mean cell fertility ×
+  the temperature factor × the fraction of the day the plant does not rest
+  (`PlantResting`). Light is the outdoor daylight, which is the resting window;
+  an indoor zone under grow lights is not modelled. The Grow node completes
+  when growth reaches `HarvestMinGrowth`, not full growth (devilstrand: 0.65 of
+  22.5 grow days is about 27 calendar days at full rate, 41 for full growth).
+  That also answers "will it mature before winter?": when a twelfth with no
+  growth comes before the node completes, the node fails with
+  `crop_will_not_mature:<node>`, nothing is harvested and the nodes behind it
+  are `project_blocked`.
 - **Food runway.** It is a floor in tier 2 as well, so a fiber field cannot
   starve the colony.
 
@@ -202,7 +231,7 @@ the next decision without any special case.
 | --- | --- | --- |
 | Research Devilstrand | 800 points | `ResearchProjects_1.xml` |
 | Sow | Plants 10, 400 work per plant, fertility at least 0.5 | `Plant_Devilstrand` |
-| Grow | 22.5 growing days, about 41 calendar days at full rate | `growDays`, `Plant.Resting` |
+| Grow | Growth to `HarvestMinGrowth` (0.65 of 22.5 growing days), about 27 calendar days at full rate; 41 is full growth | `growDays`, `Plant.Resting` |
 | Harvest | 6 per plant (cotton gives 10 after 8 days) | `harvestYield` |
 | Tailor a duster | 80 fabric, 10,000 work, Complex Clothing | `Apparel_Duster` |
 

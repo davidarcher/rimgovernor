@@ -138,8 +138,8 @@ declaration`, `written, never read`, `written by the native side, never read by 
 exposed when it stopped counting acceptance string keys as reads (#3410; burndown for both:
 [#3351](https://github.com/davidarcher/rimgovernor/issues/3351)). It only shrinks: a new
 orphan fails (delete it through every layer, never add a line), and so does a line that is no
-longer an orphan (delete the line). The baseline's `Policy|ColonyModelPolicy.*`, `ColonyTrajectory.*`, `ModelEvent.*`, `PawnStarvation.*` and
-`ScheduledEffect.*` lines stay until the colony model has a production caller
+longer an orphan (delete the line). The baseline's `Policy|ColonyModelPolicy.*`, `ColonyTrajectory.*`, `ModelEvent.*`, `PawnStarvation.*`,
+`ProjectGraph.*`, `ProjectNode.*` and `ScheduledEffect.*` lines stay until the colony model has a production caller
 ([#3531](https://github.com/davidarcher/rimgovernor/issues/3531)), which deletes them. The baseline's `Operations.CombatOrderOrder.*`,
 `Operations.CombatAnimalAreaArea.Clear*` and `Operations.AbilityIntentTarget.*` lines stay on purpose: the combat
 shapes are unread only while combat is away, and its return will read them. The wire and Policy checks are unavailable without the game, because then the
