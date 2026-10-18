@@ -145,7 +145,7 @@ may share one atomic batch. These checks run in the existing owner transaction,
 before plan creation or Method binding; refusal leaves both unchanged. They do
 not reserve pawns across different owners or prove current native availability.
 
-The initial step families are exact thing-target work (Clean, Repair, Harvest and BeatFire through a named native WorkGiver), selected food/count,
+The initial step families are exact thing-target work (Clean, Repair, Harvest, Research and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns), selected food/count,
 selected bed/rest, selected horseshoes recreation, exact delivery, exact cooking, material Supply, FinishFrame, Approach, Hold, bounded Idle and Standby (explicit idle). Unsupported families are refused, not sent to a
 native economic selector. Other recreation adapters remain outside this
 initial execution slice. Firefighting is an explicit policy-selected emergency revision, not an automatic native fallback. Work givers use forced:false, required capacities,

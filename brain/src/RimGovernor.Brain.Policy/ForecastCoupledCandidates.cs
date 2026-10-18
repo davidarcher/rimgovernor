@@ -138,6 +138,14 @@ public sealed partial record ForecastCoupledCandidates
         foreach (var binding in practice.Bindings) bindings.Add(binding.Key, binding.Value);
         foreach (var route in practice.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
         findings.UnionWith(practice.Findings);
+        // The research Concern owns which project is current; a disabled Concern gets no research block (#3527).
+        if (NeedEnabled(EconomyFamily.Research))
+        {
+            var research = Methods.Generation.ResearchMethodCandidates.Generate(read.Research, horizon, resources.Claims, deadline);
+            tasks.AddRange(research.Tasks); options.AddRange(research.Options); alternatives.AddRange(research.Roots);
+            foreach (var binding in research.Bindings) bindings.Add(binding.Key, binding.Value);
+            findings.UnionWith(research.Findings); truncated |= research.Truncated;
+        }
         var sowing = Methods.Generation.SowingMethodCandidates.Generate(read.Sowing, read.Tick, horizon, resources.Claims);
         tasks.AddRange(sowing.Tasks); options.AddRange(sowing.Options); alternatives.AddRange(sowing.Roots);
         foreach (var binding in sowing.Bindings) bindings.Add(binding.Key, binding.Value);

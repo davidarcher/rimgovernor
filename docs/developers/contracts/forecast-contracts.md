@@ -239,6 +239,16 @@ terrain/roof runs, impassable obstacles) and a file-manifest mod identity. It ho
 roster, target or estimate; policy proposes rosters and the runtime asks the
 prediction service. Truncation is reported, never silent.
 
+`ResearchActivityRead` is the research part of that frame (#3527): for the current project (`ResearchManager.GetProject()`;
+none is Known with no workers and the finding `research_no_current_project`), every free colonist who has a job on
+every bench the project can be researched at (`WorkGiver_Researcher.HasJobOnThing`, reservable and reachable), with the
+points the game adds per work tick (`ResearchSpeed` x the bench's `ResearchSpeedFactor` x the difficulty's research speed,
+as `ResearchManager.ResearchPerformed` applies them). The bench's interaction cell joins the coupled route locations, so the
+walk is priced by the shared leg cache. `ResearchMethodCandidates` (policy, behind the `economy/research` Need's enablement)
+makes one one-hour block per pawn and bench: a Work step through the research WorkGiver with Job `Research`, one root per
+pawn (`research/<pawn>`), the bench as exclusive equipment, and `ForecastActivity.ProjectProgress` (project, points per tick)
+for the investment credit. It values nothing and never picks the project.
+
 `HuntAlternatives` (policy, pure) is the hunt comparison. `Propose` makes bounded rosters from that read: solos,
 pairs and a third gunner from the six best-shooting available hunters, for each of up to four nearby prey groups
 (herd-mates within 12 cells are one group, a search aid only); no roster size is required. Each roster is also

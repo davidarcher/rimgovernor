@@ -201,6 +201,7 @@ namespace HomeBridge.BridgeTools
             || (job == "RimGovernor_Spar" && giver.Worker is RimGovernor.Runtime.WorkGiver_Spar)
             || (job == "DoBill" && giver.Worker is WorkGiver_DoBill) || (job == "TendPatient" && giver.Worker is WorkGiver_Tend) || (job == "Clean" && giver.Worker is WorkGiver_CleanFilth) || (job == "Repair" && giver.Worker is WorkGiver_Repair)
             || (job == "Harvest" && giver.Worker is WorkGiver_GrowerHarvest)
+            || (job == "Research" && giver.Worker is WorkGiver_Researcher)
             || (job == "FinishFrame" && giver.Worker is WorkGiver_ConstructFinishFrames)
             || (job == "BeatFire" && giver.giverClass.FullName == "RimWorld.WorkGiver_FightFires");
         private static bool Equivalent(PawnActivityOrder a, PawnActivityOrder b) => PawnActivities.SameOrder(a, b);

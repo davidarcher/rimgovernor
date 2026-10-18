@@ -22,6 +22,7 @@ public static class CaseCatalog
         registry.Register(ProductionCookingDevelopment.Reassignment());
         registry.Register(ProductionMaintenancePractice.Case(false));
         registry.Register(ProductionMaintenancePractice.Case(true));
+        registry.Register(ProductionResearchBlock.Case());
         registry.Register(ProductionSowBlock.Case());
         registry.Register(ShelterServiceInvestment.Case());
         foreach (var c in ControlActivities.Cases())

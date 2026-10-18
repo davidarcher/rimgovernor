@@ -42,11 +42,14 @@ internal static class NativeCoupledForecast
         var thermal = NativeCoupledThermal.Read(map, sites, legs); Lap("thermal");
         var support = NativeSupportActivities.Read(map, legs); Lap("support");
         var practice = NativePracticeActivities.Read(map, legs); Lap("practice");
+        var research = NativeResearchActivities.Read(map); Lap("research");
         var hunt = NativeHuntActivity.Read(map); Lap("hunt");
         var sowing = NativeSowingActivities.Read(map, legs); Lap("sowing");
         needs ??= NativeNeedsForecast.Read(map, map.mapPawns.FreeColonistsSpawned.ToList(), legs);
         var families = new[] {
-            practice.Workers.Select(w => w.Location),            food.Options.SelectMany(o => new[] { o.Origin,o.Destination }),
+            practice.Workers.Select(w => w.Location),
+            research.Workers.Select(w => w.Location),
+            food.Options.SelectMany(o => new[] { o.Origin,o.Destination }),
             construction.Options.SelectMany(o => new[] { o.Origin,o.Location }),
             future.Conversions.SelectMany(o => new[] { o.SourceCell,o.BenchCell,o.Destination }),
             clothing.Options.SelectMany(o => new[] { o.Location,o.Destination }.Concat(o.Inputs.Select(i => i.Location))),
@@ -99,7 +102,7 @@ internal static class NativeCoupledForecast
             var ticks = legs.Cost(pawn, new(from.X, 0, from.Z), new IntVec3(to.X, 0, to.Z), PathEndMode.OnCell);
             routes.Add(new(pawn.GetUniqueLoadID(), from, to, ticks is { } t ? Fact.Known((double)t) : default) { FromStart = initial });
         }
-        return new() { Tick = context.Tick, Practice = practice, Hunt = hunt, Sowing = sowing, Support = support, Thermal = thermal, Food = food, Construction = construction, Clothing = clothing,
+        return new() { Tick = context.Tick, Practice = practice, Research = research, Hunt = hunt, Sowing = sowing, Support = support, Thermal = thermal, Food = food, Construction = construction, Clothing = clothing,
             FoodSources = EquatableArray.From(future.Sources), FoodConversions = EquatableArray.From(future.Conversions), FoodUses = EquatableArray.From(future.Uses),
             Routes = EquatableArray.From(routes) };
     }

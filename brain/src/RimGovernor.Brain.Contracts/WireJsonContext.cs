@@ -1357,6 +1357,8 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Defs.TradeCurrency), TypeInfoPropertyName = "DefsTradeCurrency")]
 [JsonSerializable(typeof(EquatableArray<Observations.PracticeWorker>))]
 [JsonSerializable(typeof(Observations.PracticeActivityRead))]
+[JsonSerializable(typeof(EquatableArray<Observations.ResearchWorker>))]
+[JsonSerializable(typeof(Observations.ResearchActivityRead))]
 [JsonSerializable(typeof(Observations.HuntActivityRead))]
 [JsonSerializable(typeof(EquatableArray<Observations.SowingWorker>))]
 [JsonSerializable(typeof(Observations.SowingActivityRead))]

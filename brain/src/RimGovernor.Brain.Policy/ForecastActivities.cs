@@ -35,7 +35,10 @@ public sealed record ForecastActivity(string Id, string Location, string EndLoca
     public EquatableArray<ForecastActivityYield> Outputs { get; init; }
     /// <summary>Exact resources consumed at service start; delivery-only movement must not consume them again.</summary>
     public EquatableArray<ForecastActivityYield> Inputs { get; init; }
+    /// <summary>Research work: the project it advances and the points its work ticks add. Valued by the investment credit, never by a research-specific term.</summary>
+    public ForecastProjectProgress? ProjectProgress { get; init; }
 }
+public sealed record ForecastProjectProgress(string Project, double PointsPerTick);
 public sealed record ForecastActivityOption(string Activity, string Pawn, Fact<double> WorkTicks, Fact<double> RecoveryLaborTicks)
 {
     public RimGovernor.Contracts.Wire.Observations.ProductiveSkillWork? SkillWork { get; init; }
