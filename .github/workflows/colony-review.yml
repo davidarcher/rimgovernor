@@ -105,6 +105,9 @@ jobs:
       - name: Audit process exits so a vanished game leaves its exit status
         continue-on-error: true
         run: auditpol /set /subcategory:"Process Termination" /success:enable
+      # The review renders through a graphics device; a hosted runner has none, so lavapipe (CPU Vulkan) stands in.
+      - name: Install a software Vulkan device
+        run: ./trusted/scripts/install_software_vulkan.ps1
       - name: Bootstrap and play the review season
         id: play
         continue-on-error: true
