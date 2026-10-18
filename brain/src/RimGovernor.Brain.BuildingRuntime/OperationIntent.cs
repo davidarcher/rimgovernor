@@ -96,6 +96,11 @@ public static class OperationIntent
         {
             return "Medical";
         }
+        // A player's goal (goals/<kind>/<id>) reads as a goal (#3494).
+        if (kind.Value.StartsWith(GoalsFamily.FamilyId + "/", StringComparison.Ordinal))
+        {
+            return "Goal";
+        }
         var name = kind.Value;
         foreach (var prefix in new[] { "Maintain", "Ensure", "Manage" })
         {

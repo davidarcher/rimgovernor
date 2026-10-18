@@ -19,6 +19,15 @@ public enum TechTier
 
 public static partial class TechTierRules
 {
+    /// <summary>The research projects that raise the tier to each tier above Camp: any one of them does.</summary>
+    internal static readonly IReadOnlyDictionary<TechTier, string[]> Unlocks = new Dictionary<TechTier, string[]>
+    {
+        [TechTier.Masonry] = ["Stonecutting"],
+        [TechTier.Powered] = ["Electricity"],
+        [TechTier.Industrial] = ["Machining", "Fabrication"],
+        [TechTier.Spacer] = ["AdvancedFabrication"],
+    };
+
     /// <summary>
     /// Derives the tech tier from the finished research and the faction tech level. A faction floor satisfies
     /// every tier at or below it; research raises the tier above the floor one condition at a time:
@@ -72,18 +81,11 @@ public static partial class TechTierRules
             evidence = "faction " + level;
         }
         // Research raises the tier above the floor one condition at a time.
-        var unlocks = new Dictionary<TechTier, string[]>
-        {
-            [TechTier.Masonry] = ["Stonecutting"],
-            [TechTier.Powered] = ["Electricity"],
-            [TechTier.Industrial] = ["Machining", "Fabrication"],
-            [TechTier.Spacer] = ["AdvancedFabrication"],
-        };
         while (tier < TechTier.Spacer)
         {
             var next = tier + 1;
             var raised = "";
-            foreach (var id in unlocks[next])
+            foreach (var id in Unlocks[next])
             {
                 if (done.Contains(new ResearchProjectId(id)))
                 {

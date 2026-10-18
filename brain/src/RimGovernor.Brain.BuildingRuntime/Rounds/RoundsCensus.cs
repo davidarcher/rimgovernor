@@ -316,7 +316,9 @@ public sealed partial class Rounder
         var snapshot = Player.Session.State().Snapshot;
         var choices = GearChoices.Get(snapshot);
         var preferences = PreferencesOf(snapshot, ct);
-        return reading.WithFacts(f => WithGearChoices(f, choices).WithPreferences(preferences));
+        // The player's colonist and herd goals ride every read of the world the latest review derived them for (#3494).
+        var goals = GoalDemands.Get(snapshot);
+        return reading.WithFacts(f => WithGearChoices(f with { ColonistGoal = goals.Colonists, AnimalGoals = goals.Animals }, choices).WithPreferences(preferences));
     }
 
     /// <summary>The player's preferences from the goals record of the colony (the default without a record): the one load every owning policy's facts and the combat inputs read.</summary>

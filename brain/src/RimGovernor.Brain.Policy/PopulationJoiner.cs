@@ -173,6 +173,9 @@ public sealed record JoinerCapacityFacts
     public Fact<SleepingObservation> Sleeping { get; init; }
 
     public Fact<double> FoodDays { get; init; }
+
+    /// <summary>The player's colonist goal (#3494), 0 for none.</summary>
+    public int ColonistGoal { get; init; }
 }
 
 /// <summary>
@@ -193,6 +196,9 @@ public sealed record JoinerLetterOffer
 
 public static partial class PopulationRules
 {
+    /// <summary>The population the colony grows toward: the bot's own target, raised to the player's colonist goal (#3494).</summary>
+    public static int PopulationTargetFor(int colonistGoal) => Math.Max(FindingConstants.PopulationTarget, colonistGoal);
+
     /// <summary>
     /// The food runway one more colonist is admitted against: 3 days for a colony of one, rising linearly to
     /// 15 days at 20 or more hosted people.
@@ -285,7 +291,7 @@ public static partial class PopulationRules
         {
             return Unknown<bool>();
         }
-        return Known(hosted < FindingConstants.PopulationTarget && food >= JoinerFoodFloorDays(hosted) && bed);
+        return Known(hosted < PopulationTargetFor(f.ColonistGoal) && food >= JoinerFoodFloorDays(hosted) && bed);
     }
 
     /// <summary>
@@ -396,5 +402,5 @@ public static class JoinerRoundsFactsExtensions
     /// population food runway (falling back to the stock runway, as the foothold food gate does).
     /// </summary>
     public static JoinerCapacityFacts JoinerCapacity(this RoundsFacts f) =>
-        new() { Custody = f.Custody, Sleeping = f.Sleeping, FoodDays = f.FoodDays };
+        new() { Custody = f.Custody, Sleeping = f.Sleeping, FoodDays = f.FoodDays, ColonistGoal = f.ColonistGoal };
 }

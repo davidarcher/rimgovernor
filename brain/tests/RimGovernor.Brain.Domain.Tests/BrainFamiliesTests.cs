@@ -17,6 +17,15 @@ public sealed class BrainFamiliesTests
     }
 
     [Fact]
+    public void TheGoalsFamilyIsOnByDefaultAndNamedByItsToggle()
+    {
+        Assert.Contains("goals", BrainFamilies.All.Active());
+        Assert.Equal(["goals"], BrainFamilies.FromEnvironment("goals").Active());
+        Assert.DoesNotContain("goals", (BrainFamilies.All with { Goals = false }).Active());
+        Assert.False(BrainFamilies.FromEnvironment("work").Goals);
+    }
+
+    [Fact]
     public void AnUnknownFamilyNameIsRefused()
         => Assert.Throws<FormatException>(() => BrainFamilies.FromEnvironment("work,nope"));
 }

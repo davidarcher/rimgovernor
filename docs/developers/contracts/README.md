@@ -17,6 +17,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Encounter prediction](encounter-prediction.md): replaceable prediction-only service, bounded worker lifecycle and scoped qualification.
 - [Animal husbandry contracts](husbandry-contracts.md): race catalog, herd plan, hospital animal ward, acceptance
 - [Ideology contracts](ideology-contracts.md): ideoligion defs, pawn certainty, colony section
+- [Goals family contracts](goals-contracts.md): the player's goals as Needs, their demand on existing channels, status and telemetry
 - [Interface contracts](interface-contracts.md)
 - [Player API](player-api.md)
 - [Clock recovery evidence](clock-recovery.md)

@@ -193,6 +193,9 @@ public sealed record BrainFamilies
     /// <summary>The <c>resource</c> family.</summary>
     public bool Resource { get; init; } = true;
 
+    /// <summary>The <c>goals</c> family.</summary>
+    public bool Goals { get; init; } = true;
+
     private static readonly Entry[] Entries =
     [
         new("sleeping", f => f.Sleeping, (f, on) => f with { Sleeping = on }),
@@ -256,6 +259,7 @@ public sealed record BrainFamilies
         new("dialog", f => f.Dialog, (f, on) => f with { Dialog = on }),
         new("trade", f => f.Trade, (f, on) => f with { Trade = on }),
         new("resource", f => f.Resource, (f, on) => f with { Resource = on }),
+        new("goals", f => f.Goals, (f, on) => f with { Goals = on }),
     ];
 
     /// <summary>Every family on (the autonomous default).</summary>

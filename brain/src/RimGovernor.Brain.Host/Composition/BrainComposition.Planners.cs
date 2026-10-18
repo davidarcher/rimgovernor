@@ -96,7 +96,7 @@ public sealed partial class BrainComposition
         var training = sc.Training;
         var envelope = sc.Envelope;
 
-        if (!routine && (bills || fields || acquisition || sc.Work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || blight || pollution || mechCharger || geneBank || armory || clearance || sc.Mood || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.Art || sc.Mechs || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.PopulationJoiner || homeCoverage || sc.Sheltering || stoneShell || stockpiles || defensiveLayout || dialog || trade || resourceTargets))
+        if (!routine && (bills || fields || acquisition || sc.Work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || blight || pollution || mechCharger || geneBank || armory || clearance || sc.Mood || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.Art || sc.Mechs || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.PopulationJoiner || homeCoverage || sc.Sheltering || stoneShell || stockpiles || defensiveLayout || dialog || trade || resourceTargets || sc.Goals))
         {
             throw new InvalidOperationException("building plans require rounds");
         }
@@ -293,6 +293,11 @@ public sealed partial class BrainComposition
         {
             cfgResource = RoundsResourcePlanner.NewRoundsResourcePlanner(reviewer, client);
             reviewer.AddOrderDeclarer(new RoundsResourceDeclarer(cfgResource));
+        }
+        if (sc.Goals)
+        {
+            // The goals toggle composes the goals family: status for the player's goals, whose demand the review injects (#3494).
+            families.Add(new GoalsRounds(reviewer).Runner());
         }
         if (sleeping || cooking || shelter || comfort || workshop || hospital || expansion || power || temperature || lighting || flooring || routes)
         {
@@ -512,6 +517,6 @@ public sealed partial class BrainComposition
             // The routes Need's room census and door definition (#3265).
             needs.Add(LayoutFamily.Routes);
         }
-        return (thresholds, new RoundsCapabilities { Needs = needs, LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance, JailShell = sc.PrisonerInteraction });
+        return (thresholds, new RoundsCapabilities { Needs = needs, LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance, JailShell = sc.PrisonerInteraction, Goals = sc.Goals });
     }
 }

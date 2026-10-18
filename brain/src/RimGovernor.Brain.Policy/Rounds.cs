@@ -500,6 +500,12 @@ public sealed record RoundsFacts
     /// </summary>
     public IReadOnlyDictionary<Resource, long> ResourceNeeds { get; init; } = new Dictionary<Resource, long>();
 
+    /// <summary>The colonist head count the player's goals ask for (#3494), 0 for none; the joiner and lance population target rises to it, never below the bot's own.</summary>
+    public int ColonistGoal { get; init; }
+
+    /// <summary>The head count per animal race the player's goals ask the herd to reach (#3494); the herd plan raises its race's band to it.</summary>
+    public IReadOnlyDictionary<Resource, long> AnimalGoals { get; init; } = new Dictionary<Resource, long>();
+
     public Fact<long> Hostiles { get; init; }
 
     public Fact<long> CriticalPatients { get; init; }

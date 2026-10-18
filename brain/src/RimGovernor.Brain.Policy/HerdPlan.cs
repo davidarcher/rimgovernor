@@ -52,6 +52,9 @@ public sealed record HerdPlanInput
 
     /// <summary>The colony's pawn profiles; an unread roster plans no leveling.</summary>
     public Fact<EquatableArray<PawnProfile>> Handlers { get; init; }
+
+    /// <summary>The head count per race the player's goals ask for (#3494): the band of each such race rises to it and the race is no longer retired.</summary>
+    public IReadOnlyDictionary<Resource, long> Goals { get; init; } = new Dictionary<Resource, long>();
 }
 
 /// <summary>
@@ -136,6 +139,7 @@ public static class RoundsFactsHerdPlanExtensions
             Pens = f.PenGrazing,
             Food = f.FoodPlan,
             Handlers = f.WorkProfiles,
+            Goals = f.AnimalGoals,
         };
 
     /// <summary>The population band of the herd plan of f.</summary>
@@ -605,6 +609,16 @@ public static class HerdPlanRules
             {
                 max.Remove(def);
             }
+        }
+        foreach (var (race, count) in input.Goals)
+        {
+            // A player's herd goal outranks the plan's own band: the race is kept, its minimum is the goal and no ceiling sits below it.
+            min[race] = Math.Max(min.GetValueOrDefault(race), count);
+            if (max.TryGetValue(race, out var held) && held < count)
+            {
+                max[race] = count;
+            }
+            retired.Remove(race);
         }
         var herds = new List<Resource>();
         foreach (var def in order)

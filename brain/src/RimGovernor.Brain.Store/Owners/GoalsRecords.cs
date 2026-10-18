@@ -92,6 +92,8 @@ public sealed partial class Store
     public GoalsRecord LoadGoals(World w, CancellationToken cancellationToken) =>
         Run(tx => LoadGoalsIn(tx) is { } r && r.World.Colony == w.Colony ? r with { World = w } : new GoalsRecord { World = w }, cancellationToken);
 
+    public Task<GoalsRecord> LoadGoalsAsync(World w, CancellationToken cancellationToken) => Task.Run(() => LoadGoals(w, cancellationToken), cancellationToken);
+
     /// <summary>Replaces the stored goals with <paramref name="r"/>; an empty record clears them.</summary>
     public void SaveGoals(GoalsRecord r, CancellationToken cancellationToken) => Run(tx => PutGoalsIn(tx, r), cancellationToken);
 }

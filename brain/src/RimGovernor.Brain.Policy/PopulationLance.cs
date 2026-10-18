@@ -42,7 +42,7 @@ public static partial class PopulationRules
     /// </summary>
     public static PawnId? LanceCandidate(RoundsFacts f)
     {
-        if (!f.PrisonerColony.TryGetValue(out var colony) || colony.Colonists >= FindingConstants.PopulationTarget)
+        if (!f.PrisonerColony.TryGetValue(out var colony) || colony.Colonists >= PopulationTargetFor(f.ColonistGoal))
         {
             return null;
         }

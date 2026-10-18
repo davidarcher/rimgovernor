@@ -50,6 +50,9 @@ public sealed partial class Rounder
 {
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _researchWanted = new(StringComparer.Ordinal);
 
+    /// <summary>The research the player's goals asked for in the latest review (#3494); replaced each review, so a finished or removed goal stops asking.</summary>
+    private volatile IReadOnlyList<string> _goalResearch = [];
+
     /// <summary>Records the projects a planner's research wait names: a planner that cannot proceed for want of research is the evidence that the research is owed.</summary>
     internal void NoteResearchWait(Verdict v)
     {
@@ -67,6 +70,12 @@ public sealed partial class Rounder
     internal IReadOnlyList<string> CensusResearchNeeds(IReadOnlyList<string> needs)
     {
         var census = CensusResearchNeedsCore(needs);
+        // The research the player's goals ask for (the latest review's list, replaced each review).
+        var goals = _goalResearch.Where(g => !census.Contains(g)).ToList();
+        if (goals.Count != 0)
+        {
+            census = [.. census, .. goals];
+        }
         var wanted = _researchWanted.Keys.Where(k => !census.Contains(k)).OrderBy(k => k, StringComparer.Ordinal).ToList();
         return wanted.Count == 0 ? census : [.. census, .. wanted];
     }

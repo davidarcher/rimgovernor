@@ -46,6 +46,12 @@ public sealed partial class Rounder
     /// <summary>The latest review's derived resource demand (derived state, empty until the first review after a restart).</summary>
     internal ReviewMemory<DerivedDemand> Demand = new(new());
 
+    /// <summary>Whether the review turns the player's goals into demand (RoundsCapabilities.Goals, #3494).</summary>
+    internal bool Goals;
+
+    /// <summary>What the player's goals asked of the existing channels in the latest review (derived state, none until the first review after a restart); ObserveRoundsAsync stamps it onto a fresh planner read.</summary>
+    internal ReviewMemory<GoalDemand> GoalDemands = new(GoalDemand.None);
+
     /// <summary>The per-pawn outfit filter and insulation floor the latest review with a coupled selection chose (GearChoices; derived state, none until the first such review after a restart).</summary>
     internal ReviewMemory<EquatableArray<GearChoice>> GearChoices = new([]);
 
@@ -276,6 +282,7 @@ public sealed partial class Rounder
             undraftWriter = capabilities[0].Undraft;
             clearanceCensus = capabilities[0].ClearanceCensus;
             jailShell = capabilities[0].JailShell;
+            Goals = capabilities[0].Goals;
             Needs = capabilities[0].Needs.ToHashSet();
             _composed = true;
         }
@@ -530,6 +537,16 @@ public sealed partial class Rounder
         // The workshop ladder's recorded research rung is the derived economy/research target; it is journal
         // evidence, not a native read, so a review costs no extra call for it.
         NoteEquipment(state.Snapshot, reading.Projection.Facts);
+        if (Goals)
+        {
+            // The player's goals become demand before any family reads: stock floors, a colonist head count and herd
+            // targets ride the facts, the research they wait on joins what the census asks for (#3494).
+            var goals = await p.Journal.LoadGoalsAsync(Player.PlayerWorld(state.Snapshot), ct).ConfigureAwait(false);
+            var goalDemand = GoalRules.DemandOf(GoalsFacts.From(reading.Projection.Facts, reading.Projection.TechTier, goals.Goals, goals.Themes, new Dictionary<NeedId, OwnerProgress>()));
+            GoalDemands.Set(state.Snapshot, goalDemand);
+            _goalResearch = goalDemand.Research;
+            reading = reading.WithFacts(rf => GoalRules.Apply(rf, goalDemand));
+        }
         var needs = RoundsProjectBill.RoundsResearchNeeds(p.Journal, Policy, reading.Projection.Facts.Items, state.Snapshot, EquipmentOwed(state.Snapshot), ct);
         needs = CensusResearchNeeds(needs);
         reading = reading.WithFacts(rf => rf with { ResearchNeeds = [.. needs] });
@@ -741,6 +758,9 @@ public sealed record RoundsCapabilities
 
     /// <summary>Reads the Wall and Door definitions the jail shell is planned from (#3262). Set when the prisoners family stages the jail.</summary>
     public bool JailShell { get; init; }
+
+    /// <summary>Turns the player's goals into stock floors, research, a colonist head count and herd targets each review (#3494). Set when the goals family runs.</summary>
+    public bool Goals { get; init; }
 
     /// <summary>Sends the undraft sweep's Draft intents; null never undrafts.</summary>
     public IActionsWriter? Undraft { get; init; }
