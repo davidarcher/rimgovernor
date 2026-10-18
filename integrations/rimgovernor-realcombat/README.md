@@ -11,8 +11,11 @@ no live colony control. Its optional prediction service is described below.
 emits a content-identified ready frame, then accepts strict schema-3 requests as
 JSON lines. Stdout carries protocol frames; game logs go to stderr. One request
 runs at a time. Frames are at most 1 MiB, one request has at most 64 seeds/32 actors,
-128 cells per side and 60000 ticks, and a process accepts at most eight requests.
-Every request disposes its native map and settlement; the arena-count bound limits other retained process state. It does not hide earlier
+128 cells per side and 60000 ticks. The ready frame announces `arenaBudget`, the
+requests one process answers (eight): every request disposes its native map and
+settlement, and the budget limits other retained process state. The owner
+(`LocalEncounterPredictor`) counts and replaces the process before the budget;
+the worker does not refuse for it. The budget does not hide earlier
 reconstruction failures. A failed arena ends the worker; an unsupported request
 returns an explicit rejection. No automatic retries, fallback or colony orders.
 

@@ -76,6 +76,13 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Requests one worker process answers before its owner replaces it, announced in the ready frame: every request
+    /// disposes its map and settlement, and this bounds the other native state a process retains. The adapter
+    /// (<c>LocalEncounterPredictor</c>) counts and restarts before the budget; the worker does not refuse for it (#3524).
+    /// </summary>
+    private const int ArenaBudget = 8;
+
     private static int RunWorker(string game, TextWriter protocol)
     {
         GameHost.Boot(game);
@@ -85,10 +92,10 @@ internal static class Program
         {
             kind = "ready", gameBuild = EngineIdentity.GameBuild, mods,
             engine = EngineIdentity.Runtime(game) + ":" + EngineIdentity.FileHash(typeof(Program).Assembly.Location),
+            arenaBudget = ArenaBudget,
         }, options));
         protocol.Flush();
         // Bounded frames and effort protect a local caller too. The adapter can choose smaller budgets.
-        var requests = 0;
         while (ReadFrame(Console.In, 1024 * 1024) is { } line)
         {
             string name = "";
@@ -96,12 +103,6 @@ internal static class Program
             {
                 var request = RequestJson.Read(line);
                 name = request.Name;
-                if (++requests > 8)
-                {
-                    protocol.WriteLine(JsonSerializer.Serialize(new { kind = "failed", name, reason = "worker_lifetime_arena_budget" }, options));
-                    protocol.Flush();
-                    return 4;
-                }
                 if (request.Seeds.Count is < 1 or > 64 || request.MaxTicks is < 1 or > 60000 ||
                     request.Width is < 1 or > 128 || request.Height is < 1 or > 128 || request.Pawns.Count > 32)
                     throw new RealFightRejected(["worker: effort budget exceeded"]);

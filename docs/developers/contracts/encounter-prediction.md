@@ -23,9 +23,13 @@ A concurrent request returns `Busy`; nothing is silently dropped, retried or
 replaced. The caller supplies positive finite cold-start, request, cleanup,
 sample, tick, map, actor and frame budgets. The hard ceilings are one minute for
 each startup/request, five seconds for cleanup, 64 seeds, one day of simulated
-ticks, a 128-cell map side, 32 actors and 1 MiB frames. A worker accepts at most
-eight requests to bound retained native arena state; exhaustion is explicit and
-does not skip earlier reconstruction failures. Each online seed executes once. Identical-seed `Verify` replay is an offline native qualification regression across fresh arenas and processes; it is not duplicated inside the latency-sensitive request. The initial measurement uses one seed. Additional samples require a decision-relevant reason within the declared budget; this service does not invent confidence from a fixed sample count.
+ticks, a 128-cell map side, 32 actors and 1 MiB frames. A worker process answers
+a bounded number of requests (eight) to bound retained native arena state and
+announces that budget in its ready frame; the predictor owns it, counts the
+requests it writes to the process and replaces the worker before the request
+that would exceed the budget, so that request pays a reported cold start and no
+request is refused for the budget (#3524). The budget does not skip earlier
+reconstruction failures. Each online seed executes once. Identical-seed `Verify` replay is an offline native qualification regression across fresh arenas and processes; it is not duplicated inside the latency-sensitive request. The initial measurement uses one seed. Additional samples require a decision-relevant reason within the declared budget; this service does not invent confidence from a fixed sample count.
 
 The worker has no colony endpoint or save input. Only its owned process tree may
 be killed. Timeout/cancellation kills that worker and waits within one cleanup

@@ -6,7 +6,12 @@ using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.Host;
 
-/// <summary>One owned isolated process, one active request, no queue or retry. Runtime plumbing only.</summary>
+/// <summary>
+/// One owned isolated process, one active request, no queue or retry. Runtime plumbing only. The worker announces
+/// in its ready frame how many requests one process answers; this owner counts the requests it writes and replaces
+/// the worker before the one that would exceed that budget, so that request pays a reported cold start instead of
+/// being refused (#3524).
+/// </summary>
 public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEncounterPredictor, IAsyncDisposable
 {
     private readonly LocalEncounterOptions _settings = CheckOptions(options);
@@ -14,6 +19,8 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
     private Process? _process;
     private Task? _drain;
     private string _engine = "";
+    private int _arenaBudget;
+    private int _written;
     private bool _disposed;
     private string _cleanupFailure = "";
     private readonly CancellationTokenSource _lifetime = new();
@@ -34,10 +41,18 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
             var problem = Validate(request);
             if (problem.Length != 0) return EncounterPredictionConsumer.Refused(EncounterStatus.Unsupported, key, problem);
             using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifetime.Token);
+            if (_process is not null && _written >= _arenaBudget)
+            {
+                // The worker's budget is spent: retire it now so this request is answered by a fresh process. The
+                // retirement is part of the cold start this request reports.
+                startup = Stopwatch.StartNew();
+                await StopAsync().ConfigureAwait(false);
+                if (_cleanupFailure.Length != 0) return EncounterPredictionConsumer.Refused(EncounterStatus.Unavailable, key, _cleanupFailure);
+            }
             if (_process is null)
             {
                 budget.CancelAfter(_settings.ColdStartBudget);
-                startup = Stopwatch.StartNew();
+                startup ??= Stopwatch.StartNew();
                 await StartAsync(budget.Token).ConfigureAwait(false);
                 startup.Stop();
                 cold = startup.Elapsed.TotalMilliseconds;
@@ -47,6 +62,7 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
             var payload = Encode(request, key);
             if (payload.Length > _settings.MaximumFrameCharacters)
                 return EncounterPredictionConsumer.Refused(EncounterStatus.Unsupported, key, "request_frame_budget");
+            _written++;
             await _process!.StandardInput.WriteLineAsync(payload.AsMemory(), budget.Token).ConfigureAwait(false);
             await _process.StandardInput.FlushAsync(budget.Token).ConfigureAwait(false);
             var line = await ReadFrameAsync(_process.StandardOutput, _settings.MaximumFrameCharacters, budget.Token).ConfigureAwait(false);
@@ -123,6 +139,9 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
         var root = ready.RootElement;
         if (root.GetProperty("kind").GetString() != "ready" || root.GetProperty("gameBuild").GetString() != _settings.GameBuild || root.GetProperty("mods").GetString() != _settings.PredictorMods)
             throw new IOException("worker_build_or_mods_mismatch");
+        _arenaBudget = root.GetProperty("arenaBudget").GetInt32();
+        if (_arenaBudget < 1) throw new JsonException("worker_arena_budget");
+        _written = 0;
 #pragma warning disable IL3000 // Empty inside a single-file host (rg.exe): the process file then is the adapter assembly.
         var adapterPath = typeof(LocalEncounterPredictor).Assembly.Location;
 #pragma warning restore IL3000

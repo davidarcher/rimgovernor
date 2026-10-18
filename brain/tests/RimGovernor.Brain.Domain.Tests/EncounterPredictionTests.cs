@@ -88,6 +88,50 @@ public sealed class EncounterPredictionTests
         Assert.Equal(EncounterStatus.Unavailable, (await worker.PredictAsync(request, TestContext.Current.CancellationToken)).Status);
     }
 
+    /// <summary>
+    /// #3524: the worker answers a bounded number of requests per process and says how many in its ready frame. The
+    /// predictor owns that budget: it replaces the worker before the request that would exceed it, so that request
+    /// is answered after a reported cold start instead of refused. The fake worker (a batch script, as the detached
+    /// game fakes are) announces a budget of two and, as the real worker did before this fix, refuses a third
+    /// request with <c>worker_lifetime_arena_budget</c> and exits: the third answer proves it was never asked.
+    /// </summary>
+    [Fact]
+    public async Task WorkerIsReplacedBeforeItsArenaBudgetSoTheNextRequestIsAnsweredNotRefused()
+    {
+        var request = Request();
+        var key = EncounterPredictionConsumer.Fingerprint(request);
+        var pawns = string.Join(',', request.Actors.Select(a =>
+            $$"""{"id":"{{a.Id}}","downed":false,"dead":false,"healthPercent":1,"bleedRate":0,"needsTend":false,"injuries":[],"missing":[],"kills":[],"products":null,"firstAttackTick":-1,"lastShotTick":-1,"departureTick":-1,"withdrawalTick":-1}"""));
+        var answer = $$$"""echo {"kind":"result","name":"{{{key}}}","result":{"schema":3,"name":"{{{key}}}","outcomes":[{"seed":1,"ticks":20,"nondeterministic":false,"pawns":[{{{pawns}}}]}]}}""";
+        var directory = Directory.CreateTempSubdirectory("rg-encounter-worker-");
+        try
+        {
+            var script = Path.Combine(directory.FullName, "worker.cmd");
+            File.WriteAllLines(script,
+            [
+                "@echo off",
+                """echo {"kind":"ready","gameBuild":"build","mods":"predictor-mods","engine":"fake","arenaBudget":2}""",
+                "set /p request=", answer,
+                "set /p request=", answer,
+                "set /p request=", $$"""echo {"kind":"failed","name":"{{key}}","reason":"worker_lifetime_arena_budget"}""", "exit 4",
+            ]);
+            await using var worker = new LocalEncounterPredictor(Options() with { DotnetExecutable = script, WorkingDirectory = directory.FullName, RequestBudget = TimeSpan.FromSeconds(10) });
+            var first = await worker.PredictAsync(request, TestContext.Current.CancellationToken);
+            var second = await worker.PredictAsync(request, TestContext.Current.CancellationToken);
+            var third = await worker.PredictAsync(request, TestContext.Current.CancellationToken);
+            Assert.Equal(EncounterStatus.Evidence, first.Status);
+            Assert.NotNull(first.ColdStartMilliseconds);
+            Assert.Equal(EncounterStatus.Evidence, second.Status);
+            Assert.Null(second.ColdStartMilliseconds);
+            Assert.Equal(EncounterStatus.Evidence, third.Status);
+            Assert.NotNull(third.ColdStartMilliseconds);
+        }
+        finally
+        {
+            try { directory.Delete(recursive: true); } catch (IOException) { }
+        }
+    }
+
     [Fact]
     public async Task UnsupportedObservationsAndEffortAreExplicitNotTruncated()
     {
