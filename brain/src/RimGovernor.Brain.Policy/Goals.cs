@@ -44,7 +44,7 @@ public enum GoalKind
     /// <summary>An animal venerated; <see cref="GoalRecord.Target"/> is the race def.</summary>
     VeneratedAnimal,
 
-    /// <summary>A number of believers.</summary>
+    /// <summary>A number of believers; <see cref="GoalRecord.Count"/> is the believers, 0 for every colonist.</summary>
     Believers,
 
     /// <summary>A named prisoner dealt with; <see cref="GoalRecord.Target"/> is the pawn id.</summary>
