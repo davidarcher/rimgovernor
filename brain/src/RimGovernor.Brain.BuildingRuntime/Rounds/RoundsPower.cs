@@ -30,6 +30,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             Generators = generators,
             ComponentSteel = facts.ComponentSteel,
+            DaylightHours = RoundsColonyModel.ClimateOf(facts.Facts.Gear).TryGetValue(out var climate) ? climate.DaylightHoursIn(climate.CurrentTwelfth) : default,
             Sources = facts.PowerSources,
             Battery = facts.PowerBattery,
             Light = facts.LightTerrains,

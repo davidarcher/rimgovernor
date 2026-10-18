@@ -74,7 +74,9 @@ check on the model: a consumer that actually loses power is a deficit whatever t
     refuelable comp; a crop that harvests the fuel is sowable now, `policy.ResourceGrowable`, so a
     tree plantation counts and wild trees or chemfuel do not); then one burning a finite fuel,
     stocked; fuel-short ones; a renewable last when no battery can be built or (solar) the
-    shortfall is night-only. Within a tier the higher average watts per steel of build cost goes
+    shortfall is night-only or the current twelfth has no daylight at the map's latitude (polar
+    night, read from the gear climate's `DaylightHoursByTwelfth`; an unread curve keeps the nominal
+    solar profile). Within a tier the higher average watts per steel of build cost goes
     first, components priced at the game recipe's steel (`Make_ComponentIndustrial`: 12 steel each,
     `DefinitionCatalog.ProductInputCost`); an unknown recipe prices nothing and list order breaks
     ties. Cost, nominal watts and fuel come from the catalog (`DefinitionCatalog.GeneratorRow`).

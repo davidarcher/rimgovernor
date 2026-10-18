@@ -184,13 +184,13 @@ public sealed record PawnCycle
             return Unknown<double>();
         }
 
-        if (climate.DaylightHours.Count != 12)
+        var daylight = climate.DaylightHoursIn(twelfth);
+        if (!daylight.IsKnown)
         {
             findings.Add("daylight_unknown");
-            return Unknown<double>();
         }
 
-        return Known(climate.DaylightHours[twelfth]);
+        return daylight;
     }
 
     private static Fact<ForecastThermalSpan> Thermal(ColonyModelInput input, ModelPawn pawn, int twelfth, Fact<double> outdoor, SortedSet<string> findings)

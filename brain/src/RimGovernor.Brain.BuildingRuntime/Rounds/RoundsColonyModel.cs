@@ -114,7 +114,7 @@ internal static class RoundsColonyModel
     }
 
     /// <summary>The seasonal curve is the map's, so every pawn's gear read carries the same one; the first is the colony's.</summary>
-    private static Fact<GearClimate> ClimateOf(Fact<GearObservation> gear)
+    internal static Fact<GearClimate> ClimateOf(Fact<GearObservation> gear)
     {
         if (gear.TryGetValue(out var observation))
         {

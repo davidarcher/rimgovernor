@@ -154,6 +154,9 @@ public sealed record PowerPlanning
     /// <summary>The steel one component costs by the game's recipe; it prices generators' components for RankGenerators.</summary>
     public Fact<double> ComponentSteel { get; init; }
 
+    /// <summary>The current twelfth's daylight hours at the map's latitude (GearClimate.DaylightHoursIn); RankGenerators ranks solar last at none.</summary>
+    public Fact<double> DaylightHours { get; init; }
+
     public double ReserveMinDays { get; init; }
 
     public double StorageMargin { get; init; }
@@ -179,7 +182,8 @@ public sealed record PowerPlanning
 /// is free to run but needs storage to carry the night), whether the shortfall being closed is night-only,
 /// which a solar generator cannot touch, and the steel a component costs to make (the game's own recipe,
 /// DefinitionCatalog.ProductInputCost), which prices a generator's components in steel. Unknown, no generator
-/// can be priced and list order breaks ties.
+/// can be priced and list order breaks ties. DaylightHours is the current twelfth's daylight at the map's
+/// latitude: none (polar night) leaves a solar generator nothing to deliver; unknown keeps the nominal profile.
 /// </summary>
 public sealed record GeneratorRanking
 {
@@ -188,6 +192,8 @@ public sealed record GeneratorRanking
     public bool NightOnly { get; init; }
 
     public Fact<double> ComponentSteel { get; init; }
+
+    public Fact<double> DaylightHours { get; init; }
 }
 
 public sealed record PowerProposal
@@ -322,8 +328,9 @@ public static partial class PowerRules
     /// <summary>
     /// Orders the known-available options: a fuel-free generator first once a battery can bank its surplus,
     /// then a generator that runs around the clock on a fuel the colony can grow (or none), a stocked finite
-    /// fuel next, fuel-short ones after, and a renewable that cannot serve the deficit (no battery, or a
-    /// night-only shortfall) last, still chosen when nothing else is available. Within a tier the generator
+    /// fuel next, fuel-short ones after, and a renewable that cannot serve the deficit (no battery, a
+    /// night-only shortfall, or a solar generator in a twelfth with no daylight) last, still chosen when
+    /// nothing else is available. Within a tier the generator
     /// delivering the most watts per steel of build cost (components priced at their recipe's steel) goes
     /// first; list order breaks ties.
     /// </summary>
@@ -331,6 +338,7 @@ public static partial class PowerRules
     {
         var rows = new List<RankedGenerator>();
         ranking.BatteryAvailable.TryGetValue(out var battery);
+        var polarNight = ranking.DaylightHours.TryGetValue(out var daylight) && daylight == 0;
         for (var i = 0; i < options.Count; i++)
         {
             var o = options[i];
@@ -340,7 +348,7 @@ public static partial class PowerRules
             }
             int tier;
             var profile = o.Profile;
-            if (profile.Night < 1 && (!battery || (ranking.NightOnly && profile.Night == 0)))
+            if ((polarNight && profile.Solar) || (profile.Night < 1 && (!battery || (ranking.NightOnly && profile.Night == 0))))
             {
                 tier = 4;
             }
@@ -857,6 +865,7 @@ public static partial class PowerRules
         {
             BatteryAvailable = planning.BatteryAvailable,
             ComponentSteel = planning.ComponentSteel,
+            DaylightHours = planning.DaylightHours,
             NightOnly = p.Budget.GenerationShortfallW > 0 && p.Budget.DaySurplusWD > 0,
         };
         var ranked = RankGenerators(planning.Generators, ranking);

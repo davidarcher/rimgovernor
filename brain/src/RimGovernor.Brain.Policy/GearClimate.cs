@@ -53,6 +53,10 @@ public static class GearClimateExtensions
         }
     }
 
+    /// <summary>The hours of daylight on the given twelfth's sampled day; unknown when the read did not carry the curve.</summary>
+    public static Fact<double> DaylightHoursIn(this GearClimate c, int twelfth) =>
+        c.DaylightHours.Count == 12 ? Fact.Known(c.DaylightHours[twelfth]) : Fact.Unknown<double>();
+
     /// <summary>
     /// Includes now and the next two twelfths (ten days of tailoring lead time). Weather affects only twelfths it
     /// still overlaps; longer conditions extend the target through their remaining duration.

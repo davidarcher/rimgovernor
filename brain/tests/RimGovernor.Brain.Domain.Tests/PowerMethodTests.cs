@@ -41,4 +41,21 @@ public sealed class PowerMethodTests
         Assert.Equal(PowerMethod.WaitFuel, proposal.Method);
         Assert.Equal("stove", proposal.Target);
     }
+
+    // #2799: a polar-night twelfth gives a solar generator nothing to deliver, so the wind turbine outranks it; an unread
+    // daylight curve keeps the list order, and a lit twelfth leaves solar first.
+    [Fact]
+    public void WindOutranksSolarAtZeroDaylight()
+    {
+        GeneratorOption[] options =
+        [
+            new() { Definition = "SolarGenerator", Available = Known(true), Profile = PowerRules.SolarPowerProfile, NominalW = 1700 },
+            new() { Definition = PowerRules.WindTurbineDefinition, Available = Known(true), Profile = PowerRules.WindProfile(0.04, 2, 1), NominalW = 2300 },
+        ];
+        var ranking = new GeneratorRanking { BatteryAvailable = Known(true) };
+
+        Assert.Equal(["SolarGenerator", PowerRules.WindTurbineDefinition], PowerRules.RankGenerators(options, ranking));
+        Assert.Equal(["SolarGenerator", PowerRules.WindTurbineDefinition], PowerRules.RankGenerators(options, ranking with { DaylightHours = Known(12.0) }));
+        Assert.Equal([PowerRules.WindTurbineDefinition, "SolarGenerator"], PowerRules.RankGenerators(options, ranking with { DaylightHours = Known(0.0) }));
+    }
 }
