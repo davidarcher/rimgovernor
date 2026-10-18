@@ -8096,6 +8096,14 @@ public sealed record IdeologySnapshot
     public int? ReformCount { get; init; }
 
     public int? NextReformPoints { get; init; }
+
+    /// <summary>The ThingStyleCategoryDef names of Ideo.thingStyleCategories, sorted.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> StyleCategories { get; init; }
+
+    /// <summary>The ThingDef names of Ideo.VeneratedAnimals, sorted.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> VeneratedAnimals { get; init; }
 }
 
 /// <summary>

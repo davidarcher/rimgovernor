@@ -39,17 +39,31 @@ public sealed partial class DefinitionCatalog
             }
         }
 
+        var memes = new Dictionary<string, P.MemeDef>(StringComparer.Ordinal);
+        foreach (var (name, row) in Rows<MemeDef>())
+        {
+            memes[name] = new P.MemeDef(
+                [.. row.requireOne.Seq().Select(group => (IReadOnlyList<string>)[.. (group ?? throw new CatalogException($"meme {name} has a null required precept group")).Select(p => p.defName).Order(StringComparer.Ordinal)])],
+                [.. preceptRows.Values.Where(p => p.conflictingMemes.Seq().Contains(row)).Select(p => p.defName).Order(StringComparer.Ordinal)]);
+        }
+
         return new P.IdeologyDefs
         {
             Precepts = precepts,
             Roles = roles,
+            Memes = memes,
             Rituals = patternRows.ToDictionary(pair => pair.Key, pair => RitualDef(pair.Value), StringComparer.Ordinal),
         };
     }
 
     // A precept def with one effect per PreceptComp, in comp order.
     private P.PreceptDef PreceptDef(PreceptDef row) =>
-        new(row.defName, [.. row.comps.Seq().Select(comp => PreceptEffect(row.defName, comp))]);
+        new(row.defName, [.. row.comps.Seq().Select(comp => PreceptEffect(row.defName, comp))])
+        {
+            Issue = row.issue?.defName ?? string.Empty,
+            RequiredMemes = [.. row.requiredMemes.Seq().Select(m => m.defName).Order(StringComparer.Ordinal)],
+            ConflictingMemes = [.. row.conflictingMemes.Seq().Select(m => m.defName).Order(StringComparer.Ordinal)],
+        };
 
     // The base mood effect of each stage of the named thought; no thought is no stage. A null stage (the game keeps
     // unused stages null) is a stage of no mood.

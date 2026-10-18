@@ -766,7 +766,7 @@ Kept, reason recorded:
 | StatEnv | message | 2377 | 6 | code | Mods, classic mode, scenario stat factors and difficulty the Go stat evaluator reads beyond the rows |  |  |
 | StatFactor | message | 2385 | 2 | code | A scenario stat factor |  |  |
 | CatalogDerived | message | 2392 | 3 | code | Facts the game names or computes in code | currency_def,full_rot_rate_c,wort_def |  |
-| IdeologySnapshot | message | 2434 | 15 | state | Primary ideoligion: memes, precepts, roles, rituals, believers, reform state |  |  |
+| IdeologySnapshot | message | 2434 | 17 | state | Primary ideoligion: memes, precepts, roles, rituals, believers, reform state, styles, venerated animals |  |  |
 | IdeoPrecept | message | 2443 | 2 | state | Precept in force id and def name |  |  |
 | IdeoRole | message | 2446 | 4 | state | Role precept active flag and holder pawns |  |  |
 | IdeoRitual | message | 2451 | 7 | state | Ritual precept last finished tick, obligations, running |  |  |

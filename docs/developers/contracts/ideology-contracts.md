@@ -89,6 +89,12 @@ per load, and a row a def names that the catalog lacks is an error.
   `UnwillingToDo` comp is what the member refuses (forbids), with the traits and
   hediffs that cancel it and, for the `_Chance` class, its chance.
   `policy.PreceptEffect` exposes `Penalises`, `Approves` and `Forbids`.
+- `policy.PreceptDef` also carries its `Issue`, `RequiredMemes` and
+  `ConflictingMemes`; `policy.MemeDef` (`IdeologyDefs.Memes`) lists a meme's
+  `RequireOne` precept groups and the precepts that conflict with it.
+  `IdeologyDefs.Gate(issues)` answers which memes require or rule out the
+  precepts of the named game issues (nudity, cannibalism, insect meat), so a
+  reform planner can pick memes for a precept.
 - `policy.RoleDef` is a role precept def: `maxCount` and the skills of each
   `RoleRequirement_MinSkillAny`.
 - `policy.RitualDef` is a `RitualPatternDef`: cadence
@@ -107,7 +113,12 @@ per load, and a row a def names that the catalog lacks is an error.
 rituals and building precepts held apart), each role's holders as pawn row
 refs, each ritual's raw `lastFinishedTick`, active obligation count, repeat
 penalty flag and whether a lord job of it runs (`running`), and each
-building precept's ThingDef. The section is absent, with no watermark, without Ideology or a primary ideoligion; the brain then holds
+building precept's ThingDef, the style category names, the venerated animals'
+ThingDef names, and the reform state (`fluid`, `can_reform`, development
+points, reform count, next reform points; `policy.IdeoDevelopment`). The
+believers are not a second read: `Ideoligion.BelieverList` projects the pawn
+rows' `policy_inputs` (`ideo_id`, `ideo_certainty`) into the colonists holding the
+ideoligion, unknown when a row lacks its inputs. The section is absent, with no watermark, without Ideology or a primary ideoligion; the brain then holds
 `Facts.Ideology` unknown.
 
 `bridge.DecodeIdeology` resolves every def name against the catalog rows and

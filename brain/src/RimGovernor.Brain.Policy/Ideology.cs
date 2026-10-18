@@ -53,8 +53,27 @@ public sealed record PreceptEffect
     public bool Forbids() => Kind == PreceptEffectKind.Unwilling;
 }
 
-/// <summary>One PreceptDef other than a role's, reduced to what planners read: its comps as effects. Name is its degree of its issue.</summary>
-public sealed record PreceptDef(string Name, IReadOnlyList<PreceptEffect> Effects);
+/// <summary>
+/// One PreceptDef other than a role's, reduced to what planners read: its comps as effects, the issue it is a degree of,
+/// the memes it needs (RequiredMemes) and the memes that rule it out (ConflictingMemes). Name is its degree of its issue.
+/// </summary>
+public sealed record PreceptDef(string Name, IReadOnlyList<PreceptEffect> Effects)
+{
+    public string Issue { get; init; } = string.Empty;
+
+    public IReadOnlyList<string> RequiredMemes { get; init; } = [];
+
+    public IReadOnlyList<string> ConflictingMemes { get; init; } = [];
+}
+
+/// <summary>
+/// One MemeDef: the precept groups it requires (one precept of each group must be held, MemeDef.requireOne) and the
+/// precepts that conflict with it (those naming it in ConflictingMemes), sorted.
+/// </summary>
+public sealed record MemeDef(IReadOnlyList<IReadOnlyList<string>> RequireOne, IReadOnlyList<string> ForbiddenPrecepts);
+
+/// <summary>The memes that unlock or rule out the precepts of an issue; each list is sorted and distinct.</summary>
+public sealed record MemeGate(IReadOnlyList<string> Required, IReadOnlyList<string> Conflicting);
 
 /// <summary>A role requirement's skill minimum.</summary>
 public readonly record struct SkillRequirement(string Skill, int MinLevel);
@@ -93,6 +112,21 @@ public sealed record IdeologyDefs
     public IReadOnlyDictionary<string, RoleDef> Roles { get; init; } = new Dictionary<string, RoleDef>();
 
     public IReadOnlyDictionary<string, RitualDef> Rituals { get; init; } = new Dictionary<string, RitualDef>();
+
+    public IReadOnlyDictionary<string, MemeDef> Memes { get; init; } = new Dictionary<string, MemeDef>();
+
+    /// <summary>
+    /// The memes that gate the precepts of the named issues (game IssueDef names, such as the nudity, cannibalism and
+    /// insect meat issues): the memes some such precept requires and the memes some such precept conflicts with.
+    /// </summary>
+    public MemeGate Gate(IEnumerable<string> issues)
+    {
+        var wanted = issues.ToHashSet(StringComparer.Ordinal);
+        var precepts = Precepts.Values.Where(p => wanted.Contains(p.Issue)).ToList();
+        return new MemeGate(
+            [.. precepts.SelectMany(p => p.RequiredMemes).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)],
+            [.. precepts.SelectMany(p => p.ConflictingMemes).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)]);
+    }
 }
 
 /// <summary>A precept in force; role, ritual and building precepts are held apart.</summary>
@@ -141,13 +175,51 @@ public sealed record IdeoligionFacts
     public int Believers { get; init; }
 
     public Fact<IdeoDevelopment> Development { get; init; }
+
+    /// <summary>The ThingStyleCategoryDef names of the ideoligion's styles, sorted.</summary>
+    public IReadOnlyList<string> StyleCategories { get; init; } = [];
+
+    /// <summary>The ThingDef names of the venerated animals, sorted.</summary>
+    public IReadOnlyList<string> VeneratedAnimals { get; init; } = [];
 }
 
-public readonly record struct IdeoDevelopment(bool Fluid, bool CanReform, int ReformCount);
+/// <summary>
+/// The reform state. DevelopmentPoints and NextReformPoints (what the next reform costs) are 0 for a non-fluid
+/// ideoligion, which cannot reform.
+/// </summary>
+public readonly record struct IdeoDevelopment(bool Fluid, bool CanReform, int ReformCount, int DevelopmentPoints, int NextReformPoints);
+
+/// <summary>A colonist holding the ideoligion with the certainty the pawn row read; unknown when unread.</summary>
+public sealed record Believer(PawnId Id, Fact<double> Certainty);
 
 /// <summary>The ideoligion with the defs its rows resolve against.</summary>
 public sealed partial record Ideoligion(IdeologyDefs Defs, IdeoligionFacts Facts)
 {
+    /// <summary>
+    /// The colonists whose pawn row shows this ideoligion, by pawn id, with their certainty; the rest are
+    /// non-believers. Unknown when the pawn rows are unread or any row lacks its policy inputs.
+    /// </summary>
+    public Fact<EquatableArray<Believer>> BelieverList(Fact<EquatableArray<WorkPawn>> pawns)
+    {
+        if (!pawns.TryGetValue(out var rows))
+        {
+            return Unknown<EquatableArray<Believer>>();
+        }
+        var output = new List<Believer>();
+        foreach (var row in rows)
+        {
+            if (!row.PolicyInputs.TryGetValue(out var inputs))
+            {
+                return Unknown<EquatableArray<Believer>>();
+            }
+            if (inputs.Ideo == Facts.IdeoId)
+            {
+                output.Add(new Believer(row.Id, inputs.IdeoCertainty));
+            }
+        }
+        return Known(EquatableArray.From(output.OrderBy(b => b.Id)));
+    }
+
     /// <summary>
     /// Lists the effects of every precept in force, in precept id order. A held precept missing from the
     /// defs is skipped: the decode refuses such a row, so none reaches here.

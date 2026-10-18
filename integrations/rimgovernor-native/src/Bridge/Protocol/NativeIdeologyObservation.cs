@@ -31,6 +31,8 @@ namespace HomeBridge.BridgeTools
             var row = new Obs.IdeologySnapshot { IdeoId = Id(ideo.GetUniqueLoadID()),
                 Believers = ideo.ColonistBelieverCountCached };
             row = row with { Memes = [.. Sorted(Names(ideo.memes))] };
+            row = row with { StyleCategories = [.. Sorted(ideo.thingStyleCategories.Where(c => c?.category != null).Select(c => Id(c.category.defName)))] };
+            row = row with { VeneratedAnimals = [.. Sorted(Names(ideo.VeneratedAnimals))] };
             row = row with { Fluid = ideo.Fluid };
             if (ideo.Fluid && ideo.development == null) return null;
             row = row with { CanReform = ideo.Fluid && ideo.development!.CanReformNow };

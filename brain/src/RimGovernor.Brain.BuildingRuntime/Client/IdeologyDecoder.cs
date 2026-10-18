@@ -21,10 +21,20 @@ internal static class IdeologyDecoder
             IdeoId = v.IdeoId ?? "",
             Memes = [.. v.Memes],
             Believers = v.Believers.GetValueOrDefault(),
+            StyleCategories = [.. v.StyleCategories],
+            VeneratedAnimals = [.. v.VeneratedAnimals],
         };
         if (v.Fluid is not null || v.CanReform is not null || v.DevelopmentPoints is not null || v.ReformCount is not null || v.NextReformPoints is not null)
         {
-            facts = facts with { Development = Known(new P.IdeoDevelopment(v.Fluid.GetValueOrDefault(), v.CanReform.GetValueOrDefault(), v.ReformCount.GetValueOrDefault())) };
+            facts = facts with
+            {
+                Development = Known(new P.IdeoDevelopment(
+                    v.Fluid.GetValueOrDefault(),
+                    v.CanReform.GetValueOrDefault(),
+                    v.ReformCount.GetValueOrDefault(),
+                    v.DevelopmentPoints.GetValueOrDefault(),
+                    v.NextReformPoints.GetValueOrDefault())),
+            };
         }
 
         var precepts = new List<P.HeldPrecept>();
