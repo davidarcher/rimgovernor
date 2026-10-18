@@ -684,9 +684,13 @@ public sealed partial class Rounder
         {
             attrs.Add((RoundsReviewTelemetry.HuntReadKey, $"known={huntRead.Known} hunters={huntRead.Hunters.Count} prey={huntRead.Prey.Count} findings=[{string.Join(";", huntRead.Findings)}]"));
             attrs.Add((RoundsReviewTelemetry.HuntChoiceKey, Census.HuntNote));
+            if (Census.HuntRestart.Length > 0)
+            {
+                attrs.Add((RoundsReviewTelemetry.HuntRestartKey, Census.HuntRestart));
+            }
             if (HuntEstimates is { } estimates)
             {
-                var view = estimates.Current(huntRead, reading.Projection.Identity.Tick.Value);
+                var view = estimates.Current(reading.Projection.Identity.Tick.Value);
                 attrs.Add((RoundsReviewTelemetry.HuntEstimatesKey, $"answered={view.Estimates.Count} pending={view.Pending.Count} refused=[{string.Join(";", view.Refusals.Select(r => r.Key + "=" + r.Value))}]"));
             }
         }

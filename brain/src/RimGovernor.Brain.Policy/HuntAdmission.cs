@@ -103,7 +103,7 @@ public sealed class HuntAdmission
             }
             if (!HuntEncounterRequests.StillDescribesGunner(held.Read, read, id))
             {
-                return "gunner_changed:" + id;
+                return "gunner_changed:" + id + ":" + HuntEncounterRequests.GunnerDifferences(held.Read, read, id);
             }
         }
         return "";

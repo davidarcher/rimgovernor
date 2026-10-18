@@ -68,6 +68,23 @@ public static class HuntAlternatives
         && Math.Abs(other.Location.X - prey.Location.X) <= GroupRadius && Math.Abs(other.Location.Z - prey.Location.Z) <= GroupRadius;
 
     /// <summary>
+    /// The prey groups a hunt is sent at: each standing prey (not downed, not in a mental state) with its grouped
+    /// herd-mates, in the prey's order, each group sorted by pawn and listed once. Group membership is where the animals
+    /// stand now, so a group changes when its members drift apart or together.
+    /// </summary>
+    public static List<HuntActorRead[]> PreyGroups(IEnumerable<HuntActorRead> prey)
+    {
+        var live = prey.Where(p => !p.Downed && !p.Mental).ToArray();
+        var groups = new List<HuntActorRead[]>();
+        foreach (var p in live)
+        {
+            var group = live.Where(o => o.Pawn == p.Pawn || Grouped(o, p)).OrderBy(o => o.Pawn, StringComparer.Ordinal).ToArray();
+            if (!groups.Any(g => g.Select(o => o.Pawn).SequenceEqual(group.Select(o => o.Pawn), StringComparer.Ordinal))) groups.Add(group);
+        }
+        return groups;
+    }
+
+    /// <summary>
     /// Bounded roster options: solos, pairs and a third gunner from the best-shooting available hunters, for each
     /// nearby prey group, each also with a hauler (an available colonist outside the gunner pool whose hauling is
     /// active, the <see cref="MaxHaulers"/> fastest by their walk and haul trips) when there is one. No hunter is
@@ -84,14 +101,8 @@ public static class HuntAlternatives
         if (pool.Length == 0) findings.Add("no_available_gunner");
         var poolIds = pool.Select(h => h.Pawn).ToHashSet(StringComparer.Ordinal);
         var haulerPool = read.Hunters.Where(h => h.Available && h.Hauls && !busy.Contains(h.Pawn) && !poolIds.Contains(h.Pawn)).ToArray();
-        var live = read.Prey.Where(p => !p.Downed && !p.Mental).ToArray();
-        var groups = new List<HuntActorRead[]>();
-        foreach (var prey in live)
-        {
-            var group = live.Where(o => o.Pawn == prey.Pawn || Grouped(o, prey)).OrderBy(o => o.Pawn, StringComparer.Ordinal).ToArray();
-            if (!groups.Any(g => g.Select(o => o.Pawn).SequenceEqual(group.Select(o => o.Pawn), StringComparer.Ordinal))) groups.Add(group);
-            if (groups.Count >= MaxTargets) { findings.Add("hunt_targets_truncated"); break; }
-        }
+        var groups = PreyGroups(read.Prey);
+        if (groups.Count > MaxTargets) { findings.Add("hunt_targets_truncated"); groups = groups.Take(MaxTargets).ToList(); }
         var rosters = new List<HuntRoster>();
         var scenes = 0;
         foreach (var group in groups)

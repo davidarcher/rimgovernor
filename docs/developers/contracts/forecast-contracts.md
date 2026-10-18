@@ -310,12 +310,35 @@ zero. With no nutrition needed, or no usable roster, the choice is not to hunt.
 The runtime side is `IHuntEstimates` (`HuntEstimateService` in the host). `HuntEncounterRequests.Build` states each
 roster as an `EncounterRequest`: the observed window as the map, the roster gunners each aimed at the nearest
 prey, 16 fixed seeds, a 2.4-hour horizon. The service asks the prediction service one request at a time in the
-background, never from the planner step, and keeps each answer as a `HuntEstimate` or a refusal, keyed by scene. An
-estimate is reused for a day while its gunners and prey have not been injured, re-geared or moved more than 8 cells;
-otherwise the scene is asked again. A hauler is not in the scene; its trip is re-priced from each round's routes.
-A busy, cancelled, timed-out or unavailable service is retried after an hour of game
-time; an unsupported roster stays refused. Policy sees only the view (estimates, refusals, rosters pending), so
-a roster that is pending, refused or unanswered is never ranked as safe.
+background, never from the planner step, and keeps each answer as a `HuntEstimate` or a refusal, keyed by scene.
+
+A comparison is anchored to one read (#3525): the service holds the hunt read the plan first asked with (the
+anchor, `HuntEstimateView.Anchor`, returned to the runtime as `HuntPlan.Anchor` with the rosters to ask: the read
+with the prey the plan could hunt then, standing and not designated or taken) and builds every scene of the
+comparison from it, both stages, whatever read the later rounds ask from. Policy judges the anchor, never the
+service. While scenes are pending, `PlanHunt` gathers the answers without regard to how far the pawns drift between
+the reads in between: the worker answers scenes one at a time, seconds each, and judging each answer against the
+newest read staled the early ones before the late ones arrived. The comparison compares the prey its anchor saw: an
+animal that wanders into the window meanwhile is proposed by the next comparison, after a choice or a restart, and
+never restarts this one. The anchor is judged two ways. Every round, its prey (`HuntEncounterRequests.PreyDrift`):
+one the read no longer shows, downed, in a mental state or no longer huntable, or a prey group whose members stand
+grouped otherwise now (`HuntAlternatives.PreyGroups`, the group radius); where an animal grazed to is never judged.
+When a stage is fully answered, at choice time, its gunners (`HuntEncounterRequests.StillAnchored`): each rostered
+gunner within `MoveTolerance`, 8 cells, of where the anchor saw it and otherwise the gunner it saw (kind, xenotype,
+weapon, apparel, traits, missing parts, the hediff set by definition and part; not his skill levels or a hediff's
+severity, which move with every shot and every hour of healing), in the same scene identity and weather. A hunter
+the anchor never saw in a proposed roster is judged at any round. Then the plan asks the whole comparison again from
+the current read, with the findings `hunt_anchor_stale` and `hunt_anchor_drift:<what>` (`<pawn>=unobserved`,
+`downed`, `mental`, `gone`, `group:<members>`, `<gunner>=unseen`, `moved:<cells>`, `changed:<fields>` or `scene`);
+the service takes that read as the new anchor, forgets the old comparison's answers, queues the scenes again at
+once, and skips an old comparison's scene unasked when the worker reaches it. A stale anchor with no prey left to
+compare is only the finding; the next huntable prey starts the next comparison. Rosters, labor and the choice itself
+always come from the current read and its routes, and a chosen formation's release triggers judge it against each
+later read, never the anchor. The estimate carries the skills and health the anchor stated. An answer lives a day; a
+hauler is not in the scene, and its trip is re-priced from each round's routes.
+A busy, cancelled, timed-out or unavailable service is retried after an hour of game time; an unsupported roster
+stays refused. Policy sees only the view (anchor, estimates, refusals, rosters pending), so a roster that is pending,
+refused or unanswered is never ranked as safe.
 
 In production the Bridge hashes the engine identity once at start (`NativeEncounterIdentity`: the game assembly, every
 running mod's xml/dll content, and the official mods the worker boots with — RealCombat's `EngineIdentity` algorithm),
@@ -347,17 +370,20 @@ from the hunt sources (`prey_gone`, the kill the delivery credit observes) or do
 read known, an admitted animal out of the observed window (`prey_unobserved`), a live animal of the group that joined
 within the group radius (`prey_joined`), a rostered gunner absent from the read (`gunner_unobserved`), downed
 (`gunner_downed`) or in a mental state (`gunner_mental`), or a gunner the read the roster was chosen from no longer
-describes (`gunner_changed`, `HuntEncounterRequests.StillDescribesGunner`: kind, xenotype, weapon, apparel, skills,
-traits, health, missing parts and the scene identity, not his position or draft state). An unknown hunt read decides
+describes (`gunner_changed:<pawn>:<what>`, `HuntEncounterRequests.StillDescribesGunner`: kind, xenotype, weapon, apparel,
+traits, the hediff set by definition and part, missing parts and the scene identity; not his position, draft state, skill
+levels or a hediff's severity, which the hunt itself moves). An unknown hunt read decides
 nothing about the gunners. A drafted gunner is not a trigger: the hunt's own draft and the player's read the same in
 `HuntActorRead.Available`. A released hunt whose prey still stands may be chosen again, by the comparison only.
 
 The execution evidence is the on-demand `food/hunt-roster` acceptance case (#3515): a lab colony of two riflemen
 short of food, with a butcher table, its bill and a corpse stockpile, and a wild rhinoceros and boar inside the hunt
 read's window, served with the Release RealCombat worker as the predictor (at the harness's pinned Ultrafast: every
-acceptance game launches with `-rimgovernor-test-acceleration`, so `ServeSpec.ClockSpeed` is a no-op; at that rate the
-comparison's scenes go stale before the worker has answered them all, #3525, and the worker's eight-request lifetime
-refuses a scene per comparison, #3524: the case has not passed yet). Native reads no hunt
+acceptance game launches with `-rimgovernor-test-acceleration`, so `ServeSpec.ClockSpeed` is a no-op; the anchored
+comparison, #3525, keeps its scenes usable there and the `hunt_restart` attribute names what staled an anchor that
+re-asked; the crew is exactly the two staged riflemen, since the runner's default crew of three adds an unarmed third
+hunter to the read. The case has not passed: the uncapped test-acceleration clock runs the 30,000-tick window in
+seconds, fewer than the worker needs for one comparison, #3533). Native reads no hunt
 route: the former `HuntingSafety.RouteSafe` verdict (a route within a margin of any wild predator was unsafe, the
 prey included, so a grizzly was never a hunt source and a wandering wolf held every hunt) went with #3515. It asserts in order: the comparison
 answered (the `rounds_review` row's `hunt_choice` names a chosen roster with no `hunt_estimates_pending`) and the

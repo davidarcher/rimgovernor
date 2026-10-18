@@ -22,9 +22,13 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// Two hunters keep the comparison to three plain scenes per prey group (16 worker samples each). The served clock is
 /// the harness's: every acceptance game launches with <c>-rimgovernor-test-acceleration</c>, which pins the brain's
 /// target speed at Ultrafast whatever <see cref="ServeSpec.ClockSpeed"/> asks, so the comparison's worker seconds are
-/// thousands of ticks of pawn movement: whether the comparison answers before its scenes go stale is #3525, and the
-/// worker's eight-request lifetime #3524. The big game is a rhinoceros: revenge big game that is not a predator, so the
-/// lone designation channel may also take it.
+/// thousands of ticks of pawn movement. The comparison is anchored to the read it was first asked from (#3525): its
+/// answers are gathered whatever the pawns do meanwhile, and the anchor is judged at choice time, when it starts over
+/// if a rostered gunner is past the move tolerance from it (the prey may graze anywhere, and an animal that wanders in
+/// waits for the next comparison). Whether the worker answers a whole comparison inside the window at the uncapped
+/// rate is the harness's problem, #3533. The big game is a rhinoceros: revenge big game that is not a predator, so the lone
+/// designation channel may also take it. The crew is exactly the two staged colonists: the runner's default crew of
+/// three would add an unarmed third hunter to the read, and its staffing sets every colonist's skills to the crew level.
 /// </para>
 /// </summary>
 internal static class FoodHuntRoster
@@ -80,7 +84,6 @@ internal static class FoodHuntRoster
                 Name = Hunter(i),
                 Colonist = i,
                 Cell = HunterCells[i],
-                SkillLevel = 8,
                 Gear = new Fx.StageGear { Weapon = Rifle },
                 AllWork = 3,
                 Work = new Dictionary<string, int> { ["Hunting"] = 1, ["Hauling"] = 1, ["Cooking"] = 1 },
@@ -103,6 +106,7 @@ internal static class FoodHuntRoster
         Ticks = Ticks,
         Tier = CaseTier.OnDemand,
         Start = new LabStart { Colonists = Colonists },
+        Crew = new Crew { Size = Colonists },
         Stage = Camp,
         Keep = ["Food"],
         // No ClockSpeed: the test-acceleration launch pins Ultrafast, so a request here would be a no-op.

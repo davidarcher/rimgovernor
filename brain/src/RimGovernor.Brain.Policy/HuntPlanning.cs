@@ -4,12 +4,11 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// What a food-plan review learned about hunting: the chosen alternative (when every proposed roster was answered),
-/// the rosters still to ask the prediction service about, and why a hunt is not offered.
+/// the rosters still to ask the prediction service about and the read to build their scenes from (<see cref="Anchor"/>:
+/// the comparison's read, whose prey are exactly those it compares; null when nothing is asked), and why a hunt is not offered.
 /// </summary>
-public sealed record HuntPlan(HuntSelection? Selection, EquatableArray<HuntRoster> Unestimated, EquatableArray<string> Findings)
+public sealed record HuntPlan(HuntSelection? Selection, EquatableArray<HuntRoster> Unestimated, HuntActivityRead? Anchor, EquatableArray<string> Findings)
 {
-    public static readonly HuntPlan None = new(null, [], []);
-
     /// <summary>The prey of the rosters still being asked about: a lone hunt must not designate them before the comparison is answered.</summary>
     public IReadOnlySet<string> Awaiting => Unestimated.SelectMany(r => r.Prey).ToHashSet(StringComparer.Ordinal);
 
@@ -26,28 +25,62 @@ public static class HuntPlanningRules
     /// pick the first roster to come back, not the best. Once the plain rosters are answered, the best of them are
     /// restated with a gunner-retriever leaving at the encounter ticks the first stage measured, asked the same way,
     /// and the choice is made over both stages.
+    /// <para>
+    /// The comparison is anchored to one read (<see cref="HuntEstimateView.Anchor"/>: the read it was first asked from,
+    /// with the prey the plan could hunt then): every scene of both stages is built from it, whatever the later rounds
+    /// read, and its answers are gathered without regard to how far the pawns drift meanwhile. The service answers
+    /// scenes one at a time, so judging each answer against the newest read staled the early ones before the late ones
+    /// arrived (#3525). While it stands, the comparison compares the prey the anchor saw: an animal that wandered into
+    /// the window since is proposed by the next comparison, after a choice or a restart, never by this one. The anchor
+    /// is judged two ways. Every round, its prey (<see cref="HuntEncounterRequests.PreyDrift"/>: one gone from the read,
+    /// downed, in a mental state or no longer huntable, or a group whose members stand grouped otherwise; never where
+    /// an animal stands) and whether it saw every proposed gunner. When a stage is fully answered, at choice time, its
+    /// gunners (<see cref="HuntEncounterRequests.StillAnchored"/>: each rostered gunner within
+    /// <see cref="HuntEncounterRequests.MoveTolerance"/> of where the anchor saw it and otherwise the gunner it saw, in
+    /// the same scene and weather). Either way the comparison then starts over from the current read
+    /// (<c>hunt_anchor_stale</c>, with <c>hunt_anchor_drift:</c> naming what drifted). Rosters, labor and the choice
+    /// itself always come from the current read and its routes.
+    /// </para>
     /// </summary>
     public static HuntPlan PlanHunt(HuntActivityRead? read, IReadOnlyList<AcquisitionSource> sources, IReadOnlyList<CoupledRoute> routes, HuntEstimateView view, double nutritionNeeded)
     {
-        if (read is null || !read.Known) return new(null, [], ["hunt_observation_unknown"]);
-        if (nutritionNeeded <= 0) return new(null, [], ["no_nutrition_needed"]);
+        if (read is null || !read.Known) return new(null, [], null, ["hunt_observation_unknown"]);
+        if (nutritionNeeded <= 0) return new(null, [], null, ["no_nutrition_needed"]);
         // Only prey the food plan may send a hunt at: not designated or taken, still standing and food-yielding.
         var allowed = sources.Where(s => s.SquadPrey() && s.Food && !s.Downed).Select(s => s.Id).ToHashSet(StringComparer.Ordinal);
-        var (rosters, findings) = HuntAlternatives.Propose(read with { Prey = EquatableArray.From(read.Prey.Where(p => allowed.Contains(p.Pawn))) }, new HashSet<string>(StringComparer.Ordinal), routes);
-        if (rosters.Count == 0) return new(null, [], findings);
+        var observed = read with { Prey = EquatableArray.From(read.Prey.Where(p => allowed.Contains(p.Pawn) && !p.Downed && !p.Mental)) };
+        var busy = new HashSet<string>(StringComparer.Ordinal);
+        if (view.Anchor is not { } anchor) return Asked(observed, HuntAlternatives.Propose(observed, busy, routes), []);
+        var seen = anchor.Prey.Select(p => p.Pawn).ToHashSet(StringComparer.Ordinal);
+        var (rosters, findings) = HuntAlternatives.Propose(observed with { Prey = EquatableArray.From(observed.Prey.Where(p => seen.Contains(p.Pawn))) }, busy, routes);
+        // The restart names what drifted from the anchor, so a comparison that never completes says why.
+        HuntPlan Restarted(IEnumerable<string> drift) =>
+            Asked(observed, HuntAlternatives.Propose(observed, busy, routes), ["hunt_anchor_stale", "hunt_anchor_drift:" + string.Join(",", drift)]);
+        var preyDrift = HuntEncounterRequests.PreyDrift(anchor, read, allowed).ToList();
+        if (preyDrift.Count != 0) return Restarted(preyDrift);
+        if (!HuntEncounterRequests.StatesGunners(anchor, rosters)) return Restarted(HuntEncounterRequests.GunnerDrift(anchor, read, rosters));
+        if (rosters.Count == 0) return new(null, [], null, findings);
+        var pending = EquatableArray.From(findings.Append("hunt_estimates_pending"));
         var unanswered = Unanswered(rosters, view);
-        if (unanswered.Count != 0) return new(null, unanswered, EquatableArray.From(findings.Append("hunt_estimates_pending")));
+        if (unanswered.Count != 0) return new(null, unanswered, anchor, pending);
+        if (!HuntEncounterRequests.StillAnchored(anchor, read, rosters)) return Restarted(HuntEncounterRequests.GunnerDrift(anchor, read, rosters));
         var first = HuntAlternatives.Choose(read, rosters, view.Estimates, routes, nutritionNeeded);
         var second = HuntAlternatives.ProposeRetrieverStage(read, first);
         unanswered = Unanswered(second, view);
-        if (unanswered.Count != 0) return new(null, unanswered, EquatableArray.From(findings.Append("hunt_estimates_pending")));
+        if (unanswered.Count != 0) return new(null, unanswered, anchor, pending);
         var selection = second.Count == 0 ? first : HuntAlternatives.Choose(read, EquatableArray.From(rosters.Concat(second)), view.Estimates, routes, nutritionNeeded);
-        return new(selection, [], EquatableArray.From(findings.Concat(selection.Findings).Distinct(StringComparer.Ordinal)));
+        return new(selection, [], null, EquatableArray.From(findings.Concat(selection.Findings).Distinct(StringComparer.Ordinal)));
     }
 
+    /// <summary>A new comparison from <paramref name="observed"/>: every proposed scene is to be asked with it as the anchor; with nothing to propose there is no comparison and no anchor.</summary>
+    private static HuntPlan Asked(HuntActivityRead observed, (EquatableArray<HuntRoster> Rosters, EquatableArray<string> Findings) proposed, IEnumerable<string> why) =>
+        proposed.Rosters.Count == 0
+            ? new(null, [], null, EquatableArray.From(proposed.Findings.Concat(why)))
+            : new(null, Unanswered(proposed.Rosters, HuntEstimateView.None), observed, EquatableArray.From(proposed.Findings.Concat(why).Append("hunt_estimates_pending")));
+
     /// <summary>The rosters whose scene has neither an estimate nor a refusal, one per scene: a hauler's roster shares its gunners' scene.</summary>
-    private static EquatableArray<HuntRoster> Unanswered(IEnumerable<HuntRoster> rosters, HuntEstimateView view) =>
-        EquatableArray.From(rosters.Where(r => !view.Estimates.ContainsKey(r.SceneKey) && !view.Refusals.ContainsKey(r.SceneKey)).DistinctBy(r => r.SceneKey, StringComparer.Ordinal));
+    private static EquatableArray<HuntRoster> Unanswered(IEnumerable<HuntRoster> rosters, HuntEstimateView answers) =>
+        EquatableArray.From(rosters.Where(r => !answers.Estimates.ContainsKey(r.SceneKey) && !answers.Refusals.ContainsKey(r.SceneKey)).DistinctBy(r => r.SceneKey, StringComparer.Ordinal));
 
     /// <summary>
     /// The formation channel of the chosen roster: its estimated meat (already net of the samples in which the prey was

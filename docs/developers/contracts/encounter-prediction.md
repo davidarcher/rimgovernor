@@ -170,8 +170,10 @@ consequences, unsupported/unavailable replies and qualification scope.
 
 The implementation was qualified at bounded runtime under the limits above (#3129),
 and the hunt comparison consumes its estimates through the background
-`HuntEstimateService` (#3130). Engine startup or interface compilation alone was
-never that bar.
+`HuntEstimateService` (#3130), every scene of a comparison built from the one hunt read the
+comparison is anchored to and usable while that anchor still describes the colony (#3525,
+[forecast contracts](forecast-contracts.md#coherent-coupled-observation-frame)). Engine startup or
+interface compilation alone was never that bar.
 
 The local engine owns one arena map and settlement per request and disposes them
 before accepting the next request. Construction restarts at the same world tick;

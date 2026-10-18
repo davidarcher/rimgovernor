@@ -33,6 +33,8 @@ internal sealed class RoundsCensusStore
 
     /// <summary>The last hunt comparison, described for the review telemetry.</summary>
     internal string HuntNote = "";
+    /// <summary>The last restart of the hunt comparison: the review runs again at once over the emptied answers, so the note alone would not keep it.</summary>
+    internal string HuntRestart = "";
     internal ResourceSupplyState? Supply;
     internal ResourceSupplyKey SupplyKey;
     internal Fact<LayoutPlan> Layout;

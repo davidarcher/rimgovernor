@@ -49,7 +49,7 @@ public sealed partial class Rounder
             var seasonal = Seasonal(p.Facts);
             var trade = FoodTradeOf(p);
             var huntRead = p.Facts.ForecastObserved.Coupled?.Hunt;
-            var huntView = huntRead is not null && HuntEstimates is { } known ? known.Current(huntRead, p.Identity.Tick.Value) : HuntEstimateView.None;
+            var huntView = huntRead is not null && HuntEstimates is { } known ? known.Current(p.Identity.Tick.Value) : HuntEstimateView.None;
             if (s.FoodPlanFact.IsKnown && s.FoodGeneration == s.Generation && s.FoodOffers == trade.Revision
                 && s.FoodHunt == huntView.Revision && s.FoodMin == seasonal.FoodMinDays && s.FoodTarget == seasonal.FoodTargetDays && RoundsCensus.SameObservedIdentity(s.FoodIdentity, p.Identity)
                 && (!p.Acquisition.TryGetValue(out var sources) || HuntAdmission.Release(huntRead, sources).Length == 0))
@@ -57,7 +57,12 @@ public sealed partial class Rounder
                 return s.FoodPlanFact;
             }
 
-            var plan = ReviewFoodPlan(p, Policy, FoodCredit, HuntAdmission, trade, HuntEstimates, huntView, (h, released) => s.HuntNote = DescribeHuntPlan(h, released));
+            var plan = ReviewFoodPlan(p, Policy, FoodCredit, HuntAdmission, trade, HuntEstimates, huntView, (h, released) =>
+            {
+                s.HuntNote = DescribeHuntPlan(h, released);
+                // A restart that re-asks; a stale anchor with nothing to compare yet is only a finding of the note.
+                if (h.Unestimated.Count > 0 && h.Findings.FirstOrDefault(f => f.StartsWith("hunt_anchor_drift:", StringComparison.Ordinal)) is { } drift) s.HuntRestart = "tick=" + p.Identity.Tick.Value + " " + drift;
+            });
             if (plan.TryGetValue(out var v))
             {
                 HuntAdmission.Admit(HuntSquadRules.HuntRequest(Known(v)).Select(id => (Domain.PawnId)id));
@@ -187,9 +192,10 @@ partial class Rounder
         // The held formation stands until a release trigger; released, the plan's own choice is offered and the service re-asks what went stale.
         var (formation, released) = hunt.Formation(huntPlan.Channel(sources), huntPlan, sources, huntRead);
         onHunt?.Invoke(huntPlan, released);
-        if (huntRead is not null && huntPlan.Unestimated.Count > 0)
+        if (huntPlan.Unestimated.Count > 0 && huntPlan.Anchor is { } anchor)
         {
-            _ = estimates?.Request(huntRead, huntPlan.Unestimated, p.Identity.Tick.Value);
+            // The scenes are built from the comparison's anchor, not this round's read: the plan judged the anchor still describes it.
+            _ = estimates?.Request(anchor, huntPlan.Unestimated, p.Identity.Tick.Value);
         }
 
         channels.AddRange(HuntSquadRules.HuntCandidates(sources, gunners, formation, huntPlan.Awaiting));
