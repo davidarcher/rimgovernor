@@ -15,7 +15,7 @@ namespace RimGovernor.Brain.Acceptance;
 public static class CombatLabLayout
 {
     /// <summary>
-    /// Puts the fixture's layout, as a complete, verified defense layout record for the staged world, into the save's
+    /// Puts the fixture's layout, as a defense layout record with a built firing line for the staged world, into the save's
     /// governor state: the service rebuilds its family tables from the save on the world change, so combat reads it as
     /// the colony's standing layout. A row written into the journal before the serve was wiped by that rebuild. Returns
     /// the stored record.
@@ -36,7 +36,6 @@ public static class CombatLabLayout
             // Validate wants a tier; a fixture's structures are staged, not built by the planner, so its one tier names
             // no buildings.
             Tiers = [new DefenseTierRecord { Name = DefenseLayout.TierFiringLine, Built = true }],
-            Complete = true,
         };
         if (l.Choke is { } choke)
         {

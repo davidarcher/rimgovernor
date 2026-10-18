@@ -229,6 +229,11 @@ stays the only input.
   reconcile gates unstarted rooms on it. It is not saved: a restart or a world change empties it, and
   unstarted rooms place as before until the next comparison
   ([planned rooms](../architecture/portfolio-selection.md#planned-rooms)).
+- **Defense verification (memory only).** The Rounder remembers, per world (colony, load, map), whether
+  the `layout/defense` step verified the stored layout complete, at which tick and against which fight,
+  and when it last probed the turret siting (`Rounder.DefenseVerification`, #3008). It drives the Need's
+  Verified fact and the re-verify and siting cadence. It is not saved: a restart or a world change
+  empties it and the layout re-verifies. Combat does not read it.
 
 ## What is re-derived
 

@@ -180,9 +180,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
         if (stored && record.World != world)
         {
             // Another load or map: the Need's Method history (need_methods) is per load, so the unbuilt tiers'
-            // attempt counts restart with it, as they did with the retired Standard's per-load id.
+            // attempt counts restart with it, as they did with the retired Standard's per-load id. The in-memory
+            // verification is per world, so the layout re-verifies.
             record.World = world;
-            record.Complete = false;
             foreach (var t in record.Tiers)
             {
                 if (!t.Built)
@@ -192,7 +192,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
             }
             p.Journal.SaveDefenseLayout(record, call);
         }
-        if (stored && record.Complete && !DefenseReverifyDue(record, review.Tick, combat))
+        var verification = _reviewer.DefenseVerification;
+        var verified = verification.Get(world);
+        if (stored && verified.Complete && !DefenseReverifyDue(verified, review.Tick, combat))
         {
             return new RoundsDefenseLayoutResult { Verdict = BuildingReasonNoDeficit };
         }
@@ -203,8 +205,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         string[] definitions = [];
-        var siteDue = DefenseSitingDue(record, expected.Tick);
-        var replaceDue = DefenseReplaceDue(record, expected.Tick);
+        var siteDue = DefenseSitingDue(verified, expected.Tick);
+        var replaceDue = DefenseReplaceDue(record, verified, expected.Tick);
         if (!stored || siteDue || replaceDue)
         {
             definitions = DefenseExtraDefinitions;
@@ -230,23 +232,26 @@ public sealed partial class RoundsDefenseLayoutPlanner
             record = DefenseLayoutRecord.From(world, layout, entrances, killbox, digest);
             DefenseRecutPerimeter(record, cut);
             p.Journal.SaveDefenseLayout(record, call);
+            verification.Set(world, new DefenseVerified());
         }
         else if (DefenseRecutPerimeter(record, cut))
         {
             DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "perimeter_recut", "perimeter", new Dictionary<string, object?> { ["revision"] = record.PerimeterRevision }, call);
             p.Journal.SaveDefenseLayout(record, call);
+            verification.Update(world, v => v with { Complete = false });
         }
         var census = await ObserveTiersAsync(state, read, record, call).ConfigureAwait(false);
         var tick = read.Projection.Identity.Tick;
         pipe.Settle(census);
         if (!pipe.Piped() && definitions.Length > 0 && stored && siteDue)
         {
-            record.TurretsProbedTick = tick;
+            verification.Update(world, v => v with { TurretsProbed = tick });
             await SiteTiersAsync(state, read, record, census, call).ConfigureAwait(false);
             p.Journal.SaveDefenseLayout(record, call);
         }
         if (!pipe.Piped() && definitions.Length > 0 && stored && replaceDue)
         {
+            verification.Update(world, v => v with { TurretsProbed = tick });
             await ReplaceTurretAsync(state, read, record, call).ConfigureAwait(false);
         }
         var (retierResult, retierDone) = Retier(goal, state, read, record, call, epoch);
@@ -274,9 +279,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             }
             if (!ok)
             {
-                record.VerifiedTick = tick;
-                record.VerifiedCombat = combat;
-                p.Journal.SaveDefenseLayout(record, call);
+                verification.Update(world, v => v with { Tick = tick, Combat = combat });
                 return new RoundsDefenseLayoutResult { Verdict = spent, Tier = name.Value };
             }
             if (tier.Remove)
@@ -351,12 +354,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return new RoundsDefenseLayoutResult { Verdict = BuildingReasonExistingWork };
         }
-        record.Complete = true;
-        record.VerifiedTick = tick;
-        record.VerifiedCombat = combat;
+        verification.Update(world, v => v with { Complete = true, Tick = tick, Combat = combat });
         read.Projection.WorkPawns.TryGetValue(out var workers);
         var upkeep = DefenseRearm.DefenseRearmTurrets(DefenseTurretFactsOf(record, census), workers, read.Projection.Resources, DisasterRules.PowerOutageHold(read.Projection.Facts.DisasterConditions));
-        p.Journal.SaveDefenseLayout(record, call);
         if (upkeep.Rearm)
         {
             return Rearm();
@@ -411,8 +411,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return output;
     }
 
-    internal static bool DefenseSitingDue(DefenseLayoutRecord record, Tick tick) =>
-        record.TurretsProbedTick == default || tick.Value - record.TurretsProbedTick.Value >= DefenseReverifyTicks;
+    internal static bool DefenseSitingDue(DefenseVerified verified, Tick tick) =>
+        verified.TurretsProbed == default || tick.Value - verified.TurretsProbed.Value >= DefenseReverifyTicks;
 
     internal static DefenseRequest DefenseMortarRequest(RoundsReading read)
     {

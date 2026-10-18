@@ -234,8 +234,6 @@ public sealed class LayoutFamilyTests
             Firing = [new(1, 1)],
             Retreat = [new(1, 2)],
             Tiers = [new DefenseTierRecord { Name = DefenseLayout.TierFiringLine, Attempts = 2 }],
-            Complete = true,
-            VerifiedCombat = "plan-fight",
         }, ct);
         var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct));
 
@@ -250,11 +248,103 @@ public sealed class LayoutFamilyTests
         loaded.RebuildFamilies(saved, ct);
         var record = loaded.LoadDefenseLayout(world, ct);
         Assert.NotNull(record);
-        Assert.Equal(("killbox-1", true, "plan-fight"), (record.Killbox, record.Complete, record.VerifiedCombat));
+        Assert.Equal("killbox-1", record.Killbox);
         Assert.Equal(2, Assert.Single(record.Tiers).Attempts);
         var written = loaded.GovernorStateBlobs(ct)[Journal.GovernorDefenseLayoutKey];
         Assert.DoesNotContain("Standard", written, StringComparison.Ordinal);
         Assert.DoesNotContain("Episode", written, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The <c>family/defense_layout</c> blob round-trips unchanged through a save and a rebuild, and carries no
+    /// verification (#3008): Complete, VerifiedTick, VerifiedCombat and TurretsProbedTick live in the Rounder's memory,
+    /// and the tiers carry no Refused cells.
+    /// </summary>
+    [Fact]
+    public void TheDefenseLayoutBlobRoundTripsWithoutVerification()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var world = new RimGovernor.Brain.Store.World(World.Colony, World.Load, World.Map);
+        using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-defense-layout-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        source.SaveDefenseLayout(new DefenseLayoutRecord
+        {
+            World = world,
+            Killbox = "killbox-1",
+            KillboxDigest = "digest-1",
+            TrapLane = [new(4, 4), new(4, 5)],
+            Firing = [new(1, 1), new(2, 1)],
+            Retreat = [new(1, 2), new(2, 2)],
+            Entrances = [new(9, 9)],
+            Tiers =
+            [
+                new DefenseTierRecord
+                {
+                    Name = DefenseLayout.TierFiringLine, Attempts = 1, Built = true, Reopened = 1, Reserved = [new(3, 3)],
+                    Buildings = [new DefenseBuilding { Definition = "Barricade", Cell = new(1, 0), Rotation = Rotation.North, Stuff = "WoodLog" }],
+                },
+                new DefenseTierRecord { Name = new DefenseTierName("perimeter-ring"), Nodes = ["ring-1"], Remove = true, Bridge = "b", Foundation = true, Before = true },
+            ],
+            PerimeterKey = "key",
+            PerimeterRevision = 2,
+            PerimeterBridge = "bridge",
+        }, ct);
+        var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct));
+        var blob = saved[Journal.GovernorDefenseLayoutKey];
+        foreach (var gone in new[] { "Complete", "VerifiedTick", "VerifiedCombat", "TurretsProbedTick", "Refused" })
+        {
+            Assert.DoesNotContain(gone, blob, StringComparison.Ordinal);
+        }
+
+        using var loaded = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-defense-layout-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        loaded.RebuildOwners(null, ct);
+        loaded.RebuildFamilies(saved, ct);
+        var record = loaded.LoadDefenseLayout(world, ct);
+        Assert.NotNull(record);
+        Assert.Equal(("killbox-1", "digest-1", "key", 2, "bridge"), (record.Killbox, record.KillboxDigest, record.PerimeterKey, record.PerimeterRevision, record.PerimeterBridge));
+        Assert.Equal(new[] { new Cell(4, 4), new Cell(4, 5) }, record.TrapLane);
+        var firing = record.Tiers[0];
+        Assert.Equal((1, true, 1, "Barricade"), (firing.Attempts, firing.Built, firing.Reopened, Assert.Single(firing.Buildings).Definition));
+        var ring = record.Tiers[1];
+        Assert.Equal((true, "b", true, true, 0), (ring.Remove, ring.Bridge, ring.Foundation, ring.Before, ring.Buildings.Count));
+        Assert.Equal(blob, loaded.GovernorStateBlobs(ct)[Journal.GovernorDefenseLayoutKey]);
+    }
+
+    /// <summary>
+    /// Combat fights from the saved layout once its firing line stood in the last census, and its trap corridor too when
+    /// it has one (#3008): no verification is read. A combat fixture's one built firing-line tier passes.
+    /// </summary>
+    [Fact]
+    public void CombatFightsFromALayoutWhoseFiringLineIsBuilt()
+    {
+        DefenseTierRecord Firing(bool built) => new() { Name = DefenseLayout.TierFiringLine, Built = built };
+        DefenseTierRecord Corridor(bool built) => new()
+        {
+            Name = DefenseLayout.TierTrapCorridor, Built = built,
+            Buildings = [new DefenseBuilding { Definition = "TrapSpike", Cell = new(4, 4), Stuff = "WoodLog" }],
+        };
+        static DefenseLayoutRecord Layout(params DefenseTierRecord[] tiers) => new() { Firing = [new(1, 1)], Tiers = [.. tiers] };
+
+        Assert.True(Layout(Firing(true)).CombatReady());
+        Assert.False(Layout(Firing(false)).CombatReady());
+        Assert.False(Layout(Corridor(true)).CombatReady());
+        Assert.False(Layout(Firing(true), Corridor(false)).CombatReady());
+        Assert.True(Layout(Firing(true), Corridor(true)).CombatReady());
+        Assert.True(Layout(Firing(true), new DefenseTierRecord { Name = DefenseLayout.TierTrapCorridor }).CombatReady());
+    }
+
+    /// <summary>The defense verification is per world and in memory (#3008): another load or map sees none, so its layout re-verifies.</summary>
+    [Fact]
+    public void TheDefenseVerificationIsPerWorld()
+    {
+        var verification = new DefenseVerification();
+        var here = new RimGovernor.Brain.Store.World(World.Colony, World.Load, World.Map);
+        var reload = new RimGovernor.Brain.Store.World(World.Colony, new("reload"), World.Map);
+        verification.Update(here, v => v with { Complete = true, Tick = new(10), Combat = "plan-fight" });
+        Assert.True(verification.Get(here).Complete);
+        Assert.Equal(new DefenseVerified(), verification.Get(reload));
+        verification.Update(reload, v => v with { TurretsProbed = new(20) });
+        Assert.Equal(new DefenseVerified { TurretsProbed = new(20) }, verification.Get(reload));
+        Assert.False(verification.Get(here).Complete);
     }
 
     private sealed class Colony : IDisposable

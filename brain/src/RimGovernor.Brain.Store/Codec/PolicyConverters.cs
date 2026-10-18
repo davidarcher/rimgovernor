@@ -667,10 +667,6 @@ internal sealed class DefenseLayoutRecordConverter : ObjectCodec<DefenseLayoutRe
             Retreat = e.Get<List<Cell>>("Retreat", o),
             Entrances = e.Get<List<Cell>>("Entrances", o),
             Tiers = e.Get<List<DefenseTierRecord>>("Tiers", o),
-            Complete = e.Bool("Complete"),
-            VerifiedTick = e.Get<Tick>("VerifiedTick", o),
-            VerifiedCombat = e.Str("VerifiedCombat"),
-            TurretsProbedTick = e.Get<Tick>("TurretsProbedTick", o),
             PerimeterKey = e.Str("PerimeterKey"),
             PerimeterRevision = e.I32("PerimeterRevision"),
             PerimeterBridge = e.Str("PerimeterBridge"),
@@ -686,10 +682,6 @@ internal sealed class DefenseLayoutRecordConverter : ObjectCodec<DefenseLayoutRe
         w.Put("Retreat", v.Retreat, o);
         w.Put("Entrances", v.Entrances, o);
         w.Put("Tiers", v.Tiers, o);
-        w.WriteBoolean("Complete", v.Complete);
-        w.Put("VerifiedTick", v.VerifiedTick, o);
-        w.WriteString("VerifiedCombat", v.VerifiedCombat);
-        w.Put("TurretsProbedTick", v.TurretsProbedTick, o);
         w.WriteString("PerimeterKey", v.PerimeterKey);
         w.WriteNum("PerimeterRevision", v.PerimeterRevision);
         w.WriteString("PerimeterBridge", v.PerimeterBridge);
@@ -705,7 +697,6 @@ internal sealed class DefenseTierRecordConverter : ObjectCodec<DefenseTierRecord
             Name = e.Get<DefenseTierName>("Name", o),
             Nodes = e.Get<List<string>>("Nodes", o),
             Buildings = e.Get<List<DefenseBuilding>>("Buildings", o),
-            Refused = e.Get<List<Cell>>("Refused", o),
             Reserved = e.Get<List<Cell>>("Reserved", o),
             Attempts = e.I32("Attempts"),
             Built = e.Bool("Built"),
@@ -721,7 +712,6 @@ internal sealed class DefenseTierRecordConverter : ObjectCodec<DefenseTierRecord
         w.Put("Name", v.Name, o);
         w.Put("Nodes", v.Nodes, o);
         w.Put("Buildings", v.Buildings, o);
-        w.Put("Refused", v.Refused, o);
         w.Put("Reserved", v.Reserved, o);
         w.WriteNum("Attempts", v.Attempts);
         w.WriteBoolean("Built", v.Built);

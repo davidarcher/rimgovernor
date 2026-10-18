@@ -37,21 +37,17 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal static bool DefenseTurretReplacing(DefenseLayoutRecord record) =>
         record.Tiers.Any(t => t.Name.Value.StartsWith(DefenseTurretReplacePrefix, StringComparison.Ordinal));
 
-    internal static bool DefenseReplaceDue(DefenseLayoutRecord record, Tick tick)
+    internal static bool DefenseReplaceDue(DefenseLayoutRecord record, DefenseVerified verified, Tick tick)
     {
         var (turrets, _, ok) = record.Tier(DefenseTurretsPolicy.TierTurrets);
-        return ok && turrets.Built && turrets.Buildings.Count > 0 && !DefenseTurretReplacing(record)
-            && (record.TurretsProbedTick == default || tick.Value - record.TurretsProbedTick.Value >= DefenseReverifyTicks);
+        return ok && turrets.Built && turrets.Buildings.Count > 0 && !DefenseTurretReplacing(record) && DefenseSitingDue(verified, tick);
     }
 
     internal async Task ReplaceTurretAsync(ControlState state, RoundsReading read, DefenseLayoutRecord record, CancellationToken call)
     {
         var projection = read.Projection;
-        var journal = _reviewer.Player.Journal;
-        record.TurretsProbedTick = projection.Identity.Tick;
         if (!projection.Facts.Hostiles.TryGetValue(out var hostiles) || hostiles > 0)
         {
-            journal.SaveDefenseLayout(record, call);
             return;
         }
         var request = DefenseTurretRequest(read);
@@ -68,14 +64,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         if (standing.Count == 0 || !standing.Any(t => DefenseTurretsPolicy.TurretRank(t.Building.Definition) < DefenseTurretsPolicy.TurretRank(request.Turret.Definition)))
         {
-            journal.SaveDefenseLayout(record, call);
             return;
         }
         var identity = Boundary.Identity(state.Snapshot);
         var (killbox, region, home, ok) = DefenseKillbox(projection);
         if (!ok)
         {
-            journal.SaveDefenseLayout(record, call);
             return;
         }
         var site = await DefenseSiteAsync(identity, projection, region, call).ConfigureAwait(false);
@@ -95,7 +89,6 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             if (DefenseTurretsPolicy.TurretReplacement(request, DefenseRecordGeometry(record, killbox), standing) is not { } found)
             {
-                journal.SaveDefenseLayout(record, call);
                 return;
             }
             old = found.Old;
@@ -103,12 +96,11 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         catch (DomainException)
         {
-            journal.SaveDefenseLayout(record, call);
             return;
         }
         ApplyTurretReplacement(record, old, replacement, standing, request.Turret.Size);
         DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "turret_replace", request.Turret.Definition, new Dictionary<string, object?> { ["x"] = old.Cell.X, ["z"] = old.Cell.Z }, call);
-        journal.SaveDefenseLayout(record, call);
+        _reviewer.Player.Journal.SaveDefenseLayout(record, call);
     }
 
     internal static void ApplyTurretReplacement(DefenseLayoutRecord record, Building old, Building replacement, IReadOnlyList<StandingTurret> standing, Bounds size)
@@ -217,8 +209,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
         };
     }
 
-    internal static bool DefenseReverifyDue(DefenseLayoutRecord record, Tick tick, string combat) =>
-        combat != record.VerifiedCombat || tick.Value - record.VerifiedTick.Value >= DefenseReverifyTicks;
+    internal static bool DefenseReverifyDue(DefenseVerified verified, Tick tick, string combat) =>
+        combat != verified.Combat || tick.Value - verified.Tick.Value >= DefenseReverifyTicks;
 
     /// <summary>The plan of the map's latest fight (<c>engage-&lt;map&gt;</c>'s latest attempt), or empty when there is none.</summary>
     internal static string DefenseCombatKey(Player p, RoundsReview review, CancellationToken ct)
@@ -393,20 +385,23 @@ public sealed partial class RoundsDefenseLayoutPlanner
 partial class RoundsDefenseLayoutPlanner
 {
     /// <summary>
-    /// The layout/defense Need's facts, read from the journal alone (#3314): the stored layout of this world, whether
-    /// it was verified complete at the map's latest fight within the re-verify window, and whether an open fight
-    /// waits in rooms to harden. Combat is read as facts only; no combat Need gates the layout.
+    /// The layout/defense Need's facts (#3314): the stored layout of this world, whether the step verified it complete
+    /// in this process (the Rounder's in-memory verification, #3008) at the map's latest fight within the re-verify
+    /// window, and whether an open fight waits in rooms to harden. Combat is read as facts only; no combat Need gates
+    /// the layout.
     /// </summary>
-    internal static DefenseLayoutFacts DefenseLayoutFactsOf(Player p, RoundsReview review, CancellationToken ct)
+    internal static DefenseLayoutFacts DefenseLayoutFactsOf(Rounder reviewer, RoundsReview review, CancellationToken ct)
     {
+        var p = reviewer.Player;
         var world = new StoreWorld { Colony = review.Snapshot.Colony, Load = review.Snapshot.Load, Map = review.Snapshot.Map };
         var record = p.Journal.LoadDefenseLayout(world, ct);
         var current = record is not null && record.Killbox != "" && record.World == world;
+        var verified = reviewer.DefenseVerification.Get(world);
         var combat = RoundsDefenseLayoutPlanner.DefenseCombatKey(p, review, ct);
         return new DefenseLayoutFacts
         {
-            Standing = current && record!.Standing(),
-            Verified = current && combat != "" && record!.Complete && !RoundsDefenseLayoutPlanner.DefenseReverifyDue(record, review.Tick, combat),
+            Standing = current && verified.Complete && record!.AllBuilt(),
+            Verified = current && combat != "" && verified.Complete && !RoundsDefenseLayoutPlanner.DefenseReverifyDue(verified, review.Tick, combat),
             WaitingFight = DefenseWaitingFight(p.Journal, world, ct) is not null,
         };
     }

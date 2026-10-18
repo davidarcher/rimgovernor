@@ -63,8 +63,65 @@ internal sealed class TradeReviewMemory
     }
 }
 
+/// <summary>What the <c>layout/defense</c> Need's step last verified of the stored layout (#3008).</summary>
+internal sealed record DefenseVerified
+{
+    /// <summary>The step found every tier admitted and none owed, at <see cref="Tick"/>.</summary>
+    public bool Complete { get; init; }
+
+    /// <summary>When the step last verified the layout or spent a tier's refusal budget: the re-verify window starts here.</summary>
+    public Tick Tick { get; init; }
+
+    /// <summary>The map's latest fight plan at <see cref="Tick"/>; a newer fight makes the layout re-verify.</summary>
+    public string Combat { get; init; } = "";
+
+    /// <summary>When the step last probed the turret and mortar siting or a turret replacement; the default probes at once.</summary>
+    public Tick TurretsProbed { get; init; }
+}
+
+/// <summary>
+/// The defense layout's verification per world (#3008): derived state the Rounder keeps in memory, empty after a restart
+/// and for another world (colony, load, map), so the stored layout re-verifies and its siting is probed again.
+/// </summary>
+internal sealed class DefenseVerification
+{
+    private readonly object _mu = new();
+    private StoreWorld _world;
+    private DefenseVerified _value = new();
+
+    public DefenseVerified Get(StoreWorld world)
+    {
+        lock (_mu)
+        {
+            return _world != world ? new DefenseVerified() : _value;
+        }
+    }
+
+    public void Set(StoreWorld world, DefenseVerified value)
+    {
+        lock (_mu)
+        {
+            _world = world;
+            _value = value;
+        }
+    }
+
+    /// <summary>Applies <paramref name="change"/> to the world's verification.</summary>
+    public void Update(StoreWorld world, Func<DefenseVerified, DefenseVerified> change)
+    {
+        lock (_mu)
+        {
+            _value = change(_world != world ? new DefenseVerified() : _value);
+            _world = world;
+        }
+    }
+}
+
 public sealed partial class Rounder
 {
+    /// <summary>The defense layout's in-memory verification (#3008), read and written by the <c>layout/defense</c> Need.</summary>
+    internal DefenseVerification DefenseVerification { get; } = new();
+
     /// <summary>The latest review's trade measures, read by the economy family's trade and caravan Needs (#3316).</summary>
     internal TradeReviewMemory TradeMemory { get; } = new();
 

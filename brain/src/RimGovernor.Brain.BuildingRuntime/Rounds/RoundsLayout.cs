@@ -141,7 +141,7 @@ public sealed partial class LayoutRounds
         }
         if (_defense is not null)
         {
-            facts = facts with { Defense = Known(RoundsDefenseLayoutPlanner.DefenseLayoutFactsOf(_reviewer.Player, review, ct)) };
+            facts = facts with { Defense = Known(RoundsDefenseLayoutPlanner.DefenseLayoutFactsOf(_reviewer, review, ct)) };
         }
         return facts;
     }

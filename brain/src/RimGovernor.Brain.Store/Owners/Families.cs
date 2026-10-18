@@ -33,9 +33,6 @@ public sealed record DefenseTierRecord
 
     public List<DefenseBuilding> Buildings { get; set; } = [];
 
-    /// <summary>The cells of a node-backed tier the game refused to build on.</summary>
-    public List<Cell> Refused { get; set; } = [];
-
     public List<Cell> Reserved { get; set; } = [];
 
     /// <summary>The count of the <c>layout/defense</c> Need's admitted Methods for the tier in the record's load: the tier's next MethodId.</summary>
@@ -66,7 +63,8 @@ public sealed record DefenseTierRecord
 /// <see cref="Killbox"/> with a digest of its footprint. The Need's attempts are counted per tier
 /// (<see cref="DefenseTierRecord.Attempts"/>) for the load in <see cref="World"/>: a reload restarts the unbuilt
 /// tiers' count with the Need's Method history. An older save's <c>Standard</c> and <c>Episode</c> fields are read
-/// and ignored.
+/// and ignored. Whether the layout was verified complete is not stored: the Rounder keeps it in memory per world
+/// (#3008), so a restart re-verifies.
 /// </summary>
 public sealed record DefenseLayoutRecord
 {
@@ -90,14 +88,6 @@ public sealed record DefenseLayoutRecord
 
     public List<DefenseTierRecord> Tiers { get; set; } = [];
 
-    public bool Complete { get; set; }
-
-    public Tick VerifiedTick { get; set; }
-
-    public string VerifiedCombat { get; set; } = "";
-
-    public Tick TurretsProbedTick { get; set; }
-
     public string PerimeterKey { get; set; } = "";
 
     public int PerimeterRevision { get; set; }
@@ -115,8 +105,8 @@ public sealed record DefenseLayoutRecord
             "defense layout geometry out of bounds"
         );
         DomainException.Require(
-            VerifiedTick.Value >= 0 && TurretsProbedTick.Value >= 0 && VerifiedCombat.Length <= 512 && PerimeterKey.Length <= 128 && PerimeterRevision >= 0 && PerimeterBridge.Length <= 64 && Killbox.Length <= 128 && KillboxDigest.Length <= 64,
-            "defense layout verification invalid"
+            PerimeterKey.Length <= 128 && PerimeterRevision >= 0 && PerimeterBridge.Length <= 64 && Killbox.Length <= 128 && KillboxDigest.Length <= 64,
+            "defense layout identity invalid"
         );
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var tier in Tiers)
@@ -127,7 +117,6 @@ public sealed record DefenseLayoutRecord
                 && (tier.NodeBacked || tier.Buildings.Count <= 512)
                 && tier.Reserved.Count <= 512
                 && tier.Nodes.Count <= 256
-                && tier.Refused.Count <= 512
                 && tier.Attempts is >= 0 and <= 64
                 && tier.Reopened is >= 0 and <= 4096;
             DomainException.Require(ok, "defense layout tier invalid");
@@ -204,11 +193,18 @@ public sealed record DefenseLayoutRecord
         }
     }
 
+    /// <summary>Whether every tier with placements stood in the last census; with the in-memory verification, the state in which the Need has no deficit.</summary>
+    public bool AllBuilt() => Tiers.All(t => !Placed(t) || t.Built);
+
     /// <summary>
-    /// Whether the layout was verified complete and every tier placed since still stands in the last census: the
-    /// state in which the goal has no deficit for development arbitration.
+    /// Whether combat may fight from the layout: the firing-line tier stood in the last census, as did the trap
+    /// corridor when the layout has one with placements. A combat fixture stages one built firing-line tier.
     /// </summary>
-    public bool Standing() => Complete && Tiers.All(t => !((t.Buildings.Count > 0 || t.NodeBacked) && !t.Built));
+    public bool CombatReady() =>
+        Tiers.Any(t => t.Name == DefenseLayout.TierFiringLine && t.Built)
+        && Tiers.All(t => t.Name != DefenseLayout.TierTrapCorridor || !Placed(t) || t.Built);
+
+    private static bool Placed(DefenseTierRecord t) => t.Buildings.Count > 0 || t.NodeBacked;
 
     /// <summary>Replaces the named tier's record in place; unknown names are ignored.</summary>
     public void SetTier(DefenseTierRecord tier)

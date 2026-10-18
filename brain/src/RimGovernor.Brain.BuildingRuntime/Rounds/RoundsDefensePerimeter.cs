@@ -114,7 +114,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         foreach (var b in section.Buildings)
         {
-            if (!taken.Contains(b.Cell) && !tier.Refused.Contains(b.Cell))
+            if (!taken.Contains(b.Cell))
             {
                 output.Add(DefenseStored(b));
             }
@@ -425,7 +425,6 @@ public sealed partial class RoundsDefenseLayoutPlanner
         tiers.AddRange(removals[1, 0]);
         tiers.AddRange(removals[1, 1]);
         record.Tiers = tiers;
-        record.Complete = false;
         DefenseHydrate(record, cut);
         record.Tiers.RemoveAll(t => t.Remove && t.NodeBacked && t.Buildings.Count == 0);
         record.Validate();

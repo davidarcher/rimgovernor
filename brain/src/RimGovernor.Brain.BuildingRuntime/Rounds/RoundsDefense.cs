@@ -196,7 +196,7 @@ public sealed partial class RoundsDefensePlanner
         }
         var layout = p.Journal.LoadDefenseLayout(new StoreWorld { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map }, call);
         var held = Unknown<CombatLayout>();
-        if (layout is { Complete: true })
+        if (layout is not null && layout.CombatReady())
         {
             if (p.Journal.LayoutPlan(state.Snapshot, new Tick(combat.Context?.Tick ?? 0), call) is { Plan: { } layoutPlan })
             {

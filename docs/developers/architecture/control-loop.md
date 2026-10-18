@@ -342,8 +342,10 @@ are deleted.
 
 **Layout family, defense (#3314).** `layout/defense` (Development) replaced
 EnsureDefensiveLayout, composed by the `defensive-layout` toggle. It is met while
-the stored layout (`family/defense_layout`) was verified complete in this load,
-at the map's latest fight and within the re-verify window, and no open fight
+the stored layout (`family/defense_layout`) was verified complete in this
+process and world, at the map's latest fight and within the re-verify window
+(the verification and the siting probe's tick are the Rounder's in-memory
+`DefenseVerification`, never saved, #3008: a restart re-verifies), and no open fight
 waits in rooms to harden. Otherwise it is unmet; its deficit is 0 while every
 tier stands and 1 while a tier is owed. It is unknown while the journal facts
 are unread. The family reads combat as facts only (the military/combat Need's
@@ -355,7 +357,9 @@ tier at a time (`defense-<tier>-[r<n>-]<attempt>`, `defense-cover-<tick>`,
 admitted by claims (FoundationRemoval claims `foundation/x/z`, Excavation
 `dig/x/z`). Tier attempts stay in the record and restart for unbuilt tiers when
 the record is from another load or map, as the Need's per-load Method history
-does. An older save's `Standard` and `Episode` record fields are read and
+does. Combat fights from the saved layout once its firing-line tier, and its
+trap corridor when it has one, stood in the last census; it reads no
+verification. An older save's `Standard` and `Episode` record fields are read and
 ignored. The ConcernId, its inspection and detector, `RoundsPolicy.DefensiveLayout`,
 `RoundsFacts.DefensiveLayoutStanding`, the deficit branch and the clock slot are
 deleted.
