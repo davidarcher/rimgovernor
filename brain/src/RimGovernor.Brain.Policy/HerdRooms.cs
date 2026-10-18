@@ -152,7 +152,7 @@ public static class HerdRoomsRules
                     Kind = HerdStepKind.Reconcile,
                     Role = LayoutSurveyRules.PlannedHospital,
                     Room = room,
-                    Template = furnishing.Pieces,
+                    Template = HerdWardRules.HospitalFurnishing(room, rooms.Shapes, f.Bed, ward, built).Pieces,
                 };
             }
             ward -= Math.Min(ward, furnishing.Pieces.Count);

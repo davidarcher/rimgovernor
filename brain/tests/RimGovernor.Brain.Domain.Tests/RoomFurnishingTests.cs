@@ -64,6 +64,60 @@ public sealed class RoomFurnishingTests
     private static CurrentBuilding StandingAt(WantedPiece p) =>
         Standing(p.DefName, p.Minimum.X, p.Minimum.Z, p.Maximum.X - p.Minimum.X + 1, p.Maximum.Z - p.Minimum.Z + 1);
 
+    private static PieceShapes HospitalShapes => new()
+    {
+        Defs = new Dictionary<string, InteriorPieceDef>
+        {
+            [Bed] = BedShape,
+            ["VitalsMonitor"] = new("VitalsMonitor", new Cell(1, 1), RoomRole.Hospital, null),
+            ["AnimalBed"] = new("AnimalBed", new Cell(1, 1), RoomRole.None, null),
+        },
+        Furniture = new RoomFurniture
+        {
+            Beds = [new FurnitureBed { Def = Bed, Slots = 1 }],
+            Monitor = new FacilityLink { Def = "VitalsMonitor" },
+        },
+    };
+
+    private static PlannedRoom HospitalRoom() => new()
+    {
+        Id = 2,
+        Role = LayoutSurveyRules.PlannedHospital,
+        Region = RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 7, Height = 5 }),
+        Door = new Cell(12, 9),
+        DoorRot = Rotation.South,
+    };
+
+    [Fact]
+    public void AHospitalListsEachStandingPieceOnceWhereItStandsWithAWard()
+    {
+        var room = HospitalRoom();
+        var (interior, ok) = InteriorRules.InteriorRoomFromLayout(room, HospitalShapes);
+        Assert.True(ok);
+        var wants = RoomFurnishingRules.FacilityWants(interior!);
+        Assert.Contains(wants, w => w.Things.Contains(Bed));
+        Assert.Contains(wants, w => w.Things.Contains("VitalsMonitor"));
+        var planned = InteriorRegionRules.PlanRoomInterior(interior!, new InteriorPieceDef()).Plan.Pieces;
+        var hospitalBed = planned.First(p => p.Def == Bed);
+        var monitor = planned.First(p => p.Def == "VitalsMonitor");
+        var built = new[]
+        {
+            Standing(Bed, hospitalBed.Rect.X, hospitalBed.Rect.Z, hospitalBed.Rect.Width, hospitalBed.Rect.Height),
+            Standing("VitalsMonitor", monitor.Rect.X, monitor.Rect.Z),
+        };
+
+        // The same defs as the ward's bed: the one standing bed is listed once.
+        var both = HerdWardRules.HospitalFurnishing(room, HospitalShapes, BedShape, 1, built);
+        Assert.Equal(1, both.Pieces.Count(p => p.DefName == Bed));
+        Assert.Equal(1, both.Pieces.Count(p => p.DefName == "VitalsMonitor"));
+        Assert.Equal(both.Pieces.Count, both.Pieces.Select(p => (p.DefName, p.Minimum)).Distinct().Count());
+
+        // A facility list alone names the standing pieces and asks for nothing.
+        var alone = RoomFurnishingRules.RoomFurnishing(room, null, wants, built);
+        Assert.Equal(2, alone.Pieces.Count);
+        Assert.False(alone.Absent);
+    }
+
     [Fact]
     public void AFreshBedroomListsTheBedroomTemplateBed()
     {

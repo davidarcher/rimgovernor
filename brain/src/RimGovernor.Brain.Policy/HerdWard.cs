@@ -274,5 +274,24 @@ public static class HerdWardRules
     /// they stand, the missing ones in the first free ward slots. Absent reports a planned bed the room lacks.
     /// </summary>
     internal static Furnishing WardFurnishing(PlannedRoom room, PieceShapes shapes, InteriorPieceDef bed, int quota, IReadOnlyList<CurrentBuilding> built) =>
-        RoomFurnishingRules.RoomFurnishing(room, null, [new FurnishingWant { Things = [bed.Def], Count = quota, Piece = bed, Slots = WardSlots(room, shapes, bed) }], built);
+        RoomFurnishingRules.RoomFurnishing(room, null, [WardWant(room, shapes, bed, quota)], built);
+
+    /// <summary>
+    /// Everything the hospital room is furnished with: the ward beds, then the hospital template's own standing
+    /// pieces. A building is listed once, under the first want that takes it, so a bed both lists name is the ward's.
+    /// </summary>
+    internal static Furnishing HospitalFurnishing(PlannedRoom room, PieceShapes shapes, InteriorPieceDef bed, int quota, IReadOnlyList<CurrentBuilding> built)
+    {
+        var (inner, ok) = InteriorRules.InteriorRoomFromLayout(room, shapes);
+        var wants = new List<FurnishingWant> { WardWant(room, shapes, bed, quota) };
+        if (ok && inner is not null)
+        {
+            wants.AddRange(RoomFurnishingRules.FacilityWants(inner));
+        }
+
+        return RoomFurnishingRules.RoomFurnishing(room, null, wants, built);
+    }
+
+    private static FurnishingWant WardWant(PlannedRoom room, PieceShapes shapes, InteriorPieceDef bed, int quota) =>
+        new() { Things = [bed.Def], Count = quota, Piece = bed, Slots = WardSlots(room, shapes, bed) };
 }
