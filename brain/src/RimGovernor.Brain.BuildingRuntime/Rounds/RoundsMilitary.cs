@@ -102,14 +102,19 @@ public sealed class MilitaryRounds
         var facts = new MilitaryFacts();
         if (_defense || _training || _equipment)
         {
-            var reading = _training
-                ? await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), TrainingDefinitions, call).ConfigureAwait(false)
-                : await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), call).ConfigureAwait(false);
+            RoundsReading reading;
+            using (Tel.Phase("military.observe"))
+            {
+                reading = _training
+                    ? await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), TrainingDefinitions, call).ConfigureAwait(false)
+                    : await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), call).ConfigureAwait(false);
+            }
             var f = reading.Projection.Facts;
             var emergency = EmergencySnapshot.New(scope.World, expected.Tick, reading.Emergency);
             if (_equipment)
             {
                 // The crafting spot owed down and the shell review, as the review derives them.
+                using var armory = Tel.Phase("military.armory");
                 var retire = await _reviewer.CraftingSpotRetireOwedAsync(scope.World, reading.Projection, call).ConfigureAwait(false);
                 var shells = await RoundsArmoryShells.ShellTargetsAsync(_reviewer.Native, _reviewer.Player.Journal, scope.World, reading.Projection, call).ConfigureAwait(false);
                 f = f with { CraftingSpotRetireOwed = retire, ShellsShort = ArmoryShellsRules.ShellsShort(shells, reading.Projection.Resources) };
@@ -118,10 +123,12 @@ public sealed class MilitaryRounds
         }
         if (_pests)
         {
+            using var pests = Tel.Phase("military.pests");
             facts = await PestFactsAsync(scope.World, review, facts, call).ConfigureAwait(false);
         }
         if (_restoreWorkers || _combat)
         {
+            using var restore = Tel.Phase("military.restore");
             facts = await RestoreFactsAsync(scope.World, facts, call).ConfigureAwait(false);
         }
         return facts;
@@ -163,7 +170,12 @@ public sealed class MilitaryRounds
     private async Task<MilitaryFacts> PestFactsAsync(GenerationSnapshot world, RoundsReview review, MilitaryFacts facts, CancellationToken call)
     {
         var journal = _reviewer.Player.Journal;
-        var (_, projection) = await _reviewer.AcquisitionReadingAsync(world, review, call).ConfigureAwait(false);
+        ColonyProjection projection;
+        using (Tel.Phase("military.pests.projection"))
+        {
+            (_, projection) = await _reviewer.AcquisitionReadingAsync(world, review, call).ConfigureAwait(false);
+        }
+        using var select = Tel.Phase("military.pests.select");
         var wild = projection.Facts.AnimalUpkeep.WildAnimals;
         var pests = PestRules.PestCensus(wild);
         var owner = journal.LoadNeed(MilitaryFamily.Pests, world, call);
@@ -248,10 +260,12 @@ public sealed class MilitaryRounds
         var verdicts = new List<Verdict>();
         if (_armory is not null)
         {
+            using var armory = Tel.Phase("military.equipment.armory");
             verdicts.Add(await _armory.PlaceCraftingSpotAsync(work.Arbiter!, call, work.Epoch).ConfigureAwait(false));
         }
         if (_workshop is not null)
         {
+            using var workshop = Tel.Phase("military.equipment.workshop");
             var result = await _workshop.Copy().StepAsync(work.Arbiter!, call, work.Epoch).ConfigureAwait(false);
             verdicts.Add(result.Decision?.Admitted == true ? BuildingReasonAdmitted : result.Verdict);
         }

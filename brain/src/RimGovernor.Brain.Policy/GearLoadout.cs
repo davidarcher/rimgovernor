@@ -464,9 +464,11 @@ public static class GearLoadoutRules
         return medic;
     }
 
-    internal static bool GearEligible(GearLoadoutInput p, GearOption o)
+    internal static bool GearEligible(GearLoadoutInput p, GearOption o) => GearEligible(p, DeriveGearRole(p.Role), o);
+
+    /// <summary><see cref="GearEligible(GearLoadoutInput, GearOption)"/> for a pawn whose <paramref name="role"/> is already derived.</summary>
+    private static bool GearEligible(GearLoadoutInput p, GearRole role, GearOption o)
     {
-        var role = DeriveGearRole(p.Role);
         var def = o.Definition.Value ?? "";
         var kid = def.StartsWith("Kid", StringComparison.Ordinal) || def.StartsWith("Apparel_Kid", StringComparison.Ordinal);
         if ((role == GearRole.Child) != kid)
@@ -557,10 +559,9 @@ public static class GearLoadoutRules
         return false;
     }
 
-    private static double GearItemScore(GearLoadoutInput p, GearOption o)
+    private static double GearItemScore(GearRole role, GearOption o)
     {
         var (a, _) = GearQualityMultipliers(o.Quality);
-        var role = DeriveGearRole(p.Role);
         if (GearConstrained(role))
         {
             return o.Condition <= GearRules.GearTatteredCondition ? -20 : 0;
@@ -612,13 +613,13 @@ public static class GearLoadoutRules
     /// Ranks an ensemble for the constraint mode: minus a dominating penalty for uncovered legs or torso, and minus
     /// tattered items; ties keep worn gear, then stable item identity. Warmth is the insulation floor's.
     /// </summary>
-    private static double GearConstrainedScore(GearLoadoutInput p, IReadOnlyList<GearOption> items)
+    private static double GearConstrainedScore(GearLoadoutInput p, GearRole role, IReadOnlyList<GearOption> items)
     {
         var score = 0.0;
         var dressed = false;
         foreach (var o in items)
         {
-            score += GearItemScore(p, o);
+            score += GearItemScore(role, o);
             dressed = dressed || (o.Slot != GearSlot.Belt && o.Slot != GearSlot.Headgear);
         }
         if (p.Nudist)
@@ -671,18 +672,18 @@ public static class GearLoadoutRules
         return Math.Round(Short(floor.Cold - cold) + Short(floor.Heat - heat), 6);
     }
 
-    private static double GearEnsembleScore(GearLoadoutInput p, IReadOnlyList<GearOption> items)
+    private static double GearEnsembleScore(GearLoadoutInput p, GearRole role, IReadOnlyList<GearOption> items)
     {
-        if (GearConstrained(DeriveGearRole(p.Role)))
+        if (GearConstrained(role))
         {
-            return GearConstrainedScore(p, items);
+            return GearConstrainedScore(p, role, items);
         }
         var score = 0.0;
         var dressed = false;
         var (legs, chest) = GearCoverage(items);
         foreach (var o in items)
         {
-            score += GearItemScore(p, o);
+            score += GearItemScore(role, o);
             dressed = dressed || (o.Slot != GearSlot.Belt && o.Slot != GearSlot.Headgear && o.Slot != GearSlot.Primary);
         }
         if (p.Nudist)
@@ -758,7 +759,7 @@ public static class GearLoadoutRules
             {
                 locked.Add(o);
             }
-            if (o.Source == GearSource.Worn || GearEligible(p, o))
+            if (o.Source == GearSource.Worn || GearEligible(p, role, o))
             {
                 if (!bySlot.TryGetValue(o.Slot, out var list))
                 {
@@ -773,7 +774,7 @@ public static class GearLoadoutRules
             return GearShortfall(limit, c, h);
         }
         var best = new List<GearOption>(p.Worn);
-        var bestScore = GearEnsembleScore(p, best);
+        var bestScore = GearEnsembleScore(p, role, best);
         var bestShort = Shortfall(best);
         // All ensemble adjustments are penalties, so remaining positive item scores form an admissible upper
         // bound for pruning the exact search; the most insulation each remaining slot offers bounds the shortfall.
@@ -785,7 +786,7 @@ public static class GearLoadoutRules
             var (c, h) = (0.0, 0.0);
             foreach (var o in bySlot.GetValueOrDefault(GearSlots[i]) ?? [])
             {
-                m = Math.Max(m, GearItemScore(p, o));
+                m = Math.Max(m, GearItemScore(role, o));
                 var (oc, oh) = GearItemInsulation(o);
                 (c, h) = (Math.Max(c, oc), Math.Max(h, oh));
             }
@@ -828,7 +829,7 @@ public static class GearLoadoutRules
                         return;
                     }
                 }
-                var score = GearEnsembleScore(p, chosen);
+                var score = GearEnsembleScore(p, role, chosen);
                 var shortfall = GearShortfall(limit, cold, heat);
                 if (shortfall < bestShort || (shortfall == bestShort && (score > bestScore || (score == bestScore && GearPurchases(chosen) < GearPurchases(best)))))
                 {
@@ -865,7 +866,7 @@ public static class GearLoadoutRules
                 {
                     chosen.Add(o);
                     var (oc, oh) = GearItemInsulation(o);
-                    Visit(index + 1, raw + GearItemScore(p, o), cold + oc, heat + oh);
+                    Visit(index + 1, raw + GearItemScore(role, o), cold + oc, heat + oh);
                     chosen.RemoveAt(chosen.Count - 1);
                 }
             }
@@ -875,6 +876,13 @@ public static class GearLoadoutRules
             }
         }
         Visit(0, 0, 0, 0);
+        if (System.Diagnostics.Activity.Current is { OperationName: "gear.loadout" } span)
+        {
+            span.SetTag("rimgovernor.nodes", nodes);
+            span.SetTag("rimgovernor.options", options.Count);
+            span.SetTag("rimgovernor.eligible", bySlot.Values.Sum(l => l.Count));
+            span.SetTag("rimgovernor.slots", string.Join(",", bySlot.OrderBy(kv => (int)kv.Key).Select(kv => kv.Key + "=" + kv.Value.Count)));
+        }
         var gaps = new List<GearGap>();
         foreach (var o in best)
         {
@@ -905,7 +913,7 @@ public static class GearLoadoutRules
             }
             gaps.Add(new GearGap
             {
-                Slot = o.Slot, Wanted = o, Source = o.Source, Gain = bestScore - GearEnsembleScore(p, alternative), Floor = Shortfall(alternative) > bestShort,
+                Slot = o.Slot, Wanted = o, Source = o.Source, Gain = bestScore - GearEnsembleScore(p, role, alternative), Floor = Shortfall(alternative) > bestShort,
             });
         }
         var sorted = gaps.OrderByDescending(g => g.Gain).ThenBy(g => Wire.Name(g.Slot), StringComparer.Ordinal).ToList();
@@ -986,6 +994,9 @@ public static class GearLoadoutRules
         return v with { Pawns = pawns };
     }
 
+    // Each pawn's search span, under the scope prefix the trace listener samples.
+    private static readonly System.Diagnostics.ActivitySource s_spans = new("github.com/davidarcher/RimGovernor/policy");
+
     /// <summary>
     /// Allocates physical supplies once in stable pawn order. Bill options remain reusable; their resulting quantities are
     /// aggregated separately. Each pawn plans inside its outfit filter (GearPawn.AllowTainted) and above its insulation floor
@@ -1015,6 +1026,7 @@ public static class GearLoadoutRules
             input = input with { Options = EquatableArray.From(input.Options.Where(o => o.Source == GearSource.Bill || !used.Contains(o.ID))) };
             // The pawn's outfit filter: tainted apparel is out unless the comparator allowed it (DesiredApparelPolicy).
             var (cold, heat) = GearInsulation(input.Worn);
+            using var span = s_spans.StartActivity("gear.loadout");
             var l = PlanGearLoadout(input, p.AllowTainted ? null : o => o.Tainted, (p.ColdFloor ?? cold, p.HeatFloor ?? heat)) with { Pawn = p.Pawn };
             @out.Add(l);
             foreach (var g in l.Gaps)

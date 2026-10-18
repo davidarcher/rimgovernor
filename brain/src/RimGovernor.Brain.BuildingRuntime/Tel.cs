@@ -66,6 +66,39 @@ internal static class Tel
 
     public static void EndSpan(Activity? span, Exception? error = null) => Spans.EndSpan(span, error);
 
+    /// <summary>Tags <paramref name="span"/> with the reads <paramref name="tally"/> counted, their game-thread wait and run time, and the reads per native tool.</summary>
+    public static void TagReads(Activity? span, ReadTally tally)
+    {
+        if (span is null)
+        {
+            return;
+        }
+        foreach (var (key, value) in tally.Attrs())
+        {
+            span.SetTag("rimgovernor." + key, value is Dictionary<string, object?> tools
+                ? string.Join(",", tools.OrderBy(t => t.Key, StringComparer.Ordinal).Select(t => t.Key + "=" + t.Value))
+                : value);
+        }
+    }
+
+    /// <summary>
+    /// Opens a child span named <paramref name="name"/> over one phase of a planner run, with its own read tally
+    /// nested under the planner's; disposing it tags the span with the phase's reads (<see cref="TagReads"/>) and
+    /// ends it.
+    /// </summary>
+    public static IDisposable Phase(string name, params (string Key, object? Value)[] attrs) =>
+        new PhaseScope(StartSpan("buildingruntime", name, attrs), ReadTallyScope.Nested());
+
+    private sealed class PhaseScope(Activity? span, ReadTallyScope reads) : IDisposable
+    {
+        public void Dispose()
+        {
+            reads.Dispose();
+            TagReads(span, reads.Tally);
+            EndSpan(span);
+        }
+    }
+
     public static void Refuse(Activity? span, params string[] reasons) => Spans.Refuse(span, reasons);
 
     /// <summary>The remote parent a wire traceparent names; the default context (a new root) for a malformed one.</summary>

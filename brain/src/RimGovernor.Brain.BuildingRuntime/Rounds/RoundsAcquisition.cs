@@ -565,7 +565,12 @@ public sealed partial class Rounder
             throw new ControlException("acquisitionReading: !roundsBuildingBoundary(expected, world, review.Tick)");
         }
         var claims = p.Journal.ConstructionClaims(world, expected.Tick, call);
-        var read = await ObserveOwnedAsync(Native, expected, claims, unique, call).ConfigureAwait(false);
+        RoundsReading read;
+        using (Tel.Phase("acquisition.observe"))
+        {
+            read = await ObserveOwnedAsync(Native, expected, claims, unique, call).ConfigureAwait(false);
+        }
+        using var fields = Tel.Phase("acquisition.fields");
         var projection = read.Projection;
         projection = projection with { Acquisition = RoundsAcquisitionFields.WithoutFieldSources(projection.Acquisition, projection, plans, world) };
         return (expected, projection);

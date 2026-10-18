@@ -31,7 +31,7 @@ namespace HomeBridge.BridgeTools
 
         private const string Control = MainThreadAdmission.Control, Observation = MainThreadAdmission.Observation;
 
-        private InProcessNativeFacade() { }
+        private InProcessNativeFacade() { ProtoBoundary.HopTimed = RimGovernor.Brain.Bridge.Contracts.ReadTallyRules.CountHop; }
 
         public ChannelReader<NativeFrame> Frames => SnapshotStream.Handoff.Reader;
 

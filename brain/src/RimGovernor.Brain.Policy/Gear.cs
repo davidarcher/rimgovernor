@@ -304,9 +304,21 @@ public static class GearRules
     /// <summary>The body-part groups a dressed colonist covers; a pawn wearing nothing over one of them is uncovered.</summary>
     public static readonly IReadOnlyList<string> GearCoreGroups = ["Torso", "Legs"];
 
+    // The gear review's span, under the scope prefix the trace listener samples; Policy carries no telemetry
+    // reference, so it names the source itself.
+    private static readonly System.Diagnostics.ActivitySource s_spans = new("github.com/davidarcher/RimGovernor/policy");
+
+    // The colony loadouts of the last few distinct pawn rows, most recent first: one step reviews the same census
+    // from every planner that reads gear, each holding its own copy of the rows, so the search runs once per
+    // distinct census rather than once per caller.
+    private const int SharedLoadoutsKept = 8;
+    private static readonly object s_loadoutsLock = new();
+    private static readonly List<(EquatableArray<GearPawn> Pawns, IReadOnlyList<GearLoadout> Loadouts)> s_loadouts = [];
+
     /// <summary>
     /// Matches the complete census used by equipment upkeep. An unknown or empty census cannot establish
-    /// recovery; a pawn the loadout model refuses throws naming the cause.
+    /// recovery; a pawn the loadout model refuses throws naming the cause. The loadouts are planned once per
+    /// distinct set of pawn rows (<see cref="SharedColonyGear"/>).
     /// </summary>
     public static GearReview ReviewGear(Fact<GearObservation> f)
     {
@@ -319,8 +331,11 @@ public static class GearRules
         {
             return new GearReview();
         }
+        using var span = s_spans.StartActivity("gear.review");
+        span?.SetTag("rimgovernor.pawns", v.Pawns.Count);
         var missing = 0;
-        var loadouts = GearLoadoutRules.PlanColonyGear(v.Pawns);
+        var loadouts = SharedColonyGear(v.Pawns, out var shared);
+        span?.SetTag("rimgovernor.shared", shared);
         var modeled = new Dictionary<PawnId, GearLoadout>();
         foreach (var l in loadouts)
         {
@@ -354,6 +369,41 @@ public static class GearRules
             Recovered = Known(missing == 0),
             Deficit = Known(missing / n),
         };
+    }
+
+    /// <summary>
+    /// <see cref="GearLoadoutRules.PlanColonyGear"/> over <paramref name="pawns"/>, or the loadouts already planned
+    /// for equal rows (<paramref name="shared"/>). Rows compare by value, so a copy of the same census shares its
+    /// plan. A refusal throws again on every call; only a plan is kept.
+    /// </summary>
+    internal static IReadOnlyList<GearLoadout> SharedColonyGear(IReadOnlyList<GearPawn> pawns, out bool shared)
+    {
+        var key = EquatableArray.From(pawns);
+        lock (s_loadoutsLock)
+        {
+            var i = s_loadouts.FindIndex(e => e.Pawns.Equals(key));
+            if (i >= 0)
+            {
+                var hit = s_loadouts[i];
+                s_loadouts.RemoveAt(i);
+                s_loadouts.Insert(0, hit);
+                shared = true;
+                return hit.Loadouts;
+            }
+        }
+        IReadOnlyList<GearLoadout> loadouts = [.. GearLoadoutRules.PlanColonyGear(pawns)];
+        lock (s_loadoutsLock)
+        {
+            // A planner reviewing the same census concurrently may have filed it first.
+            s_loadouts.RemoveAll(e => e.Pawns.Equals(key));
+            s_loadouts.Insert(0, (key, loadouts));
+            if (s_loadouts.Count > SharedLoadoutsKept)
+            {
+                s_loadouts.RemoveAt(s_loadouts.Count - 1);
+            }
+        }
+        shared = false;
+        return loadouts;
     }
 
     /// <summary>

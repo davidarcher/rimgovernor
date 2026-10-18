@@ -74,6 +74,7 @@ internal sealed class PlannerWave : IDisposable
         Group.Go(entry.Name, entry.Class, async () =>
         {
             using var audit = entry.AuditReads();
+            using var reads = ReadTallyScope.Nested();
             using var span = Tel.StartSpan("buildingruntime", "planner." + entry.Name, new Dictionary<string, object?>
             {
                 ["rimgovernor.class"] = entry.Class.ToString().ToLowerInvariant(),
@@ -111,13 +112,12 @@ internal sealed class PlannerWave : IDisposable
                 _took[entry.Name] = took;
                 late = _closed;
             }
-            var decision = StepDecision(entry, reason, error, took, late);
-            decision = Scoped(decision);
+            var decision = Scoped(Tallied(StepDecision(entry, reason, error, took, late), reads.Tally));
             // A family's run files one planner_step row per NeedId, keyed by the NeedId as its concern, so explain
             // pairs each with the need_transitions row filed under the same key; the family's own row stands
             // only for a failure or a run that judged no Need.
             var needRows = error is null && priv.Families.TryGetValue(entry.Name, out var family) && family.Reports.Count > 0
-                ? family.Reports.Select(r => Scoped(NeedDecision(entry, r, took, late))).ToList()
+                ? family.Reports.Select(r => Scoped(Tallied(NeedDecision(entry, r, took, late), reads.Tally))).ToList()
                 : null;
             foreach (var row in needRows ?? [decision])
             {
@@ -126,6 +126,7 @@ internal sealed class PlannerWave : IDisposable
             span?.SetTag("rimgovernor.verdict", decision.Verdict);
             span?.SetTag("rimgovernor.reason", decision.Reason);
             span?.SetTag("rimgovernor.late", late);
+            Tel.TagReads(span, reads.Tally);
             if (decision.Verdict == "failed")
             {
                 Tel.EndSpan(span, error);
@@ -202,6 +203,17 @@ internal sealed class PlannerWave : IDisposable
             attrs["late"] = true;
         }
         return d with { Attrs = attrs };
+    }
+
+    /// <summary>A planner's rows carry the reads its whole run issued, and their game-thread wait and run time.</summary>
+    private static Decision Tallied(Decision decision, ReadTally tally)
+    {
+        var attrs = new Dictionary<string, object?>(decision.Attrs);
+        foreach (var (key, value) in tally.Attrs())
+        {
+            attrs[key] = value;
+        }
+        return decision with { Attrs = attrs };
     }
 
     /// <summary>The immediate review's rows carry its scope and decision tick.</summary>

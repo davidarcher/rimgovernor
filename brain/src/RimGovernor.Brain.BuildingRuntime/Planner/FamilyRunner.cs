@@ -214,14 +214,26 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
 
     private protected override async Task<FamilyRun> StepAsync(FamilyStep step, CancellationToken call)
     {
-        var review = await step.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
+        Rounds review;
+        using (Tel.Phase("family.rounds"))
+        {
+            review = await step.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
+        }
         if (!review.Enabled || review.Snapshot != step.World)
         {
             return new FamilyRun { Verdict = Verdict.BuildingReasonNoReview };
         }
 
-        var facts = await ReadAudited(step, call).ConfigureAwait(false);
-        var standings = NeedsRules.NeedStandings(_family.Id, _family.Derive(facts.Facts));
+        (TFacts Facts, IReadOnlyList<FactFamily> Undeclared) facts;
+        using (Tel.Phase("family.read"))
+        {
+            facts = await ReadAudited(step, call).ConfigureAwait(false);
+        }
+        IReadOnlyList<NeedStanding> standings;
+        using (Tel.Phase("family.derive"))
+        {
+            standings = NeedsRules.NeedStandings(_family.Id, _family.Derive(facts.Facts));
+        }
         if (step.Immediate)
         {
             standings = [.. standings.Where(s => s.Need.Tier == NeedTier.SeriousHarm)];
@@ -275,7 +287,12 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
             {
                 foreach (var need in ready)
                 {
-                    var (verdict, worked) = await Work(step, need, facts.Facts, call).ConfigureAwait(false);
+                    Verdict verdict;
+                    IReadOnlyList<FamilyMethod> worked;
+                    using (Tel.Phase("family.work", ("rimgovernor.need", need.Id.Value)))
+                    {
+                        (verdict, worked) = await Work(step, need, facts.Facts, call).ConfigureAwait(false);
+                    }
                     methods.AddRange(worked);
                     if (worked.Count > 0)
                     {
