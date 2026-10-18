@@ -463,6 +463,10 @@ public sealed class ClockRunDriverTests
                 CallTimeout = timeout,
             };
             rig.Driver = ClockRunDriver.Create(rig.Player, rig.Session, rig.Scheduler, rig.Game, writer, config, rig.Time, options.Wake, lifetime);
+            // The consumer opens the queue on its own thread, and an open drops what was pushed before it: a test
+            // that pushed first would see its event vanish, and the consumer would not know the world until a
+            // later one arrived. Started means the queue is open, so every push a test makes is delivered.
+            await UntilAsync(() => rig.Driver.EventsOpened);
             return rig;
         }
 
@@ -491,8 +495,8 @@ public sealed class ClockRunDriverTests
         /// </summary>
         public Task<bool> StepAsync() => Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = Game.HoldSerial, EventsSeen = Driver.EventsSeen }, Ct);
 
-        /// <summary>Waits until the consumer has opened the queue and delivered every event the game pushed since.</summary>
-        public Task DeliveredAsync() => UntilAsync(() => Driver.EventsOpened && Driver.EventsSeen >= Game.Pushed);
+        /// <summary>Waits until the consumer has delivered every event the game pushed.</summary>
+        public Task DeliveredAsync() => UntilAsync(() => Driver.EventsSeen >= Game.Pushed);
 
         public async Task StopAsync()
         {
