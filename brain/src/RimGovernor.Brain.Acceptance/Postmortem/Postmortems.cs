@@ -25,13 +25,15 @@ public static class Postmortems
     private static readonly TimeSpan GitTimeout = TimeSpan.FromSeconds(20);
 
     /// <summary>
-    /// Reads <paramref name="dir"/>'s evidence and returns the digest. <paramref name="report"/> is the case's result
-    /// (result.json decoded, or the live <see cref="Report.Data"/>); null reads result.json from <paramref name="dir"/>.
-    /// Never fails on missing or malformed evidence: it records what it could not read as section notes.
+    /// Reads <paramref name="dir"/>'s evidence and the case's rows of <paramref name="store"/> and returns the digest.
+    /// <paramref name="report"/> is the case's result (result.json decoded, or the live <see cref="Report.Data"/>); null
+    /// reads result.json from <paramref name="dir"/>. Never fails on missing or malformed evidence: it records what it
+    /// could not read as section notes.
     /// </summary>
-    public static Digest Collect(string dir, JsonObject? report, CancellationToken cancellationToken)
+    public static Digest Collect(string dir, JsonObject? report, CaseRows store, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(dir);
+        ArgumentNullException.ThrowIfNull(store);
         if (report is null)
         {
             report = [];
@@ -54,14 +56,14 @@ public static class Postmortems
         sections.Add(Revision(facts.InstalledPackage, cancellationToken));
         sections.Add(PostmortemCrash.CrashDumps(dir, facts.Error ?? ""));
         sections.Add(Refusals(dir, rows));
-        var (db, storeNote) = PostmortemStore.OpenRaw(Path.Combine(dir, Checkpoints.CheckpointStoreFile));
+        var (db, storeNote) = PostmortemStore.OpenRaw(store.Path);
         using (db)
         {
-            sections.Add(PostmortemStore.RoundsSection(db, storeNote));
+            sections.Add(PostmortemStore.RoundsSection(db, storeNote, store));
             sections.Add(PostmortemExtent.ExtentEligibility(dir));
-            sections.Add(PostmortemStore.UnsuccessfulStages(db, storeNote));
+            sections.Add(PostmortemStore.UnsuccessfulStages(db, storeNote, store));
             sections.Add(JobFailures(rows));
-            sections.Add(PostmortemStore.AuthorityGenerations(db, storeNote, rows, report));
+            sections.Add(PostmortemStore.AuthorityGenerations(db, storeNote, store, rows, report));
         }
 
         return new Digest(facts.Case ?? "", facts.Error ?? "", sections);

@@ -175,10 +175,17 @@ latest timestamp is at or after the case's start (rotated segments included), an
 `<case>/store/need_methods.jsonl` and `need_transitions.jsonl`, one JSON object per row of those
 tables, oldest first, from the store the brain is writing: the `RIMGOVERNOR_STATE` the game was
 launched with (`ServiceJournal.PathOf`), which for a kept game is the `service.sqlite` of the
-earlier case that launched it. `need_transitions` keeps the rows whose `wall_ms` is at or after
-the case's start; `need_methods` has no time column and is dumped whole, so from a kept game it
-carries the earlier cases' rows too. When that store exists (the brain ran) and the log ring has no
-line since the case started, `case_evidence_error` says so. The raw `.sqlite` never leaves the runner. Caps:
+earlier case that launched it. Only the case's rows are kept (`CaseRows`): `need_transitions`
+whose `wall_ms` is at or after the case's start, and `need_methods` whose `load_token` is the
+case's load. No table ties a load token to wall time, so the case's load is the one the standing
+review (`rounds`) names: every load's world rebuild clears the review, so at case end it is the
+case's last load, provided a `need_transitions` row falls in the window (otherwise it could be an
+earlier case's, and no methods are dumped). A case that reloads keeps only its last load's methods.
+The failure digest (`diagnosis.txt`) reads the same store and rows, and its plan-stage sections
+read the `transitions` from the first one whose snapshot names the case's load. `acceptance why`, run later
+without the launch, reads the output's own `service.sqlite` whole. When that store exists (the
+brain ran) and the log ring has no line since the case started, `case_evidence_error` says so.
+The raw `.sqlite` never leaves the runner. Caps:
 logs 16 MiB, traces 32 MiB (spans carry the brain's step timing and outrun the logs), each store
 table 4 MiB. A served case logs about 1 MB a minute, so a quarter-hour case fits whole, and a
 case's worst case stays under 56 MiB raw. Over its cap a file keeps its newest lines (nearest a

@@ -76,7 +76,7 @@ public sealed class CrashDumpTests : IDisposable
         var log = Enumerable.Range(1, 20).Select(i => string.Create(CultureInfo.InvariantCulture, $"line {i}")).Append("Fatal error. Internal CLR error. (0x80131506)");
         File.WriteAllLines(Path.Combine(root, GameLogCapture.GameLogName), log);
 
-        var digest = Postmortems.Collect(root, new JsonObject { ["case"] = "floor/kitchen", ["error"] = StartupCrash }, TestContext.Current.CancellationToken);
+        var digest = Postmortems.Collect(root, new JsonObject { ["case"] = "floor/kitchen", ["error"] = StartupCrash }, CaseRows.Whole(Path.Combine(root, Checkpoints.CheckpointStoreFile)), TestContext.Current.CancellationToken);
 
         var section = Assert.Single(digest.Sections, s => s.Name == "crash dump");
         Assert.Equal("", section.Note);

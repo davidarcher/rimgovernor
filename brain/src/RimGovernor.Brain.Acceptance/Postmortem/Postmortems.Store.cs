@@ -132,9 +132,10 @@ public static class PostmortemStore
     }
 
     /// <summary>
-    /// Reads rounds raw: the review's revision and tick, and every Need with a live method and its live method count.
+    /// Reads rounds raw: the review's revision and tick, and every Need with a live method of the case's loads
+    /// (<see cref="CaseRows.MethodsPredicate"/>) and its live method count.
     /// </summary>
-    internal static DigestSection RoundsSection(SqliteConnection? db, string note)
+    internal static DigestSection RoundsSection(SqliteConnection? db, string note, CaseRows store)
     {
         var s = new DigestSection("rounds");
         if (db is null)
@@ -175,7 +176,8 @@ public static class PostmortemStore
         try
         {
             using var command = db.CreateCommand();
-            command.CommandText = "SELECT m.need_id, count(*) FROM need_methods m JOIN plans p ON p.id=m.plan_id WHERE p.retired=0 GROUP BY m.need_id ORDER BY m.need_id";
+            command.CommandText = $"SELECT m.need_id, count(*) FROM need_methods m JOIN plans p ON p.id=m.plan_id WHERE p.retired=0 AND {store.MethodsPredicate} GROUP BY m.need_id ORDER BY m.need_id";
+            store.Bind(command);
             using var reader = command.ExecuteReader();
             var count = 0;
             while (reader.Read())
@@ -207,8 +209,11 @@ public static class PostmortemStore
 
     // --- 4. unsuccessful stages (raw store) --------------------------------
 
-    /// <summary>Lists every observe transition that ended an attempt unsuccessful, with the action's kind and the native reason.</summary>
-    internal static DigestSection UnsuccessfulStages(SqliteConnection? db, string note)
+    /// <summary>
+    /// Lists every observe transition of the case (<see cref="CaseRows.StagesPredicate"/>) that ended an attempt
+    /// unsuccessful, with the action's kind and the native reason.
+    /// </summary>
+    internal static DigestSection UnsuccessfulStages(SqliteConnection? db, string note, CaseRows store)
     {
         var s = new DigestSection("unsuccessful plan stages");
         if (db is null)
@@ -223,8 +228,8 @@ public static class PostmortemStore
         // has the transitions, and the kind is then blank.
         string[] queries =
         [
-            "SELECT t.sequence, t.action_id, t.payload, COALESCE(a.kind,''), '', '' FROM transitions t LEFT JOIN actions a ON a.id=t.action_id ORDER BY t.sequence",
-            "SELECT sequence, action_id, payload, '', '', '' FROM transitions ORDER BY sequence",
+            $"SELECT t.sequence, t.action_id, t.payload, COALESCE(a.kind,''), '', '' FROM transitions t LEFT JOIN actions a ON a.id=t.action_id WHERE {store.StagesPredicate} ORDER BY t.sequence",
+            $"SELECT sequence, action_id, payload, '', '', '' FROM transitions WHERE {store.StagesPredicate} ORDER BY sequence",
         ];
         SqliteDataReader? reader = null;
         SqliteCommand? command = null;
@@ -236,6 +241,7 @@ public static class PostmortemStore
                 // The command outlives this block: disposing it closes the reader it produced.
                 command = db.CreateCommand();
                 command.CommandText = query;
+                store.Bind(command);
                 reader = command.ExecuteReader();
                 break;
             }
@@ -346,11 +352,12 @@ public static class PostmortemStore
     }
 
     /// <summary>
-    /// Reports how the native authority generation moved: each distinct Snapshot.Native across transitions in sequence
-    /// order, the authority rows (changed, lost, retaken) and the Rounder steps that failed on a lost control, and the
-    /// report's own reacquisition count. A thrashing generation invalidates every open attempt.
+    /// Reports how the native authority generation moved: each distinct Snapshot.Native across the case's transitions
+    /// (<see cref="CaseRows.StagesPredicate"/>) in sequence order, the authority rows (changed, lost, retaken) and the
+    /// Rounder steps that failed on a lost control, and the report's own reacquisition count. A thrashing generation
+    /// invalidates every open attempt.
     /// </summary>
-    internal static DigestSection AuthorityGenerations(SqliteConnection? db, string note, List<Postmortems.LogRecordRow> rows, JsonObject report)
+    internal static DigestSection AuthorityGenerations(SqliteConnection? db, string note, CaseRows store, List<Postmortems.LogRecordRow> rows, JsonObject report)
     {
         var s = new DigestSection("authority generations");
         if (report.TryGetPropertyValue("authority_reacquisitions", out var reacquisitions))
@@ -363,7 +370,8 @@ public static class PostmortemStore
             try
             {
                 using var command = db.CreateCommand();
-                command.CommandText = "SELECT sequence, payload FROM transitions ORDER BY sequence";
+                command.CommandText = $"SELECT sequence, payload FROM transitions WHERE {store.StagesPredicate} ORDER BY sequence";
+                store.Bind(command);
                 using var reader = command.ExecuteReader();
                 long last = -1;
                 var flips = 0;

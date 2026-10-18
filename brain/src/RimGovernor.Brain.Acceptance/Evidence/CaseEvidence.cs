@@ -36,26 +36,21 @@ public static class CaseEvidence
     /// <summary>Each store dump's cap: the method and transition journals of a case are kilobytes; the cap only bounds a runaway.</summary>
     public const long StoreCapBytes = 4L << 20;
 
-    // The store tables a failed case is diagnosed from; the store declares them in SQL only (StateMirror, Timelines).
-    private static readonly string[] StoreTables = ["need_methods", "need_transitions"];
-
-    // The wall-clock column (ms since the epoch) a store table's rows are windowed to the case by.
-    private const string WallMsColumn = "wall_ms";
-
     private static readonly byte[] NanoField = "UnixNano\":\""u8.ToArray();
 
     /// <summary>
     /// Writes the case's brain evidence into <paramref name="output"/> from the game's channel directory
-    /// <paramref name="gameDir"/> (its OTLP rings) and the store file the brain writes, <paramref name="store"/>: a
-    /// kept game keeps the state path it was launched with, an earlier case's <c>service.sqlite</c>, so the caller
-    /// passes the live path (<see cref="ServiceJournal.PathOf"/>), not the case's own. A missing store writes nothing.
-    /// Returns what failed, empty when everything was written; when the brain ran (its store exists), a log ring with
-    /// no line since the case started is a failure. A failure never fails the case.
+    /// <paramref name="gameDir"/> (its OTLP rings, sliced from <see cref="CaseRows.Since"/>) and the case's rows of
+    /// <paramref name="store"/>, the live store the brain writes. A missing store writes nothing. Returns what failed,
+    /// empty when everything was written; when the brain ran (its store exists), a log ring with no line since the case
+    /// started is a failure. A failure never fails the case.
     /// </summary>
-    public static string Capture(string gameDir, string store, string output, DateTime since)
+    public static string Capture(string gameDir, CaseRows store, string output)
     {
+        ArgumentNullException.ThrowIfNull(store);
         var errors = new List<string>();
-        var served = File.Exists(store);
+        var served = File.Exists(store.Path);
+        var since = store.Since ?? DateTime.UnixEpoch;
         var sinceNanos = (since.ToUniversalTime() - DateTime.UnixEpoch).Ticks * 100;
         foreach (var (signal, cap) in new[] { (OtlpSignal.Logs, LogCapBytes), (OtlpSignal.Traces, TraceCapBytes) })
         {
@@ -75,7 +70,7 @@ public static class CaseEvidence
 
         try
         {
-            DumpStore(store, output, since);
+            DumpStore(store, output);
         }
         catch (Exception e) when (e is SqliteException or IOException or UnauthorizedAccessException or InvalidOperationException)
         {
@@ -128,20 +123,18 @@ public static class CaseEvidence
     }
 
     /// <summary>
-    /// Dumps each of <see cref="StoreTables"/> from the store file <paramref name="store"/> to
-    /// <c>&lt;output&gt;/store/&lt;table&gt;.jsonl</c>, oldest row first. A table with a <c>wall_ms</c> column
-    /// (need_transitions) keeps only the rows written since <paramref name="since"/>; one without (need_methods) is
-    /// dumped whole, so from a kept game's store it carries the earlier cases' rows too.
+    /// Dumps the case's rows (<see cref="CaseRows"/>) of the store tables a failed case is diagnosed from,
+    /// <c>need_methods</c> and <c>need_transitions</c> (declared in SQL only: StateMirror, Timelines), to
+    /// <c>&lt;output&gt;/store/&lt;table&gt;.jsonl</c>, oldest row first.
     /// </summary>
-    internal static void DumpStore(string store, string output, DateTime since)
+    internal static void DumpStore(CaseRows store, string output)
     {
-        if (!File.Exists(store))
+        if (!File.Exists(store.Path))
         {
             return;
         }
 
-        var sinceMs = new DateTimeOffset(since.ToUniversalTime()).ToUnixTimeMilliseconds();
-        var (db, note) = PostmortemStore.OpenRaw(store);
+        var (db, note) = PostmortemStore.OpenRaw(store.Path);
         if (db is null)
         {
             throw new IOException(note);
@@ -149,7 +142,7 @@ public static class CaseEvidence
 
         using (db)
         {
-            foreach (var table in StoreTables)
+            foreach (var (table, window) in new[] { ("need_methods", store.MethodsPredicate), ("need_transitions", store.TransitionsPredicate) })
             {
                 if (!HasTable(db, table))
                 {
@@ -159,9 +152,8 @@ public static class CaseEvidence
                 // Newest first, so the cap keeps the end of the journal; Kept writes them back oldest first.
                 var kept = new Kept(StoreCapBytes, newestFirst: true);
                 using var cmd = db.CreateCommand();
-                var window = HasColumn(db, table, WallMsColumn) ? $" WHERE {WallMsColumn} >= $since" : "";
-                cmd.CommandText = $"SELECT * FROM {table}{window} ORDER BY rowid DESC";
-                cmd.Parameters.AddWithValue("$since", sinceMs);
+                cmd.CommandText = $"SELECT * FROM {table} WHERE {window} ORDER BY rowid DESC";
+                store.Bind(cmd);
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
@@ -178,15 +170,6 @@ public static class CaseEvidence
         using var cmd = db.CreateCommand();
         cmd.CommandText = "SELECT 1 FROM sqlite_master WHERE type='table' AND name=$name";
         cmd.Parameters.AddWithValue("$name", table);
-        return cmd.ExecuteScalar() is not null;
-    }
-
-    private static bool HasColumn(SqliteConnection db, string table, string column)
-    {
-        using var cmd = db.CreateCommand();
-        cmd.CommandText = "SELECT 1 FROM pragma_table_info($table) WHERE name=$column";
-        cmd.Parameters.AddWithValue("$table", table);
-        cmd.Parameters.AddWithValue("$column", column);
         return cmd.ExecuteScalar() is not null;
     }
 

@@ -144,9 +144,11 @@ public sealed class CaseRunner
         // postmortem, which reads its tail after a startup crash.
         gameLog.Close(output, report);
 
-        // The brain's rings and store tables as bounded text in the output, before the postmortem, which reads the log ring there.
+        // The brain's rings and store tables as bounded text in the output, before the postmortem, which reads the log ring
+        // there and the same case rows of the live store.
+        var store = CaseRows.Of(cfg, started);
         if (cfg.Configuration.Length > 0
-            && CaseEvidence.Capture(GameSessions.EndpointDirectory(cfg.Configuration, cfg.GameId), ServiceJournal.PathOf(cfg), output, started) is { Length: > 0 } evidenceError)
+            && CaseEvidence.Capture(GameSessions.EndpointDirectory(cfg.Configuration, cfg.GameId), store, output) is { Length: > 0 } evidenceError)
         {
             report["case_evidence_error"] = evidenceError;
         }
@@ -154,7 +156,7 @@ public sealed class CaseRunner
         if (error is not null)
         {
             report["error"] = ErrorText(error);
-            diagnosis = Diagnose(output, report, cancellationToken);
+            diagnosis = Diagnose(output, report, store, cancellationToken);
         }
         else
         {
@@ -234,14 +236,14 @@ public sealed class CaseRunner
     }
 
     // Writes the postmortem digest of a failed case onto the report ("diagnosis", which Finalize emits first) and to
-    // output/diagnosis.txt, read from the evidence the run left behind. It is collected under the caller's token, not the
-    // run's, which a timeout may already have cut.
-    private static Digest Diagnose(string output, Report report, CancellationToken cancellationToken)
+    // output/diagnosis.txt, read from the evidence the run left behind and the case's rows of the live store. It is
+    // collected under the caller's token, not the run's, which a timeout may already have cut.
+    private static Digest Diagnose(string output, Report report, CaseRows store, CancellationToken cancellationToken)
     {
         Digest digest;
         try
         {
-            digest = Postmortems.Collect(output, report.Data, cancellationToken);
+            digest = Postmortems.Collect(output, report.Data, store, cancellationToken);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

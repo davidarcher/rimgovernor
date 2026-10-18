@@ -72,7 +72,8 @@ public static class WhyCommand
                 continue;
             }
 
-            Digest digest = Postmortems.Collect(dir, null, cancellationToken);
+            // Offline there is no launch to resolve a kept game's live store from: the output's own store, whole.
+            Digest digest = Postmortems.Collect(dir, null, CaseRows.Whole(Path.Combine(dir, Checkpoints.CheckpointStoreFile)), cancellationToken);
             if (asJson)
             {
                 await stdout.WriteLineAsync(digest.ToJson().ToJsonString(Indented)).ConfigureAwait(false);
