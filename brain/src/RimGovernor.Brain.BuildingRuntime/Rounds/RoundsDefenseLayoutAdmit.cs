@@ -409,7 +409,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal static DefenseRequest DefenseIedRequest(RoundsReading read, DefenseRequest request)
     {
         var projection = read.Projection;
-        request = request with { IEDMax = DefenseIEDs.IEDBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets), IEDStock = projection.Resources };
+        request = request with { IEDMax = DefenseIEDs.IEDBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets, projection.Facts.GoalBuild.Turrets), IEDStock = projection.Resources };
         var ieds = new List<DefenseIED>();
         var unitCosts = new Dictionary<string, EquatableArray<Amount>>(request.UnitCosts, StringComparer.Ordinal);
         foreach (var d in projection.Definitions)

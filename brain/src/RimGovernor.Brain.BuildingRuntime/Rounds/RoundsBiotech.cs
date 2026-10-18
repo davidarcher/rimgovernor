@@ -126,17 +126,17 @@ public sealed partial class BiotechRounds
     }
 
     /// <summary>The room census of a work step in the work's world, checked against the review.</summary>
-    private async Task<RoundsReading> StepReadingAsync(NeedWork work, CancellationToken call)
+    internal static async Task<RoundsReading> StepReadingAsync(Rounder reviewer, NeedWork work, CancellationToken call)
     {
-        var journal = _reviewer.Player.Journal;
+        var journal = reviewer.Player.Journal;
         var review = await journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        var expected = await StepScope.StepScopeAsync(reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, work.State.Snapshot, review.Tick))
         {
             throw new ControlException("biotech step: boundary moved");
         }
         var claims = journal.ConstructionClaims(work.State.Snapshot, expected.Tick, call);
-        return await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, claims, call).ConfigureAwait(false);
+        return await reviewer.ObserveRoomsAsync(reviewer.Native, expected, claims, call).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -148,7 +148,7 @@ public sealed partial class BiotechRounds
     private async Task<Verdict> ChargerStepAsync(NeedWork work, CancellationToken call)
     {
         var started = _reviewer.Clock.Now();
-        var read = await StepReadingAsync(work, call).ConfigureAwait(false);
+        var read = await StepReadingAsync(_reviewer, work, call).ConfigureAwait(false);
         var f = read.Projection;
         if (!f.Facts.MechChargerOwed.TryGetValue(out var owed))
         {
@@ -199,7 +199,7 @@ public sealed partial class BiotechRounds
             Disposal = [.. biotech.Atomizers.Select(a => a.Position)],
         };
         var sites = MechRules.MechChargerSites(siteFacts, size.Width, size.Height).Select(s => s.Site);
-        var verdict = await PlaceAsync(work, f, definition, method, size, sites, int.MaxValue, "mech_charger_preview", started, call).ConfigureAwait(false);
+        var verdict = await PlaceAsync(_reviewer, _building!, work, f, definition, method, size, sites, int.MaxValue, "mech_charger_preview", started, call).ConfigureAwait(false);
         return verdict ?? NoSpace("charger_cell");
     }
 
@@ -210,7 +210,7 @@ public sealed partial class BiotechRounds
     private async Task<Verdict> GeneBankStepAsync(NeedWork work, CancellationToken call)
     {
         var started = _reviewer.Clock.Now();
-        var read = await StepReadingAsync(work, call).ConfigureAwait(false);
+        var read = await StepReadingAsync(_reviewer, work, call).ConfigureAwait(false);
         var f = read.Projection;
         if (!f.Facts.GeneBankOwed.TryGetValue(out var owed))
         {
@@ -250,7 +250,7 @@ public sealed partial class BiotechRounds
             return BuildingReasonNoLayoutPlan;
         }
         var sites = FreeSitesRules.FreeSites(new FreeSiteRequest { Bounds = f.Bounds, Anchor = anchor, Cells = f.Cells, Light = f.LightTerrains }, size.Width, size.Height);
-        var verdict = await PlaceAsync(work, f, definition, method, size, sites, GeneBankSiteTries, "gene_bank_preview", started, call).ConfigureAwait(false);
+        var verdict = await PlaceAsync(_reviewer, _building!, work, f, definition, method, size, sites, GeneBankSiteTries, "gene_bank_preview", started, call).ConfigureAwait(false);
         return verdict ?? NoSpace("gene_bank_cell");
     }
 
@@ -259,10 +259,10 @@ public sealed partial class BiotechRounds
     /// whole, legal, safe and reachable one as the Need's building Method. Null when no site fits; a field-unavailable
     /// verdict when a preview was unread and none fit.
     /// </summary>
-    private async Task<Verdict?> PlaceAsync(NeedWork work, ColonyProjection f, string definition, MethodId method, Bounds size, IEnumerable<Rectangle> sites, int tries,
+    internal static async Task<Verdict?> PlaceAsync(Rounder reviewer, RoundsBuildingPlanner planner, NeedWork work, ColonyProjection f, string definition, MethodId method, Bounds size, IEnumerable<Rectangle> sites, int tries,
         string preview, DateTimeOffset started, CancellationToken call)
     {
-        var p = _reviewer.Player;
+        var p = reviewer.Player;
         var state = work.State;
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
@@ -271,7 +271,7 @@ public sealed partial class BiotechRounds
         {
             var building = new Building(definition, InteriorRules.AnchorForRect(site, new Cell(size.Width, size.Height), Rotation.North), Rotation.North, "");
             var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, ConstructionTier.Expand);
-            var got = await _building!.Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
+            var got = await planner.Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var pv = got.Preview;
             if (!pv.Footprint.TryGetValue(out var footprint) || !pv.MadeFromStuff.TryGetValue(out var made) || !pv.CanPlace.TryGetValue(out var legal)
                 || !pv.SafeToPlace.TryGetValue(out var safe) || !pv.WatchCellsAccessible.TryGetValue(out var reachable))
@@ -284,8 +284,8 @@ public sealed partial class BiotechRounds
                 continue;
             }
             p.Current(call, work.Epoch);
-            var elapsed = _reviewer.Clock.Now() - started;
-            if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
+            var elapsed = reviewer.Clock.Now() - started;
+            if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
             {
                 throw new ControlException("biotech step: session state changed or the read took too long");
             }

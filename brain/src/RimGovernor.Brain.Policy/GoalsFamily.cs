@@ -73,6 +73,25 @@ public sealed record GoalBuildDemand
 
     /// <summary>The hosted medical beds a Hospital goal asks for; 0 for none. It is the minimum bed count of <see cref="HospitalRules.SelectHospitalBed"/> and the station graph's injured floor.</summary>
     public int HospitalBeds { get; init; }
+
+    /// <summary>The turret count a built-count goal for a turret asks for; 0 for none. It is a floor under <see cref="DefenseBudget.TurretBudget"/>.</summary>
+    public int Turrets { get; init; }
+}
+
+/// <summary>The planner that places a built-count goal's building (#3496).</summary>
+public enum BuiltPlacer
+{
+    /// <summary>Nothing places the definition: the goal has no method.</summary>
+    None,
+
+    /// <summary>The defense layout's turret tier: the goal raises the turret budget and the <c>layout/defense</c> Need builds.</summary>
+    Turret,
+
+    /// <summary>The goals family's trade beacon step.</summary>
+    Beacon,
+
+    /// <summary>The goals family's standalone geothermal generator step.</summary>
+    Geothermal,
 }
 
 /// <summary>A worn-count goal's demand: <see cref="Count"/> colonists wear <see cref="Garment"/>, of <see cref="Stuff"/> when it names one.</summary>
@@ -171,8 +190,9 @@ public sealed class GoalsFamily : IFamily<GoalsFacts>
         foreach (var need in ready)
         {
             var goal = facts.Goals.FirstOrDefault(g => GoalRules.NeedOf(g) == need.Id);
-            if (goal is null)
+            if (goal is null || GoalRules.OwnStep(goal))
             {
+                // A goal the family places itself reports through its work step.
                 continue;
             }
             var status = GoalRules.Evaluate(goal, facts);
@@ -251,6 +271,8 @@ public static class GoalRules
                 return NamedQuest(goal, f);
             case GoalKind.RoomRole:
                 return Room(goal, f);
+            case GoalKind.BuiltCount:
+                return Built(goal, f);
             default:
                 return new GoalStatus(goal, Satisfaction.Unknown, GoalState.NoMethod, NoPursuit, default, default);
         }
@@ -289,6 +311,44 @@ public static class GoalRules
         return EligibleWearers(gear, want.Garment).Count == 0
             ? new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "no_wearer", default, deficit)
             : Pursued(goal, f, owner, deficit);
+    }
+
+    /// <summary>The trade beacon's definition; policy is game-free, so the name is a constant as <see cref="PowerRules.GeothermalDefinition"/> is.</summary>
+    public const string TradeBeaconDefinition = "OrbitalTradeBeacon";
+
+    /// <summary>Who places <paramref name="definition"/>: the turret ladder through the defense layout, the beacon and the geothermal generator through the goals family's own steps; nothing places any other definition.</summary>
+    public static BuiltPlacer PlacerOf(string definition) =>
+        DefenseTurretsPolicy.TurretLadder.Contains(definition) ? BuiltPlacer.Turret
+        : definition == TradeBeaconDefinition ? BuiltPlacer.Beacon
+        : definition == PowerRules.GeothermalDefinition ? BuiltPlacer.Geothermal
+        : BuiltPlacer.None;
+
+    /// <summary>Whether the goals family itself places the goal's building (its Need has a work step instead of a held Method).</summary>
+    public static bool OwnStep(GoalRecord goal) => goal.Kind == GoalKind.BuiltCount && PlacerOf(goal.Target) is BuiltPlacer.Beacon or BuiltPlacer.Geothermal;
+
+    /// <summary>How many finished buildings of <paramref name="definition"/> stand; unknown while the building table is unread.</summary>
+    public static Fact<long> BuiltOf(RoundsFacts f, string definition) =>
+        f.BuiltBuildings.TryGetValue(out var built) ? Fact.Known(built.Where(a => a.Resource == new Resource(definition)).Sum(a => a.Count)) : Fact.Unknown<long>();
+
+    /// <summary>
+    /// A built-count goal (#3496): met once <c>Count</c> finished buildings of the definition stand. A turret is built by the
+    /// defense layout (<c>layout/defense</c>); the trade beacon and the geothermal generator by the goal's own Need; any other
+    /// definition has no placer and reports it.
+    /// </summary>
+    private static GoalStatus Built(GoalRecord goal, GoalsFacts f)
+    {
+        var placer = PlacerOf(goal.Target);
+        var owner = placer switch { BuiltPlacer.Turret => LayoutFamily.Defense, BuiltPlacer.None => default, _ => NeedOf(goal) };
+        var (met, deficit) = Shortfall(goal.Count, BuiltOf(f.Rounds, goal.Target));
+        if (met.TryGetValue(out var isMet) && isMet)
+        {
+            return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, deficit);
+        }
+        if (placer == BuiltPlacer.None)
+        {
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "no placer for " + goal.Target, default, deficit);
+        }
+        return met.IsKnown ? Pursued(goal, f, owner, deficit) : new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, deficit);
     }
 
     /// <summary>The colonists wearing the goal's garment, of its stuff when it names one.</summary>
@@ -451,6 +511,7 @@ public static class GoalRules
         var quests = new List<QuestId>();
         var rooms = new SortedSet<RoomRole>();
         var hospitalBeds = 0;
+        var turrets = 0;
         var worn = new List<WornGoal>();
         foreach (var goal in f.Goals)
         {
@@ -498,6 +559,10 @@ public static class GoalRules
                 case GoalKind.Colonists:
                     colonists = Math.Max(colonists, goal.Count);
                     break;
+                case GoalKind.BuiltCount when goal.Count > 0 && PlacerOf(goal.Target) == BuiltPlacer.Turret:
+                    // The turret goal keeps asking once met: a lower budget would plan the standing turrets away.
+                    turrets = Math.Max(turrets, goal.Count);
+                    break;
                 case GoalKind.RoomRole when Wire.TryParse<RoomRole>(goal.Target, out var room):
                     // A room goal keeps asking once the room stands: dropping the need would end the room's role in the plan.
                     if (room == RoomRole.Hospital)
@@ -512,7 +577,7 @@ public static class GoalRules
             }
         }
         var believers = ConversionRules.Shortfall(f.Goals, f.Ideology, f.Pawns).TryGetValue(out var lacking) && lacking > 0;
-        return new GoalDemand { Research = [.. research], Stock = stock, Colonists = colonists, Animals = animals, Prisoners = prisoners, Quests = quests, Believers = believers, Worn = worn, Build = new GoalBuildDemand { Rooms = EquatableArray.From(rooms), HospitalBeds = hospitalBeds } };
+        return new GoalDemand { Research = [.. research], Stock = stock, Colonists = colonists, Animals = animals, Prisoners = prisoners, Quests = quests, Believers = believers, Worn = worn, Build = new GoalBuildDemand { Rooms = EquatableArray.From(rooms), HospitalBeds = hospitalBeds, Turrets = turrets } };
     }
 
     /// <summary>The review facts with the goals' stock floors in them, and everything <see cref="Stamp"/> carries.</summary>

@@ -349,11 +349,11 @@ public sealed class GoalsFamilyTests
     }
 
     [Fact]
-    public void TheFamilyIsOneOptionalQueueEntryWithNoActionKinds()
+    public void TheFamilyIsOneOptionalQueueEntryWokenByBuildings()
     {
         var entry = ClockPlannerCatalog.FamilyEntry(new FamilyRunner<GoalsFacts>(new GoalsFamily(), (_, _) => Task.FromResult(new GoalsFacts()), GoalsRounds.Schedule));
         Assert.Equal(GoalsFamily.FamilyId, entry.Name);
-        Assert.Empty(entry.Kinds);
+        Assert.Equal([ActionKind.Building], entry.Kinds);
         Assert.False(entry.Immediate);
     }
 }

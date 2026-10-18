@@ -4,28 +4,30 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>
 /// The runtime half of the goals family (#3494): the full read (the player's goals from the <c>family/goals</c> record,
 /// the review facts they are judged by and the progress rows of the Needs that pursue them) and the review's
-/// <c>goal_review</c> rows. The family proposes no plans: the demand the goals place on the existing channels is
+/// <c>goal_review</c> rows. The family proposes no plans and places only the trade beacon and the geothermal generator (<see cref="WorkAsync"/>): the demand the goals place on the existing channels is
 /// injected by the Rounder's review (<see cref="GoalRules.DemandOf"/>).
 /// </summary>
-public sealed class GoalsRounds
+public sealed partial class GoalsRounds
 {
-    private static readonly NeedId[] Owners = [EconomyFamily.Research, EconomyFamily.Resource, AnimalsFamily.Herd, JoinersFamily.Offers, JoinersFamily.Quests, PrisonersFamily.Recruit, ShelterFamily.Sleeping, MedicalRules.MedicalCareNeed];
+    private static readonly NeedId[] Owners = [EconomyFamily.Research, EconomyFamily.Resource, AnimalsFamily.Herd, JoinersFamily.Offers, JoinersFamily.Quests, PrisonersFamily.Recruit, ShelterFamily.Sleeping, MedicalRules.MedicalCareNeed, LayoutFamily.Defense];
 
     private readonly Rounder _reviewer;
     private readonly GoalStatusBoard _board;
+    private readonly RoundsBuildingPlanner _building;
 
     /// <summary><paramref name="board"/> receives the statuses each full read derives, for the in-game panel (#3497).</summary>
     public GoalsRounds(Rounder reviewer, GoalStatusBoard board)
     {
         _reviewer = reviewer ?? throw new ControlException("GoalsRounds: reviewer is missing");
         _board = board ?? throw new ControlException("GoalsRounds: status board is missing");
+        _building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = reviewer.Native as IRoundsBuildingSource ?? throw new ControlException("GoalsRounds: the native source cannot preview buildings") };
     }
 
-    /// <summary>The family's scheduler entry; it wakes on its reads and runs no action kind.</summary>
-    public FamilyRunner Runner() => new FamilyRunner<GoalsFacts>(new GoalsFamily(), ReadAsync, Schedule);
+    /// <summary>The family's scheduler entry; its work steps place the beacon and the geothermal generator.</summary>
+    public FamilyRunner Runner() => new FamilyRunner<GoalsFacts>(new GoalsFamily(), ReadAsync, Schedule, WorkAsync);
 
-    /// <summary>An optional entry with no action kinds: its Needs are status only.</summary>
-    public static FamilySchedule Schedule { get; } = new() { Class = PlannerClass.Optional };
+    /// <summary>An optional entry woken by its building outcomes (the beacon and geothermal steps); every other goal Need is status only.</summary>
+    public static FamilySchedule Schedule { get; } = new() { Class = PlannerClass.Optional, Kinds = [ActionKind.Building] };
 
     /// <summary>Reads the goals and their facts in <paramref name="scope"/>'s world, and files one review row per goal; the immediate pass reads nothing.</summary>
     internal async Task<GoalsFacts> ReadAsync(FamilyReadScope scope, CancellationToken ct)
@@ -44,7 +46,8 @@ public sealed class GoalsRounds
         var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), ct).ConfigureAwait(false);
         var goals = await journal.LoadGoalsAsync(Player.PlayerWorld(scope.World), ct).ConfigureAwait(false);
         var owners = new Dictionary<NeedId, OwnerProgress>();
-        foreach (var owner in Owners)
+        // A goal the family places itself is its own owner.
+        foreach (var owner in Owners.Concat(goals.Goals.Where(GoalRules.OwnStep).Select(GoalRules.NeedOf)))
         {
             if (review.ConcernProgress(owner.FilingKey) is { } row)
             {

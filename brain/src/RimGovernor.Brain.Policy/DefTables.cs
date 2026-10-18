@@ -124,6 +124,8 @@ public static class DefTablesRules
         // sapper-derived thickness; the wall def is the building the cut is walled with.
         DefTable.Of("perimeterTable", "Verse.ThingDef", [PerimeterCutRules.PerimeterDefs().WallDef]),
         DefTable.Of("windPath", "Verse.ThingDef", [PowerRules.WindTurbineDefinition]),
+        // tradeBeacon (#3496): the one building a built-count goal's beacon step places; the goals family names it.
+        DefTable.Of("tradeBeacon", "Verse.ThingDef", [GoalRules.TradeBeaconDefinition]),
         // interiorTable (#2956): the shelf and lamp the region interior wants beside benches and beds;
         // KitchenStoves is the judgment explained on InteriorDefs().
         DefTable.Of("interiorTable", "Verse.ThingDef", [InteriorRegionRules.InteriorDefs().ShelfDef, InteriorRegionRules.InteriorDefs().LampDef]),

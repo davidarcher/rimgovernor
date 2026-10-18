@@ -3,8 +3,9 @@
 [Contracts](README.md) · [Persistence](persistence-contracts.md#what-must-survive) · [OTEL signals](otel-signals.md)
 
 The player's goals (`family/goals`, #3489) reach the brain through the goals family (#3494). The family owns
-status only and proposes no plans: a goal becomes demand on a channel that already exists, and that channel's own
-Need and safety floors decide what happens.
+status and proposes no plans: a goal becomes demand on a channel that already exists, and that channel's own
+Need and safety floors decide what happens. The one exception is the trade beacon and geothermal generator a
+built-count goal owes, which the family's own work step places ([Built-count goals](#built-count-goals-3496)).
 
 ## Needs
 
@@ -22,6 +23,7 @@ in the kind's unit (projects, tiers, items, colonists or animals short; 1 for an
 | `NamedPrisoner` | the pawn (`Target`) is an admitted colonist; `NoMethod` `not a prisoner` when it is neither held nor a colonist, `not_recruitable` when held but unrecruitable | the prisoner is recruited whatever its worth (`PrisonerColony.NamedPrisoners`; Convert first when its ideoligion differs, as for any recruit); custody and food rules stay, and it is not an organ-harvest candidate | `prisoners/recruit` |
 | `NamedQuest` | the quest (`Target`) is `EndedSuccess`; `NoMethod` `expired` once the offer lapses, `ended` after another end state, `unknown_quest` when the census does not list it | the quest step considers it before every other offer (`RoundsFacts.NamedQuests`) and accepts it when its admission checks pass; `Blocked` with the failing check (`home_capacity`, `no_spare_pawn`, `capacity_unknown`, ...) otherwise; native `CanAcceptQuest` stays the final check | `joiners/quests` (`joiners/offers` for a joiner quest) |
 | `RoomRole` | a standing room has the role (`Target` the `RoomRole` wire name); a `Hospital` goal: the hosted medical beds reach `Count` (1 when it names none). `NoMethod` `no_pursuit` for a role no planner stages, `unknown_role`, `missing_dlc` or `no_required_buildings` for the worship room | see [Room goals](#room-goals) | `shelter/sleeping` (child rooms), `medical/care` (hospital) |
+| `BuiltCount` | `Count` finished buildings of the def (`Target`) stand (`RoundsFacts.BuiltBuildings`); `NoMethod` `no placer for <def>` when nothing places it | see [Built-count goals](#built-count-goals-3496) | `layout/defense` (turrets), the goal's own Need (trade beacon, geothermal generator) |
 | `Precept`, `Meme` | the ideoligion holds it | the ideoligion reform steps toward it, one meme change or precept swap per reform, gated by development points (#3500, [ideology contracts](ideology-contracts.md#creation-and-reform)); `NoMethod` `not fluid` on a non-fluid ideoligion, `unavailable` for a missing def, `missing_dlc` without Ideology; `Blocked` with the first missing prerequisite or `development points <points>/<cost>` | `ideology/reform` |
 | `VeneratedAnimal` | the ideoligion venerates the race | none, not pursued (#3517): Met while held, otherwise `NoMethod` `venerated_animal`, because the reform design carries plain precepts only | none |
 | `Believers` | every free colonist (`Count` 0) or `Count` colonists share the ideoligion | moral-guide conversion of the free colonist with the lowest certainty, and conversion of recruitable prisoners whatever their worth (#3501, [conversion](ideology-contracts.md#conversion)) | `ideology/convert/<pawn>` |
@@ -100,6 +102,28 @@ Need is `economy/resource`, and the goal asks three existing channels for help; 
 
 `NoMethod` `no_wearer` when no colonist is eligible; `Blocked` `facts_unread` while the gear census is unread. The
 deficit is `Count` less the wearers.
+
+## Built-count goals (#3496)
+
+A `BuiltCount` goal (`Target` the building def, `Count`) is met once `Count` finished buildings of the def stand
+(`RoundsFacts.BuiltBuildings`, counted from the building table). `GoalRules.PlacerOf` names who places a def; a def
+nothing places is `NoMethod` with the reason `no placer for <def>` (it still reads Met when that many already stand).
+
+- **Turrets** (`Turret_MiniTurret`, `Turret_Autocannon`, `Turret_Sniper`). The goal's `Count` (the largest of several) is
+  `GoalBuildDemand.Turrets`, a floor under `DefenseBudget.TurretBudget` (and so `DefenseIEDs.IEDBudget`): the budget is
+  `max(standing + raid-owed, floor)`. The `layout/defense` Need is a verified, opt-in cycle, so the floor takes effect
+  only when the layout is next re-verified and proposes its turret tier; stock, power and geometry gates still apply
+  and are named on the tier, and the goal reports the Need's block. The count is of the goal's own def while the layout
+  builds the rung its armory tier allows, so a goal for another rung stays unmet. A met goal keeps its floor so the
+  budget never plans standing turrets away. The mortar has no placer here.
+- **Trade beacon** (`OrbitalTradeBeacon`) and **geothermal generator** (`GeothermalGenerator`, a standalone owed
+  count). The goal's own Need (`goals/built-count/<id>`) has a work step (`GoalsRounds.WorkAsync`, scheduled on
+  `ActionKind.Building`) modelled on the biotech charger and gene bank: one building Method per count standing
+  (`built-<def>-<n>`) on a free site previewed natively (`FreeSitesRules.FreeSites` near the colony centre for the
+  beacon; the nearest unoccupied steam geyser for the generator) and admitted by claims. The family proposes no held
+  Method for these goals; the step's verdict (`field_unavailable`, `no_space`, existing work, admitted) is the Need's
+  progress row, which the goal reports as `Blocked` when the Need has no method. The step does not wire the
+  generator; the power family connects it.
 
 ## Toggle
 

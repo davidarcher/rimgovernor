@@ -460,7 +460,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var projection = read.Projection;
         var request = new DefenseRequest { Definitions = DefenseDefinitionNames };
         var unitCosts = new Dictionary<string, EquatableArray<Amount>>(StringComparer.Ordinal);
-        var turret = new DefenseTurretRequest { Definition = DefenseTurretRung(read), Conduit = DefenseConduitDefinition, Stock = projection.Resources, Max = DefenseBudget.TurretBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets) };
+        var turret = new DefenseTurretRequest { Definition = DefenseTurretRung(read), Conduit = DefenseConduitDefinition, Stock = projection.Resources, Max = DefenseBudget.TurretBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets, projection.Facts.GoalBuild.Turrets) };
         DefenseRequest Done() => request with { Turret = turret, UnitCosts = unitCosts };
         var rk = projection.Facts.Research.TryGetValue(out var research);
         var finished = new HashSet<ResearchProjectId>(research?.Finished ?? []);

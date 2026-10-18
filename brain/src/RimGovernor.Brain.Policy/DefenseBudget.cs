@@ -49,9 +49,9 @@ public static class DefenseBudget
 
     /// <summary>
     /// The turret count the layout plans: those already standing plus those the raid shortfall still asks for.
-    /// There is no ceiling; power, stock and the layout's geometry decide how many are placed, and each gate that
+    /// A turret goal (<paramref name="goalFloor"/>, #3496) raises the count to at least that many. There is no ceiling; power, stock and the layout's geometry decide how many are placed, and each gate that
     /// stops placement is named on the tier.
     /// </summary>
-    public static int TurretBudget(Fact<double> raidPoints, Fact<double> capacity, Fact<EquatableArray<DefenseTurretFacts>> turrets) =>
-        TurretsStanding(turrets) + TurretsOwed(raidPoints, capacity, turrets);
+    public static int TurretBudget(Fact<double> raidPoints, Fact<double> capacity, Fact<EquatableArray<DefenseTurretFacts>> turrets, int goalFloor) =>
+        Math.Max(TurretsStanding(turrets) + TurretsOwed(raidPoints, capacity, turrets), goalFloor);
 }

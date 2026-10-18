@@ -18,8 +18,8 @@ public static class DefenseIEDs
     internal const int DefenseIEDSpacing = 2;
 
     /// <summary>The approach IEDs the layout plans: one for each turret it plans, so the approach is covered as far as the firing line is.</summary>
-    public static int IEDBudget(Fact<double> raidPoints, Fact<double> capacity, Fact<EquatableArray<DefenseTurretFacts>> turrets) =>
-        DefenseBudget.TurretBudget(raidPoints, capacity, turrets);
+    public static int IEDBudget(Fact<double> raidPoints, Fact<double> capacity, Fact<EquatableArray<DefenseTurretFacts>> turrets, int goalFloor) =>
+        DefenseBudget.TurretBudget(raidPoints, capacity, turrets, goalFloor);
 
     /// <summary>
     /// Reports every keepOff cell strictly farther than radius from <paramref name="at"/>: the game's explosion

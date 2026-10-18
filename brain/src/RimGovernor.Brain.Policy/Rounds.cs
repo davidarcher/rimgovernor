@@ -370,6 +370,9 @@ public sealed record RoundsFacts
 
     public Fact<GearObservation> Gear { get; init; }
 
+    /// <summary>The finished buildings counted by definition: what a built-count goal is judged by (#3496); unknown until the building table is read.</summary>
+    public Fact<EquatableArray<Amount>> BuiltBuildings { get; init; }
+
     /// <summary>The allowed garments covering a core group with their recipes (ClothingRunway); empty until the gear census and catalog are read.</summary>
     public EquatableArray<ClothingGarment> Garments { get; init; }
 

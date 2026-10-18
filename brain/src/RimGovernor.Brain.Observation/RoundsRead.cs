@@ -217,6 +217,7 @@ public static class RoundsReads
                 RecoveryWorkers = ColonyFramesReads.RecoveryWorkers(p.Facts.MoodPawns),
                 Gear = ColonyGearReads.RoundsGear(p.Facts.Gear, emergency),
                 Research = FrameResearch(frame.Research),
+                BuiltBuildings = BuiltBuildingsOf(frame.Buildings),
             },
         };
         p = p with { TechTier = TechTierRules.SelectTechTier(FinishedResearch(p.Facts.Research), p.PlayerTechLevel) };
@@ -509,6 +510,24 @@ public static class RoundsReads
     }
 
     /// <summary>The research census; unknown when the frame carries none.</summary>
+    /// <summary>The finished buildings of the frame's building table counted by definition (what a built-count goal is judged by); unknown without the table.</summary>
+    internal static Fact<EquatableArray<Amount>> BuiltBuildingsOf(BuildingCensus? census)
+    {
+        if (census is null)
+        {
+            return Unknown<EquatableArray<Amount>>();
+        }
+        var counts = new SortedDictionary<string, long>(StringComparer.Ordinal);
+        foreach (var row in census.Rows.Table.Values())
+        {
+            if (row.Status == O.BuildingStatus.Built)
+            {
+                counts[row.Building.DefName] = counts.GetValueOrDefault(row.Building.DefName) + 1;
+            }
+        }
+        return Known(EquatableArray.From(counts.Select(c => new Amount(new Resource(c.Key), c.Value))));
+    }
+
     internal static Fact<ResearchFacts> FrameResearch(ResearchRead? read) =>
         read is null ? Unknown<ResearchFacts>() : Known(EconomyRules.ResearchSummary(read.Census()));
 
