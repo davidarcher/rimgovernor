@@ -169,6 +169,9 @@ policies read as facts. An empty record deletes the row, and a save made before 
 reads it through `BrainHost.GoalsView` (a cached snapshot, never inference) and writes it through
 `BrainHost.GoalsEditor` (validated, stored for the observed colony, wakes the `goals` planner; #3492). Both exist
 whether or not routes are served, and there is no HTTP goals route.
+`GoalsView.Current()` also returns the goals Family's last derived goal and theme statuses, handed over in memory through
+the `GoalStatusBoard` that the family's full read fills (#3497); they are not stored or sent, and a goal added since the
+last review has none yet.
 
 The preferences reach the policies as `RoundsFacts.Preferences` (#3495), stamped once where the review facts are observed
 (`ObserveRoundsAsync`, with the combat inputs and the break responders loading the same record). There is no veto layer:

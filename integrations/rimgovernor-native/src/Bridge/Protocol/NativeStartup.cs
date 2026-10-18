@@ -49,6 +49,7 @@ namespace HomeBridge.BridgeTools
             WallUpgradeSafety.Install();
             NativePawnControlState.Initialize();
             NativePawnActivities.Install();
+            GoalsToggle.Install();
         }
     }
 }

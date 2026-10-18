@@ -194,10 +194,10 @@ public interface ILifecycleWriter
 }
 
 /// <summary>
-/// One immutable snapshot of the player's goals: the stored record. Per-goal and per-theme status joins it when the
-/// goals Family derives it (#3494); until then the record is all it carries.
+/// One immutable snapshot of the player's goals: the stored record and the statuses the goals Family derived at its
+/// last review of this colony (#3494). The statuses can lag an edit; a goal with none has not been reviewed yet.
 /// </summary>
-public sealed record GoalsSnapshot(GoalsRecord Record);
+public sealed record GoalsSnapshot(GoalsRecord Record, IReadOnlyList<GoalStatus> Statuses, IReadOnlyList<ThemeStatus> Themes);
 
 /// <summary>
 /// The in-process read of the player's goals for the in-game panel (#3492). It returns the cached snapshot of the

@@ -85,6 +85,9 @@ public sealed class PlannerContext
     /// <summary>Rebuilds the store once per loaded world; the scheduler runs it first on each step.</summary>
     public required Func<RimGovernor.Contracts.Wire.Common.ObservationContext, CancellationToken, Task<bool>> WorldReady { get; init; }
 
+    /// <summary>Where the goals Family files its latest statuses and the host's goals view reads them (#3497).</summary>
+    public required GoalStatusBoard GoalStatuses { get; init; }
+
     /// <summary>Asks the scheduler loop to step now (the Worker's <c>Advanced</c>).</summary>
     public required Action Nudge { get; init; }
 

@@ -83,7 +83,7 @@ internal sealed class HostClockSpeed(ClockTargetSpeed target) : IClockSpeedContr
 /// The player's goals over the store (#3492): a cached snapshot for the colony the player is in, reloaded when
 /// that colony changes and replaced by every save. <paramref name="world"/> is the observed player world, null while none is.
 /// </summary>
-internal sealed class HostGoals(StoreJournal journal, Func<RimGovernor.Brain.Store.World?> world, WakeSignal wake) : IGoalsView, IGoalsEditor
+internal sealed class HostGoals(StoreJournal journal, Func<RimGovernor.Brain.Store.World?> world, WakeSignal wake, GoalStatusBoard statuses) : IGoalsView, IGoalsEditor
 {
     /// <summary>The goals Family's planner name: its id.</summary>
     internal const string PlannerName = "goals";
@@ -95,7 +95,7 @@ internal sealed class HostGoals(StoreJournal journal, Func<RimGovernor.Brain.Sto
     {
         if (world() is not { } w)
         {
-            return new GoalsSnapshot(new GoalsRecord());
+            return new GoalsSnapshot(new GoalsRecord(), [], []);
         }
         lock (_mu)
         {
@@ -103,7 +103,8 @@ internal sealed class HostGoals(StoreJournal journal, Func<RimGovernor.Brain.Sto
             {
                 _cached = journal.LoadGoals(w, CancellationToken.None);
             }
-            return new GoalsSnapshot(_cached);
+            var (goalStatuses, themeStatuses) = statuses.Read(w);
+            return new GoalsSnapshot(_cached, goalStatuses, themeStatuses);
         }
     }
 

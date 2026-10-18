@@ -269,7 +269,8 @@ public sealed class GoalsFamilyTests
         var loose = Goal(3, GoalKind.Skill, "p", 5, "Shooting");
         var facts = Facts(met, open, loose) with { Themes = [new ThemeRecord { Id = 9, Name = "Start", Members = [1, 2] }] };
 
-        var rows = GoalsRounds.ReviewDecisions(facts);
+        var (statuses, themeStatuses) = GoalsRounds.Evaluate(facts);
+        var rows = GoalsRounds.ReviewDecisions(statuses, themeStatuses);
         Assert.Equal(["1", "2", "3"], rows.Select(r => r.Target));
         Assert.All(rows, r => Assert.Equal("goal_review", r.Kind));
         Assert.Equal(["met", "pursuing", "no_method"], rows.Select(r => r.Verdict));

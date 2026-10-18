@@ -12,10 +12,13 @@ public sealed class GoalsRounds
     private static readonly NeedId[] Owners = [EconomyFamily.Research, EconomyFamily.Resource, AnimalsFamily.Herd, JoinersFamily.Offers, JoinersFamily.Quests, PrisonersFamily.Recruit];
 
     private readonly Rounder _reviewer;
+    private readonly GoalStatusBoard _board;
 
-    public GoalsRounds(Rounder reviewer)
+    /// <summary><paramref name="board"/> receives the statuses each full read derives, for the in-game panel (#3497).</summary>
+    public GoalsRounds(Rounder reviewer, GoalStatusBoard board)
     {
         _reviewer = reviewer ?? throw new ControlException("GoalsRounds: reviewer is missing");
+        _board = board ?? throw new ControlException("GoalsRounds: status board is missing");
     }
 
     /// <summary>The family's scheduler entry; it wakes on its reads and runs no action kind.</summary>
@@ -56,20 +59,26 @@ public sealed class GoalsRounds
             var pending = (await journal.LoadIdeologyReformAsync(Player.PlayerWorld(scope.World), ct).ConfigureAwait(false))?.Goal;
             facts = facts with { Reform = reform, ReformGoal = pending ?? (reform.TryGetValue(out var chosen) ? chosen.Goal : null) };
         }
-        Record(facts);
+        Record(facts, Player.PlayerWorld(scope.World));
         return facts;
     }
 
     /// <summary>One <c>goal_review</c> decision per goal: the state as verdict, the reason, the goal id as target and the owner and deficit as attrs.</summary>
-    internal static IReadOnlyList<Decision> ReviewDecisions(GoalsFacts facts)
+    internal static IReadOnlyList<Decision> ReviewDecisions(IReadOnlyList<GoalStatus> statuses, IReadOnlyList<ThemeStatus> themes)
     {
-        var themes = GoalRules.Themes(facts).ToDictionary(t => t.Id);
-        return [.. facts.Goals.Select(goal => ReviewDecision(GoalRules.Evaluate(goal, facts), themes))];
+        var byId = themes.ToDictionary(t => t.Id);
+        return [.. statuses.Select(status => ReviewDecision(status, byId))];
     }
 
-    private static void Record(GoalsFacts facts)
+    /// <summary>The status of every goal and the progress of every theme.</summary>
+    internal static (IReadOnlyList<GoalStatus> Goals, IReadOnlyList<ThemeStatus> Themes) Evaluate(GoalsFacts facts) =>
+        ([.. facts.Goals.Select(goal => GoalRules.Evaluate(goal, facts))], GoalRules.Themes(facts));
+
+    private void Record(GoalsFacts facts, RimGovernor.Brain.Store.World world)
     {
-        foreach (var decision in ReviewDecisions(facts))
+        var (statuses, themes) = Evaluate(facts);
+        _board.Publish(world, statuses, themes);
+        foreach (var decision in ReviewDecisions(statuses, themes))
         {
             Tel.Decide(decision);
         }

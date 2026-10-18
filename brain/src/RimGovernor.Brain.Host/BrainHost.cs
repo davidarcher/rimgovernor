@@ -171,8 +171,10 @@ public sealed class BrainHost : IAsyncDisposable
             autosave = autosaver.SaveAsync;
         }
 
+        var goalStatuses = new GoalStatusBoard();
         var planners = options.Composition.ComposePlanners(new PlannerContext
         {
+            GoalStatuses = goalStatuses,
             Player = player,
             Session = session,
             Journal = journal,
@@ -221,7 +223,7 @@ public sealed class BrainHost : IAsyncDisposable
         {
             var state = player.State();
             return state.ObservationKnown && state.Snapshot.IsValid ? Player.PlayerWorld(state.Snapshot) : null;
-        }, wake);
+        }, wake, goalStatuses);
         GoalsView = goals;
         GoalsEditor = goals;
 

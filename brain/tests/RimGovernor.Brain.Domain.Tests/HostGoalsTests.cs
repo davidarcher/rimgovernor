@@ -17,7 +17,7 @@ public sealed class HostGoalsTests
     {
         var store = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-hostgoals-" + Guid.NewGuid().ToString("N") + ".db"), TestContext.Current.CancellationToken);
         var wake = new WakeSignal();
-        return (new HostGoals(store, () => Home, wake), store, wake);
+        return (new HostGoals(store, () => Home, wake, new GoalStatusBoard()), store, wake);
     }
 
     private static GoalsRecord OneGoal() =>

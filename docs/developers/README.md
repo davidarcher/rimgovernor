@@ -37,6 +37,7 @@ verify and land the change.
 | [Combat](architecture/combat-game-ai.md) | Native combat behavior and the brain tactics |
 | [Hazard bounds](architecture/hazard-detection-bounds.md) | Detection cadence and clock stops |
 | [Launcher](architecture/launcher.md) | UI, session controls and in-process host client |
+| [In-game goals panel](architecture/in-game-panel.md) | The goals window: install, threading, model and statuses |
 | [World progression](architecture/world-progression.md) | Caravans, quests and world outcomes |
 
 The [expert-play roadmap](architecture/expert-play-assessment.md) defines proposed

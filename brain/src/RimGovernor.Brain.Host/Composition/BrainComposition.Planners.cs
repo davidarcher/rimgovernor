@@ -297,7 +297,7 @@ public sealed partial class BrainComposition
         if (sc.Goals)
         {
             // The goals toggle composes the goals family: status for the player's goals, whose demand the review injects (#3494).
-            families.Add(new GoalsRounds(reviewer).Runner());
+            families.Add(new GoalsRounds(reviewer, context.GoalStatuses).Runner());
         }
         if (sleeping || cooking || shelter || comfort || workshop || hospital || expansion || power || temperature || lighting || flooring || routes)
         {
