@@ -40,6 +40,9 @@ public sealed record ApparelPolicyState
     public EquatableArray<string> Required { get; init; }
 
     public bool Nude { get; init; }
+
+    /// <summary>The player's apparel preference (#3498), stamped from the preferences record onto the census; Dressed without one.</summary>
+    public ApparelPreference Preference { get; init; } = ApparelPreference.Dressed;
 }
 
 public static class ApparelPolicyRules
@@ -55,7 +58,8 @@ public static class ApparelPolicyRules
     /// <summary>
     /// The pawn's own outfit, labelled with its short name: the definitions its role permits (stage-compatible;
     /// combat armor for soldiers only; nothing covering torso or legs for a nude pawn) plus every definition its
-    /// title, role or precepts require. All roles exclude tattered gear, and tainted gear unless
+    /// title, role or precepts require. Under the Nude preference only those required definitions remain; under
+    /// ArmorOnly every stage-compatible armor layer and no clothing. All roles exclude tattered gear, and tainted gear unless
     /// <paramref name="allowTainted"/>; pawns still choose by temperature inside the filter.
     /// </summary>
     public static bool RoleApparelPolicy(PawnId pawn, GearRole role, ApparelPolicyState state, out ApparelPolicy? policy, bool allowTainted = false)
@@ -91,7 +95,13 @@ public static class ApparelPolicyRules
         foreach (var d in state.Definitions)
         {
             var stage = (role == GearRole.Child && d.Child) || (role != GearRole.Child && d.Adult);
-            if (required.Contains(d.Name) || (stage && (!d.Armor || role == GearRole.Soldier) && (!state.Nude || !d.CoversBody)))
+            var wearable = state.Preference switch
+            {
+                ApparelPreference.Nude => false,
+                ApparelPreference.ArmorOnly => stage && d.Armor && (!state.Nude || !d.CoversBody),
+                _ => stage && (!d.Armor || role == GearRole.Soldier) && (!state.Nude || !d.CoversBody),
+            };
+            if (required.Contains(d.Name) || wearable)
             {
                 r.Add(d.Name);
             }

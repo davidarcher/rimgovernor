@@ -21,27 +21,56 @@ public static class PreferenceRules
         {
             f = f with { PrisonerColony = Known(colony with { Preferences = preferences }) };
         }
-        if (!preferences.Forbids(ForbiddenMethod.HumanLeather))
+        var leather = preferences.Forbids(ForbiddenMethod.HumanLeather);
+        if (leather)
         {
-            return f;
-        }
-        f = f with
-        {
-            Items = f.Items with
+            f = f with
             {
-                StuffCategories = f.Items.StuffCategories.Where(kv => kv.Key != HumanLeather).ToDictionary(kv => kv.Key, kv => kv.Value),
-                StuffBeauty = f.Items.StuffBeauty.Where(kv => kv.Key != HumanLeather).ToDictionary(kv => kv.Key, kv => kv.Value),
-            },
-        };
-        if (!f.Gear.TryGetValue(out var gear))
+                Items = f.Items with
+                {
+                    StuffCategories = f.Items.StuffCategories.Where(kv => kv.Key != HumanLeather).ToDictionary(kv => kv.Key, kv => kv.Value),
+                    StuffBeauty = f.Items.StuffBeauty.Where(kv => kv.Key != HumanLeather).ToDictionary(kv => kv.Key, kv => kv.Value),
+                },
+            };
+        }
+        var apparel = preferences.Apparel ?? ApparelPreference.Dressed;
+        if ((!leather && apparel == ApparelPreference.Dressed) || !f.Gear.TryGetValue(out var gear))
         {
             return f;
         }
-        GearPawn Stamp(GearPawn p) =>
-            p.LoadoutModel.TryGetValue(out var input)
+        GearPawn Stamp(GearPawn p)
+        {
+            if (p.Policy.TryGetValue(out var state) && apparel != ApparelPreference.Dressed)
+            {
+                state = state with { Preference = apparel };
+                p = p with { Policy = Known(state) };
+                // The model's options were cut by the Dressed outfit rule; the preference's rule only narrows it.
+                if (p.LoadoutModel.TryGetValue(out var model))
+                {
+                    var allowed = ApparelPolicyRules.RoleApparelDefinitions(GearLoadoutRules.DeriveGearRole(model.Role), state).ToHashSet(StringComparer.Ordinal);
+                    p = p with { LoadoutModel = Known(model with { Options = EquatableArray.From(model.Options.Where(o => allowed.Contains(o.Definition.ToString()))) }) };
+                }
+            }
+            return leather && p.LoadoutModel.TryGetValue(out var input)
                 ? p with { LoadoutModel = Known(input with { Options = EquatableArray.From(input.Options.Where(o => o.Stuff != HumanLeather)) }) }
                 : p;
-        return f with { Gear = Known(gear with { Pawns = [.. gear.Pawns.Select(Stamp)] }) };
+        }
+        gear = gear with { Pawns = [.. gear.Pawns.Select(Stamp)] };
+        f = f with { Gear = Known(gear) };
+        if (apparel == ApparelPreference.Dressed)
+        {
+            return f;
+        }
+        // The clothing demand follows the outfits: only the garments some pawn's outfit still allows are replaced.
+        var wearable = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var p in gear.Pawns)
+        {
+            if (p.Policy.TryGetValue(out var state))
+            {
+                wearable.UnionWith(ApparelPolicyRules.RoleApparelDefinitions(GearLoadoutRules.DeriveGearRole(state.Role), state));
+            }
+        }
+        return f with { Garments = EquatableArray.From(f.Garments.Where(g => wearable.Contains(g.Definition.Value))) };
     }
 
     /// <summary>

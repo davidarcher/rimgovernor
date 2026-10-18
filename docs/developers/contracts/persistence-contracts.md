@@ -177,7 +177,11 @@ meat shape `FoodPolicyRules.DietOf`, `Forbidden` human butchery empties `SelectH
 recovery and the peg cycle return nothing under `Forbidden` organ harvest, slavery is refused under `Forbidden` slavery,
 human leather leaves the stuff catalog and the apparel options, a protected thing is in no clearance, retire or bed-removal
 step (reason `protected_thing`), and a protected pawn is held back from the draft while another eligible fighter can fight
-(`defense_action` reason `protected_pawn_drafted_no_other_fighter` when none can).
+(`defense_action` reason `protected_pawn_drafted_no_other_fighter` when none can). The apparel preference (#3498) is
+stamped on each pawn's outfit census (`ApparelPolicyState.Preference`) and narrows the outfit filter, and the clothing
+demand keeps only garments an outfit still allows; `Forbidden` drugs and the drug-policy preference are planned by
+`DrugPolicyPlanRules` ([apparel](apparel-policy.md#preferences), [drug policy](action-contracts.md)), and `Forbidden` drugs
+also empties the drug runways, the social crop fields and the social drugs' production targets.
 
 Before accepting a settlement deal, the `economy/trade-mission` Need atomically records bounded
 authorized return definitions/counts and purchase commitment with its Hands

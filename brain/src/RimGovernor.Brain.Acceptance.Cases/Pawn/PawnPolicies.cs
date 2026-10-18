@@ -35,8 +35,8 @@ internal static class PawnPolicies
             FoodAsync),
         new(
             "pawn/drug-policy",
-            "A DrugPolicyIntent writes Beer for joy, Penoxycyline on a schedule and Luciferium for addiction, PawnSettingsIntent.drug_policy "
-                + "assigns it to a luciferium-addicted colonist, the policy facts read those entries held by the pawn, and the needs "
+            "A DrugPolicyIntent built from the planner's Medical entries writes Penoxycyline on a schedule, PawnSettingsIntent.drug_policy "
+                + "assigns it to a luciferium-addicted colonist, the policy facts read that entry held by the pawn, and the needs "
                 + "forecast reports the scheduled drug as an unsupported voluntary state.",
             new Fx.StageSpec { Paused = true, Pawns = [new Fx.StagePawn { Name = "colonist", Colonist = 0, Hediffs = ["LuciferiumAddiction"] }] },
             DrugAsync),
@@ -117,23 +117,20 @@ internal static class PawnPolicies
 
     private static async Task DrugAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        const string Label = "Explicit drugs";
+        const string Label = Policy.DrugPolicyPlanRules.Label;
         var colonist = Pawn(s, "colonist");
-        Operations.DrugPolicyEntry[] entries =
-        [
-            new() { DrugDef = "Beer", AllowedForJoy = true, DaysFrequency = 1, OnlyIfMoodBelow = 1, OnlyIfJoyBelow = 1 },
-            new() { DrugDef = "Penoxycyline", AllowScheduled = true, DaysFrequency = 5, OnlyIfMoodBelow = 1, OnlyIfJoyBelow = 1 },
-            new() { DrugDef = "Luciferium", AllowScheduled = true, AllowedForAddiction = true, DaysFrequency = 4, OnlyIfMoodBelow = 1, OnlyIfJoyBelow = 1 },
-        ];
-        await WriteAsync(s, "drugs", new Operations.DrugPolicyIntent { Name = Label, Entries = [.. entries] },
+        // The planner owns the policy's contents: the Medical preference over a catalog of one medical drug.
+        var items = new Policy.ItemFacts { Drugs = [new Policy.Drug(new Policy.Resource("Penoxycyline"), Medical: true)] };
+        var written = new Domain.DrugPolicy(Label, Policy.DrugPolicyPlanRules.Entries(Policy.DrugPolicyPreference.Medical, items));
+        var intent = Bridge.Contracts.IntentActionRules.IntentAction("drugs", Domain.DomainAction.NewDrugPolicyAction(new Domain.ActionId("drugs"), written)).Intent
+            ?? throw new AcceptanceException("the drug policy action built no intent");
+        await WriteAsync(s, "drugs", intent,
             [(colonist, new Operations.PawnSettingsIntentSetting.DrugPolicyCase(Label))], cancellationToken).ConfigureAwait(false);
         var facts = await PoliciesAsync(s, "drug-policies", cancellationToken).ConfigureAwait(false);
         var policy = Held(facts.Drug, Label, colonist);
         s.RecordWire("drug", policy);
         Operations.DrugPolicyEntry? Entry(string def) => policy.DrugEntries.FirstOrDefault(e => e.DrugDef == def);
-        if (Entry("Beer") is not { AllowedForJoy: true, AllowScheduled: not true, AllowedForAddiction: not true }
-            || Entry("Penoxycyline") is not { AllowScheduled: true, AllowedForJoy: not true }
-            || Entry("Luciferium") is not { AllowScheduled: true, AllowedForAddiction: true })
+        if (policy.DrugEntries.Count != 1 || Entry("Penoxycyline") is not { AllowScheduled: true, AllowedForJoy: not true, AllowedForAddiction: not true })
         {
             throw new AcceptanceException($"policy \"{Label}\" reads entries [{string.Join("; ", policy.DrugEntries)}]");
         }

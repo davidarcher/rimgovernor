@@ -7,10 +7,15 @@ public static class DrugRunwayRules
     /// <summary>
     /// The runway keys of the catalog's social drugs, each at one dose per colonist whose drug policy permits it
     /// (users), so a drug nobody has taken yet is still stocked; once doses are taken the observed rate takes over.
+    /// None while the colony forbids drugs.
     /// </summary>
-    public static Dictionary<Resource, long> DrugRunwayReserves(ItemFacts items, IReadOnlyDictionary<Resource, long> users)
+    public static Dictionary<Resource, long> DrugRunwayReserves(ItemFacts items, IReadOnlyDictionary<Resource, long> users, PreferencesRecord preferences)
     {
         var output = new Dictionary<Resource, long>();
+        if (preferences.Forbids(ForbiddenMethod.Drugs))
+        {
+            return output;
+        }
         foreach (var drug in items.RecreationDrugs())
         {
             output[drug.Def] = Math.Max(0, users.GetValueOrDefault(drug.Def));

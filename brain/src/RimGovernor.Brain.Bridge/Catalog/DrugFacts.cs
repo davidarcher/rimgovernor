@@ -24,7 +24,8 @@ public sealed partial class DefinitionCatalog
                 new P.Drug(
                     new P.Resource(def.defName),
                     def.ingestible?.drugCategory == DrugCategory.Social,
-                    comp.isCombatEnhancingDrug),
+                    comp.isCombatEnhancingDrug,
+                    def.ingestible?.drugCategory == DrugCategory.Medical),
                 comp.listOrder));
         }
 

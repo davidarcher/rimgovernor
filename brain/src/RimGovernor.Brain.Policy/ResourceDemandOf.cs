@@ -69,6 +69,13 @@ public static partial class ResourceRules
             works = new Dictionary<Resource, long>(ResourceConcernTargets(works, source));
         }
         var needs = ResourceConcernTargets(ResourceConcernTargets(f.ResourceNeeds, works), ResourceRunwayTargets(f.ResourceRunways));
+        if (f.Preferences.Forbids(ForbiddenMethod.Drugs))
+        {
+            // A colony without recreational drugs stocks and brews none: their open bills and runways ask for nothing.
+            var recreation = f.Items.RecreationDrugs().Select(d => d.Def).ToHashSet();
+            needs = needs.Where(kv => !recreation.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
+            works = works.Where(kv => !recreation.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
+        }
         return new DerivedDemand
         {
             Work = ForecastWorkInputs.ForecastWorkInputsOf(f),

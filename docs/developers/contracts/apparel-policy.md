@@ -17,6 +17,10 @@ base plus its hard requirements:
   precepts require is allowed, whatever the role says.
 - A nude pawn (nudist trait, or a mandatory-nudity precept for its gender) gets
   nothing covering torso or legs unless required.
+- <a id="preferences"></a>The player's apparel preference (#3498) replaces the role rule: `Nude` keeps only the required
+  definitions, `ArmorOnly` keeps every stage-compatible armor layer and no clothing, `Dressed` (the default) is the rule
+  above. The clothing demand follows, so a nude colony tailors nothing it will not wear. Nudity thoughts come from
+  precepts, not from the preference.
 - Only definitions the pawn can wear (body parts, body type, genes, stage,
   gender) are listed.
 - Tainted apparel is excluded unless `allowTainted` is set: the coupled

@@ -70,6 +70,9 @@ public sealed record ItemFacts
     /// <summary>The combat-enhancing drugs, preferred first.</summary>
     public IReadOnlyList<Drug> CombatDrugs() => DrugsWhere(d => d.Combat);
 
+    /// <summary>The medical drugs a policy may schedule.</summary>
+    public IReadOnlyList<Drug> MedicalDrugs() => DrugsWhere(d => d.Medical);
+
     private List<Drug> DrugsWhere(Func<Drug, bool> keep) => [.. Drugs.Where(keep)];
 
     /// <summary>Reports whether def is a stone block def: one filed under the StoneBlocks thing category.</summary>
@@ -209,5 +212,5 @@ public sealed record Sculpture(string Recipe, string Def, Cell Size, long Cost, 
     }
 }
 
-/// <summary>One drug def (a CompProperties_Drug with a chemical): whether the game files it as a social drug (IngestibleProperties.drugCategory) and whether it enhances combat (CompProperties_Drug.isCombatEnhancingDrug).</summary>
-public sealed record Drug(Resource Def, bool Social = false, bool Combat = false);
+/// <summary>One drug def (a CompProperties_Drug with a chemical): whether the game files it as a social drug (IngestibleProperties.drugCategory) and whether it enhances combat (CompProperties_Drug.isCombatEnhancingDrug) and whether the game files it as a medical drug.</summary>
+public sealed record Drug(Resource Def, bool Social = false, bool Combat = false, bool Medical = false);

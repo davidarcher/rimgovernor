@@ -11,7 +11,7 @@ public interface IRoundsWorkBenchSource
 }
 
 /// <summary>
-/// The admin/work-assignments Need's step (#3304): the colony's work priorities, pawn settings, reading and food
+/// The admin/work-assignments Need's step (#3304): the colony's work priorities, pawn settings, reading, food and drug
 /// policies and construction finishing-skill choices, committed as one Method under the Need. The MethodId names the
 /// changes it writes, so the same changes are committed once; an open plan whose actions the fresh review no longer
 /// wants has them cancelled first.
@@ -164,15 +164,26 @@ public sealed partial class RoundsWorkPlanner
                 }
             }
         }
+        var drug = new List<DrugPolicy>();
+        if (read.Projection.Policies.TryGetValue(out var nativePolicies))
+        {
+            var owned = nativePolicies.Drug.Select(e => new OwnedDrugPolicy(e.ID, e.Label, [.. e.Pawns], [.. e.Drugs])).ToList();
+            var drugChanges = DrugPolicyPlanRules.Changes(read.Projection.Facts.Preferences, read.Projection.Facts.Items, pawns, owned);
+            if (drugChanges.Write is not null)
+            {
+                drug.Add(drugChanges.Write);
+            }
+            settings.AddRange(drugChanges.Assign);
+        }
         foreach (var openPlan in open)
         {
-            CancelStaleWorkActions(p.Journal, openPlan, work, settings, call);
+            CancelStaleWorkActions(p.Journal, openPlan, work, settings, drug, call);
             if (StorePackage.PlanOpen(p.Journal.LoadPlan(openPlan.Spec.Id, call)))
             {
                 return BuildingReasonExistingWork;
             }
         }
-        if (work.Count == 0 && settings.Count == 0 && reading.Count == 0 && food.Count == 0 && construction.Count == 0)
+        if (work.Count == 0 && settings.Count == 0 && reading.Count == 0 && food.Count == 0 && drug.Count == 0 && construction.Count == 0)
         {
             return FieldUnavailable("work_assignments");
         }
@@ -206,6 +217,10 @@ public sealed partial class RoundsWorkPlanner
         {
             hash.Append(inv, $"food/{GoQuote(f.Name)}/{GoQuoteList(f.Definitions)}\n");
         }
+        foreach (var d in drug)
+        {
+            hash.Append(inv, $"drug/{GoQuote(d.Name)}/{string.Join(',', d.Entries.Select(e => $"{e.Drug}:{e.Joy}:{e.Scheduled}"))}\n");
+        }
         var methodId = new MethodId("work-" + RoundsAcquisitionPlanner.HashHex16(hash.ToString()));
         var id = PlanIds.MintPlanId();
         var actions = new List<DomainAction>();
@@ -220,6 +235,10 @@ public sealed partial class RoundsWorkPlanner
         foreach (var f in food)
         {
             actions.Add(DomainAction.NewFoodPolicyAction(new ActionId($"{id}-{actions.Count}"), f));
+        }
+        foreach (var d in drug)
+        {
+            actions.Add(DomainAction.NewDrugPolicyAction(new ActionId($"{id}-{actions.Count}"), d));
         }
         foreach (var s in settings)
         {
@@ -249,11 +268,12 @@ partial class RoundsWorkPlanner
 {
     /// <summary>
     /// Cancels the not-yet-dispatched work and settings actions of an open plan of the admin/work-assignments Need that
-    /// the fresh review no longer wants; a drug policy write is never wanted again.
+    /// the fresh review no longer wants.
     /// </summary>
-    internal static void CancelStaleWorkActions(StoreJournal journal, PlanState plan, IReadOnlyList<WorkAssignment> fresh, IReadOnlyList<PawnSettings> settings, CancellationToken ct)
+    internal static void CancelStaleWorkActions(StoreJournal journal, PlanState plan, IReadOnlyList<WorkAssignment> fresh, IReadOnlyList<PawnSettings> settings, IReadOnlyList<DrugPolicy> drug, CancellationToken ct)
     {
         var wantedSettings = new HashSet<PawnSettings>(settings);
+        var wantedDrug = new HashSet<DrugPolicy>(drug);
         var wanted = new Dictionary<Domain.PawnId, WorkAssignment>();
         foreach (var w in fresh)
         {
@@ -271,7 +291,10 @@ partial class RoundsWorkPlanner
             {
                 staleSettings[action.Id] = !wantedSettings.Contains(s);
             }
-            if (action.DrugPolicy is not null) staleSettings[action.Id] = true;
+            if (action.DrugPolicy is { } policy)
+            {
+                staleSettings[action.Id] = !wantedDrug.Contains(policy);
+            }
         }
         foreach (var progress in plan.Progress)
         {

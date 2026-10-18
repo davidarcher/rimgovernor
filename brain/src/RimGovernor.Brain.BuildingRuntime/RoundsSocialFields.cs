@@ -6,6 +6,10 @@ internal static class RoundsSocialFields
     internal static IReadOnlyList<Pol.CropChoice> SocialCrops(Observation.ColonyProjection projection)
     {
         var output = new List<Pol.CropChoice>();
+        if (projection.Facts.Preferences.Forbids(Pol.ForbiddenMethod.Drugs))
+        {
+            return output;
+        }
         foreach (var d in projection.Definitions)
         {
             var crop = RoundsFieldPlanner.WithHarvestFacts(

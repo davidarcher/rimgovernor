@@ -294,7 +294,6 @@ Policy|OrganHarvest.Organ
 Policy|OutdoorBudget.Ticks
 Policy|OutdoorBudget.Unbounded
 Policy|OwnedDrugPolicy.Id
-Policy|OwnedDrugPolicy.Label
 Policy|PawnBody.CellTemperatureC
 Policy|PawnBody.ComfortableMaxC
 Policy|PenGrazing.ID
