@@ -273,6 +273,13 @@ namespace HomeBridge.BridgeTools
             Find.TickManager.DebugSetTicksGame(Find.TickManager.TicksGame + ticks);
         }
 
+        public static void AdvanceToDaysPassed(float days)
+        {
+            var target = (int)(days * GenDate.TicksPerDay);
+            if (target < Find.TickManager.TicksGame) throw new ArgumentException($"The game is at {GenDate.DaysPassedFloat} days, past {days}.");
+            Find.TickManager.DebugSetTicksGame(target);
+        }
+
         // Fire incident: def executed now through its own worker, forced, over the storyteller's default parms for its
         // category. A trader kind picks the first non-hostile faction carrying it. Returns the pawns that arrived.
         public static List<Pawn> FireIncident(Map map, IncidentDef def, TraderKindDef traderKind)

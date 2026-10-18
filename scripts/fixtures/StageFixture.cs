@@ -71,6 +71,8 @@ namespace HomeBridge.BridgeTools
             }
             if (spec.World?.OutdoorTemperature is float outdoor) FixtureKit.PinOutdoorTemperature(outdoor);
             if (spec.World?.Hour is int hour) FixtureKit.AdvanceToHour(map, hour);
+            if (spec.World?.Storyteller is string storyteller) Find.Storyteller.def = FixtureKit.Def<StorytellerDef>(storyteller);
+            if (spec.World?.DaysPassed is float days) FixtureKit.AdvanceToDaysPassed(days);
 
             Rand.PushState(StageSeed.Pinned);
             try

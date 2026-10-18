@@ -114,7 +114,7 @@ or a content flow. Read-only probes are not test ops: a missing read is promoted
 [observations contract](../contracts/README.md) and read through production.
 
 The spec is `StageSpec` (`brain/src/RimGovernor.Fixtures.Contracts`). Its primitives are research (`StageResearch`:
-finish a project, or set its progress), world (`StageWorld`: pinned outdoor temperature, clock hour), find site
+finish a project, or set its progress), world (`StageWorld`: pinned outdoor temperature, clock hour, days passed, and the storyteller def the brain reads its threat rate from; the world stays quiet, so a staged Randy at day 1 or later gives a nonzero schedule and no incident fires), find site
 (`StageSite`), clear area (`StageClear`), set cells (`StageCells`: terrain, roof, home, fog), build room
 (`StageRoom`), place building (`StageBuilding`: complete, frame or blueprint, a finished one damaged or fuelled), add bill (`StageBill`: a repeat-count production bill on a staged work table), spawn thing (`StageThing`), spawn plant (`StagePlant`: a plant def at a growth), spawn or
 set pawn (`StagePawn`: kind, faction, age, skill level, cleared traits, gear, hediffs, work, timetable, needs, mental

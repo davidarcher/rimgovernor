@@ -77,6 +77,12 @@ public sealed record StageWorld
 
     /// <summary>Moves the game clock forward (0..23 game hours) to the start of this local hour of the current map.</summary>
     public int? Hour { get; init; }
+
+    /// <summary>A StorytellerDef the game runs under from now (its name is what the colony's threat facts read); a quiet world stays quiet, since quiet is the difficulty marker and not the def, so staging Randy gives the brain Randy's threat rate while the game fires nothing.</summary>
+    public string? Storyteller { get; init; }
+
+    /// <summary>Moves the game clock forward to this many days passed (GenDate.DaysPassedFloat); refused when the game is already past it.</summary>
+    public float? DaysPassed { get; init; }
 }
 
 /// <summary>
