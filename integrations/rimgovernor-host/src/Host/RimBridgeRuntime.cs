@@ -25,7 +25,9 @@ internal static class RimBridgePatches
 
             try
             {
-                new Harmony(HarmonyId).Patch(
+                var harmony = new Harmony(HarmonyId);
+                FrameMeter.Install(harmony);
+                harmony.Patch(
                     original: AccessTools.Method(typeof(Root), nameof(Root.Update)),
                     prefix: new HarmonyMethod(typeof(Root_Update_Patch), nameof(Root_Update_Patch.Prefix)),
                     postfix: new HarmonyMethod(typeof(Root_Update_Patch), nameof(Root_Update_Patch.Postfix)));
@@ -82,9 +84,44 @@ internal static class FrameMeter
     private static int _frames;
     private static float _updateStart;
     private static float _updateSum;
+    private static float _playStart;
+    private static float _playSum;
+    private static float _guiStart;
+    private static float _guiSum;
 
-    /// <summary>Marks the start of Root.Update, so the frame's logic time (Update to its postfix) is told from its render time.</summary>
+    /// <summary>Marks the start of Root.Update (the base method; Root_Play.Update does the frame's game logic after it).</summary>
     public static void Begin() => _updateStart = Time.realtimeSinceStartup;
+
+    /// <summary>
+    /// Times Root_Play.Update (the frame's game logic and map drawing calls) and Root.OnGUI (the UI), so the rest of a frame is
+    /// rendering and presenting. A failed patch only costs this diagnostic.
+    /// </summary>
+    public static void Install(Harmony harmony)
+    {
+        try
+        {
+            harmony.Patch(
+                AccessTools.Method(typeof(Root_Play), "Update"),
+                prefix: new HarmonyMethod(typeof(FrameMeter), nameof(PlayBegin)),
+                postfix: new HarmonyMethod(typeof(FrameMeter), nameof(PlayEnd)));
+            harmony.Patch(
+                AccessTools.Method(typeof(Root), "OnGUI"),
+                prefix: new HarmonyMethod(typeof(FrameMeter), nameof(GuiBegin)),
+                postfix: new HarmonyMethod(typeof(FrameMeter), nameof(GuiEnd)));
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"[frames] split patches not applied: {ex.Message}");
+        }
+    }
+
+    private static void PlayBegin() => _playStart = Time.realtimeSinceStartup;
+
+    private static void PlayEnd() => _playSum += Time.realtimeSinceStartup - _playStart;
+
+    private static void GuiBegin() => _guiStart = Time.realtimeSinceStartup;
+
+    private static void GuiEnd() => _guiSum += Time.realtimeSinceStartup - _guiStart;
 
     public static void Tick()
     {
@@ -104,11 +141,13 @@ internal static class FrameMeter
             return;
 
         var span = now - _windowStart;
-        Log.Message($"[frames] {_frames} frames in {span:F1}s, mean {span / _frames * 1000f:F0} ms, worst {_worst * 1000f:F0} ms, Root.Update mean {_updateSum / _frames * 1000f:F0} ms");
+        Log.Message($"[frames] {_frames} frames in {span:F1}s, mean {span / _frames * 1000f:F0} ms, worst {_worst * 1000f:F0} ms, Root_Play.Update mean {_playSum / _frames * 1000f:F0} ms, OnGUI mean {_guiSum / _frames * 1000f:F0} ms");
         _windowStart = now;
         _frames = 0;
         _worst = 0f;
         _updateSum = 0f;
+        _playSum = 0f;
+        _guiSum = 0f;
     }
 }
 
