@@ -1,4 +1,7 @@
+using RimGovernor.Brain.Bridge;
+using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -18,7 +21,7 @@ internal static class LabStage
 
         // Stonecutting finished; MultiAnalyzer (deep in the tree, never finished on the lab) a quarter done.
         Research = [new Fx.StageResearch { Def = "Stonecutting" }, new Fx.StageResearch { Def = "MultiAnalyzer", Progress = 0.25f }],
-        World = new Fx.StageWorld { OutdoorTemperature = 5, Hour = 13 },
+        World = new Fx.StageWorld { OutdoorTemperature = 5, Hour = 13, GrowingClimate = true },
         Site = new Fx.StageSite
         {
             Width = 12,
@@ -61,6 +64,7 @@ internal static class LabStage
                 Timetable = Fx.StageTimeAssignment.Work,
                 Needs = new Dictionary<string, float> { ["Food"] = 0.5f },
                 Inspiration = "Inspired_Creativity",
+                Skills = new Dictionary<string, int> { ["Plants"] = 10, ["Shooting"] = 0 },
             },
 
             // No cell: the second colonist stays where it stands.
@@ -91,7 +95,8 @@ internal static class LabStage
         Scope = "Fixture layer (#3393, #3395): test/stage stages one spec using every core primitive (research finished and in "
             + "progress, a pinned outdoor temperature and clock hour, site search, clear, set cells, room, "
             + "complete, frame and blueprint buildings, items placed near and forbidden, an existing colonist with work, timetable, "
-            + "needs and an inspiration set, a second colonist left in place in a mental state, a generated armed raider and a "
+            + "needs, an inspiration and per-skill levels (Plants 10, Shooting 0) set and read back, a growing climate whose "
+            + "foodClimate reads a year-round growing season, a second colonist left in place in a mental state, a generated armed raider and a "
             + "player animal, a stockpile and a growing zone) and its typed StageReply keys each entry's ids and cells by the "
             + "spec's names at the found site.",
         Ticks = 0,
@@ -102,7 +107,7 @@ internal static class LabStage
         Run = RunAsync,
     };
 
-    private static Task RunAsync(TypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var reply = s.Staged!;
         var site = reply.Site ?? throw new AcceptanceException("test/stage replied no site");
@@ -142,10 +147,18 @@ internal static class LabStage
         var store = reply.Zones.GetValueOrDefault("store") ?? "";
         var field = reply.Zones.GetValueOrDefault("field") ?? "";
         Want(store.Length > 0 && field.Length > 0 && store != field, $"zones store \"{store}\" and field \"{field}\", want two zone ids");
+        Want(cook?.Skills is { } skills && skills.GetValueOrDefault("Plants") == 10 && skills.GetValueOrDefault("Shooting") == 0 && skills.Count == 2,
+            $"cook skills {(cook?.Skills is null ? "missing" : string.Join(",", cook.Skills))}, want Plants 10 and Shooting 0");
+
+        // The growing climate: every day of the year is inside the crop range, whatever season the tile is in.
+        var colony = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var climate = TypedReads.Observed("colony-facts", NativeOps.ReadColonyFacts, colony, colony.Outcome?.Observed).FoodClimate;
+        Want(climate is { GrowingDaysUntil: 0, NonGrowingDays: 0 } && climate.GrowingDaysRemaining == CalendarRules.YearDays,
+            $"foodClimate {climate}, want {CalendarRules.YearDays} growing days remaining and no non-growing stretch");
         Want(reply.Digest.Length > 0 && reply.DigestRows.Count > 0, "no digest");
         s.Record("site", $"{site.X},{site.Z}");
         s.Record("digest", reply.Digest);
-        return problems.Count == 0 ? Task.CompletedTask : throw new AcceptanceException(string.Join("; ", problems));
+        if (problems.Count != 0) throw new AcceptanceException(string.Join("; ", problems));
     }
 
     private static string Show(Fx.StagedRoom? room) =>

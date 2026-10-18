@@ -109,6 +109,9 @@ public sealed record StagedPawn
     public double RangedDps { get; init; }
 
     public StagedPrimary Primary { get; init; }
+
+    /// <summary>SkillDef to level for each skill the spec's Skills named, as the pawn holds it; null when it named none.</summary>
+    public IReadOnlyDictionary<string, int>? Skills { get; init; }
 }
 
 /// <summary>A fired incident: the pawns it brought that trade.</summary>

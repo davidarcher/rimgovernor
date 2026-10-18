@@ -83,6 +83,9 @@ public sealed record StageWorld
 
     /// <summary>Moves the game clock forward to this many days passed (GenDate.DaysPassedFloat); refused when the game is already past it.</summary>
     public float? DaysPassed { get; init; }
+
+    /// <summary>True makes the tile's seasonal temperature curve read the lab temperature (a growing one) on every day, so the colony's food climate and crop-growth reads see a year-round growing season; the pin persists in the save. Null or false leaves the tile's own curve.</summary>
+    public bool? GrowingClimate { get; init; }
 }
 
 /// <summary>
@@ -334,6 +337,9 @@ public sealed record StagePawn
 
     /// <summary>Every skill at this level without passion; null leaves the skills generated.</summary>
     public int? SkillLevel { get; init; }
+
+    /// <summary>SkillDef to level, applied after SkillLevel (the named skills only, without passion); null leaves the rest.</summary>
+    public IReadOnlyDictionary<string, int>? Skills { get; init; }
 
     /// <summary>Removes every generated trait; false leaves them generated.</summary>
     public bool ClearTraits { get; init; }

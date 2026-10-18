@@ -263,6 +263,14 @@ namespace HomeBridge.BridgeTools
             AcceptanceWorld.SetLab(celsius);
         }
 
+        // World: make the tile's seasonal temperature curve read the lab temperature on every day (a year-round growing
+        // season for the food climate and crop-growth reads); persisted in the save like the pin.
+        public static void PinGrowingClimate()
+        {
+            LabStart.EnsureGrowingClimatePatched();
+            AcceptanceWorld.SetGrowingClimate(true);
+        }
+
         // World: move the game clock forward to the start of local hour on map (the next one; none when it is that
         // hour's start already).
         public static void AdvanceToHour(Map map, int hour)
@@ -325,6 +333,23 @@ namespace HomeBridge.BridgeTools
             harmony.Patch(AccessTools.PropertyGetter(typeof(MapTemperature), nameof(MapTemperature.SeasonalTemp)), postfix: new HarmonyMethod(typeof(LabStart), nameof(PinTemperature)));
             harmony.Patch(AccessTools.Method(typeof(WeatherDecider), nameof(WeatherDecider.WeatherDeciderTick)), prefix: new HarmonyMethod(typeof(LabStart), nameof(SkipWeather)));
             patched = true;
+        }
+
+        private static bool growingPatched;
+
+        // The seasonal curve itself, which the temperature getters and the typed climate reads all call, patched only
+        // for a game that staged a growing climate.
+        public static void EnsureGrowingClimatePatched()
+        {
+            if (growingPatched) return;
+            var harmony = new Harmony("rimgovernor.test.growing-climate");
+            harmony.Patch(AccessTools.Method(typeof(GenTemperature), nameof(GenTemperature.GetTemperatureFromSeasonAtTile)), postfix: new HarmonyMethod(typeof(LabStart), nameof(GrowingSeason)));
+            growingPatched = true;
+        }
+
+        private static void GrowingSeason(ref float __result)
+        {
+            if (AcceptanceWorld.GrowingClimate) __result = Temperature;
         }
 
         private static void PinTemperature(ref float __result)

@@ -70,6 +70,7 @@ namespace HomeBridge.BridgeTools
                 research[project.defName] = project.IsFinished ? 1f : project.ProgressPercent;
             }
             if (spec.World?.OutdoorTemperature is float outdoor) FixtureKit.PinOutdoorTemperature(outdoor);
+            if (spec.World?.GrowingClimate == true) FixtureKit.PinGrowingClimate();
             if (spec.World?.Hour is int hour) FixtureKit.AdvanceToHour(map, hour);
             if (spec.World?.Storyteller is string storyteller) Find.Storyteller.def = FixtureKit.Def<StorytellerDef>(storyteller);
             if (spec.World?.DaysPassed is float days) FixtureKit.AdvanceToDaysPassed(days);
@@ -250,6 +251,7 @@ namespace HomeBridge.BridgeTools
                     Health = pawn.health.summaryHealth.SummaryHealthPercent,
                     Worn = pawn.apparel?.WornApparel.Count ?? 0,
                     CombatPower = pawn.kindDef.combatPower, MeleeDps = pawn.GetStatValue(StatDefOf.MeleeDPS), RangedDps = NativeDefenseStats.PawnRangedDps(pawn), Primary = Primary(pawn),
+                    Skills = spec.Pawns.First(x => x.Name == name).Skills?.Keys.ToDictionary(k => k, k => pawn.skills.GetSkill(FixtureKit.Def<SkillDef>(k)).Level),
                 };
             foreach (var z in spec.Zones)
                 Add(zones, z.Name, LayZone(map, z, z.Cells.Select(At).ToList()));
@@ -329,10 +331,16 @@ namespace HomeBridge.BridgeTools
         // Every skill at the staged level without passion, for a generated pawn and a moved colonist alike.
         private static void Skills(Pawn pawn, StagePawn p)
         {
-            if (p.SkillLevel is not int level) return;
-            foreach (var skill in pawn.skills.skills)
+            if (p.SkillLevel is int level)
+                foreach (var skill in pawn.skills.skills)
+                {
+                    skill.Level = level;
+                    skill.passion = Passion.None;
+                }
+            foreach (var pair in p.Skills ?? new Dictionary<string, int>())
             {
-                skill.Level = level;
+                var skill = pawn.skills.GetSkill(FixtureKit.Def<SkillDef>(pair.Key));
+                skill.Level = pair.Value;
                 skill.passion = Passion.None;
             }
         }

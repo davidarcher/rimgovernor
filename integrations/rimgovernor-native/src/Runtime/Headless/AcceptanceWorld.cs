@@ -26,11 +26,16 @@ namespace HomeBridge.BridgeTools
         // weather and temperature patches read it; nothing else does.
         public float LabTemperature = float.NaN;
 
+        // LabGrowingClimate (opt-in, off by default) makes the tile's seasonal
+        // temperature curve read the lab temperature on every day.
+        public bool LabGrowingClimate;
+
         public AcceptanceWorld(Game game) { }
 
         public override void ExposeData()
         {
             Scribe_Values.Look(ref QuietWorld, "rimgovernorQuietWorld", false);
+            Scribe_Values.Look(ref LabGrowingClimate, "rimgovernorLabGrowingClimate", false);
             Scribe_Values.Look(ref LabTemperature, "rimgovernorLabTemperature", float.NaN);
             if (Scribe.mode == LoadSaveMode.PostLoadInit) Invalidate();
         }
@@ -53,6 +58,33 @@ namespace HomeBridge.BridgeTools
                 }
                 return labTemperature;
             }
+        }
+
+        private static Game? growingGame;
+        private static bool growingClimate;
+
+        // GrowingClimate is the loaded game's growing-climate marker, cached per Game instance.
+        public static bool GrowingClimate
+        {
+            get
+            {
+                var game = Current.Game;
+                if (game == null) return false;
+                if (!ReferenceEquals(game, growingGame))
+                {
+                    growingGame = game;
+                    growingClimate = game.GetComponent<AcceptanceWorld>()?.LabGrowingClimate ?? false;
+                }
+                return growingClimate;
+            }
+        }
+
+        public static void SetGrowingClimate(bool on)
+        {
+            var component = Current.Game?.GetComponent<AcceptanceWorld>();
+            if (component == null) throw new InvalidOperationException("A loaded game is required.");
+            component.LabGrowingClimate = on;
+            Invalidate();
         }
 
         public static void SetLab(float temperature)
@@ -87,7 +119,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        public static void Invalidate() { cachedGame = null; labGame = null; }
+        public static void Invalidate() { cachedGame = null; labGame = null; growingGame = null; }
 
         public static void SetQuiet(bool quiet)
         {
