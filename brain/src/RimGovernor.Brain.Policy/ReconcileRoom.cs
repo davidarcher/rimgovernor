@@ -94,6 +94,49 @@ public static partial class ReconcileRules
         return output;
     }
 
+    /// <summary>
+    /// The interior furniture an owner reconciling against its whole list would remove and OwnRows leaves: each
+    /// player building wholly inside the room's interior that no piece of <paramref name="template"/> lists
+    /// (matched as Reconcile matches, one row per piece) and that is not carried over. Walls, doors, frames,
+    /// stand-in beds and what the owner forbids are the ring's or already the owner's, not stale furniture.
+    /// <paramref name="carried"/> names the defs other lanes stand in owned rooms (art, lamps, the party spot,
+    /// comfort pieces): listed as standing, never stale.
+    /// </summary>
+    public static IReadOnlyList<ClearanceTarget> StaleInterior(PlannedRoom room, IReadOnlyList<ClearanceTarget> rows, IReadOnlyList<WantedPiece> template, Func<string, bool>? forbidden, Func<string, bool> carried)
+    {
+        var matched = new bool[template.Count];
+        var output = new List<ClearanceTarget>();
+        foreach (var row in rows.OrderBy(r => r.EntityId, StringComparer.Ordinal))
+        {
+            if (!row.Player || row.EnclosesRoom || row.Class == "ancient_wall_door" || row.DefName.StartsWith("Frame_", StringComparison.Ordinal) || ClearanceGroundRules.StandInBed(row) || (forbidden is not null && forbidden(row.DefName)))
+            {
+                continue;
+            }
+            if (!PlannedRules.RectCells(new Rectangle(row.Minimum.X, row.Minimum.Z, row.Maximum.X - row.Minimum.X + 1, row.Maximum.Z - row.Minimum.Z + 1)).All(room.Region.Contains))
+            {
+                continue;
+            }
+            var hit = -1;
+            for (var i = 0; i < template.Count && hit < 0; i++)
+            {
+                var p = template[i];
+                if (!matched[i] && p.DefName == row.DefName && p.Minimum == row.Minimum && p.Maximum == row.Maximum)
+                {
+                    hit = i;
+                }
+            }
+            if (hit >= 0)
+            {
+                matched[hit] = true;
+            }
+            else if (!carried(row.DefName))
+            {
+                output.Add(row);
+            }
+        }
+        return output;
+    }
+
     /// <summary>The rectangle a planned room's ring and interior cover, the ground an owner reads the census on.</summary>
     public static Rectangle RoomGround(this PlannedRoom r) =>
         r.Unfenced() ? r.Region.Bounds() : ClearanceGroundRules.RoomGround(r.Region.Bounds());

@@ -64,6 +64,12 @@ public sealed partial class Rounder
     /// <summary>Since when each room has had unfinished blueprints or frames; see noteStall.</summary>
     internal Dictionary<string, RoomStall> RoomStalls = [];
 
+    /// <summary>The room and definition pairs whose dry-run stale furniture was logged (furniture_stale_dry_run); in memory, one episode lasts until restart.</summary>
+    internal HashSet<string> StaleFurnitureLogged = [];
+
+    /// <summary>The tick each facility room's stale furniture was last read for the dry-run log.</summary>
+    internal Dictionary<int, long> FacilityStaleRead = [];
+
     /// <summary>The quest skips already logged.</summary>
     internal HashSet<QuestSkipKey> SkipsLogged = [];
 

@@ -230,6 +230,44 @@ public sealed class RoomFurnishingTests
     }
 
     [Fact]
+    public void RetiringOwnRowsRemovesAnUnlistedPieceAndKeepsAListedLeverAndACarriedOverSculpture()
+    {
+        var room = Room();
+        var plan = new LayoutPlan { Rooms = [room] };
+        var bed = StandingAt(SleepingRules.BedroomFurnishing(room, Shapes, Bed, [], null).Pieces.Single());
+        var free = room.Region.Cells().Where(c => !bed.Cells.Contains(c)).ToList();
+        var dresser = Standing("Dresser", free[0].X, free[0].Z);
+        var stale = Standing("Dresser", free[1].X, free[1].Z);
+        var art = Standing(Lever, free[2].X, free[2].Z);
+        var onRing = Standing("Dresser", room.Region.Bounds().X - 1, room.Region.Bounds().Z);
+        var standing = new[] { bed, dresser, art, stale, onRing };
+        var furnishing = SleepingRules.BedroomFurnishing(room, Shapes, Bed, [bed, dresser], null);
+        var rows = standing.Select(b => new ClearanceTarget
+        {
+            EntityId = b.Id,
+            DefName = b.Building!.Definition,
+            Minimum = b.Cells[0],
+            Maximum = b.Cells[^1],
+            Player = true,
+            Packable = true,
+        }).ToList();
+
+        // The dresser is listed, the sculpture is carried over; the second dresser is the one unlisted interior piece.
+        var found = ReconcileRules.StaleInterior(room, rows, furnishing.Pieces, null, def => def == Lever);
+        Assert.Equal(["Dresser"], found.Select(r => r.DefName));
+        Assert.Equal(stale.Id, found.Single().EntityId);
+        Assert.Equal(2, ReconcileRules.StaleInterior(room, rows, furnishing.Pieces, null, _ => false).Count);
+
+        // Dry run: OwnRows alone removes nothing. Retired: the stale piece is removed and the listed pieces are not.
+        var own = ReconcileRules.OwnRows(rows, furnishing.Pieces, null);
+        Operation[] Removals(IReadOnlyList<ClearanceTarget> reconciled) =>
+            [.. ReconcileRules.Reconcile(new ReconcileInput { Plan = plan, Room = room, Ground = new GroundCensus(), Rows = reconciled, Furniture = furnishing.Pieces }).Owed.Where(o => o.Kind is OpKind.Pack or OpKind.PackInUse or OpKind.FurnitureOut)];
+        Assert.Empty(Removals(own));
+        var removed = Assert.Single(Removals([.. own, .. found]));
+        Assert.Equal(stale.Id, removed.Targets.Single().EntityId);
+    }
+
+    [Fact]
     public void AStandingBedStaysListedWhereItStandsAndNothingIsAbsent()
     {
         var room = Room();

@@ -468,7 +468,18 @@ public sealed partial class RoundsBuildingPlanner
                 return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
             }
             var (_, player) = ClearanceGroundRules.SplitGroundRows(census.Targets, facts.Facts.Preferences);
-            input = input with { Rows = ReconcileRules.OwnRows(HomeUpkeepReader.StampPacking(player, facts), rr.Template, rr.Forbidden), Floors = census.Floors, Furniture = rr.Template };
+            var stamped = HomeUpkeepReader.StampPacking(player, facts);
+            var own = ReconcileRules.OwnRows(stamped, rr.Template, rr.Forbidden);
+            var stale = ReconcileRules.StaleInterior(rr.Room, stamped, rr.Template, rr.Forbidden, CarriedOver(facts));
+            if (Reviewer.Policy.RetireOwnRows)
+            {
+                own = [.. own, .. stale];
+            }
+            else
+            {
+                NoteStaleFurniture(rr.Room, rr.Name, stale);
+            }
+            input = input with { Rows = own, Floors = census.Floors, Furniture = rr.Template };
             var want = RoundsTierStyle.ShellStyleOf(facts).WallStuff;
             if (want != "" && !rr.Room.Outdoor)
             {

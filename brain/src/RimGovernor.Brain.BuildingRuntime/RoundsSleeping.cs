@@ -373,6 +373,7 @@ public sealed partial class RoundsBuildingPlanner
         var facts = reading.Projection;
         PlannerSnapshot.RecordStepRead("building", r.Concern, state.Snapshot, facts);
         RecordRoleMismatches(facts, call);
+        await r.NoteFacilityStaleAsync(facts, call).ConfigureAwait(false);
         if (r.Phase == Pol.Phase.ComfortSpot)
         {
             var (spotResult, placing) = await r.PartySpotStepAsync(state, review, goal, reading, call, epoch).ConfigureAwait(false);

@@ -10,6 +10,13 @@ public sealed record RoundsPolicy
 
     public FlooringPolicy Flooring { get; init; } = new();
 
+    /// <summary>
+    /// True once an owner reconciles its room against the full furniture list and removes interior furniture the
+    /// list omits (the OwnRows carve-out retired, #3487). False is the dry run: the owner keeps OwnRows and logs
+    /// the removals the full list would make (furniture_stale_dry_run).
+    /// </summary>
+    public bool RetireOwnRows { get; init; }
+
     public RoutesPolicy Routes { get; init; } = new();
 
     public double FoodMinDays { get; init; }
