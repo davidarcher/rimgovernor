@@ -225,6 +225,8 @@ namespace HomeBridge.BridgeTools
                     RaidPoints = Finite(StorytellerUtility.DefaultThreatPointsNow(map)),
                     AdaptationFactor = Finite(Find.StoryWatcher.watcherAdaptation.TotalThreatPointsFactor),
                     DifficultyThreatScale = Finite(Find.Storyteller.difficulty.threatScale),
+                    Storyteller = Find.Storyteller.def.defName, DaysPassed = Finite(GenDate.DaysPassedFloat),
+                    AdaptationDays = Finite(Find.StoryWatcher.watcherAdaptation.AdaptDays),
                 };
                 facts = facts with { Raids = [.. facts.Raids, .. NativeDefenseObservationTools.RaidTracks(map)] };
                 return new Obs.ThreatSection { Observed = facts };

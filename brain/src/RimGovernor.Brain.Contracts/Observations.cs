@@ -6392,6 +6392,15 @@ public sealed record ThreatFacts
 
     public double? DifficultyThreatScale { get; init; }
 
+    /// <summary>Find.Storyteller.def.defName: the storyteller whose comps schedule the threats (#3539).</summary>
+    public string? Storyteller { get; init; }
+
+    /// <summary>GenDate.DaysPassedFloat.</summary>
+    public double? DaysPassed { get; init; }
+
+    /// <summary>The story watcher's adaptation days (watcherAdaptation.AdaptDays).</summary>
+    public double? AdaptationDays { get; init; }
+
     /// <summary>
     /// The hostile lords seen on the map since load (RaidArrivalState): the defense layout ranks the approaches by where ground raids crossed its census.
     /// </summary>

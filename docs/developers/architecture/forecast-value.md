@@ -246,7 +246,7 @@ model below.
 The harm model turns a pawn's outfit and the colony's defense into expected
 raid harm per day. The output feeds the currency and the death floor.
 
-1. **Threat schedule.** Expected major threats per day come from the
+1. **Threat schedule** (`ThreatSchedule.Of`, #3539; decoded from the storyteller comps, [contract](../contracts/forecast-contracts.md#threat-schedule-3539)). Expected major threats per day come from the
    storyteller:
    - Cassandra: 4.6 days on, 6 off, about 1.5 big threats per cycle from
      day 11, so about one per 7.1 days.

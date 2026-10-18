@@ -259,6 +259,21 @@ The severity rates that are method-body literals, and which need categories carr
 an effect, are mirrored in
 [kept constants](kept-constants.md#mirrored-game-literals-capacity-penalties-3519).
 
+### Threat schedule (#3539)
+
+The harm model's first step ([harm model](../architecture/forecast-value.md#harm-model)) reads the storyteller the game is running.
+
+- `ThreatFacts.Storyteller` (`Find.Storyteller.def.defName`), `DaysPassed` (`GenDate.DaysPassedFloat`) and `AdaptationDays`
+  (`Find.StoryWatcher.watcherAdaptation.AdaptDays`) are read beside `RaidPoints` and decoded onto `RoundsFacts.Storyteller`, `DaysPassed`
+  and `AdaptationDays`; each is unknown when the section or the field is missing. Raid points stay the observed `RaidPoints`
+  (adaptation and difficulty are inside it); the schedule does not model their growth.
+- `RoundsFacts.ThreatTable` (`ThreatScheduleTable`): per `StorytellerDef`, its home-map threat comps decoded by `Catalog/Storyteller.cs`
+  (on-off cycles of `ThreatBig` and random mains with their `ThreatBig` weight share), and the comps it could not model. Empty without a catalog.
+- `ThreatSchedule.Of(table, storyteller, daysPassed)`: `MajorThreatsPerDay`, the sum of the comps' expected incidents a day at that day, and
+  `RaidFraction` (1 before day 20, 0.5 after). Both are unknown, with a finding (`storyteller_unobserved`, `days_passed_unobserved`,
+  `storyteller_unknown:<def>`, `threat_comp_unmodelled:<class>`), when an input or the def is missing. Non-raid threats are not modelled. The
+  mirrored literals are in [kept constants](kept-constants.md#mirrored-game-literals-threat-schedule-3539).
+
 ## Coherent coupled observation frame
 
 The routine forecast read includes `CoupledForecastRead` alongside needs in one

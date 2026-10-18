@@ -179,6 +179,9 @@ public static class ColonyDecodeReads
             AnimalWard = f.AnimalWard with { Area = PoliciesReads.AllowedAreaID(r.Policies, HerdWardRules.HospitalAreaLabel) },
             IsolationArea = PoliciesReads.AllowedAreaID(r.Policies, IsolationRoomRules.IsolationAreaLabel),
             RaidPoints = r.Threat.RaidPoints,
+            Storyteller = r.Threat.Storyteller,
+            DaysPassed = r.Threat.DaysPassed,
+            AdaptationDays = r.Threat.AdaptationDays,
             Monolith = AnomalyColonyReads.MonolithFacts(r.Anomaly),
         };
         r = r with { Raids = r.Threat.Raids };

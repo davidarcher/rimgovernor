@@ -120,6 +120,24 @@ Malnutrition's per-pawn rate factor (`Lerp(0.8, 1.2, ...)` seeded by the thing i
 number) is not observed either: the mean 1 is used and `malnutrition_rate_pawn_factor_unobserved`
 is reported.
 
+## Mirrored game literals: threat schedule (#3539)
+
+`ThreatSchedule.Of` (`brain/src/RimGovernor.Brain.Policy/Harm/ThreatSchedule.cs`) mirrors what the storyteller comps do with the props
+`Catalog/Storyteller.cs` decodes from each `StorytellerDef`, as expected major threats per day. Read with ilspycmd (1.7). The design
+doc's three rates are the test oracle, not an input.
+
+| Literal | Value | 1.7 member |
+| --- | --- | --- |
+| A cycle of `onDays + offDays` holds a hit count drawn from `numIncidentsRange`, each kept with the accept curve's fraction at the days passed; expected count is the range mean × fraction, so the rate is that over the cycle length. Cycle lengths round to whole 1/60 days. Nothing fires before `minDaysPassed`. | 60 intervals a day | `StorytellerComp_OnOffCycle.MakeIntervalIncidents`, `IncidentCycleUtility.IncidentCountThisInterval`, `GenerateHitList`, `DaysToIntervals` |
+| A random main fires at a rate of 1 / `mtbDays` a day; the threat share is the `ThreatBig` weight over the sum of `categoryWeights`. The forced `ThreatBig` after `maxThreatBigIntervalDays` is left out (it would move Randy from about 1 per 9 days to about 1 per 7). | 1 / `mtbDays` | `StorytellerComp_RandomMain.MakeIntervalIncidents`, `ChooseRandomCategory`, `Rand.MTBEventOccurs` |
+| Every incident of an on-off cycle is a raid before `forceRaidEnemyBeforeDaysPassed` (20 in the Core comps) | 20 days | `StorytellerComp_OnOffCycle.GenerateIncident` |
+| After it, raids are about half of the major threats: `RaidEnemy` against the other `ThreatBig` incidents by base weight | 0.5 | `IncidentDef.baseChance` (`RaidEnemy` 7.4 in Core), `StorytellerComp.IncidentChanceFinal` |
+
+A comp counts when it can fire on the home map (its allowed target tags are empty or name `Map_PlayerHome`; raid-beacon and caravan comps do
+not). A home-map comp whose class the decoder does not list as sending no scheduled major threat, an on-off cycle that scales its accept
+fraction by threat points or progress score, and a `CategoryMTB` that sends `ThreatBig` make that storyteller's rate unknown
+(`threat_comp_unmodelled:<class>`). 1.7 has no `StorytellerCompProperties_ThreatCycle`.
+
 ## Mirrored game literals: plant resting (#3523)
 
 `PlantResting` (`brain/src/RimGovernor.Brain.Policy/ColonyModel/PlantResting.cs`) mirrors a method-body literal no def carries.
