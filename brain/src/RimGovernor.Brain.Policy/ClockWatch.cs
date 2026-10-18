@@ -56,6 +56,7 @@ public static class ClockWatchRules
         var hostiles = new List<PawnId>();
         var combat = false;
         var buildings = HostileBuildingIDs(f.Emergency);
+        var breaking = BreakingColonistIDs(f.Emergency);
         var emergency = EmergencyRules.EvaluateEmergency(f.Emergency, f.Current, f.Tick);
         foreach (var h in emergency.Holds)
         {
@@ -88,6 +89,15 @@ public static class ClockWatchRules
                         // No squad can be assigned (every colonist downed or incapable of violence): the
                         // building goes nowhere, so it is watched rather than held. The planner reports again
                         // at every hold and a plan it admits later makes the next watch a combat one.
+                    }
+                    else if (named && breaking.Contains(h.Pawn) && unansweredKnown && unanswered)
+                    {
+                        // A colonist's aggressive break that no squad can subdue (#3572: every other colonist
+                        // unarmed or ranged) ends only with ticks, so holding for it cannot resolve it: the
+                        // breaker is watched like a fight's hostile. The planner reports again at every hold
+                        // and a squad it forms later makes the next watch a combat one. A hostile pawn with the
+                        // same answer still holds: a raid must not auto-advance.
+                        hostiles.Add(h.Pawn);
                     }
                     else if (combatPlan && named)
                     {
@@ -206,6 +216,21 @@ public static class ClockWatchRules
             if (t.Building)
             {
                 output.Add(t.Id);
+            }
+        }
+
+        return output;
+    }
+
+    /// <summary>The colonists the census reads in an aggressive mental break.</summary>
+    private static HashSet<PawnId> BreakingColonistIDs(EmergencySnapshot snapshot)
+    {
+        var output = new HashSet<PawnId>();
+        foreach (var pawn in snapshot.Facts.Colonists)
+        {
+            if (BreakResponseRules.AggressiveBreak(pawn))
+            {
+                output.Add(pawn.Id);
             }
         }
 

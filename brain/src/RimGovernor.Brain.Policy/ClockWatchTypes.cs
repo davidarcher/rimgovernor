@@ -49,8 +49,9 @@ public sealed record ClockWatchFacts
     /// <summary>
     /// Whether the defense planner, at this tick, found no eligible squad for the emergency's threats. A
     /// hostile building it cannot answer is then watched like a distant one, so the colony keeps running around
-    /// it, instead of holding the clock for good; a hostile pawn still holds, a raid must not auto-advance.
-    /// Unknown means the planner has not reported and the building holds.
+    /// it, instead of holding the clock for good, and a colonist's aggressive break it cannot subdue is watched
+    /// so the break ends with ticks; a hostile pawn still holds, a raid must not auto-advance. Unknown means the
+    /// planner has not reported and the building or breaker holds.
     /// </summary>
     public Fact<bool> SquadUnanswered { get; init; }
 

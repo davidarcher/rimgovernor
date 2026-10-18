@@ -96,6 +96,11 @@ and the acknowledgements the next `Run` carries. A refusal (`stale_facts`, `unkn
 - A hostile building alone refuses only while the defense planner has not reported
   `no_worker:squad` for this stop (`ClockWatchFacts.SquadUnanswered`); after that
   it is watched and the colony run resumes.
+- A colonist's aggressive mental break (`BreakResponseRules.AggressiveBreak`) refuses
+  the run the same way, and is watched (the breaker among the acknowledged ids) once the
+  planner has reported `no_worker:squad` for this stop: the break ends only with ticks, and
+  a squad the planner forms at a later hold makes the next watch a combat one. A hostile
+  pawn with the same answer keeps refusing.
 - A hostile or hunting animal, or hostile building, known to be at least
   `policy.DistantThreatCells` from every colonist is not an emergency (the native
   `hostile_within` radius holds a running clock first). A humanlike or mechanoid
