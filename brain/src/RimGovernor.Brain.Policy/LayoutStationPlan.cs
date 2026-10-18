@@ -685,7 +685,9 @@ public static partial class LayoutStationPlanRules
     }
 
     /// <summary>
-    /// Matches built rooms to the groups of their role. Groups and rooms of a role are each taken largest first (a
+    /// Matches built rooms to the groups of their role. A group that is a standing suite (Kept) first takes a room of
+    /// its own floor (largest group first, the lower room id), so a new, larger suite wish does not claim another
+    /// suite's smaller standing room (#3022). The rest of a role's groups and rooms are each taken largest first (a
     /// group by Area, a room by floor, ties by lower id); the n-th largest group gets the n-th largest room. A room
     /// left over when the role has more rooms than groups goes to the group of that role with the most floor still
     /// short (Area less the capacity it has, ties to the lower group id), so a role's rooms are always all assigned. A
@@ -732,11 +734,23 @@ public static partial class LayoutStationPlanRules
                 rooms[at].Add(r.Room);
                 capacity[at] += r.Region.Area();
             }
+            var open = new List<RoomGroup>();
+            foreach (var g in gs)
+            {
+                var own = g.Kept > 0 ? rs.FindIndex(r => r.Region.Area() == g.Kept) : -1;
+                if (own < 0)
+                {
+                    open.Add(g);
+                    continue;
+                }
+                Give(g, rs[own]);
+                rs.RemoveAt(own);
+            }
             for (var i = 0; i < rs.Count; i++)
             {
-                if (i < gs.Count)
+                if (i < open.Count)
                 {
-                    Give(gs[i], rs[i]);
+                    Give(open[i], rs[i]);
                     continue;
                 }
                 var best = gs[0];
@@ -761,8 +775,19 @@ public static partial class LayoutStationPlanRules
         return output;
     }
 
-    /// <summary>Whether a group needs more floor than its matched built rooms give. A group with no built room has nothing to outgrow.</summary>
-    public static bool GroupOutgrown(RoomGroup g, GroupRooms m) => m.Rooms.Count > 0 && g.Area > m.Capacity;
+    /// <summary>
+    /// Whether a group needs at least one station's cells (StationCells) more floor than its matched built rooms give
+    /// (#3022): a smaller shortfall, such as a suite target raised by a cell, does not replace a standing room. A group
+    /// with no built room has nothing to outgrow.
+    /// </summary>
+    public static bool GroupOutgrown(RoomGroup g, GroupRooms m) => m.Rooms.Count > 0 && g.Area - m.Capacity >= StationCells(g);
+
+    /// <summary>The cells one of the group's stations stands on (Footprint over the station count), at least 1; 1 for a group with no stations.</summary>
+    internal static int StationCells(RoomGroup g)
+    {
+        var stations = g.Stations.Sum(s => s.Count);
+        return stations > 0 ? Math.Max(1, g.Footprint / stations) : 1;
+    }
 
     /// <summary>The groups and blocks of the embedding's held rooms, held room k being group groups+k: a group of its planned role with no stations, so the tiler tiles the standing room where it stands.</summary>
     internal static (List<RoomGroup> Groups, List<EmbeddedBlock> Blocks) HeldBlocks(int groups, IReadOnlyList<HeldRoom> held)

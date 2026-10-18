@@ -404,10 +404,15 @@ the `layout/climate-envelope` Need.
 
 `MatchGroupRooms` matches the standing planned rooms of a native role
 (`BuiltRegions`, through the planned-role to native-role table) to the groups
-of that role: both largest first, the n-th group takes the n-th room, and a
-surplus room goes to the group most short of floor (ties to the lower id).
-`GroupOutgrown` holds when the group's area exceeds the matched rooms' floor; a
-group with no built room is not outgrown. A built pair (a room and the successor that replaces it) is one room: `BuiltRegions` leaves the replaced room out.
+of that role. A standing suite's group (its `Kept` floor) first takes a room of
+that floor, so a new, larger suite wish cannot claim another suite's smaller
+room. The rest are matched largest first, the n-th group taking the n-th room,
+and a surplus room goes to the group most short of floor (ties to the lower id).
+`GroupOutgrown` holds when the group's area exceeds the matched rooms' floor by
+at least one station's cells (`StationCells`: footprint over station count, at
+least 1), so a target raised by a cell does not replace a furnished suite
+(#3022; pricing the shortfall in game units is not done); a group with no built
+room is not outgrown. A built pair (a room and the successor that replaces it) is one room: `BuiltRegions` leaves the replaced room out.
 
 The freezer and the butchery are matched to the group that became them
 (`matchedPlanned`: a cold storeroom group, a filth closet the game reads as a
