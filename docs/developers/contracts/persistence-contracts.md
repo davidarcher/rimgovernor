@@ -17,7 +17,7 @@ still loads (its `standard/<id>` blobs are ignored). Databases from other versio
 there is no adoption path.
 
 The C# brain's journal (`RimGovernor.Brain.Store`, Microsoft.Data.Sqlite on the SourceGear `e_sqlite3` provider)
-keeps the same ownership rules in its own file format: `PRAGMA user_version` 23 (`Store.SchemaVersion`) and the same `application_id`.
+keeps the same ownership rules in its own file format: `PRAGMA user_version` 24 (`Store.SchemaVersion`) and the same `application_id`.
 Domain payloads (actions, admissions, transitions, Rounds and the family records) are
 JSON text written by hand-written codecs under `Codec/` with fixed field names and no reflection
 serializer; the clock evidence records stay canonical wire blobs (`ClockCodec`). The per-kind column checks the brain kept in SQL `CHECK`
@@ -31,7 +31,7 @@ The save keeps only player intent and `family/*` records
 session cache of the `family/admin/creep_joiners` record (#3264), and version 17 the
 `economy_trade_missions` table, the session cache of the `family/economy/trade_missions` record (#3316).
 Version 19 dropped the Standard and Incident tables and the `plan_methods` view, and version 20 renamed
-`concern_transitions` to `need_transitions` (#3265). An older save's `trade-mission` Standard blobs
+`concern_transitions` to `need_transitions` (#3265). Version 24 added the `goals` table, the session cache of the `family/goals` record (#3489). An older save's `trade-mission` Standard blobs
 are dropped on load (decision 12).
 
 Every fact has exactly one home, chosen by what must happen to it when a save is reloaded. A second
@@ -39,7 +39,7 @@ copy of a fact is a bug, not a cache.
 
 | Home | Holds | On reload |
 |---|---|---|
-| Native save, `GovernorState` blobs | Brain intent the world cannot show: family plans (`family/*`; the layout plan, `family/layout_plan`, keys each pen room with its herd's race in `Herd`, #2226) the soldier squad (`family/soldier_squad`), original temporary combat settings (`family/combat_restoration`), the creepjoiner inspection record (`family/admin/creep_joiners`: the pawns ordered and done, keyed by colony and map, so it is read back after a reload; #3264), the settlement trade missions under way (`family/economy/trade_missions`: each mission's minted id and intent, keyed by colony and map; a mission leaves it once delivered or ended; #3316) and the ideology family's pending reform (`family/ideology/reform`, #3260); written by the brain at save time, opaque to native | Follows the save's timeline; the brain rebuilds its in-memory views from the blobs |
+| Native save, `GovernorState` blobs | Brain intent the world cannot show: family plans (`family/*`; the layout plan, `family/layout_plan`, keys each pen room with its herd's race in `Herd`, #2226) the soldier squad (`family/soldier_squad`), original temporary combat settings (`family/combat_restoration`), the creepjoiner inspection record (`family/admin/creep_joiners`: the pawns ordered and done, keyed by colony and map, so it is read back after a reload; #3264), the settlement trade missions under way (`family/economy/trade_missions`: each mission's minted id and intent, keyed by colony and map; a mission leaves it once delivered or ended; #3316) the ideology family's pending reform (`family/ideology/reform`, #3260) and the player's goals, themes and preferences (`family/goals`, #3489); written by the brain at save time, opaque to native | Follows the save's timeline; the brain rebuilds its in-memory views from the blobs |
 | Native save, other components | Exact non-autonomous `Bill_GovernorRecipe` intents and native unfinished garments (recipe, stuff, ingredients, remaining work and bound bill); only Hands provisions these after selecting a Method, and only owned bills without unfinished work are cleaned up. Colony identity, per-target construction settings, the finishing-skill floor (the brain chooses once; native transfers blueprint to frame and enforces every finishing order) and the mutable [construction tier](construction-tiers.md), and native tick guards (the guarded designations of `GuardState`: enclosure, mine safety, wall upgrade and acquisition; home coverage). Native observation rings, each one packed, versioned, append-only string: realized consumption (`ConsumptionState`, hourly spend per definition and reason, 60 days) and storage occupancy (`StorageOccupancyState`, hourly stacks held per player storage group by load id, 15 days); the brain derives rates from them and keeps no copy past the load | Follows the save; construction settings disappear with the exact cancelled/completed target, never transfer by cell |
 | SQLite, one database per launch (`RIMGOVERNOR_STATE`) | The session journal: actions (including selected productive task service-time bounds), transitions, admissions, request-ID replay; no clock events (native buffers them in memory only, #3417) | Not restored; read across launches only by postmortem |
 | memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (read per load token), the def stat table (def-level stat values, allowed stuffs and adjusted costs; owned by the mod's `NativeStatTable`, built once per load on the game thread by the catalog read and read immutable by the brain catalog; [stat evaluation](stat-classes.md)), the animal race catalog derived from its race rows, the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`), equipment-owned requirement estimates on transient clothing candidates (derived from the current census, not bill identity or reservations); the family tables are such views of the save blobs (`RebuildFamilies`; `RebuildOwners` retires the previous world's owned plans in one orphan pass) | Rebuilt from the save and the live world |
@@ -161,6 +161,11 @@ Methods and action attempts remain in the session journal. Current design,
 eligibility and scores are rebuilt from the keyed ideology section and catalog.
 
 Outbound trade missions, in the `family/economy/trade_missions` record (#3316), own home/settlement target, crew, silver budget, definition demand and mission phase/return intent ([controllable trade](controllable-trade.md)). Native goodwill, cooldown, caravan inventory and routes stay observed facts; the action journal carries the typed participant and attempts.
+
+The player's goals, themes and standing preferences are the colony-scoped `family/goals` record (#3489): minted goal and
+theme ids (`NextId`, never reused), typed `GoalRecord`s of a closed `GoalKind` vocabulary (kinds with no pursuit still
+validate and persist), themes that reference a preset by id with the player's removals, and the preferences owning
+policies read as facts. An empty record deletes the row, and a save made before it simply lacks the key.
 
 Before accepting a settlement deal, the `economy/trade-mission` Need atomically records bounded
 authorized return definitions/counts and purchase commitment with its Hands

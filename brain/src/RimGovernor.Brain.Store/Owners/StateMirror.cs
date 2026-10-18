@@ -13,7 +13,8 @@ namespace RimGovernor.Brain.Store;
 /// their methods were re-planned on every load anyway (<see cref="RebuildOwners"/>).</item>
 /// <item><c>family/layout_plan</c>, <c>family/defense_layout</c>, <c>family/production_ladder</c>,
 /// <c>family/soldier_squad</c>, <c>family/combat_restoration</c>, <c>family/admin/creep_joiners</c>,
-/// <c>family/economy/trade_missions</c>, <c>family/ideology/reform</c>: <c>{schemaVersion, scope?, record}</c>.
+/// <c>family/economy/trade_missions</c>, <c>family/ideology/reform</c>, <c>family/goals</c> (the player's goals, themes and
+/// preferences, #3489; a save made before it simply lacks the key): <c>{schemaVersion, scope?, record}</c>.
 /// An older save's pending reform lives in its ImproveIdeoligion <c>standard/*</c> blob's <c>Record</c> instead; it
 /// is read once on load into <c>family/ideology/reform</c> when that blob is absent (#3260).</item>
 /// </list>
@@ -31,7 +32,7 @@ public sealed partial class Store
     /// <summary>The oldest blob version load still reads: version 6 differs only by its ignored <c>standard/*</c> blobs.</summary>
     private const int MinGovernorStateSchemaVersion = 6;
 
-    private static readonly string[] _familyTables = ["colony_layout_plans", "defense_layout", "production_ladder", "soldier_squad", "combat_restoration", "admin_creep_joiners", "economy_trade_missions", "colony_extent_events", "ideology_reform"];
+    private static readonly string[] _familyTables = ["colony_layout_plans", "defense_layout", "production_ladder", "soldier_squad", "combat_restoration", "admin_creep_joiners", "economy_trade_missions", "colony_extent_events", "ideology_reform", "goals"];
 
     /// <summary>The retired Concern whose Standard carried the pending reform before the ideology family (#3260).</summary>
     private static readonly ConcernId LegacyReformKind = new("ImproveIdeoligion");
@@ -107,6 +108,10 @@ public sealed partial class Store
                 {
                     output[GovernorTradeMissionsKey] = FamilyBlob(StoreJson.Serialize(missions), null);
                 }
+                if (LoadGoalsIn(tx) is { } goals)
+                {
+                    output[GovernorGoalsKey] = FamilyBlob(StoreJson.Serialize(goals), null);
+                }
                 return (IReadOnlyDictionary<string, string>)output;
             },
             cancellationToken
@@ -160,7 +165,7 @@ public sealed partial class Store
         var blobs = new Dictionary<string, FamilyBlobIn>(StringComparer.Ordinal);
         try
         {
-            foreach (var key in new[] { GovernorLayoutPlanKey, GovernorDefenseLayoutKey, GovernorProductionLadderKey, GovernorSoldierSquadKey, GovernorCombatRestorationKey, GovernorCreepJoinersKey, GovernorTradeMissionsKey, GovernorIdeologyReformKey })
+            foreach (var key in new[] { GovernorLayoutPlanKey, GovernorDefenseLayoutKey, GovernorProductionLadderKey, GovernorSoldierSquadKey, GovernorCombatRestorationKey, GovernorCreepJoinersKey, GovernorTradeMissionsKey, GovernorIdeologyReformKey, GovernorGoalsKey })
             {
                 if (!saved.TryGetValue(key, out var raw))
                 {
@@ -247,6 +252,10 @@ public sealed partial class Store
                     if (blobs.TryGetValue(GovernorTradeMissionsKey, out var missions))
                     {
                         PutTradeMissionsIn(tx, Codecs.Default.Read<TradeMissionsRecord>(missions.Record));
+                    }
+                    if (blobs.TryGetValue(GovernorGoalsKey, out var goals))
+                    {
+                        PutGoalsIn(tx, Codecs.Default.Read<GoalsRecord>(goals.Record));
                     }
                 },
                 cancellationToken

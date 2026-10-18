@@ -223,6 +223,10 @@ internal static class CodecRegistry
         codecs.Register(new SoldierSquadRecordConverter());
         codecs.Register(new IdeologyReformRecordConverter());
         codecs.Register(new CreepJoinersRecordConverter());
+        codecs.Register(new GoalRecordConverter());
+        codecs.Register(new ThemeRecordConverter());
+        codecs.Register(new PreferencesRecordConverter());
+        codecs.Register(new GoalsRecordConverter());
         codecs.Register(new TradeMissionEntryConverter());
         codecs.Register(new TradeMissionsRecordConverter());        codecs.Register(new StartingSupplyConverter());
         codecs.Register(new StatModifierConverter());

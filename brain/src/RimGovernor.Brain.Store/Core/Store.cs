@@ -25,8 +25,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 20 renames <c>concern_transitions</c> to <c>need_transitions</c>, keyed by the <c>need</c> column (#3265).
     /// Version 21 drops the <c>combat_evidence</c> table (#3407): its only reader was an acceptance case; OTLP keeps the stop history.
     /// Version 22 drops the seven <c>clock_*</c> journal tables (#3417): the brain keeps no clock events; the native ring is read live.
+    /// Version 24 adds the <c>goals</c> singleton table, the session cache of the <c>family/goals</c> record (#3489).
     /// </summary>
-    public const int SchemaVersion = 23;
+    public const int SchemaVersion = 24;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

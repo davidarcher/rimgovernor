@@ -2339,6 +2339,118 @@ internal sealed class TradeMissionsRecordConverter : ObjectCodec<TradeMissionsRe
     }
 }
 
+internal sealed class GoalRecordConverter : ObjectCodec<GoalRecord>
+{
+    protected override GoalRecord Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            Id = e.I32("Id"),
+            Kind = e.Get<GoalKind>("Kind", o),
+            Target = e.Str("Target"),
+            Qualifier = e.Str("Qualifier"),
+            Count = e.I32("Count"),
+            Importance = e.Get<Importance>("Importance", o),
+            DeadlineDay = e.Get<int?>("DeadlineDay", o),
+            Theme = e.Get<int?>("Theme", o),
+            ImportanceOverride = e.Get<Importance?>("ImportanceOverride", o),
+            DeadlineOverride = e.Get<int?>("DeadlineOverride", o),
+            SiteMap = e.Get<MapId?>("SiteMap", o),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, GoalRecord v, Codecs o)
+    {
+        w.WriteNum("Id", v.Id);
+        w.Put("Kind", v.Kind, o);
+        w.WriteString("Target", v.Target);
+        w.WriteString("Qualifier", v.Qualifier);
+        w.WriteNum("Count", v.Count);
+        w.Put("Importance", v.Importance, o);
+        w.Put("DeadlineDay", v.DeadlineDay, o);
+        w.Put("Theme", v.Theme, o);
+        w.Put("ImportanceOverride", v.ImportanceOverride, o);
+        w.Put("DeadlineOverride", v.DeadlineOverride, o);
+        w.Put("SiteMap", v.SiteMap, o);
+    }
+}
+
+internal sealed class ThemeRecordConverter : ObjectCodec<ThemeRecord>
+{
+    protected override ThemeRecord Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            Id = e.I32("Id"),
+            Name = e.Str("Name"),
+            Preset = e.Str("Preset"),
+            Importance = e.Get<Importance>("Importance", o),
+            DeadlineDay = e.Get<int?>("DeadlineDay", o),
+            Members = e.Get<IReadOnlyList<int>>("Members", o),
+            RemovedPresetMembers = e.Get<IReadOnlyList<string>>("RemovedPresetMembers", o),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, ThemeRecord v, Codecs o)
+    {
+        w.WriteNum("Id", v.Id);
+        w.WriteString("Name", v.Name);
+        w.WriteString("Preset", v.Preset);
+        w.Put("Importance", v.Importance, o);
+        w.Put("DeadlineDay", v.DeadlineDay, o);
+        w.Put("Members", v.Members, o);
+        w.Put("RemovedPresetMembers", v.RemovedPresetMembers, o);
+    }
+}
+
+internal sealed class PreferencesRecordConverter : ObjectCodec<PreferencesRecord>
+{
+    protected override PreferencesRecord Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            RiskProfile = e.Get<RiskProfile>("RiskProfile", o),
+            Pace = e.Get<Pace>("Pace", o),
+            WealthCap = e.Get<int?>("WealthCap", o),
+            Forbidden = e.Get<IReadOnlyList<ForbiddenMethod>>("Forbidden", o),
+            ProtectedThings = e.Get<IReadOnlyList<string>>("ProtectedThings", o),
+            ProtectedPawns = e.Get<IReadOnlyList<string>>("ProtectedPawns", o),
+            Diet = e.Get<IReadOnlyList<DietOverride>>("Diet", o),
+            Apparel = e.Get<ApparelPreference?>("Apparel", o),
+            DrugPolicy = e.Get<DrugPolicyPreference?>("DrugPolicy", o),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, PreferencesRecord v, Codecs o)
+    {
+        w.Put("RiskProfile", v.RiskProfile, o);
+        w.Put("Pace", v.Pace, o);
+        w.Put("WealthCap", v.WealthCap, o);
+        w.Put("Forbidden", v.Forbidden, o);
+        w.Put("ProtectedThings", v.ProtectedThings, o);
+        w.Put("ProtectedPawns", v.ProtectedPawns, o);
+        w.Put("Diet", v.Diet, o);
+        w.Put("Apparel", v.Apparel, o);
+        w.Put("DrugPolicy", v.DrugPolicy, o);
+    }
+}
+
+internal sealed class GoalsRecordConverter : ObjectCodec<GoalsRecord>
+{
+    protected override GoalsRecord Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            World = e.Get<World>("World", o),
+            NextId = e.I32("NextId"),
+            Goals = e.Get<IReadOnlyList<GoalRecord>>("Goals", o),
+            Themes = e.Get<IReadOnlyList<ThemeRecord>>("Themes", o),
+            Preferences = e.Get<PreferencesRecord>("Preferences", o),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, GoalsRecord v, Codecs o)
+    {
+        w.Put("World", v.World, o);
+        w.WriteNum("NextId", v.NextId);
+        w.Put("Goals", v.Goals, o);
+        w.Put("Themes", v.Themes, o);
+        w.Put("Preferences", v.Preferences, o);
+    }
+}
+
 internal sealed class StartingSupplyConverter : ObjectCodec<StartingSupply>
 {
     protected override StartingSupply Read(JsonElement e, Codecs o) =>
