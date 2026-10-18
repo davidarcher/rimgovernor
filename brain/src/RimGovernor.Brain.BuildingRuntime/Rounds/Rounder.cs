@@ -130,6 +130,9 @@ public sealed partial class Rounder
     /// <summary>The layout replan running off the hold path, until a review adopts or drops it (#3565).</summary>
     internal PendingLayoutReplan? LayoutPending;
 
+    /// <summary>What each review lap entered on, against the previous review's (#3564): the rounds_review row's laps_changed.</summary>
+    internal readonly RoundsLapInputs LapInputs = new();
+
     /// <summary>An invalid saved layout plan is logged once.</summary>
     internal bool LayoutInvalidLogged;
 
@@ -397,9 +400,16 @@ public sealed partial class Rounder
         readDefinitions = [.. readDefinitions, .. await SowableCropsAsync(state.Snapshot, ct).ConfigureAwait(false)];
         var claims = await p.Journal.ConstructionClaimsAsync(state.Snapshot, expected.Tick, ct).ConfigureAwait(false);
         stages.Lap("journal");
+        LapInputs.Begin(state.Snapshot);
         using var window = ClockPlanning.StandaloneWindow(Native);
         var reading = await ObserveRoundsAsync(Native, expected, RoomsEnabled(), claims, readDefinitions, ct).ConfigureAwait(false);
-        stages.Lap("observe");
+        // Each lap through derive leaves its reading with LapInputs, so the row can name the laps whose inputs changed (#3564).
+        void Lap(string name)
+        {
+            stages.Lap(name);
+            LapInputs.Left(name, reading.Projection);
+        }
+        Lap("observe");
         PublishFrame(expected, reading.Frame);
         await BreakDispatch.ReleaseBreakWorkAsync(p.Journal, state.Snapshot, reading.Emergency, plans, ct).ConfigureAwait(false);
         LogTechTier(reading.Projection, ct);
@@ -431,7 +441,7 @@ public sealed partial class Rounder
         }
         reading = ReviewChildRooms(reading);
         reading = reading.WithProjection(await ReviewLayoutPlanAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false));
-        stages.Lap("layout");
+        Lap("layout");
         reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });
         if (reading.Projection.LayoutPlan.TryGetValue(out var layoutPlan))
         {
@@ -450,7 +460,7 @@ public sealed partial class Rounder
         var vCraftingSpotRetireOwed = await CraftingSpotRetireOwedAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { CraftingSpotRetireOwed = vCraftingSpotRetireOwed });
         reading = reading.WithFacts(rf => rf with { TemperatureOwed = RoundsBuildingPlanner.TemperatureOwed(reading.Projection) });
-        stages.Lap("d_owed");
+        Lap("d_owed");
         var targets = await RoundsArmoryShells.ShellTargetsAsync(Native, p.Journal, state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { ShellsShort = ArmoryShellsRules.ShellsShort(targets, reading.Projection.Resources) });
         if (Needs.Contains(ShelterFamily.SafeArea))
@@ -469,7 +479,7 @@ public sealed partial class Rounder
         {
             reading = reading.WithFacts(rf => rf with { FabricableParts = SurgeryRules.FabricableParts(benches) });
         }
-        stages.Lap("d_reads");
+        Lap("d_reads");
         CensusStockpileZones(state.Snapshot, reading.Projection, ct);
         // The review's shelf candidates become planned sites below.
         // The stockpile review and the consumption window read nothing of each other, so their hops share frames.
@@ -498,7 +508,7 @@ public sealed partial class Rounder
             reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Flooring = RoundsBuildingPlanner.TrafficFlooringFacts(reading.Projection, Policy.Flooring) } });
             reading = reading.WithColonySection(c => c with { Facts = c.Facts with { Upkeep = c.Facts.Upkeep with { Flooring = reading.Projection.Facts.Upkeep.Flooring } } });
         }
-        stages.Lap("d_stock");
+        Lap("d_stock");
         // The owed diff over every built room is taken once a review; the pricing and the sites read it.
         var plannedOwed = PlannedOwedOf(reading.Projection, Policy.Flooring);
         reading = reading.WithFacts(rf => rf with
@@ -517,7 +527,7 @@ public sealed partial class Rounder
             // The ring plan's dwell clock advances every review; the layout family reads the work it leaves.
             _ = await firebreak.ConfigureAwait(false);
         }
-        stages.Lap("d_planned");
+        Lap("d_planned");
         Fact<EquatableArray<PawnId>> psylinkCandidates = default;
         if (Needs.Contains(RoyaltyFamily.Psylink))
         {
@@ -565,7 +575,7 @@ public sealed partial class Rounder
         // The workshop ladder's recorded research rung is the derived economy/research target; it is journal
         // evidence, not a native read, so a review costs no extra call for it.
         NoteEquipment(state.Snapshot, reading.Projection.Facts);
-        stages.Lap("d_file");
+        Lap("d_file");
         GoalsFacts? goalFacts = null;
         if (Goals)
         {
@@ -648,7 +658,7 @@ public sealed partial class Rounder
             }
         }
         reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Rooms = reading.Projection.Rooms } });
-        stages.Lap("d_work");
+        Lap("d_work");
         p.Current(ct, epoch);
         if (p.Session.State() != state)
         {
@@ -673,7 +683,7 @@ public sealed partial class Rounder
                 reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });
             }
         }
-        stages.Lap("d_clear");
+        Lap("d_clear");
         reading = reading.WithFacts(rf => rf with { AvailableNeeds = AvailableNeeds });
         // The admin/work-ledger Need reads the diff from the ledger's memory (LedgerOwedIn).
         var ledgerOwed = await ReviewLedgerAsync(state.Snapshot, expected, reading.Projection, ct).ConfigureAwait(false);
@@ -707,7 +717,7 @@ public sealed partial class Rounder
         }
         // Acquisition uses the review's completed home staffing and defense facts.
         Census.Retain(reading, RoomsEnabled(), claims);
-        stages.Lap("derive");
+        Lap("derive");
         await PlanFoodAcquisitionAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         stages.Lap("acquisition");
         var result = await p.Journal.ReviewRoundsAsync(new RoundsRequest { Revision = previous.Revision, Current = state.Snapshot, Tick = reading.Projection.Identity.Tick, Enabled = true, Policy = Policy, Facts = reading.Projection.Facts }, ct).ConfigureAwait(false);
@@ -734,6 +744,14 @@ public sealed partial class Rounder
             ("search_phases", result.Needs.CoupledSelection is { } searched ? searched.SearchPhases.ToDictionary(p => p.Phase, p => (object?)p.Expansions) : null),
             ("selected_phase", result.Needs.CoupledSelection?.SelectedPhase), ("warm_start", result.Needs.CoupledSelection?.WarmStart),
         };
+        // Per lap, the properties of the reading it entered on that differ from the previous review's; the laps
+        // that entered on the same reading; what the comparison cost (#3564).
+        if (LapInputs.Changed() is { } lapsChanged)
+        {
+            attrs.Add(("laps_changed", lapsChanged));
+            attrs.Add(("laps_same", LapInputs.Same));
+            attrs.Add(("laps_compare_ms", LapInputs.CompareMs));
+        }
         attrs.AddRange(RoundsFoodAttrs(reading.Projection.Facts, Seasonal(reading.Projection.Facts)));
         attrs.Add(("hunt_sources", reading.Projection.Acquisition.TryGetValue(out var offered) ? offered.Count(s => s.Hunt && s.Food) : -1));
         if (reading.Projection.HuntHolds.Count > 0)
