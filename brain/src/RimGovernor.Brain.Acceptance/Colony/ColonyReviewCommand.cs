@@ -228,7 +228,7 @@ public static class ColonyReviewCommand
     {
         var (colonists, added) = await DebugGame.StaffCrewAsync(session.Harness, 3, cancellationToken).ConfigureAwait(false);
         report["crew"] = new JsonObject { { "declared", 3 }, { "colonists", colonists }, { "added", added } };
-        var spec = new ServeSpec { NativeTimeout = TimeSpan.FromSeconds(15), StepStall = TimeSpan.FromSeconds(90), Prefix = "colony-review" };
+        var spec = new ServeSpec { NativeTimeout = TimeSpan.FromSeconds(15), StepStall = TimeSpan.FromMinutes(6), Prefix = "colony-review" };
         var dir = Path.Combine(opts.Output, "review");
         await SustainedFood.ObserveAsync(
             ObservedSession.Of(session, cfg, report, spec),
@@ -242,6 +242,11 @@ public static class ColonyReviewCommand
                     PollTicks = 2500,
                     Concern = FoodRules.FoodSupplyNeed.Value,
                     Extra = ColonyAudits.ColonyConcerns,
+
+                    // Hang guards sized for a CPU-rendered game (a hosted runner has no GPU): its game thread answers the
+                    // brain's hops seconds apart and a tick can take minutes.
+                    AutomateWait = TimeSpan.FromMinutes(10),
+                    TickStall = TimeSpan.FromMinutes(15),
                 },
                 Prepare = async (h, r, ct) =>
                 {
