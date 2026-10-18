@@ -61,6 +61,18 @@ internal static class Gate
         await TestAsync(p, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// The builds alone, without the test jobs: what the landing lane reruns on a merged tree whose two sides each
+    /// passed the gate (<see cref="LandCommand"/>). It catches the common merge breakage, a signature or name one side
+    /// changed and the other still uses, in seconds; a test-level interaction surfaces at the next landing's gate.
+    /// </summary>
+    public static async Task BuildAsync(string repo, CancellationToken ct)
+    {
+        var p = new Paths(repo);
+        Directory.CreateDirectory(p.Out);
+        await BuildAsync(p, ct).ConfigureAwait(false);
+    }
+
     private static async Task BuildAsync(Paths p, CancellationToken ct)
     {
         await StepAsync(p.Repo, "build RimGovernor.slnx", ["build", "RimGovernor.slnx", .. Strict, .. ArtifactsOf(p)], ct).ConfigureAwait(false);

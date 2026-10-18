@@ -10,22 +10,25 @@
 
 1. Use a task branch in your own worktree. At session start, fetch `origin main`
    and merge `origin/main` once; local `main` may be behind.
-2. Make one coherent milestone. From the worktree root, run
-   `RimGovernor.cmd test > test.out 2>&1` and wait for its final PASS/FAIL.
+2. Make one coherent milestone. While iterating on a failure, run
+   `RimGovernor.cmd test > test.out 2>&1` from the worktree root and wait for its final PASS/FAIL.
    Do not pipe it, rerun it to filter output, or follow it with your own `dotnet build`/`dotnet test`; it runs the gate when C# changed.
-   Use `-full` only at an epic's end or for changed code covered by skipped tests.
+   Do not run it as a final check before landing: `land -test` is that check, and the
+   gate costs a minute each time. Use `-full` only at an epic's end or for changed code covered by skipped tests.
    No native acceptance run is required before landing; the nightly supplies
-   that evidence. C# changes are gated by `RimGovernor.slnx`, the contract probes and the native build, which `test` runs for you.
+   that evidence. C# changes are gated by `RimGovernor.slnx`, the contract probes and the native build, which the gate runs for you.
 3. Commit the milestone with checks and anything left unverified in the body.
    Make its subject the branch tip: the lane uses it for the squash title.
-4. From the worktree root, run `RimGovernor.cmd land` once. The lane locks,
-   updates main from origin, merges, squashes, pushes the squash to origin's
-   main (landing again on top when origin moved), then moves local main and the
-   main checkout and resets the branch. Do not combine `test` with `land -test`.
+4. From the worktree root, run `RimGovernor.cmd land -test` once. The lane locks,
+   updates main from origin, merges, runs the gate once on the merged tree when
+   the change touches files it builds (a failure lands nothing), squashes, pushes
+   the squash to origin's main (landing again on top when origin moved), then
+   moves local main and the main checkout and resets the branch. One gate per
+   landing: never follow `test` with `land -test`, or `land -test` with `test`.
    Resolve lane-reported conflicts, then build. Main moving is not a reason to
-   rerun tests yourself: when the merge brought in files the gate builds, the
-   lane runs the gate on the merged tree (a failure lands nothing and undoes the
-   merge); a docs-only merge lands untested.
+   rerun tests yourself: a plain `land` after a passing `test` only rebuilds the
+   merged tree when main brought in files the gate builds (a build failure lands
+   nothing and undoes the merge); a docs-only merge lands without a rebuild.
 5. Continue authorized milestones. Close an issue when its stated acceptance
    is met; a registered, compiling acceptance case satisfies a case-writing
    task. Later nightly failures are separate issues.

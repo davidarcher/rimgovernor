@@ -5,12 +5,14 @@
 
 ## Testing budget and evidence reuse
 
-Run `RimGovernor.cmd test > test.out 2>&1` from the worktree root once per milestone.
-It runs the [gate](../development-process.md#project-wide-build) when anything it builds
-changed (`RimGovernor.cmd affected` says whether a change owes it). Wait for the final
-PASS/FAIL; do not pipe it or follow it with your own build or test.
+A milestone's one check is `RimGovernor.cmd land -test`, which runs the
+[gate](../development-process.md#project-wide-build) once on the merged tree when anything it
+builds changed (`RimGovernor.cmd affected` says whether a change owes it). While iterating on a
+failure, run the same gate with `RimGovernor.cmd test > test.out 2>&1` from the worktree root and
+wait for the final PASS/FAIL; do not pipe it, follow it with your own build or test, or run it as
+a final step before `land -test`.
 
-Use `-full` at an epic's end or when changed code is covered by a skipped test; it runs
+Use `test -full` at an epic's end or when changed code is covered by a skipped test; it runs
 the gate even when the tree matches the base.
 A clean merge of main does not invalidate a passing result. After resolving
 conflicts, build the touched projects instead of rerunning tests.

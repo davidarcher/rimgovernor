@@ -17,9 +17,10 @@ namespace RimGovernor.Tools.Workflow.Commands;
 /// origin fails the landing), then merges main into the branch's worktree, which must be clean; a conflict aborts the
 /// merge, and a merged tree that puts a path back to its content before one of main's recent landings is refused,
 /// naming the paths and the landings;</item>
-/// <item>runs the gate on the merged tree when the merge brought in files it builds (<see cref="Affected.GateOwed"/>;
-/// a docs-only merge does not), undoing the merge if it fails; -test also runs the affected checks once; callers
-/// normally run the test tool before landing;</item>
+/// <item>checks the merged tree: -test runs the gate once on it, the landing's one check; without -test the branch
+/// passed the gate on its own, so the lane only rebuilds (<see cref="Gate.BuildAsync(string, CancellationToken)"/>)
+/// when the merge brought in files the gate builds (<see cref="Affected.GateOwed"/>; a docs-only merge does not),
+/// undoing the merge if the build fails;</item>
 /// <item>commits the merged branch's tree onto main as one squash commit, with a message built from the branch's
 /// commits (-m or -F overrides the subject and body) carrying the branch's Co-Authored-By trailers, and pushes it to
 /// origin's main. Local main moves only after origin accepted it, so the two never diverge. When origin's main moved
@@ -65,8 +66,8 @@ internal static partial class LandCommand
         /// <summary>Called with the worktree, branch and short landing hash once the landing is on origin.</summary>
         public Func<string, string, string, Task>? Close { get; init; }
 
-        /// <summary>Runs the gate on the worktree; null runs the real one (tests substitute a probe).</summary>
-        public Func<string, Task>? Gate { get; init; }
+        /// <summary>Builds the merged tree in the worktree; null runs the gate's real builds (tests substitute a probe).</summary>
+        public Func<string, Task>? Build { get; init; }
 
         /// <summary>Called with the attempt number just before each push (tests move origin's main here).</summary>
         public Func<int, Task>? BeforePush { get; init; }
@@ -84,7 +85,7 @@ internal static partial class LandCommand
             Log.Info("  -m           squash commit subject and body (the trailers are appended)");
             Log.Info("  -F           file holding the squash commit subject and body");
             Log.Info("  -lock-timeout how long to wait for another landing to finish (default 15m)");
-            Log.Info("  -test        also run the affected checks against the merged tree before landing");
+            Log.Info("  -test        run the gate once on the merged tree before landing (the landing's one check)");
             Log.Info("  -issue       GitHub issue to close with the landing commit (default: the number in the branch name)");
             Log.Info("  -no-close    do not close a GitHub issue");
             return 0;
@@ -181,7 +182,7 @@ internal static partial class LandCommand
             }
             else
             {
-                await TestMergedInputsAsync(worktree, beforeMerge, options.Gate, ct).ConfigureAwait(false);
+                await BuildMergedInputsAsync(worktree, beforeMerge, options.Build, ct).ConfigureAwait(false);
             }
 
             var head = await Git.RunAsync(worktree, ct, "rev-parse", "HEAD").ConfigureAwait(false);
@@ -239,28 +240,31 @@ internal static partial class LandCommand
     }
 
     /// <summary>
-    /// Runs the gate when merging main brought in files it builds (<see cref="Affected.GateOwed"/>): the branch passed
-    /// the gate without them. A merge that brought only docs lands untested. A failed gate undoes the merge, so the
-    /// next land merges and tests again instead of finding nothing new and landing the failing tree.
+    /// Rebuilds the merged tree when merging main brought in files the gate builds (<see cref="Affected.GateOwed"/>):
+    /// the branch passed the gate without them, and both sides passed it alone, so what is left to catch is the two
+    /// not compiling together. The build takes seconds where the full gate takes a minute under the landing lock; a
+    /// test-level interaction between the sides shows at the next landing's gate and the nightly. A merge that brought
+    /// only docs lands without a rebuild. A failed build undoes the merge, so the next land merges and builds again
+    /// instead of finding nothing new and landing the failing tree.
     /// </summary>
-    private static async Task TestMergedInputsAsync(string worktree, string beforeMerge, Func<string, Task>? gate, CancellationToken ct)
+    private static async Task BuildMergedInputsAsync(string worktree, string beforeMerge, Func<string, Task>? build, CancellationToken ct)
     {
         var brought = await Git.LinesAsync(worktree, ct, "diff", "--name-only", beforeMerge, "HEAD").ConfigureAwait(false);
         if (!Affected.GateOwed(brought.Select(file => file.TrimEnd('\r')).Where(file => file.Length > 0)))
         {
             return;
         }
-        Log.Info("main brought in files the gate builds; running the gate on the merged tree");
+        Log.Info("main brought in files the gate builds; building the merged tree");
         try
         {
-            await (gate is null ? Gate.RunAsync(worktree, ct) : gate(worktree)).ConfigureAwait(false);
+            await (build is null ? Gate.BuildAsync(worktree, ct) : build(worktree)).ConfigureAwait(false);
         }
         catch (ToolException e)
         {
             await Git.RunAsync(worktree, ct, "reset", "--hard", beforeMerge).ConfigureAwait(false);
             throw new ToolException(
-                $"the gate failed on the merged tree; nothing landed and the merge of main was undone: {e.Message}\n"
-                + "merge main (git merge main), fix the failure, run test, commit, and run land again");
+                $"the merged tree does not build; nothing landed and the merge of main was undone: {e.Message}\n"
+                + "merge main (git merge main), fix the failure, commit, and run land -test again");
         }
     }
 
