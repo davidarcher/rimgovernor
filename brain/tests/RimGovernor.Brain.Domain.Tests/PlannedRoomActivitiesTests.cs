@@ -277,7 +277,7 @@ public sealed class PlannedRoomActivitiesTests
     {
         var facts = Review([Ring(OpKind.WallIn, "WoodLog", 270), Ring(OpKind.DoorIn, "WoodLog", 270)], level: hungry ? .2 : 1, fall: hungry ? .003 : 0);
         var result = Select(facts);
-        var record = PlannedRules.PlannedSelectionOf(facts.CoupledAlternatives, result, facts.PlannedSites, 100);
+        var record = PlannedRules.PlannedSelectionOf(facts.CoupledAlternatives, result, facts.PlannedSites);
         Assert.NotNull(record);
         Assert.Equal([1], record.Assessed);
         var (gate, sites) = PlannedRules.PlannedRoomGateOf(record, 1, started: false);
@@ -290,7 +290,8 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Equal(PlannedRoomGate.Selected, gate);
         Assert.NotEmpty(sites);
         Assert.All(sites, s => Assert.Equal((1, "WoodLog"), (s.Room, s.Stuff)));
-        Assert.All(sites, s => Assert.True(PlannedSelected(result, s.Id), Why(facts, result)));
+        Assert.Equal([OpKind.WallIn], sites.Select(s => s.Op));
+        Assert.True(PlannedSelected(result, "planned/room1/wall/WoodLog"), Why(facts, result));
         // A started room is placed as before, selected or not.
         Assert.Equal(PlannedRoomGate.Place, PlannedRules.PlannedRoomGateOf(record, 1, started: true).Gate);
     }
@@ -308,14 +309,13 @@ public sealed class PlannedRoomActivitiesTests
         var result = Select(facts);
         Assert.Equal(["planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"], result.Selected.RequestedDevelopment);
         PlannedSelection Record(params string[] roots) =>
-            PlannedRules.PlannedSelectionOf(candidates, result with { Selection = result.Selection with { Selected = roots } }, facts.PlannedSites, 100)!;
+            PlannedRules.PlannedSelectionOf(candidates, result with { Selection = result.Selection with { Selected = roots } }, facts.PlannedSites)!;
         var record = Record(root.Id);
-        Assert.Equal(["planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"], record.Sites.Select(s => s.Id));
         Assert.Equal([OpKind.DoorIn, OpKind.WallIn], record.Sites.Select(s => s.Op));
         Assert.Equal(record, Record("planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"));
         Assert.Equal(PlannedRoomGate.Place, PlannedRules.PlannedRoomGateOf(record, 2, started: false).Gate);
         // A review that compared nothing leaves no record of its own.
-        Assert.Null(PlannedRules.PlannedSelectionOf(candidates, null, facts.PlannedSites, 100));
+        Assert.Null(PlannedRules.PlannedSelectionOf(candidates, null, facts.PlannedSites));
     }
 
     [Fact]
@@ -346,9 +346,9 @@ public sealed class PlannedRoomActivitiesTests
         Assert.DoesNotContain(result.Selected.Plan.Allocations, a => door.Finishes.Contains(a.Activity) && a.End <= Horizon);
         Assert.DoesNotContain(door.Site, result.Selected.RequestedDevelopment);
         var root = Assert.Single(candidates.Alternatives, c => c.Id.StartsWith("planned/room1/WoodLog/Shell/composition/", StringComparison.Ordinal));
-        var record = PlannedRules.PlannedSelectionOf(candidates, result with { Selection = result.Selection with { Selected = [root.Id] } }, facts.PlannedSites, 100)!;
+        var record = PlannedRules.PlannedSelectionOf(candidates, result with { Selection = result.Selection with { Selected = [root.Id] } }, facts.PlannedSites)!;
         var (gate, sites) = PlannedRules.PlannedRoomGateOf(record, 1, started: false);
         Assert.Equal(PlannedRoomGate.Selected, gate);
-        Assert.Equal(["planned/room1/wall/WoodLog"], sites.Select(s => s.Id));
+        Assert.Equal([OpKind.WallIn], sites.Select(s => s.Op));
     }
 }

@@ -78,7 +78,7 @@ partial class Rounder
         var gestators = new List<GestatorFact>();
         foreach (var x in colony.Gestators)
         {
-            gestators.Add(new GestatorFact { Id = x.ID, Active = Known(x.BillID.IsKnown), WasteCount = x.WasteCount });
+            gestators.Add(new GestatorFact { Active = Known(x.BillID.IsKnown), WasteCount = x.WasteCount });
         }
         var wastepacks = new List<WastepackFact>();
         foreach (var x in colony.Wastepacks)

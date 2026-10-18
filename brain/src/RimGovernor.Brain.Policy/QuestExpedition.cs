@@ -38,8 +38,6 @@ public sealed record ExpeditionPlan
     public CaravanDeparture? Departure { get; init; }
 
     public QuestSkipReason Reason { get; init; }
-
-    public bool Waiting { get; init; }
 }
 
 public sealed record ExpeditionTrip
@@ -175,7 +173,7 @@ public static class QuestExpedition
             }
             if (!f.QuestExpeditionTrips.TryGetValue(out var trips))
             {
-                return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Reason = "journey_unknown", Waiting = true };
+                return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Reason = "journey_unknown" };
             }
             foreach (var trip in trips)
             {
@@ -183,7 +181,7 @@ public static class QuestExpedition
                 var dk = trip.Destination.TryGetValue(out var destination);
                 if ((tk && tile == site.Tile) || (dk && destination == site.Tile) || trip.Forming)
                 {
-                    return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Waiting = true };
+                    return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id };
                 }
             }
             // A live site map proves arrival; its work belongs to the site driver.
@@ -196,16 +194,16 @@ public static class QuestExpedition
                         if (offer.ScriptDef == "SurveySite")
                         {
                             var work = QuestSurvey.SurveyWork(offer, row, f, f.AnimalUpkeep.Food, p);
-                            return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Departure = work.Departure, Waiting = work.Waiting, Reason = work.Reason };
+                            return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Departure = work.Departure, Reason = work.Reason };
                         }
-                        return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Waiting = true };
+                        return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id };
                     }
                 }
             }
             var terminal = QuestHackPolicy.WorshippedTerminalAdmission(offer);
             if (!terminal.IsNone)
             {
-                return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Reason = terminal, Waiting = true };
+                return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Reason = terminal };
             }
             if (offer.ScriptDef == "SurveySite")
             {

@@ -37,7 +37,7 @@ public sealed class GoalsFamilyTests
 
     private static Need Derive(GoalsFacts facts, GoalRecord goal) => Assert.Single(new GoalsFamily().Derive(facts), n => n.Id == GoalRules.NeedOf(goal));
 
-    private static Ideoligion Ideo(bool fluid, params string[] precepts) => new(new IdeologyDefs { Precepts = new Dictionary<string, PreceptDef> { ["Slavery_Acceptable"] = new("Slavery_Acceptable", []) } }, new IdeoligionFacts
+    private static Ideoligion Ideo(bool fluid, params string[] precepts) => new(new IdeologyDefs { Precepts = new Dictionary<string, PreceptDef> { ["Slavery_Acceptable"] = new([]) } }, new IdeoligionFacts
     {
         Precepts = [.. precepts.Select((p, i) => new HeldPrecept("p" + i, p))],
         Development = Known(new IdeoDevelopment(fluid, fluid, 0, 0, 0)),

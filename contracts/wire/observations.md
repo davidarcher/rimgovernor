@@ -605,9 +605,9 @@ its favor applies independently of reward selection. The brain represents this w
 choice -1 and does not count it as an option.
 
 `QuestReward.items` contains exact native item def names and stack counts.
-`goodwill` carries the signed faction relation change with `faction_id`.
+`goodwill` carries the signed faction relation change.
 `psylink` counts neuroformers or the link awarded by a bestowing ceremony.
-Bestowing rows carry `title_def`, its `permit_points`, and the title's permit
+Bestowing rows carry the title's `permit_points` and permit
 def IDs. These benefits are observed from native reward types; policy does not
 parse `kind`, labels or descriptions. `QuestState.choice_part_count` reports
 the number of independent native choice parts; more than one remains unsupported.

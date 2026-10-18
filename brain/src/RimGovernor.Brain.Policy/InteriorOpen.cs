@@ -2,7 +2,8 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// Classifies a planned room's interior cells against the census cells. A store's zone is created only
-/// when every interior cell is settled: walkable (Open), or a Kept cell.
+/// when every interior cell is settled: walkable (Open), or kept: seen, not walkable, and neither rock nor
+/// clearable (water, a boulder-free edifice, a tree), which the room keeps and the zone leaves out.
 /// </summary>
 public sealed record InteriorReading
 {
@@ -14,12 +15,6 @@ public sealed record InteriorReading
 
     /// <summary>Pending cells are unseen (fogged, unknown) or hold a ruin that clearance still removes: they may turn out open.</summary>
     public IReadOnlyList<Cell> Pending { get; init; } = [];
-
-    /// <summary>
-    /// Kept cells are seen, not walkable, and neither rock nor clearable (water, a boulder-free edifice, a
-    /// tree): the room keeps them and the zone leaves them out.
-    /// </summary>
-    public IReadOnlyList<Cell> Kept { get; init; } = [];
 
     /// <summary>True when no interior cell is left to dig, unseen or to clear, and at least one is open: every cell is walkable or kept.</summary>
     public bool Ready() => Dig.Count == 0 && Pending.Count == 0 && Open.Count > 0;
@@ -50,7 +45,7 @@ public static class InteriorOpenRules
     /// <summary>ReadInterior over an exact cell list (a non-rectangular region).</summary>
     internal static InteriorReading ReadCells(IReadOnlyList<Cell> cells, Func<Cell, (SiteCell? Cell, bool Ok)> lookup)
     {
-        List<Cell> open = [], dig = [], pending = [], kept = [];
+        List<Cell> open = [], dig = [], pending = [];
         foreach (var cell in cells)
         {
             var (c, listed) = lookup(cell);
@@ -78,12 +73,8 @@ public static class InteriorOpenRules
             {
                 pending.Add(cell);
             }
-            else
-            {
-                kept.Add(cell);
-            }
         }
-        return new InteriorReading { Open = open, Dig = dig, Pending = pending, Kept = kept };
+        return new InteriorReading { Open = open, Dig = dig, Pending = pending };
     }
 
     /// <summary>The largest cardinally connected part of cells, sorted.</summary>

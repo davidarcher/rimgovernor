@@ -16,7 +16,7 @@ public enum PlannedScope
 /// Alternatives of one Room exclude each other; their sites are shared, each its own comparison root, so this names
 /// what a whole room needs and nothing ranks or picks among the alternatives here.
 /// </summary>
-public sealed record PlannedRoomAlternative(int Room, string Id, string Stuff, PlannedScope Scope, EquatableArray<string> Sites);
+public sealed record PlannedRoomAlternative(int Room, string Id, string Stuff, EquatableArray<string> Sites);
 
 public static partial class PlannedRules
 {
@@ -69,7 +69,7 @@ public static partial class PlannedRules
                 }
                 seen.Add(members);
                 alternatives.Add(new PlannedRoomAlternative(room.Key, "planned/room" + room.Key + (stuff.Length > 0 ? "/" + stuff : "") + "/" + scope,
-                    stuff, scope, members));
+                    stuff, members));
             }
         }
         return (alternatives, [.. findings]);

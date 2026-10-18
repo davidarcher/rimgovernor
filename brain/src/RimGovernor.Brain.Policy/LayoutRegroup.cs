@@ -91,13 +91,12 @@ public sealed record RegroupDecision
     public double Clean { get; init; }
 }
 
-/// <summary>The groups the search ended on. Embed is the embedding's input over those groups, Embedding its result; Pairs are the rules that make the grouping (empty for the seed).</summary>
+/// <summary>The groups the search ended on. Embed is the embedding's input over those groups, Embedding its result.</summary>
 public sealed record Regrouping
 {
     public Clustering Clustering { get; init; } = new();
     public EmbedInput Embed { get; init; } = new();
     public Embedding Embedding { get; init; } = new();
-    public IReadOnlyList<NodePair> Pairs { get; init; } = [];
     public IReadOnlyList<RegroupDecision> Decisions { get; init; } = [];
 }
 
@@ -147,7 +146,7 @@ internal sealed class RegroupTrial
         return string.Join("|", rooms);
     }
 
-    public Regrouping Result(IReadOnlyList<RegroupDecision> decisions) => new() { Clustering = Clustering, Embed = Embed, Embedding = Embedding, Pairs = Pairs, Decisions = decisions };
+    public Regrouping Result(IReadOnlyList<RegroupDecision> decisions) => new() { Clustering = Clustering, Embed = Embed, Embedding = Embedding, Decisions = decisions };
 }
 
 internal sealed record RegroupProposal(string Kind, string Reason, string A, string B, IReadOnlyList<NodePair> Rules);

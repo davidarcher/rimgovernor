@@ -5,17 +5,9 @@ namespace RimGovernor.Brain.Policy;
 
 public sealed record SurveyPlan
 {
-    public QuestId Quest { get; init; }
-
-    public string Site { get; init; } = "";
-
     public CaravanDeparture? Departure { get; init; }
 
-    public bool Waiting { get; init; }
-
     public bool Return { get; init; }
-
-    public bool Failed { get; init; }
 
     public QuestSkipReason Reason { get; init; }
 }
@@ -225,10 +217,10 @@ public static class QuestSurvey
 
     public static SurveyPlan SurveyWork(JoinerOffer offer, WorldSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p)
     {
-        var result = new SurveyPlan { Quest = offer.Quest, Site = site.Id, Waiting = true };
+        var result = new SurveyPlan();
         if (offer.State == "EndedFailed")
         {
-            return result with { Waiting = false, Return = true, Failed = true, Reason = "quest_failed" };
+            return result with { Return = true, Reason = "quest_failed" };
         }
         if (!SurveyScannerOf(offer, site.Id, out var scanner))
         {
@@ -236,11 +228,11 @@ public static class QuestSurvey
         }
         if (scanner.Alive.TryGetValue(out var alive) && !alive)
         {
-            return result with { Waiting = false, Return = true, Failed = true, Reason = "scanner_destroyed" };
+            return result with { Return = true, Reason = "scanner_destroyed" };
         }
         if (scanner.Complete.TryGetValue(out var complete) && complete)
         {
-            return result with { Waiting = false, Return = true };
+            return result with { Return = true };
         }
         var ek = scanner.EndTick.TryGetValue(out var end);
         var nk = f.QuestObservedTick.TryGetValue(out var now);

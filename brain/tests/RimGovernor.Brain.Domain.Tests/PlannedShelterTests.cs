@@ -182,10 +182,10 @@ public sealed class PlannedShelterTests
         var shelter = Assert.Single(candidates.Alternatives, c => c.Id.StartsWith("shelter/planned/1", StringComparison.Ordinal)).Id;
         string[] sites = ["planned/room1/build/Heater/1/1", "planned/room1/door/WoodLog", "planned/room1/roof", "planned/room1/wall/WoodLog"];
         PlannedSelection Record(params string[] roots) =>
-            PlannedRules.PlannedSelectionOf(candidates, result with { Selection = result.Selection with { Selected = roots } }, facts.PlannedSites, 100)!;
+            PlannedRules.PlannedSelectionOf(candidates, result with { Selection = result.Selection with { Selected = roots } }, facts.PlannedSites)!;
 
         var record = Record(shelter);
-        Assert.Equal(sites, record.Sites.Select(s => s.Id));
+        Assert.Equal([OpKind.Build, OpKind.DoorIn, OpKind.RoofIn, OpKind.WallIn], record.Sites.Select(s => s.Op));
         Assert.Equal(record, Record([.. sites.Where(id => candidates.Alternatives.Any(c => c.Id == id))]));
         var (gate, selected) = PlannedRules.PlannedRoomGateOf(record, 1, started: false);
         Assert.Equal(PlannedRoomGate.Selected, gate);

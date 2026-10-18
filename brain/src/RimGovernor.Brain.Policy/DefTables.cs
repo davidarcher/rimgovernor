@@ -79,7 +79,6 @@ public static class DefTablesRules
         DefTable.Of("NonFleshMeatDefs", "Verse.ThingDef", NonFleshMeatDefs),
         DefTable.Of("MortarProbeShells", "Verse.ThingDef", MortarProbeShells),
         DefTable.Of("QuestGiftDefs", "Verse.ThingDef", QuestGiftDefs),
-        DefTable.Of("roomSizeTable", "Verse.ThingDef", LayoutTripsRules.RoomSizes.Holds),
         DefTable.Of("ShelterHeatDef", "Verse.ThingDef", [LayoutCapabilityRules.ShelterHeatDef]),
         DefTable.Of("ShelterCoolDef", "Verse.ThingDef", [LayoutCapabilityRules.ShelterCoolDef]),
         DefTable.Of("ScenarioThingChoices", "Verse.ThingDef", ScenarioThingChoices),

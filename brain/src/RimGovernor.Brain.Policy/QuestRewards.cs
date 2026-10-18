@@ -18,10 +18,6 @@ public sealed record QuestReward
     public int PermitPoints { get; init; }
 
     public IReadOnlyList<string> Permits { get; init; } = [];
-
-    public string TitleDef { get; init; } = "";
-
-    public string FactionId { get; init; } = "";
 }
 
 /// <summary>

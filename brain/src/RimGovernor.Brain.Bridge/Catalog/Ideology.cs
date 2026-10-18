@@ -58,7 +58,7 @@ public sealed partial class DefinitionCatalog
 
     // A precept def with one effect per PreceptComp, in comp order.
     private P.PreceptDef PreceptDef(PreceptDef row) =>
-        new(row.defName, [.. row.comps.Seq().Select(comp => PreceptEffect(row.defName, comp))])
+        new([.. row.comps.Seq().Select(comp => PreceptEffect(row.defName, comp))])
         {
             Issue = row.issue?.defName ?? string.Empty,
             RequiredMemes = [.. row.requiredMemes.Seq().Select(m => m.defName).Order(StringComparer.Ordinal)],

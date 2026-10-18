@@ -55,9 +55,9 @@ public sealed record PreceptEffect
 
 /// <summary>
 /// One PreceptDef other than a role's, reduced to what planners read: its comps as effects, the issue it is a degree of,
-/// the memes it needs (RequiredMemes) and the memes that rule it out (ConflictingMemes). Name is its degree of its issue.
+/// the memes it needs (RequiredMemes) and the memes that rule it out (ConflictingMemes); the def name is its key in IdeologyDefs.Precepts.
 /// </summary>
-public sealed record PreceptDef(string Name, IReadOnlyList<PreceptEffect> Effects)
+public sealed record PreceptDef(IReadOnlyList<PreceptEffect> Effects)
 {
     public string Issue { get; init; } = string.Empty;
 
@@ -231,19 +231,16 @@ public sealed partial record Ideoligion(IdeologyDefs Defs, IdeoligionFacts Facts
     /// Lists the effects of every precept in force, in precept id order. A held precept missing from the
     /// defs is skipped: the decode refuses such a row, so none reaches here.
     /// </summary>
-    public IReadOnlyList<EffectInForce> EffectsInForce()
+    public IReadOnlyList<PreceptEffect> EffectsInForce()
     {
-        var output = new List<EffectInForce>();
+        var output = new List<PreceptEffect>();
         foreach (var precept in Facts.Precepts.OrderBy(p => p.Id, StringComparer.Ordinal))
         {
             if (!Defs.Precepts.TryGetValue(precept.Def, out var def))
             {
                 continue;
             }
-            foreach (var effect in def.Effects)
-            {
-                output.Add(new EffectInForce(def, effect));
-            }
+            output.AddRange(def.Effects);
         }
         return output;
     }
@@ -275,6 +272,3 @@ public sealed partial record Ideoligion(IdeologyDefs Defs, IdeoligionFacts Facts
         return [.. seen.Order(StringComparer.Ordinal)];
     }
 }
-
-/// <summary>One effect of a precept the ideoligion holds.</summary>
-public sealed record EffectInForce(PreceptDef Precept, PreceptEffect Effect);

@@ -10,8 +10,6 @@ public sealed record QuestGiftWork
 
     public GiveItem? Gift { get; init; }
 
-    public bool Waiting { get; init; }
-
     public QuestSkipReason Reason { get; init; }
 }
 
@@ -105,7 +103,7 @@ public static class QuestCapacity
             {
                 continue;
             }
-            var result = new QuestGiftWork { Quest = offer.Quest, Waiting = true };
+            var result = new QuestGiftWork { Quest = offer.Quest };
             var seen = false;
             foreach (var objective in offer.Objectives)
             {
@@ -167,7 +165,7 @@ public static class QuestCapacity
                 }
                 var actor = request.EligiblePawnIds.Min();
                 var intent = new GiveItem((Domain.PawnId)actor, (Domain.PawnId)request.Recipient, request.Def, remaining);
-                return result with { Gift = intent, Waiting = false };
+                return result with { Gift = intent };
             }
             if (!seen)
             {

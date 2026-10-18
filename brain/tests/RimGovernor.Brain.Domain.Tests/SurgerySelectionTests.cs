@@ -144,7 +144,7 @@ public sealed class SurgerySelectionTests
         var harvest = OrganHarvestRules.SelectOrganHarvest(Prisoners(Prisoner([Harvest(KidneyPart), Harvest(OtherKidneyPart)])), Known(Colony), needs, null);
 
         Assert.NotNull(harvest);
-        Assert.Equal((Captive, "Harvest_Kidney", "Kidney", Colonist, true), (harvest.Prisoner, harvest.Recipe, harvest.Organ, harvest.For, harvest.Violation));
+        Assert.Equal((Captive, "Harvest_Kidney", Colonist, true), (harvest.Prisoner, harvest.Recipe, harvest.For, harvest.Violation));
         Assert.True(harvest.Gain > harvest.Cost);
         // A stocked kidney leaves no need to harvest for.
         Assert.Empty(OrganHarvestRules.OrganNeeds(pawns, [want], false, new Dictionary<Resource, long> { [new("Kidney")] = 1 }, Recipes));
@@ -203,7 +203,7 @@ public sealed class SurgerySelectionTests
         var recovery = OrganHarvestRules.SelectPartRecovery(Prisoners(Prisoner([removal])), Known(Colony), parts, null, Recipes);
 
         Assert.NotNull(recovery);
-        Assert.Equal((Captive, "RemoveBodyPart", ArmPart, "BionicArm", Colonist), (recovery.Prisoner, recovery.Recipe, recovery.Part, recovery.Organ, recovery.For));
+        Assert.Equal((Captive, "RemoveBodyPart", ArmPart, Colonist), (recovery.Prisoner, recovery.Recipe, recovery.Part, recovery.For));
     }
 
     [Fact]

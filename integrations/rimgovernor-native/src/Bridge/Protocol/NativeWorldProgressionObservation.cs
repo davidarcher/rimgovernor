@@ -141,14 +141,13 @@ namespace HomeBridge.BridgeTools
                     {
                         var row = new Obs.QuestReward { ChoiceIndex = (uint)indexed.index };
                                                 if (reward is Reward_RoyalFavor favor) row = row with { Favor = favor.amount };
-                        if (reward is Reward_Goodwill goodwill) { row = row with { Goodwill = goodwill.amount }; if (goodwill.faction != null) row = row with { FactionId = goodwill.faction.GetUniqueLoadID() }; }
+                        if (reward is Reward_Goodwill goodwill) row = row with { Goodwill = goodwill.amount };
                         if (reward is Reward_BestowingCeremony ceremony)
                         {
                             row = row with { Psylink = ceremony.givePsylink ? 1 : 0 };
-                            if (ceremony.awardingFaction != null) row = row with { FactionId = ceremony.awardingFaction.GetUniqueLoadID() };
                             if (ceremony.royalTitle != null)
                             {
-                                row = row with { TitleDef = ceremony.royalTitle.defName }; row = row with { PermitPoints = ceremony.royalTitle.permitPointsAwarded };
+                                row = row with { PermitPoints = ceremony.royalTitle.permitPointsAwarded };
                                 if (ceremony.royalTitle.permits != null) row = row with { Permits = [.. row.Permits, .. ceremony.royalTitle.permits.Select(p => p.defName)] };
                             }
                         }

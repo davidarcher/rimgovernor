@@ -168,7 +168,7 @@ public static class AnimalUpkeepReads
         };
     }
 
-    /// <summary>Copies each player animal's meat, grazing demand and product flag from the colony food channels, matched by animal ID.</summary>
+    /// <summary>Copies each player animal's meat and grazing demand from the colony food channels, matched by animal ID.</summary>
     internal static Fact<EquatableArray<UpkeepAnimal>> MergeHerdFoodFacts(Fact<EquatableArray<UpkeepAnimal>> animals, Fact<FoodChannels> channels)
     {
         if (!animals.TryGetValue(out var rows) || !channels.TryGetValue(out var food))
@@ -180,18 +180,6 @@ public static class AnimalUpkeepReads
         {
             slaughter[s.ID] = s;
         }
-        var product = new HashSet<PawnId>();
-        foreach (var g in food.Gatherable)
-        {
-            if (g.Resource.IsKnown)
-            {
-                product.Add(new PawnId(g.PawnID));
-            }
-        }
-        foreach (var e in food.EggLayer)
-        {
-            product.Add(new PawnId(e.PawnID));
-        }
         var output = new List<UpkeepAnimal>(rows.Count);
         foreach (var a in rows)
         {
@@ -200,7 +188,7 @@ public static class AnimalUpkeepReads
             {
                 herd = herd with { MeatNutrition = s.MeatNutrition, FeedPerDay = s.FeedPerDay };
             }
-            output.Add(a with { Herd = herd with { Product = product.Contains(a.Id) } });
+            output.Add(a with { Herd = herd });
         }
         return Known(EquatableArray.From(output));
     }

@@ -119,7 +119,6 @@ public sealed class MaterialValueTests
         estimates.Remove(Key(art, Wood));
         var unknown = LedgerMaterialChoicesRules.SelectLedgerMaterials([art, machine], view, valuation: valuation);
         Assert.Equal("Machine", Assert.Single(unknown.Selected).Spec.Recipe);
-        Assert.Single(unknown.Postponed);
         Assert.Contains(unknown.Comparison.Findings, f => f.StartsWith("unknown_estimate:", StringComparison.Ordinal));
     }
 }

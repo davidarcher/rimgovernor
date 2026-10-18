@@ -460,8 +460,6 @@ public static class RoundsReads
                     Psylink = reward.Psylink,
                     PermitPoints = reward.PermitPoints,
                     Permits = [.. reward.Permits],
-                    TitleDef = reward.TitleDef,
-                    FactionId = reward.FactionId,
                     Items = [.. reward.Items.Select(item => new Amount(new Resource(item.Def), item.Count))],
                 });
             }

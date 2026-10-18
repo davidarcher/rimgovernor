@@ -107,8 +107,6 @@ public sealed record DesignChoice
 
     public DesignScore Score { get; init; }
 
-    public int Candidates { get; init; }
-
     public DesignComparison? Comparison { get; init; }
 
     /// <summary>The goal (#3500) whose step this reform is; null for a reform no goal asked for.</summary>
@@ -503,7 +501,7 @@ public static class IdeoligionDesignRules
         {
             return Unknown<DesignChoice>();
         }
-        return Known(best with { Candidates = visits });
+        return Known(best);
     }
 
     private readonly record struct GoalStep(int Goal, IdeoligionDesign Design);

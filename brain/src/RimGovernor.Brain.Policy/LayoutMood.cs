@@ -278,14 +278,12 @@ public sealed record MoodPriceInput
     public IReadOnlyList<MoodSource> Sources { get; init; } = [];
 }
 
-/// <summary>A mood change in work-days a day and sustained watts. Capped is set when a source of the same mood is cheaper than the break risk.</summary>
+/// <summary>A mood change in work-days a day and sustained watts. A source of the same mood cheaper than the break risk caps it.</summary>
 public sealed record MoodPrice
 {
     public double WorkDays { get; set; }
 
     public double W { get; set; }
-
-    public bool Capped { get; set; }
 }
 
 public static partial class LayoutMoodRules
@@ -364,7 +362,6 @@ public static partial class LayoutMoodRules
             {
                 price.W = cheapest;
                 price.WorkDays = cheapest / input.WorkDayW;
-                price.Capped = true;
             }
         }
         return (price, true);

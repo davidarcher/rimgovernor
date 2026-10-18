@@ -119,8 +119,6 @@ internal sealed class FrameCellGrid(PbMirror.CellGrid grid)
             Terrain = Fact.Known(grid.Terrain[j]),
             InHome = Fact.Known(grid.InHome[j]),
             BaseTerrain = Fact.Known(grid.BaseTerrain[j]),
-            SnowDepth = Fact.Known((double)grid.SnowDepth[j]),
-            TopLayerRemovable = Fact.Known(grid.TopLayerRemovable[j]),
             FoundationRemoval = Fact.Known(grid.FoundationRemoval[j]),
             StorageCapacity = Fact.Known(grid.StorageCapacity[j]),
             Things = grid.Things[j] ?? [],

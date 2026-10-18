@@ -204,8 +204,6 @@ public sealed record PowerProposal
 
     public MethodId Key { get; init; }
 
-    public string Target { get; init; } = "";
-
     public Cell Center { get; init; }
 
     public IReadOnlyList<Cell> Cells { get; init; } = [];
@@ -535,7 +533,6 @@ public static partial class PowerRules
             return new PowerProposal
             {
                 Method = PowerMethod.Shelter,
-                Target = b.Id,
                 Center = b.Cell,
                 Room = room,
                 Key = PowerMethodKey("shelter", b.Id + GoFormat(room)),
@@ -610,7 +607,7 @@ public static partial class PowerRules
                     {
                         throw new DomainException($"power producer {b.Definition} has no catalog power source profile");
                     }
-                    budgetProducers.Add(new PowerProducer { Definition = b.Definition, NominalW = w, Profile = profile });
+                    budgetProducers.Add(new PowerProducer { NominalW = w, Profile = profile });
                     disabledProducer = disabledProducer || b.Forbidden || !b.SwitchedOn;
                     b.OutOfFuel.TryGetValue(out var empty);
                     unfueledProducer = unfueledProducer || empty;
@@ -642,7 +639,7 @@ public static partial class PowerRules
             {
                 continue;
             }
-            var p = new PowerProposal { Target = target.Id, Center = target.Cell };
+            var p = new PowerProposal { Center = target.Cell };
             if (disabledProducer)
             {
                 return p with { Method = PowerMethod.WaitPlayer };
@@ -773,7 +770,6 @@ public static partial class PowerRules
             return new PowerProposal
             {
                 Method = PowerMethod.Connect,
-                Target = target.Id,
                 Center = target.Cell,
                 Cells = cells,
                 Key = PowerMethodKey("connect", GoFormat(cells)),

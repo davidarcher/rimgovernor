@@ -113,10 +113,6 @@ public sealed record QuestRewardFact
     public int PermitPoints { get; init; }
 
     public IReadOnlyList<string> Permits { get; init; } = [];
-
-    public string TitleDef { get; init; } = "";
-
-    public string FactionId { get; init; } = "";
 }
 
 public sealed record QuestTradeItemFact(string Def, long Count);

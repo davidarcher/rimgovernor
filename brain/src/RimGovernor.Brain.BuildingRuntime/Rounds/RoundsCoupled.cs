@@ -101,7 +101,7 @@ public sealed partial class Rounder
     internal static PlannedSelection PlannedSelectionReviewed(PlannedSelection previous, ColonyProjection colony, ForecastCoupledSelection? selection)
     {
         var facts = colony.Facts;
-        var latest = PlannedRules.PlannedSelectionOf(facts.CoupledAlternatives, selection, facts.PlannedSites, facts.Tick.Value);
+        var latest = PlannedRules.PlannedSelectionOf(facts.CoupledAlternatives, selection, facts.PlannedSites);
         var rooms = colony.LayoutPlan.TryGetValue(out var plan) ? plan.Rooms.DistinctBy(r => r.Id).ToDictionary(r => r.Id) : [];
         return PlannedRules.PlannedSelectionMemory(previous, latest,
             room => rooms.TryGetValue(room, out var planned) && RoundsBuildingPlanner.PlannedRoomStartedOf(colony, plan!, planned) == true);

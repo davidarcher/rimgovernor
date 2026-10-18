@@ -74,9 +74,8 @@ public static class HumanFoodRules
         {
             return Unknown<bool>();
         }
-        foreach (var inForce in i.HeldBy(h.Defs).EffectsInForce())
+        foreach (var e in i.HeldBy(h.Defs).EffectsInForce())
         {
-            var e = inForce.Effect;
             if (e.Kind == PreceptEffectKind.SelfTookAction && e.HistoryEvent == ButcheredHumanEvent && e.Penalises())
             {
                 return Known(false);

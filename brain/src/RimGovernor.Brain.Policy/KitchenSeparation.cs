@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>One room holding both a cooking bench and a butcher bench: butchery filth lands in the workspace the game reads for food poisoning.</summary>
-public sealed record SeparationRoom(string Id, EquatableArray<Cell> Cells);
+public sealed record SeparationRoom(string Id);
 
 public static class KitchenSeparationRules
 {
@@ -56,7 +56,7 @@ public static class KitchenSeparationRules
         return RoomHolds(room, ButcherDefinitions);
     }
 
-    /// <summary>Lists rooms where cooking and butchery share a room, with their cells so placement can keep new facilities out. Unknown when the room census is unknown.</summary>
+    /// <summary>Lists rooms where cooking and butchery share a room. Unknown when the room census is unknown.</summary>
     public static Fact<EquatableArray<SeparationRoom>> KitchenSeparation(Fact<RoomObservation> rooms)
     {
         if (!rooms.TryGetValue(out var census))
@@ -65,7 +65,7 @@ public static class KitchenSeparationRules
         }
         var result = census.Rooms
             .Where(room => RoomHolds(room, CookingDefinitions) && RoomHolds(room, ButcherDefinitions))
-            .Select(room => new SeparationRoom(room.Id, new EquatableArray<Cell>([.. room.Cells])))
+            .Select(room => new SeparationRoom(room.Id))
             .OrderBy(r => r.Id, StringComparer.Ordinal)
             .ToList();
         return Known(EquatableArray.From(result));

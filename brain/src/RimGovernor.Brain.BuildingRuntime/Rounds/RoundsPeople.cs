@@ -52,7 +52,7 @@ public sealed class PeopleRounds
         if (_needs.Dialog)
         {
             var dialog = await ObserveAsync(scope.World, review.Tick, call).ConfigureAwait(false);
-            facts = facts with { DialogOpen = Known(dialog is not null), Dialog = dialog };
+            facts = facts with { DialogOpen = Known(dialog is not null) };
         }
         if (_needs.Mood && review.Snapshot == scope.World)
         {

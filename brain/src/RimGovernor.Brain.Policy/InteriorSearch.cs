@@ -71,12 +71,6 @@ public sealed record InteriorSearchResult
 
     internal int Fixed { get; init; }
 
-    /// <summary>The greedy layout's measure.</summary>
-    public InteriorScore Seed { get; init; } = new();
-
-    /// <summary>The searched layout's measure.</summary>
-    public InteriorScore Score { get; init; } = new();
-
     public IReadOnlyList<SearchMove> Moves { get; init; } = [];
 
     /// <summary>The pieces the caller must stand: everything but the pinned ones.</summary>
@@ -143,13 +137,12 @@ public static class InteriorSearchRules
         };
         InteriorScore Score(IReadOnlyList<InteriorPiece> ps) => InteriorObjectiveRules.ScoreInterior(obj with { Pieces = ps });
         var cur = Score(pieces);
-        var seedScore = cur;
         var free = pinned.Count;
         var moves = new List<SearchMove>();
         InteriorSearchResult Seated(InteriorSearchResult res) => res with { Pieces = [.. RegionRules.SeatAll(req.Region, [.. res.Pieces], seats)] };
         if (req.Doors.Count == 0 || pieces.Count == free)
         {
-            return Seated(new InteriorSearchResult { Pieces = pieces, Seed = cur, Score = cur, Fixed = free });
+            return Seated(new InteriorSearchResult { Pieces = pieces, Fixed = free });
         }
         var iters = s.Iterations;
         if (iters <= 0)
@@ -188,7 +181,7 @@ public static class InteriorSearchRules
             cur = cs;
             moves.Add(new SearchMove(kind, pieces[at].Slot, gained));
         }
-        return Seated(new InteriorSearchResult { Pieces = pieces, Seed = seedScore, Score = cur, Fixed = free, Moves = moves });
+        return Seated(new InteriorSearchResult { Pieces = pieces, Fixed = free, Moves = moves });
     }
 
     /// <summary>

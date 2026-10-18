@@ -2,7 +2,7 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy.Methods.Generation;
 
-internal sealed record CoupledFoodCandidates(ForecastActivity[] Tasks, ForecastActivityOption[] Options,
+internal sealed record CoupledFoodCandidates(ForecastActivityOption[] Options,
     ForecastActivityRoute[] Routes, ForecastNeedTask[] Needs, ForecastCommitment[] Alternatives,
     IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> Bindings, bool Truncated)
 {
@@ -196,7 +196,7 @@ internal static class FoodMethodCandidates
             return new ForecastCompositionOperation(operation, EquatableArray.From(requirements), EquatableArray.From(produced.Where(s => s.Producer == t.Id)))
                 { ChoiceGroup = t.ChoiceIdentity };
         }).ToArray();
-        return new(tasks.ToArray(), options.ToArray(), routes.Values.ToArray(), needTasks.ToArray(), alternatives.ToArray(), bindings, truncated)
+        return new(options.ToArray(), routes.Values.ToArray(), needTasks.ToArray(), alternatives.ToArray(), bindings, truncated)
             { Operations = EquatableArray.From(operations), Observed = EquatableArray.From(observed), Findings = EquatableArray.From(findings) };
         void AddEating(string supply, Resource resource, Fact<double> quantity, Cell cell, string freshFrom)
         {

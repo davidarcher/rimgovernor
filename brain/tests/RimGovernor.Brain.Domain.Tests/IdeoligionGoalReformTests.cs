@@ -160,7 +160,7 @@ public sealed class IdeoligionGoalReformTests
         Ideology = Known(new Ideoligion(
             new IdeologyDefs
             {
-                Precepts = new Dictionary<string, PreceptDef> { [Naked] = new(Naked, []) },
+                Precepts = new Dictionary<string, PreceptDef> { [Naked] = new([]) },
                 Memes = new Dictionary<string, MemeDef> { [Nudism] = new([], []) },
             },
             new IdeoligionFacts { Memes = memes, Development = development })),

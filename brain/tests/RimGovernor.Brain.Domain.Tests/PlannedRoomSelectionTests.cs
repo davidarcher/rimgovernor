@@ -48,16 +48,16 @@ public sealed class PlannedRoomSelectionTests
     }
 
     private static SelectedPlannedSite Wall(int room, string stuff) =>
-        new("planned/room" + room + "/wall/" + stuff, room, OpKind.WallIn, ContainmentCellRules.ShellWallDefinition, stuff, Rotation.North, [new(4, 4)]);
+        new(room, OpKind.WallIn, ContainmentCellRules.ShellWallDefinition, stuff, [new(4, 4)]);
 
     [Fact]
     public void TheLatestKnownSelectionReplacesTheRecordAndAStartedRoomClears()
     {
-        var previous = new PlannedSelection { Assessed = [1, 2], Sites = [Wall(1, "WoodLog"), Wall(2, "WoodLog")], Tick = 100 };
+        var previous = new PlannedSelection { Assessed = [1, 2], Sites = [Wall(1, "WoodLog"), Wall(2, "WoodLog")] };
         // A review that compared nothing keeps the record.
         Assert.Equal(previous, PlannedRules.PlannedSelectionMemory(previous, null, _ => false));
         // A later selection that drops room 2's site while it is unstarted drops it.
-        var latest = new PlannedSelection { Assessed = [1, 2], Sites = [Wall(1, "BlocksGranite")], Tick = 200 };
+        var latest = new PlannedSelection { Assessed = [1, 2], Sites = [Wall(1, "BlocksGranite")] };
         Assert.Equal(latest, PlannedRules.PlannedSelectionMemory(previous, latest, _ => false));
         // Observed placement clears the room's sites; the room stays assessed, and the reconcile places it as started.
         var placed = PlannedRules.PlannedSelectionMemory(previous, null, room => room == 1);
@@ -83,9 +83,9 @@ public sealed class PlannedRoomSelectionTests
         ];
         SelectedPlannedSite[] sites =
         [
-            new("planned/room1/wall/BlocksGranite", 1, OpKind.WallIn, ContainmentCellRules.ShellWallDefinition, "BlocksGranite", Rotation.North, [new(4, 4), new(4, 5)]),
-            new("planned/room1/floor/WoodPlankFloor", 1, OpKind.FloorIn, "WoodPlankFloor", "", Rotation.North, [new(5, 5)]),
-            new("planned/room1/build/Bed/5/5", 1, OpKind.Build, "Bed", "WoodLog", Rotation.North, [piece.Anchor()]),
+            new(1, OpKind.WallIn, ContainmentCellRules.ShellWallDefinition, "BlocksGranite", [new(4, 4), new(4, 5)]),
+            new(1, OpKind.FloorIn, "WoodPlankFloor", "", [new(5, 5)]),
+            new(1, OpKind.Build, "Bed", "WoodLog", [piece.Anchor()]),
         ];
         var kept = PlannedRules.SelectedPlannedOps(ops, sites);
         Assert.Equal([new Cell(4, 4), new Cell(4, 5)], Assert.Single(kept, o => o.Kind == OpKind.WallIn).Cells);

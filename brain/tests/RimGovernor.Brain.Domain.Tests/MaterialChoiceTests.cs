@@ -29,7 +29,6 @@ public sealed class MaterialChoiceTests
         Assert.Equal(Metal.Value, Assert.Single(Assert.Single(alone.Selected).Spec.Ingredients));
         var together = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible, Machine], View());
         Assert.Equal(2, together.Selected.Count);
-        Assert.Empty(together.Postponed);
         Assert.Equal(Timber.Value, Assert.Single(Assert.Single(together.Selected, p => p.Spec.Recipe == Flexible.Spec.Recipe).Spec.Ingredients));
         Assert.Equal(Metal.Value, Assert.Single(Assert.Single(together.Selected, p => p.Spec.Recipe == Machine.Spec.Recipe).Spec.Ingredients));
         Assert.False(together.GenerationTruncated);
@@ -68,7 +67,6 @@ public sealed class MaterialChoiceTests
         var cooking = new LedgerPlacement("cook", new() { Recipe = "TestFood", BenchKind = "TestCooker", Mode = BillMode.StockTarget, Target = 10 });
         var noMaterials = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible, Machine, cooking], View(0, 0));
         Assert.Equal(cooking, Assert.Single(noMaterials.Selected));
-        Assert.Equal(2, noMaterials.Postponed.Count);
     }
 
     [Fact]
@@ -103,7 +101,6 @@ public sealed class MaterialChoiceTests
     {
         var unknown = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible], View() with { Recipes = default });
         Assert.Empty(unknown.Selected);
-        Assert.Single(unknown.Postponed);
         Assert.Contains(unknown.Comparison.Findings, f => f.StartsWith("unknown_recipe:", StringComparison.Ordinal));
         var generated = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible, Machine], View(), generationBudget: 1);
         Assert.True(generated.GenerationTruncated);
@@ -113,7 +110,6 @@ public sealed class MaterialChoiceTests
         Assert.True(searched.Comparison.SearchTruncated);
         Assert.Equal(1, searched.Comparison.Expansions);
         Assert.Single(searched.Selected);
-        Assert.Single(searched.Postponed);
         Assert.Empty(LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible], View() with { Availability = default }).Selected);
     }
 

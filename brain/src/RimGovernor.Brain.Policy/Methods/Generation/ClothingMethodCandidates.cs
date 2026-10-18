@@ -71,7 +71,6 @@ internal static class ClothingMethodCandidates
             {
                 Resource = row.Stuff,
                 Source = row.Location,
-                Inputs = EquatableArray.From(row.Inputs.Select(i => (i.Thing, i.Resource, i.Count, i.AvailableCount))),
                 Recipe = new(row.Bill, row.Recipe, EquatableArray.From(row.Inputs.Select(i => new PawnActivityIngredient(i.Thing, i.Count))))
                 { Resource = row.Stuff, Stuff = row.Stuff, Unfinished = row.Unfinished }
             };

@@ -3837,10 +3837,6 @@ public sealed record QuestReward
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Permits { get; init; }
-
-    public string? TitleDef { get; init; }
-
-    public string? FactionId { get; init; }
 }
 
 public sealed record QuestObjective

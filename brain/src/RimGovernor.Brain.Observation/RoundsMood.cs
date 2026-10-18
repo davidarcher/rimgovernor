@@ -277,7 +277,6 @@ public static class RoundsMoodReads
         {
             var pawn = new MoodLedgerPawn
             {
-                Id = m.Id,
                 Thoughts = m.Thoughts,
                 Traits = Unknown<EquatableArray<string>>(),
                 Precepts = Unknown<EquatableArray<string>>(),

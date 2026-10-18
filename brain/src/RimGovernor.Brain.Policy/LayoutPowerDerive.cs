@@ -219,11 +219,11 @@ public static partial class LayoutPowerDeriveRules
             {
                 var blocked = site.Lanes.Where(l => l.Wind).Sum(l => l.Blocked);
                 var output = LayoutPowerNodesRules.WindOutput(blocked);
-                producers.Add(new PowerProducer { Definition = PowerRules.WindTurbineDefinition, NominalW = p.Wind.NominalW, Profile = new PowerSourceProfile { Daily = p.Wind.Profile.Daily * output, Night = p.Wind.Profile.Night * output } });
+                producers.Add(new PowerProducer { NominalW = p.Wind.NominalW, Profile = new PowerSourceProfile { Daily = p.Wind.Profile.Daily * output, Night = p.Wind.Profile.Night * output } });
             }
             else if (n.Kind == LayoutPowerNodesRules.NodeSolar)
             {
-                producers.Add(new PowerProducer { Definition = LayoutUtilityRules.SolarDefinition, NominalW = p.Solar.NominalW, Profile = p.Solar.Profile });
+                producers.Add(new PowerProducer { NominalW = p.Solar.NominalW, Profile = p.Solar.Profile });
             }
         }
         var input = new PowerBudgetInput { DemandW = demand, CapacityWD = p.BatteryRoomCapacityWD(), ChargeEfficiency = p.Battery.Efficiency, StorageMargin = PowerRules.DefaultPowerPlanning().StorageMargin, Producers = producers };

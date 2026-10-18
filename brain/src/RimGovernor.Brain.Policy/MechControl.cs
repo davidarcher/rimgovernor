@@ -54,9 +54,7 @@ public sealed record MechanitorInput
 
     public Fact<int> UsedBandwidth => Mechanitor.UsedBandwidth;
     public Fact<int> TotalBandwidth => Mechanitor.TotalBandwidth;
-    public Fact<int> GestationBandwidth => Mechanitor.GestationBandwidth;
     public Fact<int> ControlGroups => Mechanitor.ControlGroups;
-    public IReadOnlyList<string> ControlledMechs => Mechanitor.ControlledMechs;
 }
 
 /// <summary>One colony mech with its Biotech row. It is composed with forwarding members.</summary>

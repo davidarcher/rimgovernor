@@ -63,8 +63,6 @@ public sealed record HerdPlanInput
 /// </summary>
 public sealed record HerdRole
 {
-    public Resource Race { get; init; }
-
     /// <summary>The race's job: the first work job it keeps, else retiring work, else companion (a bonded animal), else none.</summary>
     public HerdJob Job { get; init; }
 
@@ -93,11 +91,7 @@ public sealed record HerdRole
 /// <summary>One job's ranking.</summary>
 public sealed record HerdJobPlan
 {
-    public HerdJob Job { get; init; }
-
-    /// <summary>The obtainable races, best first; Target is the first.</summary>
-    public IReadOnlyList<Resource> Ranked { get; init; } = [];
-
+    /// <summary>The best obtainable race; empty when no race can hold the job.</summary>
     public Resource Target { get; init; } = new("");
 
     /// <summary>The target race's wanted head count.</summary>
@@ -116,12 +110,6 @@ public sealed partial record HerdPlan
     /// size a unit from (a founder or companion has none and stays with the misc animals).
     /// </summary>
     public IReadOnlyList<Resource> Herds { get; init; } = [];
-
-    /// <summary>
-    /// The easy race tamed (and trained) to raise the best handler's Animals skill while a wanted race needs more
-    /// than any handler has; empty when none is needed or available.
-    /// </summary>
-    public Resource Leveling { get; init; } = new("");
 }
 
 /// <summary>The herd plan's views of a routine reading.</summary>
@@ -360,19 +348,18 @@ public static class HerdPlanRules
         var jobs = new Dictionary<HerdJob, HerdJobPlan>();
         var min = new Dictionary<Resource, long>();
         var max = new Dictionary<Resource, long>();
-        HerdPlan Result(HerdPolicy policy, IReadOnlyList<Resource> herds, Resource leveling) =>
+        HerdPlan Result(HerdPolicy policy, IReadOnlyList<Resource> herds) =>
             new()
             {
                 Roles = roles,
                 Jobs = jobs,
                 Policy = policy,
                 Herds = herds,
-                Leveling = leveling,
             };
         var floors = FoodAnimalProductsRules.FoodHerdPolicy(new HerdPolicy(), input.Food).PopulationMin;
         if (!input.Animals.TryGetValue(out var rows))
         {
-            return Result(new HerdPolicy { PopulationMin = min, PopulationMax = max }, [], new Resource(""));
+            return Result(new HerdPolicy { PopulationMin = min, PopulationMax = max }, []);
         }
         var stats = new Dictionary<Resource, HerdRaceStats>();
         var order = new List<Resource>();
@@ -452,10 +439,10 @@ public static class HerdPlanRules
                 {
                     HerdKeep(keeps, def, job);
                 }
-                jobs[job] = new HerdJobPlan { Job = job, Ranked = ranked };
+                jobs[job] = new HerdJobPlan();
                 continue;
             }
-            var jp = new HerdJobPlan { Job = job, Ranked = ranked, Target = ranked[0] };
+            var jp = new HerdJobPlan { Target = ranked[0] };
             preferred.Add(jp.Target);
             HerdKeep(keeps, jp.Target, job);
             var target = stats.GetValueOrDefault(jp.Target) ?? new HerdRaceStats();
@@ -496,7 +483,6 @@ public static class HerdPlanRules
             var s = stats[def];
             var role = new HerdRole
             {
-                Race = def,
                 Job = HerdJob.None,
                 Preferred = preferred.Contains(def),
                 Superseded = superseded.Contains(def) && !preferred.Contains(def),
@@ -532,7 +518,6 @@ public static class HerdPlanRules
             {
                 roles[def] = new HerdRole
                 {
-                    Race = def,
                     Job = HerdTargetJob(jobs, def),
                     Preferred = true,
                     Founder = false,
@@ -546,7 +531,7 @@ public static class HerdPlanRules
         var leveling = HerdLevelingRace(input, stats, targets);
         if (leveling.Value.Length != 0)
         {
-            roles[leveling] = new HerdRole { Race = leveling, Job = HerdJob.None };
+            roles[leveling] = new HerdRole { Job = HerdJob.None };
             min[leveling] = 1;
             max[leveling] = 1 + HerdSpare;
         }
@@ -637,7 +622,7 @@ public static class HerdPlanRules
             Roles = roles,
             Layers = layers,
         };
-        return Result(policy, herds, leveling);
+        return Result(policy, herds);
     }
 
     /// <summary>

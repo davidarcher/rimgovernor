@@ -68,11 +68,10 @@ public sealed record SeekerGameDef(string Need, string Thought, SeekerBands Band
 
 /// <summary>
 /// The environment needs' game table, registered in DefTables so a renamed def fails the dangling-reference
-/// gate. IntervalTicks is Pawn_NeedsTracker's need interval (IsHashIntervalTick(150)); BeautyImpact is
-/// Need_Beauty.BeautyImpactFactor, the level a point of mean beauty moves. The rise, fall, base level and sleep
-/// freeze are the NeedDef rows', read by the bridge.
+/// gate. IntervalTicks is Pawn_NeedsTracker's need interval (IsHashIntervalTick(150)). The rise, fall, base level
+/// and sleep freeze are the NeedDef rows', read by the bridge.
 /// </summary>
-public sealed record SeekerTable(double IntervalTicks, double BeautyImpact, SeekerGameDef Comfort, SeekerGameDef Beauty);
+public sealed record SeekerTable(double IntervalTicks, SeekerGameDef Comfort, SeekerGameDef Beauty);
 
 /// <summary>
 /// A seeker need's NeedDef numbers: the level it starts from, how fast it rises and falls an hour, and whether
@@ -89,9 +88,9 @@ public readonly record struct EnvSegment(double Hours, double Target, bool Aslee
 
 /// <summary>
 /// The steady day of a need: the hours spent in each thought stage, StageHours[s+1] for stage s and
-/// StageHours[0] for no stage, and the level the day starts from.
+/// StageHours[0] for no stage.
 /// </summary>
-public sealed record EnvRun(EquatableArray<double> StageHours, double Start)
+public sealed record EnvRun(EquatableArray<double> StageHours)
 {
     /// <summary>The time-averaged mood the run's stages give, in points; false when the thought or a stage is unknown.</summary>
     public (double Mood, bool Ok) MeanMood(MoodModel m, string thought)
@@ -169,7 +168,7 @@ public sealed record SeekerNeed(NeedCurve Curve, SeekerGameDef Game)
             }
             if (Math.Abs(level - start) < 1e-12)
             {
-                return (new EnvRun(EquatableArray.From(hours), start), true);
+                return (new EnvRun(EquatableArray.From(hours)), true);
             }
         }
         return (null, false);
@@ -264,13 +263,11 @@ public sealed record ComfortOption
 /// The catalog's furniture and needs for the comfort pricing; the default value is unknown. Chairs are the
 /// buildable sittable defs at each stuff and Beds the single beds an adult sleeps in. BedOffset is the comfort
 /// the bed's linked facilities add (the end table and dresser every bedroom template places, so a sunk cost of
-/// every bed alike). Comfort and Beauty are the NeedDef curves.
+/// every bed alike). Comfort is the NeedDef curve.
 /// </summary>
 public sealed record ComfortModel
 {
     public NeedCurve Comfort { get; init; }
-
-    public NeedCurve Beauty { get; init; }
 
     public IReadOnlyList<ComfortOption> Chairs { get; init; } = [];
 
@@ -280,17 +277,6 @@ public sealed record ComfortModel
 
     /// <summary>The comfort need over the model.</summary>
     public SeekerNeed ComfortNeed() => new(Comfort, LayoutComfortRules.SeekerGame().Comfort);
-
-    /// <summary>
-    /// The beauty need over the model. Beauty is fed by the cells around a spot, not by furniture comfort; a
-    /// caller with decor candidates prices them through SeekerNeed.Price with BeautyTarget, the same shape as a
-    /// chair.
-    /// </summary>
-    public SeekerNeed BeautyNeed() => new(Beauty, LayoutComfortRules.SeekerGame().Beauty);
-
-    /// <summary>The instant level of beauty at a spot whose visible cells have the given mean beauty (Need_Beauty.LevelFromBeauty).</summary>
-    public double BeautyTarget(double meanBeauty) =>
-        Math.Min(Math.Max(Beauty.Base + (LayoutComfortRules.SeekerGame().BeautyImpact * meanBeauty), 0), 1);
 }
 
 /// <summary>
@@ -344,7 +330,6 @@ public static partial class LayoutComfortRules
 
     private static readonly SeekerTable SeekerGameTable = new(
         IntervalTicks: 150,
-        BeautyImpact: 0.1,
         Comfort: new SeekerGameDef("Comfort", "NeedComfort", new SeekerBands(new EquatableArray<double>([0.1, 0.6, 0.7, 0.8, 0.9]), new EquatableArray<int>([0, -1, 1, 2, 3, 4]))),
         Beauty: new SeekerGameDef("Beauty", "NeedBeauty", new SeekerBands(new EquatableArray<double>([0.01, 0.15, 0.35, 0.65, 0.85, 0.99]), new EquatableArray<int>([0, 1, 2, -1, 3, 4, 5]), UpperClosed: true)));
 

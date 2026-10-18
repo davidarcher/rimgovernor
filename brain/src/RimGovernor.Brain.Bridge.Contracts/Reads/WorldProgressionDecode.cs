@@ -115,8 +115,6 @@ partial record QuestOffer
                 Psylink = reward.Psylink.GetValueOrDefault(),
                 PermitPoints = reward.PermitPoints.GetValueOrDefault(),
                 Permits = [.. reward.Permits],
-                TitleDef = reward.TitleDef ?? "",
-                FactionId = reward.FactionId ?? "",
                 Items = [.. reward.Items.Select(item => new QuestTradeItemFact(item.DefName ?? "", item.Units.GetValueOrDefault()))],
             });
         }

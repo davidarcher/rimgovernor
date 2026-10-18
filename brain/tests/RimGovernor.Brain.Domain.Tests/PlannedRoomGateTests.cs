@@ -193,11 +193,11 @@ public sealed class PlannedRoomGateTests
     }
 
     private static SelectedPlannedSite Site(OpKind op, string stuff, params Cell[] cells) =>
-        new("planned/room1/" + (op == OpKind.WallIn ? "wall" : "door") + "/" + stuff, 1, op, op == OpKind.WallIn ? ContainmentCellRules.ShellWallDefinition : ContainmentCellRules.ShellDoorDefinition,
-            stuff, Rotation.North, [.. cells]);
+        new(1, op, op == OpKind.WallIn ? ContainmentCellRules.ShellWallDefinition : ContainmentCellRules.ShellDoorDefinition,
+            stuff, [.. cells]);
 
     private static void Select(Colony colony, params SelectedPlannedSite[] sites) =>
-        colony.Planner.Reviewer.RoomSelection.Set(World, new PlannedSelection { Assessed = [1], Sites = [.. sites], Tick = 100 });
+        colony.Planner.Reviewer.RoomSelection.Set(World, new PlannedSelection { Assessed = [1], Sites = [.. sites] });
 
     [Fact]
     public async Task AnUnassessedRoomIsPlacedAsBefore()

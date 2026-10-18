@@ -3,8 +3,6 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>One gestator of the colony section.</summary>
 public sealed record GestatorFact
 {
-    public string Id { get; init; } = "";
-
     /// <summary>Whether the gestator has an active bill (a mech forming).</summary>
     public Fact<bool> Active { get; init; }
 
@@ -35,10 +33,9 @@ public sealed record MechGestation
     public IReadOnlyList<MechCharger> Chargers { get; init; } = [];
 }
 
-/// <summary>The mech kind the next gestation builds and who it is for.</summary>
+/// <summary>The mech kind the next gestation builds.</summary>
 public sealed record MechChoice
 {
-    public PawnId Mechanitor { get; init; }
     public string Kind { get; init; } = "";
 }
 
@@ -157,7 +154,7 @@ public static partial class MechRules
                 continue;
             }
             var best = kinds.OrderByDescending(Score).ThenBy(k => k.BandwidthCost).ThenBy(k => k.Name, StringComparer.Ordinal).First();
-            return (new MechChoice { Mechanitor = m.Id, Kind = best.Name }, true);
+            return (new MechChoice { Kind = best.Name }, true);
         }
         return (new MechChoice(), false);
     }

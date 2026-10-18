@@ -3,7 +3,7 @@ using RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy.Methods.Generation;
 
 internal sealed record CoupledShelterCandidatesResult(
-    ForecastActivity[] Tasks, ForecastActivityOption[] Options, ForecastActivityRoute[] Routes,
+    ForecastActivityOption[] Options, ForecastActivityRoute[] Routes,
     Dictionary<(string, string), ActivityTaskCandidate> Bindings,
     ForecastCompositionOperation[] Operations, ForecastCompositionSupply[] Observed,
     Dictionary<string, EquatableArray<ForecastCompositionRequirement>> Roots, ForecastShelterPlan[] Plans, EquatableArray<string> Findings, bool Truncated);
@@ -60,7 +60,7 @@ internal static class CoupledShelterCandidates
         IReadOnlyDictionary<(string, string), ActivityTaskCandidate> constructionBindings,
         IReadOnlyList<PlannedBuildSite> planned, IReadOnlyList<PlannedSiteOperations> generated, long deadline, double horizon)
     {
-        var tasks = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
+        var options = new List<ForecastActivityOption>();
         var routes = new Dictionary<(string, string, string), ForecastActivityRoute>();
         var bindings = new Dictionary<(string, string), ActivityTaskCandidate>();
         var operations = constructionOperations.ToDictionary(o => o.Activity.Id, StringComparer.Ordinal);
@@ -157,7 +157,6 @@ internal static class CoupledShelterCandidates
                 var id = "roof/" + room.Id + "/" + cell.X + "/" + cell.Z;
                 var location = ForecastLocations.Of(cell);
                 var task = new ForecastActivity(id, location, location, []);
-                tasks.Add(task);
                 var supply = new ForecastCompositionSupply("completed-roof/" + id, new("CompletedRoofCell"), Known(1), location, Known(0d), Known(horizon))
                     { Producer = id, Kind = ForecastRequirementKind.Reusable, Provenance = "native-roof-cell:" + cell.X + "/" + cell.Z };
                 operations.Add(id, new(task, shell, [supply]) { ChoiceGroup = "roof-cell/" + cell.X + "/" + cell.Z });
@@ -199,6 +198,6 @@ internal static class CoupledShelterCandidates
                     AdditionalWatts = source?.AdditionalWatts ?? default, SurplusWatts = source?.SurplusWatts ?? default });
             if (demands.Count != 0) roots.Add("shelter/" + room.Id, EquatableArray.From(demands));
         }
-        return new(tasks.ToArray(), options.ToArray(), routes.Values.ToArray(), bindings, operations.Values.ToArray(), [], roots, plans.ToArray(), geometry.Findings, geometry.Truncated);
+        return new(options.ToArray(), routes.Values.ToArray(), bindings, operations.Values.ToArray(), [], roots, plans.ToArray(), geometry.Findings, geometry.Truncated);
     }
 }

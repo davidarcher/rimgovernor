@@ -4,7 +4,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// The comfort pricing's catalog input (#2975): the NeedDef curves of comfort and beauty, the chairs a
+// The comfort pricing's catalog input (#2975): the NeedDef curve of comfort, the chairs a
 // pawn can sit on and the beds an adult sleeps in, each at every stuff the game allows, with the comfort stat it shows at
 // Normal quality and the market value of its adjusted costs. A piece whose comfort the game does not show is left out. The
 // bed offset is the comfort the end table and dresser every bedroom template places add (CompProperties_Facility's stat
@@ -43,7 +43,7 @@ public sealed partial class DefinitionCatalog
             offset += facilities.TryGetValue(link.Def, out var facility) && facility.Offsets.TryGetValue(StatNames.Comfort, out var value) ? value : 0;
         }
 
-        return new P.ComfortModel { Comfort = Curve(game.Comfort.Need), Beauty = Curve(game.Beauty.Need), Chairs = chairs, Beds = beds, BedOffset = offset };
+        return new P.ComfortModel { Comfort = Curve(game.Comfort.Need), Chairs = chairs, Beds = beds, BedOffset = offset };
     }
 
     // A def's pieces, one per allowed stuff (one for a def with none): the comfort stat the game shows and the cost's market value.

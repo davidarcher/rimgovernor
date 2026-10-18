@@ -411,14 +411,14 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   keeps as one shape (`Need_Seeker`: every 150 ticks the level moves toward an instant level
   at `seekerRisePerHour` x 0.06 up or `seekerFallPerHour` x 0.06 down, frozen while asleep
   if `freezeWhileSleeping`). `SeekerNeed` (`LayoutComfort.cs`) is that shape with the
-  `NeedDef` curve (comfort 0.60 up, 0.04 down; beauty 0.32 up, 0.08 down, base 0.4, frozen
-  asleep) and the thought's category thresholds (`SeekerGame`, in `DefTables`: comfort's are
+  `NeedDef` curve (comfort 0.60 up, 0.04 down; the bridge reads only comfort's, as no decor
+  candidate prices beauty) and the thought's category thresholds (`SeekerGame`, in `DefTables`: comfort's are
   `level <` edge at 0.1/0.6/0.7/0.8/0.9, stages -3/+4/+6/+8/+10; beauty's `level >` edge at
   0.01/0.15/0.35/0.65/0.85/0.99, stages -15/-10/-5/none/+5/+10/+15). Comfort's instant level
   is the stat of the building the pawn stands on while it was used in the last 15 ticks, else
   0: a bed while lying (`Toils_LayDown`), any edifice while eating, a sittable building only
-  while working a recipe or research (`chairsOnly`). Beauty's is 0.4 + 0.1 x the mean beauty
-  of the cells its room shows within 8.9. `ChooseComfort` lays a colonist's day out from the
+  while working a recipe or research (`chairsOnly`).
+  `ChooseComfort` lays a colonist's day out from the
   schedule template (the 8 sleep hours on the bed, then the spots over the Anything hours,
   the rest idle), repeats it to its steady level, reads the time-averaged mood of the stages,
   and prices the difference with `PriceMood` against the piece's `BuildW`: the bed first
@@ -439,7 +439,6 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   floor already, and a chair is walked over); a bench without an interaction cell, a catalog
   without a 1x1 row for the chair or a built bench gets none. The `rooms/work-chairs` Need builds
   the chair ([comfort](upkeep-contracts.md#comfort)).
-  Beauty has the shape (`BeautyTarget`) but no decor candidate feeds it.
   **Circulation (#2911).** The station graph carries station-less room nodes
   (`StationGraph.Rooms`, `RoomNode`: role, area demand, optional strip width; the tomb
   and morgue of #2882 reuse the kind). Circulation is the corridor that joins rooms
@@ -519,8 +518,8 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   infestation cell by weighted random over every candidate, so a dark room does not steer
   it (#2944).
 
-**Room sizes and ground.** The room sizes are `roomSizeTable` (a
-`DefTables` entry). The ground the embedder reads is `buildGround`
+**Room sizes and ground.** The room sizes are `RoomSizeTable`
+(`LayoutTrips.cs`). The ground the embedder reads is `buildGround`
 (`LayoutBuildGround.cs`: the core and rock cells, the soil costs and the obstacle levels)
 and `LayoutSiteGround.cs` (the siting seeds), that `Embed` uses with `FieldGain`.
 

@@ -34,7 +34,7 @@ public sealed class PlannedRoomAlternativesTests
         var wood = alternatives[3];
         Assert.Equal(["planned/room1/build/TableButcher/1/1", "planned/room1/door/WoodLog", "planned/room1/floor/WoodPlankFloor", "planned/room1/roof",
             "planned/room1/wall/WoodLog"], wood.Sites);
-        Assert.Equal(("WoodLog", PlannedScope.Full), (wood.Stuff, wood.Scope));
+        Assert.Equal("WoodLog", wood.Stuff);
     }
 
     [Fact]

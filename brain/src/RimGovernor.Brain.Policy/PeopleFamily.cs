@@ -22,16 +22,13 @@ public sealed record PeopleNeeds
 }
 
 /// <summary>
-/// What the people family reads (#3304): whether a choice dialog is open, and the open one; the review's mood states
+/// What the people family reads (#3304): whether a choice dialog is open; the review's mood states
 /// and the Needs at work that a mood may defer to.
 /// </summary>
 public sealed record PeopleFacts
 {
     /// <summary>Whether the game is force-paused on a choice dialog it opened by itself; unknown without the colony census.</summary>
     public Fact<bool> DialogOpen { get; init; }
-
-    /// <summary>The open dialog; null when none is or the census was not read.</summary>
-    public OpenDialog? Dialog { get; init; }
 
     /// <summary>The review's tracked mood states, one per pawn; unknown while the review was not read.</summary>
     public Fact<EquatableArray<MoodState>> Mood { get; init; }

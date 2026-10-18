@@ -64,7 +64,7 @@ public static class HusbandryUpkeepRules
 {
     /// <summary>The role of a race, or the zero role when the plan has none.</summary>
     internal static HerdRole HerdRoleOrZero(HerdPolicy herd, Resource race) =>
-        herd.Roles.TryGetValue(race, out var role) ? role : new HerdRole { Race = race };
+        herd.Roles.TryGetValue(race, out var role) ? role : new HerdRole();
 
     /// <summary>
     /// The trainables a race's job wants, in order. A hauler learns Obedience then Haul, a war animal

@@ -9,8 +9,6 @@ public sealed record QuestHackWork
 
     public HackDesignation? Hack { get; init; }
 
-    public bool Waiting { get; init; }
-
     public QuestSkipReason Reason { get; init; }
 }
 
@@ -130,7 +128,7 @@ public static class QuestHackPolicy
             {
                 continue;
             }
-            var result = new QuestHackWork { Quest = offer.Quest, Waiting = true };
+            var result = new QuestHackWork { Quest = offer.Quest };
             var admission = WorshippedTerminalAdmission(offer);
             if (!admission.IsNone)
             {
@@ -167,7 +165,7 @@ public static class QuestHackPolicy
                 {
                     return result with { Reason = "hacker_unavailable" };
                 }
-                return result with { Hack = new HackDesignation(target.Id, true), Waiting = false };
+                return result with { Hack = new HackDesignation(target.Id, true) };
             }
         }
         return new QuestHackWork();

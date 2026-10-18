@@ -39,7 +39,6 @@ public sealed class PowerMethodTests
         var proposal = PowerRules.SelectPowerMethod(Known(topology), new Bounds(20, 20), [], [], Planning);
 
         Assert.Equal(PowerMethod.WaitFuel, proposal.Method);
-        Assert.Equal("stove", proposal.Target);
     }
 
     // #2799: a polar-night twelfth gives a solar generator nothing to deliver, so the wind turbine outranks it; an unread

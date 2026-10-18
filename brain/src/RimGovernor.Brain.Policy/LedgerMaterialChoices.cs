@@ -2,8 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 public sealed record ProductionMaterialView(Fact<EquatableArray<ProductionRecipeInput>> Recipes,
     Fact<IReadOnlyDictionary<Resource, Fact<double>>> Availability);
-public sealed record LedgerMaterialSelection(EquatableArray<LedgerPlacement> Selected, EquatableArray<LedgerPlacement> Postponed,
-    int Generated, bool GenerationTruncated, ForecastMaterialComparison Comparison);
+public sealed record LedgerMaterialSelection(EquatableArray<LedgerPlacement> Selected, int Generated, bool GenerationTruncated, ForecastMaterialComparison Comparison);
 
 public static class LedgerMaterialChoicesRules
 {
@@ -16,7 +15,7 @@ public static class LedgerMaterialChoicesRules
         var recipes = view.Recipes.TryGetValue(out var catalog) ? catalog.ToDictionary(r => r.Recipe, StringComparer.Ordinal) : [];
         var options = new List<ForecastMaterialOption>();
         var variants = new Dictionary<string, LedgerPlacement>(StringComparer.Ordinal);
-        var originals = new Dictionary<string, LedgerPlacement>(StringComparer.Ordinal);
+        var demands = new HashSet<string>(StringComparer.Ordinal);
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var generated = 0;
         var truncated = false;
@@ -25,7 +24,7 @@ public static class LedgerMaterialChoicesRules
         {
             var spec = placement.Spec;
             var demand = placement.Bench + "/" + spec.Key();
-            if (!originals.TryAdd(demand, placement)) throw new DomainException("duplicate material demand");
+            if (!demands.Add(demand)) throw new DomainException("duplicate material demand");
             if (!recipes.TryGetValue(spec.Recipe, out var recipe) || !recipe.Slots.TryGetValue(out var slots))
             { findings.Add("unknown_recipe:" + demand); continue; }
             void Generate(int slot, HashSet<string> filter)
@@ -66,8 +65,6 @@ public static class LedgerMaterialChoicesRules
         var comparison = ForecastMaterialChoices.CompareMaterialPlans(options, view.Availability, searchBudget, valuation?.Values);
         comparison = comparison with { Findings = EquatableArray.From(comparison.Findings.Concat(findings).Distinct().Order(StringComparer.Ordinal)) };
         var selected = comparison.Selected.Select(o => variants[o.Id]).Concat(placements.Where(p => p.Spec.Mode != BillMode.GearBatch));
-        var chosen = comparison.Selected.Select(o => o.Demand).ToHashSet(StringComparer.Ordinal);
-        return new(EquatableArray.From(selected), EquatableArray.From(originals.Where(p => !chosen.Contains(p.Key)).Select(p => p.Value)),
-            generated, truncated, comparison);
+        return new(EquatableArray.From(selected), generated, truncated, comparison);
     }
 }

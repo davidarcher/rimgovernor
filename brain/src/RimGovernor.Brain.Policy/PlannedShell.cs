@@ -68,16 +68,12 @@ public sealed partial record SiteCell
 
     // The per-cell thing list and the tile columns that join it. Terrain names the terrain def; InHome is
     // inside the home area; BaseTerrain names the terrain def under a floor or bridge; its affordances are
-    // what a foundation may stand on. SnowDepth and TopLayerRemovable read the ground.
+    // what a foundation may stand on.
     public Fact<string> Terrain { get; init; }
 
     public Fact<bool> InHome { get; init; }
 
     public Fact<string> BaseTerrain { get; init; }
-
-    public Fact<double> SnowDepth { get; init; }
-
-    public Fact<bool> TopLayerRemovable { get; init; }
 
     /// <summary>A RemoveFoundation designation standing on the cell (a bridge ordered lifted).</summary>
     public Fact<bool> FoundationRemoval { get; init; }

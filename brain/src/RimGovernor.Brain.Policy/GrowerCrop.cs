@@ -17,7 +17,7 @@ public sealed record GrowerCropRequest
     public FieldRequest Field { get; init; } = new();
 }
 
-/// <summary>One grower whose crop should change, with the ranking that chose the crop.</summary>
+/// <summary>One grower whose crop should change and the crop its ranking chose.</summary>
 public sealed record GrowerCropChoice
 {
     public string Grower { get; init; } = "";
@@ -27,8 +27,6 @@ public sealed record GrowerCropChoice
     public CropChoice Crop { get; init; } = new();
 
     public string Reason { get; init; } = "";
-
-    public IReadOnlyList<FieldCandidate> Ranking { get; init; } = [];
 }
 
 public static class GrowerCropRules
@@ -57,7 +55,7 @@ public static class GrowerCropRules
             {
                 continue;
             }
-            @out.Add(new GrowerCropChoice { Grower = g.Id, Current = current!, Crop = ranking[0].Crop, Reason = ranking[0].Reason, Ranking = ranking });
+            @out.Add(new GrowerCropChoice { Grower = g.Id, Current = current!, Crop = ranking[0].Crop, Reason = ranking[0].Reason });
         }
         return [.. @out.OrderBy(c => c.Grower, StringComparer.Ordinal)];
     }

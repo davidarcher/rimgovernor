@@ -48,9 +48,6 @@ public sealed record PlannedSite
     /// <summary>Set on a defense tier node only (PlanDefenseTiers).</summary>
     public TierFacts? Tier { get; init; }
 
-    /// <summary>The embedded placement.</summary>
-    public SitePlacement Placement => new() { Node = Node, Origin = Origin, Footprint = Footprint, Lanes = Lanes, Rotation = Rotation, Anchored = Anchored, Replaces = Replaces };
-
     /// <summary>A site node holding the placement.</summary>
     public static PlannedSite Of(SitePlacement p, NodeKind kind) => new()
     {

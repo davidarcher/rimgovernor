@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace RimGovernor.Brain.Policy;
 
 public enum MealTier
@@ -59,22 +57,6 @@ public sealed record MealTierReview
     public MealTier Tier { get; init; }
     public IReadOnlyList<MealRecipeChoice> Recipes { get; init; } = [];
     public string PasteNetwork { get; init; } = "";
-    public string Reason { get; init; } = "";
-    public IReadOnlyList<CandidateTerm> Terms { get; init; } = [];
-
-    public string Explain()
-    {
-        var s = $"meal tier={Wire.Name(Tier)} reason={Reason}";
-        foreach (var term in Terms)
-        {
-            s += $" {term.Name}={term.Value.ToString("F3", CultureInfo.InvariantCulture)}";
-        }
-        if (PasteNetwork != "")
-        {
-            s += " paste_network=" + PasteNetwork;
-        }
-        return s;
-    }
 }
 
 public sealed class MealTierFactsException() : DomainException("meal tier inputs unavailable or invalid");
@@ -119,22 +101,18 @@ public static partial class MealRules
         var review = new MealTierReview
         {
             Tier = MealTier.Simple,
-            Reason = "raw surplus or qualified recipe unavailable",
-            Terms = [new CandidateTerm("raw_runway_days", days), new CandidateTerm("upgrade_days", r.TargetDays + margin), new CandidateTerm("downgrade_days", r.TargetDays)],
         };
         var constrained = RoundsRules.Positive(r.CookLaborConstrained) || (ck && cooks.Count == 0);
         var pasteNeeded = constrained || days < r.MinDays || (r.Previous == MealTier.Paste && days < r.MinDays + margin);
         if (pasteNeeded && sources!.Count > 0)
         {
-            var (network, watts, known) = MealPasteNetwork(r);
+            var (network, known) = MealPasteNetwork(r);
             if (known)
             {
                 return review with
                 {
                     Tier = MealTier.Paste,
                     PasteNetwork = network,
-                    Reason = "raw shortage or cooking labor constraint",
-                    Terms = [.. review.Terms, new CandidateTerm("paste_power_w", watts)],
                 };
             }
         }
@@ -206,10 +184,6 @@ public static partial class MealRules
             .ThenBy(a => a.Bench, StringComparer.Ordinal)
             .ToList();
         review = review with { Tier = tierNow, Recipes = ordered };
-        if (ordered.Count > 0)
-        {
-            review = review with { Reason = "qualified cook and retained ingredient sources" };
-        }
         return review;
     }
 
@@ -350,13 +324,13 @@ public static partial class MealRules
         return true;
     }
 
-    private static (string Network, double Watts, bool Known) MealPasteNetwork(MealTierRequest r)
+    private static (string Network, bool Known) MealPasteNetwork(MealTierRequest r)
     {
         var ik = r.Paste.TryGetValue(out var infra);
         var ek = r.Environment.TryGetValue(out var env);
         if (!ik || !ek || !infra!.PowerW.TryGetValue(out var watts) || !FoodForecastRules.FoodId(infra.Name) || !RoundsRules.Positive(infra.Available) || !FieldCapacityRules.FieldPositive(watts))
         {
-            return ("", 0, false);
+            return ("", false);
         }
         var best = "";
         var headroom = 0.0;
@@ -365,7 +339,7 @@ public static partial class MealRules
         {
             if (!FoodForecastRules.FoodId(network.Id) || seen.Contains(network.Id))
             {
-                return ("", 0, false);
+                return ("", false);
             }
             seen.Add(network.Id);
             if (!network.CalmNightHeadroomW().TryGetValue(out var margin) || !RoundsRules.Positive(network.ActiveSource) || margin < watts)
@@ -377,7 +351,7 @@ public static partial class MealRules
                 (best, headroom) = (network.Id, margin);
             }
         }
-        return (best, watts, best != "");
+        return (best, best != "");
     }
 
     internal static (BillSelection Selection, bool Ok) SelectMealBill(

@@ -45,7 +45,7 @@ public sealed class MechGestationPlanningTests
     {
         Catalog = Catalog,
         Mechanitors = [m],
-        Gestators = [new GestatorFact { Id = "gestator", Active = Known(false), WasteCount = Known(0) }],
+        Gestators = [new GestatorFact { Active = Known(false), WasteCount = Known(0) }],
         Chargers = [new MechCharger { Powered = Known(true), FullOfWaste = Known(false), Charging = Known(false) }],
     };
 

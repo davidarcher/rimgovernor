@@ -216,8 +216,8 @@ carries the plan's roles to this ranking.
 
 **Handler leveling.** While a target race is short of its head count and
 its catalog `minimum_handling_skill` is above what every handler has
-(`TamerFor` finds none), the plan names one easy race to level on
-(`HerdPlan.Leveling`): the first of alpaca, boar, hare, husky, labrador with a
+(`TamerFor` finds none), the plan names one easy race to level on:
+the first of alpaca, boar, hare, husky, labrador with a
 tameable wild animal on the map that a handler already clears. It gets a floor
 of 1 (taming it, then the usual training, raises the Animals skill). Once a
 handler clears the wanted race, or no easy wild animal exists, the plan carries

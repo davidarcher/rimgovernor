@@ -5,8 +5,6 @@ namespace RimGovernor.Brain.Policy;
 
 public sealed record CoreSiteWork
 {
-    public QuestId Quest { get; init; }
-
     public string Kind { get; init; } = "";
 
     public string Reason { get; init; } = "";
@@ -26,7 +24,7 @@ public static class QuestCoreSite
     /// </summary>
     public static CoreSiteWork PlanCoreSiteWork(JoinerOffer offer, WorldSite site, RoundsFacts f, MapId currentMap)
     {
-        var result = new CoreSiteWork { Quest = offer.Quest };
+        var result = new CoreSiteWork();
         if (!offer.Profile.TryGetValue(out var profile)
             || (profile.Family != QuestFamily.Site && profile.Family != QuestFamily.BanditCamp
                 && !(profile.Family == QuestFamily.Hack && offer.State == "EndedFailed") && !QuestFamiliesPolicy.OdysseyGroundSiteRoot(offer.ScriptDef))

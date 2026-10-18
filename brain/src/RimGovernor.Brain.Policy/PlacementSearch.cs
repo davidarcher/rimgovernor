@@ -43,7 +43,7 @@ public sealed record PlacementSearchRequest
 }
 
 /// <summary>Explains why Select chose a footprint: Distance is the anchor's distance from the search center in cells, and Score equals it.</summary>
-public sealed record PlacementScore(Cell Anchor, double Distance, double Score);
+public sealed record PlacementScore(double Distance, double Score);
 
 /// <summary>
 /// A bounded native-grounded proposal set. It owns a copy of free geometry; callers cannot widen it after
@@ -149,7 +149,7 @@ public sealed class PlacementSearch
     public PlacementScore Score(Cell anchor, IReadOnlyList<Cell> footprint)
     {
         var distance = Math.Sqrt(PlannedRules.SquaredDistance(anchor, _center));
-        return new PlacementScore(anchor, distance, distance);
+        return new PlacementScore(distance, distance);
     }
 
     /// <summary>Select with the chosen footprint's score.</summary>

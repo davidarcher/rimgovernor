@@ -5,9 +5,6 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>One colonist able to use a worn lance now: alive, standing, out of a mental state and capable of violence (the verb is violent).</summary>
 public sealed record LanceUser(PawnId Pawn, string Item);
 
-/// <summary>One lance use: the colonist, the worn lance and the hostile it downs.</summary>
-public sealed record LanceChoice(PawnId User, PawnId Target, string Item);
-
 public static partial class PopulationRules
 {
     /// <summary>
@@ -95,22 +92,9 @@ public static partial class PopulationRules
     }
 
     /// <summary>
-    /// Pairs target with the lowest-ID able lance wearer; null when target is absent or nobody can use one
-    /// now. Native checks the verb's charges, the target and the colonist again when the intent applies.
+    /// Reports whether an able lance wearer other than target can down it; false when target is absent or nobody
+    /// can use one now. Native checks the verb's charges, the target and the colonist again when the intent applies.
     /// </summary>
-    public static LanceChoice? SelectLanceUse(PawnId? target, IReadOnlyList<LanceUser> users)
-    {
-        if (target is not { } t || t.Value.Length == 0 || users.Count == 0)
-        {
-            return null;
-        }
-        foreach (var u in users.OrderBy(u => u.Pawn))
-        {
-            if (u.Pawn != t && u.Item.Length != 0)
-            {
-                return new LanceChoice(u.Pawn, t, u.Item);
-            }
-        }
-        return null;
-    }
+    public static bool LanceUsable(PawnId? target, IReadOnlyList<LanceUser> users) =>
+        target is { } t && t.Value.Length != 0 && users.Any(u => u.Pawn != t && u.Item.Length != 0);
 }

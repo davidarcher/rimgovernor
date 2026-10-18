@@ -91,8 +91,6 @@ public sealed record GatherableAnimal
 
     public Fact<double> Fullness { get; init; }
 
-    public Fact<string> Resource { get; init; }
-
     public Fact<bool> HandlerReachable { get; init; }
 
     public Fact<double> NutritionPerDay { get; init; }
@@ -184,7 +182,6 @@ public static class FoodChannelsReads
                 PawnID = row.PawnId ?? "",
                 Race = row.Race ?? "",
                 Fullness = ColonyDecodeReads.Optional(row.Fullness is not null, row.Fullness.GetValueOrDefault()),
-                Resource = ColonyDecodeReads.Optional(row.Resource is not null, row.Resource ?? ""),
                 HandlerReachable = ColonyDecodeReads.Optional(row.HandlerReachable is not null, row.HandlerReachable.GetValueOrDefault()),
                 NutritionPerDay = ColonyDecodeReads.Optional(row.NutritionPerDay is not null, row.NutritionPerDay.GetValueOrDefault()),
                 WorkPerDay = ColonyDecodeReads.Optional(row.WorkPerDay is not null, row.WorkPerDay.GetValueOrDefault()),

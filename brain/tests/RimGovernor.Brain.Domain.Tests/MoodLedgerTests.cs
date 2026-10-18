@@ -20,7 +20,6 @@ public sealed class MoodLedgerTests
     {
         var pawn = new MoodLedgerPawn
         {
-            Id = new("a"),
             Thoughts = Known(EquatableArray.From<MoodThought>([new(Owned, -4), new(Free, -6)])),
             Traits = Known(EquatableArray.From<string>([])),
             Precepts = Known(EquatableArray.From<string>([])),

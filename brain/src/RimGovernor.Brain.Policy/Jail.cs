@@ -37,19 +37,6 @@ public sealed record JailStep
     /// room), so every markable bed of the jail goes in one pass rather than one bed per pass.
     /// </summary>
     public IReadOnlyList<string> Marks { get; init; } = [];
-
-    /// <summary>
-    /// Humanlike beds standing in a planned jail that native refuses for prisoners (crib) or that are slave beds
-    /// the plan did not put there, and so stay as they are: to remove or repurpose, never to mark. Reported on
-    /// every step.
-    /// </summary>
-    public IReadOnlyList<string> Strays { get; init; } = [];
-
-    /// <summary>The living prisoners.</summary>
-    public int Held { get; init; }
-
-    /// <summary>The beds set for prisoners.</summary>
-    public int Beds { get; init; }
 }
 
 public static class JailRules
@@ -62,7 +49,6 @@ public static class JailRules
         {
             return new JailStep();
         }
-        var strays = new List<string>();
         var actKind = JailStepKind.None;
         PlannedRoom? actRoom = null;
         IReadOnlyList<WantedPiece> template = [];
@@ -72,6 +58,10 @@ public static class JailRules
             if (r.Role != PlannedRole.Prison)
             {
                 continue;
+            }
+            if (actKind != JailStepKind.None)
+            {
+                break;
             }
             // Census: the room's id keys the beds read inside it. A room the census does not show enclosed (a
             // map-edge room is not) stands for nothing: native would force its beds back to colonist.
@@ -83,18 +73,11 @@ public static class JailRules
                 {
                     continue;
                 }
-                if (b.Crib || b.Slaves)
-                {
-                    strays.Add(b.Id);
-                }
-                else
+                // Native refuses a crib for prisoners, and a slave bed the plan did not put there stays as it is.
+                if (!b.Crib && !b.Slaves)
                 {
                     marks.Add(b.Id);
                 }
-            }
-            if (actKind != JailStepKind.None)
-            {
-                continue;
             }
             if (marks.Count > 0)
             {
@@ -110,8 +93,7 @@ public static class JailRules
                 }
             }
         }
-        strays.Sort(StringComparer.Ordinal);
-        return new JailStep { Held = held, Beds = bedCount, Strays = strays, Room = actRoom, Kind = actKind, Template = template, Marks = actMarks };
+        return new JailStep { Room = actRoom, Kind = actKind, Template = template, Marks = actMarks };
     }
 
     /// <summary>The beds standing in the room where they stand, then the room's first template bed slot nothing stands on (the shortfall is one fresh slot).</summary>

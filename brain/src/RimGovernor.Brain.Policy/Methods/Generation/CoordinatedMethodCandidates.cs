@@ -27,5 +27,4 @@ internal sealed record ActivityTaskCandidate(string Id, string Pawn, EquatableAr
     public string ProductStuff { get; init; } = "";
     public ClothingActivityRequirement? Clothing { get; init; }
     public EquatableArray<SelectedActivityInput> SelectedInputs { get; init; }
-    public EquatableArray<(string Thing, string Resource, int Count, int AvailableCount)> Inputs { get; init; }
 }

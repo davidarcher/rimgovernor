@@ -1,22 +1,20 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// One planned site the latest coupled comparison selected (#3278): its id, room, owed operation, def, stuff, rotation
-/// and placement anchors, as the round's planned-site facts (PlannedBuildSite) name them.
+/// One planned site the latest coupled comparison selected (#3278): its room, owed operation, def, stuff and placement
+/// anchors, as the round's planned-site facts (PlannedBuildSite) name them.
 /// </summary>
-public sealed record SelectedPlannedSite(string Id, int Room, OpKind Op, string Definition, string Stuff, Rotation Rotation, EquatableArray<Cell> Positions);
+public sealed record SelectedPlannedSite(int Room, OpKind Op, string Definition, string Stuff, EquatableArray<Cell> Positions);
 
 /// <summary>
 /// What the latest known coupled comparison decided for unstarted planned rooms (#3278): the rooms it assessed (a valued
-/// alternative in <c>Context.PlannedRooms</c>) and the planned sites it selected, as of Tick. Derived and in memory only.
+/// alternative in <c>Context.PlannedRooms</c>) and the planned sites it selected. Derived and in memory only.
 /// </summary>
 public sealed record PlannedSelection
 {
     public EquatableArray<int> Assessed { get; init; }
 
     public EquatableArray<SelectedPlannedSite> Sites { get; init; }
-
-    public long Tick { get; init; }
 }
 
 /// <summary>How the room reconcile treats a planned room (#3278).</summary>
@@ -44,7 +42,7 @@ public static partial class PlannedRules
     /// stuff and anchors; one the facts no longer name is left out.
     /// </summary>
     public static PlannedSelection? PlannedSelectionOf(ForecastCoupledCandidates? candidates, ForecastCoupledSelection? selection,
-        Fact<PlannedSiteFacts> planned, long tick)
+        Fact<PlannedSiteFacts> planned)
     {
         if (candidates is null || selection is null)
         {
@@ -58,8 +56,7 @@ public static partial class PlannedRules
         {
             Assessed = EquatableArray.From(candidates.Context.PlannedRooms.Select(a => a.Room).Distinct().Order()),
             Sites = EquatableArray.From(chosen.Where(facts.ContainsKey).Select(id => facts[id])
-                .Select(s => new SelectedPlannedSite(s.Id, s.Room, s.Op, s.Definition, s.Stuff, s.Rotation, s.Positions))),
-            Tick = tick,
+                .Select(s => new SelectedPlannedSite(s.Room, s.Op, s.Definition, s.Stuff, s.Positions))),
         };
     }
 

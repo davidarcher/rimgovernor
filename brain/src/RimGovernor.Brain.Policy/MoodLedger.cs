@@ -3,7 +3,6 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>One colonist as the ledger reads it: the observed thought rows plus the attributes immunity and expectation gating need. An unknown attribute never excludes a thought; it marks the source unverified.</summary>
 public sealed record MoodLedgerPawn
 {
-    public PawnId Id { get; init; }
     public Fact<EquatableArray<MoodThought>> Thoughts { get; init; }
     public Fact<EquatableArray<string>> Traits { get; init; }
     public Fact<EquatableArray<string>> Precepts { get; init; }
@@ -13,7 +12,6 @@ public sealed record MoodLedgerPawn
 /// <summary>The mood one pawn loses per thought: negative offsets that apply to it, most negative first. Unknown when its thoughts were unreadable.</summary>
 public sealed record MoodPawnLoss
 {
-    public PawnId Id { get; init; }
     public Fact<EquatableArray<MoodThought>> Lost { get; init; }
 }
 
@@ -139,7 +137,7 @@ public static partial class MoodRules
             if (!p.Thoughts.TryGetValue(out var rows))
             {
                 unknownPawns++;
-                pawnLosses.Add(new MoodPawnLoss { Id = p.Id, Lost = Unknown<EquatableArray<MoodThought>>() });
+                pawnLosses.Add(new MoodPawnLoss { Lost = Unknown<EquatableArray<MoodThought>>() });
                 continue;
             }
             var lost = new List<MoodThought>();
@@ -166,7 +164,7 @@ public static partial class MoodRules
                 }
                 sources[t.Def] = s with { Pawns = s.Pawns + 1, Lost = s.Lost + t.Offset, Unverified = s.Unverified + (verified ? 0 : 1) };
             }
-            pawnLosses.Add(new MoodPawnLoss { Id = p.Id, Lost = Known(EquatableArray.From(SortThoughts(lost))) });
+            pawnLosses.Add(new MoodPawnLoss { Lost = Known(EquatableArray.From(SortThoughts(lost))) });
         }
         var ranked = sources.Values.OrderBy(s => s.Lost).ThenBy(s => s.Def, StringComparer.Ordinal).ToList();
         return new MoodLedger

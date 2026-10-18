@@ -77,7 +77,6 @@ public static partial class LayoutTripsRules
         Tomb = [5, 5],
         Morgue = [5, 4],
         Battery = [5, 7],
-        Holds = ["Grave", "Sarcophagus", "Dresser", "Shelf"],
     };
 
     /// <summary>The interior (width, depth) of the rooms whose size the tiler does not derive from a station set.</summary>
@@ -132,7 +131,6 @@ public sealed record RoomSizeTable
     public int[] Tomb { get; init; } = [0, 0];
     public int[] Morgue { get; init; } = [0, 0];
     public int[] Battery { get; init; } = [0, 0];
-    public IReadOnlyList<string> Holds { get; init; } = [];
 }
 
 /// <summary>

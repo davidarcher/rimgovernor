@@ -19,8 +19,6 @@ public readonly record struct PowerSourceProfile(double Daily, double Night, boo
 /// <summary>One producer's nominal wattage and delivery profile as the budget sees it.</summary>
 public sealed record PowerProducer
 {
-    public string Definition { get; init; } = "";
-
     public double NominalW { get; init; }
 
     public PowerSourceProfile Profile { get; init; }
@@ -51,10 +49,6 @@ public sealed record PowerBudgetInput
 /// </summary>
 public sealed record PowerBudget
 {
-    public double DemandWD { get; init; }
-
-    public double SupplyWD { get; init; }
-
     /// <summary>The energy consumers draw during the solar night beyond what still generates then.</summary>
     public double NightDeficitWD { get; init; }
 
@@ -136,7 +130,7 @@ public static partial class PowerRules
     {
         const double night = PowerRules.SolarNightFraction;
         const double day = 1 - PowerRules.SolarNightFraction;
-        double supplyWD = 0, nightW = 0, dayW = 0;
+        double nightW = 0, dayW = 0;
         foreach (var p in input.Producers)
         {
             var profile = p.Profile;
@@ -144,7 +138,6 @@ public static partial class PowerRules
             {
                 continue;
             }
-            supplyWD += p.NominalW * profile.Daily;
             nightW += p.NominalW * profile.Night;
             // Daytime output is whatever the daily average leaves after the night.
             dayW += p.NominalW * (profile.Daily - (profile.Night * night)) / day;
@@ -173,8 +166,6 @@ public static partial class PowerRules
         }
         return new PowerBudget
         {
-            DemandWD = input.DemandW,
-            SupplyWD = supplyWD,
             NightDeficitWD = nightDeficit,
             DaySurplusWD = daySurplus,
             StorageNeededWD = storageNeeded,

@@ -48,7 +48,7 @@ public sealed record PreceptSubject
 /// The rule's answer. DoerMoodCost sums, over the matching precept effects the doer takes
 /// (self-took-action), the worst stage's mood loss; WitnessMoodCost the same for the other penalising
 /// effects. Both are non-negative. RefusalChance is the largest chance members refuse, 1 when a refusal is
-/// unconditional. Effects are the matching effects, in precept order.
+/// unconditional.
 /// </summary>
 public sealed record PreceptVerdict
 {
@@ -59,10 +59,6 @@ public sealed record PreceptVerdict
     public double WitnessMoodCost { get; init; }
 
     public double RefusalChance { get; init; }
-
-    public IReadOnlyList<EffectInForce> Effects { get; init; } = [];
-
-    public string Reason { get; init; } = string.Empty;
 }
 
 /// <summary>
@@ -80,7 +76,7 @@ public readonly record struct IdeologyRead(Fact<Ideoligion> Ideology, Fact<bool>
     {
         if (Absent())
         {
-            return new PreceptVerdict { Stance = PreceptStance.Allowed, Reason = "Ideology not installed" };
+            return new PreceptVerdict { Stance = PreceptStance.Allowed };
         }
         return IdeologyRuleRules.ActionStance(Ideology, action, subject);
     }
@@ -99,20 +95,18 @@ public sealed partial record Ideoligion
     {
         if (!action.Apparel && string.IsNullOrEmpty(action.HistoryEvent))
         {
-            return new PreceptVerdict { Stance = PreceptStance.Unknown, Reason = "no action named" };
+            return new PreceptVerdict { Stance = PreceptStance.Unknown };
         }
-        var effects = new List<EffectInForce>();
         double doerMoodCost = 0, witnessMoodCost = 0, refusalChance = 0;
         var approved = false;
-        foreach (var inForce in EffectsInForce())
+        foreach (var e in EffectsInForce())
         {
-            var e = inForce.Effect;
             if (action.Apparel)
             {
                 if (e.Kind == PreceptEffectKind.Apparel)
                 {
                     // The apparel effect carries no requirement on the wire.
-                    return new PreceptVerdict { Stance = PreceptStance.Unknown, Effects = [inForce], Reason = "apparel effect of " + inForce.Precept.Name + " is not typed" };
+                    return new PreceptVerdict { Stance = PreceptStance.Unknown };
                 }
                 continue;
             }
@@ -126,7 +120,6 @@ public sealed partial record Ideoligion
                 {
                     continue;
                 }
-                effects.Add(inForce);
                 var chance = 1.0;
                 if (e.Chance.TryGetValue(out var c))
                 {
@@ -136,7 +129,6 @@ public sealed partial record Ideoligion
             }
             else if (e.Penalises())
             {
-                effects.Add(inForce);
                 var cost = -e.StageMoods.Min();
                 if (e.Kind == PreceptEffectKind.SelfTookAction)
                 {
@@ -149,7 +141,6 @@ public sealed partial record Ideoligion
             }
             else if (e.Approves())
             {
-                effects.Add(inForce);
                 approved = true;
             }
         }
@@ -172,7 +163,6 @@ public sealed partial record Ideoligion
             DoerMoodCost = doerMoodCost,
             WitnessMoodCost = witnessMoodCost,
             RefusalChance = refusalChance,
-            Effects = effects,
         };
     }
 
@@ -229,7 +219,7 @@ public static class IdeologyRuleRules
     {
         if (!ideology.TryGetValue(out var i))
         {
-            return new PreceptVerdict { Stance = PreceptStance.Unknown, Reason = "ideoligion unknown" };
+            return new PreceptVerdict { Stance = PreceptStance.Unknown };
         }
         return i.ActionStance(action, subject);
     }

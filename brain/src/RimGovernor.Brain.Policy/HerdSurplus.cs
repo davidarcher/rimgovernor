@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// The per-animal facts the herd Need sizes and culls by. The census fills age, life expectancy, sickness,
-/// adulthood, veneration and tame danger natively; MeatNutrition, FeedPerDay and Product merge in from the colony
+/// adulthood, veneration and tame danger natively; MeatNutrition and FeedPerDay merge in from the colony
 /// food channels by animal ID; SlaughterBarred and EatingBarred merge in from the ideoligion
 /// (<see cref="HerdPreceptsRules.ApplyHerdPrecepts"/>). Unknown age or sickness ranks an animal as ordinary (not old,
 /// not sick, adult); an unknown SlaughterBarred leaves removal, sale and slaughter unplanned, an unknown
@@ -23,10 +23,7 @@ public sealed record HerdFacts
     public Fact<bool> EatingBarred { get; init; }
     public Fact<bool> Venerated { get; init; }
 
-    /// <summary>Predator and Product retain recorded snapshot fields; herd sizing does not consume them. Product identifies milk, wool, chemfuel or egg producers.</summary>
     public bool Predator { get; init; }
-
-    public bool Product { get; init; }
 
     /// <summary>The game ticks until a pregnant animal gives birth.</summary>
     public Fact<long> TicksToBirth { get; init; }

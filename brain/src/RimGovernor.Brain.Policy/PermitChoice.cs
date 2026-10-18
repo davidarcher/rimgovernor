@@ -20,25 +20,9 @@ public enum PermitCategory
     Other,
 }
 
-/// <summary>Names why a candidate cannot be taken now, or None when it can.</summary>
-public enum PermitReason
-{
-    [WireName("")]
-    None = 0,
-
-    /// <summary>The permit's point cost or the holder's points or title are unread.</summary>
-    Unknown,
-
-    /// <summary>The holder's title is below the permit's minimum.</summary>
-    TitleShort,
-
-    /// <summary>The holder lacks the permit points.</summary>
-    PointsShort,
-}
-
 /// <summary>
 /// One candidate permit for one colonist's holding. Value is the colony's ranking score and Cost the permit
-/// points it takes; Take is set when the permit is eligible and affordable now, otherwise Reason says why not.
+/// points it takes; Take is set when the permit is eligible and affordable now.
 /// </summary>
 public sealed record PermitChoice
 {
@@ -48,15 +32,11 @@ public sealed record PermitChoice
 
     public string Permit { get; init; } = "";
 
-    public PermitCategory Category { get; init; }
-
     public int Value { get; init; }
 
     public int Cost { get; init; }
 
     public bool Take { get; init; }
-
-    public PermitReason Reason { get; init; }
 
     /// <summary>The goal intent for a choice.</summary>
     public PermitIntent Intent() => new() { Holder = Holder, Faction = Faction, Permit = Permit };
@@ -180,34 +160,15 @@ public static partial class PermitChoiceRules
                     {
                         (need, needKnown) = TitleSeniority(f.Ladder, min);
                     }
-                    var take = false;
-                    var reason = PermitReason.None;
-                    if (!costKnown || !pointsKnown || !rankKnown || !needKnown)
-                    {
-                        reason = PermitReason.Unknown;
-                    }
-                    else if (rank < need)
-                    {
-                        reason = PermitReason.TitleShort;
-                    }
-                    else if (points < cost)
-                    {
-                        reason = PermitReason.PointsShort;
-                    }
-                    else
-                    {
-                        take = true;
-                    }
+                    var take = costKnown && pointsKnown && rankKnown && needKnown && rank >= need && points >= cost;
                     result.Add(new PermitChoice
                     {
                         Holder = holder,
                         Faction = h.FactionDef,
                         Permit = name,
-                        Category = category,
                         Value = PermitValue(category, psycaster),
                         Cost = cost,
                         Take = take,
-                        Reason = reason,
                     });
                 }
             }

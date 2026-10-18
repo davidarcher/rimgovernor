@@ -147,7 +147,7 @@ public sealed partial class AnomalyRounds
         }
 
         var things = await RoundsGear.FrameThingsOfAsync(_native, identity, call).ConfigureAwait(false);
-        return PopulationRules.SelectLanceUse(target, AnomalyRounds.LanceUsers(observed.Pawns, things)) is not null;
+        return PopulationRules.LanceUsable(target, AnomalyRounds.LanceUsers(observed.Pawns, things));
     }
 
     /// <summary>Reports each containment, bioferrite and monolith fact the rules could not decide: a loud issue, never a pass.</summary>
