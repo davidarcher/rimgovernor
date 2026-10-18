@@ -112,6 +112,13 @@ jobs:
       # The review renders through a graphics device; a hosted runner has none, so lavapipe (CPU Vulkan) stands in.
       - name: Install a software Vulkan device
         run: ./trusted/scripts/install_software_vulkan.ps1
+      # Where the game's CPU goes on this runner (per-thread samples in the diagnostics); a detached process so it
+      # outlives the step, stopped with the collect step.
+      - name: Sample the game's threads
+        continue-on-error: true
+        run: |
+          $p = Start-Process pwsh -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile', '-File', "$env:GITHUB_WORKSPACE\trusted\scripts\sample_game_threads.ps1"
+          $p.Id | Set-Content C:\rg\sampler.pid
       - name: Bootstrap and play the review season
         id: play
         continue-on-error: true
@@ -141,6 +148,8 @@ jobs:
         continue-on-error: true
         run: |
           New-Item -ItemType Directory -Force C:\rg\public | Out-Null
+          if (Test-Path C:\rg\sampler.pid) { Stop-Process -Id ([int](Get-Content C:\rg\sampler.pid)) -Force -ErrorAction SilentlyContinue }
+          if (Test-Path C:\rg-sampler\thread-samples.csv) { Copy-Item C:\rg-sampler\thread-samples.csv C:\rg\public }
           if (Test-Path C:\rg\crash\s1) { Copy-Item -LiteralPath C:\rg\crash\s1 -Destination C:\rg\public\crash -Recurse }
           if (Test-Path C:\rg\fixture\job\out\result.json) { Copy-Item -LiteralPath C:\rg\fixture\job\out\result.json -Destination C:\rg\public }
           # The in-process brain's store (clock holds, plans, decisions): what a stalled clock was waiting on.
