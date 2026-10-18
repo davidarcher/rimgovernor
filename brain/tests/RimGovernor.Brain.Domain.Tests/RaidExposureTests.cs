@@ -205,12 +205,23 @@ public sealed class RaidExposureTests
     }
 
     [Fact]
-    public void TheEmbeddedFixtureTableLoadsAndCalibratesNothing()
+    public void TheEmbeddedCalibratedTableLoadsAndAnswersOnlyItsCalibratedCells()
     {
         var table = RaidExposure.Load();
 
         Assert.Equal(RaidExposure.Schema, table.Schema);
-        Assert.False(RaidExposure.HitsPerColonist(1.5, ExposureRoles.Gunner).Hits.IsKnown);
+        Assert.All(table.Cells, c => Assert.True(c.Trials >= RaidExposure.MinTrials));
+
+        var gunner = RaidExposure.HitsPerColonist(1.5, ExposureRoles.Gunner);
+        Assert.True(gunner.Hits.IsKnown);
+        var range = gunner.Hits.Value;
+        Assert.True(range.Lo <= range.Mean && range.Mean <= range.Hi);
+        Assert.Equal([RaidExposure.LayoutUnassessed], gunner.Findings);
+
+        // No lab fixture reaches the 0.5-1 bin: it stays uncalibrated.
+        var below = RaidExposure.HitsPerColonist(0.7, ExposureRoles.Gunner);
+        Assert.False(below.Hits.IsKnown);
+        Assert.Equal("exposure_cell_uncalibrated:0.5-1/gunner", below.Findings[0]);
     }
 
     [Fact]

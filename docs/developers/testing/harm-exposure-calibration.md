@@ -63,5 +63,36 @@ unknown with `exposure_cell_uncalibrated:<bin>/<role>` for a cell under 20 trial
 table (`outside`). `RaidExposure.DownRate` answers the down rate the same way. Every reading carries
 `exposure_layout_unassessed`: the defense layout is a reported key, not a table axis, in v1.
 
-`exposure.json` is a fixture table until the calibration run (H5) commits the calibrated one; its single cell has no trials,
-so every reading is uncalibrated. Committed baselines in `Sweep/baselines` are schema 1 and re-record in H5.
+## Calibration result (H5)
+
+`exposure.json` is built from sweep 1 (seeds 1..20) of the five plain-raid fixtures; sweep 2 (seeds 21..40) checked it.
+The rows, command, revision, game hash, per-cell trials and ranges, and the stability result are in
+[`Sweep/calibration/exposure/README.md`](../../../brain/src/RimGovernor.Brain.Acceptance/Sweep/calibration/exposure/README.md).
+
+| Cell | Trials | Mean hits | 90% range |
+| --- | --- | --- | --- |
+| 1-2 / gunner | 140 | 2.61 | 2.30 to 2.94 |
+| 2-4 / gunner | 200 | 3.34 | 3.05 to 3.65 |
+| 2-4 / melee | 100 | 2.78 | 2.34 to 3.21 |
+
+All three cells are stable (sweep 2's mean is inside sweep 1's range). Every other cell is absent and reads uncalibrated.
+A fixture stages one raid, so it reaches one ratio: lab-ranged 1.20, lab-open 1.98, lab-split-ranged 2.41, lab-base 2.48,
+lab-choke 3.67. No fixture reaches the `0.5-1` bin (the gunner cell there stays uncalibrated until a plain-raid fixture
+with a ratio in 0.5 to 1 exists), nor `0-0.5` or `4+`.
+Uncalibrated: the `0-0.5`, `0.5-1` and `4+` bins for every role, and the 1-2 and 2-4 bins for roles other than the three
+cells above. New fixtures that reach those bins are tracked in #3561.
+
+### Re-running the calibration
+
+Run both sweeps one after the other with `-workers 1` (about 17 minutes each on the dev box), detached, into fresh output
+directories and fresh rows files:
+
+```
+RimGovernor.cmd acceptance sweep lab-ranged lab-open lab-choke lab-split-ranged lab-base -root <bridge root> -output <fresh dir> -workers 1 -exposure <rows1.jsonl>
+RimGovernor.cmd acceptance sweep lab-ranged lab-open lab-choke lab-split-ranged lab-base -root <bridge root> -output <fresh dir> -workers 1 -seeds 21,22,...,40 -exposure <rows2.jsonl>
+RimGovernor.cmd acceptance sweep -exposure-table <rows1.jsonl> Policy/Harm/exposure.json
+```
+
+Build a table from the second rows file as well and check that each cell's mean lies inside the first table's
+`hitsLo`..`hitsHi`. A cell that fails stays uncalibrated in the committed table (remove its cell, or set trials to 0), and
+the README lists it. Commit the rows, the table and the README together.

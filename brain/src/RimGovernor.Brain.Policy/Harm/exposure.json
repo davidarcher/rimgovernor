@@ -4,13 +4,35 @@
     {
       "bin": "1-2",
       "role": "gunner",
-      "trials": 0,
-      "meanHits": 0,
-      "hitsLo": 0,
-      "hitsHi": 0,
-      "downRate": 0,
-      "downLo": 0,
-      "downHi": 0
+      "trials": 140,
+      "meanHits": 2.6143,
+      "hitsLo": 2.3,
+      "hitsHi": 2.9429,
+      "downRate": 0.3143,
+      "downLo": 0.2432,
+      "downHi": 0.3953
+    },
+    {
+      "bin": "2-4",
+      "role": "gunner",
+      "trials": 200,
+      "meanHits": 3.34,
+      "hitsLo": 3.05,
+      "hitsHi": 3.645,
+      "downRate": 0.575,
+      "downLo": 0.5057,
+      "downHi": 0.6415
+    },
+    {
+      "bin": "2-4",
+      "role": "melee",
+      "trials": 100,
+      "meanHits": 2.78,
+      "hitsLo": 2.34,
+      "hitsHi": 3.21,
+      "downRate": 0.32,
+      "downLo": 0.2367,
+      "downHi": 0.4166
     }
   ]
 }
