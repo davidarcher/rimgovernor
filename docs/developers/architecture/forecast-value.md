@@ -316,12 +316,13 @@ manhunters, ship parts), and fire. They are reported as unassessed terms.
 
 The comparator has four nested levels:
 
-1. **Portfolio search** over subsets of roots. Subsets are deduplicated by
-   string keys.
+1. **Portfolio search** over subsets of roots. Roots and tasks are indexed
+   once per search; closures, compatibility, redundant pairs and portfolios
+   are bitsets over those indexes, and a subset's keys are its bit words.
 2. **Schedule search** per portfolio: depth-first over task × pawn × window ×
-   service time × departure. Prefixes are packed interned indices and raw
-   double bits; a plan's text is formatted only to break ranking ties. It
-   returns every complete plan.
+   service time × departure. A prefix is known by an order-free 128-bit hash
+   that each placement adds to and its undoing subtracts from; a plan's text
+   is formatted only to break ranking ties. It returns every complete plan.
 3. **Every plan gets a schedule evaluation** by one pooled evaluator per
    search. Its scratch is reused; the sequences plans repeat are interned to
    integer ids; each per-pawn timeline (needs core, capacity, mood, roof,
@@ -342,11 +343,11 @@ baselines, and benchmarked at a one-day horizon in .NET
    ([#3468](https://github.com/davidarcher/rimgovernor/issues/3468), shipped).
    Ids are interned once per search; the evaluator's buffers are pooled; the
    stock walk raises findings, not trajectories; the mood timeline uses exact segments
-   between real events, not 150-tick steps, which tier 2 needs. Not done:
-   bitsets for closures, compatibility, redundant pairs and portfolio keys,
-   and incremental prefix hashes in the schedule search (the exact packed
-   prefixes replaced the text keys instead). What remains per evaluated plan
-   is the schedule search's own output and the memo misses.
+   between real events, not 150-tick steps, which tier 2 needs; closures,
+   compatibility, redundant pairs and portfolio keys are bitsets, and the
+   schedule search knows a prefix by an incremental 128-bit hash. What
+   remains per evaluated plan is the schedule search's own output (its
+   allocation and plan records) and the memo misses.
 3. **Evaluate lazily, budget by evaluations.**
    - Floors and cheap terms are computed first; a candidate that cannot beat
      the best on its bound stops early (branch and bound on capability-days).

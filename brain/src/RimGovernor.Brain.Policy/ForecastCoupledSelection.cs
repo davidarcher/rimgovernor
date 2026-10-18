@@ -109,30 +109,73 @@ public sealed partial record ForecastCoupledSelection
             .ThenBy(c => c.Id, StringComparer.Ordinal).ToArray();
         if (alternatives.Select(c => c.Id).Distinct().Count() != alternatives.Length)
             throw new DomainException("duplicate portfolio candidate");
+        // Roots and tasks are indexed once per search; closures, the pairwise relations and portfolios are bitsets over those
+        // indexes, and a subset's keys are its bit words (#3468).
+        var tasks = candidates.Context.Activities.Activities;
+        var taskIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var i = 0; i < tasks.Length; i++) taskIndex.Add(tasks[i].Id, i);
+        var rootIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var i = 0; i < alternatives.Length; i++) rootIndex.Add(alternatives[i].Id, i);
+        var taskWords = Bits.Words(tasks.Length); var rootWords = Bits.Words(alternatives.Length);
         // A graph-only root adds nothing when another selected root already includes all its
         // physical work. Drop that redundant subset before scheduling; keep all provider tasks
         // in the containing root's prerequisite closure. Roots with direct effects/claims stay.
-        var activities = candidates.Context.Activities.Activities.ToDictionary(a => a.Id, StringComparer.Ordinal);
-        var closures = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-        foreach (var alternative in alternatives)
+        var closures = new ulong[alternatives.Length][];
+        for (var i = 0; i < alternatives.Length; i++)
         {
-            var closure = new HashSet<string>(StringComparer.Ordinal);
+            var closure = closures[i] = new ulong[taskWords];
             void Include(string id)
             {
-                if (!closure.Add(id)) return;
-                if (!activities.TryGetValue(id, out var activity)) throw new DomainException("unknown commitment activity: " + id);
-                foreach (var prerequisite in activity.Prerequisites) Include(prerequisite);
+                if (!taskIndex.TryGetValue(id, out var at)) throw new DomainException("unknown commitment activity: " + id);
+                if (Bits.Has(closure, at)) return;
+                Bits.Set(closure, at);
+                foreach (var prerequisite in tasks[at].Prerequisites) Include(prerequisite);
             }
-            foreach (var completion in alternative.ActivityCompletions) Include(completion);
-            closures.Add(alternative.Id, closure);
+            foreach (var completion in alternatives[i].ActivityCompletions) Include(completion);
         }
         static bool GraphOnly(ForecastCommitment c) => c.ActivityCompletions.Count > 0 && c.Outcome is null
             && c.StockChanges.Count == 0 && c.MaterialClaims.Count == 0 && c.EquipmentClaims.Count == 0
             && c.UnsupportedEffects.Count == 0 && c.Construction is null && !c.AlternativeLaborCost.IsKnown && c.MoodMemories.Count == 0
             && c.SituationalChanges.Count == 0 && c.ComfortShifts.Count == 0;
+        static bool PlannedSiteRoot(ForecastCommitment c) => c.Outcome?.Need == ForecastPlannedSite.DevelopmentNeed && GraphOnly(c with { Outcome = null });
         var unplaced = candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
-        var redundantPairs = alternatives.Where(GraphOnly).SelectMany(a => alternatives.Where(b => a.Id != b.Id
-            && closures[a.Id].IsSubsetOf(closures[b.Id])).Select(b => (Contained: a.Id, Container: b.Id))).ToHashSet();
+        // Per root: whether it is graph-only, keys a schedule by id (direct effects or claims; a retained incumbent) and requests relief.
+        var graphOnly = new bool[alternatives.Length]; var keyed = new bool[alternatives.Length]; var relieving = new bool[alternatives.Length];
+        for (var i = 0; i < alternatives.Length; i++)
+        {
+            graphOnly[i] = GraphOnly(alternatives[i]);
+            keyed[i] = !graphOnly[i] && !PlannedSiteRoot(alternatives[i]) || incumbentIds.Contains(alternatives[i].Id);
+            relieving[i] = alternatives[i].Outcome?.Requirements is { Relief.Count: > 0 };
+        }
+        // Per root, the roots redundant with it (a graph-only one's closure inside the other's) and the roots it cannot share a portfolio with.
+        var redundant = new ulong[alternatives.Length][]; var incompatible = new ulong[alternatives.Length][];
+        for (var i = 0; i < alternatives.Length; i++) { redundant[i] = new ulong[rootWords]; incompatible[i] = new ulong[rootWords]; }
+        for (var i = 0; i < alternatives.Length; i++)
+            for (var j = i + 1; j < alternatives.Length; j++)
+            {
+                if (graphOnly[i] && Bits.SubsetOf(closures[i], closures[j]) || graphOnly[j] && Bits.SubsetOf(closures[j], closures[i]))
+                { Bits.Set(redundant[i], j); Bits.Set(redundant[j], i); }
+                if (!Compatible(alternatives[i], alternatives[j])) { Bits.Set(incompatible[i], j); Bits.Set(incompatible[j], i); }
+            }
+        // The request's own commitments are in every evaluated portfolio.
+        var fixedCompatible = true;
+        for (var i = 0; i < request.Commitments.Count; i++)
+            for (var j = i + 1; j < request.Commitments.Count; j++) fixedCompatible &= Compatible(request.Commitments[i], request.Commitments[j]);
+        var fixedIncompatible = new bool[alternatives.Length];
+        for (var i = 0; i < alternatives.Length; i++)
+            foreach (var commitment in request.Commitments) fixedIncompatible[i] |= !Compatible(commitment, alternatives[i]);
+        bool CompatibleSet(ReadOnlySpan<ulong> members)
+        {
+            for (var i = 0; i < alternatives.Length; i++)
+                if (Bits.Has(members, i) && !Bits.Disjoint(incompatible[i], members)) return false;
+            return true;
+        }
+        ForecastCommitment[] Members(ReadOnlySpan<ulong> members)
+        {
+            var rows = new List<ForecastCommitment>();
+            for (var i = 0; i < alternatives.Length; i++) if (Bits.Has(members, i)) rows.Add(alternatives[i]);
+            return rows.ToArray();
+        }
         // The traversal reaches a subset by more than one phase, and different root sets schedule the same work (a
         // shelter, a room alternative or the room's site roots completing the same sites). Subsets whose task closure
         // and non-graph roots (direct effects or claims; a retained incumbent by id) are equal share one schedule
@@ -140,20 +183,34 @@ public sealed partial record ForecastCoupledSelection
         // the relief gate below reads per subset; an equal marked closure too is the same evaluation, skipped. A
         // schedule search that finished within its bound is complete at any larger bound; a truncated one is redone
         // at a larger bound.
-        var evaluated = new Dictionary<string, int>(StringComparer.Ordinal);
-        var schedules = new Dictionary<string, (int Bound, ForecastCoupledScenario Scenario)>(StringComparer.Ordinal);
+        // A subset's schedule key is its closure union over the tasks then its keyed roots; its evaluation key adds the
+        // closure union of its relieving roots. The words are built in one scratch and copied only when first seen.
+        var scheduleWords = taskWords + rootWords; var keyWords = scheduleWords + taskWords;
+        var keyScratch = new ulong[keyWords]; var memberScratch = new ulong[rootWords];
+        var evaluatedByKey = new Dictionary<ulong[], int>(WordsComparer.Instance);
+        var evaluated = evaluatedByKey.GetAlternateLookup<ReadOnlySpan<ulong>>();
+        var schedulesByKey = new Dictionary<ulong[], (int Bound, ForecastCoupledScenario Scenario)>(WordsComparer.Instance);
+        var schedules = schedulesByKey.GetAlternateLookup<ReadOnlySpan<ulong>>();
         // A screened schedule's truncation and findings stand only while no full-bound schedule of the subset follows.
-        var screened = new Dictionary<string, (string[] Findings, bool Truncated)>(StringComparer.Ordinal);
-        static bool PlannedSiteRoot(ForecastCommitment c) => c.Outcome?.Need == ForecastPlannedSite.DevelopmentNeed && GraphOnly(c with { Outcome = null });
-        string Join(IEnumerable<string> ids) => string.Join('\n', ids.Distinct().Order(StringComparer.Ordinal));
+        var screenedByKey = new Dictionary<ulong[], (string[] Findings, bool Truncated)>(WordsComparer.Instance);
+        var screened = screenedByKey.GetAlternateLookup<ReadOnlySpan<ulong>>();
         bool Evaluate(ForecastCommitment[] additions, int bound = PortfolioBound)
         {
-            var schedule = Join(additions.SelectMany(c => closures[c.Id])) + "\n|\n"
-                + Join(additions.Where(c => !GraphOnly(c) && !PlannedSiteRoot(c) || incumbentIds.Contains(c.Id)).Select(c => c.Id));
-            var key = schedule + "\n|\n" + Join(additions.Where(c => c.Outcome?.Requirements is { Relief.Count: > 0 }).SelectMany(c => closures[c.Id]));
+            Array.Clear(keyScratch); Array.Clear(memberScratch);
+            foreach (var c in additions)
+            {
+                var at = rootIndex[c.Id];
+                Bits.Set(memberScratch, at);
+                Bits.Or(keyScratch.AsSpan(0, taskWords), closures[at]);
+                if (keyed[at]) Bits.Set(keyScratch.AsSpan(taskWords, rootWords), at);
+                if (relieving[at]) Bits.Or(keyScratch.AsSpan(scheduleWords, taskWords), closures[at]);
+            }
+            ReadOnlySpan<ulong> key = keyScratch, schedule = keyScratch.AsSpan(0, scheduleWords);
             if (evaluated.TryGetValue(key, out var done) && done >= bound) return true;
             var commitments = request.Commitments.Concat(additions).ToArray();
-            if (!CompatiblePortfolio(commitments)) return true;
+            var compatible = fixedCompatible && CompatibleSet(memberScratch);
+            foreach (var c in additions) compatible &= !fixedIncompatible[rootIndex[c.Id]];
+            if (!compatible) return true;
             evaluated[key] = bound;
             if (expansions >= budget) { truncated = true; return false; }
             expansions++;
@@ -177,8 +234,6 @@ public sealed partial record ForecastCoupledSelection
             evaluated[key] = known.Bound;
             var scenario = known.Scenario;
             var feasible = scenario.Alternatives.Where(a => a.Feasible == Known(true)).ToArray();
-            var requested = commitments.Where(c => c.Outcome?.Requirements is { Relief.Count: > 0 })
-                .SelectMany(c => closures.GetValueOrDefault(c.Id) ?? []).ToHashSet(StringComparer.Ordinal);
             if (feasible.Length == 0)
             {
                 evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), null, "infeasible_or_unassessed"));
@@ -195,10 +250,14 @@ public sealed partial record ForecastCoupledSelection
                 var roofed = candidates.Context.Shelters.Where(r => r.PlannedRoom != 0 && r.RoofCells.Count != 0
                         && outcome.RequestedDevelopment.Contains(FormattableString.Invariant($"planned/room{r.PlannedRoom}/roof")))
                     .SelectMany(r => r.RoofCells.SelectMany(cell => cell)).ToHashSet(StringComparer.Ordinal);
-                if (outcome.Plan.Allocations.Any(a => !requested.Contains(a.Activity) && !roofed.Contains(a.Activity)
-                    && (unplaced.Contains(a.Activity) || candidates.Context.Bindings.TryGetValue((a.Activity, a.Pawn), out var binding)
-                    && (binding.SiteDefinition.Length != 0 || binding.Job == "BuildRoof")))
-                    && (!outcome.StationaryThermalRelief.IsKnown || outcome.StationaryThermalRelief.Value <= 0))
+                var unsupported = false;
+                foreach (var a in outcome.Plan.Allocations)
+                {
+                    if (taskIndex.TryGetValue(a.Activity, out var at) && Bits.Has(keyScratch.AsSpan(scheduleWords, taskWords), at) || roofed.Contains(a.Activity)) continue;
+                    if (unplaced.Contains(a.Activity) || candidates.Context.Bindings.TryGetValue((a.Activity, a.Pawn), out var binding)
+                        && (binding.SiteDefinition.Length != 0 || binding.Job == "BuildRoof")) { unsupported = true; break; }
+                }
+                if (unsupported && (!outcome.StationaryThermalRelief.IsKnown || outcome.StationaryThermalRelief.Value <= 0))
                 {
                     if (unserved.Count < 4 && additions.Length == 1) unserved.Add([additions[0].Id]);
                     evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), vector, "construction_without_supported_service_relief" + string.Concat(outcome.Findings.Where(f => f.Reason.StartsWith("thermal_relief_unassessed", StringComparison.Ordinal)).Select(f => ":" + f.Reason))
@@ -218,6 +277,7 @@ public sealed partial record ForecastCoupledSelection
         // No value-based pruning: two individually useless contributions can remain complementary.
         // The seed pass may stop starting evaluations once it has spent its share; that is a hand-off, not truncation.
         var seedLimit = int.MaxValue; var seedSpent = false; var leafBound = PortfolioBound;
+        var partialBits = new ulong[rootWords];
         bool Search(int start, int left, List<ForecastCommitment> partial)
         {
             if (left == 0)
@@ -227,12 +287,10 @@ public sealed partial record ForecastCoupledSelection
             }
             for (var i = start; i <= alternatives.Length - left; i++)
             {
-                if (!CompatiblePortfolio(partial.Append(alternatives[i]))) continue;
-                if (partial.Any(c => redundantPairs.Contains((c.Id, alternatives[i].Id))
-                    || redundantPairs.Contains((alternatives[i].Id, c.Id)))) continue;
-                partial.Add(alternatives[i]);
+                if (!Bits.Disjoint(incompatible[i], partialBits) || !Bits.Disjoint(redundant[i], partialBits)) continue;
+                partial.Add(alternatives[i]); Bits.Set(partialBits, i);
                 var more = Search(i + 1, left - 1, partial);
-                partial.RemoveAt(partial.Count - 1);
+                partial.RemoveAt(partial.Count - 1); Bits.Clear(partialBits, i);
                 if (!more) return false;
             }
             return true;
@@ -240,21 +298,23 @@ public sealed partial record ForecastCoupledSelection
         // Extend the best portfolio found so far with each other root, in root order, before the
         // pairwise sweep: when single roots exhaust the budget, the only way to reach a second
         // contribution is to add it to the leader rather than to enumerate every pair.
+        var portfolioBits = new ulong[rootWords];
         bool Extend(string[] leader)
         {
-            var members = leader.ToHashSet(StringComparer.Ordinal);
-            var rank = alternatives.Select((c, i) => (c.Id, i)).ToDictionary(p => p.Id, p => p.i, StringComparer.Ordinal);
-            var seed = alternatives.Where(c => members.Contains(c.Id)).ToArray();
+            var seed = new ulong[rootWords];
+            foreach (var id in leader) Bits.Set(seed, rootIndex[id]);
+            var unservedRoot = new bool[alternatives.Length];
+            foreach (var u in unserved) unservedRoot[rootIndex[u[0]]] = true;
             // Roots are ordered by id, so the unserved construction a leader would complete sits behind hundreds of service roots and the budget ends first.
             // A root exclusive with a member swaps it out (another rest choice for the leader's), after every addition.
-            foreach (var root in alternatives.Where(c => !members.Contains(c.Id)).OrderBy(c => unserved.Any(u => u[0] == c.Id) ? 0 : 1)
-                .ThenBy(c => seed.All(m => CompatiblePortfolio([m, c])) ? 0 : 1))
+            var order = Enumerable.Range(0, alternatives.Length).Where(i => !Bits.Has(seed, i))
+                .OrderBy(i => unservedRoot[i] ? 0 : 1).ThenBy(i => Bits.Disjoint(incompatible[i], seed) ? 0 : 1).ToArray();
+            foreach (var root in order)
             {
-                var kept = seed.Where(c => CompatiblePortfolio([c, root])).ToArray();
-                var portfolio = kept.Append(root).OrderBy(c => rank[c.Id]).ToArray();
-                if (!CompatiblePortfolio(portfolio)) continue;
-                if (kept.Any(c => redundantPairs.Contains((c.Id, root.Id)) || redundantPairs.Contains((root.Id, c.Id)))) continue;
-                if (!Evaluate(portfolio, ScreenBound)) return false;
+                for (var w = 0; w < rootWords; w++) portfolioBits[w] = seed[w] & ~incompatible[root][w];
+                Bits.Set(portfolioBits, root);
+                if (!CompatibleSet(portfolioBits) || !Bits.Disjoint(redundant[root], portfolioBits)) continue;
+                if (!Evaluate(Members(portfolioBits), ScreenBound)) return false;
             }
             return true;
         }
@@ -292,7 +352,7 @@ public sealed partial record ForecastCoupledSelection
         }
         for (var size = 1; continueSearch && size <= alternatives.Length; size++)
             if (!Search(0, size, [])) { truncated = true; break; }
-        foreach (var (reasons, cut) in screened.Values) { findings.UnionWith(reasons); truncated |= cut; }
+        foreach (var (reasons, cut) in screenedByKey.Values) { findings.UnionWith(reasons); truncated |= cut; }
         if (truncated) findings.Add("portfolio_search_truncated");
         if (candidates.Truncated) findings.Add("portfolio_generation_truncated");
         foreach (var (goal, route) in goalRoutes)
@@ -306,7 +366,7 @@ public sealed partial record ForecastCoupledSelection
         var deferredCapacity = Math.Max(0, 32 - best.Plan.Allocations.Length);
         if (deferred.Count > deferredCapacity) findings.Add("deferred_pawn_limit");
         span?.SetTag("rimgovernor.expansions", expansions);
-        span?.SetTag("rimgovernor.schedules", schedules.Count);
+        span?.SetTag("rimgovernor.schedules", schedulesByKey.Count);
         span?.SetTag("rimgovernor.truncated", truncated);
         return new(new(selected, best.Plan, default, findings.ToArray(), expansions, truncated), baseline, best,
             baselineVector, bestVector, EquatableArray.From(evidence), request.HorizonDays * GameTime.TicksPerDay, candidates.Truncated)
@@ -315,12 +375,48 @@ public sealed partial record ForecastCoupledSelection
             Deferred = EquatableArray.From(deferred.Take(deferredCapacity)) };
     }
 
-    private static bool CompatiblePortfolio(IEnumerable<ForecastCommitment> input)
+    /// <summary>Whether two distinct commitments can share a portfolio: no common exclusive outcome, and neither's outcome
+    /// excludes the other or claims the other's exclusive output.</summary>
+    private static bool Compatible(ForecastCommitment a, ForecastCommitment b)
+        => (a.ExclusiveOutcome.Length == 0 || a.ExclusiveOutcome != b.ExclusiveOutcome) && (a.Id == b.Id || !Excludes(a, b) && !Excludes(b, a));
+
+    private static bool Excludes(ForecastCommitment c, ForecastCommitment other) => c.Outcome is { } effect
+        && (effect.Excludes.Contains(other.Outcome?.Id ?? other.Id) || effect.ExclusiveOutput.Length != 0 && effect.ExclusiveOutput == other.Outcome?.ExclusiveOutput);
+
+    /// <summary>Bit sets over an index, as 64-bit words (#3468).</summary>
+    private static class Bits
     {
-        var rows = input.ToArray();
-        return !rows.Where(c => c.ExclusiveOutcome.Length != 0).GroupBy(c => c.ExclusiveOutcome).Any(g => g.Count() > 1)
-            && !rows.Any(c => c.Outcome is { } effect && rows.Any(other => c.Id != other.Id
-                && (effect.Excludes.Contains(other.Outcome?.Id ?? other.Id) || effect.ExclusiveOutput.Length != 0 && effect.ExclusiveOutput == other.Outcome?.ExclusiveOutput)));
+        public static int Words(int count) => (count + 63) >> 6;
+        public static bool Has(ReadOnlySpan<ulong> words, int at) => (words[at >> 6] & 1UL << (at & 63)) != 0;
+        public static void Set(Span<ulong> words, int at) => words[at >> 6] |= 1UL << (at & 63);
+        public static void Clear(Span<ulong> words, int at) => words[at >> 6] &= ~(1UL << (at & 63));
+        public static void Or(Span<ulong> words, ReadOnlySpan<ulong> other) { for (var w = 0; w < words.Length; w++) words[w] |= other[w]; }
+        public static bool Disjoint(ReadOnlySpan<ulong> a, ReadOnlySpan<ulong> b)
+        {
+            for (var w = 0; w < a.Length; w++) if ((a[w] & b[w]) != 0) return false;
+            return true;
+        }
+        public static bool SubsetOf(ReadOnlySpan<ulong> a, ReadOnlySpan<ulong> b)
+        {
+            for (var w = 0; w < a.Length; w++) if ((a[w] & ~b[w]) != 0) return false;
+            return true;
+        }
+    }
+
+    /// <summary>Bit words compared by value and looked up by span, so a key is copied only when first seen (#3468).</summary>
+    private sealed class WordsComparer : IEqualityComparer<ulong[]>, IAlternateEqualityComparer<ReadOnlySpan<ulong>, ulong[]>
+    {
+        internal static readonly WordsComparer Instance = new();
+        public bool Equals(ulong[]? x, ulong[]? y) => x.AsSpan().SequenceEqual(y);
+        public int GetHashCode(ulong[] words) => GetHashCode((ReadOnlySpan<ulong>)words);
+        public bool Equals(ReadOnlySpan<ulong> alternate, ulong[] other) => alternate.SequenceEqual(other);
+        public int GetHashCode(ReadOnlySpan<ulong> alternate)
+        {
+            var hash = new HashCode();
+            hash.AddBytes(System.Runtime.InteropServices.MemoryMarshal.AsBytes(alternate));
+            return hash.ToHashCode();
+        }
+        public ulong[] Create(ReadOnlySpan<ulong> alternate) => alternate.ToArray();
     }
 
     public static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments,

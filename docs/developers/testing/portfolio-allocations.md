@@ -742,7 +742,8 @@ Stage 2 removes work that schedules repeat:
 
 - Mood is cached apart from needs. Mood reads neither occupancy nor capacity, so schedules that
   differ only in a pawn's work reuse that pawn's mood.
-- Schedule-search prefixes are packed interned indices and raw double bits, not formatted text.
+- Schedule-search prefixes are packed interned indices and raw double bits, not formatted text
+  (later an incremental hash, [below](#bitset-portfolio-search-and-hashed-prefixes)).
   Plan keys are formatted only for complete plans, which the ranking still orders by.
 - Need tasks are indexed once per search, not scanned for each event and pawn.
 
@@ -843,3 +844,31 @@ schedule search's own output (the allocation and plan records it emits and its v
 5 KB the evaluation (memo misses: a capacity stage per new occupancy, a needs core and mood per new
 choice set; the outcome and its per-pawn needs), and the rest the
 portfolio level (consequence vectors with their explanations, subset keys and evidence).
+
+### Bitset portfolio search and hashed prefixes
+
+The portfolio search indexes its roots and the context's tasks once. Each root's prerequisite
+closure, the roots it is redundant with and the roots it cannot share a portfolio with are bitsets
+over those indexes, so extending a partial portfolio is a word test rather than a pairwise LINQ
+scan, and a subset's schedule and evaluation keys are its bit words (closure union, keyed roots,
+relieving closure union), built in one scratch and copied only when first seen. The schedule
+search knows a prefix by an order-free 128-bit hash: two independent mixes of each placed
+allocation (task and pawn indexes, raw time bits), summed, so a placement adds one term and its
+undoing subtracts it; the visited set holds the hashes, not packed prefixes.
+
+Every quality row is identical. Allocation and wall time, best of two samples at main
+(147d16de2) and of three at this change, on the same machine in one sitting (wall time is within
+run-to-run noise):
+
+| Fixture | Horizon | Budget | MB before / after | ms before / after |
+|---|---|---|---|---|
+| Original | 700 | 16,384 | 31.2 / 29.0 | 116 / 104 |
+| Original | 700 | 262,144 | 70.6 / 64.4 | 119 / 99 |
+| Original | 60,000 | 16,384 | 31.4 / 29.3 | 38 / 41 |
+| Four-worker | 700 | 1,024 | 5.4 / 5.0 | 7 / 7 |
+| Four-worker | 700 | 16,384 | 65.8 / 59.6 | 94 / 96 |
+| Four-worker | 700 | 262,144 | 699 / 647 | 1,709 / 1,731 |
+| Four-worker | 60,000 | 16,384 | 57.9 / 54.6 | 101 / 100 |
+
+What remains per evaluated plan is the schedule search's allocation and plan records, the memo
+misses in the evaluation, and the portfolio level's consequence vectors and evidence.

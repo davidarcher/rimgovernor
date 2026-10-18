@@ -112,7 +112,8 @@ public static class ForecastActivities
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         // The visited prefixes already keep one plan per assignment and time, so plans need no key until ranking ties.
         var plans = new List<ForecastActivityPlan>();
-        var visited = new HashSet<long[]>(PrefixComparer.Instance).GetAlternateLookup<ReadOnlySpan<long>>();
+        var visited = new HashSet<(ulong, ulong)>();
+        ulong prefixLow = 0, prefixHigh = 0;
         var taskIndex = tasks.Select((t, i) => (t.Id, i)).ToDictionary(p => p.Id, p => p.i, StringComparer.Ordinal);
         var pawnIndex = problem.Pawns.Select((p, i) => (p.Pawn, i)).ToDictionary(p => p.Pawn, p => p.i, StringComparer.Ordinal);
         // The prefix being searched by task index, its prerequisites by index, and each task's options by pawn.
@@ -138,18 +139,8 @@ public static class ForecastActivities
         {
             // Independent DAG traversal orders can reach exactly the same scheduled prefix.
             // Retain every distinct assignment/time; do not spend the budget expanding identical state twice.
-            // Interned and bitwise, so the prefix identity is exactly the old round-trip text's; kept only when new (#3468).
-            Span<long> prefix = stackalloc long[4 * assigned.Count];
-            var slot = 0;
-            for (var index = 0; index < placed.Length; index++)
-            {
-                if (placed[index] is not { } a) continue;
-                prefix[slot++] = (long)index << 32 | (uint)pawnIndex[a.Pawn];
-                prefix[slot++] = BitConverter.DoubleToInt64Bits(a.Depart);
-                prefix[slot++] = BitConverter.DoubleToInt64Bits(a.Start);
-                prefix[slot++] = BitConverter.DoubleToInt64Bits(a.End);
-            }
-            if (!visited.Add(prefix)) return;
+            // The prefix is known by the 128-bit hash each placement adds to and removes from (#3468).
+            if (!visited.Add((prefixLow, prefixHigh))) return;
             if (assigned.Count == tasks.Length)
             {
                 // Task order is id order, so the placed allocations are the rows by activity.
@@ -255,7 +246,10 @@ public static class ForecastActivities
                                 { Reject(4, taskAt, pawn.Pawn); continue; }
                                 assigned.Add(placed[taskAt] = new(task.Id, pawn.Pawn, depart, arrive, start, end, travel, start - arrive, work,
                                     (end - depart) * rate, recovery) { Learning = learning.Evidence });
+                                var (low, high) = PrefixHash(taskAt, pawnIndex[pawn.Pawn], depart, start, end);
+                                prefixLow += low; prefixHigh += high;
                                 Search(assigned);
+                                prefixLow -= low; prefixHigh -= high;
                                 assigned.RemoveAt(assigned.Count - 1);
                                 placed[taskAt] = null;
                                 if (truncated) return;
@@ -379,19 +373,31 @@ public static class ForecastActivities
         public void Return() => System.Buffers.ArrayPool<char>.Shared.Return(text);
     }
 
-    private sealed class PrefixComparer : IEqualityComparer<long[]>, IAlternateEqualityComparer<ReadOnlySpan<long>, long[]>
+    /// <summary>Two independent 64-bit mixes of one placed allocation (its task and pawn indexes and the raw bits of its
+    /// times). A prefix's hash is their sums over its allocations: the order that placed them does not matter, and a
+    /// placement adds one term and its undoing subtracts it (#3468).</summary>
+    private static (ulong Low, ulong High) PrefixHash(int taskAt, int pawnAt, double depart, double start, double end)
     {
-        internal static readonly PrefixComparer Instance = new();
-        public bool Equals(long[]? x, long[]? y) => x.AsSpan().SequenceEqual(y);
-        public int GetHashCode(long[] prefix) => GetHashCode((ReadOnlySpan<long>)prefix);
-        public bool Equals(ReadOnlySpan<long> alternate, long[] other) => alternate.SequenceEqual(other);
-        public int GetHashCode(ReadOnlySpan<long> alternate)
-        {
-            var hash = new HashCode();
-            hash.AddBytes(System.Runtime.InteropServices.MemoryMarshal.AsBytes(alternate));
-            return hash.ToHashCode();
-        }
-        public long[] Create(ReadOnlySpan<long> alternate) => alternate.ToArray();
+        var key = (ulong)taskAt << 32 | (uint)pawnAt;
+        ulong departBits = (ulong)BitConverter.DoubleToInt64Bits(depart), startBits = (ulong)BitConverter.DoubleToInt64Bits(start),
+            endBits = (ulong)BitConverter.DoubleToInt64Bits(end);
+        return (Mix(0x9E3779B97F4A7C15UL, key, departBits, startBits, endBits), Mix(0xC2B2AE3D27D4EB4FUL, key, departBits, startBits, endBits));
+    }
+
+    private static ulong Mix(ulong seed, ulong key, ulong depart, ulong start, ulong end)
+    {
+        var hash = Scramble(seed ^ key);
+        hash = Scramble(hash ^ depart);
+        hash = Scramble(hash ^ start);
+        return Scramble(hash ^ end);
+    }
+
+    // SplitMix64's finalizer: every input bit reaches every output bit.
+    private static ulong Scramble(ulong x)
+    {
+        x ^= x >> 30; x *= 0xBF58476D1CE4E5B9UL;
+        x ^= x >> 27; x *= 0x94D049BB133111EBUL;
+        return x ^ x >> 31;
     }
 
     internal static void ValidateActivityProblem(ForecastActivityProblem p, bool allowEmpty = false)
