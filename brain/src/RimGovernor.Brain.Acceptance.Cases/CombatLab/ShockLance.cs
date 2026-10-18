@@ -43,9 +43,11 @@ internal static class CombatLabShockLance
         var user = lab.Colonists()[0];
         var raider = lab.Hostiles().Single();
         var wearer = await CombatLabKit.PawnAsync(s, "wearer", user, cancellationToken).ConfigureAwait(false);
-        // The staging dresses the wearer in the lance alone: its one worn apparel.
-        var lance = wearer.Equipment?.Apparel is [{ } only] ? only.Thing.Id
-            : throw new AcceptanceException($"colonist 0: want one worn apparel ({ShockLance}), got {wearer.Equipment?.Apparel.Count}");
+        // The staging adds the lance to the colonist's own clothes (only hostiles and prisoners are stripped): the one worn
+        // lance by its load id, "Thing_" + defName + number.
+        var worn = wearer.Equipment?.Apparel.Select(a => a.Thing.Id).ToList() ?? [];
+        var lance = worn.Where(id => id.StartsWith("Thing_" + ShockLance, StringComparison.Ordinal)).ToList() is [{ } one] ? one
+            : throw new AcceptanceException($"colonist 0: want one worn {ShockLance}, got [{string.Join(", ", worn)}]");
         s.Record("lance", lance);
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         var issued = (await TypedPawns.AppliedAsync(s, "use-lance", TypedPawnOps.GiveJob(user, "UseItem", lance, raider), cancellationToken).ConfigureAwait(false))?.Job;
