@@ -41,7 +41,6 @@ public sealed record HuntActorRead(string Pawn, string Kind, Cell Location, doub
     public bool Available { get; init; }
     /// <summary>Prey: asleep, downed, or in a mental state; unknown fields stay out of the request.</summary>
     public bool Downed { get; init; }
-    public bool Sleeping { get; init; }
     public bool Mental { get; init; }
     /// <summary>Prey: the game's herd of this animal group, empty when it is alone.</summary>
     public string Herd { get; init; } = "";

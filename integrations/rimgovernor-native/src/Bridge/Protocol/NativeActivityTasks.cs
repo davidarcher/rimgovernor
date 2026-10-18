@@ -193,17 +193,7 @@ internal static class NativeActivityTasks
                 }
             }
         }
-        Obs.FoodActivityRead? food = null;
-        var pendingFood = request.Batch.Tasks.FirstOrDefault(t => t.Step.Kind == PawnActivityKind.Deliver && t.Source != null && t.Step.Destination != null);
-        if (pendingFood != null && request.Batch.Tasks.Any(t => t.Step.Job == "Harvest"))
-        {
-            var output = new ActivityOutputDelivery(pendingFood.Resource, pendingFood.Source!.Value,
-                pendingFood.Step.Destination!.Value, pendingFood.Step.Count, pendingFood.Step.Deadline, pendingFood.AttemptsLeft);
-            var reads = request.Batch.Orders.Select(o => NativeFoodActivity.Read(new NativeFoodActivity.Request(request.Identity, [], o with { OutputDelivery = output }) { AllowCooking = true })).ToArray();
-            food = new() { Context = context, Known = reads.All(r => r.Known), Truncated = reads.Any(r => r.Truncated),
-                Options = EquatableArray.From(reads.SelectMany(r => r.Options)) };
-        }
-        return new() { Context = context, Known = true, Truncated = truncated, Food = food,
+        return new() { Context = context, Known = true, Truncated = truncated,
             Practice = EquatableArray.From(request.Batch.Tasks.Where(t => t.Step.Practice != null).Select(t => NativePracticeActivities.Mandate(map, t))),
             // Every continuation reads its participants' needs: the boundary between tasks hands no work to a pawn at its rest or food threshold.
             Needs = NativeNeedsForecast.Read(map, map.mapPawns.FreeColonistsSpawned.Where(p => request.Batch.Orders.Any(o => o.Pawn == p.GetUniqueLoadID())).ToList()),

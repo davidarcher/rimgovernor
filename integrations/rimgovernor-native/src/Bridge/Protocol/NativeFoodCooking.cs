@@ -13,21 +13,19 @@ namespace HomeBridge.BridgeTools;
 internal static class NativeFoodCooking
 {
     internal static void Add(Pawn pawn, Thing source, int available, PawnActivityOrder existing,
-        List<Obs.FoodActivityOption> options, ref int budget, ref bool truncated)
+        List<Obs.FoodActivityOption> options, ref int budget)
     {
         var map = pawn.Map;
         var pinned = existing.OutputDelivery!.Recipe;
         var benches = map.listerThings.AllThings.OfType<Building_WorkTable>()
-            .Where(b => pinned is null || b.GetUniqueLoadID() == pinned.Bench).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).Take(5).ToArray();
-        if (benches.Length > 4) truncated = true;
-        foreach (var bench in benches.Take(4))
+            .Where(b => pinned is null || b.GetUniqueLoadID() == pinned.Bench).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).Take(4).ToArray();
+        foreach (var bench in benches)
         {
             var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(g => g.workType == ExtraWorkTypeDefOf.Cooking
                 && g.Worker is WorkGiver_DoBill scanner && scanner.ThingIsUsableBillGiver(bench));
             if (giver is null) continue;
-            var bills = bench.BillStack.Bills.OfType<Bill_Production>().OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).Take(9).ToArray();
-            if (bills.Length > 8) truncated = true;
-            foreach (var bill in bills.Take(8))
+            var bills = bench.BillStack.Bills.OfType<Bill_Production>().OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).Take(8).ToArray();
+            foreach (var bill in bills)
             {
                 var recipe = bill.recipe;
                 if (pinned is not null && (bill.GetUniqueLoadID() != pinned.Bill || recipe.defName != pinned.Recipe)) continue;
@@ -43,16 +41,14 @@ internal static class NativeFoodCooking
                 var staging = pinned is null
                     ? GenRadial.RadialCellsAround(bench.Position, 3, true).Where(c => c.InBounds(map) && c != source.Position
                         && c.DistanceTo(bench.Position) <= bill.ingredientSearchRadius && map.haulDestinationManager.SlotGroupAt(c) == null && JobDriver_GovernorDeliver.DestinationAvailable(pawn, c))
-                        .OrderBy(c => c.x).ThenBy(c => c.z).Take(3).ToArray()
+                        .OrderBy(c => c.x).ThenBy(c => c.z).Take(2).ToArray()
                     : new[] { source.Position };
-                if (staging.Length > 2) truncated = true;
                 var destinations = map.haulDestinationManager.AllGroupsListInPriorityOrder.Where(g => g.Settings.filter.Allows(product.thingDef))
-                    .SelectMany(g => g.CellsList).Distinct().OrderBy(c => c.x).ThenBy(c => c.z).Take(5).ToArray();
-                if (destinations.Length > 4) truncated = true;
-                foreach (var supply in staging.Take(2))
-                foreach (var destination in destinations.Take(4))
+                    .SelectMany(g => g.CellsList).Distinct().OrderBy(c => c.x).ThenBy(c => c.z).Take(4).ToArray();
+                foreach (var supply in staging)
+                foreach (var destination in destinations)
                 {
-                    if (budget < 3) { truncated = true; return; }
+                    if (budget < 3) return;
                     if (!JobDriver_GovernorDeliver.DestinationAvailable(pawn, destination) || supply == destination) continue;
                     using var toSupply = map.pathFinder.FindPathNow(source.Position, supply, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.OnCell);
                     // FindPathNow expects the resolved destination; it does not resolve InteractionCell.
@@ -70,7 +66,7 @@ internal static class NativeFoodCooking
                         new(bench.InteractionCell.x, bench.InteractionCell.z), product.thingDef.defName, product.count, new(destination.x, destination.z));
                     options.Add(new(pawn.GetUniqueLoadID(), source.GetUniqueLoadID(), source.def.defName, new(source.Position.x, source.Position.z),
                         new(supply.x, supply.z), "", available, 0)
-                    { Cooking = new(continuation, (int)required) { Learning = RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveRecipeLearning(recipe) } });
+                    { Cooking = new(continuation, (int)required) });
                 }
             }
         }

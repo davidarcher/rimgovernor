@@ -25,6 +25,5 @@ public sealed record ActivityTaskRead
     [JsonConverter(typeof(EquatableArrayJsonConverter<ActivityTaskObservation>))]
     public EquatableArray<ActivityTaskObservation> Pawns { get; init; }
     public EquatableArray<string> SatisfiedTasks { get; init; }
-    public FoodActivityRead? Food { get; init; }
     public NeedsForecastRead? Needs { get; init; }
 }

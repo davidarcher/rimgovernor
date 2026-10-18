@@ -75,7 +75,7 @@ namespace HomeBridge.BridgeTools
                 var distances = new Dictionary<Thing, double>(eligible.Count);
                 foreach (var t in eligible) distances[t] = colonists.Min(p => p.Position.DistanceTo(t.Position));
                 var ordered = eligible.OrderByDescending(ResourceAcquisitionTools.Designated).ThenBy(t => distances[t]).ThenBy(t => t.thingIDNumber).ToList();
-                var snapshot = new Obs.ResourceSourcesSnapshot { Context = context, Resource = parsed.Resource,
+                var snapshot = new Obs.ResourceSourcesSnapshot {  
                     Storage = Storage(map, definition) };
                 var reserved = cheap ? new HashSet<Thing>(map.reservationManager.AllReservedThings()) : null;
                 foreach (var thing in ordered) snapshot = snapshot with { Sources = [.. snapshot.Sources, Project(thing, distances[thing], buried.Contains(thing), reserved)] };
@@ -114,7 +114,7 @@ namespace HomeBridge.BridgeTools
                     && !c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item)
                     && Protected(c) && !CellRect.CenteredOn(c, margin).Any(q => q.InBounds(map) && q.GetEdifice(map) is Mineable)
                     && Accessible(c)).ToList();
-            var result = new Obs.StorageCapacity { Resource = def.defName, Capacity = capacity, Stored = stored };
+            var result = new Obs.StorageCapacity { Capacity = capacity, Stored = stored };
             result = result with { Haulers = [.. result.Haulers, .. NativeRef.All(haulers)] };
             result = result with { Candidates = [.. result.Candidates, .. candidates.Select(c => new Common.Cell { X = c.x, Z = c.z })] };
             return result;

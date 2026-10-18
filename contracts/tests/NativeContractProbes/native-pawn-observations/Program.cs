@@ -220,8 +220,6 @@ internal static class NativePawnObservationsProbe
         Check((double)number.Invoke(null,new object[]{0d})! == 0,"observed zero retained");
         Check(Throws(()=>number.Invoke(null,new object[]{double.NaN}),"InvalidOperationException"),"nonfinite native fact fails");
         Check(Throws(()=>tools.GetMethod("Text",Flags)!.Invoke(null,new object[]{new string('x',4097)}),"ReadLimit"),"native labels are never silently truncated before matching");
-        var complete=tools.GetMethod("Complete",Flags)!.Invoke(null,new object[]{0,7})!;
-        Check((ulong)Get(complete,"Filtered")==7,"known empty exact-query completeness");
         Console.WriteLine(checks+" compiled pawn boundary/filter/default assertions passed; no gameplay assertions.");return 0;
     }
 }

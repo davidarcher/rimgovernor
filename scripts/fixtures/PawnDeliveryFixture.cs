@@ -51,7 +51,7 @@ namespace HomeBridge.BridgeTools
         {
             var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(d => d.Worker is WorkGiver_GrowerHarvest).defName;
             var reading = NativeFoodActivity.Read(new(Context().Identity!, EquatableArray.From(new[] { crop!.GetUniqueLoadID() })));
-            if (!reading.Known || !reading.Options.Any(o => o.Pawn == worker!.GetUniqueLoadID() && o.Target == crop.GetUniqueLoadID()))
+            if (!reading.Options.Any(o => o.Pawn == worker!.GetUniqueLoadID() && o.Target == crop.GetUniqueLoadID()))
                 throw new InvalidOperationException("No native eligible harvest-to-storage observation.");
             NativePawnActivities.Apply(new PawnActivities(Context().NativeGeneration!.Value,
                 new[] { new PawnActivityOrder(worker!.GetUniqueLoadID(), "food-delivery", "food-method", 0, 1, false,
@@ -89,7 +89,7 @@ namespace HomeBridge.BridgeTools
             var preceding = order with { Revision = revised ? 2 : 1, ExpectedRevision = revised ? 1 : 0,
                 OutputDelivery = new(harvestProduct!.defName, new(deliverySourceCell.x, deliverySourceCell.z), new(cell.x, cell.z), 1, deadline, 3) };
             var observed = NativeFoodActivity.Read(new(Context().Identity!, [], preceding));
-            if (!observed.Known || !observed.Options.Any(o => o.Pawn == worker.GetUniqueLoadID()
+            if (!observed.Options.Any(o => o.Pawn == worker.GetUniqueLoadID()
                 && o.Target == product.GetUniqueLoadID() && o.Destination == new Cell(cell.x, cell.z)))
                 throw new InvalidOperationException("Fresh native food binding did not find the current stack/destination.");
             NativePawnActivities.Apply(batch, Context());

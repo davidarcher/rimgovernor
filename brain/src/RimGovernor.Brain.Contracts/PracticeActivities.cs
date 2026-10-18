@@ -19,7 +19,6 @@ public sealed record PracticeWorker(string Pawn, string Skill, string Target, Ce
     public Fact<double> CallbackIntervalTicks { get; init; }
     public double PreparationTicks { get; init; }
     public Fact<double> RawXpPerCallback { get; init; }
-    public Fact<double> InjuryRecoveryTicks { get; init; }
     public Fact<double> JoyGainPerTick { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Equipment { get; init; }

@@ -130,7 +130,7 @@ namespace HomeBridge.BridgeTools
             if(pawn.needs?.rest!=null) needs = needs with { Rest = Number(pawn.needs.rest.CurLevelPercentage) };
             if(pawn.needs?.joy!=null) needs = needs with { Joy = Number(pawn.needs.joy.CurLevelPercentage) };
             if(ModsConfig.RoyaltyActive && pawn.psychicEntropy!=null && pawn.GetPsylinkLevel() is var psylink && psylink>0)
-                needs = needs with { Psyfocus = new Obs.PawnPsyfocus { Current = Number(pawn.psychicEntropy.CurrentPsyfocus), Target = Number(pawn.psychicEntropy.TargetPsyfocus), PsylinkLevel = psylink } };
+                needs = needs with { Psyfocus = new Obs.PawnPsyfocus { PsylinkLevel = psylink } };
             return needs;
         }
 
@@ -146,7 +146,7 @@ namespace HomeBridge.BridgeTools
             var set=pawn.health.hediffSet;
             var all=set.hediffs.ToList();
             var row=new Obs.PawnHealth { SummaryFraction=Number(pawn.health.summaryHealth.SummaryHealthPercent), NeedsTend=pawn.health.HasHediffsNeedingTend(false),
-                BleedRatePerDay=Number(set.BleedRateTotal), Bleeding=set.BleedRateTotal>0, Pain=Number(set.PainTotal),
+                BleedRatePerDay=Number(set.BleedRateTotal), Bleeding=set.BleedRateTotal>0,
                 LifeThreatening=all.Any(h=>h.IsCurrentlyLifeThreatening), BloodLoss=Number(all.Where(h=>h.def==HediffDefOf.BloodLoss).Sum(h=>(double)h.Severity)),
                 ShouldSeekMedicalRest=HealthAIUtility.ShouldSeekMedicalRest(pawn), Hediffs=[.. all.Select(h=>HediffRow(pawn,h))], Surgery=Surgery(pawn) };
             if(pawn.CurrentBed()!=null) row = row with { BedId = Id(pawn.CurrentBed().GetUniqueLoadID()) };
@@ -155,7 +155,7 @@ namespace HomeBridge.BridgeTools
                 if(ticks>0 && ticks<int.MaxValue) row = row with { HoursUntilDeathFromBloodLoss = GameTime.Hours((double)ticks) };
             }
             row = row with { Snapshot = NativeObservationSnapshot.Snapshot("pawn-health",context,pawn.GetUniqueLoadID(),w => {
-                w.Write(row.Pain);w.Write(row.LifeThreatening);w.Write(row.BloodLoss);
+                w.Write(row.LifeThreatening);w.Write(row.BloodLoss);
                 w.Write(row.ShouldSeekMedicalRest);w.Write(row.BedId??"");
                 foreach(var h in all.OrderBy(h=>h.def.defName,StringComparer.Ordinal)
                     .ThenBy(h=>h.Part!=null?pawn.RaceProps.body.AllParts.IndexOf(h.Part):-1)) {
@@ -553,7 +553,7 @@ namespace HomeBridge.BridgeTools
         }
 
         private static Obs.Thought ThoughtRow(string? defName,int count,double total)=>
-            new Obs.Thought {DefName=defName ?? throw new InvalidOperationException("A thought has no def."),Count=checked((uint)count),MoodOffsetTotal=Number(total)};
+            new Obs.Thought {DefName=defName ?? throw new InvalidOperationException("A thought has no def."),MoodOffsetTotal=Number(total)};
 
         private static Obs.DefinitionRef Definition(Def def)=>new Obs.DefinitionRef {DefName=Id(def.defName)};
     }

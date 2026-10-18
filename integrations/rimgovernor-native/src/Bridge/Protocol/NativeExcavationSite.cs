@@ -29,7 +29,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Obs.ExcavationCell Row(IntVec3 cell, Map map, Common.ObservationContext context)
         {
-            var row = new Obs.ExcavationCell { Cell = new Common.Cell { X = cell.x, Z = cell.z }, Fogged = false, MineDesignated = false, Eligible = false };
+            var row = new Obs.ExcavationCell { Fogged = false, MineDesignated = false, Eligible = false };
             if (!cell.InBounds(map)) { row = row with { Eligible = false }; row = row with { Blocker = "Cell is outside the map" }; return row; }
             row = row with { Fogged = cell.Fogged(map) };
             row = row with { Walkable = cell.Walkable(map) };

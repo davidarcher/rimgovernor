@@ -41,7 +41,7 @@ public sealed class ForecastPortfolioChoiceTests
                     Needs = EquatableArray.From(needs.Pawns[0].Needs.Select(n => n with { Level = Known(1d), FallPerTick = Known(0d) })) }] : needs.Pawns },
                 Coupled = new()
                 {
-                    Tick = 100, Food = new() { Context = Context, Known = true }, FoodSources = EquatableArray.From(sources),
+                    Tick = 100, Food = new(), FoodSources = EquatableArray.From(sources),
                     FoodConversions = EquatableArray.From(conversions),
                     FoodUses = [new("pawn", "Meal", Destination, Known(true), Known(.8), Known(10d), 1, Known(1000d))],
                     Routes = EquatableArray.From(roster.ForecastObserved.WorkPawns.Value.SelectMany(p => Cells.SelectMany(a => Cells.Where(b => b != a)

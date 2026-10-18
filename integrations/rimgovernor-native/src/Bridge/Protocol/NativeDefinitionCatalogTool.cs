@@ -35,7 +35,7 @@ namespace HomeBridge.BridgeTools
                 // The brain builds its catalog over the load's def stat table right after this read, off the game thread.
                 NativeStatTable.EnsureForLoad(context.Identity.LoadToken);
                 NativeRaceFacts.EnsureForLoad(context.Identity.LoadToken);
-                return new Obs.DefinitionCatalogReply { Outcome = Read(context) };
+                return new Obs.DefinitionCatalogReply { Outcome = Read() };
             }
             catch (Exception ex)
             {
@@ -44,16 +44,10 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static Obs.DefinitionCatalog Read(Common.ObservationContext context)
-        {
-            var catalog = new Obs.DefinitionCatalog { Context = context };
-            // The reply carries no def rows or game constants (#3100): the in-process brain builds its catalog over the
-            // game's Def objects (NativeCatalogFactory), so only the Biotech facts are sent; the race
-            // facts are published beside the stat table (NativeRaceFacts) and the derived facts are computed in process
-            // (BrainDerived).
-            catalog = catalog with { Biotech = NativeBiotechFacts.Catalog() };
-            return catalog;
-        }
+        // The reply carries no def rows or game constants (#3100): the in-process brain builds its catalog over the
+        // game's Def objects (NativeCatalogFactory), the race facts are published beside the stat table
+        // (NativeRaceFacts) and the derived facts are computed in process (BrainDerived).
+        private static Obs.DefinitionCatalog Read() => new();
 
         // The brain catalog's derived facts: the def names the game's code names (read straight from ThingDefOf, so
         // they ride no wire field) and the full rot rate the game computes in code.

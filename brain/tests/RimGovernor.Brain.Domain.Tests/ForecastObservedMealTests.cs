@@ -21,7 +21,7 @@ public sealed class ForecastObservedMealTests
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = facts.ForecastObserved.Needs with { Pawns = [pawn] },
-                Coupled = facts.ForecastObserved.Coupled! with { Food = new() { Known = true }, FoodUses = [],
+                Coupled = facts.ForecastObserved.Coupled! with { Food = new(), FoodUses = [],
                     Routes = [new("pawn", new(1, 1), new(1, 1), Known(0d)) { FromStart = true }] },
             },
         };

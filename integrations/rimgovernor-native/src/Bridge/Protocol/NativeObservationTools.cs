@@ -133,7 +133,6 @@ namespace HomeBridge.BridgeTools
                 FactionHostile = pawn.Faction != null && !ours && !held && pawn.Faction.HostileTo(player), PredatorHunt = hunt,
                 PrisonBreak = held && PrisonBreakUtility.IsPrisonBreaking(pawn),
                 Downed = pawn.Downed, Predator = pawn.RaceProps.predator, X = pawn.Position.x, Z = pawn.Position.z };
-            if (facts.FactionHostile) facts.FactionId = pawn.Faction!.GetUniqueLoadID();
             if (facts.FactionHostile && pawn.Faction == Faction.OfInsects) facts.Passive = !InsectEngaging(pawn, player);
             else if (facts.FactionHostile) facts.Passive = Dormant(pawn);
             if (hunt) { var prey = HuntedPawn(pawn); if (prey != null) { facts.HasPrey = true; facts.PreyOurs = prey.Faction == player || prey.HostFaction == player; } }
@@ -222,12 +221,11 @@ namespace HomeBridge.BridgeTools
                 Prisoner=pawn.IsPrisoner, Humanlike=pawn.RaceProps.Humanlike, Animal=pawn.RaceProps.Animal, Mechanoid=pawn.RaceProps.IsMechanoid };
             var player=Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
             var manhunter=pawn.MentalStateDef?.defName.IndexOf("Manhunter",StringComparison.OrdinalIgnoreCase)>=0;
-            row = row with { Tame = pawn.RaceProps.Animal && pawn.Faction==player, Wild = pawn.RaceProps.Animal && pawn.Faction==null,
+            row = row with {
                 Hostile = manhunter || pawn.Faction!=null && pawn.Faction!=player && pawn.Faction.HostileTo(player) };
             var constructionCapable = ConstructionSkillGuard.Capability(pawn);
             if (constructionCapable.HasValue) row = row with { ConstructionCapable = constructionCapable.Value };
-            if (pawn.Faction != null) row = row with { Faction = NativeRef.Of(Identifier(pawn.Faction.GetUniqueLoadID())) };
-            // Fog is the discovery fact, not a guess at reachability: a hostile
+                        // Fog is the discovery fact, not a guess at reachability: a hostile
             // the colony has never seen is no emergency.
             row = row with { Fogged = pawn.Spawned && pawn.Map != null && pawn.Position.Fogged(pawn.Map) };
             var mental = pawn.MentalState;
@@ -304,7 +302,7 @@ namespace HomeBridge.BridgeTools
         // in id order.
         internal static Obs.ThingsSnapshot Things(IEnumerable<Thing> things, Common.ObservationContext context)
         {
-            var result = new Obs.ThingsSnapshot { Context = context };
+            var result = new Obs.ThingsSnapshot();
             foreach (var thing in things.GroupBy(t => t.GetUniqueLoadID()).Select(g => g.First()).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal))
                 result = result with { Things = [.. result.Things, ThingRow(thing, context)] };
             return result;
@@ -316,6 +314,5 @@ namespace HomeBridge.BridgeTools
         private static double Finite(double value)=>double.IsNaN(value)||double.IsInfinity(value)?throw new InvalidOperationException("Nonfinite native fact."):value;
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason,string detail)=>new Common.Unavailable { Reason=reason,Detail=detail };
         private static Obs.ReadIssue Issue(string field,Common.UnavailableReason reason,string detail)=>new Obs.ReadIssue { Field=field,Unavailable=Unavailable(reason,detail) };
-        private static Obs.Completeness Complete(int count)=>new Obs.Completeness();
     }
 }

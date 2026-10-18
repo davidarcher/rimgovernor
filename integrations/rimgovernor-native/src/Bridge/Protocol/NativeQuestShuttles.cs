@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
             if (thresholds.Length > 0) row = row with { MinimumMood = thresholds.Max(p => p.threshold) };
             foreach (var pawn in guests)
             {
-                var state = new Obs.QuestLodgerMood { PawnId = pawn.GetUniqueLoadID() };
+                var state = new Obs.QuestLodgerMood();
                 if (pawn.Spawned && !pawn.Dead && pawn.needs?.mood != null) state = state with { Mood = pawn.needs.mood.CurLevel };
                 row = row with { LodgerMoods = [.. row.LodgerMoods, state] };
             }

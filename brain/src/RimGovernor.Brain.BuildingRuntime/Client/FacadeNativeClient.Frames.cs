@@ -126,7 +126,7 @@ internal sealed class FrameHeld
         Buildings = v.Buildings is { } buildings ? new Buildings(Index(buildings.Buildings, row => row.Building.Id)) : default,
         BuildMeta = v.Buildings is { } buildMeta ? buildMeta with { Context = context, Buildings = default } : null,
         Things = v.Things is { } things ? new Things(Index(things.Things, row => row.Entity.Id)) : default,
-        ThingsMeta = v.Things is not null ? new PbObservations.ThingsSnapshot { Context = context } : null,
+        ThingsMeta = v.Things is not null ? new PbObservations.ThingsSnapshot() : null,
     };
 
     /// <summary>A keyed table of the rows: a row with no id is not addressable and never enters it; a repeated id keeps the last row.</summary>

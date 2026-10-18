@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.BundleSnapshot? Capture(Map map, Obs.SnapshotStreamRequest request)
         {
             if (!ProtoBoundary.TryReadContext(map, out var context, out _)) return null;
-            var observed = new Obs.BundleSnapshot { Context = context, Paused = Find.TickManager.Paused };
+            var observed = new Obs.BundleSnapshot { Context = context };
             Obs.BundleSnapshot? sections = null;
             var referenced = NativeRef.Collect(() => sections = ReadSections(map, request, context, observed));
             if (sections == null) return null;
@@ -253,7 +253,7 @@ namespace HomeBridge.BridgeTools
             {
                 var began = Now();
                 observed = observed with { IdeologyActive = ModsConfig.IdeologyActive };
-                try { observed = observed with { Ideology = NativeIdeologyObservation.Build(context) }; } catch (System.Exception ex) { ObservationWork.Failed("ideology", ex); }
+                try { observed = observed with { Ideology = NativeIdeologyObservation.Build() }; } catch (System.Exception ex) { ObservationWork.Failed("ideology", ex); }
                 ObservationWork.Captured("ideology", Now() - began, observed.Ideology != null ? observed.Ideology.Precepts.Count : 0);
             }
             {

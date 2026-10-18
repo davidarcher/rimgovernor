@@ -43,7 +43,7 @@ internal static class LabFoodStorageRoutes
             foreach (var row in read.Rows)
             {
                 var at = $"{row.Cells} cells x {row.Plants} plants";
-                if (!row.Known || row.Options == 0)
+                if (row.Options == 0)
                 {
                     over.Add($"{at}: no options");
                 }

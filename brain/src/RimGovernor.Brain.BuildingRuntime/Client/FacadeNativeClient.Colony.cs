@@ -115,7 +115,7 @@ public sealed partial class FacadeNativeClient
         }
         var loaded = outcome.Loaded!;
         var identity = loaded.Context!.Identity!;
-        var step = new PbObservations.BundleSnapshot { Context = loaded.Context, Paused = loaded.Paused };
+        var step = new PbObservations.BundleSnapshot { Context = loaded.Context };
         if (request.ClockStatus)
         {
             try

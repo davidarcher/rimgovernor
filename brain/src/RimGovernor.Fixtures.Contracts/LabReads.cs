@@ -57,7 +57,6 @@ public sealed record FoodRouteRow
 
     public int Options { get; init; }
 
-    public bool Known { get; init; }
 }
 
 /// <summary><c>test/food_storage_routes</c>: the forecast food read's cost as the stockpile grows.</summary>

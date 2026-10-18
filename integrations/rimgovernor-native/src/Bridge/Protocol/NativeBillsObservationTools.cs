@@ -62,7 +62,7 @@ namespace HomeBridge.BridgeTools
                 if (bench == null)
                     return new Obs.RecipesReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned bench with that id is on the current map.") };
                 var recipes = (bench.def.AllRecipes ?? new List<RecipeDef>()).Where(r => r != null).OrderBy(r => r.defName, StringComparer.Ordinal).ToList();
-                var snapshot = new Obs.RecipesSnapshot { Context = context, Snapshot = NativeProductionBills.Snapshot(bench, (IBillGiver)bench, context), BenchDef = Id(bench.def.defName) };
+                var snapshot = new Obs.RecipesSnapshot { Snapshot = NativeProductionBills.Snapshot(bench, (IBillGiver)bench, context), BenchDef = Id(bench.def.defName) };
                 foreach (var recipe in recipes) snapshot = snapshot with { Recipes = [.. snapshot.Recipes, Recipe(bench, recipe)] };
                 return new Obs.RecipesReply { Outcome = snapshot };
             }

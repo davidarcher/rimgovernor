@@ -65,7 +65,7 @@ public sealed partial class PawnControlFixture
                     var ids = EquatableArray.From(rice.Take(plants).Select(p => p.GetUniqueLoadID()));
                     var legs = new NativePathLegs(map);
                     var read = NativeFoodActivity.Read(new(identity, ids), legs);
-                    rows.Add(new Fx.FoodRouteRow { Cells = zone.Cells.Count, Plants = plants, Searches = legs.Searches, Options = read.Options.Count, Known = read.Known });
+                    rows.Add(new Fx.FoodRouteRow { Cells = zone.Cells.Count, Plants = plants, Searches = legs.Searches, Options = read.Options.Count });
                 }
             }
             // One lab map; the stockpile is a square at the patch corner and the rice twenty cells east, so route lengths

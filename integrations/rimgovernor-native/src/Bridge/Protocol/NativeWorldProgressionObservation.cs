@@ -29,7 +29,7 @@ namespace HomeBridge.BridgeTools
             var rows = new List<Obs.WorldMap>();
             foreach (var m in Find.Maps)
             {
-                var row = new Obs.WorldMap { Id = m.uniqueID, Tile = m.Tile.tileId, Home = m.IsPlayerHome, Label = m.Parent?.Label ?? "" };
+                var row = new Obs.WorldMap { Id = m.uniqueID, Tile = m.Tile.tileId, Home = m.IsPlayerHome };
                 row = row with { Pawns = [.. row.Pawns, .. m.mapPawns.FreeColonistsSpawned.Select(p => NativeObservationTools.PawnRow(p, context))] };
                 row = row with { QuestWorkers = [.. row.QuestWorkers, .. NativeQuestWorkers.Read(m)] };
                 rows.Add(row);
@@ -42,8 +42,7 @@ namespace HomeBridge.BridgeTools
             var rows = new List<Obs.FactionState>();
             foreach (var f in Find.FactionManager.AllFactionsVisible)
             {
-                var row = new Obs.FactionState { Id = f.GetUniqueLoadID(), Label = f.Name ?? "", Player = f.IsPlayer, Hostile = f.HostileTo(Faction.OfPlayer) };
-                if (!f.IsPlayer) row = row with { Goodwill = f.PlayerGoodwill };
+                var row = new Obs.FactionState { Id = f.GetUniqueLoadID(), Player = f.IsPlayer, Hostile = f.HostileTo(Faction.OfPlayer) };
                 rows.Add(row);
             }
             return rows;
@@ -76,7 +75,7 @@ namespace HomeBridge.BridgeTools
             foreach (var settlement in Find.WorldObjects.Settlements.Where(s => s.Faction != null && !s.Faction.IsPlayer).OrderBy(s => s.GetUniqueLoadID()))
             {
                 var row = new Obs.WorldRoute { SettlementId = settlement.GetUniqueLoadID(), Destination = settlement.Tile.tileId,
-                    Reachable = caravan.CanReach(settlement.Tile), Faction = NativeRef.Of(settlement.Faction), Hostile = settlement.Faction.HostileTo(Faction.OfPlayer), Goodwill = settlement.Faction.PlayerGoodwill };
+                    Reachable = caravan.CanReach(settlement.Tile), };
                 if (row.Reachable.GetValueOrDefault())
                     try { row = row with { EstimatedTicks = CaravanArrivalTimeEstimator.EstimatedTicksToArrive(caravan.Tile, settlement.Tile, caravan) }; }
                     catch (Exception) { /* Unknown estimate cannot admit a safe mission. */ }
@@ -122,7 +121,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var l in m.lordManager.lords.Where(l => l.LordJob is LordJob_FormAndSendCaravan))
                 {
                     var job = (LordJob_FormAndSendCaravan)l.LordJob;
-                    var row = new Obs.CaravanAssembly { Id = l.GetUniqueLoadID(), MapId = m.uniqueID, Status = job.Status.ToString() };
+                    var row = new Obs.CaravanAssembly { Id = l.GetUniqueLoadID(), MapId = m.uniqueID };
                     row = row with { Pawns = [.. row.Pawns, .. l.ownedPawns.Select(NativeRef.Thing)] };
                     rows.Add(row);
                 }
@@ -140,9 +139,8 @@ namespace HomeBridge.BridgeTools
                     if (indexed.choice.rewards.Count == 0) rows.Add(new Obs.QuestReward { ChoiceIndex = (uint)indexed.index });
                     foreach (var reward in indexed.choice.rewards)
                     {
-                        var row = new Obs.QuestReward { ChoiceIndex = (uint)indexed.index, Kind = reward.GetType().Name };
-                        row = row with { Label = reward.GetDescription(default(RewardsGeneratorParams)) ?? "" };
-                        if (reward is Reward_RoyalFavor favor) row = row with { Favor = favor.amount };
+                        var row = new Obs.QuestReward { ChoiceIndex = (uint)indexed.index };
+                                                if (reward is Reward_RoyalFavor favor) row = row with { Favor = favor.amount };
                         if (reward is Reward_Goodwill goodwill) { row = row with { Goodwill = goodwill.amount }; if (goodwill.faction != null) row = row with { FactionId = goodwill.faction.GetUniqueLoadID() }; }
                         if (reward is Reward_BestowingCeremony ceremony)
                         {
@@ -166,7 +164,7 @@ namespace HomeBridge.BridgeTools
             var choiceParts = new HashSet<QuestPart>(quest.PartsListForReading.OfType<QuestPart_Choice>()
                 .SelectMany(p => p.choices).SelectMany(c => c.questParts));
             foreach (var favor in quest.PartsListForReading.OfType<QuestPart_GiveRoyalFavor>().Where(p => !choiceParts.Contains(p) && p.amount > 0))
-                rows.Add(new Obs.QuestReward { Kind = nameof(QuestPart_GiveRoyalFavor), Favor = favor.amount });
+                rows.Add(new Obs.QuestReward { Favor = favor.amount });
             return rows;
         }
 
@@ -292,7 +290,7 @@ namespace HomeBridge.BridgeTools
             {
                 var row = new Obs.QuestState
                 {
-                    Id = q.GetUniqueLoadID(), Label = q.name ?? "",
+                    Id = q.GetUniqueLoadID(),
                     State = NativeEnums.Quest(q.State), AcceptedTick = q.acceptanceTick, ExpiresInTicks = q.TicksUntilExpiry,
                     RequiresAccepter = q.RequiresAccepter, ScriptDef = q.root?.defName ?? "",
                     CanAccept = q.State == QuestState.NotYetAccepted && QuestUtility.CanAcceptQuest(q).Accepted,

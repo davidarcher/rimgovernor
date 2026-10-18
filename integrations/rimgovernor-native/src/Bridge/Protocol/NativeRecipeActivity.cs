@@ -22,13 +22,13 @@ internal static class NativeRecipeActivity
     {
         if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out var context, out _)) return new();
         legs ??= new(map);
-        var options = new List<Obs.RecipeActivityOption>(); var findings = new HashSet<string>();
+        var options = new List<Obs.RecipeActivityOption>();
         var retained = new List<Obs.RecipeRetainedOutput>();
         var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         foreach (var bench in map.listerThings.AllThings.OfType<Building_WorkTable>().OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal))
         foreach (var recipe in bench.def.AllRecipes.Where(r => r.products.Any(p => p.thingDef.IsApparel)).OrderBy(r => r.defName, StringComparer.Ordinal))
         {
-            if (!NativeActivityRecipe.TailoringRecipe(bench, recipe)) { findings.Add("unsupported_recipe:" + recipe.defName); continue; }
+            if (!NativeActivityRecipe.TailoringRecipe(bench, recipe)) continue;
             var product = recipe.products[0].thingDef;
             var standing = bench.BillStack.Bills.OfType<Bill_Production>().Where(b => b.recipe == recipe && b.ShouldDoNow())
                 .OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
@@ -38,7 +38,7 @@ internal static class NativeRecipeActivity
             foreach (var worker in pawns.Where(p => p.CurJob?.bill?.recipe == recipe && p.CurJob.targetA.Thing == bench))
             {
                 if (worker.jobs.curDriver is not JobDriver_DoBill running || running.billStartTick <= 0 || running.workLeft < 0
-                    || worker.CurJob.targetB.Thing is not UnfinishedThing current) { findings.Add("unknown_existing_recipe:" + recipe.defName); continue; }
+                    || worker.CurJob.targetB.Thing is not UnfinishedThing current) continue;
                 var rate = recipe.workSpeedStat == null ? 1 : worker.GetStatValue(recipe.workSpeedStat);
                 if (recipe.workTableSpeedStat != null) rate *= bench.GetStatValue(recipe.workTableSpeedStat);
                 retained.Add(new(current.GetUniqueLoadID(), product.defName, current.Stuff.defName, 1,
@@ -61,13 +61,12 @@ internal static class NativeRecipeActivity
                     : standing.Length == 0 ? new Bill_Production?[] { null }
                     : standing.Where(b => b.PawnAllowedToStartAnew(pawn) && b.GetStoreMode() == BillStoreModeDefOf.DropOnFloor
                         && b.IsFixedOrAllowedIngredient(stuff)).Cast<Bill_Production?>().ToArray();
-                if (standing.Length != 0 && billOptions.Length == 0) findings.Add("blocked_existing_recipe:" + recipe.defName);
                 foreach (var selectedBill in billOptions)
                 {
 
                 var inputs = new List<Obs.RecipeIngredientObservation>();
                 var required = recipe.ingredients.Sum(i => (long)i.CountRequiredOfFor(stuff, recipe, null));
-                if (required <= 0 || required > int.MaxValue) { findings.Add("unsupported_ingredient_count:" + recipe.defName); continue; }
+                if (required <= 0 || required > int.MaxValue) continue;
                 double travel = 0;
                 var stocks = uft != null ? new Thing[] { uft } : map.listerThings.ThingsOfDef(stuff)
                     .Where(t => t.Spawned && !t.IsForbidden(pawn) && !t.IsBurning()).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
@@ -88,9 +87,9 @@ internal static class NativeRecipeActivity
                 var destinations = map.haulDestinationManager.AllGroupsListInPriorityOrder.Where(g => g.Settings.filter.Allows(product))
                     .SelectMany(g => g.CellsList).Distinct().OrderBy(c => c.x).ThenBy(c => c.z);                var speed = recipe.workSpeedStat == null ? 1 : pawn.GetStatValue(recipe.workSpeedStat);
                 if (recipe.workTableSpeedStat != null) speed *= bench.GetStatValue(recipe.workTableSpeedStat);
-                if (speed <= 0) { findings.Add("unknown_recipe_speed:" + pawn.GetUniqueLoadID()); continue; }
+                if (speed <= 0) continue;
                 var work = uft?.workLeft ?? recipe.WorkAmountForStuff(stuff);
-                if (work < 0) { findings.Add("unknown_recipe_work:" + recipe.defName); continue; }
+                if (work < 0) continue;
                 foreach (var destination in destinations)
                 {
                     if (!JobDriver_GovernorDeliver.DestinationAvailable(pawn, destination)) continue;
@@ -104,6 +103,6 @@ internal static class NativeRecipeActivity
             }
         }
         return new() { Context = context, Known = true,
-            Options = EquatableArray.From(options), Retained = EquatableArray.From(retained.Distinct()), Findings = EquatableArray.From(findings.Order(StringComparer.Ordinal)) };
+            Options = EquatableArray.From(options), Retained = EquatableArray.From(retained.Distinct()) };
     }
 }

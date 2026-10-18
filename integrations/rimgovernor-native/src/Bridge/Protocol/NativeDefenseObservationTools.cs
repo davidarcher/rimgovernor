@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
                 var cells = Region(request.Region, map);
                 if (cells == null) return new Obs.DefenseSiteReply {
                     Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region is outside the current map.") };
-                return new Obs.DefenseSiteReply { Outcome = Site(map, request.Region ?? new Obs.Rectangle(), cells, context) };
+                return new Obs.DefenseSiteReply { Outcome = Site(map, cells, context) };
             }
             catch (Exception) { return new Obs.DefenseSiteReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native defense site facts could not be read completely.") }; }
         }
@@ -83,14 +83,14 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        private static Obs.DefenseSiteSnapshot Site(Map map, Obs.Rectangle region, List<IntVec3> cells, Common.ObservationContext context)
+        private static Obs.DefenseSiteSnapshot Site(Map map, List<IntVec3> cells, Common.ObservationContext context)
         {
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
             // Hostile walk-in raiders path on the ground and treat closed doors
             // as obstacles they must bash; reachability without opening doors is
             // the conservative "can arrive here from the edge" fact.
             var raider = TraverseParms.For(TraverseMode.NoPassClosedDoors, Danger.Deadly);
-            var snapshot = new Obs.DefenseSiteSnapshot { Context = context, Region = region,
+            var snapshot = new Obs.DefenseSiteSnapshot { Context = context,
                 MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) } };
             foreach (var cell in cells) {
                 var row = new Obs.DefenseCell { Cell = new Common.Cell { X = cell.x, Z = cell.z }, Fogged = cell.Fogged(map) };

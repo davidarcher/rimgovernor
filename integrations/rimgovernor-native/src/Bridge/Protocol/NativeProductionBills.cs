@@ -84,7 +84,7 @@ namespace HomeBridge.BridgeTools {
    else {row = row with { IngredientFilter = new Obs.StockpileFilter { AllowedDefNames = [.. bill.ingredientFilter.AllowedThingDefs.Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal)] } };}
    row=Reservations(bill,row);
    row=row with { UnfinishedWork=UnfinishedWork(bill) };
-   if(bill is Bill_Production p){row = row with { RepeatMode = NativeEnums.Repeat(p.repeatMode) };row = row with { RepeatCount = p.repeatCount };row = row with { TargetCount = p.targetCount };row = row with { Paused = p.paused };row = row with { Finished = BillCommon.IsFinished(p) };}
+   if(bill is Bill_Production p){row = row with { RepeatMode = NativeEnums.Repeat(p.repeatMode) };row = row with { RepeatCount = p.repeatCount };row = row with { TargetCount = p.targetCount };row = row with { Finished = BillCommon.IsFinished(p) };}
    return row;
   }
   private static Obs.BillUnfinishedWork? UnfinishedWork(Bill bill){

@@ -80,7 +80,7 @@ namespace HomeBridge.BridgeTools
             var value = exact ?? stat.Worker.GetValue(req);
             if (float.IsNaN(value) || float.IsInfinity(value))
                 return new Obs.EvaluateStatReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = $"Stat {stat.defName} is {value}." } };
-            var observed = new Obs.StatEvaluation { Context = context, Stat = stat.defName, Value = value, Shown = stat.Worker.ShouldShowFor(req) };
+            var observed = new Obs.StatEvaluation { Stat = stat.defName, Value = value, Shown = stat.Worker.ShouldShowFor(req) };
             return new Obs.EvaluateStatReply { Outcome = observed };
         }
     }

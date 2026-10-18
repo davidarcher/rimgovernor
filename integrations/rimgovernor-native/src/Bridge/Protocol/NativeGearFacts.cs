@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
             long Lap() { var now = System.Diagnostics.Stopwatch.GetTimestamp(); var spent = now - mark; mark = now; return spent; }
             using var memo = new CensusMemo();
             var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
-            var result = new Obs.GearSnapshot { Context = context};
+            var result = new Obs.GearSnapshot();
             result = ReadClimate(map, result);
             var catalog = Catalog();
             var apparelOnMap = map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().ToList();
@@ -264,7 +264,6 @@ namespace HomeBridge.BridgeTools
         internal static Obs.GearItem Gear(Thing thing)
         {
             var row = Biocode(thing, new Obs.GearItem { Thing = NativeRef.Thing(thing) });
-            if (thing.Stuff != null) row = row with { Stuff = Id(thing.Stuff.defName) };
             if (thing.TryGetQuality(out var quality)) row = row with { Quality = (Defs.QualityCategory)(int)quality };
             if (thing.def.useHitPoints) {
                 if (thing.MaxHitPoints <= 0 || thing.HitPoints < 0) throw new InvalidOperationException("Invalid native hit points.");

@@ -23,12 +23,12 @@ namespace HomeBridge.BridgeTools
 
         // The player faction's primary ideoligion as it stands; null without
         // Ideology or a primary ideoligion.
-        internal static Obs.IdeologySnapshot? Build(Common.ObservationContext context)
+        internal static Obs.IdeologySnapshot? Build()
         {
             if (!ModsConfig.IdeologyActive) return null;
             var ideo = Faction.OfPlayerSilentFail?.ideos?.PrimaryIdeo;
             if (ideo == null) return null;
-            var row = new Obs.IdeologySnapshot { Context = context, IdeoId = Id(ideo.GetUniqueLoadID()),
+            var row = new Obs.IdeologySnapshot { IdeoId = Id(ideo.GetUniqueLoadID()),
                 Believers = ideo.ColonistBelieverCountCached };
             row = row with { Memes = [.. Sorted(Names(ideo.memes))] };
             row = row with { Fluid = ideo.Fluid };
@@ -51,7 +51,7 @@ namespace HomeBridge.BridgeTools
                             LastFinishedTick = ritual.lastFinishedTick, ActiveObligations = ritual.activeObligations?.Count ?? 0, RepeatPenaltyActive = ritual.RepeatPenaltyActive, Running = NativeRitualBegin.Running(ritual) }] };
                         break;
                     case Precept_Building building:
-                        row = row with { Buildings = [.. row.Buildings, new Obs.IdeoBuilding { Id = id, Building = building.ThingDef == null ? null : Id(building.ThingDef.defName) }] };
+                        row = row with { Buildings = [.. row.Buildings, new Obs.IdeoBuilding { Building = building.ThingDef == null ? null : Id(building.ThingDef.defName) }] };
                         break;
                     default:
                         row = row with { Precepts = [.. row.Precepts, new Obs.IdeoPrecept { Id = id, DefName = def }] };

@@ -115,9 +115,6 @@ a depleted drill for removal from the deep drill step's recorded read.
   Stock/count quantities are nonnegative; trade transfer/minimum/maximum counts
   are signed (negative sells). Ratios and all measurements are finite. Units are named
   on facts; a percentage/fraction conversion is an adapter responsibility.
-- `Completeness.filtered` counts the rows the query's filters excluded; only
-  the filterable reads carry it (pawns, supplies, buildings, zones, rooms,
-  research, resource sources, and visible-only hediffs).
 - `SnapshotRef` binds context, exact entity ID, and an opaque token for settings
   CAS. Tokens never mean permission or completed effects. Bill-stack tokens bind
   the bench and ordered stack, not only a bill index; trade tokens bind the session
@@ -229,9 +226,7 @@ The definition catalog reply (`DefinitionCatalog` in `Observations.cs`) no longe
 constants. The brain's `DefinitionCatalog` (`Bridge/Catalog`) is built in the mod over the game's own `Def` objects
 (`NativeCatalogFactory.Create`, installed as `BrainCompositionOptions.CatalogFactory`; see
 [brain-host](../../docs/developers/architecture/brain-host.md)), and the wire catalog supplies only what the game
-computes in code: `derived` (`CatalogDerived`), the
-Biotech block and the `fingerprint`. A catalog read sends `held_fingerprint`; a reply with the same
-fingerprint carries only the per-load fields.
+computes in code (`derived`, `CatalogDerived`); the wire `DefinitionCatalog` itself is an empty record.
 
 The brain catalog's currency (`ThingDefOf.Silver`, the def `Tradeable.IsCurrency` tests, read as
 `ItemFacts.Currency`; an empty value or a def with no row is refused) and wort (`ThingDefOf.Wort`) def names
@@ -347,11 +342,10 @@ Biotech facts follow the shared wire pattern: static defs ride the
 definition catalog and per-pawn facts ride the canonical pawn row. There is no
 separate read tool. Both are absent without Biotech (`ModsConfig.BiotechActive`).
 
-`DefinitionCatalog.biotech` carries only what the game's Def objects cannot give. The
-life stage, race, gene, xenotype, mech kind and work mode defs are read from the Defs
+The life stage, race, gene, xenotype, mech kind and work mode defs are read from the Defs
 themselves (`LifeStageDef`, `RaceProperties.lifeStageAges` and
 `lifeStageWorkSettings`, `GeneDef`, `XenotypeDef`, `PawnKindDef`,
-`MechWorkModeDef`). `gene_tuning` (`GeneTuningFacts`) is a singleton of the game's own
+`MechWorkModeDef`); no wire catalog field carries them. `gene_tuning` (`GeneTuningFacts`) is a singleton of the game's own
 `GeneTuning` constants: the biostat (metabolism) range, base max complexity, the
 complexity to assembler hours curve, the extractor regrow days range, and the
 extractor's private `TicksToExtract` and power-cut eject limit (absent when

@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.StudyState? Study(Thing thing)
         {
             if (!ModsConfig.AnomalyActive || (thing as ThingWithComps)?.GetComp<CompStudiable>() is not CompStudiable study) return null;
-            var state = new Obs.StudyState { Completed = study.Completed,
+            var state = new Obs.StudyState {
                 CurrentlyStudiable = study.CurrentlyStudiable() };
             return state;
         }
@@ -119,7 +119,7 @@ namespace HomeBridge.BridgeTools
             var room = holder.GetRoom();
             if (room == null || room.PsychologicallyOutdoors) yield break;
             foreach (var door in room.ContainedAndAdjacentThings.OfType<Building_Door>().OrderBy(d => d.Position.z).ThenBy(d => d.Position.x))
-                yield return new Obs.AnomalyDoor { Cell = new Common.Cell { X = door.Position.x, Z = door.Position.z }, Open = door.Open, HoldOpen = door.HoldOpen,
+                yield return new Obs.AnomalyDoor { Cell = new Common.Cell { X = door.Position.x, Z = door.Position.z }, HoldOpen = door.HoldOpen,
                     ContainmentBreached = door.ContainmentBreached, BlockedOpen = door.BlockedOpenMomentary };
         }
 

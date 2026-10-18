@@ -18,13 +18,9 @@ public sealed record FoodActivityOption(string Pawn, string Target, string Resou
 /// <summary>One eligible recipe/source alternative, not a selected order. Route includes final product delivery.</summary>
 public sealed record FoodCookingEstimate(ActivityRecipeContinuation Continuation, int IngredientCount)
 {
-    public RecipeLearning? Learning { get; init; }
 }
 public sealed record FoodActivityRead
 {
-    public ObservationContext? Context { get; init; }
-    public bool Known { get; init; }
-    public bool Truncated { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<FoodActivityOption>))]
     public EquatableArray<FoodActivityOption> Options { get; init; }
 }

@@ -54,7 +54,7 @@ internal static class NativeHuntActivity
                 .Select(h => new Obs.HuntHediffRead(h.def.defName, h.Part?.Label ?? "", h.Severity))),
             MissingParts = EquatableArray.From(p.health.hediffSet.hediffs.OfType<Hediff_MissingPart>().Select(h => h.Part?.Label ?? "")),
             Available = hunter && !p.Downed && !p.InMentalState && !p.Drafted,
-            Downed = p.Downed, Sleeping = !p.Awake(), Mental = p.InMentalState,
+            Downed = p.Downed, Mental = p.InMentalState,
         };
         if (hunter) return read;
         return read with

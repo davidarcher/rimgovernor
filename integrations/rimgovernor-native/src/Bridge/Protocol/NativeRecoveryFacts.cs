@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
             try {
                 var buildings = map.listerBuildings.allBuildingsColonist.Where(b => !b.Position.Fogged(map)).OrderBy(b => b.thingIDNumber).ToList();
                 var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
-                var result = new Obs.RecoverySnapshot { Context = context };
+                var result = new Obs.RecoverySnapshot();
                 // Each building's hit points, fuel and breakdown state is its
                 // row in the bundle's building table.
                 foreach (var building in buildings) result = result with { Buildings = [.. result.Buildings, NativeBuildingObservationTools.Ref(building)] };

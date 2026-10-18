@@ -15,12 +15,12 @@ public sealed class FoodActivityContinuationTests
     private static readonly GenerationSnapshot Root = new(new("colony"), new(1), new("load"), new("root"), new(1), new(1));
     private static FoodActivityOption Option(string target = "crop", int count = 8, double travel = 20) =>
         new("pawn", target, "Rice", new(3, 4), new(8, 9), "HarvestGiver", count, 30) { ApproachTicks = Known(travel), DeliveryTicks = Known(0.0), HarvestAllowed = Known(true) };
-    private static FoodActivityRead Read(params FoodActivityOption[] options) => new()
-    { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 110 }, Options = EquatableArray.From(options) };
+    private static FoodActivityRead Read(params FoodActivityOption[] options) => new() { Options = EquatableArray.From(options) };
     private static PawnActivities Harvest() => ActivityContinuationFixtures.Harvest();
     private static Observed Terminal(PawnActivities batch, string state, params FoodActivityOption[] options) => new(Read(options),
-        new("method/pawn", "method", batch.Orders[0].Revision, 0, state, "", null, 110));
-    private sealed record Observed(FoodActivityRead Food, RimGovernor.Contracts.Wire.Operations.PawnActivityExecution Execution);
+        new("method/pawn", "method", batch.Orders[0].Revision, 0, state, "", null, 110),
+        new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 110 });
+    private sealed record Observed(FoodActivityRead Food, RimGovernor.Contracts.Wire.Operations.PawnActivityExecution Execution, RimGovernor.Contracts.Wire.Common.ObservationContext Context);
 
     [Theory]
     [InlineData(false)]
@@ -75,7 +75,7 @@ public sealed class FoodActivityContinuationTests
 
     private static ActivityTaskRead TaskRead(PawnActivities batch, Observed read) => new()
     {
-        Context = read.Food.Context, Known = read.Food.Known, Food = read.Food,
+        Context = read.Context, Known = true,
         Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn, read.Execution))),
         Bindings = EquatableArray.From(batch.Tasks.Where(t => t.Step.Kind == PawnActivityKind.Deliver)
             .SelectMany(t => read.Food.Options.Where(o => o.Pawn == t.Pawn && o.Resource == t.Resource)
@@ -98,7 +98,7 @@ public sealed class FoodActivityContinuationTests
         public Task<RecipeActivityRead> ReadRecipeActivityAsync(RecipeActivityRequest request, CancellationToken ct) => Task.FromResult(new RecipeActivityRead());
         public Task<ConstructionActivityRead> ReadConstructionActivityAsync(ConstructionActivityRequest request, CancellationToken ct) => Task.FromResult(new ConstructionActivityRead());
         public Task<ListPawnsReply> ReadCombatPawnsAsync(RimGovernor.Contracts.Wire.Common.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
-            Task.FromResult(new ListPawnsReply { Outcome = new PawnSnapshot { Context = read.Food.Context } });
+            Task.FromResult(new ListPawnsReply { Outcome = new PawnSnapshot { Context = read.Context } });
     }
     private sealed class DispatchSession(Journal journal) : IWorkerSession
     {
@@ -140,8 +140,7 @@ public sealed class FoodActivityContinuationTests
         var session = new DispatchSession(journal);
         using var player = Player.Create(new(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10)), journal, session, new Worlds(), ct);
         var terminal = Terminal(batch, "completed", Option("live-observed-food", 2));
-        var read = terminal with { Food = terminal.Food with
-        { Context = new() { Identity = Boundary.Identity(Root), NativeGeneration = 1, Tick = 200 } } };
+        var read = terminal with { Context = new() { Identity = Boundary.Identity(Root), NativeGeneration = 1, Tick = 200 } };
         var worker = Worker.CreateInternal(new() { RoundsMethods = true, Pawns = new Reads(read),
             StepInterval = TimeSpan.FromMinutes(1), MaxBackoff = TimeSpan.FromMinutes(1), StepTimeout = TimeSpan.FromSeconds(5) }, player, session, ct);
         try

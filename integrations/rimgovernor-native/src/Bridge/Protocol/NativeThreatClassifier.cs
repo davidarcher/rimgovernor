@@ -19,7 +19,6 @@ namespace HomeBridge.BridgeTools
         /// A prisoner of the colony breaking out; a held prisoner
         /// is never FactionHostile.
         internal bool PrisonBreak;
-        internal string? FactionId;
         /// The current job is PredatorHunt.
         internal bool PredatorHunt;
         /// The hunt's target resolves to a pawn (a live pawn or a corpse's).
@@ -74,8 +73,7 @@ namespace HomeBridge.BridgeTools
                     PredatorHunt = f.PredatorHunt, Predator = f.Predator, Downed = f.Downed };
                 if (nearest.HasValue) row = row with { NearestColonistDistance = nearest.Value };
                 if (f.Mental != null) row = row with { MentalState = f.Mental };
-                if (f.FactionId != null) row = row with { Faction = new RimGovernor.Contracts.Wire.Common.Ref { Id = f.FactionId } };
-                if (f.Passive.HasValue) row = row with { Passive = f.Passive.Value };
+                                if (f.Passive.HasValue) row = row with { Passive = f.Passive.Value };
                 if (f.HasPrey) { row = row with { Prey = prey(pawn) }; row = row with { PreyIsOurs = f.PreyOurs }; }
                 threats = threats with { Pawns = [.. threats.Pawns, row] };
             }

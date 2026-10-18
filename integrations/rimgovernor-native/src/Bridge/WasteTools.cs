@@ -37,7 +37,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var body in grave.GetDirectlyHeldThings().OfType<Corpse>())
                     if (body.InnerPawn != null)
                         items.Add(new Obs.WasteItem { Thing = NativeRef.Thing(body), CorpseClass = CorpseOf(body.InnerPawn), Grave = NativeRef.Of(Id(grave)) });
-            return new Obs.WasteReply { Outcome = new Obs.WasteSnapshot { Context = context, Items = [.. items] } };
+            return new Obs.WasteReply { Outcome = new Obs.WasteSnapshot { Items = [.. items] } };
         }
     }
 }

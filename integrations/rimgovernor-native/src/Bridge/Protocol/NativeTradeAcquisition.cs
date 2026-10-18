@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
             foreach (var ship in map.passingShipManager.passingShips.OrderBy(s => s.GetUniqueLoadID()))
             {
                 var trader = ship as TradeShip;
-                var row = new Obs.PassingTradeShip { Id = ship.GetUniqueLoadID(), Trader = trader != null };
+                var row = new Obs.PassingTradeShip();
                 if (trader != null) row = row with { TraderKind = trader.TraderKind.defName };
                 result = result with { PassingShips = [.. result.PassingShips, row] };
             }

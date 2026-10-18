@@ -34,8 +34,6 @@ public sealed class ForecastCoupledTests
                     Tick = 100,
                     Food = new()
                     {
-                        Context = Context,
-                        Known = true,
                         Options = [new("pawn", "plant", "Rice", new(1,1), new(1,1), "Harvest", 8, harvest)
                     { ApproachTicks = Known(0.0), DeliveryTicks = Known(10.0), HarvestAllowed = Known(true), SourceCount = Known(8.0) }]
                     },
@@ -275,7 +273,7 @@ public sealed class ForecastCoupledTests
             {
                 Coupled = facts.ForecastObserved.Coupled! with
                 {
-                    Food = new() { Context = Context, Known = true },
+                    Food = new(),
                     FoodSources = [new("rice-stack", "Rice", new(1, 1), 8, Known(1000.0))],
                     FoodConversions = [new("rice-stack","pawn","bench","CookMeal","Rice",4,"Meal",1,new(1,1),new(1,1),new(1,1),
                     Known(0.0),Known(10.0),Known(20.0),Known(10.0),8,8) { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" }],
@@ -496,7 +494,7 @@ public sealed class ForecastCoupledTests
                 Needs = facts.ForecastObserved.Needs! with { Pawns = [facts.ForecastObserved.Needs!.Pawns[0], facts.ForecastObserved.Needs.Pawns[0] with { Pawn = "helper" }] },
                 Coupled = facts.ForecastObserved.Coupled! with
                 {
-                    Food = new() { Context = Context, Known = true },
+                    Food = new(),
                     FoodSources = [new("rice", "Rice", cells[0], 4, Known(1000.0))],
                     FoodConversions = [cook, cook with { Pawn = "helper", CanCook = false, CarryingCapacity = capacity, SupplyTicks = Known(travel), DeliveryTicks = Known(travel) }],
                     FoodUses = [new("pawn", "Meal", cells[2], Known(true), Known(.8), Known(10.0), 1, Known(1000.0))],

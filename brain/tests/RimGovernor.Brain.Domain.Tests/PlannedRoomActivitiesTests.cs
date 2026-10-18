@@ -118,7 +118,7 @@ public sealed class PlannedRoomActivitiesTests
                 Coupled = new()
                 {
                     Tick = 100,
-                    Food = new() { Context = Context, Known = true, Options = EquatableArray.From(Plants.Select(source =>
+                    Food = new() { Options = EquatableArray.From(Plants.Select(source =>
                         new FoodActivityOption("pawn", source, "Rice", new(1, 1), new(1, 1), "Harvest", 2, 10)
                         { ApproachTicks = Known(0d), DeliveryTicks = Known(10d), HarvestAllowed = Known(true),
                             SourceCount = Known(2d) })) },

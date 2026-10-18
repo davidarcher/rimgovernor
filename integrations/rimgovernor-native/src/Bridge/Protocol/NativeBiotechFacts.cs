@@ -19,12 +19,6 @@ namespace HomeBridge.BridgeTools
         private static string? Id(string? value) => value != null && ProtoBoundary.IsIdentifier(value) ? value : null;
         private static bool Finite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
 
-        internal static Obs.BiotechCatalog? Catalog()
-        {
-            if (!ModsConfig.BiotechActive) return null;
-            return new Obs.BiotechCatalog();
-        }
-
         private static Obs.ReadIssue Failed(string field, Exception ex) => new Obs.ReadIssue { Field = field,
             Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic(ex.Message) } };
 

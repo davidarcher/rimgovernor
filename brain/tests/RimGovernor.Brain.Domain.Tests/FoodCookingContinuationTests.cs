@@ -14,7 +14,7 @@ public sealed class FoodCookingContinuationTests
 {
     private static FoodActivityOption Raw(string target = "raw") => new("pawn", target, "Rice", new(3, 4), new(8, 9), "HarvestGiver", 10, 0)
         { ApproachTicks = Known(20.0), DeliveryTicks = Known(0.0), HarvestAllowed = Known(true) };
-    private static FoodActivityRead Read(params FoodActivityOption[] options) => new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options) };
+    private static FoodActivityRead Read(params FoodActivityOption[] options) => new() { Options = EquatableArray.From(options) };
     private static ActivityTaskRead Done(PawnActivities batch, string state = "completed", params ActivityTaskBinding[] bindings) => new()
     {
         Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 200 }, Bindings = EquatableArray.From(bindings),
@@ -132,7 +132,7 @@ public sealed class FoodCookingContinuationTests
         Assert.False(decoded.Options[1].ApproachTicks.IsKnown);
         var tasks = new ActivityTaskRead { Known = true, SatisfiedTasks = ["one"],
             Bindings = [new("deliver", new(PawnActivityKind.Deliver, "stack", "", "", 2, 500) { Destination = new(3, 4) }) { RemainingCount = Known(2) }],
-            Pawns = [new("pawn", null)], Food = read };
+            Pawns = [new("pawn", null)] };
         var restored = WireJson.Deserialize<ActivityTaskRead>(WireJson.Serialize(tasks));
         Assert.Equal(tasks.SatisfiedTasks, restored.SatisfiedTasks);
         Assert.Equal(2, restored.Bindings[0].RemainingCount.Value);

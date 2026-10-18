@@ -392,16 +392,6 @@ public sealed record SnapshotRef
     public string? Token { get; init; }
 }
 
-/// <summary>
-/// Rows the query's filters excluded from the scanned set. Replies carry
-/// every matching row; there is no paging or per-list cap. Only replies
-/// whose query has a filter that can exclude rows carry it.
-/// </summary>
-public sealed record Completeness
-{
-    public ulong? Filtered { get; init; }
-}
-
 public sealed record ReadIssue
 {
     public string? Field { get; init; }
@@ -715,10 +705,6 @@ public sealed record PawnNeeds
 /// </summary>
 public sealed record PawnPsyfocus
 {
-    public double Current { get; init; }
-
-    public double Target { get; init; }
-
     public int PsylinkLevel { get; init; }
 }
 
@@ -778,8 +764,6 @@ public sealed record PawnHealth
     public bool Bleeding { get; init; }
 
     public double BleedRatePerDay { get; init; }
-
-    public double Pain { get; init; }
 
     public double BloodLoss { get; init; }
 
@@ -919,8 +903,6 @@ public sealed record GearItem
 {
     public Common.Ref Thing { get; init; } = new();
 
-    public string? Stuff { get; init; }
-
     public Defs.QualityCategory? Quality { get; init; }
 
     public double? ConditionFraction { get; init; }
@@ -1049,8 +1031,6 @@ public sealed record PawnBiography
 public sealed record Thought
 {
     public string DefName { get; init; } = "";
-
-    public uint Count { get; init; }
 
     public double MoodOffsetTotal { get; init; }
 }
@@ -1344,11 +1324,6 @@ public sealed record PawnState
 
     public string KindDefName { get; init; } = "";
 
-    /// <summary>
-    /// The pawn's faction; absent when it has none.
-    /// </summary>
-    public Common.Ref? Faction { get; init; }
-
     public bool Colonist { get; init; }
 
     public bool FreeColonist { get; init; }
@@ -1360,10 +1335,6 @@ public sealed record PawnState
     public bool Animal { get; init; }
 
     public bool Mechanoid { get; init; }
-
-    public bool Tame { get; init; }
-
-    public bool Wild { get; init; }
 
     public bool Dead { get; init; }
 
@@ -1679,10 +1650,6 @@ public sealed record PawnFilter
 
     public bool? Mechanoid { get; init; }
 
-    public bool? Tame { get; init; }
-
-    public bool? Wild { get; init; }
-
     public bool? Hostile { get; init; }
 
     public bool? Downed { get; init; }
@@ -1737,8 +1704,6 @@ public sealed record PawnSnapshot
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PawnState>))]
     public EquatableArray<PawnState> Pawns { get; init; }
-
-    public Completeness? Completeness { get; init; }
 
     /// <summary>
     /// Colony fact: the Meditate TimeAssignmentDef exists
@@ -1988,8 +1953,6 @@ public sealed record BillState
     public int? RepeatCount { get; init; }
 
     public int? TargetCount { get; init; }
-
-    public bool? Paused { get; init; }
 
     public bool? Suspended { get; init; }
 
@@ -2317,14 +2280,7 @@ public sealed record RoomStat
 
     public double? Value { get; init; }
 
-    public string? Cost { get; init; }
-
     public Common.Unavailable? Unavailable { get; init; }
-}
-
-public sealed record StockpileMembership
-{
-    public Common.Ref? Zone { get; init; }
 }
 
 public sealed record RoomState
@@ -2332,8 +2288,6 @@ public sealed record RoomState
     public string? Id { get; init; }
 
     public string? Role { get; init; }
-
-    public string? Label { get; init; }
 
     public bool? ProperRoom { get; init; }
 
@@ -2404,8 +2358,6 @@ public sealed record RoomDoor
     public Common.Cell? Outside { get; init; }
 
     public bool? Outdoors { get; init; }
-
-    public string? Id { get; init; }
 
     public bool? PlayerOwned { get; init; }
 
@@ -2603,8 +2555,6 @@ public sealed record Thing
 
 public sealed record ThingsSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<Thing>))]
     public EquatableArray<Thing> Things { get; init; }
 }
@@ -2684,8 +2634,6 @@ public abstract record GetCellsReplyOutcome
 public sealed record ResearchProject
 {
     public DefinitionRef Project { get; init; } = new();
-
-    public double Progress { get; init; }
 
     public double? ProgressFraction { get; init; }
 
@@ -2981,8 +2929,6 @@ public sealed record DefenseSiteSnapshot
 
     public MapSize MapSize { get; init; } = new();
 
-    public Rectangle? Region { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<DefenseCell>))]
     public EquatableArray<DefenseCell> Cells { get; init; }
 }
@@ -3117,33 +3063,8 @@ public abstract record LinesOfFireReplyOutcome
     public static implicit operator LinesOfFireReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
-public sealed record RoofSupportCell
-{
-    public Common.Cell? Cell { get; init; }
-}
-
-public sealed record RoofSupportSnapshot
-{
-    public Common.ObservationContext? Context { get; init; }
-
-    public Common.Ref? Target { get; init; }
-
-}
-
-public sealed record RoofSupportRequest
-{
-    public ReadScope? Scope { get; init; }
-}
-
-public sealed record RoofSupportReply
-{
-    public RoofSupportSnapshot Outcome { get; init; } = null!;
-}
-
 public sealed record ExcavationCell
 {
-    public Common.Cell? Cell { get; init; }
-
     public bool? Fogged { get; init; }
 
     public string? MineableDefName { get; init; }
@@ -3242,9 +3163,6 @@ public sealed record WallUpgradeSite
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
     public EquatableArray<Common.Cell> BackupCells { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Workers { get; init; }
-
     public string? Blocker { get; init; }
 
     public bool Designated { get; init; }
@@ -3268,8 +3186,6 @@ public sealed record WallUpgradeSite
     /// The target's CAS token for the upgrade's guarded operations.
     /// </summary>
     public SnapshotRef? TargetSnapshot { get; init; }
-
-    public CellsSnapshot? Geometry { get; init; }
 }
 
 public sealed record WallUpgradeSnapshot
@@ -3365,8 +3281,6 @@ public sealed record ResourceSource
 /// </summary>
 public sealed record StorageCapacity
 {
-    public string Resource { get; init; } = "";
-
     public long Capacity { get; init; }
 
     public long Stored { get; init; }
@@ -3380,10 +3294,6 @@ public sealed record StorageCapacity
 
 public sealed record ResourceSourcesSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
-
-    public string? Resource { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<ResourceSource>))]
     public EquatableArray<ResourceSource> Sources { get; init; }
 
@@ -3580,17 +3490,6 @@ public abstract record StorageOccupancyReplyOutcome
     public static implicit operator StorageOccupancyReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
 }
 
-public sealed record HandlerState
-{
-    public Common.Ref? Pawn { get; init; }
-
-    public int? Priority { get; init; }
-
-    public bool? Eligible { get; init; }
-
-    public string? Reason { get; init; }
-}
-
 public sealed record HusbandryAnimal
 {
     public Common.Ref? Pawn { get; init; }
@@ -3601,10 +3500,6 @@ public sealed record HusbandryAnimal
 
 public sealed record HusbandrySnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
-
-    public SnapshotRef? Census { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<HusbandryAnimal>))]
     public EquatableArray<HusbandryAnimal> Animals { get; init; }
 }
@@ -3670,8 +3565,6 @@ public sealed record WasteItem
 
 public sealed record WasteSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<WasteItem>))]
     public EquatableArray<WasteItem> Items { get; init; }
 }
@@ -3691,8 +3584,6 @@ public sealed record RecoveryRestriction
 
 public sealed record RecoverySnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<RecoveryRestriction>))]
     public EquatableArray<RecoveryRestriction> Restrictions { get; init; }
 
@@ -3927,8 +3818,6 @@ public sealed record WorldTile
 {
     public int? Tile { get; init; }
 
-    public DefinitionRef? Biome { get; init; }
-
     public string? Hilliness { get; init; }
 
     public double? Longitude { get; init; }
@@ -4001,14 +3890,6 @@ public sealed record WorldRoute
     public bool? Reachable { get; init; }
 
     public long? EstimatedTicks { get; init; }
-
-    public string? Reason { get; init; }
-
-    public bool? Hostile { get; init; }
-
-    public int? Goodwill { get; init; }
-
-    public Common.Ref? Faction { get; init; }
 }
 
 public sealed record CaravanState
@@ -4054,10 +3935,6 @@ public sealed record QuestTradeRequest
 public sealed record QuestReward
 {
     public uint? ChoiceIndex { get; init; }
-
-    public string? Kind { get; init; }
-
-    public string? Label { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
     public EquatableArray<Quantity> Items { get; init; }
@@ -4192,8 +4069,6 @@ public sealed record QuestGravEngine
 
     public bool? Spawned { get; init; }
 
-    public Common.Cell? Cell { get; init; }
-
     public bool? Inspected { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
@@ -4206,8 +4081,6 @@ public sealed record QuestGravEngine
 public sealed record WorldSite
 {
     public string? Id { get; init; }
-
-    public string? Label { get; init; }
 
     public int? Tile { get; init; }
 
@@ -4344,8 +4217,6 @@ public sealed record QuestWorkload
 
 public sealed record QuestLodgerMood
 {
-    public string? PawnId { get; init; }
-
     public double? Mood { get; init; }
 }
 
@@ -4483,8 +4354,6 @@ public sealed record QuestState
 {
     public string? Id { get; init; }
 
-    public string? Label { get; init; }
-
     public Receipts.QuestStatus? State { get; init; }
 
     public long? AcceptedTick { get; init; }
@@ -4536,13 +4405,9 @@ public sealed record FactionState
 {
     public string? Id { get; init; }
 
-    public string? Label { get; init; }
-
     public bool? Player { get; init; }
 
     public bool? Hostile { get; init; }
-
-    public int? Goodwill { get; init; }
 }
 
 public sealed record WorldMap
@@ -4552,8 +4417,6 @@ public sealed record WorldMap
     public int? Tile { get; init; }
 
     public bool? Home { get; init; }
-
-    public string? Label { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PawnState>))]
     public EquatableArray<PawnState> Pawns { get; init; }
@@ -4567,8 +4430,6 @@ public sealed record CaravanAssembly
     public string? Id { get; init; }
 
     public int? MapId { get; init; }
-
-    public string? Status { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> Pawns { get; init; }
@@ -4705,8 +4566,6 @@ public abstract record BillsReplyOutcome
 /// </summary>
 public sealed record RecipesSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
-
     public SnapshotRef? Snapshot { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<RecipeState>))]
@@ -4762,56 +4621,6 @@ public abstract record RecipesReplyOutcome
     public sealed record FailureCase(Common.Failure Value) : RecipesReplyOutcome;
 
     public static implicit operator RecipesReplyOutcome(Common.Failure value) => new FailureCase(value);
-}
-
-public sealed record PawnSettingsRequest
-{
-    public ReadScope? Scope { get; init; }
-
-    public string? PawnId { get; init; }
-}
-
-public sealed record PawnSettingsReply
-{
-    public PawnSettings Outcome { get; init; } = null!;
-}
-
-public sealed record ResolveTargetSnapshot
-{
-    public Common.ObservationContext? Context { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<TargetRef>))]
-    public EquatableArray<TargetRef> Candidates { get; init; }
-
-}
-
-public sealed record ResolveTargetRequest
-{
-    public ReadScope? Scope { get; init; }
-
-    public ResolveTargetRequestQuery? Query { get; init; }
-}
-
-/// <summary>The <c>query</c> choice of <see cref="ResolveTargetRequest"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ResolveTargetRequestQuery.EntityIdCase), "entityId")]
-[JsonDerivedType(typeof(ResolveTargetRequestQuery.CellCase), "cell")]
-public abstract record ResolveTargetRequestQuery
-{
-    private protected ResolveTargetRequestQuery() { }
-
-    public sealed record EntityIdCase(string Value) : ResolveTargetRequestQuery;
-
-    /// <summary>The <c>Cell</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Cell? Cell => (this as CellCase)?.Value;
-
-    public sealed record CellCase(Common.Cell Value) : ResolveTargetRequestQuery;
-}
-
-public sealed record ResolveTargetReply
-{
-    public ResolveTargetSnapshot Outcome { get; init; } = null!;
 }
 
 /// <summary>
@@ -4870,8 +4679,6 @@ public abstract record StatSubjectSubject
 /// </summary>
 public sealed record StatEvaluation
 {
-    public Common.ObservationContext? Context { get; init; }
-
     public string Stat { get; init; } = "";
 
     public double Value { get; init; }
@@ -4936,8 +4743,6 @@ public sealed record GearCandidate
     public GearItem? Item { get; init; }
 
     public double? Gain { get; init; }
-
-    public string? Reason { get; init; }
 }
 
 /// <summary>
@@ -5029,8 +4834,6 @@ public sealed record GearLoadoutModel
 /// </summary>
 public sealed record GearSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<GearLoadout>))]
     public EquatableArray<GearLoadout> Pawns { get; init; }
 
@@ -5085,18 +4888,6 @@ public sealed record GearWeatherCondition
     /// Native condition offset, not ambient.
     /// </summary>
     public float? TemperatureOffsetC { get; init; }
-}
-
-public sealed record GearRequest
-{
-    public ReadScope? Scope { get; init; }
-
-    public string? PawnId { get; init; }
-}
-
-public sealed record GearReply
-{
-    public GearSnapshot Outcome { get; init; } = null!;
 }
 
 public sealed record Trader
@@ -5408,10 +5199,6 @@ public sealed record TradeConsole
 
 public sealed record PassingTradeShip
 {
-    public string? Id { get; init; }
-
-    public bool? Trader { get; init; }
-
     public string? TraderKind { get; init; }
 }
 
@@ -5707,8 +5494,6 @@ public sealed record UpkeepItem
 
     public long Count { get; init; }
 
-    public bool Roofed { get; init; }
-
     public long? RotTicks { get; init; }
 
     public bool Forbidden { get; init; }
@@ -5750,12 +5535,6 @@ public sealed record UpkeepStructure
     public Common.Ref Building { get; init; } = new();
 
     public bool Home { get; init; }
-}
-
-/// <summary>One filth thing in the home area (the census counts home filth only).</summary>
-public sealed record FilthState
-{
-    public Common.Ref Filth { get; init; } = new();
 }
 
 /// <summary>
@@ -6108,8 +5887,6 @@ public sealed record PlantGrower
 {
     public Common.Ref? Building { get; init; }
 
-    public Common.Ref? Room { get; init; }
-
     public string? CropDefName { get; init; }
 
     public bool? CanSow { get; init; }
@@ -6199,8 +5976,6 @@ public sealed record PlanningFacts
 public sealed record FoodProduct
 {
     public string? DefName { get; init; }
-
-    public long? Count { get; init; }
 
     public bool? Edible { get; init; }
 
@@ -6432,10 +6207,6 @@ public sealed record ChoiceDialog
 {
     public int? WindowId { get; init; }
 
-    public string? Title { get; init; }
-
-    public string? Text { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<ChoiceDialogOption>))]
     public EquatableArray<ChoiceDialogOption> Options { get; init; }
 
@@ -6518,22 +6289,6 @@ public abstract record PlanningSectionOutcome
     public sealed record UnavailableCase(Common.Unavailable Value) : PlanningSectionOutcome;
 
     public static implicit operator PlanningSectionOutcome(Common.Unavailable value) => new UnavailableCase(value);
-}
-
-public sealed record WallRemovalRecord
-{
-    public string? Id { get; init; }
-}
-
-public sealed record WallRemovalFacts
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<WallRemovalRecord>))]
-    public EquatableArray<WallRemovalRecord> Records { get; init; }
-}
-
-public sealed record WallRemovalSection
-{
-    public WallRemovalFacts Outcome { get; init; } = null!;
 }
 
 /// <summary>
@@ -6773,9 +6528,6 @@ public sealed record UpkeepFacts
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<UpkeepStructure>))]
     public EquatableArray<UpkeepStructure> Structures { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<FilthState>))]
-    public EquatableArray<FilthState> Filth { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<UpkeepPerson>))]
     public EquatableArray<UpkeepPerson> People { get; init; }
@@ -8289,8 +8041,6 @@ public sealed record JoinerLetter
 
     public string? SnapshotToken { get; init; }
 
-    public string? PawnId { get; init; }
-
     public string? AcceptLabel { get; init; }
 
     public bool? CanAccept { get; init; }
@@ -8393,8 +8143,6 @@ public sealed record ThreatPawn
     public string? MentalState { get; init; }
 
     public bool? FactionHostile { get; init; }
-
-    public Common.Ref? Faction { get; init; }
 
     public bool? PrisonBreak { get; init; }
 
@@ -8529,8 +8277,6 @@ public sealed record BundleSnapshot
 {
     public Common.ObservationContext? Context { get; init; }
 
-    public bool? Paused { get; init; }
-
     public Clock.Status? ClockStatus { get; init; }
 
     public StatusSnapshot? Emergency { get; init; }
@@ -8654,34 +8400,6 @@ public sealed record BundleSnapshot
     public bool? IdeologyActive { get; init; }
 }
 
-public sealed record ObservationBatchSnapshot
-{
-    public ListPawnsReply? Pawns { get; init; }
-
-    public ListRoomsReply? Rooms { get; init; }
-
-    public ListZonesReply? Zones { get; init; }
-
-}
-
-public sealed record ObservationBatchRequest
-{
-    public ReadScope? Scope { get; init; }
-
-    public StatusRequest? Status { get; init; }
-
-    public ListPawnsRequest? Pawns { get; init; }
-
-    public ListRoomsRequest? Rooms { get; init; }
-
-    public ListZonesRequest? Zones { get; init; }
-}
-
-public sealed record ObservationBatchReply
-{
-    public ObservationBatchSnapshot Outcome { get; init; } = null!;
-}
-
 /// <summary>
 /// The snapshot stream: native captures whole BundleSnapshot frames and hands
 /// the newest to the in-process brain; this request opens it (or replaces its
@@ -8720,13 +8438,6 @@ public sealed record SnapshotStreamRequest
 /// </summary>
 public sealed record DefinitionCatalog
 {
-    public Common.ObservationContext? Context { get; init; }
-
-    /// <summary>
-    /// Biotech defs; absent without Biotech.
-    /// </summary>
-    public BiotechCatalog? Biotech { get; init; }
-
 }
 
 /// <summary>
@@ -8736,8 +8447,6 @@ public sealed record DefinitionCatalog
 /// </summary>
 public sealed record IdeologySnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
-
     public string? IdeoId { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
@@ -8821,18 +8530,7 @@ public sealed record IdeoRitual
 /// </summary>
 public sealed record IdeoBuilding
 {
-    public string? Id { get; init; }
-
     public string? Building { get; init; }
-}
-
-/// <summary>
-/// One point of a game SimpleCurve.
-/// </summary>
-public sealed record CurvePointRow
-{
-    public double? X { get; init; }
-
 }
 
 /// <summary>
@@ -8848,15 +8546,6 @@ public sealed record CurvePointRow
 /// scalar is unknown, never zero.
 /// </summary>
 public sealed record GeneTuningFacts
-{
-}
-
-/// <summary>
-/// The Biotech facts the def mirror (defs.proto) cannot give. The life stage,
-/// race, gene, xenotype, mech kind and work mode defs are the mirror's rows;
-/// the decoded BiotechCatalog is built from them. Absent without Biotech.
-/// </summary>
-public sealed record BiotechCatalog
 {
 }
 
@@ -8950,8 +8639,6 @@ public sealed record HeldState
 /// </summary>
 public sealed record StudyState
 {
-    public bool? Completed { get; init; }
-
     public bool? CurrentlyStudiable { get; init; }
 }
 
@@ -8998,8 +8685,6 @@ public sealed record EntityHolderState
 public sealed record AnomalyDoor
 {
     public Common.Cell? Cell { get; init; }
-
-    public bool? Open { get; init; }
 
     public bool? HoldOpen { get; init; }
 
@@ -9054,10 +8739,6 @@ public abstract record DefinitionCatalogReplyOutcome
 
 public sealed record SnapshotStreamOpened
 {
-    /// <summary>
-    /// the stream's name; always "in-process"
-    /// </summary>
-    public string Name { get; init; } = "";
 }
 
 public sealed record SnapshotStreamReply

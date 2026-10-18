@@ -316,7 +316,7 @@ namespace HomeBridge.BridgeTools
                     row = row with { Recipes = [.. row.Recipes, NativeProductionBills.RecipeRow(bench,recipe)] };
                     var production = new Obs.FoodProduction { Recipe = recipe.defName, Available = NativeProductionBills.Recipe(bench,recipe) };
                     foreach(var product in recipe.products){
-                        var food=new Obs.FoodProduct{DefName=product.thingDef.defName,Count=product.count,Edible=humanFood(product.thingDef)};
+                        var food=new Obs.FoodProduct{DefName=product.thingDef.defName,Edible=humanFood(product.thingDef)};
                         food = food with { Storable = NativeResourceSourcesTool.Capacity(map,product.thingDef,haulers,out var stored)+stored };
                         production = production with { Products = [.. production.Products, food] };
                     }
@@ -420,7 +420,7 @@ namespace HomeBridge.BridgeTools
                         CanSow = grower.CanAcceptSowNow() };
                     var crop = grower.GetPlantDefToGrow();
                     if (crop != null) row = row with { CropDefName = crop.defName };
-                    if (room != null) { row = row with { Room = NativeRef.Room(room) }; Note(room); }
+                    if (room != null) Note(room);
                     result = result with { Growers = [.. result.Growers, row] };
                 }
             }

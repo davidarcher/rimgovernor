@@ -27,7 +27,7 @@ public sealed class BrainHostStopTests
             }
             if (targetMethod.Name == nameof(INativeFacade.OpenFramesAsync))
             {
-                return Task.FromResult(new PbObservations.SnapshotStreamReply { Outcome = new PbObservations.SnapshotStreamOpened { Name = "in-process" } });
+                return Task.FromResult(new PbObservations.SnapshotStreamReply { Outcome = new PbObservations.SnapshotStreamOpened() });
             }
 
             // Every other call waits for its caller to give up, as a game that never answers does.

@@ -72,11 +72,11 @@ namespace HomeBridge.BridgeTools
                 var needed = firstCount + secondCount;
                 var destination = map.haulDestinationManager.AllGroupsListInPriorityOrder.SelectMany(g => g.CellsList).Single();
                 var observations = new List<RimGovernor.Contracts.Wire.Observations.FoodActivityOption>();
-                var budget = 128; var truncated = false;
+                var budget = 128;
                 var obligation = new PawnActivityOrder(worker.GetUniqueLoadID(), "candidate-probe", "food-method", 0, 1, false,
                     new[] { new PawnActivityStep(PawnActivityKind.Work, "observed-harvest", "harvest", "Harvest", 0, deadline) })
                     { OutputDelivery = new(raw.defName, new(center.x, center.z), new(destination.x, destination.z), 60, deadline, 3) };
-                NativeFoodCooking.Add(worker, unselectedIngredient, 60, obligation, observations, ref budget, ref truncated);
+                NativeFoodCooking.Add(worker, unselectedIngredient, 60, obligation, observations, ref budget);
                 if (!observations.Any(o => o.Cooking?.Continuation.Bill == selectedBill.GetUniqueLoadID()
                     && o.Cooking.IngredientCount == needed))
                 {

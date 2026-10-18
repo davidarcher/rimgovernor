@@ -284,7 +284,7 @@ public sealed class ForecastConditionalMoodTests
         facts = facts with { ForecastObserved = facts.ForecastObserved with
         {
             Needs = new() { Tick = 100, Pawns = [pawn] },
-            Coupled = new() { Tick = 100, Food = new() { Known = true }, Routes = [new("pawn", new(1, 1), new(1, 1), Known(0d)) { FromStart = true }] },
+            Coupled = new() { Tick = 100, Food = new(), Routes = [new("pawn", new(1, 1), new(1, 1), Known(0d)) { FromStart = true }] },
         } };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)!;

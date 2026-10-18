@@ -27,7 +27,6 @@ public sealed record RecipeActivityRead
 {
     public ObservationContext? Context { get; init; }
     public bool Known { get; init; }
-    public EquatableArray<string> Findings { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<RecipeActivityOption>))]
     public EquatableArray<RecipeActivityOption> Options { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<RecipeRetainedOutput>))]

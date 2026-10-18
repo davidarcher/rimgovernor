@@ -47,7 +47,7 @@ namespace HomeBridge.BridgeTools
             }
             var ordered = selected.OrderBy(p => (p.Value.Pawn.Id ?? ""), StringComparer.Ordinal).ToList();
             var page = ordered;
-            var result = new Obs.PawnSnapshot { Context = context, Completeness = Complete(page.Count, source.Count-selected.Count), MeditateAssignmentAvailable = DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate") != null };
+            var result = new Obs.PawnSnapshot { Context = context, MeditateAssignmentAvailable = DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate") != null };
             var details = NativePawnDetails.Defaults(parsed.Details);
             var raidArmor = details.Equipment ? NativeGearFacts.RaidArmor(map) : null;
             // The tend detail is pairwise across the page, so it runs once over
@@ -65,7 +65,7 @@ namespace HomeBridge.BridgeTools
             var source = map.mapPawns.AllPawnsSpawned.ToList();
             if (source.Any(p => p == null)) throw new InvalidOperationException("Null native pawn.");
             var colonists = source.Where(p => !p.Dead && p.IsColonist && p.Spawned).ToList();
-            var result = new Obs.PawnSnapshot { Context = context, Completeness = Complete(source.Count), MeditateAssignmentAvailable = DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate") != null };
+            var result = new Obs.PawnSnapshot { Context = context, MeditateAssignmentAvailable = DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate") != null };
             var dependentPatients = NativeDependentPatients.Read(map).Select(p => p.Pawn).ToHashSet();
             double? raidArmor = null; var armorRead = false;
             using var surgery = new NativePawnDetails.SurgeryScope();
@@ -121,8 +121,8 @@ namespace HomeBridge.BridgeTools
                 && (f.NameContains is null || (row.Pawn.Label ?? "").IndexOf((f.NameContains ?? ""),StringComparison.OrdinalIgnoreCase)>=0)
                 && (f.Colonist is null || f.Colonist==row.Colonist) && (f.Prisoner is null || f.Prisoner==row.Prisoner)
                 && (f.Animal is null || f.Animal==row.Animal) && (f.Humanlike is null || f.Humanlike==row.Humanlike)
-                && (f.Mechanoid is null || f.Mechanoid==row.Mechanoid) && (f.Tame is null || f.Tame==row.Tame)
-                && (f.Wild is null || f.Wild==row.Wild) && (f.Hostile is null || f.Hostile==row.Hostile)
+                && (f.Mechanoid is null || f.Mechanoid==row.Mechanoid)
+                && (f.Hostile is null || f.Hostile==row.Hostile)
                 && (f.Downed is null || f.Downed==row.Downed) && (f.Drafted is null || f.Drafted==row.Drafted)
                 && (f.WithinColonistDistance is null || row.NearestColonistDistance is not null && row.NearestColonistDistance.GetValueOrDefault()<=f.WithinColonistDistance.GetValueOrDefault());
         }
@@ -162,7 +162,6 @@ namespace HomeBridge.BridgeTools
         internal static double Number(double value)=>IsFinite(value)?value:throw new InvalidOperationException("Nonfinite native fact.");
         internal static Common.Unavailable Unavailable(Common.UnavailableReason reason,string detail)=>new Common.Unavailable {Reason=reason,Detail=detail};
         internal static Obs.ReadIssue Issue(string field,Common.UnavailableReason reason,string detail)=>new Obs.ReadIssue {Field=field,Unavailable=Unavailable(reason,detail)};
-        internal static Obs.Completeness Complete(int count,int filtered=0)=>new Obs.Completeness { Filtered = (ulong)filtered };
         internal sealed class ReadLimit:Exception { internal ReadLimit(string message):base(message) {} }
     }
 }

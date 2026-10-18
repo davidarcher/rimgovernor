@@ -29,13 +29,12 @@ internal static class NativeFoodActivity
     /// </summary>
     internal static Obs.FoodActivityRead Read(Request request, NativePathLegs? legs = null)
     {
-        if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out var context, out _)) return new();
+        if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out _, out _)) return new();
         legs ??= new(map);
-        var result = new Obs.FoodActivityRead { Context = context };
+        var result = new Obs.FoodActivityRead();
         var options = new List<Obs.FoodActivityOption>();
         var storage = new Dictionary<Thing, List<List<IntVec3>>>(); // Per source: its accepting groups' cells, flood-nearest first.
         var existing = request.Existing;
-        var truncated = false;
         var budget = 128; // NativeFoodCooking's route budget; only an executing delivery expands cooking.
         var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         if (existing is not null)
@@ -43,7 +42,7 @@ internal static class NativeFoodActivity
             pawns = pawns.Where(p => p.GetUniqueLoadID() == existing.Pawn).ToArray();
             if (pawns.Length != 1) return result; // Missing pawn is unknown, not a completed delivery.
             var execution = NativePawnActivities.Read(pawns[0]);
-            if (execution?.State is not ("completed" or "failed") && !(existing.Preparing && execution?.State == "holding")) return result with { Known = true };
+            if (execution?.State is not ("completed" or "failed") && !(existing.Preparing && execution?.State == "holding")) return result;
         }
         var plants = request.Plants.Select(id => RefIndex.Thing(map, id))
             .OfType<Plant>().OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
@@ -77,7 +76,7 @@ internal static class NativeFoodActivity
                 if (legs.Cost(pawn, pawn.Position, source, PathEndMode.Touch) is not { } approach) continue;
                 if (existing?.OutputDelivery?.Recipe is not null)
                 {
-                    NativeFoodCooking.Add(pawn, source, count, existing, options, ref budget, ref truncated);
+                    NativeFoodCooking.Add(pawn, source, count, existing, options, ref budget);
                     continue; // Supply was selected; rebind that exact recipe only.
                 }
                 // Each accepting storage group's cheapest exact, empty cell for this pawn: of the group's cells in flood
@@ -104,10 +103,10 @@ internal static class NativeFoodActivity
                             ApproachTicks = Fact.Known((double)approach), DeliveryTicks = Fact.Known((double)route), HarvestAllowed = Fact.Known(harvestAllowed), SourceCount = Fact.Known((double)sourceCount) });
                 }
                 if (plant is null && existing is not null && (request.AllowCooking || existing.Steps[0].Kind == PawnActivityKind.Work))
-                    NativeFoodCooking.Add(pawn, source, count, existing, options, ref budget, ref truncated);
+                    NativeFoodCooking.Add(pawn, source, count, existing, options, ref budget);
             }
         }
-        return result with { Known = true, Truncated = truncated, Options = EquatableArray.From(options) };
+        return result with { Options = EquatableArray.From(options) };
     }
 
     /// <summary>The flood-nearest cells searched per storage group: flood steps are cardinal, paths also diagonal.</summary>

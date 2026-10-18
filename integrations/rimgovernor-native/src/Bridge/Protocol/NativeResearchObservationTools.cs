@@ -121,7 +121,7 @@ namespace HomeBridge.BridgeTools
                     var knowledgeRow = anomaly && def.knowledgeCategory != null && !finished;
                     if (hidden && !knowledgeRow || finished && !selectedRow || !selectedRow && !knowledgeRow && reached <= 0) continue;
                     var slim = Project(def, manager, progress, knowledge, anomaly, reached, cost, finished, selectedRow);
-                    var kept = new Obs.ResearchProject { Project = slim.Project, Finished = slim.Finished, Current = slim.Current, Progress = slim.Progress };
+                    var kept = new Obs.ResearchProject { Project = slim.Project, Finished = slim.Finished, Current = slim.Current };
                     if (slim.ProgressFraction is not null) kept = kept with { ProgressFraction = slim.ProgressFraction };
                     if (selectedRow || knowledgeRow) { kept = kept with { LockReasons = [.. kept.LockReasons, .. slim.LockReasons] }; kept = kept with { CanStart = slim.CanStart }; }
                     built.Add(kept);
@@ -144,7 +144,6 @@ namespace HomeBridge.BridgeTools
         {
             var row = new Obs.ResearchProject { Project = Definition(def), Finished = finished, Current = current };
             Number(cost); Number(def.baseCost);
-            row = row with { Progress = points };
             if (cost > 0) row = row with { ProgressFraction = Fraction(points, cost) };
             foreach (var prerequisite in def.prerequisites ?? new List<ResearchProjectDef>())
                 if (!Finished(Progress(prerequisite, progress, knowledge, anomaly), prerequisite.Cost)) row = row with { LockReasons = [.. row.LockReasons, "prerequisite:" + Id(prerequisite.defName)] };

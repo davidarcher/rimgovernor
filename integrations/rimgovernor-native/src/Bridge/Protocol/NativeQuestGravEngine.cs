@@ -26,8 +26,7 @@ namespace HomeBridge.BridgeTools
             if (engine.Spawned)
             {
                 row = row with { MapId = engine.Map.uniqueID };
-                row = row with { Cell = new Common.Cell { X = engine.Position.x, Z = engine.Position.z } };
-                var pawns = engine.Map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState).ToArray();
+                                var pawns = engine.Map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState).ToArray();
                 row = row with { EligiblePawnIds = [.. row.EligiblePawnIds, .. pawns.Where(p => p.CanReserveAndReach(engine, PathEndMode.Touch, Danger.None)).Select(p => p.GetUniqueLoadID())] };
                 row = row with { InspectingPawnIds = [.. row.InspectingPawnIds, .. pawns.Where(p => p.CurJob?.def == JobDefOf.InspectGravEngine && p.CurJob.targetA.Thing == engine).Select(p => p.GetUniqueLoadID())] };
             }

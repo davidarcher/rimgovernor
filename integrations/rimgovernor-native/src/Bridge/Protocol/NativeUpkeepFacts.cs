@@ -28,7 +28,6 @@ namespace HomeBridge.BridgeTools
         {
             internal readonly List<Thing> Items = new List<Thing>();
             internal readonly List<Building> PlayerBuildings = new List<Building>();
-            internal readonly List<Filth> Filth = new List<Filth>();
 
             internal static ThingSets Of(Map map, List<Thing> things)
             {
@@ -38,15 +37,11 @@ namespace HomeBridge.BridgeTools
                     things = map.listerThings.AllThings.Where(t => t.Spawned && !t.Position.Fogged(map)).ToList();
                     sets.Items.AddRange(things.Where(t => t.def.category == ThingCategory.Item));
                     sets.PlayerBuildings.AddRange(things.OfType<Building>().Where(b => b.Faction == player));
-                    sets.Filth.AddRange(things.OfType<Filth>());
                     return sets;
                 }
                 foreach (var t in things) {
                     if (t.def.category == ThingCategory.Item) sets.Items.Add(t);
-                    switch (t) {
-                        case Building b when b.Faction == player: sets.PlayerBuildings.Add(b); break;
-                        case Filth f: sets.Filth.Add(f); break;
-                    }
+                    if (t is Building b && b.Faction == player) sets.PlayerBuildings.Add(b);
                 }
                 return sets;
             }
@@ -89,7 +84,7 @@ namespace HomeBridge.BridgeTools
                 var values = rows.Select(t => {
                     var rot = t.TryGetComp<CompRottable>();
                     var value = new Obs.UpkeepItem {
-                        Item = NativeRef.Thing(t), Count = t.stackCount, Roofed = t.Position.Roofed(map),
+                        Item = NativeRef.Thing(t), Count = t.stackCount,
                         Forbidden = t.IsForbidden(Faction.OfPlayerSilentFail)
                     };
                     if (rot != null && rot.Active) value = value with { RotTicks = Math.Max(0, rot.TicksUntilRotAtCurrentTemp) };
@@ -106,15 +101,6 @@ namespace HomeBridge.BridgeTools
                     Home = b.OccupiedRect().All(c => map.areaManager.Home[c])
                 }).ToList();
                 result = result with { Structures = [.. result.Structures, .. values] };
-            });
-            Read("filth", () => {
-                // Home-area filth only: a map carries hundreds of natural
-                // dirt and rubble rows outside it that no clean order may
-                // ever target (upkeep orders require the home area), and a
-                // whole-map census exceeded the bound on every real map.
-                var rows = sets.Filth.Where(f => map.areaManager.Home[f.Position]).OrderBy(f => f.thingIDNumber).ToList();
-                var values = rows.Select(f => new Obs.FilthState { Filth = NativeRef.Thing(f) }).ToList();
-                result = result with { Filth = [.. result.Filth, .. values] };
             });
             // Home-area auto-expand, a save-level setting.
             Read("auto_home_area", () => { if (Find.PlaySettings != null) result = result with { AutoHomeArea = Find.PlaySettings.autoHomeArea }; });

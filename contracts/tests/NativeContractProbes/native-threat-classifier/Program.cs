@@ -48,9 +48,9 @@ internal static class NativeThreatClassifierProbe
     private static void Facts()
     {
         var pawns = new List<P> {
-            Pawn("raider", new ThreatFacts { FactionHostile = true, FactionId = "Faction_9", X = 50, Z = 0 }),
+            Pawn("raider", new ThreatFacts { FactionHostile = true, X = 50, Z = 0 }),
             Pawn("wolf", new ThreatFacts { Mental = "ManhunterPermanent", Predator = true, X = 100, Z = 100 }),
-            Pawn("hostileDowned", new ThreatFacts { FactionHostile = true, FactionId = "Faction_9", Downed = true, Predator = true, PredatorHunt = true, X = 1, Z = 1 }),
+            Pawn("hostileDowned", new ThreatFacts { FactionHostile = true, Downed = true, Predator = true, PredatorHunt = true, X = 1, Z = 1 }),
             Pawn("ourHunter", new ThreatFacts { Ours = true, PredatorHunt = true, HasPrey = true, PreyOurs = false, Predator = true, X = 200, Z = 0 }),
             Pawn("wildOnDeer", new ThreatFacts { PredatorHunt = true, HasPrey = true, PreyOurs = false, Predator = true, X = 60, Z = 0 }),
             Pawn("wildOnCorpse", new ThreatFacts { PredatorHunt = true, HasPrey = true, PreyOurs = true, Predator = true, X = 12, Z = 7 }),
@@ -66,9 +66,9 @@ internal static class NativeThreatClassifierProbe
 
         Check(Ids(t.Pawns) == "raider,wolf,hostileDowned,ourHunter,wildOnDeer,wildOnCorpse,wildNoPrey,neutralDowned,downedPredator,edgePredator", "rows in scan order: " + Ids(t.Pawns));
         var raider = Row(t, "raider");
-        Check(raider.FactionHostile == true && raider.Faction?.Id == "Faction_9" && raider.NearestColonistDistance == 40 && raider.MentalState == null && raider.Passive == null, "faction hostile facts");
+        Check(raider.FactionHostile == true && raider.NearestColonistDistance == 40 && raider.MentalState == null && raider.Passive == null, "faction hostile facts");
         var wolf = Row(t, "wolf");
-        Check(wolf.MentalState == "ManhunterPermanent" && wolf.Predator == true && wolf.FactionHostile != true && wolf.Faction == null && wolf.NearestColonistDistance == 100, "manhunter facts");
+        Check(wolf.MentalState == "ManhunterPermanent" && wolf.Predator == true && wolf.FactionHostile != true && wolf.NearestColonistDistance == 100, "manhunter facts");
         var hd = Row(t, "hostileDowned");
         Check(hd.FactionHostile == true && hd.Downed == true && hd.Predator == true && hd.PredatorHunt == true && hd.Prey == null && hd.PreyIsOurs == null, "every fact rides together");
         var ourHunter = Row(t, "ourHunter");
@@ -95,7 +95,7 @@ internal static class NativeThreatClassifierProbe
     private static void NoColonists()
     {
         var pawns = new List<P> {
-            Pawn("raider", new ThreatFacts { FactionHostile = true, FactionId = "F", X = 1, Z = 1 }),
+            Pawn("raider", new ThreatFacts { FactionHostile = true, X = 1, Z = 1 }),
             Pawn("wildNoPrey", new ThreatFacts { PredatorHunt = true, Predator = true }),
             Pawn("downedPredator", new ThreatFacts { Downed = true, Predator = true }),
         };
@@ -108,9 +108,9 @@ internal static class NativeThreatClassifierProbe
     private static void Passive()
     {
         var pawns = new List<P> {
-            Pawn("dormantSpider", new ThreatFacts { FactionHostile = true, FactionId = "Insect", Passive = true, X = 3, Z = 0 }),
-            Pawn("angrySpider", new ThreatFacts { FactionHostile = true, FactionId = "Insect", Passive = false, X = 4, Z = 0 }),
-            Pawn("raider", new ThreatFacts { FactionHostile = true, FactionId = "F", X = 5, Z = 0 }),
+            Pawn("dormantSpider", new ThreatFacts { FactionHostile = true, Passive = true, X = 3, Z = 0 }),
+            Pawn("angrySpider", new ThreatFacts { FactionHostile = true, Passive = false, X = 4, Z = 0 }),
+            Pawn("raider", new ThreatFacts { FactionHostile = true, X = 5, Z = 0 }),
         };
         var (t, _) = Run(pawns, Colonists, 30);
         Check(t.Pawns.Count == 3 && t.Pawns[0].Passive != null && t.Pawns[0].Passive == true, "dormant insect is passive");
@@ -123,7 +123,7 @@ internal static class NativeThreatClassifierProbe
     private static void ZeroRadius()
     {
         var pawns = new List<P> {
-            Pawn("raider", new ThreatFacts { FactionHostile = true, FactionId = "F", X = 0, Z = 0 }),
+            Pawn("raider", new ThreatFacts { FactionHostile = true, X = 0, Z = 0 }),
             Pawn("downedPredator", new ThreatFacts { Downed = true, Predator = true, X = 0, Z = 0 }),
         };
         var (t, scan) = Run(pawns, Colonists, 0);

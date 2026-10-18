@@ -101,7 +101,7 @@ namespace HomeBridge.BridgeTools
                 }
                 subscription = request;
                 capturedWrites = -1; // the new subscription publishes at once
-                return new Obs.SnapshotStreamReply { Outcome = new Obs.SnapshotStreamOpened { Name = "in-process" } };
+                return new Obs.SnapshotStreamReply { Outcome = new Obs.SnapshotStreamOpened() };
             }
         }
 

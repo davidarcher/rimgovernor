@@ -112,10 +112,8 @@ namespace HomeBridge.BridgeTools
                 var role = room.Role;
                 if (role == null) throw new InvalidOperationException();
                 row = row with { Role = Name(role.defName) };
-                var label = room.GetRoomRoleLabel();
-                if (label != null) row = row with { Label = PlacementPreviewOperation.Diagnostic(label) };
             }
-            catch (Exception) { } // the role and label stay unobserved
+            catch (Exception) { } // the role stays unobserved
             row = row with { Extents = new Obs.Rectangle { Minimum = Cell(new IntVec3(cells.Min(c => c.x), 0, cells.Min(c => c.z))), Maximum = Cell(new IntVec3(cells.Max(c => c.x), 0, cells.Max(c => c.z))) } };
             row = row with { Center = Cell(Center(cells)) };
             var held = cells.Where(c => !c.Fogged(map)).ToList();
@@ -151,7 +149,7 @@ namespace HomeBridge.BridgeTools
                     if (!inside.InBounds(map) || inside.GetRoom(map) != room) continue;
                     var outside = door.Position - offset;
                     var entry = new Obs.RoomDoor { Cell = Cell(door.Position), Outside = Cell(outside),
-                        Id = door.GetUniqueLoadID(), PlayerOwned = door.Faction == Faction.OfPlayerSilentFail,
+                        PlayerOwned = door.Faction == Faction.OfPlayerSilentFail,
                         Open = door.Open, HoldOpen = door.HoldOpen, BlockedOpen = door.BlockedOpenMomentary,
                         Forbidden = door.IsForbidden(Faction.OfPlayerSilentFail) };
                     var far = outside.InBounds(map) ? outside.GetRoom(map) : null;
@@ -163,7 +161,7 @@ namespace HomeBridge.BridgeTools
             row = row with { Snapshot = NativeObservationSnapshot.Snapshot("room", context, (row.Id ?? ""), w => {
                 w.Write(row.CellCount.GetValueOrDefault()); w.Write(row.OpenRoofCount.GetValueOrDefault()); w.Write(row.Role??""); w.Write(row.Fogged.GetValueOrDefault());
                 w.Write(row.Burning.GetValueOrDefault()); w.Write(row.TemperatureControl.GetValueOrDefault()); w.Write(row.PerishableContents.GetValueOrDefault());
-                foreach (var door in row.Doors) { w.Write((door.Cell?.X).GetValueOrDefault()); w.Write((door.Cell?.Z).GetValueOrDefault()); w.Write((door.Outside?.X).GetValueOrDefault()); w.Write((door.Outside?.Z).GetValueOrDefault()); w.Write(door.Outdoors is not null ? (door.Outdoors.GetValueOrDefault() ? 2 : 1) : 0); w.Write((door.Id ?? "")); w.Write(door.PlayerOwned.GetValueOrDefault()); w.Write(door.Open.GetValueOrDefault()); w.Write(door.HoldOpen.GetValueOrDefault()); w.Write(door.BlockedOpen.GetValueOrDefault()); w.Write(door.Forbidden.GetValueOrDefault()); }
+                foreach (var door in row.Doors) { w.Write((door.Cell?.X).GetValueOrDefault()); w.Write((door.Cell?.Z).GetValueOrDefault()); w.Write((door.Outside?.X).GetValueOrDefault()); w.Write((door.Outside?.Z).GetValueOrDefault()); w.Write(door.Outdoors is not null ? (door.Outdoors.GetValueOrDefault() ? 2 : 1) : 0); w.Write(door.PlayerOwned.GetValueOrDefault()); w.Write(door.Open.GetValueOrDefault()); w.Write(door.HoldOpen.GetValueOrDefault()); w.Write(door.BlockedOpen.GetValueOrDefault()); w.Write(door.Forbidden.GetValueOrDefault()); }
                 foreach (var quantity in row.Contents) { w.Write((quantity.DefName ?? "")); w.Write(quantity.Units.GetValueOrDefault()); }
                 foreach (var bed in beds) { w.Write(bed.GetUniqueLoadID()); foreach (var owner in bed.OwnersForReading.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) w.Write(owner.GetUniqueLoadID()); }
             }) };

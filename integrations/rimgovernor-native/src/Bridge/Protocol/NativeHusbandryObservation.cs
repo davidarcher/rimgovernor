@@ -23,9 +23,9 @@ namespace HomeBridge.BridgeTools
         internal static Obs.HusbandryReply HandleReadHusbandry(Obs.HusbandryRequest request)
         {
             if (!ValidateHusbandry(request, out var failure0)) return new Obs.HusbandryReply { Outcome = new Obs.HusbandryReplyOutcome.FailureCase(failure0) };
-            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
+            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out _, out var failure))
                 return new Obs.HusbandryReply { Outcome = new Obs.HusbandryReplyOutcome.FailureCase(failure) };
-            try { return new Obs.HusbandryReply { Outcome = Husbandry(map, request, context) }; }
+            try { return new Obs.HusbandryReply { Outcome = Husbandry(map, request) }; }
             catch (Exception) { return new Obs.HusbandryReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native husbandry facts could not be read completely.") }; }
         }
 
@@ -35,7 +35,7 @@ namespace HomeBridge.BridgeTools
             return request?.Scope?.ExpectedIdentity != null;
         }
 
-        private static Obs.HusbandrySnapshot Husbandry(Map map, Obs.HusbandryRequest request, Common.ObservationContext context)
+        private static Obs.HusbandrySnapshot Husbandry(Map map, Obs.HusbandryRequest request)
         {
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
             var animals = map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Animal && p.Faction == player).OrderBy(p => p.thingIDNumber).ToList();
@@ -44,7 +44,7 @@ namespace HomeBridge.BridgeTools
             // same read the player herd uses.
             if (request.IncludeWild.GetValueOrDefault())
                 animals.AddRange(map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Animal && p.Faction == null && !p.Dead).OrderBy(p => p.thingIDNumber));
-            var snapshot = new Obs.HusbandrySnapshot { Context = context };
+            var snapshot = new Obs.HusbandrySnapshot();
             foreach (var a in animals)
             {
                 var row = new Obs.HusbandryAnimal { Pawn = NativePawnObservationTools.Ref(a), Animal = NativePawnDetails.Animal(a) };

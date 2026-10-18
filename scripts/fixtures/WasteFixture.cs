@@ -310,7 +310,7 @@ namespace HomeBridge.BridgeTools
                 return (object)new { equal = offBytes.SequenceEqual(onBytes) && resourcesEqual, resourcesEqual, resourceRows,
                     resourcesOffMs = System.Math.Round(offMs, 1), resourcesOnMs = System.Math.Round(onMs, 1), offBytes = offBytes.Length, onBytes = onBytes.Length,
                     upkeepItems = upkeep?.Items.Count ?? 0, upkeepStructures = upkeep?.Structures.Count ?? 0,
-                    upkeepFilth = upkeep?.Filth.Count ?? 0, upkeepBeds = upkeep?.Beds.Count ?? 0,
+                    upkeepBeds = upkeep?.Beds.Count ?? 0,
                     wasteRows = on.Waste?.Outcome?.Items.Count ?? 0 };
             }
         }

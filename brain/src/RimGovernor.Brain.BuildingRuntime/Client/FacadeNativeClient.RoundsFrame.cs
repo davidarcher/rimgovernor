@@ -223,7 +223,7 @@ public sealed partial class FacadeNativeClient
                 table = table.Set(id, row);
             }
         }
-        return (new PbObservations.ThingsSnapshot { Context = view.Snapshot.Context, Things = [.. rows] }, new Things(table));
+        return (new PbObservations.ThingsSnapshot { Things = [.. rows] }, new Things(table));
     }
 
     /// <summary>
@@ -282,7 +282,6 @@ public sealed partial class FacadeNativeClient
         var rows = new PbObservations.PawnSnapshot
         {
             Context = v.Pawns.Context,
-            Completeness = v.Pawns.Completeness,
             MeditateAssignmentAvailable = v.Pawns.MeditateAssignmentAvailable,
             Pawns = [.. output],
         };
