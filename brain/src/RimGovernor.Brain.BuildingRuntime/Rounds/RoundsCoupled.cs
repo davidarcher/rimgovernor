@@ -125,6 +125,8 @@ public sealed partial class Rounder
                 ["explanation_truncated"] = selection.Rejected.Count > 16,
                 ["generation_truncated"] = selection.GenerationTruncated, ["search_truncated"] = selection.Selection.SearchTruncated,
                 ["composition_expansions"] = selection.CompositionExpansions, ["search_expansions"] = selection.Selection.Expansions,
+                ["search_phases"] = selection.SearchPhases.ToDictionary(p => p.Phase, p => (object?)p.Expansions),
+                ["selected_phase"] = selection.SelectedPhase, ["warm_start"] = selection.WarmStart,
                 ["uncertainty"] = selection.Selection.Findings,
                 ["planned_rooms"] = selection.Selected.PlannedRooms.Select(r => new Dictionary<string, object?>
                 { ["room"] = r.Room, ["completed_sites"] = r.CompletedSites.ToArray(), ["complete"] = r.Complete.ToArray() }).ToArray(),

@@ -24,8 +24,15 @@ public sealed partial record ForecastCoupledSelection(ForecastActivityOutcomeCom
     public int CompositionExpansions { get; init; }
     public EquatableArray<ForecastServiceInvestment> ServiceInvestments { get; init; }
     public EquatableArray<ForecastDeferredPawn> Deferred { get; init; }
+    /// <summary>The search's expansions per phase it reached (#3563): baseline, warm, seed, unserved, extend, confirm, sweep.</summary>
+    public EquatableArray<ForecastSearchPhase> SearchPhases { get; init; }
+    /// <summary>The phase in which the chosen portfolio first became the leader; "baseline" when nothing beat it.</summary>
+    public string SelectedPhase { get; init; } = "";
+    /// <summary>"" without a previous selection; "seeded" when the previous selection resolved to current roots and was evaluated first; "missing" when none of its ids resolved.</summary>
+    public string WarmStart { get; init; } = "";
 }
 public sealed record ForecastDeferredPawn(string Pawn, Cell Location, long Until);
+public sealed record ForecastSearchPhase(string Phase, int Expansions);
 public sealed record ForecastPortfolioEvidence(EquatableArray<string> Commitments,
     ForecastConsequenceVector? Consequences, string Reason);
 
@@ -48,9 +55,10 @@ public sealed partial record ForecastCoupledSelection
     /// Order: single roots, screened, for up to a quarter of the budget; the leader plus each other root,
     /// screened, repeated from each new leader until none improves it; the final leader at the full
     /// per-portfolio bound; then the full cardinality sweep (singles, pairs, ...) at that bound, skipping
-    /// subsets already evaluated at it.</summary>
+    /// subsets already evaluated at it. <paramref name="warmStart"/>, the previous review's selected ids, is screened
+    /// before the seed pass (#3563) so the extension starts from last review's leader when it still stands.</summary>
     public static ForecastCoupledSelection CompareActivityOutcomes(ColonyForecastRequest request,
-        ForecastCoupledCandidates candidates, int budget = 16384)
+        ForecastCoupledCandidates candidates, int budget = 16384, IReadOnlyList<string>? warmStart = null)
     {
         if (budget < 0) throw new DomainException("negative portfolio budget");
         // The in-game cost of the comparator: the review runs its planners in parallel, so only this span times it.
@@ -105,6 +113,9 @@ public sealed partial record ForecastCoupledSelection
         var unserved = new List<string[]>();
         // Establish the incumbent before spending optional search; report that mandatory work as well.
         var expansions = baselineScenario.Expansions; var truncated = baselineScenario.Truncated;
+        // Expansions per phase and the phase that found the chosen subset (#3563).
+        var phases = new List<ForecastSearchPhase>(); var phase = "baseline"; var phaseStart = 0; var selectedPhase = "baseline";
+        void Phase(string next) { phases.Add(new(phase, expansions - phaseStart)); phaseStart = expansions; phase = next; }
         // Need roots come in dozens of time variants per pawn; ordered by id they would spend the budget before any investment root is reached.
         var alternatives = candidates.Alternatives.Concat(candidates.Incumbents).OrderBy(c => c.ExclusiveOutcome.StartsWith("need/", StringComparison.Ordinal) ? 1 : 0)
             .ThenBy(c => c.Id, StringComparer.Ordinal).ToArray();
@@ -269,7 +280,11 @@ public sealed partial record ForecastCoupledSelection
                 // Consequence ties never release a retained incumbent to save nominal labor.
                 var retainsSelectedIncumbents = selected.Where(incumbentIds.Contains).All(id => additions.Any(c => c.Id == id));
                 if (best.Feasible != Known(true) || rank < 0 || rank == 0 && !bestIsBaseline && retainsSelectedIncumbents && vector.Labor < bestVector.Labor)
-                { best = outcome; bestVector = vector; selected = additions.Select(c => c.Id).ToArray(); bestIsBaseline = false; }
+                {
+                    var ids = additions.Select(c => c.Id).ToArray();
+                    if (!ids.SequenceEqual(selected, StringComparer.Ordinal)) selectedPhase = phase;
+                    best = outcome; bestVector = vector; selected = ids; bestIsBaseline = false;
+                }
                 else evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), vector, "consequence_or_incumbent"));
             }
             return expansions < budget;
@@ -320,8 +335,24 @@ public sealed partial record ForecastCoupledSelection
             return true;
         }
         var continueSearch = candidates.Incumbents.Count == 0 || Evaluate([]);
+        // The previous review's selection first (#3563): each id by exact match, else the first variant of the same root before
+        // "/composition/" (the composition numbers a root's variants per review), screened like a seed. When it still beats
+        // the baseline the greedy extension starts from it instead of re-finding it one root at a time.
+        var warmStartState = "";
+        if (warmStart is { Count: > 0 })
+        {
+            var byPrefix = new Dictionary<string, int>(StringComparer.Ordinal);
+            for (var i = alternatives.Length - 1; i >= 0; i--) byPrefix[RootPrefix(alternatives[i].Id)] = i;
+            var warm = new SortedSet<int>();
+            foreach (var id in warmStart)
+                if (rootIndex.TryGetValue(id, out var exact)) warm.Add(exact);
+                else if (byPrefix.TryGetValue(RootPrefix(id), out var variant)) warm.Add(variant);
+            warmStartState = warm.Count == 0 ? "missing" : "seeded";
+            if (warm.Count > 0 && continueSearch) { Phase("warm"); continueSearch = Evaluate(warm.Select(i => alternatives[i]).ToArray(), ScreenBound); }
+        }
         if (continueSearch)
         {
+            Phase("seed");
             // Seed pass: screened single roots until a quarter of the budget is spent (every root if that is cheaper).
             seedLimit = budget / SeedShare; leafBound = ScreenBound;
             continueSearch = Search(0, 1, []) || seedSpent;
@@ -330,10 +361,14 @@ public sealed partial record ForecastCoupledSelection
         }
         // Pair each unserved construction root with the other roots (service, rest, food) so the investment is judged with its use.
         if (continueSearch && bestIsBaseline)
+        {
+            Phase("unserved");
             foreach (var leader in unserved.ToArray())
                 if (!Extend(leader)) { continueSearch = false; truncated = true; break; }
+        }
         if (continueSearch && !bestIsBaseline)
         {
+            Phase("extend");
             // Greedy to a fixpoint: a portfolio that beat the leader becomes the leader and is extended in turn, so
             // a set of any cardinality is reached one root at a time. Each level is bounded by the roots, not by a
             // sweep of subsets, and ends when no root improves the leader. Selection is ranked by the same
@@ -347,12 +382,15 @@ public sealed partial record ForecastCoupledSelection
             while (continueSearch && !selected.SequenceEqual(before, StringComparer.Ordinal));
             if (continueSearch)
             {
+                Phase("confirm");
                 var members = selected.ToHashSet(StringComparer.Ordinal);
                 if (!Evaluate(alternatives.Where(c => members.Contains(c.Id)).ToArray())) { continueSearch = false; truncated = true; }
             }
         }
+        if (continueSearch) Phase("sweep");
         for (var size = 1; continueSearch && size <= alternatives.Length; size++)
             if (!Search(0, size, [])) { truncated = true; break; }
+        Phase("end");
         foreach (var (reasons, cut) in screenedByKey.Values) { findings.UnionWith(reasons); truncated |= cut; }
         if (truncated) findings.Add("portfolio_search_truncated");
         if (candidates.Truncated) findings.Add("portfolio_generation_truncated");
@@ -378,7 +416,15 @@ public sealed partial record ForecastCoupledSelection
             baselineVector, bestVector, EquatableArray.From(evidence), request.HorizonDays * GameTime.TicksPerDay, candidates.Truncated)
         { CompositionExpansions = candidates.CompositionExpansions,
             ServiceInvestments = ForecastServiceInvestments.ServiceInvestmentsOf(baseline, best, candidates.Context, request.HorizonDays * GameTime.TicksPerDay),
-            Deferred = EquatableArray.From(deferred.Take(deferredCapacity)) };
+            Deferred = EquatableArray.From(deferred.Take(deferredCapacity)),
+            SearchPhases = EquatableArray.From(phases), SelectedPhase = selectedPhase, WarmStart = warmStartState };
+    }
+
+    /// <summary>A root's id before its per-review composition number (#3563).</summary>
+    private static string RootPrefix(string id)
+    {
+        var at = id.IndexOf("/composition/", StringComparison.Ordinal);
+        return at < 0 ? id : id[..at];
     }
 
     /// <summary>Whether two distinct commitments can share a portfolio: no common exclusive outcome, and neither's outcome

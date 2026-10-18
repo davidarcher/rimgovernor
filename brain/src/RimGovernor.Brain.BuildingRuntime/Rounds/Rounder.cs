@@ -67,6 +67,9 @@ public sealed partial class Rounder
     /// </summary>
     internal ReviewMemory<PlannedSelection> RoomSelection = new(new());
 
+    /// <summary>The ids the latest coupled comparison that selected anything chose (#3563): the next search's warm start; derived state, empty until the first such review after a restart.</summary>
+    internal ReviewMemory<EquatableArray<string>> CoupledMemory = new([]);
+
     /// <summary>Since when each room has had unfinished blueprints or frames; see noteStall.</summary>
     internal Dictionary<string, RoomStall> RoomStalls = [];
 
@@ -691,7 +694,7 @@ public sealed partial class Rounder
         var vOpenBills = await OpenBillsAsync(state.Snapshot, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { OpenBills = [.. vOpenBills] });
         var reconsideration = ForecastIncumbentPreparation.PrepareCoupledIncumbents(reading.Projection.Facts, batches, workActions);
-        reading = reading.WithFacts(_ => reconsideration.Facts);
+        reading = reading.WithFacts(_ => reconsideration.Facts with { PreviousCoupledSelection = CoupledMemory.Get(state.Snapshot) });
         // Tier 2 (#3531): once per review, before the comparison, so the tasks of research and sowing carry their credit.
         IReadOnlyDictionary<string, int> goalEtas = new Dictionary<string, int>();
         if (reading.Projection.Facts.CoupledAlternatives is { } coupled)
@@ -713,6 +716,7 @@ public sealed partial class Rounder
         TradeMemory.Set(result.Review.Snapshot, result.Needs.Trade);
         WorkAssignments.Set(result.Review.Snapshot, result.Needs.WorkAssignments);
         NoteGearChoices(GearChoices, result.Review.Snapshot, reading.Projection.Facts.CoupledAlternatives, result.Needs.CoupledSelection);
+        if (result.Needs.CoupledSelection is { Selection.Selected.Length: > 0 } chosen) CoupledMemory.Set(result.Review.Snapshot, EquatableArray.From(chosen.Selection.Selected));
         RoomSelection.Set(result.Review.Snapshot, PlannedSelectionReviewed(RoomSelection.Get(result.Review.Snapshot), reading.Projection, result.Needs.CoupledSelection));
         GoalEta.Set(result.Review.Snapshot, goalEtas);
         if (result.Needs.CoupledSelection is { } compared) GoalInfeasible.Set(result.Review.Snapshot, GoalRules.InfeasibleOf(compared));
@@ -726,6 +730,9 @@ public sealed partial class Rounder
             // search's expansions against the search bound (#3556).
             ("inspect_ms", result.Needs.InspectMs),
             ("coupled_search_expansions", result.Needs.CoupledSelection?.Selection.Expansions ?? -1),
+            // The search's expansions per phase, the phase that found the chosen subset and whether the previous selection seeded it (#3563).
+            ("search_phases", result.Needs.CoupledSelection is { } searched ? searched.SearchPhases.ToDictionary(p => p.Phase, p => (object?)p.Expansions) : null),
+            ("selected_phase", result.Needs.CoupledSelection?.SelectedPhase), ("warm_start", result.Needs.CoupledSelection?.WarmStart),
         };
         attrs.AddRange(RoundsFoodAttrs(reading.Projection.Facts, Seasonal(reading.Projection.Facts)));
         attrs.Add(("hunt_sources", reading.Projection.Acquisition.TryGetValue(out var offered) ? offered.Count(s => s.Hunt && s.Food) : -1));

@@ -96,7 +96,10 @@ search and 32 selected activities. Stable ordering makes replay deterministic;
 the result is best found within bounds. Partial bundles remain expandable even
 when neither constituent has isolated benefit.
 
-Traversal is incumbent-seeded and screened. Single roots come first, only until a
+Traversal is incumbent-seeded and screened. The previous review's selected ids come first (#3563): each
+by exact match, else the first variant of the same root before `/composition/`, screened
+like a seed, so the extension below starts from last review's leader when it still beats
+the baseline. Single roots come next, only until a
 quarter of the budget is spent, each evaluated at a screening bound of 64 scheduler
 expansions (the depth-first search finds its first complete plans within a few
 expansions per activity). The best portfolio found is then extended with each other
@@ -110,7 +113,9 @@ it. A schedule search that finished within the screening bound is complete at an
 a truncated one is searched again at the larger bound. A budget that cannot finish
 the single roots still reaches further contributions, and truncation stays explicit
 (`portfolio_search_truncated`). A screened search's truncation is reported only when no
-full-bound search of the same schedule follows. See
+full-bound search of the same schedule follows. The `rounds_review` and `coupled_selection` rows report
+the expansions per phase reached (`search_phases`), the phase in which the chosen subset first
+led (`selected_phase`) and whether the previous selection seeded the search (`warm_start`). See
 [the measured cost](../testing/portfolio-allocations.md#fixpoint-extension-with-screened-evaluation-3215)
 and the [first extension](../testing/portfolio-allocations.md#incumbent-seeded-extension-3197).
 

@@ -100,6 +100,40 @@ public sealed class ForecastCoupledSelectionTests
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, EquatableArray.From(incumbent), new());
         return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget);
     }
+    private static readonly string[] NoSuchRoot = ["no/such/root"];
+    private static ForecastCoupledSelection SelectWarm(RoundsFacts facts, IReadOnlyList<string> warmStart)
+    {
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), Horizon / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, warmStart: warmStart);
+    }
+
+    // #3563: the search reports its expansions per phase and the phase that found the chosen subset; the previous selection seeds the next search.
+    [Fact]
+    public void SearchPhasesSumToExpansionsAndThePreviousSelectionSeedsTheNextSearch()
+    {
+        var facts = Review();
+        var cold = Select(facts);
+        Assert.NotEmpty(cold.Selection.Selected);
+        Assert.Equal(cold.Selection.Expansions, cold.SearchPhases.Sum(p => p.Expansions));
+        Assert.Equal("baseline seed extend confirm sweep", string.Join(" ", cold.SearchPhases.Select(p => p.Phase)));
+        Assert.Contains(cold.SelectedPhase, cold.SearchPhases.Select(p => p.Phase));
+        Assert.Equal("", cold.WarmStart);
+
+        var warm = SelectWarm(facts, cold.Selection.Selected);
+        Assert.Equal("seeded", warm.WarmStart);
+        Assert.Equal("warm", warm.SelectedPhase);
+        Assert.Equal(cold.Selection.Selected, warm.Selection.Selected);
+        Assert.Equal("baseline warm seed extend confirm sweep", string.Join(" ", warm.SearchPhases.Select(p => p.Phase)));
+
+        // A previous id whose composition number moved still finds its root; an unknown id seeds nothing and changes nothing.
+        var renumbered = SelectWarm(facts, cold.Selection.Selected.Select(id => id.Contains("/composition/", StringComparison.Ordinal) ? id[..id.IndexOf("/composition/", StringComparison.Ordinal)] + "/composition/999" : id).ToArray());
+        Assert.Equal("seeded", renumbered.WarmStart);
+        var missing = SelectWarm(facts, NoSuchRoot);
+        Assert.Equal("missing", missing.WarmStart);
+        Assert.Equal(cold.Selection.Selected, missing.Selection.Selected);
+        Assert.Equal(cold.Selection.Expansions, missing.Selection.Expansions);
+    }
 
     // #3546: the selection reports harm_capability_unassessed, with the specific finding, only when the chosen outcome could not price harm.
     [Fact]

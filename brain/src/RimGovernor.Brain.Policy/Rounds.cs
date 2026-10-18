@@ -480,6 +480,8 @@ public sealed record RoundsFacts
     public EquatableArray<PlannedRoom> PlannedShelters { get; init; }
     /// <summary>Existing journal ownership, not forecast progress.</summary>
     public bool CoupledWorkActive { get; init; }
+    /// <summary>The ids the latest coupled comparison selected (#3563): the warm start of this review's search; empty before the first selection after a restart.</summary>
+    public EquatableArray<string> PreviousCoupledSelection { get; init; }
     public EssentialServiceInputs EssentialInputs { get; init; } = new();
 
     public Fact<long> Wood { get; init; }
@@ -829,7 +831,7 @@ public static partial class RoundsRules
         var r = new RoundsFindings { Latches = latches, ResourceDemand = demand };
         if (f.CoupledAlternatives is { } coupled)
             r.CoupledSelection = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("observed-review", f.Tick.Value),
-                1, f, demand, [], new()), coupled);
+                1, f, demand, [], new()), coupled, warmStart: f.PreviousCoupledSelection);
         // The disaster history the disaster family's Needs read (#3304).
         r.Disaster = DisasterRules.ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuitTick);
         r.Trade = TradeReviewOf(f, p, medicine, demand);
