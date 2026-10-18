@@ -192,3 +192,28 @@ public interface ILifecycleWriter
 
     Task<MenuReply> ReadMenuAsync(string requestId, CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// One immutable snapshot of the player's goals: the stored record. Per-goal and per-theme status joins it when the
+/// goals Family derives it (#3494); until then the record is all it carries.
+/// </summary>
+public sealed record GoalsSnapshot(GoalsRecord Record);
+
+/// <summary>
+/// The in-process read of the player's goals for the in-game panel (#3492). It returns the cached snapshot of the
+/// colony the player is in and never triggers inference or a native call, so the panel polls it off the game thread.
+/// </summary>
+public interface IGoalsView
+{
+    GoalsSnapshot Current();
+}
+
+/// <summary>
+/// The in-process write of the player's goals. A save is validated, stored for the colony the player is in and
+/// wakes the goals Family for its next review. An invalid record, or a save while no colony is observed, throws
+/// <see cref="DomainException"/> with the reason and leaves the stored record unchanged.
+/// </summary>
+public interface IGoalsEditor
+{
+    Task SaveAsync(GoalsRecord record, CancellationToken cancellationToken);
+}

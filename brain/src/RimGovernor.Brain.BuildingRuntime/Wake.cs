@@ -25,6 +25,9 @@ public sealed class WakeSignal
     private readonly HashSet<Facts.Section> _sections = [];
     private bool _authority;
 
+    // The planners marked due by name (NotifyPlanner), until the step loop takes them.
+    private readonly HashSet<string> _planners = [];
+
     // Set when colony events were lost: the step that takes the evidence plans Full.
     private bool _full;
 
@@ -82,6 +85,16 @@ public sealed class WakeSignal
         _ch.Writer.TryWrite(true);
     }
 
+    /// <summary>Marks the named planner due at the next step, for a change no fact family carries; a name no composed planner bears is ignored.</summary>
+    public void NotifyPlanner(string planner)
+    {
+        lock (_mu)
+        {
+            _ = _planners.Add(planner);
+        }
+        _ch.Writer.TryWrite(true);
+    }
+
     /// <summary>Signals that colony events were lost: what they would have invalidated is unknown, so the next step plans Full.</summary>
     public void NotifyLost()
     {
@@ -116,10 +129,12 @@ public sealed class WakeSignal
                 Cause = _full ? StepCause.Full : StepCause.Wake,
                 Families = [.. _families.Order()],
                 Sections = [.. _sections.Order()],
+                Planners = [.. _planners.Order(StringComparer.Ordinal)],
                 Authority = _authority,
             };
             _families.Clear();
             _sections.Clear();
+            _planners.Clear();
             _authority = false;
             _full = false;
             return reason;

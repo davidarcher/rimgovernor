@@ -110,9 +110,20 @@ internal sealed class PlannerQueue
                 }
             }
         }
+        if (reason.Planners.Count > 0)
+        {
+            // A planner the wake names is marked; one this host did not compose is not in Entries and is ignored.
+            foreach (var entry in Entries().Where(e => reason.Planners.Contains(e.Name)))
+            {
+                Mark(entry.Name);
+            }
+        }
         if (sections.Count == 0 && families.Count == 0 && !reason.Authority)
         {
-            MarkAll();
+            if (reason.Planners.Count == 0)
+            {
+                MarkAll();
+            }
             return;
         }
         foreach (var entry in Entries())

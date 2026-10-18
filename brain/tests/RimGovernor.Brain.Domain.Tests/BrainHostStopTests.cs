@@ -64,6 +64,10 @@ public sealed class BrainHostStopTests
                 },
                 Ct);
 
+            // No routes were given, and the goals seam (#3492) is still there; with no colony observed the view is empty.
+            Assert.NotNull(host.GoalsEditor);
+            Assert.True(host.GoalsView.Current().Record.IsEmpty);
+
             await host.StopAsync();
 
             Assert.Equal(BrainHostState.Stopped, host.State);

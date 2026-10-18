@@ -165,7 +165,10 @@ Outbound trade missions, in the `family/economy/trade_missions` record (#3316), 
 The player's goals, themes and standing preferences are the colony-scoped `family/goals` record (#3489): minted goal and
 theme ids (`NextId`, never reused), typed `GoalRecord`s of a closed `GoalKind` vocabulary (kinds with no pursuit still
 validate and persist), themes that reference a preset by id with the player's removals, and the preferences owning
-policies read as facts. An empty record deletes the row, and a save made before it simply lacks the key.
+policies read as facts. An empty record deletes the row, and a save made before it simply lacks the key. The panel
+reads it through `BrainHost.GoalsView` (a cached snapshot, never inference) and writes it through
+`BrainHost.GoalsEditor` (validated, stored for the observed colony, wakes the `goals` planner; #3492). Both exist
+whether or not routes are served, and there is no HTTP goals route.
 
 Before accepting a settlement deal, the `economy/trade-mission` Need atomically records bounded
 authorized return definitions/counts and purchase commitment with its Hands

@@ -78,3 +78,47 @@ internal sealed class HostClockSpeed(ClockTargetSpeed target) : IClockSpeedContr
 
     public void Change(PbClock.Speed speed) => target.Set(speed);
 }
+
+/// <summary>
+/// The player's goals over the store (#3492): a cached snapshot for the colony the player is in, reloaded when
+/// that colony changes and replaced by every save. <paramref name="world"/> is the observed player world, null while none is.
+/// </summary>
+internal sealed class HostGoals(StoreJournal journal, Func<RimGovernor.Brain.Store.World?> world, WakeSignal wake) : IGoalsView, IGoalsEditor
+{
+    /// <summary>The goals Family's planner name: its id.</summary>
+    internal const string PlannerName = "goals";
+
+    private readonly object _mu = new();
+    private GoalsRecord? _cached;
+
+    public GoalsSnapshot Current()
+    {
+        if (world() is not { } w)
+        {
+            return new GoalsSnapshot(new GoalsRecord());
+        }
+        lock (_mu)
+        {
+            if (_cached is null || _cached.World != w)
+            {
+                _cached = journal.LoadGoals(w, CancellationToken.None);
+            }
+            return new GoalsSnapshot(_cached);
+        }
+    }
+
+    public Task SaveAsync(GoalsRecord record, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        var w = world() ?? throw new RimGovernor.Brain.Domain.DomainException("no colony is observed");
+        var stored = record with { World = w };
+        stored.Validate();
+        lock (_mu)
+        {
+            journal.SaveGoals(stored, cancellationToken);
+            _cached = stored;
+        }
+        wake.NotifyPlanner(PlannerName);
+        return Task.CompletedTask;
+    }
+}

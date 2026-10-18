@@ -35,6 +35,9 @@ namespace HomeBridge.BridgeTools
         private static BrainHost? host;
         private static HuntEstimateService? huntEstimates;
 
+        /// <summary>The running in-process brain host, null until it has started (the goals panel reads its seam).</summary>
+        public static BrainHost? Host => host;
+
         /// <summary>Called once by <see cref="NativeStartup"/>.</summary>
         internal static void Start()
         {

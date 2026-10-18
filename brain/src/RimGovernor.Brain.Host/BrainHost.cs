@@ -70,6 +70,12 @@ public sealed class BrainHost : IAsyncDisposable
     /// <summary>The state the host is in.</summary>
     public BrainHostState State => (BrainHostState)Volatile.Read(ref _state);
 
+    /// <summary>The player's goals as a cached snapshot (#3492); set once the host has started, whether or not routes are served.</summary>
+    public IGoalsView GoalsView { get; private set; } = null!;
+
+    /// <summary>The validated, in-process write of the player's goals; set with <see cref="GoalsView"/>.</summary>
+    public IGoalsEditor GoalsEditor { get; private set; } = null!;
+
     /// <summary>The suspension the watchdog latched, null while the brain may write.</summary>
     public HostSuspension? Suspension => _steps.Suspension;
 
@@ -209,6 +215,15 @@ public sealed class BrainHost : IAsyncDisposable
             player,
             session,
             _lifetime.Token);
+
+        // The goals seam is in-process and independent of the routes: the panel reads it whether or not HTTP is served.
+        var goals = new HostGoals(journal, () =>
+        {
+            var state = player.State();
+            return state.ObservationKnown && state.Snapshot.IsValid ? Player.PlayerWorld(state.Snapshot) : null;
+        }, wake);
+        GoalsView = goals;
+        GoalsEditor = goals;
 
         HostSnapshots? snapshots = null;
         if (options.Routes is { } routes)

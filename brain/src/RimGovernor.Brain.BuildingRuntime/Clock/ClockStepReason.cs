@@ -55,6 +55,9 @@ public sealed record StepReason
 
     public IReadOnlyList<FactSection> Sections { get; init; } = [];
 
+    /// <summary>The planners (by name) a wake marks due directly, for intent no fact family carries (the player saved goals).</summary>
+    public IReadOnlyList<string> Planners { get; init; } = [];
+
     /// <summary>Set when a wake carried an authority change.</summary>
     public bool Authority { get; init; }
 
@@ -85,6 +88,10 @@ public sealed record StepReason
         foreach (var section in Sections)
         {
             b.Append(' ').Append(Wire.Name(section));
+        }
+        foreach (var planner in Planners)
+        {
+            b.Append(' ').Append(planner);
         }
         return b.ToString();
     }
