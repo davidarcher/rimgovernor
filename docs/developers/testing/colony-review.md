@@ -4,7 +4,7 @@ A nightly review run, not a gate: the governor plays a pinned-seed map for
 an in-game season (a quadrum, 15 days) and the run publishes an hour-by-hour
 report to GitHub Pages for a person (or a model) to skim for bugs.
 
-- **Run** `acceptance colony-review -root <dir> [-output <dir> -seed <s> -days 15 -timeout <d>]`
+- **Run** `acceptance colony-review -root <dir> [-output <dir> -seed <s> -days 15 -timeout <d> -lavapipe-threads <n>]`
   (`brain/src/RimGovernor.Brain.Acceptance/Colony/ColonyReviewCommand.cs`), its own driver outside the
   case runner and the catalog: Crashlanded, three colonists, a 250 map, storyteller on. The seed is
   `ColonyReviewCommand.PinnedSeed` (`review-pinned-1`) every night, one run per seed, so

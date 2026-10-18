@@ -54,6 +54,7 @@ internal static class Root_Update_Patch
 {
     public static void Postfix()
     {
+        FrameMeter.Tick();
         RimBridgeMainThread.Pump();
         RimBridgeAsyncScheduler.Pump();
         RimWorldTickStepper.AdvanceFromRootUpdate(Time.frameCount);
@@ -62,6 +63,42 @@ internal static class Root_Update_Patch
         {
             RimBridgeStartup.OnRuntimeReady();
         }
+    }
+}
+
+/// <summary>
+/// Logs the render loop's cadence every ten wall seconds (frames, mean and worst frame time), so a run on a
+/// software-rendered runner shows how long the game thread takes to come round to a queued hop.
+/// </summary>
+internal static class FrameMeter
+{
+    private const float ReportSeconds = 10f;
+    private static float _windowStart = -1f;
+    private static float _last;
+    private static float _worst;
+    private static int _frames;
+
+    public static void Tick()
+    {
+        var now = Time.realtimeSinceStartup;
+        if (_windowStart < 0f)
+        {
+            _windowStart = now;
+            _last = now;
+            return;
+        }
+
+        _worst = Math.Max(_worst, now - _last);
+        _last = now;
+        _frames++;
+        if (now - _windowStart < ReportSeconds)
+            return;
+
+        var span = now - _windowStart;
+        Log.Message($"[frames] {_frames} frames in {span:F1}s, mean {span / _frames * 1000f:F0} ms, worst {_worst * 1000f:F0} ms");
+        _windowStart = now;
+        _frames = 0;
+        _worst = 0f;
     }
 }
 

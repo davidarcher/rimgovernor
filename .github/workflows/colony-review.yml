@@ -23,6 +23,10 @@ on:
         description: In-game days to play (a quadrum is 15)
         default: '15'
         type: string
+      lavapipe_threads:
+        description: Lavapipe worker threads for the game's software Vulkan device (empty keeps one per core)
+        required: false
+        type: string
   schedule:
     - cron: '17 4 * * *'
 
@@ -119,6 +123,7 @@ jobs:
           REMOTE_BUNDLE_IDENTITY: ${{ secrets.REMOTE_BUNDLE_IDENTITY }}
           RIMGOVERNOR_REVIEW_SEED: ${{ inputs.seed }}
           RIMGOVERNOR_REVIEW_DAYS: ${{ inputs.days }}
+          RIMGOVERNOR_REVIEW_LP_THREADS: ${{ inputs.lavapipe_threads }}
         run: ./trusted/scripts/remote_workflow.ps1 -Phase review
       - name: Record why governed processes exited (#1358)
         if: always() && steps.gate.outcome == 'success'
