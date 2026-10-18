@@ -12,11 +12,11 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// The clock in the bottom-right date readout reads as an AM/PM time with seconds ("3:45:12 PM")
-    /// in place of vanilla's hour ("15h" or "3 PM"), whatever the game's 12/24-hour preference.
+    /// The clock in the bottom-right date readout reads as a time with seconds in place of vanilla's hour: "3:45:12 PM"
+    /// or "15:45:12" for "3 PM" or "15h", following the game's 12/24-hour preference.
     /// <c>DateReadout.DateOnGUI</c> draws its hour from two 24-entry string caches indexed by the
-    /// local hour; the prefix writes the current time into the entry about to be drawn, in both
-    /// caches, so the game's own layout, width and tooltip are untouched. The time is local to the
+    /// local hour; the prefix writes the current time into the entry about to be drawn in each cache,
+    /// in that cache's form, so the game's own layout, width and tooltip are untouched. The time is local to the
     /// viewed tile, as vanilla's hour is. Installed from <see cref="NativeStartup"/> and skipped in
     /// the headless acceptance build.
     /// </summary>
@@ -60,9 +60,8 @@ namespace HomeBridge.BridgeTools
             var dayTick = GenDate.DayTick(Find.TickManager.TicksAbs, longLat.x);
             var hour = dayTick / GenDate.TicksPerHour;
             if (hours24!.Count != GenDate.HoursPerDay || hours12!.Count != GenDate.HoursPerDay) return;
-            var face = ClockFace.Format(dayTick);
-            hours24[hour] = face;
-            hours12[hour] = face;
+            hours24[hour] = ClockFace.Format(dayTick, twelveHour: false);
+            hours12[hour] = ClockFace.Format(dayTick, twelveHour: true);
         }
     }
 }
