@@ -250,12 +250,22 @@ The third cut, the path searches, measured on one colony-review day each of the 
   under 3 ms together. That day's `d_planned` was 1332 ms p50 (p95 2041), double the second profile's 684 ms: the sites
   grow as the colony builds.
 - **What changed.** `NativePathLegs.Batched` runs the read twice: a collecting run in which every leg not yet searched
-  is noted and answered 0, one batched search of the noted legs (`PathFinder.CreateRequest` and `PushRequest` in rounds
-  of 64, two `PathFinderTick` calls per round: the first schedules the round across the game's path job workers, the
-  second completes and resolves it), then the real run against the searched legs. The finder runs the same
-  `PathFinderJob` per request either way, so the legs are those the synchronous search found; a leg the real run asks
-  that the collecting run did not is searched on its own. The round is bounded because every scheduled request holds a
-  pooled grid-sized state and output the finder keeps for good.
+  is noted and answered 0, one batched search of the noted legs (`PathFinder.CreateRequest` and `PushRequest` in rounds,
+  two `PathFinderTick` calls per round: the first schedules the round across the game's path job workers, the second
+  completes and resolves it), then the real run against the searched legs. The finder runs the same `PathFinderJob`
+  per request either way, so the legs are those the synchronous search found; a leg the real run asks that the
+  collecting run did not is searched on its own. The round is the map's spawned pawns plus two (at least four): the
+  finder emits a round's paths together, and the map's `PawnPathPool` reports a leak past twice the spawned pawns plus
+  four paths alive at once.
+- **What the first live day showed (2026-10-18).** In a live colony every batched request of a construction read
+  resolved with no path (440 `Resolved path returned no nodes` warnings over four reads, legs between adjacent cells
+  among them) while the same legs searched synchronously were found, and the empty legs were stored as "no path", so
+  no construction row formed and the builders stood. The paused lab's batched requests resolve with their paths
+  (`observations/construction-route-legs`, paused and while the game ticks); the live trigger is not pinned. The
+  search no longer believes a batched request that resolves with no path: that leg is searched directly before it is
+  stored, and a map whose batched round missed a path the direct search found is searched directly from then on, with
+  one warning in the game's log naming the first such leg. A genuinely unreachable leg costs one direct search per
+  full drop of the store.
 - **After.** `d_planned` 343 ms p50 (p95 420, max 1145), `facade/construction_activity` 271 ms p50 (p95 327: paths
   233, rows 30, legality, thermal and predictions under 2 each); rounds 2532 ms p50 (3315 before), `clock_step`
   5324 ms p50 (5994). The 0.23 s left is the batched searches themselves; the next cut is keeping the legs across

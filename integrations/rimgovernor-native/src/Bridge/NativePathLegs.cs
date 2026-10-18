@@ -15,16 +15,20 @@ namespace HomeBridge.BridgeTools;
 /// colonist is every colonist's: a pawn's cost re-prices the leg's cardinal and diagonal steps at its own move ticks. A
 /// leg is keyed by its origin cell, target and end mode, so a colonist's legs from its own cell are its own.
 /// A read that asks many legs runs <see cref="Batched{T}"/>, which searches them together on the game's path job
-/// workers instead of one at a time on the game thread (#3556). The legs are kept across reads by the map's
-/// <see cref="Store"/> until the map changes under them, so a read finds the legs an earlier read searched.
+/// workers instead of one at a time on the game thread (#3556). A batched request that resolves with no path is not
+/// believed: the leg is searched again on its own, and a map whose batched search misses a path the direct search
+/// finds searches directly from then on (the live game's batched requests all resolved empty, #3556). The legs are
+/// kept across reads by the map's <see cref="Store"/> until the map changes under them, so a read finds the legs an
+/// earlier read searched.
 /// </summary>
 internal sealed class NativePathLegs
 {
     /// <summary>
-    /// Requests pushed to the path finder per scheduling round. Each scheduled search holds a grid-sized state and
-    /// output the finder pools for good, so the round is bounded; the game's workers split a round between them.
+    /// The fewest requests pushed to the path finder per scheduling round. A round's paths are emitted together when
+    /// the finder resolves them (PathFinderTick), and the map's PawnPathPool reports a leak once more than twice the
+    /// spawned pawns plus four paths exist at once, so a round is the spawned pawns plus two, at least this many.
     /// </summary>
-    internal const int BatchRound = 64;
+    internal const int MinRound = 4;
 
     private readonly Map map;
     private readonly Store store;
@@ -91,32 +95,62 @@ internal sealed class NativePathLegs
         return read();
     }
 
-    // Pushes the wanted legs to the path finder in rounds of BatchRound and ticks it twice per round: the first tick
-    // schedules the pushed requests across the job workers (PathFinder.ScheduleBatchedPathJobs), the second completes
-    // them and resolves each request with its path.
+    // Pushes the wanted legs to the path finder in rounds and ticks it twice per round: the first tick schedules the
+    // pushed requests across the job workers (PathFinder.ScheduleBatchedPathJobs), the second completes them and
+    // resolves each request with its path. A request that resolved with no path, or did not resolve, is not stored as
+    // "no path": its leg is searched directly (FindPathNow, the game thread) and that answer is stored. A map whose
+    // batched round missed a path the direct search found is searched directly from then on, with one warning in the
+    // game's log naming the first such leg (#3556).
     private void Search()
     {
         if (wanted.Count == 0) return;
         var started = Stopwatch.GetTimestamp();
         var finder = map.pathFinder;
-        var requests = new List<(Key Key, PathRequest Request, Pawn Pawn)>(BatchRound);
-        for (var first = 0; first < wanted.Count; first += BatchRound)
+        var direct = new List<int>(wanted.Count);
+        if (store.Direct)
         {
-            requests.Clear();
-            for (var i = first; i < wanted.Count && i < first + BatchRound; i++)
+            for (var i = 0; i < wanted.Count; i++) direct.Add(i);
+        }
+        else
+        {
+            var round = Math.Max(MinRound, map.mapPawns.AllPawnsSpawnedCount + 2);
+            var requests = new List<(Key Key, PathRequest Request, Pawn Pawn)>(round);
+            for (var first = 0; first < wanted.Count; first += round)
             {
-                var (pawn, from, to, mode) = wanted[i];
-                var request = finder.CreateRequest(from, to, null, TraverseParms.For(pawn, Danger.None), null, mode, pawn);
-                finder.PushRequest(request);
-                requests.Add((new Key(from, to.Cell, to.Thing, mode), request, pawn));
+                requests.Clear();
+                for (var i = first; i < wanted.Count && i < first + round; i++)
+                {
+                    var (pawn, from, to, mode) = wanted[i];
+                    var request = finder.CreateRequest(from, to, null, TraverseParms.For(pawn, Danger.None), null, mode, pawn);
+                    finder.PushRequest(request);
+                    requests.Add((new Key(from, to.Cell, to.Thing, mode), request, pawn));
+                }
+                finder.PathFinderTick();
+                finder.PathFinderTick();
+                for (var j = 0; j < requests.Count; j++)
+                {
+                    var (key, request, pawn) = requests[j];
+                    if (request.TryGetPath(out var path) && path != null && path.Found) store.Put(key, Measure(map, path, pawn));
+                    else direct.Add(first + j);
+                    request.Dispose();
+                }
             }
-            finder.PathFinderTick();
-            finder.PathFinderTick();
-            foreach (var (key, request, pawn) in requests)
-            {
-                store.Put(key, request.TryGetPath(out var path) && path != null && path.Found ? Measure(map, path, pawn) : null);
-                request.Dispose();
-            }
+        }
+        var missed = 0;
+        string? firstMissed = null;
+        foreach (var i in direct)
+        {
+            var (pawn, from, to, mode) = wanted[i];
+            using var path = finder.FindPathNow(from, to, TraverseParms.For(pawn, Danger.None), peMode: mode);
+            store.Put(new Key(from, to.Cell, to.Thing, mode), path.Found ? Measure(map, path, pawn) : null);
+            if (!path.Found || store.Direct) continue;
+            missed++;
+            firstMissed ??= $"{from} -> {to}, {mode}, for {pawn}";
+        }
+        if (missed > 0)
+        {
+            store.Direct = true;
+            Log.Warning($"[RimGovernor] The batched path search resolved {missed} of {direct.Count} unresolved legs with no path that a direct search found (first: {firstMissed}); this map's legs are searched directly from now on (#3556).");
         }
         Searches += wanted.Count;
         wanted.Clear();
@@ -187,6 +221,12 @@ internal sealed class NativePathLegs
             events.HaulEnrouteAdded += (thing, _, _, _) => Dirty(thing.OccupiedRect());
             events.HaulEnrouteReleased += (thing, _) => Dirty(thing.OccupiedRect());
         }
+
+        /// <summary>
+        /// The map's legs are searched directly, one synchronous search each, because a batched round resolved a leg
+        /// with no path that the direct search found (<see cref="Search"/>). Set for the map's life.
+        /// </summary>
+        internal bool Direct { get; set; }
 
         internal bool TryGet(Key key, out Leg? leg) => legs.TryGetValue(key, out leg);
 
