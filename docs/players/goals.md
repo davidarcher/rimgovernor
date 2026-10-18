@@ -84,9 +84,9 @@ takes to grow in your climate, and the food in stock. Research and sowing pay of
 them by how much sooner the payoff arrives, in the same terms as an hour of food, rest or idle labor. When food is secure
 that hour beats idling, so a researcher at a bench or a grower with a growing zone starts a long project (Devilstrand is
 the worked example: 800 research points, then sowing at Plants 10) instead of waiting for a goal to demand it. When
-food is short, nothing ranks above eating and long projects wait. The apparel payoff of the Devilstrand chain is not yet
-priced in real play ([#3559](https://github.com/davidarcher/rimgovernor/issues/3559)), so that chain does not start on its
-own yet.
+food is short, nothing ranks above eating and long projects wait. The apparel payoff of the Devilstrand chain waits on the
+calibrated raid-exposure table ([#3543](https://github.com/davidarcher/rimgovernor/issues/3543)), so that chain does not
+start on its own yet.
 
 ## Preferences
 
