@@ -146,9 +146,9 @@ before plan creation or Method binding; refusal leaves both unchanged. They do
 not reserve pawns across different owners or prove current native availability.
 
 The initial step families are exact thing-target work (Clean, Repair, Harvest, Research and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns), selected food/count,
-selected bed/rest, selected horseshoes recreation, exact delivery, exact cooking, material Supply, FinishFrame, Approach, Hold, bounded Idle and Standby (explicit idle). Unsupported families are refused, not sent to a
-native economic selector. Other recreation adapters remain outside this
-initial execution slice. Firefighting is an explicit policy-selected emergency revision, not an automatic native fallback. Work givers use forced:false, required capacities,
+selected bed/rest, selected recreation building, exact delivery, exact cooking, material Supply, FinishFrame, Approach, Hold, bounded Idle and Standby (explicit idle). Unsupported families are refused, not sent to a
+native economic selector. Recreation without a building (walks, skygazing, social relaxing, drugs,
+reading) remains outside this initial execution slice. Firefighting is an explicit policy-selected emergency revision, not an automatic native fallback. Work givers use forced:false, required capacities,
 capabilities, native target checks and native reservations. They may still perform
 the normal internal mechanics of their chosen job; this does not model every toil
 as a separate economic decision.
@@ -310,7 +310,7 @@ does not reserve a pawn or authorize native fallback.
 | --- | --- |
 | Ordinary loose permitted food | Enumerate observed edible stack/count alternatives; consumption only after completed ingestion; nutrition waste explicit. Native mechanics choose the chewing position, whose extra travel/mood is unassessed. |
 | Eligible existing bed | Enumerate timing and partial/full recovery; travel occupies the same pawn. No ground-sleep adapter is inferred. |
-| Horseshoes | Enumerate exact observed pin with current tolerance-adjusted gain. Future tolerance and playing-position travel remain unassessed. |
+| Recreation building | Enumerate each observed building a `JoyGiver_InteractBuilding` giver uses (horseshoes, hoopstone, chess, poker, Ur, billiards, televisions, telescope, instruments) that the giver's own `CanBeGivenTo` and `CanInteractWith` admit, with current tolerance-adjusted gain; Hands starts the giver's own play job on exactly that building. Future tolerance and playing-position travel remain unassessed. |
 | No eligible target / exhausted bounds | No feasible candidate or explicit truncation, never an instant need or permission for native AI to choose. |
 | Interrupted needs | Partial rest/recreation service only; unfinished eating contributes no forecast food. Reobserve before journal continuation/release; no replay credit. |
 | Drafted / player-controlled / queued or player-forced work | No voluntary candidate. Existing player/combat authority owns the pawn; a timetable bypass cannot override it. |

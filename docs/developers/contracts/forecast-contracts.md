@@ -780,7 +780,7 @@ target means depends on its producer:
 | Producer | `Kind` | `Target` | Meaning | `MaxPawns` |
 | --- | --- | --- | --- | --- |
 | Native `NativeNeedsForecast` bed row | `rest` | bed thing id | the bed the pawn lies in (`CanUseBedNow`) | observed (`SleepingSlotsCount`) |
-| Native horseshoes pin row | `joy` | pin thing id | the exact recreation object | observed (`joyMaxParticipants`) |
+| Native recreation building row (`NativeRecreation`) | `joy` | building thing id | the exact recreation object | observed (`joyMaxParticipants`) |
 | Practice joy tasks (`ForecastCoupledCandidates`) | `joy` | practice target | the exact practice object | the observed target of that id, else unknown |
 | Native food row (observed stack) | `food` | meal stack thing id, `AvailableCount` = stack size | where to take meals from | observed (10) |
 | `CoupledFoodMethodCandidates.AddEating` (produced or delivered food) | `food` | `cell/x/z` of the delivery cell (`CoupledFoodUse.Location`) | the cell the meal stack will sit in; `Count` is the meal, `AvailableCount` the batch | 10, vanilla's ingest value, the generated stack's capacity |
@@ -792,8 +792,8 @@ target (claims must share one `maxPawns`, and summed stack counts must not excee
 stack). Native fills it from vanilla, never from the target's `Kind`: a food stack
 reads the literal 10 that `JobDriver_Ingest` reserves with (vanilla names no symbol for
 it, so `NativeNeedsForecast.IngestMaxPawns` mirrors it); a bed reads
-`Building_Bed.SleepingSlotsCount`; the horseshoes pin reads `joyMaxParticipants` of the
-`Play_Horseshoes` job def from `DefDatabase`. A value native cannot read (not positive)
+`Building_Bed.SleepingSlotsCount`; a recreation building reads `joyMaxParticipants` of the
+job def of the `JoyGiverDef` that uses it. A value native cannot read (not positive)
 is unknown, which is explicit on the wire and not a guess; what the planner assumes for
 unknown (1) is evaluator policy, not part of the contract. Quantity is the existing
 `StockCount` (the stack size claims sum against), distinct from `AvailableCount`, which

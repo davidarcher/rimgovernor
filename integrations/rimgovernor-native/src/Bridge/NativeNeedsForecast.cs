@@ -50,15 +50,15 @@ internal static class NativeNeedsForecast
             if (state == "eligible")
             {
                 possible ??= map.listerThings.AllThings.Where(t => t.Spawned &&
-                    (t.def.IsNutritionGivingIngestible && t is not Corpse || t is Building_Bed || t.def.defName == "HorseshoesPin"))
-                    .Select(t => (t, t is Building_Bed ? "rest" : t.def.defName == "HorseshoesPin" ? "joy" : "food")).ToArray();
+                    (t.def.IsNutritionGivingIngestible && t is not Corpse || t is Building_Bed || NativeRecreation.GiverFor(t) != null))
+                    .Select(t => (t, t is Building_Bed ? "rest" : NativeRecreation.GiverFor(t) != null ? "joy" : "food")).ToArray();
                 foreach (var (target, group) in possible)
                 {
                     if (target.IsForbidden(pawn)) continue;
                     if (group == "food" && (pawn.needs?.food == null || !target.IngestibleNow
                         || !pawn.WillEat(target) || !FoodSupplyFacts.PolicyAllows(pawn, target))) continue;
                     if (group == "rest" && (pawn.needs?.rest == null || !RestUtility.CanUseBedNow(target, pawn, true))) continue;
-                    if (group == "joy" && (pawn.needs?.joy == null || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))) continue;
+                    if (group == "joy" && !NativeRecreation.Usable(pawn, target, NativeRecreation.GiverFor(target)!)) continue;
                     // Reserve with the claim the service job makes, as bind-time does: a stack or slot another pawn
                     // holds under the same maxPawns stays observable while its capacity lasts.
                     var (kind, count) = group == "food" ? (PawnActivityKind.Eat, IngestWantedCount(pawn, target))
@@ -85,13 +85,11 @@ internal static class NativeNeedsForecast
                             Cell = CellAt(map, target.Position), Bed = BedRoomOf((Building_Bed)target) });
                     else
                     {
-                        var job = DefDatabase<JoyGiverDef>.GetNamed("Play_Horseshoes").jobDef;
+                        var job = NativeRecreation.GiverFor(target)!.jobDef;
                         // Native JoyTickCheckEnd conversion, projected at observed tolerance only; future tolerance is explicit.
-                        var gain = job.joyGainRate * 0.36 / RimGovernor.Brain.Domain.GameTime.TicksPerHour * target.GetStatValue(StatDefOf.JoyGainFactor)
-                            * pawn.needs!.joy.tolerances.JoyFactorFromTolerance(job.joyKind);
-                        targets.Add(new(target.GetUniqueLoadID(), "joy", "", 1, travel, default, default, K(gain))
+                        targets.Add(new(target.GetUniqueLoadID(), "joy", "", 1, travel, default, default, K(NativeRecreation.GainPerTick(pawn, target, job)))
                             { Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(job.joyMaxParticipants), Cell = CellAt(map, target.Position),
-                                Unsupported = ["horseshoes_position_travel", "future_tolerance_changes"] });
+                                Unsupported = ["play_position_travel", "future_tolerance_changes"] });
                     }
                 }
             }
@@ -225,16 +223,15 @@ internal static class NativeNeedsForecast
         if (execution == null || execution.State != "started" || step == null || job == null
             || execution.JobId != job.loadID || job.playerForced || pawn.jobs!.jobQueue.Count != 0
             || pawn.pather.Moving || step.Deadline <= Find.TickManager.TicksGame) return null;
-        // Exact native horseshoes is a stationary final Delay toil; other recreation drivers
+        // A stationary recreation driver's final Delay toil (NativeRecreation.StationaryDriver); billiards' shot loop
         // and sleep's dynamic wake/medical/other-job conditions remain unassessed.
-        if (step.Kind != PawnActivityKind.Recreation || driver?.GetType() != typeof(JobDriver_PlayHorseshoes)
-            || !driver.OnLastToil || driver.ticksLeftThisToil <= 0 || job.doUntilGatheringEnded
-            || job.def != DefDatabase<JoyGiverDef>.GetNamed("Play_Horseshoes").jobDef
+        if (step.Kind != PawnActivityKind.Recreation || !NativeRecreation.StationaryDriver(driver)
+            || !driver!.OnLastToil || driver.ticksLeftThisToil <= 0 || job.doUntilGatheringEnded
             || !job.ignoreJoyTimeAssignment && !pawn.GetTimeAssignment().allowJoy
             || job.targetA.Thing is not Verse.Building target || target.GetUniqueLoadID() != step.Target
+            || job.def != NativeRecreation.GiverFor(target)?.jobDef
             || pawn.needs?.joy is not { } joy || joy.GetType() != typeof(Need_Joy)) return null;
-        var gain = job.def.joyGainRate * 0.36 / RimGovernor.Brain.Domain.GameTime.TicksPerHour
-            * target.GetStatValue(StatDefOf.JoyGainFactor) * joy.tolerances.JoyFactorFromTolerance(job.def.joyKind);
+        var gain = NativeRecreation.GainPerTick(pawn, target, job.def);
         if (!double.IsFinite(gain) || gain <= 0) return null;
         // JoyTickCheckEnd ends strictly above 0.9999, not at the need threshold.
         var full = Math.Max(1, Math.Floor((0.9999 - joy.CurLevel) / gain) + 1);
@@ -295,13 +292,13 @@ internal static class NativeNeedsForecast
     private static int IngestWantedCount(Pawn pawn, Thing food) =>
         Math.Min(food.stackCount, FoodUtility.WillIngestStackCountOf(pawn, food.def, FoodUtility.NutritionForEater(pawn, food)));
     /// <summary>The (maxPawns, stackCount) the vanilla job driver of a service step reserves its target with
-    /// (Ingest: stack, 10, amount; LayDown: bed, SleepingSlotsCount, 0; Play_Horseshoes: pin, joyMaxParticipants, 0). ReservationManager.CanReserve
+    /// (Ingest: stack, 10, amount; LayDown: bed, SleepingSlotsCount, 0; recreation: building, its giver job's joyMaxParticipants, 0). ReservationManager.CanReserve
     /// refuses a claim whose maxPawns differs from an existing one's and sums stack counts, so bind-time checks must pass exactly these.</summary>
     internal static (int MaxPawns, int StackCount) ServiceReservation(PawnActivityKind kind, Thing target, int count) => kind switch
     {
         PawnActivityKind.Eat => (IngestMaxPawns, count),
         PawnActivityKind.Sleep when target is Building_Bed bed => (bed.SleepingSlotsCount, 0),
-        PawnActivityKind.Recreation => (DefDatabase<JoyGiverDef>.GetNamed("Play_Horseshoes").jobDef.joyMaxParticipants, 0),
+        PawnActivityKind.Recreation when NativeRecreation.GiverFor(target) is { } giver => (giver.jobDef.joyMaxParticipants, 0),
         _ => (1, -1),
     };
     /// <summary>The capacity's level now (#3519); unknown without a health tracker.</summary>

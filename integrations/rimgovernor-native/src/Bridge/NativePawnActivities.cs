@@ -39,10 +39,6 @@ namespace HomeBridge.BridgeTools
         // authority change makes the next report due again (voluntary-control.md).
         private static readonly HashSet<Pawn> Reported = new();
         private static readonly ConditionalWeakTable<Job, Offer> Offers = new();
-        private sealed class ExactRecreation : JoyGiver_WatchBuilding
-        {
-            internal Job? At(Pawn pawn, Thing target) => CanInteractWith(pawn, target, false) ? TryGivePlayJob(pawn, target) : null;
-        }
         // The once-guard (taken before the work); installed is the readiness Validate reads (set after it).
         private static int installing;
         private const string HarmonyOwner = "rimgovernor.activity-execution";
@@ -177,7 +173,7 @@ namespace HomeBridge.BridgeTools
                             || pawn.WorkTagIsDisabled(giver.workTags) || (giver.workType != null && pawn.WorkTypeIsDisabled(giver.workType))) return Refuse("Unsupported/incapable activity work.");
                     }
                     if (step.Kind == PawnActivityKind.Eat && (!target.IngestibleNow || !pawn.RaceProps.CanEverEat(target) || step.Count > target.stackCount)) return Refuse("Selected food/count unavailable.");
-                    if (step.Kind == PawnActivityKind.Recreation && (target.def.defName != "HorseshoesPin" || pawn.needs.joy == null || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))) return Refuse("Selected recreation unavailable.");
+                    if (step.Kind == PawnActivityKind.Recreation && (NativeRecreation.GiverFor(target) is not { } joyGiver || !NativeRecreation.Usable(pawn, target, joyGiver))) return Refuse("Selected recreation unavailable.");
                     if (step.Kind == PawnActivityKind.Sleep && !RestUtility.CanUseBedNow(target, pawn, true)) return Refuse("Selected bed unavailable.");
                     if (step.Kind == PawnActivityKind.Deliver && DeliveryRefusal(pawn, target, step) is { } deliveryWhy) return Refuse("Selected delivery unavailable: " + deliveryWhy + ".");
                     if (step.Kind == PawnActivityKind.Supply && !SupplyAllowed(pawn, target, step)) return Refuse("Selected material delivery unavailable.");
@@ -441,8 +437,8 @@ namespace HomeBridge.BridgeTools
             }
             if (step.Kind == PawnActivityKind.Recreation)
             {
-                if (target.def.defName != "HorseshoesPin" || p.needs.joy == null || !p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)) throw new InvalidOperationException("recreation_unavailable");
-                job = new ExactRecreation { def = DefDatabase<JoyGiverDef>.GetNamed("Play_Horseshoes") }.At(p, target);
+                if (NativeRecreation.GiverFor(target) is not { } joyGiver || !NativeRecreation.Usable(p, target, joyGiver)) throw new InvalidOperationException("recreation_unavailable");
+                job = NativeRecreation.PlayJob(p, target, joyGiver);
             }
             if (job == null) throw new InvalidOperationException("job_unavailable");
             // The admitted Method owns this service window; native joy and tolerance still end it.

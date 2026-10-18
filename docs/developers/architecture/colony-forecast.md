@@ -1355,13 +1355,13 @@ Supplied-estimate forecast APIs remain useful for tests, but are not evidence of
 
 The ordinary Rounds read carries `Forecast.Needs`: per-pawn food/rest/recreation
 levels, native current fall/recovery rates, thresholds, food capacity, expiring
-memories, authority state and bounded eligible food/bed/horseshoes targets.
+memories, authority state and bounded eligible food/bed/recreation-building targets.
 `ReviewWorkResources` generates `NeedsAlternatives` from this frame and its shared
 work view. The normal shared portfolio comparison selects supported needs services
 and dispatches through the existing Method journal. No new scheduler,
 state store or game-order writer is introduced.
 
-Generation retains food/count, now/later, partial/full bed recovery and horseshoes
+Generation retains food/count, now/later, partial/full bed recovery and recreation
 alternatives. Counts respect the observed single-ingestion limit and projected
 nutrition wanted; a raw-food serving chews once, not once per item. Target travel
 uses native route cost. Starts include now, the need threshold event, half the
@@ -1398,7 +1398,7 @@ outcomes and poisoning remain explicitly unassessed. Prediction values are
 conditional estimates, not qualified risk or guaranteed completion times.
 Sleep/recreation service uses native gain mechanics; ingestion service reads the
 native chew duration and eating-speed stat. Arrival cost excludes a subsequent
-native chewing-position or horseshoes-position choice, identified in findings.
+native chewing-position or play-position choice, identified in findings.
 
 Memory expiry/fading changes the observed mood target conditionally. Permanent
 memories carry an explicit flag. Unknown expiry, repeated/grouped memories or

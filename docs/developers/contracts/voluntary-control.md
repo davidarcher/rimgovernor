@@ -38,7 +38,7 @@ proves a second Method eating the remainder while the first still owns the stack
 ## Reconsidering observed work
 
 Current work is not automatically excluded from comparison. An exactly observed
-stationary horseshoes service can be represented as retained work in the same
+stationary recreation-building service (the watch and sit-facing drivers, not billiards' shot loop) can be represented as retained work in the same
 portfolio search. Its remaining native toil time and current gain rate supply a
 bounded projection; changing tolerance and early native completion remain explicit
 uncertainties. Sunk progress is already present in current need levels.
@@ -100,7 +100,7 @@ Supervisor clock; readmitting time cannot turn that terminal assignment into ind
 
 | Domain | Owner and present boundary |
 | --- | --- |
-| Food, rest, recreation | Shared candidates and forecast; exact ingestion, bed and horseshoes execution through Hands. Other recreation mechanisms need observed candidates and exact adapters before they become planner choices. |
+| Food, rest, recreation | Shared candidates and forecast; exact ingestion, bed and recreation-building execution through Hands. Recreation without a building needs observed candidates and exact adapters before it becomes a planner choice. |
 | Harvest, food conversion, material delivery, construction, roof work, clothing | Shared task composition and selection, with observed input/output rebinding. A delivered garment is not evidence it was worn or that physiological cold exposure improved. |
 | Cleaning and medical support | Shared support candidates; exact pending service identities and native conditional room factors. Critical medical protection remains with its existing emergency owner. No fabricated prognosis or retroactive post-tend infection benefit. |
 | Fire/combat/player protection | Existing protection and emergency paths retain authority; an ordinary Method cannot convert protected occupancy into free capacity. |

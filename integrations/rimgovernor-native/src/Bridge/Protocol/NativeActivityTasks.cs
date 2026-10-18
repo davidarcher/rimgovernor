@@ -101,8 +101,8 @@ internal static class NativeActivityTasks
                         if (step.Kind == PawnActivityKind.Eat && (pawn.needs.food == null || !target.IngestibleNow
                             || target.stackCount < step.Count || !pawn.WillEat(target) || !FoodSupplyFacts.PolicyAllows(pawn, target))) continue;
                         if (step.Kind == PawnActivityKind.Sleep && (pawn.needs.rest == null || !RestUtility.CanUseBedNow(target, pawn, true))) continue;
-                        if (step.Kind == PawnActivityKind.Recreation && (target.def.defName != "HorseshoesPin" || pawn.needs.joy == null
-                            || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))) continue;
+                        if (step.Kind == PawnActivityKind.Recreation && (NativeRecreation.GiverFor(target) is not { } joyGiver
+                            || !NativeRecreation.Usable(pawn, target, joyGiver))) continue;
                         bindings.Add(new(task.Id, step with { Target = target.GetUniqueLoadID() }));
                     }
                 }
