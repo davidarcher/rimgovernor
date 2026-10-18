@@ -23,9 +23,6 @@ public sealed record ColonyReviewOptions
 
     /// <summary>The whole run's hang guard, from the game open to result.json.</summary>
     public TimeSpan Timeout { get; init; }
-
-    /// <summary>Lavapipe's worker thread count for the game's software Vulkan device; 0 keeps its default (one per core).</summary>
-    public int LavapipeThreads { get; init; }
 }
 
 /// <summary>
@@ -49,7 +46,7 @@ public static class ColonyReviewCommand
 
     /// <summary>The usage lines for the command's help text.</summary>
     public const string Usage = """
-          acceptance colony-review -root <dir> [-output <dir> -seed review-pinned-1 -days 15 -timeout <d> -game <id> -lavapipe-threads <n>]
+          acceptance colony-review -root <dir> [-output <dir> -seed review-pinned-1 -days 15 -timeout <d> -game <id>]
             plays a fresh Crashlanded map (biome by seed) for -days in-game days with the storyteller on, recording an hourly colony
             screenshot into <output>/review and the timeline into <output>/result.json for colonyreview report
         """;
@@ -104,7 +101,6 @@ public static class ColonyReviewCommand
         var seed = fs.String("seed", PinnedSeed);
         var days = fs.Int("days", SeasonDays);
         var timeout = fs.Duration("timeout", TimeSpan.Zero);
-        var lavapipeThreads = fs.Int("lavapipe-threads", 0);
         fs.Parse(args);
         if (fs.Args.Count > 0)
         {
@@ -116,9 +112,9 @@ public static class ColonyReviewCommand
             throw new UsageException("-root <absolute dir> is required");
         }
 
-        if (seed.Value.Length == 0 || days.Value <= 0 || timeout.Value < TimeSpan.Zero || lavapipeThreads.Value < 0)
+        if (seed.Value.Length == 0 || days.Value <= 0 || timeout.Value < TimeSpan.Zero)
         {
-            throw new UsageException("-seed must be nonempty, -days positive and -timeout and -lavapipe-threads not negative");
+            throw new UsageException("-seed must be nonempty, -days positive and -timeout not negative");
         }
 
         return new ColonyReviewOptions
@@ -129,7 +125,6 @@ public static class ColonyReviewCommand
             Seed = seed.Value,
             Days = days.Value,
             Timeout = timeout.Value > TimeSpan.Zero ? timeout.Value : (PerDay * days.Value) + Overhead,
-            LavapipeThreads = lavapipeThreads.Value,
         };
     }
 
@@ -192,11 +187,6 @@ public static class ColonyReviewCommand
         cfg.LaunchEnv[HeadlessProfile.StateVariable] = Path.Combine(opts.Output, Checkpoints.CheckpointStoreFile);
         // Minimized, the game skips presenting frames; the recorder renders its shots by hand.
         cfg.LaunchEnv["RIMGOVERNOR_MINIMIZE_WINDOW"] = "1";
-        if (opts.LavapipeThreads > 0)
-        {
-            // A CPU-rendered game shares the runner's cores with lavapipe's workers; fewer of them leaves the game thread room.
-            cfg.LaunchEnv["LP_NUM_THREADS"] = opts.LavapipeThreads.ToString(CultureInfo.InvariantCulture);
-        }
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(opts.Timeout);

@@ -299,7 +299,6 @@ switch ($Phase) {
             $review = @('-root', $boot.root, '-output', 'C:\rg\fixture\job\out', '-timeout', "$($run.limits.suite_timeout_minutes)m")
             if ($env:RIMGOVERNOR_REVIEW_SEED) { $review += @('-seed', $env:RIMGOVERNOR_REVIEW_SEED) }
             if ($env:RIMGOVERNOR_REVIEW_DAYS) { $review += @('-days', $env:RIMGOVERNOR_REVIEW_DAYS) }
-            if ($env:RIMGOVERNOR_REVIEW_LP_THREADS) { $review += @('-lavapipe-threads', $env:RIMGOVERNOR_REVIEW_LP_THREADS) }
             & $boot.tool acceptance colony-review @review
             if ($LASTEXITCODE) { throw 'acceptance colony-review failed; its result.json is still rendered' }
         }
