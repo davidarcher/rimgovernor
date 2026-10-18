@@ -38,7 +38,11 @@ public sealed record ForecastActivity(string Id, string Location, string EndLoca
     /// <summary>Research work: the project it advances and the points its work ticks add. Valued by the investment credit, never by a research-specific term.</summary>
     public ForecastProjectProgress? ProjectProgress { get; init; }
 }
-public sealed record ForecastProjectProgress(string Project, double PointsPerTick);
+public sealed record ForecastProjectProgress(string Project, double PointsPerTick)
+{
+    /// <summary>The prefix of the project key of sowing a zone (the key is the sowing node's id, <see cref="ProjectGraph.SowId"/>, so the credit tier 2 prices lands on it).</summary>
+    public const string SowPrefix = "sow:";
+}
 public sealed record ForecastActivityOption(string Activity, string Pawn, Fact<double> WorkTicks, Fact<double> RecoveryLaborTicks)
 {
     public RimGovernor.Contracts.Wire.Observations.ProductiveSkillWork? SkillWork { get; init; }

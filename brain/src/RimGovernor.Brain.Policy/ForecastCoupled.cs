@@ -79,6 +79,8 @@ public sealed record ForecastCoupledContext
     public HarmInputs Harm { get; init; } = new();
     /// <summary>The outfit (apparel and primary weapon) each pawn wears now (#3546), from the gear census's worn items; a pawn without a row has an unobserved outfit.</summary>
     public IReadOnlyDictionary<string, EquatableArray<GearOption>> Outfits { get; init; } = new Dictionary<string, EquatableArray<GearOption>>();
+    /// <summary>Capability-days a unit of progress adds on each project tier 2 valued (#3531), by <see cref="ForecastProjectProgress.Project"/>: per research point, per cell sown. Empty before tier 2 ran.</summary>
+    public IReadOnlyDictionary<string, double> Investment { get; init; } = new Dictionary<string, double>();
     /// <summary>The catalog's break curve whose tier mixes price a break in days lost (#3520); unknown by default.</summary>
     public MoodBreakModel MoodBreaks { get; init; } = new();
     /// <summary>Diagnostic only: keep each needs result's per-point mood. The search never reads it (#3467).</summary>

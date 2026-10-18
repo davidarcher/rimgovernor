@@ -353,7 +353,9 @@ as `ResearchManager.ResearchPerformed` applies them). The bench's interaction ce
 walk is priced by the shared leg cache. `ResearchMethodCandidates` (policy, behind the `economy/research` Need's enablement)
 makes one one-hour block per pawn and bench: a Work step through the research WorkGiver with Job `Research`, one root per
 pawn (`research/<pawn>`), the bench as exclusive equipment, and `ForecastActivity.ProjectProgress` (project, points per tick)
-for the investment credit. It values nothing and never picks the project.
+for the investment credit (#3531: the tier-2 marginal value per research point, `ForecastCoupledContext.Investment`, times the block's
+points, written to the ledger's `Investment` term). It values nothing itself and never picks the project. Sowing tasks (#3528) carry the
+same metadata in cells per tick, keyed `sow:<zone>`.
 
 `HuntAlternatives` (policy, pure) is the hunt comparison. `Propose` makes bounded rosters from that read: solos,
 pairs and a third gunner from the six best-shooting available hunters, for each of up to four nearby prey groups

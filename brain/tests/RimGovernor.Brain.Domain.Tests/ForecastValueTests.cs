@@ -11,7 +11,7 @@ public sealed class ForecastValueTests
 {
     private const double Day = GameTime.TicksPerDay;
 
-    private static NeedsForecastPawn Pawn(double foodLevel = 1, double fall = 0, double consciousness = 1) => new()
+    internal static NeedsForecastPawn Pawn(double foodLevel = 1, double fall = 0, double consciousness = 1) => new()
     {
         Pawn = "pawn", State = "eligible", Awake = Known(true), SleepThreshold = Known(.75), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(0d),
         Mood = Known(.5), MoodTarget = Known(.5), BreakThreshold = Known(.3),
@@ -65,7 +65,7 @@ public sealed class ForecastValueTests
     };
 
     // By default the schedule expects no raids, so the harm term is a known 0 and every other term is read alone.
-    private static ForecastCoupledContext Context(NeedsForecastPawn pawn, CapacityPenaltyTables? tables = null, HarmInputs? harm = null,
+    internal static ForecastCoupledContext Context(NeedsForecastPawn pawn, CapacityPenaltyTables? tables = null, HarmInputs? harm = null,
         IReadOnlyDictionary<string, EquatableArray<GearOption>>? outfits = null, ForecastValuePolicy? policy = null) => new()
     {
         Activities = new(), Needs = new() { Pawns = [pawn] }, Resources = Resources(),
@@ -83,16 +83,16 @@ public sealed class ForecastValueTests
         Layers = ["OnSkin", "Middle", "Shell"],
     };
 
-    private static GearOption Duster(double sharp) => new() { ID = "duster" + sharp, Quality = 2, Condition = 1, Sharp = sharp, Layers = ["Shell"], Groups = ["Torso"] };
+    internal static GearOption Duster(double sharp) => new() { ID = "duster" + sharp, Quality = 2, Condition = 1, Sharp = sharp, Layers = ["Shell"], Groups = ["Torso"] };
 
-    private static EquatableArray<GearOption> Cloth => [Duster(0.3)];
+    internal static EquatableArray<GearOption> Cloth => [Duster(0.3)];
 
     private static EquatableArray<GearOption> Devilstrand => [Duster(0.8)];
 
     private static ExposureTable Exposure(int trials = 100) => new(RaidExposure.Schema,
         [new ExposureCell("1-2", ExposureRoles.Noncombatant, trials, 5, 3, 20, 0.5, 0.4, 0.6)]);
 
-    private static HarmInputs RaidDay(ExposureTable? exposure = null, double raidsPerDay = 1) => new()
+    internal static HarmInputs RaidDay(ExposureTable? exposure = null, double raidsPerDay = 1) => new()
     {
         Schedule = new() { MajorThreatsPerDay = Known(raidsPerDay), RaidFraction = Known(1d) },
         Composition = new() { Pawns = Known(5d), Bins = [new() { Damage = 10, Category = ArmorCategory.Sharp, Weight = 1 }] },
@@ -100,12 +100,12 @@ public sealed class ForecastValueTests
         Exposure = exposure ?? Exposure(), Coverage = Torso, Natural = new(),
     };
 
-    private static NeedsForecastPawn HarmPawn() => Pawn() with
+    internal static NeedsForecastPawn HarmPawn() => Pawn() with
     {
         PainShockThreshold = Known(0.8), HealthScale = Known(1d), IncomingDamageFactor = Known(1d), InjuryHealingFactor = Known(1d),
     };
 
-    private static CapacityPenaltyTables HarmTables() => Tables() with
+    internal static CapacityPenaltyTables HarmTables() => Tables() with
     {
         BloodLoss = new() { Known = true, Hediff = "BloodLoss", LethalSeverity = 1, Stages = [Stage(0, new CapacityModifier("Consciousness", 0, null, 0.9))] },
     };
@@ -115,7 +115,7 @@ public sealed class ForecastValueTests
 
     private static ForecastCommitment Wears(EquatableArray<GearOption> items) => new("outfit", default) { OutfitChanges = [new("pawn", items)] };
 
-    private static WorkResourceView Resources()
+    internal static WorkResourceView Resources()
     {
         var facts = WorkResourceTestFacts.Create("pawn") with
         { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([]) };

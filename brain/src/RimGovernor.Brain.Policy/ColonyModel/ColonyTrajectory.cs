@@ -1,14 +1,26 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Days one pawn spent with the nutrition stock at zero and consumption above production: its hunger rose at its fall rate. The malnutrition stage table prices them (#3519, #3520).</summary>
-public sealed record PawnStarvation
+/// <summary>A stretch of days with the nutrition stock at zero and consumption above production: every pawn's hunger rose at its fall rate. The malnutrition stage table prices it (#3519, #3520, #3531).</summary>
+public sealed record StarvationSpan
 {
-    public string Pawn { get; init; } = "";
+    public double Start { get; init; }
 
-    public double Days { get; init; }
+    public double End { get; init; }
 }
 
-/// <summary>The tier-2 run's output: the events in order, the starvation days and the food runway.</summary>
+/// <summary>Apparel a craft node finished (#3531): the harm model prices what wearing it avoids from <see cref="Day"/> on.</summary>
+public sealed record ApparelMade
+{
+    public double Day { get; init; }
+
+    public string Node { get; init; } = "";
+
+    public EquatableArray<Amount> Products { get; init; }
+
+    public EquatableArray<Amount> Ingredients { get; init; }
+}
+
+/// <summary>The tier-2 run's output: the events in order, the starvation spans, the apparel made and the food runway.</summary>
 public sealed record ColonyTrajectory
 {
     /// <summary>The finding of a run that reached <see cref="ColonyModelPolicy.MaxEvents"/> before the horizon; the trajectory is the partial run.</summary>
@@ -19,7 +31,9 @@ public sealed record ColonyTrajectory
 
     public EquatableArray<ModelEvent> Events { get; init; }
 
-    public EquatableArray<PawnStarvation> Starvation { get; init; }
+    public EquatableArray<StarvationSpan> Starvation { get; init; }
+
+    public EquatableArray<ApparelMade> Apparel { get; init; }
 
     /// <summary>The day nutrition falls to the stock that bridges the lead days at the consumption then (stock over consumption, less the lead); null when it does not within the run.</summary>
     public double? FoodRunwayDay { get; init; }

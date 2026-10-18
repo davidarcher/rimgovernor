@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 // The tier-2 colony model's input (#3523 of #3470): one record per review, collected from facts the review frame already carries.
-// Nothing runs the model yet (the pawn cycle, engine, graph and valuation are the next children); this is the contract they
+// The pawn cycle, engine, graph and valuation read it (RoundsColonyModel.Review runs them once per review, #3531); this is the contract they
 // read. A section the frame did not carry is an unknown Fact, never an empty default, and Unknowns() names each one.
 
 /// <summary>A growing zone or planned field: its soil. Fertility lists each cell's fertility, so a poor cell is not averaged away.</summary>

@@ -1,11 +1,69 @@
+using System.Globalization;
+using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.Telemetry;
+
 namespace RimGovernor.Brain.BuildingRuntime;
+
+/// <summary>The tier-2 run of one review (#3531): the marginals, the input sections it could not start from and the wall time it took.</summary>
+internal sealed record ColonyModelReview(ProjectMarginals Marginals, IReadOnlyList<string> Unknowns, double HorizonDays, double ElapsedMs)
+{
+    /// <summary>The <see cref="ColonyModelTelemetry.Kind"/> row's attrs.</summary>
+    internal IReadOnlyList<(string Key, object? Value)> Attrs()
+    {
+        var trajectory = Marginals.Trajectory;
+        var attrs = new List<(string Key, object? Value)>
+        {
+            (ColonyModelTelemetry.HorizonKey, HorizonDays),
+            (ColonyModelTelemetry.EventsKey, trajectory.Events.Count),
+            (ColonyModelTelemetry.TruncatedKey, trajectory.Truncated),
+            (ColonyModelTelemetry.CompletionsKey, trajectory.Events.Where(e => e.Kind is ModelEventKind.ProjectCompletion or ModelEventKind.Harvest)
+                .Select(e => string.Create(CultureInfo.InvariantCulture, $"{e.Day:0.##}:{e.Id}")).ToArray()),
+            (ColonyModelTelemetry.ProjectsKey, string.Join(';', Marginals.PerHour.Select(p => string.Create(CultureInfo.InvariantCulture, $"{p.Key}={p.Value:0.#####}")))),
+            (ColonyModelTelemetry.FindingsKey, Marginals.Findings.Concat(Unknowns.Select(u => "input:" + u)).ToArray()),
+            (ColonyModelTelemetry.ElapsedKey, ElapsedMs),
+        };
+        if (trajectory.FoodRunwayDay is { } runway)
+        {
+            attrs.Add((ColonyModelTelemetry.RunwayKey, runway));
+        }
+
+        if (Marginals.Value.TryGetValue(out var value))
+        {
+            attrs.Add((ColonyModelTelemetry.ValueKey, value));
+        }
+
+        if (trajectory.Events.Count > 0)
+        {
+            attrs.Add((ColonyModelTelemetry.NutritionEndKey, trajectory.Events[^1].Levels[(int)ModelStock.Nutrition]));
+        }
+
+        return attrs;
+    }
+}
 
 /// <summary>
 /// Assembles the tier-2 colony model's input (#3523 of #3470) from the review frame: reads of facts the frame already carries,
-/// no native call of its own. Nothing runs the model yet; a section the frame did not carry stays an unknown Fact.
+/// no native call of its own; a section the frame did not carry stays an unknown Fact. <see cref="Review"/> runs it once per
+/// review (#3531) and hands the project graph and the pricing to Policy.
 /// </summary>
 internal static class RoundsColonyModel
 {
+    /// <summary>
+    /// Runs the model over the review's frame and prices it in the coupled context's currency. Once per review, no caching: the
+    /// marginal value of each valued project goes to <see cref="ForecastCoupledContext.Investment"/> and the event to telemetry.
+    /// </summary>
+    internal static ColonyModelReview Review(ColonyProjection colony, ForecastCoupledContext context)
+    {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var (input, unknowns) = InputOf(colony);
+        var policy = new ColonyModelPolicy { Projects = ProjectGraph.Standing(input) };
+        var options = colony.Facts.Gear.TryGetValue(out var gear)
+            ? gear.Pawns.Where(p => p.LoadoutModel.IsKnown).SelectMany(p => p.LoadoutModel.Value.Options).Where(o => o.Source == GearSource.Bill).DistinctBy(o => o.ID).ToArray()
+            : [];
+        var marginals = ProjectMarginalValue.Of(input, policy, new ColonyValue(context, options, policy.HorizonDays));
+        return new(marginals, unknowns, policy.HorizonDays, clock.Elapsed.TotalMilliseconds);
+    }
+
     /// <summary>The input and the sections it cannot start from, each named with its reason (<see cref="ColonyModelInput.Unknowns"/>).</summary>
     internal static (ColonyModelInput Input, IReadOnlyList<string> Unknowns) InputOf(ColonyProjection colony)
     {
@@ -204,6 +262,8 @@ internal static class RoundsColonyModel
             }
         }
 
+        var research = ResearchSpeeds(colony.Facts.ForecastObserved.Coupled);
+        var plants = PlantSpeeds(colony, colony.Facts.ForecastObserved.Coupled);
         var pawns = new List<ModelPawn>();
         foreach (var pawn in review.Observation.Pawns)
         {
@@ -262,9 +322,48 @@ internal static class RoundsColonyModel
                 Talking = pawn.Talking,
                 ComfortableMin = pawn.ComfortableMin,
                 ComfortableMax = pawn.ComfortableMax,
+                ResearchSpeed = research.TryGetValue(pawn.Pawn, out var researching) ? Known(researching) : Unknown<double>(),
+                PlantWorkSpeed = plants.TryGetValue(pawn.Pawn, out var planting) ? Known(planting) : Unknown<double>(),
             });
         }
 
         return Known(EquatableArray.From(pawns));
+    }
+
+    /// <summary>A pawn's research speed as the model reads it: the best points per tick any of its benches gives, over the points a tick gives at speed 1 (the bench's factor is in it).</summary>
+    private static Dictionary<string, double> ResearchSpeeds(CoupledForecastRead? read)
+    {
+        var speeds = new Dictionary<string, double>(StringComparer.Ordinal);
+        foreach (var worker in read?.Research.Workers ?? default)
+        {
+            if (worker.PointsPerTick.TryGetValue(out var points) && points >= 0)
+            {
+                speeds[worker.Pawn] = Math.Max(speeds.GetValueOrDefault(worker.Pawn), points / ProjectGraph.ResearchPointsPerWorkTick);
+            }
+        }
+
+        return speeds;
+    }
+
+    /// <summary>A pawn's plant work speed: the sow work of the crop its zone grows over the ticks a cell takes it. A pawn with no sowing row has none read.</summary>
+    private static Dictionary<string, double> PlantSpeeds(ColonyProjection colony, CoupledForecastRead? read)
+    {
+        var speeds = new Dictionary<string, double>(StringComparer.Ordinal);
+        if (read is null || !CropsOf(colony).TryGetValue(out var crops))
+        {
+            return speeds;
+        }
+
+        var cropOf = colony.Farms.ToDictionary(f => f.Id, f => f.Crop, StringComparer.Ordinal);
+        foreach (var worker in read.Sowing.Workers)
+        {
+            if (cropOf.TryGetValue(worker.Zone, out var name) && crops.FirstOrDefault(c => c.Name == name) is { } crop
+                && crop.SowWork.TryGetValue(out var work) && worker.TicksPerCell.TryGetValue(out var ticks) && ticks > 0)
+            {
+                speeds[worker.Pawn] = Math.Max(speeds.GetValueOrDefault(worker.Pawn), work / ticks);
+            }
+        }
+
+        return speeds;
     }
 }

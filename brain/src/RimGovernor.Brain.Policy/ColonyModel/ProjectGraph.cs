@@ -19,8 +19,40 @@ public sealed record ProjectGraph
         Findings = EquatableArray.From(Findings.Concat(next.Findings).Distinct().Order(StringComparer.Ordinal)),
     };
 
+    private const string ResearchPrefix = "research:";
+
+    /// <summary>Research points per work tick at research speed 1 (<c>ResearchManager.ResearchPerformed</c>; kept constants).</summary>
+    public const double ResearchPointsPerWorkTick = 0.00825;
+
     /// <summary>The id of the research node of a project.</summary>
-    public static string ResearchId(ResearchProjectId project) => $"research:{project}";
+    public static string ResearchId(ResearchProjectId project) => $"{ResearchPrefix}{project}";
+
+    /// <summary>The id of the sowing node of a field (the field is the native zone id the sowing read names).</summary>
+    public static string SowId(string field) => ForecastProjectProgress.SowPrefix + field;
+
+    /// <summary>
+    /// The key tier-1 progress is credited under (<see cref="ForecastProjectProgress.Project"/>): a research node's project name,
+    /// and a sowing node's id. The unit is the node's: research points for research, cells for sowing.
+    /// </summary>
+    public static string ProgressKey(ProjectNode node) => node.Kind == ProjectKind.Research ? node.Id[ResearchPrefix.Length..] : node.Id;
+
+    /// <summary>
+    /// What a review runs: the research chain of the project being researched, and each field with a crop set, from sowing to
+    /// harvest. The facts carry no crop-to-research gate, so a crop that needs research is not chained to it here.
+    /// </summary>
+    public static ProjectGraph Standing(ColonyModelInput input)
+    {
+        var graph = input.Research.TryGetValue(out var research) && !research.Current.IsEmpty ? ResearchChain(input, research.Current) : new ProjectGraph();
+        if (input.Land.TryGetValue(out var land))
+        {
+            foreach (var field in land.Where(f => f.Crop.Length > 0))
+            {
+                graph = graph.Then(CropChain(input, field.Crop, field.Id));
+            }
+        }
+
+        return graph;
+    }
 
     /// <summary>
     /// The unfinished research the project needs: its unfinished prerequisites first, then the project, each a node with the
@@ -103,7 +135,7 @@ public sealed record ProjectGraph
             return research.Then(Gap($"no_fertile_cells:{field}"));
         }
 
-        var sow = $"sow:{field}";
+        var sow = SowId(field);
         var grow = $"grow:{field}";
         string[] gates = !gate.IsEmpty && research.Nodes.Any(n => n.Id == ResearchId(gate)) ? [ResearchId(gate)] : [];
         return research.Then(new ProjectGraph

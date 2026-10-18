@@ -9,9 +9,6 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>The mutable state of the graph's nodes in one <see cref="ColonyModel.Run"/>.</summary>
 internal sealed class ProjectRun
 {
-    /// <summary>Research points per work tick at research speed 1 (<c>ResearchManager.ResearchPerformed</c>; kept constants).</summary>
-    internal const double ResearchPointsPerWorkTick = 0.00825;
-
     private enum Status
     {
         Waiting,
@@ -45,9 +42,10 @@ internal sealed class ProjectRun
     private readonly Dictionary<Resource, double> ledger = [];
     private readonly SortedSet<string> unstaffed = new(StringComparer.Ordinal);
     private readonly SortedSet<string> materialsShort = new(StringComparer.Ordinal);
+    private readonly List<ApparelMade> apparel = [];
     private double now;
 
-    internal ProjectRun(ColonyModelInput input, ModelPawn[] pawns, PawnCycle[][] cycles, ProjectGraph graph, double horizon, SortedSet<string> findings)
+    internal ProjectRun(ColonyModelInput input, ModelPawn[] pawns, PawnCycle[][] cycles, ProjectGraph graph, InjectedProgress? injected, double horizon, SortedSet<string> findings)
     {
         DomainException.Require(graph.Nodes.Select(n => n.Id).Distinct().Count() == graph.Nodes.Count && graph.Nodes.All(n => n.Id.Length > 0), "project ids must be unique and named");
         this.input = input;
@@ -56,6 +54,11 @@ internal sealed class ProjectRun
         this.horizon = horizon;
         this.findings = findings;
         nodes = [.. graph.Nodes.Select(n => new Live(n))];
+        if (injected is not null && nodes.FirstOrDefault(n => n.Node.Id == injected.Node) is { } head)
+        {
+            head.Remaining = Math.Max(0, head.Remaining - injected.Work);
+        }
+
         foreach (var finding in graph.Findings)
         {
             findings.Add(finding);
@@ -138,8 +141,11 @@ internal sealed class ProjectRun
         }
     }
 
-    /// <summary>Completes the node, moving the stocks it consumes and makes. <paramref name="levels"/> is indexed by <see cref="ModelStock"/>.</summary>
-    internal void Complete(string id, double[] levels)
+    /// <summary>The apparel the run's craft nodes finished, in completion order.</summary>
+    internal EquatableArray<ApparelMade> Apparel => EquatableArray.From(apparel);
+
+    /// <summary>Completes the node at <paramref name="day"/>, moving the stocks it consumes and makes. <paramref name="levels"/> is indexed by <see cref="ModelStock"/>.</summary>
+    internal void Complete(string id, double day, double[] levels)
     {
         var live = nodes.First(n => n.Node.Id == id);
         live.State = Status.Done;
@@ -160,6 +166,10 @@ internal sealed class ProjectRun
                 if (node.ProductsToStock)
                 {
                     levels[(int)ModelStock.Materials] += node.Products.Sum(a => a.Count);
+                }
+                else
+                {
+                    apparel.Add(new ApparelMade { Day = day, Node = node.Id, Products = node.Products, Ingredients = node.Ingredients });
                 }
 
                 break;
@@ -282,7 +292,7 @@ internal sealed class ProjectRun
         unstaffed.Remove(node.Id);
         materialsShort.Remove(node.Id);
 
-        var factor = node.Kind == ProjectKind.Research ? ResearchPointsPerWorkTick : 1;
+        var factor = node.Kind == ProjectKind.Research ? ProjectGraph.ResearchPointsPerWorkTick : 1;
         foreach (var (p, hours, speed) in workers)
         {
             live.Rate += hours * GameTime.TicksPerHour * speed * factor;

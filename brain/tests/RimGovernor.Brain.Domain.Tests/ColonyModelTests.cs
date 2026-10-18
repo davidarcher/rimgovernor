@@ -134,15 +134,16 @@ public sealed class ColonyModelTests
     }
 
     [Fact]
-    public void ANutritionStockAtZeroStarvesEveryPawnForTheRestOfTheHorizon()
+    public void ANutritionStockAtZeroStarvesTheColonyForTheRestOfTheHorizon()
     {
         var trajectory = Run(Colony(4.8));
 
         var zero = trajectory.Events.Single(e => e.Kind == ModelEventKind.StockZero);
         Assert.Equal(1.0, zero.Day, 9);
         Assert.Equal(nameof(ModelStock.Nutrition), zero.Id);
-        Assert.All(trajectory.Starvation, s => Assert.Equal(59, s.Days, 9));
-        Assert.Equal(4, trajectory.Starvation.Count);
+        var span = Assert.Single(trajectory.Starvation);
+        Assert.Equal(1.0, span.Start, 9);
+        Assert.Equal(60.0, span.End, 9);
     }
 
     [Fact]
@@ -150,7 +151,7 @@ public sealed class ColonyModelTests
     {
         var trajectory = Run(Colony(10), new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), FixedProduction = EquatableArray.From(new[] { ColonyConsumption + 1 }) });
 
-        Assert.All(trajectory.Starvation, s => Assert.Equal(0, s.Days));
+        Assert.Empty(trajectory.Starvation);
         Assert.Null(trajectory.FoodRunwayDay);
     }
 

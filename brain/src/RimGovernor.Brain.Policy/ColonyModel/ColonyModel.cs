@@ -79,9 +79,9 @@ public static class ColonyModel
             findings.Add("food_lead_unknown");
         }
 
-        var graph = new ProjectRun(input, [.. pawns], cycles, policy.Projects, policy.HorizonDays, findings);
+        var graph = new ProjectRun(input, [.. pawns], cycles, policy.Projects, policy.Injected, policy.HorizonDays, findings);
         var scheduled = policy.Scheduled.OrderBy(e => e.Day).ThenBy(e => e.Kind).ThenBy(e => e.Id, StringComparer.Ordinal).ToArray();
-        var starved = new double[pawns.Count];
+        var starved = new List<StarvationSpan>();
         var events = new List<ModelEvent>(Math.Min(policy.MaxEvents, 64));
         var now = 0.0;
         var twelfth = climate.CurrentTwelfth;
@@ -150,11 +150,15 @@ public static class ColonyModel
             }
 
             var span = when - now;
-            if (levels[(int)ModelStock.Nutrition] == 0 && net[(int)ModelStock.Nutrition] < 0)
+            if (levels[(int)ModelStock.Nutrition] == 0 && net[(int)ModelStock.Nutrition] < 0 && span > 0)
             {
-                for (var i = 0; i < starved.Length; i++)
+                if (starved.Count > 0 && starved[^1].End == now)
                 {
-                    starved[i] += span;
+                    starved[^1] = starved[^1] with { End = when };
+                }
+                else
+                {
+                    starved.Add(new StarvationSpan { Start = now, End = when });
                 }
             }
 
@@ -177,7 +181,7 @@ public static class ColonyModel
                 case ModelEventKind.Harvest:
                     if (fromGraph)
                     {
-                        graph.Complete(id, levels);
+                        graph.Complete(id, when, levels);
                         break;
                     }
 
@@ -203,7 +207,8 @@ public static class ColonyModel
         return new ColonyTrajectory
         {
             Events = EquatableArray.From(events),
-            Starvation = EquatableArray.From(pawns.Select((p, i) => new PawnStarvation { Pawn = p.Pawn, Days = starved[i] })),
+            Starvation = EquatableArray.From(starved),
+            Apparel = graph.Apparel,
             FoodRunwayDay = runway,
             Findings = EquatableArray.From(findings),
         };

@@ -2,13 +2,14 @@
 
 [Architecture](overview.md) · [Normal portfolio selection](portfolio-selection.md) · [ColonyForecast](colony-forecast.md) · [Combat predictability](combat-predictability-research.md)
 
-**Status: milestone 3 is implemented; tier 2, the harm model and the larger search are proposed.**
+**Status: milestone 3 and the tier-2 model with its investment credit (#3531) are implemented; the larger search is proposed.**
 Tier-1 selection ranks on the safety floors, then on capability-days ([Comparator](#comparator) describes what runs).
 `ForecastValue.Of` (#3520, #3521) prices hunger, rest, food poisoning, thermal exposure, mood breaks and
 wellbeing per outcome; `ForecastValue.Explain` (#3522) adds the floors; `coupled_selection` reports both ([policy constants](../contracts/kept-constants.md#policy-constants-3469),
-[tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm (#3546) is priced when the harm inputs are observed and calibrated, else unknown with a specific finding; investment is 0 and unassessed. The player's goals add a gain term ([Goal value](#goal-value), #3503).
+[tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm (#3546) is priced when the harm inputs are observed and calibrated, else unknown with a specific finding; investment is the tier-2 credit of research and sowing blocks ([Marginal value of progress](#tier-2-event-driven-colony-model)), 0 for any other outcome. The player's goals add a gain term ([Goal value](#goal-value), #3503).
 The tier-2 model's input (`ColonyModelInput`, assembled per review by `RoundsColonyModel.InputOf` from the review frame, #3523) exists and names
-each section the frame did not carry; nothing runs the model yet.
+each section the frame did not carry. The model runs once per review, before the comparison (`RoundsColonyModel.Review`): the engine, the project graph and the
+valuation are in `Policy/ColonyModel`, and the `colony_model` event reports each run.
 Sections other than the comparator, the problems and the milestones describe the proposed design, not current behavior.
 Selection is also described in [portfolio selection](portfolio-selection.md). The design replaced the rule that
 "no injury probability or universal conversion of death, mood and labor is invented". It arose from
@@ -92,7 +93,7 @@ exchange rates are mechanical, not chosen:
 | Mood | Break risk × expected days lost to the break, including the harm and labor of its kind. Mood changes no work speed directly. |
 | Death | Remaining capability-days to the horizon, plus `DeathTerminalValue`. |
 | Labor | Hours spent are hours not available for other work. This is already in the schedule. |
-| Investment | Capability added or loss avoided after completion, from tier 2. |
+| Investment | Capability added after completion, from tier 2: the work's progress times the project's marginal value. A gain, so a negative loss like the goals term. |
 
 **Policy constants.** These are named, documented and tuned by playtest.
 Nothing else is chosen by hand.
@@ -225,6 +226,19 @@ its completion earlier:
 Tier 1 trades hours of research or sowing today against today's needs in
 capability-days. Each review re-plans, so a failed crop or a cold snap changes
 the next decision without any special case.
+
+*As built (#3531).* `ProjectMarginalValue` runs the model once as it is and once per research and sowing node with one hour of work
+injected at time zero (a pawn at speed 1: 0.00825 × 2,500 research points, 2,500 sow work); the difference of the two `ColonyValue`s
+is the hour's value (`dV/dt`, the `colony_model` event's `dvdt`). `ColonyValue` is in capability-days, higher better: the apparel
+a craft node makes is priced by the harm model as the harm of a day of raids at the worn outfit less the same with the product in
+its slot, for the best wearer of each unit, times the days from the craft to the horizon (`apparel_harm_unassessed` when the
+harm model or the gear option is unknown); starvation spans walk each pawn's malnutrition severity through the game's stage table,
+and a pawn whose severity reaches lethal costs the rest of the horizon plus `DeathTerminalValue`. A crop that cannot mature
+changes nothing, so it is worth nothing. Tier 1 reads the value per progress unit (research point, cell sown) from
+`ForecastCoupledContext.Investment`, keyed by `ForecastProjectProgress.Project`, and `ForecastValue.Of` writes
+`-(work ticks × progress per tick × value per unit)` to the `Investment` term, which `coupled_selection.value.terms.investment` logs.
+In a real review the graph is the current research chain and each standing field's crop from sowing to harvest: the frame carries
+no crop-to-research gate and no recipes the colony would craft, so the devilstrand payoff chain is priced in tests, not yet in play.
 
 **Devilstrand worked through.**
 

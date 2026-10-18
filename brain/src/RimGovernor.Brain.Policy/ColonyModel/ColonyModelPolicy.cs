@@ -15,6 +15,9 @@ public sealed record ScheduledEffect
     public double Amount { get; init; }
 }
 
+/// <summary>Work already done on one node at time zero (#3531): the perturbation the marginal value is measured by. In the node's <see cref="ProjectNode.Work"/> units (research points; sow work).</summary>
+public sealed record InjectedProgress(string Node, double Work);
+
 /// <summary>The tier-2 engine's constants and hooks (#3529 of #3470).</summary>
 public sealed record ColonyModelPolicy
 {
@@ -37,4 +40,7 @@ public sealed record ColonyModelPolicy
 
     /// <summary>The project graph (#3530): nodes in labor-priority order. Their completions and harvests are scheduled by the engine from the pawn cycles, not given.</summary>
     public ProjectGraph Projects { get; init; } = new();
+
+    /// <summary>Progress injected at time zero on one node; null for the run as is.</summary>
+    public InjectedProgress? Injected { get; init; }
 }

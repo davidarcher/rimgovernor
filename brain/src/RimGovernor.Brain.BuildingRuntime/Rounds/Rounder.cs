@@ -665,6 +665,13 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { OpenBills = [.. vOpenBills] });
         var reconsideration = ForecastIncumbentPreparation.PrepareCoupledIncumbents(reading.Projection.Facts, batches, workActions);
         reading = reading.WithFacts(_ => reconsideration.Facts);
+        // Tier 2 (#3531): once per review, before the comparison, so the tasks of research and sowing carry their credit.
+        if (reading.Projection.Facts.CoupledAlternatives is { } coupled)
+        {
+            var model = RoundsColonyModel.Review(reading.Projection, coupled.Context);
+            reading = reading.WithFacts(rf => rf with { CoupledAlternatives = coupled with { Context = coupled.Context with { Investment = model.Marginals.PerUnit } } });
+            ClockEvents.Event("routine", ColonyModelTelemetry.Kind, "colony model ran", [.. model.Attrs()]);
+        }
         // Acquisition uses the review's completed home staffing and defense facts.
         Census.Retain(reading, RoomsEnabled(), claims);
         await PlanFoodAcquisitionAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);

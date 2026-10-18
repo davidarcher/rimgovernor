@@ -118,7 +118,7 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
     /// <summary>What the harm term found unassessed or qualified (a subset of <see cref="Findings"/>).</summary>
     public EquatableArray<string> HarmFindings { get; init; }
 
-    /// <summary>Capability added or loss avoided after completion: 0 until tier 2 (#3470).</summary>
+    /// <summary>Capability added after completion (#3531): negative (a gain) by the credit of the progress the outcome schedules on projects tier 2 valued, 0 with none.</summary>
     public Fact<double> Investment { get; init; }
 
     /// <summary>The player's goals the outcome progresses inside the horizon, in capability-days: negative (a gain) by the goals' worth times their progress (#3503). Known, 0 with no goal progressed.</summary>
@@ -185,7 +185,7 @@ public static partial class ForecastValue
     // Need_Food.BaseMalnutritionSeverityPerDay (0.0011325 per 150-tick interval): malnutrition gains this while starving
     // and loses the same amount otherwise (Need_Food.NeedInterval). The pawn's own factor, Lerp(0.8, 1.2, a seeded random),
     // is not observed, so the mean 1 is used.
-    private const double MalnutritionSeverityPerDay = 0.453;
+    internal const double MalnutritionSeverityPerDay = 0.453;
 
     /// <summary>One observed pawn as the ledger reads it: the row, and its five capacity levels (null when any is unobserved).</summary>
     private sealed record ObservedPawn(NeedsForecastPawn Pawn, double[]? Levels);
@@ -315,18 +315,33 @@ public static partial class ForecastValue
         var harmTerm = HarmLedger.Of(outcome, context, horizon, index.Harm, index.Rows, commitments);
         findings.UnionWith(harmTerm.Findings);
         var harm = harmTerm.Loss;
-        var contributions = GoalContributionsOf(outcome, context, commitments ?? []);
+        var progress = ProgressOf(outcome, context);
+        var contributions = GoalContributionsOf(progress, context, commitments ?? []);
         double earned = 0;
         foreach (var contribution in contributions) earned += contribution.Value;
         var goals = Known(-earned);
+        double credit = 0;
+        foreach (var (project, units) in progress) credit += units * context.Investment.GetValueOrDefault(project);
+        var investment = Known(-credit);
         var total = hunger.IsKnown && rest.IsKnown && poisoning.IsKnown && thermal.IsKnown && breaks.IsKnown && wellbeing.IsKnown && harm.IsKnown
-            ? Known(hunger.Value + rest.Value + poisoning.Value + thermal.Value + breaks.Value + wellbeing.Value + harm.Value + goals.Value) : default;
+            ? Known(hunger.Value + rest.Value + poisoning.Value + thermal.Value + breaks.Value + wellbeing.Value + harm.Value + goals.Value + investment.Value) : default;
         if (!total.IsKnown) findings.Add("capability_value_unassessed");
         return new(total, EquatableArray.From(findings))
         {
             Hunger = hunger, Rest = rest, FoodPoisoning = poisoning, Thermal = thermal, MoodBreaks = breaks, Wellbeing = wellbeing,
-            Harm = harm, HarmDetail = harmTerm.Detail, HarmFindings = EquatableArray.From(harmTerm.Findings), Investment = Known(0d), Goals = goals, GoalContributions = EquatableArray.From(contributions),
+            Harm = harm, HarmDetail = harmTerm.Detail, HarmFindings = EquatableArray.From(harmTerm.Findings), Investment = investment, Goals = goals, GoalContributions = EquatableArray.From(contributions),
         };
+    }
+
+    /// <summary>The progress the outcome's scheduled work makes on each project (research points, cells sown), by <see cref="ForecastProjectProgress.Project"/>.</summary>
+    private static Dictionary<string, double> ProgressOf(ForecastCoupledOutcome outcome, ForecastCoupledContext context)
+    {
+        var progress = new Dictionary<string, double>(StringComparer.Ordinal);
+        if (context.GoalValues.Count == 0 && context.Investment.Count == 0) return progress;
+        foreach (var allocation in outcome.Plan.Allocations)
+            if (context.Activities.Activities.FirstOrDefault(a => a.Id == allocation.Activity)?.ProjectProgress is { } work)
+                progress[work.Project] = progress.GetValueOrDefault(work.Project) + allocation.WorkTicks * work.PointsPerTick;
+        return progress;
     }
 
     /// <summary>
@@ -335,15 +350,11 @@ public static partial class ForecastValue
     /// per relief need, at the goal's share. A goal's progress is capped at the whole goal; its value is the progress times
     /// the goal's worth at the observed tick, which carries the deadline's decay.
     /// </summary>
-    private static List<ForecastGoalContribution> GoalContributionsOf(ForecastCoupledOutcome outcome, ForecastCoupledContext context,
+    private static List<ForecastGoalContribution> GoalContributionsOf(Dictionary<string, double> progress, ForecastCoupledContext context,
         IEnumerable<ForecastCommitment> commitments)
     {
         var result = new List<ForecastGoalContribution>();
         if (context.GoalValues.Count == 0) return result;
-        var progress = new Dictionary<string, double>(StringComparer.Ordinal);
-        foreach (var allocation in outcome.Plan.Allocations)
-            if (context.Activities.Activities.FirstOrDefault(a => a.Id == allocation.Activity)?.ProjectProgress is { } research)
-                progress[research.Project] = progress.GetValueOrDefault(research.Project) + allocation.WorkTicks * research.PointsPerTick;
         var relief = commitments.Where(c => c.Outcome?.Requirements is not null).SelectMany(c => c.Outcome!.Requirements!.Relief)
             .GroupBy(r => r.Need, StringComparer.Ordinal).ToDictionary(g => g.Key, g => Math.Min(1, g.Sum(r => r.Fraction)), StringComparer.Ordinal);
         foreach (var goal in context.GoalValues)

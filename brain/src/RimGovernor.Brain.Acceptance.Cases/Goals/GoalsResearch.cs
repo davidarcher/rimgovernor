@@ -23,7 +23,8 @@ internal static class GoalsResearch
         Name = "goals/research-goal",
         Scope = "Under the served brain, a ResearchProject goal in the save's goals blob makes the brain select that unfinished "
             + "project (a native research read shows it current), and the goal's goal_review rows go Pursuing and then Met "
-            + "when the colonist finishes it at the staged bench. A unit test cannot prove the native selection or the finish.",
+            + "when the colonist finishes it at the staged bench, and the reviews log the tier-2 colony model's colony_model run "
+            + "(horizon, events, runway, per-project dV/dt, truncation, findings). A unit test cannot prove the native selection or the finish.",
         Ticks = 12_000,
         Tier = CaseTier.OnDemand,
         Stage = new Fx.StageSpec
@@ -101,6 +102,16 @@ internal static class GoalsResearch
         if (pursuing < 0 || met < pursuing)
         {
             throw new AcceptanceException($"the goal did not go Pursuing then Met: verdicts {verdicts}");
+        }
+
+        // Tier 2 (#3531) runs once per review: every review that built the coupled candidates logs its run.
+        var model = ColonyModelReviews.Of(s);
+        var last = model.Count == 0 ? null : model[model.Count - 1];
+        s.Record("colony_model", string.Create(CultureInfo.InvariantCulture,
+            $"{model.Count} rows; last: horizon={last?.HorizonDays} events={last?.Events} truncated={last?.Truncated} runway={last?.RunwayDay} dvdt=[{last?.Dvdt}] findings=[{last?.Findings}]"));
+        if (model.Count == 0 || model.Any(m => m.HorizonDays <= 0 || m.Events < 1))
+        {
+            throw new AcceptanceException($"the reviews logged no usable colony_model row: {model.Count} rows");
         }
     }
 }

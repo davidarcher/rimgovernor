@@ -19,7 +19,7 @@ public sealed class ProjectGraphTests
 
     private static readonly EquatableArray<string> AfterHarvest = EquatableArray.From(["harvest:zone1"]);
 
-    private static ModelPawn Pawn(string name, double? research, double? plants) => new()
+    internal static ModelPawn Pawn(string name, double? research, double? plants) => new()
     {
         Pawn = name,
         Needs = EquatableArray.From(new[]
@@ -40,7 +40,7 @@ public sealed class ProjectGraphTests
     private static readonly double[] Temperatures = [-10, -8, -2, 5, 12, 18, 22, 21, 15, 8, 12, 12];
 
     // Twelve full-fertility cells of soil, a research-only Anna and a grow-only Bo, 8 cloth and 120 steel in store.
-    private static ColonyModelInput Colony(int twelfth = 4, double? annaResearch = 1, double fertility = 1)
+    internal static ColonyModelInput Colony(int twelfth = 4, double? annaResearch = 1, double fertility = 1)
     {
         var input = ColonyModelFixtures.Devilstrand();
         var pawns = EquatableArray.From(new[] { Pawn("Anna", annaResearch, null), Pawn("Bo", null, 1) });
@@ -58,13 +58,13 @@ public sealed class ProjectGraphTests
         };
     }
 
-    private static ProjectGraph Chain(ColonyModelInput input, bool craft = true)
+    internal static ProjectGraph Chain(ColonyModelInput input, bool craft = true)
     {
         var chain = ProjectGraph.CropChain(input, ColonyModelFixtures.Crop, "zone1", Gate);
         return craft ? chain.Then(ProjectGraph.Craft(input, ColonyModelFixtures.Recipe, AfterHarvest, false)) : chain;
     }
 
-    private static ColonyTrajectory Run(ColonyModelInput input, ProjectGraph graph)
+    internal static ColonyTrajectory Run(ColonyModelInput input, ProjectGraph graph)
     {
         var cycles = input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray()).ToArray();
         return ColonyModel.Run(input, cycles, new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = graph });

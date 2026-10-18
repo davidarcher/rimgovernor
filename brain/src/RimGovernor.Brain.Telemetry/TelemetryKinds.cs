@@ -44,6 +44,9 @@ public static class TelemetryKinds
     /// <summary>One rounds review's summary row (<see cref="RoundsReviewTelemetry.Kind"/>): the food plan and the hunt comparison's note.</summary>
     public static readonly TelemetryKind RoundsReview = new(RoundsReviewTelemetry.Kind);
 
+    /// <summary>One review's tier-2 colony model run (<see cref="ColonyModelTelemetry.Kind"/>): horizon, events, runway, per-project dV/dt, truncation and findings.</summary>
+    public static readonly TelemetryKind ColonyModel = new(ColonyModelTelemetry.Kind);
+
     /// <summary>The clock entered a hold (<see cref="ColonyEventTelemetry.HoldKind"/>): a hazard, a game pause, a combat event or a brain hold.</summary>
     public static readonly TelemetryKind ClockHold = new(ColonyEventTelemetry.HoldKind);
 
