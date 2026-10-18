@@ -23,10 +23,6 @@ public static class OtlpFiles
         OtlpSignal.Metrics => Metrics,
         _ => throw new ArgumentOutOfRangeException(nameof(signal)),
     });
-
-    /// <summary>The ring of another signal beside <paramref name="ring"/>, one of the three files.</summary>
-    public static string SiblingRing(string ring, OtlpSignal signal) =>
-        RingPath(Path.GetDirectoryName(ring) ?? "", signal);
 }
 
 /// <summary>Bounds one signal's file ring: disk use is at most <see cref="SegmentBytes"/> x <see cref="Segments"/>.</summary>

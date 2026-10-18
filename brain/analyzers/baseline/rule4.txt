@@ -10,7 +10,6 @@ Acceptance/Evidence/EvidenceBudget.cs|EvidenceBudget.WriteEvidence
 Acceptance/Evidence/EvidenceBudget.cs|EvidenceBudget.WriteJsonFile
 Acceptance/Evidence/Metrics.cs|Metrics.EvidenceBytes
 Acceptance/Evidence/MetricSeries.cs|MetricSeries.ReadSeries
-Acceptance/Evidence/MetricsOtel.cs|OtelTotals.Read
 Acceptance/GameHost/GameProcess.cs|GameProcess.KillTree
 Acceptance/GameHost/GameProcess.cs|GameProcess.RemoveEndpoint
 Acceptance/GameHost/GameProcess.cs|GameProcess.StartDetached

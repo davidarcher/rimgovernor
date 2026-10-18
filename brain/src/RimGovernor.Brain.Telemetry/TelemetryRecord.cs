@@ -32,7 +32,7 @@ public static class RowKeys
 
     public const string RowEvent = "event";
 
-    /// <summary>The row context keys a record's trace ids are read back under and that mod_log rows are written with.</summary>
+    /// <summary>The row context keys a record's trace ids are read back under.</summary>
     public const string TraceIdKey = "trace_id";
 
     public const string SpanIdKey = "span_id";

@@ -5,9 +5,8 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// Every result.json carries a flat "metrics" block of numbers under stable names, so a run's cost is comparable
-/// across runs without reading the nested report: the timing fields, the wait statistics, the native round trips
-/// and pause costs (from the exported OTEL metrics rings, see <c>MetricsOtel.cs</c>), the service launches and the
-/// evidence size. Finalize computes it from the report and the output directory; cases add nothing.
+/// across runs without reading the nested report: the timing fields, the wait statistics, the service launches and
+/// the evidence size. Finalize computes it from the report and the output directory; cases add nothing.
 /// <c>acceptance run</c> and <c>acceptance suite</c> append one row per case to an append-only series
 /// (<see cref="MetricSeries"/>) and flag the metrics that drifted past their rule against the series' trailing median.
 /// </summary>
@@ -21,8 +20,6 @@ public sealed class Metrics
     [
         "wall_ms", "boot_ms", "ticks_advanced", "wall_tps",
         "waits", "waits_stalled", "max_quiet_ms",
-        "native_calls", "native_errors",
-        "native_queue_ms_mean", "native_exec_ms_mean",
         "service_launches", "evidence_bytes",
     ];
 
@@ -64,7 +61,6 @@ public sealed class Metrics
         }
 
         m.Values["service_launches"] = launches;
-        OtelTotals.Read(output).Fill(m);
         m.Values["evidence_bytes"] = EvidenceBytes(output);
         return m;
     }

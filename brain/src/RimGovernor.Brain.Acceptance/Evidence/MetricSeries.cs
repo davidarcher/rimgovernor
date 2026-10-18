@@ -149,10 +149,6 @@ public static class MetricSeries
         ["waits"] = new(1.5, 5),
         ["waits_stalled"] = new(1, 0.5),
         ["max_quiet_ms"] = new(1.5, 10000),
-        ["native_calls"] = new(1.5, 200),
-        ["native_errors"] = new(1, 0.5),
-        ["native_queue_ms_mean"] = new(1.5, 20),
-        ["native_exec_ms_mean"] = new(1.5, 20),
         ["service_launches"] = new(1, 0.5),
         ["evidence_bytes"] = new(1.5, 1 << 20),
     };

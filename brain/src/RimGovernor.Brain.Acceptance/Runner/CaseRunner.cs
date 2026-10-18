@@ -146,7 +146,7 @@ public sealed class CaseRunner
 
         // The brain's rings and store tables as bounded text in the output, before the postmortem, which reads the log ring there.
         if (cfg.Configuration.Length > 0
-            && CaseEvidence.Capture(GameSessions.EndpointDirectory(cfg.Configuration, cfg.GameId), output, started) is { Length: > 0 } evidenceError)
+            && CaseEvidence.Capture(GameSessions.EndpointDirectory(cfg.Configuration, cfg.GameId), ServiceJournal.PathOf(cfg), output, started) is { Length: > 0 } evidenceError)
         {
             report["case_evidence_error"] = evidenceError;
         }
@@ -389,8 +389,6 @@ public sealed class CaseRunner
         {
             throw runError;
         }
-
-        StartupRows.Check(output, cfg.Headless);
     }
 
     internal static Config NewConfig(AcceptanceCase c, RunOptions opts, string output)

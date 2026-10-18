@@ -29,7 +29,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Persistence contracts](persistence-contracts.md)
 - [OTEL signals](otel-signals.md)
 - [OTEL core: OTLP/JSON file sink](otel-core.md)
-- [OTEL metrics: native call phases, scheduler, outcomes](otel-metrics.md)
+- [OTEL metrics: scheduler, outcomes](otel-metrics.md)
 - [Durable policy and Auto control](durable-policy.md)
 - [Population commitments](population-contracts.md)
 - [Quest classification and execution](quests.md)

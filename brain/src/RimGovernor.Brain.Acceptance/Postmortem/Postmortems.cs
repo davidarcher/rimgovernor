@@ -54,7 +54,7 @@ public static class Postmortems
         sections.Add(Revision(facts.InstalledPackage, cancellationToken));
         sections.Add(PostmortemCrash.CrashDumps(dir, facts.Error ?? ""));
         sections.Add(Refusals(dir, rows));
-        var (db, storeNote) = PostmortemStore.OpenRaw(dir);
+        var (db, storeNote) = PostmortemStore.OpenRaw(Path.Combine(dir, Checkpoints.CheckpointStoreFile));
         using (db)
         {
             sections.Add(PostmortemStore.RoundsSection(db, storeNote));

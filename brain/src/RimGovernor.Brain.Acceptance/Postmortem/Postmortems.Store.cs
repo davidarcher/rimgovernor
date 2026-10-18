@@ -31,12 +31,11 @@ public static class PostmortemStore
     // --- 3. rounds (raw store) -------------------------------------
 
     /// <summary>
-    /// Opens dir/service.sqlite read-only without the store's schema checks; the note explains a null connection.
-    /// The caller disposes the connection.
+    /// Opens the store file at <paramref name="path"/> read-only without the store's schema checks; the note explains a
+    /// null connection. The caller disposes the connection.
     /// </summary>
-    internal static (SqliteConnection? Db, string Note) OpenRaw(string dir)
+    internal static (SqliteConnection? Db, string Note) OpenRaw(string path)
     {
-        var path = Path.Combine(dir, "service.sqlite");
         if (!File.Exists(path))
         {
             return (null, "no service.sqlite (native-only case or the service never started)");

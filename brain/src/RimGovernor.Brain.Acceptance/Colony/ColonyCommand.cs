@@ -249,7 +249,6 @@ public static class ColonyCommand
                     },
                 },
                 cancellationToken).ConfigureAwait(false);
-            StartupRows.Check(opts.Output, headless: true);
         }
         catch (AcceptanceException e)
         {

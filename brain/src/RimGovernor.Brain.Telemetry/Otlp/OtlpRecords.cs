@@ -146,57 +146,6 @@ public sealed record OtlpSpan
     public TimeSpan Duration => TimeSpan.FromTicks((EndUnixNano - StartUnixNano) / 100);
 }
 
-/// <summary>The kinds of <see cref="OtlpMetricRecord"/>.</summary>
-public enum OtlpMetricKind
-{
-    Gauge,
-    Sum,
-    Histogram,
-}
-
-/// <summary>
-/// One data point of a metric. Gauge and Sum points carry <see cref="Value"/>; Histogram points carry <see cref="Count"/>,
-/// <see cref="Sum"/>, <see cref="Bounds"/> and <see cref="Buckets"/> (Bounds.Count + 1 counts). Metrics are cumulative,
-/// so the latest point of a series is its total.
-/// </summary>
-public sealed record OtlpPoint
-{
-    public OtlpAttrDictionary Attrs { get; init; } = OtlpAttrDictionary.Empty;
-
-    public long StartUnixNano { get; init; }
-
-    public long TimeUnixNano { get; init; }
-
-    public double Value { get; init; }
-
-    public ulong Count { get; init; }
-
-    public double Sum { get; init; }
-
-    public IReadOnlyList<double> Bounds { get; init; } = [];
-
-    public IReadOnlyList<ulong> Buckets { get; init; } = [];
-}
-
-/// <summary>One metric with all its data points at one export.</summary>
-public sealed record OtlpMetricRecord
-{
-    public OtlpPosition Pos { get; init; }
-
-    public OtlpResource Resource { get; init; }
-
-    public string Name { get; init; } = "";
-
-    public string Unit { get; init; } = "";
-
-    public OtlpMetricKind Kind { get; init; }
-
-    /// <summary>Sum only.</summary>
-    public bool Monotonic { get; init; }
-
-    public IReadOnlyList<OtlpPoint> Points { get; init; } = [];
-}
-
 internal static class OtlpTime
 {
     internal static DateTimeOffset FromUnixNano(long nanos) =>

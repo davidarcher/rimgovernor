@@ -86,9 +86,9 @@ An attribute string is capped at 64 KiB (`OtlpFileConfig.MaxAttributeBytes`).
 
 ## Readers
 
-`OtlpRing` (`Segments`, `Scan`, `ReadLines`), `OtlpReader` (`ReadLogs`, `ReadSpans`, `ReadMetrics`, `DecodeLog`)
+`OtlpRing` (`Segments`, `Scan`, `ReadLines`), `OtlpReader` (`ReadLogs`, `ReadSpans`, `DecodeLog`)
 and `OtlpTimeline.Read(path)` (rows with `Kind`, `Sequence`, `Run`, `WallTime`, `Context`, `Payload`; numbers are
-`double`). `OtlpFiles.SiblingRing` finds the other signals' rings beside one. Attribute values are natively typed
+`double`). Attribute values are natively typed
 (`OtlpAttrDictionary`). All readers skip torn or invalid lines and open segments shared, so they follow a ring a
 live writer owns.
 
@@ -118,5 +118,5 @@ Critical protection is the `class=critical` planner spans. Attribute keys are pr
 
 Typed bridge calls send the current span as a W3C `traceparent` (`00-<32 hex trace>-<16 hex span>-<flags>`,
 55 characters, `Spans.Traceparent`) in the existing `trace` argument. The mod caps the argument at 64 characters,
-treats it as opaque, stamps it on its `mod_log` lines and echoes it in `timing.trace`; the brain reads
+treats it as opaque and echoes it in `timing.trace`; the brain reads
 either that form or the older `<trace>/<span>` (`Spans.TryParseWireTrace`).

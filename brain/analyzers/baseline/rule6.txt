@@ -347,8 +347,6 @@ Store/Plans/BuildingDependency.cs|Store.WallCellsIn|"Wall"
 Telemetry/Otlp/MetricAggregator.cs|MetricAggregator.s_defaultBounds|2500
 Telemetry/Otlp/MetricAggregator.cs|MetricAggregator.s_defaultBounds|5000
 Telemetry/Otlp/MetricAggregator.cs|MetricAggregator.s_defaultBounds|7500
-Telemetry/TelemetryMetrics.cs|TelemetryMetrics.NativeBuckets|2500
-Telemetry/TelemetryMetrics.cs|TelemetryMetrics.NativeBuckets|5000
 Telemetry/TelemetryMetrics.cs|TelemetryMetrics.SchedulerBuckets|120000
 Telemetry/TelemetryMetrics.cs|TelemetryMetrics.SchedulerBuckets|2500
 Telemetry/TelemetryMetrics.cs|TelemetryMetrics.SchedulerBuckets|30000

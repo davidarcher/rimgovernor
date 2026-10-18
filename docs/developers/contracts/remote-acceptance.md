@@ -173,7 +173,12 @@ At case end, before the postmortem, the runner (`CaseEvidence`) writes the case'
 into the output as bounded text: `<case>/otlp/logs.jsonl` and `traces.jsonl`, the ring lines whose
 latest timestamp is at or after the case's start (rotated segments included), and
 `<case>/store/need_methods.jsonl` and `need_transitions.jsonl`, one JSON object per row of those
-tables in `<case>/service.sqlite`, oldest first. The raw `.sqlite` never leaves the runner. Caps:
+tables, oldest first, from the store the brain is writing: the `RIMGOVERNOR_STATE` the game was
+launched with (`ServiceJournal.PathOf`), which for a kept game is the `service.sqlite` of the
+earlier case that launched it. `need_transitions` keeps the rows whose `wall_ms` is at or after
+the case's start; `need_methods` has no time column and is dumped whole, so from a kept game it
+carries the earlier cases' rows too. When that store exists (the brain ran) and the log ring has no
+line since the case started, `case_evidence_error` says so. The raw `.sqlite` never leaves the runner. Caps:
 logs 16 MiB, traces 32 MiB (spans carry the brain's step timing and outrun the logs), each store
 table 4 MiB. A served case logs about 1 MB a minute, so a quarter-hour case fits whole, and a
 case's worst case stays under 56 MiB raw. Over its cap a file keeps its newest lines (nearest a

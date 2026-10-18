@@ -45,17 +45,7 @@ public sealed class Vocabulary
 /// </summary>
 public static class TelemetryMetrics
 {
-    // Native-call phases (the phase attribute of NativePhase).
-    public const string PhaseGateWait = "gate_wait";
-    public const string PhaseCall = "call";
-    public const string PhaseDecode = "decode";
-    public const string PhaseProtoDecode = "proto_decode";
-    public const string PhaseNativeQueue = "native_queue";
-    public const string PhaseNativeExecute = "native_execute";
-
     // Instrument names, the metrics contract's table.
-    public const string NativePhaseMetric = "rimgovernor.native.phase.duration";
-    public const string NativeCallsMetric = "rimgovernor.native.calls";
     public const string StepMetric = "rimgovernor.scheduler.step.duration";
     public const string StopLatencyMetric = "rimgovernor.scheduler.stop_latency";
     public const string CriticalWaveMetric = "rimgovernor.scheduler.critical_wave.duration";
@@ -68,26 +58,18 @@ public static class TelemetryMetrics
 
     // Histogram boundaries, explicit because the file sink carries only explicit buckets. Milliseconds throughout.
 
-    /// <summary>Spans a cached read (sub-millisecond) to a call that hit its timeout (10 s).</summary>
-    public static readonly IReadOnlyList<double> NativeBuckets =
-        [0.5, 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000];
-
     /// <summary>Spans a quiet admission tail to a step that waited out a long pause (5 min).</summary>
     public static readonly IReadOnlyList<double> SchedulerBuckets =
         [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 30000, 60000, 120000, 300000];
 
-    private static readonly Vocabulary s_nativePhases = Vocabulary.Words(PhaseGateWait, PhaseCall, PhaseDecode, PhaseProtoDecode, PhaseNativeQueue, PhaseNativeExecute);
-    private static readonly Vocabulary s_nativeOutcomes = Vocabulary.Words("ok", "refused", "error");
     private static readonly Vocabulary s_verdicts = Vocabulary.Words("applied", "refused", "failed");
     private static readonly Vocabulary s_admissions = Vocabulary.Words("admitted", "refused");
 
     private static readonly Meter s_meter = new(Spans.ScopePrefix + "telemetry");
 
-    private static readonly Histogram<double> s_nativePhase = Hist(NativePhaseMetric, "Native call time by phase and native tool.", NativeBuckets);
     private static readonly Histogram<double> s_step = Hist(StepMetric, "Scheduler step wall time by cause.", SchedulerBuckets);
     private static readonly Histogram<double> s_stopLatency = Hist(StopLatencyMetric, "Native clock stop to the step it woke.", SchedulerBuckets);
     private static readonly Histogram<double> s_criticalWave = Hist(CriticalWaveMetric, "Critical planner wave wall time, the controller's leg of hazard to protective order.", SchedulerBuckets);
-    private static readonly Counter<long> s_nativeCalls = s_meter.CreateCounter<long>(NativeCallsMetric, "{call}", "Completed native calls by native tool and outcome.");
     private static readonly Gauge<double> s_ticksPerSecond = s_meter.CreateGauge<double>(TicksPerSecondMetric, "{tick}/s", "Game ticks per wall second the clock status last reported.");
     private static readonly Counter<long> s_outcomes = s_meter.CreateCounter<long>(OutcomesMetric, "{action}", "Dispatched actions by kind, verdict and refusal reason.");
     private static readonly Counter<long> s_admissionCount = s_meter.CreateCounter<long>(AdmissionsMetric, "{decision}", "Method admissions by verdict and refusal reason.");
@@ -96,14 +78,6 @@ public static class TelemetryMetrics
         s_meter.CreateHistogram<double>(name, "ms", description, advice: new InstrumentAdvice<double> { HistogramBucketBoundaries = bounds });
 
     private static KeyValuePair<string, object?> Tag(string key, Label l) => new(key, l.Value ?? "");
-
-    /// <summary>Records one phase of a native call. <paramref name="tool"/> must come from a vocabulary of native tool names.</summary>
-    public static void NativePhase(Label tool, string phase, double ms) =>
-        s_nativePhase.Record(ms, Tag("native_tool", tool), Tag("phase", s_nativePhases.Label(phase)));
-
-    /// <summary>Counts one completed native call; <paramref name="outcome"/> is ok, refused or error.</summary>
-    public static void NativeCall(Label tool, string outcome) =>
-        s_nativeCalls.Add(1, Tag("native_tool", tool), Tag("outcome", s_nativeOutcomes.Label(outcome)));
 
     /// <summary>Records one step's wall time under its cause.</summary>
     public static void SchedulerStep(Label cause, double ms) => s_step.Record(ms, Tag("step_cause", cause));
