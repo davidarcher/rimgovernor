@@ -72,7 +72,7 @@ namespace HomeBridge.BridgeTools
                 {
                     if (!renderIntervalReported) Log.Warning("[colony-review] OnDemandRendering.renderFrameInterval is not available");
                 }
-                else if ((int)property.GetValue(null) != interval)
+                else if (property.GetValue(null) is not int current || current != interval)
                 {
                     property.SetValue(null, interval);
                     if (!renderIntervalReported) Log.Message("[colony-review] render frame interval set to " + interval);
