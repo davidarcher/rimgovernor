@@ -32,6 +32,15 @@ namespace HomeBridge.BridgeTools
         internal bool? Passive;
     }
 
+    /// The facts of one faction that decide whether a raid can come from it.
+    internal struct RaidFactionFacts
+    {
+        internal string Def;
+        internal bool Player, Defeated, Hostile;
+        /// The def has a pawn group maker of the Combat kind.
+        internal bool Combat;
+    }
+
     /// Filter-first threat fact rows: the native emits facts,
     /// the brain classifies them (bridge.ClassifyThreat). A pawn is kept when any
     /// fact a threat rule reads is set (a mental state, faction hostility, a
@@ -47,6 +56,18 @@ namespace HomeBridge.BridgeTools
     {
         /// What one Collect call did: the probe's proof that discarded pawns are never projected.
         internal struct Scan { internal long Examined, Candidates, Projections, ProximityChecks; }
+
+        /// The def names of the factions a raid can come from (ThreatFacts.HostileFactions): not the player, not defeated,
+        /// hostile to the player, with a Combat group maker; one name per def, in ordinal order.
+        internal static IReadOnlyList<string> HostileRaidFactions<T>(IEnumerable<T> factions, Func<T, RaidFactionFacts> facts)
+        {
+            var names = new SortedSet<string>(StringComparer.Ordinal);
+            foreach (var faction in factions) {
+                var f = facts(faction);
+                if (!f.Player && !f.Defeated && f.Hostile && f.Combat) names.Add(f.Def);
+            }
+            return new List<string>(names);
+        }
 
         /// Whether f carries a fact a threat rule reads regardless of
         /// distance; such a pawn also gets combat detail in the pawn table.

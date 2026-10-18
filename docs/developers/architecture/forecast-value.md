@@ -260,7 +260,17 @@ raid harm per day. The output feeds the currency and the death floor.
 2. **Composition.** Points ÷ pawn-kind combat power gives raid size. The
    faction's pawn kinds give a distribution over about ten weapon bins, each
    with damage, armor penetration (damage × 0.015 unless the def sets it) and
-   damage kind.
+   damage kind. `RaidCompositionRules.Of` (#3542) is the expected raid, not a
+   sampled one: the hostile factions raid with equal weight; within a faction
+   the Combat group makers compete by commonality; within a group a kind is
+   drawn by selection weight among the kinds the faction's cost curve allows at
+   these points, and the group's pawn count is the points over their weighted
+   mean combat power. A kind's weapon is drawn from the defs its weapon tags
+   select, by commonality (a kind with no tags fights with its race's own
+   attacks). Weapons collapse into bins by armor category, ranged or melee and
+   damage decile. `weaponMoney` and tech level do not filter the weapons in v1.
+   No hostile faction, or a faction with no decoded Combat group, leaves the
+   composition unknown with a finding; an unmatched weapon tag is a finding.
 3. **Exposure.** Hits taken per colonist per raid. This is not derivable in
    closed form: target choice is a weighted random draw, and outcomes depend
    on cover, pathing and projectiles (see

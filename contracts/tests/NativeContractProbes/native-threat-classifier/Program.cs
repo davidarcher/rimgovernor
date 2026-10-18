@@ -40,7 +40,24 @@ internal static class NativeThreatClassifierProbe
         ZeroRadius();
         Passive();
         PrisonBreak();
+        RaidFactions();
         Console.WriteLine("native-threat-classifier: " + checks + " checks passed");
+    }
+
+    // ThreatFacts.HostileFactions: hostile, undefeated, non-player factions with a Combat group maker, one ordinal-sorted name per def.
+    private static void RaidFactions()
+    {
+        var factions = new List<RaidFactionFacts> {
+            new RaidFactionFacts { Def = "Tribe", Hostile = true, Combat = true },
+            new RaidFactionFacts { Def = "Pirate", Hostile = true, Combat = true },
+            new RaidFactionFacts { Def = "Pirate", Hostile = true, Combat = true },
+            new RaidFactionFacts { Def = "Outlander", Hostile = false, Combat = true },
+            new RaidFactionFacts { Def = "Traders", Hostile = true, Combat = false },
+            new RaidFactionFacts { Def = "Fallen", Hostile = true, Defeated = true, Combat = true },
+            new RaidFactionFacts { Def = "PlayerColony", Player = true, Hostile = true, Combat = true },
+        };
+        Check(string.Join(",", NativeThreatClassifier.HostileRaidFactions(factions, f => f)) == "Pirate,Tribe", "hostile raid factions: one name per def, ordinal order, no friendly, defeated, player or combat-less faction");
+        Check(NativeThreatClassifier.HostileRaidFactions(new List<RaidFactionFacts>(), f => f).Count == 0, "hostile raid factions: none is empty, not an error");
     }
 
     private static readonly List<(int X, int Z)> Colonists = new List<(int X, int Z)> { (0, 0), (10, 0) };

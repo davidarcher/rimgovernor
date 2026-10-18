@@ -330,6 +330,9 @@ public sealed record RoundsFacts
 
     public Fact<double> RaidPoints { get; init; }
 
+    /// <summary>The def names of the hostile factions that can raid; the harm model's raid composition reads them.</summary>
+    public Fact<EquatableArray<string>> HostileFactions { get; init; }
+
     /// <summary>The running storyteller def name (Find.Storyteller.def); the threat schedule (#3539) looks its comps up by it.</summary>
     public Fact<string> Storyteller { get; init; }
 

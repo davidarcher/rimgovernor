@@ -144,6 +144,8 @@ public sealed partial class DefinitionCatalog
             ForcedMiss = GameMembers.ForcedMissRadius(verb) > 0,
             Precision = precision,
             AP = penetration,
+            Damage = amount,
+            ArmorCategory = ArmorCategoryOf(damage),
             DPS = cycle > 0 ? amount * burst / cycle : weapon.DPS,
         };
     }
@@ -156,7 +158,8 @@ public sealed partial class DefinitionCatalog
     private P.WeaponDef MeleeThroughput(ThingDef row, P.WeaponDef weapon)
     {
         var cooldownFactor = StatBase(row, StatMeleeCooldown);
-        double weight = 0, dps = 0, penetration = 0, reach = weapon.Reach;
+        double weight = 0, dps = 0, penetration = 0, damageSum = 0, reach = weapon.Reach;
+        var categoryWeights = new Dictionary<P.ArmorCategory, double>();
         foreach (var tool in row.tools)
         {
             double power = tool.power;
@@ -177,14 +180,31 @@ public sealed partial class DefinitionCatalog
 
                     var w = power * power * verb.commonality * tool.chanceFactor;
                     weight += w;
+                    damageSum += w * power;
+                    if (ArmorCategoryOf(verb.meleeDamageDef) is { } category)
+                    {
+                        categoryWeights[category] = categoryWeights.GetValueOrDefault(category) + w;
+                    }
+
                     dps += w * power * (1 + ap) * verb.accuracyTouch / cycle;
                     penetration += w * ap;
                 }
             }
         }
 
-        return weight > 0 ? weapon with { Reach = reach, DPS = dps / weight, AP = penetration / weight } : weapon with { Reach = reach };
+        // The family most swings resolve against (ties break to the lower family, so the answer does not depend on tool order).
+        P.ArmorCategory? dominant = categoryWeights.Count > 0 ? categoryWeights.OrderByDescending(c => c.Value).ThenBy(c => c.Key).First().Key : null;
+        return weight > 0
+            ? weapon with { Reach = reach, DPS = dps / weight, AP = penetration / weight, Damage = damageSum / weight, ArmorCategory = dominant }
+            : weapon with { Reach = reach };
     }
+
+    // The policy family of a damage def's armor category; null when the damage ignores armor. The enum's member names are the
+    // DamageArmorCategoryDef defNames (Sharp, Blunt, Heat); a category outside them is an error, not a silent family.
+    private static P.ArmorCategory? ArmorCategoryOf(DamageDef? damage) =>
+        damage?.armorCategory is { } category
+            ? Enum.TryParse<P.ArmorCategory>(category.defName, out var family) ? family : throw new CatalogException($"damage armor category {category.defName} of {damage.defName} is not a policy armor category")
+            : null;
 
     // Every maneuver def of tool capacity: the melee verbs a tool of that capacity has (Tool.Maneuvers).
     private List<ManeuverDef> Maneuvers(ToolCapacityDef capacity)

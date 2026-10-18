@@ -26,6 +26,9 @@ public sealed record ColonyThreat
 
     public Fact<double> DifficultyThreatScale { get; init; }
 
+    /// <summary>The def names of the hostile factions that can raid; unknown when the threat section was not observed.</summary>
+    public Fact<EquatableArray<string>> HostileFactions { get; init; }
+
     public Fact<string> Storyteller { get; init; }
 
     public Fact<double> DaysPassed { get; init; }
@@ -56,6 +59,7 @@ public sealed record ColonyThreat
             StorytellerWealth = Number(facts.StorytellerWealth),
             AdaptationFactor = Number(facts.AdaptationFactor),
             DifficultyThreatScale = Number(facts.DifficultyThreatScale),
+            HostileFactions = Known(facts.HostileFactions),
             Storyteller = string.IsNullOrEmpty(facts.Storyteller) ? Unknown<string>() : Known(facts.Storyteller),
             DaysPassed = Number(facts.DaysPassed),
             AdaptationDays = Number(facts.AdaptationDays),

@@ -52,6 +52,18 @@ public sealed record WeaponDef
     /// <summary>The weapon's armor penetration.</summary>
     public double AP { get; init; }
 
+    /// <summary>
+    /// The damage of one hit: the projectile's amount (with the weapon's damage multiplier) for a ranged weapon, the
+    /// selection-weighted tool power for a melee weapon. 0 for a def that states none.
+    /// </summary>
+    public double Damage { get; init; }
+
+    /// <summary>
+    /// The armor stat family one hit is resolved against (the damage def's <c>armorCategory</c>; for a melee weapon, the
+    /// family most of its swings use). Null when the damage ignores armor or the weapon states no damage.
+    /// </summary>
+    public ArmorCategory? ArmorCategory { get; init; }
+
     /// <summary>An accuracy curve that peaks at medium range or beyond.</summary>
     public bool Precision { get; init; }
 

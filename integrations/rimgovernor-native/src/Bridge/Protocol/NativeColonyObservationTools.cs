@@ -225,6 +225,7 @@ namespace HomeBridge.BridgeTools
                     RaidPoints = Finite(StorytellerUtility.DefaultThreatPointsNow(map)),
                     AdaptationFactor = Finite(Find.StoryWatcher.watcherAdaptation.TotalThreatPointsFactor),
                     DifficultyThreatScale = Finite(Find.Storyteller.difficulty.threatScale),
+                    HostileFactions = [.. HostileRaidFactions()],
                     Storyteller = Find.Storyteller.def.defName, DaysPassed = Finite(GenDate.DaysPassedFloat),
                     AdaptationDays = Finite(Find.StoryWatcher.watcherAdaptation.AdaptDays),
                 };
@@ -233,6 +234,12 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); ReadFailureLog.Note("threat", error); return new Obs.ThreatSection(); }
         }
+
+        // The def names of the factions a raid can come from: visible, undefeated, hostile to the player, and with a Combat pawn group maker.
+        private static IEnumerable<string> HostileRaidFactions() =>
+            NativeThreatClassifier.HostileRaidFactions(Find.FactionManager.AllFactionsVisible, f => new RaidFactionFacts {
+                Def = f.def.defName, Player = f.IsPlayer, Defeated = f.defeated, Hostile = f.HostileTo(Faction.OfPlayer),
+                Combat = f.def.pawnGroupMakers != null && f.def.pawnGroupMakers.Any(maker => maker.kindDef == PawnGroupKindDefOf.Combat) });
 
         private static Obs.UpkeepSection ReadComfort(Map map, List<Thing> things, uint? routePathBudgetMs)
         {

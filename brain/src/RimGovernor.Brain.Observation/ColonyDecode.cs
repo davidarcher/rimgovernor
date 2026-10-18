@@ -179,6 +179,7 @@ public static class ColonyDecodeReads
             AnimalWard = f.AnimalWard with { Area = PoliciesReads.AllowedAreaID(r.Policies, HerdWardRules.HospitalAreaLabel) },
             IsolationArea = PoliciesReads.AllowedAreaID(r.Policies, IsolationRoomRules.IsolationAreaLabel),
             RaidPoints = r.Threat.RaidPoints,
+            HostileFactions = r.Threat.HostileFactions,
             Storyteller = r.Threat.Storyteller,
             DaysPassed = r.Threat.DaysPassed,
             AdaptationDays = r.Threat.AdaptationDays,
