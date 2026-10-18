@@ -195,6 +195,9 @@ unmeasured guesses until this run is recorded (#3199).
    how the one ceiling holds the rate and recovers. Every `clock_hold` row also carries the run it ended: `run_ticks`,
    `run_ms`, `run_tps`, `run_frames`, `run_frames_over_budget` and `ceiling_tps`, so effective ticks/s per run segment
    needs no step to catch the clock running.
+   A plain `acceptance colony-review -root <bridge> -days 1` gives the same rows for one in-game day of ordinary play (the
+   2026-10-18 baseline came from it; its brain ring is `<bridge>/config-headless/rimgovernor-trial/logs.jsonl`, filtered by
+   the run's `service.instance.id`).
 2. Critical wave and review scope: take `critical_wave_ms` from the `clock_step` rows and `dur_ms` from `rounds_review` /
    `planner_step` rows of the same run; report p50/p95/max.
 3. Hazard hold to resume: take `stop_latency_ms` from `clock_step` rows that follow a `clock_stop` or `clock_hold`;

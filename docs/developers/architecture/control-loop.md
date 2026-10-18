@@ -917,8 +917,8 @@ player input and pass. Pause turns the bot off: the driver holds the clock for
 
 ### Constants that are not measured
 
-These are conservative guesses, not measurements. The live baseline that would
-replace them is #3199; the procedure is in
+These are conservative guesses, not measurements. One in-game day was measured on 2026-10-18 (frame budget and
+Ultrafast ticks/s); combat, heartbeat and autosave remain unmeasured (#3199). The procedure is in
 [Measure brain throughput](../testing/measure-throughput.md#clock-baseline-run) and the
 table in [brain host](brain-host.md#live-clock-baseline).
 

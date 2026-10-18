@@ -172,8 +172,7 @@ namespace HomeBridge.BridgeTools
             {
                 var modeChanged = running.Policy.Mode != typed.Policy.Mode;
                 running.Policy = typed.Policy;
-                (s.FramesAtResume, s.OverBudgetAtResume, _) = FrameAccount();
-            ApplyPolicy(s, typed.Policy);
+                ApplyPolicy(s, typed.Policy);
                 if (modeChanged) ResetCombatStops(s);
             }
             if (s.RequestedSpeed == speed && Find.TickManager.CurTimeSpeed == speed) return null;
@@ -211,10 +210,12 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, ForcePauseDetail());
             var from = previous != null && ReferenceEquals(previous.Session, Current.Game) ? previous.StopReason ?? Clock.HoldReason.Unavailable : Clock.HoldReason.NeverRun;
             var tm = Find.TickManager;
+            var (frames, overBudget, _) = FrameAccount();
             var s = new State(Current.Game, Find.CurrentMap) {
                 Active = true, RequestedSpeed = speed, Typed = typed,
                 StartTick = tm.TicksGame, LastTick = tm.TicksGame, ResumeMs = NowMs(),
-                LastProbeTick = tm.TicksGame, LastProbeMs = NowMs(), LastDigestTick = tm.TicksGame
+                LastProbeTick = tm.TicksGame, LastProbeMs = NowMs(), LastDigestTick = tm.TicksGame,
+                FramesAtResume = frames, OverBudgetAtResume = overBudget
             };
             ApplyPolicy(s, typed.Policy);
             s.Ceiling.Beat(NowMs());

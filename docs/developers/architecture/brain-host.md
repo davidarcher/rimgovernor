@@ -95,35 +95,46 @@ The thresholds are unmeasured guesses:
 | `FaultBackoff` | 5 s | Half the worker's maximum idle delay (10 s), so a fault does not spin and recovery stays prompt. |
 | `PlannerMissLimit` | 3 | Consecutive missed wave cutoffs before a planner is reported stalled in `BrainHost.Status()`. |
 
-None has been measured against a live game (#3199); see [Live clock baseline](#live-clock-baseline).
+Measured once (one in-game day, 2026-10-18, #3199); see [Live clock baseline](#live-clock-baseline).
 
 ## Live clock baseline
 
-Not measured (#3199): no live game run has been recorded, so every value below is a guess taken from the current
-constants, not an observation. The recording procedure is in
-[Measure brain throughput](../testing/measure-throughput.md#clock-baseline-run). When #3199 records a run, fill the
-Measured column from it and name the machine and run under the tables. The same constants are listed with their
-meaning in the [control loop](control-loop.md#constants-that-are-not-measured).
+First measured 2026-10-18 (#3199) on one in-game day of a fresh Crashlanded colony (3 colonists, storyteller on) under
+`acceptance colony-review -days 1`, revision 21a4a5196, brain session `service.instance.id`
+`e59697faa0f3488d8fa177ba88d2916b`, on DAVID-PC (AMD Ryzen 9 9950X, 94 GB, NVIDIA GeForce RTX 4080 SUPER, Windows 11 Pro).
+The recording procedure is in [Measure brain throughput](../testing/measure-throughput.md#clock-baseline-run). Rows marked
+"not measured" need the combat, idle-heartbeat and autosave runs that #3199 still owes. The same constants are listed with
+their meaning in the [control loop](control-loop.md#constants-that-are-not-measured).
+
+The day took 102 s of wall time from `brain_started` to tick 60000 (85 s from the first Run): 55.9 s running at Ultrafast
+and 29.6 s held. Holds: 5 (`ColonistNeed` 3, `NotificationBatch` 1, `SessionChanged` 1 at shutdown), none `Unavailable`;
+12 `clock_step` rows; 7 `clock_run` rows, 5 resumed and 2 refused because a hold entered after the step's read (each refusal
+cost one more step before the resume). Native observed the whole day at about 1100 ticks/s with the ceiling at 2100 to
+4000 ticks/s: the game's own tick rate, not the ceiling, bounded the speed.
 
 | Quantity | Measured | Current constant | Source row |
 | --- | --- | --- | --- |
-| Frame time at each speed (p50/p95/p99) | not measured | 30 ms budget (`ClockCeiling.DefaultFrameBudgetMs`) | `clock_hold` `run_frames` and `run_frames_over_budget` per run (the frame account keeps no per-frame distribution) |
-| Effective ticks/s at Ultrafast (boosted, up to 9000 ticks/s, with the one ceiling lowering it on over-budget frames) | not measured | 0.7 down, 1.25 up per 250 ms | `clock_hold` `run_tps` per run (`run_ticks` / `run_ms`), `ceiling_tps` at the hold; `clock_step` pacing fields (`pacing_reason`, `paced_tps`, `tps_ceiling`, `effective_tps`) while running |
-| Critical planner wave wall time | not measured | none | `clock_step.critical_wave_ms` |
-| Immediate review scope wall time | not measured | none | `rounds_review`, `planner_step` `dur_ms` |
-| Combat hold to resume latency | not measured | 2 s budget (`ClockCombatStops.ResumeBudget`) | `clock_stop.resume_latency_ms`, `combat_summary` p50/p95 |
-| Brain silence before the heartbeat lapses | not measured | 1 s beat, 5 s tolerance | `clock_step` rows with `pacing_reason` `heartbeat`; `heartbeat` failure events |
-| Autosave hold duration | not measured | one in-game day cadence | `clock_run` rows with reason `autosave` and the next `resumed` |
+| Frame time at each speed (p50/p95/p99) | Ultrafast only: 1645 paced frames over 55.9 s running (34 ms mean), 61 over the 30 ms budget (3.7 %). No per-frame distribution; the per-run split was cumulative in this run (fixed after it). | 30 ms budget (`ClockCeiling.DefaultFrameBudgetMs`) | `clock_hold` `run_frames` and `run_frames_over_budget` per run (the frame account keeps no per-frame distribution) |
+| Effective ticks/s at Ultrafast (boosted, up to 9000 ticks/s, with the one ceiling lowering it on over-budget frames) | `run_tps` 1067, 1110 and 1365 on the three long runs (29876, 19941 and 12155 ticks); 1110 over the day. `ceiling_tps` at the holds 2532 to 3956; `clock_step` `paced_tps` 2128 to 2891 with `pacing_reason` `frame_budget`; `effective_tps` between steps 860 to 1196. | 0.7 down, 1.25 up per 250 ms | `clock_hold` `run_tps` per run (`run_ticks` / `run_ms`), `ceiling_tps` at the hold; `clock_step` pacing fields (`pacing_reason`, `paced_tps`, `tps_ceiling`, `effective_tps`) while running |
+| Critical planner wave wall time | p50 5.8 s, p95 7.8 s, max 13.5 s (12 steps) | none | `clock_step.critical_wave_ms` |
+| Immediate review scope wall time | `clock_step` `dur_ms` p50 7.0 s, p95 10.0 s, max 14.0 s; rounds `planner_step` p50 4.0 s, p95 5.8 s, max 12.0 s; the slowest other planners economy p50 2.2 s and food p50 1.3 s | none | `rounds_review`, `planner_step` `dur_ms` |
+| Hazard hold to resume latency | Hunger holds 5.4, 5.7, 8.2 and 10.3 s: every hold costs a full scheduler step before the Run, and a refused Run costs a second one | none | `clock_hold` to the next `clock_resume` |
+| Combat hold to resume latency | not measured (no combat in the run) | 2 s budget (`ClockCombatStops.ResumeBudget`) | `clock_stop.resume_latency_ms`, `combat_summary` p50/p95 |
+| Brain silence before the heartbeat lapses | not measured (no `heartbeat` pacing row; the ceiling never fell to Normal) | 1 s beat, 5 s tolerance | `clock_step` rows with `pacing_reason` `heartbeat`; `heartbeat` failure events |
+| Autosave hold duration | not measured (no autosave in one day) | one in-game day cadence | `clock_run` rows with reason `autosave` and the next `resumed` |
 
 | Recommended budget | Value | Status |
 | --- | --- | --- |
-| Native frame budget | 30 ms | guess (the existing constant) |
+| Native frame budget | 30 ms | measured once: 3.7 % of paced frames over budget at about 1100 ticks/s; keep |
 | Brain heartbeat interval and tolerance | 1 s and 5 s | guess; derive from the p99 brain silence |
 | Resume-latency budget for combat holds | 2 s | guess; derive from the p95 `resume_latency_ms` |
 | Combat fallback speed | Normal | guess; the safest choice, not a measured one |
 | Autosave cadence | one in-game day | guess; needs a measured save duration and a tolerable intent loss |
 
-Machine: not recorded. Run: none.
+What the day also showed (#3556, #3557, #3558): the brain reviews at wall cadence while the clock runs at game speed, so a
+7 to 14 s step is 8000 to 15000 ticks of game time, the dispatch of a selection made at tick 8858 was refused at tick
+25224 as "Activity deadline already passed", and the colony saw 12 reviews in a day where the retired 600-tick activity
+holds gave about 100.
 
 ## Hosting in the mod (#3115)
 
