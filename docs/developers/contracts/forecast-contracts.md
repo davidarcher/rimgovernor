@@ -296,7 +296,9 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
   (1 − `HarmRiskWeight`) × E + `HarmRiskWeight` × CVaR`HarmRiskAlpha` of `HarmConsequences.Of` for the pawn. Its inputs are
   `RaidExposure.HitsPerColonist(points ÷ DefenseCapacity, role)` and `ArmorResponseRules.OfOutfit` of the pawn's outfit. The role
   comes from the worn primary weapon (ranged: `gunner`, melee: `melee`, none: `noncombatant`); the outcome's outfit is the last
-  `OutfitChanges` row for the pawn, else the worn one. A schedule that expects no raids is a known 0. The distribution of a pawn
+  `OutfitChanges` row for the pawn, else the worn one. The worn primary is a `GearSlot.Primary` option in `GearLoadoutInput.Worn`
+  that `ColonyGearReads.GearLoadoutModelFacts` builds from the gear census's `PawnEquipment` (`PrimaryId` and the equipped item
+  resolved in the frame's things table), with `Ranged` from the catalog's weapon rows (#3562). A schedule that expects no raids is a known 0. The distribution of a pawn
   is memoized per context by (pawn, role, outfit, care facts, hits).
 - Unknown, with the specific finding and no `harm_capability_unassessed`, when an input is: `threat_schedule_unknown` (with the
   schedule's own finding), `raid_composition_unknown` (with the composition's), `raid_points_unobserved`,

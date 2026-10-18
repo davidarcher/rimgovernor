@@ -35,7 +35,7 @@ public static class ColonyGearReads
             };
             try
             {
-                row = row with { LoadoutModel = GearLoadoutModelFacts(defs, v.OutdoorTemperatureC, p, policy, threat) };
+                row = row with { LoadoutModel = GearLoadoutModelFacts(defs, tables, v.OutdoorTemperatureC, p, policy, threat) };
             }
             catch (DomainException e)
             {
@@ -77,7 +77,7 @@ public static class ColonyGearReads
     /// lacks a row or stat values for, or a model outside PlanGearLoadout's bounds such as two worn garments on one
     /// slot) throws a <see cref="DomainException"/> naming the cause.
     /// </summary>
-    public static Fact<GearLoadoutInput> GearLoadoutModelFacts(GearDefinitions defs, double outdoor, O.GearLoadout p, Fact<ApparelPolicyState> state, Fact<RaidThreat> threat)
+    public static Fact<GearLoadoutInput> GearLoadoutModelFacts(GearDefinitions defs, Tables tables, double outdoor, O.GearLoadout p, Fact<ApparelPolicyState> state, Fact<RaidThreat> threat)
     {
         var unknown = Unknown<GearLoadoutInput>();
         var m = p.LoadoutModel;
@@ -141,6 +141,10 @@ public static class ColonyGearReads
                 worn.Add(option);
             }
         }
+        if (PrimaryWeaponOption(p.Equipment, tables, catalog) is { } primary)
+        {
+            worn.Add(primary);
+        }
         var options = new List<GearOption>();
         foreach (var x in m.Options)
         {
@@ -152,6 +156,33 @@ public static class ColonyGearReads
         input = input with { Worn = EquatableArray.From(worn), Options = EquatableArray.From(options) };
         input.Validate();
         return Known(input);
+    }
+
+    /// <summary>
+    /// The pawn's equipped primary weapon as a worn <see cref="GearSlot.Primary"/> option (#3562), read from the equipment the
+    /// census already carries: the exposure role is its only consumer (<c>HarmLedger.RoleOf</c>), so it carries the def and
+    /// whether the def's verb is ranged. Null for an unarmed pawn; throws for a primary the frame's tables or the catalog cannot resolve.
+    /// </summary>
+    private static GearOption? PrimaryWeaponOption(O.PawnEquipment? equipment, Tables tables, DefinitionCatalog catalog)
+    {
+        var id = equipment?.PrimaryId ?? "";
+        if (id.Length == 0)
+        {
+            return null;
+        }
+        var item = equipment!.Equipped.FirstOrDefault(e => e.Thing?.Id == id);
+        var def = tables.Entity(item?.Thing)?.DefName ?? throw new DomainException($"primary weapon {id}: the frame holds no row for it");
+        return new GearOption
+        {
+            ID = id,
+            Definition = new Resource(def),
+            Stuff = new Resource(""),
+            Quality = (int)item!.Quality.GetValueOrDefault(D.QualityCategory.Normal),
+            Slot = GearSlot.Primary,
+            Source = GearSource.Worn,
+            Condition = item.ConditionFraction ?? 1,
+            Ranged = catalog.WeaponOf(def).Ranged,
+        };
     }
 
     /// <summary>
