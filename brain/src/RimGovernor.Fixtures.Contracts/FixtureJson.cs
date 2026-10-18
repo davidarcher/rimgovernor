@@ -85,6 +85,7 @@ public static class FixtureJson
 [JsonSerializable(typeof(TrainingRead))]
 [JsonSerializable(typeof(TrainingChat))]
 [JsonSerializable(typeof(EnvironmentTemperatureHeld))]
+[JsonSerializable(typeof(HypothermiaTuningRead))]
 [JsonSerializable(typeof(DeadMansWorn))]
 [JsonSerializable(typeof(CaptureProfileRead))]
 [JsonSerializable(typeof(SparringPrepared))]

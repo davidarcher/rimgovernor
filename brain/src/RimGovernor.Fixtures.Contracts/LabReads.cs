@@ -180,6 +180,25 @@ public sealed record EnvironmentTemperatureHeld
     public IReadOnlyList<string> Traits { get; init; } = [];
 }
 
+/// <summary>
+/// <c>test/hypothermia_tuning</c>: the Verse.HealthTuning hypothermia constants as the loaded game compiles them, and the
+/// onset the first colonist's own SafeTemperatureRange applies (ComfortableTemperatureRange min less SafeTemperatureRange min).
+/// </summary>
+public sealed record HypothermiaTuningRead
+{
+    public double GrowthPerDegreeUnder { get; init; }
+
+    public double MinProgress { get; init; }
+
+    public double HarmfulOffsetC { get; init; }
+
+    /// <summary>The pawn's comfortable minimum less its safe minimum: the onset HediffGiver_Hypothermia applies.</summary>
+    public double SafeMinOffsetC { get; init; }
+
+    /// <summary>HealthTuning.HediffGiverUpdateInterval: the ticks between hediff giver steps.</summary>
+    public int IntervalTicks { get; init; }
+}
+
 /// <summary><c>test/deadmans_wear</c>: the redressed colonist, its worn and corpse-worn garment counts and its traits.</summary>
 public sealed record DeadMansWorn
 {

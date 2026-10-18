@@ -16,7 +16,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 internal static class TemperatureProbe
 {
-    private const string HoldTool = "test/environment_temperature";
+    internal const string HoldTool = "test/environment_temperature";
 
     // The fixture's room must sit within this many degrees of the asked deficit at the read.
     private const double Tolerance = 1;
@@ -25,9 +25,9 @@ internal static class TemperatureProbe
     // The Tough step runs only when the profile loads Ideology.
     private static readonly (double Deficit, bool Tough)[] Steps = [(0, false), (5, false), (15, false), (25, false), (35, false), (15, true)];
 
-    private sealed record Hold(string Side, double Deficit, bool Tough);
+    internal sealed record Hold(string Side, double Deficit, bool Tough);
 
-    private static readonly FixtureOp<Hold, Fx.EnvironmentTemperatureHeld> Held = new(
+    internal static readonly FixtureOp<Hold, Fx.EnvironmentTemperatureHeld> Held = new(
         HoldTool,
         h => ServedOps.Args(("side", h.Side), ("deficit", h.Deficit), ("tough", h.Tough)),
         ServedOps.Reply<Fx.EnvironmentTemperatureHeld>(HoldTool));

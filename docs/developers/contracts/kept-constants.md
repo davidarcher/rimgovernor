@@ -85,7 +85,9 @@ need categories that carry an effect. The capability-days ledger
 (`ForecastValue`, #3520) mirrors the malnutrition rate and the awake threshold as
 constants whose comment cites the member below; the other rows document the
 mechanics the thermal and rest pricing read (`ForecastValueThermal.cs`, #3521: the giver steps every 60 ticks, the ledger integrates its continuous limit over each span). All 1.7 members, read with
-ilspycmd.
+ilspycmd. The hypothermia gain and safe-range rows are also probed natively: `environment/hypothermia` (#2797)
+reads `Verse.HealthTuning` and the pawn's safe range, and measures the severity a colonist gains 40 C under its
+comfortable minimum against `DashEstimateRules.PublishedHypothermiaTuning`.
 
 | Literal | Value | 1.7 member |
 | --- | --- | --- |

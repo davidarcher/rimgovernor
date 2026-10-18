@@ -8,7 +8,8 @@ using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The EnvironmentCold/EnvironmentHot probe (#3328): the first colonist
+    // The EnvironmentCold/EnvironmentHot probe (#3328) and the hypothermia
+    // growth probe (#2797): the first colonist
     // (lowest thing id) sits sealed in a doorless, roofed 3x3 room, and every
     // call puts its ambient temperature `deficit` degrees past the pawn's own
     // ComfyTemperatureMin (cold) or ComfyTemperatureMax (hot), or mid-band for
@@ -62,6 +63,22 @@ namespace HomeBridge.BridgeTools
                     Tough = ideology && pawn.Ideo.HasPrecept(PreceptDefOf.Temperature_Tough),
                     Precepts = ideology ? pawn.Ideo.PreceptsListForReading.Select(p => p.def.defName).ToList() : new System.Collections.Generic.List<string>(),
                     Traits = pawn.story.traits.allTraits.Select(t => t.def.defName).ToList() });
+            }, cancellationToken);
+
+        [Tool("test/hypothermia_tuning", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture (#2797): the Verse.HealthTuning hypothermia constants and the first colonist's comfortable-to-safe minimum offset, the onset HediffGiver_Hypothermia applies. Test builds only.")]
+        public async Task<object> Tuning(IRimBridgeContext ctx, CancellationToken cancellationToken)
+            => await ctx.MainThread.InvokeAsync<object>(() =>
+            {
+                var map = Find.CurrentMap ?? throw new System.InvalidOperationException("A loaded map is required.");
+                var pawn = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).First();
+                return FixtureKit.Reply(new Fx.HypothermiaTuningRead
+                {
+                    GrowthPerDegreeUnder = HealthTuning.HypothermiaGrowthPerDegreeUnder,
+                    MinProgress = HealthTuning.MinHypothermiaProgress,
+                    HarmfulOffsetC = HealthTuning.HarmfulTemperatureOffset,
+                    SafeMinOffsetC = pawn.ComfortableTemperatureRange().min - pawn.SafeTemperatureRange().min,
+                    IntervalTicks = HealthTuning.HediffGiverUpdateInterval,
+                });
             }, cancellationToken);
 
         // A doorless Box x Box ring of wood walls round the pawn, roofed, the

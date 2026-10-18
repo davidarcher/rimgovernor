@@ -1,10 +1,10 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// The vanilla hypothermia model, one step per HypothermiaInterval ticks. The values mirror Verse.HealthTuning
-/// (HypothermiaGrowthPerDegreeUnder, MinHypothermiaProgress, HarmfulTemperatureOffset; defs.proto
-/// HealthTuningConstants), which no reader consumes yet: PublishedHypothermiaTuning is the RimWorld wiki
-/// formula, and the native probe checks it against the game.
+/// The vanilla hypothermia model (HediffGiver_Hypothermia), one step per HypothermiaInterval ticks. The values mirror
+/// Verse.HealthTuning (HypothermiaGrowthPerDegreeUnder, MinHypothermiaProgress, HarmfulTemperatureOffset); the
+/// native probe environment/hypothermia checks PublishedHypothermiaTuning against those constants, the pawn's safe
+/// range and the severity the game grows.
 /// </summary>
 public sealed record HypothermiaTuning
 {
@@ -48,7 +48,7 @@ public static class DashEstimateRules
     };
 
     /// <summary>The ticks between severity updates.</summary>
-    internal const int HypothermiaInterval = 60;
+    public const int HypothermiaInterval = 60;
 
     // Hypothermia stage floors (severity): a trip target is one of these.
     public const double HypothermiaShivering = 0.04;

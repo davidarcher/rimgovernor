@@ -281,8 +281,6 @@ Policy|Methods.Generation.CoupledShelterCandidatesResult.Tasks
 Policy|MoodPawnLoss.Id
 Policy|MoodPrice.Capped
 Policy|OrganHarvest.Organ
-Policy|OutdoorBudget.Ticks
-Policy|OutdoorBudget.Unbounded
 Policy|OwnedDrugPolicy.Id
 Policy|PawnBody.CellTemperatureC
 Policy|PawnBody.ComfortableMaxC
