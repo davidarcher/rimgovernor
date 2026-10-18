@@ -67,6 +67,8 @@ RimGovernor.cmd acceptance sweep -hunting-report <absolute-output-directory> <ab
 ```
 
 The report retains every cell prediction, trial and missing artifact. `AccuracyPassed` alone is not an
-accepted qualification: reconstruction, runtime, scope and independent review remain required. No accepted
-report currently exists. #3129 stays open until a qualified usable capability exists; #3130 must not
-consume pilot results.
+accepted qualification: reconstruction, runtime, scope and independent review remain required. The run of
+2026-10-17 was accepted with its known limits recorded in
+[encounter prediction](../contracts/encounter-prediction.md#accepted-evidence-and-known-limits) (#3124); the
+hunt comparison (#3130) consumes the service's estimates under them. A cell is re-run on demand, by name and
+locally; the remote workflows do not run it (#3515).

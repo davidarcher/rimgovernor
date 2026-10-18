@@ -305,6 +305,24 @@ traits, health, missing parts and the scene identity, not his position or draft 
 nothing about the gunners. A drafted gunner is not a trigger: the hunt's own draft and the player's read the same in
 `HuntActorRead.Available`. A released hunt whose prey still stands may be chosen again, by the comparison only.
 
+The execution evidence is the on-demand `food/hunt-roster` acceptance case (#3515): a lab colony of two riflemen
+short of food, with a butcher table, its bill and a corpse stockpile, and a wild rhinoceros and boar inside the hunt
+read's window, served with the Release RealCombat worker as the predictor (at the harness's pinned Ultrafast: every
+acceptance game launches with `-rimgovernor-test-acceleration`, so `ServeSpec.ClockSpeed` is a no-op; at that rate the
+comparison's scenes go stale before the worker has answered them all, #3525, and the worker's eight-request lifetime
+refuses a scene per comparison, #3524: the case has not passed yet). Native reads no hunt
+route: the former `HuntingSafety.RouteSafe` verdict (a route within a margin of any wild predator was unsafe, the
+prey included, so a grizzly was never a hunt source and a wandering wolf held every hunt) went with #3515. It asserts in order: the comparison
+answered (the `rounds_review` row's `hunt_choice` names a chosen roster with no `hunt_estimates_pending`) and the
+drafted colonists exactly the chosen roster's gunners (`RoundsCombat.Hunters`); a kill of an admitted prey in the
+delivery ledger; the release afterwards (no standing hunters, `military/combat` cleared, nobody drafted); and the
+corpse butchered into meat in stock. It records the roster, the chosen channel's `hunt_*` terms, the kill tick and
+the meat tally. Roster size is the comparison's: a lone-gunner roster passes on the same evidence. The lab's quiet
+storyteller zeroes revenge, so the case proves the hunt's execution, not revenge frequency (the qualification sweep
+does). `food/ledger-hunt` keeps the delivery ledger's own kill-and-butcher claim on a lone native hunt; the former
+`combatlab/hunt-squad` and `combatlab/hunt-door` cases went with #3399. The remote workflows run neither the case
+nor the sweep: both need the worker built and run locally by name.
+
 These are mechanics and current observations, not selected colony policy. Native
 does not spawn hypothetical food to estimate a future meal. Definition-based
 future ingestion facts do not claim ingredient-dependent memories or poisoning

@@ -156,24 +156,6 @@ public static class AcquisitionReads
         var hunters = new List<HuntHunter>();
         foreach (var h in v?.Hunters ?? [])
         {
-            var safe = new HashSet<string>(StringComparer.Ordinal);
-            var unsafePrey = new HashSet<string>(StringComparer.Ordinal);
-            var skipped = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var r in h.Routes)
-            {
-                if (r.Skipped.GetValueOrDefault())
-                {
-                    skipped.Add((r.PreyId ?? ""));
-                }
-                else if (r.Safe.GetValueOrDefault())
-                {
-                    safe.Add((r.PreyId ?? ""));
-                }
-                else
-                {
-                    unsafePrey.Add((r.PreyId ?? ""));
-                }
-            }
             hunters.Add(new HuntHunter
             {
                 ID = h.PawnId ?? "",
@@ -182,9 +164,6 @@ public static class AcquisitionReads
                 MentalState = h.InMentalState,
                 HuntingActive = h.HuntingActive.GetValueOrDefault(),
                 RangedBlockingShield = h.RangedBlockingShield.GetValueOrDefault(),
-                RouteSafePrey = safe,
-                RouteUnsafePrey = unsafePrey,
-                RouteSkippedPrey = skipped,
                 // The weapon's verbs and projectile are the def rows' (Catalog.HuntWeapon).
                 Weapon = catalog.HuntWeapon((h.WeaponDef ?? "")),
             });

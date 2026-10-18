@@ -12,6 +12,7 @@ public static class FoodCases
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(FoodLedger.Case());
         registry.Register(FoodLedgerHunt.Case());
+        registry.Register(FoodHuntRoster.Case());
         registry.Register(FoodReserve.Case());
         registry.Register(FoodStarvingRecovery.Case());
     }

@@ -105,7 +105,9 @@ public static partial class CombatHuntRules
             }
         }
 
-        var radius = Math.Max(1, Math.Floor(reach - spread));
+        // Rounding the arc point to a cell moves it up to half a diagonal outward, and the game's range check is the
+        // cells' Euclidean distance, so the radius gives that up too.
+        var radius = Math.Max(1, Math.Floor(reach - spread - Math.Sqrt(0.5)));
 
         // The axis points from the prey to the squad's side.
         double sx = 0, sz = 0;

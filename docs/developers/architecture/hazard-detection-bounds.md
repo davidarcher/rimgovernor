@@ -85,7 +85,6 @@ constants.
 | `explosive_near_margin_cells` | 3 | an explosive within blast radius plus this of a colonist is launched near them |
 | `melee_reach_cells` | 1.5 | range assumed for a pawn without a ranged weapon |
 | `injury_severity_floor_ticks` | 5000 | a new wound bleeding out inside this many ticks keeps the stop |
-| `predator_margin_cells` | 25 | a hunt route within this many cells of a wild predator is unsafe (`HuntingSafety.RouteSafe`) |
 | `hunger_hold_category` | `URGENTLY_HUNGRY` | a colony run holds when an unacknowledged colonist's food reaches it (`colonist_need`); `FED` is refused |
 
 The hunger hold exists so a review that takes seconds never runs while a
@@ -95,11 +94,10 @@ adjusts a running clock keeps only colonists already acknowledged. A colonist
 whose hunger the census cannot read is acknowledged rather than pinning the
 clock. A combat watch never holds for hunger.
 
-`RouteSafe` takes the margin from its caller: the policy (the supervisor's
-hunt withdrawal), `ColonyFactsRequest` / `SnapshotStreamRequest`
-`hunt_predator_margin_cells` (the hunt census; absent, every pair reports
-`skipped`), and `Rule.predator_margin_cells` (native rules). Damage and
-explosive classification read the last run's policy, so before the brain's
+The former `predator_margin_cells` (the supervisor's hunt withdrawal and the hunt
+census's route verdicts, `HuntingSafety.RouteSafe`) went with #3515: a wild predator
+anywhere near a route held every hunt, and the predator itself could never be prey.
+Damage and explosive classification read the last run's policy, so before the brain's
 first `Run` the combat log records those rows unclassified.
 
 A wound under the severity floor, and a resting patient who lost their

@@ -729,21 +729,6 @@ namespace HomeBridge.BridgeTools
                     return PawnHit(Clock.HoldReason.PredatorHunt, p, "PredatorHunt targeting colony property or unreadable prey within 40 cells", JobStartTick(p));
                 if (GameWatchReads.SafeIsColonist(p))
                 {
-                    if (p.CurJobDef == JobDefOf.Hunt)
-                    {
-                        var prey = p.CurJob.targetA.Thing as Pawn;
-                        // An unsafe hunt is withdrawn, not a stopped clock:
-                        // a stop left the job and designation in place, so
-                        // every run re-fired it until the player forced
-                        // speed and the hunter shot anyway. The vanished
-                        // designation settles the controller's hunt action
-                        // and the invalidated colony facts replan at once.
-                        if (prey != null && !prey.Dead && !HuntingSafety.RouteSafe(p, prey, s.Policy!.PredatorMarginCells.GetValueOrDefault())
-                            && HuntingSafety.Withdraw(p, prey))
-                            Invalidate(s, "hunting route unsafe; hunt of " + prey.thingIDNumber + " by " + p.thingIDNumber + " withdrawn",
-                                new[] { Clock.FactFamily.Colony, Clock.FactFamily.Pawns },
-                                detail: "Observed facts changed: unsafe hunt of " + GameWatchReads.SafeName(prey) + " withdrawn.");
-                    }
                     var after = InjurySnapshot.Capture(p);
                     InjurySnapshot? before;
                     if (!s.Injuries.TryGetValue(p.thingIDNumber, out before))

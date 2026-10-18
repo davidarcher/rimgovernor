@@ -402,15 +402,11 @@ and the colony facts carry a `HuntCensus`: per free colonist the position, downe
 and mental-state flags, Hunting work state (priority, active, disabled), Cooking active,
 the primary weapon (ranged, verb range, projectile kind bullet / arrow / other, blast
 radius, damage def and worker, warmup), the game's own `HasHuntingWeapon` and
-`HasShieldAndRangedWeapon` answers, the butcher benches reachable, and one `HuntRoute` per
-unfogged hunt row for each colonist with Hunting active who is neither downed nor in a mental
-state: `safe` true or false (a Danger.None path avoiding predators by the request's `hunt_predator_margin_cells` (the brain sends `policy.HuntPredatorMarginCells`, 25) and an ordinary
-death action, `RouteSafe`), or `skipped` once the frame's `hunt_route_budget_ms` (the brain sets
-`bridge.HuntRouteBudgetMS`, 50; absent evaluates every pair) is spent. Native applies no reach:
-pairs are evaluated pests first then nearest first, so the pairs a spent budget skips are the
-far ones policy refuses as `too_far` before it reads a route (cost:
-[capped reads](upkeep-contracts.md#measured-cost-of-capped-reads-2567)). A pair with no row was
-not evaluated; per butcher bench its usability and butcher-flesh
+`HasShieldAndRangedWeapon` answers and the butcher benches reachable. Native applies no reach and
+reads no route: the former per-pair `HuntRoute` safety verdict (`HuntingSafety.RouteSafe`, a path
+avoiding every wild predator by a margin, the prey included) went with #3515, since it held every
+hunt whenever a predator stood on the map and never offered a predator as prey; predation and
+revenge are the comparison's costs. Per butcher bench the census carries its usability and butcher-flesh
 bills (suspended, paused, repeat mode, counts, corpses the filter allows). `policy.HuntGate`
 decides from them, in this order: fogged; safe prey (not in a mental state, edible; a pest
 waives it); a usable bench with a running bill accepting the corpse and a Cooking worker (a
@@ -418,11 +414,10 @@ pest waives it); a colonist; a colonist who can hunt it: not downed, not in a me
 Hunting active, vanilla's hunting weapon (a ranged primary whose attack verbs are all damaging
 projectiles, bullets and arrows alike, with no blast radius and no flame damage, and no
 ranged-blocking shield) or a melee weapon or bare hands against meleeable prey
-(body size <= 1.0, which flees), within 100 cells (a pest anywhere) and a safe route. A
+(body size <= 1.0, which flees), within 100 cells (a pest anywhere). A
 held row is not a source; the projection's `HuntHolds` names the first failing gate
 (`fogged`, `not_safe_prey`, `no_colonist`, `no_hunter` with each
-colonist's `downed`, `mental_state`, `hunting_inactive`, `no_hunting_weapon`, `ranged_blocking_shield`, `too_far`,
-`no_safe_route` (evaluated, unsafe), `route_skipped` (budget spent) or `route_unevaluated` (no verdict)).
+colonist's `downed`, `mental_state`, `hunting_inactive`, `no_hunting_weapon`, `ranged_blocking_shield` or `too_far`).
 The 100-cell reach and the plant cutter's former 50-cell reach are no longer native filters:
 the 100 cells live only in the gate above, and a plant needs only a colonist with Plant Cutting
 enabled who can reach it. Selection designates as many prey as the nutrition gap (deficit less pending nutrition) needs, meatiest safe prey first, bounded by the budget; an open hunt does not block the next hunt method. Supervised play pauses when an

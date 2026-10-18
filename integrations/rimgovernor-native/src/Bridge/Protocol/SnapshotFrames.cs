@@ -177,13 +177,11 @@ namespace HomeBridge.BridgeTools
         }
 
         // The frame's colony facts request: planning, with the stream's herd
-        // radius and hunt route budget carried through when the brain supplied them.
+        // radius carried through when the brain supplied it.
         private static Obs.ColonyFactsRequest ColonyRequest(Obs.ReadScope scope, Obs.SnapshotStreamRequest request)
         {
             var colony = new Obs.ColonyFactsRequest { Scope = scope, Planning = true };
             if (request.HerdRadius is not null) colony = colony with { HerdRadius = request.HerdRadius };
-            if (request.HuntRouteBudgetMs is not null) colony = colony with { HuntRouteBudgetMs = request.HuntRouteBudgetMs };
-            if (request.HuntPredatorMarginCells is not null) colony = colony with { HuntPredatorMarginCells = request.HuntPredatorMarginCells };
             return colony;
         }
 

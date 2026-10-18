@@ -36,12 +36,11 @@ public static class ClockValidation
             || p.SeriousVitalPartFloor is null
             || p.ExplosiveNearMarginCells is null
             || p.MeleeReachCells is null
-            || p.InjurySeverityFloorTicks is null
-            || p.PredatorMarginCells is null)
+            || p.InjurySeverityFloorTicks is null)
         {
             throw BridgeContractException.Contract("clock policy hazard thresholds missing");
         }
-        foreach (var v in new[] { p.SeriousSingleHitDamage.GetValueOrDefault(), p.SeriousSummaryHealthFloor.GetValueOrDefault(), p.SeriousBleedRateFloor.GetValueOrDefault(), p.SeriousVitalPartFloor.GetValueOrDefault(), p.ExplosiveNearMarginCells.GetValueOrDefault(), p.MeleeReachCells.GetValueOrDefault(), p.PredatorMarginCells.GetValueOrDefault() })
+        foreach (var v in new[] { p.SeriousSingleHitDamage.GetValueOrDefault(), p.SeriousSummaryHealthFloor.GetValueOrDefault(), p.SeriousBleedRateFloor.GetValueOrDefault(), p.SeriousVitalPartFloor.GetValueOrDefault(), p.ExplosiveNearMarginCells.GetValueOrDefault(), p.MeleeReachCells.GetValueOrDefault() })
         {
             if (!(v > 0) || float.IsInfinity(v))
             {

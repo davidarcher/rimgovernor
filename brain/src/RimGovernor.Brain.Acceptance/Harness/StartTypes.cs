@@ -174,6 +174,9 @@ public sealed record ServeSpec
     /// <summary>Disambiguates the requestIds the handle issues; empty means "serve".</summary>
     public string Prefix { get; init; } = "";
 
-    /// <summary>The brain's target speed, set through POST /api/player/clock-speed once the service is up; empty is the run's clock speed (Ultrafast unless RIMGOVERNOR_ACCEPT_CLOCK_SPEED names another).</summary>
+    /// <summary>
+    /// The brain's target speed, set through POST /api/player/clock-speed once the service is up; empty is the run's clock speed (Ultrafast unless RIMGOVERNOR_ACCEPT_CLOCK_SPEED names another).
+    /// A served acceptance game launches with <c>-rimgovernor-test-acceleration</c> (Headless.Prepare), under which the brain pins Ultrafast (BrainCompositionOptions.ClockTestAcceleration), so the post is accepted and ignored.
+    /// </summary>
     public string ClockSpeed { get; init; } = "";
 }

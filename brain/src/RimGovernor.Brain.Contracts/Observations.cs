@@ -5931,11 +5931,7 @@ public sealed record AcquisitionFacts
 /// the pending-hunt cap are brain policy (policy.HuntGate).
 /// One free colonist. hunting_active is
 /// WorkIsActive. weapon_def is the primary weapon def (absent for an unarmed pawn); the brain reads its verbs and projectile off the ThingDef rows.
-/// ranged_blocking_shield mirrors WorkGiver_HunterHunt.HasShieldAndRangedWeapon. routes carries one HuntRoute per (hunt row, colonist) pair native
-/// evaluated: every unfogged hunt row, pests first then nearest first, for a colonist with
-/// Hunting active who is neither downed nor in a mental state, until the request's
-/// hunt_route_budget_ms runs out. A pair with no row was not evaluated (the colonist is
-/// ineligible or the prey is fogged); policy refuses those first.
+/// ranged_blocking_shield mirrors WorkGiver_HunterHunt.HasShieldAndRangedWeapon.
 /// </summary>
 public sealed record HunterFacts
 {
@@ -5952,22 +5948,6 @@ public sealed record HunterFacts
     public string? WeaponDef { get; init; }
 
     public bool? RangedBlockingShield { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<HuntRoute>))]
-    public EquatableArray<HuntRoute> Routes { get; init; }
-}
-
-/// <summary>
-/// One colonist x hunt-row route verdict (HuntingSafety.RouteSafe, a pathing fact). Exactly one
-/// of safe (the evaluated answer) and skipped (the budget ran out before this pair) is present.
-/// </summary>
-public sealed record HuntRoute
-{
-    public string? PreyId { get; init; }
-
-    public bool? Safe { get; init; }
-
-    public bool? Skipped { get; init; }
 }
 
 public sealed record HuntCensus
@@ -7678,9 +7658,7 @@ public sealed record JoinerLetter
 
 /// <summary>
 /// herd_radius: cells within which same-race animals count toward a hunt row's herd_size;
-/// absent, herd_size is unknown (omitted). hunt_route_budget_ms: main-thread milliseconds the
-/// hunt census may spend on RouteSafe pairs (about 0.2-0.45 ms each); pairs past it report
-/// HuntRoute.skipped. Absent: evaluate every pair.
+/// absent, herd_size is unknown (omitted).
 /// </summary>
 public sealed record ColonyFactsRequest
 {
@@ -7689,13 +7667,6 @@ public sealed record ColonyFactsRequest
     public bool? Planning { get; init; }
 
     public uint? HerdRadius { get; init; }
-
-    public uint? HuntRouteBudgetMs { get; init; }
-
-    /// <summary>
-    /// Cells from a wild predator a hunt route must stay outside; absent, no pair is evaluated (all report skipped).
-    /// </summary>
-    public float? HuntPredatorMarginCells { get; init; }
 }
 
 public sealed record ColonyFactsReply
@@ -8046,13 +8017,9 @@ public sealed record SnapshotStreamRequest
     public uint? RoutePathBudgetMs { get; init; }
 
     /// <summary>
-    /// The ColonyFactsRequest herd_radius and hunt_route_budget_ms of each frame's colony facts read.
+    /// The ColonyFactsRequest herd_radius of each frame's colony facts read.
     /// </summary>
     public uint? HerdRadius { get; init; }
-
-    public uint? HuntRouteBudgetMs { get; init; }
-
-    public float? HuntPredatorMarginCells { get; init; }
 
     /// <summary>
     /// The LinesOfFireRequest budget_ms of each frame's combat lines of fire.

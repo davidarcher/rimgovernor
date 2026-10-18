@@ -627,7 +627,7 @@ compiling at the time; steady iterations agreed within about 15%.
 | Read (cap) | Realistic | Stress | Capped vs uncapped | Verdict |
 | --- | --- | --- | --- | --- |
 | Route path cost, `FindPathNow` per reachable facility x colonist pair (256) | 256 pairs 100 ms; 840 uncapped 340-365 ms | 256 pairs 96-115 ms; 10,000 uncapped 3.3-4.0 s | about 0.4 ms per pair | Budget and skipped flag (landed #2568: `route_path_budget_ms` + `path_skipped`; the traffic 128 and breach 16 x 2 caps were memory-only and are deleted) |
-| Hunt `RouteSafe` per hunter x prey (reach 100) | 202 checks 33 ms; 320 uncapped 114-128 ms | 4,069 checks 0.8-1.0 s; 8,500 uncapped 3.0-4.0 s | 0.2-0.45 ms per check | Budget and skipped flag (landed #2569: `hunt_route_budget_ms` + `HuntRoute.skipped`, reach deleted) |
+| Hunt `RouteSafe` per hunter x prey (reach 100) | 202 checks 33 ms; 320 uncapped 114-128 ms | 4,069 checks 0.8-1.0 s; 8,500 uncapped 3.0-4.0 s | 0.2-0.45 ms per check | Deleted (#3515): the read and its budget are gone; the hunt census carries no route verdict |
 | Plant cutter reach (50) | 12-14 ms | 21-41 ms capped, 21-31 ms uncapped | the cap bounds nothing measurable | Deleted (#2569); the cost is the all-plants eligibility scan, not the reach |
 | Pair reachability, tend page (64 rows) | 14 rows 0.06-0.14 ms | 40 colonist rows 0.43-0.48 ms; 297-row whole table 23-44 ms | quadratic, about 0.27 us per pair | Budget and skipped flag (landed #2570: `PawnDetails.tend_reach_budget_ms`, the brain 50 ms, + `PawnTendDoctor.reach_skipped`; the 64-row cap and its `LimitExceeded` issue are deleted; tend covers animals and prisoners, so no colonist-only filter); a skipped doctor has no reachability fact and is not proposed |
 | Spatial access audit (32 colonists, 16,384 blocked, 128 targets) | 14 colonists 1.1-1.7 s | 40 colonists 2.9-3.3 s, 5.0 s with 16,384 blocked | about 70-80 ms per colonist, independent of blocked cells; 8 colonists 0.5-0.7 s; the 32 cap alone is about 2.5 s | Budget and skipped flag, per colonist (landed #2570: `SpatialAccessRequest.budget_ms`, the brain 2500 ms, + `PawnAccess.skipped`; the 16,384 / 128 / 32 caps are deleted, the 262,144-cell map cap stays with an explicit unavailable) |
@@ -637,7 +637,7 @@ compiling at the time; steady iterations agreed within about 15%.
 
 For scale, a whole `SnapshotFrames.Capture` hop costs 100-175 ms on the 8-colonist
 baseline, about 300 ms at realistic size and 1.7-2.1 s at stress with the caps in place
-(hunt `RouteSafe` alone 0.8-1.0 s), so every capped route and hunt read already exceeds the
+(hunt `RouteSafe` alone 0.8-1.0 s, a read deleted in #3515), so every capped route and hunt read already exceeds the
 threshold on its own.
 
 ## Corpse larder

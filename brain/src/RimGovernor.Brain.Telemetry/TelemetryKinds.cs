@@ -41,6 +41,9 @@ public static class TelemetryKinds
     /// <summary>One stockpile, field or building layout decision (<see cref="LayoutEditKind"/>).</summary>
     public static readonly TelemetryKind LayoutEdit = new(LayoutEditKind);
 
+    /// <summary>One rounds review's summary row (<see cref="RoundsReviewTelemetry.Kind"/>): the food plan and the hunt comparison's note.</summary>
+    public static readonly TelemetryKind RoundsReview = new(RoundsReviewTelemetry.Kind);
+
     /// <summary>The clock entered a hold (<see cref="ColonyEventTelemetry.HoldKind"/>): a hazard, a game pause, a combat event or a brain hold.</summary>
     public static readonly TelemetryKind ClockHold = new(ColonyEventTelemetry.HoldKind);
 

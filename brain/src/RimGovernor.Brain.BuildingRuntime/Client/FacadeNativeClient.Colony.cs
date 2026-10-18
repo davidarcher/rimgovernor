@@ -1,6 +1,4 @@
 using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.Policy;
-using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -22,8 +20,6 @@ public sealed partial class FacadeNativeClient
     private static readonly PbObservations.ColonyFactsRequest ColonyFactsParameters = new()
     {
         HerdRadius = HerdRadius,
-        HuntRouteBudgetMs = HuntRouteBudgetMs,
-        HuntPredatorMarginCells = HazardThresholdsRules.HuntPredatorMarginCells,
     };
 
     /// <summary>The loaded identity.</summary>

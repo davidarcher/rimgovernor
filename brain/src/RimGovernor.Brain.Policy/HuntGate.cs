@@ -75,15 +75,6 @@ public sealed record HuntHunter
     public bool HuntingActive { get; init; }
     public HuntWeapon? Weapon { get; init; }
     public bool RangedBlockingShield { get; init; }
-
-    /// <summary>Evaluated route answer: the row is safe.</summary>
-    public IReadOnlySet<string> RouteSafePrey { get; init; } = new HashSet<string>();
-
-    /// <summary>Evaluated route answer: the row is unsafe.</summary>
-    public IReadOnlySet<string> RouteUnsafePrey { get; init; } = new HashSet<string>();
-
-    /// <summary>The native budget ran out before this row. A row in none of the three sets was not evaluated.</summary>
-    public IReadOnlySet<string> RouteSkippedPrey { get; init; } = new HashSet<string>();
 }
 
 /// <summary>A hunt row policy offers no hunt for: the first gate it fails, and for no_hunter each colonist's reason ("&lt;id&gt; &lt;reason&gt;").</summary>
@@ -120,7 +111,7 @@ public sealed record HuntCensus
 {
     public IReadOnlyList<HuntHunter> Hunters { get; init; } = [];
 
-    /// <summary>Why a colonist cannot hunt the prey, empty when they can; order is the gate's: downed, mental state, Hunting off, weapon (a shield blocks a ranged one), reach, route.</summary>
+    /// <summary>Why a colonist cannot hunt the prey, empty when they can; order is the gate's: downed, mental state, Hunting off, weapon (a shield blocks a ranged one), reach.</summary>
     private static string HunterReason(HuntHunter h, HuntPrey prey)
     {
         var meleeable = prey.Source.MeleeOnly;
@@ -152,19 +143,7 @@ public sealed record HuntCensus
         {
             return HuntGateRules.HuntHunterTooFar;
         }
-        if (h.RouteSafePrey.Contains(prey.Source.Id))
-        {
-            return "";
-        }
-        if (h.RouteUnsafePrey.Contains(prey.Source.Id))
-        {
-            return HuntGateRules.HuntHunterNoRoute;
-        }
-        if (h.RouteSkippedPrey.Contains(prey.Source.Id))
-        {
-            return HuntGateRules.HuntHunterRouteSkipped;
-        }
-        return HuntGateRules.HuntHunterRouteUnevaluated;
+        return "";
     }
 
     /// <summary>
@@ -241,11 +220,4 @@ public static class HuntGateRules
     internal const string HuntHunterNoWeapon = "no_hunting_weapon";
     internal const string HuntHunterShield = "ranged_blocking_shield";
     internal const string HuntHunterTooFar = "too_far";
-    internal const string HuntHunterNoRoute = "no_safe_route";
-
-    /// <summary>Native's route budget ran out before this pair.</summary>
-    internal const string HuntHunterRouteSkipped = "route_skipped";
-
-    /// <summary>Native emitted no verdict for this pair.</summary>
-    internal const string HuntHunterRouteUnevaluated = "route_unevaluated";
 }

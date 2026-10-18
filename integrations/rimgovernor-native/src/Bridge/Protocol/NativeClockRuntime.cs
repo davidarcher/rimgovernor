@@ -495,7 +495,6 @@ namespace HomeBridge.BridgeTools
                 && policy.ExplosiveNearMarginCells is not null && Positive(policy.ExplosiveNearMarginCells.GetValueOrDefault())
                 && policy.MeleeReachCells is not null && Positive(policy.MeleeReachCells.GetValueOrDefault())
                 && policy.InjurySeverityFloorTicks is not null && policy.InjurySeverityFloorTicks.GetValueOrDefault() > 0 && policy.InjurySeverityFloorTicks.GetValueOrDefault() <= int.MaxValue
-                && policy.PredatorMarginCells is not null && Positive(policy.PredatorMarginCells.GetValueOrDefault())
                 && policy.HungerHoldCategory is { } hunger && hunger != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed && Enum.IsDefined(typeof(RimGovernor.Contracts.Wire.Defs.HungerCategory), hunger)
                 && (policy.CombatStopEvents.Count == 0 || policy.Mode.GetValueOrDefault() == Clock.WatchMode.Combat)
                 && policy.CombatStopEvents.All(e => e != Clock.CombatEvent.Unspecified && Enum.IsDefined(typeof(Clock.CombatEvent), e))

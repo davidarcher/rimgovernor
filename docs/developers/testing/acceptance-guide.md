@@ -200,7 +200,10 @@ Runner and case code use these helpers instead of raw JSON and fixed sleeps:
   proves the in-proc launch and fixtures, `light/dark` the first service-driven case). Extend it with a case that
   proves a runner path the others miss, not one per area.
 - **nightly**: whole-colony proofs, run against main every night. It is a signal, not a landing gate.
-- **on demand**: every other case, run by name or by the remote workflow's cases tier.
+- **on demand**: every other case, run by name or by the remote workflow's cases tier. Hunting evidence is on
+  demand and local only: `food/hunt-roster` (the formation hunt served over the Release RealCombat worker, #3515)
+  and the hunting sweep need that worker built, so they run by name on a developer machine and the remote
+  workflows do not run them.
 
 `acceptance list -tier <name>` prints a tier's cases. Every case declares its tier as `Tier = CaseTier.<Tier>`.
 `Off` covers fixture
@@ -354,4 +357,6 @@ fixture or planner. lab-open
 is smoke-only: recorded, but not a tactics signal.
 
 `acceptance sweep hunting-grid-<cell>` runs a hunting qualification cell; see
-[hunting prediction qualification](hunting-prediction-qualification.md).
+[hunting prediction qualification](hunting-prediction-qualification.md). `acceptance run food/hunt-roster` runs
+the formation hunt end to end over the same Release worker (build it first with `dotnet build -c Release` in
+`integrations/rimgovernor-realcombat/src/RealCombat.Host`; the case refuses to run without it).

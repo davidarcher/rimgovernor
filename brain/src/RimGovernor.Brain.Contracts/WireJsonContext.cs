@@ -732,8 +732,6 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(EquatableArray<Observations.FoodProduction>), TypeInfoPropertyName = "EquatableArrayObservationsFoodProduction")]
 [JsonSerializable(typeof(Observations.AcquisitionFacts), TypeInfoPropertyName = "ObservationsAcquisitionFacts")]
 [JsonSerializable(typeof(Observations.HunterFacts), TypeInfoPropertyName = "ObservationsHunterFacts")]
-[JsonSerializable(typeof(EquatableArray<Observations.HuntRoute>), TypeInfoPropertyName = "EquatableArrayObservationsHuntRoute")]
-[JsonSerializable(typeof(Observations.HuntRoute), TypeInfoPropertyName = "ObservationsHuntRoute")]
 [JsonSerializable(typeof(Observations.HuntCensus), TypeInfoPropertyName = "ObservationsHuntCensus")]
 [JsonSerializable(typeof(EquatableArray<Observations.HunterFacts>), TypeInfoPropertyName = "EquatableArrayObservationsHunterFacts")]
 [JsonSerializable(typeof(Observations.ButcheringFacts), TypeInfoPropertyName = "ObservationsButcheringFacts")]

@@ -34,10 +34,8 @@ public sealed record RoundsPolicy
     /// <summary>
     /// Bounds how long a dispatched Hunt-kind acquisition action may sit unresolved before
     /// RoundsAcquisitionPlanner abandons it and lets a fresh SelectAcquisition pass propose something else.
-    /// Native's own HuntingSafety.RouteSafe guard can repeatedly interrupt the shared game clock while a
-    /// hunter's route stays unsafe; that guard stays fully authoritative, but without this grace the stuck
-    /// action reads as open work forever and blocks the planner from ever trying a different prey or a
-    /// non-hunt source. It counts from the last observation, and a live hunt (travel, chase, the hunter's
+    /// Without this grace a stuck action reads as open work forever and blocks the planner from ever trying
+    /// a different prey or a non-hunt source. It counts from the last observation, and a live hunt (travel, chase, the hunter's
     /// sleep and meals, a clock run between observations) outlasts 6000 ticks: that bound withdrew
     /// working hunts as "cancelled" and cooled their prey, so it is half a day.
     /// </summary>

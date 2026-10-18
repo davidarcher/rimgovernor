@@ -292,8 +292,7 @@ public sealed record WatchPolicy
     /// radius plus explosive_near_margin_cells of a colonist is near them;
     /// melee_reach_cells is the range assumed for a pawn with no ranged weapon.
     /// A new wound keeps the hold when it bleeds the colonist out within
-    /// injury_severity_floor_ticks or is life-threatening. A hunt is unsafe when
-    /// its route passes within predator_margin_cells of a wild predator.
+    /// injury_severity_floor_ticks or is life-threatening.
     /// </summary>
     public float? SeriousSingleHitDamage { get; init; }
 
@@ -308,8 +307,6 @@ public sealed record WatchPolicy
     public float? MeleeReachCells { get; init; }
 
     public uint? InjurySeverityFloorTicks { get; init; }
-
-    public float? PredatorMarginCells { get; init; }
 }
 
 /// <summary>

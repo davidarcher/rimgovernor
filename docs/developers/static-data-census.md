@@ -97,7 +97,7 @@ Kept, each with its reason:
 
 - `ThreatPawn.predator` (`RaceProps.predator` of a live hostile): the emergency threat decode (`ProjectColonyThreat` and its five other entry points) runs with no definition catalog; a row join needs the catalog threaded through all six, which is its own change (follow-up candidate, not a per-instance fact).
 - `AcquisitionFacts.food` on plant rows (every eater `WillEat` the harvest), `yield` (`YieldNow`), `growth`, `plantation`, `meat_amount` (the live animal's `MeatAmount` stat, scaled by wounds and malnutrition), `herd_size`, `fogged`, `in_mental_state`, `sleeping`, `downed`, `designated`, `designated_tick`, `taken`: per-instance live state or a game worker's computed output.
-- `HunterFacts` priorities, `has_hunting_weapon`, `ranged_blocking_shield` and `HuntRoute` safety: pawn state and the pathing verdicts of `WorkGiver_HunterHunt` and `HuntingSafety.RouteSafe`.
+- `HunterFacts` priorities, `has_hunting_weapon` and `ranged_blocking_shield`: pawn state and the verdicts of `WorkGiver_HunterHunt`.
 - `NativeResourceSourcesTool` census rows (reachable, buried, distance, designated, safety, taken, `Storage` capacity, candidate cells): a live map census built from pathing and reservations. The only def copies it carried (method, stack limit) are gone.
 - `LampState.lit`, `GrowLight.lit_now`/`growth_cells`, `PlantGrower.can_sow`/`crop_def_name`, `WorkLightCell.glow`/`roofed`/`plant_defs`: live room and power state.
 - `NativeReadingPolicy.IsBook`: the apply-boundary check that an intent names real book defs, run against the game def database at apply time.
@@ -644,8 +644,7 @@ Kept, reason recorded:
 | HuntProjectileKind | enum | 1510 | 4 | code | Verb projectile class classification (Bullet/Arrow/Other) from ThingDef class and damage def |  |  |
 | HuntVerbFacts | message | 1511 | 8 | static | Hunting weapon verb facts all read from VerbProperties and projectile defs | melee; ai_weapon; range; projectile_kind; explosion_radius; damage_def; damage_worker; warmup | VerbProperties.range; VerbProperties.warmupTime; VerbProperties.ai_IsWeapon; VerbProperties.defaultProjectile then ProjectileProperties.explosionRadius and damageDef; melee = verbClass rule; damage_worker via DamageDef.workerClass |
 | HuntWeaponFacts | message | 1512 | 4 | static | Weapon def name with ranged/melee flags and its verbs | def_name; ranged; melee; verbs | ThingDef verbs for the equipped weapon def; ranged and melee = Go rule over verbs |
-| HunterFacts | message | 1522 | 12 | mixed | Free colonist hunting eligibility, weapon and routes | weapon (nested HuntWeaponFacts) | ThingDef verbs via the equipped weapon def_name |
-| HuntRoute | message | 1532 | 3 | code | Per colonist and prey route safety verdict |  |  |
+| HunterFacts | message | 1522 | 11 | mixed | Free colonist hunting eligibility and weapon | weapon (nested HuntWeaponFacts) | ThingDef verbs via the equipped weapon def_name |
 | HuntCensus | message | 1542 | 1 | state | Hunters |  |  |
 | ButcheringFacts | message | 1543 | 9 | mixed | Butcher bench state plus human corpse yield | human_corpse_nutrition; human_corpse_def | human corpse nutrition = meat amount x RaceProperties.meatDef nutrition for the human race row (Go rule over catalog race row); human_corpse_def = human corpse ThingDef name (constant, GameConstants #2626) |
 | HumanButcherCandidate | message | 1544 | 3 | state | Colonist able to butcher humans with traits |  |  |

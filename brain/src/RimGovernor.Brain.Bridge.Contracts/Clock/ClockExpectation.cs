@@ -20,7 +20,6 @@ public static class ClockExpectation
         p = p with { ExplosiveNearMarginCells = HazardThresholdsRules.ExplosiveNearMarginCells };
         p = p with { MeleeReachCells = HazardThresholdsRules.MeleeReachCells };
         p = p with { InjurySeverityFloorTicks = HazardThresholdsRules.InjurySeverityFloorTicks };
-        p = p with { PredatorMarginCells = HazardThresholdsRules.HuntPredatorMarginCells };
         p = p with { HungerHoldCategory = HazardThresholdsRules.HungerHoldCategory };
         return p;
     }

@@ -63,16 +63,20 @@ gunner the roster sends off to haul at the median encounter tick its plain roste
 unsupported. The observed-environment input carries outdoor temperature and sky glow, held constant for the bounded encounter. Current schema does not represent changing weather/light or time of day,
 food/rest/mood, bonds, mental breaks, arbitrary gene/hediff runtime state or dynamic
 events. The observation producer must list such unrepresented effects in
-`UnsupportedObservations`, which rejects before worker launch. No live observation
-producer or hunting selector cutover is claimed here; #3130 owns integration.
+`UnsupportedObservations`, which rejects before worker launch. The live observation
+producer is the native hunt read and the selector the hunt comparison (#3130), both in
+[forecast contracts](forecast-contracts.md#coherent-coupled-observation-frame); neither
+belongs to this boundary.
 
 A result's model uncertainty is separate from its empirical samples. A replay
 check is not sampling calibration. `EncounterQualification` can reference a
 reviewed report, criteria revision, supported domain, engine/build/mod/tactic
 and covered request. The consumer attaches it only against a caller-supplied
 reviewed report record with trusted build/mod/tactic/engine/domain/request scope;
-the provider need not self-certify and cannot expand the scope by echoing new inputs. There are currently **no accepted reports**;
-the real worker supplies no qualification. A fake qualified implementation can
+the provider need not self-certify and cannot expand the scope by echoing new inputs. The real worker supplies no
+qualification record of its own: the acceptance of 2026-10-17 (#3124, decisions 7–11) rests on the
+[hunting prediction qualification](../testing/hunting-prediction-qualification.md) sweep and is held with its known
+limits below, outside the worker. A fake qualified implementation can
 exercise the independent consumer contract, but does not qualify the real engine.
 
 The predeclared research gates remain: zero reconstruction defaults/mismatches;
@@ -86,21 +90,35 @@ statistical gates. Held-out health, terrain, herd and departure evidence belongs
 to [#2825](https://github.com/davidarcher/rimgovernor/issues/2825); broader runs require
 nightly or explicit authorization.
 
-## Evidence still required before selection
+## Accepted evidence and known limits
 
 A direct engine run and its worker replay share the same simulation implementation.
 Their agreement establishes service fidelity and repeatability; it cannot measure
 prediction error against the live game. Repeating an identical seed also does not
 add independent observations to a false-safe denominator.
 
-The next qualification experiment belongs to #2825's existing CombatLab runner
-and retained bundle/report lifecycle. Before a broader run, freeze the supported
-scenario class, prediction interval construction, serious-harm/false-safe event
-classification, held-out split and seed schedule. Retain rejected and unresolved
-scenarios as well as successful predictions so abstention cannot masquerade as
-accuracy. The worker exports samples; the [CombatLab qualification protocol](../testing/hunting-prediction-qualification.md) supplies independent native comparisons and hunter-set ranking, harm calibration and false-safe scoring (`hunt-native-v2`). Collection and acceptance remain outstanding.
+The qualification experiment is #2825's CombatLab runner with its retained
+bundle/report lifecycle: the worker exports samples and the
+[CombatLab qualification protocol](../testing/hunting-prediction-qualification.md)
+supplies independent native comparisons and hunter-set ranking, harm calibration and
+false-safe scoring (`hunt-native-v2`), retaining rejected and unresolved scenarios as
+well as successful predictions so abstention cannot masquerade as accuracy. Its
+2026-10-17 run was accepted as the hunt comparison's input (#3124, decisions 7–11):
+per-cell harm calibration within 0.2 in the 15 cells, 65 of 66 separated hunter-set
+pairs ranked correctly, and zero false-safe observations. It is accepted with these
+known limits, which the comparison and its readers must keep in view:
 
-The required evidence is:
+- Sixteen samples resolve a death rate to about ±0.17 (one sample is 1/16), so a
+  per-roster death or harm rate is a coarse count; the comparison ranks by each
+  rate's 95% Wilson upper bound, never by the point rate.
+- The grizzly two-hunter cell over-predicted prey downed (1.00 predicted against 0.77
+  observed): expected nutrition from a big-game roster is optimistic, and the
+  encounter may end with the prey fled rather than down.
+- The 180 safe predictions with no false-safe observation put the one-sided 95%
+  binomial upper bound near 1.7%, not at or below the 1% the research gate proposed
+  (299 would be needed): the zero-failure gate held, the 1% bound did not.
+
+The evidence the protocol collects is:
 
 - Matched initial native readback and independent observed outcomes, with build,
   mod, tactic, scenario and seed provenance. Prediction seeds must be independent
@@ -116,7 +134,10 @@ The required evidence is:
 
 The former `combatlab/hunt-squad` and `combatlab/hunt-door` execution cases were deleted with the acceptance
 port (#3399): they used a quiet world with a substituted permanent manhunter, so they were never evidence for
-revenge frequency. Qualification reuses the CombatLab machinery with revenge enabled and observed.
+revenge frequency. Qualification reuses the CombatLab machinery with revenge enabled and observed. Execution
+evidence is the on-demand `food/hunt-roster` case (#3515, [forecast contracts](forecast-contracts.md#coherent-coupled-observation-frame)):
+the served brain over the Release worker compares, drafts the chosen roster, kills, releases and butchers a rhinoceros
+or boar on a lab colony whose quiet storyteller zeroes revenge, so it proves the hunt's execution, not revenge frequency.
 
 Even with zero failures, the exact one-sided 95% binomial upper bound is
 `1 - 0.05^(1/n)`. At least 299 independent applicable safe predictions with zero
@@ -125,9 +146,10 @@ necessary sample-size floor under the binomial assumptions, not a proposed run
 budget or a sufficient qualification test: correlated repeats, unrepresentative
 scenes and missing domain strata do not establish coverage. Any observed
 false-safe still fails the separately declared zero-failure gate. A 20-seed pilot
-can estimate noise but cannot satisfy this bound. Broad collection still requires
-nightly or explicit authorization; no accepted report or #3130 cutover follows
-from a lifecycle smoke alone.
+can estimate noise but cannot satisfy this bound. Further collection is on demand:
+the hunting sweep and `food/hunt-roster` run locally by name, and the remote
+workflows do not run them (#3515). A lifecycle smoke alone is never qualification
+evidence.
 ## Reproducible lifecycle probe
 
 The existing `RealCombat.NativeSmoke --predictor <absolute host DLL> --game
@@ -142,9 +164,10 @@ accuracy against an independently evolving live colony. Root xUnit tests use an
 independent fake predictor for cancellation, changed availability, malformed
 consequences, unsupported/unavailable replies and qualification scope.
 
-#3129 remains the completion owner until the implementation is qualified and
-useful at bounded runtime. #3130 remains blocked on that result, not on mere
-engine startup or interface compilation.
+The implementation was qualified at bounded runtime under the limits above (#3129),
+and the hunt comparison consumes its estimates through the background
+`HuntEstimateService` (#3130). Engine startup or interface compilation alone was
+never that bar.
 
 The local engine owns one arena map and settlement per request and disposes them
 before accepting the next request. Construction restarts at the same world tick;
@@ -154,4 +177,6 @@ requires four identical native hunting outcomes and terrain/readback results in
 each process, plus byte-identical results across two processes. It covers the
 reported repeated-arena defect, not qualification of prediction error or runtime.
 The earlier 1.903-second first request missed the proposed one-second research
-gate; this fix does not remeasure or relax that gate. #3129 remains open.
+gate; this fix does not remeasure or relax that gate. The accepted runtime is the
+service's bounded background request, asked off the planner step, not the
+one-second research gate.

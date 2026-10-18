@@ -1,0 +1,204 @@
+using RimGovernor.Brain.Policy;
+using Xunit;
+using static RimGovernor.Brain.Domain.Fact;
+
+namespace RimGovernor.Brain.Domain.Tests;
+
+/// <summary>
+/// The roster hunt's formation (#3515, <see cref="CombatHuntRules.HuntFormation"/>): only the view's HuntHunters are
+/// sent, a rostered melee or outranged gunner is left out for the reason <see cref="CombatHuntRules.HuntFormationRefusals"/>
+/// names, an armed defender outside the roster is never sent, an empty roster or no prey gives no roles with the
+/// right refusal, and the arc's cells keep every prey within the shortest gunner's reach.
+/// </summary>
+public sealed class CombatHuntTests
+{
+    private static readonly PawnId Rifleman = new("Rifleman");
+    private static readonly PawnId Marksman = new("Marksman");
+    private static readonly PawnId Swordsman = new("Swordsman");
+    private static readonly PawnId Pistoleer = new("Pistoleer");
+    private static readonly PawnId Guard = new("Guard");
+    private static readonly PawnId Deer = new("Deer_1");
+    private static readonly PawnId Elk = new("Elk_1");
+
+    private const string RifleDef = "Gun_BoltActionRifle";
+    private const string SwordDef = "MeleeWeapon_LongSword";
+    private const string PistolDef = "Gun_Autopistol";
+
+    private static readonly WeaponDef Rifle = new() { Ranged = true, Range = 37 };
+    private static readonly WeaponDef ShortRifle = new() { Ranged = true, Range = 25 };
+    private static readonly WeaponDef Pistol = new() { Ranged = true, Range = 12 };
+    private static readonly WeaponDef Sword = new() { Melee = true, Reach = 1 };
+
+    private static CombatPawnState Gunner(PawnId id, Cell cell, string weapon, WeaponDef facts) =>
+        new() { Id = id, Cell = Known(cell), Weapon = weapon, WeaponRange = facts.Range, WeaponFacts = facts };
+
+    private static CombatPawnState Animal(PawnId id, Cell cell, double weaponRange = 0) =>
+        new() { Id = id, Cell = Known(cell), Kind = id.Value.Split('_')[0], WeaponRange = weaponRange };
+
+    /// <summary>A defender every shared squad gate admits: alive, up, undrafted, violence-capable, untended, whole.</summary>
+    private static SquadDefenderFacts Defender(PawnId id) => new()
+    {
+        Id = id,
+        Dead = Known(false),
+        Downed = Known(false),
+        Drafted = Known(false),
+        ViolenceCapable = Known(true),
+        NeedsTend = Known(false),
+        HealthFraction = Known(1.0),
+    };
+
+    private static SquadThreatFacts Prey(PawnId id) => new() { Id = id, Dead = Known(false), Downed = Known(false), Animal = Known(true) };
+
+    private static CombatView View(IEnumerable<CombatPawnState> pawns, IEnumerable<PawnId> defenders, IEnumerable<PawnId> prey, IEnumerable<PawnId> roster)
+    {
+        var ids = defenders.ToArray();
+        return new CombatView
+        {
+            Pawns = EquatableArray.From(pawns),
+            Defenders = EquatableArray.From(ids.Select(Defender)),
+            Threats = EquatableArray.From(prey.Select(Prey)),
+            Orderable = EquatableArray.From(ids),
+            Hunt = true,
+            HuntHunters = EquatableArray.From(roster),
+        };
+    }
+
+    // Two rostered riflemen and an armed guard outside the roster, a deer twenty cells north of them.
+    private static CombatView TwoGunners(params PawnId[] roster) => View(
+        [
+            Gunner(Rifleman, new Cell(48, 50), RifleDef, Rifle),
+            Gunner(Marksman, new Cell(52, 50), RifleDef, Rifle),
+            Gunner(Guard, new Cell(50, 46), RifleDef, Rifle),
+            Animal(Deer, new Cell(50, 70)),
+        ],
+        [Rifleman, Marksman, Guard],
+        [Deer],
+        roster);
+
+    private static double Distance(Cell a, Cell b)
+    {
+        double dx = a.X - b.X;
+        double dz = a.Z - b.Z;
+        return Math.Sqrt((dx * dx) + (dz * dz));
+    }
+
+    [Fact]
+    public void OnlyTheRosteredHuntersAreSent()
+    {
+        var roles = CombatHuntRules.HuntFormation(TwoGunners(Rifleman, Marksman));
+
+        Assert.Equal(new[] { Marksman, Rifleman }, roles.Select(r => r.Pawn).Order().ToArray());
+        Assert.All(roles, r =>
+        {
+            Assert.Equal(Deer, r.Target);
+            Assert.True(r.Ranged);
+            Assert.NotNull(r.Cell);
+        });
+    }
+
+    [Fact]
+    public void ArmedDefenderOutsideTheRosterIsNeverSent()
+    {
+        var view = TwoGunners(Rifleman);
+
+        var roles = CombatHuntRules.HuntFormation(view);
+
+        var role = Assert.Single(roles);
+        Assert.Equal(Rifleman, role.Pawn);
+        Assert.DoesNotContain(roles, r => r.Pawn == Guard);
+        Assert.DoesNotContain(CombatHuntRules.HuntFormationRefusals(view), line => line.StartsWith(Guard.Value + ":", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RosteredMeleeAndOutrangedGunnersAreLeftOutForTheNamedReason()
+    {
+        // The elk shoots back at 20 cells (an armed prey): the pistol is outranged, the sword is no hunting weapon, the rifle hunts.
+        var view = View(
+            [
+                Gunner(Rifleman, new Cell(48, 50), RifleDef, Rifle),
+                Gunner(Swordsman, new Cell(50, 50), SwordDef, Sword),
+                Gunner(Pistoleer, new Cell(52, 50), PistolDef, Pistol),
+                Animal(Elk, new Cell(50, 70), weaponRange: 20),
+            ],
+            [Rifleman, Swordsman, Pistoleer],
+            [Elk],
+            [Rifleman, Swordsman, Pistoleer]);
+
+        var roles = CombatHuntRules.HuntFormation(view);
+        var refusals = CombatHuntRules.HuntFormationRefusals(view);
+
+        var role = Assert.Single(roles);
+        Assert.Equal(Rifleman, role.Pawn);
+        Assert.Contains(Rifleman.Value + ":eligible", refusals);
+        Assert.Contains(Swordsman.Value + ":weapon_does_not_hunt(" + SwordDef + ",not_ranged)", refusals);
+        Assert.Contains(Pistoleer.Value + ":outranged", refusals);
+    }
+
+    [Fact]
+    public void EmptyRosterGivesNoRolesAndNoRoster()
+    {
+        var view = TwoGunners();
+
+        Assert.Empty(CombatHuntRules.HuntFormation(view));
+        var refusals = CombatHuntRules.HuntFormationRefusals(view);
+        Assert.Contains("no_roster", refusals);
+        Assert.DoesNotContain("no_prey", refusals);
+    }
+
+    [Fact]
+    public void NoPreyGivesNoRolesAndNoPrey()
+    {
+        var view = View(
+            [Gunner(Rifleman, new Cell(48, 50), RifleDef, Rifle), Gunner(Marksman, new Cell(52, 50), RifleDef, Rifle)],
+            [Rifleman, Marksman],
+            [],
+            [Rifleman, Marksman]);
+
+        Assert.Empty(CombatHuntRules.HuntFormation(view));
+        var refusals = CombatHuntRules.HuntFormationRefusals(view);
+        Assert.Contains("no_prey", refusals);
+        Assert.Contains(Rifleman.Value + ":eligible", refusals);
+        Assert.DoesNotContain("no_roster", refusals);
+    }
+
+    [Fact]
+    public void DownedOrDeadPreyIsNotHunted()
+    {
+        var view = TwoGunners(Rifleman, Marksman) with
+        {
+            Threats = EquatableArray.From(new[] { Prey(Deer) with { Downed = Known(true) } }),
+        };
+
+        Assert.Empty(CombatHuntRules.HuntFormation(view));
+        Assert.Contains("no_prey", CombatHuntRules.HuntFormationRefusals(view));
+    }
+
+    [Fact]
+    public void ArcCellsKeepEveryPreyWithinTheShortestGunnersReach()
+    {
+        // A 37-cell rifle and a 25-cell one against a deer and an elk six cells apart: the arc is drawn at the shorter reach less the group's spread.
+        var preyCells = new[] { new Cell(50, 70), new Cell(56, 70) };
+        var view = View(
+            [
+                Gunner(Rifleman, new Cell(48, 50), RifleDef, Rifle),
+                Gunner(Marksman, new Cell(56, 48), RifleDef, ShortRifle),
+                Animal(Deer, preyCells[0]),
+                Animal(Elk, preyCells[1]),
+            ],
+            [Rifleman, Marksman],
+            [Deer, Elk],
+            [Rifleman, Marksman]);
+
+        var roles = CombatHuntRules.HuntFormation(view);
+
+        Assert.Equal(2, roles.Count);
+        Assert.All(roles, r =>
+        {
+            Assert.True(r.Cell.HasValue, $"{r.Pawn} has no arc cell");
+            var cell = r.Cell!.Value;
+            Assert.All(preyCells, p => Assert.True(Distance(cell, p) <= ShortRifle.Range, $"{r.Pawn} at {cell} is {Distance(cell, p):F1} cells from prey at {p}, beyond the {ShortRifle.Range}-cell reach"));
+            // The arc stands off the prey, on the gunners' side of it: no cell is on top of the group.
+            Assert.True(Distance(cell, new Cell(53, 70)) >= 10, $"{r.Pawn} at {cell} stands on the prey");
+        });
+    }
+}

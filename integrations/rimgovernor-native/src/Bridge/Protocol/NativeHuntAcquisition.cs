@@ -31,8 +31,7 @@ namespace HomeBridge.BridgeTools
         private static int Pending(Map map) => map.mapPawns.AllPawnsSpawned.Count(Designated);
         // Food prey is wild and edible. Revenge and predation are policy costs
         // (the census flags them; a lone hunter never designates either, a squad
-        // may take them); RouteSafe still rejects hazards and non-ordinary death
-        // actions.
+        // may take them).
         private static bool SafePrey(Pawn prey) => prey.Faction == null && prey.RaceProps.Animal
             && !prey.InMentalState
             && prey.RaceProps.meatDef?.IsNutritionGivingIngestible == true && prey.RaceProps.corpseDef != null;
@@ -89,18 +88,14 @@ namespace HomeBridge.BridgeTools
                 if (tick.HasValue) row = row with { DesignatedTick = tick.Value };
                 result = result with { Acquisition = [.. result.Acquisition, row] };
             }
-            result = result with { HuntCensus = Census(map, prey, request.HuntRouteBudgetMs is not null ? request.HuntRouteBudgetMs.GetValueOrDefault() : (uint?)null,
-                request.HuntPredatorMarginCells is not null ? request.HuntPredatorMarginCells.GetValueOrDefault() : (float?)null) };
+            result = result with { HuntCensus = Census(map) };
             result = result with { PendingFoodNutrition = (result.PendingFoodNutrition ?? 0d) + map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition) };
             return result;
         }
-        // Raw facts per free colonist. Route evidence is skipped for a colonist
-        // who is downed, in a mental state or has Hunting off: policy refuses each of those before it
-        // reads a route, so the skip loses nothing.
-        private static Obs.HuntCensus Census(Map map, List<Pawn> prey, uint? routeBudgetMs, float? predatorMarginCells)
+        // Raw facts per free colonist; policy decides who can hunt what.
+        private static Obs.HuntCensus Census(Map map)
         {
             var census = new Obs.HuntCensus();
-            var pairs = new List<(Pawn pawn, Obs.HunterFacts hunter, Pawn animal)>();
             foreach (var pawn in map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber))
             {
                 var settings = pawn.workSettings;
@@ -109,34 +104,8 @@ namespace HomeBridge.BridgeTools
                     HuntingActive = settings?.WorkIsActive(WorkTypeDefOf.Hunting) == true,
                     RangedBlockingShield = WorkGiver_HunterHunt.HasShieldAndRangedWeapon(pawn) };
                 if (pawn.equipment?.Primary != null) hunter = hunter with { WeaponDef = pawn.equipment.Primary.def.defName };
-                if (hunter.HuntingActive.GetValueOrDefault() && !pawn.Downed && !pawn.InMentalState)
-                    foreach (var animal in prey.Where(a => !a.Position.Fogged(map)))
-                        pairs.Add((pawn, hunter, animal));
                 census = census with { Hunters = [.. census.Hunters, hunter] };
             }
-            // Every eligible pair gets a verdict, pests first then nearest first, until the brain's budget runs
-            // out; the rest are marked skipped (never silently absent).
-            var budgetTicks = routeBudgetMs.HasValue ? routeBudgetMs.Value * System.Diagnostics.Stopwatch.Frequency / 1000 : long.MaxValue;
-            long spent = 0;
-            var routesByHunter = new Dictionary<string, List<Obs.HuntRoute>>();
-            foreach (var (pawn, hunter, animal) in pairs.OrderBy(p => PestRace(p.animal.RaceProps) ? 0 : 1).ThenBy(p => p.pawn.Position.DistanceToSquared(p.animal.Position)))
-            {
-                var route = new Obs.HuntRoute { PreyId = animal.GetUniqueLoadID() };
-                // No margin from the brain is an unevaluated pair, never a guessed margin.
-                if (spent >= budgetTicks || !predatorMarginCells.HasValue) route = route with { Skipped = true };
-                else
-                {
-                    var began = System.Diagnostics.Stopwatch.GetTimestamp();
-                    route = route with { Safe = HuntingSafety.RouteSafe(pawn, animal, predatorMarginCells.Value) };
-                    spent += System.Diagnostics.Stopwatch.GetTimestamp() - began;
-                }
-                var hunterId = hunter.PawnId ?? "";
-                if (!routesByHunter.TryGetValue(hunterId, out var hunterRoutes)) routesByHunter[hunterId] = hunterRoutes = new List<Obs.HuntRoute>();
-                hunterRoutes.Add(route);
-            }
-            if (routesByHunter.Count > 0)
-                census = census with { Hunters = [.. census.Hunters.Select(h => routesByHunter.TryGetValue(h.PawnId ?? "", out var routes) ? h with { Routes = [.. h.Routes, .. routes] } : h)] };
-            ObservationWork.Detail("cf.hunt.route", spent, pairs.Count);
             return census;
         }
         internal const string Kind = "Hunt";

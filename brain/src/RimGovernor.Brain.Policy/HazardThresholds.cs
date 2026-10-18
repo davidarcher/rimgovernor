@@ -27,9 +27,6 @@ public static class HazardThresholdsRules
     /// <summary>A new wound that bleeds the colonist out within this many game ticks (two in-game hours) keeps the stop.</summary>
     public const uint InjurySeverityFloorTicks = 5000;
 
-    /// <summary>A hunt route passing within this many cells (Chebyshev) of a wild predator is unsafe.</summary>
-    public const float HuntPredatorMarginCells = 25f;
-
     /// <summary>
     /// A colony-mode run holds when an unacknowledged colonist's food reaches this category: urgently hungry is the
     /// game's own "eat now" line (Need_Food.PercentageThreshUrgentlyHungry), above starving, so the review
