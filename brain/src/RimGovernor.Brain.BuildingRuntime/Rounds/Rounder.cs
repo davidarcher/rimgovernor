@@ -395,6 +395,9 @@ public sealed partial class Rounder
             // The warehouse shelf upgrade needs the Shelf's availability.
             readDefinitions = [.. readDefinitions, StorageRules.ShelfDefinition];
         }
+        // The tier-2 model prices every crop a zone grows or a goal's stuff needs, so the review reads the sowable crops as the field and
+        // acquisition readings do; the starter set alone leaves a devilstrand or healroot zone without a crop row (#3567).
+        readDefinitions = [.. readDefinitions, .. await SowableCropsAsync(state.Snapshot, ct).ConfigureAwait(false)];
         var claims = await p.Journal.ConstructionClaimsAsync(state.Snapshot, expected.Tick, ct).ConfigureAwait(false);
         stages.Lap("journal");
         using var window = ClockPlanning.StandaloneWindow(Native);

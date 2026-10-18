@@ -102,7 +102,7 @@ public sealed record ProjectGraph
 
         var bill = garment.Research.Aggregate(new ProjectGraph(), (graph, project) => graph.Then(ResearchChain(input, new ResearchProjectId(project))));
         var after = harvests.Concat(garment.Research.Select(p => ResearchId(new ResearchProjectId(p))).Where(id => bill.Nodes.Any(n => n.Id == id)));
-        return bill.Then(Craft(input, recipe.Recipe, EquatableArray.From(after), false));
+        return bill.Then(Craft(input, recipe.Recipe, EquatableArray.From(after), false, 1, garment.Stuff));
     }
 
     /// <summary>
@@ -205,7 +205,7 @@ public sealed record ProjectGraph
     /// several); the products go to the materials stock when <paramref name="productsToStock"/>, otherwise they are apparel.
     /// <paramref name="copies"/> runs of the recipe are one node: its work, ingredients and products are that many times the recipe's.
     /// </summary>
-    public static ProjectGraph Craft(ColonyModelInput input, string recipe, EquatableArray<string> after, bool productsToStock, int copies = 1)
+    public static ProjectGraph Craft(ColonyModelInput input, string recipe, EquatableArray<string> after, bool productsToStock, int copies = 1, Resource? stuff = null)
     {
         if (!input.Recipes.TryGetValue(out var recipes) || recipes.FirstOrDefault(r => r.Recipe == recipe) is not { } row)
         {
@@ -217,8 +217,10 @@ public sealed record ProjectGraph
             return Gap($"recipe_unread:{recipe}");
         }
 
-        var findings = slots.Any(s => s.Count > 1) ? EquatableArray.From(new[] { $"craft_alternative_first:{recipe}" }) : default;
-        var ingredients = slots.Where(s => s.Count > 0).Select(s => s[0] with { Count = s[0].Count * copies });
+        // The stuff the craft is made from picks its alternative; a slot with several alternatives and none of that stuff takes the first.
+        Amount Pick(EquatableArray<Amount> slot) => stuff is { } named && slot.FirstOrDefault(a => a.Resource == named && a.Count > 0) is { } match && match.Count > 0 ? match : slot[0];
+        var findings = slots.Any(s => s.Count > 1 && !(stuff is { } named && s.Any(a => a.Resource == named && a.Count > 0))) ? EquatableArray.From(new[] { $"craft_alternative_first:{recipe}" }) : default;
+        var ingredients = slots.Where(s => s.Count > 0).Select(s => Pick(s) with { Count = Pick(s).Count * copies });
         return new ProjectGraph
         {
             Nodes = EquatableArray.From(new[]

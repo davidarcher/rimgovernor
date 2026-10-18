@@ -18,6 +18,12 @@ public sealed record NeedsForecastRead
     public Fact<int> MapArea { get; init; }
     /// <summary>The DeteriorationRate stat's StatPart_EnvironmentalEffects def data (#3339); null when the stat has no such part.</summary>
     public NeedDeteriorationPart? Deterioration { get; init; }
+    /// <summary>
+    /// <c>StatDefOf.ResearchSpeedFactor</c> of every spawned research bench with power (or none needed), in bench id order: the benches a
+    /// researcher can work at whatever the current project is (#3567). Empty means none observed.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<double>))]
+    public EquatableArray<double> ResearchBenchFactors { get; init; }
 }
 /// <summary>StatPart_EnvironmentalEffects fields (factorOffsetUnroofed, factorOffsetOutdoors, protectedByEdificeFactor), def data.</summary>
 public sealed record NeedDeteriorationPart(double UnroofedOffset, double OutdoorsOffset, double ProtectedFactor);
@@ -47,6 +53,12 @@ public sealed record NeedRate(string Kind,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> FallPerTick,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> Threshold)
 {
+    /// <summary>
+    /// The need's gain per tick with no service object: resting on the ground when the colony has no usable bed
+    /// (<c>StatDefOf.BedRestEffectiveness.valueIfMissing</c>, as <c>Toils_LayDown</c> applies it). Unknown for a need that has no such recovery.
+    /// </summary>
+    [JsonConverter(typeof(ObservedNumberJsonConverter))]
+    public Fact<double> UnservedGainPerTick { get; init; }
     /// <summary>Current-rate approximation; observed threshold crossings require fresh native rates.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Unsupported { get; init; }
@@ -133,6 +145,13 @@ public sealed record NeedsForecastPawn
     public Fact<double> HealthScale { get; init; }
     public Fact<double> IncomingDamageFactor { get; init; }
     public Fact<double> InjuryHealingFactor { get; init; }
+    /// <summary>
+    /// The pawn's work speeds whatever it is doing (#3567): <c>StatDefOf.ResearchSpeed</c> times the difficulty's researchSpeedFactor (the
+    /// points a tick at bench factor 1 per <c>ResearchManager.ResearchPerformed</c>'s 0.00825) and <c>StatDefOf.PlantWorkSpeed</c> (sow work per tick).
+    /// Unknown without the stat.
+    /// </summary>
+    public Fact<double> ResearchSpeed { get; init; }
+    public Fact<double> PlantWorkSpeed { get; init; }
 }
 /// <summary>Native legality and mechanics, not a selected need action. Travel is an observed route cost.</summary>
 public sealed record NeedTarget(string Id, string Kind, string Resource, int AvailableCount,

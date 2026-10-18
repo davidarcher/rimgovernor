@@ -192,12 +192,16 @@ Its cost grows with the number of events, not with ticks.
   a read `PlantWorkSpeed`, harvest a read `PlantWorkSpeed`; an unread stat makes
   the pawn unavailable and is named). Research, crafting and construction use
   all free hours; sowing and harvest only the daylight ones. Research makes
-  speed × bench factor × 0.00825 points per work tick; the other nodes make
+  speed × 0.00825 points per work tick (the pawn's `ResearchSpeed` stat times
+  the difficulty's research factor, times the best bench's factor) and has one
+  researcher per powered research bench the needs read counts, whatever the
+  current project is; the other nodes make
   speed × 1 work per tick, with crafting and construction at speed 1 (named,
-  the pawn model has no such stat). A research bench factor not yet read is 1
-  and named. The rates are constant between events, so the engine fires each
+  the pawn model has no such stat). An unread bench count leaves the
+  researchers unlimited and is named. The rates are constant between events, so the engine fires each
   node's completion (or, for a harvest, harvest) event at its exact finish
-  time. A craft takes its ingredients (the first alternative of each slot) from
+  time. A craft takes its ingredients (the alternative of each slot that is the
+  garment's stuff, else the first) from
   a per-resource ledger when it starts, so a craft waits for the harvest that
   feeds it; the materials stock moves at completion. A harvest delivers cells ×
   `UnitsPerCell` of the crop's resource to materials, or cells ×

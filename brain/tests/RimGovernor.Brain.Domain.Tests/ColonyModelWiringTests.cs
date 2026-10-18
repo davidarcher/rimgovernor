@@ -26,14 +26,6 @@ public sealed class ColonyModelWiringTests
             Facts = projection.Facts with
             {
                 Gear = Known(gear with { Pawns = [gear.Pawns[0] with { Climate = ColonyModelFixtures.Climate() with { Temperatures = EquatableArray.From(new[] { -10.0, -8, -2, 5, 12, 18, 22, 21, 15, 8, 12, 12 }) }, LoadoutModel = Known(new GearLoadoutInput { Options = [BillDuster()] }) }] }),
-                ForecastObserved = new ColonyForecastObserved
-                {
-                    Coupled = new CoupledForecastRead
-                    {
-                        Research = new ResearchActivityRead { Known = true, Workers = [new ResearchWorker("Anna", "bench", default, ColonyModelFixtures.Project, "", "", Known(ProjectGraph.ResearchPointsPerWorkTick))] },
-                        Sowing = new SowingActivityRead { Known = true, Workers = [new SowingWorker("Anna", "zone1", "", Known(0.0), Known(400.0), [])] },
-                    },
-                },
             },
             // 20 cells of 6 cloth each cover the duster's 80.
             Cells = [.. Enumerable.Range(0, 20).Select(x => new SiteCell { Cell = new Cell(x, 0), Zone = Known(true), ZoneId = Known("zone1"), Fertility = Known(0.8) })],

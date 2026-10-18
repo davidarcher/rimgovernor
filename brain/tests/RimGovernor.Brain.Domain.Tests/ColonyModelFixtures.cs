@@ -81,6 +81,7 @@ internal static class ColonyModelFixtures
             NeedsAlternatives = new ForecastNeedsReview(new NeedsForecastRead
             {
                 Pawns = [Pawn()],
+                ResearchBenchFactors = [1.0],
             }, new Dictionary<string, ForecastNeedsCandidates>()),
             WorkAdmission = new WorkAdmissionObservation
             {
@@ -129,5 +130,7 @@ internal static class ColonyModelFixtures
         Manipulation = Known(1.0),
         Sight = Known(1.0),
         Talking = Known(1.0),
+        ResearchSpeed = Known(1.0),
+        PlantWorkSpeed = Known(1.0),
     };
 }

@@ -248,25 +248,14 @@ internal sealed class ProjectRun
         var node = live.Node;
         var crop = node.Kind is ProjectKind.Sow or ProjectKind.Harvest ? CropOf(node) : null;
         var outside = node.Kind is ProjectKind.Sow or ProjectKind.Harvest;
-        var benches = node.Kind == ProjectKind.Research ? BenchFactors() : null;
+        var benches = node.Kind == ProjectKind.Research ? Benches() : int.MaxValue;
         var workers = new List<(int Pawn, double Hours, double Speed)>();
-        var bench = 0;
         for (var p = 0; p < pawns.Length; p++)
         {
             var hours = outside ? outdoor[p] : indoor[p] + outdoor[p];
-            if (!(hours > 0) || Speed(node, crop, pawns[p]) is not { } speed)
+            if (!(hours > 0) || workers.Count >= benches || Speed(node, crop, pawns[p]) is not { } speed)
             {
                 continue;
-            }
-
-            if (benches is not null)
-            {
-                if (bench >= benches.Count)
-                {
-                    continue;
-                }
-
-                speed *= benches[bench++];
             }
 
             workers.Add((p, hours, speed));
@@ -352,15 +341,16 @@ internal sealed class ProjectRun
         }
     }
 
-    private List<double> BenchFactors()
+    /// <summary>The research benches, one researcher each; unread, the researchers are not limited and the gap is named.</summary>
+    private int Benches()
     {
-        if (input.Research.TryGetValue(out var research) && research.BenchFactors.TryGetValue(out var factors))
+        if (input.Research.TryGetValue(out var research) && research.Benches.TryGetValue(out var benches))
         {
-            return [.. factors.OrderByDescending(f => f)];
+            return benches;
         }
 
-        findings.Add("research_bench_factor_unread");
-        return Enumerable.Repeat(1.0, pawns.Length).ToList();
+        findings.Add("research_bench_count_unread");
+        return int.MaxValue;
     }
 
     /// <summary>Takes the node's ingredients from the ledger at its start; false while the ledger cannot supply them all.</summary>

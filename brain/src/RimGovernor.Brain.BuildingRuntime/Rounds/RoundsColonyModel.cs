@@ -103,7 +103,7 @@ internal static class RoundsColonyModel
             Calendar = facts.Calendar,
             Land = LandOf(colony),
             Crops = CropsOf(colony),
-            Research = ResearchOf(facts.Research),
+            Research = ResearchOf(facts.Research, facts.NeedsAlternatives?.Observation),
             Stocks = new ModelStocks { Nutrition = NutritionOf(colony.CombinedFoodSupply), Materials = MaterialsOf(colony.Resources), Medicine = MedicineOf(facts.MedicalReserve) },
             Pawns = PawnsOf(colony),
             Recipes = facts.WorkAdmission.Recipes,
@@ -215,7 +215,7 @@ internal static class RoundsColonyModel
         return crops.Count == 0 ? Unknown<EquatableArray<CropChoice>>() : Known(EquatableArray.From(crops));
     }
 
-    private static Fact<ModelResearch> ResearchOf(Fact<ResearchFacts> research)
+    private static Fact<ModelResearch> ResearchOf(Fact<ResearchFacts> research, NeedsForecastRead? needs)
     {
         if (!research.TryGetValue(out var facts))
         {
@@ -241,8 +241,11 @@ internal static class RoundsColonyModel
             });
         }
 
-        return Known(new ModelResearch { Current = facts.Current, Finished = facts.Finished, Projects = EquatableArray.From(projects) });
+        return Known(new ModelResearch { Current = facts.Current, Finished = facts.Finished, Projects = EquatableArray.From(projects), Benches = BenchesOf(needs) });
     }
+
+    /// <summary>The research benches the needs read counts, whatever the current project is; unknown without the read.</summary>
+    private static Fact<int> BenchesOf(NeedsForecastRead? read) => read is null ? Unknown<int>() : Known(read.ResearchBenchFactors.Count);
 
     /// <summary>The nutrition of the food stacks the colony can eat; unknown while the food census is incomplete or a stack's nutrition is.</summary>
     private static Fact<double> NutritionOf(Fact<FoodSupply> supply)
@@ -291,15 +294,16 @@ internal static class RoundsColonyModel
             }
         }
 
-        var research = ResearchSpeeds(colony.Facts.ForecastObserved.Coupled);
-        var plants = PlantSpeeds(colony, colony.Facts.ForecastObserved.Coupled);
+        // The best bench is the one the researcher takes, so the bench factor joins the pawn's stat here, as the points a tick at speed 1 does in the model.
+        var bestBench = review.Observation.ResearchBenchFactors.Count == 0 ? Unknown<double>() : Known(review.Observation.ResearchBenchFactors.Max());
         var pawns = new List<ModelPawn>();
         foreach (var pawn in review.Observation.Pawns)
         {
             var needs = new List<ModelNeed>();
             foreach (var need in pawn.Needs)
             {
-                var gain = Unknown<double>();
+                // A pawn with no usable service still recovers where it stands when the need has such a recovery (rest on the ground).
+                var gain = need.UnservedGainPerTick;
                 var perUse = Unknown<double>();
                 var service = Unknown<double>();
                 var approach = new List<double>();
@@ -351,48 +355,11 @@ internal static class RoundsColonyModel
                 Talking = pawn.Talking,
                 ComfortableMin = pawn.ComfortableMin,
                 ComfortableMax = pawn.ComfortableMax,
-                ResearchSpeed = research.TryGetValue(pawn.Pawn, out var researching) ? Known(researching) : Unknown<double>(),
-                PlantWorkSpeed = plants.TryGetValue(pawn.Pawn, out var planting) ? Known(planting) : Unknown<double>(),
+                ResearchSpeed = pawn.ResearchSpeed.TryGetValue(out var researching) && bestBench.TryGetValue(out var factor) ? Known(researching * factor) : Unknown<double>(),
+                PlantWorkSpeed = pawn.PlantWorkSpeed,
             });
         }
 
         return Known(EquatableArray.From(pawns));
-    }
-
-    /// <summary>A pawn's research speed as the model reads it: the best points per tick any of its benches gives, over the points a tick gives at speed 1 (the bench's factor is in it).</summary>
-    private static Dictionary<string, double> ResearchSpeeds(CoupledForecastRead? read)
-    {
-        var speeds = new Dictionary<string, double>(StringComparer.Ordinal);
-        foreach (var worker in read?.Research.Workers ?? default)
-        {
-            if (worker.PointsPerTick.TryGetValue(out var points) && points >= 0)
-            {
-                speeds[worker.Pawn] = Math.Max(speeds.GetValueOrDefault(worker.Pawn), points / ProjectGraph.ResearchPointsPerWorkTick);
-            }
-        }
-
-        return speeds;
-    }
-
-    /// <summary>A pawn's plant work speed: the sow work of the crop its zone grows over the ticks a cell takes it. A pawn with no sowing row has none read.</summary>
-    private static Dictionary<string, double> PlantSpeeds(ColonyProjection colony, CoupledForecastRead? read)
-    {
-        var speeds = new Dictionary<string, double>(StringComparer.Ordinal);
-        if (read is null || !CropsOf(colony).TryGetValue(out var crops))
-        {
-            return speeds;
-        }
-
-        var cropOf = colony.Farms.ToDictionary(f => f.Id, f => f.Crop, StringComparer.Ordinal);
-        foreach (var worker in read.Sowing.Workers)
-        {
-            if (cropOf.TryGetValue(worker.Zone, out var name) && crops.FirstOrDefault(c => c.Name == name) is { } crop
-                && crop.SowWork.TryGetValue(out var work) && worker.TicksPerCell.TryGetValue(out var ticks) && ticks > 0)
-            {
-                speeds[worker.Pawn] = Math.Max(speeds.GetValueOrDefault(worker.Pawn), work / ticks);
-            }
-        }
-
-        return speeds;
     }
 }

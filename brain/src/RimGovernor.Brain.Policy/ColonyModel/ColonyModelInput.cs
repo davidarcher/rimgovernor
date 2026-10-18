@@ -43,8 +43,12 @@ public sealed record ModelResearch
     /// <summary>Every listed project not finished.</summary>
     public EquatableArray<ModelProject> Projects { get; init; }
 
-    /// <summary>The ResearchSpeedFactor of each research bench; unknown until the research provider's bench read reaches the frame (#3527 reads it in the coupled path only).</summary>
-    public Fact<EquatableArray<double>> BenchFactors { get; init; }
+    /// <summary>
+    /// The research benches the current project can be researched at, one researcher each; unknown until the research provider's read
+    /// reaches the frame (#3527 reads it in the coupled path only). A pawn's <see cref="ModelPawn.ResearchSpeed"/> already carries the
+    /// factor of its bench, so only the count limits the labor.
+    /// </summary>
+    public Fact<int> Benches { get; init; }
 }
 
 /// <summary>The colony's stocks the model moves: nutrition, materials and medicine. Research points are per project (<see cref="ModelProject.Progress"/>); power is not a stock in v1.</summary>
@@ -149,7 +153,7 @@ public sealed record ColonyModelInput
 
     /// <summary>
     /// Names each section or member the model cannot start from, with the reason: an unknown the frame did not carry, or a value
-    /// outside its range. The bench factors, research speeds and plant work speeds are not named while unknown (the providers'
+    /// outside its range. The bench count, research speeds and plant work speeds are not named while unknown (the providers'
     /// reads reach them later); once known they must be finite and not negative.
     /// </summary>
     public IReadOnlyList<string> Unknowns()
@@ -301,9 +305,9 @@ public sealed record ColonyModelInput
             }
         }
 
-        if (research.BenchFactors.TryGetValue(out var factors) && factors.Any(f => !Number(f) || f < 0))
+        if (research.Benches.TryGetValue(out var benches) && benches < 0)
         {
-            gaps.Add("research: a bench factor is not a finite non-negative number");
+            gaps.Add("research: the bench count is negative");
         }
     }
 

@@ -66,7 +66,7 @@ public static class GoalPaths
             return Unmodelled("no_recipe:" + goal.Target);
         }
 
-        var owed = recipe.Slots.Value[0][0].Count * missing.Value;
+        var owed = recipe.Slots.Value[0].First(a => a.Resource == stuff && a.Count > 0).Count * missing.Value;
         var held = materials.Where(a => a.Resource == stuff).Sum(a => a.Count);
         var graph = new ProjectGraph();
         string[] after = [];
@@ -91,18 +91,18 @@ public static class GoalPaths
             }
         }
 
-        var craft = ProjectGraph.Craft(input, recipe.Recipe, EquatableArray.From(after), false, missing.Value);
+        var craft = ProjectGraph.Craft(input, recipe.Recipe, EquatableArray.From(after), false, missing.Value, stuff);
         graph = graph.Then(craft);
         return craft.Nodes.Count == 0
             ? new(new ProjectGraph(), null, Reason("craft_unread", craft))
             : new(graph, Terminal(goal, f, [craft.Nodes[0].Id]), "");
     }
 
-    /// <summary>The recipe that makes <paramref name="product"/> from <paramref name="stuff"/> as its first ingredient alternative (the one <see cref="ProjectGraph.Craft"/> consumes); null when the input has none.</summary>
+    /// <summary>The recipe that makes <paramref name="product"/> with <paramref name="stuff"/> as an ingredient alternative of its first slot (the one <see cref="ProjectGraph.Craft"/> consumes when given the stuff); null when the input has none.</summary>
     public static ProductionRecipeInput? RecipeFor(ColonyModelInput input, string product, Resource stuff) =>
         input.Recipes.TryGetValue(out var recipes)
             ? recipes.FirstOrDefault(r => r.Products.TryGetValue(out var made) && made.Any(p => p.Resource.Value == product && p.Count > 0)
-                && r.Slots.TryGetValue(out var slots) && slots.Count > 0 && slots[0].Count > 0 && slots[0][0].Resource == stuff)
+                && r.Slots.TryGetValue(out var slots) && slots.Count > 0 && slots[0].Any(a => a.Resource == stuff && a.Count > 0))
             : null;
 
     /// <summary>The path of <paramref name="goal"/>; a kind with no path through the project graph is unmodelled.</summary>

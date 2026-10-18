@@ -129,4 +129,56 @@ public sealed class ColonyModelInputTests
         Assert.False(input.Land.IsKnown);
         Assert.Contains(unknowns, u => u.StartsWith("land:", StringComparison.Ordinal));
     }
+
+    private static ColonyProjection WithWorkRead(ColonyProjection projection, double[] benchFactors, double researchSpeed, double plantWorkSpeed)
+    {
+        var review = projection.Facts.NeedsAlternatives!;
+        var pawn = review.Observation.Pawns[0] with { ResearchSpeed = Known(researchSpeed), PlantWorkSpeed = Known(plantWorkSpeed) };
+        var observation = review.Observation with { Pawns = [pawn], ResearchBenchFactors = EquatableArray.From(benchFactors) };
+        return projection with { Facts = projection.Facts with { NeedsAlternatives = review with { Observation = observation } } };
+    }
+
+    [Fact]
+    public void TheResearchBenchesAreTheBenchesTheNeedsReadCountsWhateverTheCurrentProjectIs()
+    {
+        var input = RoundsColonyModel.InputOf(WithWorkRead(ColonyModelFixtures.Projection(), [1.0, 1.5], 0.8, 0.9)).Input;
+
+        Assert.Equal(2, input.Research.Value.Benches.Value);
+        var pawn = input.Pawns.Value[0];
+        // The researcher takes the best bench: the pawn's stat times the best factor.
+        Assert.Equal(1.2, pawn.ResearchSpeed.Value, 9);
+        Assert.Equal(0.9, pawn.PlantWorkSpeed.Value, 9);
+    }
+
+    [Fact]
+    public void ABenchlessColonyHasZeroBenchesAndNoResearchSpeed()
+    {
+        var input = RoundsColonyModel.InputOf(WithWorkRead(ColonyModelFixtures.Projection(), [], 0.8, 1.2)).Input;
+
+        Assert.Equal(0, input.Research.Value.Benches.Value);
+        Assert.False(input.Pawns.Value[0].ResearchSpeed.IsKnown);
+    }
+
+    [Fact]
+    public void ARestingPawnWithNoBedStillHasARestGainSoItsCycleIsADay()
+    {
+        var projection = ColonyModelFixtures.Projection();
+        var review = projection.Facts.NeedsAlternatives!;
+        var pawn = review.Observation.Pawns[0];
+        // No bed and no recreation target; the rest need carries the ground recovery the game applies to a pawn lying down without a bed.
+        pawn = pawn with
+        {
+            Targets = [.. pawn.Targets.Where(t => t.Kind == "food")],
+            Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "rest" ? n with { UnservedGainPerTick = Known(0.00002) } : n)),
+        };
+        projection = projection with { Facts = projection.Facts with { NeedsAlternatives = review with { Observation = review.Observation with { Pawns = [pawn] } } } };
+
+        var (input, unknowns) = RoundsColonyModel.InputOf(projection);
+
+        var needs = input.Pawns.Value[0].Needs;
+        Assert.Equal(0.00002, needs.Single(n => n.Kind == "rest").Gain.Value);
+        Assert.False(needs.Single(n => n.Kind == "joy").Gain.IsKnown);
+        Assert.DoesNotContain(unknowns, u => u.Contains("rest_gain_unknown", StringComparison.Ordinal));
+        Assert.Contains(unknowns, u => u.Contains("joy_gain_unknown", StringComparison.Ordinal));
+    }
 }

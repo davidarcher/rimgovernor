@@ -28,7 +28,10 @@ internal static class NativeNeedsForecast
                 { Unsupported = ["food_category_and_bed_rate_changes"] });
             if (pawn.needs?.rest is { } rest) needs.Add(new("rest", K(rest.CurLevelPercentage),
                 K(rest.RestFallPerTick * pawn.GetStatValue(StatDefOf.RestFallRateFactor)), K(Need_Rest.ThreshTired))
-                { Unsupported = ["rest_category_rate_changes", "involuntary_sleep_risk"] });
+                {
+                    UnservedGainPerTick = K(Need_Rest.BaseRestGainPerTick * StatDefOf.BedRestEffectiveness.valueIfMissing * pawn.GetStatValue(StatDefOf.RestRateMultiplier)),
+                    Unsupported = ["rest_category_rate_changes", "involuntary_sleep_risk"],
+                });
             if (pawn.needs?.joy is { } joy)
             {
                 var decay = typeof(Need_Joy).GetProperty("FallPerInterval", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(joy);
@@ -118,12 +121,17 @@ internal static class NativeNeedsForecast
                 MalnutritionSeverity = Severity(pawn, HediffDefOf.Malnutrition), FoodPoisoningSeverity = Severity(pawn, HediffDefOf.FoodPoisoning),
                 HypothermiaSeverity = Severity(pawn, HediffDefOf.Hypothermia), HeatstrokeSeverity = Severity(pawn, HediffDefOf.Heatstroke),
                 PainShockThreshold = HealthStat(pawn, StatDefOf.PainShockThreshold), HealthScale = HealthScaleOf(pawn),
-                IncomingDamageFactor = HealthStat(pawn, StatDefOf.IncomingDamageFactor), InjuryHealingFactor = HealthStat(pawn, StatDefOf.InjuryHealingFactor) });
+                IncomingDamageFactor = HealthStat(pawn, StatDefOf.IncomingDamageFactor), InjuryHealingFactor = HealthStat(pawn, StatDefOf.InjuryHealingFactor),
+                ResearchSpeed = K(pawn.GetStatValue(StatDefOf.ResearchSpeed) * Find.Storyteller.difficulty.researchSpeedFactor),
+                PlantWorkSpeed = K(pawn.GetStatValue(StatDefOf.PlantWorkSpeed)) });
         }
+        var benchFactors = map.listerBuildings.AllBuildingsColonistOfClass<Building_ResearchBench>()
+            .Where(b => b.Spawned && (b.GetComp<CompPowerTrader>()?.PowerOn ?? true))
+            .OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).Select(b => (double)b.GetStatValue(StatDefOf.ResearchSpeedFactor)).ToArray();
         var weather = map.weatherManager.CurWeatherLerped;
         return new() { Tick = Find.TickManager.TicksGame, Pawns = EquatableArray.From(rows),
             WeatherThought = weather?.weatherThought?.defName ?? "", WeatherThoughtStages = weather?.weatherThought?.stages?.Count ?? 0,
-            RainRate = K(map.weatherManager.RainRate), MapArea = Fact.Known(map.Area), Deterioration = DeteriorationPart() };
+            RainRate = K(map.weatherManager.RainRate), MapArea = Fact.Known(map.Area), Deterioration = DeteriorationPart(), ResearchBenchFactors = EquatableArray.From(benchFactors) };
     }
     /// <summary>The cell's roof and room as Need_Outdoors, the undergrounder workers, ApplyBedThoughts and SteadyEnvironmentEffects read them (#3339).</summary>
     internal static Obs.NeedCell CellAt(Map map, IntVec3 cell)

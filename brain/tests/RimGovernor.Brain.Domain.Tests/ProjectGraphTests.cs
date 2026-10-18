@@ -73,6 +73,32 @@ public sealed class ProjectGraphTests
     private static ModelEvent At(ColonyTrajectory t, string id) => t.Events.Single(e => e.Id == id);
 
     [Fact]
+    public void ACraftWithSeveralIngredientAlternativesConsumesTheNamedStuffAndNeedsNoFirstAlternativeFinding()
+    {
+        var input = Colony();
+        // The game's apparel recipes list every stuff the garment can be made of in name order, cloth first, each at its own count.
+        var recipe = new ProductionRecipeInput("Make_Apparel_Cape", Known(EquatableArray.From(new[]
+        {
+            EquatableArray.From(new[] { new Amount(new Resource("Cloth"), 80), new Amount(new Resource(ColonyModelFixtures.Cloth), 50) }),
+        })), Known(false))
+        {
+            Products = Known(EquatableArray.From(new[] { new Amount(new Resource("Apparel_Cape"), 1) })),
+            WorkAmount = Known(10_000.0),
+        };
+        input = input with { Recipes = Known(EquatableArray.From(new[] { recipe })) };
+
+        Assert.Same(recipe, GoalPaths.RecipeFor(input, "Apparel_Cape", new Resource(ColonyModelFixtures.Cloth)));
+        Assert.Null(GoalPaths.RecipeFor(input, "Apparel_Cape", new Resource("Steel")));
+        var named = ProjectGraph.Craft(input, "Make_Apparel_Cape", AfterHarvest, false, 1, new Resource(ColonyModelFixtures.Cloth));
+        var node = Assert.Single(named.Nodes);
+        Assert.Equal([new Amount(new Resource(ColonyModelFixtures.Cloth), 50)], node.Ingredients);
+        Assert.Empty(named.Findings);
+        var unnamed = ProjectGraph.Craft(input, "Make_Apparel_Cape", AfterHarvest, false);
+        Assert.Equal([new Amount(new Resource("Cloth"), 80)], Assert.Single(unnamed.Nodes).Ingredients);
+        Assert.Equal(["craft_alternative_first:Make_Apparel_Cape"], unnamed.Findings);
+    }
+
+    [Fact]
     public void TheDevilstrandChainCompletesInSequenceAtTheHandCalculatedDays()
     {
         var input = Colony();
@@ -141,6 +167,34 @@ public sealed class ProjectGraphTests
             Assert.Contains($"project_incomplete:{id}", trajectory.Findings);
             Assert.DoesNotContain(trajectory.Events, e => e.Id == id);
         }
+    }
+
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(2, 2)]
+    [InlineData(3, 2)]
+    public void ResearchHasOneResearcherPerBenchTheResearchReadLists(int benches, int researchers)
+    {
+        var input = Colony();
+        input = input with
+        {
+            Pawns = Known(EquatableArray.From(new[] { Pawn("Anna", 1, null), Pawn("Bo", 1, null) })),
+            Research = Known(input.Research.Value with { Benches = Known(benches) }),
+        };
+        var trajectory = Run(input, ProjectGraph.ResearchChain(input, Gate));
+
+        Assert.Equal(600 / (researchers * WorkTicksPerDay * 0.00825), At(trajectory, "research:Devilstrand").Day, 6);
+        Assert.DoesNotContain("research_bench_count_unread", trajectory.Findings);
+    }
+
+    [Fact]
+    public void AnUnreadBenchCountLeavesTheResearchersUnlimitedAndSaysSo()
+    {
+        var input = Colony();
+        input = input with { Research = Known(input.Research.Value with { Benches = default }) };
+        var trajectory = Run(input, ProjectGraph.ResearchChain(input, Gate));
+
+        Assert.Contains("research_bench_count_unread", trajectory.Findings);
     }
 
     [Fact]
