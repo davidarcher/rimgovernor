@@ -42,6 +42,9 @@ public sealed partial class ClockRunDriver : IDisposable
     // (the driver's hold, or a hazard hold that beat it), never while Running.
     private bool _autosaveDue;
     private long _combatMarkedFor = long.MinValue;
+
+    // The world the combat stop metrics belong to; another loaded world starts them afresh.
+    private GenerationSnapshot _combatWorld;
     private readonly HashSet<ActionId> _coupledHeld = [];
 
     // Whether a Run this driver sent may still be in effect, so losing authority must hold the clock.

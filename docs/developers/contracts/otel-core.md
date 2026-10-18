@@ -20,7 +20,8 @@ runs without telemetry. The writer listens to every `ActivitySource` and `Meter`
 `ShutdownAsync` (final metric collection, fsync, close) and `Drops()` complete the surface.
 
 Each signal has a bounded queue (`OtlpFileConfig.QueueSize` 16384, `BatchSize` 512, `FileFlushInterval` 250 ms)
-and one writer task; `Offer` never blocks. Metrics are pulled every `MetricInterval` (10 s) from a `MeterListener`
+and one writer task; `Offer` never blocks. A batch is written when it holds `BatchSize` records or its oldest
+record is `FileFlushInterval` old (a steady trickle of records does not postpone the write; #3552). Metrics are pulled every `MetricInterval` (10 s) from a `MeterListener`
 into cumulative sums, last-value gauges and explicit-bucket histograms (bounds from the instrument's advice, the
 SDK default set otherwise).
 

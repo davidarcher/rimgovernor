@@ -141,6 +141,9 @@ internal sealed class BatchQueue<T>
             flushed.Clear();
         }
 
+        // When the oldest unexported item arrived: the flush interval bounds an item's age, not the quiet after the
+        // last arrival (a slow trickle of rows would otherwise sit in the batch until it filled).
+        long oldest = 0;
         while (true)
         {
             if (batch.Count == 0)
@@ -152,7 +155,13 @@ internal sealed class BatchQueue<T>
             }
             else
             {
-                using var cts = new CancellationTokenSource(_flushInterval, _time);
+                var wait = _flushInterval - _time.GetElapsedTime(oldest);
+                if (wait <= TimeSpan.Zero)
+                {
+                    Flush();
+                    continue;
+                }
+                using var cts = new CancellationTokenSource(wait, _time);
                 try
                 {
                     if (!await reader.WaitToReadAsync(cts.Token).ConfigureAwait(false))
@@ -175,6 +184,10 @@ internal sealed class BatchQueue<T>
                     continue;
                 }
                 Interlocked.Decrement(ref _queued);
+                if (batch.Count == 0)
+                {
+                    oldest = _time.GetTimestamp();
+                }
                 batch.Add(entry.Item!);
                 if (_urgent is not null && _urgent(entry.Item!))
                 {

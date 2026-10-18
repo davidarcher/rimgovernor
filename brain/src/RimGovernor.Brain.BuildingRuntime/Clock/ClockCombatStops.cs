@@ -141,13 +141,7 @@ internal sealed class CombatStopMetrics(TimeSpan resumeBudget)
         if (_active && !combat)
         {
             Log();
-            _active = false;
-            _tripped = false;
-            _byKind = null;
-            _latencies = [];
-            _tickGaps = [];
-            _lastStopTick = 0;
-            _lastKnown = false;
+            Reset();
         }
         if (combat && !_active)
         {
@@ -155,6 +149,22 @@ internal sealed class CombatStopMetrics(TimeSpan resumeBudget)
             _lastStopTick = tick;
             _lastKnown = true;
         }
+    }
+
+    /// <summary>
+    /// Forgets the combat in progress without logging it: another loaded world has no fight of this one, and its
+    /// resume latencies and tripped gate are not its own (a sweep parks each seed mid-fight, so no colony run ever
+    /// closed the combat and the gate tripped in one seed held every later seed at Normal speed).
+    /// </summary>
+    public void Reset()
+    {
+        _active = false;
+        _tripped = false;
+        _byKind = null;
+        _latencies = [];
+        _tickGaps = [];
+        _lastStopTick = 0;
+        _lastKnown = false;
     }
 
     private void Log()

@@ -167,6 +167,12 @@ public sealed partial class ClockRunDriver
                 ("observed_generation", loadedContext.NativeGeneration.GetValueOrDefault()));
             throw Failed(new AuthorityException());
         }
+        if (!_combatWorld.SameWorld(state.Snapshot))
+        {
+            _combatStops.Reset();
+            _combatMarkedFor = long.MinValue;
+            _combatWorld = state.Snapshot;
+        }
         PbClock.Status status;
         try
         {

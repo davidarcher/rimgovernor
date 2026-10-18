@@ -2,13 +2,13 @@
   "version": 2,
   "fixture": "lab-open",
   "workers": 1,
-  "load": "rimworld processes before dispatch: 1",
-  "wallMs": 821519,
+  "load": "rimworld processes before dispatch: 0",
+  "wallMs": 101262,
   "rows": [
     {
       "seed": 1,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         -235104240,
         -1770829539,
@@ -16,29 +16,54 @@
         -1776007489
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 3517,
-        "colonistDamage": 76,
+        "ticks": 6233,
+        "colonistDamage": 62.3,
         "colonistDowns": 0,
         "colonistDeaths": 0,
-        "enemyDowns": 0,
+        "enemyDowns": 1,
         "enemyDeaths": 2,
-        "enemyFled": 1,
-        "firstContactTick": 98,
-        "resolvedTick": 3517,
-        "contactToResolutionTicks": 3419,
+        "enemyFled": 0,
+        "firstContactTick": 102,
+        "resolvedTick": 6233,
+        "contactToResolutionTicks": 6131,
         "winner": "colonist",
         "friendlyFireHits": 0,
-        "ordersIssued": 9,
+        "ordersIssued": 3,
         "ordersRefused": 0,
-        "stepLatencyP95Ms": 442
+        "stepLatencyP95Ms": -1,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 3,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 1,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 2,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         -1342498867,
         680027767,
@@ -46,29 +71,54 @@
         -1527604660
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 2020,
-        "colonistDamage": 0,
-        "colonistDowns": 0,
+        "ticks": 6586,
+        "colonistDamage": 128.2,
+        "colonistDowns": 1,
         "colonistDeaths": 0,
         "enemyDowns": 0,
         "enemyDeaths": 3,
         "enemyFled": 0,
-        "firstContactTick": 96,
-        "resolvedTick": 2020,
-        "contactToResolutionTicks": 1924,
+        "firstContactTick": 108,
+        "resolvedTick": 6586,
+        "contactToResolutionTicks": 6478,
         "winner": "colonist",
         "friendlyFireHits": 0,
-        "ordersIssued": 3,
-        "ordersRefused": 0,
-        "stepLatencyP95Ms": 298
+        "ordersIssued": 6,
+        "ordersRefused": 1,
+        "stepLatencyP95Ms": 244,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 5,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 3,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         2109658768,
         -1679935835,
@@ -76,29 +126,54 @@
         297383587
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 2073,
-        "colonistDamage": 29.5,
+        "ticks": 1398,
+        "colonistDamage": 36.8,
         "colonistDowns": 0,
         "colonistDeaths": 0,
         "enemyDowns": 0,
-        "enemyDeaths": 2,
-        "enemyFled": 1,
-        "firstContactTick": 98,
-        "resolvedTick": 2073,
-        "contactToResolutionTicks": 1975,
+        "enemyDeaths": 3,
+        "enemyFled": 0,
+        "firstContactTick": 109,
+        "resolvedTick": 1398,
+        "contactToResolutionTicks": 1289,
         "winner": "colonist",
         "friendlyFireHits": 0,
-        "ordersIssued": 6,
+        "ordersIssued": 3,
         "ordersRefused": 0,
-        "stepLatencyP95Ms": 549
+        "stepLatencyP95Ms": -1,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 3,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 4,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         -1826488659,
         -1667436116,
@@ -106,29 +181,54 @@
         -952076478
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 1831,
-        "colonistDamage": 17.2,
+        "ticks": 3346,
+        "colonistDamage": 80,
         "colonistDowns": 0,
         "colonistDeaths": 0,
         "enemyDowns": 0,
         "enemyDeaths": 3,
         "enemyFled": 0,
-        "firstContactTick": 98,
-        "resolvedTick": 1831,
-        "contactToResolutionTicks": 1733,
+        "firstContactTick": 102,
+        "resolvedTick": 3346,
+        "contactToResolutionTicks": 3244,
         "winner": "colonist",
         "friendlyFireHits": 0,
         "ordersIssued": 6,
         "ordersRefused": 0,
-        "stepLatencyP95Ms": 548
+        "stepLatencyP95Ms": -1,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 2,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 4,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 5,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         1580628434,
         360578704,
@@ -136,29 +236,54 @@
         -495534939
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 3427,
-        "colonistDamage": 83.4,
+        "ticks": 8399,
+        "colonistDamage": 118.7,
         "colonistDowns": 0,
         "colonistDeaths": 0,
         "enemyDowns": 0,
         "enemyDeaths": 3,
         "enemyFled": 0,
-        "firstContactTick": 98,
-        "resolvedTick": 3427,
-        "contactToResolutionTicks": 3329,
+        "firstContactTick": 106,
+        "resolvedTick": 8399,
+        "contactToResolutionTicks": 8293,
         "winner": "colonist",
         "friendlyFireHits": 0,
-        "ordersIssued": 6,
+        "ordersIssued": 3,
         "ordersRefused": 0,
-        "stepLatencyP95Ms": 988
+        "stepLatencyP95Ms": -1,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 1,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 5,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 5,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 6,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         2121875065,
         1305424310,
@@ -166,29 +291,54 @@
         2086431044
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 2070,
-        "colonistDamage": 40.6,
+        "ticks": 8035,
+        "colonistDamage": 56.1,
         "colonistDowns": 0,
         "colonistDeaths": 0,
         "enemyDowns": 0,
         "enemyDeaths": 3,
         "enemyFled": 0,
-        "firstContactTick": 99,
-        "resolvedTick": 2070,
-        "contactToResolutionTicks": 1971,
+        "firstContactTick": 91,
+        "resolvedTick": 8035,
+        "contactToResolutionTicks": 7944,
         "winner": "colonist",
         "friendlyFireHits": 0,
-        "ordersIssued": 6,
+        "ordersIssued": 3,
         "ordersRefused": 0,
-        "stepLatencyP95Ms": 756
+        "stepLatencyP95Ms": -1,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 3,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 2,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 7,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         1072597060,
         704578319,
@@ -196,29 +346,54 @@
         1534904821
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 2519,
-        "colonistDamage": 0,
+        "ticks": 7895,
+        "colonistDamage": 38.1,
         "colonistDowns": 0,
         "colonistDeaths": 0,
-        "enemyDowns": 0,
+        "enemyDowns": 1,
         "enemyDeaths": 2,
-        "enemyFled": 1,
-        "firstContactTick": 101,
-        "resolvedTick": 2519,
-        "contactToResolutionTicks": 2418,
+        "enemyFled": 0,
+        "firstContactTick": 96,
+        "resolvedTick": 7895,
+        "contactToResolutionTicks": 7799,
         "winner": "colonist",
         "friendlyFireHits": 0,
-        "ordersIssued": 6,
+        "ordersIssued": 3,
         "ordersRefused": 0,
-        "stepLatencyP95Ms": 575
+        "stepLatencyP95Ms": -1,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 2,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 1,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 8,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         -446497963,
         1973108769,
@@ -226,29 +401,54 @@
         985634381
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 6156,
-        "colonistDamage": 210.3,
-        "colonistDowns": 2,
+        "ticks": 8132,
+        "colonistDamage": 64.7,
+        "colonistDowns": 0,
         "colonistDeaths": 0,
         "enemyDowns": 1,
-        "enemyDeaths": 1,
-        "enemyFled": 1,
-        "firstContactTick": 107,
-        "resolvedTick": 6156,
-        "contactToResolutionTicks": 6049,
+        "enemyDeaths": 2,
+        "enemyFled": 0,
+        "firstContactTick": 96,
+        "resolvedTick": 8132,
+        "contactToResolutionTicks": 8036,
         "winner": "colonist",
         "friendlyFireHits": 0,
-        "ordersIssued": 11,
-        "ordersRefused": 1,
-        "stepLatencyP95Ms": 2035
+        "ordersIssued": 3,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": -1,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 2,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 3,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 9,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         -1410448947,
         161651147,
@@ -256,29 +456,54 @@
         1866365599
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 2073,
-        "colonistDamage": 75.3,
-        "colonistDowns": 0,
+        "ticks": 7945,
+        "colonistDamage": 222.9,
+        "colonistDowns": 3,
         "colonistDeaths": 0,
-        "enemyDowns": 0,
-        "enemyDeaths": 3,
+        "enemyDowns": 1,
+        "enemyDeaths": 0,
         "enemyFled": 0,
-        "firstContactTick": 94,
-        "resolvedTick": 2073,
-        "contactToResolutionTicks": 1979,
-        "winner": "colonist",
+        "firstContactTick": 106,
+        "resolvedTick": 1402,
+        "contactToResolutionTicks": 1296,
+        "winner": "hostile",
         "friendlyFireHits": 0,
-        "ordersIssued": 6,
+        "ordersIssued": 5,
         "ordersRefused": 0,
-        "stepLatencyP95Ms": 475
+        "stepLatencyP95Ms": 167,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 8,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 8,
+            "downed": true,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 10,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         398827085,
         -1221793655,
@@ -286,29 +511,54 @@
         -1520335184
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 3684,
-        "colonistDamage": 122.5,
+        "ticks": 2911,
+        "colonistDamage": 121.4,
         "colonistDowns": 0,
         "colonistDeaths": 0,
-        "enemyDowns": 1,
-        "enemyDeaths": 2,
+        "enemyDowns": 2,
+        "enemyDeaths": 1,
         "enemyFled": 0,
-        "firstContactTick": 101,
-        "resolvedTick": 3684,
-        "contactToResolutionTicks": 3583,
+        "firstContactTick": 96,
+        "resolvedTick": 2911,
+        "contactToResolutionTicks": 2815,
         "winner": "colonist",
         "friendlyFireHits": 0,
         "ordersIssued": 6,
         "ordersRefused": 0,
-        "stepLatencyP95Ms": 406
+        "stepLatencyP95Ms": -1,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 4,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 2,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 4,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 11,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         -1468614870,
         -1195630990,
@@ -316,29 +566,54 @@
         323350639
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 2652,
-        "colonistDamage": 86.5,
+        "ticks": 2792,
+        "colonistDamage": 0,
         "colonistDowns": 0,
         "colonistDeaths": 0,
-        "enemyDowns": 1,
+        "enemyDowns": 0,
         "enemyDeaths": 2,
-        "enemyFled": 0,
-        "firstContactTick": 98,
-        "resolvedTick": 2652,
-        "contactToResolutionTicks": 2554,
+        "enemyFled": 1,
+        "firstContactTick": 91,
+        "resolvedTick": 2792,
+        "contactToResolutionTicks": 2701,
         "winner": "colonist",
         "friendlyFireHits": 0,
-        "ordersIssued": 6,
-        "ordersRefused": 0,
-        "stepLatencyP95Ms": 469
+        "ordersIssued": 7,
+        "ordersRefused": 2,
+        "stepLatencyP95Ms": -1,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 12,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         1801513416,
         -969431055,
@@ -346,29 +621,54 @@
         508390438
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 2533,
-        "colonistDamage": 38.8,
-        "colonistDowns": 0,
+        "ticks": 8039,
+        "colonistDamage": 102.7,
+        "colonistDowns": 1,
         "colonistDeaths": 0,
-        "enemyDowns": 2,
-        "enemyDeaths": 1,
+        "enemyDowns": 1,
+        "enemyDeaths": 2,
         "enemyFled": 0,
-        "firstContactTick": 98,
-        "resolvedTick": 2533,
-        "contactToResolutionTicks": 2435,
+        "firstContactTick": 118,
+        "resolvedTick": 8039,
+        "contactToResolutionTicks": 7921,
         "winner": "colonist",
         "friendlyFireHits": 0,
-        "ordersIssued": 3,
+        "ordersIssued": 5,
         "ordersRefused": 0,
-        "stepLatencyP95Ms": 2534
+        "stepLatencyP95Ms": 1084,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 2,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 13,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         163023724,
         -550243132,
@@ -376,29 +676,54 @@
         281781382
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 2030,
-        "colonistDamage": 0,
+        "ticks": 8001,
+        "colonistDamage": 100.9,
         "colonistDowns": 0,
         "colonistDeaths": 0,
-        "enemyDowns": 1,
-        "enemyDeaths": 2,
+        "enemyDowns": 0,
+        "enemyDeaths": 3,
         "enemyFled": 0,
-        "firstContactTick": 94,
-        "resolvedTick": 2030,
-        "contactToResolutionTicks": 1936,
+        "firstContactTick": 102,
+        "resolvedTick": 8001,
+        "contactToResolutionTicks": 7899,
         "winner": "colonist",
         "friendlyFireHits": 0,
         "ordersIssued": 3,
         "ordersRefused": 0,
-        "stepLatencyP95Ms": 248
+        "stepLatencyP95Ms": -1,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 3,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 6,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 14,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         1299933229,
         -814957564,
@@ -406,29 +731,54 @@
         -1700362327
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 2619,
-        "colonistDamage": 0,
-        "colonistDowns": 0,
+        "ticks": 8424,
+        "colonistDamage": 146.5,
+        "colonistDowns": 2,
         "colonistDeaths": 0,
-        "enemyDowns": 1,
-        "enemyDeaths": 2,
+        "enemyDowns": 2,
+        "enemyDeaths": 1,
         "enemyFled": 0,
-        "firstContactTick": 94,
-        "resolvedTick": 2619,
-        "contactToResolutionTicks": 2525,
+        "firstContactTick": 91,
+        "resolvedTick": 8424,
+        "contactToResolutionTicks": 8333,
         "winner": "colonist",
         "friendlyFireHits": 0,
-        "ordersIssued": 3,
-        "ordersRefused": 0,
-        "stepLatencyP95Ms": 310
+        "ordersIssued": 5,
+        "ordersRefused": 1,
+        "stepLatencyP95Ms": 1182,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 15,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         -876189140,
         -952120532,
@@ -436,29 +786,54 @@
         11659082
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 2160,
-        "colonistDamage": 0,
-        "colonistDowns": 0,
+        "ticks": 8079,
+        "colonistDamage": 100.3,
+        "colonistDowns": 1,
         "colonistDeaths": 0,
-        "enemyDowns": 1,
-        "enemyDeaths": 2,
+        "enemyDowns": 0,
+        "enemyDeaths": 3,
         "enemyFled": 0,
-        "firstContactTick": 95,
-        "resolvedTick": 2160,
-        "contactToResolutionTicks": 2065,
+        "firstContactTick": 111,
+        "resolvedTick": 8079,
+        "contactToResolutionTicks": 7968,
         "winner": "colonist",
         "friendlyFireHits": 0,
-        "ordersIssued": 3,
+        "ordersIssued": 5,
         "ordersRefused": 0,
-        "stepLatencyP95Ms": 304
+        "stepLatencyP95Ms": 1175,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 2,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 16,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         -1771485732,
         2039932197,
@@ -466,29 +841,54 @@
         583259013
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 2364,
-        "colonistDamage": 115.6,
-        "colonistDowns": 1,
+        "ticks": 7659,
+        "colonistDamage": 52.2,
+        "colonistDowns": 0,
         "colonistDeaths": 0,
         "enemyDowns": 0,
         "enemyDeaths": 3,
         "enemyFled": 0,
-        "firstContactTick": 98,
-        "resolvedTick": 2364,
-        "contactToResolutionTicks": 2266,
+        "firstContactTick": 91,
+        "resolvedTick": 7659,
+        "contactToResolutionTicks": 7568,
         "winner": "colonist",
         "friendlyFireHits": 0,
-        "ordersIssued": 8,
+        "ordersIssued": 3,
         "ordersRefused": 0,
-        "stepLatencyP95Ms": 1507
+        "stepLatencyP95Ms": -1,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 4,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 17,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         318417803,
         -596845585,
@@ -496,29 +896,54 @@
         -2025163129
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 2065,
-        "colonistDamage": 25.8,
-        "colonistDowns": 0,
+        "ticks": 8020,
+        "colonistDamage": 115,
+        "colonistDowns": 1,
         "colonistDeaths": 0,
-        "enemyDowns": 1,
-        "enemyDeaths": 2,
+        "enemyDowns": 0,
+        "enemyDeaths": 3,
         "enemyFled": 0,
-        "firstContactTick": 120,
-        "resolvedTick": 2065,
-        "contactToResolutionTicks": 1945,
+        "firstContactTick": 106,
+        "resolvedTick": 8020,
+        "contactToResolutionTicks": 7914,
         "winner": "colonist",
         "friendlyFireHits": 0,
-        "ordersIssued": 7,
-        "ordersRefused": 2,
-        "stepLatencyP95Ms": 565
+        "ordersIssued": 5,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 165,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 3,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 0,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 18,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         423972722,
         -1994762446,
@@ -526,29 +951,54 @@
         1309060408
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 2714,
-        "colonistDamage": 37,
-        "colonistDowns": 0,
-        "colonistDeaths": 0,
+        "ticks": 7807,
+        "colonistDamage": 211,
+        "colonistDowns": 2,
+        "colonistDeaths": 1,
         "enemyDowns": 0,
-        "enemyDeaths": 3,
+        "enemyDeaths": 0,
         "enemyFled": 0,
-        "firstContactTick": 101,
-        "resolvedTick": 2714,
-        "contactToResolutionTicks": 2613,
-        "winner": "colonist",
+        "firstContactTick": 102,
+        "resolvedTick": 7807,
+        "contactToResolutionTicks": 7705,
+        "winner": "hostile",
         "friendlyFireHits": 0,
-        "ordersIssued": 6,
+        "ordersIssued": 5,
         "ordersRefused": 0,
-        "stepLatencyP95Ms": 560
+        "stepLatencyP95Ms": 166,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 6,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 19,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         -920186481,
         244442703,
@@ -556,29 +1006,54 @@
         1654517272
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 1388,
-        "colonistDamage": 20,
+        "ticks": 7789,
+        "colonistDamage": 118.8,
         "colonistDowns": 0,
         "colonistDeaths": 0,
         "enemyDowns": 0,
         "enemyDeaths": 3,
         "enemyFled": 0,
-        "firstContactTick": 98,
-        "resolvedTick": 1388,
-        "contactToResolutionTicks": 1290,
+        "firstContactTick": 106,
+        "resolvedTick": 7789,
+        "contactToResolutionTicks": 7683,
         "winner": "colonist",
         "friendlyFireHits": 0,
         "ordersIssued": 3,
         "ordersRefused": 0,
-        "stepLatencyP95Ms": 292
+        "stepLatencyP95Ms": -1,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 4,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 1,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 6,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     },
     {
       "seed": 20,
       "worker": 1,
-      "stagedDigest": "62a3cb6e",
+      "stagedDigest": "7326005b",
       "runSeedDraws": [
         -1753227894,
         -2062440609,
@@ -586,72 +1061,97 @@
         736998608
       ],
       "metrics": {
-        "version": 1,
+        "version": 2,
         "fixture": "lab-open",
-        "ticks": 3604,
-        "colonistDamage": 32.8,
+        "ticks": 2583,
+        "colonistDamage": 145.1,
         "colonistDowns": 0,
         "colonistDeaths": 0,
-        "enemyDowns": 1,
-        "enemyDeaths": 2,
+        "enemyDowns": 0,
+        "enemyDeaths": 3,
         "enemyFled": 0,
-        "firstContactTick": 101,
-        "resolvedTick": 3604,
-        "contactToResolutionTicks": 3503,
+        "firstContactTick": 91,
+        "resolvedTick": 2583,
+        "contactToResolutionTicks": 2492,
         "winner": "colonist",
         "friendlyFireHits": 0,
-        "ordersIssued": 6,
+        "ordersIssued": 3,
         "ordersRefused": 0,
-        "stepLatencyP95Ms": 608
+        "stepLatencyP95Ms": -1,
+        "raidPoints": 420,
+        "defenseCapacity": 212.02681125095654,
+        "colonists": [
+          {
+            "id": "Thing_Human7474",
+            "role": "gunner",
+            "hits": 6,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7483",
+            "role": "gunner",
+            "hits": 3,
+            "downed": false,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7489",
+            "role": "gunner",
+            "hits": 4,
+            "downed": false,
+            "dead": false
+          }
+        ]
       }
     }
   ],
   "summary": {
     "runs": 20,
-    "seedsWithColonistDeath": 0,
-    "seedsWithColonistDown": 2,
+    "seedsWithColonistDeath": 1,
+    "seedsWithColonistDown": 7,
     "unresolved": 0,
     "colonistDeaths": {
       "n": 20,
-      "mean": 0,
-      "sd": 0,
-      "lo": 0,
-      "hi": 0
+      "mean": 0.05,
+      "sd": 0.22360679774997894,
+      "lo": -0.054649999999999976,
+      "hi": 0.15464999999999998
     },
     "colonistDowns": {
       "n": 20,
-      "mean": 0.15,
-      "sd": 0.4893604849295929,
-      "lo": -0.07902512474215112,
-      "hi": 0.3790251247421511
+      "mean": 0.55,
+      "sd": 0.8870412083230171,
+      "lo": 0.13485670657115584,
+      "hi": 0.9651432934288442
     },
     "colonistDamage": {
       "n": 20,
-      "mean": 50.56499999999999,
-      "sd": 53.887595242807336,
-      "lo": 25.34511894582342,
-      "hi": 75.78488105417657
+      "mean": 101.08500000000001,
+      "sd": 55.67429979707636,
+      "lo": 75.02892508460943,
+      "hi": 127.14107491539059
     },
     "enemyDowns": {
       "n": 20,
-      "mean": 0.5,
-      "sd": 0.6069769786668839,
-      "lo": 0.2159292943834693,
-      "hi": 0.7840707056165307
+      "mean": 0.45,
+      "sd": 0.6863327411532598,
+      "lo": 0.12879008114056595,
+      "hi": 0.7712099188594341
     },
     "enemyDeaths": {
       "n": 20,
-      "mean": 2.3,
-      "sd": 0.6569466853317864,
-      "lo": 1.9925430205532384,
-      "hi": 2.6074569794467615
+      "mean": 2.25,
+      "sd": 1.019545822516343,
+      "lo": 1.7728433509180053,
+      "hi": 2.7271566490819947
     },
     "contactToResolutionTicks": {
       "n": 20,
-      "mean": 2575.6,
-      "sd": 1033.6503226302812,
-      "lo": 2091.8423175336175,
-      "hi": 3059.3576824663824
+      "mean": 6075.45,
+      "sd": 2618.50424308471,
+      "lo": 4849.966375189937,
+      "hi": 7300.933624810063
     }
   }
 }

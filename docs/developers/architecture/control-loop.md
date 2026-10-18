@@ -895,7 +895,10 @@ Resume latency from hold to the resuming `Run` is a gate
 `clock_stop` and as p50/p95 on `combat_summary`). When one resume in the current
 combat exceeds the budget the gate trips, and for the rest of that fight the
 brain asks for the slower `ClockCombatStops.FallbackSpeed` (never above the target
-speed) instead of holding more often. The gate clears when the combat closes.
+speed) instead of holding more often. The gate clears when the combat closes or
+another world loads (the driver resets the combat stop metrics when the colony,
+map or load token changes; a sweep parks each seed mid-fight, so nothing else
+would close the combat).
 
 ### Autosave
 

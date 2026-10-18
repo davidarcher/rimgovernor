@@ -1074,6 +1074,21 @@ public sealed class ClockRunDriverTests
     }
 
     [Fact]
+    public void AnotherLoadedWorldStartsTheCombatStopMetricsAfresh()
+    {
+        var metrics = new CombatStopMetrics(TimeSpan.FromSeconds(1));
+        var t0 = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        metrics.Admitted(null, 100, t0, true);
+        metrics.Admitted(HeldAt(t0), 120, t0 + TimeSpan.FromMilliseconds(1200), true);
+        Assert.True(metrics.Tripped);
+
+        // A sweep parks each seed mid-fight and loads the next lab: no colony run ever closed the combat.
+        metrics.Reset();
+        Assert.False(metrics.Tripped);
+        Assert.False(metrics.Active);
+    }
+
+    [Fact]
     public async Task ASlowCombatResumeWithNoOpenFightKeepsTheTargetSpeed()
     {
         using var rig = await Rig.StartAsync();
