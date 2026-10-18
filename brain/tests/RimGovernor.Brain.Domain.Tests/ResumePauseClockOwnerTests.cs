@@ -5,6 +5,7 @@ using RimGovernor.Brain.Host;
 using RimGovernor.Brain.HttpChannel;
 using RimGovernor.Brain.PlayerApi;
 using RimGovernor.Brain.Store;
+using RimGovernor.Brain.Telemetry;
 using Xunit;
 using ExecAuthority = RimGovernor.Brain.Executor.Authority;
 using JournalStore = RimGovernor.Brain.Store.Store;
@@ -95,8 +96,15 @@ public sealed class ResumePauseClockOwnerTests
     {
         private ControlState _state;
 
+        /// <summary>When set, Acquire throws it: the native grant failed.</summary>
+        public Exception? AcquireFailure { get; set; }
+
         public Task<GenerationSnapshot> AcquireAsync(GenerationSnapshot requested, CancellationToken ct, NativeGeneration? handoff = null)
         {
+            if (AcquireFailure is { } failure)
+            {
+                throw failure;
+            }
             var granted = requested with { Native = new NativeGeneration(Generation) };
             _state = new ControlState(granted, true, true);
             clock.UpdateAuthority(new ExecAuthority { Snapshot = granted, Enabled = true });
@@ -126,19 +134,6 @@ public sealed class ResumePauseClockOwnerTests
         public Task CloseAsync(CancellationToken ct) => Task.CompletedTask;
     }
 
-    private sealed class PlayerControl(Player player) : IPlayerControl
-    {
-        public Task<ControlRecord> ResumeAsync(ControlRequest request, CancellationToken cancellationToken) => player.ResumeAsync(request, cancellationToken);
-
-        public Task<ControlRecord> PauseAsync(ControlRequest request, CancellationToken cancellationToken) => player.PauseAsync(request, cancellationToken);
-
-        public PlayerState State()
-        {
-            var state = player.State();
-            return new PlayerState(state.Enabled, state.ObservationKnown, state.Snapshot);
-        }
-    }
-
     private sealed class Reader(JournalStore journal) : IControlReader
     {
         public Task<ControlRecord> CurrentControlAsync(CancellationToken cancellationToken) => journal.CurrentControlAsync(cancellationToken);
@@ -156,10 +151,11 @@ public sealed class ResumePauseClockOwnerTests
             Journal = JournalStore.Open(path, _lifetime.Token);
             var timeout = TimeSpan.FromSeconds(5);
             Holder = ClockHolder.Create(Clock, timeout);
-            var session = new FakeSession(Holder);
-            _player = Player.Create(new PlayerConfig(timeout, timeout), Journal, session, new Worlds(), _lifetime.Token);
+            Session = new FakeSession(Holder);
+            _player = Player.Create(new PlayerConfig(timeout, timeout), Journal, Session, new Worlds(), _lifetime.Token);
             var routes = new RouteTable();
-            _ = PlayerRoutes.Register(routes, new PlayerControl(_player), new Reader(Journal));
+            var control = new HostPlayerControl(_player, Journal, new StepSupervisor(faultLimit: 5), new HostLog(new TelemetryEmitter(NullTelemetrySink.Instance), "player"));
+            _ = PlayerRoutes.Register(routes, control, new Reader(Journal));
             _dispatcher = new Dispatcher(routes, 1 << 20);
         }
 
@@ -169,12 +165,14 @@ public sealed class ResumePauseClockOwnerTests
 
         public ClockHolder Holder { get; }
 
-        public async Task<JsonElement> PostAsync(string path, string requestId)
+        public FakeSession Session { get; }
+
+        public async Task<JsonElement> PostAsync(string path, string requestId, int status = 200)
         {
             var body = JsonSerializer.SerializeToUtf8Bytes(new { requestId, expected = new { colonyId = Colony, loadToken = Load, mapId = Map } });
             var head = new RequestHead { Method = "POST", Target = path, Host = "127.0.0.1:1", ContentType = "application/json", ContentLength = body.Length };
             var response = await _dispatcher.DispatchAsync(head, new Dictionary<string, string>(), (_, _) => Task.FromResult(body), _lifetime.Token);
-            Assert.Equal(200, response.Status);
+            Assert.Equal(status, response.Status);
             return JsonDocument.Parse(response.Body).RootElement.Clone();
         }
 
@@ -247,5 +245,20 @@ public sealed class ResumePauseClockOwnerTests
         Assert.Equal(0, rig.Clock.Runs);
         Assert.Equal(0, rig.Clock.Holds);
         Assert.Equal(PbClock.HoldReason.NeverRun, rig.Clock.Reason);
+    }
+
+    // #3549: an uncertain resume's 503 names the step that threw and its exception, not only "unresolved".
+    [Fact]
+    public async Task AnUncertainResumeNamesTheStepThatThrewAndItsCause()
+    {
+        using var rig = new Rig();
+        rig.Session.AcquireFailure = new InvalidOperationException("native refused the grant");
+
+        var reply = await rig.PostAsync(PlayerRoutes.ResumePath, "resume-1", status: 503);
+
+        Assert.Equal("uncertain", reply.GetProperty("record").GetProperty("phase").GetString());
+        var error = reply.GetProperty("error");
+        Assert.Equal("uncertain", error.GetProperty("code").GetString());
+        Assert.Contains("resume acquire: InvalidOperationException: native refused the grant", error.GetProperty("detail").GetString(), StringComparison.Ordinal);
     }
 }

@@ -54,6 +54,7 @@ internal sealed class HostPlayerControl(Player player, StoreJournal journal, Ste
             {
                 // never begun, or the journal cannot say: the failure stands as thrown
             }
+            log.Warn("control_failed", "a player control request failed", ("request", request.RequestId), ("kind", RimGovernor.Brain.Domain.Wire.Name(request.Kind)), ("phase", journaled is null ? "" : RimGovernor.Brain.Domain.Wire.Name(journaled.Phase)), ("error", e.ToString()));
             if (journaled is null)
             {
                 System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(e).Throw();

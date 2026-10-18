@@ -337,19 +337,22 @@ public sealed partial class Player : IDisposable
     {
         var request = record.Request;
         GenerationSnapshot snapshot;
+        var step = "current";
         try
         {
             Current(call, epoch);
+            step = "root_plan";
             var root = await _journal.EnsureRootPlanAsync(request.World, call).ConfigureAwait(false);
             snapshot = new GenerationSnapshot(request.World.Colony, request.World.Map, request.World.Load, root.Spec.Id, root.Spec.Revision, new NativeGeneration(0));
         }
         catch (Exception e)
         {
-            return await UncertainAsync(record, e).ConfigureAwait(false);
+            return await UncertainAsync(record, ResumeStep(step, e)).ConfigureAwait(false);
         }
         GenerationSnapshot granted;
         try
         {
+            step = "manual_for_resume";
             // A grant this process still holds for that scope as far as it has observed (disabled locally on a
             // clock hold, or live) is re-acquired in place by Acquire: one native generation per resume, not the
             // Manual->Auto pair that rebinds every prepared action. Manual first stays for a genuine switch: an
@@ -362,23 +365,31 @@ public sealed partial class Player : IDisposable
                 await _session.ManualForResumeAsync(call).ConfigureAwait(false);
             }
             // Recheck actual world after cleanup, before attempting new authority.
+            step = "world";
             await WorldAsync(request.World, call).ConfigureAwait(false);
             Current(call, epoch);
+            step = "acquire";
             granted = await _session.AcquireAsync(snapshot, call, handoff).ConfigureAwait(false);
+            step = "grant_check";
             Current(call, epoch);
             var expected = snapshot with { Native = granted.Native };
             var actual = _session.State();
             if (granted.Native.Value == 0 || granted != expected || !actual.Enabled || !actual.ObservationKnown || actual.Snapshot != granted)
             {
-                throw new ControlException("Resume: granted.Native == 0 || granted != expected || !actual.Enabled || !actual.ObservationKnown || actual.Snapshot != granted");
+                throw new ControlException($"granted {granted}, expected {expected}; state enabled={actual.Enabled} observationKnown={actual.ObservationKnown} snapshot {actual.Snapshot}");
             }
         }
         catch (Exception e)
         {
-            return await UncertainAsync(record, e).ConfigureAwait(false);
+            return await UncertainAsync(record, ResumeStep(step, e)).ConfigureAwait(false);
         }
         return await FinishAsync(record, ControlPhase.Running, granted.Native, null).ConfigureAwait(false);
     }
+
+    // Names the resume step that threw in the uncertain record's cause (#3549): the player route's 503 detail and the
+    // host's control_failed log carry it. A cancellation stays a cancellation.
+    private static Exception ResumeStep(string step, Exception e) =>
+        e is OperationCanceledException ? e : new ControlException($"resume {step}: {e.GetType().Name}: {e.Message}", e);
 
     internal static World PlayerWorld(GenerationSnapshot snapshot) => new(snapshot.Colony, snapshot.Load, snapshot.Map);
 

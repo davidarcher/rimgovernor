@@ -146,6 +146,7 @@ The other kinds are read in the OTLP timeline and the launcher's Log view.
 | Kind | Notes |
 |---|---|
 | `state_reset` | event row, level `WARN`, component `brain-host`: the state database came from another schema version and was moved aside (`path`, `aside`). Written once at startup. |
+| `control_failed` | event row, level `WARN`, component of the player host: a player Resume or Pause failed (`request`, `kind`, `phase` the journaled record's phase or `""` when none began, `error` the exception with its stack; a resume names the step that threw, `resume <step>: ...`). The route's 503 detail carries the same message. Reader: diagnosis of a 503 control reply (#3549). |
 
 The OTLP log ring is the only log: the telemetry handler writes a row for a record that names a `kind`
 and drops one that does not, there is no Debug level, and `telemetry.Event` takes the `kind` as a required

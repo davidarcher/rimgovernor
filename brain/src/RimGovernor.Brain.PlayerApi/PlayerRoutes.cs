@@ -183,7 +183,8 @@ public static class PlayerRoutes
                 if (record is { Phase: ControlPhase.Uncertain or ControlPhase.Pending })
                 {
                     status = 503;
-                    failure = ("uncertain", "Control outcome is unresolved; inspect this request ID");
+                    // The detail names the cause (#3549): the route has no outside consumer to hide it from.
+                    failure = ("uncertain", $"Control outcome is unresolved; inspect this request ID. Cause: {cause.Message}");
                 }
             }
 
