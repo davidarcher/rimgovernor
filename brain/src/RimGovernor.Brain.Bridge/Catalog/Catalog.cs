@@ -55,6 +55,9 @@ public sealed partial class DefinitionCatalog
     private readonly Lazy<P.ItemFacts> _items;
     private readonly Lazy<P.CapacityPenaltyTables> _capacityPenalties;
     private readonly Lazy<P.ThreatScheduleTable> _threatSchedule;
+    private readonly Lazy<P.RaidTable> _raidFactions;
+    private readonly Lazy<P.BodyCoverage> _bodyCoverage;
+    private readonly Lazy<P.NaturalArmor> _naturalArmor;
     private readonly Lazy<IReadOnlyDictionary<string, P.PowerSourceProfile>> _powerSources;
     private readonly Lazy<IReadOnlyDictionary<string, P.FloorTerrain>> _floorTerrains;
     private readonly Lazy<P.PieceShapes> _shapes;
@@ -96,6 +99,9 @@ public sealed partial class DefinitionCatalog
         _items = new(BuildItemFacts);
         _capacityPenalties = new(BuildCapacityPenalties);
         _threatSchedule = new(BuildThreatSchedule);
+        _raidFactions = new(BuildRaidFactions);
+        _bodyCoverage = new(BuildBodyCoverage);
+        _naturalArmor = new(BuildNaturalArmor);
         _powerSources = new(BuildPowerSources);
         _floorTerrains = new(BuildFloorTerrains);
         _shapes = new(BuildPieceShapes);

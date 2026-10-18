@@ -173,6 +173,9 @@ public sealed record GearLoadoutInput
     /// <summary>Options have passed outfit/body/stage and resource-policy eligibility. Loose/stored IDs identify physical items; bill IDs identify products.</summary>
     public EquatableArray<GearOption> Options { get; init; }
 
+    /// <summary>The colony's expected raid, which values armor (<see cref="GearArmorTerm"/>); unknown plans against a nominal hit with a <c>gear_threat_unknown</c> finding.</summary>
+    public Fact<RaidThreat> Threat { get; init; }
+
     /// <summary>Throws <see cref="DomainException"/>.</summary>
     public void Validate()
     {
@@ -267,6 +270,9 @@ public sealed record GearLoadout
 
     /// <summary>Set when no ensemble meets the insulation floor: Target is the closest (most insulation toward it).</summary>
     public bool FloorUnmet { get; init; }
+
+    /// <summary>What the plan lacked: <c>gear_threat_unknown</c> when armor was valued against a nominal hit.</summary>
+    public EquatableArray<string> Findings { get; init; }
 }
 
 public static class GearLoadoutRules
@@ -571,14 +577,16 @@ public static class GearLoadoutRules
         return false;
     }
 
-    private static double GearItemScore(GearRole role, GearOption o)
+    private const double SoldierArmorWeight = 10;
+
+    private static double GearItemScore(GearRole role, GearOption o, GearArmorTerm armorTerm)
     {
-        var (a, _) = GearQualityMultipliers(o.Quality);
         if (GearConstrained(role))
         {
             return o.Condition <= GearRules.GearTatteredCondition ? -20 : 0;
         }
-        var armor = (o.Sharp * 2 + o.Blunt) * a * o.Condition;
+        // Damage per hit avoided; a soldier weighs it SoldierArmorWeight times as much as anyone else.
+        var armor = armorTerm.Of(o);
         var score = armor;
         if (o.Slot == GearSlot.Primary)
         {
@@ -589,7 +597,7 @@ public static class GearLoadoutRules
         switch (role)
         {
             case GearRole.Soldier:
-                score += armor * 9;
+                score += armor * (SoldierArmorWeight - 1);
                 break;
             case GearRole.Hunter:
                 if (o.Slot == GearSlot.Primary)
@@ -625,13 +633,13 @@ public static class GearLoadoutRules
     /// Ranks an ensemble for the constraint mode: minus a dominating penalty for uncovered legs or torso, and minus
     /// tattered items; ties keep worn gear, then stable item identity. Warmth is the insulation floor's.
     /// </summary>
-    private static double GearConstrainedScore(GearLoadoutInput p, GearRole role, IReadOnlyList<GearOption> items)
+    private static double GearConstrainedScore(GearLoadoutInput p, GearRole role, IReadOnlyList<GearOption> items, GearArmorTerm armor)
     {
         var score = 0.0;
         var dressed = false;
         foreach (var o in items)
         {
-            score += GearItemScore(role, o);
+            score += GearItemScore(role, o, armor);
             dressed = dressed || (o.Slot != GearSlot.Belt && o.Slot != GearSlot.Headgear);
         }
         if (p.Nudist)
@@ -684,18 +692,18 @@ public static class GearLoadoutRules
         return Math.Round(Short(floor.Cold - cold) + Short(floor.Heat - heat), 6);
     }
 
-    private static double GearEnsembleScore(GearLoadoutInput p, GearRole role, IReadOnlyList<GearOption> items)
+    private static double GearEnsembleScore(GearLoadoutInput p, GearRole role, IReadOnlyList<GearOption> items, GearArmorTerm armor)
     {
         if (GearConstrained(role))
         {
-            return GearConstrainedScore(p, role, items);
+            return GearConstrainedScore(p, role, items, armor);
         }
         var score = 0.0;
         var dressed = false;
         var (legs, chest) = GearCoverage(items);
         foreach (var o in items)
         {
-            score += GearItemScore(role, o);
+            score += GearItemScore(role, o, armor);
             dressed = dressed || (o.Slot != GearSlot.Belt && o.Slot != GearSlot.Headgear && o.Slot != GearSlot.Primary);
         }
         if (p.Nudist)
@@ -762,6 +770,7 @@ public static class GearLoadoutRules
             };
         }
         var role = DeriveGearRole(p.Role);
+        var armor = new GearArmorTerm(p.Threat);
         var options = p.Worn.Concat(p.Options).OrderBy(o => GearSourceRank(o.Source)).ThenBy(o => o.ID, StringComparer.Ordinal).ToList();
         var bySlot = new Dictionary<GearSlot, List<GearOption>>();
         var locked = new List<GearOption>();
@@ -786,7 +795,7 @@ public static class GearLoadoutRules
             return GearShortfall(limit, c, h);
         }
         var best = new List<GearOption>(p.Worn);
-        var bestScore = GearEnsembleScore(p, role, best);
+        var bestScore = GearEnsembleScore(p, role, best, armor);
         var bestShort = Shortfall(best);
         // All ensemble adjustments are penalties, so remaining positive item scores form an admissible upper
         // bound for pruning the exact search; the most insulation each remaining slot offers bounds the shortfall.
@@ -798,7 +807,7 @@ public static class GearLoadoutRules
             var (c, h) = (0.0, 0.0);
             foreach (var o in bySlot.GetValueOrDefault(GearSlots[i]) ?? [])
             {
-                m = Math.Max(m, GearItemScore(role, o));
+                m = Math.Max(m, GearItemScore(role, o, armor));
                 var (oc, oh) = GearItemInsulation(o);
                 (c, h) = (Math.Max(c, oc), Math.Max(h, oh));
             }
@@ -841,7 +850,7 @@ public static class GearLoadoutRules
                         return;
                     }
                 }
-                var score = GearEnsembleScore(p, role, chosen);
+                var score = GearEnsembleScore(p, role, chosen, armor);
                 var shortfall = GearShortfall(limit, cold, heat);
                 if (shortfall < bestShort || (shortfall == bestShort && (score > bestScore || (score == bestScore && GearPurchases(chosen) < GearPurchases(best)))))
                 {
@@ -878,7 +887,7 @@ public static class GearLoadoutRules
                 {
                     chosen.Add(o);
                     var (oc, oh) = GearItemInsulation(o);
-                    Visit(index + 1, raw + GearItemScore(role, o), cold + oc, heat + oh);
+                    Visit(index + 1, raw + GearItemScore(role, o, armor), cold + oc, heat + oh);
                     chosen.RemoveAt(chosen.Count - 1);
                 }
             }
@@ -925,7 +934,7 @@ public static class GearLoadoutRules
             }
             gaps.Add(new GearGap
             {
-                Slot = o.Slot, Wanted = o, Source = o.Source, Gain = bestScore - GearEnsembleScore(p, role, alternative), Floor = Shortfall(alternative) > bestShort,
+                Slot = o.Slot, Wanted = o, Source = o.Source, Gain = bestScore - GearEnsembleScore(p, role, alternative, armor), Floor = Shortfall(alternative) > bestShort,
             });
         }
         var sorted = gaps.OrderByDescending(g => g.Gain).ThenBy(g => Wire.Name(g.Slot), StringComparer.Ordinal).ToList();
@@ -937,6 +946,7 @@ public static class GearLoadoutRules
             SearchBudgetExhausted = exhausted,
             FloorUnmet = bestShort > 0,
             Gaps = EquatableArray.From(sorted),
+            Findings = armor.ThreatKnown || GearConstrained(role) ? default : EquatableArray.From([GearArmorTerm.ThreatUnknownFinding]),
         };
     }
 
@@ -1040,6 +1050,10 @@ public static class GearLoadoutRules
             var (cold, heat) = GearInsulation(input.Worn);
             using var span = s_spans.StartActivity("gear.loadout");
             var l = PlanGearLoadout(input, p.AllowTainted ? null : o => o.Tainted, (p.ColdFloor ?? cold, p.HeatFloor ?? heat)) with { Pawn = p.Pawn };
+            if (l.Findings.Count > 0)
+            {
+                span?.SetTag("rimgovernor.findings", string.Join(",", l.Findings));
+            }
             @out.Add(l);
             foreach (var g in l.Gaps)
             {

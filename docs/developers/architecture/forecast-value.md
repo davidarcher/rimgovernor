@@ -38,8 +38,8 @@ search took 5–29 s per review in game while the clock ran.
    (`Plant.Resting`), so growth to harvestable takes about 27 calendar days at full rate (41 for full growth). Within
    one day it is pure cost.
 5. **Harm is unassessed.** `harm_capability_unassessed` is added to
-   every review's findings. Apparel is valued by a heuristic,
-   (Sharp×2 + Blunt) × 10 for soldiers.
+   every review's findings. The gear planner values armor from the armor
+   response (harm model, #3545); the ledger does not yet.
 
 ## Decisions
 
@@ -289,6 +289,8 @@ raid harm per day. The output feeds the currency and the death floor.
    per hit and the chance a hit bleeds. A changed outfit swaps one array.
    `ArmorResponseRules.Of` and `OfOutfit` (#3540) are pure; the mirrored rules are in
    [kept constants](../contracts/kept-constants.md#mirrored-game-rules-armor-response-3540).
+   The gear planner reads the same code in damage-per-hit units
+   (`GearArmorTerm`, #3545; [loadout model](../contracts/equipment-upkeep.md#loadout-model)); the ledger reads capability-days.
 5. **Consequences.**
    - Bleeding: 0.06 × severity per day for cuts, stabs and gunshots, until
      tended. Untended, it stops by itself after 1.5–3 days.

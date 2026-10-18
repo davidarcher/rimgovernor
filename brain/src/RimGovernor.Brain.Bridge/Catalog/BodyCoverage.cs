@@ -13,7 +13,26 @@ public sealed partial class DefinitionCatalog
     /// of apparel body-part groups the part belongs to (parts in no group are the uncovered remainder), and the apparel
     /// layers ordered by <c>drawOrder</c>.
     /// </summary>
-    public P.BodyCoverage BodyCoverage()
+    public P.BodyCoverage BodyCoverage() => _bodyCoverage.Value;
+
+    /// <summary>
+    /// The Human race's own armor ratings (<c>ArmorRating_Sharp/Blunt/Heat</c> of <c>ThingDefOf.Human</c>), the innermost layer of
+    /// every hit; a rating the race does not show is zero.
+    /// </summary>
+    public P.NaturalArmor NaturalArmor() => _naturalArmor.Value;
+
+    private P.NaturalArmor BuildNaturalArmor()
+    {
+        double Rating(CatalogStat stat)
+        {
+            var (value, shown) = ShownStatValue(nameof(ThingDefOf.Human), string.Empty, stat);
+            return shown ? Math.Max(0, (double)value) : 0;
+        }
+
+        return new P.NaturalArmor { Sharp = Rating(CatalogStats.ArmorSharp), Blunt = Rating(CatalogStats.ArmorBlunt), Heat = Rating(CatalogStats.ArmorHeat) };
+    }
+
+    private P.BodyCoverage BuildBodyCoverage()
     {
         // BodyDefOf.Human names the row; the field itself is null outside the game, so the catalog looks it up by its nameof.
         var body = RequireRow<BodyDef>(nameof(BodyDefOf.Human));

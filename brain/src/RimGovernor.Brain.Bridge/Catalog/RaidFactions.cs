@@ -17,7 +17,9 @@ public sealed partial class DefinitionCatalog
     /// attacks as its one weapon (a mechanoid's verbs). A tag no weapon def carries is the kind's <c>MissingTags</c>, not an
     /// error. <c>weaponMoney</c> is not decoded: v1 weighs the tagged weapons by commonality alone.
     /// </summary>
-    public P.RaidTable RaidFactions()
+    public P.RaidTable RaidFactions() => _raidFactions.Value;
+
+    private P.RaidTable BuildRaidFactions()
     {
         var byTag = new Dictionary<string, P.RaidWeapon[]>(StringComparer.Ordinal);
         var weapons = new Dictionary<string, P.RaidWeapon>(StringComparer.Ordinal);

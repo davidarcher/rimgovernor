@@ -147,7 +147,7 @@ modeled loadouts.
 
 Targets cover skin torso, skin legs, middle torso, outer, belt, headgear and
 primary weapon. An exact bounded ensemble search rejects shared layer AND body
-group conflicts and preserves locked items. It scores armor, condition and
+group conflicts and preserves locked items. It scores armor as damage per hit avoided against the colony's expected raid (`GearLoadoutInput.Threat`: the raid composition's weapon bins, body coverage and natural armor; `GearArmorTerm` sums bin weight times the unarmored response minus the response with the option as the only layer on its groups, so quality and condition enter through `ArmorResponseRules`; layers over one group are not combined per item, the ledger combines them; a soldier weighs it tenfold; with no known threat the response is against a nominal 10-damage, 0.15-penetration sharp hit on the parts the option covers and the loadout carries the finding `gear_threat_unknown`), and scores condition and
 coverage, and prices neither mood nor warmth. Coverage requires
 legs for men and legs plus chest for women; nudists prefer no body apparel.
 It plans inside the pawn's outfit filter, which excludes tainted apparel unless

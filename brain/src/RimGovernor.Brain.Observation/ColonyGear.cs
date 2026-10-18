@@ -18,6 +18,7 @@ public static class ColonyGearReads
         {
             return Unknown<GearObservation>();
         }
+        var threat = RaidThreatFacts(v.Threat?.Observed, defs.Catalog);
         var pawns = new List<GearPawn>(gear.Pawns.Count);
         foreach (var p in gear.Pawns)
         {
@@ -34,7 +35,7 @@ public static class ColonyGearReads
             };
             try
             {
-                row = row with { LoadoutModel = GearLoadoutModelFacts(defs, v.OutdoorTemperatureC, p, policy) };
+                row = row with { LoadoutModel = GearLoadoutModelFacts(defs, v.OutdoorTemperatureC, p, policy, threat) };
             }
             catch (DomainException e)
             {
@@ -52,6 +53,23 @@ public static class ColonyGearReads
     }
 
     /// <summary>
+    /// The expected raid the gear planner values armor against (#3545): the composition of the observed raid points from the
+    /// hostile factions, with the catalog's body coverage and the race's natural armor. Unknown without a catalog, raid points
+    /// or hostile factions, or when the composition cannot be decoded.
+    /// </summary>
+    internal static Fact<RaidThreat> RaidThreatFacts(O.ThreatFacts? threat, DefinitionCatalog? catalog)
+    {
+        if (catalog is null || threat?.RaidPoints is not { } points || threat.HostileFactions.Count == 0)
+        {
+            return Unknown<RaidThreat>();
+        }
+        var composition = RaidCompositionRules.Of(points, [.. threat.HostileFactions], catalog.RaidFactions());
+        return composition.Pawns.IsKnown
+            ? Known(new RaidThreat { Bins = composition.Bins, Coverage = catalog.BodyCoverage(), Natural = catalog.NaturalArmor() })
+            : Unknown<RaidThreat>();
+    }
+
+    /// <summary>
     /// Maps one pawn's loadout-model inputs. The role is the apparel-policy role (with the model's traits), and
     /// unworn options are narrowed to the definitions that role's apparel policy permits, so the model never plans a
     /// garment DesiredApparelPolicy would forbid. A pawn with no apparel policy cannot wear apparel: unknown with no
@@ -59,7 +77,7 @@ public static class ColonyGearReads
     /// lacks a row or stat values for, or a model outside PlanGearLoadout's bounds such as two worn garments on one
     /// slot) throws a <see cref="DomainException"/> naming the cause.
     /// </summary>
-    public static Fact<GearLoadoutInput> GearLoadoutModelFacts(GearDefinitions defs, double outdoor, O.GearLoadout p, Fact<ApparelPolicyState> state)
+    public static Fact<GearLoadoutInput> GearLoadoutModelFacts(GearDefinitions defs, double outdoor, O.GearLoadout p, Fact<ApparelPolicyState> state, Fact<RaidThreat> threat)
     {
         var unknown = Unknown<GearLoadoutInput>();
         var m = p.LoadoutModel;
@@ -89,6 +107,7 @@ public static class ColonyGearReads
             Role = role.Role,
             Female = p.Gender.GetValueOrDefault() == D.Gender.Female,
             Research = EquatableArray.From(research),
+            Threat = threat,
             Ambient = outdoor,
             ComfortableMin = p.ComfortableMinC.GetValueOrDefault(),
             ComfortableMax = p.ComfortableMaxC.GetValueOrDefault(),
