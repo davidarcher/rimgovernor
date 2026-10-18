@@ -28,6 +28,7 @@ namespace HomeBridge.BridgeTools
                 var harmony = new Harmony(Owner);
                 harmony.Patch(AccessTools.Method(typeof(Root), nameof(Root.Shutdown), Type.EmptyTypes)
                         ?? throw new MissingMethodException("Root.Shutdown"),
+                    prefix: new HarmonyMethod(typeof(NativeAuthorityShutdownHooks), nameof(ShutdownCaller)),
                     postfix: new HarmonyMethod(typeof(NativeAuthorityShutdownHooks), nameof(Shutdown)));
                 harmony.Patch(AccessTools.Method(typeof(Game), nameof(Game.Dispose), Type.EmptyTypes)
                         ?? throw new MissingMethodException("Game.Dispose"),
@@ -38,6 +39,9 @@ namespace HomeBridge.BridgeTools
                 ModLog.Error("authority", "Authority shutdown hook installation failed: " + ex);
             }
         }
+
+        // A game that quits on its own (no harness stop) leaves no other trace of who asked: the caller's stack is the evidence.
+        private static void ShutdownCaller() => ModLog.Info("authority", "Root.Shutdown called from: " + Environment.StackTrace);
 
         private static void Shutdown() => End(Current.Game);
         private static void Unload(Game __instance) => End(__instance);
