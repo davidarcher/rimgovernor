@@ -32,7 +32,7 @@ public sealed class PlannedSitesTests
 
     private static readonly WantedPiece Bench = new()
     {
-        DefName = "TableButcher", Minimum = new Cell(1, 1), Maximum = new Cell(1, 1), Slot = "bench", Size = new Cell(1, 1), Rot = Rotation.East,
+        DefName = "TableButcher", Minimum = new Cell(1, 1), Maximum = new Cell(1, 1), Size = new Cell(1, 1), Rot = Rotation.East,
     };
 
     private static (PlannedRoom, IReadOnlyList<Operation>) Owed() => (Room(1, 0),
@@ -176,7 +176,7 @@ public sealed class PlannedSitesTests
     {
         var candidate = new ShelfCandidate
         {
-            Zone = "Zone_3", Role = "general",
+            Zone = "Zone_3",
             Piece = new InteriorPiece { Slot = "shelf", Def = StorageRules.ShelfDefinition, Size = new Cell(2, 1), Rect = new Rectangle { X = 4, Z = 2, Width = 2, Height = 1 } },
         };
         var site = Assert.Single(PlannedRules.ShelfPlannedSites([candidate, candidate], ("Steel", [new Amount(Steel, 10)])));

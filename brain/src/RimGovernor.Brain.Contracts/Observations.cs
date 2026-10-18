@@ -477,12 +477,6 @@ public sealed record SalvageEvidence
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<SalvageYield>))]
     public EquatableArray<SalvageYield> Yields { get; init; }
-
-    /// <summary>
-    /// Game ticks since native computed this row. Served rows keep their cached
-    /// evidence until the refresher recomputes them, so age is how stale it is.
-    /// </summary>
-    public int AgeTicks { get; init; }
 }
 
 /// <summary>
@@ -6287,8 +6281,6 @@ public sealed record RoutesFacts
     public EquatableArray<TrafficCell> Traffic { get; init; }
 
     public uint? TrafficSamples { get; init; }
-
-    public int? TrafficSinceTick { get; init; }
 }
 
 public sealed record RoutesSection

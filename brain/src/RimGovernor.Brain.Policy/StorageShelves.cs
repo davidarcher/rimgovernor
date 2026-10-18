@@ -2,16 +2,12 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>An owned stockpile zone shelves may serve: its census cells now and the filter and priority it was created with.</summary>
+/// <summary>An owned stockpile zone shelves may serve: its census cells now.</summary>
 public sealed record ShelfZone
 {
     public string Zone { get; init; } = "";
 
     public IReadOnlyList<Cell> Cells { get; init; } = [];
-
-    public required StockpileFilter Filter { get; init; }
-
-    public StockpilePriority Priority { get; init; }
 }
 
 /// <summary>One shelf the planner placed for a zone. Building is the built shelf's identity, empty while it is not (yet) built; Open marks a placement still in flight.</summary>
@@ -60,15 +56,13 @@ public sealed record ShelfRequest
 }
 
 /// <summary>
-/// One shelf a declared store could take: the zone it would stand in, the store's role, the 2x1 site and the
+/// One shelf a declared store could take: the zone it would stand in, the 2x1 site and the
 /// stacks the store gains (the shelf's stacks less the floor stacks its cells give up: 6 - 2 = +4 for Core's
 /// Shelf); unknown when either count is.
 /// </summary>
 public sealed record ShelfCandidate
 {
     public string Zone { get; init; } = "";
-
-    public string Role { get; init; } = "";
 
     public required InteriorPiece Piece { get; init; }
 
@@ -160,7 +154,7 @@ public static partial class StorageRules
             {
                 var (floor, _) = StockpileRules.StorageStacks(PlannedRules.RectCells(piece.Rect), cells);
                 var stacks = r.ShelfStacks.TryGetValue(out var shelf) && floor.TryGetValue(out var given) ? Known(shelf - given) : Unknown<int>();
-                output.Add(new ShelfCandidate { Zone = z.Id, Role = store.Role, Piece = piece, Stacks = stacks });
+                output.Add(new ShelfCandidate { Zone = z.Id, Piece = piece, Stacks = stacks });
             }
         }
         return output;

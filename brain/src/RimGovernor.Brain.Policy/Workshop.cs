@@ -12,7 +12,7 @@ public enum WorkshopMethod
     [WireName("existing")]
     Existing,
 
-    /// <summary>Stage Definition, a bench buildable now, in a Workshop-hosting room. NeedsPower marks a powered bench, which the power family connects once it stands as an unpowered consumer.</summary>
+    /// <summary>Stage Definition, a bench buildable now, in a Workshop-hosting room. A powered bench is connected by the power family once it stands as an unpowered consumer.</summary>
     [WireName("build")]
     Build,
 
@@ -71,8 +71,6 @@ public sealed record WorkshopChoice
     public string Definition { get; init; } = "";
 
     public string Recipe { get; init; } = "";
-
-    public bool NeedsPower { get; init; }
 
     /// <summary>The sorted project set WorkshopResearch waits on.</summary>
     public IReadOnlyList<string> Research { get; init; } = [];
@@ -259,7 +257,7 @@ public static partial class WorkRules
                 }
                 if (available && powered == allowPower && Buildable(skill))
                 {
-                    return new WorkshopChoice { Method = WorkshopMethod.Build, Definition = name, Recipe = WorkshopRecipe(r.Resource, r.Hosts, name), NeedsPower = powered };
+                    return new WorkshopChoice { Method = WorkshopMethod.Build, Definition = name, Recipe = WorkshopRecipe(r.Resource, r.Hosts, name) };
                 }
             }
         }
@@ -316,7 +314,6 @@ public static partial class WorkRules
                     Method = WorkshopMethod.Research,
                     Definition = name,
                     Recipe = host.Definition,
-                    NeedsPower = powered,
                     Research = [.. projects.Distinct()],
                 };
             }

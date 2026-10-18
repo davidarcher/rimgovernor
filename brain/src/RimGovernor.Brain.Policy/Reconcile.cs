@@ -101,11 +101,9 @@ public sealed record WantedPiece
     public Cell Maximum { get; init; }
 
     /// <summary>
-    /// Slot, Size and Rot place a piece the room does not hold yet: its template slot, the def's native size at
-    /// rotation North and its rotation. A piece that stands needs none.
+    /// Size and Rot place a piece the room does not hold yet: the def's native size at rotation North and its
+    /// rotation. A piece that stands needs neither.
     /// </summary>
-    public string Slot { get; init; } = "";
-
     public Cell Size { get; init; }
 
     public Rotation Rot { get; init; }

@@ -178,7 +178,7 @@ public sealed partial class RoundsTradePlanner
         var traders = new List<Pol.TraderFacts>(census.Traders.Count);
         foreach (var row in census.Traders)
         {
-            traders.Add(new Pol.TraderFacts { Participant = row.Participant, ID = row.Id, Kind = row.Kind, Faction = row.Faction, CanTrade = row.CanTrade, Travelling = row.Travelling, GoodsStacks = row.GoodsStacks });
+            traders.Add(new Pol.TraderFacts { Participant = row.Participant, ID = row.Id, Kind = row.Kind, CanTrade = row.CanTrade, Travelling = row.Travelling, GoodsStacks = row.GoodsStacks });
         }
         var arriving = false;
         foreach (var row in census.Traders)

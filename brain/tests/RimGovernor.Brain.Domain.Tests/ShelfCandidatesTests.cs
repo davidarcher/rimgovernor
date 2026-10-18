@@ -24,6 +24,9 @@ public sealed class ShelfCandidatesTests
         ("chunks", ChunkFilter),
     ];
 
+    // The store role of a candidate's zone: zone i serves Kinds[i].
+    private static string RoleOf(ShelfCandidate c) => Kinds[int.Parse(c.Zone["Zone_".Length..])].Role;
+
     // A 4x3 zone per store kind, 10 cells apart, on open walkable floor holding one stack per cell.
     private static Rectangle Room(int i) => new() { X = i * 10, Z = 0, Width = 4, Height = 3 };
 
@@ -55,7 +58,7 @@ public sealed class ShelfCandidatesTests
     {
         var candidates = Candidates(Request(NoWalkways));
 
-        var roles = candidates.Select(c => c.Role).ToHashSet();
+        var roles = candidates.Select(RoleOf).ToHashSet();
         Assert.Equal(["yard", "bench:Stove_1", "meals", "medicine", "general", "weapons"], Kinds.Select(k => k.Role).Where(roles.Contains));
         Assert.DoesNotContain("chunks", roles);
         Assert.All(candidates, c => Assert.Equal(Known(4), c.Stacks));
@@ -77,7 +80,7 @@ public sealed class ShelfCandidatesTests
         // The warehouse (zone 4, x 40..43) has a walkway down its middle row and a doorway at its corner.
         var walk = Enumerable.Range(40, 4).Select(x => new Cell(x, 1)).ToList();
         var door = new Cell(40, 0);
-        var candidates = Candidates(Request(Known(EquatableArray.From(walk)), door)).Where(c => c.Role == "general").ToList();
+        var candidates = Candidates(Request(Known(EquatableArray.From(walk)), door)).Where(c => RoleOf(c) == "general").ToList();
 
         Assert.NotEmpty(candidates);
         foreach (var c in candidates)
@@ -106,6 +109,6 @@ public sealed class ShelfCandidatesTests
         var request = Request(NoWalkways);
         request = request with { Stores = [.. request.Stores.Select(s => s.Role == "yard" ? s with { Retired = true } : s)] };
 
-        Assert.DoesNotContain(Candidates(request), c => c.Role == "yard");
+        Assert.DoesNotContain(Candidates(request), c => RoleOf(c) == "yard");
     }
 }

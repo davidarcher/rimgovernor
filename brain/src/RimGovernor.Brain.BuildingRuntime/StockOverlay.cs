@@ -118,7 +118,6 @@ public sealed partial class Rounder
             var z = new Pol.StockZone
             {
                 Id = row.Id ?? "",
-                Label = row.Label ?? "",
                 FoodStorage = row.FoodStorage.GetValueOrDefault(),
                 Cells = cells.TryGetValue((row.Id ?? ""), out var own) ? [.. own] : [],
             };

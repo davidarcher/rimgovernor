@@ -61,7 +61,7 @@ partial record PlannedRoom
         for (var n = 0; n < Math.Min(room.Markers, LayoutRingRules.RingMaxMarkers); n++)
         {
             var c = LayoutRingRules.RingSlot(room.Region.Bounds(), n);
-            output.Add(new WantedPiece { DefName = LayoutRingRules.RingMarkerDef, Minimum = c, Maximum = c, Slot = $"marker-{n}", Size = new Cell(1, 1), Rot = Rotation.North });
+            output.Add(new WantedPiece { DefName = LayoutRingRules.RingMarkerDef, Minimum = c, Maximum = c, Size = new Cell(1, 1), Rot = Rotation.North });
         }
         return output;
     }

@@ -2,16 +2,13 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// One stockpile zone for the stock overlay: every stockpile on the map. Role and Filter are the colony's claim
-/// on it when it created the zone (Filter known then); FoodStorage is the zone census' human-food flag; Label is
-/// the native zone label.
+/// on it when it created the zone (Filter known then); FoodStorage is the zone census' human-food flag.
 /// </summary>
 public sealed record StockZone
 {
     public string Id { get; init; } = "";
 
     public string Role { get; init; } = "";
-
-    public string Label { get; init; } = "";
 
     public Fact<StockpileFilter> Filter { get; init; }
 

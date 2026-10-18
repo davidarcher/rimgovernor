@@ -8,8 +8,6 @@ public sealed record TendDoctorFacts
 {
     public PawnId Pawn { get; init; }
 
-    public string SnapshotToken { get; init; } = "";
-
     public Fact<bool> Dead { get; init; }
 
     public Fact<bool> Downed { get; init; }
@@ -36,9 +34,6 @@ public sealed record TendDoctorFacts
     public Fact<bool> ControlEligible { get; init; }
 
     public Fact<bool> TendCapacities { get; init; }
-
-    /// <summary>CanReach(ClosestTouch, Deadly) for this pair; multi-candidate selection uses TendReachability.</summary>
-    public Fact<bool> ReachesPatient { get; init; }
 }
 
 /// <summary>
@@ -77,8 +72,6 @@ public sealed class TendReachability
 public sealed record TendPatientFacts
 {
     public PawnId Pawn { get; init; }
-
-    public string SnapshotToken { get; init; } = "";
 
     public Fact<bool> Dead { get; init; }
 

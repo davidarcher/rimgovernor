@@ -70,8 +70,6 @@ public sealed record TemperatureProposal
 
     public MethodId Key { get; init; }
 
-    public string Room { get; init; } = "";
-
     public IReadOnlyList<Cell> Cells { get; init; } = [];
 
     /// <summary>The exact wall cell of a powered cooler (CoolPowered); the passive methods search Cells.</summary>
@@ -332,7 +330,6 @@ public static partial class TemperatureMethodRules
                 {
                     Method = method,
                     Key = ThermalKey(campfire.Id + "/" + Wire.Name(method)),
-                    Room = room.Id,
                     Thing = campfire.Id,
                 },
                 true
@@ -681,7 +678,6 @@ public static partial class TemperatureMethodRules
                     {
                         Method = TemperatureMethod.CoolPowered,
                         Key = ThermalKey(choice.Bed + "/" + Wire.Name(TemperatureMethod.CoolPowered)),
-                        Room = choice.Room.Id,
                         Cells = [.. choice.Room.Cells],
                         Cell = cell,
                         Rotation = rotation,
@@ -696,7 +692,6 @@ public static partial class TemperatureMethodRules
             {
                 Method = method,
                 Key = ThermalKey(choice.Bed + "/" + Wire.Name(method)),
-                Room = choice.Room.Id,
                 Cells = [.. choice.Room.Cells],
             };
         }

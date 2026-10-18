@@ -22,22 +22,6 @@ public sealed record StoreCapacity
     /// <summary>The stacks the store can still take; unknown while either count is.</summary>
     public Fact<int> Free =>
         Capacity.TryGetValue(out var capacity) && Used.TryGetValue(out var used) ? Known(Math.Max(0, capacity - used)) : Unknown<int>();
-
-    /// <summary>
-    /// The days until the store fills: free stacks over net inflow. Known infinite when inflow is not positive (the
-    /// store never fills at this rate); unknown while free stacks or inflow are.
-    /// </summary>
-    public Fact<double> RunwayDays
-    {
-        get
-        {
-            if (!Free.TryGetValue(out var free) || !Inflow.TryGetValue(out var inflow))
-            {
-                return Unknown<double>();
-            }
-            return Known(StoreRules.StoreRunwayDays(free, inflow));
-        }
-    }
 }
 
 public static partial class StoreRules

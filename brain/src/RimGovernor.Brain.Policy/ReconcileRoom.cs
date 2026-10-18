@@ -185,7 +185,6 @@ public static partial class ReconcileRules
         DefName = p.Def,
         Minimum = new Cell(p.Rect.X, p.Rect.Z),
         Maximum = new Cell(p.Rect.X + p.Rect.Width - 1, p.Rect.Z + p.Rect.Height - 1),
-        Slot = p.Slot,
         Size = p.Size,
         Rot = p.Rot,
     };

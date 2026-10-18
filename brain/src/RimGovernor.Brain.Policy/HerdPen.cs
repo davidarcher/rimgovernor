@@ -93,9 +93,6 @@ public static class HerdPenRules
     /// <summary>The pen's one piece.</summary>
     public const string PenMarkerDefinition = "PenMarker";
 
-    /// <summary>The marker's template slot.</summary>
-    internal const string PenMarkerSlot = "pen.marker";
-
     /// <summary>The near-square interior holding at least cells cells.</summary>
     internal static (int W, int H) PenSide(int cells)
     {
@@ -212,7 +209,6 @@ public static class HerdPenRules
                 DefName = PenMarkerDefinition,
                 Minimum = best,
                 Maximum = new Cell(best.X + size.X - 1, best.Z + size.Z - 1),
-                Slot = PenMarkerSlot,
                 Size = size,
                 Rot = Rotation.North,
             },

@@ -144,7 +144,6 @@ public sealed partial class DefinitionCatalog
                 Bodies = [.. bodies],
                 Part = hediff.defName,
                 Work = recipe.workAmount,
-                Material = spawned.defName,
                 Value = (double)price * slot.GetBaseCount(),
             };
         }

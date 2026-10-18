@@ -503,7 +503,7 @@ public static partial class StockpileRules
                 continue;
             }
             ids.Add(z.Id);
-            shelfZones.Add(new ShelfZone { Zone = z.Id, Cells = z.Cells, Filter = z.Filter, Priority = z.Priority });
+            shelfZones.Add(new ShelfZone { Zone = z.Id, Cells = z.Cells });
         }
         var request = new ShelfRequest
         {

@@ -150,8 +150,6 @@ public sealed record LedgerPlan
 
     public IReadOnlyList<ActualBill> Remove { get; init; } = [];
 
-    public IReadOnlyList<ActualBill> Keep { get; init; } = [];
-
     /// <summary>The next Round's counter state, keyed by ActualBill.Id; callers keep it in memory.</summary>
     public IReadOnlyDictionary<string, int> Orphans { get; init; } = new Dictionary<string, int>();
 }
@@ -226,13 +224,11 @@ public static partial class WorkRules
         var (wanted, abstain) = WantedOrders(declared);
         var nextOrphans = new Dictionary<string, int>();
         var matched = new Dictionary<string, int>();
-        var keep = new List<ActualBill>();
         var remove = new List<ActualBill>();
         foreach (var b in actual.OrderBy(b => wanted.ContainsKey(b.Spec.Key()) ? 0 : 1).ThenBy(b => b.Id, StringComparer.Ordinal))
         {
             if (b.Kind == LedgerBillKind.ActivityExecution)
             {
-                keep.Add(b);
                 continue;
             }
             var k = b.Spec.Key();
@@ -243,15 +239,13 @@ public static partial class WorkRules
             if (isWanted && matched.GetValueOrDefault(k) < WantedCopies(copies, k) && !b.Spent)
             {
                 matched[k] = matched.GetValueOrDefault(k) + 1;
-                keep.Add(b);
             }
             else if (b.Kind != LedgerBillKind.Production)
             {
-                keep.Add(b);
+                continue;
             }
             else if (abstain)
             {
-                keep.Add(b);
                 if (orphans.TryGetValue(b.Id, out var n))
                 {
                     nextOrphans[b.Id] = n;
@@ -266,7 +260,6 @@ public static partial class WorkRules
                     continue;
                 }
                 nextOrphans[b.Id] = n;
-                keep.Add(b);
             }
         }
         var place = new List<OrderSpec>();
@@ -277,7 +270,7 @@ public static partial class WorkRules
                 place.Add(wanted[k]);
             }
         }
-        return new LedgerPlan { Place = place, Remove = remove, Keep = keep, Orphans = nextOrphans };
+        return new LedgerPlan { Place = place, Remove = remove, Orphans = nextOrphans };
     }
 
     /// <summary>Coalesces the declared orders by spec Key (the first declaration of a key wins) and reports whether any planner abstained.</summary>

@@ -356,7 +356,7 @@ partial class RoundsWorkPlanner
         {
             return [];
         }
-        var entries = p.Reading.Select(e => new ReadingPolicyEntry { Id = e.ID, Label = e.Label, Pawns = e.Pawns, Allowed = e.Allowed }).ToList();
+        var entries = p.Reading.Select(e => new ReadingPolicyEntry { Id = e.ID, Label = e.Label, Allowed = e.Allowed }).ToList();
         return ReadingPolicyRules.ReadingPolicyChanges(pawns, owned, entries, p.Books);
     }
 

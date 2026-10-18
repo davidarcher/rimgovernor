@@ -18,20 +18,16 @@ public enum TrafficFindingKind
     AnimalInCleanRoom,
 }
 
-/// <summary>One flagged room with the busiest offending cell count.</summary>
+/// <summary>One flagged room and the traffic layer that flagged it.</summary>
 public sealed record TrafficFinding
 {
     public TrafficFindingKind Kind { get; init; }
 
     public string Room { get; init; } = "";
 
-    public RoomRole Role { get; init; }
-
     public TrafficLayer Layer { get; init; }
 
-    public uint Steps { get; init; }
-
-    public override string ToString() => $"{Wire.Name(Kind)} room={Room} role={Wire.Name(Role)} layer={Wire.Name(Layer)} steps={Steps}";
+    public override string ToString() => $"{Wire.Name(Kind)} room={Room} layer={Wire.Name(Layer)}";
 }
 
 public static partial class TrafficRules
@@ -84,7 +80,7 @@ public static partial class TrafficRules
             {
                 continue;
             }
-            var f = new TrafficFinding { Room = v.Rooms[index].Id, Role = role, Layer = layer, Steps = steps };
+            var f = new TrafficFinding { Room = v.Rooms[index].Id, Layer = layer };
             if (ThoroughfareRoles.Contains(role) && ((layer == TrafficLayer.Colonist && steps >= ThoroughfareColonistSteps) || (layer == TrafficLayer.Visitor && steps >= ThoroughfareVisitorSteps)))
             {
                 f = f with { Kind = TrafficFindingKind.Thoroughfare };

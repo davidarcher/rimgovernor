@@ -124,7 +124,6 @@ public sealed class RoomFurnishingTests
         var room = Room();
         var furnishing = SleepingRules.BedroomFurnishing(room, Shapes, Bed, [], null);
         var bed = Assert.Single(furnishing.Pieces);
-        Assert.Equal("bed", bed.Slot);
         Assert.Equal(Bed, bed.DefName);
         Assert.Equal(RoomFurnishingRules.RoomFurnishing(room, Interior(room), [BedWant], []).Pieces, furnishing.Pieces);
         Assert.True(furnishing.Absent);

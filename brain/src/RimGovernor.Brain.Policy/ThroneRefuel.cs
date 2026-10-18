@@ -22,10 +22,10 @@ public static partial class ThroneRules
     }
 
     /// <summary>
-    /// The refuel due for the throne room's unlit lights: the lowest-ID lamp of a glowing definition standing
-    /// inside the title's room that the census reads unlit and out of fuel, ordered through the refuel work
-    /// giver for the best hauler (the rearm's pick). None while the room is not planned and standing, or when no
-    /// unlit lamp is measured empty (an unknown fuel state is neither a deficit nor a refuel).
+    /// The refuel due for the throne room's unlit lights: some lamp of a glowing definition standing inside the
+    /// title's room that the census reads unlit and out of fuel, with a hauler to refuel it (the rearm's pick).
+    /// None while the room is not planned and standing, without a hauler, or when no unlit lamp is measured empty
+    /// (an unknown fuel state is neither a deficit nor a refuel).
     /// </summary>
     public static ThroneStep NextThroneRefuel(
         LayoutPlan plan,
@@ -46,24 +46,9 @@ public static partial class ThroneRules
             return new ThroneStep();
         }
         var glow = need.GlowDefNames();
-        var best = "";
-        foreach (var l in lamps)
-        {
-            if (!glow.Contains(l.Definition) || !LayoutPerimeterRules.Contains(room.Region.Bounds(), l.Cell) || l.Lit)
-            {
-                continue;
-            }
-            if (!l.OutOfFuel.TryGetValue(out var empty) || !empty)
-            {
-                continue;
-            }
-            if (best.Length == 0 || string.CompareOrdinal(l.Id, best) < 0)
-            {
-                best = l.Id;
-            }
-        }
-        var found = DefenseRearm.DefenseRearmPawn(workers, out var pawn);
-        if (best.Length == 0 || !found)
+        var unlit = lamps.Any(l => glow.Contains(l.Definition) && LayoutPerimeterRules.Contains(room.Region.Bounds(), l.Cell) && !l.Lit
+            && l.OutOfFuel.TryGetValue(out var empty) && empty);
+        if (!unlit || !DefenseRearm.DefenseRearmPawn(workers, out _))
         {
             return new ThroneStep();
         }
@@ -72,8 +57,6 @@ public static partial class ThroneRules
             Kind = ThroneStepKind.Refuel,
             Room = room,
             Need = need,
-            Lamp = best,
-            Pawn = pawn,
         };
     }
 }

@@ -35,12 +35,10 @@ public sealed record RoutesObservation
 
     public EquatableArray<RouteFacility> Facilities { get; init; }
 
-    /// <summary>The most-travelled cells observed since TrafficSince with TrafficSamples samples in all.</summary>
+    /// <summary>The most-travelled cells observed since the map loaded with TrafficSamples samples in all.</summary>
     public EquatableArray<TrafficCell> Traffic { get; init; }
 
     public uint TrafficSamples { get; init; }
-
-    public Fact<Tick> TrafficSince { get; init; }
 
     public void Validate()
     {
@@ -108,8 +106,6 @@ public sealed record RouteFacility
     public string Id { get; init; } = "";
 
     public string Kind { get; init; } = "";
-
-    public Cell Cell { get; init; }
 
     public Fact<string> Room { get; init; }
 
@@ -257,9 +253,6 @@ public sealed record RoutesProposal
 
     public MethodId Key { get; init; }
 
-    /// <summary>The unreachable facility served.</summary>
-    public string Facility { get; init; } = "";
-
     /// <summary>The door definition.</summary>
     public string Definition { get; init; } = "";
 
@@ -389,7 +382,6 @@ public static partial class RoutesRules
             {
                 Method = RoutesMethod.Build,
                 Key = new MethodId("routes-" + Convert.ToHexStringLower(digest.AsSpan(0, 12))),
-                Facility = d.Facility.Id,
                 Definition = p.Door,
                 Stuff = p.Stuff,
                 Breaches = EquatableArray.From(cells),

@@ -61,9 +61,6 @@ public sealed record MaterialInstall
 
     public double Work { get; init; }
 
-    /// <summary>The stuff def the recipe consumes.</summary>
-    public string Material { get; init; } = "";
-
-    /// <summary>The material's market value times the count the recipe takes.</summary>
+    /// <summary>The consumed stuff's market value times the count the recipe takes.</summary>
     public double Value { get; init; }
 }

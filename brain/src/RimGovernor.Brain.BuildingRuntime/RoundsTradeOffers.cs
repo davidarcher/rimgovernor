@@ -126,7 +126,7 @@ public sealed partial class RoundsTradePlanner
             var food = TradeFoodFact(row, catalog);
             rows.Add(new Pol.TradeOffer { Def = row.DefName, Count = row.TraderCount, Price = row.BuyPrice, Pawn = row.Pawn?.Gender, Food = food });
         }
-        var offers = new Pol.TradeOffers { Participant = TradeTarget.TradeParticipantOf(sheet.Target), Trader = sheet.Trader, Negotiator = sheet.Negotiator, Tick = new Tick(sheet.Context?.Tick ?? 0), Silver = silver, GoodsStacks = stacks, Rows = rows };
+        var offers = new Pol.TradeOffers { Participant = TradeTarget.TradeParticipantOf(sheet.Target), Trader = sheet.Trader, Tick = new Tick(sheet.Context?.Tick ?? 0), Silver = silver, GoodsStacks = stacks, Rows = rows };
         Reviewer.TradeOffers.Record(state.Snapshot, offers);
     }
 

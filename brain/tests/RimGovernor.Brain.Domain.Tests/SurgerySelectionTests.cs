@@ -75,7 +75,7 @@ public sealed class SurgerySelectionTests
     private static readonly RecipeFacts Recipes = new()
     {
         HarvestOrgans = ["Kidney", "Lung"],
-        MaterialInstalls = [new MaterialInstall { Recipe = "InstallPegLeg", Bodies = ["Leg"], Part = "PegLeg", Work = 1000, Material = "WoodLog", Value = 5 }],
+        MaterialInstalls = [new MaterialInstall { Recipe = "InstallPegLeg", Bodies = ["Leg"], Part = "PegLeg", Work = 1000, Value = 5 }],
     };
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class SurgerySelectionTests
 
         var choice = Assert.Single(SurgeryRules.SelectSurgery(Census(pawn), null, new SurgeryContext()).Queue);
 
-        Assert.Equal((Colonist, "InstallSimpleProstheticLeg", LegPart, SurgeryKind.Restore, false), (choice.Pawn, choice.Recipe, choice.Part, choice.Kind, choice.Elective));
+        Assert.Equal((Colonist, "InstallSimpleProstheticLeg", LegPart, false), (choice.Pawn, choice.Recipe, choice.Part, choice.Elective));
     }
 
     [Fact]

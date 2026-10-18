@@ -3,14 +3,12 @@ using System.Reflection;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// One ThoughtDef as the mood ledger reads it: the bridge projects the catalog row and the audit table into it,
+/// One ThoughtDef as the mood ledger reads it: the bridge projects the catalog row into it,
 /// so policy never sees the catalog. Immunity is data, not a verdict: the consumer matches the pawn's traits and
 /// precepts.
 /// </summary>
 public sealed record ThoughtFacts
 {
-    public string Def { get; init; } = "";
-
     /// <summary>The lowest BaseMoodEffect of the def's stages (the most negative, or the least positive when none is negative); 0 without stages.</summary>
     public double WorstOffset { get; init; }
 
@@ -26,22 +24,13 @@ public sealed record ThoughtFacts
 
     /// <summary>The lowest expectation that grants the thought, empty when it applies at any.</summary>
     public string MinExpectation { get; init; } = "";
-
-    /// <summary>The audit table's ';'-joined state tokens, or <see cref="ThoughtFactsRules.ThoughtUnclassified"/>.</summary>
-    public string Dependency { get; init; } = "";
-
-    /// <summary>The table's hand-kept concern, empty when no concern removes the thought.</summary>
-    public string Owner { get; init; } = "";
 }
 
-/// <summary>One row of thought_triggers.tsv.</summary>
-public sealed record ThoughtAudit(string Dependency, string Owner);
+/// <summary>One row of thought_triggers.tsv: the owner column the mood ledger reads.</summary>
+public sealed record ThoughtAudit(string Owner);
 
 public static partial class ThoughtFactsRules
 {
-    /// <summary>The dependency of a def the audit table has no row for (a modded thought, a def new since the last regeneration, or a name that is not a ThoughtDef).</summary>
-    public const string ThoughtUnclassified = "unclassified";
-
     /// <summary>The parsed table, built once on first use from the embedded copy of thought_triggers.tsv.</summary>
     private static readonly Lazy<IReadOnlyDictionary<string, ThoughtAudit>> ThoughtAuditRows = new(LoadThoughtAuditRows);
 
@@ -63,7 +52,7 @@ public static partial class ThoughtFactsRules
             var f = line.TrimEnd('\r').Split('\t');
             if (f.Length == 5)
             {
-                rows[f[0]] = new ThoughtAudit(f[3], f[4]);
+                rows[f[0]] = new ThoughtAudit(f[4]);
             }
         }
         return rows;
@@ -74,7 +63,7 @@ public static partial class ThoughtFactsRules
     /// regenerates the table; see docs/developers/contracts/mood-control.md).
     /// </summary>
     public static (ThoughtAudit Row, bool Ok) ThoughtAuditRow(string def) =>
-        ThoughtAuditRows.Value.TryGetValue(def, out var row) ? (row, true) : (new ThoughtAudit("", ""), false);
+        ThoughtAuditRows.Value.TryGetValue(def, out var row) ? (row, true) : (new ThoughtAudit(""), false);
 
     /// <summary>Every owner id the audit table names, each once, in ordinal order.</summary>
     internal static IReadOnlyList<string> ThoughtAuditOwners() =>

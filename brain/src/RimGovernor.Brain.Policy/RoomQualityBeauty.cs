@@ -9,8 +9,6 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>Installs Packed (a packed item's id) at Anchor, Rot.</summary>
 public sealed record SculptureStep
 {
-    public string Room { get; init; } = "";
-
     public string Packed { get; init; } = "";
 
     public Cell Anchor { get; init; }
@@ -123,7 +121,7 @@ public static partial class RoomQualityRules
             var (p, cell, rot, ok) = FitSculpture(room.Room, RankSculptures(packed), null, items);
             if (ok)
             {
-                return (new SculptureStep { Room = room.Id, Packed = p.Id, Anchor = cell, Rot = rot }, true);
+                return (new SculptureStep { Packed = p.Id, Anchor = cell, Rot = rot }, true);
             }
         }
         return (new SculptureStep(), false);

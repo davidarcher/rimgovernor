@@ -129,8 +129,6 @@ public sealed record SiteTypePlan
 
     public int Needed { get; init; }
 
-    public FarmSitePlan Sites { get; init; } = new();
-
     public EquatableArray<SiteBuilding> Buildings { get; init; }
 
     public bool Urgent { get; init; }
@@ -341,7 +339,7 @@ public static partial class SiteRules
             return (plan, false);
         }
         var best = sorted[0];
-        return (plan with { Kind = best.Kind, Crop = best.Crop, Needed = best.Needed, Sites = best.Sites, Buildings = best.Buildings }, true);
+        return (plan with { Kind = best.Kind, Crop = best.Crop, Needed = best.Needed, Buildings = best.Buildings }, true);
     }
 
     private static bool SiteCandidateLess(SiteTypeCandidate a, SiteTypeCandidate b, bool urgent)

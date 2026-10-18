@@ -115,7 +115,7 @@ public static class ClearanceReads
                     yields.Add(CandidateRules.SourceYield(new ResourceKey { Def = new Resource(y.DefName) }, y.Count, y.UnitValue, Known((long)y.StorageHeadroom)));
                 }
                 var candidate = CandidateRules.SourceCandidate(CandidateKind.Salvage, (row.EntityId ?? ""), Known(s.Labor), Known(s.PathLength), true, SalvageUnitsPerTrip, [.. yields]);
-                target = target with { Salvage = new SalvageEvidence { Safe = Known(s.Safe), Candidate = candidate, AgeTicks = (int)s.AgeTicks } };
+                target = target with { Salvage = new SalvageEvidence { Safe = Known(s.Safe), Candidate = candidate } };
             }
             rows.Add(target);
         }

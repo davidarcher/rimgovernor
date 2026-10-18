@@ -21,22 +21,15 @@ public sealed record UpkeepRoom
 }
 
 /// <summary>
-/// A colonist's most senior royal title and the bedroom requirements RoyalTitleDef sets for its holder.
+/// The bedroom requirements RoyalTitleDef sets for the holder of a colonist's most senior royal title.
 /// Requirements an ideo precept disables are left out, and an ascetic holder has none. Zero values mean no
 /// such requirement.
 /// </summary>
 public sealed record RoyalTitle
 {
-    public string Definition { get; init; } = "";
-
-    public int Seniority { get; init; }
-
     public int BedroomMinArea { get; init; }
 
     public int BedroomMinImpressiveness { get; init; }
-
-    /// <summary>Requires every room cell to carry a floor terrain.</summary>
-    public bool BedroomFloored { get; init; }
 
     /// <summary>The required furniture: each entry is met by Count things of any one of its definitions.</summary>
     public EquatableArray<BedroomThing> BedroomThings { get; init; }

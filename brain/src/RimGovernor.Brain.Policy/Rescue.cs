@@ -5,8 +5,6 @@ public sealed record RescuerFacts
 {
     public PawnId Pawn { get; init; }
 
-    public string SnapshotToken { get; init; } = "";
-
     public Fact<bool> Dead { get; init; }
 
     public Fact<bool> Downed { get; init; }
@@ -23,22 +21,18 @@ public sealed record RescuerFacts
 }
 
 /// <summary>
-/// Describes one candidate patient. Completion is InBed with a known non-empty BedID; a downed pawn who has
+/// Describes one candidate patient. Completion is a known InBed; a downed pawn who has
 /// simply stopped moving is not evidence of a completed rescue.
 /// </summary>
 public sealed record RescuePatientFacts
 {
     public PawnId Pawn { get; init; }
 
-    public string SnapshotToken { get; init; } = "";
-
     public Fact<bool> Dead { get; init; }
 
     public Fact<bool> Downed { get; init; }
 
     public Fact<bool> InBed { get; init; }
-
-    public Fact<string> BedID { get; init; }
 
     public Fact<string> ExistingJobDef { get; init; }
 }

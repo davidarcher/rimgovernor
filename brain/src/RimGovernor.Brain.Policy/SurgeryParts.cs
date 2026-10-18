@@ -3,10 +3,6 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>One missing part a restore wants: the items that would serve it, best first, and how much the want is worth.</summary>
 public sealed record SurgeryPart
 {
-    public PawnId Pawn { get; init; }
-
-    public int Part { get; init; }
-
     public IReadOnlyList<Resource> Items { get; init; } = [];
 
     public double Value { get; init; }
@@ -39,8 +35,6 @@ public static partial class SurgeryRules
                 output.Add(
                     new SurgeryPart
                     {
-                        Pawn = want.Pawn,
-                        Part = want.Part,
                         Value = want.Value,
                         Items = items,
                     }
@@ -212,8 +206,8 @@ public static partial class SurgeryRules
     /// <summary>
     /// Each patient's elective whose part is missing: their best elective upgrade a doctor can perform within
     /// ElectiveFailureCap, ranked as SelectSurgery ranks (gain over the natural part x part weight x role weight,
-    /// ties by pawn id then part) but over every elective, stocked or not. Each is a PartShort want whose Options
-    /// and Items are that part's recipes, best first. A patient with a served operation, a queued bill or a
+    /// ties by pawn id then part) but over every elective, stocked or not. Each is a PartShort want whose Items
+    /// are that part's recipes' items, best first. A patient with a served operation, a queued bill or a
     /// stocked option of their best part wants nothing (SelectSurgery queues the stocked one), and a part item
     /// already wanted by a higher-ranked patient is not wanted twice. The purchase path and ElectiveParts both
     /// read this.
@@ -284,19 +278,15 @@ public static partial class SurgeryRules
                 {
                     weight *= PawnRules.UpgradeRoleWeight(profile, name ?? "");
                 }
-                group[0].Recipe.TryGetValue(out var top);
                 var value = (group[0].Tier - 1) * weight;
                 if (best is not null && value <= best.Value)
                 {
                     continue;
                 }
-                var options = new List<string>();
                 var items = new List<Resource>();
                 bestStocked = false;
                 foreach (var op in group)
                 {
-                    op.Recipe.TryGetValue(out var recipe);
-                    options.Add(recipe ?? "");
                     if (!op.Item.IsEmpty)
                     {
                         items.Add(op.Item);
@@ -310,10 +300,8 @@ public static partial class SurgeryRules
                 {
                     Pawn = pawn.Id,
                     Part = part,
-                    Recipe = top ?? "",
                     Reason = SurgeryWantReason.PartShort,
                     Value = value,
-                    Options = options,
                     Items = items,
                 };
             }

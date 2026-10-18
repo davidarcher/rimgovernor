@@ -333,7 +333,6 @@ namespace HomeBridge.BridgeTools
                     // Every nonzero cell of each layer, busiest first;
                     // traffic_samples is the colonist layer's decayed total.
                     facts = facts with { TrafficSamples = traffic.Counts.Total(TrafficCounts.Colonist) };
-                    if (traffic.SinceTick >= 0) facts = facts with { TrafficSinceTick = traffic.SinceTick };
                     for (int layer = 0; layer < TrafficCounts.Layers; layer++)
                         foreach (var index in traffic.Counts.Nonzero(layer))
                         {

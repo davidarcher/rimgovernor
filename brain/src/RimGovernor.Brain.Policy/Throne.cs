@@ -161,12 +161,6 @@ public sealed record ThroneStep
     /// <summary>The throne the holder owns already, empty when none.</summary>
     public string PreviousThrone { get; init; } = "";
 
-    /// <summary>A Refuel's light.</summary>
-    public string Lamp { get; init; } = "";
-
-    /// <summary>A Refuel's hauler.</summary>
-    public PawnId Pawn { get; init; }
-
     /// <summary>The unmet requirements no available definition serves, each the any-of list of definition names, for Unavailable.</summary>
     public IReadOnlyList<string> Missing { get; init; } = [];
 

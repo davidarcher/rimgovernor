@@ -208,10 +208,9 @@ public static class ColonyDecodeReads
         };
         r = r with { Raids = r.Threat.Raids };
         var threat = r.Threat;
-        if (threat.WealthItems.TryGetValue(out var items) && threat.WealthBuildings.TryGetValue(out var wealthBuildings)
-            && threat.WealthPawns.TryGetValue(out var wealthPawns) && threat.WealthTotal.TryGetValue(out var total))
+        if (threat.WealthItems.TryGetValue(out var items) && threat.WealthTotal.TryGetValue(out var total))
         {
-            f = f with { Wealth = Known(new WealthFacts(items, wealthBuildings, wealthPawns, total)) };
+            f = f with { Wealth = Known(new WealthFacts(items, total)) };
         }
         if (r.FoodChannels.TryGetValue(out var channels))
         {

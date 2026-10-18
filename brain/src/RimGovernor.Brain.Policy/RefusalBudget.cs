@@ -32,8 +32,6 @@ public sealed record BudgetVerdict
     public string Code { get; init; } = "";
 
     public string Reason { get; init; } = "";
-
-    public RefusalClass Class { get; init; }
 }
 
 /// <summary>
@@ -85,15 +83,15 @@ public sealed record RefusalBudget
             switch (e.Class)
             {
                 case RefusalClass.Permanent:
-                    return (false, new BudgetVerdict { Code = RefusalBudgetRules.BudgetSpent, Reason = e.Reason, Class = e.Class });
+                    return (false, new BudgetVerdict { Code = RefusalBudgetRules.BudgetSpent, Reason = e.Reason });
                 case RefusalClass.Transient:
                     if (e.World == world && waiting.Code.Length == 0)
                     {
-                        waiting = new BudgetVerdict { Code = RefusalBudgetRules.BudgetWaiting, Reason = e.Reason, Class = e.Class };
+                        waiting = new BudgetVerdict { Code = RefusalBudgetRules.BudgetWaiting, Reason = e.Reason };
                     }
                     break;
                 default:
-                    unknown = new BudgetVerdict { Code = RefusalBudgetRules.BudgetUnknown, Reason = e.Reason, Class = RefusalClass.Unknown };
+                    unknown = new BudgetVerdict { Code = RefusalBudgetRules.BudgetUnknown, Reason = e.Reason };
                     break;
             }
         }

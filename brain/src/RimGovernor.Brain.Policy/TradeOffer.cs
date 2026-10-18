@@ -12,8 +12,6 @@ public sealed record TradeOffers
 
     public string Trader { get; init; } = "";
 
-    public string Negotiator { get; init; } = "";
-
     /// <summary>The observed tick of the sheet read.</summary>
     public Tick Tick { get; init; }
 

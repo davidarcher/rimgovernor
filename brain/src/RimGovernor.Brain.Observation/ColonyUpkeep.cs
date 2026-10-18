@@ -160,13 +160,9 @@ public static class ColonyUpkeepReads
         var facilities = new List<RouteFacility>();
         var traffic = new List<TrafficCell>();
         var r = new RoutesObservation { Pawns = [.. f.PawnIds], TrafficSamples = f.TrafficSamples.GetValueOrDefault() };
-        if (f.TrafficSinceTick is not null)
-        {
-            r = r with { TrafficSince = Known(new Tick((long)f.TrafficSinceTick)) };
-        }
         foreach (var row in f.Facilities)
         {
-            var output = new RouteFacility { Id = row.Facility?.Id ?? "", Kind = WireEnums.RouteKindName(row.Kind.GetValueOrDefault()), Cell = ColonyDecodeReads.CellOf(row.Cell) };
+            var output = new RouteFacility { Id = row.Facility?.Id ?? "", Kind = WireEnums.RouteKindName(row.Kind.GetValueOrDefault()) };
             if (row.Room is not null)
             {
                 output = output with { Room = Known(row.Room.Id ?? "") };

@@ -4,12 +4,11 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public static class RescueFacts
 {
-    public static RescuerFacts NewRescuerFacts(PawnId pawn, PbObservations.PawnState row, string token)
+    public static RescuerFacts NewRescuerFacts(PawnId pawn, PbObservations.PawnState row)
     {
         var facts = new RescuerFacts
         {
             Pawn = pawn,
-            SnapshotToken = token,
             Dead = Fact.Known(row.Dead),
             Downed = Fact.Known(row.Downed),
             Drafted = Fact.Known(row.Drafted),
@@ -30,12 +29,11 @@ public static class RescueFacts
         return facts;
     }
 
-    public static RescuePatientFacts NewRescuePatientFacts(PawnId pawn, PbObservations.PawnState row, string token)
+    public static RescuePatientFacts NewRescuePatientFacts(PawnId pawn, PbObservations.PawnState row)
     {
         var facts = new RescuePatientFacts
         {
             Pawn = pawn,
-            SnapshotToken = token,
             Dead = Fact.Known(row.Dead),
             Downed = Fact.Known(row.Downed),
             InBed = Fact.Known(row.InBed),
@@ -43,10 +41,6 @@ public static class RescueFacts
         if (row.Job?.DefName is { } jobDef)
         {
             facts = facts with { ExistingJobDef = Known(jobDef) };
-        }
-        if (row.Health?.BedId is { } bed)
-        {
-            facts = facts with { BedID = Known(bed) };
         }
         return facts;
     }
@@ -78,12 +72,11 @@ public static class TendFacts
         return (Unknown<bool>(), Unknown<bool>());
     }
 
-    public static TendDoctorFacts NewTendDoctorFacts(PawnId pawn, PbObservations.PawnState row, string token)
+    public static TendDoctorFacts NewTendDoctorFacts(PawnId pawn, PbObservations.PawnState row)
     {
         var facts = new TendDoctorFacts
         {
             Pawn = pawn,
-            SnapshotToken = token,
             Dead = Fact.Known(row.Dead),
             Downed = Fact.Known(row.Downed),
             Drafted = Fact.Known(row.Drafted),
@@ -142,12 +135,11 @@ public static class TendFacts
         return TendReachability.Observe(reachable);
     }
 
-    public static TendPatientFacts NewTendPatientFacts(PawnId pawn, PbObservations.PawnState row, string token)
+    public static TendPatientFacts NewTendPatientFacts(PawnId pawn, PbObservations.PawnState row)
     {
         var facts = new TendPatientFacts
         {
             Pawn = pawn,
-            SnapshotToken = token,
             Dead = Fact.Known(row.Dead),
             Downed = Fact.Known(row.Downed),
             InBed = Fact.Known(row.InBed),

@@ -25,14 +25,12 @@ public enum BookKind
 /// <summary>One book ThingDef and its kind.</summary>
 public sealed record Book(string Def, BookKind Kind);
 
-/// <summary>One native reading policy: its load id, label, holders and allowed book definitions.</summary>
+/// <summary>One native reading policy: its load id, label and allowed book definitions.</summary>
 public sealed record ReadingPolicyEntry
 {
     public string Id { get; init; } = "";
 
     public string Label { get; init; } = "";
-
-    public IReadOnlyList<PawnId> Pawns { get; init; } = [];
 
     public IReadOnlyList<string> Allowed { get; init; } = [];
 }

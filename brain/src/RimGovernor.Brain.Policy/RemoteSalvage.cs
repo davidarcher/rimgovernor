@@ -9,9 +9,6 @@ public sealed record SalvageEvidence
     public Fact<bool> Safe { get; init; }
 
     public SupplyCandidate Candidate { get; init; } = new();
-
-    /// <summary>How many game ticks old native's computation was at the read; served rows are cached until the refresher recomputes them.</summary>
-    public int AgeTicks { get; init; }
 }
 
 public static partial class RemoteRules

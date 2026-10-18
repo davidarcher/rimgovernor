@@ -31,8 +31,8 @@ public sealed class StaleFurnitureTests
         Deconstructible = true,
     };
 
-    private static WantedPiece Listed(string def, Cell cell, string slot) =>
-        new() { DefName = def, Minimum = cell, Maximum = cell, Slot = slot, Size = new Cell(1, 1), Rot = Rotation.North };
+    private static WantedPiece Listed(string def, Cell cell) =>
+        new() { DefName = def, Minimum = cell, Maximum = cell, Size = new Cell(1, 1), Rot = Rotation.North };
 
     private static readonly OpKind[] RemovalKinds = [OpKind.FurnitureOut, OpKind.Pack, OpKind.PackInUse];
 
@@ -54,7 +54,7 @@ public sealed class StaleFurnitureTests
     public void AnUnlistedInteriorPieceIsRemovedAndListedPiecesStay()
     {
         var room = Room();
-        var template = new[] { Listed("Bed", new Cell(11, 11), "bed") };
+        var template = new[] { Listed("Bed", new Cell(11, 11)) };
         var rows = new[] { Row("bed", "Bed", new Cell(11, 11)), Row("stale", Stray, new Cell(13, 13)) };
         Assert.Equal(["stale"], OwnerRemovals(room, rows, template, NothingCarried));
     }
@@ -63,7 +63,7 @@ public sealed class StaleFurnitureTests
     public void ADuplicateOfAListedPieceAtAnotherCellIsStale()
     {
         var room = Room();
-        var template = new[] { Listed(Stray, new Cell(11, 11), "dresser") };
+        var template = new[] { Listed(Stray, new Cell(11, 11)) };
         var rows = new[] { Row("a", Stray, new Cell(11, 11)), Row("b", Stray, new Cell(12, 12)) };
         Assert.Equal(["b"], OwnerRemovals(room, rows, template, NothingCarried));
     }
@@ -72,7 +72,7 @@ public sealed class StaleFurnitureTests
     public void AnOwnerRowIsNeverListedTwice()
     {
         var room = Room();
-        var template = new[] { Listed(Stray, new Cell(11, 11), "dresser") };
+        var template = new[] { Listed(Stray, new Cell(11, 11)) };
         var rows = new[] { Row("a", Stray, new Cell(11, 11)), Row("b", Stray, new Cell(12, 12)), Row("wall", "Wall", new Cell(9, 9)) with { EnclosesRoom = true } };
         var own = ReconcileRules.OwnerRows(room, rows, template, null, NothingCarried);
         Assert.Equal(own.Count, own.Select(r => r.EntityId).Distinct().Count());
@@ -218,7 +218,7 @@ public sealed class StaleFurnitureTests
     public void AListedLeverPieceIsNeverRemovedOverSeveralRounds()
     {
         var room = Room();
-        var template = new List<WantedPiece> { Listed("Bed", new Cell(11, 11), "bed"), Listed("EndTable", new Cell(12, 11), "end_table"), Listed("TorchLamp", new Cell(13, 11), "lamp") };
+        var template = new List<WantedPiece> { Listed("Bed", new Cell(11, 11)), Listed("EndTable", new Cell(12, 11)), Listed("TorchLamp", new Cell(13, 11)) };
         var rows = template.Select((p, i) => Row($"p{i}", p.DefName, p.Minimum)).ToList();
         for (var round = 0; round < 6; round++)
         {
@@ -332,7 +332,7 @@ public sealed class StaleFurnitureTests
     public void TheClearSideAndTheOwnerNeverTargetTheSamePieceInARound()
     {
         var room = Room();
-        var template = new[] { Listed("Bed", new Cell(11, 11), "bed") };
+        var template = new[] { Listed("Bed", new Cell(11, 11)) };
         var rows = new[]
         {
             Row("bed", "Bed", new Cell(11, 11)),

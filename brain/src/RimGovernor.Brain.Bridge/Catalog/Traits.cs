@@ -183,7 +183,7 @@ public sealed partial class DefinitionCatalog
         };
     }
 
-    /// <summary>The named ThoughtDef row and the policy audit table projected into the fact the mood ledger reads; null for a def the catalog lacks. A def the audit table lacks is projected with the unclassified dependency and no owner. Null stages (the game keeps unused ones null) are empty stages.</summary>
+    /// <summary>The named ThoughtDef row projected into the fact the mood ledger reads; null for a def the catalog lacks. Null stages (the game keeps unused ones null) are empty stages.</summary>
     public P.ThoughtFacts? ThoughtFacts(string name)
     {
         if (DefRow<ThoughtDef>(name) is not { } row)
@@ -210,18 +210,15 @@ public sealed partial class DefinitionCatalog
             }
         }
 
-        var facts = new P.ThoughtFacts
+        return new P.ThoughtFacts
         {
-            Def = name,
             NullifyingTraits = [.. row.nullifyingTraits.Seq().Select(t => t.defName)],
             NullifyingPrecepts = [.. row.nullifyingPrecepts.Seq().Select(p => p.defName)],
             RequiredTraits = [.. row.requiredTraits.Seq().Select(t => t.defName)],
             MinExpectation = row.minExpectation?.defName ?? string.Empty,
-            Dependency = P.ThoughtFactsRules.ThoughtUnclassified,
             Stages = stages,
             WorstOffset = worst,
         };
-        return P.ThoughtFactsRules.ThoughtAuditRow(name) is ({ } audit, true) ? facts with { Dependency = audit.Dependency, Owner = audit.Owner } : facts;
     }
 
     /// <summary><see cref="ThoughtFacts"/> for every ThoughtDef row, by defName.</summary>

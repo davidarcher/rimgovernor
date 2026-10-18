@@ -16,8 +16,8 @@ public enum RangePieceKind
     Dummy,
 }
 
-/// <summary>One building and the cell it stands on. Column is the zero-based position along the row of a stand or dummy; a stand and the dummy facing it share one.</summary>
-public sealed record RangePiece(RangePieceKind Kind, Cell Cell, int Column);
+/// <summary>One building and the cell it stands on.</summary>
+public sealed record RangePiece(RangePieceKind Kind, Cell Cell);
 
 public static partial class TrainingRules
 {
@@ -67,8 +67,8 @@ public static partial class TrainingRules
                 default:
                     return [];
             }
-            pieces.Add(new RangePiece(RangePieceKind.Stand, stand, i));
-            pieces.Add(new RangePiece(RangePieceKind.Dummy, dummy, i));
+            pieces.Add(new RangePiece(RangePieceKind.Stand, stand));
+            pieces.Add(new RangePiece(RangePieceKind.Dummy, dummy));
         }
         return pieces;
     }

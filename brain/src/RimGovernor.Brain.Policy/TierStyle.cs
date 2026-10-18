@@ -66,18 +66,8 @@ public sealed record FloorStyleFacts
     }
 }
 
-/// <summary>How many fixtures a module takes.</summary>
-public enum LightingScope
-{
-    /// <summary>One fixture per module.</summary>
-    PerModule,
-
-    /// <summary>One fixture per 5x5 sub-cell.</summary>
-    PerSubCell,
-}
-
 /// <summary>A lighting proposal for one module.</summary>
-public sealed record LightingStyle(string Definition, LightingScope Scope);
+public sealed record LightingStyle(string Definition);
 
 public static partial class TierStyleRules
 {
@@ -215,15 +205,15 @@ public static partial class TierStyleRules
     }
 
     /// <summary>
-    /// The lighting rule: nothing at Camp; a torch per module at Masonry; at Powered with a powered source, a
-    /// standing lamp per 5x5 sub-cell, or one sun lamp per farm module. A powered rung without power or the
+    /// The lighting rule: nothing at Camp; a torch at Masonry; at Powered with a powered source, a standing lamp,
+    /// or a sun lamp for a farm module. A powered rung without power or the
     /// steel for a lamp falls back to the torch, and a torch without wood to nothing.
     /// </summary>
     public static (LightingStyle Style, bool Ok) PlannedLighting(TechTier tier, bool farm, TierStyleStock stock, bool powered)
     {
         const long torchWood = 20;
         const long lampSteel = 20;
-        var none = new LightingStyle("", LightingScope.PerModule);
+        var none = new LightingStyle("");
         return OneRungDown(
             tier,
             t =>
@@ -235,8 +225,8 @@ public static partial class TierStyleRules
                         return (none, false);
                     }
                     return farm
-                        ? (new LightingStyle("SunLamp", LightingScope.PerModule), true)
-                        : (new LightingStyle("StandingLamp", LightingScope.PerSubCell), true);
+                        ? (new LightingStyle("SunLamp"), true)
+                        : (new LightingStyle("StandingLamp"), true);
                 }
                 if (t >= TechTier.Masonry)
                 {
@@ -244,7 +234,7 @@ public static partial class TierStyleRules
                     {
                         return (none, false);
                     }
-                    return (new LightingStyle("TorchLamp", LightingScope.PerModule), true);
+                    return (new LightingStyle("TorchLamp"), true);
                 }
                 return (none, false);
             }

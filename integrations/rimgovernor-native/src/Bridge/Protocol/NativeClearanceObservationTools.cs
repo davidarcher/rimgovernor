@@ -200,12 +200,6 @@ namespace HomeBridge.BridgeTools
             return entry.Evidence;
         }
 
-        // A copy of the cached evidence stamped with its age at this read.
-        private static Obs.SalvageEvidence Served(SalvageEntry e)
-        {
-            return e.Evidence with { AgeTicks = Math.Max(0, Find.TickManager.TicksGame - e.Computed) };
-        }
-
         private static bool Aged(SalvageEntry e)
         {
             var age = Find.TickManager.TicksGame - e.Computed;
@@ -272,7 +266,7 @@ namespace HomeBridge.BridgeTools
                 var id = b.thingIDNumber;
                 seen.Add(id);
                 salvageTargets[id] = b;
-                if (salvageCache.TryGetValue(id, out var e)) { served++; return Served(e); }
+                if (salvageCache.TryGetValue(id, out var e)) { served++; return e.Evidence; }
                 if (Ms(inlineTicks) >= (census ? salvageCensusBudgetMs : salvageInlineBudgetMs)) { capped++; return null; }
                 var began = Now();
                 var evidence = Store(map, b, LocalSignature(b));

@@ -118,12 +118,12 @@ and reads the defs under `Data/*/Defs`. Columns:
   and leaves new defs unowned.
 
 `policy.ThoughtAuditRow` embeds the table (it stays beside the policy package that owns the
-owner column, so neither policy nor the bridge imports the other for it). The bridge's
-`DefinitionCatalog.ThoughtFacts` joins a catalog `ThoughtDef` row with that row into
+owner column); the mood ledger reads a def's owners from it, and a def with no table row
+(modded, or new since the last regeneration) has none. The bridge's
+`DefinitionCatalog.ThoughtFacts` projects a catalog `ThoughtDef` row into
 `policy.ThoughtFacts`: `WorstOffset` (lowest stage `BaseMoodEffect`; null stages skipped),
-`NullifyingTraits`, `NullifyingPrecepts`, `RequiredTraits`, `MinExpectation`, `Dependency` and
-`Owner`. A def with no table row (modded, or new since the last regeneration) gets the
-dependency `unclassified` and no owner. Policy stays catalog-free.
+`NullifyingTraits`, `NullifyingPrecepts`, `RequiredTraits` and `MinExpectation`. Policy stays
+catalog-free.
 
 There is no check mode; a stale row shows as unowned. Modded thoughts are out of scope.
 `HighExpectations`, `SkyHighExpectations` and `AteAwfulMeal` are not ThoughtDefs in the

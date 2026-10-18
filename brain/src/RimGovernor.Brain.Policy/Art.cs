@@ -31,7 +31,7 @@ public sealed record ArtDemand
 /// <summary>When an art bill may choose the sculpture of a rank.</summary>
 internal readonly record struct SculptureRankGate(double MinGap, int MinSkill);
 
-internal sealed record SculptureRoom(string Id, FurnitureRoom Room, double Gap);
+internal sealed record SculptureRoom(FurnitureRoom Room, double Gap);
 
 public static class ArtExtensions
 {
@@ -396,7 +396,7 @@ public static class ArtRules
                 var (_, _, ok) = RoomQualityRules.FreeSpotFacing(room, new Cell(1, 1), Rotation.North);
                 if (ok)
                 {
-                    output.Add(new SculptureRoom(id, room, gaps.GetValueOrDefault(id)));
+                    output.Add(new SculptureRoom(room, gaps.GetValueOrDefault(id)));
                 }
 
                 break;

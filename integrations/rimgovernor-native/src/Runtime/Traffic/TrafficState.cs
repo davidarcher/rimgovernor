@@ -9,10 +9,9 @@ namespace HomeBridge.BridgeTools
     // Observed pawn traffic per layer: every cell a pawn's path
     // follower enters counts once on the pawn's layer, and on the crossing
     // layer when the step carries soil onto a floor. Counts are not saved
-    // (no ExposeData state): a load starts from zero and SinceTick names the
-    // window's start so a short window is not read as a quiet colony. The
-    // class keeps its old name so saves listing the component still load,
-    // and lives in the Assemblies/ runtime: RimGovernor.Host loads the
+    // (no ExposeData state): a load starts from zero. The class keeps its
+    // old name so saves listing the component still load, and lives in the
+    // Assemblies/ runtime: RimGovernor.Host loads the
     // BridgeTools assembly after a save can already be read, so the type
     // database would not resolve it there.
     public sealed class TrafficState : MapComponent
@@ -24,7 +23,6 @@ namespace HomeBridge.BridgeTools
         private static readonly AccessTools.FieldRef<Pawn_PathFollower, Pawn> followerPawn = AccessTools.FieldRefAccess<Pawn_PathFollower, Pawn>("pawn");
 
         public readonly TrafficCounts Counts;
-        public int SinceTick = -1;
 
         public TrafficState(Map map) : base(map)
         {
@@ -35,7 +33,6 @@ namespace HomeBridge.BridgeTools
         public override void MapComponentTick()
         {
             var tick = Find.TickManager.TicksGame;
-            if (SinceTick < 0) SinceTick = tick;
             if (tick % DecayInterval == 0) Counts.Decay(DecayInterval);
         }
 

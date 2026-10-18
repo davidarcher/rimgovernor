@@ -58,8 +58,6 @@ public sealed record SurgeryChoice
 
     public int Part { get; init; }
 
-    public SurgeryKind Kind { get; init; }
-
     /// <summary>An upgrade on a healthy part.</summary>
     public bool Elective { get; init; }
 
@@ -73,17 +71,12 @@ public sealed record SurgeryWant
 
     public int Part { get; init; }
 
-    /// <summary>The best recipe wanted.</summary>
-    public string Recipe { get; init; } = "";
-
     public SurgeryWantReason Reason { get; init; }
 
-    /// <summary>Every candidate recipe for the part, best first; Value is the best one's rank, the same scale as SurgeryChoice.Value.</summary>
-    public IReadOnlyList<string> Options { get; init; } = [];
-
-    /// <summary>The part items of the options that install one, in order.</summary>
+    /// <summary>The part items of the part's candidate recipes that install one, best first.</summary>
     public IReadOnlyList<Resource> Items { get; init; } = [];
 
+    /// <summary>The best candidate's rank, the same scale as SurgeryChoice.Value.</summary>
     public double Value { get; init; }
 }
 
@@ -390,14 +383,10 @@ public static partial class SurgeryRules
     private static (SurgeryChoice? Choice, SurgeryWant Want) SelectPartSurgery(PawnId pawn, int part, double weight, List<SurgeryOperation> ops, bool elective)
     {
         var sorted = ops.OrderByDescending(OpTier).ToList();
-        sorted[0].Recipe.TryGetValue(out var top);
         sorted[0].PartDefName.TryGetValue(out var topPart);
-        var options = new List<string>();
         var items = new List<Resource>();
         foreach (var op in sorted)
         {
-            op.Recipe.TryGetValue(out var recipe);
-            options.Add(recipe ?? "");
             if (!op.Item.IsEmpty)
             {
                 items.Add(op.Item);
@@ -433,7 +422,6 @@ public static partial class SurgeryRules
                     Recipe = recipe ?? "",
                     Item = op.Item,
                     Part = part,
-                    Kind = op.Kind,
                     Elective = elective,
                     Value = (OpTier(op) - natural) * weight,
                 },
@@ -446,10 +434,8 @@ public static partial class SurgeryRules
         {
             Pawn = pawn,
             Part = part,
-            Recipe = top ?? "",
             Reason = reason,
             Value = sorted[0].Tier * PartWeight(topPart ?? ""),
-            Options = options,
             Items = items,
         };
     }

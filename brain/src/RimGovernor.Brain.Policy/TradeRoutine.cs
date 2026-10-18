@@ -20,8 +20,6 @@ public sealed record TraderFacts
 
     public string Kind { get; init; } = "";
 
-    public string Faction { get; init; } = "";
-
     public bool CanTrade { get; init; }
 
     public bool Travelling { get; init; }
@@ -32,11 +30,10 @@ public sealed record TraderFacts
 }
 
 /// <summary>
-/// The colony wealth split native's WealthWatcher reports: the market value held as items, buildings and pawns,
-/// and their total. Items count in full toward storyteller wealth where buildings count half, which is why the
+/// The colony wealth native's WealthWatcher reports: the market value held as items, and the total. Items count in full toward storyteller wealth where buildings count half, which is why the
 /// surplus rule keys on the item share.
 /// </summary>
-public sealed record WealthFacts(double Items, double Buildings, double Pawns, double Total);
+public sealed record WealthFacts(double Items, double Total);
 
 /// <summary>
 /// What the review measured worth trading for: the medicine units medical/reserves wants, the components

@@ -75,15 +75,12 @@ public sealed class YardRunwayTests
     public void UnknownInflowAndNoStrandedStockAsksNothing()
     {
         Assert.Equal(0, StoreRules.YardDemand(Request(100, null)));
-        Assert.False(StoreRules.StoreCapacity(Request(100, null), Yard).RunwayDays.IsKnown);
     }
 
     [Fact]
     public void ADrainingYardAsksNothing()
     {
-        var request = Request(99, -3);
-        Assert.Equal(0, StoreRules.YardDemand(request));
-        Assert.Equal(Known(double.PositiveInfinity), StoreRules.StoreCapacity(request, Yard).RunwayDays);
+        Assert.Equal(0, StoreRules.YardDemand(Request(99, -3)));
     }
 
     [Fact]

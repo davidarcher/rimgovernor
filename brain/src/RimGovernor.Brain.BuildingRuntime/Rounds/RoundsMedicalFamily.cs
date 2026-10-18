@@ -193,11 +193,11 @@ public sealed class MedicalRounds
                 var pawn = new PawnId(row.Pawn.Id ?? "");
                 if (workers.Contains(pawn))
                 {
-                    doctors.Add(TendFacts.NewTendDoctorFacts(pawn, row, ""));
+                    doctors.Add(TendFacts.NewTendDoctorFacts(pawn, row));
                 }
                 if (eligible.Contains(pawn))
                 {
-                    tendPatients.Add(TendFacts.NewTendPatientFacts(pawn, row, "") with { Threatened = threatened.Contains(pawn) });
+                    tendPatients.Add(TendFacts.NewTendPatientFacts(pawn, row) with { Threatened = threatened.Contains(pawn) });
                 }
             }
             care = care with { Doctors = doctors, TendPatients = tendPatients, Reach = TendFacts.TendReachabilityOf(observed.Pawns) };
@@ -215,11 +215,11 @@ public sealed class MedicalRounds
                 var pawn = new PawnId(row.Pawn.Id ?? "");
                 if (workers.Contains(pawn))
                 {
-                    rescuers.Add(RescueFacts.NewRescuerFacts(pawn, row, ""));
+                    rescuers.Add(RescueFacts.NewRescuerFacts(pawn, row));
                 }
                 if (eligible.Contains(pawn))
                 {
-                    rescuePatients.Add(RescueFacts.NewRescuePatientFacts(pawn, row, ""));
+                    rescuePatients.Add(RescueFacts.NewRescuePatientFacts(pawn, row));
                 }
             }
             care = care with { Rescuers = rescuers, RescuePatients = rescuePatients };

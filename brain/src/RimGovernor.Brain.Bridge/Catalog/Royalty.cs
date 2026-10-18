@@ -74,15 +74,15 @@ public sealed partial class DefinitionCatalog
         return rung with { Throne = Known(throne with { ForbiddenDefs = ForbiddenDefs(throne) }) };
     }
 
-    /// <summary>A title's bedroom requirements: the largest area and impressiveness any requires (Have* when one does), whether a floor is required, and the furniture.</summary>
-    private sealed record BedroomNeed(int Area, bool HaveArea, int Impressiveness, bool HaveImpressiveness, bool Floored, IReadOnlyList<P.BedroomThing> Things);
+    /// <summary>A title's bedroom requirements: the largest area and impressiveness any requires (Have* when one does) and the furniture.</summary>
+    private sealed record BedroomNeed(int Area, bool HaveArea, int Impressiveness, bool HaveImpressiveness, IReadOnlyList<P.BedroomThing> Things);
 
     // Title's bedroomRequirements, skipping each whose disablingPrecepts <paramref name="disabled"/> reports waived. A
     // requirement with no furniture is an error.
     private static BedroomNeed BedroomRequirements(RoyalTitleDef title, Func<IEnumerable<string>, bool> disabled)
     {
         int area = 0, impressiveness = 0;
-        bool haveArea = false, haveImpressiveness = false, floored = false;
+        bool haveArea = false, haveImpressiveness = false;
         var things = new List<P.BedroomThing>();
 
         void Thing(IEnumerable<ThingDef> anyOf, int count)
@@ -114,9 +114,6 @@ public sealed partial class DefinitionCatalog
                 case RoomRequirement_Impressiveness i:
                     (haveImpressiveness, impressiveness) = (true, Math.Max(impressiveness, i.impressiveness));
                     break;
-                case RoomRequirement_TerrainWithTags:
-                    floored = true;
-                    break;
                 case RoomRequirement_ThingAnyOfCount any:
                     Thing(any.things.Seq(), any.count);
                     break;
@@ -132,18 +129,18 @@ public sealed partial class DefinitionCatalog
             }
         }
 
-        return new BedroomNeed(area, haveArea, impressiveness, haveImpressiveness, floored, things);
+        return new BedroomNeed(area, haveArea, impressiveness, haveImpressiveness, things);
     }
 
     /// <summary>
-    /// The bedroom picture of a holder's most senior title: the RoyalTitleDef row's seniority and bedroom requirements,
+    /// The bedroom picture of a holder's most senior title: the RoyalTitleDef row's bedroom requirements,
     /// less those the holder waives (an ascetic has none; a requirement whose disablingPrecepts the holder's ideoligion
     /// holds is dropped). A title with no row is an error.
     /// </summary>
     public P.RoyalTitle RoyalTitleOf(string title, bool ascetic, IReadOnlyCollection<string> precepts)
     {
         var row = RequireRow<RoyalTitleDef>(title);
-        var result = new P.RoyalTitle { Definition = title, Seniority = row.seniority };
+        var result = new P.RoyalTitle();
         if (ascetic)
         {
             return result;
@@ -154,7 +151,6 @@ public sealed partial class DefinitionCatalog
         {
             BedroomMinArea = need.Area,
             BedroomMinImpressiveness = need.Impressiveness,
-            BedroomFloored = need.Floored,
             BedroomThings = Domain.EquatableArray.From(need.Things),
         };
     }

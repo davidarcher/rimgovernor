@@ -104,7 +104,7 @@ partial record PlannedRoom
         var output = new List<WantedPiece>(layout.Count);
         foreach (var p in layout)
         {
-            output.Add(new WantedPiece { DefName = TrainingRules.RangeDefNames[p.Kind], Minimum = p.Cell, Maximum = p.Cell, Slot = $"{p.Kind}-{p.Column}", Size = new Cell(1, 1), Rot = Rotation.North });
+            output.Add(new WantedPiece { DefName = TrainingRules.RangeDefNames[p.Kind], Minimum = p.Cell, Maximum = p.Cell, Size = new Cell(1, 1), Rot = Rotation.North });
         }
         return output;
     }

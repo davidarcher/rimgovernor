@@ -553,7 +553,6 @@ public static class RoundsReads
                 Participant = row.Participant,
                 ID = row.Id,
                 Kind = row.Kind,
-                Faction = row.Faction,
                 CanTrade = row.CanTrade,
                 Travelling = row.Travelling,
                 GoodsStacks = row.GoodsStacks,

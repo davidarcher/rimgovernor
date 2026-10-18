@@ -74,9 +74,6 @@ public sealed record LostEffect
 
     /// <summary>The bench that is slowed (BenchSpeed only).</summary>
     public string Def { get; init; } = "";
-
-    /// <summary>The rate multiplier applied (BenchSpeed only).</summary>
-    public double Factor { get; init; }
 }
 
 /// <summary>A room's predicted native role and every role's score.</summary>
@@ -440,7 +437,7 @@ public static partial class RoomRoleRules
             {
                 if (n.Kind == EnvNeedKind.Role && n.Role != pred.Role)
                 {
-                    output.Add(new LostEffect { Effect = RoleEffect.BenchSpeed, Role = n.Role, Def = p.Def, Factor = n.Factor });
+                    output.Add(new LostEffect { Effect = RoleEffect.BenchSpeed, Role = n.Role, Def = p.Def });
                 }
             }
         }
