@@ -192,7 +192,7 @@ public sealed partial class ClockScheduler
     {
         if (!ImmediateConfigured())
         {
-            return await RunPlannerWaveAsync(result, sel, (status.Context?.Tick).GetValueOrDefault(), false, call, epoch).ConfigureAwait(false);
+            return await RunPlannerWaveAsync(result, sel, (status.Context?.Tick).GetValueOrDefault(), false, "all", call, epoch).ConfigureAwait(false);
         }
 
         bool Selected(PlannerEntry e) => sel.Pick is null || sel.Pick(e);
@@ -206,7 +206,7 @@ public sealed partial class ClockScheduler
         if (immediate)
         {
             var urgent = sel with { Pick = e => Selected(e) && ImmediatePlanner(e) };
-            names.AddRange(await RunPlannerWaveAsync(result, urgent, (status.Context?.Tick).GetValueOrDefault(), true, call, epoch).ConfigureAwait(false));
+            names.AddRange(await RunPlannerWaveAsync(result, urgent, (status.Context?.Tick).GetValueOrDefault(), true, null, call, epoch).ConfigureAwait(false));
             Queue.All = false;
             foreach (var e in Queue.Entries())
             {
@@ -253,7 +253,7 @@ public sealed partial class ClockScheduler
         result.Immediate = false;
         try
         {
-            names.AddRange(await RunPlannerWaveAsync(result, ordinary, (status.Context?.Tick).GetValueOrDefault(), false, call, epoch).ConfigureAwait(false));
+            names.AddRange(await RunPlannerWaveAsync(result, ordinary, (status.Context?.Tick).GetValueOrDefault(), false, "all", call, epoch).ConfigureAwait(false));
         }
         catch (OperationCanceledException e) when (!call.IsCancellationRequested)
         {

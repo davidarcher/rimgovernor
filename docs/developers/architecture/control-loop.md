@@ -800,6 +800,18 @@ the clock runs except an authority change or a loss on the event queue; nothing 
 for progress; there is no wall-time step interval and no back-off. A review that finds nothing
 dirty or due is a clock read and a `Run`.
 
+The rounds review has a cadence of its own, the second and last number (#3556):
+`ClockSchedulerConfig.RoundsEveryTicks` (2500, one in-game hour, the planners' own default
+cadence). A review step whose planners are dirty or due runs the rounder first only when the last
+committed rounds review has stood an hour; otherwise its planners read the last committed review
+from the journal, as every family step already does, and the step reports `rounds` `last` on its
+`clock_step` row. An early review (any hold but the review tick) and a step that runs every
+planner (a full step, an authority change) review first regardless. The rounds review derives
+the colony model, the stock, the planned sites and the coupled search from facts that rarely
+change in 600 ticks, and it was the cost of the common review; a need that first appears
+between two rounds reviews waits at most an hour for its ranking, while the planners that
+already hold a ranking keep acting on it every 600 ticks.
+
 ```mermaid
 stateDiagram-v2
     [*] --> Held: NeverRun
@@ -954,10 +966,12 @@ table in [brain host](brain-host.md#live-clock-baseline).
 | Combat fallback speed | Normal | `ClockCombatStops.FallbackSpeed` |
 | Autosave cadence | one in-game day | `ClockRunConfig.DefaultAutosaveEveryTicks` |
 | Review cadence | 600 ticks from the step's read to the review hold the `Run` names | `ClockRunConfig.DefaultReviewEveryTicks` |
+| Rounds cadence | 2500 ticks (one in-game hour) a committed rounds review stands before a review step runs the rounder again | `ClockSchedulerConfig.DefaultRoundsEveryTicks` |
 
-The review cadence is the one chosen number of the control loop; the budget it serves is under
-2 wall minutes of brain time per in-game day (about 100 reviews, 0.65 s each on average, a
-no-op review tens of milliseconds). Its measurement is in [brain host](brain-host.md#live-clock-baseline).
+The review cadence and the rounds cadence are the two chosen numbers of the control loop; the
+budget they serve is under 2 wall minutes of brain time per in-game day (about 100 reviews,
+0.65 s each on average, a no-op review tens of milliseconds). Their measurement is in
+[brain host](brain-host.md#live-clock-baseline).
 
 ### What was removed
 
@@ -1032,10 +1046,10 @@ sequenceDiagram
 
 | Trigger | Work |
 | --- | --- |
-| `review`: the review tick the last `Run` named held the clock, and nothing else woke the step | Dirty planners (the invalidations since the last review) and due entries; with none, the driver tail alone |
-| `wake`: any other hold (a hazard, a letter, a game pause, a brain hold), or an authority change or a loss under a running clock | An early review of everything: every planner not waiting on a dependency; a hold with evidence selects its consumers; authority changes expand to all |
+| `review`: the review tick the last `Run` named held the clock, and nothing else woke the step | Dirty planners (the invalidations since the last review) and due entries, against the last committed rounds review unless it has stood the rounds cadence; with none, the driver tail alone |
+| `wake`: any other hold (a hazard, a letter, a game pause, a brain hold), or an authority change or a loss under a running clock | An early review of everything: the rounder, then every planner not waiting on a dependency; a hold with evidence selects its consumers; authority changes expand to all |
 | `retry`: the step after one that did not complete, deferred, or left the clock held | Dirty and due planners, as a review |
-| `full`: the first step, a step after idle, a loss on the event queue, or a `review` or `retry` step promoted by the two-minute safety net | Every planner |
+| `full`: the first step, a step after idle, a loss on the event queue, or a `review` or `retry` step promoted by the two-minute safety net | The rounder, then every planner |
 
 `clock_step` records why a step ran. `stop_latency_ms` measures native-hold-to-step
 time, not hazard onset to protective effect. `clock_run` records each `Run` (with the

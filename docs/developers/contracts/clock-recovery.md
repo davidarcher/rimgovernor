@@ -267,7 +267,7 @@ queues the `plannerCatalog` entries `plannerSelection` picks over its due queue
 | Cause | Entries run |
 | --- | --- |
 | `full` | every configured entry |
-| `review`, `retry` | entries an invalidation since the last step dirtied (their declared `sections` include one an `ObservationInvalidated` row dirtied, `facts.Invalidation.Sections`) and entries whose next review tick (`plannerEntry.reviewEvery`) has passed (see the code for per-class cadence); with nothing dirty or due the step runs the driver tail alone. Promoted to `full` once `FullStepEvery` has passed without a full wave |
+| `review`, `retry` | entries an invalidation since the last step dirtied (their declared `sections` include one an `ObservationInvalidated` row dirtied, `facts.Invalidation.Sections`) and entries whose next review tick (`plannerEntry.reviewEvery`) has passed (see the code for per-class cadence); with nothing dirty or due the step runs the driver tail alone. The rounder runs before them only when the last committed rounds review has stood `ClockSchedulerConfig.RoundsEveryTicks` (one in-game hour, #3556); otherwise the entries read that review. Promoted to `full` once `FullStepEvery` has passed without a full wave |
 | `wake` | the dirtied entries as above; a hold carrying no evidence (a hazard, a game pause, a brain hold) is an early review of everything and marks every entry; all of them when authority changed |
 
 An entry that reported `existing_work` waits on the open attempts of its kinds

@@ -69,22 +69,6 @@ internal sealed class PlannerQueue
     /// <summary>The planner table the queue tracks (the scheduler's); null means the full catalog.</summary>
     public Func<IReadOnlyList<PlannerEntry>>? Catalog { get; set; }
 
-    /// <summary>Copies the queue for a selection that must not persist its marks (the selection previews the step before the bundle read).</summary>
-    public PlannerQueue Clone()
-    {
-        return new PlannerQueue
-        {
-            _due = new Dictionary<string, long>(_due, StringComparer.Ordinal),
-            _dirty = new Dictionary<string, ulong>(_dirty, StringComparer.Ordinal),
-            _waits = new Dictionary<string, PlannerWait>(_waits, StringComparer.Ordinal),
-            _refused = new HashSet<string>(_refused, StringComparer.Ordinal),
-            _seq = _seq,
-            _all = _all,
-            Configured = Configured,
-            Catalog = Catalog,
-        };
-    }
-
     /// <summary>Lists the catalog planners the queue tracks.</summary>
     public IReadOnlyList<PlannerEntry> Entries()
     {
@@ -344,10 +328,4 @@ internal sealed class PlannerQueue
         }
         return open.Contains;
     }
-}
-
-internal static class PlannerQueueExtensions
-{
-    /// <summary>A copy of the queue, or a fresh one when there is none.</summary>
-    public static PlannerQueue CloneOrNew(this PlannerQueue? q) => q?.Clone() ?? new PlannerQueue();
 }

@@ -53,6 +53,12 @@ public sealed partial class ClockScheduler
     private long _lastTick;
     private bool _lastTickKnown;
     private DateTimeOffset _lastFull;
+
+    // The rounds cadence (#3556): the status tick of the step that last ran the rounder, and its result, which the
+    // steps between two rounds reviews report in place of their own (the shelter fact the run driver reads).
+    private long _lastRoundsTick;
+    private bool _roundsReviewed;
+    private RoundsResult? _lastRounds;
     private ReadValidity? _validity;
 
     // The latest step's clock-status context: its identity and scope are what the planner wave's section refreshes read under.
@@ -72,6 +78,10 @@ public sealed partial class ClockScheduler
         if (config.Rounds is not null && !ReferenceEquals(config.Rounds.Player, player))
         {
             throw new ControlException("NewClockScheduler: Rounds belongs to another player");
+        }
+        if (config.RoundsEveryTicks <= 0)
+        {
+            throw new ControlException("NewClockScheduler: the rounds cadence must be a positive number of ticks");
         }
         _player = player;
         _native = native;
@@ -99,6 +109,9 @@ public sealed partial class ClockScheduler
 
     /// <summary>The protection actions the immediate planners own that are still being watched.</summary>
     internal List<ActionId> Protection { get; } = [];
+
+    /// <summary>The last rounds review a step of this scheduler ran; null before the first. A step that ran no rounder reports none of its own, and the run driver reads this one.</summary>
+    internal RoundsResult? LastRounds => _lastRounds;
 
     /// <summary>Whether the latest step found the clock running.</summary>
     public bool ClockRunning => _running;
@@ -142,18 +155,29 @@ public sealed partial class ClockScheduler
     internal static FactScope FactScope(PbCommon.ObservationContext context) =>
         new(context.Identity.LoadToken, context.Identity.MapId, context.NativeGeneration.GetValueOrDefault());
 
-    private bool StepReviews(StepReason reason) =>
-        Config.Rounds is not null && PreviewSelection(reason).Planners;
-
-    // The selection a step for reason is expected to make once its status is read, judged at the tick the step
-    // expects to observe over a copy of the queue.
-    private PlannerSelectionResult PreviewSelection(StepReason reason)
+    /// <summary>
+    /// Why a step that runs planners runs the rounder first, or null when its planners read the last committed
+    /// review instead (#3556): <c>all</c> when every planner runs (a full step, an authority change), <c>wake</c>
+    /// on an early review (any hold but the review tick), <c>due</c> when no review has been committed since the
+    /// scheduler started, the tick went back, or the last review at <paramref name="lastTick"/> has stood
+    /// <paramref name="every"/> ticks at <paramref name="tick"/>. A review step between two due ticks that selects
+    /// only dirty and due planners is the step the cadence makes cheap.
+    /// </summary>
+    internal static string? RoundsSelection(StepCause cause, bool everyPlanner, long tick, bool reviewed, long lastTick, long every)
     {
-        if (Promotable(reason.Cause) && FullStepDue())
+        if (everyPlanner)
         {
-            reason = reason with { Cause = StepCause.Full };
+            return "all";
         }
-        return PlannerSelections.Of(reason, _queue.Clone(), _lastTick + Drift());
+        if (cause == StepCause.Wake)
+        {
+            return "wake";
+        }
+        if (!reviewed || tick < lastTick || tick - lastTick >= every)
+        {
+            return "due";
+        }
+        return null;
     }
 
     // The step's selection over the due queue at tick: a wake's evidence was folded when the step began. The waits
@@ -193,6 +217,7 @@ public sealed partial class ClockScheduler
         result.Stages.Lap("gate");
         Exception? failure = null;
         PlannerSelectionResult? sel = null;
+        string? rounds = null;
         // The round trips that still cross the bridge (frame misses and writes) are tallied by tool so the cost of
         // the composition is visible per step: as a clock_step row in the OTLP log ring, which `rimgovernor phases`
         // reports as reads/step.
@@ -204,7 +229,6 @@ public sealed partial class ClockScheduler
             {
                 _queue.Wake(reason);
             }
-            var reviews = StepReviews(reason);
             var zones = new ZoneRefresher(_native, _facts.Store);
             using var zoneScope = ZonesReads.WithZones(zones);
             var window = new PlanningWindow(_native, _facts.Store);
@@ -222,7 +246,6 @@ public sealed partial class ClockScheduler
             {
                 reason = reason with { Cause = StepCause.Full };
                 ReplanAfterFailure();
-                reviews = StepReviews(reason);
             }
             var scope = FactScope(loadedContext);
             window.Scope = scope;
@@ -277,9 +300,10 @@ public sealed partial class ClockScheduler
             result.Waiting = [.. sel.Waiting];
             if (sel.Planners && Config.Rounds is not null)
             {
+                rounds = RoundsSelection(reason.Cause, sel.Pick is null, statusTick, _roundsReviewed, _lastRoundsTick, Config.RoundsEveryTicks);
                 try
                 {
-                    result.Planners = await RunPlannerWaveAsync(result, sel, statusTick, false, call, epoch).ConfigureAwait(false);
+                    result.Planners = await RunPlannerWaveAsync(result, sel, statusTick, false, rounds, call, epoch).ConfigureAwait(false);
                 }
                 catch
                 {
@@ -366,6 +390,11 @@ public sealed partial class ClockScheduler
                 }
                 row["selection"] = selection;
             }
+            if (sel is { Planners: true } && Config.Rounds is not null)
+            {
+                // Whether the step ran the rounder and why, or `last`: its planners read the last committed review (#3556).
+                row["rounds"] = rounds ?? "last";
+            }
             var cause = result.Reason.Cause == default ? reason.Cause : result.Reason.Cause;
             var elapsed = Stopwatch.GetElapsedTime(entered);
             Metrics.RecordStepMetrics(cause, elapsed, result.CriticalWave, row);
@@ -380,8 +409,10 @@ public sealed partial class ClockScheduler
     /// are joined up to the wall budget; those
     /// still evaluating at that cutoff are cancelled, recorded on MissedCutoff and their results discarded. The
     /// coordinator then arbitrates the proposals that made the cutoff, and any carried from an earlier step.
+    /// <paramref name="rounds"/> is why the ordinary wave runs the rounder first (<see cref="RoundsSelection"/>); null
+    /// runs the planners against the last committed review. The immediate wave always runs the immediate review.
     /// </summary>
-    internal async Task<List<string>> RunPlannerWaveAsync(ClockSchedulerResult output, PlannerSelectionResult sel, long tick, bool immediate, CancellationToken call, CancellationToken epoch)
+    internal async Task<List<string>> RunPlannerWaveAsync(ClockSchedulerResult output, PlannerSelectionResult sel, long tick, bool immediate, string? rounds, CancellationToken call, CancellationToken epoch)
     {
         using var immediateScope = ReviewScope.BeginImmediate(immediate);
         var arbiter = new StepArbiter();
@@ -409,7 +440,7 @@ public sealed partial class ClockScheduler
             List<string> planners;
             try
             {
-                planners = await StepPlannersAsync(output, wave, arbiter, sel.Pick, sel.Why, immediate, call, epoch).ConfigureAwait(false);
+                planners = await StepPlannersAsync(output, wave, arbiter, sel.Pick, sel.Why, tick, immediate, rounds, call, epoch).ConfigureAwait(false);
             }
             catch
             {
@@ -477,20 +508,21 @@ public sealed partial class ClockScheduler
             kinds => plans is null ? [] : PlannerQueue.OpenWorkOfKinds(plans, kinds));
     }
 
-    // Runs the rounder synchronously first (every other planner's dispatch depends on being able to load the review
-    // it commits), then queues the configured catalog planners the pick selects (null: all) onto the wave sharing
-    // the arbiter, returning the queued names without waiting. The rounder's own error aborts before anything is
-    // queued; an error from a queued planner is isolated by the wave.
-    private async Task<List<string>> StepPlannersAsync(ClockSchedulerResult output, PlannerWave wave, StepArbiter arbiter, Func<PlannerEntry, bool>? pick, IReadOnlyDictionary<string, string>? why, bool immediate, CancellationToken call, CancellationToken epoch)
+    // Runs the rounder synchronously first when the step's rounds selection or the immediate wave asks for it (every
+    // other planner's dispatch depends on being able to load the review it commits; between two rounds reviews the
+    // planners load the last one, #3556), then queues the configured catalog planners the pick selects (null: all)
+    // onto the wave sharing the arbiter, returning the queued names without waiting. The rounder's own error aborts
+    // before anything is queued; an error from a queued planner is isolated by the wave.
+    private async Task<List<string>> StepPlannersAsync(ClockSchedulerResult output, PlannerWave wave, StepArbiter arbiter, Func<PlannerEntry, bool>? pick, IReadOnlyDictionary<string, string>? why, long tick, bool immediate, string? rounds, CancellationToken call, CancellationToken epoch)
     {
-        if (Config.Rounds is { } rounds)
+        if (Config.Rounds is { } rounder && (immediate || rounds is not null))
         {
             RoundsResult review;
             try
             {
                 review = immediate
-                    ? await rounds.ImmediateStepAsync(call, epoch).ConfigureAwait(false)
-                    : await rounds.StepAsync(arbiter, pick is not null, call, epoch).ConfigureAwait(false);
+                    ? await rounder.ImmediateStepAsync(call, epoch).ConfigureAwait(false)
+                    : await rounder.StepAsync(arbiter, pick is not null, call, epoch).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -506,6 +538,7 @@ public sealed partial class ClockScheduler
             output.Stages.Lap("rounds");
             if (!immediate)
             {
+                (_lastRoundsTick, _roundsReviewed, _lastRounds) = (tick, true, review);
                 await EstablishExtentAsync(review.Review.Tick, call).ConfigureAwait(false);
                 output.Stages.Lap("extent");
             }

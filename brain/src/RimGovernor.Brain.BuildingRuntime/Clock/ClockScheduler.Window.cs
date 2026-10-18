@@ -28,9 +28,6 @@ public sealed partial class ClockScheduler
 
     internal bool LastTickKnown => _lastTickKnown;
 
-    /// <summary>The ticks the running clock's pace covers in the step's wall: what a step expects the tick to have moved by since its predecessor.</summary>
-    private long Drift() => (long)(Pace.LiveTicks * Config.MaxAge.TotalSeconds);
-
     /// <summary>
     /// Measures the running clock's pace from the previous step's status tick: the pace the step's read validity
     /// widens its bounds by. A held or never-run clock, or a pace not yet measured, leaves the pace at zero so a

@@ -102,31 +102,3 @@ public sealed record StepReason
         return b.ToString();
     }
 }
-
-internal static class PlannerSelections
-{
-    /// <summary>
-    /// Decides which catalog planners a step for <paramref name="reason"/> runs at <paramref name="tick"/>, over
-    /// a copy of the due queue <paramref name="q"/>: a full step runs every planner; a retry step runs the planners
-    /// dirty or due at the tick; a review or wake step folds its evidence first (the consumers of the dirty
-    /// sections, everything on an authority change, everything on a hold other than the review tick carrying
-    /// nothing selectable) and runs the dirty and due planners. The result's pick is null when every planner runs.
-    /// </summary>
-    public static PlannerSelectionResult Of(StepReason reason, PlannerQueue? q, long tick)
-    {
-        var copy = q.CloneOrNew();
-        switch (reason.Cause)
-        {
-            case StepCause.Full:
-                return copy.Selection(tick, true, null);
-            case StepCause.Retry:
-                return copy.Selection(tick, false, null);
-            case StepCause.Review:
-            case StepCause.Wake:
-                copy.Wake(reason);
-                return copy.Selection(tick, false, null);
-            default:
-                return copy.Selection(tick, true, null);
-        }
-    }
-}

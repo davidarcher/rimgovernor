@@ -12,8 +12,20 @@ public sealed class ClockSchedulerConfig
     /// <summary>Whether the Worker dispatches orders; gates the rules window and the dispatch turn.</summary>
     public bool Worker { get; init; }
 
-    /// <summary>How long a timer step may skip the planners before the safety net promotes one to a full step; zero means <see cref="ClockScheduler.DefaultFullStepEvery"/>.</summary>
+    /// <summary>How long review steps may run the due queue alone before the safety net promotes one to a full step; zero means <see cref="ClockScheduler.DefaultFullStepEvery"/>.</summary>
     public TimeSpan FullStepEvery { get; init; }
+
+    /// <summary>
+    /// The rounds cadence (#3556): how many game ticks a committed rounds review stands before a review step runs the
+    /// rounder again. One in-game hour, the planners' own default cadence. Between two rounds reviews a review step
+    /// runs its dirty and due planners against the last committed review; a wake (an early review) and a step that
+    /// runs every planner review first regardless. The rounds review is the step's cost (derive, acquisition, the
+    /// coupled search), and its inputs rarely change in the 600 ticks between reviews.
+    /// </summary>
+    public const long DefaultRoundsEveryTicks = GameTime.TicksPerHour;
+
+    /// <summary>The game ticks a rounds review stands before a review step reviews again; must be positive.</summary>
+    public long RoundsEveryTicks { get; init; } = DefaultRoundsEveryTicks;
 
     public StepBudget Budget { get; init; } = new();
 

@@ -360,7 +360,8 @@ passing colony-review day of the same colony):
   and the continuous facts (mood, temperature) left out or banded, and the laps that cost (the review's coupled
   search over the needs forecasts, the planned sites priced per colonist, the stock) are the ones that read exactly
   those. The issue's fallback, a full rounds review on its own cadence with the common review reading the last
-  committed one, is the remaining shape; it is not taken here (#3556 ruled it the fallback). Rounds this day:
+  committed one, is the remaining shape; it is not taken here (#3556 ruled it the fallback) and was taken once the
+  600-tick cadence had landed ([rounds cadence](#rounds-cadence-3556)). Rounds this day:
   1409 ms p50 (review 529, derive 155, d_planned 119, d_stock 80). One lead outside rounds: the colony facts read
   (`hop_run` `facade/observations_read_colony_facts`) costs 614 ms p50 of game-thread time per step, 12.5 s over
   the day, more than any rounds lap.
