@@ -28,6 +28,10 @@ While the bot is on, the game ignores your speed and pause input (space, 1, 2, 3
 buttons) and shows a message saying why. Press Pause in the launcher to take the clock back; the keys work
 again as soon as the bot is off.
 
+The clock in the bottom-right date readout shows the viewed tile's local time as an AM/PM time with seconds
+("3:45:12 PM") in place of the game's hour, whatever the game's 12/24-hour setting. A game hour is 2,500 ticks,
+so the seconds advance by one or two per tick.
+
 ## Watch the governor
 
 Auto can account for learning while assigning useful cooking. A slower cook may
