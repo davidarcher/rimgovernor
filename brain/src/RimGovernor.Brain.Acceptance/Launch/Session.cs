@@ -26,6 +26,9 @@ public static class GameSessions
     private const string OtlpDirectoryVariable = "RIMGOVERNOR_OTLP_DIR";
     private const string RunIdVariable = "RIMGOVERNOR_RUN_ID";
 
+    /// <summary>What a connect error says when the game died while booting (the crash-dump postmortem reads it).</summary>
+    internal const string ExitedBeforeChannel = "exited before its channel came up";
+
     /// <summary>
     /// The launch spec for <paramref name="gameId"/> from <c>games.&lt;gameId&gt;</c> of <paramref name="configDir"/>'s
     /// config.json; the running game's records live under <paramref name="configDir"/>, so every session of one
@@ -213,7 +216,7 @@ public static class GameSessions
         {
             if (!game.Alive)
             {
-                throw new AcceptanceException(ExitedMessage(stateDir, gameId, string.Create(CultureInfo.InvariantCulture, $"connect: the game (pid {game.Pid}) exited before its channel came up")));
+                throw new AcceptanceException(ExitedMessage(stateDir, gameId, string.Create(CultureInfo.InvariantCulture, $"connect: the game (pid {game.Pid}) {ExitedBeforeChannel}")));
             }
 
             if (EndpointFile.Read(directory) is { } endpoint && endpoint.Address.Length > 0 && endpoint.Pid == game.Pid)

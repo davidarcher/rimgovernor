@@ -56,7 +56,7 @@ public sealed class Digest
     /// <summary>The run's error, from result.json (or the live report).</summary>
     public string Error { get; }
 
-    /// <summary>In the order the digest is read: revision, stage graph, refusals, rounds, colony extent, unsuccessful stages, job failures, authority generations.</summary>
+    /// <summary>In the order the digest is read: revision, crash dump, refusals, rounds, colony extent, unsuccessful stages, job failures, authority generations.</summary>
     public IReadOnlyList<DigestSection> Sections { get; }
 
     /// <summary>The digest as the report's <c>diagnosis</c> value: <c>case</c> and <c>error</c> when set, then <c>sections</c>.</summary>

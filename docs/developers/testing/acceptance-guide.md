@@ -270,6 +270,15 @@ A run that cannot succeed fails at once with its cause as the `error`: the game 
 exited (exit code and `game.log` tail), or two consecutive native calls got no reply
 (`native unreachable`). A checkpoint whose native reads fail ends the run the same way.
 
+A case launch also sets the runtime's crash-dump variables (`DOTNET_DbgEnableMiniDump`,
+`DOTNET_DbgMiniDumpType=1`, `DOTNET_DbgMiniDumpName=<case output>/coreclr-%p.dmp`; the game's
+CoreCLR ships `createdump.exe`), so a crashing game leaves a minidump beside the case
+evidence. The postmortem's `crash dump` section names it and, when the game exited
+with 0xC0000005 before its channel came up (the intermittent MonoMod JIT-hook crash,
+#3190), the tail of the case's `game.log`. A kept process dumps into the case that
+launched it; the dump path never forces a relaunch. The dump holds process memory, so
+the remote exporter does not upload it (see [remote acceptance](../contracts/remote-acceptance.md)).
+
 `acceptance warm -root <root>` prepares the menu before a run.
 Use the suite runner for worker isolation and parallel cases rather than
 sharing one profile between independent runners.

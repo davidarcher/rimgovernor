@@ -52,6 +52,7 @@ public static class Postmortems
         var sections = new List<DigestSection>();
         var rows = LogRows(dir);
         sections.Add(Revision(facts.InstalledPackage, cancellationToken));
+        sections.Add(PostmortemCrash.CrashDumps(dir, facts.Error ?? ""));
         sections.Add(Refusals(dir, rows));
         var (db, storeNote) = PostmortemStore.OpenRaw(dir);
         using (db)

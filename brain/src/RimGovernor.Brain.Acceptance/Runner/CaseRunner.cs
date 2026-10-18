@@ -65,8 +65,6 @@ public sealed class CaseRunner
         var logConfig = new Config { Root = opts.Root, Headless = headless, GameId = opts.GameId };
         var gameLog = GameLogCapture.Open(logConfig.StartupLogPath());
 
-        // The log copy lands only in an output directory this run owns.
-        var opened = false;
         Digest? diagnosis = null;
         IReadOnlyList<DriftFlag> drift = [];
         CaseOutcome Finish()
@@ -75,11 +73,6 @@ public sealed class CaseRunner
 
             // What this result proves, derived from the case and from what the run recorded.
             Provenance.Stamp(c, report);
-            if (opened)
-            {
-                gameLog.Close(output, report);
-            }
-
             var exit = report.Finalize(output);
             if (!opts.NoSeries)
             {
@@ -105,8 +98,6 @@ public sealed class CaseRunner
             report["error"] = e.Message;
             return Finish();
         }
-
-        opened = true;
 
         // A case is held to its ticks, not the wall clock: its hang guard cuts a hung body (RunOpenedAsync), and a
         // passing claim never fails on time, so the report carries no budget.
@@ -147,6 +138,9 @@ public sealed class CaseRunner
             error = error is null ? soft : new AcceptanceException(ErrorText(error) + "\n" + ErrorText(soft));
         }
 
+        // The log copy lands only in an output directory this run owns (the early returns above own none), and before the
+        // postmortem, which reads its tail after a startup crash.
+        gameLog.Close(output, report);
         if (error is not null)
         {
             report["error"] = ErrorText(error);
@@ -390,7 +384,7 @@ public sealed class CaseRunner
         StartupRows.Check(output, cfg.Headless);
     }
 
-    private static Config NewConfig(AcceptanceCase c, RunOptions opts, string output)
+    internal static Config NewConfig(AcceptanceCase c, RunOptions opts, string output)
     {
         var cfg = new Config
         {
@@ -401,6 +395,11 @@ public sealed class CaseRunner
             QuietWorld = c.QuietWorld,
         };
         cfg.LaunchEnv[HeadlessProfile.StateVariable] = Path.Combine(output, Checkpoints.CheckpointStoreFile);
+        foreach (var (name, value) in CrashDump.LaunchEnv(output))
+        {
+            cfg.LaunchEnv[name] = value;
+        }
+
         if (c.Serve?.Families is { } families)
         {
             cfg.LaunchEnv["RIMGOVERNOR_ROUTINE_FAMILIES"] = string.Join(",", families);

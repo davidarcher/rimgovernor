@@ -465,14 +465,16 @@ public static partial class HeadlessProfile
     /// <summary>
     /// "env" when the process was launched without an entry <paramref name="wanted"/> asks for (or with another value),
     /// else "". The state database path (<see cref="StateVariable"/>) differs per run by design, so it never forces a
-    /// relaunch: the readers follow the recorded path instead.
+    /// relaunch: the readers follow the recorded path instead. So does the crash dump path
+    /// (<see cref="CrashDump.NameVariable"/>): a kept process dumps into the case that launched it, and the startup crash
+    /// it is for happens in that case.
     /// </summary>
     public static string LaunchedEnvMismatch(string configDir, IReadOnlyDictionary<string, string> wanted)
     {
         var launched = ReadLaunchedEnv(configDir) ?? new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var (name, value) in wanted)
         {
-            if (name == StateVariable)
+            if (name is StateVariable or CrashDump.NameVariable)
             {
                 continue;
             }
