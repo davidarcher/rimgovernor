@@ -33,8 +33,6 @@ public sealed record ColonyThreat
 
     public Fact<double> DaysPassed { get; init; }
 
-    public Fact<double> AdaptationDays { get; init; }
-
     /// <summary>The hostile lords seen on the map since load.</summary>
     public IReadOnlyList<RaidTrack> Raids { get; init; } = [];
 
@@ -62,7 +60,6 @@ public sealed record ColonyThreat
             HostileFactions = Known(facts.HostileFactions),
             Storyteller = string.IsNullOrEmpty(facts.Storyteller) ? Unknown<string>() : Known(facts.Storyteller),
             DaysPassed = Number(facts.DaysPassed),
-            AdaptationDays = Number(facts.AdaptationDays),
             Raids = DefenseSiteRules.DecodeRaidTracks(facts.Raids),
         };
     }

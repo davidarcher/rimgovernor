@@ -9,13 +9,12 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class ThreatFactsTests
 {
     [Fact]
-    public void TheStorytellerDaysPassedAndAdaptationDaysProject()
+    public void TheStorytellerAndDaysPassedProject()
     {
-        var threat = ColonyThreat.ProjectColonyThreat(Census(new ThreatFacts { Storyteller = "Cassandra", DaysPassed = 12.5, AdaptationDays = -3 }));
+        var threat = ColonyThreat.ProjectColonyThreat(Census(new ThreatFacts { Storyteller = "Cassandra", DaysPassed = 12.5 }));
 
         Assert.Equal("Cassandra", threat.Storyteller.Value);
         Assert.Equal(12.5, threat.DaysPassed.Value);
-        Assert.Equal(-3, threat.AdaptationDays.Value);
     }
 
     [Fact]
@@ -25,7 +24,6 @@ public sealed class ThreatFactsTests
 
         Assert.False(threat.Storyteller.IsKnown);
         Assert.False(threat.DaysPassed.IsKnown);
-        Assert.False(threat.AdaptationDays.IsKnown);
         Assert.False(ColonyThreat.ProjectColonyThreat(new ColonyFactsSnapshot()).Storyteller.IsKnown);
     }
 

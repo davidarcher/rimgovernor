@@ -2,15 +2,15 @@
 
 [Architecture](overview.md) · [Normal portfolio selection](portfolio-selection.md) · [ColonyForecast](colony-forecast.md) · [Combat predictability](combat-predictability-research.md)
 
-**Status: milestone 3 and the tier-2 model with its investment credit (#3531) are implemented; the larger search is proposed.**
+**Status: milestones 3 and 5 (harm model v1) and the tier-2 model with its investment credit (#3531) are implemented; the larger search is proposed.**
 Tier-1 selection ranks on the safety floors, then on capability-days ([Comparator](#comparator) describes what runs).
 `ForecastValue.Of` (#3520, #3521) prices hunger, rest, food poisoning, thermal exposure, mood breaks and
 wellbeing per outcome; `ForecastValue.Explain` (#3522) adds the floors; `coupled_selection` reports both ([policy constants](../contracts/kept-constants.md#policy-constants-3469),
-[tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm (#3546) is priced when the harm inputs are observed and calibrated, else unknown with a specific finding; investment is the tier-2 credit of research and sowing blocks ([Marginal value of progress](#tier-2-event-driven-colony-model)), 0 for any other outcome. The player's goals add a gain term ([Goal value](#goal-value), #3503).
+[tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm (#3546, [harm model](#harm-model)) is priced when the harm inputs are observed and the exposure table has a calibrated cell for the colony, else unknown with a specific finding (three cells are calibrated today); investment is the tier-2 credit of research and sowing blocks ([Marginal value of progress](#tier-2-event-driven-colony-model)), 0 for any other outcome. The player's goals add a gain term ([Goal value](#goal-value), #3503).
 The tier-2 model's input (`ColonyModelInput`, assembled per review by `RoundsColonyModel.InputOf` from the review frame, #3523) exists and names
 each section the frame did not carry. The model runs once per review, before the comparison (`RoundsColonyModel.Review`): the engine, the project graph and the
 valuation are in `Policy/ColonyModel`, and the `colony_model` event reports each run.
-Sections other than the comparator, the problems and the milestones describe the proposed design, not current behavior.
+Sections other than the comparator, the harm model, the problems and the milestones describe the proposed design, not current behavior.
 Selection is also described in [portfolio selection](portfolio-selection.md). The design replaced the rule that
 "no injury probability or universal conversion of death, mood and labor is invented". It arose from
 [#3435](https://github.com/davidarcher/rimgovernor/issues/3435): the coupled
@@ -292,7 +292,8 @@ raid harm per day. The output feeds the currency and the death floor.
    Every big threat before day 20 is a raid; after that, raids are about half.
    Size is `StorytellerUtility.DefaultThreatPointsNow`: a wealth curve plus
    points per colonist, × adaptation, × difficulty `threatScale`, × a
-   days-passed ramp, clamped to [35, 10,000].
+   days-passed ramp, clamped to [35, 10,000]. The model holds the observed
+   points over the horizon (they grow with wealth in tier 2's model, #3531).
 2. **Composition.** Points ÷ pawn-kind combat power gives raid size. The
    faction's pawn kinds give a distribution over about ten weapon bins, each
    with damage, armor penetration (damage × 0.015 unless the def sets it) and
@@ -311,11 +312,20 @@ raid harm per day. The output feeds the currency and the death floor.
    closed form: target choice is a weighted random draw, and outcomes depend
    on cover, pathing and projectiles (see
    [combat predictability](combat-predictability-research.md)). It is
-   calibrated from real-game combat sweeps, keyed by raid points ÷ defense
-   capacity bin and the pawn's role (the defense layout is reported, not keyed,
-   in v1). It is stored as ranges, so the uncertainty stays explicit. The harm
-   model reads the committed table (`RaidExposure`) and duplicates no
-   constants; see [raid exposure calibration](../testing/harm-exposure-calibration.md).
+   calibrated from real-game `acceptance sweep` runs of the lab fixtures (no
+   combat simulator is built), keyed by raid points ÷ defense capacity bin and
+   the pawn's role, taken from its worn primary weapon (the defense layout is
+   reported, not keyed, in v1). It is stored as ranges, so the uncertainty
+   stays explicit. The harm model reads the committed table (`RaidExposure`)
+   and duplicates no constants; see
+   [raid exposure calibration](../testing/harm-exposure-calibration.md).
+   **Calibrated today:** three cells, ratio 1 to 2 for gunners and ratio 2 to 4
+   for gunners and melee fighters, from 20-seed sweeps whose means held in a
+   second sweep. Every other cell (ratio under 1 or over 4, noncombatants, and
+   melee at 1 to 2) is uncalibrated: the harm term is unknown with
+   `exposure_cell_uncalibrated:<bin>/<role>` and the death floor is unassessed,
+   so a colony outside those cells compares on the other terms only. Fixtures
+   for the missing cells are #3561.
 4. **Armor response, per pawn and weapon bin.** For each layer covering the
    part hit (`ArmorUtility.GetPostArmorDamage`, outermost first), effective
    armor = max(rating − penetration, 0). The hit is deflected with chance
@@ -343,6 +353,13 @@ raid harm per day. The output feeds the currency and the death floor.
    Downs and deaths are thresholds, so each raid carries a small distribution
    (hits × damage per hit), not only a mean. The CVaR in the currency reads
    that distribution.
+
+The currency moves in the expected direction with armor: with the same
+exposure, a garment that deflects more of the raid's hits lowers the harm term,
+which the acceptance case `apparel/harm_armor_direction` (#3547) shows natively
+(a devilstrand duster against a cloth one, in a colony inside a calibrated
+cell). The direction is the native claim; the magnitudes are the unit tests'
+(`ForecastValueTests`, `HarmConsequencesTests`) and the calibration's.
 
 **Not modeled in v1:** adaptation feedback (a down lowers future threat points
 by about 5–8 adaptation days, a death by 30), non-raid threats (infestations,
@@ -393,20 +410,21 @@ baselines, and benchmarked at a one-day horizon in .NET
 
 Native does not yet observe:
 
-- the storyteller def, its cycle phase, days passed and adaptation days (only
-  raid points are read);
-- raid factions and their pawn kinds and weapons;
-- per-layer apparel armor with body-part coverage (today `PawnArmor` is the
-  strongest single layer);
-- pain shock threshold, health scale, healing and incoming-damage factors, and
-  bed healing;
+- the storyteller's cycle phase and the story watcher's adaptation days (the
+  storyteller def, days passed and the hostile factions are read; the schedule
+  uses the expected rate, not the phase, and adaptation is inside the observed
+  raid points);
+- bed healing (the pain shock threshold, health scale, healing and
+  incoming-damage factors are read; per-layer apparel armor and body coverage
+  come from the catalog);
 - tile seasonal temperature by twelfth, growing-season bounds, and cell
   fertility for planned fields.
 
 ## Open questions
 
-- Exposure calibration: which simulator sweeps, and how many raids per cell,
-  are enough for stable ranges?
+- Exposure calibration: which fixtures reach the uncalibrated bins (raid points
+  ÷ defense capacity under 1 or over 4, and melee at 1 to 2) so their cells can
+  be filled ([#3561](https://github.com/davidarcher/rimgovernor/issues/3561))?
 - The tier-2 pawn cycle: is one derived day per pawn accurate enough, or does
   it need per-season variants (temperature, daylight)?
 - Initial values for the policy constants.
@@ -421,5 +439,5 @@ Each milestone has a GitHub issue.
    lexicographic ranking; the vector stays as explanation.
 4. [#3470](https://github.com/davidarcher/rimgovernor/issues/3470) Tier 2: pawn cycle, stocks and flows, project graph, crop growth by twelfth (implemented: `Policy/ColonyModel/` with `RoundsColonyModel.Review`, the research and sowing providers `ResearchMethodCandidates` and `SowingMethodCandidates`, the `colony_model` event; the devilstrand payoff chain is wired by [#3559](https://github.com/davidarcher/rimgovernor/issues/3559) (its apparel value waits on the calibrated exposure table, #3543) and proven in play by [#3560](https://github.com/davidarcher/rimgovernor/issues/3560); `production/devilstrand-investment-starving` proves that investment never outranks the urgent floor).
 5. [#3471](https://github.com/davidarcher/rimgovernor/issues/3471) Harm model v1: threat schedule, composition, armor response,
-   consequences, with exposure calibrated from simulator sweeps.
+   consequences, with exposure calibrated from real-game sweeps (implemented, #3539 to #3547; three exposure cells are calibrated).
 6. [#3472](https://github.com/davidarcher/rimgovernor/issues/3472) Search stage 3 and a larger budget.

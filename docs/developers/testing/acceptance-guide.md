@@ -117,7 +117,7 @@ The spec is `StageSpec` (`brain/src/RimGovernor.Fixtures.Contracts`). Its primit
 finish a project, or set its progress), world (`StageWorld`: pinned outdoor temperature, clock hour, days passed, and the storyteller def the brain reads its threat rate from; the world stays quiet, so a staged Randy at day 1 or later gives a nonzero schedule and no incident fires), find site
 (`StageSite`), clear area (`StageClear`), set cells (`StageCells`: terrain, roof, home, fog), build room
 (`StageRoom`), place building (`StageBuilding`: complete, frame or blueprint, a finished one damaged or fuelled), add bill (`StageBill`: a repeat-count production bill on a staged work table), spawn thing (`StageThing`), spawn plant (`StagePlant`: a plant def at a growth), spawn or
-set pawn (`StagePawn`: kind, faction, age, skill level, cleared traits, gear, hediffs, work, timetable, needs, mental
+set pawn (`StagePawn`: kind, faction, age, skill level, cleared traits, gear (a weapon and apparel of one stuff), hediffs, work, timetable, needs, mental
 state, inspiration), zone (`StageZone`), the raid that drives staged hostiles (`StageRaid`) and fire incident
 (`StageIncident`: an IncidentDef through its own worker, optionally with a trader kind). One fixture op, `test/stage`,
 applies a spec and replies a `StageReply` keyed by the names in the spec: each entry's ids and cells and the incidents'

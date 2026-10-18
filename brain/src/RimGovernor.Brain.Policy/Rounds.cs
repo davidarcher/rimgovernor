@@ -339,9 +339,6 @@ public sealed record RoundsFacts
     /// <summary>GenDate.DaysPassedFloat: the days into the game the storyteller's comps gate on.</summary>
     public Fact<double> DaysPassed { get; init; }
 
-    /// <summary>The story watcher's adaptation days (watcherAdaptation.AdaptDays); raid points already carry its factor.</summary>
-    public Fact<double> AdaptationDays { get; init; }
-
     /// <summary>The storyteller defs' threat comps from the catalog (#3539), read by ThreatSchedule.Of; empty without a catalog.</summary>
     public ThreatScheduleTable ThreatTable { get; init; } = new();
 

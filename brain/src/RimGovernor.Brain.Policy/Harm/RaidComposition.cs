@@ -232,7 +232,6 @@ public static class RaidCompositionRules
             return new WeaponBin
             {
                 Category = g.Key.Category,
-                Ranged = g.Key.Ranged,
                 Damage = g.Value.Sum(e => e.Weight * e.Weapon.Damage) / weight,
                 ArmorPenetration = g.Value.Sum(e => e.Weight * e.Weapon.AP) / weight,
                 Weight = weight / total,

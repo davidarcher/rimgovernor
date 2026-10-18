@@ -317,9 +317,7 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
 
 The harm model's first step ([harm model](../architecture/forecast-value.md#harm-model)) reads the storyteller the game is running.
 
-- `ThreatFacts.Storyteller` (`Find.Storyteller.def.defName`), `DaysPassed` (`GenDate.DaysPassedFloat`) and `AdaptationDays`
-  (`Find.StoryWatcher.watcherAdaptation.AdaptDays`) are read beside `RaidPoints` and decoded onto `RoundsFacts.Storyteller`, `DaysPassed`
-  and `AdaptationDays`; each is unknown when the section or the field is missing. Raid points stay the observed `RaidPoints`
+- `ThreatFacts.Storyteller` (`Find.Storyteller.def.defName`), `DaysPassed` (`GenDate.DaysPassedFloat`) are read beside `RaidPoints` and decoded onto `RoundsFacts.Storyteller` and `DaysPassed`; each is unknown when the section or the field is missing. Raid points stay the observed `RaidPoints`
   (adaptation and difficulty are inside it); the schedule does not model their growth.
 - `RoundsFacts.ThreatTable` (`ThreatScheduleTable`): per `StorytellerDef`, its home-map threat comps decoded by `Catalog/Storyteller.cs`
   (on-off cycles of `ThreatBig` and random mains with their `ThreatBig` weight share), and the comps it could not model. Empty without a catalog.

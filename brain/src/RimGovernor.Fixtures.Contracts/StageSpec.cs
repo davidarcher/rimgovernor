@@ -401,6 +401,9 @@ public sealed record StageGear
 
     public IReadOnlyList<string> Apparel { get; init; } = [];
 
+    /// <summary>A stuff def every garment in <see cref="Apparel"/> is made of; null takes each def's default stuff.</summary>
+    public string? ApparelStuff { get; init; }
+
     public IReadOnlyList<string> Inventory { get; init; } = [];
 
     public bool Strip { get; init; }

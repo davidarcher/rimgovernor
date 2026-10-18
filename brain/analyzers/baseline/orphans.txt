@@ -15,8 +15,6 @@ Contracts|Operations.CombatOrderOrder.Release
 Contracts|Operations.CombatOrderOrder.Rescue
 Contracts|Operations.CombatOrderOrder.Stop
 Contracts|Operations.CombatOrderOrder.StopCase.Value
-Fixtures|StageWorld.DaysPassed
-Fixtures|StageWorld.Storyteller
 Policy|ActivityContinuationDecision.Reason
 Policy|AdmissionDecision.Emergency
 Policy|AssignedCapability.Kind
@@ -404,7 +402,6 @@ Policy|WaitDoorCell.Roofed
 Policy|WantedPiece.Slot
 Policy|WealthFacts.Buildings
 Policy|WealthFacts.Pawns
-Policy|WeaponBin.Ranged
 Policy|WeaponDrop.Weapon
 Policy|WorkshopChoice.NeedsPower
 Policy|Believer.Certainty
@@ -416,4 +413,3 @@ Policy|MemeGate.Required
 Policy|PreceptDef.ConflictingMemes
 Policy|PreceptDef.Issue
 Policy|PreceptDef.RequiredMemes
-Policy|RoundsFacts.AdaptationDays

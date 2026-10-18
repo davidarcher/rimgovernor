@@ -26,8 +26,8 @@ public sealed class RaidCompositionTests
 
         Assert.Equal(5, composition.Pawns.Value, 9);
         Assert.Equal(1, composition.Bins.Sum(b => b.Weight), 9);
-        Assert.Equal(0.5, composition.Bins.Single(b => b.Ranged).Weight, 9);
-        Assert.Equal(0.5, composition.Bins.Single(b => !b.Ranged).Weight, 9);
+        Assert.Equal(0.5, composition.Bins.Single(b => b.Category == ArmorCategory.Sharp).Weight, 9);
+        Assert.Equal(0.5, composition.Bins.Single(b => b.Category == ArmorCategory.Blunt).Weight, 9);
         Assert.Empty(composition.Findings);
     }
 
@@ -38,8 +38,8 @@ public sealed class RaidCompositionTests
 
         var composition = RaidCompositionRules.Of(400, ["Pirate"], table);
 
-        Assert.Equal(0.75, composition.Bins.Single(b => b.Ranged).Weight, 9);
-        Assert.Equal(ArmorCategory.Blunt, composition.Bins.Single(b => !b.Ranged).Category);
+        Assert.Equal(0.75, composition.Bins.Single(b => b.Category == ArmorCategory.Sharp).Weight, 9);
+        Assert.Equal(ArmorCategory.Blunt, composition.Bins.Single(b => b.Category == ArmorCategory.Blunt).Category);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class RaidCompositionTests
 
         Assert.Equal(7, composition.Pawns.Value, 9);
         Assert.Equal(1, composition.Bins.Single().Weight, 9);
-        Assert.True(composition.Bins.Single().Ranged);
+        Assert.Equal(ArmorCategory.Sharp, composition.Bins.Single().Category);
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public sealed class RaidCompositionTests
 
         var composition = RaidCompositionRules.Of(60, ["Pirate"], Table(Faction("Pirate", kind)));
 
-        Assert.Equal(0.75, composition.Bins.Single(b => b.Ranged).Weight, 9);
+        Assert.Equal(0.75, composition.Bins.Single(b => b.Category == ArmorCategory.Sharp).Weight, 9);
     }
 
     [Fact]
@@ -120,6 +120,6 @@ public sealed class RaidCompositionTests
         var composition = RaidCompositionRules.Of(400, ["Pirate", "Tribe"], Table(Pirates, tribe));
 
         Assert.Equal((5 + 4) / 2.0, composition.Pawns.Value, 9);
-        Assert.Equal(1.25 / 4.5, composition.Bins.Single(b => b.Ranged).Weight, 9);
+        Assert.Equal(1.25 / 4.5, composition.Bins.Single(b => b.Category == ArmorCategory.Sharp).Weight, 9);
     }
 }

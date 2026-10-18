@@ -210,6 +210,7 @@ namespace HomeBridge.BridgeTools
                     var pawn = p.Colonist is int index ? Move(colonists, index, at, p)
                         : Generate(map, p, Owner(p.Faction), at ?? throw new ArgumentException($"Pawn {p.Name}: a generated pawn needs a cell."), arrival != null, raiders, prisoners, insects, mechs);
                     var cell = at ?? pawn.Position;
+                    Skills(pawn, p);
                     Equip(pawn, p);
                     Set(pawn, p);
                     if (p.Bed != null) Claim(pawn, p, tables);
@@ -304,12 +305,6 @@ namespace HomeBridge.BridgeTools
             var pawn = PawnGenerator.GeneratePawn(request);
             if (p.ClearTraits) FixtureKit.RemoveTraits(pawn);
             FixtureKit.RemoveBadHediffs(pawn);
-            if (p.SkillLevel is int level)
-                foreach (var skill in pawn.skills.skills)
-                {
-                    skill.Level = level;
-                    skill.passion = Passion.None;
-                }
             if (p.Gear?.Strip == true)
             {
                 pawn.apparel?.DestroyAll();
@@ -331,6 +326,17 @@ namespace HomeBridge.BridgeTools
             return pawn;
         }
 
+        // Every skill at the staged level without passion, for a generated pawn and a moved colonist alike.
+        private static void Skills(Pawn pawn, StagePawn p)
+        {
+            if (p.SkillLevel is not int level) return;
+            foreach (var skill in pawn.skills.skills)
+            {
+                skill.Level = level;
+                skill.passion = Passion.None;
+            }
+        }
+
         // Gear and condition, in the staging's draw order: weapon, apparel, anesthetic, hediffs, the blunt blow,
         // inventory, stun.
         private static void Equip(Pawn pawn, StagePawn p)
@@ -339,7 +345,7 @@ namespace HomeBridge.BridgeTools
             foreach (var name in p.Gear?.Apparel ?? new List<string>())
             {
                 var def = FixtureKit.Def<ThingDef>(name);
-                var worn = (Apparel)ThingMaker.MakeThing(def, FixtureKit.Stuff(def, ""));
+                var worn = (Apparel)ThingMaker.MakeThing(def, FixtureKit.Stuff(def, p.Gear?.ApparelStuff ?? ""));
                 pawn.apparel.Wear(worn, false, true);
                 // A new shield starts empty; stage it fully charged.
                 if (worn.GetComp<CompShield>() is CompShield shield)

@@ -6398,9 +6398,6 @@ public sealed record ThreatFacts
     /// <summary>GenDate.DaysPassedFloat.</summary>
     public double? DaysPassed { get; init; }
 
-    /// <summary>The story watcher's adaptation days (watcherAdaptation.AdaptDays).</summary>
-    public double? AdaptationDays { get; init; }
-
     /// <summary>
     /// The def names of the world's factions that are hostile to the player and have a Combat pawn group maker: the factions a
     /// raid can come from (<c>AllFactionsVisible</c> where <c>HostileTo(Faction.OfPlayer)</c>). The raid composition decodes

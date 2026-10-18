@@ -182,7 +182,6 @@ public static class ColonyDecodeReads
             HostileFactions = r.Threat.HostileFactions,
             Storyteller = r.Threat.Storyteller,
             DaysPassed = r.Threat.DaysPassed,
-            AdaptationDays = r.Threat.AdaptationDays,
             Monolith = AnomalyColonyReads.MonolithFacts(r.Anomaly),
         };
         r = r with { Raids = r.Threat.Raids };
