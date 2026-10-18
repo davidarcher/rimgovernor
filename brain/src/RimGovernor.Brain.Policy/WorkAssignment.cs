@@ -160,7 +160,8 @@ public sealed record WorkPawn
     /// <summary>The current timetable, one TimeAssignmentDef per hour (hour 0 first); unknown when the read carried no complete timetable.</summary>
     public Fact<EquatableArray<string>> Schedule { get; init; }
 
-    public Fact<FoodRestriction> FoodRestriction { get; init; }
+    /// <summary>Whether the pawn eats under a food policy (respects one, has a food need, past babyhood); unknown when the read carried no work detail.</summary>
+    public Fact<bool> FoodPolicyRespected { get; init; }
 
     /// <summary>The MedicalCareCategory name from the settings block (carry tier); unknown when the read did not carry it.</summary>
     public Fact<string> MedicalCare { get; init; }

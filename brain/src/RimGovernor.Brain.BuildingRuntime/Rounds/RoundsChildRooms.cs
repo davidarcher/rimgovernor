@@ -59,7 +59,7 @@ partial class RoundsSleepingUpkeepPlanner
         return [];
     }
 
-    internal static (ChildRoomNeed? Need, ContainmentVerdict Verdict) ContainmentCellNeed(ColonyProjection facts) =>
+    internal static ChildRoomNeed? ContainmentCellNeed(ColonyProjection facts) =>
         ContainmentCellRules.ContainmentCellNeed(facts.Facts.Containment, FurnitureDefinitions(facts), RoundsBuildingPlanner.FlooringFactsOf(facts));
 
     internal static (ChildRoomNeed Need, bool Owed) IsolationRoomNeed(ColonyProjection facts) =>
@@ -82,8 +82,7 @@ partial class RoundsSleepingUpkeepPlanner
         }
         // The rooms the player's goals name (#3496) join the rooms the pawns owe: layout sizes and places them, the sleeping step builds them.
         needs.AddRange(ChildRoomsRules.GoalRoomNeeds(facts.Facts.GoalBuild.Rooms, needs));
-        var (cell, verdict) = ContainmentCellNeed(facts);
-        if (verdict.Owed && cell is not null)
+        if (ContainmentCellNeed(facts) is { } cell)
         {
             needs.Add(cell);
         }

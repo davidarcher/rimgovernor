@@ -17,7 +17,7 @@ public static class ForecastMaintenancePolicy
             if (current.Assigned != Known(true)) continue;
             var practice = task.Step.Practice!;
             var requirement = new AssignedCapability(task.Id, ServiceTarget.ForNeed(IdeologyFamily.Roles, practice.Role, "assigned_role_min_skill_any/" + practice.RequirementIndex),
-                new(practice.Beneficiary), EquatableArray.From(current.Alternatives.Select(a => new SkillRequirement(a.Skill, a.Minimum))), CapabilityDevelopmentKind.Maintenance);
+                new(practice.Beneficiary), EquatableArray.From(current.Alternatives.Select(a => new SkillRequirement(a.Skill, a.Minimum))));
             var skills = EquatableArray.From(current.Alternatives.Select(a => new WorkSkill { Name = a.Skill, Learning = a.Learning,
                 Disabled = a.Learning.Disabled == Known(true), Level = a.Learning.StoredLevel.IsKnown && a.Learning.Aptitude.IsKnown ? a.Learning.StoredLevel.Value + a.Learning.Aptitude.Value : 0 }));
             var result = ForecastMaintenance([new(requirement, skills)], [], new([], 0, 0), new Dictionary<string, Fact<bool>>(), GameTime.TicksPerDay);

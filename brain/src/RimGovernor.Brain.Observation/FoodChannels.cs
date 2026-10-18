@@ -157,7 +157,6 @@ public static class FoodChannelsReads
         {
             grazing.Add(new PenGrazing
             {
-                ID = row.PenId ?? "",
                 DemandPerDay = ColonyDecodeReads.Optional(row.DemandPerDay is not null, row.DemandPerDay.GetValueOrDefault()),
                 PasturePerDay = ColonyDecodeReads.Optional(row.PasturePerDay is not null, row.PasturePerDay.GetValueOrDefault()),
                 StoredNutrition = ColonyDecodeReads.Optional(row.StoredNutrition is not null, row.StoredNutrition.GetValueOrDefault()),

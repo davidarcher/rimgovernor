@@ -30,10 +30,6 @@ public sealed record CoupleBed
 {
     public CoupleBedKind Kind { get; init; }
 
-    public PawnId Pawn { get; init; }
-
-    public PawnId Partner { get; init; }
-
     public string Room { get; init; } = "";
 
     public EquatableArray<FurniturePiece> Pack { get; init; }
@@ -118,7 +114,7 @@ public static class CoupleBedRules
             {
                 continue;
             }
-            var step = new CoupleBed { Pawn = p, Partner = q };
+            var step = new CoupleBed();
             FurnitureRoom? home = null;
             var pack = new List<FurniturePiece>();
             foreach (var pawn in new[] { p, q })
@@ -167,8 +163,6 @@ public static class CoupleBedRules
                     return new CoupleBed
                     {
                         Kind = CoupleBedKind.CoupleInstall,
-                        Pawn = p,
-                        Partner = q,
                         Room = r.Id,
                         Planned = planned,
                         Template = EquatableArray.From(template),

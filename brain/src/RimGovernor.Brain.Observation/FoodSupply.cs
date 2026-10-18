@@ -36,7 +36,6 @@ public static class FoodSupplyReads
             {
                 corpses.Add(new CorpseHandling
                 {
-                    InStorage = ColonyDecodeReads.Optional(row.InStorage is not null, row.InStorage.GetValueOrDefault()),
                     Id = row.StockId,
                     Cell = ColonyDecodeReads.CellOf(row.Cell),
                     Hauler = new PawnId((row.HaulerId ?? "")),
@@ -113,7 +112,6 @@ public static class FoodSupplyReads
                 Forbidden = Known(row.Forbidden),
                 MeatAmount = ColonyDecodeReads.Optional(row.MeatAmount is not null, row.MeatAmount.GetValueOrDefault()),
                 BodySize = ColonyDecodeReads.Optional(row.BodySize is not null, row.BodySize.GetValueOrDefault()),
-                TileFootprint = ColonyDecodeReads.Optional(row.TileFootprint is not null, (long)row.TileFootprint.GetValueOrDefault()),
             };
             if (barred && !stock.IsHumanMeat)
             {

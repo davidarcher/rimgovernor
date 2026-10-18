@@ -73,8 +73,6 @@ public sealed record FoodStock
     public Fact<double> MeatAmount { get; init; }
 
     public Fact<double> BodySize { get; init; }
-
-    public Fact<long> TileFootprint { get; init; }
 }
 
 public sealed record FoodSupply

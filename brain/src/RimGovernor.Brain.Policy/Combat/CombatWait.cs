@@ -11,8 +11,6 @@ public sealed record WaitDoorCell
     public string Stuff { get; init; } = "";
 
     public bool Walkable { get; init; }
-
-    public bool Roofed { get; init; }
 }
 
 public static partial class CombatWaitRules

@@ -2,10 +2,9 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-public enum CapabilityDevelopmentKind { Acquisition, Maintenance, UnsupportedImprovement }
 /// <summary>One assigned native requirement. Alternatives are OR; distinct requirements are AND.</summary>
 public sealed record AssignedCapability(string Id, ServiceTarget Target, PawnId Pawn,
-    EquatableArray<SkillRequirement> Alternatives, CapabilityDevelopmentKind Kind);
+    EquatableArray<SkillRequirement> Alternatives);
 
 public static class CapabilityMaintenanceRules
 {
@@ -28,7 +27,7 @@ public static class CapabilityMaintenanceRules
                     var id = role.Id + "/" + index + "/" + pawn.Value;
                     result.Add(new(id, ServiceTarget.ForNeed(IdeologyFamily.Roles, role.Id,
                         "assigned_role_min_skill_any/" + index), pawn,
-                        EquatableArray.From(requirement.Skills), CapabilityDevelopmentKind.Maintenance));
+                        EquatableArray.From(requirement.Skills)));
                 }
             }
         }

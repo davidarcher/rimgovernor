@@ -85,9 +85,6 @@ public sealed record CombatTuning
         return null;
     }
 
-    /// <summary>Whether every field is inside its documented range.</summary>
-    public bool IsValid => Violation() is null;
-
     /// <summary>Throws <see cref="DomainException"/> naming the first field outside its documented range.</summary>
     public void Validate()
     {

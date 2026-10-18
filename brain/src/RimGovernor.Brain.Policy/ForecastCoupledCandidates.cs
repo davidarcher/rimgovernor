@@ -124,7 +124,7 @@ public sealed partial record ForecastCoupledCandidates
         truncated |= food.Truncated || construction.Truncated || composed.Truncated || support.Truncated;
         if (NeedEnabled(MilitaryFamily.Equipment) && facts.Gear.TryGetValue(out var gear))
         {
-            AppendFamily(Methods.Generation.ClothingMethodCandidates.Generate(read.Clothing, ClothingActivitiesRules.ClothingActivityRequirements(gear).Alternatives,
+            AppendFamily(Methods.Generation.ClothingMethodCandidates.Generate(read.Clothing, ClothingActivitiesRules.ClothingActivityRequirements(gear),
                 checked(read.Tick + (long)horizon), resources));
             // The effect-source family (#3285): labor-free (tainted filter, insulation floor) candidates per pawn that verified cards price (GearChoices, #3329).
             var effects = EffectSourcesRules.GenerateEffectSources(EffectSourcesRules.EffectSourceFactsOf(gear, facts.MedicalPawns, facts.IdeologyInstalled));

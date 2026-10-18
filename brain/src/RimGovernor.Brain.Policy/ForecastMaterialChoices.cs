@@ -6,10 +6,9 @@ public sealed record ForecastMaterialOption(string Demand, string Id, Fact<doubl
     public ForecastProductionEstimate? Estimate { get; init; }
     public ForecastRequirementAssessment? Requirements { get; init; }
 }
-public sealed record ForecastMaterialComparison(EquatableArray<ForecastMaterialOption> Selected, double Value,
+public sealed record ForecastMaterialComparison(EquatableArray<ForecastMaterialOption> Selected,
     int Expansions, bool SearchTruncated, EquatableArray<string> Findings)
 {
-    public ForecastMaterialValue? Valuation { get; init; }
     public ForecastRequirementPriority Priority { get; init; } = new();
 }
 
@@ -29,20 +28,19 @@ public static class ForecastMaterialChoices
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         if (valuation is not null && rows.Any(o => o.Requirements is not null))
             throw new DomainException("requirement priorities and scalar utility are separate objectives");
-        if (!availability.TryGetValue(out var budget)) return new([], 0, 0, false, ["unknown_material_budget"]);
+        if (!availability.TryGetValue(out var budget)) return new([], 0, false, ["unknown_material_budget"]);
         var groups = rows.GroupBy(o => o.Demand, StringComparer.Ordinal).Select(g => g.ToArray()).ToArray();
         var selected = new List<ForecastMaterialOption>();
         ForecastMaterialOption[] best = [];
         double bestValue = 0;
         var bestPriority = new ForecastRequirementPriority();
-        ForecastMaterialValue? bestValuation = valuation is null ? null : new(0, 0, 0);
         var expansions = 0;
         var truncated = false;
-        void Search(int index, double value, Dictionary<Resource, long> used, ForecastMaterialValue? priced, ForecastRequirementPriority priority)
+        void Search(int index, double value, Dictionary<Resource, long> used, ForecastRequirementPriority priority)
         {
             // Any partial selection is a complete alternative with all remaining demands postponed.
             if (priority.BetterThan(bestPriority, value, bestValue))
-            { bestValue = value; best = selected.ToArray(); bestValuation = priced; bestPriority = priority; }
+            { bestValue = value; best = selected.ToArray(); bestPriority = priority; }
             if (index == groups.Length) return;
             foreach (var option in groups[index])
             {
@@ -60,14 +58,14 @@ public static class ForecastMaterialChoices
                 var evaluated = valuation is null ? null : ForecastMaterialValue.ValueMaterialPlan(selected, valuation, findings);
                 var requirements = ForecastRequirements.RequirementPriorityOf(selected, findings);
                 if ((valuation is null || evaluated is not null) && requirements is not null)
-                    Search(index + 1, evaluated?.Net ?? value + benefit, next, evaluated, requirements);
+                    Search(index + 1, evaluated?.Net ?? value + benefit, next, requirements);
                 selected.RemoveAt(selected.Count - 1);
             }
             if (expansions == expansionBudget) { truncated = true; return; }
             expansions++;
-            Search(index + 1, value, used, priced, priority);
+            Search(index + 1, value, used, priority);
         }
-        Search(0, 0, [], bestValuation, bestPriority);
-        return new(EquatableArray.From(best), bestValue, expansions, truncated, EquatableArray.From(findings)) { Valuation = bestValuation, Priority = bestPriority };
+        Search(0, 0, [], bestPriority);
+        return new(EquatableArray.From(best), expansions, truncated, EquatableArray.From(findings)) { Priority = bestPriority };
     }
 }

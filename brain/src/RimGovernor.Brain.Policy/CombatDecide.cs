@@ -179,9 +179,6 @@ public sealed partial record CombatView
     /// <summary>The map outdoor temperature in degrees Celsius from the frame; extreme cold or heat waits indoors.</summary>
     public Fact<double> OutdoorTemperatureC { get; init; }
 
-    /// <summary>The hottest live hive's temperature in degrees Celsius from the frame: the heat-stroke hold and entry check.</summary>
-    public Fact<double> HiveTemperatureC { get; init; }
-
     /// <summary>Marks a squad hunt: Threats are wild prey, not raiders.</summary>
     public bool Hunt { get; init; }
 

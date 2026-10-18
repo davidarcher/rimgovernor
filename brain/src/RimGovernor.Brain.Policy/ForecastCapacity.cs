@@ -22,7 +22,7 @@ public sealed record ForecastCapacityInput
     public Fact<EquatableArray<ForecastOccupancy>> Occupancy { get; init; }
 }
 
-public sealed record ForecastCapacityResult(ForecastPawnCapacity Capacity, Fact<double> FreeTicks, string[] Findings);
+public sealed record ForecastCapacityResult(ForecastPawnCapacity Capacity, string[] Findings);
 
 public static class ForecastCapacity
 {
@@ -31,21 +31,21 @@ public static class ForecastCapacity
     {
         if (!double.IsFinite(input.HorizonTicks) || input.HorizonTicks < 0 || input.HorizonTicks > 7 * GameTime.TicksPerDay)
             throw new DomainException("capacity horizon must be between zero and seven game days");
-        ForecastCapacityResult Result(Fact<EquatableArray<ForecastTimeWindow>> windows, Fact<double> free, params string[] findings) =>
-            new(new(input.Pawn.Id.Value, input.Location, windows, input.OpportunityCostPerTick), free, findings);
+        ForecastCapacityResult Result(Fact<EquatableArray<ForecastTimeWindow>> windows, params string[] findings) =>
+            new(new(input.Pawn.Id.Value, input.Location, windows, input.OpportunityCostPerTick), findings);
         var pawn = input.Pawn;
         if ((pawn.Available.TryGetValue(out var available) && !available) || (pawn.Applies.TryGetValue(out var applies) && !applies))
-            return Result(Known(default(EquatableArray<ForecastTimeWindow>)), Known(0.0), "pawn_unavailable");
+            return Result(Known(default(EquatableArray<ForecastTimeWindow>)), "pawn_unavailable");
         var current = input.CurrentWork ?? ForecastCurrentWork.ForecastCurrentWorkOf(pawn, input.CurrentJobRemainingTicks);
         if (current.Pawn != pawn.Id) throw new DomainException("capacity current work names another pawn");
         if (!pawn.Available.IsKnown || !pawn.Applies.IsKnown || !current.Occupied.TryGetValue(out var occupied) || (input.ProtectTimetable && !pawn.WorkHoursPerDay().IsKnown)
             || !input.LocalHour.TryGetValue(out var hour) || !input.Occupancy.TryGetValue(out var occupancy))
-            return Result(default, default, "unknown_capacity_inputs");
+            return Result(default, "unknown_capacity_inputs");
         if (!double.IsFinite(hour) || hour < 0 || hour >= 24) throw new DomainException("invalid local hour");
         var blocked = new List<ForecastTimeWindow>();
         if (occupied)
         {
-            if (!current.RemainingTicks.TryGetValue(out var remaining)) return Result(default, default, "unknown_current_job_remaining");
+            if (!current.RemainingTicks.TryGetValue(out var remaining)) return Result(default, "unknown_current_job_remaining");
             if (remaining > 0) blocked.Add(new(0, Math.Min(remaining, input.HorizonTicks)));
         }
         // Each identity (pawn and id) is read once, at its first row, which every later row of it must equal.
@@ -62,7 +62,7 @@ public static class ForecastCapacity
                 throw new DomainException("conflicting occupancy identity");
             if (row.Pawn != pawn.Id.Value || row.State != ForecastOccupancyState.Active) continue;
             if (!row.Start.TryGetValue(out var start) || !row.End.TryGetValue(out var end))
-                return Result(default, default, "unknown_active_occupancy");
+                return Result(default, "unknown_active_occupancy");
             if (!double.IsFinite(start) || !double.IsFinite(end) || start < 0 || end < start)
                 throw new DomainException("invalid occupancy interval");
             if (start < input.HorizonTicks && end > start) blocked.Add(new(start, Math.Min(end, input.HorizonTicks)));
@@ -88,8 +88,6 @@ public static class ForecastCapacity
             cursor = Math.Max(cursor, block.End);
         }
         if (cursor < input.HorizonTicks) windows.Add(new(cursor, input.HorizonTicks) { StartLocation = cursor == 0 ? Known(input.Location) : input.LocationAfterProtectedTime });
-        double free = 0;
-        foreach (var w in windows) free += w.End - w.Start;
-        return Result(Known(EquatableArray.Wrap(windows.ToArray())), Known(free));
+        return Result(Known(EquatableArray.Wrap(windows.ToArray())));
     }
 }

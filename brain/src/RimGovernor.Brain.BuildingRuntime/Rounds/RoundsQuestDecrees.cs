@@ -111,7 +111,6 @@ public sealed partial class JoinersRounds
                         {
                             Action = action,
                             Snapshot = snapshot,
-                            Tick = read.Projection.Identity.Tick,
                             CanPlace = Known(true),
                             SafeToPlace = Known(true),
                             MadeFromStuff = Known(false),

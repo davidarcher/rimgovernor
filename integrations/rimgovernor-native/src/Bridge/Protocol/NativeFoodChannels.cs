@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
                     var food = new PenFoodCalculator();
                     food.ResetAndProcessPen(pen);
                     var pasture = Enumerable.Range(0, 4).Min(q => food.nutritionPerDayPerQuadrum.ForQuadrum((Quadrum)q));
-                    result = result with { Grazing = [.. result.Grazing, new Obs.PenGrazing { PenId = pen.parent.GetUniqueLoadID(), DemandPerDay = Finite(food.SumNutritionConsumptionPerDay),
+                    result = result with { Grazing = [.. result.Grazing, new Obs.PenGrazing { DemandPerDay = Finite(food.SumNutritionConsumptionPerDay),
                         PasturePerDay = Finite(pasture), StoredNutrition = Finite(food.sumStockpiledNutritionAvailableNow) }] };
                 }
                 // The pasture a cell of each terrain grows in the worst quadrum: the

@@ -33,7 +33,7 @@ public sealed class ForecastWorkInputsTests
     public void ObservedCookBuilderHasOneBudgetAcrossWorkTypesWhileDisjointWorkersOverlap()
     {
         var one = ForecastCapacity.ForecastPawnCapacityOf(Capacity());
-        Assert.Equal(100, one.FreeTicks.Value);
+        Assert.Equal(100, one.Capacity.Windows.Value.Sum(w => w.End - w.Start));
         Assert.Null(ForecastActivities.CompareActivityPlans(Jobs(one.Capacity)).Selected);
         var other = ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn("other")));
         var selected = ForecastActivities.CompareActivityPlans(Jobs(one.Capacity, other.Capacity)).Selected!;
@@ -74,13 +74,13 @@ public sealed class ForecastWorkInputsTests
     {
         var input = Capacity() with { Occupancy = Known(EquatableArray.From(new[] { Busy("needs", 20, 50), Busy("work", 40, 70), Busy("work", 40, 70) })) };
         var result = ForecastCapacity.ForecastPawnCapacityOf(input);
-        Assert.Equal(50, result.FreeTicks.Value);
+        Assert.Equal(50, result.Capacity.Windows.Value.Sum(w => w.End - w.Start));
         Assert.Equal(new ForecastTimeWindow(0, 20) { StartLocation = Known("home") }, result.Capacity.Windows.Value[0]);
         Assert.Equal(70, result.Capacity.Windows.Value[1].Start);
         var cancelled = input with { Occupancy = Known(EquatableArray.From(new[] { Busy("needs", 20, 50, ForecastOccupancyState.Completed), Busy("work", 40, 70, ForecastOccupancyState.Cancelled) })) };
-        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(cancelled).FreeTicks.Value);
+        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(cancelled).Capacity.Windows.Value.Sum(w => w.End - w.Start));
         var unknown = input with { Occupancy = Known(EquatableArray.From(new[] { Busy("work", 0, 70) with { End = Unknown<double>() } })) };
-        Assert.False(ForecastCapacity.ForecastPawnCapacityOf(unknown).FreeTicks.IsKnown);
+        Assert.False(ForecastCapacity.ForecastPawnCapacityOf(unknown).Capacity.Windows.IsKnown);
     }
 
     [Fact]
@@ -104,21 +104,21 @@ public sealed class ForecastWorkInputsTests
     [Fact]
     public void ZeroUnknownUnavailableAndChangedTimetableAreDifferent()
     {
-        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Capacity() with { HorizonTicks = 0 }).FreeTicks.Value);
-        Assert.False(ForecastCapacity.ForecastPawnCapacityOf(Capacity() with { Occupancy = default }).FreeTicks.IsKnown);
-        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Available = Known(false) })).FreeTicks.Value);
-        Assert.False(ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Available = default })).FreeTicks.IsKnown);
+        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Capacity() with { HorizonTicks = 0 }).Capacity.Windows.Value.Sum(w => w.End - w.Start));
+        Assert.False(ForecastCapacity.ForecastPawnCapacityOf(Capacity() with { Occupancy = default }).Capacity.Windows.IsKnown);
+        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Available = Known(false) })).Capacity.Windows.Value.Sum(w => w.End - w.Start));
+        Assert.False(ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Available = default })).Capacity.Windows.IsKnown);
         var sleeping = Pawn() with { Schedule = Known(EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleSleep, 24))) };
-        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Capacity(sleeping)).FreeTicks.Value);
-        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Capacity()).FreeTicks.Value);
+        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Capacity(sleeping)).Capacity.Windows.Value.Sum(w => w.End - w.Start));
+        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Capacity()).Capacity.Windows.Value.Sum(w => w.End - w.Start));
         var slots = Enumerable.Repeat(PawnRules.ScheduleAnything, 24).ToArray();
         slots[13] = PawnRules.ScheduleSleep;
         var shifted = ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Schedule = Known(EquatableArray.From(slots)) }) with
         { LocalHour = Known(12.5), HorizonTicks = GameTime.TicksPerHour });
-        Assert.Equal(GameTime.TicksPerHour / 2.0, shifted.FreeTicks.Value);
+        Assert.Equal(GameTime.TicksPerHour / 2.0, shifted.Capacity.Windows.Value.Sum(w => w.End - w.Start));
         var busy = Capacity(Pawn() with { Job = Known(new PawnJob { Def = "UsefulWork" }) });
-        Assert.False(ForecastCapacity.ForecastPawnCapacityOf(busy).FreeTicks.IsKnown);
-        Assert.Equal(80, ForecastCapacity.ForecastPawnCapacityOf(busy with { CurrentJobRemainingTicks = Known(20.0) }).FreeTicks.Value);
+        Assert.False(ForecastCapacity.ForecastPawnCapacityOf(busy).Capacity.Windows.IsKnown);
+        Assert.Equal(80, ForecastCapacity.ForecastPawnCapacityOf(busy with { CurrentJobRemainingTicks = Known(20.0) }).Capacity.Windows.Value.Sum(w => w.End - w.Start));
     }
 
     private static RoundsFacts Facts()

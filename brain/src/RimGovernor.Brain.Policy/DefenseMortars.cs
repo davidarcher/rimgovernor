@@ -103,7 +103,7 @@ public static class DefenseMortarsPolicy
     public static DefenseTier DefenseMortars(DefenseRequest r, DefenseGeometry g)
     {
         var s = DefenseSite.Create(r);
-        var tier = new DefenseTier { Name = TierMortars, Costs = Known(EquatableArray.From(new List<Amount>())) };
+        var tier = new DefenseTier { Name = TierMortars };
         var q = r.Mortar;
         if (q.Definition == "" || g.Firing.Count == 0)
         {
@@ -164,7 +164,6 @@ public static class DefenseMortarsPolicy
         {
             Buildings = EquatableArray.From(buildings),
             Reserved = EquatableArray.From(reserved),
-            Costs = DefenseLayout.TierCosts(r.UnitCosts, buildings),
         };
     }
 

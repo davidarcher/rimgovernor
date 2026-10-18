@@ -163,12 +163,12 @@ public sealed class ForecastActivityCompositionTests
         var request = Request([Op("use", [Need("food", "Rice", 2, ["a", "b"])])], [Supply("a", "Rice", 2), Supply("b", "Rice", 2)], "use");
         var incumbent = ForecastActivityComposition.ComposeActivityDependencies(request).Graphs[0];
         var bounded = ForecastActivityComposition.ComposeActivityDependencies(request with { ExpansionBudget = 0, Incumbent = incumbent });
-        Assert.True(bounded.Truncated); Assert.True(bounded.IncumbentPreserved);
+        Assert.True(bounded.Truncated);
         Assert.Equal(0, bounded.Expansions); Assert.Single(bounded.Graphs);
         Assert.Equal(incumbent.Allocations, bounded.Graphs[0].Allocations);
         var changed = ForecastActivityComposition.ComposeActivityDependencies(request with { ExpansionBudget = 0, Incumbent = incumbent,
             Observed = EquatableArray.From(request.Observed.Select(s => s with { Units = Known(0) })) });
-        Assert.False(changed.IncumbentPreserved); Assert.Empty(changed.Graphs);
+        Assert.Empty(changed.Graphs);
         Assert.Contains("invalid_composition_incumbent", changed.Findings);
     }
 
@@ -279,7 +279,6 @@ public sealed class ForecastActivityCompositionTests
             Assert.Equal(2, graph.Allocations.Count(a => a.Operation.Length == 0));
         });
         var retained = ForecastActivityComposition.ComposeActivityDependencies(request with { ExpansionBudget = 0, Incumbent = result.Graphs[1] });
-        Assert.True(retained.IncumbentPreserved);
         var retainedGraph = Assert.Single(retained.Graphs);
         Assert.Equal(result.Graphs[1].Allocations, retainedGraph.Allocations);
         Assert.Equal(result.Graphs[1].Activities.Select(a => a.Id), retainedGraph.Activities.Select(a => a.Id));

@@ -57,9 +57,6 @@ public sealed record DefenseGeometry
     public EquatableArray<Cell> Walls { get; init; }
 }
 
-/// <summary>A turret cell with line of sight to the lane.</summary>
-public sealed record TurretPosition(Cell Cell);
-
 /// <summary>One tier turret the census found standing, with the cells it occupies.</summary>
 public sealed record StandingTurret(Building Building, EquatableArray<Cell> Cells);
 
@@ -201,19 +198,6 @@ public static class DefenseTurretsPolicy
             Reserved = EquatableArray.From(reserved),
             Walls = EquatableArray.From(walls),
         };
-    }
-
-    /// <summary>
-    /// Proposes the powered turret tier for a layout: turrets beside the firing positions on the shooters' row or
-    /// the row behind it, spaced against chain explosions, off the lanes and every reserved cell, each with a
-    /// line of sight to some cell of the lane, and a conduit chain from each turret to the network unless a
-    /// transmitter already lies within native connector reach. Candidates lists every position that sees the
-    /// lane; the tier holds the ones the gates allow.
-    /// </summary>
-    public static (DefenseTier Tier, IReadOnlyList<TurretPosition> Candidates) DefenseTurrets(DefenseRequest r, DefenseGeometry g)
-    {
-        var (tier, candidates) = DefenseSite.Create(r).Turrets(g);
-        return (tier, candidates);
     }
 
     /// <summary>Reports whether the observed gates (available definition, spare watts, stock) allow at least one turret, before any site or line of sight is read.</summary>
@@ -359,13 +343,20 @@ public static class DefenseTurretsPolicy
 
 internal sealed partial class DefenseSite
 {
-    internal (DefenseTier Tier, IReadOnlyList<TurretPosition> Candidates) Turrets(DefenseGeometry g)
+    /// <summary>
+    /// Proposes the powered turret tier for a layout: turrets beside the firing positions on the shooters' row or
+    /// the row behind it, spaced against chain explosions, off the lanes and every reserved cell, each with a
+    /// line of sight to some cell of the lane, and a conduit chain from each turret to the network unless a
+    /// transmitter already lies within native connector reach. The tier holds the positions that see the lane
+    /// and the gates allow.
+    /// </summary>
+    internal DefenseTier Turrets(DefenseGeometry g)
     {
-        var tier = new DefenseTier { Name = DefenseTurretsPolicy.TierTurrets, Costs = Known(EquatableArray.From(new List<Amount>())) };
+        var tier = new DefenseTier { Name = DefenseTurretsPolicy.TierTurrets };
         var q = R.Turret;
         if (q.Definition == "")
         {
-            return (tier, []);
+            return tier;
         }
         if (q.Conduit == "")
         {
@@ -373,7 +364,7 @@ internal sealed partial class DefenseSite
         }
         if (g.Firing.Count == 0 || g.Approach.Count == 0 || !InRegion(g.Entry))
         {
-            return (tier, []);
+            return tier;
         }
         var d = DefenseTurretsPolicy.DirectionOf(g.Toward);
         var p = DefenseLayout.Perpendicular(d);
@@ -388,7 +379,7 @@ internal sealed partial class DefenseSite
             low = Math.Min(low, o);
             high = Math.Max(high, o);
         }
-        var candidates = new List<TurretPosition>();
+        var verified = new List<Cell>();
         var chosen = new List<IReadOnlyList<Cell>>();
         // Every occupied cell must be free and off the lanes and reservations, and the footprint keeps turret
         // spacing edge to edge from the shooters and every other turret.
@@ -460,15 +451,14 @@ internal sealed partial class DefenseSite
             {
                 continue;
             }
-            candidates.Add(new TurretPosition(c));
+            verified.Add(c);
             chosen.Add(DefenseTurretsPolicy.TurretFootprint(c, q.Size));
         }
-        var verified = candidates.Select(c => c.Cell).ToList();
         var (n, gate) = DefenseTurretsPolicy.TurretLimit(R, verified.Count);
         if (n == 0)
         {
             tier = tier with { Gated = verified.Count == 0 ? "" : gate };
-            return (tier, candidates);
+            return tier;
         }
         var transmitters = new HashSet<Cell>(q.Transmitters);
         // Conduits may run under player walls, standing or planned, and cover but never on a lane, a trap cell,
@@ -536,9 +526,8 @@ internal sealed partial class DefenseSite
             Gated = gate,
             Reserved = EquatableArray.From(reserved),
             Buildings = EquatableArray.From(buildings),
-            Costs = DefenseLayout.TierCosts(R.UnitCosts, buildings),
         };
-        return (tier, candidates);
+        return tier;
     }
 
     /// <summary>

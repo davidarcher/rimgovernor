@@ -7,8 +7,6 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record PenGrazing
 {
-    public string ID { get; init; } = "";
-
     public Fact<double> DemandPerDay { get; init; }
 
     public Fact<double> PasturePerDay { get; init; }

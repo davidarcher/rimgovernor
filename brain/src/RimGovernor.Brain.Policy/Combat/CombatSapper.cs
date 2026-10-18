@@ -6,9 +6,6 @@ public sealed record SapperBreach
     /// <summary>The room's wall cell nearest the sappers.</summary>
     public Cell Wall { get; init; }
 
-    /// <summary>The floor cell just behind the wall.</summary>
-    public Cell Inside { get; init; }
-
     /// <summary>The unit step from Wall into the room.</summary>
     public Cell In { get; init; }
 
@@ -119,7 +116,7 @@ public static partial class CombatSapperRules
         {
             step = new Cell(0, -1);
         }
-        return new SapperBreach { Wall = new Cell(x, z), Inside = new Cell(x + step.X, z + step.Z), In = step, Room = room };
+        return new SapperBreach { Wall = new Cell(x, z), In = step, Room = room };
     }
 
     internal static int Clamp32(int v, int lo, int hi) => Math.Max(lo, Math.Min(hi, v));

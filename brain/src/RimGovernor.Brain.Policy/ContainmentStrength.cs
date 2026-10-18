@@ -14,16 +14,14 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// One facility def that offsets the holder's containment strength (CompProperties_Facility statOffsets on
 /// ContainmentStrength, linkable to the holder through its CompProperties_AffectedByFacilities). The game counts
-/// at most MaxSimultaneous of one def and only those within MaxDistance; both are the def's fields as they are,
-/// with no sentinel read into them.
+/// at most MaxSimultaneous of one def (the def's field as it is) and only those within the def's maxDistance,
+/// which the room's Facilities count applies.
 /// </summary>
 public sealed record ContainmentFacility
 {
     public string Def { get; init; } = "";
 
     public double Offset { get; init; }
-
-    public double MaxDistance { get; init; }
 
     public int MaxSimultaneous { get; init; }
 }

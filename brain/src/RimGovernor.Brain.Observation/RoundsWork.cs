@@ -143,9 +143,9 @@ public static class RoundsWorkReads
         w = w with { Available = Known(!row.Dead && !row.Downed && !row.Drafted && row.MentalState is null) };
         if (row.Settings is { } s)
         {
-            if (s.FoodRestriction is { } food && food.PolicyId is not null)
+            if (s.FoodPolicyRespected is { } respected)
             {
-                w = w with { FoodRestriction = Known(new FoodRestriction { PolicyId = (food.PolicyId ?? ""), Allowed = [.. food.AllowedDefs] }) };
+                w = w with { FoodPolicyRespected = Known(respected) };
             }
             w = w with { PolicyInputs = PolicyInputs.PawnPolicyInputs(s.PolicyInputs) };
             if (s.Body is { } b)

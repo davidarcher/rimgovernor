@@ -217,7 +217,6 @@ public sealed partial class RoundsFieldPlanner
                 {
                     Action = action,
                     Snapshot = snapshot,
-                    Tick = p.Identity.Tick,
                     CanPlace = Known(true),
                     SafeToPlace = Known(true),
                     MadeFromStuff = Known(false),

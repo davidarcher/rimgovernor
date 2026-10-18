@@ -3,8 +3,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// The per-cell answer the review walks over, projected from a native site read. Cleared is open walkable
 /// ground; Blocked is a visible cell that is neither cleared nor natively eligible (a structure the fog hid,
-/// deep water, faction-owned rock, a native refusal) and stays standing as part of the room's walls; Rock is the
-/// visible mineable definition.
+/// deep water, faction-owned rock, a native refusal) and stays standing as part of the room's walls.
 /// </summary>
 public sealed record ExcavationCellState
 {
@@ -17,26 +16,21 @@ public sealed record ExcavationCellState
     public bool Blocked { get; init; }
 
     public bool Eligible { get; init; }
-
-    public string Rock { get; init; } = "";
 }
 
 /// <summary>
 /// One bounded decision over a target's current cell states. Stage is the next cells to designate, in target
 /// order and at most stageLimit long: uncleared, visible, natively eligible cells a miner can reach through the
 /// access cell, a cleared cell or another cell of the same stage. Kept are the blocked cells the room is dug
-/// around. Remaining counts the uncleared cells that are neither kept nor stageable yet. Unknown means part of
-/// the remainder is still fogged, so the caller re-observes instead of deciding. Corridor reports whether every
-/// corridor cell is cleared or still diggable. Complete is a target with nothing left to stage, nothing unknown
-/// and an open corridor.
+/// around. Unknown means part of the target is still fogged, so the caller re-observes instead of deciding.
+/// Corridor reports whether every corridor cell is cleared or still diggable. Complete is a target
+/// with nothing left to stage, nothing unknown and an open corridor.
 /// </summary>
 public sealed record ExcavationReview
 {
     public IReadOnlyList<Cell> Stage { get; init; } = [];
 
     public IReadOnlyList<Cell> Kept { get; init; } = [];
-
-    public int Remaining { get; init; }
 
     public bool Unknown { get; init; }
 
@@ -70,7 +64,6 @@ public static class ExcavationReviewRules
         var corridor = new HashSet<Cell>(target.Corridor);
         var stage = new List<Cell>();
         var kept = new List<Cell>();
-        var remaining = 0;
         var unknown = false;
         var corridorClear = true;
         var corridorOpen = true;
@@ -79,7 +72,6 @@ public static class ExcavationReviewRules
             if (!byCell.TryGetValue(c, out var s))
             {
                 unknown = true;
-                remaining++;
                 continue;
             }
             if (s.Cleared)
@@ -89,7 +81,6 @@ public static class ExcavationReviewRules
             if (s.Fogged)
             {
                 unknown = true;
-                remaining++;
                 continue;
             }
             if (s.Blocked || !s.Eligible)
@@ -107,7 +98,6 @@ public static class ExcavationReviewRules
             }
             if (stage.Count >= stageLimit || !AdjacentOpen(c))
             {
-                remaining++;
                 continue;
             }
             stage.Add(c);
@@ -117,7 +107,6 @@ public static class ExcavationReviewRules
         {
             Stage = stage,
             Kept = kept,
-            Remaining = remaining,
             Unknown = unknown,
             Corridor = corridorClear,
             Complete = corridorClear && corridorOpen && !unknown && stage.Count == 0,

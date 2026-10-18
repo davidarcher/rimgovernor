@@ -97,7 +97,7 @@ public sealed class ApparelDrugPreferencesTests
         new() { Id = new(id), PolicyInputs = Known(new PawnPolicyInputs { GuestStatus = status }) };
 
     private static OwnedDrugPolicy Owned(IEnumerable<DrugPolicyEntry> entries, params string[] pawns) =>
-        new("Policy_1", DrugPolicyPlanRules.Label, [.. pawns.Select(p => new PawnId(p))], [.. entries]);
+        new(DrugPolicyPlanRules.Label, [.. pawns.Select(p => new PawnId(p))], [.. entries]);
 
     [Fact]
     public void NoneWritesAPolicyWithNoRecreationalEntries()

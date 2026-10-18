@@ -293,7 +293,6 @@ namespace HomeBridge.BridgeTools
             if (thing is Corpse corpse) {
                 row = row with { MeatAmount = Finite(Math.Max(0, corpse.InnerPawn.GetStatValue(StatDefOf.MeatAmount))) };
                 row = row with { BodySize = Finite(corpse.InnerPawn.BodySize) };
-                row = row with { TileFootprint = 1 };
             }
             return row;
         }

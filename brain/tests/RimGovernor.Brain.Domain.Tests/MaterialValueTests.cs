@@ -24,8 +24,9 @@ public sealed class MaterialValueTests
             Option("c", "machine", "urgent", 1, Metal, 10)];
         var urgent = ForecastMaterialChoices.CompareMaterialPlans(options, Stock, valuation: Values());
         Assert.Equal("machine", Assert.Single(urgent.Selected).Id);
-        Assert.Equal(new ForecastMaterialValue(20, 1, 0.1), urgent.Valuation);
-        Assert.Equal(18.9, urgent.Value, 8);
+        var urgentValue = ForecastMaterialValue.ValueMaterialPlan(urgent.Selected, Values(), new SortedSet<string>(StringComparer.Ordinal));
+        Assert.Equal(new ForecastMaterialValue(20, 1, 0.1), urgentValue);
+        Assert.Equal(18.9, urgentValue!.Net, 8);
         var satisfied = Values() with { Needs = new Dictionary<string, ForecastNeedValue> {
             ["urgent"] = new(Known(0.0), Known(20.0)), ["beauty"] = new(Known(10.0), Known(1.0)) } };
         Assert.Equal(2, ForecastMaterialChoices.CompareMaterialPlans(options, Stock, valuation: satisfied).Selected.Count);
@@ -38,8 +39,9 @@ public sealed class MaterialValueTests
         var options = new[] { Option("a", "a", "urgent", 1, Metal, 5), Option("b", "b", "urgent", 1, Metal, 5) };
         var result = ForecastMaterialChoices.CompareMaterialPlans(options, Stock, valuation: Values());
         Assert.Single(result.Selected);
-        Assert.Equal(20, result.Valuation!.Benefit);
-        Assert.Equal(0.5, result.Valuation.MaterialCost);
+        var value = ForecastMaterialValue.ValueMaterialPlan(result.Selected, Values(), new SortedSet<string>(StringComparer.Ordinal));
+        Assert.Equal(20, value!.Benefit);
+        Assert.Equal(0.5, value.MaterialCost);
     }
 
     [Fact]
@@ -60,8 +62,6 @@ public sealed class MaterialValueTests
         var option = Option("job", "costly", "beauty", 1, Wood, 5, work: 5);
         var zero = ForecastMaterialChoices.CompareMaterialPlans([option], Stock, valuation: Values());
         Assert.Empty(zero.Selected);
-        Assert.Equal(0, zero.Value);
-        Assert.Equal(new ForecastMaterialValue(0, 0, 0), zero.Valuation);
         Assert.Empty(ForecastMaterialChoices.CompareMaterialPlans([option], Stock, valuation: Values(workRate: 1)).Selected);
     }
 
@@ -115,7 +115,7 @@ public sealed class MaterialValueTests
         var together = LedgerMaterialChoicesRules.SelectLedgerMaterials([art, machine], view, valuation: valuation);
         Assert.Equal(2, together.Selected.Count);
         Assert.Equal(Wood.Value, together.Selected.Single(p => p.Spec.Recipe == "Art").Spec.Ingredients[0]);
-        Assert.Equal(24, together.Comparison.Valuation!.Benefit);
+        Assert.Equal(24, ForecastMaterialValue.ValueMaterialPlan(together.Comparison.Selected, Values(), new SortedSet<string>(StringComparer.Ordinal))!.Benefit);
         estimates.Remove(Key(art, Wood));
         var unknown = LedgerMaterialChoicesRules.SelectLedgerMaterials([art, machine], view, valuation: valuation);
         Assert.Equal("Machine", Assert.Single(unknown.Selected).Spec.Recipe);

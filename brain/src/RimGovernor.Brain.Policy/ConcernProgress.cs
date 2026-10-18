@@ -162,8 +162,6 @@ public sealed record ProgressContract
 {
     public string Method { get; init; } = "";
 
-    public string Expected { get; init; } = "";
-
     public Tick Deadline { get; init; }
 
     public Tick Cooldown { get; init; }
@@ -195,14 +193,14 @@ public static class ConcernProgressRules
     /// since native first saw it is withdrawn, so the planner tries other prey or a non-hunt source.
     /// </summary>
     public static ProgressContract HuntProgress(this RoundsPolicy p) =>
-        new() { Method = "hunt", Expected = "designated animal killed or the hunt settled", Deadline = new Tick(p.HuntStallTicks) };
+        new() { Method = "hunt", Deadline = new Tick(p.HuntStallTicks) };
 
     /// <summary>
     /// The designation stall policy: a plant harvest the census reports designated and untaken for
     /// AcquisitionStallTicks since native first saw it is cancelled so the goal re-plans from another source.
     /// </summary>
     public static ProgressContract AcquisitionProgress(this RoundsPolicy p) =>
-        new() { Method = "harvest", Expected = "designation taken and the yield hauled", Deadline = new Tick(p.AcquisitionStallTicks) };
+        new() { Method = "harvest", Deadline = new Tick(p.AcquisitionStallTicks) };
 
     internal static List<ProgressCooldown> LiveCooldowns(IEnumerable<ProgressCooldown> cooldowns, Tick now) =>
         cooldowns.Where(cd => cd.Until > now).ToList();

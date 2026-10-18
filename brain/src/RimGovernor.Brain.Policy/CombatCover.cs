@@ -9,8 +9,6 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record CoverLine
 {
-    public PawnId Hostile { get; init; }
-
     public double Cover { get; init; }
 
     public double HostileCover { get; init; }

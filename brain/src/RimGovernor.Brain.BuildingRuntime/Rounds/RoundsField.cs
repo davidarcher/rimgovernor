@@ -319,18 +319,17 @@ public sealed partial class RoundsFieldPlanner
                     throw new ControlException("enact: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick");
                 }
                 actions.Add(action);
-                previews.Add(ZonePreview(action, snapshot, projection.Identity.Tick, cells));
+                previews.Add(ZonePreview(action, snapshot, cells));
                 i++;
             }
         }
         return await AdmitAsync(state, goal, projection, read, method, id, snapshot, stock, actions, previews, candidate.Kind + " " + crop.Name, call, epoch).ConfigureAwait(false);
     }
 
-    internal static Preview ZonePreview(DomainAction action, GenerationSnapshot snapshot, Tick tick, IReadOnlyList<Cell> cells) => new()
+    internal static Preview ZonePreview(DomainAction action, GenerationSnapshot snapshot, IReadOnlyList<Cell> cells) => new()
     {
         Action = action,
         Snapshot = snapshot,
-        Tick = tick,
         CanPlace = Known(true),
         SafeToPlace = Known(true),
         MadeFromStuff = Known(false),
@@ -443,7 +442,7 @@ public sealed partial class RoundsFieldPlanner
             throw new ControlException("enactBlock: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick");
         }
         var stock = new StockObservation { Snapshot = snapshot, Tick = projection.Identity.Tick };
-        var preview = ZonePreview(action, snapshot, projection.Identity.Tick, edit.Cells);
+        var preview = ZonePreview(action, snapshot, edit.Cells);
         return await AdmitAsync(state, goal, projection, read, method, id, snapshot, stock, [action], [preview], "block " + edit.Crop, call, epoch).ConfigureAwait(false);
     }
 

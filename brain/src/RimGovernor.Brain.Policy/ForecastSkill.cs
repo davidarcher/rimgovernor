@@ -7,7 +7,7 @@ public enum SkillXpPath { NormalRecord, NormalTracker, Range }
 /// Events must be supplied once, in native order. An interrupted completion-only recipe has no event.</summary>
 public sealed record SkillXpEvent(string Id, int Tick, Fact<double> RawXp, SkillXpPath Path, bool Practice = false);
 public sealed record SkillProjection(Fact<int> Level, Fact<int> StoredLevel, Fact<double> Xp,
-    Fact<double> AppliedGain, Fact<double> DecayLoss, Fact<double> RangeBudget, EquatableArray<string> Findings);
+    Fact<double> AppliedGain, Fact<double> DecayLoss, EquatableArray<string> Findings);
 
 public static class ForecastSkillPolicy
 {
@@ -15,7 +15,7 @@ public static class ForecastSkillPolicy
     /// attack cadence nor training safety. Native observations alone establish attained capability.</summary>
     public static SkillProjection ForecastSkill(SkillLearning? observed, IReadOnlyList<SkillXpEvent> events, int horizon)
     {
-        SkillProjection Unknown(string why) => new(default, default, default, default, default, default, [why]);
+        SkillProjection Unknown(string why) => new(default, default, default, default, default, [why]);
         if (horizon < 0 || horizon > GameTime.TicksPerDay || events.Count > 4096)
             return Unknown("learning_horizon_or_event_bound");
         if (observed is not { } s || !s.Disabled.IsKnown || !s.TrackerAllowsLearning.IsKnown
@@ -72,8 +72,7 @@ public static class ForecastSkillPolicy
         }
         DecayUntil(horizon);
         if (arithmeticInvalid || !double.IsFinite(gain) || !double.IsFinite(loss)) return Unknown("learning_arithmetic_overflow");
-        return new(Known(Effective()), Known(level), Known(xp), Known(gain), Known(loss),
-            budget, []);
+        return new(Known(Effective()), Known(level), Known(xp), Known(gain), Known(loss), []);
 
         int Effective() => s.Disabled.Value ? 0 : (int)Math.Clamp((long)level + s.Aptitude.Value, 0, s.Levels.Count - 1);
         void DecayUntil(int tick)

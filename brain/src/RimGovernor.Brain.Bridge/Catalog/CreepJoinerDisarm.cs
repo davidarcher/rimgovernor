@@ -128,7 +128,7 @@ public sealed partial class DefinitionCatalog
                 continue;
             }
 
-            sites.Add(new P.DisarmSite { Index = site, Part = parts[site].Def, Ancestors = new([.. Ancestors(parts, site)]) });
+            sites.Add(new P.DisarmSite { Index = site, Ancestors = new([.. Ancestors(parts, site)]) });
         }
 
         return [.. sites.OrderBy(s => s.Index)];

@@ -162,8 +162,6 @@ public sealed partial record DefenseTier
 
     public EquatableArray<Cell> Reserved { get; init; }
 
-    public Fact<EquatableArray<Amount>> Costs { get; init; }
-
     /// <summary>The gate that stopped the tier short of the positions the layout found; empty when nothing did.</summary>
     public string Gated { get; init; } = "";
 }
@@ -179,9 +177,6 @@ public sealed partial record DefenseLayout
     /// <summary>The corridor direction from the map edge toward Home.</summary>
     public Rotation Toward { get; init; }
 
-    /// <summary>The passable width across the chokepoint before construction.</summary>
-    public int Width { get; init; }
-
     /// <summary>The approach cell raiders reach first.</summary>
     public Cell Entry { get; init; }
 
@@ -189,9 +184,6 @@ public sealed partial record DefenseLayout
     public EquatableArray<Cell> TrapLane { get; init; }
 
     public EquatableArray<FiringPosition> Firing { get; init; }
-
-    /// <summary>Every turret position with line of sight to the lane.</summary>
-    public EquatableArray<TurretPosition> Turrets { get; init; }
 
     public EquatableArray<DefenseTier> Tiers { get; init; }
 
@@ -584,7 +576,7 @@ public sealed partial record DefenseLayout
         var entry = kb.Entry;
         // at is a killbox cell: row k inward from the ring's inner face (the ring rows are -PerimeterThick..-1), column a across the opening.
         Cell At(int k, int a) => AddCell(entry, AddCell(Scale(d, LayoutPerimeterRules.PerimeterThick + k), Scale(p, a)));
-        var layout = new DefenseLayout { Toward = RotationOf(d), Width = kb.Width, Entry = entry };
+        var layout = new DefenseLayout { Toward = RotationOf(d), Entry = entry };
         var (half, legs) = DefenseShape(r);
         int low = -half, high = half;
         var hall = SnakeCorridor(half, legs);
@@ -849,17 +841,16 @@ public sealed partial record DefenseLayout
         }
         var tiers = new List<DefenseTier>
         {
-            new() { Name = TierChokepoint, Reserved = EquatableArray.From(reservedLanes), Costs = Known(EquatableArray.From(new List<Amount>())) },
-            new() { Name = TierFiringLine, Buildings = EquatableArray.From(line), Reserved = EquatableArray.From(firingReserved), Costs = TierCosts(r.UnitCosts, line) },
-            new() { Name = TierFunnel, Buildings = EquatableArray.From(funnel), Reserved = EquatableArray.From(funnelReserved), Costs = TierCosts(r.UnitCosts, funnel) },
-            new() { Name = TierTrapCorridor, Buildings = EquatableArray.From(corridor), Reserved = EquatableArray.From(reservedLanes), Costs = TierCosts(r.UnitCosts, corridor) },
+            new() { Name = TierChokepoint, Reserved = EquatableArray.From(reservedLanes) },
+            new() { Name = TierFiringLine, Buildings = EquatableArray.From(line), Reserved = EquatableArray.From(firingReserved) },
+            new() { Name = TierFunnel, Buildings = EquatableArray.From(funnel), Reserved = EquatableArray.From(funnelReserved) },
+            new() { Name = TierTrapCorridor, Buildings = EquatableArray.From(corridor), Reserved = EquatableArray.From(reservedLanes) },
         };
         var gated = new List<DefenseGated>();
         layout = layout with { Tiers = EquatableArray.From(tiers) };
         if (r.Turret.Definition != "")
         {
-            var (turrets, turretCandidates) = s.Turrets(layout.Geometry());
-            layout = layout with { Turrets = EquatableArray.From(turretCandidates) };
+            var turrets = s.Turrets(layout.Geometry());
             tiers.Add(turrets);
             layout = layout with { Tiers = EquatableArray.From(tiers) };
             if (turrets.Gated != "")

@@ -52,7 +52,7 @@ public sealed class PlannedRoomGateTests
             {
                 Preview = new Preview
                 {
-                    Action = action, Snapshot = snapshot, Tick = new(100), CanPlace = Known(!own), SafeToPlace = Known(true),
+                    Action = action, Snapshot = snapshot, CanPlace = Known(!own), SafeToPlace = Known(true),
                     Blockers = own ? [new PlacementBlocker { DefName = "Blueprint_" + building.Definition, Blueprint = true }] : [],
                 },
                 Stock = new StockObservation { Snapshot = snapshot, Tick = new(100) },

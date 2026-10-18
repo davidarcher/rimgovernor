@@ -129,7 +129,7 @@ public sealed class ForecastNeedsTests
         var input = Input();
         var tired = ForecastNeeds.ForecastNeedsTimeline(Pawn(), input, []);
         var rested = ForecastNeeds.ForecastNeedsTimeline(Pawn(), input, [Sleep()]);
-        Assert.True(rested.Capacity.FreeTicks.Value > tired.Capacity.FreeTicks.Value);
+        Assert.True(rested.Capacity.Capacity.Windows.Value.Sum(w => w.End - w.Start) > tired.Capacity.Capacity.Windows.Value.Sum(w => w.End - w.Start));
         Assert.Contains(rested.Capacity.Capacity.Windows.Value, w => w.Start == 400 && w.End == 1000);
         Assert.DoesNotContain(rested.Capacity.Capacity.Windows.Value, w => w.Start < 400);
         Assert.True(rested.Needs.Single(n => n.Kind == "rest").ThresholdExposureTicks.Value < tired.Needs.Single(n => n.Kind == "rest").ThresholdExposureTicks.Value);
@@ -175,7 +175,7 @@ public sealed class ForecastNeedsTests
     public void UnknownMechanicsNeverGiveFreeWorkAndMissingRoutesDoNotMakeInstantMeals()
     {
         var pawn = Pawn() with { Needs = [new("rest", Known(.2), default, Known(.28))] };
-        Assert.False(ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), []).Capacity.FreeTicks.IsKnown);
+        Assert.False(ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), []).Capacity.Capacity.Windows.IsKnown);
         var targets = Pawn() with { Targets = [Pawn().Targets[1] with { TravelTicks = default }] };
         var generated = ForecastNeeds.GenerateNeedsAlternatives(targets, ForecastCapacity.ForecastPawnCapacityOf(Input()), 1000);
         Assert.Empty(generated.Choices);
@@ -186,7 +186,7 @@ public sealed class ForecastNeedsTests
     [Fact]
     public void LegacyScheduleDoesNotPreselectNeedTimingButExplicitObligationsRemainProtected()
     {
-        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Input() with { ProtectTimetable = true }).FreeTicks.Value);
+        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Input() with { ProtectTimetable = true }).Capacity.Windows.Value.Sum(w => w.End - w.Start));
         var generated = ForecastNeeds.GenerateNeedsAlternatives(Pawn(), ForecastCapacity.ForecastPawnCapacityOf(Input()), 1000);
         Assert.Contains(generated.Choices, c => c.Depart == 0);
         var protectedInput = Input() with { Occupancy = Known<EquatableArray<ForecastOccupancy>>(

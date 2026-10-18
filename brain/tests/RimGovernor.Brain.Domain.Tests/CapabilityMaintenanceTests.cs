@@ -25,7 +25,6 @@ public sealed class CapabilityMaintenanceTests
     {
         Assert.Empty(CapabilityMaintenanceRules.AssignedCombatCapabilities(Known(Ideology())));
         var requirement = Assert.Single(CapabilityMaintenanceRules.AssignedCombatCapabilities(Known(Ideology("pawn"))));
-        Assert.Equal(CapabilityDevelopmentKind.Maintenance, requirement.Kind);
         Assert.Equal(2, requirement.Alternatives.Count);
         Assert.Empty(CapabilityMaintenanceRules.AssignedCombatCapabilities(default));
         var inactive = Ideology("pawn") with { Facts = new() { Roles = [new("role", "soldier", false, [new("pawn")])] } };

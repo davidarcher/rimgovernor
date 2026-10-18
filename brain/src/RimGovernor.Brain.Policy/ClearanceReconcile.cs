@@ -4,8 +4,6 @@ namespace RimGovernor.Brain.Policy;
 // is reconciled, and the operations that take things down are batched by kind across rooms. The build side
 // (wall, door, floor in, install, build) belongs to the owning concerns.
 
-internal sealed record ClearedRoom(PlannedRoom Room, Reconciliation Rec);
-
 public static class ClearanceReconcileRules
 {
     /// <summary>
@@ -33,7 +31,7 @@ public static class ClearanceReconcileRules
     /// Reconciles every ground room against the flooring review's wanted floors: a floor is owed removal only
     /// where it is not the wanted one nor one that stands in for it. Without a decision the floors are left.
     /// </summary>
-    private static List<ClearedRoom> ReconcileGround(
+    private static List<Reconciliation> ReconcileGround(
         LayoutPlan plan,
         GroundCensus g,
         IReadOnlyList<ClearanceTarget> rows,
@@ -42,7 +40,7 @@ public static class ClearanceReconcileRules
         RoomFloors? wants
     )
     {
-        var output = new List<ClearedRoom>();
+        var output = new List<Reconciliation>();
         foreach (var r in plan.GroundRooms(g))
         {
             var input = new ReconcileInput
@@ -60,7 +58,7 @@ public static class ClearanceReconcileRules
                 input = input with { WantedFloor = wanted, FloorKept = kept };
             }
 
-            output.Add(new ClearedRoom(r, ReconcileRules.Reconcile(input)));
+            output.Add(ReconcileRules.Reconcile(input));
         }
 
         return output;
@@ -104,7 +102,7 @@ public static class ClearanceReconcileRules
             var seenRoof = new HashSet<Cell>();
             foreach (var cr in crs)
             {
-                foreach (var op in cr.Rec.Ready)
+                foreach (var op in cr.Ready)
                 {
                     if (op.Kind != kind)
                     {
@@ -180,7 +178,7 @@ public static class ClearanceReconcileRules
         var output = ClearanceGroundRules.RetiredGroundWork(rows, floors, rg.Ground, rg);
         foreach (var cr in ReconcileGround(plan, g, rows, floors, rooms, wants))
         {
-            foreach (var op in cr.Rec.Owed)
+            foreach (var op in cr.Owed)
             {
                 if (!_clearKinds.Contains(op.Kind) || op.Kind == OpKind.RoofOff)
                 {

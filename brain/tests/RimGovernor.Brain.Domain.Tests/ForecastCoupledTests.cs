@@ -332,10 +332,10 @@ public sealed class ForecastCoupledTests
             return ForecastThermalExposure.PawnExposureOf(context, new() { ["work"] = new("work", location, location, []) }, context.Needs.Pawns[0], work, work, projection, 300, comfort, []);
         }
         var outdoors = Exposure("cell/5/5"); var indoors = Exposure("cell/1/1");
-        Assert.Equal(6000, outdoors.ColdDegreeTicks.Value);
+        Assert.Equal(6000, outdoors.AssessedColdDegreeTicks);
         // A -20 comfort shift from tick 100 removes the cold for the remaining 200 ticks.
-        Assert.Equal(2000, Exposure("cell/5/5", (-20, 0, 100)).ColdDegreeTicks.Value);
-        Assert.True(indoors.ColdDegreeTicks.Value < outdoors.ColdDegreeTicks.Value);
+        Assert.Equal(2000, Exposure("cell/5/5", (-20, 0, 100)).AssessedColdDegreeTicks);
+        Assert.True(indoors.AssessedColdDegreeTicks < outdoors.AssessedColdDegreeTicks);
         Assert.Equal(0, outdoors.UnknownTicks);
     }
 
@@ -427,7 +427,7 @@ public sealed class ForecastCoupledTests
         Assert.Empty(result.Proposed.Coupled!.Alternatives);
         Assert.Contains("unassessed_no_schedule_within_horizon", result.Proposed.Coupled.Findings);
         var baseline = result.Baseline.Coupled!.Alternatives.Single();
-        Assert.True(baseline.Needs["pawn"].Capacity.FreeTicks.Value > 0);
+        Assert.True(baseline.Needs["pawn"].Capacity.Capacity.Windows.Value.Sum(w => w.End - w.Start) > 0);
         Assert.Empty(baseline.Plan.Allocations);
     }
     [Fact]

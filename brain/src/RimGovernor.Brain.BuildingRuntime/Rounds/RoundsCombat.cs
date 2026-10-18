@@ -327,7 +327,7 @@ partial class RoundsDefensePlanner
             foreach (var l in row.Lines)
             {
                 var hostile = new PawnId((l.HostileId ?? ""));
-                coverLines.Add(new CoverLine { Hostile = hostile, Cover = l.Cover.GetValueOrDefault(), HostileCover = l.HostileCover.GetValueOrDefault(), LineOfFire = l.LineOfFire.GetValueOrDefault() });
+                coverLines.Add(new CoverLine { Cover = l.Cover.GetValueOrDefault(), HostileCover = l.HostileCover.GetValueOrDefault(), LineOfFire = l.LineOfFire.GetValueOrDefault() });
                 sightLines.Add(new SightLine { Cell = scoredAt, Hostile = hostile, LineOfFire = l.LineOfFire.GetValueOrDefault(), ColonistInPath = l.ColonistInPath.GetValueOrDefault() });
             }
             scoredCells.Add(new ScoredCell { Cell = scoredAt, Lines = [.. coverLines] });

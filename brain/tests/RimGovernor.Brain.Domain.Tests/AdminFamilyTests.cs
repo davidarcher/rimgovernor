@@ -213,7 +213,7 @@ public sealed class AdminFamilyTests
     public void AWeaponDropIsHeldAsAnUnsupportedForecast()
     {
         var need = new Need { Id = AdminFamily.CreepJoiners, Tier = NeedTier.Wellbeing, Satisfaction = Satisfaction.Unmet };
-        var drops = new AdminFacts { CreepJoiners = new CreepJoinerWork { Owed = Known(true), Drops = [new WeaponDrop(new("a"), "Gun_1")] } };
+        var drops = new AdminFacts { CreepJoiners = new CreepJoinerWork { Owed = Known(true), Drops = [new WeaponDrop(new("a"))] } };
         var held = Assert.Single(new AdminFamily().Propose([need], drops));
         Assert.Equal(AdminFamily.UnsupportedDisarm, held.Hold!.Subject);
         Assert.Empty(new AdminFamily().Propose([need], new AdminFacts { CreepJoiners = new CreepJoinerWork { Owed = Known(true), Inspections = Inspect("a") } }));
@@ -307,7 +307,7 @@ public sealed class AdminFamilyTests
         {
             Record = new CreepJoinerRecord { Inspections = new Dictionary<PawnId, InspectionStage> { [new("b")] = InspectionStage.Ordered, [new("c")] = InspectionStage.Done } },
         };
-        colony.Work = new CreepJoinerWork { Owed = Known(true), Inspections = inspections, Record = colony.Record() };
+        colony.Work = new CreepJoinerWork { Owed = Known(true), Inspections = inspections };
         Assert.Equal(Verdict.WaitFor(Cause.MethodUsed, "creepjoiner_order_recorded"), Colony.Report(colony.Run(arbiter)));
         Assert.Equal(new Dictionary<PawnId, InspectionStage> { [new("c")] = InspectionStage.Done }, colony.Record().Inspections);
     }

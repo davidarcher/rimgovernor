@@ -129,12 +129,6 @@ public sealed record ComfortReview
 
     public ComfortNeed Recreation { get; init; }
 
-    public int MissingDining { get; init; }
-
-    public int MissingRecreation { get; init; }
-
-    public int People { get; init; }
-
     public Fact<bool> Recovered() =>
         Dining == ComfortNeed.Unknown || Recreation == ComfortNeed.Unknown
             ? Unknown<bool>()
@@ -182,8 +176,7 @@ public static class ComfortRules
             return r;
         }
         v.Validate();
-        r = r with { People = v.People.Count };
-        (ComfortNeed Need, int Missing, ComfortUse Proof) Assess(IReadOnlyList<ComfortFacility> facilities, ComfortUse proof)
+        (ComfortNeed Need, ComfortUse Proof) Assess(IReadOnlyList<ComfortFacility> facilities, ComfortUse proof)
         {
             var available = new HashSet<PawnId>();
             // A stable tie-break makes simultaneous observed uses replayable.
@@ -209,25 +202,22 @@ public static class ComfortRules
             {
                 seenUse = seenUse || (f.Id == proof.Facility && f.AccessibleTo.Count > 0);
             }
-            var missing = v.People.Count - available.Count;
-            if (missing > 0)
+            if (v.People.Count > available.Count)
             {
-                return (ComfortNeed.Capacity, missing, proof);
+                return (ComfortNeed.Capacity, proof);
             }
             if (v.People.Count > 0 && !seenUse)
             {
-                return (ComfortNeed.UseNeeded, 0, proof);
+                return (ComfortNeed.UseNeeded, proof);
             }
-            return (ComfortNeed.Recovered, 0, proof);
+            return (ComfortNeed.Recovered, proof);
         }
-        var (dining, missingDining, diningProof) = Assess(v.Dining, r.History.Dining);
-        var (recreation, missingRecreation, recreationProof) = Assess(v.Recreation, r.History.Recreation);
+        var (dining, diningProof) = Assess(v.Dining, r.History.Dining);
+        var (recreation, recreationProof) = Assess(v.Recreation, r.History.Recreation);
         return r with
         {
             Dining = dining,
-            MissingDining = missingDining,
             Recreation = recreation,
-            MissingRecreation = missingRecreation,
             History = new ComfortHistory(diningProof, recreationProof),
         };
     }

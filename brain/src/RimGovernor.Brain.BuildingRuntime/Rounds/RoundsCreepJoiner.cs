@@ -11,7 +11,7 @@ internal static class RoundsCreepJoiner
     internal static CreepJoinerWork CreepJoinerWorkOf(ColonyProjection facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog, CreepJoinerRecord record)
     {
         var owed = Unknown<bool>();
-        var work = new CreepJoinerWork { Record = record };
+        var work = new CreepJoinerWork();
         if (CreepJoinerHands(frame) is { } hands)
         {
             var defs = catalog ?? throw new ControlException("creepJoiner review: no definition catalog");

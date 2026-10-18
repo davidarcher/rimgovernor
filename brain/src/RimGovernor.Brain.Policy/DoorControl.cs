@@ -1,8 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// A desired vanilla latch setting. Passage is separate: a closed held door still needs a pawn to open it. To is
-/// the cooler room's adjacent floor cell, used only for emergency heat relief.
+/// A desired vanilla latch setting. Passage is separate: a closed held door still needs a pawn to open it.
 /// </summary>
 public sealed record DoorChange
 {
@@ -13,10 +12,6 @@ public sealed record DoorChange
     public bool Heat { get; init; }
 
     public bool Passage { get; init; }
-
-    public Cell To { get; init; }
-
-    public EquatableArray<PawnId> Occupants { get; init; }
 }
 
 public static class DoorControlRules
@@ -90,8 +85,6 @@ public static class DoorControlRules
                                 HoldOpen = true,
                                 Heat = true,
                                 Passage = !open,
-                                Occupants = hot.Pawns,
-                                To = hot.Id == room.Id ? door.Outside : new Cell(2 * door.Cell.X - door.Outside.X, 2 * door.Cell.Z - door.Outside.Z),
                             };
                         }
                         else if (travelled.Contains(door.Cell) && LogisticsRoom(room) && LogisticsRoom(far)

@@ -170,7 +170,7 @@ public static class DefenseTiersPolicy
         }
         catch (Exception e) when (e is DefenseException or DomainException)
         {
-            layout = new DefenseLayout { Toward = kb.Toward, Width = kb.Width, Entry = kb.Entry };
+            layout = new DefenseLayout { Toward = kb.Toward, Entry = kb.Entry };
             decisions.Add(new SiteDecision { Node = id, Verdict = LayoutEmbedRules.EmbedUnplaceable, Reason = ReasonTierLayoutFailed });
             refusal = e.Message;
             refused = true;

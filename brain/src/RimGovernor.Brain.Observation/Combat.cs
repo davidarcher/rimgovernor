@@ -47,9 +47,6 @@ public sealed record Combat
     /// <summary>The colony facts outdoor temperature.</summary>
     public Fact<double> OutdoorTemperatureC { get; init; }
 
-    /// <summary>The hottest live hive's temperature.</summary>
-    public Fact<double> HiveTemperatureC { get; init; }
-
     public BundleSnapshot? Frame { get; init; }
 
     /// <summary>The load's definition catalog: the mech kinds, the weapons' def rows and the race rows resolve against it.</summary>

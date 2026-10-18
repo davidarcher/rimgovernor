@@ -21,8 +21,6 @@ public sealed record GatheringInput
 /// <summary>One party ready to start: the organizer to name.</summary>
 public sealed record GatheringPlan
 {
-    public string Def { get; init; } = "";
-
     public PawnId Organizer { get; init; }
 }
 
@@ -114,7 +112,7 @@ public static class GatheringRules
         {
             return none;
         }
-        return Known(new GatheringPlan { Def = PartyGatheringDef, Organizer = organizer });
+        return Known(new GatheringPlan { Organizer = organizer });
     }
 
     /// <summary>Reports whether the pawn carries the AttendedParty memory. A pawn whose thoughts are unreadable is not counted either way.</summary>

@@ -41,14 +41,9 @@ namespace HomeBridge.BridgeTools
         internal static IEnumerable<string> Allowed(FoodPolicy p) =>
             p.filter.AllowedThingDefs.Where(IsFood).Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal);
 
-        internal static Obs.FoodRestriction? Read(Pawn pawn)
-        {
-            var policy = pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn);
-            if (policy == null || pawn.needs?.food == null || pawn.DevelopmentalStage.Baby()) return null;
-            var row = new Obs.FoodRestriction { PolicyId = policy.GetUniqueLoadID() };
-            row = row with { AllowedDefs = [.. row.AllowedDefs, .. policy.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal)] };
-            return row;
-        }
+        /// <summary>Whether the pawn eats under a food policy: it respects one, has a food need and is past babyhood.</summary>
+        internal static bool Respected(Pawn pawn) =>
+            pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn) != null && pawn.needs?.food != null && !pawn.DevelopmentalStage.Baby();
 
         internal static Common.Failure? Validate(Operations.FoodPolicyIntent? intent, Common.ObservationContext context)
         {

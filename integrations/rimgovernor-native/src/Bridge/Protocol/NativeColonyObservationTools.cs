@@ -481,7 +481,7 @@ namespace HomeBridge.BridgeTools
             if (source.larder != null) {
                 var corpses = new List<Obs.CorpseHandling>();
                 foreach (var corpse in source.larder.Corpses) {
-                    var row = new Obs.CorpseHandling { StockId = corpse.ID, Cell = Cell(corpse.Cell), FrozenDestination = corpse.FrozenDestination, InStorage = corpse.InStorage };
+                    var row = new Obs.CorpseHandling { StockId = corpse.ID, Cell = Cell(corpse.Cell), FrozenDestination = corpse.FrozenDestination };
                     if (corpse.Hauler != null) row = row with { HaulerId = corpse.Hauler };
                     corpses.Add(row);
                 }

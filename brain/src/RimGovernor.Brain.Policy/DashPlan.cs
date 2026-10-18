@@ -59,8 +59,6 @@ public sealed record DashPlan
     public EquatableArray<DashTrip> Trips { get; init; }
 
     public Tick Until { get; init; }
-
-    public string Reason { get; init; } = "";
 }
 
 /// <summary>The open window: the one pawn allowed outdoors through extreme cold, the trips planned, and the tick it closes.</summary>
@@ -93,13 +91,6 @@ public static class DashPlanRules
     /// <summary>The window length when the cold does not grow hypothermia for this pawn (its clothing holds): one review horizon, renewed each review while the facts stand.</summary>
     public const long DashUnboundedTicks = GameTime.TicksPerHour;
 
-    // Dash plan reasons.
-    public const string DashPlanned = "planned";
-    public const string DashUnknown = "unknown_input";
-    public const string DashNoTrip = "no_trip_fits";
-    public const string DashNoValue = "no_candidates";
-    public const string DashUnbounded = "cold_not_harmful";
-    public const string DashAtCapacity = "severity_at_cap";
 
     /// <summary>
     /// The Moving capacity multiplier of the hypothermia stage at severity: the vanilla stages offset Moving by
@@ -128,15 +119,15 @@ public static class DashPlanRules
         var vk = r.Speed.TryGetValue(out var speed);
         if (!tk || !ck || !sk || !vk || double.IsNaN(speed) || speed <= 0)
         {
-            return new DashPlan { Reason = DashUnknown };
+            return new DashPlan();
         }
         if (r.Candidates.Count == 0)
         {
-            return new DashPlan { Reason = DashNoValue };
+            return new DashPlan();
         }
         if (sev >= DashSeverityCap)
         {
-            return new DashPlan { Reason = DashAtCapacity };
+            return new DashPlan();
         }
         var growth = r.Tuning.Growth(temp, comfort);
         var baseFactor = HypothermiaMovingFactor(sev);
@@ -188,13 +179,13 @@ public static class DashPlanRules
         var plan = new DashPlan { Trips = EquatableArray.From(trips) };
         if (trips.Count == 0)
         {
-            return plan with { Reason = DashNoTrip };
+            return plan;
         }
         if (growth <= 0)
         {
-            return plan with { Until = new Tick(r.Now.Value + DashUnboundedTicks), Reason = DashUnbounded };
+            return plan with { Until = new Tick(r.Now.Value + DashUnboundedTicks) };
         }
-        return plan with { Until = new Tick(r.Now.Value + (long)Math.Ceiling(elapsed)), Reason = DashPlanned };
+        return plan with { Until = new Tick(r.Now.Value + (long)Math.Ceiling(elapsed)) };
     }
 
     /// <summary>Reports whether <paramref name="pawn"/> may be outdoors at the facts' tick.</summary>

@@ -79,6 +79,6 @@ public sealed class GearArmorTermTests
         });
 
         var armor = Value(threat, Flak);
-        Assert.Equal(armor * 10, Plan(true).Score - Plan(false).Score + armor, 9);
+        Assert.Equal(armor * 10, Assert.Single(Plan(true).Gaps).Gain - Assert.Single(Plan(false).Gaps).Gain + armor, 9);
     }
 }

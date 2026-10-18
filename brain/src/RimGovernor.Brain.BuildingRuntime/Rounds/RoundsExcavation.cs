@@ -245,7 +245,6 @@ partial class RoundsBuildingPlanner
                 Cleared = cleared,
                 Blocked = !cell.Fogged && !cleared && !cell.Eligible,
                 Eligible = cell.Eligible,
-                Rock = cell.Definition,
             });
         }
         return states;

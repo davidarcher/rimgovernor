@@ -167,7 +167,7 @@ public sealed partial class RoundsWorkPlanner
         var drug = new List<DrugPolicy>();
         if (read.Projection.Policies.TryGetValue(out var nativePolicies))
         {
-            var owned = nativePolicies.Drug.Select(e => new OwnedDrugPolicy(e.ID, e.Label, [.. e.Pawns], [.. e.Drugs])).ToList();
+            var owned = nativePolicies.Drug.Select(e => new OwnedDrugPolicy(e.Label, [.. e.Pawns], [.. e.Drugs])).ToList();
             var drugChanges = DrugPolicyPlanRules.Changes(read.Projection.Facts.Preferences, read.Projection.Facts.Items, pawns, owned);
             if (drugChanges.Write is not null)
             {
@@ -369,7 +369,7 @@ partial class RoundsWorkPlanner
         {
             return [];
         }
-        var entries = p.Food.Select(e => new FoodPolicyEntry { Id = e.ID, Label = e.Label, Pawns = e.Pawns, Allowed = e.Allowed }).ToList();
+        var entries = p.Food.Select(e => new FoodPolicyEntry { Label = e.Label, Pawns = e.Pawns, Allowed = e.Allowed }).ToList();
         reserve.TryGetValue(out var stock);
         return FoodPolicyRules.DietPolicyChanges(ideology, pawns, p.FoodEaters, owned, entries, p.Foods, stock?.IsShort ?? false, preferences);
     }

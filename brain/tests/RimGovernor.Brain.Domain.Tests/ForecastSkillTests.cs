@@ -36,7 +36,6 @@ public sealed class ForecastSkillTests
         var result = ForecastSkillPolicy.ForecastSkill(Evidence(), [new("shot1", 1, Known(20d), SkillXpPath.Range),
             new("shot2", 2, Known(20d), SkillXpPath.Range), new("work", 3, Known(10d), SkillXpPath.NormalTracker)], 100);
         Assert.Equal(50, result.AppliedGain.Value);
-        Assert.Equal(0, result.RangeBudget.Value);
         Assert.Equal(140, result.Xp.Value);
         var duplicate = new SkillXpEvent("same", 1, Known(10d), SkillXpPath.Range);
         Assert.False(ForecastSkillPolicy.ForecastSkill(Evidence(), [duplicate, duplicate], 100).Xp.IsKnown);

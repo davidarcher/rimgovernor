@@ -161,7 +161,6 @@ internal sealed partial class DefenseSite
             Buildings = EquatableArray.From(placed),
             Reserved = EquatableArray.From(reserved),
             Gated = gated,
-            Costs = DefenseLayout.TierCosts(R.UnitCosts, placed),
         };
     }
 }

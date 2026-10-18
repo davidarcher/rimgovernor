@@ -56,7 +56,7 @@ public enum Purpose
     Shelter,
 }
 
-public sealed record Dependency(ActionId Action, Fact<bool> Completed, GenerationSnapshot Snapshot, Tick Tick);
+public sealed record Dependency(ActionId Action, Fact<bool> Completed, GenerationSnapshot Snapshot);
 
 /// <summary>
 /// Bound to the exact action, including resolved anchor/rotation/stuff. SafeToPlace includes normal-game
@@ -68,8 +68,6 @@ public sealed record Preview
     public required DomainAction Action { get; init; }
 
     public GenerationSnapshot Snapshot { get; init; }
-
-    public Tick Tick { get; init; }
 
     public Fact<bool> CanPlace { get; init; }
 

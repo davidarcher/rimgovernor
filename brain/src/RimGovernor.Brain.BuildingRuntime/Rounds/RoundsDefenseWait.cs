@@ -180,7 +180,7 @@ partial class RoundsDefenseLayoutPlanner
         {
             if (!c.Fogged)
             {
-                census[c.Cell] = new WaitDoorCell { Edifice = c.EdificeDefName, Stuff = c.EdificeStuff, Walkable = c.Walkable, Roofed = c.Roofed };
+                census[c.Cell] = new WaitDoorCell { Edifice = c.EdificeDefName, Stuff = c.EdificeStuff, Walkable = c.Walkable };
             }
         }
         return census;

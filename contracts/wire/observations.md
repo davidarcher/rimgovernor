@@ -334,7 +334,7 @@ milk, wool, egg and spawner comps, and the feed a bench can make is the
 `RecipeDef` products the race can eat. An absent stat is unknown, never zero.
 It is derived state held in memory (persistence-contracts.md); it adds no
 store and no per-animal race copy: `AnimalState` and `PawnState` carry no race
-scalar, `FoodEater` and `FoodRestriction` no food list.
+scalar, `FoodEater` no food list.
 
 ## Biotech defs and pawn facts
 

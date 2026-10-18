@@ -9,9 +9,6 @@ public sealed record CorpseHandling
     public PawnId Hauler { get; init; }
 
     public bool FrozenDestination { get; init; }
-
-    /// <summary>Whether the corpse lies in a stockpile (false: in the field).</summary>
-    public Fact<bool> InStorage { get; init; }
 }
 
 /// <summary>
@@ -36,8 +33,6 @@ public sealed record CorpseLarderMethod
     public FoodStock? Stock { get; init; }
 
     public CorpseHandling? Handling { get; init; }
-
-    public Cell Cell { get; init; }
 }
 
 public static class CorpseLarderRules

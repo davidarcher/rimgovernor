@@ -207,13 +207,13 @@ public sealed class WorkResourcesTests
     {
         var facts = WorkResourceTestFacts.Create("cook-builder", "helper");
         var held = View(facts, Pending(Delivery("food")));
-        Assert.False(held.Capacity["cook-builder"].FreeTicks.IsKnown);
-        Assert.True(held.Capacity["helper"].FreeTicks.Value > 0);
+        Assert.False(held.Capacity["cook-builder"].Capacity.Windows.IsKnown);
+        Assert.True(held.Capacity["helper"].Capacity.Windows.Value.Sum(w => w.End - w.Start) > 0);
         Assert.False(WorkRules.WorkResourcesFit(held, Plan("overlap", Delivery("second", count: 1))));
         Assert.True(WorkRules.WorkResourcesFit(held, Plan("parallel", Delivery("second", "helper", 1))));
         var cancelled = Pending(Delivery("food")) with { Progress = new() { Stage = Stage.Cancelled } };
-        Assert.True(View(facts, cancelled).Capacity["cook-builder"].FreeTicks.Value > 0);
-        Assert.False(View(facts, cancelled with { Progress = cancelled.Progress with { Attempt = new(1), Tick = new(100) } }).Capacity["cook-builder"].FreeTicks.IsKnown);
+        Assert.True(View(facts, cancelled).Capacity["cook-builder"].Capacity.Windows.Value.Sum(w => w.End - w.Start) > 0);
+        Assert.False(View(facts, cancelled with { Progress = cancelled.Progress with { Attempt = new(1), Tick = new(100) } }).Capacity["cook-builder"].Capacity.Windows.IsKnown);
     }
 
     [Fact]
@@ -237,10 +237,10 @@ public sealed class WorkResourcesTests
             facts.ForecastObserved.WorkPawns.Value.Select(p => p.Id.Value == "cook-builder" ? p with { Job = Known(new PawnJob { Def = "DoBill" }) } : p))) } };
         var view = View(facts);
         Assert.Contains("unknown_current_job_remaining", view.Capacity["cook-builder"].Findings);
-        Assert.True(view.Capacity["helper"].FreeTicks.IsKnown);
+        Assert.True(view.Capacity["helper"].Capacity.Windows.IsKnown);
         facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = Known(EquatableArray.From(
             facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Available = Known(false) }))) } };
-        Assert.Equal(0, View(facts).Capacity["helper"].FreeTicks.Value);
+        Assert.Equal(0, View(facts).Capacity["helper"].Capacity.Windows.Value.Sum(w => w.End - w.Start));
     }
 
     [Fact]
@@ -296,7 +296,7 @@ public sealed class WorkResourcesTests
         var bounded = WorkRules.WorkResourcesOf(view.Evidence, Known(default(EquatableArray<ProductionBatch>)), [], truncated: true);
         Assert.True(bounded.Claims.Truncated);
         Assert.False(bounded.Materials.IsKnown);
-        Assert.False(bounded.Capacity["cook-builder"].FreeTicks.IsKnown);
+        Assert.False(bounded.Capacity["cook-builder"].Capacity.Windows.IsKnown);
         Assert.False(WorkRules.WorkResourcesFit(bounded, Plan("build", Building("wall"))));
     }
 

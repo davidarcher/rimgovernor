@@ -492,7 +492,7 @@ public static class GearRules
     /// netting the stored stock. Known is false while the bench census is unread. (The exported
     /// <c>GearProductionDemand</c> is the loadout-gap aggregate.)
     /// </summary>
-    internal static (IReadOnlyList<GearBench> Benches, Dictionary<GearStockKey, int> Demand, bool Known) GearBenchDemand(
+    internal static (IReadOnlyList<GearBench> Benches, Dictionary<(Resource Definition, Resource Stuff), int> Demand, bool Known) GearBenchDemand(
         IReadOnlyList<GearNeed> needs,
         GearObservation v,
         GearReview review,
@@ -505,10 +505,10 @@ public static class GearRules
         }
         ValidateGearProduction(all);
         var benches = all.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
-        var demand = new Dictionary<GearStockKey, int>();
+        var demand = new Dictionary<(Resource Definition, Resource Stuff), int>();
         foreach (var n in needs)
         {
-            var key = new GearStockKey(n.Need.Definition, n.Need.Stuff);
+            var key = (n.Need.Definition, n.Need.Stuff);
             demand[key] = demand.GetValueOrDefault(key) + 1;
         }
         var stored = GearStockRules.UnassignedGearStock(v.Stored.ValueOrDefault, review.Loadouts);
@@ -516,7 +516,7 @@ public static class GearRules
         {
             if (row.HPBand >= 5 && row.Quality >= 2)
             {
-                var key = new GearStockKey(row.Definition, row.Stuff);
+                var key = (row.Definition, row.Stuff);
                 demand[key] = Math.Max(0, demand.GetValueOrDefault(key) - row.Count);
             }
         }

@@ -13,12 +13,6 @@ public sealed record BasicComfortReview
 
     public ComfortNeed Recreation { get; init; }
 
-    public int MissingDining { get; init; }
-
-    public int MissingRecreation { get; init; }
-
-    public int People { get; init; }
-
     public int MissingVariety { get; init; }
 
     public bool VarietyKnown { get; init; }
@@ -84,9 +78,6 @@ public static class BasicComfortRules
         {
             Dining = Provided(full.Dining),
             Recreation = Provided(full.Recreation),
-            MissingDining = full.MissingDining,
-            MissingRecreation = full.MissingRecreation,
-            People = full.People,
         };
         if (observed.TryGetValue(out var v))
         {

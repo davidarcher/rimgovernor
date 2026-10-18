@@ -942,7 +942,6 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Observations.SnapshotReadReplyOutcome.UnavailableCase), TypeInfoPropertyName = "ObservationsSnapshotReadReplyOutcomeUnavailableCase")]
 [JsonSerializable(typeof(Observations.FlushSnapshotRequest), TypeInfoPropertyName = "ObservationsFlushSnapshotRequest")]
 [JsonSerializable(typeof(Observations.FlushSnapshotReply), TypeInfoPropertyName = "ObservationsFlushSnapshotReply")]
-[JsonSerializable(typeof(Observations.FoodRestriction), TypeInfoPropertyName = "ObservationsFoodRestriction")]
 [JsonSerializable(typeof(Observations.ApparelPolicyState), TypeInfoPropertyName = "ObservationsApparelPolicyState")]
 [JsonSerializable(typeof(Operations.CombatFireMode), TypeInfoPropertyName = "OperationsCombatFireMode")]
 [JsonSerializable(typeof(Operations.CombatDoorMode), TypeInfoPropertyName = "OperationsCombatDoorMode")]

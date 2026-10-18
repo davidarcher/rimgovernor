@@ -589,7 +589,6 @@ partial class RoundsDefensePlanner
             Shells = combat.Shells,
             Structures = [.. structures],
             OutdoorTemperatureC = combat.OutdoorTemperatureC,
-            HiveTemperatureC = combat.HiveTemperatureC,
             Population = Known(combat.Emergency.Facts.Colonists.Count),
         };
     }

@@ -16,9 +16,6 @@ public sealed record GearStock
     public bool Serviceable() => HPBand >= StockpileRolesConstants.GearHitPointFloor * 10 && Quality >= 2;
 }
 
-/// <summary>The definition and stuff a stock row or need is netted under.</summary>
-internal readonly record struct GearStockKey(Resource Definition, Resource Stuff);
-
 public static class GearStockRules
 {
     /// <summary>

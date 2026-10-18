@@ -191,12 +191,7 @@ public enum EmergencyReason
 
 public readonly record struct EmergencyHold(EmergencyReason Reason, PawnId Pawn);
 
-public sealed record EmergencyDecision(bool Clear, IReadOnlyList<EmergencyHold> Holds)
-{
-    public EmergencyDecision() : this(false, [])
-    {
-    }
-}
+public sealed record EmergencyDecision(bool Clear, IReadOnlyList<EmergencyHold> Holds);
 
 /// <summary>Owns its inputs and carries no mutation or authority API.</summary>
 public sealed record EmergencySnapshot

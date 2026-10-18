@@ -85,9 +85,9 @@ public sealed class WorkOccupancyTests
             Pawn = unknown, Location = "home", HorizonTicks = 100, LocalHour = Known(12.0),
             Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
         };
-        Assert.False(ForecastCapacity.ForecastPawnCapacityOf(input).FreeTicks.IsKnown);
-        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(input with { Pawn = free }).FreeTicks.Value);
-        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(input with { Pawn = free with { Available = Known(false) } }).FreeTicks.Value);
+        Assert.False(ForecastCapacity.ForecastPawnCapacityOf(input).Capacity.Windows.IsKnown);
+        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(input with { Pawn = free }).Capacity.Windows.Value.Sum(w => w.End - w.Start));
+        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(input with { Pawn = free with { Available = Known(false) } }).Capacity.Windows.Value.Sum(w => w.End - w.Start));
     }
 
     [Fact]
@@ -99,10 +99,10 @@ public sealed class WorkOccupancyTests
             Pawn = pawn, Location = "home", HorizonTicks = 100, LocalHour = Known(12.0),
             Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
         };
-        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(input).FreeTicks.Value);
+        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(input).Capacity.Windows.Value.Sum(w => w.End - w.Start));
         var busy = input with { Pawn = Cooking(pawn) };
         Assert.Contains("unknown_current_job_remaining", ForecastCapacity.ForecastPawnCapacityOf(busy).Findings);
-        Assert.Equal(60, ForecastCapacity.ForecastPawnCapacityOf(busy with { CurrentJobRemainingTicks = Known(40.0) }).FreeTicks.Value);
+        Assert.Equal(60, ForecastCapacity.ForecastPawnCapacityOf(busy with { CurrentJobRemainingTicks = Known(40.0) }).Capacity.Windows.Value.Sum(w => w.End - w.Start));
         Assert.Throws<DomainException>(() => ForecastCurrentWork.ForecastCurrentWorkOf(pawn, Known(-1.0)));
     }
 

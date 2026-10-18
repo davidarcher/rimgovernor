@@ -1,13 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>The pawn's current food policy: its load id and allowed definitions. It is observation, never an explicit controller preference.</summary>
-public sealed record FoodRestriction
-{
-    public string PolicyId { get; init; } = "";
-
-    public IReadOnlyList<string> Allowed { get; init; } = [];
-}
-
 /// <summary>What a food definition is for diets: a meal tier, meat by source, a vegetable, fungus, an animal product or other.</summary>
 public enum FoodKind
 {
@@ -73,11 +65,9 @@ public enum MealIngredients
 /// <summary>One food ThingDef a food policy can allow.</summary>
 public sealed record Food(string Def, FoodKind Kind, MealIngredients Ingredients);
 
-/// <summary>One native food policy: its load id, label, holders and allowed food definitions.</summary>
+/// <summary>One native food policy: its label, holders and allowed food definitions.</summary>
 public sealed record FoodPolicyEntry
 {
-    public string Id { get; init; } = "";
-
     public string Label { get; init; } = "";
 
     public IReadOnlyList<PawnId> Pawns { get; init; } = [];
@@ -351,7 +341,7 @@ public static class FoodPolicyRules
         var rows = new List<(PawnId Id, IReadOnlyList<string> Want)>();
         foreach (var pawn in pawns)
         {
-            if (!pawn.FoodRestriction.IsKnown)
+            if (!pawn.FoodPolicyRespected.TryGetValue(out var respected) || !respected)
             {
                 continue;
             }

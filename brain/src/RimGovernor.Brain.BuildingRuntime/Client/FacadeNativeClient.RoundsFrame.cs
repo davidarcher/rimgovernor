@@ -342,10 +342,6 @@ public sealed partial class FacadeNativeClient
         {
             output = output with { OutdoorTemperatureC = Fact.Known(colony.OutdoorTemperatureC) };
         }
-        if (v.CombatHiveTemperatureC is { } hive)
-        {
-            output = output with { HiveTemperatureC = Fact.Known((double)hive) };
-        }
         var doorStates = new List<P.RoomDoor>();
         var rooms = new List<P.CombatRoom>();
         foreach (var row in v.Rooms?.Rooms ?? default)

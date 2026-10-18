@@ -162,8 +162,6 @@ public sealed record FoodStorageMethod
 {
     public FoodStorageMethodKind Kind { get; init; }
 
-    public MethodId Id { get; init; }
-
     public Resource Resource { get; init; }
 
     public long Target { get; init; }
@@ -369,6 +367,6 @@ public static class FoodStorageUpkeepRules
         {
             return new FoodStorageMethod { Kind = FoodStorageMethodKind.Blocked };
         }
-        return new FoodStorageMethod { Kind = FoodStorageMethodKind.Produce, Id = produceId, Resource = r.Resource, Target = target };
+        return new FoodStorageMethod { Kind = FoodStorageMethodKind.Produce, Resource = r.Resource, Target = target };
     }
 }

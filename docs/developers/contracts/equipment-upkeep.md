@@ -167,7 +167,7 @@ It plans inside the pawn's outfit filter, which excludes tainted apparel unless
 the coupled comparator allowed it, and above the pawn's insulation floor: an
 ensemble whose summed quality-scaled cold or heat insulation is below the floor
 is ineligible, and when none meets it the search returns the closest (least
-summed shortfall) and sets `GearLoadout.FloorUnmet`
+summed shortfall)
 ([tainted apparel and warmth](#tainted-apparel-and-warmth)). Replacements cannot assume a separate strip order.
 
 Roles use existing work priorities, skills and trait facts plus explicit child,

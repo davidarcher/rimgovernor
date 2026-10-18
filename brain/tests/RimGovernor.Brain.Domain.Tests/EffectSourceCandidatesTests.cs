@@ -261,13 +261,11 @@ public sealed class EffectSourceCandidatesTests
         var floored = GearLoadoutRules.PlanColonyGear([pawn])[0];
         Assert.Contains(floored.Target, o => o.ID == "clean-parka");
         Assert.DoesNotContain(floored.Target, o => o.ID == "parka");
-        Assert.False(floored.FloorUnmet);
         Assert.True(Assert.Single(floored.Gaps).Floor);
         Assert.Contains(GearLoadoutRules.PlanGearLoadout(model, o => o.Tainted).Target, o => o.ID == "thin-parka");
 
         var closest = GearLoadoutRules.PlanColonyGear([pawn with { LoadoutModel = Known(model with { Options = [thin] }) }])[0];
         Assert.Contains(closest.Target, o => o.ID == "thin-parka");
-        Assert.True(closest.FloorUnmet);
     }
 
     // #3569: a swap that moves no card and no insulation is a candidate when the armor differs, and none when it does not.

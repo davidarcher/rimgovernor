@@ -8,22 +8,20 @@ public sealed record ClothingActivityRequirement(string Wearer, string Product, 
     /// <summary>The crafted garment's insulation, quality scaled, less that of the worn items it replaces (#3330).</summary>
     public ForecastComfortShift? Comfort { get; init; }
 }
-public sealed record ClothingActivityDemand(EquatableArray<ClothingActivityRequirement> Alternatives, EquatableArray<string> Findings);
 
 public static class ClothingActivitiesRules
 {
     /// <summary>The loadout model owns needs; production retains every eligible shape/material until comparison.</summary>
-    public static ClothingActivityDemand ClothingActivityRequirements(GearObservation census)
+    public static EquatableArray<ClothingActivityRequirement> ClothingActivityRequirements(GearObservation census)
     {
-        if (!census.Stored.IsKnown) return new([], ["unknown_clothing_stock"]);
+        if (!census.Stored.IsKnown) return [];
         var result = new List<ClothingActivityRequirement>();
-        var findings = new List<string>();
         foreach (var pawn in census.Pawns.OrderBy(p => p.Pawn.Value, StringComparer.Ordinal))
         {
             if (pawn.Blocked) continue;
             if (!pawn.LoadoutModel.TryGetValue(out var input) || !pawn.Candidates.TryGetValue(out var physical))
-            { findings.Add("unknown_clothing_need:" + pawn.Pawn.Value); continue; }
-            if (physical.Count != 0) { findings.Add("physical_clothing_available:" + pawn.Pawn.Value); continue; }
+                continue;
+            if (physical.Count != 0) continue;
             foreach (var trait in input.Role.Work.Traits.ValueOrDefault)
                 input = input with { Nudist = input.Nudist || trait.Effects.Nudist };
             foreach (var option in input.Options.Where(o => o.Source == GearSource.Bill && !GearArmorRules.ArmoryArmor(o.Definition)
@@ -42,7 +40,7 @@ public static class ClothingActivitiesRules
                 { Comfort = comfort.MinDelta == 0 && comfort.MaxDelta == 0 ? null : comfort });
             }
         }
-        return new(EquatableArray.From(result.Distinct()), EquatableArray.From(findings));
+        return EquatableArray.From(result.Distinct());
     }
 
 }

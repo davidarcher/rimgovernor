@@ -116,7 +116,7 @@ public sealed class RoomsFamilyTests
         Assert.Equal(Satisfaction.Met, Of(new() { WorkChairsOwed = Known(false) }, RoomsFamily.WorkChairs).Satisfaction);
         Assert.Equal(Satisfaction.Unknown, Of(new(), RoomsFamily.WorkChairs).Satisfaction);
 
-        var party = Of(new() { Gathering = Known(new GatheringPlan { Def = "Party", Organizer = new("a") }) }, RoomsFamily.Gatherings);
+        var party = Of(new() { Gathering = Known(new GatheringPlan { Organizer = new("a") }) }, RoomsFamily.Gatherings);
         Assert.Equal((NeedTier.Wellbeing, Satisfaction.Unmet, Known(1.0)), (party.Tier, party.Satisfaction, party.Deficit));
         Assert.Equal([RoomsFamily.PartySpot], party.Preconditions);
         Assert.Equal(Satisfaction.Met, Of(new() { Gathering = Known(new GatheringPlan()) }, RoomsFamily.Gatherings).Satisfaction);
@@ -132,7 +132,7 @@ public sealed class RoomsFamilyTests
     public void AnOwedPartyIsHeldAndNothingElseIsProposed()
     {
         var family = All();
-        var facts = new RoomsFacts { Gathering = Known(new GatheringPlan { Def = "Party", Organizer = new("a") }), Lighting = Known(new LightingReview { Known = true, Active = true }) };
+        var facts = new RoomsFacts { Gathering = Known(new GatheringPlan { Organizer = new("a") }), Lighting = Known(new LightingReview { Known = true, Active = true }) };
         var held = Assert.Single(family.Propose(family.Derive(facts), facts));
         Assert.Equal(RoomsFamily.Gatherings, held.Need);
         Assert.Equal(RoomsFamily.UnsupportedGathering, held.Hold!.Subject);

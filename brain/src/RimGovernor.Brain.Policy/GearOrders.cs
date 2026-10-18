@@ -165,10 +165,10 @@ public static class GearOrdersRules
             p.Candidates.TryGetValue(out var candidates);
             pending = pending || candidates.Count > 0;
         }
-        var done = new HashSet<GearStockKey>();
+        var done = new HashSet<(Resource Definition, Resource Stuff)>();
         foreach (var n in needs)
         {
-            var key = new GearStockKey(n.Need.Definition, n.Need.Stuff);
+            var key = (n.Need.Definition, n.Need.Stuff);
             var count = demand.GetValueOrDefault(key);
             if (count == 0 || !done.Add(key))
             {

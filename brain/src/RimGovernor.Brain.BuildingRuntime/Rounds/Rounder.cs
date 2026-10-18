@@ -504,7 +504,7 @@ public sealed partial class Rounder
             var entries = new List<OwnedDrugPolicy>(policies.Drug.Count);
             foreach (var e in policies.Drug)
             {
-                entries.Add(new OwnedDrugPolicy(e.ID, e.Label, [.. e.Pawns], [.. e.Drugs]));
+                entries.Add(new OwnedDrugPolicy(e.Label, [.. e.Pawns], [.. e.Drugs]));
             }
             reading = reading.WithFacts(rf => rf with { DrugUsers = DrugRunwayRules.DrugUsers(reading.Projection.Facts.Items, entries) });
         }

@@ -55,13 +55,6 @@ public sealed record ContainmentPlanning
     public Fact<EquatableArray<CapturableEntity>> Entities { get; init; }
 }
 
-/// <summary>Whether a cell is owed and, when demand exists but a cell is not owed, why in plain English.</summary>
-public sealed record ContainmentVerdict
-{
-    public bool Owed { get; init; }
-
-    public string Reason { get; init; } = "";
-}
 
 public static class ContainmentCellRules
 {
@@ -75,30 +68,18 @@ public static class ContainmentCellRules
 
     /// <summary>
     /// The cell the entities owe: one platform in its own room. No demand, or a standing available platform
-    /// whose native strength reaches the demand, owes nothing; an unknown fact, an unavailable platform, or a
-    /// design whose predicted strength falls short owes nothing and says why.
+    /// whose native strength reaches the demand, owes nothing; so do an unknown fact, an unavailable platform, or a
+    /// design whose predicted strength falls short (no facility that adds strength is planned) owes nothing.
     /// </summary>
-    public static (ChildRoomNeed? Need, ContainmentVerdict Verdict) ContainmentCellNeed(
+    public static ChildRoomNeed? ContainmentCellNeed(
         ContainmentPlanning p,
         IReadOnlyList<FurnitureDefinition> furniture,
         FlooringFacts floors)
     {
-        static (ChildRoomNeed?, ContainmentVerdict) Refuse(string reason) => (null, new ContainmentVerdict { Reason = reason });
-        if (!p.Demand.TryGetValue(out var demand))
+        if (!p.Demand.TryGetValue(out var demand) || demand.Entities == 0
+            || !p.Holders.TryGetValue(out var holders) || !p.Defs.TryGetValue(out var defs))
         {
-            return Refuse("the entities' capture and containment facts are unread");
-        }
-        if (demand.Entities == 0)
-        {
-            return (null, new ContainmentVerdict());
-        }
-        if (!p.Holders.TryGetValue(out var holders))
-        {
-            return Refuse("the standing holding platforms are unread");
-        }
-        if (!p.Defs.TryGetValue(out var defs))
-        {
-            return Refuse("the containment inputs cannot be read from the definitions: " + p.DefsReason);
+            return null;
         }
         // A cell is owed for what the capture rule would take: the need plus its margin, so a cell is never
         // built for an entity that would then be killed.
@@ -107,16 +88,16 @@ public static class ContainmentCellRules
         {
             margin = EntityCaptureRules.CaptureMargin(defs);
         }
-        catch (DomainException e)
+        catch (DomainException)
         {
-            return Refuse("the capture margin is unknown: " + e.Message);
+            return null;
         }
         var required = demand.Required + margin;
         foreach (var h in holders)
         {
             if (h.Available && h.Strength >= required)
             {
-                return (null, new ContainmentVerdict());
+                return null;
             }
         }
         // A lamp lights the cell: glow adds ten containment strength per unit of mean glow, and the power
@@ -134,7 +115,7 @@ public static class ContainmentCellRules
         };
         if (need.Resolve(furniture) is null)
         {
-            return Refuse("the holding platform " + defs.Holder + " is not buildable yet or its size is unknown");
+            return null;
         }
         // The floor term counts the containment floor when the stock pays for every tile of the smallest room
         // that holds the cell; WantedFloors lays it under the same test.
@@ -162,16 +143,11 @@ public static class ContainmentCellRules
         {
             strength = defs.Predict(new ContainmentRoom { Floored = floored });
         }
-        catch (DomainException e)
+        catch (DomainException)
         {
-            return Refuse("the cell's strength cannot be predicted: " + e.Message);
+            return null;
         }
-        if (strength < required)
-        {
-            return Refuse(FormattableString.Invariant(
-                $"a cell of {defs.Holder} with the planned walls and door holds at most {strength:F1} containment strength and an entity needs {demand.Required:F1} plus a margin of {margin:F1}; facilities that add strength are not planned"));
-        }
-        return (need, new ContainmentVerdict { Owed = true });
+        return strength < required ? null : need;
     }
 
     /// <summary>

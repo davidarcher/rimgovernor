@@ -157,8 +157,6 @@ public sealed record FieldCandidate
 
     public double Score { get; init; }
 
-    public bool Urgent { get; init; }
-
     public string Reason { get; init; } = "";
 
     public EquatableArray<FarmSiteTerm> Terms { get; init; }
@@ -342,17 +340,17 @@ public static class CropChoiceRules
         var candidates = new List<FieldCandidate>(excluded);
         foreach (var v in viables)
         {
-            candidates.Add(FieldCandidateFor(r, v, urgent));
+            candidates.Add(FieldCandidateFor(r, v));
         }
         return RankField(plan with { Urgent = urgent, Candidates = EquatableArray.From(candidates) }, urgent);
     }
 
     /// <summary>Sites one viable crop on unroofed free soil (the plan field blocks when set) and scores it per needed cell.</summary>
-    internal static FieldCandidate FieldCandidateFor(FieldRequest r, ViableCrop v, bool urgent)
+    internal static FieldCandidate FieldCandidateFor(FieldRequest r, ViableCrop v)
     {
         var site = r.Site;
         var sites = SiteRules.SitePick(site, v, s => SiteRules.SiteKnownFalse(s.Roofed) && (site.Fields is null || site.Fields.Contains(s.Cell)), null, false);
-        var c = new FieldCandidate { Crop = v.Crop, Needed = v.Needed, Sites = sites, Urgent = urgent, Price = v.Price };
+        var c = new FieldCandidate { Crop = v.Crop, Needed = v.Needed, Sites = sites, Price = v.Price };
         if (sites.Cells == 0)
         {
             return c with { Reason = "no plantable soil" };

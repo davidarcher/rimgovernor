@@ -92,7 +92,7 @@ public sealed partial class DefinitionCatalog
                 {
                     foreach (var offset in f.statOffsets.Seq().Where(m => m.stat.defName == ContainmentStat))
                     {
-                        facilities.Add(new P.ContainmentFacility { Def = linked.defName, Offset = offset.value, MaxDistance = f.maxDistance, MaxSimultaneous = f.maxSimultaneous });
+                        facilities.Add(new P.ContainmentFacility { Def = linked.defName, Offset = offset.value, MaxSimultaneous = f.maxSimultaneous });
                     }
                 }
             }

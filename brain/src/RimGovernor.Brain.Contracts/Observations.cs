@@ -1087,7 +1087,11 @@ public sealed record PawnSettings
 
     public bool? ManualWorkPriorities { get; init; }
 
-    public FoodRestriction? FoodRestriction { get; init; }
+    /// <summary>
+    /// Whether the pawn eats under a food policy: it respects one, has a food need and is past babyhood. Read
+    /// with work detail.
+    /// </summary>
+    public bool? FoodPolicyRespected { get; init; }
 
     /// <summary>
     /// Per-pawn policy planner inputs, read with work detail.
@@ -2530,8 +2534,6 @@ public sealed record Thing
     public double? MeatAmount { get; init; }
 
     public double? BodySize { get; init; }
-
-    public long? TileFootprint { get; init; }
 
     public bool? IsHumanMeat { get; init; }
 }
@@ -5226,9 +5228,6 @@ public sealed record FoodStock
     public EquatableArray<Common.Ref> Eaters { get; init; }
 }
 
-/// <summary>
-/// in_storage is whether the corpse lies in a stockpile (false: in the field).
-/// </summary>
 public sealed record CorpseHandling
 {
     public string StockId { get; init; } = "";
@@ -5238,8 +5237,6 @@ public sealed record CorpseHandling
     public string? HaulerId { get; init; }
 
     public bool FrozenDestination { get; init; }
-
-    public bool? InStorage { get; init; }
 }
 
 public sealed record FoodLarderFacts
@@ -6615,8 +6612,6 @@ public sealed record ForagePlant
 
 public sealed record PenGrazing
 {
-    public string? PenId { get; init; }
-
     public double? DemandPerDay { get; init; }
 
     public double? PasturePerDay { get; init; }
@@ -8381,17 +8376,6 @@ public sealed record FlushSnapshotRequest;
 public sealed record FlushSnapshotReply
 {
     public bool Flushed { get; init; }
-}
-
-/// <summary>
-/// The pawn's current food policy: its load id and allowed definitions.
-/// </summary>
-public sealed record FoodRestriction
-{
-    public string? PolicyId { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> AllowedDefs { get; init; }
 }
 
 public sealed record ApparelPolicyState

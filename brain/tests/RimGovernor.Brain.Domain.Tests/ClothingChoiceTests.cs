@@ -182,9 +182,9 @@ public sealed class ClothingChoiceTests
     public void UnknownsAndPhysicalReplacementsRemainVisible()
     {
         var census = Census();
-        Assert.Contains("unknown_clothing_stock", ClothingActivitiesRules.ClothingActivityRequirements(census with { Stored = default }).Findings);
+        Assert.Empty(ClothingActivitiesRules.ClothingActivityRequirements(census with { Stored = default }));
         var physical = census with { Pawns = [census.Pawns[0] with { Candidates = Known<EquatableArray<GearCandidate>>([new("stored-shirt", 1, new("Shirt"))]) }] };
-        Assert.Empty(ClothingActivitiesRules.ClothingActivityRequirements(physical).Alternatives);
+        Assert.Empty(ClothingActivitiesRules.ClothingActivityRequirements(physical));
     }
 
     [Fact]

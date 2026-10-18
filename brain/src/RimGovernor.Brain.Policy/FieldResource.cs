@@ -78,7 +78,7 @@ public static class FieldResourceRules
         var req = new FieldRequest { Site = r.Site };
         foreach (var v in viables)
         {
-            candidates.Add(CropChoiceRules.FieldCandidateFor(req, v, false));
+            candidates.Add(CropChoiceRules.FieldCandidateFor(req, v));
         }
         var (ranked, ok) = CropChoiceRules.RankField(plan with { Candidates = [.. candidates] }, false);
         return ok ? ranked : null;

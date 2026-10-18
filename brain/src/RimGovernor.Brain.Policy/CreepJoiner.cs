@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>One colonist ordered to drop the weapon it holds.</summary>
-public sealed record WeaponDrop(PawnId Pawn, string Weapon);
+public sealed record WeaponDrop(PawnId Pawn);
 
 /// <summary>
 /// What the game's creepjoiner downside defs add to the colonist who has one: the trait and hediff def names,
@@ -107,7 +107,7 @@ public sealed record CreepJoinerDownsides
             }
             else if (weapon.Length != 0 && available)
             {
-                drops.Add(new WeaponDrop(h.Pawn, weapon));
+                drops.Add(new WeaponDrop(h.Pawn));
             }
         }
         var sorted = drops.OrderBy(d => d.Pawn).ToList();

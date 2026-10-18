@@ -19,14 +19,8 @@ public sealed record CreepJoinerWork
 
     public DisarmWork Disarm { get; init; } = new();
 
-    /// <summary>The colony's inspection record as stored (the <c>family/admin/creep_joiners</c> record).</summary>
-    public CreepJoinerRecord Record { get; init; } = new();
-
     /// <summary>How many separate pieces of work are owed: drops, inspection orders, isolation moves and disarm orders.</summary>
     public int Count => Drops.Count + Inspections.Orders.Count + Isolation.Count + Disarm.Orders.Count;
-
-    /// <summary>Whether the review leaves a different inspection record than the stored one (an ended bill, a pawn gone).</summary>
-    public bool RecordChanged => Inspections.Record.Encode() != Record.Encode();
 }
 
 /// <summary>What the colony admin family reads; a section is null when its Need is not composed.</summary>

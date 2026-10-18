@@ -245,7 +245,6 @@ public sealed partial class FacadeNativeClient
                 {
                     Action = action,
                     Snapshot = snapshot,
-                    Tick = tick,
                     CanPlace = Fact.Known(canPlace),
                     MadeFromStuff = Fact.Known(evaluation.MadeFromStuff.GetValueOrDefault()),
                     WatchCellsAccessible = watch,

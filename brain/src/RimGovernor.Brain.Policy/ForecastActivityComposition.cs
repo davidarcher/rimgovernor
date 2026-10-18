@@ -41,7 +41,7 @@ public sealed record ForecastCompositionRequest
     public ForecastCompositionGraph? Incumbent { get; init; }
 }
 public sealed record ForecastCompositionResult(EquatableArray<ForecastCompositionGraph> Graphs,
-    EquatableArray<string> Findings, int Expansions, bool Truncated, bool IncumbentPreserved);
+    EquatableArray<string> Findings, int Expansions, bool Truncated);
 
 public static class ForecastActivityComposition
 {
@@ -69,7 +69,7 @@ public static class ForecastActivityComposition
             throw new DomainException("duplicate physical composition supply");
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var graphs = new Dictionary<string, ForecastCompositionGraph>(StringComparer.Ordinal);
-        var expansions = 0; var truncated = false; var incumbentPreserved = false;
+        var expansions = 0; var truncated = false;
         bool Spend()
         {
             if (expansions >= request.ExpansionBudget) { truncated = true; return false; }
@@ -182,7 +182,7 @@ public static class ForecastActivityComposition
         {
             var chosen = new HashSet<string>(StringComparer.Ordinal);
             if ((request.RootRequirements.Count == 0 || Add(chosen, "", [])) && incumbent.Activities.All(a => Add(chosen, a.Id, [])) && Complete(chosen, incumbent.Allocations.ToList()) is { } valid)
-            { graphs.Add(Key(valid), valid); incumbentPreserved = true; }
+            graphs.Add(Key(valid), valid);
             else findings.Add("invalid_composition_incumbent");
         }
         void Search(HashSet<string> selected, List<ForecastCompositionAllocation> allocated, HashSet<(string, string)> resolved)
@@ -246,6 +246,6 @@ public static class ForecastActivityComposition
         var initial = new HashSet<string>(StringComparer.Ordinal);
         if ((request.RootRequirements.Count == 0 || Add(initial, "", [])) && request.Roots.Order(StringComparer.Ordinal).All(root => Add(initial, root, []))) Search(initial, [], []);
         if (truncated) findings.Add("composition_truncated");
-        return new(EquatableArray.From(graphs.Values), EquatableArray.From(findings), expansions, truncated, incumbentPreserved);
+        return new(EquatableArray.From(graphs.Values), EquatableArray.From(findings), expansions, truncated);
     }
 }

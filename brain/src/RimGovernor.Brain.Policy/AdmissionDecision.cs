@@ -6,12 +6,10 @@ public readonly partial record struct Reason
     public static readonly Reason NativeIneligible = new("native_ineligible");
 }
 
-/// <summary>One admission verdict: admitted, or the refusals and the emergency facts behind them.</summary>
+/// <summary>One admission verdict: admitted, or the refusals behind it.</summary>
 public sealed record AdmissionDecision
 {
     public bool Admitted { get; init; }
 
     public EquatableArray<Refusal> Refused { get; init; }
-
-    public EmergencyDecision Emergency { get; init; } = new();
 }

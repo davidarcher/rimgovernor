@@ -147,7 +147,6 @@ partial class RoundsDefenseLayoutPlanner
         return new DefenseLayout
         {
             Toward = killbox.Toward,
-            Width = (int)killbox.Width,
             Entry = killbox.Entry,
             TrapLane = [.. record.TrapLane],
             Firing = [.. firing],

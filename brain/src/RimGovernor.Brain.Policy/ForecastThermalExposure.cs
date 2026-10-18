@@ -7,9 +7,6 @@ namespace RimGovernor.Brain.Policy;
 public sealed partial record ForecastThermalExposure(string Pawn, double AssessedTicks, double UnknownTicks,
     double AssessedColdDegreeTicks, double AssessedHotDegreeTicks)
 {
-    public Fact<double> ColdDegreeTicks => UnknownTicks == 0 ? Known(AssessedColdDegreeTicks) : default;
-    public Fact<double> HotDegreeTicks => UnknownTicks == 0 ? Known(AssessedHotDegreeTicks) : default;
-
     /// <summary>The assessed spans the degree-ticks integrate (#3327): temperature linear inside each, comfort range constant.</summary>
     public EquatableArray<ForecastThermalSpan> Spans { get; init; }
 }

@@ -269,13 +269,9 @@ public sealed record GearLoadout
     public GearRole Role { get; init; }
     public EquatableArray<GearOption> Target { get; init; }
     public EquatableArray<GearGap> Gaps { get; init; }
-    public double Score { get; init; }
 
     /// <summary>Set when the exact search hit GearSearchBudget: Target is the best ensemble found within it, not a proven optimum.</summary>
     public bool SearchBudgetExhausted { get; init; }
-
-    /// <summary>Set when no ensemble meets the insulation floor: Target is the closest (most insulation toward it).</summary>
-    public bool FloorUnmet { get; init; }
 
     /// <summary>What the plan lacked: <c>gear_threat_unknown</c> when armor was valued against a nominal hit.</summary>
     public EquatableArray<string> Findings { get; init; }
@@ -761,7 +757,7 @@ public static class GearLoadoutRules
     /// <paramref name="disallowed"/> is the pawn's apparel filter (#3284, #3285): the pawn drops a matching worn item unless it
     /// is locked and never picks a matching option. <paramref name="floor"/> is the pawn's insulation floor (#3329): an
     /// ensemble whose summed insulation (GearInsulation) is below it in cold or heat is ineligible, and when none meets it the
-    /// search returns the closest (the least summed shortfall) with FloorUnmet set. The planner prices neither mood nor
+    /// search returns the closest (the least summed shortfall). The planner prices neither mood nor
     /// warmth; the coupled comparator decides the filter and the floor.
     /// </summary>
     public static GearLoadout PlanGearLoadout(GearLoadoutInput p, Func<GearOption, bool>? disallowed = null, (double Cold, double Heat)? floor = null)
@@ -953,9 +949,7 @@ public static class GearLoadoutRules
         {
             Role = role,
             Target = EquatableArray.From(best),
-            Score = bestScore,
             SearchBudgetExhausted = exhausted,
-            FloorUnmet = bestShort > 0,
             Gaps = EquatableArray.From(sorted),
             Findings = armor.ThreatKnown || GearConstrained(role) ? default : EquatableArray.From([GearArmorTerm.ThreatUnknownFinding]),
         };
