@@ -31,7 +31,9 @@ internal sealed record RoomReconcile
     /// <summary>
     /// Reconciles the ring and its doors alone: no furniture template, floors or wall-stuff swaps, and no
     /// clearance read, so a caller that holds no packed stock (dining, kitchen, the gear rooms) can use it.
-    /// A ring cell the native refuses is no_space, as for an outdoor ring.
+    /// A ring cell the native refuses is no_space, as for an outdoor ring. A RingOnly room reads no census, so
+    /// it never removes stale furniture: the facility rooms (dining, recreation, lab, workshop, kitchen,
+    /// butchery) are explicitly exempt from stale removal (#3487) and FacilityWants is not their template.
     /// </summary>
     public bool RingOnly { get; init; }
 
@@ -428,8 +430,12 @@ public sealed partial class Rounder
 
 public sealed partial class RoundsBuildingPlanner
 {
+    /// <summary>The definitions other lanes stand in owned rooms, which an owner never removes as stale (ReconcileRules.CarriedOver).</summary>
+    internal Func<string, bool> CarriedOver(ColonyProjection facts) =>
+        ReconcileRules.CarriedOver(LightingDefinitions(), facts.Facts.Comfort.TryGetValue(out var comfort) ? comfort : null, facts.Facts.Items);
+
     /// <summary>
-    /// Reconciles one owner's room: it is diffed, then the next wave is committed: foreign obstructions,
+    /// Reconciles one owner's room against its full furniture list: it is diffed, then the next wave is committed: foreign obstructions,
     /// removals, installs from packed stock, then the on-site builds (CommitBuilds).
     /// </summary>
     internal async Task<RoundsBuildingResult> ReconcileRoomAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, PackedStock? stock, RoomReconcile rr, CancellationToken call, CancellationToken epoch)
@@ -469,17 +475,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             var (_, player) = ClearanceGroundRules.SplitGroundRows(census.Targets, facts.Facts.Preferences);
             var stamped = HomeUpkeepReader.StampPacking(player, facts);
-            var own = ReconcileRules.OwnRows(stamped, rr.Template, rr.Forbidden);
-            var stale = ReconcileRules.StaleInterior(rr.Room, stamped, rr.Template, rr.Forbidden, CarriedOver(facts));
-            if (Reviewer.Policy.RetireOwnRows)
-            {
-                own = [.. own, .. stale];
-            }
-            else
-            {
-                NoteStaleFurniture(rr.Room, rr.Name, stale);
-            }
-            input = input with { Rows = own, Floors = census.Floors, Furniture = rr.Template };
+            input = input with { Rows = ReconcileRules.OwnerRows(rr.Room, stamped, rr.Template, rr.Forbidden, CarriedOver(facts)), Floors = census.Floors, Furniture = rr.Template };
             var want = RoundsTierStyle.ShellStyleOf(facts).WallStuff;
             if (want != "" && !rr.Room.Outdoor)
             {

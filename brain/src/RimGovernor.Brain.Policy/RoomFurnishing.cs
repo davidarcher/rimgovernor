@@ -116,8 +116,9 @@ public static class RoomFurnishingRules
 
     /// <summary>
     /// A facility role's standing pieces as wants, from the role's own plan (the region role table, the same plan
-    /// that places the room): one want per planned definition, as many as the plan holds, with no slots of its own, so
-    /// the list names the pieces standing in the room and never asks for one to be built. Placement stays with the
+    /// that places the room): one want per planned definition, with no slots of its own, so the list names every
+    /// piece of those definitions standing in the room (the facility ladders place natively, so the count is not
+    /// capped at the plan's) and never asks for one to be built. Placement stays with the
     /// facility's Select* ladders and the generic preview search.
     /// </summary>
     public static IReadOnlyList<FurnishingWant> FacilityWants(InteriorRoom interior)
@@ -128,7 +129,7 @@ public static class RoomFurnishingRules
             return [];
         }
 
-        return [.. plan.Pieces.GroupBy(p => p.Def).Select(g => new FurnishingWant { Things = [g.Key], Count = g.Count(), Piece = new InteriorPieceDef { Def = g.Key }, Slots = [] })];
+        return [.. plan.Pieces.GroupBy(p => p.Def).Select(g => new FurnishingWant { Things = [g.Key], Count = int.MaxValue, Piece = new InteriorPieceDef { Def = g.Key }, Slots = [] })];
     }
 
     private static bool Fills(FurnishingWant w, InteriorPiece slot)

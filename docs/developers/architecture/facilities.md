@@ -767,7 +767,8 @@ list: the new bed is built to the stuff the lever chose (`WantedPiece.Stuff`;
 a piece with a stuff is built, never installed from stock), the old bed stays
 listed until `RemoveOldBedAsync` takes it down. A sculpture is installed from
 stock by its own op (`SculptBedroomAsync`) and, like the replaced bed, is not a
-template piece, so the owner's reconcile never packs it. A beauty floor is
+template piece; the owner's reconcile carries every sculpture over (see Stale
+furniture below), so it never packs one. A beauty floor is
 cells laid over the floor already there (`LayBeautyFloorAsync`), not a listed
 piece, because a reconcile tears the old floor out first and keeps any floor
 that meets the room's tier. The couple's double bed is the same list: the pack
@@ -782,6 +783,29 @@ gate. Move, clear and the bed replacement, sculpture and upgrade levers
 are unchanged. The starter shelter's bunk rungs (`RoundsShelterBunks.cs`)
 and the stand-in `SleepingSpot` keep their own guard (`standInBed`): the
 reconciler leaves a spot alone and the bunks are sited before a ring exists.
+
+#### Stale furniture
+
+An owner reconciles its planned room against its full furniture list, not just
+its own pieces (#3487): a player building wholly inside the interior that the
+list does not name (matched by definition and cells, one row per listed piece)
+is stale, and the reconcile removes it like any other off-list piece
+(`FurnitureOut`, `Pack`, `PackInUse`; `ReconcileRules.OwnerRows`,
+`StaleInterior`). Standing lever pieces are listed where they stand, so the
+list does not drift between rounds: the bedroom lists every standing bed, the
+jail its standing beds and the tomb its standing sarcophagi and graves beside
+the one fresh slot owed, and a facility list names every standing piece of its
+definitions. Never stale: walls, doors, frames,
+stand-in beds, what the owner forbids, anything on a ring cell or outside the
+interior, and the pieces other lanes stand in owned rooms (`CarriedOver`: every
+sculpture, the party spot, lamps, the beauty plant pot, the dining and
+recreation comfort pieces and the power and climate infrastructure: conduits,
+generators, batteries, vents, the shelter's campfire and cooler). The pen marker, range, ring and morgue reconcile
+against their own templates (the morgue's is empty, so all its interior
+furniture is stale). The facility rooms (dining, recreation, lab, workshop,
+kitchen, butchery) reconcile `RingOnly`, read no census and are exempt from
+stale removal: `FacilityWants` names their standing pieces but is not their
+template, and their benches stay where they stand.
 
 ### Throne room
 
@@ -847,9 +871,10 @@ planner raises it under the `shelter/sleeping` Need, like the tomb:
    forbidden) inside the room is reconciled away: it is packed
    (uninstalled, stored in the warehouse), or deconstructed when it cannot
    pack, instead of blocking the step. A forbidden throne definition is never
-   offered; the room's other buildings (the quality levers' furniture) are
-   left alone, since the owner's reconcile only sees the template's pieces and
-   the forbidden ones.
+   offered. The owner reconciles against the full list: interior furniture the
+   template and the standing lever pieces do not list is stale and removed (see
+   Stale furniture under Bedrooms and sleeping upkeep), except what is carried
+   over.
 8. Once everything stands and is assigned, an unlit light of the title's
    `Glowing` defs inside the room that native measures out of fuel plans a
    `ThroneRefuel`: one `recovery_service` refuel order for the best hauler

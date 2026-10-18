@@ -114,8 +114,8 @@ public static class JailRules
         return new JailStep { Held = held, Beds = bedCount, Strays = strays, Room = actRoom, Kind = actKind, Template = template, Marks = actMarks };
     }
 
-    /// <summary>The room's first template bed slot nothing stands on: a want that counts no standing bed, so the shortfall is one fresh slot.</summary>
-    private static Furnishing JailFurnishing(PlannedRoom r, PieceShapes shapes, IReadOnlyList<CurrentBuilding> built)
+    /// <summary>The beds standing in the room where they stand, then the room's first template bed slot nothing stands on (the shortfall is one fresh slot).</summary>
+    internal static Furnishing JailFurnishing(PlannedRoom r, PieceShapes shapes, IReadOnlyList<CurrentBuilding> built)
     {
         var (room, ok) = InteriorRules.InteriorRoomFromLayout(r, shapes);
         if (!ok)
@@ -123,6 +123,13 @@ public static class JailRules
             return new Furnishing();
         }
         var (bed, bok) = room!.Piece(shapes.Furniture.PrimaryBed());
-        return bok ? RoomFurnishingRules.RoomFurnishing(r, room, [new FurnishingWant { Count = 1, Piece = bed }], built) : new Furnishing();
+        if (!bok)
+        {
+            return new Furnishing();
+        }
+        var things = new List<string>([.. shapes.Furniture.Beds.Select(b => b.Def), bed.Def]);
+        var bounds = r.Region.Bounds();
+        var standing = built.Count(b => b.Cells.Count > 0 && things.Contains(b.Building!.Definition) && FurnitureRoomsRules.RectInside(bounds, PlacementSearchRules.CellsRectangle(b.Cells.Items)));
+        return RoomFurnishingRules.RoomFurnishing(r, room, [new FurnishingWant { Things = things, Count = standing + 1, Piece = bed }], built);
     }
 }

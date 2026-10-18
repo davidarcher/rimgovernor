@@ -154,7 +154,7 @@ public sealed class RoomFurnishingTests
                 Player = true,
                 Packable = true,
             }).ToList();
-            var input = new ReconcileInput { Plan = plan, Room = room, Ground = new GroundCensus(), Rows = ReconcileRules.OwnRows(rows, furnishing.Pieces, null), Furniture = furnishing.Pieces };
+            var input = new ReconcileInput { Plan = plan, Room = room, Ground = new GroundCensus(), Rows = ReconcileRules.OwnerRows(room, rows, furnishing.Pieces, null, _ => false), Furniture = furnishing.Pieces };
             return [.. ReconcileRules.Reconcile(input).Owed];
         }
 
@@ -163,7 +163,7 @@ public sealed class RoomFurnishingTests
 
         // Round 1: the lever pieces stand and no lever asks for more: every piece is listed where it stands, nothing is owed.
         var round1 = SleepingRules.BedroomFurnishing(room, Shapes, "", [bed, lamp, dresser, spot], null);
-        Assert.Equal(3, round1.Pieces.Count);
+        Assert.Equal(4, round1.Pieces.Count);
         Assert.False(round1.Absent);
         var ops1 = Owed(round1, bed, lamp, dresser, spot);
         NoRemoval(ops1);
@@ -172,7 +172,7 @@ public sealed class RoomFurnishingTests
         // Round 2: a lever asks for an end table: the standing pieces stay listed and only the end table is built.
         var round2 = SleepingRules.BedroomFurnishing(room, Shapes, "", [bed, lamp, dresser, spot], endTable);
         Assert.True(round2.Absent);
-        Assert.Equal(4, round2.Pieces.Count);
+        Assert.Equal(5, round2.Pieces.Count);
         Assert.Contains(round2.Pieces, p => p.DefName == "EndTable" && p.Minimum == free[3]);
         var ops2 = Owed(round2, bed, lamp, dresser, spot);
         NoRemoval(ops2);
@@ -220,51 +220,13 @@ public sealed class RoomFurnishingTests
             Plan = plan,
             Room = room,
             Ground = new GroundCensus(),
-            Rows = ReconcileRules.OwnRows(rows, furnishing.Pieces, null),
+            Rows = ReconcileRules.OwnerRows(room, rows, furnishing.Pieces, null, def => def == Lever),
             Furniture = furnishing.Pieces,
             Stock = new Dictionary<string, int> { [Bed] = 1 },
         };
         var ops = ReconcileRules.Reconcile(input).Owed;
         Assert.DoesNotContain(ops, o => o.Kind is OpKind.Pack or OpKind.PackInUse or OpKind.FurnitureOut or OpKind.Install);
         Assert.Equal(Bed, ops.Single(o => o.Kind == OpKind.Build).Pieces.Single().DefName);
-    }
-
-    [Fact]
-    public void RetiringOwnRowsRemovesAnUnlistedPieceAndKeepsAListedLeverAndACarriedOverSculpture()
-    {
-        var room = Room();
-        var plan = new LayoutPlan { Rooms = [room] };
-        var bed = StandingAt(SleepingRules.BedroomFurnishing(room, Shapes, Bed, [], null).Pieces.Single());
-        var free = room.Region.Cells().Where(c => !bed.Cells.Contains(c)).ToList();
-        var dresser = Standing("Dresser", free[0].X, free[0].Z);
-        var stale = Standing("Dresser", free[1].X, free[1].Z);
-        var art = Standing(Lever, free[2].X, free[2].Z);
-        var onRing = Standing("Dresser", room.Region.Bounds().X - 1, room.Region.Bounds().Z);
-        var standing = new[] { bed, dresser, art, stale, onRing };
-        var furnishing = SleepingRules.BedroomFurnishing(room, Shapes, Bed, [bed, dresser], null);
-        var rows = standing.Select(b => new ClearanceTarget
-        {
-            EntityId = b.Id,
-            DefName = b.Building!.Definition,
-            Minimum = b.Cells[0],
-            Maximum = b.Cells[^1],
-            Player = true,
-            Packable = true,
-        }).ToList();
-
-        // The dresser is listed, the sculpture is carried over; the second dresser is the one unlisted interior piece.
-        var found = ReconcileRules.StaleInterior(room, rows, furnishing.Pieces, null, def => def == Lever);
-        Assert.Equal(["Dresser"], found.Select(r => r.DefName));
-        Assert.Equal(stale.Id, found.Single().EntityId);
-        Assert.Equal(2, ReconcileRules.StaleInterior(room, rows, furnishing.Pieces, null, _ => false).Count);
-
-        // Dry run: OwnRows alone removes nothing. Retired: the stale piece is removed and the listed pieces are not.
-        var own = ReconcileRules.OwnRows(rows, furnishing.Pieces, null);
-        Operation[] Removals(IReadOnlyList<ClearanceTarget> reconciled) =>
-            [.. ReconcileRules.Reconcile(new ReconcileInput { Plan = plan, Room = room, Ground = new GroundCensus(), Rows = reconciled, Furniture = furnishing.Pieces }).Owed.Where(o => o.Kind is OpKind.Pack or OpKind.PackInUse or OpKind.FurnitureOut)];
-        Assert.Empty(Removals(own));
-        var removed = Assert.Single(Removals([.. own, .. found]));
-        Assert.Equal(stale.Id, removed.Targets.Single().EntityId);
     }
 
     [Fact]

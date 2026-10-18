@@ -140,8 +140,6 @@ jobs:
           if (Test-Path C:\rg\fixture\job\out\result.json) { Copy-Item -LiteralPath C:\rg\fixture\job\out\result.json -Destination C:\rg\public }
           # The in-process brain's store (clock holds, plans, decisions): what a stalled clock was waiting on.
           if (Test-Path C:\rg\fixture\job\out\service.sqlite) { Copy-Item -Path C:\rg\fixture\job\out\service.sqlite* -Destination C:\rg\public }
-          # The dry-run rows of the OwnRows retirement (#3487) from the brain's OTLP log ring, which is too large to publish whole.
-          Get-ChildItem -LiteralPath C:\rg\fixture\job -Recurse -Filter 'logs.jsonl*' -ErrorAction SilentlyContinue | ForEach-Object { Select-String -LiteralPath $_.FullName -SimpleMatch 'furniture_stale_dry_run' } | ForEach-Object { $_.Line } | Set-Content -LiteralPath C:\rg\public\furniture_stale_dry_run.jsonl
           # The game's captured stdout (config-*/<game>/game.log): why a launch never announced its channel.
           $bridge = 'C:\rg\fixture\job\layout\bridge\'
           Get-ChildItem -LiteralPath $bridge -Filter game.log -Recurse -ErrorAction SilentlyContinue | ForEach-Object {

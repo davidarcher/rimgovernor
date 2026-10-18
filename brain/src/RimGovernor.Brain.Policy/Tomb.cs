@@ -112,7 +112,7 @@ public static partial class TombRules
         return (new TombStep { Dead = dead, Empty = empty, Graves = graves }, standing);
     }
 
-    /// <summary>The room's first template sarcophagus slot no grave stands on: a want that counts no standing piece, so the shortfall is one fresh slot.</summary>
+    /// <summary>The sarcophagi and graves standing in the room where they stand, then the room's first template sarcophagus slot none stands on (the shortfall is one fresh slot).</summary>
     private static Furnishing TombFurnishing(PlannedRoom r, PieceShapes shapes, IReadOnlyList<CurrentBuilding> graves)
     {
         var (inRoom, ok) = InteriorRules.InteriorRoomFromLayout(r, shapes);
@@ -121,7 +121,14 @@ public static partial class TombRules
             return new Furnishing();
         }
         var (sarcophagus, sok) = inRoom!.Piece(shapes.Furniture.Sarcophagus);
-        return sok ? RoomFurnishingRules.RoomFurnishing(r, inRoom, [new FurnishingWant { Count = 1, Piece = sarcophagus }], graves) : new Furnishing();
+        if (!sok)
+        {
+            return new Furnishing();
+        }
+        IReadOnlyList<string> things = [sarcophagus.Def, GraveDefinition];
+        var bounds = r.Region.Bounds();
+        var standing = graves.Count(b => b.Cells.Count > 0 && things.Contains(b.Building!.Definition) && FurnitureRoomsRules.RectInside(bounds, PlacementSearchRules.CellsRectangle(b.Cells.Items)));
+        return RoomFurnishingRules.RoomFurnishing(r, inRoom, [new FurnishingWant { Things = things, Count = standing + 1, Piece = sarcophagus }], graves);
     }
 
     /// <summary>

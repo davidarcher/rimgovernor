@@ -71,17 +71,19 @@ public static partial class ReconcileRules
     }
 
     /// <summary>
-    /// The census rows an owner reconciles its room against: the ring, frames and stand-ins, the template's
-    /// standing pieces and the buildings forbidden finds (packed or taken down by the reconcile). Every other
-    /// building the room holds is left alone, so an owner never repacks the furniture the room's quality
-    /// levers added.
+    /// The census rows an owner reconciles its room against, the full list: the ring, frames and stand-ins, the
+    /// template's standing pieces, the buildings forbidden finds (packed or taken down by the reconcile) and
+    /// every other player building wholly inside the interior that the template does not list and
+    /// <paramref name="carried"/> does not carry over: stale furniture, which the reconcile removes
+    /// (FurnitureOut, Pack, PackInUse). Anything else the room holds is left alone.
     /// </summary>
-    public static IReadOnlyList<ClearanceTarget> OwnRows(IReadOnlyList<ClearanceTarget> rows, IReadOnlyList<WantedPiece> template, Func<string, bool>? forbidden)
+    public static IReadOnlyList<ClearanceTarget> OwnerRows(PlannedRoom room, IReadOnlyList<ClearanceTarget> rows, IReadOnlyList<WantedPiece> template, Func<string, bool>? forbidden, Func<string, bool> carried)
     {
+        var stale = new HashSet<ClearanceTarget>(StaleInterior(room, rows, template, forbidden, carried), ReferenceEqualityComparer.Instance);
         var output = new List<ClearanceTarget>();
         foreach (var row in rows)
         {
-            var keep = !row.Player || row.Class == "ancient_wall_door" || row.DefName.StartsWith("Frame_", StringComparison.Ordinal) || ClearanceGroundRules.StandInBed(row) || (forbidden is not null && forbidden(row.DefName));
+            var keep = stale.Contains(row) || !row.Player || row.Class == "ancient_wall_door" || row.DefName.StartsWith("Frame_", StringComparison.Ordinal) || ClearanceGroundRules.StandInBed(row) || (forbidden is not null && forbidden(row.DefName));
             foreach (var p in template)
             {
                 keep = keep || (p.DefName == row.DefName && p.Minimum == row.Minimum && p.Maximum == row.Maximum);
@@ -95,10 +97,10 @@ public static partial class ReconcileRules
     }
 
     /// <summary>
-    /// The interior furniture an owner reconciling against its whole list would remove and OwnRows leaves: each
-    /// player building wholly inside the room's interior that no piece of <paramref name="template"/> lists
-    /// (matched as Reconcile matches, one row per piece) and that is not carried over. Walls, doors, frames,
-    /// stand-in beds and what the owner forbids are the ring's or already the owner's, not stale furniture.
+    /// The interior furniture an owner reconciling against its whole list removes: each player building wholly
+    /// inside the room's interior that no piece of <paramref name="template"/> lists (matched as Reconcile
+    /// matches, one row per piece) and that is not carried over. Walls, doors, frames, stand-in beds and what
+    /// the owner forbids are the ring's or already the owner's, not stale furniture.
     /// <paramref name="carried"/> names the defs other lanes stand in owned rooms (art, lamps, the party spot,
     /// comfort pieces): listed as standing, never stale.
     /// </summary>
@@ -135,6 +137,34 @@ public static partial class ReconcileRules
             }
         }
         return output;
+    }
+
+    /// <summary>
+    /// The definitions other lanes stand in owned rooms and the room's list carries over, so an owner never
+    /// removes them as stale: the lamps, the party spot, the plant pot, the dining and recreation comfort pieces
+    /// (<paramref name="comfort"/>, when read), every sculpture the catalog makes, and the power and climate
+    /// infrastructure the power and climate planners run through rooms (conduits, generators, batteries, vents,
+    /// the shelter's heat and cooling pieces), which is no furniture.
+    /// </summary>
+    public static Func<string, bool> CarriedOver(IEnumerable<string> lamps, ComfortObservation? comfort, ItemFacts items)
+    {
+        var defs = new HashSet<string>(lamps, StringComparer.Ordinal)
+        {
+            PartySpotRules.PartySpotDefinition,
+            RoomQualityRules.PlantPotDefinition,
+            LayoutPowerDeriveRules.PowerConduitDefinition,
+            ClimateRules.ClimateDefs().VentDef,
+            LayoutCapabilityRules.ShelterHeatDef,
+            LayoutCapabilityRules.ShelterCoolDef,
+        };
+        defs.UnionWith(PowerRules.PowerFamilyDefinitions());
+        if (comfort is not null)
+        {
+            defs.UnionWith(comfort.Furniture.Definitions());
+            defs.UnionWith(comfort.WatchBuildings);
+            defs.Add(comfort.RecreationFoothold);
+        }
+        return def => defs.Contains(def) || items.SculptureSize(def, out _);
     }
 
     /// <summary>The rectangle a planned room's ring and interior cover, the ground an owner reads the census on.</summary>

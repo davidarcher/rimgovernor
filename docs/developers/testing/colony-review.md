@@ -83,6 +83,3 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
   recorded, uploaded as the `colony-review-report` artifact (90 days) and
   deployed with the newest 14 earlier reports to Pages. Pages must use
   "GitHub Actions" as its source (repository Settings → Pages).
-  The `colony-review-diagnostics` artifact (7 days) carries `result.json`, `service.sqlite*` and
-  `furniture_stale_dry_run.jsonl`: the `furniture_stale_dry_run` rows of the brain's log ring
-  (see [OTel signals](../contracts/otel-signals.md)) while `RoundsPolicy.RetireOwnRows` is false (#3487).

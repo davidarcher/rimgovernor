@@ -278,7 +278,9 @@ public static partial class SleepingRules
         }
         var bounds = room.Region.Bounds();
         var furniture = shapes.Furniture;
-        var levers = new List<string> { furniture.EndTable.Def, furniture.Dresser.Def, InteriorHelpersRules.StandingLampDef, RoomQualityRules.PlantPotDefinition, furniture.AnimalSpot, furniture.AnimalBed };
+        // Every bed standing in the room stays listed where it stands, not only the one asked for: the owner
+        // removes what the list omits, and a bed the sleeping ladder did not choose is not stale.
+        List<string> levers = [.. furniture.Beds.Select(b => b.Def), furniture.EndTable.Def, furniture.Dresser.Def, InteriorHelpersRules.StandingLampDef, RoomQualityRules.PlantPotDefinition, furniture.AnimalSpot, furniture.AnimalBed];
         if (add is not null && !levers.Contains(add.Def))
         {
             levers.Add(add.Def);
@@ -286,6 +288,10 @@ public static partial class SleepingRules
         foreach (var def in levers.Where(d => d.Length > 0).Distinct())
         {
             var standing = built.Count(b => b.Cells.Count > 0 && b.Building!.Definition == def && FurnitureRoomsRules.RectInside(bounds, PlacementSearchRules.CellsRectangle(b.Cells.Items)));
+            if (def == bed && standing > 0)
+            {
+                standing--; // the bed want above lists one of them
+            }
             var asked = add is not null && add.Def == def;
             wants.Add(new FurnishingWant { Things = [def], Count = standing + (asked ? 1 : 0), Slots = asked ? [add!.Slotted()] : [], Piece = new InteriorPieceDef { Def = def } });
         }
