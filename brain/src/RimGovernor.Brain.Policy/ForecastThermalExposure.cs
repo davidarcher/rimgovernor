@@ -1,3 +1,5 @@
+using RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Degree-ticks at modeled stationary work/need locations; idle and unobserved routes remain gaps.
@@ -17,12 +19,17 @@ public sealed record ForecastThermalSpan(double Start, double End, double Initia
 
 public sealed partial record ForecastThermalExposure
 {
+    // A coupled search evaluates many schedules against one thermal read, so each read's cells are keyed by
+    // location once, not on every evaluation.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<CoupledThermalRead, Dictionary<string, ThermalCell>> CellsByLocation = new();
+    private static readonly Dictionary<string, ThermalCell> NoCells = [];
+
     public static EquatableArray<ForecastThermalExposure> ForecastThermalExposureOf(ForecastCoupledContext context,
         ForecastActivityProblem problem, ForecastActivityPlan schedule, EquatableArray<ForecastShelterOutcome> shelters, double horizon, ForecastActivityPlan? physicalSchedule = null,
         IReadOnlyDictionary<string, List<(double MinDelta, double MaxDelta, double Start)>>? comfort = null)
     {
         var tasks = problem.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal);
-        var physical = context.Thermal?.Cells.ToDictionary(c => Methods.Generation.ForecastLocations.Of(c.Cell)) ?? [];
+        var physical = context.Thermal is { } thermal ? CellsByLocation.GetValue(thermal, static t => t.Cells.ToDictionary(c => Methods.Generation.ForecastLocations.Of(c.Cell))) : NoCells;
         var results = new List<ForecastThermalExposure>();
         foreach (var pawn in context.Needs.Pawns)
         {

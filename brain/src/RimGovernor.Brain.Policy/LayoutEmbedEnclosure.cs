@@ -189,16 +189,27 @@ internal sealed class CoverGrid
     private readonly Rectangle _bounds;
     private readonly int[] _s; // (Width+1) x (Height+1) prefix sums
 
-    /// <summary>The grid over the bounding box of onMap and rects. weight (null: each cell counts 1) reads only cells on the map.</summary>
+    /// <summary>
+    /// The grid over the bounding box of rects: nothing outside it is covered, so a query clipped to it reads the
+    /// same sums as one over the whole map. weight (null: each cell counts 1) reads only cells on the map.
+    /// </summary>
     public CoverGrid(Rectangle onMap, XRects rects, Prefix? weight)
     {
-        int x0 = onMap.X, z0 = onMap.Z, x1 = onMap.X + onMap.Width, z1 = onMap.Z + onMap.Height;
+        int x0 = int.MaxValue, z0 = int.MaxValue, x1 = int.MinValue, z1 = int.MinValue;
         foreach (var r in rects.Rects)
         {
+            if (r.Width <= 0 || r.Height <= 0)
+            {
+                continue;
+            }
             x0 = Math.Min(x0, r.X);
             z0 = Math.Min(z0, r.Z);
             x1 = Math.Max(x1, r.X + r.Width);
             z1 = Math.Max(z1, r.Z + r.Height);
+        }
+        if (x1 < x0)
+        {
+            x0 = z0 = x1 = z1 = 0;
         }
         _bounds = new Rectangle(x0, z0, x1 - x0, z1 - z0);
         var stride = _bounds.Width + 1;

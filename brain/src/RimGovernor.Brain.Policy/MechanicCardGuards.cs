@@ -155,14 +155,17 @@ public static class MechanicCardGuards
         site.Stage is { } band ? Number(band.Input, pawn, at) : Unknown<double>();
 
     /// <summary>The numeric literals a stage card's guards and bands compare against: where its offset can change along its input.</summary>
-    public static IEnumerable<double> StageCuts(MechanicCard card)
+    public static IReadOnlyList<double> StageCuts(MechanicCard card) => Cuts.GetValue(card, static card =>
     {
         static IEnumerable<double> Literals(MechanicCardExpr e) =>
             (e.Lit is { } lit && double.TryParse(lit.TrimEnd('f', 'F'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? [v] : Array.Empty<double>())
             .Concat((e.Args ?? []).SelectMany(Literals));
         return card.Sites.SelectMany(s => s.Guards.SelectMany(g => Literals(g.Expr))
-            .Concat(s.Stage?.Thresholds.Select(t => t.Below) ?? [])).Distinct();
-    }
+            .Concat(s.Stage?.Thresholds.Select(t => t.Below) ?? [])).Distinct().ToArray();
+    });
+
+    // A card's cuts depend on the card alone, and the coupled search asks for them on every schedule it evaluates.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<MechanicCard, double[]> Cuts = new();
 
     /// <summary>Kleene conjunction: a known false decides.</summary>
     private static Fact<bool> And(Fact<bool> a, Fact<bool> b) =>

@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Observation;
 
@@ -141,60 +143,85 @@ public static class ColonyGearReads
     /// </summary>
     private static GearOption? GearLoadoutOption(O.GearLoadoutOption x, DefinitionCatalog catalog)
     {
-        var (row, apparel) = GearDefinitionsReads.ApparelRow(catalog, (x.DefName ?? ""));
-        if (apparel is null)
-        {
-            throw new DomainException($"gear option {(x.Id ?? "")}: no apparel row for def {(x.DefName ?? "")}");
-        }
-        var layers = GearDefinitionsReads.Distinct((apparel.layers ?? []).Select(l => l.defName));
-        var groups = GearDefinitionsReads.Distinct((apparel.bodyPartGroups ?? []).Select(g => g.defName));
-        if (!GearSlotOf(layers, groups, out var slot))
+        var def = x.DefName ?? "";
+        var stuff = x.Stuff ?? "";
+        if (ApparelShapeOf(catalog, def, x.Id ?? "") is not { } shape)
         {
             return null;
         }
-        var option = new GearOption
+        var source = ColonyDecodeReads.WireParse<GearSource>(x.Source);
+        EquatableArray<string> research = default;
+        EquatableArray<Amount> ingredients = default;
+        if (source == GearSource.Bill)
+        {
+            if (catalog.ApparelBill(def, stuff) is not var (needs, costs))
+            {
+                throw new DomainException($"gear option {(x.Id ?? "")}: no recipe makes {def}");
+            }
+            var amounts = new Amount[costs.Count];
+            for (var i = 0; i < amounts.Length; i++)
+            {
+                amounts[i] = new Amount(new Resource(costs[i].Def), costs[i].Units);
+            }
+            research = EquatableArray.From(needs);
+            ingredients = EquatableArray.From(amounts);
+        }
+        return new GearOption
         {
             ID = x.Id ?? "",
-            Definition = new Resource((x.DefName ?? "")),
-            Stuff = new Resource((x.Stuff ?? "")),
+            Definition = new Resource(def),
+            Stuff = new Resource(stuff),
             Quality = (int)x.Quality.GetValueOrDefault(),
-            Slot = slot,
-            Layers = layers,
-            Groups = groups,
-            Source = ColonyDecodeReads.WireParse<GearSource>(x.Source),
+            Slot = shape.Slot,
+            Layers = shape.Layers,
+            Groups = shape.Groups,
+            Source = source,
             Condition = x.Condition.GetValueOrDefault(),
-            WearPerDay = apparel.wearPerDay,
-            MoveSpeed = GearDefinitionsReads.StatOffset(row, GearDefinitionsReads.StatMoveSpeed),
+            WearPerDay = shape.WearPerDay,
+            MoveSpeed = shape.MoveSpeed,
             Tainted = x.Tainted.GetValueOrDefault(),
-            SlaveOnly = apparel.slaveApparel,
+            SlaveOnly = shape.SlaveOnly,
             Locked = x.Locked.GetValueOrDefault(),
-            Shield = GearDefinitionsReads.HasShield(row),
-            Psychic = GearDefinitionsReads.StatOffset(row, GearDefinitionsReads.StatPsychic) < 0,
-            Smokepop = catalog.SmokePop((x.DefName ?? "")),
+            Shield = shape.Shield,
+            Psychic = shape.Psychic,
+            Smokepop = shape.Smokepop,
+            Research = research,
+            Ingredients = ingredients,
+            Sharp = GearDefinitionsReads.OptionStat(catalog, def, stuff, CatalogStats.ArmorSharp, false),
+            Blunt = GearDefinitionsReads.OptionStat(catalog, def, stuff, CatalogStats.ArmorBlunt, false),
+            Cold = GearDefinitionsReads.OptionStat(catalog, def, stuff, CatalogStats.InsulationCold, false),
+            Heat = GearDefinitionsReads.OptionStat(catalog, def, stuff, CatalogStats.InsulationHeat, false),
+            Cost = GearDefinitionsReads.OptionStat(catalog, def, stuff, CatalogStats.MarketValue, true),
+            MaxHitPoints = GearDefinitionsReads.OptionStat(catalog, def, stuff, CatalogStats.MaxHitPoints, true),
         };
-        if (option.Source == GearSource.Bill)
+    }
+
+    /// <summary>The stuff-independent facts of an apparel def an option carries; null for a def no model slot names.</summary>
+    private sealed record ApparelShape(GearSlot Slot, EquatableArray<string> Layers, EquatableArray<string> Groups, double WearPerDay, double MoveSpeed, bool SlaveOnly, bool Shield, bool Psychic, bool Smokepop);
+
+    // Every observation reads every option of every pawn, and the catalog's defs do not change under it, so each
+    // def's shape is worked out once per catalog.
+    private static readonly ConditionalWeakTable<DefinitionCatalog, ConcurrentDictionary<string, ApparelShape?>> Shapes = new();
+
+    private static ApparelShape? ApparelShapeOf(DefinitionCatalog catalog, string def, string id)
+    {
+        var shapes = Shapes.GetValue(catalog, static _ => new ConcurrentDictionary<string, ApparelShape?>(StringComparer.Ordinal));
+        if (shapes.TryGetValue(def, out var shape))
         {
-            if (catalog.ApparelBill((x.DefName ?? ""), (x.Stuff ?? "")) is not var (research, ingredients))
-            {
-                throw new DomainException($"gear option {(x.Id ?? "")}: no recipe makes {(x.DefName ?? "")}");
-            }
-            var amounts = new List<Amount>();
-            foreach (var cost in ingredients)
-            {
-                amounts.Add(new Amount(new Resource(cost.Def), cost.Units));
-            }
-            option = option with { Research = EquatableArray.From(research), Ingredients = EquatableArray.From(amounts) };
+            return shape;
         }
-        option = option with
+        var (row, apparel) = GearDefinitionsReads.ApparelRow(catalog, def);
+        if (apparel is null)
         {
-            Sharp = GearDefinitionsReads.OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.ArmorSharp, false),
-            Blunt = GearDefinitionsReads.OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.ArmorBlunt, false),
-            Cold = GearDefinitionsReads.OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.InsulationCold, false),
-            Heat = GearDefinitionsReads.OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.InsulationHeat, false),
-            Cost = GearDefinitionsReads.OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.MarketValue, true),
-            MaxHitPoints = GearDefinitionsReads.OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.MaxHitPoints, true),
-        };
-        return option;
+            throw new DomainException($"gear option {id}: no apparel row for def {def}");
+        }
+        var layers = GearDefinitionsReads.Distinct((apparel.layers ?? []).Select(l => l.defName));
+        var groups = GearDefinitionsReads.Distinct((apparel.bodyPartGroups ?? []).Select(g => g.defName));
+        shape = GearSlotOf(layers, groups, out var slot)
+            ? new ApparelShape(slot, layers, groups, apparel.wearPerDay, GearDefinitionsReads.StatOffset(row, GearDefinitionsReads.StatMoveSpeed), apparel.slaveApparel, GearDefinitionsReads.HasShield(row), GearDefinitionsReads.StatOffset(row, GearDefinitionsReads.StatPsychic) < 0, catalog.SmokePop(def))
+            : null;
+        shapes.TryAdd(def, shape);
+        return shape;
     }
 
     /// <summary>

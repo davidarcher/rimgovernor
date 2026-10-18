@@ -272,17 +272,19 @@ public static partial class StorageRules
         }
 
         var found = new List<(InteriorPiece Piece, bool Walled)>();
+        var seen = new HashSet<Cell>();
+        var queue = new Queue<Cell>();
         var sorted = zone.OrderBy(c => c.X).ThenBy(c => c.Z);
         foreach (var c in sorted)
         {
-            foreach (var rot in new[] { Rotation.North, Rotation.East })
+            foreach (var rot in (ReadOnlySpan<Rotation>)[Rotation.North, Rotation.East])
             {
                 var other = new Cell(c.X + 1, c.Z);
                 if (rot == Rotation.East)
                 {
                     other = new Cell(c.X, c.Z + 1);
                 }
-                if (!Free(c) || !Free(other) || !ShelfLeavesZoneUsable(zone, @in, site, c, other))
+                if (!Free(c) || !Free(other) || !ShelfLeavesZoneUsable(zone, @in, site, c, other, seen, queue))
                 {
                     continue;
                 }
@@ -300,57 +302,71 @@ public static partial class StorageRules
     }
 
     /// <summary>The zone without a and b is non-empty and contiguous, and a and b each touch a remaining walkable zone cell.</summary>
-    private static bool ShelfLeavesZoneUsable(IReadOnlyList<Cell> zone, HashSet<Cell> @in, Dictionary<Cell, SiteCell> site, Cell a, Cell b)
+    private static bool ShelfLeavesZoneUsable(IReadOnlyList<Cell> zone, HashSet<Cell> @in, Dictionary<Cell, SiteCell> site, Cell a, Cell b, HashSet<Cell> seen, Queue<Cell> queue)
     {
-        var rest = new HashSet<Cell>(@in.Where(c => c != a && c != b));
-        if (rest.Count == 0)
+        // a and b are free cells, so both are zone cells; the rest is the zone without them, read in place.
+        var rest = @in.Count - 2;
+        if (rest == 0)
         {
             return false;
         }
-        foreach (var shelf in new[] { a, b })
+        bool Rest(Cell c) => c != a && c != b && @in.Contains(c);
+        bool Reached(Cell shelf)
         {
-            var reached = false;
             foreach (var n in Neighbours4(shelf))
             {
-                if (!rest.Contains(n))
+                if (Rest(n) && site.TryGetValue(n, out var sn) && sn.Walkable.TryGetValue(out var walk) && walk)
                 {
-                    continue;
-                }
-                if (site.TryGetValue(n, out var sn) && sn.Walkable.TryGetValue(out var walk) && walk)
-                {
-                    reached = true;
+                    return true;
                 }
             }
-            if (!reached)
-            {
-                return false;
-            }
+            return false;
+        }
+        if (!Reached(a) || !Reached(b))
+        {
+            return false;
         }
         var start = default(Cell);
         foreach (var c in zone)
         {
-            if (rest.Contains(c))
+            if (Rest(c))
             {
                 start = c;
                 break;
             }
         }
-        var seen = new HashSet<Cell> { start };
-        var queue = new Queue<Cell>();
+        seen.Clear();
+        queue.Clear();
+        seen.Add(start);
         queue.Enqueue(start);
         while (queue.Count > 0)
         {
             var c = queue.Dequeue();
             foreach (var n in Neighbours4(c))
             {
-                if (rest.Contains(n) && seen.Add(n))
+                if (Rest(n) && seen.Add(n))
                 {
                     queue.Enqueue(n);
                 }
             }
         }
-        return seen.Count == rest.Count;
+        return seen.Count == rest;
     }
 
-    internal static Cell[] Neighbours4(Cell c) => [new(c.X + 1, c.Z), new(c.X - 1, c.Z), new(c.X, c.Z + 1), new(c.X, c.Z - 1)];
+    internal static Four Neighbours4(Cell c)
+    {
+        var four = new Four();
+        four[0] = new(c.X + 1, c.Z);
+        four[1] = new(c.X - 1, c.Z);
+        four[2] = new(c.X, c.Z + 1);
+        four[3] = new(c.X, c.Z - 1);
+        return four;
+    }
+
+    /// <summary>A cell's four neighbours, held inline so a scan over them allocates nothing.</summary>
+    [System.Runtime.CompilerServices.InlineArray(4)]
+    internal struct Four
+    {
+        private Cell _first;
+    }
 }

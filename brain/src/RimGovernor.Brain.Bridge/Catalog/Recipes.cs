@@ -236,7 +236,7 @@ public sealed partial class DefinitionCatalog
     /// only product is the def (<c>RecipeDef.ProducedThingDef</c>); null when no recipe makes it.
     /// </summary>
     public (IReadOnlyList<string> Research, IReadOnlyList<StatCost> Ingredients)? ApparelBill(string def, string stuff) =>
-        LazyInitializer.EnsureInitialized(ref _soleProductResearch, SoleProductResearch).TryGetValue(def, out var research)
+        (_soleProductResearch ?? LazyInitializer.EnsureInitialized(ref _soleProductResearch, SoleProductResearch)).TryGetValue(def, out var research)
             ? (research, AdjustedCosts(def, stuff))
             : null;
 

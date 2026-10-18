@@ -104,26 +104,27 @@ internal sealed class CutGrid(int w, int h)
 
     public Cell CellAt(int i) => new(i % W, i / W);
 
-    /// <summary>Calls f on the in-map orthogonal neighbours of i.</summary>
-    public void Neighbours4(int i, Action<int> f)
+    /// <summary>Writes the in-map orthogonal neighbours of i into <paramref name="into"/> (four long) and returns how many.</summary>
+    public int Neighbours4(int i, Span<int> into)
     {
-        int x = i % W, z = i / W;
+        int x = i % W, z = i / W, n = 0;
         if (z > 0)
         {
-            f(i - W);
+            into[n++] = i - W;
         }
         if (x > 0)
         {
-            f(i - 1);
+            into[n++] = i - 1;
         }
         if (x < W - 1)
         {
-            f(i + 1);
+            into[n++] = i + 1;
         }
         if (z < H - 1)
         {
-            f(i + W);
+            into[n++] = i + W;
         }
+        return n;
     }
 }
 
@@ -367,6 +368,7 @@ public static partial class PerimeterCutRules
     /// </summary>
     private static (List<int> Cut, long Flow) RoutingCut(CutGrid g)
     {
+        Span<int> near = stackalloc int[4];
         var n = g.W * g.H;
         int s = 2 * n, t = (2 * n) + 1;
         var net = new FlowNet((2 * n) + 2);
@@ -390,14 +392,13 @@ public static partial class PerimeterCutRules
             {
                 net.Arc((2 * i) + 1, t, PerimeterCutRules.FlowInf);
             }
-            var from = i;
-            g.Neighbours4(i, j =>
+            foreach (var j in near[..g.Neighbours4(i, near)])
             {
                 if (!g.Barrier[j])
                 {
-                    net.Arc((2 * from) + 1, 2 * j, PerimeterCutRules.FlowInf);
+                    net.Arc((2 * i) + 1, 2 * j, PerimeterCutRules.FlowInf);
                 }
-            });
+            }
         }
         var flow = net.MaxFlow(s, t);
         var cut = new List<int>();
@@ -427,6 +428,7 @@ public static partial class PerimeterCutRules
     /// <summary>Finds the routing cut and its thickness.</summary>
     private static PerimeterCut DesignCut(CutInput input)
     {
+        Span<int> near = stackalloc int[4];
         var g = input.Grid;
         var (cut, flow) = RoutingCut(g);
         if (flow >= PerimeterCutRules.FlowInf)
@@ -468,14 +470,14 @@ public static partial class PerimeterCutRules
         }
         for (var q = 0; q < queue.Count; q++)
         {
-            g.Neighbours4(queue[q], j =>
+            foreach (var j in near[..g.Neighbours4(queue[q], near)])
             {
                 if (!outside[j] && !g.Barrier[j] && !inCut[j] && !g.Sink[j])
                 {
                     outside[j] = true;
                     queue.Add(j);
                 }
-            });
+            }
         }
 
         // The walk from the opening's mouth along the outside, in cells.
@@ -489,14 +491,14 @@ public static partial class PerimeterCutRules
             for (var q = 0; q < queue.Count; q++)
             {
                 var u = queue[q];
-                g.Neighbours4(u, j =>
+                foreach (var j in near[..g.Neighbours4(u, near)])
                 {
                     if (walk[j] < 0 && !g.Barrier[j] && !inCut[j] && !g.Sink[j] && outside[j])
                     {
                         walk[j] = walk[u] + 1;
                         queue.Add(j);
                     }
-                });
+                }
             }
         }
 
@@ -505,13 +507,13 @@ public static partial class PerimeterCutRules
         foreach (var i in cut)
         {
             var best = -1;
-            g.Neighbours4(i, j =>
+            foreach (var j in near[..g.Neighbours4(i, near)])
             {
                 if (outside[j] && walk[j] >= 0 && (best < 0 || walk[j] < best))
                 {
                     best = walk[j];
                 }
-            });
+            }
             var hp = input.Hp[i];
             var d = new CellDesign { N = 1, Hp = hp, Reason = "" };
             if (hp <= 0)

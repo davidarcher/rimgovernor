@@ -253,7 +253,7 @@ public static class ForecastMood
         var none = (card.Def, (IReadOnlyList<(double, double, double)>)[]);
         if (pawn is null || !observed.TryGetValue(out var thoughts)) return none;
         var current = thoughts.Where(t => t.Def == card.Def).Sum(t => t.Offset);
-        var cuts = MechanicCardGuards.StageCuts(card).ToArray();
+        var cuts = MechanicCardGuards.StageCuts(card);
         var rows = new List<(double Start, double End, double OffsetDelta)>();
         foreach (var span in exposure)
         {

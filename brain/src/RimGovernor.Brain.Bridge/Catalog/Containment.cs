@@ -22,7 +22,7 @@ public sealed partial class DefinitionCatalog
     /// </summary>
     public P.ContainmentDefs ContainmentDefs(string wall, string wallStuff, string door, string doorStuff)
     {
-        var shared = LazyInitializer.EnsureInitialized(ref _containmentShared, ContainmentShared);
+        var shared = _containmentShared ?? LazyInitializer.EnsureInitialized(ref _containmentShared, ContainmentShared);
 
         double HitPoints(string def, string stuff)
         {
