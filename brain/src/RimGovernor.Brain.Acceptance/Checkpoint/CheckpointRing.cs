@@ -227,10 +227,15 @@ public sealed partial class CheckpointRing
         catch (Exception e) when (IsCaptureFailure(e))
         {
             RecordError(label, e.Message);
-            if (e is NativeTransportException or RunLostException)
+            if (e is NativeTransportException)
             {
                 // The game did not answer the checkpoint's reads: nothing later in the run can succeed, so the run ends
-                // here instead of retrying every cadence until its budget.
+                // here instead of retrying every cadence until its budget, and the calls it still makes fail at once.
+                throw Bridge?.Invoke()?.Transport.Lose(e.Message) ?? new RunLostException(e.Message);
+            }
+
+            if (e is RunLostException)
+            {
                 throw;
             }
         }

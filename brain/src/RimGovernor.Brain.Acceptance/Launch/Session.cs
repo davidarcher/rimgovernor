@@ -23,6 +23,12 @@ public static class GameSessions
     /// <summary>How long a connect waits for the game to boot and announce a working channel.</summary>
     public static readonly TimeSpan ConnectBudget = TimeSpan.FromMinutes(5);
 
+    /// <summary>
+    /// The least a connect waits: all a game already past its boot (a kept game) gets, since a booted game answers
+    /// /api/health and an identity read at once, and one that does not is hung, not slow.
+    /// </summary>
+    public static readonly TimeSpan AttachBudget = TimeSpan.FromSeconds(10);
+
     private const string OtlpDirectoryVariable = "RIMGOVERNOR_OTLP_DIR";
     private const string RunIdVariable = "RIMGOVERNOR_RUN_ID";
 
@@ -198,9 +204,11 @@ public static class GameSessions
     }
 
     /// <summary>
-    /// Waits, for up to <paramref name="budget"/>, until the game serves its channel: the process is alive, its endpoint
-    /// file names it, <c>GET /api/health</c> answers and a first native read gets a reply (a refusal counts: the game
-    /// answered). A process that exits meanwhile fails the connect at once with its exit code and the end of its log.
+    /// Waits until the game serves its channel: the process is alive, its endpoint file names it, <c>GET /api/health</c>
+    /// answers and a first native read gets a reply (a refusal counts: the game answered). <paramref name="budget"/> counts
+    /// from the game's launch, not from this call, and every connect gets at least <see cref="AttachBudget"/>: a kept game
+    /// that is alive but answers nothing fails in seconds rather than at the boot budget. A process that exits meanwhile
+    /// fails the connect at once with its exit code and the end of its log.
     /// </summary>
     public static async Task ConnectAsync(HttpNativeTransport transport, GameProcess game, string configDir, string gameId, TimeSpan budget, CancellationToken cancellationToken)
     {
@@ -208,6 +216,8 @@ public static class GameSessions
         ArgumentNullException.ThrowIfNull(game);
         var stateDir = HeadlessProfile.MustAbs(configDir);
         var directory = EndpointDirectory(configDir, gameId);
+        var uptime = DateTimeOffset.UtcNow - game.Record.LaunchedAt;
+        var limit = budget - uptime > AttachBudget ? budget - uptime : AttachBudget;
         var clock = Stopwatch.StartNew();
         var lastProblem = "the game has not announced its channel yet";
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
@@ -219,9 +229,19 @@ public static class GameSessions
                 throw new AcceptanceException(ExitedMessage(stateDir, gameId, string.Create(CultureInfo.InvariantCulture, $"connect: the game (pid {game.Pid}) {ExitedBeforeChannel}")));
             }
 
+            var left = limit - clock.Elapsed;
+            if (left <= TimeSpan.Zero)
+            {
+                throw new AcceptanceException(string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"connect: the game (pid {game.Pid}, up {uptime.TotalSeconds:0}s) is alive but did not answer within {limit.TotalSeconds:0}s: {lastProblem}"));
+            }
+
             if (EndpointFile.Read(directory) is { } endpoint && endpoint.Address.Length > 0 && endpoint.Pid == game.Pid)
             {
-                var problem = await ProbeAsync(transport, http, endpoint.Address, cancellationToken).ConfigureAwait(false);
+                using var round = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                round.CancelAfter(left);
+                var problem = await ProbeAsync(transport, http, endpoint.Address, round.Token, cancellationToken).ConfigureAwait(false);
                 if (problem is null)
                 {
                     return;
@@ -230,21 +250,16 @@ public static class GameSessions
                 lastProblem = problem;
             }
 
-            if (clock.Elapsed >= budget)
-            {
-                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"connect: the game (pid {game.Pid}) was not reachable within {budget.TotalSeconds:0}s: {lastProblem}"));
-            }
-
             await pace.NextAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
-    /// <summary>One readiness round: null when the channel answers, else why not.</summary>
-    private static async Task<string?> ProbeAsync(HttpNativeTransport transport, HttpClient http, string address, CancellationToken cancellationToken)
+    /// <summary>One readiness round, bounded by <paramref name="round"/>: null when the channel answers, else why not.</summary>
+    private static async Task<string?> ProbeAsync(HttpNativeTransport transport, HttpClient http, string address, CancellationToken round, CancellationToken cancellationToken)
     {
         try
         {
-            using var response = await http.GetAsync(new Uri(address.TrimEnd('/') + "/api/health"), cancellationToken).ConfigureAwait(false);
+            using var response = await http.GetAsync(new Uri(address.TrimEnd('/') + "/api/health"), round).ConfigureAwait(false);
             if (response.StatusCode != HttpStatusCode.OK)
             {
                 return $"/api/health answered {(int)response.StatusCode}";
@@ -261,11 +276,12 @@ public static class GameSessions
 
         try
         {
-            _ = await transport.CallAsync(
+            // A booting game misses replies for a while, so the probe goes around the transport's lost-run accounting.
+            _ = await transport.SendAsync(
                 NativeOps.ReadIdentity.Tool,
                 new JsonObject { { "request", WireJson.Serialize(new IdentityRequest()) } },
-                new NativeCallOptions { Timeout = TimeSpan.FromSeconds(60), Phase = "connect" },
-                cancellationToken).ConfigureAwait(false);
+                new NativeCallOptions { Phase = "connect" },
+                round).ConfigureAwait(false);
             return null;
         }
         catch (NativeRefusedException)
@@ -273,10 +289,13 @@ public static class GameSessions
             // The game answered, which is all a connect asks.
             return null;
         }
-        catch (Exception e) when (e is NativeTransportException or RunLostException)
+        catch (NativeTransportException e)
         {
-            // A booting game answers nothing for a while; connect's own budget and process check bound the wait.
             return e.Message;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return $"{NativeOps.ReadIdentity.Tool}: no reply";
         }
     }
 

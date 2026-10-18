@@ -269,6 +269,10 @@ The game starts detached and inherits only its own `game.log` handle, so a redir
 A run that cannot succeed fails at once with its cause as the `error`: the game process
 exited (exit code and `game.log` tail), or two consecutive native calls got no reply
 (`native unreachable`). A checkpoint whose native reads fail ends the run the same way.
+Once a run is lost, every later native call on its session fails at once with that
+first cause instead of waiting out its own deadline. The connect budget (5 minutes)
+counts from the game's launch, with a 10-second floor: a kept game that is alive but
+answers nothing fails the connect in about 10 seconds (`is alive but did not answer`).
 
 A case launch also sets the runtime's crash-dump variables (`DOTNET_DbgEnableMiniDump`,
 `DOTNET_DbgMiniDumpType=1`, `DOTNET_DbgMiniDumpName=<case output>/coreclr-%p.dmp`; the game's

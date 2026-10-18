@@ -26,6 +26,7 @@ public sealed class HttpNativeTransport : IAsyncDisposable
     private readonly HttpClient _client;
     private readonly bool _ownsClient;
     private int _failures;
+    private string? _lost;
 
     /// <param name="endpointDirectory">The directory holding <c>http-endpoint.json</c> (beside the OTLP rings).</param>
     /// <param name="timeout">The default deadline of one call, including the wait for the endpoint file.</param>
@@ -62,9 +63,9 @@ public sealed class HttpNativeTransport : IAsyncDisposable
     /// <exception cref="NativeTransportException">The call did not reach the game or the channel does not route the tool.</exception>
     public async Task<NativeResult> CallAsync(string tool, JsonObject arguments, NativeCallOptions options, CancellationToken cancellationToken)
     {
-        if (Gone?.Invoke() is { } gone)
+        if ((Volatile.Read(ref _lost) ?? Gone?.Invoke()) is { } gone)
         {
-            throw new RunLostException(gone);
+            throw Lose(gone);
         }
 
         try
@@ -89,20 +90,33 @@ public sealed class HttpNativeTransport : IAsyncDisposable
         {
             if (Gone?.Invoke() is { } gone2)
             {
-                throw new RunLostException(gone2);
+                throw Lose(gone2);
             }
 
             var failures = Interlocked.Increment(ref _failures);
             if (failures >= LostAfterFailures)
             {
-                throw new RunLostException($"native unreachable: {failures} consecutive transport failures, the last: {e.Message}");
+                throw Lose($"native unreachable: {failures} consecutive transport failures, the last: {e.Message}");
             }
 
             throw;
         }
     }
 
-    private async Task<NativeResult> SendAsync(string tool, JsonObject arguments, NativeCallOptions options, CancellationToken cancellationToken)
+    /// <summary>
+    /// Declares the run lost: this and every later call fail at once with the first reason given, so the calls a failing
+    /// run still makes (its report reads, the kept game's close) do not each wait out their deadline.
+    /// </summary>
+    public RunLostException Lose(string reason)
+    {
+        return new RunLostException(Interlocked.CompareExchange(ref _lost, reason, null) ?? reason);
+    }
+
+    /// <summary>
+    /// One exchange with the channel, outside the lost-run accounting: only the connect probe, which expects a booting
+    /// game to miss replies, calls it directly.
+    /// </summary>
+    internal async Task<NativeResult> SendAsync(string tool, JsonObject arguments, NativeCallOptions options, CancellationToken cancellationToken)
     {
         var path = RoutePath(tool);
         string? requestText = null;
@@ -139,6 +153,11 @@ public sealed class HttpNativeTransport : IAsyncDisposable
     /// </summary>
     public async Task<IReadOnlyList<string>?> ToolNamesAsync(CancellationToken cancellationToken)
     {
+        if (Volatile.Read(ref _lost) is not null)
+        {
+            return null;
+        }
+
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(_timeout);
         try

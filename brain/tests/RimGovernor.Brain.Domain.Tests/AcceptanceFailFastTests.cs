@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.IO.Pipes;
 using System.Net;
+using System.Net.Sockets;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Acceptance;
 using RimGovernor.Brain.HttpChannel;
@@ -10,7 +12,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// #3349: a detached game inherits only its own log, never the caller's redirected stdout, so a redirected
 /// <c>acceptance run</c> returns when the case ends. #3350: a run whose game exited or whose channel stopped answering
-/// ends at once with the cause, instead of at its wall budget.
+/// ends at once with the cause, instead of at its wall budget; calls after that fail without waiting, and a kept game
+/// that answers nothing fails its connect in seconds.
 /// </summary>
 public sealed class AcceptanceFailFastTests : IDisposable
 {
@@ -119,17 +122,67 @@ public sealed class AcceptanceFailFastTests : IDisposable
     }
 
     [Fact]
-    public async Task FailedCheckpointReadEndsTheRunInsteadOfBeingLogged()
+    public async Task FailedCheckpointReadEndsTheRunAndTheCallsAfterItFailAtOnce()
     {
+        var calls = 0;
+        var transport = Transport(_ => { calls++; return Reply(HttpStatusCode.OK); });
+        var harness = new Harness(transport, root);
         var ring = new CheckpointRing(Path.Combine(root, "ring"), "case", new Config { Output = root })
         {
             Every = TimeSpan.FromMilliseconds(1),
             Keep = 5,
+            Bridge = () => harness,
             Saver = (_, _, _, _) => throw new NativeTransportException("native transport failure: lifecycle_read_identity: no reply within 60s"),
         };
 
-        _ = await Assert.ThrowsAsync<NativeTransportException>(() => ring.MaybeAsync(CancellationToken.None));
+        var lost = await Assert.ThrowsAsync<RunLostException>(() => ring.MaybeAsync(CancellationToken.None));
+        Assert.Contains("no reply within 60s", lost.Message, StringComparison.Ordinal);
         Assert.Single(ring.Errors());
+
+        var after = await Assert.ThrowsAsync<RunLostException>(() => Call(transport));
+        Assert.Equal(lost.Message, after.Message);
+        Assert.Equal(0, calls);
+    }
+
+    [Fact]
+    public async Task CallAfterALostRunFailsAtOnceWithTheFirstCause()
+    {
+        var calls = 0;
+        var transport = Transport(_ => { calls++; throw new HttpRequestException("connection refused"); });
+
+        _ = await Assert.ThrowsAsync<NativeTransportException>(() => Call(transport));
+        var lost = await Assert.ThrowsAsync<RunLostException>(() => Call(transport));
+        Assert.Equal(2, calls);
+
+        // Nothing is sent: the call does not wait out its deadline against a game already given up on.
+        var after = await Assert.ThrowsAsync<RunLostException>(() => Call(transport));
+        Assert.Equal(lost.Message, after.Message);
+        Assert.Equal(2, calls);
+        Assert.Null(await transport.ToolNamesAsync(CancellationToken.None));
+        Assert.Equal(2, calls);
+    }
+
+    [Fact]
+    public async Task KeptGameThatAnswersNothingFailsWithinTheAttachBudget()
+    {
+        var game = Start("ping -n 120 127.0.0.1 >nul");
+
+        // Kept: launched an hour ago, so its boot is long over.
+        File.WriteAllText(GameProcess.EndpointPath(root, GameId), (game.Record with { LaunchedAt = DateTimeOffset.UtcNow - TimeSpan.FromHours(1) }).ToJson());
+
+        // Its channel accepts connections (the listen backlog) and never answers.
+        using var silent = new TcpListener(IPAddress.Loopback, 0);
+        silent.Start();
+        EndpointFile.Write(GameSessions.EndpointDirectory(root, GameId), $"http://127.0.0.1:{((IPEndPoint)silent.LocalEndpoint).Port}", game.Pid, "run");
+
+        var open = GameSessions.OpenBridgeSessionAsync(root, GameId, TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
+        var finished = await Task.WhenAny(open, Task.Delay(HangGuard, TestContext.Current.CancellationToken));
+
+        // The hang guard is a fifth of the boot budget a fresh launch gets: finishing inside it is the attach budget.
+        Assert.Same(open, finished);
+        var failed = await Assert.ThrowsAsync<AcceptanceException>(() => open);
+        Assert.Contains(string.Create(CultureInfo.InvariantCulture, $"is alive but did not answer within {GameSessions.AttachBudget.TotalSeconds:0}s"), failed.Message, StringComparison.Ordinal);
+        Assert.Contains("no reply", failed.Message, StringComparison.Ordinal);
     }
 
     private HttpNativeTransport Transport(Func<HttpRequestMessage, HttpResponseMessage> respond, Func<string?>? gone = null)
