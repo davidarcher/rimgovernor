@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 // the outdoor curve and the heat the openings move. Every number is the game's: the equalize interval and rate
 // of a vent and of a door come from the defs and the game's constants (ClimateModel, read by the bridge), the
 // heater's and cooler's heat per second and power draw from the catalog, and the one judgment (the sun cycle's
-// phase, which no def carries) from climateTable, a DefTables entry. The tiler prices vents and airlocks with
+// phase, which no def carries) from the climate table below. The tiler prices vents and airlocks with
 // it and the climate envelope round builds what it chose.
 //
 // The heat given off inside the room (#2915) is in: each station with a CompProperties_HeatPusher (stoves,
@@ -25,7 +25,7 @@ namespace RimGovernor.Brain.Policy;
 public sealed class ClimateException(string message) : DomainException("climate model: " + message);
 
 /// <summary>
-/// The model's one judgment table, registered in DefTables so a renamed def fails the dangling-reference gate.
+/// The model's one judgment table.
 /// The defs are the buildings the options are priced in; SunPhase is the phase of
 /// GenTemperature.OffsetFromSunCycle, cos(2pi(dayPct+SunPhase)) times
 /// TemperatureTuning.DailyTempVariationAmplitude: a literal in the game's code that no def or constant states.

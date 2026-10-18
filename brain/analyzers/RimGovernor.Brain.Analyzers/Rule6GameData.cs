@@ -11,8 +11,7 @@ namespace RimGovernor.Brain.Analyzers;
 /// Rule 6, game data is read, not retyped (RGARCH006). No quoted thing or terrain def name (a static field of the
 /// game's ThingDefOf or TerrainDefOf, listed in data/defof_names.txt) and no literal equal to a mirrored GameConstants
 /// value (an integer of at least 1000 that is not a power of ten or two, data/game_constants.txt). Read the fact from
-/// the catalog, or register a judgment table in Policy's DefTables (a declaration whose member or type DefTables() names
-/// is an allowed owner, as is Domain/GameTime.cs). Acceptance projects are exempt (their cases drive the real game), as are the Remote* tool-host projects (no game code).
+/// the catalog; Domain/GameTime.cs is exempt. Acceptance projects are exempt (their cases drive the real game), as are the Remote* tool-host projects (no game code).
 /// Key "file|Type.Member|\"DefName\"" or "file|Type.Member|number".
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -81,65 +80,10 @@ public sealed class GameDataAnalyzer : GateAnalyzer
 
     protected override void Register(CompilationStartAnalysisContext context, GateRun run)
     {
-        var shortName = Arch.ShortName(run.Assembly);
-        var owners = shortName == "Policy" ? TableOwners(context.Compilation) : ImmutableHashSet<string>.Empty;
-        context.RegisterSyntaxNodeAction(c => Check(c, run, owners), SyntaxKind.StringLiteralExpression, SyntaxKind.NumericLiteralExpression);
+        context.RegisterSyntaxNodeAction(c => Check(c, run), SyntaxKind.StringLiteralExpression, SyntaxKind.NumericLiteralExpression);
     }
 
-    /// <summary>
-    /// The identifiers DefTables() mentions, lower-cased on the first letter. A literal inside a declaration (or a type) of
-    /// one of those names is the registered table itself: the dangling-reference gate checks every name in it against the
-    /// recorded catalog.
-    /// </summary>
-    private static ImmutableHashSet<string> TableOwners(Compilation compilation)
-    {
-        var names = ImmutableHashSet.CreateBuilder<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var tree in compilation.SyntaxTrees)
-        {
-            if (!tree.FilePath.EndsWith("DefTables.cs", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            foreach (var method in tree.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>().Where(m => m.Identifier.ValueText == "DefTables"))
-            {
-                foreach (var id in method.DescendantNodes().OfType<IdentifierNameSyntax>())
-                {
-                    names.Add(id.Identifier.ValueText);
-                }
-            }
-        }
-
-        return names.ToImmutable();
-    }
-
-    private static bool Owned(SyntaxNode node, ImmutableHashSet<string> owners)
-    {
-        if (owners.IsEmpty)
-        {
-            return false;
-        }
-
-        foreach (var a in node.Ancestors())
-        {
-            var name = a switch
-            {
-                FieldDeclarationSyntax f => f.Declaration.Variables[0].Identifier.ValueText,
-                PropertyDeclarationSyntax p => p.Identifier.ValueText,
-                MethodDeclarationSyntax m => m.Identifier.ValueText,
-                BaseTypeDeclarationSyntax t => t.Identifier.ValueText,
-                _ => null,
-            };
-            if (name is not null && owners.Contains(name))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static void Check(SyntaxNodeAnalysisContext context, GateRun run, ImmutableHashSet<string> owners)
+    private static void Check(SyntaxNodeAnalysisContext context, GateRun run)
     {
         var node = context.Node;
         var key = Arch.FileKey(node.SyntaxTree, run.Assembly);
@@ -162,7 +106,7 @@ public sealed class GameDataAnalyzer : GateAnalyzer
             token = Arch.Number(x);
         }
 
-        if (token is not null && !Owned(node, owners))
+        if (token is not null)
         {
             run.Add(key + "|" + Arch.MemberName(node) + "|" + token, node.GetLocation());
         }

@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 // The interior objective scores a furniture layout in one region. It is the measure a seeded local search
 // improves (#2869): hard constraints a layout must meet, then soft terms reported one by one. There is
 // deliberately no scalar total here: no term has a game-derived weight against another, so layouts compare per
-// term (NoWorseThan) until a search needs one and a DefTables entry states the judgment.
+// term (NoWorseThan) until a search needs one and a judgment table states it.
 //
 // Hard: pieces on region cells and overlapping nothing, doors only on the layout's candidate cells and each
 // opening into the region, door thresholds clear, interaction cells open, all free floor reachable from the

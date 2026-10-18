@@ -25,7 +25,7 @@ namespace RimGovernor.Brain.Policy;
 // The cut is advice beside the ring PlanPerimeter traces: the runtime only journals it (logPerimeterCut).
 
 /// <summary>
-/// The cut's one judgment table, registered in DefTables so a renamed def fails the dangling-reference gate.
+/// The cut's one judgment table.
 /// WallDef is the building the cut is walled with. DetourBudgetTicks is the one judgment: the longest detour,
 /// in ticks of walking, the thickness is designed against. The sapper formula alone would thicken a stretch
 /// far from the opening without limit (a 250-cell map has detours of thousands of ticks); a stretch whose

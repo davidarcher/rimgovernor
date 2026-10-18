@@ -67,8 +67,7 @@ public sealed record SeekerBands(EquatableArray<double> Edges, EquatableArray<in
 public sealed record SeekerGameDef(string Need, string Thought, SeekerBands Bands);
 
 /// <summary>
-/// The environment needs' game table, registered in DefTables so a renamed def fails the dangling-reference
-/// gate. IntervalTicks is Pawn_NeedsTracker's need interval (IsHashIntervalTick(150)). The rise, fall, base level
+/// The environment needs' game table. IntervalTicks is Pawn_NeedsTracker's need interval (IsHashIntervalTick(150)). The rise, fall, base level
 /// and sleep freeze are the NeedDef rows', read by the bridge.
 /// </summary>
 public sealed record SeekerTable(double IntervalTicks, SeekerGameDef Comfort, SeekerGameDef Beauty);
@@ -335,10 +334,6 @@ public static partial class LayoutComfortRules
 
     /// <summary>The table the bridge reads the needs with.</summary>
     public static SeekerTable SeekerGame() => SeekerGameTable;
-
-    internal static IReadOnlyList<string> SeekerNeedDefs() => [SeekerGameTable.Beauty.Need, SeekerGameTable.Comfort.Need];
-
-    internal static IReadOnlyList<string> SeekerThoughts() => [SeekerGameTable.Beauty.Thought, SeekerGameTable.Comfort.Thought];
 
     /// <summary>The need intervals in a day.</summary>
     internal static int EnvDaySteps() => (int)Math.Round((double)GameTime.TicksPerDay / SeekerGameTable.IntervalTicks, MidpointRounding.AwayFromZero);

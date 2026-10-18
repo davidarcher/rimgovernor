@@ -50,9 +50,6 @@ Policy|ConstructionMaterial.ShortfallUnits
 Policy|ConstructionMaterial.Stock
 Policy|ConstructionProjection.Materials
 Policy|CoreSiteWork.Help
-Policy|DefTable.Class
-Policy|DefTable.Names
-Policy|DefTable.Table
 Policy|DevelopmentProposal.Alternatives
 Policy|DevelopmentProposal.Beneficiaries
 Policy|DevelopmentProposal.Evidence
@@ -67,7 +64,6 @@ Policy|EssentialServiceReview.Observed
 Policy|EssentialServiceReview.Proposals
 Policy|EssentialServiceReview.Stress
 Policy|EssentialServiceReview.Truncated
-Policy|FoodPoisonTable.VomitJob
 Policy|ForecastActivityAllocation.TravelTicks
 Policy|ForecastActivityAllocation.WaitTicks
 Policy|ForecastActivityComparison.Decision

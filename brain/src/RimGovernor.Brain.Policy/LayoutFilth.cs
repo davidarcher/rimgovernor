@@ -99,7 +99,7 @@ public sealed record FilthModel
 }
 
 /// <summary>
-/// The judgment behind the cleaning price (#2988), registered in DefTables. UnitsPerRun is the filth units a
+/// The judgment behind the cleaning price (#2988). UnitsPerRun is the filth units a
 /// butchery run leaves: Corpse.ButcherProducts calls FilthMaker.TryMakeFilth once with the default count of one
 /// (read with ilspycmd), so a unit of thickness per corpse. SpeedStat is the stat a pawn's cleaning speed is
 /// (JobDriver_CleanFilth divides the work by it). The floor's Cleanliness (RoomStatWorker_Cleanliness adds each
@@ -127,21 +127,19 @@ public readonly record struct FilthRuns
 }
 
 /// <summary>
-/// The judgment behind the poisoning price (#2955), registered in DefTables. Hediff is the sickness a poisoned
+/// The judgment behind the poisoning price (#2955). Hediff is the sickness a poisoned
 /// meal gives (FoodUtility.AddFoodPoisoningHediff). WorkCapacity is the capacity of its stages that stands for
 /// the sick colonist's work: Consciousness, the lowest of the capacities the hediff cuts that a worker uses
 /// (Manipulation 0.9 / 0.8 / 0.9 and Moving 0.8 / 0.5 / 0.8 are higher or equal in every stage), and the one
-/// the game scales all awake action by; the price is the work lost at that factor. VomitJob is the job a vomit
-/// starts (JobDriver_Vomit, read with ilspycmd) and VomitTicks its mean length, 300 to 900 ticks drawn
-/// uniformly, during which the colonist does no work.
+/// the game scales all awake action by; the price is the work lost at that factor. VomitTicks is the mean length
+/// of a vomit job (JobDriver_Vomit, read with ilspycmd), 300 to 900 ticks drawn uniformly, during which the
+/// colonist does no work.
 /// </summary>
 public sealed record FoodPoisonTable
 {
     public string Hediff { get; init; } = string.Empty;
 
     public string WorkCapacity { get; init; } = string.Empty;
-
-    public string VomitJob { get; init; } = string.Empty;
 
     public double VomitTicks { get; init; }
 }
@@ -230,7 +228,7 @@ public static partial class LayoutFilthRules
 {
     private static readonly FilthGame FilthGameValue = new() { UnitsPerRun = 1, SpeedStat = "CleaningSpeed" };
 
-    private static readonly FoodPoisonTable FoodPoisonGameValue = new() { Hediff = "FoodPoisoning", WorkCapacity = "Consciousness", VomitJob = "Vomit", VomitTicks = 600 };
+    private static readonly FoodPoisonTable FoodPoisonGameValue = new() { Hediff = "FoodPoisoning", WorkCapacity = "Consciousness", VomitTicks = 600 };
 
     internal static FilthGame FilthGameJudgment => FilthGameValue;
 

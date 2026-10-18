@@ -34,8 +34,7 @@ namespace RimGovernor.Brain.Policy;
 // rock, the tree or the prey; the stone chunks, wood and ore a builder or a deep drill (observation: DeepDrill)
 // brings in; trade and loot hauls. An unread yield, work or stack adds no flow: it is unknown, never zero.
 /// <summary>
-/// The haul model's game numbers the defs do not carry, registered in DefTables so a renamed stat fails the
-/// dangling-reference gate. PickTicks and NaturalHit are JobDriver_Mine's literals (ticks between pick hits at
+/// The haul model's game numbers the defs do not carry. PickTicks and NaturalHit are JobDriver_Mine's literals (ticks between pick hits at
 /// a mining speed of 1, damage per hit to natural rock); the stats are the ones the work and the yield are
 /// scaled by, read at their default base value (a pawn of no skill). MinerOwners is the one judgment: the
 /// colony's miners, since the work assignment gives Mining no baseline owner (reason: mining_no_baseline_owner).

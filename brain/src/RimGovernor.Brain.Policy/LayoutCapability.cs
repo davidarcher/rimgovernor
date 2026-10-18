@@ -12,7 +12,7 @@ public enum Capability
 }
 
 // The shelter's heat and cooling pieces: the game offers no signal tying a capability to a def, so these two
-// names are judgment tables (DefTables).
+// names are judgment tables.
 public static partial class LayoutCapabilityRules
 {
     /// <summary>The campfire that provides Capability.Heat.</summary>

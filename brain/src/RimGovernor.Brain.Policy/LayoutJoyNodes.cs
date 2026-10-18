@@ -23,8 +23,7 @@ namespace RimGovernor.Brain.Policy;
 // the givers that need a building or an item. An unread NeedDef, giver or job adds no flow: it is unknown,
 // never zero.
 /// <summary>
-/// The joy model's game numbers the defs do not carry, registered in DefTables so a renamed def fails the
-/// dangling-reference gate. IntervalTicks is Pawn_NeedsTracker's need interval, FallPerInterval Need_Joy's
+/// The joy model's game numbers the defs do not carry. IntervalTicks is Pawn_NeedsTracker's need interval, FallPerInterval Need_Joy's
 /// Satisfied-band fall, GainPerTick JoyUtility.JoyTickCheckEnd's 0.36 / 2500. OutdoorGivers are the
 /// JoyGiverDefs whose class is outdoors although no flag of the def says so.
 /// </summary>

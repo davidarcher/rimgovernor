@@ -30,7 +30,7 @@ namespace RimGovernor.Brain.Policy;
 // standing lamp answers: contention is priced by what the substitute costs, never refused.
 
 /// <summary>
-/// The lamp pricing's table, registered in DefTables so a renamed def fails the dangling-reference gate. LampDef
+/// The lamp pricing's table. LampDef
 /// is the standing lamp the plan places and WallLampDef the one hung on a wall; DarkSpeed is StatPart_Glow's
 /// factor at glow 0 for WorkSpeedGlobal and MoveSpeed. The glow constants are the game's: GroundScale is
 /// GlowGrid.GroundGlowAt's 3.6, FalloffBlend ComputeGlowGridsJob.SetGlowFromDist's lerp weight of 1/x^2 against

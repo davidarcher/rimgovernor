@@ -89,7 +89,7 @@ public static partial class RoomRoleRules
     /// <summary>
     /// The roles that carry a gameplay effect in the game, found by reading every consumer of Room.Role in the
     /// decompiled 1.6 (mood thought stages, room ownership, title and ritual requirements). The game offers no
-    /// list of consumers, so this is a DefTables entry; every other role (dining, recreation, storeroom, barn,
+    /// list of consumers, so this is a judgment table; every other role (dining, recreation, storeroom, barn,
     /// nursery, classroom, playroom, tomb, ...) has no native gameplay consumer and is ignored. The workbench
     /// penalty is not here: it comes from each bench's own NeedRole.
     /// </summary>
@@ -443,7 +443,4 @@ public static partial class RoomRoleRules
         }
         return output;
     }
-
-    internal static List<string> RoleEffectRoles() =>
-        RoleEffects.Keys.Select(r => Wire.Name(r)).Order(StringComparer.Ordinal).ToList();
 }

@@ -91,7 +91,7 @@ joy and ritual furniture, wall-bound buildings. Each `Station` carries the
 amount), `Needs` and the defining `Content` package. Membership, capacity and
 needs are read from defs, stat parts, place workers and game constants; the
 role weights are literals in the game's role workers, so they are the
-`roomRoleScores` entry in `DefTables` (keyed by `RoomRoleDef`). The rot curve
+judgment table `StationCatalogRules.RoomRoleScores` (keyed by `RoomRoleDef`). The rot curve
 and the throne's indoor rule are code, not data, and are not stated.
 
 ### Station graph
@@ -110,7 +110,7 @@ ingredients from store to station, food from station to table, other products
 to store, and the meals a sleeper walks to. A station working a perishable
 ingredient has a required link to the cold store. Station definitions come from
 `RoomFurniture`, `DiningFurniture` and the catalog; a need with no station, or
-an item with no stack limit, is an error. The graph adds no `DefTables` entry
+an item with no stack limit, is an error. The graph adds no judgment table
 and is never persisted. `DefinitionCatalog.StationRecipeFlows` reads the recipe
 flows it needs.
 
@@ -376,8 +376,8 @@ band (`ClimateModel.Living`, the human's comfortable range) is held in it, and
 a neighbour room is held at the heater's default target (`HeldC`). The room has
 no thermal inertia, and wall and roof leakage, weather offsets and drift inside
 a twelfth are left out: every option pays them alike. The only judgment, the sun
-cycle's phase (a literal in the game's code), is the `climateTable` DefTables
-entry with the vent, door and wall defs. A build's cost is turned into watts at the site pricing's own rate
+cycle's phase (a literal in the game's code), is in the
+climate judgment table (`ClimateRules.ClimateDefs`) with the vent, door and wall defs. A build's cost is turned into watts at the site pricing's own rate
 (`SiteTypeWeights`: construction per 100 steel a day, amortised over one 60-day
 year, against power per kilowatt), so `ClimateOption.TotalW` compares options in
 one unit. The `layout_stations` row carries `climate` with each option's mean,

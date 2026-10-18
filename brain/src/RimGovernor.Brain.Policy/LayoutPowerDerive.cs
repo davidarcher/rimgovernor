@@ -41,7 +41,7 @@ public sealed record PowerModel
 /// </summary>
 public static partial class LayoutPowerDeriveRules
 {
-    /// <summary>The DefTables table that owns the conduit's name.</summary>
+    /// <summary>The conduit's def name.</summary>
     private const string SiteConduit = "PowerConduit";
 
     /// <summary>The conduit a site is wired to the grid with.</summary>

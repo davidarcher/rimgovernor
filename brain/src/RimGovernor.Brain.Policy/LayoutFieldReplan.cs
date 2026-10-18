@@ -10,7 +10,7 @@ public static partial class LayoutFieldReplanRules
     /// nothing, and a field node exists only for a crop, so without a default no field is ever planned and
     /// nothing is ever sown. The first of the table the catalog offers as an edible, available crop wins (rice,
     /// the fast staple that tolerates poor soil, then the others a tribal start can plant); the field planner's
-    /// own choice (PlanField) replaces it the moment a crop is sown. Registered in DefTables.
+    /// own choice (PlanField) replaces it the moment a crop is sown.
     /// </summary>
     public static readonly IReadOnlyList<string> FieldCrops = ["Plant_Rice", "Plant_Potato", "Plant_Corn"];
 

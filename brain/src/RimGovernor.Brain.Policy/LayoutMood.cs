@@ -38,7 +38,7 @@ public enum MoodTier
 /// the defs they name. Fractions are each tier's share of the MentalBreakThreshold stat, MTBDays the tier's break
 /// MTB, CooldownDays the ticks without a break after a recovery, PointsPerLevel Need_Mood's divisor. Unpriced are
 /// the breaks the game gives no duration for. HediffBreaks are the breaks that are a hediff (Catatonic) and the
-/// hediff whose disappear time is the break's length. Registered in DefTables.
+/// hediff whose disappear time is the break's length.
 /// </summary>
 public sealed record MoodGameTable
 {
@@ -369,19 +369,4 @@ public static partial class LayoutMoodRules
 
     /// <summary>Reports a break the game gives no duration for.</summary>
     public static bool UnpricedBreak(string def) => LayoutMoodRules.MoodJudgment.Unpriced.Contains(def);
-
-    internal static List<string> MoodThoughtDefs()
-    {
-        var output = new List<string> { LayoutMoodRules.MoodJudgment.DarkThought };
-        output.AddRange(LayoutMoodRules.MoodJudgment.RoleThoughts.Values);
-        output.Sort(StringComparer.Ordinal);
-        return output;
-    }
-
-    internal static List<string> MoodBreakHediffs()
-    {
-        var output = LayoutMoodRules.MoodJudgment.HediffBreaks.Values.ToList();
-        output.Sort(StringComparer.Ordinal);
-        return output;
-    }
 }

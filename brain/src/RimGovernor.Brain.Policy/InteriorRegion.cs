@@ -12,8 +12,7 @@ namespace RimGovernor.Brain.Policy;
 // (RegionWant.Names) where a consumer reads the name.
 
 /// <summary>
-/// The region interior's one judgment table, registered in DefTables so a renamed def fails the
-/// dangling-reference gate. ShelfDef is the input shelf beside a workshop bench and LampDef the standing lamp
+/// The region interior's one judgment table. ShelfDef is the input shelf beside a workshop bench and LampDef the standing lamp
 /// of a bedroom, throne room and dining room; KitchenStoves is the most stoves a kitchen wants: two stoves feed
 /// a mid-sized colony, and a third only adds floor the Space stat counts against the room.
 /// </summary>

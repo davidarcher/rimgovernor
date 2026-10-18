@@ -269,8 +269,7 @@ public static partial class StationCatalogRules
     /// <summary>
     /// The weights of the game's RoomRoleWorker.GetScore (and GetScoreDeltaIfBuildingPlaced) per building. They
     /// are literals in the game's code, not in any def, so the catalog cannot read them; they were read by
-    /// decompiling 1.6 and are a DefTables entry keyed by RoomRoleDef so a renamed role fails the
-    /// dangling-reference gate. Which buildings earn a score is read from the defs (bridge).
+    /// decompiling 1.6 and are keyed by RoomRoleDef. Which buildings earn a score is read from the defs (bridge).
     /// </summary>
     private static readonly IReadOnlyList<RoleScore> RoomRoleScores =
     [
@@ -313,9 +312,6 @@ public static partial class StationCatalogRules
         score = new RoleScore();
         return false;
     }
-
-    internal static List<string> RoomRoleScoreRoles() =>
-        [.. RoomRoleScores.Select(s => Wire.Name(s.Role)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
 
     /// <summary>
     /// The buildings the game's role workers name through ThingDefOf rather than by a trait of the def: the

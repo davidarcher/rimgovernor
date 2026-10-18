@@ -406,7 +406,7 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   Euclidean distance, so `LightPrice.LampReach` and `WallReach` divide the path reach by
   the worst octile stretch of a diagonal (8.35 and 7.59 cells), keeping every cell inside lit.
   The earlier flat 6 cells and its 11/12 scaling undershot both; the infestation room-lamp
-  planner (`BaseRoomLamps`) spaces its standing lamps by the same catalog reach. Constants: `LightTable` in `DefTables`.  A room under the sky (an outdoor role) gets none, and fields stay unroofed (the
+  planner (`BaseRoomLamps`) spaces its standing lamps by the same catalog reach. Constants: `LightTable`.  A room under the sky (an outdoor role) gets none, and fields stay unroofed (the
   grow-lamp price is `PlanSiteType`'s). An unknown
   price leaves lamps unplaced (`tile_lamps_unpriced`). Not priced: the `EnvironmentDark` mood (deferred to #2878), surgery
   success, partial glow beyond the reach, and the lamps' power wiring (they are in
@@ -418,7 +418,7 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   at `seekerRisePerHour` x 0.06 up or `seekerFallPerHour` x 0.06 down, frozen while asleep
   if `freezeWhileSleeping`). `SeekerNeed` (`LayoutComfort.cs`) is that shape with the
   `NeedDef` curve (comfort 0.60 up, 0.04 down; the bridge reads only comfort's, as no decor
-  candidate prices beauty) and the thought's category thresholds (`SeekerGame`, in `DefTables`: comfort's are
+  candidate prices beauty) and the thought's category thresholds (`SeekerGame`: comfort's are
   `level <` edge at 0.1/0.6/0.7/0.8/0.9, stages -3/+4/+6/+8/+10; beauty's `level >` edge at
   0.01/0.15/0.35/0.65/0.85/0.99, stages -15/-10/-5/none/+5/+10/+15). Comfort's instant level
   is the stat of the building the pawn stands on while it was used in the last 15 ticks, else
@@ -498,8 +498,8 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   `TurbinePlacement` and `TurbineCatchZone` are the read API the power rounds use
   (`RoundsPower.cs`). A turbine is a 7x2 footprint with four turns and a wind lane; a geothermal
   node is anchored on its enclosure; the battery room stays a planned room. The lane is
-  priced only as the game prices it (`windGround`; constants in the `windPath` DefTables
-  entry, read from `CompPowerPlantWind`): a path cell that is off the map, under thick
+  priced only as the game prices it (`windGround`; constants in
+  `LayoutPowerNodesRules`, read from `CompPowerPlantWind`): a path cell that is off the map, under thick
   roof, in a fenced room or under another footprint removes 20% of the output
   (`WindOutput`; zero at five). Crops do not block wind, so a lane over a field or over
   another lane is free; a turbine's own cells are not in its path. A tree is a blocker (`TreeBase`
@@ -853,7 +853,7 @@ outside walk from the cut cell to the opening's mouth, 13 ticks a cell) is
 for the stuff the colony would build it from (the wood wall on light footing and plain
 bridges). A stretch no outside walk joins to the opening is one thick: an entry cell must
 reach the colony, so no raider arrives there. Unknown HP leaves one cell. The one judgment
-is `perimeterTable.DetourBudgetTicks` (a `DefTables` entry): detours past it are designed
+is `PerimeterTable.DetourBudgetTicks`: detours past it are designed
 for the budget, so a far stretch is not thickened without limit. Breachers (`BreachingGrid`
 prices a wall at 20 + 0.015 per hit point) barely feel thickness: the killbox and turrets
 answer them. The raid generator rolls `ImmediateAttackSappers` (selection weight 0 below

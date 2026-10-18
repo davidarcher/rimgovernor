@@ -71,9 +71,8 @@ the rule.
    `analyzers/RimGovernor.Brain.Analyzers/data/defof_names.txt`) and no literal
    equal to a mirrored `GameConstants` value (an integer of at least 1000 that is
    not a power of ten or two, `data/game_constants.txt`). Read the fact from the
-   catalog, or register a judgment table in `DefTables()` (a declaration or type
-   whose name `DefTables()` mentions is an allowed owner in `Policy`, as is
-   `Domain/GameTime.cs`). Attribute arguments (`[WireName("...")]`) are not
+   catalog; `Domain/GameTime.cs` is exempt. The def names in `Policy`'s judgment
+   tables have no exemption: they are baselined as legacy (#3589). Attribute arguments (`[WireName("...")]`) are not
    checked. Both lists are embedded in the analyzer. Brain code that references
    the game assemblies can use the `*DefOf` statics and `GameConstants` directly,
    which is the fix for a Bridge-side hit; `Policy` and `Domain` cannot reference

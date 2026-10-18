@@ -48,7 +48,7 @@ public static partial class TraitWorthRules
     /// <summary>
     /// The worth of one unit of change in a StatDef by a trait degree: a stat offset counts as it is, a stat
     /// factor as its distance from 1. The weight is signed: MentalBreakThreshold and incoming damage are better
-    /// lower, so their weights are negative. Registered in DefTables.
+    /// lower, so their weights are negative.
     /// </summary>
     internal static readonly IReadOnlyDictionary<string, double> TraitStatWeights = new Dictionary<string, double>
     {
@@ -79,7 +79,7 @@ public static partial class TraitWorthRules
     /// <summary>
     /// The sociability the game applies to a trait in code, where no row of the TraitDef or a ThoughtDef states
     /// it: Kind +1, Abrasive -1 (Kind and Abrasive only nullify the looks thoughts and change certainty loss in
-    /// their rows). Registered in DefTables.
+    /// their rows).
     /// </summary>
     internal static readonly IReadOnlyDictionary<string, int> SociableTraits = new Dictionary<string, int> { ["Kind"] = 1, ["Abrasive"] = -1 };
 
@@ -101,9 +101,6 @@ public static partial class TraitWorthRules
     /// <summary>The thought of a harvest from a colonist: a trait that nullifies it is a surgeon who harvests without a mood loss.</summary>
     public const string ThoughtOrganHarvested = "KnowColonistOrganHarvested";
 
-    /// <summary>The thought of wearing a dead man's apparel.</summary>
-    public const string ThoughtTaintedApparel = "DeadMansApparel";
-
     // The thoughts whose worker applies to one trait only (requiredTraits): a bedroom that is impressive or not
     // (Greedy, Ascetic), a better bedroom than the pawn's own (Jealous), the night and carrying an incendiary
     // weapon (NightOwl, Pyromaniac).
@@ -119,21 +116,4 @@ public static partial class TraitWorthRules
 
     /// <summary>The thought a drug desire trait raises while unsatisfied; its required trait is the DrugDesire trait, whose degree is the chemical interest.</summary>
     public const string ThoughtDrugDesire = "DrugDesireInterest";
-
-    /// <summary>The thoughts TraitEffects reads by name. Registered in DefTables.</summary>
-    internal static readonly IReadOnlyList<string> TraitThoughts =
-    [
-        ThoughtPrisonerDied,
-        ThoughtButcheredHuman,
-        ThoughtNaked,
-        ThoughtRangedCarried,
-        ThoughtOrganHarvested,
-        ThoughtTaintedApparel,
-        ThoughtGreedy,
-        ThoughtAscetic,
-        ThoughtJealous,
-        ThoughtNightOwl,
-        ThoughtPyromaniac,
-        ThoughtDrugDesire,
-    ];
 }

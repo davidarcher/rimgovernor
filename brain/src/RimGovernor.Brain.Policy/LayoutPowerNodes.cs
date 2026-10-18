@@ -75,10 +75,9 @@ internal readonly record struct TurbineTurn(Rotation Rot, bool LowRow, bool Turn
 /// <summary>The power sites as site nodes of the station graph.</summary>
 public static partial class LayoutPowerNodesRules
 {
-    // The wind path is a game rule, read from CompPowerPlantWind and WindTurbineUtility.CalculateWindCells and
-    // registered in DefTables under the WindTurbine def: the path is windPathWidth wide, windPathAhead rows in front
-    // starting windPathStart out from the centre and windPathBehind behind (the turbine's own cells are not in it, so
-    // it never blocks itself). Each path cell that is roofed, off the map or holds a thing whose def has blockWind
+    // The wind path is a game rule, read from CompPowerPlantWind and WindTurbineUtility.CalculateWindCells: the
+    // path is windPathWidth wide, windPathAhead rows in front starting windPathStart out from the centre and
+    // windPathBehind behind (the turbine's own cells are not in it, so it never blocks itself). Each path cell that is roofed, off the map or holds a thing whose def has blockWind
     // removes windBlockedLoss of the output; five or more remove all of it.
     internal const int WindPathWidth = 7;
     internal const int WindPathAhead = 10;

@@ -112,7 +112,7 @@ Deleted (Go reads the mirror row, or the field was dead):
 - `ArchitectCategory`, `ArchitectDesignator`, their snapshot, request and reply messages and the `ListArchitectCategories`/`ListArchitectDesignators` reads: native never implemented the tools and nothing called them.
 - `DevelopmentFurniture` and `DevelopmentFacts.furniture`, the native `PowerConduit`/`HiddenConduit`/`WaterproofConduit` list: the conduit census is `DefinitionCatalog.PlainConduit` (a built plain `Building` whose `CompProperties_Power` is a bare `CompPowerTransmitter`) over the building table.
 - `DevelopmentPower.capacity_watt_days`: `DefinitionCatalog.BatteryCapacityWD` (`CompProperties_Battery.storedEnergyMax`).
-- `NativeGiveItemOperations.Allowed()`: the five defNames are `policy.QuestGiftDefs`, registered in `policy.DefTables()` and checked by the dangling-reference gate; `SelectQuestGift` refuses any other request (`gift_def_unsupported`).
+- `NativeGiveItemOperations.Allowed()`: the five defNames are `policy.QuestGiftDefs`; `SelectQuestGift` refuses any other request (`gift_def_unsupported`).
 
 Kept, reason recorded:
 - `TrainingEntry.def_name`: the key of the live learned/wanted/available row, not a copy of a `TrainableDef` property.
