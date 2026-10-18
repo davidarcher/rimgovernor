@@ -28,7 +28,7 @@ internal static class NativeHuntActivity
             && p.RaceProps.meatDef?.IsNutritionGivingIngestible == true && !p.Position.Fogged(map))
             .OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
         var hunterReads = hunters.Select(h => Actor(h, true, prey)).ToArray();
-        var preyReads = prey.Select(p => Actor(p, false, prey)).ToArray();
+        var preyReads = prey.Select(p => Actor(p, false, prey) with { CorpseStore = CorpseStore(map, p) }).ToArray();
         // Until the content identity is hashed the scene is unobserved; a roster is then refused, never predicted against a guess.
         var identity = NativeEncounterIdentity.Current;
         var scene = hunterReads.Length == 0 || preyReads.Length == 0 || identity is null ? null : Scene(map, identity, hunters.Concat(prey).ToArray());
@@ -54,6 +54,7 @@ internal static class NativeHuntActivity
                 .Select(h => new Obs.HuntHediffRead(h.def.defName, h.Part?.Label ?? "", h.Severity))),
             MissingParts = EquatableArray.From(p.health.hediffSet.hediffs.OfType<Hediff_MissingPart>().Select(h => h.Part?.Label ?? "")),
             Available = hunter && !p.Downed && !p.InMentalState && !p.Drafted,
+            Hauls = hunter && p.workSettings?.WorkIsActive(WorkTypeDefOf.Hauling) == true,
             Downed = p.Downed, Mental = p.InMentalState,
         };
         if (hunter) return read;
@@ -63,6 +64,24 @@ internal static class NativeHuntActivity
             Meat = Fact.Known(Math.Max(0d, p.GetStatValue(StatDefOf.MeatAmount))),
             MeatNutrition = meat == null ? default : Fact.Known((double)meat.GetStatValueAbstract(StatDefOf.Nutrition)),
         };
+    }
+
+    /// <summary>
+    /// Where native would haul the prey's corpse: the store of highest priority whose settings accept its corpse def,
+    /// at its cell nearest the prey (StoreUtility's own order: priority, then distance from the corpse). None: null.
+    /// </summary>
+    static RimGovernor.Brain.Domain.Cell? CorpseStore(Map map, Pawn prey)
+    {
+        var corpse = prey.RaceProps.corpseDef;
+        if (corpse == null) return null;
+        var groups = map.haulDestinationManager.AllGroupsListInPriorityOrder
+            .Where(g => (g.parent is not Thing parent || parent.Faction == Faction.OfPlayer) && g.parent.HaulDestinationEnabled && g.Settings.AllowedToAccept(corpse) && g.CellsList.Count > 0)
+            .ToList();
+        if (groups.Count == 0) return null;
+        var best = groups[0].Settings.Priority;
+        var cell = groups.Where(g => g.Settings.Priority == best).SelectMany(g => g.CellsList)
+            .OrderBy(c => c.DistanceToSquared(prey.Position)).ThenBy(c => c.x).ThenBy(c => c.z).First();
+        return new RimGovernor.Brain.Domain.Cell(cell.x, cell.z);
     }
 
     static Obs.HuntGearRead? Gear(ThingWithComps? thing)

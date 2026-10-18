@@ -16,7 +16,7 @@ public sealed class HuntEstimateService : IHuntEstimates, IAsyncDisposable
     public const int MaxPending = 64;
     /// <summary>How long a refusal that says nothing about the roster is remembered before it is asked again.</summary>
     public const long RetryTicks = GameTime.TicksPerHour;
-    private sealed record Entry(HuntActivityRead Made, long Tick, HuntEstimate? Estimate, string Refusal, long Until);
+    private sealed record Entry(HuntRoster Roster, HuntActivityRead Made, long Tick, HuntEstimate? Estimate, string Refusal, long Until);
     private readonly EncounterPredictionConsumer _consumer;
     private readonly ConcurrentDictionary<string, Entry> _done = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, byte> _pending = new(StringComparer.Ordinal);
@@ -63,7 +63,7 @@ public sealed class HuntEstimateService : IHuntEstimates, IAsyncDisposable
         var refusals = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var (key, entry) in _done)
         {
-            if (!Fresh(entry, read, tick, key)) continue;
+            if (!Fresh(entry, read, tick)) continue;
             if (entry.Estimate is { } estimate) estimates[key] = estimate; else refusals[key] = entry.Refusal;
         }
         return new(estimates, refusals, new HashSet<string>(_pending.Keys, StringComparer.Ordinal));
@@ -74,25 +74,16 @@ public sealed class HuntEstimateService : IHuntEstimates, IAsyncDisposable
         var queued = 0;
         foreach (var roster in rosters)
         {
-            if (_done.TryGetValue(roster.Key, out var entry) && Fresh(entry, read, tick, roster.Key)) continue;
-            if (!_pending.TryAdd(roster.Key, 0)) continue;
-            if (_queue.Writer.TryWrite((read, roster, tick))) queued++; else _pending.TryRemove(roster.Key, out _);
+            // Keyed by scene: a hauler's roster shares its gunners' scene and is never asked twice.
+            if (_done.TryGetValue(roster.SceneKey, out var entry) && Fresh(entry, read, tick)) continue;
+            if (!_pending.TryAdd(roster.SceneKey, 0)) continue;
+            if (_queue.Writer.TryWrite((read, roster, tick))) queued++; else _pending.TryRemove(roster.SceneKey, out _);
         }
         return queued;
     }
 
-    private static bool Fresh(Entry entry, HuntActivityRead read, long tick, string key)
-    {
-        if (tick > entry.Until || tick < entry.Tick) return false;
-        var roster = ParseKey(key);
-        return HuntEncounterRequests.StillDescribes(entry.Made, read, roster);
-    }
-
-    private static HuntRoster ParseKey(string key)
-    {
-        var split = key.Split('>');
-        return new(EquatableArray.From(split[0].Split('+')), EquatableArray.From(split[1].Split('+')));
-    }
+    private static bool Fresh(Entry entry, HuntActivityRead read, long tick) =>
+        tick <= entry.Until && tick >= entry.Tick && HuntEncounterRequests.StillDescribes(entry.Made, read, entry.Roster);
 
     private async Task RunAsync()
     {
@@ -100,25 +91,25 @@ public sealed class HuntEstimateService : IHuntEstimates, IAsyncDisposable
         while (!_stop.IsCancellationRequested && await _queue.Reader.WaitToReadAsync().ConfigureAwait(false))
             while (!_stop.IsCancellationRequested && _queue.Reader.TryRead(out var item))
             {
-                try { _done[item.Roster.Key] = await PredictAsync(item.Read, item.Roster, item.Tick).ConfigureAwait(false); }
+                try { _done[item.Roster.SceneKey] = await PredictAsync(item.Read, item.Roster, item.Tick).ConfigureAwait(false); }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
                     // A failed prediction is a refusal to try again soon, never an answer and never the end of the loop.
-                    _done[item.Roster.Key] = new(item.Read, item.Tick, null, "prediction_failed:" + e.GetType().Name + ":" + e.Message, item.Tick + RetryTicks);
+                    _done[item.Roster.SceneKey] = new(item.Roster, item.Read, item.Tick, null, "prediction_failed:" + e.GetType().Name + ":" + e.Message, item.Tick + RetryTicks);
                 }
-                finally { _pending.TryRemove(item.Roster.Key, out _); }
+                finally { _pending.TryRemove(item.Roster.SceneKey, out _); }
             }
     }
 
     private async Task<Entry> PredictAsync(HuntActivityRead read, HuntRoster roster, long tick)
     {
         var (request, refusal) = HuntEncounterRequests.Build(read, roster, tick);
-        if (request is null) return new(read, tick, null, refusal, tick + HuntEncounterRequests.Lifetime);
+        if (request is null) return new(roster, read, tick, null, refusal, tick + HuntEncounterRequests.Lifetime);
         var prediction = await _consumer.PredictAsync(request, () => request, _stop.Token).ConfigureAwait(false);
         var (estimate, why) = HuntAlternatives.EstimateOf(read, roster, request, prediction);
         // A busy, cancelled, timed-out or unavailable service says nothing about the roster: ask again soon, not tomorrow.
         var transient = prediction.Status is EncounterStatus.Busy or EncounterStatus.Cancelled or EncounterStatus.TimedOut or EncounterStatus.Stale or EncounterStatus.Unavailable;
-        return new(read, tick, estimate, why, tick + (transient ? RetryTicks : HuntEncounterRequests.Lifetime));
+        return new(roster, read, tick, estimate, why, tick + (transient ? RetryTicks : HuntEncounterRequests.Lifetime));
     }
 
     public async ValueTask DisposeAsync()

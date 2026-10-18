@@ -58,7 +58,8 @@ explicit positive equipment hit points/quality; native unknown definitions rejec
 The supported tactic is native Hunt with timed leave/flee departures. The game reserves a hunted
 animal for one pawn and a forced Hunt order steals that reservation, so two or more hunters naming
 the same prey act as a drafted squad focus-firing it (`AttackStatic`), as a colony roster hunt does; a
-lone hunter keeps the undrafted Hunt job. Later arrivals, colony tactics, custom action sequences and unstated mechanics are
+lone hunter keeps the undrafted Hunt job. The hunt comparison uses a timed `Leave` for a gunner-retriever: the
+gunner the roster sends off to haul at the median encounter tick its plain roster measured (#3513). Later arrivals, colony tactics, custom action sequences and unstated mechanics are
 unsupported. The observed-environment input carries outdoor temperature and sky glow, held constant for the bounded encounter. Current schema does not represent changing weather/light or time of day,
 food/rest/mood, bonds, mental breaks, arbitrary gene/hediff runtime state or dynamic
 events. The observation producer must list such unrepresented effects in

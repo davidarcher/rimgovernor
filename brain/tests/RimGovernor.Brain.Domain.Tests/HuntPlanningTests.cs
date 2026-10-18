@@ -1,18 +1,20 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
+using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class HuntPlanningTests
 {
+    static readonly Cell Store = new(50, 50);
     static HuntActorRead Hunter(string id) => new(id, "Colonist", new(0, 0), 30)
     {
         Weapon = new("Gun_BoltActionRifle", "", "Normal", 100), WeaponRange = Fact.Known(30.0), Skills = [new("Shooting", 8)], Available = true,
     };
     static HuntActorRead Prey(string id, int x) => new(id, "Boar", new(x, 10), 3)
     {
-        Meat = Fact.Known(100.0), MeatNutrition = Fact.Known(0.05),
+        Meat = Fact.Known(100.0), MeatNutrition = Fact.Known(0.05), CorpseStore = Store,
     };
     static AcquisitionSource Source(string id, bool designated = false, bool downed = false) =>
         new() { Id = id, Food = true, Hunt = true, Designated = designated, Downed = downed };
@@ -21,17 +23,36 @@ public sealed class HuntPlanningTests
         Known = true, Hunters = [Hunter("a"), Hunter("b")], Prey = [Prey("boar", 10), Prey("far", 60)],
         Scene = new("w", "build", "mods", "Clear", "Soil", 0, 0, 80, 40, 20, 1.0),
     };
-    static CoupledRoute Walk(string pawn, int x, double ticks) => new(pawn, new(0, 0), new(x, 10), Fact.Known(ticks)) { FromStart = true };
-    static HuntEstimate Estimate(HuntRoster r, int harm = 0, int death = 0) => new(16, harm, death, 16, 6.0, 500);
-    static readonly CoupledRoute[] Routes = [Walk("a", 10, 100), Walk("b", 10, 100), Walk("a", 60, 100), Walk("b", 60, 100)];
+    static IEnumerable<CoupledRoute> Legs(string pawn, int x) =>
+    [
+        new(pawn, new(0, 0), new(x, 10), Fact.Known(100.0)) { FromStart = true },
+        new(pawn, new(x, 10), Store, Fact.Known(100.0)),
+        new(pawn, new(x, 10), new(0, 0), Fact.Known(100.0)),
+    ];
+    static HuntEstimate Estimate(HuntRoster r, int harm = 0, int death = 0, double ticks = 500) => new(16, harm, death, 16, 6.0, ticks);
+    static readonly CoupledRoute[] Routes = [.. Legs("a", 10), .. Legs("b", 10), .. Legs("a", 60), .. Legs("b", 60)];
+    static HuntEstimateView View(Dictionary<string, HuntEstimate> estimates) => new(estimates, new Dictionary<string, string>(), new HashSet<string>());
+
+    /// <summary>Answers every roster the plan asks for, stage by stage, until it chooses.</summary>
+    static HuntPlan Settle(HuntActivityRead read, AcquisitionSource[] sources, Func<HuntRoster, HuntEstimate> estimate)
+    {
+        var estimates = new Dictionary<string, HuntEstimate>();
+        var plan = HuntPlanningRules.PlanHunt(read, sources, Routes, View(estimates), 5);
+        for (var stage = 0; plan.Unestimated.Count > 0 && stage < 3; stage++)
+        {
+            foreach (var r in plan.Unestimated) estimates[r.SceneKey] = estimate(r);
+            plan = HuntPlanningRules.PlanHunt(read, sources, Routes, View(estimates), 5);
+        }
+        return plan;
+    }
+
     static HuntEstimateView Answered(IEnumerable<HuntRoster> rosters, Func<HuntRoster, HuntEstimate> estimate) =>
-        new(rosters.ToDictionary(r => r.Key, estimate), new Dictionary<string, string>(), new HashSet<string>());
+        new(rosters.ToDictionary(r => r.SceneKey, estimate), new Dictionary<string, string>(), new HashSet<string>());
 
     /// <summary>Opens the pair formation at the boar (the solos are harmful) and admits it; the plan then holds nothing fresh.</summary>
     static (HuntAdmission Admission, SupplyCandidate Opened, HuntPlan Stale) Opened(AcquisitionSource[] sources)
     {
-        var asked = HuntPlanningRules.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5).Unestimated;
-        var answered = HuntPlanningRules.PlanHunt(Read(), sources, Routes, Answered(asked, r => Estimate(r, harm: r.Gunners.Count == 1 ? 4 : 0)), 5);
+        var answered = Settle(Read(), sources, r => Estimate(r, harm: r.Gunners.Count == 1 ? 4 : 0));
         var admission = new HuntAdmission();
         var (opened, released) = admission.Formation(answered.Channel(sources), answered, sources, Read());
         Assert.Equal("", released);
@@ -179,19 +200,71 @@ public sealed class HuntPlanningTests
     public void AnsweredRostersYieldAChannelThatNamesTheSelectedHuntersAndCarriesTheirHarm()
     {
         var sources = new[] { Source("boar") };
-        var asked = HuntPlanningRules.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5).Unestimated;
-        var estimates = asked.ToDictionary(r => r.Key, r => Estimate(r, harm: r.Gunners.Count == 1 ? 2 : 4));
-        var view = new HuntEstimateView(estimates, new Dictionary<string, string>(), new HashSet<string>());
-        var plan = HuntPlanningRules.PlanHunt(Read(), sources, Routes, view, 5);
+        var plan = Settle(Read(), sources, r => Estimate(r, harm: r.Gunners.Count == 1 ? 2 : 4));
         Assert.Empty(plan.Unestimated);
         var channel = plan.Channel(sources)!;
-        // Fewer harmed samples rank first, so a solo hunter is sent.
+        // Fewer harmed samples rank first, so a solo hunter is sent, who hauls its own kill and walks back nowhere else.
         Assert.Single(channel.Hunters);
+        Assert.Empty(channel.Retrievers);
         Assert.Equal(["boar"], channel.Prey);
         Assert.Equal(HuntMode.Formation, channel.Mode());
         Assert.Equal(CandidateKind.Hunt, channel.Kind);
         Assert.Contains(channel.Terms, t => t.Name == "hunt_harm_samples" && t.Value == 2);
+        Assert.Contains(channel.Terms, t => t.Name == "hunt_haul_ticks" && t.Value == 100);
+        Assert.Contains(channel.Terms, t => t.Name == "hunt_return_ticks" && t.Value == 0);
+        Assert.Contains(channel.Terms, t => t.Name == "retrievers" && t.Value == 0);
         Assert.Equal(2.0 / 16, channel.Risk[0].Weight, 6);
+    }
+
+    [Fact]
+    public void TheSecondStageRestatesTheBestPairsWithTheMeasuredDepartureAndTheChannelNamesTheRetriever()
+    {
+        var sources = new[] { Source("boar"), Source("far") };
+        var first = HuntPlanningRules.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5).Unestimated;
+        Assert.All(first, r => Assert.Empty(r.Retrievers));
+        var estimates = first.ToDictionary(r => r.SceneKey, r => Estimate(r, harm: r.Gunners.Count == 1 ? 1 : 0));
+        var second = HuntPlanningRules.PlanHunt(Read(), sources, Routes, View(estimates), 5);
+        Assert.Null(second.Selection);
+        Assert.Contains("hunt_estimates_pending", second.Findings);
+        // The one pair per prey group is restated with a gunner leaving at the 500 ticks the first stage measured; lone hunts keep waiting for that prey.
+        Assert.Equal(2, second.Unestimated.Count);
+        Assert.All(second.Unestimated, r =>
+        {
+            Assert.True(r.GunnerRetriever);
+            Assert.Equal(500, r.DepartureTick);
+            Assert.Equal(["a", "b"], r.Gunners);
+        });
+        Assert.Equal(["boar", "far"], second.Awaiting.Order());
+        // The departed roster finishes sooner at no harm: it is the choice, and the channel names who leaves to haul.
+        foreach (var r in second.Unestimated) estimates[r.SceneKey] = Estimate(r, ticks: 200);
+        var plan = HuntPlanningRules.PlanHunt(Read(), sources, Routes, View(estimates), 5);
+        Assert.Empty(plan.Unestimated);
+        var channel = plan.Channel(sources)!;
+        Assert.Equal(["a", "b"], channel.Hunters);
+        Assert.Equal(["a"], channel.Retrievers);
+        Assert.Contains(channel.Terms, t => t.Name == "retrievers" && t.Value == 1);
+        Assert.Contains(channel.Terms, t => t.Name == "hunt_haul_ticks" && t.Value == 100);
+        Assert.Contains(channel.Terms, t => t.Name == "hunt_return_ticks" && t.Value == 100);
+        var food = Known(new FoodPlan { Portfolio = [new() { Channel = channel, Decision = FoodPlanDecision.Open }] });
+        Assert.Equal(["a", "b"], HuntPlanningRules.HuntRequestHunters(food).Select(p => p.Value));
+        Assert.Equal(["a"], HuntPlanningRules.HuntRequestRetrievers(food).Select(p => p.Value));
+    }
+
+    [Fact]
+    public void AHauledRostersChannelNamesTheHaulerWhoIsClaimedForTheTripButNotSent()
+    {
+        var sources = new[] { Source("boar") };
+        var roster = new HuntRoster(["a"], ["boar"]) with { Retrievers = ["h"] };
+        var channel = HuntPlanningRules.HuntRosterChannel(new(roster, "", Estimate(roster), 900, 50, 250), roster, sources);
+        Assert.Equal(["a"], channel.Hunters);
+        Assert.Equal(["h"], channel.Retrievers);
+        Assert.Contains(channel.Terms, t => t.Name == "hunt_haul_ticks" && t.Value == 250);
+        var food = Known(new FoodPlan { Portfolio = [new() { Channel = channel, Decision = FoodPlanDecision.Open }] });
+        Assert.Equal(["a"], HuntPlanningRules.HuntRequestHunters(food).Select(p => p.Value));
+        var facts = WorkResourceTestFacts.Create("a", "h") with { FoodPlan = food };
+        var reviewed = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        Assert.Contains("h", reviewed.WorkClaims!.Pawns);
+        Assert.DoesNotContain("a", reviewed.WorkClaims.Pawns);
     }
 
     [Fact]
@@ -199,7 +272,7 @@ public sealed class HuntPlanningTests
     {
         var sources = new[] { Source("boar") };
         var asked = HuntPlanningRules.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5).Unestimated;
-        var refusals = asked.ToDictionary(r => r.Key, _ => "prediction_busy");
+        var refusals = asked.ToDictionary(r => r.SceneKey, _ => "prediction_busy");
         var view = new HuntEstimateView(new Dictionary<string, HuntEstimate>(), refusals, new HashSet<string>());
         var plan = HuntPlanningRules.PlanHunt(Read(), sources, Routes, view, 5);
         Assert.Empty(plan.Unestimated);
@@ -222,7 +295,7 @@ public sealed class HuntPlanningTests
     {
         var sources = new[] { Source("boar"), Source("deer") };
         var roster = new HuntRoster(EquatableArray.From(["a"]), EquatableArray.From(["boar"]));
-        var formation = HuntPlanningRules.HuntRosterChannel(new(roster, "", Estimate(roster), 700), roster, sources);
+        var formation = HuntPlanningRules.HuntRosterChannel(new(roster, "", Estimate(roster), 700, 0, 0), roster, sources);
         var candidates = HuntSquadRules.HuntCandidates(sources, 2, formation);
         Assert.Contains(candidates, c => c.Mode() == HuntMode.Formation && c.Hunters.SequenceEqual(["a"]));
         Assert.Contains(candidates, c => c.Id == "deer" && c.Mode() == HuntMode.Lone);

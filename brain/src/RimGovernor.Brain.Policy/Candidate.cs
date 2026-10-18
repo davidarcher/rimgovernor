@@ -128,6 +128,12 @@ public sealed record SupplyCandidate
     public EquatableArray<string> Hunters { get; init; }
 
     /// <summary>
+    /// A formation hunt's retriever (at most one), sorted: a gunner who leaves the encounter to haul, or a colonist outside
+    /// it who hauls after it. Not drafted; held for the trip (WorkResources claims), the hauling itself native work.
+    /// </summary>
+    public EquatableArray<string> Retrievers { get; init; }
+
+    /// <summary>
     /// Names the ledger counter group that counts the candidate's deliveries ("crop:&lt;zone&gt;",
     /// "fish:&lt;x,z&gt;", "forage:&lt;def&gt;", "animal_product:&lt;race&gt;"); empty for one the ledger does not count.
     /// </summary>

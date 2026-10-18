@@ -39,6 +39,13 @@ public sealed record HuntActorRead(string Pawn, string Kind, Cell Location, doub
     public EquatableArray<string> MissingParts { get; init; }
     /// <summary>Hunters: able to take a hunt order now (free, standing, not mentally broken, hunting not disabled).</summary>
     public bool Available { get; init; }
+    /// <summary>Hunters: hauling work is active for the pawn, so it may retrieve a corpse as native hauling work.</summary>
+    public bool Hauls { get; init; }
+    /// <summary>
+    /// Prey: the cell its corpse would be hauled to, the nearest cell of the highest-priority player store that accepts
+    /// the corpse (native's own store choice); null when no store accepts it, which leaves every return trip unknown.
+    /// </summary>
+    public Cell? CorpseStore { get; init; }
     /// <summary>Downed or in a mental state: such a prey stays out of the request; such a rostered gunner releases the formation.</summary>
     public bool Downed { get; init; }
     public bool Mental { get; init; }

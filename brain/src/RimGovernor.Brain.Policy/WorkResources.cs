@@ -80,6 +80,10 @@ public static partial class WorkRules
     {
         var evidence = ProductionRules.WorkAdmissionEvidenceOf(facts, batches);
         var view = WorkResourcesOf(evidence, batches, actions.Actions, actions.Truncated);
+        // An open formation hunt's retriever is held for its trip: not drafted, so no journal action names it, yet not free for other voluntary work (#3513).
+        var retrievers = HuntPlanningRules.HuntRequestRetrievers(facts.FoodPlan);
+        if (retrievers.Count > 0)
+            view = view with { Claims = view.Claims with { Pawns = EquatableArray.From(view.Claims.Pawns.Concat(retrievers.Select(r => r.Value)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)) } };
         var claims = view.Claims;
         var production = evidence.ForecastPromises;
         var reviewed = facts with

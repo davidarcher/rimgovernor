@@ -131,6 +131,39 @@ public sealed class HuntEstimateServiceTests
         Assert.Equal("hunter_unarmed", service.Current(unarmed, 100 + HuntEstimateService.RetryTicks + 1).Refusals[Roster.Key]);
     }
 
+    static HuntActivityRead Pair(int haulerX = 10) => Read() with
+    {
+        Hunters = [Hunter("a"), Hunter("b"), Hunter("h", haulerX) with { Hauls = true }],
+        Prey = [Prey("boar") with { CorpseStore = new(5, 5) }],
+    };
+    static readonly HuntRoster PairRoster = new(EquatableArray.From(["a", "b"]), EquatableArray.From(["boar"]));
+
+    [Fact]
+    public async Task AHaulersRosterSharesItsGunnersSceneButAGunnerRetrieverIsAnotherSceneWithATimedLeave()
+    {
+        var fake = new Fake(Evidence);
+        await using var service = new HuntEstimateService(new EncounterPredictionConsumer(fake, TimeSpan.FromSeconds(5)));
+        var read = Pair();
+        var hauled = PairRoster with { Retrievers = ["h"] };
+        var departed = PairRoster with { Retrievers = ["b"], DepartureTick = 400 };
+        Assert.Equal(1, service.Request(read, [hauled, PairRoster], 100));
+        await Settle(service, read, 100);
+        Assert.Equal(1, fake.Calls);
+        Assert.True(service.Current(read, 100).Estimates.ContainsKey(PairRoster.SceneKey));
+        // The hauler is not in the scene: its walk is priced from each round's routes, so its moving stales nothing.
+        Assert.Single(service.Current(Pair(haulerX: 25), 100).Estimates);
+        Assert.Equal(0, service.Request(read, [hauled, PairRoster], 100));
+        // The gunner-retriever leaves the predicted encounter at the measured tick; its roster is a scene of its own.
+        var request = HuntEncounterRequests.Build(read, departed, 5).Request!;
+        Assert.Equal(new EncounterDeparture(400, EncounterDepartureKind.Leave), request.Actors.Single(a => a.Id == "b").Departure);
+        Assert.Null(request.Actors.Single(a => a.Id == "a").Departure);
+        Assert.Equal("departure_outside_horizon", HuntEncounterRequests.Build(read, departed with { DepartureTick = HuntEncounterRequests.Horizon + 1 }, 5).Refusal);
+        Assert.Equal(1, service.Request(read, [departed], 100));
+        await Settle(service, read, 100);
+        Assert.Equal(2, fake.Calls);
+        Assert.Equal(2, service.Current(read, 100).Estimates.Count);
+    }
+
     [Fact]
     public async Task TheWorkerIsConfiguredByAnExistingAbsoluteFileOrTheServiceSaysWhyNot()
     {

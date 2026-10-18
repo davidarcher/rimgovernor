@@ -240,21 +240,33 @@ prediction service. Truncation is reported, never silent.
 
 `HuntAlternatives` (policy, pure) is the hunt comparison. `Propose` makes bounded rosters from that read: solos,
 pairs and a third gunner from the six best-shooting available hunters, for each of up to four nearby prey groups
-(herd-mates within 12 cells are one group, a search aid only); no roster size is required. The runtime asks the
-prediction service for each roster and hands back a `HuntEstimate` per roster (per-sample counts of serious harm,
-death and downed prey, expected nutrition net of the chance the prey is not downed, encounter ticks). `Choose`
-ranks usable rosters by hunter deaths, then any serious harm (each by its 95% Wilson upper bound, so a small
-sample cannot look safer), then nutrition still missing, then total participant labor (walk to the prey plus the
-encounter, for every gunner). A roster with no estimate, a non-evidence prediction, unknown prey yield or no known
-walk is refused with its reason, never ranked as zero risk. With no nutrition needed, or no usable roster, the
-choice is not to hunt. Return travel and corpse retrieval are not yet in the labor.
+(herd-mates within 12 cells are one group, a search aid only); no roster size is required. Each roster is also
+proposed with a retriever (#3513): a hauler, an available colonist outside the gunner pool whose hauling work is
+active (`HuntActorRead.Hauls`), the two fastest by their walk to the prey and hauls to the corpse store. A hauler's
+roster shares its gunners' predicted scene (`HuntRoster.SceneKey`), so it costs no prediction. Once the plain rosters
+are answered, a second stage (`ProposeRetrieverStage`) restates the three best usable rosters of two or more gunners
+per prey group with their least-skilled shooter as a gunner-retriever: stated to the predictor as a timed `Leave` at
+the plain roster's median encounter ticks (`HuntRoster.DepartureTick`); outside the horizon it is refused
+`departure_outside_horizon`. The runtime asks the prediction service for each scene and hands back a `HuntEstimate`
+(per-sample counts of serious harm, death and downed prey, expected nutrition net of the chance the prey is not
+downed, encounter ticks). `Choose` ranks usable rosters by hunter deaths, then any serious harm (each by its 95%
+Wilson upper bound, so a small sample cannot look safer), then nutrition still missing, then total participant labor.
+Labor is every gunner's walk to the prey and its encounter ticks (the gunner-retriever's ending at its departure),
+plus retrieval from the coupled routes: each corpse's haul to the store (`HuntActorRead.CorpseStore`, native's own
+store choice: the nearest cell of the highest-priority store accepting the corpse) by the retriever, or without one by
+the cheapest gunner, and the empty walk home of every gunner that hauled nothing; a hauler's walk out counts as haul.
+Retrieval enters the labor term only, never the ordering above it. A roster with no estimate, a non-evidence
+prediction, unknown prey yield or no known walk is refused with its reason (`route_unknown`); a missing haul or
+return row, including no store that accepts the corpse, refuses it `return_route_unknown`. Nothing is priced at
+zero. With no nutrition needed, or no usable roster, the choice is not to hunt.
 
 The runtime side is `IHuntEstimates` (`HuntEstimateService` in the host). `HuntEncounterRequests.Build` states each
 roster as an `EncounterRequest`: the observed window as the map, the roster gunners each aimed at the nearest
 prey, 16 fixed seeds, a 2.4-hour horizon. The service asks the prediction service one request at a time in the
-background, never from the planner step, and keeps each answer as a `HuntEstimate` or a refusal. An estimate is
-reused for a day while its pawns have not been injured, re-geared or moved more than 8 cells; otherwise the
-roster is asked again. A busy, cancelled, timed-out or unavailable service is retried after an hour of game
+background, never from the planner step, and keeps each answer as a `HuntEstimate` or a refusal, keyed by scene. An
+estimate is reused for a day while its gunners and prey have not been injured, re-geared or moved more than 8 cells;
+otherwise the scene is asked again. A hauler is not in the scene; its trip is re-priced from each round's routes.
+A busy, cancelled, timed-out or unavailable service is retried after an hour of game
 time; an unsupported roster stays refused. Policy sees only the view (estimates, refusals, rosters pending), so
 a roster that is pending, refused or unanswered is never ranked as safe.
 
@@ -268,10 +280,16 @@ overrides `dotnet`), `BrainBootstrap` starts a `HuntEstimateService` over it and
 The food plan compares the alternatives (`HuntPlanningRules.PlanHunt`, from the coupled read's hunt observation and routes)
 for the nutrition the colony still needs to reach its target runway. It asks for every unanswered roster and offers no
 formation hunt until each has an estimate or a refusal, so the first answer back never beats a better one still
-pending. The chosen roster becomes one formation channel (`HuntRosterChannel`) naming its gunners and prey, with the
-estimate's nutrition, labor and harm rate and the sample counts as terms; every other animal stays a lone channel. The
-plan's open formation channel files the prey and the selected gunners on the `military/combat` standing
-(`RoundsCombat.Prey`, `RoundsCombat.Hunters`), and `HuntFormation` sends exactly those defenders, however many.
+pending, and it waits again for the second stage. The chosen roster becomes one formation channel
+(`HuntRosterChannel`) naming its gunners, retrievers and prey (`SupplyCandidate.Hunters`, `Retrievers`, `Prey`), with
+the estimate's nutrition, labor (and its `hunt_return_ticks` and `hunt_haul_ticks` parts) and harm rate and the sample
+counts as terms; every other animal stays a lone channel. The plan's open formation channel files the prey and the
+selected gunners on the `military/combat` standing (`RoundsCombat.Prey`, `RoundsCombat.Hunters`), and `HuntFormation`
+sends exactly those defenders, however many. A hauler is not sent: `WorkRules.ReviewWorkResources` adds the open
+channels' retrievers (`HuntRequestRetrievers`) to the shared pawn claims, so no other voluntary work takes them for
+the trip, and the corpse is hauled as native hauling work with the existing delivery credit. For this the coupled
+read's routes hold, for each available hunter, a leg from each prey to its corpse store and a leg back to the
+hunter's start.
 
 An opened formation is held, not re-compared (`HuntAdmission`, pure policy in memory; a restart forgets it): the hunt
 walks and drafts its gunners and startles its prey, and none of that may stale the estimate it was chosen on. It is

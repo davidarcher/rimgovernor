@@ -76,11 +76,18 @@ internal static class NativeCoupledForecast
         foreach (var to in locations)
         foreach (var pawn in pawns)
             Probe(pawn, new(pawn.Position.x, pawn.Position.z), to, true);
-        // Each available hunter to every prey: a hunt roster is priced by these walks.
+        // Each available hunter to every prey, then from the prey back: with its corpse to the corpse store (a gunner's or
+        // a hauler's haul trip) and empty to where the pawn stands (a gunner's return when a retriever takes the corpse).
+        // A hunt roster is priced by these walks (#3513).
         var huntIds = hunt.Hunters.Where(h => h.Available).Select(h => h.Pawn).ToHashSet(StringComparer.Ordinal);
         foreach (var prey in hunt.Prey)
         foreach (var pawn in pawns.Where(p => huntIds.Contains(p.GetUniqueLoadID())))
-            Probe(pawn, new(pawn.Position.x, pawn.Position.z), prey.Location, true);
+        {
+            var start = new Cell(pawn.Position.x, pawn.Position.z);
+            Probe(pawn, start, prey.Location, true);
+            if (prey.CorpseStore is { } store) Probe(pawn, prey.Location, store, false);
+            Probe(pawn, prey.Location, start, false);
+        }
         foreach (var from in locations)
         foreach (var to in locations.Where(c => c != from))
         foreach (var pawn in pawns)

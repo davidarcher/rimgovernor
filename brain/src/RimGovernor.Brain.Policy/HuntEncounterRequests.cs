@@ -48,7 +48,14 @@ public static class HuntEncounterRequests
             if (hunter.Weapon is null) return (null, "hunter_unarmed");
             if (hunter.Xenotype.Length == 0) return (null, "hunter_xenotype_unobserved");
             var target = prey.OrderBy(p => Math.Abs(p!.Location.X - hunter.Location.X) + Math.Abs(p.Location.Z - hunter.Location.Z)).ThenBy(p => p!.Pawn, StringComparer.Ordinal).First()!;
-            actors.Add(Actor(hunter, false, scene, target.Pawn));
+            var actor = Actor(hunter, false, scene, target.Pawn);
+            // A gunner-retriever leaves the encounter at the tick the first stage measured; a hauler is not in the scene at all.
+            if (roster.GunnerRetriever && roster.Retriever == id)
+            {
+                if (roster.DepartureTick <= 0 || roster.DepartureTick > Horizon) return (null, "departure_outside_horizon");
+                actor = actor with { Departure = new(roster.DepartureTick, EncounterDepartureKind.Leave) };
+            }
+            actors.Add(actor);
         }
         actors.AddRange(prey.Select(p => Actor(p!, true, scene, "")));
         // Native names a herd by the animals near the prey, but the request holds only the roster's prey: a herd with one member in it is a lone animal, which states none.
@@ -67,7 +74,7 @@ public static class HuntEncounterRequests
         }, "");
     }
 
-    /// <summary>Whether an estimate made from <paramref name="made"/> still describes <paramref name="now"/> for the roster.</summary>
+    /// <summary>Whether an estimate made from <paramref name="made"/> still describes <paramref name="now"/> for the roster: its gunners and its prey. A hauler is not in the scene; its trip is priced from the routes of each round.</summary>
     public static bool StillDescribes(HuntActivityRead made, HuntActivityRead now, HuntRoster roster) =>
         SameScene(made, now)
         && roster.Gunners.All(g => SameActor(made.Hunters.FirstOrDefault(h => h.Pawn == g), now.Hunters.FirstOrDefault(h => h.Pawn == g), MoveTolerance))
