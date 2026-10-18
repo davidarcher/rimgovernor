@@ -20,7 +20,7 @@ public sealed class CoupledActivityIntegrationTests
         facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = observed with
             { Food = observed.Food with { Options = [observed.Food.Options[0] with { Destination = new(2, 1) }] },
                 FoodUses = EquatableArray.From(observed.FoodUses.Select(u => u with { Location = new(2, 1) })) } } };
-        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay) };
+        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay)?.Priced() };
         var findings = RoundsRules.InspectRounds(facts, new(), RoundsRules.DefaultRoundsPolicy());
         var selection = Assert.IsType<ForecastCoupledSelection>(findings.CoupledSelection);
         Assert.NotEmpty(selection.Selection.Selected);
@@ -88,7 +88,7 @@ public sealed class CoupledActivityIntegrationTests
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), journal.WorkActions(Root, ct));
         Assert.Contains("pawn", facts.WorkView!.Claims.Pawns);
         Assert.Contains("plant-a", facts.WorkView.Claims.Targets);
-        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay) };
+        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay)?.Priced() };
         var inspected = RoundsRules.InspectRounds(facts, new(), RoundsRules.DefaultRoundsPolicy());
         var choice = Assert.IsType<ForecastCoupledSelection>(inspected.CoupledSelection);
         var next = ForecastCoupledSelection.StartCoupledActivity(choice, facts.CoupledAlternatives!, 1, "coupled-independent", 100);

@@ -99,7 +99,7 @@ public sealed class PortfolioAllocationTests
             var name = larger ? "four-workers" : "productive";
             var facts = larger ? LargerFacts() : ProductiveLearningTests.NormalFoodFacts();
             var generation = Measure(() => ForecastCoupledCandidates.GenerateCoupledActivities(facts, 700)!);
-            var generated = generation.Result;
+            var generated = generation.Result.Priced(700);
             var request = Request(facts, generated);
             var rows = new List<object>();
             foreach (var budget in Budgets)
@@ -114,12 +114,13 @@ public sealed class PortfolioAllocationTests
             }, Json));
             // One-day horizon (#3467): the production review horizon, at the default budget only.
             var day = Measure(() => ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay)!);
-            var dayRequest = Request(facts, day.Result, GameTime.TicksPerDay);
-            var daySelection = Measure(() => ForecastCoupledSelection.CompareActivityOutcomes(dayRequest, day.Result));
+            var dayCandidates = day.Result.Priced(GameTime.TicksPerDay);
+            var dayRequest = Request(facts, dayCandidates, GameTime.TicksPerDay);
+            var daySelection = Measure(() => ForecastCoupledSelection.CompareActivityOutcomes(dayRequest, dayCandidates));
             File.WriteAllText(Path.Combine(output, name + ".one-day.measurements.json"), JsonSerializer.Serialize(new
             {
                 GenerationBytes = day.Bytes, GenerationMilliseconds = day.Milliseconds,
-                daySelection.Bytes, daySelection.Milliseconds, Quality = Quality(day.Result, daySelection.Result)
+                daySelection.Bytes, daySelection.Milliseconds, Quality = Quality(dayCandidates, daySelection.Result)
             }, Json));
         }
     }
@@ -133,7 +134,7 @@ public sealed class PortfolioAllocationTests
         {
             var name = larger ? "four-workers" : "productive";
             var facts = larger ? LargerFacts() : ProductiveLearningTests.NormalFoodFacts();
-            var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 700)!;
+            var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 700)!.Priced(700);
             var request = Request(facts, generated);
             ForecastCoupledSelection.CompareActivityOutcomes(request, generated); // Warm both stages before enabling the listener.
             foreach (var stage in new[] { "generation", "selection" })
@@ -148,7 +149,7 @@ public sealed class PortfolioAllocationTests
                 File.WriteAllText(Path.Combine(output, name + "." + stage + ".allocation-types.json"), JsonSerializer.Serialize(samples, Json));
             }
             // One-day horizon selection (#3468), the production review horizon.
-            var day = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay)!;
+            var day = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay)!.Priced(GameTime.TicksPerDay);
             var dayRequest = Request(facts, day, GameTime.TicksPerDay);
             ForecastCoupledSelection.CompareActivityOutcomes(dayRequest, day);
             using (var profile = new AllocationSamples())

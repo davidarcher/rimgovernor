@@ -141,7 +141,7 @@ public sealed class ForecastIncumbentPreparationTests
         {
             CurrentService = null, SleepThreshold = Known(.9), WakeThreshold = Known(1d),
             SleepBlockedUntilTicks = Known(0d), SleepWhileStarving = Known(false),
-            Needs = [new("food", Known(.2), Known(.0005), Known(.3)),
+            Needs = [new("food", Known(.2), Known(.001), Known(.3)),
                 new("rest", Known(.8), Known(.0001), Known(.3))],
             Targets = [new("bed", "rest", "", 1, knownRoute ? Known(10d) : default, default, default, Known(.001))
                 { Location = task.Location }]
@@ -156,7 +156,7 @@ public sealed class ForecastIncumbentPreparationTests
         var (facts, actions) = FutureRest();
         var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
         var incumbent = Assert.Single(incumbents);
-        var candidates = prepared.CoupledAlternatives!;
+        var candidates = prepared.CoupledAlternatives!.Priced();
         Assert.Equal(2, incumbent.Activities.Count);
         var waiting = Assert.Single(candidates.Context.NonproductiveOccupancy);
         Assert.DoesNotContain(candidates.Context.NeedTasks, n => n.Task == waiting);

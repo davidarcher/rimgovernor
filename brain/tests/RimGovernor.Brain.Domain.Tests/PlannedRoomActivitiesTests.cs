@@ -130,7 +130,7 @@ public sealed class PlannedRoomActivitiesTests
             },
         };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon) };
+        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)?.Priced() };
     }
 
     private static ForecastCoupledSelection Select(RoundsFacts facts, double horizon = Horizon)

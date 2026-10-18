@@ -1,10 +1,14 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Inspectable consequences, ordered lexicographically; no conversion between wellbeing and labor.</summary>
+/// <summary>Inspectable consequences of one outcome. The ranking reads <see cref="Value"/> (floors, then the capability-days ledger)
+/// and then only the terms with no mechanical conversion yet: care and room factors, maintenance, joy exposure, development,
+/// supply and first care. The other fields explain the outcome.</summary>
 public sealed record ForecastConsequenceVector(EquatableArray<Fact<double>> Urgent, EquatableArray<Fact<double>> Needs,
     Fact<double> MoodExposure, Fact<double> MoodDepth, double Development, double Labor,
     EquatableArray<string> Unknown)
 {
+    /// <summary>The ledger, floors and constants this outcome was ranked by (#3522); empty when assembled without a context.</summary>
+    public ForecastValueExplanation Value { get; init; } = new(new(default, []), new());
     /// <summary>Expected mental breaks summed over pawns; known only when every pawn's break threshold and mood are.</summary>
     public Fact<double> BreakRisk { get; init; }
     public string ThermalOccupancy { get; init; } = "";
@@ -18,10 +22,6 @@ public sealed partial record ForecastCoupledSelection(ForecastActivityOutcomeCom
     EquatableArray<ForecastPortfolioEvidence> Rejected, double Horizon, bool GenerationTruncated)
 {
     public int CompositionExpansions { get; init; }
-    /// <summary>The capability-days ledger of the baseline and of the selected outcome (#3520), with the constants it used. Reported, not ranked on.</summary>
-    public ForecastValueResult BaselineValue { get; init; } = new(default, []);
-    public ForecastValueResult SelectedValue { get; init; } = new(default, []);
-    public ForecastValuePolicy ValuePolicy { get; init; } = new();
     public EquatableArray<ForecastServiceInvestment> ServiceInvestments { get; init; }
     public EquatableArray<ForecastDeferredPawn> Deferred { get; init; }
 }
@@ -60,14 +60,22 @@ public sealed partial record ForecastCoupledSelection
         var baselineScenario = ForecastCoupled.ForecastCoupledScenarioOf(request, ColonyForecastRules.ForecastCommitmentsById(baselineCommitments)).Coupled!;
         var baseline = baselineScenario.Alternatives.Count > 0 ? baselineScenario.Alternatives[0]
             : new ForecastCoupledOutcome(new([], 0, 0), default, [], new Dictionary<string, ForecastNeedsResult>(), []);
+        // Every outcome's wellbeing is priced against this one outcome, so the deltas between outcomes do not depend on which is the baseline.
+        var reference = baseline;
+        var horizonTicks = request.HorizonDays * GameTime.TicksPerDay;
+        ForecastConsequenceVector Consequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments)
+        {
+            var vector = CoupledConsequences(outcome, commitments);
+            return vector with { Value = ForecastValue.Explain(outcome, vector.Urgent[0], candidates.Context, horizonTicks, reference) };
+        }
         foreach (var candidate in baselineScenario.Alternatives.Where(a => a.Feasible == Known(true)))
         {
-            var rank = CompareConsequences(CoupledConsequences(candidate, baselineCommitments), CoupledConsequences(baseline, baselineCommitments));
+            var rank = CompareConsequences(Consequences(candidate, baselineCommitments), Consequences(baseline, baselineCommitments));
             if (baseline.Feasible != Known(true) || rank < 0 || rank == 0 && candidate.Plan.LaborCost < baseline.Plan.LaborCost)
                 baseline = candidate;
         }
         var best = baseline;
-        var baselineVector = CoupledConsequences(baseline, baselineCommitments);
+        var baselineVector = Consequences(baseline, baselineCommitments);
         var bestVector = baselineVector;
         var selected = incumbentIds.Order(StringComparer.Ordinal).ToArray();
         var bestIsBaseline = true;
@@ -161,7 +169,7 @@ public sealed partial record ForecastCoupledSelection
             }
             foreach (var outcome in feasible)
             {
-                var vector = CoupledConsequences(outcome, commitments);
+                var vector = Consequences(outcome, commitments);
                 // Physical feasibility does not certify optional investment. Partial shells retain
                 // unknown exposure; they cannot win by hiding it. Keep expanding complementary roots.
                 // Construction a selected commitment values as requested development carries its own relief (#3276), and so
@@ -270,6 +278,10 @@ public sealed partial record ForecastCoupledSelection
         if (truncated) findings.Add("portfolio_search_truncated");
         if (candidates.Truncated) findings.Add("portfolio_generation_truncated");
         findings.Add("beyond_horizon_unassessed");
+        // The harm and death terms wait for the harm model (#3471); a break risk no mood threshold supports leaves that floor unchecked.
+        findings.Add("harm_capability_unassessed");
+        findings.Add("death_floor_unassessed");
+        if (!bestVector.Value.BreakRisk.Assessed) findings.Add("break_floor_unassessed");
         var deferred = DeferUnselectedPawns(candidates.Context, best.Plan, request.Origin.ObservedTick);
         var deferredCapacity = Math.Max(0, 32 - best.Plan.Allocations.Length);
         if (deferred.Count > deferredCapacity) findings.Add("deferred_pawn_limit");
@@ -279,10 +291,6 @@ public sealed partial record ForecastCoupledSelection
         return new(new(selected, best.Plan, default, findings.ToArray(), expansions, truncated), baseline, best,
             baselineVector, bestVector, EquatableArray.From(evidence), request.HorizonDays * GameTime.TicksPerDay, candidates.Truncated)
         { CompositionExpansions = candidates.CompositionExpansions,
-            // Two evaluations of the ledger per review, outside the search: nothing ranks on it yet (#3520).
-            BaselineValue = ForecastValue.Of(baseline, candidates.Context, request.HorizonDays * GameTime.TicksPerDay, baseline),
-            SelectedValue = ForecastValue.Of(best, candidates.Context, request.HorizonDays * GameTime.TicksPerDay, baseline),
-            ValuePolicy = candidates.Context.Value,
             ServiceInvestments = ForecastServiceInvestments.ServiceInvestmentsOf(baseline, best, candidates.Context, request.HorizonDays * GameTime.TicksPerDay),
             Deferred = EquatableArray.From(deferred.Take(deferredCapacity)) };
     }
@@ -337,7 +345,6 @@ public sealed partial record ForecastCoupledSelection
         if (!moodKnown) unknown.Add("unassessed_mood");
         var breakKnown = moodKnown && moods.All(m => m!.BreakRisk.IsKnown);
         if (!breakKnown) unknown.Add("mental_break_probability_unassessed");
-        unknown.Add("serious_harm_probability_unassessed");
         unknown.UnionWith(outcome.Support.Findings);
         unknown.UnionWith(outcome.Maintenance.SelectMany(m => m.Findings));
         return new(EquatableArray.From(urgent), EquatableArray.From(needsVector), moodKnown ? Known(moods.Sum(m => m!.TargetExposureTicks.Value)) : default,
@@ -346,16 +353,23 @@ public sealed partial record ForecastCoupledSelection
         { BreakRisk = breakKnown ? Known(moods.Sum(m => m!.BreakRisk.Value)) : default, ThermalOccupancy = outcome.ThermalOccupancy, Support = outcome.Support, Maintenance = outcome.Maintenance };
     }
 
-    private static int CompareConsequences(ForecastConsequenceVector a, ForecastConsequenceVector b)
+    /// <summary>
+    /// Negative when <paramref name="a"/> is better. The order (#3522): the safety floors (a broken urgent-zero floor, then a
+    /// broken break-risk floor; the least excess wins when both sides break one); the capability-days ledger, lower loss
+    /// winning over the terms both sides assess, a difference within <see cref="ForecastValuePolicy.TieResolution"/> being a tie;
+    /// then the terms with no mechanical conversion yet, in the order below. Zero leaves the incumbent rule and labor to the caller.
+    /// </summary>
+    internal static int CompareConsequences(ForecastConsequenceVector a, ForecastConsequenceVector b)
     {
+        var floor = a.Value.UrgentZero.Excess.CompareTo(b.Value.UrgentZero.Excess); if (floor != 0) return floor;
+        floor = a.Value.BreakRisk.Excess.CompareTo(b.Value.BreakRisk.Excess); if (floor != 0) return floor;
+        if (a.Value.Ledger.LossAgainst(b.Value.Ledger).TryGetValue(out var delta) && Math.Abs(delta) > a.Value.Policy.TieResolution)
+            return delta.CompareTo(0);
         if (a.Support.UrgentFirstCareTicks.IsKnown && b.Support.UrgentFirstCareTicks.IsKnown)
         { var rank = a.Support.UrgentFirstCareTicks.Value.CompareTo(b.Support.UrgentFirstCareTicks.Value); if (rank != 0) return rank; }
         // Relief is measured against each outcome's own unimproved rooms, so it ranks even when the sleeps differ in time.
-        foreach (var pair in a.Urgent.Zip(b.Urgent).Concat(a.Needs.Zip(b.Needs)))
-        {
-            if (!pair.First.IsKnown || !pair.Second.IsKnown) continue;
-            var rank = pair.First.Value.CompareTo(pair.Second.Value); if (rank != 0) return rank;
-        }
+        if (a.Needs[0].IsKnown && b.Needs[0].IsKnown)
+        { var rank = a.Needs[0].Value.CompareTo(b.Needs[0].Value); if (rank != 0) return rank; }
         var care = a.Support.PendingCareBatches.CompareTo(b.Support.PendingCareBatches); if (care != 0) return care;
         if (a.Support.CareServices.Length != 0 && a.Support.CareServices == b.Support.CareServices)
         {
@@ -366,26 +380,16 @@ public sealed partial record ForecastCoupledSelection
             if (a.Support.SurgeryRoomFactor.IsKnown && b.Support.SurgeryRoomFactor.IsKnown)
             { var rank = b.Support.SurgeryRoomFactor.Value.CompareTo(a.Support.SurgeryRoomFactor.Value); if (rank != 0) return rank; }
         }
-        // Compare room contamination only for the same completed production. Skipping meals is not
-        // credited as preventing illness, and unknown health effects do not become clean-room rewards.
-        if (a.Support.FoodProduction.Length != 0 && a.Support.FoodProduction == b.Support.FoodProduction
-            && a.Support.FoodPoisonExposure.IsKnown && b.Support.FoodPoisonExposure.IsKnown)
-        { var rank = a.Support.FoodPoisonExposure.Value.CompareTo(b.Support.FoodPoisonExposure.Value); if (rank != 0) return rank; }
-        // Mood tier: with every break threshold known, expected breaks replace the raw threshold ticks, so mood
-        // far above every threshold carries no value. Otherwise the raw ticks rank where both sides assess them.
-        if (a.BreakRisk.IsKnown && b.BreakRisk.IsKnown)
-        { var rank = a.BreakRisk.Value.CompareTo(b.BreakRisk.Value); if (rank != 0) return rank; }
-        else
-        {
-            if (a.MoodExposure.IsKnown && b.MoodExposure.IsKnown)
-            { var rank = a.MoodExposure.Value.CompareTo(b.MoodExposure.Value); if (rank != 0) return rank; }
-            if (a.MoodDepth.IsKnown && b.MoodDepth.IsKnown)
-            { var rank = a.MoodDepth.Value.CompareTo(b.MoodDepth.Value); if (rank != 0) return rank; }
-        }
         var maintenance = a.Maintenance.Zip(b.Maintenance).Where(p => p.First.Requirement == p.Second.Requirement
             && p.First.MissingXp.IsKnown && p.Second.MissingXp.IsKnown).ToArray();
         var maintenanceRank = maintenance.Sum(p => p.First.MissingXp.Value).CompareTo(maintenance.Sum(p => p.Second.MissingXp.Value));
         if (maintenanceRank != 0) return maintenanceRank;
+        // Joy threshold exposure (the longest, then the total) stays here until the mood model prices the recreation thought.
+        foreach (var index in new[] { 2, 3 })
+        {
+            if (!a.Needs[index].IsKnown || !b.Needs[index].IsKnown) continue;
+            var rank = a.Needs[index].Value.CompareTo(b.Needs[index].Value); if (rank != 0) return rank;
+        }
         var development = b.Development.CompareTo(a.Development); if (development != 0) return development;
         var supply = a.Support.UnsuppliedDemand.CompareTo(b.Support.UnsuppliedDemand); if (supply != 0) return supply;
         return a.Support.FirstCareTicks.CompareTo(b.Support.FirstCareTicks);

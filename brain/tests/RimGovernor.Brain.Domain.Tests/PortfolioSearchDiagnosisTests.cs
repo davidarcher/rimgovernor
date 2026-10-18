@@ -29,7 +29,7 @@ public sealed class PortfolioSearchDiagnosisTests
         public Subject()
         {
             var facts = PortfolioAllocationTests.LargerFacts();
-            Generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 700)!;
+            Generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 700)!.Priced(700);
             Request = PortfolioAllocationTests.Request(facts, Generated);
             Roots = [.. Generated.Alternatives.Concat(Generated.Incumbents).OrderBy(c => c.Id, StringComparer.Ordinal)];
             var eats = PortfolioReferenceScheduleTests.Reference().Select(s => s.Activity).Where(a => a.Contains("/eat/", StringComparison.Ordinal)).ToHashSet();
@@ -183,15 +183,15 @@ public sealed class PortfolioSearchDiagnosisTests
         Assert.Equal(universe.Select(u => u.Id).Order(StringComparer.Ordinal), selection.Selection.Selected.Order(StringComparer.Ordinal));
         var food = s.Generated.Context.NeedTasks.Where(n => n.Kind == "food").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
         Assert.Equal(2, selection.Selected.Plan.Allocations.Count(a => food.Contains(a.Activity)));
-        // Strictly less food exposure and one fewer need left at zero than the incumbent; the earlier components are equal.
+        // Strictly fewer hunger capability-days and one fewer need left at zero than the incumbent; the zero-time floor is equal.
         var single = s.Select([incumbentRoot], 16384);
-        Assert.Equal([325d, 96.875, 450d, 650d, 0d], single.SelectedVector.Urgent.Select(x => x.Value));
-        Assert.Equal([325d, 96.875, 450d, 450d, 0d], selection.SelectedVector.Urgent.Select(x => x.Value));
+        Assert.Equal(single.SelectedVector.Value.UrgentZero, selection.SelectedVector.Value.UrgentZero);
+        Assert.True(selection.SelectedVector.Value.Ledger.LossAgainst(single.SelectedVector.Value.Ledger).Value < -selection.SelectedVector.Value.Policy.TieResolution);
         Assert.Equal(2d, single.SelectedVector.Needs[4].Value);
         Assert.Equal(198, single.Selected.Plan.LaborCost);
         Assert.Equal(1d, selection.SelectedVector.Needs[4].Value);
-        // It costs more labor (355 vs 198) and the per-portfolio scheduler search is truncated at its bound, so it is not proven best.
-        Assert.Equal(355, selection.Selected.Plan.LaborCost);
+        // It costs more labor (354 vs 198) and the per-portfolio scheduler search is truncated at its bound, so it is not proven best.
+        Assert.Equal(354, selection.Selected.Plan.LaborCost);
         Assert.True(selection.Selection.SearchTruncated);
     }
 
@@ -203,27 +203,18 @@ public sealed class PortfolioSearchDiagnosisTests
         var food = s.Generated.Context.NeedTasks.Where(n => n.Kind == "food").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
         var eats = selection.Selected.Plan.Allocations.Where(a => food.Contains(a.Activity) && a.Activity.Contains("/eat/", StringComparison.Ordinal)).ToArray();
 
-        // Exact physical choice: four roots, one ingestion each, two per consumer. It is not the food/27 reference set but
-        // is strictly better than it, so the issue's "reference set or an equal-or-better one" holds.
-        Assert.Equal(["food/0/delivery/0/eat/diner/0/composition/1", "food/14/delivery/0/eat/pawn/0/composition/8",
-            "food/14/delivery/1/eat/pawn/0/composition/12", "food/14/delivery/2/eat/diner/0/composition/14"], selection.Selection.Selected);
+        // Four roots, one ingestion each, two per consumer. Every food ledger term and the zero floor are met, so which of the
+        // equally priced four-ingestion sets wins is decided by the tiebreakers and labor, not by the urgent-time vector.
+        Assert.Equal(4, selection.Selection.Selected.Length);
         Assert.True(selection.Selected.Feasible == Known(true));
         Assert.Equal(4, eats.Length);
-        Assert.Equal([("food/0/delivery/0/eat/diner/0/composition/3", "diner", 240L, 250L),
-            ("food/14/delivery/0/eat/pawn/0/composition/18", "pawn", 358L, 368L),
-            ("food/14/delivery/1/eat/pawn/0/composition/22", "pawn", 466L, 476L),
-            ("food/14/delivery/2/eat/diner/0/composition/24", "diner", 557L, 567L)],
-            eats.Select(a => (a.Activity, a.Pawn, (long)a.Start, (long)a.End)).OrderBy(a => a.Item1, StringComparer.Ordinal));
-        Assert.Equal(567, selection.Selected.Plan.CompletedAt);
+        Assert.Equal(2, eats.Count(a => a.Pawn == "pawn"));
+        Assert.Equal(2, eats.Count(a => a.Pawn == "diner"));
+        Assert.Equal(0d, selection.SelectedVector.Value.UrgentZero.Excess);
+        Assert.Equal(Known(0d), selection.SelectedVector.Value.Ledger.Hunger);
         Assert.Equal(947, selection.Selected.Plan.LaborCost);
         Assert.DoesNotContain("selected_activity_budget_truncated", selection.Selection.Findings);
 
-        // Lexicographically no worse than the reference's urgent [0, 18.413, 185, 185, 0] with needs component 4 equal to 0;
-        // the search found a strictly better first-differing component (13.924 < 18.413).
-        double[] reference = [0, 18.413, 185, 185, 0];
-        var urgent = selection.SelectedVector.Urgent.Select(x => x.Value).ToArray();
-        Assert.True(urgent.Zip(reference).Select(p => p.First.CompareTo(p.Second)).First(c => c != 0) < 0);
-        Assert.Equal([0d, 13.924, 118d, 185d, 0d], urgent.Select(x => Math.Round(x, 3)));
         Assert.Equal(0d, selection.SelectedVector.Needs[4].Value);
 
         // Cost stays at the default budget: the search is still bounded and says so. Cardinalities 3 and 4 were entered
@@ -260,12 +251,12 @@ public sealed class PortfolioSearchDiagnosisTests
         foreach (var budget in Budgets.Where(b => b <= 16384))
         {
             var selection = s.Select(s.Roots, budget);
-            var urgent = selection.SelectedVector.Urgent.Select(x => x.Value).ToArray();
-            double[] incumbent = [325, 96.875, 450, 650, 0];
-            // Lexicographic urgent order, then the number of needs left at zero; labor is not part of the comparison here.
-            var rank = urgent.Zip(incumbent).Select(p => p.First.CompareTo(p.Second)).FirstOrDefault(c => c != 0);
-            Assert.True(rank <= 0, "budget " + budget + " is worse than the one-ingestion incumbent");
-            if (rank == 0) Assert.True(selection.SelectedVector.Needs[4].Value <= 2);
+            // The zero-time floor, then capability-days; labor is not part of the comparison here.
+            var incumbent = s.Select([s.Roots.Single(r => r.Id == IncumbentRoot)], 16384).SelectedVector.Value;
+            var value = selection.SelectedVector.Value;
+            Assert.True(value.UrgentZero.Excess <= incumbent.UrgentZero.Excess, "budget " + budget + " is worse than the one-ingestion incumbent");
+            if (value.UrgentZero.Excess == incumbent.UrgentZero.Excess)
+                Assert.True(value.Ledger.LossAgainst(incumbent.Ledger).Value <= value.Policy.TieResolution, "budget " + budget + " loses more capability-days than the incumbent");
             Assert.True(selection.Selection.SearchTruncated, "budget " + budget + " is still bounded");
         }
     }

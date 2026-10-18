@@ -15,14 +15,15 @@ public sealed class ForecastPortfolioChoiceTests
     private static readonly Cell[] Cells = [Source, Bench, Destination];
     private static (ForecastCoupledSelection Selection, PawnActivities Batch) Select(RoundsFacts facts)
     {
-        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 150) };
+        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 150)?.Priced() };
         var generated = Assert.IsType<ForecastCoupledCandidates>(facts.CoupledAlternatives);
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 150d / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         Assert.Equal(Known(true), selected.Selected.Feasible);
         Assert.NotEmpty(selected.Selection.Selected);
-        Assert.True(selected.SelectedVector.Urgent[1].Value < selected.BaselineVector.Urgent[1].Value);
+        // The hungry pawn's food reaches zero without the portfolio: it loses fewer capability-days with it.
+        Assert.True(selected.SelectedVector.Value.Ledger.LossAgainst(selected.BaselineVector.Value.Ledger).Value < 0);
         return (selected, Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "portfolio-choice", 100)));
     }
     internal static RoundsFacts Observed(CoupledFoodConversion[] conversions, CoupledFoodSource[] sources, bool helper = false)
@@ -103,7 +104,9 @@ public sealed class ForecastPortfolioChoiceTests
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()) with { Coupled = generated.Context };
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
-        ForecastConsequenceVector? best = null;
+        // The oracle ranks every subset's schedules by the comparator's two leading levels: the zero-time floor, then capability-days.
+        ForecastValueExplanation? best = null;
+        var horizon = 300d;
         for (var mask = 0; mask < 1 << roots.Length; mask++)
         {
             var subset = roots.Where((_, i) => (mask & (1 << i)) != 0).ToArray();
@@ -112,7 +115,9 @@ public sealed class ForecastPortfolioChoiceTests
             {
                 var vector = ForecastCoupledSelection.CoupledConsequences(outcome, subset);
                 Assert.All(vector.Urgent, value => Assert.True(value.IsKnown));
-                if (best is null || Lexicographic(vector.Urgent, best.Urgent) < 0) best = vector;
+                var value = ForecastValue.Explain(outcome, vector.Urgent[0], generated.Context, horizon, selected.Baseline);
+                if (best is null || value.UrgentZero.Excess < best.UrgentZero.Excess
+                    || value.UrgentZero.Excess == best.UrgentZero.Excess && value.Ledger.LossAgainst(best.Ledger).Value < -value.Policy.TieResolution) best = value;
                 var tasks = outcome.Plan.Allocations.Select(a => generated.Context.Activities.Activities.Single(t => t.Id == a.Activity)).ToArray();
                 var produced = tasks.SelectMany(t => t.Outputs).Sum(o => o.Units.Value);
                 var consumed = tasks.SelectMany(t => t.Inputs).Sum(i => i.Units.Value);
@@ -121,17 +126,7 @@ public sealed class ForecastPortfolioChoiceTests
             }
         }
         Assert.NotNull(best);
-        Assert.Equal(best.Urgent, selected.SelectedVector.Urgent);
-        Assert.Equal(2, selected.Selected.Plan.Allocations.Count(a => generated.Context.NeedTasks.Any(n => n.Task == a.Activity)));
-    }
-
-    private static int Lexicographic(EquatableArray<Fact<double>> left, EquatableArray<Fact<double>> right)
-    {
-        for (var i = 0; i < left.Count; i++)
-        {
-            var order = left[i].Value.CompareTo(right[i].Value);
-            if (order != 0) return order;
-        }
-        return 0;
+        Assert.Equal(best.UrgentZero, selected.SelectedVector.Value.UrgentZero);
+        Assert.InRange(selected.SelectedVector.Value.Ledger.LossAgainst(best.Ledger).Value, -best.Policy.TieResolution, best.Policy.TieResolution);
     }
 }

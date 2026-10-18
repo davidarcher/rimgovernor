@@ -33,7 +33,7 @@ public sealed class ForecastThermalPortfolioTests
             MoodUnclampedTarget = Known(.5), MoodIntervalTicks = Known(150d), MoodRisePerTick = Known(.12 / GameTime.TicksPerHour),
             MoodFallPerTick = Known(.08 / GameTime.TicksPerHour), MoodFreezesWhileAsleep = Known(true), BreakThreshold = Known(.3),
             ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]),
-            Needs = [new("food", Known(1d), Known(0d), Known(.3)), new("rest", Known(restDemand ? .2 : .6), Known(0d), Known(.3))],
+            Needs = [new("food", Known(1d), Known(0d), Known(.3)), new("rest", Known(restDemand ? .2 : .6), Known(restDemand ? .0004 : 0d), Known(.3))],
             Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.0005)) { Location = bed }],
         };
         facts = facts with
@@ -53,7 +53,7 @@ public sealed class ForecastThermalPortfolioTests
             },
         };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
+        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
     }
     internal static ForecastCoupledSelection Select(RoundsFacts facts) => ForecastCoupledSelection.CompareActivityOutcomes(
         ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
@@ -70,7 +70,8 @@ public sealed class ForecastThermalPortfolioTests
         Assert.Contains(result.Selected.CompletedDevelopmentSites, id => id.StartsWith("site/", StringComparison.Ordinal));
         Assert.Contains(result.Selected.CompletedDevelopmentSites, id => id.StartsWith("roof/", StringComparison.Ordinal));
         Assert.True(result.Selected.ThermalExposure.Single().UnknownTicks > 0); // No blanket idle/travel protection.
-        Assert.True(result.SelectedVector.Urgent[1].Value < result.BaselineVector.Urgent[1].Value);
+        // Without the bed the pawn's rest reaches zero; the bed (with the shelter's relief on top) does not.
+        Assert.True(result.SelectedVector.Value.UrgentZero.Excess < result.BaselineVector.Value.UrgentZero.Excess);
         Assert.True(result.Selected.Shelters.Single().CompleteAt.Value < 200);
     }
 

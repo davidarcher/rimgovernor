@@ -12,7 +12,7 @@ public sealed class SupportMethodTests
     private static RoundsFacts Facts(SupportActivityRead support, bool cooking = false)
     {
         var facts = WorkResourceTestFacts.Create("pawn", "helper");
-        var basePawn = ForecastCoupledSelectionTests.Review(level: .4, fall: cooking ? .001 : 0).ForecastObserved.Needs!.Pawns[0];
+        var basePawn = ForecastCoupledSelectionTests.Review(level: .1, fall: cooking ? .001 : 0).ForecastObserved.Needs!.Pawns[0];
         facts = facts with
         {
             Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 4), new(new("Chunk"), 20)]),
@@ -35,7 +35,7 @@ public sealed class SupportMethodTests
             }
         };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
+        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
     }
     private static ForecastCoupledSelection Select(RoundsFacts facts, int budget = 16384) => ForecastCoupledSelection.CompareActivityOutcomes(
         ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
@@ -127,7 +127,7 @@ public sealed class SupportMethodTests
             var facts = Facts(support, true);
             facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
                 { Routes = [.. facts.ForecastObserved.Coupled!.Routes, new("pawn", new(2, 2), new(1, 1), Known(0d)), new("helper", new(2, 2), new(1, 1), Known(0d))] } } };
-            facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
+            facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
             Assert.Equal("pawn", Assert.Single(Tasks(facts, Select(facts)), t => t.Step.Job == "Clean").Pawn);
         }
     }

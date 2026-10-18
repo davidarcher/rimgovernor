@@ -2,16 +2,16 @@
 
 [Architecture](overview.md) · [Normal portfolio selection](portfolio-selection.md) · [ColonyForecast](colony-forecast.md) · [Combat predictability](combat-predictability-research.md)
 
-**Status: proposed; the capability-days ledger is implemented, nothing ranks on it.**
+**Status: milestone 3 is implemented; tier 2, the harm model and the larger search are proposed.**
+Tier-1 selection ranks on the safety floors, then on capability-days ([Comparator](#comparator) describes what runs).
 `ForecastValue.Of` (#3520, #3521) prices hunger, rest, food poisoning, thermal exposure, mood breaks and
-wellbeing per outcome and `coupled_selection` reports it ([policy constants](../contracts/kept-constants.md#policy-constants-3469),
+wellbeing per outcome; `ForecastValue.Explain` (#3522) adds the floors; `coupled_selection` reports both ([policy constants](../contracts/kept-constants.md#policy-constants-3469),
 [tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm and investment are 0 and unassessed.
 The tier-2 model's input (`ColonyModelInput`, assembled per review by `RoundsColonyModel.InputOf` from the review frame, #3523) exists and names
 each section the frame did not carry; nothing runs the model yet.
-The rest of this page describes no current behavior. Current selection is described in
-[portfolio selection](portfolio-selection.md), which states that "no injury
-probability or universal conversion of death, mood and labor is invented".
-This design deliberately replaces that rule. It arose from
+Sections other than the comparator, the problems and the milestones describe the proposed design, not current behavior.
+Selection is also described in [portfolio selection](portfolio-selection.md). The design replaced the rule that
+"no injury probability or universal conversion of death, mood and labor is invented". It arose from
 [#3435](https://github.com/davidarcher/rimgovernor/issues/3435): the coupled
 search took 5–29 s per review in game while the clock ran.
 
@@ -28,7 +28,7 @@ search took 5–29 s per review in game while the clock ran.
 2. **The budget does not bound time.** It counts schedule-search nodes, not
    evaluation work. One in-game review spent 9,663 expansions in 237 ms;
    the next spent 16,384 in 5.2 s.
-3. **Lexicographic ranking cannot trade.** Any difference in an earlier term
+3. **Lexicographic ranking could not trade (replaced by #3522).** Any difference in an earlier term
    outranks every later term. Continuous tick counts rarely tie, so harm and
    investment terms would almost never decide. The order also cannot express
    "labor now for a payoff later".
@@ -37,8 +37,8 @@ search took 5–29 s per review in game while the clock ran.
    pays anything. Plants rest when the day is under 25% or over 80% through
    (`Plant.Resting`), so that is about 41 calendar days at full rate. Within
    one day it is pure cost.
-5. **Harm is unassessed.** `serious_harm_probability_unassessed` is added to
-   every vector. Apparel is valued by a heuristic,
+5. **Harm is unassessed.** `harm_capability_unassessed` is added to
+   every review's findings. Apparel is valued by a heuristic,
    (Sharp×2 + Blunt) × 10 for soldiers.
 
 ## Decisions
@@ -58,17 +58,22 @@ search took 5–29 s per review in game while the clock ran.
 
 ### Safety floors
 
-These are hard constraints on the tier-1 schedule and the tier-2 trajectory:
+These are hard constraints on the tier-1 schedule and the tier-2 trajectory. Tier 1 checks them on every
+evaluated outcome (`ForecastValue.Explain`); an outcome that breaks one loses to any outcome that does not, and
+when both break one the smaller excess wins. A floor that cannot be checked is not treated as passed: the review
+reports `break_floor_unassessed` (a mood break risk with no observed threshold) and `death_floor_unassessed` (no harm
+model yet), and the outcome is ranked on what remains. Pruning partial portfolios on a floor waits for the search
+stage 3 ([#3472](https://github.com/davidarcher/rimgovernor/issues/3472)).
 
 - No pawn's food or rest reaches zero, unless every feasible portfolio does.
   Then the least zero-time wins, as today.
 - Expected raid deaths over the horizon do not rise above the baseline by more
   than `DeathRiskFloor`.
-- Each pawn's break risk stays under `BreakRiskCap`.
+- Each pawn's break risk stays under `BreakRiskCap`. The risk is the expected breaks over the horizon, per pawn-day.
 
-The floors replace the top tiers of today's lexicographic order (urgent
-exhaustion, depth, exposure). They also prune the search cheaply: a partial
-portfolio that already breaks a floor is not extended.
+The floors replaced the top tiers of the old lexicographic order (urgent
+exhaustion, depth, exposure). They are meant to prune the search cheaply too: a partial
+portfolio that already breaks a floor is not extended (not yet; see above).
 
 ### Capability-days
 
@@ -102,10 +107,15 @@ cost is (1 − w) × E[loss] + w × CVaRα[loss], where CVaRα is the mean of th
 worst (1 − α) of outcomes, w is `HarmRiskWeight` and α is `HarmRiskAlpha`.
 Other terms use expected values.
 
-**Ties and explanation.** Equal value within one capability-day ×
-`TieResolution` keeps the incumbent, then prefers less labor. Every decision
-reports each term's contribution in capability-days, the floors it passed, and
-which constants it used.
+**Ties and explanation.** Every term is a loss, so the portfolio that loses fewer capability-days wins.
+Two outcomes are compared on the terms both assess, and the per-term differences are summed
+(`ForecastValueResult.LossAgainst`); a term one side cannot assess never counts for or against it, and its finding is
+still reported. A difference within `TieResolution` capability-days is a tie. A tie goes to the terms that have no
+mechanical conversion yet, in this order: first-care time of urgent care, thermal relief, pending care batches, tend
+quality and room factors (same care services only), maintenance missing XP, joy threshold exposure, requested
+development, unsupplied demand and first-care time; then the incumbent, then less labor. Every decision
+reports each term's contribution in capability-days, the floors it passed, and which constants it used (the nested
+`value` attributes of `coupled_selection`).
 
 **Other currencies considered.**
 
@@ -299,7 +309,7 @@ Each milestone has a GitHub issue.
 
 1. [#3467](https://github.com/davidarcher/rimgovernor/issues/3467) Search stage 1 (no behavior change).
 2. [#3468](https://github.com/davidarcher/rimgovernor/issues/3468) Search stage 2, including exact mood segments.
-3. [#3469](https://github.com/davidarcher/rimgovernor/issues/3469) Capability-days and floors over today's one-day horizon. This replaces the
+3. [#3469](https://github.com/davidarcher/rimgovernor/issues/3469) Capability-days and floors over today's one-day horizon (implemented; #3519 to #3522). This replaced the
    lexicographic ranking; the vector stays as explanation.
 4. [#3470](https://github.com/davidarcher/rimgovernor/issues/3470) Tier 2: pawn cycle, stocks and flows, project graph, crop growth by twelfth.
 5. [#3471](https://github.com/davidarcher/rimgovernor/issues/3471) Harm model v1: threat schedule, composition, armor response,

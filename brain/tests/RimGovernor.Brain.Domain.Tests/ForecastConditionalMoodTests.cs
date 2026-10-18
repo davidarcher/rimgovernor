@@ -287,7 +287,7 @@ public sealed class ForecastConditionalMoodTests
             Coupled = new() { Tick = 100, Food = new(), Routes = [new("pawn", new(1, 1), new(1, 1), Known(0d)) { FromStart = true }] },
         } };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)!;
+        var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)!.Priced(horizon);
         facts = facts with { CoupledAlternatives = candidates };
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
@@ -306,8 +306,11 @@ public sealed class ForecastConditionalMoodTests
         Assert.True(selected.SelectedVector.BreakRisk.Value < selected.BaselineVector.BreakRisk.Value);
         var (_, control) = SelectObserved(Pawn(false));
         Assert.Empty(control.Selection.Selected);
-        var (_, urgent) = SelectObserved(Pawn() with { Needs = [new("rest", Known(.27), Known(0d), Known(.28))] });
-        Assert.Equal(0, Assert.Single(urgent.Selected.Plan.Allocations).Start);
+        // Rest that reaches zero within minutes breaks the zero floor unless a sleep starts before it does.
+        var (_, urgent) = SelectObserved(Pawn() with { Needs = [new("rest", Known(.27), Known(.00054), Known(.28))] });
+        Assert.InRange(Assert.Single(urgent.Selected.Plan.Allocations).Start, 0, .27 / .00054);
+        Assert.Equal(0d, urgent.SelectedVector.Value.UrgentZero.Excess);
+        Assert.True(urgent.BaselineVector.Value.UrgentZero.Excess > 0);
         var (_, shortHorizon) = SelectObserved(Pawn(), 2 * Hour);
         Assert.Empty(shortHorizon.Selection.Selected);
     }

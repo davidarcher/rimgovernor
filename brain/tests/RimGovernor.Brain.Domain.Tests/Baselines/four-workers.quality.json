@@ -194,9 +194,52 @@
         "Development": 0,
         "Labor": 0,
         "Unknown": [
-          "serious_harm_probability_unassessed",
           "unassessed_thermal_exposure"
         ],
+        "Value": {
+          "Ledger": {
+            "Total": null,
+            "Findings": [
+              "capability_value_unassessed",
+              "harm_capability_unassessed",
+              "malnutrition_rate_pawn_factor_unobserved:diner",
+              "malnutrition_rate_pawn_factor_unobserved:pawn",
+              "unassessed_thermal_exposure"
+            ],
+            "Hunger": 0.005416666666666667,
+            "Rest": 0,
+            "FoodPoisoning": 0,
+            "Thermal": null,
+            "MoodBreaks": 0,
+            "Wellbeing": 0,
+            "Harm": 0,
+            "Investment": 0
+          },
+          "Policy": {
+            "DeathTerminalValue": 60,
+            "WellbeingWeight": 0.1,
+            "HarmRiskAlpha": 0.9,
+            "HarmRiskWeight": 0.5,
+            "DeathRiskFloor": 0.01,
+            "BreakRiskCap": 0.5,
+            "TieResolution": 0.00011666666666666667
+          },
+          "UrgentZero": {
+            "Assessed": true,
+            "Excess": 325,
+            "Passed": false
+          },
+          "BreakRisk": {
+            "Assessed": true,
+            "Excess": 0,
+            "Passed": true
+          },
+          "Death": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          }
+        },
         "BreakRisk": 0,
         "ThermalOccupancy": "",
         "Maintenance": [],
@@ -236,10 +279,56 @@
         "Labor": 370,
         "Unknown": [
           "mental_break_probability_unassessed",
-          "serious_harm_probability_unassessed",
           "unassessed_mood",
           "unassessed_thermal_exposure"
         ],
+        "Value": {
+          "Ledger": {
+            "Total": null,
+            "Findings": [
+              "capability_value_unassessed",
+              "harm_capability_unassessed",
+              "malnutrition_rate_pawn_factor_unobserved:diner",
+              "malnutrition_rate_pawn_factor_unobserved:pawn",
+              "mental_break_probability_unassessed",
+              "unassessed_thermal_exposure",
+              "wellbeing_unassessed:diner",
+              "wellbeing_unassessed:pawn"
+            ],
+            "Hunger": 0.00125,
+            "Rest": 0,
+            "FoodPoisoning": 0,
+            "Thermal": null,
+            "MoodBreaks": null,
+            "Wellbeing": null,
+            "Harm": 0,
+            "Investment": 0
+          },
+          "Policy": {
+            "DeathTerminalValue": 60,
+            "WellbeingWeight": 0.1,
+            "HarmRiskAlpha": 0.9,
+            "HarmRiskWeight": 0.5,
+            "DeathRiskFloor": 0.01,
+            "BreakRiskCap": 0.5,
+            "TieResolution": 0.00011666666666666667
+          },
+          "UrgentZero": {
+            "Assessed": true,
+            "Excess": 75,
+            "Passed": false
+          },
+          "BreakRisk": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          },
+          "Death": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          }
+        },
         "BreakRisk": null,
         "ThermalOccupancy": "diner|food|cell/3/1|214|250;pawn|food|cell/3/1|360|370",
         "Maintenance": [],
@@ -260,6 +349,7 @@
       "Findings": [
         "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
+        "break_floor_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
         "conflicting_composition_choice:food/14/supply-choice/0/rice",
         "conflicting_composition_choice:food/14/supply-choice/1/rice",
@@ -271,18 +361,23 @@
         "conflicting_composition_choice:food/5/supply-choice/0/rice",
         "conflicting_composition_choice:food/5/supply-choice/1/rice",
         "cooking_poisoning_and_future_environment_unassessed",
+        "death_floor_unassessed",
         "exclusive_operation_conflict",
+        "harm_capability_unassessed",
         "no_feasible_need_choice:food",
         "no_feasible_need_choice:rest",
         "physical_lot_quantity_shortfall:food/14/recipe/0",
         "physical_lot_quantity_shortfall:rice",
+        "planned_sites_unknown",
         "portfolio_search_truncated",
         "practice_held_essential_emergency_or_unknown",
         "practice_observation_unknown",
         "productive_learning_unassessed:diner:SimpleMeal",
         "productive_learning_unassessed:helper:SimpleMeal",
         "productive_learning_unassessed:porter:SimpleMeal",
+        "research_observation_unknown",
         "search_truncated",
+        "sowing_observation_unknown",
         "support_observation_unknown",
         "unknown_clothing_requirements",
         "unknown_observed_shelter_geometry",
@@ -307,11 +402,11 @@
       "Selected": [
         "food/0/delivery/0/composition/2/after/food/14/delivery/0/eat/diner/0/composition/16",
         "food/14/delivery/1/eat/pawn/0/composition/12",
-        "food/14/delivery/2/eat/pawn/0/composition/16"
+        "food/14/delivery/2/eat/diner/0/composition/14"
       ],
       "Feasible": true,
-      "CompletedAt": 461,
-      "LaborCost": 833,
+      "CompletedAt": 478,
+      "LaborCost": 848,
       "Physical": [
         {
           "Activity": "food/0/delivery/0/composition/2/after/food/14/delivery/0/eat/diner/0/composition/16",
@@ -413,11 +508,11 @@
         },
         {
           "Activity": "food/14/delivery/2/composition/15",
-          "Pawn": "helper",
-          "Depart": 450,
-          "Arrive": 450,
-          "Start": 450,
-          "End": 451,
+          "Pawn": "diner",
+          "Depart": 467,
+          "Arrive": 467,
+          "Start": 467,
+          "End": 468,
           "TravelTicks": 0,
           "WaitTicks": 0,
           "WorkTicks": 1,
@@ -426,12 +521,12 @@
           "Learning": null
         },
         {
-          "Activity": "food/14/delivery/2/eat/pawn/0/composition/26",
-          "Pawn": "pawn",
-          "Depart": 451,
-          "Arrive": 451,
-          "Start": 451,
-          "End": 461,
+          "Activity": "food/14/delivery/2/eat/diner/0/composition/24",
+          "Pawn": "diner",
+          "Depart": 468,
+          "Arrive": 468,
+          "Start": 468,
+          "End": 478,
           "TravelTicks": 0,
           "WaitTicks": 0,
           "WorkTicks": 10,
@@ -469,15 +564,15 @@
         },
         {
           "Activity": "food/14/recipe/2/composition/14",
-          "Pawn": "helper",
-          "Depart": 359,
-          "Arrive": 359,
-          "Start": 359,
-          "End": 450,
+          "Pawn": "diner",
+          "Depart": 362,
+          "Arrive": 362,
+          "Start": 362,
+          "End": 467,
           "TravelTicks": 0,
           "WaitTicks": 0,
-          "WorkTicks": 91,
-          "DisplacedLaborTicks": 91,
+          "WorkTicks": 105,
+          "DisplacedLaborTicks": 105,
           "RecoveryLaborTicks": 0,
           "Learning": null
         },
@@ -511,15 +606,15 @@
         },
         {
           "Activity": "food/14/supply/2/rice/4/composition/13",
-          "Pawn": "helper",
-          "Depart": 0,
-          "Arrive": 0,
-          "Start": 0,
-          "End": 1,
-          "TravelTicks": 0,
+          "Pawn": "diner",
+          "Depart": 360,
+          "Arrive": 361,
+          "Start": 361,
+          "End": 362,
+          "TravelTicks": 1,
           "WaitTicks": 0,
           "WorkTicks": 1,
-          "DisplacedLaborTicks": 1,
+          "DisplacedLaborTicks": 2,
           "RecoveryLaborTicks": 0,
           "Learning": null
         }
@@ -545,9 +640,52 @@
         "Development": 0,
         "Labor": 0,
         "Unknown": [
-          "serious_harm_probability_unassessed",
           "unassessed_thermal_exposure"
         ],
+        "Value": {
+          "Ledger": {
+            "Total": null,
+            "Findings": [
+              "capability_value_unassessed",
+              "harm_capability_unassessed",
+              "malnutrition_rate_pawn_factor_unobserved:diner",
+              "malnutrition_rate_pawn_factor_unobserved:pawn",
+              "unassessed_thermal_exposure"
+            ],
+            "Hunger": 0.005416666666666667,
+            "Rest": 0,
+            "FoodPoisoning": 0,
+            "Thermal": null,
+            "MoodBreaks": 0,
+            "Wellbeing": 0,
+            "Harm": 0,
+            "Investment": 0
+          },
+          "Policy": {
+            "DeathTerminalValue": 60,
+            "WellbeingWeight": 0.1,
+            "HarmRiskAlpha": 0.9,
+            "HarmRiskWeight": 0.5,
+            "DeathRiskFloor": 0.01,
+            "BreakRiskCap": 0.5,
+            "TieResolution": 0.00011666666666666667
+          },
+          "UrgentZero": {
+            "Assessed": true,
+            "Excess": 325,
+            "Passed": false
+          },
+          "BreakRisk": {
+            "Assessed": true,
+            "Excess": 0,
+            "Passed": true
+          },
+          "Death": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          }
+        },
         "BreakRisk": 0,
         "ThermalOccupancy": "",
         "Maintenance": [],
@@ -568,8 +706,8 @@
       "SelectedVector": {
         "Urgent": [
           75,
-          34.375,
-          200,
+          48.775,
+          320,
           320,
           0
         ],
@@ -584,15 +722,60 @@
         "MoodExposure": null,
         "MoodDepth": null,
         "Development": 0,
-        "Labor": 833,
+        "Labor": 848,
         "Unknown": [
           "mental_break_probability_unassessed",
-          "serious_harm_probability_unassessed",
           "unassessed_mood",
           "unassessed_thermal_exposure"
         ],
+        "Value": {
+          "Ledger": {
+            "Total": null,
+            "Findings": [
+              "capability_value_unassessed",
+              "harm_capability_unassessed",
+              "malnutrition_rate_pawn_factor_unobserved:pawn",
+              "mental_break_probability_unassessed",
+              "unassessed_thermal_exposure",
+              "wellbeing_unassessed:diner",
+              "wellbeing_unassessed:pawn"
+            ],
+            "Hunger": 0.000625,
+            "Rest": 0,
+            "FoodPoisoning": 0,
+            "Thermal": null,
+            "MoodBreaks": null,
+            "Wellbeing": null,
+            "Harm": 0,
+            "Investment": 0
+          },
+          "Policy": {
+            "DeathTerminalValue": 60,
+            "WellbeingWeight": 0.1,
+            "HarmRiskAlpha": 0.9,
+            "HarmRiskWeight": 0.5,
+            "DeathRiskFloor": 0.01,
+            "BreakRiskCap": 0.5,
+            "TieResolution": 0.00011666666666666667
+          },
+          "UrgentZero": {
+            "Assessed": true,
+            "Excess": 75,
+            "Passed": false
+          },
+          "BreakRisk": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          },
+          "Death": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          }
+        },
         "BreakRisk": null,
-        "ThermalOccupancy": "diner|food|cell/3/1|214|250;pawn|food|cell/3/1|0|370;pawn|food|cell/3/1|451|461",
+        "ThermalOccupancy": "diner|food|cell/3/1|214|250;diner|food|cell/3/1|468|478;pawn|food|cell/3/1|0|370",
         "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
@@ -611,6 +794,7 @@
       "Findings": [
         "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
+        "break_floor_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
         "conflicting_composition_choice:food/14/supply-choice/0/rice",
         "conflicting_composition_choice:food/14/supply-choice/1/rice",
@@ -622,21 +806,26 @@
         "conflicting_composition_choice:food/5/supply-choice/0/rice",
         "conflicting_composition_choice:food/5/supply-choice/1/rice",
         "cooking_poisoning_and_future_environment_unassessed",
+        "death_floor_unassessed",
         "exclusive_operation_conflict",
+        "harm_capability_unassessed",
         "no_feasible_need_choice:food",
         "no_feasible_need_choice:rest",
         "physical_lot_quantity_shortfall:food/14/recipe/0",
         "physical_lot_quantity_shortfall:food/14/recipe/1",
-        "physical_lot_quantity_shortfall:food/14/recipe/2",
         "physical_lot_quantity_shortfall:rice",
+        "planned_sites_unknown",
         "portfolio_search_truncated",
         "practice_held_essential_emergency_or_unknown",
         "practice_observation_unknown",
         "productive_learning_unassessed:diner:SimpleMeal",
         "productive_learning_unassessed:helper:SimpleMeal",
         "productive_learning_unassessed:porter:SimpleMeal",
+        "research_observation_unknown",
         "search_truncated",
+        "sowing_observation_unknown",
         "support_observation_unknown",
+        "unassessed_no_schedule_within_horizon",
         "unknown_clothing_requirements",
         "unknown_observed_shelter_geometry",
         "unsupported_defensive_improvement_without_assignment:diner",
@@ -660,8 +849,8 @@
       "Selected": [
         "food/0/delivery/0/eat/diner/0/composition/1",
         "food/14/delivery/0/eat/pawn/0/composition/8",
-        "food/14/delivery/1/eat/pawn/0/composition/12",
-        "food/14/delivery/2/eat/diner/0/composition/14"
+        "food/14/delivery/1/eat/diner/0/composition/10",
+        "food/14/delivery/2/eat/pawn/0/composition/16"
       ],
       "Feasible": true,
       "CompletedAt": 567,
@@ -766,8 +955,8 @@
           "Learning": null
         },
         {
-          "Activity": "food/14/delivery/1/eat/pawn/0/composition/22",
-          "Pawn": "pawn",
+          "Activity": "food/14/delivery/1/eat/diner/0/composition/20",
+          "Pawn": "diner",
           "Depart": 466,
           "Arrive": 466,
           "Start": 466,
@@ -794,8 +983,8 @@
           "Learning": null
         },
         {
-          "Activity": "food/14/delivery/2/eat/diner/0/composition/24",
-          "Pawn": "diner",
+          "Activity": "food/14/delivery/2/eat/pawn/0/composition/26",
+          "Pawn": "pawn",
           "Depart": 557,
           "Arrive": 557,
           "Start": 557,
@@ -913,9 +1102,52 @@
         "Development": 0,
         "Labor": 0,
         "Unknown": [
-          "serious_harm_probability_unassessed",
           "unassessed_thermal_exposure"
         ],
+        "Value": {
+          "Ledger": {
+            "Total": null,
+            "Findings": [
+              "capability_value_unassessed",
+              "harm_capability_unassessed",
+              "malnutrition_rate_pawn_factor_unobserved:diner",
+              "malnutrition_rate_pawn_factor_unobserved:pawn",
+              "unassessed_thermal_exposure"
+            ],
+            "Hunger": 0.005416666666666667,
+            "Rest": 0,
+            "FoodPoisoning": 0,
+            "Thermal": null,
+            "MoodBreaks": 0,
+            "Wellbeing": 0,
+            "Harm": 0,
+            "Investment": 0
+          },
+          "Policy": {
+            "DeathTerminalValue": 60,
+            "WellbeingWeight": 0.1,
+            "HarmRiskAlpha": 0.9,
+            "HarmRiskWeight": 0.5,
+            "DeathRiskFloor": 0.01,
+            "BreakRiskCap": 0.5,
+            "TieResolution": 0.00011666666666666667
+          },
+          "UrgentZero": {
+            "Assessed": true,
+            "Excess": 325,
+            "Passed": false
+          },
+          "BreakRisk": {
+            "Assessed": true,
+            "Excess": 0,
+            "Passed": true
+          },
+          "Death": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          }
+        },
         "BreakRisk": 0,
         "ThermalOccupancy": "",
         "Maintenance": [],
@@ -936,8 +1168,8 @@
       "SelectedVector": {
         "Urgent": [
           0,
-          13.923999999999998,
-          118,
+          18.412999999999997,
+          185,
           185,
           0
         ],
@@ -955,12 +1187,56 @@
         "Labor": 947,
         "Unknown": [
           "mental_break_probability_unassessed",
-          "serious_harm_probability_unassessed",
           "unassessed_mood",
           "unassessed_thermal_exposure"
         ],
+        "Value": {
+          "Ledger": {
+            "Total": null,
+            "Findings": [
+              "capability_value_unassessed",
+              "harm_capability_unassessed",
+              "mental_break_probability_unassessed",
+              "unassessed_thermal_exposure",
+              "wellbeing_unassessed:diner",
+              "wellbeing_unassessed:pawn"
+            ],
+            "Hunger": 0,
+            "Rest": 0,
+            "FoodPoisoning": 0,
+            "Thermal": null,
+            "MoodBreaks": null,
+            "Wellbeing": null,
+            "Harm": 0,
+            "Investment": 0
+          },
+          "Policy": {
+            "DeathTerminalValue": 60,
+            "WellbeingWeight": 0.1,
+            "HarmRiskAlpha": 0.9,
+            "HarmRiskWeight": 0.5,
+            "DeathRiskFloor": 0.01,
+            "BreakRiskCap": 0.5,
+            "TieResolution": 0.00011666666666666667
+          },
+          "UrgentZero": {
+            "Assessed": true,
+            "Excess": 0,
+            "Passed": true
+          },
+          "BreakRisk": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          },
+          "Death": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          }
+        },
         "BreakRisk": null,
-        "ThermalOccupancy": "diner|food|cell/3/1|107|250;diner|food|cell/3/1|557|567;pawn|food|cell/3/1|0|368;pawn|food|cell/3/1|466|476",
+        "ThermalOccupancy": "diner|food|cell/3/1|107|250;diner|food|cell/3/1|466|476;pawn|food|cell/3/1|0|368;pawn|food|cell/3/1|557|567",
         "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
@@ -979,6 +1255,7 @@
       "Findings": [
         "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
+        "break_floor_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
         "conflicting_composition_choice:food/14/supply-choice/0/rice",
         "conflicting_composition_choice:food/14/supply-choice/1/rice",
@@ -990,7 +1267,9 @@
         "conflicting_composition_choice:food/5/supply-choice/0/rice",
         "conflicting_composition_choice:food/5/supply-choice/1/rice",
         "cooking_poisoning_and_future_environment_unassessed",
+        "death_floor_unassessed",
         "exclusive_operation_conflict",
+        "harm_capability_unassessed",
         "no_feasible_need_choice:food",
         "no_feasible_need_choice:rest",
         "physical_lot_quantity_shortfall:food/0/recipe/0",
@@ -998,13 +1277,16 @@
         "physical_lot_quantity_shortfall:food/14/recipe/1",
         "physical_lot_quantity_shortfall:food/14/recipe/2",
         "physical_lot_quantity_shortfall:rice",
+        "planned_sites_unknown",
         "portfolio_search_truncated",
         "practice_held_essential_emergency_or_unknown",
         "practice_observation_unknown",
         "productive_learning_unassessed:diner:SimpleMeal",
         "productive_learning_unassessed:helper:SimpleMeal",
         "productive_learning_unassessed:porter:SimpleMeal",
+        "research_observation_unknown",
         "search_truncated",
+        "sowing_observation_unknown",
         "support_observation_unknown",
         "unknown_clothing_requirements",
         "unknown_observed_shelter_geometry",
@@ -1029,8 +1311,8 @@
       "Selected": [
         "food/0/delivery/0/eat/diner/0/composition/1",
         "food/14/delivery/0/eat/pawn/0/composition/8",
-        "food/14/delivery/1/eat/pawn/0/composition/12",
-        "food/14/delivery/2/eat/diner/0/composition/14"
+        "food/14/delivery/1/eat/diner/0/composition/10",
+        "food/14/delivery/2/eat/pawn/0/composition/16"
       ],
       "Feasible": true,
       "CompletedAt": 567,
@@ -1135,8 +1417,8 @@
           "Learning": null
         },
         {
-          "Activity": "food/14/delivery/1/eat/pawn/0/composition/22",
-          "Pawn": "pawn",
+          "Activity": "food/14/delivery/1/eat/diner/0/composition/20",
+          "Pawn": "diner",
           "Depart": 466,
           "Arrive": 466,
           "Start": 466,
@@ -1163,8 +1445,8 @@
           "Learning": null
         },
         {
-          "Activity": "food/14/delivery/2/eat/diner/0/composition/24",
-          "Pawn": "diner",
+          "Activity": "food/14/delivery/2/eat/pawn/0/composition/26",
+          "Pawn": "pawn",
           "Depart": 557,
           "Arrive": 557,
           "Start": 557,
@@ -1282,9 +1564,52 @@
         "Development": 0,
         "Labor": 0,
         "Unknown": [
-          "serious_harm_probability_unassessed",
           "unassessed_thermal_exposure"
         ],
+        "Value": {
+          "Ledger": {
+            "Total": null,
+            "Findings": [
+              "capability_value_unassessed",
+              "harm_capability_unassessed",
+              "malnutrition_rate_pawn_factor_unobserved:diner",
+              "malnutrition_rate_pawn_factor_unobserved:pawn",
+              "unassessed_thermal_exposure"
+            ],
+            "Hunger": 0.005416666666666667,
+            "Rest": 0,
+            "FoodPoisoning": 0,
+            "Thermal": null,
+            "MoodBreaks": 0,
+            "Wellbeing": 0,
+            "Harm": 0,
+            "Investment": 0
+          },
+          "Policy": {
+            "DeathTerminalValue": 60,
+            "WellbeingWeight": 0.1,
+            "HarmRiskAlpha": 0.9,
+            "HarmRiskWeight": 0.5,
+            "DeathRiskFloor": 0.01,
+            "BreakRiskCap": 0.5,
+            "TieResolution": 0.00011666666666666667
+          },
+          "UrgentZero": {
+            "Assessed": true,
+            "Excess": 325,
+            "Passed": false
+          },
+          "BreakRisk": {
+            "Assessed": true,
+            "Excess": 0,
+            "Passed": true
+          },
+          "Death": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          }
+        },
         "BreakRisk": 0,
         "ThermalOccupancy": "",
         "Maintenance": [],
@@ -1305,8 +1630,8 @@
       "SelectedVector": {
         "Urgent": [
           0,
-          13.923999999999998,
-          118,
+          18.412999999999997,
+          185,
           185,
           0
         ],
@@ -1324,12 +1649,56 @@
         "Labor": 947,
         "Unknown": [
           "mental_break_probability_unassessed",
-          "serious_harm_probability_unassessed",
           "unassessed_mood",
           "unassessed_thermal_exposure"
         ],
+        "Value": {
+          "Ledger": {
+            "Total": null,
+            "Findings": [
+              "capability_value_unassessed",
+              "harm_capability_unassessed",
+              "mental_break_probability_unassessed",
+              "unassessed_thermal_exposure",
+              "wellbeing_unassessed:diner",
+              "wellbeing_unassessed:pawn"
+            ],
+            "Hunger": 0,
+            "Rest": 0,
+            "FoodPoisoning": 0,
+            "Thermal": null,
+            "MoodBreaks": null,
+            "Wellbeing": null,
+            "Harm": 0,
+            "Investment": 0
+          },
+          "Policy": {
+            "DeathTerminalValue": 60,
+            "WellbeingWeight": 0.1,
+            "HarmRiskAlpha": 0.9,
+            "HarmRiskWeight": 0.5,
+            "DeathRiskFloor": 0.01,
+            "BreakRiskCap": 0.5,
+            "TieResolution": 0.00011666666666666667
+          },
+          "UrgentZero": {
+            "Assessed": true,
+            "Excess": 0,
+            "Passed": true
+          },
+          "BreakRisk": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          },
+          "Death": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          }
+        },
         "BreakRisk": null,
-        "ThermalOccupancy": "diner|food|cell/3/1|107|250;diner|food|cell/3/1|557|567;pawn|food|cell/3/1|0|368;pawn|food|cell/3/1|466|476",
+        "ThermalOccupancy": "diner|food|cell/3/1|107|250;diner|food|cell/3/1|466|476;pawn|food|cell/3/1|0|368;pawn|food|cell/3/1|557|567",
         "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
@@ -1348,6 +1717,7 @@
       "Findings": [
         "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
+        "break_floor_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
         "conflicting_composition_choice:food/14/supply-choice/0/rice",
         "conflicting_composition_choice:food/14/supply-choice/1/rice",
@@ -1359,11 +1729,13 @@
         "conflicting_composition_choice:food/5/supply-choice/0/rice",
         "conflicting_composition_choice:food/5/supply-choice/1/rice",
         "cooking_poisoning_and_future_environment_unassessed",
+        "death_floor_unassessed",
         "equipment_occupied:food/14/recipe/0/composition/8:diner",
         "equipment_occupied:food/14/recipe/0/composition/8:helper",
         "equipment_occupied:food/14/recipe/0/composition/8:pawn",
         "equipment_occupied:food/14/recipe/0/composition/8:porter",
         "exclusive_operation_conflict",
+        "harm_capability_unassessed",
         "no_feasible_need_choice:food",
         "no_feasible_need_choice:rest",
         "physical_lot_quantity_shortfall:food/0/recipe/0",
@@ -1371,13 +1743,16 @@
         "physical_lot_quantity_shortfall:food/14/recipe/1",
         "physical_lot_quantity_shortfall:food/14/recipe/2",
         "physical_lot_quantity_shortfall:rice",
+        "planned_sites_unknown",
         "portfolio_search_truncated",
         "practice_held_essential_emergency_or_unknown",
         "practice_observation_unknown",
         "productive_learning_unassessed:diner:SimpleMeal",
         "productive_learning_unassessed:helper:SimpleMeal",
         "productive_learning_unassessed:porter:SimpleMeal",
+        "research_observation_unknown",
         "search_truncated",
+        "sowing_observation_unknown",
         "support_observation_unknown",
         "unknown_clothing_requirements",
         "unknown_observed_shelter_geometry",
@@ -1402,8 +1777,8 @@
       "Selected": [
         "food/0/delivery/0/eat/diner/0/composition/1",
         "food/14/delivery/0/eat/pawn/0/composition/8",
-        "food/14/delivery/1/eat/pawn/0/composition/12",
-        "food/14/delivery/2/eat/diner/0/composition/14"
+        "food/14/delivery/1/eat/diner/0/composition/10",
+        "food/14/delivery/2/eat/pawn/0/composition/16"
       ],
       "Feasible": true,
       "CompletedAt": 567,
@@ -1508,8 +1883,8 @@
           "Learning": null
         },
         {
-          "Activity": "food/14/delivery/1/eat/pawn/0/composition/22",
-          "Pawn": "pawn",
+          "Activity": "food/14/delivery/1/eat/diner/0/composition/20",
+          "Pawn": "diner",
           "Depart": 466,
           "Arrive": 466,
           "Start": 466,
@@ -1536,8 +1911,8 @@
           "Learning": null
         },
         {
-          "Activity": "food/14/delivery/2/eat/diner/0/composition/24",
-          "Pawn": "diner",
+          "Activity": "food/14/delivery/2/eat/pawn/0/composition/26",
+          "Pawn": "pawn",
           "Depart": 557,
           "Arrive": 557,
           "Start": 557,
@@ -1655,9 +2030,52 @@
         "Development": 0,
         "Labor": 0,
         "Unknown": [
-          "serious_harm_probability_unassessed",
           "unassessed_thermal_exposure"
         ],
+        "Value": {
+          "Ledger": {
+            "Total": null,
+            "Findings": [
+              "capability_value_unassessed",
+              "harm_capability_unassessed",
+              "malnutrition_rate_pawn_factor_unobserved:diner",
+              "malnutrition_rate_pawn_factor_unobserved:pawn",
+              "unassessed_thermal_exposure"
+            ],
+            "Hunger": 0.005416666666666667,
+            "Rest": 0,
+            "FoodPoisoning": 0,
+            "Thermal": null,
+            "MoodBreaks": 0,
+            "Wellbeing": 0,
+            "Harm": 0,
+            "Investment": 0
+          },
+          "Policy": {
+            "DeathTerminalValue": 60,
+            "WellbeingWeight": 0.1,
+            "HarmRiskAlpha": 0.9,
+            "HarmRiskWeight": 0.5,
+            "DeathRiskFloor": 0.01,
+            "BreakRiskCap": 0.5,
+            "TieResolution": 0.00011666666666666667
+          },
+          "UrgentZero": {
+            "Assessed": true,
+            "Excess": 325,
+            "Passed": false
+          },
+          "BreakRisk": {
+            "Assessed": true,
+            "Excess": 0,
+            "Passed": true
+          },
+          "Death": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          }
+        },
         "BreakRisk": 0,
         "ThermalOccupancy": "",
         "Maintenance": [],
@@ -1678,8 +2096,8 @@
       "SelectedVector": {
         "Urgent": [
           0,
-          13.923999999999998,
-          118,
+          18.412999999999997,
+          185,
           185,
           0
         ],
@@ -1697,12 +2115,56 @@
         "Labor": 947,
         "Unknown": [
           "mental_break_probability_unassessed",
-          "serious_harm_probability_unassessed",
           "unassessed_mood",
           "unassessed_thermal_exposure"
         ],
+        "Value": {
+          "Ledger": {
+            "Total": null,
+            "Findings": [
+              "capability_value_unassessed",
+              "harm_capability_unassessed",
+              "mental_break_probability_unassessed",
+              "unassessed_thermal_exposure",
+              "wellbeing_unassessed:diner",
+              "wellbeing_unassessed:pawn"
+            ],
+            "Hunger": 0,
+            "Rest": 0,
+            "FoodPoisoning": 0,
+            "Thermal": null,
+            "MoodBreaks": null,
+            "Wellbeing": null,
+            "Harm": 0,
+            "Investment": 0
+          },
+          "Policy": {
+            "DeathTerminalValue": 60,
+            "WellbeingWeight": 0.1,
+            "HarmRiskAlpha": 0.9,
+            "HarmRiskWeight": 0.5,
+            "DeathRiskFloor": 0.01,
+            "BreakRiskCap": 0.5,
+            "TieResolution": 0.00011666666666666667
+          },
+          "UrgentZero": {
+            "Assessed": true,
+            "Excess": 0,
+            "Passed": true
+          },
+          "BreakRisk": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          },
+          "Death": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          }
+        },
         "BreakRisk": null,
-        "ThermalOccupancy": "diner|food|cell/3/1|107|250;diner|food|cell/3/1|557|567;pawn|food|cell/3/1|0|368;pawn|food|cell/3/1|466|476",
+        "ThermalOccupancy": "diner|food|cell/3/1|107|250;diner|food|cell/3/1|466|476;pawn|food|cell/3/1|0|368;pawn|food|cell/3/1|557|567",
         "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
@@ -1721,6 +2183,7 @@
       "Findings": [
         "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
+        "break_floor_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
         "conflicting_composition_choice:food/14/supply-choice/0/rice",
         "conflicting_composition_choice:food/14/supply-choice/1/rice",
@@ -1732,6 +2195,7 @@
         "conflicting_composition_choice:food/5/supply-choice/0/rice",
         "conflicting_composition_choice:food/5/supply-choice/1/rice",
         "cooking_poisoning_and_future_environment_unassessed",
+        "death_floor_unassessed",
         "equipment_occupied:food/14/recipe/0/composition/8:diner",
         "equipment_occupied:food/14/recipe/0/composition/8:helper",
         "equipment_occupied:food/14/recipe/0/composition/8:pawn",
@@ -1745,6 +2209,7 @@
         "equipment_occupied:food/5/recipe/0/composition/57:pawn",
         "equipment_occupied:food/5/recipe/0/composition/57:porter",
         "exclusive_operation_conflict",
+        "harm_capability_unassessed",
         "no_feasible_need_choice:food",
         "no_feasible_need_choice:rest",
         "physical_lot_quantity_shortfall:food/0/recipe/0",
@@ -1752,13 +2217,16 @@
         "physical_lot_quantity_shortfall:food/14/recipe/1",
         "physical_lot_quantity_shortfall:food/14/recipe/2",
         "physical_lot_quantity_shortfall:rice",
+        "planned_sites_unknown",
         "portfolio_search_truncated",
         "practice_held_essential_emergency_or_unknown",
         "practice_observation_unknown",
         "productive_learning_unassessed:diner:SimpleMeal",
         "productive_learning_unassessed:helper:SimpleMeal",
         "productive_learning_unassessed:porter:SimpleMeal",
+        "research_observation_unknown",
         "search_truncated",
+        "sowing_observation_unknown",
         "support_observation_unknown",
         "unknown_clothing_requirements",
         "unknown_observed_shelter_geometry",
@@ -1783,8 +2251,8 @@
       "Selected": [
         "food/0/delivery/0/eat/diner/0/composition/1",
         "food/14/delivery/0/eat/pawn/0/composition/8",
-        "food/14/delivery/1/eat/pawn/0/composition/12",
-        "food/14/delivery/2/eat/diner/0/composition/14"
+        "food/14/delivery/1/eat/diner/0/composition/10",
+        "food/14/delivery/2/eat/pawn/0/composition/16"
       ],
       "Feasible": true,
       "CompletedAt": 567,
@@ -1889,8 +2357,8 @@
           "Learning": null
         },
         {
-          "Activity": "food/14/delivery/1/eat/pawn/0/composition/22",
-          "Pawn": "pawn",
+          "Activity": "food/14/delivery/1/eat/diner/0/composition/20",
+          "Pawn": "diner",
           "Depart": 466,
           "Arrive": 466,
           "Start": 466,
@@ -1917,8 +2385,8 @@
           "Learning": null
         },
         {
-          "Activity": "food/14/delivery/2/eat/diner/0/composition/24",
-          "Pawn": "diner",
+          "Activity": "food/14/delivery/2/eat/pawn/0/composition/26",
+          "Pawn": "pawn",
           "Depart": 557,
           "Arrive": 557,
           "Start": 557,
@@ -2036,9 +2504,52 @@
         "Development": 0,
         "Labor": 0,
         "Unknown": [
-          "serious_harm_probability_unassessed",
           "unassessed_thermal_exposure"
         ],
+        "Value": {
+          "Ledger": {
+            "Total": null,
+            "Findings": [
+              "capability_value_unassessed",
+              "harm_capability_unassessed",
+              "malnutrition_rate_pawn_factor_unobserved:diner",
+              "malnutrition_rate_pawn_factor_unobserved:pawn",
+              "unassessed_thermal_exposure"
+            ],
+            "Hunger": 0.005416666666666667,
+            "Rest": 0,
+            "FoodPoisoning": 0,
+            "Thermal": null,
+            "MoodBreaks": 0,
+            "Wellbeing": 0,
+            "Harm": 0,
+            "Investment": 0
+          },
+          "Policy": {
+            "DeathTerminalValue": 60,
+            "WellbeingWeight": 0.1,
+            "HarmRiskAlpha": 0.9,
+            "HarmRiskWeight": 0.5,
+            "DeathRiskFloor": 0.01,
+            "BreakRiskCap": 0.5,
+            "TieResolution": 0.00011666666666666667
+          },
+          "UrgentZero": {
+            "Assessed": true,
+            "Excess": 325,
+            "Passed": false
+          },
+          "BreakRisk": {
+            "Assessed": true,
+            "Excess": 0,
+            "Passed": true
+          },
+          "Death": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          }
+        },
         "BreakRisk": 0,
         "ThermalOccupancy": "",
         "Maintenance": [],
@@ -2059,8 +2570,8 @@
       "SelectedVector": {
         "Urgent": [
           0,
-          13.923999999999998,
-          118,
+          18.412999999999997,
+          185,
           185,
           0
         ],
@@ -2078,12 +2589,56 @@
         "Labor": 947,
         "Unknown": [
           "mental_break_probability_unassessed",
-          "serious_harm_probability_unassessed",
           "unassessed_mood",
           "unassessed_thermal_exposure"
         ],
+        "Value": {
+          "Ledger": {
+            "Total": null,
+            "Findings": [
+              "capability_value_unassessed",
+              "harm_capability_unassessed",
+              "mental_break_probability_unassessed",
+              "unassessed_thermal_exposure",
+              "wellbeing_unassessed:diner",
+              "wellbeing_unassessed:pawn"
+            ],
+            "Hunger": 0,
+            "Rest": 0,
+            "FoodPoisoning": 0,
+            "Thermal": null,
+            "MoodBreaks": null,
+            "Wellbeing": null,
+            "Harm": 0,
+            "Investment": 0
+          },
+          "Policy": {
+            "DeathTerminalValue": 60,
+            "WellbeingWeight": 0.1,
+            "HarmRiskAlpha": 0.9,
+            "HarmRiskWeight": 0.5,
+            "DeathRiskFloor": 0.01,
+            "BreakRiskCap": 0.5,
+            "TieResolution": 0.00011666666666666667
+          },
+          "UrgentZero": {
+            "Assessed": true,
+            "Excess": 0,
+            "Passed": true
+          },
+          "BreakRisk": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          },
+          "Death": {
+            "Assessed": false,
+            "Excess": 0,
+            "Passed": true
+          }
+        },
         "BreakRisk": null,
-        "ThermalOccupancy": "diner|food|cell/3/1|107|250;diner|food|cell/3/1|557|567;pawn|food|cell/3/1|0|368;pawn|food|cell/3/1|466|476",
+        "ThermalOccupancy": "diner|food|cell/3/1|107|250;diner|food|cell/3/1|466|476;pawn|food|cell/3/1|0|368;pawn|food|cell/3/1|557|567",
         "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
@@ -2102,6 +2657,7 @@
       "Findings": [
         "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
+        "break_floor_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
         "conflicting_composition_choice:food/14/supply-choice/0/rice",
         "conflicting_composition_choice:food/14/supply-choice/1/rice",
@@ -2113,6 +2669,7 @@
         "conflicting_composition_choice:food/5/supply-choice/0/rice",
         "conflicting_composition_choice:food/5/supply-choice/1/rice",
         "cooking_poisoning_and_future_environment_unassessed",
+        "death_floor_unassessed",
         "equipment_occupied:food/14/recipe/0/composition/8:diner",
         "equipment_occupied:food/14/recipe/0/composition/8:helper",
         "equipment_occupied:food/14/recipe/0/composition/8:pawn",
@@ -2126,6 +2683,7 @@
         "equipment_occupied:food/5/recipe/0/composition/57:pawn",
         "equipment_occupied:food/5/recipe/0/composition/57:porter",
         "exclusive_operation_conflict",
+        "harm_capability_unassessed",
         "no_feasible_need_choice:food",
         "no_feasible_need_choice:rest",
         "physical_lot_quantity_shortfall:food/0/recipe/0",
@@ -2133,13 +2691,16 @@
         "physical_lot_quantity_shortfall:food/14/recipe/1",
         "physical_lot_quantity_shortfall:food/14/recipe/2",
         "physical_lot_quantity_shortfall:rice",
+        "planned_sites_unknown",
         "portfolio_search_truncated",
         "practice_held_essential_emergency_or_unknown",
         "practice_observation_unknown",
         "productive_learning_unassessed:diner:SimpleMeal",
         "productive_learning_unassessed:helper:SimpleMeal",
         "productive_learning_unassessed:porter:SimpleMeal",
+        "research_observation_unknown",
         "search_truncated",
+        "sowing_observation_unknown",
         "support_observation_unknown",
         "unknown_clothing_requirements",
         "unknown_observed_shelter_geometry",

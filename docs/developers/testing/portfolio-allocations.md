@@ -136,7 +136,7 @@ and above they are all zero. Larger urgent consequences remain
 `[325,96.875,450,650,0]`. Needs vectors are `[null,null,0,0,1,0]` for original
 low budgets, `[null,null,0,0,0,0]` for higher budgets, and
 `[null,null,0,0,2,0]` for larger. Mood exposure/depth stay unknown; development
-is zero. All retain `serious_harm_probability_unassessed`, `unassessed_mood`
+is zero. All retained `serious_harm_probability_unassessed` (now `harm_capability_unassessed`, #3522), `unassessed_mood`
 and `unassessed_thermal_exposure`. Full vectors, including thermal occupancy,
 support and baseline comparison, are pinned in JSON rather than rounded here.
 
@@ -694,6 +694,23 @@ Both embedded baselines were re-recorded deliberately (`RIMGOVERNOR_PORTFOLIO_OU
 Wall time and allocation vary with machine load. The screen bound of 64 was chosen on these
 two fixtures; where first complete plans need many more expansions per activity the screen
 could rank poorly, which costs incumbent quality, not determinism or boundedness.
+
+## Re-recorded for the capability-days ranking (#3522)
+
+Both snapshots were re-recorded when the comparator moved from the lexicographic vector to the safety floors and
+the capability-days ledger ([forecast value](../architecture/forecast-value.md#comparator)). Each vector now carries
+a nested `Value` (floors and ledger terms). Where the ledger ties, the unpriced tiebreakers and labor decide, so the
+urgent-time components that used to break such ties no longer do:
+
+- `productive.quality.json`: the second meal is eaten by `pawn/0` (`composition/4`) instead of `pawn/1`
+  (`composition/5`) at every budget; completion moves from tick 500 to 260. Hunger loss is equal (0).
+- `four-workers.quality.json`: 1,024 is unchanged. At 4,096 the third meal is eaten by `diner/0`
+  (`delivery/2/eat/diner/0/composition/14`) instead of `pawn/0` (`composition/16`), labor 833 to 848. From 8,192 the same
+  four ingestions are served, but the third and fourth meals swap consumers (`delivery/1` is eaten by the diner, `delivery/2`
+  by the pawn); labor (947) and completion (567) are equal.
+
+Tie resolution is 0.01 capability-days over a one-day horizon; the 700-tick fixtures scale it to the horizon, so
+only differences above that resolution decide.
 
 ## Wasted needs work removed (#3467)
 

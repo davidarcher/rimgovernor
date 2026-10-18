@@ -60,7 +60,7 @@ public sealed class ForecastCoupledSelectionTests
             },
         };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
+        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
     }
     private static string SourceTask(RoundsFacts facts, string target) => facts.CoupledAlternatives!.Context.Activities.Activities
         .Single(t => t.Inputs.Count == 0 && t.Outputs.Any(o => o.Lot == "harvest/" + target)).Id;
@@ -84,7 +84,7 @@ public sealed class ForecastCoupledSelectionTests
             Coupled = facts.ForecastObserved.Coupled! with { Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [] }
         } };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
+        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
         var selected = Select(facts);
         Assert.NotEmpty(selected.Selected.Plan.Allocations);
         Assert.Single(selected.Selected.Plan.Allocations.Select(a => a.Pawn).Distinct());
@@ -104,7 +104,8 @@ public sealed class ForecastCoupledSelectionTests
     [Fact]
     public void OrdinaryReviewCombinesIndependentFoodSourcesForOneHungryBeneficiary()
     {
-        var facts = Review();
+        // One source leaves the pawn starving part of the horizon: the second source's meal is capability-days of hunger.
+        var facts = Review(fall: .012);
         var result = Select(facts);
         Assert.Equal(Known(true), result.Selected.Feasible);
         Assert.True(result.Selected.Plan.Allocations.Length > 0, string.Join(";", result.Selection.Findings));
@@ -112,7 +113,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Contains(result.Selected.Plan.Allocations, a => a.Activity == SourceTask(facts, "plant-b"));
         Assert.Equal(2, result.Selected.Plan.Allocations.Count(a => facts.CoupledAlternatives!.Context.NeedTasks.Any(n => n.Task == a.Activity && n.Kind == "food")));
         Assert.True(result.SelectedVector.Urgent[0].Value < result.BaselineVector.Urgent[0].Value);
-        Assert.True(result.Selected.Needs["pawn"].Needs.Single(n => n.Kind == "food").FinalLevel.Value > 0);
+        Assert.True(result.SelectedVector.Value.Ledger.LossAgainst(result.BaselineVector.Value.Ledger).Value < 0);
         // Unknown future meal thoughts must not veto known relief of urgent hunger.
         Assert.True(result.Baseline.Needs["pawn"].Mood!.PressureTicks.IsKnown);
     }
@@ -620,7 +621,7 @@ public sealed class ForecastCoupledSelectionTests
         // Each ingredient allocation is its own alternative.
         var parkas = candidates.Alternatives.Where(c => c.ExclusiveOutcome == "clothing/pawn/Parka").ToArray();
         Assert.NotEmpty(parkas);
-        facts = facts with { CoupledAlternatives = candidates with
+        facts = facts with { CoupledAlternatives = (candidates with
         {
             Alternatives = EquatableArray.From(parkas),
             Context = candidates.Context with
@@ -636,7 +637,7 @@ public sealed class ForecastCoupledSelectionTests
                 } },
                 ObservedThoughts = new Dictionary<string, Fact<EquatableArray<MoodThought>>> { ["pawn"] = Known<EquatableArray<MoodThought>>([new("EnvironmentCold", -12)]) },
             }
-        } };
+        }).Priced(Horizon) };
         // The wearer's outdoor harvest is the incumbent work the parka would warm.
         var work = candidates.Alternatives.Where(c => c.ActivityCompletions.Count > 0 && c.ExclusiveOutcome.StartsWith("raw/", StringComparison.Ordinal))
             .First(c => Outcome(facts, c).ThermalExposure.Single(t => t.Pawn == "pawn").AssessedTicks > 0);

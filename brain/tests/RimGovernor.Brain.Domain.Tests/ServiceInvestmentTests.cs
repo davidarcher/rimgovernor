@@ -34,7 +34,7 @@ public sealed class ServiceInvestmentTests
         facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = read with
         { Construction = read.Construction with { Options = [wall with
         { AvailableInput = late ? wall.AvailableInput : Known(0d), FinishTicks = late ? Known(2000d) : wall.FinishTicks }] } } } };
-        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1000) };
+        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1000)?.Priced() };
         var selection = ForecastThermalPortfolioTests.Select(facts);
         Assert.Empty(selection.Selected.CompletedDevelopmentSites);
         Assert.Empty(selection.ServiceInvestments);
@@ -133,12 +133,12 @@ public sealed class ServiceInvestmentTests
         var read = facts.ForecastObserved.Coupled!;
         var noPower = read.Thermal! with { Sources = EquatableArray.From(read.Thermal!.Sources.Select(s => s with { SupplyTicks = default })) };
         var unavailable = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = read with { Thermal = noPower } } };
-        unavailable = unavailable with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(unavailable, 1000) };
+        unavailable = unavailable with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(unavailable, 1000)?.Priced() };
         Assert.Empty(ForecastThermalPortfolioTests.Select(unavailable).Selected.CompletedDevelopmentSites);
         var solved = read.Thermal with { Cells = EquatableArray.From(read.Thermal.Cells.Select(c => c with
         { Temperature = Known(20d), Roof = "thin", Solid = c.Cell != new Cell(1, 1) && c.Cell != new Cell(3, 1), Site = "", FutureSolid = false })) };
         var alternate = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = read with { Thermal = solved } } };
-        alternate = alternate with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(alternate, 1000) };
+        alternate = alternate with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(alternate, 1000)?.Priced() };
         var choice = ForecastThermalPortfolioTests.Select(alternate);
         Assert.Empty(choice.Selected.CompletedDevelopmentSites);
         Assert.Empty(choice.ServiceInvestments);

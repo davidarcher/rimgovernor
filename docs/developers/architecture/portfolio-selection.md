@@ -22,21 +22,30 @@ demand-driven delivery to that same composition and comparison. Native room
 effects and care timing stay separate from labor, with unknown effects explicit.
 They do not restore a local helper selector underneath the chosen portfolio.
 
-The comparison horizon is one game day. The ordering compares urgent food/rest
-exhaustion duration, deficit depth and threshold exposure before other unmet
-needs, mood and requested development. Mood ranks by expected
-[break risk](../contracts/forecast-contracts.md#coupled-mood-break-risk) when every
-pawn's break threshold is observed, otherwise by target exposure/pressure.
-Complete assessed thermal exposure retains degree-ticks; incomplete occupancy
-remains unknown. Proposed shelter also compares thermal relief over the same
-known stationary occupancy against the observed environment without that work.
-This metric is compared only between portfolios with the same nonempty need-use
+The comparison horizon is one game day. The order (see
+[forecast value](forecast-value.md#comparator)) is:
+
+1. **Safety floors.** A portfolio that lets a pawn's food or rest reach zero loses to one that does not;
+   when every feasible portfolio does, the least zero-time wins. A portfolio whose expected mental breaks
+   exceed `BreakRiskCap` per pawn-day loses likewise. A floor that cannot be checked says so
+   (`break_floor_unassessed`, `death_floor_unassessed`) and does not pass or fail anything.
+2. **Capability-days.** Hunger, rest, food poisoning, thermal exposure, mental breaks and
+   wellbeing are priced in capability-days, all as losses; the portfolio that loses fewer wins. Two
+   portfolios are compared on the terms both assess and the differences are summed, so an unassessed term never
+   rewards a portfolio. A difference within `TieResolution` is a tie. Mood enters through the expected
+   [break risk](../contracts/forecast-contracts.md#coupled-mood-break-risk) and wellbeing, never as raw threshold ticks.
+3. **Terms with no conversion yet**, in this order: urgent first-care time, thermal relief, pending care batches,
+   tend quality and room factors, maintenance missing XP, joy threshold exposure, requested development,
+   unsupplied demand and first-care time.
+4. **True ties** retain the feasible incumbent, then prefer less total participant labor among new plans.
+
+Thermal relief is measured over the known stationary occupancy against the observed environment without that work.
+It is compared only between portfolios with the same nonempty need-use
 occupancy (pawn, location and interval). Adding an otherwise unneeded activity
 cannot earn counterfactual shelter value. Unknown idle or transit exposure is
 never credited; different occupancy intervals remain incomparable by this metric.
-No injury probability or universal conversion of death, mood
-and labor is invented. True ties retain the feasible incumbent, then prefer
-less total participant labor among new plans. Clothing delivery is development,
+No injury probability is invented: harm stays unassessed (`harm_capability_unassessed`) until the harm model.
+Clothing delivery is development,
 not wearing or thermal protection. Completed construction effects count each
 physical site once, including when a larger prerequisite bundle supplies it.
 A planned site finished inside the horizon is one unit of requested development,

@@ -120,7 +120,6 @@ public sealed partial class Rounder
                 ["selected_ids"] = selection.Selection.Selected,
                 ["deferred_pawns"] = selection.Deferred.Select(t => t.Pawn).ToArray(),
                 ["baseline"] = ConsequenceAttrs(selection.BaselineVector), ["selected"] = ConsequenceAttrs(selection.SelectedVector),
-                ["value"] = ValueAttrs(selection),
                 ["rejected"] = selection.Rejected.Take(16).Select(r => new Dictionary<string, object?>
                 { ["ids"] = r.Commitments.ToArray(), ["reason"] = r.Reason, ["vector"] = r.Consequences is { } v ? ConsequenceAttrs(v) : null }).ToArray(),
                 ["explanation_truncated"] = selection.Rejected.Count > 16,
@@ -164,25 +163,27 @@ public sealed partial class Rounder
 
     private static double? Number(Fact<double> value) => value.IsKnown ? value.Value : null;
 
-    /// <summary>The capability-days ledger of the baseline and the selection with the policy constants (#3520); reported, not ranked on.</summary>
-    private static Dictionary<string, object?> ValueAttrs(ForecastCoupledSelection selection) => new()
+    /// <summary>What an outcome was ranked by (#3522): the ledger term by term, the floors, and the policy constants.</summary>
+    private static Dictionary<string, object?> ValueAttrs(ForecastValueExplanation value) => new()
     {
-        ["baseline"] = LedgerAttrs(selection.BaselineValue), ["selected"] = LedgerAttrs(selection.SelectedValue),
+        ["total"] = Number(value.Ledger.Total), ["hunger"] = Number(value.Ledger.Hunger), ["rest"] = Number(value.Ledger.Rest),
+        ["food_poisoning"] = Number(value.Ledger.FoodPoisoning), ["thermal"] = Number(value.Ledger.Thermal),
+        ["mood_breaks"] = Number(value.Ledger.MoodBreaks), ["wellbeing"] = Number(value.Ledger.Wellbeing),
+        ["harm"] = Number(value.Ledger.Harm), ["investment"] = Number(value.Ledger.Investment), ["unknown"] = value.Ledger.Findings.ToArray(),
+        ["floors"] = new Dictionary<string, object?>
+        {
+            ["urgent_zero"] = FloorAttrs(value.UrgentZero), ["break_risk_cap"] = FloorAttrs(value.BreakRisk), ["death_risk_floor"] = FloorAttrs(value.Death)
+        },
         ["policy"] = new Dictionary<string, object?>
         {
-            ["death_terminal_value"] = selection.ValuePolicy.DeathTerminalValue, ["wellbeing_weight"] = selection.ValuePolicy.WellbeingWeight,
-            ["harm_risk_alpha"] = selection.ValuePolicy.HarmRiskAlpha, ["harm_risk_weight"] = selection.ValuePolicy.HarmRiskWeight,
-            ["death_risk_floor"] = selection.ValuePolicy.DeathRiskFloor, ["break_risk_cap"] = selection.ValuePolicy.BreakRiskCap,
-            ["tie_resolution"] = selection.ValuePolicy.TieResolution
+            ["death_terminal_value"] = value.Policy.DeathTerminalValue, ["wellbeing_weight"] = value.Policy.WellbeingWeight,
+            ["harm_risk_alpha"] = value.Policy.HarmRiskAlpha, ["harm_risk_weight"] = value.Policy.HarmRiskWeight,
+            ["death_risk_floor"] = value.Policy.DeathRiskFloor, ["break_risk_cap"] = value.Policy.BreakRiskCap,
+            ["tie_resolution"] = value.Policy.TieResolution
         }
     };
 
-    private static Dictionary<string, object?> LedgerAttrs(ForecastValueResult value) => new()
-    {
-        ["total"] = Number(value.Total), ["hunger"] = Number(value.Hunger), ["rest"] = Number(value.Rest),
-        ["food_poisoning"] = Number(value.FoodPoisoning), ["thermal"] = Number(value.Thermal), ["mood_breaks"] = Number(value.MoodBreaks), ["wellbeing"] = Number(value.Wellbeing),
-        ["harm"] = Number(value.Harm), ["investment"] = Number(value.Investment), ["unknown"] = value.Findings.ToArray()
-    };
+    private static Dictionary<string, object?> FloorAttrs(ForecastFloor floor) => new() { ["assessed"] = floor.Assessed, ["passed"] = floor.Passed, ["excess"] = floor.Excess };
 
     private static Dictionary<string, object?> ConsequenceAttrs(ForecastConsequenceVector vector) => new()
     {
@@ -204,6 +205,7 @@ public sealed partial class Rounder
         ["support_surgery_room_factor"] = Number(vector.Support.SurgeryRoomFactor),
         ["maintenance"] = vector.Maintenance.Select(m => new Dictionary<string, object?>
         { ["requirement"] = m.Requirement, ["missing_xp"] = Number(m.MissingXp), ["unknown"] = m.Findings.ToArray() }).ToArray(),
-        ["development"] = vector.Development, ["labor"] = vector.Labor, ["unknown"] = vector.Unknown.ToArray()
+        ["development"] = vector.Development, ["labor"] = vector.Labor, ["unknown"] = vector.Unknown.ToArray(),
+        ["value"] = ValueAttrs(vector.Value)
     };
 }

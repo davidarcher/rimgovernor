@@ -62,6 +62,47 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
 
     /// <summary>Capability added or loss avoided after completion: 0 until tier 2 (#3470).</summary>
     public Fact<double> Investment { get; init; }
+
+    /// <summary>
+    /// This outcome's loss minus <paramref name="other"/>'s, summed over the terms BOTH assess (a negative number means this
+    /// outcome loses less). A term either side cannot assess is left out of both, so missing data never rewards a side, and
+    /// the comparison is unknown only when no term is shared (#3522). Compare totals directly only when every term is known.
+    /// </summary>
+    public Fact<double> LossAgainst(ForecastValueResult other)
+    {
+        double delta = 0;
+        var shared = false;
+        foreach (var (mine, theirs) in new[] { (Hunger, other.Hunger), (Rest, other.Rest), (FoodPoisoning, other.FoodPoisoning),
+            (Thermal, other.Thermal), (MoodBreaks, other.MoodBreaks), (Wellbeing, other.Wellbeing), (Harm, other.Harm), (Investment, other.Investment) })
+        {
+            if (!mine.TryGetValue(out var a) || !theirs.TryGetValue(out var b)) continue;
+            delta += a - b;
+            shared = true;
+        }
+        return shared ? Known(delta) : default;
+    }
+}
+
+/// <summary>One safety floor of an outcome: whether it could be assessed, and by how much it is broken (0 when it holds).</summary>
+public sealed record ForecastFloor(bool Assessed, double Excess)
+{
+    public bool Passed => Excess <= 0;
+}
+
+/// <summary>
+/// Why an outcome ranks where it does (#3522): its capability-days ledger, the three safety floors and the constants used.
+/// The ranking reads the floors, then the ledger, then the tiebreakers; this record is the explanation that is emitted.
+/// </summary>
+public sealed record ForecastValueExplanation(ForecastValueResult Ledger, ForecastValuePolicy Policy)
+{
+    /// <summary>Food or rest reaching zero: the excess is the longest zero-time in ticks. Unassessed when either timeline is unknown.</summary>
+    public ForecastFloor UrgentZero { get; init; } = new(false, 0);
+
+    /// <summary>A pawn's expected breaks per day over <see cref="ForecastValuePolicy.BreakRiskCap"/>: the excess is the worst pawn's overshoot.</summary>
+    public ForecastFloor BreakRisk { get; init; } = new(false, 0);
+
+    /// <summary>Unassessed until the harm model (#3471); always passes.</summary>
+    public ForecastFloor Death { get; init; } = new(false, 0);
 }
 
 /// <summary>The capability-days ledger: pure, term by term, every number from a game table or a named policy constant (#3520).</summary>
@@ -164,6 +205,27 @@ public static partial class ForecastValue
         {
             Hunger = hunger, Rest = rest, FoodPoisoning = poisoning, Thermal = thermal, MoodBreaks = breaks, Wellbeing = wellbeing,
             Harm = Known(0d), Investment = Known(0d),
+        };
+    }
+
+    /// <summary>The ledger and the floors of one outcome, as the comparison reads them (#3522). Wellbeing is against <paramref name="reference"/>, the same for every outcome of a search.</summary>
+    public static ForecastValueExplanation Explain(ForecastCoupledOutcome outcome, Fact<double> urgentZeroTicks, ForecastCoupledContext context,
+        double horizon, ForecastCoupledOutcome reference)
+    {
+        var policy = context.Value;
+        var days = horizon / GameTime.TicksPerDay;
+        var worst = 0d;
+        var assessed = days > 0 && outcome.Needs.Count > 0;
+        foreach (var result in outcome.Needs.Values)
+        {
+            if (result.Mood is { BreakRisk: { IsKnown: true } risk } && days > 0) worst = Math.Max(worst, risk.Value / days - policy.BreakRiskCap);
+            else assessed = false;
+        }
+        return new(Of(outcome, context, horizon, reference), policy)
+        {
+            UrgentZero = new(urgentZeroTicks.IsKnown, urgentZeroTicks.IsKnown ? Math.Max(0, urgentZeroTicks.Value) : 0),
+            BreakRisk = new(assessed, worst),
+            Death = new(false, 0),
         };
     }
 

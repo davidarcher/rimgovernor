@@ -71,7 +71,7 @@ public sealed class PlannedShelterTests
             MoodUnclampedTarget = Known(.5), MoodIntervalTicks = Known(150d), MoodRisePerTick = Known(.12 / GameTime.TicksPerHour),
             MoodFallPerTick = Known(.08 / GameTime.TicksPerHour), MoodFreezesWhileAsleep = Known(true), BreakThreshold = Known(.3),
             ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]),
-            Needs = [new("food", Known(1d), Known(0d), Known(.3)), new("rest", Known(.2), Known(0d), Known(.3))],
+            Needs = [new("food", Known(1d), Known(0d), Known(.3)), new("rest", Known(.2), Known(.0004), Known(.3))],
             Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.0005)) { Location = Inside }],
         };
         facts = facts with
@@ -95,7 +95,7 @@ public sealed class PlannedShelterTests
             },
         };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
+        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
     }
 
     private static ForecastCoupledSelection Select(RoundsFacts facts) => ForecastCoupledSelection.CompareActivityOutcomes(

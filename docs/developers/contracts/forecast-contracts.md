@@ -124,7 +124,7 @@ brain hysteresis, not a forecast. Missing thresholds retain established risk.
 
 ## Coupled mood break risk
 
-The coupled comparator prices forecast mood as expected mental breaks (#3221).
+The coupled comparator prices forecast mood as expected mental breaks (#3221), and since #3522 as capability-days.
 `MoodBreakModel.BreaksPerDay` (`LayoutMood.cs`, the one owner of the break math)
 gives a level's tier one break per renewal cycle of the tier's MTB (4, 0.8 or 0.5
 days) plus the 15,000-tick post-recovery cooldown. The pawn's observed minor-break
@@ -134,11 +134,14 @@ rate over the piecewise-linear target trajectory, cut at the tier thresholds. Th
 duration are not modelled. Actual mood and layout's work-day/watt price are not used.
 
 `ForecastConsequenceVector.BreakRisk` sums the pawns' risk and is known only when
-every pawn's threshold and mood are assessed. In that case it replaces target
-exposure and pressure within the mood tier, so mood far above every threshold has
-no comparator value. Otherwise the vector keeps
-`mental_break_probability_unassessed` and the raw ticks rank as before. The
-serious-harm, unmet-needs and development ordering is unchanged; there is no
+every pawn's threshold and mood are assessed; otherwise the vector keeps
+`mental_break_probability_unassessed`. The ranking no longer reads it, nor the raw
+target exposure and pressure, directly. The ledger's `MoodBreaks` term prices the risk
+in capability-days (expected breaks times the days a break costs), so mood far above
+every threshold has no comparator value, and a pawn whose threshold is unobserved
+leaves the term unassessed: two outcomes are compared on the terms both assess. The
+break-risk floor reads the same risk per pawn-day against `BreakRiskCap`; when no
+threshold supports it the review reports `break_floor_unassessed`. There is no
 mood-to-labor rate. Power reserve risk likewise persists across unavailable
 reads and serialization; recovery requires readable current networks.
 
