@@ -39,7 +39,20 @@ namespace HomeBridge.BridgeTools
             return Status();
         }
 
-        public static object Stop() { dir = null; return Status(); }
+        public static object Stop()
+        {
+            dir = null;
+            SetViewport(true);
+            return Status();
+        }
+
+        // The capture renders by hand (Render below), so the game's own per-frame view of the map is wasted work, and on
+        // a CPU-rendered runner it is what keeps the game thread from serving the brain's hops. A disabled camera still
+        // answers Camera.Render, so the viewport is off for the whole recording and the shots are unaffected.
+        static void SetViewport(bool on)
+        {
+            if (Find.Camera is Camera camera && camera.enabled != on) camera.enabled = on;
+        }
 
         public static object Status() => new { success = true, recording = dir != null, dir, interval, size, nextTick, frames,
             headless = HeadlessRim.HeadlessMode.Active, lastError };
@@ -65,7 +78,9 @@ namespace HomeBridge.BridgeTools
 
         static void BeforeMapUpdate(Map __instance)
         {
-            if (dir == null || __instance != Find.CurrentMap || Find.TickManager.TicksGame < nextTick) return;
+            if (dir == null || __instance != Find.CurrentMap) return;
+            SetViewport(false);
+            if (Find.TickManager.TicksGame < nextTick) return;
             viewOverride = ColonyRect(__instance);
         }
 
