@@ -52,6 +52,9 @@ public sealed class ClockSchedulerResult
     /// <summary>The pace the step's clock status reported.</summary>
     public StepPacing Pacing { get; set; } = new();
 
+    /// <summary>The step's stages (gate, read, select, refresh, rounds, extent, critical, optional, record), lapped as it runs; published on the clock_step row.</summary>
+    public StepStages Stages { get; } = new();
+
     /// <summary>Copies every planner result <paramref name="other"/> holds into this one, leaving the ones it does not.</summary>
     internal void MergeFrom(ClockSchedulerResult other)
     {

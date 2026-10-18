@@ -13,6 +13,13 @@ internal readonly record struct PlannerWait(IReadOnlyList<ActionId> On, long Dea
 internal sealed record PlannerSelectionResult(bool Planners, Func<PlannerEntry, bool>? Pick, IReadOnlyList<string> Waiting, ulong Began)
 {
     public static PlannerSelectionResult None { get; } = new(false, null, [], 0);
+
+    /// <summary>
+    /// Why each selected planner runs: <c>dirty</c> (a wake marked it), <c>due</c> (its cadence passed),
+    /// <c>dirty+due</c>, <c>settled</c> (a run just ended), <c>full</c> or <c>all</c> (every planner). Each
+    /// planner's planner_step row carries its word as <c>selected</c>, and the clock_step row the counts.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? Why { get; init; }
 }
 
 /// <summary>
@@ -175,8 +182,10 @@ internal sealed class PlannerQueue
     {
         if (full || _all)
         {
-            return new PlannerSelectionResult(true, null, [], _seq);
+            var everything = full ? "full" : "all";
+            return new PlannerSelectionResult(true, null, [], _seq) { Why = Entries().ToDictionary(e => e.Name, _ => everything, StringComparer.Ordinal) };
         }
+        var dirtyBefore = settled ? new HashSet<string>(_dirty.Keys, StringComparer.Ordinal) : null;
         if (settled)
         {
             MarkAll();
@@ -190,12 +199,13 @@ internal sealed class PlannerQueue
             }
         }
         var chosen = new HashSet<string>(StringComparer.Ordinal);
+        var why = new Dictionary<string, string>(StringComparer.Ordinal);
         var waiting = new List<string>();
         foreach (var entry in Entries())
         {
             var dirty = _dirty.ContainsKey(entry.Name);
-            var ran = _due.TryGetValue(entry.Name, out var due);
-            if (!dirty && !(ran && due <= tick))
+            var due = _due.TryGetValue(entry.Name, out var dueTick) && dueTick <= tick;
+            if (!dirty && !due)
             {
                 continue;
             }
@@ -205,12 +215,16 @@ internal sealed class PlannerQueue
                 continue;
             }
             chosen.Add(entry.Name);
+            why[entry.Name] = dirty && due ? "dirty+due"
+                : !dirty ? "due"
+                : dirtyBefore is not null && !dirtyBefore.Contains(entry.Name) ? "settled"
+                : "dirty";
         }
         if (chosen.Count == 0)
         {
             return new PlannerSelectionResult(false, null, waiting, _seq);
         }
-        return new PlannerSelectionResult(true, entry => chosen.Contains(entry.Name), waiting, _seq);
+        return new PlannerSelectionResult(true, entry => chosen.Contains(entry.Name), waiting, _seq) { Why = why };
     }
 
     /// <summary>

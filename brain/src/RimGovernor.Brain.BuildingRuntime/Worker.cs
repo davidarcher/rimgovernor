@@ -372,10 +372,13 @@ public sealed partial class Worker
     private async Task RunStep(DateTimeOffset now, CancellationToken ct)
     {
         _advanced = false;
+        var cycleBegan = Stopwatch.GetTimestamp();
+        var stages = new StepStages();
         // StepTimeout budgets the dispatches, not the wait for the player gate: a scheduler step holds the gate
         // for its whole planner wave, and a budget that started before the wait left the step 0-3 s for its
         // actions and killed the last one at the deadline.
         using var gate = await _player.EnterAsync("worker", false, ct).ConfigureAwait(false);
+        stages.Lap("gate");
         var epoch = gate.Epoch;
         using var budget = CancellationTokenSource.CreateLinkedTokenSource(gate.Call);
         budget.CancelAfter(_config.StepTimeout);
@@ -535,6 +538,7 @@ public sealed partial class Worker
         var errs = new List<Exception>();
         // One flush per step that sent a deferred write, on every exit: a yield, an error, or the end of the candidates.
         var sent = false;
+        stages.Lap("read");
         try
         {
             // A dispatch that starts with less of the step's budget left than the longest dispatch so far took
@@ -699,7 +703,7 @@ public sealed partial class Worker
                     var changed = outcome != wait.Outcome;
                     if (changed || result.NativeCalled)
                     {
-                        WorkerDispatchRow(tally, v, after, result, running, stale, rerr, changed, repeats);
+                        WorkerDispatchRow(tally, v, after, result, running, stale, rerr, changed, repeats, dispatchStarted.Elapsed);
                     }
                     repeats = changed ? 0 : repeats + 1;
                     var cancelled = 0;
@@ -762,9 +766,15 @@ public sealed partial class Worker
         }
         finally
         {
+            stages.Lap("dispatch");
             if (sent)
             {
                 await Flush().ConfigureAwait(false);
+                stages.Lap("flush");
+            }
+            if (dispatched > 0)
+            {
+                Tel.Decide(WorkerStepDecision(Stopwatch.GetElapsedTime(cycleBegan), stages, candidates.Count, dispatched));
             }
         }
         var all = new List<Exception?> { worldErr };
@@ -787,6 +797,27 @@ public sealed partial class Worker
         catch (Exception)
         {
         }
+    }
+
+    /// <summary>
+    /// The worker_step planner_step row of one Worker cycle that dispatched: dur the cycle's wall from its start to
+    /// its flush, attrs the stages (gate, read, dispatch, flush), the candidates it saw and the dispatches it made.
+    /// Filed only for a cycle that dispatched, so an idle Worker writes nothing.
+    /// </summary>
+    internal static Decision WorkerStepDecision(TimeSpan took, StepStages stages, int candidates, int dispatched)
+    {
+        var attrs = new Dictionary<string, object?> { ["candidates"] = (long)candidates, ["dispatched"] = (long)dispatched };
+        stages.Publish(attrs);
+        return new Decision
+        {
+            Kind = Decision.PlannerStepKind,
+            Component = "worker",
+            Target = "worker_step",
+            Verdict = "ok",
+            Reason = "dispatched",
+            Dur = took,
+            Attrs = attrs,
+        };
     }
 
     /// <summary>Whether the candidate joins its plan's other plain intents in one batched Apply; other kinds each dispatch alone.</summary>
@@ -858,7 +889,7 @@ public sealed partial class Worker
     /// itself, not a failure, so only another error is WARN. Stale marks a run held on stale facts so a run can
     /// count the holds the read bounds refused.
     /// </summary>
-    internal static void WorkerDispatchRow(ReadTally tally, ProgressView before, ProgressView after, ExecutorResult result, bool running, bool stale, Exception? err, bool changed, int repeats)
+    internal static void WorkerDispatchRow(ReadTally tally, ProgressView before, ProgressView after, ExecutorResult result, bool running, bool stale, Exception? err, bool changed, int repeats, TimeSpan took = default)
     {
         var refused = WorkerRefusedReasons(result);
         var attrs = new Dictionary<string, object?>
@@ -878,6 +909,7 @@ public sealed partial class Worker
             Target = before.Action.Value,
             Verdict = "waiting",
             Reason = Wire.Name(after.Stage),
+            Dur = took,
             Attrs = attrs,
         };
         if (err is DependencyException)

@@ -316,11 +316,12 @@ public sealed partial class Rounder
     internal async Task<RoundsResult> StepAsync(StepArbiter arbiter, bool isPartial, CancellationToken ct, CancellationToken epoch)
     {
         var timer = Stopwatch.StartNew();
+        var stages = new StepStages();
         var span = Tel.StartSpan("buildingruntime", "rounds.review");
         Exception? failure = null;
         try
         {
-            return await ReviewStepAsync(arbiter, isPartial, ct, epoch).ConfigureAwait(false);
+            return await ReviewStepAsync(arbiter, isPartial, stages, ct, epoch).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -329,12 +330,17 @@ public sealed partial class Rounder
         }
         finally
         {
-            Tel.Decide(RoundsStepDecision(failure, timer.Elapsed, isPartial));
+            Tel.Decide(RoundsStepDecision(failure, timer.Elapsed, isPartial, stages));
             Tel.EndSpan(span, failure);
         }
     }
 
-    internal async Task<RoundsResult> ReviewStepAsync(StepArbiter arbiter, bool isPartial, CancellationToken ct, CancellationToken epoch)
+    internal Task<RoundsResult> ReviewStepAsync(StepArbiter arbiter, bool isPartial, CancellationToken ct, CancellationToken epoch) =>
+        ReviewStepAsync(arbiter, isPartial, new StepStages(), ct, epoch);
+
+    // The review's stages (journal, observe, layout, derive, acquisition, review, admit, record) are lapped onto
+    // stages, published on the rounds planner_step row as stage_ms / stage_alloc_kb.
+    internal async Task<RoundsResult> ReviewStepAsync(StepArbiter arbiter, bool isPartial, StepStages stages, CancellationToken ct, CancellationToken epoch)
     {
         var p = Player;
         var state = p.Session.State();
@@ -387,8 +393,10 @@ public sealed partial class Rounder
             readDefinitions = [.. readDefinitions, StorageRules.ShelfDefinition];
         }
         var claims = await p.Journal.ConstructionClaimsAsync(state.Snapshot, expected.Tick, ct).ConfigureAwait(false);
+        stages.Lap("journal");
         using var window = ClockPlanning.StandaloneWindow(Native);
         var reading = await ObserveRoundsAsync(Native, expected, RoomsEnabled(), claims, readDefinitions, ct).ConfigureAwait(false);
+        stages.Lap("observe");
         PublishFrame(expected, reading.Frame);
         await BreakDispatch.ReleaseBreakWorkAsync(p.Journal, state.Snapshot, reading.Emergency, plans, ct).ConfigureAwait(false);
         LogTechTier(reading.Projection, ct);
@@ -420,6 +428,7 @@ public sealed partial class Rounder
         }
         reading = ReviewChildRooms(reading);
         reading = reading.WithProjection(await ReviewLayoutPlanAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false));
+        stages.Lap("layout");
         reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });
         if (reading.Projection.LayoutPlan.TryGetValue(out var layoutPlan))
         {
@@ -682,8 +691,11 @@ public sealed partial class Rounder
         }
         // Acquisition uses the review's completed home staffing and defense facts.
         Census.Retain(reading, RoomsEnabled(), claims);
+        stages.Lap("derive");
         await PlanFoodAcquisitionAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
+        stages.Lap("acquisition");
         var result = await p.Journal.ReviewRoundsAsync(new RoundsRequest { Revision = previous.Revision, Current = state.Snapshot, Tick = reading.Projection.Identity.Tick, Enabled = true, Policy = Policy, Facts = reading.Projection.Facts }, ct).ConfigureAwait(false);
+        stages.Lap("review");
         Demand.Set(result.Review.Snapshot, result.Needs.ResourceDemand);
         TradeMemory.Set(result.Review.Snapshot, result.Needs.Trade);
         WorkAssignments.Set(result.Review.Snapshot, result.Needs.WorkAssignments);
@@ -693,7 +705,15 @@ public sealed partial class Rounder
         if (result.Needs.CoupledSelection is { } compared) GoalInfeasible.Set(result.Review.Snapshot, GoalRules.InfeasibleOf(compared));
         var taken = AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
         AdmitStandby(reading.Projection.Facts, workActions, taken, state.Snapshot, ct, epoch);
-        var attrs = new List<(string Key, object? Value)> { ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value) };
+        stages.Lap("admit");
+        var attrs = new List<(string Key, object? Value)>
+        {
+            ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value),
+            // The policy inspection inside the review stage (the coupled search dominates it): its wall and the
+            // search's expansions against the search bound (#3556).
+            ("inspect_ms", result.Needs.InspectMs),
+            ("coupled_search_expansions", result.Needs.CoupledSelection?.Selection.Expansions ?? -1),
+        };
         attrs.AddRange(RoundsFoodAttrs(reading.Projection.Facts, Seasonal(reading.Projection.Facts)));
         attrs.Add(("hunt_sources", reading.Projection.Acquisition.TryGetValue(out var offered) ? offered.Count(s => s.Hunt && s.Food) : -1));
         if (reading.Projection.HuntHolds.Count > 0)
@@ -723,6 +743,7 @@ public sealed partial class Rounder
         await DrawSafetyOverlayAsync(state.Snapshot, reading.Projection, reading.Emergency, ct).ConfigureAwait(false);
         await DrawStockOverlayAsync(state.Snapshot, reading.Projection, result, ct).ConfigureAwait(false);
         await DrawSpotOverlayAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
+        stages.Lap("record");
         return result;
     }
 
@@ -810,9 +831,10 @@ partial class Rounder
     /// The one planner_step row of a Rounder step: ok when the review ran, failed with the error as an attr
     /// (and reason control_lost for ControlException) when it did not.
     /// </summary>
-    internal static Decision RoundsStepDecision(Exception? err, TimeSpan took, bool isPartial)
+    internal static Decision RoundsStepDecision(Exception? err, TimeSpan took, bool isPartial, StepStages? stages = null)
     {
         var attrs = new Dictionary<string, object?> { ["partial"] = isPartial };
+        stages?.Publish(attrs);
         var d = new Decision
         {
             Kind = Decision.PlannerStepKind,

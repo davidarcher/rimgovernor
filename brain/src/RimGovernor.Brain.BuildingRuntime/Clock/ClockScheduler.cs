@@ -188,7 +188,9 @@ public sealed partial class ClockScheduler
         var call = entry.Call;
         var epoch = entry.Epoch;
         var gateWait = Stopwatch.GetElapsedTime(entered);
+        result.Stages.Lap("gate");
         Exception? failure = null;
+        PlannerSelectionResult? sel = null;
         // The round trips that still cross the bridge (frame misses and writes) are tallied by tool so the cost of
         // the composition is visible per step: as a clock_step row in the OTLP log ring, which `rimgovernor phases`
         // reports as reads/step.
@@ -267,7 +269,9 @@ public sealed partial class ClockScheduler
                 throw new AuthorityException("authority is not enabled");
             }
             _player.Current(call, epoch);
-            var sel = await SelectPlannersAsync(reason, statusTick, call).ConfigureAwait(false);
+            result.Stages.Lap("read");
+            sel = await SelectPlannersAsync(reason, statusTick, call).ConfigureAwait(false);
+            result.Stages.Lap("select");
             result.Waiting = [.. sel.Waiting];
             if (sel.Planners && Config.Rounds is not null)
             {
@@ -349,6 +353,17 @@ public sealed partial class ClockScheduler
                 }
             }
             result.Pacing.Publish(row);
+            result.Stages.Publish(row);
+            if (sel?.Why is { Count: > 0 } why)
+            {
+                // How many planners each selection word chose: the dirty-only cadence question (#3556).
+                var selection = new Dictionary<string, object?>(StringComparer.Ordinal);
+                foreach (var word in why.Values)
+                {
+                    selection[word] = (long)(selection.TryGetValue(word, out var n) ? (long)n! : 0) + 1;
+                }
+                row["selection"] = selection;
+            }
             var cause = result.Reason.Cause == default ? reason.Cause : result.Reason.Cause;
             var elapsed = Stopwatch.GetElapsedTime(entered);
             Metrics.RecordStepMetrics(cause, elapsed, result.CriticalWave, row);
@@ -388,10 +403,11 @@ public sealed partial class ClockScheduler
                     // A failed zone read keeps the held census: planners ask again and judge its staleness.
                 }
             }
+            output.Stages.Lap("refresh");
             List<string> planners;
             try
             {
-                planners = await StepPlannersAsync(output, wave, arbiter, sel.Pick, immediate, call, epoch).ConfigureAwait(false);
+                planners = await StepPlannersAsync(output, wave, arbiter, sel.Pick, sel.Why, immediate, call, epoch).ConfigureAwait(false);
             }
             catch
             {
@@ -399,7 +415,9 @@ public sealed partial class ClockScheduler
                 throw;
             }
             var wall = PlannerWave.After(Config.Budget.EffectiveWall);
-            if (await wave.Group.WaitCriticalAsync(wall).ConfigureAwait(false) == CriticalWait.Cutoff)
+            var criticalWait = await wave.Group.WaitCriticalAsync(wall).ConfigureAwait(false);
+            output.Stages.Lap("critical");
+            if (criticalWait == CriticalWait.Cutoff)
             {
                 var stuck = wave.Close();
                 output.CriticalWave += Stopwatch.GetElapsedTime(began);
@@ -413,6 +431,7 @@ public sealed partial class ClockScheduler
             output.CriticalWave += criticalWall;
             var cutoff = wall;
             var pending = await wave.Group.WaitUntilAsync(cutoff).ConfigureAwait(false);
+            output.Stages.Lap("optional");
             output.MissedCutoff.AddRange(pending);
             foreach (var (name, ms) in wave.PlannerMs())
             {
@@ -429,6 +448,7 @@ public sealed partial class ClockScheduler
         {
             wave.Close();
             await RecordWaveAsync(sel, wave, tick, call).ConfigureAwait(false);
+            output.Stages.Lap("record");
         }
     }
 
@@ -459,7 +479,7 @@ public sealed partial class ClockScheduler
     // it commits), then queues the configured catalog planners the pick selects (null: all) onto the wave sharing
     // the arbiter, returning the queued names without waiting. The rounder's own error aborts before anything is
     // queued; an error from a queued planner is isolated by the wave.
-    private async Task<List<string>> StepPlannersAsync(ClockSchedulerResult output, PlannerWave wave, StepArbiter arbiter, Func<PlannerEntry, bool>? pick, bool immediate, CancellationToken call, CancellationToken epoch)
+    private async Task<List<string>> StepPlannersAsync(ClockSchedulerResult output, PlannerWave wave, StepArbiter arbiter, Func<PlannerEntry, bool>? pick, IReadOnlyDictionary<string, string>? why, bool immediate, CancellationToken call, CancellationToken epoch)
     {
         if (Config.Rounds is { } rounds)
         {
@@ -481,11 +501,13 @@ public sealed partial class ClockScheduler
                 throw new AuthorityException("routine: authority lapsed");
             }
             output.Rounds = review;
+            output.Stages.Lap("rounds");
             if (!immediate)
             {
                 await EstablishExtentAsync(review.Review.Tick, call).ConfigureAwait(false);
+                output.Stages.Lap("extent");
             }
         }
-        return QueuePlanners(wave, arbiter, pick, call, epoch);
+        return QueuePlanners(wave, arbiter, pick, why, call, epoch);
     }
 }

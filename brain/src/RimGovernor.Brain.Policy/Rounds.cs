@@ -608,6 +608,10 @@ public sealed record RoundsFindings
 {
     [System.Text.Json.Serialization.JsonIgnore]
     public ForecastCoupledSelection? CoupledSelection { get; set; }
+
+    /// <summary>The wall time the policy inspection that produced these findings took (the store times it; the coupled search <see cref="CoupledSelection"/> dominates it), for the rounds_review row; derived, not saved.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public double InspectMs { get; set; }
     public DisasterHistory? Disaster { get; set; }
 
     public RoundsLatches Latches { get; set; } = new();

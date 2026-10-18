@@ -54,8 +54,8 @@ internal sealed class PlannerWave : IDisposable
 
     private CancellationToken Call { get; }
 
-    /// <summary>Queues <paramref name="entry"/>'s run on the wave: a critical planner under the step token, an optional one under the wave's cancellable token.</summary>
-    public void Queue(ClockScheduler s, StepArbiter arbiter, PlannerEntry entry, CancellationToken epoch)
+    /// <summary>Queues <paramref name="entry"/>'s run on the wave: a critical planner under the step token, an optional one under the wave's cancellable token. <paramref name="selected"/> is why the selection chose it (<see cref="PlannerSelectionResult.Why"/>), carried on its planner_step rows.</summary>
+    public void Queue(ClockScheduler s, StepArbiter arbiter, PlannerEntry entry, CancellationToken epoch, string? selected = null)
     {
         var priv = new ClockSchedulerResult();
         lock (_mu)
@@ -122,7 +122,7 @@ internal sealed class PlannerWave : IDisposable
                 : null;
             foreach (var row in needRows ?? [decision])
             {
-                Tel.Decide(row);
+                Tel.Decide(selected is null ? row : row with { Attrs = new Dictionary<string, object?>(row.Attrs) { ["selected"] = selected } });
             }
             span?.SetTag("rimgovernor.verdict", decision.Verdict);
             span?.SetTag("rimgovernor.reason", decision.Reason);

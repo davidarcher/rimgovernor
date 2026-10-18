@@ -136,6 +136,72 @@ What the day also showed (#3556, #3557, #3558): the brain reviews at wall cadenc
 25224 as "Activity deadline already passed", and the colony saw 12 reviews in a day where the retired 600-tick activity
 holds gave about 100.
 
+### Step profile (#3556 item 1)
+
+Measured 2026-10-18 on the same colony and machine, revision 52c4c8145 plus the stage instrumentation, brain session
+`2f2cd8c7c4bf4f01a5f3c0c9a1e786f4`: 11 `clock_step` rows (5 settled, 4 wake, 1 full, 1 timer), 82 s of wall from the
+first Run to the end-of-day hold at tick 62668 (51 s running at 1160 to 1280 ticks/s, 31 s held in reviews; the 110 s
+before the first Run are startup, the world rebuild and the first step). Each row carries `stage_ms` and `stage_alloc_kb`
+(the process allocation between laps, so a stage that overlaps parallel planners counts their allocation), `selection`
+(why the planners ran) and each `planner_step` row `selected`; the rounds row carries its own stages and the Worker files a
+`worker_step` row per cycle that dispatched.
+
+| Step stage | p50 | p95 | max | Allocation p50 | What it is |
+| --- | --- | --- | --- | --- | --- |
+| `clock_step` dur | 7.2 s | 15.6 s | 15.6 s | 2.5 GB | the whole step, 87 s over 11 steps |
+| gate | 351 ms | 1004 ms | 1004 ms | 28 MB | waiting for the player gate the Worker holds while it dispatches |
+| read | 33 ms | 270 ms | 270 ms | 4.6 MB | the step read with clock status, scope and validity checks |
+| select | 0 ms | 1 ms | 1 ms | 8 KB | the due-queue selection |
+| refresh | 17 ms | 361 ms | 361 ms | 0.3 MB | entity sections and the zone census |
+| rounds | 4645 ms | 13054 ms | 13054 ms | 2.0 GB (max 5.8 GB) | the rounds review, stages below |
+| extent | 0 ms | 152 ms | 152 ms | 0.4 MB | establishing the planning extent |
+| critical | 1500 ms | 2530 ms | 2530 ms | 332 MB | the critical planners (anomaly, shelter, admin, medical, people, disaster, defense) |
+| optional | 788 ms | 2262 ms | 2262 ms | 57 MB | the optional planners after the critical wave returned |
+| record | 2 ms | 22 ms | 22 ms | 3 MB | filing the wave on the due queue |
+| `clock_run` dur | 115 ms | 1433 ms | 1433 ms | | the driver's decision and the Run (1.4 s at the first Run; 2 of 9 refused on the hold serial) |
+
+| Rounds stage | p50 | p95 | max | Allocation p50 | What it is |
+| --- | --- | --- | --- | --- | --- |
+| acquisition | 1584 ms | 3956 ms | 3956 ms | 859 MB | `PlanFoodAcquisitionAsync` |
+| derive | 1169 ms | 2897 ms | 2897 ms | 261 MB | the reads and derivations between the layout plan and acquisition (stockpiles, planned sites, shelter reads, clearance, ledger) |
+| layout | 1005 ms | 9055 ms | 9055 ms | 387 MB (max 3.7 GB) | `ReviewLayoutPlanAsync`; 9 s once, at the step that planned the layout |
+| review | 328 ms | 1921 ms | 1921 ms | 336 MB | `ReviewRoundsAsync`; the policy inspection inside it is `inspect_ms` 324 ms p50, and the coupled search hit its 16384-expansion bound in every review after the first (`coupled_search_expansions`) |
+| observe | 29 ms | 420 ms | 420 ms | 28 MB | `ObserveRoundsAsync` |
+| journal, admit, record | 17, 1, 2 ms | 55, 46, 30 ms | | | journal loads and claims; admission; snapshot and overlays |
+
+What the profile says:
+
+- **Where the 7 s goes.** Rounds 4.6 s, of which 3.8 s is acquisition, derive and layout re-derived from the same facts at
+  every review and 0.3 s the review with the coupled search; then 2.3 s of planner waves and 0.35 s waiting for the
+  Worker's gate. Read, select, refresh and record together are under 60 ms. The coupled search, assumed to be the cost
+  of the rounds planner, is not: at the 16384-expansion bound it costs 0.3 s p50 (1.9 s once).
+- **Every step ran every planner.** `selection` was `full=22`, `settled=22` (a settled step marks all), `all=22` (an
+  authority wake), `dirty+due=22` or `due=22` (the timer step: `ReviewEvery` is 2500 ticks and the clock moved 8000 to
+  18000 ticks between steps). Of 824 Need rows in 11 steps (75 per step), 602 (73 %) ended `nothing_to_do` or
+  `disabled`. The planners' own wall summed to 9 to 33 s per step behind a 2.3 s wave: the width works, the work is
+  mostly wasted. A Pawns-only step was not isolated in this run because every family entry's sections include the pawn
+  sections, so a Pawns wake selects all 22; the dirty-only question is therefore which planners read what, not the queue.
+- **Game-thread queueing.** `hop_wait_ms` p50 per run: admin 1182 ms, military 912, food 751, economy 702, shelter 656,
+  home-upkeep 523; the planners that read nothing new wait 3 to 30 ms. The facade reads ran 0.8 to 3.0 s on the game
+  thread per step (`hop_run_ms`), serialized, while the planners waited in parallel.
+- **Dispatch is cheap.** 136 `dispatch` rows at 50 ms p50, 99 ms p95, 261 ms max; a Worker cycle dispatched 2 to 17
+  actions in 68 to 916 ms. Its cost to the step is the gate: the Worker waited 5.2 to 14.5 s for the scheduler's step, and
+  the scheduler waited up to 1 s for the Worker.
+- **No-op floor.** No step had nothing dirty, so the floor is composed from the measured stages: gate 0 (Worker idle) to
+  1 s, read 33 ms, select 0, record 2 ms, Run 115 ms: about 150 ms per review, 1.2 s when the Worker holds the gate.
+- **Is 0.65 s per review reachable?** Not with today's review. At a 600-tick cadence the 11 reviews become about 100, and
+  100 × 7.2 s is 720 s against the 65 s the 2-minute budget leaves. A review that re-runs rounds costs 3 to 6 s before
+  any planner runs, so the common review must skip rounds entirely (a Pawns-only review: 150 ms floor plus the few
+  planners whose facts changed), and the full review must run at a coarser cadence or incrementally. With that split the
+  average is a weighted one: at 1 full review (4 to 6 s) per 10 reviews the average is about 0.7 s, right at the budget;
+  the planner cuts below decide whether it lands under.
+- **Three biggest cuts.** (1) Rounds derive, acquisition and layout: 3.8 s and 2.9 GB per review, re-derived from facts
+  that rarely change between reviews; make them conditional on their inputs or run the full review on its own cadence.
+  (2) Dirty-only planner waves: stop the settled step marking all, make `ReviewEvery` longer than the review cadence, and
+  narrow the family entries' sections so a Pawns wake selects the planners that read pawns, not all 22; 73 % of Need rows
+  do nothing today. (3) The game-thread reads: 0.8 to 3 s of serialized facade work per step with the heavy planners each
+  waiting 0.7 to 1.2 s; fold the family reads into the step read, or read them once per step and share.
+
 ## Hosting in the mod (#3115)
 
 Decided (user, 2026-10-13):

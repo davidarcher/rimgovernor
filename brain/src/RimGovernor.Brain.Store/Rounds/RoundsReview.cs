@@ -238,7 +238,9 @@ public sealed partial class Store
             mood = MoodRules.ReviewMood(facts.MoodPawns, mood);
             facts = facts with { Disaster = disaster, DisasterTick = request.Tick };
             detection = new RoundsDetection(facts, latches, request.Policy);
+            var inspectBegan = System.Diagnostics.Stopwatch.GetTimestamp();
             needs = RoundsRules.InspectRounds(facts, latches, request.Policy);
+            needs.InspectMs = System.Diagnostics.Stopwatch.GetElapsedTime(inspectBegan).TotalMilliseconds;
             disaster = needs.Disaster;
         }
         if (request.Enabled && request.Immediate)

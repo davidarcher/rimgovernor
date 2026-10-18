@@ -240,7 +240,7 @@ public sealed partial class ClockScheduler
     /// Queues the configured planners <paramref name="pick"/> selects (all when null) onto the wave, returning the
     /// names queued in catalog order.
     /// </summary>
-    internal List<string> QueuePlanners(PlannerWave wave, StepArbiter arbiter, Func<PlannerEntry, bool>? pick, CancellationToken ct, CancellationToken epoch)
+    internal List<string> QueuePlanners(PlannerWave wave, StepArbiter arbiter, Func<PlannerEntry, bool>? pick, IReadOnlyDictionary<string, string>? why, CancellationToken ct, CancellationToken epoch)
     {
         var queued = new List<string>();
         foreach (var catalogEntry in _catalog)
@@ -255,7 +255,7 @@ public sealed partial class ClockScheduler
                 entry = entry with { Class = PlannerClass.Critical };
             }
             queued.Add(entry.Name);
-            wave.Queue(this, arbiter, entry, epoch);
+            wave.Queue(this, arbiter, entry, epoch, why?.GetValueOrDefault(entry.Name));
         }
         return queued;
     }
