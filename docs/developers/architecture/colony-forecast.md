@@ -1332,7 +1332,9 @@ calculation, with a seven-day projection bound. Live current-job duration is
 unknown, so occupied pawns do not acquire a fictional free day. A claimed pawn
 is excluded from routine work assignment and unavailable to another activity;
 disjoint pawns remain usable. Bench and target claims are exclusive while their
-owning work remains outstanding. These are conservative availability constraints,
+owning work remains outstanding; an observed food stack is the exception, owned
+by the units its Method's remaining Eat tasks owe so that generation proposes
+and admission shares its observed remainder with another Method (#3194). These are conservative availability constraints,
 not calibrated completion estimates or native locks. Work can change between
 review and dispatch; Hands and native legality remain authoritative.
 

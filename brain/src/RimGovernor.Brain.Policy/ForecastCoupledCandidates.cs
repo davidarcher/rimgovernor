@@ -143,14 +143,15 @@ public sealed partial record ForecastCoupledCandidates
         foreach (var pawn in needs.Pawns)
         {
             var capacity = ForecastNeeds.NeedsWorkCapacity(resources, pawn.Pawn, horizon);
-            var generated = ForecastNeeds.GenerateNeedsAlternatives(pawn with { Targets = EquatableArray.From(pawn.Targets.Where(t => !resources.Claims.Targets.Contains(t.Id))) },
-                capacity, horizon, 32);
+            // A claimed bed or pin is whole; a claimed food stack keeps the units and slots its owners leave (#3194).
+            var targets = pawn.Targets.Select(t => WorkRules.ProposableNeedTarget(resources.Claims, t)).OfType<NeedTarget>().ToArray();
+            var generated = ForecastNeeds.GenerateNeedsAlternatives(pawn with { Targets = EquatableArray.From(targets) }, capacity, horizon, 32);
             findings.UnionWith(generated.Findings); truncated |= generated.Truncated;
             foreach (var choice in generated.Choices)
             {
                 if (!Space(1)) break;
                 var id = choice.Id;
-                var target = pawn.Targets.Single(t => t.Id == choice.Target);
+                var target = targets.Single(t => t.Id == choice.Target);
                 var location = target.Location is { } cell ? Location(cell) : choice.Target;
                 if (target.Location is null) findings.Add("unknown_need_target_location:" + target.Id);
                 tasks.Add(choice.Activity with

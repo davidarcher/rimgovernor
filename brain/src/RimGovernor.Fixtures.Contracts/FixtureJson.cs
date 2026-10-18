@@ -32,6 +32,7 @@ public static class FixtureJson
 [JsonSerializable(typeof(CoordinationRead))]
 [JsonSerializable(typeof(ClothingActivityRead))]
 [JsonSerializable(typeof(NeedCapacityRead))]
+[JsonSerializable(typeof(SharedStackRead))]
 [JsonSerializable(typeof(MaintenanceRead))]
 [JsonSerializable(typeof(ServiceShelterPrepared))]
 [JsonSerializable(typeof(ServiceShelterRead))]

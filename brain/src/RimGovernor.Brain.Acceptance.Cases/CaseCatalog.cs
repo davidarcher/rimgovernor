@@ -15,6 +15,7 @@ public static class CaseCatalog
         registry.Register(PlannedRoomPredictionCase.Case());
         registry.Register(ProductionCoupledNeeds.Case());
         registry.Register(NeedsTargetCapacity.Case());
+        registry.Register(NeedsSharedStack.Case());
         registry.Register(ProductionCoupledThermal.Case());
         registry.Register(ProductionCookingDevelopment.Productive());
         registry.Register(ProductionCookingDevelopment.Lifecycle());

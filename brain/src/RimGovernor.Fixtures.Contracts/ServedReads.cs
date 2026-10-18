@@ -96,6 +96,24 @@ public sealed record NeedCapacityRead
     public int SinceBothTired { get; init; }
 }
 
+/// <summary><c>test/shared_stack_read</c>: two Methods eating from one meal stack, the second bound while the first still owes bites of it (#3194).</summary>
+public sealed record SharedStackRead
+{
+    public int Tick { get; init; }
+
+    /// <summary>Units left in the stack; 0 once it is gone.</summary>
+    public int Units { get; init; }
+
+    /// <summary>Coupled Methods whose applied tasks eat from the stack.</summary>
+    public IReadOnlyList<string> Methods { get; init; } = [];
+
+    /// <summary>Pawns that ingested the stack under a coupled Method.</summary>
+    public int Eaters { get; init; }
+
+    /// <summary>A second Method's bite was applied while the first pawn's Method still owed bites of the stack.</summary>
+    public bool SharedWhileOwned { get; init; }
+}
+
 /// <summary><c>test/maintenance_read</c>: the role holder's native practice, draft interruption and release.</summary>
 public sealed record MaintenanceRead
 {

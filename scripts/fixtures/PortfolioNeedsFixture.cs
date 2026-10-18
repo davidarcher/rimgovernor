@@ -110,8 +110,8 @@ public sealed partial class PawnControlFixture
         {
             if (!portfolioAte || !portfolioSlept || !portfolioWoke || !portfolioPlayed)
                 throw new InvalidOperationException("First normal-planner needs cycle has not completed.");
-            // This phase proves repeated needs execution with independent physical lots.
-            // Scarce shared-lot redistribution is a separate ownership limitation (#3194).
+            // This phase proves repeated needs execution with independent physical lots;
+            // needs/shared-stack proves two Methods sharing one stack (#3194).
             var map = worker!.Map;
             var count = map.mapPawns.FreeColonistsSpawned.Count;
             var cells = GenRadial.RadialCellsAround(worker.Position, 12, true)

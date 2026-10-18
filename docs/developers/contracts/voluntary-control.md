@@ -21,14 +21,19 @@ is excluded from loose-stock claims. Completing a producer never credits its
 predicted output to inventory; fresh native stock still determines availability.
 Direct eating participates in this same material budget.
 Each need trajectory is integrated only at events that affect that need. Unrelated service timing must not introduce numerical differences into higher-priority consequences; sleep activation still accounts for observed food recovery.
-Observed need targets have the same whole-Method ownership during comparison
-and admission: two participants cannot share an exact meal stack, bed or
-recreation target, even when a proposed schedule places their use at different
-times. Repeated use by the same participant remains possible.
-Consequently, unclaimed units in a stack can remain inaccessible to another pawn
-while a consuming Method owns future uses of that stack. Safe reconsideration of
-those obligations and scarce shared-lot redistribution are tracked in [#3194](https://github.com/davidarcher/rimgovernor/issues/3194).
-The repeated-needs case supplies independent physical lots; it does not prove redistribution.
+Observed need targets have the same ownership during comparison and admission:
+a bed or recreation target is owned whole for the Method, and an exact meal
+stack is owned by the units its Method still owes, even when a proposed schedule
+places their use at different times. Repeated use by the same participant remains possible.
+A consuming Method owning future uses of a stack therefore leaves its unclaimed
+remainder proposable and admissible for another Method (#3194): the observed
+count less the units the journal's remaining Eat tasks owe, and the claimant
+slots its owners leave, by the same arithmetic admission applies. Continuation
+drops a task once its completion is observed; nothing is credited from predicted
+consumption. Native binds a bite only to the observed lot holding at least the
+owed count, so a stack that shrank, split, merged or moved below it releases.
+The repeated-needs case supplies independent physical lots; `needs/shared-stack`
+proves a second Method eating the remainder while the first still owns the stack.
 
 ## Reconsidering observed work
 

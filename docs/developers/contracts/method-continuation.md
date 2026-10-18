@@ -168,9 +168,16 @@ against the new authority and grants no inventory credit: current native stock
 still determines availability. Building and standing-bill commitments survive
 authority changes and retain their existing accounting.
 
-A selected future sleep, recreation or exact observed-food service reserves its
-native target for the whole Method, including Approach/Hold preparation. The
-shared claim census feeds both candidate filtering and admission; another pawn
-cannot propose the same bed or recreation object while only its destination cell
-appears occupied. Symbolic produced-food targets remain unresolved and continue
-to use the existing physical input frontier until native output rebinding.
+A selected future sleep or recreation service reserves its native target for
+the whole Method, including Approach/Hold preparation. The shared claim census
+feeds both candidate filtering and admission; another pawn cannot propose the
+same bed or recreation object while only its destination cell appears occupied.
+An exact observed-food service reserves only the units the Method's remaining
+Eat tasks owe (#3194): a bite the continuation dropped as completed no longer
+counts, the observed stack count less the owed units stays proposable and
+admissible for another Method, and the owed count is never reduced by predicted
+consumption. Native binds the later bite only to the observed lot holding at
+least the owed count, so a stack that shrank, split, merged or moved below it
+releases instead of binding a short count. Symbolic produced-food targets remain
+unresolved and continue to use the existing physical input frontier until native
+output rebinding.

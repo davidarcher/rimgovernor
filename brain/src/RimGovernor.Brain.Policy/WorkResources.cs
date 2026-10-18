@@ -325,6 +325,28 @@ public static partial class WorkRules
         return capacity is not null && capacity.Quantity.TryGetValue(out var quantity) && list.Sum(c => (double)c.Count) > quantity;
     }
 
+    /// <summary>
+    /// The observed need target as another Method may still propose it against <paramref name="claims"/> (#3194): an
+    /// unclaimed target whole; a claimed food stack narrowed to the units and claimant slots the committed claims leave,
+    /// its observed count less the units they still owe; null for any other claimed target, a stack some claim takes
+    /// whole, or a remainder that is unknown or exhausted. The owed units are the journal's remaining Eat tasks, which
+    /// continuation drops once native completion is observed, never predicted consumption; admission then shares the
+    /// stack by the same arithmetic (<see cref="TargetOverCapacity"/>).
+    /// </summary>
+    public static RimGovernor.Contracts.Wire.Observations.NeedTarget? ProposableNeedTarget(WorkResourceClaims claims,
+        RimGovernor.Contracts.Wire.Observations.NeedTarget target)
+    {
+        if (!claims.Targets.Contains(target.Id)) return target;
+        if (target.Kind != "food" || !target.StockCount.TryGetValue(out var stock) || !target.MaxPawns.TryGetValue(out var max)) return null;
+        var held = claims.Shared.Where(s => s.Target == target.Id).ToArray();
+        if (held.Length == 0) return null;
+        var units = (int)Math.Floor(stock) - held.Sum(s => s.Count);
+        var owners = max - held.Select(s => s.Owner).Distinct(StringComparer.Ordinal).Count();
+        return units > 0 && owners > 0
+            ? target with { AvailableCount = Math.Min(target.AvailableCount, units), StockCount = Known((double)units), MaxPawns = Known(owners) }
+            : null;
+    }
+
     public static string BuildingClaimTarget(Building building) => "cell/" + building.Cell.X + "/" + building.Cell.Z;
 
     public static WorkResourceView WorkResourcesOf(WorkAdmissionEvidence evidence, Fact<EquatableArray<ProductionBatch>> batches,
