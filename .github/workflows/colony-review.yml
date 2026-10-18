@@ -138,6 +138,8 @@ jobs:
           New-Item -ItemType Directory -Force C:\rg\public | Out-Null
           if (Test-Path C:\rg\crash\s1) { Copy-Item -LiteralPath C:\rg\crash\s1 -Destination C:\rg\public\crash -Recurse }
           if (Test-Path C:\rg\fixture\job\out\result.json) { Copy-Item -LiteralPath C:\rg\fixture\job\out\result.json -Destination C:\rg\public }
+          # The in-process brain's store (clock holds, plans, decisions): what a stalled clock was waiting on.
+          if (Test-Path C:\rg\fixture\job\out\service.sqlite) { Copy-Item -LiteralPath C:\rg\fixture\job\out\service.sqlite* -Destination C:\rg\public }
           # The game's captured stdout (config-*/<game>/game.log): why a launch never announced its channel.
           $bridge = 'C:\rg\fixture\job\layout\bridge\'
           Get-ChildItem -LiteralPath $bridge -Filter game.log -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
