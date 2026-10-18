@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -14,7 +15,8 @@ namespace HomeBridge.BridgeTools;
 /// colonist is every colonist's: a pawn's cost re-prices the leg's cardinal and diagonal steps at its own move ticks. A
 /// leg is keyed by its origin cell, target and end mode, so a colonist's legs from its own cell are its own.
 /// A read that asks many legs runs <see cref="Batched{T}"/>, which searches them together on the game's path job
-/// workers instead of one at a time on the game thread (#3556).
+/// workers instead of one at a time on the game thread (#3556). The legs are kept across reads by the map's
+/// <see cref="Store"/> until the map changes under them, so a read finds the legs an earlier read searched.
 /// </summary>
 internal sealed class NativePathLegs
 {
@@ -25,20 +27,28 @@ internal sealed class NativePathLegs
     internal const int BatchRound = 64;
 
     private readonly Map map;
-    private readonly Dictionary<(IntVec3 From, IntVec3 To, Thing? Thing, PathEndMode Mode), Leg?> legs = new();
+    private readonly Store store;
     private readonly List<(Pawn Pawn, IntVec3 From, LocalTargetInfo To, PathEndMode Mode)> wanted = new();
-    private readonly HashSet<(IntVec3 From, IntVec3 To, Thing? Thing, PathEndMode Mode)> wantedKeys = new();
+    private readonly HashSet<Key> wantedKeys = new();
     private bool collecting;
 
-    internal NativePathLegs(Map map) => this.map = map;
+    internal NativePathLegs(Map map)
+    {
+        this.map = map;
+        store = Store.For(map);
+        store.Settle();
+    }
 
-    /// <summary>The searches run so far: one per distinct leg.</summary>
-    internal int Searches => legs.Count;
+    /// <summary>The searches this read ran: one per leg it asked that the store did not hold.</summary>
+    internal int Searches { get; private set; }
 
     /// <summary>The stopwatch ticks the searches took so far, batched rounds included.</summary>
     internal long SearchTicks { get; private set; }
 
-    private sealed record Leg(float Cost, int Cardinal, int Diagonal, int CardinalTicks, int DiagonalTicks);
+    private readonly record struct Key(IntVec3 From, IntVec3 To, Thing? Thing, PathEndMode Mode);
+
+    /// <summary>A searched leg: its cost and steps at the move ticks it was searched with, and the cells it crosses.</summary>
+    private sealed record Leg(float Cost, int Cardinal, int Diagonal, int CardinalTicks, int DiagonalTicks, int[] Cells);
 
     /// <summary>
     /// The pawn's ticks over the leg, or null when no path exists. While a <see cref="Batched{T}"/> read collects, a
@@ -46,8 +56,8 @@ internal sealed class NativePathLegs
     /// </summary>
     internal float? Cost(Pawn pawn, IntVec3 from, LocalTargetInfo to, PathEndMode mode)
     {
-        var key = (from, to.Cell, to.Thing, mode);
-        if (!legs.TryGetValue(key, out var leg))
+        var key = new Key(from, to.Cell, to.Thing, mode);
+        if (!store.TryGet(key, out var leg))
         {
             if (collecting)
             {
@@ -56,7 +66,8 @@ internal sealed class NativePathLegs
             }
             var started = Stopwatch.GetTimestamp();
             using var path = map.pathFinder.FindPathNow(from, to, TraverseParms.For(pawn, Danger.None), peMode: mode);
-            legs[key] = leg = path.Found ? Measure(path, pawn) : null;
+            leg = store.Put(key, path.Found ? Measure(map, path, pawn) : null);
+            Searches++;
             SearchTicks += Stopwatch.GetTimestamp() - started;
         }
         if (leg == null) return null;
@@ -88,7 +99,7 @@ internal sealed class NativePathLegs
         if (wanted.Count == 0) return;
         var started = Stopwatch.GetTimestamp();
         var finder = map.pathFinder;
-        var requests = new List<((IntVec3, IntVec3, Thing?, PathEndMode) Key, PathRequest Request, Pawn Pawn)>(BatchRound);
+        var requests = new List<(Key Key, PathRequest Request, Pawn Pawn)>(BatchRound);
         for (var first = 0; first < wanted.Count; first += BatchRound)
         {
             requests.Clear();
@@ -97,35 +108,138 @@ internal sealed class NativePathLegs
                 var (pawn, from, to, mode) = wanted[i];
                 var request = finder.CreateRequest(from, to, null, TraverseParms.For(pawn, Danger.None), null, mode, pawn);
                 finder.PushRequest(request);
-                requests.Add(((from, to.Cell, to.Thing, mode), request, pawn));
+                requests.Add((new Key(from, to.Cell, to.Thing, mode), request, pawn));
             }
             finder.PathFinderTick();
             finder.PathFinderTick();
             foreach (var (key, request, pawn) in requests)
             {
-                legs[key] = request.TryGetPath(out var path) && path != null && path.Found ? Measure(path, pawn) : null;
+                store.Put(key, request.TryGetPath(out var path) && path != null && path.Found ? Measure(map, path, pawn) : null);
                 request.Dispose();
             }
         }
+        Searches += wanted.Count;
         wanted.Clear();
         wantedKeys.Clear();
         SearchTicks += Stopwatch.GetTimestamp() - started;
     }
 
-    private static Leg Measure(PawnPath path, Pawn pawn)
+    private static Leg Measure(Map map, PawnPath path, Pawn pawn)
     {
         var nodes = path.NodesReversed;
         int cardinal = 0, diagonal = 0;
-        for (var i = 1; i < nodes.Count; i++)
+        var cells = new int[nodes.Count];
+        for (var i = 0; i < nodes.Count; i++)
         {
+            cells[i] = map.cellIndices.CellToIndex(nodes[i]);
+            if (i == 0) continue;
             if (nodes[i].x != nodes[i - 1].x && nodes[i].z != nodes[i - 1].z) diagonal++;
             else cardinal++;
         }
         var (cardinalTicks, diagonalTicks) = MoveTicks(pawn);
-        return new(path.TotalCost, cardinal, diagonal, cardinalTicks, diagonalTicks);
+        return new(path.TotalCost, cardinal, diagonal, cardinalTicks, diagonalTicks, cells);
     }
 
     // PathFinder.ParameterizePathJob: Mathf.RoundToInt of the pawn's move ticks.
     private static (int Cardinal, int Diagonal) MoveTicks(Pawn pawn) =>
         ((int)Math.Round(pawn.TicksPerMoveCardinal), (int)Math.Round(pawn.TicksPerMoveDiagonal));
+
+    /// <summary>
+    /// The map's legs kept across reads, with the cells each crosses, dropped when the map changes under them the way
+    /// the finder's own map data is (PathFinderMapData's map events): a region, room or fog change and a game condition
+    /// drop every leg (passability, danger); a building, a path-relevant thing, a terrain or path-cost change, a
+    /// reservation or a haul en route drops the legs crossing its cells. A leg with no path has no cells and lasts until
+    /// the next full drop. Door open states are not watched: a leg through a door was priced at the door's state when
+    /// searched, as every leg of one read is. Changes are noted as they happen and applied at the next read
+    /// (<see cref="Settle"/>).
+    /// </summary>
+    private sealed class Store
+    {
+        private static readonly ConditionalWeakTable<Map, Store> Stores = new();
+
+        internal static Store For(Map map) => Stores.GetValue(map, m => new Store(m));
+
+        private readonly Map map;
+        private readonly Dictionary<Key, Leg?> legs = new();
+        private readonly List<Key>?[] crossing;
+        private readonly HashSet<int> dirtyCells = new();
+        private readonly List<CellRect> dirtyRects = new();
+        private bool dropAll;
+
+        private Store(Map map)
+        {
+            this.map = map;
+            crossing = new List<Key>?[map.cellIndices.NumGridCells];
+            var events = map.events;
+            events.RegionsRoomsChanged += DropAll;
+            events.MapFogged += DropAll;
+            events.CellFogChanged += (_, _) => DropAll();
+            events.GameConditionAdded += _ => DropAll();
+            events.GameConditionRemoved += _ => DropAll();
+            events.BuildingSpawned += b => Dirty(b.OccupiedRect());
+            events.BuildingDespawned += b => Dirty(b.OccupiedRect());
+            events.ThingSpawned += ThingChanged;
+            events.ThingDespawned += ThingChanged;
+            events.TerrainChanged += Dirty;
+            events.PathCostRecalculate += Dirty;
+            events.ReservationAdded += ReservationChanged;
+            events.ReservationRemoved += ReservationChanged;
+            events.HaulEnrouteAdded += (thing, _, _, _) => Dirty(thing.OccupiedRect());
+            events.HaulEnrouteReleased += (thing, _) => Dirty(thing.OccupiedRect());
+        }
+
+        internal bool TryGet(Key key, out Leg? leg) => legs.TryGetValue(key, out leg);
+
+        internal Leg? Put(Key key, Leg? leg)
+        {
+            legs[key] = leg;
+            if (leg != null) foreach (var cell in leg.Cells) (crossing[cell] ??= new()).Add(key);
+            return leg;
+        }
+
+        /// <summary>Applies the changes noted since the last read: every leg, or the legs crossing the changed cells.</summary>
+        internal void Settle()
+        {
+            if (dropAll)
+            {
+                legs.Clear();
+                Array.Clear(crossing, 0, crossing.Length);
+                dropAll = false;
+                dirtyCells.Clear();
+                dirtyRects.Clear();
+                return;
+            }
+            foreach (var rect in dirtyRects)
+                foreach (var cell in rect.Cells)
+                    if (cell.InBounds(map)) dirtyCells.Add(map.cellIndices.CellToIndex(cell));
+            dirtyRects.Clear();
+            foreach (var index in dirtyCells)
+            {
+                var keys = crossing[index];
+                if (keys == null) continue;
+                foreach (var key in keys) legs.Remove(key);
+                crossing[index] = null;
+            }
+            dirtyCells.Clear();
+        }
+
+        private void DropAll() => dropAll = true;
+
+        private void Dirty(IntVec3 cell) { if (cell.InBounds(map)) dirtyCells.Add(map.cellIndices.CellToIndex(cell)); }
+
+        private void Dirty(CellRect rect) => dirtyRects.Add(rect);
+
+        // PathFinderMapData.Notify_ThingSpawnedDespawned: the things the finder prices, not a pawn's attachments.
+        private void ThingChanged(Thing thing)
+        {
+            if (!thing.def.pathfinderDangerous || thing is AttachableThing { parent: Pawn }) return;
+            if (thing.def.size.Area == 1) Dirty(thing.Position);
+            else Dirty(thing.OccupiedRect());
+        }
+
+        private void ReservationChanged(ReservationManager.Reservation reservation)
+        {
+            if (reservation.Target.HasThing) Dirty(reservation.Target.Thing.OccupiedRect());
+        }
+    }
 }

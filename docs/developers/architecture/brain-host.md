@@ -261,6 +261,24 @@ The third cut, the path searches, measured on one colony-review day each of the 
   5324 ms p50 (5994). The 0.23 s left is the batched searches themselves; the next cut is keeping the legs across
   reviews while the sites, roster and cells they depend on are unchanged.
 
+The fourth cut, the legs kept across reviews (session `b89e623bab264a5eb1a97f93899ac8ea`, 19 rounds reviews, one
+passing colony-review day of the same colony):
+
+- **What changed.** `NativePathLegs` keeps every searched leg in a per-map store with the cells it crosses, so a read
+  finds the legs earlier reads searched. The store drops legs the way the finder's own map data refreshes
+  (`PathFinderMapData`, the map events): a region, room or fog change and a game condition drop every leg; a building,
+  a path-relevant thing, a terrain or path-cost change, a reservation or a haul en route drops the legs crossing its
+  cells. Door open states are not watched: a leg through a door is priced at the door's state when it was searched, as
+  every leg of one read already was. A colonist's own legs are keyed by its cell, so they are searched again once it
+  has moved; the stack-to-site legs and the route probes, the bulk of a review's legs, are found.
+- **Reuse.** Over the day, 195 construction reads (the rounds review's three hops and the colony-facts forecast's)
+  asked 114 k legs and searched 21 k, 82 % kept. A planned-sites read asks about 3.6 k legs: the day's first searched
+  all 2.5 k of its legs in 124 ms, the rest 500 to 1100 in 20 to 70 ms (77 % kept).
+- **After.** `d_planned` 143 ms p50 (p95 465, max 471), `facade/construction_activity` 74 ms p50 (p95 164: paths 37,
+  rows 40); rounds 2253 ms p50 (2532 after the third cut, 3315 before it), `clock_step` 4212 ms p50 (5324). The row
+  building (both runs of the batched read, 3.6 k legs re-priced per colonist) now outweighs the searches; the next
+  cut, if one is wanted, is there or in asking the three reads once per step.
+
 ## Hosting in the mod (#3115)
 
 Decided (user, 2026-10-13):
