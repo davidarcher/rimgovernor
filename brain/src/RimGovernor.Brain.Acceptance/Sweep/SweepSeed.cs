@@ -71,6 +71,12 @@ internal static class SweepSeed
             {
                 var m = await BodyAsync(session, cfg, report, opts, fixture, seed, r => row = r(row), ct).ConfigureAwait(false);
                 row = row with { Metrics = m };
+
+                // The seed keeps its metrics; the flag fails it so the sweep names it (#3551).
+                if (CombatLabBundle.UnarmedStops(m, Path.Combine(cfg.Output, CombatLabBundle.CombatRowsFile)) is { } unarmed)
+                {
+                    throw new AcceptanceException(unarmed);
+                }
             },
             cancellationToken).ConfigureAwait(false);
         return (row, error);

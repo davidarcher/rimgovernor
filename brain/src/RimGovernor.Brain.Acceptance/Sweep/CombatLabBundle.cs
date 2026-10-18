@@ -8,6 +8,7 @@ using RimGovernor.Brain.Simulation.CombatMetrics;
 using static RimGovernor.Brain.Domain.Fact;
 using RimGovernor.Brain.Telemetry;
 using FightMetrics = RimGovernor.Brain.Simulation.CombatMetrics.Metrics;
+using Clock = RimGovernor.Contracts.Wire.Clock;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -236,10 +237,71 @@ internal static class CombatLabBundle
         return result;
     }
 
-    /// <summary>Whether a row is one <see cref="ScanLogs"/> reads: the bundle keeps only these.</summary>
+    /// <summary>
+    /// The armed-stop check (#3551): a combat watch holds on a colonist downed or killed while its stops are armed, so a
+    /// seed whose watch stopped the clock, whose fight downed or killed a colonist and none of whose stops was a combat
+    /// event played the fight with its stops unarmed. Returns the flag naming the stops by event and the combat orders,
+    /// or null; the rows stay in the seed's <see cref="CombatRowsFile"/>.
+    /// </summary>
+    internal static string? UnarmedStops(FightMetrics m, string path)
+    {
+        var byEvent = new SortedDictionary<string, int>(StringComparer.Ordinal);
+        var orders = 0;
+        var combat = 0;
+        foreach (var row in ServiceLogs.ReadLogs(path))
+        {
+            if (row.Kind == TelemetryKinds.ClockStopKind)
+            {
+                var kind = Text(row.Fields(), "event");
+                byEvent[kind] = byEvent.GetValueOrDefault(kind) + 1;
+            }
+            else if (row.Kind == TelemetryKinds.CombatOrderKind)
+            {
+                orders++;
+            }
+            else if (row.Kind == TelemetryKinds.ClockRunKind && row.Fields().GetValueOrDefault("combat") is true)
+            {
+                combat++;
+            }
+        }
+
+        var hurt = m.ColonistDowns + m.ColonistDeaths;
+        if (byEvent.Count == 0 || hurt == 0 || byEvent.Keys.Any(CombatEventKinds.Contains))
+        {
+            return null;
+        }
+
+        var stops = string.Join(", ", byEvent.Select(p => string.Create(CultureInfo.InvariantCulture, $"{p.Key} {p.Value}")));
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"combat stops not armed (#3551): {hurt} colonist downs or deaths, but no stop was a combat event (stops by event: {stops}); {combat} combat clock_run rows, {orders} combat_order rows; rows in {CombatRowsFile}");
+    }
+
+    // The clock_stop event names of the native combat events: the wire enum's C# name in lower snake case, as the clock
+    // scheduler files them.
+    private static readonly HashSet<string> CombatEventKinds =
+        [.. Enum.GetValues<Clock.CombatEvent>().Where(e => e != Clock.CombatEvent.Unspecified).Select(e => Snake(e.ToString()))];
+
+    private static string Snake(string pascal)
+    {
+        var b = new StringBuilder(pascal.Length + 4);
+        for (var i = 0; i < pascal.Length; i++)
+        {
+            if (char.IsUpper(pascal[i]) && i > 0)
+            {
+                _ = b.Append('_');
+            }
+
+            _ = b.Append(char.ToLowerInvariant(pascal[i]));
+        }
+
+        return b.ToString();
+    }
+
+    /// <summary>Whether a row is one <see cref="ScanLogs"/> or <see cref="UnarmedStops"/> reads: the bundle keeps only these.</summary>
     internal static bool CombatRow(LogRow row) =>
         row.Kind == TelemetryKinds.CombatOrder.Name || row.Kind == TelemetryKinds.ClockStop.Name || row.Kind == TelemetryKinds.Dispatch.Name
-        || row.Kind == TelemetryKinds.ClockStep.Name
+        || row.Kind == TelemetryKinds.ClockStep.Name || row.Kind == TelemetryKinds.ClockRun.Name
         || (row.Kind == TelemetryKinds.PlannerStep.Name && Text(row.Fields(), "scope") == "immediate");
 
     /// <summary>Maps a staging's pawn ids to their sides.</summary>

@@ -335,6 +335,12 @@ pairs the seeds of an earlier sweep file and prints the paired deltas; it exits
 1 when a seed gains a colonist death or the paired interval of colonist deaths
 or downs lies wholly above zero.
 
+A seed fails with `combat stops not armed (#3551)` when its combat watch
+stopped the clock and its fight downed or killed a colonist, yet no stop was a
+combat event: the fight ran with its stops unarmed. The seed keeps its metrics,
+and its `combat_rows.jsonl` keeps the clock_stop, clock_run, combat_order and
+immediate planner_step rows to diagnose it.
+
 Every seed also records the shot tap (`LabShotLedger` in
 `scripts/fixtures/DebugStartFixture.cs`, harness only): each projectile launch
 and impact, job starts, stances, draft changes and each pawn's first think
