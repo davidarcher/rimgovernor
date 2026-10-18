@@ -20,11 +20,22 @@ public sealed partial class Store
         {
             return new Rounds();
         }
-        if (System.Text.Encoding.UTF8.GetByteCount(data!) > MaxRoundsPayload)
+        if (tx.Rounds.Loaded is { } kept && string.Equals(kept.Payload, data, StringComparison.Ordinal))
+        {
+            return kept.Review;
+        }
+        var review = DecodeRounds(data!);
+        tx.Rounds.Loaded = new(data!, review);
+        return review;
+    }
+
+    private static Rounds DecodeRounds(string data)
+    {
+        if (System.Text.Encoding.UTF8.GetByteCount(data) > MaxRoundsPayload)
         {
             throw new CapacityException();
         }
-        var r = StoreJson.Deserialize<Rounds>(data!);
+        var r = StoreJson.Deserialize<Rounds>(data);
         if (!string.Equals(StoreJson.Serialize(r), data, StringComparison.Ordinal) || r.Revision == 0 || !r.Snapshot.IsValid || r.Tick.Value < 0 || r.OrdinaryTick.Value < 0 || r.OrdinaryTick > r.Tick)
         {
             throw new StoreCorruptException("invalid rounds history");

@@ -173,12 +173,12 @@ public sealed record GearLoadoutInput
     public void Validate()
     {
         Climate.Validate();
-        foreach (var n in new[] { Ambient, ComfortableMin, ComfortableMax })
-        {
-            DomainException.Require(double.IsFinite(n), "invalid gear temperature");
-        }
+        DomainException.Require(double.IsFinite(Ambient) && double.IsFinite(ComfortableMin) && double.IsFinite(ComfortableMax), "invalid gear temperature");
         DomainException.Require(ComfortableMin <= ComfortableMax, "invalid gear comfort band");
+        // Every pawn's input is validated on each observation, so the checks below reuse their sets and read
+        // the stats in place rather than allocating per option.
         var ids = new HashSet<string>(StringComparer.Ordinal);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var o in Worn.Concat(Options))
         {
             DomainException.Require(
@@ -192,10 +192,12 @@ public sealed record GearLoadoutInput
             );
             DomainException.Require(o.Slot is >= GearSlot.SkinTorso and <= GearSlot.Primary, "invalid gear slot");
             DomainException.Require(o.Source is >= GearSource.Worn and <= GearSource.Bill, "invalid gear source");
-            foreach (var n in new[] { o.Condition, o.Sharp, o.Blunt, o.Cold, o.Heat, o.Cost, o.Range, o.MaxHitPoints, o.WearPerDay })
-            {
-                DomainException.Require(FoodForecastRules.FoodNumber(n), "invalid gear stat");
-            }
+            DomainException.Require(
+                FoodForecastRules.FoodNumber(o.Condition) && FoodForecastRules.FoodNumber(o.Sharp) && FoodForecastRules.FoodNumber(o.Blunt)
+                    && FoodForecastRules.FoodNumber(o.Cold) && FoodForecastRules.FoodNumber(o.Heat) && FoodForecastRules.FoodNumber(o.Cost)
+                    && FoodForecastRules.FoodNumber(o.Range) && FoodForecastRules.FoodNumber(o.MaxHitPoints) && FoodForecastRules.FoodNumber(o.WearPerDay),
+                "invalid gear stat"
+            );
             DomainException.Require(o.Condition <= 1 && double.IsFinite(o.MoveSpeed), "invalid gear condition or speed");
             foreach (var project in o.Research)
             {
@@ -205,14 +207,8 @@ public sealed record GearLoadoutInput
             {
                 DomainException.Require(AdmissionRules.ValidResource(a.Resource) && a.Count > 0, "invalid gear ingredient");
             }
-            foreach (var list in new[] { o.Layers, o.Groups })
-            {
-                var seen = new HashSet<string>(StringComparer.Ordinal);
-                foreach (var v in list)
-                {
-                    DomainException.Require(FoodForecastRules.FoodId(v) && seen.Add(v), "invalid gear coverage");
-                }
-            }
+            RequireCoverage(o.Layers, seen);
+            RequireCoverage(o.Groups, seen);
         }
         foreach (var project in Research)
         {
@@ -230,6 +226,15 @@ public sealed record GearLoadoutInput
             {
                 DomainException.Require(!GearLoadoutRules.GearConflicts(o, Worn[j]), "conflicting worn gear");
             }
+        }
+    }
+
+    private static void RequireCoverage(EquatableArray<string> list, HashSet<string> seen)
+    {
+        seen.Clear();
+        foreach (var v in list)
+        {
+            DomainException.Require(FoodForecastRules.FoodId(v) && seen.Add(v), "invalid gear coverage");
         }
     }
 }
@@ -380,7 +385,10 @@ public static class GearLoadoutRules
         {
             return (0, 0);
         }
-        return (new[] { .6, .8, 1, 1.15, 1.3, 1.45, 1.8 }[quality], new[] { .8, .9, 1, 1.1, 1.2, 1.5, 1.8 }[quality]);
+        // Spans over constant data: the scorer reads these per option per visit, and arrays were allocated per call.
+        ReadOnlySpan<double> armor = [.6, .8, 1, 1.15, 1.3, 1.45, 1.8];
+        ReadOnlySpan<double> insulation = [.8, .9, 1, 1.1, 1.2, 1.5, 1.8];
+        return (armor[quality], insulation[quality]);
     }
 
     public static double GearGapThreshold(GearRole role) =>

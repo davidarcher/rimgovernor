@@ -671,10 +671,12 @@ internal sealed partial class Embedder : EmbedFixed
                     {
                         continue;
                     }
-                    var before = BlockCost(i, old, blocks);
+                    // Group i's enclosure skips i's own block, so one set prices it before and after the move.
+                    var enc = EnclosureFor(i, blocks);
+                    var before = BlockCostWith(i, old, blocks, enc);
                     blocks[i] = default;
                     var (r, ok) = PlaceNear(i, blocks, [a]);
-                    if (ok && BlockCost(i, r, blocks) < before)
+                    if (ok && BlockCostWith(i, r, blocks, enc) < before)
                     {
                         blocks[i] = r;
                     }
@@ -687,13 +689,14 @@ internal sealed partial class Embedder : EmbedFixed
 
                 case 2: // a random core cell
                 {
-                    var before = BlockCost(i, old, blocks);
+                    var enc = EnclosureFor(i, blocks);
+                    var before = BlockCostWith(i, old, blocks, enc);
                     blocks[i] = default;
                     var cells = CellsFor(i);
                     var c = cells[rng.Intn(cells.Count)];
                     var sh = _shapes[i][rng.Intn(_shapes[i].Count)];
                     var r = new Rectangle(c.X, c.Z, sh.W, sh.H);
-                    if (Fits(i, r, blocks, _sky[i]) && BlockCost(i, r, blocks) < before)
+                    if (Fits(i, r, blocks, _sky[i]) && BlockCostWith(i, r, blocks, enc) < before)
                     {
                         blocks[i] = r;
                     }
@@ -743,6 +746,7 @@ internal sealed partial class Embedder : EmbedFixed
         var best = default(Rectangle);
         double bestCost = 0;
         var found = false;
+        var enc = EnclosureFor(i, blocks);
         foreach (var sh in _shapes[i])
         {
             var r = new Rectangle(at.X, at.Z, sh.W, sh.H);
@@ -750,7 +754,7 @@ internal sealed partial class Embedder : EmbedFixed
             {
                 continue;
             }
-            var c = BlockCost(i, r, blocks);
+            var c = BlockCostWith(i, r, blocks, enc);
             if (LayoutEmbedRules.Better(c, r, bestCost, best, found))
             {
                 best = r;

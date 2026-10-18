@@ -15,17 +15,21 @@ public sealed class StoreTransaction : IDisposable, IAsyncDisposable
     private readonly SemaphoreSlim _gate;
     private bool _finished;
 
-    internal StoreTransaction(SqliteConnection connection, SemaphoreSlim gate, PlanCache plans, RetirementFloors floors, CancellationToken cancellationToken)
+    internal StoreTransaction(SqliteConnection connection, SemaphoreSlim gate, PlanCache plans, RoundsSlot rounds, RetirementFloors floors, CancellationToken cancellationToken)
     {
         _connection = connection;
         _gate = gate;
         Plans = plans;
+        Rounds = rounds;
         Floors = floors;
         Cancellation = cancellationToken;
     }
 
     /// <summary>The decoded-plan cache; a plan read goes through <see cref="Store.LoadIn"/>, never around it.</summary>
     internal PlanCache Plans { get; }
+
+    /// <summary>The store's last validated review, read through <see cref="Store.LoadRounds(StoreTransaction)"/>.</summary>
+    internal RoundsSlot Rounds { get; }
 
     /// <summary>The retirement floors shared by every handle on this database path.</summary>
     internal RetirementFloors Floors { get; }

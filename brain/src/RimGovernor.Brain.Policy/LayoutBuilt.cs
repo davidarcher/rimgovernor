@@ -88,7 +88,18 @@ internal sealed partial class Embedder
     }
 
     /// <summary>Reports a block that touches a held room.</summary>
-    private bool HitsHeld(Rectangle r) => _held.Any(h => LayoutEmbedRules.Collides(r, h.Interior));
+    // A loop, not Any with a lambda over r: Fits asks this for every candidate, and the closure was allocated per call.
+    private bool HitsHeld(Rectangle r)
+    {
+        foreach (var h in _held)
+        {
+            if (LayoutEmbedRules.Collides(r, h.Interior))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /// <summary>
     /// The relocation pass over a placed embedding: the single built room that gains most by moving moves, when
@@ -109,7 +120,9 @@ internal sealed partial class Embedder
             }
             var old = blocks[i];
             blocks[i] = default;
-            var here = BlockCost(i, h, blocks);
+            // The other blocks do not move while i's candidates are priced, so their enclosure is built once.
+            var enc = EnclosureFor(i, blocks);
+            var here = BlockCostWith(i, h, blocks, enc);
             var sizes = new List<(int W, int H)> { (h.Width, h.Height) };
             if (h.Width != h.Height)
             {
@@ -136,7 +149,7 @@ internal sealed partial class Embedder
                     {
                         continue;
                     }
-                    var cost = BlockCost(i, r, blocks);
+                    var cost = BlockCostWith(i, r, blocks, enc);
                     var cand = new RelocateMove { Group = i, Rect = r, Cost = cost, Margin = here - cost };
                     if (!any || cand.Margin > top)
                     {

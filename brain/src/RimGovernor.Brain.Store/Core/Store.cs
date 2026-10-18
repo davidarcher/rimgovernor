@@ -42,6 +42,7 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     private readonly SqliteConnection _connection;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly PlanCache _plans = new();
+    private readonly RoundsSlot _rounds = new();
 
     private Store(SqliteConnection connection, string path)
     {
@@ -232,7 +233,7 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
         try
         {
             RetryBusy(() => OnConnection("BEGIN IMMEDIATE"), cancellationToken);
-            return new StoreTransaction(_connection, _gate, _plans, Floors, cancellationToken);
+            return new StoreTransaction(_connection, _gate, _plans, _rounds, Floors, cancellationToken);
         }
         catch
         {
