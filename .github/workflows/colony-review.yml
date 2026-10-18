@@ -124,7 +124,7 @@ jobs:
         continue-on-error: true
         # A hung game must not hold the always() collect and upload steps back: a one-day trial gets 40 minutes, a longer
         # season (the nightly's 15 days) the job's 360; the run's own -timeout is the finer bound.
-        timeout-minutes: ${{ fromJSON(inputs.days || '15') <= 1 && 40 || 360 }}
+        timeout-minutes: ${{ fromJSON(inputs.days || '15') <= 1 && 25 || 360 }}
         env:
           GH_TOKEN: ${{ github.token }}
           REMOTE_BUNDLE_IDENTITY: ${{ secrets.REMOTE_BUNDLE_IDENTITY }}
