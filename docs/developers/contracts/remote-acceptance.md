@@ -153,7 +153,7 @@ The bootstrap still gates trust before cache restore or identity access: public
 ciphertext does not authorize unreviewed code to decrypt licensed inputs.
 
 Public Actions logs and artifacts are public-facing outputs. #380 uploads an
-allowlisted, sanitized evidence tree (reports, metrics, the case's OTLP rings and log diagnostics and generated PNG frame captures),
+allowlisted, sanitized evidence tree (reports, metrics, the case's OTLP ring slices, store table dumps and log diagnostics and generated PNG frame captures),
 never entire game/profile/work directories, credentials or licensed bytes. Raw
 restricted diagnostics stay out of public uploads; if required, #377/#380 use
 separately age-encrypted assets with a digest-bound reference and trusted retrieval.
@@ -168,8 +168,22 @@ Missing required diagnostics cannot be hidden by redaction: report incomplete
 until the importer can retrieve them. The initial evidence fixtures require no
 private diagnostic payloads. #377 inventories licensed inputs before packaging.
 
-A case's OTLP/JSON rings (`<case>/otlp/logs.jsonl`, `traces.jsonl`, `metrics.jsonl`
-and their rotated segments `*.jsonl.N`, see [OTEL core](otel-core.md)) are
+The in-mod brain writes its OTLP rings to the game's channel directory, outside the case output.
+At case end, before the postmortem, the runner (`CaseEvidence`) writes the case's brain evidence
+into the output as bounded text: `<case>/otlp/logs.jsonl` and `traces.jsonl`, the ring lines whose
+latest timestamp is at or after the case's start (rotated segments included), and
+`<case>/store/need_methods.jsonl` and `need_transitions.jsonl`, one JSON object per row of those
+tables in `<case>/service.sqlite`, oldest first. The raw `.sqlite` never leaves the runner. Caps:
+logs 16 MiB, traces 32 MiB (spans carry the brain's step timing and outrun the logs), each store
+table 4 MiB. A served case logs about 1 MB a minute, so a quarter-hour case fits whole, and a
+case's worst case stays under 56 MiB raw. Over its cap a file keeps its newest lines (nearest a
+failure) and its first line is `{"export_truncated":{"cap_bytes":…,"dropped_lines":…,"dropped_bytes":…,"kept":"newest"}}`,
+which OTLP readers skip. The metrics ring is not copied: its instruments are cumulative per
+process, so a slice of a kept process would charge the case with earlier cases' totals. A capture
+failure is recorded on the report as `case_evidence_error` and never fails the case.
+
+A case's OTLP/JSON files (`<case>/otlp/logs.jsonl`, `traces.jsonl`, `metrics.jsonl`
+and rotated segments `*.jsonl.N`, see [OTEL core](otel-core.md)) and store dumps are
 exported and imported like any `.jsonl` diagnostic: scanned for restricted
 markers, re-encoded line by line, hashed into the attempts manifest. A numeric
 segment suffix after `.jsonl` is accepted by the exporter and by archive import;

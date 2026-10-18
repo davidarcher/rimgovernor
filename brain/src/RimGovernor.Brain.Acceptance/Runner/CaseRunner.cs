@@ -122,9 +122,11 @@ public sealed class CaseRunner
         using var runTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         runTimeout.CancelAfter(timeout);
         Exception? error = null;
+        var cfg = NewConfig(c, opts, output);
+        var started = DateTime.UtcNow;
         try
         {
-            await ExecuteCoreAsync(c, opts, output, report, runTimeout.Token).ConfigureAwait(false);
+            await ExecuteCoreAsync(c, opts, output, report, cfg, runTimeout.Token).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -141,6 +143,14 @@ public sealed class CaseRunner
         // The log copy lands only in an output directory this run owns (the early returns above own none), and before the
         // postmortem, which reads its tail after a startup crash.
         gameLog.Close(output, report);
+
+        // The brain's rings and store tables as bounded text in the output, before the postmortem, which reads the log ring there.
+        if (cfg.Configuration.Length > 0
+            && CaseEvidence.Capture(GameSessions.EndpointDirectory(cfg.Configuration, cfg.GameId), output, started) is { Length: > 0 } evidenceError)
+        {
+            report["case_evidence_error"] = evidenceError;
+        }
+
         if (error is not null)
         {
             report["error"] = ErrorText(error);
@@ -270,10 +280,9 @@ public sealed class CaseRunner
         _ => string.Create(CultureInfo.InvariantCulture, $"QuietMode({(int)mode})"),
     };
 
-    private async Task ExecuteCoreAsync(AcceptanceCase c, RunOptions opts, string output, Report report, CancellationToken cancellationToken)
+    private async Task ExecuteCoreAsync(AcceptanceCase c, RunOptions opts, string output, Report report, Config cfg, CancellationToken cancellationToken)
     {
         var session = new CaseSession(c, report);
-        var cfg = NewConfig(c, opts, output);
         session.UseConfig(cfg);
         if (c.Expansions.Count > 0)
         {

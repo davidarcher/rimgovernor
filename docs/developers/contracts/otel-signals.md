@@ -208,8 +208,9 @@ A null attribute is absent in a record, not present as nil. Postmortem evidence 
 ## Retention
 
 The host writes the three files into `RIMGOVERNOR_OTLP_DIR` (default
-`<save-data>/RimGovernor/otlp`; the acceptance runner passes `<output>/otlp`
-and `<output>/service-N/otlp` per relaunch). Each signal is its own rotating
+`<save-data>/RimGovernor/otlp`; an acceptance launch passes the game's channel
+directory, and at case end the runner copies the case's slice of the log and
+trace rings to `<output>/otlp`, see [remote acceptance](remote-acceptance.md)). Each signal is its own rotating
 ring: `traces.jsonl` 16 MiB x 8, `logs.jsonl` 32 MiB x 16 (512 MiB),
 `metrics.jsonl` 8 MiB x 4. When the active file would pass its segment size it
 becomes `name.1`, older segments shift up and the one beyond the count is

@@ -45,11 +45,22 @@ public static class OtlpRing
     /// first, with its position. The line is only valid during the call. Torn or invalid lines are skipped but still
     /// counted in the line numbers. A missing ring is empty.
     /// </summary>
-    public static void Scan(string path, Action<OtlpPosition, ReadOnlyMemory<byte>> onLine)
+    public static void Scan(string path, Action<OtlpPosition, ReadOnlyMemory<byte>> onLine) => Scan(path, DateTime.MinValue, onLine);
+
+    /// <summary>
+    /// <see cref="Scan(string, Action{OtlpPosition, ReadOnlyMemory{byte}})"/> over only the segments last written at or
+    /// after <paramref name="writtenSince"/> (UTC): an older segment holds no line written since.
+    /// </summary>
+    public static void Scan(string path, DateTime writtenSince, Action<OtlpPosition, ReadOnlyMemory<byte>> onLine)
     {
         ArgumentNullException.ThrowIfNull(onLine);
         foreach (var segment in Segments(path))
         {
+            if (writtenSince > DateTime.MinValue && File.GetLastWriteTimeUtc(segment) < writtenSince)
+            {
+                continue;
+            }
+
             FileStream file;
             try
             {
