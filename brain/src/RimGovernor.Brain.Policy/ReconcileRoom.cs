@@ -110,11 +110,7 @@ public static partial class ReconcileRules
         var output = new List<ClearanceTarget>();
         foreach (var row in rows.OrderBy(r => r.EntityId, StringComparer.Ordinal))
         {
-            if (!row.Player || row.EnclosesRoom || row.Class == "ancient_wall_door" || row.DefName.StartsWith("Frame_", StringComparison.Ordinal) || ClearanceGroundRules.StandInBed(row) || (forbidden is not null && forbidden(row.DefName)))
-            {
-                continue;
-            }
-            if (!PlannedRules.RectCells(new Rectangle(row.Minimum.X, row.Minimum.Z, row.Maximum.X - row.Minimum.X + 1, row.Maximum.Z - row.Minimum.Z + 1)).All(room.Region.Contains))
+            if (row.EnclosesRoom || !InteriorFurniture(room, row) || (forbidden is not null && forbidden(row.DefName)))
             {
                 continue;
             }
@@ -138,6 +134,18 @@ public static partial class ReconcileRules
         }
         return output;
     }
+
+    /// <summary>
+    /// Whether row is furniture standing wholly inside room's interior: a player building that is no ancient wall
+    /// or door, no frame and no stand-in bed, with no cell on the ring. The clear side leaves such rows to the
+    /// owner (InteriorFurnitureLeft) and the owner removes the unlisted ones (StaleInterior).
+    /// </summary>
+    internal static bool InteriorFurniture(PlannedRoom room, ClearanceTarget row) =>
+        row.Player
+        && row.Class != "ancient_wall_door"
+        && !row.DefName.StartsWith("Frame_", StringComparison.Ordinal)
+        && !ClearanceGroundRules.StandInBed(row)
+        && PlannedRules.RectCells(new Rectangle(row.Minimum.X, row.Minimum.Z, row.Maximum.X - row.Minimum.X + 1, row.Maximum.Z - row.Minimum.Z + 1)).All(room.Region.Contains);
 
     /// <summary>
     /// The definitions other lanes stand in owned rooms and the room's list carries over, so an owner never

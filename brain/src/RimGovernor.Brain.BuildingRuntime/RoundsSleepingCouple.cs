@@ -80,7 +80,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                     var value = new MoveBuilding(piece.Thing, piece.Def, InteriorRules.AnchorForRect(piece.Rect, piece.Size, piece.Rot), piece.Rot);
                     actions.Add(DomainAction.NewUninstallBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), value));
                 }
-                return CommitCouple(state, goal, method, id, actions, call, epoch);
+                return CommitSleepingPlan(state, goal, method, id, actions, call, epoch);
             case Pol.CoupleBedKind.CoupleInstall:
                 // The couple's room is reconciled to the DoubleBed in its bed slot: a stored one is installed, else one is built.
                 if (step.Planned is not { } planned)
@@ -136,19 +136,20 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             }
             var id = PlanIds.MintPlanId();
             var action = DomainAction.NewMoveBuildingAction(new ActionId($"{id}-0"), move);
-            return CommitCouple(state, goal, method, id, [action], call, epoch);
+            return CommitSleepingPlan(state, goal, method, id, [action], call, epoch);
         }
         return none;
     }
 
-    internal (RoundsBuildingResult Result, bool Due) CommitCouple(ControlState state, Sto.NeedOwner goal, MethodId method, PlanId id, IReadOnlyList<DomainAction> actions, CancellationToken call, CancellationToken epoch)
+    /// <summary>Commits one sleeping-lane plan under method for goal, after checking the session still holds state; Due is true: the commit is the step's answer.</summary>
+    internal (RoundsBuildingResult Result, bool Due) CommitSleepingPlan(ControlState state, Sto.NeedOwner goal, MethodId method, PlanId id, IReadOnlyList<DomainAction> actions, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var plan = new PlanSpec(id, new PlanRevision(1), actions);
         p.Current(call, epoch);
         if (p.Session.State() != state)
         {
-            throw new ControlException("commitCouple: p.session.State() != state");
+            throw new ControlException("commitSleepingPlan: p.session.State() != state");
         }
         var commit = p.Journal.CommitOwnerWork(goal, method, "", plan, call);
         return (new RoundsBuildingResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit) }, true);

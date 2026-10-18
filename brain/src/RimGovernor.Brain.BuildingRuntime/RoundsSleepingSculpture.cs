@@ -120,14 +120,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var id = PlanIds.MintPlanId();
         var move = new MoveBuilding(item2!.Inner, item2.InnerDef, step.Anchor, step.Rot);
         var action = DomainAction.NewMoveBuildingAction(new ActionId($"{id}-0"), move);
-        var plan = new PlanSpec(id, new PlanRevision(1), [action]);
-        p.Current(call, epoch);
-        if (p.Session.State() != state)
-        {
-            throw new ControlException("sculptBedroom: p.session.State() != state");
-        }
-        var commit = p.Journal.CommitOwnerWork(goal, method, "", plan, call);
-        return (new RoundsBuildingResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit) }, true);
+        return CommitSleepingPlan(state, goal, method, id, [action], call, epoch);
     }
 }
 

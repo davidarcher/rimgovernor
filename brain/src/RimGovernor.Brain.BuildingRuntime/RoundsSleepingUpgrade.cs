@@ -150,7 +150,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             var value = new MoveBuilding(rep.Bed, rep.Def, rep.Cell, Rotation.South);
             var id = PlanIds.MintPlanId();
             var action = DomainAction.NewUninstallBuildingAction(new ActionId($"{id}-0"), value);
-            var (result, _) = CommitCouple(state, goal, method, id, [action], call, epoch);
+            var (result, _) = CommitSleepingPlan(state, goal, method, id, [action], call, epoch);
             return result;
         }
         return await Building.RetireBuildingAsync(state, review, goal, reading.Reading, rep.Bed, rep.Def, rep.Cell, "bedroom-replace-remove", "old_bed_removal", call, epoch).ConfigureAwait(false);

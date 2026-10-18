@@ -70,7 +70,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             var value = new MoveBuilding(b.Id, shellBed, b.Cell, Rotation.South);
             var id = PlanIds.MintPlanId();
             var action = DomainAction.NewUninstallBuildingAction(new ActionId($"{id}-0"), value);
-            return CommitCouple(state, goal, method, id, [action], call, epoch);
+            return CommitSleepingPlan(state, goal, method, id, [action], call, epoch);
         }
         return (new RoundsBuildingResult(), false);
     }

@@ -301,14 +301,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var patch = BedUse.NewBedSlaves(bed);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewBedUseAction(new ActionId($"{id}-0"), patch);
-        var plan = new PlanSpec(id, new PlanRevision(1), [action]);
-        p.Current(call, epoch);
-        if (p.Session.State() != state)
-        {
-            throw new ControlException("markSlaveBed: p.session.State() != state");
-        }
-        var commit = p.Journal.CommitOwnerWork(goal, method, "", plan, call);
-        return new RoundsBuildingResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit) };
+        return CommitSleepingPlan(state, goal, method, id, [action], call, epoch).Result;
     }
 }
 

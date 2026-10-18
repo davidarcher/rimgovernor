@@ -67,20 +67,15 @@ public static class ClearanceReconcileRules
     }
 
     /// <summary>
-    /// The rows without the furniture standing wholly inside the room's interior. An owner builds its
-    /// furniture there while the ring differs from the plan, and the clear side would deconstruct each piece as
-    /// it is finished. Walls and doors (an ancient wall inside the interior), frames and stand-in beds stay,
+    /// The rows without the furniture standing wholly inside the room's interior (ReconcileRules.InteriorFurniture).
+    /// The clear side knows no furniture list, and an owner builds its furniture there while the ring differs
+    /// from the plan, so it would deconstruct each piece as it is finished; the owner alone removes stale
+    /// interior furniture. Walls and doors (an ancient wall inside the interior), frames and stand-in beds stay,
     /// and furniture on a ring cell is not inside the interior.
     /// </summary>
     private static List<ClearanceTarget> InteriorFurnitureLeft(PlannedRoom room, IReadOnlyList<ClearanceTarget> rows) =>
     [
-        .. rows.Where(row =>
-            !row.Player
-            || row.Class == "ancient_wall_door"
-            || row.DefName.StartsWith("Frame_", StringComparison.Ordinal)
-            || ClearanceGroundRules.StandInBed(row)
-            || !PlannedRules.RectCells(new Rectangle(row.Minimum.X, row.Minimum.Z, row.Maximum.X - row.Minimum.X + 1, row.Maximum.Z - row.Minimum.Z + 1)).All(room.Region.Contains)
-        ),
+        .. rows.Where(row => !ReconcileRules.InteriorFurniture(room, row)),
     ];
 
     /// <summary>
