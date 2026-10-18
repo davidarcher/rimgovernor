@@ -135,11 +135,11 @@ partial class StockpileZones
     /// The owned-zone view: each journal zone claim of kind stockpile that the projection's planning cells still
     /// name, with the zone's cells, its stack capacity and held stacks over those cells and its built shelves'
     /// cells (<paramref name="shelves"/>, keyed by zone: a shelf's cells leave the zone natively, so they are added
-    /// back), and its settings superseded by the latest patch of each.
+    /// back), and its settings superseded by the latest patch of each. <paramref name="census"/> is the projection's
+    /// planning cells keyed by cell (<see cref="CensusByCell"/>).
     /// </summary>
-    internal static List<Pol.StockpileZone> OwnedStockpileZones(Observation.ColonyProjection projection, IReadOnlyList<Sto.OwnedZone> owned, IReadOnlyDictionary<string, Sto.AppliedStockpile>? patches, IReadOnlyDictionary<string, List<Pol.ShelfRecord>> shelves)
+    internal static List<Pol.StockpileZone> OwnedStockpileZones(Observation.ColonyProjection projection, IReadOnlyDictionary<Cell, Pol.SiteCell> census, IReadOnlyList<Sto.OwnedZone> owned, IReadOnlyDictionary<string, Sto.AppliedStockpile>? patches, IReadOnlyDictionary<string, List<Pol.ShelfRecord>> shelves)
     {
-        var census = CensusByCell(projection);
         var byZone = new Dictionary<string, List<Cell>>();
         foreach (var cell in projection.Cells)
         {

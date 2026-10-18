@@ -101,7 +101,11 @@ public sealed class StorageOptionsTests
         };
     }
 
-    private static List<StoreOptions> Report(StockpileRequest r) => StorageRules.StorageOptions(r, StorageRules.ShelfCandidates(r));
+    private static List<StoreOptions> Report(StockpileRequest r)
+    {
+        var open = StockpileRules.NewStockpileOpen(r);
+        return StorageRules.StorageOptions(r, StorageRules.ShelfCandidates(r, open.Cells), open);
+    }
 
     private static StoreOptions Store(List<StoreOptions> report, string role) => Assert.Single(report, s => s.Role == role);
 

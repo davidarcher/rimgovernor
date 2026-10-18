@@ -140,15 +140,14 @@ public static partial class StorageRules
     /// shelf per shelf candidate (ShelfCandidates) in its zones; for a warehouse (general) store a successor room per planned
     /// storage room no warehouse zone stands in; for a yard store a further room per such planned yard. With no
     /// such room, one unsized room option, every value unknown. Generation only: nothing is ranked or chosen.
+    /// <paramref name="open"/> is the request's open ground; growth is priced over it with no ground taken, as the
+    /// ground stood before this pass's edits.
     /// </summary>
-    public static List<StoreOptions> StorageOptions(StockpileRequest r, IReadOnlyList<ShelfCandidate> shelves)
+    internal static List<StoreOptions> StorageOptions(StockpileRequest r, IReadOnlyList<ShelfCandidate> shelves, StockpileOpen open)
     {
         var output = new List<StoreOptions>();
-        var census = new Dictionary<Cell, SiteCell>(r.Cells.Count);
-        foreach (var c in r.Cells)
-        {
-            census[c.Cell] = c;
-        }
+        var census = open.Cells;
+        var untaken = open with { Taken = [] };
         foreach (var store in r.Stores)
         {
             if (store.Retired)
@@ -162,7 +161,7 @@ public static partial class StorageRules
             }
             var stranded = StoreRules.StrandedRows(r, store);
             var options = new List<StorageOption>();
-            if (ZoneGrowthOption(r, store, zones[0], stranded, census) is { } growth)
+            if (ZoneGrowthOption(r, store, zones[0], stranded, untaken) is { } growth)
             {
                 options.Add(growth);
             }
@@ -195,19 +194,19 @@ public static partial class StorageRules
     }
 
     /// <summary>Zone growth: the store's open, reachable footprint cells (StoreGrowth), no material and no work, one stack per new cell; null when none is left or the store is a fixed-size patch.</summary>
-    private static StorageOption? ZoneGrowthOption(StockpileRequest r, Store store, StockpileZone keep, Fact<List<LootItem>> stranded, Dictionary<Cell, SiteCell> census)
+    private static StorageOption? ZoneGrowthOption(StockpileRequest r, Store store, StockpileZone keep, Fact<List<LootItem>> stranded, StockpileOpen untaken)
     {
         if (!store.Site.WholeFootprint())
         {
             return null;
         }
-        var (add, _, _) = StockpileRules.StoreGrowth(store.Site, keep, StockpileRules.NewStockpileOpen(r));
+        var (add, _, _) = StockpileRules.StoreGrowth(store.Site, keep, untaken);
         if (add.Count == 0)
         {
             return null;
         }
-        var slots = add.Select(c => CellExposure(census, c)).ToList();
-        var avoided = DeteriorationAvoided(r.Items, stranded, Known(add.Count), slots, false, census);
+        var slots = add.Select(c => CellExposure(untaken.Cells, c)).ToList();
+        var avoided = DeteriorationAvoided(r.Items, stranded, Known(add.Count), slots, false, untaken.Cells);
         return new StorageOption
         {
             Kind = StorageOptionKind.ZoneGrowth,

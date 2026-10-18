@@ -57,7 +57,7 @@ public sealed partial class RoundsArmoryPlanner
         int unarmed;
         try
         {
-            (fighters, hunters, unarmed) = await WeaponDemandAsync(snapshot, ids, projection.Identity.Tick.Value, benches, tier, ct).ConfigureAwait(false);
+            (fighters, hunters, unarmed) = await WeaponDemandAsync(snapshot, ids, projection.Identity.Tick.Value, projection.Facts.MapBounds, benches, tier, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

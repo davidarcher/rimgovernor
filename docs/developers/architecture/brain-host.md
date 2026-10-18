@@ -436,6 +436,33 @@ colony-review day of the same colony):
   do not change within a load, so reading them once per load would collapse the two waits into one. The stock lap is
   now the larger half of the mark.
 
+The fourth cut, the stock lap and the armory's bounds (session `1e95d65fbaec4f0f992bc5307d59b742`, 35 rounds reviews,
+one passing colony-review day of the same colony):
+
+- **What changed.** The stockpile plan (`d_stock/stockpile/plan`, pure CPU) indexed the planning cells by cell once
+  per stage and once per store: `NewStockpileOpen`, the storage options' census and a fresh open per store for zone
+  growth, the shelf candidates' census and one more per zone in `ShelfSites`, and the runtime's `CensusByCell` twice;
+  on a 250 x 250 map that is 62,500 inserts each. The plan now builds the index once (the open ground's `Cells`) and
+  every stage reads it; zone growth is priced over the same open with no ground taken. The rectangle search for an
+  unserved store sorted every open cell of the map per call and ran twice per site (`Rectangles`, then `Cells`); it
+  tries only the site's own cells (the `Only` set, whose outside was never open) and the cover reads the rectangles
+  already found. A synthetic 250 x 250 request with six zones and two unserved stores went from 110 ms to 11 ms warm
+  (Debug). In the runtime the occupancy read's groups (the owned zones and their built shelves) are known before the
+  bench census, so the hop is issued first and shares frames with it, and the bench census refresh issues its one
+  recipe hop per bench together instead of in sequence (replies read in bench order; the first failure throws). The
+  armory declarer's weapon demand reads the map bounds from the reading (`Facts.MapBounds`) instead of its own hop,
+  so the loose-weapons read joins the frame-things and combat-pawns reads in one frame.
+- **After.** `d_stock` 77 ms p50 (101), p95 123 (245), 3.0 s over the day (3.1 s over 31 reviews);
+  `d_stock/stockpile/plan` 45 p50 (65), p95 100 (95); `occupancy` 0 (10); `census` 14 p50 (14), p95 57 (158), one
+  278 ms refresh. `derive/ledger/armory` 17 p50 (25), p95 42 (70); `derive/ledger` 21 (28), p95 51 (79);
+  `tradeexport` 17 p50, max 70 (194). `derive` 60 p50 (66), p95 221 (147) on `derive/incumbents` p95 136 reviews.
+  Rounds 1275 ms p50 (1291), p95 3047 (2970).
+- **What is left.** The mark (`derive` + `d_stock` under 100 ms p50) is at 137 ms. The plan's 45 ms is now the one
+  index build plus the departments' edits over the real colony's zones; the census refresh still costs a frame for
+  the bills and one for the recipes when the bench table is stale. The trade export's gap-open reviews are two frame
+  waves (trader kinds, then supply and sources) and the ingredient list depends on the first, so nothing further
+  overlaps there.
+
 ## Hosting in the mod (#3115)
 
 Decided (user, 2026-10-13):

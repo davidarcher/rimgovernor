@@ -146,11 +146,11 @@ public sealed record StoreSite
         return StockpileRules.RectangleSites(within, Anchor, Width, Height, allow, 1);
     }
 
-    /// <summary>Estimates usable ground for capacity. It does not choose components.</summary>
-    internal List<Cell> Cells(StockpileOpen open)
+    /// <summary>Estimates usable ground for capacity over a site's drags (<see cref="Rectangles"/>). It does not choose components.</summary>
+    internal static List<Cell> Cells(StockpileOpen open, IReadOnlyList<Rectangle> rectangles)
     {
         var cells = new List<Cell>();
-        foreach (var r in Rectangles(open))
+        foreach (var r in rectangles)
         {
             cells.AddRange(StockpileRules.CoverCells(open, PlannedRules.RectCells(r)));
         }
@@ -169,11 +169,12 @@ public static partial class StockpileRules
 
     /// <summary>
     /// Lists up to limit free width x height rectangles whose every cell is open and passes allow (null: any
-    /// open cell), nearest anchor first, ties by corner.
+    /// open cell), nearest anchor first, ties by corner. A corner outside the open ground's Only set is never open,
+    /// so with Only set only its cells are tried.
     /// </summary>
     internal static List<Rectangle> RectangleSites(StockpileOpen open, Cell anchor, int width, int height, Func<SiteCell, bool>? allow, int limit)
     {
-        var corners = StockpileSorted(open.Cells.Keys);
+        var corners = StockpileSorted(open.Only ?? (IEnumerable<Cell>)open.Cells.Keys);
         var found = new List<ScoredSite>();
         foreach (var p in corners)
         {
@@ -262,7 +263,7 @@ public static partial class StockpileRules
                 continue;
             }
             var rects = site.Rectangles(open);
-            var cover = site.Cells(open);
+            var cover = StoreSite.Cells(open, rects);
             if (site.WholeFootprint() && site.Regions is null && rects.Count > 0
                 && (site.Reshaped() || rects.Count > 1 || cover.Count != rects[0].Width * rects[0].Height))
             {

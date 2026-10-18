@@ -50,7 +50,8 @@ public sealed record ShelfRequest
 
     public IReadOnlyList<ShelfRecord> Shelves { get; init; } = [];
 
-    public IReadOnlyList<SiteCell> Cells { get; init; } = [];
+    /// <summary>The planning cells keyed by cell.</summary>
+    public IReadOnlyDictionary<Cell, SiteCell> Cells { get; init; } = new Dictionary<Cell, SiteCell>();
 
     /// <summary>The planned route cells (<see cref="StorageRules.PlannedWalkways"/>) no shelf may stand on.</summary>
     public IReadOnlySet<Cell> Walkways { get; init; } = new HashSet<Cell>();
@@ -138,9 +139,10 @@ public static partial class StorageRules
     /// <summary>
     /// Every shelf site of every declared, non-retired store a shelf can hold (<see cref="ShelfHolds"/>), zone
     /// by zone (by id), each with its effect in stacks. Generation only: which to build is chosen elsewhere
-    /// (NextWarehouseShelf today). None while the planned walkways are unknown.
+    /// (NextWarehouseShelf today). None while the planned walkways are unknown. <paramref name="cells"/> is the
+    /// request's planning cells keyed by cell.
     /// </summary>
-    public static List<ShelfCandidate> ShelfCandidates(StockpileRequest r)
+    public static List<ShelfCandidate> ShelfCandidates(StockpileRequest r, IReadOnlyDictionary<Cell, SiteCell> cells)
     {
         var output = new List<ShelfCandidate>();
         if (!r.Walkways.TryGetValue(out var walkways))
@@ -148,20 +150,15 @@ public static partial class StorageRules
             return output;
         }
         var avoid = new HashSet<Cell>(walkways);
-        var census = new Dictionary<Cell, SiteCell>(r.Cells.Count);
-        foreach (var c in r.Cells)
-        {
-            census[c.Cell] = c;
-        }
         foreach (var z in r.Zones.OrderBy(z => z.Id, StringComparer.Ordinal))
         {
             if (StoreRules.StoreOfZone(r.Stores, z) is not { Retired: false } store || !ShelfHolds(store.Site.Filter))
             {
                 continue;
             }
-            foreach (var piece in ShelfSites(z.Cells, r.Cells, avoid))
+            foreach (var piece in ShelfSites(z.Cells, cells, avoid))
             {
-                var (floor, _) = StockpileRules.StorageStacks(PlannedRules.RectCells(piece.Rect), census);
+                var (floor, _) = StockpileRules.StorageStacks(PlannedRules.RectCells(piece.Rect), cells);
                 var stacks = r.ShelfStacks.TryGetValue(out var shelf) && floor.TryGetValue(out var given) ? Known(shelf - given) : Unknown<int>();
                 output.Add(new ShelfCandidate { Zone = z.Id, Role = store.Role, Piece = piece, Stacks = stacks });
             }
@@ -215,14 +212,9 @@ public static partial class StorageRules
     /// walkable zone neighbour to be reached from; and the zone left over must stay non-empty and contiguous,
     /// since a split zone is not the zone the planner owns.
     /// </summary>
-    public static List<InteriorPiece> ShelfSites(IReadOnlyList<Cell> zone, IReadOnlyList<SiteCell> cells, IReadOnlySet<Cell> walkways)
+    public static List<InteriorPiece> ShelfSites(IReadOnlyList<Cell> zone, IReadOnlyDictionary<Cell, SiteCell> site, IReadOnlySet<Cell> walkways)
     {
         var @in = new HashSet<Cell>(zone);
-        var site = new Dictionary<Cell, SiteCell>();
-        foreach (var c in cells)
-        {
-            site[c.Cell] = c;
-        }
 
         bool Free(Cell c)
         {
@@ -302,7 +294,7 @@ public static partial class StorageRules
     }
 
     /// <summary>The zone without a and b is non-empty and contiguous, and a and b each touch a remaining walkable zone cell.</summary>
-    private static bool ShelfLeavesZoneUsable(IReadOnlyList<Cell> zone, HashSet<Cell> @in, Dictionary<Cell, SiteCell> site, Cell a, Cell b, HashSet<Cell> seen, Queue<Cell> queue)
+    private static bool ShelfLeavesZoneUsable(IReadOnlyList<Cell> zone, HashSet<Cell> @in, IReadOnlyDictionary<Cell, SiteCell> site, Cell a, Cell b, HashSet<Cell> seen, Queue<Cell> queue)
     {
         // a and b are free cells, so both are zone cells; the rest is the zone without them, read in place.
         var rest = @in.Count - 2;

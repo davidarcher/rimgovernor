@@ -36,8 +36,11 @@ public sealed class StoreStacksTests
         [ZoneId] = [new ShelfRecord { Zone = ZoneId, Building = "Shelf1", Cells = [new Cell(0, 1), new Cell(1, 1)] }],
     };
 
-    private static StockpileZone Zone(Fact<int> shelfStacks, IReadOnlyDictionary<string, List<ShelfRecord>> shelves) =>
-        Assert.Single(StockpileZones.OwnedStockpileZones(new ColonyProjection { Cells = Census(shelfStacks) }, [Owned], null, shelves));
+    private static StockpileZone Zone(Fact<int> shelfStacks, IReadOnlyDictionary<string, List<ShelfRecord>> shelves)
+    {
+        var projection = new ColonyProjection { Cells = Census(shelfStacks) };
+        return Assert.Single(StockpileZones.OwnedStockpileZones(projection, StockpileZones.CensusByCell(projection), [Owned], null, shelves));
+    }
 
     [Fact]
     public void ZoneWithBuiltShelfCountsFloorAndShelfStacks()

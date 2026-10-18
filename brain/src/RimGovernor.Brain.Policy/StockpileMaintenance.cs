@@ -398,7 +398,8 @@ public static partial class StockpileRules
 
     /// <summary>
     /// Proposes this cycle's edits, one per zone, in urgency order (delete, retarget and shelf patch, create;
-    /// ties by zone id). Deterministic over its input.
+    /// ties by zone id). Deterministic over its input. The planning cells are indexed by cell once (the open
+    /// ground's Cells) and every stage reads that index (#3566).
     /// </summary>
     public static StockpileReview PlanStockpileMaintenance(StockpileRequest r)
     {
@@ -463,8 +464,8 @@ public static partial class StockpileRules
                 created.Add(e.Role);
             }
         }
-        var shelf = NextWarehouseShelf(r, zones);
-        var shelfSites = StorageRules.ShelfCandidates(r);
+        var shelf = NextWarehouseShelf(r, zones, open.Cells);
+        var shelfSites = StorageRules.ShelfCandidates(r, open.Cells);
         var active = edits.Count > 0 || r.Rooms.Count > 0 || shelf.Kind == ShelfStepKind.Build;
         return new StockpileReview
         {
@@ -473,7 +474,7 @@ public static partial class StockpileRules
             Edits = edits,
             Shelf = shelf,
             ShelfCandidates = shelfSites,
-            Options = StorageRules.StorageOptions(r, shelfSites),
+            Options = StorageRules.StorageOptions(r, shelfSites, open),
             Active = active,
         };
     }
@@ -483,7 +484,7 @@ public static partial class StockpileRules
     /// buildable, off the planned walkways (none while those are unknown). A retired store's zone and a zone
     /// whose shelf attempts are spent get none.
     /// </summary>
-    private static ShelfStep NextWarehouseShelf(StockpileRequest r, IReadOnlyList<StockpileZone> zones)
+    private static ShelfStep NextWarehouseShelf(StockpileRequest r, IReadOnlyList<StockpileZone> zones, IReadOnlyDictionary<Cell, SiteCell> cells)
     {
         if (!r.ShelfAvailable || !r.Walkways.TryGetValue(out var walkways))
         {
@@ -506,7 +507,7 @@ public static partial class StockpileRules
         }
         var request = new ShelfRequest
         {
-            Cells = r.Cells,
+            Cells = cells,
             Walkways = new HashSet<Cell>(walkways),
             Available = true,
             Zones = shelfZones,
@@ -553,19 +554,23 @@ public static partial class StockpileRules
 
     private static int CompareCells(Cell a, Cell b) => CombatManhunterRules.CellLess(a, b) ? -1 : CombatManhunterRules.CellLess(b, a) ? 1 : 0;
 
-    internal static StockpileOpen NewStockpileOpen(StockpileRequest r)
-    {
-        var cells = new Dictionary<Cell, SiteCell>(r.Cells.Count);
-        foreach (var c in r.Cells)
+    internal static StockpileOpen NewStockpileOpen(StockpileRequest r) =>
+        new()
         {
-            cells[c.Cell] = c;
-        }
-        return new StockpileOpen
-        {
-            Cells = cells,
+            Cells = CellIndex(r.Cells),
             Protected = [.. r.Protected],
             Taken = [],
             Bounds = r.Bounds,
         };
+
+    /// <summary>The planning cells keyed by cell: the index the stockpile stages share.</summary>
+    internal static Dictionary<Cell, SiteCell> CellIndex(IReadOnlyList<SiteCell> cells)
+    {
+        var index = new Dictionary<Cell, SiteCell>(cells.Count);
+        foreach (var c in cells)
+        {
+            index[c.Cell] = c;
+        }
+        return index;
     }
 }

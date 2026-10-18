@@ -12,7 +12,8 @@ public sealed partial class FacadeNativeClient
     /// <summary>
     /// A fresh, uncached census of every workbench's bill stack, its CAS token and
     /// its recipe catalog. <paramref name="catalog"/> is the definition catalog read; it is
-    /// awaited after the bills reply arrives.
+    /// awaited after the bills reply arrives. The benches' recipe reads read nothing of each other, so they are
+    /// issued together and their replies read in bench order (#3566): the first failure in that order throws.
     /// </summary>
     internal async Task<IReadOnlyList<GearBenchRead>> ReadGearBenchesAsync(
         PbCommon.Identity identity,
@@ -32,11 +33,17 @@ public sealed partial class FacadeNativeClient
         }
         var snapshot = reply.Outcome.Observed!;
         var recipeCatalog = await catalog(cancellationToken).ConfigureAwait(false);
-        var reads = new List<GearBenchRead>(snapshot.Benches.Count);
-        foreach (var stack in snapshot.Benches)
+        var recipeReads = new Task<((List<P.GearRecipe> Recipes, string Def) Value, Exception? Error)>[snapshot.Benches.Count];
+        for (var i = 0; i < snapshot.Benches.Count; i++)
         {
+            recipeReads[i] = SharedReads.Attempt(GearReadRecipesAsync(identity, snapshot.Benches[i].Bench!.Id ?? "", recipeCatalog, cancellationToken));
+        }
+        var reads = new List<GearBenchRead>(snapshot.Benches.Count);
+        for (var i = 0; i < snapshot.Benches.Count; i++)
+        {
+            var stack = snapshot.Benches[i];
             var benchId = stack.Bench!.Id ?? "";
-            var (recipes, def) = await GearReadRecipesAsync(identity, benchId, recipeCatalog, cancellationToken).ConfigureAwait(false);
+            var (recipes, def) = SharedReads.Reply(await recipeReads[i].ConfigureAwait(false));
             var bills = GearBillsFromStack(stack, def, recipes, recipeCatalog);
             var bench = new P.GearBench
             {

@@ -59,11 +59,11 @@ partial class RoundsStockpilePlanner
         string.Create(CultureInfo.InvariantCulture, $"{s.Colony}/{s.Load}/{s.Map}");
 
     /// <summary>
-    /// Builds the stockpile review input from the projection's planning cells (a zone's cells are those naming
-    /// it; its stacks count its built shelves' cells too) and the colony's stockpile claims, their
-    /// settings superseded by the latest patch of each; the registered roles judge on the projection and benches.
+    /// Builds the stockpile review input from the projection's planning cells and the owned stockpile zones
+    /// (<paramref name="zones"/>, StockpileZones.OwnedStockpileZones: the colony's stockpile claims the cells name,
+    /// their settings superseded by the latest patch of each); the registered roles judge on the projection and benches.
     /// </summary>
-    internal static Pol.StockpileRequest StockpileRequest(Observation.ColonyProjection projection, IReadOnlyList<Sto.OwnedZone> owned, IReadOnlyDictionary<string, Sto.AppliedStockpile>? patches, IReadOnlyDictionary<string, List<Pol.ShelfRecord>> shelves, Fact<IReadOnlyDictionary<string, bool>> benches, IReadOnlyList<Pol.BenchInput> inputs, Pol.GearStore? gear, IReadOnlyList<Cell> protectedCells)
+    internal static Pol.StockpileRequest StockpileRequest(Observation.ColonyProjection projection, IReadOnlyList<Pol.StockpileZone> zones, Fact<IReadOnlyDictionary<string, bool>> benches, IReadOnlyList<Pol.BenchInput> inputs, Pol.GearStore? gear, IReadOnlyList<Cell> protectedCells)
     {
         var request = new Pol.StockpileRequest { Cells = projection.Cells, Bounds = projection.Bounds, Protected = protectedCells, Loot = projection.Facts.EventLoot };
         var rooms = new List<Pol.PlannedRole>();
@@ -76,7 +76,7 @@ partial class RoundsStockpilePlanner
             }
         }
         request = request with { Rooms = rooms };
-        request = request with { Zones = StockpileZones.OwnedStockpileZones(projection, owned, patches, shelves) };
+        request = request with { Zones = zones };
         var storage = StockpileSitedRoles.StoreView(projection, request.Protected);
         storage = storage with { Gear = gear };
         storage = storage with { Zones = request.Zones };
@@ -215,7 +215,8 @@ public sealed partial class Rounder
         {
             return projection;
         }
-        return projection with { Facts = projection.Facts with { StockpileZones = Known<EquatableArray<Pol.StockpileRoleCount>>([.. Pol.StockpileRules.StockpileRoleCounts(StockpileZones.OwnedStockpileZones(projection, owned, null, zones.Shelves))]) } };
+        var ownedZones = StockpileZones.OwnedStockpileZones(projection, StockpileZones.CensusByCell(projection), owned, null, zones.Shelves);
+        return projection with { Facts = projection.Facts with { StockpileZones = Known<EquatableArray<Pol.StockpileRoleCount>>([.. Pol.StockpileRules.StockpileRoleCounts(ownedZones)]) } };
     }
 
     /// <summary>
@@ -283,6 +284,12 @@ public sealed partial class Rounder
             return (new Pol.StockpileRequest(), "site_cells");
         }
         var patches = Player.Journal.StockpilePatches(snapshot, tick, ct);
+        var (plans, spent) = (reads.Shelves, reads.Spent);
+        // The planning cells are indexed once for the zones and the shelf rows, and the occupancy read (the zones'
+        // and built shelves' groups, known before the census) shares frames with the bench census (#3566).
+        var cells = StockpileZones.CensusByCell(projection);
+        var zonesOwned = StockpileZones.OwnedStockpileZones(projection, cells, owned, patches, plans);
+        var occupancyRead = StorageOccupancyAsync(zonesOwned, plans, tick, ct);
         var census = await BenchCensusAsync(snapshot, projection.Identity, ct).ConfigureAwait(false);
         var benches = new Dictionary<string, bool>(census.Count);
         foreach (var row in census)
@@ -292,14 +299,12 @@ public sealed partial class Rounder
         fine?.Lap("d_stock/stockpile/census");
         var gear = GearStore(projection);
         var protectedCells = ReservedGround(snapshot, projection, ct);
-        var (plans, spent) = (reads.Shelves, reads.Spent);
-        var request = RoundsStockpilePlanner.StockpileRequest(projection, owned, patches, plans, Known<IReadOnlyDictionary<string, bool>>(benches), StockpileBenchInputs.BenchInputs(census, projection), gear, protectedCells);
+        var request = RoundsStockpilePlanner.StockpileRequest(projection, zonesOwned, Known<IReadOnlyDictionary<string, bool>>(benches), StockpileBenchInputs.BenchInputs(census, projection), gear, protectedCells);
         fine?.Lap("d_stock/stockpile/build");
         var canBuild = Native is IRoundsBuildingSource;
         request = request with { ShelfAvailable = canBuild && RoundsStockpilePlanner.ShelfAvailable(projection) };
         request = request with { Walkways = projection.LayoutPlan.TryGetValue(out var layout) ? Pol.StorageRules.PlannedWalkways(layout) : Unknown<EquatableArray<Cell>>() };
         request = request with { ShelfStacks = await ShelfStacksAsync(snapshot, ct).ConfigureAwait(false) };
-        var cells = StockpileZones.CensusByCell(projection);
         var shelfSpent = new Dictionary<string, bool>();
         var shelfRecords = new List<Pol.ShelfRecord>();
         var shelfRows = new List<Pol.StockpileShelf>();
@@ -329,7 +334,7 @@ public sealed partial class Rounder
         request = request with { ShelfRecords = shelfRecords };
         request = request with { Shelves = shelfRows };
         fine?.Lap("d_stock/stockpile/shelves");
-        request = request with { Occupancy = await StorageOccupancyAsync(request, tick, ct).ConfigureAwait(false) };
+        request = request with { Occupancy = await occupancyRead.ConfigureAwait(false) };
         fine?.Lap("d_stock/stockpile/occupancy");
         request = request with { RoomDemand = request.RoomDemand with { Yard = Pol.StoreRules.YardDemand(request) } };
         request = request with { ShelfCost = RoundsStockpilePlanner.ShelfCost(projection), StoreRooms = RoundsStockpilePlanner.StoreRooms(projection, Policy.Flooring), Items = projection.Facts.Items };
@@ -337,23 +342,27 @@ public sealed partial class Rounder
     }
 
     /// <summary>
-    /// The occupancy ring's samples over the inflow window for the request's zones and built shelves; unknown when
-    /// the native cannot read it or the read fails (a store's inflow is then unknown, never zero).
+    /// The occupancy ring's samples over the inflow window for the request's zones and their built shelves
+    /// (<paramref name="plans"/> by zone, the built ones); unknown when the native cannot read it or the read fails
+    /// (a store's inflow is then unknown, never zero).
     /// </summary>
-    private async Task<Fact<Pol.StoreOccupancy>> StorageOccupancyAsync(Pol.StockpileRequest request, Tick tick, CancellationToken ct)
+    private async Task<Fact<Pol.StoreOccupancy>> StorageOccupancyAsync(IReadOnlyList<Pol.StockpileZone> zones, IReadOnlyDictionary<string, List<Pol.ShelfRecord>> plans, Tick tick, CancellationToken ct)
     {
         if (Native is not FacadeNativeClient reader)
         {
             return Unknown<Pol.StoreOccupancy>();
         }
         var groups = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var z in request.Zones)
+        foreach (var z in zones)
         {
             groups.Add(z.Id);
-        }
-        foreach (var s in request.Shelves)
-        {
-            groups.Add(s.Building);
+            foreach (var s in plans.GetValueOrDefault(z.Id) ?? [])
+            {
+                if (StockpileZones.BuiltShelf(s))
+                {
+                    groups.Add(s.Building);
+                }
+            }
         }
         if (groups.Count == 0)
         {
