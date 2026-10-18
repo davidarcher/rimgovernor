@@ -114,8 +114,8 @@ Need is `economy/resource`, and the goal asks three existing channels for help; 
   the definitions the pawn can wear as an adult. The outfit policy then allows it whatever the role; wearing stays the
   outfit policy's job. Stamping is idempotent and runs on every read of the world, beside the preference stamping.
 - **Material.** The missing count (`Count` less the colonists already wearing it) becomes an `OpenBill` in
-  `RoundsFacts.WornBills`, priced from the garment's recipe slots through `GearRules.GearFilter` (the stuff and the
-  stuffs sharing its catalog category), and `ClothingRunway.Needs` merges it with the replacement demand. A garment
+  `RoundsFacts.WornBills`, priced from the garment's recipe slots through `GearRules.GearFilter` (the stuff alone in
+  its slot), and `ClothingRunway.Needs` merges it with the replacement demand. A garment
   not in `RoundsFacts.Garments` (no available recipe, or no outfit allows it yet) prices nothing.
 - **Research.** While the goal is unmet, the stuff's research joins the research-wanted set. It is found through the
   plant definitions: the plant whose `HarvestedThingDef` is the stuff gives its `Research` (devilstrand cloth to the

@@ -289,7 +289,7 @@ public sealed record GearPlanningRequest
     public Fact<GearObservation> Observation { get; init; }
     public Fact<EquatableArray<GearBench>> Benches { get; init; }
 
-    /// <summary>The catalog's stuff categories and market values: the stuffs a bill's filter admits beside the loadout's own (GearFilter).</summary>
+    /// <summary>The catalog's market values: the member a bill's filter picks in a slot without the loadout's stuff (GearFilter).</summary>
     public ItemFacts Items { get; init; } = new();
 }
 
@@ -649,45 +649,33 @@ public static class GearRules
     }
 
     /// <summary>
-    /// The ingredient filter of a bill placed with nothing in stock. Cost is a slot member's total cost: the units
-    /// the slot takes of it times its market value. A slot holding the loadout's stuff admits it and the stuffs
-    /// sharing a catalog category with it that cost no more than it does (silver and gold fall out here: a small
-    /// volume stuff takes ten times the units); any other slot admits only its cheapest alternative (then name).
-    /// A member without a market value is never a substitute or a pick. Null when a slot has no admissible
-    /// member, the loadout's stuff is in no slot, or the flat native filter would let another slot's member stand
-    /// in for a stuff-bearing slot.
+    /// The ingredient filter of a bill placed with nothing in stock. A slot holding the loadout's stuff admits that
+    /// stuff alone: the bill makes what the loadout chose, and the next review re-chooses when supply changes. Any
+    /// other slot admits only its cheapest alternative by total cost, the units the slot takes of it times its
+    /// market value (then name); a member without a market value is never picked. Null when a slot has no
+    /// admissible member, the loadout's stuff is in no slot, or the flat native filter would let another slot's
+    /// member stand in for a stuff-bearing slot.
     /// </summary>
     internal static IReadOnlyList<Resource>? GearFilter(EquatableArray<EquatableArray<Amount>> slots, Resource stuff, ItemFacts items)
     {
-        IReadOnlyList<string> Categories(Resource r) => items.StuffCategories.TryGetValue(r, out var c) ? c : [];
         double? Cost(Amount a) => items.TryMarketValue(a.Resource, out var v) ? a.Count * v : null;
         var hasStuff = !string.IsNullOrEmpty(stuff.Value);
         var admitted = new HashSet<Resource>();
-        var members = new List<HashSet<Resource>>();
-        var stuffSlot = new bool[slots.Count];
-        var stuffed = false;
-        for (var i = 0; i < slots.Count; i++)
+        var stuffSlots = new List<EquatableArray<Amount>>();
+        foreach (var slot in slots)
         {
-            var slot = slots[i];
-            var set = new HashSet<Resource>();
-            members.Add(set);
-            stuffSlot[i] = hasStuff && slot.Any(a => a.Resource == stuff);
-            stuffed = stuffed || stuffSlot[i];
-            var own = stuffSlot[i] ? Cost(slot.First(a => a.Resource == stuff)) : null;
+            if (hasStuff && slot.Any(a => a.Resource == stuff))
+            {
+                admitted.Add(stuff);
+                stuffSlots.Add(slot);
+                continue;
+            }
             Resource? pick = null;
             double pickCost = 0;
             foreach (var a in slot)
             {
-                var cost = Cost(a);
-                if (stuffSlot[i])
-                {
-                    if (a.Resource == stuff || (cost <= own && Categories(stuff).Any(c => Categories(a.Resource).Contains(c))))
-                    {
-                        set.Add(a.Resource);
-                    }
-                }
-                else if (
-                    cost is { } priced
+                if (
+                    Cost(a) is { } priced
                     && (pick is null || priced < pickCost || (priced == pickCost && string.CompareOrdinal(a.Resource.Value, pick.Value.Value) < 0))
                 )
                 {
@@ -695,33 +683,19 @@ public static class GearRules
                     pickCost = priced;
                 }
             }
-            if (pick is { } p)
-            {
-                set.Add(p);
-            }
-            if (set.Count == 0)
+            if (pick is not { } p)
             {
                 return null;
             }
-            admitted.UnionWith(set);
+            admitted.Add(p);
         }
-        if (hasStuff && !stuffed)
+        if (hasStuff && stuffSlots.Count == 0)
         {
             return null;
         }
-        for (var i = 0; i < slots.Count; i++)
+        if (stuffSlots.Any(slot => slot.Any(a => a.Resource != stuff && admitted.Contains(a.Resource))))
         {
-            if (!stuffSlot[i])
-            {
-                continue;
-            }
-            foreach (var a in slots[i])
-            {
-                if (admitted.Contains(a.Resource) && !members[i].Contains(a.Resource))
-                {
-                    return null;
-                }
-            }
+            return null;
         }
         return admitted.OrderBy(r => r.Value, StringComparer.Ordinal).ToList();
     }

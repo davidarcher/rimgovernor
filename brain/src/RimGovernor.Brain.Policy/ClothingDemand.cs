@@ -22,7 +22,7 @@ public sealed record ClothingDemandInput
 {
     public EquatableArray<ClothingGarment> Garments { get; init; }
 
-    /// <summary>The catalog's stuff categories and market values the bills' filters read (GearFilter).</summary>
+    /// <summary>The catalog's market values the bills' filters read (GearFilter).</summary>
     public ItemFacts Items { get; init; } = new();
 
     public Fact<GearObservation> Gear { get; init; }
@@ -35,15 +35,12 @@ public sealed record ClothingDemandInput
 
 /// <summary>
 /// The material the worn garments about to wear out take to replace: <see cref="Needs"/> the stock levels
-/// the economy/resource Need must reach, and <see cref="Serves"/> each stuff that may serve a demanded stuff (the
-/// loadout stuff and the stuffs sharing a catalog category with it, gearFilter's rule) mapped to the cheapest
-/// member the demand names.
+/// the economy/resource Need must reach. A bill's filter admits only the stuff its loadout chose (GearFilter),
+/// so a demanded stuff is served by that stuff alone.
 /// </summary>
 public sealed record ClothingRunway
 {
     public IReadOnlyDictionary<Resource, long> Needs { get; init; } = new Dictionary<Resource, long>();
-
-    public IReadOnlyDictionary<Resource, Resource> Serves { get; init; } = new Dictionary<Resource, Resource>();
 }
 
 /// <summary>
@@ -113,34 +110,12 @@ public static class ClothingDemandRules
         var (bills, _) = ClothingReplacements(input);
         bills.AddRange(input.GoalBills);
         var needs = new Dictionary<Resource, long>();
-        var serves = new Dictionary<Resource, Resource>();
         foreach (var (resource, n) in BillDemandRules.OpenBillDemand(bills, input.Stock))
         {
             needs[resource] = n;
-            serves[resource] = resource;
         }
 
-        foreach (var bill in bills)
-        {
-            foreach (var pick in bill.Picks())
-            {
-                if (!needs.ContainsKey(pick.Resource))
-                {
-                    continue;
-                }
-
-                foreach (var m in bill.Filter.Items)
-                {
-                    var member = new Resource(m);
-                    if (!serves.ContainsKey(member) && SharesCategory(input.Items.StuffCategories, member, pick.Resource))
-                    {
-                        serves[member] = pick.Resource;
-                    }
-                }
-            }
-        }
-
-        return new ClothingRunway { Needs = needs, Serves = serves };
+        return new ClothingRunway { Needs = needs };
     }
 
     /// <summary>
@@ -243,50 +218,26 @@ public static class ClothingDemandRules
         return null;
     }
 
-    /// <summary>Two stuffs that are the same or share a catalog category.</summary>
-    private static bool SharesCategory(IReadOnlyDictionary<Resource, IReadOnlyList<string>> categories, Resource a, Resource b)
-    {
-        if (a == b)
-        {
-            return true;
-        }
-
-        return categories.TryGetValue(a, out var ca) && categories.TryGetValue(b, out var cb) && ca.Any(c => cb.Contains(c));
-    }
-
     /// <summary>
     /// The census row as the acquisition candidate of <paramref name="resource"/> prices it, null when it does
-    /// not serve it. A row serves a resource it names or one serves (ClothingRunway.Serves) maps it to; a hunt
-    /// the stuffs its animal's butchery yields (a deer's leather), at the leather's units: the hunt is one
-    /// candidate whatever else it yields, its labor charged once.
+    /// not serve it. A row serves a resource it names; a hunt serves a clothing-demanded stuff its animal's
+    /// butchery yields (a deer's leather), at the leather's units: the hunt is one candidate whatever else it
+    /// yields, its labor charged once.
     /// </summary>
-    public static AcquisitionSource? ResourceSourceFor(AcquisitionSource s, Resource resource, IReadOnlyDictionary<Resource, Resource> serves)
+    public static AcquisitionSource? ResourceSourceFor(AcquisitionSource s, Resource resource, IReadOnlySet<Resource> clothing)
     {
         if (new Resource(s.Resource) == resource)
         {
             return s;
         }
 
-        if (s.Hunt)
+        if (!s.Hunt || !clothing.Contains(resource))
         {
-            var units = 0.0;
-            foreach (var p in s.Products.Items)
-            {
-                if (serves.TryGetValue(p.Def, out var served) && served == resource)
-                {
-                    units += p.Amount;
-                }
-            }
-
-            return units > 0 ? s with { Resource = resource.Value, Yield = units } : null;
+            return null;
         }
 
-        if (serves.TryGetValue(new Resource(s.Resource), out var target) && target == resource)
-        {
-            return s with { Resource = resource.Value };
-        }
-
-        return null;
+        var units = s.Products.Items.Where(p => p.Def == resource).Sum(p => p.Amount);
+        return units > 0 ? s with { Resource = resource.Value, Yield = units } : null;
     }
 
     /// <summary>

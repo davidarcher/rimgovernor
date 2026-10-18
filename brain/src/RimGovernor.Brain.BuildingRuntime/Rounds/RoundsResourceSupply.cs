@@ -212,7 +212,7 @@ public sealed partial class Rounder
         var stock = projection.Facts.Resources;
         var targets = ResourceTargets(state.Snapshot);
         var ranked = ResourceRules.RankResourceTargets(targets, stock).ToList();
-        var serves = Demand.Get(state.Snapshot).Serves;
+        var clothing = Demand.Get(state.Snapshot).Clothing;
         var output = new ResourceSupplyState();
         var planner = ResourceNative is null ? null : RoundsResourcePlanner.NewRoundsResourcePlanner(this, ResourceNative);
         var identity = Boundary.Identity(state.Snapshot);
@@ -276,7 +276,7 @@ public sealed partial class Rounder
             output.Rows[resource] = row;
             var input = new ResourceSupplyInput { Resource = resource, Deficit = deficit };
             var candidates = new List<SupplyCandidate>();
-            if (serves.TryGetValue(resource, out var servedBy) && servedBy == resource)
+            if (clothing.Contains(resource))
             {
                 input = input with { HorizonDays = ClothingDemandRules.ClothingHorizonDays };
             }
@@ -327,7 +327,7 @@ public sealed partial class Rounder
             var priced = new List<AcquisitionSource>();
             foreach (var source in rows)
             {
-                var offered = ClothingDemandRules.ResourceSourceFor(source, resource, serves);
+                var offered = ClothingDemandRules.ResourceSourceFor(source, resource, clothing);
                 if (offered is null)
                 {
                     continue;

@@ -20,8 +20,8 @@ public sealed record DerivedDemand
     /// </summary>
     public IReadOnlyDictionary<Resource, long> Works { get; init; } = new Dictionary<Resource, long>();
 
-    /// <summary>Maps the stuffs that may serve a clothing demand to the stuff it names (ClothingRunway).</summary>
-    public IReadOnlyDictionary<Resource, Resource> Serves { get; init; } = new Dictionary<Resource, Resource>();
+    /// <summary>The stuffs the clothing runway demands (ClothingRunway): a hunt serves them, at their clothing horizon.</summary>
+    public IReadOnlySet<Resource> Clothing { get; init; } = new HashSet<Resource>();
 
     /// <summary>
     /// The stock a sale keeps of each resource (TradeRetained): the runways' protected lines plus Works.
@@ -82,7 +82,7 @@ public static partial class ResourceRules
             MaterialAvailability = material,
             Needs = needs,
             Works = works,
-            Serves = clothing.Serves,
+            Clothing = clothing.Needs.Keys.ToHashSet(),
             Retained = holds.TryGetValue(out var knownHolds) && knownHolds.Values.All(a => a.IsKnown)
                 ? TradePolicyRules.TradeRetained(f.ResourceConsumption, f.ResourceRunways, works) : default,
         };

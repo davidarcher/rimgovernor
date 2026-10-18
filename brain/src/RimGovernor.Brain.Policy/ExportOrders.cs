@@ -367,8 +367,8 @@ public static class ExportOrdersRules
         return (result, unread);
     }
 
-    /// <summary>The ingredient units of one piece under a filter: per slot the cheapest member the filter admits (the loadout stuff first).</summary>
-    private static List<Amount>? ExportPicks(EquatableArray<EquatableArray<Amount>> slots, IReadOnlyList<Resource> filter, Resource stuff)
+    /// <summary>The ingredient units of one piece under a filter: per slot the cheapest member the filter admits.</summary>
+    private static List<Amount>? ExportPicks(EquatableArray<EquatableArray<Amount>> slots, IReadOnlyList<Resource> filter)
     {
         var picks = new List<Amount>();
         foreach (var slot in slots)
@@ -383,14 +383,6 @@ public static class ExportOrdersRules
                 if (best.Resource.IsEmpty)
                 {
                     best = a;
-                }
-                else if (!stuff.IsEmpty && a.Resource == stuff)
-                {
-                    best = a;
-                }
-                else if (!stuff.IsEmpty && best.Resource == stuff)
-                {
-                    // the loadout stuff already holds the slot
                 }
                 else if (a.Count < best.Count || (a.Count == best.Count && a.Resource < best.Resource))
                 {
@@ -421,7 +413,7 @@ public static class ExportOrdersRules
             {
                 continue;
             }
-            var picks = ExportPicks(e.Slots, filter, stuff);
+            var picks = ExportPicks(e.Slots, filter);
             if (picks is null)
             {
                 continue;
@@ -952,7 +944,7 @@ public static class ExportOrdersRules
                 continue;
             }
             var filter = spec.Ingredients.Select(s => new Resource(s)).ToList();
-            var picks = ExportPicks(e.Slots, filter, default);
+            var picks = ExportPicks(e.Slots, filter);
             if (picks is null)
             {
                 return [];

@@ -84,16 +84,16 @@ lost per day; native `TakeWearoutDamageForDay`). A garment already tattered
 counts; one without hit points or a wear rate never does. Each such garment,
 less the serviceable stored garments covering the same core group, demands its
 recipe's ingredient counts (`observation.ClothingGarments`) at the cheapest
-member of the bill filter `gearFilter` builds (the loadout stuff and the
-stuffs sharing a catalog category with it whose total slot cost, units times
-market value, is no more than the loadout stuff's, so silver and gold, which
-take ten times the units, never stand in; any other slot admits its cheapest
-alternative by total cost), as a stock level like
+member of the bill filter `gearFilter` builds (the slot holding the loadout
+stuff admits that stuff alone, no category substitutes: the bill makes what the
+loadout chose and the next review re-chooses when supply changes; any other
+slot admits its cheapest alternative by total cost, units times market value),
+as a stock level like
 construction demand, kept in the Rounder's `constructionMemory`. The Round's
-resource supply plan serves it with the stuffs that filter admits and, for
-leather, with hunts priced at the animal's
-butchery leather (one candidate per animal whatever else it yields, its labor
-charged once and a designated deer's leather counted toward the need). The
+resource supply plan serves it with that stuff and, for
+leather, with hunts priced at the animal's butchery yield of that leather (one
+candidate per animal whatever else it yields, its labor
+charged once and a designated animal's leather counted toward the need). The
 demand ranks below the food plan, which has already taken its labor, and is
 wanted within `ClothingHorizonDays`, so a field with a lead of days serves it
 (`policy.FieldHarvestCandidate`: zone and sowing as upfront work, grow days as

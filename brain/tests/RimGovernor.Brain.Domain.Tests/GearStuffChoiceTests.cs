@@ -5,7 +5,7 @@ using Amount = RimGovernor.Brain.Policy.Amount;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
-/// <summary>Gear stuff is chosen by stats among obtainable stuffs, cost breaking ties (#2467).</summary>
+/// <summary>Gear stuff is chosen by stats among obtainable stuffs, cost breaking ties, and its bill makes only that stuff (#2467).</summary>
 public sealed class GearStuffChoiceTests
 {
     private static readonly Resource Steel = new("Steel");
@@ -80,26 +80,19 @@ public sealed class GearStuffChoiceTests
     }
 
     [Fact]
-    public void TheBillFilterAdmitsOnlyCategoryMatesCostingNoMoreAndPicksTheCheapestElsewhere()
+    public void TheBillFilterAdmitsOnlyTheChosenStuffAndPicksTheCheapestElsewhere()
     {
-        var metal = new Dictionary<Resource, IReadOnlyList<string>>
-        {
-            [Steel] = ["Metallic"], [Plasteel] = ["Metallic"], [new("Silver")] = ["Metallic"], [new("Gold")] = ["Metallic"], [new("Bronze")] = ["Metallic"],
-        };
         var items = new ItemFacts
         {
-            StuffCategories = metal,
-            Market = new Dictionary<Resource, double>
-            {
-                [Steel] = 1.9, [Plasteel] = 9, [new("Silver")] = 1, [new("Gold")] = 10, [new("Bronze")] = 1.5, [new("Cloth")] = 1.5, [new("Leather")] = 2.1,
-            },
+            StuffCategories = new Dictionary<Resource, IReadOnlyList<string>> { [Steel] = ["Metallic"], [new("Bronze")] = ["Metallic"] },
+            Market = new Dictionary<Resource, double> { [Steel] = 1.9, [new("Bronze")] = 1.5, [new("Cloth")] = 1.5, [new("Leather")] = 2.1 },
         };
         EquatableArray<EquatableArray<Amount>> slots =
         [
-            // Silver and gold are small-volume: ten times the units, so they cost more than the steel they would replace.
-            [new Amount(Steel, 50), new Amount(Plasteel, 50), new Amount(new("Silver"), 500), new Amount(new("Gold"), 500), new Amount(new("Bronze"), 50)],
+            // Bronze is a cheaper category mate of the chosen steel: the bill still makes steel.
+            [new Amount(Steel, 50), new Amount(new("Bronze"), 50)],
             [new Amount(new("Leather"), 10), new Amount(new("Cloth"), 10)],
         ];
-        Assert.Equal([new Resource("Bronze"), new Resource("Cloth"), Steel], GearRules.GearFilter(slots, Steel, items));
+        Assert.Equal([new Resource("Cloth"), Steel], GearRules.GearFilter(slots, Steel, items));
     }
 }
