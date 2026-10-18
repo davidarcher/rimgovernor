@@ -241,7 +241,10 @@ one labor-free `ForecastCommitment` `gear/<pawn>/<allow-tainted|disallow-tainted
 `ExclusiveOutcome` `gear/<pawn>`, so a pawn's pairs never combine. It carries each card's offset for the predicted outfit
 minus the worn one as a `ForecastSituationalChange`, and the summed quality-scaled insulation change as a
 `ForecastComfortShift` (minimum by minus the cold change, maximum by the heat change). A pair is offered only when a Live
-card prices it: a situational change, or a comfort shift on a side a Live `EnvironmentCold`/`EnvironmentHot` card reads.
+card prices it: a situational change, or a comfort shift on a side a Live `EnvironmentCold`/`EnvironmentHot` card reads. An
+armor-only alternative (#3569: the planned apparel differs from the worn in groups, layers, sharp, blunt or heat rating, quality or
+condition) is also a candidate, carrying the outfit change alone; whether it is chosen is the value comparison's call (harm
+avoided against cost), not generation's.
 Candidates are in pawn order; a budget reports `effect_source_generation_truncated`. An unknown offset or counted item
 gives a finding and no candidate. The comparator, not the generator, decides whether the mood change is worth the warmth.
 

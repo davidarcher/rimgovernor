@@ -270,6 +270,32 @@ public sealed class EffectSourceCandidatesTests
         Assert.True(closest.FloorUnmet);
     }
 
+    // #3569: a swap that moves no card and no insulation is a candidate when the armor differs, and none when it does not.
+    [Theory]
+    [InlineData(0.1, 0.3, true)]
+    [InlineData(0.3, 0.3, false)]
+    public void AnArmorOnlySwapIsACandidateOnlyWhenTheArmorDiffers(double wornSharp, double plannedSharp, bool candidate)
+    {
+        var pawn = Pawn() with
+        {
+            Gear = Pawn().Gear with
+            {
+                Worn = [Garment("shirt", GearSlot.SkinTorso, "OnSkin", "Torso"), Garment("duster", GearSlot.Outer, "Shell", "Torso") with { Sharp = wornSharp }],
+                Options = [Garment("devilstrand", GearSlot.Outer, "Shell", "Torso", source: GearSource.Stored) with { Sharp = plannedSharp }],
+            },
+        };
+
+        var result = Generate(Facts(pawns: pawn));
+
+        Assert.Equal(candidate, result.Roots.Count > 0);
+        foreach (var root in result.Roots)
+        {
+            Assert.Empty(root.SituationalChanges);
+            Assert.Empty(root.ComfortShifts);
+            Assert.Contains(Assert.Single(root.OutfitChanges).Items, o => o.ID == "devilstrand");
+        }
+    }
+
     private static string Signature(EffectSourceResult result) => string.Join("\n",
         result.Roots.Select(r => r.Id + "|" + r.ExclusiveOutcome + "|" + string.Join(",", r.SituationalChanges) + "|" + string.Join(",", r.ComfortShifts))
             .Concat(result.Findings));

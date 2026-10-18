@@ -14,6 +14,8 @@ namespace RimGovernor.Brain.Policy.Methods.Generation;
 //   which Live temperature cards price along the forecast's exposure (#3327).
 // - Gating: a pair is offered only when a Live card prices it: a prevention card's offset changes, or a Live stage card reads
 //   the comfort bound the insulation change moves.
+// - Armor: a pair whose outfit differs from the worn in armor is also a candidate when no card or insulation moves (#3569);
+//   the value comparison (harm avoided against cost) decides whether it is chosen, not generation.
 // The comparator decides whether the change matters now; nothing here values mood against warmth. No def is named here.
 
 /// <summary>One pawn's facts: its gear planner input and its pawn facts for the cards.</summary>
@@ -104,7 +106,7 @@ internal static class EffectSourceCandidates
                     }
                 }
                 var (dc, dh) = (Math.Round(outfit.Cold - worn.Cold, 6), Math.Round(outfit.Heat - worn.Heat, 6));
-                if (changes.Count == 0 && !(cold && dc != 0) && !(heat && dh != 0))
+                if (changes.Count == 0 && !(cold && dc != 0) && !(heat && dh != 0) && !ArmorDiffers(worn.Items, outfit.Items))
                 {
                     continue;
                 }
@@ -128,6 +130,19 @@ internal static class EffectSourceCandidates
     done:
         return new(EquatableArray.From(roots), EquatableArray.From(findings), truncated);
     }
+
+    /// <summary>
+    /// Whether the planned apparel differs from the worn in armor: the armor response reads each garment's body groups, layers,
+    /// sharp, blunt and heat ratings, quality and condition (<see cref="GearArmorTerm"/>), so a different multiset of those is
+    /// an armor change. Generation is structural; the value comparison prices it against its cost (#3569).
+    /// </summary>
+    internal static bool ArmorDiffers(IEnumerable<GearOption> worn, IEnumerable<GearOption> planned) =>
+        !ArmorKey(worn).SequenceEqual(ArmorKey(planned), StringComparer.Ordinal);
+
+    private static IEnumerable<string> ArmorKey(IEnumerable<GearOption> items) =>
+        Apparel(items).Where(o => o.Sharp > 0 || o.Blunt > 0 || o.ArmorHeat > 0).Select(o => string.Join('|', string.Join(',', o.Groups),
+            string.Join(',', o.Layers), o.Sharp.ToString("R", CultureInfo.InvariantCulture), o.Blunt.ToString("R", CultureInfo.InvariantCulture),
+            o.ArmorHeat.ToString("R", CultureInfo.InvariantCulture), o.Quality, o.Condition.ToString("R", CultureInfo.InvariantCulture))).Order(StringComparer.Ordinal);
 
     /// <summary>The floor segment of a candidate id, <c>cold&lt;c&gt;-heat&lt;h&gt;</c>, rounded to 6 decimals; <see cref="Choice"/> reads it back.</summary>
     internal static string FloorId(double cold, double heat) =>
