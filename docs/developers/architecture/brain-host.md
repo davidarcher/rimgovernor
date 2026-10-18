@@ -496,6 +496,49 @@ The colony-facts read cut (#3556; one colony-review day each of the same colony,
   stall, and the leg searches now mark the breadcrumb per batched round, per direct search and per synchronous search,
   so a repeat names its phase.
 
+### Clock cadence (#3556 item 3)
+
+Measured 2026-10-18 on the same colony and machine, revision b9ce35c15 (the 600-tick review hold, the wall cadence
+gone), brain session `32c2e3bbd6104b4c8d62d5797eb07a7a`, one passing colony-review day of 60240 ticks: 268 s of wall
+from the first step to the last, against 82 s for 11 steps on the wall-cadence day. The budget the item serves is under
+2 wall minutes of brain time per in-game day; the day is not under it.
+
+| What | Value |
+| --- | --- |
+| `clock_step` rows | 105: 97 `review`, 5 `wake` (3 `ColonistNeed`, 1 `NotificationBatch`, 1 `SessionChanged`), 3 `full`; every one `planned` |
+| `clock_run` rows | 105: 104 `run`/`resumed`, every one with `hold_at_tick` 600 past its tick; 1 refused on the hold serial at the first review (the step read serial 0, the review hold made it 1; the retry ran) |
+| Native holds | 99 `Review`, 3 `ColonistNeed`, 1 `NotificationBatch`, 1 `SessionChanged` |
+| Review step wall | p50 94 ms, p95 3134 ms, max 3737 ms, 112.7 s over 97 |
+| Reviews that ran no planner | 50, p50 84 ms (gate 51 + read 33), max 135 ms: the no-op floor |
+| Reviews that ran planners | 47 at about 2.4 s: rounds 1184 ms p50 (5592 max, 75.9 s over 55 steps), critical wave 356 ms, optional wave 679 ms |
+| `stop_latency_ms` (hold stamp to step start) | p50 397 ms, p95 572 ms, max 3021 ms, 44.6 s over 103 |
+| `clock_run` wall | p50 112 ms, p95 403 ms, 17.0 s over 105 |
+| Brain-held wall | steps 139.9 s + Runs 17.0 s + hold-to-step 44.6 s = 201 s of the 268 s; about 67 s running, about 900 ticks/s |
+| `selection` words | `dirty` 567, `due` 284, `dirty+due` 5, `full` 66, `all` 22 |
+
+What the day says:
+
+- **The cadence holds.** About 100 reviews a day as designed, every Run naming the next review 600 ticks out, five
+  hazard holds as early reviews, no brain hold all day (the autosave fell due inside a review hold and saved there).
+  The 12 reviews of the wall-cadence day are 97; a selection is dispatched within 600 ticks of its read.
+- **Half the reviews are no-ops at the floor.** 50 of 97 found nothing dirty or due and cost 84 ms: the gate and the
+  step read. The other 47 ran rounds (1.2 s) and the planner waves (1.0 s): the family entries were dirty in 32 reviews
+  (pawn-section invalidations select every family entry, as the step profile found) and due in 12 (`ReviewEvery` 2500
+  ticks is every fourth review).
+- **Where the 201 s goes.** Rounds 76 s (38 %), the planner waves 50 s, hold-to-step 45 s, Runs 17 s, the floor 4 s.
+  Per review that is 1.75 s against the 0.65 s the budget allows: 1.16 s of step, 0.16 s of Run, 0.43 s from the hold
+  to the step's start.
+- **Hold-to-step is a new cost.** 400 ms from native's hold stamp to the step's first lap, 45 s a day, and unexplained:
+  the hold event crosses the bounded queue, the consumer's context read and the wake. On the wall-cadence day the
+  settled step hid it. The steps' own game-thread hops wait 231 ms p50 (`hop_wait_ms`), so the game thread is busy
+  around a hold.
+- **The tick rate while running fell.** About 900 ticks/s against 1160 to 1280 on the wall-cadence day; the ceiling at
+  the holds ranged 317 to 3563 ticks/s. A hundred holds a day is a hundred ramps.
+- **Next cuts, in order.** (1) The full rounds review on its own cadence (deferred until this item landed): rounds runs
+  at every review that selects a planner, 76 s a day, re-derived from facts that rarely change in 600 ticks. (2) The
+  hold-to-step latency, 45 s. (3) The family entries' sections, so a pawn invalidation selects the planners that read
+  pawns and not all 22: the waves are 50 s. With rounds and the latency cut the day is about 80 s, under the budget.
+
 ## Hosting in the mod (#3115)
 
 Decided (user, 2026-10-13):
