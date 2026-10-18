@@ -68,6 +68,15 @@ public sealed record ModelNeed
     public Fact<double> Gain { get; init; }
 
     public Fact<double> Threshold { get; init; }
+
+    /// <summary>The need level one use of the best observed service gives (a meal's nutrition); unknown while no service is observed or the service is continuous.</summary>
+    public Fact<double> GainPerUse { get; init; }
+
+    /// <summary>Ticks one use of that service takes (eating a meal); unknown while none is observed.</summary>
+    public Fact<double> ServiceTicks { get; init; }
+
+    /// <summary>The mean ticks to reach a service of this need, over the targets the need tasks observe now; unknown while none is observed.</summary>
+    public Fact<double> ApproachTicks { get; init; }
 }
 
 /// <summary>One colonist as the model's pawn cycle reads them.</summary>
@@ -89,6 +98,11 @@ public sealed record ModelPawn
     public Fact<double> Sight { get; init; }
 
     public Fact<double> Talking { get; init; }
+
+    /// <summary>The comfortable temperature range of the pawn's gear now, the pawn cycle's thermal term is read against it (#3526).</summary>
+    public Fact<double> ComfortableMin { get; init; }
+
+    public Fact<double> ComfortableMax { get; init; }
 
     /// <summary>The ResearchSpeed stat; unknown until the research provider's read reaches the frame (#3527 reads it in the coupled path only).</summary>
     public Fact<double> ResearchSpeed { get; init; }
@@ -148,6 +162,7 @@ public sealed record ColonyModelInput
         ResearchGaps(gaps);
         StockGaps(gaps);
         PawnGaps(gaps);
+        CycleGaps(gaps);
         RecipeGaps(gaps);
         SiteGaps(gaps);
         return gaps;
@@ -336,7 +351,7 @@ public sealed record ColonyModelInput
             foreach (var need in pawn.Needs)
             {
                 if (need.Kind.Length == 0 || !need.Fall.TryGetValue(out var fall) || !Number(fall) || !need.Threshold.TryGetValue(out var threshold) || !Number(threshold)
-                    || !Nonnegative(need.Gain))
+                    || !Nonnegative(need.Gain) || !Nonnegative(need.GainPerUse) || !Nonnegative(need.ServiceTicks) || !Nonnegative(need.ApproachTicks))
                 {
                     missing.Add($"need '{need.Kind}'");
                 }
@@ -359,6 +374,11 @@ public sealed record ColonyModelInput
                 }
             }
 
+            if (pawn.ComfortableMin.TryGetValue(out var coldest) != pawn.ComfortableMax.TryGetValue(out var hottest) || !Number(coldest) || !Number(hottest) || coldest > hottest)
+            {
+                missing.Add("comfortable range");
+            }
+
             if (!Nonnegative(pawn.ResearchSpeed))
             {
                 missing.Add(nameof(pawn.ResearchSpeed));
@@ -372,6 +392,25 @@ public sealed record ColonyModelInput
             if (pawn.Pawn.Length == 0 || missing.Count > 0)
             {
                 gaps.Add($"pawns: '{pawn.Pawn}' lacks {string.Join(", ", missing)}");
+            }
+        }
+    }
+
+    /// <summary>The pawn cycle (#3526) is derived per twelfth; a pawn whose year has a twelfth that is not a valid day names the twelfths and every unknown rate behind them.</summary>
+    private void CycleGaps(List<string> gaps)
+    {
+        // Every twelfth reads the climate, which ClimateGaps already names when it is missing.
+        if (!Pawns.TryGetValue(out var pawns) || !Climate.IsKnown)
+        {
+            return;
+        }
+
+        foreach (var pawn in pawns)
+        {
+            var broken = PawnCycle.Year(this, pawn).Where(c => !c.Valid()).ToList();
+            if (broken.Count > 0)
+            {
+                gaps.Add($"cycle: '{broken[0].Pawn}' has no valid day in twelfths {string.Join(",", broken.Select(c => c.Twelfth))} ({string.Join(", ", broken.SelectMany(c => c.Findings).Distinct())})");
             }
         }
     }

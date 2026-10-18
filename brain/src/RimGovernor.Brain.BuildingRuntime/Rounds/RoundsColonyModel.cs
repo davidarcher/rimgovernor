@@ -211,15 +211,43 @@ internal static class RoundsColonyModel
             foreach (var need in pawn.Needs)
             {
                 var gain = Unknown<double>();
+                var perUse = Unknown<double>();
+                var service = Unknown<double>();
+                var approach = new List<double>();
                 foreach (var target in pawn.Targets)
                 {
-                    if (target.Kind == need.Kind && target.GainPerTick.TryGetValue(out var g) && (!gain.TryGetValue(out var best) || g > best))
+                    if (target.Kind != need.Kind)
+                    {
+                        continue;
+                    }
+
+                    if (target.GainPerTick.TryGetValue(out var g) && (!gain.TryGetValue(out var best) || g > best))
                     {
                         gain = Known(g);
                     }
+
+                    if (target.GainPerUnit.TryGetValue(out var unit) && target.ServiceTicks.TryGetValue(out var ticks) && (!perUse.TryGetValue(out var bestUnit) || unit > bestUnit))
+                    {
+                        perUse = Known(unit);
+                        service = Known(ticks);
+                    }
+
+                    if (target.TravelTicks.TryGetValue(out var travel))
+                    {
+                        approach.Add(travel);
+                    }
                 }
 
-                needs.Add(new ModelNeed { Kind = need.Kind, Fall = need.FallPerTick, Gain = gain, Threshold = need.Threshold });
+                needs.Add(new ModelNeed
+                {
+                    Kind = need.Kind,
+                    Fall = need.FallPerTick,
+                    Gain = gain,
+                    Threshold = need.Threshold,
+                    GainPerUse = perUse,
+                    ServiceTicks = service,
+                    ApproachTicks = approach.Count == 0 ? Unknown<double>() : Known(approach.Average()),
+                });
             }
 
             pawns.Add(new ModelPawn
@@ -232,6 +260,8 @@ internal static class RoundsColonyModel
                 Manipulation = pawn.Manipulation,
                 Sight = pawn.Sight,
                 Talking = pawn.Talking,
+                ComfortableMin = pawn.ComfortableMin,
+                ComfortableMax = pawn.ComfortableMax,
             });
         }
 

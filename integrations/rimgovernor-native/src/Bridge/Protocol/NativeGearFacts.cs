@@ -193,6 +193,9 @@ namespace HomeBridge.BridgeTools
             for (var twelfth = 0; twelfth < GenDate.TwelfthsPerYear; twelfth++) {
                 var sampleTick = (int)(twelfth * GenDate.TicksPerTwelfth + GenDate.TicksPerTwelfth / 2 - offset);
                 result = result with { OutdoorTemperatureByTwelfthC = [.. result.OutdoorTemperatureByTwelfthC, GenTemperature.GetTemperatureFromSeasonAtTile(sampleTick, map.Tile)] };
+                // Daylight is the same sampled day's hours the game counts as daytime at the tile.
+                result = result with { DaylightHoursByTwelfth = [.. result.DaylightHoursByTwelfth,
+                    DaylightHours.Of(offsetTicks => GenCelestial.CelestialSunGlow(map.Tile, sampleTick + offsetTicks), GenCelestial.IsDaytime)] };
             }
             var conditions = new List<GameCondition>();
             map.gameConditionManager.GetAllGameConditionsAffectingMap(map, conditions);

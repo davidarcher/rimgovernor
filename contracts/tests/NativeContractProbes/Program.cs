@@ -26,6 +26,7 @@ internal static class NativeContractProbesDispatcher
                 case "native-roof-support": NativeRoofSupportProbe.Invoke(); return 0;
                 case "native-designation-guards": NativeDesignationGuardsProbe.Invoke(); return 0;
                 case "native-home-coverage": NativeHomeCoverageProbe.Invoke(); return 0;
+                case "native-daylight-hours": NativeDaylightHoursProbe.Invoke(); return 0;
                 case "native-construction-tier-gate": NativeConstructionTierGateProbe.Invoke(); return 0;
                 case "native-speed-key-block": NativeSpeedKeyBlockProbe.Invoke(); return 0;
                 case "native-clock-ceiling": NativeClockCeilingProbe.Invoke(); return 0;

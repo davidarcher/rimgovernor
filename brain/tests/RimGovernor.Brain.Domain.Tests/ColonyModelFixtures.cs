@@ -28,6 +28,7 @@ internal static class ColonyModelFixtures
         Temperatures = EquatableArray.From(new[] { -10.0, -8, -2, 5, 12, 18, 22, 21, 15, 8, 0, -7 }),
         CurrentTwelfth = 4,
         TicksToNextTwelfth = 12_000,
+        DaylightHours = EquatableArray.From(new[] { 9.0, 10, 11.5, 13, 14.5, 15.5, 15, 14, 12.5, 11, 9.5, 8.5 }),
     };
 
     internal static PlanningDefinition CropRow() => new()
@@ -105,8 +106,20 @@ internal static class ColonyModelFixtures
     private static NeedsForecastPawn Pawn() => new()
     {
         Pawn = "Anna",
-        Needs = [new NeedRate("food", Known(0.6), Known(0.00002), Known(0.3))],
-        Targets = [new NeedTarget("meal", "food", "MealSimple", 1, Known(40.0), Known(300.0), Known(0.9), Known(0.003))],
+        Needs =
+        [
+            new NeedRate("food", Known(0.6), Known(0.00002), Known(0.3)),
+            new NeedRate("rest", Known(0.8), Known(0.00001), Known(0.28)),
+            new NeedRate("joy", Known(0.5), Known(0.00001), Known(0.3)),
+        ],
+        Targets =
+        [
+            new NeedTarget("meal", "food", "MealSimple", 1, Known(40.0), Known(300.0), Known(0.9), Known(0.003)),
+            new NeedTarget("bed", "rest", "", 1, Known(60.0), default, default, Known(0.00002)),
+            new NeedTarget("tv", "joy", "", 1, Known(80.0), default, default, Known(0.00015)),
+        ],
+        ComfortableMin = Known(16.0),
+        ComfortableMax = Known(26.0),
         Consciousness = Known(1.0),
         Moving = Known(1.0),
         Manipulation = Known(1.0),

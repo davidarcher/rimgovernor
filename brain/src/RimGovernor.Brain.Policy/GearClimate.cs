@@ -14,6 +14,10 @@ public sealed record GearWeather
 public sealed record GearClimate
 {
     public EquatableArray<double> Temperatures { get; init; }
+
+    /// <summary>Hours of daylight on the sampled day of each twelfth, indexed like <see cref="Temperatures"/>; empty when the read did not carry it (#3526).</summary>
+    public EquatableArray<double> DaylightHours { get; init; }
+
     public int CurrentTwelfth { get; init; }
     public long TicksToNextTwelfth { get; init; }
     public GearWeather? Weather { get; init; }
@@ -36,6 +40,10 @@ public static class GearClimateExtensions
         {
             DomainException.Require(double.IsFinite(n), "invalid gear seasonal temperature");
         }
+        DomainException.Require(
+            c.DaylightHours.Count == 0 || c.DaylightHours.Count == 12 && c.DaylightHours.All(h => double.IsFinite(h) && h >= 0 && h <= 24),
+            "invalid gear daylight hours"
+        );
         if (c.Weather is { } w)
         {
             DomainException.Require(

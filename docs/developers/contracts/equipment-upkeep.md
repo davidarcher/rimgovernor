@@ -135,7 +135,8 @@ Stats are Normal-quality values for the specific material; armor multipliers are
 
 The optional seasonal observation carries 12 outdoor temperatures sampled at local
 twelfth midpoints and indexed by native Twelfth, the current twelfth and ticks to
-its next boundary, and at most one
+its next boundary, 12 daylight hours (`GenCelestial.IsDaytime` at the tile over the
+sampled day of each twelfth, for the tier-2 pawn cycle; empty when unread), and at most one
 ColdSnap/HeatWave row with its native temperature offset and remaining ticks
 (-1 for permanent). The clothing family's temperature range covers the current
 and next two twelfths for both cold and heat, retaining current ambient extremes.

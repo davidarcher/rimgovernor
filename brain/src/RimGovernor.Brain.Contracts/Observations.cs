@@ -4713,6 +4713,13 @@ public sealed record GearSnapshot
     [JsonConverter(typeof(EquatableArrayJsonConverter<float>))]
     public EquatableArray<float> OutdoorTemperatureByTwelfthC { get; init; }
 
+    /// <summary>
+    /// Hours of daylight (<c>GenCelestial.IsDaytime</c> at the tile) on the sampled day of each twelfth, indexed like
+    /// <see cref="OutdoorTemperatureByTwelfthC"/>; empty when unread.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<float>))]
+    public EquatableArray<float> DaylightHoursByTwelfth { get; init; }
+
     public uint? CurrentTwelfth { get; init; }
 
     public int? TicksToNextTwelfth { get; init; }

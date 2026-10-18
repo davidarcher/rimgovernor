@@ -130,10 +130,20 @@ stocks, partial project progress) is the initial state of tier 2.
 Tier 2 simulates about one game year (60 days) by jumping from event to event.
 Its cost grows with the number of events, not with ticks.
 
-- **Pawns.** Each pawn has a daily cycle derived once from its need rates:
-  sleep, eating and recreation overhead per day, and the free labor hours that
-  remain. Skills gate tasks (devilstrand sowing needs Plants 10) and set work
-  speed.
+- **Pawns.** Each pawn has a daily cycle derived per twelfth of the year
+  (`PawnCycle.Year`, twelve entries) from its need rates: sleep and recreation
+  hours are the day split `fall : fall + gain` on the rest or joy need, eating
+  hours are meals a day (food fall over the nutrition of a meal) times the
+  meal's service plus the mean approach, and the free labor hours are what
+  remains. Daylight hours per twelfth (the gear census's seasonal read) split the
+  free hours into outdoor-capable and indoor; outdoor work at night is possible
+  at the glow speed (`LayoutLight.LightSpeed`). Temperature is not a speed
+  factor (the game has none): the outdoor hours become one stationary thermal
+  span against the pawn's comfort range, which the hypothermia and heatstroke
+  integration prices. Skills gate tasks (`PawnCycle.SowGate`: devilstrand
+  sowing needs Plants 10; an unread skill makes the task unavailable, reported)
+  and set work speed. A rate the review did not observe leaves the cycle unknown
+  and is named in `ColonyModelInput.Unknowns()`; timetables are not modelled.
 - **Stocks and flows.** Arrays indexed by resource id: food, materials,
   research points, power, medicine. Production, consumption and labor are
   rates that change only at events.

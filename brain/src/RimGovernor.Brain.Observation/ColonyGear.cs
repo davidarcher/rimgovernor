@@ -290,6 +290,7 @@ public static class ColonyGearReads
             CurrentTwelfth = (int)gear.CurrentTwelfth.GetValueOrDefault(),
             TicksToNextTwelfth = (long)gear.TicksToNextTwelfth.GetValueOrDefault(),
             Temperatures = EquatableArray.From(gear.OutdoorTemperatureByTwelfthC.Select(n => (double)n)),
+            DaylightHours = EquatableArray.From(gear.DaylightHoursByTwelfth.Select(n => (double)n)),
         };
         if (gear.ActiveWeather is { } w)
         {
