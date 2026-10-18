@@ -279,13 +279,20 @@ public sealed partial record ForecastCoupledSelection
         var unknown = new SortedSet<string>(StringComparer.Ordinal);
         Fact<double> Metric(string kind, Func<ForecastNeedMetric, Fact<double>> get, bool maximum = false)
         {
-            var values = new List<double>();
+            // In order, as Enumerable.Sum adds and Enumerable.Max (a NaN gives way to the next value) compares.
+            double sum = 0, max = 0;
+            var any = false;
             var complete = outcome.Needs.Count > 0;
             foreach (var (pawn, needs) in outcome.Needs)
-                foreach (var metric in needs.Needs.Where(n => n.Kind == kind))
-                    if (get(metric).TryGetValue(out var number)) values.Add(number);
-                    else { unknown.Add("unassessed:" + pawn + ":" + kind); complete = false; }
-            return complete ? Known(maximum ? values.DefaultIfEmpty(0).Max() : values.Sum()) : default;
+                foreach (var metric in needs.Needs)
+                {
+                    if (metric.Kind != kind) continue;
+                    if (!get(metric).TryGetValue(out var number)) { unknown.Add("unassessed:" + pawn + ":" + kind); complete = false; continue; }
+                    sum += number;
+                    if (!any || double.IsNaN(max) || number > max) max = number;
+                    any = true;
+                }
+            return complete ? Known(maximum ? max : sum) : default;
         }
         Fact<double> Worst(Fact<double> a, Fact<double> b) => a.IsKnown && b.IsKnown ? Known(Math.Max(a.Value, b.Value)) : default;
         var urgent = new[] { Worst(Metric("food", n => n.ZeroTicks, true), Metric("rest", n => n.ZeroTicks, true)),

@@ -24,6 +24,8 @@ public sealed class ForecastConditionalMoodTests
         Needs = [new("rest", Known(.3), Known(0d), Known(.28))],
         Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.7 / (7 * Hour)))],
     };
+    internal static ForecastNeedChoice SleepProbe(string id, double from, double to) => Sleep(id, from, to);
+    internal static NeedsForecastPawn PawnProbe() => Pawn();
     private static ForecastNeedChoice Sleep(string id, double from, double to)
         => new(id, "pawn", "rest", "bed", "", 0, from, from, to, (to - from) * .7 / (7 * Hour), []);
     private static ForecastCapacityInput Capacity() => new()
@@ -160,11 +162,14 @@ public sealed class ForecastConditionalMoodTests
         var sleep = Sleep("sleep", 5 * Hour, 12 * Hour);
         var full = ForecastMood.ForecastMoodTimeline(Pawn(), Day, [sleep]);
         var interrupted = ForecastMood.ForecastMoodTimeline(Pawn(), Day, [sleep], new Dictionary<string, double> { [sleep.Id] = 8 * Hour });
-        Assert.True(At(full, 9 * Hour).Asleep);
+        Assert.True(At(full, 5 * Hour).Asleep);
         Assert.False(At(interrupted, 8 * Hour).Asleep);
         Assert.Equal(.4, At(interrupted, 8 * Hour).Target.Value, 8);
         Assert.True(interrupted.PressureTicks.Value > full.PressureTicks.Value);
-        Assert.True(At(interrupted, 9 * Hour).Actual.Value < At(full, 9 * Hour).Actual.Value);
+        // Points fall only at events; the mood at 9h is the terminal mood of a 9h horizon.
+        var fullAtNine = ForecastMood.ForecastMoodTimeline(Pawn(), 9 * Hour, [sleep]);
+        var interruptedAtNine = ForecastMood.ForecastMoodTimeline(Pawn(), 9 * Hour, [sleep], new Dictionary<string, double> { [sleep.Id] = 8 * Hour });
+        Assert.True(interruptedAtNine.TerminalMood.Value < fullAtNine.TerminalMood.Value);
     }
 
     [Fact]
@@ -307,14 +312,16 @@ public sealed class ForecastConditionalMoodTests
         Assert.Empty(shortHorizon.Selection.Selected);
     }
     [Fact]
-    public void NativeThresholdAndDisturbanceDelayActivationAndTinyResponseIntervalIsExplicitlyBounded()
+    public void NativeThresholdAndDisturbanceDelayActivationAndTinyResponseIntervalAddsNoSegments()
     {
         var pawn = Pawn() with { Needs = [new("rest", Known(.9), Known(.00001), Known(.28))], SleepBlockedUntilTicks = Known(20000d) };
         var generated = ForecastNeeds.GenerateNeedsAlternatives(pawn, ForecastCapacity.ForecastPawnCapacityOf(Capacity()), Day);
         Assert.NotEmpty(generated.Choices);
         Assert.All(generated.Choices, c => Assert.True(c.Start >= 20000 && Math.Max(0, .9 - .00001 * c.Start) < .75));
-        var bounded = ForecastMood.ForecastMoodTimeline(Pawn() with { MoodIntervalTicks = Known(.000001) }, Day, []);
-        Assert.Contains("mood_event_budget_truncated", bounded.Findings);
-        Assert.False(bounded.TerminalMood.IsKnown);
+        // Mood moves in exact segments between events (#3468); the native response interval adds none.
+        var tiny = ForecastMood.ForecastMoodTimeline(Pawn() with { MoodIntervalTicks = Known(.000001) }, Day, []);
+        var native = ForecastMood.ForecastMoodTimeline(Pawn(), Day, []);
+        Assert.Equal(native.Trajectory.Count, tiny.Trajectory.Count);
+        Assert.Equal(native.TerminalMood, tiny.TerminalMood);
     }
 }

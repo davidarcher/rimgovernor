@@ -228,7 +228,7 @@ public static class ForecastCoupled
         unavailableWork ??= new(StringComparer.Ordinal);
         var horizon = request.HorizonDays * GameTime.TicksPerDay;
         var findings = new List<ForecastFinding>();
-        var tasks = problem.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal);
+        var tasks = cache.Tasks(problem);
         if (plan.Allocations.GroupBy(a => a.Activity, StringComparer.Ordinal).FirstOrDefault(g => g.Count() > 1) is { } twice)
             throw new DomainException("schedule allocates one activity more than once: " + twice.Key + " to " + string.Join(",", twice.Select(a => a.Pawn + "@" + a.Start)));
         var allocations = plan.Allocations.ToDictionary(a => a.Activity, StringComparer.Ordinal);
@@ -236,7 +236,7 @@ public static class ForecastCoupled
         var completed = new Dictionary<string, Fact<bool>>(StringComparer.Ordinal);
         var lots = context.InitialLots.ToDictionary(l => (l.Lot, l.Location, l.Resource), l => l.Count);
         var expiry = context.InitialLots.Where(l => l.Perishable).GroupBy(l => l.Lot).ToDictionary(g => g.Key, g => g.First().FreshTicks);
-        var material = ForecastCoupledMaterials.CoupledMaterialBudgetOf(request, commitments, problem, plan);
+        var material = ForecastCoupledMaterials.CoupledMaterialBudgetOf(request, cache.Materials(request, commitments), tasks, plan);
         var balance = material.TryGetValue(out var budget)
             ? new Dictionary<Resource, Fact<double>>(budget) : new Dictionary<Resource, Fact<double>>();
         var physicalKnown = material.IsKnown;
@@ -251,8 +251,7 @@ public static class ForecastCoupled
         // Temporal non-overlap cannot authorize extra participants: a target admits at most MaxPawns distinct owners
         // (an unreadable MaxPawns is read as 1, this evaluator's policy), and its stack quantity bounds the summed claims.
         var (needTasksByTask, needTasksByPawn) = cache.NeedTasks(context);
-        var observedTargets = context.Needs.Pawns.SelectMany(p => p.Targets).GroupBy(t => t.Id, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.First().MaxPawns, StringComparer.Ordinal);
+        var (observedTargets, decaying) = cache.Targets(context);
         var needClaims = context.NeedTasks.Where(n => allocations.ContainsKey(n.Task) && n.Target.Length != 0)
             .Select(n => (n.Target, n.Pawn, n.Count, n.MaxPawns, n.AvailableCount, Stack: n.Batch, n.Task)).ToArray();
         var needClaimed = needClaims.Select(c => (c.Task, c.Pawn)).ToHashSet();
@@ -274,12 +273,9 @@ public static class ForecastCoupled
             .Where(d => d is not null && d.Bill.Length != 0).Select(d => d!);
         foreach (var choice in supportChoices.GroupBy(d => d.Bill).Where(g => g.Select(d => d.Resource).Distinct().Count() > 1))
             Refuse("conflicting_bill_material_choices", choice.Key, 0);
-        var external = commitments.Values.Where(c => c.ActivityCompletions.Count == 0)
-            .SelectMany(c => c.StockChanges.Select(change => (Owner: c.Id, Change: change))).ToArray();
+        var (external, timedExternal) = cache.External(commitments, request.HorizonDays);
         foreach (var item in external.Where(e => !e.Change.Day.IsKnown || !e.Change.Units.IsKnown))
         { balance[item.Change.Resource] = default; Uncertain("unknown_external_stock_effect", item.Owner, 0); }
-        var timedExternal = external.Where(e => e.Change.Day.IsKnown && e.Change.Units.IsKnown && e.Change.Day.Value <= request.HorizonDays)
-            .OrderBy(e => e.Change.Day.Value).ThenBy(e => e.Owner, StringComparer.Ordinal).ToArray();
         var nextExternal = 0;
         void ApplyExternal(double time)
         {
@@ -305,8 +301,6 @@ public static class ForecastCoupled
         }
         // Observed food stacks that deteriorate (#3339), and the completion tick of every completed activity, which places the
         // planned rooms this schedule closes and roofs.
-        var decaying = context.Needs.Pawns.SelectMany(p => p.Targets).Where(t => t.Kind == "food" && t.Deterioration is not null)
-            .GroupBy(t => t.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         var finishedAt = new Dictionary<string, double>(StringComparer.Ordinal);
         var decayed = new HashSet<string>(StringComparer.Ordinal);
         if (decaying.Count > 0) Finding("deterioration_rain_and_other_stat_parts_held", "deterioration", 0);
@@ -340,9 +334,16 @@ public static class ForecastCoupled
             }
         }
         // Completion precedes dependent start for positive-duration work; zero-duration tasks cannot finance themselves.
-        var events = plan.Allocations.SelectMany(a => new[] { (Time: a.Start, Order: 1, Start: true, Allocation: a),
-            (Time: a.End, Order: a.End > a.Start ? 0 : 2, Start: false, Allocation: a) })
-            .OrderBy(e => e.Time).ThenBy(e => e.Order).ThenBy(e => e.Allocation.Activity, StringComparer.Ordinal);
+        // (Time, order, activity) is a total order: an activity is allocated once, and its start and end orders differ.
+        var events = cache.Events;
+        events.Clear();
+        foreach (var a in plan.Allocations)
+        {
+            events.Add(new(a.Start, 1, true, a));
+            events.Add(new(a.End, a.End > a.Start ? 0 : 2, false, a));
+        }
+        events.Sort(static (x, y) => x.Time != y.Time ? x.Time.CompareTo(y.Time) : x.Order != y.Order ? x.Order.CompareTo(y.Order)
+            : string.CompareOrdinal(x.Allocation.Activity, y.Allocation.Activity));
         foreach (var e in events)
         {
             ApplyExternal(e.Time);
@@ -353,50 +354,70 @@ public static class ForecastCoupled
             {
                 if (unavailableWork.Contains(task.Id))
                 { completed[task.Id] = Known(false); Refuse("work_outside_recovered_capacity", task.Id, e.Time); continue; }
-                var dependencies = task.Prerequisites.Select(p => completed.GetValueOrDefault(p)).ToArray();
-                if (dependencies.Any(p => p == Known(false)))
+                bool failed = false, unknownPrerequisite = false;
+                foreach (var prerequisite in task.Prerequisites)
+                {
+                    var done = completed.GetValueOrDefault(prerequisite);
+                    failed |= done == Known(false); unknownPrerequisite |= !done.IsKnown;
+                }
+                if (failed)
                 { completed[task.Id] = Known(false); Refuse("failed_prerequisite", task.Id, e.Time); continue; }
-                if (dependencies.Any(p => !p.IsKnown))
+                if (unknownPrerequisite)
                 { completed[task.Id] = default; Uncertain("unknown_prerequisite", task.Id, e.Time); continue; }
-                var ingestion = needTasksByTask[task.Id].SingleOrDefault(n => n.Kind == "food");
-                if (ingestion is not null)
+                var shape = cache.Shape(task, needTasksByTask);
+                if (shape.Ingestion is not null)
                 {
                     // Physical lot accounting below owns quantity and dependency completion owns access.
                     // Ingestion additionally needs the selected actual lot fresh through chewing.
-                    var foodExpiry = task.Inputs.Where(i => i.Resource == ingestion.Resource).Select(i => expiry.GetValueOrDefault(i.Lot)).ToArray();
-                    if (foodExpiry.Length == 0 || foodExpiry.Any(t => !t.IsKnown))
+                    bool unknownExpiry = shape.FoodLots.Length == 0, stale = false;
+                    foreach (var lot in shape.FoodLots)
+                    {
+                        var fresh = expiry.GetValueOrDefault(lot);
+                        unknownExpiry |= !fresh.IsKnown; stale |= fresh.IsKnown && e.Allocation.End >= fresh.Value;
+                    }
+                    if (unknownExpiry)
                     { completed[task.Id] = default; Uncertain("unknown_food_access_or_expiry", task.Id, e.Time); continue; }
-                    if (foodExpiry.Any(t => e.Allocation.End >= t.Value))
+                    if (stale)
                     { completed[task.Id] = Known(false); Refuse("food_unavailable_at_ingestion", task.Id, e.Time); continue; }
                     // Nor may it deteriorate away before the meal ends, at the rate the completions so far leave it (#3339).
-                    var rooms = ForecastRoofConsequences.PlannedClosedRooms(context, finishedAt);
-                    if (task.Inputs.Where(i => i.Resource == ingestion.Resource && decaying.ContainsKey(i.Lot))
-                        .Any(i => ForecastRoofConsequences.DeterioratedAt(decaying[i.Lot], context.Needs, rooms, e.Allocation.End) is { } gone && gone <= e.Allocation.End))
-                    { completed[task.Id] = Known(false); Refuse("food_deteriorated_before_ingestion", task.Id, e.Time); continue; }
+                    if (decaying.Count != 0)
+                    {
+                        var rooms = ForecastRoofConsequences.PlannedClosedRooms(context, finishedAt);
+                        if (shape.FoodLots.Any(lot => decaying.ContainsKey(lot)
+                            && ForecastRoofConsequences.DeterioratedAt(decaying[lot], context.Needs, rooms, e.Allocation.End) is { } gone && gone <= e.Allocation.End))
+                        { completed[task.Id] = Known(false); Refuse("food_deteriorated_before_ingestion", task.Id, e.Time); continue; }
+                    }
                 }
-                var inputs = task.Inputs.GroupBy(i => i.Resource).ToArray();
-                if (!physicalKnown && inputs.Length != 0 || inputs.Any(g => g.Any(i => !i.Units.IsKnown)
-                    || !balance.GetValueOrDefault(g.Key, Known(0.0)).IsKnown))
+                bool unknownMaterial = !physicalKnown && shape.Inputs.Length != 0, shortfall = false;
+                foreach (var input in shape.Inputs) unknownMaterial |= input.Unknown || !balance.GetValueOrDefault(input.Resource, Known(0.0)).IsKnown;
+                if (unknownMaterial)
                 { completed[task.Id] = default; Uncertain("unknown_timed_material", task.Id, e.Time); continue; }
-                if (inputs.Any(g => balance.GetValueOrDefault(g.Key, Known(0.0)).Value < g.Sum(i => i.Units.Value)))
+                foreach (var input in shape.Inputs) shortfall |= balance.GetValueOrDefault(input.Resource, Known(0.0)).Value < input.Units;
+                if (shortfall)
                 { completed[task.Id] = Known(false); Refuse("timed_material_shortfall", task.Id, e.Time); continue; }
-                var timedLots = task.Inputs.Where(i => i.Lot.Length != 0 && expiry.ContainsKey(i.Lot)).Select(i => expiry[i.Lot]).ToArray();
-                if (timedLots.Any(t => !t.IsKnown))
+                bool unknownIngredient = false, expired = false;
+                foreach (var lot in shape.InputLots)
+                    if (expiry.TryGetValue(lot, out var fresh)) { unknownIngredient |= !fresh.IsKnown; expired |= fresh.IsKnown && fresh.Value <= e.Time; }
+                if (unknownIngredient)
                 { completed[task.Id] = default; Uncertain("unknown_ingredient_expiry", task.Id, e.Time); continue; }
-                if (timedLots.Any(t => t.Value <= e.Time))
+                if (expired)
                 { completed[task.Id] = Known(false); Refuse("ingredient_expired_before_service", task.Id, e.Time); continue; }
-                var lotInputs = task.Inputs.Where(i => i.Lot.Length != 0).GroupBy(i => (i.Lot, Location: i.LotLocation.Length == 0 ? task.Location : i.LotLocation, i.Resource)).ToArray();
-                if (lotInputs.Any(g => !lots.GetValueOrDefault(g.Key, Known(0.0)).IsKnown))
-                { completed[task.Id] = default; Uncertain("unknown_source_lot", task.Id, e.Time); continue; }
-                if (lotInputs.Any(g => lots.GetValueOrDefault(g.Key, Known(0.0)).Value < g.Sum(i => i.Units.Value)))
-                { completed[task.Id] = Known(false); Refuse("source_lot_shortfall", task.Id, e.Time); continue; }
-                foreach (var group in lotInputs) lots[group.Key] = Known(lots.GetValueOrDefault(group.Key, Known(0.0)).Value - group.Sum(i => i.Units.Value));
-                completed[task.Id] = Known(true);
-                foreach (var group in inputs)
+                bool unknownLot = false, lotShortfall = false;
+                foreach (var input in shape.LotInputs)
                 {
-                    var units = group.Sum(i => i.Units.Value);
-                    balance[group.Key] = Known(balance.GetValueOrDefault(group.Key, Known(0.0)).Value - units);
-                    effects.Add(new(group.Key, Known(e.Time / GameTime.TicksPerDay), Known(-units)));
+                    var held = lots.GetValueOrDefault(input.Key, Known(0.0));
+                    unknownLot |= !held.IsKnown; lotShortfall |= held.IsKnown && held.Value < input.Units;
+                }
+                if (unknownLot)
+                { completed[task.Id] = default; Uncertain("unknown_source_lot", task.Id, e.Time); continue; }
+                if (lotShortfall)
+                { completed[task.Id] = Known(false); Refuse("source_lot_shortfall", task.Id, e.Time); continue; }
+                foreach (var input in shape.LotInputs) lots[input.Key] = Known(lots.GetValueOrDefault(input.Key, Known(0.0)).Value - input.Units);
+                completed[task.Id] = Known(true);
+                foreach (var input in shape.Inputs)
+                {
+                    balance[input.Resource] = Known(balance.GetValueOrDefault(input.Resource, Known(0.0)).Value - input.Units);
+                    effects.Add(new(input.Resource, Known(e.Time / GameTime.TicksPerDay), Known(-input.Units)));
                 }
             }
             else if (completed.GetValueOrDefault(task.Id) == Known(true))
@@ -496,7 +517,8 @@ public static class ForecastCoupled
             };
             // Needs recovery is assessed without masking physiological unavailability beneath planned work.
             var physical = input with { Occupancy = Known<EquatableArray<ForecastOccupancy>>([]) };
-            var physiology = cache.Needs(pawn.Pawn, physical.Occupancy, choices, null, null,
+            var choiceKey = EquatableArray.From(choices);
+            var physiology = cache.Needs(pawn.Pawn, physical.Occupancy, choiceKey, null, null,
                 () => ForecastNeeds.ForecastNeedsTimeline(pawn, physical, choices, mood: false));
             if (!physiology.Capacity.Capacity.Windows.TryGetValue(out var able))
             { if (productive.Length != 0 || choices.Count != 0) Uncertain("unknown_future_capacity", pawn.Pawn, 0); }
@@ -505,15 +527,17 @@ public static class ForecastCoupled
                 { rejectedWork.Add(work.Activity); completed[work.Activity] = Known(false); Refuse("work_outside_recovered_capacity", work.Activity, work.Start); }
             var spans = exposure.Single(t => t.Pawn == pawn.Pawn).Spans;
             // Room and roof thoughts (#3339): bed thoughts at the wake, weather, the outdoors need and undergrounder thoughts.
-            var roof = ForecastRoofConsequences.RoofMoodOf(pawn, context.Needs, choices, closedRooms, context.ObservedThoughts.GetValueOrDefault(pawn.Pawn), horizon);
+            // Roof mood reads the pawn's choices and the closed rooms; the rest is the search's context (#3468).
+            var roof = cache.Roof(pawn.Pawn, choiceKey, closedRooms,
+                () => ForecastRoofConsequences.RoofMoodOf(pawn, context.Needs, choices, closedRooms, context.ObservedThoughts.GetValueOrDefault(pawn.Pawn), horizon));
             var pawnGranted = granted.GetValueOrDefault(pawn.Pawn);
             var pawnSituational = situational.GetValueOrDefault(pawn.Pawn);
             var banded = temperatureCards.Select(card => ForecastMood.TemperatureThought(card, context.CardPawns.GetValueOrDefault(pawn.Pawn),
                 context.ObservedThoughts.GetValueOrDefault(pawn.Pawn), spans)).Concat(roof.Banded).ToArray();
             // Mood reads neither occupancy nor capacity, so it is cached on its own inputs (#3468).
-            var projected = cache.Needs(pawn.Pawn, input.Occupancy, choices, pawnGranted, roof.Renewals,
+            var projected = cache.Needs(pawn.Pawn, input.Occupancy, choiceKey, pawnGranted, roof.Renewals,
                 () => ForecastNeeds.ForecastNeedsTimeline(pawn, input, choices, granted: pawnGranted, renewals: roof.Renewals, mood: false));
-            var mood = cache.Mood(pawn.Pawn, choices, pawnGranted, pawnSituational, banded, roof.Renewals,
+            var mood = cache.Mood(pawn.Pawn, choiceKey, pawnGranted, pawnSituational, banded, roof.Renewals,
                 () => ForecastMood.ForecastMoodTimeline(pawn, horizon, choices, null, pawnGranted, pawnSituational, banded, roof.Renewals, context.MoodTrajectory));
             projected = projected with { Mood = mood, Findings = mood.BreakRisk.IsKnown ? projected.Findings
                 : EquatableArray.From(projected.Findings.Append("mental_break_probability_unassessed").Distinct().Order(StringComparer.Ordinal)) };
@@ -605,10 +629,83 @@ public static class ForecastCoupled
         };
     }
 
+    /// <summary>A task's material shape, fixed for a search: inputs by resource in first-appearance order with units summed
+    /// in row order (Unknown when any row is), the lots its inputs name, its source lots with summed units, and the meal
+    /// it serves with that meal's lots.</summary>
+    internal sealed record TaskShape((Resource Resource, bool Unknown, double Units)[] Inputs, string[] InputLots,
+        ((string Lot, string Location, Resource Resource) Key, double Units)[] LotInputs, ForecastNeedTask? Ingestion, string[] FoodLots);
+
+    internal readonly record struct ScheduleEvent(double Time, int Order, bool Start, ForecastActivityAllocation Allocation);
+
     /// <summary>One search's needs results (#3467). A pawn's timelines depend only on that pawn's own inputs, which most
     /// schedules repeat; everything else they read is the search's fixed context.</summary>
     internal sealed class NeedsCache
     {
+        /// <summary>One schedule's events; evaluation recurses only after it is done with them.</summary>
+        internal List<ScheduleEvent> Events { get; } = [];
+        private readonly Dictionary<ForecastActivityProblem, Dictionary<string, ForecastActivity>> tasks = new(ReferenceEqualityComparer.Instance);
+        private readonly Dictionary<ForecastActivity, TaskShape> shapes = new(ReferenceEqualityComparer.Instance);
+        internal Dictionary<string, ForecastActivity> Tasks(ForecastActivityProblem problem)
+        {
+            if (!tasks.TryGetValue(problem, out var byId)) tasks.Add(problem, byId = problem.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal));
+            return byId;
+        }
+        internal TaskShape Shape(ForecastActivity task, ILookup<string, ForecastNeedTask> needTasksByTask)
+        {
+            if (shapes.TryGetValue(task, out var shape)) return shape;
+            static double Sum(IEnumerable<ForecastActivityYield> rows)
+            {
+                double total = 0;
+                foreach (var row in rows) total += row.Units.TryGetValue(out var units) ? units : double.NaN;
+                return total;
+            }
+            var inputs = task.Inputs.GroupBy(i => i.Resource).Select(g => (g.Key, g.Any(i => !i.Units.IsKnown), Sum(g))).ToArray();
+            var lotInputs = task.Inputs.Where(i => i.Lot.Length != 0)
+                .GroupBy(i => (i.Lot, Location: i.LotLocation.Length == 0 ? task.Location : i.LotLocation, i.Resource))
+                .Select(g => (g.Key, Sum(g))).ToArray();
+            var ingestion = needTasksByTask[task.Id].SingleOrDefault(n => n.Kind == "food");
+            shape = new(inputs, task.Inputs.Where(i => i.Lot.Length != 0).Select(i => i.Lot).ToArray(), lotInputs, ingestion,
+                ingestion is null ? [] : task.Inputs.Where(i => i.Resource == ingestion.Resource).Select(i => i.Lot).ToArray());
+            shapes.Add(task, shape);
+            return shape;
+        }
+        private ForecastCoupledContext? targetsOf;
+        private (Dictionary<string, Fact<int>> MaxPawns, Dictionary<string, NeedTarget> Decaying) targets;
+        /// <summary>Each observed target's MaxPawns, and the observed food stacks that deteriorate, by target id.</summary>
+        internal (Dictionary<string, Fact<int>> MaxPawns, Dictionary<string, NeedTarget> Decaying) Targets(ForecastCoupledContext context)
+        {
+            if (!ReferenceEquals(context, targetsOf))
+            {
+                var observed = context.Needs.Pawns.SelectMany(p => p.Targets).ToArray();
+                (targetsOf, targets) = (context, (observed.GroupBy(t => t.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First().MaxPawns, StringComparer.Ordinal),
+                    observed.Where(t => t.Kind == "food" && t.Deterioration is not null).GroupBy(t => t.Id, StringComparer.Ordinal)
+                        .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal)));
+            }
+            return targets;
+        }
+        private (IReadOnlyDictionary<string, ForecastCommitment> Commitments, double Horizon)? externalOf;
+        private ((string Owner, ForecastStockChange Change)[] All, (string Owner, ForecastStockChange Change)[] Timed) external;
+        /// <summary>The stock effects of commitments without activities, and those known inside the horizon by day and owner.</summary>
+        internal ((string Owner, ForecastStockChange Change)[] All, (string Owner, ForecastStockChange Change)[] Timed) External(
+            IReadOnlyDictionary<string, ForecastCommitment> commitments, double horizonDays)
+        {
+            if (externalOf is not { } of || !ReferenceEquals(of.Commitments, commitments) || of.Horizon != horizonDays)
+            {
+                var all = commitments.Values.Where(c => c.ActivityCompletions.Count == 0)
+                    .SelectMany(c => c.StockChanges.Select(change => (Owner: c.Id, Change: change))).ToArray();
+                (externalOf, external) = ((commitments, horizonDays), (all, all.Where(e => e.Change.Day.IsKnown && e.Change.Units.IsKnown && e.Change.Day.Value <= horizonDays)
+                    .OrderBy(e => e.Change.Day.Value).ThenBy(e => e.Owner, StringComparer.Ordinal).ToArray()));
+            }
+            return external;
+        }
+        private (ColonyForecastRequest Request, IReadOnlyDictionary<string, ForecastCommitment> Commitments)? materialsOf;
+        private ForecastCoupledMaterials.MaterialHolds? materials;
+        internal ForecastCoupledMaterials.MaterialHolds? Materials(ColonyForecastRequest request, IReadOnlyDictionary<string, ForecastCommitment> commitments)
+        {
+            if (materialsOf is not { } of || !ReferenceEquals(of.Request, request) || !ReferenceEquals(of.Commitments, commitments))
+                (materialsOf, materials) = ((request, commitments), ForecastCoupledMaterials.MaterialHoldsOf(request, commitments));
+            return materials;
+        }
         private ForecastCoupledContext? indexed;
         private (ILookup<string, ForecastNeedTask> ByTask, ILookup<string, ForecastNeedTask> ByPawn) needTasks;
         internal (ILookup<string, ForecastNeedTask> ByTask, ILookup<string, ForecastNeedTask> ByPawn) NeedTasks(ForecastCoupledContext context)
@@ -623,19 +720,26 @@ public static class ForecastCoupled
             EquatableArray<(string Thought, double OffsetDelta, double Start)> Situational,
             EquatableArray<(string Thought, EquatableArray<(double Start, double End, double OffsetDelta)> Spans)> Banded,
             EquatableArray<ForecastMemoryRenewal> Renewals), ForecastMoodResult> moods = [];
-        internal ForecastNeedsResult Needs(string pawn, Fact<EquatableArray<ForecastOccupancy>> occupancy, IReadOnlyList<ForecastNeedChoice> choices,
+        private readonly Dictionary<(string Pawn, EquatableArray<ForecastNeedChoice> Choices, EquatableArray<ForecastClosedRoom> Rooms), ForecastRoofMood> roofs = [];
+        internal ForecastRoofMood Roof(string pawn, EquatableArray<ForecastNeedChoice> choices, IReadOnlyList<ForecastClosedRoom> rooms, Func<ForecastRoofMood> roofMood)
+        {
+            var key = (pawn, choices, EquatableArray.From(rooms));
+            if (!roofs.TryGetValue(key, out var result)) roofs.Add(key, result = roofMood());
+            return result;
+        }
+        internal ForecastNeedsResult Needs(string pawn, Fact<EquatableArray<ForecastOccupancy>> occupancy, EquatableArray<ForecastNeedChoice> choices,
             IReadOnlyList<(NeedMemory Thought, double Start)>? granted, IReadOnlyList<ForecastMemoryRenewal>? renewals, Func<ForecastNeedsResult> timeline)
         {
-            var key = (pawn, occupancy, EquatableArray.From(choices), EquatableArray.From(granted ?? []), EquatableArray.From(renewals ?? []));
+            var key = (pawn, occupancy, choices, EquatableArray.From(granted ?? []), EquatableArray.From(renewals ?? []));
             if (!needs.TryGetValue(key, out var result)) needs.Add(key, result = timeline());
             return result;
         }
-        internal ForecastMoodResult Mood(string pawn, IReadOnlyList<ForecastNeedChoice> choices, IReadOnlyList<(NeedMemory Thought, double Start)>? granted,
+        internal ForecastMoodResult Mood(string pawn, EquatableArray<ForecastNeedChoice> choices, IReadOnlyList<(NeedMemory Thought, double Start)>? granted,
             IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational,
             IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)> banded,
             IReadOnlyList<ForecastMemoryRenewal>? renewals, Func<ForecastMoodResult> timeline)
         {
-            var key = (pawn, EquatableArray.From(choices), EquatableArray.From(granted ?? []), EquatableArray.From(situational ?? []),
+            var key = (pawn, choices, EquatableArray.From(granted ?? []), EquatableArray.From(situational ?? []),
                 EquatableArray.From(banded.Select(b => (b.Thought, EquatableArray.From(b.Spans)))), EquatableArray.From(renewals ?? []));
             if (!moods.TryGetValue(key, out var result)) moods.Add(key, result = timeline());
             return result;

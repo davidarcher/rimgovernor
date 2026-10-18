@@ -739,3 +739,50 @@ within run-to-run noise except at one day):
 | Four-worker | 700 | 16,384 | 781 / 679 | 343 / 384 |
 | Four-worker | 700 | 262,144 | 14,800 / 13,082 | 6,434 / 7,182 |
 | Four-worker | 60,000 | 16,384 | 1,330 / 707 | 540 / 325 |
+
+### Exact mood segments
+
+The mood timeline integrates exact segments between real events instead of 150-tick steps. Every
+on/off state (hour band, start, end, expiry, sleep) is read at a segment's midpoint, the clamp at 0
+and 1 cuts a segment, and actual mood chases the target in closed form. The old steps read a state
+change up to one step late, so the old values carried up to half a step of error.
+
+The criterion is identical selections and feasibility, with mood values inside a small tolerance.
+Both fixtures' quality rows stay identical (their mood is unassessed). Every mood timeline in the
+domain suite (36,156 calls) was run through the old and new code and compared. The only known-ness
+change is the old `mood_event_budget_truncated` refusal for a tiny response interval, which no longer
+applies. The largest differences were:
+
+| Value | Largest difference |
+|---|---|
+| Target exposure | 75 ticks (half a step) |
+| Target pressure | 3 ticks |
+| Break risk | 0.0003 breaks |
+| Actual exposure | 150 ticks over a day |
+| Terminal actual mood | 0.0072 |
+
+### Pooled schedule evaluation
+
+Each schedule's evaluation now rebuilds only what depends on it:
+
+- Fixed for a search: each task's material shape, the observed targets and decaying stacks, the
+  external stock effects, the material holds before bills, and roof mood by pawn choices and
+  closed rooms.
+- Schedule events go into one reused, sorted buffer.
+- Inventory, plan search and consequence metrics are loops in the old order, with the same sums,
+  maxima and finding order.
+- Plan search places allocations by task index, sorts options once and formats a plan's text only
+  to break ranking ties. The visited prefixes already keep one plan per assignment.
+
+Every quality row is identical to stage 2. The stage 3 column includes the exact mood segments.
+Allocation, best of three samples:
+
+| Fixture | Horizon | Budget | MB stage 2 / stage 3 | ms stage 2 / stage 3 |
+|---|---|---|---|---|
+| Original | 700 | 16,384 | 359 / 191 | 239 / 215 |
+| Original | 60,000 | 16,384 | 362 / 191 | 178 / 107 |
+| Four-worker | 700 | 16,384 | 679 / 366 | 384 / 213 |
+| Four-worker | 700 | 262,144 | 13,082 / 6,818 | 7,182 / 3,981 |
+| Four-worker | 60,000 | 16,384 | 707 / 373 | 325 / 205 |
+
+Most of what remains is the needs timeline on a cache miss and the capacity input it is keyed by.

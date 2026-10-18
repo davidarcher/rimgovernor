@@ -165,9 +165,12 @@ public static class ColonyForecastRules
             }
             stocks[row.Resource] = stocks.GetValueOrDefault(row.Resource) + row.Count;
         }
-        var ordered = commitments.Values.OrderBy(c => c.Id, StringComparer.Ordinal).ToArray();
-        var effects = ordered.SelectMany(c => c.StockChanges.Select(change => (c.Id, Change: change))).ToArray();
-        var resources = stocks.Keys.Concat(effects.Select(e => e.Change.Resource)).Distinct().OrderBy(r => r.Value, StringComparer.Ordinal);
+        var ordered = commitments.Values.ToArray();
+        Array.Sort(ordered, static (a, b) => string.CompareOrdinal(a.Id, b.Id));
+        var effects = new List<(string Id, ForecastStockChange Change)>();
+        var resources = new HashSet<Resource>(stocks.Keys);
+        foreach (var commitment in ordered)
+            foreach (var change in commitment.StockChanges) { effects.Add((commitment.Id, change)); resources.Add(change.Resource); }
         var trajectories = new List<ForecastStockTrajectory>();
         var findings = new List<ForecastFinding>();
         if (!known)
@@ -181,19 +184,26 @@ public static class ColonyForecastRules
                 findings.Add(new ForecastFinding("unsupported:" + effect, commitment.Id, default, Unknown<double>(), Unknown<double>()));
             }
         }
-        foreach (var resource in resources)
+        var sorted = resources.ToArray();
+        Array.Sort(sorted, static (a, b) => string.CompareOrdinal(a.Value, b.Value));
+        var timed = new List<int>();
+        foreach (var resource in sorted)
         {
-            var relevant = effects.Where(e => e.Change.Resource == resource).ToArray();
             var balance = known ? Known(stocks.GetValueOrDefault(resource)) : Unknown<double>();
             var points = new List<ForecastStockPoint> { new(0, balance) };
-            // Unknown time may affect any future point, but never rewrites the observed stock.
-            if (relevant.Any(e => !e.Change.Day.IsKnown))
+            timed.Clear();
+            for (var i = 0; i < effects.Count; i++)
             {
-                balance = Unknown<double>();
-            }
-            foreach (var e in relevant)
-            {
-                if (!e.Change.Day.TryGetValue(out var day) || !e.Change.Units.IsKnown)
+                var e = effects[i];
+                if (e.Change.Resource != resource) continue;
+                if (!e.Change.Day.TryGetValue(out var day))
+                {
+                    // Unknown time may affect any future point, but never rewrites the observed stock.
+                    balance = Unknown<double>();
+                    findings.Add(new ForecastFinding("unknown_stock_effect", e.Id, resource, e.Change.Day, e.Change.Units));
+                    continue;
+                }
+                if (!e.Change.Units.IsKnown)
                 {
                     findings.Add(new ForecastFinding("unknown_stock_effect", e.Id, resource, e.Change.Day, e.Change.Units));
                 }
@@ -201,15 +211,26 @@ public static class ColonyForecastRules
                 {
                     findings.Add(new ForecastFinding("beyond_horizon", e.Id, resource, e.Change.Day, e.Change.Units));
                 }
+                if (day <= horizon) timed.Add(i);
             }
-            var timed = relevant.Where(e => e.Change.Day.TryGetValue(out var day) && day <= horizon)
-                .GroupBy(e => e.Change.Day.Value).OrderBy(group => group.Key);
-            foreach (var group in timed)
+            // By day; same-time inputs precede outputs, a batch cannot finance its own prerequisites; then by commitment.
+            static int Sign(ForecastStockChange change) => change.Units.TryGetValue(out var units) && units > 0 ? 1 : 0;
+            timed.Sort((x, y) =>
             {
-                // Same-time inputs precede outputs; a batch cannot finance its own prerequisites.
-                foreach (var e in group.OrderBy(e => e.Change.Units.TryGetValue(out var units) && units > 0 ? 1 : 0)
-                    .ThenBy(e => e.Id, StringComparer.Ordinal))
+                var (a, b) = (effects[x], effects[y]);
+                var c = a.Change.Day.Value.CompareTo(b.Change.Day.Value);
+                if (c == 0) c = Sign(a.Change).CompareTo(Sign(b.Change));
+                if (c == 0) c = string.CompareOrdinal(a.Id, b.Id);
+                return c == 0 ? x.CompareTo(y) : c;
+            });
+            for (var start = 0; start < timed.Count;)
+            {
+                var day = effects[timed[start]].Change.Day.Value;
+                var end = start;
+                while (end < timed.Count && effects[timed[end]].Change.Day.Value == day) end++;
+                for (var k = start; k < end; k++)
                 {
+                    var e = effects[timed[k]];
                     if (balance.TryGetValue(out var before) && e.Change.Units.TryGetValue(out var units))
                     {
                         var after = before + units;
@@ -220,7 +241,7 @@ public static class ColonyForecastRules
                         balance = Known(after);
                         if (after < 0 && units < 0)
                         {
-                            findings.Add(new ForecastFinding("stock_shortfall", e.Id, resource, Known(group.Key), Known(-after)));
+                            findings.Add(new ForecastFinding("stock_shortfall", e.Id, resource, Known(day), Known(-after)));
                         }
                     }
                     else
@@ -228,7 +249,8 @@ public static class ColonyForecastRules
                         balance = Unknown<double>();
                     }
                 }
-                points.Add(new ForecastStockPoint(group.Key, balance));
+                points.Add(new ForecastStockPoint(day, balance));
+                start = end;
             }
             if (points[^1].Day < horizon)
             {

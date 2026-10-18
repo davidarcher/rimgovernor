@@ -85,10 +85,15 @@ public static class ForecastActivities
         var equipment = problem.Equipment.ToDictionary(e => e.Id, StringComparer.Ordinal);
         var options = problem.Options.ToDictionary(o => (o.Activity, o.Pawn));
         var findings = new SortedSet<string>(StringComparer.Ordinal);
-        var plans = new Dictionary<string, ForecastActivityPlan>(StringComparer.Ordinal);
+        // The visited prefixes already keep one plan per assignment and time, so plans need no key until ranking ties.
+        var plans = new List<ForecastActivityPlan>();
         var visited = new HashSet<long[]>(PrefixComparer.Instance);
         var taskIndex = tasks.Select((t, i) => (t.Id, i)).ToDictionary(p => p.Id, p => p.i, StringComparer.Ordinal);
         var pawnIndex = problem.Pawns.Select((p, i) => (p.Pawn, i)).ToDictionary(p => p.Pawn, p => p.i, StringComparer.Ordinal);
+        // The prefix being searched by task index, its prerequisites by index, and each task's options by pawn.
+        var placed = new ForecastActivityAllocation?[tasks.Length];
+        var prerequisites = tasks.Select(t => t.Prerequisites.Select(id => taskIndex[id]).ToArray()).ToArray();
+        var optionsOf = tasks.Select(t => problem.Options.Where(o => o.Activity == t.Id).OrderBy(o => o.Pawn, StringComparer.Ordinal).ToArray()).ToArray();
         var expansions = 0;
         var truncated = false;
         if (!problem.Deadline.TryGetValue(out var deadline))
@@ -108,9 +113,10 @@ public static class ForecastActivities
             // Interned and bitwise, so the prefix identity is exactly the old round-trip text's (#3468).
             var prefix = new long[4 * assigned.Count];
             var slot = 0;
-            foreach (var a in assigned.OrderBy(a => taskIndex[a.Activity]))
+            for (var index = 0; index < placed.Length; index++)
             {
-                prefix[slot++] = (long)taskIndex[a.Activity] << 32 | (uint)pawnIndex[a.Pawn];
+                if (placed[index] is not { } a) continue;
+                prefix[slot++] = (long)index << 32 | (uint)pawnIndex[a.Pawn];
                 prefix[slot++] = BitConverter.DoubleToInt64Bits(a.Depart);
                 prefix[slot++] = BitConverter.DoubleToInt64Bits(a.Start);
                 prefix[slot++] = BitConverter.DoubleToInt64Bits(a.End);
@@ -118,15 +124,20 @@ public static class ForecastActivities
             if (!visited.Add(prefix)) return;
             if (assigned.Count == tasks.Length)
             {
-                var rows = assigned.OrderBy(a => a.Activity, StringComparer.Ordinal).ToArray();
-                var key = string.Join(";", rows.Select(a => FormattableString.Invariant($"{a.Activity}:{a.Pawn}:{a.Depart:R}:{a.Start:R}:{a.End:R}")));
+                // Task order is id order, so the placed allocations are the rows by activity.
+                var rows = new ForecastActivityAllocation[tasks.Length];
+                for (var index = 0; index < rows.Length; index++) rows[index] = placed[index]!;
                 var total = rows.Sum(a => a.LaborCost);
                 if (!double.IsFinite(total)) throw new DomainException("activity plan cost overflow");
-                var effects = rows.SelectMany(a => tasks.First(t => t.Id == a.Activity).Outputs
-                    .Select(o => new ForecastStockChange(o.Resource, Known(a.End / GameTime.TicksPerDay), o.Units))
-                    .Concat(tasks.First(t => t.Id == a.Activity).Inputs.Select(i => new ForecastStockChange(i.Resource,
-                        Known(a.Start / GameTime.TicksPerDay), i.Units.TryGetValue(out var units) ? Known(-units) : default))));
-                plans.TryAdd(key, new(rows, rows.Max(a => a.End), total)
+                var effects = new List<ForecastStockChange>();
+                for (var index = 0; index < rows.Length; index++)
+                {
+                    var a = rows[index];
+                    foreach (var output in tasks[index].Outputs) effects.Add(new(output.Resource, Known(a.End / GameTime.TicksPerDay), output.Units));
+                    foreach (var input in tasks[index].Inputs)
+                        effects.Add(new(input.Resource, Known(a.Start / GameTime.TicksPerDay), input.Units.TryGetValue(out var units) ? Known(-units) : default));
+                }
+                plans.Add(new(rows, rows.Max(a => a.End), total)
                 {
                     StockChanges = EquatableArray.From(effects),
                     EquipmentClaims = EquatableArray.From(rows.SelectMany(a => options[(a.Activity, a.Pawn)].Equipment.Order(StringComparer.Ordinal)
@@ -134,11 +145,20 @@ public static class ForecastActivities
                 });
                 return;
             }
-            var done = assigned.ToDictionary(a => a.Activity, StringComparer.Ordinal);
-            foreach (var task in tasks.Where(t => !done.ContainsKey(t.Id) && t.Prerequisites.All(done.ContainsKey)))
+            for (var taskAt = 0; taskAt < tasks.Length; taskAt++)
             {
-                var ready = Math.Max(task.NotBefore, task.Prerequisites.Select(id => done[id].End).DefaultIfEmpty(0).Max());
-                foreach (var option in problem.Options.Where(o => o.Activity == task.Id).OrderBy(o => o.Pawn, StringComparer.Ordinal))
+                if (placed[taskAt] is not null) continue;
+                double after = 0;
+                var waiting = false;
+                for (var i = 0; i < prerequisites[taskAt].Length && !waiting; i++)
+                {
+                    if (placed[prerequisites[taskAt][i]] is not { } prerequisite) { waiting = true; continue; }
+                    if (i == 0 || prerequisite.End > after) after = prerequisite.End;
+                }
+                if (waiting) continue;
+                var task = tasks[taskAt];
+                var ready = Math.Max(task.NotBefore, after);
+                foreach (var option in optionsOf[taskAt])
                 {
                     // Unknown/refused options also consume the deterministic search budget.
                     if (!SpendExpansion()) return;
@@ -151,17 +171,21 @@ public static class ForecastActivities
                     { findings.Add("unknown_equipment:" + task.Id + ":" + pawn.Pawn); continue; }
                     if (option.Equipment.Any(id => equipment[id].Location != (task.EquipmentLocation.Length == 0 ? task.Location : task.EquipmentLocation)))
                     { findings.Add("equipment_location_mismatch:" + task.Id + ":" + pawn.Pawn); continue; }
-                    var shared = assigned.Where(a => options[(a.Activity, a.Pawn)].Equipment.Intersect(option.Equipment).Any()).ToArray();
-                    var serviceTimes = option.Equipment.SelectMany(id => equipment[id].Windows.Value.Select(w => w.Start))
+                    // Without equipment nothing is shared and service is ready when the task is.
+                    var shared = option.Equipment.Count == 0 ? []
+                        : assigned.Where(a => options[(a.Activity, a.Pawn)].Equipment.Intersect(option.Equipment).Any()).ToArray();
+                    var serviceTimes = option.Equipment.Count == 0 ? [ready] : option.Equipment.SelectMany(id => equipment[id].Windows.Value.Select(w => w.Start))
                         .Concat(shared.Select(a => a.End)).Append(ready).Select(t => Math.Max(t, ready)).Distinct().Order().ToArray();
-                    var previous = assigned.LastOrDefault(a => a.Pawn == pawn.Pawn);
+                    ForecastActivityAllocation? previous = null;
+                    for (var i = assigned.Count - 1; i >= 0 && previous is null; i--)
+                        if (assigned[i].Pawn == pawn.Pawn) previous = assigned[i];
                     var released = previous?.End ?? 0;
                     // Earliest departure and just-in-time departure are generic alternatives. Delayed travel
                     // assumes the baseline work is divisible; neither is a named helper/squad template.
                     foreach (var window in windows)
                     {
                         var location = previous is not null && previous.Depart >= window.Start && previous.End <= window.End
-                            ? Known(tasks.First(t => t.Id == previous.Activity).EndLocation)
+                            ? Known(tasks[taskIndex[previous.Activity]].EndLocation)
                             : window.StartLocation.IsKnown ? window.StartLocation : window.Start == 0 ? Known(pawn.Location) : Unknown<string>();
                         if (!location.TryGetValue(out var origin))
                         { if (!SpendExpansion()) return; findings.Add("unknown_window_location:" + pawn.Pawn); continue; }
@@ -171,8 +195,12 @@ public static class ForecastActivities
                         { if (!SpendExpansion()) return; findings.Add("unknown_route:" + pawn.Pawn + ":" + origin + ":" + task.Location); continue; }
                         var free = Math.Max(released, window.Start);
                         foreach (var serviceReady in serviceTimes)
-                            foreach (var depart in new[] { free, Math.Max(free, serviceReady - travel) }.Distinct())
+                        {
+                            // Earliest, then just-in-time when it differs.
+                            var justInTime = Math.Max(free, serviceReady - travel);
+                            for (var departure = 0; departure < (justInTime.Equals(free) ? 1 : 2); departure++)
                             {
+                                var depart = departure == 0 ? free : justInTime;
                                 if (!SpendExpansion()) return;
                                 var arrive = depart + travel;
                                 var start = Math.Max(arrive, serviceReady);
@@ -189,19 +217,30 @@ public static class ForecastActivities
                                 if (option.Equipment.Any(id => !equipment[id].Windows.Value.Any(w => start >= w.Start && end <= w.End))
                                     || shared.Any(a => start < a.End && a.Start < end && end > start && a.End > a.Start))
                                 { findings.Add("equipment_occupied:" + task.Id + ":" + pawn.Pawn); continue; }
-                                assigned.Add(new(task.Id, pawn.Pawn, depart, arrive, start, end, travel, start - arrive, work,
+                                assigned.Add(placed[taskAt] = new(task.Id, pawn.Pawn, depart, arrive, start, end, travel, start - arrive, work,
                                     (end - depart) * rate, recovery) { Learning = learning.Evidence });
                                 Search(assigned);
                                 assigned.RemoveAt(assigned.Count - 1);
+                                placed[taskAt] = null;
                                 if (truncated) return;
                             }
+                        }
                     }
                 }
             }
         }
         Search([]);
-        var ranked = plans.OrderBy(p => p.Value.LaborCost).ThenBy(p => p.Value.CompletedAt)
-            .ThenBy(p => p.Key, StringComparer.Ordinal).Select(p => p.Value).ToArray();
+        var keys = new Dictionary<ForecastActivityPlan, string>(ReferenceEqualityComparer.Instance);
+        string Key(ForecastActivityPlan plan)
+        {
+            if (!keys.TryGetValue(plan, out var key))
+                keys.Add(plan, key = string.Join(";", plan.Allocations.Select(a => FormattableString.Invariant($"{a.Activity}:{a.Pawn}:{a.Depart:R}:{a.Start:R}:{a.End:R}"))));
+            return key;
+        }
+        // Cost, then completion, then the plan's text: a total order, since no two plans share their text.
+        var ranked = plans.ToArray();
+        Array.Sort(ranked, (x, y) => x.LaborCost != y.LaborCost ? x.LaborCost.CompareTo(y.LaborCost)
+            : x.CompletedAt != y.CompletedAt ? x.CompletedAt.CompareTo(y.CompletedAt) : string.CompareOrdinal(Key(x), Key(y)));
         if (truncated) findings.Add("search_truncated");
         if (!problem.AlternativeLaborCost.TryGetValue(out var alternative))
             return new(null, ranked, "unknown_alternative_cost", findings.Append("unknown_alternative_cost").ToArray(), expansions, truncated);

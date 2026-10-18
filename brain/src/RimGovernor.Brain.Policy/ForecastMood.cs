@@ -129,16 +129,14 @@ public static class ForecastMood
         // The observed threshold is the pawn's minor-break level, the model's base for every tier.
         var breakModel = new MoodBreakModel { Threshold = threshold };
         Span<double> tierTicks = stackalloc double[LayoutMoodRules.MoodTierCount];
-        // Bound response interpolation by native update-sized intervals. Phase is not observed.
-        if (pawn.MoodIntervalTicks.TryGetValue(out var interval) && double.IsFinite(interval) && interval > 0)
-        {
-            if (horizon / interval > 4094) return new([], default, default, default, default, default, ["mood_event_budget_truncated"]);
-            for (var tick = interval; tick < horizon; tick += interval) events.Add(tick);
-        }
-        else { actualKnown = false; unknown.Add("unknown_mood_response_interval"); }
+        // Actual mood chases the target continuously, in exact segments (#3468); native's discrete updates, whose phase
+        // is not observed, are the held approximation.
+        if (!pawn.MoodIntervalTicks.TryGetValue(out var interval) || !double.IsFinite(interval) || interval <= 0)
+        { actualKnown = false; unknown.Add("unknown_mood_response_interval"); }
         if (events.Count > 4096) return new([], default, default, default, default, default, ["mood_event_budget_truncated"]);
         var ticks = events.Where(t => t >= 0 && t <= horizon).ToArray();
-        double Memory(NeedMemory m, double elapsed) => m.Permanent ? m.Offset : elapsed >= m.RemainingTicks.Value ? 0
+        // A memory's value at an elapsed time, live or expired as at the state's elapsed time.
+        double Memory(NeedMemory m, double elapsed, double state) => m.Permanent ? m.Offset : state >= m.RemainingTicks.Value ? 0
             : m.Fades ? m.Offset * (1 - elapsed / m.RemainingTicks.Value) : m.Offset;
         bool Asleep(double time)
         {
@@ -148,42 +146,83 @@ public static class ForecastMood
         }
         var currentConditionalOffset = effects.Sum(e => e.CurrentOffset);
         var bandedSpans = banded.SelectMany(b => b.Spans).ToArray();
-        double Target(double time, bool asleep)
+        double Target(double time, bool asleep) => Math.Clamp(Unclamped(time, asleep, time), 0, 1);
+        // The target's linear terms at a time, with every on/off state (hour bands, starts, ends, expiries) as at the
+        // state time: inside a segment that is its midpoint, so a rounded boundary tick cannot flip the segment.
+        double Unclamped(double time, bool asleep, double state)
         {
-            var hour = (pawn.LocalHour.Value + time / GameTime.TicksPerHour) % 24;
+            var hour = (pawn.LocalHour.Value + state / GameTime.TicksPerHour) % 24;
             double conditional = 0, changedMemories = 0, mealMemories = 0;
             foreach (var effect in effects)
                 conditional += (!effect.AwakeOnly || !asleep) && InHours(hour, effect.StartHour, effect.EndHour) ? effect.Offset : 0;
-            foreach (var memory in memories) changedMemories += (time < observedEnds[memory.Id] ? Memory(memory, time) : 0) - memory.Offset;
+            foreach (var memory in memories) changedMemories += (state < observedEnds[memory.Id] ? Memory(memory, time, state) : 0) - memory.Offset;
             foreach (var meal in meals)
-                if (meal.Start <= time) mealMemories += Memory(meal.Thought, time - meal.Start);
+                if (meal.Start <= state) mealMemories += Memory(meal.Thought, time - meal.Start, state - meal.Start);
             foreach (var gain in renewed)
-                if (gain.Start <= time && time < gain.End) mealMemories += Memory(gain.Thought, time - gain.Start);
+                if (gain.Start <= state && state < gain.End) mealMemories += Memory(gain.Thought, time - gain.Start, state - gain.Start);
             changedMemories += mealMemories;
-            foreach (var change in situational) if (change.Start <= time) changedMemories += change.OffsetDelta;
-            foreach (var span in bandedSpans) if (span.Start <= time && time < span.End) changedMemories += span.OffsetDelta;
-            return Math.Clamp(pawn.MoodUnclampedTarget.Value + (conditional - currentConditionalOffset + changedMemories) / 100, 0, 1);
+            foreach (var change in situational) if (change.Start <= state) changedMemories += change.OffsetDelta;
+            foreach (var span in bandedSpans) if (span.Start <= state && state < span.End) changedMemories += span.OffsetDelta;
+            return pawn.MoodUnclampedTarget.Value + (conditional - currentConditionalOffset + changedMemories) / 100;
         }
+        // Actual mood over a piece whose target moves linearly from one value to another: it moves at the rise or fall
+        // rate toward the target, then follows it while the target moves no faster than that rate.
+        void Chase(double from, double to, double duration, bool frozen)
+        {
+            if (frozen)
+            {
+                if (thresholdKnown) Integrate(threshold - actual, threshold - actual, duration, ref actualExposure, ref actualDepth);
+                return;
+            }
+            var (rise, fall, slope) = (pawn.MoodRisePerTick.Value, pawn.MoodFallPerTick.Value, (to - from) / duration);
+            double elapsed = 0;
+            // At most an approach and then a follow; the last step takes whatever remains.
+            for (var step = 0; elapsed < duration; step++)
+            {
+                var remaining = duration - elapsed;
+                var gap = from + slope * elapsed - actual;
+                var piece = remaining;
+                double next;
+                if (gap == 0 && slope >= -fall && slope <= rise) next = to;
+                else
+                {
+                    var rate = gap > 0 || gap == 0 && slope > rise ? rise : -fall;
+                    var meet = gap / (rate - slope);
+                    if (step < 2 && gap != 0 && meet > 0 && meet < remaining) { piece = meet; next = from + slope * (elapsed + meet); }
+                    else next = actual + rate * remaining;
+                }
+                if (thresholdKnown) Integrate(threshold - actual, threshold - next, piece, ref actualExposure, ref actualDepth);
+                actual = next; elapsed += piece;
+            }
+        }
+        Span<double> cuts = stackalloc double[4];
         for (var i = 0; i < ticks.Length; i++)
         {
             var from = ticks[i]; var asleep = Asleep(from); var target = Target(from, asleep);
             if (trajectory) points.Add(new(from, Known(target), actualKnown ? Known(actual) : default, asleep));
             if (i == ticks.Length - 1) break;
             var duration = ticks[i + 1] - from;
-            var endTarget = Target(Math.BitDecrement(ticks[i + 1]), asleep);
-            pressure += (1 - (target + endTarget) / 2) * duration;
-            if (thresholdKnown) Integrate(threshold - target, threshold - endTarget, duration, ref targetExposure, ref targetDepth);
-            if (breakKnown) breakModel.AddTierTicks(target, endTarget, duration, tierTicks);
-            if (actualKnown)
+            // The target is linear between events except where the clamp cuts it at 0 or 1.
+            var middle = from + duration / 2;
+            asleep = Asleep(middle);
+            var (rawFrom, rawTo) = (Unclamped(from, asleep, middle), Unclamped(ticks[i + 1], asleep, middle));
+            var count = 0;
+            cuts[count++] = 0;
+            if (rawFrom != rawTo)
+                foreach (var bound in (ReadOnlySpan<double>)[0.0, 1.0])
+                    if ((bound - rawFrom) / (rawTo - rawFrom) is var cut and > 0 and < 1) cuts[count++] = cut;
+            cuts[count++] = 1;
+            cuts[..count].Sort();
+            for (var c = 0; c < count - 1; c++)
             {
-                var previous = actual;
-                if (!asleep || !pawn.MoodFreezesWhileAsleep.Value)
-                {
-                    var rate = target >= actual ? pawn.MoodRisePerTick.Value : -pawn.MoodFallPerTick.Value;
-                    var movement = rate * duration;
-                    actual = rate >= 0 ? Math.Min(target, actual + movement) : Math.Max(target, actual + movement);
-                }
-                if (thresholdKnown) Integrate(threshold - previous, threshold - actual, duration, ref actualExposure, ref actualDepth);
+                var a = c == 0 ? Math.Clamp(rawFrom, 0, 1) : Math.Clamp(rawFrom + (rawTo - rawFrom) * cuts[c], 0, 1);
+                var b = c == count - 2 ? Math.Clamp(rawTo, 0, 1) : Math.Clamp(rawFrom + (rawTo - rawFrom) * cuts[c + 1], 0, 1);
+                var piece = duration * (cuts[c + 1] - cuts[c]);
+                if (piece <= 0) continue;
+                pressure += (1 - (a + b) / 2) * piece;
+                if (thresholdKnown) Integrate(threshold - a, threshold - b, piece, ref targetExposure, ref targetDepth);
+                if (breakKnown) breakModel.AddTierTicks(a, b, piece, tierTicks);
+                if (actualKnown) Chase(a, b, piece, asleep && pawn.MoodFreezesWhileAsleep.Value);
             }
         }
         unknown.Add("mood_response_interval_phase_unassessed");

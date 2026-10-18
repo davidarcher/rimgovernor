@@ -2,18 +2,19 @@ namespace RimGovernor.Brain.Policy;
 
 public static class ForecastCoupledMaterials
 {
-    /// <summary>Reproject the shared owner for this schedule, with optional sites and exact admitted work claims.
-    /// Native reservations for unrelated bills are retained even when a proposed commitment is removed.</summary>
-    internal static Fact<IReadOnlyDictionary<Resource, Fact<double>>> CoupledMaterialBudgetOf(ColonyForecastRequest request,
-        IReadOnlyDictionary<string, ForecastCommitment> commitments, ForecastActivityProblem problem, ForecastActivityPlan plan)
+    /// <summary>The shared owner's holds before any schedule's bills: held promises by id, the protected materials, and
+    /// the construction owed. Null when the evidence is unknown.</summary>
+    internal sealed record MaterialHolds(Dictionary<string, ForecastCommitment> Held, IReadOnlyDictionary<Resource, Fact<double>> Protected,
+        Dictionary<Resource, long> Owed);
+
+    internal static MaterialHolds? MaterialHoldsOf(ColonyForecastRequest request, IReadOnlyDictionary<string, ForecastCommitment> commitments)
     {
         var context = request.Coupled!; var evidence = context.Resources.Evidence;
-        if (!evidence.Construction.TryGetValue(out var construction) || !evidence.ForecastPromises.TryGetValue(out var production)) return default;
+        if (!evidence.Construction.TryGetValue(out var construction) || !evidence.ForecastPromises.TryGetValue(out var production)) return null;
         var held = WorkRules.MergeWorkMaterialPromises(production).ToDictionary(c => c.Id, StringComparer.Ordinal);
         // The delta addresses declared identities. Native holds still enter through the shared owner's reservations.
         foreach (var original in request.Commitments.Where(c => !commitments.ContainsKey(c.Id))) held.Remove(original.Id);
         foreach (var commitment in commitments.Values.Where(c => c.ActivityCompletions.Count == 0 && c.MaterialClaims.Count != 0)) held[commitment.Id] = commitment;
-        var selected = plan.Allocations.Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn))).OfType<Methods.ActivityTaskCandidate>().ToArray();
         var owed = construction.ToDictionary(p => p.Key, p => p.Value);
         var liveClaims = context.Resources.Claims.Materials;
         foreach (var claim in liveClaims) held[claim.Id] = claim; // A projected removal is not evidence of journal release.
@@ -31,9 +32,18 @@ public static class ForecastCoupledMaterials
             };
         }
         var protectedMaterials = ProductionRules.ProductionMaterialHoldsOf(Known(WorkRules.MergeWorkMaterialPromises(held.Values)), evidence.Reservations);
-        if (!protectedMaterials.TryGetValue(out var holds)) return default;
+        return protectedMaterials.TryGetValue(out var holds) ? new(held, holds, owed) : null;
+    }
+
+    /// <summary>Reproject the shared owner for this schedule, with optional sites and exact admitted work claims.
+    /// Native reservations for unrelated bills are retained even when a proposed commitment is removed.</summary>
+    internal static Fact<IReadOnlyDictionary<Resource, Fact<double>>> CoupledMaterialBudgetOf(ColonyForecastRequest request,
+        MaterialHolds? fixedHolds, IReadOnlyDictionary<string, ForecastActivity> tasks, ForecastActivityPlan plan)
+    {
+        if (fixedHolds is not var (held, holds, owed)) return default;
+        var context = request.Coupled!; var evidence = context.Resources.Evidence;
+        var selected = plan.Allocations.Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn))).OfType<Methods.ActivityTaskCandidate>().ToArray();
         var adjusted = new Dictionary<Resource, Fact<double>>(holds);
-        var tasks = problem.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal);
         foreach (var bill in selected.Where(b => (b.Kind == PawnActivityKind.Recipe || b.Kind == PawnActivityKind.Work && b.Job == "DoBill")
             && b.Recipe is { Bill.Length: > 0 }).GroupBy(b => b.Recipe!.Bill))
             foreach (var resource in bill.SelectMany(b => tasks[b.Id].Inputs).GroupBy(i => i.Resource))
