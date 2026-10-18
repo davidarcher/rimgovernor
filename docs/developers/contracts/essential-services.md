@@ -159,11 +159,12 @@ is rejected atomically and a lost participant never releases its new owner
 (`RecoveryReleasesButStableOrUnknownNeedDoesNotChurnUsefulWork`), a tired participant is released
 at the task boundary while a running task is never interrupted (`ActivityNeedBoundaryTests`),
 and changed skill or decay is covered by `ProductiveLearningTests` and `CapabilityMaintenanceTests`.
-Retirement on changed demand is the lifecycle case's deleted bill. A reassigned or lost participant is
-the lost-participant unit test above; its real-game case, `production/development-reassignment`,
-currently FAILS, and the failure is the case's premise, not the withdrawal: a control run with
-no reassignment shows the same state 3300 ticks after the first completion (one colonist still
-owned, nothing cooking, no further work, bill still active), because the prepared stock is fully
-consumed and the Method holds its owner until demand is withdrawn. The case must withdraw the
-assignment while work remains, so the finding is not yet evidence either way. Peg-leg doctor
+Retirement on changed demand is the lifecycle case's deleted bill. A lost participant is the
+lost-participant unit test above. The brain's own reassignment is `production/development-reassignment`:
+once the cook of the first meal is owned, a far better cook joins (another colonist's Cooking level is
+raised to 15). It passes when the first cook's Method no longer owns that cook, the better cook completes
+a meal under a coupled Method, and every completed repeat is exactly one Method-owned completion. A
+Cooking work priority is not an input: activity cooking ignores work priorities. Cooking Methods are not
+counterfactual incumbents (only single sleep and recreation tasks are), so the move happens at the running
+task's boundary, never mid-recipe. Peg-leg doctor
 training is outside this epic (#3344).

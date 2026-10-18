@@ -192,6 +192,9 @@ public sealed record ProductiveCookingRead
 
     public int Completions { get; init; }
 
+    /// <summary>Completions per colonist load id.</summary>
+    public IReadOnlyDictionary<string, int> CompletedBy { get; init; } = new Dictionary<string, int>();
+
     /// <summary>The highest colonist Cooking level.</summary>
     public int MaxCookingLevel { get; init; }
 
@@ -209,18 +212,14 @@ public sealed record ProductiveCookingRead
 
     public bool BillActive { get; init; }
 
-    /// <summary>Colonists a native activity owns.</summary>
-    public int Owned { get; init; }
+    /// <summary>Repeats left on the bill.</summary>
+    public int BillRemaining { get; init; }
+
+    /// <summary>The Method owning each colonist a native activity owns, by load id.</summary>
+    public IReadOnlyDictionary<string, string> Owners { get; init; } = new Dictionary<string, string>();
 
     /// <summary>Colonists on the bill's job.</summary>
     public int Cooking { get; init; }
-
-    /// <summary>The reassigned colonist's Cooking priority; -1 before the reassignment.</summary>
-    public int ReassignedPriority { get; init; }
-
-    public bool ReassignedOwned { get; init; }
-
-    public bool ReassignedCooking { get; init; }
 }
 
 /// <summary><c>test/portfolio_needs_read</c>: the hungry, tired worker's harvest, meal, sleep and recreation.</summary>
