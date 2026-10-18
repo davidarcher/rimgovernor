@@ -146,4 +146,39 @@ public sealed class SleepingPlannerTests
         Assert.Equal(BedroomStepKind.Move, onward.Kind);
         Assert.Equal((A, "b3", "b2", Larger.Id), (onward.Pawn, onward.Bed, onward.PreviousBed, onward.Room.Id));
     }
+
+    /// <summary>
+    /// upkeep/couple (#3434): once one partner owns the vacant double bed, the other is assigned to it on the next review,
+    /// so nothing waits on a retry; partners native reports unwilling to share a bed (a spouse-only lovin' precept for
+    /// lovers) are never paired, so the second has no bed to take and the fixture must stage a willing couple.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ThePartnerOfADoubleBedOwnerIsAssignedToItOnlyWhenBothAreWillingToShareABed(bool willing)
+    {
+        static SleepingPerson Partner(PawnId id, PawnId other, string bed, bool willing) => new()
+        {
+            Id = id, OwnedBed = Known(bed), ComfortableMin = Known(6.0), ComfortableMax = Known(30.0), Partners = [other], BedSharingAllowed = Known(willing),
+        };
+        var dbl = new SleepingBed
+        {
+            Id = "double", Definition = new("DoubleBed"), Humanlike = true, Roofed = true, RestEffectiveness = 1, Temperature = Known(28.0),
+            Owners = [A], AccessibleTo = [A, B], Room = Known("42"),
+        };
+        var sleeping = new SleepingObservation
+        {
+            Colonists = 2, People = [Partner(A, B, "double", willing), Partner(B, A, "", willing)], Beds = [dbl], BedBuildable = Known(true),
+        };
+
+        var review = SleepingRules.ReviewSleeping(Known(sleeping), new SleepingHistory(), new Tick(600));
+        var choice = SleepingRules.SelectSleepingMethod(new SleepingRequest { Targets = review.Targets, Sleeping = Known(sleeping) });
+
+        if (willing)
+        {
+            Assert.Equal((SleepingMethod.Assign, B, "double"), (choice.Method, choice.Pawn, choice.Bed));
+            return;
+        }
+        Assert.NotEqual(SleepingMethod.Assign, choice.Method);
+    }
 }

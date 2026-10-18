@@ -5,7 +5,7 @@ using Observations = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>upkeep/couple</c>: test/sleeping_setup(couple) makes the first two colonists bedless lovers beside one vacant double
+/// <c>upkeep/couple</c>: test/sleeping_setup(couple) makes the first two colonists bedless spouses willing to share a bed beside one vacant double
 /// bed. Under the served sleeping family the native game assigns both to it, so neither sleeps alone. The fixture stays
 /// bespoke: the stage primitives cannot add a relation or claim beds.
 /// </summary>
@@ -23,7 +23,7 @@ internal static class UpkeepCouple
     internal static TypedCase Case() => new()
     {
         Name = "upkeep/couple",
-        Scope = "Couples share a bedroom (#812): under the served sleeping family two bedless lovers both come to own one vacant "
+        Scope = "Couples share a bedroom (#812): under the served sleeping family two bedless spouses both come to own one vacant "
             + "double bed, read back from the native bed owners. Only the live assignment through the game proves ownership lands for both.",
         Ticks = 6000,
         Tier = CaseTier.OnDemand,

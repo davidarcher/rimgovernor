@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools
         // The room is sited from the colonists' average position, inside the
         // native 22-cell planning radius, so the controller's placement sees
         // its cells. Every colonist but the first two already owns a bed in it.
-        [Tool("test/sleeping_setup", Description = "Prepare a disposable roofed warm room with a bed for every colonist but the first two, and construction wood. couple: those two become lovers beside one vacant double bed. connectedRooms: they sleep on spots, and two bed chambers joined by a corridor stand outside Home with auto-home off.")]
+        [Tool("test/sleeping_setup", Description = "Prepare a disposable roofed warm room with a bed for every colonist but the first two, and construction wood. couple: those two become spouses willing to share a bed, beside one vacant double bed. connectedRooms: they sleep on spots, and two bed chambers joined by a corridor stand outside Home with auto-home off.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken, bool connectedRooms = false, bool couple = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -95,14 +95,23 @@ namespace HomeBridge.BridgeTools
                             GenSpawn.Spawn(spot, slots[owned.Count + index], map, Rot4.North);
                             if (!pawn.ownership.ClaimBedIfNonMedical(spot) || pawn.ownership.OwnedBed != spot) throw new InvalidOperationException("Colonist could not claim a fixture sleeping spot.");
                         }
-                    // Couple: the first two colonists are lovers with no
+                    // Couple: the first two colonists are spouses with no
                     // bed; one vacant 2x2 double bed stands in the top-left
                     // corner (columns 1-2, rows 6-7). Only the controller's
-                    // AssignBed may put both in it.
+                    // AssignBed may put both in it. Spouses, not lovers: an
+                    // ideoligion with a spouse-only lovin' precept forbids
+                    // lovers a shared bed (BedUtility.WillingToShareBed,
+                    // SharedBed_NonSpouse), and the controller then rightly
+                    // never pairs them (#3434).
                     string doubleBed = null;
                     if (couple) {
-                        if (people[0].relations.DirectRelationExists(PawnRelationDefOf.Lover, people[1]) == false)
-                            people[0].relations.AddDirectRelation(PawnRelationDefOf.Lover, people[1]);
+                        foreach (var relation in new[] { PawnRelationDefOf.Lover, PawnRelationDefOf.Fiance })
+                            if (people[0].relations.DirectRelationExists(relation, people[1]))
+                                people[0].relations.RemoveDirectRelation(relation, people[1]);
+                        if (!people[0].relations.DirectRelationExists(PawnRelationDefOf.Spouse, people[1]))
+                            people[0].relations.AddDirectRelation(PawnRelationDefOf.Spouse, people[1]);
+                        if (!BedUtility.WillingToShareBed(people[0], people[1]))
+                            throw new InvalidOperationException("The fixture couple is unwilling to share a bed under the colony's ideoligion.");
                         var dbl = (Building_Bed)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("DoubleBed"), ThingDefOf.WoodLog);
                         dbl.SetFaction(Faction.OfPlayerSilentFail);
                         GenSpawn.Spawn(dbl, origin + new IntVec3(1, 0, 6), map, Rot4.North);
