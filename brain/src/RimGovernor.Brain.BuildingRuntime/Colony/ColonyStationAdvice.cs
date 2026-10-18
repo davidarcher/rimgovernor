@@ -367,17 +367,7 @@ internal static class StationFactsBuilder
         // unreviewed or unread one is unknown.
         if (ledger.Status is WorkRules.LedgerViewReconciled or WorkRules.LedgerViewInactive)
         {
-            var orders = ledger.Orders.Select(o => new OrderSpec
-            {
-                Recipe = o.Recipe,
-                Ingredients = [.. o.Ingredients],
-                Worker = o.Worker,
-                Mode = Wire.TryParse<BillMode>(o.Mode, out var mode) ? mode : default,
-                Target = o.Target,
-                BenchKind = o.BenchKind,
-                Product = new Resource(o.Product),
-            }).ToList();
-            f = f with { Orders = Known(new EquatableArray<OrderSpec>([.. orders])) };
+            f = f with { Orders = Known(new EquatableArray<OrderSpec>([.. ledger.Orders])) };
         }
         return f;
     }

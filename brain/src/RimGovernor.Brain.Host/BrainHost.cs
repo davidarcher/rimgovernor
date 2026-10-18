@@ -212,7 +212,6 @@ public sealed class BrainHost : IAsyncDisposable
                 ClockRunning = () => planners.Scheduler.ClockRunning,
                 Validity = () => planners.Scheduler.Validity is { } validity ? (validity, true) : (default, false),
                 Flush = planners.Flush,
-                Placement = planners.Placement,
             },
             player,
             session,

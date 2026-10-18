@@ -25,11 +25,21 @@ public sealed class StepStages
         (_at, _bytes) = (now, bytes);
     }
 
+    /// <summary>Restarts the clock without recording a stage: the next lap measures from here (a finer timer inside one stage of another).</summary>
+    public void Mark()
+    {
+        _at = Stopwatch.GetTimestamp();
+        _bytes = GC.GetTotalAllocatedBytes();
+    }
+
     /// <summary>Each lapped stage's wall time in milliseconds.</summary>
     public IReadOnlyDictionary<string, double> Ms => _ms;
 
     /// <summary>Writes <c>stage_ms</c> and <c>stage_alloc_kb</c> onto <paramref name="attrs"/> when any stage was lapped.</summary>
-    public void Publish(Dictionary<string, object?> attrs)
+    public void Publish(Dictionary<string, object?> attrs) => Publish(attrs, "stage_ms", "stage_alloc_kb");
+
+    /// <summary>Writes the stages' wall and allocation onto <paramref name="attrs"/> under <paramref name="msKey"/> and <paramref name="allocKey"/> when any stage was lapped.</summary>
+    public void Publish(Dictionary<string, object?> attrs, string msKey, string allocKey)
     {
         if (_ms.Count == 0)
         {
@@ -42,7 +52,7 @@ public sealed class StepStages
             ms[name] = value;
             alloc[name] = _allocKb[name];
         }
-        attrs["stage_ms"] = ms;
-        attrs["stage_alloc_kb"] = alloc;
+        attrs[msKey] = ms;
+        attrs[allocKey] = alloc;
     }
 }

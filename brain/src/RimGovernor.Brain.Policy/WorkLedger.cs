@@ -154,15 +154,6 @@ public sealed record LedgerPlan
 
     /// <summary>The next Round's counter state, keyed by ActualBill.Id; callers keep it in memory.</summary>
     public IReadOnlyDictionary<string, int> Orphans { get; init; } = new Dictionary<string, int>();
-
-    /// <summary>The bills that stand for a wanted order (a split of Keep for the reader).</summary>
-    public IReadOnlyList<ActualBill> Matched { get; init; } = [];
-
-    /// <summary>The orphans not yet removed (in grace or held by an abstain).</summary>
-    public IReadOnlyList<ActualBill> Held { get; init; } = [];
-
-    /// <summary>The excluded-kind bills no order wants.</summary>
-    public IReadOnlyList<ActualBill> Excluded { get; init; } = [];
 }
 
 /// <summary>A wanted order assigned to the bench that will carry it.</summary>
@@ -218,37 +209,6 @@ public static partial class WorkRules
     /// <summary>The fact when unread holds, else none.</summary>
     public static Cause UnreadIf(bool unread, Cause fact) => unread ? fact : Cause.None;
 
-    /// <summary>Every owner (by filing key) that declared each wanted spec, by spec Key. Two owners declaring one spec coalesce into one order that both own.</summary>
-    public static IReadOnlyDictionary<string, IReadOnlyList<string>> OrderOwners(IReadOnlyList<Declared> declared)
-    {
-        var owners = new Dictionary<string, List<string>>();
-        foreach (var d in declared)
-        {
-            foreach (var o in d.Orders)
-            {
-                var k = o.Key();
-                if (o.Owner.Length != 0)
-                {
-                    if (!owners.TryGetValue(k, out var list))
-                    {
-                        list = owners[k] = [];
-                    }
-                    if (!list.Contains(o.Owner))
-                    {
-                        list.Add(o.Owner);
-                    }
-                }
-            }
-        }
-        var output = new Dictionary<string, IReadOnlyList<string>>();
-        foreach (var (k, list) in owners)
-        {
-            list.Sort(StringComparer.Ordinal);
-            output[k] = list;
-        }
-        return output;
-    }
-
     /// <summary>
     /// Diffs the declared orders against the actual bills. Identical declared specs coalesce into one wanted order.
     /// A wanted spec with no actual bill is placed. An actual bill matching a wanted spec is kept, once per spec; any
@@ -268,15 +228,11 @@ public static partial class WorkRules
         var matched = new Dictionary<string, int>();
         var keep = new List<ActualBill>();
         var remove = new List<ActualBill>();
-        var matchedBills = new List<ActualBill>();
-        var held = new List<ActualBill>();
-        var excluded = new List<ActualBill>();
         foreach (var b in actual.OrderBy(b => wanted.ContainsKey(b.Spec.Key()) ? 0 : 1).ThenBy(b => b.Id, StringComparer.Ordinal))
         {
             if (b.Kind == LedgerBillKind.ActivityExecution)
             {
                 keep.Add(b);
-                excluded.Add(b);
                 continue;
             }
             var k = b.Spec.Key();
@@ -288,17 +244,14 @@ public static partial class WorkRules
             {
                 matched[k] = matched.GetValueOrDefault(k) + 1;
                 keep.Add(b);
-                matchedBills.Add(b);
             }
             else if (b.Kind != LedgerBillKind.Production)
             {
                 keep.Add(b);
-                excluded.Add(b);
             }
             else if (abstain)
             {
                 keep.Add(b);
-                held.Add(b);
                 if (orphans.TryGetValue(b.Id, out var n))
                 {
                     nextOrphans[b.Id] = n;
@@ -314,7 +267,6 @@ public static partial class WorkRules
                 }
                 nextOrphans[b.Id] = n;
                 keep.Add(b);
-                held.Add(b);
             }
         }
         var place = new List<OrderSpec>();
@@ -325,7 +277,7 @@ public static partial class WorkRules
                 place.Add(wanted[k]);
             }
         }
-        return new LedgerPlan { Place = place, Remove = remove, Keep = keep, Orphans = nextOrphans, Matched = matchedBills, Held = held, Excluded = excluded };
+        return new LedgerPlan { Place = place, Remove = remove, Keep = keep, Orphans = nextOrphans };
     }
 
     /// <summary>Coalesces the declared orders by spec Key (the first declaration of a key wins) and reports whether any planner abstained.</summary>

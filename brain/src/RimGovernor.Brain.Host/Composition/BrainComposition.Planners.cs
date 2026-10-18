@@ -364,7 +364,6 @@ public sealed partial class BrainComposition
             Pawns = client,
             Moves = writer,
             Flush = client.FlushSnapshotAsync,
-            Placement = reviewer.NotePlacement,
             OpenFrames = client.OpenFramesAsync,
             Clock = clock,
             TargetSpeed = TargetSpeed,

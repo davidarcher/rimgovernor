@@ -126,7 +126,7 @@ public sealed class MaterialChoiceTests
         var plan = WorkRules.ReconcileLedger(declared, actual, actual.ToDictionary(b => b.Id, _ => WorkRules.OrphanGraceRounds), new Dictionary<string, int>());
         Assert.Empty(plan.Place);
         Assert.Empty(plan.Remove);
-        Assert.Equal(2, plan.Matched.Count);
+        Assert.Equal(2, plan.Keep.Count);
         Assert.False(WorkRules.IsMaterialSpecialization(Flexible.Spec with { Ingredients = [Metal.Value] }, actual.Single(b => b.Spec.Recipe == Flexible.Spec.Recipe).Spec));
         Assert.False(WorkRules.IsMaterialSpecialization(Flexible.Spec, actual[0].Spec with { Worker = "different-worker" }));
     }
@@ -140,10 +140,8 @@ public sealed class MaterialChoiceTests
         var ordinary = anchor with { Id = "ordinary-orphan", Spec = Machine.Spec, Kind = LedgerBillKind.Production };
         var plan = WorkRules.ReconcileLedger(declared ? [new Declared { Orders = [Flexible.Spec] }] : [],
             [anchor, ordinary], new Dictionary<string, int> { [anchor.Id] = WorkRules.OrphanGraceRounds, [ordinary.Id] = WorkRules.OrphanGraceRounds }, new Dictionary<string, int>());
-        Assert.Equal(anchor, Assert.Single(plan.Excluded));
         Assert.Equal(anchor, Assert.Single(plan.Keep));
         Assert.Equal(ordinary, Assert.Single(plan.Remove));
-        Assert.Empty(plan.Matched);
         Assert.Empty(plan.Orphans);
         Assert.Equal(declared ? 1 : 0, plan.Place.Count);
     }

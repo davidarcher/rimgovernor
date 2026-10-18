@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Text.Json;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
@@ -12,9 +10,6 @@ public sealed record EstablishedExtent(GenerationSnapshot Snapshot, Tick Tick, E
 /// <summary>A persisted layout plan with the tick that recorded it.</summary>
 /// <param name="Invalid">Marks a newest saved plan that no longer decodes or passes <c>Valid</c>: the world reads as holding no plan, so the colony replans.</param>
 public sealed record LayoutPlanRecord(LayoutPlan? Plan, Tick Tick, bool Invalid);
-
-/// <summary>A <c>ledger_rows</c> row as stored.</summary>
-public sealed record StoredLedgerRow(string Section, int Position, long Tick, IReadOnlyDictionary<string, object?> Cells);
 
 /// <summary>
 /// One change of a Need's winning typed cause, the player-facing explanation history explain reads. Every text field
@@ -211,42 +206,6 @@ public sealed partial class Store
     public Task<LayoutPlanRecord?> LayoutPlanAsync(GenerationSnapshot snapshot, Tick tick, CancellationToken cancellationToken) => Task.Run(() => LayoutPlan(snapshot, tick, cancellationToken), cancellationToken);
 
     /// <summary>
-    /// Makes the table hold exactly the rows of one ledger review at <paramref name="tick"/>. The table is a derived
-    /// copy for dashboards: nothing reads it back.
-    /// </summary>
-    public void ReplaceLedgerRows(long tick, IReadOnlyList<LedgerRow> rows, CancellationToken cancellationToken) =>
-        Run(
-            tx =>
-            {
-                _ = tx.Execute("DELETE FROM ledger_rows");
-                foreach (var r in rows)
-                {
-                    _ = tx.Execute(
-                        "INSERT INTO ledger_rows(section,position,tick,cells) VALUES($section,$position,$tick,$cells)",
-                        ("$section", r.Section),
-                        ("$position", r.Position),
-                        ("$tick", tick),
-                        ("$cells", LooseJson.Write(r.Cells))
-                    );
-                }
-            },
-            cancellationToken
-        );
-
-    public Task ReplaceLedgerRowsAsync(long tick, IReadOnlyList<LedgerRow> rows, CancellationToken cancellationToken) => Task.Run(() => ReplaceLedgerRows(tick, rows, cancellationToken), cancellationToken);
-
-    /// <summary>Every stored ledger row, by section then position. The controller never reads the table back; this is for tests and tools.</summary>
-    public IReadOnlyList<StoredLedgerRow> LedgerRows(CancellationToken cancellationToken) =>
-        Run(
-            tx =>
-                (IReadOnlyList<StoredLedgerRow>)
-                    tx.Query("SELECT section,position,tick,cells FROM ledger_rows ORDER BY section,position", [], r => new StoredLedgerRow(r.GetString(0), r.GetInt32(1), r.GetInt64(2), LooseJson.ReadObject(r.GetString(3)))),
-            cancellationToken
-        );
-
-    public Task<IReadOnlyList<StoredLedgerRow>> LedgerRowsAsync(CancellationToken cancellationToken) => Task.Run(() => LedgerRows(cancellationToken), cancellationToken);
-
-    /// <summary>
     /// Appends rows in one transaction and trims the table to <see cref="NeedTransitionRetention"/>. A cause outside
     /// the <see cref="Policy.Cause"/> vocabulary is refused before anything is written.
     /// </summary>
@@ -323,92 +282,6 @@ public sealed partial class Store
     public Task<IReadOnlyList<NeedTransition>> NeedTransitionsAsync(CancellationToken cancellationToken) => Task.Run(() => NeedTransitions(cancellationToken), cancellationToken);
 }
 
-/// <summary>The JSON of a loosely typed cell map (a ledger row): strings, numbers, booleans, null, nested objects and arrays.</summary>
-internal static class LooseJson
-{
-    public static string Write(IReadOnlyDictionary<string, object> cells)
-    {
-        using var stream = new MemoryStream();
-        using (var w = new Utf8JsonWriter(stream))
-        {
-            WriteValue(w, cells);
-        }
-        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
-    }
-
-    private static void WriteValue(Utf8JsonWriter w, object? value)
-    {
-        switch (value)
-        {
-            case null:
-                w.WriteNullValue();
-                break;
-            case string s:
-                w.WriteStringValue(s);
-                break;
-            case bool b:
-                w.WriteBooleanValue(b);
-                break;
-            case int i:
-                w.WriteNumVal(i);
-                break;
-            case long l:
-                w.WriteNumVal(l);
-                break;
-            case ulong u:
-                w.WriteNumVal(u);
-                break;
-            case double d:
-                w.WriteNumVal(d);
-                break;
-            case float f:
-                w.WriteNumVal(f);
-                break;
-            case IReadOnlyDictionary<string, object> map:
-                w.WriteStartObject();
-                foreach (var (key, item) in map.OrderBy(p => p.Key, StringComparer.Ordinal))
-                {
-                    w.WritePropertyName(key);
-                    WriteValue(w, item);
-                }
-                w.WriteEndObject();
-                break;
-            case System.Collections.IEnumerable items:
-                w.WriteStartArray();
-                foreach (var item in items)
-                {
-                    WriteValue(w, item);
-                }
-                w.WriteEndArray();
-                break;
-            case IFormattable f:
-                w.WriteStringValue(f.ToString(null, CultureInfo.InvariantCulture));
-                break;
-            default:
-                w.WriteStringValue(value.ToString());
-                break;
-        }
-    }
-
-    public static IReadOnlyDictionary<string, object?> ReadObject(string json)
-    {
-        using var document = JsonDocument.Parse(json);
-        return document.RootElement.ValueKind == JsonValueKind.Object ? (Dictionary<string, object?>)ReadValue(document.RootElement)! : throw new StoreCorruptException("ledger cells are not an object");
-    }
-
-    private static object? ReadValue(JsonElement e) =>
-        e.ValueKind switch
-        {
-            JsonValueKind.String => e.GetString(),
-            JsonValueKind.True => true,
-            JsonValueKind.False => false,
-            JsonValueKind.Number => e.TryGetInt64(out var l) ? l : e.GetDouble(),
-            JsonValueKind.Object => e.EnumerateObject().ToDictionary(p => p.Name, p => ReadValue(p.Value), StringComparer.Ordinal),
-            JsonValueKind.Array => e.EnumerateArray().Select(ReadValue).ToList(),
-            _ => null,
-        };
-}
-
 internal static class TimelinesSchema
 {
     internal static readonly SchemaPart TimelinePart = new(
@@ -416,13 +289,11 @@ internal static class TimelinesSchema
         CREATE TABLE colony_extent_events(colony TEXT NOT NULL, map_id INTEGER NOT NULL, ordinal INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), native_generation TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(colony,map_id,ordinal)) STRICT;
         CREATE TABLE colony_layout_plans(colony TEXT NOT NULL, map_id INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), plan TEXT NOT NULL, PRIMARY KEY(colony,map_id,tick)) STRICT;
         CREATE TABLE need_transitions(sequence INTEGER PRIMARY KEY AUTOINCREMENT, wall_ms INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), need TEXT NOT NULL CHECK(need<>''), verdict TEXT NOT NULL, cause TEXT NOT NULL, subject TEXT NOT NULL, method TEXT NOT NULL, previous_cause TEXT, held_ticks INTEGER CHECK(held_ticks IS NULL OR held_ticks>=0)) STRICT;
-        CREATE TABLE ledger_rows(section TEXT NOT NULL CHECK(section<>''), position INTEGER NOT NULL CHECK(position>=0), tick INTEGER NOT NULL CHECK(tick>=0), cells TEXT NOT NULL CHECK(json_valid(cells)), PRIMARY KEY(section,position)) STRICT;
         """,
         [
             "SELECT colony,map_id,ordinal,tick,native_generation,payload FROM colony_extent_events LIMIT 0",
             "SELECT colony,map_id,tick,plan FROM colony_layout_plans LIMIT 0",
             "SELECT sequence,wall_ms,tick,need,verdict,cause,subject,method,previous_cause,held_ticks FROM need_transitions LIMIT 0",
-            "SELECT section,position,tick,cells FROM ledger_rows LIMIT 0",
         ]
     );
 }

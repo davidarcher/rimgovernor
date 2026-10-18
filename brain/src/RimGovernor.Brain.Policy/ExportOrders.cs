@@ -65,44 +65,13 @@ public sealed record ExportPlan
     /// kinds left out), the goods a held stack joins the sale surplus of while the gap is open.
     /// </summary>
     public IReadOnlyList<Resource> Products { get; init; } = [];
-
-    /// <summary>The candidates by descending score, for the reader.</summary>
-    public IReadOnlyList<ExportCandidate> Ranked { get; init; } = [];
-
-    /// <summary>
-    /// The sale value of the goods already held, packed or on standing bills that was netted off the gap.
-    /// </summary>
-    public double InFlight { get; init; }
-
-    /// <summary>The best <see cref="ExportOrdersRules.ExportViewCandidates"/> scored pairs, ordered or not, for the reader.</summary>
-    public IReadOnlyList<ExportCandidate> Candidates { get; init; } = [];
-
-    /// <summary>Counts the (recipe, variant, worker) candidates that never reached an order, by why.</summary>
-    public IReadOnlyDictionary<ExportDrop, int> Dropped { get; init; } = new Dictionary<ExportDrop, int>();
-}
-
-/// <summary>Why a candidate sale good was dropped before it was ordered.</summary>
-public enum ExportDrop
-{
-    /// <summary>No reachable trader buys the product.</summary>
-    NoBuyer,
-
-    /// <summary>An ingredient the colony may not spend, or lacks.</summary>
-    NoIngredient,
-
-    /// <summary>The sale nets at or below zero (or the good is unpriced).</summary>
-    NoMargin,
-
-    /// <summary>The runway guard grants no unit of the ingredients.</summary>
-    [WireName("runway_guard")]
-    Runway,
 }
 
 /// <summary>
 /// One ranked sale good: a recipe at a bench kind made from one stuff or filter by a worker, with the silver it
-/// nets per work tick. Value is the expected market value of one piece, Net its sale value beyond what its
-/// ingredients fetch raw, Ticks the crafting ticks plus the ingredients' acquisition ticks and Score = Net /
-/// Ticks. Draw is one piece's ingredient units.
+/// nets per work tick. Value is the expected market value of one piece and Score its sale value beyond what its
+/// ingredients fetch raw per crafting tick plus the ingredients' acquisition ticks. Draw is one piece's ingredient
+/// units.
 /// </summary>
 public sealed record ExportCandidate
 {
@@ -117,10 +86,6 @@ public sealed record ExportCandidate
     public PawnId Worker { get; init; }
 
     public double Value { get; init; }
-
-    public double Net { get; init; }
-
-    public double Ticks { get; init; }
 
     public double Score { get; init; }
 
@@ -241,21 +206,6 @@ public static class ExportOrdersRules
     /// before negotiation and the trader's own margin). The sale itself is priced from the live sheet.
     /// </summary>
     public const double ExportSellRatio = 0.5;
-
-    /// <summary>Every ExportDrop, in the order the view lists them.</summary>
-    public static readonly IReadOnlyList<ExportDrop> AllExportDrops = [ExportDrop.NoBuyer, ExportDrop.NoIngredient, ExportDrop.NoMargin, ExportDrop.Runway];
-
-    /// <summary>Bounds the scored candidates an ExportPlan keeps for the ledger view.</summary>
-    public const int ExportViewCandidates = 10;
-
-    private static void AddDrop(Dictionary<ExportDrop, int> drops, ExportDrop why, int n)
-    {
-        if (n <= 0)
-        {
-            return;
-        }
-        drops[why] = drops.GetValueOrDefault(why) + n;
-    }
 
     /// <summary>
     /// The planning prior for the quality a worker of a skill level turns out, as an index into the quality
@@ -605,8 +555,6 @@ public static class ExportOrdersRules
             Product = e.Product,
             Stuff = v.Stuff,
             Value = value,
-            Net = net,
-            Ticks = ticks,
             Score = net / ticks,
             Filter = [.. v.Filter.Select(f => f.Value)],
             Draw = v.Picks,
@@ -706,17 +654,7 @@ public static class ExportOrdersRules
             }
         }
         products.Sort((a, b) => string.CompareOrdinal(a.Value, b.Value));
-        var drops = new Dictionary<ExportDrop, int>();
-        ExportPlan Plan(double inFlight = 0, IReadOnlyList<ExportCandidate>? ranked = null, IReadOnlyList<ExportCandidate>? candidates = null) =>
-            new()
-            {
-                Declared = declared,
-                Products = products,
-                Ranked = ranked ?? [],
-                InFlight = inFlight,
-                Candidates = candidates ?? [],
-                Dropped = drops,
-            };
+        ExportPlan Plan() => new() { Declared = declared, Products = products };
         if (!r.Gap.TryGetValue(out var gap))
         {
             declared.Unread(Cause.UnreadSilverGap);
@@ -760,11 +698,10 @@ public static class ExportOrdersRules
             busy.Add(o.Worker);
         }
         // The goods already in flight: held, packed, and on standing bills.
-        var inFlight = ExportInFlight(r, recipes, bills);
-        gap -= inFlight;
+        gap -= ExportInFlight(r, recipes, bills);
         if (!(gap > 0) || cash <= 0)
         {
-            return Plan(inFlight);
+            return Plan();
         }
         var draws = new Dictionary<Resource, long>();
         foreach (var bill in bills)
@@ -796,7 +733,6 @@ public static class ExportOrdersRules
             var workers = ExportWorkers(profiles!, e.Required);
             if (!buys)
             {
-                AddDrop(drops, ExportDrop.NoBuyer, variants.Count * workers.Count);
                 continue;
             }
             // Gear held above demand is unread: the gap cannot be netted, so the good is not ordered.
@@ -810,19 +746,14 @@ public static class ExportOrdersRules
                 // An ingredient the colony may not spend drops the candidate.
                 if (v.Picks.Any(a => !usable.TryGetValue(a.Resource, out var have) || have < a.Count))
                 {
-                    AddDrop(drops, ExportDrop.NoIngredient, workers.Count);
                     continue;
                 }
                 foreach (var w in workers)
                 {
-                    var c = ExportScore(r, e, v, w.Skill);
-                    if (c is not null)
+                    // A good that nets nothing (or is unpriced) is not a candidate.
+                    if (ExportScore(r, e, v, w.Skill) is { } c)
                     {
                         pairs.Add(c with { Worker = w.Id });
-                    }
-                    else
-                    {
-                        AddDrop(drops, ExportDrop.NoMargin, 1);
                     }
                 }
             }
@@ -832,9 +763,7 @@ public static class ExportOrdersRules
             .ThenBy(p => p.Recipe, StringComparer.Ordinal)
             .ThenBy(p => p.Stuff.Value, StringComparer.Ordinal)
             .ThenBy(p => p.Worker.Value, StringComparer.Ordinal)];
-        var shown = pairs.Take(ExportViewCandidates).ToList();
         var budget = (double)cash;
-        var ranked = new List<ExportCandidate>();
         foreach (var c in pairs)
         {
             if (!(gap > 0) || !(budget > 0))
@@ -863,13 +792,11 @@ public static class ExportOrdersRules
             }
             if (granted < 1)
             {
-                AddDrop(drops, ExportDrop.Runway, 1);
                 continue;
             }
             busy.Add(c.Worker.Value);
             gap -= granted * price;
             budget -= granted * price;
-            ranked.Add(c);
             declared.Orders.Add(
                 new OrderSpec
                 {
@@ -884,7 +811,7 @@ public static class ExportOrdersRules
                 }
             );
         }
-        return Plan(inFlight, ranked, shown);
+        return Plan();
     }
 
     /// <summary>

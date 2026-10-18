@@ -17,7 +17,7 @@ still loads (its `standard/<id>` blobs are ignored). Databases from other versio
 there is no adoption path.
 
 The C# brain's journal (`RimGovernor.Brain.Store`, Microsoft.Data.Sqlite on the SourceGear `e_sqlite3` provider)
-keeps the same ownership rules in its own file format: `PRAGMA user_version` 24 (`Store.SchemaVersion`) and the same `application_id`.
+keeps the same ownership rules in its own file format: `PRAGMA user_version` 25 (`Store.SchemaVersion`) and the same `application_id`.
 Domain payloads (actions, admissions, transitions, Rounds and the family records) are
 JSON text written by hand-written codecs under `Codec/` with fixed field names and no reflection
 serializer; the clock evidence records stay canonical wire blobs (`ClockCodec`). The per-kind column checks the brain kept in SQL `CHECK`
@@ -46,7 +46,6 @@ copy of a fact is a bug, not a cache.
 | Refusal budget ledger (`policy.RefusalBudget.Entries`) | A planner's refusals by subject and reason, each with its class and the `GenerationSnapshot` it was met in. A pure value: the store that owns the subject persists it. Every planner that retries a refused write (medical, repair, clean, equip, mood, drill, clearance, husbandry, population, quest, ideology, ritual, permit, defense, firebreak, mine, sleeping, trade and psylink) derives its ledger from the refusals journaled on its plans each step and keeps nothing of its own | With its owner: a session-scoped planner's ledger is derived and rebuilt |
 | OTLP files `otlp/traces.jsonl`, `logs.jsonl`, `metrics.jsonl` | All brain telemetry, one log record per thing that happened ([OTEL signals](otel-signals.md)), the only log: always on in the host, nothing else is written to stderr but the startup banner, fatals and panics; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |
 | SQLite table `need_transitions` (session journal) | Player-facing explanation history: one row per change of a Need's winning typed cause ([below](#need_transitions)). Not telemetry, so it is not a telemetry row | Not restored; read by the nightly `explain/every-concern` case |
-| SQLite table `ledger_rows` (session journal) | A derived, replaceable copy of the latest work-ledger review (`policy.LedgerView`), one row per row of each Ledger table, the whole set replaced in one transaction after every review ([below](#ledger_rows)). Not a second store: the brain never reads it back as truth and may delete it any time | Not restored; the next review rewrites it |
 | Native memory, pawn activity execution | Exact authorized assignment/revision, current step, native job ownership and dependency references. The same row retains the last explicit release for idempotent receipt retry, without owning a pawn/job. Hands journals installation; typed pawn readback exposes execution. No second saved plan. | Invalidated on authority/world change or despawn; explicit release ends ownership immediately. A fresh assignment replaces the release row. |
 | Native memory, pawn activity open intervals | At most 512 open colonist intervals; no completed history or second save. Completed intervals enter the existing OTLP ring; reports are derived from retained rows | Reset on game/load change or tick rewind; unobserved time stays unknown |
 | Host memory, encounter prediction | One bounded request and its owned isolated worker (one transient arena map and its observed temperature/light inputs, discarded between samples); transient empirical replies and caller-supplied reviewed qualification records. No intent, reservation, execution progress or second forecast store. | Current request identity fences world/tick/build/mod/tactic/availability changes; no prediction is restored from a save or journal. Disposal ends the owned process. |
@@ -196,23 +195,10 @@ token, so after a reload a phase may be attempted once more.
 Native saves no the brain bookkeeping (receipts, lineage, purpose tags), and the brain keeps no durable copy of what
 the save holds. The rest of this page details the session journal.
 
-### ledger_rows
-
-The Ledger view is built live each Round from the Rounder's ledger memory
-(`reviewLedger`, `Rounder.WorkLedger`) and, since #2805, copied into the session
-store (the launcher's Ledger tab and `/api/ledger` were removed).
-The copy is derived and replaceable: after each review `store.ReplaceLedgerRows`
-deletes every row and inserts the review's rows in one transaction, so the table
-always holds exactly the latest review of the current brain. Nothing reads
-it back into policy; the in-memory ledger stays the only input. Columns (schema
-version 216; a database of another version is moved aside, never migrated):
-
-| Column | Meaning |
-|---|---|
-| `section` | `round` (one row: status, tick, grace, abstained), `order`, `orphan`, `excluded`, `unmet`, `window`, `declarer`, `export_gap`, `export_candidate`, `export_drop` |
-| `position` | row order within the section (the Ledger tab's order) |
-| `tick` | game tick of the review |
-| `cells` | a JSON object of the row's bounded fields (names in `policy.LedgerView.Rows`); lists are comma-joined strings; no free text beyond a native refusal reason already journaled |
+The Ledger view is built live each Round from the Rounder's ledger memory (`Rounder.WorkLedgerView`) and is not
+persisted: the derived `ledger_rows` copy that #2805 wrote after every review (for a launcher Ledger tab and an
+`/api/ledger` since removed) had no reader, and was deleted with its table under #3566. The in-memory ledger
+stays the only input.
 
 ## What must survive
 

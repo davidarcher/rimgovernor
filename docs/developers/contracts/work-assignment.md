@@ -394,27 +394,15 @@ reason, also `no_bench` when the model wants more benches than exist and
 `bench_slots_full` for an unplaced copy with capable benches), the demand signal the
 facilities ladder reads. A finished bill is spent and never satisfies an order.
 
-The ledger's read-only view is stored as a derived copy (`ledger_rows`); the launcher does not show it yet. Each review leaves a
-`policy.LedgerView` (`policy.BuildLedgerView`) in `Rounder.ledger.view`, a projection of the
-memory above; after the review `store.ReplaceLedgerRows` replaces the `ledger_rows` table with it
-(a derived copy for the snapshot, one row per table row, never read back; see
-[persistence contracts](persistence-contracts.md#ledger_rows)).
-It lists the declaring planners (named by the brain type, each abstain naming its concern
-and the `Cause` it lacked, worded by `policy.Wording`), every wanted order with its owning concerns, spec, state (`placed` on which benches,
-`placing`, or `unplaced` with `no_bench` or `bench_slots_full`), dispatch sizing,
-calibration window (predicted against observed stock gain) and shortfall, the
-orphans (grace Rounds left, `removing`, or held by an abstain), the excluded-kind
-bills, `UnmetThroughput` with the further-bench request and, from the `economy/trade` Need's
-last declaration, the silver gap, the goods in flight netted off it, the best 10 scored
-export candidates plus any ordered, and the count of candidates dropped by reason (`no_buyer`,
-`no_ingredient`, `no_margin`, `runway_guard`; `Export`, nil until it declares in this world). The view
-issues no native call. Each order also
-carries its latest placement outcome (`Rounder.WorkLedger`), read from an in-memory placement index:
-the Rounder notes a `ledger-*` plan's `production_bill` as `pending` when it commits, and the worker
-notes each dispatch's progress as `accepted`, `refused` (native's code and reason, e.g.
-`bench_bill_slots_full`), `unconfirmed` or `pending`. The first review after a start seeds the index once from the
-journal's `ledger-*` plans, so a restart shows no false "never attempted". No attempt means none was
-ever journaled; `attemptsKnown` false means the seed could not be read yet. No review decodes a plan.
+The ledger's read-only view is in memory only and has one reader, the station planner. Each review leaves a
+`policy.LedgerView` (`policy.BuildLedgerView`) in `Rounder.ledger.view`: the status (`no_review`, `inactive`,
+`readback_unknown` or `reconciled`) and, once reconciled, the wanted orders in key order, each the spec as the
+station planner keys it (recipe, ingredients, worker, mode, target, product). `StationFactsOf` reads them as the
+`work ledger orders` fact: known (empty) for an inactive ledger, unknown before a review or while the readback was
+unread. The view issues no native call. The dashboard view the launcher once showed (declarers and abstains, order
+states and benches, calibration windows, orphans, the export gap and its scored candidates, each order's placement
+outcome from a journal-seeded placement index) and the `ledger_rows` copy the store kept of it had no reader left
+and were deleted under #3566.
 
 Orphan removal covers every bill of a production recipe kind: one no plan placed (a
 player's, or placed before a restart) is an orphan like any other, and the journal

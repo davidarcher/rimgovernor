@@ -16,7 +16,6 @@ internal sealed class ExportMemory
     private bool _apparelKnown;
     private IReadOnlyDictionary<Pol.Resource, int>? _weapons;
     private bool _weaponsKnown;
-    private Pol.ExportView? _gap;
 
     // Callers hold the gate.
     private void World(GenerationSnapshot snapshot)
@@ -29,7 +28,6 @@ internal sealed class ExportMemory
             _apparelKnown = false;
             _weapons = null;
             _weaponsKnown = false;
-            _gap = null;
         }
     }
 
@@ -41,25 +39,6 @@ internal sealed class ExportMemory
             _sale = sale;
             _apparel = apparel;
             _apparelKnown = known;
-        }
-    }
-
-    /// <summary>Keeps the latest declaration's silver gap for the ledger view.</summary>
-    public void SetView(GenerationSnapshot snapshot, Pol.ExportView v)
-    {
-        lock (_gate)
-        {
-            World(snapshot);
-            _gap = v;
-        }
-    }
-
-    /// <summary>The silver gap of snapshot's world, null when none was read in it.</summary>
-    public Pol.ExportView? View(GenerationSnapshot snapshot)
-    {
-        lock (_gate)
-        {
-            return _snapshot != snapshot ? null : _gap;
         }
     }
 
@@ -216,7 +195,6 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         // The sale path learns the rankable goods even when this Round abstains.
         var ranked = ExportOrdersRules.DeclareExportOrders(request);
         rd.Exports.SetPlan(snapshot, ExportOrdersRules.ExportSaleProducts(f.Items, ranked.Products), apparel, apparelKnown);
-        rd.Exports.SetView(snapshot, Pol.WorkRules.NewExportView(ranked, gap));
         if (!stockKnown)
         {
             return Pol.WorkRules.Abstaining(Pol.Cause.UnreadStock);
@@ -312,7 +290,6 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             // An unread packed count leaves the fact unknown.
         }
         var plan = ExportOrdersRules.DeclareExportOrders(request);
-        rd.Exports.SetView(snapshot, Pol.WorkRules.NewExportView(plan, gap));
         SetWorking(plan.Declared.Orders.Count > 0);
         return plan.Declared;
     }

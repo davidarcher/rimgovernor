@@ -69,9 +69,6 @@ public sealed class WorkerConfig
     /// capturing its own frame.
     /// </summary>
     public Func<CancellationToken, Task>? Flush { get; set; }
-
-    /// <summary>Told each dispatched action's progress after its step (the Rounder's placement index for the ledger's Attempt column).</summary>
-    public Action<PlanId, DomainAction, ProgressView>? Placement { get; set; }
 }
 
 /// <summary>What a worker needs of a session beyond the player's: batch dispatch and read-only target attachment.</summary>
@@ -673,7 +670,6 @@ public sealed partial class Worker
                     {
                         after = resultProgress.View;
                     }
-                    _config.Placement?.Invoke(candidate.Plan, candidate.Action, after);
                     var stale = WorkerHeldStale(after, result, rerr);
                     var delay = _config.StepInterval;
                     if (WorkerSameView(after, v) && wait.View is { } wv && WorkerSameView(wv, v) && wait.Scope == WorkerScope(scope))

@@ -320,11 +320,12 @@ public sealed partial class Rounder
     {
         var timer = Stopwatch.StartNew();
         var stages = new StepStages();
+        var fine = new StepStages();
         var span = Tel.StartSpan("buildingruntime", "rounds.review");
         Exception? failure = null;
         try
         {
-            return await ReviewStepAsync(arbiter, isPartial, stages, ct, epoch).ConfigureAwait(false);
+            return await ReviewStepAsync(arbiter, isPartial, stages, fine, ct, epoch).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -333,17 +334,18 @@ public sealed partial class Rounder
         }
         finally
         {
-            Tel.Decide(RoundsStepDecision(failure, timer.Elapsed, isPartial, stages));
+            Tel.Decide(RoundsStepDecision(failure, timer.Elapsed, isPartial, stages, fine));
             Tel.EndSpan(span, failure);
         }
     }
 
     internal Task<RoundsResult> ReviewStepAsync(StepArbiter arbiter, bool isPartial, CancellationToken ct, CancellationToken epoch) =>
-        ReviewStepAsync(arbiter, isPartial, new StepStages(), ct, epoch);
+        ReviewStepAsync(arbiter, isPartial, new StepStages(), new StepStages(), ct, epoch);
 
     // The review's stages (journal, observe, layout, derive, acquisition, review, admit, record) are lapped onto
-    // stages, published on the rounds planner_step row as stage_ms / stage_alloc_kb.
-    internal async Task<RoundsResult> ReviewStepAsync(StepArbiter arbiter, bool isPartial, StepStages stages, CancellationToken ct, CancellationToken epoch)
+    // stages, published on the rounds planner_step row as stage_ms / stage_alloc_kb; the d_stock and derive laps are
+    // split further onto fine (fine_ms / fine_alloc_kb; #3566).
+    internal async Task<RoundsResult> ReviewStepAsync(StepArbiter arbiter, bool isPartial, StepStages stages, StepStages fine, CancellationToken ct, CancellationToken epoch)
     {
         var p = Player;
         var state = p.Session.State();
@@ -480,15 +482,21 @@ public sealed partial class Rounder
             reading = reading.WithFacts(rf => rf with { FabricableParts = SurgeryRules.FabricableParts(benches) });
         }
         Lap("d_reads");
-        CensusStockpileZones(state.Snapshot, reading.Projection, ct);
+        fine.Mark();
+        // The journal's zone claims and shelf plans are read once; the zone census and the stockpile review share them (#3566).
+        var zoneReads = ReadStockpileZones(state.Snapshot, reading.Projection, ct);
+        reading = reading.WithProjection(CensusStockpileZones(reading.Projection, zoneReads));
+        fine.Lap("d_stock/zones");
         // The review's shelf candidates become planned sites below.
         // The stockpile review and the consumption window read nothing of each other, so their hops share frames.
-        var stockpileReview = ReviewStockpilesAsync(state.Snapshot, reading.Projection, ct);
+        var stockpileReview = ReviewStockpilesAsync(state.Snapshot, reading.Projection, zoneReads, ct);
         var vResourceConsumption = await ResourceConsumptionAsync(state.Snapshot, ct).ConfigureAwait(false);
         var shelfCandidates = await stockpileReview.ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { ResourceConsumption = vResourceConsumption });
+        fine.Lap("d_stock/stockpile");
         var vResourceSurfaceOre = await ResourceSurfaceOreAsync(state.Snapshot, reading.Projection.Facts.Items, reading.Projection.Facts.ResourceConsumption, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { ResourceSurfaceOre = vResourceSurfaceOre });
+        fine.Lap("d_stock/ore");
         if (reading.Projection.Policies.TryGetValue(out var policies))
         {
             var entries = new List<OwnedDrugPolicy>(policies.Drug.Count);
@@ -508,6 +516,7 @@ public sealed partial class Rounder
             reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Flooring = RoundsBuildingPlanner.TrafficFlooringFacts(reading.Projection, Policy.Flooring) } });
             reading = reading.WithColonySection(c => c with { Facts = c.Facts with { Upkeep = c.Facts.Upkeep with { Flooring = reading.Projection.Facts.Upkeep.Flooring } } });
         }
+        fine.Lap("d_stock/meals");
         Lap("d_stock");
         // The owed diff over every built room is taken once a review; the pricing and the sites read it.
         var plannedOwed = PlannedOwedOf(reading.Projection, Policy.Flooring);
@@ -684,6 +693,7 @@ public sealed partial class Rounder
             }
         }
         Lap("d_clear");
+        fine.Mark();
         reading = reading.WithFacts(rf => rf with { AvailableNeeds = AvailableNeeds });
         // The admin/work-ledger Need reads the diff from the ledger's memory (LedgerOwedIn).
         var ledgerOwed = await ReviewLedgerAsync(state.Snapshot, expected, reading.Projection, ct).ConfigureAwait(false);
@@ -691,20 +701,14 @@ public sealed partial class Rounder
         {
             Ledger.Owed = ledgerOwed;
         }
-        // The Grafana ledger dashboard reads a derived copy of the review's view.
-        try
-        {
-            await p.Journal.ReplaceLedgerRowsAsync(reading.Projection.Identity.Tick.Value, WorkLedger(ct).Rows(), ct).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            PlannerReasons.PlannerBookkeepingFailed("ledger_rows", ex);
-        }
+        fine.Lap("derive/ledger");
         // The ledger's declared batches are read after the declaration above.
         var vOpenBills = await OpenBillsAsync(state.Snapshot, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { OpenBills = [.. vOpenBills] });
+        fine.Lap("derive/bills");
         var reconsideration = ForecastIncumbentPreparation.PrepareCoupledIncumbents(reading.Projection.Facts, batches, workActions);
         reading = reading.WithFacts(_ => reconsideration.Facts with { PreviousCoupledSelection = CoupledMemory.Get(state.Snapshot) });
+        fine.Lap("derive/incumbents");
         // Tier 2 (#3531): once per review, before the comparison, so the tasks of research and sowing carry their credit.
         IReadOnlyDictionary<string, int> goalEtas = new Dictionary<string, int>();
         if (reading.Projection.Facts.CoupledAlternatives is { } coupled)
@@ -715,6 +719,7 @@ public sealed partial class Rounder
             reading = reading.WithFacts(rf => rf with { CoupledAlternatives = coupled with { Context = coupled.Context with { Investment = model.Marginals.PerUnit, GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } } });
             ClockEvents.Event("routine", ColonyModelTelemetry.Kind, "colony model ran", [.. model.Attrs()]);
         }
+        fine.Lap("derive/model");
         // Acquisition uses the review's completed home staffing and defense facts.
         Census.Retain(reading, RoomsEnabled(), claims);
         Lap("derive");
@@ -869,10 +874,11 @@ partial class Rounder
     /// The one planner_step row of a Rounder step: ok when the review ran, failed with the error as an attr
     /// (and reason control_lost for ControlException) when it did not.
     /// </summary>
-    internal static Decision RoundsStepDecision(Exception? err, TimeSpan took, bool isPartial, StepStages? stages = null)
+    internal static Decision RoundsStepDecision(Exception? err, TimeSpan took, bool isPartial, StepStages? stages = null, StepStages? fine = null)
     {
         var attrs = new Dictionary<string, object?> { ["partial"] = isPartial };
         stages?.Publish(attrs);
+        fine?.Publish(attrs, "fine_ms", "fine_alloc_kb");
         var d = new Decision
         {
             Kind = Decision.PlannerStepKind,

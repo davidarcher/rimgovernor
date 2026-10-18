@@ -115,9 +115,6 @@ public sealed class PlannerParts
     /// <summary>Asks native to capture the frame a step's deferred writes need.</summary>
     public Func<CancellationToken, Task>? Flush { get; init; }
 
-    /// <summary>Told each dispatched action's progress (the Rounder's placement index).</summary>
-    public Action<PlanId, DomainAction, ProgressView>? Placement { get; init; }
-
     /// <summary>
     /// Subscribes to frames in the shape the composed planners read (the facade's <c>OpenFramesAsync</c>). The
     /// host calls it at start and after every world rebuild; null composes planners that read without a stream.

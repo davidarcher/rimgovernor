@@ -70,10 +70,6 @@ internal sealed class WorkLedger
 
     public LedgerView View { get; set; } = default!;
 
-    public Dictionary<string, string>? BenchKinds { get; set; }
-
-    public PlacementIndex Attempts { get; } = new();
-
     public void NoteBatches(IReadOnlyList<Declared> declared)
     {
         var batches = new List<OrderSpec>();
@@ -137,6 +133,18 @@ public sealed partial class Rounder
         }
     }
 
+    /// <summary>The latest review's ledger view (the station planner's work-ledger orders); LedgerViewNone before any review.</summary>
+    public LedgerView WorkLedgerView()
+    {
+        LedgerView view;
+        lock (Ledger.Mu)
+        {
+            view = Ledger.View;
+        }
+
+        return view is null || view.Status == "" ? WorkRules.NewLedgerView(WorkRules.LedgerViewNone) : view;
+    }
+
     internal IReadOnlyList<string> LedgerFurtherBenches(IReadOnlyList<GearBench> benches)
     {
         lock (Ledger.Mu)
@@ -178,7 +186,6 @@ public sealed partial class Rounder
             l.World = snapshot;
             l.Unmet = [];
             l.Colonists = 0;
-            l.BenchKinds = null;
             l.View = WorkRules.NewLedgerView(WorkRules.LedgerViewInactive);
         }
 
@@ -211,14 +218,12 @@ public sealed partial class Rounder
             return Unknown<bool>();
         }
 
-        var benches = reads.Select(read => read.Bench).ToList();        var declared = new List<Declared>();
-        var named = new List<NamedDeclared>();
+        var benches = reads.Select(read => read.Bench).ToList();
+        var declared = new List<Declared>();
         var purposes = new List<LedgerPurpose>();
         foreach (var d in declarers)
         {
-            var one = await d.DeclareOrdersAsync(snapshot, projection, benches, call).ConfigureAwait(false);
-            declared.Add(one);
-            named.Add(new NamedDeclared(DeclarerName(d), one));
+            declared.Add(await d.DeclareOrdersAsync(snapshot, projection, benches, call).ConfigureAwait(false));
             var (purpose, ok) = PurposeOf(d, false);
             if (ok)
             {
@@ -230,13 +235,10 @@ public sealed partial class Rounder
         lock (l.Mu)
         {
             l.Reports = purposes;
-            l.BenchKinds = benches.ToDictionary(b => b.Id, b => b.Def);
             l.NoteBatches(declared);
             if (!known)
             {
                 l.View = WorkRules.NewLedgerView(WorkRules.LedgerViewUnread);
-                l.View = l.View with { Declarers = [.. named.Select(d => WorkRules.DeclarerView(d.Name, d.Declared))] };
-
                 return Unknown<bool>();
             }
 
@@ -248,18 +250,7 @@ public sealed partial class Rounder
             var (wanted, _) = WorkRules.WantedOrders(declared);
             l.Unmet = [.. l.Dispatch.Unmet(dispatched, wanted, unplaced, benches)];
             l.Colonists = pawns.Count;
-            l.View = WorkRules.BuildLedgerView(new LedgerViewInput
-            {
-                Declarers = named,
-                Plan = plan,
-                Placed = placed,
-                Unplaced = unplaced,
-                Dispatch = dispatched,
-                Memory = l.Dispatch,
-                Stock = projection.Resources,
-                Unmet = l.Unmet,
-                Further = WorkRules.FurtherBenchKinds(l.Unmet, benches, l.Colonists),
-            });
+            l.View = WorkRules.BuildLedgerView(wanted);
             var owed = WorkRules.LedgerDiffOwed(plan);
             if (owed)
             {
@@ -383,11 +374,6 @@ public sealed partial class AdminRounds
                 Remove = pending.Remove.Skip(removed).ToArray(),
                 Place = pending.Place.Where(p => !committed.Any(c => c.Bench == p.Bench
                     && (c.Spec.Key() == p.Spec.Key() || WorkRules.IsMaterialSpecialization(p.Spec, c.Spec)))).ToArray(), Unplaced = pending.Unplaced };
-        }
-
-        foreach (var action in actions)
-        {
-            r.NotePlacement(id, action, new ProgressView());
         }
 
         return Task.FromResult(BuildingReasonAdmitted);

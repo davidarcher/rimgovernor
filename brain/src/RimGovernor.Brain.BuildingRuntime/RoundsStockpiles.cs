@@ -189,30 +189,48 @@ public sealed partial class Rounder
 {
     internal StockpileMemory Stockpiles { get; } = new();
 
+    /// <summary>
+    /// The journal's stockpile zone reads of one review, taken once and shared by the zone census and the stockpile
+    /// review (#3566): the zone claims and, when known, each owned stockpile zone's shelf plans and whether its shelf
+    /// attempts are used up.
+    /// </summary>
+    internal readonly record struct StockpileZoneReads(Fact<EquatableArray<Sto.OwnedZone>> Claims, Dictionary<string, List<Pol.ShelfRecord>> Shelves, Dictionary<string, bool> Spent);
+
+    internal StockpileZoneReads ReadStockpileZones(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
+    {
+        var claims = Player.Journal.ZoneClaims(snapshot, projection.Identity.Tick, ct);
+        if (!claims.TryGetValue(out var owned))
+        {
+            return new StockpileZoneReads(claims, [], []);
+        }
+        var (shelves, spent) = ShelfPlans(snapshot, owned, projection, ct);
+        return new StockpileZoneReads(claims, shelves, spent);
+    }
+
     /// <summary>Files the owned zones per role kind on the projection, whether or not the stockpile method is served.</summary>
-    internal Observation.ColonyProjection CensusStockpileZones(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
+    internal static Observation.ColonyProjection CensusStockpileZones(Observation.ColonyProjection projection, StockpileZoneReads zones)
     {
         projection = projection with { Facts = projection.Facts with { StockpileZones = Unknown<EquatableArray<Pol.StockpileRoleCount>>() } };
-        var claims = Player.Journal.ZoneClaims(snapshot, projection.Identity.Tick, ct);
-        if (!claims.TryGetValue(out var owned) || projection.Cells.Count == 0)
+        if (!zones.Claims.TryGetValue(out var owned) || projection.Cells.Count == 0)
         {
             return projection;
         }
-        return projection with { Facts = projection.Facts with { StockpileZones = Known<EquatableArray<Pol.StockpileRoleCount>>([.. Pol.StockpileRules.StockpileRoleCounts(StockpileZones.OwnedStockpileZones(projection, owned, null, ShelfPlans(snapshot, owned, projection, ct).Shelves))]) } };
+        return projection with { Facts = projection.Facts with { StockpileZones = Known<EquatableArray<Pol.StockpileRoleCount>>([.. Pol.StockpileRules.StockpileRoleCounts(StockpileZones.OwnedStockpileZones(projection, owned, null, zones.Shelves))]) } };
     }
 
     /// <summary>
     /// Runs the stockpile review when the admin/stockpiles Need is composed, records whether it proposes work for the
     /// Need's read, and returns the shelf candidates it plans; none otherwise, or while a fact is unread.
+    /// <paramref name="zones"/> is the review's zone reads, taken before the census; null reads them here.
     /// </summary>
-    internal async Task<IReadOnlyList<Pol.ShelfCandidate>> ReviewStockpilesAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
+    internal async Task<IReadOnlyList<Pol.ShelfCandidate>> ReviewStockpilesAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, StockpileZoneReads? zones, CancellationToken ct)
     {
         if (!Needs.Contains(AdminFamily.Stockpiles))
         {
             return [];
         }
         Stockpiles.SetActive(snapshot, Unknown<bool>());
-        var (request, missing) = await StockpileRequestAsync(snapshot, projection, ct).ConfigureAwait(false);
+        var (request, missing) = await StockpileRequestAsync(snapshot, projection, zones, ct).ConfigureAwait(false);
         if (missing != "")
         {
             return [];
@@ -243,12 +261,15 @@ public sealed partial class Rounder
         return Known(shelf.Capacity.Slots);
     }
 
-    /// <summary>Assembles the maintenance request; the string names the fact still unread (empty when the request is whole).</summary>
-    internal async Task<(Pol.StockpileRequest Request, string Missing)> StockpileRequestAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
+    /// <summary>Assembles the maintenance request; the string names the fact still unread (empty when the request is whole). <paramref name="zones"/> null reads the zone claims and shelf plans here.</summary>
+    internal Task<(Pol.StockpileRequest Request, string Missing)> StockpileRequestAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct) =>
+        StockpileRequestAsync(snapshot, projection, null, ct);
+
+    internal async Task<(Pol.StockpileRequest Request, string Missing)> StockpileRequestAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, StockpileZoneReads? zones, CancellationToken ct)
     {
         var tick = projection.Identity.Tick;
-        var claims = Player.Journal.ZoneClaims(snapshot, tick, ct);
-        if (!claims.TryGetValue(out var owned))
+        var reads = zones ?? ReadStockpileZones(snapshot, projection, ct);
+        if (!reads.Claims.TryGetValue(out var owned))
         {
             return (new Pol.StockpileRequest(), "zone_claims");
         }
@@ -265,7 +286,7 @@ public sealed partial class Rounder
         }
         var gear = GearStore(projection);
         var protectedCells = ReservedGround(snapshot, projection, ct);
-        var (plans, spent) = ShelfPlans(snapshot, owned, projection, ct);
+        var (plans, spent) = (reads.Shelves, reads.Spent);
         var request = RoundsStockpilePlanner.StockpileRequest(projection, owned, patches, plans, Known<IReadOnlyDictionary<string, bool>>(benches), StockpileBenchInputs.BenchInputs(census, projection), gear, protectedCells);
         var canBuild = Native is IRoundsBuildingSource;
         request = request with { ShelfAvailable = canBuild && RoundsStockpilePlanner.ShelfAvailable(projection) };
