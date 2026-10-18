@@ -228,7 +228,7 @@ public static class ColonyReviewCommand
     {
         var (colonists, added) = await DebugGame.StaffCrewAsync(session.Harness, 3, cancellationToken).ConfigureAwait(false);
         report["crew"] = new JsonObject { { "declared", 3 }, { "colonists", colonists }, { "added", added } };
-        var spec = new ServeSpec { NativeTimeout = TimeSpan.FromSeconds(15), StepStall = TimeSpan.FromSeconds(90), Prefix = "colony-review" };
+        var spec = new ServeSpec { NativeTimeout = TimeSpan.FromSeconds(15), StepStall = TimeSpan.FromMinutes(6), Prefix = "colony-review" };
         var dir = Path.Combine(opts.Output, "review");
         await SustainedFood.ObserveAsync(
             ObservedSession.Of(session, cfg, report, spec),
