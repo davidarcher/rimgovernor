@@ -19,7 +19,6 @@
     <!-- The wire messages share these names with domain values; this project names the wire message. -->
     <Using Include="RimGovernor.Contracts.Wire.Common.Identity" Alias="Identity" />
     <Using Include="RimGovernor.Contracts.Wire.Common.Cell" Alias="Cell" />
-    <Using Include="RimGovernor.Contracts.Wire.Receipts.UnsuccessfulReason" Alias="UnsuccessfulReason" />
   </ItemGroup>
   <ItemGroup>
     <!-- The host's native client (#3113) decodes and validates the replies this assembly's read models describe. -->

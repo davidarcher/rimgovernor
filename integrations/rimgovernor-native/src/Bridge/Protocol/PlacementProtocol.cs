@@ -55,13 +55,13 @@ namespace HomeBridge.BridgeTools
                         throw new InvalidOperationException("Native cost is invalid.");
                     wire = wire with { CostList = [.. wire.CostList, new Wire.PlacementCost { DefName = cost.defName, Count = cost.count }] };
                 }
-                wire = wire with { Materials = Materials(value.materials, value.costList.Select(row => row.defName).Distinct().ToArray()) };
+                if (Materials(value.materials, value.costList.Select(row => row.defName).Distinct().ToArray()) is { } materials) wire = wire with { Materials = materials };
                 foreach (var row in value.rotations)
                 {
                     if (row.occupiedCells.Count < 1)
                         return Fail(FailureCode.CapacityExhausted, "Native geometry is empty.", context);
                     var rotation = new Wire.PlacementRotation {
-                        Rotation = Cardinal(row.rotation), Accepted = row.accepted,
+                        Accepted = row.accepted,
                         Reason = PlacementPreviewOperation.Diagnostic(row.reason)
                     };
                     foreach (var cell in row.occupiedCells)
@@ -80,7 +80,7 @@ namespace HomeBridge.BridgeTools
                     }
                     wire = wire with { Rotations = [.. wire.Rotations, rotation] };
                 }
-                if (wire.Rotations.Select(row => row.Rotation.GetValueOrDefault()).Distinct().Count() != wire.Rotations.Count)
+                if (value.rotations.Select(row => row.rotation).Distinct().Count() != value.rotations.Count)
                     throw new InvalidOperationException("Native rotation scan contains duplicates.");
                 return new Wire.CandidateReply { Outcome = wire };
             }
@@ -88,15 +88,15 @@ namespace HomeBridge.BridgeTools
             { return Fail(FailureCode.Unavailable, "Native preview mapping failed: " + error.Message, context); }
         }
 
-        private static Wire.PlacementMaterials Materials(PlacementMaterials materials, string[] definitions)
+        /// <summary>Null when the native stock scan is incomplete: the evaluation then carries no materials, which the brain reads as unknown.</summary>
+        private static Wire.PlacementMaterials? Materials(PlacementMaterials materials, string[] definitions)
         {
             if (materials.unreadable
                 || materials.rows.Select(row => row.defName).Distinct().Count() != materials.rows.Count
                 || !definitions.OrderBy(name => name, StringComparer.Ordinal).SequenceEqual(
                     materials.rows.Select(row => row.defName).OrderBy(name => name, StringComparer.Ordinal)))
-                return new Wire.PlacementMaterials { Availability = new Unavailable {
-                    Reason = UnavailableReason.ReadFailed, Detail = "Complete native material stock could not be read." } };
-            var known = new Wire.MaterialRows();
+                return null;
+            var known = new Wire.PlacementMaterials();
             foreach (var row in materials.rows)
             {
                 if (!ProtoBoundary.IsIdentifier(row.defName) || row.available < 0)
@@ -105,7 +105,7 @@ namespace HomeBridge.BridgeTools
                 if (row.available.HasValue) stock = stock with { Available = row.available.Value };
                 known = known with { Rows = [.. known.Rows, stock] };
             }
-            return new Wire.PlacementMaterials { Availability = known };
+            return known;
         }
 
         private static Wire.CandidateReply Fail(FailureCode code, string detail, ObservationContext context) =>
@@ -120,17 +120,6 @@ namespace HomeBridge.BridgeTools
                 case PlacementFailureKind.Unsupported: return FailureCode.Unsupported;
                 case PlacementFailureKind.CapacityExceeded: return FailureCode.CapacityExhausted;
                 default: return FailureCode.Unavailable;
-            }
-        }
-        private static Wire.Rotation Cardinal(string value)
-        {
-            switch (value)
-            {
-                case "north": return Wire.Rotation.North;
-                case "east": return Wire.Rotation.East;
-                case "south": return Wire.Rotation.South;
-                case "west": return Wire.Rotation.West;
-                default: throw new InvalidOperationException("Unknown native rotation.");
             }
         }
     }

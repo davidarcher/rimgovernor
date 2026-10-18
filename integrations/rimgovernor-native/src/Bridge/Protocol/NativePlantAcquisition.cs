@@ -169,7 +169,7 @@ namespace HomeBridge.BridgeTools
                 else ResourceAcquisitionTools.DesignatorFor(source!).DesignateThing(source);
                 if (!Designated(source!)) throw new InvalidOperationException("Native acquisition designation was not observed.");
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.AcquisitionEffect { Cell = intent.Cell } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.AcquisitionCase() };
         }
     }
 }

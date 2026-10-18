@@ -143,31 +143,6 @@ public static class Boundary
         _ = Context(receipt.AdmittedContext, placement.Snapshot);
     }
 
-    /// <summary>
-    /// Resolves a receipt-free ledger lookup under the attempt's load. Admission and lookup share the native main
-    /// thread, so a missing entry proves no effect occurred and permits a fresh Pending attempt. In-flight
-    /// entries remain held until their receipts arrive.
-    /// </summary>
-    public static Domain.Observation Unadmitted(PbReceipts.LookupReply lookup, Placement placement, GenerationSnapshot current)
-    {
-        var output = new Domain.Observation(placement.Action.Id, placement.Attempt, current, default, Effect.Unknown);
-        switch (lookup.Outcome)
-        {
-            case PbReceipts.LookupReplyOutcome.InFlightCase:
-                throw new HeldException($"attempt {placement.Attempt} is admitted and still in flight");
-            case PbReceipts.LookupReplyOutcome.UnknownCase { Value: var unknown }:
-                var observed = Context(unknown.Context, current);
-                var unknownTick = (unknown.Context?.Tick).GetValueOrDefault();
-                if (unknownTick < placement.Tick.Value)
-                {
-                    throw new EvidenceException();
-                }
-                return output with { Snapshot = observed, Tick = new Tick(unknownTick), Causality = ObservationCausality.AfterDispatch, Effect = Effect.Absent };
-            default:
-                throw new EvidenceException();
-        }
-    }
-
     // ---- Decode typed native pawn/receipt evidence into domain facts. ----
 
     public static Fact<bool> FactBool(bool has, bool value) => has ? Known(value) : Unknown<bool>();

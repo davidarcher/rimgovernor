@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
             if (!Holds(intent, map)) map.designationManager.AddDesignation(new Designation(cell, DesignationDefOf.RemoveFloor));
             if (!Holds(intent, map)) throw new InvalidOperationException("Native floor removal readback did not apply.");
             return new Receipts.EffectEvidence { Effect = new Receipts.DesignationEffect { ThingId = "floor-" + cell.x + "-" + cell.z,
-                DesignationDef = "RemoveFloor", Present = true, Cell = new Common.Cell { X = cell.x, Z = cell.z } } };
+                DesignationDef = "RemoveFloor", Present = true } };
         }
     }
 }

@@ -3,40 +3,6 @@ using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Contracts.Wire.Receipts;
 
-[JsonConverter(typeof(WireEnumConverter<ConstructionStage>))]
-public enum ConstructionStage
-{
-    [WireName("CONSTRUCTION_STAGE_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("CONSTRUCTION_STAGE_BLUEPRINT")]
-    Blueprint = 1,
-    [WireName("CONSTRUCTION_STAGE_FRAME")]
-    Frame = 2,
-    [WireName("CONSTRUCTION_STAGE_BUILDING")]
-    Building = 3,
-    [WireName("CONSTRUCTION_STAGE_CANCELLED")]
-    Cancelled = 4,
-}
-
-[JsonConverter(typeof(WireEnumConverter<InstallationStage>))]
-public enum InstallationStage
-{
-    [WireName("INSTALLATION_STAGE_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("INSTALLATION_STAGE_PACKED")]
-    Packed = 1,
-    [WireName("INSTALLATION_STAGE_PLACEABLE")]
-    Placeable = 2,
-    [WireName("INSTALLATION_STAGE_QUEUED")]
-    Queued = 3,
-    [WireName("INSTALLATION_STAGE_INSTALLED")]
-    Installed = 4,
-    [WireName("INSTALLATION_STAGE_UNVERIFIED")]
-    Unverified = 5,
-    [WireName("INSTALLATION_STAGE_UNINSTALL_QUEUED")]
-    UninstallQueued = 6,
-}
-
 [JsonConverter(typeof(WireEnumConverter<SettingsField>))]
 public enum SettingsField
 {
@@ -160,25 +126,6 @@ public enum QuestStatus
     EndedInvalid = 7,
 }
 
-[JsonConverter(typeof(WireEnumConverter<UnsuccessfulReason>))]
-public enum UnsuccessfulReason
-{
-    [WireName("UNSUCCESSFUL_REASON_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("UNSUCCESSFUL_REASON_NATIVE_FAILURE")]
-    NativeFailure = 1,
-    [WireName("UNSUCCESSFUL_REASON_CANCELLED")]
-    Cancelled = 2,
-    [WireName("UNSUCCESSFUL_REASON_INTERRUPTED")]
-    Interrupted = 3,
-    [WireName("UNSUCCESSFUL_REASON_EXPIRED")]
-    Expired = 4,
-    [WireName("UNSUCCESSFUL_REASON_TARGET_DEAD")]
-    TargetDead = 5,
-    [WireName("UNSUCCESSFUL_REASON_OUTCOME_NOT_ACHIEVED")]
-    OutcomeNotAchieved = 6,
-}
-
 /// <summary>
 /// authorizing_owner (rimgovernor.authority.v1.Owner) was removed: with a single
 /// bot process there is only ever one possible authorizing actor, so recording
@@ -225,7 +172,6 @@ public sealed record NoChange
 {
     public EffectEvidence? Observed { get; init; }
 
-    public string? Detail { get; init; }
 }
 
 public sealed record Applied
@@ -240,7 +186,6 @@ public sealed record Uncertain
     /// </summary>
     public EffectEvidence? LastObserved { get; init; }
 
-    public string? Detail { get; init; }
 }
 
 /// <summary>
@@ -294,20 +239,11 @@ public sealed record EffectEvidence
 public abstract record EffectEvidenceEffect
 {
     private protected EffectEvidenceEffect() { }
-    public sealed record PawnActivitiesCase(PawnActivitiesEffect Value) : EffectEvidenceEffect;
-    public static implicit operator EffectEvidenceEffect(PawnActivitiesEffect value) => new PawnActivitiesCase(value);
+    public sealed record PawnActivitiesCase : EffectEvidenceEffect;
 
-    /// <summary>The <c>Construction</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ConstructionEffect? Construction => (this as ConstructionCase)?.Value;
+    public sealed record ConstructionCase : EffectEvidenceEffect;
 
-    public sealed record ConstructionCase(ConstructionEffect Value) : EffectEvidenceEffect;
-
-    public static implicit operator EffectEvidenceEffect(ConstructionEffect value) => new ConstructionCase(value);
-
-    public sealed record InstallationCase(InstallationEffect Value) : EffectEvidenceEffect;
-
-    public static implicit operator EffectEvidenceEffect(InstallationEffect value) => new InstallationCase(value);
+    public sealed record InstallationCase : EffectEvidenceEffect;
 
     /// <summary>The <c>Designation</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -333,9 +269,7 @@ public abstract record EffectEvidenceEffect
 
     public static implicit operator EffectEvidenceEffect(BillEffect value) => new BillCase(value);
 
-    public sealed record ResearchCase(ResearchEffect Value) : EffectEvidenceEffect;
-
-    public static implicit operator EffectEvidenceEffect(ResearchEffect value) => new ResearchCase(value);
+    public sealed record ResearchCase : EffectEvidenceEffect;
 
     /// <summary>The <c>Zone</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -401,21 +335,11 @@ public abstract record EffectEvidenceEffect
 
     public static implicit operator EffectEvidenceEffect(QuestEffect value) => new QuestCase(value);
 
-    public sealed record AcquisitionCase(AcquisitionEffect Value) : EffectEvidenceEffect;
+    public sealed record AcquisitionCase : EffectEvidenceEffect;
 
-    public static implicit operator EffectEvidenceEffect(AcquisitionEffect value) => new AcquisitionCase(value);
+    public sealed record ExcavationCase : EffectEvidenceEffect;
 
-    public sealed record ExcavationCase(ExcavationEffect Value) : EffectEvidenceEffect;
-
-    public static implicit operator EffectEvidenceEffect(ExcavationEffect value) => new ExcavationCase(value);
-
-    /// <summary>The <c>Dialog</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public DialogEffect? Dialog => (this as DialogCase)?.Value;
-
-    public sealed record DialogCase(DialogEffect Value) : EffectEvidenceEffect;
-
-    public static implicit operator EffectEvidenceEffect(DialogEffect value) => new DialogCase(value);
+    public sealed record DialogCase : EffectEvidenceEffect;
 
     /// <summary>The <c>Deconstruct</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -465,9 +389,7 @@ public abstract record EffectEvidenceEffect
 
     public static implicit operator EffectEvidenceEffect(RemoveRoofEffect value) => new RemoveRoofCase(value);
 
-    public sealed record AreaPlantCutCase(AreaPlantCutEffect Value) : EffectEvidenceEffect;
-
-    public static implicit operator EffectEvidenceEffect(AreaPlantCutEffect value) => new AreaPlantCutCase(value);
+    public sealed record AreaPlantCutCase : EffectEvidenceEffect;
 
     /// <summary>The <c>Ritual</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -477,9 +399,7 @@ public abstract record EffectEvidenceEffect
 
     public static implicit operator EffectEvidenceEffect(RitualEffect value) => new RitualCase(value);
 
-    public sealed record AbilityCase(AbilityEffect Value) : EffectEvidenceEffect;
-
-    public static implicit operator EffectEvidenceEffect(AbilityEffect value) => new AbilityCase(value);
+    public sealed record AbilityCase : EffectEvidenceEffect;
 
     /// <summary>The <c>Ideoligion</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -521,9 +441,7 @@ public abstract record EffectEvidenceEffect
 
     public static implicit operator EffectEvidenceEffect(CommsTradeRequestEffect value) => new CommsTradeRequestCase(value);
 
-    public sealed record BuildRoofCase(BuildRoofEffect Value) : EffectEvidenceEffect;
-
-    public static implicit operator EffectEvidenceEffect(BuildRoofEffect value) => new BuildRoofCase(value);
+    public sealed record BuildRoofCase : EffectEvidenceEffect;
 }
 
 public sealed record HackDesignationEffect
@@ -538,15 +456,10 @@ public sealed record HackDesignationEffect
 /// </summary>
 public sealed record GiveItemEffect
 {
-    public string? HaulerId { get; init; }
-
     public string? RecipientId { get; init; }
-
-    public string? Definition { get; init; }
 
     public long? ExpectedRemaining { get; init; }
 
-    public JobEffect? Job { get; init; }
 }
 
 public sealed record IdeoligionEffect
@@ -565,57 +478,6 @@ public sealed record SnapshotEvidence
     public string? AfterToken { get; init; }
 }
 
-public sealed record AcquisitionEffect
-{
-    public Common.Cell? Cell { get; init; }
-}
-
-/// <summary>
-/// Excavation completes when no mineable remains at the cell; yield is not evidence.
-/// </summary>
-public sealed record ExcavationEffect
-{
-    public Common.Cell? Cell { get; init; }
-
-    public bool? Cleared { get; init; }
-
-    public bool? Cancelled { get; init; }
-}
-
-/// <summary>
-/// closed: the window left the stack; advanced: the dialog moved to a linked node instead (a new
-/// ColonyFactsSnapshot.dialog observation names the next choice).
-/// </summary>
-public sealed record DialogEffect
-{
-}
-
-public sealed record ConstructionEffect
-{
-    public string? Stuff { get; init; }
-
-    public Common.Cell? Cell { get; init; }
-
-    public Placement.Rotation? Rotation { get; init; }
-
-    public ConstructionStage? Stage { get; init; }
-
-    public bool? Started { get; init; }
-
-    public bool? Failed { get; init; }
-}
-
-public sealed record InstallationEffect
-{
-    public string? Stuff { get; init; }
-
-    public Common.Cell? Cell { get; init; }
-
-    public Placement.Rotation? Rotation { get; init; }
-
-    public InstallationStage? Stage { get; init; }
-}
-
 public sealed record DesignationEffect
 {
     public string? ThingId { get; init; }
@@ -624,7 +486,6 @@ public sealed record DesignationEffect
 
     public bool? Present { get; init; }
 
-    public Common.Cell? Cell { get; init; }
 }
 
 public sealed record FieldResult
@@ -633,19 +494,6 @@ public sealed record FieldResult
 
     public FieldOutcome Outcome { get; init; }
 
-    public string? Reason { get; init; }
-
-    public FieldResultEntry? Entry { get; init; }
-}
-
-/// <summary>The <c>entry</c> choice of <see cref="FieldResult"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(FieldResultEntry.WorkTypeDefCase), "workTypeDef")]
-public abstract record FieldResultEntry
-{
-    private protected FieldResultEntry() { }
-
-    public sealed record WorkTypeDefCase(string Value) : FieldResultEntry;
 }
 
 public sealed record SettingsEffect
@@ -659,22 +507,7 @@ public sealed record SettingsEffect
 /// </summary>
 public sealed record BillEffect
 {
-    public SnapshotEvidence? Stack { get; init; }
-
     public Common.Ref? Bill { get; init; }
-}
-
-public sealed record ResearchEffect
-{
-}
-
-public sealed record CellResult
-{
-    public Common.Cell? Cell { get; init; }
-
-    public bool? Accepted { get; init; }
-
-    public string? Reason { get; init; }
 }
 
 public sealed record CreatedZone
@@ -691,9 +524,6 @@ public sealed record ZoneEffect
 
     public bool? Present { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<CellResult>))]
-    public EquatableArray<CellResult> Cells { get; init; }
-
     public int? ListedCellCount { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<CreatedZone>))]
@@ -705,8 +535,6 @@ public sealed record DeconstructEffect
     public string? TargetId { get; init; }
 
     public string? DesignationId { get; init; }
-
-    public SnapshotEvidence? Site { get; init; }
 
     public string? ReplacementId { get; init; }
 }
@@ -787,82 +615,14 @@ public sealed record RemoveRoofEffect
 }
 
 /// <summary>
-/// One BuildRoofIntent's result: cells this apply designated and cells already roofed.
-/// Applied means designated.
-/// </summary>
-public sealed record BuildRoofEffect
-{
-    public int? Roofed { get; init; }
-}
-
-/// <summary>
-/// One AreaPlantCutIntent's result, carrying no fields. Applied means designated;
-/// the plant cut census decides when pawns finished.
-/// </summary>
-public sealed record AreaPlantCutEffect
-{
-}
-
-/// <summary>
 /// One RitualIntent's result: the ritual applied to the pawn
 /// and whether the ritual is started afterwards (the bestowing lord job's
 /// ceremonyStarted flag).
 /// </summary>
 public sealed record RitualEffect
 {
-    public string? PawnId { get; init; }
-
     public string? Ritual { get; init; }
 
-    public bool? Started { get; init; }
-}
-
-/// <summary>
-/// Evidence of one AbilityIntent: the pawn that used it and one arm per
-/// source. PermitUseEffect asserts the native postcondition: the permit's
-/// cooldown started at the current tick and the favor cost was spent. Arrival of
-/// the aid and the strike's results are separate observed states.
-/// </summary>
-public sealed record AbilityEffect
-{
-    public string? PawnId { get; init; }
-
-    public AbilityEffectOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="AbilityEffect"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(AbilityEffectOutcome.PermitCase), "permit")]
-[JsonDerivedType(typeof(AbilityEffectOutcome.PsycastCase), "psycast")]
-public abstract record AbilityEffectOutcome
-{
-    private protected AbilityEffectOutcome() { }
-
-    public sealed record PermitCase(PermitUseEffect Value) : AbilityEffectOutcome;
-
-    public static implicit operator AbilityEffectOutcome(PermitUseEffect value) => new PermitCase(value);
-
-    public sealed record PsycastCase(PsycastUseEffect Value) : AbilityEffectOutcome;
-
-    public static implicit operator AbilityEffectOutcome(PsycastUseEffect value) => new PsycastCase(value);
-}
-
-/// <summary>
-/// The permit outcome, carrying no fields: native has read back that the permit's
-/// cooldown started at the apply tick and the favor cost was spent before it returns.
-/// </summary>
-public sealed record PermitUseEffect
-{
-}
-
-/// <summary>
-/// The psycast outcome: the cast order the game accepted. The pawn
-/// holds the ability's cast job (job_def) as its current or queued job; the
-/// cast itself, its psyfocus cost and its cooldown follow when the pawn
-/// reaches it, so they are observed state, not receipt claims.
-/// </summary>
-public sealed record PsycastUseEffect
-{
 }
 
 public sealed record WallEffect
@@ -884,7 +644,6 @@ public sealed record JobTarget
 /// <summary>The <c>target</c> choice of <see cref="JobTarget"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(JobTargetTarget.ThingIdCase), "thingId")]
-[JsonDerivedType(typeof(JobTargetTarget.CellCase), "cell")]
 public abstract record JobTargetTarget
 {
     private protected JobTargetTarget() { }
@@ -895,13 +654,6 @@ public abstract record JobTargetTarget
 
     public sealed record ThingIdCase(string Value) : JobTargetTarget;
 
-    /// <summary>The <c>Cell</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Cell? Cell => (this as CellCase)?.Value;
-
-    public sealed record CellCase(Common.Cell Value) : JobTargetTarget;
-
-    public static implicit operator JobTargetTarget(Common.Cell value) => new CellCase(value);
 }
 
 public sealed record JobEffect
@@ -912,19 +664,13 @@ public sealed record JobEffect
 
     public JobTarget? TargetA { get; init; }
 
-    public int? Count { get; init; }
-
     public bool? Issued { get; init; }
-
-    public bool? Drafted { get; init; }
 
     public string? ResultingSnapshotToken { get; init; }
 }
 
 public sealed record AnimalEffect
 {
-    public SnapshotEvidence? Animal { get; init; }
-
     public string? TrainableDef { get; init; }
 
     public bool? Wanted { get; init; }
@@ -952,8 +698,6 @@ public sealed record AnimalEffect
 /// </summary>
 public sealed record PrisonerEffect
 {
-    public SnapshotEvidence? Pawn { get; init; }
-
     public string? InteractionDef { get; init; }
 
     public string? Outcome { get; init; }
@@ -966,8 +710,6 @@ public sealed record TradeLineEffect
 
 public sealed record TradeEffect
 {
-    public Common.TradeTarget? Target { get; init; }
-
     public string? SessionId { get; init; }
 
     public string? DealSignature { get; init; }
@@ -992,8 +734,6 @@ public sealed record CommsTradeRequestEffect
 {
     public string? FactionId { get; init; }
 
-    public Common.TradeRequestKind Kind { get; init; }
-
     public string? TraderKind { get; init; }
 
     public bool? WorkQueued { get; init; }
@@ -1001,11 +741,7 @@ public sealed record CommsTradeRequestEffect
 
 public sealed record CaravanEffect
 {
-    public string? CaravanId { get; init; }
-
     public bool? AssemblyStarted { get; init; }
-
-    public bool? Stopped { get; init; }
 
     public int? DestinationTile { get; init; }
 
@@ -1019,7 +755,6 @@ public sealed record QuestEffect
 
     public bool? Accepted { get; init; }
 
-    public QuestStatus? State { get; init; }
 }
 
 public sealed record QuestShuttleEffect
@@ -1030,155 +765,5 @@ public sealed record QuestShuttleEffect
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> PawnIds { get; init; }
-}
-
-public sealed record LookupRequest
-{
-    public Common.Identity? Identity { get; init; }
-
-    public Common.AttemptKey? Attempt { get; init; }
-}
-
-public sealed record UnknownAttempt
-{
-    public Common.ObservationContext? Context { get; init; }
-}
-
-public sealed record InFlight
-{
-    public Common.AttemptKey? Attempt { get; init; }
-}
-
-public sealed record LookupReply
-{
-    public LookupReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="LookupReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(LookupReplyOutcome.ReceiptCase), "receipt")]
-[JsonDerivedType(typeof(LookupReplyOutcome.InFlightCase), "inFlight")]
-[JsonDerivedType(typeof(LookupReplyOutcome.UnknownCase), "unknown")]
-[JsonDerivedType(typeof(LookupReplyOutcome.FailureCase), "failure")]
-public abstract record LookupReplyOutcome
-{
-    private protected LookupReplyOutcome() { }
-
-    /// <summary>The <c>Receipt</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Receipt? Receipt => (this as ReceiptCase)?.Value;
-
-    public sealed record ReceiptCase(Receipt Value) : LookupReplyOutcome;
-
-    public static implicit operator LookupReplyOutcome(Receipt value) => new ReceiptCase(value);
-
-    public sealed record InFlightCase(InFlight Value) : LookupReplyOutcome;
-
-    public static implicit operator LookupReplyOutcome(InFlight value) => new InFlightCase(value);
-
-    /// <summary>The <c>Unknown</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public UnknownAttempt? Unknown => (this as UnknownCase)?.Value;
-
-    public sealed record UnknownCase(UnknownAttempt Value) : LookupReplyOutcome;
-
-    public static implicit operator LookupReplyOutcome(UnknownAttempt value) => new UnknownCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : LookupReplyOutcome;
-
-    public static implicit operator LookupReplyOutcome(Common.Failure value) => new FailureCase(value);
-}
-
-public sealed record PendingEffect
-{
-    public EffectEvidence? Evidence { get; init; }
-}
-
-public sealed record CompletedEffect
-{
-    public EffectEvidence? Evidence { get; init; }
-}
-
-public sealed record AbsentEffect
-{
-}
-
-public sealed record UnknownEffect
-{
-    public string? Reason { get; init; }
-}
-
-public sealed record UnsuccessfulEffect
-{
-    public UnsuccessfulReason? Reason { get; init; }
-
-    public EffectEvidence? Evidence { get; init; }
-
-    public string? Detail { get; init; }
-}
-
-public sealed record Progress
-{
-    public Common.AttemptKey? Attempt { get; init; }
-
-    public Common.ObservationContext? Context { get; init; }
-
-    public ProgressEffect? Effect { get; init; }
-}
-
-/// <summary>The <c>effect</c> choice of <see cref="Progress"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ProgressEffect.UnknownCase), "unknown")]
-[JsonDerivedType(typeof(ProgressEffect.PendingCase), "pending")]
-[JsonDerivedType(typeof(ProgressEffect.CompletedCase), "completed")]
-[JsonDerivedType(typeof(ProgressEffect.AbsentCase), "absent")]
-[JsonDerivedType(typeof(ProgressEffect.UnsuccessfulCase), "unsuccessful")]
-public abstract record ProgressEffect
-{
-    private protected ProgressEffect() { }
-
-    /// <summary>The <c>Unknown</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public UnknownEffect? Unknown => (this as UnknownCase)?.Value;
-
-    public sealed record UnknownCase(UnknownEffect Value) : ProgressEffect;
-
-    public static implicit operator ProgressEffect(UnknownEffect value) => new UnknownCase(value);
-
-    /// <summary>The <c>Pending</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public PendingEffect? Pending => (this as PendingCase)?.Value;
-
-    public sealed record PendingCase(PendingEffect Value) : ProgressEffect;
-
-    public static implicit operator ProgressEffect(PendingEffect value) => new PendingCase(value);
-
-    /// <summary>The <c>Completed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CompletedEffect? Completed => (this as CompletedCase)?.Value;
-
-    public sealed record CompletedCase(CompletedEffect Value) : ProgressEffect;
-
-    public static implicit operator ProgressEffect(CompletedEffect value) => new CompletedCase(value);
-
-    /// <summary>The <c>Absent</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public AbsentEffect? Absent => (this as AbsentCase)?.Value;
-
-    public sealed record AbsentCase(AbsentEffect Value) : ProgressEffect;
-
-    public static implicit operator ProgressEffect(AbsentEffect value) => new AbsentCase(value);
-
-    /// <summary>The <c>Unsuccessful</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public UnsuccessfulEffect? Unsuccessful => (this as UnsuccessfulCase)?.Value;
-
-    public sealed record UnsuccessfulCase(UnsuccessfulEffect Value) : ProgressEffect;
-
-    public static implicit operator ProgressEffect(UnsuccessfulEffect value) => new UnsuccessfulCase(value);
 }
 

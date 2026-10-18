@@ -146,7 +146,6 @@ public static class NativeOps
 
     // Operations and receipts.
     public static readonly NativeOp<Operations.ApplyRequest, Operations.ApplyReply> Apply = Op<Operations.ApplyRequest, Operations.ApplyReply>("operations_apply", (f, r, c) => f.ApplyAsync(r, c));
-    public static readonly NativeOp<Receipts.LookupRequest, Receipts.LookupReply> LookupReceipt = Op<Receipts.LookupRequest, Receipts.LookupReply>("receipts_lookup", (f, r, c) => f.LookupReceiptAsync(r, c));
 
     // Clock.
     public static readonly NativeOp<Clock.RunRequest, Clock.StatusReply> RunClock = Op<Clock.RunRequest, Clock.StatusReply>("clock_run", (f, r, c) => f.RunClockAsync(r, c));

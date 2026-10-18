@@ -560,16 +560,6 @@ public sealed record OverlayRequest
     public EquatableArray<OverlayLabel> Labels { get; init; }
 }
 
-public sealed record OverlayApplied
-{
-    public Common.ObservationContext? Context { get; init; }
-
-    /// <summary>
-    /// Cells the layer covers.
-    /// </summary>
-    public uint? Cells { get; init; }
-}
-
 public sealed record OverlayReply
 {
     public OverlayReplyOutcome Outcome { get; init; } = null!;
@@ -583,13 +573,8 @@ public abstract record OverlayReplyOutcome
 {
     private protected OverlayReplyOutcome() { }
 
-    /// <summary>The <c>Applied</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public OverlayApplied? Applied => (this as AppliedCase)?.Value;
-
-    public sealed record AppliedCase(OverlayApplied Value) : OverlayReplyOutcome;
-
-    public static implicit operator OverlayReplyOutcome(OverlayApplied value) => new AppliedCase(value);
+    /// <summary>The layer was applied; the case carries no fields.</summary>
+    public sealed record AppliedCase : OverlayReplyOutcome;
 
     /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]

@@ -87,7 +87,7 @@ namespace HomeBridge.BridgeTools
                 gestator.BillStack.AddBill(bill);
                 standing = bill;
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.BillEffect { Stack = new Receipts.SnapshotEvidence { EntityId = gestator.GetUniqueLoadID() }, Bill = NativeRef.Of(standing.GetUniqueLoadID()) } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.BillEffect { Bill = NativeRef.Of(standing.GetUniqueLoadID()) } };
         }
     }
 }

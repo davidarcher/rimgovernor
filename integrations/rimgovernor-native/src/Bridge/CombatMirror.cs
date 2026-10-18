@@ -41,10 +41,6 @@ namespace HomeBridge.BridgeTools
         /// The event ring's size; every frame carries it whole. Kept
         /// (docs/developers/contracts/kept-constants.md).
         internal const int RingSize = 1024;
-        /// An event row's Detail is cut to this many characters; a cut Detail
-        /// ends in TruncatedMarker so a reader sees the text is incomplete.
-        internal const int MaxDetailChars = 256;
-        internal const string TruncatedMarker = "...[truncated]";
 
         private static volatile bool _active;
         private static volatile bool _dirty;
@@ -156,8 +152,7 @@ namespace HomeBridge.BridgeTools
                     open = Math.Max(open, fall != null && delay != null && delay.FieldExists() ? now + fall.ticksToImpact + delay.GetValue<int>() : now + PodOpenFallbackTicks);
                 }
                 _active = true;
-                Record(Mirror.CombatLogKind.HostileArrived, Clock.CombatEvent.Unspecified, pawns[0], null,
-                    pawns.Count + " pawns in pods", cells.Count > 0 ? cells[0] : (IntVec3?)null, "pods", row =>
+                Record(Mirror.CombatLogKind.HostileArrived, Clock.CombatEvent.Unspecified, pawns[0], null, "pods", row =>
                     {
                         row = row with { OpenTick = open };
                         row = row with { LandingCells = [.. row.LandingCells, .. cells.Select(c => new Common.Cell { X = c.x, Z = c.z })] };
@@ -169,7 +164,7 @@ namespace HomeBridge.BridgeTools
 
         /// Record appends an event row on thing's map while combat is active,
         /// stamping the pawns among thing and other with its mark.
-        internal static void Record(Mirror.CombatLogKind kind, Clock.CombatEvent stop, Thing? thing, Thing? other, string? detail, IntVec3? cell = null, string? strategy = null, Func<Mirror.CombatEventRow, Mirror.CombatEventRow>? fill = null)
+        internal static void Record(Mirror.CombatLogKind kind, Clock.CombatEvent stop, Thing? thing, Thing? other, string? strategy = null, Func<Mirror.CombatEventRow, Mirror.CombatEventRow>? fill = null)
         {
             if (!Active) return;
             try
@@ -181,11 +176,8 @@ namespace HomeBridge.BridgeTools
                 if (stop != Clock.CombatEvent.Unspecified) row = row with { Stop = stop };
                 if (thing != null) row = row with { ThingId = LoadId(thing) };
                 if (other != null) row = row with { TargetId = LoadId(other) };
-                if (!string.IsNullOrEmpty(detail)) row = row with { Detail = detail!.Length > MaxDetailChars ? detail.Substring(0, MaxDetailChars - TruncatedMarker.Length) + TruncatedMarker : detail };
                 if (!string.IsNullOrEmpty(strategy)) row = row with { RaidStrategy = strategy };
                 if (fill != null) row = fill(row);
-                var at = cell ?? thing?.PositionHeld ?? other?.PositionHeld;
-                if (at.HasValue && at.Value.IsValid) row = row with { Cell = new Common.Cell { X = at.Value.x, Z = at.Value.z } };
                 Ring.Add(new Entry { Mark = mark, Game = Verse.Current.Game, MapId = map.uniqueID, Row = row });
                 if (Ring.Count > RingSize) Ring.RemoveAt(0);
                 Stamp(thing, mark, kind == Mirror.CombatLogKind.Downed || kind == Mirror.CombatLogKind.Killed ? 2 : stop != Clock.CombatEvent.Unspecified ? 1 : 0);
@@ -270,7 +262,6 @@ namespace HomeBridge.BridgeTools
         internal static Mirror.CombatPawn Project(Pawn pawn, Mirror.CombatSide side)
         {
             var row = new Mirror.CombatPawn { Id = LoadId(pawn), Side = side, Cell = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z }, Downed = pawn.Downed, Dead = pawn.Dead };
-            try { if (pawn.Faction != null) row = row with { Faction = NativeRef.Of(pawn.Faction) }; } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
             if (pawn.drafter != null)
             {
                 row = row with { Drafted = pawn.drafter.Drafted };
@@ -300,7 +291,6 @@ namespace HomeBridge.BridgeTools
             try
             {
                 row = row with { Health = Step(pawn.health.summaryHealth.SummaryHealthPercent, 0.01) };
-                row = row with { Pain = Step(pawn.health.hediffSet.PainTotal, 0.05) };
                 row = row with { MoveSpeed = Step(pawn.GetStatValue(StatDefOf.MoveSpeed), 0.1) };
                 row = row with { MeleePower = Step(pawn.GetStatValue(StatDefOf.MeleeDPS), 0.1) };
             }
@@ -365,7 +355,7 @@ namespace HomeBridge.BridgeTools
                 var caster = __instance.caster;
                 if (caster == null || !caster.Spawned) return;
                 var target = __instance.CurrentTarget;
-                Record(Mirror.CombatLogKind.ShotFired, Clock.CombatEvent.Unspecified, caster, target.Thing, null, caster.Position);
+                Record(Mirror.CombatLogKind.ShotFired, Clock.CombatEvent.Unspecified, caster, target.Thing);
             }
             catch { } // Harmony hook inside vanilla code: a throw would reach the game (not probed in #1887)
         }
@@ -373,15 +363,14 @@ namespace HomeBridge.BridgeTools
         private static void OnExplosion(Explosion __instance)
         {
             if (!Active) return;
-            try { Record(Mirror.CombatLogKind.Explosion, Clock.CombatEvent.Unspecified, __instance, __instance.instigator,
-                "radius " + __instance.radius.ToString("0.#", CultureInfo.InvariantCulture)); }
+            try { Record(Mirror.CombatLogKind.Explosion, Clock.CombatEvent.Unspecified, __instance, __instance.instigator); }
             catch { } // Harmony hook inside vanilla code: a throw would reach the game (not probed in #1887)
         }
 
         private static void OnFire(Fire __instance)
         {
             if (!Active) return;
-            try { Record(Mirror.CombatLogKind.FireStarted, Clock.CombatEvent.Unspecified, __instance, __instance.parent, null); }
+            try { Record(Mirror.CombatLogKind.FireStarted, Clock.CombatEvent.Unspecified, __instance, __instance.parent); }
             catch { } // Harmony hook inside vanilla code: a throw would reach the game (not probed in #1887)
         }
 

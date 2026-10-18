@@ -369,7 +369,7 @@ Write receipts:
 | Situation | Receipt and outcome |
 | --- | --- |
 | Transport proves the write never issued (`domain.ErrWriteUnsent`) | `ReceiptUnsent`: no-effect proof the same authority may retry; no ledger reconciliation. |
-| Issued but never answered (brain-side timeout) | `ReceiptUnknown`, reconciled via `receipts_lookup`. The native ledger admits an attempt on the main thread before any effect and serves lookups there, so a lookup under the attempt's own load finding no entry proves it was dropped: no-effect evidence, action returns to `Pending`. |
+| Issued but never answered (brain-side timeout) | `ReceiptUnknown`; native keeps no attempt ledger, so the outcome stays unknown until a later observation settles it. |
 | Admitted entry still in flight | Holds until its receipt is recorded. |
 
 Other rules: need-recovery previews retain native refusals on the mood incident and may

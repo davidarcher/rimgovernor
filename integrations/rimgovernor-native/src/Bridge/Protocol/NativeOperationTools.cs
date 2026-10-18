@@ -26,19 +26,5 @@ namespace HomeBridge.BridgeTools
             return parsed.Zone.Kind.GetValueOrDefault() == Operations.ZoneType.Stockpile
                 ? StockpilePlacementActionHandler.Preview(parsed.Zone, context) : NativeZoneCreation.Preview(parsed.Zone, context);
         }
-
-        // On the game thread: the typed core of the tool, shared with the in-process facade.
-        internal static Receipts.LookupReply HandleLookup(Receipts.LookupRequest parsed)
-        {
-            if (!ValidAttempt(parsed.Attempt)) return new Receipts.LookupReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A complete attempt is required.") };
-            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
-                return new Receipts.LookupReply { Outcome = invalid };
-            // Native keeps no attempt ledger; an unknown attempt proves no absence of effects.
-            return new Receipts.LookupReply { Outcome = new Receipts.UnknownAttempt { Context = context } };
-        }
-
-        private static bool ValidAttempt([NotNullWhen(true)] Common.AttemptKey? value) => value != null && value.ControllerSessionId is not null
-            && ProtoBoundary.IsIdentifier(value.ControllerSessionId) && value.ActionId is not null && ProtoBoundary.IsIdentifier(value.ActionId)
-            && value.AttemptId is not null && value.AttemptId.GetValueOrDefault() > 0;
     }
 }

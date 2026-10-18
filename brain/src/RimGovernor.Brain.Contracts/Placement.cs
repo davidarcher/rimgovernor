@@ -152,37 +152,10 @@ public sealed record PlacementCost
     public int? Count { get; init; }
 }
 
+/// <summary>
+/// Absent on the evaluation when the native material scan could not be read completely.
+/// </summary>
 public sealed record PlacementMaterials
-{
-    public PlacementMaterialsAvailability? Availability { get; init; }
-}
-
-/// <summary>The <c>availability</c> choice of <see cref="PlacementMaterials"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(PlacementMaterialsAvailability.KnownCase), "known")]
-[JsonDerivedType(typeof(PlacementMaterialsAvailability.UnavailableCase), "unavailable")]
-public abstract record PlacementMaterialsAvailability
-{
-    private protected PlacementMaterialsAvailability() { }
-
-    /// <summary>The <c>Known</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public MaterialRows? Known => (this as KnownCase)?.Value;
-
-    public sealed record KnownCase(MaterialRows Value) : PlacementMaterialsAvailability;
-
-    public static implicit operator PlacementMaterialsAvailability(MaterialRows value) => new KnownCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : PlacementMaterialsAvailability;
-
-    public static implicit operator PlacementMaterialsAvailability(Common.Unavailable value) => new UnavailableCase(value);
-}
-
-public sealed record MaterialRows
 {
     /// <summary>
     /// Complete rows for all material definitions relevant to the evaluated candidate.
@@ -203,8 +176,6 @@ public sealed record PlacementMaterialStock
 
 public sealed record PlacementRotation
 {
-    public Rotation? Rotation { get; init; }
-
     public bool? Accepted { get; init; }
 
     public string? Reason { get; init; }

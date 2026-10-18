@@ -500,7 +500,7 @@ namespace HomeBridge.BridgeTools
             bool issued = pawn.drafter.Drafted != wanted;
             if (issued) pawn.drafter.Drafted = wanted;
             if (pawn.drafter.Drafted != wanted) throw new InvalidOperationException("Native draft state did not change.");
-            return new Receipts.EffectEvidence { Effect = new Receipts.JobEffect { PawnId = pawn.GetUniqueLoadID(), Issued = issued, Drafted = pawn.Drafted } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.JobEffect { PawnId = pawn.GetUniqueLoadID(), Issued = issued } };
         }
 
         private static Common.Failure? Resolve(Operations.DraftIntent? intent, Common.ObservationContext context, out Pawn? pawn)

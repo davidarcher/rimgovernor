@@ -70,7 +70,7 @@ namespace HomeBridge.BridgeTools
         {
             Effect = new Receipts.QuestEffect
             {
-                QuestId = quest.GetUniqueLoadID(), Accepted = quest.State != QuestState.NotYetAccepted, State = NativeEnums.Quest(quest.State),
+                QuestId = quest.GetUniqueLoadID(), Accepted = quest.State != QuestState.NotYetAccepted,
             }
         };
 

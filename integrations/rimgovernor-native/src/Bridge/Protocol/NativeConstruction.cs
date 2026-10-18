@@ -99,11 +99,5 @@ namespace HomeBridge.BridgeTools
             building.SetFactionDirect(Player);
             return GenSpawn.Spawn(building, Cell, Map, Rotation);
         }
-
-        internal Receipts.ConstructionEffect Proposed() => new Receipts.ConstructionEffect
-        {
-            Stuff = Stuff?.defName ?? "", Cell = new Common.Cell { X = Cell.x, Z = Cell.z },
-            Rotation = (Placement.Rotation)(Rotation.AsInt + 1)
-        };
     }
 }

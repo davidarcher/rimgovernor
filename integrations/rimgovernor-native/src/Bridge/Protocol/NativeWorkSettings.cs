@@ -147,8 +147,7 @@ namespace HomeBridge.BridgeTools
         private static Receipts.SettingsEffect Evidence(Operations.WorkSettingsIntent intent)
         {
             var fields = new System.Collections.Generic.List<Receipts.FieldResult>();
-            foreach (var row in intent.Work) fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.Work,
-                Entry = new Receipts.FieldResultEntry.WorkTypeDefCase(row.WorkTypeDef ?? ""), Outcome = Receipts.FieldOutcome.Applied });
+            if (intent.Work.Count > 0) fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.Work, Outcome = Receipts.FieldOutcome.Applied });
             if (intent.AllowedArea != null) fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.AllowedArea, Outcome = Receipts.FieldOutcome.Applied });
             if (intent.Schedule != null) fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.Schedule, Outcome = Receipts.FieldOutcome.Applied });
             return new Receipts.SettingsEffect { Fields = [.. fields] };

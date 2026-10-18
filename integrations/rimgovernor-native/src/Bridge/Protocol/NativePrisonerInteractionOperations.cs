@@ -10,16 +10,6 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    internal static class NativePrisonerInteractionOperations
-    {
-        // Exact custody and interaction state; NativePopulationObservation
-        // publishes it as each person's PawnState.snapshot.
-        internal static string Settings(Pawn pawn) => NativeSnapshotVersions.Token("prisoner-interaction", null, pawn.GetUniqueLoadID(), string.Join("|",
-            pawn.Dead.ToString(), pawn.IsPrisonerOfColony.ToString(), pawn.IsFreeColonist.ToString(),
-            (pawn.HostFaction == Faction.OfPlayerSilentFail).ToString(),
-            pawn.guest?.ExclusiveInteractionMode?.defName ?? "", pawn.guest?.Recruitable.ToString() ?? ""));
-    }
-
     // PrisonerInteractionIntent: one colony prisoner's exclusive
     // interaction (Recruit, MaintainOnly, ReduceResistance, Release, or
     // Enslave/Convert while Ideology is active), an immediate settings write
@@ -75,7 +65,6 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(action.Intent?.Prisoner, context, out var pawn, out var def);
             if (failure != null) throw new InvalidOperationException("Prisoner interaction prerequisites changed before apply: " + (failure.Detail ?? ""));
-            var before = NativePrisonerInteractionOperations.Settings(pawn);
             if (pawn.guest!.ExclusiveInteractionMode != def)
             {
                 if (def.defName == "Convert" && pawn.guest.ideoForConversion == null)
@@ -84,7 +73,6 @@ namespace HomeBridge.BridgeTools
             }
             if (pawn.guest.ExclusiveInteractionMode != def) throw new InvalidOperationException("Native prisoner interaction readback did not apply.");
             return new Receipts.EffectEvidence { Effect = new Receipts.PrisonerEffect {
-                Pawn = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID(), BeforeToken = before, AfterToken = NativePrisonerInteractionOperations.Settings(pawn) },
                 InteractionDef = def.defName, Outcome = "held" } };
         }
     }

@@ -145,9 +145,6 @@ namespace HomeBridge.BridgeTools
         public Task<Operations.ApplyReply> ApplyAsync(Operations.ApplyRequest request, CancellationToken cancellationToken)
             => Write(NativeOps.Apply, request, () => NativeActionTools.HandleApply(request), cancellationToken);
 
-        public Task<Receipts.LookupReply> LookupReceiptAsync(Receipts.LookupRequest request, CancellationToken cancellationToken)
-            => Read(NativeOps.LookupReceipt, request, () => NativeOperationTools.HandleLookup(request), cancellationToken);
-
         // Clock.
 
         public Task<Clock.StatusReply> RunClockAsync(Clock.RunRequest request, CancellationToken cancellationToken)

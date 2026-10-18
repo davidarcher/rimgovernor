@@ -238,13 +238,11 @@ namespace HomeBridge.BridgeTools
 
         private static Receipts.EffectEvidence Evidence(Plan p, GuardedDesignation? record)
         {
-            var cell = new Common.Cell { X = p.Cell.x, Z = p.Cell.z };
             if (p.Designation == Operations.ThingDesignation.Mine)
             {
                 var now = ExcavationTools.RockAt(p.Cell, p.Map);
                 var designated = now != null && ExcavationTools.Designated(p.Cell, p.Map);
-                return new Receipts.EffectEvidence { Effect = new Receipts.ExcavationEffect { Cell = cell,
-                    Cleared = now == null, Cancelled = now != null && !designated } };
+                return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.ExcavationCase() };
             }
             if (p.Designation == Operations.ThingDesignation.Deconstruct)
             {
@@ -255,7 +253,7 @@ namespace HomeBridge.BridgeTools
             }
             var id = p.Target?.GetUniqueLoadID() ?? "foundation-" + p.Cell.x + "-" + p.Cell.z;
             return new Receipts.EffectEvidence { Effect = new Receipts.DesignationEffect { ThingId = id, DesignationDef = p.Def.defName,
-                Present = p.Cleared || Standing(p), Cell = cell } };
+                Present = p.Cleared || Standing(p) } };
         }
 
         // ---- door-to-wall swap ----

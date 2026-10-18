@@ -550,19 +550,17 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.TradeIntent intent, Common.ObservationContext context)
         {
             if (intent.Target == null) throw new InvalidOperationException("A typed trade target is required.");
-            if (intent.Step is Operations.TradeIntentStep.OpenCase && intent.Target.Kind is not Common.TradeTargetKind.MapTraderCase) return WithTarget(ApplyWorldOpen(intent, context), intent.Target);
+            if (intent.Step is Operations.TradeIntentStep.OpenCase && intent.Target.Kind is not Common.TradeTargetKind.MapTraderCase) return ApplyWorldOpen(intent, context);
             switch (intent.Step)
             {
-                case Operations.TradeIntentStep.OpenCase open: return WithTarget(ApplyOpen(open.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context), intent.Target);
-                case Operations.TradeIntentStep.SetLinesCase setLines: return WithTarget(ApplyLines(setLines.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity), intent.Target);
-                case Operations.TradeIntentStep.AcceptCase accept: return WithTarget(ApplyAccept(accept.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity), intent.Target);
-                case Operations.TradeIntentStep.EndCase end: return WithTarget(ApplyEnd(end.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity), intent.Target);
+                case Operations.TradeIntentStep.OpenCase open: return ApplyOpen(open.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context);
+                case Operations.TradeIntentStep.SetLinesCase setLines: return ApplyLines(setLines.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity);
+                case Operations.TradeIntentStep.AcceptCase accept: return ApplyAccept(accept.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity);
+                case Operations.TradeIntentStep.EndCase end: return ApplyEnd(end.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity);
                 default: throw new InvalidOperationException("A trade intent names exactly one step.");
             }
         }
 
-        private static Receipts.EffectEvidence WithTarget(Receipts.EffectEvidence evidence, Common.TradeTarget target)
-        => evidence.Effect?.Trade is { } trade ? new Receipts.EffectEvidence { Effect = trade with { Target = target } } : evidence;
         private static Receipts.EffectEvidence ApplyOpen(Operations.OpenTrade command, string traderId, string negotiatorId, Common.ObservationContext context)
         {
             var identity = context.Identity;

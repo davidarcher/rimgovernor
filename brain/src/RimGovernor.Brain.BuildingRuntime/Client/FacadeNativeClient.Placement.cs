@@ -115,7 +115,7 @@ public sealed partial class FacadeNativeClient
     /// Replaces the named overlay layer. The native drops the layer's shapes and labels and
     /// draws the overlay's; <paramref name="enabled"/> false only removes the layer. Output only, never read back or persisted.
     /// </summary>
-    internal async Task<PbPresentation.OverlayApplied> DrawOverlayAsync(PbCommon.Identity identity, string layerId, LayoutOverlay overlay, bool enabled, CancellationToken cancellationToken)
+    internal async Task DrawOverlayAsync(PbCommon.Identity identity, string layerId, LayoutOverlay overlay, bool enabled, CancellationToken cancellationToken)
     {
         var request = new PbPresentation.OverlayRequest { Identity = identity, LayerId = layerId, Enabled = enabled };
         if (enabled)
@@ -128,7 +128,6 @@ public sealed partial class FacadeNativeClient
         {
             throw Failure(failure);
         }
-        return reply.Outcome.Applied!;
     }
 
     internal static class PlacementRequests
@@ -210,7 +209,7 @@ public sealed partial class FacadeNativeClient
             var nativeConstruction = false;
             var safeToPlace = Fact.Unknown<bool>();
             var stocks = new List<Stock>();
-            if (evaluation.Materials?.Availability?.Known is { } known)
+            if (evaluation.Materials is { } known)
             {
                 nativeConstruction = true;
                 safeToPlace = Fact.Known(safe);

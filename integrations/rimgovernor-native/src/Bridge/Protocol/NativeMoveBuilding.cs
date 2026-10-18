@@ -106,10 +106,7 @@ namespace HomeBridge.BridgeTools
                 ? GenConstruct.PlaceBlueprintForInstall(mini, cell, mini.Map, Rotation(intent), Faction.OfPlayer)
                 : GenConstruct.PlaceBlueprintForReinstall((Building)building!, cell, building!.Map, Rotation(intent), Faction.OfPlayer));
             if (blueprint == null || !blueprint.Spawned) throw new InvalidOperationException("Native install blueprint was not observed.");
-            return new Receipts.EffectEvidence { Effect = new Receipts.InstallationEffect {
-                Stuff = building!.Stuff?.defName ?? "",
-                Cell = new Common.Cell { X = intent.Destination!.X, Z = intent.Destination.Z }, Rotation = intent.Rotation,
-                Stage = Receipts.InstallationStage.Queued } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.InstallationCase() };
         }
     }
 

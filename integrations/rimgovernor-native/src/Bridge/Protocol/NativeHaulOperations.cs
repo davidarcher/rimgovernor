@@ -75,7 +75,7 @@ namespace HomeBridge.BridgeTools
             {
                 PawnId = pawn.GetUniqueLoadID(), JobDef = job?.def?.defName ?? "HaulToCell",
                 TargetA = new Receipts.JobTarget { Target = new Receipts.JobTargetTarget.ThingIdCase(thing.GetUniqueLoadID()) },
-                Issued = issued, Drafted = false,
+                Issued = issued,
             }
         };
 

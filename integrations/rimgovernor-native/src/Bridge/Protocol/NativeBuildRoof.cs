@@ -61,7 +61,7 @@ namespace HomeBridge.BridgeTools
                 if (!buildRoof[cell]) throw new InvalidOperationException($"BuildRoof area was not observed at {cell}.");
                 if (roofed) roofedCount++;
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.BuildRoofEffect { Roofed = roofedCount } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.BuildRoofCase() };
         }
     }
 

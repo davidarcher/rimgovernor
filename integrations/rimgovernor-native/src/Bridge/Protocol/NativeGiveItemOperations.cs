@@ -26,10 +26,9 @@ namespace HomeBridge.BridgeTools
             if (failure != null) throw new ApplyRefusedException(failure);
             return Apply((c!.Hauler!.Id ?? ""), (c.Recipient!.Id ?? ""), (c.Definition ?? ""), (int)c.ExpectedRemaining.GetValueOrDefault(), context);
         }
-        private static Receipts.EffectEvidence Evidence(Pawn hauler, Pawn recipient, Thing source, Job job, int remaining, bool issued)
+        private static Receipts.EffectEvidence Evidence(Pawn recipient, int remaining)
             => new Receipts.EffectEvidence { Effect = new Receipts.GiveItemEffect {
-                HaulerId = hauler.GetUniqueLoadID(), RecipientId = recipient.GetUniqueLoadID(), Definition = source.def.defName,
-                ExpectedRemaining = remaining, Job = NativeGiveJob.Evidence(hauler, source, job, issued).Effect?.Job } };
+                RecipientId = recipient.GetUniqueLoadID(), ExpectedRemaining = remaining } };
         private static Common.Failure? Resolve(string haulerId, string recipientId, string defName, int expectedRemaining, Common.ObservationContext context, out Pawn? hauler, out Pawn? recipient, out Thing? source, out Lord? lord, out bool running)
         {
             hauler = null; recipient = null; source = null; lord = null; running = false;
@@ -65,13 +64,13 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(haulerId, recipientId, defName, expectedRemaining, context, out var hauler, out var recipient, out var source, out var lord, out var running);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (running) return Evidence(hauler!, recipient!, source!, hauler!.CurJob, expectedRemaining, false);
+            if (running) return Evidence(recipient!, expectedRemaining);
             var job = JobMaker.MakeJob(JobDefOf.GiveToPawn, source, recipient);
             job.haulMode = HaulMode.ToContainer;
             job.lord = lord;
             if (!hauler!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || !ReferenceEquals(hauler.CurJob, job))
                 throw new InvalidOperationException("The hauler did not take the native giving job.");
-            return Evidence(hauler, recipient!, source!, job, expectedRemaining, true);
+            return Evidence(recipient!, expectedRemaining);
         }
     }
     internal sealed class GiveItemActionHandler : IActionHandler

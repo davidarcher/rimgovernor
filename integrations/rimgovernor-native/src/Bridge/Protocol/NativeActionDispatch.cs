@@ -223,18 +223,16 @@ namespace HomeBridge.BridgeTools
                     throw new InvalidOperationException("Construction setting target changed.");
                 if (intent.MinimumFinishingSkill is { } skill) ConstructionSkillGuard.Set(existing.Thing, skill);
                 if (intent.Tier is { } existingTier) ConstructionSkillGuard.SetTier(existing.Thing, existingTier);
-                return new Receipts.EffectEvidence { Effect = Effect(existing.Thing, candidate) };
+                return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.ConstructionCase() };
             }
             if (intent.ExistingTargetId is not null) throw new InvalidOperationException("Construction setting target disappeared.");
             if (!NativeConstructionPlan.Prepare(map, candidate, context, out var plan, out _, out var failure))
                 throw new InvalidOperationException("Placement became invalid: " + (failure.Detail ?? ""));
-            var observed = plan.Proposed();
             var placed = plan.Place(intent.ReplaceWall.GetValueOrDefault()) ??throw new InvalidOperationException("Native placement returned no object.");
             if (intent.MinimumFinishingSkill is { } placedSkill) ConstructionSkillGuard.Set(placed, placedSkill);
             // An instant building is placed finished: there is no site to gate, so the tier has nothing to bind (#2733).
             if (intent.Tier is { } tier && (placed is Blueprint_Build || placed is Frame)) ConstructionSkillGuard.SetTier(placed, tier);
-            observed = observed with { Stage = Stage(placed), Started = true, Failed = false };
-            return new Receipts.EffectEvidence { Effect = observed };
+            return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.ConstructionCase() };
         }
 
         // Existing is the player's blueprint, frame or building of the
@@ -262,16 +260,6 @@ namespace HomeBridge.BridgeTools
             }
             return null;
         }
-
-        private static Receipts.ConstructionStage Stage(Thing thing) => thing is Frame ? Receipts.ConstructionStage.Frame
-            : thing is Blueprint ? Receipts.ConstructionStage.Blueprint : Receipts.ConstructionStage.Building;
-
-        private static Receipts.ConstructionEffect Effect(Thing thing, RimGovernor.Contracts.Wire.Placement.PlacementCandidate candidate) => new Receipts.ConstructionEffect
-        {
-            Stuff = candidate.Stuff ?? "", Cell = new Common.Cell { X = candidate.X.GetValueOrDefault(), Z = candidate.Z.GetValueOrDefault() },
-            Rotation = candidate.Rotation,
-            Stage = Stage(thing), Started = true, Failed = false,
-        };
     }
 
     internal static class NativeActionTools

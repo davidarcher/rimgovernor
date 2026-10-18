@@ -84,7 +84,7 @@ namespace HomeBridge.BridgeTools
                     designator.DesignateThing(plant);
                     if (!Designated(plant)) throw new InvalidOperationException($"Native plant cut designation was not observed at {cell}.");
                 }
-            return new Receipts.EffectEvidence { Effect = new Receipts.AreaPlantCutEffect() };
+            return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.AreaPlantCutCase() };
         }
 
 

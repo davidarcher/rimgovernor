@@ -104,7 +104,7 @@ public enum CombatLogKind
 
 /// <summary>
 /// One combat pawn row (BundleSnapshot.combat_pawns). Numbers are thresholded so a
-/// row only changes when a decision could: fractions to 0.01, pain to 0.05, move speed to 0.1 cells/s.
+/// row only changes when a decision could: fractions to 0.01, move speed to 0.1 cells/s.
 /// </summary>
 public sealed record CombatPawn
 {
@@ -114,8 +114,6 @@ public sealed record CombatPawn
     public string? Id { get; init; }
 
     public CombatSide? Side { get; init; }
-
-    public Common.Ref? Faction { get; init; }
 
     public Common.Cell? Cell { get; init; }
 
@@ -146,8 +144,6 @@ public sealed record CombatPawn
     /// summary health fraction
     /// </summary>
     public double? Health { get; init; }
-
-    public double? Pain { get; init; }
 
     /// <summary>
     /// cells per second
@@ -233,11 +229,6 @@ public sealed record CarriedDrugs
 /// </summary>
 public sealed record CombatDoorRow
 {
-    /// <summary>
-    /// load id
-    /// </summary>
-    public string? Id { get; init; }
-
     public Common.Cell? Cell { get; init; }
 }
 
@@ -289,10 +280,6 @@ public sealed record CombatEventRow
     /// the victim, target or instigator
     /// </summary>
     public string? TargetId { get; init; }
-
-    public Common.Cell? Cell { get; init; }
-
-    public string? Detail { get; init; }
 
     /// <summary>
     /// Lord toil rows: the raid strategy def. Hostile arrived rows from a

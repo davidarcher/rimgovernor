@@ -72,7 +72,6 @@ internal sealed class CountingNativeFacade(INativeFacade inner) : INativeFacade
 
     public Task<Operations.ApplyReply> ApplyAsync(Operations.ApplyRequest request, CancellationToken cancellationToken) => Count(() => inner.ApplyAsync(request, cancellationToken));
 
-    public Task<Receipts.LookupReply> LookupReceiptAsync(Receipts.LookupRequest request, CancellationToken cancellationToken) => Count(() => inner.LookupReceiptAsync(request, cancellationToken));
 
     public Task<Clock.StatusReply> RunClockAsync(Clock.RunRequest request, CancellationToken cancellationToken) => Count(() => inner.RunClockAsync(request, cancellationToken));
 

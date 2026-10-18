@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
         // Call only on the game thread.
         internal static Presentation.OverlayReply Apply(Presentation.OverlayRequest request)
         {
-            if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out var context, out var invalid))
+            if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out _, out var invalid))
                 return new Presentation.OverlayReply { Outcome = invalid };
             var id = request.LayerId is not null ? (request.LayerId ?? "") : "";
             if (id.Length == 0 || id.Length > MaxLayerId || id.Any(ch => ch < 0x21 || ch > 0x7e))
@@ -35,12 +35,11 @@ namespace HomeBridge.BridgeTools
             if (!request.Enabled.GetValueOrDefault())
             {
                 overlay.Remove(id);
-                return Applied(context, 0);
+                return Applied();
             }
             if (request.Labels.Count > MaxLabels) return Invalid($"More than {MaxLabels} labels.");
 
             var groups = new List<OverlayGroup>();
-            var covered = new HashSet<IntVec3>();
             long budget = MaxCells;
             var lineBudget = MaxLines;
             var bounds = CellRect.WholeMap(map);
@@ -77,10 +76,9 @@ namespace HomeBridge.BridgeTools
                     var clipped = rect.ClipInsideRect(bounds);
                     if (clipped.Width <= 0 || clipped.Height <= 0) continue;
                     group.Fills.Add(clipped);
-                    foreach (var cell in clipped)
+                    if (group.Outline)
                     {
-                        covered.Add(cell);
-                        if (group.Outline) group.Cells.Add(cell);
+                        foreach (var cell in clipped) group.Cells.Add(cell);
                     }
                 }
                 if (group.Outline) group.Fills.Clear();
@@ -94,11 +92,11 @@ namespace HomeBridge.BridgeTools
                 if (cell.InBounds(map)) labels.Add(((label.Text ?? ""), cell));
             }
             overlay.Replace(id, groups, labels);
-            return Applied(context, (uint)covered.Count);
+            return Applied();
         }
 
-        private static Presentation.OverlayReply Applied(Common.ObservationContext context, uint cells) =>
-            new Presentation.OverlayReply { Outcome = new Presentation.OverlayApplied { Context = context, Cells = cells } };
+        private static Presentation.OverlayReply Applied() =>
+            new Presentation.OverlayReply { Outcome = new Presentation.OverlayReplyOutcome.AppliedCase() };
 
         private static Presentation.OverlayReply Invalid(string detail) =>
             new Presentation.OverlayReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, detail) };

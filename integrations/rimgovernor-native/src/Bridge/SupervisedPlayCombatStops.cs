@@ -230,8 +230,7 @@ namespace HomeBridge.BridgeTools
                 if (CombatMirror.Active)
                 {
                     var serious = pawn.IsColonist ? SeriousWhy(pawn, dinfo, totalDamageDealt, __state) : null;
-                    CombatMirror.Record(Mirror.CombatLogKind.Damaged, serious != null ? Clock.CombatEvent.SeriousInjury : Clock.CombatEvent.Unspecified, pawn, dinfo.Instigator,
-                        totalDamageDealt.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + (serious != null ? "; " + serious : ""));
+                    CombatMirror.Record(Mirror.CombatLogKind.Damaged, serious != null ? Clock.CombatEvent.SeriousInjury : Clock.CombatEvent.Unspecified, pawn, dinfo.Instigator);
                 }
                 if (!pawn.IsColonist || !OnEpochMap(pawn) || !CombatArmed(Clock.CombatEvent.SeriousInjury)) return;
                 var why = SeriousWhy(pawn, dinfo, totalDamageDealt, __state);
@@ -268,7 +267,7 @@ namespace HomeBridge.BridgeTools
             {
                 var wearer = (__instance.parent as Apparel)?.Wearer ?? __instance.parent as Pawn;
                 if (wearer != null) CombatMirror.Record(Mirror.CombatLogKind.ShieldBroken, wearer.HostileTo(Faction.OfPlayer) ? Clock.CombatEvent.Unspecified : Clock.CombatEvent.ShieldBroken,
-                    wearer, null, null);
+                    wearer, null);
                 if (wearer == null || !OnEpochMap(wearer) || wearer.HostileTo(Faction.OfPlayer)) return;
                 NoteCombatEvent(Clock.CombatEvent.ShieldBroken, wearer, "shield broke");
             }
@@ -288,7 +287,7 @@ namespace HomeBridge.BridgeTools
                     var explosiveNear = margin.HasValue && radius > 0f && launcher.HostileTo(Faction.OfPlayer) && launcher.Map != null
                         && launcher.Map.mapPawns.FreeColonistsSpawned.Any(c => (c.Position - target).LengthHorizontalSquared <= (radius + margin.Value) * (radius + margin.Value));
                     CombatMirror.Record(Mirror.CombatLogKind.ProjectileLaunched, explosiveNear ? Clock.CombatEvent.ExplosiveLaunched : Clock.CombatEvent.Unspecified,
-                        launcher, __instance.intendedTarget.Thing, radius > 0f ? "explosive radius " + radius.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) : null, target);
+                        launcher, __instance.intendedTarget.Thing);
                 }
                 if (radius <= 0f || launcher == null || !OnEpochMap(launcher) || !launcher.HostileTo(Faction.OfPlayer)) return;
                 if (!CombatArmed(Clock.CombatEvent.ExplosiveLaunched)) return;
@@ -310,8 +309,7 @@ namespace HomeBridge.BridgeTools
                 if (__state != null && !ReferenceEquals(__state, newLordToil) && __instance != null && CombatMirror.Active)
                 {
                     var hostile = __instance.faction != null && __instance.faction.HostileTo(Faction.OfPlayer);
-                    CombatMirror.Record(Mirror.CombatLogKind.LordToil, hostile ? Clock.CombatEvent.RaidPhase : Clock.CombatEvent.Unspecified, __instance.ownedPawns.FirstOrDefault(), null,
-                        __state.GetType().Name + " -> " + newLordToil.GetType().Name, null, CombatMirror.Strategy(__instance));
+                    CombatMirror.Record(Mirror.CombatLogKind.LordToil, hostile ? Clock.CombatEvent.RaidPhase : Clock.CombatEvent.Unspecified, __instance.ownedPawns.FirstOrDefault(), null, CombatMirror.Strategy(__instance));
                 }
                 if (__state == null || ReferenceEquals(__state, newLordToil) || s == null || !ReferenceEquals(__instance!.Map, s.Map)) return;
                 if (__instance.faction == null || !__instance.faction.HostileTo(Faction.OfPlayer)) return;
@@ -331,7 +329,7 @@ namespace HomeBridge.BridgeTools
                 if (CombatMirror.Active && __instance is Building && __instance.Spawned)
                 {
                     var breach = __instance.Faction == Faction.OfPlayer && (wall || def.IsDoor || __instance is Building_Turret);
-                    CombatMirror.Record(Mirror.CombatLogKind.BuildingDestroyed, breach ? Clock.CombatEvent.Breach : Clock.CombatEvent.Unspecified, __instance, null, null);
+                    CombatMirror.Record(Mirror.CombatLogKind.BuildingDestroyed, breach ? Clock.CombatEvent.Breach : Clock.CombatEvent.Unspecified, __instance, null);
                 }
                 if (__instance.Faction != Faction.OfPlayer || !OnEpochMap(__instance)) return;
                 if (!wall && !def.IsDoor && !(__instance is Building_Turret)) return;
@@ -345,7 +343,7 @@ namespace HomeBridge.BridgeTools
             try
             {
                 if (__result && ___pawn != null && ___pawn.Spawned)
-                    CombatMirror.Record(Mirror.CombatLogKind.MentalState, ___pawn.RaceProps?.Humanlike == true ? Clock.CombatEvent.MentalBreak : Clock.CombatEvent.Unspecified, ___pawn, null, null);
+                    CombatMirror.Record(Mirror.CombatLogKind.MentalState, ___pawn.RaceProps?.Humanlike == true ? Clock.CombatEvent.MentalBreak : Clock.CombatEvent.Unspecified, ___pawn, null);
                 if (!__result || !OnEpochMap(___pawn) || ___pawn!.RaceProps == null || !___pawn.RaceProps.Humanlike) return;
                 NoteCombatEvent(Clock.CombatEvent.MentalBreak, ___pawn, stateDef?.defName ?? "mental state");
             }

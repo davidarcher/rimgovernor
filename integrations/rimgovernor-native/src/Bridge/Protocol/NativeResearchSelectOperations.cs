@@ -44,7 +44,7 @@ namespace HomeBridge.BridgeTools
             var manager = Find.ResearchManager;
             if (Current(def)?.defName != def.defName) manager.SetCurrentProject(def);
             if (Current(def)?.defName != def.defName) throw new InvalidOperationException("Research selection did not verify after SetCurrentProject.");
-            return new Receipts.EffectEvidence { Effect = new Receipts.ResearchEffect() };
+            return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.ResearchCase() };
         }
     }
 }

@@ -20,24 +20,6 @@ namespace HomeBridge.BridgeTools
     {
         internal static bool Designated(Pawn animal, DesignationDef def) => animal.Map.designationManager.DesignationOn(animal, def) != null;
 
-        // Settings token: exact designation/training state; the before and
-        // after evidence of an applied husbandry order.
-        internal static string Settings(Pawn animal)
-        {
-            var values = new List<string> {
-                Designated(animal, DesignationDefOf.Slaughter).ToString(),
-                Designated(animal, DesignationDefOf.ReleaseAnimalToWild).ToString(),
-                Designated(animal, DesignationDefOf.Tame).ToString(),
-                AreaId(animal), MasterId(animal),
-                (animal.playerSettings?.followDrafted ?? false).ToString(),
-                (animal.playerSettings?.followFieldwork ?? false).ToString(),
-                Sterilized(animal).ToString(), (SterilizeBill(animal) != null).ToString() };
-            if (animal.training != null)
-                values.AddRange(DefDatabase<TrainableDef>.AllDefsListForReading.OrderBy(t => t.defName, StringComparer.Ordinal)
-                    .Select(t => t.defName + "=" + animal.training.GetWanted(t)));
-            return NativeSnapshotVersions.Token("husbandry", null, animal.GetUniqueLoadID(), string.Join("|", values));
-        }
-
         // The Sterilized hediff, and the queued sterilize surgery bill (the
         // bill whose recipe adds it).
         internal static bool Sterilized(Pawn animal) => animal.health.hediffSet.HasHediff(HediffDefOf.Sterilized);
@@ -289,7 +271,6 @@ namespace HomeBridge.BridgeTools
                 if (!rules.Holds) throw new InvalidOperationException("Husbandry prerequisites changed before apply: " + rules.Reason);
             }
             var animal = target.Animal!;
-            var before = NativeHusbandryOperations.Settings(animal);
             if (!Holds(intent, target))
             {
                 var designation = DesignationFor(intent.Order.GetValueOrDefault());
@@ -311,8 +292,7 @@ namespace HomeBridge.BridgeTools
                 }
                 if (!Holds(intent, target)) throw new InvalidOperationException("Native husbandry readback did not apply.");
             }
-            var effect = new Receipts.AnimalEffect { Animal = new Receipts.SnapshotEvidence {
-                EntityId = animal.GetUniqueLoadID(), BeforeToken = before, AfterToken = NativeHusbandryOperations.Settings(animal) } };
+            var effect = new Receipts.AnimalEffect();
             switch (intent.Order)
             {
                 case Operations.HusbandryOrder.Train: effect = effect with { TrainableDef = intent.TrainableDef }; effect = effect with { Wanted = animal.training!.GetWanted(target.Trainable) }; break;

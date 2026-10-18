@@ -197,7 +197,6 @@ namespace HomeBridge.BridgeTools
         private static Receipts.EffectEvidence Evidence(Operations.FormCaravanIntent command, Caravan? caravan)
         {
             var effect = new Receipts.CaravanEffect { AssemblyStarted = true, DestinationTile = command.DestinationTile };
-            if (caravan != null) effect = effect with { CaravanId = caravan.GetUniqueLoadID() };
             effect = effect with { PawnIds = [.. effect.PawnIds, .. command.PawnIds] };
             return new Receipts.EffectEvidence { Effect = effect };
         }

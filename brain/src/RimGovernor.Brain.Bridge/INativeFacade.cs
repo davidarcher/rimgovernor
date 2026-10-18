@@ -93,8 +93,6 @@ public interface INativeFacade
 
     Task<Operations.ApplyReply> ApplyAsync(Operations.ApplyRequest request, CancellationToken cancellationToken);
 
-    Task<Receipts.LookupReply> LookupReceiptAsync(Receipts.LookupRequest request, CancellationToken cancellationToken);
-
     // Clock.
 
     Task<Clock.StatusReply> RunClockAsync(Clock.RunRequest request, CancellationToken cancellationToken);

@@ -198,14 +198,7 @@ namespace HomeBridge.BridgeTools
             var favorAfter = call.Pawn.royalty.GetFavor(call.Faction);
             if (call.Held.LastUsedTick != tick || favorAfter != (free ? favorBefore : favorBefore - call.Def.royalAid.favorCost))
                 throw new InvalidOperationException("Permit call readback did not start the cooldown and spend the favor a non-free call costs.");
-            return new Receipts.EffectEvidence
-            {
-                Effect = new Receipts.AbilityEffect
-                {
-                    PawnId = call.Pawn.GetUniqueLoadID(),
-                    Outcome = new Receipts.PermitUseEffect(),
-                },
-            };
+            return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.AbilityCase() };
         }
     }
 
@@ -369,14 +362,7 @@ namespace HomeBridge.BridgeTools
             var job = cast.Pawn.jobs?.AllJobs().FirstOrDefault(j => j.ability == cast.Ability);
             if (job == null)
                 throw new InvalidOperationException("Psycast order readback found no cast job on the pawn.");
-            return new Receipts.EffectEvidence
-            {
-                Effect = new Receipts.AbilityEffect
-                {
-                    PawnId = cast.Pawn.GetUniqueLoadID(),
-                    Outcome = new Receipts.PsycastUseEffect(),
-                },
-            };
+            return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.AbilityCase() };
         }
     }
 

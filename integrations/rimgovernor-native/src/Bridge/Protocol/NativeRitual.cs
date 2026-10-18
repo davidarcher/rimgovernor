@@ -79,8 +79,10 @@ namespace HomeBridge.BridgeTools
 
         private static Receipts.EffectEvidence Evidence(Operations.RitualIntent command, Target target) => new Receipts.EffectEvidence
         {
-            Effect = new Receipts.RitualEffect { PawnId = command.PawnId, Ritual = command.Ritual, Started = target.Job.ceremonyStarted || !(target.Lord.CurLordToil is LordToil_BestowingCeremony_Wait) }
+            Effect = new Receipts.RitualEffect { Ritual = command.Ritual }
         };
+
+        private static bool Started(Target target) => target.Job.ceremonyStarted || !(target.Lord.CurLordToil is LordToil_BestowingCeremony_Wait);
 
         internal static Common.Failure? Validate(Operations.RitualIntent command) =>
             command.Verb is not null && (command.Verb ?? "") == NativeRitualBegin.Begin ? NativeRitualBegin.Validate(command) : Resolve(command, out _, out _);
@@ -96,9 +98,8 @@ namespace HomeBridge.BridgeTools
             var action = Traverse.Create(target.Command).Field("action").GetValue<Action<List<Pawn>>>();
             if (action == null) throw new InvalidOperationException("The ceremony command carries no action.");
             action(new List<Pawn>());
-            var evidence = Evidence(command, target);
-            if (evidence.Effect?.Ritual?.Started != true) throw new InvalidOperationException("Native ritual start readback did not apply.");
-            return evidence;
+            if (!Started(target)) throw new InvalidOperationException("Native ritual start readback did not apply.");
+            return Evidence(command, target);
         }
     }
 
@@ -216,7 +217,7 @@ namespace HomeBridge.BridgeTools
 
         private static Receipts.EffectEvidence Evidence(Operations.RitualIntent command, Plan plan) => new Receipts.EffectEvidence
         {
-            Effect = new Receipts.RitualEffect { PawnId = command.PawnId, Ritual = command.Ritual, Started = Running(plan.Ritual) }
+            Effect = new Receipts.RitualEffect { Ritual = command.Ritual }
         };
 
         internal static Common.Failure? Validate(Operations.RitualIntent command) => Resolve(command, out _);
@@ -229,9 +230,8 @@ namespace HomeBridge.BridgeTools
             var action = Traverse.Create(plan.Dialog).Field("action").GetValue<Dialog_BeginRitual.ActionCallback>();
             if (action == null || plan.Assignments == null) throw new InvalidOperationException("The begin dialog carries no confirm action.");
             if (!action(plan.Assignments)) throw new InvalidOperationException("The game declined to begin the ritual.");
-            var evidence = Evidence(command, plan);
-            if (evidence.Effect?.Ritual?.Started != true) throw new InvalidOperationException("Native ritual begin readback did not apply.");
-            return evidence;
+            if (!Running(plan.Ritual)) throw new InvalidOperationException("Native ritual begin readback did not apply.");
+            return Evidence(command, plan);
         }
     }
 

@@ -262,7 +262,7 @@ namespace HomeBridge.BridgeTools
                 if (e.Order.Release) { e.State = "released"; Emit(e); }
                 else Emit(e);
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.PawnActivitiesEffect() };
+            return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.PawnActivitiesCase() };
         }
         private static bool TryOwned(Pawn pawn, out Entry e)
         {

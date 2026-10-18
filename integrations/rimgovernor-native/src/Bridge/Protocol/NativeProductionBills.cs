@@ -247,7 +247,7 @@ namespace HomeBridge.BridgeTools {
     t.Giver.BillStack.AddBill(bill);record.Capture();
     standing=bill;
    }
-   return new Receipts.EffectEvidence{Effect=new Receipts.BillEffect{Stack=new Receipts.SnapshotEvidence{EntityId=t.Bench.GetUniqueLoadID()},Bill=NativeRef.Of(standing.GetUniqueLoadID())}};
+   return new Receipts.EffectEvidence{Effect=new Receipts.BillEffect{Bill=NativeRef.Of(standing.GetUniqueLoadID())}};
   }
  }
  // Actions/Apply remove_production_bill: delete one bill from a player bench.
@@ -283,7 +283,7 @@ namespace HomeBridge.BridgeTools {
    // orphan to be cancelled (a recipe change): Cancel returns the ingredient share.
    if(intent.CancelUnfinished&&t.Bill is Bill_ProductionWithUft uft&&uft.BoundUft!=null&&!uft.BoundUft.Destroyed)uft.BoundUft.Destroy(DestroyMode.Cancel);
    NativeProductionTracking.Retire(t.Bill);t.Bill.billStack.Delete(t.Bill);
-   return new Receipts.EffectEvidence{Effect=new Receipts.BillEffect{Stack=new Receipts.SnapshotEvidence{EntityId=t.Bench.GetUniqueLoadID()},Bill=NativeRef.Of(id)}};
+   return new Receipts.EffectEvidence{Effect=new Receipts.BillEffect{Bill=NativeRef.Of(id)}};
   }
  }
 }
