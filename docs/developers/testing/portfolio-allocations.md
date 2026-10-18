@@ -872,3 +872,11 @@ run-to-run noise):
 
 What remains per evaluated plan is the schedule search's allocation and plan records, the memo
 misses in the evaluation, and the portfolio level's consequence vectors and evidence.
+
+In game (`needs/target-capacity`, `production/coupled-thermal` and `shelter/service-investment` on a
+private root, one sitting), every `coupled.select` call that spends its full 16,384-expansion budget
+takes 0.11 to 0.31 s at 12 to 99 roots and 300 to 1,000 schedules, on this change and on the previous
+landed code alike; the brain's search is not the round review's bound (`planner.military` and the
+rest of the scheduler step are, at 0.2 to 0.5 s and 0.9 to 1.3 s mean). `needs/target-capacity` and
+`shelter/service-investment` fail their native wait budgets identically on both builds, which is not
+this change.
