@@ -36,8 +36,6 @@ public sealed record Listing
     public uint? ReturnedCount { get; init; }
 
     public bool? Complete { get; init; }
-
-    public bool? Truncated { get; init; }
 }
 
 public sealed record MapRect
@@ -132,13 +130,7 @@ public sealed record ColonistReference
 {
     public string? PawnId { get; init; }
 
-    public string? Name { get; init; }
-
     public int? MapId { get; init; }
-
-    public bool? Spawned { get; init; }
-
-    public Common.Cell? Position { get; init; }
 }
 
 public sealed record ColonistRoster
@@ -179,17 +171,6 @@ public abstract record ColonistRosterReplyOutcome
     public static implicit operator ColonistRosterReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
-public sealed record LookTarget
-{
-    public string? Id { get; init; }
-
-    public string? Label { get; init; }
-
-    public int? MapId { get; init; }
-
-    public Common.Cell? Position { get; init; }
-}
-
 public sealed record Letter
 {
     public string? Id { get; init; }
@@ -200,28 +181,7 @@ public sealed record Letter
 
     public string? Label { get; init; }
 
-    public string? Text { get; init; }
-
     public long? ArrivalTick { get; init; }
-}
-
-public sealed record TransientMessage
-{
-    public string? Id { get; init; }
-
-    public string? Text { get; init; }
-}
-
-public sealed record Alert
-{
-    public string? Id { get; init; }
-
-    public string? Label { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<LookTarget>))]
-    public EquatableArray<LookTarget> Targets { get; init; }
-
-    public Listing? Listing { get; init; }
 }
 
 public sealed record Letters
@@ -235,19 +195,11 @@ public sealed record Letters
 
 public sealed record Messages
 {
-    [JsonPropertyName("messages")]
-    [JsonConverter(typeof(EquatableArrayJsonConverter<TransientMessage>))]
-    public EquatableArray<TransientMessage> Items { get; init; }
-
     public Listing? Listing { get; init; }
 }
 
 public sealed record Alerts
 {
-    [JsonPropertyName("alerts")]
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Alert>))]
-    public EquatableArray<Alert> Items { get; init; }
-
     public Listing? Listing { get; init; }
 
     public string? SnapshotFingerprint { get; init; }
@@ -428,8 +380,6 @@ public sealed record RenderStatus
     public bool? WindowVisible { get; init; }
 
     public uint? RemainingLeaseMs { get; init; }
-
-    public Common.Unavailable? Unavailable { get; init; }
 }
 
 public sealed record RenderDemand

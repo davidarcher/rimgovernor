@@ -55,23 +55,17 @@ internal static class LetterNotifications
         }
 
         var messages = snapshot.Messages?.Outcome?.Observed ?? throw new AcceptanceException($"notifications: messages not observed: {snapshot.Messages}");
-        if (messages.Listing is not { } messageListing || messageListing.ReturnedCount != messages.Items.Count)
+        if (messages.Listing is not { Complete: not null })
         {
-            throw new AcceptanceException($"notifications: the message listing does not describe its {messages.Items.Count} rows: {messages.Listing}");
+            throw new AcceptanceException($"notifications: the message section has no listing: {messages.Listing}");
         }
 
         var alerts = snapshot.Alerts?.Outcome?.Observed ?? throw new AcceptanceException($"notifications: alerts not observed: {snapshot.Alerts}");
 
         // A fresh colony always has at least "Need colonist beds": an empty list means the headless AlertsReadout stopped running.
-        if (string.IsNullOrEmpty(alerts.SnapshotFingerprint) || alerts.Items.Count == 0)
+        if (string.IsNullOrEmpty(alerts.SnapshotFingerprint) || alerts.Listing is not { TotalCount: > 0 })
         {
             throw new AcceptanceException($"notifications: expected a fresh colony's alerts under a fingerprint, got {alerts}");
-        }
-
-        if (alerts.Listing is not { } alertListing || alertListing.ReturnedCount != alerts.Items.Count
-            || alerts.Items.FirstOrDefault(a => a.Targets.Count > 0) is { Listing: null })
-        {
-            throw new AcceptanceException($"notifications: the alert listing does not describe its {alerts.Items.Count} rows, or an alert with targets has no target listing: {alerts}");
         }
 
         var narrowed = await Notifications("notifications-no-letters", new Presentation.NotificationsRequest { Identity = s.Identity, IncludeLetters = false, AlertLimit = 1 }).ConfigureAwait(false);

@@ -97,7 +97,6 @@ namespace HomeBridge.BridgeTools
             var row = new Presentation.Letter { Id = Id(letter.GetUniqueLoadID()), NativeType = Id(letter.GetType().FullName!),
                 Label = Diagnostic(letter.Label.ToString()), ArrivalTick = letter.arrivalTick };
             if (letter.def != null && ProtoBoundary.IsIdentifier(letter.def.defName)) row = row with { DefName = letter.def.defName };
-            if (letter is ChoiceLetter choiceLetter) row = row with { Text = Diagnostic(choiceLetter.Text.ToString()) };
             return row;
         }
 
@@ -107,19 +106,14 @@ namespace HomeBridge.BridgeTools
         {
             var field = LiveMessagesField ?? throw new NativeComponentMissing("Verse.Messages.liveMessages was not found on this build.");
             var live = (field.GetValue(null) as List<Verse.Message> ?? throw new NativeComponentMissing("Verse.Messages.liveMessages is not a message list.")).Where(m => m != null).ToList();
-            live.Reverse(); // newest first
-            var result = new Presentation.Messages { Listing = Listing(live.Count, Math.Min(live.Count, limit)) };
-            result = result with { Items = [.. live.Take(limit).Select(message =>
-                new Presentation.TransientMessage { Id = Id(message.GetUniqueLoadID()), Text = Diagnostic(message.text ?? string.Empty) })] };
-            RequireUnique(result.Items.Select(m => m.Id ?? ""), "message");
-            return result;
+            return new Presentation.Messages { Listing = Listing(live.Count, Math.Min(live.Count, limit)) };
+
         }
 
         // =============================================================== alerts
 
         // AlertsReadout.activeAlerts is the list the game's own readout keeps
-        // current; nothing recalculates activity. GetReport() runs once per
-        // active alert for the culprit targets, GetExplanation() for the prose.
+        // current; nothing recalculates activity.
         private static Presentation.Alerts ReadAlerts(int limit)
         {
             var field = ActiveAlertsField ?? throw new NativeComponentMissing("RimWorld.AlertsReadout.activeAlerts was not found on this build.");
@@ -127,33 +121,8 @@ namespace HomeBridge.BridgeTools
             var active = field.GetValue(readout) as List<RimWorld.Alert> ?? throw new NativeComponentMissing("AlertsReadout.activeAlerts is not an alert list.");
             var ordered = active.Select((alert, ordinal) => (alert, ordinal)).Where(a => a.alert != null)
                 .OrderByDescending(a => (int)a.alert.Priority).ThenBy(a => a.ordinal).Select(a => a.alert).ToList();
-            var result = new Presentation.Alerts { Listing = Listing(ordered.Count, Math.Min(ordered.Count, limit)),
+            return new Presentation.Alerts { Listing = Listing(ordered.Count, Math.Min(ordered.Count, limit)),
                 SnapshotFingerprint = Fingerprint(ordered.Select(a => a.GetType().FullName!)) };
-            var alertRows = new List<Presentation.Alert>();
-            foreach (var alert in ordered.Take(limit))
-            {
-                // Alerts are singletons per type in the readout; the type is the identity.
-                var row = new Presentation.Alert { Id = Id(alert.GetType().FullName!) };
-                try { row = row with { Label = Diagnostic(alert.Label ?? string.Empty) }; }
-                catch (Exception) { /* a label that throws leaves the alert unlabelled */ }
-                try
-                {
-                    var report = alert.GetReport();
-                    var culprits = (report.AllCulprits ?? Enumerable.Empty<GlobalTargetInfo>()).ToList();
-                    row = row with { Listing = Listing(culprits.Count, culprits.Count) };
-                    foreach (var culprit in culprits) row = row with { Targets = [.. row.Targets, Target(culprit)] };
-                }
-                catch (Exception)
-                {
-                    // An alert that cannot name its culprits is still an alert; a
-                    // map-wide alert has a complete empty target list instead.
-                    row = row with { Targets = default, Listing = null };
-                }
-                alertRows.Add(row);
-            }
-            result = result with { Items = [.. alertRows] };
-            RequireUnique(result.Items.Select(a => a.Id ?? ""), "alert");
-            return result;
         }
 
         private static string Fingerprint(IEnumerable<string> ids)
@@ -163,45 +132,15 @@ namespace HomeBridge.BridgeTools
             return hash.ToString("x16");
         }
 
-        // ============================================================== targets
-
-        private static Presentation.LookTarget Target(GlobalTargetInfo target)
-        {
-            var row = new Presentation.LookTarget();
-            if (target.HasThing && target.Thing != null)
-            {
-                var thing = target.Thing;
-                row = row with { Id = Id(thing.GetUniqueLoadID()) };
-                row = row with { Label = Diagnostic(thing is Pawn pawn ? pawn.Name?.ToStringShort ?? pawn.LabelShort : thing.LabelCap) };
-                if (thing.Map != null) { row = row with { MapId = thing.Map.uniqueID }; if (thing.Spawned && thing.Position.InBounds(thing.Map)) row = row with { Position = Cell(thing.Position) }; }
-                return row;
-            }
-            if (target.HasWorldObject && target.WorldObject != null)
-            {
-                var worldObject = target.WorldObject;
-                row = row with { Id = Id(worldObject.GetUniqueLoadID()) };
-                row = row with { Label = Diagnostic(target.Label ?? string.Empty) };
-                return row;
-            }
-            if (target.IsMapTarget && target.Map != null && target.Cell.IsValid && target.Cell.InBounds(target.Map))
-            {
-                row = row with { MapId = target.Map.uniqueID }; row = row with { Position = Cell(target.Cell) };
-                return row;
-            }
-            row = row with { Label = Diagnostic(target.Label ?? string.Empty) };
-            return row;
-        }
-
         // ============================================================== helpers
 
         private static Presentation.Listing Listing(int total, int returned) => new Presentation.Listing { TotalCount = checked((uint)total),
-            ReturnedCount = checked((uint)returned), Complete = returned == total, Truncated = returned < total };
+            ReturnedCount = checked((uint)returned), Complete = returned == total };
         private static void RequireUnique(IEnumerable<string> ids, string kind)
         {
             var list = ids.ToList();
             if (list.Distinct(StringComparer.Ordinal).Count() != list.Count) throw new InvalidOperationException("Native " + kind + " IDs are not unique.");
         }
-        private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static string Diagnostic(string value) => PlacementPreviewOperation.Diagnostic(value);
         private sealed class NativeComponentMissing : Exception { internal NativeComponentMissing(string message) : base(message) {} }

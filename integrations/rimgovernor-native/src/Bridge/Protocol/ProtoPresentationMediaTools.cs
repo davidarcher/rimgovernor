@@ -37,10 +37,7 @@ namespace HomeBridge.BridgeTools
             var result = new Presentation.RenderStatus { Context = context, Supported = status.Supported };
             if (!status.Supported)
             {
-                result = result with { Suspended = true };
-                result = result with { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.Unsupported,
-                    Detail = string.IsNullOrEmpty(status.UnavailableDetail) ? "Native rendering is unsupported." : status.UnavailableDetail } };
-                return result;
+                return result with { Suspended = true };
             }
             result = result with { Suspended = status.Suspended };
             result = result with { WindowVisible = status.WindowVisible };

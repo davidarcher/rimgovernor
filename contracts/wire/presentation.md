@@ -13,7 +13,7 @@ screenshot record exists.
   cannot identify an executable object.
 - `NotificationsSnapshot` reads the letter stack, live messages and active alerts; each section is
   observed or unavailable on its own. Exact IDs (alerts are identified by their type), native
-  defs/types, letter arrival tick and complete-or-truncated alert targets are retained.
+  defs/types, letter arrival tick and each alert's culprit count are retained.
 - `RenderDemand`/`RenderStatus`: the render lease and whether the game window renders.
 - `OverlayRequest`/`OverlayApplied`: one named map-overlay layer per call; output only.
 

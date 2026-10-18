@@ -62,8 +62,7 @@ namespace HomeBridge.BridgeTools
                 {
                     if (!pawn.Spawned || pawn.Map == null || !pawn.Position.InBounds(pawn.Map)) throw new InvalidOperationException("Spawned colonist context unavailable.");
                     var reference = new Presentation.ColonistReference { PawnId = Id(pawn.GetUniqueLoadID()),
-                        Name = Diagnostic(pawn.Name?.ToStringShort ?? pawn.LabelShort), MapId = pawn.Map.uniqueID,
-                        Spawned = true, Position = Cell(pawn.Position) };
+                        MapId = pawn.Map.uniqueID };
                     roster = roster with { Colonists = [.. roster.Colonists, reference] };
                 }
                 if (roster.Colonists.Select(p => (p.PawnId ?? "")).Distinct(StringComparer.Ordinal).Count() != roster.Colonists.Count)

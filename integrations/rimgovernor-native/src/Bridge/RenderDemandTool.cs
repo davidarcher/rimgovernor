@@ -19,9 +19,8 @@ namespace HomeBridge.BridgeTools
     {
         internal readonly bool Supported, Suspended, WindowVisible;
         internal readonly float RemainingSeconds;
-        internal readonly string? UnavailableDetail;
-        internal RenderDemandStatus(bool supported, bool suspended, bool windowVisible, float remainingSeconds, string? unavailableDetail)
-        { Supported = supported; Suspended = suspended; WindowVisible = windowVisible; RemainingSeconds = remainingSeconds; UnavailableDetail = unavailableDetail; }
+        internal RenderDemandStatus(bool supported, bool suspended, bool windowVisible, float remainingSeconds)
+        { Supported = supported; Suspended = suspended; WindowVisible = windowVisible; RemainingSeconds = remainingSeconds; }
     }
 
     public sealed class RenderDemandDriver : MonoBehaviour
@@ -37,7 +36,7 @@ namespace HomeBridge.BridgeTools
 
         internal static RenderDemandStatus Lease(int seconds)
         {
-            if (HeadlessRim.HeadlessMode.Active) return new RenderDemandStatus(false, true, false, 0, "Startup headless mode cannot render");
+            if (HeadlessRim.HeadlessMode.Active) return new RenderDemandStatus(false, true, false, 0);
             if (instance == null)
             {
                 instance = new GameObject("RimGovernorRenderDemand").AddComponent<RenderDemandDriver>();
@@ -47,7 +46,7 @@ namespace HomeBridge.BridgeTools
             }
             until = Mathf.Max(until, Time.realtimeSinceStartup + seconds);
             instance.Apply();
-            return new RenderDemandStatus(true, Suspended, instance.windowVisible, Mathf.Max(0, until - Time.realtimeSinceStartup), null);
+            return new RenderDemandStatus(true, Suspended, instance.windowVisible, Mathf.Max(0, until - Time.realtimeSinceStartup));
         }
 
         // A read-only peek never installs the driver/Harmony patch and never
@@ -57,9 +56,9 @@ namespace HomeBridge.BridgeTools
         // the driver on first use. RenderState needs a true no-op path.)
         internal static RenderDemandStatus Peek()
         {
-            if (HeadlessRim.HeadlessMode.Active) return new RenderDemandStatus(false, true, false, 0, "Startup headless mode cannot render");
-            if (instance == null) return new RenderDemandStatus(true, false, true, 0, null);
-            return new RenderDemandStatus(true, Suspended, instance.windowVisible, Mathf.Max(0, until - Time.realtimeSinceStartup), null);
+            if (HeadlessRim.HeadlessMode.Active) return new RenderDemandStatus(false, true, false, 0);
+            if (instance == null) return new RenderDemandStatus(true, false, true, 0);
+            return new RenderDemandStatus(true, Suspended, instance.windowVisible, Mathf.Max(0, until - Time.realtimeSinceStartup));
         }
         public static bool DrawPrefix() => !Suspended;
         void Update()
