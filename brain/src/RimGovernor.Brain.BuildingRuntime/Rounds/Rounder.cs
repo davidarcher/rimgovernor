@@ -340,8 +340,7 @@ public sealed partial class Rounder
             throw new ControlException("step: expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.S");
         }
         var plans = await p.Journal.LoadPlansAsync(ct).ConfigureAwait(false);
-        var playerPlans = await p.Journal.PlayerPlansAsync(Player.PlayerWorld(state.Snapshot), ct).ConfigureAwait(false);
-        var definitions = RoundsProjectBill.RoundsProjectDefinitions(plans, state.Snapshot, playerPlans);
+        var definitions = RoundsProjectBill.RoundsProjectDefinitions(plans, state.Snapshot);
         var readDefinitions = definitions;
         if (Needs.Contains(FoodRules.CookingNeed))
         {
@@ -482,7 +481,7 @@ public sealed partial class Rounder
         if (Firebreak is not null)
         {
             // The ring plan's dwell clock advances every review; the layout family reads the work it leaves.
-            _ = await Firebreak.ReviewAsync(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, FirebreakPlan.FirebreakBusy(plans, state.Snapshot, playerPlans), ct).ConfigureAwait(false);
+            _ = await Firebreak.ReviewAsync(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, FirebreakPlan.FirebreakBusy(plans, state.Snapshot), ct).ConfigureAwait(false);
         }
         Fact<EquatableArray<PawnId>> psylinkCandidates = default;
         if (Needs.Contains(RoyaltyFamily.Psylink))
@@ -560,7 +559,7 @@ public sealed partial class Rounder
                 Fact<IReadOnlyList<WorkRequirement>> benchWork = default;
                 try
                 {
-                    benchWork = await RoundsProjectBill.RoundsBenchWorkAsync(benchSource, state.Snapshot, plans, playerPlans, deficitTargets, deficitTargets.Count > 0, reading.Projection.Facts.Items.Wort, ct).ConfigureAwait(false);
+                    benchWork = await RoundsProjectBill.RoundsBenchWorkAsync(benchSource, state.Snapshot, plans, deficitTargets, deficitTargets.Count > 0, reading.Projection.Facts.Items.Wort, ct).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {

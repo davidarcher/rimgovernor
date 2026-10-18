@@ -63,7 +63,6 @@ internal sealed partial class SpeedmatrixRun
     private readonly Config _config;
     private readonly Report _report;
     private readonly IReadOnlyList<SpeedCase> _cases;
-    private readonly List<Fx.ThroughputSite> _sites = [];
     private readonly List<SpeedOutcome> _outcomes = [];
     private readonly List<JsonObject> _rows = [];
 
@@ -219,11 +218,10 @@ internal sealed partial class SpeedmatrixRun
         var h = HarnessFor(stageOutput);
         _storage = CellList(prepared.StorageCells.Select(c => (c.X, c.Z)));
         _walls = CellList(prepared.Sites.Select(s => (s.X, s.Z)));
-        _sites.AddRange(prepared.Sites);
 
-        if (_sites.Count != _profile.Segments)
+        if (prepared.Sites.Count != _profile.Segments)
         {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"stage laid out {_sites.Count} wall sites, want {_profile.Segments}"));
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"stage laid out {prepared.Sites.Count} wall sites, want {_profile.Segments}"));
         }
 
         // Frozen needs do not survive a reload (the op is per game), so the save carries the stage only; each case
@@ -343,7 +341,6 @@ internal sealed partial class SpeedmatrixRun
 
             // The kept game's journal outlives a row, so the previous row's review (and its tick) is still in it.
             var staleRevision = (await journal.LoadRoundsAsync(cancellationToken).ConfigureAwait(false)).Revision;
-            var planIds = await SubmitWallsAsync(journal, prefix, identity, report, cancellationToken).ConfigureAwait(false);
             var rootPlanId = await service.ResumeAsync(prefix, identity, token, report, cancellationToken).ConfigureAwait(false);
             report["root_plan"] = rootPlanId;
 
@@ -363,10 +360,9 @@ internal sealed partial class SpeedmatrixRun
 
             // The target is game time: the wait ends once the tick the service last observed (its OTLP log ring's newest
             // clock sample; the routine review's tick only moves once per full step) has
-            // advanced by the target past the reload tick, or earlier once the stage has no work left for the clock to
-            // admit. The signature is the tick itself, so a clock that stops advancing with work pending stalls the wait.
+            // advanced by the target past the reload tick. The signature is the tick itself, so a clock that stops advancing
+            // stalls the wait.
             ulong lastTick = 0;
-            var workDone = false;
             Exception? waitErr = null;
             try
             {
@@ -375,13 +371,7 @@ internal sealed partial class SpeedmatrixRun
                     {
                         var review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
                         lastTick = review.Revision > staleRevision ? (ulong)review.Tick.Value : startTick;
-                        if (lastTick >= startTick + _profile.Ticks)
-                        {
-                            return (Wait.Signature(lastTick), true);
-                        }
-
-                        workDone = await StageWorkDoneAsync(journal, planIds, ct).ConfigureAwait(false);
-                        return (Wait.Signature(lastTick), workDone);
+                        return (Wait.Signature(lastTick), lastTick >= startTick + _profile.Ticks);
                     },
                     cancellationToken).ConfigureAwait(false);
             }
@@ -391,7 +381,7 @@ internal sealed partial class SpeedmatrixRun
             }
 
             var wallSeconds = (DateTimeOffset.UtcNow - resumedAt).TotalSeconds;
-            report["wait"] = OutputJson.Fields(("start_tick", startTick), ("last_tick", lastTick), ("wall_seconds", wallSeconds), ("work_done", workDone));
+            report["wait"] = OutputJson.Fields(("start_tick", startTick), ("last_tick", lastTick), ("wall_seconds", wallSeconds));
             if (waitErr is not null)
             {
                 try
@@ -408,7 +398,7 @@ internal sealed partial class SpeedmatrixRun
             }
 
             var accountingEnd = await ClockAccounting.ReadAsync(h, "clock-accounting-end", cancellationToken).ConfigureAwait(false);
-            var (unsuccessful, planCount) = await CountUnsuccessfulAsync(journal, planIds, cancellationToken).ConfigureAwait(false);
+            var (unsuccessful, planCount) = await CountUnsuccessfulAsync(journal, cancellationToken).ConfigureAwait(false);
             report["plans_inspected"] = planCount;
             journal.Dispose();
             journal = null;
@@ -527,95 +517,12 @@ internal sealed partial class SpeedmatrixRun
         return (ulong)read.Tick;
     }
 
-    // Writes every staged wall segment into the service's journal as its own building plan (no player route exists) and
-    // returns the plan ids. The service has not resumed yet, so it reads them as the world's standing work.
-    private async Task<List<PlanId>> SubmitWallsAsync(Journal journal, string prefix, JsonObject identity, Report report, CancellationToken cancellationToken)
-    {
-        var id = Harness.IdentityOf(identity);
-        var world = new World(new ColonyId(id.ColonyId), new LoadId(id.LoadToken), new MapId(id.MapId));
-        var ids = new List<PlanId>();
-        var submissions = new JsonArray();
-        for (var i = 0; i < _sites.Count; i++)
-        {
-            var site = _sites[i];
-            var label = i + 1;
-            var rotationText = site.Rotation;
-            if (!Enum.TryParse<Rotation>(rotationText.StartsWith("ROTATION_", StringComparison.Ordinal) ? rotationText["ROTATION_".Length..] : rotationText, ignoreCase: true, out var rotation))
-            {
-                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"wall {label}: rotation: unknown rotation \"{rotationText}\""));
-            }
-
-            Submission submission;
-            try
-            {
-                var building = new Building(site.DefName, new Cell(site.X, site.Z), rotation, site.Stuff);
-                (submission, _) = await journal.SubmitBuildingAsync(
-                    new SubmissionRequest(string.Create(CultureInfo.InvariantCulture, $"{prefix}-wall-{label}"), world, building),
-                    cancellationToken).ConfigureAwait(false);
-            }
-            catch (DomainException e)
-            {
-                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"wall {label}: {e.Message}"), e);
-            }
-
-            ids.Add(submission.Plan);
-            submissions.Add(OutputJson.Fields(
-                ("requestId", submission.Request.RequestId),
-                ("planId", submission.Plan.Value),
-                ("revision", submission.Revision.Value)));
-        }
-
-        report["submissions"] = submissions;
-        return ids;
-    }
-
-    // Whether the stage has run out of work: every wall plan has observed its building completed. After that the clock
-    // scheduler refuses every run as no_work and the review tick no longer advances.
-    private static async Task<bool> StageWorkDoneAsync(Journal journal, IReadOnlyList<PlanId> walls, CancellationToken cancellationToken)
-    {
-        foreach (var id in walls)
-        {
-            PlanState state;
-            try
-            {
-                state = await journal.LoadPlanAsync(id, cancellationToken).ConfigureAwait(false);
-            }
-            catch (NotFoundException)
-            {
-                return false;
-            }
-
-            if (state.Progress.Count == 0)
-            {
-                return false;
-            }
-
-            foreach (var progress in state.Progress)
-            {
-                if (progress.View.Stage != Stage.Completed)
-                {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    // Counts Unsuccessful action stages over the wall plans and every routine method the service dispatched.
+    // Counts Unsuccessful action stages over every routine method the service dispatched.
     // LoadPlan sees retired plans; LoadPlans would hide them.
-    private static async Task<(int Unsuccessful, int Plans)> CountUnsuccessfulAsync(Journal journal, IReadOnlyList<PlanId> walls, CancellationToken cancellationToken)
+    private static async Task<(int Unsuccessful, int Plans)> CountUnsuccessfulAsync(Journal journal, CancellationToken cancellationToken)
     {
         var seen = new HashSet<PlanId>();
         var ids = new List<PlanId>();
-        foreach (var id in walls)
-        {
-            if (seen.Add(id))
-            {
-                ids.Add(id);
-            }
-        }
-
         var review = await journal.LoadRoundsAsync(cancellationToken).ConfigureAwait(false);
         foreach (var row in review.Progress)
         {

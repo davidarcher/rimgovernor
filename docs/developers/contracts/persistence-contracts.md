@@ -200,8 +200,7 @@ version 216; a database of another version is moved aside, never migrated):
 - **Receipts for uncertain writes.** Every native write is journaled before dispatch and settled by
   observation, never by transport replay. A reply lost after dispatch leaves the action uncertain; it
   is reconciled from the next observation, and its plan stays live until then.
-- **Request-ID replay.** Player submissions (policies, decisions, building and research intents,
-  control intents) are keyed by the caller's request ID within a world.
+- **Request-ID replay.** Player control intents are keyed by the caller's request ID within a world.
   Repeating an ID returns the recorded outcome; a changed body under the same ID is a conflict.
   Native keeps no action replay: the in-process game-thread hop returns the result of every body
   that ran, and cancellation reaches only a hop still queued. The brain journals each

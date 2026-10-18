@@ -97,8 +97,8 @@ RimGovernor.cmd acceptance speedmatrix -root <abs root>
 ```
 
 Needs a `ThroughputFixture` build. One staged colony is reloaded per row and
-run with the `haul` and `work` families to a 30000-tick target, or until the
-stage runs out of work. Rows are `DefaultSpeedMatrix`
+run with the `haul` and `work` families to a 30000-tick target.
+Rows are `DefaultSpeedMatrix`
 (`Normal,Fast,Superfast,Ultrafast,uncapped,governor-off`);
 `-speeds uncapped,governor-off` narrows a run. The command has its own driver
 (`brain/src/RimGovernor.Brain.Acceptance/SpeedMatrix`) outside the case runner and the catalog; per-row

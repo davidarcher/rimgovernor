@@ -7,12 +7,10 @@ internal readonly partial record struct RoundsProjectBill(string Bench, string R
 partial record struct RoundsProjectBill
 {
     /// <summary>
-    /// Visits every open action of every live plan that is either admitted for the current world or selected
-    /// player intent (a cancelled, unresolved native order can still need a qualified builder). Include player
-    /// guidance before admission and admitted shared projects; player maps each submitted plan for the current
-    /// world to its revision.
+    /// Visits every open action of every live plan that is either admitted for the current world or belongs to the root plan
+    /// (a cancelled, unresolved native order can still need a qualified builder).
     /// </summary>
-    internal static void RoundsOpenActions(IEnumerable<Sto.PlanState> plans, GenerationSnapshot current, IReadOnlyDictionary<PlanId, ulong> player, Action<DomainAction> visit)
+    internal static void RoundsOpenActions(IEnumerable<Sto.PlanState> plans, GenerationSnapshot current, Action<DomainAction> visit)
     {
         foreach (var plan in plans)
         {
@@ -33,7 +31,7 @@ partial record struct RoundsProjectBill
                 }
                 var v = progress.View;
                 var admitted = admissions.TryGetValue(v.Action, out var scope);
-                var selected = (v.Plan == current.Plan && v.Revision == current.Revision) || new PlanRevision(player.GetValueOrDefault(v.Plan)) == v.Revision;
+                var selected = v.Plan == current.Plan && v.Revision == current.Revision;
                 if (!admitted && !selected)
                 {
                     continue;
@@ -47,10 +45,10 @@ partial record struct RoundsProjectBill
         }
     }
 
-    internal static List<string> RoundsProjectDefinitions(IEnumerable<Sto.PlanState> plans, GenerationSnapshot current, IReadOnlyDictionary<PlanId, ulong> player)
+    internal static List<string> RoundsProjectDefinitions(IEnumerable<Sto.PlanState> plans, GenerationSnapshot current)
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
-        RoundsOpenActions(plans, current, player, a =>
+        RoundsOpenActions(plans, current, a =>
         {
             if (a.Building is { } building)
             {
@@ -62,11 +60,11 @@ partial record struct RoundsProjectBill
         return result;
     }
 
-    internal static List<RoundsProjectBill> RoundsProjectBills(IEnumerable<Sto.PlanState> plans, GenerationSnapshot current, IReadOnlyDictionary<PlanId, ulong> player)
+    internal static List<RoundsProjectBill> RoundsProjectBills(IEnumerable<Sto.PlanState> plans, GenerationSnapshot current)
     {
         var seen = new HashSet<RoundsProjectBill>();
         var result = new List<RoundsProjectBill>();
-        RoundsOpenActions(plans, current, player, a =>
+        RoundsOpenActions(plans, current, a =>
         {
             if (a.ProductionBill is not { } bill)
             {
@@ -259,14 +257,14 @@ partial record struct RoundsProjectBill
     /// produce it (RoundsDeficitWork). One census read serves both; no bill and no deficit reads nothing. The
     /// review needs the same rows so the admin/work-assignments Need is owed for a deficit the planner will then cover.
     /// </summary>
-    internal static async Task<Fact<IReadOnlyList<Pol.WorkRequirement>>> RoundsBenchWorkAsync(IRoundsWorkBenchSource? benches, GenerationSnapshot snapshot, IReadOnlyList<Sto.PlanState> plans, IReadOnlyDictionary<PlanId, ulong> player, IReadOnlyDictionary<Pol.Resource, long> targets, bool deficit, Pol.Resource wort, CancellationToken ct)
+    internal static async Task<Fact<IReadOnlyList<Pol.WorkRequirement>>> RoundsBenchWorkAsync(IRoundsWorkBenchSource? benches, GenerationSnapshot snapshot, IReadOnlyList<Sto.PlanState> plans, IReadOnlyDictionary<Pol.Resource, long> targets, bool deficit, Pol.Resource wort, CancellationToken ct)
     {
         var none = Known<IReadOnlyList<Pol.WorkRequirement>>([]);
         if (benches is null)
         {
             return none;
         }
-        var bills = RoundsProjectBills(plans, snapshot, player);
+        var bills = RoundsProjectBills(plans, snapshot);
         deficit = deficit && targets.Count > 0;
         if (bills.Count == 0 && !deficit)
         {

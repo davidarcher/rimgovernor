@@ -308,8 +308,7 @@ CAS evidence admission carries, and the planner prepares again.
 New growing zones validate crop identity and pollution compatibility before registration
 and configure the crop in the same native operation. Hands records intent before
 writes, retains partial progress and verifies outcomes. Routine execution yields after
-12 operations. Nothing dispatches while paused; player submissions run under the root
-plan only while the bot is running.
+12 operations. Nothing dispatches while paused.
 
 ## Foothold gates and forecast limits
 

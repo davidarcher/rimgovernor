@@ -555,8 +555,7 @@ public sealed partial class Rounder
     {
         var p = Player;
         var plans = p.Journal.LoadPlans(call);
-        var playerPlans = p.Journal.PlayerPlans(Player.PlayerWorld(world), call);
-        var definitions = RoundsProjectBill.RoundsProjectDefinitions(plans, world, playerPlans);
+        var definitions = RoundsProjectBill.RoundsProjectDefinitions(plans, world);
         var crops = await SowableCropsAsync(world, call).ConfigureAwait(false);
         var unique = RoundsFieldPlanner.UniqueFieldDefinitions([.. definitions, .. crops]);
         var expected = await StepScope.StepScopeAsync(Native, call).ConfigureAwait(false);

@@ -23,11 +23,17 @@ public enum ControlPhase
     Uncertain,
 }
 
+internal static class ControlIds
+{
+    /// <summary>A control id reuses the plan-id format rules to validate an opaque token's character set and length.</summary>
+    public static void Validate(string id) => _ = new PlanSpec(new PlanId(id), new PlanRevision(1), []);
+}
+
 public sealed record ControlRequest(string RequestId, ControlKind Kind, World World)
 {
     internal void Validate()
     {
-        Submissions.ValidateId(RequestId);
+        ControlIds.Validate(RequestId);
         World.Validate();
         DomainException.Require(Wire.IsDefined(Kind), "unknown control kind");
     }
@@ -125,7 +131,7 @@ public sealed partial class Store
 
     public ControlRecord LookupControl(string id, CancellationToken cancellationToken)
     {
-        Submissions.ValidateId(id);
+        ControlIds.Validate(id);
         return Run(tx => LookupControlIn(tx, id) ?? throw new NotFoundException(), cancellationToken);
     }
 
@@ -138,7 +144,7 @@ public sealed partial class Store
 
     public ControlRecord CompleteControl(string id, ControlPhase phase, NativeGeneration generation, CancellationToken cancellationToken)
     {
-        Submissions.ValidateId(id);
+        ControlIds.Validate(id);
         return Run(
             tx =>
             {
@@ -164,8 +170,8 @@ public sealed partial class Store
         Task.Run(() => CompleteControl(id, phase, generation, cancellationToken), cancellationToken);
 
     /// <summary>
-    /// Names the empty plan whose identity carries autonomous authority for one world. Routine methods and player
-    /// submissions are authorized against it; it never holds actions of its own.
+    /// Names the empty plan whose identity carries autonomous authority for one world. Routine methods are
+    /// authorized against it; it never holds actions of its own.
     /// </summary>
     public static PlanId RootPlanId(World w) => new($"root/{w.Colony.Value}/{w.Load.Value}/{w.Map.Value.ToString(CultureInfo.InvariantCulture)}");
 

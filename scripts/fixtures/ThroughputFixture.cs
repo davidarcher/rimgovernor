@@ -112,7 +112,7 @@ namespace HomeBridge.BridgeTools
                     items = items.ToArray(),
                     wood = wood.Select(t => new { id = t.GetUniqueLoadID(), count = t.stackCount, x = t.Position.x, z = t.Position.z }).ToArray(),
                     wallCost = costs.Select(c => new { defName = c.thingDef.defName, count = c.count }).ToArray(),
-                    sites = run.Select(c => new { defName = "Wall", stuff = "WoodLog", rotation = "north", x = c.x, z = c.z }).ToArray(),
+                    sites = run.Select(c => new { x = c.x, z = c.z }).ToArray(),
                 };
             }, cancellationToken).ConfigureAwait(false);
         }

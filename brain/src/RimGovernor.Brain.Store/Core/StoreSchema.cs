@@ -36,7 +36,6 @@ internal static class StoreSchema
     [
         new SchemaPart(CoreDdl, _coreChecks),
         ControlSchema.ControlPart,
-        SubmissionSchema.SubmissionPart,
         StateMirrorSchema.OwnersPart,
         TimelinesSchema.TimelinePart,
         FamiliesSchema.SingletonPart,

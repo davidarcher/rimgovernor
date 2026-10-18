@@ -449,8 +449,8 @@ public sealed partial class Worker
         }
         var live = new HashSet<ActionId>();
         var candidates = new List<WorkerCandidate>();
-        // One author: the root plan carries authority, and every other plan -- routine method or player
-        // submission -- is dispatched under it once authorized. There is no priority arbitration between them.
+        // One author: the root plan carries authority, and every other plan -- a routine method --
+        // is dispatched under it once authorized. There is no priority arbitration between them.
         foreach (var plan in plans)
         {
             var planSnapshot = scope.Snapshot;

@@ -52,7 +52,7 @@ internal sealed partial class SpeedmatrixRun
             // The rows' fixed requirements: the same clock speed and the same useful work, so only the observation load differs.
             ("fixed", "every row asks for the same clock speed and the same staged work; rows differ only by the controller and the observation load"),
             ("camera", "the stage save's own camera position, restored by the reload; no row commands the camera"),
-            ("warmup", "the reload, the needs freeze, the plan submission and the resume precede the measured interval"),
+            ("warmup", "the reload, the needs freeze and the resume precede the measured interval"),
             ("measured_interval", "per row: wall_seconds from resume to the tick budget"),
             ("load", "the observation-load row adds concurrent /api/state readers (#656); the other rows hold none"),
             ("readers", OutputJson.Fields(

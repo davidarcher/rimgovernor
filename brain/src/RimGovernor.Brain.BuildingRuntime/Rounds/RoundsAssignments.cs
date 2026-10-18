@@ -52,8 +52,7 @@ public sealed partial class RoundsWorkPlanner
         Verdict Existing(Verdict unknown) => open.Count > 0 ? BuildingReasonExistingWork : unknown;
 
         var plans = p.Journal.LoadPlans(call);
-        var playerPlans = p.Journal.PlayerPlans(Player.PlayerWorld(state.Snapshot), call);
-        var definitions = RoundsProjectBill.RoundsProjectDefinitions(plans, state.Snapshot, playerPlans);
+        var definitions = RoundsProjectBill.RoundsProjectDefinitions(plans, state.Snapshot);
         var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
@@ -78,7 +77,7 @@ public sealed partial class RoundsWorkPlanner
         // The resource targets are in deficit when the economy/resource Need's threshold reads short now.
         var deficit = ResearchRules.ResourceTargetNeed(resourceTargets, read.Projection.Facts.Resources).Recovered.TryGetValue(out var recovered) && !recovered;
         var targets = RoundsProjectBill.RoundsDeficitTargets(resourceTargets, deficit, read.Projection.Facts.Gear);
-        var benchWork = await RoundsProjectBill.RoundsBenchWorkAsync(_reviewer.BenchSource(_benches, expected, false), state.Snapshot, plans, playerPlans, targets, targets.Count > 0, read.Projection.Facts.Items.Wort, call).ConfigureAwait(false);
+        var benchWork = await RoundsProjectBill.RoundsBenchWorkAsync(_reviewer.BenchSource(_benches, expected, false), state.Snapshot, plans, targets, targets.Count > 0, read.Projection.Facts.Items.Wort, call).ConfigureAwait(false);
         if (!benchWork.TryGetValue(out var benchRows))
         {
             return Existing(FieldUnavailable("bench_work"));

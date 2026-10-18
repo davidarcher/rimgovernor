@@ -7,8 +7,7 @@ process token (host and origin checks only) from `RimGovernor.Brain.PlayerApi`; 
 [HTTP channel](../architecture/http-channel.md).
 
 The gated player service uses one Player, session, writer and current-control coordinator. The surface
-is guidance: building placement and research selection are the only typed plan submissions; the rest is
-colony configuration and control. There is no per-pawn order surface (draft, tend, rescue, movement,
+is guidance: colony configuration and control. There is no per-pawn order surface (draft, tend, rescue, movement,
 surgery, bed assignment, husbandry, recovery service, building temperature, caravans, quests,
 settlement gifts, trade, zone edits, room shells); those action families exist only as routine-planner
 output.
@@ -51,40 +50,14 @@ Mutations require JSON and the process token in `X-RimGovernor-Player`. Bodies a
 bytes; duplicate, unknown, null, malformed and trailing fields are rejected. Errors keep the sanitized
 code/detail and control record/state/error shapes.
 
-## Submissions
-
-Building submission accepts exactly:
-
-```json
-{
-  "requestId": "player-request-id",
-  "expected": {"colonyId": "colony", "loadToken": "load", "mapId": 0},
-  "building": {"defName": "Wall", "stuff": "WoodLog", "x": 0, "z": 0, "rotation": "north"}
-}
-```
-
-Research selection uses the same envelope with `select: {"project": "exact defName"}` in place of
-`building`.
-
-- Each response echoes those fields and adds `planId`, `actionId` and `revision` (a positive canonical
-  decimal uint64 string). A newly stored request returns 201; an exact replay or successful lookup
-  returns 200. Request IDs share one namespace across submission kinds; conflicting reuse returns 409.
-- Submission never acquires authority; native eligibility and CAS are resolved by fresh executor
-  inspection when a player enables the plan.
-- A missing lookup is not proof that a timed-out POST had no effect; clients recover by reading the
-  same request ID, never by automatic POSTs.
-
 ## Control semantics
 
 Resume and Pause carry `requestId` and `expected` (the exact world) only: no plan reference, no
 direction compare-and-swap. Intents are journaled in order and each `requestId` is durable.
 
 - Resume creates or reuses the world's empty root plan (`root/<colony>/<load>/<map>`, revision 1) and
-  runs the bot under it; the root plan holds no actions. Routine methods and player submissions
-  (building, research) for the same world are dispatched under the root's authority once
-  `AuthorizeRoundsPlan` or `AuthorizePlayerPlan` accepts them. A submission is guidance the running
-  bot executes, not a grant of its own; there is no priority arbitration between guidance and routine
-  work.
+  runs the bot under it; the root plan holds no actions. Routine methods for the same world are dispatched under the root's authority once
+  `AuthorizeRoundsPlan` accepts them.
 - Pause stops local work; drafted pawns stay drafted until the game's own auto-undraft takes them back.
 - Resume and Pause also own the game clock, with no wire field for it: the bot holds the clock exactly while
   `state.enabled` is true. Resume lets the run driver send `Run` and own the speed; Pause holds the clock once

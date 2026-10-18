@@ -65,9 +65,8 @@ public sealed partial class RoundsFieldPlanner
             return new RoundsFieldResult { Verdict = BuildingReasonNoReview };
         }
         var plans = p.Journal.LoadPlans(call);
-        var playerPlans = p.Journal.PlayerPlans(Player.PlayerWorld(state.Snapshot), call);
         var crops = await _reviewer.SowableCropsAsync(state.Snapshot, call).ConfigureAwait(false);
-        var definitions = RoundsProjectBill.RoundsProjectDefinitions(plans, state.Snapshot, playerPlans).Concat(crops).ToList();
+        var definitions = RoundsProjectBill.RoundsProjectDefinitions(plans, state.Snapshot).Concat(crops).ToList();
         definitions.AddRange(["SunLamp", "HydroponicsBasin", "Heater"]);
         definitions = UniqueFieldDefinitions(definitions);
         var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);

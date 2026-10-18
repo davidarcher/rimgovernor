@@ -66,7 +66,7 @@ public sealed partial class Store
     }
 
     /// <summary>
-    /// The method a plan executes, retired or not; null for a plan no Need admitted (a player building submission).
+    /// The method a plan executes, retired or not; null for a plan no Need admitted.
     /// A Need's method files under its NeedId (#3250), the key its planner reasons use.
     /// </summary>
     public PlanMethodBinding? PlanMethod(PlanId plan, CancellationToken cancellationToken) =>

@@ -57,7 +57,7 @@ through by orchestration:
 - A finishing-skill adoption of an existing site restates the tier native
   already reads on it (`policy.AdoptedTier`), so adopting never moves a build; a
   site with no tier is Expand. Placements nothing else lists (quest monuments,
-  gene bank, mech charger, the HTTP building submission) are Expand.
+  gene bank, mech charger) are Expand.
 
 ## Required tier
 

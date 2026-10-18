@@ -14,12 +14,6 @@ public sealed record ThroughputPrepareRequest
 /// <summary>One wall site <c>test/throughput_prepare</c> laid out.</summary>
 public sealed record ThroughputSite
 {
-    public string DefName { get; init; } = "";
-
-    public string Stuff { get; init; } = "";
-
-    public string Rotation { get; init; } = "";
-
     public int X { get; init; }
 
     public int Z { get; init; }

@@ -38,7 +38,6 @@ Acceptance/Suites/ChildProcess.cs|ChildProcess.KillTree
 Acceptance/Suites/SuiteRunner.cs|SuiteRunner.RunEntryOnceAsync
 Bridge/Catalog/CreepJoinerDisarm.cs|DefinitionCatalog.BuildCreepJoinerDisarm
 BuildingRuntime/ArrivalHold.cs|Worker.ResendMoveAsync
-BuildingRuntime/Authorize.cs|PlanAuthorizer.AuthorizeRoundsPlanAsync
 BuildingRuntime/Clock/ClockScheduler.cs|ClockScheduler.RunPlannerWaveAsync
 BuildingRuntime/Colony/ColonyPlan.cs|Rounder.DrawLayoutOverlayAsync
 BuildingRuntime/Colony/ColonyStationAdvice.cs|StationFactsBuilder.StationFactsOf

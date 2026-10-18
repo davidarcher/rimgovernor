@@ -1,18 +1,15 @@
-using System.Security.Cryptography;
-using System.Text;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Store;
 
-/// <summary>One current-world, non-retired plan and the need (or player project) it serves.</summary>
+/// <summary>One current-world, non-retired plan and the need it serves.</summary>
 internal sealed record RoundsPlan(PlanState State, ConcernId Concern);
 
 public sealed partial class Store
 {
     /// <summary>
-    /// Maps every plan of the current world to its goal: routine plans to their bound need, player submissions to
-    /// a per-plan project id. Plans of another world, and plans with neither a method nor a submission, are
+    /// Maps every plan of the current world to its bound need. Plans of another world, and plans with no method, are
     /// skipped.
     /// </summary>
     internal static List<RoundsPlan> RoundsPlans(StoreTransaction tx, GenerationSnapshot current)
@@ -21,38 +18,17 @@ public sealed partial class Store
         var here = new World(current.Colony, current.Load, current.Map);
         foreach (var plan in LoadPlansIn(tx))
         {
-            ConcernId concern;
-            World world;
             var (need, found) = tx.QueryFirst(
                 "SELECT need_id,colony,load_token,map_id FROM need_methods WHERE plan_id=$plan",
                 [("$plan", plan.Spec.Id)],
                 r => (Need: r.GetString(0), World: new World(new ColonyId(r.GetString(1)), new LoadId(r.GetString(2)), new MapId(r.GetInt32(3))))
             );
-            if (found)
-            {
-                // A Need's method serves its NeedId, filed as the concern key (#3250).
-                concern = new NeedId(need.Need).FilingKey;
-                world = need.World;
-            }
-            else
-            {
-                var (row, submitted) = tx.QueryFirst(
-                    "SELECT colony,load_token,map_id FROM submissions WHERE plan_id=$plan",
-                    [("$plan", plan.Spec.Id)],
-                    r => new World(new ColonyId(r.GetString(0)), new LoadId(r.GetString(1)), new MapId(r.GetInt32(2)))
-                );
-                if (!submitted)
-                {
-                    continue;
-                }
-                world = row;
-                concern = new ConcernId("player-project-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(plan.Spec.Id.Value))).ToLowerInvariant());
-            }
-            if (world != here)
+            if (!found || need.World != here)
             {
                 continue;
             }
-            result.Add(new RoundsPlan(plan, concern));
+            // A Need's method serves its NeedId, filed as the concern key (#3250).
+            result.Add(new RoundsPlan(plan, new NeedId(need.Need).FilingKey));
         }
         return result;
     }

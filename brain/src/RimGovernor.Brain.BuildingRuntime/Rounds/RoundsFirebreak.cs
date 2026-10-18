@@ -353,10 +353,10 @@ partial class FirebreakPlan
         return output;
     }
 
-    internal static HashSet<Cell> FirebreakBusy(IReadOnlyList<PlanState> plans, GenerationSnapshot current, IReadOnlyDictionary<PlanId, ulong> player)
+    internal static HashSet<Cell> FirebreakBusy(IReadOnlyList<PlanState> plans, GenerationSnapshot current)
     {
         var busy = new HashSet<Cell>();
-        RoundsProjectBill.RoundsOpenActions(plans, current, player, a =>
+        RoundsProjectBill.RoundsOpenActions(plans, current, a =>
         {
             if (a.Building is { } b)
             {
