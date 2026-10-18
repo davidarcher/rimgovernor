@@ -21,46 +21,28 @@ public sealed partial class PawnControlFixture
     private static float portfolioFood, portfolioRestAtSleep;
     private static readonly HashSet<string> portfolioMethods = new(StringComparer.Ordinal);
 
-    [Tool("test/portfolio_needs_prepare", Description="UNSAFE FOR MODEL EXECUTION. Prepare scarce food, ripe rice, a stockpile and tired pawn for normal shared selection. Install no chosen task, bill, Method or assignment.")]
-    public async Task<object> PortfolioNeedsPrepare(IRimBridgeContext ctx, CancellationToken ct)
-    {
-        await Prepare(ctx, ct).ConfigureAwait(false);
-        return await ctx.MainThread.InvokeAsync<object>(() =>
+    [Tool("test/portfolio_needs_prepare", Description="UNSAFE FOR MODEL EXECUTION. Bind the staged worker and ripe rice and leave them the colony's only food: no loose, carried or other growing food. Install no chosen task, bill, Method or assignment.")]
+    public async Task<object> PortfolioNeedsPrepare(IRimBridgeContext ctx, CancellationToken ct,
+        [ToolParameter(Description="The worker's load id.")] string worker = "",
+        [ToolParameter(Description="The ripe rice's load id.")] string crop = "")
+        => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             portfolioActive = false;
-            var map = worker!.Map;
+            var map = FixtureKit.PausedMap();
+            PawnControlFixture.worker = FixtureKit.Spawned<Pawn>(map, worker);
+            PawnControlFixture.crop = FixtureKit.Spawned<Plant>(map, crop);
             foreach (var pawn in map.mapPawns.FreeColonistsSpawned.ToArray())
             {
                 pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
-                pawn.needs.food.CurLevelPercentage = pawn == worker ? .25f : .95f;
-                pawn.needs.rest.CurLevelPercentage = pawn == worker ? .25f : .95f;
-                pawn.needs.joy.CurLevelPercentage = pawn == worker ? .1f : .95f;
-                for (var hour = 0; hour < 24; hour++) pawn.timetable.SetAssignment(hour, TimeAssignmentDefOf.Work);
-                foreach (var type in DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(t => !pawn.WorkTypeIsDisabled(t))) pawn.workSettings.SetPriority(type, 0);
                 foreach (var item in pawn.inventory.innerContainer.Where(t => t.def.IsNutritionGivingIngestible).ToArray()) item.Destroy();
             }
-            // Remove the base execution fixture's exact meal; this scenario starts without loose food.
-            if (food is { Destroyed: false }) food.Destroy();
             foreach (var thing in map.listerThings.AllThings.Where(t => t.Spawned && t.def.IsNutritionGivingIngestible && t is not Plant).ToArray()) thing.Destroy();
-            var plantCell = crop!.Position;
-            crop.Destroy();
-            foreach (var plant in map.listerThings.AllThings.OfType<Plant>().Where(p => p.def.plant.harvestedThingDef?.IsNutritionGivingIngestible == true).ToArray()) plant.Destroy();
-            crop = GenSpawn.Spawn(ThingDef.Named("Plant_Rice"), plantCell, map);
-            ((Plant)crop).Growth = 1;
-            var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
-            map.zoneManager.RegisterZone(zone); zone.GetStoreSettings().filter.SetDisallowAll();
-            zone.GetStoreSettings().filter.SetAllow(ThingDef.Named("RawRice"), true);
-            var destination = GenRadial.RadialCellsAround(plantCell, 6, false).First(c => c.InBounds(map) && c.Standable(map)
-                && c.GetEdifice(map) == null && c.GetZone(map) == null && c.DistanceTo(plantCell) > 2);
-            zone.AddCell(destination);
-            bed!.SetFaction(Faction.OfPlayer);
-            var pinCell = GenRadial.RadialCellsAround(worker.Position, 8, false).First(c => c.InBounds(map)
-                && c.Standable(map) && c.GetEdifice(map) == null && c.DistanceTo(worker.Position) > 3);
-            var pin = GenSpawn.Spawn(ThingDef.Named("HorseshoesPin"), pinCell, map); pin.SetFaction(Faction.OfPlayer);
+            foreach (var plant in map.listerThings.AllThings.OfType<Plant>().Where(p => p != PawnControlFixture.crop
+                && p.def.plant.harvestedThingDef?.IsNutritionGivingIngestible == true).ToArray()) plant.Destroy();
             portfolioMethods.Clear();
             portfolioRebound = portfolioAte = portfolioSlept = portfolioWoke = portfolioPlayed = false;
             portfolioLastEatingTick = -1000;
-            portfolioFood = worker.needs.food.CurLevelPercentage; portfolioRestAtSleep = -1;
+            portfolioFood = PawnControlFixture.worker.needs.food.CurLevelPercentage; portfolioRestAtSleep = -1;
             if (!portfolioPatched)
             {
                 var harmony = new Harmony("rimgovernor.fixture.portfolio-needs");
@@ -71,7 +53,6 @@ public sealed partial class PawnControlFixture
             portfolioActive = true;
             return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
-    }
 
     private static void PortfolioApplied(PawnActivities batch)
     {
