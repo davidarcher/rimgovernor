@@ -47,8 +47,8 @@ whose only product is the def, its prerequisites, and
 Kept, with the reason:
 
 - `NativeGearFacts.Catalog()`: which bill options exist is live state, not row
-  data: `RecipeDef.AvailableNow` (finished research, memes, precepts) and the
-  stuff with the most stock per def (`map.resourceCounter`).
+  data: `RecipeDef.AvailableNow` (finished research, memes, precepts). Every
+  allowed stuff is offered; the brain keeps the obtainable ones.
 - `NativeProductionTracking.OrdinaryMeal()`: a guard inside the native bill
   write path and Harmony hook over live `RecipeDef` objects; no wire field
   carries it.

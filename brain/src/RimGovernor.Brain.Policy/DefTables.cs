@@ -68,7 +68,6 @@ public static class DefTablesRules
         DefTable.Of("herdTrainables", "RimWorld.TrainableDef", SortedKeys(HerdSurplusRules.HerdTrainables)),
         DefTable.Of("threatKinds", "Verse.PawnKindDef", SortedKeys(CombatThreatRules.ThreatKinds)),
         DefTable.Of("threatWeapons", "Verse.ThingDef", SortedKeys(CombatThreatRules.ThreatWeapons)),
-        DefTable.Of("gearValuables", "Verse.ThingDef", ResourceKeys(GearRules.GearValuableDefs)),
         DefTable.Of("traitStatWeights", "RimWorld.StatDef", SortedKeys(TraitWorthRules.TraitStatWeights)),
         DefTable.Of("sociableTraits", "RimWorld.TraitDef", SortedKeys(TraitWorthRules.SociableTraits)),
         DefTable.Of("traitThoughts", "RimWorld.ThoughtDef", TraitWorthRules.TraitThoughts),
@@ -140,9 +139,6 @@ public static class DefTablesRules
         // and hit are JobDriver_Mine's literals (ilspycmd) and MinerOwners the judgment explained on HaulTable.
         DefTable.Of("haulGame", "RimWorld.StatDef", [LayoutHaulNodesRules.HaulGame().MiningSpeed, LayoutHaulNodesRules.HaulGame().MiningYield, LayoutHaulNodesRules.HaulGame().PlantWorkSpeed, LayoutHaulNodesRules.HaulGame().PlantHarvestYield]),
     ];
-
-    internal static List<string> ResourceKeys(IEnumerable<Resource> set) =>
-        set.Select(r => r.Value).Order(StringComparer.Ordinal).ToList();
 
     internal static List<string> SortedKeys<TValue>(IReadOnlyDictionary<string, TValue> set) =>
         set.Keys.Order(StringComparer.Ordinal).ToList();

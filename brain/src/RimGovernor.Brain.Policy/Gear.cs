@@ -289,8 +289,8 @@ public sealed record GearPlanningRequest
     public Fact<GearObservation> Observation { get; init; }
     public Fact<EquatableArray<GearBench>> Benches { get; init; }
 
-    /// <summary>Each stuff's catalog categories (ItemFacts): the stuffs a bill's filter admits beside the loadout's own (GearFilter).</summary>
-    public IReadOnlyDictionary<Resource, IReadOnlyList<string>> StuffCategories { get; init; } = new Dictionary<Resource, IReadOnlyList<string>>();
+    /// <summary>The catalog's stuff categories and market values: the stuffs a bill's filter admits beside the loadout's own (GearFilter).</summary>
+    public ItemFacts Items { get; init; } = new();
 }
 
 /// <summary>One definition to produce, attributed to a pawn or to the armory's colony weapon batch.</summary>
@@ -584,7 +584,7 @@ public static class GearRules
                     return (new GearMethod { Kind = GearMethodKind.Unknown }, true);
                 }
                 var batch = GearStockRules.GearBatchIngredients(slots, count);
-                if (GearFilter(batch, n.Need.Stuff, r.StuffCategories) is { } filter)
+                if (GearFilter(batch, n.Need.Stuff, r.Items) is { } filter)
                 {
                     return (
                         new GearMethod
@@ -649,27 +649,18 @@ public static class GearRules
     }
 
     /// <summary>
-    /// The stuffs a bill never draws on unless the loadout names them: the currency and the favor-sale gold. A
-    /// judgment table (DefTables): no row marks a stuff as currency or as the favor trade's.
+    /// The ingredient filter of a bill placed with nothing in stock. Cost is a slot member's total cost: the units
+    /// the slot takes of it times its market value. A slot holding the loadout's stuff admits it and the stuffs
+    /// sharing a catalog category with it that cost no more than it does (silver and gold fall out here: a small
+    /// volume stuff takes ten times the units); any other slot admits only its cheapest alternative (then name).
+    /// A member without a market value is never a substitute or a pick. Null when a slot has no admissible
+    /// member, the loadout's stuff is in no slot, or the flat native filter would let another slot's member stand
+    /// in for a stuff-bearing slot.
     /// </summary>
-    internal static IReadOnlyList<Resource> GearValuableDefs => [new Resource("Silver"), TradePolicyRules.FavorSaleResource];
-
-    private static bool GearValuable(Resource r) => GearValuableDefs.Contains(r);
-
-    /// <summary>
-    /// The ingredient filter of a bill placed with nothing in stock. A slot holding the loadout's stuff admits it
-    /// and the stuffs sharing a catalog category with it (never a valuable); any other slot admits only its
-    /// cheapest non-valuable alternative (fewest units, then name), the member OpenBillDemand asks for. Null when
-    /// a slot has no admissible member, the loadout's stuff is in no slot, or the flat native filter would let
-    /// another slot's member stand in for a stuff-bearing slot.
-    /// </summary>
-    internal static IReadOnlyList<Resource>? GearFilter(
-        EquatableArray<EquatableArray<Amount>> slots,
-        Resource stuff,
-        IReadOnlyDictionary<Resource, IReadOnlyList<string>> categories
-    )
+    internal static IReadOnlyList<Resource>? GearFilter(EquatableArray<EquatableArray<Amount>> slots, Resource stuff, ItemFacts items)
     {
-        IReadOnlyList<string> Categories(Resource r) => categories.TryGetValue(r, out var c) ? c : [];
+        IReadOnlyList<string> Categories(Resource r) => items.StuffCategories.TryGetValue(r, out var c) ? c : [];
+        double? Cost(Amount a) => items.TryMarketValue(a.Resource, out var v) ? a.Count * v : null;
         var hasStuff = !string.IsNullOrEmpty(stuff.Value);
         var admitted = new HashSet<Resource>();
         var members = new List<HashSet<Resource>>();
@@ -682,24 +673,26 @@ public static class GearRules
             members.Add(set);
             stuffSlot[i] = hasStuff && slot.Any(a => a.Resource == stuff);
             stuffed = stuffed || stuffSlot[i];
+            var own = stuffSlot[i] ? Cost(slot.First(a => a.Resource == stuff)) : null;
             Resource? pick = null;
-            long pickCount = 0;
+            double pickCost = 0;
             foreach (var a in slot)
             {
+                var cost = Cost(a);
                 if (stuffSlot[i])
                 {
-                    if (a.Resource == stuff || (!GearValuable(a.Resource) && Categories(stuff).Any(c => Categories(a.Resource).Contains(c))))
+                    if (a.Resource == stuff || (cost <= own && Categories(stuff).Any(c => Categories(a.Resource).Contains(c))))
                     {
                         set.Add(a.Resource);
                     }
                 }
                 else if (
-                    !GearValuable(a.Resource)
-                    && (pick is null || a.Count < pickCount || (a.Count == pickCount && string.CompareOrdinal(a.Resource.Value, pick.Value.Value) < 0))
+                    cost is { } priced
+                    && (pick is null || priced < pickCost || (priced == pickCost && string.CompareOrdinal(a.Resource.Value, pick.Value.Value) < 0))
                 )
                 {
                     pick = a.Resource;
-                    pickCount = a.Count;
+                    pickCost = priced;
                 }
             }
             if (pick is { } p)

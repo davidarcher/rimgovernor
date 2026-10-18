@@ -150,6 +150,12 @@ public sealed record GearOption
 
     /// <summary>Its materials for a bill source (the armor ladder's steel, plasteel and components).</summary>
     public EquatableArray<Amount> Ingredients { get; init; }
+
+    /// <summary>
+    /// A bill of a stuff the colony can neither take from stock nor make by a known recipe chain (<see cref="GearObtainability"/>):
+    /// never eligible to plan or craft, however good its stats. The colony model still values it as a project's product.
+    /// </summary>
+    public bool Unobtainable { get; init; }
 }
 
 public sealed record GearLoadoutInput
@@ -487,6 +493,10 @@ public static class GearLoadoutRules
     /// <summary><see cref="GearEligible(GearLoadoutInput, GearOption)"/> for a pawn whose <paramref name="role"/> is already derived.</summary>
     private static bool GearEligible(GearLoadoutInput p, GearRole role, GearOption o)
     {
+        if (o.Unobtainable)
+        {
+            return false;
+        }
         var def = o.Definition.Value ?? "";
         var kid = def.StartsWith("Kid", StringComparison.Ordinal) || def.StartsWith("Apparel_Kid", StringComparison.Ordinal);
         if ((role == GearRole.Child) != kid)
@@ -746,7 +756,8 @@ public static class GearLoadoutRules
         };
 
     /// <summary>
-    /// Searches compatible ensembles, retaining forced/locked items. Equal scores retain worn gear, then stable item identity. No input is mutated.
+    /// Searches compatible ensembles, retaining forced/locked items. Equal scores retain worn gear, then the cheaper option
+    /// (so of two stuffs with equal stats the cheaper wins), then stable item identity. No input is mutated.
     /// <paramref name="disallowed"/> is the pawn's apparel filter (#3284, #3285): the pawn drops a matching worn item unless it
     /// is locked and never picks a matching option. <paramref name="floor"/> is the pawn's insulation floor (#3329): an
     /// ensemble whose summed insulation (GearInsulation) is below it in cold or heat is ineligible, and when none meets it the
@@ -771,7 +782,7 @@ public static class GearLoadoutRules
         }
         var role = DeriveGearRole(p.Role);
         var armor = new GearArmorTerm(p.Threat);
-        var options = p.Worn.Concat(p.Options).OrderBy(o => GearSourceRank(o.Source)).ThenBy(o => o.ID, StringComparer.Ordinal).ToList();
+        var options = p.Worn.Concat(p.Options).OrderBy(o => GearSourceRank(o.Source)).ThenBy(o => o.Cost).ThenBy(o => o.ID, StringComparer.Ordinal).ToList();
         var bySlot = new Dictionary<GearSlot, List<GearOption>>();
         var locked = new List<GearOption>();
         foreach (var o in options)

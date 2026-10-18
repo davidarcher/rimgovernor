@@ -62,6 +62,28 @@ public static class ColonyDecodeReads
         return false;
     }
 
+    /// <summary>
+    /// The accessible colony stock census by definition, summed over the rows that carry units; a definition absent from
+    /// it is known zero. Unknown when the read reports a resources issue.
+    /// </summary>
+    internal static Fact<IReadOnlyDictionary<Resource, long>> StockCensus(O.ColonyFactsSnapshot v)
+    {
+        if (HasIssue(v.Issues, "resources"))
+        {
+            return Unknown<IReadOnlyDictionary<Resource, long>>();
+        }
+        var stock = new Dictionary<Resource, long>();
+        foreach (var q in v.Resources)
+        {
+            if (q.Units is not null)
+            {
+                var key = new Resource(q.DefName ?? "");
+                stock[key] = stock.GetValueOrDefault(key) + q.Units.GetValueOrDefault();
+            }
+        }
+        return Known<IReadOnlyDictionary<Resource, long>>(stock);
+    }
+
     internal static Fact<bool> NativePresence(string? value, IEnumerable<O.ReadIssue> issues, string field) =>
         PlanningWindowRules.CellPresence(value, issues, field, false);
 
@@ -482,7 +504,6 @@ public static class ColonyDecodeReads
             f = f with { Wood = Known(0L) };
             var rows = new List<Amount>(v.Resources.Count);
             var complete = true;
-            var stock = new Dictionary<Resource, long>();
             foreach (var q in v.Resources)
             {
                 if ((q.DefName ?? "") == "WoodLog")
@@ -491,18 +512,13 @@ public static class ColonyDecodeReads
                 }
                 complete = complete && q.Units is not null;
                 rows.Add(new Amount(new Resource((q.DefName ?? "")), q.Units.GetValueOrDefault()));
-                if (q.Units is not null)
-                {
-                    var key = new Resource((q.DefName ?? ""));
-                    stock[key] = stock.GetValueOrDefault(key) + q.Units.GetValueOrDefault();
-                }
             }
             if (complete)
             {
                 f = f with { Resources = Known(EquatableArray.From(rows)) };
             }
-            r = r with { Resources = Known<IReadOnlyDictionary<Resource, long>>(stock) };
         }
+        r = r with { Resources = StockCensus(v) };
         if (v.EventLoot?.Outcome is { } loot && Headed(tables, loot.Items, row => row.Item))
         {
             var rows = new List<LootItem>(loot.Items.Count);

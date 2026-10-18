@@ -7,7 +7,7 @@ partial class RoundsGearPlanner
     {
         Observation = projection.Facts.Gear,
         Benches = Known(EquatableArray.From(benches)),
-        StuffCategories = projection.Facts.Items.StuffCategories,
+        Items = projection.Facts.Items,
     };
 
     /// <summary>A failed read abstains from declaring, but a cancelled one is the caller's cancellation and propagates.</summary>

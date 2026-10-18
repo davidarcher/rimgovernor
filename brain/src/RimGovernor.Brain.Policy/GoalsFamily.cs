@@ -661,7 +661,7 @@ public static partial class GoalRules
             var missing = w.Count - WearingCount(gear, w);
             if (missing > 0
                 && f.Garments.Items.FirstOrDefault(g => g.Definition == w.Garment) is { } garment
-                && GearRules.GearFilter(garment.Slots, w.Stuff, f.Items.StuffCategories) is { } filter)
+                && GearRules.GearFilter(garment.Slots, w.Stuff, f.Items) is { } filter)
             {
                 bills.Add(new OpenBill { Count = missing, Slots = Fact.Known(garment.Slots), Filter = EquatableArray.From(filter.Select(r => r.Value)) });
             }

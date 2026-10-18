@@ -187,7 +187,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         {
             request = request with { Runways = review.ResourceRunwayState() };
         }
-        var (apparel, apparelKnown) = GearSurplusRules.ApparelSurplus(new Pol.ClothingDemandInput { Garments = f.Garments, Categories = f.Items.StuffCategories, Gear = f.Gear, Stock = new Pol.StockReader { Resources = f.Resources, Wood = f.Wood } });
+        var (apparel, apparelKnown) = GearSurplusRules.ApparelSurplus(new Pol.ClothingDemandInput { Garments = f.Garments, Items = f.Items, Gear = f.Gear, Stock = new Pol.StockReader { Resources = f.Resources, Wood = f.Wood } });
         if (apparelKnown)
         {
             request = request with { Surplus = request.Surplus with { Apparel = apparel } };

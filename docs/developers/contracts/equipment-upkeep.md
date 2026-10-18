@@ -85,7 +85,10 @@ counts; one without hit points or a wear rate never does. Each such garment,
 less the serviceable stored garments covering the same core group, demands its
 recipe's ingredient counts (`observation.ClothingGarments`) at the cheapest
 member of the bill filter `gearFilter` builds (the loadout stuff and the
-stuffs sharing a catalog category with it), as a stock level like
+stuffs sharing a catalog category with it whose total slot cost, units times
+market value, is no more than the loadout stuff's, so silver and gold, which
+take ten times the units, never stand in; any other slot admits its cheapest
+alternative by total cost), as a stock level like
 construction demand, kept in the Rounder's `constructionMemory`. The Round's
 resource supply plan serves it with the stuffs that filter admits and, for
 leather, with hunts priced at the animal's
@@ -125,8 +128,18 @@ example two worn garments on one slot) is not judged by a weaker rule: the pawn'
 `GearPawn.LoadoutModel` is unknown with the cause in `GearPawn.ModelRefusal`, and
 planning the colony fails with an error naming the pawn and the cause. A pawn with no
 apparel policy (it cannot wear apparel) is unknown with no cause and is skipped when
-blocked, an error otherwise. A frame without the definition catalog, finished research
-or outdoor temperature leaves the whole census unknown. This pure the brain model neither discovers
+blocked, an error otherwise. A frame without the definition catalog, finished research,
+stock census or outdoor temperature leaves the whole census unknown.
+
+A bill option is eligible to plan or craft only for an obtainable stuff
+(`policy.GearObtainability`, #2467; the decode marks the rest `GearOption.Unobtainable`,
+which the colony model still values as a project's product): the stock census holds the
+units the option takes, or a known recipe chain makes it (a catalog recipe whose research
+is finished produces the stuff and every ingredient slot has a member in stock or itself
+made). Stats then choose among the obtainable stuffs,
+so a better stuff with no supply route (plasteel with none in stock and no recipe) is
+never planned; of two options with equal stats the cheaper (`GearOption.Cost`, the def ×
+stuff market value) wins. This pure the brain model neither discovers
 products nor issues orders. Catalog providers resolve native material stats,
 outfit/body/stage eligibility and available production resources before planning.
 Stats are Normal-quality values for the specific material; armor multipliers are

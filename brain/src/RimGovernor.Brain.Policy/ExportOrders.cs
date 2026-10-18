@@ -416,7 +416,7 @@ public static class ExportOrdersRules
         var result = new List<ExportVariant>();
         foreach (var stuff in stuffs)
         {
-            var filter = GearRules.GearFilter(e.Slots, stuff, i.StuffCategories);
+            var filter = GearRules.GearFilter(e.Slots, stuff, i);
             if (filter is null)
             {
                 continue;

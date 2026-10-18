@@ -22,7 +22,8 @@ public sealed record ClothingDemandInput
 {
     public EquatableArray<ClothingGarment> Garments { get; init; }
 
-    public IReadOnlyDictionary<Resource, IReadOnlyList<string>> Categories { get; init; } = new Dictionary<Resource, IReadOnlyList<string>>();
+    /// <summary>The catalog's stuff categories and market values the bills' filters read (GearFilter).</summary>
+    public ItemFacts Items { get; init; } = new();
 
     public Fact<GearObservation> Gear { get; init; }
 
@@ -73,7 +74,7 @@ public static class ClothingDemandRules
             new ClothingDemandInput
             {
                 Garments = f.Garments,
-                Categories = f.Items.StuffCategories,
+                Items = f.Items,
                 Gear = f.Gear,
                 Stock = new StockReader { Resources = f.Resources, Wood = f.Wood },
                 GoalBills = f.WornBills,
@@ -131,7 +132,7 @@ public static class ClothingDemandRules
                 foreach (var m in bill.Filter.Items)
                 {
                     var member = new Resource(m);
-                    if (!serves.ContainsKey(member) && SharesCategory(input.Categories, member, pick.Resource))
+                    if (!serves.ContainsKey(member) && SharesCategory(input.Items.StuffCategories, member, pick.Resource))
                     {
                         serves[member] = pick.Resource;
                     }
@@ -194,7 +195,7 @@ public static class ClothingDemandRules
                     continue;
                 }
 
-                var filter = GearRules.GearFilter(g.Slots, worn.Stuff, input.Categories);
+                var filter = GearRules.GearFilter(g.Slots, worn.Stuff, input.Items);
                 if (filter is null)
                 {
                     continue;
