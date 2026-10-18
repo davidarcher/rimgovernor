@@ -329,7 +329,7 @@ public sealed partial class ClockRunDriver
             {
                 return false;
             }
-            throw new HeldException("clock run refused");
+            throw new HeldException($"clock run refused: {string.Join(',', decision.Refused.Items)} (decision {facts.SinceStarted.TotalMilliseconds:F0} ms, max age {_scheduler.Config.MaxAge.TotalMilliseconds:F0} ms)");
         }
 
         var policy = _config.Policy with
