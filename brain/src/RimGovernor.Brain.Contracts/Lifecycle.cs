@@ -460,6 +460,13 @@ public sealed record NewColonySpec
     public bool? GovernorIdeoligion { get; init; }
 
     /// <summary>
+    /// A theme preset id (#3511). The brain designs the starting ideoligion that holds the preset's memes, precepts and
+    /// venerated animals and, once the colony exists, adopts the theme into its goals. Like
+    /// <see cref="GovernorIdeoligion"/> it is resolved before dispatch; native refuses either.
+    /// </summary>
+    public string? Theme { get; init; }
+
+    /// <summary>
     /// Scenario parts (the game editor's part set). Native applies them to a copy
     /// of `scenario`; defName existence is native's call. Replace by kind: a
     /// non-empty list replaces every base-scenario part of its kind (the three

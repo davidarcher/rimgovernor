@@ -57,6 +57,20 @@ components, 30 medicine, a rifle) and 720 steel, 7 survival meals and 3 ship
 chunks scattered. The seed is pinned but editable; edit any row afterwards, or
 pick **Custom** to return to the defaults.
 
+**Theme** (below Scenario; needs Ideology) starts the colony from one of the
+[theme presets](goals.md#themes). The brain designs the starting ideoligion to
+hold the theme's memes, precepts and venerated animals, and adopts the theme
+into the colony's goals at Normal importance once the colony is generated, so
+the goals window shows it from the first review. A theme with one ordinary meme
+the game allows in a new fluid ideoligion starts fluid; one with more (or with
+a meme the game keeps out of a new fluid ideoligion, such as Nudism or Cannibal)
+starts fixed, since RimWorld's new fluid ideoligion holds a single such meme. A
+theme the game cannot design for (a missing def) stops creation with an
+explanation. The *Naked cannibals who worship monkeys* preset picks that theme
+on a Lost Tribe of five in a tropical rainforest whose colonists are Cannibal,
+Nudist and start naked. API clients send the preset id as `theme` in the
+new-colony spec; it cannot be combined with an explicit `ideoligion`.
+
 Generation returns the running game to the main menu without saving (or, when
 the game was started with other mods, another mod build or other settings,
 closes and restarts it), builds the world and saves the colony, so it needs Autopilot (Observe only shows a notice

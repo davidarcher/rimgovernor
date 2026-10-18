@@ -132,7 +132,7 @@ namespace HomeBridge.BridgeTools
         {
             if (bookStarted) return;
             bookStarted = true;
-            _ = Task.Run(() => book = new PresetBook(RimGovernor.Brain.Bridge.ThemePresetCatalog.All, new RimGovernor.Brain.Bridge.DefinitionCatalog(NativeCatalogFactory.AllDefs(), RimGovernor.Brain.Bridge.DefStatTable.Empty, NativeDefinitionCatalogTool.BrainDerived()))).ContinueWith(
+            _ = Task.Run(() => book = NativeCatalogFactory.Presets()).ContinueWith(
                 t => Log.Warning($"[RimGovernor] The goals window could not build the preset catalog: {t.Exception?.GetBaseException().Message}"),
                 TaskContinuationOptions.OnlyOnFaulted);
         }

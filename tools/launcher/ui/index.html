@@ -264,6 +264,7 @@
     <fieldset id="ncForm">
       <div class="field"><label for="ncPreset">Preset</label><select id="ncPreset"></select></div>
       <div class="field"><label for="ncScenario">Scenario</label><select id="ncScenario"></select></div>
+      <div class="field"><label for="ncTheme" title="Designs the starting ideoligion from the theme and adopts it into the colony's goals">Theme</label><select id="ncTheme"></select></div>
       <div class="field"><label for="ncColonists">Colonists</label><input type="number" class="short" id="ncColonists"></div>
       <div class="field"><label for="ncSeed">Seed</label>
         <span class="ncseed"><input type="text" id="ncSeed" spellcheck="false" placeholder="random"><button type="button" id="ncRandom" title="Fill in a random seed">Random</button></span></div>
@@ -533,6 +534,7 @@ function ncFill(v) {
   $('ncWorldTemp').innerHTML = o.worldTemperatures.map(ncOpt).join('');
   $('ncMapSize').innerHTML = o.mapSizes.map(ncOpt).join('');
   $('ncCoverage').innerHTML = o.planetCoverages.map(ncOpt).join('');
+  $('ncTheme').innerHTML = o.themes.map(ncOpt).join('');
   $('ncBiomes').innerHTML = o.biomes.map(b =>
     `<div class="check"><input type="checkbox" data-biome="${esc(b.value)}" id="ncb-${esc(b.value)}"><label for="ncb-${esc(b.value)}">${esc(b.label)}${b.requires ? ' (needs ' + esc(b.requires) + ')' : ''}</label></div>`).join('');
   $('ncColonists').min = r.colonistsMin; $('ncColonists').max = r.colonistsMax;
@@ -555,6 +557,7 @@ function ncApply(sp, v) {
   $('ncMapSize').value = String(sp.mapSize);
   $('ncCoverage').value = String(sp.planetCoverage);
   $('ncFlat').checked = !!sp.flatTile;
+  $('ncTheme').value = sp.theme || '';
   ncFillParts(v);
 }
 $('ncPreset').onchange = () => {
@@ -657,6 +660,7 @@ function ncSpec() {
   const lo = band('ncMinTemp'), hi = band('ncMaxTemp');
   if (lo !== null) spec.minTemperature = lo;
   if (hi !== null) spec.maxTemperature = hi;
+  if ($('ncTheme').value) spec.theme = $('ncTheme').value;
   return Object.assign(spec, ncPartsSpec());
 }
 const ncClock = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };

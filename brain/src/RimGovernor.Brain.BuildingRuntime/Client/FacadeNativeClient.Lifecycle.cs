@@ -11,9 +11,10 @@ public sealed partial class FacadeNativeClient
     /// Resolves the ideoligion a <c>governor_ideoligion</c> new-colony spec asks the governor to choose (via
     /// <c>CreationCatalog</c> then <c>StartingIdeoligion</c>) from the scenario named. The creation-scoped catalog is built
     /// over the game's Defs, which the mod host installs with the catalog factory (#3116); until it does, a spec that
-    /// asks for it is refused as unavailable.
+    /// asks for it is refused as unavailable. A spec naming a theme (#3511) passes the theme id, and the design holds
+    /// that preset's ideology members; null otherwise.
     /// </summary>
-    internal Func<string, CancellationToken, Task<PbCommon.IdeoligionDesign>>? StartingIdeoligion { get; set; }
+    internal Func<string, string?, CancellationToken, Task<PbCommon.IdeoligionDesign>>? StartingIdeoligion { get; set; }
 
     /// <summary>
     /// Starts a native load of the named save and returns at once, with a pending outcome
@@ -43,14 +44,15 @@ public sealed partial class FacadeNativeClient
     {
         NewColonyValidation.ValidateNewColonyRequest(request);
         var spec = request.Spec!;
-        if (spec.GovernorIdeoligion.GetValueOrDefault() && spec.Ideoligion is null)
+        var theme = spec.Theme is { Length: > 0 } t ? t : null;
+        if ((theme is not null || spec.GovernorIdeoligion.GetValueOrDefault()) && spec.Ideoligion is null)
         {
             var resolve = StartingIdeoligion
                 ?? throw new BridgeUnavailableException("new colony governor_ideoligion needs the creation catalog, which the mod host installs (#3116)");
-            spec = spec with { Ideoligion = await resolve(spec.Scenario ?? "", cancellationToken).ConfigureAwait(false) };
+            spec = spec with { Ideoligion = await resolve(spec.Scenario ?? "", theme, cancellationToken).ConfigureAwait(false) };
         }
 
-        request = request with { Spec = spec with { GovernorIdeoligion = null } };
+        request = request with { Spec = spec with { GovernorIdeoligion = null, Theme = null } };
         var reply = await Facade.StartNewColonyAsync(request, cancellationToken).ConfigureAwait(false);
         LifecycleFailure(reply.Outcome.Failure);
         return reply;

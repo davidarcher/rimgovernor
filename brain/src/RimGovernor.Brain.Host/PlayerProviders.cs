@@ -123,4 +123,30 @@ internal sealed class HostGoals(StoreJournal journal, Func<RimGovernor.Brain.Sto
         wake.NotifyPlanner(PlannerName);
         return Task.CompletedTask;
     }
+
+    /// <summary>
+    /// Adopts the <paramref name="presetId"/> theme into the goals of <paramref name="w"/> at normal importance with no
+    /// deadline, for a colony started from that theme (#3511). Already adopted is no change; any other refusal throws.
+    /// </summary>
+    internal void AdoptTheme(RimGovernor.Brain.Store.World w, PresetBook book, string presetId, CancellationToken cancellationToken)
+    {
+        lock (_mu)
+        {
+            var record = journal.LoadGoals(w, cancellationToken);
+            if (record.Themes.Any(t => t.Preset == presetId))
+            {
+                return;
+            }
+            var edit = ThemeEdits.Adopt(record, book, presetId, RimGovernor.Brain.Policy.Importance.Normal, null);
+            if (!edit.Ok)
+            {
+                throw new InvalidOperationException("adopt theme " + presetId + ": " + edit.Error);
+            }
+            var stored = edit.Record with { World = w };
+            stored.Validate();
+            journal.SaveGoals(stored, cancellationToken);
+            _cached = stored;
+        }
+        wake.NotifyPlanner(PlannerName);
+    }
 }

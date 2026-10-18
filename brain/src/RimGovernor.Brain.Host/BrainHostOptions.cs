@@ -1,5 +1,6 @@
 using RimGovernor.Brain.HttpChannel;
 using RimGovernor.Brain.Bridge;
+using RimGovernor.Brain.PlayerApi;
 
 namespace RimGovernor.Brain.Host;
 
@@ -208,6 +209,12 @@ public sealed record BrainHostOptions
     /// hands its table to the host is not settled (see docs/developers/architecture/brain-host.md).
     /// </summary>
     public RouteTable? Routes { get; init; }
+
+    /// <summary>
+    /// The shipped theme presets over the installed game's catalog (NativeCatalogFactory.Presets), which a new colony
+    /// started from a theme adopts into its goals when the player routes report it completed (#3511). Null adopts none.
+    /// </summary>
+    public Func<PresetBook>? Presets { get; init; }
 
     internal void Validate()
     {

@@ -98,6 +98,7 @@ namespace HomeBridge.BridgeTools
                     Composition = composition,
                     AutoResume = inputs.AutoResume,
                     Routes = routes,
+                    Presets = NativeCatalogFactory.Presets,
                 }, CancellationToken.None).ConfigureAwait(false);
                 var brainStarted = LaunchPhases.UtcNow;
                 LaunchPhases.Record(LaunchPhases.NextId(), 0, "brain.host_start", hostStart, brainStarted);

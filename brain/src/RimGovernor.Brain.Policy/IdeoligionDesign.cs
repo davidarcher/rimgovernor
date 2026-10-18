@@ -356,33 +356,69 @@ public static class IdeoligionDesignRules
     }
 
     /// <summary>
-    /// Searches initial fluid designs (one normal meme). The game-sourced initial fluid range is one;
-    /// native rechecks every request. A count guard bounds pathological catalogs without returning a
-    /// partial best.
+    /// The design a new colony starts with. Without a meme target it searches initial fluid designs (one normal meme;
+    /// the game-sourced initial fluid range is one). A theme's <paramref name="targets"/> (#3511) are held all at once:
+    /// its meme targets, with the faction's required memes, are the memes; each precept target is its issue's precept;
+    /// the animal targets are the venerated animals. A design with one initial-fluid normal meme is fluid and one with
+    /// more is fixed, since the game's initial fluid ideoligion holds one normal meme
+    /// (<c>IdeoFoundation.MemeCountRangeFluidAbsolute</c>). Unknown when no supported legal design holds every target;
+    /// native rechecks every request. A count guard bounds pathological catalogs without returning a partial best.
     /// </summary>
-    public static Fact<DesignChoice> ChooseStartingIdeoligion(DesignOptions options)
+    public static Fact<DesignChoice> ChooseStartingIdeoligion(DesignOptions options, IReadOnlyList<IdeoGoalTarget>? targets = null)
     {
+        targets ??= [];
         var memes = options.Memes.OrderBy(m => m.Name, StringComparer.Ordinal).ToList();
+        List<string> Targeted(IdeoGoalKind kind) => [.. targets.Where(t => t.Kind == kind).Select(t => t.Def).Distinct().Order(StringComparer.Ordinal)];
+        var memeTargets = Targeted(IdeoGoalKind.Meme);
+        var animals = Targeted(IdeoGoalKind.Animal);
+        if (animals.Count > options.MaxVeneratedAnimals || animals.Any(a => !options.VeneratedAnimals.Contains(a))
+            || memeTargets.Any(n => !memes.Any(m => m.Name == n && m.Allowed && m.Supported)))
+        {
+            return Unknown<DesignChoice>();
+        }
+        var pinned = new Dictionary<string, DesignPrecept>(StringComparer.Ordinal);
+        foreach (var name in Targeted(IdeoGoalKind.Precept))
+        {
+            var p = options.Precepts.FirstOrDefault(x => x.Name == name);
+            if (p is null || !p.Allowed || !p.Supported || !pinned.TryAdd(p.Issue, p))
+            {
+                return Unknown<DesignChoice>();
+            }
+        }
+        var structureTargets = memes.Where(m => m.Structure && memeTargets.Contains(m.Name)).ToList();
+        var normalTargets = memeTargets.Where(n => !structureTargets.Any(m => m.Name == n)).ToList();
+        if (structureTargets.Count > 1)
+        {
+            return Unknown<DesignChoice>();
+        }
+        IReadOnlyList<IReadOnlyList<DesignMeme>> normalSets = normalTargets.Count == 0
+            ? [.. memes.Where(m => !m.Structure && m.Allowed && m.Supported && m.InitialFluid).Select(m => (IReadOnlyList<DesignMeme>)[m])]
+            : [[.. memes.Where(m => !m.Structure && (normalTargets.Contains(m.Name) || options.RequiredMemes.Contains(m.Name)))]];
         DesignChoice? best = null;
         var visits = 0;
         var exhausted = false;
         foreach (var structure in memes)
         {
-            if (!structure.Structure || !structure.Allowed || !structure.Supported)
+            if (!structure.Structure || !structure.Allowed || !structure.Supported || (structureTargets.Count == 1 && structureTargets[0] != structure))
             {
                 continue;
             }
-            foreach (var normal in memes)
+            foreach (var normals in normalSets)
             {
-                if (normal.Structure || !normal.Allowed || !normal.Supported || !normal.InitialFluid)
+                List<DesignMeme> chosenMemes = [structure, .. normals];
+                IReadOnlyList<string> selected = [.. chosenMemes.Select(m => m.Name)];
+                var memeTags = new List<string>();
+                var clash = false;
+                foreach (var m in chosenMemes)
+                {
+                    clash |= DesignOverlap(memeTags, m.Exclusions);
+                    memeTags.AddRange(m.Exclusions);
+                }
+                if (clash)
                 {
                     continue;
                 }
-                IReadOnlyList<string> selected = [structure.Name, normal.Name];
-                if (DesignOverlap(structure.Exclusions, normal.Exclusions))
-                {
-                    continue;
-                }
+                var fluid = normals is [{ InitialFluid: true }];
                 var issues = new Dictionary<string, List<DesignPrecept>>();
                 var mandatory = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var p in options.Precepts)
@@ -401,7 +437,13 @@ public static class IdeoligionDesignRules
                         list.Add(p);
                     }
                 }
-                foreach (var m in new[] { structure, normal })
+                // A pinned precept is its issue's only choice, and the design is impossible when these memes forbid it.
+                foreach (var (issue, p) in pinned)
+                {
+                    mandatory.Add(issue);
+                    issues[issue] = issues.TryGetValue(issue, out var list) && list.Contains(p) ? [p] : [];
+                }
+                foreach (var m in chosenMemes)
                 {
                     foreach (var group in m.RequireOne)
                     {
@@ -458,7 +500,7 @@ public static class IdeoligionDesignRules
                     }
                     if (i == keys.Count)
                     {
-                        if (!TryCanonicalDesign(new IdeoligionDesign(EquatableArray.From(selected), EquatableArray.From(chosen), true), out var design))
+                        if (!TryCanonicalDesign(new IdeoligionDesign(EquatableArray.From(selected), EquatableArray.From(chosen), fluid, EquatableArray.From(animals)), out var design))
                         {
                             return;
                         }
@@ -490,7 +532,7 @@ public static class IdeoligionDesignRules
                         }
                     }
                 }
-                Walk(0, [], [], new DesignScore(0, 0, structure.Obligations + normal.Obligations, 0));
+                Walk(0, [], [], new DesignScore(0, 0, chosenMemes.Sum(m => m.Obligations), 0));
                 if (exhausted)
                 {
                     return Unknown<DesignChoice>();

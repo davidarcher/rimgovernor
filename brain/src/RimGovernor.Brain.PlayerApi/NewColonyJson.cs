@@ -23,7 +23,7 @@ internal static class NewColonyJson
     private static readonly string[] SpecKeys =
     [
         "scenario", "colonistCount", "seed", "biomes", "flatTile", "difficulty", "storyteller", "minTemperature", "maxTemperature",
-        "worldTemperature", "mapSize", "planetCoverage", "saveName", "ideoligion", "governorIdeoligion",
+        "worldTemperature", "mapSize", "planetCoverage", "saveName", "ideoligion", "governorIdeoligion", "theme",
         "startingThings", "forcedTraits", "forcedHediffs", "naked", "setNeedLevels", "permaGameConditions",
         "disallowedBuildings", "disabledIncidents", "playerFaction", "arrivalMethod",
     ];
@@ -102,6 +102,11 @@ internal static class NewColonyJson
         if (d.Bool("governorIdeoligion") == true)
         {
             spec = spec with { GovernorIdeoligion = true };
+        }
+
+        if (d.String("theme") is { Length: > 0 } theme)
+        {
+            spec = spec with { Theme = theme };
         }
 
         return Parts(spec, d);

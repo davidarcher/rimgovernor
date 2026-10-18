@@ -103,8 +103,8 @@ namespace HomeBridge.BridgeTools
                 return Fail(Common.FailureCode.Unavailable, "The game is busy with another long event.");
 
             ResolvedSpec resolved;
-            if (request.Spec.GovernorIdeoligion.GetValueOrDefault())
-                return Fail(Common.FailureCode.InvalidRequest, "governor_ideoligion is resolved by the brain (POST /api/lifecycle/new) before native creation.");
+            if (request.Spec.GovernorIdeoligion.GetValueOrDefault() || !string.IsNullOrEmpty(request.Spec.Theme))
+                return Fail(Common.FailureCode.InvalidRequest, "governor_ideoligion and theme are resolved by the brain (POST /api/lifecycle/new) before native creation.");
             try { resolved = Resolve(request.Spec); }
             catch (Refusal refusal) { return Fail(refusal.Code, refusal.Message); }
 

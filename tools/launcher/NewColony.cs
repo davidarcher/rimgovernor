@@ -121,6 +121,12 @@ public sealed record NewColonySpec
 
     public string? ArrivalMethod { get; init; }
 
+    /// <summary>
+    /// A theme preset id (empty for none, #3511): the brain designs the starting ideoligion from the preset and adopts
+    /// the theme into the colony's goals. A theme needs Ideology.
+    /// </summary>
+    public string? Theme { get; init; }
+
     /// <summary>The tribal-8 spec. <see cref="SaveName"/> is empty: Generate derives it and replaces any name a caller sends.</summary>
     public static NewColonySpec Default { get; } = new()
     {
@@ -143,7 +149,8 @@ public sealed record NewColonyOptions(
     IReadOnlyList<Choice> Storytellers,
     IReadOnlyList<Choice> WorldTemperatures,
     IReadOnlyList<Choice> MapSizes,
-    IReadOnlyList<Choice> PlanetCoverages);
+    IReadOnlyList<Choice> PlanetCoverages,
+    IReadOnlyList<Choice> Themes);
 
 /// <summary>The lists the scenario composer rows draw from. Placement, context, faction and arrival values are the wire's lower-case enum names.</summary>
 public sealed record ScenarioChoices(
@@ -296,6 +303,24 @@ public static partial class NewColony
             new("0.3", "30% (about 15 s to start)"),
             new("0.5", "50% (about 20 s to start)"),
             new("1", "100% (about 45 s to start)"),
+        ],
+        // The brain's theme presets (ThemePresetCatalog, which the launcher cannot load: its assembly needs the game's);
+        // a test keeps the two lists equal. Each designs the ideoligion, so each needs Ideology.
+        [
+            new("", "None"),
+            new("naked-cannibals", "Naked cannibals who worship monkeys", "Ideology"),
+            new("transhumanist-lab", "Transhumanist lab", "Ideology"),
+            new("pacifist-farm", "Pacifist farm", "Ideology"),
+            new("tribal-traditionalists", "Tribal traditionalists", "Ideology"),
+            new("mech-lord", "Mech lord", "Ideology"),
+            new("royal-court", "Royal court", "Ideology"),
+            new("merchant-republic", "Merchant republic", "Ideology"),
+            new("fortress", "Fortress", "Ideology"),
+            new("scholars", "Scholars", "Ideology"),
+            new("ranchers", "Ranchers", "Ideology"),
+            new("drug-cartel", "Drug cartel", "Ideology"),
+            new("cult-of-the-void", "Cult of the void", "Ideology"),
+            new("ship-builders", "Ship builders", "Ideology"),
         ]);
 
     public static ScenarioChoices Choices { get; } = new(
@@ -334,6 +359,8 @@ public static partial class NewColony
             new("ShootingAccuracy", -1, "Trigger-happy"),
             new("Beauty", 2, "Beautiful"),
             new("Beauty", -2, "Staggeringly ugly"),
+            new("Cannibal", 0, "Cannibal"),
+            new("Nudist", 0, "Nudist"),
         ],
         [
             new("Hypothermia", "Hypothermia"),
@@ -384,7 +411,27 @@ public static partial class NewColony
         1, NewColonyBounds.MaxColonists, NewColonyBounds.MaxTemperature, NewColonyBounds.MaxPartsPerKind,
         NewColonyBounds.MaxThingCount, NewColonyBounds.MaxTraitDegree, NewColonyBounds.MaxSeverity);
 
-    public static IReadOnlyList<NewColonyPreset> Presets { get; } = [new("rhadamant", "Rhadamant's Sea Ice challenge", Rhadamant())];
+    public static IReadOnlyList<NewColonyPreset> Presets { get; } =
+    [
+        new("rhadamant", "Rhadamant's Sea Ice challenge", Rhadamant()),
+        new("naked-cannibals", "Naked cannibals who worship monkeys", NakedCannibals()),
+    ];
+
+    /// <summary>
+    /// A Lost Tribe of naked cannibal nudists (#3511): the naked-cannibals theme designs the ideoligion (Nudism, Cannibal,
+    /// full nudity, cannibalism and insect meat loved, monkeys venerated) and seeds its goals; the starting colonists are
+    /// forced Cannibal and Nudist and start naked.
+    /// </summary>
+    private static NewColonySpec NakedCannibals()
+    {
+        ForcedTraitPart Trait(string def) => new() { Trait = def, Degree = 0, Chance = 1, Context = "player_starter" };
+        return NewColonySpec.Default with
+        {
+            ColonistCount = 5, Biomes = ["TropicalRainforest"], WorldTemperature = "Normal", Theme = "naked-cannibals",
+            ForcedTraits = [Trait("Cannibal"), Trait("Nudist")],
+            Naked = [new() { Chance = 1, Context = "player_starter" }],
+        };
+    }
 
     /// <summary>
     /// Rhadamant's Sea Ice Community Challenge on Crashlanded (the same parts as the
@@ -548,6 +595,16 @@ public static partial class NewColony
                 DisallowedBuildings = [.. s.DisallowedBuildings ?? []],
                 DisabledIncidents = [.. s.DisabledIncidents ?? []],
             };
+            if (!string.IsNullOrEmpty(s.Theme))
+            {
+                if (!Options.Themes.Any(t => t.Value == s.Theme))
+                {
+                    throw new LauncherException($"unknown theme \"{s.Theme}\"");
+                }
+
+                spec = spec with { Theme = s.Theme };
+            }
+
             if (!string.IsNullOrEmpty(s.WorldTemperature))
             {
                 spec = spec with { WorldTemperature = s.WorldTemperature };

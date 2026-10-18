@@ -12,6 +12,7 @@ public static class LifecycleCases
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(LifecycleCheckpoint.Case());
         registry.Register(LifecycleIdeoligionDesign.Case());
+        registry.Register(LifecycleThemeColony.Case());
         registry.Register(LifecycleShutdown.Case());
         registry.Register(LifecycleRuntimeFault.Case());
         registry.Register(LifecycleLoad.Case());

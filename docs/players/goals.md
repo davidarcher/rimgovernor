@@ -125,9 +125,15 @@ importance applies to its members unless a member overrides it.
 
 Presets are updated with the mod, and a change to a preset changes the members of themes that follow it.
 
+A new colony can also start from a theme: the launcher's **Theme** choice ([new colony](launch.md#new-colony)) designs
+the starting ideoligion from the preset and adopts the theme at Normal importance, so its memes, precepts and venerated
+animal are held from the start.
+
 ## Example: naked cannibals who worship monkeys
 
-You need Ideology, an ideoligion that can still be reformed (fluid), and the bot on.
+You need Ideology, an ideoligion that can still be reformed (fluid), and the bot on. To skip the reforms, start a
+new colony from the launcher's *Naked cannibals who worship monkeys* preset instead: its ideoligion holds the theme's
+memes, precepts and Monkey from the start (a fixed one, since a new fluid ideoligion cannot hold both memes).
 
 1. Open the goals window and the **Themes** tab. Choose an importance (Normal is fine) and press **Adopt** next to
    "Naked cannibals who worship monkeys".

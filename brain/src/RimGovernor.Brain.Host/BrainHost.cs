@@ -243,7 +243,18 @@ public sealed class BrainHost : IAsyncDisposable
                 _routes.Add(PresentationRoutes.Register(routes, snapshots, natives.Presentation, natives.Media, natives.Notifications));
                 if (lifecycle is not null)
                 {
-                    _routes.Add(LifecycleRoutes.Register(routes, snapshots, lifecycle));
+                    ILifecycleWriter routed = lifecycle;
+                    if (options.Presets is { } presets)
+                    {
+                        routed = new ThemedLifecycle(lifecycle, async (context, theme, ct) =>
+                        {
+                            var world = GovernorWorld.Of(context);
+                            await rebuild.EnsureAsync(world, ct).ConfigureAwait(false);
+                            goals.AdoptTheme(new RimGovernor.Brain.Store.World(world.Colony, world.Load, world.Map), presets(), theme, ct);
+                            await flusher.FlushAsync(ct).ConfigureAwait(false);
+                        });
+                    }
+                    _routes.Add(LifecycleRoutes.Register(routes, snapshots, routed));
                 }
             }
         }

@@ -21,8 +21,22 @@ precedence. Missing required facts fail explicitly, without a random fallback.
 The existing definition-catalog request's `creation` mode reads static generated
 rows at a fresh main menu, without inventing a map identity.
 
+`NewColonySpec.theme` (#3511) names a theme preset: the brain resolves the preset
+over the creation catalog (`PresetRules.Resolve`, the goals' `GoalRules.IdeoTargets`)
+and the selector designs for those targets, then strips the field before dispatch
+(native refuses it, as it refuses `governor_ideoligion`); a theme with an explicit
+design is a contract error. When the player route reports that colony completed,
+the host adopts the theme into the new world's `family/goals` (after the world's
+rebuild from the save) and flushes the governor state into the game.
+
 The pure selector searches initial fluid designs with one structure and one
-normal meme. Native rechecks the game's count, faction, exclusion, issue and
+normal meme. With theme targets it holds them all instead: the meme targets
+(with faction-required memes) are the normal memes, a structure target pins the
+structure, each precept target is its issue's only choice, and the animal
+targets are the venerated animals; the design is fluid only with a single
+initial-fluid normal meme (`IdeoFoundation.MemeCountRangeFluidAbsolute` is one,
+and impact-3 memes such as Nudism and Cannibal are never initial-fluid),
+otherwise fixed. A target set no legal design holds is unavailable. Native rechecks the game's count, faction, exclusion, issue and
 required-precept rules. Costs use an explicit lexicographic ordering: fewer
 action/work restrictions, lower worst known mood penalty, fewer mandatory
 obligations, then higher known mood benefit. Catalog-only positive mood stages receive no creation benefit credit;
@@ -80,7 +94,7 @@ state without reforming again. Completion requires an observed target and that
 counter increment; a receipt alone does not settle the Standard. Pending intent
 uses its existing save Record; there is no second current-design store.
 
-Native coverage: `lifecycle/ideoligion-design` and `ideology/legal-reform`.
+Native coverage: `lifecycle/ideoligion-design`, `lifecycle/theme-colony` and `ideology/legal-reform`.
 These prove game creation and write/progression contracts; policy decisions
 remain tests, including the recorded full catalog fixture.
 

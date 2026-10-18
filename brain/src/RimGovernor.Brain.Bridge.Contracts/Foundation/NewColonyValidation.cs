@@ -62,6 +62,11 @@ public static class NewColonyValidation
         RequireId(spec.Seed is not null, (spec.Seed ?? ""), "seed");
         RequireId(spec.Difficulty is not null, (spec.Difficulty ?? ""), "difficulty");
         RequireId(spec.Storyteller is not null, (spec.Storyteller ?? ""), "storyteller");
+        if (spec.Theme is { Length: > 0 } theme && (!WireValidation.IsValidId(theme) || spec.Ideoligion is not null))
+        {
+            throw BridgeContractException.Contract("new colony theme invalid: a theme id designs the ideoligion, so never with an explicit one");
+        }
+
         if (spec.WorldTemperature is not null && !WireValidation.IsValidId((spec.WorldTemperature ?? "")))
         {
             throw BridgeContractException.Contract("new colony world temperature invalid");

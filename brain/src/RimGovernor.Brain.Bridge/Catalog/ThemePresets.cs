@@ -75,8 +75,8 @@ public static class ThemePresetCatalog
                 Meme("Nudism"),
                 Meme("Cannibal"),
                 // No DefOf field exists for the nudity and insect-meat precepts; the cannibalism precept has one.
-                Precept("Nudity_Male_NoRules"),
-                Precept("Nudity_Female_NoRules"),
+                Precept("Nudity_Male_Mandatory"),
+                Precept("Nudity_Female_Mandatory"),
                 Precept(nameof(PreceptDefOf.Cannibalism_Preferred)),
                 Precept("InsectMeatEating_Loved"),
                 // ThingDefOf has no Monkey field (no typed route); the race is a non-insect Animals-category ThingDef, which
