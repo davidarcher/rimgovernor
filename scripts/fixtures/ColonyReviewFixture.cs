@@ -67,8 +67,21 @@ namespace HomeBridge.BridgeTools
                 postfix: new HarmonyMethod(typeof(ColonyReview), nameof(AfterMapUpdate)));
             harmony.Patch(AccessTools.PropertyGetter(typeof(CameraDriver), nameof(CameraDriver.CurrentViewRect)),
                 postfix: new HarmonyMethod(typeof(ColonyReview), nameof(ViewRect)));
+            try
+            {
+                // The play UI (colonist bar, alerts, overlays) took ~1.7 s of every frame on a CPU-rendered runner while the
+                // map sat idle, and the shots need none of it: skip it for as long as the recorder runs.
+                harmony.Patch(AccessTools.Method(typeof(UIRoot_Play), "UIRootOnGUI"),
+                    prefix: new HarmonyMethod(typeof(ColonyReview), nameof(SkipUi)));
+            }
+            catch (Exception e)
+            {
+                Log.Warning("[RimGovernor] colony review could not skip the play UI: " + e.Message);
+            }
             patched = true;
         }
+
+        static bool SkipUi() => dir == null;
 
         // Map sections and things are drawn only inside the camera driver's
         // view rect, so the capture frame widens it to the shot's rect.
