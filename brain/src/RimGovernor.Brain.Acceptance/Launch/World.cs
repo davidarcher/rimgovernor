@@ -8,6 +8,8 @@ namespace RimGovernor.Brain.Acceptance;
 /// <summary>
 /// A report's "world" block: what decided the world a case ran on, so a failure can be read
 /// against the roll that produced it and a run reproduced (-seed). The installed build's hashes stay under package_files.
+/// Its text members are never null: the source-generated reader sets a block's absent or null members to null (#3555),
+/// and the setters keep them empty.
 /// </summary>
 public sealed record WorldRecord
 {
@@ -15,23 +17,23 @@ public sealed record WorldRecord
     /// The world seed: the one the debug start drew or was pinned to, the scenario's, or the loaded save's seedString.
     /// Empty when nothing knows it (a production build's quick start with no save).
     /// </summary>
-    public string Seed { get; init; } = "";
+    public string Seed { get; init => field = value ?? ""; } = "";
 
     /// <summary>Says the seed was given (DebugStart.Seed, -seed) rather than drawn.</summary>
     public bool Pinned { get; init; }
 
     /// <summary>The save the game loaded (a cached debug start, a Save start, a resumed checkpoint).</summary>
-    public string Save { get; init; } = "";
+    public string Save { get; init => field = value ?? ""; } = "";
 
     /// <summary>The hash of the save's file as it was loaded.</summary>
     [JsonPropertyName("save_sha256")]
-    public string SaveSha256 { get; init; } = "";
+    public string SaveSha256 { get; init => field = value ?? ""; } = "";
 
     /// <summary>The start's fixture op.</summary>
-    public string Fixture { get; init; } = "";
+    public string Fixture { get; init => field = value ?? ""; } = "";
 
     /// <summary>The hash over the op and its arguments.</summary>
-    public string FixtureHash { get; init; } = "";
+    public string FixtureHash { get; init => field = value ?? ""; } = "";
 
     /// <summary>The report block: snake_case members, empty ones omitted.</summary>
     public JsonObject ToJson() => new JsonObject()
