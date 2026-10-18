@@ -79,7 +79,11 @@ use a fresh release/output for a new attempt. No plaintext directory belongs in
 GitHub releases, Actions caches or ordinary workflow artifacts.
 
 To refresh, produce and verify a new bundle and change the trusted manifest pin.
-To roll back, select the previous manifest digest and matching age identity.
+The pin is the three repository variables `REMOTE_BUNDLE_ASSET`,
+`REMOTE_BUNDLE_SHA256` and `REMOTE_INVENTORY_ASSET`
+([remote workflow](testing/remote-workflow.md)): every republish updates all
+three, since remote-acceptance, fixture-factory, snapshot-perf and
+colony-review all bootstrap from them. To roll back, select the previous manifest digest and matching age identity.
 Never replace old assets in place. A corrupt download fails validation; retry
 or republish. Key rotation creates a new recipient/key ID and fresh encrypted
 assets; public ciphertext cannot be revoked if its identity is compromised.

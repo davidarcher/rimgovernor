@@ -386,12 +386,10 @@ results establish that the selected tactic improves real combat.
 
 ## 6. Research epics and ordering
 
-The following scopes are proposals for prioritization, tracked in
-[E1 / #2822](https://github.com/davidarcher/rimgovernor/issues/2822),
-[E2 / #2823](https://github.com/davidarcher/rimgovernor/issues/2823),
-[E3 / #2824](https://github.com/davidarcher/rimgovernor/issues/2824),
-[E4 / #2825](https://github.com/davidarcher/rimgovernor/issues/2825) and
-[E5 / #2830](https://github.com/davidarcher/rimgovernor/issues/2830). Their acceptance is
+The following scopes are proposals for prioritization. E1–E4 are tracked as
+tracks 1–4 of the merged research epic
+[#3581](https://github.com/davidarcher/rimgovernor/issues/3581); E5 is
+[#2830](https://github.com/davidarcher/rimgovernor/issues/2830). Their acceptance is
 evidence of the named capability, not a promise to implement every hypothesis.
 
 | Epic | Deliverable and completion condition | Dependencies and deletion candidate |
