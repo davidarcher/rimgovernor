@@ -22,6 +22,18 @@ public sealed class SchedulerLoopRetryTests
     }
 
     [Fact]
+    public void ASettledStepRepeatsAtOnceUnlessThePreviousRepeatWasAtTheSameTick()
+    {
+        // A combat stop at a later tick is the fight's next decision: its hold and its resume are two settled steps, and
+        // the second at the same tick waits for the timer (#3550: every stop used to wait out the back-off).
+        Assert.True(SchedulerLoop.SettledNow(settled: true, settledAt: null, tick: 0));
+        Assert.True(SchedulerLoop.SettledNow(settled: true, settledAt: 0, tick: 101));
+        Assert.False(SchedulerLoop.SettledNow(settled: true, settledAt: 101, tick: 101));
+        Assert.False(SchedulerLoop.SettledNow(settled: true, settledAt: -1, tick: null));
+        Assert.False(SchedulerLoop.SettledNow(settled: false, settledAt: null, tick: 5));
+    }
+
+    [Fact]
     public void ConsecutiveCancellationsReachTheLimitAndASuccessResetsThem()
     {
         var steps = new StepSupervisor(faultLimit: 5);

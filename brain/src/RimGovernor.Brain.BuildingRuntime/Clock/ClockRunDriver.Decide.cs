@@ -197,6 +197,7 @@ public sealed partial class ClockRunDriver
         var tick = new Tick(statusTick);
         var running = status.State == PbClock.ClockState.Running;
         step.Running = running;
+        step.ClockTick = statusTick;
         _scheduler.SetRunning(running);
 
         var (live, coupled) = await ClockRunWork.RunningAsync(journal, state.Snapshot, tick, call).ConfigureAwait(false);

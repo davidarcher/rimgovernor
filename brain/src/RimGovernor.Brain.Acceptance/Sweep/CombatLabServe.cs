@@ -61,16 +61,16 @@ public static class CombatServe
         }
     }
 
-    /// <summary>The served game's tick from the player API, -1 until it reports one.</summary>
-    public static async Task<int> ServedTickAsync(ServiceProcess service, int last, CancellationToken cancellationToken)
+    /// <summary>
+    /// The served game's own tick (lifecycle_read_tick), -1 until it reports one. The player API's state lags the game by
+    /// a second or more, which an uncapped clock covers thousands of ticks in (#3550).
+    /// </summary>
+    public static async Task<int> ServedTickAsync(Harness h, int last, CancellationToken cancellationToken)
     {
         try
         {
-            var reply = await service.ApiAsync("GET", "/api/state", null, "", cancellationToken).ConfigureAwait(false);
-            if (reply.Status == 200 && ServiceJson.State(reply.Body)?.Game?.Tick is { } tick)
-            {
-                return (int)tick;
-            }
+            var loaded = await h.LoadedTickAsync("served-tick", cancellationToken).ConfigureAwait(false);
+            return loaded.Context is { } context ? (int)context.Tick : last;
         }
         catch (AcceptanceException tolerated)
         {

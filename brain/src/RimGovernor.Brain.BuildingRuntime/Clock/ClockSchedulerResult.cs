@@ -24,6 +24,9 @@ public sealed class ClockSchedulerResult
     /// <summary>Whether the clock was found running when the step read it (reported by the run driver).</summary>
     public bool Running { get; set; }
 
+    /// <summary>The game tick of the clock status the run driver decided against; null when it read none.</summary>
+    public long? ClockTick { get; set; }
+
     public RoundsResult? Rounds { get; set; }
 
     public RoundsDefenseResult? Defense { get; set; }

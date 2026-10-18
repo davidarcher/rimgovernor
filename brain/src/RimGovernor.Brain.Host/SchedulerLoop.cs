@@ -107,7 +107,7 @@ internal sealed class SchedulerLoop
         // The first step plans everything; each later step's reason is what ended the wait before it.
         var reason = new StepReason { Cause = StepCause.Full };
         StepKey? previous = null;
-        var settledOnce = false;
+        long? settledAt = null;
         var idle = true;
         while (!_lifetime.IsCancellationRequested)
         {
@@ -202,15 +202,17 @@ internal sealed class SchedulerLoop
             previous = key;
 
             // A hold the driver took or a resume it just sent has left the planners for the next step: run it now
-            // rather than idle a step interval with the game held. Never twice in a row: a hold that keeps
-            // ending without settling is a back-off case, not a hot loop.
-            if (settled && !settledOnce)
+            // rather than idle a step interval with the game held. Never twice at the same game tick: a hold that
+            // keeps ending without settling is a back-off case, not a hot loop, while a fight's next hold at a later
+            // tick (a combat stop, then its resume) is the next decision and must not wait out the back-off.
+            var at = result?.ClockTick;
+            if (SettledNow(settled, settledAt, at))
             {
-                settledOnce = true;
+                settledAt = at ?? NoTick;
                 reason = new StepReason { Cause = StepCause.Settled };
                 continue;
             }
-            settledOnce = false;
+            settledAt = null;
             if (!WaitOrWake(delay, takeEvidence: true, out var wokenByEvidence, out var next))
             {
                 return;
@@ -224,6 +226,14 @@ internal sealed class SchedulerLoop
             }
         }
     }
+
+    private const long NoTick = -1;
+
+    /// <summary>
+    /// Whether a step the run driver settled repeats at once: not when the previous settled repeat ran at the same game
+    /// tick (<paramref name="settledAt"/>); a step whose tick is unknown counts as the same tick.
+    /// </summary>
+    internal static bool SettledNow(bool settled, long? settledAt, long? tick) => settled && settledAt != (tick ?? NoTick);
 
     // A step cancelled by its call budget is slow, not faulty (the lifetime ends the loop before this is asked): it is
     // retried, as a full step because the scheduler replans after the cancellation, and never counts toward the fault

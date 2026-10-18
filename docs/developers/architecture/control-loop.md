@@ -841,8 +841,9 @@ After each planning step the driver reads the clock status and decides:
   that read the hold's serial has planned against it. The brain finishes the
   reason, then resumes at its target speed.
 - A step that follows a driver hold or `Run` repeats at once (a `settled` step,
-  never twice in a row) so the planners work against the held world without
-  waiting a step interval.
+  never twice at the same game tick) so the planners work against the held world
+  without waiting a step interval. A fight's stop and its resume are two such
+  steps; the second, at the same tick, waits for the timer.
 
 A `Run` carries the speed and a complete watch policy: colony mode, or combat mode
 with the live hostiles it acknowledges. The hazard thresholds are the brain's

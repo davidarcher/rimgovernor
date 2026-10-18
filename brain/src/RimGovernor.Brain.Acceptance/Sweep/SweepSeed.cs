@@ -24,7 +24,7 @@ internal static class SweepSeed
     /// <summary>A fixture run's game-tick budget.</summary>
     internal const int Ticks = 10000;
 
-    // How far short of the budget the service is stopped: the state refresh lag plus the reattach.
+    // How far short of the budget the service is stopped: the poll interval and the stop plus the reattach, at an uncapped clock.
     private const int StopMargin = 2500;
 
     // How long a still served clock means the run is over. A cold service spends its first seconds in native calls that
@@ -188,7 +188,10 @@ internal static class SweepSeed
         {
             _ = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
             service.KeepAuthority(cancellationToken);
-            await ServeUntilAsync(service, report, service.LogPath, start + Ticks - StopMargin, clock, cancellationToken).ConfigureAwait(false);
+            await ServeUntilAsync(service, h, report, service.LogPath, start + Ticks - StopMargin, clock, cancellationToken).ConfigureAwait(false);
+
+            // A quiet lab runs thousands of ticks a second: stop the clock first, then the service.
+            await CombatServe.PauseAfterAsync(h, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -267,17 +270,17 @@ internal static class SweepSeed
     // Watches the served game until its tick reaches `until`, until the service records the end of the combat (a
     // combat_summary row at the log; the colony window after it would otherwise run the quiet lab to the budget), or
     // until the served clock has sat still for Idle, which ends the run without failing it.
-    private static async Task ServeUntilAsync(ServiceProcess service, Report report, string logPath, int until, ServedClock clock, CancellationToken cancellationToken)
+    private static async Task ServeUntilAsync(ServiceProcess service, Harness h, Report report, string logPath, int until, ServedClock clock, CancellationToken cancellationToken)
     {
         var tail = LogTail.Create(logPath);
         var ended = false;
-        var wait = new Wait { Stall = Idle, Interval = TimeSpan.FromMilliseconds(200), Terminal = service.Exited };
+        var wait = new Wait { Stall = Idle, Interval = TimeSpan.FromMilliseconds(50), Terminal = service.Exited };
         try
         {
             await wait.WaitProgressAsync(
                 async ct =>
                 {
-                    clock.Tick = await CombatServe.ServedTickAsync(service, clock.Tick, ct).ConfigureAwait(false);
+                    clock.Tick = await CombatServe.ServedTickAsync(h, clock.Tick, ct).ConfigureAwait(false);
                     ended = ended || tail.Next().Any(row => row.Kind == TelemetryKinds.CombatSummary.Name);
                     return (SweepText.Tag(clock.Tick), ended || clock.Tick >= until);
                 },
