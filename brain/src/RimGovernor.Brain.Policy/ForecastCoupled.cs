@@ -2,6 +2,8 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
+using BandedThought = (string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans);
+
 /// <summary>Transient mechanics attached to tasks, never a second execution journal.</summary>
 public sealed record ForecastNeedTask(string Task, string Pawn, string Kind, string Target,
     Resource Resource, int Count, Fact<double> Gain, EquatableArray<NeedMemory> Thoughts)
@@ -483,82 +485,69 @@ public static class ForecastCoupled
         var exposure = EquatableArray.From(ForecastThermalExposure.ForecastThermalExposureOf(context, problem, plan, shelters, horizon, comfort: comfort)
             .Select(t => comfortUnknown.Contains(t.Pawn) ? new ForecastThermalExposure(t.Pawn, 0, horizon, 0, 0) : t));
         // Temperature mood (#3327): each Live temperature card along the pawn's assessed exposure spans, comfort shifts included.
-        var temperatureCards = (context.Cards ?? MechanicCards.ByDef).Values.Where(ForecastMood.TemperatureCard).OrderBy(c => c.Def, StringComparer.Ordinal).ToArray();
+        var temperatureCards = cache.TemperatureCards(context);
         var needs = new Dictionary<string, ForecastNeedsResult>(StringComparer.Ordinal);
         var closedRooms = ForecastRoofConsequences.PlannedClosedRooms(context, finishedAt);
         var rejectedWork = new HashSet<string>(unavailableWork, StringComparer.Ordinal);
+        // Per pawn, the cached timelines are looked up by their inputs; a timeline's capacity input is built only on a miss (#3468).
         foreach (var pawn in context.Needs.Pawns)
         {
-            var observed = context.Resources.Evidence.Pawns.TryGetValue(out var rows) ? rows.SingleOrDefault(p => p.Pawn == pawn.Pawn) : null;
+            WorkPawnAvailability? observed = null;
+            if (context.Resources.Evidence.Pawns.TryGetValue(out var rows))
+                foreach (var row in rows)
+                    if (row.Pawn == pawn.Pawn) { if (observed is not null) throw new InvalidOperationException("Sequence contains more than one matching element"); observed = row; }
             var choices = new List<ForecastNeedChoice>();
-            foreach (var task in needTasksByPawn[pawn.Pawn].Where(t => allocations.ContainsKey(t.Task)))
+            var mealsUnknown = false;
+            foreach (var task in needTasksByPawn[pawn.Pawn])
             {
-                var a = allocations[task.Task];
+                if (!allocations.TryGetValue(task.Task, out var a)) continue;
+                mealsUnknown |= !task.ThoughtsComplete;
                 if (completed.GetValueOrDefault(task.Task) != Known(true) || !task.Gain.TryGetValue(out var gain))
                 { Uncertain("unassessed_need_completion", task.Task, a.End); continue; }
                 choices.Add(new(task.Task, pawn.Pawn, task.Kind, task.Target, task.Resource.Value, task.Count,
                     a.Depart, Math.Min(a.End, a.Start + task.ServiceDelay), a.End, gain, task.Thoughts));
             }
-            var occupiedWork = plan.Allocations.Where(a => a.Pawn == pawn.Pawn && !needTasksByTask.Contains(a.Activity)).ToArray();
-            var productive = occupiedWork.Where(a => !context.NonproductiveOccupancy.Contains(a.Activity)).ToArray();
-            var protectedTime = occupiedWork.Select(a => new ForecastOccupancy(a.Activity, pawn.Pawn, Known(a.Depart), Known(a.End), ForecastOccupancyState.Active)).ToList();
+            var productive = new List<ForecastActivityAllocation>();
+            var protectedTime = new List<ForecastOccupancy>();
+            foreach (var a in plan.Allocations)
+            {
+                if (a.Pawn != pawn.Pawn || needTasksByTask.Contains(a.Activity)) continue;
+                if (!context.NonproductiveOccupancy.Contains(a.Activity)) productive.Add(a);
+                protectedTime.Add(new(a.Activity, pawn.Pawn, Known(a.Depart), Known(a.End), ForecastOccupancyState.Active));
+            }
             if (context.Resources.Claims.Pawns.Contains(pawn.Pawn))
                 protectedTime.Add(new("journal", pawn.Pawn, Known(0.0), default, ForecastOccupancyState.Active));
-            var input = new ForecastCapacityInput
-            {
-                Pawn = new()
-                {
-                    Id = new(pawn.Pawn),
-                    Available = observed?.Available ?? default,
-                    Applies = observed?.Applies ?? default
-                },
-                Location = "start",
-                HorizonTicks = horizon,
-                ProtectTimetable = false,
-                LocalHour = observed?.LocalHour ?? default,
-                OpportunityCostPerTick = Known(1.0),
-                CurrentWork = new(new(pawn.Pawn), observed?.Occupied ?? default, default,
-                    observed is { Occupied.IsKnown: true, Occupied.Value: false } ? Known(0.0) : default),
-                Occupancy = context.Resources.Claims.Truncated ? default : Known(EquatableArray.From(protectedTime))
-            };
+            var occupancy = context.Resources.Claims.Truncated ? default : Known(EquatableArray.From(protectedTime));
             // Needs recovery is assessed without masking physiological unavailability beneath planned work.
-            var physical = input with { Occupancy = Known<EquatableArray<ForecastOccupancy>>([]) };
             var choiceKey = EquatableArray.From(choices);
-            var physiology = cache.Needs(pawn.Pawn, physical.Occupancy, choiceKey, null, null,
-                () => ForecastNeeds.ForecastNeedsTimeline(pawn, physical, choices, mood: false));
-            if (!physiology.Capacity.Capacity.Windows.TryGetValue(out var able))
-            { if (productive.Length != 0 || choices.Count != 0) Uncertain("unknown_future_capacity", pawn.Pawn, 0); }
+            var physiology = cache.Needs(pawn.Pawn, NeedsCache.NoOccupancy, choiceKey, null, null, (pawn, observed, horizon, choices),
+                static s => ForecastNeeds.ForecastNeedsTimeline(s.pawn, CapacityInput(s.pawn.Pawn, s.observed, s.horizon, NeedsCache.NoOccupancy), s.choices, mood: false));
+            if (!physiology.Value.Capacity.Capacity.Windows.TryGetValue(out var able))
+            { if (productive.Count != 0 || choices.Count != 0) Uncertain("unknown_future_capacity", pawn.Pawn, 0); }
             else foreach (var work in productive)
-                if (!able.Any(w => w.Start <= work.Depart && w.End >= work.End))
-                { rejectedWork.Add(work.Activity); completed[work.Activity] = Known(false); Refuse("work_outside_recovered_capacity", work.Activity, work.Start); }
-            var spans = exposure.Single(t => t.Pawn == pawn.Pawn).Spans;
+            {
+                var inside = false;
+                foreach (var w in able) inside |= w.Start <= work.Depart && w.End >= work.End;
+                if (!inside) { rejectedWork.Add(work.Activity); completed[work.Activity] = Known(false); Refuse("work_outside_recovered_capacity", work.Activity, work.Start); }
+            }
+            ForecastThermalExposure? pawnExposure = null;
+            foreach (var t in exposure)
+                if (t.Pawn == pawn.Pawn) { if (pawnExposure is not null) throw new InvalidOperationException("Sequence contains more than one matching element"); pawnExposure = t; }
+            var spans = (pawnExposure ?? throw new InvalidOperationException("Sequence contains no matching element")).Spans;
             // Room and roof thoughts (#3339): bed thoughts at the wake, weather, the outdoors need and undergrounder thoughts.
             // Roof mood reads the pawn's choices and the closed rooms; the rest is the search's context (#3468).
-            var roof = cache.Roof(pawn.Pawn, choiceKey, closedRooms,
-                () => ForecastRoofConsequences.RoofMoodOf(pawn, context.Needs, choices, closedRooms, context.ObservedThoughts.GetValueOrDefault(pawn.Pawn), horizon));
+            var roof = cache.Roof(pawn.Pawn, choiceKey, closedRooms, (pawn, context, choices, closedRooms, horizon),
+                static s => ForecastRoofConsequences.RoofMoodOf(s.pawn, s.context.Needs, s.choices, s.closedRooms, s.context.ObservedThoughts.GetValueOrDefault(s.pawn.Pawn), s.horizon));
+            var roofMood = roof.Value;
             var pawnGranted = granted.GetValueOrDefault(pawn.Pawn);
             var pawnSituational = situational.GetValueOrDefault(pawn.Pawn);
-            var banded = temperatureCards.Select(card => ForecastMood.TemperatureThought(card, context.CardPawns.GetValueOrDefault(pawn.Pawn),
-                context.ObservedThoughts.GetValueOrDefault(pawn.Pawn), spans)).Concat(roof.Banded).ToArray();
+            var banded = cache.Banded(pawn, spans, roof, temperatureCards, context);
             // Mood reads neither occupancy nor capacity, so it is cached on its own inputs (#3468).
-            var projected = cache.Needs(pawn.Pawn, input.Occupancy, choiceKey, pawnGranted, roof.Renewals,
-                () => ForecastNeeds.ForecastNeedsTimeline(pawn, input, choices, granted: pawnGranted, renewals: roof.Renewals, mood: false));
-            var mood = cache.Mood(pawn.Pawn, choiceKey, pawnGranted, pawnSituational, banded, roof.Renewals,
-                () => ForecastMood.ForecastMoodTimeline(pawn, horizon, choices, null, pawnGranted, pawnSituational, banded, roof.Renewals, context.MoodTrajectory));
-            projected = projected with { Mood = mood, Findings = mood.BreakRisk.IsKnown ? projected.Findings
-                : EquatableArray.From(projected.Findings.Append("mental_break_probability_unassessed").Distinct().Order(StringComparer.Ordinal)) };
-            if (roof.Findings.Count > 0) projected = projected with { Findings = EquatableArray.From(projected.Findings.Concat(roof.Findings).Distinct().Order(StringComparer.Ordinal)) };
-            var mealsUnknown = needTasksByPawn[pawn.Pawn].Any(n => !n.ThoughtsComplete && allocations.ContainsKey(n.Task));
-            if (mealsUnknown || grantUnknown.Contains(pawn.Pawn) || roof.Unassessed.Length != 0)
-                projected = projected with
-                {
-                    ThoughtOffsetAtHorizon = default,
-                    MemoryAdjustedMoodTarget = default,
-                    Mood = null,
-                    Findings = [.. projected.Findings, mealsUnknown ? "future_meal_thoughts_unassessed"
-                        : grantUnknown.Contains(pawn.Pawn) ? "commitment_mood_memory_unassessed" : roof.Unassessed]
-                };
-            needs[pawn.Pawn] = projected;
+            var projected = cache.Needs(pawn.Pawn, occupancy, choiceKey, pawnGranted, roofMood.Renewals, (pawn, observed, horizon, occupancy, choices, pawnGranted, roofMood.Renewals),
+                static s => ForecastNeeds.ForecastNeedsTimeline(s.pawn, CapacityInput(s.pawn.Pawn, s.observed, s.horizon, s.occupancy), s.choices, granted: s.pawnGranted, renewals: s.Renewals, mood: false));
+            var mood = cache.Mood(pawn.Pawn, choiceKey, pawnGranted, pawnSituational, banded, roofMood.Renewals, (pawn, horizon, choices, pawnGranted, pawnSituational, banded: banded.Value, roofMood.Renewals, context.MoodTrajectory),
+                static s => ForecastMood.ForecastMoodTimeline(s.pawn, s.horizon, s.choices, null, s.pawnGranted, s.pawnSituational, s.banded, s.Renewals, s.MoodTrajectory));
+            needs[pawn.Pawn] = cache.Projected(projected, mood, roof, mealsUnknown, grantUnknown.Contains(pawn.Pawn));
         }
         // Removing impossible work may invalidate its meals and therefore later work. Each pass removes at least one task.
         if (rejectedWork.Count > unavailableWork.Count)
@@ -578,10 +567,10 @@ public static class ForecastCoupled
         { ["coupled/timed-effects"] = new("coupled/timed-effects", EquatableArray.From(effects)) };
         var inventory = ColonyForecastRules.ForecastInventory(request.Facts.Stock, accounting, request.HorizonDays);
         findings.AddRange(inventory.Findings);
-        var existingRooms = EquatableArray.From(context.Shelters.Where(r => r.Prerequisites.Count == 0 && r.AlternativePrerequisites.Count == 0));
+        var (existingRooms, existingContext) = cache.Existing(context);
         var use = plan with { Allocations = plan.Allocations.Where(a => context.NeedTasks.Any(n => n.Task == a.Activity)).ToArray() };
         var changedUse = ForecastThermalExposure.ForecastThermalExposureOf(context, problem, use, shelters, horizon, plan);
-        var unchanged = ForecastThermalExposure.ForecastThermalExposureOf(context with { Shelters = existingRooms }, problem, use,
+        var unchanged = ForecastThermalExposure.ForecastThermalExposureOf(existingContext, problem, use,
             ForecastShelterPolicy.ForecastShelters(existingRooms, plan, horizon), horizon);
         var reliefKnown = changedUse.Any(t => t.AssessedTicks > 0) && changedUse.Count == unchanged.Count && changedUse.Zip(unchanged)
             .All(pair => pair.First.Pawn == pair.Second.Pawn && pair.First.AssessedTicks == pair.Second.AssessedTicks);
@@ -634,6 +623,27 @@ public static class ForecastCoupled
                 .Distinct().Order(StringComparer.Ordinal))
         };
     }
+
+    private static ForecastCapacityInput CapacityInput(string pawn, WorkPawnAvailability? observed, double horizon, Fact<EquatableArray<ForecastOccupancy>> occupancy) => new()
+    {
+        Pawn = new()
+        {
+            Id = new(pawn),
+            Available = observed?.Available ?? default,
+            Applies = observed?.Applies ?? default
+        },
+        Location = "start",
+        HorizonTicks = horizon,
+        ProtectTimetable = false,
+        LocalHour = observed?.LocalHour ?? default,
+        OpportunityCostPerTick = Known(1.0),
+        CurrentWork = new(new(pawn), observed?.Occupied ?? default, default,
+            observed is { Occupied.IsKnown: true, Occupied.Value: false } ? Known(0.0) : default),
+        Occupancy = occupancy
+    };
+
+    /// <summary>A search cache's result with the id it was first cached under, so a later key holds the id instead of the value.</summary>
+    internal readonly record struct Cached<T>(T Value, int Id);
 
     /// <summary>A task's material shape, fixed for a search: inputs by resource in first-appearance order with units summed
     /// in row order (Unknown when any row is), the lots its inputs name, its source lots with summed units, and the meal
@@ -720,35 +730,96 @@ public static class ForecastCoupled
                 (indexed, needTasks) = (context, (context.NeedTasks.ToLookup(n => n.Task, StringComparer.Ordinal), context.NeedTasks.ToLookup(n => n.Pawn, StringComparer.Ordinal)));
             return needTasks;
         }
+        internal static readonly Fact<EquatableArray<ForecastOccupancy>> NoOccupancy = Known<EquatableArray<ForecastOccupancy>>([]);
+        private int ids;
+        private Cached<T> Next<T>(T value) => new(value, ids++);
+        private static EquatableArray<T> Key<T>(IReadOnlyList<T>? rows) => rows is null || rows.Count == 0 ? default : EquatableArray.From(rows);
         private readonly Dictionary<(string Pawn, Fact<EquatableArray<ForecastOccupancy>> Occupancy, EquatableArray<ForecastNeedChoice> Choices,
-            EquatableArray<(NeedMemory Thought, double Start)> Granted, EquatableArray<ForecastMemoryRenewal> Renewals), ForecastNeedsResult> needs = [];
+            EquatableArray<(NeedMemory Thought, double Start)> Granted, EquatableArray<ForecastMemoryRenewal> Renewals), Cached<ForecastNeedsResult>> needs = [];
         private readonly Dictionary<(string Pawn, EquatableArray<ForecastNeedChoice> Choices, EquatableArray<(NeedMemory Thought, double Start)> Granted,
-            EquatableArray<(string Thought, double OffsetDelta, double Start)> Situational,
-            EquatableArray<(string Thought, EquatableArray<(double Start, double End, double OffsetDelta)> Spans)> Banded,
-            EquatableArray<ForecastMemoryRenewal> Renewals), ForecastMoodResult> moods = [];
-        private readonly Dictionary<(string Pawn, EquatableArray<ForecastNeedChoice> Choices, EquatableArray<ForecastClosedRoom> Rooms), ForecastRoofMood> roofs = [];
-        internal ForecastRoofMood Roof(string pawn, EquatableArray<ForecastNeedChoice> choices, IReadOnlyList<ForecastClosedRoom> rooms, Func<ForecastRoofMood> roofMood)
+            EquatableArray<(string Thought, double OffsetDelta, double Start)> Situational, int Banded,
+            EquatableArray<ForecastMemoryRenewal> Renewals), Cached<ForecastMoodResult>> moods = [];
+        private readonly Dictionary<(string Pawn, EquatableArray<ForecastNeedChoice> Choices, EquatableArray<ForecastClosedRoom> Rooms), Cached<ForecastRoofMood>> roofs = [];
+        private readonly Dictionary<(string Pawn, EquatableArray<ForecastThermalSpan> Spans, int Roof), Cached<BandedThought[]>> banded = [];
+        private readonly Dictionary<(int Needs, int Mood, int Roof, bool Meals, bool Grants), ForecastNeedsResult> projected = [];
+        internal Cached<ForecastRoofMood> Roof<TState>(string pawn, EquatableArray<ForecastNeedChoice> choices, IReadOnlyList<ForecastClosedRoom> rooms,
+            TState state, Func<TState, ForecastRoofMood> roofMood)
         {
-            var key = (pawn, choices, EquatableArray.From(rooms));
-            if (!roofs.TryGetValue(key, out var result)) roofs.Add(key, result = roofMood());
+            var key = (pawn, choices, Key(rooms));
+            if (!roofs.TryGetValue(key, out var result)) roofs.Add(key, result = Next(roofMood(state)));
             return result;
         }
-        internal ForecastNeedsResult Needs(string pawn, Fact<EquatableArray<ForecastOccupancy>> occupancy, EquatableArray<ForecastNeedChoice> choices,
-            IReadOnlyList<(NeedMemory Thought, double Start)>? granted, IReadOnlyList<ForecastMemoryRenewal>? renewals, Func<ForecastNeedsResult> timeline)
+        internal Cached<ForecastNeedsResult> Needs<TState>(string pawn, Fact<EquatableArray<ForecastOccupancy>> occupancy, EquatableArray<ForecastNeedChoice> choices,
+            IReadOnlyList<(NeedMemory Thought, double Start)>? granted, IReadOnlyList<ForecastMemoryRenewal>? renewals, TState state, Func<TState, ForecastNeedsResult> timeline)
         {
-            var key = (pawn, occupancy, choices, EquatableArray.From(granted ?? []), EquatableArray.From(renewals ?? []));
-            if (!needs.TryGetValue(key, out var result)) needs.Add(key, result = timeline());
+            var key = (pawn, occupancy, choices, Key(granted), Key(renewals));
+            if (!needs.TryGetValue(key, out var result)) needs.Add(key, result = Next(timeline(state)));
             return result;
         }
-        internal ForecastMoodResult Mood(string pawn, EquatableArray<ForecastNeedChoice> choices, IReadOnlyList<(NeedMemory Thought, double Start)>? granted,
-            IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational,
-            IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)> banded,
-            IReadOnlyList<ForecastMemoryRenewal>? renewals, Func<ForecastMoodResult> timeline)
+        internal Cached<ForecastMoodResult> Mood<TState>(string pawn, EquatableArray<ForecastNeedChoice> choices, IReadOnlyList<(NeedMemory Thought, double Start)>? granted,
+            IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational, Cached<BandedThought[]> banded,
+            IReadOnlyList<ForecastMemoryRenewal>? renewals, TState state, Func<TState, ForecastMoodResult> timeline)
         {
-            var key = (pawn, choices, EquatableArray.From(granted ?? []), EquatableArray.From(situational ?? []),
-                EquatableArray.From(banded.Select(b => (b.Thought, EquatableArray.From(b.Spans)))), EquatableArray.From(renewals ?? []));
-            if (!moods.TryGetValue(key, out var result)) moods.Add(key, result = timeline());
+            var key = (pawn, choices, Key(granted), Key(situational), banded.Id, Key(renewals));
+            if (!moods.TryGetValue(key, out var result)) moods.Add(key, result = Next(timeline(state)));
             return result;
+        }
+        /// <summary>A pawn's banded thoughts: each Live temperature card along its exposure spans, then its roof mood's.</summary>
+        internal Cached<BandedThought[]> Banded(NeedsForecastPawn pawn, EquatableArray<ForecastThermalSpan> spans, Cached<ForecastRoofMood> roof,
+            MechanicCard[] temperatureCards, ForecastCoupledContext context)
+        {
+            var key = (pawn.Pawn, spans, roof.Id);
+            if (banded.TryGetValue(key, out var result)) return result;
+            var thoughts = new BandedThought[temperatureCards.Length + roof.Value.Banded.Count];
+            var cardPawn = context.CardPawns.GetValueOrDefault(pawn.Pawn);
+            var observed = context.ObservedThoughts.GetValueOrDefault(pawn.Pawn);
+            for (var i = 0; i < temperatureCards.Length; i++) thoughts[i] = ForecastMood.TemperatureThought(temperatureCards[i], cardPawn, observed, spans);
+            for (var i = 0; i < roof.Value.Banded.Count; i++) thoughts[temperatureCards.Length + i] = roof.Value.Banded[i];
+            banded.Add(key, result = Next(thoughts));
+            return result;
+        }
+        /// <summary>A pawn's needs result with its mood, roof findings and unassessed mood inputs applied.</summary>
+        internal ForecastNeedsResult Projected(Cached<ForecastNeedsResult> needsResult, Cached<ForecastMoodResult> moodResult, Cached<ForecastRoofMood> roofMood,
+            bool mealsUnknown, bool grantUnknown)
+        {
+            var key = (needsResult.Id, moodResult.Id, roofMood.Id, mealsUnknown, grantUnknown);
+            if (projected.TryGetValue(key, out var result)) return result;
+            var (mood, roof) = (moodResult.Value, roofMood.Value);
+            result = needsResult.Value with { Mood = mood, Findings = mood.BreakRisk.IsKnown ? needsResult.Value.Findings
+                : EquatableArray.From(needsResult.Value.Findings.Append("mental_break_probability_unassessed").Distinct().Order(StringComparer.Ordinal)) };
+            if (roof.Findings.Count > 0) result = result with { Findings = EquatableArray.From(result.Findings.Concat(roof.Findings).Distinct().Order(StringComparer.Ordinal)) };
+            if (mealsUnknown || grantUnknown || roof.Unassessed.Length != 0)
+                result = result with
+                {
+                    ThoughtOffsetAtHorizon = default,
+                    MemoryAdjustedMoodTarget = default,
+                    Mood = null,
+                    Findings = [.. result.Findings, mealsUnknown ? "future_meal_thoughts_unassessed"
+                        : grantUnknown ? "commitment_mood_memory_unassessed" : roof.Unassessed]
+                };
+            projected.Add(key, result);
+            return result;
+        }
+        private ForecastCoupledContext? cardsOf;
+        private MechanicCard[] cards = [];
+        /// <summary>The Live temperature cards, by def.</summary>
+        internal MechanicCard[] TemperatureCards(ForecastCoupledContext context)
+        {
+            if (!ReferenceEquals(context, cardsOf))
+                (cardsOf, cards) = (context, (context.Cards ?? MechanicCards.ByDef).Values.Where(ForecastMood.TemperatureCard).OrderBy(c => c.Def, StringComparer.Ordinal).ToArray());
+            return cards;
+        }
+        private ForecastCoupledContext? existingOf;
+        private (EquatableArray<ForecastShelterPlan> Rooms, ForecastCoupledContext Context) existing;
+        /// <summary>The shelters that already stand (no prerequisites), and the context with only those.</summary>
+        internal (EquatableArray<ForecastShelterPlan> Rooms, ForecastCoupledContext Context) Existing(ForecastCoupledContext context)
+        {
+            if (!ReferenceEquals(context, existingOf))
+            {
+                var rooms = EquatableArray.From(context.Shelters.Where(r => r.Prerequisites.Count == 0 && r.AlternativePrerequisites.Count == 0));
+                (existingOf, existing) = (context, (rooms, context with { Shelters = rooms }));
+            }
+            return existing;
         }
     }
 }

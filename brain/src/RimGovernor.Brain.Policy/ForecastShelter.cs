@@ -41,23 +41,59 @@ public static class ForecastShelterPolicy
             .GroupBy(r => r.PowerNetwork).Where(g => g.Any(r => !r.AdditionalWatts.IsKnown || !r.SurplusWatts.IsKnown)
                 || g.GroupBy(r => r.Source).Sum(s => s.First().AdditionalWatts.Value) > g.Min(r => r.SurplusWatts.Value))
             .Select(g => g.Key).ToHashSet(StringComparer.Ordinal);
-        return EquatableArray.From(plans.Select(r => ForecastShelter(overloaded.Contains(r.PowerNetwork)
-            ? r with { SupplyTicks = default, Findings = [.. r.Findings, "shared_power_capacity_shortfall"] } : r, schedule, horizon)));
+        var allocations = schedule.Allocations.ToDictionary(a => a.Activity, StringComparer.Ordinal);
+        var outcomes = new ForecastShelterOutcome[plans.Length];
+        for (var i = 0; i < plans.Length; i++)
+        {
+            var room = plans[i];
+            var shared = overloaded.Contains(room.PowerNetwork);
+            // A search projects each room at a few completion ticks over thousands of schedules (#3468).
+            var key = (shared, CompletedAt(room, allocations), horizon);
+            var byRoom = Outcomes.GetValue(room, static _ => new());
+            if (!byRoom.TryGetValue(key, out var outcome))
+                byRoom[key] = outcome = ShelterAt(shared ? room with { SupplyTicks = default, Findings = [.. room.Findings, "shared_power_capacity_shortfall"] } : room,
+                    key.Item2, horizon);
+            outcomes[i] = outcome;
+        }
+        return EquatableArray.Create<ForecastShelterOutcome>(outcomes);
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastShelterPlan,
+        System.Collections.Concurrent.ConcurrentDictionary<(bool Shared, double Complete, double Horizon), ForecastShelterOutcome>> Outcomes = new();
+
+    /// <summary>When the room's shell completes in the schedule, or NaN when a prerequisite is not scheduled.</summary>
+    private static double CompletedAt(ForecastShelterPlan room, Dictionary<string, ForecastActivityAllocation> allocations)
+    {
+        double complete = 0;
+        foreach (var p in room.Prerequisites)
+        {
+            if (!allocations.TryGetValue(p, out var a)) return double.NaN;
+            complete = Math.Max(complete, a.End);
+        }
+        foreach (var group in room.AlternativePrerequisites)
+        {
+            var first = double.PositiveInfinity;
+            foreach (var p in group)
+                if (allocations.TryGetValue(p, out var a)) first = Math.Min(first, a.End);
+            if (double.IsPositiveInfinity(first)) return double.NaN;
+            complete = Math.Max(complete, first);
+        }
+        return complete;
     }
 
     /// <summary>Conditional current-weather heat balance, bounded to the native heater's full-efficiency regime.
     /// Enclosure, roof and source completion are prerequisites; presence alone has no thermal credit.</summary>
     public static ForecastShelterOutcome ForecastShelter(ForecastShelterPlan room,
-        ForecastActivityPlan schedule, double horizon)
+        ForecastActivityPlan schedule, double horizon) =>
+        ShelterAt(room, CompletedAt(room, schedule.Allocations.ToDictionary(a => a.Activity, StringComparer.Ordinal)), horizon);
+
+    /// <summary>The room's projection when its shell completes at <paramref name="complete"/> (NaN: never scheduled).</summary>
+    private static ForecastShelterOutcome ShelterAt(ForecastShelterPlan room, double complete, double horizon)
     {
         var findings = new SortedSet<string>(room.Findings, StringComparer.Ordinal)
         { "current_weather_and_power_constant", "closed_doors_thin_roof", "spatial_mean_exchange_estimate", "heater_full_efficiency_below_20C" };
-        var allocations = schedule.Allocations.ToDictionary(a => a.Activity, StringComparer.Ordinal);
-        var missing = room.Prerequisites.Where(p => !allocations.ContainsKey(p)).ToArray();
-        if (missing.Length != 0 || room.AlternativePrerequisites.Any(group => !group.Any(allocations.ContainsKey)))
+        if (double.IsNaN(complete))
             return new(room.Room, default, default, [], [.. findings, "incomplete_shelter_prerequisites"]);
-        var complete = room.Prerequisites.Select(p => allocations[p].End).Concat(room.AlternativePrerequisites
-            .Select(group => group.Where(allocations.ContainsKey).Min(p => allocations[p].End))).DefaultIfEmpty(0).Max();
         if (complete > horizon) return new(room.Room, Known(complete), default, [], [.. findings, "shelter_beyond_horizon"]);
         if (!room.InitialTemperature.IsKnown || !room.Outdoors.IsKnown || !room.ExchangePerTick.IsKnown
             || !room.HeatPerTick.IsKnown || !room.TargetTemperature.IsKnown || !room.SupplyTicks.IsKnown

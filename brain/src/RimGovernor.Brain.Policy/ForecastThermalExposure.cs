@@ -23,12 +23,27 @@ public sealed partial record ForecastThermalExposure
     // location once, not on every evaluation.
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<CoupledThermalRead, Dictionary<string, ThermalCell>> CellsByLocation = new();
     private static readonly Dictionary<string, ThermalCell> NoCells = [];
+    // Likewise each problem's tasks by id, and each context's shelters by interior cell, in shelter order (#3468).
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastActivityProblem, Dictionary<string, ForecastActivity>> TasksById = new();
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, Dictionary<Cell, List<ForecastShelterPlan>>> RoomsByCell = new();
+    private static Dictionary<Cell, List<ForecastShelterPlan>> RoomsOf(ForecastCoupledContext context)
+    {
+        var byCell = new Dictionary<Cell, List<ForecastShelterPlan>>();
+        foreach (var room in context.Shelters)
+            foreach (var cell in room.Interior.Distinct())
+            {
+                if (!byCell.TryGetValue(cell, out var rooms)) byCell.Add(cell, rooms = []);
+                rooms.Add(room);
+            }
+        return byCell;
+    }
 
     public static EquatableArray<ForecastThermalExposure> ForecastThermalExposureOf(ForecastCoupledContext context,
         ForecastActivityProblem problem, ForecastActivityPlan schedule, EquatableArray<ForecastShelterOutcome> shelters, double horizon, ForecastActivityPlan? physicalSchedule = null,
         IReadOnlyDictionary<string, List<(double MinDelta, double MaxDelta, double Start)>>? comfort = null)
     {
-        var tasks = problem.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal);
+        var tasks = TasksById.GetValue(problem, static p => p.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal));
+        var roomsByCell = RoomsByCell.GetValue(context, RoomsOf);
         var physical = context.Thermal is { } thermal ? CellsByLocation.GetValue(thermal, static t => t.Cells.ToDictionary(c => Methods.Generation.ForecastLocations.Of(c.Cell))) : NoCells;
         var results = new List<ForecastThermalExposure>();
         foreach (var pawn in context.Needs.Pawns)
@@ -41,9 +56,8 @@ public sealed partial record ForecastThermalExposure
                     var task = tasks[allocation.Activity];
                     // Actual transit is not at either endpoint. A moving service likewise needs a route temperature trace.
                     if (task.Location != task.EndLocation || !physical.TryGetValue(task.Location, out var cell)) continue;
-                    var rooms = context.Shelters.Where(r => r.Interior.Contains(cell.Cell)).ToArray();
-                    if (rooms.Length > 1) continue;
-                    var room = rooms.SingleOrDefault();
+                    var room = roomsByCell.GetValueOrDefault(cell.Cell) is { } rooms ? rooms.Count > 1 ? null : rooms[0] : null;
+                    if (room is null && roomsByCell.ContainsKey(cell.Cell)) continue;
                     var projection = room is null ? null : shelters.SingleOrDefault(s => s.Room == room.Room);
                     var from = allocation.Arrive; var end = Math.Min(horizon, allocation.End);
                     if (from >= end) continue;
@@ -75,7 +89,9 @@ public sealed partial record ForecastThermalExposure
             void Integrate(double from, double to, double initial, double final)
             {
                 assessed += to - from;
-                var shifts = comfort?.GetValueOrDefault(pawn.Pawn) ?? [];
+                var shifts = comfort?.GetValueOrDefault(pawn.Pawn);
+                if (shifts is null || shifts.Count == 0)
+                { spans.Add(new(from, to, initial, final, pawn.ComfortableMin.Value, pawn.ComfortableMax.Value)); return; }
                 // The comfort range is piecewise constant between shift starts; temperature stays linear within the span.
                 var cuts = shifts.Select(s => s.Start).Where(t => t > from && t < to).Append(from).Append(to).Distinct().Order().ToArray();
                 for (var i = 0; i < cuts.Length - 1; i++)

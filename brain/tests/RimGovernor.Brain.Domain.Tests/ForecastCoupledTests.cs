@@ -216,6 +216,20 @@ public sealed class ForecastCoupledTests
     }
 
     [Fact]
+    public void ShelterProjectionsAreSharedOnlyAcrossSchedulesThatCompleteTheShellAtOneTick()
+    {
+        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], ["wall"], Known(-10.0), Known(-10.0), Known(.0001), Known(.35), Known(20.0), Known(1000.0), []);
+        static ForecastActivityPlan Wall(double end) => new([new("wall", "pawn", 0, 0, 0, end, 0, 0, end, end, 0)], end, end);
+        var early = ForecastShelterPolicy.ForecastShelters([room], Wall(60), 300).Single();
+        var late = ForecastShelterPolicy.ForecastShelters([room], Wall(120), 300).Single();
+        Assert.Equal(ForecastShelterPolicy.ForecastShelter(room, Wall(60), 300), early);
+        Assert.Equal(ForecastShelterPolicy.ForecastShelter(room, Wall(120), 300), late);
+        Assert.Equal((Known(60.0), Known(120.0)), (early.CompleteAt, late.CompleteAt));
+        Assert.Same(early, ForecastShelterPolicy.ForecastShelters([room], Wall(60) with { LaborCost = 7 }, 300).Single());
+        Assert.Contains("incomplete_shelter_prerequisites", ForecastShelterPolicy.ForecastShelters([room], new([], 0, 0), 300).Single().Findings);
+    }
+
+    [Fact]
     public void NormalReviewRequiresRoofLaborAndWarmupAfterObservedShellCompletion()
     {
         var facts = ConstructionReview(stock: 100);
