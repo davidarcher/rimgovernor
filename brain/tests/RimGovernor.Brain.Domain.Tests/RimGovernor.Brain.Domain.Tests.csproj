@@ -33,6 +33,8 @@
     <ProjectReference Include="../../src/RimGovernor.Brain.Acceptance.Cases/RimGovernor.Brain.Acceptance.Cases.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Host/RimGovernor.Brain.Host.csproj" />
+    <!-- Remote acceptance aggregation (#3536) is game-free; its selection replay and attempt checks are pinned against the planner and suite writers. -->
+    <ProjectReference Include="../../src/RimGovernor.Brain.RemoteAccept/RimGovernor.Brain.RemoteAccept.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
   </ItemGroup>
   <!-- The launcher is a WinExe outside this solution; its new-colony form and runner and the save loader (no WinForms dependency) are compiled in to pin the presets, the game reuse and the load retries. -->

@@ -394,14 +394,15 @@ public static partial class PlanCommand
         var shards = RemotePlanning.PlanShards(names, r.Limits.Shards, algorithm, costs);
 
         // Measured times balance real wall time, but every shard's budgets must still fit the suite allowance; when they do
-        // not, plan on the budgets themselves.
+        // not, plan on the budgets themselves. Each row pins the cost the chosen plan used as cost_ns, so aggregation replays it.
         var allowance = TimeSpan.FromMinutes(r.Limits.SuiteMinutes).Ticks * 100 / r.Limits.Attempts;
         foreach (var shard in shards)
         {
             var load = shard.Cases.Sum(name => ceilings[name]);
             if (load > allowance)
             {
-                shards = RemotePlanning.PlanShards(names, r.Limits.Shards, algorithm, ceilings);
+                costs = ceilings;
+                shards = RemotePlanning.PlanShards(names, r.Limits.Shards, algorithm, costs);
                 break;
             }
         }
@@ -456,7 +457,7 @@ public static partial class PlanCommand
 
             rows.Add(new JsonObject
             {
-                { "budget_ns", c.Budget.Ticks * 100 },
+                { "cost_ns", costs[c.Name] },
                 { "name", c.Name },
                 { "reasons", OutputJson.Array(reasons) },
                 { "fixture_ops", OutputJson.Array(ops) },

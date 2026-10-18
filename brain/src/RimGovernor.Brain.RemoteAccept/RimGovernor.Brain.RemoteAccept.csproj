@@ -11,4 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="..\RimGovernor.Brain.Acceptance\RimGovernor.Brain.Acceptance.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="RimGovernor.Brain.Domain.Tests" />
+  </ItemGroup>
 </Project>

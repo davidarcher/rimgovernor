@@ -25,8 +25,8 @@ may default an unknown verdict to success. #376 owns this shared vocabulary;
 | #377 bundle publisher, `bundle.json` | `schema_version`; `game` (exact `version`, `platform`, `core_only`, false); `components` (`name`, `version`, `path_prefix`, `sha256` of each packaged component's inventory); `origin` (`repository`, numeric `release_id`); `parts` (`asset_id`, `name`, integer `bytes`, `sha256`, in extraction order); `unpacked_bytes`; `inventory` reference; `encryption` (`format`, nonsecret `key_id`). Includes the game with every official expansion, Harmony, bridge SDK and cached starts; no production mod/controller binaries from another revision. |
 | #377 bundle publisher, `inventory.json` | `schema_version`, `files`: exhaustive, path-sorted `{path, bytes, sha256}` of extracted regular files. Component inventory digest hashes the UTF-8 LF-terminated lines `path\tbytes\tsha256\n` for its files. Components have disjoint `path_prefix` roots covering the inventory. |
 | #382 dispatcher, `run.json` | `schema_version`, `run_id`, `repository`, `trigger`, `workflow_commit`, `tested_commit`, `tier`, `bundle`, `limits`. `trigger` has `event`, `actor`, `published_ref`, integer `actions_run_id`, integer `actions_run_attempt`. The ref is provenance, never a checkout identity. |
-| #379 planner, `selection.json` | `schema_version`, `run` reference, `planner_commit` (equals tested commit), `cases` (`name`, nonempty `reasons` array), `algorithm`, `shards` (`id`, ordered `cases` list). Reasons are `smoke`, `requested` (the `cases` tier) or `nightly`. |
-| #381 executor with #378 bootstrap, `attempts.json` | `schema_version`, `run` and `selection` references, `shard_id`, `runner`, `attempts`. `runner` records `os`, `image_version`, `arch`, `cpu_count`, `memory_bytes`, `free_disk_bytes`, `bootstrap` report reference. Each attempt has `case`, one-based `number`, `status`, `classification`, `retry_of` (null or previous number), UTC RFC3339 `started_at`/`finished_at`, `exit` (integer or null if never started), `error` (string or null), `evidence` reference. |
+| #379 planner, `selection.json` | `schema_version`, `run` reference, `planner_commit` (equals tested commit), `cases` (`name`, nonempty `reasons` array, `cost_ns`), `algorithm`, `shards` (`id`, ordered `cases` list). Reasons are `smoke`, `requested` (the `cases` tier) or `nightly`. |
+| #381 executor with #378 bootstrap, `attempts.json` | `schema_version`, `run` and `selection` references, `shard_id`, `runner`, `attempts`. `runner` records `os`, `image_version`, `arch`, `cpu_count`, `memory_bytes`, `free_disk_bytes`, `bootstrap` report reference. Each attempt has `case`, one-based `number`, `status`, `classification`, `retry_of` (null or previous number), UTC RFC3339 `started_at`/`finished_at` with the `Z` suffix (round-trip `O` format of the UTC time), `exit` (integer or null if never started), `error` (string or null), `evidence` reference. |
 | #380 aggregator/importer, `aggregate.json` | `schema_version`, `run` and `selection` references, `shards` (`id`, `status`, `attempts` reference or null), `status`, `passed`, `cases` (`name`, `shard_id`, `attempt_count`, `final_attempt`, `status`), `error` (string or null). |
 | #380 local importer, `result.json` | Existing suite envelope: `tier`, `passed`, `error`, `cases`; each row retains native suite fields, including `name`, `passed`, `exit`, metrics and provenance. Add `remote` containing `schema_version`, `aggregate` reference, `tested_commit`, `bundle_sha256`. |
 
@@ -72,20 +72,24 @@ tested SHA): the smoke set, the nightly tier or the requested cases, in registry
 
 The planner uses `algorithm: "dependency-budget-lpt-v3"`: sort selected case
 names bytewise; each case is its own scheduling group.
-Each selected case records its positive registry budget in integer nanoseconds
-as `budget_ns`, pinned by the selection digest and planner commit. Sort cases
-by descending budget, breaking ties by case name. Assign each case to the shard
-with the smallest assigned budget, breaking ties by shard index. There are
+Each selected case records its positive shard cost in integer nanoseconds as
+`cost_ns`, pinned by the selection digest and planner commit. The cost is the
+case's measured wall time from the tested revision's committed `casetimes.json`
+(its registry budget when the table lacks it); when any shard's budgets would
+then exceed the suite allowance, every case is planned and recorded at its
+registry budget instead. Sort cases by descending cost, breaking ties by case
+name. Assign each case to the shard with the smallest assigned cost, breaking
+ties by shard index. There are
 min(case count, configured shard count) nonempty shards, with IDs `s1`, `s2`,
 etc. Retry counts multiply every budget equally and do not change assignment.
 
 Every selected case occurs in exactly one shard; reasons are
 retained. Aggregation recomputes the same groups and order from the recorded
-budgets, rejecting missing, nonpositive or overflowing costs for v3. No ambient
-timing history influences assignment. Legacy `dependency-round-robin-v2`
+costs, rejecting missing, nonpositive or overflowing costs for v3. No timing
+history outside the tested revision influences assignment. Legacy `dependency-round-robin-v2`
 evidence remains readable and assigns name-sorted groups round-robin;
 `sorted-round-robin-v1` assigns each sorted case independently by index modulo
-shard count. Both legacy versions ignore the optional `budget_ns` field.
+shard count. Both legacy versions ignore the optional `cost_ns` field.
 A new cost-balancing scheme must name a new algorithm and pin its cost input.
 Reject empty, unknown, duplicated or omitted cases before starting runners.
 

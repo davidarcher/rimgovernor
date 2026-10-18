@@ -89,9 +89,9 @@ public sealed record Run(
     }
 }
 
-/// <summary>One selected case with the reasons it is selected.</summary>
+/// <summary>One selected case with the reasons it is selected and the shard cost the planner used for it.</summary>
 public sealed record SelectedCase(
-    [property: JsonPropertyName("budget_ns")] long BudgetNs,
+    [property: JsonPropertyName("cost_ns")] long CostNs,
     [property: JsonPropertyName("name")] string Name,
     [property: JsonPropertyName("reasons")] IReadOnlyList<string> Reasons);
 
@@ -115,7 +115,7 @@ public sealed record Selection(
             {
                 var c = StrictJson.ElementObj(item);
                 return new SelectedCase(
-                    StrictJson.OptInt64(c, "budget_ns"),
+                    StrictJson.OptInt64(c, "cost_ns"),
                     StrictJson.Str(c, "name"),
                     StrictJson.List(c, "reasons", StrictJson.ElementStr));
             }),

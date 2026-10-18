@@ -174,7 +174,6 @@ public static class RemoteEvidence
 
         var planned = new Dictionary<string, string>(StringComparer.Ordinal);
         var names = new List<string>();
-        var budgets = new Dictionary<string, long>(StringComparer.Ordinal);
         foreach (var c in s.Cases)
         {
             if (!EvidenceRules.ValidPath(c.Name) || c.Name.Count(static ch => ch == '/') != 1 || c.Reasons.Count == 0)
@@ -196,11 +195,9 @@ public static class RemoteEvidence
             }
 
             names.Add(c.Name);
-            budgets[c.Name] = c.BudgetNs;
         }
 
-        var wantShards = RemotePlanning.PlanShards(names, l.Shards, s.Algorithm, budgets);
-        if (!SameShards(s.Shards, wantShards))
+        if (!ReplaysShards(s, l.Shards))
         {
             throw new RemoteAcceptException("shards do not match selection algorithm");
         }
@@ -404,6 +401,18 @@ public static class RemoteEvidence
         e.Files = [.. t.Used];
     }
 
+    /// <summary>Whether replanning <paramref name="s"/>'s sorted cases at their recorded <c>cost_ns</c> under the run's shard limit yields the recorded shards.</summary>
+    internal static bool ReplaysShards(Selection s, int limit)
+    {
+        var costs = new Dictionary<string, long>(StringComparer.Ordinal);
+        foreach (var c in s.Cases)
+        {
+            costs[c.Name] = c.CostNs;
+        }
+
+        return SameShards(s.Shards, RemotePlanning.PlanShards([.. s.Cases.Select(static c => c.Name)], limit, s.Algorithm, costs));
+    }
+
     private static bool SameShards(IReadOnlyList<PlannedShard> a, IReadOnlyList<PlannedShard> b)
     {
         if (a.Count != b.Count)
@@ -487,7 +496,7 @@ public static class RemoteEvidence
         return true;
     }
 
-    private static void ValidateAttempt(Attempt a, Attempt? prev, bool hasPrev, int maxAttempts)
+    internal static void ValidateAttempt(Attempt a, Attempt? prev, bool hasPrev, int maxAttempts)
     {
         var prevNumber = hasPrev ? prev!.Number : 0;
         if (a.Number < 1 || a.Number > maxAttempts || a.Number != prevNumber + 1)

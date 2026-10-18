@@ -296,6 +296,12 @@
           "RimGovernor.Brain.Domain": "[1.0.0, )"
         }
       },
+      "rimgovernor.brain.remoteaccept": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Acceptance": "[1.0.0, )"
+        }
+      },
       "rimgovernor.brain.simulation": {
         "type": "Project",
         "dependencies": {
