@@ -47,5 +47,6 @@ node_modules/
 # acceptance run evidence (-output dirs)
 /out/
 
-/test.out
-/land.out
+# Agent command-output redirects in the repo root (test.out, land.out, accept.out, ...)
+/*.out
+/*.err
