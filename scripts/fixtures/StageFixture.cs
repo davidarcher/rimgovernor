@@ -144,7 +144,7 @@ namespace HomeBridge.BridgeTools
                         }
                         made.Add(thing);
                     }
-                    Add(buildings, b.Name, new StagedThings(Ids(made), made.Select(t => Out(t.Position)).ToList()));
+                    Add(buildings, b.Name, new StagedThings(Ids(made), made.Select(t => Out(t.Position)).ToList()) { Guns = Guns(made) });
                     tables[b.Name] = made;
                 }
                 foreach (var b in spec.Bills)
@@ -246,6 +246,7 @@ namespace HomeBridge.BridgeTools
                     LordJob = pawn.GetLord()?.LordJob?.GetType().Name, MentalState = pawn.MentalStateDef?.defName, Inspiration = pawn.InspirationDef?.defName,
                     Health = pawn.health.summaryHealth.SummaryHealthPercent,
                     Worn = pawn.apparel?.WornApparel.Count ?? 0,
+                    CombatPower = pawn.kindDef.combatPower, MeleeDps = pawn.GetStatValue(StatDefOf.MeleeDPS), RangedDps = NativeDefenseStats.PawnRangedDps(pawn), Primary = Primary(pawn),
                 };
             foreach (var z in spec.Zones)
                 Add(zones, z.Name, LayZone(map, z, z.Cells.Select(At).ToList()));
@@ -430,6 +431,24 @@ namespace HomeBridge.BridgeTools
         }
 
         private static List<string> Ids(IEnumerable<Thing> made) => made.Select(t => t.GetUniqueLoadID()).ToList();
+
+        // The colony's own measure of a turret (NativeColonyObservationTools): a player power trader with a gun, its damage per
+        // second and whether the trader is on.
+        private static List<StagedGun> Guns(IEnumerable<Thing> made) => made
+            .OfType<Building>()
+            .Where(b => b.Faction == Faction.OfPlayer && b.TryGetComp<CompPowerTrader>() != null)
+            .Select(b => (Building: b, Dps: NativeDefenseStats.TurretDps(b)))
+            .Where(g => g.Dps.HasValue)
+            .Select(g => new StagedGun(g.Building.GetUniqueLoadID(), g.Dps.Value, g.Building.TryGetComp<CompPowerTrader>().PowerOn))
+            .ToList();
+
+        // The primary weapon's kind, as NativeDefenseStats.PawnRangedDps reads it.
+        private static StagedPrimary Primary(Pawn pawn)
+        {
+            if (pawn.equipment?.Primary == null) return StagedPrimary.None;
+            var verb = pawn.equipment.PrimaryEq?.PrimaryVerb;
+            return verb != null && !verb.IsMeleeAttack ? StagedPrimary.Ranged : StagedPrimary.Melee;
+        }
 
         private static StageCell Out(IntVec3 c) => new StageCell(c.x, c.z);
     }

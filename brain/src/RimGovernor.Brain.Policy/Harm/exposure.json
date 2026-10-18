@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "cells": [
+    {
+      "bin": "1-2",
+      "role": "gunner",
+      "trials": 0,
+      "meanHits": 0,
+      "hitsLo": 0,
+      "hitsHi": 0,
+      "downRate": 0,
+      "downLo": 0,
+      "downHi": 0
+    }
+  ]
+}

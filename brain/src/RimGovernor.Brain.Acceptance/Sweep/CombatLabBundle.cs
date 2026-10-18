@@ -2,7 +2,10 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Simulation.CombatMetrics;
+using static RimGovernor.Brain.Domain.Fact;
 using RimGovernor.Brain.Telemetry;
 using FightMetrics = RimGovernor.Brain.Simulation.CombatMetrics.Metrics;
 using Fx = RimGovernor.Fixtures.Contracts;
@@ -23,7 +26,110 @@ internal static class CombatLabBundle
 
     /// <summary>Scores a run's test/lab_stage read replies (tick order) with the shared combat metrics scoring.</summary>
     internal static FightMetrics Aggregate(string fixture, IReadOnlyDictionary<string, string> staged, IReadOnlyList<Fx.LabFightRead> reads) =>
-        FightMetrics.Aggregate(fixture, staged, [.. reads.Select(ReadRows)]);
+        FightMetrics.Aggregate(fixture, staged, [.. reads.Select(ReadRows)], reads.Count > 0 ? StagingOf(reads[0]) : null);
+
+    // What the sweep stamped on the first read; a bundle recorded before schema 2 carries none.
+    private static MetricsStaging? StagingOf(Fx.LabFightRead first) =>
+        first.Roles is { } roles && first.RaidPoints is { } points && first.DefenseCapacity is { } capacity
+            ? new MetricsStaging(roles, points, capacity)
+            : null;
+
+    /// <summary>
+    /// Stamps the staging on the first read of a run: the pawns' sides, the colonists' roles, the hostiles' raid points and
+    /// the colonists' and turrets' defense capacity, so scoring the bundle later needs no game.
+    /// </summary>
+    internal static void Stamp(StagedFixture s, JsonObject first)
+    {
+        var sides = new JsonObject();
+        foreach (var (id, side) in StagedSides(s).OrderBy(p => p.Key, StringComparer.Ordinal))
+        {
+            sides.Add(id, side);
+        }
+
+        var roles = new JsonObject();
+        foreach (var (id, role) in Roles(s).OrderBy(p => p.Key, StringComparer.Ordinal))
+        {
+            roles.Add(id, role);
+        }
+
+        first.Add("staged", sides);
+        first.Add("roles", roles);
+        first.Add("raidPoints", RaidPoints(s));
+        first.Add("defenseCapacity", DefenseCapacity(s));
+    }
+
+    /// <summary>
+    /// Each staged colonist's role: gunner with a ranged primary, melee with a melee primary or unarmed (the defense planner
+    /// drafts every lab colonist that can fight), noncombatant when it is staged downed.
+    /// </summary>
+    internal static Dictionary<string, string> Roles(StagedFixture s)
+    {
+        var output = new Dictionary<string, string>(StringComparer.Ordinal);
+        for (var i = 0; i < s.Fixture.Pawns.Count; i++)
+        {
+            if (s.Fixture.Pawns[i].Side != CombatFixtures.Colonist)
+            {
+                continue;
+            }
+
+            output[s.Pawns[i].Id] = s.Pawns[i].Primary switch
+            {
+                Fx.StagedPrimary.Ranged => ExposureRoles.Gunner,
+                Fx.StagedPrimary.Melee => ExposureRoles.Melee,
+                _ => s.Fixture.Pawns[i].Downed ? ExposureRoles.Noncombatant : ExposureRoles.Melee,
+            };
+        }
+
+        return output;
+    }
+
+    /// <summary>The staged hostiles' summed kind combat power: the raid's size in points.</summary>
+    internal static double RaidPoints(StagedFixture s)
+    {
+        var points = 0.0;
+        for (var i = 0; i < s.Fixture.Pawns.Count; i++)
+        {
+            if (s.Fixture.Pawns[i].Side == CombatFixtures.Hostile)
+            {
+                points += s.Pawns[i].CombatPower;
+            }
+        }
+
+        return points;
+    }
+
+    /// <summary>
+    /// The staged defense in raid-point units, by the policy function the colony reads it with: each colonist that is not
+    /// staged downed adds melee DPS (scaled by health) and ranged DPS, each powered turret its DPS. Every staged colonist
+    /// counts as capable of violence.
+    /// </summary>
+    internal static double DefenseCapacity(StagedFixture s)
+    {
+        var defenders = new List<SquadDefenderFacts>();
+        for (var i = 0; i < s.Fixture.Pawns.Count; i++)
+        {
+            if (s.Fixture.Pawns[i].Side != CombatFixtures.Colonist)
+            {
+                continue;
+            }
+
+            var pawn = s.Pawns[i];
+            defenders.Add(new SquadDefenderFacts
+            {
+                Id = new PawnId(pawn.Id),
+                Dead = Known(false),
+                Downed = Known(s.Fixture.Pawns[i].Downed),
+                ViolenceCapable = Known(true),
+                MeleePower = Known(pawn.MeleeDps * pawn.Health),
+                RangedDPS = Known(pawn.RangedDps),
+            });
+        }
+
+        var turrets = s.Guns.Select(g => new DefenseTurretFacts { Id = g.Id, Powered = Known(g.Powered), Dps = Known(g.Dps) }).ToList();
+        return DefenseCapacityPolicy.DefenseCapacity(Known(EquatableArray.From(defenders)), Known(EquatableArray.From(turrets))).TryGetValue(out var capacity)
+            ? capacity
+            : throw new AcceptanceException("defense capacity of the staged fixture is unknown");
+    }
 
     /// <summary>Adapts one read reply to the scoring rows.</summary>
     internal static MetricsRead ReadRows(Fx.LabFightRead read) =>

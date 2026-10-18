@@ -35,6 +35,15 @@ public sealed record LabFightRead
 
     /// <summary>The staged pawns' sides by load id: the sweep stamps it on the first read of a bundle.</summary>
     public IReadOnlyDictionary<string, string>? Staged { get; set; }
+
+    /// <summary>The staged colonists' roles by load id (gunner, melee or noncombatant): stamped with <see cref="Staged"/>.</summary>
+    public IReadOnlyDictionary<string, string>? Roles { get; set; }
+
+    /// <summary>The staged hostiles' summed combat power: stamped with <see cref="Staged"/>.</summary>
+    public double? RaidPoints { get; set; }
+
+    /// <summary>The staged colonists' and turrets' defense capacity in raid-point units: stamped with <see cref="Staged"/>.</summary>
+    public double? DefenseCapacity { get; set; }
 }
 
 /// <summary>One pawn of a lab read.</summary>

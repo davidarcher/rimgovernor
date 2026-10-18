@@ -265,10 +265,11 @@ raid harm per day. The output feeds the currency and the death floor.
    closed form: target choice is a weighted random draw, and outcomes depend
    on cover, pathing and projectiles (see
    [combat predictability](combat-predictability-research.md)). It is
-   calibrated from simulator sweeps (epic E5), keyed by raid points ÷ defense
-   capacity, the pawn's role and the defense layout. It is stored as ranges, so
-   the uncertainty stays explicit. The simulator owns combat mechanics; the
-   harm model reads its tables and duplicates no constants.
+   calibrated from real-game combat sweeps, keyed by raid points ÷ defense
+   capacity bin and the pawn's role (the defense layout is reported, not keyed,
+   in v1). It is stored as ranges, so the uncertainty stays explicit. The harm
+   model reads the committed table (`RaidExposure`) and duplicates no
+   constants; see [raid exposure calibration](../testing/harm-exposure-calibration.md).
 4. **Armor response, per pawn and weapon bin.** For each layer covering the
    part hit (`ArmorUtility.GetPostArmorDamage`, outermost first), effective
    armor = max(rating − penetration, 0). The hit is deflected with chance

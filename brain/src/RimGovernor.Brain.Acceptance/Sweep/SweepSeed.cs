@@ -156,13 +156,7 @@ internal static class SweepSeed
         report["staged_digest"] = staged.Digest;
         update(r => r with { StagedDigest = staged.Digest });
         var first = await CombatServe.RawReadAsync(h, "read", cancellationToken).ConfigureAwait(false);
-        var sides = new JsonObject();
-        foreach (var (id, side) in CombatLabBundle.StagedSides(staged).OrderBy(p => p.Key, StringComparer.Ordinal))
-        {
-            sides.Add(id, side);
-        }
-
-        first.Add("staged", sides);
+        CombatLabBundle.Stamp(staged, first);
         var start = CombatServe.Typed<Fx.LabFightRead>(CombatFixtures.LabTool, first).Tick;
         if (staged.Fixture.Layout is { } layout)
         {

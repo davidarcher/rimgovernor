@@ -47,7 +47,22 @@ public sealed record StageReply
 }
 
 /// <summary>The thing ids an entry made, and the cell of each, in the same order.</summary>
-public sealed record StagedThings(IReadOnlyList<string> Ids, IReadOnlyList<StageCell> Cells);
+public sealed record StagedThings(IReadOnlyList<string> Ids, IReadOnlyList<StageCell> Cells)
+{
+    /// <summary>The player's powered turret guns among them, measured as the colony read measures a turret (test-only: the combat sweep's defense capacity).</summary>
+    public IReadOnlyList<StagedGun> Guns { get; init; } = [];
+}
+
+/// <summary>A staged turret gun: its damage per second and whether its power trader is on.</summary>
+public sealed record StagedGun(string Id, double Dps, bool Powered);
+
+/// <summary>A staged pawn's primary weapon kind.</summary>
+public enum StagedPrimary
+{
+    None,
+    Melee,
+    Ranged,
+}
 
 /// <summary>A built room's wall and door ids and its interior cells.</summary>
 public sealed record StagedRoom(IReadOnlyList<string> Walls, IReadOnlyList<string> Doors, IReadOnlyList<StageCell> Interior);
@@ -82,6 +97,18 @@ public sealed record StagedPawn
 
     /// <summary>How many apparel things it wears.</summary>
     public int Worn { get; init; }
+
+    /// <summary>
+    /// The pawn kind's combat power, and the pawn's melee and primary-ranged damage per second as the colony read measures
+    /// them (test-only: the combat sweep's raid points and defense capacity).
+    /// </summary>
+    public double CombatPower { get; init; }
+
+    public double MeleeDps { get; init; }
+
+    public double RangedDps { get; init; }
+
+    public StagedPrimary Primary { get; init; }
 }
 
 /// <summary>A fired incident: the pawns it brought that trade.</summary>

@@ -54,7 +54,7 @@ public static class HuntingQualification
         return new(d[(int)Math.Floor(.25 * (d.Length - 1))], d[(int)Math.Ceiling(.75 * (d.Length - 1))], d[(d.Length - 1) / 2]);
     }
 
-    private static (double Low, double High) Wilson(int k, int n)
+    internal static (double Low, double High) Wilson(int k, int n)
     {
         const double z = 1.96;
         var p = (double)k / n;

@@ -20,9 +20,10 @@ public static class Sides
 public sealed record Metrics
 {
     /// <summary>
-    /// Bump when a field changes meaning, and re-record the baselines.
+    /// Bump when a field changes meaning, and re-record the baselines. 2 adds the per-colonist rows and the fixture's raid
+    /// points and defense capacity (#3541); a version 1 baseline reads without them.
     /// </summary>
-    public const int SchemaVersion = 1;
+    public const int SchemaVersion = 2;
 
     [JsonPropertyName("version")]
     public int Version { get; init; } = SchemaVersion;
@@ -89,14 +90,30 @@ public sealed record Metrics
     [JsonPropertyName("stepLatencyP95Ms")]
     public long StepLatencyP95Ms { get; init; } = -1;
 
+    /// <summary>The staged hostiles' summed combat power: the raid's size in points. 0 without a stamped staging.</summary>
+    [JsonPropertyName("raidPoints")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public double RaidPoints { get; init; }
+
+    /// <summary>The staged defense in raid-point units, the number the colony reads live. 0 without a stamped staging.</summary>
+    [JsonPropertyName("defenseCapacity")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public double DefenseCapacity { get; init; }
+
+    /// <summary>Each staged colonist's hits, role and outcome, by id; null without a stamped staging.</summary>
+    [JsonPropertyName("colonists")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<ColonistMetrics>? Colonists { get; init; }
+
     /// <summary>The metrics of a run that has no reads yet.</summary>
     public static Metrics New(string fixture) => new() { Fixture = fixture };
 
     /// <summary>
     /// Folds a run's reads (tick order) into metrics. <paramref name="staged"/> are the pawn ids and sides the
     /// staging placed: a staged pawn missing from a later read left the map, which for a hostile is fled.
+    /// <paramref name="staging"/>, when the first read carried it, adds the per-colonist rows, raid points and defense capacity.
     /// </summary>
-    public static Metrics Aggregate(string fixture, IReadOnlyDictionary<string, string> staged, IReadOnlyList<MetricsRead> reads)
+    public static Metrics Aggregate(string fixture, IReadOnlyDictionary<string, string> staged, IReadOnlyList<MetricsRead> reads, MetricsStaging? staging = null)
     {
         var m = New(fixture);
         if (reads.Count == 0)
@@ -167,6 +184,7 @@ public sealed record Metrics
         var firstContact = -1;
         var colonistDamage = 0.0;
         var friendlyFire = 0;
+        var hostileHits = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var h in last.Damage)
         {
             if (firstContact < 0 || h.Tick < firstContact)
@@ -180,8 +198,13 @@ public sealed record Metrics
                 {
                     friendlyFire++;
                 }
+                else if (h.InstigatorSide == Sides.Hostile)
+                {
+                    hostileHits[h.Victim] = hostileHits.GetValueOrDefault(h.Victim) + 1;
+                }
             }
         }
+        var colonists = staging is null ? null : ColonistRows(staged, staging, final, killed, hostileHits);
         colonistDamage = Math.Round(colonistDamage * 10, MidpointRounding.AwayFromZero) / 10;
         var contactToResolution = firstContact >= 0 && resolvedTick >= firstContact ? resolvedTick - firstContact : -1;
         return m with
@@ -199,7 +222,39 @@ public sealed record Metrics
             FriendlyFireHits = friendlyFire,
             DamageDropped = Math.Max(0, last.DamageDropped),
             ContactToResolution = contactToResolution,
+            RaidPoints = staging?.RaidPoints ?? 0,
+            DefenseCapacity = staging?.DefenseCapacity ?? 0,
+            Colonists = colonists,
         };
+    }
+
+    // One row per staged colonist, by id: the hostile-instigated ledger hits it took, its stamped role and how it ended.
+    private static ColonistMetrics[] ColonistRows(
+        IReadOnlyDictionary<string, string> staged,
+        MetricsStaging staging,
+        Dictionary<string, MetricsPawn> final,
+        HashSet<string> killed,
+        Dictionary<string, int> hits)
+    {
+        var rows = new List<ColonistMetrics>();
+        foreach (var (id, side) in staged.OrderBy(p => p.Key, StringComparer.Ordinal))
+        {
+            if (side != Sides.Colonist)
+            {
+                continue;
+            }
+            _ = final.TryGetValue(id, out var row);
+            var dead = row.Dead || killed.Contains(id);
+            rows.Add(new ColonistMetrics
+            {
+                Id = id,
+                Role = staging.Roles.GetValueOrDefault(id, ""),
+                Hits = hits.GetValueOrDefault(id),
+                Downed = !dead && row.Downed,
+                Dead = dead,
+            });
+        }
+        return [.. rows];
     }
 
     private static Dictionary<string, MetricsPawn> Index(IReadOnlyList<MetricsPawn> pawns)
@@ -273,6 +328,35 @@ public sealed record Metrics
         }
         return colonists == 0 ? Sides.Hostile : "";
     }
+}
+
+/// <summary>
+/// What the staging stamped on a fight's first read: each colonist's role, the hostiles' summed combat power and the
+/// defense capacity of the colonists and turrets.
+/// </summary>
+public sealed record MetricsStaging(IReadOnlyDictionary<string, string> Roles, double RaidPoints, double DefenseCapacity);
+
+/// <summary>
+/// One staged colonist's raid: Hits are the ledger rows where it was the victim and a hostile the instigator (friendly
+/// fire and fire or other unattributed damage excluded). Downed is true when it ended down and alive.
+/// </summary>
+public sealed record ColonistMetrics
+{
+    [JsonPropertyName("id")]
+    public string Id { get; init; } = "";
+
+    /// <summary>gunner, melee or noncombatant.</summary>
+    [JsonPropertyName("role")]
+    public string Role { get; init; } = "";
+
+    [JsonPropertyName("hits")]
+    public int Hits { get; init; }
+
+    [JsonPropertyName("downed")]
+    public bool Downed { get; init; }
+
+    [JsonPropertyName("dead")]
+    public bool Dead { get; init; }
 }
 
 /// <summary>One pawn's state in a read.</summary>

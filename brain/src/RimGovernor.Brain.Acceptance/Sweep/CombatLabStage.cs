@@ -16,6 +16,9 @@ public sealed class StagedFixture
     /// <summary>The staged things' load ids, spec order.</summary>
     public List<string> Things { get; } = [];
 
+    /// <summary>The player's turret guns the fixture's things staged, with their damage per second and power.</summary>
+    public List<Fx.StagedGun> Guns { get; } = [];
+
     public string Digest { get; init; } = "";
 
     /// <summary>The staged colonists' load ids, spec order.</summary>
@@ -107,6 +110,7 @@ public static class CombatStage
             var key = LabFixture.ThingName(i);
             var made = reply.Buildings.GetValueOrDefault(key) ?? reply.Things.GetValueOrDefault(key);
             output.Things.Add(made is { Ids.Count: > 0 } ? made.Ids[0] : throw new AcceptanceException($"{FixtureStage.Tool} {name}: thing {i} not staged"));
+            output.Guns.AddRange(made.Guns);
         }
 
         return output;

@@ -36,6 +36,9 @@ public sealed record SweepOptions
 
     public string Shots { get; init; } = "";
 
+    /// <summary>The file the per-colonist exposure rows are appended to; empty writes none.</summary>
+    public string Exposure { get; init; } = "";
+
     /// <summary>Names a tactic variant; <see cref="TuningEnv"/> is its <see cref="CombatTuningRules.CombatTuningEnv"/> value, launched into every worker's game.</summary>
     public string Variant { get; init; } = "";
 
@@ -83,10 +86,13 @@ public static class SweepCommand
 
     /// <summary>The usage lines for the command's help text.</summary>
     public const string Usage = """
-          acceptance sweep <fixture>... -root <dir> -output <dir> [-n 20 | -seeds 1,2,5 -workers 1|2 -against <sweep.json|dir> -record -variant <name> -shots <file> -game <id> -timeout <d>]
+          acceptance sweep <fixture>... -root <dir> -output <dir> [-n 20 | -seeds 1,2,5 -workers 1|2 -against <sweep.json|dir> -record -variant <name> -shots <file> -exposure <rows.jsonl> -game <id> -timeout <d>]
             stages <fixture> afresh for each seed through the stage spec, reseeds the RNG with the seed and serves the defense planner,
             on 1 or 2 private clones of -root, and writes <output>/<fixture>/sweep.json (per-seed rows plus summary) with the report printed
-            deaths and downs first; -against pairs the seeds with an earlier sweep.json (or <dir>/<fixture>/sweep.json) and exits 1 on a survival regression
+            deaths and downs first; -against pairs the seeds with an earlier sweep.json (or <dir>/<fixture>/sweep.json) and exits 1 on a survival regression;
+            -exposure appends one row per seed and colonist (fixture, seed, raid points over defense capacity, role, hits, downed, dead)
+          acceptance sweep -exposure-table <rows.jsonl> <exposure.json>
+            builds the raid exposure table (ratio bin by role: mean hits with a 90% bootstrap range, down rate with a Wilson interval) from the rows
           acceptance sweep hunting-grid-<cell> -root <dir> -output <dir> [-seeds a,b,c -workers 1|2]
             the cell's one predictor request, then one native hunt per seed (hunting-prediction-qualification.md)
           acceptance sweep -hunting-report <output-dir> <report.json>
@@ -113,6 +119,11 @@ public static class SweepCommand
             return SweepHunting.HuntingReport([.. args.Skip(1)], stdout, stderr);
         }
 
+        if (args.Count > 0 && args[0] == "-exposure-table")
+        {
+            return SweepExposure.Table([.. args.Skip(1)], stdout, stderr);
+        }
+
         SweepOptions opts;
         try
         {
@@ -129,7 +140,7 @@ public static class SweepCommand
         {
             if (f.StartsWith(HuntingPrefix, StringComparison.Ordinal))
             {
-                if (opts.Record || opts.Against.Length != 0 || opts.Variant.Length != 0 || opts.Shots.Length != 0)
+                if (opts.Record || opts.Against.Length != 0 || opts.Variant.Length != 0 || opts.Shots.Length != 0 || opts.Exposure.Length != 0)
                 {
                     await stderr.WriteLineAsync("hunting qualification uses retained trial reports, not combat tactic baselines").ConfigureAwait(false);
                     return 2;
@@ -237,6 +248,7 @@ public static class SweepCommand
         var workers = fs.Int("workers", 1);
         var against = fs.String("against", "");
         var shots = fs.String("shots", "");
+        var exposure = fs.String("exposure", "");
         var variant = fs.String("variant", "");
         var timeout = fs.Duration("timeout", DefaultSeedTimeout);
         var fixtures = fs.ParseAfterPositionals(args);
@@ -310,6 +322,7 @@ public static class SweepCommand
             Against = against.Value.Length > 0 ? Path.GetFullPath(against.Value) : "",
             Record = record.Value,
             Shots = shotsPath,
+            Exposure = exposure.Value.Length > 0 ? Path.GetFullPath(exposure.Value) : "",
             Variant = variant.Value,
             TuningEnv = tuningEnv,
             SeedTimeout = timeout.Value,
@@ -496,6 +509,21 @@ public static class SweepCommand
 
         await stdout.WriteAsync(result.Report()).ConfigureAwait(false);
         await stdout.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"  wall {result.WallMs} ms; written {path}")).ConfigureAwait(false);
+        if (opts.Exposure.Length > 0)
+        {
+            try
+            {
+                SweepExposure.Append(opts.Exposure, SweepExposure.Rows(result));
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                await stderr.WriteLineAsync(e.Message).ConfigureAwait(false);
+                return 1;
+            }
+
+            await stdout.WriteLineAsync($"  exposure rows appended to {opts.Exposure}").ConfigureAwait(false);
+        }
+
         var code = 0;
         if (dispatchError is not null)
         {
