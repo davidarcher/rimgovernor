@@ -209,7 +209,8 @@ public static partial class SurgeryRules
     /// ties by pawn id then part) but over every elective, stocked or not. Each is a PartShort want whose Items
     /// are that part's recipes' items, best first. A patient with a served operation, a queued bill or a
     /// stocked option of their best part wants nothing (SelectSurgery queues the stocked one), and a part item
-    /// already wanted by a higher-ranked patient is not wanted twice. The purchase path and ElectiveParts both
+    /// already wanted by a higher-ranked patient is not wanted twice. A health goal's operation (an implant included)
+    /// takes the place of the patient's best elective and outranks every other. The purchase path and ElectiveParts both
     /// read this.
     /// </summary>
     public static IReadOnlyList<SurgeryWant> ChosenElectives(Fact<EquatableArray<CarePawn>> pawns, SurgeryContext ctx)
@@ -247,6 +248,23 @@ public static partial class SurgeryRules
             }
             if (served)
             {
+                continue;
+            }
+            // A health goal's operation replaces the patient's own elective (#3508): it wants its part while none is stocked.
+            var goalOps = GoalOperations(ops, GoalRecipes(ctx, pawn.Id));
+            if (goalOps.Count > 0)
+            {
+                if (!goalOps.Any(op => op.IngredientsOnMap.TryGetValue(out var stocked) && stocked))
+                {
+                    wants.Add(new SurgeryWant
+                    {
+                        Pawn = pawn.Id,
+                        Part = goalOps[0].PartIndex.TryGetValue(out var at) ? at : -1,
+                        Reason = SurgeryWantReason.PartShort,
+                        Value = GoalSurgeryValue,
+                        Items = [.. goalOps.Where(op => !op.Item.IsEmpty).Select(op => op.Item).Distinct()],
+                    });
+                }
                 continue;
             }
             var parts = new Dictionary<int, List<SurgeryOperation>>();

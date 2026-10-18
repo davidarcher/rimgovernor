@@ -1,19 +1,22 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// What ranking and electives need beyond the care read: each pawn's profile for role weights (absent weighs 1)
-/// and whether a medical bed stands (HospitalBedReady).
+/// What ranking and electives need beyond the care read: each pawn's profile for role weights (absent weighs 1),
+/// whether a medical bed stands (HospitalBedReady) and the operations the player's health goals ask for.
 /// </summary>
 public sealed record SurgeryContext
 {
     public IReadOnlyList<PawnProfile> Profiles { get; init; } = [];
 
     public bool HospitalBed { get; init; }
+
+    /// <summary>The unmet health goals (#3508): each recipe is its pawn's first elective, an implant included.</summary>
+    public IReadOnlyList<SurgeryGoal> Goals { get; init; } = [];
 }
 
 public static class RoundsFactsSurgeryExtensions
 {
-    /// <summary>The surgery ranking context over f: the hospital bed and the work profiles.</summary>
+    /// <summary>The surgery ranking context over f: the hospital bed, the work profiles and the health goals.</summary>
     public static SurgeryContext SurgeryContextOf(this RoundsFacts f)
     {
         f.WorkProfiles.TryGetValue(out var profiles);
@@ -21,6 +24,7 @@ public static class RoundsFactsSurgeryExtensions
         {
             Profiles = profiles,
             HospitalBed = RoundsRules.Positive(SurgeryRules.HospitalBedReady(f.Sleeping)),
+            Goals = f.GoalSurgeries.Items,
         };
     }
 }
@@ -191,9 +195,46 @@ public static partial class SurgeryRules
         ["ChemicalDamageSevere"] = 1,
     };
 
-    /// <summary>An install on a healthy part whose part beats a natural one (bionic, archotech); implants and lesser parts are never electives.</summary>
+    /// <summary>An install on a healthy part whose part beats a natural one (bionic, archotech); implants and lesser parts are never electives unless a health goal names them.</summary>
     private static bool ElectiveUpgrade(SurgeryOperation op) =>
         op.Kind == SurgeryKind.Install && op.Recipe.IsKnown && op.PartIndex.IsKnown && op.Tier > 1;
+
+    /// <summary>The rank of a health goal's operation (#3508): above every elective, so its part item is claimed first.</summary>
+    private const double GoalSurgeryValue = 10;
+
+    /// <summary>The recipes the health goals ask for on <paramref name="pawn"/>.</summary>
+    private static HashSet<string> GoalRecipes(SurgeryContext ctx, PawnId pawn) =>
+        ctx.Goals.Where(g => g.Pawn == pawn).Select(g => g.Recipe).ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>Whether a health goal asks for the operation: its recipe is one of <paramref name="recipes"/>.</summary>
+    private static bool GoalOperation(SurgeryOperation op, HashSet<string> recipes) =>
+        recipes.Count > 0 && op.Recipe.TryGetValue(out var recipe) && recipes.Contains(recipe!);
+
+    /// <summary>The goal operations the pawn could take within ElectiveFailureCap, by part.</summary>
+    private static List<SurgeryOperation> GoalOperations(IEnumerable<SurgeryOperation> ops, HashSet<string> recipes) =>
+        [.. ops.Where(op => GoalOperation(op, recipes) && SurgeryAcceptable(op, ElectiveFailureCap)).OrderBy(op => op.PartIndex.TryGetValue(out var part) ? part : -1)];
+
+    /// <summary>The first stocked goal operation as an elective choice; null when none is stocked.</summary>
+    private static SurgeryChoice? GoalChoice(PawnId pawn, IEnumerable<SurgeryOperation> ops, HashSet<string> recipes)
+    {
+        foreach (var op in GoalOperations(ops, recipes))
+        {
+            if (op.IngredientsOnMap.TryGetValue(out var stocked) && stocked)
+            {
+                op.Recipe.TryGetValue(out var recipe);
+                return new SurgeryChoice
+                {
+                    Pawn = pawn,
+                    Recipe = recipe ?? "",
+                    Item = op.Item,
+                    Part = op.PartIndex.TryGetValue(out var part) ? part : -1,
+                    Elective = true,
+                    Value = GoalSurgeryValue,
+                };
+            }
+        }
+        return null;
+    }
 
     /// <summary>
     /// An elective upgrade could be queued now (stocked, within ElectiveFailureCap, a hospital bed) on a living colonist without a queued bill. It keeps the medical/surgery Need unmet; a blocked elective never does.
@@ -229,9 +270,10 @@ public static partial class SurgeryRules
                 continue;
             }
             pawn.Operations.TryGetValue(out var ops);
+            var goals = GoalRecipes(ctx, pawn.Id);
             foreach (var op in ops)
             {
-                if (ElectiveUpgrade(op)
+                if ((ElectiveUpgrade(op) || GoalOperation(op, goals))
                     && op.IngredientsOnMap.TryGetValue(out var stocked)
                     && stocked
                     && SurgeryAcceptable(op, ElectiveFailureCap))
@@ -356,7 +398,11 @@ public static partial class SurgeryRules
                     best = choice;
                 }
             }
-            // A served operation outranks the same patient's elective.
+            // A health goal's stocked operation is the patient's elective (#3508); a served operation outranks it.
+            if (electives && GoalChoice(pawn.Id, ops, GoalRecipes(ctx, pawn.Id)) is { } goal)
+            {
+                bestElective = goal;
+            }
             best ??= bestElective;
             if (best is not null)
             {

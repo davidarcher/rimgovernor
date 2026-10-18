@@ -329,6 +329,9 @@ public sealed record WorkDemand
 
     /// <summary>Whether the food plan opened a hunt that waits on a hunter's weapon (HuntArming): Hunting is then assignable to an unarmed colonist before the weapon exists, so the hunter-aware armory demand sees whom to arm.</summary>
     public bool Arming { get; init; }
+
+    /// <summary>The player's unmet skill goals (#3508): each pawn also owns every work type of its skill it is able for, beside the owners fitness picks.</summary>
+    public IReadOnlyList<SkillGoal> Training { get; init; } = [];
 }
 
 /// <summary>One pawn in the planner's working set.</summary>
@@ -766,6 +769,20 @@ public static partial class WorkRules
                 workOwners.Add(c.Worker);
                 coverage = coverage with { Owners = coverage.Owners + 1 };
             }
+            // A skill goal's pawn trains by doing the work (#3508): it owns the type too, whatever the demand, and the
+            // owners fitness picked keep it. The floors stay: a pawn below one is not able and does not own the work.
+            foreach (var goal in demand.Training)
+            {
+                if (goal.Skill != SkillOf(work) || workers.FirstOrDefault(w => w.Pawn.Id == goal.Pawn) is not { } trainee
+                    || trainee.Committed || trainee.Owned(work) == 1 || !Able(trainee, work))
+                {
+                    continue;
+                }
+                trainee.Owns[work] = 1;
+                trainee.Load++;
+                workOwners.Add(trainee);
+                coverage = coverage with { Owners = coverage.Owners + 1 };
+            }
             if (want > 0 && coverage.Owners == 0 && (requirements.ContainsKey(work) || CoreWork(work)))
             {
                 capacity = false;
@@ -891,6 +908,7 @@ public static partial class WorkRules
             Construction = building,
             Arming = HuntPrerequisiteRules.HuntArming(facts.FoodPlan),
             Handling = jobs.ContainsKey(HerdJob.Milk) || jobs.ContainsKey(HerdJob.Wool),
+            Training = facts.GoalTraining.Items,
         };
         if (facts.GrowingCells.TryGetValue(out var cells))
         {

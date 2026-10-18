@@ -3,12 +3,12 @@ namespace RimGovernor.Brain.Observation;
 public sealed partial record ColonyProjection
 {
     /// <summary>
-    /// The surgery ranking context over the projection: the hospital bed and
-    /// the work profiles. The surgery review and the part-demand path read the same one.
+    /// The surgery ranking context over the projection: the hospital bed, the work
+    /// profiles and the health goals. The surgery review and the part-demand path read the same one.
     /// </summary>
     public SurgeryContext SurgeryContext()
     {
-        var ctx = new SurgeryContext();
+        var ctx = new SurgeryContext { Goals = Facts.GoalSurgeries.Items };
         if (SurgeryRules.HospitalBedReady(Facts.Sleeping).TryGetValue(out var bed) && bed)
         {
             ctx = ctx with { HospitalBed = true };

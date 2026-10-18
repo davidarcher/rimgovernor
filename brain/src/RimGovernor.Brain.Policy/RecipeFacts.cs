@@ -21,6 +21,9 @@ public sealed record RecipeFacts
     /// </summary>
     public IReadOnlyList<string> HarvestOrgans { get; init; } = [];
 
+    /// <summary>The hediff each recipe adds (<c>RecipeDef.addsHediff</c>), by recipe: what a health goal's recipe leaves on its pawn (#3508).</summary>
+    public IReadOnlyDictionary<string, string> AddedHediffs { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
+
     /// <summary>The body parts whose removal kills: a vital tag no other part of the body provides.</summary>
     public IReadOnlyDictionary<string, bool> VitalParts { get; init; } = new Dictionary<string, bool>(StringComparer.Ordinal);
 

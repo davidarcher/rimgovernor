@@ -87,11 +87,17 @@ public sealed partial class DefinitionCatalog
     {
         var installs = new List<P.MaterialInstall>();
         var billWork = new Dictionary<string, P.WorkType>(StringComparer.Ordinal);
+        var added = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var recipe in Rows<RecipeDef>().Values.OrderBy(r => r.defName, StringComparer.Ordinal))
         {
             if (MaterialInstallOf(recipe) is { } install)
             {
                 installs.Add(install);
+            }
+
+            if (recipe.addsHediff is { } hediff)
+            {
+                added[recipe.defName] = hediff.defName;
             }
 
             foreach (var bench in RecipeBenchesOf(recipe))
@@ -105,7 +111,7 @@ public sealed partial class DefinitionCatalog
         }
 
         var (organs, vital) = BodyPartFacts();
-        return new P.RecipeFacts { MaterialInstalls = [.. installs], BillWork = billWork, HarvestOrgans = [.. organs], VitalParts = vital.ToDictionary(part => part, _ => true, StringComparer.Ordinal) };
+        return new P.RecipeFacts { MaterialInstalls = [.. installs], BillWork = billWork, AddedHediffs = added, HarvestOrgans = [.. organs], VitalParts = vital.ToDictionary(part => part, _ => true, StringComparer.Ordinal) };
     }
 
     // MaterialInstallOf reads a recipe as an install of a part made straight from a stuff: it adds a hediff, consumes

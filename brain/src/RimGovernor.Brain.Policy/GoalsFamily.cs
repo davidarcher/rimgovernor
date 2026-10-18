@@ -69,6 +69,12 @@ public sealed record GoalDemand
     /// <summary>What the goals ask the build channels for (#3496): the rooms and the hospital bed floor.</summary>
     public GoalBuildDemand Build { get; init; } = GoalBuildDemand.None;
 
+    /// <summary>The unmet skill goals (#3508): the work planner hands each pawn the skill's work and the reading policy allows it textbooks.</summary>
+    public EquatableArray<SkillGoal> Training { get; init; }
+
+    /// <summary>The unmet health goals (#3508): the surgery planner queues each recipe on its pawn first among electives, and the part bill and trade paths supply its part.</summary>
+    public EquatableArray<SurgeryGoal> Surgeries { get; init; }
+
     /// <summary>The unmet goals as the forecast's ledger values them (#3503).</summary>
     public EquatableArray<ForecastGoalValue> Values { get; init; }
 }
@@ -109,6 +115,12 @@ public enum BuiltPlacer
 
 /// <summary>A worn-count goal's demand: <see cref="Count"/> colonists wear <see cref="Garment"/>, of <see cref="Stuff"/> when it names one.</summary>
 public sealed record WornGoal(Resource Garment, Resource Stuff, int Count);
+
+/// <summary>A skill goal's demand (#3508): <see cref="Pawn"/> trains <see cref="Skill"/> (a SkillDef name).</summary>
+public sealed record SkillGoal(PawnId Pawn, string Skill);
+
+/// <summary>A health goal's demand (#3508): <see cref="Pawn"/> gets the operation <see cref="Recipe"/> (a RecipeDef name).</summary>
+public sealed record SurgeryGoal(PawnId Pawn, string Recipe);
 
 /// <summary>What the goals Family reads (#3494): the player's goals and the review facts they are judged by.</summary>
 public sealed record GoalsFacts
@@ -305,6 +317,10 @@ public static partial class GoalRules
                 return Room(goal, f);
             case GoalKind.BuiltCount:
                 return Built(goal, f);
+            case GoalKind.Skill:
+                return Skill(goal, f);
+            case GoalKind.Health:
+                return Health(goal, f);
             default:
                 return new GoalStatus(goal, Satisfaction.Unknown, GoalState.NoMethod, NoPursuit, default, default);
         }
@@ -381,6 +397,82 @@ public static partial class GoalRules
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "no placer for " + goal.Target, default, deficit);
         }
         return met.IsKnown ? Pursued(goal, f, owner, deficit) : new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, deficit);
+    }
+
+    /// <summary>
+    /// A skill goal (#3508): met once the pawn's skill level (aptitudes included) reaches <c>Count</c>. Otherwise the
+    /// <c>admin/work-assignments</c> Need pursues it: the work planner hands the pawn the skill's work and the reading
+    /// policy allows it textbooks. A pawn the census does not list, a skill it lacks or one it is incapable of has no method.
+    /// </summary>
+    private static GoalStatus Skill(GoalRecord goal, GoalsFacts f)
+    {
+        var owner = AdminFamily.WorkAssignments;
+        if (!f.Pawns.TryGetValue(out var pawns))
+        {
+            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+        }
+        var pawn = pawns.FirstOrDefault(p => p.Id == new PawnId(goal.Target));
+        if (pawn is null)
+        {
+            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.NoMethod, NotAColonist, default, default);
+        }
+        if (!pawn.Skills.TryGetValue(out var skills))
+        {
+            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+        }
+        var skill = skills.FirstOrDefault(s => s.Name == goal.Qualifier);
+        if (skill is null)
+        {
+            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.NoMethod, "unknown_skill", default, default);
+        }
+        var deficit = Fact.Known((double)Math.Max(0, goal.Count - skill.Level));
+        if (skill.Level >= goal.Count)
+        {
+            return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, deficit);
+        }
+        return skill.Disabled
+            ? new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "incapable", default, deficit)
+            : Pursued(goal, f, owner, deficit);
+    }
+
+    /// <summary>
+    /// A health goal (#3508): met once the pawn carries the hediff the recipe adds (<see cref="RecipeFacts.AddedHediffs"/>).
+    /// Otherwise the <c>medical/surgery</c> Need pursues it: the surgery planner queues the recipe first among the pawn's
+    /// electives and the part bill and trade paths supply a missing part. A recipe that adds no hediff, a pawn not in the
+    /// care census and a recipe the pawn cannot take have no method; no medical bed blocks it.
+    /// </summary>
+    private static GoalStatus Health(GoalRecord goal, GoalsFacts f)
+    {
+        var owner = MedicalRules.SurgeryNeed;
+        var one = Fact.Known(1.0);
+        if (!f.Rounds.Recipes.AddedHediffs.TryGetValue(goal.Qualifier, out var hediff))
+        {
+            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.NoMethod, "unknown_recipe", default, default);
+        }
+        if (!f.Rounds.MedicalPawns.TryGetValue(out var pawns))
+        {
+            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+        }
+        var pawn = pawns.FirstOrDefault(p => p.Id == new PawnId(goal.Target));
+        if (pawn is null || (pawn.Dead.TryGetValue(out var dead) && dead))
+        {
+            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.NoMethod, NotAColonist, default, default);
+        }
+        if (!pawn.Conditions.TryGetValue(out var conditions) || !pawn.Operations.TryGetValue(out var ops))
+        {
+            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+        }
+        if (conditions.Any(c => c.DefName.TryGetValue(out var held) && held == hediff))
+        {
+            return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, Fact.Known(0.0));
+        }
+        if (!ops.Any(op => op.Recipe.TryGetValue(out var recipe) && recipe == goal.Qualifier))
+        {
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unavailable", default, one);
+        }
+        return SurgeryRules.HospitalBedReady(f.Rounds.Sleeping).TryGetValue(out var bed) && !bed
+            ? new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, "no_hospital_bed", owner, one)
+            : Pursued(goal, f, owner, one);
     }
 
     /// <summary>The colonists wearing the goal's garment, of its stuff when it names one.</summary>
@@ -573,10 +665,19 @@ public static partial class GoalRules
         var hospitalBeds = 0;
         var turrets = 0;
         var worn = new List<WornGoal>();
+        var training = new List<SkillGoal>();
+        var surgeries = new List<SurgeryGoal>();
         foreach (var goal in f.Goals)
         {
             switch (goal.Kind)
             {
+                case GoalKind.Skill when goal.Target != "" && goal.Qualifier != "" && Evaluate(goal, f).State != GoalState.Met:
+                    training.Add(new SkillGoal(new PawnId(goal.Target), goal.Qualifier));
+                    break;
+                case GoalKind.Health when goal.Target != "" && goal.Qualifier != "" && Evaluate(goal, f).State != GoalState.Met:
+                    // A met goal stops asking: the recipe may still be offered on the pawn's other part.
+                    surgeries.Add(new SurgeryGoal(new PawnId(goal.Target), goal.Qualifier));
+                    break;
                 case GoalKind.WornCount when goal.Target != "" && goal.Count > 0:
                     worn.Add(new WornGoal(new Resource(goal.Target), new Resource(goal.Qualifier), goal.Count));
                     // The stuff's own research (devilstrand: the plant's sowing project) joins the research-wanted set while the goal is unmet.
@@ -622,16 +723,16 @@ public static partial class GoalRules
             }
         }
         var believers = ConversionRules.Shortfall(f.Goals, f.Ideology, f.Pawns).TryGetValue(out var lacking) && lacking > 0;
-        return new GoalDemand { Research = [.. research], Stock = stock, Colonists = colonists, Animals = animals, Prisoners = prisoners, Quests = quests, Believers = believers, Worn = worn, Build = new GoalBuildDemand { Rooms = EquatableArray.From(rooms), HospitalBeds = hospitalBeds, Turrets = turrets }, Values = ValuesOf(f) };
+        return new GoalDemand { Research = [.. research], Stock = stock, Colonists = colonists, Animals = animals, Prisoners = prisoners, Quests = quests, Believers = believers, Worn = worn, Build = new GoalBuildDemand { Rooms = EquatableArray.From(rooms), HospitalBeds = hospitalBeds, Turrets = turrets }, Values = ValuesOf(f), Training = EquatableArray.From(training), Surgeries = EquatableArray.From(surgeries) };
     }
 
     /// <summary>The review facts with the goals' stock floors in them, and everything <see cref="Stamp"/> carries.</summary>
     public static RoundsFacts Apply(RoundsFacts f, GoalDemand d) => Stamp(f with { ResourceNeeds = ResourceRules.ResourceConcernTargets(f.ResourceNeeds, d.Stock) }, d);
 
-    /// <summary>The facts with the goals' colonist head count, herd targets, named quests, named prisoners and believer demand: what every read of the world carries.</summary>
+    /// <summary>The facts with the goals' colonist head count, herd targets, named quests, named prisoners, believer, training and surgery demand: what every read of the world carries.</summary>
     public static RoundsFacts Stamp(RoundsFacts f, GoalDemand d)
     {
-        f = StampWorn(f with { ColonistGoal = d.Colonists, AnimalGoals = d.Animals, NamedQuests = d.Quests, GoalBuild = d.Build, GoalValues = d.Values }, d.Worn);
+        f = StampWorn(f with { ColonistGoal = d.Colonists, AnimalGoals = d.Animals, NamedQuests = d.Quests, GoalBuild = d.Build, GoalValues = d.Values, GoalTraining = d.Training, GoalSurgeries = d.Surgeries }, d.Worn);
         return f.PrisonerColony.TryGetValue(out var colony) ? f with { PrisonerColony = Fact.Known(colony with { NamedPrisoners = d.Prisoners, BelieversWanted = d.Believers }) } : f;
     }
 
@@ -679,6 +780,8 @@ public static partial class GoalRules
     private const string NoPursuit = "no_pursuit";
 
     private const string NotAPrisoner = "not a prisoner";
+
+    private const string NotAColonist = "not_a_colonist";
 
     private const string Expired = "expired";
 

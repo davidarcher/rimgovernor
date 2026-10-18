@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public sealed partial class GoalsRounds
 {
-    private static readonly NeedId[] Owners = [EconomyFamily.Research, EconomyFamily.Resource, AnimalsFamily.Herd, JoinersFamily.Offers, JoinersFamily.Quests, PrisonersFamily.Recruit, ShelterFamily.Sleeping, MedicalRules.MedicalCareNeed, LayoutFamily.Defense];
+    private static readonly NeedId[] Owners = [EconomyFamily.Research, EconomyFamily.Resource, AnimalsFamily.Herd, JoinersFamily.Offers, JoinersFamily.Quests, PrisonersFamily.Recruit, ShelterFamily.Sleeping, MedicalRules.MedicalCareNeed, LayoutFamily.Defense, AdminFamily.WorkAssignments, MedicalRules.SurgeryNeed];
 
     private readonly Rounder _reviewer;
     private readonly GoalStatusBoard _board;

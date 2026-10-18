@@ -199,7 +199,7 @@ public sealed class GoalsFamilyTests
     [Fact]
     public void AKindNothingPursuesIsAcceptedAndReportedWithAReason()
     {
-        var goal = Goal(5, GoalKind.Skill, "pawn1", 10, "Shooting");
+        var goal = Goal(5, GoalKind.Caravan);
         var facts = Facts(goal);
         Assert.Equal(Satisfaction.Unknown, Derive(facts, goal).Satisfaction);
         var status = GoalRules.Evaluate(goal, facts);
@@ -307,7 +307,7 @@ public sealed class GoalsFamilyTests
     {
         var met = Goal(1, GoalKind.Colonists, count: 3) with { Theme = 9 };
         var open = Goal(2, GoalKind.StockCount, "Steel", 100) with { Theme = 9 };
-        var loose = Goal(3, GoalKind.Skill, "p", 5, "Shooting");
+        var loose = Goal(3, GoalKind.Caravan);
         var facts = Facts(met, open, loose) with { Themes = [new ThemeRecord { Id = 9, Name = "Start", Members = [1, 2] }] };
 
         var (statuses, themeStatuses) = GoalsRounds.Evaluate(facts);

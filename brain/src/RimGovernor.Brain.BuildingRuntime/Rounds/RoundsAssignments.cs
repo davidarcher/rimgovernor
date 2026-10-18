@@ -133,7 +133,7 @@ public sealed partial class RoundsWorkPlanner
         settings.AddRange(care);
         settings.AddRange(RoundsMech.RoundsMechSettings(read));
         var reading = new List<ReadingPolicy>();
-        var readingChanges = RoundsReadingChanges(read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns);
+        var readingChanges = RoundsReadingChanges(read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns, read.Projection.Facts.GoalTraining);
         if (readingChanges.Count > 0)
         {
             foreach (var c in readingChanges.Take(8))
@@ -347,8 +347,8 @@ partial class RoundsWorkPlanner
     internal static Fact<EquatableArray<HostilityPawn>> HostilityPawns(Fact<EquatableArray<WorkPawn>> pawns) =>
         pawns.TryGetValue(out var rows) ? Known<EquatableArray<HostilityPawn>>([.. HostilityRows(rows)]) : Unknown<EquatableArray<HostilityPawn>>();
 
-    /// <summary>The reading-policy writes and assignments the review's policies and books call for.</summary>
-    internal static IReadOnlyList<ReadingPolicyChange> RoundsReadingChanges(Fact<ObservationPolicies> policies, Fact<EquatableArray<OwnedName>> names, IReadOnlyList<WorkPawn> pawns)
+    /// <summary>The reading-policy writes and assignments the review's policies, books and skill goals call for.</summary>
+    internal static IReadOnlyList<ReadingPolicyChange> RoundsReadingChanges(Fact<ObservationPolicies> policies, Fact<EquatableArray<OwnedName>> names, IReadOnlyList<WorkPawn> pawns, IReadOnlyList<SkillGoal> training)
     {
         var ok = policies.TryGetValue(out var p);
         var named = names.TryGetValue(out var owned);
@@ -357,7 +357,7 @@ partial class RoundsWorkPlanner
             return [];
         }
         var entries = p.Reading.Select(e => new ReadingPolicyEntry { Id = e.ID, Label = e.Label, Allowed = e.Allowed }).ToList();
-        return ReadingPolicyRules.ReadingPolicyChanges(pawns, owned, entries, p.Books);
+        return ReadingPolicyRules.ReadingPolicyChanges(pawns, owned, entries, p.Books, training);
     }
 
     /// <summary>The food-policy writes and assignments the review's policies and reserve call for.</summary>

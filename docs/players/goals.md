@@ -48,8 +48,10 @@ Kinds the governor can work toward today:
 | Believers | A number of colonists who share your ideoligion, by moral-guide and prisoner conversion. |
 | Named prisoner | Recruit one prisoner, by pawn id. |
 | Named quest | Accept and finish one quest, by quest id. |
+| Skill | Raise one colonist's skill to a level: the colonist gets that skill's work and textbooks. |
+| Health | Give one colonist a bionic or implant, by its install recipe: the governor gets the part and schedules the surgery. |
 
-The list also offers kinds the governor cannot pursue yet (ritual, skill, health, territory, ending, caravan, power
+The list also offers kinds the governor cannot pursue yet (ritual, territory, ending, caravan, power
 surplus; the [goals contracts](../developers/contracts/goals-contracts.md) list exactly which kinds have a pursuit). They save and show with state **No method**. That is deliberate: the window
 doubles as a list of what the governor still cannot do.
 

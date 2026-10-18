@@ -50,10 +50,10 @@ public static partial class ReadingPolicyRules
 {
     /// <summary>
     /// The book definitions pawn should be allowed: a child learning books (textbooks) only; an adult novels
-    /// for joy, textbooks when it has a passion to grow and schematics when it researches. Anomaly tomes are
-    /// never allowed. Unknown when the pawn's age is.
+    /// for joy, textbooks when it has a passion to grow or a skill goal to train (<paramref name="learning"/>, #3508)
+    /// and schematics when it researches. Anomaly tomes are never allowed. Unknown when the pawn's age is.
     /// </summary>
-    public static (IReadOnlyList<string> Defs, bool Known) ReadingBooks(WorkPawn pawn, IReadOnlyList<Book> books)
+    public static (IReadOnlyList<string> Defs, bool Known) ReadingBooks(WorkPawn pawn, IReadOnlyList<Book> books, bool learning)
     {
         if (!pawn.Age.TryGetValue(out var age))
         {
@@ -67,6 +67,10 @@ public static partial class ReadingPolicyRules
         else
         {
             want.Add(BookKind.Novel);
+            if (learning)
+            {
+                want.Add(BookKind.Textbook);
+            }
             if (pawn.Skills.TryGetValue(out var skills))
             {
                 foreach (var s in skills)
@@ -95,10 +99,11 @@ public static partial class ReadingPolicyRules
     /// <summary>
     /// The per-pawn reading policy writes owed: each owned pawn with a reading tracker holds the policy
     /// labelled with its short name, allowing ReadingBooks. A pawn whose short name another owned pawn shares
-    /// or that several policies carry waits.
+    /// or that several policies carry waits. <paramref name="training"/> is the player's unmet skill goals.
     /// </summary>
-    public static IReadOnlyList<ReadingPolicyChange> ReadingPolicyChanges(IReadOnlyList<WorkPawn> pawns, IReadOnlyList<OwnedName> names, IReadOnlyList<ReadingPolicyEntry> policies, IReadOnlyList<Book> books)
+    public static IReadOnlyList<ReadingPolicyChange> ReadingPolicyChanges(IReadOnlyList<WorkPawn> pawns, IReadOnlyList<OwnedName> names, IReadOnlyList<ReadingPolicyEntry> policies, IReadOnlyList<Book> books, IReadOnlyList<SkillGoal> training)
     {
+        var learners = training.Select(g => g.Pawn).ToHashSet();
         var shortNames = new Dictionary<PawnId, string>();
         var count = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var n in names)
@@ -116,7 +121,7 @@ public static partial class ReadingPolicyRules
             {
                 continue;
             }
-            var (want, known) = ReadingBooks(pawn, books);
+            var (want, known) = ReadingBooks(pawn, books, learners.Contains(pawn.Id));
             if (!known)
             {
                 continue;

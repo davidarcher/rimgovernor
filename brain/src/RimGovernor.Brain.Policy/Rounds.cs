@@ -545,6 +545,12 @@ public sealed record RoundsFacts
     /// <summary>The player's unmet goals as the forecast's capability-days ledger values them (#3503).</summary>
     public EquatableArray<ForecastGoalValue> GoalValues { get; init; }
 
+    /// <summary>The pawns the player's unmet skill goals train and their skills (#3508): the work planner and the reading policy read them.</summary>
+    public EquatableArray<SkillGoal> GoalTraining { get; init; }
+
+    /// <summary>The operations the player's unmet health goals ask for (#3508): the surgery context carries them to the surgery planner.</summary>
+    public EquatableArray<SurgeryGoal> GoalSurgeries { get; init; }
+
     public Fact<long> Hostiles { get; init; }
 
     public Fact<long> CriticalPatients { get; init; }
