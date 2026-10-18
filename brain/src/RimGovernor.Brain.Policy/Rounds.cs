@@ -513,6 +513,9 @@ public sealed record RoundsFacts
     /// <summary>The head count per animal race the player's goals ask the herd to reach (#3494); the herd plan raises its race's band to it.</summary>
     public IReadOnlyDictionary<Resource, long> AnimalGoals { get; init; } = new Dictionary<Resource, long>();
 
+    /// <summary>The open bills the player's worn-count goals owe (#3496): each missing garment priced like a replacement, merged into <see cref="ClothingDemandRules.ClothingRunway"/>.</summary>
+    public IReadOnlyList<OpenBill> WornBills { get; init; } = [];
+
     /// <summary>The quests the player's goals name (#3499); the quest step considers them before any other offer.</summary>
     public IReadOnlyList<QuestId> NamedQuests { get; init; } = [];
 

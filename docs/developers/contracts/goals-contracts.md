@@ -49,6 +49,27 @@ family's Method for an unmet goal is only `NeedMethod.Held`, with the subject `p
 One `goal_review` decision per goal per review ([OTEL signals](otel-signals.md)): `target` the goal id, `verdict`
 the state, `reason` as above, attrs `kind`, `need`, `owner`, `deficit` and the goal's theme progress.
 
+## Worn-count goals (#3496)
+
+A `WornCount` goal (`Target` the garment def, optional `Qualifier` stuff, `Count` colonists) is met once `Count`
+colonists wear the garment (of the stuff, when named; read from each pawn's loadout model). Otherwise the owning
+Need is `economy/resource`, and the goal asks three existing channels for help; the goals family places no order:
+
+- **Outfit.** `GoalRules.Stamp` appends the garment to `ApparelPolicyState.Required` of the first `Count` eligible
+  `GearPawn`s, ordered by pawn id. Eligible: not blocked, not a soldier, child or prisoner, and the garment is among
+  the definitions the pawn can wear as an adult. The outfit policy then allows it whatever the role; wearing stays the
+  outfit policy's job. Stamping is idempotent and runs on every read of the world, beside the preference stamping.
+- **Material.** The missing count (`Count` less the colonists already wearing it) becomes an `OpenBill` in
+  `RoundsFacts.WornBills`, priced from the garment's recipe slots through `GearRules.GearFilter` (the stuff and the
+  stuffs sharing its catalog category), and `ClothingRunway.Needs` merges it with the replacement demand. A garment
+  not in `RoundsFacts.Garments` (no available recipe, or no outfit allows it yet) prices nothing.
+- **Research.** While the goal is unmet, the stuff's research joins the research-wanted set. It is found through the
+  plant definitions: the plant whose `HarvestedThingDef` is the stuff gives its `Research` (devilstrand cloth to the
+  Devilstrand project), unfinished projects only. Sowing and tailoring then follow the field and clothing channels.
+
+`NoMethod` `no_wearer` when no colonist is eligible; `Blocked` `facts_unread` while the gear census is unread. The
+deficit is `Count` less the wearers.
+
 ## Toggle
 
 The `goals` family (`RIMGOVERNOR_ROUTINE_FAMILIES`) composes the family and the review's demand injection

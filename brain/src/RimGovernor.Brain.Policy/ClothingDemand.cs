@@ -27,6 +27,9 @@ public sealed record ClothingDemandInput
     public Fact<GearObservation> Gear { get; init; }
 
     public required StockReader Stock { get; init; }
+
+    /// <summary>Bills the player's worn-count goals owe (#3496), priced alongside the replacements.</summary>
+    public IReadOnlyList<OpenBill> GoalBills { get; init; } = [];
 }
 
 /// <summary>
@@ -73,6 +76,7 @@ public static class ClothingDemandRules
                 Categories = f.Items.StuffCategories,
                 Gear = f.Gear,
                 Stock = new StockReader { Resources = f.Resources, Wood = f.Wood },
+                GoalBills = f.WornBills,
             }
         );
 
@@ -106,6 +110,7 @@ public static class ClothingDemandRules
     public static ClothingRunway PlanClothingRunway(ClothingDemandInput input)
     {
         var (bills, _) = ClothingReplacements(input);
+        bills.AddRange(input.GoalBills);
         var needs = new Dictionary<Resource, long>();
         var serves = new Dictionary<Resource, Resource>();
         foreach (var (resource, n) in BillDemandRules.OpenBillDemand(bills, input.Stock))

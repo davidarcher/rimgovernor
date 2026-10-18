@@ -51,7 +51,7 @@ public sealed class GoalsRounds
                 owners[owner] = new OwnerProgress(row.Method != "", row.Blocked.IsEmpty || row.Blocked.Waiting() ? "" : row.Blocked.Text);
             }
         }
-        var facts = GoalsFacts.From(reading.Projection.Facts, reading.Projection.TechTier, reading.Projection.WorkPawns, goals.Goals, goals.Themes, owners);
+        var facts = GoalsFacts.From(reading.Projection.Facts, reading.Projection.TechTier, reading.Projection.WorkPawns, goals.Goals, goals.Themes, owners, StuffResearch(reading.Projection.Definitions));
         var targets = GoalRules.IdeoTargets(goals.Goals);
         if (targets.Count > 0)
         {
@@ -61,6 +61,20 @@ public sealed class GoalsRounds
         }
         Record(facts, Player.PlayerWorld(scope.World));
         return facts;
+    }
+
+    /// <summary>The research each harvested stuff waits on: a plant definition's sowing prerequisites, keyed by the thing it harvests (devilstrand cloth to the Devilstrand project).</summary>
+    internal static IReadOnlyDictionary<string, IReadOnlyList<string>> StuffResearch(IEnumerable<PlanningDefinition> definitions)
+    {
+        var output = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        foreach (var d in definitions)
+        {
+            if (d.HarvestedThingDef.TryGetValue(out var stuff) && d.Research.Count > 0)
+            {
+                output[stuff] = d.Research;
+            }
+        }
+        return output;
     }
 
     /// <summary>One <c>goal_review</c> decision per goal: the state as verdict, the reason, the goal id as target and the owner and deficit as attrs.</summary>

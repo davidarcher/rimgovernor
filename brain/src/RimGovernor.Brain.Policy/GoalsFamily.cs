@@ -52,7 +52,13 @@ public sealed record GoalDemand
 
     /// <summary>The quests the goals name (#3499): the quest step considers them first.</summary>
     public IReadOnlyList<QuestId> Quests { get; init; } = [];
+
+    /// <summary>The garments the goals want worn (#3496): the outfit policy requires each for its first <see cref="WornGoal.Count"/> eligible colonists and the clothing runway prices the missing ones.</summary>
+    public IReadOnlyList<WornGoal> Worn { get; init; } = [];
 }
+
+/// <summary>A worn-count goal's demand: <see cref="Count"/> colonists wear <see cref="Garment"/>, of <see cref="Stuff"/> when it names one.</summary>
+public sealed record WornGoal(Resource Garment, Resource Stuff, int Count);
 
 /// <summary>What the goals Family reads (#3494): the player's goals and the review facts they are judged by.</summary>
 public sealed record GoalsFacts
@@ -87,11 +93,14 @@ public sealed record GoalsFacts
     /// <summary>The review's facts: the prisoner, custody and quest censuses the named-prisoner and named-quest goals are judged by.</summary>
     public RoundsFacts Rounds { get; init; } = new();
 
+    /// <summary>The research each harvested stuff waits on (a plant's sowing prerequisites, keyed by its harvested thing def), the way a worn-count goal reaches the research-wanted set (#3496).</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> StuffResearch { get; init; } = new Dictionary<string, IReadOnlyList<string>>();
+
     /// <summary>The progress row of each owning Need that has one.</summary>
     public IReadOnlyDictionary<NeedId, OwnerProgress> Owners { get; init; } = new Dictionary<NeedId, OwnerProgress>();
 
     /// <summary>The facts a review already holds, with the goals and the owners' rows.</summary>
-    public static GoalsFacts From(RoundsFacts f, Fact<TechTier> tier, Fact<EquatableArray<WorkPawn>> pawns, IReadOnlyList<GoalRecord> goals, IReadOnlyList<ThemeRecord> themes, IReadOnlyDictionary<NeedId, OwnerProgress> owners) => new()
+    public static GoalsFacts From(RoundsFacts f, Fact<TechTier> tier, Fact<EquatableArray<WorkPawn>> pawns, IReadOnlyList<GoalRecord> goals, IReadOnlyList<ThemeRecord> themes, IReadOnlyDictionary<NeedId, OwnerProgress> owners, IReadOnlyDictionary<string, IReadOnlyList<string>>? stuffResearch = null) => new()
     {
         Pawns = pawns,
         Goals = goals,
@@ -105,6 +114,7 @@ public sealed record GoalsFacts
         IdeologyInstalled = f.IdeologyInstalled,
         Rounds = f,
         Owners = owners,
+        StuffResearch = stuffResearch ?? new Dictionary<string, IReadOnlyList<string>>(),
     };
 }
 
@@ -206,6 +216,8 @@ public static class GoalRules
                 (met, deficit) = Shortfall(goal.Count, f.Animals.TryGetValue(out var animals) ? Fact.Known((long)animals.Count(a => a.Definition == new Resource(goal.Target))) : Fact.Unknown<long>());
                 owner = AnimalsFamily.Herd;
                 break;
+            case GoalKind.WornCount:
+                return Worn(goal, f);
             case GoalKind.Precept:
             case GoalKind.Meme:
             case GoalKind.VeneratedAnimal:
@@ -231,6 +243,43 @@ public static class GoalRules
         f.Owners.TryGetValue(owner, out var row) && !row.Method && row.Blocked != ""
             ? new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, row.Blocked, owner, deficit)
             : new GoalStatus(goal, Satisfaction.Unmet, GoalState.Pursuing, "", owner, deficit);
+
+    /// <summary>
+    /// A worn-count goal (#3496): met once <c>Count</c> colonists wear the garment (of the stuff, when named). Otherwise the
+    /// outfit policy requires it for the first eligible colonists and the clothing runway asks for the material, both
+    /// owned by the resource Need; with no colonist who can wear it nothing pursues the goal.
+    /// </summary>
+    private static GoalStatus Worn(GoalRecord goal, GoalsFacts f)
+    {
+        var owner = EconomyFamily.Resource;
+        if (!f.Rounds.Gear.TryGetValue(out var gear))
+        {
+            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+        }
+        var want = new WornGoal(new Resource(goal.Target), new Resource(goal.Qualifier), goal.Count);
+        var wearing = WearingCount(gear, want);
+        var deficit = Fact.Known((double)Math.Max(0, goal.Count - wearing));
+        if (wearing >= goal.Count)
+        {
+            return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, deficit);
+        }
+        return EligibleWearers(gear, want.Garment).Count == 0
+            ? new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "no_wearer", default, deficit)
+            : Pursued(goal, f, owner, deficit);
+    }
+
+    /// <summary>The colonists wearing the goal's garment, of its stuff when it names one.</summary>
+    private static int WearingCount(GearObservation gear, WornGoal want) =>
+        gear.Pawns.Count(p => p.LoadoutModel.TryGetValue(out var model)
+            && model.Worn.Items.Any(o => o.Definition == want.Garment && (want.Stuff.Value == "" || o.Stuff == want.Stuff)));
+
+    /// <summary>The colonists who can wear <paramref name="garment"/> and are not soldiers, children or prisoners, in pawn id order: the outfit rule's candidates.</summary>
+    private static List<GearPawn> EligibleWearers(GearObservation gear, Resource garment) =>
+        [.. gear.Pawns
+            .Where(p => !p.Blocked && p.Policy.TryGetValue(out var state)
+                && GearLoadoutRules.DeriveGearRole(state.Role) is not (GearRole.Soldier or GearRole.Child or GearRole.Prisoner)
+                && state.Definitions.Items.Any(d => d.Name == garment.Value && d.Adult))
+            .OrderBy(p => p.Pawn.Value, StringComparer.Ordinal)];
 
     /// <summary>A named prisoner: met once a colonist, pursued by the prisoners/recruit Need while held and recruitable.</summary>
     private static GoalStatus NamedPrisoner(GoalRecord goal, GoalsFacts f)
@@ -316,10 +365,19 @@ public static class GoalRules
         var colonists = 0;
         var prisoners = new List<PawnId>();
         var quests = new List<QuestId>();
+        var worn = new List<WornGoal>();
         foreach (var goal in f.Goals)
         {
             switch (goal.Kind)
             {
+                case GoalKind.WornCount when goal.Target != "" && goal.Count > 0:
+                    worn.Add(new WornGoal(new Resource(goal.Target), new Resource(goal.Qualifier), goal.Count));
+                    // The stuff's own research (devilstrand: the plant's sowing project) joins the research-wanted set while the goal is unmet.
+                    if (goal.Qualifier != "" && f.Research.TryGetValue(out var census) && Evaluate(goal, f).State is not GoalState.Met && f.StuffResearch.TryGetValue(goal.Qualifier, out var projects))
+                    {
+                        research.UnionWith(projects.Where(p => !census.Finished.Contains(new ResearchProjectId(p))));
+                    }
+                    break;
                 case GoalKind.NamedPrisoner when goal.Target != "":
                     prisoners.Add(new PawnId(goal.Target));
                     break;
@@ -357,7 +415,7 @@ public static class GoalRules
             }
         }
         var believers = ConversionRules.Shortfall(f.Goals, f.Ideology, f.Pawns).TryGetValue(out var lacking) && lacking > 0;
-        return new GoalDemand { Research = [.. research], Stock = stock, Colonists = colonists, Animals = animals, Prisoners = prisoners, Quests = quests, Believers = believers };
+        return new GoalDemand { Research = [.. research], Stock = stock, Colonists = colonists, Animals = animals, Prisoners = prisoners, Quests = quests, Believers = believers, Worn = worn };
     }
 
     /// <summary>The review facts with the goals' stock floors in them, and everything <see cref="Stamp"/> carries.</summary>
@@ -366,8 +424,49 @@ public static class GoalRules
     /// <summary>The facts with the goals' colonist head count, herd targets, named quests, named prisoners and believer demand: what every read of the world carries.</summary>
     public static RoundsFacts Stamp(RoundsFacts f, GoalDemand d)
     {
-        f = f with { ColonistGoal = d.Colonists, AnimalGoals = d.Animals, NamedQuests = d.Quests };
+        f = StampWorn(f with { ColonistGoal = d.Colonists, AnimalGoals = d.Animals, NamedQuests = d.Quests }, d.Worn);
         return f.PrisonerColony.TryGetValue(out var colony) ? f with { PrisonerColony = Fact.Known(colony with { NamedPrisoners = d.Prisoners, BelieversWanted = d.Believers }) } : f;
+    }
+
+    /// <summary>
+    /// The worn-count goals on the facts (#3496): each garment joins <c>Required</c> of the first <c>Count</c> eligible
+    /// colonists (so their outfit allows it whatever their role), and the missing ones (Count less those already worn)
+    /// become bills in <see cref="RoundsFacts.WornBills"/> for the clothing runway. Idempotent, so every read can stamp.
+    /// </summary>
+    private static RoundsFacts StampWorn(RoundsFacts f, IReadOnlyList<WornGoal> worn)
+    {
+        if (!f.Gear.TryGetValue(out var gear))
+        {
+            return f with { WornBills = [] };
+        }
+        var required = new Dictionary<PawnId, List<string>>();
+        var bills = new List<OpenBill>();
+        foreach (var w in worn)
+        {
+            foreach (var p in EligibleWearers(gear, w.Garment).Take(w.Count))
+            {
+                if (!required.TryGetValue(p.Pawn, out var names))
+                {
+                    required[p.Pawn] = names = [];
+                }
+                names.Add(w.Garment.Value);
+            }
+            var missing = w.Count - WearingCount(gear, w);
+            if (missing > 0
+                && f.Garments.Items.FirstOrDefault(g => g.Definition == w.Garment) is { } garment
+                && GearRules.GearFilter(garment.Slots, w.Stuff, f.Items.StuffCategories) is { } filter)
+            {
+                bills.Add(new OpenBill { Count = missing, Slots = Fact.Known(garment.Slots), Filter = EquatableArray.From(filter.Select(r => r.Value)) });
+            }
+        }
+        if (required.Count > 0)
+        {
+            GearPawn Add(GearPawn p) => required.TryGetValue(p.Pawn, out var names) && p.Policy.TryGetValue(out var state)
+                ? p with { Policy = Fact.Known(state with { Required = EquatableArray.From(state.Required.Items.Union(names, StringComparer.Ordinal)) }) }
+                : p;
+            f = f with { Gear = Fact.Known(gear with { Pawns = [.. gear.Pawns.Select(Add)] }) };
+        }
+        return f with { WornBills = bills };
     }
 
     private const string NoPursuit = "no_pursuit";
