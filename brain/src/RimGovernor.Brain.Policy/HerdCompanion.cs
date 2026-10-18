@@ -72,7 +72,7 @@ public static class HerdCompanionRules
             var (cell, rot, found) = RoomQualityRules.FreeSpot(room, spot.Size);
             if (found)
             {
-                return (new RoomUpgrade { Room = s.Room, Slot = "companion-bed-" + (have + 1), Def = spot.Def, Anchor = cell, Rot = rot }, true);
+                return (new RoomUpgrade { Room = s.Room, Slot = "companion-bed-" + (have + 1), Def = spot.Def, Size = spot.Size, Anchor = cell, Rot = rot }, true);
             }
         }
         return (new RoomUpgrade(), false);

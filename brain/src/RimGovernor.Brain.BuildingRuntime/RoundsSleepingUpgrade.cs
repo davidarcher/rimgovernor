@@ -170,7 +170,40 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         return await Building.RetireBuildingAsync(state, review, goal, reading.Reading, rep.Bed, rep.Def, rep.Cell, "bedroom-replace-remove", "old_bed_removal", call, epoch).ConfigureAwait(false);
     }
 
-    /// <summary>Previews and admits one upgrade piece, once per room and slot per Episode.</summary>
+    /// <summary>The colony's standing buildings, as the room furnishing counts them; none while the census is unknown.</summary>
+    internal static IReadOnlyList<Pol.CurrentBuilding> StandingBuildings(Observation.ColonyProjection facts) =>
+        facts.Facts.CurrentConstruction.TryGetValue(out var census) ? census.Buildings : [];
+
+    /// <summary>
+    /// Places one lever piece (title furniture, companion bed, room upgrade, plant pot) through the room's one
+    /// reconcile: the room's furnishing lists every lever piece standing there and the asked one, and the shared
+    /// build side installs or builds what is missing. A census room that stands in no planned room has nowhere to reconcile.
+    /// </summary>
+    internal async Task<RoundsBuildingResult> FurnishBedroomAsync(PackedStock stock, ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.RoomUpgrade u, CancellationToken call, CancellationToken epoch)
+    {
+        var facts = reading.Projection;
+        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
+        if (!rk || !ck || !facts.LayoutPlan.TryGetValue(out var plan))
+        {
+            return new RoundsBuildingResult { Verdict = FieldUnavailable("room_census") };
+        }
+        var furniture = FurnitureRoomsRules.FurnitureRooms(rooms!, census!, facts.Cells).FirstOrDefault(r => r.Id == u.Room);
+        var planned = furniture is null ? null : plan.Rooms.FirstOrDefault(r => r.Region.Bounds() == furniture.Room.Interior);
+        if (planned is null)
+        {
+            return new RoundsBuildingResult { Verdict = NoSpace("bedroom_upgrade_site") };
+        }
+        var furnishing = SleepingRules.BedroomFurnishing(planned, rooms!.Shapes, "", census!.Buildings, u);
+        if (!furnishing.Absent)
+        {
+            return new RoundsBuildingResult { Verdict = NoSpace("bedroom_upgrade_site") };
+        }
+        var name = $"bedroom-upgrade-{u.Slot}-{RoundsBuildingPlanner.DigestHex(u.Room, 8)}";
+        return await Building.ReconcileRoomAsync(state, review, goal, reading, stock, new RoomReconcile { Room = planned, Template = furnishing.Pieces, Name = name, Reason = "room upgrade " + u.Slot }, call, epoch).ConfigureAwait(false);
+    }
+
+    /// <summary>Previews and admits one non-furniture upgrade (a floor's cells, a replacement bed), once per room and slot per Episode.</summary>
     internal async Task<RoundsBuildingResult> UpgradeBedroomAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.RoomUpgrade u, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;

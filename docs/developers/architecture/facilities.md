@@ -750,12 +750,20 @@ stays refused for good (that questline ends here).
 A bedroom step (`NextBedroomStep`, `NextMigrateStep`, the suite claims) owes
 a planned room with no bed a `BedroomReconcile`; there is no shell or furnish
 step. The runtime (`reconcileBedroom`) picks the bed from the sleeping
-ladder, takes its slot from `policy.BedroomTemplate` (the bedroom template's
+ladder, takes its slot from `policy.BedroomFurnishing` (the bedroom template's
 bed slot, for suites and the shelter too) and hands the room to the shared
 build side (`reconcileRoom`, see Throne room below): ring, doors, floor and
 the bed, the bed installed from packed stock first. Once the room stands, a
 vacant `Bed` left in the starter shell is packed (`packShellBed`) so the next
-pass installs it instead of building another. The couple's double bed is the
+pass installs it instead of building another. The room-quality levers that
+furnish a room (title furniture, companion bed, the end table, dresser and
+lamp upgrade, the beauty plant pot) keep their own demand logic and each
+yields one piece; the same `BedroomFurnishing` lists every lever piece
+standing in the room where it stands plus the asked one, and
+`FurnishBedroomAsync` reconciles the planned room to that list (methods
+`bedroom-upgrade-<slot>-<room>-…`), so a standing lamp, dresser or animal
+bed is never repacked. A beauty floor and a replacement bed are not
+furniture pieces and still place directly. The couple's double bed is the
 same: the pack step takes the two single beds up, the install is a
 reconcile of the couple's planned room to a `DoubleBed` template
 (`CoupleBed.Template`), and a couple whose room is outside the plan is never

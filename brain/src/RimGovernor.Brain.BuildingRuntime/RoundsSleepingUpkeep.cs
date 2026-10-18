@@ -152,17 +152,17 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                             var (title, titleDue) = TitleFurniture(facts);
                             if (titleDue)
                             {
-                                return await UpgradeBedroomAsync(state, review, goal, reading, title, call, epoch).ConfigureAwait(false);
+                                return await FurnishBedroomAsync(stock, state, review, goal, reading, title, call, epoch).ConfigureAwait(false);
                             }
                             var (companion, companionDue) = CompanionBed(facts);
                             if (companionDue)
                             {
-                                return await UpgradeBedroomAsync(state, review, goal, reading, companion, call, epoch).ConfigureAwait(false);
+                                return await FurnishBedroomAsync(stock, state, review, goal, reading, companion, call, epoch).ConfigureAwait(false);
                             }
                             var (upgrade, upgradeDue) = RoomUpgradeOf(facts);
                             if (upgradeDue)
                             {
-                                return await UpgradeBedroomAsync(state, review, goal, reading, upgrade, call, epoch).ConfigureAwait(false);
+                                return await FurnishBedroomAsync(stock, state, review, goal, reading, upgrade, call, epoch).ConfigureAwait(false);
                             }
                             var (replacement, replacementDue) = BedReplacementOf(facts);
                             if (replacementDue && replacement.Step == Pol.BedReplacementStep.Build)
@@ -172,7 +172,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                             var (beauty, beautyDue) = BeautyUpgrade(facts);
                             if (beautyDue)
                             {
-                                return await UpgradeBedroomAsync(state, review, goal, reading, beauty, call, epoch).ConfigureAwait(false);
+                                return await (beauty.Cells.Count == 0 ? FurnishBedroomAsync(stock, state, review, goal, reading, beauty, call, epoch) : UpgradeBedroomAsync(state, review, goal, reading, beauty, call, epoch)).ConfigureAwait(false);
                             }
                             var (sculpted, sculptDue) = await SculptBedroomAsync(stock, state, goal, reading, call, epoch).ConfigureAwait(false);
                             if (sculptDue)

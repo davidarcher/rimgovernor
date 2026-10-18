@@ -87,7 +87,7 @@ public static partial class RoomQualityRules
                 var (cell, _, ok) = FreeSpot(room, new Cell(1, 1));
                 if (ok)
                 {
-                    return (new RoomUpgrade { Room = id, Slot = "plant_pot", Def = PlantPotDefinition, Anchor = cell, Rot = Rotation.North }, true);
+                    return (new RoomUpgrade { Room = id, Slot = "plant_pot", Def = PlantPotDefinition, Size = new Cell(1, 1), Anchor = cell, Rot = Rotation.North }, true);
                 }
             }
             if (floorRooms.TryGetValue(id, out var fr) && fk)

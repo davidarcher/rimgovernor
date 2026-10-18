@@ -176,7 +176,8 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("room_census") };
         }
-        if (SleepingRules.BedroomTemplate(step.Room, rooms.Shapes, bed) is not { } template)
+        var furnishing = SleepingRules.BedroomFurnishing(step.Room, rooms.Shapes, bed, StandingBuildings(facts), null);
+        if (!furnishing.Absent)
         {
             return new RoundsBuildingResult { Verdict = NoSpace("bedroom_template") };
         }
@@ -189,6 +190,6 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                 return packed;
             }
         }
-        return await Building.ReconcileRoomAsync(state, review, goal, reading, stock, new RoomReconcile { Room = step.Room, Template = template, Name = BedroomReconcileName(step.Room), Reason = BedroomShellReason(step) }, call, epoch).ConfigureAwait(false);
+        return await Building.ReconcileRoomAsync(state, review, goal, reading, stock, new RoomReconcile { Room = step.Room, Template = furnishing.Pieces, Name = BedroomReconcileName(step.Room), Reason = BedroomShellReason(step) }, call, epoch).ConfigureAwait(false);
     }
 }

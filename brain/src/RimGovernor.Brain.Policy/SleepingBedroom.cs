@@ -250,46 +250,46 @@ public static partial class SleepingRules
     }
 
     /// <summary>
-    /// The furniture template of a Reconcile step's room: bed (a definition name) in the bedroom template's
-    /// bed slot. Suites and the shelter take the bedroom's slot too. Null when the template does not fit the room.
+    /// A room's desired furniture where the bedroom owner and the room-quality levers share one list: bed (a
+    /// definition name, "" for none) in the bedroom template's bed slot, and every lever piece that stands in
+    /// the room (end table, dresser, lamp, plant pot, animal bed) where it stands, so the one reconcile never
+    /// repacks it. add is the piece a lever asks for this round (title furniture, companion bed, room upgrade,
+    /// beauty); it is listed beside the standing ones of its definition and is the only entry still to build.
+    /// Suites and the shelter take the bedroom's slot too. The list has no bed when the template does not fit the room.
     /// </summary>
-    public static IReadOnlyList<WantedPiece>? BedroomTemplate(PlannedRoom room, PieceShapes shapes, string bed)
+    public static Furnishing BedroomFurnishing(PlannedRoom room, PieceShapes shapes, string bed, IReadOnlyList<CurrentBuilding> built, RoomUpgrade? add)
     {
-        var (room0, ok) = InteriorRules.InteriorRoomFromLayout(room, shapes);
-        if (!ok)
+        var wants = new List<FurnishingWant>();
+        InteriorRoom? interior = null;
+        if (bed.Length > 0)
         {
-            return null;
-        }
-        var interior = room0! with { Role = RoomRole.Bedroom };
-        var (piece, pk) = interior.Piece(bed);
-        if (!pk)
-        {
-            return null;
-        }
-        var (plan, planOk) = InteriorRegionRules.PlanRoomInterior(interior, piece);
-        if (!planOk)
-        {
-            return null;
-        }
-        foreach (var p in plan.Pieces)
-        {
-            if (p.Slot == "bed" && p.Def == bed)
+            var (room0, ok) = InteriorRules.InteriorRoomFromLayout(room, shapes);
+            if (!ok)
             {
-                return
-                [
-                    new WantedPiece
-                    {
-                        DefName = p.Def,
-                        Minimum = new Cell(p.Rect.X, p.Rect.Z),
-                        Maximum = new Cell(p.Rect.X + p.Rect.Width - 1, p.Rect.Z + p.Rect.Height - 1),
-                        Slot = p.Slot,
-                        Size = p.Size,
-                        Rot = p.Rot,
-                    },
-                ];
+                return new Furnishing();
             }
+            interior = room0! with { Role = RoomRole.Bedroom };
+            var (piece, pk) = interior.Piece(bed);
+            if (!pk)
+            {
+                return new Furnishing();
+            }
+            wants.Add(new FurnishingWant { Key = "bed", Things = [bed], Count = 1, Piece = piece });
         }
-        return null;
+        var bounds = room.Region.Bounds();
+        var furniture = shapes.Furniture;
+        var levers = new List<string> { furniture.EndTable.Def, furniture.Dresser.Def, InteriorHelpersRules.StandingLampDef, RoomQualityRules.PlantPotDefinition, furniture.AnimalSpot, furniture.AnimalBed };
+        if (add is not null && !levers.Contains(add.Def))
+        {
+            levers.Add(add.Def);
+        }
+        foreach (var def in levers.Where(d => d.Length > 0).Distinct())
+        {
+            var standing = built.Count(b => b.Cells.Count > 0 && b.Building!.Definition == def && FurnitureRoomsRules.RectInside(bounds, PlacementSearchRules.CellsRectangle(b.Cells.Items)));
+            var asked = add is not null && add.Def == def;
+            wants.Add(new FurnishingWant { Things = [def], Count = standing + (asked ? 1 : 0), Slots = asked ? [add!.Slotted()] : [], Piece = new InteriorPieceDef { Def = def } });
+        }
+        return RoomFurnishingRules.RoomFurnishing(room, interior, wants, built);
     }
 
     /// <summary>Unlocks Bed and DoubleBed.</summary>

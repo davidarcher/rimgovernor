@@ -86,14 +86,14 @@ public static partial class RoomQualityRules
             {
                 if (p.Def == def.Value && !RoomPieceOverlaps(room.Pieces, p.Rect))
                 {
-                    return (new RoomUpgrade { Room = id, Slot = slot, Def = p.Def, Anchor = p.Anchor(), Rot = p.Rot }, true);
+                    return (new RoomUpgrade { Room = id, Slot = slot, Def = p.Def, Size = p.Size, Anchor = p.Anchor(), Rot = p.Rot }, true);
                 }
             }
         }
         var (cell, rot, found) = FreeSpot(room, size);
         if (found)
         {
-            return (new RoomUpgrade { Room = id, Slot = slot, Def = def.Value, Anchor = cell, Rot = rot }, true);
+            return (new RoomUpgrade { Room = id, Slot = slot, Def = def.Value, Size = size, Anchor = cell, Rot = rot }, true);
         }
         return (new RoomUpgrade(), false);
     }

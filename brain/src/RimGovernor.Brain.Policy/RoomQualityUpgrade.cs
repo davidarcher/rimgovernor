@@ -35,6 +35,12 @@ public sealed record RoomUpgrade
 
     public Rotation Rot { get; init; }
 
+    /// <summary>A furniture piece's North footprint, so the room's furnishing lists it (Slotted); unset for a floor and a bed replacement.</summary>
+    public Cell Size { get; init; }
+
+    /// <summary>The piece as a furnishing slot: where the lever wants it in its room.</summary>
+    internal InteriorPiece Slotted() => new() { Slot = Slot, Def = Def, Size = Size, Rot = Rot, Rect = InteriorRules.OccupiedRect(Anchor, Size, Rot) };
+
     /// <summary>When set, places Def at each cell (a floor).</summary>
     public EquatableArray<Cell> Cells { get; init; }
 
@@ -143,7 +149,7 @@ public static partial class RoomQualityRules
                     {
                         continue;
                     }
-                    return (new RoomUpgrade { Room = id, Slot = slot, Def = piece.Def, Anchor = piece.Anchor(), Rot = piece.Rot }, true);
+                    return (new RoomUpgrade { Room = id, Slot = slot, Def = piece.Def, Size = piece.Size, Anchor = piece.Anchor(), Rot = piece.Rot }, true);
                 }
             }
         }

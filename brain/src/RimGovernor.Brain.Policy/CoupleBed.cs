@@ -57,8 +57,8 @@ public static class CoupleBedRules
             {
                 continue;
             }
-            var template = SleepingRules.BedroomTemplate(planned, room.Room.Shapes, SleepingRules.SleepingCoupleBedDefinition);
-            return template is not null ? (planned, template) : null;
+            var template = SleepingRules.BedroomFurnishing(planned, room.Room.Shapes, SleepingRules.SleepingCoupleBedDefinition, [], null).Pieces;
+            return template.Count > 0 ? (planned, template) : null;
         }
         return null;
     }
