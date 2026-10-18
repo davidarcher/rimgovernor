@@ -29,7 +29,6 @@ namespace HomeBridge.BridgeTools
         static int interval = 2500, size = 1280, nextTick = -1, lastTick = -1, frames;
         static CellRect? viewOverride;
         static string? lastError;
-        static bool seenMapUpdate;
 
         public static object Start(string directory, int intervalTicks, int imageSize)
         {
@@ -43,16 +42,7 @@ namespace HomeBridge.BridgeTools
         public static object Stop()
         {
             dir = null;
-            SetViewport(true);
             return Status();
-        }
-
-        // The capture renders by hand (Render below), so the game's own per-frame view of the map is wasted work, and on
-        // a CPU-rendered runner it is what keeps the game thread from serving the brain's hops. A disabled camera still
-        // answers Camera.Render, so the viewport is off for the whole recording and the shots are unaffected.
-        static void SetViewport(bool on)
-        {
-            if (Find.Camera is Camera camera && camera.enabled != on) camera.enabled = on;
         }
 
         public static object Status() => new { success = true, recording = dir != null, dir, interval, size, nextTick, frames,
@@ -67,21 +57,8 @@ namespace HomeBridge.BridgeTools
                 postfix: new HarmonyMethod(typeof(ColonyReview), nameof(AfterMapUpdate)));
             harmony.Patch(AccessTools.PropertyGetter(typeof(CameraDriver), nameof(CameraDriver.CurrentViewRect)),
                 postfix: new HarmonyMethod(typeof(ColonyReview), nameof(ViewRect)));
-            try
-            {
-                // The play UI (colonist bar, alerts, overlays) took ~1.7 s of every frame on a CPU-rendered runner while the
-                // map sat idle, and the shots need none of it: skip it for as long as the recorder runs.
-                harmony.Patch(AccessTools.Method(typeof(UIRoot_Play), "UIRootOnGUI"),
-                    prefix: new HarmonyMethod(typeof(ColonyReview), nameof(SkipUi)));
-            }
-            catch (Exception e)
-            {
-                Log.Warning("[RimGovernor] colony review could not skip the play UI: " + e.Message);
-            }
             patched = true;
         }
-
-        static bool SkipUi() => dir == null;
 
         // Map sections and things are drawn only inside the camera driver's
         // view rect, so the capture frame widens it to the shot's rect.
@@ -93,12 +70,6 @@ namespace HomeBridge.BridgeTools
         static void BeforeMapUpdate(Map __instance)
         {
             if (dir == null || __instance != Find.CurrentMap) return;
-            if (!seenMapUpdate)
-            {
-                seenMapUpdate = true;
-                Log.Message("[colony-review] first recorded map update: viewport off, next shot at tick " + nextTick);
-            }
-            SetViewport(false);
             if (Find.TickManager.TicksGame < nextTick) return;
             viewOverride = ColonyRect(__instance);
         }
