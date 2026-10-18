@@ -50,6 +50,22 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
         return new(hunger is { } lost ? Known(apparel - lost) : default, EquatableArray.From(findings));
     }
 
+    /// <summary>
+    /// Capability-days a goal is worth if it is completed on day <paramref name="completionDay"/> from now (#3505): its worth at that day
+    /// (importance, with the deadline's decay) for the part of the horizon it then stands, as the apparel is worth its harm avoided for
+    /// the days it is worn. Zero for a goal not completed inside the horizon. Advancing the completion is what an hour of its work earns.
+    /// </summary>
+    public double GoalValue(GoalTerminal goal, double? completionDay)
+    {
+        if (completionDay is not { } day || day >= horizonDays)
+        {
+            return 0;
+        }
+
+        var gameDay = ((double)context.Needs.Tick / GameTime.TicksPerDay) + day;
+        return context.Value.GoalWorthOn(goal.Importance, goal.DeadlineDay, gameDay) * (horizonDays - day) / horizonDays;
+    }
+
     /// <summary>The colony's capability-days lost to malnutrition over the horizon; null when a table or a pawn's capacities are unobserved.</summary>
     private double? HungerLoss(ColonyTrajectory trajectory, SortedSet<string> findings)
     {

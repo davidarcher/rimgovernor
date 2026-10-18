@@ -55,7 +55,7 @@ public sealed partial class GoalsRounds
             }
         }
         var facts = GoalsFacts.From(reading.Projection.Facts, reading.Projection.TechTier, reading.Projection.WorkPawns, goals.Goals, goals.Themes, owners, StuffResearch(reading.Projection.Definitions)) with { Rooms = reading.Projection.Rooms };
-        facts = facts with { Infeasible = _reviewer.GoalInfeasible.Get(review.Snapshot) };
+        facts = facts with { Infeasible = _reviewer.GoalInfeasible.Get(review.Snapshot), Etas = _reviewer.GoalEta.Get(review.Snapshot) };
         var targets = GoalRules.IdeoTargets(goals.Goals);
         if (targets.Count > 0)
         {
@@ -113,6 +113,10 @@ public sealed partial class GoalsRounds
         if (status.Deficit.TryGetValue(out var deficit))
         {
             attrs["deficit"] = deficit;
+        }
+        if (status.EtaDay.TryGetValue(out var eta))
+        {
+            attrs["eta_day"] = eta;
         }
         if (status.Goal.Theme is { } theme && themes.TryGetValue(theme, out var progress))
         {

@@ -22,7 +22,14 @@ public enum GoalState
 }
 
 /// <summary>One goal's standing: its state with the reason, the Need that pursues it and how far it is from met.</summary>
-public sealed record GoalStatus(GoalRecord Goal, Satisfaction Satisfaction, GoalState State, string Reason, NeedId Owner, Fact<double> Deficit);
+public sealed record GoalStatus(GoalRecord Goal, Satisfaction Satisfaction, GoalState State, string Reason, NeedId Owner, Fact<double> Deficit)
+{
+    /// <summary>
+    /// The game day tier 2 estimates the goal completes (#3505): derived each review from the colony model and never stored. Unknown for a
+    /// goal the model has no path for, one it cannot complete inside its horizon and one already met.
+    /// </summary>
+    public Fact<int> EtaDay { get; init; }
+}
 
 /// <summary>A theme's progress: how many of its goals stand met.</summary>
 public sealed record ThemeStatus(int Id, int Met, int Total);
@@ -145,6 +152,9 @@ public sealed record GoalsFacts
     /// <summary>The safety floor every forecast route to a goal breaks, by goal need id (#3503): the latest coupled selection's <c>goal_infeasible</c> findings.</summary>
     public IReadOnlyDictionary<string, string> Infeasible { get; init; } = new Dictionary<string, string>();
 
+    /// <summary>The game day tier 2 estimates each goal completes, by goal need id (#3505): the latest review's colony model.</summary>
+    public IReadOnlyDictionary<string, int> Etas { get; init; } = new Dictionary<string, int>();
+
     /// <summary>The progress row of each owning Need that has one.</summary>
     public IReadOnlyDictionary<NeedId, OwnerProgress> Owners { get; init; } = new Dictionary<NeedId, OwnerProgress>();
 
@@ -243,6 +253,10 @@ public static partial class GoalRules
     public static GoalStatus Evaluate(GoalRecord goal, GoalsFacts f)
     {
         var status = EvaluateOwned(goal, f);
+        if (status.State != GoalState.Met && f.Etas.TryGetValue(NeedOf(goal).Value, out var eta))
+        {
+            status = status with { EtaDay = Fact.Known(eta) };
+        }
         return status.State is GoalState.Pursuing or GoalState.Blocked && f.Infeasible.TryGetValue(NeedOf(goal).Value, out var floor)
             ? status with { State = GoalState.Infeasible, Reason = floor }
             : status;

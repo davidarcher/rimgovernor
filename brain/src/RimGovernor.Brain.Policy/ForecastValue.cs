@@ -44,9 +44,12 @@ public sealed record ForecastValuePolicy
     /// A goal's worth at <paramref name="tick"/>: its importance's value, full until <paramref name="deadlineDay"/> (days
     /// passed since the game began) and then <see cref="GoalDeadlineDecay"/> per day past it, never under <see cref="GoalDeadlineFloor"/>.
     /// </summary>
-    public double GoalWorth(Importance importance, int? deadlineDay, long tick)
+    public double GoalWorth(Importance importance, int? deadlineDay, long tick) => GoalWorthOn(importance, deadlineDay, tick / GameTime.TicksPerDay);
+
+    /// <summary>A goal's worth if it is completed on <paramref name="day"/> (game days since the game began, fractions kept): the same curve as <see cref="GoalWorth"/>, which tier 2 reads at its modelled completion day (#3505).</summary>
+    public double GoalWorthOn(Importance importance, int? deadlineDay, double day)
     {
-        var late = deadlineDay is { } due ? tick / GameTime.TicksPerDay - due : 0;
+        var late = deadlineDay is { } due ? day - due : 0;
         var decay = late <= 0 ? 1 : Math.Max(GoalDeadlineFloor, Math.Pow(GoalDeadlineDecay, late));
         return GoalImportanceValue.Of(importance) * decay;
     }
@@ -359,12 +362,15 @@ public static partial class ForecastValue
             .GroupBy(r => r.Need, StringComparer.Ordinal).ToDictionary(g => g.Key, g => Math.Min(1, g.Sum(r => r.Fraction)), StringComparer.Ordinal);
         foreach (var goal in context.GoalValues)
         {
-            var share = goal.Research.Sum(r => progress.GetValueOrDefault(r.Project) * r.SharePerPoint)
+            var share = (goal.Priced ? 0 : goal.Research.Sum(r => progress.GetValueOrDefault(r.Project) * r.SharePerPoint))
                 + goal.Relief.Sum(r => relief.GetValueOrDefault(r.Need) * r.Share);
             share = Math.Min(1, share);
-            if (share <= 0) continue;
             var worth = context.Value.GoalWorth(goal.Importance, goal.DeadlineDay, context.Needs.Tick);
-            result.Add(new(goal.Goal, share, worth, share * worth));
+            // A priced goal's progress is paid at tier 2's marginal value per unit, which already carries the deadline's decay at the modelled day.
+            var priced = goal.Units.Sum(u => progress.GetValueOrDefault(u.Project) * u.Value);
+            var value = (share * worth) + priced;
+            if (value <= 0) continue;
+            result.Add(new(goal.Goal, worth > 0 ? value / worth : 0, worth, value));
         }
         return result;
     }

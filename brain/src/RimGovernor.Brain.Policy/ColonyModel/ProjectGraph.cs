@@ -12,10 +12,10 @@ public sealed record ProjectGraph
     /// <summary>A gap in the facts the nodes were built from, one finding each.</summary>
     public EquatableArray<string> Findings { get; init; }
 
-    /// <summary>This graph followed by <paramref name="next"/>; the nodes keep their order, the findings are sorted and distinct.</summary>
+    /// <summary>This graph followed by <paramref name="next"/>; the nodes keep their order and a node already here is not added twice (two goals share a research prerequisite), the findings are sorted and distinct.</summary>
     public ProjectGraph Then(ProjectGraph next) => new()
     {
-        Nodes = EquatableArray.From(Nodes.Concat(next.Nodes)),
+        Nodes = EquatableArray.From(Nodes.Concat(next.Nodes.Where(n => Nodes.All(have => have.Id != n.Id)))),
         Findings = EquatableArray.From(Findings.Concat(next.Findings).Distinct().Order(StringComparer.Ordinal)),
     };
 
@@ -108,12 +108,12 @@ public sealed record ProjectGraph
     }
 
     /// <summary>
-    /// A crop from research to harvest on one field: the research the sowing needs (<paramref name="gate"/>, none when empty), then
+    /// A crop from research to harvest on one field: the research the sowing needs (<paramref name="gates"/>, none when empty), then
     /// sowing, growth and one harvest. The cells sown are the field's cells at or above the crop's fertility minimum.
     /// </summary>
-    public static ProjectGraph CropChain(ColonyModelInput input, string crop, string field, ResearchProjectId gate = default)
+    public static ProjectGraph CropChain(ColonyModelInput input, string crop, string field, EquatableArray<ResearchProjectId> gates = default)
     {
-        var research = gate.IsEmpty ? new ProjectGraph() : ResearchChain(input, gate);
+        var research = gates.Aggregate(new ProjectGraph(), (graph, gate) => graph.Then(ResearchChain(input, gate)));
         if (!input.Crops.TryGetValue(out var crops) || crops.FirstOrDefault(c => c.Name == crop) is not { } choice)
         {
             return research.Then(Gap($"crop_unknown:{crop}"));
@@ -137,12 +137,12 @@ public sealed record ProjectGraph
 
         var sow = SowId(field);
         var grow = $"grow:{field}";
-        string[] gates = !gate.IsEmpty && research.Nodes.Any(n => n.Id == ResearchId(gate)) ? [ResearchId(gate)] : [];
+        var after = gates.Select(ResearchId).Where(id => research.Nodes.Any(n => n.Id == id)).ToArray();
         return research.Then(new ProjectGraph
         {
             Nodes = EquatableArray.From(new[]
             {
-                new ProjectNode { Id = sow, Kind = ProjectKind.Sow, Prerequisites = EquatableArray.From(gates), Work = cells * sowWork, Field = field, Crop = crop, Cells = cells },
+                new ProjectNode { Id = sow, Kind = ProjectKind.Sow, Prerequisites = EquatableArray.From(after), Work = cells * sowWork, Field = field, Crop = crop, Cells = cells },
                 new ProjectNode { Id = grow, Kind = ProjectKind.Grow, Prerequisites = EquatableArray.From(new[] { sow }), Field = field, Crop = crop, Cells = cells },
                 new ProjectNode { Id = $"harvest:{field}", Kind = ProjectKind.Harvest, Prerequisites = EquatableArray.From(new[] { grow }), Work = cells * harvestWork, Field = field, Crop = crop, Cells = cells },
             }),
@@ -152,8 +152,9 @@ public sealed record ProjectGraph
     /// <summary>
     /// One run of a recipe after <paramref name="after"/>. The ingredients are the first alternative of each slot (named when a slot has
     /// several); the products go to the materials stock when <paramref name="productsToStock"/>, otherwise they are apparel.
+    /// <paramref name="copies"/> runs of the recipe are one node: its work, ingredients and products are that many times the recipe's.
     /// </summary>
-    public static ProjectGraph Craft(ColonyModelInput input, string recipe, EquatableArray<string> after, bool productsToStock)
+    public static ProjectGraph Craft(ColonyModelInput input, string recipe, EquatableArray<string> after, bool productsToStock, int copies = 1)
     {
         if (!input.Recipes.TryGetValue(out var recipes) || recipes.FirstOrDefault(r => r.Recipe == recipe) is not { } row)
         {
@@ -166,12 +167,12 @@ public sealed record ProjectGraph
         }
 
         var findings = slots.Any(s => s.Count > 1) ? EquatableArray.From(new[] { $"craft_alternative_first:{recipe}" }) : default;
-        var ingredients = slots.Where(s => s.Count > 0).Select(s => s[0]);
+        var ingredients = slots.Where(s => s.Count > 0).Select(s => s[0] with { Count = s[0].Count * copies });
         return new ProjectGraph
         {
             Nodes = EquatableArray.From(new[]
             {
-                new ProjectNode { Id = $"craft:{recipe}", Kind = ProjectKind.Craft, Prerequisites = after, Work = work, Ingredients = EquatableArray.From(ingredients), Products = products, ProductsToStock = productsToStock },
+                new ProjectNode { Id = $"craft:{recipe}", Kind = ProjectKind.Craft, Prerequisites = after, Work = work * copies, Ingredients = EquatableArray.From(ingredients), Products = EquatableArray.From(products.Select(p => p with { Count = p.Count * copies })), ProductsToStock = productsToStock },
             }),
             Findings = findings,
         };

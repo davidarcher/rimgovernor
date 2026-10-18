@@ -60,7 +60,7 @@ public sealed class ProjectGraphTests
 
     internal static ProjectGraph Chain(ColonyModelInput input, bool craft = true)
     {
-        var chain = ProjectGraph.CropChain(input, ColonyModelFixtures.Crop, "zone1", Gate);
+        var chain = ProjectGraph.CropChain(input, ColonyModelFixtures.Crop, "zone1", [Gate]);
         return craft ? chain.Then(ProjectGraph.Craft(input, ColonyModelFixtures.Recipe, AfterHarvest, false)) : chain;
     }
 

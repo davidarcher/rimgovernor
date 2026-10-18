@@ -127,7 +127,8 @@ capability-days when it is completed, times `GoalDeadlineDecay` per day past its
 `GoalDeadlineFloor`); a schedule earns the fraction of that worth it progresses. Research is paid per point of the goal
 project's remaining cost, a worn-garment goal per colonist dressed (the requirement relief it injected), and relief a
 goal injected is not also counted as a unit of requested development. Other goal kinds have no forecast route and earn
-nothing yet; tier 2 gives the marginal value of progress that is not inside the horizon. Every decision lists each goal
+nothing yet. A goal tier 2 models (#3505) is paid instead per unit of progress at its marginal value there, not by its flat
+share ([goal terminals](#tier-2-event-driven-colony-model)). Every decision lists each goal
 and its contribution (`goal_contributions`). The player's risk profile and pace choose rows of two tables
 (`ForecastValuePolicy.RiskRows`, `PaceWellbeingWeight`), so the constants a decision used are the ones for that colony.
 A goal adds value above the floors and never relaxes one: a goal whose every evaluated route breaks the urgent-zero or
@@ -239,6 +240,19 @@ changes nothing, so it is worth nothing. Tier 1 reads the value per progress uni
 `-(work ticks × progress per tick × value per unit)` to the `Investment` term, which `coupled_selection.value.terms.investment` logs.
 In a real review the graph is the current research chain and each standing field's crop from sowing to harvest: the frame carries
 no crop-to-research gate and no recipes the colony would craft, so the devilstrand payoff chain is priced in tests, not yet in play.
+
+*Goal terminals (#3505).* `GoalPaths.Of` turns an unmet goal into a terminal of that graph: a research goal is the project's research
+chain, a `WornCount` goal the sow, grow, harvest and craft chain of its stuff (the crop's research gates, the garment's recipe, one
+craft per garment still missing). `ProjectMarginalValue` finds each goal's completion day (the last event of its terminal nodes) in
+the base run and prices it with `ColonyValue.GoalValue`: the goal's worth on that day (importance, deadline decay continuous in the
+day) for the share of the horizon it then stands, `worth × (horizon − day) / horizon`, as the apparel is worth the days it is worn.
+An injected hour moves the completion earlier, and the difference is the hour's value for that goal, divided into a value per
+progress unit. The value rises as a deadline passes before the completion day, since each day earlier also saves decay. A goal
+whose terminal completes in no run (no recipe, no crop, no field, no recipe-research gate, a missing speed) is *unmodelled*: it keeps
+the flat per-unit share of [Goal value](#goal-value) and has no ETA, and so has every goal kind but research and `WornCount`. The
+estimated day is derived on each review from the base run (`GoalEta`, never stored), is the goal status's `EtaDay`, is shown on the
+panel's Pursuing row, and is the `eta_day` of the `goal_review` row; the `goals` list of the `colony_model` event gives each goal's day
+or the reason it is unmodelled.
 
 **Devilstrand worked through.**
 

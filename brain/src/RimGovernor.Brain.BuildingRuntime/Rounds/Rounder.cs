@@ -55,6 +55,9 @@ public sealed partial class Rounder
     /// <summary>The safety floor every route to a goal broke in the latest coupled comparison, by goal need id (#3503; derived state, none until the first comparison after a restart); the goals read reports those goals infeasible.</summary>
     internal ReviewMemory<IReadOnlyDictionary<string, string>> GoalInfeasible = new(new Dictionary<string, string>());
 
+    /// <summary>The game day the tier-2 model completes each unmet goal in the latest review, by goal need id (#3505; derived display state, never stored, none until the first review after a restart); the goals read puts it on the goal's status.</summary>
+    internal ReviewMemory<IReadOnlyDictionary<string, int>> GoalEta = new(new Dictionary<string, int>());
+
     /// <summary>The per-pawn outfit filter and insulation floor the latest review with a coupled selection chose (GearChoices; derived state, none until the first such review after a restart).</summary>
     internal ReviewMemory<EquatableArray<GearChoice>> GearChoices = new([]);
 
@@ -540,12 +543,14 @@ public sealed partial class Rounder
         // The workshop ladder's recorded research rung is the derived economy/research target; it is journal
         // evidence, not a native read, so a review costs no extra call for it.
         NoteEquipment(state.Snapshot, reading.Projection.Facts);
+        GoalsFacts? goalFacts = null;
         if (Goals)
         {
             // The player's goals become demand before any family reads: stock floors, a colonist head count and herd
             // targets ride the facts, the research they wait on joins what the census asks for (#3494).
             var goals = await p.Journal.LoadGoalsAsync(Player.PlayerWorld(state.Snapshot), ct).ConfigureAwait(false);
-            var goalDemand = GoalRules.DemandOf(GoalsFacts.From(reading.Projection.Facts, reading.Projection.TechTier, reading.Projection.WorkPawns, goals.Goals, goals.Themes, new Dictionary<NeedId, OwnerProgress>(), GoalsRounds.StuffResearch(reading.Projection.Definitions)) with { Rooms = reading.Projection.Rooms });
+            goalFacts = GoalsFacts.From(reading.Projection.Facts, reading.Projection.TechTier, reading.Projection.WorkPawns, goals.Goals, goals.Themes, new Dictionary<NeedId, OwnerProgress>(), GoalsRounds.StuffResearch(reading.Projection.Definitions)) with { Rooms = reading.Projection.Rooms };
+            var goalDemand = GoalRules.DemandOf(goalFacts);
             GoalDemands.Set(state.Snapshot, goalDemand);
             _goalResearch = goalDemand.Research;
             reading = reading.WithFacts(rf => GoalRules.Apply(rf, goalDemand));
@@ -666,10 +671,13 @@ public sealed partial class Rounder
         var reconsideration = ForecastIncumbentPreparation.PrepareCoupledIncumbents(reading.Projection.Facts, batches, workActions);
         reading = reading.WithFacts(_ => reconsideration.Facts);
         // Tier 2 (#3531): once per review, before the comparison, so the tasks of research and sowing carry their credit.
+        IReadOnlyDictionary<string, int> goalEtas = new Dictionary<string, int>();
         if (reading.Projection.Facts.CoupledAlternatives is { } coupled)
         {
-            var model = RoundsColonyModel.Review(reading.Projection, coupled.Context);
-            reading = reading.WithFacts(rf => rf with { CoupledAlternatives = coupled with { Context = coupled.Context with { Investment = model.Marginals.PerUnit } } });
+            var model = RoundsColonyModel.Review(reading.Projection, coupled.Context, goalFacts);
+            goalEtas = model.Etas;
+            // A goal tier 2 priced is paid at its marginal value, not the flat share (#3505).
+            reading = reading.WithFacts(rf => rf with { CoupledAlternatives = coupled with { Context = coupled.Context with { Investment = model.Marginals.PerUnit, GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } } });
             ClockEvents.Event("routine", ColonyModelTelemetry.Kind, "colony model ran", [.. model.Attrs()]);
         }
         // Acquisition uses the review's completed home staffing and defense facts.
@@ -681,6 +689,7 @@ public sealed partial class Rounder
         WorkAssignments.Set(result.Review.Snapshot, result.Needs.WorkAssignments);
         NoteGearChoices(GearChoices, result.Review.Snapshot, reading.Projection.Facts.CoupledAlternatives, result.Needs.CoupledSelection);
         RoomSelection.Set(result.Review.Snapshot, PlannedSelectionReviewed(RoomSelection.Get(result.Review.Snapshot), reading.Projection, result.Needs.CoupledSelection));
+        GoalEta.Set(result.Review.Snapshot, goalEtas);
         if (result.Needs.CoupledSelection is { } compared) GoalInfeasible.Set(result.Review.Snapshot, GoalRules.InfeasibleOf(compared));
         var taken = AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
         AdmitStandby(reading.Projection.Facts, workActions, taken, state.Snapshot, ct, epoch);

@@ -32,6 +32,9 @@ public static class ColonyModelTelemetry
     /// <summary>Capability-days an hour of each valued project's work adds (dV/dt), each as <c>node=value</c>, joined by <c>;</c>.</summary>
     public const string ProjectsKey = "dvdt";
 
+    /// <summary>Each unmet goal tier 2 was asked about (#3505): <c>need=day:&lt;game day&gt;</c> when it completes inside the horizon, <c>need=open</c> when it does not, <c>need=unmodelled:&lt;reason&gt;</c> when no path reaches it.</summary>
+    public const string GoalsKey = "goals";
+
     /// <summary>The run's findings and the input sections it could not start from.</summary>
     public const string FindingsKey = "findings";
 

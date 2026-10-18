@@ -58,6 +58,19 @@ public static partial class GoalRules
         return EquatableArray.From(values);
     }
 
+    /// <summary>
+    /// <paramref name="values"/> with tier 2's marginal value for each goal it priced (#3505): such a goal is paid per unit of progress by
+    /// what the progress advances its completion (<see cref="ForecastGoalValue.Units"/>) and not by its flat share; the rest are unchanged.
+    /// </summary>
+    public static EquatableArray<ForecastGoalValue> Priced(EquatableArray<ForecastGoalValue> values, IReadOnlyDictionary<string, GoalProjection> projections) =>
+        EquatableArray.From(values.Select(v => projections.TryGetValue(v.Goal, out var p) && p.Priced
+            ? v with { Priced = true, Units = EquatableArray.From(p.PerUnit.Select(u => new ForecastGoalUnit(u.Key, u.Value))) }
+            : v));
+
+    /// <summary>The colonists still to wear a <c>WornCount</c> goal's garment; null while the gear census is unread.</summary>
+    internal static int? WornMissing(GoalRecord goal, GoalsFacts f) =>
+        f.Rounds.Gear.TryGetValue(out var gear) ? goal.Count - WearingCount(gear, new WornGoal(new Resource(goal.Target), new Resource(goal.Qualifier), goal.Count)) : null;
+
     /// <summary>The floor each goal's routes all break, by goal need id, from a coupled selection's <c>goal_infeasible</c> findings (#3503).</summary>
     public static IReadOnlyDictionary<string, string> InfeasibleOf(ForecastCoupledSelection selection)
     {

@@ -49,6 +49,8 @@ no method and an actionable or held block, or the goal's facts are unread: `fact
 family's Method for an unmet goal is only `NeedMethod.Held`, with the subject `pursuing:<owner need>`,
 `blocked:<reason>`, `infeasible:<floor>` (below) or `no_method:<reason>`. The owner's state is read from its rounds progress row.
 
+An unmet goal also carries `EtaDay` (#3505), the day the tier-2 colony model completes it: derived each review into the Rounder's `GoalEta` memory, never stored, unknown for a goal tier 2 has no path for. The panel shows it on the Pursuing row.
+
 ## Room goals
 
 A `RoomRole` goal (#3496) adds demand to the planner that owns the room; it places and builds nothing itself.
@@ -99,7 +101,7 @@ The death floor is unassessed until the harm model (#3471), so it is never named
 ## Telemetry
 
 One `goal_review` decision per goal per review ([OTEL signals](otel-signals.md)): `target` the goal id, `verdict`
-the state, `reason` as above, attrs `kind`, `need`, `owner`, `deficit` and the goal's theme progress.
+the state, `reason` as above, attrs `kind`, `need`, `owner`, `deficit`, `eta_day` and the goal's theme progress.
 
 ## Worn-count goals (#3496)
 

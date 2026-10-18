@@ -91,7 +91,7 @@ public sealed record GoalsViewModel(GoalsRecord Record, IReadOnlyList<GoalGroupV
     internal static (string State, string Detail) Describe(GoalStatus s) => s.State switch
     {
         GoalState.Met => ("Met", ""),
-        GoalState.Pursuing => ("Pursuing", s.Owner.Value),
+        GoalState.Pursuing => ("Pursuing", s.EtaDay.TryGetValue(out var eta) ? $"{s.Owner.Value}, est. day {eta.ToString(CultureInfo.InvariantCulture)}" : s.Owner.Value),
         GoalState.Blocked => ("Blocked", s.Reason),
         GoalState.Infeasible => ("Infeasible", s.Reason),
         _ => ("No method", s.Reason),

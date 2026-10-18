@@ -4,8 +4,11 @@ using RimGovernor.Brain.Telemetry;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The tier-2 run of one review (#3531): the marginals, the input sections it could not start from and the wall time it took.</summary>
-internal sealed record ColonyModelReview(ProjectMarginals Marginals, IReadOnlyList<string> Unknowns, double HorizonDays, double ElapsedMs)
+/// <summary>
+/// The tier-2 run of one review (#3531): the marginals, the input sections it could not start from and the wall time it took. For the
+/// unmet goals asked about (#3505): <paramref name="Etas"/> the game day each completes where the run completes it, and <paramref name="GoalNotes"/> one line per goal.
+/// </summary>
+internal sealed record ColonyModelReview(ProjectMarginals Marginals, IReadOnlyList<string> Unknowns, double HorizonDays, double ElapsedMs, IReadOnlyDictionary<string, int> Etas, IReadOnlyList<string> GoalNotes)
 {
     /// <summary>The <see cref="ColonyModelTelemetry.Kind"/> row's attrs.</summary>
     internal IReadOnlyList<(string Key, object? Value)> Attrs()
@@ -19,6 +22,7 @@ internal sealed record ColonyModelReview(ProjectMarginals Marginals, IReadOnlyLi
             (ColonyModelTelemetry.CompletionsKey, trajectory.Events.Where(e => e.Kind is ModelEventKind.ProjectCompletion or ModelEventKind.Harvest)
                 .Select(e => string.Create(CultureInfo.InvariantCulture, $"{e.Day:0.##}:{e.Id}")).ToArray()),
             (ColonyModelTelemetry.ProjectsKey, string.Join(';', Marginals.PerHour.Select(p => string.Create(CultureInfo.InvariantCulture, $"{p.Key}={p.Value:0.#####}")))),
+            (ColonyModelTelemetry.GoalsKey, GoalNotes.ToArray()),
             (ColonyModelTelemetry.FindingsKey, Marginals.Findings.Concat(Unknowns.Select(u => "input:" + u)).ToArray()),
             (ColonyModelTelemetry.ElapsedKey, ElapsedMs),
         };
@@ -52,16 +56,39 @@ internal static class RoundsColonyModel
     /// Runs the model over the review's frame and prices it in the coupled context's currency. Once per review, no caching: the
     /// marginal value of each valued project goes to <see cref="ForecastCoupledContext.Investment"/> and the event to telemetry.
     /// </summary>
-    internal static ColonyModelReview Review(ColonyProjection colony, ForecastCoupledContext context)
+    internal static ColonyModelReview Review(ColonyProjection colony, ForecastCoupledContext context, GoalsFacts? goals)
     {
         var clock = System.Diagnostics.Stopwatch.StartNew();
         var (input, unknowns) = InputOf(colony);
-        var policy = new ColonyModelPolicy { Projects = ProjectGraph.Standing(input) };
+        // Each unmet goal with a path through the project graph is a terminal of it (#3505); the rest are named and keep the flat value.
+        var paths = (goals?.Goals ?? []).Where(g => GoalRules.Evaluate(g, goals!).State != GoalState.Met).OrderBy(g => g.Id)
+            .Select(g => (Goal: GoalRules.NeedOf(g).Value, Path: GoalPaths.Of(g, goals!, input))).ToList();
+        var policy = new ColonyModelPolicy { Projects = paths.Aggregate(ProjectGraph.Standing(input), (graph, p) => graph.Then(p.Path.Graph)) };
         var options = colony.Facts.Gear.TryGetValue(out var gear)
             ? gear.Pawns.Where(p => p.LoadoutModel.IsKnown).SelectMany(p => p.LoadoutModel.Value.Options).Where(o => o.Source == GearSource.Bill).DistinctBy(o => o.ID).ToArray()
             : [];
-        var marginals = ProjectMarginalValue.Of(input, policy, new ColonyValue(context, options, policy.HorizonDays));
-        return new(marginals, unknowns, policy.HorizonDays, clock.Elapsed.TotalMilliseconds);
+        var marginals = ProjectMarginalValue.Of(input, policy, new ColonyValue(context, options, policy.HorizonDays), [.. paths.Where(p => p.Path.Terminal is not null).Select(p => p.Path.Terminal!)]);
+        var etas = new Dictionary<string, int>(StringComparer.Ordinal);
+        var notes = new List<string>();
+        foreach (var (goal, path) in paths)
+        {
+            if (path.Terminal is null)
+            {
+                notes.Add($"{goal}=unmodelled:{path.Unmodelled}");
+            }
+            else if (marginals.Goals[goal].CompletionDay is { } day)
+            {
+                // The game day, counted the way the deadline is (days passed since the game began).
+                etas[goal] = (int)((context.Needs.Tick + (long)(day * GameTime.TicksPerDay)) / GameTime.TicksPerDay);
+                notes.Add($"{goal}=day:{etas[goal]}");
+            }
+            else
+            {
+                notes.Add($"{goal}=open");
+            }
+        }
+
+        return new(marginals, unknowns, policy.HorizonDays, clock.Elapsed.TotalMilliseconds, etas, notes);
     }
 
     /// <summary>The input and the sections it cannot start from, each named with its reason (<see cref="ColonyModelInput.Unknowns"/>).</summary>
