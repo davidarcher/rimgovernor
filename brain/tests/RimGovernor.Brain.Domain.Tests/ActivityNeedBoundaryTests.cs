@@ -57,6 +57,36 @@ public sealed class ActivityNeedBoundaryTests
         Assert.True(next.Orders.Single(o => o.Pawn == "helper").Release);
     }
 
+    private static PawnActivities Service(PawnActivityKind kind, long depart)
+    {
+        var service = new SelectedActivityTask("service", "pawn", [], new(kind, "target", "", "", kind == PawnActivityKind.Eat ? 1 : 0, 5000), new(3, 4), depart);
+        return new(1, [new("pawn", "method/pawn", "method", 0, 1, false,
+            [new(PawnActivityKind.Approach, "", "", "", 0, 5000) { Destination = service.Location, NotBefore = depart },
+             new(PawnActivityKind.Hold, "", "", "", 0, 5000)]) { Task = service.Id, Preparing = true }]) { Tasks = [service] };
+    }
+
+    [Theory]
+    [InlineData(PawnActivityKind.Eat)]
+    [InlineData(PawnActivityKind.Sleep)]
+    [InlineData(PawnActivityKind.Recreation)]
+    public void TiredParticipantWaitingToDepartForAServiceKeepsItsHold(PawnActivityKind kind)
+    {
+        // Releasing it would only have the next review reselect the same service, every review (#3167).
+        var batch = Service(kind, 1000);
+        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "holding", .08)));
+    }
+
+    [Fact]
+    public void TiredParticipantWhoseServiceIsDueStartsIt()
+    {
+        var batch = Service(PawnActivityKind.Eat, 100);
+        var task = batch.Tasks.Single();
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "holding", .08) with { Bindings = [new(task.Id, task.Step)] })!;
+        var order = Assert.Single(next.Orders);
+        Assert.False(order.Release);
+        Assert.Equal(PawnActivityKind.Eat, Assert.Single(order.Steps).Kind);
+    }
+
     [Fact]
     public void ARunningTaskIsNeverInterruptedByAUrgentNeed()
     {

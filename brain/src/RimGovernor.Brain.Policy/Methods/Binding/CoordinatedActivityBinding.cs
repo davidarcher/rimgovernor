@@ -148,8 +148,10 @@ internal static class CoordinatedActivityBinding
             }
             // A task in flight is never interrupted; at this boundary (a task just ended, or the pawn is waiting to depart) a participant already at or below a rest or food
             // threshold is not handed more work. Its order is released and the next review compares the need service
-            // against the remaining work. Tasks others wait on stay, so no participant is stranded.
-            if (NeedsService(read, order.Pawn)
+            // against the remaining work. Tasks others wait on stay, so no participant is stranded. A next task that is
+            // itself a service is what that review selected: releasing it would only reselect it, every review (#3167).
+            if (next.Step.Kind is not (PawnActivityKind.Eat or PawnActivityKind.Sleep or PawnActivityKind.Recreation)
+                && NeedsService(read, order.Pawn)
                 && !remaining.Any(t => t.Pawn != order.Pawn && t.Prerequisites.Any(p => remaining.Any(r => r.Pawn == order.Pawn && r.Id == p))))
             {
                 if (order.Revision == long.MaxValue) return new(null, false);
