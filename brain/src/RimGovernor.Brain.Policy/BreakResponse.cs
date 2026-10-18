@@ -28,8 +28,12 @@ public static class BreakResponseRules
     }
 
     /// <summary>
-    /// Chooses at most two healthy melee responders. Distance is primary; stable pawn identity breaks ties.
-    /// SUBDUE selects a legal blunt verb.
+    /// Chooses at most two healthy responders. Distance is primary; stable pawn identity breaks ties.
+    /// SUBDUE selects a legal blunt verb, fists included, as the game's own subdue does: a responder is either
+    /// armed with a melee weapon or known unarmed. A ranged-equipped responder is never one (shooting a colonist
+    /// is not a subdue). A squad of fists alone is refused against a breaker wielding a melee weapon, or whose
+    /// weapon is unknown: the breaker is found among the candidates, and a squad there leads with the nearest
+    /// melee-armed responder.
     /// </summary>
     public static List<PawnId> SelectBreakSquad(EmergencyPawn target, Fact<Cell> cell, IEnumerable<BreakResponder> candidates)
     {
@@ -38,15 +42,22 @@ public static class BreakResponseRules
             return [];
         }
 
+        static bool MeleeArmed(SquadDefenderFacts f) =>
+            f.Armed.TryGetValue(out var armed) && armed && f.MeleeEquipped.TryGetValue(out var melee) && melee;
+
         var pool = new List<BreakResponder>();
+        var breakerUnarmedOrRanged = false;
         foreach (var c in candidates)
         {
             var f = c.SquadDefenderFacts;
+            if (c.ID == target.Id)
+            {
+                breakerUnarmedOrRanged = f.MeleeEquipped.TryGetValue(out var breakerMelee) && !breakerMelee;
+                continue;
+            }
             var rk = f.RangedEquipped.TryGetValue(out var ranged);
-            var mk = f.MeleeEquipped.TryGetValue(out var melee);
-            var ak = f.Armed.TryGetValue(out var armed);
-            var ck = c.Cell.IsKnown;
-            if (c.ID != target.Id && SquadDefenseRules.SquadDefenderEligible(f) && mk && melee && rk && !ranged && ak && armed && ck)
+            var unarmed = f.Armed.TryGetValue(out var armed) && !armed;
+            if (SquadDefenseRules.SquadDefenderEligible(f) && rk && !ranged && (MeleeArmed(f) || unarmed) && c.Cell.IsKnown)
             {
                 pool.Add(c);
             }
@@ -60,8 +71,14 @@ public static class BreakResponseRules
             return (dx * dx) + (dz * dz);
         }
 
-        var sorted = pool.OrderBy(Distance).ThenBy(c => c.ID.Value, StringComparer.Ordinal);
-        return [.. sorted.Take(2).Select(c => c.ID)];
+        var sorted = pool.OrderBy(Distance).ThenBy(c => c.ID.Value, StringComparer.Ordinal).ToList();
+        var squad = sorted.Take(2).ToList();
+        if (breakerUnarmedOrRanged || squad.Exists(c => MeleeArmed(c.SquadDefenderFacts)))
+        {
+            return [.. squad.Select(c => c.ID)];
+        }
+        var lead = sorted.Find(c => MeleeArmed(c.SquadDefenderFacts));
+        return lead is null ? [] : [lead.ID, squad[0].ID];
     }
 
     public static bool InBreakRadius(Cell cell, Cell target)

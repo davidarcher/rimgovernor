@@ -324,16 +324,17 @@ it neither makes `military/combat` unmet nor selects a subdue response. Independ
 threats and urgent medical needs keep their emergency classification.
 
 Other standing aggressive colonists activate defense. The brain drafts one or two
-nearest healthy armed-melee colonists and applies an AttackMelee `GiveJobIntent`; the
+nearest healthy responders, each armed with a melee weapon or unarmed (fists, as
+the game's own subdue), and applies an AttackMelee `GiveJobIntent`; the
 undraft sweep releases them afterward. Other dispatch stays outside an eight-cell
 radius of the target; uncertain attempts remain reconcilable. Downing the target ends
 containment and lets the ordinary RESCUE planner carry the pawn to a colonist bed
 using native bed selection. There is no Capture or prisoner custody; Arrest remains a
-non-aggressive custody operation. `SelectBreakSquad` and `SelectRescue` replay
-over inputs recorded from a tribal8 run: of
-eight colonists, only the two wooden-club responders beside the berserk target are
-chosen to SUBDUE, and once it is down RESCUE pairs a rescuer with it. Native bed
-delivery itself is not re-proved there.
+non-aggressive custody operation.
+A ranged-equipped colonist never responds: shooting a colonist is not a subdue.
+Against a breaker wielding a melee weapon, or whose weapon is unknown, a fists-only
+squad is refused and the squad leads with the nearest melee-armed responder.
+`BreakResponseTests` pins the admitted responder set.
 
 Containment clearance applies to new dispatch's observed worker and explicit target
 positions (including the fixture's nearby damaged wall), not a predicted walking
