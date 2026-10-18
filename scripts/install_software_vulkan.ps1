@@ -46,14 +46,14 @@ if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notm
     throw "vulkan-1.dll is not validly signed by LunarG: $($signature.Status) $($signature.SignerCertificate.Subject)"
 }
 
-# The hosted image ships 7-Zip; take only the lavapipe driver (any folder in the archive, flattened).
+# The hosted image ships 7-Zip; take only the 64-bit lavapipe driver (the archive also holds an x86 one of the same name).
 $sevenZip = 'C:\Program Files\7-Zip\7z.exe'
 if (-not (Test-Path -LiteralPath $sevenZip)) { throw "7-Zip not found at $sevenZip" }
-& $sevenZip e -y "-o$Dir" $archive 'vulkan_lvp.dll' -r
+& $sevenZip x -y "-o$Dir" $archive 'x64\vulkan_lvp.dll'
 if ($LASTEXITCODE) { throw '7z extract failed' }
 Remove-Item -LiteralPath $archive
-$driver = Join-Path $Dir 'vulkan_lvp.dll'
-if (-not (Test-Path -LiteralPath $driver)) { throw 'vulkan_lvp.dll is not in the Mesa archive' }
+$driver = Join-Path $Dir 'x64\vulkan_lvp.dll'
+if (-not (Test-Path -LiteralPath $driver)) { throw 'x64\vulkan_lvp.dll is not in the Mesa archive' }
 
 # Our own manifest: the archive's names and relative paths vary by release.
 $manifest = Join-Path $Dir 'lvp_icd.json'
@@ -66,3 +66,8 @@ New-Item -Path $key -Force | Out-Null
 New-ItemProperty -Path $key -Name $manifest -PropertyType DWord -Value 0 -Force | Out-Null
 
 Write-Host "software Vulkan: loader $((Get-Item $loaderFile).VersionInfo.FileVersion), driver $driver"
+
+# Fail here, with the loader's own view, rather than in the game's five-minute connect timeout.
+$vulkaninfo = Join-Path $Dir 'rt\VulkanRT-1.3.296.0-Components\x64\vulkaninfo.exe'
+& $vulkaninfo --summary
+if ($LASTEXITCODE) { throw "vulkaninfo found no usable Vulkan device (exit $LASTEXITCODE)" }
