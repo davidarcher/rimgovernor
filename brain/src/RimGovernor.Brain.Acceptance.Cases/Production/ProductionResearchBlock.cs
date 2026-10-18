@@ -13,8 +13,9 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 internal static class ProductionResearchBlock
 {
-    // A Neolithic project with no prerequisite, half done: progress cannot finish it inside the budget.
-    private const string Project = "Stonecutting";
+    // A Neolithic project with no prerequisite that Crashlanded does not start finished (Stonecutting is ClassicStart),
+    // half done: progress cannot finish it inside the budget.
+    private const string Project = "Brewing";
     private const float Staged = 0.5f;
 
     internal static TypedCase Case() => new()

@@ -12,8 +12,9 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 internal static class GoalsResearch
 {
-    // A Neolithic project with no prerequisite: cheap, and left nearly done so the colonist's work finishes it inside the budget.
-    private const string Project = "Stonecutting";
+    // A Neolithic project with no prerequisite that Crashlanded does not start finished (Stonecutting is ClassicStart):
+    // cheap, and left nearly done so the colonist's work finishes it inside the budget.
+    private const string Project = "Brewing";
     private const float Staged = 0.9f;
 
     private const int GoalId = 1;
