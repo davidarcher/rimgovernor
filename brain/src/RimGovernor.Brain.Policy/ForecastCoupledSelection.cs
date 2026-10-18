@@ -18,6 +18,10 @@ public sealed partial record ForecastCoupledSelection(ForecastActivityOutcomeCom
     EquatableArray<ForecastPortfolioEvidence> Rejected, double Horizon, bool GenerationTruncated)
 {
     public int CompositionExpansions { get; init; }
+    /// <summary>The capability-days ledger of the baseline and of the selected outcome (#3520), with the constants it used. Reported, not ranked on.</summary>
+    public ForecastValueResult BaselineValue { get; init; } = new(default, []);
+    public ForecastValueResult SelectedValue { get; init; } = new(default, []);
+    public ForecastValuePolicy ValuePolicy { get; init; } = new();
     public EquatableArray<ForecastServiceInvestment> ServiceInvestments { get; init; }
     public EquatableArray<ForecastDeferredPawn> Deferred { get; init; }
 }
@@ -271,6 +275,10 @@ public sealed partial record ForecastCoupledSelection
         return new(new(selected, best.Plan, default, findings.ToArray(), expansions, truncated), baseline, best,
             baselineVector, bestVector, EquatableArray.From(evidence), request.HorizonDays * GameTime.TicksPerDay, candidates.Truncated)
         { CompositionExpansions = candidates.CompositionExpansions,
+            // Two evaluations of the ledger per review, outside the search: nothing ranks on it yet (#3520).
+            BaselineValue = ForecastValue.Of(baseline, candidates.Context, request.HorizonDays * GameTime.TicksPerDay, baseline),
+            SelectedValue = ForecastValue.Of(best, candidates.Context, request.HorizonDays * GameTime.TicksPerDay, baseline),
+            ValuePolicy = candidates.Context.Value,
             ServiceInvestments = ForecastServiceInvestments.ServiceInvestmentsOf(baseline, best, candidates.Context, request.HorizonDays * GameTime.TicksPerDay),
             Deferred = EquatableArray.From(deferred.Take(deferredCapacity)) };
     }

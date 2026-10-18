@@ -11,7 +11,14 @@ public sealed record ForecastNeedChoice(string Id, string Pawn, string Kind, str
 }
 public sealed record ForecastNeedMetric(string Kind, Fact<double> FinalLevel, Fact<double> DeficitTicks,
     Fact<double> ThresholdExposureTicks, Fact<double> WastedGain)
-{ public Fact<double> ZeroTicks { get; init; } public Fact<double> ThresholdDepthTicks { get; init; } }
+{
+    public Fact<double> ZeroTicks { get; init; }
+    public Fact<double> ThresholdDepthTicks { get; init; }
+    /// <summary>The spans, in ticks from the review, the need's level is zero (food: the game's Starving category, whose malnutrition
+    /// the capability-days ledger prices, #3520). Empty when the need never reaches zero.</summary>
+    public EquatableArray<ForecastNeedSpan> ZeroSpans { get; init; }
+}
+public readonly record struct ForecastNeedSpan(double Start, double End);
 public sealed record ForecastNeedsResult(EquatableArray<ForecastNeedMetric> Needs,
     Fact<double> ThoughtOffsetAtHorizon, Fact<double> MemoryAdjustedMoodTarget,
     ForecastCapacityResult Capacity, EquatableArray<string> Findings)
@@ -206,6 +213,7 @@ public static class ForecastNeeds
         var usefulFood = new Dictionary<string, double>(StringComparer.Ordinal);
 
         Span<double> split = stackalloc double[5];
+        List<ForecastNeedSpan>? zeroSpans = null;
         foreach (var need in pawn.Needs)
         {
             findings.UnionWith(need.Unsupported);
@@ -225,6 +233,7 @@ public static class ForecastNeeds
             if (!double.IsFinite(level) || level < 0 || level > 1 || !double.IsFinite(fall) || fall < 0
                 || !double.IsFinite(threshold) || threshold < 0 || threshold > 1) throw new DomainException("invalid need mechanics");
             double deficit = 0, exposure = 0, waste = 0, zero = 0, depth = 0;
+            zeroSpans = null;
             var events = new SortedSet<double> { 0, input.HorizonTicks };
             // Unrelated service boundaries cannot change this need trajectory. Splitting there
             // introduces rounding differences that can incorrectly dominate later consequences.
@@ -263,7 +272,14 @@ public static class ForecastNeeds
                     deficit += (1 - (lo + hi) / 2) * (b - a);
                     if ((lo + hi) / 2 < threshold) exposure += b - a;
                     depth += Math.Max(0, threshold - (lo + hi) / 2) * (b - a);
-                    if (lo == 0 && hi == 0) zero += b - a;
+                    if (lo == 0 && hi == 0)
+                    {
+                        zero += b - a;
+                        zeroSpans ??= [];
+                        // Contiguous zero pieces (split at an event or a cut) are one span.
+                        if (zeroSpans.Count > 0 && zeroSpans[^1].End == from + a) zeroSpans[^1] = zeroSpans[^1] with { End = from + b };
+                        else zeroSpans.Add(new(from + a, from + b));
+                    }
                     // Zero food/rest means physiological capacity is unassessed, never free productive labor.
                     if (need.Kind is "food" or "rest" && lo == 0 && hi == 0)
                         occupied.Add(new("need_zero/" + need.Kind + "/" + from + "/" + k, pawn.Pawn,
@@ -279,7 +295,7 @@ public static class ForecastNeeds
                 }
             }
             metrics.Add(new(need.Kind, Known(level), Known(deficit), Known(exposure), Known(waste))
-            { ZeroTicks = Known(zero), ThresholdDepthTicks = Known(depth) });
+            { ZeroTicks = Known(zero), ThresholdDepthTicks = Known(depth), ZeroSpans = zeroSpans is null ? default : EquatableArray.From(zeroSpans) });
         }
         Fact<double> thoughtDelta = default;
         if (pawn.Memories.TryGetValue(out var memories) && memories.All(m => m.Permanent || m.RemainingTicks.IsKnown) && memories.Select(m => m.Id).Distinct().Count() == memories.Count)

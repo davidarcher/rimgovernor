@@ -111,7 +111,11 @@ internal static class NativeNeedsForecast
                 OutdoorsDisabled = pawn.needs?.outdoors != null && pawn.needs.PrefersIndoors,
                 OwnedBed = pawn.ownership?.OwnedBed?.GetUniqueLoadID() ?? "",
                 Ascetic = pawn.story?.traits?.HasTrait(TraitDefOf.Ascetic) == true,
-                ThoughtStages = ThoughtStagesOf(pawn, map) });
+                ThoughtStages = ThoughtStagesOf(pawn, map),
+                Consciousness = Capacity(pawn, PawnCapacityDefOf.Consciousness), Moving = Capacity(pawn, PawnCapacityDefOf.Moving),
+                Manipulation = Capacity(pawn, PawnCapacityDefOf.Manipulation), Sight = Capacity(pawn, PawnCapacityDefOf.Sight),
+                Talking = Capacity(pawn, PawnCapacityDefOf.Talking),
+                MalnutritionSeverity = Severity(pawn, HediffDefOf.Malnutrition), FoodPoisoningSeverity = Severity(pawn, HediffDefOf.FoodPoisoning) });
         }
         var weather = map.weatherManager.CurWeatherLerped;
         return new() { Tick = Find.TickManager.TicksGame, Pawns = EquatableArray.From(rows),
@@ -289,5 +293,11 @@ internal static class NativeNeedsForecast
         PawnActivityKind.Recreation => (DefDatabase<JoyGiverDef>.GetNamed("Play_Horseshoes").jobDef.joyMaxParticipants, 0),
         _ => (1, -1),
     };
+    /// <summary>The capacity's level now (#3519); unknown without a health tracker.</summary>
+    private static Fact<double> Capacity(Pawn pawn, PawnCapacityDef capacity) =>
+        pawn.health?.capacities == null ? default : K(pawn.health.capacities.GetLevel(capacity));
+    /// <summary>The hediff's current severity, 0 when the pawn has none (#3519); unknown without a health tracker.</summary>
+    private static Fact<double> Severity(Pawn pawn, HediffDef hediff) =>
+        pawn.health?.hediffSet == null ? default : K(pawn.health.hediffSet.GetFirstHediffOfDef(hediff)?.Severity ?? 0);
     private static Fact<double> K(double value) => double.IsFinite(value) ? Fact.Known(value) : default;
 }

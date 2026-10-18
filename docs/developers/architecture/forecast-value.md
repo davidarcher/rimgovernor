@@ -2,8 +2,11 @@
 
 [Architecture](overview.md) · [Normal portfolio selection](portfolio-selection.md) · [ColonyForecast](colony-forecast.md) · [Combat predictability](combat-predictability-research.md)
 
-**Status: proposed, not implemented.** Nothing here describes current
-behavior. Current selection is described in
+**Status: proposed; the capability-days ledger is implemented, nothing ranks on it.**
+`ForecastValue.Of` (#3520) prices hunger, rest, food poisoning, mood breaks and
+wellbeing per outcome and `coupled_selection` reports it ([policy constants](../contracts/kept-constants.md#policy-constants-3469),
+[tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm and investment are 0 and unassessed.
+The rest of this page describes no current behavior. Current selection is described in
 [portfolio selection](portfolio-selection.md), which states that "no injury
 probability or universal conversion of death, mood and labor is invented".
 This design deliberately replaces that rule. It arose from

@@ -220,6 +220,42 @@ Every field is unknown, or null, when unread; nothing is capped.
 The brain mirrors the game literals these mechanics use; each constant cites its
 1.7 member ([kept constants](kept-constants.md#mirrored-game-literals-3339)).
 
+### Capacity penalty tables and per-pawn capacities
+
+The capability-days ledger ([forecast value](../architecture/forecast-value.md#capability-days),
+`ForecastValue.Of`) prices what malnutrition and food poisoning take from a pawn
+with the game's own tables (#3519, #3520). Hypothermia and heatstroke join with
+the thermal pricing.
+
+- `RoundsFacts.CapacityPenalties` (`CapacityPenaltyTables`): one
+  `HediffPenaltyTable` each for `Malnutrition` and `FoodPoisoning`, decoded by
+  `Catalog/CapacityPenalties.cs` from the `HediffDef` rows, and
+  `MovingMinForCapable` (the Moving `PawnCapacityDef`'s `minForCapable`). A table
+  has its stages ordered by `minSeverity`, each with the capacity modifiers
+  (`Offset`, `SetMax` or null, `PostFactor`) and `PainOffset`, plus
+  `LethalSeverity` (null when the def has none), `InitialSeverity`, and the def's
+  `SeverityPerDay` and `Disappears` comps (null without them). A hediff the
+  catalog lacks is an unknown table (`Known` false), never an empty one;
+  `Valid()` is true for a known, ordered, finite table. Modifiers on a capacity
+  outside the five a pawn-day is counted in (food poisoning's Eating) are left
+  out.
+- `RoundsFacts.MoodBreak` (`MoodBreakModel`): the catalog's break curve, whose
+  tier mixes give the mean days a break of each tier lasts.
+- `NeedsForecastPawn`: `Consciousness`, `Moving`, `Manipulation`, `Sight` and
+  `Talking` (`health.capacities.GetLevel`), and `MalnutritionSeverity` and
+  `FoodPoisoningSeverity` (0 when absent), each unknown without a health tracker.
+  Each capacity ratio of the ledger is the level a stage leaves against the
+  observed one.
+- The ledger reads them through `ForecastCoupledContext` (`CapacityPenalties`,
+  `MoodBreaks`, `Value`); `ForecastNeedMetric.ZeroSpans` gives the spans a need
+  is zero (food: starving) and `ForecastMoodResult.BreakTierTicks` the ticks in
+  each break tier. `coupled_selection` reports the ledger of the baseline and the
+  selection (`value`); nothing ranks on it yet.
+
+The severity rates that are method-body literals, and which need categories carry
+an effect, are mirrored in
+[kept constants](kept-constants.md#mirrored-game-literals-capacity-penalties-3519).
+
 ## Coherent coupled observation frame
 
 The routine forecast read includes `CoupledForecastRead` alongside needs in one

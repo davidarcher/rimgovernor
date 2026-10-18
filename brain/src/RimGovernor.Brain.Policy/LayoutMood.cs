@@ -162,6 +162,37 @@ public sealed record MoodBreakModel
         return breaks;
     }
 
+    /// <summary>
+    /// The work-days the breaks of the ticks spent in each tier are expected to take: each tier's expected breaks times
+    /// the mean days of its break mix (<see cref="Tiers"/>). Null when a tier with ticks has no priced break or the model has no tiers.
+    /// </summary>
+    internal double? DaysLost(IReadOnlyList<double> byTier)
+    {
+        if (Tiers.Count != LayoutMoodRules.MoodTierCount || byTier.Count != LayoutMoodRules.MoodTierCount)
+        {
+            return null;
+        }
+
+        double days = 0;
+        for (var tier = MoodTier.Minor; tier <= MoodTier.Extreme; tier++)
+        {
+            if (byTier[(int)tier] <= 0)
+            {
+                continue;
+            }
+
+            var mix = Tiers[(int)tier];
+            if (!QuestCapacityForecast.FinitePositive(mix.Weight) || !QuestCapacityForecast.FinitePositive(mix.Days))
+            {
+                return null;
+            }
+
+            days += byTier[(int)tier] / GameTime.TicksPerDay * BreaksPerDay(tier) * mix.Days;
+        }
+
+        return days;
+    }
+
     private static double BreaksPerDay(MoodTier tier) =>
         1 / (LayoutMoodRules.MoodJudgment.MTBDays[(int)tier] + LayoutMoodRules.MoodJudgment.CooldownDays);
 }

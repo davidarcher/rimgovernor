@@ -116,6 +116,12 @@ public sealed record RoundsFacts
     /// <summary>The recipe rows' derived facts: the stuff-made part installs peg-leg cycling plans around.</summary>
     public RecipeFacts Recipes { get; init; } = new();
 
+    /// <summary>The game's capacity penalty tables of malnutrition and food poisoning (#3519), priced by the capability-days ledger (#3520); unknown without a catalog.</summary>
+    public CapacityPenaltyTables CapacityPenalties { get; init; } = new();
+
+    /// <summary>The catalog's mood-break curve: the mean days each tier's break takes its colonist out of work, which prices break risk in capability-days (#3520); unknown (empty tiers) without a catalog.</summary>
+    public MoodBreakModel MoodBreak { get; init; } = new();
+
     /// <summary>The hospital's animal ward; unread (the zero value) until the layout exposes it, which keeps sterilize off.</summary>
     public AnimalWard AnimalWard { get; init; } = new();
 

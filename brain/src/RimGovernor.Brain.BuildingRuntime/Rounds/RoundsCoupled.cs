@@ -120,6 +120,7 @@ public sealed partial class Rounder
                 ["selected_ids"] = selection.Selection.Selected,
                 ["deferred_pawns"] = selection.Deferred.Select(t => t.Pawn).ToArray(),
                 ["baseline"] = ConsequenceAttrs(selection.BaselineVector), ["selected"] = ConsequenceAttrs(selection.SelectedVector),
+                ["value"] = ValueAttrs(selection),
                 ["rejected"] = selection.Rejected.Take(16).Select(r => new Dictionary<string, object?>
                 { ["ids"] = r.Commitments.ToArray(), ["reason"] = r.Reason, ["vector"] = r.Consequences is { } v ? ConsequenceAttrs(v) : null }).ToArray(),
                 ["explanation_truncated"] = selection.Rejected.Count > 16,
@@ -162,6 +163,26 @@ public sealed partial class Rounder
         });
 
     private static double? Number(Fact<double> value) => value.IsKnown ? value.Value : null;
+
+    /// <summary>The capability-days ledger of the baseline and the selection with the policy constants (#3520); reported, not ranked on.</summary>
+    private static Dictionary<string, object?> ValueAttrs(ForecastCoupledSelection selection) => new()
+    {
+        ["baseline"] = LedgerAttrs(selection.BaselineValue), ["selected"] = LedgerAttrs(selection.SelectedValue),
+        ["policy"] = new Dictionary<string, object?>
+        {
+            ["death_terminal_value"] = selection.ValuePolicy.DeathTerminalValue, ["wellbeing_weight"] = selection.ValuePolicy.WellbeingWeight,
+            ["harm_risk_alpha"] = selection.ValuePolicy.HarmRiskAlpha, ["harm_risk_weight"] = selection.ValuePolicy.HarmRiskWeight,
+            ["death_risk_floor"] = selection.ValuePolicy.DeathRiskFloor, ["break_risk_cap"] = selection.ValuePolicy.BreakRiskCap,
+            ["tie_resolution"] = selection.ValuePolicy.TieResolution
+        }
+    };
+
+    private static Dictionary<string, object?> LedgerAttrs(ForecastValueResult value) => new()
+    {
+        ["total"] = Number(value.Total), ["hunger"] = Number(value.Hunger), ["rest"] = Number(value.Rest),
+        ["food_poisoning"] = Number(value.FoodPoisoning), ["mood_breaks"] = Number(value.MoodBreaks), ["wellbeing"] = Number(value.Wellbeing),
+        ["harm"] = Number(value.Harm), ["investment"] = Number(value.Investment), ["unknown"] = value.Findings.ToArray()
+    };
 
     private static Dictionary<string, object?> ConsequenceAttrs(ForecastConsequenceVector vector) => new()
     {

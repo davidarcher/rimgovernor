@@ -69,6 +69,12 @@ public sealed record ForecastCoupledContext
     public IReadOnlyDictionary<string, Fact<EquatableArray<MoodThought>>> ObservedThoughts { get; init; } = new Dictionary<string, Fact<EquatableArray<MoodThought>>>();
     /// <summary>The mechanic cards; null is the shipped catalog. Only Live cards price.</summary>
     public IReadOnlyDictionary<string, MechanicCard>? Cards { get; init; }
+    /// <summary>The capability-days currency's constants (#3520); tests inject them, production uses the defaults.</summary>
+    public ForecastValuePolicy Value { get; init; } = new();
+    /// <summary>The game's malnutrition and food-poisoning tables the ledger prices capacity loss with (#3519); unknown by default.</summary>
+    public CapacityPenaltyTables CapacityPenalties { get; init; } = new();
+    /// <summary>The catalog's break curve whose tier mixes price a break in days lost (#3520); unknown by default.</summary>
+    public MoodBreakModel MoodBreaks { get; init; } = new();
     /// <summary>Diagnostic only: keep each needs result's per-point mood. The search never reads it (#3467).</summary>
     public bool MoodTrajectory { get; init; }
 }

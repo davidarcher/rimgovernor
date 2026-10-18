@@ -283,6 +283,8 @@ public sealed partial record ForecastCoupledCandidates
             Closures = closures,
             InitialLots = EquatableArray.From(lots),
             Bindings = bindings,
+            CapacityPenalties = facts.CapacityPenalties,
+            MoodBreaks = facts.MoodBreak,
             NeedTasks = EquatableArray.From(needTasks),
             Findings = EquatableArray.From(findings),
             // Temperature mood (#3327): the gear census's card facts and the mood census's observed thoughts.

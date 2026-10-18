@@ -150,6 +150,8 @@ public static class RoundsReads
                 {
                     MedicalReserve = p.Facts.MedicalReserve with { Catalog = p.Facts.Items },
                     Recipes = catalog.RecipeFacts(),
+                    CapacityPenalties = catalog.CapacityPenalties(),
+                    MoodBreak = p.Stations.Mood.Break,
                 },
             };
         }

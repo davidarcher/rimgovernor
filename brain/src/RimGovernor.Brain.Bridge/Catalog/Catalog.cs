@@ -53,6 +53,7 @@ public sealed partial class DefinitionCatalog
     private readonly System.Collections.Concurrent.ConcurrentDictionary<Type, object> _rowViews = new();
     private readonly IReadOnlyDictionary<string, RaceGameFacts> _raceFacts;
     private readonly Lazy<P.ItemFacts> _items;
+    private readonly Lazy<P.CapacityPenaltyTables> _capacityPenalties;
     private readonly Lazy<IReadOnlyDictionary<string, P.PowerSourceProfile>> _powerSources;
     private readonly Lazy<IReadOnlyDictionary<string, P.FloorTerrain>> _floorTerrains;
     private readonly Lazy<P.PieceShapes> _shapes;
@@ -92,6 +93,7 @@ public sealed partial class DefinitionCatalog
         }
 
         _items = new(BuildItemFacts);
+        _capacityPenalties = new(BuildCapacityPenalties);
         _powerSources = new(BuildPowerSources);
         _floorTerrains = new(BuildFloorTerrains);
         _shapes = new(BuildPieceShapes);

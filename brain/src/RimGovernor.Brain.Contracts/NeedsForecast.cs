@@ -117,6 +117,15 @@ public sealed record NeedsForecastPawn
     public bool Ascetic { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedThoughtStage>))]
     public EquatableArray<NeedThoughtStage> ThoughtStages { get; init; }
+    /// <summary>pawn.health.capacities.GetLevel of the five capacities a pawn-day is counted in (#3519); unknown when the pawn has no health tracker.</summary>
+    public Fact<double> Consciousness { get; init; }
+    public Fact<double> Moving { get; init; }
+    public Fact<double> Manipulation { get; init; }
+    public Fact<double> Sight { get; init; }
+    public Fact<double> Talking { get; init; }
+    /// <summary>The current severity of each hediff the capacity penalty tables decode; 0 when the pawn does not have it (#3519).</summary>
+    public Fact<double> MalnutritionSeverity { get; init; }
+    public Fact<double> FoodPoisoningSeverity { get; init; }
 }
 /// <summary>Native legality and mechanics, not a selected need action. Travel is an observed route cost.</summary>
 public sealed record NeedTarget(string Id, string Kind, string Resource, int AvailableCount,

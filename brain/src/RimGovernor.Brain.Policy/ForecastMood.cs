@@ -10,6 +10,8 @@ public sealed record ForecastMoodResult(EquatableArray<ForecastMoodPoint> Trajec
     public Fact<double> PressureTicks { get; init; }
     /// <summary>Expected mental breaks over the horizon from the target trajectory (MoodBreakModel.BreaksPerDay); unknown without an observed threshold.</summary>
     public Fact<double> BreakRisk { get; init; }
+    /// <summary>The ticks the target mood spends in each break tier, mildest first, that <see cref="BreakRisk"/> sums; empty when BreakRisk is unknown. The capability-days ledger prices each tier's breaks by the mean days they last (#3520).</summary>
+    public EquatableArray<double> BreakTierTicks { get; init; }
 }
 
 /// <summary>
@@ -229,7 +231,11 @@ public static class ForecastMood
         return new(EquatableArray.From(points), thresholdKnown ? Known(targetExposure) : default,
             thresholdKnown ? Known(targetDepth) : default, actualKnown && thresholdKnown ? Known(actualExposure) : default,
             actualKnown && thresholdKnown ? Known(actualDepth) : default, actualKnown ? Known(actual) : default, EquatableArray.From(unknown))
-        { PressureTicks = Known(pressure), BreakRisk = breakKnown ? Known(MoodBreakModel.Breaks(tierTicks)) : default };
+        {
+            PressureTicks = Known(pressure),
+            BreakRisk = breakKnown ? Known(MoodBreakModel.Breaks(tierTicks)) : default,
+            BreakTierTicks = breakKnown ? EquatableArray.From(tierTicks.ToArray()) : default,
+        };
     }
 
     /// <summary>Whether a card prices temperature mood (#3327): Live, and every site's stage input reads the ambient temperature.</summary>
