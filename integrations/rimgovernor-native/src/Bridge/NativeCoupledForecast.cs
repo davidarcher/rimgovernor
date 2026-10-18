@@ -23,9 +23,16 @@ internal static class NativeCoupledForecast
     {
         var legs = new NativePathLegs(map);
         var lap = System.Diagnostics.Stopwatch.GetTimestamp();
-        // Each sub-read as its own cf.fc.* span, with the path searches it added as rows; together they are the coupled forecast.
-        var searched = 0;
-        void Lap(string name) { var now = System.Diagnostics.Stopwatch.GetTimestamp(); ObservationWork.Detail("cf.fc." + name, now - lap, legs.Searches - searched); lap = now; searched = legs.Searches; }
+        // Each sub-read as its own cf.fc.* span, with the path searches it added as rows and their time as its .paths
+        // span when it searched; together they are the coupled forecast.
+        var searched = 0; long searchedTicks = 0;
+        void Lap(string name)
+        {
+            var now = System.Diagnostics.Stopwatch.GetTimestamp();
+            ObservationWork.Detail("cf.fc." + name, now - lap, legs.Searches - searched);
+            if (legs.SearchTicks > searchedTicks) ObservationWork.Detail("cf.fc." + name + ".paths", legs.SearchTicks - searchedTicks, legs.Searches - searched);
+            lap = now; searched = legs.Searches; searchedTicks = legs.SearchTicks;
+        }
         var plants = map.listerThings.AllThings.OfType<Plant>().Where(p => p.HarvestableNow
             && p.def.plant.harvestedThingDef?.IsNutritionGivingIngestible == true)
             .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
@@ -58,50 +65,70 @@ internal static class NativeCoupledForecast
             support.Workers.Select(w => w.Location).Concat(support.Deliveries.SelectMany(d => new[] { d.Source, d.Destination }))
         };
         var locations = families.SelectMany(f => f).Distinct().OrderBy(c => c.X).ThenBy(c => c.Z).ToArray(); Lap("locations");
-        var routes = new List<Obs.CoupledRoute>();
         var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
-        var observed = new HashSet<(string Pawn, Cell From, Cell To, bool Initial)>();
-        // Service dependencies: each demand's filth cells to and from the demand, and between each other.
-        foreach (var demand in support.Demands)
-        {
-            var cells = support.Filth.Where(f => f.Demand == demand.Id).Select(f => f.Location).Distinct().OrderBy(c => c.X).ThenBy(c => c.Z).ToArray();
-            foreach (var cell in cells)
-            foreach (var pawn in pawns)
-            {
-                Probe(pawn, cell, demand.Location, false);
-                Probe(pawn, demand.Location, cell, false);
-            }
-            foreach (var from in cells)
-            foreach (var to in cells.Where(c => c != from))
-            foreach (var pawn in pawns)
-                Probe(pawn, from, to, false);
-        }
-        foreach (var to in locations)
-        foreach (var pawn in pawns)
-            Probe(pawn, new(pawn.Position.x, pawn.Position.z), to, true);
-        // Each available hunter to every prey, then from the prey back: with its corpse to the corpse store (a gunner's or
-        // a hauler's haul trip) and empty to where the pawn stands (a gunner's return when a retriever takes the corpse).
-        // A hunt roster is priced by these walks (#3513).
+        // Each pawn's id, cell and move ticks once: a route between two cells is one leg, found once and priced per
+        // pawn (NativePathLegs.Found), not a lookup per pawn (#3556). The routes are built batched: the first run notes
+        // the legs the store lacks, one batched search finds them, the second run prices them.
+        var ids = pawns.Select(p => p.GetUniqueLoadID()).ToArray();
+        var starts = pawns.Select(p => new Cell(p.Position.x, p.Position.z)).ToArray();
+        var moves = pawns.Select(NativePathLegs.MoveTicks).ToArray();
         var huntIds = hunt.Hunters.Where(h => h.Available).Select(h => h.Pawn).ToHashSet(StringComparer.Ordinal);
-        foreach (var prey in hunt.Prey)
-        foreach (var pawn in pawns.Where(p => huntIds.Contains(p.GetUniqueLoadID())))
+        var hunters = Enumerable.Range(0, pawns.Length).Where(i => huntIds.Contains(ids[i])).ToArray();
+        var routes = legs.Batched(() =>
         {
-            var start = new Cell(pawn.Position.x, pawn.Position.z);
-            Probe(pawn, start, prey.Location, true);
-            if (prey.CorpseStore is { } store) Probe(pawn, prey.Location, store, false);
-            Probe(pawn, prey.Location, start, false);
-        }
-        foreach (var from in locations)
-        foreach (var to in locations.Where(c => c != from))
-        foreach (var pawn in pawns)
-            Probe(pawn, from, to, false);
+            var rows = new List<Obs.CoupledRoute>();
+            var observed = new HashSet<(int Pawn, Cell From, Cell To, bool Initial)>();
+            NativePathLegs.Found? Leg(int i, Cell from, Cell to) => legs.Find(pawns[i], new(from.X, 0, from.Z), new IntVec3(to.X, 0, to.Z), PathEndMode.OnCell);
+            void Row(int i, Cell from, Cell to, bool initial, NativePathLegs.Found? leg) =>
+                rows.Add(new(ids[i], from, to, leg is { } found ? Fact.Known((double)found.For(moves[i])) : default) { FromStart = initial });
+            // One pawn over the leg between two cells.
+            void One(int i, Cell from, Cell to) { if (observed.Add((i, from, to, false))) Row(i, from, to, false, Leg(i, from, to)); }
+            // One pawn over the leg from where it stands.
+            void FromStart(int i, Cell to) { if (observed.Add((i, starts[i], to, true))) Row(i, starts[i], to, true, Leg(i, starts[i], to)); }
+            // Every pawn over the leg between two cells: found once, priced per pawn.
+            void Everyone(Cell from, Cell to)
+            {
+                var found = false; NativePathLegs.Found? leg = null;
+                for (var i = 0; i < pawns.Length; i++)
+                {
+                    if (!observed.Add((i, from, to, false))) continue;
+                    if (!found) { leg = Leg(i, from, to); found = true; }
+                    Row(i, from, to, false, leg);
+                }
+            }
+            // Service dependencies: each demand's filth cells to and from the demand, and between each other.
+            foreach (var demand in support.Demands)
+            {
+                var cells = support.Filth.Where(f => f.Demand == demand.Id).Select(f => f.Location).Distinct().OrderBy(c => c.X).ThenBy(c => c.Z).ToArray();
+                foreach (var cell in cells)
+                for (var i = 0; i < pawns.Length; i++)
+                {
+                    One(i, cell, demand.Location);
+                    One(i, demand.Location, cell);
+                }
+                foreach (var from in cells)
+                foreach (var to in cells.Where(c => c != from))
+                    Everyone(from, to);
+            }
+            foreach (var to in locations)
+            for (var i = 0; i < pawns.Length; i++)
+                FromStart(i, to);
+            // Each available hunter to every prey, then from the prey back: with its corpse to the corpse store (a gunner's or
+            // a hauler's haul trip) and empty to where the pawn stands (a gunner's return when a retriever takes the corpse).
+            // A hunt roster is priced by these walks (#3513).
+            foreach (var prey in hunt.Prey)
+            foreach (var i in hunters)
+            {
+                FromStart(i, prey.Location);
+                if (prey.CorpseStore is { } store) One(i, prey.Location, store);
+                One(i, prey.Location, starts[i]);
+            }
+            foreach (var from in locations)
+            foreach (var to in locations)
+                if (to != from) Everyone(from, to);
+            return rows;
+        });
         Lap("routes");
-        void Probe(Pawn pawn, Cell from, Cell to, bool initial)
-        {
-            if (!observed.Add((pawn.GetUniqueLoadID(), from, to, initial))) return;
-            var ticks = legs.Cost(pawn, new(from.X, 0, from.Z), new IntVec3(to.X, 0, to.Z), PathEndMode.OnCell);
-            routes.Add(new(pawn.GetUniqueLoadID(), from, to, ticks is { } t ? Fact.Known((double)t) : default) { FromStart = initial });
-        }
         return new() { Tick = context.Tick, Practice = practice, Research = research, Hunt = hunt, Sowing = sowing, Support = support, Thermal = thermal, Food = food, Construction = construction, Clothing = clothing,
             FoodSources = EquatableArray.From(future.Sources), FoodConversions = EquatableArray.From(future.Conversions), FoodUses = EquatableArray.From(future.Uses),
             Routes = EquatableArray.From(routes) };

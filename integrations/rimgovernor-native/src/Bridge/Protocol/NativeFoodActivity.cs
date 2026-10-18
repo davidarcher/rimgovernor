@@ -31,6 +31,13 @@ internal static class NativeFoodActivity
     {
         if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out _, out _)) return new();
         legs ??= new(map);
+        // Every pawn's approach legs start at its own cell, so a read searches them anew once the pawn has moved: the
+        // read runs batched (NativePathLegs.Batched), its legs searched together on the path job workers (#3556).
+        return legs.Batched(() => ReadOnce(request, map, legs));
+    }
+
+    private static Obs.FoodActivityRead ReadOnce(Request request, Map map, NativePathLegs legs)
+    {
         var result = new Obs.FoodActivityRead();
         var options = new List<Obs.FoodActivityOption>();
         var storage = new Dictionary<Thing, List<List<IntVec3>>>(); // Per source: its accepting groups' cells, flood-nearest first.

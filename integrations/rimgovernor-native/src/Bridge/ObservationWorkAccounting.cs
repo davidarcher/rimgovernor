@@ -64,9 +64,14 @@ namespace HomeBridge.BridgeTools
             => Record(section, stopwatchTicks, rows, false);
 
         /// A span inside a section already Captured, listed beside the
-        /// families so a slow capture line breaks the family down.
+        /// families so a slow capture line breaks the family down. Inside a
+        /// facade hop (the colony facts read on the game thread) the span is
+        /// also the hop's part on the brain's hop_run (ProtoBoundary.HopPart).
         internal static void Detail(string section, long stopwatchTicks, long rows = 0)
-            => Record(section, stopwatchTicks, rows, true);
+        {
+            ProtoBoundary.HopPart(section, Math.Max(0, stopwatchTicks));
+            Record(section, stopwatchTicks, rows, true);
+        }
 
         /// The named section threw and is missing from the frame. Logs an
         /// error row with the exception's stack, keyed per section so a

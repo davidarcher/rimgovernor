@@ -219,8 +219,9 @@ colony (one colony-review day; brain sessions `4d1d320821a7440cb5cb864ebcdd5746`
 `2265830e199e476db78b7fb325b1a18c` after the derive cuts, 12 and 15 rounds reviews). The rounds row now laps the derive
 chain (`d_owed`, `d_reads`, `d_stock`, `d_planned`, `d_file`, `d_work`, `d_clear`, then `derive` for the ledger and the
 colony model), the `layout_replan_tiled` row names the inputs that drifted since the last replan (`inputs_changed`) and
-the `clock_step` row carries `hop_run`, the game-thread run time per hop operation and, for the construction read, per
-part of it (`facade/construction_activity/<part>`, not summed into `hop_run_ms`).
+the `clock_step` row carries `hop_run`, the game-thread run time per hop operation and, for the construction and the colony-facts
+reads, per part of it (`facade/construction_activity/<part>`, `facade/observations_read_colony_facts/cf.<section>`, not
+summed into `hop_run_ms`).
 
 | Rounds stage | Before p50 | After p50 | What changed |
 | --- | --- | --- | --- |
@@ -462,6 +463,38 @@ one passing colony-review day of the same colony):
   the bills and one for the recipes when the bench table is stale. The trade export's gap-open reviews are two frame
   waves (trader kinds, then supply and sources) and the ingredient list depends on the first, so nothing further
   overlaps there.
+
+The colony-facts read cut (#3556; one colony-review day each of the same colony, every day passing: sessions
+`1d21f33a62744b889b1b2f6ef8c8bcff` before, 39 reads; `79279ffd70fa4ba9be53c5a89ed1df1f` after the routes cut, 33;
+`1085b0366f4d4c03929e75d78b2171f3` after the food cut, 29):
+
+- **Where the hop went.** The read's sections ride on `hop_run` as `facade/observations_read_colony_facts/cf.<section>`
+  (every `ObservationWork.Detail` span inside a hop is a part of that hop; the coupled forecast's sub-reads are
+  `cf.fc.<name>`, with `cf.fc.<name>.paths` when the sub-read searched paths). Before: 763 ms p50 (p95 1270, max 1458)
+  and 74 MB per read, the coupled forecast three quarters of it: `cf.fc.routes` 343 ms (every free colonist's route
+  between every pair of the forecast's locations, one store lookup or synchronous search per colonist per pair),
+  `cf.fc.food` 116 (synchronous colonist-to-plant and plant-to-store legs), `cf.fc.needs` 50, `cf.fc.hunt` 32,
+  `cf.eventLoot` 28, `cf.acquisition` 25, `cf.deep` 17, `cf.upkeep` 16, `cf.fc.construction` 9; the other twenty
+  sections under 8 ms each.
+- **What changed.** A route between two cells is one leg: found once (`NativePathLegs.Find`) and priced per colonist
+  from its cardinal and diagonal steps at that colonist's move ticks (`Found.For`, the per-step term `PathFinder` adds),
+  not a lookup per colonist; and the routes are built batched (a collecting run, one batched search, a pricing run).
+  The food read runs batched too (`NativePathLegs.Batched` is re-entrant: a batched read inside a collecting run
+  collects for the outer one). The rows are unchanged: the same routes in the same order with the same dedup and
+  costs. The needs forecast was batched and reverted: its cost is the per-target checks, not the paths (83 ms batched
+  against 36 to 50 unbatched).
+- **After.** Hop 314 ms p50 (p95 436, max 520) and 76 MB per read: `cf.fc.routes` 69 ms (its `.paths` 68: the loop
+  itself is under 2 ms, the rest is the batched search of the legs from where the colonists stand, searched anew once
+  a colonist moves while the pair legs are kept), `cf.fc.food` 31 (paths 24), `cf.fc.needs` 36, `cf.fc.hunt` 27,
+  `cf.eventLoot` 22, `cf.deep` 14, `cf.upkeep` 14, `cf.acquisition` 14, `cf.fc.construction` 7. `hop_run_ms` 434 p50
+  (722 before), `clock_step` 2736 (3242); the read cost 8.1 s of game thread over the day's 29 reads.
+- **What is left.** The routes' from-start searches, the hunt, event-loot, deep and upkeep sections at 14 to 27 ms
+  each (per-item hauling-safety routes, per-plant eligibility, the deep-resource flood fill over every cell), and
+  the 76 MB of reply. The first day after the food cut (session `c73064fb06e74c0c9bdd2c7ac6008a6a`) ended at tick
+  58,582 with the game thread never returning from the routes block (the watchdog's breadcrumb stayed at `snapshot
+  capture after cf.fc.locations` for 275 s; a test-acceleration launch writes no stall dump); the rerun passed with no
+  stall, and the leg searches now mark the breadcrumb per batched round, per direct search and per synchronous search,
+  so a repeat names its phase.
 
 ## Hosting in the mod (#3115)
 

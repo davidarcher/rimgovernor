@@ -55,10 +55,29 @@ internal sealed class NativePathLegs
     private sealed record Leg(float Cost, int Cardinal, int Diagonal, int CardinalTicks, int DiagonalTicks, int[] Cells);
 
     /// <summary>
+    /// A found leg: its cost and steps at the move ticks it was searched with, priced for any pawn's move ticks by
+    /// <see cref="For"/>. A read that prices one leg for every colonist finds it once (<see cref="Find"/>) and prices
+    /// it per pawn (#3556).
+    /// </summary>
+    internal readonly record struct Found(float Cost, int Cardinal, int Diagonal, int CardinalTicks, int DiagonalTicks)
+    {
+        /// <summary>The ticks over the leg at the move ticks given (<see cref="MoveTicks"/>).</summary>
+        internal float For((int Cardinal, int Diagonal) moveTicks) =>
+            Cost + Cardinal * (moveTicks.Cardinal - CardinalTicks) + Diagonal * (moveTicks.Diagonal - DiagonalTicks);
+    }
+
+    /// <summary>
     /// The pawn's ticks over the leg, or null when no path exists. While a <see cref="Batched{T}"/> read collects, a
     /// leg not yet searched is noted and answered as 0 without a search.
     /// </summary>
-    internal float? Cost(Pawn pawn, IntVec3 from, LocalTargetInfo to, PathEndMode mode)
+    internal float? Cost(Pawn pawn, IntVec3 from, LocalTargetInfo to, PathEndMode mode) =>
+        Find(pawn, from, to, mode) is { } leg ? leg.For(MoveTicks(pawn)) : null;
+
+    /// <summary>
+    /// The leg, searched for <paramref name="pawn"/> when the store lacks it, or null when no path exists. While a
+    /// <see cref="Batched{T}"/> read collects, a leg not yet searched is noted and answered as a zero leg.
+    /// </summary>
+    internal Found? Find(Pawn pawn, IntVec3 from, LocalTargetInfo to, PathEndMode mode)
     {
         var key = new Key(from, to.Cell, to.Thing, mode);
         if (!store.TryGet(key, out var leg))
@@ -66,8 +85,9 @@ internal sealed class NativePathLegs
             if (collecting)
             {
                 if (wantedKeys.Add(key)) wanted.Add((pawn, from, to, mode));
-                return 0f;
+                return default(Found);
             }
+            GameThreadTrace.Mark("leg search " + from + " -> " + to + ", " + mode + ", for " + pawn);
             var started = Stopwatch.GetTimestamp();
             using var path = map.pathFinder.FindPathNow(from, to, TraverseParms.For(pawn, Danger.None), peMode: mode);
             leg = store.Put(key, path.Found ? Measure(map, path, pawn) : null);
@@ -75,8 +95,7 @@ internal sealed class NativePathLegs
             SearchTicks += Stopwatch.GetTimestamp() - started;
         }
         if (leg == null) return null;
-        var (cardinal, diagonal) = MoveTicks(pawn);
-        return leg.Cost + leg.Cardinal * (cardinal - leg.CardinalTicks) + leg.Diagonal * (diagonal - leg.DiagonalTicks);
+        return new Found(leg.Cost, leg.Cardinal, leg.Diagonal, leg.CardinalTicks, leg.DiagonalTicks);
     }
 
     /// <summary>
@@ -84,14 +103,18 @@ internal sealed class NativePathLegs
     /// answers 0 without a search, so the read asks every leg it could need and its result is discarded), then, after
     /// one batched search of the collected legs, for real against the searched legs. A leg the second run asks that
     /// the first did not is searched on its own. The rows are those of a read that searched each leg as it asked it:
-    /// the finder runs the same job per request either way.
+    /// the finder runs the same job per request either way. Inside a collecting run, a nested batched read runs
+    /// once, collecting for the outer read, which searches and runs it again.
     /// </summary>
     internal T Batched<T>(Func<T> read)
     {
+        if (collecting) return read();
         collecting = true;
+        GameThreadTrace.Mark("batched read: collecting run");
         try { read(); }
         finally { collecting = false; }
         Search();
+        GameThreadTrace.Mark("batched read: second run");
         return read();
     }
 
@@ -117,6 +140,7 @@ internal sealed class NativePathLegs
             var requests = new List<(Key Key, PathRequest Request, Pawn Pawn)>(round);
             for (var first = 0; first < wanted.Count; first += round)
             {
+                GameThreadTrace.Mark("legs batched search: round from leg " + first + " of " + wanted.Count + ", round " + round);
                 requests.Clear();
                 for (var i = first; i < wanted.Count && i < first + round; i++)
                 {
@@ -141,6 +165,7 @@ internal sealed class NativePathLegs
         foreach (var i in direct)
         {
             var (pawn, from, to, mode) = wanted[i];
+            GameThreadTrace.Mark("legs direct search " + from + " -> " + to + ", " + mode + ", for " + pawn + " (" + direct.Count + " of " + wanted.Count + " unresolved)");
             using var path = finder.FindPathNow(from, to, TraverseParms.For(pawn, Danger.None), peMode: mode);
             store.Put(new Key(from, to.Cell, to.Thing, mode), path.Found ? Measure(map, path, pawn) : null);
             if (!path.Found || store.Direct) continue;
@@ -174,8 +199,8 @@ internal sealed class NativePathLegs
         return new(path.TotalCost, cardinal, diagonal, cardinalTicks, diagonalTicks, cells);
     }
 
-    // PathFinder.ParameterizePathJob: Mathf.RoundToInt of the pawn's move ticks.
-    private static (int Cardinal, int Diagonal) MoveTicks(Pawn pawn) =>
+    /// <summary>The pawn's cardinal and diagonal move ticks (PathFinder.ParameterizePathJob: Mathf.RoundToInt of each).</summary>
+    internal static (int Cardinal, int Diagonal) MoveTicks(Pawn pawn) =>
         ((int)Math.Round(pawn.TicksPerMoveCardinal), (int)Math.Round(pawn.TicksPerMoveDiagonal));
 
     /// <summary>
