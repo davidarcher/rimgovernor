@@ -123,8 +123,39 @@ internal static class FrameMeter
 
     private static void GuiEnd() => _guiSum += Time.realtimeSinceStartup - _guiStart;
 
+    private static bool _minimized;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr window, int command);
+
+    // A launch that sets RIMGOVERNOR_MINIMIZE_WINDOW (the colony review on a CPU-rendered runner) minimizes the game window
+    // from its first frames. Waylith's loop still runs the game logic every frame but skips capturing and presenting
+    // while the framebuffer is minimized, so boot and the map spend no cores on frames nobody reads.
+    private static void MinimizeWindowIfAsked()
+    {
+        if (_minimized || Environment.GetEnvironmentVariable("RIMGOVERNOR_MINIMIZE_WINDOW") != "1")
+            return;
+
+        try
+        {
+            var window = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            if (window == IntPtr.Zero)
+                return;
+
+            _minimized = true;
+            Log.Message($"[frames] minimizing the game window: {ShowWindow(window, 7)}");
+        }
+        catch (Exception ex)
+        {
+            _minimized = true;
+            Log.Warning($"[frames] window not minimized: {ex.Message}");
+        }
+    }
+
     public static void Tick()
     {
+        MinimizeWindowIfAsked();
+
         var now = Time.realtimeSinceStartup;
         _updateSum += now - _updateStart;
         if (_windowStart < 0f)

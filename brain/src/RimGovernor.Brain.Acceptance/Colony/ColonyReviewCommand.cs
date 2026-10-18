@@ -190,6 +190,8 @@ public static class ColonyReviewCommand
         // launches a fresh game.
         var cfg = new Config { Root = opts.Root, Output = opts.Output, Headless = true, Graphics = true, GameId = opts.GameId, FixtureOps = [RecorderTool] };
         cfg.LaunchEnv[HeadlessProfile.StateVariable] = Path.Combine(opts.Output, Checkpoints.CheckpointStoreFile);
+        // Minimized, the game skips presenting frames; the recorder renders its shots by hand.
+        cfg.LaunchEnv["RIMGOVERNOR_MINIMIZE_WINDOW"] = "1";
         if (opts.LavapipeThreads > 0)
         {
             // A CPU-rendered game shares the runner's cores with lavapipe's workers; fewer of them leaves the game thread room.
