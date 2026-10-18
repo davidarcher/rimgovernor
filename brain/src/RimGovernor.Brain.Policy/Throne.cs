@@ -503,77 +503,26 @@ public static partial class ThroneRules
                 required.Add(new RequiredPiece(FormattableString.Invariant($"{w.Key}.{i}"), d));
             }
         }
-        var (interior, pok) = InteriorRegionRules.PlanRoomInterior(inRoom with { Required = required }, def);
-        if (!pok)
+        var withRequired = inRoom with { Required = required };
+        if (!InteriorRegionRules.RoomHasInterior(withRequired, def))
         {
             return new ThroneStep();
         }
-        var taken = new HashSet<Cell>();
-        foreach (var b in built)
-        {
-            foreach (var c in b.Cells)
-            {
-                taken.Add(c);
-            }
-        }
-        bool Free(InteriorPiece p) => PlannedRules.RectCells(p.Rect).All(c => !taken.Contains(c));
-        WantedPiece StandingPiece(CurrentBuilding b)
-        {
-            var r = PlacementSearchRules.CellsRectangle(b.Cells);
-            return new WantedPiece
-            {
-                DefName = b.Building!.Definition,
-                Minimum = new Cell(r.X, r.Z),
-                Maximum = new Cell(r.X + r.Width - 1, r.Z + r.Height - 1),
-            };
-        }
-        var template = new List<WantedPiece>();
-        var absent = false;
-        if (stands)
-        {
-            template.Add(StandingPiece(standing!));
-        }
-        else
-        {
-            absent = true;
-            foreach (var p in interior.Pieces)
-            {
-                if (p.Slot == ThroneSlot && p.Def == def.Def)
-                {
-                    if (!Free(p))
-                    {
-                        return new ThroneStep();
-                    }
-                    template.Add(p.Wanted());
-                    break;
-                }
-            }
-        }
+        // The throne is the first want (a standing one stays where it stands), then the title's counted pieces; every
+        // want plans from the throne definition's room plan.
+        var wants = new List<FurnishingWant> { new() { Key = ThroneSlot, Things = need.Things, Count = 1, Piece = def } };
         foreach (var w in need.Wants())
         {
-            var count = 0;
-            foreach (var b in built)
-            {
-                if (count < w.Count && b.Cells.Count > 0 && FurnitureRoomsRules.RectInside(room.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells)) && w.Things.Contains(b.Building!.Definition))
-                {
-                    template.Add(StandingPiece(b));
-                    count++;
-                }
-            }
-            foreach (var p in interior.Pieces)
-            {
-                var dot = p.Slot.IndexOf('.', StringComparison.Ordinal);
-                var key = dot < 0 ? p.Slot : p.Slot[..dot];
-                if (count < w.Count && key == w.Key && p.Slot != ThroneSlot && Free(p))
-                {
-                    template.Add(p.Wanted());
-                    absent = true;
-                    count++;
-                }
-            }
+            wants.Add(new FurnishingWant { Key = w.Key, Things = w.Things, Count = w.Count, Piece = def });
         }
-        step = step with { Template = template };
-        if (absent || !plan.GroundMatches(room, ground) || ThroneIntruders(room, need, built).Count > 0)
+        var furnishing = RoomFurnishingRules.RoomFurnishing(room, withRequired, wants, built);
+        // A throne to build whose slot is occupied cannot be planned yet.
+        if (!stands && !furnishing.Pieces.Any(p => p.DefName == def.Def))
+        {
+            return new ThroneStep();
+        }
+        step = step with { Template = furnishing.Pieces };
+        if (furnishing.Absent || !plan.GroundMatches(room, ground) || ThroneIntruders(room, need, built).Count > 0)
         {
             return step with { Kind = ThroneStepKind.Reconcile };
         }
