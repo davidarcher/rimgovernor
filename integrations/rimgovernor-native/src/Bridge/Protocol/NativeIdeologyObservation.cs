@@ -45,7 +45,9 @@ namespace HomeBridge.BridgeTools
                 switch (precept) {
                     case Precept_Role role:
                         var held = new Obs.IdeoRole { Id = id, DefName = def, Active = role.Active };
-                        held = held with { Pawns = [.. role.ChosenPawns().OrderBy(p => p.thingIDNumber).Select(Ref)] };
+                        var holders = role.ChosenPawns().OrderBy(p => p.thingIDNumber).ToList();
+                        held = held with { Pawns = [.. holders.Select(Ref)] };
+                        held = held with { Converts = NativeConversionOperations.Grants(role.def), ConvertReady = holders.Any(NativeConversionOperations.Charged) };
                         row = row with { Roles = [.. row.Roles, held] };
                         break;
                     case Precept_Ritual ritual:

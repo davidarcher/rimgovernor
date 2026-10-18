@@ -133,7 +133,14 @@ public sealed record IdeologyDefs
 public sealed record HeldPrecept(string Id, string Def);
 
 /// <summary>A role precept: whether enough believers make it active and the pawns holding it.</summary>
-public sealed record HeldRole(string Id, string Def, bool Active, IReadOnlyList<PawnId> Pawns);
+public sealed record HeldRole(string Id, string Def, bool Active, IReadOnlyList<PawnId> Pawns)
+{
+    /// <summary>Whether the role grants the Convert ability (the moral guide's).</summary>
+    public bool Converts { get; init; }
+
+    /// <summary>Whether a holder's Convert ability is charged: off cooldown and not already ordered.</summary>
+    public bool ConvertReady { get; init; }
+}
 
 /// <summary>
 /// A ritual precept. LastFinishedTick is the game's Precept_Ritual.lastFinishedTick as read; no sentinel is

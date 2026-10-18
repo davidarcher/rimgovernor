@@ -48,7 +48,7 @@ public sealed class GoalsRounds
                 owners[owner] = new OwnerProgress(row.Method != "", row.Blocked.IsEmpty || row.Blocked.Waiting() ? "" : row.Blocked.Text);
             }
         }
-        var facts = GoalsFacts.From(reading.Projection.Facts, reading.Projection.TechTier, goals.Goals, goals.Themes, owners);
+        var facts = GoalsFacts.From(reading.Projection.Facts, reading.Projection.TechTier, reading.Projection.WorkPawns, goals.Goals, goals.Themes, owners);
         var targets = GoalRules.IdeoTargets(goals.Goals);
         if (targets.Count > 0)
         {

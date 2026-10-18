@@ -50,7 +50,7 @@ internal static class IdeologyDecoder
             {
                 held.Add(new Domain.PawnId(pawn.Id ?? ""));
             }
-            roles.Add(new P.HeldRole(row.Id ?? "", row.DefName ?? "", row.Active.GetValueOrDefault(), held));
+            roles.Add(new P.HeldRole(row.Id ?? "", row.DefName ?? "", row.Active.GetValueOrDefault(), held) { Converts = row.Converts.GetValueOrDefault(), ConvertReady = row.ConvertReady.GetValueOrDefault() });
         }
         var rituals = new List<P.HeldRitual>();
         foreach (var row in v.Rituals)

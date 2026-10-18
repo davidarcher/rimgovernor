@@ -75,6 +75,7 @@ public sealed class DomainActionConverter : ObjectCodec<DomainAction>
             ActionKind.FoodPolicy => DomainAction.NewFoodPolicyAction(id, Payload<FoodPolicy>()),
             ActionKind.FoundationRemoval => DomainAction.NewFoundationRemovalAction(id, Payload<FoundationRemoval>()),
             ActionKind.Gathering => DomainAction.NewGatheringAction(id, Payload<Gathering>()),
+            ActionKind.Conversion => DomainAction.NewConversionAction(id, Payload<Conversion>()),
             ActionKind.GearReplace => DomainAction.NewGearReplaceAction(id, Payload<GearReplace>()),
             ActionKind.GiveItem => DomainAction.NewGiveItemAction(id, Payload<GiveItem>()),
             ActionKind.GrowerCrop => DomainAction.NewGrowerCropAction(id, Payload<GrowerCrop>()),

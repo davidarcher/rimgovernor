@@ -22,6 +22,9 @@ public sealed record IdeologyFacts
 
     public IdeoligionReform? Intent { get; init; }
 
+    /// <summary>The conversion the player's believer goals owe (<see cref="ConversionRules.Owed"/>); unknown while the ideoligion, a pawn row or the goals are unread.</summary>
+    public Fact<ConversionOwed> Conversion { get; init; }
+
     /// <summary>The ideoligion's development state: what a reform waiting for points reports.</summary>
     public Fact<IdeoDevelopment> Development { get; init; }
 }
@@ -37,9 +40,13 @@ public sealed record IdeologyFacts
 /// <item><c>ideology/reform</c> (Development): the ideoligion holds the design the policy chooses. Its Method,
 /// <c>ideoligion-&lt;reform count&gt;</c>, reforms toward it; the intent is kept in the <c>family/ideology/reform</c>
 /// record until the reform is observed or the ideoligion moves on.</item>
+/// <item><c>ideology/convert/&lt;pawn&gt;</c> (Development, one at a time): a Believers goal lacks believers and this
+/// colonist, the lowest-certainty one of another ideoligion, is next. It waits on the roles Need; its Method,
+/// <c>conversion-&lt;pawn&gt;</c>, orders the moral guide's Convert ability on the colonist, and is held while the
+/// ideoligion has no such role or the ability is charging.</item>
 /// </list>
 /// </summary>
-public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool reform = true) : IFamily<IdeologyFacts>
+public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool reform = true, bool convert = true) : IFamily<IdeologyFacts>
 {
     public const string FamilyId = "ideology";
 
@@ -79,6 +86,17 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
         {
             needs.Add(IdeologyFamilyRules.ReformNeedOf(facts));
         }
+        if (convert && facts.Conversion.TryGetValue(out var conversion) && conversion.IsOwed)
+        {
+            needs.Add(new Need
+            {
+                Id = ConversionRules.NeedOf(conversion.Target),
+                Tier = NeedTier.Development,
+                Satisfaction = Satisfaction.Unmet,
+                Deficit = Known(1.0),
+                Preconditions = roles ? [Roles] : [],
+            });
+        }
         return needs;
     }
 
@@ -107,12 +125,34 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
                         new PlanSpec(id, new PlanRevision(1), [DomainAction.NewIdeoligionReformAction(new ActionId($"{id.Value}-0"), intent)]))
                     : NeedMethod.Held(Reform, ReformUnread, "The ideoligion or its catalog is unread."));
             }
+            else if (need.Id.Family == FamilyId && need.Id.Kind == ConvertKind && facts.Conversion.TryGetValue(out var conversion) && conversion.IsOwed && need.Id == ConversionRules.NeedOf(conversion.Target))
+            {
+                output.Add(ConversionMethod(need.Id, conversion));
+            }
         }
         return output;
     }
 
     /// <summary>The reform's MethodId: one per reform count, so the same reform continues its open Method.</summary>
     public static MethodId ReformMethodId(IdeoligionReform intent) => new(string.Create(CultureInfo.InvariantCulture, $"ideoligion-{intent.Count}"));
+
+    /// <summary>The kind segment of a conversion Need: <c>ideology/convert/&lt;pawn&gt;</c>.</summary>
+    public const string ConvertKind = "convert";
+
+    /// <summary>The hold of a conversion whose ideoligion has no role that grants the Convert ability.</summary>
+    public const string NoGuideRole = "no_moral_guide_role";
+
+    /// <summary>The hold of a conversion whose guide's Convert ability is on cooldown or already ordered.</summary>
+    public const string ConversionCharging = "convert_ability_charging";
+
+    private static NeedMethod ConversionMethod(NeedId need, ConversionOwed owed) => owed.Block switch
+    {
+        ConversionBlock.None => new NeedMethod(need, new MethodId("conversion-" + owed.Target.Value), $"ideology: {owed.Guide} converts {owed.Target}", id =>
+            new PlanSpec(id, new PlanRevision(1), [DomainAction.NewConversionAction(new ActionId($"{id.Value}-0"), new Conversion(owed.Guide, owed.Target))])),
+        ConversionBlock.NoGuideRole => NeedMethod.Held(need, NoGuideRole, "The ideoligion has no role that grants the Convert ability."),
+        ConversionBlock.Charging => NeedMethod.Held(need, ConversionCharging, "The moral guide's Convert ability is not charged."),
+        _ => NeedMethod.Held(need, "moral_guide_unassigned", "No pawn holds the moral guide's role."),
+    };
 
     private static NeedMethod RoleMethod(RoleAssignment role)
     {

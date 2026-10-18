@@ -244,6 +244,28 @@ Postcondition: a `LordJob_Ritual` of the precept is running
 (`RitualEffect.started`), read back as `running`. Composed by the `rituals`
 routine family.
 
+## Conversion
+
+An unmet `Believers` goal (`GoalKind.Believers`; count 0 means every free colonist) makes the family derive one
+Development Need, `ideology/convert/<pawn>` (#3501), for the free colonist of another ideoligion with the lowest
+certainty (unknown certainty last, ties by pawn id). The shortfall counts free colonists (no guest status) against the
+goal; guests, slaves, babies (under `ConversionRules.MinTargetAge`) and unavailable pawns are not targets. The Need
+has the `ideology/roles` Need as its precondition, so a missing moral guide waits on role assignment.
+
+Native reports two reads on each `IdeoRole` row: `converts` (the role precept grants an ability whose comp is the
+game's `CompProperties_AbilityConvert`; no role name is listed) and `convert_ready` (a holder's Convert ability is off
+cooldown and not already ordered). The Method commits one `Conversion` action from the active role holder to the
+target ([action contracts](action-contracts.md)); the claim is `conversion/<pawn>`. It is held, not refused, while
+no role grants the ability (`no_moral_guide_role`), while the role is unassigned (`moral_guide_unassigned`) and while
+the ability charges (`convert_ability_charging`). Once the order is placed and the ability is charging, the next target
+is the next lowest certainty. The goal status attributes `Pursuing` to the convert Need; with no role granting the
+ability it is `NoMethod`, with the role unassigned `Blocked` (`no_moral_guide`, owner the roles Need), and with every
+free colonist believing, `Met`.
+
+Prisoners: while a `Believers` goal is unmet, `PrisonerColony.BelieversWanted` is set from the goal demand and
+`PrisonerIntent` gives a recruitable prisoner of another ideoligion `Convert` whatever its worth; without the goal
+a prisoner is converted only when worth recruiting. Guests and slaves are out of scope.
+
 ## Not here
 
 The Ritual `begin` verb ([action contracts](action-contracts.md)) names a held ritual by its

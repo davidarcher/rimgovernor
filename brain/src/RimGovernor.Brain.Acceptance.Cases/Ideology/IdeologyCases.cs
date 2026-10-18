@@ -7,6 +7,7 @@ public static class IdeologyCases
     public static void Register(CaseRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
+        registry.Register(IdeologyConvert.Case());
         registry.Register(IdeologyReform.Case());
         registry.Register(IdeologyRitual.Case());
     }

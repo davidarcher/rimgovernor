@@ -155,6 +155,7 @@ public static partial class MethodClaimsRules
         else if (a.RecoveryService is { } service) yield return service.Thing;
         else if (a.Ritual is { } ritual) yield return "ritual/" + ritual.Kind.Value;
         else if (a.IdeoligionReform is { } reform) yield return "ideoligion/" + reform.IdeoId;
+        else if (a.Conversion is { } conversion) yield return "conversion/" + conversion.Target.Value;
         else if (a.Surgery is { } surgery) yield return "surgery/" + surgery.Pawn.Value + "/" + surgery.Recipe + "/" + surgery.Part;
         else if (a.ResearchSelect is { } research) yield return "research/" + research.Project;
         else if (a.PrisonerInteraction is { } prisoner) yield return "prisoner/" + prisoner.Pawn.Value;

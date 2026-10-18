@@ -541,6 +541,17 @@ public sealed class GatheringConverter : ObjectCodec<Gathering>
     }
 }
 
+public sealed class ConversionConverter : ObjectCodec<Conversion>
+{
+    protected override Conversion Read(JsonElement e, Codecs o) => new(e.Get<PawnId>("Guide", o), e.Get<PawnId>("Target", o));
+
+    protected override void WriteFields(Utf8JsonWriter w, Conversion v, Codecs o)
+    {
+        w.Put("Guide", v.Guide, o);
+        w.Put("Target", v.Target, o);
+    }
+}
+
 public sealed class GearReplaceConverter : ObjectCodec<GearReplace>
 {
     protected override GearReplace Read(JsonElement e, Codecs o) => new(e.Get<PawnId>("Pawn", o), e.Str("Thing"), e.Str("Definition"));

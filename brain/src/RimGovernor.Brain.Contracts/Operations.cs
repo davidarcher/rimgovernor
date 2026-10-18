@@ -1070,6 +1070,7 @@ public sealed record Action
 [JsonDerivedType(typeof(ActionIntent.GiveItemCase), "giveItem")]
 [JsonDerivedType(typeof(ActionIntent.CommsTradeRequestCase), "commsTradeRequest")]
 [JsonDerivedType(typeof(ActionIntent.GatheringCase), "gathering")]
+[JsonDerivedType(typeof(ActionIntent.ConversionCase), "conversion")]
 [JsonDerivedType(typeof(ActionIntent.BuildRoofCase), "buildRoof")]
 public abstract record ActionIntent
 {
@@ -1409,6 +1410,14 @@ public abstract record ActionIntent
     public sealed record GatheringCase(GatheringIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(GatheringIntent value) => new GatheringCase(value);
+
+    /// <summary>The <c>Conversion</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ConversionIntent? Conversion => (this as ConversionCase)?.Value;
+
+    public sealed record ConversionCase(ConversionIntent Value) : ActionIntent;
+
+    public static implicit operator ActionIntent(ConversionIntent value) => new ConversionCase(value);
 
     /// <summary>The <c>BuildRoof</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -2570,5 +2579,17 @@ public sealed record GatheringIntent
     public string? GatheringDef { get; init; }
 
     public Common.Ref? Organizer { get; init; }
+}
+
+/// <summary>
+/// Orders the Convert ability the moral guide's role grants on one colonist of another ideoligion. Native
+/// resolves both pawns on the live map and refuses when the guide does not hold the role, the ability is on
+/// cooldown or already ordered, or the game refuses the target.
+/// </summary>
+public sealed record ConversionIntent
+{
+    public string? GuideId { get; init; }
+
+    public string? TargetId { get; init; }
 }
 

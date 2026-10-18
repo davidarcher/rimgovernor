@@ -8130,6 +8130,12 @@ public sealed record IdeoRole
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> Pawns { get; init; }
+
+    /// <summary>Whether the role grants the Convert ability (the moral guide's).</summary>
+    public bool? Converts { get; init; }
+
+    /// <summary>Whether a holder has a Convert ability that is charged: off cooldown and not already ordered.</summary>
+    public bool? ConvertReady { get; init; }
 }
 
 /// <summary>

@@ -111,6 +111,7 @@ internal static class CodecRegistry
         codecs.Register(new FoodPolicyConverter());
         codecs.Register(new FoundationRemovalConverter());
         codecs.Register(new GatheringConverter());
+        codecs.Register(new ConversionConverter());
         codecs.Register(new GearReplaceConverter());
         codecs.Register(new GeneEffectsConverter());
         codecs.Register(new GenerationSnapshotConverter());

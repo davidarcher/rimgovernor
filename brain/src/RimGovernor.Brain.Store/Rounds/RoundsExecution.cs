@@ -77,6 +77,7 @@ public sealed partial class Store
         ActionKind.HackDesignation,
         ActionKind.GiveItem,
         ActionKind.Ritual,
+        ActionKind.Conversion,
         ActionKind.Ability,
         ActionKind.Ignite,
         ActionKind.Gathering,

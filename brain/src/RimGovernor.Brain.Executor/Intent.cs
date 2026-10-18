@@ -34,6 +34,7 @@ public sealed partial class Executor
         ActionKind.QuestShuttle,
         ActionKind.Ritual,
         ActionKind.IdeoligionReform,
+        ActionKind.Conversion,
         ActionKind.Ability,
         ActionKind.Ignite,
         ActionKind.Gathering,

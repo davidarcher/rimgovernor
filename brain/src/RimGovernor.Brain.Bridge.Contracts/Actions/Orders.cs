@@ -242,6 +242,13 @@ public static class Orders
         return new Op.Action { Intent = new Op.GatheringIntent { GatheringDef = gathering.Def, Organizer = IntentActionRules.NewRef(gathering.Organizer.Value) } };
     }
 
+    /// <summary>The Actions/Apply conversion arm, the moral guide's Convert ability on one colonist.</summary>
+    internal static Op.Action ConversionAction(DomainAction action)
+    {
+        var conversion = action.Conversion ?? throw BridgeContractException.Contract("not a conversion action");
+        return new Op.Action { Intent = new Op.ConversionIntent { GuideId = conversion.Guide.Value, TargetId = conversion.Target.Value } };
+    }
+
     /// <summary>
     /// The arm of one door_control action, the existing combat_orders door order for the
     /// cell, so no new native intent. Native refuses a cell that is no player door as a result in the CombatOrdersEffect

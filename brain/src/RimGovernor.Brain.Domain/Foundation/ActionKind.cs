@@ -23,6 +23,7 @@ public enum ActionKind
     Clean,
     CombatBatch,
     CommsTradeRequest,
+    Conversion,
     CoverClearance,
     CutPlant,
     Deconstruction,

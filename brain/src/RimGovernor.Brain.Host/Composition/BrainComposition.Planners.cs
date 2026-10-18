@@ -245,10 +245,10 @@ public sealed partial class BrainComposition
             // The mech, mech charger, gene bank and pollution toggles compose the biotech family (#3261).
             families.Add(new BiotechRounds(reviewer, biotech).Runner());
         }
-        if (sc.IdeoRoles || sc.Rituals || sc.Ideoligion)
+        if (sc.IdeoRoles || sc.Rituals || sc.Ideoligion || sc.Goals)
         {
-            // The role, ritual and reform toggles compose the ideology family's three Needs (#3260).
-            families.Add(IdeologyReader.Runner(reviewer, sc.IdeoRoles, sc.Rituals, sc.Ideoligion));
+            // The role, ritual and reform toggles compose the ideology family's three Needs (#3260); the goals toggle adds the conversions a believer goal owes (#3501).
+            families.Add(IdeologyReader.Runner(reviewer, sc.IdeoRoles, sc.Rituals, sc.Ideoligion, sc.Goals));
         }
         var admin = new AdminNeeds { CreepJoiners = sc.CreepJoiner, SupplySafety = supplies, Burial = burial, WorkLedger = workLedger, Stockpiles = stockpiles, WorkAssignments = sc.Work };
         if (admin.CreepJoiners || admin.SupplySafety || admin.Burial || admin.WorkLedger || admin.Stockpiles || admin.WorkAssignments)

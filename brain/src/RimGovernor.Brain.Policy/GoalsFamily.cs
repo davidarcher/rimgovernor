@@ -42,6 +42,9 @@ public sealed record GoalDemand
 
     public IReadOnlyDictionary<Resource, long> Animals { get; init; } = new Dictionary<Resource, long>();
 
+    /// <summary>A Believers goal lacks believers: a prisoner of another ideoligion is converted first (<see cref="PopulationRules.PrisonerIntent"/>).</summary>
+    public bool Believers { get; init; }
+
     /// <summary>The prisoners the goals name (#3499): the prisoner step recruits them whatever their worth.</summary>
     public IReadOnlyList<PawnId> Prisoners { get; init; } = [];
 
@@ -70,6 +73,9 @@ public sealed record GoalsFacts
 
     public Fact<bool> IdeologyInstalled { get; init; }
 
+    /// <summary>The colonists' pawn rows: the believer census a Believers goal is judged by.</summary>
+    public Fact<EquatableArray<WorkPawn>> Pawns { get; init; }
+
     /// <summary>The reform the ideoligion goals plan (#3500); unknown while the ideoligion or catalog is unread.</summary>
     public Fact<DesignChoice> Reform { get; init; }
 
@@ -83,8 +89,9 @@ public sealed record GoalsFacts
     public IReadOnlyDictionary<NeedId, OwnerProgress> Owners { get; init; } = new Dictionary<NeedId, OwnerProgress>();
 
     /// <summary>The facts a review already holds, with the goals and the owners' rows.</summary>
-    public static GoalsFacts From(RoundsFacts f, Fact<TechTier> tier, IReadOnlyList<GoalRecord> goals, IReadOnlyList<ThemeRecord> themes, IReadOnlyDictionary<NeedId, OwnerProgress> owners) => new()
+    public static GoalsFacts From(RoundsFacts f, Fact<TechTier> tier, Fact<EquatableArray<WorkPawn>> pawns, IReadOnlyList<GoalRecord> goals, IReadOnlyList<ThemeRecord> themes, IReadOnlyDictionary<NeedId, OwnerProgress> owners) => new()
     {
+        Pawns = pawns,
         Goals = goals,
         Themes = themes,
         Research = f.Research,
@@ -201,6 +208,8 @@ public static class GoalRules
             case GoalKind.Meme:
             case GoalKind.VeneratedAnimal:
                 return Adoption(goal, f);
+            case GoalKind.Believers:
+                return Believing(goal, f);
             case GoalKind.NamedPrisoner:
                 return NamedPrisoner(goal, f);
             case GoalKind.NamedQuest:
@@ -341,17 +350,18 @@ public static class GoalRules
                     break;
             }
         }
-        return new GoalDemand { Research = [.. research], Stock = stock, Colonists = colonists, Animals = animals, Prisoners = prisoners, Quests = quests };
+        var believers = ConversionRules.Shortfall(f.Goals, f.Ideology, f.Pawns).TryGetValue(out var lacking) && lacking > 0;
+        return new GoalDemand { Research = [.. research], Stock = stock, Colonists = colonists, Animals = animals, Prisoners = prisoners, Quests = quests, Believers = believers };
     }
 
     /// <summary>The review facts with the goals' stock floors in them, and everything <see cref="Stamp"/> carries.</summary>
     public static RoundsFacts Apply(RoundsFacts f, GoalDemand d) => Stamp(f with { ResourceNeeds = ResourceRules.ResourceConcernTargets(f.ResourceNeeds, d.Stock) }, d);
 
-    /// <summary>The facts with the goals' colonist head count, herd targets, named quests and named prisoners: what every read of the world carries.</summary>
+    /// <summary>The facts with the goals' colonist head count, herd targets, named quests, named prisoners and believer demand: what every read of the world carries.</summary>
     public static RoundsFacts Stamp(RoundsFacts f, GoalDemand d)
     {
         f = f with { ColonistGoal = d.Colonists, AnimalGoals = d.Animals, NamedQuests = d.Quests };
-        return f.PrisonerColony.TryGetValue(out var colony) ? f with { PrisonerColony = Fact.Known(colony with { NamedPrisoners = d.Prisoners }) } : f;
+        return f.PrisonerColony.TryGetValue(out var colony) ? f with { PrisonerColony = Fact.Known(colony with { NamedPrisoners = d.Prisoners, BelieversWanted = d.Believers }) } : f;
     }
 
     private const string NoPursuit = "no_pursuit";
@@ -359,6 +369,39 @@ public static class GoalRules
     private const string NotAPrisoner = "not a prisoner";
 
     private const string Expired = "expired";
+
+    /// <summary>
+    /// A believer goal: met once enough free colonists hold the ideoligion. Otherwise the ideology family converts
+    /// the lowest-certainty colonist of another ideoligion (<c>ideology/convert/&lt;pawn&gt;</c>), which waits on the
+    /// roles Need for a moral guide; an ideoligion with no such role has no method.
+    /// </summary>
+    private static GoalStatus Believing(GoalRecord goal, GoalsFacts f)
+    {
+        if (f.IdeologyInstalled.TryGetValue(out var installed) && !installed)
+        {
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "missing_dlc", default, Fact.Known(1.0));
+        }
+        if (!ConversionRules.Shortfall([goal], f.Ideology, f.Pawns).TryGetValue(out var lacking) || !ConversionRules.Owed([goal], f.Ideology, f.Pawns).TryGetValue(out var owed))
+        {
+            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", default, default);
+        }
+        if (lacking == 0)
+        {
+            return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", default, Fact.Known(0.0));
+        }
+        var deficit = Fact.Known((double)lacking);
+        if (!owed.IsOwed)
+        {
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, "no_convertible_colonist", default, deficit);
+        }
+        var need = ConversionRules.NeedOf(owed.Target);
+        return owed.Block switch
+        {
+            ConversionBlock.NoGuideRole => new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, IdeologyFamily.NoGuideRole, default, deficit),
+            ConversionBlock.Unassigned => new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, "no_moral_guide", IdeologyFamily.Roles, deficit),
+            _ => new GoalStatus(goal, Satisfaction.Unmet, GoalState.Pursuing, "", need, deficit),
+        };
+    }
 
     private static GoalStatus Adoption(GoalRecord goal, GoalsFacts f)
     {

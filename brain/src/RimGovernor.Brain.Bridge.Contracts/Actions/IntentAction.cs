@@ -36,6 +36,7 @@ public static class IntentActionRules
         [ActionKind.GiveItem] = Orders.GiveItemAction,
         [ActionKind.Ritual] = Orders.RitualAction,
         [ActionKind.IdeoligionReform] = Orders.IdeoligionReformAction,
+        [ActionKind.Conversion] = Orders.ConversionAction,
         [ActionKind.Ability] = Orders.AbilityAction,
         [ActionKind.Ignite] = Orders.IgniteAction,
         [ActionKind.Gathering] = Orders.GatheringAction,

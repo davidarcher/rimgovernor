@@ -36,6 +36,30 @@ public sealed record FirstRitualPrepared
     public IReadOnlyList<string> PawnIds { get; init; } = [];
 }
 
+/// <summary><c>test/convert_colonist_prepare</c>: the colonist holding the Convert-granting role and the colonist staged with another ideoligion.</summary>
+public sealed record ConvertColonistPrepared
+{
+    public bool Success { get; init; }
+
+    public string GuideId { get; init; } = "";
+
+    public string TargetId { get; init; } = "";
+
+    public string TargetIdeoId { get; init; } = "";
+
+    public double Certainty { get; init; }
+}
+
+/// <summary><c>test/convert_colonist_inspect</c>: the target's ideoligion and certainty.</summary>
+public sealed record ConvertColonistRead
+{
+    public bool Success { get; init; }
+
+    public string TargetIdeoId { get; init; } = "";
+
+    public double Certainty { get; init; }
+}
+
 /// <summary><c>test/first_ritual_inspect</c>: whether the ritual's lord runs, its last finished tick and the native dialog's legal explicit intent.</summary>
 public sealed record FirstRitualRead
 {

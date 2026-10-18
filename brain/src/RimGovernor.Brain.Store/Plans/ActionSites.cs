@@ -53,6 +53,7 @@ internal static class ActionSites
             GiveItem p => Site(p.Hauler, p.Recipient.Value, null),
             Ignite p => Site(p.Pawn, "", p.Cell),
             Gathering p => Site(p.Organizer, "", null),
+            Conversion p => Site(p.Guide, p.Target.Value, null),
             RemoveProductionBill p => Site(default, p.Bench, null),
             DoorControl p => Site(default, "", p.Cell),
             Ability p => Site(p.Pawn, AbilityTarget(p.Target), p.Target.Kind == AbilityTargetKind.Cell ? p.Target.Cell : null),

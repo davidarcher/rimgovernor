@@ -13,27 +13,29 @@ public sealed class IdeologyReader
     private readonly bool _roles;
     private readonly bool _rituals;
     private readonly bool _reform;
+    private readonly bool _convert;
 
-    public IdeologyReader(Rounder reviewer, bool roles, bool rituals, bool reform)
+    public IdeologyReader(Rounder reviewer, bool roles, bool rituals, bool reform, bool convert)
     {
         _reviewer = reviewer ?? throw new ControlException("IdeologyReader: reviewer is missing");
         _roles = roles;
         _rituals = rituals;
         _reform = reform;
+        _convert = convert;
     }
 
     /// <summary>The family's scheduler entry; each toggle derives its Need.</summary>
-    public static FamilyRunner<IdeologyFacts> Runner(Rounder reviewer, bool roles, bool rituals, bool reform)
+    public static FamilyRunner<IdeologyFacts> Runner(Rounder reviewer, bool roles, bool rituals, bool reform, bool convert)
     {
-        var reader = new IdeologyReader(reviewer, roles, rituals, reform);
-        return new FamilyRunner<IdeologyFacts>(new IdeologyFamily(roles, rituals, reform), reader.ReadAsync, Schedule, reader.WorkAsync);
+        var reader = new IdeologyReader(reviewer, roles, rituals, reform, convert);
+        return new FamilyRunner<IdeologyFacts>(new IdeologyFamily(roles, rituals, reform, convert), reader.ReadAsync, Schedule, reader.WorkAsync);
     }
 
-    /// <summary>An optional entry woken by role assignments, rituals and reforms.</summary>
+    /// <summary>An optional entry woken by role assignments, rituals, reforms and conversions.</summary>
     public static FamilySchedule Schedule { get; } = new()
     {
         Class = PlannerClass.Optional,
-        Kinds = [ActionKind.Assign, ActionKind.Ritual, ActionKind.IdeoligionReform],
+        Kinds = [ActionKind.Assign, ActionKind.Ritual, ActionKind.IdeoligionReform, ActionKind.Conversion],
     };
 
     /// <summary>
@@ -70,6 +72,11 @@ public sealed class IdeologyReader
         if (_reform)
         {
             facts = await ReformAsync(facts, read, scope.World, call).ConfigureAwait(false);
+        }
+        if (_convert)
+        {
+            var goals = await _reviewer.Player.Journal.LoadGoalsAsync(Player.PlayerWorld(scope.World), call).ConfigureAwait(false);
+            facts = facts with { Conversion = ConversionRules.Owed(goals.Goals, projection.Facts.Ideology, projection.WorkPawns) };
         }
         var elapsed = _reviewer.Clock.Now() - started;
         if (elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)

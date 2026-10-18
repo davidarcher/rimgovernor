@@ -65,6 +65,9 @@ public sealed record PrisonerColony
 
     public bool ClassicIdeo { get; init; }
 
+    /// <summary>A Believers goal lacks believers (#3501): a recruitable prisoner of another ideoligion is converted before anything else, whatever the worth threshold says.</summary>
+    public bool BelieversWanted { get; init; }
+
     /// <summary>The player faction's primary ideoligion id; empty without Ideology.</summary>
     public string Ideo { get; init; } = "";
 
@@ -299,7 +302,9 @@ public static partial class PopulationRules
     /// worth recruiting (PrisonerWorth >= RecruitThreshold, or named by a player goal) and recruitable: Convert first when Ideology is
     /// active outside classic mode and the prisoner holds another ideoligion, so the recruit joins without a
     /// foreign faith dragging mood and certainty, Recruit once it shares the colony's ideoligion (or without
-    /// Ideology); otherwise, able to labor, not a wild man and the ideoligion allows slavery without mood
+    /// Ideology); under an unmet Believers goal (<see cref="PrisonerColony.BelieversWanted"/>) a recruitable
+    /// prisoner of another ideoligion is converted whatever its worth, since a convert is a believer to recruit;
+    /// otherwise, able to labor, not a wild man and the ideoligion allows slavery without mood
     /// cost: Enslave; otherwise Release: once chosen it stays, else at once while the food runway is below
     /// target, else after ReleaseAfterDays in custody.
     /// </summary>
@@ -327,13 +332,14 @@ public static partial class PopulationRules
                 return (PrisonerInteractionMode.Recruit, false);
             }
         }
+        var foreign = colony.IdeologyActive && !colony.ClassicIdeo && colony.Ideo.Length != 0 && row.Ideo.Length != 0 && row.Ideo != colony.Ideo;
+        if (recruitable && foreign && colony.BelieversWanted)
+        {
+            return (PrisonerInteractionMode.Convert, false);
+        }
         if (recruitable && row.WorthRecruiting(prospect!, colony))
         {
-            if (colony.IdeologyActive && !colony.ClassicIdeo && colony.Ideo.Length != 0 && row.Ideo.Length != 0 && row.Ideo != colony.Ideo)
-            {
-                return (PrisonerInteractionMode.Convert, false);
-            }
-            return (PrisonerInteractionMode.Recruit, false);
+            return foreign ? (PrisonerInteractionMode.Convert, false) : (PrisonerInteractionMode.Recruit, false);
         }
         if (colony.SlaveryAllowed() && !row.WildMan && CanLabor(prospect!))
         {
