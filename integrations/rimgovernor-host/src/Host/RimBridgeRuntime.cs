@@ -129,11 +129,15 @@ internal static class FrameMeter
     private static extern bool ShowWindow(IntPtr window, int command);
 
     // A launch that sets RIMGOVERNOR_MINIMIZE_WINDOW (the colony review on a CPU-rendered runner) minimizes the game window
-    // from its first frames. Waylith's loop still runs the game logic every frame but skips capturing and presenting
+    // once a map is playing. Waylith's loop still runs the game logic every frame but skips capturing and presenting
     // while the framebuffer is minimized, so boot and the map spend no cores on frames nobody reads.
     private static void MinimizeWindowIfAsked()
     {
         if (_minimized || Environment.GetEnvironmentVariable("RIMGOVERNOR_MINIMIZE_WINDOW") != "1")
+            return;
+
+        // The menus and loading screens are driven through drawn UI frames, so the window stays up until a map is playing.
+        if (Current.ProgramState != ProgramState.Playing || Find.CurrentMap == null || LongEventHandler.AnyEventNowOrWaiting)
             return;
 
         try
