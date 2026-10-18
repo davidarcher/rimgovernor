@@ -319,6 +319,31 @@ of the same colony):
   under misses more often than the alternatives change, which is worth reading before the extension is tuned. The
   rounds allocation is unchanged at 898 MB p50 per review (the ~1 GB above): the search was 10 to 30 MB of it.
 
+The continuation that the inputs rule out (#3564; session `79a421bac6af4cc18eb7ea23acd7cc21`, 23 rounds reviews, one
+passing colony-review day of the same colony):
+
+- **What was measured.** #3564 proposed re-deriving only the laps whose inputs changed. Before any lap is skipped,
+  the row says which could be: each lap through `derive` leaves its reading with `RoundsLapInputs`, and the
+  `rounds_review` row names, per lap after `observe`, the properties of the reading it entered on (the one the lap
+  before it left) that differ from the previous review's (`laps_changed`; `laps_same` the laps that entered on an
+  identical reading; `laps_compare_ms` 1.6 ms p50, 105 ms at the first comparison, which reflects the properties).
+- **What the day says.** In 22 of 22 compared reviews every lap entered on a changed reading, about 45 of the 300
+  compared properties, in the three reviews 61 to 69 ticks apart (t=29872, 29933, 30002) as in the ones 2 to 8
+  thousand ticks apart. Part of that is the comparison's blind spot: ten of the property types (`DeepResources`,
+  `Policies`, `BiotechColony`, `AnomalyColony`, `DeliveryLedger`, `FoodChannels`, `PowerPlanning`, `FoodSupply`,
+  `MoodLedger`, `FoodReserveReview`) are records whose members include plain lists or dictionaries, which compare by
+  reference and read as changed whenever the review rebuilds them. The rest is the colony: `Identity` (the tick),
+  `WorkPawns`, `Facts.MoodPawns`, `Window`, `Threat`, `Zones`, `Rooms`, `Acquisition` and `Environment` differ in
+  every review, and every lap reads some of them. No lap could have been skipped on this colony at any cadence.
+- **What follows.** A per-lap skip would need each lap's inputs declared by hand, with the tick, the pawn positions
+  and the continuous facts (mood, temperature) left out or banded, and the laps that cost (the review's coupled
+  search over the needs forecasts, the planned sites priced per colonist, the stock) are the ones that read exactly
+  those. The issue's fallback, a full rounds review on its own cadence with the common review reading the last
+  committed one, is the remaining shape; it is not taken here (#3556 ruled it the fallback). Rounds this day:
+  1409 ms p50 (review 529, derive 155, d_planned 119, d_stock 80). One lead outside rounds: the colony facts read
+  (`hop_run` `facade/observations_read_colony_facts`) costs 614 ms p50 of game-thread time per step, 12.5 s over
+  the day, more than any rounds lap.
+
 ## Hosting in the mod (#3115)
 
 Decided (user, 2026-10-13):
