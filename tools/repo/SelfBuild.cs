@@ -53,8 +53,10 @@ internal static partial class SelfBuild
     /// <summary>
     /// <c>RimGovernor.cmd launcher-stale</c>: <see cref="StaleExitCode"/> when the launcher needs a publish (no stamp,
     /// no root <c>RimGovernorLauncher.exe</c>, or a source newer than the stamp), 0 when the root exe is current.
+    /// <paramref name="locked"/> (<c>-locked</c>): the caller holds the launcher build lock and publishes on a stale
+    /// answer, so a stale launcher's torn reference assemblies are cleared first (<see cref="TornRefAssemblies"/>).
     /// </summary>
-    public static int LauncherStale()
+    public static int LauncherStale(bool locked)
     {
         var root = Common.Repo.Find(AppContext.BaseDirectory);
         if (root is null)
@@ -64,6 +66,10 @@ internal static partial class SelfBuild
         var project = Path.Combine(root, "tools", "launcher", "launcher.csproj");
         var stamp = Path.Combine(root, ".rimgovernor", "launcher-build", "current");
         var stale = !File.Exists(Path.Combine(root, "RimGovernorLauncher.exe")) || IsStale(root, project, LauncherExtensions, stamp);
+        if (stale && locked)
+        {
+            TornRefAssemblies.Clear(Path.Combine(root, ".rimgovernor", "launcher-build", "artifacts", "obj"));
+        }
         return stale ? StaleExitCode : 0;
     }
 

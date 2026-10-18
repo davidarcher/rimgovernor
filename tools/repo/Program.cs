@@ -20,6 +20,7 @@ internal static class Program
           issue     print a GitHub issue and its comments as markdown
           affected  list the changed files and the checks they owe
           launcher-stale  exit 75 when RimGovernorLauncher.exe is older than its sources, 0 when current
+                    (-locked: under the launcher build lock; clears torn ref assemblies before the publish)
 
         brain tools (tools/rg, built on first use after a brain/ change):
           acceptance  the native acceptance harness (list, stop, ...)
@@ -53,7 +54,7 @@ internal static class Program
         }
         if (args[0] == "launcher-stale")
         {
-            return SelfBuild.LauncherStale();
+            return SelfBuild.LauncherStale(locked: args.Contains("-locked"));
         }
 
         using var cts = new CancellationTokenSource();

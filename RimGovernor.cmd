@@ -108,7 +108,7 @@ exit /b 0
 set "LOCKED=1"
 rem Another double-click may have published, or opened the launcher, while this one waited for the lock.
 tasklist /fi "imagename eq RimGovernorLauncher.exe" | find /i "RimGovernorLauncher.exe" >nul && goto :eof
-"%REPO%" launcher-stale
+"%REPO%" launcher-stale -locked 2>&3
 if "%ERRORLEVEL%"=="0" goto :eof
 echo RimGovernor.cmd: building the launcher (tools\launcher) ... 1>&3
 rem Published single-file into a staging directory, then copied over the root exe (tools\launcher, #3098). The stamp

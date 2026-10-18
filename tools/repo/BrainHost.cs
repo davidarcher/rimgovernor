@@ -60,6 +60,7 @@ internal static class BrainHost
         var version = "v" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff", System.Globalization.CultureInfo.InvariantCulture);
         var output = Path.Combine(dir, version);
         await Console.Error.WriteLineAsync("RimGovernor.cmd: building the brain tool host (tools/rg) ...").ConfigureAwait(false);
+        TornRefAssemblies.Clear(Path.Combine(dir, "build", "obj"));
         // Its own artifacts root: the brain build may be writing the same projects' bin/obj at this moment.
         var publish = await Proc.CaptureAsync(
                 root,

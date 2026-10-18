@@ -18,7 +18,9 @@ itself. The publish runs under `.rimgovernor/launcher-build.lock`, so a second
 double-click waits and then opens the launcher the first one built. It builds
 into its own artifacts root (`.rimgovernor/launcher-build/artifacts`), so it
 never shares the brain projects' `obj` with the test gate or an editor's
-background builds (#3346).
+background builds (#3346). Before publishing, `launcher-stale -locked` deletes
+any project's `obj` there whose `ref/` or `refint/` dll is not a PE image; the
+gate and the tool host do the same in their roots (`TornRefAssemblies`, #3535).
 
 It embeds one WebView2 page (`ui/index.html`, an embedded resource) without a
 web server or frontend build. C# owns the view models and the game's HTTP calls;

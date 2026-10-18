@@ -75,6 +75,10 @@ internal static class Gate
 
     private static async Task BuildAsync(Paths p, CancellationToken ct)
     {
+        foreach (var obj in new[] { Path.Combine(p.Artifacts, "obj"), Path.Combine(p.Probes, "obj"), Path.Combine(p.HookSet, "obj") })
+        {
+            TornRefAssemblies.Clear(obj);
+        }
         await StepAsync(p.Repo, "build RimGovernor.slnx", ["build", "RimGovernor.slnx", .. Strict, .. ArtifactsOf(p)], ct).ConfigureAwait(false);
         var probes = Path.Combine(p.Repo, "contracts", "tests");
         await StepAsync(
