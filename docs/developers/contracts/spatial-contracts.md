@@ -225,6 +225,12 @@ Hot and NextRoomID.
   persisted in `family/layout_plan`); `PlannedRoom.Door` is the room's exterior door.
   `Entrances` are the outside
   cells beside an exterior door, and `CheckRoutes` walks the open ground between them.
+  An exterior door opens only onto open ground (`TileOpenGround`): the free core cells
+  outside every room ring that join the largest such area, where ground a pawn crosses
+  but no room is sited on (a river, a marsh: walkable or the colony's own building, no
+  rock, hazard or prop) joins the areas either side of it. A pocket the rooms close in
+  and a bank past deep water are no open ground; rooms the embedding packs onto either
+  get no exterior door.
   A room packed in with no door onto the ground is joined through a neighbour. Each
   tiled room carries `PlannedRoom.Crossing` (`RoomCrossing`), read from its station
   group, not its role: `Cold` (a cooled room: door temperature equalization leaks the

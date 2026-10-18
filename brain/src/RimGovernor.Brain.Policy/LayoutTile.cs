@@ -182,7 +182,11 @@ public static partial class LayoutTileRules
         return t.Out;
     }
 
-    /// <summary>The buildable cells outside every room and wall that join the largest such area: an entrance in a pocket the rooms close in is no entrance.</summary>
+    /// <summary>
+    /// The buildable cells outside every room and wall that join the largest such area, walking over the ground a
+    /// pawn crosses that is no core (a river, a marsh): an entrance in a pocket the rooms close in is no entrance,
+    /// but a bank the embedding sited rooms on across walkable water is the same ground.
+    /// </summary>
     internal static HashSet<Cell> TileOpenGround(PlanScorer scorer, HashSet<Cell> occupied)
     {
         var cells = new List<Cell>();
@@ -195,6 +199,15 @@ public static partial class LayoutTileRules
         }
         LayoutSiteGroundRules.SortCells(cells);
         var free = new HashSet<Cell>(cells);
+        var crossed = new HashSet<Cell>();
+        foreach (var sc in scorer.S.Cells)
+        {
+            // Passable as the perimeter reads it (the colony's own buildings planned away), less a structure (Prop).
+            if (!free.Contains(sc.Cell) && !occupied.Contains(sc.Cell) && !sc.Rock && !sc.Hazard && !sc.Prop && (sc.Walkable || sc.Built))
+            {
+                crossed.Add(sc.Cell);
+            }
+        }
         List<Cell> best = [];
         var seen = new HashSet<Cell>();
         foreach (var c in cells)
@@ -204,14 +217,19 @@ public static partial class LayoutTileRules
                 continue;
             }
             var comp = new List<Cell> { c };
-            for (var h = 0; h < comp.Count; h++)
+            var walked = new List<Cell> { c };
+            for (var h = 0; h < walked.Count; h++)
             {
-                var p = comp[h];
+                var p = walked[h];
                 foreach (var n in new[] { new Cell(p.X + 1, p.Z), new Cell(p.X - 1, p.Z), new Cell(p.X, p.Z + 1), new Cell(p.X, p.Z - 1) })
                 {
-                    if (free.Contains(n) && seen.Add(n))
+                    if ((free.Contains(n) || crossed.Contains(n)) && seen.Add(n))
                     {
-                        comp.Add(n);
+                        walked.Add(n);
+                        if (free.Contains(n))
+                        {
+                            comp.Add(n);
+                        }
                     }
                 }
             }

@@ -457,7 +457,7 @@ partial record LayoutPlan
         if (p.Entrances.Count > 0 && p.CoreBounds() is { } fp)
         {
             // A plan is walked over the open ground its entrances stand on: every cell around the rooms that no room or
-            // wall holds. The terrain is not read (the embedding sited the rooms; the entrances lie in the map's largest free area).
+            // wall holds. The terrain is not read (the embedding sited the rooms; the entrances lie in one free area, TileOpenGround).
             var walled = new HashSet<Cell>();
             foreach (var r in rooms)
             {
