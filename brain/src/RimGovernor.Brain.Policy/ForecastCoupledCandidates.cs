@@ -13,10 +13,13 @@ public sealed partial record ForecastCoupledCandidates(ForecastCoupledContext Co
 
 public sealed partial record ForecastCoupledCandidates
 {
+    private static readonly System.Diagnostics.ActivitySource Spans = new("github.com/davidarcher/RimGovernor/policy");
+
     public static RoundsFacts ReviewCoupledActivities(RoundsFacts facts) => facts with { CoupledAlternatives = GenerateCoupledActivities(facts) };
 
     public static ForecastCoupledCandidates? GenerateCoupledActivities(RoundsFacts facts, double horizon = GameTime.TicksPerDay)
     {
+        using var span = Spans.StartActivity("coupled.generate");
         if (facts.ForecastObserved.Coupled is not { } read || facts.ForecastObserved.Needs is not { } needs
             || facts.WorkView is not { } resources) return null;
         if (read.Tick != facts.Tick.Value || needs.Tick != read.Tick || resources.Evidence.Tick.Value != read.Tick)

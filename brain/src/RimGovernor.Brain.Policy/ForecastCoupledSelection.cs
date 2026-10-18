@@ -27,6 +27,8 @@ public sealed record ForecastPortfolioEvidence(EquatableArray<string> Commitment
 
 public sealed partial record ForecastCoupledSelection
 {
+    private static readonly System.Diagnostics.ActivitySource Spans = new("github.com/davidarcher/RimGovernor/policy");
+
     private const int SeedShare = 4;
     /// <summary>Scheduler bound of a screening evaluation. The depth-first schedule search reaches its first complete
     /// plans within a few expansions per activity and spends the rest of a larger bound varying the last tasks, so a
@@ -44,6 +46,10 @@ public sealed partial record ForecastCoupledSelection
         ForecastCoupledCandidates candidates, int budget = 16384)
     {
         if (budget < 0) throw new DomainException("negative portfolio budget");
+        // The in-game cost of the comparator: the review runs its planners in parallel, so only this span times it.
+        using var span = Spans.StartActivity("coupled.select");
+        span?.SetTag("rimgovernor.roots", candidates.Alternatives.Count + candidates.Incumbents.Count);
+        span?.SetTag("rimgovernor.budget", budget);
         request = request with { Coupled = candidates.Context, Proposed = new() };
         var baselineCommitments = request.Commitments.Concat(candidates.Incumbents).ToArray();
         var incumbentIds = candidates.Incumbents.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
@@ -259,6 +265,9 @@ public sealed partial record ForecastCoupledSelection
         var deferred = DeferUnselectedPawns(candidates.Context, best.Plan, request.Origin.ObservedTick);
         var deferredCapacity = Math.Max(0, 32 - best.Plan.Allocations.Length);
         if (deferred.Count > deferredCapacity) findings.Add("deferred_pawn_limit");
+        span?.SetTag("rimgovernor.expansions", expansions);
+        span?.SetTag("rimgovernor.schedules", schedules.Count);
+        span?.SetTag("rimgovernor.truncated", truncated);
         return new(new(selected, best.Plan, default, findings.ToArray(), expansions, truncated), baseline, best,
             baselineVector, bestVector, EquatableArray.From(evidence), request.HorizonDays * GameTime.TicksPerDay, candidates.Truncated)
         { CompositionExpansions = candidates.CompositionExpansions,
