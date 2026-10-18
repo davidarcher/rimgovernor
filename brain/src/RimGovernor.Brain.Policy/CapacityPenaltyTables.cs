@@ -79,11 +79,12 @@ public sealed record HediffPenaltyTable
         }
 
         PenaltyStage? found = null;
-        foreach (var stage in Stages)
+        var stages = Stages;
+        for (var i = 0; i < stages.Count; i++)
         {
-            if (stage.MinSeverity <= severity)
+            if (stages[i].MinSeverity <= severity)
             {
-                found = stage;
+                found = stages[i];
             }
         }
 

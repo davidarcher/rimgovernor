@@ -51,9 +51,7 @@ public sealed class ForecastConstructionTests
         Assert.Equal(2, plan.Allocations.Length);
         Assert.Equal(100, Assert.Single(plan.Allocations, a => a.Activity == "finish").Start);
         Assert.Equal(200.0 / GameTime.TicksPerDay, construction.CompletedDay.Value);
-        Assert.Equal(15, result.Proposed.Stocks[0].Points[0].BalanceUnits.Value);
-        Assert.Equal(5, result.Proposed.Stocks[0].Points[^1].BalanceUnits.Value);
-        Assert.Single(construction.MaterialChanges);
+        Assert.Equal(-10, Assert.Single(construction.MaterialChanges).Units.Value);
         Assert.Empty(result.Proposed.Commitments[0].StockChanges);
     }
 
@@ -66,7 +64,6 @@ public sealed class ForecastConstructionTests
         Assert.Equal("scheduled", result.Baseline.Construction[0].Reason);
         Assert.Equal("insufficient_uncommitted_materials", result.Baseline.Construction[1].Reason);
         Assert.Equal("scheduled", Assert.Single(result.Proposed.Construction).Reason);
-        Assert.Equal(5, result.Proposed.Stocks[0].Points[^1].BalanceUnits.Value);
     }
 
     [Fact]
@@ -158,7 +155,7 @@ public sealed class ForecastConstructionTests
         var remaining = site with { WorkLeft = Known(20.0), MaterialsOwed = Known(default(EquatableArray<Amount>)), ResourcesComplete = Known(true) };
         var revised = ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { Census = Known(new CurrentConstruction { Colony = true, Sites = EquatableArray.From(new[] { remaining }) }) } });
         Assert.Equal(70.0 / GameTime.TicksPerDay, revised.Proposed.Construction[0].CompletedDay.Value);
-        Assert.Equal(15, revised.Proposed.Stocks[0].Points[^1].BalanceUnits.Value);
+        Assert.Empty(revised.Proposed.Construction[0].MaterialChanges);
     }
 
     [Fact]
@@ -216,7 +213,6 @@ public sealed class ForecastConstructionTests
         Assert.Null(Assert.Single(forecast.Baseline.Construction).Comparison!.Selected);
         var selected = Assert.Single(forecast.Proposed.Construction).Comparison!.Selected!;
         Assert.Equal(150, selected.CompletedAt);
-        Assert.Equal(50, Assert.Single(selected.EquipmentClaims).Start.Value);
         Assert.Equal(150, forecast.Proposed.EquipmentAvailability[0].Windows.Value[1].Start);
         Assert.Equal(450, forecast.Baseline.EquipmentAvailability[0].Windows.Value[0].Start);
     }

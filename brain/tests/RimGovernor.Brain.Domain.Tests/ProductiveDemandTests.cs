@@ -33,7 +33,7 @@ public sealed class ProductiveDemandTests
         var alternatives = ColonyForecastRules.ForecastColony(request).Proposed.Coupled!.Alternatives;
         Assert.Equal(feasible, alternatives.Any(a => a.Feasible == Known(true)));
         if (feasible)
-            Assert.Contains(alternatives.Where(a => a.Feasible == Known(true)), a => a.Stocks.Single(s => s.Resource.Value == "Meal").Points[^1].BalanceUnits.Value == 3);
+            Assert.Contains(alternatives.Where(a => a.Feasible == Known(true)), a => ForecastActivities.StockChangesOf(generated.Context.Activities, a.Plan).Where(c => c.Resource.Value == "Meal").Sum(c => c.Units.Value) == 3);
         else
             Assert.Contains(alternatives.SelectMany(a => a.Findings), f => f.Reason == "productive_output_without_useful_demand");
         if (saturated)

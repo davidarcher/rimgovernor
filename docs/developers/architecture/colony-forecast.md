@@ -89,7 +89,7 @@ their behavior. Proposed inventory changes do not rewrite these observations.
 
 | Domain | Observed diagnostic and meaning | Coupled coverage or remaining boundary |
 | --- | --- | --- |
-| Inventory | Timed conditional balances and shortfall findings | Timed task inputs/yields in the coupled trajectory |
+| Inventory | Timed conditional balances, reported as shortfall findings | Timed task inputs/yields in the coupled trajectory |
 | Food | Existing eligibility/rot-aware stock runway; no future delivery credit | Bounded acquisition, batches, delivery and recurring human ingestion |
 | Power | Current network reserves at observed drain | Current-network heater supply; future generation changes unassessed |
 | Temperature | Current sleeping extremes; current breach held over maintenance horizon | Conditional planned-room heat balance; future weather unassessed |
@@ -145,7 +145,7 @@ activity search supplies complete schedules with shared pawn and bench occupancy
 Generation also proposes recovery-before-production dependencies: a comparator
 cannot discover this combination if generation never supplies it.
 
-Each evaluated schedule has its own timed stock trajectory, needs results,
+Each evaluated schedule has its own timed stock findings, needs results,
 shelter trajectory, thermal exposure and feasibility findings. These dimensions
 retain their units: resource counts, need levels and deficit/exposure durations,
 memory-adjusted mood target, available work intervals, temperatures and degree-ticks.
@@ -652,8 +652,8 @@ pawn will eat or sleep. Different work types use these same windows, and one tas
 cannot straddle a protected interval even when the total free time is sufficient.
 
 Generic activities can also carry multiple typed outputs. Each completed activity
-emits its outputs once in `ForecastActivityPlan.StockChanges`, at its completion
-day. Helpers and retrieval do not automatically get another copy. Unknown yield
+emits its outputs once, at its completion day (`ForecastActivities.StockChangesOf`
+derives a plan's changes from its problem). Helpers and retrieval do not automatically get another copy. Unknown yield
 quantities remain unknown when those effects enter the inventory forecast. The
 plan's labor comparison still assumes the caller's declared outcome/alternative;
 these effects are conditional, not observed goods or a new utility currency.

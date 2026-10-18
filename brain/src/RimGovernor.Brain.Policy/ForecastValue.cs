@@ -139,7 +139,7 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
 }
 
 /// <summary>One safety floor of an outcome: whether it could be assessed, and by how much it is broken (0 when it holds).</summary>
-public sealed record ForecastFloor(bool Assessed, double Excess)
+public readonly record struct ForecastFloor(bool Assessed, double Excess)
 {
     public bool Passed => Excess <= 0;
 }
@@ -158,6 +158,9 @@ public sealed record ForecastValueExplanation(ForecastValueResult Ledger, Foreca
 
     /// <summary>Unassessed until the harm model (#3471); always passes.</summary>
     public ForecastFloor Death { get; init; } = new(false, 0);
+
+    /// <summary>The explanation of a vector assembled without a context: an empty ledger under the default constants.</summary>
+    internal static readonly ForecastValueExplanation Empty = new(new(default, []), new());
 }
 
 /// <summary>The capability-days ledger: pure, term by term, every number from a game table or a named policy constant (#3520).</summary>
@@ -175,6 +178,22 @@ public static partial class ForecastValue
     // is not observed, so the mean 1 is used.
     private const double MalnutritionSeverityPerDay = 0.453;
 
+    /// <summary>One observed pawn as the ledger reads it: the row, and its five capacity levels (null when any is unobserved).</summary>
+    private sealed record ObservedPawn(NeedsForecastPawn Pawn, double[]? Levels);
+
+    /// <summary>A search prices thousands of outcomes against one context, so what the ledger reads from it is indexed once (#3468):
+    /// its pawns by id with their capacity levels, and which penalty tables are valid.</summary>
+    private sealed class LedgerIndex(ForecastCoupledContext context)
+    {
+        public readonly Dictionary<string, ObservedPawn> Pawns = context.Needs.Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => new ObservedPawn(g.First(), Levels(g.First())), StringComparer.Ordinal);
+        public readonly bool Malnutrition = context.CapacityPenalties.Malnutrition.Valid();
+        public readonly bool FoodPoisoning = context.CapacityPenalties.FoodPoisoning.Valid();
+        public readonly bool Thermal = context.CapacityPenalties.Hypothermia.Valid() && context.CapacityPenalties.Heatstroke.Valid();
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, LedgerIndex> Indexes = new();
+
     /// <summary>
     /// The ledger of <paramref name="outcome"/> over <paramref name="horizon"/> ticks. The wellbeing term is relative to
     /// <paramref name="baseline"/>, the outcome the comparison started from (so only differences matter), and is unknown without one.
@@ -183,43 +202,47 @@ public static partial class ForecastValue
         ForecastCoupledOutcome? baseline = null, IEnumerable<ForecastCommitment>? commitments = null)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
-        var pawns = outcome.Needs.OrderBy(p => p.Key, StringComparer.Ordinal).ToArray();
-        var observed = context.Needs.Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        var pawns = outcome.Needs.ToArray();
+        Array.Sort(pawns, static (a, b) => string.CompareOrdinal(a.Key, b.Key));
+        var index = Indexes.GetValue(context, static c => new LedgerIndex(c));
+        var observed = index.Pawns;
+        var tables = context.CapacityPenalties;
 
-        // A term over the colony's pawns: each pawn's loss, or unknown when any pawn's is; a colony of none is unassessed.
-        Fact<double> OverPawns(string term, Func<string, ForecastNeedsResult, NeedsForecastPawn?, double?> loss)
+        var hunger = default(Fact<double>);
+        if (!index.Malnutrition || tables.MovingMinForCapable is not { } movingMin)
+            findings.Add("capacity_penalty_table_unknown:" + nameof(tables.Malnutrition));
+        else if (pawns.Length == 0) findings.Add("hunger_unassessed:no_pawns");
+        else
         {
-            if (pawns.Length == 0) { findings.Add(term + "_unassessed:no_pawns"); return default; }
             double sum = 0;
             var known = true;
             foreach (var (pawn, result) in pawns)
             {
-                if (loss(pawn, result, observed.GetValueOrDefault(pawn)) is { } lost) sum += lost;
+                if (HungerLoss(pawn, result, observed.GetValueOrDefault(pawn), tables.Malnutrition, movingMin, horizon, findings) is { } lost) sum += lost;
                 else known = false;
             }
-            return known ? Known(sum) : default;
+            hunger = known ? Known(sum) : default;
         }
 
-        var tables = context.CapacityPenalties;
-        var hunger = default(Fact<double>);
-        if (!tables.Malnutrition.Valid() || tables.MovingMinForCapable is not { } movingMin)
-            findings.Add("capacity_penalty_table_unknown:" + nameof(tables.Malnutrition));
+        var rest = default(Fact<double>);
+        if (pawns.Length == 0) findings.Add("rest_unassessed:no_pawns");
         else
-            hunger = OverPawns("hunger", (pawn, result, seen) => HungerLoss(pawn, result, seen, tables.Malnutrition, movingMin, horizon, findings));
-
-        var rest = OverPawns("rest", (pawn, result, _) =>
         {
-            // No rest category carries a capacity effect in the game, so a known rest timeline costs nothing; an unknown one is unassessed.
-            if (result.Needs.FirstOrDefault(n => n.Kind == "rest") is { } need && !need.ZeroTicks.IsKnown)
+            var known = true;
+            foreach (var (pawn, result) in pawns)
             {
-                findings.Add("rest_unassessed:" + pawn);
-                return null;
+                // No rest category carries a capacity effect in the game, so a known rest timeline costs nothing; an unknown one is unassessed.
+                if (Need(result, "rest") is { } need && !need.ZeroTicks.IsKnown)
+                {
+                    findings.Add("rest_unassessed:" + pawn);
+                    known = false;
+                }
             }
-            return 0;
-        });
+            rest = known ? Known(0d) : default;
+        }
 
         var poisoning = default(Fact<double>);
-        if (!tables.FoodPoisoning.Valid() || tables.MovingMinForCapable is not { } poisonMoving)
+        if (!index.FoodPoisoning || tables.MovingMinForCapable is not { } poisonMoving)
             findings.Add("capacity_penalty_table_unknown:" + nameof(tables.FoodPoisoning));
         else if (!outcome.Support.FoodPoisonExposure.TryGetValue(out var cases))
             findings.Add("food_poison_exposure_unassessed");
@@ -227,36 +250,62 @@ public static partial class ForecastValue
             poisoning = FoodPoisoningLoss(cases, pawns, observed, tables.FoodPoisoning, poisonMoving, horizon, findings);
 
         var thermal = default(Fact<double>);
-        if (!tables.Hypothermia.Valid() || !tables.Heatstroke.Valid() || tables.MovingMinForCapable is not { } thermalMoving)
+        if (!index.Thermal || tables.MovingMinForCapable is not { } thermalMoving)
             findings.Add("capacity_penalty_table_unknown:" + nameof(tables.Hypothermia) + "/" + nameof(tables.Heatstroke));
+        else if (pawns.Length == 0) findings.Add("thermal_unassessed:no_pawns");
         else
-            thermal = OverPawns("thermal", (pawn, _, seen) => ThermalLoss(pawn, outcome.ThermalExposure.FirstOrDefault(t => t.Pawn == pawn), seen,
-                tables, thermalMoving, horizon, context.Value, findings));
-
-        var breaks = OverPawns("mood_breaks", (pawn, result, _) =>
         {
-            if (result.Mood is { BreakRisk.IsKnown: true } mood && context.MoodBreaks.DaysLost(mood.BreakTierTicks) is { } days) return days;
-            findings.Add("mental_break_probability_unassessed");
-            return null;
-        });
+            double sum = 0;
+            var known = true;
+            foreach (var (pawn, _) in pawns)
+            {
+                ForecastThermalExposure? exposure = null;
+                foreach (var t in outcome.ThermalExposure)
+                    if (t.Pawn == pawn) { exposure = t; break; }
+                if (ThermalLoss(pawn, exposure, observed.GetValueOrDefault(pawn), tables, thermalMoving, horizon, context.Value, findings) is { } lost) sum += lost;
+                else known = false;
+            }
+            thermal = known ? Known(sum) : default;
+        }
+
+        var breaks = default(Fact<double>);
+        if (pawns.Length == 0) findings.Add("mood_breaks_unassessed:no_pawns");
+        else
+        {
+            double sum = 0;
+            var known = true;
+            foreach (var (_, result) in pawns)
+            {
+                if (result.Mood is { BreakRisk.IsKnown: true } mood && context.MoodBreaks.DaysLost(mood.BreakTierTicks) is { } days) sum += days;
+                else { findings.Add("mental_break_probability_unassessed"); known = false; }
+            }
+            breaks = known ? Known(sum) : default;
+        }
 
         var wellbeing = default(Fact<double>);
         if (baseline is null) findings.Add("wellbeing_baseline_missing");
+        else if (pawns.Length == 0) findings.Add("wellbeing_unassessed:no_pawns");
         else
-            wellbeing = OverPawns("wellbeing", (pawn, result, _) =>
+        {
+            double sum = 0;
+            var known = true;
+            foreach (var (pawn, result) in pawns)
             {
                 if (result.Mood?.PressureTicks.TryGetValue(out var pressure) == true && baseline.Needs.GetValueOrDefault(pawn)?.Mood?.PressureTicks.TryGetValue(out var before) == true)
                     // Mood-days are (horizon - pressure) / a day, so the loss against the baseline is the extra pressure.
-                    return context.Value.WellbeingWeight * (pressure - before) / GameTime.TicksPerDay;
-                findings.Add("wellbeing_unassessed:" + pawn);
-                return null;
-            });
+                    sum += context.Value.WellbeingWeight * (pressure - before) / GameTime.TicksPerDay;
+                else { findings.Add("wellbeing_unassessed:" + pawn); known = false; }
+            }
+            wellbeing = known ? Known(sum) : default;
+        }
 
         findings.Add("harm_capability_unassessed");
         var contributions = GoalContributionsOf(outcome, context, commitments ?? []);
-        var goals = Known(-contributions.Sum(c => c.Value));
-        var terms = new[] { hunger, rest, poisoning, thermal, breaks, wellbeing, goals };
-        var total = terms.All(t => t.IsKnown) ? Known(terms.Sum(t => t.Value)) : default;
+        double earned = 0;
+        foreach (var contribution in contributions) earned += contribution.Value;
+        var goals = Known(-earned);
+        var total = hunger.IsKnown && rest.IsKnown && poisoning.IsKnown && thermal.IsKnown && breaks.IsKnown && wellbeing.IsKnown
+            ? Known(hunger.Value + rest.Value + poisoning.Value + thermal.Value + breaks.Value + wellbeing.Value + goals.Value) : default;
         if (!total.IsKnown) findings.Add("capability_value_unassessed");
         return new(total, EquatableArray.From(findings))
         {
@@ -315,31 +364,58 @@ public static partial class ForecastValue
         };
     }
 
+    private static ForecastNeedMetric? Need(ForecastNeedsResult result, string kind)
+    {
+        foreach (var need in result.Needs)
+            if (need.Kind == kind) return need;
+        return null;
+    }
+
     /// <summary>
     /// A pawn's capability-days lost to malnutrition: its severity from the observed one, rising at the game's rate on the
     /// spans its food is zero and falling at the same rate otherwise, each stretch priced at its stage's capability factor.
     /// Null when the pawn's food timeline or capacities are unobserved.
     /// </summary>
-    private static double? HungerLoss(string pawn, ForecastNeedsResult result, NeedsForecastPawn? seen, HediffPenaltyTable table,
+    private static double? HungerLoss(string pawn, ForecastNeedsResult result, ObservedPawn? seen, HediffPenaltyTable table,
         double movingMin, double horizon, SortedSet<string> findings)
     {
-        var food = result.Needs.FirstOrDefault(n => n.Kind == "food");
+        var food = Need(result, "food");
         if (food is null) return 0;
         if (!food.ZeroTicks.IsKnown) { findings.Add("hunger_unassessed:" + pawn); return null; }
-        if (seen is null || !seen.MalnutritionSeverity.TryGetValue(out var severity) || Levels(seen) is not { } levels)
+        if (seen is null || !seen.Pawn.MalnutritionSeverity.TryGetValue(out var severity) || seen.Levels is not { } levels)
         { findings.Add("capacities_unobserved:" + pawn); return null; }
         var course = new Course(table, levels, movingMin, severity);
         double cursor = 0;
-        foreach (var span in food.ZeroSpans.OrderBy(s => s.Start))
+        var spans = food.ZeroSpans;
+        Span<int> order = spans.Count <= 64 ? stackalloc int[spans.Count] : new int[spans.Count];
+        ByStart(spans, order);
+        foreach (var i in order)
         {
+            var span = spans[i];
             course.Advance(span.Start - cursor, -MalnutritionSeverityPerDay);
             course.Advance(span.End - Math.Max(span.Start, cursor), MalnutritionSeverityPerDay);
             cursor = Math.Max(cursor, span.End);
         }
         course.Advance(horizon - cursor, -MalnutritionSeverityPerDay);
         course.Report(pawn, findings);
-        if (food.ZeroSpans.Count > 0) findings.Add("malnutrition_rate_pawn_factor_unobserved:" + pawn);
+        if (spans.Count > 0) findings.Add("malnutrition_rate_pawn_factor_unobserved:" + pawn);
         return course.LostTicks / GameTime.TicksPerDay;
+    }
+
+    /// <summary>The spans' indexes by Start, ties in span order (a stable sort, as OrderBy ranks them), with nothing allocated (#3468).</summary>
+    private static void ByStart(EquatableArray<ForecastNeedSpan> spans, Span<int> order)
+    {
+        for (var i = 0; i < order.Length; i++) order[i] = i;
+        order.Sort(new NeedSpanOrder(spans));
+    }
+
+    private readonly struct NeedSpanOrder(EquatableArray<ForecastNeedSpan> spans) : IComparer<int>
+    {
+        public int Compare(int x, int y)
+        {
+            var c = spans[x].Start.CompareTo(spans[y].Start);
+            return c != 0 ? c : x.CompareTo(y);
+        }
     }
 
     /// <summary>
@@ -349,17 +425,17 @@ public static partial class ForecastValue
     /// start, as the meal that causes it is not placed.
     /// </summary>
     private static Fact<double> FoodPoisoningLoss(double cases, KeyValuePair<string, ForecastNeedsResult>[] pawns,
-        Dictionary<string, NeedsForecastPawn> observed, HediffPenaltyTable table, double movingMin, double horizon, SortedSet<string> findings)
+        Dictionary<string, ObservedPawn> observed, HediffPenaltyTable table, double movingMin, double horizon, SortedSet<string> findings)
     {
         if (pawns.Length == 0) { findings.Add("food_poisoning_unassessed:no_pawns"); return default; }
         var length = table.DisappearsAfterTicks is { } gone ? Math.Min(horizon, (gone.Min + gone.Max) / 2) : horizon;
         double sum = 0;
         foreach (var (pawn, _) in pawns)
         {
-            if (!observed.TryGetValue(pawn, out var seen) || Levels(seen) is not { } levels)
+            if (!observed.TryGetValue(pawn, out var seen) || seen.Levels is not { } levels)
             { findings.Add("capacities_unobserved:" + pawn); return default; }
             // The pawn's own current poisoning, if any, is the stage its capacities already carry.
-            var course = new Course(table, levels, movingMin, seen.FoodPoisoningSeverity.ValueOrDefault) { Severity = table.InitialSeverity };
+            var course = new Course(table, levels, movingMin, seen.Pawn.FoodPoisoningSeverity.ValueOrDefault) { Severity = table.InitialSeverity };
             course.Advance(length, table.SeverityPerDay ?? 0);
             course.Report(pawn, findings);
             sum += course.LostTicks / GameTime.TicksPerDay;
@@ -380,8 +456,9 @@ public static partial class ForecastValue
     /// (1 - the capability factor) of its duration, where the factor is the product over the five capacities of the level
     /// the stage leaves (the game's (base + offsets) * post factors, held under the smallest ceiling; PawnCapacityUtility.CalculateCapacityLevel)
     /// against the observed one, and 0 for a pawn the stage downs that the observed levels do not.
+    /// A struct walked in place (#3468): a search prices thousands of outcomes, each with several courses a pawn.
     /// </summary>
-    internal sealed class Course(HediffPenaltyTable table, double[] observed, double movingMin, double observedSeverity)
+    internal struct Course(HediffPenaltyTable table, double[] observed, double movingMin, double observedSeverity)
     {
         private readonly PenaltyStage? current = table.StageAt(observedSeverity);
         private bool pain;
@@ -390,12 +467,12 @@ public static partial class ForecastValue
         public void MarkLethal() => lethal = true;
 
         /// <summary>Whether the severity reached the def's lethal value.</summary>
-        public bool Lethal => lethal;
+        public readonly bool Lethal => lethal;
 
         /// <summary>Whether some stretch of the course left the pawn downed (a stage that downs a pawn the observed levels do not).</summary>
         public bool Downs { get; private set; }
 
-        public HediffPenaltyTable Table => table;
+        public readonly HediffPenaltyTable Table => table;
 
         public double Severity { get; set; } = observedSeverity;
 
@@ -417,10 +494,12 @@ public static partial class ForecastValue
 
                 var stop = Severity + rate * ticks;
                 var cut = false;
-                var boundaries = table.Stages.Select(s => s.MinSeverity).Append(0);
-                if (table.LethalSeverity is { } cap) boundaries = boundaries.Append(cap);
-                foreach (var boundary in boundaries)
+                // The boundaries: each stage's minimum, 0, then the lethal severity, in that order.
+                var stages = table.Stages;
+                var count = stages.Count + (table.LethalSeverity is null ? 1 : 2);
+                for (var i = 0; i < count; i++)
                 {
+                    var boundary = i < stages.Count ? stages[i].MinSeverity : i == stages.Count ? 0 : table.LethalSeverity!.Value;
                     if (rate > 0 ? boundary > Severity && boundary < stop : boundary < Severity && boundary > stop)
                     {
                         stop = boundary;
@@ -436,7 +515,7 @@ public static partial class ForecastValue
             }
         }
 
-        public void Report(string pawn, SortedSet<string> findings)
+        public readonly void Report(string pawn, SortedSet<string> findings)
         {
             if (pain) findings.Add("hediff_pain_unpriced:" + table.Hediff);
             if (lethal) findings.Add("lethal_severity_reached:" + table.Hediff + ":" + pawn);
@@ -451,9 +530,9 @@ public static partial class ForecastValue
             LostTicks += (1 - factor) * ticks;
         }
 
-        private double Factor(PenaltyStage stage)
+        private readonly double Factor(PenaltyStage stage)
         {
-            var after = new double[Capacities.Length];
+            Span<double> after = stackalloc double[Capacities.Length];
             for (var i = 0; i < Capacities.Length; i++)
             {
                 var (offset, post, max) = Modifiers(current, Capacities[i]);
@@ -474,14 +553,17 @@ public static partial class ForecastValue
             return factor;
         }
 
-        private bool Downed(double[] levels) => levels[0] < AwakeConsciousness || levels[1] <= movingMin;
+        private readonly bool Downed(ReadOnlySpan<double> levels) => levels[0] < AwakeConsciousness || levels[1] <= movingMin;
 
         /// <summary>A stage's effect on one capacity as the game applies it: the offsets summed, the post factors multiplied, the smallest ceiling.</summary>
         private static (double Offset, double Post, double Max) Modifiers(PenaltyStage? stage, string capacity)
         {
             double offset = 0, post = 1, max = double.PositiveInfinity;
-            foreach (var m in stage?.Modifiers ?? [])
+            if (stage is null) return (offset, post, max);
+            var modifiers = stage.Modifiers;
+            for (var k = 0; k < modifiers.Count; k++)
             {
+                var m = modifiers[k];
                 if (m.Capacity != capacity) continue;
                 offset += m.Offset;
                 post *= m.PostFactor;

@@ -54,4 +54,7 @@ public static class EquatableArray
 
     /// <summary>The collection-expression builder: <c>EquatableArray&lt;T&gt; xs = [a, b];</c>.</summary>
     public static EquatableArray<T> Create<T>(ReadOnlySpan<T> items) => new([.. items]);
+
+    /// <summary>Wraps <paramref name="owned"/> without copying (#3468): the caller gives up the array and never writes it again.</summary>
+    public static EquatableArray<T> Wrap<T>(T[] owned) => new(System.Runtime.InteropServices.ImmutableCollectionsMarshal.AsImmutableArray(owned));
 }

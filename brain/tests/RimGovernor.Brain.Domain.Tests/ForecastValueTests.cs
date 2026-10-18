@@ -39,7 +39,7 @@ public sealed class ForecastValueTests
 
     // By default the pawn's whole day is assessed with no span outside its comfort range, so the thermal term is a known 0.
     private static ForecastCoupledOutcome Outcome(ForecastNeedsResult needs, double poisonCases = 0, ForecastThermalExposure? exposure = null) =>
-        new(new([], 0, 0), Known(true), [], new Dictionary<string, ForecastNeedsResult> { ["pawn"] = needs }, [])
+        new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult> { ["pawn"] = needs }, [])
         { Support = new() { FoodPoisonExposure = Known(poisonCases) }, ThermalExposure = [exposure ?? new("pawn", Day, 0, 0, 0)] };
 
     private static HediffPenaltyTable Malnutrition(params PenaltyStage[] stages) => new()

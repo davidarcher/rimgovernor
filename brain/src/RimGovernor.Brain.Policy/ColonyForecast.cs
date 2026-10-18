@@ -59,9 +59,6 @@ public sealed record ColonyForecastRequest
     public ForecastCoupledContext? Coupled { get; init; }
 }
 
-/// <summary>Negative balance denotes unmet units, not spendable inventory.</summary>
-public sealed record ForecastStockPoint(double Day, Fact<double> BalanceUnits);
-public sealed record ForecastStockTrajectory(Resource Resource, EquatableArray<ForecastStockPoint> Points);
 public sealed record ForecastFinding(string Reason, string Commitment, Resource Resource, Fact<double> Day, Fact<double> Units);
 
 public sealed record ColonyForecastScenario
@@ -71,8 +68,6 @@ public sealed record ColonyForecastScenario
     public Fact<IReadOnlyDictionary<Resource, Fact<double>>> MaterialAvailability { get; init; }
     public EquatableArray<ForecastEquipmentCapacity> EquipmentAvailability { get; init; }
     public EquatableArray<ForecastCommitment> Commitments { get; init; }
-    public EquatableArray<ForecastStockTrajectory> Stocks { get; init; }
-    public EquatableArray<ForecastFinding> Findings { get; init; }
     public EquatableArray<ForecastConstructionResult> Construction { get; init; }
 }
 
@@ -152,117 +147,171 @@ public static class ColonyForecastRules
         return result;
     }
 
+    /// <summary>The commitment id a coupled schedule's own timed stock effects are projected under.</summary>
+    internal const string TimedEffects = "coupled/timed-effects";
+
+    /// <summary>The scenario frame over the validated observed stock and commitments. The stock shortfalls are each coupled
+    /// outcome's findings, walked by <see cref="InventoryWalk"/> against the schedule's own effects (#3468).</summary>
     internal static ColonyForecastScenario ForecastInventory(Fact<EquatableArray<Amount>> observed,
         IReadOnlyDictionary<string, ForecastCommitment> commitments, double horizon)
+        => new() { Commitments = EquatableArray.From(new InventoryBase(observed, commitments, horizon).Ordered) };
+
+    /// <summary>One stock effect in projection order, with the finding it always raises (unknown day or units, or a day
+    /// beyond the horizon), made once.</summary>
+    internal readonly record struct InventoryEffect(string Id, Resource Resource, Fact<double> Day, Fact<double> Units, ForecastFinding? Note);
+
+    /// <summary>What a stock projection reads besides a schedule's own timed effects (#3468): the observed stock, the
+    /// commitments by id with their effects split where the schedule's own sort, the resources and the findings every
+    /// projection repeats. A coupled search builds one per commitment set and walks each schedule's effects against it.</summary>
+    internal sealed class InventoryBase
     {
-        var known = observed.TryGetValue(out var rows);
-        var stocks = new Dictionary<Resource, double>();
-        foreach (var row in rows)
+        public readonly bool StockKnown;
+        public readonly Dictionary<Resource, double> Stocks = [];
+        public readonly HashSet<Resource> Resources = [];
+        public readonly Resource[] Sorted;
+        public readonly ForecastCommitment[] Ordered;
+        public readonly InventoryEffect[] Before, After;
+        public readonly ForecastFinding[] Constant;
+        public readonly double Horizon;
+
+        public InventoryBase(Fact<EquatableArray<Amount>> observed, IReadOnlyDictionary<string, ForecastCommitment> commitments, double horizon)
         {
-            if (!AdmissionRules.ValidResource(row.Resource) || row.Count < 0)
+            Horizon = horizon;
+            StockKnown = observed.TryGetValue(out var rows);
+            foreach (var row in rows)
             {
-                throw new DomainException("invalid forecast observed stock");
-            }
-            stocks[row.Resource] = stocks.GetValueOrDefault(row.Resource) + row.Count;
-        }
-        var ordered = commitments.Values.ToArray();
-        Array.Sort(ordered, static (a, b) => string.CompareOrdinal(a.Id, b.Id));
-        var effects = new List<(string Id, ForecastStockChange Change)>();
-        var resources = new HashSet<Resource>(stocks.Keys);
-        foreach (var commitment in ordered)
-            foreach (var change in commitment.StockChanges) { effects.Add((commitment.Id, change)); resources.Add(change.Resource); }
-        var trajectories = new List<ForecastStockTrajectory>();
-        var findings = new List<ForecastFinding>();
-        if (!known)
-        {
-            findings.Add(new ForecastFinding("unknown_initial_stock", "", default, Known(0.0), Unknown<double>()));
-        }
-        foreach (var commitment in ordered)
-        {
-            foreach (var effect in commitment.UnsupportedEffects)
-            {
-                findings.Add(new ForecastFinding("unsupported:" + effect, commitment.Id, default, Unknown<double>(), Unknown<double>()));
-            }
-        }
-        var sorted = resources.ToArray();
-        Array.Sort(sorted, static (a, b) => string.CompareOrdinal(a.Value, b.Value));
-        var timed = new List<int>();
-        foreach (var resource in sorted)
-        {
-            var balance = known ? Known(stocks.GetValueOrDefault(resource)) : Unknown<double>();
-            var points = new List<ForecastStockPoint> { new(0, balance) };
-            timed.Clear();
-            for (var i = 0; i < effects.Count; i++)
-            {
-                var e = effects[i];
-                if (e.Change.Resource != resource) continue;
-                if (!e.Change.Day.TryGetValue(out var day))
+                if (!AdmissionRules.ValidResource(row.Resource) || row.Count < 0)
                 {
-                    // Unknown time may affect any future point, but never rewrites the observed stock.
-                    balance = Unknown<double>();
-                    findings.Add(new ForecastFinding("unknown_stock_effect", e.Id, resource, e.Change.Day, e.Change.Units));
-                    continue;
+                    throw new DomainException("invalid forecast observed stock");
                 }
-                if (!e.Change.Units.IsKnown)
-                {
-                    findings.Add(new ForecastFinding("unknown_stock_effect", e.Id, resource, e.Change.Day, e.Change.Units));
-                }
-                else if (day > horizon)
-                {
-                    findings.Add(new ForecastFinding("beyond_horizon", e.Id, resource, e.Change.Day, e.Change.Units));
-                }
-                if (day <= horizon) timed.Add(i);
+                Stocks[row.Resource] = Stocks.GetValueOrDefault(row.Resource) + row.Count;
             }
-            // By day; same-time inputs precede outputs, a batch cannot finance its own prerequisites; then by commitment.
-            static int Sign(ForecastStockChange change) => change.Units.TryGetValue(out var units) && units > 0 ? 1 : 0;
-            timed.Sort((x, y) =>
-            {
-                var (a, b) = (effects[x], effects[y]);
-                var c = a.Change.Day.Value.CompareTo(b.Change.Day.Value);
-                if (c == 0) c = Sign(a.Change).CompareTo(Sign(b.Change));
-                if (c == 0) c = string.CompareOrdinal(a.Id, b.Id);
-                return c == 0 ? x.CompareTo(y) : c;
-            });
-            for (var start = 0; start < timed.Count;)
-            {
-                var day = effects[timed[start]].Change.Day.Value;
-                var end = start;
-                while (end < timed.Count && effects[timed[end]].Change.Day.Value == day) end++;
-                for (var k = start; k < end; k++)
+            Ordered = commitments.Values.ToArray();
+            Array.Sort(Ordered, static (a, b) => string.CompareOrdinal(a.Id, b.Id));
+            Resources.UnionWith(Stocks.Keys);
+            var before = new List<InventoryEffect>(); var after = new List<InventoryEffect>();
+            foreach (var commitment in Ordered)
+                foreach (var change in commitment.StockChanges)
                 {
-                    var e = effects[timed[k]];
-                    if (balance.TryGetValue(out var before) && e.Change.Units.TryGetValue(out var units))
+                    Resources.Add(change.Resource);
+                    var note = !change.Day.IsKnown || !change.Units.IsKnown ? new ForecastFinding("unknown_stock_effect", commitment.Id, change.Resource, change.Day, change.Units)
+                        : change.Day.Value > horizon ? new ForecastFinding("beyond_horizon", commitment.Id, change.Resource, change.Day, change.Units) : null;
+                    (string.CompareOrdinal(commitment.Id, TimedEffects) < 0 ? before : after).Add(new(commitment.Id, change.Resource, change.Day, change.Units, note));
+                }
+            (Before, After) = ([.. before], [.. after]);
+            Sorted = [.. Resources];
+            Array.Sort(Sorted, static (a, b) => string.CompareOrdinal(a.Value, b.Value));
+            var constant = new List<ForecastFinding>();
+            if (!StockKnown)
+            {
+                constant.Add(new ForecastFinding("unknown_initial_stock", "", default, Known(0.0), Unknown<double>()));
+            }
+            foreach (var commitment in Ordered)
+            {
+                foreach (var effect in commitment.UnsupportedEffects)
+                {
+                    constant.Add(new ForecastFinding("unsupported:" + effect, commitment.Id, default, Unknown<double>(), Unknown<double>()));
+                }
+            }
+            Constant = [.. constant];
+        }
+    }
+
+    /// <summary>One projection's scratch, reused by the next (#3468): walks a base's effects with a schedule's own, adding
+    /// the stock findings in projection order.</summary>
+    internal sealed class InventoryWalk
+    {
+        private readonly List<InventoryEffect> merged = [];
+        private readonly List<Resource> resources = [];
+        private readonly HashSet<Resource> extra = [];
+        private readonly List<int> timed = [];
+
+        public void Run(InventoryBase stock, ReadOnlySpan<(Resource Resource, Fact<double> Day, Fact<double> Units)> own,
+            List<ForecastFinding> findings)
+        {
+            foreach (var finding in stock.Constant) findings.Add(finding);
+            merged.Clear(); resources.Clear(); extra.Clear();
+            foreach (var e in stock.Before) merged.Add(e);
+            foreach (var e in own) merged.Add(new(TimedEffects, e.Resource, e.Day, e.Units, null));
+            foreach (var e in stock.After) merged.Add(e);
+            foreach (var r in stock.Sorted) resources.Add(r);
+            foreach (var e in own) if (!stock.Resources.Contains(e.Resource) && extra.Add(e.Resource)) resources.Add(e.Resource);
+            if (extra.Count != 0) resources.Sort(static (a, b) => string.CompareOrdinal(a.Value, b.Value));
+            var horizon = stock.Horizon;
+            foreach (var resource in resources)
+            {
+                var balance = stock.StockKnown ? Known(stock.Stocks.GetValueOrDefault(resource)) : Unknown<double>();
+                timed.Clear();
+                for (var i = 0; i < merged.Count; i++)
+                {
+                    var e = merged[i];
+                    if (e.Resource != resource) continue;
+                    if (!e.Day.TryGetValue(out var day))
                     {
-                        var after = before + units;
-                        if (!double.IsFinite(after))
-                        {
-                            throw new DomainException("forecast stock balance overflow");
-                        }
-                        balance = Known(after);
-                        if (after < 0 && units < 0)
-                        {
-                            findings.Add(new ForecastFinding("stock_shortfall", e.Id, resource, Known(day), Known(-after)));
-                        }
-                    }
-                    else
-                    {
+                        // Unknown time may affect any future point, but never rewrites the observed stock.
                         balance = Unknown<double>();
+                        findings.Add(e.Note ?? new ForecastFinding("unknown_stock_effect", e.Id, resource, e.Day, e.Units));
+                        continue;
                     }
+                    if (!e.Units.IsKnown)
+                    {
+                        findings.Add(e.Note ?? new ForecastFinding("unknown_stock_effect", e.Id, resource, e.Day, e.Units));
+                    }
+                    else if (day > horizon)
+                    {
+                        findings.Add(e.Note ?? new ForecastFinding("beyond_horizon", e.Id, resource, e.Day, e.Units));
+                    }
+                    if (day <= horizon) Place(i);
                 }
-                points.Add(new ForecastStockPoint(day, balance));
-                start = end;
+                for (var start = 0; start < timed.Count;)
+                {
+                    var day = merged[timed[start]].Day.Value;
+                    var end = start;
+                    while (end < timed.Count && merged[timed[end]].Day.Value == day) end++;
+                    for (var k = start; k < end; k++)
+                    {
+                        var e = merged[timed[k]];
+                        if (balance.TryGetValue(out var before) && e.Units.TryGetValue(out var units))
+                        {
+                            var after = before + units;
+                            if (!double.IsFinite(after))
+                            {
+                                throw new DomainException("forecast stock balance overflow");
+                            }
+                            balance = Known(after);
+                            if (after < 0 && units < 0)
+                            {
+                                findings.Add(new ForecastFinding("stock_shortfall", e.Id, resource, Known(day), Known(-after)));
+                            }
+                        }
+                        else
+                        {
+                            balance = Unknown<double>();
+                        }
+                    }
+                    start = end;
+                }
             }
-            if (points[^1].Day < horizon)
-            {
-                points.Add(new ForecastStockPoint(horizon, balance));
-            }
-            trajectories.Add(new ForecastStockTrajectory(resource, EquatableArray.From(points)));
         }
-        return new ColonyForecastScenario
+
+        /// <summary>Keeps the timed effects by day; same-time inputs precede outputs, a batch cannot finance its own
+        /// prerequisites; then by commitment, then in effect order.</summary>
+        private void Place(int index)
         {
-            Commitments = EquatableArray.From(ordered),
-            Stocks = EquatableArray.From(trajectories),
-            Findings = EquatableArray.From(findings),
-        };
+            var at = timed.Count;
+            while (at > 0 && Compare(index, timed[at - 1]) < 0) at--;
+            timed.Insert(at, index);
+        }
+
+        private int Compare(int x, int y)
+        {
+            var (a, b) = (merged[x], merged[y]);
+            var c = a.Day.Value.CompareTo(b.Day.Value);
+            if (c == 0) c = Sign(a.Units).CompareTo(Sign(b.Units));
+            if (c == 0) c = string.CompareOrdinal(a.Id, b.Id);
+            return c == 0 ? x.CompareTo(y) : c;
+        }
+
+        private static int Sign(Fact<double> units) => units.TryGetValue(out var value) && value > 0 ? 1 : 0;
     }
 }

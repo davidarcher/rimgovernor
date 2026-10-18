@@ -41,7 +41,6 @@ public sealed class ForecastClaimsTests
         var forecast = ColonyForecastRules.ForecastColony(request);
         Assert.Equal(50, forecast.Baseline.MaterialAvailability.Value[Material].Value);
         Assert.Equal(80, forecast.Proposed.MaterialAvailability.Value[Material].Value);
-        Assert.Equal(100, forecast.Proposed.Stocks.Single(s => s.Resource == Material).Points[0].BalanceUnits.Value);
         var released = ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { IngredientReservations = NoReservations } });
         Assert.Equal(100, released.Proposed.MaterialAvailability.Value[Material].Value);
     }
@@ -95,7 +94,7 @@ public sealed class ForecastClaimsTests
         var one = ForecastActivities.CompareActivityPlans(jobs).Selected!;
         Assert.Equal(200, one.CompletedAt);
         Assert.Equal(200, one.LaborCost);
-        var claims = one.EquipmentClaims.OrderBy(c => c.Start.Value).ToArray();
+        var claims = ForecastActivities.EquipmentClaimsOf(jobs, one).OrderBy(c => c.Start.Value).ToArray();
         Assert.Equal(claims[0].End.Value, claims[1].Start.Value);
         Assert.Null(ForecastActivities.CompareActivityPlans(jobs with { Deadline = Known(150.0) }).Selected);
         var separate = jobs with

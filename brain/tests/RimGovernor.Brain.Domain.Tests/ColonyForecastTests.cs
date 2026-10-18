@@ -8,6 +8,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class ColonyForecastTests
 {
     private static readonly Resource Material = new("TestMaterial");
+    private static readonly Fact<EquatableArray<Amount>> Stock = Known(EquatableArray.From(new[] { new Amount(Material, 10) }));
     private static ForecastCommitment Change(string id, double day, double units) =>
         new(id, EquatableArray.From(new[] { new ForecastStockChange(Material, Known(day), Known(units)) }));
 
@@ -15,12 +16,17 @@ public sealed class ColonyForecastTests
     {
         Origin = new("save/map/load", 123),
         HorizonDays = 3,
-        Facts = new ColonyForecastFacts
-        {
-            Stock = Known(EquatableArray.From(new[] { new Amount(Material, 10) })),
-        },
+        Facts = new ColonyForecastFacts { Stock = Stock },
         Commitments = EquatableArray.From(commitments),
     };
+
+    /// <summary>The stock findings of a three-day projection: what a coupled outcome carries of the inventory walk.</summary>
+    private static List<ForecastFinding> Findings(Fact<EquatableArray<Amount>> stock, params ForecastCommitment[] commitments)
+    {
+        var findings = new List<ForecastFinding>();
+        new ColonyForecastRules.InventoryWalk().Run(new(stock, ColonyForecastRules.ForecastCommitmentsById(commitments), 3), default, findings);
+        return findings;
+    }
 
     [Fact]
     public void EarlierDeliveryChangesShortfallWithoutChangingObservedStock()
@@ -34,11 +40,10 @@ public sealed class ColonyForecastTests
                 Add = EquatableArray.From(new[] { Change("delivery", 0.5, 10) }),
             },
         });
-        Assert.Equal(5, Assert.Single(result.Baseline.Findings, f => f.Reason == "stock_shortfall").Units.Value);
-        Assert.Empty(result.Proposed.Findings);
-        Assert.Equal(10, result.Baseline.Stocks[0].Points[0].BalanceUnits.Value);
-        Assert.Equal(10, result.Proposed.Stocks[0].Points[0].BalanceUnits.Value);
-        Assert.Equal(5, result.Proposed.Stocks[0].Points[^1].BalanceUnits.Value);
+        Assert.Equal(5, Assert.Single(Findings(Stock, Change("delivery", 2, 10), Change("build", 1, -15)), f => f.Reason == "stock_shortfall").Units.Value);
+        Assert.Empty(Findings(Stock, Change("delivery", 0.5, 10), Change("build", 1, -15)));
+        Assert.Equal(2, Assert.Single(result.Baseline.Commitments, c => c.Id == "delivery").StockChanges[0].Day.Value);
+        Assert.Equal(0.5, Assert.Single(result.Proposed.Commitments, c => c.Id == "delivery").StockChanges[0].Day.Value);
         Assert.Equal(request.Origin, result.Origin);
         Assert.Contains("pawn_capacity", result.Unsupported);
     }
@@ -52,21 +57,16 @@ public sealed class ColonyForecastTests
         var second = ColonyForecastRules.ForecastColony(Request(b, a));
         Assert.Equal(first.Baseline, first.Proposed);
         Assert.Equal(first.Baseline, second.Baseline);
-        Assert.Equal(8, first.Baseline.Stocks[0].Points[^1].BalanceUnits.Value);
+        Assert.Empty(Findings(Stock, b, a));
     }
 
     [Fact]
     public void UnknownStockIsNotKnownEmpty()
     {
-        var request = Request(Change("use", 1, -4));
-        var unknown = ColonyForecastRules.ForecastColony(request with { Facts = new ColonyForecastFacts() });
-        Assert.False(unknown.Baseline.Stocks[0].Points[^1].BalanceUnits.IsKnown);
-        Assert.Contains(unknown.Baseline.Findings, f => f.Reason == "unknown_initial_stock");
-        var empty = ColonyForecastRules.ForecastColony(request with
-        {
-            Facts = new ColonyForecastFacts { Stock = Known(default(EquatableArray<Amount>)) },
-        });
-        Assert.Equal(4, Assert.Single(empty.Baseline.Findings).Units.Value);
+        var use = Change("use", 1, -4);
+        Assert.Contains(Findings(default, use), f => f.Reason == "unknown_initial_stock");
+        Assert.DoesNotContain(Findings(default, use), f => f.Reason == "stock_shortfall");
+        Assert.Equal(4, Assert.Single(Findings(Known(default(EquatableArray<Amount>)), use)).Units.Value);
     }
 
     [Fact]
@@ -76,18 +76,18 @@ public sealed class ColonyForecastTests
         {
             new ForecastStockChange(Material, Unknown<double>(), Known(20.0)),
         }));
-        var result = ColonyForecastRules.ForecastColony(Request(change));
-        Assert.Equal(10, result.Proposed.Stocks[0].Points[0].BalanceUnits.Value);
-        Assert.False(result.Proposed.Stocks[0].Points[^1].BalanceUnits.IsKnown);
-        Assert.Equal("unknown_stock_effect", Assert.Single(result.Proposed.Findings).Reason);
+        Assert.Equal("unknown_stock_effect", Assert.Single(Findings(Stock, change)).Reason);
+        // The unknown time may affect any future point, so a later use is certified neither way.
+        Assert.Equal(["unknown_stock_effect"], Findings(Stock, change, Change("use", 1, -15)).Select(f => f.Reason));
     }
 
     [Fact]
     public void HorizonDoesNotTurnLaterBenefitsIntoZeroOrCurrentStock()
     {
-        var result = ColonyForecastRules.ForecastColony(Request(Change("late", 4, 20)));
-        Assert.Equal(10, result.Proposed.Stocks[0].Points[^1].BalanceUnits.Value);
-        Assert.Equal("beyond_horizon", Assert.Single(result.Proposed.Findings).Reason);
+        var late = Change("late", 4, 20);
+        Assert.Equal("beyond_horizon", Assert.Single(Findings(Stock, late)).Reason);
+        Assert.Equal(["beyond_horizon", "stock_shortfall"], Findings(Stock, late, Change("use", 3, -15)).Select(f => f.Reason));
+        var result = ColonyForecastRules.ForecastColony(Request(late));
         Assert.Equal(3, result.HorizonDays);
         Assert.Equal(ColonyDiagnosticsRules.MaintenanceHorizonDays, result.Observed.HorizonDays);
     }
@@ -95,9 +95,9 @@ public sealed class ColonyForecastTests
     [Fact]
     public void SameTimeOutputDoesNotFinanceItsOwnInput()
     {
-        var result = ColonyForecastRules.ForecastColony(Request(Change("output", 1, 20), Change("input", 1, -15)));
-        Assert.Equal(5, Assert.Single(result.Proposed.Findings).Units.Value);
-        Assert.Equal(15, result.Proposed.Stocks[0].Points[^1].BalanceUnits.Value);
+        var finding = Assert.Single(Findings(Stock, Change("output", 1, 20), Change("input", 1, -15)));
+        Assert.Equal("stock_shortfall", finding.Reason);
+        Assert.Equal(5, finding.Units.Value);
     }
 
     [Fact]
@@ -131,7 +131,6 @@ public sealed class ColonyForecastTests
         Assert.Equal(Material, row.Resource);
         Assert.Equal(15, row.ShortfallUnits);
         Assert.Equal(0, row.Stock);
-        Assert.Empty(result.Baseline.Findings);
     }
 
     [Fact]
@@ -144,12 +143,12 @@ public sealed class ColonyForecastTests
         {
             UnsupportedEffects = EquatableArray.From(new List<string> { "work_completion" }),
         };
-        var result = ColonyForecastRules.ForecastColony(Request(Change("use", 1, -2), commitment));
-        var points = result.Baseline.Stocks[0].Points;
-        Assert.Equal(8, points[1].BalanceUnits.Value);
-        Assert.False(points[2].BalanceUnits.IsKnown);
-        Assert.Contains(result.Baseline.Findings, f => f.Reason == "unsupported:work_completion");
-        Assert.Contains(result.Baseline.Findings, f => f.Reason == "unknown_stock_effect");
+        // A use before the unknown quantity's day is still certified; one after it is not.
+        var before = Findings(Stock, Change("use", 1, -12), commitment);
+        Assert.Equal(2, Assert.Single(before, f => f.Reason == "stock_shortfall").Units.Value);
+        Assert.Contains(before, f => f.Reason == "unsupported:work_completion");
+        Assert.Contains(before, f => f.Reason == "unknown_stock_effect");
+        Assert.DoesNotContain(Findings(Stock, Change("use", 3, -12), commitment), f => f.Reason == "stock_shortfall");
     }
 
     [Fact]
@@ -182,8 +181,6 @@ public sealed class ColonyForecastTests
         Assert.Equal(3, Assert.Single(result.Observed.Power.Value.Nets).ReserveDays);
         Assert.Equal(20, Assert.Single(result.Observed.Construction.Value.Materials).Need);
         Assert.Equal(10, Assert.Single(result.Observed.Construction.Value.Materials).ShortfallUnits);
-        Assert.Equal(10, result.Baseline.Stocks[0].Points[^1].BalanceUnits.Value);
-        Assert.Equal(2, result.Baseline.Stocks[0].Points[^1].Day);
-        Assert.Empty(result.Baseline.Findings);
+        Assert.Empty(result.Baseline.Commitments);
     }
 }

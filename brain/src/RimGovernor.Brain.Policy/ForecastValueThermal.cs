@@ -37,7 +37,7 @@ public static partial class ForecastValue
     /// (unassessed) when any occupancy is unknown, so a pawn is never free by omission, or its capacities are unobserved.
     /// A severity that reaches the def's lethal value charges the remaining horizon and the policy's terminal value.
     /// </summary>
-    private static double? ThermalLoss(string pawn, ForecastThermalExposure? exposure, NeedsForecastPawn? seen, CapacityPenaltyTables tables,
+    private static double? ThermalLoss(string pawn, ForecastThermalExposure? exposure, ObservedPawn? seen, CapacityPenaltyTables tables,
         double movingMin, double horizon, ForecastValuePolicy policy, SortedSet<string> findings)
     {
         if (exposure is null || exposure.UnknownTicks > 0)
@@ -46,18 +46,34 @@ public static partial class ForecastValue
             return null;
         }
 
-        if (seen is null || !seen.HypothermiaSeverity.TryGetValue(out var cold) || !seen.HeatstrokeSeverity.TryGetValue(out var hot) || Levels(seen) is not { } levels)
+        if (seen is null || !seen.Pawn.HypothermiaSeverity.TryGetValue(out var cold) || !seen.Pawn.HeatstrokeSeverity.TryGetValue(out var hot) || seen.Levels is not { } levels)
         {
             findings.Add("capacities_unobserved:" + pawn);
             return null;
         }
 
-        return Path(pawn, exposure, true, new Course(tables.Hypothermia, levels, movingMin, cold), horizon, policy, findings)
-            + Path(pawn, exposure, false, new Course(tables.Heatstroke, levels, movingMin, hot), horizon, policy, findings);
+        var spans = exposure.Spans;
+        Span<int> order = spans.Count <= 64 ? stackalloc int[spans.Count] : new int[spans.Count];
+        for (var i = 0; i < order.Length; i++) order[i] = i;
+        order.Sort(new ThermalSpanOrder(spans));
+        var coldCourse = new Course(tables.Hypothermia, levels, movingMin, cold);
+        var hotCourse = new Course(tables.Heatstroke, levels, movingMin, hot);
+        return Path(pawn, spans, order, true, ref coldCourse, horizon, policy, findings)
+            + Path(pawn, spans, order, false, ref hotCourse, horizon, policy, findings);
     }
 
-    private static double Path(string pawn, ForecastThermalExposure exposure, bool coldSide, Course course, double horizon, ForecastValuePolicy policy,
-        SortedSet<string> findings)
+    /// <summary>The spans by Start, ties in span order: the stable order OrderBy ranks them in, with nothing allocated (#3468).</summary>
+    private readonly struct ThermalSpanOrder(EquatableArray<ForecastThermalSpan> spans) : IComparer<int>
+    {
+        public int Compare(int x, int y)
+        {
+            var c = spans[x].Start.CompareTo(spans[y].Start);
+            return c != 0 ? c : x.CompareTo(y);
+        }
+    }
+
+    private static double Path(string pawn, EquatableArray<ForecastThermalSpan> spans, ReadOnlySpan<int> order, bool coldSide, ref Course course, double horizon,
+        ForecastValuePolicy policy, SortedSet<string> findings)
     {
         var table = course.Table;
         double? diedAt = null;
@@ -67,11 +83,12 @@ public static partial class ForecastValue
             diedAt = 0;
         }
 
-        foreach (var span in exposure.Spans.OrderBy(s => s.Start))
+        foreach (var i in order)
         {
+            var span = spans[i];
             if (diedAt is not null) break;
             if (span.End <= span.Start) continue;
-            diedAt = Span(course, span, coldSide);
+            diedAt = Span(ref course, span, coldSide);
         }
 
         course.Report(pawn, findings);
@@ -80,7 +97,7 @@ public static partial class ForecastValue
     }
 
     /// <summary>One span: its temperature crossings of the giver's thresholds cut it into pieces of one regime, each walked in turn. Returns the tick the severity went lethal, or null.</summary>
-    private static double? Span(Course course, ForecastThermalSpan span, bool coldSide)
+    private static double? Span(ref Course course, ForecastThermalSpan span, bool coldSide)
     {
         var comfortMin = span.ComfortableMin;
         var comfortMax = span.ComfortableMax;
@@ -89,19 +106,31 @@ public static partial class ForecastValue
         var length = span.End - span.Start;
         var slope = (span.Final - span.Initial) / length;
 
-        var thresholds = new List<double>(coldSide
-            ? [safeMin, comfortMin, safeMin - HypothermiaFloor / ThermalPerDegree]
-            : [safeMax, comfortMax, safeMax + HeatstrokeFloor / ThermalPerDegree, .. OverageCurve.Skip(1).Select(p => safeMax + p.X)]);
-        var cuts = new List<double> { 0, length };
+        // The thresholds a crossing cuts at: three, plus the overage curve's knees on the hot side.
+        Span<double> thresholds = stackalloc double[3 + OverageCurve.Length - 1];
+        var thresholdCount = 3;
+        if (coldSide)
+        {
+            thresholds[0] = safeMin; thresholds[1] = comfortMin; thresholds[2] = safeMin - HypothermiaFloor / ThermalPerDegree;
+        }
+        else
+        {
+            thresholds[0] = safeMax; thresholds[1] = comfortMax; thresholds[2] = safeMax + HeatstrokeFloor / ThermalPerDegree;
+            for (var k = 1; k < OverageCurve.Length; k++) thresholds[thresholdCount++] = safeMax + OverageCurve[k].X;
+        }
+        Span<double> cuts = stackalloc double[2 + thresholds.Length];
+        cuts[0] = 0; cuts[1] = length;
+        var cutCount = 2;
         if (slope != 0)
-            foreach (var threshold in thresholds)
+            for (var k = 0; k < thresholdCount; k++)
             {
-                var at = (threshold - span.Initial) / slope;
-                if (at > 0 && at < length) cuts.Add(at);
+                var at = (thresholds[k] - span.Initial) / slope;
+                if (at > 0 && at < length) cuts[cutCount++] = at;
             }
 
+        cuts = cuts[..cutCount];
         cuts.Sort();
-        for (var i = 0; i + 1 < cuts.Count; i++)
+        for (var i = 0; i + 1 < cuts.Length; i++)
         {
             double from = cuts[i], to = cuts[i + 1];
             if (to <= from) continue;
@@ -116,10 +145,10 @@ public static partial class ForecastValue
                     // Depth below the safe minimum, deeper than the floor's depth, gains linearly in the depth.
                     var depth = HypothermiaFloor / ThermalPerDegree;
                     died = middle < safeMin - depth
-                        ? Gain(course, elapsed, ThermalPerDegree * (safeMin - start) / IntervalTicks, -ThermalPerDegree * slope / IntervalTicks)
-                        : Gain(course, elapsed, HypothermiaFloor / IntervalTicks, 0);
+                        ? Gain(ref course, elapsed, ThermalPerDegree * (safeMin - start) / IntervalTicks, -ThermalPerDegree * slope / IntervalTicks)
+                        : Gain(ref course, elapsed, HypothermiaFloor / IntervalTicks, 0);
                 }
-                else died = middle > comfortMin ? Recover(course, elapsed) : Hold(course, elapsed);
+                else died = middle > comfortMin ? Recover(ref course, elapsed) : Hold(ref course, elapsed);
             }
             else if (middle > safeMax)
             {
@@ -127,10 +156,10 @@ public static partial class ForecastValue
                 var aboveFloor = value * ThermalPerDegree >= HeatstrokeFloor;
                 died = aboveFloor
                     // The curve is linear inside this piece's segment, so the gain is linear in time: its value at the piece start, then its slope.
-                    ? Gain(course, elapsed, ThermalPerDegree * (value + curveSlope * (start - middle)) / IntervalTicks, ThermalPerDegree * curveSlope * slope / IntervalTicks)
-                    : Gain(course, elapsed, HeatstrokeFloor / IntervalTicks, 0);
+                    ? Gain(ref course, elapsed, ThermalPerDegree * (value + curveSlope * (start - middle)) / IntervalTicks, ThermalPerDegree * curveSlope * slope / IntervalTicks)
+                    : Gain(ref course, elapsed, HeatstrokeFloor / IntervalTicks, 0);
             }
-            else died = middle < comfortMax ? Recover(course, elapsed) : Hold(course, elapsed);
+            else died = middle < comfortMax ? Recover(ref course, elapsed) : Hold(ref course, elapsed);
 
             if (died is { } within) return span.Start + from + within;
         }
@@ -156,21 +185,21 @@ public static partial class ForecastValue
         return (lastY + OverageTailSlope * (overage - lastX), OverageTailSlope);
     }
 
-    private static double? Hold(Course course, double ticks)
+    private static double? Hold(ref Course course, double ticks)
     {
         course.Piece(ticks, course.Severity, course.Severity);
         return null;
     }
 
     /// <summary>Severity rising at <c>rate + slope * t</c> a tick: quadratic, cut at stage boundaries and the lethal severity. Returns the tick (from the piece start) it went lethal, or null.</summary>
-    private static double? Gain(Course course, double ticks, double rate, double slope)
+    private static double? Gain(ref Course course, double ticks, double rate, double slope)
     {
         double used = 0;
         while (used < ticks)
         {
             var current = rate + slope * used;
             var remaining = ticks - used;
-            var (target, reach) = Next(course, true, level => TimeToRise(level - course.Severity, current, slope));
+            var (target, reach) = Next(ref course, true, new(Clock.Rising, course.Severity, current, slope));
             if (reach >= remaining)
             {
                 var after = course.Severity + current * remaining + slope * remaining * remaining / 2;
@@ -196,9 +225,8 @@ public static partial class ForecastValue
     /// Severity falling by Clamp(severity * 0.027, 0.0015, 0.015) per interval: linear at the top rate above its breakpoint,
     /// exponential between the two, linear at the bottom rate under it, and gone at 0.
     /// </summary>
-    private static double? Recover(Course course, double ticks)
+    private static double? Recover(ref Course course, double ticks)
     {
-        const double decay = RecoveryFraction / IntervalTicks;
         const double upper = RecoveryMax / RecoveryFraction;
         const double lower = RecoveryMin / RecoveryFraction;
         double used = 0;
@@ -207,24 +235,12 @@ public static partial class ForecastValue
             var remaining = ticks - used;
             var severity = course.Severity;
             // The regime the severity is in, moving down: at a breakpoint it takes the lower regime.
-            var regime = severity > upper ? 0 : severity > lower ? 1 : 2;
-            double Level(double t) => regime switch
-            {
-                0 => severity - RecoveryMax / IntervalTicks * t,
-                1 => severity * Math.Exp(-decay * t),
-                _ => severity - RecoveryMin / IntervalTicks * t,
-            };
-            double TimeTo(double level) => regime switch
-            {
-                0 => (severity - level) * IntervalTicks / RecoveryMax,
-                1 => Math.Log(severity / level) / decay,
-                _ => (severity - level) * IntervalTicks / RecoveryMin,
-            };
-
-            var (target, reach) = Next(course, false, TimeTo, regime switch { 0 => upper, 1 => lower, _ => 0 });
+            var regime = severity > upper ? Clock.FallingFast : severity > lower ? Clock.FallingExponential : Clock.FallingSlow;
+            var clock = new Clock(regime, severity, 0, 0);
+            var (target, reach) = Next(ref course, false, clock, regime switch { Clock.FallingFast => upper, Clock.FallingExponential => lower, _ => 0 });
             if (reach >= remaining)
             {
-                var after = Math.Max(0, Level(remaining));
+                var after = Math.Max(0, clock.Level(remaining));
                 course.Piece(remaining, severity, after);
                 course.Severity = after;
                 return null;
@@ -239,20 +255,45 @@ public static partial class ForecastValue
         return null;
     }
 
+    /// <summary>How a severity moves in one regime: the level after t ticks, and the ticks to a level. A struct, so a path's pieces allocate nothing (#3468).</summary>
+    private readonly record struct Clock(int Regime, double Severity, double Rate, double Slope)
+    {
+        public const int Rising = 0, FallingFast = 1, FallingExponential = 2, FallingSlow = 3;
+        private const double Decay = RecoveryFraction / IntervalTicks;
+
+        public double Level(double t) => Regime switch
+        {
+            FallingFast => Severity - RecoveryMax / IntervalTicks * t,
+            FallingExponential => Severity * Math.Exp(-Decay * t),
+            FallingSlow => Severity - RecoveryMin / IntervalTicks * t,
+            _ => throw new InvalidOperationException("a rising clock has no closed level"),
+        };
+
+        public double TimeTo(double level) => Regime switch
+        {
+            Rising => TimeToRise(level - Severity, Rate, Slope),
+            FallingFast => (Severity - level) * IntervalTicks / RecoveryMax,
+            FallingExponential => Math.Log(Severity / level) / Decay,
+            _ => (Severity - level) * IntervalTicks / RecoveryMin,
+        };
+    }
+
     /// <summary>The nearest level strictly ahead in the direction of travel the path must stop at, and the ticks to it: a stage boundary, the lethal severity going up, 0 and an extra level (a rate boundary) going down.</summary>
-    private static (double Target, double Reach) Next(Course course, bool rising, Func<double, double> timeTo, double? extra = null)
+    private static (double Target, double Reach) Next(ref Course course, bool rising, Clock clock, double? extra = null)
     {
         var severity = course.Severity;
-        var levels = course.Table.Stages.Select(s => s.MinSeverity).ToList();
-        if (rising && course.Table.LethalSeverity is { } lethal) levels.Add(lethal);
-        if (!rising) levels.Add(0);
-        if (extra is { } more) levels.Add(more);
         var target = double.NaN;
         var reach = double.PositiveInfinity;
-        foreach (var level in levels)
+        // The levels in the order the list held them: the stages, then the lethal severity or 0, then the extra.
+        var stages = course.Table.Stages;
+        var count = stages.Count + 1 + (extra is null ? 0 : 1);
+        var lethal = course.Table.LethalSeverity;
+        if (rising && lethal is null) count--;
+        for (var i = 0; i < count; i++)
         {
+            var level = i < stages.Count ? stages[i].MinSeverity : i == stages.Count && (!rising || lethal is not null) ? (rising ? lethal!.Value : 0) : extra!.Value;
             if (rising ? level <= severity : level >= severity || level < 0) continue;
-            var t = timeTo(level);
+            var t = clock.TimeTo(level);
             if (t < reach) { reach = t; target = level; }
         }
 

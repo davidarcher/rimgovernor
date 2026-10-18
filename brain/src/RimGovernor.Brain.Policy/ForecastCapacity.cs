@@ -48,10 +48,17 @@ public static class ForecastCapacity
             if (!current.RemainingTicks.TryGetValue(out var remaining)) return Result(default, default, "unknown_current_job_remaining");
             if (remaining > 0) blocked.Add(new(0, Math.Min(remaining, input.HorizonTicks)));
         }
-        foreach (var group in occupancy.GroupBy(o => (o.Pawn, o.Id)))
+        // Each identity (pawn and id) is read once, at its first row, which every later row of it must equal.
+        for (var i = 0; i < occupancy.Count; i++)
         {
-            var row = group.First();
-            if (string.IsNullOrWhiteSpace(row.Id) || group.Any(o => o != row) || !Enum.IsDefined(row.State))
+            var row = occupancy[i];
+            var first = true;
+            for (var j = 0; j < i && first; j++) first = occupancy[j].Pawn != row.Pawn || occupancy[j].Id != row.Id;
+            if (!first) continue;
+            var conflicting = false;
+            for (var j = i + 1; j < occupancy.Count && !conflicting; j++)
+                conflicting = occupancy[j].Pawn == row.Pawn && occupancy[j].Id == row.Id && occupancy[j] != row;
+            if (string.IsNullOrWhiteSpace(row.Id) || conflicting || !Enum.IsDefined(row.State))
                 throw new DomainException("conflicting occupancy identity");
             if (row.Pawn != pawn.Id.Value || row.State != ForecastOccupancyState.Active) continue;
             if (!row.Start.TryGetValue(out var start) || !row.End.TryGetValue(out var end))
@@ -71,16 +78,18 @@ public static class ForecastCapacity
             var assignment = pawn.Schedule.Value[slot];
             if (assignment is not (PawnRules.ScheduleWork or PawnRules.ScheduleAnything)) blocked.Add(new(tick, end));
         }
+        // Equal blocks are one block, so the sort's instability changes nothing.
+        blocked.Sort(static (a, b) => a.Start != b.Start ? a.Start.CompareTo(b.Start) : a.End.CompareTo(b.End));
         var windows = new List<ForecastTimeWindow>();
         double cursor = 0;
-        foreach (var block in blocked.OrderBy(b => b.Start).ThenBy(b => b.End))
+        foreach (var block in blocked)
         {
-            if (block.Start > cursor) windows.Add(new(cursor, block.Start));
+            if (block.Start > cursor) windows.Add(new(cursor, block.Start) { StartLocation = cursor == 0 ? Known(input.Location) : input.LocationAfterProtectedTime });
             cursor = Math.Max(cursor, block.End);
         }
-        if (cursor < input.HorizonTicks) windows.Add(new(cursor, input.HorizonTicks));
-        var located = windows.Select(w => w with
-        { StartLocation = w.Start == 0 ? Known(input.Location) : input.LocationAfterProtectedTime });
-        return Result(Known(EquatableArray.From(located)), Known(windows.Sum(w => w.End - w.Start)));
+        if (cursor < input.HorizonTicks) windows.Add(new(cursor, input.HorizonTicks) { StartLocation = cursor == 0 ? Known(input.Location) : input.LocationAfterProtectedTime });
+        double free = 0;
+        foreach (var w in windows) free += w.End - w.Start;
+        return Result(Known(EquatableArray.Wrap(windows.ToArray())), Known(free));
     }
 }

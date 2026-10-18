@@ -8,7 +8,7 @@ public sealed record ForecastConsequenceVector(EquatableArray<Fact<double>> Urge
     EquatableArray<string> Unknown)
 {
     /// <summary>The ledger, floors and constants this outcome was ranked by (#3522); empty when assembled without a context.</summary>
-    public ForecastValueExplanation Value { get; init; } = new(new(default, []), new());
+    public ForecastValueExplanation Value { get; init; } = ForecastValueExplanation.Empty;
     /// <summary>Expected mental breaks summed over pawns; known only when every pawn's break threshold and mood are.</summary>
     public Fact<double> BreakRisk { get; init; }
     public string ThermalOccupancy { get; init; } = "";
@@ -60,19 +60,18 @@ public sealed partial record ForecastCoupledSelection
         request = request with { Coupled = candidates.Context, Proposed = new() };
         var baselineCommitments = request.Commitments.Concat(candidates.Incumbents).ToArray();
         var incumbentIds = candidates.Incumbents.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
-        var baselineScenario = ForecastCoupled.ForecastCoupledScenarioOf(request, ColonyForecastRules.ForecastCommitmentsById(baselineCommitments)).Coupled!;
+        // One cache for the whole search (#3468): the context's indexes and every pawn's timelines are shared across portfolios.
+        var cache = new ForecastCoupled.CoupledSearchCache();
+        var baselineScenario = ForecastCoupled.ForecastCoupledScenarioOf(request, ColonyForecastRules.ForecastCommitmentsById(baselineCommitments), cache).Coupled!;
         var baseline = baselineScenario.Alternatives.Count > 0 ? baselineScenario.Alternatives[0]
-            : new ForecastCoupledOutcome(new([], 0, 0), default, [], new Dictionary<string, ForecastNeedsResult>(), []);
+            : new ForecastCoupledOutcome(new([], 0, 0), default, new Dictionary<string, ForecastNeedsResult>(), []);
         // Every outcome's wellbeing is priced against this one outcome, so the deltas between outcomes do not depend on which is the baseline.
         var reference = baseline;
         var horizonTicks = request.HorizonDays * GameTime.TicksPerDay;
         // Relief a goal injected is valued by the goal's ledger term, not as a unit of development (#3503).
         var goalRelief = candidates.Context.GoalValues.SelectMany(g => g.Relief.Select(r => r.Need)).ToHashSet(StringComparer.Ordinal);
         ForecastConsequenceVector Consequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments)
-        {
-            var vector = CoupledConsequences(outcome, commitments, goalRelief);
-            return vector with { Value = ForecastValue.Explain(outcome, vector.Urgent[0], candidates.Context, horizonTicks, reference, commitments) };
-        }
+            => CoupledConsequences(outcome, commitments, candidates.Context, horizonTicks, reference, goalRelief);
         // Per goal, the least-broken floor over the evaluated outcomes that progress it, while no such outcome holds every floor the baseline holds (#3503).
         var goalRoutes = new Dictionary<string, (bool Open, string Floor, double Excess)>(StringComparer.Ordinal);
         void NoteGoalRoutes(ForecastConsequenceVector vector, ForecastConsequenceVector against)
@@ -162,8 +161,8 @@ public sealed partial record ForecastCoupledSelection
             {
                 var remaining = budget - expansions;
                 if (remaining == 0) { truncated = true; return false; }
-                var searched = ForecastCoupled.ForecastCoupledScenarioOf(request with { Coupled = candidates.Context with
-                { Activities = candidates.Context.Activities with { ExpansionBudget = Math.Min(bound, remaining) } } }, ColonyForecastRules.ForecastCommitmentsById(commitments)).Coupled!;
+                var searched = ForecastCoupled.ForecastCoupledScenarioOf(request, ColonyForecastRules.ForecastCommitmentsById(commitments), cache,
+                    expansionBudget: Math.Min(bound, remaining)).Coupled!;
                 expansions += searched.Expansions;
                 known = (searched.Truncated ? bound : PortfolioBound, searched);
                 schedules[schedule] = known;
@@ -326,53 +325,99 @@ public sealed partial record ForecastCoupledSelection
 
     public static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments,
         IReadOnlySet<string>? goalRelief = null)
+        => CoupledConsequences(outcome, commitments, null, 0, null, goalRelief);
+
+    private enum Term { ZeroTicks, ThresholdDepthTicks, ThresholdExposureTicks, ZeroAtHorizon }
+
+    /// <summary>One need term over the outcome's pawns, in order, as Enumerable.Sum adds and Enumerable.Max (a NaN gives way to
+    /// the next value) compares; unknown when any pawn's is, each such pawn noted in <paramref name="unknown"/>.</summary>
+    private static Fact<double> Metric(Dictionary<string, ForecastNeedsResult> rows, List<string> unknown, string kind, Term term, bool maximum = false)
     {
-        var unknown = new SortedSet<string>(StringComparer.Ordinal);
-        Fact<double> Metric(string kind, Func<ForecastNeedMetric, Fact<double>> get, bool maximum = false)
-        {
-            // In order, as Enumerable.Sum adds and Enumerable.Max (a NaN gives way to the next value) compares.
-            double sum = 0, max = 0;
-            var any = false;
-            var complete = outcome.Needs.Count > 0;
-            foreach (var (pawn, needs) in outcome.Needs)
-                foreach (var metric in needs.Needs)
+        double sum = 0, max = 0;
+        var any = false;
+        var complete = rows.Count > 0;
+        foreach (var (pawn, needs) in rows)
+            foreach (var metric in needs.Needs)
+            {
+                if (metric.Kind != kind) continue;
+                var value = term switch
                 {
-                    if (metric.Kind != kind) continue;
-                    if (!get(metric).TryGetValue(out var number)) { unknown.Add("unassessed:" + pawn + ":" + kind); complete = false; continue; }
-                    sum += number;
-                    if (!any || double.IsNaN(max) || number > max) max = number;
-                    any = true;
-                }
-            return complete ? Known(maximum ? max : sum) : default;
-        }
-        Fact<double> Worst(Fact<double> a, Fact<double> b) => a.IsKnown && b.IsKnown ? Known(Math.Max(a.Value, b.Value)) : default;
-        var urgent = new[] { Worst(Metric("food", n => n.ZeroTicks, true), Metric("rest", n => n.ZeroTicks, true)),
-            Worst(Metric("food", n => n.ThresholdDepthTicks, true), Metric("rest", n => n.ThresholdDepthTicks, true)),
-            Worst(Metric("food", n => n.ThresholdExposureTicks, true), Metric("rest", n => n.ThresholdExposureTicks, true)),
-            Metric("food", n => n.ThresholdExposureTicks), Metric("rest", n => n.ThresholdExposureTicks) };
-        var thermalKnown = outcome.ThermalExposure.Count > 0 && outcome.ThermalExposure.All(t => t.UnknownTicks == 0);
+                    Term.ZeroTicks => metric.ZeroTicks,
+                    Term.ThresholdDepthTicks => metric.ThresholdDepthTicks,
+                    Term.ThresholdExposureTicks => metric.ThresholdExposureTicks,
+                    _ => metric.FinalLevel.IsKnown ? Known(metric.FinalLevel.Value == 0 ? 1.0 : 0.0) : default
+                };
+                if (!value.TryGetValue(out var number)) { unknown.Add("unassessed:" + pawn + ":" + kind); complete = false; continue; }
+                sum += number;
+                if (!any || double.IsNaN(max) || number > max) max = number;
+                any = true;
+            }
+        return complete ? Known(maximum ? max : sum) : default;
+    }
+
+    private static Fact<double> Worst(Fact<double> a, Fact<double> b) => a.IsKnown && b.IsKnown ? Known(Math.Max(a.Value, b.Value)) : default;
+
+    /// <summary>The vector, priced by the ledger against <paramref name="reference"/> when a <paramref name="context"/> is given (#3522).
+    /// Relief in <paramref name="goalRelief"/> is a goal's, valued by the ledger's goal term, not as development (#3503).</summary>
+    internal static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments,
+        ForecastCoupledContext? context, double horizonTicks, ForecastCoupledOutcome? reference, IReadOnlySet<string>? goalRelief)
+    {
+        var rows = outcome.Needs as Dictionary<string, ForecastNeedsResult> ?? new Dictionary<string, ForecastNeedsResult>(outcome.Needs, StringComparer.Ordinal);
+        var unknown = new List<string>();
+        var urgent = new Fact<double>[]
+        {
+            Worst(Metric(rows, unknown, "food", Term.ZeroTicks, true), Metric(rows, unknown, "rest", Term.ZeroTicks, true)),
+            Worst(Metric(rows, unknown, "food", Term.ThresholdDepthTicks, true), Metric(rows, unknown, "rest", Term.ThresholdDepthTicks, true)),
+            Worst(Metric(rows, unknown, "food", Term.ThresholdExposureTicks, true), Metric(rows, unknown, "rest", Term.ThresholdExposureTicks, true)),
+            Metric(rows, unknown, "food", Term.ThresholdExposureTicks), Metric(rows, unknown, "rest", Term.ThresholdExposureTicks)
+        };
+        var thermalKnown = outcome.ThermalExposure.Count > 0;
+        double degreeTicks = 0;
+        foreach (var t in outcome.ThermalExposure) { thermalKnown &= t.UnknownTicks == 0; degreeTicks += t.AssessedColdDegreeTicks + t.AssessedHotDegreeTicks; }
         if (!thermalKnown) unknown.Add("unassessed_thermal_exposure");
-        var needsVector = new[] { outcome.StationaryThermalRelief.IsKnown ? Known(-outcome.StationaryThermalRelief.Value) : default,
-            thermalKnown ? Known(outcome.ThermalExposure.Sum(t => t.AssessedColdDegreeTicks + t.AssessedHotDegreeTicks)) : default,
-            Metric("joy", n => n.ThresholdExposureTicks, true), Metric("joy", n => n.ThresholdExposureTicks),
-            Metric("food", n => n.FinalLevel.IsKnown ? Known(n.FinalLevel.Value == 0 ? 1.0 : 0.0) : default),
-            Metric("rest", n => n.FinalLevel.IsKnown ? Known(n.FinalLevel.Value == 0 ? 1.0 : 0.0) : default) };
+        var needsVector = new Fact<double>[]
+        {
+            outcome.StationaryThermalRelief.IsKnown ? Known(-outcome.StationaryThermalRelief.Value) : default,
+            thermalKnown ? Known(degreeTicks) : default,
+            Metric(rows, unknown, "joy", Term.ThresholdExposureTicks, true), Metric(rows, unknown, "joy", Term.ThresholdExposureTicks),
+            Metric(rows, unknown, "food", Term.ZeroAtHorizon), Metric(rows, unknown, "rest", Term.ZeroAtHorizon)
+        };
         // Delivered clothing is development, not wearing or physiological thermal protection. Planned development counts
         // what the schedule completes, whichever root built it, each physical site once (#3334).
-        var development = commitments.Where(c => c.Outcome?.Requirements is not null && c.Outcome.Need != ForecastPlannedSite.DevelopmentNeed)
-            .SelectMany(c => c.Outcome!.Requirements!.Relief).Where(r => goalRelief?.Contains(r.Need) != true).GroupBy(r => r.Need).Sum(g => Math.Min(1, g.Sum(r => r.Fraction)))
-            + outcome.RequestedDevelopment.Count;
-        var moods = outcome.Needs.Values.Select(n => n.Mood).ToArray();
-        var moodKnown = moods.Length > 0 && moods.All(m => m is not null && m.TargetExposureTicks.IsKnown && m.PressureTicks.IsKnown);
+        Dictionary<string, double>? relief = null;
+        foreach (var c in commitments)
+        {
+            if (c.Outcome?.Requirements is not { } requirements || c.Outcome.Need == ForecastPlannedSite.DevelopmentNeed) continue;
+            foreach (var r in requirements.Relief)
+                if (goalRelief?.Contains(r.Need) != true) (relief ??= new(StringComparer.Ordinal))[r.Need] = relief.GetValueOrDefault(r.Need) + r.Fraction;
+        }
+        double delivered = 0;
+        if (relief is not null) foreach (var fraction in relief.Values) delivered += Math.Min(1, fraction);
+        var development = delivered + outcome.RequestedDevelopment.Count;
+        var moodKnown = rows.Count > 0; var breakKnown = true;
+        double exposure = 0, pressure = 0, breaks = 0;
+        foreach (var needs in rows.Values)
+        {
+            if (needs.Mood is not { } m || !m.TargetExposureTicks.IsKnown || !m.PressureTicks.IsKnown) { moodKnown = false; break; }
+            exposure += m.TargetExposureTicks.Value; pressure += m.PressureTicks.Value;
+            if (m.BreakRisk.TryGetValue(out var risk)) breaks += risk; else breakKnown = false;
+        }
+        breakKnown &= moodKnown;
         if (!moodKnown) unknown.Add("unassessed_mood");
-        var breakKnown = moodKnown && moods.All(m => m!.BreakRisk.IsKnown);
         if (!breakKnown) unknown.Add("mental_break_probability_unassessed");
-        unknown.UnionWith(outcome.Support.Findings);
-        unknown.UnionWith(outcome.Maintenance.SelectMany(m => m.Findings));
-        return new(EquatableArray.From(urgent), EquatableArray.From(needsVector), moodKnown ? Known(moods.Sum(m => m!.TargetExposureTicks.Value)) : default,
-            moodKnown ? Known(moods.Sum(m => m!.PressureTicks.Value)) : default,
-            development, outcome.Plan.LaborCost, EquatableArray.From(unknown))
-        { BreakRisk = breakKnown ? Known(moods.Sum(m => m!.BreakRisk.Value)) : default, ThermalOccupancy = outcome.ThermalOccupancy, Support = outcome.Support, Maintenance = outcome.Maintenance };
+        foreach (var finding in outcome.Support.Findings) unknown.Add(finding);
+        foreach (var m in outcome.Maintenance) foreach (var finding in m.Findings) unknown.Add(finding);
+        unknown.Sort(StringComparer.Ordinal);
+        var distinct = 0;
+        for (var i = 0; i < unknown.Count; i++) if (i == 0 || unknown[i] != unknown[i - 1]) unknown[distinct++] = unknown[i];
+        var unknownRows = new string[distinct];
+        unknown.CopyTo(0, unknownRows, 0, distinct);
+        return new(EquatableArray.Wrap(urgent), EquatableArray.Wrap(needsVector), moodKnown ? Known(exposure) : default,
+            moodKnown ? Known(pressure) : default, development, outcome.Plan.LaborCost, EquatableArray.Wrap(unknownRows))
+        {
+            BreakRisk = breakKnown ? Known(breaks) : default, ThermalOccupancy = outcome.ThermalOccupancy, Support = outcome.Support, Maintenance = outcome.Maintenance,
+            Value = context is null ? ForecastValueExplanation.Empty : ForecastValue.Explain(outcome, urgent[0], context, horizonTicks, reference!, commitments)
+        };
     }
 
     /// <summary>
@@ -402,12 +447,17 @@ public sealed partial record ForecastCoupledSelection
             if (a.Support.SurgeryRoomFactor.IsKnown && b.Support.SurgeryRoomFactor.IsKnown)
             { var rank = b.Support.SurgeryRoomFactor.Value.CompareTo(a.Support.SurgeryRoomFactor.Value); if (rank != 0) return rank; }
         }
-        var maintenance = a.Maintenance.Zip(b.Maintenance).Where(p => p.First.Requirement == p.Second.Requirement
-            && p.First.MissingXp.IsKnown && p.Second.MissingXp.IsKnown).ToArray();
-        var maintenanceRank = maintenance.Sum(p => p.First.MissingXp.Value).CompareTo(maintenance.Sum(p => p.Second.MissingXp.Value));
+        double missing = 0, missingOther = 0;
+        for (var i = 0; i < a.Maintenance.Count && i < b.Maintenance.Count; i++)
+        {
+            var (first, second) = (a.Maintenance[i], b.Maintenance[i]);
+            if (first.Requirement != second.Requirement || !first.MissingXp.IsKnown || !second.MissingXp.IsKnown) continue;
+            missing += first.MissingXp.Value; missingOther += second.MissingXp.Value;
+        }
+        var maintenanceRank = missing.CompareTo(missingOther);
         if (maintenanceRank != 0) return maintenanceRank;
         // Joy threshold exposure (the longest, then the total) stays here until the mood model prices the recreation thought.
-        foreach (var index in new[] { 2, 3 })
+        for (var index = 2; index <= 3; index++)
         {
             if (!a.Needs[index].IsKnown || !b.Needs[index].IsKnown) continue;
             var rank = a.Needs[index].Value.CompareTo(b.Needs[index].Value); if (rank != 0) return rank;

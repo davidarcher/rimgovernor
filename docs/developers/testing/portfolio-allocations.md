@@ -802,4 +802,44 @@ Allocation, best of three samples:
 | Four-worker | 700 | 262,144 | 13,082 / 6,818 | 7,182 / 3,981 |
 | Four-worker | 60,000 | 16,384 | 707 / 373 | 325 / 205 |
 
-Most of what remains is the needs timeline on a cache miss and the capacity input it is keyed by.
+### Pooled evaluator
+
+One evaluator per search owns the scratch every schedule evaluation needs (its ledger, events,
+findings and per-pawn rows) and reuses it. The sequences evaluations repeat are interned to integer
+ids: a pawn's choices and occupancy, the completed rows each result reads, the need services and the
+thermal exposures. Each result is memoized by exactly the completed rows it reads, so schedules that
+differ elsewhere share it:
+
+- shelters by the prerequisite rows; planned rooms and development by the development tasks by
+  pawn; support by the service rows, and constant for a context with no demands or deliveries;
+  maintenance by the completed set; thermal relief and the thermal occupancy by the need-service
+  rows.
+- The needs timeline is split. Its core (metrics, the needs' own occupancy, memory delta, useful
+  food, findings) reads no occupancy and is computed once per choices, grants and renewals; only
+  the capacity stage runs per occupancy, with the pawn's free windows memoized per occupancy. The
+  capacity projection is loops, with the windows the old grouping produced.
+- Material budgets are memoized by the bill bindings. The stock walk runs against a base built
+  once (the observed stock and the commitments' own effects) and raises the shortfall findings;
+  nothing projects stock trajectories.
+- Equal allocations placed by different search branches map to one object, so every
+  reference-keyed sequence compares by value.
+- Findings and thermal spans are copied once, into the outcome.
+
+Every quality row is identical to stage 3. Allocation and wall time, stage 3 (main at b06f0ff88,
+best of three samples) and stage 4 (one sample at the landed change) measured on the same machine:
+
+| Fixture | Horizon | Budget | MB stage 3 / stage 4 | ms stage 3 / stage 4 |
+|---|---|---|---|---|
+| Original | 700 | 16,384 | 189 / 31 | 274 / 113 |
+| Original | 700 | 262,144 | 456 / 71 | 306 / 104 |
+| Original | 60,000 | 16,384 | 192 / 32 | 191 / 38 |
+| Four-worker | 700 | 1,024 | 25 / 6 | 23 / 7 |
+| Four-worker | 700 | 16,384 | 373 / 65 | 304 / 95 |
+| Four-worker | 700 | 262,144 | 6,458 / 690 | 3,805 / 1,600 |
+| Four-worker | 60,000 | 16,384 | 452 / 57 | 244 / 99 |
+
+At the four-worker 16,384 budget about 13 KB per evaluated plan remains. Roughly 3 KB is the
+schedule search's own output (the allocation and plan records it emits and its visited prefixes),
+5 KB the evaluation (memo misses: a capacity stage per new occupancy, a needs core and mood per new
+choice set; the outcome and its per-pawn needs), and the rest the
+portfolio level (consequence vectors with their explanations, subset keys and evidence).

@@ -122,7 +122,6 @@ public sealed class ForecastPortfolioChoiceTests
                 var produced = tasks.SelectMany(t => t.Outputs).Sum(o => o.Units.Value);
                 var consumed = tasks.SelectMany(t => t.Inputs).Sum(i => i.Units.Value);
                 Assert.True(consumed <= produced);
-                Assert.All(outcome.Stocks.SelectMany(stock => stock.Points), point => Assert.True(point.BalanceUnits.Value >= 0));
             }
         }
         Assert.NotNull(best);

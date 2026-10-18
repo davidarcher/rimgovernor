@@ -122,8 +122,6 @@ Policy|ForecastActivityOutcome.Deadline
 Policy|ForecastActivityOutcome.ProgressUnits
 Policy|ForecastActivityOutcome.RetainedCompletion
 Policy|ForecastActivityOutcomeComparison.NetBenefit
-Policy|ForecastActivityPlan.EquipmentClaims
-Policy|ForecastActivityPlan.StockChanges
 Policy|ForecastActivityRelief.Completion
 Policy|ForecastActivityRelief.Food
 Policy|ForecastActivityRelief.Id
@@ -158,7 +156,6 @@ Policy|ForecastConstructionWorker.Observed
 Policy|ForecastConstructionWorker.WorkPerTick
 Policy|ForecastCoupledContext.Construction
 Policy|ForecastCoupledOutcome.Shelters
-Policy|ForecastCoupledOutcome.Stocks
 Policy|ForecastCoupledSelection.Baseline
 Policy|ForecastEquipmentClaim.End
 Policy|ForecastEquipmentClaim.Equipment
@@ -225,9 +222,6 @@ Policy|ForecastShelterEffect.MinC
 Policy|ForecastShelterEffect.RequiredActivities
 Policy|ForecastShelterEffect.Roofed
 Policy|ForecastShelterEffect.ThroughTicks
-Policy|ForecastStockPoint.BalanceUnits
-Policy|ForecastStockTrajectory.Points
-Policy|ForecastStockTrajectory.Resource
 Policy|ForecastSurvivalNeed.Basis
 Policy|ForecastSurvivalNeed.Id
 Policy|ForecastSurvivalNeed.Pawn

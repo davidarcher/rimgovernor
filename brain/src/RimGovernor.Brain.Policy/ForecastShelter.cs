@@ -41,48 +41,82 @@ public static class ForecastShelterPolicy
 {
     public static EquatableArray<ForecastShelterOutcome> ForecastShelters(IEnumerable<ForecastShelterPlan> rooms,
         ForecastActivityPlan schedule, double horizon)
+        => ForecastShelters(rooms.ToArray(), schedule.Allocations.ToDictionary(a => a.Activity, StringComparer.Ordinal), null, horizon, new());
+
+    /// <summary>A search's scratch for <see cref="ForecastShelters(IReadOnlyList{ForecastShelterPlan}, IReadOnlyDictionary{string, ForecastActivityAllocation}, IReadOnlyDictionary{string, Fact{bool}}?, double, ShelterScratch)"/>, reused by every projection.</summary>
+    internal sealed class ShelterScratch
     {
-        var selected = schedule.Allocations.Select(a => a.Activity).ToHashSet(StringComparer.Ordinal);
-        var plans = rooms.ToArray();
-        var overloaded = plans.Where(r => r.PowerNetwork.Length != 0 && r.Prerequisites.All(selected.Contains)
-                && r.AlternativePrerequisites.All(group => group.Any(selected.Contains)))
-            .GroupBy(r => r.PowerNetwork).Where(g => g.Any(r => !r.AdditionalWatts.IsKnown || !r.SurplusWatts.IsKnown)
-                || g.GroupBy(r => r.Source).Sum(s => s.First().AdditionalWatts.Value) > g.Min(r => r.SurplusWatts.Value))
-            .Select(g => g.Key).ToHashSet(StringComparer.Ordinal);
-        var allocations = schedule.Allocations.ToDictionary(a => a.Activity, StringComparer.Ordinal);
-        var outcomes = new ForecastShelterOutcome[plans.Length];
-        for (var i = 0; i < plans.Length; i++)
+        public readonly Dictionary<string, (double Watts, double Surplus, bool Unknown)> Networks = new(StringComparer.Ordinal);
+        public readonly HashSet<(string Network, string Source)> Sources = [];
+    }
+
+    /// <summary>Each room's projection when its prerequisites are the allocations <paramref name="completed"/> marks done
+    /// (all of <paramref name="allocations"/> when null). A search projects thousands of schedules against one set of
+    /// rooms, so this reads the search's own rows and allocates only the result (#3468).</summary>
+    internal static EquatableArray<ForecastShelterOutcome> ForecastShelters(IReadOnlyList<ForecastShelterPlan> rooms,
+        IReadOnlyDictionary<string, ForecastActivityAllocation> allocations, IReadOnlyDictionary<string, Fact<bool>>? completed, double horizon, ShelterScratch scratch)
+    {
+        // A powered room whose prerequisites are all scheduled draws on its network; the network is overloaded when any such
+        // room's draw or surplus is unknown, or the draws (one per source) exceed the smallest surplus.
+        var networks = scratch.Networks; var sources = scratch.Sources;
+        networks.Clear(); sources.Clear();
+        foreach (var room in rooms)
         {
-            var room = plans[i];
-            var shared = overloaded.Contains(room.PowerNetwork);
+            if (room.PowerNetwork.Length == 0) continue;
+            var selected = true;
+            foreach (var p in room.Prerequisites) selected &= Selected(p, allocations, completed);
+            foreach (var group in room.AlternativePrerequisites)
+            {
+                var any = false;
+                foreach (var p in group) any |= Selected(p, allocations, completed);
+                selected &= any;
+            }
+            if (!selected) continue;
+            var network = networks.GetValueOrDefault(room.PowerNetwork, (0, double.PositiveInfinity, false));
+            if (!room.AdditionalWatts.TryGetValue(out var watts) || !room.SurplusWatts.TryGetValue(out var surplus)) network.Unknown = true;
+            else
+            {
+                if (sources.Add((room.PowerNetwork, room.Source))) network.Watts += watts;
+                network.Surplus = Math.Min(network.Surplus, surplus);
+            }
+            networks[room.PowerNetwork] = network;
+        }
+        var outcomes = new ForecastShelterOutcome[rooms.Count];
+        for (var i = 0; i < outcomes.Length; i++)
+        {
+            var room = rooms[i];
+            var shared = networks.TryGetValue(room.PowerNetwork, out var network) && (network.Unknown || network.Watts > network.Surplus);
             // A search projects each room at a few completion ticks over thousands of schedules (#3468).
-            var key = (shared, CompletedAt(room, allocations), horizon);
+            var key = (shared, CompletedAt(room, allocations, completed), horizon);
             var byRoom = Outcomes.GetValue(room, static _ => new());
             if (!byRoom.TryGetValue(key, out var outcome))
                 byRoom[key] = outcome = ShelterAt(shared ? room with { SupplyTicks = default, Findings = [.. room.Findings, "shared_power_capacity_shortfall"] } : room,
                     key.Item2, horizon);
             outcomes[i] = outcome;
         }
-        return EquatableArray.Create<ForecastShelterOutcome>(outcomes);
+        return EquatableArray.Wrap(outcomes);
     }
+
+    private static bool Selected(string activity, IReadOnlyDictionary<string, ForecastActivityAllocation> allocations, IReadOnlyDictionary<string, Fact<bool>>? completed)
+        => allocations.ContainsKey(activity) && (completed is null || completed.GetValueOrDefault(activity) == Known(true));
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastShelterPlan,
         System.Collections.Concurrent.ConcurrentDictionary<(bool Shared, double Complete, double Horizon), ForecastShelterOutcome>> Outcomes = new();
 
     /// <summary>When the room's shell completes in the schedule, or NaN when a prerequisite is not scheduled.</summary>
-    private static double CompletedAt(ForecastShelterPlan room, Dictionary<string, ForecastActivityAllocation> allocations)
+    private static double CompletedAt(ForecastShelterPlan room, IReadOnlyDictionary<string, ForecastActivityAllocation> allocations, IReadOnlyDictionary<string, Fact<bool>>? completed)
     {
         double complete = 0;
         foreach (var p in room.Prerequisites)
         {
-            if (!allocations.TryGetValue(p, out var a)) return double.NaN;
-            complete = Math.Max(complete, a.End);
+            if (!Selected(p, allocations, completed)) return double.NaN;
+            complete = Math.Max(complete, allocations[p].End);
         }
         foreach (var group in room.AlternativePrerequisites)
         {
             var first = double.PositiveInfinity;
             foreach (var p in group)
-                if (allocations.TryGetValue(p, out var a)) first = Math.Min(first, a.End);
+                if (Selected(p, allocations, completed)) first = Math.Min(first, allocations[p].End);
             if (double.IsPositiveInfinity(first)) return double.NaN;
             complete = Math.Max(complete, first);
         }
@@ -93,7 +127,7 @@ public static class ForecastShelterPolicy
     /// Enclosure, roof and source completion are prerequisites; presence alone has no thermal credit.</summary>
     public static ForecastShelterOutcome ForecastShelter(ForecastShelterPlan room,
         ForecastActivityPlan schedule, double horizon) =>
-        ShelterAt(room, CompletedAt(room, schedule.Allocations.ToDictionary(a => a.Activity, StringComparer.Ordinal)), horizon);
+        ShelterAt(room, CompletedAt(room, schedule.Allocations.ToDictionary(a => a.Activity, StringComparer.Ordinal), null), horizon);
 
     /// <summary>The room's projection when its shell completes at <paramref name="complete"/> (NaN: never scheduled).</summary>
     private static ForecastShelterOutcome ShelterAt(ForecastShelterPlan room, double complete, double horizon)

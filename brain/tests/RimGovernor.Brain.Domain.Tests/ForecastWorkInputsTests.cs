@@ -57,17 +57,16 @@ public sealed class ForecastWorkInputsTests
         Assert.All(comparison.Alternatives, p =>
         {
             Assert.Equal(30, p.Allocations.Sum(a => a.WorkTicks));
-            Assert.Equal(2, p.StockChanges.Count);
-            Assert.Equal(10, Assert.Single(p.StockChanges, e => e.Resource == food).Units.Value);
+            var changes = ForecastActivities.StockChangesOf(problem, p);
+            Assert.Equal(2, changes.Count);
+            Assert.Equal(10, Assert.Single(changes, e => e.Resource == food).Units.Value);
+            Assert.False(Assert.Single(changes, e => e.Resource == secondary).Units.IsKnown);
         });
-        var forecast = ColonyForecastRules.ForecastColony(new()
-        {
-            Origin = new("world", 0), HorizonDays = 1,
-            Facts = new() { Stock = Known(default(EquatableArray<Amount>)) },
-            Commitments = EquatableArray.From(new[] { new ForecastCommitment("harvest", comparison.Selected!.StockChanges) }),
-        });
-        Assert.Equal(10, Assert.Single(forecast.Proposed.Stocks, s => s.Resource == food).Points[^1].BalanceUnits.Value);
-        Assert.False(Assert.Single(forecast.Proposed.Stocks, s => s.Resource == secondary).Points[^1].BalanceUnits.IsKnown);
+        // Walked from an empty known stock, the known yield raises nothing and the unknown one stays an unknown effect.
+        var findings = new List<ForecastFinding>();
+        var harvest = ColonyForecastRules.ForecastCommitmentsById([new ForecastCommitment("harvest", ForecastActivities.StockChangesOf(problem, comparison.Selected!))]);
+        new ColonyForecastRules.InventoryWalk().Run(new(Known(default(EquatableArray<Amount>)), harvest, 1), default, findings);
+        Assert.Equal("unknown_stock_effect", Assert.Single(findings).Reason);
     }
 
     [Fact]

@@ -120,7 +120,7 @@ public static class ForecastConstruction
                 }
                 options.Add(new("finish", pawn.Id.Value, duration, estimate.RecoveryLaborTicks) { Equipment = estimate.FinishEquipment });
             }
-            var comparison = ForecastActivities.CompareActivityPlans(new ForecastActivityProblem
+            var problem = new ForecastActivityProblem
             {
                 Activities = needs.Length == 0 ? [new("finish", site.Id, site.Id, [])]
                     : [new("deliver", pickups[0], site.Id, []), new("finish", site.Id, site.Id, ["deliver"])],
@@ -128,11 +128,12 @@ public static class ForecastConstruction
                 Equipment = equipment,
                 Deadline = Known(request.HorizonDays * GameTime.TicksPerDay), AlternativeLaborCost = commitment.AlternativeLaborCost,
                 ExpansionBudget = context.ExpansionBudget - expansions,
-            });
+            };
+            var comparison = ForecastActivities.CompareActivityPlans(problem);
             expansions += comparison.Expansions;
             if (eligibilityUnknown) comparison = comparison with { Findings = [.. comparison.Findings, "unknown_construction_eligibility"] };
             if (comparison.Selected is not { } plan) { Result(comparison.Decision, comparison); continue; }
-            equipment = ForecastClaims.ForecastEquipmentAvailabilityOf(equipment, plan.EquipmentClaims);
+            equipment = ForecastClaims.ForecastEquipmentAvailabilityOf(equipment, ForecastActivities.EquipmentClaimsOf(problem, plan));
             foreach (var group in plan.Allocations.GroupBy(a => a.Pawn))
             {
                 var last = group.MaxBy(a => a.End)!;

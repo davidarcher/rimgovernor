@@ -28,7 +28,7 @@ public sealed class GoalValueTests
 
     private static ForecastCoupledOutcome Outcome(double researchTicks) =>
         new(new(researchTicks == 0 ? Array.Empty<ForecastActivityAllocation>() : [new("research/pawn/bench", "pawn", 0, 0, 0, researchTicks, 0, 0, researchTicks, 0, 0)], researchTicks, 0),
-            Known(true), [], new Dictionary<string, ForecastNeedsResult>(), []);
+            Known(true), new Dictionary<string, ForecastNeedsResult>(), []);
 
     private static ForecastValueResult Ledger(ForecastCoupledContext context, double researchTicks) =>
         ForecastValue.Of(Outcome(researchTicks), context, GameTime.TicksPerDay, Outcome(0));

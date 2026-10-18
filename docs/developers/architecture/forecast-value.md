@@ -314,34 +314,39 @@ manhunters, ship parts), and fire. They are reported as unassessed terms.
 
 ## Search engine
 
-The comparator has four nested levels today:
+The comparator has four nested levels:
 
 1. **Portfolio search** over subsets of roots. Subsets are deduplicated by
    string keys.
 2. **Schedule search** per portfolio: depth-first over task × pawn × window ×
-   service time × departure. Each node builds a formatted prefix string. It
+   service time × departure. Prefixes are packed interned indices and raw
+   double bits; a plan's text is formatted only to break ranking ties. It
    returns every complete plan.
-3. **Every plan gets a full schedule evaluation.** Per pawn, that includes two
-   needs timelines. The first timeline's mood result is discarded; only its
-   capacity is read.
-4. A consequence vector per outcome, built with LINQ and sorted sets.
+3. **Every plan gets a schedule evaluation** by one pooled evaluator per
+   search. Its scratch is reused; the sequences plans repeat are interned to
+   integer ids; each per-pawn timeline (needs core, capacity, mood, roof,
+   banded thoughts), shelter projection, support, maintenance, planned-room
+   and relief result is memoized by exactly the rows it reads. The physiology
+   call computes capacity without mood. The stock walk raises shortfall
+   findings; no outcome carries trajectories.
+4. A consequence vector per outcome, built with loops in a fixed order.
 
-Proposed stages. Each stage is proven by identical output on the recorded
-fixture baselines, and benchmarked at a one-day horizon in .NET and in game.
+Stages. Each stage is proven by identical output on the recorded fixture
+baselines, and benchmarked at a one-day horizon in .NET
+([portfolio allocations](../testing/portfolio-allocations.md)) and in game.
 
-1. **Stop wasted work.** The physiology call computes capacity without mood.
-   The search does not build the mood trajectory, which no production code
-   reads. Each pawn's needs result is cached per search, keyed by that pawn's
-   own inputs.
-2. **Integer ids, bitsets, no allocations in hot loops.**
-   - Ids are interned once per search.
-   - Closures, compatibility and redundant pairs become bitsets; portfolio
-     keys become bitset structs.
-   - The schedule search updates array state in place and detects duplicate
-     prefixes with incremental 64/128-bit hashes.
-   - Buffers are pooled, and plan details are built only for winners.
-   - The mood timeline uses exact segments between real events, not 150-tick
-     steps. Tier 2 cannot exist without this.
+1. **Stop wasted work** ([#3467](https://github.com/davidarcher/rimgovernor/issues/3467), shipped).
+   No mood in the physiology call, no mood trajectory in the search, and each
+   pawn's needs result cached per search by that pawn's own inputs.
+2. **Integer ids, pooled evaluator, exact mood segments**
+   ([#3468](https://github.com/davidarcher/rimgovernor/issues/3468), shipped).
+   Ids are interned once per search; the evaluator's buffers are pooled; the
+   stock walk raises findings, not trajectories; the mood timeline uses exact segments
+   between real events, not 150-tick steps, which tier 2 needs. Not done:
+   bitsets for closures, compatibility, redundant pairs and portfolio keys,
+   and incremental prefix hashes in the schedule search (the exact packed
+   prefixes replaced the text keys instead). What remains per evaluated plan
+   is the schedule search's own output and the memo misses.
 3. **Evaluate lazily, budget by evaluations.**
    - Floors and cheap terms are computed first; a candidate that cannot beat
      the best on its bound stops early (branch and bound on capability-days).

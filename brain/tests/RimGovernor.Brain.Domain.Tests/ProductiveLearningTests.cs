@@ -59,7 +59,7 @@ public sealed class ProductiveLearningTests
         var result = ForecastActivities.CompareActivityPlans(problem);
         Assert.NotNull(result.Selected);
         Assert.Equal(260, result.Selected!.CompletedAt);
-        Assert.Equal(260, result.Selected.EquipmentClaims.Max(c => c.End.Value));
+        Assert.Equal(260, ForecastActivities.EquipmentClaimsOf(problem, result.Selected).Max(c => c.End.Value));
         Assert.Empty(ForecastActivities.CompareActivityPlans(Meals(3, learning: 0, deadline: 265)).Alternatives);
         Assert.Equal("experienced", ForecastActivities.CompareActivityPlans(Meals(1, deadline: 95)).Selected!.Allocations[0].Pawn);
     }

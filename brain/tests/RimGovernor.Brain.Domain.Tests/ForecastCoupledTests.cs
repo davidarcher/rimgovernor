@@ -71,7 +71,6 @@ public sealed class ForecastCoupledTests
         Assert.True(useful.Plan.CompletedAt <= 300);
         Assert.True(useful.Needs["pawn"].Needs.Single(n => n.Kind == "food").FinalLevel.Value > 0);
         Assert.Empty(compared.Baseline.Coupled!.Alternatives.Single().Plan.Allocations);
-        Assert.DoesNotContain(compared.Baseline.Coupled.Alternatives.Single().Stocks, s => s.Resource.Value == "TestWall");
     }
 
     [Theory]
@@ -303,7 +302,7 @@ public sealed class ForecastCoupledTests
         var meal = generated.Alternatives.Single(c => c.ActivityCompletions.Contains(firstMeal.Task));
         var result = Evaluate(facts, batch, meal).Proposed.Coupled!.Alternatives.Where(p => p.Feasible == Known(true)).ToArray();
         Assert.NotEmpty(result);
-        Assert.All(result, p => Assert.Equal(1, p.Stocks.Single(s => s.Resource.Value == "Meal").Points[^1].BalanceUnits.Value));
+        Assert.All(result, p => Assert.Equal(1, ForecastActivities.StockChangesOf(generated.Context.Activities, p.Plan).Where(c => c.Resource.Value == "Meal").Sum(c => c.Units.Value)));
         var secondRecipe = generated.Context.Activities.Activities.Single(t => t.Id == batch.ActivityCompletions[1]).Prerequisites
             .Single(id => generated.Context.Activities.Activities.Single(t => t.Id == id).Outputs.Any(o => o.Resource.Value == "Meal"));
         Assert.Contains(result, p => p.Plan.Allocations.Single(a => a.Activity == firstMeal.Task).End < p.Plan.Allocations.Single(a => a.Activity == secondRecipe).End);
@@ -327,13 +326,15 @@ public sealed class ForecastCoupledTests
             Needs = context.Needs with { Pawns = [context.Needs.Pawns[0] with { ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) }] }
         };
         var projection = ForecastShelterPolicy.ForecastShelters([room], new([], 0, 0), 300);
-        ForecastThermalExposure Exposure(string location, Dictionary<string, List<(double, double, double)>>? comfort = null) => ForecastThermalExposure.ForecastThermalExposureOf(context,
-            new() { Activities = [new("work", location, location, [])] },
-            new([new("work", "pawn", 0, 0, 0, 300, 0, 0, 300, 300, 0)], 300, 300), projection, 300, comfort: comfort).Single();
+        ForecastThermalExposure Exposure(string location, params (double, double, double)[] comfort)
+        {
+            ForecastActivityAllocation[] work = [new("work", "pawn", 0, 0, 0, 300, 0, 0, 300, 300, 0)];
+            return ForecastThermalExposure.PawnExposureOf(context, new() { ["work"] = new("work", location, location, []) }, context.Needs.Pawns[0], work, work, projection, 300, comfort, []);
+        }
         var outdoors = Exposure("cell/5/5"); var indoors = Exposure("cell/1/1");
         Assert.Equal(6000, outdoors.ColdDegreeTicks.Value);
         // A -20 comfort shift from tick 100 removes the cold for the remaining 200 ticks.
-        Assert.Equal(2000, Exposure("cell/5/5", new() { ["pawn"] = [(-20, 0, 100)] }).ColdDegreeTicks.Value);
+        Assert.Equal(2000, Exposure("cell/5/5", (-20, 0, 100)).ColdDegreeTicks.Value);
         Assert.True(indoors.ColdDegreeTicks.Value < outdoors.ColdDegreeTicks.Value);
         Assert.Equal(0, outdoors.UnknownTicks);
     }
@@ -382,7 +383,6 @@ public sealed class ForecastCoupledTests
         Assert.All(alternatives, p =>
         {
             Assert.Equal(Known(false), p.Feasible);
-            Assert.DoesNotContain(p.Stocks, s => s.Resource.Value == "Rice" && s.Points.Any(t => t.BalanceUnits.IsKnown && t.BalanceUnits.Value > 0));
             Assert.True(p.Needs["pawn"].Needs.Single(n => n.Kind == "food").FinalLevel.Value <= .1);
         });
     }
@@ -429,7 +429,6 @@ public sealed class ForecastCoupledTests
         var baseline = result.Baseline.Coupled!.Alternatives.Single();
         Assert.True(baseline.Needs["pawn"].Capacity.FreeTicks.Value > 0);
         Assert.Empty(baseline.Plan.Allocations);
-        Assert.DoesNotContain(baseline.Stocks, s => s.Resource.Value == "TestWall");
     }
     [Fact]
     public void ClothingAndConstructionKeepMaterialAlternativesUntilSharedEvaluation()
@@ -560,6 +559,7 @@ public sealed class ForecastCoupledTests
     }
     [Theory]
     [InlineData(100, false)]
+    [InlineData(119, false)]
     [InlineData(120, true)]
     public void ExternalTimedConsumptionSharesTheLedgerAndCreditsOnlyItsOwnHold(int stock, bool fits)
     {
@@ -573,7 +573,7 @@ public sealed class ForecastCoupledTests
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world", 100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [legacy], new() { Add = [wall] });
         var result = ColonyForecastRules.ForecastColony(request).Proposed.Coupled!;
         Assert.Equal(fits, result.Alternatives.Any(p => p.Feasible == Known(true)));
-        if (fits) Assert.All(result.Alternatives, p => Assert.Equal(0, p.Stocks.Single(s => s.Resource.Value == "Rice").Points[^1].BalanceUnits.Value));
+        if (fits) Assert.All(result.Alternatives, p => Assert.DoesNotContain(p.Findings, f => f.Reason == "stock_shortfall"));
     }
 
     [Fact]
