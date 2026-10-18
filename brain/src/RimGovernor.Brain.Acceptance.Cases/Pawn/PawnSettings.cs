@@ -147,7 +147,7 @@ internal static class PawnSettings
         async Task<Dictionary<string, string>> NamesAsync(string label)
         {
             var reply = await s.CallAsync(label, NativeOps.ReadPopulation, new Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-            var population = TypedReads.Observed(label, NativeOps.ReadPopulation, reply, reply.Outcome?.Observed);
+            var population = TypedReads.Observed(label, NativeOps.ReadPopulation, reply, reply.Observed);
             return population.OwnedNames.Where(n => n.PawnId is not null).ToDictionary(n => n.PawnId!, n => n.ShortName ?? "", StringComparer.Ordinal);
         }
 

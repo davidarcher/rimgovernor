@@ -272,7 +272,7 @@ public static class BiotechColonyReads
     /// <summary>Projects a validated section; an absent or unavailable one is an unknown fact.</summary>
     internal static Fact<BiotechColony> ColonyBiotech(O.BiotechSection? section)
     {
-        var f = section?.Outcome?.Observed;
+        var f = section?.Observed;
         if (f is null)
         {
             return default;

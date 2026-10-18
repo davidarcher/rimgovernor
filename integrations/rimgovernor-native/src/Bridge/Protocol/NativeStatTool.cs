@@ -27,9 +27,14 @@ namespace HomeBridge.BridgeTools
             catch (Exception ex)
             {
                 ObservationWork.Failed("evaluateStat", ex);
-                return new Obs.EvaluateStatReply { Outcome = new Common.Unavailable
-                    { Reason = Common.UnavailableReason.ReadFailed, Detail = $"Stat {request.Stat} could not be evaluated: {ex.Message}" } };
+                return Unreadable($"Stat {request.Stat} could not be evaluated: {ex.Message}");
             }
+        }
+
+        private static Obs.EvaluateStatReply Unreadable(string detail)
+        {
+            ReadFailureLog.Note("evaluate_stat", detail);
+            return Refuse(Common.FailureCode.Unavailable, detail);
         }
 
         private static Obs.EvaluateStatReply Refuse(Common.FailureCode code, string detail) =>
@@ -79,7 +84,7 @@ namespace HomeBridge.BridgeTools
             }
             var value = exact ?? stat.Worker.GetValue(req);
             if (float.IsNaN(value) || float.IsInfinity(value))
-                return new Obs.EvaluateStatReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = $"Stat {stat.defName} is {value}." } };
+                return Unreadable($"Stat {stat.defName} is {value}.");
             var observed = new Obs.StatEvaluation { Stat = stat.defName, Value = value, Shown = stat.Worker.ShouldShowFor(req) };
             return new Obs.EvaluateStatReply { Outcome = observed };
         }

@@ -341,7 +341,7 @@ public static class ColonyDecodeReads
             };
             f = f with { Calendar = ColonyProductionReads.ColonyCalendar(climate) };
         }
-        var curve = v.Planning?.Outcome?.Observed?.Gear?.OutdoorTemperatureByTwelfthC;
+        var curve = v.Planning?.Observed?.Gear?.OutdoorTemperatureByTwelfthC;
         if (curve is { } curveTemps && curveTemps.Count == 12)
         {
             var temps = new double[curveTemps.Count];
@@ -529,7 +529,7 @@ public static class ColonyDecodeReads
             }
             f = f with { EventLoot = Known(EquatableArray.From(rows)) };
         }
-        if (v.Planning?.Outcome?.Observed is { } planningObserved && planningObserved.Environment is { } planningEnvironment
+        if (v.Planning?.Observed is { } planningObserved && planningObserved.Environment is { } planningEnvironment
             && !HasIssue(planningObserved.Issues, "environment")
             && Headed(buildings, planningEnvironment.Lights, l => l.Building) && Headed(buildings, planningEnvironment.Growers, g => g.Building))
         {

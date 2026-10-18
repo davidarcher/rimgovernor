@@ -242,7 +242,7 @@ internal static class MedicalSurgery
     private static async Task<(Observations.PopulationPerson Person, Observations.SurgeryOperation Harvest)> KidneyHarvestAsync(TypedSession s, string label, string prisoner, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadPopulation, new Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var population = TypedReads.Observed(label, NativeOps.ReadPopulation, reply, reply.Outcome?.Observed);
+        var population = TypedReads.Observed(label, NativeOps.ReadPopulation, reply, reply.Observed);
         var person = population.Persons.FirstOrDefault(p => p.Pawn?.Id == prisoner) ?? throw new AcceptanceException($"{label}: prisoner {prisoner} not in the population read");
         s.RecordWire("prisoner_surgery", person.Surgery);
         var harvest = person.Surgery?.Operations.FirstOrDefault(o => o.Kind == Observations.SurgeryKind.Harvest && o.PartDefName == "Kidney")

@@ -76,12 +76,10 @@ namespace HomeBridge.BridgeTools
                         } else facts = facts with { GroundScanners = [.. facts.GroundScanners, row] };
                     }
                 }
-                return new Obs.DeepResourcesSection { Outcome = facts };
-            } catch (Exception) { return Unavailable(Common.UnavailableReason.ReadFailed); }
+                return new Obs.DeepResourcesSection { Observed = facts };
+            } catch (Exception ex) { ReadFailureLog.Note("deep_resources", ex); return new Obs.DeepResourcesSection(); }
         }
 
         private static Common.Cell Cell(IntVec3 c) => new Common.Cell { X = c.x, Z = c.z };
-        private static Obs.DeepResourcesSection Unavailable(Common.UnavailableReason reason) => new Obs.DeepResourcesSection {
-            Outcome = new Common.Unavailable { Reason = reason, Detail = "Complete deep resource and scanner census unavailable." } };
     }
 }

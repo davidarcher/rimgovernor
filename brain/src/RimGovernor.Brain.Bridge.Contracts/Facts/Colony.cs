@@ -32,7 +32,7 @@ public sealed record ColonyThreat
     /// <summary>Reads the threat section of a census.</summary>
     public static ColonyThreat ProjectColonyThreat(ColonyFactsSnapshot census)
     {
-        var facts = census.Threat?.Outcome?.Observed;
+        var facts = census.Threat?.Observed;
         if (facts is null)
         {
             return new ColonyThreat();
@@ -64,9 +64,5 @@ public static class Colony
     /// The planning section of a colony facts read that did not ask for planning,
     /// as the native answers it.
     /// </summary>
-    public static PlanningSection NotRequestedPlanning() =>
-        new()
-        {
-            Outcome = new Unavailable { Reason = UnavailableReason.NotRequested, Detail = "Planning was not requested." },
-        };
+    public static PlanningSection NotRequestedPlanning() => new();
 }

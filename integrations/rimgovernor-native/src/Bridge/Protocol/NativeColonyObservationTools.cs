@@ -175,8 +175,8 @@ namespace HomeBridge.BridgeTools
                     result = result with { Issues = [.. result.Issues, Issue(field, Common.UnavailableReason.ReadFailed, "Complete safe acquisition facts are unavailable.")] };
             }
             Span("cf.acquisition");
-            result = result with { Planning = request.Planning.GetValueOrDefault() ? new Obs.PlanningSection { Outcome = Planning(map, center, request, context) }
-                : new Obs.PlanningSection { Outcome = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") } };
+            result = result with { Planning = request.Planning.GetValueOrDefault() ? new Obs.PlanningSection { Observed = Planning(map, center, request, context) }
+                : new Obs.PlanningSection() };
             Span("cf.planning");
             return result;
         }
@@ -227,17 +227,17 @@ namespace HomeBridge.BridgeTools
                     DifficultyThreatScale = Finite(Find.Storyteller.difficulty.threatScale),
                 };
                 facts = facts with { Raids = [.. facts.Raids, .. NativeDefenseObservationTools.RaidTracks(map)] };
-                return new Obs.ThreatSection { Outcome = facts };
+                return new Obs.ThreatSection { Observed = facts };
             }
-            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); return new Obs.ThreatSection { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Colony wealth and raid points could not be read.") }; }
+            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); ReadFailureLog.Note("threat", error); return new Obs.ThreatSection(); }
         }
 
         private static Obs.UpkeepSection ReadComfort(Map map, List<Thing> things, uint? routePathBudgetMs)
         {
             var result = new Obs.UpkeepFacts { };
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
-            try { result = result with { Comfort = new Obs.ComfortSection { Outcome = ComfortFacts.ReadProtocol(map) } }; }
-            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); result = result with { Comfort = new Obs.ComfortSection { Outcome = Unsupported("Complete comfort facts are unavailable.") } }; }
+            try { result = result with { Comfort = new Obs.ComfortSection { Observed = ComfortFacts.ReadProtocol(map) } }; }
+            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); ReadFailureLog.Note("comfort", error); result = result with { Comfort = new Obs.ComfortSection() }; }
             ObservationWork.Detail("cf.upkeep.comfort", System.Diagnostics.Stopwatch.GetTimestamp() - began);
             result = NativeUpkeepFacts.Populate(map, things, result, routePathBudgetMs);
             foreach (var field in new[] { "construction", "storage_cells", "storage_capacity", "protected_cells", "hauling", "wall_removal" })
@@ -491,7 +491,6 @@ namespace HomeBridge.BridgeTools
             return result;
         }
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static Common.Unavailable Unsupported(string detail) => Unavailable(Common.UnavailableReason.Unsupported, detail);
         private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
     }
 }

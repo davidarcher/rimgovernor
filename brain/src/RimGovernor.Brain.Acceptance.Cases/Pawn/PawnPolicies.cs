@@ -72,7 +72,7 @@ internal static class PawnPolicies
     }
 
     private static async Task<Observations.PolicyFacts> PoliciesAsync(TypedSession s, string label, CancellationToken cancellationToken) =>
-        (await FactsAsync(s, label, false, cancellationToken).ConfigureAwait(false)).Policies?.Outcome?.Observed
+        (await FactsAsync(s, label, false, cancellationToken).ConfigureAwait(false)).Policies?.Observed
             ?? throw new AcceptanceException($"{label}: policy facts unavailable");
 
     /// <summary>Writes a policy's contents, then assigns it to each pawn.</summary>

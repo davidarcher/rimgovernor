@@ -85,7 +85,7 @@ public static class DeliveryLedgerReads
     /// <summary>Unknown for a missing or unavailable census, never an empty ledger: zero deliveries would read as a measured zero.</summary>
     internal static Fact<DeliveryLedger> ColonyDeliveryLedger(O.DeliveryLedgerSection? section)
     {
-        var f = section?.Outcome?.Observed;
+        var f = section?.Observed;
         if (f is null)
         {
             return Unknown<DeliveryLedger>();

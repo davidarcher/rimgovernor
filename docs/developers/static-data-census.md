@@ -502,18 +502,18 @@ Kept, reason recorded:
 | HusbandryAnimal | message | 964 | 3 | state | Animal with handlers |  |  |
 | HusbandrySnapshot | message | 965 | 3 | state | Husbandry census |  |  |
 | HusbandryRequest | message | 966 | 2 | state | Read request parameters |  |  |
-| HusbandryReply | message | 967 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
+| HusbandryReply | message | 967 | 3 | state | Reply envelope (observed, absent when the read failed) |  |  |
 | WasteItem | message | 969 | 3 | state | Corpse census row (class, grave) |  |  |
 | WasteSnapshot | message | 975 | 2 | state | Waste items |  |  |
 | WasteReply | message | 976 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | RecoveryRestriction | message | 977 | 4 | state | Recovery area restriction/lease on a pawn |  |  |
 | RecoverySnapshot | message | 978 | 3 | state | Recovery restrictions and buildings |  |  |
-| RecoveryReply | message | 980 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
+| RecoveryReply | message | 980 | 3 | state | Reply envelope (observed, absent when the read failed) |  |  |
 | PopulationPerson | message | 983 | 24 | state | Prisoner/guest/colonist population facts |  |  |
 | PopulationSnapshot | message | 1015 | 11 | state | Population persons, ideology flags and storyteller outlook |  |  |
 | OwnedName | message | 1032 | 3 | state | Owned pawn short name and thing id |  |  |
 | PopulationRequest | message | 1033 | 1 | state | Read request parameters |  |  |
-| PopulationReply | message | 1034 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
+| PopulationReply | message | 1034 | 3 | state | Reply envelope (observed, absent when the read failed) |  |  |
 | Settlement | message | 1035 | 13 | state | World settlement row |  |  |
 | WorldTile | message | 1036 | 16 | state | World tile climate and geography row |  |  |
 | WorldSnapshot | message | 1043 | 3 | state | World tile plus settlements |  |  |
@@ -652,11 +652,11 @@ Kept, reason recorded:
 | FoodCorpse | message | 1545 | 5 | mixed | Corpse stock row with freshness, reachability and meat yield | meat_def; nutrition_yield | RaceProperties.meatDef; yield = meat amount x meatDef nutrition (Go rule over race row) |
 | ChoiceDialogOption | message | 1559 | 6 | state | One option of a force-pausing dialog |  |  |
 | ChoiceDialog | message | 1560 | 6 | state | Open force-pausing dialog window |  |  |
-| ComfortSection | message | 1563 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
+| ComfortSection | message | 1563 | 2 | state | Section wrapper (observed, absent when the read failed) |  |  |
 | FoodSupplySection | message | 1564 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
 | ForecastSection | message | 1565 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
 | DevelopmentSection | message | 1566 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
-| PlanningSection | message | 1567 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
+| PlanningSection | message | 1567 | 2 | state | Section wrapper (observed, absent when the read failed) |  |  |
 | WallRemovalRecord | message | 1568 | 7 | state | Wall removal job progress record |  |  |
 | WallRemovalFacts | message | 1569 | 2 | state | Wall removal records |  |  |
 | WallRemovalSection | message | 1570 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
@@ -683,7 +683,7 @@ Kept, reason recorded:
 | UpkeepFacts | message | 1629 | 20 | state | Upkeep bundle: items, beds, structures, fires, filth, people, animals, sections, home area |  |  |
 | UpkeepSection | message | 1649 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
 | ThreatFacts | message | 1657 | 10 | code | Colony wealth and raid points computed by the storyteller |  |  |
-| ThreatSection | message | 1658 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
+| ThreatSection | message | 1658 | 2 | state | Section wrapper (observed, absent when the read failed) |  |  |
 | LootItem | message | 1665 | 6 | code | Haul safety verdict, path length and storage headroom for an item |  |  |
 | LootCensus | message | 1666 | 3 | state | Loot items with free hauler count and storyteller quiet flag |  |  |
 | LootSection | message | 1667 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
@@ -700,18 +700,18 @@ Kept, reason recorded:
 | PastureTerrain | message | 1731 | 2 | state | Worst-quadrum pasture nutrition per cell per day, per terrain | worst_quadrum_per_day | Derived by the game (MapPastureNutritionCalculator over the biome plants and terrain fertility); the pen food formula (policy.PenCells) runs over it |
 | FoodSlaughterAnimal | message | 1705 | 5 | mixed | Slaughter candidate meat and feed figures | meat_nutrition; feed_per_day; reproduction_days | meat_nutrition = meatAmount stat x RaceProperties.meatDef nutrition (Go rule over race row); feed_per_day = existing race adult_feed_per_day; reproduction_days = RaceProperties.gestationPeriodDays |
 | FoodChannelsFacts | message | 1733 | 9 | state | Food channel census: water, animals, paste, forage, grazing, slaughter |  |  |
-| FoodChannelsSection | message | 1707 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
+| FoodChannelsSection | message | 1707 | 2 | state | Section wrapper (observed, absent when the read failed) |  |  |
 | DeepResourceLump | message | 1711 | 4 | state | Discovered deep resource lump |  |  |
 | MineralScannerState | message | 1717 | 8 | mixed | Mineral scanner state | target_resource | building mineableThing config on the scanner def |
 | DeepDrillState | message | 1724 | 8 | state | Deep drill state and next deposit |  |  |
 | DeepResourcesFacts | message | 1727 | 4 | state | Lumps, scanners and drills |  |  |
-| DeepResourcesSection | message | 1728 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
+| DeepResourcesSection | message | 1728 | 2 | state | Section wrapper (observed, absent when the read failed) |  |  |
 | DeliverySourceKind | enum | 1736 | 5 | state | Tags the production source of a delivery row |  |  |
 | DeliveryRow | message | 1737 | 6 | state | Cumulative delivery counter row |  |  |
 | KillRecord | message | 1747 | 6 | state | Animal kill event record |  |  |
 | ButcherRecord | message | 1752 | 7 | state | Butcher event record |  |  |
 | DeliveryLedgerFacts | message | 1756 | 8 | state | Delivery counters epoch, kills, butchers |  |  |
-| DeliveryLedgerSection | message | 1758 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
+| DeliveryLedgerSection | message | 1758 | 2 | state | Section wrapper (observed, absent when the read failed) |  |  |
 | ColonyFactsSnapshot | message | 1759 | 52 | mixed | Colony facts root: counts, food, sections | policy_resources (dead); player_tech_level (faction def) | policy_resources deleted (#2655); player_tech_level = FactionDef.techLevel of the player faction (Defs.TechLevel enum) |
 | AnomalySection | message | 1849 | 2 | excluded | Anomaly section wrapper |  |  excluded #2631 |
 | AnomalyColonyFacts | message | 1850 | 7 | excluded | Anomaly colony facts |  |  excluded #2631 |
@@ -727,7 +727,7 @@ Kept, reason recorded:
 | PolicyFacts | message | 1937 | 7 | mixed | Policy databases, allowed areas and food eaters |  |  |
 | FoodEaterKind | enum | 1949 | 3 | state | Tags prisoner or animal food policy holder |  |  |
 | FoodEater | message | 1950 | 4 | state | Prisoner or animal food policy holder with traits and precepts |  |  |
-| PolicySection | message | 1951 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
+| PolicySection | message | 1951 | 2 | state | Section wrapper (observed, absent when the read failed) |  |  |
 | BiotechSection | message | 1966 | 2 | excluded | Biotech section wrapper |  |  excluded #2630 |
 | BiotechColonyFacts | message | 1967 | 14 | excluded | Biotech colony facts |  |  excluded #2630 |
 | GeneBankState | message | 1985 | 7 | excluded | Gene bank building state |  |  excluded #2630; capacity is def data (flagged) |

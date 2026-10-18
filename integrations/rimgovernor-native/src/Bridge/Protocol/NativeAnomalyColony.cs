@@ -45,9 +45,10 @@ namespace HomeBridge.BridgeTools
                 facts = facts with { HoldingPlatformAvailable = StudyUtility.HoldingPlatformAvailableOnCurrentMap() };
                 facts = facts with { Incidents = Incidents(Find.Anomaly) };
                 facts = facts with { Monolith = Monolith(Find.Anomaly) };
-                return new Obs.AnomalySection { Outcome = facts };
+                return new Obs.AnomalySection { Observed = facts };
             } catch (Exception ex) {
-                return new Obs.AnomalySection { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic(ex.Message) } };
+                ReadFailureLog.Note("anomaly", ex);
+                return new Obs.AnomalySection();
             }
         }
 

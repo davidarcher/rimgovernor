@@ -11,7 +11,7 @@ public static class ColonyGearReads
     /// </summary>
     public static Fact<GearObservation> GearFacts(O.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs)
     {
-        var gear = v.Planning?.Outcome?.Observed?.Gear;
+        var gear = v.Planning?.Observed?.Gear;
         if (gear is null || defs.Catalog is null || !defs.Finished.IsKnown || (uint)gear.Pawns.Count != v.ColonistCount)
         {
             return Unknown<GearObservation>();

@@ -157,7 +157,7 @@ internal static class CustodyPopulation
     private static async Task<Observations.PopulationPerson> PersonAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadPopulation, new Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var population = TypedReads.Observed(label, NativeOps.ReadPopulation, reply, reply.Outcome?.Observed);
+        var population = TypedReads.Observed(label, NativeOps.ReadPopulation, reply, reply.Observed);
         return population.Persons.FirstOrDefault(p => p.Pawn?.Id == pawn) ?? throw new AcceptanceException($"{label}: pawn {pawn} missing from the population census");
     }
 }

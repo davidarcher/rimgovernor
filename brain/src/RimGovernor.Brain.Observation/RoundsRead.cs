@@ -377,7 +377,7 @@ public static class RoundsReads
         new()
         {
             Catalog = catalog,
-            Crops = DefinitionsReads.CropRows(frame.Colony?.Planning?.Outcome?.Observed),
+            Crops = DefinitionsReads.CropRows(frame.Colony?.Planning?.Observed),
             Finished = frame.Research is { } research ? DefinitionsReads.FinishedSet(research.Finished) : default,
         };
 

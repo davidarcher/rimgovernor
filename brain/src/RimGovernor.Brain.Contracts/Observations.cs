@@ -2397,7 +2397,6 @@ public sealed record ListRoomsReply
 /// <summary>The <c>outcome</c> choice of <see cref="ListRoomsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(ListRoomsReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(ListRoomsReplyOutcome.UnavailableCase), "unavailable")]
 [JsonDerivedType(typeof(ListRoomsReplyOutcome.FailureCase), "failure")]
 public abstract record ListRoomsReplyOutcome
 {
@@ -2410,14 +2409,6 @@ public abstract record ListRoomsReplyOutcome
     public sealed record ObservedCase(RoomsSnapshot Value) : ListRoomsReplyOutcome;
 
     public static implicit operator ListRoomsReplyOutcome(RoomsSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : ListRoomsReplyOutcome;
-
-    public static implicit operator ListRoomsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
 
     /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -3511,41 +3502,8 @@ public sealed record HusbandryRequest
 
 public sealed record HusbandryReply
 {
-    public HusbandryReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="HusbandryReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(HusbandryReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(HusbandryReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(HusbandryReplyOutcome.FailureCase), "failure")]
-public abstract record HusbandryReplyOutcome
-{
-    private protected HusbandryReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public HusbandrySnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(HusbandrySnapshot Value) : HusbandryReplyOutcome;
-
-    public static implicit operator HusbandryReplyOutcome(HusbandrySnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : HusbandryReplyOutcome;
-
-    public static implicit operator HusbandryReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : HusbandryReplyOutcome;
-
-    public static implicit operator HusbandryReplyOutcome(Common.Failure value) => new FailureCase(value);
+    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
+    public HusbandrySnapshot? Observed { get; init; }
 }
 
 /// <summary>
@@ -3591,32 +3549,8 @@ public sealed record RecoverySnapshot
 
 public sealed record RecoveryReply
 {
-    public RecoveryReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="RecoveryReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(RecoveryReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(RecoveryReplyOutcome.UnavailableCase), "unavailable")]
-public abstract record RecoveryReplyOutcome
-{
-    private protected RecoveryReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public RecoverySnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(RecoverySnapshot Value) : RecoveryReplyOutcome;
-
-    public static implicit operator RecoveryReplyOutcome(RecoverySnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : RecoveryReplyOutcome;
-
-    public static implicit operator RecoveryReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
+    public RecoverySnapshot? Observed { get; init; }
 }
 
 /// <summary>
@@ -3743,41 +3677,8 @@ public sealed record PopulationRequest
 
 public sealed record PopulationReply
 {
-    public PopulationReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="PopulationReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(PopulationReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(PopulationReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(PopulationReplyOutcome.FailureCase), "failure")]
-public abstract record PopulationReplyOutcome
-{
-    private protected PopulationReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public PopulationSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(PopulationSnapshot Value) : PopulationReplyOutcome;
-
-    public static implicit operator PopulationReplyOutcome(PopulationSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : PopulationReplyOutcome;
-
-    public static implicit operator PopulationReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : PopulationReplyOutcome;
-
-    public static implicit operator PopulationReplyOutcome(Common.Failure value) => new FailureCase(value);
+    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
+    public PopulationSnapshot? Observed { get; init; }
 }
 
 public sealed record Settlement
@@ -4688,7 +4589,6 @@ public sealed record EvaluateStatReply
 /// <summary>The <c>outcome</c> choice of <see cref="EvaluateStatReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(EvaluateStatReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(EvaluateStatReplyOutcome.UnavailableCase), "unavailable")]
 [JsonDerivedType(typeof(EvaluateStatReplyOutcome.FailureCase), "failure")]
 public abstract record EvaluateStatReplyOutcome
 {
@@ -4701,14 +4601,6 @@ public abstract record EvaluateStatReplyOutcome
     public sealed record ObservedCase(StatEvaluation Value) : EvaluateStatReplyOutcome;
 
     public static implicit operator EvaluateStatReplyOutcome(StatEvaluation value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : EvaluateStatReplyOutcome;
-
-    public static implicit operator EvaluateStatReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
 
     /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -5667,32 +5559,8 @@ public sealed record RoyalThrone
 /// </summary>
 public sealed record RoyaltySection
 {
-    public RoyaltySectionOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="RoyaltySection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(RoyaltySectionOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(RoyaltySectionOutcome.UnavailableCase), "unavailable")]
-public abstract record RoyaltySectionOutcome
-{
-    private protected RoyaltySectionOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public RoyaltyColonyFacts? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(RoyaltyColonyFacts Value) : RoyaltySectionOutcome;
-
-    public static implicit operator RoyaltySectionOutcome(RoyaltyColonyFacts value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : RoyaltySectionOutcome;
-
-    public static implicit operator RoyaltySectionOutcome(Common.Unavailable value) => new UnavailableCase(value);
+    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
+    public RoyaltyColonyFacts? Observed { get; init; }
 }
 
 public sealed record RoyaltyColonyFacts
@@ -6195,32 +6063,8 @@ public sealed record ChoiceDialog
 /// </summary>
 public sealed record ComfortSection
 {
-    public ComfortSectionOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="ComfortSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ComfortSectionOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(ComfortSectionOutcome.UnavailableCase), "unavailable")]
-public abstract record ComfortSectionOutcome
-{
-    private protected ComfortSectionOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ComfortFacts? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(ComfortFacts Value) : ComfortSectionOutcome;
-
-    public static implicit operator ComfortSectionOutcome(ComfortFacts value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : ComfortSectionOutcome;
-
-    public static implicit operator ComfortSectionOutcome(Common.Unavailable value) => new UnavailableCase(value);
+    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
+    public ComfortFacts? Observed { get; init; }
 }
 
 public sealed record FoodSupplySection
@@ -6240,32 +6084,8 @@ public sealed record DevelopmentSection
 
 public sealed record PlanningSection
 {
-    public PlanningSectionOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="PlanningSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(PlanningSectionOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(PlanningSectionOutcome.UnavailableCase), "unavailable")]
-public abstract record PlanningSectionOutcome
-{
-    private protected PlanningSectionOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public PlanningFacts? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(PlanningFacts Value) : PlanningSectionOutcome;
-
-    public static implicit operator PlanningSectionOutcome(PlanningFacts value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : PlanningSectionOutcome;
-
-    public static implicit operator PlanningSectionOutcome(Common.Unavailable value) => new UnavailableCase(value);
+    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
+    public PlanningFacts? Observed { get; init; }
 }
 
 /// <summary>
@@ -6594,32 +6414,8 @@ public sealed record ThreatFacts
 
 public sealed record ThreatSection
 {
-    public ThreatSectionOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="ThreatSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ThreatSectionOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(ThreatSectionOutcome.UnavailableCase), "unavailable")]
-public abstract record ThreatSectionOutcome
-{
-    private protected ThreatSectionOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ThreatFacts? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(ThreatFacts Value) : ThreatSectionOutcome;
-
-    public static implicit operator ThreatSectionOutcome(ThreatFacts value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : ThreatSectionOutcome;
-
-    public static implicit operator ThreatSectionOutcome(Common.Unavailable value) => new UnavailableCase(value);
+    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
+    public ThreatFacts? Observed { get; init; }
 }
 
 /// <summary>
@@ -6892,32 +6688,8 @@ public sealed record FoodChannelsFacts
 
 public sealed record FoodChannelsSection
 {
-    public FoodChannelsSectionOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="FoodChannelsSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(FoodChannelsSectionOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(FoodChannelsSectionOutcome.UnavailableCase), "unavailable")]
-public abstract record FoodChannelsSectionOutcome
-{
-    private protected FoodChannelsSectionOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public FoodChannelsFacts? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(FoodChannelsFacts Value) : FoodChannelsSectionOutcome;
-
-    public static implicit operator FoodChannelsSectionOutcome(FoodChannelsFacts value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : FoodChannelsSectionOutcome;
-
-    public static implicit operator FoodChannelsSectionOutcome(Common.Unavailable value) => new UnavailableCase(value);
+    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
+    public FoodChannelsFacts? Observed { get; init; }
 }
 
 /// <summary>
@@ -7010,32 +6782,8 @@ public sealed record DeepResourcesFacts
 
 public sealed record DeepResourcesSection
 {
-    public DeepResourcesSectionOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="DeepResourcesSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(DeepResourcesSectionOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(DeepResourcesSectionOutcome.UnavailableCase), "unavailable")]
-public abstract record DeepResourcesSectionOutcome
-{
-    private protected DeepResourcesSectionOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public DeepResourcesFacts? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(DeepResourcesFacts Value) : DeepResourcesSectionOutcome;
-
-    public static implicit operator DeepResourcesSectionOutcome(DeepResourcesFacts value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : DeepResourcesSectionOutcome;
-
-    public static implicit operator DeepResourcesSectionOutcome(Common.Unavailable value) => new UnavailableCase(value);
+    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
+    public DeepResourcesFacts? Observed { get; init; }
 }
 
 public sealed record DeliveryRow
@@ -7119,32 +6867,8 @@ public sealed record DeliveryLedgerFacts
 
 public sealed record DeliveryLedgerSection
 {
-    public DeliveryLedgerSectionOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="DeliveryLedgerSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(DeliveryLedgerSectionOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(DeliveryLedgerSectionOutcome.UnavailableCase), "unavailable")]
-public abstract record DeliveryLedgerSectionOutcome
-{
-    private protected DeliveryLedgerSectionOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public DeliveryLedgerFacts? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(DeliveryLedgerFacts Value) : DeliveryLedgerSectionOutcome;
-
-    public static implicit operator DeliveryLedgerSectionOutcome(DeliveryLedgerFacts value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : DeliveryLedgerSectionOutcome;
-
-    public static implicit operator DeliveryLedgerSectionOutcome(Common.Unavailable value) => new UnavailableCase(value);
+    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
+    public DeliveryLedgerFacts? Observed { get; init; }
 }
 
 public sealed record ColonyFactsSnapshot
@@ -7287,32 +7011,8 @@ public sealed record ColonyFactsSnapshot
 /// </summary>
 public sealed record AnomalySection
 {
-    public AnomalySectionOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="AnomalySection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(AnomalySectionOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(AnomalySectionOutcome.UnavailableCase), "unavailable")]
-public abstract record AnomalySectionOutcome
-{
-    private protected AnomalySectionOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public AnomalyColonyFacts? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(AnomalyColonyFacts Value) : AnomalySectionOutcome;
-
-    public static implicit operator AnomalySectionOutcome(AnomalyColonyFacts value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : AnomalySectionOutcome;
-
-    public static implicit operator AnomalySectionOutcome(Common.Unavailable value) => new UnavailableCase(value);
+    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
+    public AnomalyColonyFacts? Observed { get; init; }
 }
 
 public sealed record AnomalyColonyFacts
@@ -7554,32 +7254,8 @@ public sealed record FoodEater
 
 public sealed record PolicySection
 {
-    public PolicySectionOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="PolicySection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(PolicySectionOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(PolicySectionOutcome.UnavailableCase), "unavailable")]
-public abstract record PolicySectionOutcome
-{
-    private protected PolicySectionOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public PolicyFacts? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(PolicyFacts Value) : PolicySectionOutcome;
-
-    public static implicit operator PolicySectionOutcome(PolicyFacts value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : PolicySectionOutcome;
-
-    public static implicit operator PolicySectionOutcome(Common.Unavailable value) => new UnavailableCase(value);
+    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
+    public PolicyFacts? Observed { get; init; }
 }
 
 /// <summary>
@@ -7600,32 +7276,8 @@ public abstract record PolicySectionOutcome
 /// </summary>
 public sealed record BiotechSection
 {
-    public BiotechSectionOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="BiotechSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(BiotechSectionOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(BiotechSectionOutcome.UnavailableCase), "unavailable")]
-public abstract record BiotechSectionOutcome
-{
-    private protected BiotechSectionOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public BiotechColonyFacts? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(BiotechColonyFacts Value) : BiotechSectionOutcome;
-
-    public static implicit operator BiotechSectionOutcome(BiotechColonyFacts value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : BiotechSectionOutcome;
-
-    public static implicit operator BiotechSectionOutcome(Common.Unavailable value) => new UnavailableCase(value);
+    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
+    public BiotechColonyFacts? Observed { get; init; }
 }
 
 public sealed record BiotechColonyFacts

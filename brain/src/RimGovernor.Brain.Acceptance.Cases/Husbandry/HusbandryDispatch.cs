@@ -47,7 +47,7 @@ internal static class HusbandryDispatch
         async Task<Observations.AnimalState?> FindAsync(string label, string id, bool includeWild)
         {
             var reply = await s.CallAsync(label, NativeOps.ReadHusbandry, new Observations.HusbandryRequest { Scope = s.Scope, IncludeWild = includeWild ? true : null }, cancellationToken).ConfigureAwait(false);
-            return TypedReads.Observed(label, NativeOps.ReadHusbandry, reply, reply.Outcome?.Observed).Animals.FirstOrDefault(a => a.Pawn?.Id == id)?.Animal;
+            return TypedReads.Observed(label, NativeOps.ReadHusbandry, reply, reply.Observed).Animals.FirstOrDefault(a => a.Pawn?.Id == id)?.Animal;
         }
 
         async Task<Observations.AnimalState> AnimalAsync(string label, string id, bool includeWild = false) =>

@@ -66,7 +66,7 @@ public static class DeepResourcesReads
     /// <summary>Validates the census before projection. Missing sections remain unknown; an observed empty census establishes that no lumps/scanners exist.</summary>
     internal static Fact<DeepResources> ColonyDeepResources(O.DeepResourcesSection? section, DefinitionCatalog? catalog)
     {
-        var f = section?.Outcome?.Observed;
+        var f = section?.Observed;
         if (f is null)
         {
             return default;

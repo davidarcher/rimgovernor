@@ -22,11 +22,14 @@ namespace HomeBridge.BridgeTools
     {
         internal static Obs.HusbandryReply HandleReadHusbandry(Obs.HusbandryRequest request)
         {
-            if (!ValidateHusbandry(request, out var failure0)) return new Obs.HusbandryReply { Outcome = new Obs.HusbandryReplyOutcome.FailureCase(failure0) };
+            if (!ValidateHusbandry(request, out var failure0)) { ReadFailureLog.Note("husbandry", failure0.Detail); return new Obs.HusbandryReply(); }
             if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out _, out var failure))
-                return new Obs.HusbandryReply { Outcome = new Obs.HusbandryReplyOutcome.FailureCase(failure) };
-            try { return new Obs.HusbandryReply { Outcome = Husbandry(map, request) }; }
-            catch (Exception) { return new Obs.HusbandryReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native husbandry facts could not be read completely.") }; }
+            {
+                ReadFailureLog.Note("husbandry", failure.Detail);
+                return new Obs.HusbandryReply();
+            }
+            try { return new Obs.HusbandryReply { Observed = Husbandry(map, request) }; }
+            catch (Exception error) { ReadFailureLog.Note("husbandry", error); return new Obs.HusbandryReply(); }
         }
 
         internal static bool ValidateHusbandry(Obs.HusbandryRequest request, out Common.Failure failure)
@@ -52,7 +55,5 @@ namespace HomeBridge.BridgeTools
             }
             return snapshot;
         }
-
-        private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
     }
 }

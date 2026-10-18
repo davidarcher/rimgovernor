@@ -134,7 +134,7 @@ public sealed partial class RoundsDefensePlanner
         var things = await RoundsGear.FrameThingsOfAsync(source, identity, call).ConfigureAwait(false);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var output = new List<LoadoutApparel>();
-        foreach (var pawn in observed.Planning?.Outcome?.Observed?.Gear?.Pawns ?? [])
+        foreach (var pawn in observed.Planning?.Observed?.Gear?.Pawns ?? [])
         {
             foreach (var candidate in pawn.Candidates)
             {

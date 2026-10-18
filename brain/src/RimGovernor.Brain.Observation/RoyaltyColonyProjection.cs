@@ -5,7 +5,7 @@ public static class RoyaltyColonyProjectionReads
     /// <summary>Projects a validated Royalty section; an absent or unavailable one is an unknown fact.</summary>
     internal static Fact<RoyaltyColony> ColonyRoyalty(O.RoyaltySection? section)
     {
-        var f = section?.Outcome?.Observed;
+        var f = section?.Observed;
         return f is null ? default : Known(DecodeRoyaltyColony(f));
     }
 

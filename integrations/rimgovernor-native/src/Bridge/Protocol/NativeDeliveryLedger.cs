@@ -43,24 +43,22 @@ namespace HomeBridge.BridgeTools
             try
             {
                 Install();
-                if (!installed || Current.Game == null) return Unavailable("Delivery counting is not installed.");
+                if (!installed || Current.Game == null) { ReadFailureLog.Note("delivery_ledger", "Delivery counting is not installed."); return new Obs.DeliveryLedgerSection(); }
                 var state = States.GetOrCreateValue(Current.Game);
                 var facts = new Obs.DeliveryLedgerFacts { Epoch = state.Epoch };
                 foreach (var row in state.Rows.OrderBy(r => r.Key.Kind).ThenBy(r => r.Key.Source, StringComparer.Ordinal).ThenBy(r => r.Key.Def, StringComparer.Ordinal))
                     facts = facts with { Rows = [.. facts.Rows, Row(row.Value, row.Key.Kind, row.Key.Source, row.Key.Def)] };
                 facts = facts with { Kills = [.. state.Kills] };
                 facts = facts with { Butchers = [.. state.Butchers] };
-                return new Obs.DeliveryLedgerSection { Outcome = facts };
+                return new Obs.DeliveryLedgerSection { Observed = facts };
             }
             catch (Exception error)
             {
                 ModLog.Error("observe", "Delivery ledger failed: " + error);
-                return Unavailable("Delivery ledger could not be read.");
+                ReadFailureLog.Note("delivery_ledger", error);
+                return new Obs.DeliveryLedgerSection();
             }
         }
-
-        private static Obs.DeliveryLedgerSection Unavailable(string detail) =>
-            new Obs.DeliveryLedgerSection { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = detail } };
 
         private static Obs.DeliveryRow Row(Counter c, Obs.DeliverySourceKind? kind, string source, string def)
         {

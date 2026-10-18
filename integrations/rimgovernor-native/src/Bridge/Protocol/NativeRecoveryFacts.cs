@@ -27,10 +27,10 @@ namespace HomeBridge.BridgeTools
                     if (area != null) row = row with { AreaId = area.GetUniqueLoadID() };
                     result = result with { Restrictions = [.. result.Restrictions, row] };
                 }
-                return new Obs.RecoveryReply { Outcome = result };
-            } catch (Exception) {
-                return new Obs.RecoveryReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
-                    Detail = "Complete bounded recovery census is unavailable." } };
+                return new Obs.RecoveryReply { Observed = result };
+            } catch (Exception ex) {
+                ReadFailureLog.Note("recovery", ex);
+                return new Obs.RecoveryReply();
             }
         }
     }

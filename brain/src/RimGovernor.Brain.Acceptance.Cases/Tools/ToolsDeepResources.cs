@@ -40,7 +40,7 @@ internal static class ToolsDeepResources
         var (ex, ez) = (seed.X, seed.Z);
         var reply = await s.CallAsync("deep-resources", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var facts = TypedReads.Observed("deep-resources", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
-        var f = facts.DeepResources?.Outcome?.Observed ?? throw new AcceptanceException($"deep-resources: no observed census: {facts.DeepResources}");
+        var f = facts.DeepResources?.Observed ?? throw new AcceptanceException($"deep-resources: no observed census: {facts.DeepResources}");
         s.RecordWire("deep_resources", f);
 
         bool At(Common.Cell? cell, int x, int z) => cell?.X == x && cell.Z == z;

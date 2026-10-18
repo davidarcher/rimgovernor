@@ -70,7 +70,7 @@ public static class PoliciesReads
 
     public static Fact<Policies> ColonyPolicies(O.PolicySection? section)
     {
-        var f = section?.Outcome?.Observed;
+        var f = section?.Observed;
         if (f is null)
         {
             return default;

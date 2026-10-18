@@ -74,7 +74,7 @@ public static class ColonyReads
         if (planning)
         {
             projection = await PlanningWindowReads.FillPlanningWindow(reply, id, projection, cancellationToken).ConfigureAwait(false);
-            var facts = await DefinitionsReads.ReadDefinitionFacts(source, id, reply.Outcome?.Observed?.Planning?.Outcome?.Observed, cancellationToken).ConfigureAwait(false);
+            var facts = await DefinitionsReads.ReadDefinitionFacts(source, id, reply.Outcome?.Observed?.Planning?.Observed, cancellationToken).ConfigureAwait(false);
             if (facts is not null)
             {
                 var definitions = facts.AppendDefinitions([.. projection.Definitions], DefinitionsReads.StarterDefinitions);

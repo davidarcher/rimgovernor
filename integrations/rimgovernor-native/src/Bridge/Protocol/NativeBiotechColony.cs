@@ -93,10 +93,10 @@ namespace HomeBridge.BridgeTools
                     facts = facts with { Babies = [.. facts.Babies, Baby(pawn)] };
                 facts = facts with { Breastfeeders = [.. facts.Breastfeeders, .. ChildcareUtility.CanBreastfeedPlayerPawns.Where(p => p.Spawned && p.Map == map)
                     .Select(p => Id(p.GetUniqueLoadID())).Where(i => i != null).Select(i => i!).OrderBy(i => i, StringComparer.Ordinal)] };
-                return new Obs.BiotechSection { Outcome = facts };
-            } catch (Exception) {
-                return new Obs.BiotechSection { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
-                    Detail = "Biotech colony facts unavailable." } };
+                return new Obs.BiotechSection { Observed = facts };
+            } catch (Exception ex) {
+                ReadFailureLog.Note("biotech", ex);
+                return new Obs.BiotechSection();
             }
         }
 

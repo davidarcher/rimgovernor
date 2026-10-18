@@ -144,7 +144,7 @@ internal static class ShelterSheltering
     {
         var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
-        var policies = facts.Policies?.Outcome?.Observed ?? throw new AcceptanceException($"{label}: policy facts unavailable");
+        var policies = facts.Policies?.Observed ?? throw new AcceptanceException($"{label}: policy facts unavailable");
         return policies.AllowedAreas.Items
             .Where(a => a.Label == ShelterRules.SafeAreaLabel)
             .SelectMany(a => a.PawnIds.Items)

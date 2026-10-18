@@ -58,7 +58,7 @@ internal static class ApplyPolicyPrune
         await PruneAsync("prune-area", Operations.PolicyDatabase.AllowedArea, before.Area, true).ConfigureAwait(false);
 
         var reply = await s.CallAsync("after", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-        var policies = TypedReads.Observed("after", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed).Policies?.Outcome?.Observed
+        var policies = TypedReads.Observed("after", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed).Policies?.Observed
             ?? throw new AcceptanceException("after: policy facts unavailable");
         s.RecordWire("after_outfits", policies.Outfit);
         s.RecordWire("after_areas", policies.AllowedAreas);

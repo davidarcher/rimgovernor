@@ -69,9 +69,10 @@ namespace HomeBridge.BridgeTools
                         .Select(p => Id(p.GetUniqueLoadID()))] };
                     facts = facts with { AllowedAreas = [.. facts.AllowedAreas, row] };
                 }
-                return new Obs.PolicySection { Outcome = facts };
+                return new Obs.PolicySection { Observed = facts };
             } catch (Exception e) {
-                return new Obs.PolicySection { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Policy databases: " + e.GetType().Name } };
+                ReadFailureLog.Note("policy", e);
+                return new Obs.PolicySection();
             }
         }
 

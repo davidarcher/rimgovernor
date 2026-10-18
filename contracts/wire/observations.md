@@ -74,7 +74,7 @@ aggregated into eight-connected lumps of the same definition. Each row reports
 total remaining units, cell count and the member nearest its centroid (ties x,z).
 Depleted cells disappear; touching discoveries of the same definition merge.
 The census returns every lump, scanner and drill.
-Failed reads return section-unavailable, never partial known-empty facts.
+A failed read leaves the section's `observed` absent (the native side logs the reason once), never partial known-empty facts.
 
 Drill rows (`DeepDrillState`) cover every spawned colonist deep drill: powered
 state, the native next deposit under the drill (`resource`, `remaining`, absent
@@ -97,7 +97,7 @@ a depleted drill for removal from the deep drill step's recorded read.
 
 ## Required semantic validation
 
-- Every reply selects exactly one observed, unavailable, or request failure case.
+- A reply carries the observed facts, or a request failure where the reply has one. A read that fails inside the native side answers with the facts absent, and the native side logs each distinct reason once per read kind (`ReadFailureLog`).
   Observed snapshots have actual identity/tick/generation context. ReadScope checks
   expected identity only; advancing ticks or revoked authority never blocks
   reconciliation reads. Identity mismatch is stale, never silently rebound.
@@ -303,7 +303,7 @@ Each colonist's holdings and psycasts are its `PawnState.royalty`, decoded by `b
 absent scalar is unknown. The neuroformer stock, bestowing ceremonies and
 thrones are the colony section
 `ColonyFactsSnapshot.royalty` (`RoyaltySection`), absent without
-Royalty and `Unavailable` when the read failed, read on every colony frame.
+Royalty and without `observed` when the read failed, read on every colony frame.
 `neuroformers` lists the psylink neuroformer and each psycast neurotrainer with
 held, craftable and tradeable; `ceremonies` lists each offered or ongoing
 bestowing-ceremony quest (`RoyalTitleUtility.GetCurrentBestowingCeremonyQuest`):
@@ -474,7 +474,7 @@ no study state.
 
 `ColonyFactsSnapshot.anomaly` (`AnomalySection`) is the colony-wide
 Anomaly read, one keyed section with the snapshot's seq/tick; it is
-absent without Anomaly and `Unavailable` when the read failed. It carries what
+absent without Anomaly and without `observed` when the read failed. It carries what
 no row holds: `knowledge` (per `KnowledgeCategoryDef`: the project the research
 manager funds from it, the knowledge stored for that project, whether any
 project of the category can still be researched), `codex` (per
@@ -529,7 +529,7 @@ own counting is unverified against these rules (native acceptance verifies).
 
 `ColonyFactsSnapshot.biotech` (`BiotechSection`) is the colony-wide
 Biotech read, one keyed section with the snapshot's seq/tick; it is
-absent without Biotech and `Unavailable` when the read failed. The pollution
+absent without Biotech and without `observed` when the read failed. The pollution
 cell grid is unchanged: the section carries `PollutionGrid` totals and the
 player's pollution-clear area size, then rows for what makes pollution
 (`polluters`: `CompToxifier`, `CompPolluteOverTime`), what removes it

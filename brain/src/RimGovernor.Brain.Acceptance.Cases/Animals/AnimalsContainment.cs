@@ -79,7 +79,7 @@ internal static class AnimalsContainment
         _ = await s.RunUntilAsync("roped-in", s.TicksLeft, async ct =>
         {
             var reply = await s.CallAsync("husbandry", NativeOps.ReadHusbandry, new Observations.HusbandryRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
-            cow = TypedReads.Observed("husbandry", NativeOps.ReadHusbandry, reply, reply.Outcome?.Observed).Animals.FirstOrDefault(a => a.Pawn?.Id == cowId)?.Animal
+            cow = TypedReads.Observed("husbandry", NativeOps.ReadHusbandry, reply, reply.Observed).Animals.FirstOrDefault(a => a.Pawn?.Id == cowId)?.Animal
                 ?? throw new AcceptanceException($"husbandry: the staged cow {cowId} is not in the census");
             return (Wait.Signature(cow.Contained, cow.PenId), cow is { Contained: true, PenId.Length: > 0 });
         }, cancellationToken).ConfigureAwait(false);

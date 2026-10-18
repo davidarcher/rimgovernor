@@ -53,7 +53,7 @@ public static class ColonyFramesReads
             facts = facts with { DisasterConditions = Known(conditions) };
         }
         facts = facts with { DisasterTick = new Tick((long)(v.Context?.Tick ?? 0)) };
-        if (v.Recovery?.Outcome?.Observed is not { } recovery || !ColonyDecodeReads.Resolved(buildings, recovery.Buildings, r => r))
+        if (v.Recovery?.Observed is not { } recovery || !ColonyDecodeReads.Resolved(buildings, recovery.Buildings, r => r))
         {
             return facts;
         }
@@ -131,7 +131,7 @@ public static class ColonyFramesReads
     /// </summary>
     internal static Fact<ComfortObservation> ColonyComfort(O.ColonyFactsSnapshot v, DefinitionCatalog? catalog)
     {
-        var value = v.Upkeep?.Outcome?.Comfort?.Outcome?.Observed;
+        var value = v.Upkeep?.Outcome?.Comfort?.Observed;
         if (value is null)
         {
             return Unknown<ComfortObservation>();

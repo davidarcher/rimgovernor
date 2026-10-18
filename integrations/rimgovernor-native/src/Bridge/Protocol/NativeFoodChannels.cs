@@ -182,12 +182,12 @@ namespace HomeBridge.BridgeTools
                     }
                     result = result with { FishableWater = water };
                 }
-                return new Obs.FoodChannelsSection { Outcome = result };
+                return new Obs.FoodChannelsSection { Observed = result };
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return new Obs.FoodChannelsSection { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
-                    Detail = "Food source census unavailable." } };
+                ReadFailureLog.Note("food_channels", ex);
+                return new Obs.FoodChannelsSection();
             }
         }
         private static double Finite(double value) { if (double.IsNaN(value) || double.IsInfinity(value)) throw new InvalidOperationException(); return value; }

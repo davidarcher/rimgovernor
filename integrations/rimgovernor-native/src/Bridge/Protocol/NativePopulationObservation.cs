@@ -26,11 +26,14 @@ namespace HomeBridge.BridgeTools
     {
         internal static Obs.PopulationReply HandleReadPopulation(Obs.PopulationRequest request)
         {
-            if (!ValidatePopulation(request, out var failure0)) return new Obs.PopulationReply { Outcome = failure0 };
+            if (!ValidatePopulation(request, out var failure0)) { ReadFailureLog.Note("population", failure0.Detail); return new Obs.PopulationReply(); }
             if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
-                return new Obs.PopulationReply { Outcome = failure };
-            try { return new Obs.PopulationReply { Outcome = Population(map, request, context) }; }
-            catch (Exception error) { ModLog.Error("observe", "Population read failed: " + error); return new Obs.PopulationReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Native population facts could not be read completely: " + error.GetType().Name + ": " + error.Message)) }; }
+            {
+                ReadFailureLog.Note("population", failure.Detail);
+                return new Obs.PopulationReply();
+            }
+            try { return new Obs.PopulationReply { Observed = Population(map, request, context) }; }
+            catch (Exception error) { ModLog.Error("observe", "Population read failed: " + error); ReadFailureLog.Note("population", error); return new Obs.PopulationReply(); }
         }
 
         internal static bool ValidatePopulation(Obs.PopulationRequest request, out Common.Failure failure)
@@ -117,7 +120,5 @@ namespace HomeBridge.BridgeTools
             return snapshot;
         }
 
-        private static double Number(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native fact.") : value;
-        private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-    }
+        private static double Number(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native fact.") : value;    }
 }

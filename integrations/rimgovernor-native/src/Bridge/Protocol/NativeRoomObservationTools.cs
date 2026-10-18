@@ -31,7 +31,7 @@ namespace HomeBridge.BridgeTools
                 if (parsed.Region != null && (!NativeCell(parsed.Region.Minimum).InBounds(map) || !NativeCell(parsed.Region.Maximum).InBounds(map)))
                     return new Obs.ListRoomsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Room filter rectangle must be within the current map.") };
                 if (map.regionGrid?.AllRooms == null || map.regionAndRoomUpdater == null || map.zoneManager == null || map.mapPawns == null)
-                    return new Obs.ListRoomsReply { Outcome = Missing(Common.UnavailableReason.NativeComponentMissing, "Room, zone or pawn census is unavailable.") };
+                    return Unreadable("Room, zone or pawn census is unavailable.");
                 // AllRooms is the raw cache; resolve pending region changes
                 // before taking a complete physical-room census.
                 map.regionAndRoomUpdater.TryRebuildDirtyRegionsAndRooms();
@@ -67,8 +67,12 @@ namespace HomeBridge.BridgeTools
                 }
                 return new Obs.ListRoomsReply { Outcome = snapshot };
             }
-            catch (Exception readError) { return new Obs.ListRoomsReply { Outcome = Missing(Common.UnavailableReason.ReadFailed,
-                PlacementPreviewOperation.Diagnostic("Room census, geometry or contents could not be read completely: " + readError)) }; }
+            catch (Exception readError) { return Unreadable(PlacementPreviewOperation.Diagnostic("Room census, geometry or contents could not be read completely: " + readError)); }
+        }
+        private static Obs.ListRoomsReply Unreadable(string detail)
+        {
+            ReadFailureLog.Note("list_rooms", detail);
+            return new Obs.ListRoomsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.Unavailable, detail) };
         }
         internal static bool Validate(Obs.ListRoomsRequest request, out Common.Failure failure)
         {

@@ -114,7 +114,7 @@ public sealed partial class RoundsBuildingPlanner
         List<Pol.Resource> products = [];
         if (GearLadder())
         {
-            var gear = observed.Planning?.Outcome?.Observed?.Gear;
+            var gear = observed.Planning?.Observed?.Gear;
             if (gear is null)
             {
                 return (null, FieldUnavailable("gear_census"));

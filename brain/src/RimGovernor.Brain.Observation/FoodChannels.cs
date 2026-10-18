@@ -149,7 +149,7 @@ public static class FoodChannelsReads
     /// <summary>Called only after the colony boundary validator has checked the section.</summary>
     internal static Fact<FoodChannels> ColonyFoodChannels(O.FoodChannelsSection? section, Pawns pawns, AnimalRaceCatalog races)
     {
-        var v = section?.Outcome?.Observed;
+        var v = section?.Observed;
         if (v is null)
         {
             return Unknown<FoodChannels>();

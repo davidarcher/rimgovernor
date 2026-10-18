@@ -89,6 +89,6 @@ internal static class FoodLedger
     {
         var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
-        return facts.DeliveryLedger?.Outcome?.Observed ?? throw new AcceptanceException($"{label}: the delivery ledger is not observed: {facts.DeliveryLedger?.Outcome}");
+        return facts.DeliveryLedger?.Observed ?? throw new AcceptanceException($"{label}: the delivery ledger is not observed: {facts.DeliveryLedger}");
     }
 }

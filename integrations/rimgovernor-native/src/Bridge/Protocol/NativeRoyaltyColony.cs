@@ -23,10 +23,10 @@ namespace HomeBridge.BridgeTools
                 facts = ReadThrones(facts);
                 facts = ReadNeuroformers(facts);
                 facts = ReadCeremonies(facts);
-                return new Obs.RoyaltySection { Outcome = facts };
-            } catch (Exception) {
-                return new Obs.RoyaltySection { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
-                    Detail = "Royalty colony facts unavailable." } };
+                return new Obs.RoyaltySection { Observed = facts };
+            } catch (Exception ex) {
+                ReadFailureLog.Note("royalty", ex);
+                return new Obs.RoyaltySection();
             }
         }
 

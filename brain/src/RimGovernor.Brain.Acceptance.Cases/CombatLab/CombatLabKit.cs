@@ -129,7 +129,7 @@ internal static class CombatLabKit
     {
         var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
-        var policies = facts.Policies?.Outcome?.Observed ?? throw new AcceptanceException($"{label}: policy section unavailable: {facts.Policies?.Outcome}");
+        var policies = facts.Policies?.Observed ?? throw new AcceptanceException($"{label}: policy section unavailable: {facts.Policies}");
         return [.. policies.AllowedAreas];
     }
 
