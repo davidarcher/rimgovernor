@@ -101,6 +101,29 @@ public sealed class ForecastCoupledSelectionTests
         return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget);
     }
 
+    // #3546: the selection reports harm_capability_unassessed, with the specific finding, only when the chosen outcome could not price harm.
+    [Fact]
+    public void HarmCapabilityUnassessedIsAbsentWhenHarmIsAssessedAndPresentWithTheSpecificFindingOtherwise()
+    {
+        var facts = Review(fall: .012);
+        var unassessed = Select(facts).Selection.Findings;
+        Assert.Contains("harm_capability_unassessed", unassessed);
+        Assert.Contains("threat_schedule_unknown", unassessed);
+        Assert.Contains("death_floor_unassessed", unassessed);
+
+        var quiet = facts.CoupledAlternatives! with
+        {
+            Context = facts.CoupledAlternatives!.Context with
+            {
+                Harm = new() { Schedule = new() { MajorThreatsPerDay = Known(0d), RaidFraction = Known(1d) } },
+            },
+        };
+        var assessed = Select(facts with { CoupledAlternatives = quiet }).Selection.Findings;
+        Assert.DoesNotContain("harm_capability_unassessed", assessed);
+        Assert.DoesNotContain("threat_schedule_unknown", assessed);
+        Assert.DoesNotContain("death_floor_unassessed", assessed);
+    }
+
     [Fact]
     public void OrdinaryReviewCombinesIndependentFoodSourcesForOneHungryBeneficiary()
     {

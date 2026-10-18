@@ -208,9 +208,9 @@ them through `ForecastCoupledContext.Value`; production uses the defaults.
 | --- | --- | --- | --- |
 | `DeathTerminalValue` | 60 | capability-days | What a colonist is worth beyond the horizon: about two game months of full capability. Read by the harm term (#3471) and, on a lethal thermal severity, the thermal term (#3521). |
 | `WellbeingWeight` | 0.1 | capability-days per mood-day | Wellbeing valued for itself, above the break risk the mood term already counts. The game states no exchange rate. Priced today. |
-| `HarmRiskAlpha` | 0.9 | fraction | The CVaR tail of raid harm: the mean of the worst 10% of outcomes. Read by the harm term (#3471). |
-| `HarmRiskWeight` | 0.5 | fraction | How much of raid harm is priced at that tail against the mean. Read by the harm term (#3471). |
-| `DeathRiskFloor` | 0.01 | expected deaths per day above baseline | The most a portfolio may add before it is infeasible. Read by `ForecastValue.Explain`; the harm model that feeds it is #3471, so the floor is reported unassessed (`death_floor_unassessed`) until then. |
+| `HarmRiskAlpha` | 0.9 | fraction | The CVaR tail of raid harm: the mean of the worst 10% of outcomes. Read by the harm term (`HarmLedger`, #3546). |
+| `HarmRiskWeight` | 0.5 | fraction | How much of raid harm is priced at that tail against the mean. Read by the harm term (#3546). |
+| `DeathRiskFloor` | 0.01 | expected deaths per day above baseline | The most a portfolio may add before it is infeasible. Read by `ForecastValue.Explain` against the harm term's expected deaths (#3546); unassessed (`death_floor_unassessed`) while the harm term is unknown. |
 | `BreakRiskCap` | 0.5 | expected breaks per pawn per day | The most break risk one pawn may carry, as expected breaks per pawn-day. Read by `ForecastValue.Explain` (#3522). |
 | `TieResolution` | 0.01 | capability-days | A summed loss difference within this is a tie; the ranking then falls through to the unpriced terms, the incumbent and labor. Read by `CompareConsequences` (#3522). |
 | `GoalImportanceValue` (Low, Normal, High) | 0.5, 2, 8 | capability-days per whole goal | What completing a goal is worth at each importance; a schedule earns the fraction it progresses. Low is five mood-days at the default `WellbeingWeight`, each level four times the one below. Read by the ledger's `Goals` term (#3503). |

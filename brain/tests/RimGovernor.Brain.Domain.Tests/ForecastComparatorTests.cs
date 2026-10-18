@@ -11,7 +11,7 @@ public sealed class ForecastComparatorTests
     private static readonly double Tie = new ForecastValuePolicy().TieResolution;
 
     private static ForecastConsequenceVector Vector(double? hunger = 0, double zeroExcess = 0, double breakExcess = 0, double? wellbeing = 0,
-        double? breaks = 0, double development = 0, double labor = 0, bool breakAssessed = true)
+        double? breaks = 0, double development = 0, double labor = 0, bool breakAssessed = true, double deathExcess = 0)
     {
         static Fact<double> Of(double? value) => value is { } v ? Known(v) : default;
         var ledger = new ForecastValueResult(default, [])
@@ -21,7 +21,7 @@ public sealed class ForecastComparatorTests
         };
         var value = new ForecastValueExplanation(ledger, new())
         {
-            UrgentZero = new(true, zeroExcess), BreakRisk = new(breakAssessed, breakExcess), Death = new(false, 0),
+            UrgentZero = new(true, zeroExcess), BreakRisk = new(breakAssessed, breakExcess), Death = new(deathExcess > 0, deathExcess),
         };
         return new(EquatableArray.From(Enumerable.Repeat(Known(0d), 5).ToArray()), EquatableArray.From(Enumerable.Repeat(Known(0d), 6).ToArray()),
             Known(0d), Known(0d), development, labor, []) { Value = value };
@@ -55,6 +55,18 @@ public sealed class ForecastComparatorTests
         Assert.False(unassessed.Value.BreakRisk.Assessed);
         Assert.True(unassessed.Value.BreakRisk.Passed);
         Assert.True(ForecastCoupledSelection.CompareConsequences(unassessed, Vector(breaks: .3)) == 0);
+    }
+
+    [Fact]
+    public void ABrokenDeathFloorRanksLastBelowTheCurrencyAndTheSmallerExcessWinsBetweenTwo()
+    {
+        var safe = Vector(hunger: 5);                      // loses more capability-days, holds the floor
+        var deadly = Vector(hunger: 0, deathExcess: .02);  // loses none, adds deaths
+        Assert.True(ForecastCoupledSelection.CompareConsequences(safe, deadly) < 0);
+        Assert.True(ForecastCoupledSelection.CompareConsequences(deadly, safe) > 0);
+        Assert.True(ForecastCoupledSelection.CompareConsequences(Vector(deathExcess: .02), Vector(deathExcess: .05)) < 0);
+        // A food-zero floor still outranks it.
+        Assert.True(ForecastCoupledSelection.CompareConsequences(deadly, Vector(zeroExcess: 40)) < 0);
     }
 
     [Fact]

@@ -169,7 +169,11 @@ public sealed partial class Rounder
         ["total"] = Number(value.Ledger.Total), ["hunger"] = Number(value.Ledger.Hunger), ["rest"] = Number(value.Ledger.Rest),
         ["food_poisoning"] = Number(value.Ledger.FoodPoisoning), ["thermal"] = Number(value.Ledger.Thermal),
         ["mood_breaks"] = Number(value.Ledger.MoodBreaks), ["wellbeing"] = Number(value.Ledger.Wellbeing),
-        ["harm"] = Number(value.Ledger.Harm), ["investment"] = Number(value.Ledger.Investment), ["goals"] = Number(value.Ledger.Goals),
+        ["harm"] = Number(value.Ledger.Harm), ["harm_detail"] = value.Ledger.HarmDetail is { } detail ? new Dictionary<string, object?>
+        {
+            ["raids_per_day"] = detail.RaidsPerDay, ["exposure_range"] = new[] { detail.ExposureLo, detail.ExposureHi },
+            ["down_probability"] = detail.DownProbability, ["death_probability"] = detail.DeathProbability, ["cvar"] = detail.Cvar,
+        } : null, ["investment"] = Number(value.Ledger.Investment), ["goals"] = Number(value.Ledger.Goals),
         ["goal_contributions"] = value.Ledger.GoalContributions.Select(c => new Dictionary<string, object?> { ["goal"] = c.Goal, ["progress"] = c.Progress, ["worth"] = c.Worth, ["value"] = c.Value }).ToArray(),
         ["unknown"] = value.Ledger.Findings.ToArray(),
         ["floors"] = new Dictionary<string, object?>

@@ -64,11 +64,56 @@ public sealed class ForecastValueTests
         Threshold = 0.3, Tiers = [new(1, 2), new(1, 3), new(1, 5)],
     };
 
-    private static ForecastCoupledContext Context(NeedsForecastPawn pawn, CapacityPenaltyTables? tables = null) => new()
+    // By default the schedule expects no raids, so the harm term is a known 0 and every other term is read alone.
+    private static ForecastCoupledContext Context(NeedsForecastPawn pawn, CapacityPenaltyTables? tables = null, HarmInputs? harm = null,
+        IReadOnlyDictionary<string, EquatableArray<GearOption>>? outfits = null, ForecastValuePolicy? policy = null) => new()
     {
         Activities = new(), Needs = new() { Pawns = [pawn] }, Resources = Resources(),
         CapacityPenalties = tables ?? Tables(), MoodBreaks = Breaks(),
+        Harm = harm ?? new() { Schedule = new() { MajorThreatsPerDay = Known(0d), RaidFraction = Known(1d) } },
+        Outfits = outfits ?? new Dictionary<string, EquatableArray<GearOption>>(),
+        Value = policy ?? new(),
     };
+
+    // ----- the harm term (#3546): one raid per day on a colonist who takes 5 hits (3 to 20) of 10 sharp damage at ratio 1.
+
+    private static readonly BodyCoverage Torso = new()
+    {
+        Shares = [new CoverageShare { Groups = ["Torso"], Probability = 1 }],
+        Layers = ["OnSkin", "Middle", "Shell"],
+    };
+
+    private static GearOption Duster(double sharp) => new() { ID = "duster" + sharp, Quality = 2, Condition = 1, Sharp = sharp, Layers = ["Shell"], Groups = ["Torso"] };
+
+    private static EquatableArray<GearOption> Cloth => [Duster(0.3)];
+
+    private static EquatableArray<GearOption> Devilstrand => [Duster(0.8)];
+
+    private static ExposureTable Exposure(int trials = 100) => new(RaidExposure.Schema,
+        [new ExposureCell("1-2", ExposureRoles.Noncombatant, trials, 5, 3, 20, 0.5, 0.4, 0.6)]);
+
+    private static HarmInputs RaidDay(ExposureTable? exposure = null, double raidsPerDay = 1) => new()
+    {
+        Schedule = new() { MajorThreatsPerDay = Known(raidsPerDay), RaidFraction = Known(1d) },
+        Composition = new() { Pawns = Known(5d), Bins = [new() { Damage = 10, Category = ArmorCategory.Sharp, Weight = 1 }] },
+        RaidPoints = Known(1000d), DefenseCapacity = Known(1000d),
+        Exposure = exposure ?? Exposure(), Coverage = Torso, Natural = new(),
+    };
+
+    private static NeedsForecastPawn HarmPawn() => Pawn() with
+    {
+        PainShockThreshold = Known(0.8), HealthScale = Known(1d), IncomingDamageFactor = Known(1d), InjuryHealingFactor = Known(1d),
+    };
+
+    private static CapacityPenaltyTables HarmTables() => Tables() with
+    {
+        BloodLoss = new() { Known = true, Hediff = "BloodLoss", LethalSeverity = 1, Stages = [Stage(0, new CapacityModifier("Consciousness", 0, null, 0.9))] },
+    };
+
+    private static ForecastCoupledContext HarmContext(EquatableArray<GearOption> worn, HarmInputs? harm = null, ForecastValuePolicy? policy = null) =>
+        Context(HarmPawn(), HarmTables(), harm ?? RaidDay(), new Dictionary<string, EquatableArray<GearOption>> { ["pawn"] = worn }, policy);
+
+    private static ForecastCommitment Wears(EquatableArray<GearOption> items) => new("outfit", default) { OutfitChanges = [new("pawn", items)] };
 
     private static WorkResourceView Resources()
     {
@@ -213,7 +258,7 @@ public sealed class ForecastValueTests
         Assert.False(unknown.Hunger.IsKnown);
         Assert.False(unknown.Total.IsKnown);
         Assert.Contains("capacity_penalty_table_unknown:Malnutrition", unknown.Findings);
-        Assert.Contains("harm_capability_unassessed", known.Findings);
+        Assert.DoesNotContain("harm_capability_unassessed", known.Findings);
         Assert.Equal(known.Hunger.Value + known.Rest.Value + known.FoodPoisoning.Value + known.Thermal.Value + known.MoodBreaks.Value + known.Wellbeing.Value
             + known.Harm.Value + known.Investment.Value, known.Total.Value, 9);
         Assert.True(known.Total.Value > 0);
@@ -332,5 +377,124 @@ public sealed class ForecastValueTests
 
         Assert.False(value.Thermal.IsKnown);
         Assert.Contains("capacity_penalty_table_unknown:Hypothermia/Heatstroke", value.Findings);
+    }
+
+    // ----- harm (#3546)
+
+    private static ForecastValueResult Harmed(EquatableArray<GearOption> worn, HarmInputs? harm = null, ForecastValuePolicy? policy = null,
+        ForecastCommitment? commitment = null)
+    {
+        var context = HarmContext(worn, harm, policy);
+        return ForecastValue.Of(Outcome(Calm()), context, Day, Outcome(Calm()), commitment is null ? null : [commitment]);
+    }
+
+    [Fact]
+    public void HarmIsPositiveAndFiniteAndNamesItsDetailWithoutTheCapabilityFinding()
+    {
+        var value = Harmed(Cloth);
+
+        Assert.True(value.Harm.IsKnown);
+        Assert.True(value.Harm.Value > 0);
+        Assert.True(double.IsFinite(value.Harm.Value));
+        Assert.True(value.Total.IsKnown);
+        Assert.NotNull(value.HarmDetail);
+        Assert.Equal(1, value.HarmDetail!.RaidsPerDay);
+        Assert.Equal(3, value.HarmDetail.ExposureLo);
+        Assert.Equal(20, value.HarmDetail.ExposureHi);
+        Assert.DoesNotContain("harm_capability_unassessed", value.Findings);
+        Assert.Contains("exposure_layout_unassessed", value.Findings);
+    }
+
+    [Fact]
+    public void ADevilstrandOutfitInPlaceOfClothLowersHarmAndTheLedgerFavoursIt()
+    {
+        var cloth = Harmed(Cloth);
+        var swapped = Harmed(Cloth, commitment: Wears(Devilstrand));
+
+        Assert.True(swapped.Harm.Value < cloth.Harm.Value);
+        Assert.True(swapped.LossAgainst(cloth).Value < 0);
+        Assert.Equal(Harmed(Devilstrand).Harm.Value, swapped.Harm.Value, 9);
+    }
+
+    [Fact]
+    public void AnUncalibratedExposureCellLeavesHarmUnknownWithTheCellFindingAndTheOtherTermsStillCompare()
+    {
+        var uncalibrated = Harmed(Cloth, RaidDay(Exposure(trials: 5)));
+
+        Assert.False(uncalibrated.Harm.IsKnown);
+        Assert.Null(uncalibrated.HarmDetail);
+        Assert.Contains("exposure_cell_uncalibrated:1-2/noncombatant", uncalibrated.Findings);
+        Assert.DoesNotContain("harm_capability_unassessed", uncalibrated.Findings);
+        Assert.False(uncalibrated.Total.IsKnown);
+        Assert.True(uncalibrated.Hunger.IsKnown);
+        // The terms both sides assess are compared: a hungrier pawn still loses.
+        var pawn = Pawn(foodLevel: 0.5, fall: 0.5 / (Day / 2));
+        var starving = Timeline(pawn) with { Mood = Mood(0, [0, 0, 0]) };
+        var worse = ForecastValue.Of(Outcome(starving), Context(HarmPawn(), HarmTables(), RaidDay(Exposure(trials: 5)),
+            new Dictionary<string, EquatableArray<GearOption>> { ["pawn"] = Cloth }), Day, Outcome(Calm()));
+        Assert.True(worse.LossAgainst(uncalibrated).Value > 0);
+    }
+
+    [Fact]
+    public void AnUnobservedInputNamesItsOwnFinding()
+    {
+        Assert.Contains("raid_points_unobserved", Harmed(Cloth, RaidDay() with { RaidPoints = default }).Findings);
+        Assert.Contains("defense_capacity_unobserved", Harmed(Cloth, RaidDay() with { DefenseCapacity = default }).Findings);
+        Assert.Contains("threat_schedule_unknown", Harmed(Cloth, RaidDay() with { Schedule = new() }).Findings);
+        Assert.Contains("raid_composition_unknown", Harmed(Cloth, RaidDay() with { Composition = new() }).Findings);
+        var noOutfit = ForecastValue.Of(Outcome(Calm()), Context(HarmPawn(), HarmTables(), RaidDay()), Day, Outcome(Calm()));
+        Assert.Contains("outfit_unobserved:pawn", noOutfit.Findings);
+        Assert.False(noOutfit.Harm.IsKnown);
+    }
+
+    [Fact]
+    public void ARiskWeightOfZeroPricesTheMeanAndOneThePolicysCvar()
+    {
+        var context = HarmContext(Cloth);
+        var response = ArmorResponseRules.OfOutfit(Cloth, new NaturalArmor(), Torso, [new WeaponBin { Damage = 10, Category = ArmorCategory.Sharp, Weight = 1 }]);
+        var distribution = HarmConsequences.Of(new HitRange(5, 3, 20), [new WeaponBin { Damage = 10, Category = ArmorCategory.Sharp, Weight = 1 }],
+            response, HarmPawn(), HarmTables(), new ForecastSupportConsequences(), new ForecastValuePolicy(), Day);
+        var (mean, cvar) = HarmLedger.Moments(distribution, context.Value.HarmRiskAlpha);
+
+        Assert.True(cvar > mean);
+        Assert.Equal(mean, Harmed(Cloth, policy: new() { HarmRiskWeight = 0 }).Harm.Value, 9);
+        Assert.Equal(cvar, Harmed(Cloth, policy: new() { HarmRiskWeight = 1 }).Harm.Value, 9);
+    }
+
+    [Fact]
+    public void NoExpectedRaidsIsAKnownZeroHarmWhateverElseIsUnobserved()
+    {
+        var value = Harmed(Cloth, new HarmInputs { Schedule = new() { MajorThreatsPerDay = Known(0d), RaidFraction = Known(1d) } });
+
+        Assert.Equal(0, value.Harm.Value);
+        Assert.True(value.Total.IsKnown);
+    }
+
+    [Fact]
+    public void TheDeathFloorBreaksWhenTheOutfitRaisesDeathsOverTheReferenceAndHoldsOtherwise()
+    {
+        var context = HarmContext(Devilstrand);
+        var reference = Outcome(Calm());
+
+        var same = ForecastValue.Explain(reference, Known(0d), context, Day, reference);
+        var stripped = ForecastValue.Explain(reference, Known(0d), context, Day, reference, [Wears([])]);
+
+        Assert.True(same.Death.Assessed);
+        Assert.True(same.Death.Passed);
+        Assert.True(stripped.Death.Assessed);
+        Assert.False(stripped.Death.Passed);
+        Assert.Equal(stripped.Ledger.HarmDetail!.DeathsPerDay - same.Ledger.HarmDetail!.DeathsPerDay - context.Value.DeathRiskFloor, stripped.Death.Excess, 9);
+    }
+
+    [Fact]
+    public void TheDeathFloorIsUnassessedAndPassesWhileHarmIsUnknown()
+    {
+        var context = HarmContext(Cloth, RaidDay(Exposure(trials: 5)));
+        var reference = Outcome(Calm());
+
+        var explained = ForecastValue.Explain(reference, Known(0d), context, Day, reference);
+
+        Assert.False(explained.Death.Assessed);
+        Assert.True(explained.Death.Passed);
     }
 }

@@ -106,8 +106,17 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
     /// <summary>The wellbeing weight times the mood-days lost against the baseline outcome.</summary>
     public Fact<double> Wellbeing { get; init; }
 
-    /// <summary>Raid harm and death: unassessed until the harm model (#3471), contributing 0.</summary>
+    /// <summary>
+    /// Raid harm and death (harm model, #3471): raids per day over the horizon times the risk-transformed loss of one raid, summed
+    /// over the pawns. Unknown, with the specific finding, when the schedule, composition, exposure cell, outfits or care are.
+    /// </summary>
     public Fact<double> Harm { get; init; }
+
+    /// <summary>The per-raid numbers behind <see cref="Harm"/>; null when it is unknown.</summary>
+    public HarmDetail? HarmDetail { get; init; }
+
+    /// <summary>What the harm term found unassessed or qualified (a subset of <see cref="Findings"/>).</summary>
+    public EquatableArray<string> HarmFindings { get; init; }
 
     /// <summary>Capability added or loss avoided after completion: 0 until tier 2 (#3470).</summary>
     public Fact<double> Investment { get; init; }
@@ -156,7 +165,7 @@ public sealed record ForecastValueExplanation(ForecastValueResult Ledger, Foreca
     /// <summary>A pawn's expected breaks per day over <see cref="ForecastValuePolicy.BreakRiskCap"/>: the excess is the worst pawn's overshoot.</summary>
     public ForecastFloor BreakRisk { get; init; } = new(false, 0);
 
-    /// <summary>Unassessed until the harm model (#3471); always passes.</summary>
+    /// <summary>Expected raid deaths per day over the reference outcome's, beyond <see cref="ForecastValuePolicy.DeathRiskFloor"/> (#3546): the excess is the overshoot. Unassessed when the outcome's or the reference's harm is unknown; it then passes.</summary>
     public ForecastFloor Death { get; init; } = new(false, 0);
 
     /// <summary>The explanation of a vector assembled without a context: an empty ledger under the default constants.</summary>
@@ -187,6 +196,10 @@ public static partial class ForecastValue
     {
         public readonly Dictionary<string, ObservedPawn> Pawns = context.Needs.Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => new ObservedPawn(g.First(), Levels(g.First())), StringComparer.Ordinal);
+        public readonly Dictionary<string, NeedsForecastPawn> Rows = context.Needs.Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        /// <summary>A pawn's raid distributions by what they depend on (#3546): outcomes that share a pawn's outfit and care share one.</summary>
+        public readonly System.Collections.Concurrent.ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> Harm = new();
         public readonly bool Malnutrition = context.CapacityPenalties.Malnutrition.Valid();
         public readonly bool FoodPoisoning = context.CapacityPenalties.FoodPoisoning.Valid();
         public readonly bool Thermal = context.CapacityPenalties.Hypothermia.Valid() && context.CapacityPenalties.Heatstroke.Valid();
@@ -299,18 +312,20 @@ public static partial class ForecastValue
             wellbeing = known ? Known(sum) : default;
         }
 
-        findings.Add("harm_capability_unassessed");
+        var harmTerm = HarmLedger.Of(outcome, context, horizon, index.Harm, index.Rows, commitments);
+        findings.UnionWith(harmTerm.Findings);
+        var harm = harmTerm.Loss;
         var contributions = GoalContributionsOf(outcome, context, commitments ?? []);
         double earned = 0;
         foreach (var contribution in contributions) earned += contribution.Value;
         var goals = Known(-earned);
-        var total = hunger.IsKnown && rest.IsKnown && poisoning.IsKnown && thermal.IsKnown && breaks.IsKnown && wellbeing.IsKnown
-            ? Known(hunger.Value + rest.Value + poisoning.Value + thermal.Value + breaks.Value + wellbeing.Value + goals.Value) : default;
+        var total = hunger.IsKnown && rest.IsKnown && poisoning.IsKnown && thermal.IsKnown && breaks.IsKnown && wellbeing.IsKnown && harm.IsKnown
+            ? Known(hunger.Value + rest.Value + poisoning.Value + thermal.Value + breaks.Value + wellbeing.Value + harm.Value + goals.Value) : default;
         if (!total.IsKnown) findings.Add("capability_value_unassessed");
         return new(total, EquatableArray.From(findings))
         {
             Hunger = hunger, Rest = rest, FoodPoisoning = poisoning, Thermal = thermal, MoodBreaks = breaks, Wellbeing = wellbeing,
-            Harm = Known(0d), Investment = Known(0d), Goals = goals, GoalContributions = EquatableArray.From(contributions),
+            Harm = harm, HarmDetail = harmTerm.Detail, HarmFindings = EquatableArray.From(harmTerm.Findings), Investment = Known(0d), Goals = goals, GoalContributions = EquatableArray.From(contributions),
         };
     }
 
@@ -356,11 +371,20 @@ public static partial class ForecastValue
             if (result.Mood is { BreakRisk: { IsKnown: true } risk } && days > 0) worst = Math.Max(worst, risk.Value / days - policy.BreakRiskCap);
             else assessed = false;
         }
-        return new(Of(outcome, context, horizon, reference, commitments), policy)
+        var ledger = Of(outcome, context, horizon, reference, commitments);
+        // The death floor: expected deaths a day above the reference's (worn outfits, its own care), beyond what the policy allows.
+        var death = new ForecastFloor(false, 0);
+        if (ledger.HarmDetail is { } harm)
+        {
+            var index = Indexes.GetValue(context, static c => new LedgerIndex(c));
+            if (HarmLedger.Of(reference, context, horizon, index.Harm, index.Rows, null).Detail is { } before)
+                death = new(true, Math.Max(0, harm.DeathsPerDay - before.DeathsPerDay - policy.DeathRiskFloor));
+        }
+        return new(ledger, policy)
         {
             UrgentZero = new(urgentZeroTicks.IsKnown, urgentZeroTicks.IsKnown ? Math.Max(0, urgentZeroTicks.Value) : 0),
             BreakRisk = new(assessed, worst),
-            Death = new(false, 0),
+            Death = death,
         };
     }
 

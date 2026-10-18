@@ -6,7 +6,7 @@
 Tier-1 selection ranks on the safety floors, then on capability-days ([Comparator](#comparator) describes what runs).
 `ForecastValue.Of` (#3520, #3521) prices hunger, rest, food poisoning, thermal exposure, mood breaks and
 wellbeing per outcome; `ForecastValue.Explain` (#3522) adds the floors; `coupled_selection` reports both ([policy constants](../contracts/kept-constants.md#policy-constants-3469),
-[tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm and investment are 0 and unassessed. The player's goals add a gain term ([Goal value](#goal-value), #3503).
+[tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm (#3546) is priced when the harm inputs are observed and calibrated, else unknown with a specific finding; investment is 0 and unassessed. The player's goals add a gain term ([Goal value](#goal-value), #3503).
 The tier-2 model's input (`ColonyModelInput`, assembled per review by `RoundsColonyModel.InputOf` from the review frame, #3523) exists and names
 each section the frame did not carry; nothing runs the model yet.
 Sections other than the comparator, the problems and the milestones describe the proposed design, not current behavior.
@@ -37,9 +37,10 @@ search took 5–29 s per review in game while the clock ran.
    pays anything. Plants rest when the day is under 25% or over 80% through
    (`Plant.Resting`), so growth to harvestable takes about 27 calendar days at full rate (41 for full growth). Within
    one day it is pure cost.
-5. **Harm is unassessed.** `harm_capability_unassessed` is added to
-   every review's findings. The gear planner values armor from the armor
-   response (harm model, #3545); the ledger does not yet.
+5. **Harm is priced (#3546), once the exposure table is calibrated.** The ledger's `Harm` term and the death floor read the
+   threat schedule, raid composition, exposure and armor response ([contract](../contracts/forecast-contracts.md#harm-term-and-death-floor-3546)).
+   While a cell of the exposure table is uncalibrated (#3543) the term is unknown with a specific finding, and the other
+   terms still compare.
 
 ## Decisions
 
@@ -61,8 +62,8 @@ search took 5–29 s per review in game while the clock ran.
 These are hard constraints on the tier-1 schedule and the tier-2 trajectory. Tier 1 checks them on every
 evaluated outcome (`ForecastValue.Explain`); an outcome that breaks one loses to any outcome that does not, and
 when both break one the smaller excess wins. A floor that cannot be checked is not treated as passed: the review
-reports `break_floor_unassessed` (a mood break risk with no observed threshold) and `death_floor_unassessed` (no harm
-model yet), and the outcome is ranked on what remains. Pruning partial portfolios on a floor waits for the search
+reports `break_floor_unassessed` (a mood break risk with no observed threshold) and `death_floor_unassessed` (the harm
+term is unknown), and the outcome is ranked on what remains. Pruning partial portfolios on a floor waits for the search
 stage 3 ([#3472](https://github.com/davidarcher/rimgovernor/issues/3472)).
 
 - No pawn's food or rest reaches zero, unless every feasible portfolio does.

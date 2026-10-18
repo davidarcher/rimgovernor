@@ -75,6 +75,10 @@ public sealed record ForecastCoupledContext
     public ForecastValuePolicy Value { get; init; } = new();
     /// <summary>The game's malnutrition and food-poisoning tables the ledger prices capacity loss with (#3519); unknown by default.</summary>
     public CapacityPenaltyTables CapacityPenalties { get; init; } = new();
+    /// <summary>The expected raids the harm term prices (#3546): schedule, composition, exposure table, defense and where a hit lands; unknown by default.</summary>
+    public HarmInputs Harm { get; init; } = new();
+    /// <summary>The outfit (apparel and primary weapon) each pawn wears now (#3546), from the gear census's worn items; a pawn without a row has an unobserved outfit.</summary>
+    public IReadOnlyDictionary<string, EquatableArray<GearOption>> Outfits { get; init; } = new Dictionary<string, EquatableArray<GearOption>>();
     /// <summary>The catalog's break curve whose tier mixes price a break in days lost (#3520); unknown by default.</summary>
     public MoodBreakModel MoodBreaks { get; init; } = new();
     /// <summary>Diagnostic only: keep each needs result's per-point mood. The search never reads it (#3467).</summary>

@@ -78,9 +78,10 @@ public sealed partial record ForecastCoupledSelection
         {
             var zero = vector.Value.UrgentZero.Excess - against.Value.UrgentZero.Excess;
             var cap = vector.Value.BreakRisk.Excess - against.Value.BreakRisk.Excess;
+            var death = vector.Value.Death.Excess - against.Value.Death.Excess;
             foreach (var contribution in vector.Value.Ledger.GoalContributions)
             {
-                var route = zero > 0 ? ("urgent_zero", zero) : cap > 0 ? ("break_risk_cap", cap) : ("", 0d);
+                var route = zero > 0 ? ("urgent_zero", zero) : death > 0 ? ("death_risk_floor", death) : cap > 0 ? ("break_risk_cap", cap) : ("", 0d);
                 if (!goalRoutes.TryGetValue(contribution.Goal, out var seen) || route.Item1 == "" || !seen.Open && route.Item2 < seen.Excess)
                     goalRoutes[contribution.Goal] = (route.Item1 == "" || seen.Open, route.Item1, route.Item2);
             }
@@ -136,7 +137,7 @@ public sealed partial record ForecastCoupledSelection
         static bool GraphOnly(ForecastCommitment c) => c.ActivityCompletions.Count > 0 && c.Outcome is null
             && c.StockChanges.Count == 0 && c.MaterialClaims.Count == 0 && c.EquipmentClaims.Count == 0
             && c.UnsupportedEffects.Count == 0 && c.Construction is null && !c.AlternativeLaborCost.IsKnown && c.MoodMemories.Count == 0
-            && c.SituationalChanges.Count == 0 && c.ComfortShifts.Count == 0;
+            && c.SituationalChanges.Count == 0 && c.ComfortShifts.Count == 0 && c.OutfitChanges.Count == 0;
         static bool PlannedSiteRoot(ForecastCommitment c) => c.Outcome?.Need == ForecastPlannedSite.DevelopmentNeed && GraphOnly(c with { Outcome = null });
         var unplaced = candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         // Per root: whether it is graph-only, keys a schedule by id (direct effects or claims; a retained incumbent) and requests relief.
@@ -358,9 +359,14 @@ public sealed partial record ForecastCoupledSelection
         foreach (var (goal, route) in goalRoutes)
             if (!route.Open) findings.Add(GoalInfeasiblePrefix + goal + ":" + route.Floor);
         findings.Add("beyond_horizon_unassessed");
-        // The harm and death terms wait for the harm model (#3471); a break risk no mood threshold supports leaves that floor unchecked.
-        findings.Add("harm_capability_unassessed");
-        findings.Add("death_floor_unassessed");
+        // The harm term and the death floor are reported unassessed, with the specific finding, when the chosen outcome could not price
+        // them (#3546); a break risk no mood threshold supports leaves that floor unchecked.
+        if (!bestVector.Value.Ledger.Harm.IsKnown)
+        {
+            findings.Add("harm_capability_unassessed");
+            findings.UnionWith(bestVector.Value.Ledger.HarmFindings);
+        }
+        if (!bestVector.Value.Death.Assessed) findings.Add("death_floor_unassessed");
         if (!bestVector.Value.BreakRisk.Assessed) findings.Add("break_floor_unassessed");
         var deferred = DeferUnselectedPawns(candidates.Context, best.Plan, request.Origin.ObservedTick);
         var deferredCapacity = Math.Max(0, 32 - best.Plan.Allocations.Length);
@@ -517,14 +523,15 @@ public sealed partial record ForecastCoupledSelection
     }
 
     /// <summary>
-    /// Negative when <paramref name="a"/> is better. The order (#3522): the safety floors (a broken urgent-zero floor, then a
-    /// broken break-risk floor; the least excess wins when both sides break one); the capability-days ledger, lower loss
+    /// Negative when <paramref name="a"/> is better. The order (#3522): the safety floors (a broken urgent-zero floor, then the
+    /// death floor (#3546), then a broken break-risk floor; the least excess wins when both sides break one); the capability-days ledger, lower loss
     /// winning over the terms both sides assess, a difference within <see cref="ForecastValuePolicy.TieResolution"/> being a tie;
     /// then the terms with no mechanical conversion yet, in the order below. Zero leaves the incumbent rule and labor to the caller.
     /// </summary>
     internal static int CompareConsequences(ForecastConsequenceVector a, ForecastConsequenceVector b)
     {
         var floor = a.Value.UrgentZero.Excess.CompareTo(b.Value.UrgentZero.Excess); if (floor != 0) return floor;
+        floor = a.Value.Death.Excess.CompareTo(b.Value.Death.Excess); if (floor != 0) return floor;
         floor = a.Value.BreakRisk.Excess.CompareTo(b.Value.BreakRisk.Excess); if (floor != 0) return floor;
         if (a.Value.Ledger.LossAgainst(b.Value.Ledger).TryGetValue(out var delta) && Math.Abs(delta) > a.Value.Policy.TieResolution)
             return delta.CompareTo(0);

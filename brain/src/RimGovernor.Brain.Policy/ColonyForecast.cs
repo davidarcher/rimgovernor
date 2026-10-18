@@ -27,7 +27,12 @@ public sealed record ForecastCommitment(string Id, EquatableArray<ForecastStockC
     public EquatableArray<ForecastSituationalChange> SituationalChanges { get; init; }
     /// <summary>Shifts of a pawn's observed comfortable temperature range (e.g. an outfit's insulation difference).</summary>
     public EquatableArray<ForecastComfortShift> ComfortShifts { get; init; }
+    /// <summary>The outfits pawns wear once this commitment holds (#3546); the harm term prices their armor. Per pawn the last change applied wins.</summary>
+    public EquatableArray<ForecastOutfitChange> OutfitChanges { get; init; }
 }
+
+/// <summary>The whole outfit (apparel and primary weapon) <paramref name="Pawn"/> wears from the commitment's effective tick.</summary>
+public sealed record ForecastOutfitChange(string Pawn, EquatableArray<GearOption> Items);
 
 /// <summary>One pawn's memory granted by a commitment; it starts at the commitment's effective tick.</summary>
 public sealed record ForecastMoodMemory(string Pawn, NeedMemory Memory);

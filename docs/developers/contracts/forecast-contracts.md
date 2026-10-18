@@ -167,6 +167,10 @@ unknown completion leaves that pawn's mood, or thermal exposure, unassessed.
   insulation difference between the predicted outfit and the current one.
   Shifts for one pawn add. They change the pawn's own exposure, not
   `StationaryThermalRelief`, which stays outfit-neutral shelter relief.
+- `OutfitChanges` (`ForecastOutfitChange(Pawn, Items)`, #3546) name the whole outfit (apparel and primary weapon) a pawn wears
+  once the commitment holds; per pawn the last change wins, and a pawn with none wears
+  `ForecastCoupledContext.Outfits[pawn]` (the gear census's `GearLoadoutInput.Worn`). The effect-source generator sets it from each
+  candidate's `EffectSourceOutfit.Items`. The harm term prices its armor; nothing else reads it.
 
 ### Temperature mood from banded cards
 
@@ -278,6 +282,34 @@ The harm model's fifth step ([harm model](../architecture/forecast-value.md#harm
   `capacity_penalty_table_unknown:BloodLoss` or `:WoundInfection`, and for infection `infection_immunity_gain_speed_unobserved`,
   `infection_difficulty_factor_unobserved`, `infection_onset_delay_unmodelled`, `infection_room_factor_unobserved`.
   Mirrored rules: [kept constants](kept-constants.md#mirrored-game-rules-raid-health-consequences-3544).
+
+### Harm term and death floor (#3546)
+
+The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm` (`HarmInputs`, assembled per review by
+`HarmInputs.Of(RoundsFacts)`) and `Outfits`:
+
+- `HarmInputs`: `Schedule` (`ThreatSchedule.Of` at the observed storyteller and days passed), `Composition`
+  (`RaidCompositionRules.Of` at the observed `RaidPoints` and `HostileFactions`, over `RoundsFacts.HarmCatalog.Raid`), `RaidPoints`,
+  `DefenseCapacity`, `Exposure` (the embedded `exposure.json` unless injected), `Coverage` and `Natural` (`HarmCatalog`, from the
+  catalog). Each defaults to unknown. The hediff tables are `CapacityPenalties`.
+- `Harm` = raids per day (major threats per day × raid fraction) × horizon days × Σ over the outcome's pawns of
+  (1 − `HarmRiskWeight`) × E + `HarmRiskWeight` × CVaR`HarmRiskAlpha` of `HarmConsequences.Of` for the pawn. Its inputs are
+  `RaidExposure.HitsPerColonist(points ÷ DefenseCapacity, role)` and `ArmorResponseRules.OfOutfit` of the pawn's outfit. The role
+  comes from the worn primary weapon (ranged: `gunner`, melee: `melee`, none: `noncombatant`); the outcome's outfit is the last
+  `OutfitChanges` row for the pawn, else the worn one. A schedule that expects no raids is a known 0. The distribution of a pawn
+  is memoized per context by (pawn, role, outfit, care facts, hits).
+- Unknown, with the specific finding and no `harm_capability_unassessed`, when an input is: `threat_schedule_unknown` (with the
+  schedule's own finding), `raid_composition_unknown` (with the composition's), `raid_points_unobserved`,
+  `defense_capacity_unobserved`, `exposure_cell_uncalibrated:<bin>/<role>`, `outfit_unobserved:<pawn>`,
+  `capacities_unobserved:<pawn>`, and `HarmConsequences`' own. A known term still reports `other_threats_unassessed`,
+  `adaptation_feedback_unassessed`, `fire_unassessed` and `exposure_layout_unassessed`. An unknown `Harm` makes `Total` unknown;
+  a comparison still uses the terms both sides assess (`LossAgainst`).
+- `ForecastValueExplanation.Death` is assessed when the outcome's and the reference's `Harm` are: its excess is the expected deaths per
+  day (raids per day × Σ death probability) above the reference's, minus `DeathRiskFloor`, floored at 0. The reference wears the
+  worn outfits. `CompareConsequences` ranks the floors urgent zero, death, break risk, in that order, before the ledger.
+- `ForecastValueResult.HarmDetail` (`raids_per_day`, `exposure_range`, `down_probability`, `death_probability`, `cvar`) is reported
+  as `harm_detail` ([otel-signals](otel-signals.md)). Until the exposure table is calibrated (#3543) every cell is uncalibrated, so
+  a served review reports `exposure_cell_uncalibrated:…` and `harm` null.
 
 ### Threat schedule (#3539)
 

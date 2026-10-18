@@ -120,6 +120,7 @@ internal static class EffectSourceCandidates
                     SituationalChanges = EquatableArray.From(changes),
                     // More cold insulation lowers the comfortable minimum; more heat insulation raises the maximum.
                     ComfortShifts = dc == 0 && dh == 0 ? [] : [new(pawn.Pawn, -dc, dh)],
+                    OutfitChanges = [new(pawn.Pawn, outfit.Items)],
                 });
             next:;
             }

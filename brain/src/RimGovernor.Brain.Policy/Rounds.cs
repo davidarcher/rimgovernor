@@ -345,6 +345,9 @@ public sealed record RoundsFacts
     /// <summary>The storyteller defs' threat comps from the catalog (#3539), read by ThreatSchedule.Of; empty without a catalog.</summary>
     public ThreatScheduleTable ThreatTable { get; init; } = new();
 
+    /// <summary>The catalog's raid factions, hit coverage and natural armor (#3546), read by the harm term; empty without a catalog.</summary>
+    public HarmCatalog HarmCatalog { get; init; } = new();
+
     /// <summary>The void monolith's state; unknown without Anomaly.</summary>
     public Fact<MonolithFacts> Monolith { get; init; }
 
