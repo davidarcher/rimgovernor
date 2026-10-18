@@ -261,10 +261,31 @@ partial record LayoutPlan
     /// </summary>
     public static (LayoutPlan Plan, StationAdvice Advice) ReplanLayout(LayoutPlan prev, StationFacts f, MapSurvey s, IReadOnlyList<PowerGeyser> geysers, RoomGrowth growth)
     {
+        (prev, f) = ReplanFacts(prev, f, s, geysers, growth);
+        return TileReplan(prev, f, s, growth, LayoutStationPlanRules.AdviseStations(f));
+    }
+
+    /// <summary>
+    /// The replan's facts over the plan prev the colony holds (its rooms numbered), as the chain and the tiler read them:
+    /// the plan, the rooms growth holds pinned, the herd's pens and the tile ground in place of the saved plan's zones
+    /// and sites (ReplanTileFacts). The first half of ReplanLayout; the review runs the chain over these facts once
+    /// and tiles its advice (TileReplan).
+    /// </summary>
+    public static (LayoutPlan Prev, StationFacts Facts) ReplanFacts(LayoutPlan prev, StationFacts f, MapSurvey s, IReadOnlyList<PowerGeyser> geysers, RoomGrowth growth)
+    {
         prev = prev.WithRoomIDs();
         f = f with { Plan = prev, Pinned = TilePinned(prev, growth), Pens = growth.Pens };
-        f = LayoutReplanTiledRules.ReplanTileFacts(f, s, geysers);
-        var advice = LayoutStationPlanRules.TileStations(f);
+        return (prev, LayoutReplanTiledRules.ReplanTileFacts(f, s, geysers));
+    }
+
+    /// <summary>
+    /// The second half of ReplanLayout: tiles advised, the chain's advice over the facts f of ReplanFacts, into the
+    /// next plan over prev (the numbered plan ReplanFacts returned) and lays the held rooms, the conduits, the retired
+    /// ground and the perimeter over it.
+    /// </summary>
+    public static (LayoutPlan Plan, StationAdvice Advice) TileReplan(LayoutPlan prev, StationFacts f, MapSurvey s, RoomGrowth growth, StationAdvice advised)
+    {
+        var advice = LayoutStationPlanRules.TileStations(f, advised);
         var plan = advice.Tiled!.Plan;
         if (plan.Rooms.Count == 0)
         {

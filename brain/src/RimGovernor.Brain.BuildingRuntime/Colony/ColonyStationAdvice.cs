@@ -6,19 +6,18 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class Rounder
 {
     /// <summary>
-    /// Runs the station chain over the live colony at a layout review and keeps its advice (<c>StationLast</c>,
-    /// held when the chain made one) and the facts it read (<c>StationFacts</c>), which the replan tiles. The
-    /// chain is skipped, and the last advice kept, while its inputs are unchanged: the facts' key and the survey,
-    /// as for the replan. A run records one layout_stations decision.
+    /// The station chain's facts over the live colony at a layout review and what they key (<c>LayoutInputs</c>):
+    /// the facts' key parts and the load beside the survey. Pure and cheap; the chain itself runs once, inside the
+    /// replan the inputs' drift starts (<c>StartLayoutReplan</c>), off the review's hold path.
     /// </summary>
-    internal void StationAdviceFor(GenerationSnapshot snapshot, ColonyProjection projection, LayoutPlan plan, IReadOnlySet<int> pinned, RoomGrowth growth, RoomDemand demand, MapSurvey survey, DefinitionCatalog catalog)
+    internal (StationFacts Facts, LayoutInputs Inputs) StationInputsOf(GenerationSnapshot snapshot, ColonyProjection projection, LayoutPlan plan, RoomGrowth growth, MapSurvey survey)
     {
         var f = StationFactsBuilder.StationFactsOf(projection, plan, survey, StationNeeds(snapshot), WorkLedgerView()) with
         {
-            Pinned = pinned,
+            Pinned = LayoutPlan.TilePinned(plan, growth),
             ThroneArea = Known(growth.ThroneArea),
             RetireShelter = growth.RetireShelter,
-            Demand = demand,
+            Demand = growth.Demand,
             Child = LayoutChildRoomsRules.ChildRoomShapes(RoundsSleepingUpkeepPlanner.ChildRoomNeeds(projection), RoundsSleepingUpkeepPlanner.FurnitureDefinitions(projection)),
             Crops = FieldCrops.Of(projection),
             FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays,
@@ -29,33 +28,7 @@ public sealed partial class Rounder
         {
             parts[name] = value;
         }
-        var inputs = new LayoutInputs(default, string.Create(CultureInfo.InvariantCulture, $"{snapshot.Load.Value}|{f.InputsKey()}"), survey.Bounds, [.. survey.Cells]) { Parts = parts };
-        if (inputs.Same(StationInputs))
-        {
-            return;
-        }
-        var start = DateTimeOffset.UtcNow;
-        StationFacts facts = f;
-        Exception? error = null;
-        try
-        {
-            facts = StationFactsBuilder.StationFacts(catalog, f);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            error = e;
-        }
-        var (decision, advice, ok) = StationAdviceLog.StationDecision(facts, error);
-        decision = decision with { Dur = DateTimeOffset.UtcNow - start };
-        Tel.Decide(decision);
-        foreach (var d in advice.Regroup)
-        {
-            Tel.Decide(StationAdviceLog.RegroupDecision(d));
-        }
-        StationInputs = inputs;
-        StationLast = advice;
-        StationHeld = ok;
-        StationFacts = facts;
+        return (f, new LayoutInputs(default, string.Create(CultureInfo.InvariantCulture, $"{snapshot.Load.Value}|{f.InputsKey()}"), survey.Bounds, [.. survey.Cells]) { Parts = parts });
     }
 }
 

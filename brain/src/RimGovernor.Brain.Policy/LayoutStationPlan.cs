@@ -531,9 +531,11 @@ public static partial class LayoutStationPlanRules
     /// (DeriveLayoutPlan) and the replan (ReplanLayout). The review that only records advice calls AdviseStations. A
     /// tiling that fails throws its TileException with the advice (TileException.Advice) it stood on.
     /// </summary>
-    public static StationAdvice TileStations(StationFacts f)
+    public static StationAdvice TileStations(StationFacts f) => TileStations(f, AdviseStations(f));
+
+    /// <summary>TileStations over advice already made (the replan runs the chain itself, once, before the tiler).</summary>
+    public static StationAdvice TileStations(StationFacts f, StationAdvice output)
     {
-        var output = AdviseStations(f);
         try
         {
             var tiled = LayoutTileRules.TileEmbedding(f.TileInputOf(output));

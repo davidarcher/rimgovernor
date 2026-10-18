@@ -121,17 +121,14 @@ public sealed partial class Rounder
     /// <summary>The last replan's survey and inputs; an hourly check that finds them unchanged skips the replan.</summary>
     internal LayoutInputs PlanInputs = LayoutInputs.Empty;
 
-    /// <summary>The inputs of the last station chain run.</summary>
-    internal LayoutInputs StationInputs = LayoutInputs.Empty;
-
     /// <summary>The advice of the last station chain run.</summary>
     internal StationAdvice StationLast = new();
 
     /// <summary>Whether the last station chain run made advice.</summary>
     internal bool StationHeld;
 
-    /// <summary>The facts of that run, which the replan tiles (policy.ReplanLayout).</summary>
-    internal StationFacts StationFacts = new();
+    /// <summary>The layout replan running off the hold path, until a review adopts or drops it (#3565).</summary>
+    internal PendingLayoutReplan? LayoutPending;
 
     /// <summary>An invalid saved layout plan is logged once.</summary>
     internal bool LayoutInvalidLogged;

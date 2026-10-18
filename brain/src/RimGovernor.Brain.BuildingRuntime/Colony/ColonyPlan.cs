@@ -188,12 +188,38 @@ public sealed partial class Rounder
     /// most once an hour) and re-reads the survey every hour, replanning when a pawn, tier, research, need or
     /// the terrain changed since the last replan. The replan is the station chain's tiled plan
     /// (<c>ReplanLayout</c>): the chain keeps the rooms that stand, the rooms a journal plan works on or a pawn
-    /// sleeps in and the rooms it has a node for, and sites the rest again.
+    /// sleeps in and the rooms it has a node for, and sites the rest again. It runs off the hold path
+    /// (<see cref="PendingLayoutReplan"/>, #3565): the hourly check that finds the inputs drifted starts it and
+    /// a later review adopts its result; no second replan starts while one is pending.
     /// </summary>
     internal async Task<ColonyProjection> ReviewLayoutPlanAsync(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
     {
         var tick = projection.Identity.Tick;
         var (layout, haveLayout) = await LayoutPlanAsync(snapshot, tick, ct).ConfigureAwait(false);
+        if (LayoutPending is { Work.IsCompleted: true } pending)
+        {
+            LayoutPending = null;
+            if (LayoutReplanAdoptable(pending, snapshot, tick, layout, haveLayout))
+            {
+                if (await AdoptLayoutReplanAsync(pending, snapshot, tick, ct).ConfigureAwait(false))
+                {
+                    PlanGrownFor = pending.Grown;
+                    PlanPawns = pending.Colonists;
+                    (layout, haveLayout) = await LayoutPlanAsync(snapshot, tick, ct).ConfigureAwait(false);
+                    if (haveLayout)
+                    {
+                        // The recorded replan is the plan the same inputs plan next: its inputs, the plan being
+                        // among them, are read again over it, from what the replan was planned from.
+                        (PlanInputs, _, _) = await LayoutInputsOfAsync(snapshot, pending.Projection, layout, pending.Survey, pending.Grown, pending.Colonists, pending.Geysers, ct).ConfigureAwait(false);
+                    }
+                }
+            }
+            else
+            {
+                // The world or the saved plan moved on under the run: its plan is dropped, the next hourly check reads again.
+                Tel.Decide(new Decision { Kind = "layout_replan_tiled", Component = "layout", Target = "plan", Verdict = "skipped", Reason = "superseded", Attrs = new Dictionary<string, object?> { ["started_tick"] = pending.Started.Value, ["adopted"] = tick.Value - pending.Started.Value } });
+            }
+        }
         projection.Facts.Colonists.TryGetValue(out var pawns);
         // The last check is the newer of the saved plan's tick and the last survey this process read; a rewind
         // past it or a restart falls back to the plan's tick.
@@ -210,9 +236,9 @@ public sealed partial class Rounder
         // New research or a new tier: other research unlocks rooms too.
         var grown = LayoutPlanning.GrownFor(projection);
         var research = haveLayout && grown != PlanGrownFor && hourly;
-        if (missing || terrain || research)
+        // A pending replan is the hour's: the check waits for it.
+        if ((missing || terrain || research) && LayoutPending is null)
         {
-            var replanned = false;
             (MapSurvey Survey, DefinitionCatalog Catalog)? read;
             try
             {
@@ -243,10 +269,11 @@ public sealed partial class Rounder
                     PlanGrownFor = grown;
                     PlanPawns = colonists;
                     PlanInputs = LayoutInputs.Empty;
+                    (layout, haveLayout) = await LayoutPlanAsync(snapshot, tick, ct).ConfigureAwait(false);
                 }
                 else
                 {
-                    var (inputs, growth) = await LayoutInputsOfAsync(snapshot, projection, layout, survey, catalog, grown, colonists, topology.Geysers, ct).ConfigureAwait(false);
+                    var (inputs, growth, facts) = await LayoutInputsOfAsync(snapshot, projection, layout, survey, grown, colonists, topology.Geysers, ct).ConfigureAwait(false);
                     if (!inputs.Same(PlanInputs))
                     {
                         var reason = LayoutPlanning.LayoutReasons(new Dictionary<string, bool>
@@ -255,21 +282,8 @@ public sealed partial class Rounder
                             ["pawns"] = colonists != PlanPawns,
                             ["research"] = research,
                         });
-                        replanned = await ReplanLayoutAsync(snapshot, tick, layout.Plan, survey, growth, colonists, reason, topology.Geysers, ColonyPlanCut.PerimeterWallOf(projection), ct, inputs.Changed(PlanInputs)).ConfigureAwait(false);
-                        if (replanned)
-                        {
-                            PlanGrownFor = grown;
-                            PlanPawns = colonists;
-                            PlanInputs = inputs;
-                        }
+                        LayoutPending = StartLayoutReplan(snapshot, tick, layout, projection, survey, catalog, growth, facts, colonists, grown, reason, topology.Geysers, ColonyPlanCut.PerimeterWallOf(projection), inputs.Changed(PlanInputs));
                     }
-                }
-                (layout, haveLayout) = await LayoutPlanAsync(snapshot, tick, ct).ConfigureAwait(false);
-                if (replanned && haveLayout)
-                {
-                    // The recorded replan is the plan the same inputs plan next: its inputs, the plan being among
-                    // them, are read again over it.
-                    (PlanInputs, _) = await LayoutInputsOfAsync(snapshot, projection, layout, survey, catalog, PlanGrownFor, PlanPawns, topology.Geysers, ct).ConfigureAwait(false);
                 }
             }
         }
@@ -282,15 +296,16 @@ public sealed partial class Rounder
     }
 
     /// <summary>
-    /// Runs the station chain over the layout's plan and returns what a replan of it varies with, with the growth
-    /// it was read under: the chain's facts and the growth, whose fixed rooms every new building moves. The facts
-    /// hold the plan itself, so a replan that records a plan changes them.
+    /// What a replan of the layout's plan varies with, with the growth and the chain's facts it was read under:
+    /// the facts' key parts (<c>StationInputsOf</c>) and the growth, whose fixed rooms every new building moves.
+    /// The facts hold the plan itself, so a replan that records a plan changes them. Pure beyond the growth's
+    /// reads: the chain runs in the replan.
     /// </summary>
-    internal async Task<(LayoutInputs Inputs, RoomGrowth Growth)> LayoutInputsOfAsync(GenerationSnapshot snapshot, ColonyProjection projection, HeldLayout layout, MapSurvey survey, DefinitionCatalog catalog, string grown, int pawns, IReadOnlyList<PowerGeyser> geysers, CancellationToken ct)
+    internal async Task<(LayoutInputs Inputs, RoomGrowth Growth, StationFacts Facts)> LayoutInputsOfAsync(GenerationSnapshot snapshot, ColonyProjection projection, HeldLayout layout, MapSurvey survey, string grown, int pawns, IReadOnlyList<PowerGeyser> geysers, CancellationToken ct)
     {
         var growth = await RoomGrowthAsync(snapshot, projection, layout.Plan, Stockpiles.LayoutDemand(RoundsStockpilePlanner.StockpileWorld(snapshot)), ct).ConfigureAwait(false);
-        StationAdviceFor(snapshot, projection, layout.Plan, LayoutPlan.TilePinned(layout.Plan, growth), growth, growth.Demand, survey, catalog);
-        var key = string.Create(CultureInfo.InvariantCulture, $"{grown} {pawns} {string.Join(",", geysers)} {growth} {StationInputs.Key}");
+        var (facts, station) = StationInputsOf(snapshot, projection, layout.Plan, growth, survey);
+        var key = string.Create(CultureInfo.InvariantCulture, $"{grown} {pawns} {string.Join(",", geysers)} {growth} {station.Key}");
         var parts = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["grown"] = grown,
@@ -298,11 +313,11 @@ public sealed partial class Rounder
             ["geysers"] = string.Join(",", geysers),
             ["growth"] = string.Create(CultureInfo.InvariantCulture, $"{growth}"),
         };
-        foreach (var (name, value) in StationInputs.Parts)
+        foreach (var (name, value) in station.Parts)
         {
             parts[name] = value;
         }
-        return (new LayoutInputs(layout.Tick, key, survey.Bounds, [.. survey.Cells]) { Parts = parts }, growth);
+        return (new LayoutInputs(layout.Tick, key, survey.Bounds, [.. survey.Cells]) { Parts = parts }, growth, facts);
     }
 
     /// <summary>
@@ -469,78 +484,6 @@ public sealed partial class Rounder
         Tel.Decide(LayoutPlanning.LayoutPlanDecision("planned", "", colonists, plan.Summary(), null));
         LayoutPlanning.LogPerimeter(plan, colonists);
         ColonyPlanCut.LogPerimeterCut(plan, survey, wall, colonists);
-    }
-
-    /// <summary>
-    /// Replans the recorded v2 plan from the station chain's tiled plan over a fresh survey
-    /// (<c>ReplanLayout</c>) and records it when it changed. A chain or tiler that cannot plan keeps the plan
-    /// the colony has: the layout_replan_tiled row says why, and the replan is reported undone (false) so the
-    /// next trigger tries again. Reports whether the plan was replanned, changed or not.
-    /// </summary>
-    internal async Task<bool> ReplanLayoutAsync(GenerationSnapshot snapshot, Tick tick, LayoutPlan plan, MapSurvey survey, RoomGrowth growth, int pawns, string reason, IReadOnlyList<PowerGeyser> geysers, PerimeterWall wall, CancellationToken ct, IReadOnlyList<string>? drift = null)
-    {
-        var decision = new Decision { Kind = "layout_replan_tiled", Component = "layout", Target = "plan" };
-        if (!StationHeld)
-        {
-            decision = decision with { Verdict = "skipped" };
-            decision = decision with { Reason = "station_advice_unavailable" };
-            Tel.Decide(decision);
-            return false;
-        }
-        var stationFacts = StationFacts;
-        var start = DateTimeOffset.UtcNow;
-        LayoutPlan next;
-        StationAdvice advice;
-        try
-        {
-            (next, advice) = LayoutPlan.ReplanLayout(plan, stationFacts, survey, geysers, growth);
-        }
-        catch (StationFactsException e)
-        {
-            decision = decision with { Dur = DateTimeOffset.UtcNow - start };
-            decision = decision with { Verdict = "skipped" };
-            decision = decision with { Reason = "facts_unknown" };
-            decision = decision with { Attrs = new Dictionary<string, object?> { ["fact"] = e.Message } };
-            Tel.Decide(decision);
-            return false;
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            decision = decision with { Dur = DateTimeOffset.UtcNow - start };
-            decision = decision with { Level = TelemetryLevel.Warn };
-            decision = decision with { Verdict = "failed" };
-            decision = decision with { Reason = "tile_error" };
-            decision = decision with { Attrs = new Dictionary<string, object?> { ["error"] = e.ToString() } };
-            Tel.Decide(decision);
-            return false;
-        }
-        decision = decision with { Dur = DateTimeOffset.UtcNow - start };
-        var changed = !LayoutPlan.SamePlan(plan, next);
-        decision = decision with { Verdict = "replanned" };
-        decision = decision with { Reason = "tiled_plan" };
-        var tiledAttrs = StationAdviceLog.TiledReplanAttrs(LayoutPlan.DiffReplanTile(plan, stationFacts.Built ?? new HashSet<int>(), advice), stationFacts.Built?.Count ?? 0, advice.Tiled!.Plan.Rooms.Count);
-        tiledAttrs["changed"] = changed;
-        if (drift is { Count: > 0 })
-        {
-            // Which replan inputs drifted since the last replan: the hourly check replans on any of them.
-            tiledAttrs["inputs_changed"] = drift;
-        }
-        decision = decision with { Attrs = tiledAttrs };
-        Tel.Decide(decision);
-        LayoutPlanning.LogInterior(advice);
-        LayoutPlanning.LogConduits(advice);
-        if (!changed)
-        {
-            return true;
-        }
-        await Player.Journal.RecordLayoutPlanAsync(snapshot, tick, next, ct).ConfigureAwait(false);
-        Tel.Decide(LayoutPlanning.LayoutPlanDecision("replanned", reason, pawns, next.Summary(), null));
-        if (LayoutPlan.PerimeterChanged(plan, next))
-        {
-            LayoutPlanning.LogPerimeter(next, pawns);
-            ColonyPlanCut.LogPerimeterCut(next, survey, wall, pawns);
-        }
-        return true;
     }
 
     /// <summary>Redraws a "heat.&lt;layer&gt;" overlay layer per traffic layer from the census's busiest cells, on its own hourly cadence; with the overlay off it removes them once. Output only, like the layout.</summary>
