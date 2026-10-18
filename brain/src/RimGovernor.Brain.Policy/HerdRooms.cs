@@ -126,7 +126,6 @@ public static class HerdRoomsRules
         {
             return new HerdStep();
         }
-        var taken = BuiltCells(built);
         foreach (var room in plan.Hospitals())
         {
             var (_, standing) = PlannedRoom.CensusRoomIn(room, rooms);
@@ -145,18 +144,18 @@ public static class HerdRoomsRules
                     Bed = bed,
                 };
             }
-            var (template, absent) = HerdWardRules.WardTemplate(room, rooms.Shapes, f.Bed, ward, built, taken);
-            if (absent)
+            var furnishing = HerdWardRules.WardFurnishing(room, rooms.Shapes, f.Bed, ward, built);
+            if (furnishing.Absent)
             {
                 return new HerdStep
                 {
                     Kind = HerdStepKind.Reconcile,
                     Role = LayoutSurveyRules.PlannedHospital,
                     Room = room,
-                    Template = template,
+                    Template = furnishing.Pieces,
                 };
             }
-            ward -= Math.Min(ward, template.Count);
+            ward -= Math.Min(ward, furnishing.Pieces.Count);
             if (ward <= 0)
             {
                 break;

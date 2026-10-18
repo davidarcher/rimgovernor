@@ -273,48 +273,6 @@ public static class HerdWardRules
     /// The hospital's animal ward as a reconcile template: the animal beds standing in room (up to quota) where
     /// they stand, the missing ones in the first free ward slots. Absent reports a planned bed the room lacks.
     /// </summary>
-    internal static (IReadOnlyList<WantedPiece> Template, bool Absent) WardTemplate(
-        PlannedRoom room,
-        PieceShapes shapes,
-        InteriorPieceDef bed,
-        int quota,
-        IReadOnlyList<CurrentBuilding> built,
-        IReadOnlySet<Cell> taken
-    )
-    {
-        var standing = new List<WantedPiece>();
-        foreach (var b in built)
-        {
-            if (b.Building!.Definition == bed.Def && b.Cells.Count > 0 && FurnitureRoomsRules.RectInside(room.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells)))
-            {
-                var r = PlacementSearchRules.CellsRectangle(b.Cells);
-                standing.Add(
-                    new WantedPiece
-                    {
-                        DefName = bed.Def,
-                        Minimum = new Cell(r.X, r.Z),
-                        Maximum = new Cell(r.X + r.Width - 1, r.Z + r.Height - 1),
-                    }
-                );
-            }
-        }
-        var have = Math.Min(quota, standing.Count);
-        var template = standing.Take(have).ToList();
-        var absent = false;
-        foreach (var p in WardSlots(room, shapes, bed))
-        {
-            if (have >= quota)
-            {
-                break;
-            }
-            if (PlannedRules.RectCells(p.Rect).Any(taken.Contains))
-            {
-                continue;
-            }
-            template.Add(p.Wanted());
-            absent = true;
-            have++;
-        }
-        return (template, absent);
-    }
+    internal static Furnishing WardFurnishing(PlannedRoom room, PieceShapes shapes, InteriorPieceDef bed, int quota, IReadOnlyList<CurrentBuilding> built) =>
+        RoomFurnishingRules.RoomFurnishing(room, null, [new FurnishingWant { Things = [bed.Def], Count = quota, Piece = bed, Slots = WardSlots(room, shapes, bed) }], built);
 }

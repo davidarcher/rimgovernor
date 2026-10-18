@@ -15,6 +15,9 @@ public sealed record FurnishingWant
     public int Count { get; init; }
 
     public InteriorPieceDef Piece { get; init; } = new();
+
+    /// <summary>The slots the role supplies itself (the hospital ward's free-floor beds); null plans them from <see cref="Piece"/>'s template.</summary>
+    public IReadOnlyList<InteriorPiece>? Slots { get; init; }
 }
 
 /// <summary>A room's desired furniture: the listed pieces, and whether any is yet to be built.</summary>
@@ -35,7 +38,7 @@ public static class RoomFurnishingRules
     /// shortfall from the role's template slots no building covers, in template order. The same input gives the
     /// same list, and building a listed piece changes only that entry.
     /// </summary>
-    public static Furnishing RoomFurnishing(PlannedRoom room, InteriorRoom interior, IReadOnlyList<FurnishingWant> wants, IReadOnlyList<CurrentBuilding> built)
+    public static Furnishing RoomFurnishing(PlannedRoom room, InteriorRoom? interior, IReadOnlyList<FurnishingWant> wants, IReadOnlyList<CurrentBuilding> built)
     {
         var taken = new HashSet<Cell>();
         foreach (var b in built)
@@ -75,19 +78,20 @@ public static class RoomFurnishingRules
                 continue;
             }
 
-            if (!plans.TryGetValue(w.Piece, out var plan))
+            var slots = w.Slots;
+            if (slots is null && interior is not null)
             {
-                var (planned, ok) = InteriorRegionRules.PlanRoomInterior(interior, w.Piece);
-                plan = ok ? planned : null;
-                plans[w.Piece] = plan;
+                if (!plans.TryGetValue(w.Piece, out var plan))
+                {
+                    var (planned, ok) = InteriorRegionRules.PlanRoomInterior(interior, w.Piece);
+                    plan = ok ? planned : null;
+                    plans[w.Piece] = plan;
+                }
+
+                slots = plan?.Pieces;
             }
 
-            if (plan is null)
-            {
-                continue;
-            }
-
-            foreach (var slot in plan.Pieces)
+            foreach (var slot in slots ?? [])
             {
                 if (count >= w.Count || !Fills(w, slot) || PlannedRules.RectCells(slot.Rect).Any(taken.Contains))
                 {

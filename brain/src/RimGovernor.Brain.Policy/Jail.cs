@@ -62,14 +62,6 @@ public static class JailRules
         {
             return new JailStep();
         }
-        var taken = new HashSet<Cell>();
-        foreach (var b in built)
-        {
-            foreach (var c in b.Cells)
-            {
-                taken.Add(c);
-            }
-        }
         var strays = new List<string>();
         var actKind = JailStepKind.None;
         PlannedRoom? actRoom = null;
@@ -111,10 +103,10 @@ public static class JailRules
             }
             else if (bedCount < held)
             {
-                var (piece, ok) = JailSlot(r, rooms.Shapes, taken);
-                if (ok)
+                var furnishing = JailFurnishing(r, rooms.Shapes, built);
+                if (furnishing.Absent)
                 {
-                    (actRoom, actKind, template) = (r, JailStepKind.Reconcile, [piece!.Wanted()]);
+                    (actRoom, actKind, template) = (r, JailStepKind.Reconcile, furnishing.Pieces);
                 }
             }
         }
@@ -122,31 +114,15 @@ public static class JailRules
         return new JailStep { Held = held, Beds = bedCount, Strays = strays, Room = actRoom, Kind = actKind, Template = template, Marks = actMarks };
     }
 
-    /// <summary>The room's first template bed slot nothing stands on.</summary>
-    private static (InteriorPiece? Piece, bool Ok) JailSlot(PlannedRoom r, PieceShapes shapes, HashSet<Cell> taken)
+    /// <summary>The room's first template bed slot nothing stands on: a want that counts no standing bed, so the shortfall is one fresh slot.</summary>
+    private static Furnishing JailFurnishing(PlannedRoom r, PieceShapes shapes, IReadOnlyList<CurrentBuilding> built)
     {
         var (room, ok) = InteriorRules.InteriorRoomFromLayout(r, shapes);
         if (!ok)
         {
-            return (null, false);
+            return new Furnishing();
         }
         var (bed, bok) = room!.Piece(shapes.Furniture.PrimaryBed());
-        if (!bok)
-        {
-            return (null, false);
-        }
-        var (interior, pok) = InteriorRegionRules.PlanRoomInterior(room, bed);
-        if (!pok)
-        {
-            return (null, false);
-        }
-        foreach (var p in interior.Pieces)
-        {
-            if (!PlannedRules.RectCells(p.Rect).Any(taken.Contains))
-            {
-                return (p, true);
-            }
-        }
-        return (null, false);
+        return bok ? RoomFurnishingRules.RoomFurnishing(r, room, [new FurnishingWant { Count = 1, Piece = bed }], built) : new Furnishing();
     }
 }

@@ -70,7 +70,7 @@ public static partial class TombRules
     /// Counts the unburied colonist dead, the empty graves and the plain graves, and returns the cells graves stand
     /// on. A buried body, colonist or stranger, fills its grave.
     /// </summary>
-    private static (TombStep Step, HashSet<Cell> Taken) TombCensus(IReadOnlyList<WasteItem> waste, IReadOnlyList<CurrentBuilding> built, string sarcophagus)
+    private static (TombStep Step, List<CurrentBuilding> Graves) TombCensus(IReadOnlyList<WasteItem> waste, IReadOnlyList<CurrentBuilding> built, string sarcophagus)
     {
         var dead = 0;
         var empty = 0;
@@ -91,7 +91,7 @@ public static partial class TombRules
                 dead++;
             }
         }
-        var taken = new HashSet<Cell>();
+        var standing = new List<CurrentBuilding>();
         foreach (var b in built)
         {
             var def = b.Building!.Definition;
@@ -107,41 +107,21 @@ public static partial class TombRules
             {
                 empty++;
             }
-            foreach (var c in b.Cells)
-            {
-                taken.Add(c);
-            }
+            standing.Add(b);
         }
-        return (new TombStep { Dead = dead, Empty = empty, Graves = graves }, taken);
+        return (new TombStep { Dead = dead, Empty = empty, Graves = graves }, standing);
     }
 
-    /// <summary>The room's first template sarcophagus slot no grave stands on.</summary>
-    private static (InteriorPiece? Piece, bool Ok) TombSlot(PlannedRoom r, PieceShapes shapes, HashSet<Cell> taken)
+    /// <summary>The room's first template sarcophagus slot no grave stands on: a want that counts no standing piece, so the shortfall is one fresh slot.</summary>
+    private static Furnishing TombFurnishing(PlannedRoom r, PieceShapes shapes, IReadOnlyList<CurrentBuilding> graves)
     {
         var (inRoom, ok) = InteriorRules.InteriorRoomFromLayout(r, shapes);
         if (!ok)
         {
-            return (null, false);
+            return new Furnishing();
         }
         var (sarcophagus, sok) = inRoom!.Piece(shapes.Furniture.Sarcophagus);
-        if (!sok)
-        {
-            return (null, false);
-        }
-        var (interior, pok) = InteriorRegionRules.PlanRoomInterior(inRoom, sarcophagus);
-        if (!pok)
-        {
-            return (null, false);
-        }
-        foreach (var p in interior.Pieces)
-        {
-            if (PlannedRules.RectCells(p.Rect).Any(taken.Contains))
-            {
-                continue;
-            }
-            return (p, true);
-        }
-        return (null, false);
+        return sok ? RoomFurnishingRules.RoomFurnishing(r, inRoom, [new FurnishingWant { Count = 1, Piece = sarcophagus }], graves) : new Furnishing();
     }
 
     /// <summary>
@@ -157,7 +137,7 @@ public static partial class TombRules
         bool sarcophagus
     )
     {
-        var (step, taken) = TombCensus(waste, built, shapes.Furniture.Sarcophagus);
+        var (step, graves) = TombCensus(waste, built, shapes.Furniture.Sarcophagus);
         if (step.Dead == 0 || step.Empty >= step.Dead)
         {
             return new TombStep();
@@ -172,12 +152,12 @@ public static partial class TombRules
             {
                 continue;
             }
-            var (piece, ok) = TombSlot(r, shapes, taken);
-            if (!ok)
+            var furnishing = TombFurnishing(r, shapes, graves);
+            if (!furnishing.Absent)
             {
                 continue;
             }
-            return step with { Room = r, Kind = TombStepKind.Reconcile, Template = [piece!.Wanted()] };
+            return step with { Room = r, Kind = TombStepKind.Reconcile, Template = furnishing.Pieces };
         }
         return step with { Kind = TombStepKind.Full };
     }
