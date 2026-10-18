@@ -14,6 +14,9 @@ namespace HomeBridge.BridgeTools
     // beside unfinished neighbours and an escape for nearby colonists.
     internal static class WallLayerGuard
     {
+        // The supervisor is armed only while a clock run ticks, so a paused
+        // acceptance fixture swaps this to exercise the patches (#3045).
+        internal static Func<bool> Active = () => Supervisor.IsActive;
         private static bool patched;
         // In-place replacement (#2529): a built wall swapped through vanilla's
         // replacement blueprint gets a Frame that stays Impassable, so the
@@ -96,14 +99,14 @@ namespace HomeBridge.BridgeTools
         // of repeatedly finishing the same blocked one. Delivery stays legal.
         private static void WorkAvailable(Thing t, Pawn p, ref bool __result)
         {
-            if (__result && Supervisor.IsActive && t is Frame frame && UnfinishedWall(frame) && !ReplacementFrameThing(frame)
+            if (__result && Active() && t is Frame frame && UnfinishedWall(frame) && !ReplacementFrameThing(frame)
                 && frame.WorkLeft <= 0) __result = CanComplete(frame, p);
         }
         private static bool Complete(Frame __instance, Pawn worker)
         {
             // A replacement Frame takes over a cell that was already impassable:
             // completing it cannot strand a worker or neighbour.
-            if (!Supervisor.IsActive || !UnfinishedWall(__instance) || ReplacementFrameThing(__instance) || __instance.Map == null) return true;
+            if (!Active() || !UnfinishedWall(__instance) || ReplacementFrameThing(__instance) || __instance.Map == null) return true;
             if (CanComplete(__instance, worker)) return true;
             JobFailReason.Is("wall completion would strand construction or a colonist");
             return false;

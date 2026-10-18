@@ -13,7 +13,7 @@ namespace HomeBridge.BridgeTools
     // Private disposable acceptance only: the wall/* cases' native construction probes.
     public sealed class GuardedConstructionFixture
     {
-        [Tool("test/wall_layers", Description = "UNSAFE FOR MODEL EXECUTION. Paused disposable lab only. prepare stages a funded, unfinished three-thick 9x9 wall ring with a three-cell open gate at the map centre and normal builder work. audit reads remaining frames, standing walls and colonist escape. controls directly attempts a completion that would strand a neighbouring frame, then completes an isolated frame with a pawn standing on it and reports vanilla relocation and escape.")]
+        [Tool("test/wall_layers", Description = "UNSAFE FOR MODEL EXECUTION. Paused disposable lab only. prepare stages a funded, unfinished three-thick 9x9 wall ring with a three-cell open gate at the map centre and normal builder work. audit reads remaining frames, standing walls and colonist escape. controls arms the completion guard as a running supervisor would, directly attempts a completion that would strand a neighbouring frame, then completes an isolated frame with a pawn standing on it and reports vanilla relocation and escape.")]
         public async Task<object> WallLayers(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "audit")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -60,17 +60,25 @@ namespace HomeBridge.BridgeTools
                     worker.Position = outlet + IntVec3.North;
                     worker.Notify_Teleported(true, true);
                     closing.workDone = closing.WorkToBuild;
-                    closing.CompleteConstruction(worker);
-                    var refused = closing.Spawned && inner.Spawned;
-                    var skipped = !GenConstruct.CanConstruct(closing, worker, true, false, null);
-                    // Remove the whole negative control before the independent
-                    // pawn-on-frame observation: it must not supply the outcome.
-                    foreach (var c in GenAdj.AdjacentCells.Select(d => middle + d).Concat(new[] { middle }))
-                        ClearWallCell(map, c);
-                    var occupied = FundedFrame(map, middle);
-                    worker.Position = middle;
-                    worker.Notify_Teleported(true, true);
-                    occupied.CompleteConstruction(worker);
+                    // The guard is armed only under a running supervisor; this paused probe arms it itself.
+                    var previous = WallLayerGuard.Active;
+                    bool refused, skipped;
+                    Frame occupied;
+                    try {
+                        WallLayerGuard.Active = () => true;
+                        closing.CompleteConstruction(worker);
+                        refused = closing.Spawned && inner.Spawned;
+                        // A completed frame is destroyed: CanConstruct would read its null map.
+                        skipped = closing.Spawned && !GenConstruct.CanConstruct(closing, worker, true, false, null);
+                        // Remove the whole negative control before the independent
+                        // pawn-on-frame observation: it must not supply the outcome.
+                        foreach (var c in GenAdj.AdjacentCells.Select(d => middle + d).Concat(new[] { middle }))
+                            ClearWallCell(map, c);
+                        occupied = FundedFrame(map, middle);
+                        worker.Position = middle;
+                        worker.Notify_Teleported(true, true);
+                        occupied.CompleteConstruction(worker);
+                    } finally { WallLayerGuard.Active = previous; }
                     return new { success = true, refused, skipped, completed = !occupied.Spawned
                         && middle.GetEdifice(map)?.def == ThingDefOf.Wall,
                         relocated = worker.Position != middle, pawnStandable = worker.Position.Standable(map),

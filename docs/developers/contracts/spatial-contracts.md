@@ -87,7 +87,7 @@ that every item is counted once. The formula is `HaulBatching` (no Verse types).
 ## Room footprints
 
 Wall-frame definitions are standable so thick perimeter sections can place and
-fund all depths together. Under Auto, native completion projects the
+fund all depths together. While the supervisor runs the clock, native completion projects the
 finished wall as blocked: neighbouring unfinished walls need a reachable
 standable touch cell, and reachable colonists must retain access to the builder's
 component or an escape from the completing footprint. Completed-work frames
