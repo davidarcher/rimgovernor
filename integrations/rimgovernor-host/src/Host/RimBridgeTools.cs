@@ -25,20 +25,19 @@ public class RimBridgeTools
         return InvokeAlias(Arguments((nameof(limit), limit), (nameof(minimumLevel), minimumLevel), (nameof(afterSequence), afterSequence), (nameof(operationId), operationId), (nameof(rootOperationId), rootOperationId), (nameof(capabilityId), capabilityId)));
     }
 
-    [Tool("rimgovernor/set_time_speed", Description = "Set RimWorld's current time speed directly; RimGovernor.Host enables the boost for speed 4 (Ultrafast) at startup, and this tool can change that state")]
+    [Tool("rimgovernor/set_time_speed", Description = "Set RimWorld's current time speed directly; Ultrafast is vanilla 15x with the dev tick boost off, Hyperfast is Ultrafast with the boost on, capped at 30x")]
     public object SetTimeSpeed(
-        [ToolParameter(Description = "Desired time speed: Paused, Normal, Fast, Superfast, or Ultrafast")] string speed = "Normal",
-        [ToolParameter(Description = "When set, change RimWorld's private TickManager.UltraSpeedBoost flag. RimGovernor.Host enables it at startup; leave null to preserve the current value.")] bool? ultraSpeedBoost = null)
+        [ToolParameter(Description = "Desired time speed: Paused, Normal, Fast, Superfast, Ultrafast, or Hyperfast")] string speed = "Normal")
     {
-        return InvokeAlias(Arguments((nameof(speed), speed), (nameof(ultraSpeedBoost), ultraSpeedBoost)));
+        return InvokeAlias(Arguments((nameof(speed), speed)));
     }
 
-    [Tool("rimgovernor/play_for", Description = "Unpause the current game at a requested time speed for a bounded real-time duration, then pause it again; speed 4 (Ultrafast) is boosted by default, and forced-normal-speed slowdown can optionally be suppressed during the run")]
+    [Tool("rimgovernor/play_for", Description = "Unpause the current game at a requested time speed for a bounded real-time duration, then pause it again; Hyperfast is Ultrafast with the dev tick boost on, capped at 30x, and forced-normal-speed slowdown can optionally be suppressed during the run")]
     public object PlayFor(
         [ToolParameter(Description = "Real-time duration in milliseconds to keep the game unpaused before pausing it again")] int durationMs,
-        [ToolParameter(Description = "Desired play speed while the game is running: Normal, Fast, Superfast, or Ultrafast")] string speed = "Normal",
+        [ToolParameter(Description = "Desired play speed while the game is running: Normal, Fast, Superfast, Ultrafast, or Hyperfast")] string speed = "Normal",
         [ToolParameter(Description = "How often to poll playback state while waiting to repause")] int pollIntervalMs = 25,
-        [ToolParameter(Description = "When true, temporarily suppress RimWorld's forced-normal-speed slowdown and ensure TickManager.UltraSpeedBoost is enabled while preserving the normal TickManager update path, then restore both prior values. The boost is enabled at bridge startup by default.")] bool forceRequestedSpeed = false)
+        [ToolParameter(Description = "When true, temporarily suppress RimWorld's forced-normal-speed slowdown while preserving the normal TickManager update path, then restore the prior value.")] bool forceRequestedSpeed = false)
     {
         return InvokeAlias(Arguments((nameof(durationMs), durationMs), (nameof(speed), speed), (nameof(pollIntervalMs), pollIntervalMs), (nameof(forceRequestedSpeed), forceRequestedSpeed)));
     }

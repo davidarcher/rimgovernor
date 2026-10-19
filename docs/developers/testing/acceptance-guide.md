@@ -182,8 +182,10 @@ Runner and case code use these helpers instead of raw JSON and fixed sleeps:
 
 - **Host tools:** `Harness.SetTimeSpeedAsync(label, TimeSpeedRequest)`, `PauseClockAsync(label)` and
   `LoadGameReadyAsync(label, LoadGameRequest)` call `rimgovernor/set_time_speed` and `rimgovernor/load_game_ready`
-  with the request and reply records in `RimGovernor.Contracts.Host` (`Brain.Contracts/HostTools.cs`). A load
-  request without its own `TimeoutMs` waits `Harness.LoadWait`.
+  with the request and reply records in `RimGovernor.Contracts.Host` (`Brain.Contracts/HostTools.cs`). The speed
+  name decides the dev tick boost: `Ultrafast` is vanilla 15x with it off, `Hyperfast` is Ultrafast with it on,
+  which native caps at 30x; `RunAt.RunSpeed` is Hyperfast. A load request without its own `TimeoutMs` waits
+  `Harness.LoadWait`.
 - **Service replies:** `ServiceJson.State`, `Health` and `Session` (`Service/ServiceReplies.cs`) read the service's
   `/api` replies into harness-side records (`ServiceState`, `ServiceHealth`, `PlayerSession`) and throw an
   `AcceptanceException` on a bad shape. The service's PlayerApi DTOs stay internal to the host.

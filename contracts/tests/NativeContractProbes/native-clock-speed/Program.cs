@@ -3,9 +3,10 @@ using HomeBridge.BridgeTools;
 using Verse;
 using Clock = RimGovernor.Contracts.Wire.Clock;
 
-// The run speeds (ClockRunSpeed.cs, HyperfastCap.cs, #3604) against vanilla's TickRateMultiplier for a loaded map
+// The run speeds (ClockRunSpeed.cs, HyperfastCap.cs, #3604, #3605) against vanilla's TickRateMultiplier for a loaded map
 // (RimWorld 1.7, read with ilspycmd): Ultrafast is 15x, or 20000x while TickManager.UltraSpeedBoost is set. A run segment
-// owns the boost through BoostOwnership and the TickRateMultiplier postfix applies ClockRunSpeed.Limit before the one ceiling.
+// owns the boost through BoostOwnership. The TickRateMultiplier postfix applies HyperfastCap whenever the boost is on,
+// run segment or not, and the one ceiling beneath it inside a segment.
 internal static class NativeClockSpeedProbe
 {
     private static int checks;
@@ -25,11 +26,14 @@ internal static class NativeClockSpeedProbe
         _ => -1f,
     };
 
-    // What one run segment at this speed ticks at: the boost it owns, vanilla's multiplier, the speed's own limit.
+    // What the postfix makes of vanilla's multiplier at this game speed with the boost as it stands, before any ceiling.
+    private static float Clamped(TimeSpeed speed) => HyperfastCap.Apply(boost, Vanilla(speed));
+
+    // What one run segment at this speed ticks at: the boost it owns, then the clamped multiplier.
     private static float Played(BoostOwnership owned, Clock.Speed speed)
     {
         owned.For(ClockRunSpeed.Boost(speed), ReadBoost, WriteBoost);
-        return ClockRunSpeed.Limit(speed, Vanilla(ClockRunSpeed.Native(speed)));
+        return Clamped(ClockRunSpeed.Native(speed));
     }
 
     internal static void Invoke()
@@ -52,7 +56,15 @@ internal static class NativeClockSpeedProbe
         var hyperfast = new BoostOwnership();
         Check(Played(hyperfast, Clock.Speed.Hyperfast) == HyperfastCap.Multiplier && boost, "Hyperfast is capped at 30x with the boost on");
         Check(HyperfastCap.Multiplier == 30f && HyperfastCap.TicksPerSecond == 1800, "the cap is 30x, 1800 ticks/s");
-        Check(HyperfastCap.Apply(12f) == 12f, "the cap never raises a slower rate");
+        Check(HyperfastCap.Apply(true, 12f) == 12f, "the cap never raises a slower rate");
+        Check(HyperfastCap.Apply(false, 20000f) == 20000f, "an unboosted multiplier is never capped");
+
+        // Outside any run segment (the host tools' Hyperfast, #3605) the boost is capped at 30x all the same.
+        boost = true;
+        Check(Clamped(TimeSpeed.Ultrafast) == HyperfastCap.Multiplier, "a boosted multiplier outside a segment is capped at 30x");
+        Check(Clamped(TimeSpeed.Superfast) == 6f, "the boost leaves the other game speeds alone");
+        boost = false;
+        Check(Clamped(TimeSpeed.Ultrafast) == 15f, "unboosted Ultrafast outside a segment stays 15x");
 
         // A speed change in place keeps the first prior: Hyperfast, then Ultrafast, then Normal, then the stop.
         boost = false;

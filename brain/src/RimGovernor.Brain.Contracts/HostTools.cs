@@ -12,14 +12,14 @@ namespace RimGovernor.Contracts.Host;
 /// <summary><c>rimgovernor/set_time_speed</c>'s arguments.</summary>
 public sealed record TimeSpeedRequest
 {
-    /// <summary>Paused, Normal, Fast, Superfast or Ultrafast.</summary>
+    /// <summary>
+    /// Paused, Normal, Fast, Superfast, Ultrafast or Hyperfast. The name decides the dev tick boost: Ultrafast is vanilla
+    /// 15x with it off, Hyperfast is Ultrafast with it on, capped at 30x by native.
+    /// </summary>
     public required string Speed { get; init; }
 
-    /// <summary>Sets TickManager.UltraSpeedBoost; null keeps the current value.</summary>
-    public bool? UltraSpeedBoost { get; init; }
-
-    /// <summary>Pauses the clock and clears the boost.</summary>
-    public static TimeSpeedRequest Paused { get; } = new() { Speed = "Paused", UltraSpeedBoost = false };
+    /// <summary>Pauses the clock.</summary>
+    public static TimeSpeedRequest Paused { get; } = new() { Speed = "Paused" };
 }
 
 /// <summary><c>rimgovernor/set_time_speed</c>'s reply.</summary>

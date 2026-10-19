@@ -12,7 +12,8 @@ namespace HomeBridge.BridgeTools
     //   Normal, Fast, Superfast  the game's own multiplier; the boost is left as found.
     //   Ultrafast                vanilla's 15x: the boost is owned as false, because
     //                            the host tools may have set it true globally.
-    //   Hyperfast                the boost owned as true, capped at 30x (HyperfastCap.cs).
+    //   Hyperfast                the boost owned as true, which the tick-rate clamp
+    //                            caps at 30x (HyperfastCap.cs).
     // Pure, with no game reads, so the contract probe compiles it directly.
     internal static class ClockRunSpeed
     {
@@ -28,10 +29,6 @@ namespace HomeBridge.BridgeTools
         // The UltraSpeedBoost value a run at this speed owns; null leaves the flag as the run found it.
         internal static bool? Boost(Clock.Speed speed) => speed == Clock.Speed.Hyperfast ? true
             : speed == Clock.Speed.Ultrafast ? false : (bool?)null;
-
-        // The speed's own limit on the game's multiplier, applied before the one ceiling.
-        internal static float Limit(Clock.Speed speed, float multiplier) =>
-            speed == Clock.Speed.Hyperfast ? HyperfastCap.Apply(multiplier) : multiplier;
     }
 
     // A run segment's ownership of the static TickManager.UltraSpeedBoost: the

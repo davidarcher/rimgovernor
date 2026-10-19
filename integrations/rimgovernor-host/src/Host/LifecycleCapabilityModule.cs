@@ -35,7 +35,38 @@ internal sealed class LifecycleCapabilityModule
         public object State { get; set; }
     }
 
-    public object SetTimeSpeed(string speed = "Normal", bool? ultraSpeedBoost = null)
+    // The bot's six speeds (#3603). Ultrafast is vanilla's 15x with TickManager.UltraSpeedBoost forced off; Hyperfast is
+    // the game's Ultrafast with the boost on, which native's TickRateMultiplier postfix caps at 30x (HyperfastCap.cs).
+    // The other speeds leave the boost as they find it: the game's multiplier reads it only at Ultrafast.
+    private const string SpeedNames = "Paused, Normal, Fast, Superfast, Ultrafast, Hyperfast";
+
+    private static bool TryParseSpeed(string speed, out TimeSpeed parsed, out bool? boost)
+    {
+        boost = null;
+        switch (speed?.Trim().ToLowerInvariant())
+        {
+            case "paused": parsed = TimeSpeed.Paused; return true;
+            case "normal": parsed = TimeSpeed.Normal; return true;
+            case "fast": parsed = TimeSpeed.Fast; return true;
+            case "superfast": parsed = TimeSpeed.Superfast; return true;
+            case "ultrafast": parsed = TimeSpeed.Ultrafast; boost = false; return true;
+            case "hyperfast": parsed = TimeSpeed.Ultrafast; boost = true; return true;
+            default: parsed = TimeSpeed.Paused; return false;
+        }
+    }
+
+    private const string BoostMissingMessage = "Hyperfast needs TickManager.UltraSpeedBoost, which this RimWorld does not have.";
+
+    private static bool BoostMissing(bool? boost) => boost == true && UltraSpeedBoostField == null;
+
+    // Writes the boost a speed owns (TryParseSpeed); null leaves it as found.
+    private static void ApplyBoost(bool? boost)
+    {
+        if (boost != null)
+            UltraSpeedBoostField?.SetValue(null, boost.Value);
+    }
+
+    public object SetTimeSpeed(string speed = "Normal")
     {
         if (Current.Game == null || Find.TickManager == null)
         {
@@ -47,35 +78,34 @@ internal sealed class LifecycleCapabilityModule
             };
         }
 
-        if (Enum.TryParse<TimeSpeed>(speed, ignoreCase: true, out var parsed) == false)
+        if (TryParseSpeed(speed, out var parsed, out var boost) == false)
         {
             return new
             {
                 success = false,
-                message = $"Unknown time speed '{speed}'. Supported values: {string.Join(", ", Enum.GetNames(typeof(TimeSpeed)))}.",
+                message = $"Unknown time speed '{speed}'. Supported values: {SpeedNames}.",
                 state = RimWorldState.ToolStateSnapshot()
             };
         }
 
-        var previousUltraSpeedBoost = TryReadUltraSpeedBoost();
-        bool? currentUltraSpeedBoost = null;
-        if (ultraSpeedBoost != null)
+        if (BoostMissing(boost))
         {
-            TrySetUltraSpeedBoost(ultraSpeedBoost.Value);
-            currentUltraSpeedBoost = TryReadUltraSpeedBoost();
+            return new
+            {
+                success = false,
+                message = BoostMissingMessage,
+                state = RimWorldState.ToolStateSnapshot()
+            };
         }
 
+        ApplyBoost(boost);
         Find.TickManager.CurTimeSpeed = parsed;
         return new
         {
             success = true,
             timeSpeed = Find.TickManager.CurTimeSpeed.ToString(),
-            ultraSpeedBoostAvailable = UltraSpeedBoostField != null,
-            requestedUltraSpeedBoost = ultraSpeedBoost,
-            previousUltraSpeedBoost,
-            currentUltraSpeedBoost = currentUltraSpeedBoost ?? TryReadUltraSpeedBoost(),
             paused = Find.TickManager.Paused,
-            message = $"Time speed set to {Find.TickManager.CurTimeSpeed}.",
+            message = $"Time speed set to {speed.Trim()}.",
             state = RimWorldState.ToolStateSnapshot()
         };
     }
@@ -102,12 +132,12 @@ internal sealed class LifecycleCapabilityModule
             };
         }
 
-        if (Enum.TryParse<TimeSpeed>(speed, ignoreCase: true, out var parsedSpeed) == false)
+        if (TryParseSpeed(speed, out var parsedSpeed, out var boost) == false)
         {
             return new
             {
                 success = false,
-                message = $"Unknown time speed '{speed}'. Supported values: Normal, Fast, Superfast, Ultrafast.",
+                message = $"Unknown time speed '{speed}'. Supported values: {SpeedNames}.",
                 state = RimWorldState.ToolStateSnapshot()
             };
         }
@@ -117,15 +147,23 @@ internal sealed class LifecycleCapabilityModule
             return new
             {
                 success = false,
-                message = "play_for requires an active play speed. Use Normal, Fast, Superfast, or Ultrafast.",
+                message = "play_for requires an active play speed. Use Normal, Fast, Superfast, Ultrafast, or Hyperfast.",
+                state = RimWorldState.ToolStateSnapshot()
+            };
+        }
+
+        if (BoostMissing(boost))
+        {
+            return new
+            {
+                success = false,
+                message = BoostMissingMessage,
                 state = RimWorldState.ToolStateSnapshot()
             };
         }
 
         bool? previousNeverForceNormalSpeed = null;
         bool? restoredNeverForceNormalSpeed = null;
-        bool? previousUltraSpeedBoost = null;
-        bool? restoredUltraSpeedBoost = null;
 
         try
         {
@@ -142,9 +180,9 @@ internal sealed class LifecycleCapabilityModule
                     {
                         previousNeverForceNormalSpeed = DebugViewSettings.neverForceNormalSpeed;
                         DebugViewSettings.neverForceNormalSpeed = true;
-                        previousUltraSpeedBoost = TrySetUltraSpeedBoost(true);
                     }
                     stopwatch = Stopwatch.StartNew();
+                    ApplyBoost(boost);
                     EnsurePlaybackRunning(parsedSpeed);
                 }, timeoutMs: 5000),
                 pausePlayback: () => RimBridgeMainThread.Invoke(() =>
@@ -156,18 +194,13 @@ internal sealed class LifecycleCapabilityModule
                     finally
                     {
                         restoredNeverForceNormalSpeed = RestoreNeverForceNormalSpeed(previousNeverForceNormalSpeed);
-                        restoredUltraSpeedBoost = RestoreUltraSpeedBoost(previousUltraSpeedBoost);
                     }
                 }, timeoutMs: 5000));
 
             restoredNeverForceNormalSpeed ??= RimBridgeMainThread.Invoke(
                 () => RestoreNeverForceNormalSpeed(previousNeverForceNormalSpeed),
                 timeoutMs: 5000);
-            restoredUltraSpeedBoost ??= RimBridgeMainThread.Invoke(
-                () => RestoreUltraSpeedBoost(previousUltraSpeedBoost),
-                timeoutMs: 5000);
             var finalNeverForceNormalSpeed = RimBridgeMainThread.Invoke(() => DebugViewSettings.neverForceNormalSpeed, timeoutMs: 5000);
-            var finalUltraSpeedBoost = RimBridgeMainThread.Invoke(TryReadUltraSpeedBoost, timeoutMs: 5000);
             var finalTimeSpeed = RimBridgeMainThread.Invoke(() => Find.TickManager?.CurTimeSpeed.ToString(), timeoutMs: 5000);
 
             return new
@@ -181,10 +214,6 @@ internal sealed class LifecycleCapabilityModule
                 previousNeverForceNormalSpeed,
                 restoredNeverForceNormalSpeed,
                 finalNeverForceNormalSpeed,
-                ultraSpeedBoostAvailable = UltraSpeedBoostField != null,
-                previousUltraSpeedBoost,
-                restoredUltraSpeedBoost,
-                finalUltraSpeedBoost,
                 finalTimeSpeed,
                 paused = result.PausedAtEnd,
                 initiallyPaused = result.InitiallyPaused,
@@ -207,14 +236,10 @@ internal sealed class LifecycleCapabilityModule
                     restoredNeverForceNormalSpeed = RimBridgeMainThread.Invoke(
                         () => RestoreNeverForceNormalSpeed(previousNeverForceNormalSpeed),
                         timeoutMs: 5000);
-                    restoredUltraSpeedBoost = RimBridgeMainThread.Invoke(
-                        () => RestoreUltraSpeedBoost(previousUltraSpeedBoost),
-                        timeoutMs: 5000);
                 }
                 catch
                 {
                     restoredNeverForceNormalSpeed = null;
-                    restoredUltraSpeedBoost = null;
                 }
             }
 
@@ -225,9 +250,6 @@ internal sealed class LifecycleCapabilityModule
                 forceRequestedSpeed,
                 previousNeverForceNormalSpeed,
                 restoredNeverForceNormalSpeed,
-                ultraSpeedBoostAvailable = UltraSpeedBoostField != null,
-                previousUltraSpeedBoost,
-                restoredUltraSpeedBoost,
                 state = RimWorldState.ToolStateSnapshot()
             };
         }
@@ -646,24 +668,4 @@ internal sealed class LifecycleCapabilityModule
         return DebugViewSettings.neverForceNormalSpeed;
     }
 
-    private static bool? TryReadUltraSpeedBoost()
-    {
-        return UltraSpeedBoostField?.GetValue(null) as bool?;
-    }
-
-    private static bool? TrySetUltraSpeedBoost(bool value)
-    {
-        var previous = TryReadUltraSpeedBoost();
-        UltraSpeedBoostField?.SetValue(null, value);
-        return previous;
-    }
-
-    private static bool? RestoreUltraSpeedBoost(bool? previousUltraSpeedBoost)
-    {
-        if (previousUltraSpeedBoost == null)
-            return null;
-
-        UltraSpeedBoostField?.SetValue(null, previousUltraSpeedBoost.Value);
-        return TryReadUltraSpeedBoost();
-    }
 }

@@ -103,7 +103,7 @@ public static class SpeedMatrix
             ["ultrafast"] = new() { Name = "Ultrafast", Speed = "Ultrafast" },
             ["hyperfast"] = new() { Name = "Hyperfast", Speed = "Hyperfast" },
             ["uncapped"] = new() { Name = "uncapped", Speed = "Hyperfast", TestAcceleration = true },
-            ["governor-off"] = new() { Name = "governor-off", Speed = "Ultrafast", TestAcceleration = true, GovernorOff = true },
+            ["governor-off"] = new() { Name = "governor-off", Speed = "Hyperfast", TestAcceleration = true, GovernorOff = true },
         };
         var cases = new List<SpeedCase>();
         var seen = new HashSet<string>(StringComparer.Ordinal);

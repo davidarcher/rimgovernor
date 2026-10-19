@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Acceptance;
 internal sealed partial class SpeedmatrixRun
 {
     // The governor-off row: the same stage reloaded and frozen exactly as a governed row, then played natively at the
-    // row's speed (the test acceleration where the row asks for it) with no controller attached, until the tick has
+    // row's speed (Hyperfast, the boost native caps at 30x) with no controller attached, until the tick has
     // advanced by the budget. The harness's own tick reads pace the wait; there is nothing else to wait on. Its metrics
     // row carries wall TPS and the tick budget under the same keys as a governed row, zeros for the governor's counters,
     // and governor_off so a reader tells the rows apart. Nothing submits plans, so the row records its native counters
@@ -42,7 +42,7 @@ internal sealed partial class SpeedmatrixRun
         report["frozen_needs"] = (await Needs.FreezeNeedsAsync(h, null, [], cancellationToken).ConfigureAwait(false)).DeepClone();
         var startTick = await FreshStageTickAsync(h, identity, report, cancellationToken).ConfigureAwait(false);
         var accountingStart = await ClockAccounting.ReadAsync(h, "clock-accounting-start", cancellationToken).ConfigureAwait(false);
-        _ = await h.SetTimeSpeedAsync("play", new() { Speed = c.Speed, UltraSpeedBoost = c.TestAcceleration }, cancellationToken).ConfigureAwait(false);
+        _ = await h.SetTimeSpeedAsync("play", new() { Speed = c.Speed }, cancellationToken).ConfigureAwait(false);
         var resumedAt = DateTimeOffset.UtcNow;
         var lastTick = startTick;
         var reads = 0;

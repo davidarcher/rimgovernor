@@ -36,6 +36,7 @@ namespace HomeBridge.BridgeTools
             ObservationFrameHook.Install();
             PlayerSpeedKeyBlock.Install();
             ClockReadout.Install();
+            Supervisor.EnsureTickRateClampPatched();
             NativeDrugPolicy.Install();
             NativeDesignationGuards.Install();
             HomeCoverage.Install();

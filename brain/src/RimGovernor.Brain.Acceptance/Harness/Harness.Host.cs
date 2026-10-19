@@ -21,7 +21,7 @@ public sealed partial class Harness
         return HostReply<TimeSpeedReply>(label, SetTimeSpeedTool, reply);
     }
 
-    /// <summary>Pauses the clock and clears the speed boost (<see cref="TimeSpeedRequest.Paused"/>).</summary>
+    /// <summary>Pauses the clock (<see cref="TimeSpeedRequest.Paused"/>).</summary>
     public Task<TimeSpeedReply> PauseClockAsync(string label, CancellationToken cancellationToken) =>
         SetTimeSpeedAsync(label, TimeSpeedRequest.Paused, cancellationToken);
 

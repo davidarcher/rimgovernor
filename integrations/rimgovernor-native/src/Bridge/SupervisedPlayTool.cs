@@ -74,7 +74,7 @@ namespace HomeBridge.BridgeTools
                 var tickInfo = Harmony.GetPatchInfo(tick);
                 if (tickInfo == null || !tickInfo.Owners.Contains("homebridge.supervised-play"))
                     throw new InvalidOperationException("Native tick boundary patch was not installed.");
-                EnsureCeilingPatched();
+                EnsureTickRateClampPatched();
                 EnsureHazardHooks();
                 EnsureCombatHooks();
                 NativeControlAuthority.GenerationChanged += OnAuthorityChanged;

@@ -38,9 +38,11 @@ speed and its clamp relies on.
 - **Ultrafast and Hyperfast.** Both run the game's `TimeSpeed.Ultrafast` and differ only in the static
   `TickManager.UltraSpeedBoost`, which the run segment owns and restores at its hold (`ClockRunSpeed.cs`), so native
   records the wire speed and `Status.target_speed` reports it. Ultrafast is the game's own 15x (900 ticks/s): it owns
-  the boost as off, because the host tools may have set it globally. Hyperfast owns the boost as on, which makes
-  the game ask for 20000x, and its own hard cap holds it at 30x (1800 ticks/s; `HyperfastCap.cs`, in the
-  `TickRateMultiplier` postfix, separate from the one ceiling, which still applies beneath it). Neither has a launch
+  the boost as off, because the host tools' Hyperfast sets it globally. Hyperfast owns the boost as on, which makes
+  the game ask for 20000x, and a hard cap holds it at 30x (1800 ticks/s; `HyperfastCap.cs`, in the
+  `TickRateMultiplier` postfix, separate from the one ceiling, which still applies beneath it inside a run segment).
+  Native installs that postfix at startup and caps any boosted multiplier, with or without a run segment, so the
+  host tools' `set_time_speed`/`play_for` Hyperfast (Ultrafast with the boost on) runs at 30x too. Neither has a launch
   gate; a `Run(Hyperfast)` is refused as `Unavailable` where the game does not provide the boost. A change between
   them is not an external speed change. The `-rimgovernor-test-acceleration` launch argument gates only the
   acceptance-only world patches (`AcceptanceWorld`): no autosaver tick and, for a game the

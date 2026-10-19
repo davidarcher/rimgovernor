@@ -69,16 +69,13 @@ public sealed class PauseCause : AcceptanceException
 public static class RunAt
 {
     /// <summary>
-    /// How a harness runs the game while it waits for the game to do something: Ultrafast with RimWorld's dev tick boost,
-    /// which drops the per-frame tick cap. Measured on the debug colony: Fast 168 ticks/s, Superfast 348, Ultrafast 899,
-    /// boosted about 7000, so a wait stated in ticks costs the least wall clock. Neither needs Prefs.devMode (which would
-    /// add a 35 s def check to every boot). Waits bounded in ticks mean the same at any speed, so nothing about the
-    /// assertion depends on it.
+    /// How a harness runs the game while it waits for the game to do something: Hyperfast, RimWorld's Ultrafast with the
+    /// dev tick boost on, which native caps at 30x (1800 ticks/s). Measured on the debug colony: Fast 168 ticks/s,
+    /// Superfast 348, Ultrafast 899, so a wait stated in ticks costs the least wall clock. Neither needs Prefs.devMode
+    /// (which would add a 35 s def check to every boot). Waits bounded in ticks mean the same at any speed, so nothing
+    /// about the assertion depends on it.
     /// </summary>
-    public const string RunSpeed = "Ultrafast";
-
-    /// <summary>The tick boost <see cref="RunSpeed"/> runs with.</summary>
-    public const bool RunBoost = true;
+    public const string RunSpeed = "Hyperfast";
 
     /// <summary>RunUntil's default pause between probes.</summary>
     public static readonly TimeSpan RunInterval = TimeSpan.FromMilliseconds(250);
@@ -199,7 +196,7 @@ public static class RunAt
             throw new AcceptanceException($"{label}: a tick budget is required");
         }
 
-        await h.SetTimeSpeedAsync(label + "-run", new() { Speed = RunSpeed, UltraSpeedBoost = RunBoost }, cancellationToken).ConfigureAwait(false);
+        await h.SetTimeSpeedAsync(label + "-run", new() { Speed = RunSpeed }, cancellationToken).ConfigureAwait(false);
 
         // A probe is a ~100 ms round trip and the game runs thousands of ticks a second here, so the default 2 s poll is
         // most of a short harness's run in overshoot; poll often instead.
@@ -312,7 +309,7 @@ public static class RunAt
 
         if (dismiss.Count > 0)
         {
-            await h.SetTimeSpeedAsync(label + "-resume", new() { Speed = RunSpeed, UltraSpeedBoost = RunBoost }, cancellationToken).ConfigureAwait(false);
+            await h.SetTimeSpeedAsync(label + "-resume", new() { Speed = RunSpeed }, cancellationToken).ConfigureAwait(false);
         }
     }
 }

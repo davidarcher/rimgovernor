@@ -68,7 +68,11 @@ run segment owns the external static `TickManager.UltraSpeedBoost` through its
 `BoostOwnership` (`ClockRunSpeed.cs`): a Run at Hyperfast sets it true, a Run at
 Ultrafast sets it false, and `RestoreBoost` writes back the value the segment found.
 Source restoration does not compare the current boost with the value the segment
-installed. Verify another owner changing boost and load-change cleanup.
+installed. Verify another owner changing boost and load-change cleanup. The other
+writer is the host tools' `set_time_speed`/`play_for`: Ultrafast writes false,
+Hyperfast true, and neither restores it. Whoever set it, the `TickRateMultiplier`
+postfix (installed at `NativeStartup`) caps a boosted multiplier at 30x
+(`HyperfastCap.cs`), run segment or not.
 
 ## Ownership observations and synchronous transition state
 

@@ -86,9 +86,6 @@ internal static class RimBridgeStartup
                     typeof(DebugViewSettings)
                         .GetField("showTpsCounter", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
                         ?.SetValue(null, true);
-                    typeof(TickManager)
-                        .GetField("UltraSpeedBoost", BindingFlags.Static | BindingFlags.NonPublic)
-                        ?.SetValue(null, true);
                 }
             }
         }
