@@ -163,6 +163,25 @@ public sealed class ClaimAdmissionTests
         Assert.Equal("cell/1/0", again.Conflict!.Claim);
     }
 
+    /// <summary>
+    /// #3612: the reconcile's UninstallBuilding (Pack) claims its cell only, so the pawn activity order that works the
+    /// Uninstall designation it stood (a Work/Uninstall task claiming the building) is admitted beside it.
+    /// </summary>
+    [Fact]
+    public void AnUninstallClaimsItsCellAndTheOrderWorkingItsBuildingIsAdmitted()
+    {
+        using var colony = Open();
+        var pack = DomainAction.NewUninstallBuildingAction(new("pack"), new MoveBuilding("old-bed", "TestBed", new(1, 0), Rotation.South));
+        Assert.Equal(ClaimOutcome.Admitted, colony.Shelter("room-pack", pack).Outcome);
+        var step = new PawnActivityStep(PawnActivityKind.Work, "old-bed", "Uninstall", "Uninstall", 0, 1000);
+        var batch = new PawnActivities(1, [new("a", "removal/a", "remove", 0, 1, false, [step]) { Task = "removal/a" }])
+        { Tasks = [new SelectedActivityTask("removal/a", "a", [], step, new(1, 0), 100) { SiteDefinition = "TestBed" }] };
+        Assert.Equal(ClaimOutcome.Admitted, colony.Work("remove", DomainAction.NewPawnActivitiesAction(new("order"), batch)).Outcome);
+        var again = colony.Shelter("room-pack-again", DomainAction.NewUninstallBuildingAction(new("pack-again"), new MoveBuilding("old-bed", "TestBed", new(1, 0), Rotation.South)));
+        Assert.Equal(ClaimOutcome.Conflict, again.Outcome);
+        Assert.Equal("cell/1/0", again.Conflict!.Claim);
+    }
+
     [Fact]
     public void ReleasedShelterMethodFreesItsClaimsAndTheStoreLeavesReissueToThePlanner()
     {

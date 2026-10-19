@@ -5,7 +5,15 @@ namespace RimGovernor.Brain.Policy.Methods.Generation;
 internal static class ConstructionMethodCandidates
 {
     internal const string FlooringRelief = "flooring"; // one relief per floor site, so each laid floor is credited once
-    internal const string RemovalRelief = "removal"; // one relief per standing Deconstruct designation, so each removal is credited once (#3557)
+    internal const string RemovalRelief = "removal"; // one relief per standing removal designation, so each removal is credited once (#3557)
+
+    /// <summary>The pawn activity job a standing removal op binds as, by kind (#3612); null for a kind no order works yet.</summary>
+    internal static string? RemovalJob(PlannedClearingKind kind) => kind switch
+    {
+        PlannedClearingKind.Deconstruct => "Deconstruct",
+        PlannedClearingKind.Uninstall => "Uninstall",
+        _ => null,
+    };
 
     internal static CoordinatedMethodCandidates Generate(ConstructionActivityRead read, long deadline, WorkResourceView resources, IReadOnlySet<string> floors)
     {
@@ -84,37 +92,40 @@ internal static class ConstructionMethodCandidates
                     ? new([new(FlooringRelief + "/" + first.Site, ProductionNeedPriority.Maintenance, 1.0)], default, default) : null
             });
         }
-        // A standing Deconstruct designation (#3557): the room reconcile stood it over an interior ruin or a stale piece, and
-        // under voluntary control only an order works it. Each building is the pawn's Work/Deconstruct task on it, one unit
-        // of requested development when it comes down (its relief, like a floor's, also exempts it from the thermal gate).
-        var removals = read.Removals.Where(o => !resources.Claims.Pawns.Contains(o.Pawn) && !resources.Claims.Targets.Contains(o.Site) && o.FinishTicks.IsKnown)
-            .GroupBy(o => o.Site).OrderBy(g => g.Key, StringComparer.Ordinal).Take(17).ToArray();
-        foreach (var group in removals.Take(16))
+        // A standing removal designation (#3557, #3612): the room reconcile stood a Deconstruct over an interior ruin or a
+        // stale piece, or an Uninstall over a piece it packs, and under voluntary control only an order works it. Each
+        // building is the pawn's Work task of the op's kind on it, one unit of requested development when it comes down
+        // (its relief, like a floor's, also exempts it from the thermal gate). A kind with no job binds nothing.
+        var removals = read.Removals.Where(op => RemovalJob(op.Kind) != null && !resources.Claims.Targets.Contains(op.Id))
+            .Select(op => (op.Id, Job: RemovalJob(op.Kind)!, Rows: op.Options.Where(o => !resources.Claims.Pawns.Contains(o.Pawn) && o.FinishTicks.IsKnown)
+                .GroupBy(o => o.Pawn).Select(g => g.First()).ToArray()))
+            .Where(op => op.Rows.Length > 0).OrderBy(op => op.Id, StringComparer.Ordinal).Take(17).ToArray();
+        foreach (var op in removals.Take(16))
         {
             var id = "removal-" + outcomes.Count;
-            var first = group.First();
+            var first = op.Rows[0];
             var location = ForecastLocations.Of(first.Location);
             activities.Add(new(id, location, location, []));
             // The building stands: like a supplied site's finish, the op needs only its observed readiness to compose.
             var ready = "removal-ready/" + id;
             var capability = new Resource("ConstructionReady");
             observed[ready] = new(ready, capability, Known(1), location, Known(0.0), Known((double)horizon))
-            { Kind = ForecastRequirementKind.Reusable, Provenance = "observed-designation:" + first.Site };
-            operations.Add(new(activities[^1] with { ChoiceIdentity = "construction-removal/" + first.Site },
+            { Kind = ForecastRequirementKind.Reusable, Provenance = "observed-designation:" + op.Id };
+            operations.Add(new(activities[^1] with { ChoiceIdentity = "construction-removal/" + op.Id },
                 [new(id + "/ready", capability, Known(1), location, ForecastRequirementKind.Reusable,
                     Known<EquatableArray<string>>([ready]), Known(0.0), Known((double)horizon))], []));
-            foreach (var row in group.GroupBy(o => o.Pawn).Select(g => g.First()))
+            foreach (var row in op.Rows)
             {
                 workers.Add(row.Pawn);
                 options.Add(new(id, row.Pawn, row.FinishTicks, Known(0.0)));
                 routes.Add(new(row.Pawn, "start", location, row.SiteApproachTicks));
-                bindings[(id, row.Pawn)] = new(id, row.Pawn, [], PawnActivityKind.Work, row.Site, row.WorkGiver, "Deconstruct", 0, deadline, row.Location)
+                bindings[(id, row.Pawn)] = new(id, row.Pawn, [], PawnActivityKind.Work, op.Id, row.WorkGiver, op.Job, 0, deadline, row.Location)
                 { SiteDefinition = row.Definition };
             }
             outcomes.Add(new(id, "construction-method", id, Known((double)horizon), default)
             {
                 ProgressUnits = Known(1.0),
-                Requirements = new([new(RemovalRelief + "/" + first.Site, ProductionNeedPriority.Maintenance, 1.0)], default, default),
+                Requirements = new([new(RemovalRelief + "/" + op.Id, ProductionNeedPriority.Maintenance, 1.0)], default, default),
             });
         }
         var capacities = workers.Order(StringComparer.Ordinal).Select(pawn => new ForecastPawnCapacity(pawn, "start",

@@ -60,35 +60,39 @@ public sealed class CoordinatedConstructionTests
         else Assert.Null(outcome.Requirements);
     }
 
-    /// <summary>
-    /// #3557: a Deconstruct designation the room reconcile stood over an interior ruin gets no worker under voluntary
-    /// control. The construction read reports it as a removal row; the family binds it as the pawn's Work/Deconstruct task
-    /// on the building, one unit of development when it comes down, and the selection orders it. A row whose finish is
-    /// unknown binds nothing.
-    /// </summary>
-    [Fact]
-    public void AStandingDeconstructDesignationIsRemovalWorkTheSelectionOrders()
+    private static RoundsFacts RemovalFacts(params PlannedSiteClearing[] removals)
     {
-        const string ruin = "Thing_Door1";
-        var removal = new ConstructionActivityOption(ruin, "Door", new(30, 30), "producer", "Door", ruin, new(30, 30), 0, 0, "Deconstruct",
-            default, default, Known(50d)) { SiteApproachTicks = Known(10d) };
-        RoundsFacts Facts(params ConstructionActivityOption[] removals)
+        var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
+        var template = facts.ForecastObserved.Needs!.Pawns[0];
+        return facts with { WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
         {
-            var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
-            var template = facts.ForecastObserved.Needs!.Pawns[0];
-            return facts with { WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
-            {
-                Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
-                Coupled = new() { Tick = 100, Construction = new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
-                    Removals = EquatableArray.From(removals) } }
-            } };
-        }
-        var facts = Facts(removal, removal with { Pawn = "helper", FinishTicks = Known(80d) });
+            Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
+            Coupled = new() { Tick = 100, Construction = new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+                Removals = EquatableArray.From(removals) } }
+        } };
+    }
+
+    /// <summary>
+    /// #3557, #3612: a removal designation the room reconcile stood (a Deconstruct over an interior ruin, an Uninstall over a
+    /// piece it packs) gets no worker under voluntary control. The construction read reports it as a clearing op of its kind;
+    /// the family binds it as the pawn's Work task of that kind on the building, one unit of development when it comes down,
+    /// and the selection orders it. A row whose finish is unknown binds nothing.
+    /// </summary>
+    [Theory]
+    [InlineData(PlannedClearingKind.Deconstruct, "Deconstruct", "Door")]
+    [InlineData(PlannedClearingKind.Uninstall, "Uninstall", "Bed")]
+    public void AStandingRemovalDesignationIsRemovalWorkTheSelectionOrders(PlannedClearingKind kind, string job, string definition)
+    {
+        var building = "Thing_" + definition + "1";
+        var row = new ConstructionActivityOption(building, definition, new(30, 30), "producer", definition, building, new(30, 30), 0, 0, job,
+            default, default, Known(50d)) { SiteApproachTicks = Known(10d) };
+        PlannedSiteClearing Removal(params ConstructionActivityOption[] rows) => new(building, kind) { Options = EquatableArray.From(rows) };
+        var facts = RemovalFacts(Removal(row, row with { Pawn = "helper", FinishTicks = Known(80d) }));
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
-        var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Job == "Deconstruct" && b.Pawn == "producer");
-        Assert.Equal((PawnActivityKind.Work, ruin, "Deconstruct", "Door"), (binding.Kind, binding.Target, binding.WorkGiver, binding.SiteDefinition));
-        var root = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome == "construction/" + ruin);
-        Assert.Equal("removal/" + ruin, Assert.Single(root.Outcome!.Requirements!.Relief).Need);
+        var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Job == job && b.Pawn == "producer");
+        Assert.Equal((PawnActivityKind.Work, building, job, definition), (binding.Kind, binding.Target, binding.WorkGiver, binding.SiteDefinition));
+        var root = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome == "construction/" + building);
+        Assert.Equal("removal/" + building, Assert.Single(root.Outcome!.Requirements!.Relief).Need);
 
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
@@ -97,11 +101,27 @@ public sealed class CoordinatedConstructionTests
         Assert.True(selected.SelectedVector.Development > selected.BaselineVector.Development, string.Join(";", selected.Selection.Findings));
         var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
         var task = Assert.Single(batch.Tasks);
-        Assert.Equal((binding.Id, "producer", PawnActivityKind.Work, ruin, "Deconstruct"), (task.Id, task.Pawn, task.Step.Kind, task.Step.Target, task.Step.Job));
+        Assert.Equal((binding.Id, "producer", PawnActivityKind.Work, building, job), (task.Id, task.Pawn, task.Step.Kind, task.Step.Target, task.Step.Job));
         Assert.Contains(batch.Orders, o => o.Pawn == "producer" && !o.Release && o.Task == task.Id);
 
-        Assert.DoesNotContain(ForecastCoupledCandidates.GenerateCoupledActivities(Facts(removal with { FinishTicks = default }), 1900)!.Context.Bindings.Values,
-            b => b.Job == "Deconstruct");
+        Assert.DoesNotContain(ForecastCoupledCandidates.GenerateCoupledActivities(RemovalFacts(Removal(row with { FinishTicks = default })), 1900)!.Context.Bindings.Values,
+            b => b.Job == job);
+    }
+
+    /// <summary>#3612: the 16-op cap is shared across removal kinds, and a kind no order works yet (RemoveFloor) binds nothing.</summary>
+    [Fact]
+    public void RemovalOpsShareOneCapAcrossKindsAndAnUnworkedKindBindsNothing()
+    {
+        static PlannedSiteClearing Removal(int n, PlannedClearingKind kind) => new("Thing_" + n, kind)
+        {
+            Options = [new("Thing_" + n, "Bed", new(30, 30), "producer", "Bed", "Thing_" + n, new(30, 30), 0, 0, "Giver", default, default, Known(50d)) { SiteApproachTicks = Known(10d) }],
+        };
+        var ops = Enumerable.Range(10, 17).Select(n => Removal(n, n % 2 == 0 ? PlannedClearingKind.Deconstruct : PlannedClearingKind.Uninstall)).ToArray();
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(RemovalFacts(ops), 1900)!;
+        Assert.Equal(16, generated.Context.Bindings.Values.Count(b => b.Job is "Deconstruct" or "Uninstall"));
+        Assert.True(generated.Truncated);
+        var floor = ForecastCoupledCandidates.GenerateCoupledActivities(RemovalFacts(Removal(1, PlannedClearingKind.RemoveFloor)), 1900);
+        Assert.True(floor is null || !floor.Context.Bindings.Values.Any(b => b.Target == "Thing_1"));
     }
 
     [Fact]

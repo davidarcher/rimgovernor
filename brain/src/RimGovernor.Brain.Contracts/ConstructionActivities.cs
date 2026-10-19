@@ -102,13 +102,20 @@ public enum PlannedClearingKind
     /// <summary>A building the player may deconstruct (a ruin wall, door or furniture, or the colony's own): one op per building, its Deconstruct job (#3557).</summary>
     [WireName("PLANNED_CLEARING_KIND_DECONSTRUCT")]
     Deconstruct = 4,
+    /// <summary>A minifiable building of the colony's own packed where it stands: one op per building, its Uninstall job (#3612).</summary>
+    [WireName("PLANNED_CLEARING_KIND_UNINSTALL")]
+    Uninstall = 5,
+    /// <summary>A floor removed from its cells (the FloorOut reconcile op). Declared for #3615; no read emits it yet.</summary>
+    [WireName("PLANNED_CLEARING_KIND_REMOVE_FLOOR")]
+    RemoveFloor = 6,
 }
 /// <summary>
-/// A clearing prerequisite of a planned site: one Cut op for all its plants, one Mine op for all its natural rock,
-/// one Haul op per haulable stack, one Deconstruct op per deconstructible building (its rows name the building:
-/// <c>Input</c> its id, <c>Resource</c> its def). <see cref="Options"/> are per-pawn rows in the
-/// <see cref="ConstructionActivityOption"/> shape with <c>Site</c> = <see cref="Id"/>; a pawn that cannot do it or has
-/// no route has no row.
+/// A clearing op: a prerequisite of a planned site (one Cut op for all its plants, one Mine op for all its natural
+/// rock, one Haul op per haulable stack, one Deconstruct op per deconstructible building), or a standing removal
+/// designation (<see cref="ConstructionActivityRead.Removals"/>: one Deconstruct or Uninstall op per designated
+/// building, <see cref="Id"/> the building's id). A single-building op's rows name the building: <c>Input</c> its id,
+/// <c>Resource</c> its def. <see cref="Options"/> are per-pawn rows in the <see cref="ConstructionActivityOption"/>
+/// shape with <c>Site</c> = <see cref="Id"/>; a pawn that cannot do it or has no route has no row.
 /// </summary>
 public sealed record PlannedSiteClearing(string Id, PlannedClearingKind Kind)
 {
@@ -139,14 +146,16 @@ public sealed record ConstructionActivityRead
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSiteAnswer>))]
     public EquatableArray<PlannedSiteAnswer> Planned { get; init; }
     /// <summary>
-    /// One row per free colonist and standing Deconstruct designation
-    /// on a building the colony may deconstruct (a reconcile-stood interior ruin or stale piece, the colony's own; #3557).
-    /// <c>Site</c> and <c>Input</c> are the building's id, <c>Definition</c> and <c>Resource</c> its def, <c>Location</c> its
-    /// cell, <c>WorkGiver</c> the deconstruct giver, <c>FinishTicks</c> the deconstruct work; a roof-holder the enclosure guard
-    /// would wait on has no row (finding <c>removal_roof_support</c>).
+    /// The standing removal designations as clearing ops (#3557, #3612): one <c>Deconstruct</c> op per Deconstruct
+    /// designation on a building the colony may deconstruct (a reconcile-stood interior ruin or stale piece, the colony's
+    /// own) and one <c>Uninstall</c> op per Uninstall designation on a minifiable building of the colony's (the reconcile's
+    /// Pack), <c>Id</c> the building's id. Each op has one row per free colonist: <c>Site</c> and <c>Input</c> the building's
+    /// id, <c>Definition</c> and <c>Resource</c> its def, <c>Location</c> its cell, <c>WorkGiver</c> the removal's giver,
+    /// <c>FinishTicks</c> its work; a roof-holder the enclosure guard would wait on has no op (finding
+    /// <c>removal_roof_support</c>).
     /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ConstructionActivityOption>))]
-    public EquatableArray<ConstructionActivityOption> Removals { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSiteClearing>))]
+    public EquatableArray<PlannedSiteClearing> Removals { get; init; }
     /// <summary>
     /// The request's route probes, one row per probe x free colonist with <c>Ticks</c> unknown where no path is found;
     /// a <see cref="PlannedRouteProbe.FromStart"/> row has <c>FromStart</c> set and <c>From</c> the pawn's cell.

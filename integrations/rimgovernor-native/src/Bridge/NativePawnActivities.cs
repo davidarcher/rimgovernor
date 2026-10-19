@@ -169,6 +169,7 @@ namespace HomeBridge.BridgeTools
                         if (giver?.Worker is not WorkGiver_Scanner || !Supported(giver, step.Job)
                             || pawn.WorkTagIsDisabled(giver.workTags) || (giver.workType != null && pawn.WorkTypeIsDisabled(giver.workType))) return Refuse("Unsupported/incapable activity work.");
                         if (step.Job == "Deconstruct" && DeconstructRefusal(pawn, target) is { } deconstructWhy) return Refuse("Selected deconstruction unavailable: " + deconstructWhy + ".");
+                        if (step.Job == "Uninstall" && UninstallRefusal(pawn, target) is { } uninstallWhy) return Refuse("Selected uninstall unavailable: " + uninstallWhy + ".");
                     }
                     if (step.Kind == PawnActivityKind.Eat && (!target.IngestibleNow || !pawn.RaceProps.CanEverEat(target) || step.Count > target.stackCount)) return Refuse("Selected food/count unavailable.");
                     if (step.Kind == PawnActivityKind.Recreation && (NativeRecreation.GiverFor(target) is not { } joyGiver || !NativeRecreation.Usable(pawn, target, joyGiver))) return Refuse("Selected recreation unavailable.");
@@ -201,10 +202,11 @@ namespace HomeBridge.BridgeTools
             || (job == "Research" && giver.Worker is WorkGiver_Researcher)
             || (job == "FinishFrame" && giver.Worker is WorkGiver_ConstructFinishFrames)
             || (job == "Deconstruct" && giver.Worker is WorkGiver_Deconstruct)
+            || (job == "Uninstall" && giver.Worker is WorkGiver_Uninstall)
             || (job == "BeatFire" && giver.giverClass.FullName == "RimWorld.WorkGiver_FightFires");
         private static bool Equivalent(PawnActivityOrder a, PawnActivityOrder b) => PawnActivities.SameOrder(a, b);
 
-        // A Deconstruct step works a standing building the order designates itself (StandDeconstruct), so an undesignated
+        // A Deconstruct step works a standing building the order designates itself (StandRemoval), so an undesignated
         // ruin needs nothing first; the enclosure guard's roof-collapse wait is a refusal here, since the job would only hold (#3557).
         private static string? DeconstructRefusal(Pawn pawn, Thing target)
         {
@@ -215,16 +217,32 @@ namespace HomeBridge.BridgeTools
                 || new Designator_Deconstruct().CanDesignateThing(building).Accepted ? null : "native deconstruction designator refused";
         }
 
-        // Stands the Deconstruct designation the job needs (JobDriver_RemoveBuilding fails without it) under the enclosure
-        // guard as an Ordered record: the roof-collapse wait still holds the job, revoking authority still releases the
-        // designation, and the controlled pawn works it whether or not play is supervised.
-        private static void StandDeconstruct(Verse.Building building)
+        // An Uninstall step packs a minifiable building of the colony's where it stands (#3612): the order stands the
+        // designation itself, as the reconcile's Pack does; a Deconstruct designation or a reinstall blueprint on it owns it.
+        private static string? UninstallRefusal(Pawn pawn, Thing target)
+        {
+            if (target is not Verse.Building building || !NativeConstructionActivity.Uninstallable(building)) return "target is not a minifiable building of the colony";
+            if (pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) return "pawn is incapable of construction";
+            if (NativeDesignationGuards.RoofWait(building) is { } roof) return roof;
+            if (building.Map.designationManager.DesignationOn(building, DesignationDefOf.Deconstruct) != null) return "building is designated for deconstruction";
+            return InstallBlueprintUtility.ExistingBlueprintFor(building) == null ? null : "building has a reinstall blueprint";
+        }
+
+        // Stands the removal designation the job needs (JobDriver_RemoveBuilding fails without it) under the enclosure
+        // guard as an Ordered record: the roof-collapse wait still holds a deconstruction, revoking authority still
+        // releases the designation, and the controlled pawn works it whether or not play is supervised. A Deconstruct is
+        // placed through the game's designator; an Uninstall is the plain designation the reconcile's Pack stands.
+        private static void StandRemoval(Verse.Building building, DesignationDef def)
         {
             var map = building.Map;
-            if (map.designationManager.DesignationOn(building, DesignationDefOf.Deconstruct) == null) new Designator_Deconstruct().DesignateThing(building);
-            var record = NativeDesignationGuards.Open(map, DesignationDefOf.Deconstruct, building.Position, building) ?? NativeDesignationGuards.Add(new GuardedDesignation
+            if (map.designationManager.DesignationOn(building, def) == null)
             {
-                Id = "activity-" + Guid.NewGuid().ToString("N"), Guard = GuardNames.Enclosure, Designation = DesignationDefOf.Deconstruct.defName,
+                if (def == DesignationDefOf.Deconstruct) new Designator_Deconstruct().DesignateThing(building);
+                else map.designationManager.AddDesignation(new Designation(building, def));
+            }
+            var record = NativeDesignationGuards.Open(map, def, building.Position, building) ?? NativeDesignationGuards.Add(new GuardedDesignation
+            {
+                Id = "activity-" + Guid.NewGuid().ToString("N"), Guard = GuardNames.Enclosure, Designation = def.defName,
                 ExpectedDef = building.def.defName, ThingId = building.GetUniqueLoadID(), MapId = map.uniqueID, X = building.Position.x, Z = building.Position.z,
             });
             record.Ordered = true;
@@ -293,7 +311,8 @@ namespace HomeBridge.BridgeTools
             {
                 if (!e.Order.Release)
                     foreach (var step in e.Order.Steps)
-                        if (step.Kind == PawnActivityKind.Work && step.Job == "Deconstruct" && Thing(step.Target) is Verse.Building building) StandDeconstruct(building);
+                        if (step.Kind == PawnActivityKind.Work && step.Job is "Deconstruct" or "Uninstall" && Thing(step.Target) is Verse.Building building)
+                            StandRemoval(building, step.Job == "Deconstruct" ? DesignationDefOf.Deconstruct : DesignationDefOf.Uninstall);
                 // Retain only the last release receipt in the same row so an uncertain Hands retry is
                 // idempotent. This row owns no job; a fresh assignment may acquire from revision zero.
                 if (e.Order.Release) { e.State = "released"; Emit(e); }

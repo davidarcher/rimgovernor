@@ -618,18 +618,24 @@ them per round ([planned-site facts](../architecture/colony-forecast.md#planned-
 
 ### Standing removals
 
-Every construction activity read also reports the standing Deconstruct
-designations (#3557): what the room reconcile stood over an interior ruin or a stale
-piece (`FurnitureOut`), or the player's own. Under voluntary control nothing works a
-designation by itself, so the coupled census reads them and the forecast binds
-each as a pawn's Work/Deconstruct order. `ConstructionActivityRead.Removals` is one
-`ConstructionActivityOption` row per free colonist and designated building the colony
-may deconstruct: `Site` and `Input` the building's id, `Definition` and `Resource` its
-def, `Location` its cell, `WorkGiver` the deconstruct giver, `SiteApproachTicks` the
-route and `FinishTicks` the deconstruct work as the planned `Deconstruct` clearing
-estimates it; `Count` and `Capacity` are 0. A building whose removal the enclosure
-guard would hold for roof support has no row (finding `removal_roof_support`); a pawn
-incapable of Construction or with no route has none.
+Every construction activity read also reports the standing removal designations
+(#3557, #3612): the Deconstruct the room reconcile stood over an interior ruin or a
+stale piece (`FurnitureOut`), or the player's own, and the Uninstall it stood over a
+piece it packs (`Pack`, `PackInUse`). Under voluntary control nothing works a
+designation by itself, so the coupled census reads them and the forecast binds each
+as a pawn's Work order of the op's kind. `ConstructionActivityRead.Removals` is one
+`PlannedSiteClearing` op per designated building, the same shape as a planned site's
+clearing: `Id` the building's id, `Kind` `Deconstruct` (a building the colony may
+deconstruct) or `Uninstall` (a minifiable building of the colony's own, what
+`WorkGiver_Uninstall` takes), and `Options` one row per free colonist: `Site` and
+`Input` the building's id, `Definition` and `Resource` its def, `Location` its cell,
+`WorkGiver` the deconstruct or uninstall giver, `SiteApproachTicks` the route and
+`FinishTicks` the job's work (`JobDriver_Deconstruct`'s clamped `WorkToBuild`, or
+`JobDriver_Uninstall`'s `uninstallWork`) over `ConstructionSpeed x 1.7` a tick;
+`Count` and `Capacity` are 0. A building whose removal the enclosure guard would hold
+for roof support has no op (finding `removal_roof_support`); a pawn incapable of
+Construction or with no route has no row. `PlannedClearingKind.RemoveFloor` is
+declared for the FloorOut op (#3615); no read emits it yet.
 
 ### Planned shelter thermal read
 

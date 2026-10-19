@@ -472,17 +472,20 @@ work, and selected alternatives use the existing Method/Hands continuation path.
 See [normal portfolio selection](portfolio-selection.md) for supported scope and
 the distinction between registered native cases and observed gameplay evidence.
 
-A standing Deconstruct designation is construction work the same way (#3557). The
-room reconcile stands one over an interior ruin or a stale piece and claims only
-the cell; under voluntary control the designation gets no worker by itself. The
-coupled census reads every such designation as a removal row
+A standing removal designation is construction work the same way (#3557, #3612).
+The room reconcile stands a Deconstruct over an interior ruin or a stale piece and
+an Uninstall over a piece it packs, claiming only the cell; under voluntary control
+the designation gets no worker by itself. The coupled census reads every such
+designation as a clearing op of its kind
 ([standing removals](../contracts/forecast-contracts.md#standing-removals)), and
-`ConstructionMethodCandidates` binds each building as a pawn's Work/Deconstruct
-task on it (`removal-{n}`, exclusive outcome `construction/{building}`), with a
+`ConstructionMethodCandidates` binds each building as a pawn's Work task of that
+kind on it (`removal-{n}`, Deconstruct as Work/Deconstruct, Uninstall as
+Work/Uninstall; exclusive outcome `construction/{building}`), with a
 `removal/{building}` relief so taking it down is one unit of development and its
 work is exempt from the thermal-relief gate like a floor's. The order's claim is
-the building; a row whose building or pawn another Method claims, or whose finish
-is unknown, binds nothing. Up to 16 buildings a round; more sets `Truncated`.
+the building; an op whose building or pawn another Method claims, whose finish is
+unknown, or whose kind no order works yet (`RemoveFloor`) binds nothing. Up to 16
+ops a round across all kinds; more sets `Truncated`.
 
 `ForecastConstructionTests` covers decoding existing native fields, inventory
 consumption once, baseline/delta cancellation, shared versus disjoint workers,

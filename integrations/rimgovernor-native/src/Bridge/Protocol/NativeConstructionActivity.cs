@@ -50,11 +50,15 @@ internal static class NativeConstructionActivity
                 p => !thing.IsForbidden(p), p => floorKnown && ConstructionSkillGuard.Allows(thing, p)));
         }
         var planned = request.Planned.Select(s => Prepare(map, s, findings)).ToArray();
-        // The standing Deconstruct designations (#3557): what the room reconcile stood over an interior ruin or a stale piece,
-        // or the player's own. Under voluntary control nothing else works them; the brain binds each as Deconstruct work.
-        var removals = map.designationManager.AllDesignations.Where(d => d.def == DesignationDefOf.Deconstruct)
-            .Select(d => d.target.Thing as Verse.Building).Where(b => b != null && b.Spawned && b.DeconstructibleBy(Faction.OfPlayer).Accepted)
-            .Select(b => b!).Distinct().OrderBy(b => b.thingIDNumber).ToArray();
+        // The standing removal designations (#3557, #3612): the Deconstruct the room reconcile stood over an interior ruin or
+        // a stale piece (or the player's own) and the Uninstall it stood over a piece it packs. Under voluntary control
+        // nothing else works them; the brain binds each as its kind's work.
+        var removals = map.designationManager.AllDesignations
+            .Select(d => (Kind: d.def == DesignationDefOf.Deconstruct ? Obs.PlannedClearingKind.Deconstruct
+                : d.def == DesignationDefOf.Uninstall ? Obs.PlannedClearingKind.Uninstall : Obs.PlannedClearingKind.Unspecified, Building: d.target.Thing as Verse.Building))
+            .Where(d => d.Building != null && d.Building.Spawned && (d.Kind == Obs.PlannedClearingKind.Deconstruct ? d.Building.DeconstructibleBy(Faction.OfPlayer).Accepted
+                : d.Kind == Obs.PlannedClearingKind.Uninstall && Uninstallable(d.Building)))
+            .Select(d => (d.Kind, Building: d.Building!)).Distinct().OrderBy(d => d.Building.thingIDNumber).ThenBy(d => d.Kind).ToArray();
         Lap("placement");
         var (options, answers, routes, runRemovals, found) = legs.Batched(() =>
         {
@@ -65,14 +69,19 @@ internal static class NativeConstructionActivity
             var runAnswers = planned.Select(p => p.Site is { } site ? Answer(map, legs, roster, site, finishGiver, runFindings) : p.Unknown).ToArray();
             var runRoutes = Routes(map, legs, roster, request.Routes, runFindings);
             var free = roster.Where(Free).ToArray();
-            var deconstructGiver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is WorkGiver_Deconstruct)?.defName ?? "";
-            var removalRows = new List<Obs.ConstructionActivityOption>();
-            foreach (var building in removals)
+            var deconstructGiver = Giver<WorkGiver_Deconstruct>();
+            var uninstallGiver = Giver<WorkGiver_Uninstall>();
+            var removalOps = new List<Obs.PlannedSiteClearing>();
+            foreach (var (kind, building) in removals)
             {
                 if (NativeDesignationGuards.RoofWait(building) != null) { runFindings.Add("removal_roof_support"); continue; }
-                removalRows.AddRange(DeconstructRows(legs, free, building, building.GetUniqueLoadID(), building.def.defName, deconstructGiver));
+                var id = building.GetUniqueLoadID();
+                var rows = kind == Obs.PlannedClearingKind.Uninstall
+                    ? RemovalRows(legs, free, building, id, building.def.defName, uninstallGiver, building.def.building.uninstallWork)
+                    : RemovalRows(legs, free, building, id, building.def.defName, deconstructGiver, DeconstructWork(building));
+                removalOps.Add(new(id, kind) { Options = EquatableArray.From(rows) });
             }
-            return (runOptions, runAnswers, runRoutes, removalRows, runFindings);
+            return (runOptions, runAnswers, runRoutes, removalOps, runFindings);
         });
         findings.UnionWith(found);
         var paths = legs.SearchTicks - searched;
@@ -224,7 +233,6 @@ internal static class NativeConstructionActivity
         var result = new List<Obs.PlannedSiteClearing>();
         unknown = false;
         var pawns = roster.Where(Free).ToArray();
-        string Giver<T>() => DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is T)?.defName ?? "";
         var plants = things.Where(t => t.Kind == Clear.Cut).Select(t => (Plant)t.Thing).OrderBy(t => t.thingIDNumber).ToArray();
         if (plants.Length > 0)
             result.Add(Work(site + "/cut", Obs.PlannedClearingKind.Cut, plants, Giver<WorkGiver_PlantsCut>(),
@@ -251,7 +259,7 @@ internal static class NativeConstructionActivity
             if (NativeDesignationGuards.RoofWait(building) != null) { unknown = true; findings.Add("planned_clearing_roof_support"); continue; }
             var id = site + "/deconstruct/" + building.GetUniqueLoadID();
             result.Add(new(id, Obs.PlannedClearingKind.Deconstruct)
-                { Options = EquatableArray.From(DeconstructRows(legs, pawns, building, id, definition.defName, deconstructGiver)) });
+                { Options = EquatableArray.From(RemovalRows(legs, pawns, building, id, definition.defName, deconstructGiver, DeconstructWork(building))) });
         }
         var haulGiver = Giver<WorkGiver_HaulGeneral>();
         foreach (var item in things.Where(t => t.Kind == Clear.Haul).Select(t => t.Thing).OrderBy(t => t.thingIDNumber))
@@ -293,13 +301,22 @@ internal static class NativeConstructionActivity
         }
     }
 
-    // A building's Deconstruct rows (#3557), one per free pawn not incapable of Construction and able to manipulate, with a
-    // route to it: Site is the op (a planned clearing's id, or the building's own for a standing designation), Input the
-    // building's id and Resource its def. FinishTicks is JobDriver_Deconstruct's work (WorkToBuild clamped to 20..3000) at
-    // JobDriver_RemoveBuilding's rate (ConstructionSpeed x 1.7 a tick); a rate of zero leaves it unknown.
-    private static List<Obs.ConstructionActivityOption> DeconstructRows(NativePathLegs legs, Pawn[] pawns, Verse.Building building, string site, string definition, string giver)
+    private static string Giver<T>() => DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is T)?.defName ?? "";
+
+    // JobDriver_Deconstruct's work: WorkToBuild clamped to 20..3000.
+    private static double DeconstructWork(Verse.Building building) => Math.Min(3000.0, Math.Max(20.0, building.GetStatValue(StatDefOf.WorkToBuild)));
+
+    // A building the colony's Uninstall job takes (WorkGiver_Uninstall, Designator_Uninstall): minifiable and the colony's own (#3612).
+    internal static bool Uninstallable(Verse.Building building) =>
+        building.def.category == ThingCategory.Building && building.def.Minifiable && building.Faction == Faction.OfPlayer;
+
+    // A building's removal rows (#3557, #3612), one per free pawn not incapable of Construction and able to manipulate, with
+    // a route to it: Site is the op (a planned clearing's id, or the building's own for a standing designation), Input the
+    // building's id and Resource its def. FinishTicks is the removal job's work (JobDriver_Deconstruct's clamped
+    // WorkToBuild, JobDriver_Uninstall's uninstallWork) at JobDriver_RemoveBuilding's rate (ConstructionSpeed x 1.7 a
+    // tick); a rate of zero leaves it unknown.
+    private static List<Obs.ConstructionActivityOption> RemovalRows(NativePathLegs legs, Pawn[] pawns, Verse.Building building, string site, string definition, string giver, double work)
     {
-        var work = Math.Min(3000.0, Math.Max(20.0, building.GetStatValue(StatDefOf.WorkToBuild)));
         var cell = new Cell(building.Position.x, building.Position.z);
         var rows = new List<Obs.ConstructionActivityOption>();
         foreach (var pawn in pawns)
