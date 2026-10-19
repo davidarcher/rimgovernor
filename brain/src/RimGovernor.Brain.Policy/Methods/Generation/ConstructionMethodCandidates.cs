@@ -16,10 +16,11 @@ internal static class ConstructionMethodCandidates
         PlannedClearingKind.Deconstruct => "Deconstruct",
         PlannedClearingKind.Uninstall => "Uninstall",
         PlannedClearingKind.Cut => "CutPlant",
+        PlannedClearingKind.Mine => "Mine",
         _ => null,
     };
-    /// <summary>A set kind's op (a Cut wave) is bound over its members and needs them named (#3613).</summary>
-    private static bool Bindable(PlannedSiteClearing op) => op.Kind != PlannedClearingKind.Cut || op.Targets.Count > 0;
+    /// <summary>A set kind's op (a Cut wave, #3613; a Mine op, #3616) is bound over its members and needs them named.</summary>
+    private static bool Bindable(PlannedSiteClearing op) => op.Kind is not (PlannedClearingKind.Cut or PlannedClearingKind.Mine) || op.Targets.Count > 0;
 
     /// <summary>A standing removal row a pawn can work: a Haul's delivery is known and one trip (#3614), another kind's finish.</summary>
     private static bool Workable(PlannedClearingKind kind, ConstructionActivityOption row) =>

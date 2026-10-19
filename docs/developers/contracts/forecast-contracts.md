@@ -559,9 +559,11 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   its Work/CutPlant set step over, #3613): `FinishTicks` sums `harvestWork /
   JobDriver_PlantWork.WorkDonePerTick` (PlantWorkSpeed scaled by growth), for a
   pawn not incapable of PlantCutting (the cut giver's work type) and willing to cut
-  every plant. One `Mine` op (`<site>/mine`) covers its natural rock: `FinishTicks`
-  sums `ceil(HitPoints / 80)` pick hits at `round(100 / MiningSpeed)` ticks
-  (JobDriver_Mine), for a pawn not incapable of Mining. For both, `SiteApproachTicks`
+  every plant. One `Mine` op (`<site>/mine`) covers its natural rock, its `Targets`
+  the rocks' ids lowest first (what the brain binds its Work/Mine set step over,
+  #3616): `FinishTicks` sums `ceil(HitPoints / 80)` pick hits at
+  `round(100 / MiningSpeed)` ticks (JobDriver_Mine), for a pawn not incapable of
+  Mining. For both, `SiteApproachTicks`
   is the route to the target nearest the pawn and `Location` is that target;
   walking between targets is not modelled. One `Haul` op per stack
   (`<site>/haul/<thing>`): `Origin`/`Input`/`Resource`/`Count` are the stack,

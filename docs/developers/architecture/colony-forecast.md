@@ -491,7 +491,8 @@ whose thing or pawn another Method claims, whose finish (a Haul's delivery) is
 unknown, whose stack is more than one carry (the Deliver step is one trip), a Cut
 op naming no plants, or whose kind no order works yet (`RemoveFloor`) binds
 nothing. A planned site's Cut clearing binds the same way before placement
-(`PlannedRoomCandidates`, beside its Deconstruct and Haul clearings). Up to 16 ops
+(`PlannedRoomCandidates`, beside its Deconstruct and Haul clearings), and so does its
+Mine clearing, one Work/Mine set step over the op's named rocks (#3616). Up to 16 ops
 a round across all kinds; more sets
 `Truncated`.
 

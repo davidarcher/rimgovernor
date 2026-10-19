@@ -350,6 +350,46 @@ public sealed class PlannedRoomActivitiesTests
     }
 
     /// <summary>
+    /// #3616: a planned ring over natural rock. Native estimates the rock under the footprint as one Mine clearing naming
+    /// it (Targets), and that clearing binds before placement as the pawn's Work/Mine set step over the rocks (Count the
+    /// members), beside the Deconstruct, Cut and Haul bindings; the selection orders it. A Mine clearing naming no rock
+    /// is valued but binds nothing.
+    /// </summary>
+    [Fact]
+    public void TheRockUnderTheRingIsOneMineSetOrderBoundBeforePlacement()
+    {
+        const string site = "planned/room1/wall/WoodLog";
+        const string clearingId = site + "/mine";
+        string[] rocks = ["Thing_Sandstone1", "Thing_Sandstone2"];
+        var at = WallCells[0];
+        var clearing = new PlannedSiteClearing(clearingId, PlannedClearingKind.Mine)
+        {
+            Options = [new ConstructionActivityOption(clearingId, "Wall", at, Pawn, "", "", at, 0, 0, "Mine", default, default, Known(50d))
+                { SiteApproachTicks = Known(Ticks(Start, at)) }],
+            Targets = EquatableArray.From(rocks),
+        };
+        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        var candidates = facts.CoupledAlternatives!;
+        var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Job == "Mine");
+        Assert.Equal((Pawn, PawnActivityKind.Work, clearingId, "Mine", 2, "Wall"), (binding.Pawn, binding.Kind, binding.Target, binding.WorkGiver, binding.Count, binding.SiteDefinition));
+        Assert.Equal(rocks, binding.Targets);
+        Assert.StartsWith(clearingId + "/composition/", binding.Id, StringComparison.Ordinal);
+
+        var result = Select(facts);
+        Assert.True(PlannedSelected(result, site), Why(facts, result));
+        var batch = ForecastCoupledSelection.StartCoupledActivity(result, candidates, 1, "planned-test", 100);
+        Assert.NotNull(batch);
+        var task = Assert.Single(batch.Tasks, t => t.Pawn == Pawn);
+        Assert.Equal((binding.Id, PawnActivityKind.Work, "Mine", 2), (task.Id, task.Step.Kind, task.Step.Job, task.Step.Count));
+        Assert.Equal(rocks, task.Step.Targets);
+        Assert.Contains(batch.Orders, o => o.Pawn == Pawn && !o.Release && o.Task == task.Id);
+
+        var unnamed = Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing with { Targets = default }] }, Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        Assert.DoesNotContain(unnamed.CoupledAlternatives!.Context.Bindings.Values, b => b.Job == "Mine");
+        Assert.DoesNotContain(unnamed.CoupledAlternatives.Findings, f => f.StartsWith("planned_room_alternative_unvalued", StringComparison.Ordinal));
+    }
+
+    /// <summary>
     /// #3614: a stack under the ring is a Haul clearing whose rows carry it to storage; it binds before placement as the
     /// pawn's Deliver of the stack (Count the stack) to the row's destination, and the op keeps its /cleared output.
     /// </summary>

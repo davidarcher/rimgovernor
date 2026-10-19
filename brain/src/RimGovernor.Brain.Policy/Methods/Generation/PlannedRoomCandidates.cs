@@ -178,10 +178,11 @@ internal static class PlannedRoomCandidates
                             // The building, stack or plants under the footprint stand now: their removal binds before placement, a
                             // building as Work/Deconstruct on it (#3557), a stack the pawn carries in one trip as a Deliver of
                             // it to the row's storage cell (#3614; a larger stack stays priced and unbound), the plants as one
-                            // Work/CutPlant set step over the op's named Targets (#3613).
+                            // Work/CutPlant set step over the op's named Targets (#3613) and the natural rock as one Work/Mine
+                            // set step over its named rocks (#3616).
                             if (clearing.Kind == PlannedClearingKind.Deconstruct || haul && ConstructionMethodCandidates.OneTrip(row))
                                 roomBindings[(clearing.Id, row.Pawn)] = ConstructionMethodCandidates.RemovalBinding(clearing.Id, clearing.Kind, row with { Definition = row.Resource }, row.Input, deadline);
-                            else if (clearing.Kind == PlannedClearingKind.Cut && clearing.Targets.Count > 0)
+                            else if (clearing.Kind is PlannedClearingKind.Cut or PlannedClearingKind.Mine && clearing.Targets.Count > 0)
                                 roomBindings[(clearing.Id, row.Pawn)] = ConstructionMethodCandidates.RemovalBinding(clearing.Id, clearing.Kind, row, clearing.Id, deadline, clearing.Targets);
                         }
                         requirements.Add(new(finish + "/cleared/" + clearing.Id, cleared, Known(1), siteLocation, ForecastRequirementKind.Reusable,

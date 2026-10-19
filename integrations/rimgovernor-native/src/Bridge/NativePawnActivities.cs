@@ -245,19 +245,23 @@ namespace HomeBridge.BridgeTools
         // placed through the game's designator; an Uninstall is the plain designation the reconcile's Pack stands; a
         // CutPlant is the ordered cut designator's (a tree too, #3613). No job hook rechecks a CutPlant record: the
         // enclosure guard judges buildings, so the record serves the release on revocation and the removal hook alone.
+        // A Mine is the cell designation the mine designator places, under the mine_safety guard (its record keyed by the
+        // cell, as Designate stands one): the pick hook rechecks it before every hit (#3616).
         private static void StandDesignation(Thing thing, DesignationDef def)
         {
             var map = thing.Map;
-            if (map.designationManager.DesignationOn(thing, def) == null)
+            var mine = def == DesignationDefOf.Mine;
+            if (mine ? map.designationManager.DesignationAt(thing.Position, def) == null : map.designationManager.DesignationOn(thing, def) == null)
             {
                 if (def == DesignationDefOf.Deconstruct) new Designator_Deconstruct().DesignateThing(thing);
                 else if (def == DesignationDefOf.CutPlant) new Designator_PlantsCut { isOrder = true }.DesignateThing(thing);
+                else if (mine) new Designator_Mine().DesignateSingleCell(thing.Position);
                 else map.designationManager.AddDesignation(new Designation(thing, def));
             }
             var record = NativeDesignationGuards.Open(map, def, thing.Position, thing) ?? NativeDesignationGuards.Add(new GuardedDesignation
             {
-                Id = "activity-" + Guid.NewGuid().ToString("N"), Guard = GuardNames.Enclosure, Designation = def.defName,
-                ExpectedDef = thing.def.defName, ThingId = thing.GetUniqueLoadID(), MapId = map.uniqueID, X = thing.Position.x, Z = thing.Position.z,
+                Id = "activity-" + Guid.NewGuid().ToString("N"), Guard = mine ? GuardNames.MineSafety : GuardNames.Enclosure, Designation = def.defName,
+                ExpectedDef = thing.def.defName, ThingId = mine ? null : thing.GetUniqueLoadID(), MapId = map.uniqueID, X = thing.Position.x, Z = thing.Position.z,
             });
             record.Ordered = true;
         }

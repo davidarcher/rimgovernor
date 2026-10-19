@@ -122,8 +122,9 @@ public sealed record PlannedSiteClearing(string Id, PlannedClearingKind Kind)
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<ConstructionActivityOption>))]
     public EquatableArray<ConstructionActivityOption> Options { get; init; }
-    /// <summary>A set op's members (#3613): the plants a <see cref="PlannedClearingKind.Cut"/> op clears, lowest thing id
-    /// first. The brain binds the op as one Work set step over them; empty for a single-building op.</summary>
+    /// <summary>A set op's members: the plants a <see cref="PlannedClearingKind.Cut"/> op clears (#3613) or the rock a
+    /// <see cref="PlannedClearingKind.Mine"/> op mines (#3616), lowest thing id first. The brain binds the op as one Work
+    /// set step over them; empty for a single-building op.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Targets { get; init; }
 }

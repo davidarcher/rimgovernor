@@ -256,7 +256,10 @@ internal static class NativeConstructionActivity
         if (plants.Length > 0) result.Add(CutOp(legs, pawns, plants, site + "/cut", definition.defName, Giver<WorkGiver_PlantsCut>()));
         var rock = things.Where(t => t.Kind == Clear.Mine).Select(t => t.Thing).OrderBy(t => t.thingIDNumber).ToArray();
         if (rock.Length > 0)
-            result.Add(Work(site + "/mine", Obs.PlannedClearingKind.Mine, rock, Giver<WorkGiver_Miner>(),
+        {
+            // One Mine op over the rock, Targets the rocks lowest id first (what the brain binds its Work/Mine set step over, #3616).
+            var mineId = site + "/mine";
+            var rows = WorkRows(legs, pawns, rock, mineId, definition.defName, Giver<WorkGiver_Miner>(),
                 pawn => !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Mining),
                 pawn =>
                 {
@@ -264,7 +267,9 @@ internal static class NativeConstructionActivity
                     var speed = pawn.GetStatValue(StatDefOf.MiningSpeed);
                     return speed > 0 ? Fact.Known(rock.Sum(r => Math.Ceiling(r.HitPoints / (double)NaturalRockDamagePerPickHit))
                         * Math.Round(JobDriver_Mine.BaseTicksBetweenPickHits / speed)) : default;
-                }));
+                });
+            result.Add(new(mineId, Obs.PlannedClearingKind.Mine) { Options = EquatableArray.From(rows), Targets = EquatableArray.From(rock.Select(r => r.GetUniqueLoadID())) });
+        }
         // One Deconstruct op per building, its rows naming it: the brain binds the op to it before placement (#3557). A
         // roof-holder the enclosure guard would hold (RoofWait) has no op.
         var deconstructGiver = Giver<WorkGiver_Deconstruct>();
@@ -283,10 +288,6 @@ internal static class NativeConstructionActivity
             result.Add(new(id, Obs.PlannedClearingKind.Haul) { Options = EquatableArray.From(HaulRows(legs, pawns, item, id, definition.defName, haulGiver, destination)) });
         }
         return result;
-
-        // A work op over its things: the route reaches the one nearest the pawn; finish is the summed native work.
-        Obs.PlannedSiteClearing Work(string id, Obs.PlannedClearingKind kind, Thing[] targets, string giver, Func<Pawn, bool> able, Func<Pawn, Fact<double>> finish) =>
-            new(id, kind) { Options = EquatableArray.From(WorkRows(legs, pawns, targets, id, definition.defName, giver, able, finish)) };
     }
 
     // A set op's rows: one per able pawn, routed to the member nearest it (Location that member's cell); finish is the summed native work.

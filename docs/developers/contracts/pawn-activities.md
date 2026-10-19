@@ -112,8 +112,18 @@ willing to cut it, cutting not prevented, reservable and reachable). `Apply` sta
 designation (the ordered cut designator's, so a tree too) on every member lacking a cut or harvest
 designation and marks its enclosure-guard record `Ordered`, as a Deconstruct or Uninstall step does
 on its building; no job hook rechecks a CutPlant record (the enclosure guard judges buildings), so
-the record serves the release on revocation and the removal hook alone. The done count lives on the
-in-memory execution entry with the sow count; a load restarts it.
+the record serves the release on revocation and the removal hook alone. Mine is the second family
+(#3616): Work/Mine through `WorkGiver_Miner`, where each member's job is the miner's own `Mine` job
+(`MineAIUtility.JobOnThing`, which refuses an undesignated cell; its haul-aside of a blocking item is
+not accepted as the member's work) and legality is the giver's checks less the designation plus the
+mine_safety guard's permanent blockers: mineable rock, the excavation cell rule (`CellBlocker`) and
+the excavation safety rule (`ExcavationSafety.Check` Supported for the one cell), not forbidden,
+reservable and reachable. A rock whose removal would leave a roof unsupported is skipped, and
+Validate names it when no member is legal. `Apply` stands the Mine cell designation (the mine
+designator's) on every member whose cell has no Mine or MineVein and marks its mine_safety record
+`Ordered`, standing or Designate-stood (such a record waits for supervised play until it is Ordered);
+the pick hook rechecks the record before every hit as it does any mine_safety record. The done count
+lives on the in-memory execution entry with the sow count; a load restarts it.
 
 Continuation rebinds a set step to the members the pawn can still work, nearest first (`Targets` the
 legal members, `Count` and `RemainingCount` their number), and treats a set with no member standing
@@ -175,7 +185,7 @@ may share one atomic batch. These checks run in the existing owner transaction,
 before plan creation or Method binding; refusal leaves both unchanged. They do
 not reserve pawns across different owners or prove current native availability.
 
-The initial step families are exact thing-target work (Clean, Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused; a designation the room reconcile stood by Designate is read back as a removal op and ordered the same way, and the order marks its record `Ordered`, #3557; Uninstall targets a minifiable building of the colony's own through `WorkGiver_Uninstall`, the order stands its Uninstall designation itself (the plain designation the reconcile's Pack stands) under an `Ordered` enclosure-guard record, and a roof-holder, a building designated for deconstruction or one with a reinstall blueprint is refused, #3612; CutPlant is the first [set step](#the-set-step), Work over a set of plants through `WorkGiver_PlantsCut`, the order standing each member's CutPlant designation, #3613), selected food/count,
+The initial step families are exact thing-target work (Clean, Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused; a designation the room reconcile stood by Designate is read back as a removal op and ordered the same way, and the order marks its record `Ordered`, #3557; Uninstall targets a minifiable building of the colony's own through `WorkGiver_Uninstall`, the order stands its Uninstall designation itself (the plain designation the reconcile's Pack stands) under an `Ordered` enclosure-guard record, and a roof-holder, a building designated for deconstruction or one with a reinstall blueprint is refused, #3612; CutPlant is the first [set step](#the-set-step), Work over a set of plants through `WorkGiver_PlantsCut`, the order standing each member's CutPlant designation, #3613; Mine is the second, Work over a set of rock through `WorkGiver_Miner`, the order standing each member's Mine designation under the mine_safety guard, #3616), selected food/count,
 selected bed/rest, selected recreation building, exact delivery, exact cooking, material Supply, FinishFrame, Approach, Hold, bounded Idle and Standby (explicit idle). Unsupported families are refused, not sent to a
 native economic selector. Recreation without a building (walks, skygazing, social relaxing, drugs,
 reading) remains outside this initial execution slice. Firefighting is an explicit policy-selected emergency revision, not an automatic native fallback. Work givers use forced:false, required capacities,
