@@ -648,7 +648,58 @@ What the day says:
   committed, not 2500 ticks after their own run): removes the `last` steps, 14 s, and the off-phase waves. (2) A
   stockpile fill marks 21 entries; declaring the zone and bill sections only on the families that read them (Food,
   FoodStores, Economy, Layout) would mark 4. (3) The hold-to-step latency, 22 s. The day is under the budget without
-  any of them.
+  any of them. Cuts 1 and 2 landed as 976dda3b1, measured in the next section.
+
+### Family entries on the rounder's cadence (#3556)
+
+The fourth cut of item 3, the first two next cuts of the family-sections day: the family entries are due when the
+rounder is (`PlannerEntry.RoundsCadence`), and an invalidation narrowed to zone ids marks only the families whose
+schedule names the zone census (`FamilySchedule.Sections`, `Section.Keyed`). Landed 976dda3b1.
+
+**What the day before had hidden.** The section narrowing had never reached a family entry: `FamilyEntry` listed every
+family the entry reads in `PlannerEntry.Families`, which `PlannerQueue.Wake` matches by name, so a Colony invalidation
+marked all 21 entries whatever sections it named, and `Invalidation.Sections` could not tell a zone id from a building
+id, so it dirtied Zones, Buildings and Bills together. Now an entry lists only its sectionless families by name (world),
+an id names the section it is a row of by vanilla's load-id shape (`Zone_` the zone census, `Thing_` the buildings; an
+id of no known shape dirties every entity section as before), and five families declare the zone census: admin (the
+stockpile Need), food (fields, blight), food stores (storage upkeep), economy (resources, trade) and layout (the
+defensive layout's admission). Bills stay declared with Colony since no invalidation names a bill row.
+
+Measured 2026-10-18, same colony and machine, brain session `8fa5204cbb4346e7be43caf7854b2e22`, one passing
+colony-review day of 60580 ticks, against the family-sections day above:
+
+| What | Family-sections day | This day |
+| --- | --- | --- |
+| `clock_invalidation` rows | 4 `stockpile fill` | 2 `stockpile fill` (22741 `Zone_4`, 30362 `Zone_1`) |
+| Entries a stockpile fill marked | 21 | 5 |
+| `clock_step` rows | 106: 98 `review`, 5 `wake`, 2 `full` | 105: 98 `review`, 5 `wake`, 2 `full`; every one `planned` |
+| `selection` words | `dirty` 150, `due` 354, `dirty+due` 22, `full` 44, `all` 22 | `dirty` 76, `due` 396, `dirty+due` 22, `full` 44, `all` 22 |
+| Steps that ran a wave | 33 | 27: the 25 rounder steps and the 2 `last` steps |
+| Entries a `due` rounder step ran | 1 | 22 |
+| Wave wall (`stage_ms` `critical` + `optional`) | 15.8 s + 14.1 s = 29.9 s | 15.6 s + 15.1 s = 30.7 s |
+| Steps on the last committed review (`rounds` `last`) | 13, 14.1 s | 2, 1.4 s (the two stockpile fills, 5 entries each) |
+| Rounder runs (`due` / `wake` / `all`), rounds wall | 25 (18 / 4 / 3), 38.9 s | 25 (18 / 4 / 3), 37.3 s |
+| Step wall sum | 79.7 s | 78.4 s |
+| `clock_run` wall | 14.4 s | 14.0 s |
+| Hold-to-step (`stop_latency_ms`) | p50 167 ms, 21.6 s over 104 | p50 166 ms, p95 347 ms, 22.7 s over 103 |
+| Brain-held wall / first to last step | 116 s / 168.2 s | 115 s / 168.9 s |
+
+What the day says:
+
+- **The phase is gone, the waves moved.** Every `due` rounder step (3000, 6000, 9000, ... 60580) ran all 22 entries, and
+  no entry came due between two reviews: the 13 `last` steps became 2, each a stockpile fill's 5 marked entries. But a
+  wave is the 22 entries' derivation, about 1.2 s whatever step carries it, so the 25 rounder steps now hold the 30 s
+  the `last` steps and the 1-entry `due` steps shared before. The step wall fell 1.3 s.
+- **The `dirty` count is now the hazards.** 76 marks: the 4 hazard wakes (29856, 29941, 30001, 48580: 66, every entry,
+  as a hold other than the review tick must) and the 2 stockpile fills (10). A fill no longer wakes the 16 families
+  that never read a zone.
+- **Two Runs failed, neither new.** The Run at 600 was refused on the hold serial (the hold entered after the step's
+  read, as on every day since the 600-tick cadence); the Run at 60580 found no map loaded because the harness had
+  ended the day under it.
+- **Next cuts, in order.** (1) The waves, 31 s: 25 times a day every entry re-derives its Needs from facts that for
+  most families did not change since the last review; the facts records are equatable, so an entry whose read equals
+  its last run's could keep its standings and skip the derivation and the work. (2) The hold-to-step latency, 23 s,
+  cause still unconfirmed. The rounds stage, 37 s, is the review itself. The day is under the budget without either.
 
 ## Hosting in the mod (#3115)
 
