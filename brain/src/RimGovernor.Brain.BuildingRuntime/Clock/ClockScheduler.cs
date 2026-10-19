@@ -63,6 +63,12 @@ public sealed partial class ClockScheduler
 
     // The latest step's clock-status context: its identity and scope are what the planner wave's section refreshes read under.
     private PbCommon.ObservationContext? _stepContext;
+
+    /// <summary>
+    /// The observation scope this step read with its clock status (#3556): the family entries' reads validate
+    /// against it instead of each hopping to the game thread for the tick. Null until the step has read its status.
+    /// </summary>
+    internal Observation.Identity? StepIdentity { get; private set; }
     private volatile bool _running;
 
     public ClockScheduler(Player player, IClockStepNative native, ClockSchedulerConfig config, IClock clock)
@@ -267,6 +273,7 @@ public sealed partial class ClockScheduler
                     : await _player.Journal.LayoutPlanAsync(world, tick, c).ConfigureAwait(false);
             };
             _stepContext = loaded.ClockStatus?.Context;
+            StepIdentity = null;
             var status = loaded.ClockStatus ?? throw new InvalidOperationException("clock status required");
             var statusTick = (long)(status.Context ?? throw new BridgeContractException("clock status carried no context")).Tick;
             if (statusTick < (long)loadedContext.Tick)
@@ -274,6 +281,7 @@ public sealed partial class ClockScheduler
                 ClockEvents.AuthorityLost("clock status is behind the scope tick");
                 throw new EvidenceException("clock status is behind the scope tick");
             }
+            StepIdentity = DecodeReads.ContextIdentity(status.Context);
             _running = status.State == PbClock.ClockState.Running;
             result.HoldSerial = status.HoldSerial;
             reason = reason with { TickAdvanced = !_lastTickKnown || statusTick != _lastTick };

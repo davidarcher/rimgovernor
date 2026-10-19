@@ -42,7 +42,7 @@ public sealed partial class DisasterRounds
     {
         var journal = _reviewer.Player.Journal;
         var review = await journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        var expected = await StepScope.StepScopeAsync(scope, _reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("disaster read: the scope is another world or older than the review");

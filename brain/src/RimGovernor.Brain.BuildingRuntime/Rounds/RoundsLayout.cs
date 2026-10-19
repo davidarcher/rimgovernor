@@ -100,7 +100,7 @@ public sealed partial class LayoutRounds
         }
         var journal = _reviewer.Player.Journal;
         var review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-        var expected = await StepScope.StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
+        var expected = await StepScope.StepScopeAsync(scope, _reviewer.Native, ct).ConfigureAwait(false);
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("layout read: the scope is another world or older than the review");

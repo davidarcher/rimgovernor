@@ -49,8 +49,7 @@ public sealed partial class HomeUpkeepReader
             return new HomeUpkeepFacts();
         }
         var review = _reviewer.Player.Journal.LoadRounds(call);
-        var identity = (await _native.IdentityAsync(call).ConfigureAwait(false));
-        var expected = DecodeReads.DecodeIdentity(identity);
+        var expected = scope.Scope ?? DecodeReads.DecodeIdentity(await _native.IdentityAsync(call).ConfigureAwait(false));
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("home upkeep: the native boundary moved");

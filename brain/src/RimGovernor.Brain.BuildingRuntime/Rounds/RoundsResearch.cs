@@ -92,7 +92,7 @@ public sealed class EconomyRounds
         var started = _reviewer.Clock.Now();
         var p = _reviewer.Player;
         var review = await p.Journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-        var expected = await StepScope.StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
+        var expected = await StepScope.StepScopeAsync(scope, _reviewer.Native, ct).ConfigureAwait(false);
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("economy read: the scope is another world or older than the review");

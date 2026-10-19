@@ -102,7 +102,7 @@ public sealed class MedicalRounds
         var medicalPawns = Unknown<EquatableArray<CarePawn>>();
         if (!scope.Immediate)
         {
-            var expected = await StepScope.StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
+            var expected = await StepScope.StepScopeAsync(scope, _reviewer.Native, ct).ConfigureAwait(false);
             if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
             {
                 throw new ControlException("medical read: the scope is another world or older than the review");

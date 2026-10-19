@@ -41,7 +41,7 @@ public sealed partial class JoinersRounds
             // No SeriousHarm Needs: the immediate pass reads nothing.
             return new JoinersFacts();
         }
-        var reading = await ObserveAsync(scope.World, ct).ConfigureAwait(false);
+        var reading = await ObserveAsync(scope, ct).ConfigureAwait(false);
         return JoinersFacts.From(reading.Reading.Projection.Facts);
     }
 
@@ -114,13 +114,14 @@ public sealed partial class JoinersRounds
                 return (held.Reading, held.Started);
             }
         }
-        return await ObserveAsync(world, ct).ConfigureAwait(false);
+        return await ObserveAsync(new FamilyReadScope(world, false), ct).ConfigureAwait(false);
     }
 
-    private async Task<(RoundsReading Reading, DateTimeOffset Started)> ObserveAsync(GenerationSnapshot world, CancellationToken ct)
+    private async Task<(RoundsReading Reading, DateTimeOffset Started)> ObserveAsync(FamilyReadScope scope, CancellationToken ct)
     {
+        var world = scope.World;
         var review = await reviewer.Player.Journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-        var expected = await StepScope.StepScopeAsync(reviewer.Native, ct).ConfigureAwait(false);
+        var expected = await StepScope.StepScopeAsync(scope, reviewer.Native, ct).ConfigureAwait(false);
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, world, review.Tick))
         {
             throw new ControlException("joiners read: the scope is another world or older than the review");

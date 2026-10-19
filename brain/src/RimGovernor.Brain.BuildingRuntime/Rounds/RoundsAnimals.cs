@@ -50,7 +50,7 @@ public sealed class AnimalsReader
             return new AnimalsFacts();
         }
         var started = _reviewer.Clock.Now();
-        var (_, reading) = await ReadingAsync(scope.World, call).ConfigureAwait(false);
+        var (_, reading) = await ReadingAsync(scope, call).ConfigureAwait(false);
         var projection = reading.Projection;
         var f = projection.Facts;
         var handlers = projection.WorkPawns.TryGetValue(out var pawns)
@@ -89,10 +89,11 @@ public sealed class AnimalsReader
     }
 
     /// <summary>The review and the rooms reading (the census cache serves a repeat) for the world, under the current construction claims.</summary>
-    private async Task<(Rounds Review, RoundsReading Reading)> ReadingAsync(GenerationSnapshot world, CancellationToken call)
+    private async Task<(Rounds Review, RoundsReading Reading)> ReadingAsync(FamilyReadScope scope, CancellationToken call)
     {
+        var world = scope.World;
         var review = await _reviewer.Player.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        var expected = await StepScope.StepScopeAsync(scope, _reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, world, review.Tick))
         {
             throw new ControlException("animals read: the scope is another world or older than the review");
@@ -126,7 +127,7 @@ public sealed class AnimalsReader
         {
             return FieldUnavailable("herd_rooms");
         }
-        var (review, reading) = await ReadingAsync(work.State.Snapshot, call).ConfigureAwait(false);
+        var (review, reading) = await ReadingAsync(new FamilyReadScope(work.State.Snapshot, false), call).ConfigureAwait(false);
         if (pen.Owed())
         {
             return await ReconcileAsync(work, review, reading, pen, call).ConfigureAwait(false);
@@ -159,7 +160,7 @@ public sealed class AnimalsReader
         {
             return Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
         }
-        var (review, reading) = await ReadingAsync(work.State.Snapshot, call).ConfigureAwait(false);
+        var (review, reading) = await ReadingAsync(new FamilyReadScope(work.State.Snapshot, false), call).ConfigureAwait(false);
         return step.Kind == HerdStepKind.Medical
             ? await MarkBedMedicalAsync(work, reading.Projection, step.Bed, call).ConfigureAwait(false)
             : await ReconcileAsync(work, review, reading, step, call).ConfigureAwait(false);

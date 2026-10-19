@@ -225,6 +225,7 @@ internal static class ClockPlannerCatalog
                     World = state.Snapshot,
                     Immediate = ReviewScope.Immediate,
                     Cadence = cadence && !ReviewScope.Immediate,
+                    Scope = s.StepIdentity,
                     State = state,
                     Epoch = epoch,
                     Arbiter = arbiter,

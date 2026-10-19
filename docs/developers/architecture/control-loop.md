@@ -836,6 +836,15 @@ held claim (one step's arbiter) and an unread field are never kept, nor is an ad
 pass and another world run the work again. The `planner_step` row of a kept Need carries
 `kept`, and the `clock_step` row counts them (`kept`).
 
+A family read validates its facts against the observation scope (world, tick, generation) and
+used to read it itself, one `lifecycle_read_tick` hop to the game thread per entry per wave,
+queued behind the other entries' hops. The clock step reads that scope with its clock status
+before any wave, so it decodes it once (`ClockScheduler.StepIdentity`) and hands it to every
+family step (`FamilyStep.Scope`, `FamilyReadScope.Scope`, #3556); `StepScope.StepScopeAsync`
+returns it to the read instead of hopping. The scope is fixed for the step, so the read sees
+the tick the hop would have returned. Outside a clock step the scope is null and a read hops
+as before; a family's work keeps its own scope reads.
+
 ```mermaid
 stateDiagram-v2
     [*] --> Held: NeverRun

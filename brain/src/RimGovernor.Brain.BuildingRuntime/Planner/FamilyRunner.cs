@@ -1,7 +1,12 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>What one family read is for: the world it reads and whether it is the immediate pass's narrow read.</summary>
-public readonly record struct FamilyReadScope(GenerationSnapshot World, bool Immediate);
+/// <summary>
+/// What one family read is for: the world it reads, whether it is the immediate pass's narrow read, and the
+/// observation scope the step already read (#3556), which the read validates against instead of hopping to the
+/// game thread for its own (<see cref="StepScope.StepScopeAsync(FamilyReadScope, Observation.ISource, CancellationToken)"/>);
+/// null outside a clock step.
+/// </summary>
+public readonly record struct FamilyReadScope(GenerationSnapshot World, bool Immediate, Observation.Identity? Scope = null);
 
 /// <summary>
 /// How the scheduler runs a family besides what the family itself declares: its class, the action kinds whose
@@ -101,6 +106,12 @@ internal sealed record FamilyStep
     /// wait or a refusal then keeps that verdict and skips its work (<see cref="FamilyRun.Kept"/>).
     /// </summary>
     public bool Cadence { get; init; }
+
+    /// <summary>
+    /// The observation scope (world, tick, generation) the clock step read before its wave (#3556): the family
+    /// read validates against it instead of reading the tick itself. Null outside a clock step.
+    /// </summary>
+    public Observation.Identity? Scope { get; init; }
 }
 
 /// <summary>
@@ -441,7 +452,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
             audit?.Invoke(_family.Id, family, source);
         }))
         {
-            facts = await _read(new FamilyReadScope(step.World, step.Immediate), call).ConfigureAwait(false);
+            facts = await _read(new FamilyReadScope(step.World, step.Immediate, step.Scope), call).ConfigureAwait(false);
         }
         lock (undeclared)
         {

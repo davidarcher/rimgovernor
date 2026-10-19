@@ -13,4 +13,11 @@ internal static class StepScope
         var reply = await native.TickAsync(ct).ConfigureAwait(false);
         return DecodeReads.DecodeTick(reply);
     }
+
+    /// <summary>
+    /// The scope a family read validates against: the one the clock step read before its wave when the read has it
+    /// (<see cref="FamilyReadScope.Scope"/>, #3556), so the wave's entries cost no tick hop each; otherwise read now.
+    /// </summary>
+    internal static Task<Observation.Identity> StepScopeAsync(FamilyReadScope scope, Observation.ISource native, CancellationToken ct) =>
+        scope.Scope is { } known ? Task.FromResult(known) : StepScopeAsync(native, ct);
 }
