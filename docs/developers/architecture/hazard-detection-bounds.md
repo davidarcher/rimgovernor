@@ -23,12 +23,10 @@ cadence functions through every speed's tick pattern.
 | Hook-requested | the next tick boundary after a direct game hook fires | 1 tick |
 
 A probe runs when any gate is due. The tick gate is the bound: however many
-ticks a frame carries (Ultrafast with the ultra-speed boost runs hundreds
-per frame), consecutive probes are at most 30 ticks apart. The wall gate
+ticks a frame carries (Hyperfast runs 30 per frame at 60 frames a second), consecutive probes are at most 30 ticks apart. The wall gate
 only tightens it at slow speeds: at Normal (60 ticks/s) it fires every 6
-ticks, at Fast every 18, at Superfast the tick gate fires first. Under the
-acceptance test acceleration (`testAcceleration`) the tick hook calls
-the frame path itself, so the same gates apply.
+ticks, at Fast every 18, at Superfast the tick gate fires first. At Hyperfast
+the tick hook calls the frame path itself, so the same gates apply.
 
 The acceptance-only clock accounting read
 (`rimgovernor/acceptance_read_clock_accounting`) reports the widest gap
@@ -40,8 +38,8 @@ the `hazard/*` cases are the only check, each on its own class's entry.
 ## Declared bound per hazard class
 
 The bound is the most game ticks a hazard of that class can exist before a
-probe evaluates it, at every production speed (Normal, Fast, Superfast,
-Ultrafast) and under test acceleration. `detect_ticks` on a stop
+probe evaluates it, at every speed (Normal, Fast, Superfast, Ultrafast,
+Hyperfast). `detect_ticks` on a stop
 (`detected_tick` less `occurrence_tick`) is the measured gap; the
 `hazard/*` acceptance cases (`brain/src/RimGovernor.Brain.Acceptance.Cases/Hazard`,
 injecting through `scripts/fixtures/HazardFixture.cs` and the letter

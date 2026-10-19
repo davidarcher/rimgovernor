@@ -12,12 +12,12 @@ public sealed record BrainCompositionOptions
     /// <summary>The routine planner families.</summary>
     public BrainFamilies Families { get; init; } = BrainFamilies.All;
 
-    /// <summary>Acceptance only: asks native for its dev tick boost and runs every run at Ultrafast.</summary>
+    /// <summary>Acceptance only: runs every run at Hyperfast, native's dev tick boost under its 30x cap.</summary>
     public bool ClockTestAcceleration { get; init; }
 
     /// <summary>
-    /// The speed the brain requests while it owns the clock, Normal through Ultrafast (default Ultrafast, the fastest the native clamp allows).
-    /// Only the first run's speed: <c>POST /api/player/clock-speed</c> changes it live from the next run. Ignored with <see cref="ClockTestAcceleration"/>, which pins boosted Ultrafast.
+    /// The speed the brain requests while it owns the clock, Normal through Hyperfast (default Ultrafast, the game's own 15x).
+    /// Only the first run's speed: <c>POST /api/player/clock-speed</c> changes it live from the next run. Ignored with <see cref="ClockTestAcceleration"/>, which pins Hyperfast.
     /// </summary>
     public PbClock.Speed TargetSpeed { get; init; } = PbClock.Speed.Ultrafast;
 
@@ -51,7 +51,7 @@ public sealed record BrainCompositionOptions
         ArgumentNullException.ThrowIfNull(Families);
         if (TargetSpeed == PbClock.Speed.Unspecified || !Enum.IsDefined(TargetSpeed))
         {
-            throw new ArgumentException("the clock target speed is Normal, Fast, Superfast or Ultrafast", nameof(TargetSpeed));
+            throw new ArgumentException("the clock target speed is Normal, Fast, Superfast, Ultrafast or Hyperfast", nameof(TargetSpeed));
         }
         if (NativeTimeout < TimeSpan.FromSeconds(1) || NativeTimeout > TimeSpan.FromMinutes(1))
         {

@@ -37,7 +37,7 @@ public interface IClockSpeedControl
 {
     PbClock.Speed Speed { get; }
 
-    /// <summary>Sets the target speed (Normal through Ultrafast).</summary>
+    /// <summary>Sets the target speed (Normal through Hyperfast).</summary>
     void Change(PbClock.Speed speed);
 }
 

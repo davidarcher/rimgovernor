@@ -31,6 +31,7 @@ internal static class NativeContractProbesDispatcher
                 case "native-speed-key-block": NativeSpeedKeyBlockProbe.Invoke(); return 0;
                 case "native-clock-face": NativeClockFaceProbe.Invoke(); return 0;
                 case "native-clock-ceiling": NativeClockCeilingProbe.Invoke(); return 0;
+                case "native-clock-speed": NativeClockSpeedProbe.Invoke(); return 0;
                 case "native-clock-hold-serial": NativeClockHoldSerialProbe.Invoke(); return 0;
                 case "native-team-policy": NativeTeamPolicyProbe.Invoke(); return 0;
                 case "native-traffic-counts":NativeTrafficCountsProbe.Invoke(); return 0;

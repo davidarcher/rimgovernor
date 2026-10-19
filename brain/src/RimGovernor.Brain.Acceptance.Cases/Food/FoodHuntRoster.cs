@@ -21,7 +21,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <para>
 /// Two hunters keep the comparison to three plain scenes per prey group (16 worker samples each). The served clock is
 /// the harness's: every acceptance game launches with <c>-rimgovernor-test-acceleration</c>, which pins the brain's
-/// target speed at Ultrafast whatever <see cref="ServeSpec.ClockSpeed"/> asks, so the comparison's worker seconds are
+/// target speed at Hyperfast whatever <see cref="ServeSpec.ClockSpeed"/> asks, so the comparison's worker seconds are
 /// thousands of ticks of pawn movement. The comparison is anchored to the read it was first asked from (#3525): its
 /// answers are gathered whatever the pawns do meanwhile, and the anchor is judged at choice time, when it starts over
 /// if a rostered gunner is past the move tolerance from it (the prey may graze anywhere, and an animal that wanders in
@@ -109,7 +109,7 @@ internal static class FoodHuntRoster
         Crew = new Crew { Size = Colonists },
         Stage = Camp,
         Keep = ["Food"],
-        // No ClockSpeed: the test-acceleration launch pins Ultrafast, so a request here would be a no-op.
+        // No ClockSpeed: the test-acceleration launch pins Hyperfast, so a request here would be a no-op.
         Serve = new ServeSpec { Families = Families, Env = WorkerEnv(), Prefix = "food-hunt-roster" },
         Run = RunAsync,
     };

@@ -377,13 +377,10 @@ public sealed partial class BrainComposition
     // autosave hold.
     private ClockRunDriver CreateClock(PlannerContext context, FacadeNativeClient client, ClockScheduler scheduler, IClockWriter clockWriter)
     {
-        var testAcceleration = _options.ClockTestAcceleration;
         var lease = TimeSpan.FromTicks(Math.Min(Math.Min(_options.NativeTimeout.Ticks, TimeSpan.FromSeconds(10).Ticks), TimeSpan.FromSeconds(7).Ticks));
-        // The dev tick boost runs Ultrafast at the one ceiling's rate; otherwise the clock runs at the live target
-        // speed whatever the native speed controls say.
         var config = new ClockRunConfig
         {
-            TargetSpeed = testAcceleration ? new ClockTargetSpeed(PbClock.Speed.Ultrafast) : TargetSpeed,
+            TargetSpeed = RunTargetSpeed(),
             Policy = ClockExpectation.WithHazardThresholds(new PbClock.WatchPolicy
             {
                 Mode = PbClock.WatchMode.Colony,

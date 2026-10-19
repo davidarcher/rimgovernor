@@ -49,6 +49,9 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockFace.cs" Link="Production/ClockFace.cs" />
     <Compile Include="NativeContractProbes/native-clock-ceiling/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockCeiling.cs" Link="Production/ClockCeiling.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/HyperfastCap.cs" Link="Production/HyperfastCap.cs" />
+    <Compile Include="NativeContractProbes/native-clock-speed/Program.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/ClockRunSpeed.cs" Link="Production/ClockRunSpeed.cs" />
     <Compile Include="NativeContractProbes/native-clock-hold-serial/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockHoldSerial.cs" Link="Production/ClockHoldSerial.cs" />
     <Compile Include="NativeContractProbes/native-construction-tier-gate/Program.cs" />

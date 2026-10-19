@@ -9,8 +9,9 @@ namespace HomeBridge.BridgeTools
     // per frame for the tick loop's per-frame cap and per-tick real time, so a
     // lower value is exactly a lower tick rate. The clamp lives in a postfix on
     // that getter, so the requested speed stays what it was and the external
-    // speed-change watcher never sees it. What it applies is the run segment's one
-    // ceiling (ClockCeiling.cs: frame budget plus brain heartbeat).
+    // speed-change watcher never sees it. What it applies is the run speed's own
+    // limit (Hyperfast's 30x cap, HyperfastCap.cs) and beneath it the run
+    // segment's one ceiling (ClockCeiling.cs: frame budget plus brain heartbeat).
     internal static partial class Supervisor
     {
         internal const int NormalTicksPerSecond = 60;
@@ -33,8 +34,10 @@ namespace HomeBridge.BridgeTools
         {
             State? s;
             lock (Gate) s = _state;
-            if (s != null && s.Active) s.UnclampedMultiplier = __result;
-            if (__result <= 0f || s == null || !s.Active) return;
+            if (s == null || !s.Active) return;
+            __result = ClockRunSpeed.Limit(s.Speed, __result);
+            s.UnclampedMultiplier = __result;
+            if (__result <= 0f) return;
             __result = ClockCeilingMultiplier(s, __result);
         }
 

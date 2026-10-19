@@ -4,8 +4,9 @@ using RimGovernor.Brain.Domain;
 namespace RimGovernor.Contracts.Wire.Clock;
 
 /// <summary>
-/// Requested speeds. Ultrafast is an ordinary wire speed: native drives the
-/// tick boost behind it up to the one ceiling, with no launch gate.
+/// Requested speeds, all ordinary wire speeds with no launch gate. Ultrafast is
+/// the game's own 15x with the tick boost forced off; Hyperfast drives the tick
+/// boost under its own 30x cap (1800 ticks/s). The one ceiling applies beneath both.
 /// </summary>
 [JsonConverter(typeof(WireEnumConverter<Speed>))]
 public enum Speed
@@ -20,6 +21,8 @@ public enum Speed
     Superfast = 3,
     [WireName("SPEED_ULTRAFAST")]
     Ultrafast = 4,
+    [WireName("SPEED_HYPERFAST")]
+    Hyperfast = 5,
 }
 
 /// <summary>

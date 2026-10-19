@@ -17,5 +17,5 @@ public sealed class ClockTargetSpeed(PbClock.Speed initial)
     private static PbClock.Speed Check(PbClock.Speed speed) =>
         Enum.IsDefined(speed) && speed != PbClock.Speed.Unspecified
             ? speed
-            : throw new ArgumentOutOfRangeException(nameof(speed), speed, "the clock target speed is Normal, Fast, Superfast or Ultrafast");
+            : throw new ArgumentOutOfRangeException(nameof(speed), speed, "the clock target speed is Normal, Fast, Superfast, Ultrafast or Hyperfast");
 }

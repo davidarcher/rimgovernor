@@ -15,7 +15,8 @@ Goals are set inside the game, not in the launcher: see [goals and themes](goals
 ## Speed and manual control
 
 **Play** enables automatic control on the loaded colony and after each load.
-The default asks for Ultrafast, which the mod drives with the game's tick boost. A single native limit slows the game
+The default asks for Ultrafast, the game's own 15x. Hyperfast (30x, the game's tick boost held at that rate) is available
+through the player API's speed route. A single native limit slows the game
 when frames take too long or the brain stops responding; the brain only asks for a speed. The game pauses briefly
 while the bot reviews a threat, handles a coupled order or saves (an autosave about once per in-game day, into
 the rotating `Autosave-1..5` slots). To take manual control, press Pause in the launcher.

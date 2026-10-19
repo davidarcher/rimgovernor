@@ -22,7 +22,7 @@ public static class PlayerRoutes
 
     public const string PausePath = "/api/player/control/pause";
 
-    /// <summary>Sets the speed the brain requests while it owns the clock: body <c>{"speed":"Normal|Fast|Superfast|Ultrafast"}</c>.</summary>
+    /// <summary>Sets the speed the brain requests while it owns the clock: body <c>{"speed":"Normal|Fast|Superfast|Ultrafast|Hyperfast"}</c>.</summary>
     public const string ClockSpeedPath = "/api/player/clock-speed";
 
     private static readonly RouteOptions Bounded = new() { MaxBodyBytes = StrictJson.Limit };
@@ -61,12 +61,13 @@ public static class PlayerRoutes
                 "Fast" => PbClock.Speed.Fast,
                 "Superfast" => PbClock.Speed.Superfast,
                 "Ultrafast" => PbClock.Speed.Ultrafast,
+                "Hyperfast" => PbClock.Speed.Hyperfast,
                 _ => throw new StrictJsonException("unknown speed"),
             };
         }
         catch (StrictJsonException)
         {
-            return ChannelResponse.Failure(400, "invalid_request", "Provide speed as Normal, Fast, Superfast or Ultrafast");
+            return ChannelResponse.Failure(400, "invalid_request", "Provide speed as Normal, Fast, Superfast, Ultrafast or Hyperfast");
         }
 
         control.Change(requested);

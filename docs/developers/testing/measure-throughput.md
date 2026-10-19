@@ -132,8 +132,8 @@ brain attached (the simulation ceiling): it reports only `ticks_advanced`,
   that resumed it (the hold row's `stop_at_ms` to the `clock_resume` row's
   `observed_at_unix_ms`, both on native's clock).
 - `effective_speed` is `wall_tps` over the speed's own rate (Normal 60, Fast
-  180, Superfast 360, Ultrafast 9000: the boost native serves it with under
-  the one ceiling), holds included: 1 means the clock never lost pace.
+  180, Superfast 360, Ultrafast 900, Hyperfast 1800: the tick boost under its
+  30x cap), holds included: 1 means the clock never lost pace.
 - `hold_latencies` give each hold's legs: `detect_ticks` (hazard to
   detection), `hold_ticks` (detection to the hold taking) and `resume_ms`.
 - `run_verdicts` counts the brain's Run, Hold and refusal rows;
@@ -184,4 +184,4 @@ unmeasured guesses until this run is recorded (#3199).
 6. Write the values, machine and run into the brain-host table and mark each recommended budget measured or guess.
 
 Rerun the native check when the clock scheduler, step cache or
-Ultrafast/acceleration path changes.
+Ultrafast/Hyperfast path changes.

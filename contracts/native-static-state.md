@@ -63,11 +63,12 @@ does not establish that every native interruption path reaches it.
 | [LetterPauseHook](../integrations/rimgovernor-native/src/Bridge/LetterPauseHook.cs): `depth`, `current` | Synchronous receive-letter nesting state. Prefix increments/sets current; finalizer decrements and clears at zero. Not thread-local and not a stack of prior letters. | Finalizer covers exceptions. Verify nested ReceiveLetter callbacks: returning from an inner letter does not restore the outer `current` while depth stays positive. Also verify callback thread assumptions. | N01.05 pause attribution |
 | `LetterPauseHook`: `game`, `letterId` | Latest pause attribution, assigned only by a paused clock transition inside a letter scope. Any subsequent speed callback clears it; `Consume` checks Game reference and clears. | Player/non-letter clock change invalidates the attribution. Old Game reference can survive until a speed callback/consume but cannot match another Game. Test same-Game rewind and nested letter attribution. | N01.05 pause attribution |
 
-`Supervisor`'s `BoostField` is immutable reflection metadata (listed below), but
-`RestoreBoost` writes the external static `TickManager.UltraSpeedBoost` from the
-epoch's saved prior value. Source restoration does not compare the current boost
-with the value the epoch installed. Verify another owner changing boost and
-load-change cleanup; test acceleration must not become player policy.
+`Supervisor`'s `BoostField` is immutable reflection metadata (listed below), but a
+run segment owns the external static `TickManager.UltraSpeedBoost` through its
+`BoostOwnership` (`ClockRunSpeed.cs`): a Run at Hyperfast sets it true, a Run at
+Ultrafast sets it false, and `RestoreBoost` writes back the value the segment found.
+Source restoration does not compare the current boost with the value the segment
+installed. Verify another owner changing boost and load-change cleanup.
 
 ## Ownership observations and synchronous transition state
 

@@ -9,9 +9,9 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// One column of the speed matrix: the serve speed it runs at (the player's choice serve follows) and whether the test
-/// acceleration is on. Every Run(Ultrafast) drives the 150x boost (9000 ticks/s) under the one
-/// ceiling; test acceleration only adds the acceptance-only world patches (both acceptance profiles admit it, a player
-/// launch does not). "uncapped" is Ultrafast with them. "governor-off" is uncapped native play with no controller attached, the simulation ceiling on the
+/// acceleration is on. Every Run runs under the one ceiling (Ultrafast is the game's 15x, Hyperfast the tick boost
+/// capped at 30x); test acceleration only adds the acceptance-only world patches (both acceptance profiles admit it, a player
+/// launch does not). "uncapped" is Hyperfast with them, the speed test acceleration pins. "governor-off" is uncapped native play with no controller attached, the simulation ceiling on the
 /// same save and renderer; it builds nothing, so it is outside the outcome comparison.
 /// </summary>
 public sealed record SpeedCase
@@ -101,7 +101,7 @@ public static class SpeedMatrix
             ["fast"] = new() { Name = "Fast", Speed = "Fast" },
             ["superfast"] = new() { Name = "Superfast", Speed = "Superfast" },
             ["ultrafast"] = new() { Name = "Ultrafast", Speed = "Ultrafast" },
-            ["uncapped"] = new() { Name = "uncapped", Speed = "Ultrafast", TestAcceleration = true },
+            ["uncapped"] = new() { Name = "uncapped", Speed = "Hyperfast", TestAcceleration = true },
             ["governor-off"] = new() { Name = "governor-off", Speed = "Ultrafast", TestAcceleration = true, GovernorOff = true },
         };
         var cases = new List<SpeedCase>();
@@ -132,14 +132,15 @@ public static class SpeedMatrix
 
     /// <summary>
     /// The ticks per second a speed runs at when nothing slows it: the game's own rates (Normal 60, Fast 180, Superfast
-    /// 360) and, for Ultrafast, the 150x boost native drives it at under the one ceiling (9000).
+    /// 360, Ultrafast 900) and, for Hyperfast, the tick boost under its 30x cap (1800).
     /// </summary>
     public static double TargetTps(string speed) => speed switch
     {
         "Normal" => 60,
         "Fast" => 180,
         "Superfast" => 360,
-        "Ultrafast" => 9000,
+        "Ultrafast" => 900,
+        "Hyperfast" => 1800,
         _ => 0,
     };
 

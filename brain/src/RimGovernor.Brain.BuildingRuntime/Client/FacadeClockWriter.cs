@@ -22,7 +22,7 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
         {
             throw BridgeContractException.Contract("clock run authority generation");
         }
-        if (request.Speed is null || (int)request.Speed.GetValueOrDefault() < 1 || (int)request.Speed.GetValueOrDefault() > 4)
+        if (request.Speed is not { } speed || speed == PbClock.Speed.Unspecified || !Enum.IsDefined(speed))
         {
             throw BridgeContractException.Contract("clock run speed");
         }

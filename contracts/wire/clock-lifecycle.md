@@ -3,7 +3,7 @@
 | Contract | Required behavior |
 | --- | --- |
 | `Run`, `Hold`, `Heartbeat` | Continuous run at a target speed; a named hold ends only with a `Run`; no attempt key, no epoch, no tick budget. |
-| `clock.Clock` | One supervised clock owner; autonomous execution never changes speed outside it. `SPEED_ULTRAFAST` is an ordinary wire speed (test acceleration via `-rimgovernor-test-acceleration`, `Status.test_acceleration_available`). |
+| `clock.Clock` | One supervised clock owner; autonomous execution never changes speed outside it. `SPEED_ULTRAFAST` (the game's 15x, tick boost owned as off) and `SPEED_HYPERFAST` (the tick boost, capped at 30x) are ordinary wire speeds; `Status.target_speed` reports the wire speed the last `Run` asked for. |
 | `clock.Event` | Immutable typed events (`HoldEntered`, `Resumed`) native pushes onto a bounded in-process queue; an event that cannot be queued is counted as lost and the brain plans Full, play is never paused for it. |
 | `lifecycle.Lifecycle.ReadIdentity` | Saved colony ID, fresh unsaved load token, current map/tick and pause state. Initialization belongs load hooks, not identity reads. |
 | `lifecycle.Lifecycle.Save` | Explicit session action; completed save, unchanged identity/direction/tick and observed pause. |
@@ -36,10 +36,8 @@ not guarded. A serial and not a tick: a hold pauses the game, so a read before a
 same tick.
 
 `Heartbeat` is explicit and carries the identity. Losing it is neither journalled nor a hold: it lowers the clock
-ceiling to Normal until the next beat. `SPEED_ULTRAFAST` uses the one ceiling's rate with no launch gate; the native
-tick boost behind it is `Status.test_acceleration_available`, set only by a game launched with
-`-rimgovernor-test-acceleration`, which the acceptance harness (`RimGovernor.cmd acceptance`) adds to its acceptance
-profiles alone.
+ceiling to Normal until the next beat. Neither `SPEED_ULTRAFAST` nor `SPEED_HYPERFAST` has a launch gate; a
+`Run(SPEED_HYPERFAST)` is refused as `UNAVAILABLE` where the game does not provide the tick boost behind it.
 
 `HoldReason` is fine-grained: every native `StopReason` (health, hostile, downed, combat event, force-pause waits,
 dialog pause and the like) plus the brain's own `COUPLED_ORDER`, `REVIEW` and `AUTOSAVE`, the `GAME_FORCED` pause and

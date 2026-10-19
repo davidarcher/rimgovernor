@@ -29,9 +29,23 @@ public sealed class ClockTargetSpeedTests
     }
 
     [Fact]
+    public void TestAccelerationPinsHyperfastWhateverTheTarget()
+    {
+        var accelerated = new BrainComposition(new() { ClockTestAcceleration = true, TargetSpeed = Speed.Fast });
+        Assert.Equal(Speed.Hyperfast, accelerated.RunTargetSpeed().Speed);
+        accelerated.TargetSpeed.Set(Speed.Normal);
+        Assert.Equal(Speed.Hyperfast, accelerated.RunTargetSpeed().Speed);
+
+        var played = new BrainComposition(Options(Speed.Fast));
+        Assert.Same(played.TargetSpeed, played.RunTargetSpeed());
+    }
+
+    [Fact]
     public void TheLiveTargetChangesAndRefusesAnUnspecifiedSpeed()
     {
         var target = new ClockTargetSpeed(Speed.Ultrafast);
+        target.Set(Speed.Hyperfast);
+        Assert.Equal(Speed.Hyperfast, target.Speed);
         target.Set(Speed.Normal);
         Assert.Equal(Speed.Normal, target.Speed);
         Assert.Throws<ArgumentOutOfRangeException>(() => target.Set(Speed.Unspecified));
@@ -43,6 +57,7 @@ public sealed class ClockTargetSpeedTests
     [InlineData("Fast", Speed.Fast)]
     [InlineData("Superfast", Speed.Superfast)]
     [InlineData("Ultrafast", Speed.Ultrafast)]
+    [InlineData("Hyperfast", Speed.Hyperfast)]
     public void TheRouteSetsTheNamedSpeed(string name, Speed expected)
     {
         var control = new Control(Speed.Ultrafast == expected ? Speed.Normal : Speed.Ultrafast);
@@ -63,5 +78,10 @@ public sealed class ClockTargetSpeedTests
         var reply = PlayerRoutes.SetClockSpeed(control, Encoding.UTF8.GetBytes(body));
         Assert.Equal(400, reply.Status);
         Assert.Equal(Speed.Fast, control.Speed);
+        var detail = Encoding.UTF8.GetString(reply.Body);
+        foreach (var speed in new[] { "Normal", "Fast", "Superfast", "Ultrafast", "Hyperfast" })
+        {
+            Assert.Contains(speed, detail, StringComparison.Ordinal);
+        }
     }
 }

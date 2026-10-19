@@ -9,7 +9,7 @@ internal static class NativeClockCeilingProbe
     private static void Check(bool value, string name) { checks++; if (!value) throw new Exception(name); }
 
     private const int FrameWallMs = 16;
-    private const int Requested = 150 * 60;
+    private const int Requested = HyperfastCap.TicksPerSecond; // Hyperfast, the fastest rate an epoch asks for
 
     private sealed class Rig
     {
@@ -66,7 +66,7 @@ internal static class NativeClockCeilingProbe
 
         // Frame budget: a frame over budget lowers the ceiling at once, recovery is gradual, and the
         // rate settles without oscillating across the budget.
-        var heavy = new Rig(0.5); // 150x asks for 144 ticks per frame, 72 ms of tick work
+        var heavy = new Rig(2); // 30x asks for 29 ticks per frame, 58 ms of tick work
         heavy.Ceiling.Beat(heavy.Now);
         var first = heavy.Step();
         Check(first > ClockCeiling.DefaultFrameBudgetMs, "the unclamped frame is over budget");
@@ -94,7 +94,7 @@ internal static class NativeClockCeilingProbe
         // A cheap colony recovers to unlimited after a one-off spike, one step per ramp interval.
         var spike = new Rig(0.001);
         spike.Ceiling.Beat(spike.Now);
-        spike.Ceiling.Frame(spike.Now, 80, 100, 3000);
+        spike.Ceiling.Frame(spike.Now, 80, 100, 600);
         Check(spike.Ceiling.TicksPerSecond > 0, "the spike lowers the ceiling");
         var start = spike.Now; var firstRaise = 0L; var steps = 0; var prev = spike.Ceiling.TicksPerSecond;
         while (spike.Ceiling.TicksPerSecond != 0 && spike.Now - start < 30_000)
@@ -107,7 +107,7 @@ internal static class NativeClockCeilingProbe
 
         // The lower input binds.
         var both = new ClockCeiling(0);
-        both.Frame(1, 80, 100, 3000);          // frame ceiling 2100
+        both.Frame(1, 80, 100, 600);           // frame ceiling 420
         both.Frame(ClockCeiling.HeartbeatToleranceMs + 100, 1, 1, 60); // heartbeat 60
         Check(both.TicksPerSecond == 60 && both.Binding == ClockCeiling.Input.Heartbeat, "the lower of the two inputs is the ceiling");
 

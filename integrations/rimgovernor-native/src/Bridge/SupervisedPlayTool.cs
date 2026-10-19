@@ -105,7 +105,7 @@ namespace HomeBridge.BridgeTools
             {
                 // The frame can contain many accelerated ticks. Check ownership,
                 // tick-bounded hazards before admitting another tick.
-                if (s.TestAcceleration) OnUpdate();
+                if (s.Boosted) OnUpdate();
                 if (!s.Active) return;
                 if (!ReferenceEquals(Current.Game, s.Session) || !ReferenceEquals(Find.CurrentMap, s.Map))
                 { Stop(s, Clock.HoldReason.SessionChanged, "Loaded game changed.", false); return; }
@@ -129,7 +129,7 @@ namespace HomeBridge.BridgeTools
                 // The tick-paced hazard probe: at every production speed
                 // consecutive probes are at most ProbeIntervalTicks apart, however
                 // many ticks the frame carries. The accelerated path ran it above.
-                if (!s.TestAcceleration)
+                if (!s.Boosted)
                 {
                     if (!RunProbeIfDue(s, tm)) return;
                     RunDigestIfDue(s, tm);
@@ -353,7 +353,7 @@ namespace HomeBridge.BridgeTools
                 return false;
             }
             Publish(new ForcePauseCleared(Origin(s), "The " + (longEvent ? "long event" : "transient force pause")
-                + " cleared after " + (waited / 1000) + "." + ((waited % 1000) / 100) + " s; speed restored to " + s.RequestedSpeed
+                + " cleared after " + (waited / 1000) + "." + ((waited % 1000) / 100) + " s; speed restored to " + s.Speed
                 + ". Play was never stopped."));
             return true;
         }
@@ -1089,9 +1089,7 @@ namespace HomeBridge.BridgeTools
                 DebugViewSettings.neverForceNormalSpeed = s.PriorNeverForceNormal;
                 s.NeverForceNormalOwned = false;
             }
-            if (!s.BoostOwned) return;
-            BoostField.SetValue(null, s.PriorBoost);
-            s.BoostOwned = false;
+            s.Boost.Release(value => BoostField.SetValue(null, value));
         }
         private static HashSet<string> Csv(string value) { return new HashSet<string>((value ?? "").Split(',').Select(x => x.Trim()).Where(x => x.Length > 0), StringComparer.OrdinalIgnoreCase); }
         private static HashSet<int> PawnIds(string value) { var r = new HashSet<int>(); foreach (var x in Csv(value)) { int n; var digits = new string(x.Reverse().TakeWhile(char.IsDigit).Reverse().ToArray()); if (int.TryParse(digits, out n)) r.Add(n); } return r; }
@@ -1120,7 +1118,7 @@ namespace HomeBridge.BridgeTools
             var ticks = s.LastTick - s.StartTick;
             ModLog.Info("clock", string.Format(CultureInfo.InvariantCulture,
                 "RimGovernor clock run segment timing{0}: hold={1} speed={2} boost={3} ticks={4} wallMs={5:F0} tps={6:F0} frames={7} maxTicksPerFrame={8} hookTicks={9} hookMs={10:F1} probes={11} probeMs={12:F1} maxProbeTickGap={13} digests={14} digestMs={15:F1}",
-                "", reason, s.RequestedSpeed, s.TestAcceleration, ticks, wall, wall > 0 ? ticks * 1000.0 / wall : 0,
+                "", reason, s.Speed, s.Boost.Owned, ticks, wall, wall > 0 ? ticks * 1000.0 / wall : 0,
                 t.Frames, t.MaxFrameTicks, t.HookTicks, Ms(t.HookElapsed), s.ProbeCount, Ms(t.ProbeElapsed), s.MaxProbeTickGap,
                 t.Digests, Ms(t.DigestElapsed)));
             var prof = TickProfile.Take();
@@ -1172,7 +1170,13 @@ namespace HomeBridge.BridgeTools
             /// The brain-authored policy this epoch runs under; every hazard threshold reads from it.
             public RimGovernor.Contracts.Wire.Clock.WatchPolicy? Policy => Typed?.Policy;
             public State(object session, Map map) { Session = session; Map = map; }
-            public bool Active; public readonly object Session; public readonly Map Map; public TimeSpeed RequestedSpeed;
+            public bool Active; public readonly object Session; public readonly Map Map;
+            // The wire speed the Run asked for (ClockRunSpeed.cs): Ultrafast and Hyperfast share
+            // TimeSpeed.Ultrafast, so the game speed the segment expects is derived from it.
+            public Clock.Speed Speed;
+            public TimeSpeed RequestedSpeed => ClockRunSpeed.Native(Speed);
+            // Hyperfast: the frame's many boosted ticks each run the full frame check (TickBody).
+            public bool Boosted => Speed == Clock.Speed.Hyperfast;
             public string? Mode; public float HostileWithin; public float HealthDropFraction; public float MinHealthFraction;
             public long LastProbeMs; public int LastTick; public bool PausedAtStop;
             public int StartTick;
@@ -1182,7 +1186,7 @@ namespace HomeBridge.BridgeTools
             public long ResumeMs; public ulong FramesAtResume, OverBudgetAtResume;
             // What the game's TickRateMultiplier asked for before the ceiling, as of the last frame.
             public volatile float UnclampedMultiplier;
-            public bool TestAcceleration; public bool PriorBoost; public bool BoostOwned; public bool PriorNeverForceNormal; public bool NeverForceNormalOwned;
+            public readonly BoostOwnership Boost = new BoostOwnership(); public bool PriorNeverForceNormal; public bool NeverForceNormalOwned;
             // The one ceiling (ClockCeiling.cs): frame budget plus brain heartbeat.
             public ClockCeiling Ceiling = SharedCeiling();
             public int LastProbeTick; public int MaxProbeTickGap; public int ProbeCount;

@@ -24,6 +24,9 @@ public sealed partial class BrainComposition(BrainCompositionOptions options)
     /// <summary>The live target speed the clock runs start at: <see cref="BrainCompositionOptions.TargetSpeed"/> until changed.</summary>
     public ClockTargetSpeed TargetSpeed { get; } = new(options.TargetSpeed);
 
+    /// <summary>The speed every Run asks for: <see cref="TargetSpeed"/>, or Hyperfast pinned under <see cref="BrainCompositionOptions.ClockTestAcceleration"/> whatever the player's speed route says.</summary>
+    internal ClockTargetSpeed RunTargetSpeed() => _options.ClockTestAcceleration ? new ClockTargetSpeed(PbClock.Speed.Hyperfast) : TargetSpeed;
+
     // Set by ComposeSession (called once, before ComposePlanners) and read by ComposePlanners.
     private FacadeNativeClient? _client;
     private FacadeActionsWriter? _writer;

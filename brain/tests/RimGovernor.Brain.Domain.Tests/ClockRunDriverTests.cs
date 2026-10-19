@@ -584,6 +584,15 @@ public sealed class ClockRunDriverTests
         Assert.Equal(PbClock.Speed.Fast, rig.Game.TargetSpeed);
         Assert.False(await rig.StepAsync());
         Assert.Equal(2, rig.Game.Runs);
+
+        // Hyperfast and Ultrafast share the game's Ultrafast but are distinct speeds: each change is a Run.
+        rig.Target.Set(PbClock.Speed.Hyperfast);
+        Assert.True(await rig.StepAsync());
+        Assert.Equal(PbClock.Speed.Hyperfast, rig.Game.TargetSpeed);
+        rig.Target.Set(PbClock.Speed.Ultrafast);
+        Assert.True(await rig.StepAsync());
+        Assert.Equal(PbClock.Speed.Ultrafast, rig.Game.TargetSpeed);
+        Assert.Equal(4, rig.Game.Runs);
         Assert.Equal(0, rig.Game.Holds);
     }
 
@@ -1068,6 +1077,8 @@ public sealed class ClockRunDriverTests
     {
         Assert.Equal(PbClock.Speed.Ultrafast, ClockCombatStops.SpeedFor(PbClock.Speed.Ultrafast, PbClock.Speed.Normal, false));
         Assert.Equal(PbClock.Speed.Normal, ClockCombatStops.SpeedFor(PbClock.Speed.Ultrafast, PbClock.Speed.Normal, true));
+        Assert.Equal(PbClock.Speed.Hyperfast, ClockCombatStops.SpeedFor(PbClock.Speed.Hyperfast, PbClock.Speed.Normal, false));
+        Assert.Equal(PbClock.Speed.Normal, ClockCombatStops.SpeedFor(PbClock.Speed.Hyperfast, PbClock.Speed.Normal, true));
         Assert.Equal(PbClock.Speed.Normal, ClockCombatStops.SpeedFor(PbClock.Speed.Normal, PbClock.Speed.Fast, true));
     }
 

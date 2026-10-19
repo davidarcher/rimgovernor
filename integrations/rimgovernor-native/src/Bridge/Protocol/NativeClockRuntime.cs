@@ -33,8 +33,9 @@ namespace HomeBridge.BridgeTools
             // The armed combat event that held this segment, else unset.
             internal Clock.CombatEvent CombatEvent { get; set; }
         }
-        // The native dev tick boost behind a Run(Ultrafast) is driven up to the one
-        // ceiling with no launch gate. The acceptance launch flag only reports
+        // The native dev tick boost behind a Run(Hyperfast) is driven up to its
+        // 30x cap (HyperfastCap.cs) and the one ceiling, with no launch gate; a
+        // Run(Ultrafast) owns it as off. The acceptance launch flag only reports
         // through the timing log; it is
         // read once at startup and never toggled at runtime.
         internal static readonly bool TestAccelerationLaunch = Array.IndexOf(Environment.GetCommandLineArgs(), "-rimgovernor-test-acceleration") >= 0;
@@ -67,12 +68,11 @@ namespace HomeBridge.BridgeTools
 
         internal static Common.Failure? ValidateTypedRun(Clock.RunRequest request)
         {
-            if (request.Speed is null || !OrdinarySpeed(request.Speed.GetValueOrDefault()) || request.Policy is null
+            if (request.Speed is null || !ClockRunSpeed.Ordinary(request.Speed.GetValueOrDefault()) || request.Policy is null
                 || request.ExpectedGeneration is null || request.ExpectedGeneration.GetValueOrDefault() == 0 || !ValidPolicy(request.Policy)
                 || request.PlannedHoldSerial is null || request.HoldAtTick is null)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Run requires an ordinary speed, the current authority generation, a complete bounded watch policy, the hold serial its step read and the tick to hold at for review.");
-            if (request.Speed.GetValueOrDefault() == Clock.Speed.Ultrafast && !BoostAvailable)
-                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The native tick boost behind Ultrafast is unavailable.");
+            if (BoostUnavailable(request.Speed.GetValueOrDefault()) is { } boostless) return boostless;
             lock (Gate)
             {
                 if (!GameWatchReads.CoreWatchersAvailable)
@@ -101,12 +101,12 @@ namespace HomeBridge.BridgeTools
             {
                 var typed = new TypedEpoch(context, request.ExpectedGeneration.GetValueOrDefault(), request.Policy ?? throw new InvalidOperationException("Missing policy"));
                 var holdAt = (int)Math.Min(request.HoldAtTick.GetValueOrDefault(), int.MaxValue);
-                var failure = RunClock(typed, NativeSpeed(request.Speed.GetValueOrDefault()), request.PlannedHoldSerial.GetValueOrDefault(), holdAt);
+                var failure = RunClock(typed, request.Speed.GetValueOrDefault(), request.PlannedHoldSerial.GetValueOrDefault(), holdAt);
                 return new Clock.StatusReply { Outcome = failure != null ? failure : (Clock.StatusReplyOutcome)TypedStatus(context) };
             }
         }
 
-        private static Common.Failure? RunClock(TypedEpoch typed, TimeSpeed speed, ulong plannedHoldSerial, int holdAtTick)
+        private static Common.Failure? RunClock(TypedEpoch typed, Clock.Speed speed, ulong plannedHoldSerial, int holdAtTick)
         {
             if (Current.Game == null || Find.TickManager == null || Find.CurrentMap == null)
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "No playable map is loaded.");
@@ -128,20 +128,18 @@ namespace HomeBridge.BridgeTools
             return ResumeRun(existing, typed, speed, holdAtTick);
         }
 
-        private static void SetBoost(State s, bool on)
+        // A Hyperfast Run needs the boost; every other speed runs without it.
+        private static Common.Failure? BoostUnavailable(Clock.Speed speed) =>
+            speed == Clock.Speed.Hyperfast && !BoostAvailable
+                ? ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The native tick boost behind Hyperfast is unavailable.") : null;
+
+        // The boost the speed owns (ClockRunSpeed.Boost): Hyperfast on, Ultrafast
+        // off, the others the value the segment found. Without the field there is
+        // no boost to own, and only a Hyperfast Run (refused above) needs one.
+        private static void SetBoost(State s, Clock.Speed speed)
         {
-            if (on && !s.BoostOwned)
-            {
-                s.PriorBoost = (bool)BoostField.GetValue(null)!;
-                s.BoostOwned = true;
-                BoostField.SetValue(null, true);
-            }
-            else if (!on && s.BoostOwned)
-            {
-                BoostField.SetValue(null, s.PriorBoost);
-                s.BoostOwned = false;
-            }
-            s.TestAcceleration = on;
+            if (!BoostAvailable) return;
+            s.Boost.For(ClockRunSpeed.Boost(speed), () => (bool)BoostField.GetValue(null)!, value => BoostField.SetValue(null, value));
         }
 
         /// Every policy-derived field of a run segment; re-applied whenever Run
@@ -163,10 +161,9 @@ namespace HomeBridge.BridgeTools
             s.IgnoredHungry = PawnIds(ResolveIds(map, p.AcknowledgedHungryColonistIds));
         }
 
-        private static Common.Failure? ChangeRun(State s, TypedEpoch typed, TimeSpeed speed, int holdAtTick)
+        private static Common.Failure? ChangeRun(State s, TypedEpoch typed, Clock.Speed speed, int holdAtTick)
         {
-            var boost = speed == TimeSpeed.Ultrafast;
-            if (boost && !BoostAvailable) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The native tick boost behind Ultrafast is unavailable.");
+            if (BoostUnavailable(speed) is { } boostless) return boostless;
             var running = TypedOf(s);
             running.ExpectedGeneration = typed.ExpectedGeneration;
             // The review moves with the Run: a tick already passed holds at the next tick (TickBody).
@@ -179,27 +176,28 @@ namespace HomeBridge.BridgeTools
                 ApplyPolicy(s, typed.Policy);
                 if (modeChanged) ResetCombatStops(s);
             }
-            if (s.RequestedSpeed == speed && Find.TickManager.CurTimeSpeed == speed) return null;
-            var old = s.RequestedSpeed; var oldBoost = s.TestAcceleration;
+            var native = ClockRunSpeed.Native(speed);
+            if (s.Speed == speed && Find.TickManager.CurTimeSpeed == native) return null;
+            var old = s.Speed;
             // Update expectation and game speed in the same main-thread
             // critical section, so our own change cannot look external.
-            SetBoost(s, boost);
-            s.RequestedSpeed = speed;
-            SupervisorSpeed.Owned(() => Find.TickManager.CurTimeSpeed = speed);
-            if (Find.TickManager.CurTimeSpeed != speed)
+            // Ultrafast and Hyperfast share a TimeSpeed: between them only the boost changes.
+            SetBoost(s, speed);
+            s.Speed = speed;
+            SupervisorSpeed.Owned(() => Find.TickManager.CurTimeSpeed = native);
+            if (Find.TickManager.CurTimeSpeed != native)
             {
-                s.RequestedSpeed = old; SetBoost(s, oldBoost);
+                s.Speed = old; SetBoost(s, old);
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The requested speed did not take; the clock keeps its previous speed.");
             }
             return null;
         }
 
-        private static Common.Failure? ResumeRun(State? previous, TypedEpoch typed, TimeSpeed speed, int holdAtTick)
+        private static Common.Failure? ResumeRun(State? previous, TypedEpoch typed, Clock.Speed speed, int holdAtTick)
         {
             if (!GameWatchReads.CoreWatchersAvailable)
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Alert or transient-message reflection watcher is unavailable; refusing blind play.");
-            var boost = speed == TimeSpeed.Ultrafast;
-            if (boost && !BoostAvailable) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The native tick boost behind Ultrafast is unavailable.");
+            if (BoostUnavailable(speed) is { } boostless) return boostless;
             try { LetterPauseHook.EnsurePatched(); }
             catch (Exception error) { return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Pause source tracking unavailable: " + error.Message); }
             if (LongEventHandler.AnyEventNowOrWaiting)
@@ -216,7 +214,7 @@ namespace HomeBridge.BridgeTools
             var tm = Find.TickManager;
             var (frames, overBudget, _) = FrameAccount();
             var s = new State(Current.Game, Find.CurrentMap) {
-                Active = true, RequestedSpeed = speed, Typed = typed, HoldAtTick = holdAtTick,
+                Active = true, Speed = speed, Typed = typed, HoldAtTick = holdAtTick,
                 StartTick = tm.TicksGame, LastTick = tm.TicksGame, ResumeMs = NowMs(),
                 LastProbeTick = tm.TicksGame, LastProbeMs = NowMs(), LastDigestTick = tm.TicksGame,
                 FramesAtResume = frames, OverBudgetAtResume = overBudget
@@ -257,20 +255,21 @@ namespace HomeBridge.BridgeTools
                 Stop(s, hit, true);
                 return null;
             }
-            SetBoost(s, boost);
+            SetBoost(s, speed);
             // Vanilla's forced slowdown (a danger signal holds the tick rate at 1x for
             // 800 ticks) would cap every fight at 60 TPS whatever speed the clock runs;
             // the brain owns danger handling, so no run segment accepts it.
             s.PriorNeverForceNormal = DebugViewSettings.neverForceNormalSpeed;
             s.NeverForceNormalOwned = true;
             DebugViewSettings.neverForceNormalSpeed = true;
-            SupervisorSpeed.Owned(() => Find.TickManager.CurTimeSpeed = speed);
-            if (Find.TickManager.CurTimeSpeed != speed)
+            var native = ClockRunSpeed.Native(speed);
+            SupervisorSpeed.Owned(() => Find.TickManager.CurTimeSpeed = native);
+            if (Find.TickManager.CurTimeSpeed != native)
             {
                 Stop(s, Clock.HoldReason.RunRefused, "The requested speed did not take.", true);
                 return null;
             }
-            Publish(new Resumed(Origin(s), "Clock resumed at " + speed + ".", WireSpeed(speed), from));
+            Publish(new Resumed(Origin(s), "Clock resumed at " + speed + ".", speed, from));
             return null;
         }
 
@@ -306,7 +305,7 @@ namespace HomeBridge.BridgeTools
                     if (Current.Game != null && Find.TickManager != null && Find.CurrentMap != null)
                     {
                         var shell = new State(Current.Game, Find.CurrentMap) {
-                            Active = true, RequestedSpeed = TimeSpeed.Normal,
+                            Active = true, Speed = Clock.Speed.Normal,
                             Typed = new TypedEpoch(context, 0, new Clock.WatchPolicy()),
                             StartTick = Find.TickManager.TicksGame, LastTick = Find.TickManager.TicksGame,
                             LastProbeTick = Find.TickManager.TicksGame, LastProbeMs = NowMs(), LastDigestTick = Find.TickManager.TicksGame,
@@ -354,7 +353,7 @@ namespace HomeBridge.BridgeTools
                     result = result with { State = Clock.ClockState.Held, Reason = Clock.HoldReason.NeverRun };
                 else
                 {
-                    result = result with { TargetSpeed = WireSpeed(s.RequestedSpeed) };
+                    result = result with { TargetSpeed = s.Speed };
                     if (s.Active && s.Pending == null)
                         result = result with { State = Clock.ClockState.Running, PacedTicksPerSecond = (uint)PacedTicksPerSecond(s),
                             PacingReason = PacingReasonOf(s), CeilingTicksPerSecond = (uint)CeilingTicksPerSecond(s) };
@@ -458,9 +457,6 @@ namespace HomeBridge.BridgeTools
         // the event names the family alone.
         // Kept (docs/developers/contracts/kept-constants.md).
         internal const int InvalidationEntitiesMax = 64;
-        internal static bool OrdinarySpeed(Clock.Speed speed) => speed == Clock.Speed.Normal || speed == Clock.Speed.Fast || speed == Clock.Speed.Superfast || speed == Clock.Speed.Ultrafast;
-        private static TimeSpeed NativeSpeed(Clock.Speed speed) => speed == Clock.Speed.Normal ? TimeSpeed.Normal : speed == Clock.Speed.Fast ? TimeSpeed.Fast : speed == Clock.Speed.Superfast ? TimeSpeed.Superfast : speed == Clock.Speed.Ultrafast ? TimeSpeed.Ultrafast : throw new ArgumentOutOfRangeException(nameof(speed));
-        private static Clock.Speed WireSpeed(TimeSpeed speed) => speed == TimeSpeed.Normal ? Clock.Speed.Normal : speed == TimeSpeed.Fast ? Clock.Speed.Fast : speed == TimeSpeed.Superfast ? Clock.Speed.Superfast : speed == TimeSpeed.Ultrafast ? Clock.Speed.Ultrafast : throw new InvalidOperationException("Nonordinary run speed");
         // The tick-boundary hook runs StopInvalidTypedAuthority on every
         // tick, and TypedHooksReady is reflection plus a Harmony patch-info
         // lookup (~1 ms; #265). The hooks cannot come and go within a frame,

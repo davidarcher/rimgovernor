@@ -17,9 +17,9 @@ namespace HomeBridge.BridgeTools
     internal sealed class ClockCeiling
     {
         internal const int NormalTicksPerSecond = 60;
-        // Where a ramp stops and the ceiling is released: the boosted Ultrafast rate,
-        // the highest rate any epoch asks for.
-        internal const int ReleaseTicksPerSecond = 150 * NormalTicksPerSecond;
+        // Where a ramp stops and the ceiling is released: Hyperfast's capped rate
+        // (HyperfastCap.cs, 30x), the highest rate any epoch asks for.
+        internal const int ReleaseTicksPerSecond = HyperfastCap.TicksPerSecond;
         // Frame budget as before (30 ms of tick work per frame).
         internal const int DefaultFrameBudgetMs = 30;
         internal const double FrameLower = 0.7;

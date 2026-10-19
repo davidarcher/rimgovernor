@@ -6,11 +6,12 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     // Tick-rate reporting and frame accounting. Native never raises a speed
-    // beyond the one the brain's Run asked for: Normal, Fast and Superfast tick
-    // at the game's own multiplier, and Ultrafast drives the tick boost
-    // (150x, 9000 ticks/s). The one ceiling (ClockCeiling.cs) is the only clamp
+    // beyond the one the brain's Run asked for: Normal, Fast, Superfast and
+    // Ultrafast (15x, the boost forced off) tick at the game's own multiplier,
+    // and Hyperfast drives the tick boost under its own cap (30x, 1800 ticks/s;
+    // HyperfastCap.cs). The one ceiling (ClockCeiling.cs) is the only clamp
     // beneath that rate. The epoch holds neverForceNormalSpeed, so the game's forced slowdown
-    // never applies. Every tick of a test-acceleration epoch runs the full
+    // never applies. Every tick of a Hyperfast epoch runs the full
     // frame check (OnUpdate) first: ownership, a player pause and the
     // tick-bounded hazard probe are checked between any two ticks of a frame,
     // however many the frame carries.
@@ -57,8 +58,8 @@ namespace HomeBridge.BridgeTools
             return RimGovernor.Contracts.Wire.Clock.PacingReason.Fixed;
         }
 
-        // The rate the game's own multiplier asks for before the ceiling: what
-        // ClampTickRate saw last frame, Ultrafast's boost included. 0 while paused
+        // The rate the speed asks for before the ceiling: what ClampTickRate saw
+        // last frame, Hyperfast's cap applied. 0 while paused
         // or before the first frame.
         private static int UnclampedTicksPerSecond(State s) =>
             (int)Math.Round(s.UnclampedMultiplier * NormalTicksPerSecond);

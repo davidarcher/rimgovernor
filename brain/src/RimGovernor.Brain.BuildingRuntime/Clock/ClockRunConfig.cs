@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public sealed record ClockRunConfig
 {
-    /// <summary>The speed the clock runs at; a change reaches the clock as a Run at the new speed (player acceleration only while it is Ultrafast).</summary>
+    /// <summary>The speed the clock runs at; a change reaches the clock as a Run at the new speed.</summary>
     public required ClockTargetSpeed TargetSpeed { get; init; }
 
     /// <summary>The colony watch policy with the hazard thresholds; each Run adds the acknowledgements the watch decision names.</summary>

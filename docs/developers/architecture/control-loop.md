@@ -935,9 +935,10 @@ give the numbers.
 
 The target speed is a live brain option (`ClockTargetSpeed`, default Ultrafast).
 `POST /api/player/clock-speed` changes it; the next step sends `Run` at the new
-speed. The acceptance harness sets each launch's speed this way. Ultrafast runs
-the game's tick boost under the one ceiling; the boost is a development feature of
-the game, so the native tick-rate figures are listed with their caveats in the
+speed. The acceptance harness sets each launch's speed this way. Speeds run
+Normal, Fast, Superfast, Ultrafast (the game's own 15x) and Hyperfast, the game's
+tick boost held at 30x by its own cap; the one ceiling applies beneath every speed.
+The boost is a development feature of the game, so the native tick-rate figures are listed with their caveats in the
 [interface contracts](../contracts/interface-contracts.md#clock-speed-and-the-one-ceiling).
 
 ### Combat
@@ -986,7 +987,7 @@ player input and pass. Pause turns the bot off: the driver holds the clock for
 ### Constants that are not measured
 
 These are conservative guesses, not measurements. One in-game day was measured on 2026-10-18 (frame budget and
-Ultrafast ticks/s); combat, heartbeat and autosave remain unmeasured (#3199). The procedure is in
+ticks/s at the then-boosted Ultrafast, before Hyperfast took the boost); combat, heartbeat and autosave remain unmeasured (#3199). The procedure is in
 [Measure brain throughput](../testing/measure-throughput.md#clock-baseline-run) and the
 table in [brain host](brain-host.md#live-clock-baseline).
 

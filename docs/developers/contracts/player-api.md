@@ -23,7 +23,7 @@ read-only service exposes none of these player routes.
 | GET | `/api/player/control` | Current control record and actual permission |
 | POST | `/api/player/control/resume` | Run the bot for the exact observed world under that world's root plan |
 | POST | `/api/player/control/pause` | Stop the bot: invalidate local permission, suspend routine concerns and clean up owned work |
-| POST | `/api/player/clock-speed` | Set the speed the brain requests while it owns the clock (`{"speed":"Normal\|Fast\|Superfast\|Ultrafast"}`, else 400); the next step sends it, see [interface contracts](interface-contracts.md) |
+| POST | `/api/player/clock-speed` | Set the speed the brain requests while it owns the clock (`{"speed":"Normal\|Fast\|Superfast\|Ultrafast\|Hyperfast"}`, else 400); the next step sends it, see [interface contracts](interface-contracts.md) |
 | GET | `/api/player/colony` | Live colony census (below) |
 | POST | `/api/telemetry/spans` | Launch phases timed outside the game, replayed into the brain's `traces.jsonl` (below) |
 

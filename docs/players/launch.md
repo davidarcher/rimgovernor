@@ -87,7 +87,7 @@ Settings persist to `.rimgovernor/launcher.json`.
 
 - **Main**: Autopilot or Observe only (no writes); continue the last state
   database or start fresh. In Autopilot the brain starts on every load and always
-  runs at Ultrafast (adaptive: paces ticks to your frame rate).
+  runs at Ultrafast, the game's own 15x (adaptive: paces ticks to your frame rate).
 - **Colony policy**: allow slaughter or release of surplus animals, the layout
   overlay, and food reserve days.
 - **Advanced**: extra arguments appended to the game's command line.
