@@ -33,8 +33,6 @@ public sealed record DefenseTierRecord
 
     public List<DefenseBuilding> Buildings { get; set; } = [];
 
-    public List<Cell> Reserved { get; set; } = [];
-
     /// <summary>
     /// The count of the <c>layout/defense</c> Need's admitted Methods for the tier in the record's load: the tier's next
     /// MethodId. A built tier that falls keeps counting, so its reopened attempt gets a fresh MethodId (#3586).
@@ -100,7 +98,6 @@ public sealed record DefenseLayoutRecord
                 tier.Name.Value.Length > 0
                 && seen.Add(tier.Name.Value)
                 && (tier.NodeBacked || tier.Buildings.Count <= 512)
-                && tier.Reserved.Count <= 512
                 && tier.Nodes.Count <= 256
                 && tier.Attempts >= 0;
             DomainException.Require(ok, "defense layout tier invalid");
@@ -158,7 +155,6 @@ public sealed record DefenseLayoutRecord
         new()
         {
             Name = tier.Name,
-            Reserved = [.. tier.Reserved],
             Buildings = [.. tier.Buildings.Select(b => new DefenseBuilding { Definition = b.Definition, Cell = b.Cell, Rotation = b.Rotation, Stuff = b.Stuff })],
         };
 

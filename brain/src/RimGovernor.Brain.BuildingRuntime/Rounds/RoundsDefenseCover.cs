@@ -26,14 +26,14 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return (defenders, minRange, defenders > 0);
     }
 
-    internal async Task<(RoundsDefenseLayoutResult Result, bool Done)> ClearCoverAsync(NeedOwner goal, RoundsReview review, ControlState state, RoundsReading read, DefenseLayoutRecord record, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsDefenseLayoutResult Result, bool Done)> ClearCoverAsync(NeedOwner goal, RoundsReview review, ControlState state, RoundsReading read, DefenseLayoutRecord record, LayoutPlan layoutPlan, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var projection = read.Projection;
         var tick = projection.Identity.Tick;
         var identity = Boundary.Identity(state.Snapshot);
         var (killbox, region, home, ok) = DefenseKillbox(projection);
-        if (!ok || !projection.LayoutPlan.TryGetValue(out var layoutPlan))
+        if (!ok)
         {
             return (new RoundsDefenseLayoutResult(), false);
         }
@@ -124,10 +124,14 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
 partial class RoundsDefenseLayoutPlanner
 {
-    /// <summary>The policy layout of a stored defense record: the tier buildings, with the firing positions and the trap lane of the plan's DefFiring and DefLane nodes (#3583).</summary>
+    /// <summary>
+    /// The policy layout of a stored defense record: the tier buildings with the reserved cells of the plan's tier nodes
+    /// (#3584), and the firing positions and the trap lane of the plan's DefFiring and DefLane nodes (#3583).
+    /// </summary>
     internal static DefenseLayout DefenseRecordLayout(DefenseLayoutRecord record, LayoutPlan plan, DefenseKillbox killbox)
     {
         var geometry = plan.DefenseTierGeometry();
+        var planned = plan.PlannedDefenseTiers();
         var tiers = new List<DefenseTier>();
         foreach (var tier in record.Tiers)
         {
@@ -136,7 +140,8 @@ partial class RoundsDefenseLayoutPlanner
             {
                 buildings.Add(new Building(b.Definition, b.Cell, b.Rotation, b.Stuff));
             }
-            tiers.Add(new DefenseTier { Name = tier.Name, Reserved = [.. tier.Reserved], Buildings = [.. buildings] });
+            var reserved = planned.TryGetValue(tier.Name, out var nodes) ? nodes.Reserved : [];
+            tiers.Add(new DefenseTier { Name = tier.Name, Reserved = reserved, Buildings = [.. buildings] });
         }
         return new DefenseLayout
         {

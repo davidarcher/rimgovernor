@@ -64,36 +64,37 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return (request, default, true);
     }
 
-    internal static bool DefenseTierStarted(DefenseTierRecord t, DefenseCensus? census)
+    /// <summary>Whether the tier is started: built, an attempt admitted, or any placement of its plan nodes standing.</summary>
+    internal static bool DefenseTierStarted(DefenseTierRecord t, DefenseTier nodes, DefenseCensus? census)
     {
         if (t.Built || t.Attempts > 0)
         {
             return true;
         }
-        return census is not null && t.Buildings.Any(b => census.Standing(b.Definition, b.Cell));
+        return census is not null && nodes.Buildings.Any(b => census.Standing(b.Definition, b.Cell));
     }
 
-    /// <summary>The record's started tiers, with the firing line and the trap lane of the plan's DefFiring and DefLane nodes (#3583).</summary>
+    /// <summary>
+    /// The record's started tiers, each pinned as its plan nodes hold it (#3584): every placement, standing or destroyed,
+    /// and its reserved cells; the chokepoint's nodes with them while any tier is pinned. The proposal and every siting
+    /// the record takes store the nodes, so a started tier has them. The firing line and the trap lane are the plan's
+    /// DefFiring and DefLane nodes (#3583).
+    /// </summary>
     internal static DefenseTierPins DefenseTierPins(DefenseLayoutRecord record, LayoutPlan plan, DefenseCensus? census)
     {
+        var planned = plan.PlannedDefenseTiers();
         var tiers = new Dictionary<DefenseTierName, DefenseTier>();
         foreach (var t in record.Tiers)
         {
-            if (!DefenseTierStarted(t, census) || t.Remove || t.NodeBacked || LayoutDefenseRules.IsPerimeterTier(t.Name))
+            if (t.Remove || t.NodeBacked || LayoutDefenseRules.IsPerimeterTier(t.Name) || !planned.TryGetValue(t.Name, out var nodes) || !DefenseTierStarted(t, nodes, census))
             {
                 continue;
             }
-            var (_, buildings, ok) = record.Tier(t.Name);
-            if (!ok)
-            {
-                continue;
-            }
-            tiers[t.Name] = new DefenseTier { Name = t.Name, Buildings = [.. buildings], Reserved = [.. t.Reserved] };
+            tiers[t.Name] = nodes;
         }
-        var (choke, _, cok) = record.Tier(DefenseLayout.TierChokepoint);
-        if (cok && tiers.Count > 0)
+        if (tiers.Count > 0 && planned.TryGetValue(DefenseLayout.TierChokepoint, out var choke))
         {
-            tiers[DefenseLayout.TierChokepoint] = new DefenseTier { Name = DefenseLayout.TierChokepoint, Reserved = [.. choke.Reserved] };
+            tiers[DefenseLayout.TierChokepoint] = choke;
         }
         var geometry = plan.DefenseTierGeometry();
         return new DefenseTierPins { Tiers = tiers, TrapLane = geometry.TrapLane, Firing = geometry.Firing };
@@ -147,21 +148,18 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
     }
 
-    internal async Task SiteTiersAsync(ControlState state, RoundsReading read, DefenseLayoutRecord record, DefenseCensus? tierCensus, CancellationToken call)
+    /// <summary>Sites the record's unstarted tiers on plan and returns the plan the step holds after: the sited one when it was recorded, else plan.</summary>
+    internal async Task<LayoutPlan> SiteTiersAsync(ControlState state, RoundsReading read, DefenseLayoutRecord record, LayoutPlan plan, DefenseCensus? tierCensus, CancellationToken call)
     {
-        if (!read.Projection.LayoutPlan.TryGetValue(out var plan))
-        {
-            return;
-        }
         var (killbox, region, home, ok) = DefenseKillbox(read.Projection);
         if (!ok)
         {
-            return;
+            return plan;
         }
         var (census, _, cok) = await DefenseCensusRequestAsync(state, read, killbox, region, home, call).ConfigureAwait(false);
         if (!cok)
         {
-            return;
+            return plan;
         }
         var pins = DefenseTierPins(record, plan, tierCensus);
         DefenseTiers tiers;
@@ -171,14 +169,16 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         catch (DomainException)
         {
-            return;
+            return plan;
         }
         SiteUnstartedTiers(record, tiers, pins);
         // The nodes are stored in the plan (#3583) whenever the record takes the siting, so the firing line and the
-        // trap lane combat reads stand where the record's tiers do.
+        // trap lane combat reads and the pins of the started tiers stand where the record's tiers do.
+        var held = plan;
         if (DefenseTiersStored(plan, tiers) is { } sited)
         {
             _reviewer.Player.Journal.RecordLayoutPlan(state.Snapshot, read.Projection.Identity.Tick, sited, call);
+            held = sited;
         }
         foreach (var g in tiers.Layout.Gated)
         {
@@ -188,7 +188,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var key = TierKey(tiers.Nodes);
         if (key == TiersLogged)
         {
-            return;
+            return held;
         }
         TiersLogged = key;
         foreach (var d in tiers.Decisions)
@@ -204,6 +204,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 Attrs = new Dictionary<string, object?> { ["node"] = d.Node, ["nodes"] = tiers.Nodes.Count, ["why"] = tiers.Refusal },
             });
         }
+        return held;
     }
 
     internal async Task AdviseBlocksAsync(ControlState state, RoundsReading read, DefenseRequest census, DefenseTierPins pins, DefenseTiers tiers, CancellationToken call)

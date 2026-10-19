@@ -685,7 +685,6 @@ internal sealed class DefenseTierRecordConverter : ObjectCodec<DefenseTierRecord
             Name = e.Get<DefenseTierName>("Name", o),
             Nodes = e.Get<List<string>>("Nodes", o),
             Buildings = e.Get<List<DefenseBuilding>>("Buildings", o),
-            Reserved = e.Get<List<Cell>>("Reserved", o),
             Attempts = e.I32("Attempts"),
             Built = e.Bool("Built"),
             Remove = e.Bool("Remove"),
@@ -696,7 +695,6 @@ internal sealed class DefenseTierRecordConverter : ObjectCodec<DefenseTierRecord
         w.Put("Name", v.Name, o);
         w.Put("Nodes", v.Nodes, o);
         w.Put("Buildings", v.Buildings, o);
-        w.Put("Reserved", v.Reserved, o);
         w.WriteNum("Attempts", v.Attempts);
         w.WriteBoolean("Built", v.Built);
         w.WriteBoolean("Remove", v.Remove);

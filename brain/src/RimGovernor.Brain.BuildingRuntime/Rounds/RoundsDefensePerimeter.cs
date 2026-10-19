@@ -318,7 +318,6 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 continue;
             }
             w.Attempts = was.Attempts;
-            w.Reserved = was.Reserved;
             var same = owned[w.Name.Value].Select(DefenseBuildingKey).ToHashSet(StringComparer.Ordinal).SetEquals(w.Buildings.Select(DefenseBuildingKey));
             w.Built = was.Built && same;
         }

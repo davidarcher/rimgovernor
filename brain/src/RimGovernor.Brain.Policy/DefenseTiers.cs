@@ -10,9 +10,9 @@ namespace RimGovernor.Brain.Policy;
 // plan and a census, not of the survey: they are re-sited from the defense round's census and stored in the
 // layout plan (#3583), where combat and the defense planner read the firing line and the trap lane from the
 // DefFiring and DefLane nodes. A replan keeps them while the killbox they stand under is the same node over the
-// same ground. A tier that is started (built, an attempt admitted, or any building standing) is pinned, as the
-// replan holds a room that holds anything of ours: its node is the built tier where it stands, and the tiers
-// still to build are sited around it. The census is an explicit input.
+// same ground. A tier that is started (built, an attempt admitted, or any of its node placements standing) is
+// pinned, as the replan holds a room that holds anything of ours: its pin is its nodes (PlannedDefenseTiers), the
+// whole tier where it stands, and the tiers still to build are sited around it. The census is an explicit input.
 
 /// <summary>One building a tier node places.</summary>
 public sealed record TierPlacement(string Definition, Cell Cell, Rotation Rotation, string Stuff)
@@ -181,6 +181,70 @@ public static class DefenseTiersPolicy
             }
         }
         return g;
+    }
+
+    /// <summary>
+    /// The defense tiers the plan's tier nodes hold, by tier: the placements of all its nodes, in plan order, and the
+    /// cells they reserve. A started tier's pin and the reserved cells cover clearing and the turret replacement keep
+    /// clear are read here (#3584).
+    /// </summary>
+    public static IReadOnlyDictionary<DefenseTierName, DefenseTier> PlannedDefenseTiers(this LayoutPlan p)
+    {
+        var buildings = new Dictionary<DefenseTierName, List<Building>>();
+        var reserved = new Dictionary<DefenseTierName, List<Cell>>();
+        foreach (var s in p.Sites)
+        {
+            if (s.Tier is not { } facts || !IsDefenseTierNode(s.Kind))
+            {
+                continue;
+            }
+            if (!buildings.TryGetValue(facts.Tier, out var places))
+            {
+                places = [];
+                buildings[facts.Tier] = places;
+                reserved[facts.Tier] = [];
+            }
+            places.AddRange(facts.Places.Select(x => x.ToBuilding()));
+            reserved[facts.Tier].AddRange(facts.Reserved);
+        }
+        return buildings.ToDictionary(kv => kv.Key, kv => new DefenseTier
+        {
+            Name = kv.Key,
+            Buildings = EquatableArray.From(kv.Value),
+            Reserved = EquatableArray.From(reserved[kv.Key]),
+        });
+    }
+
+    /// <summary>
+    /// The plan with the proposed layout's tiers as its defense tier nodes under its killbox, nothing pinned: the
+    /// proposal records it, so every tier the record starts has its nodes (#3584). Throws when the plan has no killbox.
+    /// </summary>
+    public static LayoutPlan WithProposedTiers(this LayoutPlan p, DefenseDefinitions defs, DefenseLayout layout)
+    {
+        var (under, _, ok) = LayoutPlan.KillboxNode(p);
+        DomainException.Require(ok, "plan has no killbox");
+        return p.WithDefenseTiers(TierNodes(under, defs, layout, []));
+    }
+
+    /// <summary>
+    /// The plan with the turret node's placement of old replaced in place and its reservation set to reserved, the
+    /// turrets' footprints by definition size; unchanged without a turret node.
+    /// </summary>
+    public static LayoutPlan WithTurretReplaced(this LayoutPlan p, Building old, Building replacement, IReadOnlyList<Cell> reserved)
+    {
+        var sites = p.Sites.Select(s => s.Kind != NodeDefTurrets || s.Tier is not { } facts
+            ? s
+            : s with
+            {
+                Tier = facts with
+                {
+                    Places = EquatableArray.From(facts.Places.Select(x => x.Cell == old.Cell && x.Definition == old.Definition
+                        ? new TierPlacement(replacement.Definition, replacement.Cell, replacement.Rotation, replacement.Stuff)
+                        : x)),
+                    Reserved = EquatableArray.From(reserved),
+                },
+            });
+        return p with { Sites = EquatableArray.From(sites) };
     }
 
     /// <summary>

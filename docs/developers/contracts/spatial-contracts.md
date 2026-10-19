@@ -885,9 +885,10 @@ replan keeps the saved plan's tier nodes while its killbox is the same node over
 ground (`WithDefenseTiersOf`); a killbox cut again drops them until the next siting. The
 census (`DefenseRequest`: the cell mirror
 window, defenders, definitions and the turret, mortar and IED gates) is an explicit input;
-its Killbox, Home and Region are the plan's. A started tier (built, an attempt admitted, a lost building re-opening it, or any building standing) is pinned, the way a replan holds a
-room that holds anything of ours (`keepHeld`): its node is the built tier where it stands
-(the pinned corridor and firing line keep the plan's lane and firing line), the census
+its Killbox, Home and Region are the plan's. A started tier (built, an attempt admitted, a lost building re-opening it, or any placement of its plan nodes standing) is pinned, the way a replan holds a
+room that holds anything of ours (`keepHeld`): its pin is its plan nodes (`LayoutPlan.PlannedDefenseTiers`:
+every placement, a damaged tier's destroyed ones included, and the cells its nodes reserve; #3584), the whole tier
+where it stands (the pinned corridor and firing line keep the plan's lane and firing line), the census
 reads its standing buildings as the ground under them so the same census sites the same
 cells, and the tiers still to build are sited around it (a building of theirs on a pinned
 cell is dropped, `tier_displaced_by_built`). A census the layout planner refuses leaves the
@@ -895,7 +896,10 @@ pinned tiers as the nodes (`tier_layout_failed`). The defense round reads the no
 `RoundsDefenseLayoutPlanner.SiteTiersAsync` cuts them after each tier census, once per reverify
 interval, sets the record's unstarted killbox tiers to what the nodes site and, when the
 record takes the siting (a firing line sited, no refusal) and the nodes changed, records
-the plan with them; it journals them as `layout_plan` rows with target `defense_tiers`.
+the plan with them; it journals them as `layout_plan` rows with target `defense_tiers`. The proposal records
+the proposed layout's tiers as the plan's tier nodes (`WithProposedTiers`), so every tier the record starts has its
+nodes. The cover census and the turret replacement read the tiers' reserved cells from the nodes too; a turret
+replacement rewrites the turret node's placement and its reservation, the turrets' footprints by definition size.
 The turret and mortar proposals are gone: a tier whose gates open later joins the record
 through the same siting.
 

@@ -327,7 +327,7 @@ public sealed class LayoutFamilyTests
             [
                 new DefenseTierRecord
                 {
-                    Name = DefenseLayout.TierFiringLine, Attempts = 1, Built = true, Reserved = [new(3, 3)],
+                    Name = DefenseLayout.TierFiringLine, Attempts = 1, Built = true,
                     Buildings = [new DefenseBuilding { Definition = "Barricade", Cell = new(1, 0), Rotation = Rotation.North, Stuff = "WoodLog" }],
                 },
                 new DefenseTierRecord
@@ -339,7 +339,7 @@ public sealed class LayoutFamilyTests
         }, ct);
         var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct));
         var blob = saved[Journal.GovernorDefenseLayoutKey];
-        foreach (var gone in new[] { "Complete", "VerifiedTick", "VerifiedCombat", "TurretsProbedTick", "Refused", "TrapLane", "Firing", "Retreat" })
+        foreach (var gone in new[] { "Complete", "VerifiedTick", "VerifiedCombat", "TurretsProbedTick", "Refused", "TrapLane", "Firing", "Retreat", "Reserved" })
         {
             Assert.DoesNotContain(gone, blob, StringComparison.Ordinal);
         }

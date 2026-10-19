@@ -43,12 +43,13 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return ok && turrets.Built && turrets.Buildings.Count > 0 && !DefenseTurretReplacing(record) && DefenseSitingDue(verified, tick);
     }
 
-    internal async Task ReplaceTurretAsync(ControlState state, RoundsReading read, DefenseLayoutRecord record, CancellationToken call)
+    /// <summary>Replaces one standing turret below the current rung on plan and returns the plan the step holds after: the one recorded with the replacement, else plan.</summary>
+    internal async Task<LayoutPlan> ReplaceTurretAsync(ControlState state, RoundsReading read, DefenseLayoutRecord record, LayoutPlan plan, CancellationToken call)
     {
         var projection = read.Projection;
         if (!projection.Facts.Hostiles.TryGetValue(out var hostiles) || hostiles > 0)
         {
-            return;
+            return plan;
         }
         var request = DefenseTurretRequest(read);
         var (tier, _, _) = record.Tier(DefenseTurretsPolicy.TierTurrets);
@@ -64,13 +65,13 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         if (standing.Count == 0 || !standing.Any(t => DefenseTurretsPolicy.TurretRank(t.Building.Definition) < DefenseTurretsPolicy.TurretRank(request.Turret.Definition)))
         {
-            return;
+            return plan;
         }
         var identity = Boundary.Identity(state.Snapshot);
         var (killbox, region, home, ok) = DefenseKillbox(projection);
-        if (!ok || !projection.LayoutPlan.TryGetValue(out var plan))
+        if (!ok)
         {
-            return;
+            return plan;
         }
         var site = await DefenseSiteAsync(identity, projection, region, call).ConfigureAwait(false);
         request = request with { Bounds = projection.Bounds };
@@ -89,21 +90,28 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             if (DefenseTurretsPolicy.TurretReplacement(request, DefenseRecordGeometry(record, plan, killbox), standing) is not { } found)
             {
-                return;
+                return plan;
             }
             old = found.Old;
             replacement = found.Replacement;
         }
         catch (DomainException)
         {
-            return;
+            return plan;
         }
-        ApplyTurretReplacement(record, old, replacement, standing, request.Turret.Size);
+        var replaced = ApplyTurretReplacement(record, plan, old, replacement, standing, request.Turret.Size);
         DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "turret_replace", request.Turret.Definition, new Dictionary<string, object?> { ["x"] = old.Cell.X, ["z"] = old.Cell.Z }, call);
         _reviewer.Player.Journal.SaveDefenseLayout(record, call);
+        _reviewer.Player.Journal.RecordLayoutPlan(state.Snapshot, projection.Identity.Tick, replaced, call);
+        return replaced;
     }
 
-    internal static void ApplyTurretReplacement(DefenseLayoutRecord record, Building old, Building replacement, IReadOnlyList<StandingTurret> standing, Bounds size)
+    /// <summary>
+    /// Replaces old by replacement in the record's turret tier and in the plan's turret node, whose reservation becomes
+    /// the turrets' footprints by definition size (the replacement's at its own size), and queues old's removal.
+    /// Returns the plan with the replacement.
+    /// </summary>
+    internal static LayoutPlan ApplyTurretReplacement(DefenseLayoutRecord record, LayoutPlan plan, Building old, Building replacement, IReadOnlyList<StandingTurret> standing, Bounds size)
     {
         var (tier, _, _) = record.Tier(DefenseTurretsPolicy.TierTurrets);
         for (var i = 0; i < tier.Buildings.Count; i++)
@@ -114,15 +122,15 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 tier.Buildings[i] = new DefenseBuilding { Definition = replacement.Definition, Cell = replacement.Cell, Rotation = replacement.Rotation, Stuff = replacement.Stuff };
             }
         }
-        tier.Reserved = [];
+        var reserved = new List<Cell>();
         foreach (var t in standing)
         {
             if (t.Building.Cell == old.Cell)
             {
-                tier.Reserved.AddRange(DefenseTurretsPolicy.TurretFootprint(old.Cell, size));
+                reserved.AddRange(DefenseTurretsPolicy.TurretFootprint(old.Cell, size));
                 continue;
             }
-            tier.Reserved.AddRange(t.Cells);
+            reserved.AddRange(t.Cells);
         }
         record.SetTier(tier);
         var name = string.Create(CultureInfo.InvariantCulture, $"{DefenseTurretReplacePrefix}{old.Cell.X}-{old.Cell.Z}-{DefenseTurretsPolicy.TurretRank(replacement.Definition)}");
@@ -132,6 +140,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             Remove = true,
             Buildings = [new DefenseBuilding { Definition = old.Definition, Cell = old.Cell, Rotation = old.Rotation, Stuff = old.Stuff }],
         });
+        return plan.WithTurretReplaced(old, replacement, reserved);
     }
 
     /// <summary>The conduit cells connected to the buildings of a power network, sorted by x then z.</summary>
@@ -177,10 +186,14 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return output;
     }
 
-    /// <summary>The record's tier cells, with the firing line and the trap lane of the plan's DefFiring and DefLane nodes (#3583).</summary>
+    /// <summary>
+    /// The record's tier cells with the reserved cells of the plan's tier nodes (#3584), and the firing line and the
+    /// trap lane of the plan's DefFiring and DefLane nodes (#3583).
+    /// </summary>
     internal static DefenseGeometry DefenseRecordGeometry(DefenseLayoutRecord record, LayoutPlan plan, DefenseKillbox killbox)
     {
         var tiers = plan.DefenseTierGeometry();
+        var planned = plan.PlannedDefenseTiers();
         var reserved = new List<Cell>();
         var walls = new List<Cell>();
         foreach (var tier in record.Tiers)
@@ -189,7 +202,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 continue;
             }
-            reserved.AddRange(tier.Reserved);
+            if (planned.TryGetValue(tier.Name, out var nodes))
+            {
+                reserved.AddRange(nodes.Reserved);
+            }
             foreach (var b in tier.Buildings)
             {
                 reserved.Add(b.Cell);
@@ -311,18 +327,22 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return buildings.Where(b => !census.Standing(b.Definition, b.Cell)).ToList();
     }
 
-    internal async Task<(DefenseLayout Layout, List<Cell> Entrances, Verdict Held, bool Ok)> ProposeAsync(NeedOwner goal, RoundsReview review, ControlState state, RoundsReading read, CancellationToken call, CancellationToken epoch)
+    /// <summary>
+    /// Proposes the layout on plan's killbox: the layout, the colony doors, and plan with the layout's tiers as its tier
+    /// nodes (#3584), which the caller records with the record.
+    /// </summary>
+    internal async Task<(DefenseLayout Layout, List<Cell> Entrances, LayoutPlan Sited, Verdict Held, bool Ok)> ProposeAsync(NeedOwner goal, RoundsReview review, ControlState state, RoundsReading read, LayoutPlan plan, CancellationToken call, CancellationToken epoch)
     {
         var projection = read.Projection;
         var (killbox, region, home, ok) = DefenseKillbox(projection);
         if (!ok)
         {
-            return (new DefenseLayout(), [], AwaitingPlan("layout_plan", "killbox"), false);
+            return (new DefenseLayout(), [], plan, AwaitingPlan("layout_plan", "killbox"), false);
         }
         var (request, held, cok) = await DefenseCensusRequestAsync(state, read, killbox, region, home, call).ConfigureAwait(false);
         if (!cok)
         {
-            return (new DefenseLayout(), [], held, false);
+            return (new DefenseLayout(), [], plan, held, false);
         }
         IReadOnlyList<RoleCell>? rock = null;
         try
@@ -338,28 +358,30 @@ public sealed partial class RoundsDefenseLayoutPlanner
             var (result, handled) = await DigKillboxAsync(goal, review, state, read, request.Home, rock, call, epoch).ConfigureAwait(false);
             if (handled)
             {
-                return (new DefenseLayout(), [], result.Verdict, false);
+                return (new DefenseLayout(), [], plan, result.Verdict, false);
             }
         }
         DefenseRecorder.RecordLayoutSnapshot(state.Snapshot, projection.Identity.Tick, new SnapshotLayout { Point = SnapshotLayoutReplay.LayoutPropose, Request = request }, call);
         DefenseLayout layout;
+        LayoutPlan sited;
         try
         {
             layout = DefenseLayout.DefenseLayouts(request);
+            sited = plan.WithProposedTiers(request.Definitions, layout);
         }
         catch (DomainException)
         {
-            return (new DefenseLayout(), [], NoSpace("defense_layout"), false);
+            return (new DefenseLayout(), [], plan, NoSpace("defense_layout"), false);
         }
         if (layout.Firing.Count == 0)
         {
-            return (new DefenseLayout(), [], NoSpace("firing_cell"), false);
+            return (new DefenseLayout(), [], plan, NoSpace("firing_cell"), false);
         }
         foreach (var g in layout.Gated)
         {
             DefensePipeline.DefenseTierGated(g.Tier.Value, g.Reason, call);
         }
-        return (layout, request.Entrances.ToList(), default, true);
+        return (layout, request.Entrances.ToList(), sited, default, true);
     }
 
     internal async Task<(RoundsBuildingResult Result, bool Handled)> DigKillboxAsync(NeedOwner goal, RoundsReview review, ControlState state, RoundsReading read, Cell access, IReadOnlyList<RoleCell> planned, CancellationToken call, CancellationToken epoch)

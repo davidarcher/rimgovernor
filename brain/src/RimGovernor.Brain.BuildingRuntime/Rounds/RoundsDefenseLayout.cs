@@ -223,7 +223,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         if (!stored)
         {
-            var (layout, entrances, held, ok) = await ProposeAsync(goal, review, state, read, call, epoch).ConfigureAwait(false);
+            var (layout, entrances, sited, held, ok) = await ProposeAsync(goal, review, state, read, cut.Plan, call, epoch).ConfigureAwait(false);
             if (!ok)
             {
                 if (held.IsZero)
@@ -236,6 +236,13 @@ public sealed partial class RoundsDefenseLayoutPlanner
             record = DefenseLayoutRecord.From(world, layout, entrances, killbox, digest);
             DefenseRecutPerimeter(record, cut, null);
             p.Journal.SaveDefenseLayout(record, call);
+            // The proposal's tiers are the plan's tier nodes from the start, so every tier the record starts is pinned
+            // from its nodes (#3584).
+            if (!LayoutPlan.SamePlan(cut.Plan, sited))
+            {
+                p.Journal.RecordLayoutPlan(state.Snapshot, read.Projection.Identity.Tick, sited, call);
+                cut.Plan = sited;
+            }
             verification.Set(world, new DefenseVerified());
         }
         else
@@ -257,13 +264,13 @@ public sealed partial class RoundsDefenseLayoutPlanner
         if (!pipe.Piped() && definitions.Length > 0 && stored && siteDue)
         {
             verification.Update(world, v => v with { TurretsProbed = tick });
-            await SiteTiersAsync(state, read, record, census, call).ConfigureAwait(false);
+            cut.Plan = await SiteTiersAsync(state, read, record, cut.Plan, census, call).ConfigureAwait(false);
             p.Journal.SaveDefenseLayout(record, call);
         }
         if (!pipe.Piped() && definitions.Length > 0 && stored && replaceDue)
         {
             verification.Update(world, v => v with { TurretsProbed = tick });
-            await ReplaceTurretAsync(state, read, record, call).ConfigureAwait(false);
+            cut.Plan = await ReplaceTurretAsync(state, read, record, cut.Plan, call).ConfigureAwait(false);
         }
         var (retierResult, retierDone) = Retier(goal, state, read, record, call, epoch);
         if (retierDone)
@@ -377,7 +384,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             var subject = upkeep.Unpowered.Count > 0 ? "turret_power" : "turret_fuel";
             return new RoundsDefenseLayoutResult { Verdict = AwaitingPlan(subject, ""), Tier = DefenseTurretsPolicy.TierTurrets.Value };
         }
-        var (cover, handled) = await ClearCoverAsync(goal, review, state, read, record, call, epoch).ConfigureAwait(false);
+        var (cover, handled) = await ClearCoverAsync(goal, review, state, read, record, cut.Plan, call, epoch).ConfigureAwait(false);
         if (handled)
         {
             return cover;
