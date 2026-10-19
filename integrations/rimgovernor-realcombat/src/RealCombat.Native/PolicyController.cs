@@ -84,26 +84,6 @@ public sealed class PolicyController : IFightController
             }
         }
 
-        if (Log is not null && tick % 60 == 0 && map.listerThings.ThingsOfDef(RimWorld.ThingDefOf.Hive).FirstOrDefault() is { } hive)
-        {
-            var room = hive.Position.GetRoom(map);
-            var fires = map.listerThings.ThingsOfDef(RimWorld.ThingDefOf.Fire).Count;
-            var hottest = GenRadial.RadialCellsAround(hive.Position, 4f, true).Max(c => c.GetTemperature(map));
-            Log($"t={tick} heat hive={hive.Position.GetTemperature(map):F0}C hottest={hottest:F0}C fires={fires} stools={map.listerThings.ThingsOfDef(DefDatabase<ThingDef>.GetNamed("Stool")).Count} room={room?.CellCount} openRoof={room?.OpenRoofCount} outdoors={room?.PsychologicallyOutdoors} doors={string.Join(" ", new[] { 38, 39, 40 }.Select(x => new IntVec3(x, 0, 30).GetEdifice(map) is RimWorld.Building_Door d ? $"{x}:open={d.Open} hold={d.HoldOpen} forbidden={RimWorld.ForbidUtility.IsForbidden(d, RimWorld.Faction.OfPlayer)}" : $"{x}:none"))}");
-        }
-
-        if (Log is not null && tick % 300 == 10)
-        {
-            foreach (var p in map.mapPawns.FreeColonistsSpawned.Where(p => p.equipment?.Primary?.def.defName == "Weapon_GrenadeMolotov"))
-            {
-                var verb = p.equipment.PrimaryEq.PrimaryVerb;
-                foreach (var stool in map.listerThings.ThingsOfDef(DefDatabase<ThingDef>.GetNamed("Stool")))
-                {
-                    Log($"t={tick} throw {p.Position.x},{p.Position.z} -> stool {stool.Position.x},{stool.Position.z}: range={verb.verbProps.range} dist={p.Position.DistanceTo(stool.Position):F1} los={GenSight.LineOfSight(p.Position, stool.Position, map)} canHit={verb.CanHitTarget(stool.Position)} flyOverhead={verb.verbProps.defaultProjectile?.projectile.flyOverhead}");
-                }
-            }
-        }
-
         try
         {
             var request = new Obs.SnapshotStreamRequest { LinesOfFireBudgetMs = 15 };

@@ -210,7 +210,7 @@ alone does not grant a parallel execution permission.
 ## Audited routine labor admission boundary
 
 A controlled Standard Method cannot directly admit repair, clean, haul,
-recovery_service, ritual, ignite, equip, gear_replace, gathering, use_item, drop_equipment, movement, capture, rescue, tend, give_item or comms_trade_request. The journal rejects these with
+recovery_service, ritual, equip, gear_replace, gathering, use_item, drop_equipment, movement, capture, rescue, tend, give_item or comms_trade_request. The journal rejects these with
 unsupported_voluntary_method:<action-kind> before creating the plan or binding
 its Method. This protects existing coupled pawn/resource claims; naming a
 routine action "recovery" does not make it an emergency.

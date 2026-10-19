@@ -44,7 +44,6 @@ public enum ActionKind
     Haul,
     Husbandry,
     IdeoligionReform,
-    Ignite,
     MineAcquisition,
     MoveBuilding,
     Movement,

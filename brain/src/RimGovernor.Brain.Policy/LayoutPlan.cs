@@ -93,11 +93,8 @@ public sealed record LayoutReservation
     public ReservationKind Kind { get; init; }
     public Region Area { get; init; } = new();
 
-    /// <summary>The side a walled reservation's door faces (the incinerator).</summary>
-    public Rotation? Facing { get; init; }
-
     /// <summary>Whether both reservations are the same site.</summary>
-    public bool SameSite(LayoutReservation o) => Kind == o.Kind && Facing == o.Facing && Area.Equal(o.Area);
+    public bool SameSite(LayoutReservation o) => Kind == o.Kind && Area.Equal(o.Area);
 }
 
 /// <summary>The v2 colony layout: concrete rooms, whole-map zones and reserved infrastructure sites.</summary>

@@ -40,17 +40,6 @@ public sealed class IdeoligionReformConverter : ObjectCodec<IdeoligionReform>
     }
 }
 
-public sealed class IgniteConverter : ObjectCodec<Ignite>
-{
-    protected override Ignite Read(JsonElement e, Codecs o) => new(e.Get<PawnId>("Pawn", o), e.Get<Cell>("Cell", o));
-
-    protected override void WriteFields(Utf8JsonWriter w, Ignite v, Codecs o)
-    {
-        w.Put("Pawn", v.Pawn, o);
-        w.Put("Cell", v.Cell, o);
-    }
-}
-
 public sealed class MoveBuildingConverter : ObjectCodec<MoveBuilding>
 {
     protected override MoveBuilding Read(JsonElement e, Codecs o) =>

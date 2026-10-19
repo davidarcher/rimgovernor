@@ -150,7 +150,7 @@ namespace HomeBridge.BridgeTools
                     try { if (thing.GetInnerIfMinified().TryGetQuality(out var quality)) line = line with { Quality = (int)quality }; } catch { }
                     // Gear sale: the thing's hit-point fraction and the
                     // stockpile it lies in, so the controller sells only the worn
-                    // dump's gear above the incinerator's cap.
+                    // dump's gear above its hit-point cap.
                     try { if (thing.def.useHitPoints && thing.MaxHitPoints > 0) line = line with { HitPointsFraction = (double)thing.HitPoints / thing.MaxHitPoints }; } catch { }
                     try
                     {

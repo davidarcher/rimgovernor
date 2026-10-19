@@ -79,7 +79,6 @@ public sealed partial class Store
         ActionKind.Ritual,
         ActionKind.Conversion,
         ActionKind.Ability,
-        ActionKind.Ignite,
         ActionKind.Gathering,
         ActionKind.RemoveProductionBill,
         ActionKind.DoorControl,

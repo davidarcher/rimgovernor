@@ -1062,7 +1062,6 @@ public sealed record Action
 [JsonDerivedType(typeof(ActionIntent.FoodPolicyCase), "foodPolicy")]
 [JsonDerivedType(typeof(ActionIntent.RitualCase), "ritual")]
 [JsonDerivedType(typeof(ActionIntent.AbilityCase), "ability")]
-[JsonDerivedType(typeof(ActionIntent.IgniteCase), "ignite")]
 [JsonDerivedType(typeof(ActionIntent.RemoveProductionBillCase), "removeProductionBill")]
 [JsonDerivedType(typeof(ActionIntent.IdeoligionReformCase), "ideoligionReform")]
 [JsonDerivedType(typeof(ActionIntent.QuestShuttleCase), "questShuttle")]
@@ -1347,14 +1346,6 @@ public abstract record ActionIntent
 
     public static implicit operator ActionIntent(AbilityIntent value) => new AbilityCase(value);
 
-    /// <summary>The <c>Ignite</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public IgniteIntent? Ignite => (this as IgniteCase)?.Value;
-
-    public sealed record IgniteCase(IgniteIntent Value) : ActionIntent;
-
-    public static implicit operator ActionIntent(IgniteIntent value) => new IgniteCase(value);
-
     /// <summary>The <c>RemoveProductionBill</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
     public RemoveProductionBillIntent? RemoveProductionBill => (this as RemoveProductionBillCase)?.Value;
@@ -1462,20 +1453,6 @@ public sealed record IdeoligionReformIntent
     public int? ExpectedReformCount { get; init; }
 
     public Common.IdeoligionDesign? Design { get; init; }
-}
-
-/// <summary>
-/// One drafted colonist throws a molotov at one cell: the
-/// CombatOrder attack_ground force-fire with the molotov in the pawn's
-/// primary slot. Native refuses while any pawn stands in the cell's room, and
-/// when the pawn is not drafted, holds no molotov or cannot hit the cell. Applied means the throw order
-/// was taken; whether the fire caught is a separate observed state.
-/// </summary>
-public sealed record IgniteIntent
-{
-    public string? PawnId { get; init; }
-
-    public Common.Cell? Cell { get; init; }
 }
 
 /// <summary>

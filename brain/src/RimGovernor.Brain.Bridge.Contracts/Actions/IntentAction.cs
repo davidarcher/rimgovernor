@@ -38,7 +38,6 @@ public static class IntentActionRules
         [ActionKind.IdeoligionReform] = Orders.IdeoligionReformAction,
         [ActionKind.Conversion] = Orders.ConversionAction,
         [ActionKind.Ability] = Orders.AbilityAction,
-        [ActionKind.Ignite] = Orders.IgniteAction,
         [ActionKind.Gathering] = Orders.GatheringAction,
         [ActionKind.RemoveProductionBill] = Production.RemoveProductionBillAction,
         [ActionKind.DoorControl] = Orders.DoorControlAction,

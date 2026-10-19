@@ -1031,17 +1031,12 @@ internal sealed class LayoutReservationConverter : ObjectCodec<LayoutReservation
         {
             Kind = e.Get<ReservationKind>("Kind", o),
             Area = e.Get<Region>("Area", o),
-            Facing = e.GetOr<Rotation?>("Facing", null, o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, LayoutReservation v, Codecs o)
     {
         w.Put("Kind", v.Kind, o);
         w.Put("Area", v.Area, o);
-        if (v.Facing is { } vFacing)
-        {
-            w.Put("Facing", vFacing, o);
-        }
     }
 }
 

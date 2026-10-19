@@ -125,7 +125,7 @@ internal static class CodecRegistry
         codecs.Register(new HusbandryConverter());
         codecs.Register(new IdeoligionDesignConverter());
         codecs.Register(new IdeoligionReformConverter());
-        codecs.Register(new IgniteConverter());        codecs.Register(new IssuedOrderConverter());
+        codecs.Register(new IssuedOrderConverter());
         codecs.Register(new LayoutPlanConverter());
         codecs.Register(new LayoutReservationConverter());
         codecs.Register(new LayoutZoneConverter());

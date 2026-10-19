@@ -241,7 +241,6 @@ Kept, reason recorded:
 | NativeIdeoligionDesign.cs | 101 | code | Validates and builds a candidate Ideo from a design using the game ideo generator and meme/precept rules. |  | Meme and precept compatibility rules live in game code (IdeoGenerator); stays native |
 | NativeIdeoligionReform.cs | 53 | state | IdeoligionReform action handler: compares design and reform count and applies the candidate ideo. |  |  |
 | NativeIdeologyObservation.cs | 64 | state | Emits the primary ideoligion snapshot (memes, roles, rituals, buildings, precepts, reform points). |  |  |
-| NativeIgnite.cs | 64 | state | IgniteIntent: drafted colonist throws the molotov at a cell via the attack_ground combat order. |  |  |
 | NativeInteractOperations.cs | 65 | state | Orders a colonist to interact with a void structure or void node (CompInteractable.CanInteract). |  |  |
 | NativeJoinerLetters.cs | 165 | state | Snapshot and answer of walk-in joiner and creepjoiner choice letters with CAS tokens. |  |  |
 | NativeMechBills.cs | 100 | mixed | Bill_Mech write on a Building_MechGestator and the mech-recipe to PawnKind mapping. | Kind(RecipeDef) mapping mechResurrection/gestationCycles/ProducedThingDef.race.IsMechanoid to AnyPawnKind defName; Handles() | RecipeDef.mechResurrection, RecipeDef.gestationCycles, RecipeDef.products then ThingDef.race (RaceProperties) then PawnKindDef via Go rule over rows |

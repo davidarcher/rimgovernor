@@ -50,7 +50,6 @@ namespace HomeBridge.BridgeTools
             [typeof(Operations.ActionIntent.IdeoligionReformCase)] = new IdeoligionReformActionHandler(),
             [typeof(Operations.ActionIntent.AbilityCase)] = new AbilityActionHandler(),
             [typeof(Operations.ActionIntent.ConversionCase)] = new ConversionActionHandler(),
-            [typeof(Operations.ActionIntent.IgniteCase)] = new IgniteActionHandler(),
             [typeof(Operations.ActionIntent.FormCaravanCase)] = new FormCaravanActionHandler(),
             [typeof(Operations.ActionIntent.AssignCase)] = new AssignActionHandler(),
             [typeof(Operations.ActionIntent.WorkSettingsCase)] = new WorkSettingsActionHandler(),

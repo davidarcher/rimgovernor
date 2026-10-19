@@ -51,7 +51,6 @@ internal static class ActionSites
             QuestShuttle p => Site(default, p.Quest.Value, null),
             HackDesignation p => Site(default, p.Target, null),
             GiveItem p => Site(p.Hauler, p.Recipient.Value, null),
-            Ignite p => Site(p.Pawn, "", p.Cell),
             Gathering p => Site(p.Organizer, "", null),
             Conversion p => Site(p.Guide, p.Target.Value, null),
             RemoveProductionBill p => Site(default, p.Bench, null),

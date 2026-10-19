@@ -236,13 +236,6 @@ public static class Orders
         return new Op.Action { Intent = intent };
     }
 
-    /// <summary>The Actions/Apply ignite arm, the pawn throws a molotov at the cell. Room occupancy is policy (BurnOccupied).</summary>
-    internal static Op.Action IgniteAction(DomainAction action)
-    {
-        var ignite = action.Ignite ?? throw BridgeContractException.Contract("not an ignite action");
-        return new Op.Action { Intent = new Op.IgniteIntent { PawnId = ignite.Pawn.Value, Cell = IntentActionRules.WireCell(ignite.Cell) } };
-    }
-
     /// <summary>The Actions/Apply gathering arm, the organizer starts one vanilla GatheringDef. The intent names no spot; the game chooses it.</summary>
     internal static Op.Action GatheringAction(DomainAction action)
     {
