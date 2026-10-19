@@ -9,10 +9,13 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record GearCandidate(string Target, double Gain, Resource Definition);
 
+/// <summary>
+/// A definition a pawn or the armory batch needs made. It names no stuff: a clothing craft takes its stuff from the
+/// forecast's selected outcome, armor and weapons from the bill filter, and stored spares are claimed by definition.
+/// </summary>
 public sealed record GearReplacement
 {
     public Resource Definition { get; init; }
-    public Resource Stuff { get; init; }
     public string Reason { get; init; } = "";
 }
 
@@ -145,7 +148,6 @@ public sealed record GearObservation
                 {
                     DomainException.Require(
                         AdmissionRules.ValidResource(n.Definition)
-                            && (string.IsNullOrEmpty(n.Stuff.Value) || AdmissionRules.ValidResource(n.Stuff))
                             && FoodForecastRules.FoodId(n.Reason)
                             && identities.Add(n),
                         "invalid gear replacement need"
@@ -289,7 +291,7 @@ public sealed record GearPlanningRequest
     public Fact<GearObservation> Observation { get; init; }
     public Fact<EquatableArray<GearBench>> Benches { get; init; }
 
-    /// <summary>The catalog's market values: the member a bill's filter picks in a slot without the loadout's stuff (GearFilter).</summary>
+    /// <summary>The catalog's market values: the member a bill's filter picks in each slot (GearFilter).</summary>
     public ItemFacts Items { get; init; } = new();
 }
 
@@ -488,11 +490,10 @@ public static class GearRules
     internal static bool ContainsResource(IReadOnlyList<Resource> values, Resource want) => values.Any(v => v == want);
 
     /// <summary>
-    /// The bench census sorted by id and, per definition and stuff, how many items the needs still lack after
-    /// netting the stored stock. Known is false while the bench census is unread. (The exported
-    /// <c>GearProductionDemand</c> is the loadout-gap aggregate.)
+    /// The bench census sorted by id and, per definition, how many items the needs still lack after netting the
+    /// stored stock of any stuff. Known is false while the bench census is unread.
     /// </summary>
-    internal static (IReadOnlyList<GearBench> Benches, Dictionary<(Resource Definition, Resource Stuff), int> Demand, bool Known) GearBenchDemand(
+    internal static (IReadOnlyList<GearBench> Benches, Dictionary<Resource, int> Demand, bool Known) GearBenchDemand(
         IReadOnlyList<GearNeed> needs,
         GearObservation v,
         GearReview review,
@@ -505,19 +506,17 @@ public static class GearRules
         }
         ValidateGearProduction(all);
         var benches = all.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
-        var demand = new Dictionary<(Resource Definition, Resource Stuff), int>();
+        var demand = new Dictionary<Resource, int>();
         foreach (var n in needs)
         {
-            var key = (n.Need.Definition, n.Need.Stuff);
-            demand[key] = demand.GetValueOrDefault(key) + 1;
+            demand[n.Need.Definition] = demand.GetValueOrDefault(n.Need.Definition) + 1;
         }
         var stored = GearStockRules.UnassignedGearStock(v.Stored.ValueOrDefault, review.Loadouts);
         foreach (var row in stored)
         {
-            if (row.HPBand >= 5 && row.Quality >= 2)
+            if (row.HPBand >= 5 && row.Quality >= 2 && demand.TryGetValue(row.Definition, out var owed))
             {
-                var key = (row.Definition, row.Stuff);
-                demand[key] = Math.Max(0, demand.GetValueOrDefault(key) - row.Count);
+                demand[row.Definition] = Math.Max(0, owed - row.Count);
             }
         }
         foreach (var count in demand.Values)
@@ -584,7 +583,7 @@ public static class GearRules
                     return (new GearMethod { Kind = GearMethodKind.Unknown }, true);
                 }
                 var batch = GearStockRules.GearBatchIngredients(slots, count);
-                if (GearFilter(batch, n.Need.Stuff, r.Items) is { } filter)
+                if (GearFilter(batch, default, r.Items) is { } filter)
                 {
                     return (
                         new GearMethod
@@ -649,12 +648,12 @@ public static class GearRules
     }
 
     /// <summary>
-    /// The ingredient filter of a bill placed with nothing in stock. A slot holding the loadout's stuff admits that
-    /// stuff alone: the bill makes what the loadout chose, and the next review re-chooses when supply changes. Any
-    /// other slot admits only its cheapest alternative by total cost, the units the slot takes of it times its
-    /// market value (then name); a member without a market value is never picked. Null when a slot has no
-    /// admissible member, the loadout's stuff is in no slot, or the flat native filter would let another slot's
-    /// member stand in for a stuff-bearing slot.
+    /// The ingredient filter of a bill placed with nothing in stock. A slot holding <paramref name="stuff"/> (the
+    /// runway's chosen stuff, a goal's named one, an export variant's) admits that stuff alone; none (default) names
+    /// no stuff. Any other slot admits only its cheapest alternative by total cost, the units the slot takes of it
+    /// times its market value (then name); a member without a market value is never picked. Null when a slot has no
+    /// admissible member, the named stuff is in no slot, or the flat native filter would let another slot's member
+    /// stand in for a stuff-bearing slot.
     /// </summary>
     internal static IReadOnlyList<Resource>? GearFilter(EquatableArray<EquatableArray<Amount>> slots, Resource stuff, ItemFacts items)
     {

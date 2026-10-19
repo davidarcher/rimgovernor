@@ -1002,7 +1002,7 @@ public static class GearLoadoutRules
                 deficit = true;
                 if (g.Source == GearSource.Bill)
                 {
-                    needs.Add(new GearReplacement { Definition = g.Wanted.Definition, Stuff = g.Wanted.Stuff, Reason = "loadout" });
+                    needs.Add(new GearReplacement { Definition = g.Wanted.Definition, Reason = "loadout" });
                     continue;
                 }
                 foreach (var c in native)

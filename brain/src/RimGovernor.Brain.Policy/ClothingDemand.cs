@@ -31,12 +31,15 @@ public sealed record ClothingDemandInput
 
     /// <summary>Bills the player's worn-count goals owe (#3496), priced alongside the replacements.</summary>
     public IReadOnlyList<OpenBill> GoalBills { get; init; } = [];
+
+    /// <summary>The stuff tier 2 chose for each pawn's slot (<see cref="RoundsFacts.ClothingStuff"/>); a slot it names is replaced in that stuff.</summary>
+    public IReadOnlyDictionary<(PawnId Pawn, GearSlot Slot), Resource> Chosen { get; init; } = new Dictionary<(PawnId Pawn, GearSlot Slot), Resource>();
 }
 
 /// <summary>
 /// The material the worn garments about to wear out take to replace: <see cref="Needs"/> the stock levels
-/// the economy/resource Need must reach. A bill's filter admits only the stuff its loadout chose (GearFilter),
-/// so a demanded stuff is served by that stuff alone.
+/// the economy/resource Need must reach. A replacement's filter admits only the stuff tier 2 chose for the
+/// slot, else the worn one (GearFilter), so a demanded stuff is served by that stuff alone.
 /// </summary>
 public sealed record ClothingRunway
 {
@@ -121,6 +124,7 @@ public static class ClothingDemandRules
                 Gear = f.Gear,
                 Stock = new StockReader { Resources = f.Resources, Wood = f.Wood },
                 GoalBills = f.WornBills,
+                Chosen = f.ClothingStuff,
             }
         );
 
@@ -216,7 +220,9 @@ public static class ClothingDemandRules
                     continue;
                 }
 
-                var filter = GearRules.GearFilter(g.Slots, worn.Stuff, input.Items);
+                // The stuff tier 2 chose for the slot, while the worn garment's recipe takes it; the worn stuff otherwise.
+                var filter = (input.Chosen.TryGetValue((pawn.Pawn, worn.Slot), out var chosen) ? GearRules.GearFilter(g.Slots, chosen, input.Items) : null)
+                    ?? GearRules.GearFilter(g.Slots, worn.Stuff, input.Items);
                 if (filter is null)
                 {
                     continue;

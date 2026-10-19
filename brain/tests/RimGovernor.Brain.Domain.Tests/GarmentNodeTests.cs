@@ -130,6 +130,24 @@ public sealed class GarmentNodeTests
         Assert.Equal(Of(value, Made("Apparel_Duster", Devilstrand, 10)), Of(value, Made("Apparel_Duster", Devilstrand, 10), Made("Apparel_Duster", Cloth, 50)), 9);
     }
 
+    // #3623: the runway's chosen stuff is the stuff of the garment the walk leaves on the pawn's slot, among stuffs arriving within the clothing horizon.
+    [Fact]
+    public void TheClothingStuffIsTheLastGarmentTheWalkPutsOnThePawnsSlotWhoseStuffArrivesInTime()
+    {
+        var value = Value([Bill("Apparel_Duster", Cloth, 0.5), Bill("Apparel_Duster", Devilstrand, 0.8)]);
+        var anna = (new PawnId("Anna"), GearSlot.Outer);
+        IReadOnlyDictionary<(PawnId, GearSlot), Resource> Chosen(EquatableArray<ResourceArrival> arrivals, params ApparelMade[] made) =>
+            value.ClothingStuff(new ColonyTrajectory { Apparel = EquatableArray.From(made), Arrivals = arrivals }, ClothingDemandRules.ClothingHorizonDays);
+        ResourceArrival Harvest(Resource stuff, double day) => new() { Day = day, Node = "harvest:zone1", Resource = stuff, Count = 80 };
+
+        // Stocked cloth is worn from day 2, and devilstrand harvested on day 10 replaces it on day 12.
+        Assert.Equal(Devilstrand, Chosen([Harvest(Devilstrand, 10)], Made("Apparel_Duster", Cloth, 2), Made("Apparel_Duster", Devilstrand, 12))[anna]);
+        // Devilstrand harvested after the horizon is not the runway's: the cloth worn before it is.
+        Assert.Equal(Cloth, Chosen([Harvest(Devilstrand, 20)], Made("Apparel_Duster", Cloth, 2), Made("Apparel_Duster", Devilstrand, 22))[anna]);
+        // A garment no better than the worn one is not worn, so the slot has no winner.
+        Assert.Empty(Value([Bill("Apparel_Duster", Cloth, 0.2)]).ClothingStuff(new ColonyTrajectory { Apparel = [Made("Apparel_Duster", Cloth, 2)] }, ClothingDemandRules.ClothingHorizonDays));
+    }
+
     [Fact]
     public void WithClothInStockTheFieldIsCreditedOnlyWithWhatItAddsBeyondTheStocksGarment()
     {

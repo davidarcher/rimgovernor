@@ -48,18 +48,18 @@ public static class GearSurplusRules
             .ThenByDescending(s => s.Quality)
             .ThenByDescending(s => s.HPBand)
             .ToList();
-        bool Claim(Resource definition, Resource stuff)
+        // A replacement or a runway spare is claimed by definition, whatever its stuff.
+        void Claim(Resource definition)
         {
             for (var i = 0; i < left.Count; i++)
             {
                 var row = left[i];
-                if (row.Count > 0 && row.Definition == definition && (string.IsNullOrEmpty(stuff.Value) || row.Stuff == stuff))
+                if (row.Count > 0 && row.Definition == definition)
                 {
                     left[i] = row with { Count = row.Count - 1 };
-                    return true;
+                    return;
                 }
             }
-            return false;
         }
         foreach (var pawn in gear.Pawns)
         {
@@ -69,7 +69,7 @@ public static class GearSurplusRules
             }
             foreach (var n in replacements)
             {
-                Claim(n.Definition, n.Stuff);
+                Claim(n.Definition);
             }
         }
         var reserve = ClothingDemandRules.ClothingSpareReserve(input);
@@ -77,7 +77,7 @@ public static class GearSurplusRules
         {
             for (var i = 0; i < reserve[definition]; i++)
             {
-                Claim(definition, new Resource(""));
+                Claim(definition);
             }
         }
         return (left.Where(r => r.Count > 0).ToList(), true);

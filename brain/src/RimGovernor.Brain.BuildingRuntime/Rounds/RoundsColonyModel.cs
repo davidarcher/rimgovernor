@@ -7,8 +7,10 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>
 /// The tier-2 run of one review (#3531): the marginals, the input sections it could not start from and the wall time it took. For the
 /// unmet goals asked about (#3505): <paramref name="Etas"/> the game day each completes where the run completes it, and <paramref name="GoalNotes"/> one line per goal.
+/// <paramref name="ClothingStuff"/> is the stuff the run puts on each pawn's slot within the clothing horizon (<see cref="ColonyValue.ClothingStuff"/>, #3623).
 /// </summary>
-internal sealed record ColonyModelReview(ProjectMarginals Marginals, IReadOnlyList<string> Unknowns, double HorizonDays, double ElapsedMs, IReadOnlyDictionary<string, int> Etas, IReadOnlyList<string> GoalNotes)
+internal sealed record ColonyModelReview(ProjectMarginals Marginals, IReadOnlyList<string> Unknowns, double HorizonDays, double ElapsedMs, IReadOnlyDictionary<string, int> Etas, IReadOnlyList<string> GoalNotes,
+    IReadOnlyDictionary<(PawnId Pawn, GearSlot Slot), Resource> ClothingStuff)
 {
     /// <summary>The <see cref="ColonyModelTelemetry.Kind"/> row's attrs.</summary>
     internal IReadOnlyList<(string Key, object? Value)> Attrs()
@@ -70,7 +72,8 @@ internal static class RoundsColonyModel
         // The colony's expected raid is the same on every pawn's loadout input; the first known one is the colony's.
         var threat = gear is null ? default : gear.Pawns.Where(p => p.LoadoutModel.IsKnown).Select(p => p.LoadoutModel.Value.Threat).FirstOrDefault(t => t.IsKnown);
         var policy = new ColonyModelPolicy { Projects = paths.Aggregate(ProjectGraph.Standing(input, options, threat), (graph, p) => graph.Then(p.Path.Graph)) };
-        var marginals = ProjectMarginalValue.Of(input, policy, new ColonyValue(context, options, policy.HorizonDays), [.. paths.Where(p => p.Path.Terminal is not null).Select(p => p.Path.Terminal!)]);
+        var valuation = new ColonyValue(context, options, policy.HorizonDays);
+        var marginals = ProjectMarginalValue.Of(input, policy, valuation, [.. paths.Where(p => p.Path.Terminal is not null).Select(p => p.Path.Terminal!)]);
         var etas = new Dictionary<string, int>(StringComparer.Ordinal);
         var notes = new List<string>();
         foreach (var (goal, path) in paths)
@@ -91,7 +94,8 @@ internal static class RoundsColonyModel
             }
         }
 
-        return new(marginals, unknowns, policy.HorizonDays, clock.Elapsed.TotalMilliseconds, etas, notes);
+        return new(marginals, unknowns, policy.HorizonDays, clock.Elapsed.TotalMilliseconds, etas, notes,
+            valuation.ClothingStuff(marginals.Trajectory, ClothingDemandRules.ClothingHorizonDays));
     }
 
     /// <summary>The input and the sections it cannot start from, each named with its reason (<see cref="ColonyModelInput.Unknowns"/>).</summary>

@@ -84,12 +84,19 @@ lost per day; native `TakeWearoutDamageForDay`). A garment already tattered
 counts; one without hit points or a wear rate never does. Each such garment,
 less the serviceable stored garments covering the same core group, demands its
 recipe's ingredient counts (`observation.ClothingGarments`) at the cheapest
-member of the bill filter `gearFilter` builds (the slot holding the loadout
-stuff admits that stuff alone, no category substitutes: the bill makes what the
-loadout chose and the next review re-chooses when supply changes; any other
-slot admits its cheapest alternative by total cost, units times market value),
-as a stock level like
-construction demand, kept in the Rounder's `constructionMemory`. The Round's
+member of the bill filter `gearFilter` builds. The slot holding the replacement
+stuff admits that stuff alone, no category substitutes; any other slot admits
+its cheapest alternative by total cost, units times market value. The
+replacement stuff is the one tier 2 chose for the pawn's gear slot
+(`ColonyValue.ClothingStuff`, #3623): the stuff of the garment the apparel
+walk leaves on that slot, among units whose stuff arrives within
+`ClothingHorizonDays`. The review's colony model run stamps it into
+`RoundsFacts.ClothingStuff` before the rounds review, as it does
+`Investment`; each review re-chooses, with no memory of the last choice. Where
+tier 2 names no stuff for the slot, or the worn garment's recipe cannot take the
+one it names, the worn stuff is used: tier 2 does not model wear, so a
+like-for-like replacement gains nothing there and wins nothing. The demand is a
+stock level like construction demand, kept in the Rounder's `constructionMemory`. The Round's
 resource supply plan serves it with that stuff and, for
 leather, with hunts priced at the animal's butchery yield of that leather (one
 candidate per animal whatever else it yields, its labor
@@ -209,8 +216,11 @@ acted on whatever its gain. Recovery means no such gap and no gap above the role
 threshold: soldier 0.05, hunter 0.1, slave and prisoner 0.5, others 0.2. Equal scores retain
 worn gear and minimize purchases; otherwise supply preference is loose, stored,
 then bill, with stable item IDs. The pruned exact search visits at most `policy.GearSearchBudget` (200000) nodes per pawn; past it the best ensemble found is kept (`GearLoadout.SearchBudgetExhausted`), no option is dropped, and the review journals a `gear_search` row. `PlanColonyGear` visits pawn IDs in order and
-allocates each physical supply once. `GearProductionDemand` sums only actionable
-bill gaps by definition and stuff; quality does not split demand. These are
+allocates each physical supply once. A bill gap's replacement need
+(`GearReplacement`) names its definition only, never a stuff: a clothing craft
+takes its stuff from the forecast's selected outcome, the armory's bench demand
+(`GearBenchDemand`) counts needs by definition and nets stored stock of any
+stuff, and the gear surplus claims stored spares by definition. These are
 product quantities, not ingredient reservations or promises of crafted quality.
 
 `ReviewGear` exposes targets and demand when every pawn has a complete model.
@@ -296,7 +306,7 @@ produces the shirt on it from plain leather.
 Finished apparel in valid storage is aggregated by definition, stuff, quality
 and hit-point band in `GearSnapshot.stored_apparel`, bounded to 4096 rows.
 Forbidden and tainted apparel is excluded. Normal-or-better items above 50%
-condition offset matching definition/stuff demand before production. A finite
+condition offset matching definition demand before production. A finite
 `GearBatch` bill reserves the full batch ingredients and carries its exact filter;
 weapon demand joins after colony-wide loose-weapon assignment. Each review admits
 at most one bill and up to sixteen independent pawn orders;

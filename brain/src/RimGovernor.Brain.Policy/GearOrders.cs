@@ -131,12 +131,11 @@ public static class GearOrdersRules
         return (review, GearLoadoutRules.ModeledGearObservation(observed!, review.Loadouts), null);
     }
 
-    /// <summary>Orders needs by pawn, definition, stuff and reason.</summary>
+    /// <summary>Orders needs by pawn, definition and reason.</summary>
     private static List<GearNeed> SortGearNeeds(IEnumerable<GearNeed> needs) =>
         needs
             .OrderBy(n => n.Pawn.Pawn.Value, StringComparer.Ordinal)
             .ThenBy(n => n.Need.Definition.Value, StringComparer.Ordinal)
-            .ThenBy(n => n.Need.Stuff.Value, StringComparer.Ordinal)
             .ThenBy(n => n.Need.Reason, StringComparer.Ordinal)
             .ToList();
 
@@ -165,10 +164,10 @@ public static class GearOrdersRules
             p.Candidates.TryGetValue(out var candidates);
             pending = pending || candidates.Count > 0;
         }
-        var done = new HashSet<(Resource Definition, Resource Stuff)>();
+        var done = new HashSet<Resource>();
         foreach (var n in needs)
         {
-            var key = (n.Need.Definition, n.Need.Stuff);
+            var key = n.Need.Definition;
             var count = demand.GetValueOrDefault(key);
             if (count == 0 || !done.Add(key))
             {

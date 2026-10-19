@@ -131,7 +131,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     /// credited only with its gain over this one, and a unit no pawn gains from is not worn. A garment the harm model or the gear
     /// options cannot price is named (<see cref="ApparelHarmUnassessed"/>) and credited nothing.
     /// </summary>
-    private double ApparelGain(ColonyTrajectory trajectory, SortedSet<string> findings)
+    private double ApparelGain(ColonyTrajectory trajectory, SortedSet<string> findings, List<(string Pawn, GearOption Garment, double Day)>? wearers = null)
     {
         var outfits = new SortedDictionary<string, EquatableArray<GearOption>>(StringComparer.Ordinal);
         foreach (var (pawn, worn) in context.Outfits)
@@ -146,10 +146,12 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
         foreach (var made in trajectory.Apparel.OrderBy(m => m.Day).ThenBy(m => m.Node, StringComparer.Ordinal))
         {
             var worn = new SortedDictionary<string, EquatableArray<GearOption>>(outfits, StringComparer.Ordinal);
-            if (Wear(made, worn) is { } gain)
+            var units = new List<(string, GearOption)>();
+            if (Wear(made, worn, units) is { } gain)
             {
                 total += gain * Math.Max(0, horizonDays - made.Day);
                 outfits = worn;
+                wearers?.AddRange(units.Select(u => (u.Item1, u.Item2, made.Day)));
             }
             else
             {
@@ -160,8 +162,34 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
         return total;
     }
 
-    /// <summary>Puts each unit of the garment on the pawn it helps most, in <paramref name="outfits"/>; the gain a day, or null while unpriced.</summary>
-    private double? Wear(ApparelMade made, SortedDictionary<string, EquatableArray<GearOption>> outfits)
+    /// <summary>
+    /// The stuff of the garment each pawn ends up wearing in each slot by the apparel walk (<see cref="ApparelGain"/>), among the units
+    /// whose stuff arrives within <paramref name="withinDays"/> (#3623): the clothing runway demands it. A unit's stuff arrives with the
+    /// run's last arrival of it at or before the unit is made, now when none (it was in stock). A pawn and slot no such unit goes to is
+    /// absent: tier 2 does not model wear, so a like-for-like replacement gains nothing and wins nothing.
+    /// </summary>
+    public IReadOnlyDictionary<(PawnId Pawn, GearSlot Slot), Resource> ClothingStuff(ColonyTrajectory trajectory, double withinDays)
+    {
+        var wearers = new List<(string Pawn, GearOption Garment, double Day)>();
+        ApparelGain(trajectory, new SortedSet<string>(StringComparer.Ordinal), wearers);
+        var chosen = new Dictionary<(PawnId Pawn, GearSlot Slot), Resource>();
+        foreach (var (pawn, garment, day) in wearers)
+        {
+            var arrived = trajectory.Arrivals.Where(a => a.Resource == garment.Stuff && a.Day <= day).Select(a => a.Day).DefaultIfEmpty(0).Max();
+            if (!garment.Stuff.IsEmpty && arrived <= withinDays)
+            {
+                chosen[(new PawnId(pawn), garment.Slot)] = garment.Stuff;
+            }
+        }
+
+        return chosen;
+    }
+
+    /// <summary>
+    /// Puts each unit of the garment on the pawn it helps most, in <paramref name="outfits"/>, each wearer and garment added to
+    /// <paramref name="wearers"/>; the gain a day, or null while unpriced.
+    /// </summary>
+    private double? Wear(ApparelMade made, SortedDictionary<string, EquatableArray<GearOption>> outfits, List<(string, GearOption)> wearers)
     {
         var sum = 0.0;
         foreach (var product in made.Products.Where(p => p.Count > 0))
@@ -196,6 +224,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
 
                 sum += best;
                 outfits[wearer] = Wearing(outfits[wearer], option);
+                wearers.Add((wearer, option));
             }
         }
 

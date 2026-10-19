@@ -538,6 +538,12 @@ public sealed record RoundsFacts
     /// <summary>The open bills the player's worn-count goals owe (#3496): each missing garment priced like a replacement, merged into <see cref="ClothingDemandRules.ClothingRunway"/>.</summary>
     public IReadOnlyList<OpenBill> WornBills { get; init; } = [];
 
+    /// <summary>
+    /// The stuff tier 2 puts on each pawn's gear slot within the clothing horizon (<see cref="ColonyValue.ClothingStuff"/>, #3623), stamped
+    /// by this review's colony model run before the rounds review: the clothing runway demands it. Empty when the model did not run.
+    /// </summary>
+    public IReadOnlyDictionary<(PawnId Pawn, GearSlot Slot), Resource> ClothingStuff { get; init; } = new Dictionary<(PawnId Pawn, GearSlot Slot), Resource>();
+
     /// <summary>The quests the player's goals name (#3499); the quest step considers them before any other offer.</summary>
     public IReadOnlyList<QuestId> NamedQuests { get; init; } = [];
 
