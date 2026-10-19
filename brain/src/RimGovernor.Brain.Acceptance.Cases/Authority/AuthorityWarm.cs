@@ -1,5 +1,6 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
+using RimGovernor.Brain.Bridge.Contracts;
 using Clock = RimGovernor.Contracts.Wire.Clock;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Control = RimGovernor.Contracts.Wire.Authority;
@@ -48,7 +49,7 @@ internal static class AuthorityWarm
                 Identity = first,
                 ExpectedGeneration = generation,
                 Speed = Clock.Speed.Superfast,
-                Policy = new Clock.WatchPolicy { Mode = Clock.WatchMode.Colony, HealthDropFraction = 0.5f, MinHealthFraction = 0.2f, HostileWithin = 40, InjuryStopCooldownMs = 0 },
+                Policy = ClockExpectation.WithHazardThresholds(new Clock.WatchPolicy { Mode = Clock.WatchMode.Colony, HealthDropFraction = 0.5f, MinHealthFraction = 0.2f, HostileWithin = 40, InjuryStopCooldownMs = 0 }),
                 PlannedHoldSerial = before.HoldSerial,
                 // A review a day out: the case runs an hour and drops the session before the clock reaches it.
                 HoldAtTick = (ulong)(Math.Max(before.Context?.Tick ?? 0, 0) + 60_000),
