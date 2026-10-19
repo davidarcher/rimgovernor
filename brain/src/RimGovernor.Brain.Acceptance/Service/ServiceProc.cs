@@ -241,12 +241,12 @@ public sealed partial class ServiceProcess
     private static Task<JsonObject> ReadIdentityAsync(Harness harness, string label, CancellationToken cancellationToken) =>
         Session.ReadIdentityAsync(harness, label, cancellationToken);
 
-    /// <summary>The environment variable naming the clock speed a serve-driven harness runs at; the default is Ultrafast.</summary>
+    /// <summary>The environment variable naming the clock speed a serve-driven harness runs at; the default is Hyperfast.</summary>
     public const string ClockSpeedEnv = "RIMGOVERNOR_ACCEPT_CLOCK_SPEED";
 
-    // ClockSpeedEnv or Ultrafast.
+    // ClockSpeedEnv or Hyperfast.
     private static string ClockSpeed() =>
-        Environment.GetEnvironmentVariable(ClockSpeedEnv) is { Length: > 0 } speed ? speed : "Ultrafast";
+        Environment.GetEnvironmentVariable(ClockSpeedEnv) is { Length: > 0 } speed ? speed : "Hyperfast";
 
     /// <summary>
     /// Sets the speed the brain requests while it owns the clock (POST /api/player/clock-speed), taking effect from the

@@ -58,7 +58,7 @@ speed and its clamp relies on.
     the pause/run split, the probe and digest work and the hazard gaps are the acceptance-only
     `rimgovernor/acceptance_read_clock_accounting` read (`AcceptanceReadTools`), which production never calls.
   - The over-budget frame share and the queued-command dispatch wait (the manual-command dispatch bound) have no
-    check; the hazard gaps are checked only by the `hazard/*` cases (one staged Ultrafast run per class).
+    check; the hazard gaps are checked only by the `hazard/*` cases (one staged Hyperfast run per class).
 
 ## Prepared profiles
 

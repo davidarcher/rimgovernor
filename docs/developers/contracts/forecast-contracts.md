@@ -450,7 +450,7 @@ nothing about the gunners. A drafted gunner is not a trigger: the hunt's own dra
 
 The execution evidence is the on-demand `food/hunt-roster` acceptance case (#3515): a lab colony of two riflemen
 short of food, with a butcher table, its bill and a corpse stockpile, and a wild rhinoceros and boar inside the hunt
-read's window, served with the Release RealCombat worker as the predictor (at the harness's pinned Ultrafast: every
+read's window, served with the Release RealCombat worker as the predictor (at the harness's pinned Hyperfast: every
 acceptance game launches with `-rimgovernor-test-acceleration`, so `ServeSpec.ClockSpeed` is a no-op; the anchored
 comparison, #3525, keeps its scenes usable there and the `hunt_restart` attribute names what staled an anchor that
 re-asked; the crew is exactly the two staged riflemen, since the runner's default crew of three adds an unarmed third

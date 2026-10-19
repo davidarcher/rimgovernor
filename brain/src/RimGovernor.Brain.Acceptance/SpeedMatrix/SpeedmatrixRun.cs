@@ -26,7 +26,7 @@ internal sealed partial class SpeedmatrixRun
 
     // Ticks is the game-tick target each speed runs to after resume (the serve-side tick must advance by this much) unless
     // the stage runs out of work first, which every speed does: the controller's cadence is wall-bound, so the ticks the
-    // stage's work takes grow with the pace, from ~2,300 at Normal to ~20,000 at boosted Ultrafast.
+    // stage's work takes grow with the pace (~2,300 at Normal).
     internal const ulong Ticks = 30000;
 
     // Items and Segments size the stage: Steel stacks spawned and wall segments laid out.

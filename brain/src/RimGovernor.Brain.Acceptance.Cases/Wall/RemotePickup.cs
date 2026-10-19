@@ -50,7 +50,7 @@ internal static class WallRemotePickup
             var run = new Clock.RunRequest
             {
                 ExpectedGeneration = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false),
-                Speed = Clock.Speed.Ultrafast,
+                Speed = Clock.Speed.Hyperfast,
                 Policy = ClockExpectation.WithHazardThresholds(new Clock.WatchPolicy
                 {
                     Mode = Clock.WatchMode.Colony,

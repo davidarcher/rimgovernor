@@ -78,7 +78,7 @@ public static class SustainedFood
     /// <summary>The probe interval of the live tick and the journal between two samples.</summary>
     public static readonly TimeSpan RunInterval = TimeSpan.FromMilliseconds(250);
 
-    /// <summary>The sample cadence of an unset <see cref="WatchConfig.PollTicks"/>: 600 ticks (a quarter of an in-game hour; about 1.7 s at Superfast, 0.7 s at Ultrafast, the probe interval once boosted).</summary>
+    /// <summary>The sample cadence of an unset <see cref="WatchConfig.PollTicks"/>: 600 ticks (a quarter of an in-game hour; about 1.7 s at Superfast, 0.7 s at Ultrafast, 0.3 s at Hyperfast).</summary>
     public const ulong DefaultPollTicks = 600;
 
     /// <summary>The wall-clock ceiling between samples of an unset <see cref="WatchConfig.Poll"/>.</summary>

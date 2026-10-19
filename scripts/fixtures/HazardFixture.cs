@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools
 {
     // Disposable test setup only. Injects one hazard of a declared
     // class into a running colony so the hazard/* acceptance cases can
-    // measure the supervisor's detection gap at Ultrafast against the bound
+    // measure the supervisor's detection gap at Hyperfast against the bound
     // docs/developers/architecture/hazard-detection-bounds.md declares. Every
     // op reports the game tick it acted on: the stop's detect_ticks
     // measures from the hazard's own occurrence tick, the case's inject gap

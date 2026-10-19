@@ -13,8 +13,8 @@ public static class CombatServe
     /// <summary>Sets Prefs.AutomaticPauseMode (scripts/fixtures/LetterFixture.cs).</summary>
     public const string PauseModeTool = "test/letter_pause_mode";
 
-    /// <summary>Labels the response evidence of a metrics run (the served clock runs Ultrafast uncapped like every acceptance case).</summary>
-    public const string MetricsSpeed = "Ultrafast";
+    /// <summary>Labels the response evidence of a metrics run (the served clock runs Hyperfast like every acceptance case).</summary>
+    public const string MetricsSpeed = "Hyperfast";
 
     /// <summary>Today's autopilot answer to a fight: the routine defense planner (hold-the-line / squad defense), with the rescue and tend families it hands downed colonists to.</summary>
     public static readonly IReadOnlyList<string> MetricsFamilies = ["defense", "tend", "rescue"];

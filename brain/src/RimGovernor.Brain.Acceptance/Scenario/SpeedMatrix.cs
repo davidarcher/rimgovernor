@@ -89,7 +89,7 @@ public sealed record SpeedOutcome
 public static class SpeedMatrix
 {
     /// <summary>The -speeds default: every native speed plus uncapped and governor-off.</summary>
-    public const string DefaultSpeedMatrix = "Normal,Fast,Superfast,Ultrafast,uncapped,governor-off";
+    public const string DefaultSpeedMatrix = "Normal,Fast,Superfast,Ultrafast,Hyperfast,uncapped,governor-off";
 
     /// <summary>Turns a comma-separated -speeds value into cases, in order, refusing unknown names and repeats.</summary>
     public static IReadOnlyList<SpeedCase> ParseSpeedCases(string spec)
@@ -101,6 +101,7 @@ public static class SpeedMatrix
             ["fast"] = new() { Name = "Fast", Speed = "Fast" },
             ["superfast"] = new() { Name = "Superfast", Speed = "Superfast" },
             ["ultrafast"] = new() { Name = "Ultrafast", Speed = "Ultrafast" },
+            ["hyperfast"] = new() { Name = "Hyperfast", Speed = "Hyperfast" },
             ["uncapped"] = new() { Name = "uncapped", Speed = "Hyperfast", TestAcceleration = true },
             ["governor-off"] = new() { Name = "governor-off", Speed = "Ultrafast", TestAcceleration = true, GovernorOff = true },
         };
@@ -116,7 +117,7 @@ public static class SpeedMatrix
 
             if (!known.TryGetValue(key, out var speedCase))
             {
-                throw new AcceptanceException($"unknown speed \"{part.Trim()}\" (want Normal, Fast, Superfast, Ultrafast, uncapped or governor-off)");
+                throw new AcceptanceException($"unknown speed \"{part.Trim()}\" (want Normal, Fast, Superfast, Ultrafast, Hyperfast, uncapped or governor-off)");
             }
 
             if (!seen.Add(key))
@@ -297,7 +298,7 @@ public static class SpeedMatrix
                     break;
             }
 
-            if (maxPausedFraction > 0 && row.Speed is "Superfast" or "Ultrafast" && row.PausedFractionNative > maxPausedFraction)
+            if (maxPausedFraction > 0 && row.Speed is "Superfast" or "Ultrafast" or "Hyperfast" && row.PausedFractionNative > maxPausedFraction)
             {
                 problems.Add(string.Create(CultureInfo.InvariantCulture, $"{row.Case}: paused fraction {row.PausedFractionNative:F2} exceeds {maxPausedFraction:F2}"));
             }

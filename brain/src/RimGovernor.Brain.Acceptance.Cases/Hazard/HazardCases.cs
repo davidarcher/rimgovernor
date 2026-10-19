@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary>
 /// The <c>hazard/*</c> family proves the supervisor's declared detection bounds
 /// (docs/developers/architecture/hazard-detection-bounds.md): each case injects one hazard class into a native clock run
-/// at Ultrafast, the speed that carries the most ticks per frame, while the clock still runs, and asserts the hold's
+/// at Hyperfast, the speed that carries the most ticks per frame, while the clock still runs, and asserts the hold's
 /// detect_ticks (detected_tick less occurrence_tick) and the gap from the injection tick to the detection both lie within
 /// the class's bound. The letter case delivers through the real LetterStack callback (test/deliver_letter); the others use
 /// test/hazard_inject. The demoted tier (injury) instead proves an invalidation wake while the clock keeps running.
@@ -23,7 +23,7 @@ public static class HazardCases
     // How far the run goes before the injection, so the detection is measured under a moving clock, never at the start baseline.
     private const long SettleTicks = 300;
 
-    // The settle (one status round at Ultrafast is about 2,250 ticks), the bound, and the log sink's flush for the demoted
+    // The settle (a status round at Hyperfast is under 2,250 ticks), the bound, and the log sink's flush for the demoted
     // wake, with room to spare under the lab cap.
     private const int RunTicks = 30_000;
 
@@ -96,19 +96,19 @@ public static class HazardCases
     private static HazardCase[] Classes() =>
     [
         new("hazard/letter", "notification_batch", Clock.HoldReason.NotificationBatch, true, ProbeIntervalTicks,
-            "A letter received mid-run at Ultrafast holds the clock as notification_batch within the 30-tick bound (the letter hook lands it next tick).",
+            "A letter received mid-run at Hyperfast holds the clock as notification_batch within the 30-tick bound (the letter hook lands it next tick).",
             InjectLetterAsync),
         new("hazard/hostile", "hostile", Clock.HoldReason.Hostile, true, ProbeIntervalTicks,
-            "A hostile pawn spawned near a colonist mid-run at Ultrafast holds the clock as hostile within the 30-tick bound (the spawn hook lands it next tick).",
+            "A hostile pawn spawned near a colonist mid-run at Hyperfast holds the clock as hostile within the 30-tick bound (the spawn hook lands it next tick).",
             InjectOp("hostile")),
         new("hazard/downed", "colonist_downed", Clock.HoldReason.ColonistDowned, true, HookedBoundTicks,
-            "A colonist downed mid-run at Ultrafast holds the clock as colonist_downed within the hooked 1-tick bound.",
+            "A colonist downed mid-run at Hyperfast holds the clock as colonist_downed within the hooked 1-tick bound.",
             InjectOp("downed")),
         new("hazard/injury", "colonist_injury", null, false, ProbeIntervalTicks,
-            "A colonist wounded under the severity floor mid-run at Ultrafast keeps the clock running and invalidates the medical facts within the 30-tick probe bound (#584).",
+            "A colonist wounded under the severity floor mid-run at Hyperfast keeps the clock running and invalidates the medical facts within the 30-tick probe bound (#584).",
             InjectOp("injury")),
         new("hazard/predator", "predator_hunt", Clock.HoldReason.PredatorHunt, false, ProbeIntervalTicks,
-            "A predator hunting a colonist mid-run at Ultrafast holds the clock as predator_hunt within the 30-tick probe bound.",
+            "A predator hunting a colonist mid-run at Hyperfast holds the clock as predator_hunt within the 30-tick probe bound.",
             InjectOp("predator")),
     ];
 
@@ -172,7 +172,7 @@ public static class HazardCases
     private static async Task RunHazardAsync(TypedSession s, HazardCase hc, CancellationToken cancellationToken)
     {
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        var request = new Clock.RunRequest { ExpectedGeneration = generation, Speed = Clock.Speed.Ultrafast, Policy = Policy };
+        var request = new Clock.RunRequest { ExpectedGeneration = generation, Speed = Clock.Speed.Hyperfast, Policy = Policy };
 
         // The run goes on SettleTicks before the injection, which lands while the clock still runs; a hold before then is a
         // hazard the colony raised on its own and fails the case. The demoted tier ends on its wake instead of a hold.
@@ -181,7 +181,7 @@ public static class HazardCases
         long injectedSince = 0;
         LogRow? wake = null;
         var status = await s.RunClockUntilHeldAsync(
-            "ultrafast",
+            "hyperfast",
             s.TicksLeft,
             request,
             async (running, token) =>
@@ -257,7 +257,7 @@ public static class HazardCases
 
         // This case exercises the native supervisor, not a served controller: controller decision/dispatch and pawn effects
         // remain absent.
-        var response = ResponseEvidence.Create(hc.Name, "Ultrafast", injected.Tick);
+        var response = ResponseEvidence.Create(hc.Name, "Hyperfast", injected.Tick);
         response.DetectionSource = "native_supervisor";
         response.DetectionTick = detected;
         s.Record("response", response.ToJson());
