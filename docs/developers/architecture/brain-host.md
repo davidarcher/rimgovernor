@@ -755,7 +755,61 @@ What the day says:
   growth needs a second day before it is a cut.
 - **Next cuts, in order.** (1) The reads, 13.5 s: 22 entries each take the colony facts through the game-thread hop on
   every wave; a read shared across the wave, or taken from the census the review just committed, would leave the
-  wave its work alone. (2) The rounds stage, 44 s. (3) The hold-to-step latency, 17 s, cause still unconfirmed.
+  wave its work alone. (2) The rounds stage, 44 s. (3) The hold-to-step latency, 17 s, cause still unconfirmed. Cut 1 landed as 6564adcd8, measured in the next section.
+
+### The wave's reads share the step's scope (#3556)
+
+The first next cut of the kept-waits day: on a `due` step each of the 22 family entries cost 88 to 223 ms, almost all
+of it one `lifecycle_read_tick` hop to the game thread (10 to 93 ms queued behind the other entries' hops, 23 to 25
+`ReadTickAsync` per entry per day) to fetch the observation scope its read validates against, while the clock step had
+already read that scope with its clock status. The step now decodes its clock-status context once
+(`ClockScheduler.StepIdentity`) and the catalog hands it to every family step (`FamilyStep.Scope`); the read scope
+carries it (`FamilyReadScope.Scope`) and `StepScope.StepScopeAsync(scope, native, ct)` returns it instead of hopping.
+The game is held for the step, so the scope is fixed and the read sees the tick the hop would have returned. Outside a
+clock step the scope is null and a read hops as before; a family's work keeps its own scope reads. Landed 6564adcd8.
+
+Measured 2026-10-18, same colony and machine, brain session `6c1562c3f89740ec83f022160fbcbefb`, one passing
+colony-review day of 60000 ticks, against the kept-waits day above:
+
+| What | Kept-waits day | This day |
+| --- | --- | --- |
+| `clock_step` rows | 104: 98 `review`, 4 `wake`, 2 `full`; 103 `planned` | 105: 99 `review`, 4 `wake`, 2 `full`; every one `planned`; the first `clock_run` (tick 600) failed, the harness's review hold entered after the step's read |
+| `selection` words | `dirty` 54, `due` 396, `dirty+due` 22, `full` 44, `all` 22 | `dirty` 54, `due` 413, `dirty+due` 27, `full` 44, `all` 22 |
+| Steps that ran a wave | 26: 24 rounder steps, 2 `last` | 27: 25 rounder steps, 2 `last` |
+| Needs kept on the `due` rounder steps | 264 over 18 | 292 over 19: 11 at tick 3000 rising to 18 from 41992 on |
+| Due-step `planner_ms` sum, 22 entries | 48.6 s over 18 steps | 22.0 s over 19 steps |
+| Due-run mean per heavy entry (admin, shelter, economy, military, people, medical) | 194, 217, 191, 103, 88, 111 ms | 191, 173, 167, 122, 109, 83 ms |
+| Due-run mean per light entry (rooms, layout, goals, power, ideology, anomaly, disaster) | 223, 216, 169, 167, 166, 30, 26 ms | 57, 50, 12, 9, 10, 3, 3 ms |
+| `ReadTickAsync` per entry per day | rooms 23, shelter 23, layout 25; economy 49, admin 66, food 45; military 25 | 0, 0, 0; economy 26, admin 45, food 22 (their work's own scope reads); military 25 (its census observe) |
+| `family.read` hop wait, per-run mean | home-upkeep 93, military 92, food 60, food-stores 62, economy 48, power 40, goals 36 ms | home-upkeep 92 (clearance targets), military 111 (census observe), economy 51, people 22 ms; every other entry 0 |
+| Wave wall (`stage_ms` `critical` + `optional`) | 7.5 s + 6.0 s = 13.5 s | 7.6 s + 5.4 s = 13.0 s |
+| Steps on the last committed review (`rounds` `last`) | 2, 1.9 s | 2, 1.4 s |
+| Rounder runs (`due` / `wake` / `all`), rounds wall | 24 (18 / 3 / 3), 44.2 s | 25 (19 / 3 / 3), 44.5 s, p50 1699 ms, p95 3738 ms |
+| Step wall sum | 68.3 s | 68.1 s |
+| `clock_run` wall | 13.3 s | 13.7 s |
+| Hold-to-step (`stop_latency_ms`) | p50 138 ms, p95 211 ms, 17.4 s over 102 | p50 143 ms, p95 201 ms, 17.2 s over 103 |
+| Brain-held wall / first to last step | 99.0 s / 139.4 s | 99.0 s / 147.9 s |
+
+What the day says:
+
+- **The wave's cost halved again; its wall did not move.** The `due` steps' summed planner time fell from 48.6 s to
+  22.0 s and the light entries from about 170 ms to under 12 ms each (anomaly, disaster, defense 2 to 3 ms); some 420
+  tick hops a day left the game thread's queue. But the wave runs its entries concurrently, so its wall is its
+  slowest entry, and on a `due` step those are the entries that work through the hop every run: admin 191 ms
+  (work-assignments admits every run; `family.work` 242 ms mean, 213 of it hop wait), shelter 173 ms (starter and
+  safe-area), economy 167 ms, military 122 ms (its census observe is a 111 ms game read). The wave wall stayed at 13 s,
+  the step wall at 68 s and the brain-held wall at 99.0 s. The cut pays off once the heavy entries' work leaves the
+  wave; it does not pay now.
+- **The rounds stage is 44 s on a second day.** 44.5 s over 25 reviews against 44.2 s over 24; p50 1699 ms, p95 3738 ms.
+  Against the entries-on-the-rounder day's 37.3 s the growth holds, so it is the colony's growth, not noise. It is now
+  65% of the step wall and the largest cut left.
+- **The empty steps cost about 23 s.** 78 of the 105 steps selected no planner (84 ms step wall each, 7.1 s), yet each
+  still paid its hold-to-step latency (p50 143 ms) and its `clock_run` (p50 67 ms): about 23 s of the 99 s the brain
+  holds the game, on steps that did nothing. Hold-to-step is 17 s for the third day running at the same p50, so it is
+  the hold's own cost, not load.
+- **Next cuts, in order.** (1) The rounds stage, 44.5 s: the review itself. (2) The empty review steps, about 23 s:
+  the review hold every 600 ticks when nothing is dirty or due. (3) The heavy entries' work on every `due` wave
+  (admin, shelter, economy), which now sets the wave's wall.
 
 ## Hosting in the mod (#3115)
 
