@@ -8,15 +8,18 @@ internal static class ConstructionMethodCandidates
     internal const string RemovalRelief = "removal"; // one relief per standing removal designation, so each removal is credited once (#3557)
 
     /// <summary>
-    /// The pawn activity job a standing removal op binds as Work of, by kind (#3612); null for a Haul, which binds as a
+    /// The pawn activity job a standing removal op binds as Work of, by kind (#3612, #3613); null for a Haul, which binds as a
     /// Deliver of the stack (#3614), and for a kind no order works yet.
     /// </summary>
     internal static string? RemovalJob(PlannedClearingKind kind) => kind switch
     {
         PlannedClearingKind.Deconstruct => "Deconstruct",
         PlannedClearingKind.Uninstall => "Uninstall",
+        PlannedClearingKind.Cut => "CutPlant",
         _ => null,
     };
+    /// <summary>A set kind's op (a Cut wave) is bound over its members and needs them named (#3613).</summary>
+    private static bool Bindable(PlannedSiteClearing op) => op.Kind != PlannedClearingKind.Cut || op.Targets.Count > 0;
 
     /// <summary>A standing removal row a pawn can work: a Haul's delivery is known and one trip (#3614), another kind's finish.</summary>
     private static bool Workable(PlannedClearingKind kind, ConstructionActivityOption row) =>
@@ -27,13 +30,16 @@ internal static class ConstructionMethodCandidates
 
     /// <summary>
     /// The task a standing removal row binds (#3557, #3612, #3614): a Haul is the pawn's Deliver of the stack (Count the
-    /// stack, Destination the row's storage cell), as a support delivery binds; any other kind is Work of the kind's job.
+    /// stack, Destination the row's storage cell), as a support delivery binds; any other kind is Work of the kind's job, a
+    /// set op (a Cut wave, #3613) one Work set step over its named <paramref name="targets"/> (Count the set size).
     /// </summary>
-    internal static ActivityTaskCandidate RemovalBinding(string id, PlannedClearingKind kind, ConstructionActivityOption row, string target, long deadline) =>
+    internal static ActivityTaskCandidate RemovalBinding(string id, PlannedClearingKind kind, ConstructionActivityOption row, string target, long deadline,
+        EquatableArray<string> targets = default) =>
         kind == PlannedClearingKind.Haul
             ? new(id, row.Pawn, [], PawnActivityKind.Deliver, target, "", "", row.Count, deadline, row.Origin)
                 { Resource = row.Resource, Source = row.Origin, Destination = row.Location, Capacity = row.Capacity }
-            : new(id, row.Pawn, [], PawnActivityKind.Work, target, row.WorkGiver, RemovalJob(kind)!, 0, deadline, row.Location) { SiteDefinition = row.Definition };
+            : new(id, row.Pawn, [], PawnActivityKind.Work, target, row.WorkGiver, RemovalJob(kind)!, targets.Count, deadline, row.Location)
+                { SiteDefinition = row.Definition, Targets = targets };
 
     internal static CoordinatedMethodCandidates Generate(ConstructionActivityRead read, long deadline, WorkResourceView resources, IReadOnlySet<string> floors)
     {
@@ -112,13 +118,14 @@ internal static class ConstructionMethodCandidates
                     ? new([new(FlooringRelief + "/" + first.Site, ProductionNeedPriority.Maintenance, 1.0)], default, default) : null
             });
         }
-        // A standing removal designation (#3557, #3612, #3614): the room reconcile stood a Deconstruct over an interior ruin
-        // or a stale piece, an Uninstall over a piece it packs, or a Haul over a stack it moves out, and under voluntary
-        // control only an order works it. Each building is the pawn's Work task of the op's kind on it and each stack the
-        // pawn's Deliver of it to the row's storage cell, one unit of requested development when it is gone (its relief,
-        // like a floor's, also exempts it from the thermal gate). A kind with no job binds nothing.
-        var removals = read.Removals.Where(op => (op.Kind == PlannedClearingKind.Haul || RemovalJob(op.Kind) != null) && !resources.Claims.Targets.Contains(op.Id))
-            .Select(op => (op.Id, op.Kind, Rows: op.Options.Where(o => !resources.Claims.Pawns.Contains(o.Pawn) && Workable(op.Kind, o))
+        // A standing removal designation (#3557, #3612, #3613, #3614): the room reconcile stood a Deconstruct over an interior
+        // ruin or a stale piece, an Uninstall over a piece it packs, a Haul over a stack it moves out, or CutPlant over a wave
+        // of plants, and under voluntary control only an order works it. Each building is the pawn's Work task of the op's
+        // kind on it, each stack the pawn's Deliver of it to the row's storage cell, and each Cut wave one Work set step over
+        // its members, one unit of requested development when it is gone (its relief, like a floor's, also exempts it from
+        // the thermal gate). A kind with no job binds nothing.
+        var removals = read.Removals.Where(op => (op.Kind == PlannedClearingKind.Haul || RemovalJob(op.Kind) != null) && Bindable(op) && !resources.Claims.Targets.Contains(op.Id))
+            .Select(op => (op.Id, op.Kind, op.Targets, Rows: op.Options.Where(o => !resources.Claims.Pawns.Contains(o.Pawn) && Workable(op.Kind, o))
                 .GroupBy(o => o.Pawn).Select(g => g.First()).ToArray()))
             .Where(op => op.Rows.Length > 0).OrderBy(op => op.Id, StringComparer.Ordinal).Take(17).ToArray();
         foreach (var op in removals.Take(16))
@@ -142,7 +149,7 @@ internal static class ConstructionMethodCandidates
                 workers.Add(row.Pawn);
                 options.Add(new(id, row.Pawn, haul ? row.DeliveryTicks : row.FinishTicks, Known(0.0)));
                 routes.Add(new(row.Pawn, "start", location, haul ? row.ApproachTicks : row.SiteApproachTicks));
-                bindings[(id, row.Pawn)] = RemovalBinding(id, op.Kind, row, op.Id, deadline);
+                bindings[(id, row.Pawn)] = RemovalBinding(id, op.Kind, row, op.Id, deadline, op.Targets);
             }
             outcomes.Add(new(id, "construction-method", id, Known((double)horizon), default)
             {

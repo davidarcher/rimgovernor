@@ -122,6 +122,10 @@ public sealed record PlannedSiteClearing(string Id, PlannedClearingKind Kind)
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<ConstructionActivityOption>))]
     public EquatableArray<ConstructionActivityOption> Options { get; init; }
+    /// <summary>A set op's members (#3613): the plants a <see cref="PlannedClearingKind.Cut"/> op clears, lowest thing id
+    /// first. The brain binds the op as one Work set step over them; empty for a single-building op.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> Targets { get; init; }
 }
 /// <summary>
 /// A planned site's legality and per pawn x material source estimates in the placed-site option shape. An unknown

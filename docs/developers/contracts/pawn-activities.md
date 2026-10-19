@@ -92,6 +92,36 @@ re-offering the nearest legal cell, until the count is sown. A step with no lega
 without a fault (a full zone is done); a load restarts the count, as it restarts the entry.
 Continuation rebinds the nearest legal cell for the pawn and treats a fully sown grower as done.
 
+## The set step
+
+A set step (#3613) is a Work step that repeats over a set of things, the Sow step's pattern over
+thing ids instead of cells. `PawnActivityStep.Targets` names the members (thing ids) and `Cells`
+(`EquatableArray<Cell>`) is the cell form reserved for cell work (RemoveFloor, roof cells; no family
+works it yet, so native refuses a cells-only set). Empty keeps the single-`Target` behaviour. A set
+step is Work only, its members are distinct, it names things or cells, not both, and `Count` is the
+set's size; `SameOrder` compares the sets with the rest of the step.
+
+Native (`NativeSetActivities`) offers one job per member, nearest first: a member that is gone,
+already done or no longer legal is skipped, and the step completes when `Count` members are done or
+none is left legal (reason `no_legal_member`: a cleared set is done, not a fault). Validate refuses
+only when no member is legal now and names every member's reason. Cut is the first family:
+Work/CutPlant through `WorkGiver_PlantsCut`, where each member's job is the giver's own for a
+designated plant (`CutPlantDesignated`, or `HarvestDesignated` where a chop-wood HarvestPlant stands)
+and legality is the giver's checks less the designation (a plant, not burning or forbidden, the pawn
+willing to cut it, cutting not prevented, reservable and reachable). `Apply` stands the CutPlant
+designation (the ordered cut designator's, so a tree too) on every member lacking a cut or harvest
+designation and marks its enclosure-guard record `Ordered`, as a Deconstruct or Uninstall step does
+on its building; no job hook rechecks a CutPlant record (the enclosure guard judges buildings), so
+the record serves the release on revocation and the removal hook alone. The done count lives on the
+in-memory execution entry with the sow count; a load restarts it.
+
+Continuation rebinds a set step to the members the pawn can still work, nearest first (`Targets` the
+legal members, `Count` and `RemainingCount` their number), and treats a set with no member standing
+as satisfied. The coordinated binding handles a set step as it handles a delivery: a completed
+order that carried fewer members than the task leaves the rest, a failed order is retried on the
+members native still finds legal while attempts remain, and a binding is compatible only over a
+non-empty subset of the task's own set.
+
 ## Continuation, observations and bounds
 
 A completed participant can progress while another keeps its byte-equivalent
@@ -145,7 +175,7 @@ may share one atomic batch. These checks run in the existing owner transaction,
 before plan creation or Method binding; refusal leaves both unchanged. They do
 not reserve pawns across different owners or prove current native availability.
 
-The initial step families are exact thing-target work (Clean, Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused; a designation the room reconcile stood by Designate is read back as a removal op and ordered the same way, and the order marks its record `Ordered`, #3557; Uninstall targets a minifiable building of the colony's own through `WorkGiver_Uninstall`, the order stands its Uninstall designation itself (the plain designation the reconcile's Pack stands) under an `Ordered` enclosure-guard record, and a roof-holder, a building designated for deconstruction or one with a reinstall blueprint is refused, #3612), selected food/count,
+The initial step families are exact thing-target work (Clean, Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused; a designation the room reconcile stood by Designate is read back as a removal op and ordered the same way, and the order marks its record `Ordered`, #3557; Uninstall targets a minifiable building of the colony's own through `WorkGiver_Uninstall`, the order stands its Uninstall designation itself (the plain designation the reconcile's Pack stands) under an `Ordered` enclosure-guard record, and a roof-holder, a building designated for deconstruction or one with a reinstall blueprint is refused, #3612; CutPlant is the first [set step](#the-set-step), Work over a set of plants through `WorkGiver_PlantsCut`, the order standing each member's CutPlant designation, #3613), selected food/count,
 selected bed/rest, selected recreation building, exact delivery, exact cooking, material Supply, FinishFrame, Approach, Hold, bounded Idle and Standby (explicit idle). Unsupported families are refused, not sent to a
 native economic selector. Recreation without a building (walks, skygazing, social relaxing, drugs,
 reading) remains outside this initial execution slice. Firefighting is an explicit policy-selected emergency revision, not an automatic native fallback. Work givers use forced:false, required capacities,

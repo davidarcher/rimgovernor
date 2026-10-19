@@ -32,7 +32,9 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
         { Destination = s.GetProperty("Destination") is var d && d.ValueKind != JsonValueKind.Null
             ? new Cell(d.GetProperty("X").GetInt32(), d.GetProperty("Z").GetInt32()) : null,
           Practice = ReadPractice(s.GetProperty("Practice")), Recipe = ReadRecipe(s.GetProperty("Recipe")), NotBefore = s.GetProperty("NotBefore").GetInt64(), Container = s.Str("Container"),
-          SupportDemand = s.Str("SupportDemand"), Medicine = s.Str("Medicine") };
+          SupportDemand = s.Str("SupportDemand"), Medicine = s.Str("Medicine"),
+          Targets = EquatableArray.From(s.GetProperty("Targets").EnumerateArray().Select(t => t.GetString()!)),
+          Cells = EquatableArray.From(s.GetProperty("Cells").EnumerateArray().Select(c => new Cell(c.GetProperty("X").GetInt32(), c.GetProperty("Z").GetInt32()))) };
     private static PawnActivityPractice? ReadPractice(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
         : new(e.Str("Skill"), e.Str("Role"), e.GetProperty("RequirementIndex").GetInt32(), e.Str("Partner"), e.Str("PartnerTarget"), e.GetProperty("DurationTicks").GetInt32()) { Beneficiary = e.Str("Beneficiary") };
     private static PawnActivityRecipe? ReadRecipe(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
@@ -113,6 +115,10 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
         w.WriteString("Job", s.Job); w.WriteNum("Count", s.Count); w.WriteNum("Deadline", s.Deadline); w.WriteString("WaitForFilth", s.WaitForFilth);
         w.WriteNum("NotBefore", s.NotBefore); w.WriteString("Container", s.Container);
         w.WriteString("SupportDemand", s.SupportDemand); w.WriteString("Medicine", s.Medicine);
+        w.WriteStartArray("Targets"); foreach (var target in s.Targets) w.WriteStringValue(target); w.WriteEndArray();
+        w.WriteStartArray("Cells");
+        foreach (var cell in s.Cells) { w.WriteStartObject(); w.WriteNum("X", cell.X); w.WriteNum("Z", cell.Z); w.WriteEndObject(); }
+        w.WriteEndArray();
         if (s.Practice is { } practice)
         {
             w.WriteStartObject("Practice"); w.WriteString("Beneficiary", practice.Beneficiary); w.WriteString("Skill", practice.Skill); w.WriteString("Role", practice.Role);

@@ -27,6 +27,12 @@ public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, stri
     public long NotBefore { get; init; }
     public string Container { get; init; } = "";
     public string SupportDemand { get; init; } = "";
+    /// <summary>A set step (#3613): the Work repeats over these thing ids, nearest first, until <see cref="Count"/> members
+    /// are done or none is left legal. Empty keeps the single-<see cref="Target"/> behaviour.</summary>
+    public EquatableArray<string> Targets { get; init; }
+    /// <summary>The cell form of a set step; reserved for cell work (RemoveFloor, roof cells). Empty today.</summary>
+    public EquatableArray<Cell> Cells { get; init; }
+    public bool IsSet => Targets.Count > 0 || Cells.Count > 0;
 }
 
 /// <summary>Selected remaining intent owned by this Method. No forecast or mutable progress flags.</summary>
@@ -76,6 +82,15 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
         && a.Method == b.Method && a.ExpectedRevision == b.ExpectedRevision && a.Revision == b.Revision
         && a.Release == b.Release && a.OutputDelivery == b.OutputDelivery && a.Task == b.Task && a.Preparing == b.Preparing
         && a.Steps.SequenceEqual(b.Steps);
+    /// <summary>A set step (#3613) is Work over distinct thing ids or cells, never both, with <c>Count</c> the set's size.</summary>
+    private static void ValidateSet(PawnActivityStep step)
+    {
+        if (!step.IsSet) return;
+        DomainException.Require(step.Kind == PawnActivityKind.Work && step.Targets.Count <= 64 && step.Cells.Count <= 256
+            && (step.Targets.Count == 0 || step.Cells.Count == 0) && step.Count == step.Targets.Count + step.Cells.Count
+            && step.Targets.All(IdText.IsValidText) && step.Targets.Distinct(StringComparer.Ordinal).Count() == step.Targets.Count
+            && step.Cells.All(c => c is { X: >= 0, Z: >= 0 }) && step.Cells.Distinct().Count() == step.Cells.Count, "invalid activity set step");
+    }
     private static void ValidatePractice(PawnActivityStep step)
     {
         DomainException.Require(step.Practice != null || step.Job is not ("RimGovernor_TrainShooting" or "RimGovernor_Spar"), "practice requires an assigned mandate");
@@ -113,6 +128,7 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                         ? IdText.IsValidText(step.Container) : step.Container.Length == 0)
                     && (step.SupportDemand.Length == 0 || (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Work) && IdText.IsValidText(step.SupportDemand))
                     && (step.Medicine.Length == 0 || step.Kind == PawnActivityKind.Work && (step.Job is "TendPatient" or "DoBill") && IdText.IsValidText(step.Medicine)), "invalid activity step");
+                ValidateSet(step);
                 ValidatePractice(step);
                 if (step.Kind == PawnActivityKind.Recipe || step.Kind == PawnActivityKind.Work && step.Job == "DoBill")
                 {
@@ -149,7 +165,7 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                     && i.Location is { X: >= 0, Z: >= 0 } && IdText.IsValidText(i.Provenance)
                     && i.Producers.All(p => p != task.Id && IdText.IsValidText(p)))
                 && task.DepartTick >= 0 && task.Step.Deadline > task.DepartTick, "invalid selected activity obligation");
-        foreach (var task in Tasks) ValidatePractice(task.Step);
+        foreach (var task in Tasks) { ValidateSet(task.Step); ValidatePractice(task.Step); }
         foreach (var task in Tasks.Where(t => t.Step.Practice?.Skill == "Melee"))
             DomainException.Require(Tasks.Any(partner => partner.Pawn == task.Step.Practice!.Partner
                 && partner.Step.Target == task.Step.Practice.PartnerTarget && partner.Step.Practice?.Partner == task.Pawn

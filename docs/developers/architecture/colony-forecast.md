@@ -473,21 +473,26 @@ See [normal portfolio selection](portfolio-selection.md) for supported scope and
 the distinction between registered native cases and observed gameplay evidence.
 
 A standing removal designation is construction work the same way (#3557, #3612,
-#3614). The room reconcile stands a Deconstruct over an interior ruin or a stale
-piece, an Uninstall over a piece it packs and a Haul over a stack it moves out,
-each claiming only the cell; under voluntary control the designation gets no worker
-by itself. The coupled census reads every such designation as a clearing op of its
-kind ([standing removals](../contracts/forecast-contracts.md#standing-removals)),
-and `ConstructionMethodCandidates` binds each building as a pawn's Work task of
-that kind on it (`removal-{n}`, Deconstruct as Work/Deconstruct, Uninstall as
-Work/Uninstall) and each stack as the pawn's Deliver of it (Count the stack,
-Destination the row's storage cell, as a support delivery binds), exclusive outcome
-`construction/{thing}`, with a `removal/{thing}` relief so taking it down or away is
+#3613, #3614). The room reconcile stands a Deconstruct over an interior ruin or a
+stale piece, an Uninstall over a piece it packs, a Haul over a stack it moves out
+and a CutPlant over each plant of a Cut wave, each claiming only the cells; under
+voluntary control the designation gets no worker by itself. The coupled census
+reads every such designation as a clearing op of its kind
+([standing removals](../contracts/forecast-contracts.md#standing-removals)), and
+`ConstructionMethodCandidates` binds each building as a pawn's Work task of that
+kind on it (`removal-{n}`, Deconstruct as Work/Deconstruct, Uninstall as
+Work/Uninstall), each stack as the pawn's Deliver of it (Count the stack,
+Destination the row's storage cell, as a support delivery binds) and each Cut wave
+as one Work/CutPlant set step over its `Targets`, exclusive outcome
+`construction/{op}`, with a `removal/{op}` relief so taking it down, away or out is
 one unit of development and its work is exempt from the thermal-relief gate like a
-floor's. The order's claim is the thing; an op whose thing or pawn another Method
-claims, whose finish (a Haul's delivery) is unknown, whose stack is more than one
-carry (the Deliver step is one trip), or whose kind no order works yet
-(`RemoveFloor`) binds nothing. Up to 16 ops a round across all kinds; more sets
+floor's. The order's claim is the op (the thing, or the wave's lowest plant); an op
+whose thing or pawn another Method claims, whose finish (a Haul's delivery) is
+unknown, whose stack is more than one carry (the Deliver step is one trip), a Cut
+op naming no plants, or whose kind no order works yet (`RemoveFloor`) binds
+nothing. A planned site's Cut clearing binds the same way before placement
+(`PlannedRoomCandidates`, beside its Deconstruct and Haul clearings). Up to 16 ops
+a round across all kinds; more sets
 `Truncated`.
 
 `ForecastConstructionTests` covers decoding existing native fields, inventory

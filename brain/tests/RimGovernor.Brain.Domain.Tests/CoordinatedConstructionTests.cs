@@ -109,6 +109,84 @@ public sealed class CoordinatedConstructionTests
     }
 
     /// <summary>
+    /// #3613: a standing Cut wave (the room reconcile's CutPlant designations over one group of plants) is one removal op
+    /// whose Targets are the plants. The family binds it as one Work/CutPlant set step over them (Count the set's size),
+    /// one task per op, and the selection orders it. A Cut op naming no plants binds nothing.
+    /// </summary>
+    [Fact]
+    public void AStandingCutWaveIsOneSetOrderOverItsPlants()
+    {
+        string[] trees = ["Thing_Plant_TreeOak1", "Thing_Plant_TreeOak2", "Thing_Plant_TreeOak3"];
+        var row = new ConstructionActivityOption(trees[0], "Plant_TreeOak", new(30, 30), "producer", "", "", new(30, 30), 0, 0, "PlantsCut",
+            default, default, Known(150d)) { SiteApproachTicks = Known(10d) };
+        PlannedSiteClearing Wave(params string[] targets) => new(trees[0], PlannedClearingKind.Cut)
+            { Options = [row, row with { Pawn = "helper", FinishTicks = Known(200d) }], Targets = EquatableArray.From(targets) };
+        var facts = RemovalFacts(Wave(trees));
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
+        var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Job == "CutPlant" && b.Pawn == "producer");
+        Assert.Equal((PawnActivityKind.Work, trees[0], "PlantsCut", 3, "Plant_TreeOak"), (binding.Kind, binding.Target, binding.WorkGiver, binding.Count, binding.SiteDefinition));
+        Assert.Equal(trees, binding.Targets);
+        Assert.Equal(2, generated.Context.Bindings.Values.Count(b => b.Job == "CutPlant"));
+        var root = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome == "construction/" + trees[0]);
+        Assert.Equal("removal/" + trees[0], Assert.Single(root.Outcome!.Requirements!.Relief).Need);
+
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        Assert.Contains(root.Id, selected.Selection.Selected);
+        var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
+        var task = Assert.Single(batch.Tasks);
+        Assert.Equal((binding.Id, "producer", PawnActivityKind.Work, "CutPlant", 3), (task.Id, task.Pawn, task.Step.Kind, task.Step.Job, task.Step.Count));
+        Assert.Equal(trees, task.Step.Targets);
+        var order = Assert.Single(batch.Orders, o => o.Pawn == "producer" && !o.Release && o.Task == task.Id);
+        Assert.Equal(trees, order.Steps[0].Targets);
+
+        Assert.DoesNotContain(ForecastCoupledCandidates.GenerateCoupledActivities(RemovalFacts(Wave()), 1900)!.Context.Bindings.Values, b => b.Job == "CutPlant");
+    }
+
+    /// <summary>
+    /// #3613: a set step completes partially the way a delivery does. A failed order is retried on the members native still
+    /// finds legal (the binding's Targets, its RemainingCount); the retried order carries only those, and its completion
+    /// (or a native satisfied task, every member gone) finishes the task and releases the pawn.
+    /// </summary>
+    [Fact]
+    public void ASetStepRetriesOnTheMembersStillLegalAndCompletesWithThem()
+    {
+        string[] trees = ["Thing_Plant_TreeOak1", "Thing_Plant_TreeOak2", "Thing_Plant_TreeOak3"];
+        var row = new ConstructionActivityOption(trees[0], "Plant_TreeOak", new(30, 30), "producer", "", "", new(30, 30), 0, 0, "PlantsCut",
+            default, default, Known(150d)) { SiteApproachTicks = Known(10d) };
+        var facts = RemovalFacts(new PlannedSiteClearing(trees[0], PlannedClearingKind.Cut) { Options = [row], Targets = EquatableArray.From(trees) });
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var batch = ForecastCoupledSelection.StartCoupledActivity(ForecastCoupledSelection.CompareActivityOutcomes(request, generated), generated, 1, "construction", 100)!;
+        var task = Assert.Single(batch.Tasks);
+        ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => new()
+        {
+            Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
+            Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn, new(o.Assignment, o.Method, o.Revision, 0, state, "", null, 300))))
+        };
+        var remaining = task.Step with { Targets = EquatableArray.From(trees.Skip(1)), Count = 2 };
+        var retry = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "failed",
+            new ActivityTaskBinding(task.Id, remaining) { RemainingCount = Known(2) }))!;
+        var retried = Assert.Single(retry.Orders);
+        Assert.False(retried.Release);
+        Assert.Equal((2, 2), (retried.Steps[0].Count, retried.Steps[0].Targets.Count));
+        Assert.Equal(trees.Skip(1), retried.Steps[0].Targets);
+        Assert.Equal(2, retry.Tasks.Single().Step.Count);
+        Assert.Equal(2, retry.Tasks.Single().AttemptsLeft);
+        // A binding naming a member outside the set is not this task's.
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "failed",
+            new ActivityTaskBinding(task.Id, remaining with { Targets = ["Thing_Plant_TreeOak9", trees[2]] }) { RemainingCount = Known(2) }))!.Orders.Single().Release);
+        var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(retry, Known(true), Read(retry, "completed"))!;
+        Assert.Empty(done.Tasks);
+        Assert.True(done.Orders.Single().Release);
+        var cleared = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "completed") with { SatisfiedTasks = [task.Id] })!;
+        Assert.Empty(cleared.Tasks);
+        Assert.True(cleared.Orders.Single().Release);
+    }
+
+    /// <summary>
     /// #3614: a Haul designation the room reconcile stood over a stack in the room (HaulOut) is a Haul removal op whose rows
     /// are the planned-clearing haul rows. The family binds it as the pawn's Deliver of the stack (Count the stack) to the
     /// row's destination with the removal's relief, and the selection orders it. A row whose delivery is unknown binds nothing.

@@ -175,11 +175,14 @@ internal static class PlannedRoomCandidates
                         {
                             roomOptions.Add(new(clearing.Id, row.Pawn, haul ? row.DeliveryTicks : row.FinishTicks, Known(0.0)));
                             roomRoutes.Add(new(row.Pawn, "start", from, haul ? row.ApproachTicks : row.SiteApproachTicks));
-                            // The building or stack under the footprint stands now: its removal binds before placement, a
+                            // The building, stack or plants under the footprint stand now: their removal binds before placement, a
                             // building as Work/Deconstruct on it (#3557), a stack the pawn carries in one trip as a Deliver of
-                            // it to the row's storage cell (#3614); a larger stack stays priced and unbound.
+                            // it to the row's storage cell (#3614; a larger stack stays priced and unbound), the plants as one
+                            // Work/CutPlant set step over the op's named Targets (#3613).
                             if (clearing.Kind == PlannedClearingKind.Deconstruct || haul && ConstructionMethodCandidates.OneTrip(row))
                                 roomBindings[(clearing.Id, row.Pawn)] = ConstructionMethodCandidates.RemovalBinding(clearing.Id, clearing.Kind, row with { Definition = row.Resource }, row.Input, deadline);
+                            else if (clearing.Kind == PlannedClearingKind.Cut && clearing.Targets.Count > 0)
+                                roomBindings[(clearing.Id, row.Pawn)] = ConstructionMethodCandidates.RemovalBinding(clearing.Id, clearing.Kind, row, clearing.Id, deadline, clearing.Targets);
                         }
                         requirements.Add(new(finish + "/cleared/" + clearing.Id, cleared, Known(1), siteLocation, ForecastRequirementKind.Reusable,
                             Known<EquatableArray<string>>([done]), Known(0.0), Known(horizon)));

@@ -58,7 +58,8 @@ internal static class CoordinatedActivityBinding
             ? new SelectedActivityTask(task.Id, task.Pawn, task.Prerequisites,
                 new(task.Kind, task.Target, task.WorkGiver, task.Job, task.Count,
                     task.Practice != null || task.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? checked(tick + (long)Math.Ceiling(a.End)) : task.Deadline)
-                    { Practice = task.Practice, Destination = task.Destination, Container = task.Container, SupportDemand = task.SupportDemand, Medicine = task.Medicine, Recipe = task.Recipe ?? (task.Cooking is { } cooking
+                    { Practice = task.Practice, Destination = task.Destination, Container = task.Container, SupportDemand = task.SupportDemand, Medicine = task.Medicine,
+                        Targets = task.Targets, Cells = task.Cells, Recipe = task.Recipe ?? (task.Cooking is { } cooking
                         ? new(cooking.Continuation.Bill, cooking.Continuation.Recipe, [new(task.Ingredient, cooking.IngredientCount)]) { Resource = task.Resource } : null) },
                 task.Location, checked(tick + (long)Math.Ceiling(a.Depart)))
                     { Resource = task.Resource, Source = task.Source, SiteDefinition = task.SiteDefinition, ProductStuff = task.ProductStuff,
@@ -101,12 +102,15 @@ internal static class CoordinatedActivityBinding
                 // Delivery counts come from the exact completed operation, never predicted yield.
                 if (task.Step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply && order.Steps[0].Count < task.Step.Count)
                     remaining[remaining.IndexOf(task)] = task with { Step = task.Step with { Count = task.Step.Count - order.Steps[0].Count } };
+                // A set step's order worked the members native found legal (#3613); the rest of the set remains.
+                else if (task.Step.IsSet && order.Steps[0].IsSet && order.Steps[0].Count < task.Step.Count)
+                    remaining[remaining.IndexOf(task)] = task with { Step = RemainingSet(task.Step, order.Steps[0]) };
                 else { remaining.Remove(task); completed.Add(task.Id); }
             }
             else if (state == "failed")
             {
                 // A failed consuming/producing operation cannot be replayed from expected output.
-                if (task.Step.Kind is not (PawnActivityKind.Deliver or PawnActivityKind.Supply) || task.AttemptsLeft == 0)
+                if (task.Step.Kind is not (PawnActivityKind.Deliver or PawnActivityKind.Supply) && !task.Step.IsSet || task.AttemptsLeft == 0)
                     return new(null, true);
                 remaining[remaining.IndexOf(task)] = task with { AttemptsLeft = task.AttemptsLeft - 1 };
             }
@@ -186,7 +190,9 @@ internal static class CoordinatedActivityBinding
                 return new(null, true);
             }
             if (order.Revision == long.MaxValue) return new(null, false);
-            if (binding.RemainingCount.TryGetValue(out var remainingCount))
+            if (next.Step.IsSet)
+                remaining[remaining.IndexOf(next)] = next = next with { Step = next.Step with { Targets = binding.Step.Targets, Cells = binding.Step.Cells, Count = binding.Step.Count } };
+            else if (binding.RemainingCount.TryGetValue(out var remainingCount))
                 remaining[remaining.IndexOf(next)] = next = next with { Step = next.Step with { Count = Math.Min(next.Step.Count, remainingCount) } };
             orders.Add(order with { ExpectedRevision = order.Revision, Revision = order.Revision + 1, Release = false,
                 Task = next.Id, Preparing = false, Steps = [binding.Step],
@@ -221,8 +227,19 @@ internal static class CoordinatedActivityBinding
         && observed.Needs.Any(n => n.Kind is "rest" or "food" && n.Level.TryGetValue(out var level)
             && n.Threshold.TryGetValue(out var threshold) && level <= threshold);
 
+    /// <summary>The set a completed set order leaves (#3613): the members the order did not carry, Count their number.</summary>
+    private static PawnActivityStep RemainingSet(PawnActivityStep step, PawnActivityStep worked)
+    {
+        var targets = EquatableArray.From(step.Targets.Where(t => !worked.Targets.Contains(t)));
+        var cells = EquatableArray.From(step.Cells.Where(c => !worked.Cells.Contains(c)));
+        return step with { Targets = targets, Cells = cells, Count = targets.Count + cells.Count };
+    }
+
     private static bool CompatibleActivityBinding(SelectedActivityTask task, PawnActivityStep bound) =>
         bound.Kind == task.Step.Kind && bound.Deadline == task.Step.Deadline && bound.WorkGiver == task.Step.WorkGiver
+        // A set step binds to a non-empty subset of its own members (#3613).
+        && (!task.Step.IsSet || bound.IsSet && bound.Count == bound.Targets.Count + bound.Cells.Count
+            && bound.Targets.All(task.Step.Targets.Contains) && bound.Cells.All(task.Step.Cells.Contains))
         && bound.Practice == task.Step.Practice && bound.Medicine == task.Step.Medicine && bound.SupportDemand == task.Step.SupportDemand
         && (bound.Kind is not (PawnActivityKind.Recipe or PawnActivityKind.Sleep or PawnActivityKind.Recreation)
             || bound.Target == task.Step.Target)

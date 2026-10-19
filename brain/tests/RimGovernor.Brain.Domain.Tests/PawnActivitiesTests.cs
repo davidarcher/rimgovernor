@@ -28,6 +28,39 @@ public sealed class PawnActivitiesTests
         Assert.Equal(Batch().Orders[0].Steps[2], wire.Intent.PawnActivities.Batch.Orders[0].Steps[2]);
         Assert.Equal(Batch().Orders[0].Steps[3], wire.Intent.PawnActivities.Batch.Orders[0].Steps[3]);
     }
+    /// <summary>#3613: a set step repeats one Work over its Targets (or Cells); Count is the set's size, the store codec
+    /// keeps the set, and SameOrder tells orders apart by it.</summary>
+    [Fact]
+    public void ASetStepCarriesItsTargetsThroughTheCodecAndSameOrderTellsThemApart()
+    {
+        IntentActionRules.RegisterIntentKinds();
+        var cut = new PawnActivityStep(PawnActivityKind.Work, "Thing_Plant_TreeOak1", "PlantsCut", "CutPlant", 3, 5678)
+            { Targets = ["Thing_Plant_TreeOak1", "Thing_Plant_TreeOak2", "Thing_Plant_TreeOak3"] };
+        var floor = new PawnActivityStep(PawnActivityKind.Work, "planned/room1/floor", "RemoveFloor", "RemoveFloor", 2, 5678) { Cells = [new(1, 2), new(3, 4)] };
+        var order = new PawnActivityOrder("pawn", "assignment", "method", 0, 1, false, [cut, floor]);
+        var batch = new PawnActivities(1, [order]);
+        batch.Validate();
+        var action = DomainAction.NewPawnActivitiesAction(new ActionId("action"), batch);
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream)) Codecs.Default.Write(writer, action);
+        using var doc = JsonDocument.Parse(stream.ToArray());
+        var decoded = Codecs.Default.Read<DomainAction>(doc.RootElement).PawnActivities!;
+        Assert.Equal(cut, decoded.Orders[0].Steps[0]);
+        Assert.Equal(floor, decoded.Orders[0].Steps[1]);
+        Assert.True(PawnActivities.SameOrder(order, decoded.Orders[0]));
+        Assert.False(PawnActivities.SameOrder(order, order with { Steps = [cut with { Targets = ["Thing_Plant_TreeOak1", "Thing_Plant_TreeOak2", "Thing_Plant_TreeOak4"] }, floor] }));
+        Assert.False(PawnActivities.SameOrder(order, order with { Steps = [cut, floor with { Cells = [new(1, 2), new(3, 5)] }] }));
+        Assert.True(cut.IsSet);
+        Assert.False((cut with { Targets = default }).IsSet);
+
+        void Refused(PawnActivityStep step) => Assert.Throws<DomainException>(() => (batch with { Orders = [order with { Steps = [step] }] }).Validate());
+        Refused(cut with { Count = 2 });
+        Refused(cut with { Targets = ["Thing_Plant_TreeOak1", "Thing_Plant_TreeOak1", "Thing_Plant_TreeOak2"] });
+        Refused(cut with { Kind = PawnActivityKind.Deliver, Destination = new Cell(1, 1) });
+        Refused(cut with { Cells = [new(1, 1)], Count = 4 });
+        Refused(floor with { Cells = [new(-1, 2), new(3, 4)] });
+        Refused(cut with { Targets = ["", "Thing_Plant_TreeOak2", "Thing_Plant_TreeOak3"] });
+    }
     [Fact]
     public void CookingRejectsMissingOrAmbiguousIngredientAuthorization()
     {

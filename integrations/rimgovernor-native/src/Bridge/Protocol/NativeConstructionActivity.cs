@@ -63,6 +63,8 @@ internal static class NativeConstructionActivity
                 : d.Kind == Obs.PlannedClearingKind.Uninstall ? d.Thing is Verse.Building packable && Uninstallable(packable)
                 : d.Kind == Obs.PlannedClearingKind.Haul && Haulable(d.Thing)))
             .Select(d => (d.Kind, Thing: d.Thing!)).Distinct().OrderBy(d => d.Thing.thingIDNumber).ThenBy(d => d.Kind).ToArray();
+        // The standing CutPlant designations, one Cut op per contiguous wave of plants (#3613).
+        var cutWaves = CutWaves(map);
         Lap("placement");
         var (options, answers, routes, runRemovals, found) = legs.Batched(() =>
         {
@@ -95,6 +97,9 @@ internal static class NativeConstructionActivity
                     : RemovalRows(legs, free, building, id, building.def.defName, deconstructGiver, DeconstructWork(building));
                 removalOps.Add(new(id, kind) { Options = EquatableArray.From(rows) });
             }
+            // A standing Cut wave (#3613): one set op per contiguous group of CutPlant-designated plants, named by its lowest id.
+            var cutGiver = Giver<WorkGiver_PlantsCut>();
+            foreach (var wave in cutWaves) removalOps.Add(CutOp(legs, free, wave, wave[0].GetUniqueLoadID(), wave[0].def.defName, cutGiver));
             return (runOptions, runAnswers, runRoutes, removalOps, runFindings);
         });
         findings.UnionWith(found);
@@ -248,12 +253,7 @@ internal static class NativeConstructionActivity
         unknown = false;
         var pawns = roster.Where(Free).ToArray();
         var plants = things.Where(t => t.Kind == Clear.Cut).Select(t => (Plant)t.Thing).OrderBy(t => t.thingIDNumber).ToArray();
-        if (plants.Length > 0)
-            result.Add(Work(site + "/cut", Obs.PlannedClearingKind.Cut, plants, Giver<WorkGiver_PlantsCut>(),
-                pawn => (!pawn.WorkTypeIsDisabled(WorkTypeDefOf.PlantCutting) || !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction))
-                    && plants.All(p => PlantUtility.PawnWillingToCutPlant_Job(p, pawn)),
-                pawn => plants.Select(p => (double)JobDriver_PlantWork.WorkDonePerTick(pawn, p)).All(r => r > 0)
-                    ? Fact.Known(plants.Sum(p => (double)p.def.plant.harvestWork / JobDriver_PlantWork.WorkDonePerTick(pawn, p))) : default));
+        if (plants.Length > 0) result.Add(CutOp(legs, pawns, plants, site + "/cut", definition.defName, Giver<WorkGiver_PlantsCut>()));
         var rock = things.Where(t => t.Kind == Clear.Mine).Select(t => t.Thing).OrderBy(t => t.thingIDNumber).ToArray();
         if (rock.Length > 0)
             result.Add(Work(site + "/mine", Obs.PlannedClearingKind.Mine, rock, Giver<WorkGiver_Miner>(),
@@ -285,19 +285,65 @@ internal static class NativeConstructionActivity
         return result;
 
         // A work op over its things: the route reaches the one nearest the pawn; finish is the summed native work.
-        Obs.PlannedSiteClearing Work(string id, Obs.PlannedClearingKind kind, Thing[] targets, string giver, Func<Pawn, bool> able, Func<Pawn, Fact<double>> finish)
+        Obs.PlannedSiteClearing Work(string id, Obs.PlannedClearingKind kind, Thing[] targets, string giver, Func<Pawn, bool> able, Func<Pawn, Fact<double>> finish) =>
+            new(id, kind) { Options = EquatableArray.From(WorkRows(legs, pawns, targets, id, definition.defName, giver, able, finish)) };
+    }
+
+    // A set op's rows: one per able pawn, routed to the member nearest it (Location that member's cell); finish is the summed native work.
+    private static List<Obs.ConstructionActivityOption> WorkRows(NativePathLegs legs, Pawn[] pawns, Thing[] targets, string id, string definition, string giver,
+        Func<Pawn, bool> able, Func<Pawn, Fact<double>> finish)
+    {
+        var rows = new List<Obs.ConstructionActivityOption>();
+        foreach (var pawn in pawns.Where(able))
         {
-            var rows = new List<Obs.ConstructionActivityOption>();
-            foreach (var pawn in pawns.Where(able))
-            {
-                var nearest = targets.OrderBy(t => t.Position.DistanceToSquared(pawn.Position)).ThenBy(t => t.thingIDNumber).First();
-                if (legs.Cost(pawn, pawn.Position, nearest, PathEndMode.Touch) is not { } route) continue;
-                var cell = new Cell(nearest.Position.x, nearest.Position.z);
-                rows.Add(new(id, definition.defName, cell, pawn.GetUniqueLoadID(), "", "", cell, 0, 0, giver, default, default, finish(pawn))
-                    { SiteApproachTicks = Fact.Known((double)route) });
-            }
-            return new(id, kind) { Options = EquatableArray.From(rows) };
+            var nearest = targets.OrderBy(t => t.Position.DistanceToSquared(pawn.Position)).ThenBy(t => t.thingIDNumber).First();
+            if (legs.Cost(pawn, pawn.Position, nearest, PathEndMode.Touch) is not { } route) continue;
+            var cell = new Cell(nearest.Position.x, nearest.Position.z);
+            rows.Add(new(id, definition, cell, pawn.GetUniqueLoadID(), "", "", cell, 0, 0, giver, default, default, finish(pawn))
+                { SiteApproachTicks = Fact.Known((double)route) });
         }
+        return rows;
+    }
+
+    // A Cut op over its plants (a planned site's, or a standing wave's, #3613), Targets the plants lowest id first: rows for a
+    // pawn not incapable of PlantCutting (the cut giver's work type) and willing to cut every plant; FinishTicks sums
+    // harvestWork / JobDriver_PlantWork.WorkDonePerTick (a rate of zero leaves it unknown).
+    private static Obs.PlannedSiteClearing CutOp(NativePathLegs legs, Pawn[] pawns, Plant[] plants, string id, string definition, string giver)
+    {
+        var rows = WorkRows(legs, pawns, plants, id, definition, giver,
+            pawn => !pawn.WorkTypeIsDisabled(WorkTypeDefOf.PlantCutting) && plants.All(p => PlantUtility.PawnWillingToCutPlant_Job(p, pawn)),
+            pawn => plants.Select(p => (double)JobDriver_PlantWork.WorkDonePerTick(pawn, p)).All(r => r > 0)
+                ? Fact.Known(plants.Sum(p => (double)p.def.plant.harvestWork / JobDriver_PlantWork.WorkDonePerTick(pawn, p))) : default);
+        return new(id, Obs.PlannedClearingKind.Cut) { Options = EquatableArray.From(rows), Targets = EquatableArray.From(plants.Select(p => p.GetUniqueLoadID())) };
+    }
+
+    // The standing Cut waves (#3613): the spawned plants under a CutPlant designation (the room reconcile's Cut, or the
+    // player's), grouped by contiguity (eight-adjacent cells), each wave lowest thing id first. CutPlant takes no guard
+    // record, so the cells group the wave; a HarvestPlant stood as chop-wood is not read (it is a harvest's designation).
+    private static List<Plant[]> CutWaves(Map map)
+    {
+        var plants = map.designationManager.SpawnedDesignationsOfDef(DesignationDefOf.CutPlant).Select(d => d.target.Thing as Plant)
+            .Where(p => p != null && p.Spawned).Select(p => p!).Distinct().OrderBy(p => p.thingIDNumber).ToList();
+        var byCell = plants.GroupBy(p => p.Position).ToDictionary(g => g.Key, g => g.ToArray());
+        var seen = new HashSet<Plant>();
+        var waves = new List<Plant[]>();
+        foreach (var seed in plants)
+        {
+            if (!seen.Add(seed)) continue;
+            var wave = new List<Plant> { seed };
+            var pending = new Queue<Plant>();
+            pending.Enqueue(seed);
+            while (pending.Count > 0)
+            {
+                var plant = pending.Dequeue();
+                foreach (var offset in GenAdj.AdjacentCellsAndInside)
+                    if (byCell.TryGetValue(plant.Position + offset, out var neighbours))
+                        foreach (var neighbour in neighbours)
+                            if (seen.Add(neighbour)) { wave.Add(neighbour); pending.Enqueue(neighbour); }
+            }
+            waves.Add(wave.OrderBy(p => p.thingIDNumber).ToArray());
+        }
+        return waves;
     }
 
     private static string Giver<T>() => DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is T)?.defName ?? "";

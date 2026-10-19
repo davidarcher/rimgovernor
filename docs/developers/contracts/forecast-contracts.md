@@ -555,9 +555,10 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
 - `Clearing`: the clearing prerequisites, each an id, a `Kind` (`Cut`, `Haul`,
   `Mine`, `Deconstruct`) and per-pawn `ConstructionActivityOption` rows with `Site` set
   to the op id and `Definition` to the planned site's. One `Cut` op (`<site>/cut`)
-  covers the site's plants: `FinishTicks` sums `harvestWork /
+  covers the site's plants, its `Targets` their ids lowest first (what the brain binds
+  its Work/CutPlant set step over, #3613): `FinishTicks` sums `harvestWork /
   JobDriver_PlantWork.WorkDonePerTick` (PlantWorkSpeed scaled by growth), for a
-  pawn not incapable of both PlantCutting and Construction and willing to cut
+  pawn not incapable of PlantCutting (the cut giver's work type) and willing to cut
   every plant. One `Mine` op (`<site>/mine`) covers its natural rock: `FinishTicks`
   sums `ceil(HitPoints / 80)` pick hits at `round(100 / MiningSpeed)` ticks
   (JobDriver_Mine), for a pawn not incapable of Mining. For both, `SiteApproachTicks`
@@ -644,6 +645,15 @@ stack's cell (the whole map when none does), `Origin` its cell, `Count` the stac
 `DeliveryTicks` by trips; a stack with no such destination has no op (finding
 `removal_haul_destination_unknown`). `PlannedClearingKind.RemoveFloor` is declared
 for the FloorOut op (#3615); no read emits it yet.
+
+A standing Cut wave (#3613) is read the same way: the spawned plants under a CutPlant
+designation (the reconcile's `Cut` obstruction clearing, or the player's) grouped by
+contiguity (eight-adjacent cells; CutPlant takes no guard record, so the cells group
+the wave) are one `Cut` op per group, `Id` the lowest plant's id, `Targets` the
+plants lowest id first, `Definition` the first plant's def, and rows in the planned
+Cut op's shape (`Location` the member nearest the pawn, `FinishTicks` the summed
+plant work, `WorkGiver` the plant-cut giver). A HarvestPlant stood as chop wood is a
+harvest's designation and is not read.
 
 ### Planned shelter thermal read
 

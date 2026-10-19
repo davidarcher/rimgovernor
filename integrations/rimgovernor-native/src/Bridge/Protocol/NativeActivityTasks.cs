@@ -133,6 +133,18 @@ internal static class NativeActivityTasks
                         && NativeSowingActivities.LegalCells(pawn, grower) is [var nearest, ..])
                         bindings.Add(new(task.Id, step with { Destination = new(nearest.x, nearest.z) }));
                 }
+                else if (step.Kind == PawnActivityKind.Work && step.IsSet)
+                {
+                    // A set step (#3613): every member gone is done; else the members this pawn can still work, nearest first.
+                    if (NativeSetActivities.Members(pawn, step).Count == 0) { satisfied.Add(task.Id); continue; }
+                    if (DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver)?.Worker is not WorkGiver_Scanner setGiver
+                        || !NativeSetActivities.Supported(setGiver.def, step.Job) || setGiver.MissingRequiredCapacity(pawn) != null
+                        || pawn.WorkTagIsDisabled(setGiver.def.workTags) || setGiver.def.workType != null && pawn.WorkTypeIsDisabled(setGiver.def.workType)) continue;
+                    var legal = NativeSetActivities.Legal(pawn, step, setGiver);
+                    if (legal.Count == 0) continue;
+                    bindings.Add(new(task.Id, step with { Targets = EquatableArray.From(legal.Select(m => m.GetUniqueLoadID())), Count = legal.Count })
+                        { RemainingCount = Fact.Known(legal.Count) });
+                }
                 else if (step.Kind == PawnActivityKind.Work)
                 {
                     var target = task.SiteDefinition.Length == 0

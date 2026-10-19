@@ -30,8 +30,9 @@ namespace HomeBridge.BridgeTools
             internal int RunningId;
             internal long Tick;
             internal Thing?[] Dependencies = [];
-            /// <summary>Cells sown under the step <see cref="SownStep"/> (a Sow step repeats one job per cell). In memory only: a load restarts the count (#3528).</summary>
-            internal int Sown, SownStep = -1;
+            /// <summary>Jobs done under the repeating step <see cref="DoneStep"/>: cells sown by a Sow step (#3528), members worked by a set step (#3613).
+            /// In memory only: a load restarts the count.</summary>
+            internal int Done, DoneStep = -1;
         }
         private sealed record Offer(Entry Entry, int Step, int JobId);
         private static readonly Dictionary<Pawn, Entry> Entries = new();
@@ -159,6 +160,15 @@ namespace HomeBridge.BridgeTools
                         JobMaker.ReturnToPool(probe);
                         continue;
                     }
+                    if (step.Kind == PawnActivityKind.Work && step.IsSet)
+                    {
+                        // A set step (#3613) is legal while any member is: the order stands the designations itself in Apply.
+                        var setGiver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver);
+                        if (setGiver?.Worker is not WorkGiver_Scanner scanner || !NativeSetActivities.Supported(setGiver, step.Job)
+                            || pawn.WorkTagIsDisabled(setGiver.workTags) || (setGiver.workType != null && pawn.WorkTypeIsDisabled(setGiver.workType))) return Refuse("Unsupported/incapable activity work.");
+                        if (NativeSetActivities.Refusal(pawn, step, scanner) is { } setWhy) return Refuse("Selected set work unavailable: " + setWhy + ".");
+                        continue;
+                    }
                     var target = Thing(step.Target) ?? (pawn.carryTracker.CarriedThing?.GetUniqueLoadID() == step.Target ? pawn.carryTracker.CarriedThing : null);
                     if (target == null || target.Destroyed || (!target.Spawned && pawn.carryTracker.CarriedThing != target)
                         || target.Spawned && target.Map != pawn.Map) return Refuse("Activity target unavailable.");
@@ -203,10 +213,11 @@ namespace HomeBridge.BridgeTools
             || (job == "FinishFrame" && giver.Worker is WorkGiver_ConstructFinishFrames)
             || (job == "Deconstruct" && giver.Worker is WorkGiver_Deconstruct)
             || (job == "Uninstall" && giver.Worker is WorkGiver_Uninstall)
+            || NativeSetActivities.Supported(giver, job)
             || (job == "BeatFire" && giver.giverClass.FullName == "RimWorld.WorkGiver_FightFires");
         private static bool Equivalent(PawnActivityOrder a, PawnActivityOrder b) => PawnActivities.SameOrder(a, b);
 
-        // A Deconstruct step works a standing building the order designates itself (StandRemoval), so an undesignated
+        // A Deconstruct step works a standing building the order designates itself (StandDesignation), so an undesignated
         // ruin needs nothing first; the enclosure guard's roof-collapse wait is a refusal here, since the job would only hold (#3557).
         private static string? DeconstructRefusal(Pawn pawn, Thing target)
         {
@@ -228,22 +239,25 @@ namespace HomeBridge.BridgeTools
             return InstallBlueprintUtility.ExistingBlueprintFor(building) == null ? null : "building has a reinstall blueprint";
         }
 
-        // Stands the removal designation the job needs (JobDriver_RemoveBuilding fails without it) under the enclosure
-        // guard as an Ordered record: the roof-collapse wait still holds a deconstruction, revoking authority still
+        // Stands the designation the job needs (JobDriver_RemoveBuilding and the cut giver fail without it) under the
+        // enclosure guard as an Ordered record: the roof-collapse wait still holds a deconstruction, revoking authority still
         // releases the designation, and the controlled pawn works it whether or not play is supervised. A Deconstruct is
-        // placed through the game's designator; an Uninstall is the plain designation the reconcile's Pack stands.
-        private static void StandRemoval(Verse.Building building, DesignationDef def)
+        // placed through the game's designator; an Uninstall is the plain designation the reconcile's Pack stands; a
+        // CutPlant is the ordered cut designator's (a tree too, #3613). No job hook rechecks a CutPlant record: the
+        // enclosure guard judges buildings, so the record serves the release on revocation and the removal hook alone.
+        private static void StandDesignation(Thing thing, DesignationDef def)
         {
-            var map = building.Map;
-            if (map.designationManager.DesignationOn(building, def) == null)
+            var map = thing.Map;
+            if (map.designationManager.DesignationOn(thing, def) == null)
             {
-                if (def == DesignationDefOf.Deconstruct) new Designator_Deconstruct().DesignateThing(building);
-                else map.designationManager.AddDesignation(new Designation(building, def));
+                if (def == DesignationDefOf.Deconstruct) new Designator_Deconstruct().DesignateThing(thing);
+                else if (def == DesignationDefOf.CutPlant) new Designator_PlantsCut { isOrder = true }.DesignateThing(thing);
+                else map.designationManager.AddDesignation(new Designation(thing, def));
             }
-            var record = NativeDesignationGuards.Open(map, def, building.Position, building) ?? NativeDesignationGuards.Add(new GuardedDesignation
+            var record = NativeDesignationGuards.Open(map, def, thing.Position, thing) ?? NativeDesignationGuards.Add(new GuardedDesignation
             {
                 Id = "activity-" + Guid.NewGuid().ToString("N"), Guard = GuardNames.Enclosure, Designation = def.defName,
-                ExpectedDef = building.def.defName, ThingId = building.GetUniqueLoadID(), MapId = map.uniqueID, X = building.Position.x, Z = building.Position.z,
+                ExpectedDef = thing.def.defName, ThingId = thing.GetUniqueLoadID(), MapId = map.uniqueID, X = thing.Position.x, Z = thing.Position.z,
             });
             record.Ordered = true;
         }
@@ -313,7 +327,11 @@ namespace HomeBridge.BridgeTools
                     foreach (var step in e.Order.Steps)
                     {
                         if (step.Kind == PawnActivityKind.Work && step.Job is "Deconstruct" or "Uninstall" && Thing(step.Target) is Verse.Building building)
-                            StandRemoval(building, step.Job == "Deconstruct" ? DesignationDefOf.Deconstruct : DesignationDefOf.Uninstall);
+                            StandDesignation(building, step.Job == "Deconstruct" ? DesignationDefOf.Deconstruct : DesignationDefOf.Uninstall);
+                        // A set step's members each get the designation the job needs where one is missing (#3613).
+                        else if (step.Kind == PawnActivityKind.Work && step.IsSet)
+                            foreach (var member in step.Targets.Select(Thing))
+                                if (member is { Spawned: true } && NativeSetActivities.Needed(step, member) is { } needed) StandDesignation(member, needed);
                         // A delivery of a stack under a Haul designation works the designation (#3614): a guarded record of it is Ordered.
                         else if (step.Kind == PawnActivityKind.Deliver && Thing(step.Target) is { Spawned: true } stack
                             && stack.Map.designationManager.DesignationOn(stack, DesignationDefOf.Haul) != null
@@ -415,7 +433,7 @@ namespace HomeBridge.BridgeTools
             if (step.Kind == PawnActivityKind.Work && step.Job == "Sow")
             {
                 // One Sow job per cell: the step repeats until its count is sown or no cell is legal any more (a full zone is done, not a fault).
-                var sowJob = NativeSowingActivities.NextJob(p, step, e.SownStep == e.Step ? e.Sown : 0);
+                var sowJob = NativeSowingActivities.NextJob(p, step, e.DoneStep == e.Step ? e.Done : 0);
                 if (sowJob == null)
                 {
                     e.Step++; e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed";
@@ -423,6 +441,21 @@ namespace HomeBridge.BridgeTools
                     return OfferJob(e);
                 }
                 sowJob.workGiverDef = NativeSowingActivities.Giver; return sowJob;
+            }
+            if (step.Kind == PawnActivityKind.Work && step.IsSet)
+            {
+                // One job per member, nearest first (#3613): the step repeats until its count is done or no member is legal any more.
+                var setGiver = (WorkGiver_Scanner)DefDatabase<WorkGiverDef>.GetNamed(step.WorkGiver).Worker;
+                if (p.WorkTagIsDisabled(setGiver.def.workTags) || (setGiver.def.workType != null && p.WorkTypeIsDisabled(setGiver.def.workType)) || setGiver.MissingRequiredCapacity(p) != null)
+                    throw new InvalidOperationException("work_refused");
+                var setJob = NativeSetActivities.NextJob(p, step, setGiver);
+                if (setJob == null)
+                {
+                    e.Step++; e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed";
+                    e.Reason = "no_legal_member"; e.Tick = Find.TickManager.TicksGame; Emit(e);
+                    return OfferJob(e);
+                }
+                return setJob;
             }
             var target = Thing(step.Target) ?? (p.carryTracker.CarriedThing?.GetUniqueLoadID() == step.Target ? p.carryTracker.CarriedThing : null)
                 ?? throw new InvalidOperationException("target_missing");
@@ -597,14 +630,15 @@ namespace HomeBridge.BridgeTools
             if (PawnActivities.IsStandby(e.Order)) return;
             if (condition == JobCondition.Succeeded && !hold)
             {
-                // A Sow step stays current until its cell count is sown; every other step is done with its job.
-                var sowing = e.Step < e.Order.Steps.Length && e.Order.Steps[e.Step] is { Kind: PawnActivityKind.Work, Job: "Sow" } sow ? sow : null;
-                if (sowing != null)
+                // A Sow step stays current until its cell count is sown and a set step until its member count is done (#3613);
+                // every other step is done with its job.
+                var repeating = e.Step < e.Order.Steps.Length && e.Order.Steps[e.Step] is { Kind: PawnActivityKind.Work } work && (work.Job == "Sow" || work.IsSet) ? work : null;
+                if (repeating != null)
                 {
-                    if (e.SownStep != e.Step) { e.SownStep = e.Step; e.Sown = 0; }
-                    e.Sown++;
+                    if (e.DoneStep != e.Step) { e.DoneStep = e.Step; e.Done = 0; }
+                    e.Done++;
                 }
-                if (sowing == null || e.Sown >= sowing.Count) e.Step++;
+                if (repeating == null || e.Done >= repeating.Count) e.Step++;
                 e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed"; e.Reason = "Succeeded";
             }
             else if (condition != JobCondition.Succeeded) { e.State = "failed"; e.Reason = condition.ToString(); }
