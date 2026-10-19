@@ -402,6 +402,18 @@ public sealed record Status
     public ulong? HoldSerial { get; init; }
 
     /// <summary>
+    /// The last speed the player asked for in game (native's RequestSpeed); unset when none was asked for in the
+    /// loaded game. Native never runs at it by itself: the brain adopts it as its target speed and sends a Run.
+    /// </summary>
+    public Speed? PlayerRequestedSpeed { get; init; }
+
+    /// <summary>
+    /// Bumped on every in-game speed request, on the game thread; it starts again with the loaded game. Set exactly
+    /// when <see cref="PlayerRequestedSpeed"/> is. The brain adopts a serial it has not adopted yet.
+    /// </summary>
+    public ulong? PlayerSpeedRequestSerial { get; init; }
+
+    /// <summary>
     /// The one ceiling on the tick rate (frame budget and brain heartbeat, the
     /// lower of the two); zero when neither limits it. When it bounds the rate,
     /// pacing_reason names the input that binds it.

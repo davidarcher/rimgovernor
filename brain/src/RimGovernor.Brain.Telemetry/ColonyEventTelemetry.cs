@@ -16,6 +16,7 @@ public static class ColonyEventTelemetry
     public const string InvalidationKind = "clock_invalidation";
     public const string LongEventKind = "clock_long_event";
     public const string PauseFailedKind = "clock_pause_failed";
+    public const string SpeedRequestKind = "clock_speed_request";
 
     /// <summary>The row component.</summary>
     public const string Component = "clock";

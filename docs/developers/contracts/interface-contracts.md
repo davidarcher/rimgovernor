@@ -21,6 +21,15 @@ speed and its clamp relies on.
   the next step sends `Run` at the new speed. Acceptance sets each launch's speed (a speed-matrix row's) through
   that route once the brain is up. While a fight is open and the combat resume-latency gate has tripped, the brain
   asks for the slower fallback speed instead (control loop, Combat).
+- **The player's in-game speed request.** The in-game time controls call native's `RequestSpeed` (game thread;
+  Normal through Hyperfast, Unspecified throws). It records the speed and bumps a serial, which `Status` reports as
+  `player_requested_speed` and `player_speed_request_serial` (both unset until the loaded game's first request; the
+  serial starts again with each loaded game), and publishes a `SpeedRequested` colony event (`speed`). The event is
+  only a wake (a quiet step, cause Review, when no hold is pending): the request lives in `Status`, so a lost event
+  costs latency and the next read still finds it. The run driver adopts a serial it has not adopted for that load
+  (any pending one at its first read) into the same live target the player-API route sets, and the step's `Run`
+  carries it. Native never changes its own running speed for a request. Under `ClockTestAcceleration` the pinned
+  Hyperfast ignores it, as it ignores the route.
 - **Run fields.** A `Run` carries the identity, `expected_generation`, `speed`, the complete `policy` and
   `planned_hold_serial`: the `Status.hold_serial` of the read its plan came from. A client that drives the clock
   over `/native` (the acceptance harness) reads the status first and quotes its serial; a resume after a hold the

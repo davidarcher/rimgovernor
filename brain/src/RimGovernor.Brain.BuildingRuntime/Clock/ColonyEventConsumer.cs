@@ -172,7 +172,7 @@ internal sealed partial class ColonyEventConsumer(Session session, IColonyEventN
         }
         Tel.ObserveTick(current.Tick);
         var found = ColonyEventConsumer.EventsWake(events);
-        wake?.NotifySections(found.Families, ColonyEventConsumer.EventSections(events), found.Authority, found.Stopped, found.StopAt, found.Review);
+        wake?.NotifySections(found.Families, ColonyEventConsumer.EventSections(events), found.Authority, found.Stopped, found.StopAt, found.Review, found.Speed);
         Interlocked.Add(ref _seen, events.Count);
     }
 

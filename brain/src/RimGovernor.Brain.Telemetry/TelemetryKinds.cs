@@ -83,6 +83,9 @@ public static class TelemetryKinds
     /// <summary>A pending hold's pause did not take; the hold stays armed (<see cref="ColonyEventTelemetry.PauseFailedKind"/>).</summary>
     public static readonly TelemetryKind ClockPauseFailed = new(ColonyEventTelemetry.PauseFailedKind);
 
+    /// <summary>The player asked for a speed in game (<see cref="ColonyEventTelemetry.SpeedRequestKind"/>).</summary>
+    public static readonly TelemetryKind ClockSpeedRequest = new(ColonyEventTelemetry.SpeedRequestKind);
+
     /// <summary>The clock scheduler's step decision row's kind.</summary>
     public const string ClockStepKind = "clock_step";
 

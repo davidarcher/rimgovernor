@@ -9,6 +9,13 @@ public sealed record ClockRunConfig
     /// <summary>The speed the clock runs at; a change reaches the clock as a Run at the new speed.</summary>
     public required ClockTargetSpeed TargetSpeed { get; init; }
 
+    /// <summary>
+    /// The live target a player's in-game speed request (<see cref="PbClock.Status.PlayerSpeedRequestSerial"/>) sets,
+    /// as the player API's speed route does: <see cref="TargetSpeed"/> itself, except under test acceleration, whose
+    /// pinned run speed no request reaches.
+    /// </summary>
+    public required ClockTargetSpeed PlayerSpeed { get; init; }
+
     /// <summary>The colony watch policy with the hazard thresholds; each Run adds the acknowledgements the watch decision names.</summary>
     public required PbClock.WatchPolicy Policy { get; init; }
 

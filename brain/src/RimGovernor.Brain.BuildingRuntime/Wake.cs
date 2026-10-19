@@ -14,7 +14,7 @@ public readonly record struct WakeOutcome(ActionId Action, AttemptId Attempt, bo
 /// consumer has read against the current world wake anyone; a wake is a hint to act now, never a fact by itself. A
 /// caller that has no signal holds null and uses <see cref="Wait"/>, which never completes for it.
 /// The step loop and the Worker wait on separate channels: the Worker is hinted by everything, the step loop only by
-/// a hold entry, an authority change or lost events (<see cref="WaitStep"/>). Invalidations and planner marks only
+/// a hold entry, an authority change, a player speed request or lost events (<see cref="WaitStep"/>). Invalidations and planner marks only
 /// accumulate for the step that the next hold wakes: nothing wakes a step while the clock runs (#3556).
 /// </summary>
 public sealed class WakeSignal
@@ -28,6 +28,9 @@ public sealed class WakeSignal
     // families stay the byte cache's whole-family view of the same events.
     private readonly HashSet<Facts.Section> _sections = [];
     private bool _authority;
+
+    // Set when the player asked for a speed in game: the step and the Run that follows it adopt the request.
+    private bool _speed;
 
     // The planners marked due by name (NotifyPlanner), until the step loop takes them.
     private readonly HashSet<string> _planners = [];
@@ -48,9 +51,11 @@ public sealed class WakeSignal
     /// Records one batch of colony events: the fact families and store sections its invalidations named
     /// (EventSections), whether authority changed, whether the clock entered a hold (with the native stamp of the
     /// earliest, null when unknown) and whether every such hold was the review tick. Invalidations coalesce into one
-    /// set and only hint the Worker; a hold or an authority change also wakes the step loop.
+    /// set and only hint the Worker; a hold, an authority change or a player speed request (<paramref name="speed"/>)
+    /// also wakes the step loop. A speed request with no hold and no authority change is a quiet step (cause Review):
+    /// the planners due at the tick and the Run that carries the adopted speed.
     /// </summary>
-    public void NotifySections(IReadOnlyList<FactFamily> families, IReadOnlyList<Facts.Section> sections, bool authority, bool stopped, DateTimeOffset? stopAt, bool review)
+    public void NotifySections(IReadOnlyList<FactFamily> families, IReadOnlyList<Facts.Section> sections, bool authority, bool stopped, DateTimeOffset? stopAt, bool review, bool speed)
     {
         lock (_mu)
         {
@@ -63,6 +68,7 @@ public sealed class WakeSignal
                 _sections.Add(section);
             }
             _authority = _authority || authority;
+            _speed = _speed || speed;
             if (stopped)
             {
                 _stopped = true;
@@ -74,7 +80,7 @@ public sealed class WakeSignal
             }
         }
         _hint.Writer.TryWrite(true);
-        if (stopped || authority)
+        if (stopped || authority || speed)
         {
             _step.Writer.TryWrite(true);
         }
@@ -115,7 +121,7 @@ public sealed class WakeSignal
         await signal._hint.Reader.ReadAsync(ct).ConfigureAwait(false);
     }
 
-    /// <summary>Completes when a hold entry, an authority change or a loss is signalled (the step loop's wake) or <paramref name="ct"/> is cancelled.</summary>
+    /// <summary>Completes when a hold entry, an authority change, a player speed request or a loss is signalled (the step loop's wake) or <paramref name="ct"/> is cancelled.</summary>
     public static async Task WaitStep(WakeSignal? signal, CancellationToken ct)
     {
         if (signal is null)
@@ -131,7 +137,8 @@ public sealed class WakeSignal
 
     /// <summary>
     /// Drains the evidence into one step reason: Full after a loss; Review when the only holds pending were the review
-    /// tick and authority did not change; Wake otherwise. The reason carries the hold and its earliest stamp.
+    /// tick, or no hold but a player speed request, and authority did not change; Wake otherwise. The reason carries
+    /// the hold and its earliest stamp.
     /// </summary>
     public StepReason TakeInvalidated()
     {
@@ -139,7 +146,7 @@ public sealed class WakeSignal
         {
             var reason = new StepReason
             {
-                Cause = _full ? StepCause.Full : _stopped && _onlyReview && !_authority ? StepCause.Review : StepCause.Wake,
+                Cause = _full ? StepCause.Full : (_stopped ? _onlyReview : _speed) && !_authority ? StepCause.Review : StepCause.Wake,
                 Families = [.. _families.Order()],
                 Sections = [.. _sections.Order()],
                 Planners = [.. _planners.Order(StringComparer.Ordinal)],
@@ -151,6 +158,7 @@ public sealed class WakeSignal
             _sections.Clear();
             _planners.Clear();
             _authority = false;
+            _speed = false;
             _full = false;
             _stopped = false;
             _onlyReview = true;
@@ -161,7 +169,7 @@ public sealed class WakeSignal
 }
 
 /// <summary>What one batch of colony events says that should wake the step loop.</summary>
-internal sealed record ColonyEventWake(IReadOnlyList<FactFamily> Families, bool Authority, bool Stopped, DateTimeOffset? StopAt, bool Review);
+internal sealed record ColonyEventWake(IReadOnlyList<FactFamily> Families, bool Authority, bool Stopped, DateTimeOffset? StopAt, bool Review, bool Speed);
 
 partial class ColonyEventConsumer
 {
@@ -169,13 +177,15 @@ partial class ColonyEventConsumer
     /// Reads the wake-relevant facts out of one batch of this world's events: the families its
     /// ObservationInvalidated events named, whether authority changed, and whether the batch carried a hold entry
     /// (every hold wakes the step that starts from it, the brain's own coupled-order and autosave holds included)
-    /// with the earliest such event's native stamp, and whether every hold was the review tick.
+    /// with the earliest such event's native stamp, whether every hold was the review tick, and whether the player
+    /// asked for a speed (SpeedRequested, a wake only: the request itself is read from Status).
     /// </summary>
     internal static ColonyEventWake EventsWake(IReadOnlyList<NativeEvents.ColonyEvent> events)
     {
         var families = new List<FactFamily>();
         var seen = new HashSet<FactFamily>();
         var authority = false;
+        var speed = false;
         var stopped = false;
         var review = true;
         DateTimeOffset? stopAt = null;
@@ -191,6 +201,9 @@ partial class ColonyEventConsumer
                     {
                         stopAt = at;
                     }
+                    break;
+                case NativeEvents.SpeedRequested:
+                    speed = true;
                     break;
                 case NativeEvents.AuthorityChanged:
                     authority = true;
@@ -212,7 +225,7 @@ partial class ColonyEventConsumer
                     break;
             }
         }
-        return new ColonyEventWake(families, authority, stopped, stopAt, stopped && review);
+        return new ColonyEventWake(families, authority, stopped, stopAt, stopped && review, speed);
     }
 
     /// <summary>

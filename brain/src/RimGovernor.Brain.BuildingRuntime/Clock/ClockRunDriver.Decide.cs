@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // Every Run names the tick native holds at for the next review (ClockRunConfig.ReviewEveryTicks past the status
 // tick), so a step normally starts from a held clock (#3556).
 //
-//   Running  (a step an authority change or lost events woke) the watch policy the facts imply is diffed against the
+//   Running  (a step an authority change, a player speed request or lost events woke) the watch policy the facts imply is diffed against the
 //            last one sent and resent when it differs (Run is idempotent and doubles as the speed change); a coupled
 //            order newly ready, or an autosave that is due, takes a brain hold. A refused decision never stops a
 //            running clock: native holds on what it sees.
@@ -210,6 +210,7 @@ public sealed partial class ClockRunDriver
             throw new AuthorityException();
         }
         _player.Current(call, epoch);
+        AdoptSpeedRequest(status, id.LoadToken ?? "");
         var tick = new Tick(statusTick);
         var running = status.State == PbClock.ClockState.Running;
         step.Running = running;
@@ -419,6 +420,19 @@ public sealed partial class ClockRunDriver
         note.Action = resumed ? "run" : "adjust";
         note.Reason = resumed ? "resumed" : (status.TargetSpeed == speed ? "watch_changed" : "speed_changed");
         return true;
+    }
+
+    // A player speed request the driver has not adopted (a new serial, one of another load, or any pending at its first
+    // read) becomes the player's target, as the player API's speed route sets it; the Run this decision sends then
+    // carries it (speed_changed). Native reports a request only for the loaded game and starts its serial again with it.
+    private void AdoptSpeedRequest(PbClock.Status status, string load)
+    {
+        if (status.PlayerSpeedRequestSerial is not { } serial || status.PlayerRequestedSpeed is not { } speed || _adoptedSpeedRequest == (load, serial))
+        {
+            return;
+        }
+        _config.PlayerSpeed.Set(speed);
+        _adoptedSpeedRequest = (load, serial);
     }
 
     // The speed to ask for: the target, lowered to the fallback while a fight is open and the resume-latency gate has

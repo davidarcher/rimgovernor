@@ -38,6 +38,10 @@ public sealed partial class ClockRunDriver : IDisposable
     private PbClock.Speed _sentSpeed;
     private long _autosaveMark = long.MinValue;
 
+    // The player's in-game speed request this driver last adopted: the load it was asked in and its serial. Null until
+    // the first, so the driver's first read adopts whatever request is pending.
+    private (string Load, ulong Serial)? _adoptedSpeedRequest;
+
     // Set when the driver takes an autosave hold; the save runs at the first step that finds the clock held and paused
     // (the driver's hold, or a hazard hold that beat it), never while Running.
     private bool _autosaveDue;

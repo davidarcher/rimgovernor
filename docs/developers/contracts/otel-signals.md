@@ -93,6 +93,7 @@ are their C# names (`LetterPause`, `Fast`, `Research`).
 | `clock_invalidation` | observed fact families changed under a running clock. `families` (`FactFamily` names), `reason`, `entity_ids` and `cells` (`min_x`, `min_z`, `max_x`, `max_z`) when native could narrow the change. Readers: `zone/delete`, `hazard/injury` |
 | `clock_long_event` | a long event or transient force pause: `state` `waiting` or `cleared` |
 | `clock_pause_failed` | a pending hold's pause did not take and stays armed. The pending hold's `reason` |
+| `clock_speed_request` | the player asked for a speed in game (`RequestSpeed`). `speed`; `msg` names the request serial. Read in the OTLP timeline |
 
 The other kinds are read in the OTLP timeline and the launcher's Log view.
 

@@ -30,6 +30,8 @@ namespace HomeBridge.BridgeTools
         private static State? _state;
         // Bumped by every Stop that enters a hold; a resume must quote it (ClockHoldSerial.cs).
         private static readonly ClockHoldSerial HoldSerial = new ClockHoldSerial();
+        // The player's in-game speed request, reported on Status (ClockSpeedRequest.cs).
+        private static readonly ClockSpeedRequest SpeedRequest = new ClockSpeedRequest();
         // The one ceiling outlives a hold: a Run resumes under the heartbeat and
         // frame-budget state the previous run segment left, beaten at the Run.
         private static ClockCeiling? _ceiling;

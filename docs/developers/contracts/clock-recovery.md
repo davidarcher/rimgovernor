@@ -56,6 +56,8 @@ Neither the queue nor a read advances time or acquires authority.
 
 Native events are `HoldEntered` (reason, evidence, detected and occurrence tick) and `Resumed` (speed, from),
 plus the facts below. A brain-requested hold does not wake the step loop; a hold native took does.
+`SpeedRequested` (speed) wakes it too: the player asked for a speed in game, which the driver reads from
+`Status` ([interface contracts](interface-contracts.md#clock-speed-and-the-one-ceiling)).
 `ObservationInvalidated` rows name one to eight distinct `FactFamily` values (never
 unspecified) that changed under a running clock without a brain write or a
 stop. A row may narrow the discard: `entity_ids` (at most 64 distinct) name the

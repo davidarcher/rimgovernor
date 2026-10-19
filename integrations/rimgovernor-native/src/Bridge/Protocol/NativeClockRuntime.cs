@@ -365,7 +365,24 @@ namespace HomeBridge.BridgeTools
                         if (TypedOf(s).CombatEvent != Clock.CombatEvent.Unspecified) result = result with { CombatEvent = TypedOf(s).CombatEvent };
                     }
                 }
-                return result with { EffectiveTicksPerSecond = EffectiveTicksPerSecond() };
+                return SpeedRequest.Report(result, Current.Game) with { EffectiveTicksPerSecond = EffectiveTicksPerSecond() };
+            }
+        }
+
+        /// The player asked for <paramref name="speed"/> in game (the time
+        /// controls call it, on the game thread). It records the speed and bumps
+        /// the request serial Status reports, then publishes SpeedRequested to
+        /// wake the brain, which adopts the speed and sends a Run; native never
+        /// changes its own running speed for it. Normal through Hyperfast only.
+        internal static void RequestSpeed(Clock.Speed speed)
+        {
+            lock (Gate)
+            {
+                var game = Current.Game ?? throw new InvalidOperationException("No game is loaded.");
+                var serial = SpeedRequest.Request(game, speed);
+                // A request with no map to observe it under is still on Status: the next read picks it up.
+                if (Find.CurrentMap == null || !ProtoBoundary.TryReadContext(Find.CurrentMap, out var observed, out _)) return;
+                Publish(new SpeedRequested(OriginOf(observed), "Player requested " + speed + " (request " + serial + ").", speed));
             }
         }
 

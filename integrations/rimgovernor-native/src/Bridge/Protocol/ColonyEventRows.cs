@@ -42,6 +42,9 @@ namespace HomeBridge.BridgeTools
                     p[ColonyEventTelemetry.FromKey] = resumed.From.ToString();
                     p["speed"] = resumed.Speed.ToString();
                     return (TelemetryKinds.ClockResume, p);
+                case SpeedRequested requested:
+                    p["speed"] = requested.Speed.ToString();
+                    return (TelemetryKinds.ClockSpeedRequest, p);
                 case AuthorityChanged changed:
                     p["generation"] = checked((long)changed.Generation);
                     p[ColonyEventTelemetry.ReasonKey] = changed.Reason;

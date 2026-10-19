@@ -82,6 +82,7 @@ public sealed class ColonyEventRowTests
             (new ForcePauseWaiting(o, ""), TelemetryKinds.ClockLongEvent),
             (new ForcePauseCleared(o, ""), TelemetryKinds.ClockLongEvent),
             (new PauseFailed(o, "", Clock.HoldReason.LetterPause), TelemetryKinds.ClockPauseFailed),
+            (new SpeedRequested(o, "", Clock.Speed.Hyperfast), TelemetryKinds.ClockSpeedRequest),
             (new HoldEntered(o, "", Clock.HoldReason.CombatEvent, new CombatEvidence(Clock.CombatEvent.Downed, "Human1", "downed"), 5, null, 1, new RunSegment(600, 1000, 12, 1, 9000)), TelemetryKinds.ClockHold),
         };
         foreach (var (e, kind) in cases)
@@ -91,5 +92,6 @@ public sealed class ColonyEventRowTests
 
         var invalidation = ColonyEventRows.Row(new ObservationInvalidated(o, "", [Clock.FactFamily.Research, Clock.FactFamily.Definitions], "research", [], null)).Payload;
         Assert.Equal(["Research", "Definitions"], (List<object?>)invalidation["families"]!);
+        Assert.Equal("Hyperfast", ColonyEventRows.Row(new SpeedRequested(o, "", Clock.Speed.Hyperfast)).Payload["speed"]);
     }
 }

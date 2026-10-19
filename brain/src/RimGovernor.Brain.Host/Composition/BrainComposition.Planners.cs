@@ -381,6 +381,7 @@ public sealed partial class BrainComposition
         var config = new ClockRunConfig
         {
             TargetSpeed = RunTargetSpeed(),
+            PlayerSpeed = TargetSpeed,
             Policy = ClockExpectation.WithHazardThresholds(new PbClock.WatchPolicy
             {
                 Mode = PbClock.WatchMode.Colony,

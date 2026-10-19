@@ -98,6 +98,8 @@ public sealed class ClockRunDriverTests
         private long _holdAt = long.MaxValue;
         private int _runs;
         private ulong _holdSerial;
+        private PbClock.Speed _requestedSpeed;
+        private ulong _requestSerial;
         private readonly List<ulong> _staleSerials = [];
         private int _holds;
         private int _heartbeats;
@@ -146,6 +148,23 @@ public sealed class ClockRunDriverTests
 
         /// <summary>The bare context reads waiting on <see cref="ContextGate"/>.</summary>
         public int BlockedContextReads => Volatile.Read(ref _blockedContextReads);
+
+        /// <summary>
+        /// The player asks for a speed in game, as native's RequestSpeed: the speed and a bumped serial go on Status,
+        /// and SpeedRequested wakes the brain unless <paramref name="publish"/> is false (a lost event).
+        /// </summary>
+        public void RequestSpeed(PbClock.Speed speed, bool publish = true)
+        {
+            lock (_mu)
+            {
+                _requestedSpeed = speed;
+                _requestSerial++;
+                if (publish)
+                {
+                    Append(o => new NativeEvents.SpeedRequested(o, "", speed));
+                }
+            }
+        }
 
         /// <summary>Pushes an invalidation of <paramref name="family"/>, observed in <paramref name="world"/> (this one by default).</summary>
         public void Invalidate(PbClock.FactFamily family, PbCommon.Identity? world = null)
@@ -196,6 +215,8 @@ public sealed class ClockRunDriverTests
             HeldAtUnixMs = _held ? _heldAtMs : null,
             NativeTickBoundary = true,
             HoldSerial = _holdSerial,
+            PlayerRequestedSpeed = _requestSerial == 0 ? null : _requestedSpeed,
+            PlayerSpeedRequestSerial = _requestSerial == 0 ? null : _requestSerial,
             ActualPaused = _held,
             CombatEvent = _held && _reason == PbClock.HoldReason.CombatEvent ? PbClock.CombatEvent.Downed : null,
         };
@@ -385,6 +406,9 @@ public sealed class ClockRunDriverTests
 
         /// <summary>The signal the driver's event consumer wakes; none by default.</summary>
         public WakeSignal? Wake { get; init; }
+
+        /// <summary>Pins the run speed at Hyperfast, as test acceleration does: the player's requests set <see cref="Rig.Target"/> alone.</summary>
+        public bool Accelerated { get; init; }
     }
 
     /// <summary>The real stack over one fake game, resumed and with the run driver started.</summary>
@@ -459,7 +483,8 @@ public sealed class ClockRunDriverTests
             rig.Scheduler = new ClockScheduler(rig.Player, DispatchProxy.Create<IClockStepNative, Unreached>(), new ClockSchedulerConfig { MaxAge = TimeSpan.FromSeconds(30), Worker = true }, rig.Time);
             var config = new ClockRunConfig
             {
-                TargetSpeed = rig.Target,
+                TargetSpeed = options.Accelerated ? new ClockTargetSpeed(PbClock.Speed.Hyperfast) : rig.Target,
+                PlayerSpeed = rig.Target,
                 Policy = ClockExpectation.WithHazardThresholds(new PbClock.WatchPolicy
                 {
                     Mode = PbClock.WatchMode.Colony,
@@ -594,6 +619,82 @@ public sealed class ClockRunDriverTests
         Assert.Equal(PbClock.Speed.Ultrafast, rig.Game.TargetSpeed);
         Assert.Equal(4, rig.Game.Runs);
         Assert.Equal(0, rig.Game.Holds);
+    }
+
+    [Fact]
+    public async Task APlayerSpeedRequestWithANewSerialSetsTheTargetAndTheNextRunCarriesIt()
+    {
+        using var rig = await Rig.StartAsync();
+        Assert.True(await rig.StepAsync());
+        Assert.Equal(PbClock.Speed.Ultrafast, rig.Game.TargetSpeed);
+
+        // The request reaches Status even when its wake is lost: the next read adopts it and the Run changes the speed.
+        rig.Game.RequestSpeed(PbClock.Speed.Fast, publish: false);
+        Assert.True(await rig.StepAsync());
+        Assert.Equal(PbClock.Speed.Fast, rig.Target.Speed);
+        Assert.Equal(PbClock.Speed.Fast, rig.Game.TargetSpeed);
+        Assert.Equal(PbClock.Speed.Fast, rig.Game.RunRequests[^1].Speed);
+        Assert.Equal(2, rig.Game.Runs);
+    }
+
+    [Fact]
+    public async Task TheSameSpeedRequestSerialAgainChangesNothing()
+    {
+        using var rig = await Rig.StartAsync();
+        rig.Game.RequestSpeed(PbClock.Speed.Superfast, publish: false);
+
+        // The driver's first read adopts the request already pending.
+        Assert.True(await rig.StepAsync());
+        Assert.Equal(PbClock.Speed.Superfast, rig.Game.TargetSpeed);
+
+        // A target the player API set since stands: the serial it adopted is not adopted again.
+        rig.Target.Set(PbClock.Speed.Normal);
+        Assert.True(await rig.StepAsync());
+        Assert.Equal(PbClock.Speed.Normal, rig.Game.TargetSpeed);
+        Assert.False(await rig.StepAsync());
+        Assert.Equal(PbClock.Speed.Normal, rig.Target.Speed);
+        Assert.Equal(2, rig.Game.Runs);
+
+        // The same speed asked again is a new serial, adopted again.
+        rig.Game.RequestSpeed(PbClock.Speed.Superfast, publish: false);
+        Assert.True(await rig.StepAsync());
+        Assert.Equal(PbClock.Speed.Superfast, rig.Game.TargetSpeed);
+    }
+
+    [Fact]
+    public async Task ASpeedRequestUnderTestAccelerationKeepsHyperfast()
+    {
+        using var rig = await Rig.StartAsync(new RigOptions { Accelerated = true });
+        Assert.True(await rig.StepAsync());
+        Assert.Equal(PbClock.Speed.Hyperfast, rig.Game.TargetSpeed);
+
+        // The request sets the player's target, as the player API's route does, but the pinned run speed is unmoved.
+        rig.Game.RequestSpeed(PbClock.Speed.Normal, publish: false);
+        Assert.False(await rig.StepAsync());
+        Assert.Equal(PbClock.Speed.Normal, rig.Target.Speed);
+        Assert.Equal(PbClock.Speed.Hyperfast, rig.Game.TargetSpeed);
+        Assert.Equal(1, rig.Game.Runs);
+    }
+
+    [Fact]
+    public async Task ASpeedRequestedEventWakesTheStepLoop()
+    {
+        var wake = new WakeSignal();
+        using var rig = await Rig.StartAsync(new RigOptions { Wake = wake });
+        Assert.True(await rig.StepAsync());
+        await rig.DeliveredAsync();
+        _ = wake.TryTakeStep();
+        _ = wake.TakeInvalidated();
+
+        // Under the running clock the request wakes a step: a quiet one with no hold, ending in the Run at the new speed.
+        rig.Game.RequestSpeed(PbClock.Speed.Hyperfast);
+        await rig.DeliveredAsync();
+        Assert.True(wake.TryTakeStep());
+        var reason = wake.TakeInvalidated();
+        Assert.Equal(StepCause.Review, reason.Cause);
+        Assert.False(reason.Stopped);
+        Assert.True(await rig.StepAsync());
+        Assert.Equal(PbClock.Speed.Hyperfast, rig.Game.TargetSpeed);
     }
 
     [Fact]

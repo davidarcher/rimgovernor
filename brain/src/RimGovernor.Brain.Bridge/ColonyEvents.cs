@@ -34,6 +34,12 @@ public sealed record RunSegment(long Ticks, long Ms, ulong Frames, ulong FramesO
 /// <param name="From">The reason the clock was held before this Run.</param>
 public sealed record Resumed(ColonyEventOrigin Origin, string Detail, Clock.Speed Speed, Clock.HoldReason From) : ColonyEvent(Origin, Detail);
 
+/// <summary>
+/// The player asked for a speed in game. Only a wake: the request itself is on Status
+/// (PlayerRequestedSpeed, PlayerSpeedRequestSerial), so a lost event costs latency, not the request.
+/// </summary>
+public sealed record SpeedRequested(ColonyEventOrigin Origin, string Detail, Clock.Speed Speed) : ColonyEvent(Origin, Detail);
+
 /// <summary>The native authority generation moved; observed whether the clock runs or is held.</summary>
 /// <param name="Reason">The NativeControlRevocationReason name, or "acquired".</param>
 public sealed record AuthorityChanged(ColonyEventOrigin Origin, string Detail, ulong Generation, string Reason, bool Active) : ColonyEvent(Origin, Detail);

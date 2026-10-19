@@ -8,7 +8,8 @@ public enum StepCause
     /// <summary>
     /// The review tick the last Run named was reached and native held the clock for it: the planners dirtied by the
     /// invalidations since the previous step and those due at the tick run; with none, the step is the clock read and
-    /// the next Run alone.
+    /// the next Run alone. A player speed request with no hold is the same quiet step, ending in the Run at the
+    /// adopted speed.
     /// </summary>
     Review,
 

@@ -35,6 +35,11 @@ so a hold the planner did not see is never released; a `Run` that only changes a
 not guarded. A serial and not a tick: a hold pauses the game, so a read before and after a same-tick hold carry the
 same tick.
 
+`Status.player_requested_speed` and `Status.player_speed_request_serial` carry the player's in-game speed request
+(native's `RequestSpeed`): the last speed asked for and a serial bumped on every request, both unset until the loaded
+game's first request and started again with each loaded game. A `SpeedRequested` (speed) event wakes the brain, which
+adopts a serial it has not adopted into its target speed and sends `Run`; native never runs at the request by itself.
+
 `Heartbeat` is explicit and carries the identity. Losing it is neither journalled nor a hold: it lowers the clock
 ceiling to Normal until the next beat. Neither `SPEED_ULTRAFAST` nor `SPEED_HYPERFAST` has a launch gate; a
 `Run(SPEED_HYPERFAST)` is refused as `UNAVAILABLE` where the game does not provide the tick boost behind it.
