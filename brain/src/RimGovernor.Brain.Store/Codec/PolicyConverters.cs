@@ -700,7 +700,6 @@ internal sealed class DefenseTierRecordConverter : ObjectCodec<DefenseTierRecord
             Reserved = e.Get<List<Cell>>("Reserved", o),
             Attempts = e.I32("Attempts"),
             Built = e.Bool("Built"),
-            Reopened = e.I32("Reopened"),
             Remove = e.Bool("Remove"),
             Bridge = e.Str("Bridge"),
             Foundation = e.Bool("Foundation"),
@@ -715,7 +714,6 @@ internal sealed class DefenseTierRecordConverter : ObjectCodec<DefenseTierRecord
         w.Put("Reserved", v.Reserved, o);
         w.WriteNum("Attempts", v.Attempts);
         w.WriteBoolean("Built", v.Built);
-        w.WriteNum("Reopened", v.Reopened);
         w.WriteBoolean("Remove", v.Remove);
         w.WriteString("Bridge", v.Bridge);
         w.WriteBoolean("Foundation", v.Foundation);

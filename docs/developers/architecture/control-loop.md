@@ -355,12 +355,14 @@ are unread. The family reads combat as facts only (the military/combat Need's
 latest `engage-<map>` plan and the open fights); no combat Need is a
 precondition. The work step is the old planner run under the Need owner:
 fight-time room hardening, then the killbox proposal, re-verification and one
-tier at a time (`defense-<tier>-[r<n>-]<attempt>`, `defense-cover-<tick>`,
+tier at a time (`defense-<tier>-<attempt>`, `defense-cover-<tick>`,
 `defense-wait-<tick>`, `defense-retier-<digest>`, `plan-dig-killbox`), each
 admitted by claims (FoundationRemoval claims `foundation/x/z`, Excavation
 `dig/x/z`). Tier attempts stay in the record and restart for unbuilt tiers when
 the record is from another load or map, as the Need's per-load Method history
-does. Combat fights from the saved layout once its firing-line tier, and its
+does; a built tier that falls keeps counting, so its next attempt is a fresh
+MethodId, and a tier's refusal budget reads only its latest attempt. Combat
+fights from the saved layout once its firing-line tier, and its
 trap corridor when it has one, stood in the last census; it reads no
 verification. An older save's `Standard` and `Episode` record fields are read and
 ignored. The ConcernId, its inspection and detector, `RoundsPolicy.DefensiveLayout`,

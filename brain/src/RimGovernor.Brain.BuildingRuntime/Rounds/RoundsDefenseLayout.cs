@@ -129,15 +129,19 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static string DefenseTierPrefix(string tier) => "defense-" + tier + "-";
 
-    internal static MethodId DefenseTierMethodId(DefenseTierRecord tier) =>
-        tier.Reopened == 0
-            ? new MethodId(string.Create(CultureInfo.InvariantCulture, $"{DefenseTierPrefix(tier.Name.Value)}{tier.Attempts}"))
-            : new MethodId(string.Create(CultureInfo.InvariantCulture, $"{DefenseTierPrefix(tier.Name.Value)}r{tier.Reopened}-{tier.Attempts}"));
+    internal static MethodId DefenseTierMethodId(DefenseTierRecord tier) => DefenseTierAttemptId(tier, tier.Attempts);
 
-    internal static string DefenseTierSubject(DefenseTierRecord tier) =>
-        tier.Reopened == 0
-            ? DefenseTierPrefix(tier.Name.Value)
-            : string.Create(CultureInfo.InvariantCulture, $"{DefenseTierPrefix(tier.Name.Value)}r{tier.Reopened}-");
+    private static MethodId DefenseTierAttemptId(DefenseTierRecord tier, int attempt) =>
+        new(string.Create(CultureInfo.InvariantCulture, $"{DefenseTierPrefix(tier.Name.Value)}{attempt}"));
+
+    /// <summary>
+    /// The tier's refusal budget over its latest attempt only (#3586): a fallen tier's next attempt starts fresh
+    /// unless the attempt that built it carried a refusal.
+    /// </summary>
+    internal static (Verdict Verdict, bool Admitted) AdmitDefenseTier(StoreJournal journal, NeedOwner goal, DefenseTierRecord tier, GenerationSnapshot world, CancellationToken call) =>
+        tier.Attempts == 0
+            ? RoundsRefusalBudget.AdmitSubject(journal, DefenseTierMethodId(tier).Value, [], world, call)
+            : RoundsRefusalBudget.AdmitLatestAttempt(journal, goal, DefenseTierAttemptId(tier, tier.Attempts - 1), world, call);
 
     /// <summary>
     /// The <c>layout/defense</c> Need's step (#3314), run while the Need is unmet: during an open fight it hardens the
@@ -272,7 +276,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 break;
             }
-            var (spent, ok) = RoundsRefusalBudget.AdmitOwnerSubject(p.Journal, goal, DefenseTierSubject(tier), state.Snapshot, call);
+            var (spent, ok) = AdmitDefenseTier(p.Journal, goal, tier, state.Snapshot, call);
             if (!ok && pipe.Piped())
             {
                 continue;

@@ -35,14 +35,14 @@ public sealed record DefenseTierRecord
 
     public List<Cell> Reserved { get; set; } = [];
 
-    /// <summary>The count of the <c>layout/defense</c> Need's admitted Methods for the tier in the record's load: the tier's next MethodId.</summary>
+    /// <summary>
+    /// The count of the <c>layout/defense</c> Need's admitted Methods for the tier in the record's load: the tier's next
+    /// MethodId. A built tier that falls keeps counting, so its reopened attempt gets a fresh MethodId (#3586).
+    /// </summary>
     public int Attempts { get; set; }
 
     /// <summary>Every building of the tier was observed standing in the latest census.</summary>
     public bool Built { get; set; }
-
-    /// <summary>The times the census cleared <see cref="Built"/> after the tier stood.</summary>
-    public int Reopened { get; set; }
 
     /// <summary>A perimeter tier of buildings the replanned ring no longer wants.</summary>
     public bool Remove { get; set; }
@@ -117,8 +117,7 @@ public sealed record DefenseLayoutRecord
                 && (tier.NodeBacked || tier.Buildings.Count <= 512)
                 && tier.Reserved.Count <= 512
                 && tier.Nodes.Count <= 256
-                && tier.Attempts is >= 0 and <= 64
-                && tier.Reopened is >= 0 and <= 4096;
+                && tier.Attempts >= 0;
             DomainException.Require(ok, "defense layout tier invalid");
             foreach (var id in tier.Nodes)
             {

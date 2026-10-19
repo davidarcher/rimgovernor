@@ -240,11 +240,6 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 continue;
             }
             tier.Built = standing;
-            if (!standing)
-            {
-                tier.Attempts = 0;
-                tier.Reopened++;
-            }
             record.SetTier(tier);
             changed = true;
         }

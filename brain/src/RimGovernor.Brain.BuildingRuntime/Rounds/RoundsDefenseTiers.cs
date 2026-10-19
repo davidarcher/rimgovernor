@@ -73,7 +73,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static bool DefenseTierStarted(DefenseTierRecord t, DefenseCensus? census)
     {
-        if (t.Built || t.Attempts > 0 || t.Reopened > 0)
+        if (t.Built || t.Attempts > 0)
         {
             return true;
         }
@@ -190,7 +190,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                     return false;
                 }
                 var u = b.Tiers[i];
-                if (!t.Buildings.SequenceEqual(u.Buildings) || !t.Reserved.SequenceEqual(u.Reserved) || t.Attempts != u.Attempts || t.Built != u.Built || t.Reopened != u.Reopened)
+                if (!t.Buildings.SequenceEqual(u.Buildings) || !t.Reserved.SequenceEqual(u.Reserved) || t.Attempts != u.Attempts || t.Built != u.Built)
                 {
                     return false;
                 }

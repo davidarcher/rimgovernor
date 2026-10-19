@@ -1,4 +1,5 @@
 using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -256,6 +257,58 @@ public sealed class LayoutFamilyTests
     }
 
     /// <summary>
+    /// #3586: a built tier that falls keeps its attempt count, so its reopened attempt gets a MethodId no earlier
+    /// attempt used, and its refusal budget reads only its latest attempt: a refusal of an attempt before the one that
+    /// built it no longer spends the reopened tier's budget.
+    /// </summary>
+    [Fact]
+    public void AFallenTierReopensWithAFreshMethodIdAndAFreshRefusalBudget()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-defense-tier-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        IntentActionRules.RegisterIntentKinds();
+        _ = journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true,
+            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn-0", "pawn-1") }, ct);
+        var barricade = new DefenseBuilding { Definition = "Barricade", Cell = new(1, 0), Rotation = Rotation.North, Stuff = "WoodLog" };
+        var tier = new DefenseTierRecord { Name = DefenseLayout.TierFiringLine, Buildings = [barricade] };
+        var record = new DefenseLayoutRecord { Tiers = [tier] };
+        NeedOwner owner = default!;
+        var used = new List<MethodId>();
+        // Attempt 0 is refused permanently; attempt 1 is accepted and builds the tier.
+        foreach (var refused in new[] { true, false })
+        {
+            var method = RoundsDefenseLayoutPlanner.DefenseTierMethodId(tier);
+            used.Add(method);
+            var plan = new PlanSpec(new(method.Value), new(1), [DomainAction.NewPawnActivitiesAction(new(method.Value + "-action"), new PawnActivities(1,
+                [new($"pawn-{used.Count - 1}", "assignment", method.Value, 0, 1, false, [new(PawnActivityKind.Hold, "", "", "", 0, 500)])]))]);
+            owner = TestNeed.Commit(journal, World, method, plan, ct);
+            var action = plan.Actions[0].Id;
+            var scope = World with { Plan = plan.Id };
+            _ = journal.Prepare(plan.Id, action, scope, new(140), ct);
+            var dispatched = journal.Dispatch(plan.Id, action, scope, new(150), ct);
+            Assert.Null(Assert.Single(journal.RecordReceipts([new BatchReceipt(plan.Id, action, dispatched.View.Attempt, refused ? Receipt.Refused : Receipt.Accepted)
+                { Refusal = refused ? new("blocked", "cell/1/0", RefusalClass.Permanent) : null }], ct)).Error);
+            tier.Attempts++;
+            if (refused)
+            {
+                Assert.False(RoundsDefenseLayoutPlanner.AdmitDefenseTier(journal, owner, tier, World, ct).Admitted);
+            }
+        }
+
+        var census = new DefenseCensus { Edifice = { [barricade.Cell] = "Barricade" } };
+        Assert.True(RoundsDefenseLayoutPlanner.DefenseTierCensusUpdate(record, census));
+        Assert.True(tier.Built);
+        census.Edifice.Clear();
+        Assert.True(RoundsDefenseLayoutPlanner.DefenseTierCensusUpdate(record, census));
+
+        Assert.Equal((false, 2), (tier.Built, tier.Attempts));
+        var reopened = RoundsDefenseLayoutPlanner.DefenseTierMethodId(tier);
+        Assert.Equal("defense-firing_line-2", reopened.Value);
+        Assert.DoesNotContain(reopened, used);
+        Assert.True(RoundsDefenseLayoutPlanner.AdmitDefenseTier(journal, owner, tier, World, ct).Admitted);
+    }
+
+    /// <summary>
     /// The <c>family/defense_layout</c> blob round-trips unchanged through a save and a rebuild, and carries no
     /// verification (#3008): Complete, VerifiedTick, VerifiedCombat and TurretsProbedTick live in the Rounder's memory,
     /// and the tiers carry no Refused cells.
@@ -279,7 +332,7 @@ public sealed class LayoutFamilyTests
             [
                 new DefenseTierRecord
                 {
-                    Name = DefenseLayout.TierFiringLine, Attempts = 1, Built = true, Reopened = 1, Reserved = [new(3, 3)],
+                    Name = DefenseLayout.TierFiringLine, Attempts = 1, Built = true, Reserved = [new(3, 3)],
                     Buildings = [new DefenseBuilding { Definition = "Barricade", Cell = new(1, 0), Rotation = Rotation.North, Stuff = "WoodLog" }],
                 },
                 new DefenseTierRecord { Name = new DefenseTierName("perimeter-ring"), Nodes = ["ring-1"], Remove = true, Bridge = "b", Foundation = true, Before = true },
@@ -303,7 +356,7 @@ public sealed class LayoutFamilyTests
         Assert.Equal(("killbox-1", "digest-1", "key", 2, "bridge"), (record.Killbox, record.KillboxDigest, record.PerimeterKey, record.PerimeterRevision, record.PerimeterBridge));
         Assert.Equal(new[] { new Cell(4, 4), new Cell(4, 5) }, record.TrapLane);
         var firing = record.Tiers[0];
-        Assert.Equal((1, true, 1, "Barricade"), (firing.Attempts, firing.Built, firing.Reopened, Assert.Single(firing.Buildings).Definition));
+        Assert.Equal((1, true, "Barricade"), (firing.Attempts, firing.Built, Assert.Single(firing.Buildings).Definition));
         var ring = record.Tiers[1];
         Assert.Equal((true, "b", true, true, 0), (ring.Remove, ring.Bridge, ring.Foundation, ring.Before, ring.Buildings.Count));
         Assert.Equal(blob, loaded.GovernorStateBlobs(ct)[Journal.GovernorDefenseLayoutKey]);
