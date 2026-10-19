@@ -42,19 +42,14 @@ namespace HomeBridge.BridgeTools
 
         // Verb_CastBase.ValidateTarget reads Event.current.shift (ReloadableUtility
         // .CanUseConsideringQueuedJobs), which is null outside OnGUI: give it a
-        // plain event (no shift = the charge check) for the call. The field, not
-        // the setter: the setter pushes a native event and refuses null.
-        // Built on first use inside the call, never in a static initializer: a
-        // throwing initializer would poison the whole type for the process.
-        private static AccessTools.FieldRef<UnityEngine.Event>? currentEvent;
-
+        // plain event (no shift = the charge check) for the call. UnityStubs'
+        // Event.current is a plain thread-static property that accepts null.
         private static bool ValidateOffGui(Verb verb, Pawn target)
         {
-            var current = currentEvent ??= AccessTools.StaticFieldRefAccess<UnityEngine.Event>(AccessTools.Field(typeof(UnityEngine.Event), "s_Current"));
-            if (current() != null) return verb.ValidateTarget(target, false);
-            current() = new UnityEngine.Event();
+            if (UnityEngine.Event.current != null) return verb.ValidateTarget(target, false);
+            UnityEngine.Event.current = new UnityEngine.Event();
             try { return verb.ValidateTarget(target, false); }
-            finally { current() = null!; }
+            finally { UnityEngine.Event.current = null; }
         }
 
         // The verb's job targets the pawn (targetA); CompUsable's use job
