@@ -56,7 +56,7 @@ public sealed partial record ForecastCoupledCandidates
         plannedFindings.AddRange(plannedAlternatives.Findings);
         var planned = Methods.Generation.PlannedRoomCandidates.Generate(plannedSites, plannedAlternatives.Alternatives,
             shelterEnabled && facts.PlannedSites.TryGetValue(out var plannedRoutes) ? plannedRoutes.Routes : [], read.Thermal, resources,
-            needs.Pawns.Select(p => p.Pawn).ToHashSet(StringComparer.Ordinal), horizon);
+            needs.Pawns.Select(p => p.Pawn).ToHashSet(StringComparer.Ordinal), horizon, deadline);
         var lots = read.FoodSources.Select(o => new ForecastMaterialLot(o.Target, Location(o.Location), new(o.Resource), Known((double)o.Count)) { Perishable = true, FreshTicks = o.FreshTicks })
     .Concat(read.Construction.Options.Where(o => o.Input.Length != 0).Select(o => new ForecastMaterialLot(o.Input, Location(o.Origin), new(o.Resource), o.AvailableInput)))
     .Concat(read.Clothing.Options.SelectMany(o => o.Inputs).Select(i => new ForecastMaterialLot(i.Thing, Location(i.Location), new(i.Resource), Known((double)i.AvailableCount))))
@@ -100,16 +100,19 @@ public sealed partial record ForecastCoupledCandidates
             ActivityCompletions = [outcome.Completion], Outcome = outcome,
             ExclusiveOutcome = "construction/" + construction.Bindings.Values.First(b => b.Id == outcome.Completion).Target
         });
-        var templates = food.Bindings.Concat(construction.Bindings).Concat(shelter.Bindings).ToDictionary(b => b.Key, b => b.Value);
+        var templates = food.Bindings.Concat(construction.Bindings).Concat(shelter.Bindings).Concat(planned.Bindings).ToDictionary(b => b.Key, b => b.Value);
         var shelterRoots = shelter.Roots.Keys.Select(id => new ForecastCommitment(id, []) { ExclusiveOutcome = id });
         var support = Methods.Generation.SupportMethodCandidates.Generate(read.Support, food.Operations.Concat(shelter.Operations).Concat(planned.Operations),
             food.Options.Concat(construction.Problem?.Options ?? []).Concat(shelter.Options).Concat(planned.Options), templates, resources, read.Tick, deadline);
         var composed = ForecastComposedCandidates.ComposeCoupledCandidates(support.Operations, food.Observed.Concat(construction.Observed).Concat(shelter.Observed).Concat(planned.Observed).Concat(support.Observed),
             food.Alternatives.Concat(constructionRoots).Concat(shelterRoots).Concat(planned.Roots).Concat(support.Roots), support.Options,
             support.Bindings, food.Needs, horizon, shelter.Roots);
-        // The realizations of each planned site; nothing binds them until placement (#3278).
+        // The realizations of each planned site; nothing binds them until placement (#3278), except a Deconstruct clearing,
+        // whose building stands now: a bound realization is startable work, not an unplaced activity (#3557).
+        var bound = composed.Bindings.Keys.Select(k => k.Task).ToHashSet(StringComparer.Ordinal);
         var plannedRealized = EquatableArray.From(planned.Sites.Select(s => new ForecastPlannedSite(s.Site, s.Room, s.Stuff,
-            EquatableArray.From(s.Operations.SelectMany(id => composed.Realizations.GetValueOrDefault(id) ?? []).Distinct().Order(StringComparer.Ordinal)),
+            EquatableArray.From(s.Operations.SelectMany(id => composed.Realizations.GetValueOrDefault(id) ?? []).Where(id => !bound.Contains(id))
+                .Distinct().Order(StringComparer.Ordinal)),
             EquatableArray.From((composed.Realizations.GetValueOrDefault(s.Finish) ?? []).Order(StringComparer.Ordinal)))));
         var unplaced = plannedRealized.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         tasks.AddRange(composed.Tasks); options.AddRange(composed.Options); needTasks.AddRange(composed.Needs);

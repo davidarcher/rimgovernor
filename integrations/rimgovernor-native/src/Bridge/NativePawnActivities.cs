@@ -168,6 +168,7 @@ namespace HomeBridge.BridgeTools
                         var giver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver);
                         if (giver?.Worker is not WorkGiver_Scanner || !Supported(giver, step.Job)
                             || pawn.WorkTagIsDisabled(giver.workTags) || (giver.workType != null && pawn.WorkTypeIsDisabled(giver.workType))) return Refuse("Unsupported/incapable activity work.");
+                        if (step.Job == "Deconstruct" && DeconstructRefusal(pawn, target) is { } deconstructWhy) return Refuse("Selected deconstruction unavailable: " + deconstructWhy + ".");
                     }
                     if (step.Kind == PawnActivityKind.Eat && (!target.IngestibleNow || !pawn.RaceProps.CanEverEat(target) || step.Count > target.stackCount)) return Refuse("Selected food/count unavailable.");
                     if (step.Kind == PawnActivityKind.Recreation && (NativeRecreation.GiverFor(target) is not { } joyGiver || !NativeRecreation.Usable(pawn, target, joyGiver))) return Refuse("Selected recreation unavailable.");
@@ -199,8 +200,35 @@ namespace HomeBridge.BridgeTools
             || (job == "Harvest" && giver.Worker is WorkGiver_GrowerHarvest)
             || (job == "Research" && giver.Worker is WorkGiver_Researcher)
             || (job == "FinishFrame" && giver.Worker is WorkGiver_ConstructFinishFrames)
+            || (job == "Deconstruct" && giver.Worker is WorkGiver_Deconstruct)
             || (job == "BeatFire" && giver.giverClass.FullName == "RimWorld.WorkGiver_FightFires");
         private static bool Equivalent(PawnActivityOrder a, PawnActivityOrder b) => PawnActivities.SameOrder(a, b);
+
+        // A Deconstruct step works a standing building the order designates itself (StandDeconstruct), so an undesignated
+        // ruin needs nothing first; the enclosure guard's roof-collapse wait is a refusal here, since the job would only hold (#3557).
+        private static string? DeconstructRefusal(Pawn pawn, Thing target)
+        {
+            if (target is not Verse.Building building || !building.DeconstructibleBy(Faction.OfPlayer).Accepted) return "target is not deconstructible by the colony";
+            if (pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) return "pawn is incapable of construction";
+            if (NativeDesignationGuards.RoofWait(building) is { } roof) return roof;
+            return building.Map.designationManager.DesignationOn(building, DesignationDefOf.Deconstruct) != null
+                || new Designator_Deconstruct().CanDesignateThing(building).Accepted ? null : "native deconstruction designator refused";
+        }
+
+        // Stands the Deconstruct designation the job needs (JobDriver_RemoveBuilding fails without it) under the enclosure
+        // guard as an Ordered record: the roof-collapse wait still holds the job, revoking authority still releases the
+        // designation, and the controlled pawn works it whether or not play is supervised.
+        private static void StandDeconstruct(Verse.Building building)
+        {
+            var map = building.Map;
+            if (map.designationManager.DesignationOn(building, DesignationDefOf.Deconstruct) == null) new Designator_Deconstruct().DesignateThing(building);
+            var record = NativeDesignationGuards.Open(map, DesignationDefOf.Deconstruct, building.Position, building) ?? NativeDesignationGuards.Add(new GuardedDesignation
+            {
+                Id = "activity-" + Guid.NewGuid().ToString("N"), Guard = GuardNames.Enclosure, Designation = DesignationDefOf.Deconstruct.defName,
+                ExpectedDef = building.def.defName, ThingId = building.GetUniqueLoadID(), MapId = map.uniqueID, X = building.Position.x, Z = building.Position.z,
+            });
+            record.Ordered = true;
+        }
         private static Common.Failure Refuse(string text) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, text);
         private static Thing? Thing(string id) => RefIndex.Thing(Find.CurrentMap, id);
 
@@ -263,6 +291,9 @@ namespace HomeBridge.BridgeTools
             finally { replacing = false; }
             foreach (var e in changed)
             {
+                if (!e.Order.Release)
+                    foreach (var step in e.Order.Steps)
+                        if (step.Kind == PawnActivityKind.Work && step.Job == "Deconstruct" && Thing(step.Target) is Verse.Building building) StandDeconstruct(building);
                 // Retain only the last release receipt in the same row so an uncertain Hands retry is
                 // idempotent. This row owns no job; a fresh assignment may acquire from revision zero.
                 if (e.Order.Release) { e.State = "released"; Emit(e); }

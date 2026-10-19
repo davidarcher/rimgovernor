@@ -267,6 +267,48 @@ public sealed class PlannedRoomActivitiesTests
     }
 
     /// <summary>
+    /// #3557: a planned ring over ruins. Native estimates a deconstructible building under the footprint as a Deconstruct
+    /// clearing with per-pawn rows, so the alternative is valued, and that clearing is the one planned activity bound
+    /// before placement (its building stands, the job targets it): the selection orders the pawn's Deconstruct work while
+    /// the site itself waits for placement.
+    /// </summary>
+    [Fact]
+    public void ARuinUnderTheRingIsValuedAsADeconstructClearingAndItsRemovalIsOrdered()
+    {
+        const string ruin = "Thing_Door1";
+        const string site = "planned/room1/wall/WoodLog";
+        const string clearingId = site + "/deconstruct/" + ruin;
+        var at = WallCells[0];
+        var clearing = new PlannedSiteClearing(clearingId, PlannedClearingKind.Deconstruct)
+        {
+            Options = [new ConstructionActivityOption(clearingId, "Wall", at, Pawn, "Door", ruin, at, 0, 0, "Deconstruct", default, default, Known(50d))
+                { SiteApproachTicks = Known(Ticks(Start, at)) }],
+        };
+        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        var candidates = facts.CoupledAlternatives!;
+        Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_alternative_", StringComparison.Ordinal));
+        var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Job == "Deconstruct");
+        Assert.Equal((Pawn, PawnActivityKind.Work, ruin, "Deconstruct", "Door"), (binding.Pawn, binding.Kind, binding.Target, binding.WorkGiver, binding.SiteDefinition));
+        Assert.StartsWith(clearingId + "/composition/", binding.Id, StringComparison.Ordinal);
+        // The bound clearing is startable work, not an unplaced planned activity.
+        var planned = Assert.Single(candidates.Context.PlannedSites, s => s.Site == site);
+        Assert.DoesNotContain(binding.Id, planned.Activities);
+
+        var result = Select(facts);
+        Assert.True(PlannedSelected(result, site), Why(facts, result));
+        var batch = ForecastCoupledSelection.StartCoupledActivity(result, candidates, 1, "planned-test", 100);
+        Assert.NotNull(batch);
+        var task = Assert.Single(batch.Tasks, t => t.Pawn == Pawn);
+        Assert.Equal((binding.Id, PawnActivityKind.Work, ruin, "Deconstruct"), (task.Id, task.Step.Kind, task.Step.Target, task.Step.Job));
+        Assert.Contains(batch.Orders, o => o.Pawn == Pawn && !o.Release && o.Task == task.Id);
+
+        // A deconstruct row naming no building binds nothing and leaves the alternative unvalued.
+        var unnamed = Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing with { Options = [clearing.Options[0] with { Input = "" }] }] },
+            Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        Assert.Contains("planned_room_alternative_unvalued:planned/room1/WoodLog/Shell:" + site + ":clearing_unrouted", unnamed.CoupledAlternatives!.Findings);
+    }
+
+    /// <summary>
     /// The handoff (#3278): the selection record names the selected sites with their stuff and the assessed room, so the
     /// reconcile places the requested room without hunger and holds it while the one cook-builder must eat first.
     /// </summary>

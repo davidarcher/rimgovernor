@@ -25,13 +25,15 @@ namespace HomeBridge.BridgeTools
     // and, for a thing designation, the exact thing. A Mine record is keyed by
     // cell and rock definition (compressed rock is recreated with fresh ids
     // on load). Finished marks the observed removal; Cancelled a designation
-    // removed, replaced or released before it.
+    // removed, replaced or released before it. Ordered marks a designation a
+    // pawn activity order stood: its pawn works it under control authority,
+    // not only under supervised play (#3557).
     public sealed class GuardedDesignation : IExposable
     {
         public string Id = "", Guard = "", Designation = "", ExpectedDef = "";
         public string? ThingId, WallStuff, ReplacementId, Blocker;
         public int MapId, X, Z, Finished = -1;
-        public bool Cancelled;
+        public bool Cancelled, Ordered;
         // The wall_upgrade guard's site: the wall-upgrade geometry and
         // identities its re-check holds the demolition to.
         public WallRemovalRecord? Wall;
@@ -44,6 +46,7 @@ namespace HomeBridge.BridgeTools
             Scribe_Values.Look(ref ReplacementId, "replacementId"); Scribe_Values.Look(ref Blocker, "blocker");
             Scribe_Values.Look(ref MapId, "mapId"); Scribe_Values.Look(ref X, "x"); Scribe_Values.Look(ref Z, "z");
             Scribe_Values.Look(ref Finished, "finished", -1); Scribe_Values.Look(ref Cancelled, "cancelled");
+            Scribe_Values.Look(ref Ordered, "ordered");
             Scribe_Deep.Look(ref Wall, "wallUpgrade");
         }
     }

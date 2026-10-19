@@ -24,7 +24,8 @@ public sealed record ForecastMaterialLot(string Lot, string Location, Resource R
 /// <summary>
 /// One planned site's generated work (#3276): the composed activities it was realized as (deliveries, clearing and its
 /// finish) and the finish realizations among them. Stuff is a ring site's stuff, empty for any other site. The
-/// activities have no action template until placement (#3278).
+/// activities have no action template until placement (#3278); a Deconstruct clearing, bound to its standing building, is
+/// startable work and is left out (#3557).
 /// </summary>
 public sealed record ForecastPlannedSite(string Site, int Room, string Stuff, EquatableArray<string> Activities, EquatableArray<string> Finishes)
 {

@@ -198,7 +198,9 @@ pure tests own preference, conservation and bounded-search claims.
 ## Planned rooms
 
 A planned site has no action template until it is placed, so a selection of
-planned sites starts no order (`coupled_selection` target `planned_unplaced`).
+planned sites starts no order (`coupled_selection` target `planned_unplaced`),
+except a site's `Deconstruct` clearing, whose building stands: it is bound and
+ordered like placed work (#3557).
 When the chosen portfolio is unplaced planned sites alone, the comparison runs
 again without the roots that reach a planned site, and that run's selected roots,
 allocations and unselected-pawn defers join the selection (finding

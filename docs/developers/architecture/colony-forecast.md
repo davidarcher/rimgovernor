@@ -520,7 +520,7 @@ every free colonist, since any may build, cut, mine or haul; native gives a pawn
 sites, rows, sources or positions. It searches each path once (`NativePathLegs`): a colonist's
 leg to a stack or site once per (colonist cell, target), a stack's legs to a site and back once per (stack, site),
 re-priced at each colonist's move ticks, since free colonists share the cell grid. `JoinPlannedSites` takes each
-site's answer by id: per pawn x source `Options`, `CanPlace`, `Verdict` (feasibility once cleared) and `Clearing` (its cut, haul and mine prerequisites). A site
+site's answer by id: per pawn x source `Options`, `CanPlace`, `Verdict` (feasibility once cleared) and `Clearing` (its cut, haul, mine and deconstruct prerequisites). A site
 stays unknown when no answer names it, or when the read is missing or unknown (`planned_site_read_unknown`).
 
 The roof has no native placement and is never asked. Its work per cell is the coupled read's
@@ -532,7 +532,7 @@ starts:
 
 - ends: each probed site's location (its first position) and each clearing row's location;
 - starts: each probed site's location, reaching its nearest position (`Reach`), each material source (a row's
-  `Origin`), and each clearing's start (a haul's origin, a cut or mine row's location);
+  `Origin`), and each clearing's start (a haul's origin; a cut, mine or deconstruct row's location);
 - the roof also from each pawn's own start (`FromStart`), since no native row routes to it.
 
 The probed sites are those with rows, plus the roof. Every probe goes to one construction activity read (#3341).
@@ -569,6 +569,9 @@ temperature safety is enabled (the placed-site gate; `planned_sites_unknown` whe
    alternative that is not valued.
 3. Each site of a valued alternative is generated in the placed-site shape: a delivery per material source
    (at most 4; `planned_site_sources_truncated:{site}`), one op per clearing prerequisite, and a finish.
+   - A `Deconstruct` clearing binds (`Bindings`): its building stands now, so the op is the pawn's Work/Deconstruct
+     task on it, at the planned deadline (#3557). Every other planned operation has no action template until
+     placement (#3278), and a bound clearing is left out of the site's unplaced activities.
    - Ring finishes share one `ChoiceIdentity` per room and kind, so two stuffs of one wall cannot both be built.
    - A vent requires a completed wall site, and the roof a completed wall and door site, in whichever stuff.
      Completed planned sites are supplied at the room (`planned/room{id}`), not at their cells, so the link
@@ -599,8 +602,9 @@ with a site finished in the horizon, the completed sites and the alternatives co
 partial names `planned_room_effect_unassessed` instead of a whole-room value.
 
 Selection treats planned allocations as requested development: the thermal-relief gate exempts allocations in
-the closure of selected commitments that carry requested-development relief. Binding skips planned allocations
-(`CoordinatedActivityBinding.Start`): a planned site has no action template until placed. A selection whose
+the closure of selected commitments that carry requested-development relief. Binding skips unplaced planned
+allocations (`CoordinatedActivityBinding.Start`): a planned site has no action template until placed, except its
+bound `Deconstruct` clearings, which start as orders (#3557). A selection whose
 only work is planned is compared again without the planned roots for the review's orders (#3557); one that then
 starts no order records `coupled_selection` with target `planned_unplaced`. The room
 reconcile then places exactly the sites the selected plan completes (`RequestedDevelopment`) of an unstarted

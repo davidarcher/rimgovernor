@@ -125,11 +125,14 @@ namespace HomeBridge.BridgeTools
 
         // Hold is the in-progress re-check: true holds the job off the work.
         // A failed guard drops the designation; the record keeps the blocker.
+        // A designation the brain stands by Designate is worked only under
+        // supervised play; one a pawn activity order stood (Ordered) is worked
+        // whenever its controlled pawn is offered the job (#3557).
         internal static bool Hold(GuardedDesignation r) => Verdict(r) != GuardVerdict.Proceed;
 
         private static GuardVerdict Verdict(GuardedDesignation r)
         {
-            if (!r.Open || !Supervisor.IsActive) return GuardVerdict.Wait;
+            if (!r.Open || (!r.Ordered && !Supervisor.IsActive)) return GuardVerdict.Wait;
             var subject = Subject(r);
             if (subject == null) { r.Cancelled = true; return GuardVerdict.Cancel; }
             if (r.Designation == DesignationDefOf.Deconstruct.defName && (subject.Target == null || subject.Target.Position != subject.Cell))

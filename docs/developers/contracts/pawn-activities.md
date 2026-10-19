@@ -145,7 +145,7 @@ may share one atomic batch. These checks run in the existing owner transaction,
 before plan creation or Method binding; refusal leaves both unchanged. They do
 not reserve pawns across different owners or prove current native availability.
 
-The initial step families are exact thing-target work (Clean, Repair, Harvest, Research and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns), selected food/count,
+The initial step families are exact thing-target work (Clean, Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused, #3557), selected food/count,
 selected bed/rest, selected recreation building, exact delivery, exact cooking, material Supply, FinishFrame, Approach, Hold, bounded Idle and Standby (explicit idle). Unsupported families are refused, not sent to a
 native economic selector. Recreation without a building (walks, skygazing, social relaxing, drugs,
 reading) remains outside this initial execution slice. Firefighting is an explicit policy-selected emergency revision, not an automatic native fallback. Work givers use forced:false, required capacities,

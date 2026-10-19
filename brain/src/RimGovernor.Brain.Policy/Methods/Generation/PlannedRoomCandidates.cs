@@ -8,14 +8,15 @@ internal sealed record PlannedSiteOperations(string Site, int Room, string Stuff
 internal sealed record PlannedRoomCandidatesResult(
     ForecastCompositionOperation[] Operations, ForecastCompositionSupply[] Observed, ForecastActivityOption[] Options,
     ForecastActivityRoute[] Routes, ForecastCommitment[] Roots, ForecastMaterialLot[] Lots,
-    PlannedSiteOperations[] Sites, PlannedRoomAlternative[] Rooms, EquatableArray<string> Findings, bool Truncated);
+    PlannedSiteOperations[] Sites, PlannedRoomAlternative[] Rooms,
+    IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> Bindings, EquatableArray<string> Findings, bool Truncated);
 
 /// <summary>
 /// Planned rooms as construction activities (#3276). Each planned site of a valued alternative is its own comparison
 /// root, named by the site id and shared by the room's alternatives: its delivery, its clearing prerequisites and its
 /// finish, in the placed-site shape (ConstructionMethodCandidates). A completed site is one unit of requested development
-/// whichever root builds it. An alternative root requires every site of its alternative and carries no relief of its own. Nothing binds: the
-/// operations have no action template until placement (#3278).
+/// whichever root builds it. An alternative root requires every site of its alternative and carries no relief of its own. Nothing binds
+/// until placement (#3278), except a Deconstruct clearing: its building stands now, so it binds as the pawn's Deconstruct work on it (#3557).
 /// </summary>
 internal static class PlannedRoomCandidates
 {
@@ -28,16 +29,17 @@ internal static class PlannedRoomCandidates
     private enum Assessment { Valued, Unvalued, Infeasible }
 
     internal static PlannedRoomCandidatesResult Generate(EquatableArray<PlannedBuildSite> planned, IReadOnlyList<PlannedRoomAlternative> alternatives,
-        EquatableArray<CoupledRoute> between, CoupledThermalRead? thermal, WorkResourceView resources, IReadOnlySet<string> pawns, double horizon)
+        EquatableArray<CoupledRoute> between, CoupledThermalRead? thermal, WorkResourceView resources, IReadOnlySet<string> pawns, double horizon, long deadline)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
+        var bindings = new Dictionary<(string Task, string Pawn), ActivityTaskCandidate>();
         var operations = new List<ForecastCompositionOperation>(); var observed = new Dictionary<string, ForecastCompositionSupply>(StringComparer.Ordinal);
         var options = new List<ForecastActivityOption>(); var routes = new List<ForecastActivityRoute>();
         var roots = new List<ForecastCommitment>(); var lots = new List<ForecastMaterialLot>();
         var sites = new List<PlannedSiteOperations>(); var rooms = new List<PlannedRoomAlternative>();
         var truncated = false;
         if (resources.Claims.Truncated)
-            return new([], [], [], [], [], [], [], [], ["planned_room_claims_truncated"], true);
+            return new([], [], [], [], [], [], [], [], bindings, ["planned_room_claims_truncated"], true);
         var byId = planned.Where(s => s.Room > 0 && s.Zone.Length == 0).ToDictionary(s => s.Id, StringComparer.Ordinal);
         bool Free(ConstructionActivityOption row) => pawns.Contains(row.Pawn) && !resources.Claims.Pawns.Contains(row.Pawn)
             && (row.Input.Length == 0 || !resources.Claims.Targets.Contains(row.Input));
@@ -72,7 +74,8 @@ internal static class PlannedRoomCandidates
             .Select(g => g.Where(r => r.Capacity > 0 && r.DeliveryTicks.IsKnown).GroupBy(r => r.Pawn).Select(p => p.First()).ToArray())
             .Where(g => g.Length > 0);
         IEnumerable<ConstructionActivityOption> ClearingRows(PlannedSiteClearing clearing) => clearing.Options.Where(Free)
-            .Where(r => (clearing.Kind == PlannedClearingKind.Haul ? r.DeliveryTicks : r.FinishTicks).IsKnown).GroupBy(r => r.Pawn).Select(p => p.First());
+            .Where(r => (clearing.Kind == PlannedClearingKind.Haul ? r.DeliveryTicks : r.FinishTicks).IsKnown)
+            .Where(r => clearing.Kind != PlannedClearingKind.Deconstruct || r.Input.Length > 0).GroupBy(r => r.Pawn).Select(p => p.First());
         string RingKind(OpKind op) => op switch { OpKind.WallIn => "wall", OpKind.DoorIn => "door", _ => "vent" };
         var assessed = new Dictionary<string, (Assessment Verdict, string Reason)>(StringComparer.Ordinal);
         foreach (var room in alternatives.GroupBy(a => a.Room).OrderBy(g => g.Key))
@@ -95,6 +98,7 @@ internal static class PlannedRoomCandidates
             var roomOperations = new List<ForecastCompositionOperation>(); var roomObserved = new List<ForecastCompositionSupply>();
             var roomOptions = new List<ForecastActivityOption>(); var roomRoutes = new List<ForecastActivityRoute>();
             var roomLots = new List<ForecastMaterialLot>(); var roomSitesOps = new List<PlannedSiteOperations>();
+            var roomBindings = new Dictionary<(string Task, string Pawn), ActivityTaskCandidate>();
             var finishes = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var site in roomSites)
             {
@@ -171,6 +175,10 @@ internal static class PlannedRoomCandidates
                         {
                             roomOptions.Add(new(clearing.Id, row.Pawn, haul ? row.DeliveryTicks : row.FinishTicks, Known(0.0)));
                             roomRoutes.Add(new(row.Pawn, "start", from, haul ? row.ApproachTicks : row.SiteApproachTicks));
+                            // The building under the footprint stands now: its removal binds before placement (#3557).
+                            if (clearing.Kind == PlannedClearingKind.Deconstruct)
+                                roomBindings[(clearing.Id, row.Pawn)] = new(clearing.Id, row.Pawn, [], PawnActivityKind.Work, row.Input, row.WorkGiver, "Deconstruct",
+                                    0, deadline, row.Location) { SiteDefinition = row.Resource };
                         }
                         requirements.Add(new(finish + "/cleared/" + clearing.Id, cleared, Known(1), siteLocation, ForecastRequirementKind.Reusable,
                             Known<EquatableArray<string>>([done]), Known(0.0), Known(horizon)));
@@ -204,6 +212,7 @@ internal static class PlannedRoomCandidates
             operations.AddRange(roomOperations); options.AddRange(roomOptions); routes.AddRange(roomRoutes); lots.AddRange(roomLots);
             foreach (var supply in roomObserved) observed.TryAdd(supply.Id, supply);
             sites.AddRange(roomSitesOps); rooms.AddRange(valued);
+            foreach (var binding in roomBindings) bindings[binding.Key] = binding.Value;
             foreach (var site in roomSitesOps)
                 roots.Add(new(site.Site, [])
                 {
@@ -228,6 +237,6 @@ internal static class PlannedRoomCandidates
             routes.AddRange(between.Where(r => pawns.Contains(r.Pawn) && !resources.Claims.Pawns.Contains(r.Pawn))
                 .Select(r => new ForecastActivityRoute(r.Pawn, r.FromStart ? "start" : ForecastLocations.Of(r.From), ForecastLocations.Of(r.To), r.Ticks)));
         return new([.. operations], [.. observed.Values], [.. options], ForecastLocations.Merge(routes), [.. roots], [.. lots],
-            [.. sites], [.. rooms], EquatableArray.From(findings), truncated);
+            [.. sites], [.. rooms], bindings, EquatableArray.From(findings), truncated);
     }
 }

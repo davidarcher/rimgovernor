@@ -99,11 +99,16 @@ public enum PlannedClearingKind
     Haul = 2,
     [WireName("PLANNED_CLEARING_KIND_MINE")]
     Mine = 3,
+    /// <summary>A building the player may deconstruct (a ruin wall, door or furniture, or the colony's own): one op per building, its Deconstruct job (#3557).</summary>
+    [WireName("PLANNED_CLEARING_KIND_DECONSTRUCT")]
+    Deconstruct = 4,
 }
 /// <summary>
 /// A clearing prerequisite of a planned site: one Cut op for all its plants, one Mine op for all its natural rock,
-/// one Haul op per haulable stack. <see cref="Options"/> are per-pawn rows in the <see cref="ConstructionActivityOption"/>
-/// shape with <c>Site</c> = <see cref="Id"/>; a pawn that cannot do it or has no route has no row.
+/// one Haul op per haulable stack, one Deconstruct op per deconstructible building (its rows name the building:
+/// <c>Input</c> its id, <c>Resource</c> its def). <see cref="Options"/> are per-pawn rows in the
+/// <see cref="ConstructionActivityOption"/> shape with <c>Site</c> = <see cref="Id"/>; a pawn that cannot do it or has
+/// no route has no row.
 /// </summary>
 public sealed record PlannedSiteClearing(string Id, PlannedClearingKind Kind)
 {

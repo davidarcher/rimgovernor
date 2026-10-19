@@ -507,7 +507,7 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   out of bounds or over the position cap; the reason is a read finding
   (`planned_site_*`).
 - `Clearing`: the clearing prerequisites, each an id, a `Kind` (`Cut`, `Haul`,
-  `Mine`) and per-pawn `ConstructionActivityOption` rows with `Site` set
+  `Mine`, `Deconstruct`) and per-pawn `ConstructionActivityOption` rows with `Site` set
   to the op id and `Definition` to the planned site's. One `Cut` op (`<site>/cut`)
   covers the site's plants: `FinishTicks` sums `harvestWork /
   JobDriver_PlantWork.WorkDonePerTick` (PlantWorkSpeed scaled by growth), for a
@@ -522,18 +522,27 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   outside the footprint, `ApproachTicks` (and `SiteApproachTicks`) the pickup route,
   `DeliveryTicks` the loaded carries plus returns over `Capacity`, and `FinishTicks`
   is a known 0. Native's own blocking haul moves the stack aside; the forecast
-  charges a carry to storage instead (#3241). A speed of zero leaves `FinishTicks`
-  unknown; a pawn with no route or unable to do the work has no row.
+  charges a carry to storage instead (#3241). One `Deconstruct` op per building the
+  player may deconstruct (`<site>/deconstruct/<thing>`: a ruin wall, door or piece
+  of furniture, or the colony's own; #3557): `Input` is the building's id,
+  `Resource` its def and `Location` its cell; `FinishTicks` is `JobDriver_Deconstruct`'s
+  work (`WorkToBuild` clamped to 20..3000) over `ConstructionSpeed x 1.7` a tick
+  (`JobDriver_RemoveBuilding`), for a pawn not incapable of Construction and able to
+  manipulate. A building whose removal the enclosure guard would hold for roof
+  support (`RoofWait`) has no op (finding `planned_clearing_roof_support`). A speed
+  of zero leaves `FinishTicks` unknown; a pawn with no route or unable to do the
+  work has no row.
 - `Verdict`, from `GenConstruct.HandleBlockingThingJob`'s kinds for every thing in
   the footprint: `Illegal` when a refusal outlasts clearing (native re-checks each
   piece with every removable footprint thing skipped: terrain affordance or water,
   map edge, unfinished research, interaction spots) or a thing is not removable
-  (another faction's building), which is infeasible; else `Unestimable` when a
-  thing is removable but not estimated (a colony building or frame to deconstruct
-  or cancel, a non-natural mineable, a never-haulable item), or a refused piece is
+  (a building the player may not deconstruct), which is infeasible; else
+  `Unestimable` when a thing is removable but not estimated (a blueprint or frame
+  to cancel, a non-natural mineable, a never-haulable item), or a refused piece is
   fogged (finding `planned_site_fogged`): leave the alternative unvalued; else
   `Unspecified` when a haulable has no accepting storage (finding
-  `planned_clearing_haul_destination_unknown`); else `Feasible`. A pawn, something
+  `planned_clearing_haul_destination_unknown`) or a deconstructible building holds
+  a roof (`planned_clearing_roof_support`); else `Feasible`. A pawn, something
   blueprint placement wipes, or something `CanPlaceBlueprintOver` allows that does
   not `BlocksConstruction` needs no clearing. `CanPlace` stays native legality as the
   footprint stands, so a site needing only clearing reads `CanPlace` false and

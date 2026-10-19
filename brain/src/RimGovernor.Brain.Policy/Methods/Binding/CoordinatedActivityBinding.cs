@@ -15,7 +15,8 @@ internal static class CoordinatedActivityBinding
         IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick,
         IEnumerable<ForecastPlannedSite>? planned = null)
     {
-        // Planned sites are selectable but not placed: they have no action template, so they start no order (#3278).
+        // Planned sites are selectable but not placed: they have no action template, so they start no order (#3278). A
+        // planned Deconstruct clearing is bound to its standing building and is not among them (#3557).
         var unplaced = (planned ?? []).SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         var active = Start(selection.Selection, bindings, authority, method, tick, unplaced);
         var deferredPawns = selection.Deferred.Where(t => t.Until > tick).ToList();

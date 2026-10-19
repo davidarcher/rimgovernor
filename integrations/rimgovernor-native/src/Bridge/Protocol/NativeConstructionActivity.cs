@@ -182,7 +182,7 @@ internal static class NativeConstructionActivity
     }
 
     // What clearing one footprint thing takes, in GenConstruct.HandleBlockingThingJob's kinds.
-    private enum Clear { None, Cut, Haul, Mine, Unestimable, Illegal }
+    private enum Clear { None, Cut, Haul, Mine, Deconstruct, Unestimable, Illegal }
 
     // JobDriver_Mine.BaseDamagePerPickHit_NaturalRock (private): a pick hit's damage to natural rock.
     private const int NaturalRockDamagePerPickHit = 80;
@@ -195,12 +195,15 @@ internal static class NativeConstructionActivity
         if (thing.def.category == ThingCategory.Plant) return thing is Plant ? Clear.Cut : Clear.Unestimable;
         if (thing.def.category == ThingCategory.Item) return thing.def.EverHaulable ? Clear.Haul : Clear.Unestimable;
         if (thing is Mineable && thing.def.building?.isNaturalRock == true) return Clear.Mine;
-        if (thing is Verse.Building building) return building.DeconstructibleBy(Faction.OfPlayer).Accepted || thing.def.mineable ? Clear.Unestimable : Clear.Illegal;
+        // A building the player may deconstruct (a ruin wall, door or furniture, the colony's own) comes down as a Deconstruct job (#3557).
+        if (thing is Verse.Building building)
+            return building.DeconstructibleBy(Faction.OfPlayer).Accepted && thing is not Mineable ? Clear.Deconstruct : thing.def.mineable ? Clear.Unestimable : Clear.Illegal;
         return thing.Faction == Faction.OfPlayer ? Clear.Unestimable : Clear.Illegal;
     }
 
-    // Clearing ops: one Cut for the plants, one Mine for the natural rock, one Haul per haulable stack with per-pawn
-    // rows. A stack with no accepting storage outside the footprint has no op (unknown).
+    // Clearing ops: one Cut for the plants, one Mine for the natural rock, one Deconstruct per deconstructible building,
+    // one Haul per haulable stack, with per-pawn rows. A stack with no accepting storage outside the footprint, and a
+    // roof-holder whose removal the enclosure guard would hold, have no op (unknown).
     private static List<Obs.PlannedSiteClearing> Clearing(Map map, NativePathLegs legs, Pawn[] roster, string site, BuildableDef definition,
         (Thing Thing, Clear Kind)[] things, HashSet<IntVec3> footprint, HashSet<string> findings, out bool unknown)
     {
@@ -226,6 +229,23 @@ internal static class NativeConstructionActivity
                     return speed > 0 ? Fact.Known(rock.Sum(r => Math.Ceiling(r.HitPoints / (double)NaturalRockDamagePerPickHit))
                         * Math.Round(JobDriver_Mine.BaseTicksBetweenPickHits / speed)) : default;
                 }));
+        // JobDriver_Deconstruct's work (WorkToBuild clamped to 20..3000) at JobDriver_RemoveBuilding's rate (ConstructionSpeed x 1.7
+        // a tick), for a pawn not incapable of Construction. The rows name the building (Input its id, Resource its def): the
+        // brain binds the op to it before placement (#3557). A roof-holder the enclosure guard would hold (RoofWait) has no op.
+        var deconstructGiver = Giver<WorkGiver_Deconstruct>();
+        foreach (var building in things.Where(t => t.Kind == Clear.Deconstruct).Select(t => (Verse.Building)t.Thing).OrderBy(t => t.thingIDNumber))
+        {
+            if (NativeDesignationGuards.RoofWait(building) != null) { unknown = true; findings.Add("planned_clearing_roof_support"); continue; }
+            var work = Math.Min(3000.0, Math.Max(20.0, building.GetStatValue(StatDefOf.WorkToBuild)));
+            var op = Work(site + "/deconstruct/" + building.GetUniqueLoadID(), Obs.PlannedClearingKind.Deconstruct, [building], deconstructGiver,
+                pawn => !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction) && pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation),
+                pawn =>
+                {
+                    var rate = pawn.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7;
+                    return rate > 0 ? Fact.Known(Math.Ceiling(work / rate)) : default;
+                });
+            result.Add(op with { Options = EquatableArray.From(op.Options.Select(r => r with { Resource = building.def.defName, Input = building.GetUniqueLoadID() })) });
+        }
         var haulGiver = Giver<WorkGiver_HaulGeneral>();
         foreach (var item in things.Where(t => t.Kind == Clear.Haul).Select(t => t.Thing).OrderBy(t => t.thingIDNumber))
         {

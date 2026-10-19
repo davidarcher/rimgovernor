@@ -13,6 +13,8 @@ public static class CaseCatalog
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(PawnActivityCase.Case());
         registry.Register(PlannedRoomPredictionCase.Case());
+        registry.Register(PlannedSiteDeconstructCase.Case());
+        registry.Register(ControlDeconstruct.Case());
         registry.Register(ConstructionRouteLegsCase.Case());
         registry.Register(ProductionCoupledNeeds.Case());
         registry.Register(NeedsTargetCapacity.Case());
