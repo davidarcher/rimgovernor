@@ -65,7 +65,12 @@ public sealed record NeedRate(string Kind,
 }
 public sealed record NeedMemory(string Id, double Offset,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> RemainingTicks, bool Fades)
-{ public bool Permanent { get; init; } }
+{
+    public bool Permanent { get; init; }
+    /// <summary>The def's native stackLimit (ThoughtDef.stackLimit, default 1); 0 when not read. At 1 a new memory of the def renews the
+    /// existing one (Thought_Memory.TryMergeWithExistingMemory) instead of adding to it (#3598).</summary>
+    public int StackLimit { get; init; }
+}
 /// <summary>Native mood-point contribution in a half-open local-hour window; EndHour less than StartHour wraps midnight. CurrentOffset is already present in MoodUnclampedTarget.</summary>
 public sealed record NeedConditionalThought(double StartHour, double EndHour, bool AwakeOnly,
     double Offset, double CurrentOffset);

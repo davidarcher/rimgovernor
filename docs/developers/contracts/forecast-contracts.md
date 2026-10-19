@@ -157,6 +157,7 @@ unknown completion leaves that pawn's mood, or thermal exposure, unassessed.
 - `MoodMemories` add a memory to the pawn's mood timeline from that tick.
 - `SituationalChanges` add `OffsetDelta` to the pawn's mood target from that
   tick; removing an active -11 thought is +11. Every other situational thought
+  but the banded ones (temperature, roof, food and rest, below)
   stays constant inside `MoodUnclampedTarget`, so the
   `unmodeled_situational_thoughts_constant` finding remains. Changing one
   thought twice for a pawn is `unsupported_situational_change_stacking`.
@@ -171,6 +172,51 @@ unknown completion leaves that pawn's mood, or thermal exposure, unassessed.
   once the commitment holds; per pawn the last change wins, and a pawn with none wears
   `ForecastCoupledContext.Outfits[pawn]` (the gear census's `GearLoadoutInput.Worn`). The effect-source generator sets it from each
   candidate's `EffectSourceOutfit.Items`. The harm term prices its armor; nothing else reads it.
+
+### Food and rest thoughts (#3598)
+
+The `NeedFood` and `NeedRest` situational thoughts follow the needs timeline of
+the pawn's choices instead of staying at their observed stage.
+
+- `ForecastNeedMetric.StageSpans` is the need walk's output for food and rest: contiguous
+  spans from the review to the horizon, each with the thought's stage (-1 none).
+  Food is hungry (stage 0) below the row's observed `Threshold`
+  (`PercentageThreshHungry`), urgently hungry (1) below half of it and starving
+  (2) at 0. Rest is tired (0) below its `Threshold` (`ThreshTired`), very
+  tired (1) below 0.14 and exhausted (2) below 0.01. The first span's stage is the
+  observed one.
+- `ForecastMood.NeedThoughts` turns them into banded rows covering the horizon:
+  each span adds its stage's mood less the observed stage's, which
+  `MoodUnclampedTarget` already holds. The stage moods are the defs' `baseMoodEffect`
+  ([kept constants](kept-constants.md#mirrored-game-literals-need-thoughts-3598)).
+  `ForecastNeedsTimeline` and the coupled evaluation add them to the caller's
+  banded thoughts, so `BreakRisk`, `BreakTierTicks` and `PressureTicks` carry
+  them and the ledger prices them as `MoodBreaks` and `Wellbeing`.
+- Not modelled: a nullified thought (trait, hediff, precept or gene), and the
+  malnutrition stages past the first while starving (the thought stays at
+  stage 2, -20). A need with an unknown timeline has no spans and its thought
+  stays at the observed constant.
+
+### Repeated and stacked memories (#3598)
+
+`NeedMemory.StackLimit` is the def's native `stackLimit` (0 when not read).
+
+- A planned memory (a completed meal's thought or a `MoodMemories` row) of a
+  stackLimit-1 def renews the memory of that def live before it, as
+  `Thought_Memory.TryMergeWithExistingMemory` does: the observed or earlier planned
+  memory stops at the new one's start. Any other stack limit sharing a def leaves the
+  pawn's mood unassessed with `unsupported_memory_renewal_or_stacking` (and the
+  horizon thought offset with `unsupported_meal_memory_overlap`).
+- Observed memories sharing a def (a stack, or social memories about different
+  pawns) each expire on their own timer and are summed. Native values a stack as its
+  mean offset times the stacked multipliers (`ThoughtHandler.MoodOffsetOfGroup`), so
+  a stack member's expiry is overstated; `stacked_memory_expiry_additive` names it.
+  Zero-offset duplicates do not raise it.
+- A produced or delivered meal (`CoupledFoodMethodCandidates.AddEating`) carries
+  `CoupledFoodUse.Thoughts`: native's `FoodUtility.ThoughtsFromIngesting` on one
+  unspawned fresh unit of the resource, kept per def. A resource with ingredients
+  (a cooked meal) leaves them unknown, and a plan eating it leaves the pawn's mood
+  unassessed with `future_meal_thoughts_unassessed`, as before.
 
 ### Temperature mood from banded cards
 

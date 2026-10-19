@@ -76,6 +76,27 @@ native ones `NativeRoomPrediction.cs`.
 The weather thought's 120-tick interval (`Pawn_MindState.MindStateTick`) is not
 used as a number: the thought is applied for whole spans.
 
+## Mirrored game literals: need thoughts (#3598)
+
+The food and rest thoughts the mood timeline prices along the needs timeline
+([contract](forecast-contracts.md#food-and-rest-thoughts-3598)). Read with ilspycmd
+and the Core defs (1.7). The stage boundaries are in `ForecastNeeds.cs`
+(`UrgentlyHungryOfHungry`, `RestVeryTired`, `RestExhausted`), the moods in
+`ForecastMood.cs` (`NeedFoodMood`, `NeedRestMood`).
+
+| Literal | Value | 1.7 member |
+| --- | --- | --- |
+| `NeedFood` stage by hunger category: hungry, urgently hungry, starving | 0, 1, 2 + the malnutrition stage | `ThoughtWorker_NeedFood.CurrentStateInternal` |
+| `NeedFood` stage moods | -6, -12, -20 (then -26, -32, -38, -44, unpriced) | `Core/Defs/ThoughtDefs/Thoughts_Situation_Needs.xml` (`baseMoodEffect`) |
+| Urgent hunger against the hungry threshold | 0.5 (0.4 / 0.8 of `FoodLevelPercentageWantEat`) | `Need_Food.PercentageThreshUrgentlyHungry`, `PercentageThreshHungry` |
+| `NeedRest` stage by rest category: tired, very tired, exhausted | 0, 1, 2 | `ThoughtWorker_NeedRest.CurrentStateInternal` |
+| `NeedRest` stage moods | -6, -12, -18 | `Thoughts_Situation_Needs.xml` (`baseMoodEffect`) |
+| Very tired, exhausted | rest level below 0.14, 0.01 | `Need_Rest.CurCategory` (`ThreshVeryTired`, literal 0.01) |
+| A stage's mood | `baseMoodEffect`, × 1 (no worker overrides `ThoughtWorker.MoodMultiplier`, no `effectMultiplyingStat`), 0 when nullified (not observed) | `Thought.MoodOffset`, `ThoughtUtility.ThoughtNullified` |
+
+The mood a thought moves feeds the break model's tiers (`LayoutMood.cs`, the
+`MentalBreaker` literals) and the wellbeing weight; no new policy constant is added.
+
 ## Mirrored game literals: capacity penalties (#3519)
 
 The capacity penalty tables ([forecast contracts](forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities))
@@ -112,8 +133,8 @@ penalty. The `StatPart_Food` and `StatPart_Rest` parts on `ImmunityGainSpeed`
 (factors 0.9 and 0.7 for urgently hungry and starving, 0.96, 0.92 and 0.8 for
 tired, very tired and exhausted) are the only stat parts the game reads a need
 category through, and slow immunity only. Every other category effect is a mood
-thought (`ThoughtWorker_NeedFood`, `ThoughtWorker_NeedRest`, already in the mood
-model) or a rate above. Zero rest's involuntary sleep is the one rest effect the ledger prices
+thought (`ThoughtWorker_NeedFood`, `ThoughtWorker_NeedRest`, which the mood
+timeline follows along the needs timeline, [need thoughts](#mirrored-game-literals-need-thoughts-3598)) or a rate above. Zero rest's involuntary sleep is the one rest effect the ledger prices
 ([exhaustion collapse](../architecture/forecast-value.md#capability-days), #3598). The game's `HediffGiver_Heatstroke` is `HediffGiver_Heat`.
 
 The ledger prices a hediff's pain (`painOffset`, which lowers consciousness by up

@@ -17,8 +17,14 @@ public sealed record ForecastNeedMetric(string Kind, Fact<double> FinalLevel, Fa
     /// <summary>The spans, in ticks from the review, the need's level is zero (food: the game's Starving category, whose malnutrition
     /// the capability-days ledger prices, #3520). Empty when the need never reaches zero.</summary>
     public EquatableArray<ForecastNeedSpan> ZeroSpans { get; init; }
+    /// <summary>Food and rest (#3598): the need thought's stage over the horizon, contiguous from the review to its end, the
+    /// first span's stage being the observed one (<see cref="ForecastNeeds.NeedThoughtStage"/>). Empty for other needs and when
+    /// the timeline is unknown. The mood timeline prices it (<see cref="ForecastMood.NeedThoughts"/>).</summary>
+    public EquatableArray<ForecastNeedStageSpan> StageSpans { get; init; }
 }
 public readonly record struct ForecastNeedSpan(double Start, double End);
+/// <summary>A span the need thought holds one stage; -1 is no thought (fed, rested).</summary>
+public readonly record struct ForecastNeedStageSpan(double Start, double End, int Stage);
 public sealed record ForecastNeedsResult(EquatableArray<ForecastNeedMetric> Needs,
     Fact<double> ThoughtOffsetAtHorizon, Fact<double> MemoryAdjustedMoodTarget,
     ForecastCapacityResult Capacity, EquatableArray<string> Findings)
@@ -220,7 +226,8 @@ public static class ForecastNeeds
         IReadOnlyList<ForecastMemoryRenewal>? renewals = null, bool mood = true, bool moodTrajectory = true)
     {
         var core = NeedsCoreOf(pawn, input.HorizonTicks, selected, interruptedAt, granted, renewals);
-        var timeline = mood ? ForecastMood.ForecastMoodTimeline(pawn, input.HorizonTicks, selected, interruptedAt, granted, situational, banded, renewals, moodTrajectory) : null;
+        var timeline = mood ? ForecastMood.ForecastMoodTimeline(pawn, input.HorizonTicks, selected, interruptedAt, granted, situational,
+            [.. banded ?? [], .. ForecastMood.NeedThoughts(core.Needs)], renewals, moodTrajectory) : null;
         return NeedsWithCapacity(pawn, core, input, timeline);
     }
 
@@ -272,6 +279,7 @@ public static class ForecastNeeds
                 || !double.IsFinite(threshold) || threshold < 0 || threshold > 1) throw new DomainException("invalid need mechanics");
             double deficit = 0, exposure = 0, waste = 0, zero = 0, depth = 0;
             zeroSpans = null;
+            List<ForecastNeedStageSpan>? stageSpans = null;
             var events = new SortedSet<double> { 0, horizonTicks };
             // Unrelated service boundaries cannot change this need trajectory. Splitting there
             // introduces rounding differences that can incorrectly dominate later consequences.
@@ -318,6 +326,7 @@ public static class ForecastNeeds
                         if (zeroSpans.Count > 0 && zeroSpans[^1].End == from + a) zeroSpans[^1] = zeroSpans[^1] with { End = from + b };
                         else zeroSpans.Add(new(from + a, from + b));
                     }
+                    if (need.Kind is "food" or "rest") AddStageSpans(stageSpans ??= [], need.Kind, threshold, from + a, from + b, lo, hi);
                     // Zero food/rest means physiological capacity is unassessed, never free productive labor.
                     if (need.Kind is "food" or "rest" && lo == 0 && hi == 0)
                         occupied.Add(new("need_zero/" + need.Kind + "/" + from + "/" + k, pawn.Pawn,
@@ -333,28 +342,36 @@ public static class ForecastNeeds
                 }
             }
             metrics.Add(new(need.Kind, Known(level), Known(deficit), Known(exposure), Known(waste))
-            { ZeroTicks = Known(zero), ThresholdDepthTicks = Known(depth), ZeroSpans = zeroSpans is null ? default : EquatableArray.From(zeroSpans) });
+            {
+                ZeroTicks = Known(zero), ThresholdDepthTicks = Known(depth), ZeroSpans = zeroSpans is null ? default : EquatableArray.From(zeroSpans),
+                StageSpans = stageSpans is null ? default : EquatableArray.From(stageSpans),
+            });
         }
         Fact<double> thoughtDelta = default;
-        if (pawn.Memories.TryGetValue(out var memories) && memories.All(m => m.Permanent || m.RemainingTicks.IsKnown) && memories.Select(m => m.Id).Distinct().Count() == memories.Count)
+        if (pawn.Memories.TryGetValue(out var memories) && memories.All(m => m.Permanent || m.RemainingTicks.IsKnown))
         {
             double Remaining(NeedMemory m, double elapsed) => m.Permanent ? m.Offset : m.RemainingTicks.Value <= elapsed ? 0
                 : m.Fades ? m.Offset * (1 - elapsed / m.RemainingTicks.Value) : m.Offset;
             var complete = true;
-            var mealIds = new HashSet<string>(StringComparer.Ordinal);
+            if (ForecastMood.StackedMemoryFinding(memories) is { } stacked) findings.Add(stacked);
             var added = intervals.Where(r => r.Choice.Kind == "food" && r.End == r.Choice.End)
                 .SelectMany(r => r.Choice.Thoughts.Select(t => (Thought: t, Start: r.End))).Concat(granted ?? []).ToArray();
             var schedule = ForecastMood.RenewalSchedule(memories, renewals, added.Select(a => a.Thought.Id));
             if (schedule is null) { findings.Add("unsupported_memory_renewal_or_stacking"); complete = false; }
-            var delta = memories.Sum(m => (schedule is { } s && s.ObservedEnds[m.Id] <= horizonTicks ? 0 : Remaining(m, horizonTicks)) - m.Offset);
+            // A stackLimit-1 meal renews the memory live before it (#3598); any other shared def is not additive evidence.
+            var planned = ForecastMood.PlannedMemoryEnds(memories, added);
+            if (planned is null) { findings.Add("unsupported_meal_memory_overlap"); complete = false; }
+            double ObservedEnd(string id) => Math.Min(schedule is { } s ? s.ObservedEnds[id] : double.PositiveInfinity,
+                planned is { } p && p.ObservedEnds.TryGetValue(id, out var at) ? at : double.PositiveInfinity);
+            var delta = memories.Sum(m => (ObservedEnd(m.Id) <= horizonTicks ? 0 : Remaining(m, horizonTicks)) - m.Offset);
             if (schedule is { } renewedSchedule)
                 foreach (var gain in renewedSchedule.Gains.Where(g => g.Start <= horizonTicks && g.End > horizonTicks))
                     delta += Remaining(gain.Thought, horizonTicks - gain.Start);
-            foreach (var (thought, start) in added)
+            for (var i = 0; i < added.Length; i++)
             {
+                var (thought, start) = added[i];
                 if (!thought.Permanent && !thought.RemainingTicks.IsKnown) { findings.Add("unknown_meal_thought_duration"); complete = false; continue; }
-                // Same-memory renewal/stacking is not additive evidence.
-                if (memories.Any(m => m.Id == thought.Id) || !mealIds.Add(thought.Id)) { findings.Add("unsupported_meal_memory_overlap:" + thought.Id); complete = false; continue; }
+                if (planned is { } ends && ends.Ends[i] <= horizonTicks) continue;
                 delta += Remaining(thought, horizonTicks - start);
             }
             thoughtDelta = complete ? Known(delta) : default;
@@ -362,7 +379,7 @@ public static class ForecastNeeds
         else findings.Add("unknown_thought_expiry");
         var target = thoughtDelta.IsKnown && pawn.MoodTarget.IsKnown ? Known(Math.Clamp(pawn.MoodTarget.Value + thoughtDelta.Value / 100, 0, 1)) : default;
         findings.Add("need_rates_constant_current_conditions");
-        findings.Add("need_category_and_room_mood_changes_unassessed");
+        findings.Add("room_mood_changes_unassessed");
         return new(EquatableArray.From(metrics), [.. occupied], thoughtDelta, target, usefulFood, [.. findings], intervals);
     }
 
@@ -460,6 +477,51 @@ public static class ForecastNeeds
         }
         return result;
     }
+    // Need_Food.PercentageThreshUrgentlyHungry is 0.4 of FoodLevelPercentageWantEat and PercentageThreshHungry (the food
+    // row's observed Threshold) 0.8 of it, so urgent hunger starts at half the hungry threshold.
+    private const double UrgentlyHungryOfHungry = 0.5;
+
+    // Need_Rest.CurCategory: very tired below ThreshVeryTired, exhausted below 0.01 (tired below ThreshTired, the rest row's observed Threshold).
+    private const double RestVeryTired = 0.14;
+    private const double RestExhausted = 0.01;
+
+    /// <summary>
+    /// The need thought's stage at a level (#3598), -1 for none: ThoughtWorker_NeedFood gives stage 0 when hungry, 1 when
+    /// urgently hungry and 2 plus the malnutrition stage when starving (level 0); ThoughtWorker_NeedRest stage 0 when tired,
+    /// 1 when very tired and 2 when exhausted. <paramref name="threshold"/> is the row's observed hungry or tired threshold.
+    /// A starving pawn is held at stage 2, the malnutrition stages past the first left unpriced.
+    /// </summary>
+    internal static int NeedThoughtStage(string kind, double level, double threshold) => kind switch
+    {
+        "food" => level <= 0 ? 2 : level < threshold * UrgentlyHungryOfHungry ? 1 : level < threshold ? 0 : -1,
+        "rest" => level < RestExhausted ? 2 : level < RestVeryTired ? 1 : level < threshold ? 0 : -1,
+        _ => -1,
+    };
+
+    /// <summary>Appends the need thought's stages over one linear piece of the level (from <paramref name="from"/> to
+    /// <paramref name="to"/>), cut where it crosses a stage boundary; the walk already cuts at 0 and the threshold.</summary>
+    private static void AddStageSpans(List<ForecastNeedStageSpan> spans, string kind, double threshold, double start, double end, double from, double to)
+    {
+        if (end <= start) return;
+        Span<double> cuts = stackalloc double[4];
+        var count = 0;
+        cuts[count++] = 0;
+        if (from != to)
+            foreach (var bound in kind == "food" ? (ReadOnlySpan<double>)[threshold * UrgentlyHungryOfHungry] : [RestVeryTired, RestExhausted])
+                if ((bound - from) / (to - from) is var f and > 0 and < 1) cuts[count++] = f;
+        cuts[count++] = 1;
+        cuts[..count].Sort();
+        for (var i = 0; i < count - 1; i++)
+        {
+            var s = i == 0 ? start : start + (end - start) * cuts[i];
+            var e = i == count - 2 ? end : start + (end - start) * cuts[i + 1];
+            if (e <= s) continue;
+            var stage = NeedThoughtStage(kind, from + (to - from) * (cuts[i] + cuts[i + 1]) / 2, threshold);
+            if (spans.Count > 0 && spans[^1].Stage == stage && spans[^1].End == s) spans[^1] = spans[^1] with { End = e };
+            else spans.Add(new(s, e, stage));
+        }
+    }
+
     internal static void NeedHorizon(double horizon)
     {
         if (!double.IsFinite(horizon) || horizon <= 0 || horizon > GameTime.TicksPerDay)

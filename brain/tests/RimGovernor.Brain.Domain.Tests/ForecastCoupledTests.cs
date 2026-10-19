@@ -96,6 +96,24 @@ public sealed class ForecastCoupledTests
         Assert.Contains(generated.Context.Activities.Activities, task => task.Id.StartsWith("harvest/", StringComparison.Ordinal));
     }
     [Fact]
+    public void AProducedMealCarriesTheThoughtsNativeReadsForItsResource()
+    {
+        // #3598: a harvested-rice meal's AteRawFood is known before the rice exists, so the pawn's mood stays assessed.
+        var facts = Review();
+        var rawFood = new NeedMemory("AteRawFood", -7, Known((double)GameTime.TicksPerDay), false) { StackLimit = 1 };
+        var read = facts.ForecastObserved.Coupled!;
+        var known = facts with { ForecastObserved = facts.ForecastObserved with
+            { Coupled = read with { FoodUses = [read.FoodUses[0] with { Thoughts = Known<EquatableArray<NeedMemory>>([rawFood]) }] } } };
+
+        var meals = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(known, 300)).Context.NeedTasks.Where(n => n.Kind == "food").ToArray();
+        var unread = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300)).Context.NeedTasks.Where(n => n.Kind == "food").ToArray();
+
+        Assert.NotEmpty(meals);
+        Assert.All(meals, meal => { Assert.True(meal.ThoughtsComplete); Assert.Equal([rawFood], meal.Thoughts.ToArray()); });
+        Assert.All(unread, meal => { Assert.False(meal.ThoughtsComplete); Assert.Empty(meal.Thoughts); });
+    }
+
+    [Fact]
     public void LateOrSpoiledFoodCannotFinanceARecoveryChain()
     {
         foreach (var facts in new[] { Review(harvest: 290), Review(expiry: 20) })

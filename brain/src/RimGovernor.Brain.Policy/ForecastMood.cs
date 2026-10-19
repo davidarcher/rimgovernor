@@ -32,7 +32,7 @@ public static class ForecastMood
     internal static (Dictionary<string, double> ObservedEnds, List<(NeedMemory Thought, double Start, double End)> Gains)? RenewalSchedule(
         IReadOnlyList<NeedMemory> observed, IReadOnlyList<ForecastMemoryRenewal>? renewals, IEnumerable<string> mealIds)
     {
-        var ends = observed.ToDictionary(m => m.Id, _ => double.PositiveInfinity, StringComparer.Ordinal);
+        var ends = observed.Select(m => m.Id).Distinct(StringComparer.Ordinal).ToDictionary(id => id, _ => double.PositiveInfinity, StringComparer.Ordinal);
         var gains = new List<(NeedMemory Thought, double Start, double End)>();
         if (renewals is null || renewals.Count == 0) return (ends, gains);
         var ordered = renewals.OrderBy(r => r.At).ToArray();
@@ -54,6 +54,40 @@ public static class ForecastMood
         }
         return (ends, gains);
     }
+
+    /// <summary>
+    /// The tick each planned memory (a completed meal's thought or a granted one) stops counting, and the tick each observed
+    /// def is ended at by a planned memory (#3598). A planned memory of a stackLimit-1 def renews the one live before it, as
+    /// Thought_Memory.TryMergeWithExistingMemory does: that observed or earlier planned memory stops at its start. Null when a
+    /// planned memory shares a def of any other stack limit, whose stacking is not additive evidence.
+    /// </summary>
+    internal static (double[] Ends, Dictionary<string, double> ObservedEnds)? PlannedMemoryEnds(
+        IReadOnlyList<NeedMemory> observed, IReadOnlyList<(NeedMemory Thought, double Start)> planned)
+    {
+        var ends = new double[planned.Count];
+        Array.Fill(ends, double.PositiveInfinity);
+        var observedEnds = new Dictionary<string, double>(StringComparer.Ordinal);
+        var order = Enumerable.Range(0, planned.Count).OrderBy(i => planned[i].Start).ToArray();
+        for (var k = 0; k < order.Length; k++)
+        {
+            var (thought, start) = planned[order[k]];
+            var earlier = order.Take(k).Where(j => planned[j].Thought.Id == thought.Id).ToArray();
+            var old = observed.Any(m => m.Id == thought.Id);
+            if (earlier.Length == 0 && !old) continue;
+            if (thought.StackLimit != 1) return null;
+            foreach (var j in earlier) ends[j] = Math.Min(ends[j], start);
+            if (old && !observedEnds.ContainsKey(thought.Id)) observedEnds[thought.Id] = start;
+        }
+        return (ends, observedEnds);
+    }
+
+    /// <summary>Observed memories sharing a def (a stack, or social memories about different pawns) each expire on their own
+    /// timer and are summed. Native values a stack as its mean offset times the stacked multipliers
+    /// (ThoughtHandler.MoodOffsetOfGroup), so one member's expiry moves mood by less than its own offset: the finding names
+    /// the approximation. Zero-offset memories (opinion-only social ones) do not count toward it.</summary>
+    internal static string? StackedMemoryFinding(IReadOnlyList<NeedMemory> memories) =>
+        memories.Where(m => m.Offset != 0).GroupBy(m => m.Id, StringComparer.Ordinal).Any(g => g.Count() > 1)
+            ? "stacked_memory_expiry_additive" : null;
 
     /// <summary>Conditional thoughts are native mechanics, independent of candidate family or trait names.
     /// Target and actual mood remain separate; threshold exposure is not itself a break probability. Granted
@@ -93,23 +127,28 @@ public static class ForecastMood
         var supported = pawn.ConditionalThoughts.TryGetValue(out var effects) && pawn.LocalHour.IsKnown
             && pawn.MoodUnclampedTarget.IsKnown && pawn.Memories.TryGetValue(out var memories);
         memories = pawn.Memories.ValueOrDefault;
-        if (!supported || memories.Any(m => !m.Permanent && !m.RemainingTicks.IsKnown)
-            || memories.Select(m => m.Id).Distinct().Count() != memories.Count)
+        if (!supported || memories.Any(m => !m.Permanent && !m.RemainingTicks.IsKnown))
             return new([], default, default, default, default, default, ["unknown_conditional_mood_mechanics"]);
+        if (StackedMemoryFinding(memories) is { } stacked) unknown.Add(stacked);
         foreach (var boundary in ConditionalThoughtTransitions(pawn, horizon)) events.Add(boundary);
         foreach (var memory in memories.Where(m => !m.Permanent && m.RemainingTicks.IsKnown))
             if (memory.RemainingTicks.Value > 0 && memory.RemainingTicks.Value < horizon) events.Add(memory.RemainingTicks.Value);
         var meals = intervals.Where(r => r.Choice.Kind == "food" && r.End == r.Choice.End)
             .SelectMany(r => r.Choice.Thoughts.Select(t => (Thought: t, Start: r.End))).Concat(granted ?? []).ToArray();
-        if (meals.Select(m => m.Thought.Id).Distinct().Count() != meals.Length
-            || meals.Any(m => memories.Any(old => old.Id == m.Thought.Id) || !m.Thought.Permanent && !m.Thought.RemainingTicks.IsKnown))
-            return new([], default, default, default, default, default, ["unsupported_memory_renewal_or_stacking"]);
-        if (RenewalSchedule(memories, renewals, meals.Select(m => m.Thought.Id)) is not { } schedule)
+        if (meals.Any(m => !m.Thought.Permanent && !m.Thought.RemainingTicks.IsKnown)
+            || PlannedMemoryEnds(memories, meals) is not { } planned
+            || RenewalSchedule(memories, renewals, meals.Select(m => m.Thought.Id)) is not { } schedule)
             return new([], default, default, default, default, default, ["unsupported_memory_renewal_or_stacking"]);
         var (observedEnds, renewed) = schedule;
-        foreach (var meal in meals)
+        foreach (var (id, at) in planned.ObservedEnds) observedEnds[id] = Math.Min(observedEnds[id], at);
+        var mealEnds = planned.Ends;
+        for (var i = 0; i < meals.Length; i++)
+        {
+            var meal = meals[i];
             if (!meal.Thought.Permanent && meal.Start + meal.Thought.RemainingTicks.Value < horizon)
                 events.Add(meal.Start + meal.Thought.RemainingTicks.Value);
+            if (mealEnds[i] < horizon) events.Add(mealEnds[i]);
+        }
         foreach (var gain in renewed)
         {
             events.Add(gain.Start);
@@ -158,8 +197,8 @@ public static class ForecastMood
             foreach (var effect in effects)
                 conditional += (!effect.AwakeOnly || !asleep) && InHours(hour, effect.StartHour, effect.EndHour) ? effect.Offset : 0;
             foreach (var memory in memories) changedMemories += (state < observedEnds[memory.Id] ? Memory(memory, time, state) : 0) - memory.Offset;
-            foreach (var meal in meals)
-                if (meal.Start <= state) mealMemories += Memory(meal.Thought, time - meal.Start, state - meal.Start);
+            for (var i = 0; i < meals.Length; i++)
+                if (meals[i].Start <= state && state < mealEnds[i]) mealMemories += Memory(meals[i].Thought, time - meals[i].Start, state - meals[i].Start);
             foreach (var gain in renewed)
                 if (gain.Start <= state && state < gain.End) mealMemories += Memory(gain.Thought, time - gain.Start, state - gain.Start);
             changedMemories += mealMemories;
@@ -236,6 +275,36 @@ public static class ForecastMood
             BreakRisk = breakKnown ? Known(MoodBreakModel.Breaks(tierTicks)) : default,
             BreakTierTicks = breakKnown ? EquatableArray.From(tierTicks.ToArray()) : default,
         };
+    }
+
+    // The need thoughts' baseMoodEffect by stage (Core ThoughtDefs/Thoughts_Situation_Needs.xml, NeedFood and NeedRest): no
+    // worker overrides ThoughtWorker.MoodMultiplier and neither def has an effect-multiplying stat, so Thought.MoodOffset is
+    // the base effect unless a trait, hediff, precept or gene nullifies the thought, which is not observed. Food's stage 2 is
+    // the first malnourished stage; the deeper ones (-26 to -44) follow the malnutrition hediff and are not priced.
+    private static readonly double[] NeedFoodMood = [-6, -12, -20];
+    private static readonly double[] NeedRestMood = [-6, -12, -18];
+
+    /// <summary>
+    /// The food and rest thoughts along the needs timeline (#3598), as banded rows covering the horizon: each stage span adds
+    /// the stage's mood less the observed stage's, which <see cref="NeedsForecastPawn.MoodUnclampedTarget"/> already holds.
+    /// The thoughts are named by def (Policy cannot reference ThoughtDefOf). A need with no stage spans stays constant.
+    /// </summary>
+    internal static IEnumerable<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)> NeedThoughts(IEnumerable<ForecastNeedMetric> needs)
+    {
+        foreach (var need in needs)
+        {
+            if (need.StageSpans.Count == 0) continue;
+            var (thought, moods) = need.Kind switch { "food" => ("NeedFood", NeedFoodMood), "rest" => ("NeedRest", NeedRestMood), _ => ("", []) };
+            if (moods.Length == 0) continue;
+            var observed = need.StageSpans[0].Stage < 0 ? 0 : moods[need.StageSpans[0].Stage];
+            var spans = new (double Start, double End, double OffsetDelta)[need.StageSpans.Count];
+            for (var i = 0; i < spans.Length; i++)
+            {
+                var span = need.StageSpans[i];
+                spans[i] = (span.Start, span.End, (span.Stage < 0 ? 0 : moods[span.Stage]) - observed);
+            }
+            yield return (thought, spans);
+        }
     }
 
     /// <summary>Whether a card prices temperature mood (#3327): Live, and every site's stage input reads the ambient temperature.</summary>

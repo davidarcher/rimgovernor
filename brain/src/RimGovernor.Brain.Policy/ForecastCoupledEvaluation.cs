@@ -257,7 +257,7 @@ public static partial class ForecastCoupled
         private readonly Dictionary<(int Pawn, int Occupancy, int Choices, int Granted, int Renewals), Cached<ForecastNeedsResult>> needs = [];
         private readonly Dictionary<(int Pawn, int Choices, int Granted, int Situational, int Banded, int Renewals), Cached<ForecastMoodResult>> moods = [];
         private readonly Dictionary<(int Pawn, int Choices, EquatableArray<ForecastClosedRoom> Rooms), Cached<ForecastRoofMood>> roofs = [];
-        private readonly Dictionary<(int Pawn, int Exposure, int Roof), Cached<BandedThought[]>> banded = [];
+        private readonly Dictionary<(int Pawn, int Exposure, int Roof, int Choices), Cached<BandedThought[]>> banded = [];
         private readonly Dictionary<(int Needs, int Mood, int Roof, bool Meals, bool Grants), ForecastNeedsResult> projected = [];
         private Cached<ForecastThermalExposure> Exposure(ForecastThermalExposure value)
         {
@@ -752,7 +752,7 @@ public static partial class ForecastCoupled
                 var roofMood = roof.Value;
                 var grantedId = pawns.Granted[p].Count == 0 ? 0 : grantedKeys.Id(pawns.Granted[p]);
                 var situationalId = pawns.Situational[p].Count == 0 ? 0 : situationalKeys.Id(pawns.Situational[p]);
-                var bandedThoughts = Banded(p, pawns.Exposure[p], roof, temperatureCards, pawn);
+                var bandedThoughts = Banded(p, pawns.Exposure[p], roof, temperatureCards, pawn, choicesId, physiology.Value.Needs);
                 var renewalsKey = roofMood.Renewals.Count == 0 ? 0 : roof.Id + 1;
                 var projectedNeeds = NeedsAt(p, occupancyId, choicesId, grantedId, renewalsKey, roofMood.Renewals, facts, horizon);
                 // Mood reads neither occupancy nor capacity, so it is cached on its own inputs (#3468).
@@ -897,18 +897,20 @@ public static partial class ForecastCoupled
             return result;
         }
 
-        /// <summary>A pawn's banded thoughts: each Live temperature card along its exposure spans, then its roof mood's.</summary>
+        /// <summary>A pawn's banded thoughts: each Live temperature card along its exposure spans, its roof mood's, then the
+        /// food and rest thoughts along the needs timeline of its choices (<paramref name="needs"/>, #3598).</summary>
         private Cached<BandedThought[]> Banded(int p, Cached<ForecastThermalExposure> exposure, Cached<ForecastRoofMood> roof,
-            MechanicCard[] temperatureCards, NeedsForecastPawn pawn)
+            MechanicCard[] temperatureCards, NeedsForecastPawn pawn, int choicesId, EquatableArray<ForecastNeedMetric> needs)
         {
-            var key = (p, exposure.Id, roof.Id);
+            var key = (p, exposure.Id, roof.Id, choicesId);
             if (banded.TryGetValue(key, out var result)) return result;
-            var thoughts = new BandedThought[temperatureCards.Length + roof.Value.Banded.Count];
             var cardPawn = context.CardPawns.GetValueOrDefault(pawn.Pawn);
             var observed = context.ObservedThoughts.GetValueOrDefault(pawn.Pawn);
-            for (var i = 0; i < temperatureCards.Length; i++) thoughts[i] = ForecastMood.TemperatureThought(temperatureCards[i], cardPawn, observed, exposure.Value.Spans);
-            for (var i = 0; i < roof.Value.Banded.Count; i++) thoughts[temperatureCards.Length + i] = roof.Value.Banded[i];
-            banded.Add(key, result = Next(thoughts));
+            var thoughts = new List<BandedThought>(temperatureCards.Length + roof.Value.Banded.Count + 2);
+            foreach (var card in temperatureCards) thoughts.Add(ForecastMood.TemperatureThought(card, cardPawn, observed, exposure.Value.Spans));
+            thoughts.AddRange(roof.Value.Banded);
+            thoughts.AddRange(ForecastMood.NeedThoughts(needs));
+            banded.Add(key, result = Next(thoughts.ToArray()));
             return result;
         }
 

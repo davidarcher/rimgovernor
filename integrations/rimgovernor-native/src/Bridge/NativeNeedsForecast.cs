@@ -97,7 +97,7 @@ internal static class NativeNeedsForecast
             }
             var live = PawnSettingsRead.LiveMemories(pawn);
             var memories = live?.OfType<Thought_Memory>().Select(m => new Obs.NeedMemory(m.def.defName,
-                m.MoodOffset(), m.permanent ? default : K(Math.Max(0, m.DurationTicks - m.age)), m.def.lerpMoodToZero) { Permanent = m.permanent });
+                m.MoodOffset(), m.permanent ? default : K(Math.Max(0, m.DurationTicks - m.age)), m.def.lerpMoodToZero) { Permanent = m.permanent, StackLimit = m.def.stackLimit });
             var unsupported = pawn.needs?.AllNeeds.Where(n => n is not Need_Food && n is not Need_Rest && n is not Need_Joy && n is not Need_Mood)
                 .Select(n => "unsupported_need:" + n.def.defName).ToList() ?? new List<string>();
             unsupported.Add("disease_and_relationship_changes");
@@ -278,12 +278,12 @@ internal static class NativeNeedsForecast
             }
         return EquatableArray.From(blockers);
     }
-    private static Obs.NeedMemory MealMemory(Pawn pawn, FoodUtility.ThoughtFromIngesting source)
+    internal static Obs.NeedMemory MealMemory(Pawn pawn, FoodUtility.ThoughtFromIngesting source)
     {
         // Unattached native memory: inspect the native stage/stat/trait multiplier, never add it to the pawn.
         var thought = ThoughtMaker.MakeThought(source.thought, source.fromPrecept);
         thought.pawn = pawn;
-        return new(source.thought.defName, thought.MoodOffset(), K(thought.DurationTicks), source.thought.lerpMoodToZero);
+        return new(source.thought.defName, thought.MoodOffset(), K(thought.DurationTicks), source.thought.lerpMoodToZero) { StackLimit = source.thought.stackLimit };
     }
     /// <summary>The maxPawns literal JobDriver_Ingest passes to Reserve for a meal stack (decompiled 1.7; vanilla exposes no symbol for it).</summary>
     internal const int IngestMaxPawns = 10;

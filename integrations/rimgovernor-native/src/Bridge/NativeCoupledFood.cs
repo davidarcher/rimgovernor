@@ -12,6 +12,8 @@ namespace HomeBridge.BridgeTools;
 
 internal static class NativeCoupledFood
 {
+    private static readonly Dictionary<ThingDef, Thing> FreshUnits = new();
+
     /// <summary>
     /// Every food source's cooking conversions at every player bench, for every free colonist, to every accepting
     /// storage cell (#3341). The source-to-bench, bench-to-cell and return legs are searched once each for every
@@ -100,9 +102,16 @@ internal static class NativeCoupledFood
         return (conversions.ToArray(), uses.Distinct().ToArray(), sourceRows.ToArray());
         void AddUses(ThingDef resource, Cell location)
         {
+            // An unspawned fresh unit stands in for the produced one; with ingredients its thoughts depend on what it is cooked from.
+            // One unit per def for the session, so repeated reads draw no further thing ids.
+            Thing? unit = null;
+            if (!resource.HasComp(typeof(CompIngredients)) && !FreshUnits.TryGetValue(resource, out unit))
+                FreshUnits[resource] = unit = ThingMaker.MakeThing(resource);
             foreach (var pawn in roster)
             {
                 if (pawn.needs?.food == null) continue;
+                var thoughts = unit == null || pawn.story == null ? default
+                    : Fact.Known(EquatableArray.From(FoodUtility.ThoughtsFromIngesting(pawn, unit, resource).Select(t => NativeNeedsForecast.MealMemory(pawn, t)).ToArray()));
                 var nutrition = resource.GetStatValueAbstract(StatDefOf.Nutrition);
                 if (ModsConfig.BiotechActive && resource.IsRawHumanFood()) nutrition *= pawn.GetStatValue(StatDefOf.RawNutritionFactor);
                 var rot = resource.GetCompProperties<CompProperties_Rottable>();
@@ -115,7 +124,7 @@ internal static class NativeCoupledFood
                     Fact.Known(pawn.WillEat(resource) && pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn)?.filter.Allows(resource) != false),
                     Fact.Known((double)nutrition / pawn.needs.food.MaxLevel),
                     Fact.Known(resource.ingestible.baseIngestTicks / (double)(resource.ingestible.useEatingSpeedStat ? pawn.GetStatValue(StatDefOf.EatingSpeed) : 1)),
-                    resource.ingestible.maxNumToIngestAtOnce, fresh));
+                    resource.ingestible.maxNumToIngestAtOnce, fresh) { Thoughts = thoughts });
             }
         }
     }

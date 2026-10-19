@@ -96,8 +96,8 @@ exchange rates are mechanical, not chosen:
 | Labor | Hours spent are hours not available for other work. This is already in the schedule. |
 | Investment | Capability added after completion, from tier 2: the work's progress times the project's marginal value. A gain, so a negative loss like the goals term. |
 
-**Exhaustion collapse (#3598).** Rest changes no capacity and no work speed in 1.7; its mood thoughts are already in the
-mood model. What exhaustion costs is the involuntary sleep (`Need_Rest.ShouldInvoluntarySleepFromMTB`): once a pawn has
+**Exhaustion collapse (#3598).** Rest changes no capacity and no work speed in 1.7; its mood thoughts are priced
+below. What exhaustion costs is the involuntary sleep (`Need_Rest.ShouldInvoluntarySleepFromMTB`): once a pawn has
 been at zero rest for more than 1000 ticks, each 150-tick need interval it falls asleep where it stands with chance
 150 / (MTB × 60000), the MTB being 0.25 days, then 0.125, 1/12 and 0.0625 days once the time at zero passes a quarter,
 a half and three quarters of a day. It then sleeps on the ground (`BedRestEffectiveness.valueIfMissing`, 0.8) until its
@@ -111,6 +111,16 @@ open at the review counts from 0 (`rest_ticks_at_zero_unobserved:<pawn>`, which 
 pawn's ground gain or wake threshold a pawn that reaches zero leaves the term unknown (`rest_collapse_unassessed:<pawn>`).
 Not priced: the ground-sleep and outdoor-sleep thoughts of the collapse, the slower immunity of the tired categories
 (`StatPart_Rest`), and the life-stage collapse curve of children.
+
+**Hungry and tired (#3598).** Time below the hungry or tired threshold costs its mood: the `NeedFood` thought is -6
+hungry, -12 urgently hungry and -20 starving, `NeedRest` -6 tired, -12 very tired and -18 exhausted (the defs'
+`baseMoodEffect`). The needs walk records each need's stage over the horizon and the mood timeline follows it, each stage
+moving the target by its mood less the observed stage's, instead of holding the observed thought constant
+([contract](../contracts/forecast-contracts.md#food-and-rest-thoughts-3598)). The ledger then prices it with no new
+constant: as `MoodBreaks` when the debuff takes the target under a break tier (the expected breaks times the days they
+cost), and as `Wellbeing` otherwise. A plan that plays first and feeds or beds the pawn just before zero therefore loses
+to one that serves it first when the deeper stage crosses a break threshold; far above every threshold the difference is
+the wellbeing weight times the extra mood-days, which is usually inside `TieResolution`.
 
 **Policy constants.** These are named, documented and tuned by playtest.
 Nothing else is chosen by hand.

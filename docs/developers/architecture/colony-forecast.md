@@ -282,7 +282,9 @@ observed state holds.
 - **Memory renewal.** The mood timeline ends an observed memory at the first renewal
   that names its def and runs each gained memory from its renewal to the next renewal
   of its def (or its duration). A renewal whose def is also a meal memory refuses with
-  `unsupported_memory_renewal_or_stacking`.
+  `unsupported_memory_renewal_or_stacking`. A meal memory of a stackLimit-1 def renews
+  its def's earlier memory instead
+  ([repeated and stacked memories](../contracts/forecast-contracts.md#repeated-and-stacked-memories-3598)).
 - **Weather.** The weather thought (`Pawn_MindState`, every 120 ticks, asleep too)
   applies at stage 0 unroofed or, for a two-stage thought, stage 1 under a roof. Each
   joy or rest span takes the roof state at its start; the weather itself is held
