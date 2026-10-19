@@ -232,8 +232,6 @@ public sealed class LayoutFamilyTests
         {
             World = world,
             Killbox = "killbox-1",
-            Firing = [new(1, 1)],
-            Retreat = [new(1, 2)],
             Tiers = [new DefenseTierRecord { Name = DefenseLayout.TierFiringLine, Attempts = 2 }],
         }, ct);
         var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct));
@@ -324,9 +322,6 @@ public sealed class LayoutFamilyTests
             World = world,
             Killbox = "killbox-1",
             KillboxDigest = "digest-1",
-            TrapLane = [new(4, 4), new(4, 5)],
-            Firing = [new(1, 1), new(2, 1)],
-            Retreat = [new(1, 2), new(2, 2)],
             Entrances = [new(9, 9)],
             Tiers =
             [
@@ -343,7 +338,7 @@ public sealed class LayoutFamilyTests
         }, ct);
         var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct));
         var blob = saved[Journal.GovernorDefenseLayoutKey];
-        foreach (var gone in new[] { "Complete", "VerifiedTick", "VerifiedCombat", "TurretsProbedTick", "Refused" })
+        foreach (var gone in new[] { "Complete", "VerifiedTick", "VerifiedCombat", "TurretsProbedTick", "Refused", "TrapLane", "Firing", "Retreat" })
         {
             Assert.DoesNotContain(gone, blob, StringComparison.Ordinal);
         }
@@ -354,7 +349,6 @@ public sealed class LayoutFamilyTests
         var record = loaded.LoadDefenseLayout(world, ct);
         Assert.NotNull(record);
         Assert.Equal(("killbox-1", "digest-1", "key", 2, "bridge"), (record.Killbox, record.KillboxDigest, record.PerimeterKey, record.PerimeterRevision, record.PerimeterBridge));
-        Assert.Equal(new[] { new Cell(4, 4), new Cell(4, 5) }, record.TrapLane);
         var firing = record.Tiers[0];
         Assert.Equal((1, true, "Barricade"), (firing.Attempts, firing.Built, Assert.Single(firing.Buildings).Definition));
         var ring = record.Tiers[1];
@@ -375,7 +369,7 @@ public sealed class LayoutFamilyTests
             Name = DefenseLayout.TierTrapCorridor, Built = built,
             Buildings = [new DefenseBuilding { Definition = "TrapSpike", Cell = new(4, 4), Stuff = "WoodLog" }],
         };
-        static DefenseLayoutRecord Layout(params DefenseTierRecord[] tiers) => new() { Firing = [new(1, 1)], Tiers = [.. tiers] };
+        static DefenseLayoutRecord Layout(params DefenseTierRecord[] tiers) => new() { Tiers = [.. tiers] };
 
         Assert.True(Layout(Firing(true)).CombatReady());
         Assert.False(Layout(Firing(false)).CombatReady());

@@ -281,7 +281,7 @@ partial record LayoutPlan
     /// <summary>
     /// The second half of ReplanLayout: tiles advised, the chain's advice over the facts f of ReplanFacts, into the
     /// next plan over prev (the numbered plan ReplanFacts returned) and lays the held rooms, the conduits, the retired
-    /// ground and the perimeter over it.
+    /// ground and the perimeter over it, and keeps prev's defense tier nodes while the killbox stands (WithDefenseTiersOf).
     /// </summary>
     public static (LayoutPlan Plan, StationAdvice Advice) TileReplan(LayoutPlan prev, StationFacts f, MapSurvey s, RoomGrowth growth, StationAdvice advised)
     {
@@ -299,7 +299,7 @@ partial record LayoutPlan
         plan = plan with { Conduits = EquatableArray.From(conduits) };
         advice.Tiled!.ConduitDecisions.AddRange(joined);
         plan = plan with { RetiredGround = LayoutDeriveRules.RetiredGround(prev, plan, f!.Built!) };
-        return (LayPerimeter(prev, plan, s, growth.Perimeter).WithRoomIDs(), advice);
+        return (LayPerimeter(prev, plan, s, growth.Perimeter).WithDefenseTiersOf(prev).WithRoomIDs(), advice);
     }
 
     /// <summary>

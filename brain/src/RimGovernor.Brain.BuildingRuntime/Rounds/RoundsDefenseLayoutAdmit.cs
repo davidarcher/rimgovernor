@@ -376,7 +376,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         output = output with { CoverFill = Known(cell.CoverFill) };
         output = output with { Edifice = cell.EdificeDefName };
         output = output with { Roofed = Known(cell.Roofed) };
-        output = output with { Cover = TierOverlay.DefenseCover(cell) };
+        output = output with { Cover = DefenseCover(cell) };
         return output;
     }
 

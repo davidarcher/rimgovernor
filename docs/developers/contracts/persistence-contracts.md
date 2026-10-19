@@ -86,7 +86,7 @@ rejects an unknown field (Pieces is optional on read, so a plan saved before it 
 the save it is the blob `family/layout_plan` (`GovernorState.cs`,
 `GovernorLayoutPlanKey`), which follows the save's timeline; a blob that does not decode or is not `Valid()`
 restores as no plan the same way. The runtime records a plan only
-when it derives one or a replan succeeds (`reviewLayoutPlan`, `ColonyPlan.cs`); a failed
+when it derives one, a replan succeeds (`reviewLayoutPlan`, `ColonyPlan.cs`; a replan keeps the defense tier nodes over the same killbox), the census finds retired ground cleared, or the defense round sites new defense tier nodes into it (`SiteTiersAsync`, #3583); a failed
 replan keeps the saved plan. The `StationAdvice` that produced it (graph, groups, embedding,
 comfort and matched rooms) is not persisted: the Rounder holds it in memory and recomputes it
 at each layout review.

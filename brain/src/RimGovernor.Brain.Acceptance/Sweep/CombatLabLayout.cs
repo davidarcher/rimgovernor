@@ -30,18 +30,11 @@ public static class CombatLabLayout
         var record = new DefenseLayoutRecord
         {
             World = world,
-            Firing = [.. l.Firing.Select(c => new Cell(c.X, c.Z))],
-            Retreat = [.. l.Retreat.Select(c => new Cell(c.X, c.Z))],
 
             // Validate wants a tier; a fixture's structures are staged, not built by the planner, so its one tier names
             // no buildings.
             Tiers = [new DefenseTierRecord { Name = DefenseLayout.TierFiringLine, Built = true }],
         };
-        if (l.Choke is { } choke)
-        {
-            // Combat's choke is the trap lane's last cell.
-            record.TrapLane = [new Cell(choke.X, choke.Z)];
-        }
 
         try
         {
@@ -62,14 +55,30 @@ public static class CombatLabLayout
             [Store.Store.GovernorDefenseLayoutKey] = blob,
         };
 
-        // Combat reads the direction toward home from the plan's killbox opening, so the staged world holds a plan whose
-        // only content is that opening.
-        var plan = LayoutPlan.OpeningPlan(Toward(l.Toward));
+        // Combat reads the direction toward home from the plan's killbox opening and the firing line and the choke from
+        // its DefFiring and DefLane nodes (#3583), so the staged world holds a plan of that opening and those nodes.
+        var plan = Plan(l);
         blobs[Store.Store.GovernorLayoutPlanKey] = FamilyBlob(StoreJson.Serialize(plan), (world.Colony.Value, world.Map.Value));
         var reply = await h.CallAsync("store-layout", NativeOps.PutGovernorStateBatch, new Wl.PutGovernorStateBatchRequest { Blobs = blobs }, cancellationToken).ConfigureAwait(false);
         _ = reply.Loaded ?? throw new AcceptanceException($"store-layout: {WireJson.Serialize(reply)}");
 
         return JsonNode.Parse(StoreJson.Serialize(record));
+    }
+
+    /// <summary>
+    /// The fixture's layout as a plan: the killbox opening toward home, the firing line (each cell with its fall-back
+    /// cell) and, with a choke, a trap lane whose last cell is the choke.
+    /// </summary>
+    public static LayoutPlan Plan(LabLayout l)
+    {
+        ArgumentNullException.ThrowIfNull(l);
+        if (l.Retreat.Count != l.Firing.Count)
+        {
+            throw new AcceptanceException($"layout has {l.Firing.Count} firing cells but {l.Retreat.Count} fall-back cells");
+        }
+        var firing = l.Firing.Zip(l.Retreat, (f, r) => new FiringPosition(new Cell(f.X, f.Z), new Cell(f.X, f.Z), new Cell(r.X, r.Z))).ToList();
+        List<Cell> lane = l.Choke is { } choke ? [new Cell(choke.X, choke.Z)] : [];
+        return LayoutPlan.OpeningPlan(Toward(l.Toward)).WithDefenseTierGeometry(firing, lane);
     }
 
     private static Rotation Toward(string name) => name switch

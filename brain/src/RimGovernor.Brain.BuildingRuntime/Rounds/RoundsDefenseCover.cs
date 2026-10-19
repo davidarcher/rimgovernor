@@ -33,7 +33,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var tick = projection.Identity.Tick;
         var identity = Boundary.Identity(state.Snapshot);
         var (killbox, region, home, ok) = DefenseKillbox(projection);
-        if (!ok)
+        if (!ok || !projection.LayoutPlan.TryGetValue(out var layoutPlan))
         {
             return (new RoundsDefenseLayoutResult(), false);
         }
@@ -67,8 +67,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         request = request with { Defenders = defenders };
         request = request with { MinRange = minRange };
-        var layout = DefenseRecordLayout(record, killbox);
-        DefenseRecorder.RecordLayoutSnapshot(state.Snapshot, tick, new SnapshotLayout { Point = SnapshotLayoutReplay.LayoutCover, Request = request, Record = record, Site = site.Cells }, call);
+        var layout = DefenseRecordLayout(record, layoutPlan, killbox);
+        DefenseRecorder.RecordLayoutSnapshot(state.Snapshot, tick, new SnapshotLayout { Point = SnapshotLayoutReplay.LayoutCover, Request = request, Layout = layout, Site = site.Cells }, call);
         DefenseApproaches approaches;
         try
         {
@@ -124,16 +124,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
 partial class RoundsDefenseLayoutPlanner
 {
-    /// <summary>The policy layout of a stored defense record: its firing positions, trap lane and the tier buildings.</summary>
-    internal static DefenseLayout DefenseRecordLayout(DefenseLayoutRecord record, DefenseKillbox killbox)
+    /// <summary>The policy layout of a stored defense record: the tier buildings, with the firing positions and the trap lane of the plan's DefFiring and DefLane nodes (#3583).</summary>
+    internal static DefenseLayout DefenseRecordLayout(DefenseLayoutRecord record, LayoutPlan plan, DefenseKillbox killbox)
     {
-        var firing = new List<FiringPosition>();
-        for (var i = 0; i < record.Firing.Count; i++)
-        {
-            var cell = record.Firing[i];
-            var retreat = record.Retreat.Count == record.Firing.Count ? record.Retreat[i] : cell;
-            firing.Add(new FiringPosition(cell, cell, retreat));
-        }
+        var geometry = plan.DefenseTierGeometry();
         var tiers = new List<DefenseTier>();
         foreach (var tier in record.Tiers)
         {
@@ -148,8 +142,8 @@ partial class RoundsDefenseLayoutPlanner
         {
             Toward = killbox.Toward,
             Entry = killbox.Entry,
-            TrapLane = [.. record.TrapLane],
-            Firing = [.. firing],
+            TrapLane = geometry.TrapLane,
+            Firing = geometry.Firing,
             Tiers = [.. tiers],
         };
     }

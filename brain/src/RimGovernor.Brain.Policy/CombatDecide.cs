@@ -121,7 +121,7 @@ public sealed record CombatLayout
 {
     public EquatableArray<Cell> Firing { get; init; }
 
-    /// <summary>The inner line: Retreat[i] is Firing[i]'s fall-back cell, one step further toward Home. Empty on a record that predates it.</summary>
+    /// <summary>The inner line: Retreat[i] is Firing[i]'s fall-back cell, one step further toward Home.</summary>
     public EquatableArray<Cell> Retreat { get; init; }
 
     public Rotation Toward { get; init; }

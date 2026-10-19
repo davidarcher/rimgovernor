@@ -6,7 +6,6 @@ using RimGovernor.Brain.Policy;
 using Cell = RimGovernor.Brain.Domain.Cell;
 using O = RimGovernor.Contracts.Wire.Observations;
 using static RimGovernor.Brain.Domain.Fact;
-using StoreDefenseLayoutRecord = RimGovernor.Brain.Store.DefenseLayoutRecord;
 
 namespace RimGovernor.Brain.Executor;
 
@@ -33,7 +32,8 @@ public sealed class SnapshotLayout
 
     public DefenseGeometry Geometry { get; set; } = new();
 
-    public StoreDefenseLayoutRecord? Record { get; set; }
+    /// <summary>The stored layout the cover census replays over: the record's tiers with the plan's firing line and trap lane (LayoutCover only).</summary>
+    public DefenseLayout? Layout { get; set; }
 
     /// <summary>The defense-site read's cells, which the cover selection consults beside the request (LayoutCover only).</summary>
     public IReadOnlyList<Bridge.Contracts.DefenseCensusCell> Site { get; set; } = [];
@@ -50,7 +50,7 @@ public static class SnapshotLayoutReplay
     /// <summary>The turret tier probe: Request and Geometry, replayed by DefenseTurrets.</summary>
     public const string LayoutTurrets = "turrets";
 
-    /// <summary>The cover census: Request, Record and Site, replayed by DefenseApproachesFor over the record's layout.</summary>
+    /// <summary>The cover census: Request, Layout and Site, replayed by DefenseApproachesFor over the layout.</summary>
     public const string LayoutCover = "cover";
 
     /// <summary>Writes l into dir as layout-&lt;point&gt;-&lt;tick&gt;.</summary>

@@ -68,7 +68,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         var identity = Boundary.Identity(state.Snapshot);
         var (killbox, region, home, ok) = DefenseKillbox(projection);
-        if (!ok)
+        if (!ok || !projection.LayoutPlan.TryGetValue(out var plan))
         {
             return;
         }
@@ -87,7 +87,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         Building replacement;
         try
         {
-            if (DefenseTurretsPolicy.TurretReplacement(request, DefenseRecordGeometry(record, killbox), standing) is not { } found)
+            if (DefenseTurretsPolicy.TurretReplacement(request, DefenseRecordGeometry(record, plan, killbox), standing) is not { } found)
             {
                 return;
             }
@@ -177,8 +177,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return output;
     }
 
-    internal static DefenseGeometry DefenseRecordGeometry(DefenseLayoutRecord record, DefenseKillbox killbox)
+    /// <summary>The record's tier cells, with the firing line and the trap lane of the plan's DefFiring and DefLane nodes (#3583).</summary>
+    internal static DefenseGeometry DefenseRecordGeometry(DefenseLayoutRecord record, LayoutPlan plan, DefenseKillbox killbox)
     {
+        var tiers = plan.DefenseTierGeometry();
         var reserved = new List<Cell>();
         var walls = new List<Cell>();
         foreach (var tier in record.Tiers)
@@ -200,10 +202,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return new DefenseGeometry
         {
             Entry = killbox.Entry,
-            Approach = [.. record.TrapLane],
+            Approach = tiers.TrapLane,
             Toward = killbox.Toward,
-            Firing = [.. record.Firing],
-            Lanes = [.. record.TrapLane],
+            Firing = [.. tiers.Firing.Select(f => f.Cell)],
+            Lanes = tiers.TrapLane,
             Reserved = [.. reserved],
             Walls = [.. walls],
         };

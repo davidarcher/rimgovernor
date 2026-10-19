@@ -196,21 +196,9 @@ public sealed partial class RoundsDefensePlanner
         }
         var layout = p.Journal.LoadDefenseLayout(new StoreWorld { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map }, call);
         var held = Unknown<CombatLayout>();
-        if (layout is not null && layout.CombatReady())
+        if (layout is not null && layout.CombatReady() && p.Journal.LayoutPlan(state.Snapshot, new Tick(combat.Context?.Tick ?? 0), call) is { Plan: { } layoutPlan })
         {
-            if (p.Journal.LayoutPlan(state.Snapshot, new Tick(combat.Context?.Tick ?? 0), call) is { Plan: { } layoutPlan })
-            {
-                var opening = LayoutPlan.KillboxOpening(layoutPlan);
-                if (opening.Ok)
-                {
-                    var combatLayout = new CombatLayout { Firing = [.. layout.Firing], Retreat = [.. layout.Retreat], Toward = opening.Killbox.Toward };
-                    if (layout.TrapLane.Count > 0)
-                    {
-                        combatLayout = combatLayout with { Choke = Known(layout.TrapLane[^1]) };
-                    }
-                    held = Known(combatLayout);
-                }
-            }
+            held = CombatLayoutOf(layoutPlan);
         }
         var drug = await _reviewer.CombatDrugsAsync(state.Snapshot, call).ConfigureAwait(false);
         var view = CombatView(combat, inp, orderable, held);
@@ -409,6 +397,27 @@ internal sealed class CombatInputs
 
 partial class RoundsDefensePlanner
 {
+    /// <summary>
+    /// The layout combat fights from: the direction toward home from the plan's killbox opening, and the firing line,
+    /// its retreat cells and the choke (the trap lane's last cell) from the plan's DefFiring and DefLane nodes (#3583).
+    /// Unknown while the plan has no opening.
+    /// </summary>
+    internal static Fact<CombatLayout> CombatLayoutOf(LayoutPlan plan)
+    {
+        var opening = LayoutPlan.KillboxOpening(plan);
+        if (!opening.Ok)
+        {
+            return Unknown<CombatLayout>();
+        }
+        var tiers = plan.DefenseTierGeometry();
+        var layout = new CombatLayout { Firing = [.. tiers.Firing.Select(f => f.Cell)], Retreat = [.. tiers.Firing.Select(f => f.Retreat)], Toward = opening.Killbox.Toward };
+        if (tiers.TrapLane.Count > 0)
+        {
+            layout = layout with { Choke = Known(tiers.TrapLane[^1]) };
+        }
+        return Known(layout);
+    }
+
     /// <summary>The inputs of the combat step; a null inputs value carries the wait verdict when the census is incomplete or there is no fight.</summary>
     internal static (CombatInputs? Inputs, Verdict Reason) CombatFrameInputs(BridgeCombat combat, IReadOnlyList<Domain.PawnId> huntPrey, IReadOnlyList<Domain.PawnId> huntHunters)
     {

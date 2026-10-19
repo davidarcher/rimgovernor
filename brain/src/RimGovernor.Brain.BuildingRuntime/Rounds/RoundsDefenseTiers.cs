@@ -2,13 +2,6 @@ using System.Text;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The tier nodes the latest siting produced, and the key that says whether they changed.</summary>
-internal sealed partial class TierOverlay
-{
-    public string Key = "";
-    public IReadOnlyList<PlannedSite> Nodes = [];
-}
-
 public sealed partial class RoundsDefenseLayoutPlanner
 {
     internal static readonly DefenseTierName[] DefenseKillboxTiers =
@@ -80,15 +73,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return census is not null && t.Buildings.Any(b => census.Standing(b.Definition, b.Cell));
     }
 
-    internal static DefenseTierPins DefenseTierPins(DefenseLayoutRecord record, DefenseCensus? census)
+    /// <summary>The record's started tiers, with the firing line and the trap lane of the plan's DefFiring and DefLane nodes (#3583).</summary>
+    internal static DefenseTierPins DefenseTierPins(DefenseLayoutRecord record, LayoutPlan plan, DefenseCensus? census)
     {
-        var firing = new List<FiringPosition>();
-        for (var i = 0; i < record.Firing.Count; i++)
-        {
-            var cell = record.Firing[i];
-            var retreat = record.Retreat.Count == record.Firing.Count ? record.Retreat[i] : default;
-            firing.Add(new FiringPosition(cell, cell, retreat));
-        }
         var tiers = new Dictionary<DefenseTierName, DefenseTier>();
         foreach (var t in record.Tiers)
         {
@@ -108,17 +95,31 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             tiers[DefenseLayout.TierChokepoint] = new DefenseTier { Name = DefenseLayout.TierChokepoint, Reserved = [.. choke.Reserved] };
         }
-        return new DefenseTierPins { Tiers = tiers, TrapLane = [.. record.TrapLane], Firing = [.. firing] };
+        var geometry = plan.DefenseTierGeometry();
+        return new DefenseTierPins { Tiers = tiers, TrapLane = geometry.TrapLane, Firing = geometry.Firing };
     }
 
-    /// <summary>Applies the newly sited tiers to the record for every tier not pinned by work already started; true when the siting changed.</summary>
-    internal static bool SiteUnstartedTiers(DefenseLayoutRecord record, DefenseTiers tiers, DefenseTierPins pins)
+    /// <summary>Whether the record takes a siting: the layout planner sited a firing line.</summary>
+    private static bool SitingTaken(DefenseTiers tiers) => tiers.Refusal == "" && tiers.Layout.Firing.Count > 0;
+
+    /// <summary>The plan with the siting's tier nodes, to record; null when the record does not take the siting or the plan already holds them.</summary>
+    internal static LayoutPlan? DefenseTiersStored(LayoutPlan plan, DefenseTiers tiers)
     {
-        if (tiers.Refusal != "" || tiers.Layout.Firing.Count == 0)
+        if (!SitingTaken(tiers))
         {
-            return false;
+            return null;
         }
-        var before = SitingSnapshot.Of(record);
+        var sited = plan.WithDefenseTiers(tiers.Nodes);
+        return LayoutPlan.SamePlan(plan, sited) ? null : sited;
+    }
+
+    /// <summary>Applies the newly sited tiers to the record for every tier not pinned by work already started.</summary>
+    internal static void SiteUnstartedTiers(DefenseLayoutRecord record, DefenseTiers tiers, DefenseTierPins pins)
+    {
+        if (!SitingTaken(tiers))
+        {
+            return;
+        }
         foreach (var name in DefenseKillboxTiers)
         {
             if (pins.Tiers.ContainsKey(name))
@@ -144,59 +145,6 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 record.SetPolicyTier(tiers.Layout.Tiers[sited]);
             }
         }
-        if (!pins.Tiers.ContainsKey(DefenseLayout.TierChokepoint))
-        {
-            record.TrapLane = tiers.Layout.TrapLane.ToList();
-        }
-        if (!pins.Tiers.ContainsKey(DefenseLayout.TierFiringLine))
-        {
-            record.Firing = [];
-            record.Retreat = [];
-            foreach (var f in tiers.Layout.Firing)
-            {
-                record.Firing.Add(f.Cell);
-                record.Retreat.Add(f.Retreat);
-            }
-        }
-        return !before.Same(SitingSnapshot.Of(record));
-    }
-
-    private sealed class SitingSnapshot
-    {
-        public List<Cell> TrapLane = [];
-        public List<Cell> Firing = [];
-        public List<Cell> Retreat = [];
-        public List<DefenseTierRecord> Tiers = [];
-
-        public static SitingSnapshot Of(DefenseLayoutRecord r) => new()
-        {
-            TrapLane = r.TrapLane.ToList(),
-            Firing = r.Firing.ToList(),
-            Retreat = r.Retreat.ToList(),
-            Tiers = r.Tiers.Select(t => t with { }).ToList(),
-        };
-
-        public bool Same(SitingSnapshot b)
-        {
-            if (!TrapLane.SequenceEqual(b.TrapLane) || !Firing.SequenceEqual(b.Firing) || !Retreat.SequenceEqual(b.Retreat) || Tiers.Count != b.Tiers.Count)
-            {
-                return false;
-            }
-            foreach (var t in Tiers)
-            {
-                var i = b.Tiers.FindIndex(u => u.Name == t.Name);
-                if (i < 0)
-                {
-                    return false;
-                }
-                var u = b.Tiers[i];
-                if (!t.Buildings.SequenceEqual(u.Buildings) || !t.Reserved.SequenceEqual(u.Reserved) || t.Attempts != u.Attempts || t.Built != u.Built)
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
     }
 
     internal async Task SiteTiersAsync(ControlState state, RoundsReading read, DefenseLayoutRecord record, DefenseCensus? tierCensus, CancellationToken call)
@@ -215,7 +163,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return;
         }
-        var pins = DefenseTierPins(record, tierCensus);
+        var pins = DefenseTierPins(record, plan, tierCensus);
         DefenseTiers tiers;
         try
         {
@@ -226,13 +174,18 @@ public sealed partial class RoundsDefenseLayoutPlanner
             return;
         }
         SiteUnstartedTiers(record, tiers, pins);
+        // The nodes are stored in the plan (#3583) whenever the record takes the siting, so the firing line and the
+        // trap lane combat reads stand where the record's tiers do.
+        if (DefenseTiersStored(plan, tiers) is { } sited)
+        {
+            _reviewer.Player.Journal.RecordLayoutPlan(state.Snapshot, read.Projection.Identity.Tick, sited, call);
+        }
         foreach (var g in tiers.Layout.Gated)
         {
             DefensePipeline.DefenseTierGated(g.Tier.Value, g.Reason, call);
         }
         await AdviseBlocksAsync(state, read, census, pins, tiers, call).ConfigureAwait(false);
         var key = TierKey(tiers.Nodes);
-        _reviewer.Tiers.Store(new TierOverlay { Key = key, Nodes = tiers.Nodes });
         if (key == TiersLogged)
         {
             return;
@@ -334,7 +287,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     }
 }
 
-partial class TierOverlay
+partial class RoundsDefenseLayoutPlanner
 {
     /// <summary>The cover the cell's thing offers: its definition and kind, and for a building the stuff when it is the cell's edifice.</summary>
     internal static CoverThing DefenseCover(DefenseCensusCell cell)

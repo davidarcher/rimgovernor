@@ -662,9 +662,6 @@ internal sealed class DefenseLayoutRecordConverter : ObjectCodec<DefenseLayoutRe
             World = e.Get<World>("World", o),
             Killbox = e.Str("Killbox"),
             KillboxDigest = e.Str("KillboxDigest"),
-            TrapLane = e.Get<List<Cell>>("TrapLane", o),
-            Firing = e.Get<List<Cell>>("Firing", o),
-            Retreat = e.Get<List<Cell>>("Retreat", o),
             Entrances = e.Get<List<Cell>>("Entrances", o),
             Tiers = e.Get<List<DefenseTierRecord>>("Tiers", o),
             PerimeterKey = e.Str("PerimeterKey"),
@@ -677,9 +674,6 @@ internal sealed class DefenseLayoutRecordConverter : ObjectCodec<DefenseLayoutRe
         w.Put("World", v.World, o);
         w.WriteString("Killbox", v.Killbox);
         w.WriteString("KillboxDigest", v.KillboxDigest);
-        w.Put("TrapLane", v.TrapLane, o);
-        w.Put("Firing", v.Firing, o);
-        w.Put("Retreat", v.Retreat, o);
         w.Put("Entrances", v.Entrances, o);
         w.Put("Tiers", v.Tiers, o);
         w.WriteString("PerimeterKey", v.PerimeterKey);

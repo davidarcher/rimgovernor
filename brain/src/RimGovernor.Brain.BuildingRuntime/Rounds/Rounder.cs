@@ -149,9 +149,6 @@ public sealed partial class Rounder
     internal Tick OverlayDrawn;
     internal bool OverlayCleared;
 
-    /// <summary>The defense tier nodes the defense round last cut (#2973), drawn with the layout plan.</summary>
-    internal readonly AtomicPointer<TierOverlay> Tiers = new();
-
     internal Tick HeatDrawn;
     internal bool HeatCleared;
 
@@ -1168,14 +1165,4 @@ public sealed partial class Rounder
         Player.Journal.RecordLayoutPlan(snapshot, projection.Identity.Tick, next, ct);
         return projection with { LayoutPlan = Known(next) };
     }
-}
-
-internal sealed class AtomicPointer<T>
-    where T : class
-{
-    private T? _value;
-
-    public T? Load() => Volatile.Read(ref _value);
-
-    public void Store(T? value) => Volatile.Write(ref _value, value);
 }

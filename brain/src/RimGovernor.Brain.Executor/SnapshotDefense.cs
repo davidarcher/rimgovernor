@@ -26,8 +26,8 @@ public sealed class SnapshotDefense
     /// <summary>The stored defensive layout the step read; null when the colony has none.</summary>
     public StoreDefenseLayoutRecord? Layout { get; set; }
 
-    /// <summary>The direction toward home of the layout plan's killbox opening, which the stored layout no longer carries.</summary>
-    public Rotation Toward { get; set; }
+    /// <summary>The layout combat fights from, read from the layout plan (its killbox opening and its DefFiring and DefLane nodes), which the stored layout does not carry; null without an opening.</summary>
+    public CombatLayout? Combat { get; set; }
 
     public EmergencyFacts Emergency { get; set; } = new();
 

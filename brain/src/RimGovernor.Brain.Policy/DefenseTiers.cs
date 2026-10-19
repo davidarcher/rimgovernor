@@ -7,10 +7,12 @@ namespace RimGovernor.Brain.Policy;
 // holds.
 //
 // Where a tier stands depends on live cover, trees and standing buildings, so the nodes are a function of the
-// plan and a census, not of the survey: they are re-sited from every census and are not part of the stored
-// plan. A tier that is started (built, an attempt admitted, or any building standing) is pinned, as the replan
-// holds a room that holds anything of ours: its node is the built tier where it stands, and the tiers still to
-// build are sited around it. The census is an explicit input.
+// plan and a census, not of the survey: they are re-sited from the defense round's census and stored in the
+// layout plan (#3583), where combat and the defense planner read the firing line and the trap lane from the
+// DefFiring and DefLane nodes. A replan keeps them while the killbox they stand under is the same node over the
+// same ground. A tier that is started (built, an attempt admitted, or any building standing) is pinned, as the
+// replan holds a room that holds anything of ours: its node is the built tier where it stands, and the tiers
+// still to build are sited around it. The census is an explicit input.
 
 /// <summary>One building a tier node places.</summary>
 public sealed record TierPlacement(string Definition, Cell Cell, Rotation Rotation, string Stuff)
@@ -50,11 +52,21 @@ public sealed record DefenseTierPins
     /// <summary>The built tiers' placements and reserved cells.</summary>
     public IReadOnlyDictionary<DefenseTierName, DefenseTier> Tiers { get; init; } = new Dictionary<DefenseTierName, DefenseTier>();
 
-    /// <summary>The geometry of the built corridor, used while the chokepoint tier is pinned.</summary>
+    /// <summary>The trap lane of the plan's DefLane node, kept while the chokepoint tier is pinned.</summary>
     public EquatableArray<Cell> TrapLane { get; init; }
 
-    /// <summary>The geometry of the built firing line, used while the firing line tier is pinned.</summary>
+    /// <summary>The firing line of the plan's DefFiring node, kept while the firing line tier is pinned.</summary>
     public EquatableArray<FiringPosition> Firing { get; init; }
+}
+
+/// <summary>The firing line and trap lane the plan's DefFiring and DefLane nodes hold.</summary>
+public sealed record TierGeometry
+{
+    /// <summary>The shooters with their cover and retreat cells; empty without a DefFiring node.</summary>
+    public EquatableArray<FiringPosition> Firing { get; init; }
+
+    /// <summary>The trap lane in raider order, the exit cell last; empty without a DefLane node.</summary>
+    public EquatableArray<Cell> TrapLane { get; init; }
 }
 
 /// <summary>What PlanDefenseTiers cut.</summary>
@@ -129,12 +141,72 @@ public static class DefenseTiersPolicy
     internal static readonly IReadOnlyList<DefenseTierName> DefenseTierOrder =
         [DefenseLayout.TierChokepoint, DefenseLayout.TierFunnel, DefenseLayout.TierTrapCorridor, DefenseLayout.TierFiringLine, DefenseTurretsPolicy.TierTurrets, DefenseMortarsPolicy.TierMortars, DefenseIEDs.TierIEDs, DefenseArrivalRoutes.TierBait];
 
-    /// <summary>The plan with its defense tier nodes replaced by the given ones. The result is for drawing and reading; it is not stored.</summary>
+    /// <summary>The plan with its defense tier nodes replaced by the given ones.</summary>
     public static LayoutPlan WithDefenseTiers(this LayoutPlan p, IEnumerable<PlannedSite> nodes)
     {
         var stripped = p.WithoutSites([.. DefenseTierKinds]);
         return stripped with { Sites = EquatableArray.From(stripped.Sites.Concat(nodes)) };
     }
+
+    /// <summary>
+    /// The replanned plan next with the defense tier nodes of prev, the plan it grew from, while next's killbox is
+    /// prev's node over the same ground; a killbox cut again drops them, and the defense round's next siting cuts them
+    /// anew.
+    /// </summary>
+    public static LayoutPlan WithDefenseTiersOf(this LayoutPlan next, LayoutPlan prev)
+    {
+        var (id, digest, ok) = LayoutPlan.KillboxNode(next);
+        var (prevId, prevDigest, prevOk) = LayoutPlan.KillboxNode(prev);
+        var keep = ok && prevOk && id == prevId && digest == prevDigest;
+        return next.WithDefenseTiers(keep ? prev.Sites.Where(s => IsDefenseTierNode(s.Kind)) : []);
+    }
+
+    /// <summary>The firing line and trap lane the plan's DefFiring and DefLane nodes hold.</summary>
+    public static TierGeometry DefenseTierGeometry(this LayoutPlan p)
+    {
+        var g = new TierGeometry();
+        foreach (var s in p.Sites)
+        {
+            if (s.Tier is not { } facts)
+            {
+                continue;
+            }
+            if (s.Kind == NodeDefFiring)
+            {
+                g = g with { Firing = facts.Firing };
+            }
+            else if (s.Kind == NodeDefLane)
+            {
+                g = g with { TrapLane = facts.Path };
+            }
+        }
+        return g;
+    }
+
+    /// <summary>
+    /// The plan with a firing line and a trap lane as its only defense tier nodes, under its killbox: the geometry a
+    /// combat fixture stages for combat to read. With no cover building to place, the firing node stands on the
+    /// shooters' cells. Throws when the plan has no killbox.
+    /// </summary>
+    public static LayoutPlan WithDefenseTierGeometry(this LayoutPlan p, IReadOnlyList<FiringPosition> firing, IReadOnlyList<Cell> trapLane)
+    {
+        var (under, _, ok) = LayoutPlan.KillboxNode(p);
+        DomainException.Require(ok, "plan has no killbox");
+        var nodes = new List<PlannedSite>();
+        if (trapLane.Count > 0)
+        {
+            nodes.Add(TierNode(under, NodeDefLane, new TierFacts { Tier = DefenseLayout.TierChokepoint, Path = EquatableArray.From(trapLane) }, trapLane));
+        }
+        if (firing.Count > 0)
+        {
+            nodes.Add(TierNode(under, NodeDefFiring, new TierFacts { Tier = DefenseLayout.TierFiringLine, Firing = EquatableArray.From(firing) }, [.. firing.Select(f => f.Cell)]));
+        }
+        return p.WithDefenseTiers(nodes);
+    }
+
+    /// <summary>The tier node of kind under the killbox node id, standing on cells.</summary>
+    private static PlannedSite TierNode(string under, NodeKind kind, TierFacts facts, IReadOnlyList<Cell> cells) =>
+        LayoutPerimeterSitesRules.NewSite($"{under}-{Wire.Name(kind)}", kind, RegionRules.RegionOf(cells), "") with { Tier = facts with { Under = under } };
 
     /// <summary>
     /// Cuts the plan's killbox into the tier nodes standing in it, sited from the census. census carries the
@@ -352,13 +424,11 @@ public static class DefenseTiersPolicy
             }
             facts = facts with
             {
-                Under = under,
                 Tier = tier.Name,
                 Pinned = pinned.ContainsKey(tier.Name),
                 Places = EquatableArray.From(places.Select(b => new TierPlacement(b.Definition, b.Cell, b.Rotation, b.Stuff))),
             };
-            var site = LayoutPerimeterSitesRules.NewSite($"{under}-{Wire.Name(kind)}", kind, RegionRules.RegionOf(cells), "");
-            output.Add(site with { Tier = facts });
+            output.Add(TierNode(under, kind, facts, cells));
         }
 
         static List<Cell> CellsOf(IEnumerable<Building> bs) => bs.Select(b => b.Cell).ToList();
@@ -409,7 +479,9 @@ public static class DefenseTiersPolicy
             else if (name == DefenseLayout.TierFiringLine)
             {
                 var (floors, cover) = Split(tier.Buildings, defs.Floor);
-                Add(tier, NodeDefFiring, CellsOf(cover), cover, new TierFacts { Reserved = tier.Reserved, Firing = layout.Firing });
+                // A firing line with no cover to build (it fights from cover that stands) holds its shooters' cells.
+                var stands = cover.Count > 0 ? CellsOf(cover) : [.. layout.Firing.Select(f => f.Cell)];
+                Add(tier, NodeDefFiring, stands, cover, new TierFacts { Reserved = tier.Reserved, Firing = layout.Firing });
                 Add(tier, NodeDefShooter, CellsOf(floors), floors, new TierFacts());
             }
             else if (name == DefenseTurretsPolicy.TierTurrets)

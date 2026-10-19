@@ -98,13 +98,9 @@ public sealed partial class RoundsDefensePlanner
         {
             d.Layout = layout;
             var recorded = p.Journal.LayoutPlan(current, tick, ct);
-            if (recorded?.Plan is { } plan)
+            if (recorded?.Plan is { } plan && RoundsDefensePlanner.CombatLayoutOf(plan).TryGetValue(out var combat))
             {
-                var (killbox, opening) = LayoutPlan.KillboxOpening(plan);
-                if (opening)
-                {
-                    d.Toward = killbox.Toward;
-                }
+                d.Combat = combat;
             }
         }
         if (result.Plan.IsEmpty)

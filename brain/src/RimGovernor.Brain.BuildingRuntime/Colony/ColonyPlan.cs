@@ -388,15 +388,9 @@ public sealed partial class Rounder
                 }
                 return;
             }
-            // The defense tier nodes are cut from the defense round's census, not stored with the plan: they draw
-            // beside it and move with each cut.
+            // The plan holds the defense tier nodes (#3583): a new siting records a new plan, so the tick keys them too.
             var drawn = layout.Plan;
             var key = string.Create(CultureInfo.InvariantCulture, $"v2@{layout.Tick.Value}");
-            if (Tiers.Load() is { } tiers)
-            {
-                drawn = drawn.WithDefenseTiers(tiers.Nodes);
-                key = string.Create(CultureInfo.InvariantCulture, $"{key}/tiers@{tiers.Key}");
-            }
             if (key == OverlayKey && tick >= OverlayDrawn && tick.Value - OverlayDrawn.Value < LayoutPlanning.OverlayRedrawEvery.Value)
             {
                 return;

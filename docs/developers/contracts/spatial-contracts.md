@@ -870,25 +870,34 @@ random. The decisions are `layout_plan` rows with target `perimeter_cut` (see
 node into the tiers that stand in it, as `PlannedSite` nodes whose `Tier` facts name the
 killbox node they stand under, the defense-record tier they belong to and the placements
 they hold: corridor and trap lane (the raiders' snake, in order), funnel walls, fence
-bar, spike traps, firing line (cover, with the shooters and their retreat cells) and
-shooter floor, turrets, mortars, IEDs and bait. They show in the layout overlay
-(`LayoutPlan.WithDefenseTiers` merges them for drawing).
+bar, spike traps, firing line (cover, with the shooters and their retreat cells; a line
+with no cover to build stands on the shooters' cells) and shooter floor, turrets, mortars,
+IEDs and bait. They are stored in the layout plan (#3583) and show in its overlay.
 
 Where a tier stands depends on live cover, trees and standing buildings, so the nodes are
-a function of the plan and a census, not of the survey: they are re-sited from each
-census and are not stored with the plan. The census (`DefenseRequest`: the cell mirror
+a function of the plan and a census, not of the survey: they are re-sited from the defense
+round's census and recorded in the plan (`LayoutPlan.WithDefenseTiers`). The plan's
+DefFiring and DefLane nodes are the one home of the firing line and the trap lane:
+combat (`RoundsDefensePlanner.CombatLayoutOf`: the firing cells, their retreat cells and
+the choke, the lane's last cell), the turret replacement, the cover census and the pins
+read them there (`LayoutPlan.DefenseTierGeometry`); the defense record keeps none. A
+replan keeps the saved plan's tier nodes while its killbox is the same node over the same
+ground (`WithDefenseTiersOf`); a killbox cut again drops them until the next siting. The
+census (`DefenseRequest`: the cell mirror
 window, defenders, definitions and the turret, mortar and IED gates) is an explicit input;
 its Killbox, Home and Region are the plan's. A started tier (built, an attempt admitted, a lost building re-opening it, or any building standing) is pinned, the way a replan holds a
-room that holds anything of ours (`keepHeld`): its node is the built tier where it stands, the census
+room that holds anything of ours (`keepHeld`): its node is the built tier where it stands
+(the pinned corridor and firing line keep the plan's lane and firing line), the census
 reads its standing buildings as the ground under them so the same census sites the same
 cells, and the tiers still to build are sited around it (a building of theirs on a pinned
 cell is dropped, `tier_displaced_by_built`). A census the layout planner refuses leaves the
 pinned tiers as the nodes (`tier_layout_failed`). The defense round reads the nodes:
-`RoundsDefenseLayoutPlanner.siteTiers` cuts them after each tier census, once per reverify
-interval, sets the record's unstarted killbox tiers (and the trap lane and firing line they
-define) to what the nodes site, holds the nodes for the overlay and journals them as
-`layout_plan` rows with target `defense_tiers`. The turret and mortar proposals are gone:
-a tier whose gates open later joins the record through the same siting.
+`RoundsDefenseLayoutPlanner.SiteTiersAsync` cuts them after each tier census, once per reverify
+interval, sets the record's unstarted killbox tiers to what the nodes site and, when the
+record takes the siting (a firing line sited, no refusal) and the nodes changed, records
+the plan with them; it journals them as `layout_plan` rows with target `defense_tiers`.
+The turret and mortar proposals are gone: a tier whose gates open later joins the record
+through the same siting.
 
 ### A blocked tier
 

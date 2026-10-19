@@ -64,7 +64,8 @@ public sealed record DefenseTierRecord
 /// (<see cref="DefenseTierRecord.Attempts"/>) for the load in <see cref="World"/>: a reload restarts the unbuilt
 /// tiers' count with the Need's Method history. An older save's <c>Standard</c> and <c>Episode</c> fields are read
 /// and ignored. Whether the layout was verified complete is not stored: the Rounder keeps it in memory per world
-/// (#3008), so a restart re-verifies.
+/// (#3008), so a restart re-verifies. The firing line and the trap lane are the plan's DefFiring and DefLane nodes
+/// (#3583), not the record's.
 /// </summary>
 public sealed record DefenseLayoutRecord
 {
@@ -75,13 +76,6 @@ public sealed record DefenseLayoutRecord
     public string Killbox { get; set; } = "";
 
     public string KillboxDigest { get; set; } = "";
-
-    public List<Cell> TrapLane { get; set; } = [];
-
-    public List<Cell> Firing { get; set; } = [];
-
-    /// <summary>The inner line: <c>Retreat[i]</c> is <c>Firing[i]</c>'s fallback cell. May be empty.</summary>
-    public List<Cell> Retreat { get; set; } = [];
 
     /// <summary>The colony doors whose access the audit keeps.</summary>
     public List<Cell> Entrances { get; set; } = [];
@@ -101,8 +95,8 @@ public sealed record DefenseLayoutRecord
     {
         DomainException.Require(ValidIdentity(World.Colony.Value) && ValidIdentity(World.Load.Value) && World.Map.Value >= 0, "defense layout world identity invalid");
         DomainException.Require(
-            Firing.Count != 0 && Tiers.Count != 0 && Firing.Count <= 64 && (Retreat.Count == 0 || Retreat.Count == Firing.Count) && TrapLane.Count <= 512 && Entrances.Count <= 64,
-            "defense layout geometry out of bounds"
+            Tiers.Count != 0 && Entrances.Count <= 64,
+            "defense layout tiers or entrances out of bounds"
         );
         DomainException.Require(
             PerimeterKey.Length <= 128 && PerimeterRevision >= 0 && PerimeterBridge.Length <= 64 && Killbox.Length <= 128 && KillboxDigest.Length <= 64,
@@ -225,10 +219,7 @@ public sealed record DefenseLayoutRecord
             World = w,
             Killbox = killbox,
             KillboxDigest = digest,
-            TrapLane = [.. layout.TrapLane],
             Entrances = [.. entrances],
-            Firing = [.. layout.Firing.Select(f => f.Cell)],
-            Retreat = [.. layout.Firing.Select(f => f.Retreat)],
             Tiers = [.. layout.Tiers.Select(FromPolicy)],
         };
         record.Validate();
