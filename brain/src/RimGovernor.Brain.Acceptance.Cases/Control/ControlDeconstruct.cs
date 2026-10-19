@@ -10,7 +10,9 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary>
 /// <c>control/pawn-activity-deconstruct</c> (#3557): a Hands Work/Deconstruct step on an undesignated ruin. The order stands
 /// the designation itself and the controlled colonist takes the native Deconstruct job; the native job tracker is what a
-/// unit test cannot drive.
+/// unit test cannot drive. <c>control/pawn-activity-deconstruct-designated</c>: the same order on a ruin the brain already
+/// designated by an enclosure-guarded Designate (as the room reconcile stands a FurnitureOut), whose Designate-stood record
+/// waits for supervised play until the order marks it Ordered.
 /// </summary>
 internal static class ControlDeconstruct
 {
@@ -36,27 +38,35 @@ internal static class ControlDeconstruct
         Pawns = [new Fx.StagePawn { Name = "worker", Colonist = 0 }],
     };
 
-    internal static TypedCase Case() => new()
+    internal static TypedCase Case(bool designated = false) => new()
     {
-        Name = "control/pawn-activity-deconstruct",
-        Scope = "A Hands Work/Deconstruct step on an undesignated ancients' door under voluntary control, which otherwise gives a "
-            + "designation no worker: operations_apply admits the order, the order stands the deconstruct designation itself, and the "
-            + "controlled colonist removes the door within the budget. A unit test cannot drive the native job tracker.",
+        Name = designated ? "control/pawn-activity-deconstruct-designated" : "control/pawn-activity-deconstruct",
+        Scope = designated
+            ? "A Hands Work/Deconstruct step on an ancients' door the brain designated by an enclosure-guarded Designate under voluntary "
+                + "control, whose Designate-stood record waits for supervised play: the order marks the record Ordered and the controlled "
+                + "colonist removes the door within the budget. A unit test cannot drive the designation guard or the native job tracker."
+            : "A Hands Work/Deconstruct step on an undesignated ancients' door under voluntary control, which otherwise gives a "
+                + "designation no worker: operations_apply admits the order, the order stands the deconstruct designation itself, and the "
+                + "controlled colonist removes the door within the budget. A unit test cannot drive the native job tracker.",
         Ticks = Budget,
         Tier = CaseTier.OnDemand,
         Start = new LabStart { Colonists = 1 },
         Stage = Spec,
         QuietWorld = true,
-        Run = RunAsync,
+        Run = (s, ct) => RunAsync(s, designated, ct),
     };
 
-    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, bool designated, CancellationToken cancellationToken)
     {
         var staged = s.Staged!;
         var worker = staged.Pawns["worker"].Id;
         var ruin = staged.Buildings["ruin"].Ids.Single();
         var cell = staged.Buildings["ruin"].Cells.Single();
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
+        if (designated)
+        {
+            _ = await TypedApply.AppliedAsync(s, "designate", WallKit.Deconstruct(ruin), cancellationToken).ConfigureAwait(false);
+        }
 
         var step = new PawnActivityStep(PawnActivityKind.Work, ruin, Giver, "Deconstruct", 0, int.MaxValue);
         var batch = new PawnActivities(generation, [new PawnActivityOrder(worker, TaskId, TaskId, 0, 1, false, [step]) { Task = TaskId }])

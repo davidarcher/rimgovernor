@@ -616,6 +616,21 @@ most 16 placed sites, 16 planned sites and 16 route probes; a longer list sets
 and colonists are not capped. The coupled census passes no planned sites; Rounds ask
 them per round ([planned-site facts](../architecture/colony-forecast.md#planned-site-facts)).
 
+### Standing removals
+
+Every construction activity read also reports the standing Deconstruct
+designations (#3557): what the room reconcile stood over an interior ruin or a stale
+piece (`FurnitureOut`), or the player's own. Under voluntary control nothing works a
+designation by itself, so the coupled census reads them and the forecast binds
+each as a pawn's Work/Deconstruct order. `ConstructionActivityRead.Removals` is one
+`ConstructionActivityOption` row per free colonist and designated building the colony
+may deconstruct: `Site` and `Input` the building's id, `Definition` and `Resource` its
+def, `Location` its cell, `WorkGiver` the deconstruct giver, `SiteApproachTicks` the
+route and `FinishTicks` the deconstruct work as the planned `Deconstruct` clearing
+estimates it; `Count` and `Capacity` are 0. A building whose removal the enclosure
+guard would hold for roof support has no row (finding `removal_roof_support`); a pawn
+incapable of Construction or with no route has none.
+
 ### Planned shelter thermal read
 
 The coupled capture samples `ThermalCell` rows only within six cells of placed sites

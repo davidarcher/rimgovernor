@@ -810,7 +810,11 @@ against their own templates (the morgue's is empty, so all its interior
 furniture is stale). The facility rooms (dining, recreation, lab, workshop,
 kitchen, butchery) reconcile `RingOnly`, read no census and are exempt from
 stale removal: `FacilityWants` names their standing pieces but is not their
-template, and their benches stay where they stand.
+template, and their benches stay where they stand. A `FurnitureOut` stands a
+Deconstruct designation and claims the cell; under voluntary control the
+forecast reads the standing designation back and orders a controlled pawn's
+Deconstruct work on the building (#3557,
+[colony forecast](colony-forecast.md#construction-commitments-and-shared-capacity)).
 
 ### Throne room
 

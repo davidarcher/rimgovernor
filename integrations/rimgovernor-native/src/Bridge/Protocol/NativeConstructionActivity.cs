@@ -50,8 +50,13 @@ internal static class NativeConstructionActivity
                 p => !thing.IsForbidden(p), p => floorKnown && ConstructionSkillGuard.Allows(thing, p)));
         }
         var planned = request.Planned.Select(s => Prepare(map, s, findings)).ToArray();
+        // The standing Deconstruct designations (#3557): what the room reconcile stood over an interior ruin or a stale piece,
+        // or the player's own. Under voluntary control nothing else works them; the brain binds each as Deconstruct work.
+        var removals = map.designationManager.AllDesignations.Where(d => d.def == DesignationDefOf.Deconstruct)
+            .Select(d => d.target.Thing as Verse.Building).Where(b => b != null && b.Spawned && b.DeconstructibleBy(Faction.OfPlayer).Accepted)
+            .Select(b => b!).Distinct().OrderBy(b => b.thingIDNumber).ToArray();
         Lap("placement");
-        var (options, answers, routes, found) = legs.Batched(() =>
+        var (options, answers, routes, runRemovals, found) = legs.Batched(() =>
         {
             // The collecting run's rows and findings are discarded with it; the real run's are the read's.
             var runFindings = new HashSet<string>(StringComparer.Ordinal);
@@ -59,7 +64,15 @@ internal static class NativeConstructionActivity
             foreach (var site in placed) Rows(map, legs, roster, site, finishGiver, runFindings, runOptions);
             var runAnswers = planned.Select(p => p.Site is { } site ? Answer(map, legs, roster, site, finishGiver, runFindings) : p.Unknown).ToArray();
             var runRoutes = Routes(map, legs, roster, request.Routes, runFindings);
-            return (runOptions, runAnswers, runRoutes, runFindings);
+            var free = roster.Where(Free).ToArray();
+            var deconstructGiver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is WorkGiver_Deconstruct)?.defName ?? "";
+            var removalRows = new List<Obs.ConstructionActivityOption>();
+            foreach (var building in removals)
+            {
+                if (NativeDesignationGuards.RoofWait(building) != null) { runFindings.Add("removal_roof_support"); continue; }
+                removalRows.AddRange(DeconstructRows(legs, free, building, building.GetUniqueLoadID(), building.def.defName, deconstructGiver));
+            }
+            return (runOptions, runAnswers, runRoutes, removalRows, runFindings);
         });
         findings.UnionWith(found);
         var paths = legs.SearchTicks - searched;
@@ -71,6 +84,7 @@ internal static class NativeConstructionActivity
         Lap("predictions");
         return new() { Context = context, Known = true,
             Options = EquatableArray.From(options), Planned = EquatableArray.From(answers), Routes = EquatableArray.From(routes),
+            Removals = EquatableArray.From(runRemovals),
             Thermal = thermal, RoomPredictions = predictions,
             Findings = EquatableArray.From(findings.OrderBy(s => s, StringComparer.Ordinal)) };
     }
@@ -229,22 +243,15 @@ internal static class NativeConstructionActivity
                     return speed > 0 ? Fact.Known(rock.Sum(r => Math.Ceiling(r.HitPoints / (double)NaturalRockDamagePerPickHit))
                         * Math.Round(JobDriver_Mine.BaseTicksBetweenPickHits / speed)) : default;
                 }));
-        // JobDriver_Deconstruct's work (WorkToBuild clamped to 20..3000) at JobDriver_RemoveBuilding's rate (ConstructionSpeed x 1.7
-        // a tick), for a pawn not incapable of Construction. The rows name the building (Input its id, Resource its def): the
-        // brain binds the op to it before placement (#3557). A roof-holder the enclosure guard would hold (RoofWait) has no op.
+        // One Deconstruct op per building, its rows naming it: the brain binds the op to it before placement (#3557). A
+        // roof-holder the enclosure guard would hold (RoofWait) has no op.
         var deconstructGiver = Giver<WorkGiver_Deconstruct>();
         foreach (var building in things.Where(t => t.Kind == Clear.Deconstruct).Select(t => (Verse.Building)t.Thing).OrderBy(t => t.thingIDNumber))
         {
             if (NativeDesignationGuards.RoofWait(building) != null) { unknown = true; findings.Add("planned_clearing_roof_support"); continue; }
-            var work = Math.Min(3000.0, Math.Max(20.0, building.GetStatValue(StatDefOf.WorkToBuild)));
-            var op = Work(site + "/deconstruct/" + building.GetUniqueLoadID(), Obs.PlannedClearingKind.Deconstruct, [building], deconstructGiver,
-                pawn => !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction) && pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation),
-                pawn =>
-                {
-                    var rate = pawn.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7;
-                    return rate > 0 ? Fact.Known(Math.Ceiling(work / rate)) : default;
-                });
-            result.Add(op with { Options = EquatableArray.From(op.Options.Select(r => r with { Resource = building.def.defName, Input = building.GetUniqueLoadID() })) });
+            var id = site + "/deconstruct/" + building.GetUniqueLoadID();
+            result.Add(new(id, Obs.PlannedClearingKind.Deconstruct)
+                { Options = EquatableArray.From(DeconstructRows(legs, pawns, building, id, definition.defName, deconstructGiver)) });
         }
         var haulGiver = Giver<WorkGiver_HaulGeneral>();
         foreach (var item in things.Where(t => t.Kind == Clear.Haul).Select(t => t.Thing).OrderBy(t => t.thingIDNumber))
@@ -284,6 +291,26 @@ internal static class NativeConstructionActivity
             }
             return new(id, kind) { Options = EquatableArray.From(rows) };
         }
+    }
+
+    // A building's Deconstruct rows (#3557), one per free pawn not incapable of Construction and able to manipulate, with a
+    // route to it: Site is the op (a planned clearing's id, or the building's own for a standing designation), Input the
+    // building's id and Resource its def. FinishTicks is JobDriver_Deconstruct's work (WorkToBuild clamped to 20..3000) at
+    // JobDriver_RemoveBuilding's rate (ConstructionSpeed x 1.7 a tick); a rate of zero leaves it unknown.
+    private static List<Obs.ConstructionActivityOption> DeconstructRows(NativePathLegs legs, Pawn[] pawns, Verse.Building building, string site, string definition, string giver)
+    {
+        var work = Math.Min(3000.0, Math.Max(20.0, building.GetStatValue(StatDefOf.WorkToBuild)));
+        var cell = new Cell(building.Position.x, building.Position.z);
+        var rows = new List<Obs.ConstructionActivityOption>();
+        foreach (var pawn in pawns)
+        {
+            if (pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction) || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)) continue;
+            if (legs.Cost(pawn, pawn.Position, building, PathEndMode.Touch) is not { } route) continue;
+            var rate = pawn.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7;
+            rows.Add(new(site, definition, cell, pawn.GetUniqueLoadID(), building.def.defName, building.GetUniqueLoadID(), cell, 0, 0, giver,
+                default, default, rate > 0 ? Fact.Known(Math.Ceiling(work / rate)) : default) { SiteApproachTicks = Fact.Known((double)route) });
+        }
+        return rows;
     }
 
     // The nearest cell of the best-priority player storage that accepts the stack, outside the footprint

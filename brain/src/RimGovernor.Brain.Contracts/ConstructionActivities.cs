@@ -139,6 +139,15 @@ public sealed record ConstructionActivityRead
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSiteAnswer>))]
     public EquatableArray<PlannedSiteAnswer> Planned { get; init; }
     /// <summary>
+    /// One row per free colonist and standing Deconstruct designation
+    /// on a building the colony may deconstruct (a reconcile-stood interior ruin or stale piece, the colony's own; #3557).
+    /// <c>Site</c> and <c>Input</c> are the building's id, <c>Definition</c> and <c>Resource</c> its def, <c>Location</c> its
+    /// cell, <c>WorkGiver</c> the deconstruct giver, <c>FinishTicks</c> the deconstruct work; a roof-holder the enclosure guard
+    /// would wait on has no row (finding <c>removal_roof_support</c>).
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<ConstructionActivityOption>))]
+    public EquatableArray<ConstructionActivityOption> Removals { get; init; }
+    /// <summary>
     /// The request's route probes, one row per probe x free colonist with <c>Ticks</c> unknown where no path is found;
     /// a <see cref="PlannedRouteProbe.FromStart"/> row has <c>FromStart</c> set and <c>From</c> the pawn's cell.
     /// </summary>

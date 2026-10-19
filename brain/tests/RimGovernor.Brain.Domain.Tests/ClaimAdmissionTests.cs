@@ -144,6 +144,25 @@ public sealed class ClaimAdmissionTests
         Assert.Equal("room-shell-1", refused.Conflict.Method.Value);
     }
 
+    /// <summary>
+    /// #3557: a deconstruction claims its cell only, so the pawn activity order that works the designation it stood (a
+    /// Work/Deconstruct task claiming the building) is admitted beside it; a second deconstruction of the cell is not.
+    /// </summary>
+    [Fact]
+    public void ADeconstructionClaimsItsCellAndTheOrderWorkingItsBuildingIsAdmitted()
+    {
+        using var colony = Open();
+        var clearing = DomainAction.NewDeconstructionAction(new("cut"), new Deconstruction("old-wall", "TestWall", new(1, 0)));
+        Assert.Equal(ClaimOutcome.Admitted, colony.Shelter("room-clear", clearing).Outcome);
+        var step = new PawnActivityStep(PawnActivityKind.Work, "old-wall", "Deconstruct", "Deconstruct", 0, 1000);
+        var batch = new PawnActivities(1, [new("a", "removal/a", "remove", 0, 1, false, [step]) { Task = "removal/a" }])
+        { Tasks = [new SelectedActivityTask("removal/a", "a", [], step, new(1, 0), 100) { SiteDefinition = "TestWall" }] };
+        Assert.Equal(ClaimOutcome.Admitted, colony.Work("remove", DomainAction.NewPawnActivitiesAction(new("order"), batch)).Outcome);
+        var again = colony.Shelter("room-clear-again", DomainAction.NewDeconstructionAction(new("cut-again"), new Deconstruction("old-wall", "TestWall", new(1, 0))));
+        Assert.Equal(ClaimOutcome.Conflict, again.Outcome);
+        Assert.Equal("cell/1/0", again.Conflict!.Claim);
+    }
+
     [Fact]
     public void ReleasedShelterMethodFreesItsClaimsAndTheStoreLeavesReissueToThePlanner()
     {
