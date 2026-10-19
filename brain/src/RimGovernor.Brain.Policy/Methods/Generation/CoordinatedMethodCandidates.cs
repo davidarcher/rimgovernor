@@ -27,7 +27,7 @@ internal sealed record ActivityTaskCandidate(string Id, string Pawn, EquatableAr
     public string ProductStuff { get; init; } = "";
     public ClothingActivityRequirement? Clothing { get; init; }
     public EquatableArray<SelectedActivityInput> SelectedInputs { get; init; }
-    /// <summary>A set step's members (#3613): the Work repeats over these thing ids; Count is their number.</summary>
+    /// <summary>A set step's members (#3613): the Work repeats over these thing ids, or over <see cref="Cells"/> (#3615); Count is their number.</summary>
     public EquatableArray<string> Targets { get; init; }
     public EquatableArray<Cell> Cells { get; init; }
 }

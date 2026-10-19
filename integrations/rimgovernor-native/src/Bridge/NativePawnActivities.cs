@@ -162,7 +162,7 @@ namespace HomeBridge.BridgeTools
                     }
                     if (step.Kind == PawnActivityKind.Work && step.IsSet)
                     {
-                        // A set step (#3613) is legal while any member is: the order stands the designations itself in Apply.
+                        // A set step (#3613, cells #3615) is legal while any member is: the order stands the designations itself in Apply.
                         var setGiver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver);
                         if (setGiver?.Worker is not WorkGiver_Scanner scanner || !NativeSetActivities.Supported(setGiver, step.Job)
                             || pawn.WorkTagIsDisabled(setGiver.workTags) || (setGiver.workType != null && pawn.WorkTypeIsDisabled(setGiver.workType))) return Refuse("Unsupported/incapable activity work.");
@@ -265,6 +265,20 @@ namespace HomeBridge.BridgeTools
             });
             record.Ordered = true;
         }
+
+        // The cell form (#3615): stands the cell designation a cell set step's job needs (a RemoveFloor, the plain
+        // designation the reconcile's FloorOut stands) under the enclosure guard as an Ordered record keyed by the cell
+        // (no thing), so revoking authority releases it; no job hook rechecks it.
+        private static void StandCellDesignation(Map map, IntVec3 cell, DesignationDef def)
+        {
+            if (map.designationManager.DesignationAt(cell, def) == null) map.designationManager.AddDesignation(new Designation(cell, def));
+            var record = NativeDesignationGuards.Open(map, def, cell, null) ?? NativeDesignationGuards.Add(new GuardedDesignation
+            {
+                Id = "activity-" + Guid.NewGuid().ToString("N"), Guard = GuardNames.Enclosure, Designation = def.defName,
+                ExpectedDef = map.terrainGrid.TerrainAt(cell).defName, MapId = map.uniqueID, X = cell.x, Z = cell.z,
+            });
+            record.Ordered = true;
+        }
         private static Common.Failure Refuse(string text) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, text);
         private static Thing? Thing(string id) => RefIndex.Thing(Find.CurrentMap, id);
 
@@ -332,10 +346,14 @@ namespace HomeBridge.BridgeTools
                     {
                         if (step.Kind == PawnActivityKind.Work && step.Job is "Deconstruct" or "Uninstall" && Thing(step.Target) is Verse.Building building)
                             StandDesignation(building, step.Job == "Deconstruct" ? DesignationDefOf.Deconstruct : DesignationDefOf.Uninstall);
-                        // A set step's members each get the designation the job needs where one is missing (#3613).
+                        // A set step's members each get the designation the job needs where one is missing (#3613; cells #3615).
                         else if (step.Kind == PawnActivityKind.Work && step.IsSet)
+                        {
                             foreach (var member in step.Targets.Select(Thing))
                                 if (member is { Spawned: true } && NativeSetActivities.Needed(step, member) is { } needed) StandDesignation(member, needed);
+                            foreach (var cell in step.Cells.Select(c => new IntVec3(c.X, 0, c.Z)))
+                                if (cell.InBounds(e.Pawn.Map) && NativeSetActivities.Needed(step, e.Pawn.Map, cell) is { } needed) StandCellDesignation(e.Pawn.Map, cell, needed);
+                        }
                         // A delivery of a stack under a Haul designation works the designation (#3614): a guarded record of it is Ordered.
                         else if (step.Kind == PawnActivityKind.Deliver && Thing(step.Target) is { Spawned: true } stack
                             && stack.Map.designationManager.DesignationOn(stack, DesignationDefOf.Haul) != null

@@ -145,6 +145,48 @@ public sealed class CoordinatedConstructionTests
     }
 
     /// <summary>
+    /// #3615: a standing FloorOut wave (the room reconcile's RemoveFloor designations over one group of cells) is one removal
+    /// op whose Cells are the cells. The family binds it as one Work/RemoveFloor set step over them (Cells carried, Count the
+    /// cells), with the removal relief, and the selection orders it. A RemoveFloor op naming no cells binds nothing.
+    /// </summary>
+    [Fact]
+    public void AStandingFloorOutWaveIsOneCellSetOrderOverItsCells()
+    {
+        Cell[] cells = [new(30, 30), new(31, 30), new(30, 31), new(31, 31)];
+        var id = "removefloor/30/30/x4";
+        var row = new ConstructionActivityOption(id, "WoodPlankFloor", cells[0], "producer", "", "", cells[0], 0, 0, "ConstructRemoveFloors",
+            default, default, Known(120d)) { SiteApproachTicks = Known(10d) };
+        PlannedSiteClearing Wave(params Cell[] members) => new(id, PlannedClearingKind.RemoveFloor)
+            { Options = [row, row with { Pawn = "helper", FinishTicks = Known(200d) }], Cells = EquatableArray.From(members) };
+        var facts = RemovalFacts(Wave(cells));
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
+        var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Job == "RemoveFloor" && b.Pawn == "producer");
+        Assert.Equal((PawnActivityKind.Work, id, "ConstructRemoveFloors", 4, "WoodPlankFloor"), (binding.Kind, binding.Target, binding.WorkGiver, binding.Count, binding.SiteDefinition));
+        Assert.Equal(cells, binding.Cells);
+        Assert.Empty(binding.Targets);
+        var root = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome == "construction/" + id);
+        Assert.Equal("removal/" + id, Assert.Single(root.Outcome!.Requirements!.Relief).Need);
+
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        Assert.Contains(root.Id, selected.Selection.Selected);
+        var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
+        var task = Assert.Single(batch.Tasks);
+        Assert.Equal((binding.Id, "producer", PawnActivityKind.Work, "RemoveFloor", 4), (task.Id, task.Pawn, task.Step.Kind, task.Step.Job, task.Step.Count));
+        Assert.Equal(cells, task.Step.Cells);
+        var order = Assert.Single(batch.Orders, o => o.Pawn == "producer" && !o.Release && o.Task == task.Id);
+        Assert.Equal(cells, order.Steps[0].Cells);
+        batch.Validate();
+        // The cell set rides the wire (#3615): the native side deserialises orders' steps with the wire context.
+        var info = RimGovernor.Contracts.Wire.WireJsonContext.Default.GetTypeInfo(typeof(PawnActivities))!;
+        var copy = (PawnActivities)System.Text.Json.JsonSerializer.Deserialize(System.Text.Json.JsonSerializer.Serialize(batch, info), info)!;
+        Assert.Equal(cells, copy.Orders.Single(o => o.Task == task.Id).Steps[0].Cells);
+
+        Assert.DoesNotContain(ForecastCoupledCandidates.GenerateCoupledActivities(RemovalFacts(Wave()), 1900)!.Context.Bindings.Values, b => b.Job == "RemoveFloor");
+    }
+
+    /// <summary>
     /// #3613: a set step completes partially the way a delivery does. A failed order is retried on the members native still
     /// finds legal (the binding's Targets, its RemainingCount); the retried order carries only those, and its completion
     /// (or a native satisfied task, every member gone) finishes the task and releases the pawn.

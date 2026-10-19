@@ -105,7 +105,8 @@ public enum PlannedClearingKind
     /// <summary>A minifiable building of the colony's own packed where it stands: one op per building, its Uninstall job (#3612).</summary>
     [WireName("PLANNED_CLEARING_KIND_UNINSTALL")]
     Uninstall = 5,
-    /// <summary>A floor removed from its cells (the FloorOut reconcile op). Declared for #3615; no read emits it yet.</summary>
+    /// <summary>A constructed floor removed from a wave of cells (the FloorOut reconcile op's RemoveFloor designations): one op per
+    /// contiguous wave, its RemoveFloor job per cell (#3615).</summary>
     [WireName("PLANNED_CLEARING_KIND_REMOVE_FLOOR")]
     RemoveFloor = 6,
 }
@@ -113,7 +114,8 @@ public enum PlannedClearingKind
 /// A clearing op: a prerequisite of a planned site (one Cut op for all its plants, one Mine op for all its natural
 /// rock, one Haul op per haulable stack, one Deconstruct op per deconstructible building), or a standing removal
 /// designation (<see cref="ConstructionActivityRead.Removals"/>: one Deconstruct or Uninstall op per designated
-/// building and one Haul op per designated stack, <see cref="Id"/> the thing's id). A single-thing op's rows name the
+/// building, one Haul op per designated stack, <see cref="Id"/> the thing's id, one Cut op per wave of designated plants
+/// and one RemoveFloor op per wave of designated cells). A single-thing op's rows name the
 /// thing: <c>Input</c> its id, <c>Resource</c> its def. <see cref="Options"/> are per-pawn rows in the
 /// <see cref="ConstructionActivityOption"/> shape with <c>Site</c> = <see cref="Id"/>; a pawn that cannot do it or has
 /// no route has no row.
@@ -127,6 +129,10 @@ public sealed record PlannedSiteClearing(string Id, PlannedClearingKind Kind)
     /// set step over them; empty for a single-building op.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Targets { get; init; }
+    /// <summary>A cell set op's members (#3615): the cells a <see cref="PlannedClearingKind.RemoveFloor"/> op clears, lowest x
+    /// then z first. The brain binds the op as one Work set step over them; empty for any other op.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))]
+    public EquatableArray<Cell> Cells { get; init; }
 }
 /// <summary>
 /// A planned site's legality and per pawn x material source estimates in the placed-site option shape. An unknown

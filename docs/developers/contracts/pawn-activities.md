@@ -94,17 +94,16 @@ Continuation rebinds the nearest legal cell for the pawn and treats a fully sown
 
 ## The set step
 
-A set step (#3613) is a Work step that repeats over a set of things, the Sow step's pattern over
-thing ids instead of cells. `PawnActivityStep.Targets` names the members (thing ids) and `Cells`
-(`EquatableArray<Cell>`) is the cell form reserved for cell work (RemoveFloor, roof cells; no family
-works it yet, so native refuses a cells-only set). Empty keeps the single-`Target` behaviour. A set
+A set step (#3613) is a Work step that repeats over a set of things or cells, the Sow step's
+pattern. `PawnActivityStep.Targets` names the members as thing ids and `Cells`
+(`EquatableArray<Cell>`) is the cell form (#3615). Empty keeps the single-`Target` behaviour. A set
 step is Work only, its members are distinct, it names things or cells, not both, and `Count` is the
 set's size; `SameOrder` compares the sets with the rest of the step.
 
 Native (`NativeSetActivities`) offers one job per member, nearest first: a member that is gone,
 already done or no longer legal is skipped, and the step completes when `Count` members are done or
 none is left legal (reason `no_legal_member`: a cleared set is done, not a fault). Validate refuses
-only when no member is legal now and names every member's reason. Cut is the first family:
+only when no member is legal now and names every member's reason. Cut is the thing family:
 Work/CutPlant through `WorkGiver_PlantsCut`, where each member's job is the giver's own for a
 designated plant (`CutPlantDesignated`, or `HarvestDesignated` where a chop-wood HarvestPlant stands)
 and legality is the giver's checks less the designation (a plant, not burning or forbidden, the pawn
@@ -112,7 +111,15 @@ willing to cut it, cutting not prevented, reservable and reachable). `Apply` sta
 designation (the ordered cut designator's, so a tree too) on every member lacking a cut or harvest
 designation and marks its enclosure-guard record `Ordered`, as a Deconstruct or Uninstall step does
 on its building; no job hook rechecks a CutPlant record (the enclosure guard judges buildings), so
-the record serves the release on revocation and the removal hook alone. Mine is the second family
+the record serves the release on revocation and the removal hook alone. RemoveFloor is the cell
+family (#3615): Work/RemoveFloor through `WorkGiver_ConstructRemoveFloor`, one `JobOnCell` per member
+cell nearest first, as the BuildRoof cell branch; a cell whose top layer is gone
+(`CanRemoveTopLayerAt` false) is done and skipped, and legality is the giver's `HasJobOnCell` less
+the designation (not fogged or forbidden, no building needing the floor, reservable on the floor
+layer and reachable). `Apply` stands the RemoveFloor designation (the plain designation the
+reconcile's FloorOut stands) on every member cell lacking one and marks an enclosure-guard record
+keyed by the cell `Ordered`; the record serves the release on revocation alone (the guard's
+designation lookup finds a thingless record at its cell). Mine is the third family
 (#3616): Work/Mine through `WorkGiver_Miner`, where each member's job is the miner's own `Mine` job
 (`MineAIUtility.JobOnThing`, which refuses an undesignated cell; its haul-aside of a blocking item is
 not accepted as the member's work) and legality is the giver's checks less the designation plus the
@@ -125,9 +132,10 @@ designator's) on every member whose cell has no Mine or MineVein and marks its m
 the pick hook rechecks the record before every hit as it does any mine_safety record. The done count
 lives on the in-memory execution entry with the sow count; a load restarts it.
 
-Continuation rebinds a set step to the members the pawn can still work, nearest first (`Targets` the
-legal members, `Count` and `RemainingCount` their number), and treats a set with no member standing
-as satisfied. The coordinated binding handles a set step as it handles a delivery: a completed
+Continuation rebinds a set step to the members the pawn can still work, nearest first (`Targets` or
+`Cells` the legal members, `Count` and `RemainingCount` their number), and treats a set with no
+member standing (no thing on the map, no cell still to work) as satisfied. The coordinated binding
+handles a set step as it handles a delivery: a completed
 order that carried fewer members than the task leaves the rest, a failed order is retried on the
 members native still finds legal while attempts remain, and a binding is compatible only over a
 non-empty subset of the task's own set.
@@ -185,7 +193,7 @@ may share one atomic batch. These checks run in the existing owner transaction,
 before plan creation or Method binding; refusal leaves both unchanged. They do
 not reserve pawns across different owners or prove current native availability.
 
-The initial step families are exact thing-target work (Clean, Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused; a designation the room reconcile stood by Designate is read back as a removal op and ordered the same way, and the order marks its record `Ordered`, #3557; Uninstall targets a minifiable building of the colony's own through `WorkGiver_Uninstall`, the order stands its Uninstall designation itself (the plain designation the reconcile's Pack stands) under an `Ordered` enclosure-guard record, and a roof-holder, a building designated for deconstruction or one with a reinstall blueprint is refused, #3612; CutPlant is the first [set step](#the-set-step), Work over a set of plants through `WorkGiver_PlantsCut`, the order standing each member's CutPlant designation, #3613; Mine is the second, Work over a set of rock through `WorkGiver_Miner`, the order standing each member's Mine designation under the mine_safety guard, #3616), selected food/count,
+The initial step families are exact thing-target work (Clean, Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused; a designation the room reconcile stood by Designate is read back as a removal op and ordered the same way, and the order marks its record `Ordered`, #3557; Uninstall targets a minifiable building of the colony's own through `WorkGiver_Uninstall`, the order stands its Uninstall designation itself (the plain designation the reconcile's Pack stands) under an `Ordered` enclosure-guard record, and a roof-holder, a building designated for deconstruction or one with a reinstall blueprint is refused, #3612; CutPlant is the first [set step](#the-set-step), Work over a set of plants through `WorkGiver_PlantsCut`, the order standing each member's CutPlant designation, #3613; RemoveFloor is the cell set step, Work over a set of floored cells through `WorkGiver_ConstructRemoveFloor`, the order standing each member cell's RemoveFloor designation, #3615; Mine is the third, Work over a set of rock through `WorkGiver_Miner`, the order standing each member's Mine designation under the mine_safety guard, #3616), selected food/count,
 selected bed/rest, selected recreation building, exact delivery, exact cooking, material Supply, FinishFrame, Approach, Hold, bounded Idle and Standby (explicit idle). Unsupported families are refused, not sent to a
 native economic selector. Recreation without a building (walks, skygazing, social relaxing, drugs,
 reading) remains outside this initial execution slice. Firefighting is an explicit policy-selected emergency revision, not an automatic native fallback. Work givers use forced:false, required capacities,

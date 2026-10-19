@@ -150,12 +150,14 @@ namespace HomeBridge.BridgeTools
             if (designation != null) map.designationManager.RemoveDesignation(designation);
         }
 
+        // A record without a thing is a cell designation (a Mine, or a cell set step's RemoveFloor, #3615): found at its cell.
         private static Designation? Designation(GuardedDesignation r, Map map)
         {
-            if (r.Designation == DesignationDefOf.Mine.defName) return map.designationManager.DesignationAt(CellOf(r), DesignationDefOf.Mine);
-            var thing = r.ThingId != null ? RefIndex.Thing(map, r.ThingId) : null;
             var def = DefDatabase<DesignationDef>.GetNamedSilentFail(r.Designation);
-            return thing == null || def == null ? null : map.designationManager.DesignationOn(thing, def);
+            if (def == null) return null;
+            if (r.Designation == DesignationDefOf.Mine.defName || r.ThingId == null) return map.designationManager.DesignationAt(CellOf(r), def);
+            var thing = RefIndex.Thing(map, r.ThingId);
+            return thing == null ? null : map.designationManager.DesignationOn(thing, def);
         }
 
         internal static GuardedDesignation Add(GuardedDesignation record)

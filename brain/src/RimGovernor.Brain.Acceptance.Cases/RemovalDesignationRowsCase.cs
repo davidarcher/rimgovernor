@@ -1,3 +1,4 @@
+using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
@@ -7,12 +8,13 @@ using Operations = RimGovernor.Contracts.Wire.Operations;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>observations/removal-designation-rows</c> (#3557, #3612, #3614): the construction activity read's standing removals
-/// as clearing ops: a Deconstruct op over a ruin the brain designated by an enclosure-guarded Designate (as the room
-/// reconcile stands a FurnitureOut), an Uninstall op over the colony's own bed it designated for uninstall (as the
-/// reconcile's Pack does) and a Haul op over a slate chunk it designated for hauling (as the reconcile's HaulOut does),
-/// carried to the stockpile beside it. The native designation manager, the pieces' removability, the removal jobs' work
-/// and the storage scan are game mechanics a unit test cannot establish.
+/// <c>observations/removal-designation-rows</c> (#3557, #3612, #3614, #3615): the construction activity read's standing
+/// removals as clearing ops: a Deconstruct op over a ruin the brain designated by an enclosure-guarded Designate (as the
+/// room reconcile stands a FurnitureOut), an Uninstall op over the colony's own bed it designated for uninstall (as the
+/// reconcile's Pack does), a Haul op over a slate chunk it designated for hauling (as the reconcile's HaulOut does),
+/// carried to the stockpile beside it, and a RemoveFloor op over a floored cell it designated for floor removal (as the
+/// reconcile's FloorOut does). The native designation manager, the pieces' removability, the removal jobs' work and the
+/// storage scan are game mechanics a unit test cannot establish.
 /// </summary>
 internal static class RemovalDesignationRowsCase
 {
@@ -20,10 +22,12 @@ internal static class RemovalDesignationRowsCase
     private const string Ruin = "Door";
     private const string Piece = "Bed";
     private const string Stack = "ChunkSlate";
+    private const string Floor = "WoodPlankFloor";
     private const int StackCount = 1;
+    private static readonly Fx.StageCell Floored = new(2, 2);
 
     // A 5x3 clear site beside the colonist with an ancients' door at its middle cell, the colony's bed at its left edge,
-    // a slate chunk at its right edge and a one-cell chunk stockpile above it.
+    // a slate chunk at its right edge, a one-cell chunk stockpile above it and a wood-plank floor above the door.
     private static readonly Fx.StageSpec Spec = new()
     {
         Paused = true,
@@ -43,6 +47,7 @@ internal static class RemovalDesignationRowsCase
             new Fx.StageBuilding { Name = "piece", Def = Piece, Stuff = Stuff, Cells = [new(0, 0)] },
         ],
         Things = [new Fx.StageThing { Name = "stack", Def = Stack, Count = StackCount, Cell = new(4, 0) }],
+        Cells = [new Fx.StageCells { Rect = new Fx.StageRect(Floored.X, Floored.Z, 1, 1), Terrain = Floor }],
         Zones = [new Fx.StageZone { Name = "store", Kind = Fx.StageZoneKind.Stockpile, Cells = [new(4, 2)], Priority = Fx.StageStoragePriority.Important, Allow = [Stack] }],
     };
 
@@ -50,12 +55,14 @@ internal static class RemovalDesignationRowsCase
     {
         Name = "observations/removal-designation-rows",
         Scope = "An ancients' door under an enclosure-guarded Deconstruct Designate, the colony's bed under an Uninstall (relocate, "
-            + "uninstall) and a slate chunk (a designateHaulable thing) under a plain Haul Designate beside a chunk stockpile: the construction activity read reports each "
+            + "uninstall), a slate chunk (a designateHaulable thing) under a plain Haul Designate beside a chunk stockpile and a wood-plank "
+            + "floor cell under a RemoveFloor: the construction activity read reports each "
             + "in Removals as a clearing op of its kind whose Id is the thing, one row per free colonist naming it (Site and Input its id, "
             + "Resource its def) with a known route and FinishTicks through the native deconstruct or uninstall work giver, or for the chunk "
-            + "the stockpile cell as Location, its count as Count and a known DeliveryTicks; an undesignated thing has no op. Does not prove "
-            + "the brain's binding or the jobs (control/pawn-activity-deconstruct-designated, control/pawn-activity-uninstall-designated, "
-            + "control/pawn-activity-haul-designated).",
+            + "the stockpile cell as Location, its count as Count and a known DeliveryTicks, or for the floor one RemoveFloor op "
+            + "(Id removefloor/{x}/{z}/x1, Cells the cell) with a known route and FinishTicks through the remove-floors giver; an "
+            + "undesignated thing has no op. Does not prove the brain's binding or the jobs (control/pawn-activity-deconstruct-designated, "
+            + "control/pawn-activity-uninstall-designated, control/pawn-activity-haul-designated, control/pawn-activity-remove-floor-designated).",
         Ticks = 0,
         Tier = CaseTier.OnDemand,
         Start = new LabStart { Colonists = 1 },
@@ -72,23 +79,39 @@ internal static class RemovalDesignationRowsCase
         var stack = staged.Things["stack"].Ids.Single();
         var site = staged.Site ?? throw new AcceptanceException("the removal stage found no site");
         var store = Spec.Zones[0].Cells[0];
+        var floored = new Cell(site.X + Floored.X, site.Z + Floored.Z);
         var request = new Observations.ConstructionActivityRequest(s.Identity, default);
 
         var before = await s.CallAsync("undesignated", NativeOps.ReadConstructionActivity, request, cancellationToken).ConfigureAwait(false);
-        if (before.Removals.Any(r => r.Id == ruin || r.Id == piece || r.Id == stack))
+        if (before.Removals.Any(r => r.Id == ruin || r.Id == piece || r.Id == stack || r.Kind == Observations.PlannedClearingKind.RemoveFloor))
         {
-            throw new AcceptanceException($"undesignated: the read reports a removal op for {ruin}, {piece} or {stack} before any designation stands: [{string.Join(";", before.Removals)}]");
+            throw new AcceptanceException($"undesignated: the read reports a removal op for {ruin}, {piece}, {stack} or a floor before any designation stands: [{string.Join(";", before.Removals)}]");
         }
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         _ = await TypedApply.AppliedAsync(s, "designate", WallKit.Deconstruct(ruin), cancellationToken).ConfigureAwait(false);
         _ = await TypedApply.AppliedAsync(s, "uninstall", new Operations.RelocateIntent { ThingId = piece, Uninstall = true }, cancellationToken).ConfigureAwait(false);
         _ = await TypedApply.AppliedAsync(s, "haul", new Operations.DesignateIntent { Designation = Operations.ThingDesignation.Haul, Target = new() { Id = stack } }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "floor", new Operations.RemoveFloorIntent { Cell = WallKit.Wire(floored), DefName = Floor }, cancellationToken).ConfigureAwait(false);
         var read = await s.CallAsync("designated", NativeOps.ReadConstructionActivity, request, cancellationToken).ConfigureAwait(false);
         s.RecordWire("removals", read.Removals);
         Check(read, ruin, Ruin, staged.Buildings["ruin"].Cells.Single(), Observations.PlannedClearingKind.Deconstruct);
         Check(read, piece, Piece, staged.Buildings["piece"].Cells.Single(), Observations.PlannedClearingKind.Uninstall);
         CheckHaul(read, stack, staged.Things["stack"].Cells.Single(), new Cell(site.X + store.X, site.Z + store.Z));
+        CheckFloor(read, floored);
+    }
+
+    // The floor cell's RemoveFloor op (#3615): a cell set op of one cell, rows in the removal shape routed to the cell.
+    private static void CheckFloor(Observations.ConstructionActivityRead read, Cell floored)
+    {
+        var id = string.Create(CultureInfo.InvariantCulture, $"removefloor/{floored.X}/{floored.Z}/x1");
+        var ops = read.Removals.Where(r => r.Kind == Observations.PlannedClearingKind.RemoveFloor).ToList();
+        if (ops is not [var op] || op.Id != id || op.Cells.Count != 1 || op.Cells[0] != floored || op.Options.Count == 0 || op.Options.Any(r => r.Site != id
+            || r.Definition != Floor || r.Location != floored || r.WorkGiver.Length == 0 || !r.SiteApproachTicks.IsKnown || !r.FinishTicks.IsKnown || r.FinishTicks.Value <= 0))
+        {
+            throw new AcceptanceException($"designated: want one RemoveFloor op {id} over {floored} ({Floor}) with a row per free colonist at the cell with a "
+                + $"known route and finish, got [{string.Join(";", read.Removals)}]; findings {string.Join(",", read.Findings)}");
+        }
     }
 
     // The stack's Haul op (#3614): the planned-clearing haul rows, carried to the stockpile cell.

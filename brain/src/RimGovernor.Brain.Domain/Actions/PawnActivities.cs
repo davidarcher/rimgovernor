@@ -30,7 +30,7 @@ public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, stri
     /// <summary>A set step (#3613): the Work repeats over these thing ids, nearest first, until <see cref="Count"/> members
     /// are done or none is left legal. Empty keeps the single-<see cref="Target"/> behaviour.</summary>
     public EquatableArray<string> Targets { get; init; }
-    /// <summary>The cell form of a set step; reserved for cell work (RemoveFloor, roof cells). Empty today.</summary>
+    /// <summary>The cell form of a set step (#3615): the Work repeats over these cells, nearest first (RemoveFloor; roof cells later).</summary>
     public EquatableArray<Cell> Cells { get; init; }
     public bool IsSet => Targets.Count > 0 || Cells.Count > 0;
 }

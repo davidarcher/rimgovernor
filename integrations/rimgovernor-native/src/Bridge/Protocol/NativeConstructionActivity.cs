@@ -54,7 +54,7 @@ internal static class NativeConstructionActivity
         // ruin or a stale piece (or the player's own), the Uninstall it stood over a piece it packs and the Haul it stood over
         // a stack it moves out. Under voluntary control nothing else works them; the brain binds each building as its kind's
         // work and each stack as a delivery to storage outside its planned room's footprint (the whole map's best storage
-        // when no planned site covers it).
+        // when no planned site covers it). The Cut and RemoveFloor waves below are read as set ops (#3613, #3615).
         var removals = map.designationManager.AllDesignations
             .Select(d => (Kind: d.def == DesignationDefOf.Deconstruct ? Obs.PlannedClearingKind.Deconstruct
                 : d.def == DesignationDefOf.Uninstall ? Obs.PlannedClearingKind.Uninstall
@@ -63,8 +63,10 @@ internal static class NativeConstructionActivity
                 : d.Kind == Obs.PlannedClearingKind.Uninstall ? d.Thing is Verse.Building packable && Uninstallable(packable)
                 : d.Kind == Obs.PlannedClearingKind.Haul && Haulable(d.Thing)))
             .Select(d => (d.Kind, Thing: d.Thing!)).Distinct().OrderBy(d => d.Thing.thingIDNumber).ThenBy(d => d.Kind).ToArray();
-        // The standing CutPlant designations, one Cut op per contiguous wave of plants (#3613).
+        // The standing CutPlant designations, one Cut op per contiguous wave of plants (#3613), and the standing RemoveFloor
+        // designations, one RemoveFloor op per contiguous wave of cells (#3615).
         var cutWaves = CutWaves(map);
+        var floorWaves = FloorWaves(map);
         Lap("placement");
         var (options, answers, routes, runRemovals, found) = legs.Batched(() =>
         {
@@ -100,6 +102,9 @@ internal static class NativeConstructionActivity
             // A standing Cut wave (#3613): one set op per contiguous group of CutPlant-designated plants, named by its lowest id.
             var cutGiver = Giver<WorkGiver_PlantsCut>();
             foreach (var wave in cutWaves) removalOps.Add(CutOp(legs, free, wave, wave[0].GetUniqueLoadID(), wave[0].def.defName, cutGiver));
+            // A standing FloorOut wave (#3615): one cell set op per contiguous group of RemoveFloor-designated cells, named by its first cell.
+            var floorGiver = Giver<WorkGiver_ConstructRemoveFloor>();
+            foreach (var wave in floorWaves) removalOps.Add(RemoveFloorOp(map, legs, free, wave, floorGiver));
             return (runOptions, runAnswers, runRoutes, removalOps, runFindings);
         });
         findings.UnionWith(found);
@@ -343,6 +348,56 @@ internal static class NativeConstructionActivity
                             if (seen.Add(neighbour)) { wave.Add(neighbour); pending.Enqueue(neighbour); }
             }
             waves.Add(wave.OrderBy(p => p.thingIDNumber).ToArray());
+        }
+        return waves;
+    }
+
+    // JobDriver_RemoveFloor's work per cell (JobDriver_AffectFloor.BaseWorkAmount), at ConstructionSpeed x 1.7 a tick.
+    private const double RemoveFloorWork = 200.0;
+
+    // A RemoveFloor op over a wave of cells (#3615), Id "removefloor/{x}/{z}/x{n}" of its first cell (as GroundStepMethod names
+    // the FloorOut method), Definition the first cell's terrain, Cells the wave: rows for a free pawn not incapable of
+    // Construction and able to manipulate, routed to the cell nearest it (Location that cell); FinishTicks is the cells'
+    // summed floor-removal work at JobDriver_RemoveBuilding's rate (a rate of zero leaves it unknown).
+    private static Obs.PlannedSiteClearing RemoveFloorOp(Map map, NativePathLegs legs, Pawn[] pawns, IntVec3[] cells, string giver)
+    {
+        var id = "removefloor/" + cells[0].x + "/" + cells[0].z + "/x" + cells.Length;
+        var definition = map.terrainGrid.TerrainAt(cells[0]).defName;
+        var rows = new List<Obs.ConstructionActivityOption>();
+        foreach (var pawn in pawns)
+        {
+            if (pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction) || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)) continue;
+            var nearest = cells.OrderBy(c => c.DistanceToSquared(pawn.Position)).ThenBy(c => c.x).ThenBy(c => c.z).First();
+            if (legs.Cost(pawn, pawn.Position, nearest, PathEndMode.Touch) is not { } route) continue;
+            var rate = pawn.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7;
+            var cell = new Cell(nearest.x, nearest.z);
+            rows.Add(new(id, definition, cell, pawn.GetUniqueLoadID(), "", "", cell, 0, 0, giver, default, default,
+                rate > 0 ? Fact.Known(Math.Ceiling(RemoveFloorWork * cells.Length / rate)) : default) { SiteApproachTicks = Fact.Known((double)route) });
+        }
+        return new(id, Obs.PlannedClearingKind.RemoveFloor) { Options = EquatableArray.From(rows), Cells = EquatableArray.From(cells.Select(c => new Cell(c.x, c.z))) };
+    }
+
+    // The standing FloorOut waves (#3615): the cells under a RemoveFloor designation (the room reconcile's FloorOut, or the
+    // player's) whose top layer can still be removed, grouped by contiguity (eight-adjacent cells), each wave lowest x then z first.
+    private static List<IntVec3[]> FloorWaves(Map map)
+    {
+        var cells = map.designationManager.SpawnedDesignationsOfDef(DesignationDefOf.RemoveFloor).Select(d => d.target.Cell)
+            .Where(c => c.InBounds(map) && map.terrainGrid.CanRemoveTopLayerAt(c)).Distinct().OrderBy(c => c.x).ThenBy(c => c.z).ToList();
+        var pending = new HashSet<IntVec3>(cells);
+        var waves = new List<IntVec3[]>();
+        foreach (var seed in cells)
+        {
+            if (!pending.Remove(seed)) continue;
+            var wave = new List<IntVec3> { seed };
+            var queue = new Queue<IntVec3>();
+            queue.Enqueue(seed);
+            while (queue.Count > 0)
+            {
+                var cell = queue.Dequeue();
+                foreach (var offset in GenAdj.AdjacentCells)
+                    if (pending.Remove(cell + offset)) { wave.Add(cell + offset); queue.Enqueue(cell + offset); }
+            }
+            waves.Add(wave.OrderBy(c => c.x).ThenBy(c => c.z).ToArray());
         }
         return waves;
     }

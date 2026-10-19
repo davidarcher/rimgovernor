@@ -473,24 +473,26 @@ See [normal portfolio selection](portfolio-selection.md) for supported scope and
 the distinction between registered native cases and observed gameplay evidence.
 
 A standing removal designation is construction work the same way (#3557, #3612,
-#3613, #3614). The room reconcile stands a Deconstruct over an interior ruin or a
-stale piece, an Uninstall over a piece it packs, a Haul over a stack it moves out
-and a CutPlant over each plant of a Cut wave, each claiming only the cells; under
+#3613, #3614, #3615). The room reconcile stands a Deconstruct over an interior ruin
+or a stale piece, an Uninstall over a piece it packs, a Haul over a stack it moves
+out, a CutPlant over each plant of a Cut wave and a RemoveFloor over each cell of a
+FloorOut wave, each claiming only the cells; under
 voluntary control the designation gets no worker by itself. The coupled census
 reads every such designation as a clearing op of its kind
 ([standing removals](../contracts/forecast-contracts.md#standing-removals)), and
 `ConstructionMethodCandidates` binds each building as a pawn's Work task of that
 kind on it (`removal-{n}`, Deconstruct as Work/Deconstruct, Uninstall as
 Work/Uninstall), each stack as the pawn's Deliver of it (Count the stack,
-Destination the row's storage cell, as a support delivery binds) and each Cut wave
-as one Work/CutPlant set step over its `Targets`, exclusive outcome
-`construction/{op}`, with a `removal/{op}` relief so taking it down, away or out is
-one unit of development and its work is exempt from the thermal-relief gate like a
-floor's. The order's claim is the op (the thing, or the wave's lowest plant); an op
-whose thing or pawn another Method claims, whose finish (a Haul's delivery) is
-unknown, whose stack is more than one carry (the Deliver step is one trip), a Cut
-op naming no plants, or whose kind no order works yet (`RemoveFloor`) binds
-nothing. A planned site's Cut clearing binds the same way before placement
+Destination the row's storage cell, as a support delivery binds), each Cut wave
+as one Work/CutPlant set step over its `Targets` and each FloorOut wave as one
+Work/RemoveFloor cell set step over its `Cells` (Count the cells), exclusive outcome
+`construction/{op}`, with a `removal/{op}` relief so taking it down, away, out or
+up is one unit of development and its work is exempt from the thermal-relief gate
+like a floor's. The order's claim is the op (the thing, the wave's lowest plant or
+the floor wave's `removefloor/{x}/{z}/x{n}` id); an op whose thing or pawn another
+Method claims, whose finish (a Haul's delivery) is unknown, whose stack is more than
+one carry (the Deliver step is one trip), or a Cut, Mine or RemoveFloor op naming no
+members binds nothing. A planned site's Cut clearing binds the same way before placement
 (`PlannedRoomCandidates`, beside its Deconstruct and Haul clearings), and so does its
 Mine clearing, one Work/Mine set step over the op's named rocks (#3616). Up to 16 ops
 a round across all kinds; more sets

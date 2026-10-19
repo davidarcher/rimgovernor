@@ -645,8 +645,7 @@ stack's def): `Location` the nearest cell of the best-priority player storage
 accepting it outside the footprint of every requested planned site covering the
 stack's cell (the whole map when none does), `Origin` its cell, `Count` the stack,
 `DeliveryTicks` by trips; a stack with no such destination has no op (finding
-`removal_haul_destination_unknown`). `PlannedClearingKind.RemoveFloor` is declared
-for the FloorOut op (#3615); no read emits it yet.
+`removal_haul_destination_unknown`).
 
 A standing Cut wave (#3613) is read the same way: the spawned plants under a CutPlant
 designation (the reconcile's `Cut` obstruction clearing, or the player's) grouped by
@@ -656,6 +655,18 @@ plants lowest id first, `Definition` the first plant's def, and rows in the plan
 Cut op's shape (`Location` the member nearest the pawn, `FinishTicks` the summed
 plant work, `WorkGiver` the plant-cut giver). A HarvestPlant stood as chop wood is a
 harvest's designation and is not read.
+
+A standing FloorOut wave (#3615) is read as the cell form: the cells under a
+RemoveFloor designation (the reconcile's `FloorOut`, or the player's) whose top
+layer can still be removed, grouped by contiguity (eight-adjacent cells), are one
+`RemoveFloor` op per group, `Id` `removefloor/{x}/{z}/x{n}` of the wave's first cell
+(lowest x then z, as `GroundStepMethod` names the method), `Cells` the wave in that
+order (empty `Targets`), `Definition` the first cell's terrain, and rows for each
+free colonist not incapable of Construction and able to manipulate: `Location` the
+member cell nearest the pawn, `SiteApproachTicks` the route to it, `WorkGiver` the
+remove-floors giver (`WorkGiver_ConstructRemoveFloor`) and `FinishTicks` the cells'
+summed `JobDriver_RemoveFloor` work (200 a cell) over `ConstructionSpeed x 1.7` a
+tick (a rate of zero leaves it unknown).
 
 ### Planned shelter thermal read
 

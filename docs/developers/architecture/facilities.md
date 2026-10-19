@@ -812,11 +812,13 @@ kitchen, butchery) reconcile `RingOnly`, read no census and are exempt from
 stale removal: `FacilityWants` names their standing pieces but is not their
 template, and their benches stay where they stand. A `FurnitureOut` stands a
 Deconstruct designation, a `Pack` or `PackInUse` an Uninstall designation, a
-`HaulOut` a Haul designation and a `Cut` obstruction clearing a CutPlant on each
-plant, each claiming the cell; under voluntary control the forecast reads the
-standing designations back and orders a controlled pawn's Deconstruct or Uninstall
-work on the building, its delivery of the stack to storage outside the room, or one
-Work/CutPlant set step over the wave's plants (#3557, #3612, #3613, #3614,
+`HaulOut` a Haul designation, a `Cut` obstruction clearing a CutPlant on each
+plant and a `FloorOut` a RemoveFloor on each wrong-floor cell, each claiming the
+cell; under voluntary control the forecast reads the standing designations back and
+orders a controlled pawn's Deconstruct or Uninstall work on the building, its
+delivery of the stack to storage outside the room, one Work/CutPlant set step over
+the wave's plants or one Work/RemoveFloor set step over the wave's cells (#3557,
+#3612, #3613, #3614, #3615,
 [colony forecast](colony-forecast.md#construction-commitments-and-shared-capacity)).
 
 ### Throne room

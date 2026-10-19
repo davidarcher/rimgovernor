@@ -9,21 +9,24 @@ using Verse.AI;
 namespace HomeBridge.BridgeTools;
 
 /// <summary>
-/// A set step (#3613): a Work step that repeats over its <see cref="PawnActivityStep.Targets"/>, the Sow step's pattern
-/// (<see cref="NativeSowingActivities"/>) over things. One job per member, nearest first; a member that is gone, already
-/// done or no longer legal is skipped; the step completes when its Count is done or none is left legal (a cleared set is
-/// done, not a fault). Validate refuses only when no member is legal now. Cut (Work/CutPlant through
-/// <see cref="WorkGiver_PlantsCut"/>) is the first family: each member's job is the giver's own for a designated plant
-/// (CutPlantDesignated, or HarvestDesignated where a HarvestPlant stands), and the order stands the CutPlant designation.
-/// Mine (Work/Mine through <see cref="WorkGiver_Miner"/>, #3616) is the second: each member's job is the miner's own for
-/// a rock under a Mine designation (MineAIUtility.JobOnThing refuses an undesignated cell), the order stands the Mine
-/// designation under the mine_safety guard, and a member whose removal the excavation safety rule refuses is skipped.
-/// A step whose set is cells only has no family yet.
+/// A set step (#3613): a Work step that repeats over its <see cref="PawnActivityStep.Targets"/> (things) or its
+/// <see cref="PawnActivityStep.Cells"/> (cells, #3615), the Sow step's pattern (<see cref="NativeSowingActivities"/>).
+/// One job per member, nearest first; a member that is gone, already done or no longer legal is skipped; the step
+/// completes when its Count is done or none is left legal (a cleared set is done, not a fault). Validate refuses only
+/// when no member is legal now. Cut (Work/CutPlant through <see cref="WorkGiver_PlantsCut"/>) is the first thing family:
+/// each member's job is the giver's own for a designated plant (CutPlantDesignated, or HarvestDesignated where a
+/// HarvestPlant stands), and the order stands the CutPlant designation. Mine (Work/Mine through
+/// <see cref="WorkGiver_Miner"/>, #3616) is the second: each member's job is the miner's own for a rock under a Mine
+/// designation (MineAIUtility.JobOnThing refuses an undesignated cell), the order stands the Mine designation under the
+/// mine_safety guard, and a member whose removal the excavation safety rule refuses is skipped. RemoveFloor
+/// (Work/RemoveFloor through <see cref="WorkGiver_ConstructRemoveFloor"/>) is the cell family: each member's job is the
+/// giver's JobOnCell, a cell whose top layer is gone is done, and the order stands the RemoveFloor designation.
 /// </summary>
 internal static class NativeSetActivities
 {
     internal static bool Supported(WorkGiverDef giver, string job) =>
-        job == "CutPlant" && giver.Worker is WorkGiver_PlantsCut || job == "Mine" && giver.Worker is WorkGiver_Miner;
+        job == "CutPlant" && giver.Worker is WorkGiver_PlantsCut || job == "Mine" && giver.Worker is WorkGiver_Miner
+        || job == "RemoveFloor" && giver.Worker is WorkGiver_ConstructRemoveFloor;
 
     /// <summary>The job defs the family's giver gives a member: the cut giver's two designated-plant jobs, else the step's own job
     /// (the miner's haul-aside of a blocking item is not the member's work).</summary>
@@ -34,6 +37,14 @@ internal static class NativeSetActivities
     internal static List<Thing> Members(Pawn pawn, PawnActivityStep step) => step.Targets.Select(id => RefIndex.Thing(pawn.Map, id))
         .Where(t => t != null && t.Spawned && !t.Destroyed && t.Map == pawn.Map).Select(t => t!)
         .OrderBy(t => t.Position.DistanceToSquared(pawn.Position)).ThenBy(t => t.Position.x).ThenBy(t => t.Position.z).ToList();
+
+    /// <summary>The member cells still to work (in bounds, a RemoveFloor cell with a removable top layer), nearest the pawn first.</summary>
+    internal static List<IntVec3> MemberCells(Pawn pawn, PawnActivityStep step) => step.Cells.Select(c => new IntVec3(c.X, 0, c.Z))
+        .Where(c => c.InBounds(pawn.Map) && (step.Job != "RemoveFloor" || pawn.Map.terrainGrid.CanRemoveTopLayerAt(c)))
+        .OrderBy(c => c.DistanceToSquared(pawn.Position)).ThenBy(c => c.x).ThenBy(c => c.z).ToList();
+
+    /// <summary>Whether any member still stands (a thing on the map, a cell still to work): a set with none is done.</summary>
+    internal static bool Standing(Pawn pawn, PawnActivityStep step) => Members(pawn, step).Count > 0 || MemberCells(pawn, step).Count > 0;
 
     /// <summary>Why the pawn cannot work the member now, independent of the designation the order stands itself; null when it can.</summary>
     internal static string? Refusal(Pawn pawn, Thing member, PawnActivityStep step, WorkGiver_Scanner giver)
@@ -69,25 +80,49 @@ internal static class NativeSetActivities
         return null;
     }
 
+    /// <summary>Why the pawn cannot work the member cell now, independent of the designation the order stands itself; null when it can.</summary>
+    internal static string? Refusal(Pawn pawn, IntVec3 cell, PawnActivityStep step, WorkGiver_Scanner giver)
+    {
+        if (step.Job == "RemoveFloor") return RemoveFloorRefusal(pawn, cell);
+        return giver.HasJobOnCell(pawn, cell, false) ? null : "the work giver refuses it";
+    }
+
+    // WorkGiver_ConstructRemoveFloor.HasJobOnCell's checks less the designation, on the floor reservation layer the job takes.
+    private static string? RemoveFloorRefusal(Pawn pawn, IntVec3 cell)
+    {
+        if (cell.Fogged(pawn.Map)) return "fogged";
+        if (cell.IsForbidden(pawn)) return "forbidden";
+        if (WorkGiver_ConstructRemoveFloor.AnyBuildingBlockingFloorRemoval(cell, pawn.Map)) return "a building needs the floor";
+        if (!pawn.CanReserveAndReach(cell, PathEndMode.Touch, Danger.Some, 1, -1, ReservationLayerDefOf.Floor)) return "cannot be reserved or reached";
+        return null;
+    }
+
     /// <summary>Validate's refusal: null while any member is legal now; else every member's reason.</summary>
     internal static string? Refusal(Pawn pawn, PawnActivityStep step, WorkGiver_Scanner giver)
     {
-        if (step.Targets.Count == 0) return "a cell set has no step family yet";
-        var members = Members(pawn, step);
-        if (members.Count == 0) return "no member stands on the map";
         var reasons = new List<string>();
-        foreach (var member in members)
+        foreach (var member in Members(pawn, step))
         {
             var why = Refusal(pawn, member, step, giver);
             if (why == null) return null;
             reasons.Add(member.GetUniqueLoadID() + " " + why);
         }
-        return "no member is legal (" + string.Join("; ", reasons) + ")";
+        foreach (var cell in MemberCells(pawn, step))
+        {
+            var why = Refusal(pawn, cell, step, giver);
+            if (why == null) return null;
+            reasons.Add("(" + cell.x + "," + cell.z + ") " + why);
+        }
+        return reasons.Count == 0 ? "no member stands on the map" : "no member is legal (" + string.Join("; ", reasons) + ")";
     }
 
     /// <summary>The members the pawn can still work, nearest first (the continuation's rebinding).</summary>
     internal static List<Thing> Legal(Pawn pawn, PawnActivityStep step, WorkGiver_Scanner giver) =>
         Members(pawn, step).Where(m => Refusal(pawn, m, step, giver) == null).ToList();
+
+    /// <summary>The member cells the pawn can still work, nearest first (the continuation's rebinding).</summary>
+    internal static List<IntVec3> LegalCells(Pawn pawn, PawnActivityStep step, WorkGiver_Scanner giver) =>
+        MemberCells(pawn, step).Where(c => Refusal(pawn, c, step, giver) == null).ToList();
 
     /// <summary>The next job: the nearest legal member the giver gives an accepted job for, else null when none is left legal.</summary>
     internal static Job? NextJob(Pawn pawn, PawnActivityStep step, WorkGiver_Scanner giver)
@@ -95,6 +130,16 @@ internal static class NativeSetActivities
         foreach (var member in Legal(pawn, step, giver))
         {
             var job = giver.JobOnThing(pawn, member, false);
+            if (job == null) continue;
+            if (!Accepts(step, job)) { JobMaker.ReturnToPool(job); continue; }
+            job.workGiverDef = giver.def;
+            return job;
+        }
+        foreach (var cell in MemberCells(pawn, step))
+        {
+            // The cell giver's JobOnCell makes the job without its own checks (the floor giver's); HasJobOnCell holds them.
+            if (Refusal(pawn, cell, step, giver) != null || !giver.HasJobOnCell(pawn, cell, false)) continue;
+            var job = giver.JobOnCell(pawn, cell, false);
             if (job == null) continue;
             if (!Accepts(step, job)) { JobMaker.ReturnToPool(job); continue; }
             job.workGiverDef = giver.def;
@@ -115,4 +160,9 @@ internal static class NativeSetActivities
         if (step.Job == "Mine") return manager.DesignationAt(member.Position, DesignationDefOf.MineVein) != null ? null : DesignationDefOf.Mine;
         return null;
     }
+
+    /// <summary>The designation a member cell needs: a RemoveFloor where none stands on a cell still to work (#3615).</summary>
+    internal static DesignationDef? Needed(PawnActivityStep step, Map map, IntVec3 cell) =>
+        step.Job != "RemoveFloor" || !map.terrainGrid.CanRemoveTopLayerAt(cell)
+            || map.designationManager.DesignationAt(cell, DesignationDefOf.RemoveFloor) != null ? null : DesignationDefOf.RemoveFloor;
 }

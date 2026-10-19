@@ -135,15 +135,17 @@ internal static class NativeActivityTasks
                 }
                 else if (step.Kind == PawnActivityKind.Work && step.IsSet)
                 {
-                    // A set step (#3613): every member gone is done; else the members this pawn can still work, nearest first.
-                    if (NativeSetActivities.Members(pawn, step).Count == 0) { satisfied.Add(task.Id); continue; }
+                    // A set step (#3613, cells #3615): every member gone is done; else the members this pawn can still work, nearest first.
+                    if (!NativeSetActivities.Standing(pawn, step)) { satisfied.Add(task.Id); continue; }
                     if (DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver)?.Worker is not WorkGiver_Scanner setGiver
                         || !NativeSetActivities.Supported(setGiver.def, step.Job) || setGiver.MissingRequiredCapacity(pawn) != null
                         || pawn.WorkTagIsDisabled(setGiver.def.workTags) || setGiver.def.workType != null && pawn.WorkTypeIsDisabled(setGiver.def.workType)) continue;
                     var legal = NativeSetActivities.Legal(pawn, step, setGiver);
-                    if (legal.Count == 0) continue;
-                    bindings.Add(new(task.Id, step with { Targets = EquatableArray.From(legal.Select(m => m.GetUniqueLoadID())), Count = legal.Count })
-                        { RemainingCount = Fact.Known(legal.Count) });
+                    var legalCells = NativeSetActivities.LegalCells(pawn, step, setGiver);
+                    if (legal.Count + legalCells.Count == 0) continue;
+                    bindings.Add(new(task.Id, step with { Targets = EquatableArray.From(legal.Select(m => m.GetUniqueLoadID())),
+                        Cells = EquatableArray.From(legalCells.Select(c => new Cell(c.x, c.z))), Count = legal.Count + legalCells.Count })
+                        { RemainingCount = Fact.Known(legal.Count + legalCells.Count) });
                 }
                 else if (step.Kind == PawnActivityKind.Work)
                 {

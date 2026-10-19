@@ -14,7 +14,7 @@ namespace RimGovernor.Contracts.Wire;
     Converters = [typeof(FactJsonConverter<double>), typeof(FactJsonConverter<bool>), typeof(FactJsonConverter<int>),
         typeof(EquatableArrayJsonConverter<SelectedActivityTask>), typeof(EquatableArrayJsonConverter<PawnActivityIngredient>),
         typeof(EquatableArrayJsonConverter<SelectedActivityInput>),
-        typeof(EquatableArrayJsonConverter<string>)])]
+        typeof(EquatableArrayJsonConverter<string>), typeof(EquatableArrayJsonConverter<Cell>)])]
 [JsonSerializable(typeof(Operations.ActionIntent.PawnActivitiesCase), TypeInfoPropertyName = "OperationsPawnActivitiesCase")]
 [JsonSerializable(typeof(Receipts.EffectEvidenceEffect.PawnActivitiesCase), TypeInfoPropertyName = "ReceiptsPawnActivitiesCase")]
 [JsonSerializable(typeof(string))]

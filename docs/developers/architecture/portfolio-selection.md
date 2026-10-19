@@ -50,9 +50,9 @@ Clothing delivery is development,
 not wearing or thermal protection. Completed construction effects count each
 physical site once, including when a larger prerequisite bundle supplies it.
 A standing Deconstruct or Uninstall designation worked, a Haul designation's stack
-delivered, or a standing Cut wave of CutPlant designations cut as one set step, is
-one unit of development (`removal/{op}` relief, #3557, #3612, #3613, #3614), like a
-laid floor.
+delivered, or a standing Cut wave of CutPlant designations cut or FloorOut wave of
+RemoveFloor designations removed as one set step, is one unit of development
+(`removal/{op}` relief, #3557, #3612, #3613, #3614, #3615), like a laid floor.
 A planned site finished inside the horizon is one unit of requested development,
 the lowest tier, whichever root built it: its own site root, a room alternative or a
 shelter. A planned room's per-cell native roof cells are together that room's one
