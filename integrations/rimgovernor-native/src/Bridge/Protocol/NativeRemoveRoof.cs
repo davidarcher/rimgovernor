@@ -65,22 +65,29 @@ namespace HomeBridge.BridgeTools
             var refusal = Refusal(intent, context, out var map, out var cells);
             if (refusal != null) throw new InvalidOperationException("Remove roof prerequisites changed before apply: " + refusal);
             int designatedCount = 0;
-            var noRoof = map!.areaManager.NoRoof;
-            var designator = new Designator_AreaNoRoof();
             foreach (var cell in cells)
             {
-                var unroofed = map.roofGrid.RoofAt(cell) == null;
-                if (noRoof[cell]) continue;
+                var unroofed = map!.roofGrid.RoofAt(cell) == null;
+                if (map.areaManager.NoRoof[cell]) continue;
                 // An unroofed cell joins the NoRoof area too: left out, it
                 // stays in the BuildRoof area auto-roof gave it (a room's
                 // walls) and pawns roof it after the intent applied.
-                var accepted = designator.CanDesignateCell(cell);
-                if (!accepted.Accepted) throw new InvalidOperationException($"Native remove-roof (NoRoof area) is not accepted at {cell}: {accepted.Reason}");
-                designator.DesignateSingleCell(cell);
-                if (!noRoof[cell]) throw new InvalidOperationException($"NoRoof area was not observed at {cell}.");
+                Designate(map, cell);
                 if (!unroofed) designatedCount++;
             }
             return new Receipts.EffectEvidence { Effect = new Receipts.RemoveRoofEffect { Designated = designatedCount } };
+        }
+
+        // Puts one cell in the NoRoof area through the game's designator (which also clears BuildRoof): the intent's
+        // cells, and a RemoveRoof set step's roofed members (#3617).
+        internal static void Designate(Map map, IntVec3 cell)
+        {
+            Install();
+            var designator = new Designator_AreaNoRoof();
+            var accepted = designator.CanDesignateCell(cell);
+            if (!accepted.Accepted) throw new InvalidOperationException($"Native remove-roof (NoRoof area) is not accepted at {cell}: {accepted.Reason}");
+            designator.DesignateSingleCell(cell);
+            if (!map.areaManager.NoRoof[cell]) throw new InvalidOperationException($"NoRoof area was not observed at {cell}.");
         }
     }
 

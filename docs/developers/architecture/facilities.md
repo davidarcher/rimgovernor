@@ -852,7 +852,11 @@ planner raises it under the `shelter/sleeping` Need, like the tomb:
    piece is built only when none is stored. A placement the native preview
    refuses is not ready this pass and the room waits. The ring's removals
    (wall or door out, roof off) are the plan-wide clear side's
-   (`PlannedGroundStep`), which also reconciles standing rooms. It knows no furniture list, so it
+   (`PlannedGroundStep`), which also reconciles standing rooms. A ruin wall
+   under the footprint that holds roof is cleared by the forecast's one order
+   of roof off (over the cells the wall leaves unsupported) then deconstruct
+   (#3617); the room's RoofIn re-roofs its interior later and cells outside
+   the planned room stay unroofed. It knows no furniture list, so it
    leaves furniture wholly inside a planned room's interior alone
    (`InteriorFurnitureLeft`): the owner builds that furniture while the ring
    still differs from the plan, and the clear side would deconstruct each

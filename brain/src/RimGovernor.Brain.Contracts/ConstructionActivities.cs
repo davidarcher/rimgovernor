@@ -130,7 +130,10 @@ public sealed record PlannedSiteClearing(string Id, PlannedClearingKind Kind)
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Targets { get; init; }
     /// <summary>A cell set op's members (#3615): the cells a <see cref="PlannedClearingKind.RemoveFloor"/> op clears, lowest x
-    /// then z first. The brain binds the op as one Work set step over them; empty for any other op.</summary>
+    /// then z first, bound as one Work set step over them. For a roof-holder's <see cref="PlannedClearingKind.Deconstruct"/>
+    /// op (#3617): the roofed cells its removal leaves unsupported, nearest the building first; the brain removes their roof
+    /// (Work/RemoveRoof cell set step) before the Deconstruct in the same order and the rows' <c>FinishTicks</c> price both
+    /// works. Empty for any other op, or a building whose removal moves no roof.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))]
     public EquatableArray<Cell> Cells { get; init; }
 }
@@ -164,7 +167,9 @@ public sealed record ConstructionActivityRead
     /// Pack) and one <c>Haul</c> op per Haul designation on a spawned haulable item (the reconcile's HaulOut), <c>Id</c> the
     /// thing's id. A building's op has one row per free colonist: <c>Site</c> and <c>Input</c> the building's id,
     /// <c>Definition</c> and <c>Resource</c> its def, <c>Location</c> its cell, <c>WorkGiver</c> the removal's giver,
-    /// <c>FinishTicks</c> its work; a roof-holder the enclosure guard would wait on has no op (finding
+    /// <c>FinishTicks</c> its work; a roof-holder's Deconstruct op carries the roofed cells its removal leaves unsupported in
+    /// <c>Cells</c> (#3617), its rows priced for the roof's removal too and located at the roof cell nearest the pawn; a
+    /// roof-holder whose support is unknown (or an Uninstall over one the guard would wait on) has no op (finding
     /// <c>removal_roof_support</c>). A stack's op has the planned-clearing haul rows (<c>Origin</c> the stack's cell,
     /// <c>Location</c> the nearest cell of the best storage accepting it outside any planned footprint covering it,
     /// <c>Count</c> the stack, <c>DeliveryTicks</c> by trips); a stack with no destination has no op (finding

@@ -13,7 +13,7 @@ namespace RimGovernor.Contracts.Wire;
     AllowOutOfOrderMetadataProperties = true,
     Converters = [typeof(FactJsonConverter<double>), typeof(FactJsonConverter<bool>), typeof(FactJsonConverter<int>),
         typeof(EquatableArrayJsonConverter<SelectedActivityTask>), typeof(EquatableArrayJsonConverter<PawnActivityIngredient>),
-        typeof(EquatableArrayJsonConverter<SelectedActivityInput>),
+        typeof(EquatableArrayJsonConverter<SelectedActivityInput>), typeof(EquatableArrayJsonConverter<PawnActivityStep>),
         typeof(EquatableArrayJsonConverter<string>), typeof(EquatableArrayJsonConverter<Cell>)])]
 [JsonSerializable(typeof(Operations.ActionIntent.PawnActivitiesCase), TypeInfoPropertyName = "OperationsPawnActivitiesCase")]
 [JsonSerializable(typeof(Receipts.EffectEvidenceEffect.PawnActivitiesCase), TypeInfoPropertyName = "ReceiptsPawnActivitiesCase")]

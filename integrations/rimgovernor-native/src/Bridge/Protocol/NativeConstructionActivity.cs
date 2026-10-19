@@ -93,11 +93,18 @@ internal static class NativeConstructionActivity
                     continue;
                 }
                 var building = (Verse.Building)thing;
-                if (NativeDesignationGuards.RoofWait(building) != null) { runFindings.Add("removal_roof_support"); continue; }
-                var rows = kind == Obs.PlannedClearingKind.Uninstall
-                    ? RemovalRows(legs, free, building, id, building.def.defName, uninstallGiver, building.def.building.uninstallWork)
-                    : RemovalRows(legs, free, building, id, building.def.defName, deconstructGiver, DeconstructWork(building));
-                removalOps.Add(new(id, kind) { Options = EquatableArray.From(rows) });
+                if (kind == Obs.PlannedClearingKind.Uninstall)
+                {
+                    if (NativeDesignationGuards.RoofWait(building) != null) { runFindings.Add("removal_roof_support"); continue; }
+                    removalOps.Add(new(id, kind) { Options = EquatableArray.From(RemovalRows(legs, free, building, id, building.def.defName, uninstallGiver, building.def.building.uninstallWork)) });
+                    continue;
+                }
+                if (RoofCells(building) is not { } roofCells) { runFindings.Add("removal_roof_support"); continue; }
+                removalOps.Add(new(id, kind)
+                {
+                    Options = EquatableArray.From(RemovalRows(legs, free, building, id, building.def.defName, deconstructGiver, DeconstructWork(building), roofCells)),
+                    Cells = EquatableArray.From(roofCells.Select(c => new Cell(c.x, c.z))),
+                });
             }
             // A standing Cut wave (#3613): one set op per contiguous group of CutPlant-designated plants, named by its lowest id.
             var cutGiver = Giver<WorkGiver_PlantsCut>();
@@ -276,14 +283,17 @@ internal static class NativeConstructionActivity
             result.Add(new(mineId, Obs.PlannedClearingKind.Mine) { Options = EquatableArray.From(rows), Targets = EquatableArray.From(rock.Select(r => r.GetUniqueLoadID())) });
         }
         // One Deconstruct op per building, its rows naming it: the brain binds the op to it before placement (#3557). A
-        // roof-holder the enclosure guard would hold (RoofWait) has no op.
+        // roof-holder's op carries the roofed cells its removal leaves unsupported (#3617); one whose support is unknown has no op.
         var deconstructGiver = Giver<WorkGiver_Deconstruct>();
         foreach (var building in things.Where(t => t.Kind == Clear.Deconstruct).Select(t => (Verse.Building)t.Thing).OrderBy(t => t.thingIDNumber))
         {
-            if (NativeDesignationGuards.RoofWait(building) != null) { unknown = true; findings.Add("planned_clearing_roof_support"); continue; }
+            if (RoofCells(building) is not { } roofCells) { unknown = true; findings.Add("planned_clearing_roof_support"); continue; }
             var id = site + "/deconstruct/" + building.GetUniqueLoadID();
             result.Add(new(id, Obs.PlannedClearingKind.Deconstruct)
-                { Options = EquatableArray.From(RemovalRows(legs, pawns, building, id, definition.defName, deconstructGiver, DeconstructWork(building))) });
+            {
+                Options = EquatableArray.From(RemovalRows(legs, pawns, building, id, definition.defName, deconstructGiver, DeconstructWork(building), roofCells)),
+                Cells = EquatableArray.From(roofCells.Select(c => new Cell(c.x, c.z))),
+            });
         }
         var haulGiver = Giver<WorkGiver_HaulGeneral>();
         foreach (var item in things.Where(t => t.Kind == Clear.Haul).Select(t => t.Thing).OrderBy(t => t.thingIDNumber))
@@ -411,25 +421,37 @@ internal static class NativeConstructionActivity
     internal static bool Uninstallable(Verse.Building building) =>
         building.def.category == ThingCategory.Building && building.def.Minifiable && building.Faction == Faction.OfPlayer;
 
+    // The roofed cells a Deconstruct op removes the roof from first (#3617): none for a building the enclosure guard
+    // would not wait on; a roof-holder's unsupported cells (RoofSupportSafety.Unsupported); null when those are unknown.
+    private static List<IntVec3>? RoofCells(Verse.Building building) =>
+        NativeDesignationGuards.RoofWait(building) == null ? new List<IntVec3>() : RoofSupportSafety.Unsupported(building);
+
     // A building's removal rows (#3557, #3612), one per free pawn not incapable of Construction and able to manipulate, with
     // a route to it: Site is the op (a planned clearing's id, or the building's own for a standing designation), Input the
     // building's id and Resource its def. FinishTicks is the removal job's work (JobDriver_Deconstruct's clamped
     // WorkToBuild, JobDriver_Uninstall's uninstallWork) at JobDriver_RemoveBuilding's rate (ConstructionSpeed x 1.7 a
-    // tick); a rate of zero leaves it unknown.
-    private static List<Obs.ConstructionActivityOption> RemovalRows(NativePathLegs legs, Pawn[] pawns, Verse.Building building, string site, string definition, string giver, double work)
+    // tick); a rate of zero leaves it unknown. A roof-holder's rows (#3617) add JobDriver_RemoveRoof's work (65 a cell at
+    // the same rate) for its roofCells and route to, and locate at, the one nearest the pawn.
+    private static List<Obs.ConstructionActivityOption> RemovalRows(NativePathLegs legs, Pawn[] pawns, Verse.Building building, string site, string definition, string giver, double work,
+        List<IntVec3>? roofCells = null)
     {
-        var cell = new Cell(building.Position.x, building.Position.z);
         var rows = new List<Obs.ConstructionActivityOption>();
         foreach (var pawn in pawns)
         {
             if (pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction) || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)) continue;
-            if (legs.Cost(pawn, pawn.Position, building, PathEndMode.Touch) is not { } route) continue;
+            var roofed = roofCells == null || roofCells.Count == 0;
+            var at = roofed ? building.Position : roofCells!.OrderBy(c => c.DistanceToSquared(pawn.Position)).ThenBy(c => c.x).ThenBy(c => c.z).First();
+            if (legs.Cost(pawn, pawn.Position, roofed ? building : (LocalTargetInfo)at, PathEndMode.Touch) is not { } route) continue;
+            var cell = new Cell(at.x, at.z);
             var rate = pawn.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7;
+            var total = work + RemoveRoofWorkPerCell * (roofCells?.Count ?? 0);
             rows.Add(new(site, definition, cell, pawn.GetUniqueLoadID(), building.def.defName, building.GetUniqueLoadID(), cell, 0, 0, giver,
-                default, default, rate > 0 ? Fact.Known(Math.Ceiling(work / rate)) : default) { SiteApproachTicks = Fact.Known((double)route) });
+                default, default, rate > 0 ? Fact.Known(Math.Ceiling(total / rate)) : default) { SiteApproachTicks = Fact.Known((double)route) });
         }
         return rows;
     }
+    // JobDriver_AffectRoof's BaseWorkAmount, worked down at ConstructionSpeed x 1.7 a tick.
+    private const double RemoveRoofWorkPerCell = 65.0;
 
     // A stack's haul rows (a planned clearing's, or a standing Haul designation's, #3614), one per free pawn able to haul
     // it with a carry capacity and routes: Site is the op, Input the stack's id, Resource its def, Origin its cell,

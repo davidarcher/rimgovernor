@@ -30,4 +30,7 @@ internal sealed record ActivityTaskCandidate(string Id, string Pawn, EquatableAr
     /// <summary>A set step's members (#3613): the Work repeats over these thing ids, or over <see cref="Cells"/> (#3615); Count is their number.</summary>
     public EquatableArray<string> Targets { get; init; }
     public EquatableArray<Cell> Cells { get; init; }
+    /// <summary>A roof-holder's Deconstruct (#3617): the roofed cells it leaves unsupported, which the binding removes the roof from
+    /// first (a Work/RemoveRoof cell set step before the task's own step, in the same order).</summary>
+    public EquatableArray<Cell> RoofCells { get; init; }
 }

@@ -11,6 +11,11 @@ internal static class CoordinatedActivityBinding
             { Destination = task.Step.Kind == PawnActivityKind.Supply ? task.Source ?? task.Location : task.Location,
                 NotBefore = task.DepartTick },
          new(PawnActivityKind.Hold, "", "", "", 0, task.Step.Deadline)];
+    /// <summary>The steps the order runs before the task's own (#3617): a roof-holder's Work/RemoveRoof cell set step over the
+    /// roofed cells it leaves unsupported (<see cref="ActivityTaskCandidate.RoofCells"/>), through the RemoveRoofs giver, as
+    /// the shelter family names BuildRoofs.</summary>
+    private static EquatableArray<PawnActivityStep> PriorSteps(ActivityTaskCandidate task) => task.RoofCells.Count == 0 ? default
+        : [new(PawnActivityKind.Work, task.Target, "RemoveRoofs", "RemoveRoof", task.RoofCells.Count, task.Deadline) { Cells = task.RoofCells }];
     internal static PawnActivities? StartWithDeferred(ForecastCoupledSelection selection,
         IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick,
         IEnumerable<ForecastPlannedSite>? planned = null)
@@ -71,7 +76,7 @@ internal static class CoordinatedActivityBinding
                 task.Location, checked(tick + (long)Math.Ceiling(a.Depart)))
                     { Resource = task.Resource, Source = task.Source, SiteDefinition = task.SiteDefinition, ProductStuff = task.ProductStuff,
                         Inputs = task.SelectedInputs, CompletionMustBeObserved = task.CompletionMustBeObserved, SupportDemand = task.SupportDemand,
-                        ProductiveWorkTicks = a.Learning is null ? default : Known(a.WorkTicks) } : null).ToArray();
+                        ProductiveWorkTicks = a.Learning is null ? default : Known(a.WorkTicks), PriorSteps = PriorSteps(task) } : null).ToArray();
         if (tasks.Any(t => t is null)) return null;
         var selected = tasks.Select(t => t!).ToArray();
         if (selected.Length == 0) return null; // Retaining observed baseline work requires no new orders.
@@ -81,7 +86,7 @@ internal static class CoordinatedActivityBinding
             var preparing = task.Prerequisites.Count != 0 || task.DepartTick > tick;
             var steps = preparing
                 ? PreparationSteps(task)
-                : new[] { task.Step.Kind == PawnActivityKind.Supply ? task.Step with { Count = Math.Min(task.Step.Count, bindings[(task.Id, task.Pawn)].Capacity) } : task.Step };
+                : [.. task.PriorSteps, task.Step.Kind == PawnActivityKind.Supply ? task.Step with { Count = Math.Min(task.Step.Count, bindings[(task.Id, task.Pawn)].Capacity) } : task.Step];
             return new PawnActivityOrder(task.Pawn, method + "/" + task.Pawn, method, 0, 1, false, steps)
             { Task = task.Id, Preparing = preparing, OutputDelivery = !preparing && task.Resource.Length != 0 && task.Step.Count > 0
                 ? new(task.Resource, task.Source ?? task.Location, task.Step.Destination ?? task.Location, task.Step.Count, task.Step.Deadline, task.AttemptsLeft) : null };
@@ -106,12 +111,14 @@ internal static class CoordinatedActivityBinding
             if (state == "completed")
             {
                 if (task.CompletionMustBeObserved) return new(null, true);
+                // The task's own step is the order's last; its prior steps (#3617) run before it.
+                var worked = order.Steps[^1];
                 // Delivery counts come from the exact completed operation, never predicted yield.
-                if (task.Step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply && order.Steps[0].Count < task.Step.Count)
-                    remaining[remaining.IndexOf(task)] = task with { Step = task.Step with { Count = task.Step.Count - order.Steps[0].Count } };
+                if (task.Step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply && worked.Count < task.Step.Count)
+                    remaining[remaining.IndexOf(task)] = task with { Step = task.Step with { Count = task.Step.Count - worked.Count } };
                 // A set step's order worked the members native found legal (#3613); the rest of the set remains.
-                else if (task.Step.IsSet && order.Steps[0].IsSet && order.Steps[0].Count < task.Step.Count)
-                    remaining[remaining.IndexOf(task)] = task with { Step = RemainingSet(task.Step, order.Steps[0]) };
+                else if (task.Step.IsSet && worked.IsSet && worked.Count < task.Step.Count)
+                    remaining[remaining.IndexOf(task)] = task with { Step = RemainingSet(task.Step, worked) };
                 else { remaining.Remove(task); completed.Add(task.Id); }
             }
             else if (state == "failed")
@@ -205,7 +212,7 @@ internal static class CoordinatedActivityBinding
             else if (binding.RemainingCount.TryGetValue(out var remainingCount))
                 remaining[remaining.IndexOf(next)] = next = next with { Step = next.Step with { Count = Math.Min(next.Step.Count, remainingCount) } };
             orders.Add(order with { ExpectedRevision = order.Revision, Revision = order.Revision + 1, Release = false,
-                Task = next.Id, Preparing = false, Steps = [binding.Step],
+                Task = next.Id, Preparing = false, Steps = [.. next.PriorSteps, binding.Step],
                 OutputDelivery = next.Resource.Length == 0 || binding.Step.Count <= 0 ? null : new(next.Resource, next.Source ?? next.Location,
                     binding.Step.Destination ?? next.Location, binding.Step.Count, binding.Step.Deadline, next.AttemptsLeft) });
             changed = true;

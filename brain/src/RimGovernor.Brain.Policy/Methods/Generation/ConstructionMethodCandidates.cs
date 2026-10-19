@@ -39,15 +39,20 @@ internal static class ConstructionMethodCandidates
     /// The task a standing removal row binds (#3557, #3612, #3614): a Haul is the pawn's Deliver of the stack (Count the
     /// stack, Destination the row's storage cell), as a support delivery binds; any other kind is Work of the kind's job, a
     /// set op (a Cut wave, #3613; a RemoveFloor wave, #3615) one Work set step over its named <paramref name="targets"/> or
-    /// <paramref name="cells"/> (Count the set size).
+    /// <paramref name="cells"/> (Count the set size). A roof-holder's Deconstruct (#3617) runs a Work/RemoveRoof cell set
+    /// step over the op's <paramref name="cells"/> (the roofed cells it leaves unsupported) before the Deconstruct, in the
+    /// same order: the same task, relief and output.
     /// </summary>
     internal static ActivityTaskCandidate RemovalBinding(string id, PlannedClearingKind kind, ConstructionActivityOption row, string target, long deadline,
         EquatableArray<string> targets = default, EquatableArray<Cell> cells = default) =>
         kind == PlannedClearingKind.Haul
             ? new(id, row.Pawn, [], PawnActivityKind.Deliver, target, "", "", row.Count, deadline, row.Origin)
                 { Resource = row.Resource, Source = row.Origin, Destination = row.Location, Capacity = row.Capacity }
-            : new(id, row.Pawn, [], PawnActivityKind.Work, target, row.WorkGiver, RemovalJob(kind)!, targets.Count + cells.Count, deadline, row.Location)
-                { SiteDefinition = row.Definition, Targets = targets, Cells = cells };
+            : kind == PlannedClearingKind.Deconstruct
+                ? new(id, row.Pawn, [], PawnActivityKind.Work, target, row.WorkGiver, RemovalJob(kind)!, 0, deadline, row.Location)
+                    { SiteDefinition = row.Definition, RoofCells = cells }
+                : new(id, row.Pawn, [], PawnActivityKind.Work, target, row.WorkGiver, RemovalJob(kind)!, targets.Count + cells.Count, deadline, row.Location)
+                    { SiteDefinition = row.Definition, Targets = targets, Cells = cells };
 
     internal static CoordinatedMethodCandidates Generate(ConstructionActivityRead read, long deadline, WorkResourceView resources, IReadOnlySet<string> floors)
     {

@@ -16,6 +16,8 @@ public static class CaseCatalog
         registry.Register(PlannedSiteDeconstructCase.Case());
         registry.Register(ControlDeconstruct.Case());
         registry.Register(ControlDeconstruct.Case(designated: true));
+        registry.Register(ControlDeconstructRoofHolder.Case());
+        registry.Register(PlannedSiteDeconstructCase.Case(roofHolder: true));
         registry.Register(ControlUninstall.Case());
         registry.Register(ControlCut.Case());
         registry.Register(ControlCut.Case(removed: true));

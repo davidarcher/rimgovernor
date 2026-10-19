@@ -178,7 +178,7 @@ namespace HomeBridge.BridgeTools
                         var giver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver);
                         if (giver?.Worker is not WorkGiver_Scanner || !Supported(giver, step.Job)
                             || pawn.WorkTagIsDisabled(giver.workTags) || (giver.workType != null && pawn.WorkTypeIsDisabled(giver.workType))) return Refuse("Unsupported/incapable activity work.");
-                        if (step.Job == "Deconstruct" && DeconstructRefusal(pawn, target) is { } deconstructWhy) return Refuse("Selected deconstruction unavailable: " + deconstructWhy + ".");
+                        if (step.Job == "Deconstruct" && DeconstructRefusal(pawn, target, order.Steps.TakeWhile(s => s != step)) is { } deconstructWhy) return Refuse("Selected deconstruction unavailable: " + deconstructWhy + ".");
                         if (step.Job == "Uninstall" && UninstallRefusal(pawn, target) is { } uninstallWhy) return Refuse("Selected uninstall unavailable: " + uninstallWhy + ".");
                     }
                     if (step.Kind == PawnActivityKind.Eat && (!target.IngestibleNow || !pawn.RaceProps.CanEverEat(target) || step.Count > target.stackCount)) return Refuse("Selected food/count unavailable.");
@@ -218,12 +218,22 @@ namespace HomeBridge.BridgeTools
         private static bool Equivalent(PawnActivityOrder a, PawnActivityOrder b) => PawnActivities.SameOrder(a, b);
 
         // A Deconstruct step works a standing building the order designates itself (StandDesignation), so an undesignated
-        // ruin needs nothing first; the enclosure guard's roof-collapse wait is a refusal here, since the job would only hold (#3557).
-        private static string? DeconstructRefusal(Pawn pawn, Thing target)
+        // ruin needs nothing first; the enclosure guard's roof-collapse wait is a refusal here, since the job would only hold
+        // (#3557), unless the same order's earlier Work/RemoveRoof steps take off every roofed cell the building leaves
+        // unsupported (#3617): the guard then holds the job only until that roof is off.
+        private static string? DeconstructRefusal(Pawn pawn, Thing target, IEnumerable<PawnActivityStep> earlier)
         {
             if (target is not Verse.Building building || !building.DeconstructibleBy(Faction.OfPlayer).Accepted) return "target is not deconstructible by the colony";
             if (pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) return "pawn is incapable of construction";
-            if (NativeDesignationGuards.RoofWait(building) is { } roof) return roof;
+            if (NativeDesignationGuards.RoofWait(building) is { } roof)
+            {
+                var unsupported = RoofSupportSafety.Unsupported(building);
+                if (unsupported == null) return roof;
+                var removed = new HashSet<IntVec3>(earlier.Where(s => s.Kind == PawnActivityKind.Work && s.Job == "RemoveRoof")
+                    .SelectMany(s => s.Cells).Select(c => new IntVec3(c.X, 0, c.Z)));
+                // A superset passes too: a continuation re-sends the steps after some of the cells are already off.
+                if (!removed.IsSupersetOf(unsupported)) return roof + " (the order's earlier RemoveRoof steps do not remove the unsupported roof cells)";
+            }
             return building.Map.designationManager.DesignationOn(building, DesignationDefOf.Deconstruct) != null
                 || new Designator_Deconstruct().CanDesignateThing(building).Accepted ? null : "native deconstruction designator refused";
         }
@@ -353,6 +363,8 @@ namespace HomeBridge.BridgeTools
                                 if (member is { Spawned: true } && NativeSetActivities.Needed(step, member) is { } needed) StandDesignation(member, needed);
                             foreach (var cell in step.Cells.Select(c => new IntVec3(c.X, 0, c.Z)))
                                 if (cell.InBounds(e.Pawn.Map) && NativeSetActivities.Needed(step, e.Pawn.Map, cell) is { } needed) StandCellDesignation(e.Pawn.Map, cell, needed);
+                            // A RemoveRoof set's members go into the NoRoof area the giver and job require, no designation (#3617).
+                            NativeSetActivities.Designate(e.Pawn.Map, step);
                         }
                         // A delivery of a stack under a Haul designation works the designation (#3614): a guarded record of it is Ordered.
                         else if (step.Kind == PawnActivityKind.Deliver && Thing(step.Target) is { Spawned: true } stack

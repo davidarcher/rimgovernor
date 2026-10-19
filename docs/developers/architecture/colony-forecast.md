@@ -482,19 +482,26 @@ reads every such designation as a clearing op of its kind
 ([standing removals](../contracts/forecast-contracts.md#standing-removals)), and
 `ConstructionMethodCandidates` binds each building as a pawn's Work task of that
 kind on it (`removal-{n}`, Deconstruct as Work/Deconstruct, Uninstall as
-Work/Uninstall), each stack as the pawn's Deliver of it (Count the stack,
-Destination the row's storage cell, as a support delivery binds), each Cut wave
-as one Work/CutPlant set step over its `Targets` and each FloorOut wave as one
-Work/RemoveFloor cell set step over its `Cells` (Count the cells), exclusive outcome
-`construction/{op}`, with a `removal/{op}` relief so taking it down, away, out or
-up is one unit of development and its work is exempt from the thermal-relief gate
-like a floor's. The order's claim is the op (the thing, the wave's lowest plant or
-the floor wave's `removefloor/{x}/{z}/x{n}` id); an op whose thing or pawn another
-Method claims, whose finish (a Haul's delivery) is unknown, whose stack is more than
-one carry (the Deliver step is one trip), or a Cut, Mine or RemoveFloor op naming no
-members binds nothing. A planned site's Cut clearing binds the same way before placement
-(`PlannedRoomCandidates`, beside its Deconstruct and Haul clearings), and so does its
-Mine clearing, one Work/Mine set step over the op's named rocks (#3616). Up to 16 ops
+Work/Uninstall; a roof-holder's Deconstruct op carries the roofed cells it leaves
+unsupported in `Cells`, and its task runs a Work/RemoveRoof cell set step over them
+before the Deconstruct in the same order, the same op and relief, #3617), each
+stack as the pawn's Deliver of it (Count the stack, Destination the row's storage
+cell, as a support delivery binds), each Cut wave as one Work/CutPlant set step
+over its `Targets` and each FloorOut wave as one Work/RemoveFloor cell set step
+over its `Cells` (Count the cells), exclusive outcome `construction/{op}`, with a
+`removal/{op}` relief so taking it down, away, out or up is one unit of development
+and its work is exempt from the thermal-relief gate like a floor's. The order's
+claim is the op (the thing, the wave's lowest plant or the floor wave's
+`removefloor/{x}/{z}/x{n}` id); an op whose thing or pawn another Method claims,
+whose finish (a Haul's delivery) is unknown, whose stack is more than one carry
+(the Deliver step is one trip), or a Cut, Mine or RemoveFloor op naming no members
+binds nothing. A planned site's Cut clearing binds the same way before placement
+(`PlannedRoomCandidates`, beside its Deconstruct and Haul clearings), and so does
+its Mine clearing, one Work/Mine set step over the op's named rocks (#3616); a
+planned room whose footprint holds a roof-holder is valued, not unknown, its
+Deconstruct clearing binding roof-off-then-deconstruct the same way, and a roof
+cell outside the planned room stays unroofed (RoofIn re-roofs the room's own
+interior later). Up to 16 ops
 a round across all kinds; more sets
 `Truncated`.
 

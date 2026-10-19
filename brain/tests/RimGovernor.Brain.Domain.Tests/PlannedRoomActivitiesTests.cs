@@ -267,6 +267,44 @@ public sealed class PlannedRoomActivitiesTests
     }
 
     /// <summary>
+    /// #3617: a roof-holder under the footprint is a valued Deconstruct clearing carrying the cells it leaves unsupported.
+    /// The alternative is valued (not unknown), and the clearing binds as one task whose order removes the roof over those
+    /// cells (Work/RemoveRoof cell set step) before the Work/Deconstruct.
+    /// </summary>
+    [Fact]
+    public void ARoofHolderUnderTheRingIsValuedAndBindsRoofOffThenDeconstruct()
+    {
+        const string ruin = "Thing_Wall1";
+        const string site = "planned/room1/wall/WoodLog";
+        const string clearingId = site + "/deconstruct/" + ruin;
+        var at = WallCells[0];
+        Cell[] cells = [new(at.X + 1, at.Z), new(at.X + 1, at.Z + 1)];
+        var clearing = new PlannedSiteClearing(clearingId, PlannedClearingKind.Deconstruct)
+        {
+            Options = [new ConstructionActivityOption(clearingId, "Wall", cells[0], Pawn, "Wall", ruin, cells[0], 0, 0, "Deconstruct", default, default, Known(50d))
+                { SiteApproachTicks = Known(Ticks(Start, cells[0])) }],
+            Cells = EquatableArray.From(cells),
+        };
+        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        var candidates = facts.CoupledAlternatives!;
+        Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_alternative_", StringComparison.Ordinal));
+        var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Job == "Deconstruct");
+        Assert.Equal((Pawn, PawnActivityKind.Work, ruin, "Deconstruct", "Wall"), (binding.Pawn, binding.Kind, binding.Target, binding.WorkGiver, binding.SiteDefinition));
+        Assert.Equal(cells, binding.RoofCells);
+
+        var result = Select(facts);
+        Assert.True(PlannedSelected(result, site), Why(facts, result));
+        var batch = ForecastCoupledSelection.StartCoupledActivity(result, candidates, 1, "planned-test", 100);
+        Assert.NotNull(batch);
+        var task = Assert.Single(batch.Tasks, t => t.Pawn == Pawn);
+        var prior = Assert.Single(task.PriorSteps);
+        Assert.Equal((PawnActivityKind.Work, ruin, "RemoveRoofs", "RemoveRoof", 2), (prior.Kind, prior.Target, prior.WorkGiver, prior.Job, prior.Count));
+        Assert.Equal(cells, prior.Cells);
+        Assert.Equal((PawnActivityKind.Work, ruin, "Deconstruct"), (task.Step.Kind, task.Step.Target, task.Step.Job));
+        Assert.Contains(batch.Orders, o => o.Pawn == Pawn && !o.Release && o.Task == task.Id);
+    }
+
+    /// <summary>
     /// #3557: a planned ring over ruins. Native estimates a deconstructible building under the footprint as a Deconstruct
     /// clearing with per-pawn rows, so the alternative is valued, and that clearing is the one planned activity bound
     /// before placement (its building stands, the job targets it): the selection orders the pawn's Deconstruct work while

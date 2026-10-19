@@ -109,6 +109,40 @@ public sealed class CoordinatedConstructionTests
     }
 
     /// <summary>
+    /// #3617: a roof-holder's Deconstruct op carries the roofed cells it leaves unsupported in Cells. The family binds it as
+    /// one task whose order runs Work/RemoveRoof as a cell set step over those cells (Count their number) before the
+    /// Work/Deconstruct, the same op and relief as a plain removal; the started order carries both steps.
+    /// </summary>
+    [Fact]
+    public void ARoofHolderRemovalBindsRoofOffThenDeconstructInOneOrder()
+    {
+        const string wall = "Thing_Wall1";
+        Cell[] cells = [new(31, 30), new(31, 31)];
+        var row = new ConstructionActivityOption(wall, "Wall", new(31, 30), "producer", "Wall", wall, new(31, 30), 0, 0, "Deconstruct",
+            default, default, Known(180d)) { SiteApproachTicks = Known(10d) };
+        var facts = RemovalFacts(new PlannedSiteClearing(wall, PlannedClearingKind.Deconstruct) { Options = [row], Cells = EquatableArray.From(cells) });
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
+        var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Job == "Deconstruct");
+        Assert.Equal((PawnActivityKind.Work, wall, "Deconstruct", "Wall", 0), (binding.Kind, binding.Target, binding.WorkGiver, binding.SiteDefinition, binding.Count));
+        Assert.Equal(cells, binding.RoofCells);
+        var root = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome == "construction/" + wall);
+        Assert.Equal("removal/" + wall, Assert.Single(root.Outcome!.Requirements!.Relief).Need);
+
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        Assert.Contains(root.Id, selected.Selection.Selected);
+        var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
+        var task = Assert.Single(batch.Tasks);
+        var prior = Assert.Single(task.PriorSteps);
+        Assert.Equal((PawnActivityKind.Work, wall, "RemoveRoofs", "RemoveRoof", 2, task.Step.Deadline), (prior.Kind, prior.Target, prior.WorkGiver, prior.Job, prior.Count, prior.Deadline));
+        Assert.Equal(cells, prior.Cells);
+        Assert.Equal((PawnActivityKind.Work, wall, "Deconstruct"), (task.Step.Kind, task.Step.Target, task.Step.Job));
+        var order = Assert.Single(batch.Orders, o => o.Pawn == "producer" && !o.Release && o.Task == task.Id);
+        Assert.Equal([prior, task.Step], order.Steps);
+    }
+
+    /// <summary>
     /// #3613: a standing Cut wave (the room reconcile's CutPlant designations over one group of plants) is one removal op
     /// whose Targets are the plants. The family binds it as one Work/CutPlant set step over them (Count the set's size),
     /// one task per op, and the selection orders it. A Cut op naming no plants binds nothing.

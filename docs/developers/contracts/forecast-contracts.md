@@ -578,8 +578,21 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   `Resource` its def and `Location` its cell; `FinishTicks` is `JobDriver_Deconstruct`'s
   work (`WorkToBuild` clamped to 20..3000) over `ConstructionSpeed x 1.7` a tick
   (`JobDriver_RemoveBuilding`), for a pawn not incapable of Construction and able to
-  manipulate. A building whose removal the enclosure guard would hold for roof
-  support (`RoofWait`) has no op (finding `planned_clearing_roof_support`). A speed
+  manipulate. A roof-holder the enclosure guard would hold for roof support
+  (`RoofWait`) has a valued op too (#3617): `Cells` are the roofed cells its removal
+  leaves unsupported, nearest the building first, as the game's
+  `RoofCollapseCellsFinder.ProcessRoofHolderDespawned` would find them with the
+  building gone (`RoofSupportSafety.Unsupported`: the roof components around its
+  footprint no other holder connects to, the collapsible cells within
+  `RoofMaxSupportDistance` of it with no holder within that range through roofed
+  cells, and the components those leave with no holder); the rows' `FinishTicks`
+  add `JobDriver_RemoveRoof`'s work (65 a cell at the same rate) and route to, and
+  `Location` is, the cell nearest the pawn. The brain removes that roof before the
+  Deconstruct in one order; a cell outside the planned room stays unroofed (the
+  room's RoofIn re-roofs only its own interior). Only a roof-holder whose support
+  is unknown (fogged or out-of-bounds geometry, a pending collapse, a thick roof or
+  an unprovably large roof among the cells, or an empty set while `RoofWait` still
+  holds) has no op (finding `planned_clearing_roof_support`). A speed
   of zero leaves `FinishTicks` unknown; a pawn with no route or unable to do the
   work has no row.
 - `Verdict`, from `GenConstruct.HandleBlockingThingJob`'s kinds for every thing in
@@ -591,8 +604,8 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   to cancel, a non-natural mineable, a never-haulable item), or a refused piece is
   fogged (finding `planned_site_fogged`): leave the alternative unvalued; else
   `Unspecified` when a haulable has no accepting storage (finding
-  `planned_clearing_haul_destination_unknown`) or a deconstructible building holds
-  a roof (`planned_clearing_roof_support`); else `Feasible`. A pawn, something
+  `planned_clearing_haul_destination_unknown`) or a deconstructible roof-holder's
+  support is unknown (`planned_clearing_roof_support`); else `Feasible`. A pawn, something
   blueprint placement wipes, or something `CanPlaceBlueprintOver` allows that does
   not `BlocksConstruction` needs no clearing. `CanPlace` stays native legality as the
   footprint stands, so a site needing only clearing reads `CanPlace` false and
@@ -638,8 +651,11 @@ row per free colonist. A building's rows: `Site` and `Input` the building's id,
 or uninstall giver, `SiteApproachTicks` the route and `FinishTicks` the job's work
 (`JobDriver_Deconstruct`'s clamped `WorkToBuild`, or `JobDriver_Uninstall`'s
 `uninstallWork`) over `ConstructionSpeed x 1.7` a tick; `Count` and `Capacity` are 0.
-A building whose removal the enclosure guard would hold for roof support has no op
-(finding `removal_roof_support`); a pawn incapable of Construction or with no route
+A Deconstruct over a roof-holder the enclosure guard would hold for roof support
+carries the roofed cells its removal leaves unsupported in `Cells`, priced and
+located as a planned clearing's is (#3617); one whose support is unknown, and an
+Uninstall over any roof-holder the guard would hold, has no op (finding
+`removal_roof_support`); a pawn incapable of Construction or with no route
 has no row. A stack's rows are the planned-clearing haul rows (`Definition` the
 stack's def): `Location` the nearest cell of the best-priority player storage
 accepting it outside the footprint of every requested planned site covering the

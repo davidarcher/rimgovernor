@@ -30,7 +30,8 @@ public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, stri
     /// <summary>A set step (#3613): the Work repeats over these thing ids, nearest first, until <see cref="Count"/> members
     /// are done or none is left legal. Empty keeps the single-<see cref="Target"/> behaviour.</summary>
     public EquatableArray<string> Targets { get; init; }
-    /// <summary>The cell form of a set step (#3615): the Work repeats over these cells, nearest first (RemoveFloor; roof cells later).</summary>
+    /// <summary>The cell form of a set step (#3615): the Work repeats over these cells, nearest first (RemoveFloor; RemoveRoof
+    /// over the roofed cells a roof-holder leaves unsupported, #3617).</summary>
     public EquatableArray<Cell> Cells { get; init; }
     public bool IsSet => Targets.Count > 0 || Cells.Count > 0;
 }
@@ -55,6 +56,9 @@ public sealed record SelectedActivityTask(string Id, string Pawn, EquatableArray
     public bool CompletionMustBeObserved { get; init; }
     public EquatableArray<SelectedActivityInput> Inputs { get; init; }
     public int AttemptsLeft { get; init; } = 3;
+    /// <summary>Work steps the task's order runs before <see cref="Step"/>, in order (#3617: a roof-holder's RemoveRoof
+    /// cell set before its Deconstruct). The same task, relief and output as the step alone.</summary>
+    public EquatableArray<PawnActivityStep> PriorSteps { get; init; }
 }
 
 public sealed record ActivityRecipeContinuation(string Bench, string Bill, string Recipe, string WorkGiver,
@@ -169,7 +173,19 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                     && i.Location is { X: >= 0, Z: >= 0 } && IdText.IsValidText(i.Provenance)
                     && i.Producers.All(p => p != task.Id && IdText.IsValidText(p)))
                 && task.DepartTick >= 0 && task.Step.Deadline > task.DepartTick, "invalid selected activity obligation");
-        foreach (var task in Tasks) { ValidateSet(task.Step); ValidatePractice(task.Step); }
+        foreach (var task in Tasks)
+        {
+            ValidateSet(task.Step); ValidatePractice(task.Step);
+            DomainException.Require(task.PriorSteps.Count <= 8, "invalid selected prior steps");
+            foreach (var prior in task.PriorSteps)
+            {
+                DomainException.Require(prior != null && prior.Kind == PawnActivityKind.Work && prior.Deadline > 0 && IdText.IsValidText(prior.Target)
+                    && IdText.IsValidText(prior.WorkGiver) && IdText.IsValidText(prior.Job) && prior.NotBefore >= 0 && prior.NotBefore < prior.Deadline
+                    && prior.Destination is null && prior.Recipe == null && prior.Practice == null && prior.Container.Length == 0
+                    && prior.SupportDemand.Length == 0 && prior.Medicine.Length == 0, "invalid selected prior step");
+                ValidateSet(prior);
+            }
+        }
         foreach (var task in Tasks.Where(t => t.Step.Practice?.Skill == "Melee"))
             DomainException.Require(Tasks.Any(partner => partner.Pawn == task.Step.Practice!.Partner
                 && partner.Step.Target == task.Step.Practice.PartnerTarget && partner.Step.Practice?.Partner == task.Pawn

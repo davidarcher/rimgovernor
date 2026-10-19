@@ -28,6 +28,31 @@ public sealed class PawnActivitiesTests
         Assert.Equal(Batch().Orders[0].Steps[2], wire.Intent.PawnActivities.Batch.Orders[0].Steps[2]);
         Assert.Equal(Batch().Orders[0].Steps[3], wire.Intent.PawnActivities.Batch.Orders[0].Steps[3]);
     }
+    /// <summary>#3617: a task's prior steps (the roof-holder's RemoveRoof cell set before its Deconstruct) ride the task
+    /// through the store codec and are validated like any step.</summary>
+    [Fact]
+    public void ATaskCarriesItsPriorStepsThroughTheCodecAndValidatesThem()
+    {
+        IntentActionRules.RegisterIntentKinds();
+        var roof = new PawnActivityStep(PawnActivityKind.Work, "Thing_Wall1", "RemoveRoofs", "RemoveRoof", 2, 5678) { Cells = [new(1, 2), new(1, 3)] };
+        var deconstruct = new PawnActivityStep(PawnActivityKind.Work, "Thing_Wall1", "Deconstruct", "Deconstruct", 0, 5678);
+        var task = new SelectedActivityTask("task", "pawn", [], deconstruct, new(1, 2), 100) { PriorSteps = [roof] };
+        var order = new PawnActivityOrder("pawn", "assignment", "method", 0, 1, false, [roof, deconstruct]) { Task = task.Id };
+        var batch = new PawnActivities(1, [order]) { Tasks = [task] };
+        batch.Validate();
+        var action = DomainAction.NewPawnActivitiesAction(new ActionId("action"), batch);
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream)) Codecs.Default.Write(writer, action);
+        using var doc = JsonDocument.Parse(stream.ToArray());
+        var decoded = Codecs.Default.Read<DomainAction>(doc.RootElement).PawnActivities!;
+        Assert.Equal(task, Assert.Single(decoded.Tasks));
+        Assert.Equal(roof, Assert.Single(decoded.Tasks[0].PriorSteps));
+
+        void Refused(PawnActivityStep prior) => Assert.Throws<DomainException>(() => (batch with { Tasks = [task with { PriorSteps = [prior] }] }).Validate());
+        Refused(roof with { Count = 1 });
+        Refused(roof with { Deadline = 0 });
+        Refused(roof with { Kind = PawnActivityKind.Deliver, Destination = new Cell(1, 1) });
+    }
     /// <summary>#3613: a set step repeats one Work over its Targets (or Cells); Count is the set's size, the store codec
     /// keeps the set, and SameOrder tells orders apart by it.</summary>
     [Fact]

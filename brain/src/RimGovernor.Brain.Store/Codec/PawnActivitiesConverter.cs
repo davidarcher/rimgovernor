@@ -23,7 +23,8 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
                     { Observed = i.GetProperty("Observed").GetBoolean(),
                         Producers = EquatableArray.From(i.GetProperty("Producers").EnumerateArray().Select(p => p.GetString()!)) })),
                 Source = t.GetProperty("Source") is var source && source.ValueKind != JsonValueKind.Null
-                    ? new(source.GetProperty("X").GetInt32(), source.GetProperty("Z").GetInt32()) : null })) };
+                    ? new(source.GetProperty("X").GetInt32(), source.GetProperty("Z").GetInt32()) : null,
+                PriorSteps = EquatableArray.From(t.GetProperty("PriorSteps").EnumerateArray().Select(ReadStep)) })) };
         value.Validate(); return value;
     }
     private static PawnActivityStep ReadStep(JsonElement s) => new(
@@ -75,7 +76,9 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
             if (task.Source is { } source)
             { w.WriteStartObject("Source"); w.WriteNum("X", source.X); w.WriteNum("Z", source.Z); w.WriteEndObject(); }
             else w.WriteNull("Source");
-            w.WritePropertyName("Step"); WriteStep(w, task.Step); w.WriteEndObject();
+            w.WritePropertyName("Step"); WriteStep(w, task.Step);
+            w.WriteStartArray("PriorSteps"); foreach (var prior in task.PriorSteps) WriteStep(w, prior); w.WriteEndArray();
+            w.WriteEndObject();
         }
         w.WriteEndArray();
         w.WriteStartArray("Orders");
