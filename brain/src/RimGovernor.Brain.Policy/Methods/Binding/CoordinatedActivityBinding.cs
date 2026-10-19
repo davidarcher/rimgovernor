@@ -150,7 +150,8 @@ internal static class CoordinatedActivityBinding
             // threshold is not handed more work. Its order is released and the next review compares the need service
             // against the remaining work. Tasks others wait on stay, so no participant is stranded. A next task that is
             // itself a service is what that review selected: releasing it would only reselect it, every review (#3167).
-            if (next.Step.Kind is not (PawnActivityKind.Eat or PawnActivityKind.Sleep or PawnActivityKind.Recreation)
+            // So is a task that leads to the pawn's own remaining service, such as harvesting the rice it then eats (#3598).
+            if (!IsService(next) && !FeedsOwnService(remaining, next)
                 && NeedsService(read, order.Pawn)
                 && !remaining.Any(t => t.Pawn != order.Pawn && t.Prerequisites.Any(p => remaining.Any(r => r.Pawn == order.Pawn && r.Id == p))))
             {
@@ -189,6 +190,24 @@ internal static class CoordinatedActivityBinding
         }
         if (!changed) return new(null, false);
         return new(new(batch.AuthorityGeneration, orders.ToArray()) { Tasks = EquatableArray.From(remaining) }, false);
+    }
+
+    private static bool IsService(SelectedActivityTask task) =>
+        task.Step.Kind is PawnActivityKind.Eat or PawnActivityKind.Sleep or PawnActivityKind.Recreation;
+
+    /// <summary>Whether a remaining service task of the same pawn depends on <paramref name="task"/>, directly or through
+    /// the pawn's other remaining tasks.</summary>
+    private static bool FeedsOwnService(List<SelectedActivityTask> remaining, SelectedActivityTask task)
+    {
+        var own = remaining.Where(t => t.Pawn == task.Pawn).ToDictionary(t => t.Id, StringComparer.Ordinal);
+        var pending = new Stack<string>(own.Values.Where(IsService).SelectMany(t => t.Prerequisites));
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        while (pending.TryPop(out var id))
+        {
+            if (id == task.Id) return true;
+            if (seen.Add(id) && own.TryGetValue(id, out var prerequisite)) foreach (var p in prerequisite.Prerequisites) pending.Push(p);
+        }
+        return false;
     }
 
     private static bool NeedsService(ActivityTaskRead read, string pawn) =>

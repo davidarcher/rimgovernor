@@ -158,7 +158,8 @@ is rejected atomically and a lost participant never releases its new owner
 (`ActivityContinuationTests`), an unknown or stable need does not churn useful work
 (`RecoveryReleasesButStableOrUnknownNeedDoesNotChurnUsefulWork`), a tired participant is released
 at the task boundary while a running task is never interrupted, unless its next task is itself an eat,
-sleep or recreation service, which it keeps (`ActivityNeedBoundaryTests`),
+sleep or recreation service, or leads to one of its own (harvesting the rice it then eats), which it keeps
+(`ActivityNeedBoundaryTests`),
 and changed skill or decay is covered by `ProductiveLearningTests` and `CapabilityMaintenanceTests`.
 Retirement on changed demand is the lifecycle case's deleted bill. A lost participant is the
 lost-participant unit test above. The brain's own reassignment is `production/development-reassignment`:
