@@ -62,6 +62,46 @@ public sealed class ThemePresetHoldableTests
         Assert.Empty(faults);
     }
 
+    // #3511: the catalog marks a meme unsupported when a role or an obliged ritual needs it, so no starting design could
+    // hold a preset naming it. Over the installed defs, Cannibal unlocks only the anytime gladiator duel; Transhumanist,
+    // AnimalPersonhood, NaturePrimacy and Rancher unlock specialist roles, so this checks the naked-cannibals preset.
+    [Fact]
+    public void TheNakedCannibalsMemesUnlockNoPreceptTheDesignCannotValue()
+    {
+        var data = Path.Combine(
+            typeof(ThemePresetHoldableTests).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>().Single(a => a.Key == "RimWorldDir").Value!,
+            "Data");
+        Assert.SkipUnless(Directory.Exists(Path.Combine(data, "Ideology")), $"{data} has no Ideology data");
+        var patterns = Resolved(data, "RitualPatternDef").ToDictionary(
+            d => d.Key,
+            d => new RimWorld.RitualPatternDef
+            {
+                defName = d.Key,
+                ritualObligationTriggers = [.. Field(d.Value, "ritualObligationTriggers")?.Elements("li").Select(_ => new RimWorld.RitualObligationTrigger_BlindingProperties()) ?? []],
+            },
+            StringComparer.Ordinal);
+        var memes = new Dictionary<string, RimWorld.MemeDef>(StringComparer.Ordinal);
+        RimWorld.MemeDef Meme(string name) => memes.TryGetValue(name, out var m) ? m : memes[name] = new RimWorld.MemeDef { defName = name };
+        var precepts = Resolved(data, "PreceptDef").Select(d => new RimWorld.PreceptDef
+        {
+            defName = d.Key,
+            preceptClass = Text(d.Value, "preceptClass") is { Length: > 0 } kind
+                ? typeof(RimWorld.Precept).Assembly.GetType("RimWorld." + kind, throwOnError: true)!
+                : typeof(RimWorld.Precept),
+            requiredMemes = [.. Items(d.Value, "requiredMemes").Select(Meme)],
+            ritualPatternBase = patterns.GetValueOrDefault(Text(d.Value, "ritualPatternBase")),
+        }).ToList();
+
+        var preset = ThemePresetCatalog.All.Single(p => p.Id == "naked-cannibals");
+        var named = preset.Members.Select(m => m.Goal).OfType<GoalRecord>().Where(g => g.Kind == GoalKind.Meme).Select(g => g.Target).ToList();
+
+        Assert.Equal(["Nudism", "Cannibal"], named);
+        Assert.DoesNotContain(named, m => DefinitionCatalog.UnlocksUnvaluedPrecept(Meme(m), precepts));
+        // The rule still bites on the installed defs: a specialist role needs Rancher, an obliged blinding ceremony Blindsight.
+        Assert.True(DefinitionCatalog.UnlocksUnvaluedPrecept(Meme("Rancher"), precepts));
+        Assert.Contains(precepts, p => p.defName == "BlindingCeremony" && p.ritualPatternBase?.ritualObligationTriggers.Count > 0);
+    }
+
     // Every non-abstract def of the element type under data/<pack>/Defs, with its ParentName chain (by the Name attribute).
     private static Dictionary<string, List<XElement>> Resolved(string data, string type)
     {

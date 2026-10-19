@@ -174,6 +174,16 @@ public sealed partial class DefinitionCatalog
         def.modContentPack?.PackageId.StartsWith(CorePackagePrefix, StringComparison.OrdinalIgnoreCase) == true;
 
     /// <summary>
+    /// Whether a non-plain precept that needs <paramref name="meme"/> carries a cost the design cannot value: a role (its
+    /// starting skill/ability feasibility is not a plain-precept cost), a ritual with an obligation trigger, or any other
+    /// precept class. A ritual the meme only unlocks and nothing obliges (Cannibal's anytime gladiator duel, #3511) asks
+    /// nothing of the colony.
+    /// </summary>
+    internal static bool UnlocksUnvaluedPrecept(MemeDef meme, IEnumerable<PreceptDef> precepts) =>
+        precepts.Any(p => p.preceptClass != typeof(Precept) && p.requiredMemes.Seq().Contains(meme)
+            && !(p.preceptClass == typeof(Precept_Ritual) && p.ritualPatternBase is { } pattern && !pattern.ritualObligationTriggers.Seq().Any()));
+
+    /// <summary>
     /// The ideoligion selection constraints, projected from the same defs. It deliberately excludes unvalued
     /// stat/ability/apparel/mental-break effects.
     /// </summary>
@@ -223,9 +233,7 @@ public sealed partial class DefinitionCatalog
                 supported &= precept.preceptClass == typeof(Precept);
             }
 
-            // A meme may unlock specialized roles without naming them in requireOne. Their starting skill/ability
-            // feasibility is not a plain-precept cost.
-            supported &= !allPrecepts.Any(p => p.preceptClass != typeof(Precept) && p.requiredMemes.Seq().Contains(m));
+            supported &= !UnlocksUnvaluedPrecept(m, allPrecepts);
             memes.Add(new P.DesignMeme
             {
                 Name = m.defName,

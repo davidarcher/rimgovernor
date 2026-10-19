@@ -110,9 +110,11 @@ namespace HomeBridge.BridgeTools
                     (reform && Find.FactionManager.AllFactions.Any(f => f.def.humanlikeFaction && f.ideos != null &&
                         (f.ideos.IsPrimary(source) || f.ideos.IsMinor(source)) && !copy.foundation.CanAddForFaction(PreceptDefOf.AnimalVenerated, f.def, null, checkDuplicates: false))))
                     return Invalid("Animal veneration conflicts with a faction.");
+                // Setting ThingDef notifies the precept's ideo style tracker, so the precept joins the ideo first (vanilla's
+                // precept editor sets the animal on a held precept); Init's own pick is replaced.
                 var venerated = (Precept_Animal)PreceptMaker.MakePrecept(PreceptDefOf.AnimalVenerated);
-                venerated.ThingDef = animal;
                 copy.AddPrecept(venerated, init: true, generatingFor: Faction.OfPlayer.def);
+                venerated.ThingDef = animal;
             }
             foreach (var meme in memes)
                 if (meme.requireOne?.Any(group => !copy.PreceptsListForReading.Any(p => group.Contains(p.def))) == true)

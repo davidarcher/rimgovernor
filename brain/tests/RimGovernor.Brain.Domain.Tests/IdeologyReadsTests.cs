@@ -93,6 +93,27 @@ public sealed class IdeologyReadsTests
         Assert.Equal(["Purity"], gate.Conflicting);
     }
 
+    [Fact]
+    public void AMemeIsDesignableWhenWhatItUnlocksIsOnlyARitualNothingObliges()
+    {
+        // #3511: Cannibal unlocks the anytime gladiator duel; a role or an obliged ritual needing the meme has a cost the
+        // design cannot value.
+        var duel = new PreceptDef { defName = "GladiatorDuel", preceptClass = typeof(Precept_Ritual), requiredMemes = [Cannibal], ritualPatternBase = new RitualPatternDef { defName = "GladiatorDuel" } };
+        var blinding = new PreceptDef
+        {
+            defName = "BlindingCeremony", preceptClass = typeof(Precept_Ritual), requiredMemes = [Pure],
+            ritualPatternBase = new RitualPatternDef { defName = "BlindingCeremony", ritualObligationTriggers = [new RitualObligationTrigger_BlindingProperties()] },
+        };
+        var specialist = new PreceptDef { defName = "IdeoRole_PlantSpecialist", preceptClass = typeof(Precept_RoleMulti), requiredMemes = [Nudist] };
+        var plain = new PreceptDef { defName = "Nudity_Male_Required", requiredMemes = [Nudist] };
+        PreceptDef[] precepts = [duel, blinding, specialist, plain];
+
+        Assert.False(DefinitionCatalog.UnlocksUnvaluedPrecept(Cannibal, precepts));
+        Assert.True(DefinitionCatalog.UnlocksUnvaluedPrecept(Pure, precepts));
+        Assert.True(DefinitionCatalog.UnlocksUnvaluedPrecept(Nudist, precepts));
+        Assert.False(DefinitionCatalog.UnlocksUnvaluedPrecept(Nudist, [plain]));
+    }
+
     private static WorkPawn Pawn(string id, string ideo, Fact<double> certainty) =>
         new()
         {
