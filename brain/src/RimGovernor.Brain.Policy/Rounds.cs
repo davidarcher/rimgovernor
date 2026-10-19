@@ -877,7 +877,7 @@ public static partial class RoundsRules
         r.CoupledWarmStartTranslated = warm.Zip(f.PreviousCoupledSelection).Count(pair => pair.First != pair.Second);
         if (f.CoupledAlternatives is { } coupled)
             r.CoupledSelection = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("observed-review", f.Tick.Value),
-                1, f, demand, [], new()), coupled, warmStart: warm, clockMs: clockMs);
+                ForecastCoupled.TierOneHorizonDays, f, demand, [], new()), coupled, warmStart: warm, clockMs: clockMs);
         // The disaster history the disaster family's Needs read (#3304).
         r.Disaster = DisasterRules.ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuitTick);
         r.Trade = TradeReviewOf(f, p, medicine, demand);

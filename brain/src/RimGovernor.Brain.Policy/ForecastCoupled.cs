@@ -117,6 +117,12 @@ public sealed record ForecastCoupledScenario(EquatableArray<ForecastCoupledOutco
 
 public static partial class ForecastCoupled
 {
+    /// <summary>
+    /// The tier-1 horizon: the exact near-term schedule normal Rounds forecast over (at most one game day). A gear bill
+    /// whose stuff arrives later is not offered in tier 1 (<see cref="StuffArrival"/>).
+    /// </summary>
+    public const double TierOneHorizonDays = 1.0;
+
     /// <summary>Composition boundary used by normal Rounds facts: one observed frame, stock owner and horizon.</summary>
     public static ColonyForecastRequest CoupledForecastRequestOf(ColonyForecastOrigin origin, double horizonDays,
         RoundsFacts facts, DerivedDemand demand, ForecastActivityProblem activities,

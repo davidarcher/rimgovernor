@@ -152,10 +152,11 @@ public sealed record GearOption
     public EquatableArray<Amount> Ingredients { get; init; }
 
     /// <summary>
-    /// A bill of a stuff the colony can neither take from stock nor make by a known recipe chain (<see cref="GearObtainability"/>):
-    /// never eligible to plan or craft, however good its stats. The colony model still values it as a project's product.
+    /// The days until the option's stuff is in hand (<see cref="StuffArrival"/>): now for an item and a stuffless bill.
+    /// A bill whose stuff arrives after the tier-1 horizon (<see cref="ForecastCoupled.TierOneHorizonDays"/>), or at no
+    /// known day, is never eligible to plan or craft, however good its stats. The colony model still values it as a project's product.
     /// </summary>
-    public bool Unobtainable { get; init; }
+    public Fact<double> Arrival { get; init; } = Known(0.0);
 }
 
 public sealed record GearLoadoutInput
@@ -489,7 +490,7 @@ public static class GearLoadoutRules
     /// <summary><see cref="GearEligible(GearLoadoutInput, GearOption)"/> for a pawn whose <paramref name="role"/> is already derived.</summary>
     private static bool GearEligible(GearLoadoutInput p, GearRole role, GearOption o)
     {
-        if (o.Unobtainable)
+        if (!o.Arrival.TryGetValue(out var arrival) || arrival > ForecastCoupled.TierOneHorizonDays)
         {
             return false;
         }

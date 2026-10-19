@@ -77,7 +77,7 @@ public sealed class PrimaryWeaponRoleTests
             LoadoutModel = new O.GearLoadoutModel(),
         };
         var defs = new GearDefinitions { Catalog = Catalog(), Finished = Known<IReadOnlySet<string>>(new HashSet<string>()) };
-        var model = ColonyGearReads.GearLoadoutModelFacts(defs, tables, 20, row, Known(new RimGovernor.Brain.Policy.ApparelPolicyState()), Unknown<RaidThreat>(), new GearObtainability(new Dictionary<Resource, long>(), _ => []));
+        var model = ColonyGearReads.GearLoadoutModelFacts(defs, tables, 20, row, Known(new RimGovernor.Brain.Policy.ApparelPolicyState()), Unknown<RaidThreat>(), new StuffArrival(new Dictionary<Resource, long>(), []));
         return new GearObservation
         {
             Stored = Known(default(EquatableArray<GearStock>)),

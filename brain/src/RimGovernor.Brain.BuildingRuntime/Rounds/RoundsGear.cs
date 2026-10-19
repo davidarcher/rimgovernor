@@ -2,9 +2,10 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 internal static class RoundsGear
 {
+    /// <summary>The gear census of a step's own colony facts read, which reads no zones: a growing field offers no stuff arrival here.</summary>
     internal static (GearObservation Observation, bool Known) GearObservationFacts(O.ColonyFactsSnapshot observed, Tables tables, GearDefinitions defs)
     {
-        var fact = ColonyGearReads.GearFacts(observed, tables, defs);
+        var fact = ColonyGearReads.GearFacts(observed, tables, defs, Unknown<EquatableArray<FoodField>>(), []);
         return (fact.ValueOrDefault!, fact.IsKnown);
     }
 

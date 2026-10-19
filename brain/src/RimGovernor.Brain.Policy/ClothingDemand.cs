@@ -60,6 +60,51 @@ public sealed record FieldHarvest
     public double WorkPerDay { get; init; }
 }
 
+/// <summary>
+/// When a stuff is in hand (#2467), in days from now: the stock covers the units at once; otherwise the supply candidates
+/// that yield the stuff (a growing field at its harvest lead, a huntable animal's butchery at the hunt's lead) are taken
+/// in lead order and the stuff arrives with the candidate whose yield, added to the stock, covers the units. Unknown
+/// when no known source covers them: a recipe chain has no arrival here yet (tier 2's craft days feed it later).
+/// </summary>
+public sealed class StuffArrival(IReadOnlyDictionary<Resource, long> stock, IReadOnlyList<SupplyCandidate> supply)
+{
+    /// <summary>The day <paramref name="units"/> (at least one) of <paramref name="stuff"/> are in hand, or unknown.</summary>
+    public Fact<double> Of(Resource stuff, long units)
+    {
+        var want = Math.Max(1, units);
+        double have = stock.GetValueOrDefault(stuff);
+        if (have >= want)
+        {
+            return Known(0.0);
+        }
+        var sources = new List<(double Lead, long Units)>();
+        foreach (var c in supply)
+        {
+            var yielded = c.Yields.Where(y => y.Good.Def == stuff && y.StockCap.IsKnown).Sum(y => y.StockCap.Value);
+            if (yielded > 0 && c.LeadDays.TryGetValue(out var lead))
+            {
+                sources.Add((Math.Max(0, lead), yielded));
+            }
+        }
+        foreach (var (lead, yielded) in sources.OrderBy(s => s.Lead))
+        {
+            have += yielded;
+            if (have >= want)
+            {
+                return Known(lead);
+            }
+        }
+        return Unknown<double>();
+    }
+
+    /// <summary>
+    /// The arrival of a gear option's stuff: now for a worn, loose or stored item and for a def made from no stuff;
+    /// for a bill, the arrival of the units of its stuff its ingredients take.
+    /// </summary>
+    public Fact<double> Of(GearOption o) =>
+        o.Source != GearSource.Bill || o.Stuff.IsEmpty ? Known(0.0) : Of(o.Stuff, o.Ingredients.Where(a => a.Resource == o.Stuff).Sum(a => a.Count));
+}
+
 public static class ClothingDemandRules
 {
     /// <summary>How far ahead a wearing garment's replacement is wanted: replacement is gradual, so a field that delivers within it (cotton grows in about a week) serves the demand as well as a hunt.</summary>
@@ -271,5 +316,39 @@ public static class ClothingDemandRules
             LaborPerDay = Known(f.WorkPerDay),
             UpfrontCost = new CandidateCost { LaborTicks = Known(f.SetupTicks) },
         };
+    }
+
+    /// <summary>
+    /// A growing field as the arrival of its harvest (<see cref="StuffArrival"/>): the standing crop's
+    /// <paramref name="units"/> of <paramref name="resource"/> at its harvest lead. Null without a known lead or yield.
+    /// </summary>
+    public static SupplyCandidate? GrowingFieldCandidate(Resource resource, string id, double units, Fact<double> lead)
+    {
+        if (!(units >= 1) || !lead.IsKnown)
+        {
+            return null;
+        }
+        return new SupplyCandidate
+        {
+            Kind = CandidateKind.Harvest,
+            Id = id,
+            State = Known(CandidateState.Delivering),
+            Yields = [new CandidateYield { Good = new ResourceKey { Def = resource }, StockCap = Known((long)units) }],
+            LeadDays = lead,
+        };
+    }
+
+    /// <summary>
+    /// A huntable animal as the arrival of what its butchery yields besides meat (its leather), at the hunt channel's lead
+    /// (none: <see cref="HuntPlanningRules.HuntRosterChannel"/>). Null for a row that is no hunt or yields nothing.
+    /// </summary>
+    public static SupplyCandidate? HuntYieldCandidate(AcquisitionSource s)
+    {
+        var yields = s.Products.Where(p => p.Amount >= 1)
+            .Select(p => new CandidateYield { Good = new ResourceKey { Def = p.Def }, StockCap = Known((long)p.Amount) })
+            .ToArray();
+        return s.Hunt && yields.Length > 0
+            ? CandidateRules.SourceCandidate(CandidateKind.Hunt, s.Id, Unknown<double>(), Unknown<double>(), true, 0, yields)
+            : null;
     }
 }

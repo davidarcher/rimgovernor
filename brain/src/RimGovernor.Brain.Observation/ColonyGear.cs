@@ -7,20 +7,20 @@ public static class ColonyGearReads
 {
     /// <summary>
     /// Decodes the gear census against the frame's definitions: the catalog's apparel rows and stat table give every
-    /// garment's layers, groups and stats, and the finished research its bill options need. A bill option of a stuff
-    /// the stock census and the catalog's recipes do not make obtainable is marked so (<see cref="GearObtainability"/>). A frame
-    /// without a catalog, finished research, stock census or outdoor temperature leaves the census unknown; a pawn the
-    /// loadout model refuses carries the cause in GearPawn.ModelRefusal.
+    /// garment's layers, groups and stats, and the finished research its bill options need. Each bill option carries the
+    /// arrival of its stuff (<see cref="StuffArrivalFacts"/>), counting the growing <paramref name="fields"/> of the
+    /// <paramref name="crops"/>' plants. A frame without a catalog, finished research, stock census or outdoor temperature
+    /// leaves the census unknown; a pawn the loadout model refuses carries the cause in GearPawn.ModelRefusal.
     /// </summary>
-    public static Fact<GearObservation> GearFacts(O.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs)
+    public static Fact<GearObservation> GearFacts(O.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs, Fact<EquatableArray<FoodField>> fields, IReadOnlyList<PlanningDefinition> crops)
     {
         var gear = v.Planning?.Observed?.Gear;
-        if (gear is null || defs.Catalog is not { } catalog || !defs.Finished.TryGetValue(out var finished) || (uint)gear.Pawns.Count != v.ColonistCount
+        if (gear is null || defs.Catalog is not { } catalog || !defs.Finished.IsKnown || (uint)gear.Pawns.Count != v.ColonistCount
             || !ColonyDecodeReads.StockCensus(v).TryGetValue(out var stock))
         {
             return Unknown<GearObservation>();
         }
-        var obtainable = new GearObtainability(stock, r => catalog.RecipeHosts(r.Value, finished));
+        var arrival = StuffArrivalFacts(v, tables, catalog, stock, fields, crops);
         var threat = RaidThreatFacts(v.Threat?.Observed, defs.Catalog);
         var pawns = new List<GearPawn>(gear.Pawns.Count);
         foreach (var p in gear.Pawns)
@@ -38,7 +38,7 @@ public static class ColonyGearReads
             };
             try
             {
-                row = row with { LoadoutModel = GearLoadoutModelFacts(defs, tables, v.OutdoorTemperatureC, p, policy, threat, obtainable) };
+                row = row with { LoadoutModel = GearLoadoutModelFacts(defs, tables, v.OutdoorTemperatureC, p, policy, threat, arrival) };
             }
             catch (DomainException e)
             {
@@ -53,6 +53,35 @@ public static class ColonyGearReads
             Outfits = OutfitIds(PoliciesReads.ColonyPolicies(v.Policies)),
         };
         return Known(result);
+    }
+
+    /// <summary>
+    /// When each gear stuff arrives (#3619): the stock census; the huntable animals of the frame's acquisition census at
+    /// their butchery yields (none when that census is unknown); and the growing <paramref name="fields"/>, each its
+    /// standing crop (the growing cells times the plant's harvest yield) at its harvest lead. A field whose crop the
+    /// <paramref name="crops"/> lack, or whose product or yield is unread, offers nothing; unknown fields offer nothing.
+    /// </summary>
+    internal static StuffArrival StuffArrivalFacts(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog catalog, IReadOnlyDictionary<Resource, long> stock,
+        Fact<EquatableArray<FoodField>> fields, IReadOnlyList<PlanningDefinition> crops)
+    {
+        var supply = new List<SupplyCandidate>();
+        foreach (var s in AcquisitionReads.ColonyAcquisition(v, tables, catalog).ValueOrDefault)
+        {
+            if (ClothingDemandRules.HuntYieldCandidate(s) is { } hunt)
+            {
+                supply.Add(hunt);
+            }
+        }
+        foreach (var f in fields.ValueOrDefault)
+        {
+            var crop = crops.FirstOrDefault(d => d.Name == f.Plan.Crop.Name);
+            if (crop is not null && crop.HarvestedThingDef.TryGetValue(out var product) && crop.HarvestYield.TryGetValue(out var yield)
+                && ClothingDemandRules.GrowingFieldCandidate(new Resource(product), f.Id, f.Plan.Sites.Cells * yield, f.RemainingGrowDays) is { } field)
+            {
+                supply.Add(field);
+            }
+        }
+        return new StuffArrival(stock, supply);
     }
 
     /// <summary>
@@ -78,10 +107,10 @@ public static class ColonyGearReads
     /// garment DesiredApparelPolicy would forbid. A pawn with no apparel policy cannot wear apparel: unknown with no
     /// error. Any other pawn the model cannot be built for (no model, role or temperatures, a garment the catalog
     /// lacks a row or stat values for, or a model outside PlanGearLoadout's bounds such as two worn garments on one
-    /// slot) throws a <see cref="DomainException"/> naming the cause. An option <paramref name="obtainable"/> refuses
-    /// (a bill of a stuff the colony cannot have) is marked <see cref="GearOption.Unobtainable"/>.
+    /// slot) throws a <see cref="DomainException"/> naming the cause. Each option carries its <see cref="GearOption.Arrival"/>
+    /// by <paramref name="arrival"/>.
     /// </summary>
-    public static Fact<GearLoadoutInput> GearLoadoutModelFacts(GearDefinitions defs, Tables tables, double outdoor, O.GearLoadout p, Fact<ApparelPolicyState> state, Fact<RaidThreat> threat, GearObtainability obtainable)
+    public static Fact<GearLoadoutInput> GearLoadoutModelFacts(GearDefinitions defs, Tables tables, double outdoor, O.GearLoadout p, Fact<ApparelPolicyState> state, Fact<RaidThreat> threat, StuffArrival arrival)
     {
         var unknown = Unknown<GearLoadoutInput>();
         var m = p.LoadoutModel;
@@ -154,7 +183,7 @@ public static class ColonyGearReads
         {
             if (GearLoadoutOption(x, catalog) is { } option && (allowed is null || allowed.Contains((x.DefName ?? ""))))
             {
-                options.Add(option with { Unobtainable = !obtainable.Obtainable(option) });
+                options.Add(option with { Arrival = arrival.Of(option) });
             }
         }
         input = input with { Worn = EquatableArray.From(worn), Options = EquatableArray.From(options) };

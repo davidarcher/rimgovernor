@@ -131,14 +131,19 @@ apparel policy (it cannot wear apparel) is unknown with no cause and is skipped 
 blocked, an error otherwise. A frame without the definition catalog, finished research,
 stock census or outdoor temperature leaves the whole census unknown.
 
-A bill option is eligible to plan or craft only for an obtainable stuff
-(`policy.GearObtainability`, #2467; the decode marks the rest `GearOption.Unobtainable`,
-which the colony model still values as a project's product): the stock census holds the
-units the option takes, or a known recipe chain makes it (a catalog recipe whose research
-is finished produces the stuff and every ingredient slot has a member in stock or itself
-made). Stats then choose among the obtainable stuffs,
-so a better stuff with no supply route (plasteel with none in stock and no recipe) is
-never planned; of two options with equal stats the cheaper (`GearOption.Cost`, the def ×
+Each bill option carries the day its stuff arrives (`GearOption.Arrival`, from
+`policy.StuffArrival`, #2467/#3619), and it is eligible to plan or craft only when that day
+is known and within the tier-1 horizon (`ForecastCoupled.TierOneHorizonDays`, one day); the
+colony model still values a later option as a project's product. The stock census covering
+the units the option takes is now. Otherwise the supply that yields the stuff is taken in
+lead order until, with the stock, it covers the units: a growing field's standing crop
+(growing cells times the plant's harvest yield) at its harvest lead, and a huntable animal
+of the acquisition census at its butchery yield (its leather) at the hunt channel's lead of
+zero. A recipe chain gives no arrival yet (tier 2's craft days feed it later), so a stuff
+only a recipe makes is unknown, and unknown is not offered. The decode takes the fields from
+the zones read; a step's own colony facts read (the workshop's gear ladder) has no zones and
+counts no field. Stats then choose among the offered stuffs, so a better stuff with no
+arrival (plasteel with none in stock) is never planned; of two options with equal stats the cheaper (`GearOption.Cost`, the def ×
 stuff market value) wins. This pure the brain model neither discovers
 products nor issues orders. Catalog providers resolve native material stats,
 outfit/body/stage eligibility and available production resources before planning.

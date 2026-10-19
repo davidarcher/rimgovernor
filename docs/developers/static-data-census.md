@@ -48,7 +48,7 @@ Kept, with the reason:
 
 - `NativeGearFacts.Catalog()`: which bill options exist is live state, not row
   data: `RecipeDef.AvailableNow` (finished research, memes, precepts). Every
-  allowed stuff is offered; the brain keeps the obtainable ones.
+  allowed stuff is offered; the brain keeps the ones whose stuff arrives in tier 1.
 - `NativeProductionTracking.OrdinaryMeal()`: a guard inside the native bill
   write path and Harmony hook over live `RecipeDef` objects; no wire field
   carries it.

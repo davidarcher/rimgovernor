@@ -5,7 +5,7 @@ using Amount = RimGovernor.Brain.Policy.Amount;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
-/// <summary>Gear stuff is chosen by stats among obtainable stuffs, cost breaking ties, and its bill makes only that stuff (#2467).</summary>
+/// <summary>Gear stuff is chosen by stats among the stuffs that arrive within tier 1 (StuffArrival), cost breaking ties, and its bill makes only that stuff (#2467).</summary>
 public sealed class GearStuffChoiceTests
 {
     private static readonly Resource Steel = new("Steel");
@@ -27,49 +27,68 @@ public sealed class GearStuffChoiceTests
         Ingredients = [new Amount(new(stuff), 50)],
     };
 
-    private static RecipeHost Makes(Resource product, bool available, params Resource[] from) => new()
-    {
-        Definition = "Make" + product.Value,
-        Products = [product],
-        Available = available,
-        Ingredients = Known(EquatableArray.From(from.Select(r => EquatableArray.From([new Amount(r, 10)])))),
-    };
+    private static readonly Resource Cloth = new("Cloth");
+    private static readonly Resource Leather = new("Leather_Plain");
 
-    private static GearObtainability Obtainability(Dictionary<Resource, long> stock, params RecipeHost[] recipes) =>
-        new(stock, r => [.. recipes.Where(h => h.Products.Contains(r))]);
+    private static StuffArrival Arrival(Dictionary<Resource, long> stock, params SupplyCandidate?[] supply) => new(stock, [.. supply.Select(c => c!)]);
 
-    private static Resource Planned(params GearOption[] options) =>
+    private static GearOption Arrived(GearOption o, StuffArrival arrival) => o with { Arrival = arrival.Of(o) };
+
+    private static Resource? Planned(params GearOption[] options) =>
         GearLoadoutRules.PlanGearLoadout(new GearLoadoutInput { Ambient = 20, ComfortableMin = 10, ComfortableMax = 30, Options = EquatableArray.From(options) })
-            .Target.Single().Stuff;
+            .Target.SingleOrDefault()?.Stuff;
 
     [Fact]
-    public void AnUnobtainableBetterStuffIsNotChosen()
+    public void StockCoveringTheBillArrivesNow()
+    {
+        Assert.Equal(Known(0.0), Arrival(new() { [Plasteel] = 50 }).Of(Shirt("Plasteel", .5)));
+        Assert.False(Arrival(new() { [Plasteel] = 49 }).Of(Shirt("Plasteel", .5)).IsKnown);
+        // An item, and a bill of a def made from no stuff, are in hand.
+        Assert.Equal(Known(0.0), Arrival(new()).Of(Shirt("Plasteel", .5) with { Source = GearSource.Stored }));
+    }
+
+    [Fact]
+    public void AGrowingFieldArrivesAtItsHarvest()
+    {
+        var field = ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 30, Known(3.5));
+        // The stock and the standing crop together cover the 50 units at the harvest.
+        Assert.Equal(Known(3.5), Arrival(new() { [Cloth] = 20 }, field).Of(Shirt("Cloth", .1)));
+        Assert.False(Arrival(new() { [Cloth] = 10 }, field).Of(Shirt("Cloth", .1)).IsKnown);
+        Assert.Null(ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 30, Unknown<double>()));
+    }
+
+    [Fact]
+    public void AHuntableAnimalArrivesAtItsHuntLead()
+    {
+        var deer = new AcquisitionSource { Id = "deer", Hunt = true, Products = [new SourceProduct(Leather, 30)] };
+        var hunt = ClothingDemandRules.HuntYieldCandidate(deer);
+        Assert.Equal(Known(0.0), hunt!.LeadDays);
+        Assert.Equal(Known(0.0), Arrival(new(), hunt, ClothingDemandRules.HuntYieldCandidate(deer with { Id = "doe" })).Of(Shirt(Leather.Value, .1)));
+        // One deer's leather is short of the bill.
+        Assert.False(Arrival(new(), hunt).Of(Shirt(Leather.Value, .1)).IsKnown);
+        Assert.Null(ClothingDemandRules.HuntYieldCandidate(deer with { Hunt = false }));
+    }
+
+    [Fact]
+    public void AStuffWithNoSourceHasNoArrivalAndIsNotOffered()
     {
         GearOption[] options = [Shirt("Plasteel", .5), Shirt("Steel", .2)];
         Assert.Equal(Plasteel, Planned(options)); // Stats alone pick the plasteel.
-        var obtainable = Obtainability(new() { [Steel] = 100 });
-        Assert.Equal(Steel, Planned([.. options.Select(o => o with { Unobtainable = !obtainable.Obtainable(o) })]));
+        var arrival = Arrival(new() { [Steel] = 100 });
+        Assert.False(arrival.Of(options[0]).IsKnown);
+        Assert.Equal(Steel, Planned([.. options.Select(o => Arrived(o, arrival))]));
     }
 
     [Fact]
-    public void AStockShortOfTheBillIsNotObtainable()
+    public void AnArrivalBeyondTheTierOneHorizonIsNotOffered()
     {
-        Assert.False(Obtainability(new() { [Plasteel] = 49 }).Obtainable(Shirt("Plasteel", .5)));
-        Assert.True(Obtainability(new() { [Plasteel] = 50 }).Obtainable(Shirt("Plasteel", .5)));
-    }
-
-    [Fact]
-    public void AKnownRecipeChainMakesAStuffObtainable()
-    {
-        var plasteel = Shirt("Plasteel", .5);
-        var stock = new Dictionary<Resource, long> { [Steel] = 100 };
-        Assert.True(Obtainability(stock, Makes(Plasteel, true, Steel)).Obtainable(plasteel));
-        // Research not finished, or an ingredient neither stocked nor made, or only a cycle: no route.
-        Assert.False(Obtainability(stock, Makes(Plasteel, false, Steel)).Obtainable(plasteel));
-        Assert.False(Obtainability(stock, Makes(Plasteel, true, new Resource("Uranium"))).Obtainable(plasteel));
-        Assert.False(Obtainability(new(), Makes(Plasteel, true, Steel), Makes(Steel, true, Plasteel)).Obtainable(plasteel));
-        // Two links deep: steel made from stocked ore.
-        Assert.True(Obtainability(new() { [new("Ore")] = 5 }, Makes(Plasteel, true, Steel), Makes(Steel, true, new Resource("Ore"))).Obtainable(plasteel));
+        // The better cloth shirt waits on a field; the steel one is in stock.
+        GearOption[] options = [Shirt("Cloth", .5), Shirt("Steel", .2)];
+        Dictionary<Resource, long> stock = new() { [Steel] = 100 };
+        var later = Arrival(stock, ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 50, Known(ForecastCoupled.TierOneHorizonDays + 2)));
+        Assert.Equal(Steel, Planned([.. options.Select(o => Arrived(o, later))]));
+        var soon = Arrival(stock, ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 50, Known(ForecastCoupled.TierOneHorizonDays / 2)));
+        Assert.Equal(Cloth, Planned([.. options.Select(o => Arrived(o, soon))]));
     }
 
     [Fact]

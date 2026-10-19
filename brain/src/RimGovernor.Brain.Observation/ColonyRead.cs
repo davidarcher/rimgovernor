@@ -71,6 +71,7 @@ public static class ColonyReads
             ? await definitionSource.DefinitionCatalogAsync(id, cancellationToken).ConfigureAwait(false)
             : null;
         var projection = ColonyDecodeReads.DecodeColony(reply, expected, tables, catalog);
+        GearDefinitions? gearDefs = null;
         if (planning)
         {
             projection = await PlanningWindowReads.FillPlanningWindow(reply, id, projection, cancellationToken).ConfigureAwait(false);
@@ -85,20 +86,20 @@ public static class ColonyReads
                 // The furniture the room planners place is the catalog's rules too (DefinitionCatalog.RoomFurniture).
                 var shapes = facts.Catalog.PieceShapes();
                 definitions = facts.AppendDefinitions(definitions, shapes.Furniture.Definitions());
-                var gearDefs = new GearDefinitions { Catalog = facts.Catalog, Finished = facts.Finished };
-                var gear = ColonyGearReads.GearFacts(reply.Outcome?.Observed!, tables, gearDefs);
-                projection = projection with
-                {
-                    Definitions = definitions,
-                    Shapes = shapes,
-                    Facts = projection.Facts with { Gear = gear, Garments = EquatableArray.From(ColonyGearReads.ClothingGarments(gearDefs, gear)) },
-                };
+                gearDefs = new GearDefinitions { Catalog = facts.Catalog, Finished = facts.Finished };
+                projection = projection with { Definitions = definitions, Shapes = shapes };
             }
         }
         projection = await ZonesReads.FillZones(source as IZonesNative, id, expected, projection, cancellationToken).ConfigureAwait(false);
         if (planning)
         {
             projection = projection with { Facts = projection.Facts with { Blight = ColonyFramesReads.BlightCensus(projection) } };
+        }
+        // The gear census follows the zones: its bill options' stuff arrivals count the growing fields.
+        if (gearDefs is not null)
+        {
+            var gear = ColonyGearReads.GearFacts(reply.Outcome?.Observed!, tables, gearDefs, projection.FoodFields, projection.Definitions);
+            projection = projection with { Facts = projection.Facts with { Gear = gear, Garments = EquatableArray.From(ColonyGearReads.ClothingGarments(gearDefs, gear)) } };
         }
         // Colony facts do not carry pause state; that fact is the caller's.
         var observed = projection.Identity with { Paused = expected.Paused };
