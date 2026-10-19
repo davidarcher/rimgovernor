@@ -699,7 +699,63 @@ What the day says:
 - **Next cuts, in order.** (1) The waves, 31 s: 25 times a day every entry re-derives its Needs from facts that for
   most families did not change since the last review; the facts records are equatable, so an entry whose read equals
   its last run's could keep its standings and skip the derivation and the work. (2) The hold-to-step latency, 23 s,
-  cause still unconfirmed. The rounds stage, 37 s, is the review itself. The day is under the budget without either.
+  cause still unconfirmed. The rounds stage, 37 s, is the review itself. The day is under the budget without either. Cut 1 landed as 9adcf3d36, measured in the next section.
+
+### A cadence run keeps the waits (#3556)
+
+The first next cut of the entries-on-the-rounder day, redesigned on its measurement: derivation cost 0 ms everywhere
+(`family.derive` spans), so skipping it would have saved nothing. The waves were the work hop: on the 18 `due` runs every
+heavy family's ready Needs returned the same wait or refusal each time (economy `held:no_source` x16, research x17,
+trade `export_bills` x15, admin `construction_labor` x17 and x15, food x17 and x17, rooms `no_space` x17, military x18),
+and only admin/work-assignments (admitted 11 of 17) and shelter/starter (4 of 17) ever did anything. So an entry
+selected `due` alone, on a step whose rounds word is `last` or `due`, runs for its cadence (`FamilyStep.Cadence`): a
+ready Need whose last ordinary run ended in a wait or a refusal keeps that verdict and Method and skips propose, commit
+and work. Open work, a held claim, an unread field and an admission are never kept; a `dirty`, `wake`, `full` or `all`
+selection, a Need that was not ready last time, the immediate pass and another world run the work again. Kept Needs
+are counted on the `clock_step` row (`kept`) and marked on their `planner_step` rows (`kept`). Landed 9adcf3d36.
+
+Measured 2026-10-18, same colony and machine, brain session `949d4fe485dc46faabaab1e5b3898289`, one passing
+colony-review day of 60000 ticks, against the entries-on-the-rounder day above:
+
+| What | Entries-on-the-rounder day | This day |
+| --- | --- | --- |
+| `clock_step` rows | 105: 98 `review`, 5 `wake`, 2 `full`; every one `planned` | 104: 98 `review`, 4 `wake`, 2 `full`; 103 `planned`, the last (60006) failed under the harness's end |
+| `selection` words | `dirty` 76, `due` 396, `dirty+due` 22, `full` 44, `all` 22 | `dirty` 54, `due` 396, `dirty+due` 22, `full` 44, `all` 22 |
+| Steps that ran a wave | 27: 25 rounder steps, 2 `last` | 26: 24 rounder steps, 2 `last` |
+| Needs kept on the 18 `due` rounder steps | 0 | 264: 11 at tick 3000 rising to 18 from 39006 on; 0 on every `wake`, `full`, `all` and `last` step |
+| Due-step `planner_ms` sum, 22 entries x 18 steps | 90 s | 48.6 s |
+| Due-run mean per heavy entry (economy, admin, food, shelter, rooms, medical) | 977, 566, 324, 286, 192, 161 ms | 191, 194, 121, 217, 223, 111 ms |
+| Wave wall (`stage_ms` `critical` + `optional`) | 15.6 s + 15.1 s = 30.7 s | 7.5 s + 6.0 s = 13.5 s |
+| Steps on the last committed review (`rounds` `last`) | 2, 1.4 s | 2, 1.9 s (stockpile fills at 30307 and 51067, 5 entries each, nothing kept) |
+| Rounder runs (`due` / `wake` / `all`), rounds wall | 25 (18 / 4 / 3), 37.3 s | 24 (18 / 3 / 3), 44.2 s |
+| Step wall sum | 78.4 s | 68.3 s |
+| `clock_run` wall | 14.0 s | 13.3 s |
+| Hold-to-step (`stop_latency_ms`) | p50 166 ms, p95 347 ms, 22.7 s over 103 | p50 138 ms, p95 211 ms, 17.4 s over 102 |
+| Brain-held wall / first to last step | 115 s / 168.9 s | 99.0 s / 139.4 s |
+
+What the day says:
+
+- **The wave halved and is now its reads.** The `due` steps' planner time fell from 90 s to 48.6 s and the wave wall
+  from 30.7 s to 13.5 s. On a `due` step a family entry now costs 88 to 223 ms (anomaly and disaster about 30, defense 3), and that is `family.read` with its hop
+  wait (per entry 10 to 93 ms of hop wait on the read); `family.work` ran 25 times for economy over the whole day
+  instead of for its three or four waiting Needs on every wave. The step wall fell 10 s and the brain-held wall 16 s.
+- **What it kept, and what it kept that time could have changed.** Per concern over the 18 steps: admin/burial 17,
+  animals/herd 17, anomaly/monolith 17, economy/research 17, food-stores/storage 17, home-upkeep/clearance 17,
+  layout/defense 17, military/defense 17, rooms/comfort 17, economy/resource 16, food/supply 16, food/cooking 17,
+  admin/stockpiles 14, economy/trade 14, shelter/temperature 11, people/mood 23 over three pawns. Every one is a wait
+  or refusal on the committed review's facts, except people/mood's `method_already_used`, which a cooldown in the
+  journal ends: a kept verdict whose cause is time alone refreshes only on evidence or on the `full` step
+  (`FullStepEvery`, every 2 real minutes). The economy/resource verdict did change during the day, from
+  `awaiting_plan research` (9 due runs) to `held:no_source` (8), at the hazard wakes around tick 30000; without a
+  wake the cadence would have kept the old answer until the `full` step at 54006. Nothing was kept that then
+  admitted: admin/work-assignments (admitted 12, `field_unavailable` 5), shelter/starter (admitted 3, open work 14)
+  and shelter/safe-area (admitted 2) were worked on every run, as the rule requires.
+- **The rounds stage grew 7 s.** 44.2 s over 23 reviews against 37.3 s, p50 1981 ms, one review of 3841 ms at tick
+  9000 (step wall 5037 ms). It is the review itself, not the waves; whether it is the day's noise or the colony's
+  growth needs a second day before it is a cut.
+- **Next cuts, in order.** (1) The reads, 13.5 s: 22 entries each take the colony facts through the game-thread hop on
+  every wave; a read shared across the wave, or taken from the census the review just committed, would leave the
+  wave its work alone. (2) The rounds stage, 44 s. (3) The hold-to-step latency, 17 s, cause still unconfirmed.
 
 ## Hosting in the mod (#3115)
 
