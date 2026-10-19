@@ -182,6 +182,25 @@ public sealed class ClaimAdmissionTests
         Assert.Equal("cell/1/0", again.Conflict!.Claim);
     }
 
+    /// <summary>
+    /// #3614: the reconcile's CoverClearance (HaulOut) claims its cell only, so the Deliver order that works the Haul
+    /// designation it stood (claiming the stack) is admitted beside it; a second clearance of the cell is not.
+    /// </summary>
+    [Fact]
+    public void AHaulOutClaimsItsCellAndTheDeliverOrderOfItsStackIsAdmitted()
+    {
+        using var colony = Open();
+        var haul = DomainAction.NewCoverClearanceAction(new("haul"), new CoverClearance("stack", "Steel", CoverClearanceDesignation.Haul, new(1, 0)));
+        Assert.Equal(ClaimOutcome.Admitted, colony.Shelter("room-haul", haul).Outcome);
+        var step = new PawnActivityStep(PawnActivityKind.Deliver, "stack", "", "", 40, 1000) { Destination = new(5, 5) };
+        var batch = new PawnActivities(1, [new("a", "removal/a", "remove", 0, 1, false, [step]) { Task = "removal/a" }])
+        { Tasks = [new SelectedActivityTask("removal/a", "a", [], step, new(1, 0), 100)] };
+        Assert.Equal(ClaimOutcome.Admitted, colony.Work("remove", DomainAction.NewPawnActivitiesAction(new("order"), batch)).Outcome);
+        var again = colony.Shelter("room-haul-again", DomainAction.NewCoverClearanceAction(new("haul-again"), new CoverClearance("stack", "Steel", CoverClearanceDesignation.Haul, new(1, 0))));
+        Assert.Equal(ClaimOutcome.Conflict, again.Outcome);
+        Assert.Equal("cell/1/0", again.Conflict!.Claim);
+    }
+
     [Fact]
     public void ReleasedShelterMethodFreesItsClaimsAndTheStoreLeavesReissueToThePlanner()
     {

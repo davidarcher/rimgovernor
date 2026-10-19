@@ -161,6 +161,10 @@ execution require a capable hauler, sufficient source quantity and carrying capa
 an empty carry tracker or the exact selected carried stack, and a reachable, unreserved destination without loose items.
 This initial adapter deliberately refuses stack merging and multi-trip deliveries.
 The planner must split larger transfers into bounded attempts and observe each result.
+A delivered stack that carried a Haul designation (the room reconcile's HaulOut, read
+back as a Haul removal op and ordered as this step, #3614) loses the designation on
+the drop, as the native haul does on placing; the order marks any guarded record of
+the designation `Ordered`.
 
 Destination availability is rechecked during execution. A changed destination,
 lost source, capacity shortfall or deadline fails the assignment visibly. Completion

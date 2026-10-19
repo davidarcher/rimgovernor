@@ -811,10 +811,11 @@ furniture is stale). The facility rooms (dining, recreation, lab, workshop,
 kitchen, butchery) reconcile `RingOnly`, read no census and are exempt from
 stale removal: `FacilityWants` names their standing pieces but is not their
 template, and their benches stay where they stand. A `FurnitureOut` stands a
-Deconstruct designation and a `Pack` or `PackInUse` an Uninstall designation, each
-claiming the cell; under voluntary control the forecast reads the standing
-designation back and orders a controlled pawn's Deconstruct or Uninstall work on
-the building (#3557, #3612,
+Deconstruct designation, a `Pack` or `PackInUse` an Uninstall designation and a
+`HaulOut` a Haul designation, each claiming the cell; under voluntary control the
+forecast reads the standing designation back and orders a controlled pawn's
+Deconstruct or Uninstall work on the building, or its delivery of the stack to
+storage outside the room (#3557, #3612, #3614,
 [colony forecast](colony-forecast.md#construction-commitments-and-shared-capacity)).
 
 ### Throne room

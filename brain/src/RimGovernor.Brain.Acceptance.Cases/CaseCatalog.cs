@@ -17,6 +17,7 @@ public static class CaseCatalog
         registry.Register(ControlDeconstruct.Case());
         registry.Register(ControlDeconstruct.Case(designated: true));
         registry.Register(ControlUninstall.Case());
+        registry.Register(ControlHaul.Case());
         registry.Register(RemovalDesignationRowsCase.Case());
         registry.Register(ConstructionRouteLegsCase.Case());
         registry.Register(ProductionCoupledNeeds.Case());

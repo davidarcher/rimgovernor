@@ -7,13 +7,33 @@ internal static class ConstructionMethodCandidates
     internal const string FlooringRelief = "flooring"; // one relief per floor site, so each laid floor is credited once
     internal const string RemovalRelief = "removal"; // one relief per standing removal designation, so each removal is credited once (#3557)
 
-    /// <summary>The pawn activity job a standing removal op binds as, by kind (#3612); null for a kind no order works yet.</summary>
+    /// <summary>
+    /// The pawn activity job a standing removal op binds as Work of, by kind (#3612); null for a Haul, which binds as a
+    /// Deliver of the stack (#3614), and for a kind no order works yet.
+    /// </summary>
     internal static string? RemovalJob(PlannedClearingKind kind) => kind switch
     {
         PlannedClearingKind.Deconstruct => "Deconstruct",
         PlannedClearingKind.Uninstall => "Uninstall",
         _ => null,
     };
+
+    /// <summary>A standing removal row a pawn can work: a Haul's delivery is known and one trip (#3614), another kind's finish.</summary>
+    private static bool Workable(PlannedClearingKind kind, ConstructionActivityOption row) =>
+        kind == PlannedClearingKind.Haul ? OneTrip(row) && row.DeliveryTicks.IsKnown : row.FinishTicks.IsKnown;
+
+    /// <summary>A haul row the Deliver step can work: the whole stack in one carry (the step refuses multi-trip deliveries).</summary>
+    internal static bool OneTrip(ConstructionActivityOption row) => row.Count > 0 && row.Capacity >= row.Count;
+
+    /// <summary>
+    /// The task a standing removal row binds (#3557, #3612, #3614): a Haul is the pawn's Deliver of the stack (Count the
+    /// stack, Destination the row's storage cell), as a support delivery binds; any other kind is Work of the kind's job.
+    /// </summary>
+    internal static ActivityTaskCandidate RemovalBinding(string id, PlannedClearingKind kind, ConstructionActivityOption row, string target, long deadline) =>
+        kind == PlannedClearingKind.Haul
+            ? new(id, row.Pawn, [], PawnActivityKind.Deliver, target, "", "", row.Count, deadline, row.Origin)
+                { Resource = row.Resource, Source = row.Origin, Destination = row.Location, Capacity = row.Capacity }
+            : new(id, row.Pawn, [], PawnActivityKind.Work, target, row.WorkGiver, RemovalJob(kind)!, 0, deadline, row.Location) { SiteDefinition = row.Definition };
 
     internal static CoordinatedMethodCandidates Generate(ConstructionActivityRead read, long deadline, WorkResourceView resources, IReadOnlySet<string> floors)
     {
@@ -92,19 +112,22 @@ internal static class ConstructionMethodCandidates
                     ? new([new(FlooringRelief + "/" + first.Site, ProductionNeedPriority.Maintenance, 1.0)], default, default) : null
             });
         }
-        // A standing removal designation (#3557, #3612): the room reconcile stood a Deconstruct over an interior ruin or a
-        // stale piece, or an Uninstall over a piece it packs, and under voluntary control only an order works it. Each
-        // building is the pawn's Work task of the op's kind on it, one unit of requested development when it comes down
-        // (its relief, like a floor's, also exempts it from the thermal gate). A kind with no job binds nothing.
-        var removals = read.Removals.Where(op => RemovalJob(op.Kind) != null && !resources.Claims.Targets.Contains(op.Id))
-            .Select(op => (op.Id, Job: RemovalJob(op.Kind)!, Rows: op.Options.Where(o => !resources.Claims.Pawns.Contains(o.Pawn) && o.FinishTicks.IsKnown)
+        // A standing removal designation (#3557, #3612, #3614): the room reconcile stood a Deconstruct over an interior ruin
+        // or a stale piece, an Uninstall over a piece it packs, or a Haul over a stack it moves out, and under voluntary
+        // control only an order works it. Each building is the pawn's Work task of the op's kind on it and each stack the
+        // pawn's Deliver of it to the row's storage cell, one unit of requested development when it is gone (its relief,
+        // like a floor's, also exempts it from the thermal gate). A kind with no job binds nothing.
+        var removals = read.Removals.Where(op => (op.Kind == PlannedClearingKind.Haul || RemovalJob(op.Kind) != null) && !resources.Claims.Targets.Contains(op.Id))
+            .Select(op => (op.Id, op.Kind, Rows: op.Options.Where(o => !resources.Claims.Pawns.Contains(o.Pawn) && Workable(op.Kind, o))
                 .GroupBy(o => o.Pawn).Select(g => g.First()).ToArray()))
             .Where(op => op.Rows.Length > 0).OrderBy(op => op.Id, StringComparer.Ordinal).Take(17).ToArray();
         foreach (var op in removals.Take(16))
         {
             var id = "removal-" + outcomes.Count;
             var first = op.Rows[0];
-            var location = ForecastLocations.Of(first.Location);
+            var haul = op.Kind == PlannedClearingKind.Haul;
+            // A haul is worked from the stack's cell; a building's removal at the building.
+            var location = ForecastLocations.Of(haul ? first.Origin : first.Location);
             activities.Add(new(id, location, location, []));
             // The building stands: like a supplied site's finish, the op needs only its observed readiness to compose.
             var ready = "removal-ready/" + id;
@@ -117,10 +140,9 @@ internal static class ConstructionMethodCandidates
             foreach (var row in op.Rows)
             {
                 workers.Add(row.Pawn);
-                options.Add(new(id, row.Pawn, row.FinishTicks, Known(0.0)));
-                routes.Add(new(row.Pawn, "start", location, row.SiteApproachTicks));
-                bindings[(id, row.Pawn)] = new(id, row.Pawn, [], PawnActivityKind.Work, op.Id, row.WorkGiver, op.Job, 0, deadline, row.Location)
-                { SiteDefinition = row.Definition };
+                options.Add(new(id, row.Pawn, haul ? row.DeliveryTicks : row.FinishTicks, Known(0.0)));
+                routes.Add(new(row.Pawn, "start", location, haul ? row.ApproachTicks : row.SiteApproachTicks));
+                bindings[(id, row.Pawn)] = RemovalBinding(id, op.Kind, row, op.Id, deadline);
             }
             outcomes.Add(new(id, "construction-method", id, Known((double)horizon), default)
             {

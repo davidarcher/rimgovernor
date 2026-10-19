@@ -50,15 +50,19 @@ internal static class NativeConstructionActivity
                 p => !thing.IsForbidden(p), p => floorKnown && ConstructionSkillGuard.Allows(thing, p)));
         }
         var planned = request.Planned.Select(s => Prepare(map, s, findings)).ToArray();
-        // The standing removal designations (#3557, #3612): the Deconstruct the room reconcile stood over an interior ruin or
-        // a stale piece (or the player's own) and the Uninstall it stood over a piece it packs. Under voluntary control
-        // nothing else works them; the brain binds each as its kind's work.
+        // The standing removal designations (#3557, #3612, #3614): the Deconstruct the room reconcile stood over an interior
+        // ruin or a stale piece (or the player's own), the Uninstall it stood over a piece it packs and the Haul it stood over
+        // a stack it moves out. Under voluntary control nothing else works them; the brain binds each building as its kind's
+        // work and each stack as a delivery to storage outside its planned room's footprint (the whole map's best storage
+        // when no planned site covers it).
         var removals = map.designationManager.AllDesignations
             .Select(d => (Kind: d.def == DesignationDefOf.Deconstruct ? Obs.PlannedClearingKind.Deconstruct
-                : d.def == DesignationDefOf.Uninstall ? Obs.PlannedClearingKind.Uninstall : Obs.PlannedClearingKind.Unspecified, Building: d.target.Thing as Verse.Building))
-            .Where(d => d.Building != null && d.Building.Spawned && (d.Kind == Obs.PlannedClearingKind.Deconstruct ? d.Building.DeconstructibleBy(Faction.OfPlayer).Accepted
-                : d.Kind == Obs.PlannedClearingKind.Uninstall && Uninstallable(d.Building)))
-            .Select(d => (d.Kind, Building: d.Building!)).Distinct().OrderBy(d => d.Building.thingIDNumber).ThenBy(d => d.Kind).ToArray();
+                : d.def == DesignationDefOf.Uninstall ? Obs.PlannedClearingKind.Uninstall
+                : d.def == DesignationDefOf.Haul ? Obs.PlannedClearingKind.Haul : Obs.PlannedClearingKind.Unspecified, Thing: d.target.Thing))
+            .Where(d => d.Thing != null && d.Thing.Spawned && (d.Kind == Obs.PlannedClearingKind.Deconstruct ? d.Thing is Verse.Building deconstructible && deconstructible.DeconstructibleBy(Faction.OfPlayer).Accepted
+                : d.Kind == Obs.PlannedClearingKind.Uninstall ? d.Thing is Verse.Building packable && Uninstallable(packable)
+                : d.Kind == Obs.PlannedClearingKind.Haul && Haulable(d.Thing)))
+            .Select(d => (d.Kind, Thing: d.Thing!)).Distinct().OrderBy(d => d.Thing.thingIDNumber).ThenBy(d => d.Kind).ToArray();
         Lap("placement");
         var (options, answers, routes, runRemovals, found) = legs.Batched(() =>
         {
@@ -71,11 +75,21 @@ internal static class NativeConstructionActivity
             var free = roster.Where(Free).ToArray();
             var deconstructGiver = Giver<WorkGiver_Deconstruct>();
             var uninstallGiver = Giver<WorkGiver_Uninstall>();
+            var haulGiver = Giver<WorkGiver_HaulGeneral>();
             var removalOps = new List<Obs.PlannedSiteClearing>();
-            foreach (var (kind, building) in removals)
+            foreach (var (kind, thing) in removals)
             {
+                var id = thing.GetUniqueLoadID();
+                if (kind == Obs.PlannedClearingKind.Haul)
+                {
+                    // The stack leaves the planned room it stands in: storage inside any planned footprint covering it is no destination.
+                    var footprint = new HashSet<IntVec3>(planned.Where(p => p.Site != null && p.Site.Footprint.Contains(thing.Position)).SelectMany(p => p.Site!.Footprint));
+                    if (Destination(map, thing, footprint) is not { } destination) { runFindings.Add("removal_haul_destination_unknown"); continue; }
+                    removalOps.Add(new(id, kind) { Options = EquatableArray.From(HaulRows(legs, free, thing, id, thing.def.defName, haulGiver, destination)) });
+                    continue;
+                }
+                var building = (Verse.Building)thing;
                 if (NativeDesignationGuards.RoofWait(building) != null) { runFindings.Add("removal_roof_support"); continue; }
-                var id = building.GetUniqueLoadID();
                 var rows = kind == Obs.PlannedClearingKind.Uninstall
                     ? RemovalRows(legs, free, building, id, building.def.defName, uninstallGiver, building.def.building.uninstallWork)
                     : RemovalRows(legs, free, building, id, building.def.defName, deconstructGiver, DeconstructWork(building));
@@ -266,22 +280,7 @@ internal static class NativeConstructionActivity
         {
             if (Destination(map, item, footprint) is not { } destination) { unknown = true; findings.Add("planned_clearing_haul_destination_unknown"); continue; }
             var id = site + "/haul/" + item.GetUniqueLoadID();
-            var rows = new List<Obs.ConstructionActivityOption>();
-            foreach (var pawn in pawns)
-            {
-                var capacity = pawn.carryTracker.MaxStackSpaceEver(item.def);
-                if (capacity <= 0 || item.IsForbidden(pawn) || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) || pawn.WorkTagIsDisabled(WorkTags.ManualDumb)
-                    || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) || !pawn.CanReserveAndReach(item, PathEndMode.Touch, Danger.None)) continue;
-                if (legs.Cost(pawn, pawn.Position, item, PathEndMode.Touch) is not { } first
-                    || legs.Cost(pawn, item.Position, destination, PathEndMode.OnCell) is not { } loaded
-                    || legs.Cost(pawn, destination, item, PathEndMode.Touch) is not { } returning) continue;
-                var trips = (item.stackCount + capacity - 1) / capacity;
-                rows.Add(new(id, definition.defName, new(destination.x, destination.z), pawn.GetUniqueLoadID(), item.def.defName, item.GetUniqueLoadID(),
-                    new(item.Position.x, item.Position.z), item.stackCount, capacity, haulGiver, Fact.Known((double)first),
-                    Fact.Known((double)loaded * trips + returning * (trips - 1)), Fact.Known(0.0))
-                    { SiteApproachTicks = Fact.Known((double)first), AvailableInput = Fact.Known((double)item.stackCount) });
-            }
-            result.Add(new(id, Obs.PlannedClearingKind.Haul) { Options = EquatableArray.From(rows) });
+            result.Add(new(id, Obs.PlannedClearingKind.Haul) { Options = EquatableArray.From(HaulRows(legs, pawns, item, id, definition.defName, haulGiver, destination)) });
         }
         return result;
 
@@ -329,6 +328,33 @@ internal static class NativeConstructionActivity
         }
         return rows;
     }
+
+    // A stack's haul rows (a planned clearing's, or a standing Haul designation's, #3614), one per free pawn able to haul
+    // it with a carry capacity and routes: Site is the op, Input the stack's id, Resource its def, Origin its cell,
+    // Location the destination, Count the stack and Capacity the carry; ApproachTicks (and SiteApproachTicks) the pickup
+    // route, DeliveryTicks the loaded carries plus the returns between trips, FinishTicks a known 0.
+    private static List<Obs.ConstructionActivityOption> HaulRows(NativePathLegs legs, Pawn[] pawns, Thing item, string site, string definition, string giver, IntVec3 destination)
+    {
+        var rows = new List<Obs.ConstructionActivityOption>();
+        foreach (var pawn in pawns)
+        {
+            var capacity = pawn.carryTracker.MaxStackSpaceEver(item.def);
+            if (capacity <= 0 || item.IsForbidden(pawn) || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) || pawn.WorkTagIsDisabled(WorkTags.ManualDumb)
+                || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) || !pawn.CanReserveAndReach(item, PathEndMode.Touch, Danger.None)) continue;
+            if (legs.Cost(pawn, pawn.Position, item, PathEndMode.Touch) is not { } first
+                || legs.Cost(pawn, item.Position, destination, PathEndMode.OnCell) is not { } loaded
+                || legs.Cost(pawn, destination, item, PathEndMode.Touch) is not { } returning) continue;
+            var trips = (item.stackCount + capacity - 1) / capacity;
+            rows.Add(new(site, definition, new(destination.x, destination.z), pawn.GetUniqueLoadID(), item.def.defName, item.GetUniqueLoadID(),
+                new(item.Position.x, item.Position.z), item.stackCount, capacity, giver, Fact.Known((double)first),
+                Fact.Known((double)loaded * trips + returning * (trips - 1)), Fact.Known(0.0))
+                { SiteApproachTicks = Fact.Known((double)first), AvailableInput = Fact.Known((double)item.stackCount) });
+        }
+        return rows;
+    }
+
+    // A spawned item a standing Haul designation names that hauling can move (#3614).
+    private static bool Haulable(Thing thing) => thing.def.category == ThingCategory.Item && thing.def.EverHaulable;
 
     // The nearest cell of the best-priority player storage that accepts the stack, outside the footprint
     // (StoreUtility.TryFindBestBetterStoreCellFor's order, scanned exactly instead of sampled).

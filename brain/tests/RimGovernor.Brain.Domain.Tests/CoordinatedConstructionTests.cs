@@ -108,6 +108,43 @@ public sealed class CoordinatedConstructionTests
             b => b.Job == job);
     }
 
+    /// <summary>
+    /// #3614: a Haul designation the room reconcile stood over a stack in the room (HaulOut) is a Haul removal op whose rows
+    /// are the planned-clearing haul rows. The family binds it as the pawn's Deliver of the stack (Count the stack) to the
+    /// row's destination with the removal's relief, and the selection orders it. A row whose delivery is unknown binds nothing.
+    /// </summary>
+    [Fact]
+    public void AStandingHaulDesignationIsADeliverOfTheStackTheSelectionOrders()
+    {
+        const string item = "Thing_Steel1";
+        var store = new Cell(40, 30);
+        var origin = new Cell(30, 30);
+        var row = new ConstructionActivityOption(item, "Steel", store, "producer", "Steel", item, origin, 75, 75, "HaulGeneral",
+            Known(10d), Known(20d), Known(0d)) { SiteApproachTicks = Known(10d), AvailableInput = Known(75d) };
+        PlannedSiteClearing Removal(params ConstructionActivityOption[] rows) => new(item, PlannedClearingKind.Haul) { Options = EquatableArray.From(rows) };
+        var facts = RemovalFacts(Removal(row, row with { Pawn = "helper", DeliveryTicks = Known(30d) }));
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
+        var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Kind == PawnActivityKind.Deliver && b.Pawn == "producer");
+        Assert.Equal((item, 75, "Steel", 75, ""), (binding.Target, binding.Count, binding.Resource, binding.Capacity, binding.SupportDemand));
+        Assert.Equal(store, binding.Destination);
+        Assert.Equal(origin, binding.Source);
+        var root = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome == "construction/" + item);
+        Assert.Equal("removal/" + item, Assert.Single(root.Outcome!.Requirements!.Relief).Need);
+
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        Assert.Contains(root.Id, selected.Selection.Selected);
+        var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
+        var task = Assert.Single(batch.Tasks);
+        Assert.Equal((binding.Id, "producer", PawnActivityKind.Deliver, item, 75), (task.Id, task.Pawn, task.Step.Kind, task.Step.Target, task.Step.Count));
+        Assert.Equal(store, task.Step.Destination);
+        Assert.Contains(batch.Orders, o => o.Pawn == "producer" && !o.Release && o.Task == task.Id);
+
+        Assert.DoesNotContain(ForecastCoupledCandidates.GenerateCoupledActivities(RemovalFacts(Removal(row with { DeliveryTicks = default })), 1900)!.Context.Bindings.Values,
+            b => b.Kind == PawnActivityKind.Deliver);
+    }
+
     /// <summary>#3612: the 16-op cap is shared across removal kinds, and a kind no order works yet (RemoveFloor) binds nothing.</summary>
     [Fact]
     public void RemovalOpsShareOneCapAcrossKindsAndAnUnworkedKindBindsNothing()

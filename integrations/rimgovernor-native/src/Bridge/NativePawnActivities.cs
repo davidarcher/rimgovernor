@@ -311,8 +311,15 @@ namespace HomeBridge.BridgeTools
             {
                 if (!e.Order.Release)
                     foreach (var step in e.Order.Steps)
+                    {
                         if (step.Kind == PawnActivityKind.Work && step.Job is "Deconstruct" or "Uninstall" && Thing(step.Target) is Verse.Building building)
                             StandRemoval(building, step.Job == "Deconstruct" ? DesignationDefOf.Deconstruct : DesignationDefOf.Uninstall);
+                        // A delivery of a stack under a Haul designation works the designation (#3614): a guarded record of it is Ordered.
+                        else if (step.Kind == PawnActivityKind.Deliver && Thing(step.Target) is { Spawned: true } stack
+                            && stack.Map.designationManager.DesignationOn(stack, DesignationDefOf.Haul) != null
+                            && NativeDesignationGuards.Open(stack.Map, DesignationDefOf.Haul, stack.Position, stack) is { } record)
+                            record.Ordered = true;
+                    }
                 // Retain only the last release receipt in the same row so an uncertain Hands retry is
                 // idempotent. This row owns no job; a fresh assignment may acquire from revision zero.
                 if (e.Order.Release) { e.State = "released"; Emit(e); }
@@ -720,12 +727,20 @@ namespace HomeBridge.BridgeTools
             yield return Toils_Goto.GotoCell(TargetIndex.B, PathEndMode.OnCell);
             yield return Toils_General.DoAtomic(() =>
             {
-                var before = job.targetB.Cell.GetThingList(pawn.Map).Where(t => t.def == pawn.carryTracker.CarriedThing?.def).Sum(t => t.stackCount);
-                if (pawn.carryTracker.CarriedThing?.stackCount != job.count
+                var carried = pawn.carryTracker.CarriedThing;
+                var before = job.targetB.Cell.GetThingList(pawn.Map).Where(t => t.def == carried?.def).Sum(t => t.stackCount);
+                if (carried?.stackCount != job.count
                     || !DestinationValid()
                     || !pawn.carryTracker.TryDropCarriedThing(job.targetB.Cell, ThingPlaceMode.Direct, out var delivered)
                     || delivered == null || delivered.Position != job.targetB.Cell || delivered.stackCount != before + job.count)
+                {
                     EndJobWith(JobCondition.Incompletable);
+                    return;
+                }
+                // A Haul designation rides the carried stack (only Toils_Haul.PlaceHauledThingInCell and destruction clear
+                // it): the delivered stack has been hauled, as the vanilla haul clears it on placing (#3614).
+                pawn.Map.designationManager.TryRemoveDesignationOn(carried, DesignationDefOf.Haul);
+                pawn.Map.designationManager.TryRemoveDesignationOn(delivered, DesignationDefOf.Haul);
             });
         }
     }

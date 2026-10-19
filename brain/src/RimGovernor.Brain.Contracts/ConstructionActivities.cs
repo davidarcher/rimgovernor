@@ -113,9 +113,10 @@ public enum PlannedClearingKind
 /// A clearing op: a prerequisite of a planned site (one Cut op for all its plants, one Mine op for all its natural
 /// rock, one Haul op per haulable stack, one Deconstruct op per deconstructible building), or a standing removal
 /// designation (<see cref="ConstructionActivityRead.Removals"/>: one Deconstruct or Uninstall op per designated
-/// building, <see cref="Id"/> the building's id). A single-building op's rows name the building: <c>Input</c> its id,
-/// <c>Resource</c> its def. <see cref="Options"/> are per-pawn rows in the <see cref="ConstructionActivityOption"/>
-/// shape with <c>Site</c> = <see cref="Id"/>; a pawn that cannot do it or has no route has no row.
+/// building and one Haul op per designated stack, <see cref="Id"/> the thing's id). A single-thing op's rows name the
+/// thing: <c>Input</c> its id, <c>Resource</c> its def. <see cref="Options"/> are per-pawn rows in the
+/// <see cref="ConstructionActivityOption"/> shape with <c>Site</c> = <see cref="Id"/>; a pawn that cannot do it or has
+/// no route has no row.
 /// </summary>
 public sealed record PlannedSiteClearing(string Id, PlannedClearingKind Kind)
 {
@@ -146,13 +147,17 @@ public sealed record ConstructionActivityRead
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSiteAnswer>))]
     public EquatableArray<PlannedSiteAnswer> Planned { get; init; }
     /// <summary>
-    /// The standing removal designations as clearing ops (#3557, #3612): one <c>Deconstruct</c> op per Deconstruct
+    /// The standing removal designations as clearing ops (#3557, #3612, #3614): one <c>Deconstruct</c> op per Deconstruct
     /// designation on a building the colony may deconstruct (a reconcile-stood interior ruin or stale piece, the colony's
-    /// own) and one <c>Uninstall</c> op per Uninstall designation on a minifiable building of the colony's (the reconcile's
-    /// Pack), <c>Id</c> the building's id. Each op has one row per free colonist: <c>Site</c> and <c>Input</c> the building's
-    /// id, <c>Definition</c> and <c>Resource</c> its def, <c>Location</c> its cell, <c>WorkGiver</c> the removal's giver,
+    /// own), one <c>Uninstall</c> op per Uninstall designation on a minifiable building of the colony's (the reconcile's
+    /// Pack) and one <c>Haul</c> op per Haul designation on a spawned haulable item (the reconcile's HaulOut), <c>Id</c> the
+    /// thing's id. A building's op has one row per free colonist: <c>Site</c> and <c>Input</c> the building's id,
+    /// <c>Definition</c> and <c>Resource</c> its def, <c>Location</c> its cell, <c>WorkGiver</c> the removal's giver,
     /// <c>FinishTicks</c> its work; a roof-holder the enclosure guard would wait on has no op (finding
-    /// <c>removal_roof_support</c>).
+    /// <c>removal_roof_support</c>). A stack's op has the planned-clearing haul rows (<c>Origin</c> the stack's cell,
+    /// <c>Location</c> the nearest cell of the best storage accepting it outside any planned footprint covering it,
+    /// <c>Count</c> the stack, <c>DeliveryTicks</c> by trips); a stack with no destination has no op (finding
+    /// <c>removal_haul_destination_unknown</c>).
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSiteClearing>))]
     public EquatableArray<PlannedSiteClearing> Removals { get; init; }

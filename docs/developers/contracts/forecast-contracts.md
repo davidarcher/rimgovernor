@@ -568,7 +568,8 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   outside the footprint, `ApproachTicks` (and `SiteApproachTicks`) the pickup route,
   `DeliveryTicks` the loaded carries plus returns over `Capacity`, and `FinishTicks`
   is a known 0. Native's own blocking haul moves the stack aside; the forecast
-  charges a carry to storage instead (#3241). One `Deconstruct` op per building the
+  charges a carry to storage instead (#3241), and binds a stack the pawn carries in
+  one trip as its Deliver to `Location` before placement (#3614). One `Deconstruct` op per building the
   player may deconstruct (`<site>/deconstruct/<thing>`: a ruin wall, door or piece
   of furniture, or the colony's own; #3557): `Input` is the building's id,
   `Resource` its def and `Location` its cell; `FinishTicks` is `JobDriver_Deconstruct`'s
@@ -619,23 +620,30 @@ them per round ([planned-site facts](../architecture/colony-forecast.md#planned-
 ### Standing removals
 
 Every construction activity read also reports the standing removal designations
-(#3557, #3612): the Deconstruct the room reconcile stood over an interior ruin or a
-stale piece (`FurnitureOut`), or the player's own, and the Uninstall it stood over a
-piece it packs (`Pack`, `PackInUse`). Under voluntary control nothing works a
-designation by itself, so the coupled census reads them and the forecast binds each
-as a pawn's Work order of the op's kind. `ConstructionActivityRead.Removals` is one
-`PlannedSiteClearing` op per designated building, the same shape as a planned site's
-clearing: `Id` the building's id, `Kind` `Deconstruct` (a building the colony may
-deconstruct) or `Uninstall` (a minifiable building of the colony's own, what
-`WorkGiver_Uninstall` takes), and `Options` one row per free colonist: `Site` and
-`Input` the building's id, `Definition` and `Resource` its def, `Location` its cell,
-`WorkGiver` the deconstruct or uninstall giver, `SiteApproachTicks` the route and
-`FinishTicks` the job's work (`JobDriver_Deconstruct`'s clamped `WorkToBuild`, or
-`JobDriver_Uninstall`'s `uninstallWork`) over `ConstructionSpeed x 1.7` a tick;
-`Count` and `Capacity` are 0. A building whose removal the enclosure guard would hold
-for roof support has no op (finding `removal_roof_support`); a pawn incapable of
-Construction or with no route has no row. `PlannedClearingKind.RemoveFloor` is
-declared for the FloorOut op (#3615); no read emits it yet.
+(#3557, #3612, #3614): the Deconstruct the room reconcile stood over an interior ruin
+or a stale piece (`FurnitureOut`), or the player's own, the Uninstall it stood over a
+piece it packs (`Pack`, `PackInUse`) and the Haul it stood over a stack it moves out
+(`HaulOut`). Under voluntary control nothing works a designation by itself, so the
+coupled census reads them and the forecast binds each building as a pawn's Work order
+of the op's kind and each stack as a pawn's Deliver of it. `ConstructionActivityRead.Removals`
+is one `PlannedSiteClearing` op per designated thing, the same shape as a planned
+site's clearing: `Id` the thing's id, `Kind` `Deconstruct` (a building the colony may
+deconstruct), `Uninstall` (a minifiable building of the colony's own, what
+`WorkGiver_Uninstall` takes) or `Haul` (a spawned haulable item), and `Options` one
+row per free colonist. A building's rows: `Site` and `Input` the building's id,
+`Definition` and `Resource` its def, `Location` its cell, `WorkGiver` the deconstruct
+or uninstall giver, `SiteApproachTicks` the route and `FinishTicks` the job's work
+(`JobDriver_Deconstruct`'s clamped `WorkToBuild`, or `JobDriver_Uninstall`'s
+`uninstallWork`) over `ConstructionSpeed x 1.7` a tick; `Count` and `Capacity` are 0.
+A building whose removal the enclosure guard would hold for roof support has no op
+(finding `removal_roof_support`); a pawn incapable of Construction or with no route
+has no row. A stack's rows are the planned-clearing haul rows (`Definition` the
+stack's def): `Location` the nearest cell of the best-priority player storage
+accepting it outside the footprint of every requested planned site covering the
+stack's cell (the whole map when none does), `Origin` its cell, `Count` the stack,
+`DeliveryTicks` by trips; a stack with no such destination has no op (finding
+`removal_haul_destination_unknown`). `PlannedClearingKind.RemoveFloor` is declared
+for the FloorOut op (#3615); no read emits it yet.
 
 ### Planned shelter thermal read
 
