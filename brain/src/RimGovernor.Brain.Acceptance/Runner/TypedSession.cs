@@ -324,12 +324,15 @@ public sealed class TypedSession
             }
 
             service.KeepAuthority(cancellationToken);
+
+            // The served clock runs thousands of ticks a second, so the default 2 s poll overshoots a probe's outcome by
+            // thousands of ticks of the budget (#3598); poll as often as a harness-run clock does.
             var ran = await ServedWait.UntilAsync(
                 label,
                 ticks,
                 H.TickAsync,
                 probe,
-                new Wait { Stall = Wait.StallBudget(), Terminal = service.Exited },
+                new Wait { Stall = Wait.StallBudget(), Interval = RunAt.RunInterval, Terminal = service.Exited },
                 cancellationToken).ConfigureAwait(false);
             _spent += ran;
             return ran;

@@ -85,7 +85,8 @@ identity), `Staged` and `TicksLeft`. Its members:
   read the profile's save file. The body retires every game it launches.
 - **Served wait:** `ServeUntilAsync(label, ticks, probe)` hands the clock to the declared `Serve`. It starts the
   brain service, resumes automatic control under a kept authority, and observes while the brain runs the game until
-  the probe is done. Then it stops the service and parks the brain. The budget is game ticks read from the game and
+  the probe is done, probing every 250 ms (`RunAt.RunInterval`) because the served clock runs thousands of ticks a
+  second. Then it stops the service and parks the brain. The budget is game ticks read from the game and
   spent from `Ticks` like the other waits; running past it fails, even when the probe finishes late. The service's
   exit and the stall budget end a run that stops moving, and the hang guard is the wall-clock backstop. A served
   case stages its precondition, and its probe reads the outcome through typed reads and telemetry. It may also

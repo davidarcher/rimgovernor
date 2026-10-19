@@ -594,6 +594,10 @@ namespace HomeBridge.BridgeTools
             { p.jobs.EndCurrentJob(JobCondition.Incompletable); return; }
             if (step.Practice is { } practice && !NativePracticeActivities.Assigned(p, practice))
             { p.jobs.EndCurrentJob(JobCondition.Succeeded); return; }
+            // The forecast's sleep ends at the wake threshold; the native LayDown toil wakes there but never completes, so a
+            // rested pawn would lie awake in bed, still owned, until the planned end (#3598).
+            if (step.Kind == PawnActivityKind.Sleep && !__instance.asleep && p.needs.rest != null && RestUtility.ShouldWakeUp(p))
+            { p.jobs.EndCurrentJob(JobCondition.Succeeded); return; }
             if (Find.TickManager.TicksGame < step.Deadline) return;
             p.jobs.EndCurrentJob(step.Practice != null || e.Order.Steps[e.Step].Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? JobCondition.Succeeded : JobCondition.Incompletable);
         }

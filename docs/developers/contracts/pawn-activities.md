@@ -222,7 +222,8 @@ deadlines never reset when revisited. The first dependency adapter holds on an
 exact known filth reference: its destruction makes the authorized continuation
 eligible; a missing/unspawned dependency is not guessed complete. More complex
 dependencies require policy revisions. A deadline without release fails visibly.
-Sleep and recreation are bounded by their deadlines and may finish earlier through native recovery.
+Sleep and recreation are bounded by their deadlines and may finish earlier through native recovery:
+a sleep step succeeds once its pawn is awake at the native wake threshold, as the forecast's sleep ends.
 An exact admitted recreation job ignores the legacy timetable's joy permission:
 the Method owns its service window. Native joy gain, tolerance, target legality,
 player authority and the absolute deadline still apply.

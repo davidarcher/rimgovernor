@@ -85,12 +85,12 @@ public sealed partial class PawnControlFixture
         if (portfolioSlept && ___pawn.Awake()) portfolioWoke = true;
         if (owned && ___pawn.CurJobDef?.defName == "Play_Horseshoes" && ___pawn.needs.joy.CurLevelPercentage > .2f) portfolioPlayed = true;
     }
-    [Tool("test/portfolio_needs_repeat", Description="UNSAFE FOR MODEL EXECUTION. After completed first-cycle needs, introduce new hunger and independent observed rice lots for the crew. Install no selected task, Method or order.")]
+    [Tool("test/portfolio_needs_repeat", Description="UNSAFE FOR MODEL EXECUTION. Once the first cycle's meal and sleep were observed, introduce new hunger and independent observed rice lots for the crew. Install no selected task, Method or order.")]
     public async Task<object> PortfolioNeedsRepeat(IRimBridgeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
-            if (!portfolioAte || !portfolioSlept || !portfolioWoke || !portfolioPlayed)
-                throw new InvalidOperationException("First normal-planner needs cycle has not completed.");
+            if (!portfolioAte || !portfolioSlept)
+                throw new InvalidOperationException("First normal-planner meal and sleep have not been observed.");
             // This phase proves repeated needs execution with independent physical lots;
             // needs/shared-stack proves two Methods sharing one stack (#3194).
             var map = worker!.Map;

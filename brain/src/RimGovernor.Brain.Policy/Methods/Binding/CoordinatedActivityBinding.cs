@@ -151,8 +151,13 @@ internal static class CoordinatedActivityBinding
             // against the remaining work. Tasks others wait on stay, so no participant is stranded. A next task that is
             // itself a service is what that review selected: releasing it would only reselect it, every review (#3167).
             // So is a task that leads to the pawn's own remaining service, such as harvesting the rice it then eats (#3598).
-            if (!IsService(next) && !FeedsOwnService(remaining, next)
-                && NeedsService(read, order.Pawn)
+            // A sleep or recreation that native recovery ended before its planned end (the pawn woke rested) leaves the rest of
+            // the pawn's timeline early. As at the start (DeferDistantServices, #3047), it is not held for a next service departing
+            // far ahead, owned and unreviewable (#3598): released, the next review replans it from its observed needs.
+            var distant = row.State == "completed" && batch.Tasks.SingleOrDefault(t => t.Id == order.Task) is
+                    { Step.Kind: PawnActivityKind.Sleep or PawnActivityKind.Recreation } ended && ended.Step.Deadline > tick
+                && IsService(next) && next.Prerequisites.Count == 0 && next.DepartTick - tick > DistantServiceTicks;
+            if ((distant || !IsService(next) && !FeedsOwnService(remaining, next) && NeedsService(read, order.Pawn))
                 && !remaining.Any(t => t.Pawn != order.Pawn && t.Prerequisites.Any(p => remaining.Any(r => r.Pawn == order.Pawn && r.Id == p))))
             {
                 if (order.Revision == long.MaxValue) return new(null, false);

@@ -105,6 +105,35 @@ public sealed class ActivityNeedBoundaryTests
         Assert.Equal(harvest.Id, order.Task);
     }
 
+    private static PawnActivities WokeBeforeItsNextService(long playDepart, long sleepEnd = 4000)
+    {
+        var sleep = new SelectedActivityTask("sleep", "pawn", [], new(PawnActivityKind.Sleep, "bed", "", "", 0, sleepEnd), new(1, 1), 0);
+        var play = new SelectedActivityTask("play", "pawn", [], new(PawnActivityKind.Recreation, "pin", "", "", 0, 9000), new(2, 2), playDepart);
+        return new(1, [new("pawn", "method/pawn", "method", 0, 1, false, [sleep.Step]) { Task = sleep.Id }]) { Tasks = [sleep, play] };
+    }
+
+    [Fact]
+    public void ParticipantThatWokeEarlyIsReleasedRatherThanHeldForAFarService()
+    {
+        // The sleep ended at the wake threshold, long before the planned play: holding it would idle it, owned and unreviewable (#3598).
+        var batch = WokeBeforeItsNextService(5000);
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "completed", .95))!;
+        Assert.True(Assert.Single(next.Orders).Release);
+        Assert.Empty(next.Tasks);
+    }
+
+    [Theory]
+    [InlineData(500, 4000)]
+    [InlineData(5000, 150)]
+    public void ParticipantWhoseNextServiceIsNearOrWhoseSleepRanItsCoursePreparesForIt(long playDepart, long sleepEnd)
+    {
+        var batch = WokeBeforeItsNextService(playDepart, sleepEnd);
+        var order = Assert.Single(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "completed", .95))!.Orders);
+        Assert.False(order.Release);
+        Assert.True(order.Preparing);
+        Assert.Equal("play", order.Task);
+    }
+
     [Fact]
     public void ARunningTaskIsNeverInterruptedByAUrgentNeed()
     {

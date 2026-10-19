@@ -8,8 +8,9 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// brain. The native game harvests the rice and binds a delivery or meal to the harvested stack, the worker eats, sleeps,
 /// wakes and plays horseshoes; then new hunger and independent rice lots need a second Method and a real meal.
 /// test/portfolio_needs_prepare and _repeat prepare the facts (no task, bill, Method or assignment) and record the
-/// native activities, which the primitives cannot express. A full natural rest takes about 20,000 ticks, so once sleep
-/// is observed the case stages rested colonists in its place.
+/// native activities, which the primitives cannot express. A full natural rest takes about 20,000 ticks, so once the
+/// first meal and sleep are observed the case stages rested colonists in its place and, in the same step, the repeat's
+/// new hunger and rice lots: the worker wakes into the second cycle, and the case spends no ticks between them.
 /// </summary>
 internal static class ProductionCoupledNeeds
 {
@@ -87,7 +88,6 @@ internal static class ProductionCoupledNeeds
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         _ = await s.FixtureAsync("needs-prepare", Prepared, s.Staged!, cancellationToken).ConfigureAwait(false);
-        var rested = false;
         var firstCycleMethods = -1;
         _ = await s.ServeUntilAsync("coupled-needs", s.TicksLeft, async ct =>
         {
@@ -96,15 +96,10 @@ internal static class ProductionCoupledNeeds
             var signature = string.Create(CultureInfo.InvariantCulture, $"{read.Tick} cycle={(firstCycleMethods < 0 ? 1 : 2)}");
             if (firstCycleMethods < 0)
             {
-                if (read.Slept && !rested)
-                {
-                    _ = await s.StageAsync("needs-rested", Rested, ct).ConfigureAwait(false);
-                    rested = true;
-                }
-
-                if (read.Rebound && read.Ate && read.Slept && read.Woke && read.Played)
+                if (read.Rebound && read.Ate && read.Slept)
                 {
                     s.Record("firstCycle", ServedOps.Json(read));
+                    _ = await s.StageAsync("needs-rested", Rested, ct).ConfigureAwait(false);
                     _ = await s.FixtureAsync("needs-repeat", Repeat, NoArgs.Value, ct).ConfigureAwait(false);
                     firstCycleMethods = read.Methods.Count;
                 }
@@ -112,7 +107,7 @@ internal static class ProductionCoupledNeeds
                 return (signature, false);
             }
 
-            return (signature, read.Ate && read.Methods.Count > firstCycleMethods);
+            return (signature, read.Woke && read.Played && read.Ate && read.Methods.Count > firstCycleMethods);
         }, cancellationToken).ConfigureAwait(false);
     }
 }
