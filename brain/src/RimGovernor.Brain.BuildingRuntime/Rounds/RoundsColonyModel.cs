@@ -109,6 +109,7 @@ internal static class RoundsColonyModel
             Recipes = facts.WorkAdmission.Recipes,
             Sites = facts.CurrentConstruction.TryGetValue(out var construction) ? Known(construction.Sites) : Unknown<EquatableArray<ConstructionSite>>(),
             PlannedSites = facts.PlannedSites.TryGetValue(out var planned) ? Known(planned.Sites) : Unknown<EquatableArray<PlannedBuildSite>>(),
+            Wildlife = colony.Acquisition.TryGetValue(out var sources) ? Known(HuntSquadRules.Herds(sources)) : Unknown<EquatableArray<ModelHerd>>(),
         };
         return (input, input.Unknowns());
     }
@@ -286,11 +287,19 @@ internal static class RoundsColonyModel
         }
 
         var skills = new Dictionary<string, Fact<EquatableArray<WorkSkill>>>(StringComparer.Ordinal);
+        var hunters = new Dictionary<string, Fact<bool>>(StringComparer.Ordinal);
         if (colony.WorkPawns.TryGetValue(out var workers))
         {
             foreach (var worker in workers)
             {
                 skills[worker.Id.Value] = worker.Skills;
+            }
+
+            // The hunt planner's armed hunter: a hunting weapon and the Hunting work; an unread weapon leaves it unknown.
+            var unread = workers.Where(w => !w.Hunts.IsKnown).Select(w => w.Id).ToHashSet();
+            foreach (var profile in PawnRules.Profiles(workers))
+            {
+                hunters[profile.Id.Value] = unread.Contains(profile.Id) ? Unknown<bool>() : Known(HuntSquadRules.ArmedHunter(profile));
             }
         }
 
@@ -357,6 +366,7 @@ internal static class RoundsColonyModel
                 ComfortableMax = pawn.ComfortableMax,
                 ResearchSpeed = pawn.ResearchSpeed.TryGetValue(out var researching) && bestBench.TryGetValue(out var factor) ? Known(researching * factor) : Unknown<double>(),
                 PlantWorkSpeed = pawn.PlantWorkSpeed,
+                Hunts = hunters.GetValueOrDefault(pawn.Pawn),
             });
         }
 

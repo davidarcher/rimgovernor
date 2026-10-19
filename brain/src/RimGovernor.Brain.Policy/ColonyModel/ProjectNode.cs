@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// The tier-2 colony model's project graph nodes (#3530 of #3470): research, sowing, growth, harvest, crafting and construction.
+// The tier-2 colony model's project graph nodes (#3530 of #3470): research, sowing, growth, harvest, crafting, construction and hunting (#3620).
 
 /// <summary>The kinds of project node.</summary>
 public enum ProjectKind
@@ -22,6 +22,9 @@ public enum ProjectKind
 
     /// <summary>A building: the work and the materials it consumes.</summary>
     Construction,
+
+    /// <summary>Hunting and butchering one race's animals of the wildlife census; the work is the hunt planner's pursuit work, the yields its meat and butchery products.</summary>
+    Hunt,
 }
 
 /// <summary>
@@ -38,8 +41,11 @@ public sealed record ProjectNode
     /// <summary>Ids of the nodes that must complete first.</summary>
     public EquatableArray<string> Prerequisites { get; init; }
 
-    /// <summary>Research: points remaining. Sow, Harvest, Craft, Construction: work units. Grow: unused.</summary>
+    /// <summary>Research: points remaining. Sow, Harvest, Craft, Construction, Hunt: work units. Grow: unused.</summary>
     public double Work { get; init; }
+
+    /// <summary>Hunt: the meat's nutrition, which joins the nutrition stock at completion.</summary>
+    public double Nutrition { get; init; }
 
     /// <summary>Sow, Grow and Harvest: the field (<see cref="ModelField.Id"/>) the crop stands on.</summary>
     public string Field { get; init; } = "";
@@ -53,7 +59,7 @@ public sealed record ProjectNode
     /// <summary>Craft and Construction: the materials consumed.</summary>
     public EquatableArray<Amount> Ingredients { get; init; }
 
-    /// <summary>Craft: the products.</summary>
+    /// <summary>Craft: the products. Hunt: the butchery products (leather), which join the materials stock at completion.</summary>
     public EquatableArray<Amount> Products { get; init; }
 
     /// <summary>Craft: true when the products go to the materials stock; false when they are apparel or another item the model holds no stock for.</summary>

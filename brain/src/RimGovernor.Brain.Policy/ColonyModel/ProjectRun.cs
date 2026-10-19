@@ -176,6 +176,15 @@ internal sealed class ProjectRun
             case ProjectKind.Construction:
                 levels[(int)ModelStock.Materials] -= node.Ingredients.Sum(a => a.Count);
                 break;
+            case ProjectKind.Hunt:
+                levels[(int)ModelStock.Nutrition] += node.Nutrition;
+                levels[(int)ModelStock.Materials] += node.Products.Sum(a => a.Count);
+                foreach (var product in node.Products)
+                {
+                    ledger[product.Resource] = ledger.GetValueOrDefault(product.Resource) + product.Count;
+                }
+
+                break;
         }
 
         for (var s = 0; s < levels.Length; s++)
@@ -247,7 +256,7 @@ internal sealed class ProjectRun
     {
         var node = live.Node;
         var crop = node.Kind is ProjectKind.Sow or ProjectKind.Harvest ? CropOf(node) : null;
-        var outside = node.Kind is ProjectKind.Sow or ProjectKind.Harvest;
+        var outside = node.Kind is ProjectKind.Sow or ProjectKind.Harvest or ProjectKind.Hunt;
         var benches = node.Kind == ProjectKind.Research ? Benches() : int.MaxValue;
         var workers = new List<(int Pawn, double Hours, double Speed)>();
         for (var p = 0; p < pawns.Length; p++)
@@ -333,6 +342,15 @@ internal sealed class ProjectRun
                 }
 
                 findings.Add($"plant_work_speed_unknown:{pawn.Pawn}");
+                return null;
+            case ProjectKind.Hunt:
+                // The work is the hunt planner's pursuit ticks of a hunter, so a pawn who may hunt works it at speed 1.
+                if (pawn.Hunts.TryGetValue(out var hunts))
+                {
+                    return hunts ? 1 : null;
+                }
+
+                findings.Add($"hunt_capability_unknown:{pawn.Pawn}");
                 return null;
             default:
                 // The pawn model carries no crafting or construction speed (skill gates of a recipe are not read either).

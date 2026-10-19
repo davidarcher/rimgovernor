@@ -219,8 +219,8 @@ Its cost grows with the number of events, not with ticks.
   rates that change only at events.
 - **Land.** A growing cell is one crop at a time; a devilstrand cell is not
   growing food.
-- **Projects.** A small graph of research, sowing, growth, harvest, crafting
-  and construction nodes with prerequisites (`ProjectNode`, `ProjectGraph`;
+- **Projects.** A small graph of research, sowing, growth, harvest, crafting,
+  construction and hunting nodes with prerequisites (`ProjectNode`, `ProjectGraph`;
   the builders read a `ColonyModelInput`, and a gap leaves the node out and
   is named). The graph's order is the priority order of the labor allocation
   (`ColonyModelPolicy.Projects`). v1 allocation is a fixed order with no
@@ -245,6 +245,19 @@ Its cost grows with the number of events, not with ticks.
   `UnitsPerCell` of the crop's resource to materials, or cells ×
   `HarvestNutrition` to nutrition for an edible crop. One harvest per chain;
   regrowth is not modelled.
+- **Hunting.** The wildlife census (`ColonyModelInput.Wildlife`, the food prey
+  the hunt channels are offered on) gives one hunt-and-butcher node per race,
+  last in the graph (`ProjectGraph.Hunts`). Its work is the hunt planner's
+  pursuit work (`HuntSquadRules.Herds`: 7,500 ticks an animal, shortened by
+  weapon reach, halved asleep); the hunt channels have no lead days, so the
+  arrival is when that work is done. It takes daylight hours of the pawns
+  with a hunting weapon and the Hunting work (`ModelPawn.Hunts`; unread, the
+  pawn is left off and named). At completion the meat (each animal's
+  `MeatAmount` × the meat's nutrition) joins nutrition and the race's butchery
+  products (`AnimalRace.Butchery`: leather by `LeatherAmount`) join materials
+  and the ledger, so a craft can take the leather. Butchering takes no labor
+  (`butcher_work_unread`). A leather arrival beyond tier 1's one day is
+  valued here, not in tier 1.
 - **Crop growth.** The game's rate is 1 / (60,000 × growDays) per tick while
   not resting, × fertility × temperature × light (`Plant.GrowthPerTick`,
   `PlantUtility`). Growth stops outside the growth temperature band. Tier 2

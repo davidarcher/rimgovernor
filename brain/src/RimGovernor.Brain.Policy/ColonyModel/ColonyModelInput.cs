@@ -83,6 +83,26 @@ public sealed record ModelNeed
     public Fact<double> ApproachTicks { get; init; }
 }
 
+/// <summary>
+/// One race's huntable animals of the wildlife census, as the hunt planner prices them (<see cref="HuntSquadRules.Herds"/>): the
+/// pursuit work of hunting them all, the nutrition of their meat and what butchering them yields besides (leather, from the race row).
+/// </summary>
+public sealed record ModelHerd
+{
+    public Resource Race { get; init; }
+
+    public int Animals { get; init; }
+
+    /// <summary>The hunt planner's pursuit work ticks, summed over the animals.</summary>
+    public double Work { get; init; }
+
+    /// <summary>The meat's nutrition: each animal's MeatAmount stat times the meat def's Nutrition.</summary>
+    public double Nutrition { get; init; }
+
+    /// <summary>The race's butchery products (<see cref="AnimalRace.Butchery"/>) times the animals, sorted by def.</summary>
+    public EquatableArray<SourceProduct> Products { get; init; }
+}
+
 /// <summary>One colonist as the model's pawn cycle reads them.</summary>
 public sealed record ModelPawn
 {
@@ -113,6 +133,9 @@ public sealed record ModelPawn
 
     /// <summary>The PlantWorkSpeed stat; unknown until the sowing provider's read reaches the frame (#3528 reads it in the coupled path only).</summary>
     public Fact<double> PlantWorkSpeed { get; init; }
+
+    /// <summary>Whether the pawn may hunt: a hunting weapon and the Hunting work (<see cref="HuntSquadRules.ArmedHunter"/>); unknown without the work census.</summary>
+    public Fact<bool> Hunts { get; init; }
 }
 
 /// <summary>
@@ -148,13 +171,17 @@ public sealed record ColonyModelInput
     /// <summary>The sites the layout plan would place, with the material each takes.</summary>
     public Fact<EquatableArray<PlannedBuildSite>> PlannedSites { get; init; }
 
+    /// <summary>The huntable wildlife, one herd per race; empty when nothing on the map can be hunted for food.</summary>
+    public Fact<EquatableArray<ModelHerd>> Wildlife { get; init; }
+
     /// <summary>Whether every section the model needs is known and well formed.</summary>
     public bool Valid() => Unknowns().Count == 0;
 
     /// <summary>
     /// Names each section or member the model cannot start from, with the reason: an unknown the frame did not carry, or a value
     /// outside its range. The bench count, research speeds and plant work speeds are not named while unknown (the providers'
-    /// reads reach them later); once known they must be finite and not negative.
+    /// reads reach them later); once known they must be finite and not negative. A pawn's unknown <see cref="ModelPawn.Hunts"/> is
+    /// named by the run (<c>hunt_capability_unknown</c>), which leaves the pawn off the hunts.
     /// </summary>
     public IReadOnlyList<string> Unknowns()
     {
@@ -169,6 +196,7 @@ public sealed record ColonyModelInput
         CycleGaps(gaps);
         RecipeGaps(gaps);
         SiteGaps(gaps);
+        WildlifeGaps(gaps);
         return gaps;
     }
 
@@ -456,6 +484,24 @@ public sealed record ColonyModelInput
         if (!PlannedSites.IsKnown)
         {
             gaps.Add("sites: the layout plan's sites are not assembled this review");
+        }
+    }
+
+    private void WildlifeGaps(List<string> gaps)
+    {
+        if (!Wildlife.TryGetValue(out var herds))
+        {
+            gaps.Add("wildlife: the review frame carries no acquisition census");
+            return;
+        }
+
+        foreach (var herd in herds)
+        {
+            if (herd.Race.IsEmpty || herd.Animals <= 0 || !Number(herd.Work) || herd.Work < 0 || !Number(herd.Nutrition) || herd.Nutrition < 0
+                || herd.Products.Any(p => !Number(p.Amount) || p.Amount < 0))
+            {
+                gaps.Add($"wildlife: herd '{herd.Race}' has no animals or a work or yield that is not a finite non-negative number");
+            }
         }
     }
 }

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// The tier-2 colony model's project graph (#3530 of #3470): nodes in priority order, built from a ColonyModelInput. The builders
+// The tier-2 colony model's project graph (#3530 of #3470, hunts #3620): nodes in priority order, built from a ColonyModelInput. The builders
 // read only facts the input carries; a fact the input lacks leaves the nodes that need it out and is named in Findings, never
 // defaulted. The labor allocation and the growth integration are in ProjectRun and CropGrowthModel.
 
@@ -40,7 +40,7 @@ public sealed record ProjectGraph
     /// What a review runs: the research chain of the project being researched, and each field with a crop set, from sowing to
     /// harvest, gated on the research the crop's sowing waits on (<see cref="CropChoice.Research"/>). A crop whose harvest is the
     /// stuff of a garment the colony could craft (<see cref="Garment"/>) also gets that garment's craft after its harvests, so the
-    /// harm model prices what wearing it avoids.
+    /// harm model prices what wearing it avoids. Last, each herd of huntable wildlife is hunted and butchered (<see cref="Hunts"/>).
     /// </summary>
     public static ProjectGraph Standing(ColonyModelInput input, IReadOnlyList<GearOption> options, Fact<RaidThreat> threat)
     {
@@ -64,7 +64,37 @@ public sealed record ProjectGraph
             }
         }
 
-        return graph;
+        return graph.Then(Hunts(input));
+    }
+
+    /// <summary>The id of the hunt node of a race.</summary>
+    public static string HuntId(Resource race) => $"hunt:{race}";
+
+    /// <summary>
+    /// One hunt-and-butcher node per herd of the wildlife census (#3620), in race order: the hunt planner's pursuit work, staffed
+    /// in daylight by the pawns who may hunt; at completion the meat joins nutrition and the butchery products (leather, rounded
+    /// to whole units) join materials, where a craft can take them. Butchering takes no labor here: its work is not read.
+    /// </summary>
+    public static ProjectGraph Hunts(ColonyModelInput input)
+    {
+        if (!input.Wildlife.TryGetValue(out var herds))
+        {
+            return Gap("wildlife_unknown");
+        }
+
+        var nodes = herds.Select(h => new ProjectNode
+        {
+            Id = HuntId(h.Race),
+            Kind = ProjectKind.Hunt,
+            Work = h.Work,
+            Nutrition = h.Nutrition,
+            Products = EquatableArray.From(h.Products.Select(p => new Amount(p.Def, (long)Math.Round(p.Amount, MidpointRounding.AwayFromZero))).Where(a => a.Count > 0)),
+        }).ToArray();
+        return new ProjectGraph
+        {
+            Nodes = EquatableArray.From(nodes),
+            Findings = nodes.Length == 0 ? default : Gap("butcher_work_unread").Findings,
+        };
     }
 
     /// <summary>

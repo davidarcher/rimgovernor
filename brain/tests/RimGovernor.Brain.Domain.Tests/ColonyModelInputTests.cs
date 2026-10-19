@@ -49,7 +49,7 @@ public sealed class ColonyModelInputTests
         var (input, unknowns) = RoundsColonyModel.InputOf(new ColonyProjection());
 
         Assert.False(input.Valid());
-        foreach (var section in new[] { "climate:", "calendar:", "crops:", "research:", "stocks:", "pawns:", "recipes:", "sites:" })
+        foreach (var section in new[] { "climate:", "calendar:", "crops:", "research:", "stocks:", "pawns:", "recipes:", "sites:", "wildlife:" })
         {
             Assert.Contains(unknowns, u => u.StartsWith(section, StringComparison.Ordinal));
         }

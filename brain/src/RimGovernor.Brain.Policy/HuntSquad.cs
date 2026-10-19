@@ -15,18 +15,10 @@ public static class HuntSquadRules
     internal const double SquadSleepingWork = 0.5;
 
     /// <summary>Counts the colonists with a hunting weapon (WeaponDef.Hunts) who are capable of hunting.</summary>
-    public static int ArmedHunters(IReadOnlyList<PawnProfile> profiles)
-    {
-        var n = 0;
-        foreach (var p in profiles)
-        {
-            if (p.Hunts && p.Capable(WorkType.Hunting, 0))
-            {
-                n++;
-            }
-        }
-        return n;
-    }
+    public static int ArmedHunters(IReadOnlyList<PawnProfile> profiles) => profiles.Count(ArmedHunter);
+
+    /// <summary>Whether the colonist has a hunting weapon (WeaponDef.Hunts) and is capable of hunting.</summary>
+    public static bool ArmedHunter(PawnProfile p) => p.Hunts && p.Capable(WorkType.Hunting, 0);
 
     /// <summary>The hunt's mode: a formation is the candidate that names its prey.</summary>
     public static HuntMode Mode(this SupplyCandidate c) => c.Prey.Count > 0 ? HuntMode.Formation : HuntMode.Lone;
@@ -69,17 +61,8 @@ public static class HuntSquadRules
         foreach (var s in prey)
         {
             designated = designated && s.Designated;
-            var w = FoodPlanRules.FoodHuntWorkTicks / (1 + (s.WeaponRange / 25));
-            if (s.Downed)
-            {
-                w = FoodPlanRules.FoodForageWorkTicks;
-            }
-            if (s.Sleeping)
-            {
-                w *= SquadSleepingWork;
-            }
             nutrition += s.NutritionYield;
-            work += w;
+            work += PursuitWorkTicks(s);
             risk = Math.Max(risk, s.HuntRevengeCost());
             exposure = Math.Max(exposure, s.HuntRevengeCost() * HuntWeakness(gunners, s.HerdSize));
             foreach (var p in s.Products)
@@ -153,6 +136,31 @@ public static class HuntSquadRules
         output.Sort();
         return output;
     }
+
+    /// <summary>One animal's pursuit work: the hunt work shortened by weapon reach, only collection when downed, halved asleep.</summary>
+    private static double PursuitWorkTicks(AcquisitionSource s)
+    {
+        var w = s.Downed ? FoodPlanRules.FoodForageWorkTicks : FoodPlanRules.FoodHuntWorkTicks / (1 + (s.WeaponRange / 25));
+        return s.Sleeping ? w * SquadSleepingWork : w;
+    }
+
+    /// <summary>
+    /// The wildlife census as the tier-2 colony model reads it (#3620): the food prey the hunt channels are offered on
+    /// (<see cref="HuntCandidates"/>), one herd per race, with the pursuit work, meat nutrition and butchery products each
+    /// channel prices. The hunt channels have no lead days, so a herd's arrival is when its work is done.
+    /// </summary>
+    public static EquatableArray<ModelHerd> Herds(IReadOnlyList<AcquisitionSource> sources) => EquatableArray.From(sources
+        .Where(s => s.Hunt && s.Food && !s.Tree)
+        .GroupBy(s => new Resource(s.Definition))
+        .OrderBy(g => g.Key)
+        .Select(g => new ModelHerd
+        {
+            Race = g.Key,
+            Animals = g.Count(),
+            Work = g.Sum(PursuitWorkTicks),
+            Nutrition = g.Sum(s => s.NutritionYield),
+            Products = EquatableArray.From(g.SelectMany(s => s.Products).GroupBy(p => p.Def).OrderBy(p => p.Key).Select(p => new SourceProduct(p.Key, p.Sum(x => x.Amount)))),
+        }));
 
     /// <summary>
     /// Scales a prey's revenge exposure by how little the colony can answer it: 1 with no gunners,
