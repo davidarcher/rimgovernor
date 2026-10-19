@@ -35,9 +35,6 @@ namespace HomeBridge.BridgeTools
         }
         private sealed record Offer(Entry Entry, int Step, int JobId);
         private static readonly Dictionary<Pawn, Entry> Entries = new();
-        // Controlled pawns whose missing or refused activity the brain was told about once; an assignment, a release or an
-        // authority change makes the next report due again (voluntary-control.md).
-        private static readonly HashSet<Pawn> Reported = new();
         private static readonly ConditionalWeakTable<Job, Offer> Offers = new();
         // The once-guard (taken before the work); installed is the readiness Validate reads (set after it).
         private static int installing;
@@ -254,7 +251,7 @@ namespace HomeBridge.BridgeTools
                 oldJobs.Add((pawn, order.Release ? old?.Running : old?.Running ?? pawn.CurJob));
                 var e = new Entry { Pawn = pawn, Order = order with { Steps = order.Steps.ToArray() }, Identity = identity, Generation = batch.AuthorityGeneration,
                     SelectedTask = batch.Tasks.FirstOrDefault(t => t.Id == order.Task), Tick = Find.TickManager.TicksGame, Dependencies = order.Steps.Select(s => s.WaitForFilth.Length == 0 ? null : Thing(s.WaitForFilth)).ToArray() };
-                Entries[pawn] = e; Reported.Remove(pawn);
+                Entries[pawn] = e;
                 changed.Add(e);
             }
             replacing = true;
@@ -312,10 +309,9 @@ namespace HomeBridge.BridgeTools
             if (!TryOwned(___pawn, out var e))
             {
                 if (!Controlled(___pawn)) return true;
+                // No authorized activity: no native job, no hold and no invalidation; the next rounds review assigns standby
+                // (voluntary-control.md).
                 __result = ThinkResult.NoJob;
-                if (Reported.Add(___pawn))
-                    Supervisor.ActivityChanged("unassigned_voluntary_pawn:" + ___pawn.GetUniqueLoadID()
-                        + ":" + string.Join(",", NativeNeedsForecast.VoluntaryControlBlockers(___pawn)), ___pawn);
                 return false;
             }
             thinkTree = ___pawn.thinker.MainThinkTree;
@@ -504,7 +500,6 @@ namespace HomeBridge.BridgeTools
             if (!TryOwned(___pawn, out var e))
             {
                 if (!Controlled(___pawn) || NativeControlAuthority.TryGetForGame(Current.Game, out var authority) && authority?.IsOwned == true) return true;
-                if (Reported.Add(___pawn)) Supervisor.ActivityChanged("unauthorized_direct_job:" + ___pawn.GetUniqueLoadID() + ":" + newJob.def.defName, ___pawn);
                 return false;
             }
             if (___pawn.Downed || ___pawn.InMentalState || ___pawn.Drafted) { Fault(e, "involuntary_or_combat_state"); Release(e); return true; }
@@ -617,37 +612,15 @@ namespace HomeBridge.BridgeTools
         }
         private static void AuthorityChanged(NativeControlAuthority authority, NativeControlSnapshot snapshot, ulong old)
         {
-            Reported.Clear();
             foreach (var e in Entries.Values.ToArray()) if (!snapshot.Active || snapshot.Generation != e.Generation) Release(e);
             if (snapshot.Active && snapshot.Identity?.Map is { } map)
                 foreach (var pawn in map.mapPawns.FreeColonistsSpawned.ToArray())
                     if (Controlled(pawn) && !Owned(pawn) && pawn.CurJob != null)
                         pawn.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
         }
-        private static void WorldChanging() { Reported.Clear(); foreach (var e in Entries.Values.ToArray()) Release(e); }
-        private static void Despawn(Pawn __instance) { Reported.Remove(__instance); if (Entries.TryGetValue(__instance, out var e)) Release(e); }
-        private static void Emit(Entry e)
-        {
-            PawnActivityTracker.Execution(Row(e), e.Pawn);
-            if (e.State is "failed" or "completed") Supervisor.ActivityChanged(e.Order.Assignment + ":" + e.State + ":" + e.Reason, e.Pawn);
-        }
-    }
-    internal static partial class Supervisor
-    {
-        private static readonly RimGovernor.Contracts.Wire.Clock.FactFamily[] PawnsFamily = { RimGovernor.Contracts.Wire.Clock.FactFamily.Pawns };
-        /// A pawn activity changed: an assignment completed or failed, or a controlled pawn has no authorized
-        /// activity. The Pawns facts are stale and the brain wakes to plan again through the existing invalidation
-        /// path; the clock keeps running. Native holds the clock for hazards and loss of authority only
-        /// (control-loop.md). Without a running epoch nobody is listening and the row of the execution itself stands.
-        internal static void ActivityChanged(string detail, Pawn pawn)
-        {
-            var s = _state;
-            if (s == null || !s.Active) return;
-            string id;
-            try { id = pawn.GetUniqueLoadID(); } catch { id = ""; }
-            Invalidate(s, "pawn_activity:" + detail, PawnsFamily, ProtoBoundary.IsIdentifier(id) ? new[] { id } : null,
-                detail: "Pawn activity changed: " + detail + ".");
-        }
+        private static void WorldChanging() { foreach (var e in Entries.Values.ToArray()) Release(e); }
+        private static void Despawn(Pawn __instance) { if (Entries.TryGetValue(__instance, out var e)) Release(e); }
+        private static void Emit(Entry e) { PawnActivityTracker.Execution(Row(e), e.Pawn); }
     }
     public sealed class JobDriver_GovernorWait : JobDriver
     {

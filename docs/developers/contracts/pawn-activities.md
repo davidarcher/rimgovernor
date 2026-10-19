@@ -233,10 +233,11 @@ the hold job while the clock runs; retained ownership does not authorize other w
 Work deadline exhaustion is a failure. Native food/rest levels and physiological
 consequences are not modified by execution.
 
-Completion and failure never hold the clock (#3518): each publishes one `ObservationInvalidated` of the
-Pawns family naming the pawn (`pawn_activity:<assignment>:<state>:<reason>`), which wakes the brain to plan
-again while the game keeps running, and the typed execution readback carries the terminal state. Native holds
-the clock for hazards and loss of authority only ([control loop](../architecture/control-loop.md#execute-under-supervision)).
+Completion and failure never hold the clock (#3518) and publish no invalidation (#3556): an order finishing is
+the brain's own attempt outcome, not an observed fact change, and the typed execution readback carries the terminal
+state, which the brain reads at its next review. (The `pawn_activity` Pawns invalidation each once published selected
+every pawn-reading planner at every review tick.) Native holds the clock for hazards and loss of authority only
+([control loop](../architecture/control-loop.md#execute-under-supervision)).
 Downing, mental state or drafting encountered at selection/start
 fails and releases this voluntary-work owner; native involuntary behavior and
 the existing combat owner are not replaced. This is not a complete autonomous
@@ -378,8 +379,8 @@ it quietly (`released`) instead of faulting. Needs are met by the brain's ordina
 selection replacing standby, not by standby itself.
 
 An eligible pawn without an authorized activity returns no native voluntary job
-and reports it once (`unassigned_voluntary_pawn`, a Pawns invalidation naming that pawn)
-without holding the clock. It does not
+and publishes nothing (#3556; the `unassigned_voluntary_pawn` invalidation is gone): the brain's next rounds review
+sees the unassigned colonist and assigns standby. It does not
 silently start native work or represent an unsupported condition as a successful
 indefinite wait. See [supported scope and remaining owners](voluntary-control.md).
 Native disorientation and the native imposed-sleep/force-job ability effects retain

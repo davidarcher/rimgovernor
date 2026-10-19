@@ -444,8 +444,8 @@ namespace HomeBridge.BridgeTools
         /// to the changed rows' ids and the one rectangle the change touched
         /// when the caller can attribute it.
         private static void Invalidate(State s, string reason, IReadOnlyList<Clock.FactFamily> families,
-            IReadOnlyList<string>? entityIds = null, CellRectangle? cells = null, string? detail = null) =>
-            Publish(new ObservationInvalidated(Origin(s), detail ?? "Observed facts changed: " + reason + ".", families, reason,
+            IReadOnlyList<string>? entityIds = null, CellRectangle? cells = null) =>
+            Publish(new ObservationInvalidated(Origin(s), "Observed facts changed: " + reason + ".", families, reason,
                 entityIds ?? Array.Empty<string>(), cells));
         private static readonly Clock.FactFamily[] ColonyFamily = { Clock.FactFamily.Colony };
         /// A growing zone turning ripe (any sown plant harvestable now) or

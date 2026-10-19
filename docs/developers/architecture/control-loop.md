@@ -786,10 +786,10 @@ While the bot is on, the clock is in one of two states.
 One rule says who may hold. Native holds the clock for a hazard it probed, a game-forced pause,
 the loss of its authority or hooks, and the review tick the last `Run` named, and for nothing
 else. The brain holds it for a coupled order, an autosave or a review when the bot stops acting,
-and for nothing else. Progress is never a hold: a pawn activity
-completing or failing, a controlled pawn with no activity, a zone turning ripe or any other fact
-change is an `ObservationInvalidated` event that marks planners for the next review while the
-game keeps running.
+and for nothing else. Progress is never a hold and never an invalidation: a pawn
+activity completing or failing, or a controlled pawn with no activity, is an attempt outcome the next review
+reads (#3556). A zone turning ripe or any other observed fact change is an `ObservationInvalidated` event
+that marks planners for the next review while the game keeps running.
 
 The cadence is the clock's (#3556). Every `Run` carries the tick native holds the clock at for
 `Review`: `ClockRunConfig.ReviewEveryTicks` (600, ten in-game seconds) past the tick the step
@@ -981,8 +981,11 @@ following of the player's own speed. All of it is gone, as are the clock attempt
 epoch and receipt stores. Do not reintroduce a tick budget or a second regulator;
 the one ceiling, the target speed and named holds replace them. Pawn-activity completion,
 failure and unassigned-pawn holds (`Unavailable` holds raised every 600 ticks, two scheduler
-steps each, #3518) are gone too: they were a tick budget by another name. A fact change
-marks planners through an invalidation; it never stops the clock.
+steps each, #3518) are gone too: they were a tick budget by another name, and so is the `pawn_activity`
+invalidation that replaced them (#3556): it named a pawn, which no pawn section fits, so it dirtied the whole
+Pawns family and selected every pawn-reading family entry at every review tick. An order finishing is an
+attempt outcome the review reads. An observed fact change marks planners through an invalidation; it never
+stops the clock.
 
 The scheduler's wall-time cadence went with them (#3556): the 1 s step interval, the
 back-off to 10 s on an unchanged step, the `settled` repeat after a driver hold or `Run`, the
@@ -1016,9 +1019,10 @@ A held clock resumes only from a step that read the clock after every event and
 loss delivered so far, and only once the consumer has opened the queue. The
 Run's planned hold serial backs this up for a hold whose event has not arrived.
 
-A hold entry wakes the scheduler's step; an invalidation marks the planners that
-read the dirtied sections for the next review and hints the Worker, which steps
-at once. An authority change or a loss on the queue wakes a step while the clock
+A hold entry wakes the scheduler's step; an invalidation marks the planners whose
+declared sections include a dirtied one (a family entry declares every section of
+each family its read observes, [brain host](brain-host.md#family-sections-3556))
+for the next review and hints the Worker, which steps at once. An authority change or a loss on the queue wakes a step while the clock
 runs. Named action outcomes reconcile first.
 
 Routine operation outcomes mark work without holding the clock. A running clock

@@ -68,14 +68,15 @@ legality, reservation checks and completion mechanics still run.
 
 The shared selector may retain no change only for an observed, finite safe
 interval. A missing estimate is not evidence that indefinite idleness is safe.
-An unassigned controlled pawn exposes `unassigned_voluntary_pawn` through the
-Supervisor rather than silently borrowing vanilla job selection: one Pawns-family
-`ObservationInvalidated` naming the pawn, which wakes the brain while the clock
-keeps running (it never holds the clock, #3518). The report is the review trigger,
-not a resting state: the brain's next round assigns every such pawn it selects
-nothing for an explicit `Standby` (colony wander, no work, no deadline; see
-[pawn activities](pawn-activities.md)). The report recurs once after an authority
-grant, a release or an involuntary interruption, until that review. Unsupported
+An unassigned controlled pawn returns no job rather than silently borrowing
+vanilla job selection, and native publishes nothing for it: it never holds the
+clock (#3518), and the `unassigned_voluntary_pawn` Pawns invalidation it once
+raised is gone (#3556: it selected every pawn-reading planner at every review
+tick, and the unassigned colonist is already in the census the review reads).
+The idle is not a resting state: the brain's next rounds review, on its own
+cadence, assigns every such pawn it selects nothing for an explicit `Standby`
+(colony wander, no work, no deadline; see [pawn activities](pawn-activities.md)).
+Unsupported
 need/state observations are excluded from ordinary capacity and defer admission.
 This is a visible unsupported outcome, not successful autonomous coverage.
 

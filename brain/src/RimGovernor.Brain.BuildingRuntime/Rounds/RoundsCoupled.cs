@@ -63,7 +63,7 @@ public sealed partial class Rounder
     /// <summary>
     /// The explicit idle (#3322): after this review's coupled admission, each controlled colonist still without a Hands
     /// assignment gets standby, one claimed Method per colonist under the admin/work-assignments Need. Without it an
-    /// unassigned colonist stands idle and reports itself (unassigned_voluntary_pawn) every review.
+    /// unassigned colonist stands idle until a later review assigns it.
     /// </summary>
     private void AdmitStandby(RoundsFacts facts, WorkActionCensus actions, IReadOnlySet<string> taken, GenerationSnapshot snapshot,
         CancellationToken call, CancellationToken epoch)

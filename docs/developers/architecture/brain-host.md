@@ -580,7 +580,75 @@ What the day says:
   already hold a ranking act on it every 600 ticks. No case in the gate depends on a rounds review per step.
 - **Next cuts, in order.** (1) The family entries' sections (#3556 item 3's third cut): a pawn invalidation selects
   every family entry, 46 s of waves a day; selecting the entries that read the dirtied section would leave the due
-  ones. (2) The hold-to-step latency that remains, 18 s. The day is under the budget without either.
+  ones. (2) The hold-to-step latency that remains, 18 s. The day is under the budget without either. The first is the
+  next section.
+
+### Family sections (#3556)
+
+The third cut of item 3: which sections the invalidations on the rounds-cadence day named, which sections each
+family entry's read consumes, and why the two could not be narrowed against each other.
+
+**What the invalidations named.** The measured day above (session `d3ad27f7`) had 26 `clock_invalidation` rows:
+16 `pawn_activity:coupled-<id>:completed|failed` (an order the review assigned finishing), 8
+`pawn_activity:unassigned_voluntary_pawn` (a controlled colonist offered no job before standby was assigned) and 2
+`stockpile fill` (Colony, zone ids). The pawn rows came in pairs at the review tick after each `due` rounds step
+(600, 3600, 6600, 9600, 12600, 18600). Each named the Pawns family and a pawn id; no pawn section is an entity section
+(`Section.Entities()` is PlanningCells, Zones, Buildings, Bills), so `Invalidation.Sections` dirtied both Population
+and Pawns, and `PlannerQueue.Wake` marked 17 of the 22 entries: the 16 families whose `IFamily.Reads` or
+`SeriousHarmReads` include Pawns (every family but People, Power, Layout, HomeUpkeep and FoodStores) and `defense`
+(`SectionsThreat`). Those marks are the 12 `last` steps with `dirty` 17 at 600, 1200, 3600, 4200 and on, and, since
+`Ran` sets an entry's next review 2500 ticks on, they moved the entries' due phase off the rounder's, which gave 9
+further due-only `last` steps (22200 to 42597) until the next `full` step realigned them.
+
+**What a family read consumes.** Every `Rounds*.ReadAsync` loads the committed rounds review and then observes
+through the shared `Rounder` (`ObserveRoomsAsync` / `ObserveOwnedAsync`, the generation-keyed `Census.Lookup`
+or a fresh `ObserveRoundsAsync`): one census, every section of every family the review files. The entry's declared
+sections (`FactStore.FamilySections` over `Reads` ∪ `SeriousHarmReads`) are therefore already what the read consumes;
+splitting Pawns from Population, or declaring fewer families, would mark fewer entries without changing what any of
+them reads, and `ReadNoteRules.NoteRead` (the `Undeclared` audit) sees only the held PlanningCells and Zones reads,
+not the census. There was nothing to narrow on the brain side.
+
+**What changed.** The pawn-activity invalidation is gone from native (`Supervisor.ActivityChanged`, its `Reported`
+set and the three call sites). An order completing or failing is the brain's own attempt outcome, which the next
+review reads from the execution rows; a controlled colonist without an order is in the census the next rounds review
+reads, and that review assigns standby. Neither is an observed fact change. The medical invalidations
+(`InvalidateMedicalFacts`, Pawns and Emergency, rate-limited) and the Colony invalidations (zones, harvest, stockpile
+fill, game conditions) stay.
+
+Measured 2026-10-18, same colony and machine, brain session `62f7490da4cf41fda31ef1f5ae3e9b5e`, one passing
+colony-review day of 61074 ticks, against the rounds-cadence day above:
+
+| What | Rounds-cadence day | This day |
+| --- | --- | --- |
+| `clock_invalidation` rows | 26: 24 `pawn_activity`, 2 `stockpile fill` | 4: `stockpile fill` (8341, 16681, 30362, 33422) |
+| `clock_step` rows | 105 | 106: 98 `review`, 5 `wake`, 2 `full`; every one `planned` |
+| `selection` words | `dirty` 302, `due` 285, `dirty+due` 32, `full` 44, `all` 22 | `dirty` 150, `due` 354, `dirty+due` 22, `full` 44, `all` 22 |
+| Steps that ran a wave | 46 | 33 |
+| Wave wall (`stage_ms` `critical` + `optional`) | 12.6 s + 21.3 s = 33.9 s | 15.8 s + 14.1 s = 29.9 s |
+| Steps on the last committed review (`rounds` `last`) | 21, 20.7 s | 13, 14.1 s |
+| Rounder runs (`due` / `wake` / `all`), rounds wall | 25 (18 / 4 / 3), 34.4 s | 25 (18 / 4 / 3), 38.9 s |
+| Step wall sum | 79.4 s | 79.7 s |
+| `clock_run` wall | 15.4 s | 14.4 s |
+| Hold-to-step (`stop_latency_ms`) | p50 141 ms, 17.6 s over 103 | p50 167 ms, p95 336 ms, 21.6 s over 104 |
+| Brain-held wall / first to last step | 112 s / 160.6 s | 116 s / 168.2 s |
+
+What the day says:
+
+- **The pawn marks are gone, the waves are not.** `dirty` fell from 302 to 150 and the wave steps from 46 to 33, but the
+  step wall is the same 80 s: a `due` step runs all 22 entries whether or not an invalidation also marked them, the
+  rounds wall rose 4.5 s with the day's own variance, and the day's four stockpile fills each marked 21 entries (every
+  family declares Colony, and a zone id narrows to Zones, Buildings and Bills, which are Colony sections).
+- **The 13 `last` steps left are a cadence phase, not an invalidation.** An entry runs 2500 ticks after it last ran
+  (`ReviewEveryDefault`, one in-game hour) while the rounder runs at the first review tick 2500 past its last review,
+  3000 effective. Once a dirty step (8400, the first stockpile fill) ran the entries off the rounder's tick, they came
+  due at 11400, 14400, 19800, 22800, 25800, 28800 and on, each a 21-entry wave on the last review (1.1 to 1.3 s), while
+  the rounder's `due` steps ran 1 entry; the `full` step at 44401 realigned them and the rest of the day had no `last`
+  step. The 150 `dirty` are the 4 stockpile fills (84) and the 4 hazard wakes (66).
+- **Next cuts, in order.** (1) Run the family entries on the rounder's cadence (due when a new rounds review is
+  committed, not 2500 ticks after their own run): removes the `last` steps, 14 s, and the off-phase waves. (2) A
+  stockpile fill marks 21 entries; declaring the zone and bill sections only on the families that read them (Food,
+  FoodStores, Economy, Layout) would mark 4. (3) The hold-to-step latency, 22 s. The day is under the budget without
+  any of them.
 
 ## Hosting in the mod (#3115)
 
