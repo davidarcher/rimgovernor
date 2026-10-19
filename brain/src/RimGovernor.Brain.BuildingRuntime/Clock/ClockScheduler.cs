@@ -485,8 +485,9 @@ public sealed partial class ClockScheduler
         }
     }
 
-    // Files a wave on the due queue: the planners that returned before the cutoff are due again at their cadence,
-    // and one that reported existing work of its kinds waits on the open attempts of those kinds.
+    // Files a wave on the due queue: the planners that returned before the cutoff are due again at their cadence
+    // (the family entries when the last committed rounds review has stood RoundsEveryTicks, #3556), and one that
+    // reported existing work of its kinds waits on the open attempts of those kinds.
     private async Task RecordWaveAsync(PlannerSelectionResult sel, PlannerWave wave, long tick, CancellationToken ct)
     {
         await RecordPlannerReasonsAsync(wave, tick, ct).ConfigureAwait(false);
@@ -505,7 +506,8 @@ public sealed partial class ClockScheduler
             PlannerReasons.PlannerBookkeepingFailed("waits", e);
         }
         _queue.Ran(sel, wave.FinishedNames(), wave.Reason, tick,
-            kinds => plans is null ? [] : PlannerQueue.OpenWorkOfKinds(plans, kinds));
+            kinds => plans is null ? [] : PlannerQueue.OpenWorkOfKinds(plans, kinds),
+            _roundsReviewed ? _lastRoundsTick + Config.RoundsEveryTicks : null);
     }
 
     // Runs the rounder synchronously first when the step's rounds selection or the immediate wave asks for it (every

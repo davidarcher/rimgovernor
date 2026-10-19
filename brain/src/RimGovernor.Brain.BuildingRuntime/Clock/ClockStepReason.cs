@@ -38,7 +38,7 @@ public static class StepReasons
     /// <summary>
     /// Bounds how long the due queue may drive the planners before a review step is promoted to a full one: the
     /// coarse reconciliation that re-runs every planner in case an invalidation was missed. Between full steps a
-    /// review step runs only the planners due at the game tick (<c>PlannerEntry.ReviewEvery</c>) or dirtied by an invalidation.
+    /// review step runs only the planners due at the game tick (<c>PlannerEntry.ReviewEvery</c>, or the rounder's cadence for a family entry) or dirtied by an invalidation.
     /// </summary>
     public static readonly TimeSpan DefaultFullStepEvery = TimeSpan.FromMinutes(2);
 }

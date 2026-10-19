@@ -222,9 +222,12 @@ A migrated family is **one** due-queue entry in the planner catalog. Its old
 planner entries are deleted in the same slice. The entry declares its fact reads,
 action kinds and cadence like a planner entry does today, and wakes on:
 
-- invalidation of a fact family it reads;
+- invalidation of a section of a fact family it reads (the zone census only when
+  its schedule names it, `FamilySchedule.Sections`, since an invalidation native
+  narrows to zone ids dirties that section alone, #3556); a sectionless family
+  (world) by name;
 - outcomes of its own Methods;
-- its cadence.
+- its cadence: the rounder's unless its schedule sets one (#3556).
 
 The **immediate pass** runs the `SeriousHarm` Needs of registered families,
 reading only their declared narrow facts. The legacy immediate Concern set was
@@ -811,6 +814,15 @@ the colony model, the stock, the planned sites and the coupled search from facts
 change in 600 ticks, and it was the cost of the common review; a need that first appears
 between two rounds reviews waits at most an hour for its ranking, while the planners that
 already hold a ranking keep acting on it every 600 ticks.
+
+The family entries are due when the rounder is (`PlannerEntry.RoundsCadence`, #3556): an entry
+without a cadence of its own derives its Needs from the committed review and the census that
+review observed, so the due queue sets its next review tick to the tick the last committed
+review stands until (`_lastRoundsTick + RoundsEveryTicks`), whatever tick the entry itself
+last ran at, and moves every such entry when the rounder commits a review early (a wake). A
+dirty step between two reviews runs its marked entries on the last review and leaves their due
+tick where it was, so no entry runs alone on its own hourly clock off the rounder's phase. A
+catalog planner (defense) and a family whose schedule sets `Every` keep their own cadence.
 
 ```mermaid
 stateDiagram-v2

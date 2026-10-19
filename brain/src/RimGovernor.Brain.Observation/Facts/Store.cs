@@ -60,6 +60,18 @@ public static class SectionExtensions
     /// </summary>
     public static bool Entities(this Section section) =>
         section is Section.PlanningCells or Section.Zones or Section.Buildings or Section.Bills;
+
+    /// <summary>
+    /// Whether a native entity id is a row of the section, by the shape vanilla gives its load ids: a zone is
+    /// <c>Zone_</c> and its number, a thing <c>Thing_</c>, its def and its number. Bills have no load id, and the
+    /// cell section is keyed by rectangle, not id.
+    /// </summary>
+    public static bool Keyed(this Section section, string id) => section switch
+    {
+        Section.Zones => id.StartsWith("Zone_", StringComparison.Ordinal),
+        Section.Buildings => id.StartsWith("Thing_", StringComparison.Ordinal),
+        _ => false,
+    };
 }
 
 /// <summary>Inclusive cell bounds. The default Rect is "unknown", which intersects everything.</summary>
@@ -324,9 +336,10 @@ public sealed record Invalidation
 
     /// <summary>
     /// Names the sections the invalidation makes stale, the rows a scheduler routes to the planners declaring
-    /// them: every section of each family when nothing narrows it; the entity sections when entity ids do; the
-    /// cell section when a rectangle does. A family without a section of the narrowed shape (ids against pawns)
-    /// is dirty whole.
+    /// them: every section of each family when nothing narrows it; the entity sections the ids are rows of
+    /// (<see cref="SectionExtensions.Keyed"/>: zone ids name the zone census alone, #3556), or every entity section
+    /// when the ids are of no known shape; the cell section when a rectangle does. A family without a section of
+    /// the narrowed shape (ids against pawns) is dirty whole.
     /// </summary>
     public IReadOnlyList<Section> Sections()
     {
@@ -339,6 +352,7 @@ public sealed record Invalidation
             }
         }
 
+        var shaped = Ids.Any(id => SectionExtensions.Sections().Any(section => section.Keyed(id)));
         foreach (var family in Families)
         {
             if (!Narrowed)
@@ -352,7 +366,8 @@ public sealed record Invalidation
             var fitted = false;
             foreach (var section in FactStore.FamilySections(family))
             {
-                if ((section.Cells() && Rect is not null) || (!section.Cells() && section.Entities() && Ids.Count > 0))
+                var rows = Ids.Count > 0 && !section.Cells() && section.Entities() && (!shaped || Ids.Any(id => section.Keyed(id)));
+                if ((section.Cells() && Rect is not null) || rows)
                 {
                     Add(section);
                     fitted = true;

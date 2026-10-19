@@ -21,8 +21,16 @@ public sealed record FamilySchedule
     /// </summary>
     public IReadOnlyList<ActionKind>? ProtectionKinds { get; init; }
 
-    /// <summary>The review cadence in game ticks, zero for the hourly default.</summary>
+    /// <summary>The review cadence in game ticks; zero means the rounder's (<see cref="PlannerEntry.RoundsCadence"/>).</summary>
     public Tick Every { get; init; }
+
+    /// <summary>
+    /// The Colony sections the family's read consumes that its fact families alone do not declare
+    /// (<see cref="ClockPlannerCatalog.DeclaredRows"/>: the zone census). An invalidation native narrows to zone
+    /// ids (a stockpile filling, a growing zone turning, a zone edit) marks only the families naming
+    /// <see cref="FactSection.Zones"/> here; one that names no rows marks every family reading Colony.
+    /// </summary>
+    public IReadOnlyList<FactSection> Sections { get; init; } = [];
 }
 
 /// <summary>One Method the run committed or continued for a Need.</summary>

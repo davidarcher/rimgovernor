@@ -64,6 +64,8 @@ public sealed class FoodRounds
     public static FamilySchedule Schedule { get; } = new()
     {
         Kinds = [ActionKind.Building, ActionKind.ZoneCreate, ActionKind.ZoneCellEdit, ActionKind.GrowerCrop, ActionKind.Acquisition, ActionKind.AcquisitionWithdraw, ActionKind.CutPlant],
+        // The field coverage and the blight read the growing zones.
+        Sections = [FactSection.Zones],
     };
 
     /// <summary>

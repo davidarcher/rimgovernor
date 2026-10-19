@@ -74,6 +74,8 @@ public sealed partial class LayoutRounds
         Kinds = [ActionKind.Area, ActionKind.AreaPlantCut, ActionKind.CoverClearance, ActionKind.Building, ActionKind.BuildRoof, ActionKind.WallRemoval,
             ActionKind.FoundationRemoval, ActionKind.Excavation, ActionKind.DoorControl,
             ActionKind.OwnedDraft, ActionKind.Movement],
+        // The defensive layout admits its tiers against the zone census.
+        Sections = [FactSection.Zones],
     };
 
     /// <summary>The family's scheduler entry.</summary>

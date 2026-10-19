@@ -60,6 +60,8 @@ public sealed partial class AdminRounds
         Kinds = [ActionKind.Surgery, ActionKind.WorkAssignment, ActionKind.SupplyAllow, ActionKind.SupplyForbid, ActionKind.Building,
             ActionKind.ProductionBill, ActionKind.RemoveProductionBill, ActionKind.ZoneCreate, ActionKind.ZoneCellEdit, ActionKind.ZoneDelete, ActionKind.StockpilePatch,
             ActionKind.PawnSettings, ActionKind.ReadingPolicy, ActionKind.DrugPolicy, ActionKind.FoodPolicy, ActionKind.PawnActivities],
+        // The stockpile Need judges the stockpile zones' fill.
+        Sections = [FactSection.Zones],
     };
 
     /// <summary>The family's scheduler entry; with the work ledger composed it also files the ledger's purpose verdicts.</summary>

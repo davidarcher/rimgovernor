@@ -29,7 +29,10 @@ internal sealed record PlannerEntry
     /// <summary>The sectionless families the planner plans from (world).</summary>
     public IReadOnlyList<FactFamily> Families { get; init; } = [];
 
-    /// <summary>The planner's review cadence in game ticks, zero for the hourly default.</summary>
+    /// <summary>
+    /// The planner's review cadence in game ticks; zero means the default: hourly for a catalog planner, the rounds
+    /// cadence for a family entry (<see cref="RoundsCadence"/>).
+    /// </summary>
     public Tick Every { get; init; }
 
     /// <summary>Reports whether the composition wired this planner.</summary>
@@ -44,8 +47,17 @@ internal sealed record PlannerEntry
     /// <summary>Steps the planner and stores its result on the given result; its error is wrapped with the planner's name.</summary>
     public required Func<ClockScheduler, CancellationToken, CancellationToken, ClockSchedulerResult, StepArbiter, Task<Verdict>> Run { get; init; }
 
-    /// <summary>The planner's cadence: its own when set, else the hourly default.</summary>
+    /// <summary>The planner's cadence: its own when set, else the hourly default. An entry on <see cref="RoundsCadence"/> is due with the rounder instead.</summary>
     public Tick ReviewEvery() => Every.Value > 0 ? Every : ClockPlannerCatalog.ReviewEveryDefault;
+
+    /// <summary>
+    /// Whether the entry is due when the rounder is (#3556): a family entry without a cadence of its own. Its facts
+    /// come from the rounds review and the census that review observed, so a run between two rounds reviews on
+    /// its own hourly clock would read the same facts again; the due queue sets its next review tick to the tick
+    /// the last committed review stands until (<see cref="ClockSchedulerConfig.RoundsEveryTicks"/>), and moves it
+    /// with every review the rounder commits.
+    /// </summary>
+    public bool RoundsCadence => Family is not null && Every.Value <= 0;
 
     /// <summary>
     /// The key a planner's verdict files its cause under, and so the target of its need_transitions rows: its
@@ -100,10 +112,17 @@ internal sealed record PlannerEntry
 /// <summary>The routine planners in queue order and the rules that select them.</summary>
 internal static class ClockPlannerCatalog
 {
-    // Review cadences, in game ticks (2500 an hour): how long a planner's last evaluation stands before the due
-    // queue re-runs it without evidence. Evidence (an outcome of its kinds, a dirty section it declares) re-runs
-    // it sooner.
+    // Review cadences, in game ticks (2500 an hour): how long a catalog planner's last evaluation stands before the
+    // due queue re-runs it without evidence. Evidence (an outcome of its kinds, a dirty section it declares) re-runs
+    // it sooner. A family entry without a cadence of its own is due with the rounder (PlannerEntry.RoundsCadence).
     public static readonly Tick ReviewEveryDefault = new(GameTime.TicksPerHour);
+
+    /// <summary>
+    /// The Colony sections a family entry declares only when its schedule names them (<see cref="FamilySchedule.Sections"/>):
+    /// the zone census, whose rows native names when a stockpile fills, a growing zone turns or a zone is edited. Every
+    /// other section of a family it reads is declared with the family; no invalidation names a bill or a building row.
+    /// </summary>
+    internal static readonly FactSection[] DeclaredRows = [FactSection.Zones];
 
     /// <summary>Called for every fact family a catalog planner reads that its entry does not declare. Only a test host installs one; production reads unaudited.</summary>
     public static Action<string, FactFamily, string>? ReadAudit { get; set; }
@@ -164,8 +183,9 @@ internal static class ClockPlannerCatalog
 
     /// <summary>
     /// The due-queue entry of a family (#3250), named by its id: it wakes on an invalidation of any fact family it
-    /// reads (every census section of those families, and the sectionless ones by name), on a terminal outcome of
-    /// its Methods' kinds and on its cadence. It is immediate when the family has SeriousHarm Needs.
+    /// reads (every census section of those families but the rows its schedule must name, <see cref="DeclaredRows"/>,
+    /// and the sectionless ones by name), on a terminal outcome of its Methods' kinds and on its cadence (the
+    /// rounder's unless its schedule sets one). It is immediate when the family has SeriousHarm Needs.
     /// </summary>
     public static PlannerEntry FamilyEntry(FamilyRunner runner)
     {
@@ -177,8 +197,10 @@ internal static class ClockPlannerCatalog
             Immediate = runner.Immediate,
             Class = runner.Schedule.Class,
             Kinds = runner.Schedule.Kinds,
-            Sections = [.. families.SelectMany(FactStore.FamilySections).Distinct()],
-            Families = families,
+            Sections = [.. families.SelectMany(FactStore.FamilySections).Where(s => !DeclaredRows.Contains(s) || runner.Schedule.Sections.Contains(s)).Distinct()],
+            // Only the sectionless families match a wake by name; a family with sections is matched by the sections
+            // the wake dirtied, so an invalidation narrowed to rows marks only the entries declaring those rows.
+            Families = [.. families.Where(f => FactStore.FamilySections(f).Count == 0)],
             Every = runner.Schedule.Every,
             Configured = c => c.Rounds is not null,
             Run = async (s, ct, epoch, output, arbiter) =>

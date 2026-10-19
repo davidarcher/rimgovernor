@@ -41,6 +41,8 @@ public sealed partial class FoodStoresRounds
                 Kinds = _cooler is null
                     ? [ActionKind.Haul, ActionKind.SupplyAllow, ActionKind.SupplyForbid]
                     : [ActionKind.Haul, ActionKind.SupplyAllow, ActionKind.SupplyForbid, ActionKind.Building, ActionKind.BuildingTemperature],
+                // The food storage upkeep reads the stockpile zones.
+                Sections = [FactSection.Zones],
             },
             WorkAsync);
 

@@ -68,6 +68,8 @@ public sealed class EconomyRounds
             ActionKind.ZoneCreate, ActionKind.ZoneCellEdit, ActionKind.Acquisition, ActionKind.AcquisitionWithdraw,
             ActionKind.Trade, ActionKind.CommsTradeRequest, ActionKind.CaravanDeparture,
         ],
+        // The resource review and the trade read the stockpile zones.
+        Sections = [FactSection.Zones],
     };
 
     /// <summary>The family's scheduler entry: it wakes on its reads and on its Methods' outcomes.</summary>

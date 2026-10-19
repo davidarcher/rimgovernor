@@ -24,9 +24,10 @@ internal sealed record PlannerSelectionResult(bool Planners, Func<PlannerEntry, 
 
 /// <summary>
 /// The scheduler's due queue over the planner catalog: per planner, the game tick its last evaluation stands
-/// until (<see cref="PlannerEntry.ReviewEvery"/>), the wake evidence it has yet to act on, and the dependency it
-/// reported waiting on. A step selects the planners that are dirty or due at its tick and skips those still
-/// waiting; the full step (the coarse reconciliation for missed invalidations) and an authority change run
+/// until (<see cref="PlannerEntry.ReviewEvery"/>, or for a family entry on <see cref="PlannerEntry.RoundsCadence"/>
+/// the tick the last committed rounds review stands until, #3556), the wake evidence it has yet to act on, and the
+/// dependency it reported waiting on. A step selects the planners that are dirty or due at its tick and skips those
+/// still waiting; the full step (the coarse reconciliation for missed invalidations) and an authority change run
 /// everything and clear the waits. Touched only under the player gate.
 /// </summary>
 internal sealed class PlannerQueue
@@ -209,9 +210,13 @@ internal sealed class PlannerQueue
     /// marks up to the selection's began sequence cleared; one that reported existing work of its kinds
     /// (<paramref name="reasonOf"/>, the wave's per-planner reason) waits on those attempts
     /// (<paramref name="openWork"/> names them) until their outcome or its deadline; a full wave (pick null) also
-    /// clears the all-evidence flag and every wait. A planner that missed the wave keeps its marks.
+    /// clears the all-evidence flag and every wait. A planner that missed the wave keeps its marks. An entry on the
+    /// rounds cadence is due at <paramref name="roundsDue"/>, the tick the last committed rounds review stands until
+    /// (null before the first review): every such entry that has run, whether or not this wave ran it, so a review
+    /// the rounder committed on an early step moves them all to its next due tick and none runs alone on the last
+    /// review between two (#3556).
     /// </summary>
-    public void Ran(PlannerSelectionResult sel, IEnumerable<string> names, Func<string, Verdict?> reasonOf, long tick, Func<IReadOnlyList<ActionKind>, IReadOnlyList<ActionId>>? openWork)
+    public void Ran(PlannerSelectionResult sel, IEnumerable<string> names, Func<string, Verdict?> reasonOf, long tick, Func<IReadOnlyList<ActionKind>, IReadOnlyList<ActionId>>? openWork, long? roundsDue = null)
     {
         if (sel.Pick is null)
         {
@@ -229,10 +234,20 @@ internal sealed class PlannerQueue
                 _due.TryAdd(name, tick);
             }
         }
+        if (roundsDue is { } aligned)
+        {
+            foreach (var (name, entry) in entries)
+            {
+                if (entry.RoundsCadence && _due.ContainsKey(name))
+                {
+                    _due[name] = aligned;
+                }
+            }
+        }
         foreach (var name in returned)
         {
             var entry = entries[name];
-            _due[name] = tick + entry.ReviewEvery().Value;
+            _due[name] = entry.RoundsCadence && roundsDue is { } due ? due : tick + entry.ReviewEvery().Value;
             if (_dirty.TryGetValue(name, out var mark) && mark <= sel.Began)
             {
                 _dirty.Remove(name);
