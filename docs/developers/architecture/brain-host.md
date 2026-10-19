@@ -842,7 +842,7 @@ rejected as construction without supported relief.
 The cut: the rounder remembers the planned rooms with the selected ids, and `RoundsRules.WarmStartOf` points a
 previous id whose room left the plan at the current room of the same role whose floor overlaps the remembered one, the
 lowest id when several do, before the search (`warm_translated` on the row counts the ids moved). The search's clock
-is injected (`clockMs`), since Policy reads no clock. Landed 7e9592335.
+is injected (`clockMs`), since Policy reads no clock. Landed 891337f0b.
 
 Measured 2026-10-18, same colony and machine, brain session `450b39dc04eb42848620cbb8f88eff79`, one passing
 colony-review day of 60000 ticks, against the shared-scope day and the profile day above:
