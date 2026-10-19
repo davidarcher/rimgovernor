@@ -20,7 +20,7 @@ public sealed class PlannerQueueStarvationTests
         Class = PlannerClass.Optional,
         Every = new Tick(every),
         Configured = _ => true,
-        Run = (_, _, _, _, _) => Task.FromResult(default(Verdict)),
+        Run = (_, _, _, _, _, _) => Task.FromResult(default(Verdict)),
     };
 
     private static readonly PlannerEntry[] Catalog =

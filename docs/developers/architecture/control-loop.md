@@ -826,6 +826,16 @@ dirty step between two reviews runs its marked entries on the last review and le
 tick where it was, so no entry runs alone on its own hourly clock off the rounder's phase. A
 catalog planner (defense) and a family whose schedule sets `Every` keep their own cadence.
 
+An entry selected `due` alone, on a step whose rounds word is `last` or `due`, runs for its
+cadence (`FamilyStep.Cadence`, #3556): a ready Need whose last ordinary run ended in a wait or
+a refusal keeps that verdict and Method and skips propose, commit and work, since its facts are
+the committed review's and nothing has marked the entry. The memo is the runner's, keyed by
+world, written by every complete ordinary run; open work (the entry's own wait covers it), a
+held claim (one step's arbiter) and an unread field are never kept, nor is an admission. A
+`dirty`, `wake`, `full` or `all` selection, a Need that was not ready last time, the immediate
+pass and another world run the work again. The `planner_step` row of a kept Need carries
+`kept`, and the `clock_step` row counts them (`kept`).
+
 ```mermaid
 stateDiagram-v2
     [*] --> Held: NeverRun

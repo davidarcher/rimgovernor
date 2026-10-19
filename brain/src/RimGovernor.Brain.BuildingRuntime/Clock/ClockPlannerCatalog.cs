@@ -44,8 +44,11 @@ internal sealed record PlannerEntry
     /// </summary>
     public FamilyRunner? Family { get; init; }
 
-    /// <summary>Steps the planner and stores its result on the given result; its error is wrapped with the planner's name.</summary>
-    public required Func<ClockScheduler, CancellationToken, CancellationToken, ClockSchedulerResult, StepArbiter, Task<Verdict>> Run { get; init; }
+    /// <summary>
+    /// Steps the planner and stores its result on the given result; its error is wrapped with the planner's name.
+    /// The last argument says the planner runs for its cadence alone (<see cref="FamilyStep.Cadence"/>, #3556).
+    /// </summary>
+    public required Func<ClockScheduler, CancellationToken, CancellationToken, ClockSchedulerResult, StepArbiter, bool, Task<Verdict>> Run { get; init; }
 
     /// <summary>The planner's cadence: its own when set, else the hourly default. An entry on <see cref="RoundsCadence"/> is due with the rounder instead.</summary>
     public Tick ReviewEvery() => Every.Value > 0 ? Every : ClockPlannerCatalog.ReviewEveryDefault;
@@ -163,7 +166,7 @@ internal static class ClockPlannerCatalog
             Families = families ?? [],
             Every = every,
             Configured = configured,
-            Run = async (s, ct, epoch, output, arbiter) =>
+            Run = async (s, ct, epoch, output, arbiter, _) =>
             {
                 var method = await step(s, ct, epoch, arbiter).ConfigureAwait(false);
                 store(output, method);
@@ -203,7 +206,7 @@ internal static class ClockPlannerCatalog
             Families = [.. families.Where(f => FactStore.FamilySections(f).Count == 0)],
             Every = runner.Schedule.Every,
             Configured = c => c.Rounds is not null,
-            Run = async (s, ct, epoch, output, arbiter) =>
+            Run = async (s, ct, epoch, output, arbiter, cadence) =>
             {
                 var p = s.Config.Rounds!.Player;
                 var state = p.Session.State();
@@ -221,6 +224,7 @@ internal static class ClockPlannerCatalog
                     Journal = p.Journal,
                     World = state.Snapshot,
                     Immediate = ReviewScope.Immediate,
+                    Cadence = cadence && !ReviewScope.Immediate,
                     State = state,
                     Epoch = epoch,
                     Arbiter = arbiter,
@@ -260,11 +264,14 @@ public sealed partial class ClockScheduler
 {
     /// <summary>
     /// Queues the configured planners <paramref name="pick"/> selects (all when null) onto the wave, returning the
-    /// names queued in catalog order.
+    /// names queued in catalog order. A planner the selection chose as <c>due</c> on a step that reviews on the
+    /// cadence (<paramref name="rounds"/> <c>due</c> or null, not a wake or every planner) runs for its cadence
+    /// alone (<see cref="FamilyStep.Cadence"/>, #3556).
     /// </summary>
-    internal List<string> QueuePlanners(PlannerWave wave, StepArbiter arbiter, Func<PlannerEntry, bool>? pick, IReadOnlyDictionary<string, string>? why, CancellationToken ct, CancellationToken epoch)
+    internal List<string> QueuePlanners(PlannerWave wave, StepArbiter arbiter, Func<PlannerEntry, bool>? pick, IReadOnlyDictionary<string, string>? why, string? rounds, CancellationToken ct, CancellationToken epoch)
     {
         var queued = new List<string>();
+        var cadenceStep = rounds is null or "due";
         foreach (var catalogEntry in _catalog)
         {
             var entry = catalogEntry;
@@ -277,7 +284,8 @@ public sealed partial class ClockScheduler
                 entry = entry with { Class = PlannerClass.Critical };
             }
             queued.Add(entry.Name);
-            wave.Queue(this, arbiter, entry, epoch, why?.GetValueOrDefault(entry.Name));
+            var selected = why?.GetValueOrDefault(entry.Name);
+            wave.Queue(this, arbiter, entry, epoch, selected, cadenceStep && selected == "due");
         }
         return queued;
     }

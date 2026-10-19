@@ -54,8 +54,8 @@ internal sealed class PlannerWave : IDisposable
 
     private CancellationToken Call { get; }
 
-    /// <summary>Queues <paramref name="entry"/>'s run on the wave: a critical planner under the step token, an optional one under the wave's cancellable token. <paramref name="selected"/> is why the selection chose it (<see cref="PlannerSelectionResult.Why"/>), carried on its planner_step rows.</summary>
-    public void Queue(ClockScheduler s, StepArbiter arbiter, PlannerEntry entry, CancellationToken epoch, string? selected = null)
+    /// <summary>Queues <paramref name="entry"/>'s run on the wave: a critical planner under the step token, an optional one under the wave's cancellable token. <paramref name="selected"/> is why the selection chose it (<see cref="PlannerSelectionResult.Why"/>), carried on its planner_step rows; <paramref name="cadence"/> says it runs for its cadence alone (<see cref="FamilyStep.Cadence"/>, #3556).</summary>
+    public void Queue(ClockScheduler s, StepArbiter arbiter, PlannerEntry entry, CancellationToken epoch, string? selected = null, bool cadence = false)
     {
         var priv = new ClockSchedulerResult();
         lock (_mu)
@@ -87,7 +87,7 @@ internal sealed class PlannerWave : IDisposable
             {
                 await s.Config.Faults.PlannerFault(entry.Name, async () =>
                 {
-                    reason = await entry.Run(s, ct, epoch, priv, arbiter).ConfigureAwait(false);
+                    reason = await entry.Run(s, ct, epoch, priv, arbiter, cadence).ConfigureAwait(false);
                 }, ct).Invoke().ConfigureAwait(false);
             }
             catch (CombatWorkOpenException)
@@ -118,7 +118,7 @@ internal sealed class PlannerWave : IDisposable
             // pairs each with the need_transitions row filed under the same key; the family's own row stands
             // only for a failure or a run that judged no Need.
             var needRows = error is null && priv.Families.TryGetValue(entry.Name, out var family) && family.Reports.Count > 0
-                ? family.Reports.Select(r => Scoped(Tallied(NeedDecision(entry, r, took, late), reads.Tally))).ToList()
+                ? family.Reports.Select(r => Scoped(Tallied(NeedDecision(entry, r, took, late, family.Kept.Contains(r.Need)), reads.Tally))).ToList()
                 : null;
             foreach (var row in needRows ?? [decision])
             {
@@ -232,11 +232,16 @@ internal sealed class PlannerWave : IDisposable
         return decision with { Attrs = attrs };
     }
 
-    /// <summary>The planner_step row of one Need a family run judged: the family entry's row with the NeedId as its concern.</summary>
-    internal static Decision NeedDecision(PlannerEntry entry, NeedReport report, TimeSpan took, bool late)
+    /// <summary>The planner_step row of one Need a family run judged: the family entry's row with the NeedId as its concern, marked <c>kept</c> when the run kept the verdict from its last run instead of working the Need (#3556).</summary>
+    internal static Decision NeedDecision(PlannerEntry entry, NeedReport report, TimeSpan took, bool late, bool kept = false)
     {
         var d = StepDecision(entry, report.Verdict, null, took, late);
-        return d with { Attrs = new Dictionary<string, object?>(d.Attrs) { ["concern"] = report.Need.Value } };
+        var attrs = new Dictionary<string, object?>(d.Attrs) { ["concern"] = report.Need.Value };
+        if (kept)
+        {
+            attrs["kept"] = true;
+        }
+        return d with { Attrs = attrs };
     }
 
     /// <summary>

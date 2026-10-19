@@ -21,7 +21,7 @@ public sealed class RoundsCadenceEntriesTests
         Name = name,
         Class = PlannerClass.Optional,
         Configured = _ => true,
-        Run = (_, _, _, _, _) => Task.FromResult(default(Verdict)),
+        Run = (_, _, _, _, _, _) => Task.FromResult(default(Verdict)),
     };
 
     private static PlannerEntry Family(FamilySchedule? schedule = null) =>

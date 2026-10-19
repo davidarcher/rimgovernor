@@ -60,6 +60,15 @@ public sealed record FamilyRun : IPlannerMethod
 
     /// <summary>Verdicts the run files under keys other than its NeedIds: the work ledger's purpose reports (#3304). Empty for every other family.</summary>
     public IReadOnlyList<LedgerReport> Filed { get; init; } = [];
+
+    /// <summary>
+    /// The ready Needs whose verdict and Method the run kept from the family's last ordinary run instead of
+    /// proposing and working them (#3556): a cadence run (<see cref="FamilyStep.Cadence"/>) keeps a wait or a
+    /// refusal, since nothing the family is woken for has changed; its work runs again on evidence (a dirty mark,
+    /// a wake, a full step), when the Need's standing changes, or when the kept verdict was an admission, open
+    /// work, a held claim or an unavailable field.
+    /// </summary>
+    public IReadOnlyList<NeedId> Kept { get; init; } = [];
 }
 
 /// <summary>A verdict filed under one NeedId and the Method the Need works (admitted, continued or still open; empty when none).</summary>
@@ -85,6 +94,13 @@ internal sealed record FamilyStep
 
     /// <summary>The step's pawn and resource arbiter, when the pass has one.</summary>
     public StepArbiter? Arbiter { get; init; }
+
+    /// <summary>
+    /// The entry runs for its cadence alone (#3556): the selection chose it as <c>due</c> on a step that reviews on
+    /// the cadence, not a wake, a full step or an authority change. A ready Need whose last ordinary run ended in a
+    /// wait or a refusal then keeps that verdict and skips its work (<see cref="FamilyRun.Kept"/>).
+    /// </summary>
+    public bool Cadence { get; init; }
 }
 
 /// <summary>
@@ -117,6 +133,11 @@ public abstract class FamilyRunner
 {
     private readonly Lock _mu = new();
     private IReadOnlyList<PlanId> _seriousHarmPlans = [];
+
+    // The reports of the ready Needs of the last ordinary run, keyed by NeedId, and the world it ran in: what a
+    // cadence run keeps (#3556). The immediate pass neither reads nor writes them.
+    private Dictionary<NeedId, NeedReport> _lastReady = [];
+    private GenerationSnapshot _lastWorld;
 
     private protected FamilyRunner(IFamily family, FamilySchedule schedule)
     {
@@ -171,10 +192,37 @@ public abstract class FamilyRunner
                 _seriousHarmPlans = run.SeriousHarmPlans;
             }
         }
+        else if (run.Complete)
+        {
+            var ready = run.Standings.Where(s => s.Readiness == NeedReadiness.Ready).Select(s => s.Need.Id).ToHashSet();
+            lock (_mu)
+            {
+                _lastReady = run.Reports.Where(r => ready.Contains(r.Need)).ToDictionary(r => r.Need);
+                _lastWorld = step.World;
+            }
+        }
         return run;
     }
 
     private protected abstract Task<FamilyRun> StepAsync(FamilyStep step, CancellationToken call);
+
+    /// <summary>The ready Needs' reports of the last ordinary run in <paramref name="world"/>; empty for another world or before any run.</summary>
+    private protected IReadOnlyDictionary<NeedId, NeedReport> LastReady(GenerationSnapshot world)
+    {
+        lock (_mu)
+        {
+            return _lastWorld == world ? _lastReady : new Dictionary<NeedId, NeedReport>();
+        }
+    }
+
+    /// <summary>
+    /// Whether a ready Need's report is one a cadence run keeps (#3556): a wait or a refusal other than open work
+    /// (the entry's own wait covers it), a claim held within one step's arbiter or a field the work could not read.
+    /// An admission is never kept: the next run finds its Method open or its outcome has marked the entry.
+    /// </summary>
+    internal static bool Keepable(Verdict verdict) =>
+        verdict.Outcome is Outcome.Waiting or Outcome.Refused
+        && verdict != Verdict.BuildingReasonExistingWork && !verdict.Is(Cause.Claim) && !verdict.Is(Cause.FieldUnavailable);
 
     /// <summary>
     /// The verdict a family entry reports for itself (the due queue reads it): admitted when any Method was, open
@@ -272,6 +320,24 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
 
         var methods = new List<FamilyMethod>();
         var working = new Dictionary<NeedId, MethodId>();
+        var kept = new List<NeedId>();
+        if (step.Cadence && !step.Immediate && ready.Count > 0)
+        {
+            // A cadence run keeps the wait or refusal a ready Need ended on last time (#3556): the facts it derives
+            // from are the committed review's and nothing has marked the entry, so its work would return the same.
+            var last = LastReady(step.World);
+            foreach (var need in ready.Where(n => last.TryGetValue(n.Id, out var r) && Keepable(r.Verdict)).ToList())
+            {
+                var report = last[need.Id];
+                reports[need.Id] = report.Verdict;
+                if (!report.Method.IsEmpty)
+                {
+                    working[need.Id] = report.Method;
+                }
+                ready.Remove(need);
+                kept.Add(need.Id);
+            }
+        }
         if (ready.Count > 0)
         {
             var readyIds = ready.Select(n => n.Id).ToHashSet();
@@ -348,6 +414,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
             UndeclaredReads = facts.Undeclared,
             Complete = !step.Immediate,
             Filed = _filed is null || step.Immediate ? [] : await Task.Run(() => _filed(step.World, call), call).ConfigureAwait(false),
+            Kept = kept,
         };
     }
 

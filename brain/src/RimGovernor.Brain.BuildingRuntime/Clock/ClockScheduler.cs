@@ -395,6 +395,12 @@ public sealed partial class ClockScheduler
                 // Whether the step ran the rounder and why, or `last`: its planners read the last committed review (#3556).
                 row["rounds"] = rounds ?? "last";
             }
+            var kept = result.Families.Values.Sum(f => f.Kept.Count);
+            if (kept > 0)
+            {
+                // How many ready Needs kept their last wait or refusal instead of working (#3556).
+                row["kept"] = (long)kept;
+            }
             var cause = result.Reason.Cause == default ? reason.Cause : result.Reason.Cause;
             var elapsed = Stopwatch.GetElapsedTime(entered);
             Metrics.RecordStepMetrics(cause, elapsed, result.CriticalWave, row);
@@ -545,6 +551,6 @@ public sealed partial class ClockScheduler
                 output.Stages.Lap("extent");
             }
         }
-        return QueuePlanners(wave, arbiter, pick, why, call, epoch);
+        return QueuePlanners(wave, arbiter, pick, why, rounds, call, epoch);
     }
 }
