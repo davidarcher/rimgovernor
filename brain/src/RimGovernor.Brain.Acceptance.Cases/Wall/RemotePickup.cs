@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Bridge.Contracts;
+using Clock = RimGovernor.Contracts.Wire.Clock;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -40,18 +42,35 @@ internal static class WallRemotePickup
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
-
+        // The pickup guard is armed only while the supervisor runs the clock (#3046), so each phase settles under a native
+        // clock run. Staging edits work settings and zones, which revokes the grant, so each phase grants after its stage
+        // and runs at that generation; the run ends once an audit reads the frame funded and nothing carried.
         async Task<Fx.RemotePickupReply> SettleAsync(string phase)
         {
-            Fx.RemotePickupReply? row = null;
-            _ = await s.RunUntilAsync(phase, Settle, async ct =>
+            var run = new Clock.RunRequest
             {
-                row = await s.FixtureAsync(phase + "-audit", Pickup, "audit", ct).ConfigureAwait(false);
-                return (Wait.Signature(row.Delivered, row.Carrying), row.Delivered == row.Cost && row.Carrying == 0);
-            }, cancellationToken).ConfigureAwait(false);
+                ExpectedGeneration = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false),
+                Speed = Clock.Speed.Ultrafast,
+                Policy = ClockExpectation.WithHazardThresholds(new Clock.WatchPolicy
+                {
+                    Mode = Clock.WatchMode.Colony,
+                    HealthDropFraction = .1f,
+                    MinHealthFraction = .5f,
+                    HostileWithin = 20f,
+                    InjuryStopCooldownMs = 0,
+                }),
+            };
+            _ = await s.RunClockUntilHeldAsync(
+                phase,
+                Settle,
+                run,
+                async (_, ct) => Settled(await s.FixtureAsync(phase + "-audit", Pickup, "audit", ct).ConfigureAwait(false)),
+                cancellationToken).ConfigureAwait(false);
+            var row = await s.FixtureAsync(phase + "-held", Pickup, "audit", cancellationToken).ConfigureAwait(false);
             s.RecordFixture(phase, row);
-            return row!;
+            return Settled(row)
+                ? row
+                : throw new AcceptanceException($"{phase}: delivered {row.Delivered} of {row.Cost} with {row.Carrying} carrying after {Settle} ticks: {Describe(row)}");
         }
 
         var staged = await s.FixtureAsync("stage-remote", Pickup, "remote", cancellationToken).ConfigureAwait(false);
@@ -95,6 +114,8 @@ internal static class WallRemotePickup
             throw new AcceptanceException($"a local delivery must take exactly the frame's need from the first stack: {Describe(local)}");
         }
     }
+
+    private static bool Settled(Fx.RemotePickupReply row) => row.Delivered == row.Cost && row.Carrying == 0;
 
     private static int At(Fx.RemotePickupReply row, int x, int z) => row.Loose.FirstOrDefault(st => st.X == x && st.Z == z)?.Count ?? 0;
 
