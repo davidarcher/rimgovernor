@@ -179,9 +179,9 @@ public static partial class LayoutPerimeterSitesRules
     /// <summary>The region as the rectangles the wall sections cut: the same decomposition CellRects makes of its cells.</summary>
     internal static List<Rectangle> RegionRects(Region g) => LayoutPerimeterEnclosureRules.CellRects([.. g.Cells()]);
 
-    private static readonly System.Text.RegularExpressions.Regex CorePerimeterTier = new("^" + System.Text.RegularExpressions.Regex.Escape(LayoutDefenseRules.TierPerimeterPrefix) + "(r[0-9]+-)?[0-9]+$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+    private static readonly System.Text.RegularExpressions.Regex CorePerimeterTier = new("^" + System.Text.RegularExpressions.Regex.Escape(LayoutDefenseRules.TierPerimeterPrefix) + "[0-9]+$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
-    /// <summary>Whether a tier is one of the perimeter wall's own sections (perimeter-NN, or perimeter-rN-NN after a re-cut), not a pump, light, fence or removal tier.</summary>
+    /// <summary>Whether a tier is one of the perimeter wall's own sections (perimeter-NN), not a pump, light, fence or removal tier.</summary>
     public static bool IsCorePerimeterTier(DefenseTierName name) => CorePerimeterTier.IsMatch(name.Value);
 }
 

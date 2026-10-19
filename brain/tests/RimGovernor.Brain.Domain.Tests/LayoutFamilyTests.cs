@@ -330,11 +330,12 @@ public sealed class LayoutFamilyTests
                     Name = DefenseLayout.TierFiringLine, Attempts = 1, Built = true, Reserved = [new(3, 3)],
                     Buildings = [new DefenseBuilding { Definition = "Barricade", Cell = new(1, 0), Rotation = Rotation.North, Stuff = "WoodLog" }],
                 },
-                new DefenseTierRecord { Name = new DefenseTierName("perimeter-ring"), Nodes = ["ring-1"], Remove = true, Bridge = "b", Foundation = true, Before = true },
+                new DefenseTierRecord
+                {
+                    Name = new DefenseTierName("perimeter-remove-xb-03"), Nodes = ["ring-1"], Remove = true,
+                    Buildings = [new DefenseBuilding { Definition = "Wall", Cell = new(5, 5), Rotation = Rotation.North, Stuff = "WoodLog" }],
+                },
             ],
-            PerimeterKey = "key",
-            PerimeterRevision = 2,
-            PerimeterBridge = "bridge",
         }, ct);
         var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct));
         var blob = saved[Journal.GovernorDefenseLayoutKey];
@@ -348,11 +349,12 @@ public sealed class LayoutFamilyTests
         loaded.RebuildFamilies(saved, ct);
         var record = loaded.LoadDefenseLayout(world, ct);
         Assert.NotNull(record);
-        Assert.Equal(("killbox-1", "digest-1", "key", 2, "bridge"), (record.Killbox, record.KillboxDigest, record.PerimeterKey, record.PerimeterRevision, record.PerimeterBridge));
+        Assert.Equal(("killbox-1", "digest-1"), (record.Killbox, record.KillboxDigest));
         var firing = record.Tiers[0];
         Assert.Equal((1, true, "Barricade"), (firing.Attempts, firing.Built, Assert.Single(firing.Buildings).Definition));
         var ring = record.Tiers[1];
-        Assert.Equal((true, "b", true, true, 0), (ring.Remove, ring.Bridge, ring.Foundation, ring.Before, ring.Buildings.Count));
+        // A removal tier names the nodes it came from and stores its buildings: the plan no longer resolves them.
+        Assert.Equal((true, "ring-1", "Wall"), (ring.Remove, Assert.Single(ring.Nodes), Assert.Single(ring.Buildings).Definition));
         Assert.Equal(blob, loaded.GovernorStateBlobs(ct)[Journal.GovernorDefenseLayoutKey]);
     }
 

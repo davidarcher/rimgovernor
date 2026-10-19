@@ -1,6 +1,4 @@
 using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -22,6 +20,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal const double DefenseMoisturePumpW = 150.0;
     internal const string DefenseRoomLamp = "StandingLamp";
     internal const int MaxDefenseRemovals = 64;
+
+    /// <summary>Names the perimeter's removal tiers: this prefix, x (deconstruct) or u (lift a bridge), b (ahead of the cut's sections) or a (behind them), and the base of the tier the buildings came from.</summary>
+    internal const string DefenseRemovalPrefix = LayoutDefenseRules.TierPerimeterPrefix + "remove-";
+
+    /// <summary>The bridge materials a bridged perimeter cell can stand on.</summary>
+    private static readonly string[] DefenseBridges = [LayoutDefenseRules.PerimeterBridge, LayoutDefenseRules.PerimeterHeavyBridge];
 
     internal static (DefenseCut Cut, bool Known) DefensePerimeterCut(RoundsReading read)
     {
@@ -86,40 +90,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return (ring, fences, pumps);
     }
 
-    internal static (PerimeterSection Section, bool Ok) DefenseSectionFor(DefenseTierRecord tier, IReadOnlyList<PerimeterSection> sections)
-    {
-        var named = sections.Where(s => s.Nodes.SequenceEqual(tier.Nodes)).ToList();
-        if (named.Count == 1)
-        {
-            return (named[0], true);
-        }
-        var baseName = LayoutDefenseRules.PerimeterSectionBase(tier.Name);
-        foreach (var s in named)
-        {
-            if (LayoutDefenseRules.PerimeterSectionBase(s.Name) == baseName)
-            {
-                return (s, true);
-            }
-        }
-        return (new PerimeterSection(), false);
-    }
-
     internal static List<DefenseBuilding> DefenseResolve(DefenseTierRecord tier, IReadOnlyList<PerimeterSection> sections, ISet<Cell> taken)
     {
-        var output = new List<DefenseBuilding>();
-        var (section, ok) = DefenseSectionFor(tier, sections);
-        if (!ok)
-        {
-            return output;
-        }
-        foreach (var b in section.Buildings)
-        {
-            if (!taken.Contains(b.Cell))
-            {
-                output.Add(DefenseStored(b));
-            }
-        }
-        return output;
+        var section = sections.FirstOrDefault(s => s.Name == tier.Name && s.Nodes.SequenceEqual(tier.Nodes));
+        return section is null ? [] : [.. section.Buildings.Where(b => !taken.Contains(b.Cell)).Select(DefenseStored)];
     }
 
     internal static HashSet<Cell> DefenseTaken(IEnumerable<DefenseTierRecord> tiers)
@@ -139,88 +113,43 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return taken;
     }
 
+    /// <summary>
+    /// The plan the tiers' site nodes resolve on: the whole plan, or, once a ring replacement retired the generation
+    /// they name, that generation's own view (<see cref="LayoutPlan.SiteView"/>).
+    /// </summary>
+    internal static LayoutPlan DefenseNodeView(IEnumerable<DefenseTierRecord> tiers, LayoutPlan plan)
+    {
+        var ids = tiers.Where(t => t.NodeBacked).SelectMany(t => t.Nodes).Distinct(StringComparer.Ordinal).ToList();
+        var retired = ids.Any(id => plan.Site(id) is { } s && plan.LiveSites(s.Kind).All(l => l.Node != id));
+        return retired ? plan.SiteView(ids) : plan;
+    }
+
     /// <summary>Fills the node-backed tiers of the record with the buildings the current cut resolves them to.</summary>
     internal static void DefenseHydrate(DefenseLayoutRecord record, DefenseCut cut)
     {
-        var (ring, fences, pumps) = DefenseNodeSections(cut.Plan, cut.Bridge, cut.Transmitters);
+        var (ring, fences, pumps) = DefenseNodeSections(DefenseNodeView(record.Tiers, cut.Plan), cut.Bridge, cut.Transmitters);
         var sections = ring.Concat(fences).Concat(pumps).ToList();
         var taken = DefenseTaken(record.Tiers);
         foreach (var t in record.Tiers)
         {
-            if (t.NodeBacked && !t.Remove)
+            if (t.NodeBacked)
             {
                 t.Buildings = DefenseResolve(t, sections, taken);
             }
         }
-        var (wanted, building) = DefenseWanted(record.Tiers);
-        var cuts = new Dictionary<string, List<PerimeterSection>>(StringComparer.Ordinal);
-        foreach (var t in record.Tiers)
-        {
-            if (t.NodeBacked && t.Remove)
-            {
-                var key = t.Bridge + "/" + string.Join(",", t.Nodes);
-                if (!cuts.TryGetValue(key, out var cutSections))
-                {
-                    var (r2, f2, p2) = DefenseNodeSections(cut.Plan.SiteView(t.Nodes), t.Bridge, cut.Transmitters);
-                    cutSections = r2.Concat(f2).Concat(p2).ToList();
-                    cuts[key] = cutSections;
-                }
-                t.Buildings = DefenseResolveRemoval(t, cutSections, taken, wanted, building);
-            }
-        }
     }
 
-    internal static (HashSet<string> Wanted, HashSet<Cell> Building) DefenseWanted(IEnumerable<DefenseTierRecord> tiers)
+    /// <summary>
+    /// The perimeter tiers the cut wants: ring, pockets, lights, fence, pumps and prison turrets, clear of the cells the
+    /// record's other tiers hold. A pump site a perimeter tier of the record already names keeps its slot; a new pump
+    /// is cut only while the spare power covers its draw.
+    /// </summary>
+    internal static List<DefenseTierRecord> DefensePerimeterWants(DefenseLayoutRecord record, DefenseCut cut)
     {
-        var wanted = new HashSet<string>(StringComparer.Ordinal);
-        var building = new HashSet<Cell>();
-        foreach (var t in tiers)
-        {
-            if (!LayoutDefenseRules.IsPerimeterTier(t.Name) || t.Remove)
-            {
-                continue;
-            }
-            foreach (var b in t.Buildings)
-            {
-                wanted.Add(DefenseBuildingKey(b));
-                building.Add(b.Cell);
-            }
-        }
-        return (wanted, building);
-    }
-
-    internal static List<DefenseBuilding> DefenseResolveRemoval(DefenseTierRecord tier, IReadOnlyList<PerimeterSection> sections, ISet<Cell> taken, ISet<string> wanted, ISet<Cell> building)
-    {
-        var output = new List<DefenseBuilding>();
-        foreach (var s in sections)
-        {
-            foreach (var b in s.Buildings)
-            {
-                var sb = DefenseStored(b);
-                if (!taken.Contains(sb.Cell) && !wanted.Contains(DefenseBuildingKey(sb)) && DefenseFoundation(sb.Definition) == tier.Foundation && building.Contains(sb.Cell) == tier.Before)
-                {
-                    output.Add(sb);
-                }
-            }
-        }
-        return output;
-    }
-
-    /// <summary>Recuts the perimeter tiers of the record against the current cut; true when the record changed (or the stored killbox no longer matches and must be proposed again).</summary>
-    internal static bool DefenseRecutPerimeter(DefenseLayoutRecord record, DefenseCut cut)
-    {
-        var kept = new List<DefenseTierRecord>();
-        var old = new List<DefenseTierRecord>();
         var have = new HashSet<Cell>();
         foreach (var t in record.Tiers)
         {
-            if (!LayoutDefenseRules.IsPerimeterTier(t.Name))
-            {
-                kept.Add(t);
-                continue;
-            }
-            old.Add(t);
-            if (t.Remove)
+            if (!LayoutDefenseRules.IsPerimeterTier(t.Name) || t.Remove)
             {
                 continue;
             }
@@ -230,20 +159,6 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 {
                     have.Add(site.Origin);
                 }
-            }
-        }
-        if (old.Count > 0)
-        {
-            var (id, digest, ok) = LayoutPlan.KillboxNode(cut.Plan);
-            if (!ok)
-            {
-                DefenseHydrate(record, cut);
-                return false;
-            }
-            if (id != record.Killbox || digest != record.KillboxDigest)
-            {
-                record.Killbox = "";
-                return true;
             }
         }
         var (ring, fences, pumps) = DefenseNodeSections(cut.Plan, cut.Bridge, cut.Transmitters);
@@ -263,172 +178,159 @@ public sealed partial class RoundsDefenseLayoutPlanner
             }
             spare -= DefenseMoisturePumpW;
         }
-        var taken = DefenseTaken(kept);
-        var digestText = new StringBuilder();
-        digestText.Append(CultureInfo.InvariantCulture, $"sections/{cut.Bridge}/{(pumps.Count > 0 ? "true" : "false")}\n");
-        var keys = new List<string>();
-        var fresh = new List<DefenseTierRecord>();
+        var taken = DefenseTaken(record.Tiers);
+        var wants = new List<DefenseTierRecord>();
         foreach (var s in ring.Concat(pockets).Concat(lights).Concat(fences).Concat(pumps).Concat(cut.Prison))
         {
-            var t = new DefenseTierRecord { Name = s.Name, Nodes = s.Nodes.ToList() };
-            keys.Add("nodes/" + string.Join(",", s.Nodes));
-            foreach (var b in s.Buildings)
+            var t = new DefenseTierRecord { Name = s.Name, Nodes = [.. s.Nodes] };
+            t.Buildings.AddRange(s.Buildings.Where(b => !taken.Contains(b.Cell)).Select(DefenseStored));
+            if (t.Buildings.Count > 0)
             {
-                if (taken.Contains(b.Cell))
+                wants.Add(t);
+            }
+        }
+        return wants;
+    }
+
+    /// <summary>
+    /// What a perimeter tier owns as it stands. A removal tier, or a tier of no site node, owns its stored buildings;
+    /// a node tier what its nodes resolve to, each bridged cell with the bridge the census shows on it (and the wall
+    /// on it in that bridge's stuff), the cut's bridge where none stands.
+    /// </summary>
+    internal static List<DefenseBuilding> DefenseOwned(DefenseTierRecord tier, IReadOnlyDictionary<string, List<PerimeterSection>> byBridge, string bridge, DefenseCensus census, ISet<Cell> taken)
+    {
+        if (!tier.NodeBacked)
+        {
+            return tier.Buildings;
+        }
+        var owned = DefenseResolve(tier, byBridge[bridge], taken);
+        var resolved = byBridge.ToDictionary(kv => kv.Key, kv => DefenseResolve(tier, kv.Value, taken), StringComparer.Ordinal);
+        for (var i = 0; i < owned.Count; i++)
+        {
+            if (census.Terrain.TryGetValue(owned[i].Cell, out var terrain) && terrain != bridge && resolved.TryGetValue(terrain, out var other) && other.Count == owned.Count)
+            {
+                owned[i] = other[i];
+            }
+        }
+        return owned;
+    }
+
+    /// <summary>The name of the removal tier for buildings of <paramref name="source"/>: deconstructed or lifted, ahead of the cut's sections or behind them.</summary>
+    internal static DefenseTierName DefenseRemovalName(DefenseTierRecord source, bool lift, bool ahead)
+    {
+        var rest = source.Name.Value[LayoutDefenseRules.TierPerimeterPrefix.Length..];
+        if (source.Remove && source.Name.Value.StartsWith(DefenseRemovalPrefix, StringComparison.Ordinal))
+        {
+            rest = source.Name.Value[(DefenseRemovalPrefix.Length + 3)..];
+        }
+        return new DefenseTierName(string.Create(CultureInfo.InvariantCulture, $"{DefenseRemovalPrefix}{(lift ? 'u' : 'x')}{(ahead ? 'b' : 'a')}-{rest}"));
+    }
+
+    /// <summary>The perimeter tiers in order, by name, state, nodes and stored buildings: what a recut that changed nothing leaves alike.</summary>
+    private static string DefensePerimeterSignature(IEnumerable<DefenseTierRecord> tiers) =>
+        string.Join('\n', tiers.Where(t => LayoutDefenseRules.IsPerimeterTier(t.Name)).Select(t =>
+            $"{t.Name.Value}|{t.Remove}|{t.Built}|{string.Join(',', t.Nodes)}|{(t.NodeBacked ? "" : string.Join(',', t.Buildings.Select(DefenseBuildingKey).Order(StringComparer.Ordinal)))}"));
+
+    /// <summary>
+    /// Recuts the perimeter tiers of the record against the current cut and the census, every review: the tiers become
+    /// the ones the cut wants, and the buildings the old perimeter tiers own that the cut no longer wants and the census
+    /// shows standing become removal tiers. A removal is staged by its cell and kind, derived again each review: ahead
+    /// of the cut's sections where they build on the cell, behind them (the old wall defends until the new one stands)
+    /// elsewhere; a bridge is lifted after what stands on it. Conduits are never removed: the pump runs follow the
+    /// power net, which a laid run joins. True when the record changed, or the stored killbox no longer matches the
+    /// plan and must be proposed again. Without a census nothing a stored perimeter owns is known, so it is kept.
+    /// </summary>
+    internal static bool DefenseRecutPerimeter(DefenseLayoutRecord record, DefenseCut cut, DefenseCensus? census)
+    {
+        var kept = record.Tiers.Where(t => !LayoutDefenseRules.IsPerimeterTier(t.Name)).ToList();
+        var old = record.Tiers.Where(t => LayoutDefenseRules.IsPerimeterTier(t.Name)).ToList();
+        if (old.Count > 0)
+        {
+            var (id, digest, ok) = LayoutPlan.KillboxNode(cut.Plan);
+            if (!ok || census is null)
+            {
+                DefenseHydrate(record, cut);
+                return false;
+            }
+            if (id != record.Killbox || digest != record.KillboxDigest)
+            {
+                record.Killbox = "";
+                return true;
+            }
+        }
+        var before = DefensePerimeterSignature(old);
+        var wants = DefensePerimeterWants(record, cut);
+        var wanted = new HashSet<string>(wants.SelectMany(t => t.Buildings).Select(DefenseBuildingKey), StringComparer.Ordinal);
+        var building = new HashSet<Cell>(wants.SelectMany(t => t.Buildings).Select(b => b.Cell));
+        var taken = DefenseTaken(kept);
+        var view = DefenseNodeView(old, cut.Plan);
+        var byBridge = new Dictionary<string, List<PerimeterSection>>(StringComparer.Ordinal);
+        foreach (var bridge in DefenseBridges)
+        {
+            var (r, f, p) = DefenseNodeSections(view, bridge, cut.Transmitters);
+            byBridge[bridge] = [.. r, .. f, .. p];
+        }
+        var prior = old.ToDictionary(t => t.Name.Value, StringComparer.Ordinal);
+        var owned = new Dictionary<string, List<DefenseBuilding>>(StringComparer.Ordinal);
+        var removals = new List<(DefenseTierRecord Tier, bool Lift, bool Ahead, HashSet<string> Keys)>();
+        foreach (var t in old)
+        {
+            // A stored perimeter returned above without a census: old is empty or census is set.
+            var standing = census!;
+            var mine = DefenseOwned(t, byBridge, cut.Bridge, standing, taken);
+            owned[t.Name.Value] = mine;
+            foreach (var b in mine)
+            {
+                var key = DefenseBuildingKey(b);
+                if (b.Definition == DefenseConduitDefinition || wanted.Contains(key) || !standing.Standing(b.Definition, b.Cell))
                 {
                     continue;
                 }
-                var rb = DefenseStored(b);
-                t.Buildings.Add(rb);
-                if (rb.Definition != DefenseConduitDefinition)
+                var lift = DefenseFoundation(b.Definition);
+                var ahead = building.Contains(b.Cell);
+                var name = DefenseRemovalName(t, lift, ahead);
+                var i = removals.FindIndex(r => r.Tier.Name == name);
+                if (i < 0)
                 {
-                    keys.Add(DefenseBuildingKey(rb));
-                }
-            }
-            if (t.Buildings.Count > 0)
-            {
-                fresh.Add(t);
-            }
-        }
-        keys.Sort(string.CompareOrdinal);
-        foreach (var k in keys)
-        {
-            digestText.Append(k).Append('\n');
-        }
-        var key = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(digestText.ToString())).AsSpan(0, 16));
-        if (key == record.PerimeterKey)
-        {
-            DefenseHydrate(record, cut);
-            return false;
-        }
-        if (old.Count == 0)
-        {
-            record.PerimeterKey = key;
-            record.PerimeterBridge = cut.Bridge;
-            kept.AddRange(fresh);
-            record.Tiers = kept;
-            record.Validate();
-            return true;
-        }
-        var previous = record.PerimeterBridge != "" ? record.PerimeterBridge : cut.Bridge;
-        record.PerimeterKey = key;
-        record.PerimeterBridge = cut.Bridge;
-        record.PerimeterRevision++;
-        var prefix = string.Create(CultureInfo.InvariantCulture, $"{LayoutDefenseRules.TierPerimeterPrefix}r{record.PerimeterRevision}-");
-        var wanted = new HashSet<string>(StringComparer.Ordinal);
-        var building = new HashSet<Cell>();
-        foreach (var t in fresh)
-        {
-            foreach (var b in t.Buildings)
-            {
-                wanted.Add(DefenseBuildingKey(b));
-                building.Add(b.Cell);
-            }
-        }
-        var removals = new List<DefenseTierRecord>[2, 2];
-        for (var a = 0; a < 2; a++)
-        {
-            for (var l = 0; l < 2; l++)
-            {
-                removals[a, l] = [];
-            }
-        }
-        void Stage(DefenseTierRecord t)
-        {
-            var after = t.Before ? 0 : 1;
-            var lift = t.Foundation ? 1 : 0;
-            removals[after, lift].Add(t);
-        }
-        var n = 0;
-        string Name(string letter)
-        {
-            n++;
-            return string.Create(CultureInfo.InvariantCulture, $"{prefix}{letter}{n - 1:D2}");
-        }
-        string Letter(int lift) => lift == 0 ? "x" : "u";
-        var ids = new List<string>();
-        foreach (var t in old)
-        {
-            if (t.Remove && t.NodeBacked)
-            {
-                Stage(t);
-            }
-            else if (t.Remove)
-            {
-                t.Buildings = t.Buildings.Where(b => !wanted.Contains(DefenseBuildingKey(b))).ToList();
-                if (t.Buildings.Count > 0)
-                {
-                    Stage(t);
-                }
-            }
-            else if (t.NodeBacked)
-            {
-                foreach (var id in t.Nodes)
-                {
-                    if (!ids.Contains(id))
+                    var tier = new DefenseTierRecord { Name = name, Remove = true };
+                    if (prior.TryGetValue(name.Value, out var was) && was.Remove)
                     {
-                        ids.Add(id);
+                        tier.Attempts = was.Attempts;
                     }
+                    removals.Add((tier, lift, ahead, new HashSet<string>(StringComparer.Ordinal)));
+                    i = removals.Count - 1;
                 }
-            }
-            else
-            {
-                var split = new List<DefenseBuilding>[2, 2];
-                for (var a = 0; a < 2; a++)
+                var removal = removals[i];
+                if (removal.Keys.Add(key))
                 {
-                    for (var l = 0; l < 2; l++)
-                    {
-                        split[a, l] = [];
-                    }
+                    removal.Tier.Buildings.Add(b);
                 }
-                foreach (var b in t.Buildings)
+                foreach (var node in t.Nodes.Where(n => !removal.Tier.Nodes.Contains(n)))
                 {
-                    if (wanted.Contains(DefenseBuildingKey(b)))
-                    {
-                        continue;
-                    }
-                    var after = building.Contains(b.Cell) ? 0 : 1;
-                    var lift = DefenseFoundation(b.Definition) ? 1 : 0;
-                    split[after, lift].Add(b);
-                }
-                for (var after = 0; after < 2; after++)
-                {
-                    for (var lift = 0; lift < 2; lift++)
-                    {
-                        if (split[after, lift].Count > 0)
-                        {
-                            Stage(new DefenseTierRecord { Name = new DefenseTierName(Name(Letter(lift))), Buildings = split[after, lift], Remove = true, Before = after == 0, Foundation = lift == 1 });
-                        }
-                    }
+                    removal.Tier.Nodes.Add(node);
                 }
             }
         }
-        if (ids.Count > 0)
+        foreach (var w in wants)
         {
-            for (var after = 0; after < 2; after++)
+            if (!prior.TryGetValue(w.Name.Value, out var was) || was.Remove)
             {
-                for (var lift = 0; lift < 2; lift++)
-                {
-                    Stage(new DefenseTierRecord { Name = new DefenseTierName(Name(Letter(lift))), Nodes = ids, Bridge = previous, Remove = true, Before = after == 0, Foundation = lift == 1 });
-                }
+                continue;
             }
-        }
-        foreach (var f in fresh)
-        {
-            var fresh0 = f.Name.Value;
-            f.Name = new DefenseTierName(prefix + (fresh0.StartsWith(LayoutDefenseRules.TierPerimeterPrefix, StringComparison.Ordinal) ? fresh0[LayoutDefenseRules.TierPerimeterPrefix.Length..] : fresh0));
+            w.Attempts = was.Attempts;
+            w.Reserved = was.Reserved;
+            var same = owned[w.Name.Value].Select(DefenseBuildingKey).ToHashSet(StringComparer.Ordinal).SetEquals(w.Buildings.Select(DefenseBuildingKey));
+            w.Built = was.Built && same;
         }
         var tiers = new List<DefenseTierRecord>(kept);
-        tiers.AddRange(removals[0, 0]);
-        tiers.AddRange(removals[0, 1]);
-        tiers.AddRange(fresh);
-        tiers.AddRange(removals[1, 0]);
-        tiers.AddRange(removals[1, 1]);
+        tiers.AddRange(removals.Where(r => r.Ahead && !r.Lift).Select(r => r.Tier));
+        tiers.AddRange(removals.Where(r => r.Ahead && r.Lift).Select(r => r.Tier));
+        tiers.AddRange(wants);
+        tiers.AddRange(removals.Where(r => !r.Ahead && !r.Lift).Select(r => r.Tier));
+        tiers.AddRange(removals.Where(r => !r.Ahead && r.Lift).Select(r => r.Tier));
         record.Tiers = tiers;
-        DefenseHydrate(record, cut);
-        record.Tiers.RemoveAll(t => t.Remove && t.NodeBacked && t.Buildings.Count == 0);
         record.Validate();
-        return true;
+        return DefensePerimeterSignature(tiers) != before;
     }
 
     internal static bool DefenseFoundation(string definition) =>

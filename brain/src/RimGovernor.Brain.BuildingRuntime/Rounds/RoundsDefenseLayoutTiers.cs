@@ -248,14 +248,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return changed;
     }
 
-    internal async Task<DefenseCensus?> ObserveTiersAsync(ControlState state, RoundsReading read, DefenseLayoutRecord record, CancellationToken call)
+    /// <summary>The census of the cells the tiers of <paramref name="scope"/> place; null when they place nothing or the plan has no killbox.</summary>
+    internal async Task<DefenseCensus?> ReadTierCensusAsync(ControlState state, RoundsReading read, DefenseLayoutRecord scope, CancellationToken call)
     {
-        var placed = false;
-        foreach (var tier in record.Tiers)
-        {
-            placed = placed || tier.Buildings.Count > 0;
-        }
-        if (!placed)
+        if (!scope.Tiers.Any(t => t.Buildings.Count > 0))
         {
             return null;
         }
@@ -266,7 +262,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return null;
         }
-        var site = await DefenseSiteAsync(Boundary.Identity(state.Snapshot), projection, DefenseCensusRegion(record, projection.Bounds, baseCell), call).ConfigureAwait(false);
+        var site = await DefenseSiteAsync(Boundary.Identity(state.Snapshot), projection, DefenseCensusRegion(scope, projection.Bounds, baseCell), call).ConfigureAwait(false);
         foreach (var cell in site.Cells)
         {
             census.Fogged[cell.Cell] = cell.Fogged;
@@ -289,13 +285,21 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 census.Consumers[b.Cell] = b;
             }
         }
-        LogUnbuiltTiers(record, census, call);
-        if (!DefenseTierCensusUpdate(record, census))
-        {
-            return census;
-        }
-        _reviewer.Player.Journal.SaveDefenseLayout(record, call);
         return census;
+    }
+
+    /// <summary>Settles the record's tiers on the census: a finished removal leaves, a tier reads built when all of it stands.</summary>
+    internal void SettleTierCensus(DefenseLayoutRecord record, DefenseCensus? census, CancellationToken call)
+    {
+        if (census is null)
+        {
+            return;
+        }
+        LogUnbuiltTiers(record, census, call);
+        if (DefenseTierCensusUpdate(record, census))
+        {
+            _reviewer.Player.Journal.SaveDefenseLayout(record, call);
+        }
     }
 
     internal static List<Building> DefenseMissingBuildings(List<Building> buildings, DefenseCensus? census)

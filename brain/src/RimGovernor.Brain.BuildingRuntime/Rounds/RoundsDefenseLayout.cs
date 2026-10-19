@@ -234,17 +234,24 @@ public sealed partial class RoundsDefenseLayoutPlanner
             }
             var (killbox, digest, _) = LayoutPlan.KillboxNode(cut.Plan);
             record = DefenseLayoutRecord.From(world, layout, entrances, killbox, digest);
-            DefenseRecutPerimeter(record, cut);
+            DefenseRecutPerimeter(record, cut, null);
             p.Journal.SaveDefenseLayout(record, call);
             verification.Set(world, new DefenseVerified());
         }
-        else if (DefenseRecutPerimeter(record, cut))
+        else
         {
-            DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "perimeter_recut", "perimeter", new Dictionary<string, object?> { ["revision"] = record.PerimeterRevision }, call);
+            DefenseHydrate(record, cut);
+        }
+        // The census covers what the record holds and what the cut wants: the recut diffs the one against the other.
+        var census = await ReadTierCensusAsync(state, read, record with { Tiers = [.. record.Tiers, .. DefensePerimeterWants(record, cut)] }, call).ConfigureAwait(false);
+        if (stored && DefenseRecutPerimeter(record, cut, census))
+        {
+            var removals = record.Tiers.Where(t => t.Remove).Sum(t => t.Buildings.Count);
+            DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "perimeter_recut", "perimeter", new Dictionary<string, object?> { ["removals"] = removals }, call);
             p.Journal.SaveDefenseLayout(record, call);
             verification.Update(world, v => v with { Complete = false });
         }
-        var census = await ObserveTiersAsync(state, read, record, call).ConfigureAwait(false);
+        SettleTierCensus(record, census, call);
         var tick = read.Projection.Identity.Tick;
         pipe.Settle(census);
         if (!pipe.Piped() && definitions.Length > 0 && stored && siteDue)

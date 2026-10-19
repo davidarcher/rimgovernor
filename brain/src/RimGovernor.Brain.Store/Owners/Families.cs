@@ -44,17 +44,14 @@ public sealed record DefenseTierRecord
     /// <summary>Every building of the tier was observed standing in the latest census.</summary>
     public bool Built { get; set; }
 
-    /// <summary>A perimeter tier of buildings the replanned ring no longer wants.</summary>
+    /// <summary>
+    /// A perimeter tier of standing buildings the current cut no longer wants. It stores its buildings; its
+    /// <see cref="Nodes"/> name the site nodes they were cut from, which the plan keeps until the removal is done.
+    /// </summary>
     public bool Remove { get; set; }
 
-    public string Bridge { get; set; } = "";
-
-    public bool Foundation { get; set; }
-
-    public bool Before { get; set; }
-
-    /// <summary>Whether the tier's buildings come from the plan.</summary>
-    public bool NodeBacked => Nodes.Count > 0;
+    /// <summary>Whether the tier's buildings come from the plan: a tier of site nodes that is no removal.</summary>
+    public bool NodeBacked => Nodes.Count > 0 && !Remove;
 }
 
 /// <summary>
@@ -82,12 +79,6 @@ public sealed record DefenseLayoutRecord
 
     public List<DefenseTierRecord> Tiers { get; set; } = [];
 
-    public string PerimeterKey { get; set; } = "";
-
-    public int PerimeterRevision { get; set; }
-
-    public string PerimeterBridge { get; set; } = "";
-
     private static bool ValidIdentity(string s) => s.Length is > 0 and <= MaxIdentity;
 
     /// <summary>Rejects a record that could not have come from a policy layout.</summary>
@@ -99,7 +90,7 @@ public sealed record DefenseLayoutRecord
             "defense layout tiers or entrances out of bounds"
         );
         DomainException.Require(
-            PerimeterKey.Length <= 128 && PerimeterRevision >= 0 && PerimeterBridge.Length <= 64 && Killbox.Length <= 128 && KillboxDigest.Length <= 64,
+            Killbox.Length <= 128 && KillboxDigest.Length <= 64,
             "defense layout identity invalid"
         );
         var seen = new HashSet<string>(StringComparer.Ordinal);

@@ -664,9 +664,6 @@ internal sealed class DefenseLayoutRecordConverter : ObjectCodec<DefenseLayoutRe
             KillboxDigest = e.Str("KillboxDigest"),
             Entrances = e.Get<List<Cell>>("Entrances", o),
             Tiers = e.Get<List<DefenseTierRecord>>("Tiers", o),
-            PerimeterKey = e.Str("PerimeterKey"),
-            PerimeterRevision = e.I32("PerimeterRevision"),
-            PerimeterBridge = e.Str("PerimeterBridge"),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, DefenseLayoutRecord v, Codecs o)
@@ -676,9 +673,6 @@ internal sealed class DefenseLayoutRecordConverter : ObjectCodec<DefenseLayoutRe
         w.WriteString("KillboxDigest", v.KillboxDigest);
         w.Put("Entrances", v.Entrances, o);
         w.Put("Tiers", v.Tiers, o);
-        w.WriteString("PerimeterKey", v.PerimeterKey);
-        w.WriteNum("PerimeterRevision", v.PerimeterRevision);
-        w.WriteString("PerimeterBridge", v.PerimeterBridge);
     }
 }
 
@@ -695,9 +689,6 @@ internal sealed class DefenseTierRecordConverter : ObjectCodec<DefenseTierRecord
             Attempts = e.I32("Attempts"),
             Built = e.Bool("Built"),
             Remove = e.Bool("Remove"),
-            Bridge = e.Str("Bridge"),
-            Foundation = e.Bool("Foundation"),
-            Before = e.Bool("Before"),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, DefenseTierRecord v, Codecs o)
@@ -709,9 +700,6 @@ internal sealed class DefenseTierRecordConverter : ObjectCodec<DefenseTierRecord
         w.WriteNum("Attempts", v.Attempts);
         w.WriteBoolean("Built", v.Built);
         w.WriteBoolean("Remove", v.Remove);
-        w.WriteString("Bridge", v.Bridge);
-        w.WriteBoolean("Foundation", v.Foundation);
-        w.WriteBoolean("Before", v.Before);
     }
 }
 

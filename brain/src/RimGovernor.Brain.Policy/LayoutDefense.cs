@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -45,19 +44,9 @@ public static partial class LayoutDefenseRules
     /// <summary>Names the killbox opening's fence section under the perimeter's prefix.</summary>
     public const string TierFencePrefix = TierPerimeterPrefix + "fence-";
 
-    private static readonly Regex PerimeterRevision = new(@"^r\d+-", RegexOptions.CultureInvariant);
-
     /// <summary>Reports whether a tier is a perimeter section.</summary>
     public static bool IsPerimeterTier(DefenseTierName name) =>
         name.Value.Length > TierPerimeterPrefix.Length && name.Value.StartsWith(TierPerimeterPrefix, StringComparison.Ordinal);
-
-    /// <summary>The section's name before a re-cut put its revision in front: perimeter-r2-03 and perimeter-03 are both "03".</summary>
-    public static string PerimeterSectionBase(DefenseTierName name)
-    {
-        var rest = name.Value.StartsWith(TierPerimeterPrefix, StringComparison.Ordinal) ? name.Value[TierPerimeterPrefix.Length..] : name.Value;
-        var m = PerimeterRevision.Match(rest);
-        return m.Success ? rest[m.Length..] : rest;
-    }
 
     public static Rectangle UnionRect(Rectangle a, Rectangle b)
     {
