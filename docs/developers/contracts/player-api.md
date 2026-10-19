@@ -169,3 +169,8 @@ scenario parts on `spec`: `startingThings` (`placement` `start_with` | `start_ne
 count stays `colonistCount` (1-10). Ranges are in
 [validation](../../../contracts/wire/validation.md#new-colony-scenario-parts); an out-of-range
 or unknown-enum part is a 400 before native is called.
+
+A failed start answers with its cause in `detail`: a native refusal by its code (`native_<code>`,
+400 for an invalid request, otherwise 502), an unavailable bridge 503 `unavailable`, and a failure
+of the brain's own resolution before native creation (the governor or theme ideoligion) 500
+`new_colony_failed`.

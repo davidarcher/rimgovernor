@@ -240,9 +240,18 @@ public static class LifecycleRoutes
             ct.ThrowIfCancellationRequested();
             return NewColonyResponse(reply, 201, 202);
         }
+        catch (NativeFailureException e)
+        {
+            return NativeRefusal(e.Value);
+        }
+        catch (BridgeUnavailableException e)
+        {
+            return ChannelResponse.Failure(503, "unavailable", e.Message);
+        }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return ReadRoutes.ReadFailure(e);
+            // The brain's own resolution before native creation (the governor or theme ideoligion) failed (#2723).
+            return ChannelResponse.Failure(500, "new_colony_failed", e.Message);
         }
     }
 
@@ -297,7 +306,7 @@ public static class LifecycleRoutes
             case MenuReplyOutcome.PendingCase { Value: var pending }:
                 return ChannelResponse.Json(pendingStatus, PlayerJson.Serialize(new MenuPendingDto("pending", pending.RequestId ?? "", pending.Detail ?? "")));
             case MenuReplyOutcome.FailureCase { Value: var failure }:
-                return ChannelResponse.Failure(RefusalStatus(failure.Code.GetValueOrDefault()), "native_" + CodeName(failure.Code.GetValueOrDefault()), failure.Detail ?? "");
+                return NativeRefusal(failure);
             case MenuReplyOutcome.CompletedCase { Value: var done }:
                 return ChannelResponse.Json(completedStatus, PlayerJson.Serialize(new MenuCompletedDto("completed", done.RequestId ?? "", done.Unloaded.GetValueOrDefault())));
             default:
@@ -390,7 +399,7 @@ public static class LifecycleRoutes
             case NewColonyReplyOutcome.SupersededCase { Value: var superseded }:
                 return ChannelResponse.Failure(409, "superseded", (superseded.Detail ?? ""));
             case NewColonyReplyOutcome.FailureCase { Value: var failure }:
-                return ChannelResponse.Failure(RefusalStatus(failure.Code.GetValueOrDefault()), "native_" + CodeName(failure.Code.GetValueOrDefault()), (failure.Detail ?? ""));
+                return NativeRefusal(failure);
             case NewColonyReplyOutcome.CompletedCase { Value: var done }:
                 var observed = done.Context;
                 var identity = observed?.Identity;
@@ -418,6 +427,9 @@ public static class LifecycleRoutes
         NewColonyPhase.Saving => "saving",
         _ => "",
     };
+
+    private static ChannelResponse NativeRefusal(Failure failure) =>
+        ChannelResponse.Failure(RefusalStatus(failure.Code.GetValueOrDefault()), "native_" + CodeName(failure.Code.GetValueOrDefault()), failure.Detail ?? "");
 
     private static int RefusalStatus(FailureCode code) => code switch
     {

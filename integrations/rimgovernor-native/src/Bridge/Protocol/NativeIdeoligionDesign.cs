@@ -58,6 +58,10 @@ namespace HomeBridge.BridgeTools
                     return Invalid("Design requires distinct plain precepts.");
                 selections.Add(def);
             }
+            // IdeoStyleTracker builds its hair, beard and tattoo maps on first read, and its CopyTo reads them unguarded. A
+            // new colony's ideo has had no read yet (no starting pawn is rolled before the design, #2723); this count read
+            // is vanilla's own lazy build, and keeps maps a played ideo already has.
+            _ = source.style.NumHairAndBeardStylesAvailable;
             var copy = IdeoGenerator.MakeIdeo(source.foundation.def);
             source.CopyTo(copy);
             copy.Fluid = design.Fluid.GetValueOrDefault();
@@ -66,7 +70,11 @@ namespace HomeBridge.BridgeTools
             if (reform)
                 copy.foundation.EnsurePreceptsCompatibleWithMemes(previous, memes, new IdeoGenerationParms(Faction.OfPlayer.def));
             else
+            {
                 copy.foundation.RandomizePrecepts(true, new IdeoGenerationParms(Faction.OfPlayer.def, forNewFluidIdeo: design.Fluid.GetValueOrDefault(), fixedIdeo: !design.Fluid.GetValueOrDefault()));
+                // A new ideo's style items follow its designed memes, not the memes it was generated with.
+                copy.style.RecalculateAvailableStyleItems();
+            }
             foreach (var precept in copy.PreceptsListForReading.Where(p => p.def.preceptClass == typeof(Precept)).ToList())
                 copy.RemovePrecept(precept, replacing: true);
             foreach (var def in selections.OrderBy(d => d.defName, StringComparer.Ordinal))
