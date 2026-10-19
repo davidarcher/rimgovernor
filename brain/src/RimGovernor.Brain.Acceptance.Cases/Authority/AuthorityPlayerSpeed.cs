@@ -44,6 +44,7 @@ internal static class AuthorityPlayerSpeed
     {
         TimeSpeedReply? press = null;
         long pressedAt = 0;
+        long doneAt = 0;
         long? adoptedTick = null;
         _ = await s.ServeUntilAsync("adopted", s.TicksLeft, async ct =>
         {
@@ -86,14 +87,16 @@ internal static class AuthorityPlayerSpeed
             if (done)
             {
                 s.RecordWire("clock_after", status);
+                doneAt = ClockRows.NowUnixMs();
             }
 
             return ($"{status.State} {status.TargetSpeed} {status.PlayerSpeedRequestSerial}", done);
         }, cancellationToken).ConfigureAwait(false);
 
-        // A hold between two polls: none since the press was the click's.
+        // A hold between two polls: none from the press to the poll that saw the claim was the click's. The window ends
+        // there because the serve's own park (a player Pause, so a Manual revoke) holds the clock as ExternalPause after it.
         var external = s.Telemetry(TelemetryKinds.ClockHold)
-            .Where(row => ClockRows.ObservedSince(row, pressedAt))
+            .Where(row => ClockRows.ObservedSince(row, pressedAt) && !ClockRows.ObservedSince(row, doneAt))
             .Select(row => ClockRows.Text(row, ColonyEventTelemetry.ReasonKey))
             .Where(reason => reason is nameof(Clock.HoldReason.ExternalSpeedChanged) or nameof(Clock.HoldReason.ExternalPause))
             .ToList();
