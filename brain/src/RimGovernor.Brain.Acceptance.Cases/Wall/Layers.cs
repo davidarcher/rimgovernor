@@ -42,12 +42,15 @@ internal static class WallLayers
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
         var before = await s.FixtureAsync("layers-prepare", Ring, "prepare", cancellationToken).ConfigureAwait(false);
         if (before is not { Expected: RingCells, Frames: RingCells, Funded: RingCells, Standable: RingCells, Standing: 0 })
         {
             throw new AcceptanceException($"every layer must start funded, standable and unfinished: {before}");
         }
+
+        // Authority after staging: prepare sets the builders' work priorities, which native reads as player control and
+        // revokes Auto under, so the clock run would refuse a generation granted before it.
+        var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
 
         // The completion guard is armed only while the supervisor runs the clock (#3596): a plain unpaused game builds
         // the ring unguarded and seals a builder standing on a frame. So the ring builds under native clock runs with the
