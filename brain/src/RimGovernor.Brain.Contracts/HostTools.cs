@@ -6,10 +6,14 @@ using System.Text.Json.Serialization.Metadata;
 namespace RimGovernor.Contracts.Host;
 
 // The host-level tools the acceptance harness calls by name outside the wire ops (#3410): the RimGovernor host's
-// rimgovernor/set_time_speed and rimgovernor/load_game_ready. A reply record carries only what a caller reads; the host
+// rimgovernor/set_time_speed, rimgovernor/press_time_speed and rimgovernor/load_game_ready. A reply record carries only what a caller reads; the host
 // replies with more, which the reader ignores.
 
-/// <summary><c>rimgovernor/set_time_speed</c>'s arguments.</summary>
+/// <summary>
+/// <c>rimgovernor/set_time_speed</c>'s and <c>rimgovernor/press_time_speed</c>'s arguments. <c>press_time_speed</c> runs
+/// the in-game time controls' click handler for the named button (#3608): Paused toggles the pause; a speed asks the bot
+/// for it while the bot runs the clock, else sets the game's speed.
+/// </summary>
 public sealed record TimeSpeedRequest
 {
     /// <summary>
@@ -22,7 +26,7 @@ public sealed record TimeSpeedRequest
     public static TimeSpeedRequest Paused { get; } = new() { Speed = "Paused" };
 }
 
-/// <summary><c>rimgovernor/set_time_speed</c>'s reply.</summary>
+/// <summary><c>rimgovernor/set_time_speed</c>'s and <c>rimgovernor/press_time_speed</c>'s reply.</summary>
 public sealed record TimeSpeedReply
 {
     public bool Success { get; init; }

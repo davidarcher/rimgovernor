@@ -176,7 +176,8 @@ public sealed record ServeSpec
 
     /// <summary>
     /// The brain's target speed, set through POST /api/player/clock-speed once the service is up; empty is the run's clock speed (Hyperfast unless RIMGOVERNOR_ACCEPT_CLOCK_SPEED names another).
-    /// A served acceptance game launches with <c>-rimgovernor-test-acceleration</c> (Headless.Prepare), under which the brain pins Hyperfast (BrainCompositionOptions.ClockTestAcceleration), so the post is accepted and ignored.
+    /// A served acceptance game launches with <c>-rimgovernor-test-acceleration</c> (Headless.Prepare), under which the brain pins Hyperfast (BrainCompositionOptions.ClockTestAcceleration), so the post is accepted and ignored
+    /// unless <see cref="Env"/> carries <c>RIMGOVERNOR_UNPIN_TEST_SPEED=1</c> (InProcEnvironment.UnpinTestSpeed), which unpins only the brain's speed.
     /// </summary>
     public string ClockSpeed { get; init; } = "";
 }

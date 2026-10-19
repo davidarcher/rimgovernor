@@ -40,6 +40,19 @@ public sealed class ClockTargetSpeedTests
         Assert.Same(played.TargetSpeed, played.RunTargetSpeed());
     }
 
+    [Theory]
+    [InlineData(null, Speed.Hyperfast)]
+    [InlineData("0", Speed.Hyperfast)]
+    [InlineData("1", Speed.Fast)]
+    public void TheCaseOverrideUnpinsATestAccelerationLaunch(string? unpin, Speed expected)
+    {
+        var saveData = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "rg-save-data"));
+        Assert.True(InProcEnvironment.TryResolve(name => name == InProcEnvironment.UnpinTestSpeed ? unpin : null, saveData, DateTimeOffset.UnixEpoch, out var inputs, out _));
+        var composition = new BrainComposition(new() { ClockTestAcceleration = inputs!.PinsHyperfast(testAccelerationLaunch: true), TargetSpeed = Speed.Fast });
+        Assert.Equal(expected, composition.RunTargetSpeed().Speed);
+        Assert.False(inputs.PinsHyperfast(testAccelerationLaunch: false));
+    }
+
     [Fact]
     public void TheLiveTargetChangesAndRefusesAnUnspecifiedSpeed()
     {

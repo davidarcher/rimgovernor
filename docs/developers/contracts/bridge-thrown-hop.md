@@ -32,5 +32,5 @@ so **a rethrow is safe**: no catch is needed to protect the mod.
 - A catch stays only where the game itself throws on legitimate input; give it a
   one-line reason.
 - Not covered: exceptions outside a hop (Harmony hooks such as
-  `ObservationFrameHook`/`PlayerSpeedKeyBlock`, tick handlers). They run on the game
+  `ObservationFrameHook`/`TimeControlsRow`, tick handlers). They run on the game
   thread outside any call, so none of the above applies.

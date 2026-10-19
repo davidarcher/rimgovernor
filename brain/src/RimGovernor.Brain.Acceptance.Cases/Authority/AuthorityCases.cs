@@ -8,5 +8,6 @@ public static class AuthorityCases
     {
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(AuthorityWarm.Case());
+        registry.Register(AuthorityPlayerSpeed.Case());
     }
 }

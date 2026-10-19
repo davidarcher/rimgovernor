@@ -69,8 +69,9 @@ run segment owns the external static `TickManager.UltraSpeedBoost` through its
 Ultrafast sets it false, and `RestoreBoost` writes back the value the segment found.
 Source restoration does not compare the current boost with the value the segment
 installed. Verify another owner changing boost and load-change cleanup. The other
-writer is the host tools' `set_time_speed`/`play_for`: Ultrafast writes false,
-Hyperfast true, and neither restores it. Whoever set it, the `TickRateMultiplier`
+writers are the host tools' `set_time_speed`/`play_for` and the time controls
+without the bot (`Supervisor.SetGameSpeed`): Ultrafast writes false, Hyperfast
+true, and none restores it. Whoever set it, the `TickRateMultiplier`
 postfix (installed at `NativeStartup`) caps a boosted multiplier at 30x
 (`HyperfastCap.cs`), run segment or not.
 
@@ -93,7 +94,7 @@ from their saved components or transient work scopes:
 | `OrderedWorkHistory.installed` | `Read`; two patches, exceptions return unavailable, true only after both. | Failure after first patch and retry; unknown generation must remain unknown, N01.04/05. |
 | `HomeCoverage.installed` | `Install`; Set/Clear/Invert then true, no reset. | Partial revision observation must not be treated as complete, N01.04/05. |
 | `WallUpgradeSafety.installed` | `Install`; also initializes the PlayerUiRevision observer; true after all hooks. | Partial guard install and repeat initialization, N01.04/05. |
-| `PlayerSpeedKeyBlock._patched`, `_inPlayerInput`, `_lastMessage` | `Ensure` installs once from the first main-thread hop; the depth counter brackets `TimeControls.DoTimeControlsGUI` (finalizer decrements); the timestamp rate-limits the in-game message. The blocking decision itself reads per-Game `NativeControlAuthority`. | Depth is not thread-local (GUI runs on the main thread only). Live-verify keys are inert while on and work after Pause, N01.05. |
+| `TimeControlsRow.installed`, `hyperfastKey`, `ultrafastIcon`, `hyperfastIcon` | `Install` from `NativeStartup` (skipped headless) patches `TimeControls.DoTimeControlsGUI` once, no reset; the key def and the two icons resolve on first draw after defs load. Whether a click asks the brain reads per-Game `NativeControlAuthority`; the pending click lives in the supervisor's `ClockSpeedRequest`. | Live-verify the six buttons and key 5, a connected click moving only `Status` (`press_time_speed`), N01.05. |
 | `LetterPauseHook.installed` | `EnsurePatched`; letter and three clock callbacks then true, no reset. | Partial installation/retry must preserve pause attribution, N01.05. |
 
 These flags persist across disconnect/load/player override because Harmony patches

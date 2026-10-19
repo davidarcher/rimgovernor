@@ -32,6 +32,13 @@ public class RimBridgeTools
         return InvokeAlias(Arguments((nameof(speed), speed)));
     }
 
+    [Tool("rimgovernor/press_time_speed", Description = "Press an in-game time-control button, as a click or its key does: Paused toggles the pause; a speed asks the bot for it while the bot runs the clock, else sets the game's speed")]
+    public object PressTimeSpeed(
+        [ToolParameter(Description = "The button: Paused, Normal, Fast, Superfast, Ultrafast, or Hyperfast")] string speed = "Normal")
+    {
+        return InvokeAlias(Arguments((nameof(speed), speed)));
+    }
+
     [Tool("rimgovernor/play_for", Description = "Unpause the current game at a requested time speed for a bounded real-time duration, then pause it again; Hyperfast is Ultrafast with the dev tick boost on, capped at 30x, and forced-normal-speed slowdown can optionally be suppressed during the run")]
     public object PlayFor(
         [ToolParameter(Description = "Real-time duration in milliseconds to keep the game unpaused before pausing it again")] int durationMs,

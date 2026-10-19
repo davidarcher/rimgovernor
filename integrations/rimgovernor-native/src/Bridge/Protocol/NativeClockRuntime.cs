@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
         // through the timing log; it is
         // read once at startup and never toggled at runtime.
         internal static readonly bool TestAccelerationLaunch = Array.IndexOf(Environment.GetCommandLineArgs(), "-rimgovernor-test-acceleration") >= 0;
-        private static bool BoostAvailable => BoostField != null && BoostField.FieldType == typeof(bool);
+        internal static bool BoostAvailable => BoostField != null && BoostField.FieldType == typeof(bool);
         private static TypedEpoch TypedOf(State s) => s.Typed ?? throw new InvalidOperationException("Clock run segment is not typed.");
         private static bool StopInvalidTypedAuthority(State s)
         {
@@ -177,19 +177,20 @@ namespace HomeBridge.BridgeTools
                 if (modeChanged) ResetCombatStops(s);
             }
             var native = ClockRunSpeed.Native(speed);
-            if (s.Speed == speed && Find.TickManager.CurTimeSpeed == native) return null;
+            if (s.Speed == speed && Find.TickManager.CurTimeSpeed == native) { SpeedRequest.Ran(s.Session, speed); return null; }
             var old = s.Speed;
             // Update expectation and game speed in the same main-thread
             // critical section, so our own change cannot look external.
             // Ultrafast and Hyperfast share a TimeSpeed: between them only the boost changes.
             SetBoost(s, speed);
             s.Speed = speed;
-            SupervisorSpeed.Owned(() => Find.TickManager.CurTimeSpeed = native);
+            Find.TickManager.CurTimeSpeed = native;
             if (Find.TickManager.CurTimeSpeed != native)
             {
                 s.Speed = old; SetBoost(s, old);
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The requested speed did not take; the clock keeps its previous speed.");
             }
+            SpeedRequest.Ran(s.Session, speed);
             return null;
         }
 
@@ -263,12 +264,13 @@ namespace HomeBridge.BridgeTools
             s.NeverForceNormalOwned = true;
             DebugViewSettings.neverForceNormalSpeed = true;
             var native = ClockRunSpeed.Native(speed);
-            SupervisorSpeed.Owned(() => Find.TickManager.CurTimeSpeed = native);
+            Find.TickManager.CurTimeSpeed = native;
             if (Find.TickManager.CurTimeSpeed != native)
             {
                 Stop(s, Clock.HoldReason.RunRefused, "The requested speed did not take.", true);
                 return null;
             }
+            SpeedRequest.Ran(s.Session, speed);
             Publish(new Resumed(Origin(s), "Clock resumed at " + speed + ".", speed, from));
             return null;
         }
@@ -379,12 +381,46 @@ namespace HomeBridge.BridgeTools
             lock (Gate)
             {
                 var game = Current.Game ?? throw new InvalidOperationException("No game is loaded.");
-                var serial = SpeedRequest.Request(game, speed);
+                var serial = SpeedRequest.Request(game, speed, RunSpeedOf(game));
                 // A request with no map to observe it under is still on Status: the next read picks it up.
                 if (Find.CurrentMap == null || !ProtoBoundary.TryReadContext(Find.CurrentMap, out var observed, out _)) return;
                 Publish(new SpeedRequested(OriginOf(observed), "Player requested " + speed + " (request " + serial + ").", speed));
             }
         }
+
+        // The last Run's speed in this game (Status.TargetSpeed), else null.
+        private static Clock.Speed? RunSpeedOf(object? game)
+        {
+            var s = _state;
+            return game != null && s != null && ReferenceEquals(s.Session, game) ? s.Speed : (Clock.Speed?)null;
+        }
+
+        /// What the time controls read from the clock, on the game thread: the
+        /// player's request no Run at that speed has answered yet, and the last
+        /// Run's speed, both of the loaded game.
+        internal static (Clock.Speed? Pending, Clock.Speed? Run) ShownSpeeds()
+        {
+            lock (Gate)
+            {
+                var game = Current.Game;
+                return (SpeedRequest.Pending(game), RunSpeedOf(game));
+            }
+        }
+
+        /// The game's own speed, set by the time controls while the bot is not
+        /// connected (game thread). The boost follows the run speeds' rule
+        /// (ClockRunSpeed.Boost): Ultrafast turns it off, so a leftover boost
+        /// cannot run vanilla's Ultrafast at 30x, and Hyperfast turns it on.
+        internal static void SetGameSpeed(Clock.Speed speed)
+        {
+            var native = ClockRunSpeed.Native(speed);
+            Find.TickManager.CurTimeSpeed = native;
+            if (Find.TickManager.CurTimeSpeed == native && BoostAvailable && ClockRunSpeed.Boost(speed) is bool boost)
+                BoostField.SetValue(null, boost);
+        }
+
+        /// The boost's current value; false where the field does not exist.
+        internal static bool BoostOn => BoostAvailable && (bool)BoostField.GetValue(null)!;
 
         /// The acceptance-only clock accounting (#3416), cumulative for the loaded game session: the pause/run split,
         /// the probe and digest work, the session's widest probe gap, the frame account and, per hazard

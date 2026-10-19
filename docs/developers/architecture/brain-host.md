@@ -919,11 +919,14 @@ Decided (user, 2026-10-13):
   | `RIMGOVERNOR_CONTINUE_STATE` | launcher Continue: reuse the default database | on |
   | `RIMGOVERNOR_LAYOUT_OVERLAY` | launcher Layout overlay | on |
   | `RIMGOVERNOR_ENCOUNTER_WORKER`, `RIMGOVERNOR_ENCOUNTER_DOTNET` | the built prediction worker (`RimGovernor.RealCombat.Host.dll`) and the dotnet that runs it, for hunt roster estimates | unset (no estimates), `dotnet` |
+  | `RIMGOVERNOR_UNPIN_TEST_SPEED` | acceptance case override: a `-rimgovernor-test-acceleration` launch keeps the player's speed instead of pinning Hyperfast | off |
 
   The launcher sets the last three from its saved settings. The default database is shared by every save, so an
   incompatible-schema reset affects them all. Launcher Telemetry is intentionally unmapped (not a bug, #3117): the
   host writes OTLP files and has no endpoint to send to, so the saved setting has nothing to drive.
-  `-rimgovernor-test-acceleration` also sets `ClockTestAcceleration`.
+  `-rimgovernor-test-acceleration` also sets `ClockTestAcceleration` (the Hyperfast pin), unless `RIMGOVERNOR_UNPIN_TEST_SPEED`
+  is on: a case sets it through `ServeSpec.Env` to observe the player's speed under the brain, and only the pin goes;
+  native's test acceleration (`AcceptanceWorld`, the tick profile) stays on.
   `BrainCompositionOptions.TargetSpeed` (default Ultrafast) is the speed every `Run` asks for; the harness changes
   it live between launches and speed-matrix rows with `POST /api/player/clock-speed`, with no relaunch.
 - **Acceptance harness.** The acceptance harness launches every game with `-rimgovernor-inproc` and

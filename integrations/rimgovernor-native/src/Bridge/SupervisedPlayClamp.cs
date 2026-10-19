@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
         // TickRateMultiplier postfix: nothing else about the speed changes.
         internal static void ClampTickRate(ref float __result)
         {
-            __result = HyperfastCap.Apply(BoostAvailable && (bool)BoostField.GetValue(null)!, __result);
+            __result = HyperfastCap.Apply(BoostOn, __result);
             State? s;
             lock (Gate) s = _state;
             if (s == null || !s.Active) return;

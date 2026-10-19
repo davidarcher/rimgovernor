@@ -21,6 +21,20 @@ public sealed partial class Harness
         return HostReply<TimeSpeedReply>(label, SetTimeSpeedTool, reply);
     }
 
+    /// <summary>The host tool that presses an in-game time-control button (#3608).</summary>
+    public const string PressTimeSpeedTool = "rimgovernor/press_time_speed";
+
+    /// <summary>
+    /// Presses the time-control button <paramref name="request"/> names through <see cref="PressTimeSpeedTool"/>, as a
+    /// player's click does: with the bot running the clock a speed only asks the brain for it. Recorded under <paramref name="label"/>.
+    /// </summary>
+    public async Task<TimeSpeedReply> PressTimeSpeedAsync(string label, TimeSpeedRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var reply = await CallAsync(label, PressTimeSpeedTool, HostJson.Arguments(request), cancellationToken).ConfigureAwait(false);
+        return HostReply<TimeSpeedReply>(label, PressTimeSpeedTool, reply);
+    }
+
     /// <summary>Pauses the clock (<see cref="TimeSpeedRequest.Paused"/>).</summary>
     public Task<TimeSpeedReply> PauseClockAsync(string label, CancellationToken cancellationToken) =>
         SetTimeSpeedAsync(label, TimeSpeedRequest.Paused, cancellationToken);

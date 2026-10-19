@@ -42,7 +42,7 @@ internal static class AuthorityWarm
             var (first, _, _) = await TypedLifecycle.IdentityAsync(s, "p1-identity", cancellationToken).ConfigureAwait(false);
             var expected = await TypedAuthority.ExpectedGenerationAsync(s, "p1-status", first, cancellationToken).ConfigureAwait(false);
             var generation = await TypedAuthority.GrantAsync(s, "p1-grant", first, expected, cancellationToken).ConfigureAwait(false);
-            var before = await ClockStatusAsync(s, "p1-clock-status", first, cancellationToken).ConfigureAwait(false);
+            var before = await TypedAuthority.ClockStatusAsync(s, "p1-clock-status", first, cancellationToken).ConfigureAwait(false);
             var run = await s.CallAsync("p1-clock-run", NativeOps.RunClock, new Clock.RunRequest
             {
                 Identity = first,
@@ -112,7 +112,7 @@ internal static class AuthorityWarm
             if (status.State?.Active?.Mode != Control.Mode.Auto || status.Context?.NativeGeneration != generation)
             {
                 s.RecordWire("p2_loss", status);
-                s.RecordWire("p2_clock_at_loss", await ClockStatusAsync(s, "p2-clock-at-loss", identity, ct).ConfigureAwait(false));
+                s.RecordWire("p2_clock_at_loss", await TypedAuthority.ClockStatusAsync(s, "p2-clock-at-loss", identity, ct).ConfigureAwait(false));
                 throw new AcceptanceException($"lost the Auto grant at generation {generation} after {reads} reads: {status}");
             }
 
@@ -132,9 +132,4 @@ internal static class AuthorityWarm
         }
     }
 
-    private static async Task<Clock.Status> ClockStatusAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
-    {
-        var reply = await s.CallAsync(label, NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
-        return reply.Outcome?.Status ?? throw new AcceptanceException($"{label}: expected a clock status, got {reply.Outcome}");
-    }
 }

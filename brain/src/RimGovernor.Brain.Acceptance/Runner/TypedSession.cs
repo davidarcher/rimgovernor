@@ -4,6 +4,7 @@ using System.Xml.Linq;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
+using RimGovernor.Contracts.Host;
 using RimGovernor.Contracts.Wire;
 using Clock = RimGovernor.Contracts.Wire.Clock;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -77,6 +78,10 @@ public sealed class TypedSession
         where TRequest : class
         where TReply : class =>
         H.CallAsync(label, op, request, cancellationToken);
+
+    /// <summary>Presses the in-game time-control button <paramref name="request"/> names, as a player's click does (<see cref="Harness.PressTimeSpeedAsync"/>).</summary>
+    public Task<TimeSpeedReply> PressTimeSpeedAsync(string label, TimeSpeedRequest request, CancellationToken cancellationToken) =>
+        H.PressTimeSpeedAsync(label, request, cancellationToken);
 
     /// <summary>Calls the fixture op <paramref name="op"/>, which the case declares in <see cref="TypedCase.Ops"/>, and returns its typed reply.</summary>
     public Task<TReply> FixtureAsync<TRequest, TReply>(string label, FixtureOp<TRequest, TReply> op, TRequest request, CancellationToken cancellationToken)

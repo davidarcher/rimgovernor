@@ -18,6 +18,18 @@ public sealed record InProcInputs
 
     /// <summary>Draws the colony layout plan as a native overlay (off in observe mode).</summary>
     public required bool LayoutOverlay { get; init; }
+
+    /// <summary>
+    /// A case-level override (#3608): a test-acceleration launch keeps the player's speed instead of pinning Hyperfast.
+    /// Native's test acceleration (the acceptance world, the tick profile) stays on.
+    /// </summary>
+    public bool UnpinTestSpeed { get; init; }
+
+    /// <summary>
+    /// Whether the brain pins every Run at Hyperfast (<see cref="BrainCompositionOptions.ClockTestAcceleration"/>): a
+    /// <paramref name="testAccelerationLaunch"/> without <see cref="UnpinTestSpeed"/>.
+    /// </summary>
+    public bool PinsHyperfast(bool testAccelerationLaunch) => testAccelerationLaunch && !UnpinTestSpeed;
 }
 
 /// <summary>
@@ -31,6 +43,8 @@ public sealed record InProcInputs
 /// <item>The launcher's settings: <c>RIMGOVERNOR_OBSERVE</c> (observe only: no auto-resume, no layout overlay),
 /// <c>RIMGOVERNOR_CONTINUE_STATE</c> (default on) and <c>RIMGOVERNOR_LAYOUT_OVERLAY</c> (default on). Booleans are
 /// 1/0, true/false or yes/no.</item>
+/// <item><c>RIMGOVERNOR_UNPIN_TEST_SPEED</c> (default off): an acceptance case's override that keeps a
+/// <c>-rimgovernor-test-acceleration</c> launch's brain at the player's speed instead of pinning Hyperfast.</item>
 /// </list>
 /// Paths must be absolute; a bad value is an error, never a silent default.
 /// </summary>
@@ -42,6 +56,7 @@ public static class InProcEnvironment
     public const string Observe = "RIMGOVERNOR_OBSERVE";
     public const string ContinueState = "RIMGOVERNOR_CONTINUE_STATE";
     public const string LayoutOverlay = "RIMGOVERNOR_LAYOUT_OVERLAY";
+    public const string UnpinTestSpeed = "RIMGOVERNOR_UNPIN_TEST_SPEED";
 
     /// <summary>The directory under the game's save-data folder the defaults live in.</summary>
     public const string DefaultFolder = "RimGovernor";
@@ -63,6 +78,7 @@ public static class InProcEnvironment
         if (!TryFlag(get, Observe, false, out var observe, out error)
             || !TryFlag(get, ContinueState, true, out var continueState, out error)
             || !TryFlag(get, LayoutOverlay, true, out var overlay, out error)
+            || !TryFlag(get, UnpinTestSpeed, false, out var unpin, out error)
             || !TryPath(get, State, null, out var state, out error)
             || !TryPath(get, OtlpDirectory, Path.Combine(saveDataFolder, DefaultFolder, "otlp"), out var otlp, out error))
         {
@@ -79,6 +95,7 @@ public static class InProcEnvironment
             RunId = string.IsNullOrWhiteSpace(runId) ? Guid.NewGuid().ToString("N") : runId.Trim(),
             AutoResume = !observe,
             LayoutOverlay = overlay && !observe,
+            UnpinTestSpeed = unpin,
         };
         return true;
     }

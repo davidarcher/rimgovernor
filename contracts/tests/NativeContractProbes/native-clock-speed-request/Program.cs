@@ -18,19 +18,19 @@ internal static class NativeClockSpeedRequestProbe
         var none = request.Report(status, game);
         Check(none.PlayerRequestedSpeed is null && none.PlayerSpeedRequestSerial is null, "a game with no request reports none");
 
-        Check(request.Request(game, Clock.Speed.Fast) == 1, "the first request is serial 1");
+        Check(request.Request(game, Clock.Speed.Fast, null) == 1, "the first request is serial 1");
         var first = request.Report(status, game);
         Check(first.PlayerRequestedSpeed == Clock.Speed.Fast && first.PlayerSpeedRequestSerial == 1, "Status reports the speed and the serial");
         Check(first.HoldSerial == 3, "the report keeps the rest of the status");
 
         // The same speed again is a new request: the brain adopts every serial, not every change.
-        Check(request.Request(game, Clock.Speed.Fast) == 2, "a repeated speed still bumps the serial");
-        Check(request.Request(game, Clock.Speed.Hyperfast) == 3, "every speed through Hyperfast is a request");
+        Check(request.Request(game, Clock.Speed.Fast, null) == 2, "a repeated speed still bumps the serial");
+        Check(request.Request(game, Clock.Speed.Hyperfast, null) == 3, "every speed through Hyperfast is a request");
         var third = request.Report(status, game);
         Check(third.PlayerRequestedSpeed == Clock.Speed.Hyperfast && third.PlayerSpeedRequestSerial == 3, "Status reports the latest request");
 
         var threw = false;
-        try { request.Request(game, Clock.Speed.Unspecified); }
+        try { request.Request(game, Clock.Speed.Unspecified, null); }
         catch (ArgumentOutOfRangeException) { threw = true; }
         Check(threw, "an unspecified speed throws");
         Check(request.Report(status, game).PlayerSpeedRequestSerial == 3, "a refused request leaves the serial");
@@ -39,7 +39,7 @@ internal static class NativeClockSpeedRequestProbe
         var loaded = new object();
         var other = request.Report(status, loaded);
         Check(other.PlayerRequestedSpeed is null && other.PlayerSpeedRequestSerial is null, "another game reports no request");
-        Check(request.Request(loaded, Clock.Speed.Normal) == 1, "the serial resets with the loaded game");
+        Check(request.Request(loaded, Clock.Speed.Normal, null) == 1, "the serial resets with the loaded game");
         Check(request.Report(status, null).PlayerSpeedRequestSerial is null, "no game reports no request");
 
         Console.WriteLine("native-clock-speed-request: " + checks + " checks passed");

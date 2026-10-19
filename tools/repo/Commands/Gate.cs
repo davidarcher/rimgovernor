@@ -22,7 +22,7 @@ internal static class Gate
     private static readonly string[] Probes =
     [
         "native-roof-support", "native-designation-guards", "native-home-coverage", "native-construction-tier-gate",
-        "native-speed-key-block", "native-clock-face", "native-clock-ceiling", "native-clock-speed", "native-clock-hold-serial", "native-clock-speed-request", "native-team-policy", "native-traffic-counts",
+        "native-time-controls", "native-clock-face", "native-clock-ceiling", "native-clock-speed", "native-clock-hold-serial", "native-clock-speed-request", "native-team-policy", "native-traffic-counts",
         "native-production-bill-settings", "native-observation-work", "native-daylight-hours",
         "native-threat-classifier", "native-acquisition-token", "native-ref-index", "native-proto-boundary",
     ];

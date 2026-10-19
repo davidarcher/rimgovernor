@@ -13,7 +13,7 @@ and the [clock wire contract](../../../contracts/wire/clock-lifecycle.md). This 
 speed and its clamp relies on.
 
 - **Who owns the clock.** The bot owns it exactly while it is on (`state.enabled`). Resume gives the clock to the
-  bot and native swallows the player's speed and pause input; Pause holds the clock once (`Hold(Review)`) and the
+  bot, and the in-game speed buttons then only request a speed (below) while in-game pause is the take-over; Pause holds the clock once (`Hold(Review)`) and the
   player is free to unpause. The bot never follows or re-takes a speed the player chose, and there is no
   player-set speed ceiling. See [player API](player-api.md#control-api-and-launcher).
 - **Target speed.** `BrainCompositionOptions.TargetSpeed` (default Ultrafast) is the speed the brain asks for on
@@ -48,7 +48,7 @@ speed and its clamp relies on.
   acceptance-only world patches (`AcceptanceWorld`): no autosaver tick and, for a game the
   `test/quiet_world` fixture op marked, no wild plant or animal tick outside the home area and no wild spawners.
   The acceptance profiles (headless and rendered) alone carry it. `BrainCompositionOptions.ClockTestAcceleration`
-  pins the target to Hyperfast.
+  pins the target to Hyperfast; a case's `RIMGOVERNOR_UNPIN_TEST_SPEED` turns off only that pin.
 - **One ceiling** (`ClockCeiling.cs`) is the only clamp on a running clock's tick rate: the lower of a frame-budget
   input and a brain-heartbeat input. The brain only asks for a speed.
   - *Frame budget.* A frame whose tick work exceeds the budget lowers the frame input to 70% of the rate it ran at,

@@ -12,7 +12,10 @@ public sealed record BrainCompositionOptions
     /// <summary>The routine planner families.</summary>
     public BrainFamilies Families { get; init; } = BrainFamilies.All;
 
-    /// <summary>Acceptance only: runs every run at Hyperfast, native's dev tick boost under its 30x cap.</summary>
+    /// <summary>
+    /// Acceptance only: runs every run at Hyperfast, native's dev tick boost under its 30x cap. The mod sets it for a
+    /// <c>-rimgovernor-test-acceleration</c> launch unless the case unpins it (<see cref="InProcInputs.PinsHyperfast"/>).
+    /// </summary>
     public bool ClockTestAcceleration { get; init; }
 
     /// <summary>

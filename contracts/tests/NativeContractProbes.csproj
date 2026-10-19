@@ -43,8 +43,8 @@
     <Compile Include="NativeContractProbes/native-daylight-hours/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/DaylightHours.cs" Link="Production/DaylightHours.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/HomeCoverageGeometry.cs" Link="Production/HomeCoverageGeometry.cs" />
-    <Compile Include="NativeContractProbes/native-speed-key-block/Program.cs" />
-    <Compile Include="$(NativeSourceRoot)/Bridge/SpeedKeyBlockPolicy.cs" Link="Production/SpeedKeyBlockPolicy.cs" />
+    <Compile Include="NativeContractProbes/native-time-controls/Program.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/TimeControlsPolicy.cs" Link="Production/TimeControlsPolicy.cs" />
     <Compile Include="NativeContractProbes/native-clock-face/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockFace.cs" Link="Production/ClockFace.cs" />
     <Compile Include="NativeContractProbes/native-clock-ceiling/Program.cs" />

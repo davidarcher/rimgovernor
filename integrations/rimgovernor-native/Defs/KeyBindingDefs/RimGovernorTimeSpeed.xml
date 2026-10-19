@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+  <!-- The time controls' Hyperfast key (#3608, TimeControlsRow.cs), after vanilla's 1-4. -->
+  <KeyBindingDef ParentName="GameKeyBinding">
+    <defName>RimGovernor_TimeSpeed_Hyperfast</defName>
+    <label>game speed: Hyperfast</label>
+    <defaultKeyCodeA>Alpha5</defaultKeyCodeA>
+  </KeyBindingDef>
+</Defs>

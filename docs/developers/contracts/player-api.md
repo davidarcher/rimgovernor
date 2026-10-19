@@ -63,13 +63,15 @@ direction compare-and-swap. Intents are journaled in order and each `requestId` 
   `state.enabled` is true. Resume lets the run driver send `Run` and own the speed; Pause holds the clock once
   (`Hold(Review)`, detail `bot_off`) and the player is then free to unpause. The bot does not re-take a clock
   the player runs while `state.enabled` is false, and the toggle is not persisted (`AutoResume` decides at load).
-- While the bot holds the clock, native swallows the player's speed input. The owner flag is native control
-  authority (`NativeControlAuthority` Active, granted by Resume, withdrawn by Pause or a revocation), not a
-  wire field. `PlayerSpeedKeyBlock` marks `TimeControls.DoTimeControlsGUI`, where space, 1-4 and the time-control
-  buttons live, and skips `TickManager.CurTimeSpeed` and `TogglePaused` changes made inside it
-  (`SpeedKeyBlockPolicy.Swallow`). Letter and dialog pauses and supervisor assignments are outside that scope
-  and pass. A blocked attempt shows a rate-limited in-game message saying the bot runs the clock and that
-  Pause in the launcher takes over.
+- While the bot holds the clock, the in-game time controls ask it for a speed instead of setting one. The owner
+  flag is native control authority (`NativeControlAuthority` Active, granted by Resume, withdrawn by Pause or a
+  revocation), not a wire field. Native's `TimeControlsRow` replaces `TimeControls.DoTimeControlsGUI` with six
+  buttons, Pause through Hyperfast (keys space, 1-4 and `RimGovernor_TimeSpeed_Hyperfast`, default 5). While the
+  authority is active a speed button or key only calls `RequestSpeed` (the speed request below) and never sets
+  `CurTimeSpeed`; the row lights the pending click until a `Run` at that speed answers it, then `Status.TargetSpeed`.
+  Pause and space go to the game, and native's ExternalPause hold is the take-over. Without the authority the row
+  sets the game's speed as vanilla does: Ultrafast is 15x with the tick boost off, Hyperfast turns it on (30x).
+  The host tool `rimgovernor/press_time_speed {speed}` runs the same click handler for acceptance.
 - Record phases: `pending`, `running` (resume, non-zero native generation), `paused`, `refused`,
   `uncertain`. Historical results never confer current permission; `state.generation.plan` is the live
   root plan.

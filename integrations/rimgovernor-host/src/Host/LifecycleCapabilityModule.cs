@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using HarmonyLib;
 using RimGovernor.Host.Core;
 using RimWorld;
 using UnityEngine;
@@ -106,6 +107,44 @@ internal sealed class LifecycleCapabilityModule
             timeSpeed = Find.TickManager.CurTimeSpeed.ToString(),
             paused = Find.TickManager.Paused,
             message = $"Time speed set to {speed.Trim()}.",
+            state = RimWorldState.ToolStateSnapshot()
+        };
+    }
+
+    // Native's time-control click handler (#3608), the one a button or key runs. The host has no compile reference to
+    // the native Bridge, which it loads by file, so the type and its button enum are reached by name.
+    private const string TimeControlsRowType = "HomeBridge.BridgeTools.TimeControlsRow";
+    private const string TimeControlsPress = "Press";
+
+    public object PressTimeSpeed(string speed = "Normal")
+    {
+        object Fail(string message) => new { success = false, message, state = RimWorldState.ToolStateSnapshot() };
+        if (Current.Game == null || Find.TickManager == null)
+            return Fail("No game is currently loaded.");
+        var press = AccessTools.TypeByName(TimeControlsRowType) is { } row ? AccessTools.Method(row, TimeControlsPress) : null;
+        if (press == null || press.GetParameters() is not [{ ParameterType.IsEnum: true } parameter])
+            return Fail("The native time controls are not loaded.");
+        // The buttons are Pause through Hyperfast; "Paused" names Pause, as set_time_speed spells it.
+        var name = speed?.Trim() ?? "";
+        if (string.Equals(name, "paused", StringComparison.OrdinalIgnoreCase)) name = "Pause";
+        var button = Enum.GetNames(parameter.ParameterType).FirstOrDefault(n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase));
+        if (button == null)
+            return Fail($"Unknown time speed '{speed}'. Supported values: {SpeedNames}.");
+        try
+        {
+            press.Invoke(null, [Enum.Parse(parameter.ParameterType, button)]);
+        }
+        catch (TargetInvocationException e) when (e.InnerException != null)
+        {
+            return Fail(e.InnerException.Message);
+        }
+
+        return new
+        {
+            success = true,
+            timeSpeed = Find.TickManager.CurTimeSpeed.ToString(),
+            paused = Find.TickManager.Paused,
+            message = $"Pressed {button}.",
             state = RimWorldState.ToolStateSnapshot()
         };
     }

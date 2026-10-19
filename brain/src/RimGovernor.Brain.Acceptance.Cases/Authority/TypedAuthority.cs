@@ -1,4 +1,5 @@
 using RimGovernor.Brain.Bridge;
+using Clock = RimGovernor.Contracts.Wire.Clock;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Control = RimGovernor.Contracts.Wire.Authority;
 
@@ -27,6 +28,13 @@ internal static class TypedAuthority
     {
         var reply = await s.CallAsync(label, NativeOps.ReadAuthorityStatus, new Control.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
         return reply.Outcome?.Status ?? throw new AcceptanceException($"{label}: expected a status, got {reply.Outcome}");
+    }
+
+    /// <summary>The clock status <c>clock_read_status</c> reports for <paramref name="identity"/>; a refusal fails <paramref name="label"/>.</summary>
+    internal static async Task<Clock.Status> ClockStatusAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
+    {
+        var reply = await s.CallAsync(label, NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
+        return reply.Outcome?.Status ?? throw new AcceptanceException($"{label}: expected a clock status, got {reply.Outcome}");
     }
 
     /// <summary>

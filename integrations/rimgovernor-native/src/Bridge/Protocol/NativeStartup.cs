@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
             NativeActionDispatch.AssertComplete();
             ModLogTick.Install();
             ObservationFrameHook.Install();
-            PlayerSpeedKeyBlock.Install();
+            TimeControlsRow.Install();
             ClockReadout.Install();
             Supervisor.EnsureTickRateClampPatched();
             NativeDrugPolicy.Install();

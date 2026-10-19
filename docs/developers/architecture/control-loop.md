@@ -771,7 +771,7 @@ Do not infer a universal atomic reservation of every future construction cost.
 ## Execute under supervision
 
 A player can describe the clock in two sentences. With the bot on, the bot owns
-the clock and the player's speed keys are off. With the bot off, the bot stops
+the clock and the player's speed keys ask it for a speed. With the bot off, the bot stops
 acting on the colony, the game is paused once and the player is free to unpause.
 The toggle is the player Resume/Pause route ([player API](../contracts/player-api.md));
 it is not persisted, and `AutoResume` decides at load.
@@ -978,11 +978,12 @@ never keeps the clock from running. It is not the game's own autosave.
 
 ### Player keys
 
-While the bot holds the clock, native swallows the player's speed and pause input
-(space, 1 to 4 and the time-control buttons) and shows a rate-limited message
-saying why. Letter and dialog pauses and the supervisor's own assignments are not
-player input and pass. Pause turns the bot off: the driver holds the clock for
-`Review` once, the keys work again and the player owns the clock.
+While the bot holds the clock, the time controls' six buttons and their keys
+(1 to 5) only ask for a speed: native records the request on `Status` and the run
+driver adopts it into its target ([interface contracts](../contracts/interface-contracts.md#clock-speed-and-the-one-ceiling)).
+Pause and space go to the game, and native's ExternalPause hold takes over until
+the player resumes. The launcher's Pause turns the bot off: the driver holds the
+clock for `Review` once and the buttons set the game's own speed again.
 
 ### Constants that are not measured
 
