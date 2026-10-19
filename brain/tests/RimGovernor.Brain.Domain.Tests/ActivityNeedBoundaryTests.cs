@@ -88,6 +88,24 @@ public sealed class ActivityNeedBoundaryTests
     }
 
     [Fact]
+    public void TiredParticipantHarvestsTheFoodItThenEats()
+    {
+        // Releasing it would have the next review reselect play or sleep first, then this harvest, every review (#3598).
+        var play = new SelectedActivityTask("play", "pawn", [], new(PawnActivityKind.Recreation, "pin", "", "", 0, 5000), new(1, 1), 0);
+        var harvest = new SelectedActivityTask("harvest", "pawn", [], new(PawnActivityKind.Work, "crop", "Harvest", "Harvest", 0, 5000), new(2, 2), 100);
+        var haul = new SelectedActivityTask("haul", "pawn", [harvest.Id],
+            new(PawnActivityKind.Deliver, "crop", "", "", 8, 5000) { Destination = new(4, 4) }, new(2, 2), 150) { Resource = "Rice", Source = new(2, 2) };
+        var eat = new SelectedActivityTask("eat", "pawn", [haul.Id], new(PawnActivityKind.Eat, "observed-output", "", "", 8, 5000), new(4, 4), 200)
+            { Resource = "Rice", Source = new(4, 4) };
+        var batch = new PawnActivities(1, [new("pawn", "method/pawn", "method", 0, 1, false, [play.Step]) { Task = play.Id }])
+            { Tasks = [play, harvest, haul, eat] };
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "completed", .08) with { Bindings = [new(harvest.Id, harvest.Step)] })!;
+        var order = Assert.Single(next.Orders);
+        Assert.False(order.Release);
+        Assert.Equal(harvest.Id, order.Task);
+    }
+
+    [Fact]
     public void ARunningTaskIsNeverInterruptedByAUrgentNeed()
     {
         var supply = ActivityContinuationFixtures.Cooking();
