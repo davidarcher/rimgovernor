@@ -205,6 +205,36 @@ public sealed class ForecastValueTests
     }
 
     [Fact]
+    public void EatingACookableIngredientRawCostsTheMealNutritionItForgoes()
+    {
+        // #3626: ten rice (0.05 nutrition each) cook into a 0.9 simple meal, so a raw unit gives 1/1.8 of its cooked value.
+        var ratios = ForecastValue.CookedNutritionRatios(
+            [ForecastPortfolioChoiceTests.Conversion("rice", "RawRice", "CookMealSimple", 100) with { IngredientCount = 10, Product = "MealSimple", ProductCount = 1 }],
+            new Dictionary<Resource, double> { [new("RawRice")] = 0.05, [new("MealSimple")] = 0.9 }, new SortedSet<string>());
+        Assert.Equal(1.8, ratios[new("RawRice")], 9);
+        // The pawn eats 0.25 level of rice raw; its food falls 0.5 a day, so the forgone 0.2 level is 0.4 food-days.
+        var pawn = Pawn(fall: 0.5 / Day);
+        var context = Context(pawn) with
+        {
+            CookedNutritionRatio = ratios,
+            NeedTasks = [new("eat", "pawn", "food", "rice", new("RawRice"), 5, Known(0.25), []), new("meal", "pawn", "food", "cell/1/1", new("MealSimple"), 1, Known(0.9), [])],
+        };
+        ForecastCoupledOutcome Eating(string task) => Outcome(Calm()) with { Plan = new([new(task, "pawn", 0, 0, 0, 100, 0, 0, 100, 0, 0)], 100, 0) };
+
+        var raw = ForecastValue.Of(Eating("eat"), context, Day, Outcome(Calm()));
+        var meal = ForecastValue.Of(Eating("meal"), context, Day, Outcome(Calm()));
+
+        Assert.Equal(0.4, raw.RawIngredients.Value, 9);
+        Assert.Equal(0, meal.RawIngredients.Value);
+        Assert.Equal(0.4, raw.LossAgainst(meal).Value, 9);
+        // An eater whose food fall is unobserved leaves the term unknown.
+        var unobserved = Pawn() with { Needs = [Pawn().Needs[0], Pawn().Needs[1] with { FallPerTick = default }] };
+        var unknown = ForecastValue.Of(Eating("eat"), context with { Needs = new() { Pawns = [unobserved] } }, Day, Outcome(Calm()));
+        Assert.False(unknown.RawIngredients.IsKnown);
+        Assert.Contains("raw_ingredient_loss_unassessed:pawn", unknown.Findings);
+    }
+
+    [Fact]
     public void AnExhaustedPawnWithNoObservedGroundGainLeavesTheRestTermUnknown()
     {
         var pawn = Pawn() with { Needs = [Pawn().Needs[0] with { UnservedGainPerTick = default }, Pawn().Needs[1]] };

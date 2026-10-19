@@ -46,7 +46,7 @@ public static partial class ForecastCoupled
         public override int GetHashCode() => HashCode.Combine(RuntimeHelpers.GetHashCode(first), RuntimeHelpers.GetHashCode(second));
     }
 
-    private readonly record struct Claim(string Target, string Pawn, int Count, Fact<int> MaxPawns, Fact<double> AvailableCount, string Stack, string Task);
+    private readonly record struct Claim(string Target, string Pawn, int Count, Fact<int> MaxPawns, Fact<double> AvailableCount, string Stack, string Task, TargetUse Use);
 
     /// <summary>What a search's context fixes per pawn: the observed availability row, the pawn's need tasks, the journal
     /// occupancy of a pawn with claims, and the exposure of a pawn whose comfort shifts are unassessed.</summary>
@@ -106,16 +106,19 @@ public static partial class ForecastCoupled
             return shape;
         }
         private ForecastCoupledContext? targetsOf;
-        private (Dictionary<string, Fact<int>> MaxPawns, Dictionary<string, NeedTarget> Decaying) targets;
-        /// <summary>Each observed target's MaxPawns, and the observed food stacks that deteriorate, by target id.</summary>
-        internal (Dictionary<string, Fact<int>> MaxPawns, Dictionary<string, NeedTarget> Decaying) Targets(ForecastCoupledContext context)
+        private (Dictionary<string, Fact<int>> MaxPawns, Dictionary<string, NeedTarget> Decaying, Dictionary<string, Fact<double>> Stocks) targets;
+        /// <summary>Each observed target's MaxPawns, the observed food stacks that deteriorate, by target id, and each target's
+        /// known stock count (a haul from such a stack shares it, #3626).</summary>
+        internal (Dictionary<string, Fact<int>> MaxPawns, Dictionary<string, NeedTarget> Decaying, Dictionary<string, Fact<double>> Stocks) Targets(ForecastCoupledContext context)
         {
             if (!ReferenceEquals(context, targetsOf))
             {
                 var observed = context.Needs.Pawns.SelectMany(p => p.Targets).ToArray();
                 (targetsOf, targets) = (context, (observed.GroupBy(t => t.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First().MaxPawns, StringComparer.Ordinal),
                     observed.Where(t => t.Kind == "food" && t.Deterioration is not null).GroupBy(t => t.Id, StringComparer.Ordinal)
-                        .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal)));
+                        .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal),
+                    observed.Where(t => t.StockCount.IsKnown).GroupBy(t => t.Id, StringComparer.Ordinal)
+                        .ToDictionary(g => g.Key, g => g.First().StockCount, StringComparer.Ordinal)));
             }
             return targets;
         }
@@ -277,6 +280,7 @@ public static partial class ForecastCoupled
         private readonly HashSet<string> decayed = new(StringComparer.Ordinal);
         private readonly List<(string Lot, string Location, Resource Resource)> externalKeys = [], expiredKeys = [], decayKeys = [];
         private readonly List<Claim> claims = [];
+        private readonly List<TargetUse> uses = [];
         private readonly List<SupportDelivery> deliveries = [];
         private readonly List<Methods.ActivityTaskCandidate> billRows = [];
         private readonly List<ForecastActivityAllocation> completedRows = [], shelterRows = [], serviceRows = [], useRows = [], productive = [];
@@ -443,22 +447,28 @@ public static partial class ForecastCoupled
             balance.Clear();
             foreach (var row in material.Rows) balance.Add(row.Key, row.Value);
             var physicalKnown = material.Budget.IsKnown;
-            // Hands owns exact targets for the whole Method, including future services.
-            // Temporal non-overlap cannot authorize extra participants: a target admits at most MaxPawns distinct owners
-            // (an unreadable MaxPawns is read as 1, this evaluator's policy), and its stack quantity bounds the summed claims.
+            // Hands owns exact targets for the whole Method, including future services. Claims on one target conflict by
+            // admission's own rule (TargetUseRules, #3626): a target admits at most MaxPawns distinct owners at once (an
+            // unreadable MaxPawns is read as 1), a haul from a stack holds it alone over its schedule, an eat holds its
+            // stack over its own, any other claim holds its target throughout, and the stack quantity bounds the summed claims.
             var (needTasksByTask, _) = NeedTasks(context);
-            var (observedTargets, decayingStacks) = Targets(context);
+            var (observedTargets, decayingStacks, stocks) = Targets(context);
             decaying = decayingStacks;
             claims.Clear();
             foreach (var n in context.NeedTasks)
-                if (n.Target.Length != 0 && allocations.ContainsKey(n.Task)) claims.Add(new(n.Target, n.Pawn, n.Count, n.MaxPawns, n.AvailableCount, n.Batch, n.Task));
+                if (n.Target.Length != 0 && allocations.TryGetValue(n.Task, out var eat))
+                    claims.Add(new(n.Target, n.Pawn, n.Count, n.MaxPawns, n.AvailableCount, n.Batch, n.Task, n.Kind == "food"
+                        ? TargetUseRules.Scheduled(n.Pawn, n.Count, 0, eat.Depart, eat.End, false) : new(n.Pawn, n.Count, long.MinValue, long.MaxValue, false)));
             var needClaims = claims.Count;
             foreach (var a in plan.Allocations)
             {
                 if (!context.Bindings.TryGetValue((a.Activity, a.Pawn), out var b) || !observedTargets.TryGetValue(b.Target, out var maxPawns)) continue;
                 var claimed = false;
                 for (var i = 0; i < needClaims && !claimed; i++) claimed = claims[i].Task == b.Id && claims[i].Pawn == b.Pawn;
-                if (!claimed) claims.Add(new(b.Target, b.Pawn, 0, maxPawns, default, "", b.Id));
+                if (claimed) continue;
+                if (b.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply && stocks.TryGetValue(b.Target, out var stock))
+                    claims.Add(new(b.Target, b.Pawn, b.Count, maxPawns, stock, "", b.Id, TargetUseRules.Scheduled(b.Pawn, b.Count, 0, a.Depart, a.End, true)));
+                else claims.Add(new(b.Target, b.Pawn, 0, maxPawns, default, "", b.Id, new(b.Pawn, 0, long.MinValue, long.MaxValue, false)));
             }
             for (var i = 0; i < claims.Count; i++)
             {
@@ -466,17 +476,16 @@ public static partial class ForecastCoupled
                 var first = true;
                 for (var j = 0; j < i && first; j++) first = claims[j].Target != target;
                 if (!first) continue;
-                var capacity = int.MaxValue; var owners = 0;
+                var capacity = int.MaxValue;
+                uses.Clear();
                 for (var j = i; j < claims.Count; j++)
                 {
                     var c = claims[j];
                     if (c.Target != target) continue;
                     capacity = Math.Min(capacity, c.MaxPawns.TryGetValue(out var max) ? max : 1);
-                    var seen = false;
-                    for (var k = i; k < j && !seen; k++) seen = claims[k].Target == target && claims[k].Pawn == c.Pawn;
-                    if (!seen) owners++;
+                    uses.Add(c.Use);
                 }
-                if (owners > capacity) Refuse("conflicting_selected_target_owners", target, 0);
+                if (TargetUseRules.OwnersConflict(CollectionsMarshal.AsSpan(uses), capacity)) Refuse("conflicting_selected_target_owners", target, 0);
                 for (var j = i; j < claims.Count; j++)
                 {
                     var c = claims[j];
@@ -485,14 +494,15 @@ public static partial class ForecastCoupled
                     for (var k = i; k < j && firstStack; k++)
                         firstStack = !(claims[k].Target == target && claims[k].Count > 0 && claims[k].AvailableCount.IsKnown && claims[k].Stack == c.Stack);
                     if (!firstStack) continue;
-                    double sum = 0, available = double.PositiveInfinity;
+                    var available = double.PositiveInfinity;
+                    uses.Clear();
                     for (var k = j; k < claims.Count; k++)
                     {
                         var d = claims[k];
                         if (d.Target != target || d.Count <= 0 || !d.AvailableCount.IsKnown || d.Stack != c.Stack) continue;
-                        sum += d.Count; available = Math.Min(available, d.AvailableCount.Value);
+                        uses.Add(d.Use); available = Math.Min(available, d.AvailableCount.Value);
                     }
-                    if (sum > available) Refuse("target_stack_quantity_exceeded", target, 0);
+                    if (TargetUseRules.UnitsConflict(CollectionsMarshal.AsSpan(uses), Known(available))) Refuse("target_stack_quantity_exceeded", target, 0);
                 }
             }
             deliveries.Clear();

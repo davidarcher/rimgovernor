@@ -89,6 +89,7 @@ exchange rates are mechanical, not chosen:
 | --- | --- |
 | Hunger | The capacity penalties of malnutrition over their duration. |
 | Exhaustion | No rest category changes a capacity, so the cost is the collapse: the expected time a pawn awake at zero rest spends asleep where it falls, as a full loss (below). |
+| Raw ingredients | The meal nutrition a raw eat of a cookable ingredient forgoes, in days of the eater's food fall (below). |
 | Injury | Capacity lost to pain and part damage until healed. Healing per pawn is 8/day naturally (12 not standing) plus 8 × (0.5 + tend quality) tended, × health scale and healing factors. |
 | Downed | Full loss from the down until able, plus the rescue labor. |
 | Treatment | Tend labor, about 600 ticks ÷ tend speed per injury plus walking, and medicine consumed. |
@@ -112,6 +113,15 @@ open at the review counts from 0 (`rest_ticks_at_zero_unobserved:<pawn>`, which 
 pawn's ground gain or wake threshold a pawn that reaches zero leaves the term unknown (`rest_collapse_unassessed:<pawn>`).
 Not priced: the ground-sleep and outdoor-sleep thoughts of the collapse, the slower immunity of the tired categories
 (`StatPart_Rest`), and the life-stage collapse curve of children.
+
+**Raw ingredients (#3626).** Eating a cookable ingredient raw is allowed, but it forgoes the meal its units would make.
+`ForecastCoupledCandidates` reads each observed conversion's ratio from the catalog's `Nutrition` stat: the product's
+nutrition times its count over the ingredient count, divided by the ingredient's own nutrition (rice: 0.9 / 10 over 0.05,
+1.8). The best ratio per ingredient above 1 is `ForecastCoupledContext.CookedNutritionRatio`. The `RawIngredients` term
+charges each selected food need task of such a resource its level gain times the ratio less one, over the eater's
+observed food fall per day: the food-days the colony must find again, one food-day per capability-day. An eater without
+an observed food fall leaves the term unknown (`raw_ingredient_loss_unassessed:<pawn>`); a conversion whose ingredient or
+product has no catalog nutrition is named `cooked_nutrition_unread:<ingredient>:<product>` and costs nothing.
 
 **Hungry and tired (#3598).** Time below the hungry or tired threshold costs its mood: the `NeedFood` thought is -6
 hungry, -12 urgently hungry and -20 starving, `NeedRest` -6 tired, -12 very tired and -18 exhausted (the defs'

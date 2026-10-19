@@ -129,6 +129,56 @@ public sealed class ForecastIncumbentSelectionTests
         return [.. forecast.Proposed.Coupled.Alternatives.SelectMany(a => a.Findings)];
     }
 
+    [Theory]
+    // #3626: "helper" hauls four rice from the stack "pawn" eats two of. Hauled first and done before the eat departs (the
+    // pawn works until then), the forecast selects it and admission admits the same orders; at once, both refuse it, by one rule.
+    [InlineData(50d, true)]    [InlineData(0d, false)]
+    public void TheForecastAndAdmissionAgreeOnAHaulAndAnEatFromOneStack(double eatStart, bool fits)
+    {
+        var (request, candidates) = Problem(1, 0, meal: false);
+        var rice = new NeedTarget("rice", "food", "Rice", 2, Known(0d), Known(10d), Known(0d), Known(.01)) { StockCount = Known(20d), MaxPawns = Known(10) };
+        var facts = WorkResourceTestFacts.Create("pawn", "helper");
+        facts = facts with { ForecastObserved = facts.ForecastObserved with
+            { Needs = new() { Tick = 100, Pawns = [new() { Pawn = "pawn", Targets = [rice] }, new() { Pawn = "helper", Targets = [rice] }] } } };
+        var view = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])).WorkView!;
+        var bindings = new Dictionary<(string, string), RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate>
+        {
+            [("eat", "pawn")] = new("eat", "pawn", [], PawnActivityKind.Eat, "rice", "", "", 2, 2000, new(1, 1)) { Resource = "Rice", Source = new(1, 1) },
+            [("haul", "helper")] = new("haul", "helper", [], PawnActivityKind.Deliver, "rice", "", "", 4, 2000, new(1, 1))
+                { Resource = "Rice", Source = new(1, 1), Destination = new(2, 1), Capacity = 4 },
+        };
+        var context = candidates.Context with
+        {
+            Resources = view, Bindings = bindings,
+            Needs = candidates.Context.Needs with { Pawns = [candidates.Context.Needs.Pawns[0] with { Targets = [rice] },
+                candidates.Context.Needs.Pawns[0] with { Pawn = "helper", Targets = [rice] }] },
+            InitialLots = [new("rice", "start", new("Rice"), Known(20d)) { Perishable = true, FreshTicks = Known(1000d) }],
+            NeedTasks = [new("eat", "pawn", "food", "rice", new("Rice"), 2, Known(.1), []) { AvailableCount = Known(20d), MaxPawns = Known(10), FreshTicks = Known(1000d) }],
+            Activities = candidates.Context.Activities with
+            {
+                Activities = [new("haul", "start", "start", []) { LatestStart = 0 }, new("work", "start", "start", []) { LatestStart = 0 },
+                    new("eat", "start", "start", []) { NotBefore = eatStart, LatestStart = eatStart, Inputs = [new(new("Rice"), Known(2d)) { Lot = "rice", LotLocation = "start" }] }],
+                Options = [new("haul", "helper", Known(20d), Known(0d)), new("work", "pawn", Known(Math.Max(eatStart, 1d)), Known(0d)), new("eat", "pawn", Known(20d), Known(0d))],
+                Pawns = [.. candidates.Context.Activities.Pawns, new("helper", "start", Known<EquatableArray<ForecastTimeWindow>>([new(0, 300)]), Known(1d))],
+            },
+        };
+        var both = new ForecastCommitment("both", []) { ActivityCompletions = eatStart > 0 ? ["haul", "work", "eat"] : ["haul", "eat"] };
+        var forecast = ColonyForecastRules.ForecastColony(request with { Coupled = context, Commitments = [], Proposed = new() { Add = [both] } });
+        var outcomes = forecast.Proposed.Coupled!.Alternatives;
+        var findings = string.Join(",", outcomes.SelectMany(a => a.Findings).Select(f => f.Reason + ":" + f.Commitment));
+        Assert.True(fits == outcomes.Any(a => a.Feasible == Known(true)), findings);
+        Assert.True(!fits == findings.Contains("conflicting_selected_target_owners:rice", StringComparison.Ordinal), findings);
+        if (fits) Assert.Equal(eatStart, outcomes.First(a => a.Feasible == Known(true)).Plan.Allocations.Single(a => a.Activity == "eat").Depart);
+
+        // Admission of the selected schedule's haul and eat orders, or of both at once when nothing was selected.
+        var plan = fits ? outcomes.First(a => a.Feasible == Known(true)).Plan
+            : new ForecastActivityPlan([new("haul", "helper", 0, 0, 0, 20, 0, 0, 20, 0, 0), new("eat", "pawn", 0, 0, 0, 20, 0, 0, 20, 0, 0)], 20, 40);
+        plan = plan with { Allocations = plan.Allocations.Where(a => a.Activity != "work").ToArray() };
+        var batch = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.Start(new(["both"], plan, Known(0d), [], 0, false), bindings, 1, "coupled", 100)!;
+        var refusal = WorkRules.WorkResourcesRefusal(view, new(new("both"), new(1), [DomainAction.NewPawnActivitiesAction(new("both-action"), batch)]));
+        Assert.Equal(fits ? null : "shared_target:rice", refusal);
+    }
+
     [Fact]
     public void TwoPawnsCannotClaimAOneSlotBed()
     {

@@ -202,8 +202,11 @@ internal static class NativeSupportActivities
     // A finished product drops where the cook stands, the interaction cell. Staging there is blocked by it for every later delivery,
     // so stage on the nearest cell that is free of unrelated items; the bill finds ingredients anywhere within its radius.
     internal static IntVec3 Staging(Map map, Building_WorkTable bench, ThingDef def) =>
+        Staging(map, bench, c => c.GetThingList(map).All(t => t.def.category != ThingCategory.Item || t.def == def));
+    /// <summary>The nearest staging cell <paramref name="free"/> admits; a strict-exact-destination delivery admits only an item-free cell.</summary>
+    internal static IntVec3 Staging(Map map, Building_WorkTable bench, Func<IntVec3, bool> free) =>
         GenRadial.RadialCellsAround(bench.InteractionCell, 1.5f, false).Where(c => c.InBounds(map) && c.Standable(map) && !c.Fogged(map) && map.haulDestinationManager.SlotGroupAt(c) == null
-            && c.GetThingList(map).All(t => t.def.category != ThingCategory.Item || t.def == def)).Cast<IntVec3?>().FirstOrDefault() ?? bench.InteractionCell;
+            && free(c)).Cast<IntVec3?>().FirstOrDefault() ?? bench.InteractionCell;
     private static int Staged(Map map, IntVec3 destination, ThingDef def) => destination.GetThingList(map).Where(t => t.def == def).Sum(t => t.stackCount);
     internal static int Remaining(Map map, PawnActivityStep step, ThingDef resource)
     {

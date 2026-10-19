@@ -82,6 +82,10 @@ public sealed record ForecastCoupledContext
     public IReadOnlyDictionary<string, EquatableArray<GearOption>> Outfits { get; init; } = new Dictionary<string, EquatableArray<GearOption>>();
     /// <summary>Capability-days a unit of progress adds on each project tier 2 valued (#3531), by <see cref="ForecastProjectProgress.Project"/>: per research point, per cell sown. Empty before tier 2 ran.</summary>
     public IReadOnlyDictionary<string, double> Investment { get; init; } = new Dictionary<string, double>();
+    /// <summary>Per cookable ingredient, the nutrition a unit gives cooked over what it gives raw (#3626): the best observed
+    /// conversion's product Nutrition stat times its count over the ingredient count, divided by the ingredient's own Nutrition
+    /// stat. Only ratios above 1 are kept; an ingredient without one costs nothing eaten raw.</summary>
+    public IReadOnlyDictionary<Resource, double> CookedNutritionRatio { get; init; } = new Dictionary<Resource, double>();
     /// <summary>The catalog's break curve whose tier mixes price a break in days lost (#3520); unknown by default.</summary>
     public MoodBreakModel MoodBreaks { get; init; } = new();
     /// <summary>Diagnostic only: keep each needs result's per-point mood. The search never reads it (#3467).</summary>

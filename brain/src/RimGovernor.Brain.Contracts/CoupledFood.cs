@@ -14,6 +14,10 @@ public sealed record CoupledFoodConversion(string Source, string Pawn, string Be
     public bool RequiresHarvest { get; init; } = true;
     public string WorkGiver { get; init; } = ""; public string Bill { get; init; } = "";
     public ProductiveSkillWork? SkillWork { get; init; }
+    /// <summary>The chance this pawn's meal from this bench is poisoned, by CompFoodPoisonable.Notify_RecipeProduced: the bench
+    /// room's FoodPoisonChance stat r (the roomless score without a room), else the cook's FoodPoisonChance stat c, so
+    /// r + (1 - r) c. Unknown for a pawn that cannot cook (#3167).</summary>
+    public Fact<double> FoodPoisonChance { get; init; }
 }
 public sealed record CoupledFoodUse(string Pawn, string Resource, Cell Location, Fact<bool> Eligible,
     Fact<double> Nutrition, Fact<double> ChewTicks, int MaxCount, Fact<double> FreshTicks)

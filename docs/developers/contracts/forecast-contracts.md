@@ -885,7 +885,8 @@ cadence over the trailing 14 days feeds the hunters' throughput
 ### Need-task targets and the capacity rule
 
 `ForecastCoupled.EvaluateCoupledSchedule` checks every need target a portfolio claims
-against its capacity (not time-aware: Hands owns exact targets for the whole Method).
+against its capacity. A food or hauled-stack claim holds its units from its use tick
+(#3626, below); every other claim holds the target for the whole Method.
 A target is refused when its distinct selected owners exceed its `MaxPawns`
 (`conflicting_selected_target_owners`; the minimum over its claims, an unknown value
 read as 1, which is this evaluator's policy and not part of the contract) or when the
@@ -896,6 +897,17 @@ the produced batch when several batches can sit in one delivery cell; counts sum
 target and batch), plus each selected binding that names an
 observed `Needs.Pawns[].Targets` id without a need task (capacity from that observed
 target, count 0). The rule never reads `Kind`; the first replaced #3135's one-owner check.
+
+Timed claims (#3626): one rule, `TargetUseRules` in `WorkResources.cs`, decides both here
+and in Hands admission, so the forecast cannot select a pairing admission refuses. Each
+claim is a `TargetUse` (owner, count, `[From, Until)`, `Alone`). A food claim holds the
+stack from its allocation's `Depart` until its `End` (native executes a non-preparing
+order at once, so the ingest reservation starts at departure). A Deliver or Supply
+binding on an observed stack with a known `StockCount` is an `Alone` claim of its count
+over its own allocation: vanilla hauls reserve with `maxPawns` 1, so no other owner may
+overlap it, but a haul done before an eat departs shares the stack. Owners conflict when,
+at any claim's `From`, more distinct owners hold the target than `MaxPawns`, or an `Alone`
+claim overlaps another owner's; units conflict when the counts sum past the stock.
 `ForecastNeedTask` is a policy-internal record; the wire type is `NeedTarget`. What a
 target means depends on its producer:
 
@@ -955,9 +967,15 @@ form.
 claims, the proposal, and any pawn natively holding it) exceed `MaxPawns`, or the summed
 counts exceed the quantity: `shared_target:` when the proposal alone does,
 `target_claimed:` against committed work, and the existing `pawn_target_claimed` /
-`native_target_claimed` when a native holder tips it over. A target any claim takes whole
-(a Deliver or Supply source stack, a bench, a site) stays exclusive against shared
-claims too. `cell/` targets of a PawnActivities batch keep their existing exemption.
+`native_target_claimed` when a native holder tips it over. The test is
+`TargetUseRules.Conflict`, the forecast's rule: an Eat claim, and a Deliver or Supply step
+on an observed stack with a known quantity (an `Alone` claim), is timed from its task's
+`DepartTick` to `UseUntilTick` (persisted on `SelectedActivityTask`, from the selected
+allocation), else to the step's deadline; native holders and other claims are open-ended.
+Each order of a proposal is checked against its own task (`ordersOnly`). A need target
+with a committed `Alone` claim is not proposed again. Any other target a claim takes
+whole (a bench, a site, a stack whose quantity is unknown) stays exclusive against
+shared claims too. `cell/` targets of a PawnActivities batch keep their existing exemption.
 
 Native bind-time reservation uses the numbers vanilla reserves with. Before offering the
 job, `NativePawnActivities.OfferJob` checks `CanReserveAndReach(target, Touch, ...)` with

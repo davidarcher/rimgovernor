@@ -15,8 +15,76 @@ public sealed record WorkAction(PlanId Plan, DomainAction Action, ProgressView P
 public sealed record WorkActionCensus(EquatableArray<WorkAction> Actions, bool Truncated = false);
 /// <summary>An observed target's claimant capacity (vanilla ReservationManager maxPawns) and, for a stack, its quantity. Unknown stays unknown.</summary>
 public sealed record WorkTargetCapacity(string Target, Fact<int> MaxPawns, Fact<double> Quantity);
-/// <summary>One owner's claim on a capacity target; <see cref="Count"/> is the stack units it takes (0 for a bed or a pin).</summary>
-public sealed record WorkTargetClaim(string Target, string Owner, string Task, int Count);
+/// <summary>One owner's claim on a capacity target; <see cref="Count"/> is the stack units it takes (0 for a bed or a pin).
+/// A stack use holds the target from <see cref="From"/> to <see cref="Until"/> (#3626); any other claim holds it throughout.</summary>
+public sealed record WorkTargetClaim(string Target, string Owner, string Task, int Count)
+{
+    public long From { get; init; } = long.MinValue;
+    public long Until { get; init; } = long.MaxValue;
+    /// <summary>A haul from the stack: native reserves it for one pawn, so no other owner may hold it meanwhile.</summary>
+    public bool Alone { get; init; }
+    internal TargetUse Use => new(Owner, Count, From, Until, Alone);
+}
+
+/// <summary>One claim on a capacity target as <see cref="TargetUseRules"/> reads it (#3626): its owner, the stack units it
+/// takes, the half-open ticks [From, Until) it holds the target, and whether it holds it alone.</summary>
+public readonly record struct TargetUse(string Owner, int Count, long From, long Until, bool Alone);
+
+/// <summary>
+/// The one rule for whether claims on one capacity target conflict (#3626), read by the forecast's coupled selection and by
+/// work resource admission alike, so the forecast never selects a pairing admission refuses. Units are consumed, so the
+/// claims' summed count must fit the stack whatever their times. Owners are native reservations, held from departure to
+/// the task's end: at no tick may more distinct owners hold the target than it admits, and a haul (ReservationManager
+/// maxPawns 1) shares no tick with another owner. A claim with no schedule holds the target throughout.
+/// </summary>
+public static class TargetUseRules
+{
+    /// <summary>A use scheduled from <paramref name="depart"/> to <paramref name="end"/> ticks after <paramref name="tick"/>, held
+    /// over the same whole ticks the bound task's <see cref="SelectedActivityTask.DepartTick"/> and
+    /// <see cref="SelectedActivityTask.UseUntilTick"/> carry.</summary>
+    public static TargetUse Scheduled(string owner, int count, long tick, double depart, double end, bool alone) =>
+        new(owner, count, checked(tick + (long)Math.Ceiling(depart)), SelectedActivityTask.UseUntil(tick, depart, end), alone);
+
+    public static bool Conflict(ReadOnlySpan<TargetUse> uses, int maxPawns, Fact<double> quantity) =>
+        UnitsConflict(uses, quantity) || OwnersConflict(uses, maxPawns);
+
+    /// <summary>Whether the uses take more units than a stack of known <paramref name="quantity"/> holds.</summary>
+    public static bool UnitsConflict(ReadOnlySpan<TargetUse> uses, Fact<double> quantity)
+    {
+        if (!quantity.TryGetValue(out var units)) return false;
+        double sum = 0;
+        foreach (var use in uses) sum += use.Count;
+        return sum > units;
+    }
+
+    /// <summary>Whether at some tick more distinct owners hold the target than <paramref name="maxPawns"/>, or an alone use
+    /// shares a tick with another owner.</summary>
+    public static bool OwnersConflict(ReadOnlySpan<TargetUse> uses, int maxPawns)
+    {
+        for (var i = 0; i < uses.Length; i++)
+        {
+            var a = uses[i];
+            // The most owners at once is reached where some use begins.
+            var owners = 0;
+            for (var j = 0; j < uses.Length; j++)
+            {
+                var b = uses[j];
+                if (b.From > a.From || Until(b) <= a.From) continue;
+                var seen = false;
+                for (var k = 0; k < j && !seen; k++)
+                    seen = uses[k].Owner == b.Owner && uses[k].From <= a.From && Until(uses[k]) > a.From;
+                if (!seen) owners++;
+            }
+            if (owners > maxPawns) return true;
+            if (!a.Alone) continue;
+            for (var j = 0; j < uses.Length; j++)
+                if (uses[j].Owner != a.Owner && uses[j].From < Until(a) && a.From < Until(uses[j])) return true;
+        }
+        return false;
+    }
+
+    private static long Until(TargetUse use) => use.Until > use.From ? use.Until : use.From + 1;
+}
 public sealed record WorkResourceClaims(EquatableArray<ForecastCommitment> Materials,
     EquatableArray<string> Pawns, EquatableArray<string> Targets, EquatableArray<string> Findings)
 {
@@ -120,7 +188,8 @@ public static partial class WorkRules
     /// claims its anchor cell, or with <paramref name="footprint"/> every cell of its footprint
     /// (<see cref="BuildingClaimTargets"/>).
     /// </summary>
-    public static WorkResourceClaims WorkClaimsOf(WorkAdmissionEvidence evidence, IEnumerable<WorkAction> actions, bool footprint = false)
+    public static WorkResourceClaims WorkClaimsOf(WorkAdmissionEvidence evidence, IEnumerable<WorkAction> actions, bool footprint = false,
+        bool ordersOnly = false)
     {
         var materials = new List<ForecastCommitment>();
         var activityMaterials = new Dictionary<(string Pawn, string Assignment), List<ForecastMaterialClaim>>();
@@ -128,17 +197,25 @@ public static partial class WorkRules
         var pawns = new HashSet<string>(StringComparer.Ordinal);
         var targets = new HashSet<string>(StringComparer.Ordinal);
         var exclusive = new HashSet<string>(StringComparer.Ordinal);
-        var shared = new Dictionary<(string Target, string Owner, string Task), int>();
+        var shared = new Dictionary<(string Target, string Owner, string Task), (int Count, long From, long Until, bool Alone)>();
         var findings = new HashSet<string>(StringComparer.Ordinal);
+        var stacks = evidence.NeedTargets.Where(t => t.Quantity.IsKnown).Select(t => t.Target).ToHashSet(StringComparer.Ordinal);
         // A target some claim takes whole stays exclusive, whatever else shares it.
         void Take(string target) { targets.Add(target); exclusive.Add(target); }
-        // The same task seen through its order and through its task row is one claim, not two.
-        void Share(PawnActivityStep step, string owner, string task)
+        // The same task seen through its order and through its task row is one claim, not two. A stack use holds the stack
+        // over its task's schedule (#3626): an eat, or a haul from it, which holds it alone.
+        void Share(string target, string owner, string task, int count, PawnActivities batch, PawnActivityStep step, bool alone)
         {
-            targets.Add(step.Target);
-            var key = (step.Target, owner, task);
-            shared[key] = Math.Max(shared.GetValueOrDefault(key), step.Kind == PawnActivityKind.Eat ? step.Count : 0);
+            targets.Add(target);
+            var key = (target, owner, task);
+            var (from, until) = (long.MinValue, long.MaxValue);
+            if ((alone || step.Kind == PawnActivityKind.Eat) && batch.Tasks.FirstOrDefault(t => t.Id == task) is { } row)
+                (from, until) = (row.DepartTick, row.UseUntilTick > row.DepartTick ? row.UseUntilTick
+                    : step.Deadline > row.DepartTick ? step.Deadline : long.MaxValue);
+            shared[key] = (Math.Max(shared.GetValueOrDefault(key).Count, count), from, until, alone);
         }
+        // A haul of an observed food stack shares it (#3626); any other named source is taken whole.
+        bool HaulsStack(PawnActivityStep step, string target) => step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply && stacks.Contains(target);
         foreach (var row in actions.OrderBy(a => a.Action.Id.Value, StringComparer.Ordinal))
         {
             var progress = row.Progress;
@@ -172,7 +249,7 @@ public static partial class WorkRules
                 { MaterialClaims = EquatableArray.From(units.Select(a => new ForecastMaterialClaim(a.Resource, Known((double)a.Count), Known("")))) });
             }
             if (row.Action.PawnActivities is not { } batch) continue;
-            foreach (var task in batch.Tasks)
+            foreach (var task in ordersOnly ? Enumerable.Empty<SelectedActivityTask>() : batch.Tasks)
             {
                 var owner = batch.Orders.FirstOrDefault(o => o.Pawn == task.Pawn && !o.Release);
                 if (owner is not null && progress.Attempt.Value > 0 && !progress.Unresolved && progress.Tick < evidence.Tick
@@ -181,8 +258,10 @@ public static partial class WorkRules
                 // Preparation owns the selected future service too, not only its approach cell.
                 // Produced food keeps its unresolved identity until native output rebinding.
                 var sharesService = SharesCapacity(task.Step);
-                if (sharesService) Share(task.Step, task.Pawn, task.Id);
-                foreach (var input in task.Inputs.Where(i => i.Observed && i.Lot.Length != 0 && !(sharesService && i.Lot == task.Step.Target))) Take(input.Lot);
+                if (sharesService) Share(task.Step.Target, task.Pawn, task.Id, EatCount(task.Step), batch, task.Step, false);
+                foreach (var input in task.Inputs.Where(i => i.Observed && i.Lot.Length != 0 && !(sharesService && i.Lot == task.Step.Target)))
+                    if (HaulsStack(task.Step, input.Lot)) Share(input.Lot, task.Pawn, task.Id, input.Count, batch, task.Step, true);
+                    else Take(input.Lot);
                 if (task.Step.Destination is { } destination) Take("cell/" + destination.X + "/" + destination.Z);
                 if (task.Step.Container.Length != 0) Take(task.Step.Container);
                 var executing = batch.Orders.FirstOrDefault(o => !o.Release && !o.Preparing && o.Task == task.Id);
@@ -244,7 +323,8 @@ public static partial class WorkRules
                 foreach (var step in order.Steps)
                 {
                     if (step.Destination is { } destination) Take("cell/" + destination.X + "/" + destination.Z);
-                    if (SharesCapacity(step)) Share(step, order.Pawn, order.Task);
+                    if (SharesCapacity(step)) Share(step.Target, order.Pawn, order.Task, EatCount(step), batch, step, false);
+                    else if (HaulsStack(step, step.Target)) Share(step.Target, order.Pawn, order.Task, step.Count, batch, step, true);
                     else if (step.Target.Length != 0) Take(step.Target);
                     if (step.Container.Length != 0) Take(step.Container);
                     if (step.Recipe is { } cooking) Take(cooking.Bill);
@@ -306,7 +386,8 @@ public static partial class WorkRules
             EquatableArray.From(targets.Order(StringComparer.Ordinal)), EquatableArray.From(findings.Order(StringComparer.Ordinal)))
         {
             Shared = EquatableArray.From(shared.Where(s => !exclusive.Contains(s.Key.Target))
-                .Select(s => new WorkTargetClaim(s.Key.Target, s.Key.Owner, s.Key.Task, s.Value))
+                .Select(s => new WorkTargetClaim(s.Key.Target, s.Key.Owner, s.Key.Task, s.Value.Count)
+                    { From = s.Value.From, Until = s.Value.Until, Alone = s.Value.Alone })
                 .OrderBy(c => c.Target, StringComparer.Ordinal).ThenBy(c => c.Owner, StringComparer.Ordinal).ThenBy(c => c.Task, StringComparer.Ordinal))
         };
     }
@@ -317,23 +398,26 @@ public static partial class WorkRules
         && (step.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation
             || step.Kind == PawnActivityKind.Eat && step.Target != "observed-output");
 
-    /// <summary>True when <paramref name="claims"/> on one target need more owners than its MaxPawns (an unreadable value is read as 1,
-    /// this admission's policy) or, for a stack of known quantity, take more units than it holds.
-    /// <paramref name="otherOwners"/> are pawns outside the claims that already occupy it.</summary>
+    private static int EatCount(PawnActivityStep step) => step.Kind == PawnActivityKind.Eat ? step.Count : 0;
+
+    /// <summary>True when <paramref name="claims"/> on one target conflict by <see cref="TargetUseRules"/>: more owners at once
+    /// than its MaxPawns (an unreadable value is read as 1, this admission's policy), a haul beside another owner, or, for a
+    /// stack of known quantity, more units than it holds. <paramref name="otherOwners"/> are pawns outside the claims that
+    /// already occupy it, holding it throughout.</summary>
     private static bool TargetOverCapacity(WorkAdmissionEvidence evidence, string target, IEnumerable<WorkTargetClaim> claims, IEnumerable<string> otherOwners)
     {
         var capacity = evidence.NeedTargets.FirstOrDefault(t => t.Target == target);
         var max = capacity is not null && capacity.MaxPawns.TryGetValue(out var known) && known > 0 ? known : 1;
-        var list = claims.ToArray();
-        if (list.Select(c => c.Owner).Concat(otherOwners).Distinct(StringComparer.Ordinal).Count() > max) return true;
-        return capacity is not null && capacity.Quantity.TryGetValue(out var quantity) && list.Sum(c => (double)c.Count) > quantity;
+        var uses = claims.Select(c => c.Use).Concat(otherOwners.Select(o => new TargetUse(o, 0, long.MinValue, long.MaxValue, false))).ToArray();
+        return TargetUseRules.Conflict(uses, max, capacity?.Quantity ?? default);
     }
 
     /// <summary>
     /// The observed need target as another Method may still propose it against <paramref name="claims"/> (#3194): an
     /// unclaimed target whole; a claimed food stack narrowed to the units and claimant slots the committed claims leave,
     /// its observed count less the units they still owe; null for any other claimed target, a stack some claim takes
-    /// whole, or a remainder that is unknown or exhausted. The owed units are the journal's remaining Eat tasks, which
+    /// whole or a committed haul holds alone (#3626: the forecast does not read the committed claims' times), or a
+    /// remainder that is unknown or exhausted. The owed units are the journal's remaining Eat tasks, which
     /// continuation drops once native completion is observed, never predicted consumption; admission then shares the
     /// stack by the same arithmetic (<see cref="TargetOverCapacity"/>).
     /// </summary>
@@ -343,7 +427,7 @@ public static partial class WorkRules
         if (!claims.Targets.Contains(target.Id)) return target;
         if (target.Kind != "food" || !target.StockCount.TryGetValue(out var stock) || !target.MaxPawns.TryGetValue(out var max)) return null;
         var held = claims.Shared.Where(s => s.Target == target.Id).ToArray();
-        if (held.Length == 0) return null;
+        if (held.Length == 0 || held.Any(s => s.Alone)) return null;
         var units = (int)Math.Floor(stock) - held.Sum(s => s.Count);
         var owners = max - held.Select(s => s.Owner).Distinct(StringComparer.Ordinal).Count();
         return units > 0 && owners > 0
@@ -379,11 +463,13 @@ public static partial class WorkRules
         var sharedSeen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var action in proposed.Actions)
         {
+            // Each order alone, with its own task only to time its stack claims (#3626).
             var parts = action.PawnActivities is { } batch
-                ? batch.Orders.Select(o => DomainAction.NewPawnActivitiesAction(action.Id, batch with { Orders = [o], Tasks = [] })) : [action];
+                ? batch.Orders.Select(o => DomainAction.NewPawnActivitiesAction(action.Id, batch with { Orders = [o], Tasks = o.Release ? []
+                    : EquatableArray.From(batch.Tasks.Where(t => t.Id == o.Task && t.Pawn == o.Pawn).Select(t => t with { Prerequisites = [] })) })) : [action];
             foreach (var part in parts)
             {
-                var claim = WorkClaimsOf(view.Evidence, [new(proposed.Id, part, new ProgressView { Action = part.Id, Stage = Stage.Pending })]);
+                var claim = WorkClaimsOf(view.Evidence, [new(proposed.Id, part, new ProgressView { Action = part.Id, Stage = Stage.Pending })], ordersOnly: true);
                 // An order's cell is where its pawn walks or stands (approach, hold, a stockpile drop), not a thing
                 // only one pawn may use: orders of one batch may meet at a cell. Named things (stacks, containers,
                 // bills, benches, sites) and a building's own cell stay exclusive. A capacity target (a bed, a pin,

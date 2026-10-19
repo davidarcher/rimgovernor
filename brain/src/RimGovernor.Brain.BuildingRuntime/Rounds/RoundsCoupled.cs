@@ -173,6 +173,7 @@ public sealed partial class Rounder
     private static Dictionary<string, object?> ValueAttrs(ForecastValueExplanation value) => new()
     {
         ["total"] = Number(value.Ledger.Total), ["hunger"] = Number(value.Ledger.Hunger), ["rest"] = Number(value.Ledger.Rest),
+        ["raw_ingredients"] = Number(value.Ledger.RawIngredients),
         ["food_poisoning"] = Number(value.Ledger.FoodPoisoning), ["thermal"] = Number(value.Ledger.Thermal),
         ["mood_breaks"] = Number(value.Ledger.MoodBreaks), ["wellbeing"] = Number(value.Ledger.Wellbeing),
         ["harm"] = Number(value.Ledger.Harm), ["harm_detail"] = value.Ledger.HarmDetail is { } detail ? new Dictionary<string, object?>

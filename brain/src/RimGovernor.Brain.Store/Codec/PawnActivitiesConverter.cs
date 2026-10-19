@@ -24,7 +24,8 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
                         Producers = EquatableArray.From(i.GetProperty("Producers").EnumerateArray().Select(p => p.GetString()!)) })),
                 Source = t.GetProperty("Source") is var source && source.ValueKind != JsonValueKind.Null
                     ? new(source.GetProperty("X").GetInt32(), source.GetProperty("Z").GetInt32()) : null,
-                PriorSteps = EquatableArray.From(t.GetProperty("PriorSteps").EnumerateArray().Select(ReadStep)) })) };
+                PriorSteps = EquatableArray.From(t.GetProperty("PriorSteps").EnumerateArray().Select(ReadStep)),
+                UseUntilTick = t.GetProperty("UseUntilTick").GetInt64() })) };
         value.Validate(); return value;
     }
     private static PawnActivityStep ReadStep(JsonElement s) => new(
@@ -58,6 +59,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
         {
             w.WriteStartObject(); w.WriteString("Id", task.Id); w.WriteString("Pawn", task.Pawn);
             w.WriteNum("X", task.Location.X); w.WriteNum("Z", task.Location.Z); w.WriteNum("DepartTick", task.DepartTick);
+            w.WriteNum("UseUntilTick", task.UseUntilTick);
             w.WriteString("Resource", task.Resource); w.WriteString("SiteDefinition", task.SiteDefinition); w.WriteNum("AttemptsLeft", task.AttemptsLeft);
             w.WriteString("ProductStuff", task.ProductStuff);
             if (task.ProductiveWorkTicks.TryGetValue(out var work)) w.WriteNum("ProductiveWorkTicks", work); else w.WriteNull("ProductiveWorkTicks");

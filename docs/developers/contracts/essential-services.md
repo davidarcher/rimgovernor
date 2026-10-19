@@ -135,7 +135,8 @@ Real-game runs under the normal planner (no fixture-selected winner) at the #316
 | Case | Result | What it establishes |
 | --- | --- | --- |
 | `production/productive-cooking` | passes (ordinary crew, prepared level-5 cooking skill) | the planner plans and cooks, a meal is produced, and the level-5 skill is observed rather than boosted |
-| `production/development-lifecycle` | fails (#3167): cooking continues after the urge, "development was not postponed under the urgent rest need" | the claim: a tired cook finishes the current meal, is released at the task boundary (never interrupted mid-task), sleeps, resumes the bill when rested, and the Method retires once the demand is satisfied |
+| `production/development-reassignment` | passes (#3167, #3626) | a far better cook joining takes the bills from the first cook's Method |
+| `production/development-lifecycle` | passes (#3167, #3598) | the claim: a tired cook finishes the current meal, is released at the task boundary (never interrupted mid-task), sleeps, resumes the bill when rested, and the Method retires once the demand is satisfied |
 | `production/maintenance-range`, `production/maintenance-sparring` | pass | an assigned role floor with a real deficit is maintained by existing range and sparring |
 | `production/coupled-needs`, `lifecycle/load` | pass | normal harvest/ingestion and load preserve ownership |
 | `shelter/service-investment` | passes (#3245): the cold-room heater frame is selected, built, powered and warms the room, with the paired decision explained | food/shelter investment is observed. The cause was search order: a construction root rejected for lacking supported service relief was never paired with the sleep that gives it relief, because hundreds of sleep-time roots sorted ahead of it and spent the budget. Need roots now sort last and an unserved construction root seeds the extension |
@@ -144,7 +145,8 @@ Real-game runs under the normal planner (no fixture-selected winner) at the #316
 
 Cooking ingredients are staged on a free cell near the bench, never on its interaction
 cell, because the finished product drops there and a strict-exact-destination delivery
-refuses any occupied cell. A refused delivery now names the blocking item or condition in
+refuses any occupied cell; a coupled cooking conversion therefore stages only on an item-free cell,
+even beside rice staged earlier. A refused delivery now names the blocking item or condition in
 its receipt.
 
 The maintenance fixture cannot hold an assigned role below its skill floor in vanilla:
@@ -168,7 +170,10 @@ raised to 15). It passes when the first cook's Method no longer owns that cook, 
 a meal under a coupled Method, and every completed repeat is exactly one Method-owned completion. A
 Cooking work priority is not an input: activity cooking ignores work priorities. A coupled Method with bills
 left is reconsidered only at a boundary (every participant completed or holding, nothing carried) and only
-while a colonist outside it is offered one of its bills faster than its own cooks (#3167). It then has no
+while a colonist outside it is offered one of its bills faster than its own cooks (#3167): in total ticks, the
+walk to the ingredients (the cheapest delivery of them to the bench, else the walk to the bench) plus the
+work, or equally fast with a lower known chance of poisoning the meal (the game's rule: room chance r plus
+(1 − r) times the cook's `FoodPoisonChance`, on `CoupledFoodConversion.FoodPoisonChance`). It then has no
 retain commitment: the comparison sees its pawns free, and it is released only when the selection gives one
 of its bills to that colonist; a Method that only defers colonists is offered beside it and released when
 the selection gives one of them work. The move never happens mid-recipe. A meal that waits on another

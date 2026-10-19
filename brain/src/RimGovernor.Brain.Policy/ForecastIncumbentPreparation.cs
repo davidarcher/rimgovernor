@@ -262,16 +262,37 @@ public static class ForecastIncumbentPreparation
         return methods;
     }
 
-    /// <summary>Whether a pawn other than the Method's cooks is offered one of its bills' recipes in fewer work ticks than any
-    /// of them.</summary>
+    /// <summary>Whether a pawn other than the Method's cooks is offered one of its bills' recipes faster than the best of them
+    /// (#3167): its total ticks, travelling from where it stands to the ingredients, carrying them to the bench and cooking, are
+    /// lower, or no higher with a lower chance the meal is poisoned (the game's rule, read natively per cook and bench). A pawn
+    /// offered no single haul of the whole ingredient count is timed walking straight to the bench.</summary>
     private static bool FasterOutside(ForecastCoupledCandidates generated, BoundaryMethod method)
     {
         var own = ForecastObservedIncumbent.CooksOf(method.Batch, method.Bills);
-        var cooks = generated.Context.Bindings.Values.Where(b => b.Kind == PawnActivityKind.Recipe
-            && (b.Recipe?.Bill ?? b.Cooking?.Continuation.Bill) is { } bill && method.Bills.Contains(bill)).Select(b => b.Id).ToHashSet(StringComparer.Ordinal);
-        var offered = generated.Context.Activities.Options.Where(o => cooks.Contains(o.Activity)
-            && o.WorkTicks.TryGetValue(out var ticks) && double.IsFinite(ticks) && ticks > 0).ToArray();
-        var best = offered.Where(o => own.Contains(o.Pawn)).Select(o => o.WorkTicks.Value).DefaultIfEmpty(double.PositiveInfinity).Min();
-        return offered.Any(o => !own.Contains(o.Pawn) && o.WorkTicks.Value < best);
+        var context = generated.Context;
+        var options = context.Activities.Options.Where(o => o.WorkTicks.TryGetValue(out var ticks) && double.IsFinite(ticks) && ticks >= 0)
+            .GroupBy(o => (o.Activity, o.Pawn)).ToDictionary(g => g.Key, g => g.First().WorkTicks.Value);
+        var routes = context.Activities.Routes.Where(r => r.Ticks.TryGetValue(out var ticks) && double.IsFinite(ticks))
+            .GroupBy(r => (r.Pawn, r.From, r.To)).ToDictionary(g => g.Key, g => g.First().Ticks.Value);
+        double? Route(string pawn, Cell to) => routes.TryGetValue((pawn, "start", Methods.Generation.ForecastLocations.Of(to)), out var ticks) ? ticks : null;
+        var offered = new List<(string Pawn, double Total, Fact<double> Poison)>();
+        foreach (var cook in context.Bindings.Values.Where(b => b.Kind == PawnActivityKind.Recipe
+            && (b.Recipe?.Bill ?? b.Cooking?.Continuation.Bill) is { } bill && method.Bills.Contains(bill)))
+        {
+            if (!options.TryGetValue((cook.Id, cook.Pawn), out var work) || work <= 0) continue;
+            var needed = cook.Recipe?.Ingredients.Sum(i => i.Count) ?? 0;
+            var fetch = context.Bindings.Values.Where(b => b.Pawn == cook.Pawn && b.Kind == PawnActivityKind.Deliver
+                    && b.Resource == cook.Resource && b.Destination == cook.Source && b.Source is { } && b.Count >= needed)
+                .Select(b => options.TryGetValue((b.Id, b.Pawn), out var haul) && Route(b.Pawn, b.Source!.Value) is { } approach ? approach + haul : (double?)null)
+                .Where(t => t is not null).Min() ?? Route(cook.Pawn, cook.Location);
+            if (fetch is null) continue;
+            offered.Add((cook.Pawn, fetch.Value + work, cook.FoodPoisonChance));
+        }
+        var mine = offered.Where(o => own.Contains(o.Pawn)).OrderBy(o => o.Total)
+            .ThenBy(o => o.Poison.TryGetValue(out var p) ? p : double.PositiveInfinity).ToArray();
+        if (mine.Length == 0) return offered.Any(o => !own.Contains(o.Pawn));
+        var best = mine[0];
+        return offered.Any(o => !own.Contains(o.Pawn) && (o.Total < best.Total || o.Total <= best.Total
+            && o.Poison.TryGetValue(out var poison) && best.Poison.TryGetValue(out var incumbent) && poison < incumbent));
     }
 }

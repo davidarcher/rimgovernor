@@ -200,12 +200,20 @@ public sealed class ForecastIncumbentPreparationTests
     }
 
     /// <summary>"pawn" owns a coupled cooking Method holding for its next recipe; "helper" is free and cooks in
-    /// <paramref name="helperTicks"/> against pawn's 100.</summary>
-    private static (RoundsFacts Facts, WorkActionCensus Actions) BoundaryCooking(double helperTicks, string state = "holding", bool deferHelper = false)
+    /// <paramref name="helperTicks"/> against pawn's 100, walking <paramref name="helperApproach"/> ticks to the rice against
+    /// pawn's 0; the poisoning chances are unknown when NaN.</summary>
+    private static (RoundsFacts Facts, WorkActionCensus Actions) BoundaryCooking(double helperTicks, string state = "holding", bool deferHelper = false,
+        double helperApproach = 0, double pawnPoison = double.NaN, double helperPoison = double.NaN)
     {
-        var conversion = ForecastPortfolioChoiceTests.Conversion("rice", "Rice", "CookRice", 100) with { AvailableInput = 8, CanSupply = true, CanDeliver = true };
-        var facts = ForecastPortfolioChoiceTests.Observed([conversion, conversion with { Pawn = "helper", WorkTicks = Known(helperTicks) }],
+        static Fact<double> Chance(double p) => double.IsNaN(p) ? default : Known(p);
+        var conversion = ForecastPortfolioChoiceTests.Conversion("rice", "Rice", "CookRice", 100)
+            with { AvailableInput = 8, CanSupply = true, CanDeliver = true, FoodPoisonChance = Chance(pawnPoison) };
+        var facts = ForecastPortfolioChoiceTests.Observed([conversion, conversion with { Pawn = "helper", WorkTicks = Known(helperTicks),
+                ApproachTicks = Known(helperApproach), FoodPoisonChance = Chance(helperPoison) }],
             [new("rice", "Rice", new(1, 1), 8, Known(2000d))], helper: true);
+        var coupled = facts.ForecastObserved.Coupled!;
+        facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = coupled with { Routes = EquatableArray.From(coupled.Routes
+            .Select(r => r.FromStart && r.Pawn == "helper" && r.To == new Cell(1, 1) ? r with { Ticks = Known(helperApproach) } : r)) } } };
         var recipe = new PawnActivityRecipe("bill/CookRice", "CookRice", [new("observed-output", 4)]);
         var task = new SelectedActivityTask("cook-task", "pawn", [], new(PawnActivityKind.Recipe, "bench", "Cook", "", 0, 2000) { Recipe = recipe }, new(2, 1), 400);
         var order = new PawnActivityOrder("pawn", "cook-assignment", "coupled-cook", 0, 1, false,
@@ -292,6 +300,24 @@ public sealed class ForecastIncumbentPreparationTests
         var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
         Assert.Empty(incumbents);
         Assert.Contains("pawn", prepared.CoupledAlternatives!.Context.Resources.Claims.Pawns);
+    }
+
+    [Theory]
+    // #3167: a cook 90 work ticks faster but 200 ticks further from the rice is slower in total; 50 ticks away it is faster.
+    [InlineData(200, false)]    [InlineData(50, true)]
+    public void TheFasterOutsideGateCountsTravelToTheIngredients(double helperApproach, bool reconsidered)
+    {
+        var (facts, actions) = BoundaryCooking(10, helperApproach: helperApproach);
+        Assert.Equal(reconsidered, ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions).Incumbents.Count == 1);
+    }
+
+    [Theory]
+    // #3167: an equally fast cook is preferred only with a lower chance its meal is poisoned; an unknown chance breaks no tie.
+    [InlineData(0.05, 0.01, true)]    [InlineData(0.05, 0.05, false)]    [InlineData(0.01, 0.05, false)]    [InlineData(double.NaN, 0.01, false)]
+    public void AnEquallyFastCookWithALowerPoisoningChanceReconsidersTheMethod(double pawnPoison, double helperPoison, bool reconsidered)
+    {
+        var (facts, actions) = BoundaryCooking(100, pawnPoison: pawnPoison, helperPoison: helperPoison);
+        Assert.Equal(reconsidered, ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions).Incumbents.Count == 1);
     }
 
     [Fact]

@@ -293,6 +293,7 @@ public sealed partial record ForecastCoupledCandidates
                     .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().LoadoutModel.Value.Worn, StringComparer.Ordinal)
                 : new Dictionary<string, EquatableArray<GearOption>>(),
             GoalValues = facts.GoalValues,
+            CookedNutritionRatio = ForecastValue.CookedNutritionRatios(read.FoodConversions, facts.Items.Nutrition, findings),
             MoodBreaks = facts.MoodBreak,
             NeedTasks = EquatableArray.From(needTasks),
             Findings = EquatableArray.From(findings),

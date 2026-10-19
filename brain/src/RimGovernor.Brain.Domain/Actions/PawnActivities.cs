@@ -59,6 +59,14 @@ public sealed record SelectedActivityTask(string Id, string Pawn, EquatableArray
     /// <summary>Work steps the task's order runs before <see cref="Step"/>, in order (#3617: a roof-holder's RemoveRoof
     /// cell set before its Deconstruct). The same task, relief and output as the step alone.</summary>
     public EquatableArray<PawnActivityStep> PriorSteps { get; init; }
+    /// <summary>The tick the selected schedule ends the task (its allocation's end), so a stack claim holds from
+    /// <see cref="DepartTick"/> to here (#3626); 0 when not selected by a schedule, and the claim then holds to the step's deadline.</summary>
+    public long UseUntilTick { get; init; }
+
+    /// <summary>The <see cref="UseUntilTick"/> of a task scheduled to depart <paramref name="depart"/> and end <paramref name="end"/>
+    /// ticks after <paramref name="tick"/>: ticks are whole, as <see cref="DepartTick"/> rounds up, and a use holds at least one.</summary>
+    public static long UseUntil(long tick, double depart, double end) =>
+        checked(tick + Math.Max((long)Math.Ceiling(end), (long)Math.Ceiling(depart) + 1));
 }
 
 public sealed record ActivityRecipeContinuation(string Bench, string Bill, string Recipe, string WorkGiver,

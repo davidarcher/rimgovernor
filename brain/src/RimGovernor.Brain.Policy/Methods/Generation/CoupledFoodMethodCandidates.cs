@@ -129,7 +129,8 @@ internal static class FoodMethodCandidates
                     }
                     if (row.CanDeliver) Option(deliver, row.Pawn, row.DeliveryTicks);
                     bindings[(cook, row.Pawn)] = new(cook, row.Pawn, [], PawnActivityKind.Recipe, row.Bench, row.WorkGiver, "", 0, deadline, row.BenchCell)
-                    { Resource = row.Ingredient, Source = row.BenchCell, Recipe = new(row.Bill, row.Recipe, [new("observed-output", row.IngredientCount)]) { Resource = row.Ingredient } };
+                    { Resource = row.Ingredient, Source = row.BenchCell, Recipe = new(row.Bill, row.Recipe, [new("observed-output", row.IngredientCount)]) { Resource = row.Ingredient },
+                      FoodPoisonChance = row.FoodPoisonChance };
                     bindings[(deliver, row.Pawn)] = new(deliver, row.Pawn, [], PawnActivityKind.Deliver, "observed-output", "", "", row.ProductCount, deadline, row.BenchCell)
                     { Resource = row.Product, Source = row.BenchCell, Destination = row.Destination };
                 }

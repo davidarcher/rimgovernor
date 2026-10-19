@@ -70,8 +70,13 @@ internal static class NativeCoupledFood
                     if (recipe.workTableSpeedStat != null) speed *= bench.GetStatValue(recipe.workTableSpeedStat);
                     canCook &= speed > 0;
                     if (!canCook && !canHaul) continue;
-                    var stage = NativeSupportActivities.Staging(map, bench, raw);
+                    // The ingredient delivery is strict-exact-destination: it refuses a cell holding any item, staged rice included.
+                    var stage = NativeSupportActivities.Staging(map, bench, c => JobDriver_GovernorDeliver.DestinationAvailable(pawn, c));
                     var skillWork = canCook ? NativeProductiveSkill.Read(pawn, recipe, bench) : null;
+                    // CompFoodPoisonable.Notify_RecipeProduced: the room's chance first, then the cook's own.
+                    var room = bench.InteractionCell.GetRoom(map);
+                    var roomPoison = room?.GetStat(RoomStatDefOf.FoodPoisonChance) ?? RoomStatDefOf.FoodPoisonChance.roomlessScore;
+                    Fact<double> poison = canCook ? Fact.Known(roomPoison + (1 - roomPoison) * (double)pawn.GetStatValue(StatDefOf.FoodPoisonChance)) : default;
                     foreach (var product in recipe.products)
                     {
                         var destinations = map.haulDestinationManager.AllGroupsListInPriorityOrder.Where(g => g.Settings.filter.Allows(product.thingDef))
@@ -92,7 +97,7 @@ internal static class NativeCoupledFood
                                 new(source.Position.x, source.Position.z), new(stage.x, stage.z), new(destination.x, destination.z),
                                 Fact.Known((double)approach), Fact.Known((double)supply),
                                 speed > 0 ? Fact.Known(recipe.WorkAmountTotal(null) / (double)speed) : default, deliveryTicks, capacity, availableInput) { WorkGiver = giver.defName, Bill = bill.GetUniqueLoadID(), RequiresHarvest = plant != null, CanCook = canCook, CanSupply = canHaul, CanDeliver = canHaul && productCapacity > 0,
-                                    SkillWork = skillWork });
+                                    SkillWork = skillWork, FoodPoisonChance = poison });
                             AddUses(product.thingDef, new(destination.x, destination.z));
                         }
                     }

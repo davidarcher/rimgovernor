@@ -97,6 +97,10 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
     /// <summary>Capability lost to exhaustion collapse: the expected time a pawn awake at zero rest spends asleep on the ground (#3598). No rest category changes a capacity.</summary>
     public Fact<double> Rest { get; init; }
 
+    /// <summary>Meal nutrition forgone by eating cookable ingredients raw (#3626): each raw eat's level gain times the cooked
+    /// ratio less one, in days of the eater's food fall, one food-day per capability-day. Known, 0 with no raw eat.</summary>
+    public Fact<double> RawIngredients { get; init; } = Known(0d);
+
     /// <summary>Expected food-poisoning cases times the capacity one case loses over its course, clipped to the horizon.</summary>
     public Fact<double> FoodPoisoning { get; init; }
 
@@ -139,7 +143,7 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
     {
         double delta = 0;
         var shared = false;
-        foreach (var (mine, theirs) in new[] { (Hunger, other.Hunger), (Rest, other.Rest), (FoodPoisoning, other.FoodPoisoning),
+        foreach (var (mine, theirs) in new[] { (Hunger, other.Hunger), (Rest, other.Rest), (RawIngredients, other.RawIngredients), (FoodPoisoning, other.FoodPoisoning),
             (Thermal, other.Thermal), (MoodBreaks, other.MoodBreaks), (Wellbeing, other.Wellbeing), (Harm, other.Harm), (Investment, other.Investment), (Goals, other.Goals) })
         {
             if (!mine.TryGetValue(out var a) || !theirs.TryGetValue(out var b)) continue;
@@ -203,6 +207,10 @@ public static partial class ForecastValue
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         /// <summary>A pawn's raid distributions by what they depend on (#3546): outcomes that share a pawn's outfit and care share one.</summary>
         public readonly System.Collections.Concurrent.ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> Harm = new();
+        /// <summary>The food need tasks eating a cookable ingredient raw (#3626), by (task, pawn).</summary>
+        public readonly Dictionary<(string, string), ForecastNeedTask> RawEats = context.NeedTasks
+            .Where(n => n.Kind == "food" && context.CookedNutritionRatio.ContainsKey(n.Resource))
+            .GroupBy(n => (n.Task, n.Pawn)).ToDictionary(g => g.Key, g => g.First());
         public readonly bool Malnutrition = context.CapacityPenalties.Malnutrition.Valid();
         public readonly bool FoodPoisoning = context.CapacityPenalties.FoodPoisoning.Valid();
         public readonly bool Thermal = context.CapacityPenalties.Hypothermia.Valid() && context.CapacityPenalties.Heatstroke.Valid();
@@ -253,6 +261,8 @@ public static partial class ForecastValue
             }
             rest = known ? Known(sum) : default;
         }
+
+        var rawIngredients = RawIngredientLoss(outcome, context, index, findings);
 
         var poisoning = default(Fact<double>);
         if (!index.FoodPoisoning || tables.MovingMinForCapable is not { } poisonMoving)
@@ -323,14 +333,53 @@ public static partial class ForecastValue
         double credit = 0;
         foreach (var (project, units) in progress) credit += units * context.Investment.GetValueOrDefault(project);
         var investment = Known(-credit);
-        var total = hunger.IsKnown && rest.IsKnown && poisoning.IsKnown && thermal.IsKnown && breaks.IsKnown && wellbeing.IsKnown && harm.IsKnown
-            ? Known(hunger.Value + rest.Value + poisoning.Value + thermal.Value + breaks.Value + wellbeing.Value + harm.Value + goals.Value + investment.Value) : default;
+        var total = hunger.IsKnown && rest.IsKnown && rawIngredients.IsKnown && poisoning.IsKnown && thermal.IsKnown && breaks.IsKnown && wellbeing.IsKnown && harm.IsKnown
+            ? Known(hunger.Value + rest.Value + rawIngredients.Value + poisoning.Value + thermal.Value + breaks.Value + wellbeing.Value + harm.Value + goals.Value + investment.Value) : default;
         if (!total.IsKnown) findings.Add("capability_value_unassessed");
         return new(total, EquatableArray.From(findings))
         {
-            Hunger = hunger, Rest = rest, FoodPoisoning = poisoning, Thermal = thermal, MoodBreaks = breaks, Wellbeing = wellbeing,
+            Hunger = hunger, Rest = rest, RawIngredients = rawIngredients, FoodPoisoning = poisoning, Thermal = thermal, MoodBreaks = breaks, Wellbeing = wellbeing,
             Harm = harm, HarmDetail = harmTerm.Detail, HarmFindings = EquatableArray.From(harmTerm.Findings), Investment = investment, Goals = goals, GoalContributions = EquatableArray.From(contributions),
         };
+    }
+
+    /// <summary>
+    /// The meal nutrition the outcome's raw eats of cookable ingredients forgo (#3626), in capability-days: per selected food
+    /// need task whose resource has a cooked ratio, its level gain times the ratio less one, over the eater's observed food fall
+    /// per day. Unknown, with a finding, when a raw eater's food fall is unobserved.
+    /// </summary>
+    private static Fact<double> RawIngredientLoss(ForecastCoupledOutcome outcome, ForecastCoupledContext context, LedgerIndex index, SortedSet<string> findings)
+    {
+        if (index.RawEats.Count == 0) return Known(0d);
+        double sum = 0;
+        var known = true;
+        foreach (var allocation in outcome.Plan.Allocations)
+        {
+            if (!index.RawEats.TryGetValue((allocation.Activity, allocation.Pawn), out var eat) || !eat.Gain.TryGetValue(out var gain)) continue;
+            NeedRate? food = null;
+            if (index.Rows.TryGetValue(allocation.Pawn, out var row)) foreach (var need in row.Needs) if (need.Kind == "food") { food = need; break; }
+            if (food is null || !food.FallPerTick.TryGetValue(out var fall) || fall <= 0)
+            { findings.Add("raw_ingredient_loss_unassessed:" + allocation.Pawn); known = false; continue; }
+            sum += gain * (context.CookedNutritionRatio[eat.Resource] - 1) / (fall * GameTime.TicksPerDay);
+        }
+        return known ? Known(sum) : default;
+    }
+
+    /// <summary>Per ingredient the observed conversions cook, the best cooked over raw nutrition per unit, kept above 1 (#3626).
+    /// An ingredient or product without a catalog Nutrition stat is named in <paramref name="findings"/>.</summary>
+    internal static IReadOnlyDictionary<Resource, double> CookedNutritionRatios(IEnumerable<CoupledFoodConversion> conversions,
+        IReadOnlyDictionary<Resource, double> nutrition, ISet<string> findings)
+    {
+        var ratios = new Dictionary<Resource, double>();
+        foreach (var conversion in conversions)
+        {
+            if (conversion.IngredientCount <= 0) continue;
+            if (!nutrition.TryGetValue(new(conversion.Ingredient), out var raw) || raw <= 0 || !nutrition.TryGetValue(new(conversion.Product), out var meal))
+            { findings.Add("cooked_nutrition_unread:" + conversion.Ingredient + ":" + conversion.Product); continue; }
+            var ratio = meal * conversion.ProductCount / conversion.IngredientCount / raw;
+            if (ratio > 1 && ratio > ratios.GetValueOrDefault(new(conversion.Ingredient))) ratios[new(conversion.Ingredient)] = ratio;
+        }
+        return ratios;
     }
 
     /// <summary>The progress the outcome's scheduled work makes on each project (research points, cells sown), by <see cref="ForecastProjectProgress.Project"/>.</summary>
