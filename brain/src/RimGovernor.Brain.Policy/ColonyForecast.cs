@@ -27,12 +27,23 @@ public sealed record ForecastCommitment(string Id, EquatableArray<ForecastStockC
     public EquatableArray<ForecastSituationalChange> SituationalChanges { get; init; }
     /// <summary>Shifts of a pawn's observed comfortable temperature range (e.g. an outfit's insulation difference).</summary>
     public EquatableArray<ForecastComfortShift> ComfortShifts { get; init; }
-    /// <summary>The outfits pawns wear once this commitment holds (#3546); the harm term prices their armor. Per pawn the last change applied wins.</summary>
+    /// <summary>The outfits pawns wear from this commitment's effective tick (#3546, #3621); the harm term prices their armor.
+    /// Per pawn the changes apply in effective-tick order.</summary>
     public EquatableArray<ForecastOutfitChange> OutfitChanges { get; init; }
 }
 
-/// <summary>The whole outfit (apparel and primary weapon) <paramref name="Pawn"/> wears from the commitment's effective tick.</summary>
-public sealed record ForecastOutfitChange(string Pawn, EquatableArray<GearOption> Items);
+/// <summary>The whole outfit (apparel and primary weapon) <paramref name="Pawn"/> wears from the commitment's effective tick;
+/// with <see cref="Overlay"/>, the items instead join the outfit then worn in place of the items they conflict with.</summary>
+public sealed record ForecastOutfitChange(string Pawn, EquatableArray<GearOption> Items)
+{
+    /// <summary>A crafted garment (#3621): it replaces only the items it conflicts with (<see cref="GearLoadoutRules.GearConflicts"/>),
+    /// so it composes with a swap of the pawn's other slots.</summary>
+    public bool Overlay { get; init; }
+}
+
+/// <summary>The tick, from the forecast start, at which <paramref name="Commitment"/>'s activities all completed: positive
+/// infinity when one does not complete inside the horizon, unknown when a completion is.</summary>
+public sealed record ForecastEffectiveTick(string Commitment, Fact<double> Tick);
 
 /// <summary>One pawn's memory granted by a commitment; it starts at the commitment's effective tick.</summary>
 public sealed record ForecastMoodMemory(string Pawn, NeedMemory Memory);

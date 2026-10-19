@@ -63,7 +63,7 @@ internal sealed record HarmTerm(Fact<double> Loss, HarmDetail? Detail, IReadOnly
 /// <summary>
 /// The harm term (harm model, #3471): raids per day × horizon days × Σ over pawns of the risk-transformed loss of one raid,
 /// where the pawn's raid is <see cref="HarmConsequences.Of"/> over the exposure range at points ÷ defense capacity
-/// (<see cref="RaidExposure"/>) and the armor response of its outfit to the raid's weapon bins (<see cref="ArmorResponseRules.OfOutfit"/>).
+/// (<see cref="RaidExposure"/>) and the armor response of the outfit it wears when the raid falls (<see cref="OutfitsOf"/>, #3621) to the raid's weapon bins (<see cref="ArmorResponseRules.OfOutfit"/>).
 /// The risk transform is (1 − w) × E + w × CVaRα with the policy's <see cref="ForecastValuePolicy.HarmRiskWeight"/> and
 /// <see cref="ForecastValuePolicy.HarmRiskAlpha"/>. Unknown, with the specific finding, when any input is. A raid is counted
 /// at its whole-horizon loss wherever it falls in the horizon, and the horizon's days of raids are the schedule's expectation
@@ -165,28 +165,39 @@ internal static class HarmLedger
                 continue;
             }
 
-            var outfit = OutfitOf(pawn, wearing, commitments);
-            var key = (pawn, role, outfit, outcome.Support, hits);
-            if (!cache.TryGetValue(key, out var distribution))
-            {
-                var response = ArmorResponseRules.OfOutfit(outfit, inputs.Natural, inputs.Coverage, bins);
-                cache[key] = distribution = HarmConsequences.Of(hits, bins, response, row, context.CapacityPenalties, outcome.Support, context.Value, horizon);
-            }
-
-            findings.UnionWith(distribution.Findings);
-            if (!distribution.Known)
+            if (OutfitsOf(pawn, wearing, commitments, outcome.OutfitTicks, horizon) is not { } outfits)
             {
                 complete = false;
+                findings.Add("outfit_change_timing_unknown:" + pawn);
                 continue;
             }
 
-            var (mean, tail) = Moments(distribution, context.Value.HarmRiskAlpha);
-            risked += Risk(mean, tail, context.Value.HarmRiskWeight);
+            // Each outfit is worn for its share of the horizon, and the raids in that share meet it (#3621).
+            foreach (var (outfit, share) in outfits)
+            {
+                var key = (pawn, role, outfit, outcome.Support, hits);
+                if (!cache.TryGetValue(key, out var distribution))
+                {
+                    var response = ArmorResponseRules.OfOutfit(outfit, inputs.Natural, inputs.Coverage, bins);
+                    cache[key] = distribution = HarmConsequences.Of(hits, bins, response, row, context.CapacityPenalties, outcome.Support, context.Value, horizon);
+                }
+
+                findings.UnionWith(distribution.Findings);
+                if (!distribution.Known)
+                {
+                    complete = false;
+                    break;
+                }
+
+                var (mean, tail) = Moments(distribution, context.Value.HarmRiskAlpha);
+                risked += share * Risk(mean, tail, context.Value.HarmRiskWeight);
+                down += share * distribution.DownProbability;
+                death += share * distribution.DeathProbability;
+                cvar += share * tail;
+            }
+
             lo = Math.Min(lo, hits.Lo);
             hi = Math.Max(hi, hits.Hi);
-            down += distribution.DownProbability;
-            death += distribution.DeathProbability;
-            cvar += tail;
         }
 
         if (!complete)
@@ -238,27 +249,68 @@ internal static class HarmLedger
         return (mean, sum / (tail - left));
     }
 
-    /// <summary>The garments and weapon the pawn wears under <paramref name="commitments"/>: the last outfit change for it, else the worn items.</summary>
-    internal static EquatableArray<GearOption> OutfitOf(string pawn, EquatableArray<GearOption> worn, IEnumerable<ForecastCommitment>? commitments)
+    /// <summary>
+    /// The garments and weapon the pawn wears under <paramref name="commitments"/>, each with the share of the horizon it is worn:
+    /// the worn items from the start, then each outfit change from its commitment's effective tick (the start for a commitment
+    /// without activities, else its row in <paramref name="ticks"/>), in tick order. A whole outfit replaces the one then worn; an
+    /// overlay replaces only the items it conflicts with. A change that takes effect at or after the horizon is never worn. Null
+    /// when a change's tick is unknown.
+    /// </summary>
+    internal static List<(EquatableArray<GearOption> Outfit, double Share)>? OutfitsOf(string pawn, EquatableArray<GearOption> worn,
+        IEnumerable<ForecastCommitment>? commitments, EquatableArray<ForecastEffectiveTick> ticks, double horizon)
     {
-        var outfit = worn;
-        if (commitments is null)
-        {
-            return outfit;
-        }
-
-        foreach (var commitment in commitments)
+        var changes = new List<(double At, ForecastOutfitChange Change)>();
+        foreach (var commitment in commitments ?? [])
         {
             foreach (var change in commitment.OutfitChanges)
             {
-                if (change.Pawn == pawn)
+                if (change.Pawn != pawn)
                 {
-                    outfit = change.Items;
+                    continue;
+                }
+
+                var at = Known(0d);
+                if (commitment.ActivityCompletions.Count > 0)
+                {
+                    at = default;
+                    foreach (var tick in ticks)
+                    {
+                        if (tick.Commitment == commitment.Id)
+                        {
+                            at = tick.Tick;
+                        }
+                    }
+                }
+
+                if (!at.IsKnown)
+                {
+                    return null;
+                }
+
+                if (at.Value < horizon || at.Value == 0)
+                {
+                    changes.Add((at.Value, change));
                 }
             }
         }
 
-        return outfit;
+        var outfits = new List<(EquatableArray<GearOption>, double)>();
+        var (outfit, from) = (worn, 0d);
+        foreach (var (at, change) in changes.OrderBy(c => c.At).ThenBy(c => c.Change.Overlay))
+        {
+            if (at > from)
+            {
+                outfits.Add((outfit, (at - from) / horizon));
+                from = at;
+            }
+
+            outfit = change.Overlay
+                ? EquatableArray.From(outfit.Where(w => !change.Items.Any(i => GearLoadoutRules.GearConflicts(w, i))).Concat(change.Items))
+                : change.Items;
+        }
+
+        outfits.Add((outfit, horizon > 0 ? (horizon - from) / horizon : 1));
+        return outfits;
     }
 
     /// <summary>The exposure role of a pawn from what it wears: a ranged primary weapon is a gunner, a melee one a melee fighter, none a noncombatant.</summary>

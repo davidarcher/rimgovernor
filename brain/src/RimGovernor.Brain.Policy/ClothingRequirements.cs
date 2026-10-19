@@ -3,7 +3,8 @@ namespace RimGovernor.Brain.Policy;
 public static class ClothingRequirementsRules
 {
     /// <summary>Coverage, condition and required-apparel relief; null when the garment would strip a covered core group.
-    /// Warmth is not a relief: the candidate's comfort shift is priced by the forecast (#3330).</summary>
+    /// Warmth is not a relief: the candidate's comfort shift is priced by the forecast (#3330). Nor is armor: the harm term
+    /// prices the candidate's outfit change from its delivery (#3621), so each value has one source.</summary>
     internal static List<ForecastRequirementRelief>? ClothingRelief(GearPawn pawn, GearLoadoutInput input, GearOption option)
     {
         var result = new List<ForecastRequirementRelief>();

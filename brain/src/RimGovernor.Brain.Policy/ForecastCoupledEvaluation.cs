@@ -139,11 +139,11 @@ public static partial class ForecastCoupled
         }
         private IReadOnlyDictionary<string, ForecastCommitment>? grantingOf;
         private ForecastCommitment[] granting = [];
-        /// <summary>The commitments with mood memories, situational changes or comfort shifts to grant.</summary>
+        /// <summary>The commitments with mood memories, situational changes, comfort shifts or outfit changes to grant.</summary>
         private ForecastCommitment[] Granting(IReadOnlyDictionary<string, ForecastCommitment> commitments)
         {
             if (!ReferenceEquals(commitments, grantingOf))
-                (grantingOf, granting) = (commitments, commitments.Values.Where(c => c.MoodMemories.Count + c.SituationalChanges.Count + c.ComfortShifts.Count > 0).ToArray());
+                (grantingOf, granting) = (commitments, commitments.Values.Where(c => c.MoodMemories.Count + c.SituationalChanges.Count + c.ComfortShifts.Count + c.OutfitChanges.Count > 0).ToArray());
             return granting;
         }
         private (ColonyForecastRequest Request, IReadOnlyDictionary<string, ForecastCommitment> Commitments)? materialsOf;
@@ -645,7 +645,7 @@ public static partial class ForecastCoupled
             }
             ApplyExternal(horizon);
             Expire(horizon);
-            // A commitment's mood memories, situational changes and comfort shifts take effect when all its activities
+            // A commitment's mood memories, situational changes, comfort shifts and outfit changes take effect when all its activities
             // have completed inside the horizon, or at the forecast start when it has none. Failed or later work changes
             // nothing here; unknown completion leaves those pawns' mood (or thermal exposure) unassessed.
             var byName = pawns.Index;
@@ -654,6 +654,7 @@ public static partial class ForecastCoupled
                 pawns.Granted[p].Clear(); pawns.Situational[p].Clear(); pawns.Comfort[p].Clear(); pawns.Allocations[p].Clear(); pawns.Use[p].Clear();
                 pawns.GrantUnknown[p] = false; pawns.ComfortUnknown[p] = false;
             }
+            List<ForecastEffectiveTick>? outfitTicks = null;
             foreach (var commitment in Granting(commitments))
             {
                 Fact<double> at = Known(0.0);
@@ -683,6 +684,9 @@ public static partial class ForecastCoupled
                     if (!at.IsKnown) pawns.ComfortUnknown[p] = true;
                     else if (at.Value <= horizon) pawns.Comfort[p].Add((row.MinDelta, row.MaxDelta, at.Value));
                 }
+                // An outfit change with activities (a crafted garment, #3621) is priced by the harm term from this tick.
+                if (commitment.OutfitChanges.Count > 0 && commitment.ActivityCompletions.Count > 0)
+                    (outfitTicks ??= []).Add(new(commitment.Id, at));
             }
             // The completed rows each later result reads, interned: shelters read their prerequisites, planned rooms and
             // development the development tasks by pawn, support its services; the need services are the use rows.
@@ -856,6 +860,7 @@ public static partial class ForecastCoupled
             var outcome = new ForecastCoupledOutcome(plan, feasible, needsByPawn, EquatableArray.Create<ForecastFinding>(CollectionsMarshal.AsSpan(findings)))
             {
                 Support = support,
+                OutfitTicks = outfitTicks is null ? [] : EquatableArray.From(outfitTicks),
                 Maintenance = maintenance,
                 Shelters = shelters, ThermalExposure = exposure,
                 ThermalOccupancy = thermalOccupancy,

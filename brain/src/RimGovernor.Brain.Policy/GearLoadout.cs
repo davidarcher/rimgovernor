@@ -586,6 +586,9 @@ public static class GearLoadoutRules
 
     private const double SoldierArmorWeight = 10;
 
+    /// <summary>The item score the gear planner ranks <paramref name="o"/> by for <paramref name="p"/>'s role, against its expected raid.</summary>
+    internal static double GearItemScore(GearLoadoutInput p, GearOption o) => GearItemScore(DeriveGearRole(p.Role), o, new GearArmorTerm(p.Threat));
+
     private static double GearItemScore(GearRole role, GearOption o, GearArmorTerm armorTerm)
     {
         if (GearConstrained(role))

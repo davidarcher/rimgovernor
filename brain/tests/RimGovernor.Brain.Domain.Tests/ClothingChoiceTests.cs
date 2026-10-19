@@ -45,20 +45,24 @@ public sealed class ClothingChoiceTests
         { RequiredCount = 10 };
     private static RecipeActivityRead Read(params RecipeActivityOption[] options) => new()
     { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options) };
-    private static RoundsFacts Facts(double cloth = 30, double wool = 30) => WorkResourceTestFacts.Create("tailor", "helper") with
-    { Resources = Known<EquatableArray<Amount>>([new(new("Cloth"), (long)cloth), new(new("Wool"), (long)wool)]) };
-    private static WorkResourceView Resources(double cloth = 30, double wool = 30) => WorkRules.WorkResourcesOf(
-        ProductionRules.WorkAdmissionEvidenceOf(Facts(cloth, wool), Known(default(EquatableArray<ProductionBatch>))), Known(default(EquatableArray<ProductionBatch>)), []);
-    private static PawnActivities? Start(GearObservation census, RecipeActivityRead read, WorkResourceView resources,
-        out ForecastActivityOutcomeComparison? comparison)
+    private static RoundsFacts Facts(double cloth = 30, double wool = 30, double devilstrand = 0) => WorkResourceTestFacts.Create("tailor", "helper") with
+    { Resources = Known<EquatableArray<Amount>>([new(new("Cloth"), (long)cloth), new(new("Wool"), (long)wool), new(new("DevilstrandCloth"), (long)devilstrand)]) };
+    private static WorkResourceView Resources(double cloth = 30, double wool = 30, double devilstrand = 0) => WorkRules.WorkResourcesOf(
+        ProductionRules.WorkAdmissionEvidenceOf(Facts(cloth, wool, devilstrand), Known(default(EquatableArray<ProductionBatch>))), Known(default(EquatableArray<ProductionBatch>)), []);
+    private static RoundsFacts Review(GearObservation census, RecipeActivityRead read, WorkResourceView resources)
     {
         var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
         var template = facts.ForecastObserved.Needs!.Pawns[0];
-        facts = facts with { Gear = Known(census), WorkView = resources, ForecastObserved = facts.ForecastObserved with
+        return facts with { Gear = Known(census), WorkView = resources, ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "tailor" }, template with { Pawn = "helper" }] },
             Coupled = new() { Tick = 100, Clothing = read }
         } };
+    }
+    private static PawnActivities? Start(GearObservation census, RecipeActivityRead read, WorkResourceView resources,
+        out ForecastActivityOutcomeComparison? comparison)
+    {
+        var facts = Review(census, read, resources);
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
@@ -179,12 +183,86 @@ public sealed class ClothingChoiceTests
     }
 
     [Fact]
-    public void UnknownsAndPhysicalReplacementsRemainVisible()
+    public void UnknownStockHidesRequirementsAndPhysicalReplacementsCompeteWithCrafting()
     {
         var census = Census();
         Assert.Empty(ClothingActivitiesRules.ClothingActivityRequirements(census with { Stored = default }));
+        // #3621: a physical replacement no longer withholds the craft; the comparison weighs the swap against it.
         var physical = census with { Pawns = [census.Pawns[0] with { Candidates = Known<EquatableArray<GearCandidate>>([new("stored-shirt", 1, new("Shirt"))]) }] };
-        Assert.Empty(ClothingActivitiesRules.ClothingActivityRequirements(physical));
+        Assert.Equal(ClothingActivitiesRules.ClothingActivityRequirements(census), ClothingActivitiesRules.ClothingActivityRequirements(physical));
+        Assert.NotEmpty(ClothingActivitiesRules.ClothingActivityRequirements(physical));
+    }
+
+    private static GearOption Duster(string stuff, double sharp, GearSource source = GearSource.Bill) => Garment("Duster", stuff) with
+    { ID = source == GearSource.Bill ? "Duster" + stuff : source + "-duster-" + stuff, Slot = GearSlot.Outer, Layers = ["Shell"], Source = source, Sharp = sharp, Cold = 0 };
+
+    private static GearObservation Wearing(params GearOption[] options) => Census(20, options) with
+    {
+        Pawns = [Census(20, options).Pawns[0] with { LoadoutModel = Known(Census(20, options).Pawns[0].LoadoutModel.Value with
+        { Worn = [Garment("Shirt", "Cloth", 0) with { ID = "worn-shirt", Source = GearSource.Worn, Sharp = 0 }, Duster("Cloth", 0.1, GearSource.Worn)] }) }]
+    };
+
+    [Fact]
+    public void AnArmorOnlyCraftRelievesNothingAndCarriesItsArmorAsAnOutfitChange()
+    {
+        // #3621: relief never counts armor, which the harm term prices from the outfit change, so the value has one source.
+        var need = Assert.Single(ClothingActivitiesRules.ClothingActivityRequirements(Wearing(Duster("DevilstrandCloth", 0.5))));
+        Assert.Empty(need.Assessment.Relief);
+        Assert.Null(need.Comfort);
+        Assert.Equal(0.5, need.Garment.Sharp);
+        // The same garment as the worn one, armor and all, is no candidate.
+        Assert.Empty(ClothingActivitiesRules.ClothingActivityRequirements(Wearing(Duster("Cloth", 0.1))));
+    }
+
+    [Fact]
+    public void ASwapOfTheGarmentsSlotExcludesTheCraftAndASwapOfAnotherSlotDoesNot()
+    {
+        var need = Assert.Single(ClothingActivitiesRules.ClothingActivityRequirements(Wearing(Duster("DevilstrandCloth", 0.5))));
+        var worn = Wearing().Pawns[0].LoadoutModel.Value.Worn;
+        var dusterSwap = new ForecastCommitment("gear/wearer/a", []) { ExclusiveOutcome = "gear/wearer",
+            OutfitChanges = [new("wearer", [worn[0], Duster("DevilstrandCloth", 0.5, GearSource.Stored)])] };
+        var shirtSwap = new ForecastCommitment("gear/wearer/b", []) { ExclusiveOutcome = "gear/wearer",
+            OutfitChanges = [new("wearer", [Garment("Shirt", "Wool") with { ID = "stored-shirt", Source = GearSource.Stored }, worn[1]])] };
+        var other = new ForecastCommitment("gear/other/a", []) { ExclusiveOutcome = "gear/other", OutfitChanges = [new("other", [])] };
+
+        Assert.Equal(["gear/wearer/a"], ClothingActivitiesRules.SwapsInSlot(need, worn, [dusterSwap, shirtSwap, other]));
+        Assert.Equal(["gear/wearer/a", "gear/wearer/b"], ClothingActivitiesRules.SwapsInSlot(need, null, [dusterSwap, shirtSwap, other]));
+    }
+
+    [Fact]
+    public void TheCoupledGeneratorExcludesTheStoredDusterSwapFromTheDusterCraft()
+    {
+        // #3621: one census, a stored devilstrand duster to swap in and a bill to craft one; the coupled generator joins them.
+        var census = Wearing(Duster("DevilstrandCloth", 0.5, GearSource.Stored), Duster("DevilstrandCloth", 0.5));
+        var facts = Review(census, Read(Option("DevilstrandCloth", "Duster")), Resources(devilstrand: 30)) with
+        { MedicalPawns = Known<EquatableArray<CarePawn>>([new() { Id = new("wearer"), Conditions = Known<EquatableArray<CareCondition>>([]) }]) };
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
+        var swaps = generated.Alternatives.Where(a => a.ExclusiveOutcome == "gear/wearer").ToArray();
+        // Each ingredient allocation is its own craft alternative.
+        var crafts = generated.Alternatives.Where(a => a.ExclusiveOutcome == "clothing/wearer/Duster").ToArray();
+        var swap = Assert.Single(swaps, s => s.OutfitChanges.Single().Items.Any(i => i.ID == "Stored-duster-DevilstrandCloth"));
+        Assert.NotEmpty(crafts);
+        Assert.All(crafts, craft =>
+        {
+            Assert.Contains(swap.Id, craft.Outcome!.Excludes);
+            Assert.Equal([new ForecastOutfitChange("wearer", [Duster("DevilstrandCloth", 0.5)]) { Overlay = true }], craft.OutfitChanges);
+        });
+    }
+
+    [Fact]
+    public void TheCapKeepsTheHighestScoredStuffsAndRecordsTheTruncation()
+    {
+        // #3621: seventeen shirt stuffs, armor rising with the index; the 16-outcome cap drops stuff 0, the weakest.
+        var stuffs = Enumerable.Range(0, 17).Select(i => "Stuff" + i.ToString("00", System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        var census = Census(20, [.. stuffs.Select((s, i) => Garment("Shirt", s) with { Sharp = 0.2 + 0.02 * i })]);
+        var needs = ClothingActivitiesRules.ClothingActivityRequirements(census);
+        Assert.Equal(Enumerable.Reverse(stuffs), needs.Select(n => n.Stuff));
+        var read = Read([.. stuffs.Select(s => Option(s))]);
+        var family = RimGovernor.Brain.Policy.Methods.Generation.ClothingMethodCandidates.Generate(read, needs, 2000, Resources());
+        Assert.True(family.Truncated);
+        Assert.Contains("clothing_generation_truncated", family.Findings);
+        Assert.Equal(16, family.Outcomes.Length);
+        Assert.DoesNotContain(family.Outcomes, o => o.Id.EndsWith("-Stuff00", StringComparison.Ordinal));
     }
 
     [Fact]

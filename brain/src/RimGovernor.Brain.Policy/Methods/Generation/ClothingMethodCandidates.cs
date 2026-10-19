@@ -4,6 +4,9 @@ namespace RimGovernor.Brain.Policy.Methods.Generation;
 
 internal static class ClothingMethodCandidates
 {
+    /// <summary>The finding when the 16-outcome cap drops alternatives; the dropped are the lowest-scored (#3621).</summary>
+    internal const string GenerationTruncated = "clothing_generation_truncated";
+
     internal static CoordinatedMethodCandidates Generate(RecipeActivityRead read,
         EquatableArray<ClothingActivityRequirement> requirements, long deadline, WorkResourceView resources)
     {
@@ -21,7 +24,7 @@ internal static class ClothingMethodCandidates
         foreach (var retained in read.Retained.OrderBy(r => r.Id, StringComparer.Ordinal))
             foreach (var need in requirements.Where(n => n.Product == retained.Product && n.Stuff == retained.Stuff && n.Assessment.Relief.Count > 0))
             {
-                if (outcomes.Count == 16) { truncated = true; break; }
+                if (outcomes.Count == 16) { truncated = true; findings.Add(GenerationTruncated); break; }
                 if (!retained.CompletionTicks.IsKnown) { findings.Add("unknown_retained_completion:" + retained.Id); continue; }
                 var id = "retain-" + outcomes.Count;
                 garmentNeeds[id] = need;
@@ -37,17 +40,21 @@ internal static class ClothingMethodCandidates
         }
         var alternatives = requirements.SelectMany(need => allocations.Where(o => o.Product == need.Product && o.Stuff == need.Stuff)
             .OrderBy(o => o.Unfinished.Length == 0).ThenBy(o => o.Id, StringComparer.Ordinal).Select((row, index) => (need, row, index)))
-            .OrderBy(x => x.index).ThenBy(x => x.need.Wearer, StringComparer.Ordinal).ThenBy(x => x.need.Product, StringComparer.Ordinal).ThenBy(x => x.need.Stuff, StringComparer.Ordinal);
+            // Every requirement's first allocation before any second one, and the highest-scored garment first among them, so
+            // the cap drops the weakest stuffs (#3621).
+            .OrderBy(x => x.index).ThenByDescending(x => x.need.Score).ThenBy(x => x.need.Wearer, StringComparer.Ordinal)
+            .ThenBy(x => x.need.Product, StringComparer.Ordinal).ThenBy(x => x.need.Stuff, StringComparer.Ordinal);
         foreach (var (need, row, _) in alternatives)
         {
             if (resources.Claims.Pawns.Contains(row.Pawn) || resources.Claims.Targets.Contains(row.Bench)
                 || resources.Claims.Targets.Contains("cell/" + row.Destination.X + "/" + row.Destination.Z)
                 || row.Inputs.Any(i => resources.Claims.Targets.Contains(i.Thing))
                 || row.Unfinished.Length != 0 && resources.Claims.Targets.Contains(row.Unfinished)) continue;
-            if (outcomes.Count == 16) { truncated = true; break; }
+            if (outcomes.Count == 16) { truncated = true; findings.Add(GenerationTruncated); break; }
             if (!row.TravelTicks.TryGetValue(out var travel) || !row.WorkTicks.TryGetValue(out var work)
                 || !row.OutputTravelTicks.IsKnown) { findings.Add("unknown_recipe_estimate:" + row.Id); continue; }
-            var id = "clothing-" + outcomes.Count;
+            // The stuff names the alternative in the coupled selection's telemetry.
+            var id = "clothing-" + outcomes.Count + "-" + row.Stuff;
             garmentNeeds[id] = need;
             var make = id + "-recipe";
             var origin = row.Inputs.Count > 0 ? row.Inputs[0].Location : row.Location;
@@ -91,7 +98,10 @@ internal static class ClothingMethodCandidates
         {
             Excludes = EquatableArray.From(garmentNeeds
             .Where(n => n.Key != o.Id && (n.Value.Wearer == garmentNeeds[o.Id].Wearer
-                && n.Value.Layers.Intersect(garmentNeeds[o.Id].Layers).Any() && n.Value.Groups.Intersect(garmentNeeds[o.Id].Groups).Any()
+                // GearConflicts' rule (one slot, or a shared layer and body group): the harm term overlays each garment on the
+                // outfit by it, so two garments it lets coexist both hold.
+                && (n.Value.Garment.Slot == garmentNeeds[o.Id].Garment.Slot
+                    || n.Value.Garment.Layers.Intersect(garmentNeeds[o.Id].Garment.Layers).Any() && n.Value.Garment.Groups.Intersect(garmentNeeds[o.Id].Garment.Groups).Any())
                 // A selected output occupies its exact destination beyond the delivery job.
                 // Different garments cannot both claim that cell without an observed onward move.
                 || bindings.Values.Any(a => a.Id == o.Id && a.Destination is not null

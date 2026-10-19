@@ -536,6 +536,48 @@ public sealed class ForecastValueTests
         Assert.Equal(Harmed(Devilstrand).Harm.Value, swapped.Harm.Value, 9);
     }
 
+    // A crafted devilstrand duster delivered at the given tick: an overlay of the worn outfit, timed by the outcome (#3621).
+    private static ForecastValueResult Crafted(Fact<double>? delivered)
+    {
+        var craft = new ForecastCommitment("craft", default)
+        { ActivityCompletions = ["deliver"], OutfitChanges = [new("pawn", Devilstrand) { Overlay = true }] };
+        var outcome = Outcome(Calm()) with { OutfitTicks = delivered is { } at ? [new("craft", at)] : [] };
+        return ForecastValue.Of(outcome, HarmContext(Cloth), Day, Outcome(Calm()), [craft]);
+    }
+
+    [Fact]
+    public void ACraftedDustersArmorIsPricedOnlyFromItsDelivery()
+    {
+        var cloth = Harmed(Cloth).Harm.Value;
+        var devilstrand = Harmed(Devilstrand).Harm.Value;
+
+        Assert.Equal(devilstrand, Crafted(Known(0d)).Harm.Value, 9);
+        // Delivered at midday: the cloth duster meets the morning's raids, the devilstrand one the afternoon's.
+        Assert.Equal((cloth + devilstrand) / 2, Crafted(Known(Day / 2)).Harm.Value, 9);
+        Assert.Equal(cloth, Crafted(Known(double.PositiveInfinity)).Harm.Value, 9);
+        var unknown = Crafted(default(Fact<double>));
+        Assert.False(unknown.Harm.IsKnown);
+        Assert.Contains("outfit_change_timing_unknown:pawn", unknown.Findings);
+        Assert.False(Crafted(null).Harm.IsKnown);
+    }
+
+    [Fact]
+    public void AnOverlayReplacesOnlyTheItemsItConflictsWith()
+    {
+        // A swap to devilstrand pants at the start keeps them under the duster crafted later: one outfit holds both changes.
+        var pants = new GearOption { ID = "pants", Quality = 2, Condition = 1, Sharp = 0.5, Slot = GearSlot.SkinLegs, Layers = ["OnSkin"], Groups = ["Legs"] };
+        var duster = Duster(0.8) with { Slot = GearSlot.Outer };
+        var worn = EquatableArray.From([Duster(0.3) with { Slot = GearSlot.Outer }]);
+        var swap = new ForecastCommitment("swap", default) { OutfitChanges = [new("pawn", [.. worn, pants])] };
+        var craft = new ForecastCommitment("craft", default) { ActivityCompletions = ["deliver"], OutfitChanges = [new("pawn", [duster]) { Overlay = true }] };
+
+        var outfits = HarmLedger.OutfitsOf("pawn", worn, [craft, swap], [new("craft", Known(Day / 4))], Day)!;
+
+        Assert.Equal([0.25, 0.75], outfits.Select(o => o.Share));
+        Assert.Equal(["duster0.3", "pants"], outfits[0].Outfit.Select(o => o.ID));
+        Assert.Equal(["pants", "duster0.8"], outfits[1].Outfit.Select(o => o.ID));
+    }
+
     [Fact]
     public void AnUncalibratedExposureCellLeavesHarmUnknownWithTheCellFindingAndTheOtherTermsStillCompare()
     {

@@ -3,11 +3,12 @@ using RimGovernor.Brain.Telemetry;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>What a <c>coupled_selection</c> outcome vector was ranked by: the urgent-zero floor's excess (hunger-zero ticks) and the investment term.</summary>
-internal sealed record CoupledOutcome(double? UrgentZeroExcess, bool InvestmentLogged, double? Investment = null, IReadOnlyList<string>? Unknown = null);
+/// <summary>What a <c>coupled_selection</c> outcome vector was ranked by: the urgent-zero floor's excess (hunger-zero ticks), the investment and the harm terms.</summary>
+internal sealed record CoupledOutcome(double? UrgentZeroExcess, bool InvestmentLogged, double? Investment = null, IReadOnlyList<string>? Unknown = null, double? Harm = null);
 
 /// <summary>One <c>coupled_selection</c> row: a review's shared portfolio comparison (#3532).</summary>
-internal sealed record CoupledSelectionRow(ulong Sequence, string Verdict, IReadOnlyList<string> Tasks, IReadOnlyList<string> RejectedIds, CoupledOutcome Baseline, CoupledOutcome Selected);
+internal sealed record CoupledSelectionRow(ulong Sequence, string Verdict, IReadOnlyList<string> Tasks, IReadOnlyList<string> RejectedIds, CoupledOutcome Baseline, CoupledOutcome Selected,
+    IReadOnlyList<string> SelectedIds);
 
 /// <summary>The acceptance reader of the <see cref="TelemetryKinds.CoupledSelection"/> kind.</summary>
 internal static class CoupledSelections
@@ -29,7 +30,8 @@ internal static class CoupledSelections
                 ? rejected.OfType<Dictionary<string, object?>>().SelectMany(r => r.GetValueOrDefault("ids") as List<object?> ?? []).OfType<string>().ToList()
                 : [],
             Outcome(fields.GetValueOrDefault("baseline") as Dictionary<string, object?>),
-            Outcome(fields.GetValueOrDefault("selected") as Dictionary<string, object?>));
+            Outcome(fields.GetValueOrDefault("selected") as Dictionary<string, object?>),
+            (fields.GetValueOrDefault("selected_ids") as List<object?> ?? []).OfType<string>().ToList());
     }
 
     private static CoupledOutcome Outcome(Dictionary<string, object?>? vector)
@@ -41,6 +43,7 @@ internal static class CoupledSelections
             : null;
         double? investment = value?.GetValueOrDefault("investment") switch { double d => d, long l => l, _ => null };
         var unknown = value?.GetValueOrDefault("unknown") is List<object?> list ? list.OfType<string>().ToList() : [];
-        return new CoupledOutcome(excess, value?.ContainsKey("investment") == true, investment, unknown);
+        double? harm = value?.GetValueOrDefault("harm") switch { double d => d, long l => l, _ => null };
+        return new CoupledOutcome(excess, value?.ContainsKey("investment") == true, investment, unknown, harm);
     }
 }

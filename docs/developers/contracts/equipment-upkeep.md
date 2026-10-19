@@ -319,7 +319,8 @@ Ordinary textile/leather garments use the normal equipment Need review,
 normal shared candidate generation, ColonyForecast comparison, Method journal and Hands.
 The equipment loadout model owns demand. Generation reads every eligible
 `GearLoadoutInput.Options` garment/stuff option, not only the loadout winner's
-`Replacements`. Physical replacement execution needs a shared activity adapter.
+`Replacements`, whether or not the pawn has physical replacements (the comparison
+weighs the craft against the swap, below). Physical replacement execution needs a shared activity adapter.
 Nudist, outfit and coverage constraints remain equipment policy.
 
 `ClothingMethodCandidates` exposes transient recipe/delivery candidates to the
@@ -345,9 +346,26 @@ applies from the delivery's completion, and the forecast's Live temperature card
 price it along the wearer's projected exposure as break risk, beside the crafting
 labor and stock. A garment whose only effect is warmth has no relief: it is
 selected only when that lowers break risk, so a content pawn, a short horizon or
-a card that is not Live crafts nothing for warmth. A garment that widens neither
-side of the comfort range and relieves nothing is not a candidate. A retained bill
+a card that is not Live crafts nothing for warmth. A retained bill
 has no completion task to time a shift, so only its relief values it.
+
+Armor is not a relief either (#3621). Each crafted candidate carries an outfit
+change for its wearer (`ForecastOutfitChange` with `Overlay`): the garment
+replaces the worn items it conflicts with (`GearConflicts`) from the delivery's
+completion, and the harm term prices the outfit worn over each share of the
+horizon. A garment that changes neither warmth nor armor and relieves nothing is
+not a candidate. The family runs whether or not the pawn has physical options, so
+crafting competes with swaps to stored or loose items: a craft excludes every
+effect-source swap (`gear/<pawn>`) whose outfit changes the garment's slot
+(`ClothingActivitiesRules.SwapsInSlot`), and a swap of the wearer's other slots
+composes with it. Two crafts for one wearer exclude each other by the same
+conflict rule.
+
+Generation offers every bill stuff `StuffArrival` admits, each wearer's garments
+ordered by `GearItemScore` (highest first), so the family's 16-outcome cap drops
+the weakest alternatives; a truncation records `clothing_generation_truncated`.
+The acceptance case `apparel/crafted_armor` shows a worn cloth duster replaced by a
+crafted devilstrand one.
 
 Shared requirement IDs cap repeated benefit. Compatible garments can combine;
 conflicting garments for one wearer cannot claim simultaneous protection. Each

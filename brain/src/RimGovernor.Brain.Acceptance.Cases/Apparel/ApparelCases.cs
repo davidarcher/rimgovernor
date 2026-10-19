@@ -9,5 +9,6 @@ public static class ApparelCases
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(DeadMans.Case());
         registry.Register(HarmArmorDirection.Case());
+        registry.Register(CraftedArmor.Case());
     }
 }

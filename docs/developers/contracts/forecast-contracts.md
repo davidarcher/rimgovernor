@@ -169,9 +169,12 @@ unknown completion leaves that pawn's mood, or thermal exposure, unassessed.
   Shifts for one pawn add. They change the pawn's own exposure, not
   `StationaryThermalRelief`, which stays outfit-neutral shelter relief.
 - `OutfitChanges` (`ForecastOutfitChange(Pawn, Items)`, #3546) name the whole outfit (apparel and primary weapon) a pawn wears
-  once the commitment holds; per pawn the last change wins, and a pawn with none wears
-  `ForecastCoupledContext.Outfits[pawn]` (the gear census's `GearLoadoutInput.Worn`). The effect-source generator sets it from each
-  candidate's `EffectSourceOutfit.Items`. The harm term prices its armor; nothing else reads it.
+  from the commitment's effective tick; a pawn with none wears `ForecastCoupledContext.Outfits[pawn]` (the gear census's
+  `GearLoadoutInput.Worn`). The effect-source generator sets it from each candidate's `EffectSourceOutfit.Items`. A change with
+  `Overlay` (a crafted garment, #3621) instead replaces only the items of the outfit then worn that its items conflict with
+  (`GearConflicts`). The effective tick is the start for a commitment without activities; otherwise the evaluation reports it in
+  `ForecastCoupledOutcome.OutfitTicks` (`ForecastEffectiveTick`, the same rule as the comfort shifts: positive infinity when the
+  work does not complete inside the horizon, unknown when a completion is). The harm term prices its armor; nothing else reads it.
 
 ### Food and rest thoughts (#3598)
 
@@ -341,8 +344,10 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
 - `Harm` = raids per day (major threats per day × raid fraction) × horizon days × Σ over the outcome's pawns of
   (1 − `HarmRiskWeight`) × E + `HarmRiskWeight` × CVaR`HarmRiskAlpha` of `HarmConsequences.Of` for the pawn. Its inputs are
   `RaidExposure.HitsPerColonist(points ÷ DefenseCapacity, role)` and `ArmorResponseRules.OfOutfit` of the pawn's outfit. The role
-  comes from the worn primary weapon (ranged: `gunner`, melee: `melee`, none: `noncombatant`); the outcome's outfit is the last
-  `OutfitChanges` row for the pawn, else the worn one. The worn primary is a `GearSlot.Primary` option in `GearLoadoutInput.Worn`
+  comes from the worn primary weapon (ranged: `gunner`, melee: `melee`, none: `noncombatant`). The pawn's outfits are the worn one
+  from the start, then each `OutfitChanges` row for it from its effective tick in tick order (`HarmLedger.OutfitsOf`); each is
+  priced for its share of the horizon, the raids of that share meeting it, so a crafted garment's armor counts only from its
+  delivery. A change whose tick is unknown leaves the term unknown with `outfit_change_timing_unknown:<pawn>`. The worn primary is a `GearSlot.Primary` option in `GearLoadoutInput.Worn`
   that `ColonyGearReads.GearLoadoutModelFacts` builds from the gear census's `PawnEquipment` (`PrimaryId` and the equipped item
   resolved in the frame's things table), with `Ranged` from the catalog's weapon rows (#3562). A schedule that expects no raids is a known 0. The distribution of a pawn
   is memoized per context by (pawn, role, outfit, care facts, hits).

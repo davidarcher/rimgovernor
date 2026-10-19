@@ -125,12 +125,17 @@ public sealed partial record ForecastCoupledCandidates
         foreach (var route in support.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
         findings.UnionWith(food.Findings); findings.UnionWith(construction.Findings); findings.UnionWith(composed.Findings); findings.UnionWith(support.Findings);
         truncated |= food.Truncated || construction.Truncated || composed.Truncated || support.Truncated;
+        // The worn outfit per pawn with a loadout model: the same options the effect-source facts carry (#3546).
+        var outfits = facts.Gear.TryGetValue(out var worn)
+            ? worn.Pawns.Where(p => p.LoadoutModel.IsKnown).GroupBy(p => p.Pawn.Value, StringComparer.Ordinal)
+                .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().LoadoutModel.Value.Worn, StringComparer.Ordinal)
+            : new Dictionary<string, EquatableArray<GearOption>>();
         if (NeedEnabled(MilitaryFamily.Equipment) && facts.Gear.TryGetValue(out var gear))
         {
-            AppendFamily(Methods.Generation.ClothingMethodCandidates.Generate(read.Clothing, ClothingActivitiesRules.ClothingActivityRequirements(gear),
-                checked(read.Tick + (long)horizon), resources));
             // The effect-source family (#3285): labor-free (tainted filter, insulation floor) candidates per pawn that verified cards price (GearChoices, #3329).
             var effects = EffectSourcesRules.GenerateEffectSources(EffectSourcesRules.EffectSourceFactsOf(gear, facts.MedicalPawns, facts.IdeologyInstalled));
+            AppendFamily(Methods.Generation.ClothingMethodCandidates.Generate(read.Clothing, ClothingActivitiesRules.ClothingActivityRequirements(gear),
+                checked(read.Tick + (long)horizon), resources), effects.Roots);
             alternatives.AddRange(effects.Roots); findings.UnionWith(effects.Findings); truncated |= effects.Truncated;
         }
         else findings.Add("unknown_clothing_requirements");
@@ -287,11 +292,7 @@ public sealed partial record ForecastCoupledCandidates
             CapacityPenalties = facts.CapacityPenalties,
             Value = ForecastValuePolicy.For(facts.Preferences),
             Harm = HarmInputs.Of(facts),
-            // The worn outfit per pawn with a loadout model: the same options the effect-source facts carry (#3546).
-            Outfits = facts.Gear.TryGetValue(out var worn)
-                ? worn.Pawns.Where(p => p.LoadoutModel.IsKnown).GroupBy(p => p.Pawn.Value, StringComparer.Ordinal)
-                    .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().LoadoutModel.Value.Worn, StringComparer.Ordinal)
-                : new Dictionary<string, EquatableArray<GearOption>>(),
+            Outfits = outfits,
             GoalValues = facts.GoalValues,
             CookedNutritionRatio = ForecastValue.CookedNutritionRatios(read.FoodConversions, facts.Items.Nutrition, findings),
             MoodBreaks = facts.MoodBreak,
@@ -341,7 +342,7 @@ public sealed partial record ForecastCoupledCandidates
             return distinct;
         }
 
-        void AppendFamily(Methods.CoordinatedMethodCandidates family)
+        void AppendFamily(Methods.CoordinatedMethodCandidates family, EquatableArray<ForecastCommitment> swaps)
         {
             findings.UnionWith(family.Findings); truncated |= family.Truncated;
             if (family.Problem is null) return;
@@ -359,14 +360,17 @@ public sealed partial record ForecastCoupledCandidates
                     if (finish is null) { findings.Add("construction_outcome_unbound:" + outcome.Id); continue; }
                     exclusive = "construction/" + finish.Target;
                 }
-                // A crafted garment's warmth, timed by its delivery's completion (#3330).
-                var comfort = family.Bindings.Values.FirstOrDefault(b => b.Id == outcome.Completion)?.Clothing?.Comfort;
+                // A crafted garment's warmth (#3330) and armor (#3621), timed by its delivery's completion. A swap that changes
+                // the garment's slot cannot hold with it.
+                var clothing = family.Bindings.Values.FirstOrDefault(b => b.Id == outcome.Completion)?.Clothing;
                 alternatives.Add(new(outcome.Id, [])
                 {
                     ActivityCompletions = outcome.Completion.Length == 0 ? [] : [outcome.Completion],
                     ExclusiveOutcome = exclusive,
-                    Outcome = outcome,
-                    ComfortShifts = comfort is null ? [] : [comfort]
+                    Outcome = clothing is null ? outcome : outcome with { Excludes = EquatableArray.From(outcome.Excludes
+                        .Concat(ClothingActivitiesRules.SwapsInSlot(clothing, outfits.TryGetValue(clothing.Wearer, out var wearing) ? wearing : null, swaps))) },
+                    ComfortShifts = clothing?.Comfort is { } comfort ? [comfort] : [],
+                    OutfitChanges = clothing is null ? [] : [new(clothing.Wearer, [clothing.Garment]) { Overlay = true }]
                 });
             }
         }

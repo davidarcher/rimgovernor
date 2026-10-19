@@ -683,6 +683,13 @@ public sealed class ForecastCoupledSelectionTests
     private static (ForecastCoupledSelection Result, ForecastCommitment[] Parkas) ColdParka(double mood,
         MechanicCardStatus status = MechanicCardStatus.Verified, bool shirt = true)
     {
+        var (facts, parkas, work) = ColdParkaReview(mood, status, shirt);
+        return (Select(facts, 16384, work), parkas);
+    }
+
+    private static (RoundsFacts Facts, ForecastCommitment[] Parkas, ForecastCommitment Work) ColdParkaReview(double mood,
+        MechanicCardStatus status = MechanicCardStatus.Verified, bool shirt = true)
+    {
         static GearOption Garment(string product, GearSlot slot, string layer, double cold, GearSource source) => new()
         {
             ID = product, Definition = new(product), Stuff = new("Cloth"), Slot = slot, Layers = [layer], Groups = ["Torso"],
@@ -744,7 +751,22 @@ public sealed class ForecastCoupledSelectionTests
         // The wearer's outdoor harvest is the incumbent work the parka would warm.
         var work = candidates.Alternatives.Where(c => c.ActivityCompletions.Count > 0 && c.ExclusiveOutcome.StartsWith("raw/", StringComparison.Ordinal))
             .First(c => Outcome(facts, c).ThermalExposure.Single(t => t.Pawn == "pawn").AssessedTicks > 0);
-        return (Select(facts, 16384, work), parkas);
+        return (facts, parkas, work);
+    }
+
+    [Fact]
+    public void ACraftedGarmentsOutfitChangeTakesEffectAtItsDelivery()
+    {
+        // #3621: the parka overlays the worn outfit from the tick its delivery completes, which the outcome reports for the harm term.
+        var (facts, parkas, _) = ColdParkaReview(.28);
+        var parka = parkas[0];
+        var change = Assert.Single(parka.OutfitChanges);
+        Assert.True(change.Overlay);
+        Assert.Equal("Parka", Assert.Single(change.Items).ID);
+        var outcome = Outcome(facts, parka);
+        var delivery = outcome.Plan.Allocations.Single(a => a.Activity == parka.ActivityCompletions[0]);
+        Assert.Equal([new ForecastEffectiveTick(parka.Id, Known(delivery.End))], outcome.OutfitTicks);
+        Assert.True(delivery.End > 0);
     }
 
     [Fact]

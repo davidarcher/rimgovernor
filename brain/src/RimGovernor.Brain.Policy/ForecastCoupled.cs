@@ -109,6 +109,8 @@ public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool
     public Fact<double> StationaryThermalRelief { get; init; }
     public string ThermalOccupancy { get; init; } = "";
     public ForecastSupportConsequences Support { get; init; } = new();
+    /// <summary>When each commitment with activities and outfit changes took effect (#3621); the harm term prices its outfit from then.</summary>
+    public EquatableArray<ForecastEffectiveTick> OutfitTicks { get; init; }
 
 }
 public sealed record ForecastCoupledScenario(EquatableArray<ForecastCoupledOutcome> Alternatives,
