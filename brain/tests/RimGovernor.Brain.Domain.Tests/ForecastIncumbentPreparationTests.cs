@@ -199,6 +199,101 @@ public sealed class ForecastIncumbentPreparationTests
         Assert.Empty(ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions).Incumbents);
     }
 
+    /// <summary>"pawn" owns a coupled cooking Method holding for its next recipe; "helper" is free and cooks in
+    /// <paramref name="helperTicks"/> against pawn's 100.</summary>
+    private static (RoundsFacts Facts, WorkActionCensus Actions) BoundaryCooking(double helperTicks, string state = "holding", bool deferHelper = false)
+    {
+        var conversion = ForecastPortfolioChoiceTests.Conversion("rice", "Rice", "CookRice", 100) with { AvailableInput = 8, CanSupply = true, CanDeliver = true };
+        var facts = ForecastPortfolioChoiceTests.Observed([conversion, conversion with { Pawn = "helper", WorkTicks = Known(helperTicks) }],
+            [new("rice", "Rice", new(1, 1), 8, Known(2000d))], helper: true);
+        var recipe = new PawnActivityRecipe("bill/CookRice", "CookRice", [new("observed-output", 4)]);
+        var task = new SelectedActivityTask("cook-task", "pawn", [], new(PawnActivityKind.Recipe, "bench", "Cook", "", 0, 2000) { Recipe = recipe }, new(2, 1), 400);
+        var order = new PawnActivityOrder("pawn", "cook-assignment", "coupled-cook", 0, 1, false,
+            [new(PawnActivityKind.Approach, "", "", "", 0, 2000) { Destination = task.Location, NotBefore = 400 }, new(PawnActivityKind.Hold, "", "", "", 0, 2000)])
+            { Task = task.Id, Preparing = true };
+        var action = DomainAction.NewPawnActivitiesAction(new("cook-action"), new PawnActivities(1, [order]) { Tasks = [task] });
+        var row = new WorkAction(new("cook-plan"), action, new() { Action = action.Id, Stage = Stage.Completed,
+            Attempt = new(1), Receipt = Known(Receipt.Accepted), Tick = new(100) });
+        WorkAction[] rows = [row];
+        // The helper's own coupled Method only defers it (#3047) until its distant service is due.
+        var defer = new SelectedActivityTask("defer/helper", "helper", [], new(PawnActivityKind.Idle, "", "", "", 0, 5000), new(1, 1), 100);
+        var idle = new PawnActivityOrder("helper", "defer-assignment", "coupled-defer", 0, 1, false, [defer.Step]) { Task = defer.Id };
+        if (deferHelper)
+        {
+            var deferral = DomainAction.NewPawnActivitiesAction(new("defer-action"), new PawnActivities(1, [idle]) { Tasks = [defer] });
+            rows = [row, new WorkAction(new("defer-plan"), deferral, new() { Action = deferral.Id, Stage = Stage.Completed,
+                Attempt = new(1), Receipt = Known(Receipt.Accepted), Tick = new(100) })];
+        }
+        var native = facts.WorkView!.Evidence.WorkResources.Value.Select(p => p.Pawn == "pawn" ? p with { Assignment = order.Assignment, Revision = 1, State = state }
+            : deferHelper && p.Pawn == "helper" ? p with { Assignment = idle.Assignment, Revision = 1, State = "started" } : p).ToArray();
+        var evidence = facts.WorkView.Evidence with { WorkResources = Known(EquatableArray.From(native)) };
+        var view = WorkRules.WorkResourcesOf(evidence, NoBatches, rows);
+        return (facts with { WorkView = view, WorkClaims = view.Claims, WorkResources = evidence.WorkResources }, new(EquatableArray.From(rows)));
+    }
+
+    [Fact]
+    public void ABoundaryMethodIsReconsideredAndReleasedWhenAFasterFreeCookTakesItsBill()
+    {
+        // #3167: a better cook joined, but the first cook's Method stayed protected and its pawns' capacity unknown.
+        var (facts, actions) = BoundaryCooking(10);
+        var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
+        var incumbent = Assert.Single(incumbents);
+        Assert.Equal(["bill/CookRice"], incumbent.Bills.ToArray());
+        var candidates = Assert.IsType<ForecastCoupledCandidates>(prepared.CoupledAlternatives).Priced();
+        Assert.DoesNotContain("pawn", candidates.Context.Resources.Claims.Pawns);
+        Assert.DoesNotContain("unknown_needs_capacity", candidates.Findings);
+        Assert.Empty(candidates.Incumbents); // No retain commitment: the comparison sees both cooks free.
+        Assert.Contains("pawn", prepared.WorkView!.Claims.Pawns); // Admission claims stay until the release is observed.
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
+            prepared, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(prepared) }, [], new());
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
+        Assert.Contains(selected.Selected.Plan.Allocations, a => a.Pawn == "helper" && candidates.Context.Bindings.TryGetValue((a.Activity, a.Pawn), out var b) && b.Kind == PawnActivityKind.Recipe);
+        var execution = ForecastCoupledExecution.ReviewCoupledExecution(selected, incumbents, facts.Tick.Value, candidates.Context.Activities.Activities, candidates);
+        var release = Assert.Single(execution.Releases);
+        Assert.True(Assert.Single(release.Batch.Orders).Release);
+        var dispatch = Assert.IsType<ForecastCoupledSelection>(execution.Dispatch);
+        Assert.DoesNotContain(dispatch.Selection.Plan!.Allocations, a => a.Pawn == "pawn");
+        Assert.Contains(dispatch.Selection.Plan!.Allocations, a => a.Pawn == "helper");
+        // The same selection without the move keeps the Method: its owner stays and only the rest is dispatched.
+        var kept = ForecastCoupledExecution.ReviewCoupledExecution(selected with { Selection = selected.Selection with { Plan = selected.Selection.Plan! with
+            { Allocations = selected.Selection.Plan!.Allocations.Where(a => a.Pawn != "helper").ToArray() } } }, incumbents, facts.Tick.Value, candidates.Context.Activities.Activities, candidates);
+        Assert.Empty(kept.Releases);
+    }
+
+    [Fact]
+    public void ADeferredColonistBesideAReconsideredMethodIsReleasedWhenTheSelectionGivesItWork()
+    {
+        // #3167: development-reassignment's free colonists were deferred, so a better cook staged on one stayed owned.
+        var (facts, actions) = BoundaryCooking(10, deferHelper: true);
+        var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
+        Assert.Equal(2, incumbents.Count);
+        var deferral = Assert.Single(incumbents, i => i.Deferral);
+        Assert.Equal("helper", deferral.Ownership.Pawn);
+        var candidates = Assert.IsType<ForecastCoupledCandidates>(prepared.CoupledAlternatives).Priced();
+        Assert.DoesNotContain("helper", candidates.Context.Resources.Claims.Pawns);
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
+            prepared, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(prepared) }, [], new());
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
+        Assert.Contains(selected.Selected.Plan.Allocations, a => a.Pawn == "helper");
+        var execution = ForecastCoupledExecution.ReviewCoupledExecution(selected, incumbents, facts.Tick.Value, candidates.Context.Activities.Activities, candidates);
+        Assert.Equal(2, execution.Releases.Count);
+        Assert.Contains(execution.Releases, r => r.Incumbent.Deferral && r.Batch.Orders.Single().Release);
+        // Without work for it the deferral stands.
+        var idle = ForecastCoupledExecution.ReviewCoupledExecution(selected with { Selection = selected.Selection with { Plan = selected.Selection.Plan! with
+            { Allocations = selected.Selection.Plan!.Allocations.Where(a => a.Pawn != "helper").ToArray() } } }, incumbents, facts.Tick.Value, candidates.Context.Activities.Activities, candidates);
+        Assert.Empty(idle.Releases);
+    }
+
+    [Theory]
+    [InlineData(200, "holding")]    [InlineData(10, "started")]
+    public void AMethodStaysProtectedWithoutAFasterFreeCookOrMidTask(double helperTicks, string state)
+    {
+        var (facts, actions) = BoundaryCooking(helperTicks, state);
+        var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
+        Assert.Empty(incumbents);
+        Assert.Contains("pawn", prepared.CoupledAlternatives!.Context.Resources.Claims.Pawns);
+    }
+
     [Fact]
     public void FourOwnerBoundLeavesUnvisitedOwnerProtectedAndReportsTruncation()
     {

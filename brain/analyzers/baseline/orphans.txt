@@ -64,7 +64,6 @@ Policy|EssentialServiceReview.Observed
 Policy|EssentialServiceReview.Proposals
 Policy|EssentialServiceReview.Stress
 Policy|EssentialServiceReview.Truncated
-Policy|ForecastActivityAllocation.TravelTicks
 Policy|ForecastActivityAllocation.WaitTicks
 Policy|ForecastActivityComparison.Decision
 Policy|ForecastActivityComparison.Selected

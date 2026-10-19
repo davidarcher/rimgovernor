@@ -10,16 +10,30 @@ public sealed partial record ForecastCoupledExecution
     /// exact ownership; a subsequent observed review may admit new work for the released pawn. No forecast invents a
     /// release receipt. The rest of the selection is dispatched in the same review (#3598): every allocation except an
     /// incumbent's own tasks, any task of an incumbent's pawn (retained: it has an owner; released: its release is not yet
-    /// observed) and any task waiting on one of those, which would never start.</summary>
+    /// observed) and any task waiting on one of those, which would never start. A reconsidered productive Method (one with
+    /// bills, #3167) has no retain commitment: it is released only when the selection gives one of its bills to a pawn other
+    /// than its cooks, and otherwise keeps its owners like any retained incumbent. A deferral beside it is released when the
+    /// selection gives its pawn work.</summary>
     public static ForecastCoupledExecution ReviewCoupledExecution(ForecastCoupledSelection selection,
-        EquatableArray<ForecastObservedIncumbent> incumbents, long tick, IReadOnlyList<ForecastActivity>? activities = null)
+        EquatableArray<ForecastObservedIncumbent> incumbents, long tick, IReadOnlyList<ForecastActivity>? activities = null,
+        ForecastCoupledCandidates? candidates = null)
     {
         if (incumbents.Count == 0) return new([], selection);
         var retained = selection.Selection.Selected.ToHashSet(StringComparer.Ordinal);
-        var releases = new List<ForecastIncumbentRelease>();
-        foreach (var incumbent in incumbents.Where(i => !retained.Contains(i.Commitment)))
+        var bindings = candidates?.Context.Bindings;
+        bool Moved(ForecastObservedIncumbent incumbent)
         {
-            var decision = ActivityContinuationRules.ReviewActivityOwnership(incumbent.Batch, Known(false), tick, [incumbent.Ownership, .. incumbent.ReleasedOwnership]);
+            var cooks = ForecastObservedIncumbent.CooksOf(incumbent.Batch, incumbent.Bills);
+            return bindings is not null && selection.Selection.Plan is { } chosen && chosen.Allocations.Any(a => !cooks.Contains(a.Pawn)
+                && bindings.TryGetValue((a.Activity, a.Pawn), out var b) && (b.Recipe?.Bill ?? b.Cooking?.Continuation.Bill) is { } bill
+                && incumbent.Bills.Contains(bill));
+        }
+        bool Employed(ForecastObservedIncumbent incumbent) => selection.Selection.Plan is { } chosen
+            && chosen.Allocations.Any(a => incumbent.Owned.Any(o => o.Pawn == a.Pawn));
+        var releases = new List<ForecastIncumbentRelease>();
+        foreach (var incumbent in incumbents.Where(i => i.Deferral ? Employed(i) : i.Bills.Count > 0 ? Moved(i) : !retained.Contains(i.Commitment)))
+        {
+            var decision = ActivityContinuationRules.ReviewActivityOwnership(incumbent.Batch, Known(false), tick, incumbent.Owned);
             if (decision.Release is not { } release) return new([], null);
             releases.Add(new(incumbent, release));
         }

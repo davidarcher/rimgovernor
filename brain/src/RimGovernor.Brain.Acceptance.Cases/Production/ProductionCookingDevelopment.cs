@@ -180,6 +180,7 @@ internal static class ProductionCookingDevelopment
         var cooks = Enumerable.Range(0, Cooks).ToDictionary(i => s.Staged!.Pawns[Cook(i)].Id, i => i, StringComparer.Ordinal);
         (string Pawn, string Method)? first = null;
         var better = "";
+        var incapable = new HashSet<string>(StringComparer.Ordinal);
         _ = await s.ServeUntilAsync("development-reassignment", s.TicksLeft, async ct =>
         {
             var read = await ObserveAsync(s, ct).ConfigureAwait(false);
@@ -194,7 +195,7 @@ internal static class ProductionCookingDevelopment
             {
                 // The cook that produced the first meal, while a Method owns it, and an idle colonist that has not cooked.
                 var cook = read.CompletedBy.Keys.FirstOrDefault(read.Owners.ContainsKey);
-                var idle = cooks.Keys.FirstOrDefault(p => !read.Owners.ContainsKey(p) && !read.CompletedBy.ContainsKey(p));
+                var idle = cooks.Keys.FirstOrDefault(p => !read.Owners.ContainsKey(p) && !read.CompletedBy.ContainsKey(p) && !incapable.Contains(p));
                 if (cook is not null && idle is not null)
                 {
                     var joined = new Fx.StagePawn
@@ -203,9 +204,14 @@ internal static class ProductionCookingDevelopment
                         Colonist = cooks[idle],
                         Skills = new Dictionary<string, int> { ["Cooking"] = BetterCookLevel },
                     };
-                    _ = await s.StageAsync("reassignment-better-cook", new Fx.StageSpec { Pawns = [joined] }, ct).ConfigureAwait(false);
-                    first = (cook, read.Owners[cook]);
-                    better = idle;
+                    var staged = await s.StageAsync("reassignment-better-cook", new Fx.StageSpec { Pawns = [joined] }, ct).ConfigureAwait(false);
+                    // A colonist whose backstory disables Cooking reads level 0 whatever is staged: it is no better cook (#3167).
+                    if (staged.Pawns[joined.Name].Skills?.GetValueOrDefault("Cooking") != BetterCookLevel) incapable.Add(idle);
+                    else
+                    {
+                        first = (cook, read.Owners[cook]);
+                        better = idle;
+                    }
                 }
 
                 return (Signature(read), false);

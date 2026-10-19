@@ -45,6 +45,22 @@ public sealed class DistantServiceDeferralTests
     }
 
     [Fact]
+    public void ADistantMealWaitingOnAnotherPawnsCookingDefersTheEaterAndKeepsTheCook()
+    {
+        // #3167: development-reassignment held both eaters ~9000 ticks for the cook's meals, so no colonist was ever free.
+        var cook = Work("cook") with { Step = new(PawnActivityKind.Recipe, "stove", "", "", 0, Tick + 500) };
+        // The scheduler departed the eater at once to wait at the table: the distance is its planned start, not its departure.
+        var meal = Service("eater", Tick, cook.Id) with { Step = new(PawnActivityKind.Eat, "meal", "", "", 1, 11000) };
+        var deferred = new List<ForecastDeferredPawn>();
+        var batch = Batch([Active(cook), Preparing(meal)], cook, meal);
+        Assert.Same(batch, CoordinatedActivityBinding.DeferDistantServices(batch, Tick, deferred));
+        var active = CoordinatedActivityBinding.DeferDistantServices(batch, Tick, deferred, new Dictionary<string, long> { [meal.Id] = 9000 })!;
+        Assert.Equal("cook", Assert.Single(active.Orders).Pawn);
+        Assert.Equal(cook, Assert.Single(active.Tasks));
+        Assert.Equal("eater", Assert.Single(deferred).Pawn);
+    }
+
+    [Fact]
     public void ADistantServiceAloneLeavesOnlyTheDeferral()
     {
         var sleep = Service("sleeper", 30000);

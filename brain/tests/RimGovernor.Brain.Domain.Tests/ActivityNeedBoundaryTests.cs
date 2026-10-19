@@ -123,6 +123,26 @@ public sealed class ActivityNeedBoundaryTests
     }
 
     [Theory]
+    [InlineData(5000, true)]
+    [InlineData(500, false)]
+    public void AnEaterWhoseMealWaitsFarAheadOnTheCookIsReleasedNotHeld(long eatDepart, bool released)
+    {
+        // #3167: development-reassignment held both eaters ~9000 ticks for the cook's meals, owned and unreviewable.
+        var cook = new SelectedActivityTask("cook", "cook", [], new(PawnActivityKind.Recipe, "stove", "", "", 0, 9000), new(2, 2), 0);
+        var haul = new SelectedActivityTask("haul", "pawn", [], new(PawnActivityKind.Deliver, "rice", "", "", 8, 9000) { Destination = new(2, 2) }, new(1, 1), 0);
+        var eat = new SelectedActivityTask("eat", "pawn", [cook.Id], new(PawnActivityKind.Eat, "observed-output", "", "", 1, 9000), new(3, 3), eatDepart);
+        var batch = new PawnActivities(1, [new("cook", "method/cook", "method", 0, 1, false, [cook.Step]) { Task = cook.Id },
+            new("pawn", "method/pawn", "method", 0, 1, false, [haul.Step]) { Task = haul.Id }]) { Tasks = [cook, haul, eat] };
+        var read = Read(batch, "completed", .9) with { Pawns = [new("cook", new("method/cook", "method", 1, 0, "started", "", null, 200)),
+            new("pawn", new("method/pawn", "method", 1, 0, "completed", "", null, 200))] };
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), read)!;
+        var order = Assert.Single(next.Orders, o => o.Pawn == "pawn");
+        Assert.Equal(released, order.Release);
+        Assert.Equal(!released, next.Tasks.Any(t => t.Id == eat.Id));
+        Assert.Contains(next.Tasks, t => t.Id == cook.Id);
+    }
+
+    [Theory]
     [InlineData(500, 4000)]
     [InlineData(5000, 150)]
     public void ParticipantWhoseNextServiceIsNearOrWhoseSleepRanItsCoursePreparesForIt(long playDepart, long sleepEnd)

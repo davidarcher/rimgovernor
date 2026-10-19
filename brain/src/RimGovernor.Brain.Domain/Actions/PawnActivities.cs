@@ -78,6 +78,10 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
     public EquatableArray<SelectedActivityTask> Tasks { get; init; }
     /// <summary>A live order whose one step is <see cref="PawnActivityKind.Standby"/>: an explicit idle that claims nothing.</summary>
     public static bool IsStandby(PawnActivityOrder order) => !order.Release && order.Steps is [{ Kind: PawnActivityKind.Standby }];
+    /// <summary>A live order that only defers its pawn: one <see cref="PawnActivityKind.Idle"/> step until the pawn is
+    /// reconsidered (#3047).</summary>
+    public static bool IsDeferral(PawnActivityOrder order) => !order.Release && order.Task.StartsWith("defer/", StringComparison.Ordinal)
+        && order.Steps is [{ Kind: PawnActivityKind.Idle }];
     public static bool SameOrder(PawnActivityOrder a, PawnActivityOrder b) => a.Pawn == b.Pawn && a.Assignment == b.Assignment
         && a.Method == b.Method && a.ExpectedRevision == b.ExpectedRevision && a.Revision == b.Revision
         && a.Release == b.Release && a.OutputDelivery == b.OutputDelivery && a.Task == b.Task && a.Preparing == b.Preparing

@@ -20,7 +20,10 @@ internal static class CoordinatedActivityBinding
         var unplaced = (planned ?? []).SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         var active = Start(selection.Selection, bindings, authority, method, tick, unplaced);
         var deferredPawns = selection.Deferred.Where(t => t.Until > tick).ToList();
-        active = DeferDistantServices(active, tick, deferredPawns);
+        // The scheduler departs a waiting pawn at once and holds it at the site: its service is as far as its planned start.
+        var leave = selection.Selection.Plan?.Allocations.GroupBy(a => a.Activity, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => checked(tick + (long)Math.Floor(g.Min(a => a.Start - a.TravelTicks))), StringComparer.Ordinal);
+        active = DeferDistantServices(active, tick, deferredPawns, leave);
         var deferred = deferredPawns.Select(t => new SelectedActivityTask(
             "defer/" + t.Pawn, t.Pawn, [], new(PawnActivityKind.Idle, "", "", "", 0, t.Until), t.Location, tick)).ToArray();
         if (deferred.Length == 0) return active;
@@ -31,13 +34,17 @@ internal static class CoordinatedActivityBinding
 
     /// <summary>An installed Method is protected from reselection, so holding a pawn for a service that departs far ahead would
     /// freeze the colony until the hold ends (#3047). A pawn whose first task is such a service, with nothing waiting on it,
-    /// is deferred like any unselected pawn: it is reconsidered after the interval and the service starts once it is due.</summary>
-    internal static PawnActivities? DeferDistantServices(PawnActivities? active, long tick, List<ForecastDeferredPawn> deferred)
+    /// is deferred like any unselected pawn: it is reconsidered after the interval and the service starts once it is due. So is
+    /// a meal waiting only on other pawns' work (#3167): holding the eater until the cook's last meal froze it for most of a
+    /// day; deferred, it eats from what the work has stocked by then.</summary>
+    internal static PawnActivities? DeferDistantServices(PawnActivities? active, long tick, List<ForecastDeferredPawn> deferred,
+        IReadOnlyDictionary<string, long>? leave = null)
     {
         if (active is null) return null;
         var far = active.Orders.Where(o => !o.Release && o.Preparing && active.Tasks.SingleOrDefault(t => t.Id == o.Task) is { } task
-            && task.Prerequisites.Count == 0 && task.Step.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation or PawnActivityKind.Eat
-            && task.DepartTick - tick > DistantServiceTicks
+            && task.Prerequisites.All(p => active.Tasks.Any(t => t.Id == p && t.Pawn != o.Pawn))
+            && task.Step.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation or PawnActivityKind.Eat
+            && Math.Max(task.DepartTick, leave?.GetValueOrDefault(task.Id) ?? 0) - tick > DistantServiceTicks
             && !active.Tasks.Any(t => t.Pawn != o.Pawn && t.Prerequisites.Any(p => active.Tasks.Any(r => r.Pawn == o.Pawn && r.Id == p))))
             .ToArray();
         if (far.Length == 0) return active;
@@ -158,10 +165,13 @@ internal static class CoordinatedActivityBinding
             // So is a task that leads to the pawn's own remaining service, such as harvesting the rice it then eats (#3598).
             // A sleep or recreation that native recovery ended before its planned end (the pawn woke rested) leaves the rest of
             // the pawn's timeline early. As at the start (DeferDistantServices, #3047), it is not held for a next service departing
-            // far ahead, owned and unreviewable (#3598): released, the next review replans it from its observed needs.
-            var distant = row.State == "completed" && batch.Tasks.SingleOrDefault(t => t.Id == order.Task) is
-                    { Step.Kind: PawnActivityKind.Sleep or PawnActivityKind.Recreation } ended && ended.Step.Deadline > tick
-                && IsService(next) && next.Prerequisites.Count == 0 && next.DepartTick - tick > DistantServiceTicks;
+            // far ahead, owned and unreviewable (#3598): released, the next review replans it from its observed needs. Nor is a
+            // participant whose next service waits only on other pawns' work, such as an eater held for the cook's last meal
+            // for most of a day (#3167).
+            var distant = row.State == "completed" && IsService(next) && next.DepartTick - tick > DistantServiceTicks
+                && (next.Prerequisites.Count == 0 && batch.Tasks.SingleOrDefault(t => t.Id == order.Task) is
+                        { Step.Kind: PawnActivityKind.Sleep or PawnActivityKind.Recreation } ended && ended.Step.Deadline > tick
+                    || next.Prerequisites.Count > 0 && next.Prerequisites.All(p => remaining.Any(t => t.Id == p && t.Pawn != order.Pawn)));
             if ((distant || !IsService(next) && !FeedsOwnService(remaining, next) && NeedsService(read, order.Pawn))
                 && !remaining.Any(t => t.Pawn != order.Pawn && t.Prerequisites.Any(p => remaining.Any(r => r.Pawn == order.Pawn && r.Id == p))))
             {

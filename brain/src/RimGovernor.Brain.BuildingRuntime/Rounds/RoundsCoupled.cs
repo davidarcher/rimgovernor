@@ -10,7 +10,7 @@ public sealed partial class Rounder
     {
         var taken = new HashSet<string>(StringComparer.Ordinal);
         if (review.Needs.CoupledSelection is not { } selection || facts.CoupledAlternatives is not { } candidates) return taken;
-        var execution = ForecastCoupledExecution.ReviewCoupledExecution(selection, incumbents, facts.Tick.Value, candidates.Context.Activities.Activities);
+        var execution = ForecastCoupledExecution.ReviewCoupledExecution(selection, incumbents, facts.Tick.Value, candidates.Context.Activities.Activities, candidates);
         if (execution.Releases.Count > 0)
         {
             Player.Current(call, epoch);
@@ -20,7 +20,7 @@ public sealed partial class Rounder
                 var next = PlanIds.MintPlanId();
                 taken.UnionWith(release.Batch.Orders.Select(o => o.Pawn));
                 Player.Journal.ContinueActivityMethod(release.Incumbent.Plan, snapshot, facts.Tick,
-                    [release.Incumbent.Ownership, .. release.Incumbent.ReleasedOwnership], new PlanSpec(next, new PlanRevision(1),
+                    release.Incumbent.Owned, new PlanSpec(next, new PlanRevision(1),
                         [DomainAction.NewPawnActivitiesAction(new ActionId($"{next}-0"), release.Batch)]), call);
             }
             // The released pawn waits for fresh native ownership evidence; the rest of the selection is admitted now (#3598).

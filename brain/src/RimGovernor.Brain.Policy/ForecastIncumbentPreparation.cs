@@ -6,6 +6,22 @@ public sealed record ForecastObservedIncumbent(PlanId Plan, PawnActivities Batch
 {
     public EquatableArray<string> Activities { get; init; }
     public EquatableArray<ActivityOwnership> ReleasedOwnership { get; init; }
+    /// <summary>A productive Method's other participants, owned and observed at a boundary with it (#3167).</summary>
+    public EquatableArray<ActivityOwnership> Participants { get; init; }
+    /// <summary>A productive Method's remaining bills. Non-empty marks a reconsidered Method: it has no retain commitment, and
+    /// it is released only when the selection moves one of these bills to a pawn outside it (#3167).</summary>
+    public EquatableArray<string> Bills { get; init; }
+    /// <summary>A Method that only defers its pawns, offered beside a reconsidered Method: released when the selection gives one
+    /// of its pawns work (#3167).</summary>
+    public bool Deferral { get; init; }
+    public IReadOnlyList<ActivityOwnership> Owned => [Ownership, .. Participants, .. ReleasedOwnership];
+
+    /// <summary>The pawns a batch has cooking one of <paramref name="bills"/>.</summary>
+    public static HashSet<string> CooksOf(PawnActivities batch, IEnumerable<string> bills)
+    {
+        var set = bills.ToHashSet(StringComparer.Ordinal);
+        return batch.Tasks.Where(t => t.Step.Recipe is { } recipe && set.Contains(recipe.Bill)).Select(t => t.Pawn).ToHashSet(StringComparer.Ordinal);
+    }
 }
 
 public static class ForecastIncumbentPreparation
@@ -104,14 +120,32 @@ public static class ForecastIncumbentPreparation
             a.Plan != e.Row.Plan || a.Action.Id != e.Row.Action.Id)).Pawns.Contains(e.Owner.Pawn)).ToList();
         var truncated = eligible.Count > 4;
         var chosen = eligible.Take(4).ToArray();
-        if (chosen.Length == 0) return Protected();
-        var omitted = chosen.Select(e => (e.Row.Plan, e.Row.Action.Id)).ToHashSet();
-        var releasedPawns = chosen.Select(e => e.Owner.Pawn).ToHashSet(StringComparer.Ordinal);
-        var evidence = original.Evidence with { Pawns = Known(EquatableArray.From(availability.Select(p =>
-            releasedPawns.Contains(p.Pawn) ? p with { Occupied = Known(false) } : p))) };
-        var conditional = WorkRules.WorkResourcesOf(evidence, batches,
-            actions.Actions.Where(a => !omitted.Contains((a.Plan, a.Action.Id))), actions.Truncated);
-        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { WorkView = conditional, WorkClaims = conditional.Claims });
+        var servicePawns = chosen.Select(e => e.Owner.Pawn).ToHashSet(StringComparer.Ordinal);
+        var methods = BoundaryMethods(facts, actions, original.Evidence, native)
+            .Where(m => !m.Owners.Any(o => servicePawns.Contains(o.Pawn))).ToList();
+        ForecastCoupledCandidates? Generate()
+        {
+            var omitted = chosen.Select(e => (e.Row.Plan, e.Row.Action.Id)).Concat(methods.Select(m => (m.Row.Plan, m.Row.Action.Id))).ToHashSet();
+            var releasedPawns = servicePawns.Concat(methods.SelectMany(m => m.Owners.Select(o => o.Pawn))).ToHashSet(StringComparer.Ordinal);
+            var evidence = original.Evidence with { Pawns = Known(EquatableArray.From(availability.Select(p =>
+                releasedPawns.Contains(p.Pawn) ? p with { Occupied = Known(false) } : p))) };
+            var conditional = WorkRules.WorkResourcesOf(evidence, batches,
+                actions.Actions.Where(a => !omitted.Contains((a.Plan, a.Action.Id))), actions.Truncated);
+            return ForecastCoupledCandidates.GenerateCoupledActivities(facts with { WorkView = conditional, WorkClaims = conditional.Claims });
+        }
+        // A deferred pawn is offered only beside a reconsidered Method: alone, its deferral stands until it is due.
+        if (!methods.Any(m => m.Bills.Count > 0)) methods.Clear();
+        if (chosen.Length == 0 && methods.Count == 0) return Protected();
+        var generated = Generate();
+        // A Method is reconsidered only while a pawn outside it is offered its bills at a faster rate than its own cooks:
+        // otherwise its owners stay protected and the comparison runs on the claims as admitted.
+        if (generated is not null)
+        {
+            var before = methods.Count;
+            methods.RemoveAll(m => m.Bills.Count > 0 && !FasterOutside(generated, m));
+            if (!methods.Any(m => m.Bills.Count > 0)) methods.Clear();
+            if (methods.Count != before) generated = chosen.Length == 0 && methods.Count == 0 ? null : Generate();
+        }
         if (generated is null) return Protected();
         var incumbents = new List<ForecastObservedIncumbent>();
         var activities = generated.Context.Activities.Activities.ToList();
@@ -156,6 +190,12 @@ public static class ForecastIncumbentPreparation
                 { Activities = EquatableArray.From(graph), ReleasedOwnership = entry.Released });
             foreach (var unknown in service.Unsupported) findings.Add("incumbent:" + pawn + ":" + unknown);
         }
+        foreach (var method in methods)
+            incumbents.Add(new(method.Row.Plan, method.Batch, "method/" + method.Row.Plan.Value + "/" + method.Row.Action.Id.Value, method.Owners[0])
+            {
+                Activities = EquatableArray.From(method.Batch.Tasks.Select(t => t.Id)), Participants = EquatableArray.From(method.Owners.Skip(1)),
+                ReleasedOwnership = method.Released, Bills = method.Bills, Deferral = method.Bills.Count == 0,
+            });
         if (truncated) findings.Add("incumbent_preparation_truncated:protected_remaining_owners");
         var prepared = generated with
         {
@@ -170,5 +210,68 @@ public static class ForecastIncumbentPreparation
             }
         };
         return (facts with { CoupledAlternatives = prepared }, EquatableArray.From(incumbents));
+    }
+
+    private sealed record BoundaryMethod(WorkAction Row, PawnActivities Batch, ActivityOwnership[] Owners,
+        EquatableArray<ActivityOwnership> Released, EquatableArray<string> Bills);
+
+    /// <summary>A coupled Method with bills still to cook, every participant between tasks (its task completed, holding for
+    /// the next, or deferred) and observed exactly at its order, carrying nothing (#3167). Nothing is in flight, so a release
+    /// interrupts no recipe; the bills say what moving the work would mean. A Method that only defers its pawns has no bills: it
+    /// is offered beside such a Method, so a deferred colonist can take the work.</summary>
+    private static List<BoundaryMethod> BoundaryMethods(RoundsFacts facts, WorkActionCensus actions, WorkAdmissionEvidence evidence,
+        EquatableArray<WorkResourcePawn> native)
+    {
+        var methods = new List<BoundaryMethod>();
+        foreach (var row in actions.Actions.OrderBy(a => a.Plan.Value, StringComparer.Ordinal).ThenBy(a => a.Action.Id.Value, StringComparer.Ordinal))
+        {
+            if (row.Progress.Unresolved || row.Progress.Receipt != Known(Receipt.Accepted)
+                || row.Progress.Stage is not (Stage.Completed or Stage.Cancelled) || row.Progress.Tick > facts.Tick
+                || row.Action.PawnActivities is not { Tasks.Count: > 0 } batch) continue;
+            var orders = batch.Orders.Where(o => !o.Release).ToArray();
+            if (orders.Length == 0 || orders.Any(o => !o.Method.StartsWith("coupled-", StringComparison.Ordinal))) continue;
+            var done = orders.Where(o => !o.Preparing).Select(o => o.Task).ToHashSet(StringComparer.Ordinal);
+            var bills = batch.Tasks.Where(t => !done.Contains(t.Id)).Select(t => t.Step.Recipe?.Bill).OfType<string>()
+                .Where(b => b.Length != 0).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+            if (bills.Length == 0 && !orders.All(PawnActivities.IsDeferral)) continue;
+            var owners = new List<ActivityOwnership>();
+            foreach (var order in orders)
+            {
+                var physical = native.Where(p => p.Pawn == order.Pawn).ToArray();
+                if (physical.Length != 1) break;
+                var p = physical[0];
+                if (p.Assignment != order.Assignment || p.Revision != order.Revision
+                    || !(PawnActivities.IsDeferral(order) ? p.State != "failed" : order.Preparing ? p.State == "holding" : p.State == "completed")
+                    || p.CarriedCount != 0 || p.CarriedThing.Length != 0 || p.CarriedResource.Length != 0
+                    || p.Bill.Length != 0 || p.Unfinished.Length != 0) break;
+                owners.Add(new(order.Pawn, order.Assignment, order.Method, order.Revision, p.State));
+            }
+            if (owners.Count != orders.Length) continue;
+            var released = new List<ActivityOwnership>();
+            foreach (var tombstone in batch.Orders.Where(o => o.Release))
+            {
+                var rows = native.Where(p => p.Pawn == tombstone.Pawn).ToArray();
+                if (rows.Length != 1 || rows[0].Assignment == tombstone.Assignment) break;
+                released.Add(new(rows[0].Pawn, rows[0].Assignment, "", rows[0].Revision, rows[0].State));
+            }
+            if (released.Count != batch.Orders.Count(o => o.Release)) continue;
+            var others = WorkRules.WorkClaimsOf(evidence, actions.Actions.Where(a => a.Plan != row.Plan || a.Action.Id != row.Action.Id)).Pawns;
+            if (owners.Any(o => others.Contains(o.Pawn))) continue;
+            methods.Add(new(row, batch, owners.ToArray(), EquatableArray.From(released), EquatableArray.From(bills)));
+        }
+        return methods;
+    }
+
+    /// <summary>Whether a pawn other than the Method's cooks is offered one of its bills' recipes in fewer work ticks than any
+    /// of them.</summary>
+    private static bool FasterOutside(ForecastCoupledCandidates generated, BoundaryMethod method)
+    {
+        var own = ForecastObservedIncumbent.CooksOf(method.Batch, method.Bills);
+        var cooks = generated.Context.Bindings.Values.Where(b => b.Kind == PawnActivityKind.Recipe
+            && (b.Recipe?.Bill ?? b.Cooking?.Continuation.Bill) is { } bill && method.Bills.Contains(bill)).Select(b => b.Id).ToHashSet(StringComparer.Ordinal);
+        var offered = generated.Context.Activities.Options.Where(o => cooks.Contains(o.Activity)
+            && o.WorkTicks.TryGetValue(out var ticks) && double.IsFinite(ticks) && ticks > 0).ToArray();
+        var best = offered.Where(o => own.Contains(o.Pawn)).Select(o => o.WorkTicks.Value).DefaultIfEmpty(double.PositiveInfinity).Min();
+        return offered.Any(o => !own.Contains(o.Pawn) && o.WorkTicks.Value < best);
     }
 }
