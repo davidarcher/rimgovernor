@@ -285,6 +285,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             if (!cell.Fogged)
             {
                 census.Edifice[cell.Cell] = cell.EdificeDefName;
+                census.EdificeStuff[cell.Cell] = cell.EdificeStuff;
                 census.Terrain[cell.Cell] = cell.Terrain;
                 census.Cover[cell.Cell] = cell.Cover;
                 census.Unbridging[cell.Cell] = cell.Unbridging;

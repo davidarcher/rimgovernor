@@ -73,10 +73,15 @@ public sealed record CorpseState
     public float Rot { get; init; }
 }
 
-/// <summary>A building, blueprint or frame's state. Needed is the materials still owed; Casket the defs a casket holds.</summary>
+/// <summary>
+/// A building, blueprint or frame's state. Stuff is the stuff def it is made of (a blueprint or frame: the stuff it
+/// builds with), empty for a stuffless def; Needed is the materials still owed; Casket the defs a casket holds.
+/// </summary>
 public sealed record BuildingState
 {
     public uint HitPoints { get; init; }
+
+    public string Stuff { get; init; } = "";
 
     public bool Burning { get; init; }
 

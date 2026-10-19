@@ -29,11 +29,8 @@ public sealed partial class DefinitionCatalog
     /// the facts observations_read_defense_site answered natively: the edifice and terrain on each cell, the cell's cover
     /// (the thing of highest fillPercent, as the game's CoverGrid keeps it) with the designator that removes it, whether
     /// a player door stands, and EdgeReachable as a flood over the mirror from the map edge. A cell the mirror does not
-    /// hold, or holds without its terrain or walkability, is fogged: unknown.
-    /// <para>
-    /// What the mirror does not carry is left empty: EdificeStuff (a wooden door upgraded to plasteel is the waiting
-    /// fight's, which still reads the native census). The returned site has no Context: it is the projection's own tick.
-    /// </para>
+    /// hold, or holds without its terrain or walkability, is fogged: unknown. The returned site has no Context: it is
+    /// the projection's own tick.
     /// </summary>
     public DefenseSite DefenseSiteFromCells(IReadOnlyList<P.SiteCell> cells, P.Bounds bounds, CellRect region)
     {
@@ -216,6 +213,7 @@ public sealed partial class DefinitionCatalog
                 row = row with
                 {
                     EdificeDefName = EdificeName(edifice),
+                    EdificeStuff = edifice.Building?.Stuff ?? "",
                     PlayerOwned = edifice.Faction == P.ThingFaction.Player,
                     NaturalRock = edifice.Has(P.ThingMarks.NaturalRock) || catalog.FindThing(edifice.Def)?.mineable == true,
                 };

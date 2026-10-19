@@ -172,9 +172,13 @@ namespace HomeBridge.BridgeTools
             uint thickness = 0, hitPoints = 0;
             EquatableArray<P.Material> needed = default;
             EquatableArray<string> casket = default;
+            var stuff = "";
             if (building != null || constructible)
             {
                 category = P.ThingCategory.Building;
+                // A blueprint or frame lists the stuff it builds with, as it lists the def it builds.
+                var made = (thing as IConstructible)?.EntityToBuildStuff() ?? thing.Stuff;
+                if (made != null) stuff = Identifier(made.defName);
                 hitPoints = (uint)Math.Max(0, thing.HitPoints);
                 burning = thing.IsBurning();
                 isReserved = reserved.Contains(thing);
@@ -214,7 +218,7 @@ namespace HomeBridge.BridgeTools
                 && old.Plant.Growth == growth && old.Plant.Blighted == blighted && old.Corpse.Class == corpseClass && old.Corpse.Rot == rot
                 && old.FilthThickness == thickness && old.ItemDeterioration == deterioration
                 && (category == P.ThingCategory.Building
-                    ? old.Building is { } b && b.HitPoints == hitPoints && b.Burning == burning && b.Reserved == isReserved && b.Needed == needed && b.Casket == casket
+                    ? old.Building is { } b && b.HitPoints == hitPoints && string.Equals(b.Stuff, stuff, StringComparison.Ordinal) && b.Burning == burning && b.Reserved == isReserved && b.Needed == needed && b.Casket == casket
                     : old.Building == null))
                 return old;
             return new P.Thing
@@ -223,7 +227,7 @@ namespace HomeBridge.BridgeTools
                 Plant = category == P.ThingCategory.Plant ? new P.PlantState { Growth = growth, Blighted = blighted } : NoPlant,
                 Corpse = category == P.ThingCategory.Corpse ? new P.CorpseState { Class = corpseClass, Rot = rot } : NoCorpse,
                 FilthThickness = thickness, ItemDeterioration = deterioration,
-                Building = category == P.ThingCategory.Building ? new P.BuildingState { HitPoints = hitPoints, Burning = burning, Reserved = isReserved, Needed = needed, Casket = casket } : null,
+                Building = category == P.ThingCategory.Building ? new P.BuildingState { HitPoints = hitPoints, Stuff = stuff, Burning = burning, Reserved = isReserved, Needed = needed, Casket = casket } : null,
             };
         }
     }

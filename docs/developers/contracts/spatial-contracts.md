@@ -758,9 +758,8 @@ mirror does not hold, or holds without terrain or walkability, is fogged; the fl
 treats it as passable, because the game's pathing has no fog (raiders path the real map)
 and nothing is built within 10 tiles of the map edge, so treating fog as blocked would
 call a base sealed that raiders can enter. A fogged cell's own `EdgeReachable` is not
-asserted (read unknown). The edifice
-stuff is not in the mirror, so the waiting fight's plasteel-door hardening still reads
-the native census.
+asserted (read unknown). The edifice's stuff is the mirror thing's
+`BuildingState.Stuff` (a blueprint or frame: the stuff it builds with).
 
 Line of sight is computed in the brain over the defense census (`DefenseSight.cs`);
 the defense layout round makes no `observations_read_lines_of_fire` call. It is

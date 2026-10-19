@@ -282,7 +282,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             foreach (var b in mine)
             {
                 var key = DefenseBuildingKey(b);
-                if (b.Definition == DefenseConduitDefinition || wanted.Contains(key) || !standing.Standing(b.Definition, b.Cell))
+                if (b.Definition == DefenseConduitDefinition || wanted.Contains(key) || !standing.Standing(b))
                 {
                     continue;
                 }
@@ -339,7 +339,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     {
         foreach (var b in tier.Buildings)
         {
-            if (census.Standing(b.Definition, b.Cell))
+            if (census.Standing(b))
             {
                 return false;
             }
@@ -394,7 +394,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var lost = new HashSet<Cell>();
         foreach (var b in tier.Buildings)
         {
-            if (!census.Standing(b.Definition, b.Cell) || actions.Count == MaxDefenseRemovals)
+            if (!census.Standing(b) || actions.Count == MaxDefenseRemovals)
             {
                 continue;
             }

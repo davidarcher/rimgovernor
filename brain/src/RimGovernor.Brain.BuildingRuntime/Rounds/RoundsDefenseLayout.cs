@@ -551,6 +551,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
 internal sealed class DefenseCensus
 {
     public Dictionary<Cell, string> Edifice = [];
+
+    /// <summary>The stuff of the edifice on the cell, empty for a stuffless one.</summary>
+    public Dictionary<Cell, string> EdificeStuff = [];
     public Dictionary<Cell, string> Terrain = [];
     public Dictionary<Cell, bool> Conduits = [];
     public Dictionary<Cell, PowerSite> Consumers = [];
@@ -569,5 +572,23 @@ internal sealed class DefenseCensus
             return Terrain.GetValueOrDefault(cell) == definition;
         }
         return Edifice.GetValueOrDefault(cell) == definition;
+    }
+
+    /// <summary>
+    /// Whether <paramref name="b"/> itself stands: its definition, and for an edifice its stuff, so an old wooden wall
+    /// is told from the stone wall built in its place. An empty stored stuff matches any: the stone of a wall or door
+    /// is chosen at admission and not stored, and a stuffless definition has none.
+    /// </summary>
+    internal bool Standing(DefenseBuilding b)
+    {
+        if (!Standing(b.Definition, b.Cell))
+        {
+            return false;
+        }
+        if (b.Stuff == "" || b.Definition == RoundsDefenseLayoutPlanner.DefenseConduitDefinition || RoundsDefenseLayoutPlanner.DefenseTerrain(b.Definition))
+        {
+            return true;
+        }
+        return EdificeStuff.GetValueOrDefault(b.Cell) == b.Stuff;
     }
 }

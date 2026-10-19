@@ -93,6 +93,7 @@ public sealed class DefensePerimeterRecutTests
                 else
                 {
                     c.Edifice[b.Cell] = b.Definition;
+                    c.EdificeStuff[b.Cell] = b.Stuff;
                 }
             }
         }
@@ -151,6 +152,7 @@ public sealed class DefensePerimeterRecutTests
         var standingOld = new DefenseCensus
         {
             Edifice = oldRing.Edifice.Where(kv => !cleared.Contains(kv.Key)).ToDictionary(),
+            EdificeStuff = oldRing.EdificeStuff.Where(kv => !cleared.Contains(kv.Key)).ToDictionary(),
             Terrain = oldRing.Terrain.Where(kv => !cleared.Contains(kv.Key)).ToDictionary(),
             Conduits = oldRing.Conduits,
         };
@@ -209,6 +211,41 @@ public sealed class DefensePerimeterRecutTests
             }
         }
         Assert.True(lifted > 0 && walls >= lifted, $"lifted {lifted}, walls {walls}");
+    }
+
+    /// <summary>
+    /// The census carries each edifice's stuff (#3629): an ahead removal of the old wooden wall stands while that wall
+    /// does, and is done once a stone wall of the same def stands on its cell, which it never orders deconstructed.
+    /// </summary>
+    [Fact]
+    public void AnOldWoodWallAndANewStoneWallOnOneCellAreToldApart()
+    {
+        var plan = RingedPlan(Survey((x, z) => z % 40 < 4
+            ? new SurveyCell { Walkable = true, Footing = Footing.None, Bridgeable = true }
+            : new SurveyCell { Walkable = true, Fertility = 1 }));
+        var record = Record(plan);
+        Planner.DefenseRecutPerimeter(record, Cut(plan, LayoutDefenseRules.PerimeterBridge, [], 0), null);
+        var census = Standing(record, _ => true);
+        Planner.DefenseRecutPerimeter(record, Cut(plan, LayoutDefenseRules.PerimeterHeavyBridge, [], 0), census);
+        var removal = record.Tiers.First(t => Ahead(t) && !Lift(t) && t.Buildings.Any(b => b.Definition == Planner.DefenseDefinitionNames.Wall));
+        var wall = removal.Buildings.First(b => b.Definition == Planner.DefenseDefinitionNames.Wall);
+        Assert.Equal(LayoutDefenseRules.PerimeterLightStuff, wall.Stuff);
+
+        Assert.True(census.Standing(wall));
+        Assert.False(Planner.DefenseRemovalGone(removal, census));
+
+        var stone = Standing(record, _ => true);
+        foreach (var b in removal.Buildings)
+        {
+            stone.EdificeStuff[b.Cell] = "BlocksGranite";
+        }
+        Assert.True(stone.Standing(wall.Definition, wall.Cell));
+        Assert.False(stone.Standing(wall));
+        Assert.True(Planner.DefenseRemovalGone(removal, stone));
+        var (actions, pending, lost) = Planner.DefenseRemovalActions(new PlanId("p"), removal, stone);
+        Assert.Empty(actions);
+        Assert.False(pending);
+        Assert.Empty(lost);
     }
 
     /// <summary>
