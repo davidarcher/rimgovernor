@@ -75,8 +75,9 @@ vanilla job selection, and native publishes nothing for it: it never holds the
 clock (#3518), and the `unassigned_voluntary_pawn` Pawns invalidation it once
 raised is gone (#3556: it selected every pawn-reading planner at every review
 tick, and the unassigned colonist is already in the census the review reads).
-The idle is not a resting state: the brain's next rounds review, on its own
-cadence, assigns every such pawn it selects nothing for an explicit `Standby`
+The idle is not a resting state: a colonist that lost its activity Method makes
+the next review step run the rounds review (`freed`, #3599), which assigns every
+such pawn it selects nothing for an explicit `Standby`
 (colony wander, no work, no deadline; see [pawn activities](pawn-activities.md)).
 An unsupported need/state blocker is a visible finding
 (`unsupported_voluntary_state:<pawn>:<blocker>`), not a capacity exclusion: the

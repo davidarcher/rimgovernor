@@ -742,7 +742,8 @@ public sealed partial class Rounder
         GoalEta.Set(result.Review.Snapshot, goalEtas);
         if (result.Needs.CoupledSelection is { } compared) GoalInfeasible.Set(result.Review.Snapshot, GoalRules.InfeasibleOf(compared));
         var taken = AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
-        AdmitStandby(reading.Projection.Facts, workActions, taken, state.Snapshot, ct, epoch);
+        taken.UnionWith(AdmitStandby(reading.Projection.Facts, workActions, taken, state.Snapshot, ct, epoch));
+        result = result with { Assigned = taken };
         stages.Lap("admit");
         var attrs = new List<(string Key, object? Value)>
         {

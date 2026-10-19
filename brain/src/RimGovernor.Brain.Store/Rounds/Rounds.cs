@@ -116,6 +116,12 @@ public sealed record RoundsResult
 
     /// <summary>What an enabled review passed <c>DetectRounds</c>: the journal-enriched facts, the prior latches and the staged policy. Not journalled.</summary>
     public RoundsDetection? Detection { get; init; }
+
+    /// <summary>
+    /// The colonists whose activity orders the review's admission committed or released: the coupled selection's and
+    /// standby's (#3599). Not journalled.
+    /// </summary>
+    public IReadOnlySet<string> Assigned { get; init; } = new HashSet<string>(StringComparer.Ordinal);
 }
 
 /// <summary>One <c>InspectRounds</c> call's input.</summary>

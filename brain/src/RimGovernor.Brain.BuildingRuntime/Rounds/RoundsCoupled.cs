@@ -65,12 +65,14 @@ public sealed partial class Rounder
     /// assignment gets standby, one claimed Method per colonist under the admin/work-assignments Need. Without it an
     /// unassigned colonist stands idle until a later review assigns it.
     /// </summary>
-    private void AdmitStandby(RoundsFacts facts, WorkActionCensus actions, IReadOnlySet<string> taken, GenerationSnapshot snapshot,
+    /// <returns>The colonists standby was committed for.</returns>
+    private HashSet<string> AdmitStandby(RoundsFacts facts, WorkActionCensus actions, IReadOnlySet<string> taken, GenerationSnapshot snapshot,
         CancellationToken call, CancellationToken epoch)
     {
-        if (!Needs.Contains(AdminFamily.WorkAssignments)) return;
+        var standby = new HashSet<string>(StringComparer.Ordinal);
+        if (!Needs.Contains(AdminFamily.WorkAssignments)) return standby;
         var pawns = StandbyAssignmentsRules.StandbyPawnsOf(facts, actions, taken);
-        if (pawns.Count == 0) return;
+        if (pawns.Count == 0) return standby;
         Player.Current(call, epoch);
         if (Player.Session.State().Snapshot != snapshot) throw new ControlException("standby scope changed");
         foreach (var pawn in pawns)
@@ -85,6 +87,7 @@ public sealed partial class Rounder
                 Tel.Decide(new Decision { Kind = "standby", Component = "rounds", Target = pawn,
                     Verdict = commit.Outcome == ClaimOutcome.Conflict ? "deferred" : "selected",
                     Reason = commit.Conflict?.Reason ?? "nothing_selected", Attrs = new Dictionary<string, object?> { ["method"] = method.Value } });
+                if (commit.Outcome != ClaimOutcome.Conflict) standby.Add(pawn);
             }
             catch (NotAdmittedException refusal)
             {
@@ -92,6 +95,7 @@ public sealed partial class Rounder
                     Reason = "method_not_admitted", Attrs = new Dictionary<string, object?> { ["method"] = method.Value, ["refusal"] = refusal.Message } });
             }
         }
+        return standby;
     }
 
     /// <summary>
