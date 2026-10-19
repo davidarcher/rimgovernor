@@ -3,7 +3,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
-using RimGovernor.Contracts.Wire.Clock;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -13,9 +12,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// acceleration is on. Every Run(Ultrafast) drives the 150x boost (9000 ticks/s) under the one
 /// ceiling; test acceleration only adds the acceptance-only world patches (both acceptance profiles admit it, a player
 /// launch does not). "uncapped" is Ultrafast with them. "governor-off" is uncapped native play with no controller attached, the simulation ceiling on the
-/// same save and renderer; it builds nothing, so it is outside the outcome comparison. "player" is Ultrafast without
-/// the world patches, the mode a player launch runs: the one ceiling paces ticks per frame against its frame budget and
-/// the controller backs off before its evidence goes stale.
+/// same save and renderer; it builds nothing, so it is outside the outcome comparison.
 /// </summary>
 public sealed record SpeedCase
 {
@@ -26,11 +23,6 @@ public sealed record SpeedCase
     public bool TestAcceleration { get; init; }
 
     public bool GovernorOff { get; init; }
-
-    public bool Player { get; init; }
-
-    /// <summary>Adds <see cref="SpeedMatrix.ObservationLoadReaders"/> concurrent state readers beside the governor.</summary>
-    public bool ObservationLoad { get; init; }
 
     /// <summary>Whether the case's pawn outcome takes part in the cross-speed comparison: every governed row does.</summary>
     public bool Compared => !GovernorOff;
@@ -50,7 +42,7 @@ public sealed record SpeedCase
         return args;
     }
 
-    /// <summary>The case as its report row (json tags name, speed, test_acceleration, governor_off, player, observation_load).</summary>
+    /// <summary>The case as its report row (json tags name, speed, test_acceleration, governor_off).</summary>
     public JsonObject ToJson()
     {
         var row = new JsonObject { { "name", Name }, { "speed", Speed }, { "test_acceleration", TestAcceleration } };
@@ -59,31 +51,8 @@ public sealed record SpeedCase
             row.Set("governor_off", true);
         }
 
-        if (Player)
-        {
-            row.Set("player", true);
-        }
-
-        if (ObservationLoad)
-        {
-            row.Set("observation_load", true);
-        }
-
         return row;
     }
-}
-
-/// <summary>What the player row's checks read.</summary>
-public sealed record PlayerRow
-{
-    public IReadOnlyList<HazardGap> HazardGaps { get; init; } = [];
-
-    public ulong PacedFrames { get; init; }
-
-    public ulong OverBudget { get; init; }
-
-    /// <summary>The pacing reason of the last step that found the clock running.</summary>
-    public string LastPacingReason { get; init; } = "";
 }
 
 /// <summary>What the pawns achieved in one case: the postconditions the matrix requires to agree within a tolerance across speeds.</summary>
@@ -122,19 +91,6 @@ public static class SpeedMatrix
     /// <summary>The -speeds default: every native speed plus uncapped and governor-off.</summary>
     public const string DefaultSpeedMatrix = "Normal,Fast,Superfast,Ultrafast,uncapped,governor-off";
 
-    /// <summary>
-    /// The player row's bounds. A command queued for the game's main thread waits behind at most one frame's tick work,
-    /// so the frame budget holding is the dispatch bound: at most this share of the paced frames may exceed it (the
-    /// frame that trips the decrease, a long single tick).
-    /// </summary>
-    public const double MaxPlayerOverBudgetShare = 0.05;
-
-    /// <summary>The observation-load row's reader count: several clients' worth of state reads, well above the launcher's own cadence, so readers contend with the controller's refreshes.</summary>
-    public const int ObservationLoadReaders = 3;
-
-    /// <summary>The observation-load row's polling interval.</summary>
-    public static readonly TimeSpan ObservationLoadInterval = TimeSpan.FromMilliseconds(250);
-
     /// <summary>Turns a comma-separated -speeds value into cases, in order, refusing unknown names and repeats.</summary>
     public static IReadOnlyList<SpeedCase> ParseSpeedCases(string spec)
     {
@@ -147,8 +103,6 @@ public static class SpeedMatrix
             ["ultrafast"] = new() { Name = "Ultrafast", Speed = "Ultrafast" },
             ["uncapped"] = new() { Name = "uncapped", Speed = "Ultrafast", TestAcceleration = true },
             ["governor-off"] = new() { Name = "governor-off", Speed = "Ultrafast", TestAcceleration = true, GovernorOff = true },
-            ["player"] = new() { Name = "player", Speed = "Ultrafast", Player = true },
-            ["observation-load"] = new() { Name = "observation-load", Speed = "Ultrafast", TestAcceleration = true, ObservationLoad = true },
         };
         var cases = new List<SpeedCase>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -162,7 +116,7 @@ public static class SpeedMatrix
 
             if (!known.TryGetValue(key, out var speedCase))
             {
-                throw new AcceptanceException($"unknown speed \"{part.Trim()}\" (want Normal, Fast, Superfast, Ultrafast, uncapped, governor-off, observation-load or player)");
+                throw new AcceptanceException($"unknown speed \"{part.Trim()}\" (want Normal, Fast, Superfast, Ultrafast, uncapped or governor-off)");
             }
 
             if (!seen.Add(key))
@@ -194,67 +148,6 @@ public static class SpeedMatrix
     /// speed: 1 means the clock kept the speed's pace through every hold, below 1 is the cost of holds and slow frames.
     /// </summary>
     public static double EffectiveSpeed(double wallTps, string speed) => TargetTps(speed) is > 0 and var target ? wallTps / target : 0;
-
-    /// <summary>Lists every player-row bound the run broke.</summary>
-    public static IReadOnlyList<string> PlayerRowProblems(PlayerRow row)
-    {
-        ArgumentNullException.ThrowIfNull(row);
-        var problems = new List<string>();
-        foreach (var gap in row.HazardGaps)
-        {
-            if (gap.BoundTicks > 0 && gap.MaxTickGap > gap.BoundTicks)
-            {
-                problems.Add(string.Create(CultureInfo.InvariantCulture, $"hazard {gap.HazardClass}: widest detection gap {gap.MaxTickGap} ticks past its {gap.BoundTicks}-tick bound"));
-            }
-        }
-
-        if (row.PacedFrames == 0)
-        {
-            problems.Add("no frame ran under the clock ceiling");
-        }
-        else
-        {
-            var share = (double)row.OverBudget / row.PacedFrames;
-            if (share > MaxPlayerOverBudgetShare)
-            {
-                problems.Add(string.Create(CultureInfo.InvariantCulture, $"{row.OverBudget} of {row.PacedFrames} paced frames ({share * 100:F1}%) exceeded the frame budget"));
-            }
-        }
-
-        switch (row.LastPacingReason)
-        {
-            case "fixed" or "frame_budget":
-                break;
-            case "":
-                problems.Add("no running step reported a pacing reason");
-                break;
-            default:
-                problems.Add($"the last running step was held at \"{row.LastPacingReason}\", not the speed's own rate");
-                break;
-        }
-
-        return problems;
-    }
-
-    /// <summary>The pacing reason of the newest clock_step row that carries one.</summary>
-    public static string LastPacingReason(IReadOnlyList<TimelineRecord> rows)
-    {
-        ArgumentNullException.ThrowIfNull(rows);
-        for (var i = rows.Count - 1; i >= 0; i--)
-        {
-            if (rows[i].Kind != "clock_step")
-            {
-                continue;
-            }
-
-            if (StepFields(rows[i]).GetValueOrDefault("pacing_reason") is string { Length: > 0 } reason)
-            {
-                return reason;
-            }
-        }
-
-        return "";
-    }
 
     /// <summary>
     /// A clock_step decision row's data flat, with the step wall as elapsed_ms (dur_ms) and the step's cause as reason

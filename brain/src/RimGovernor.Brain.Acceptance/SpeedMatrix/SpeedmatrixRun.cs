@@ -13,24 +13,6 @@ using Journal = RimGovernor.Brain.Store.Store;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// What the matrix profiles differ by: the stage the fixture prepares, the save it is kept
-/// in, the tick target each row runs to and the rows compared. <c>acceptance speedmatrix</c> (plain) is the whole speed
-/// sweep on a quiet flat debug colony; <c>-profile observations</c> is the rendered observation baseline on the tribal8 colony.
-/// </summary>
-internal sealed record SpeedmatrixProfile
-{
-    public int Items { get; init; }
-
-    public int Segments { get; init; }
-
-    public ulong Ticks { get; init; }
-
-    public string Save { get; init; } = "";
-
-    public string Speeds { get; init; } = "";
-}
-
-/// <summary>
 /// Runs identical staged work at each clock speed and checks equal game outcomes.
 /// Governor-off measures the simulation ceiling outside that outcome comparison. Governed rows report wall TPS
 /// including holds, native paused fraction, hold counts by reason, resume latency and effective speed; sampled pause ratios are diagnostic only. The throughput
@@ -59,7 +41,6 @@ internal sealed partial class SpeedmatrixRun
     private const double MaxPausedFraction = 0;
     private const double MinUltrafastTpsRatio = 0;
 
-    private readonly SpeedmatrixProfile _profile;
     private readonly Session _session;
     private readonly Config _config;
     private readonly Report _report;
@@ -71,41 +52,31 @@ internal sealed partial class SpeedmatrixRun
     private string _storage = "";
     private string _walls = "";
 
-    private SpeedmatrixRun(SpeedmatrixProfile profile, Session session, Config config, Report report, IReadOnlyList<SpeedCase> cases)
+    private SpeedmatrixRun(Session session, Config config, Report report, IReadOnlyList<SpeedCase> cases)
     {
-        _profile = profile;
         _session = session;
         _config = config;
         _report = report;
         _cases = cases;
     }
 
-    /// <summary>The whole speed sweep on a quiet flat debug colony.</summary>
-    internal static SpeedmatrixProfile PlainProfile { get; } = new()
-    {
-        Items = Items,
-        Segments = Segments,
-        Ticks = Ticks,
-        Save = StageSave,
-        Speeds = SpeedMatrix.DefaultSpeedMatrix,
-    };
-
     /// <summary>
     /// Runs the matrix on the game <paramref name="session"/> opened on the throughput fixture's prepared colony: the
-    /// rows <paramref name="spec"/> names (empty: the profile's), each into its own directory under the run's output.
+    /// rows <paramref name="spec"/> names (empty: <see cref="SpeedMatrix.DefaultSpeedMatrix"/>), each into its own
+    /// directory under the run's output.
     /// </summary>
-    internal static async Task RunAsync(Session session, Config config, Report report, SpeedmatrixProfile p, string spec, CancellationToken cancellationToken)
+    internal static async Task RunAsync(Session session, Config config, Report report, string spec, CancellationToken cancellationToken)
     {
         if (spec.Length == 0)
         {
-            spec = p.Speeds;
+            spec = SpeedMatrix.DefaultSpeedMatrix;
         }
 
         var speedCases = SpeedMatrix.ParseSpeedCases(spec);
-        var m = new SpeedmatrixRun(p, session, config, report, speedCases);
+        var m = new SpeedmatrixRun(session, config, report, speedCases);
         m._report["speeds_spec"] = spec;
         m._report["speeds"] = OutputJson.Array(speedCases, c => c.ToJson());
-        m._report["tick_target"] = p.Ticks;
+        m._report["tick_target"] = Ticks;
 
         // What the baseline was measured on: the revision, the world and mod set, the host, the launch's resolution and
         // the measured interval's bounds. A row's own wall_seconds completes it.
@@ -220,15 +191,15 @@ internal sealed partial class SpeedmatrixRun
         _storage = CellList(prepared.StorageCells.Select(c => (c.X, c.Z)));
         _walls = CellList(prepared.Sites.Select(s => (s.X, s.Z)));
 
-        if (prepared.Sites.Count != _profile.Segments)
+        if (prepared.Sites.Count != Segments)
         {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"stage laid out {prepared.Sites.Count} wall sites, want {_profile.Segments}"));
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"stage laid out {prepared.Sites.Count} wall sites, want {Segments}"));
         }
 
         // Frozen needs do not survive a reload (the op is per game), so the save carries the stage only; each case
         // freezes again after loading.
         var started = DateTime.UtcNow;
-        _ = await h.CallAsync("save-stage", "rimgovernor/save_game", HostJson.Arguments(new SaveGameRequest { SaveName = _profile.Save }), cancellationToken).ConfigureAwait(false);
+        _ = await h.CallAsync("save-stage", "rimgovernor/save_game", HostJson.Arguments(new SaveGameRequest { SaveName = StageSave }), cancellationToken).ConfigureAwait(false);
         await WaitSavedAsync(started, cancellationToken).ConfigureAwait(false);
     }
 
@@ -247,7 +218,7 @@ internal sealed partial class SpeedmatrixRun
             var now = DateTime.UtcNow;
             foreach (var dir in new[] { "headless-profile", "profile" })
             {
-                var candidate = Path.Combine(root, dir, "Saves", _profile.Save + ".rws");
+                var candidate = Path.Combine(root, dir, "Saves", StageSave + ".rws");
                 var info = new FileInfo(candidate);
                 if (!info.Exists || info.Length == 0 || info.LastWriteTimeUtc < started.AddSeconds(-1))
                 {
@@ -271,7 +242,7 @@ internal sealed partial class SpeedmatrixRun
 
             if (now > deadline)
             {
-                throw new AcceptanceException($"stage save {_profile.Save} did not appear under {root} within 90s");
+                throw new AcceptanceException($"stage save {StageSave} did not appear under {root} within 90s");
             }
 
             await pace.NextAsync(cancellationToken).ConfigureAwait(false);
@@ -307,13 +278,12 @@ internal sealed partial class SpeedmatrixRun
     {
         ServiceProcess? service = null;
         Journal? journal = null;
-        ObservationReaders? readers = null;
         Func<Task<JsonObject>>? stopKeepAlive = null;
         var started = DateTime.UtcNow;
         try
         {
             var h = HarnessFor(output);
-            _ = await h.LoadGameReadyAsync("load-stage", new() { SaveName = _profile.Save }, cancellationToken).ConfigureAwait(false);
+            _ = await h.LoadGameReadyAsync("load-stage", new() { SaveName = StageSave }, cancellationToken).ConfigureAwait(false);
             _ = await h.PauseClockAsync("pause", cancellationToken).ConfigureAwait(false);
             var identity = await ReadIdentityAsync(h, cancellationToken).ConfigureAwait(false);
             report["frozen_needs"] = (await Needs.FreezeNeedsAsync(h, null, [], cancellationToken).ConfigureAwait(false)).DeepClone();
@@ -344,12 +314,6 @@ internal sealed partial class SpeedmatrixRun
             var rootPlanId = await service.ResumeAsync(prefix, identity, token, report, cancellationToken).ConfigureAwait(false);
             report["root_plan"] = rootPlanId;
 
-            // The observation-load row: concurrent state readers.
-            if (c.ObservationLoad)
-            {
-                readers = ObservationReaders.Start(service, SpeedMatrix.ObservationLoadReaders, SpeedMatrix.ObservationLoadInterval, cancellationToken);
-            }
-
             // The row's native clock accounting is the difference between this read and the one when the wait ends.
             var accountingStart = await ClockAccounting.ReadAsync(h, "clock-accounting-start", cancellationToken).ConfigureAwait(false);
             var resumedAt = DateTimeOffset.UtcNow;
@@ -370,7 +334,7 @@ internal sealed partial class SpeedmatrixRun
                     {
                         var review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
                         lastTick = ReviewedTick(review, rowWorld, startTick);
-                        return (Wait.Signature(lastTick), lastTick >= startTick + _profile.Ticks);
+                        return (Wait.Signature(lastTick), lastTick >= startTick + Ticks);
                     },
                     cancellationToken).ConfigureAwait(false);
             }
@@ -393,7 +357,7 @@ internal sealed partial class SpeedmatrixRun
                     _ = e;
                 }
 
-                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"tick target wait (start {startTick}, last {lastTick}, want +{_profile.Ticks}): {waitErr.Message}"), waitErr);
+                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"tick target wait (start {startTick}, last {lastTick}, want +{Ticks}): {waitErr.Message}"), waitErr);
             }
 
             var accountingEnd = await ClockAccounting.ReadAsync(h, "clock-accounting-end", cancellationToken).ConfigureAwait(false);
@@ -401,14 +365,6 @@ internal sealed partial class SpeedmatrixRun
             report["plans_inspected"] = planCount;
             journal.Dispose();
             journal = null;
-            JsonObject? readerSummary = null;
-            if (readers is not null)
-            {
-                readerSummary = await readers.StopAsync().ConfigureAwait(false);
-                report["readers"] = readerSummary.DeepClone();
-                readers = null;
-            }
-
             report["authority_reacquisitions"] = (await stopKeepAlive().ConfigureAwait(false)).DeepClone();
             stopKeepAlive = null;
             _ = await service.StopAsync().ConfigureAwait(false);
@@ -425,16 +381,6 @@ internal sealed partial class SpeedmatrixRun
             var holds = StopSummaries.SummarizeHolds(timeline, resumedAt.ToUnixTimeMilliseconds());
             report["holds"] = holds.ToJson();
             var metrics = CaseMetrics(c, phases, holds, startTick, lastTick, wallSeconds);
-            if (readerSummary is not null)
-            {
-                metrics.Add("readers", readerSummary.DeepClone());
-                var readerProblems = ObservationReaders.ReaderProblems(readerSummary);
-                if (readerProblems.Count > 0)
-                {
-                    throw new AcceptanceException("observation-load row: " + string.Join("; ", readerProblems));
-                }
-            }
-
             report["metrics"] = metrics.DeepClone();
             AppendMetrics(metrics);
 
@@ -458,31 +404,10 @@ internal sealed partial class SpeedmatrixRun
                 UnsuccessfulStages = unsuccessful,
             };
             report["outcome"] = outcome.ToJson();
-            if (c.Player)
-            {
-                // Player acceleration's bounds, checked on the row's own recording once the outcome above has been read.
-                var problems = SpeedMatrix.PlayerRowProblems(new PlayerRow
-                {
-                    HazardGaps = phases.Clock.NativeHazardGaps,
-                    PacedFrames = phases.Clock.NativePacedFrames,
-                    OverBudget = phases.Clock.NativePacedOverBudget,
-                    LastPacingReason = SpeedMatrix.LastPacingReason(timeline),
-                });
-                if (problems.Count > 0)
-                {
-                    throw new AcceptanceException("player row: " + string.Join("; ", problems));
-                }
-            }
-
             return outcome;
         }
         finally
         {
-            if (readers is not null)
-            {
-                report["readers"] = (await readers.StopAsync().ConfigureAwait(false)).DeepClone();
-            }
-
             if (stopKeepAlive is not null)
             {
                 report["authority_reacquisitions"] = (await stopKeepAlive().ConfigureAwait(false)).DeepClone();
@@ -623,9 +548,8 @@ internal sealed partial class SpeedmatrixRun
             ("case", c.Name),
             ("speed", c.Speed),
             ("test_acceleration", c.TestAcceleration),
-            ("player", c.Player),
 
-            // Player acceleration's frame account: frames paced, those over the frame budget and the widest frame's tick work.
+            // The one ceiling's frame account: frames paced, those over the frame budget and the widest frame's tick work.
             ("paced_frames", clock.NativePacedFrames),
             ("paced_frames_over_budget", clock.NativePacedOverBudget),
             ("max_paced_frame_ms", clock.NativeMaxPacedFrameMs),

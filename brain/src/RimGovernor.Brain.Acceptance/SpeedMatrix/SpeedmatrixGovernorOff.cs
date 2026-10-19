@@ -36,7 +36,7 @@ internal sealed partial class SpeedmatrixRun
     private async Task RunGovernorOffCoreAsync(SpeedCase c, string output, Report report, CancellationToken cancellationToken)
     {
         var h = HarnessFor(output);
-        _ = await h.LoadGameReadyAsync("load-stage", new() { SaveName = _profile.Save }, cancellationToken).ConfigureAwait(false);
+        _ = await h.LoadGameReadyAsync("load-stage", new() { SaveName = StageSave }, cancellationToken).ConfigureAwait(false);
         _ = await h.PauseClockAsync("pause", cancellationToken).ConfigureAwait(false);
         var identity = await ReadIdentityAsync(h, cancellationToken).ConfigureAwait(false);
         report["frozen_needs"] = (await Needs.FreezeNeedsAsync(h, null, [], cancellationToken).ConfigureAwait(false)).DeepClone();
@@ -56,7 +56,7 @@ internal sealed partial class SpeedmatrixRun
                     var tick = await ReadTickAsync(h, string.Create(CultureInfo.InvariantCulture, $"tick-{reads}"), ct).ConfigureAwait(false);
                     reads++;
                     lastTick = tick;
-                    return (Wait.Signature(lastTick), lastTick >= startTick + _profile.Ticks);
+                    return (Wait.Signature(lastTick), lastTick >= startTick + Ticks);
                 },
                 cancellationToken).ConfigureAwait(false);
         }
@@ -78,7 +78,7 @@ internal sealed partial class SpeedmatrixRun
         report["wait"] = OutputJson.Fields(("start_tick", startTick), ("last_tick", lastTick), ("wall_seconds", wallSeconds), ("tick_reads", reads));
         if (waitErr is not null)
         {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"tick target wait (start {startTick}, last {lastTick}, want +{_profile.Ticks}): {waitErr.Message}"), waitErr);
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"tick target wait (start {startTick}, last {lastTick}, want +{Ticks}): {waitErr.Message}"), waitErr);
         }
 
         // No supervisor runs on this row, so native's pause account holds whatever its own transitions recorded (none).

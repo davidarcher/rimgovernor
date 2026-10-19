@@ -101,31 +101,6 @@ internal sealed record NativeWaitArguments
     public long? TimeoutMs { get; init; }
 }
 
-/// <summary>
-/// The observation-load readers' summary row (<see cref="ObservationReaders.StopAsync"/>): written into the speed
-/// matrix row and read back by <see cref="ObservationReaders.ReaderProblems"/>.
-/// </summary>
-public sealed record ReadersSummary
-{
-    public int Readers { get; init; }
-
-    public ulong Reads { get; init; }
-
-    public ulong Errors { get; init; }
-
-    [JsonPropertyName("duration_s")]
-    public double DurationS { get; init; }
-
-    [JsonPropertyName("read_p50_ms")]
-    public double ReadP50Ms { get; init; }
-
-    [JsonPropertyName("read_p95_ms")]
-    public double ReadP95Ms { get; init; }
-
-    [JsonPropertyName("read_max_ms")]
-    public double ReadMaxMs { get; init; }
-}
-
 /// <summary>A speed matrix metrics row as <see cref="SpeedMetrics.FromRows"/> reads it; a missing number is -1.</summary>
 internal sealed record SpeedMetricsRow
 {
@@ -190,6 +165,5 @@ internal static class HarnessJson
 internal sealed partial class HarnessJsonContext : JsonSerializerContext;
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
-[JsonSerializable(typeof(ReadersSummary))]
 [JsonSerializable(typeof(SpeedMetricsRow))]
 internal sealed partial class HarnessRowJsonContext : JsonSerializerContext;

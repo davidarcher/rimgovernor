@@ -33,9 +33,9 @@ the frame path itself, so the same gates apply.
 The acceptance-only clock accounting read
 (`rimgovernor/acceptance_read_clock_accounting`) reports the widest gap
 observed in the loaded game as `sessionMaxProbeTickGap`, and per class beside
-the declared bound as `hazardGaps`. The speedmatrix row carries them as
-`max_probe_tick_gap` and `hazard_gaps`; the `hazard/*` cases check the class's
-entry.
+the declared bound as `hazardGaps`. Each governed `acceptance speedmatrix` row
+reports them as `max_probe_tick_gap` and `hazard_gaps` without checking them;
+the `hazard/*` cases are the only check, each on its own class's entry.
 
 ## Declared bound per hazard class
 
@@ -139,8 +139,8 @@ The digest pass runs from the frame path after the probe gate, never from
 and the run timing summary (`probeMs`, `digestMs`) and the clock accounting
 read (`probeElapsedMs`, `digestElapsedMs`, `probeTotal`, `digestTotal`)
 carry the two counters apart. The [throughput
-measure](../testing/measure-throughput.md) reports `digest_share` per
-speedmatrix row.
+measure](../testing/measure-throughput.md) reports `digest_share` per governed
+`acceptance speedmatrix` row.
 
 ## Armed combat stops
 

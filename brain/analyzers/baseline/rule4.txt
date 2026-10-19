@@ -19,7 +19,6 @@ Acceptance/Launch/RunAt.cs|RunAt.RunUntilAsync
 Acceptance/Launch/Stale.cs|StalePackage.FixtureFlags
 Acceptance/Launch/Warm.cs|Game.TryDelete
 Acceptance/Launch/World.cs|WorldRecords.Record
-Acceptance/Lifecycle/ObservationReaders.cs|ObservationReaders.ReadLoopAsync
 Acceptance/Native/HttpNativeTransport.cs|HttpNativeTransport.ReadFailure
 Acceptance/Postmortem/Postmortems.cs|Postmortems.Collect
 Acceptance/Postmortem/Postmortems.cs|Postmortems.TryKill

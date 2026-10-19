@@ -105,7 +105,7 @@ Rows are `DefaultSpeedMatrix`
 (`Normal,Fast,Superfast,Ultrafast,uncapped,governor-off`);
 `-speeds uncapped,governor-off` narrows a run. The command has its own driver
 (`brain/src/RimGovernor.Brain.Acceptance/SpeedMatrix`) outside the case runner and the catalog; per-row
-reports and `result.json` go to `-output` (default `<root>/acceptance/speedmatrix-<profile>`), `-timeout`
+reports and `result.json` go to `-output` (default `<root>/acceptance/speedmatrix`), `-timeout`
 (15m) bounds the run, and exit 0 is a pass, 1 a failed matrix, 2 a usage error.
 A governed row's timeline is its slice of the in-game brain's OTLP rings (`CaseEvidence`, as a cataloged
 case's evidence), written to `<row>/otlp/`; its tick-budget wait reads the newest enabled review of the row's own load
@@ -149,40 +149,9 @@ unsuccessful plan stage, or nothing hauled or built. `max_paused_fraction` and
 `min_ultrafast_tps_ratio` are written to the report and checked at zero:
 reported, not enforced.
 
-## Observation baseline
+## Observation-work accounting
 
-`acceptance speedmatrix -profile observations` is the repeatable rendered workload that
-observation-cost numbers are read against; it reuses the speed matrix's staging
-and reporting:
-
-```bash
-RimGovernor.cmd acceptance speedmatrix -profile observations -root <abs root>
-```
-
-It loads the generated `RimGovernor-tribal8-baseline` colony with
-`test/throughput_prepare` applied, always windowed (not headless, since update
-intervals are a player's only when the game draws), one clock speed and one
-tick target. Rows: `governor-off` (ungoverned update-interval ceiling; its
-accounts come off its own tick reads' envelopes), `uncapped` (ordinary governed
-run), `observation-load` (the `uncapped` row plus three concurrent readers
-polling `/api/state` every 250 ms; it adds `readers`, and a load row with no
-successful read fails) and `player`. Every row asks for the same speed and
-staged work, so differences are observation cost.
-
-Each row's `speed_metrics` carries the speed matrix's clock, step and hold
-columns; the companion's per-hop observation and frame accounts are no longer
-recorded. `provenance` records the
-revision, host, mod set, launch arguments, rows, tick target, stage and camera,
-and the report's `world` block the seed, save and fixture hashes.
-
-Rules:
-
-- Thresholds come from a baseline run of this profile on a declared runner, never
-  from the candidate being judged; a unit test does not fail on a busy CI.
-- To isolate emergency-only work from a full bundle, narrow the rows with
-  `-speeds`; there is no diagnostic bypass.
-
-Isolate the accounting itself, with no game, through the contract probe (all
+Isolate the native observation-work accounting, with no game, through the contract probe (all
 clocks supplied; it also pins the 48-section per-hop cap, the 8-entry
 worst-interval ring and the session reset):
 
@@ -197,14 +166,13 @@ run on the shared-machine rules in `AGENTS.md`. Record machine (CPU, GPU, RAM), 
 with the numbers. The frame budget, heartbeat tolerance, combat resume budget, Normal fallback and autosave cadence are
 unmeasured guesses until this run is recorded (#3199).
 
-1. Run `acceptance speedmatrix -profile observations` (above) for frame time at each speed: read `frames` p50/p95/p99 per row and the
+1. Run `acceptance colony-review -root <bridge> -days 1` (one in-game day of ordinary play) and read the
    `clock_step` fields `pacing_reason`, `paced_tps`, `tps_ceiling` and `effective_tps` in `otlp/logs.jsonl` for
    how the one ceiling holds the rate and recovers. Every `clock_hold` row also carries the run it ended: `run_ticks`,
    `run_ms`, `run_tps`, `run_frames`, `run_frames_over_budget` and `ceiling_tps`, so effective ticks/s per run segment
-   needs no step to catch the clock running.
-   A plain `acceptance colony-review -root <bridge> -days 1` gives the same rows for one in-game day of ordinary play (the
-   2026-10-18 baseline came from it; its brain ring is `<bridge>/config-headless/rimgovernor-trial/logs.jsonl`, filtered by
-   the run's `service.instance.id`).
+   needs no step to catch the clock running. The 2026-10-18 baseline came from it; its brain ring is
+   `<bridge>/config-headless/rimgovernor-trial/logs.jsonl`, filtered by the run's `service.instance.id`. No check
+   records rendered frame time per speed.
 2. Critical wave and review scope: take `critical_wave_ms` from the `clock_step` rows and `dur_ms` from `rounds_review` /
    `planner_step` rows of the same run; report p50/p95/max.
 3. Hazard hold to resume: take `stop_latency_ms` from `clock_step` rows that follow a `clock_stop` or `clock_hold`;
@@ -216,5 +184,4 @@ unmeasured guesses until this run is recorded (#3199).
 6. Write the values, machine and run into the brain-host table and mark each recommended budget measured or guess.
 
 Rerun the native check when the clock scheduler, step cache or
-Ultrafast/acceleration path changes; the observation baseline when the capture, encoding or main-thread admission
-path changes.
+Ultrafast/acceleration path changes.

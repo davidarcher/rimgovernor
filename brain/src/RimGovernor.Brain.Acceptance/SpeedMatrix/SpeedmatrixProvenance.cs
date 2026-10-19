@@ -4,27 +4,10 @@ using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>
-/// The observations profile compares the same staged colony at the same clock speed and useful-work budget across
-/// governor-off, ordinary governed, concurrent-reader and player runs.
-/// </summary>
+/// <summary>The matrix report's provenance: what a rerun would have to match for its numbers to be comparable.</summary>
 internal sealed partial class SpeedmatrixRun
 {
-    /// <summary>
-    /// The workload: the same stage size as the plain matrix (so the useful work is the work that matrix already
-    /// measures) kept in its own save, and the rows compared.
-    /// </summary>
-    internal static SpeedmatrixProfile ObservationsProfile { get; } = new()
-    {
-        Items = Items,
-        Segments = Segments,
-        Ticks = Ticks,
-        Save = "RimGovernor-observations-stage",
-        Speeds = "governor-off,uncapped,observation-load,player",
-    };
-
-    // What the baseline was measured on: what a rerun would have to match for the numbers to be comparable. The world
-    // (seed, save and its hash, fixture hash) and the installed build's hashes are the report's own "world" and
+    // The world (seed, save and its hash, fixture hash) and the installed build's hashes are the report's own "world" and
     // "package_files" blocks; this names the rest.
     private JsonObject Provenance()
     {
@@ -45,19 +28,10 @@ internal sealed partial class SpeedmatrixRun
                 ("arch", arch),
                 ("cpus", Environment.ProcessorCount),
                 ("gomaxprocs", Environment.ProcessorCount))),
-            ("speeds", _profile.Speeds),
-            ("tick_target", _profile.Ticks),
-            ("stage", OutputJson.Fields(("save", _profile.Save), ("items", _profile.Items), ("wall_segments", _profile.Segments))),
-
-            // The rows' fixed requirements: the same clock speed and the same useful work, so only the observation load differs.
-            ("fixed", "every row asks for the same clock speed and the same staged work; rows differ only by the controller and the observation load"),
-            ("camera", "the stage save's own camera position, restored by the reload; no row commands the camera"),
+            ("tick_target", Ticks),
+            ("stage", OutputJson.Fields(("save", StageSave), ("items", Items), ("wall_segments", Segments))),
             ("warmup", "the reload, the needs freeze and the resume precede the measured interval"),
-            ("measured_interval", "per row: wall_seconds from resume to the tick budget"),
-            ("load", "the observation-load row adds concurrent /api/state readers (#656); the other rows hold none"),
-            ("readers", OutputJson.Fields(
-                ("count", SpeedMatrix.ObservationLoadReaders),
-                ("interval_ms", (long)SpeedMatrix.ObservationLoadInterval.TotalMilliseconds))));
+            ("measured_interval", "per row: wall_seconds from resume to the tick budget"));
 
         // The mod set the launch activated: the headless profile when the run is headless, the windowed profile otherwise.
         var dir = cfg.Headless ? "headless-profile" : "profile";

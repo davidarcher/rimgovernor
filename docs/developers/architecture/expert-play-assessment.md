@@ -248,7 +248,7 @@ demonstrated benefit yet.
 
 | Dimension | Measure and baseline | Existing home |
 | --- | --- | --- |
-| Throughput | Governed wall TPS divided by the same fixture's ungoverned TPS; native pause fraction; observation main-thread cost | [Speedmatrix and observation workload](../testing/measure-throughput.md) |
+| Throughput | Governed wall TPS divided by the same fixture's ungoverned TPS; native pause fraction | [Speedmatrix](../testing/measure-throughput.md#across-clock-speeds) |
 | Protection | Onset → detection → decision → dispatch → first native protective effect in ticks; stop → resume in monotonic wall time | Hazard cases, scheduler tests, combatlab and OTLP traces |
 | Disaster recovery | Duration of unmet food/temperature/medical obligations; native restoration; losses in declared scenarios | Focused staged cases (long-horizon recovery: #2351) |
 | Development | Time to useful completed capability; outstanding work and disrupted work; survival reserves during construction | Snapshot decisions and supply matrices |

@@ -52,8 +52,8 @@ speed and its clamp relies on.
     `clock_step` row and the Observe tab's Now view. `Status` carries no other accounting: the frame account,
     the pause/run split, the probe and digest work and the hazard gaps are the acceptance-only
     `rimgovernor/acceptance_read_clock_accounting` read (`AcceptanceReadTools`), which production never calls.
-  - `acceptance speedmatrix -profile observations`' `player` row checks the hazard gaps, the over-budget frame share and the
-    queued-command dispatch wait (the manual-command dispatch bound).
+  - The over-budget frame share and the queued-command dispatch wait (the manual-command dispatch bound) have no
+    check; the hazard gaps are checked only by the `hazard/*` cases (one staged Ultrafast run per class).
 
 ## Prepared profiles
 

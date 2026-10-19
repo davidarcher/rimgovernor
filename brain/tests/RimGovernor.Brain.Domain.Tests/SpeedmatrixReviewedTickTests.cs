@@ -22,7 +22,7 @@ public sealed class SpeedmatrixReviewedTickTests
     [Fact]
     public void TheResumesDisabledReviewKeepsTheReloadTick()
     {
-        // The observation-load row's journal right after resume: the uncapped row's world and last tick, disabled.
+        // A row's journal right after resume: the previous row's world and last tick, disabled.
         var carried = new Rounds { Revision = 5, Snapshot = World("previous-load"), Tick = new Tick(60_000), Enabled = false };
 
         Assert.Equal(Reload, SpeedmatrixRun.ReviewedTick(carried, Row, Reload));
