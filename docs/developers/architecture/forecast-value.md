@@ -68,7 +68,8 @@ term is unknown), and the outcome is ranked on what remains. Pruning partial por
 stage 3 ([#3472](https://github.com/davidarcher/rimgovernor/issues/3472)).
 
 - No pawn's food or rest reaches zero, unless every feasible portfolio does.
-  Then the least zero-time wins, as today.
+  Then the least zero-time wins, as today. Zero-times less than a tick apart are the same
+  floor, so summing residue never outranks the ledger (#3598).
 - Expected raid deaths over the horizon do not rise above the baseline by more
   than `DeathRiskFloor`.
 - Each pawn's break risk stays under `BreakRiskCap`. The risk is the expected breaks over the horizon, per pawn-day.

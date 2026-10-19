@@ -62,6 +62,11 @@ public sealed partial record ForecastCoupledSelection
     public const string GoalInfeasiblePrefix = "goal_infeasible:";
 
     private const int SeedShare = 4;
+    /// <summary>The urgent-zero floor is time at zero in game ticks, and needs advance in whole ticks: two excesses less than
+    /// a tick apart are the same floor. Summed rates leave sub-tick residue that differs by plan (review 0 of
+    /// production/coupled-needs, #3598: 39374.99978028881 against ...882 let a waking plan with 0.40 days more rest loss
+    /// beat the plan that slept), so a residue never decides ahead of the ledger.</summary>
+    internal const double UrgentZeroResolutionTicks = 1;
     /// <summary>Scheduler bound of a screening evaluation. The depth-first schedule search reaches its first complete
     /// plans within a few expansions per activity and spends the rest of a larger bound varying the last tasks, so a
     /// portfolio's consequences are ranked from the first few dozen plans; the 4,096 bound confirms the final choice.</summary>
@@ -152,7 +157,7 @@ public sealed partial record ForecastCoupledSelection
             var death = vector.Value.Death.Excess - against.Value.Death.Excess;
             foreach (var contribution in vector.Value.Ledger.GoalContributions)
             {
-                var route = zero > 0 ? ("urgent_zero", zero) : death > 0 ? ("death_risk_floor", death) : cap > 0 ? ("break_risk_cap", cap) : ("", 0d);
+                var route = zero >= UrgentZeroResolutionTicks ? ("urgent_zero", zero) : death > 0 ? ("death_risk_floor", death) : cap > 0 ? ("break_risk_cap", cap) : ("", 0d);
                 if (!goalRoutes.TryGetValue(contribution.Goal, out var seen) || route.Item1 == "" || !seen.Open && route.Item2 < seen.Excess)
                     goalRoutes[contribution.Goal] = (route.Item1 == "" || seen.Open, route.Item1, route.Item2);
             }
@@ -662,15 +667,17 @@ public sealed partial record ForecastCoupledSelection
     }
 
     /// <summary>
-    /// Negative when <paramref name="a"/> is better. The order (#3522): the safety floors (a broken urgent-zero floor, then the
+    /// Negative when <paramref name="a"/> is better. The order (#3522): the safety floors (a broken urgent-zero floor, compared
+    /// to <see cref="UrgentZeroResolutionTicks"/>, then the
     /// death floor (#3546), then a broken break-risk floor; the least excess wins when both sides break one); the capability-days ledger, lower loss
     /// winning over the terms both sides assess, a difference within <see cref="ForecastValuePolicy.TieResolution"/> being a tie;
     /// then the terms with no mechanical conversion yet, in the order below. Zero leaves the incumbent rule and labor to the caller.
     /// </summary>
     internal static int CompareConsequences(ForecastConsequenceVector a, ForecastConsequenceVector b)
     {
-        var floor = a.Value.UrgentZero.Excess.CompareTo(b.Value.UrgentZero.Excess); if (floor != 0) return floor;
-        floor = a.Value.Death.Excess.CompareTo(b.Value.Death.Excess); if (floor != 0) return floor;
+        var zero = a.Value.UrgentZero.Excess - b.Value.UrgentZero.Excess;
+        if (Math.Abs(zero) >= UrgentZeroResolutionTicks) return zero.CompareTo(0);
+        var floor = a.Value.Death.Excess.CompareTo(b.Value.Death.Excess); if (floor != 0) return floor;
         floor = a.Value.BreakRisk.Excess.CompareTo(b.Value.BreakRisk.Excess); if (floor != 0) return floor;
         if (a.Value.Ledger.LossAgainst(b.Value.Ledger).TryGetValue(out var delta) && Math.Abs(delta) > a.Value.Policy.TieResolution)
             return delta.CompareTo(0);

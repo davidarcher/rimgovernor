@@ -53,7 +53,9 @@ active multi-task services and unknown route or service estimates remain protect
 The conditional comparison removes only that exact incumbent's claims; it does not
 release native reservations or change the journal's admission view. True ties
 retain work. A winning replacement first journals an exact revisioned release;
-replacement admission waits for a fresh observation. A forecast of future work
+the released pawn's replacement admission waits for a fresh observation, and the
+rest of the selection (other pawns' work that waits on none of the incumbent's
+pawns or tasks) is admitted in the same review (#3598). A forecast of future work
 after retention does not authorize a second owner for the same pawn.
 
 ## Control boundary and unsupported states

@@ -242,6 +242,29 @@ public sealed class ForecastValueTests
     }
 
     [Fact]
+    public void ASubTickUrgentZeroResidueDoesNotOutrankTheRestLoss()
+    {
+        // Review 0 of production/coupled-needs (#3598): the sleeping plan's food zero time summed to 39374.99978028882 ticks and the
+        // working plan's to ...881, and that residue ranked the working plan first despite its 0.40 days of rest loss.
+        static ForecastNeedMetric Hungry(double zero) => Calm().Needs.Single(n => n.Kind == "food") with { ZeroTicks = Known(zero), ZeroSpans = [new(Day - zero, Day)] };
+        var exhausted = Exhausted(new ForecastNeedSpan(Day - 33068, Day)).Needs.Single(n => n.Kind == "rest");
+        var rested = Calm().Needs.Single(n => n.Kind == "rest");
+        var working = Calm() with { Needs = [exhausted, Hungry(39374.99978028881)] };
+        var sleeping = Calm() with { Needs = [rested, Hungry(39374.99978028882)] };
+        var context = Context(Pawn());
+
+        var work = ForecastCoupledSelection.CoupledConsequences(Outcome(working), [], context, Day, Outcome(sleeping), null);
+        var sleep = ForecastCoupledSelection.CoupledConsequences(Outcome(sleeping), [], context, Day, Outcome(sleeping), null);
+
+        Assert.True(sleep.Value.UrgentZero.Excess > work.Value.UrgentZero.Excess);
+        Assert.True(ForecastCoupledSelection.CompareConsequences(sleep, work) < 0);
+        Assert.True(ForecastCoupledSelection.CompareConsequences(work, sleep) > 0);
+        // A whole tick is a different floor.
+        var later = ForecastCoupledSelection.CoupledConsequences(Outcome(sleeping with { Needs = [rested, Hungry(39376)] }), [], context, Day, Outcome(sleeping), null);
+        Assert.True(ForecastCoupledSelection.CompareConsequences(later, work) > 0);
+    }
+
+    [Fact]
     public void AnUnassessedRestTimelineLeavesTheRestTermUnknown()
     {
         var pawn = Pawn();

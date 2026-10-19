@@ -10,7 +10,7 @@ public sealed partial class Rounder
     {
         var taken = new HashSet<string>(StringComparer.Ordinal);
         if (review.Needs.CoupledSelection is not { } selection || facts.CoupledAlternatives is not { } candidates) return taken;
-        var execution = ForecastCoupledExecution.ReviewCoupledExecution(selection, incumbents, facts.Tick.Value);
+        var execution = ForecastCoupledExecution.ReviewCoupledExecution(selection, incumbents, facts.Tick.Value, candidates.Context.Activities.Activities);
         if (execution.Releases.Count > 0)
         {
             Player.Current(call, epoch);
@@ -23,8 +23,8 @@ public sealed partial class Rounder
                     [release.Incumbent.Ownership, .. release.Incumbent.ReleasedOwnership], new PlanSpec(next, new PlanRevision(1),
                         [DomainAction.NewPawnActivitiesAction(new ActionId($"{next}-0"), release.Batch)]), call);
             }
-            RecordCoupledSelection(selection, facts.Tick.Value, "release_for_reconsideration");
-            return taken; // Fresh native ownership evidence precedes replacement admission.
+            // The released pawn waits for fresh native ownership evidence; the rest of the selection is admitted now (#3598).
+            if (execution.Dispatch is null) { RecordCoupledSelection(selection, facts.Tick.Value, "release_for_reconsideration"); return taken; }
         }
         if (execution.Dispatch is not { } dispatch)
         { RecordCoupledSelection(selection, facts.Tick.Value, "retained_method_future_work", true); return taken; }

@@ -26,7 +26,8 @@ The comparison horizon is one game day. The order (see
 [forecast value](forecast-value.md#comparator)) is:
 
 1. **Safety floors.** A portfolio that lets a pawn's food or rest reach zero loses to one that does not;
-   when every feasible portfolio does, the least zero-time wins. A portfolio whose expected mental breaks
+   when every feasible portfolio does, the least zero-time wins; zero-times less than a tick apart tie
+   (`UrgentZeroResolutionTicks`, [#3598](https://github.com/davidarcher/rimgovernor/issues/3598)). A portfolio whose expected mental breaks
    exceed `BreakRiskCap` per pawn-day loses likewise. A floor that cannot be checked says so
    (`break_floor_unassessed`, `death_floor_unassessed`) and does not pass or fail anything.
 2. **Capability-days.** Hunger, rest, food poisoning, thermal exposure, mental breaks and

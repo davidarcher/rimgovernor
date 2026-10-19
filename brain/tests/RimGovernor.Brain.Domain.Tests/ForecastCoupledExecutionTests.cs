@@ -84,4 +84,19 @@ public sealed class ForecastCoupledExecutionTests
         Assert.True(release.Release);
         Assert.Empty(release.Steps);
     }
+
+    /// <summary>#3598 (d): a selection that replaces an incumbent releases only that incumbent and admits the rest of the plan
+    /// now, without the released pawn's new work and without work that waits on it; nothing is lost for a review.</summary>
+    [Fact]
+    public void ReplacementReleasesTheConflictingIncumbentAndDispatchesTheRest()
+    {
+        var selection = Selection(("eat", "pawn"), ("harvest", "worker"), ("sleep", "worker"), ("haul", "other"));
+        selection = selection with { Selection = selection.Selection with { Selected = ["eat", "harvest", "sleep", "haul"] } };
+        ForecastActivity[] activities = [new("eat", "a", "a", []), new("harvest", "b", "b", []), new("sleep", "c", "c", ["harvest"]),
+            new("haul", "d", "d", ["eat"])];
+        var result = ForecastCoupledExecution.ReviewCoupledExecution(selection, [Incumbent], 100, activities);
+        Assert.Equal("pawn", Assert.Single(Assert.Single(result.Releases).Batch.Orders).Pawn);
+        Assert.Equal(["harvest", "sleep"], result.Dispatch!.Selection.Plan!.Allocations.Select(a => a.Activity));
+        Assert.All(result.Dispatch.Selection.Plan.Allocations, a => Assert.Equal("worker", a.Pawn));
+    }
 }
