@@ -6,6 +6,7 @@ using RimGovernor.Contracts.Host;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Telemetry.Otlp;
+using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Journal = RimGovernor.Brain.Store.Store;
 
@@ -308,6 +309,7 @@ internal sealed partial class SpeedmatrixRun
         Journal? journal = null;
         ObservationReaders? readers = null;
         Func<Task<JsonObject>>? stopKeepAlive = null;
+        var started = DateTime.UtcNow;
         try
         {
             var h = HarnessFor(output);
@@ -338,9 +340,7 @@ internal sealed partial class SpeedmatrixRun
             report["service_state_attached"] = attached.DeepClone();
             var prefix = "speedmatrix-" + c.Name.ToLowerInvariant() + "-" + RandomSuffix();
             journal = await ServiceJournal.OpenWithRetryAsync(_config, cancellationToken).ConfigureAwait(false);
-
-            // The kept game's journal outlives a row, so the previous row's review (and its tick) is still in it.
-            var staleRevision = (await journal.LoadRoundsAsync(cancellationToken).ConfigureAwait(false)).Revision;
+            var rowWorld = Harness.IdentityOf(identity);
             var rootPlanId = await service.ResumeAsync(prefix, identity, token, report, cancellationToken).ConfigureAwait(false);
             report["root_plan"] = rootPlanId;
 
@@ -358,10 +358,9 @@ internal sealed partial class SpeedmatrixRun
 
             _ = await ServiceJournal.WaitRoundsAsync(service, journal, TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
 
-            // The target is game time: the wait ends once the tick the service last observed (its OTLP log ring's newest
-            // clock sample; the routine review's tick only moves once per full step) has
-            // advanced by the target past the reload tick. The signature is the tick itself, so a clock that stops advancing
-            // stalls the wait.
+            // The target is game time: the wait ends once the tick of the newest enabled review of the row's own load has
+            // advanced by the target past the reload tick. The signature is the tick itself, so a clock that stops
+            // advancing stalls the wait.
             ulong lastTick = 0;
             Exception? waitErr = null;
             try
@@ -370,7 +369,7 @@ internal sealed partial class SpeedmatrixRun
                     async ct =>
                     {
                         var review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-                        lastTick = review.Revision > staleRevision ? (ulong)review.Tick.Value : startTick;
+                        lastTick = ReviewedTick(review, rowWorld, startTick);
                         return (Wait.Signature(lastTick), lastTick >= startTick + _profile.Ticks);
                     },
                     cancellationToken).ConfigureAwait(false);
@@ -413,6 +412,14 @@ internal sealed partial class SpeedmatrixRun
             report["authority_reacquisitions"] = (await stopKeepAlive().ConfigureAwait(false)).DeepClone();
             stopKeepAlive = null;
             _ = await service.StopAsync().ConfigureAwait(false);
+
+            // The in-game brain writes its OTLP rings in the game's channel directory: the row's slice of them is its
+            // timeline, the same slice a cataloged case's evidence takes.
+            if (CaseEvidence.Capture(GameSessions.EndpointDirectory(_config.Configuration, _config.GameId), CaseRows.Of(_config, started), output) is { Length: > 0 } evidenceError)
+            {
+                throw new AcceptanceException("row evidence: " + evidenceError);
+            }
+
             var timeline = OtlpTimeline.Read(ServiceLogs.ServiceLogsPath(output));
             var phases = PhaseSummary.Summarize(timeline, accountingStart, accountingEnd);
             var holds = StopSummaries.SummarizeHolds(timeline, resumedAt.ToUnixTimeMilliseconds());
@@ -516,6 +523,21 @@ internal sealed partial class SpeedmatrixRun
 
         return (ulong)read.Tick;
     }
+
+    /// <summary>
+    /// The game tick a row has reached by its journal's <paramref name="review"/>: the review's tick once it is an enabled
+    /// review of the row's own load (<paramref name="row"/>, the reload's identity), the reload's
+    /// <paramref name="startTick"/> until then. The kept journal outlives a row, and its revision is no row marker:
+    /// resuming writes a disabled review that carries the previous row's world and tick forward under a new revision,
+    /// and a new world restarts the count.
+    /// </summary>
+    internal static ulong ReviewedTick(Rounds review, Common.Identity row, ulong startTick) =>
+        review.Enabled
+        && review.Snapshot.Colony.Value == row.ColonyId
+        && review.Snapshot.Load.Value == row.LoadToken
+        && review.Snapshot.Map.Value == row.MapId
+            ? (ulong)review.Tick.Value
+            : startTick;
 
     // Counts Unsuccessful action stages over every routine method the service dispatched.
     // LoadPlan sees retired plans; LoadPlans would hide them.

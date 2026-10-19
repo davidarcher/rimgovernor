@@ -107,6 +107,10 @@ Rows are `DefaultSpeedMatrix`
 (`brain/src/RimGovernor.Brain.Acceptance/SpeedMatrix`) outside the case runner and the catalog; per-row
 reports and `result.json` go to `-output` (default `<root>/acceptance/speedmatrix-<profile>`), `-timeout`
 (15m) bounds the run, and exit 0 is a pass, 1 a failed matrix, 2 a usage error.
+A governed row's timeline is its slice of the in-game brain's OTLP rings (`CaseEvidence`, as a cataloged
+case's evidence), written to `<row>/otlp/`; its tick-budget wait reads the newest enabled review of the row's own load
+(the kept journal's revision is no row marker: resuming writes a disabled review carrying the previous row's
+world and tick, and a new world restarts the count).
 `governor-off` plays the same save natively at the uncapped speed with no
 brain attached (the simulation ceiling): it reports only `ticks_advanced`,
 `wall_seconds`, `wall_tps` and is outside the outcome comparison.
