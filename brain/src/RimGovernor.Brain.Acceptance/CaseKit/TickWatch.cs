@@ -1,52 +1,6 @@
-using System.Globalization;
 using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
-
-/// <summary>
-/// Reports a game whose live tick has stopped advancing (or was never read) for longer than the limit: the game died,
-/// or it was relaunched to the main menu with no map loaded.
-/// </summary>
-internal sealed class TickStall
-{
-    private readonly TimeSpan _limit;
-    private ulong _last;
-    private bool _seen;
-    private DateTimeOffset _advanced;
-
-    internal TickStall(TimeSpan limit, DateTimeOffset now)
-    {
-        _limit = limit;
-        _advanced = now;
-    }
-
-    internal void Observe(ulong tick, DateTimeOffset now)
-    {
-        if (!_seen || tick != _last)
-        {
-            _last = tick;
-            _seen = true;
-            _advanced = now;
-        }
-    }
-
-    /// <summary>Restarts the clock after a deliberate pause (a checkpoint save).</summary>
-    internal void Reset(DateTimeOffset now) => _advanced = now;
-
-    /// <summary>The failure once the tick has been stuck past the limit, null before.</summary>
-    internal AcceptanceException? Check(DateTimeOffset now)
-    {
-        if (_limit <= TimeSpan.Zero || now - _advanced <= _limit)
-        {
-            return null;
-        }
-
-        var limit = WaitError.FormatDuration(_limit);
-        return !_seen
-            ? new AcceptanceException($"game tick unreadable for {limit}: the game is not running or has no map loaded")
-            : new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"game tick stuck at {_last} for {limit}: the game died or was relaunched with no map loaded"));
-    }
-}
 
 /// <summary>
 /// The report's record of the tick-measured watch window (<c>report["window"]</c>): the configured length, the first

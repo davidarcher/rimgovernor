@@ -71,6 +71,13 @@ public sealed record TypedCase
     /// <summary>The service <see cref="TypedSession.ServeUntilAsync"/> hands the clock to; null for a native-only case.</summary>
     public ServeSpec? Serve { get; init; }
 
+    /// <summary>
+    /// The clock-rate floor every wait of the body holds the game to, in ticks per second over a stall budget
+    /// (<see cref="ClockRate"/>; default <see cref="ClockRate.DefaultFloor"/>): a clock held or crawling below it fails
+    /// the wait with the clock's hold reason. A claim whose game legitimately stands still for a minute declares 0.
+    /// </summary>
+    public double MinTicksPerSecond { get; init; } = ClockRate.DefaultFloor;
+
     /// <summary>The assertion: production ops and reads over the staged precondition.</summary>
     public required Func<TypedSession, CancellationToken, Task> Run { get; init; }
 

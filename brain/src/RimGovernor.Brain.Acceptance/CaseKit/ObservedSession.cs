@@ -1,3 +1,5 @@
+using Common = RimGovernor.Contracts.Wire.Common;
+
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
@@ -19,6 +21,9 @@ public sealed class ObservedSession
     }
 
     public Harness Harness => _session.Harness;
+
+    /// <summary>The opened colony's identity, what the clock reads name.</summary>
+    public Common.Identity Identity => Harness.IdentityOf(_session.Identity);
 
     public Config Config { get; }
 

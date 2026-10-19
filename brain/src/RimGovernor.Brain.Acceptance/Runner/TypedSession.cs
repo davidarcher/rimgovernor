@@ -236,7 +236,7 @@ public sealed class TypedSession
                     _ = beat.Outcome?.Ack ?? throw new AcceptanceException($"{label}: heartbeat refused: {beat.Outcome}");
                     return (Wait.Signature(status.Context?.Tick, status.State), false);
                 },
-                new Wait { Stall = Wait.StallBudget(), Interval = TimeSpan.FromMilliseconds(250) },
+                ClockWait(TimeSpan.FromMilliseconds(250)),
                 cancellationToken).ConfigureAwait(false);
             _spent += ran;
             return status;
@@ -337,7 +337,7 @@ public sealed class TypedSession
                 ticks,
                 H.TickAsync,
                 probe,
-                new Wait { Stall = Wait.StallBudget(), Interval = RunAt.RunInterval, Terminal = service.Exited },
+                ClockWait(RunAt.RunInterval) with { Terminal = service.Exited },
                 cancellationToken).ConfigureAwait(false);
             _spent += ran;
             return ran;
@@ -588,7 +588,7 @@ public sealed class TypedSession
             H,
             label,
             (ulong)ticks,
-            new Wait { Stall = Wait.StallBudget() },
+            ClockWait(TimeSpan.Zero),
             probe,
             quiet: true,
             _s.Report,
@@ -597,6 +597,15 @@ public sealed class TypedSession
         _spent += spent;
         return spent;
     }
+
+    // Every wait that spends ticks: the stall budget, and the case's clock-rate floor naming the clock's hold when it fails.
+    private Wait ClockWait(TimeSpan interval) => new()
+    {
+        Stall = Wait.StallBudget(),
+        Interval = interval,
+        MinTicksPerSecond = _case.MinTicksPerSecond,
+        Clock = ct => ClockRate.DescribeAsync(H, Identity, ct),
+    };
 
     // The game's log ring: the channel directory the opened game writes its OTLP rings to.
     private string LogsPath()

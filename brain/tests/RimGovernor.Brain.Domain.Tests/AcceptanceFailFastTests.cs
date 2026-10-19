@@ -185,6 +185,46 @@ public sealed class AcceptanceFailFastTests : IDisposable
         Assert.Contains("no reply", failed.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void HeldClockFailsTheRateGuardAfterOneWindow()
+    {
+        var rate = new ClockRate(30, TimeSpan.FromSeconds(60));
+        Assert.Null(rate.Observe(600, TimeSpan.Zero));
+        Assert.Null(rate.Observe(600, TimeSpan.FromSeconds(59)));
+        var slow = rate.Observe(600, TimeSpan.FromSeconds(60));
+        Assert.NotNull(slow);
+        Assert.Contains("advanced 0 ticks in 1m0s from tick 600", slow, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CrawlingClockFailsWhileTheFloorRateStartsTheNextWindow()
+    {
+        // campaign/foothold's crawl (#3350): 738 ticks in 20 minutes changes a tick-carrying signature on every probe.
+        var rate = new ClockRate(30, TimeSpan.FromSeconds(60));
+        Assert.Null(rate.Observe(0, TimeSpan.Zero));
+        Assert.Null(rate.Observe(1800, TimeSpan.FromSeconds(60)));
+        Assert.Null(rate.Observe(1830, TimeSpan.FromSeconds(90)));
+        Assert.NotNull(rate.Observe(1837, TimeSpan.FromSeconds(120)));
+    }
+
+    [Fact]
+    public void CheckpointPauseIsShiftedOutOfTheWindow()
+    {
+        var rate = new ClockRate(30, TimeSpan.FromSeconds(60));
+        Assert.Null(rate.Observe(0, TimeSpan.Zero));
+        rate.Shift(TimeSpan.FromSeconds(50));
+        Assert.Null(rate.Observe(400, TimeSpan.FromSeconds(70)));
+        Assert.Null(rate.Observe(1800, TimeSpan.FromSeconds(110)));
+    }
+
+    [Fact]
+    public void UnreadableTickFailsTheRateGuardAfterOneWindow()
+    {
+        var rate = new ClockRate(30, TimeSpan.FromSeconds(60));
+        Assert.Null(rate.Observe(null, TimeSpan.Zero));
+        Assert.Contains("unreadable", rate.Observe(null, TimeSpan.FromSeconds(60)), StringComparison.Ordinal);
+    }
+
     private HttpNativeTransport Transport(Func<HttpRequestMessage, HttpResponseMessage> respond, Func<string?>? gone = null)
     {
         EndpointFile.Write(root, "http://127.0.0.1:1", Environment.ProcessId, "run");

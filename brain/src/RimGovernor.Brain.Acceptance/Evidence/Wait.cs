@@ -17,6 +17,7 @@ public enum WaitOutcome
     Ceiling,
     Terminal,
     Ticks,
+    Slow,
 }
 
 /// <summary>The failure <see cref="Wait.WaitProgressAsync"/> raises for its own bounds; a probe or cancellation error propagates as is.</summary>
@@ -89,6 +90,7 @@ public sealed class WaitError : AcceptanceException
         {
             WaitOutcome.Terminal => $"wait ended: {cause?.Message} (after {elapsedText}, last signature \"{signature}\")",
             WaitOutcome.Ticks => $"wait tick budget spent: {ticksElapsed} ticks of game time (signature \"{signature}\" unchanged for {quietText}, {elapsedText} elapsed, {rounds} probes)",
+            WaitOutcome.Slow => $"clock too slow: {cause?.Message} ({elapsedText} elapsed, last signature \"{signature}\")",
             WaitOutcome.Ceiling => $"wait ceiling {elapsedText} reached (signature \"{signature}\" unchanged for {quietText}, {rounds} probes)",
             _ => $"wait stalled: signature \"{signature}\" unchanged for {quietText} ({elapsedText} elapsed, {rounds} probes)",
         };
@@ -148,6 +150,17 @@ public sealed record Wait
     /// <summary>Reads the current game tick.</summary>
     public Func<CancellationToken, Task<ulong>>? Tick { get; init; }
 
+    /// <summary>
+    /// The clock-rate floor in ticks per second, with <see cref="Tick"/> set (<see cref="ClockRate"/>): the wait fails
+    /// once the game advanced slower than this over a whole stall budget, naming the clock <see cref="Clock"/>
+    /// describes. Zero disables it. Stall alone misses a clock that crawls, since each crawled tick changes a
+    /// signature that carries the tick.
+    /// </summary>
+    public double MinTicksPerSecond { get; init; }
+
+    /// <summary>Describes the clock when <see cref="MinTicksPerSecond"/> fails the wait: its hold reason, speed and pacing.</summary>
+    public Func<CancellationToken, Task<string>>? Clock { get; init; }
+
     /// <summary><see cref="StallEnv"/>'s duration, or <see cref="DefaultStall"/> when unset or unparsable.</summary>
     public static TimeSpan StallBudget()
     {
@@ -185,6 +198,8 @@ public sealed record Wait
         var rounds = 0;
         ulong startTick = 0;
         ulong ticksElapsed = 0;
+        ulong? tickNow = null;
+        var rate = MinTicksPerSecond > 0 && Tick is not null ? new ClockRate(MinTicksPerSecond, StallBudget()) : null;
 
         // The longest the signature stayed unchanged, including the final span when the wait ends; Finalize reports the run's maximum.
         var longest = TimeSpan.Zero;
@@ -203,6 +218,7 @@ public sealed record Wait
                 if (Tick is not null)
                 {
                     var tick = await Tick(cancellationToken).ConfigureAwait(false);
+                    tickNow = tick;
                     if (rounds == 0)
                     {
                         startTick = tick;
@@ -234,6 +250,14 @@ public sealed record Wait
                 }
 
                 var quiet = now - lastChange;
+
+                // Before the stall: a held clock also stops a signature that carries the tick, and the slow clock names its hold.
+                if (rate?.Observe(tickNow, now) is { } slow)
+                {
+                    var described = Clock is null ? slow : slow + "; " + await Clock(cancellationToken).ConfigureAwait(false);
+                    throw new WaitError(WaitOutcome.Slow, last, quiet, now - start, rounds, new AcceptanceException(described), ticksElapsed);
+                }
+
                 if (Ticks > 0 && Tick is not null && ticksElapsed > Ticks)
                 {
                     throw new WaitError(WaitOutcome.Ticks, last, quiet, now - start, rounds, null, ticksElapsed);
@@ -256,6 +280,7 @@ public sealed record Wait
                 {
                     start += took;
                     lastChange += took;
+                    rate?.Shift(took);
                 }
 
                 await pace.NextAsync(cancellationToken).ConfigureAwait(false);

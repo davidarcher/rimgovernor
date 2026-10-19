@@ -60,6 +60,13 @@ identity), `Staged` and `TicksLeft`. Its members:
   `TypedReads.Observed` unwraps a read's `observed` arm.
 - **Waits:** `RunTicksAsync`, `RunUntilAsync` (a `Probe` signature) and `RunUntilEventAsync` (a telemetry row).
   Each spends from `Ticks`, and a wait past what is left fails before the game runs.
+- **Clock-rate floor:** every wait that spends ticks (the waits above, `RunClockUntilHeldAsync`, `ServeUntilAsync`)
+  and the serve-driven watch (`SustainedFood`) fail once the game advanced slower than the case's `MinTicksPerSecond`
+  (default `ClockRate.DefaultFloor`, 30 ticks/s) over a whole stall budget. The error starts `clock too slow` and
+  names the clock as `clock_read_status` reports it: held with its reason and detail, or running with its target speed
+  and pacing. A held or crawling clock ends the run in about a minute; a crawl changes a tick-carrying signature on
+  every probe, so the signature stall alone misses it. A claim whose game legitimately stands still for a minute
+  declares 0. `smoke/clock-stall` injects a crawl and proves it.
 - **Native clock:** `RunClockUntilHeldAsync(label, ticks, runRequest)` runs the native clock under the request's
   watch policy (combat mode, armed stop events, health thresholds) until the clock holds itself, beating while it
   runs, and returns the held `Clock.Status` (reason, detail, combat event, tick, `HeldAtUnixMs`). It spends from

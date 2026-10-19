@@ -8,5 +8,7 @@ public static class SmokeCases
     {
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(SmokeIdentity.Case());
+        registry.Register(SmokeClockStall.Case());
+        registry.Register(SmokeClockHeld.Case());
     }
 }

@@ -49,11 +49,11 @@ public sealed record WatchConfig
     public IReadOnlyList<string> Extra { get; init; } = [];
 
     /// <summary>
-    /// Ends the window with an error once the live game tick has not advanced for this long of watch time (default
-    /// <see cref="SustainedFood.DefaultTickStall"/>; checkpoint captures do not count). A game that died and was
-    /// relaunched sits at the main menu with no map, so without this the case waits out its whole Watch ceiling.
+    /// Ends the window with the clock's hold reason once the live game tick advanced slower than this many ticks per
+    /// second over a stall budget of watch time (<see cref="ClockRate"/>; checkpoint captures do not count). A held,
+    /// starved or dead game (a relaunch sits at the main menu with no map) otherwise waits out the whole Watch ceiling.
     /// </summary>
-    public TimeSpan TickStall { get; init; }
+    public double MinTicksPerSecond { get; init; } = ClockRate.DefaultFloor;
 }
 
 /// <summary>
@@ -84,8 +84,6 @@ public static class SustainedFood
     /// <summary>The wall-clock ceiling between samples of an unset <see cref="WatchConfig.Poll"/>.</summary>
     public static readonly TimeSpan DefaultPoll = TimeSpan.FromSeconds(5);
 
-    public static readonly TimeSpan DefaultTickStall = TimeSpan.FromMinutes(3);
-
     /// <summary>
     /// The serve-driven family's observation window on a service just started (not yet acquired): it acquires player
     /// authority and keeps it granted, confirms the scheduler reaches automate with a persisted rounds, then samples
@@ -95,16 +93,16 @@ public static class SustainedFood
     /// and timeline_samples on <paramref name="report"/> (also when it fails) and appends every sample to
     /// <paramref name="timeline"/>; the caller stops the service.
     /// </summary>
-    internal static async Task WatchAsync(ServiceProcess service, Config config, WatchConfig cfg, Report report, ICollection<WatchSample> timeline, CancellationToken cancellationToken)
+    internal static async Task WatchAsync(ServiceProcess service, Config config, WatchConfig cfg, Report report, ICollection<WatchSample> timeline, Func<CancellationToken, Task<string>> clock, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(service);
+        ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(cfg);
         ArgumentNullException.ThrowIfNull(report);
         ArgumentNullException.ThrowIfNull(timeline);
 
         var poll = cfg.Poll > TimeSpan.Zero ? cfg.Poll : DefaultPoll;
         var pollTicks = cfg.PollTicks == 0 ? DefaultPollTicks : cfg.PollTicks;
-        var tickStallLimit = cfg.TickStall > TimeSpan.Zero ? cfg.TickStall : DefaultTickStall;
         var wake = cfg.Wake ?? RowKinds.WorkerOutcome;
         ServiceApiCall apiCall = service.ApiAsync;
 
@@ -174,7 +172,8 @@ public static class SustainedFood
         var watchDeadline = watchStarted + cfg.Watch;
         var stepped = false;
         var tail = LogTail.Create(service.LogPath);
-        var stall = new TickStall(tickStallLimit, DateTimeOffset.UtcNow);
+        var watchClock = Stopwatch.StartNew();
+        var rate = cfg.MinTicksPerSecond > 0 ? new ClockRate(cfg.MinTicksPerSecond, Wait.StallBudget()) : null;
         var wakes = 0;
         var tickPolls = 0;
         var wallPolls = 0;
@@ -216,7 +215,6 @@ public static class SustainedFood
                 if (liveTick is { } tick)
                 {
                     window.Observe(tick);
-                    stall.Observe(tick, DateTimeOffset.UtcNow);
                 }
 
                 var sample = new WatchSample
@@ -230,9 +228,10 @@ public static class SustainedFood
                     Colony = await SustainedColonySample.SampleColonyAsync(apiCall, cancellationToken).ConfigureAwait(false),
                 };
                 timeline.Add(sample);
-                if (stall.Check(DateTimeOffset.UtcNow) is { } stalled)
+                if (rate?.Observe(liveTick, watchClock.Elapsed) is { } slow)
                 {
-                    report["fail_fast"] = new JsonObject { { "kind", "tick_stall" }, { "error", stalled.Message }, { "colony", sample.Colony.ToJson() } };
+                    var stalled = new AcceptanceException("clock too slow: " + slow + "; " + await clock(cancellationToken).ConfigureAwait(false));
+                    report["fail_fast"] = new JsonObject { { "kind", "clock_slow" }, { "error", stalled.Message }, { "colony", sample.Colony.ToJson() } };
                     throw stalled;
                 }
 
@@ -253,7 +252,7 @@ public static class SustainedFood
                 if (took > TimeSpan.Zero)
                 {
                     watchDeadline += took;
-                    stall.Reset(DateTimeOffset.UtcNow);
+                    rate?.Shift(took);
                 }
 
                 switch (await WaitNextSampleAsync(apiCall, tail, wake, pollTicks, poll, liveTick ?? 0, watchDeadline, cancellationToken).ConfigureAwait(false))
@@ -407,7 +406,7 @@ public static class SustainedFood
         {
             try
             {
-                await WatchAsync(service, session.Config, o.Watch, report, timeline, cancellationToken).ConfigureAwait(false);
+                await WatchAsync(service, session.Config, o.Watch, report, timeline, ct => ClockRate.DescribeAsync(session.Harness, session.Identity, ct), cancellationToken).ConfigureAwait(false);
             }
             finally
             {
