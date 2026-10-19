@@ -113,14 +113,22 @@ public sealed partial class Report
             this["wait_stats"] = WaitStatistics.Snapshot();
         }
 
+        StampInstalledPackage();
+        this[Metrics.MetricsKey] = Metrics.Compute(this, output).ToJson();
+        Write(output);
+        return Passed ? 0 : 1;
+    }
+
+    /// <summary>
+    /// Records the run's <c>installed_package</c> (<see cref="RunState.InstalledPackage"/>) unless the report has one:
+    /// Finalize does, and the failure digest before it, which reads the source revision from it.
+    /// </summary>
+    internal void StampInstalledPackage()
+    {
         if (!Has("installed_package") && RunState.InstalledPackage is { } installed)
         {
             this["installed_package"] = installed.DeepClone();
         }
-
-        this[Metrics.MetricsKey] = Metrics.Compute(this, output).ToJson();
-        Write(output);
-        return Passed ? 0 : 1;
     }
 
     /// <summary>

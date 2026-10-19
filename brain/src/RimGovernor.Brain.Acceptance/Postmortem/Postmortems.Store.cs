@@ -207,6 +207,68 @@ public static class PostmortemStore
         return s;
     }
 
+    // --- 3b. refused needs (raw store) -------------------------------------
+
+    /// <summary>
+    /// Lists the case's refused Need verdicts (<c>need_transitions</c> rows, <see cref="CaseRows.TransitionsPredicate"/>)
+    /// with their cause and subject: a planner that refused never journals a plan stage, so these are the refusals the
+    /// stage section cannot show. Repeats of one need, cause and subject fold into one line, latest last.
+    /// </summary>
+    internal static DigestSection RefusedNeeds(SqliteConnection? db, string note, CaseRows store)
+    {
+        var s = new DigestSection("refused needs");
+        if (db is null)
+        {
+            s.Note = note;
+            return s;
+        }
+
+        try
+        {
+            using var command = db.CreateCommand();
+            command.CommandText = $"SELECT need, cause, subject, count(*), min(tick), max(tick), max(sequence) FROM need_transitions WHERE verdict='refused' AND {store.TransitionsPredicate} GROUP BY need, cause, subject ORDER BY max(sequence)";
+            store.Bind(command);
+            using var reader = command.ExecuteReader();
+            var total = 0;
+            while (reader.Read())
+            {
+                total++;
+                if (s.Lines.Count >= Postmortems.MaxLines)
+                {
+                    continue;
+                }
+
+                var text = string.Create(CultureInfo.InvariantCulture, $"need {reader.GetString(0)} refused: {reader.GetString(1)}");
+                if (reader.GetString(2) is { Length: > 0 } subject)
+                {
+                    text += " " + subject;
+                }
+
+                var count = reader.GetInt64(3);
+                text += count == 1
+                    ? string.Create(CultureInfo.InvariantCulture, $" at tick {reader.GetInt64(4)}")
+                    : string.Create(CultureInfo.InvariantCulture, $" x{count}, ticks {reader.GetInt64(4)}..{reader.GetInt64(5)}");
+                s.Lines.Add(new DigestLine(text, string.Create(CultureInfo.InvariantCulture, $"service.sqlite need_transitions#{reader.GetInt64(6)}")));
+            }
+
+            if (total > s.Lines.Count)
+            {
+                s.Lines.Add(new DigestLine(string.Create(CultureInfo.InvariantCulture, $"... {total - s.Lines.Count} more"), "service.sqlite need_transitions"));
+            }
+
+            if (total == 0)
+            {
+                s.Note = "no refused verdict in need_transitions";
+            }
+        }
+        catch (SqliteException e)
+        {
+            s.Note = "need_transitions: " + e.Message;
+        }
+
+        return s;
+    }
+
     // --- 4. unsuccessful stages (raw store) --------------------------------
 
     /// <summary>
@@ -304,9 +366,12 @@ public static class PostmortemStore
                     }
 
                     var tick = Int64Of(Field(evt, "Tick"));
+                    var refusal = Field(evt, "Refusal");
                     var text = unsuccessful
                         ? string.Create(CultureInfo.InvariantCulture, $"{action} ({what}) unsuccessful at tick {tick}: {Field(observation, "UnsuccessfulReason").AsString()}")
-                        : string.Create(CultureInfo.InvariantCulture, $"{action} ({what}) receipt {receipt} at tick {tick}");
+                        : refusal is null
+                            ? string.Create(CultureInfo.InvariantCulture, $"{action} ({what}) receipt {receipt} at tick {tick}")
+                            : string.Create(CultureInfo.InvariantCulture, $"{action} ({what}) receipt {receipt} at tick {tick}: {Field(refusal, "Code").AsString()} {Field(refusal, "Reason").AsString()}");
                     s.Lines.Add(new DigestLine(text, string.Create(CultureInfo.InvariantCulture, $"service.sqlite transitions#{sequence}")));
                 }
             }

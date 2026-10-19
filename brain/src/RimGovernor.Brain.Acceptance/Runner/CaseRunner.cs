@@ -237,9 +237,11 @@ public sealed class CaseRunner
 
     // Writes the postmortem digest of a failed case onto the report ("diagnosis", which Finalize emits first) and to
     // output/diagnosis.txt, read from the evidence the run left behind and the case's rows of the live store. It is
-    // collected under the caller's token, not the run's, which a timeout may already have cut.
-    private static Digest Diagnose(string output, Report report, CaseRows store, CancellationToken cancellationToken)
+    // collected under the caller's token, not the run's, which a timeout may already have cut. The report gets its
+    // installed_package first, which Finalize would add only after, so the revision section reads the source revision.
+    internal static Digest Diagnose(string output, Report report, CaseRows store, CancellationToken cancellationToken)
     {
+        report.StampInstalledPackage();
         Digest digest;
         try
         {

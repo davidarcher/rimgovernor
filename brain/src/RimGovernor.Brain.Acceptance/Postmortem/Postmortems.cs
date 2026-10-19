@@ -60,6 +60,7 @@ public static class Postmortems
         using (db)
         {
             sections.Add(PostmortemStore.RoundsSection(db, storeNote, store));
+            sections.Add(PostmortemStore.RefusedNeeds(db, storeNote, store));
             sections.Add(PostmortemExtent.ExtentEligibility(dir));
             sections.Add(PostmortemStore.UnsuccessfulStages(db, storeNote, store));
             sections.Add(JobFailures(rows));

@@ -245,7 +245,7 @@ reply from the runner.
 Each case writes `result.json`, native-call/service evidence, its game-log
 slice and the brain's evidence as bounded text: `otlp/logs.jsonl` and
 `otlp/traces.jsonl` (the game ring lines written since the case started) and
-`store/need_methods.jsonl` / `store/need_transitions.jsonl` (caps in
+`store/need_methods.jsonl` / `store/need_transitions.jsonl` / `store/transitions.jsonl` (caps in
 [remote acceptance](../contracts/remote-acceptance.md)). Failures add `diagnosis.txt`; `acceptance why` reads the same digest.
 The report's `world` records seed, save hash and fixture hash. Large replies
 are capped by default; `-evidence full` retains them. Acknowledging an

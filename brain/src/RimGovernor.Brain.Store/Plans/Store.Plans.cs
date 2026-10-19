@@ -273,6 +273,12 @@ public sealed partial class Store
                 throw new DomainException("dispatch predates latest admission observation");
             }
         }
+        if (ev.Kind == TransitionKind.Receipt)
+        {
+            // Native answers a dispatch in the same request, so a receipt journals its attempt's dispatch (or
+            // withdrawal) tick, which the failure digest reports a refusal at.
+            ev = ev with { Tick = current.View.Tick };
+        }
         var next = ev.Apply(current);
         _ = tx.ExecuteForPlan(plan, "INSERT INTO transitions(action_id,payload) VALUES($action,$payload)", ("$action", action), ("$payload", StoreJson.Serialize(ev)));
         return next;

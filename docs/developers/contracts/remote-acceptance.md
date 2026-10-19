@@ -172,23 +172,26 @@ The in-mod brain writes its OTLP rings to the game's channel directory, outside 
 At case end, before the postmortem, the runner (`CaseEvidence`) writes the case's brain evidence
 into the output as bounded text: `<case>/otlp/logs.jsonl` and `traces.jsonl`, the ring lines whose
 latest timestamp is at or after the case's start (rotated segments included), and
-`<case>/store/need_methods.jsonl` and `need_transitions.jsonl`, one JSON object per row of those
-tables, oldest first, from the store the brain is writing: the `RIMGOVERNOR_STATE` the game was
+`<case>/store/need_methods.jsonl`, `need_transitions.jsonl` and `transitions.jsonl` (the plan
+stages, each `payload` a JSON string; a receipt carries its attempt's dispatch tick and native's
+refusal), one JSON object per row of those tables, oldest first, from the store the brain is writing: the `RIMGOVERNOR_STATE` the game was
 launched with (`ServiceJournal.PathOf`), which for a kept game is the `service.sqlite` of the
 earlier case that launched it. Only the case's rows are kept (`CaseRows`): `need_transitions`
 whose `wall_ms` is at or after the case's start, and `need_methods` whose `load_token` is the
-case's load. No table ties a load token to wall time, so the case's load is the one the standing
+case's load, and `transitions` from the first one whose snapshot names that load. No table ties a load token to wall time, so the case's load is the one the standing
 review (`rounds`) names: every load's world rebuild clears the review, so at case end it is the
 case's last load, provided a `need_transitions` row falls in the window (otherwise it could be an
 earlier case's, and no methods are dumped). A case that reloads keeps only its last load's methods.
-The failure digest (`diagnosis.txt`) reads the same store and rows, and its plan-stage sections
-read the `transitions` from the first one whose snapshot names the case's load. `acceptance why`, run later
+The failure digest (`diagnosis.txt`) reads the same store and rows: the case's refused Need
+verdicts with cause and subject, and the plan stages' unsuccessful observations and refused
+receipts with tick and reason. It runs before the report is finalized, so it stamps the run's
+`installed_package` itself to read the source revision. `acceptance why`, run later
 without the launch, reads the output's own `service.sqlite` whole. When that store exists (the
 brain ran) and the log ring has no line since the case started, `case_evidence_error` says so.
 The raw `.sqlite` never leaves the runner. Caps:
 logs 16 MiB, traces 32 MiB (spans carry the brain's step timing and outrun the logs), each store
 table 4 MiB. A served case logs about 1 MB a minute, so a quarter-hour case fits whole, and a
-case's worst case stays under 56 MiB raw. Over its cap a file keeps its newest lines (nearest a
+case's worst case stays under 60 MiB raw. Over its cap a file keeps its newest lines (nearest a
 failure) and its first line is `{"export_truncated":{"cap_bytes":…,"dropped_lines":…,"dropped_bytes":…,"kept":"newest"}}`,
 which OTLP readers skip. The metrics ring is not copied: its instruments are cumulative per
 process, so a slice of a kept process would charge the case with earlier cases' totals. A capture

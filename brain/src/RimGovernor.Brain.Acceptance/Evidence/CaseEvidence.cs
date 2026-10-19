@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// Puts the in-mod brain's evidence of one case into the case output as bounded text, so the remote exporter (which
 /// carries only text diagnostics) publishes it (#3437): the lines of the game's OTLP log and trace rings written since
 /// the case started, as <c>&lt;output&gt;/otlp/logs.jsonl</c> and <c>traces.jsonl</c>, and the store's
-/// <c>need_methods</c> and <c>need_transitions</c> tables as <c>&lt;output&gt;/store/&lt;table&gt;.jsonl</c>, one row
+/// <c>need_methods</c>, <c>need_transitions</c> and <c>transitions</c> tables as <c>&lt;output&gt;/store/&lt;table&gt;.jsonl</c>, one row
 /// per line. A file over its cap keeps its newest lines and begins with a <see cref="TruncatedKey"/> line saying what
 /// was dropped. The metrics ring is not sliced: its instruments are cumulative per process, so a slice of a kept
 /// process would charge the case with earlier cases' totals.
@@ -33,7 +33,7 @@ public static class CaseEvidence
     /// <summary>The trace slice's cap: spans (the brain's step and hop timing) run up to several times the log volume.</summary>
     public const long TraceCapBytes = 32L << 20;
 
-    /// <summary>Each store dump's cap: the method and transition journals of a case are kilobytes; the cap only bounds a runaway.</summary>
+    /// <summary>Each store dump's cap: the method, need and plan-stage journals of a case are kilobytes; the cap only bounds a runaway.</summary>
     public const long StoreCapBytes = 4L << 20;
 
     private static readonly byte[] NanoField = "UnixNano\":\""u8.ToArray();
@@ -124,7 +124,8 @@ public static class CaseEvidence
 
     /// <summary>
     /// Dumps the case's rows (<see cref="CaseRows"/>) of the store tables a failed case is diagnosed from,
-    /// <c>need_methods</c> and <c>need_transitions</c> (declared in SQL only: StateMirror, Timelines), to
+    /// <c>need_methods</c> and <c>need_transitions</c> (declared in SQL only: StateMirror, Timelines) and the plan
+    /// stages' <c>transitions</c> (each payload, a receipt's refusal included, as a JSON string), to
     /// <c>&lt;output&gt;/store/&lt;table&gt;.jsonl</c>, oldest row first.
     /// </summary>
     internal static void DumpStore(CaseRows store, string output)
@@ -142,7 +143,7 @@ public static class CaseEvidence
 
         using (db)
         {
-            foreach (var (table, window) in new[] { ("need_methods", store.MethodsPredicate), ("need_transitions", store.TransitionsPredicate) })
+            foreach (var (table, window) in new[] { ("need_methods", store.MethodsPredicate), ("need_transitions", store.TransitionsPredicate), ("transitions", store.StagesPredicate) })
             {
                 if (!HasTable(db, table))
                 {

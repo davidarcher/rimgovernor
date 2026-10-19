@@ -18,7 +18,8 @@ internal enum TransitionKind
 
 /// <summary>
 /// One journaled step of an action's progress: a private persistence boundary, not a second progress model. Replaying an action's transitions through <see cref="Apply"/> rebuilds its
-/// <see cref="Progress"/>. Only the fields a kind uses are written.
+/// <see cref="Progress"/>. Only the fields a kind uses are written, and a receipt's tick, which replay does not read
+/// but the failure digest does.
 /// </summary>
 internal sealed record Transition(TransitionKind Kind)
 {
@@ -163,7 +164,7 @@ internal sealed class TransitionConverter : ObjectCodec<Transition>
         {
             w.Put("Snapshot", v.Snapshot, o);
         }
-        if (v.Kind is TransitionKind.Prepare or TransitionKind.Dispatch or TransitionKind.Hold or TransitionKind.Withdraw)
+        if (v.Kind is TransitionKind.Prepare or TransitionKind.Dispatch or TransitionKind.Receipt or TransitionKind.Hold or TransitionKind.Withdraw)
         {
             w.Put("Tick", v.Tick, o);
         }
